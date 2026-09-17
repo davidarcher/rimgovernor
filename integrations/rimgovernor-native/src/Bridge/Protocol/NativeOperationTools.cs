@@ -49,6 +49,7 @@ namespace HomeBridge.BridgeTools
         internal readonly Dictionary<Common.AttemptKey, NativeNamingRecord> Naming = new Dictionary<Common.AttemptKey, NativeNamingRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeBedAssignRecord> BedAssignments = new Dictionary<Common.AttemptKey, NativeBedAssignRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeExcavationRecord> Excavation = new Dictionary<Common.AttemptKey, NativeExcavationRecord>();
+        internal readonly Dictionary<Common.AttemptKey, NativeWallRemovalRecord> WallRemovals = new Dictionary<Common.AttemptKey, NativeWallRemovalRecord>();
         private NativeOperationState(Common.Identity identity)
         { colony = identity.ColonyId; load = identity.LoadToken; Ledger = new NativeAttemptLedger(identity); }
         internal static bool TryGet(Common.Identity identity, out NativeOperationState state)
@@ -159,6 +160,10 @@ namespace HomeBridge.BridgeTools
                 return NativeBedAssignOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.ExcavateCell)
                 return NativeExcavationOperations.Execute(state, request, context);
+            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.RemoveWall)
+                return NativeWallRemovalOperations.Execute(state, request, context);
+            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.ReleaseWallRemovals)
+                return NativeWallRemovalOperations.ExecuteRelease(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.DeleteZone)
                 return NativeZoneDeletion.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.EditZoneCells)
@@ -290,6 +295,10 @@ namespace HomeBridge.BridgeTools
                     return ProtoBoundary.Encode(NativeBedAssignOperations.Preview(parsed.Operation.AssignBed, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.ExcavateCell)
                     return ProtoBoundary.Encode(NativeExcavationOperations.Preview(parsed.Operation.ExcavateCell, context));
+                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.RemoveWall)
+                    return ProtoBoundary.Encode(NativeWallRemovalOperations.Preview(parsed.Operation.RemoveWall, context));
+                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.ReleaseWallRemovals)
+                    return ProtoBoundary.Encode(NativeWallRemovalOperations.PreviewRelease(parsed.Operation.ReleaseWallRemovals, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.DeleteZone)
                     return ProtoBoundary.Encode(NativeZoneDeletion.Preview(parsed.Operation.DeleteZone, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.EditZoneCells)
@@ -431,6 +440,9 @@ namespace HomeBridge.BridgeTools
                     NativeExcavationRecord excavation;
                     if (state.Excavation.TryGetValue(parsed.Attempt, out excavation))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = excavation.Observe(parsed.Attempt, context) }));
+                    NativeWallRemovalRecord wallRemoval;
+                    if (state.WallRemovals.TryGetValue(parsed.Attempt, out wallRemoval))
+                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = wallRemoval.Observe(parsed.Attempt, context) }));
                     NativeZoneEditRecord zoneEdit;
                     if (state.ZoneEdits.TryGetValue(parsed.Attempt, out zoneEdit))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = zoneEdit.Observe(parsed.Attempt, context) }));

@@ -41,7 +41,7 @@
     <Compile Include="../../../../scripts/fixtures/HomeCoverageFixture.cs" Condition="'$(UpkeepFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/SleepingFixture.cs" Condition="'$(UpkeepFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/StoreroomFixture.cs" Condition="'$(UpkeepFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/WallUpgradeFixture.cs" Condition="'$(UpkeepFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/WallUpgradeFixture.cs" Condition="'$(UpkeepFixture)' == 'true' Or '$(WallUpgradeFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/MedicineFixture.cs" Condition="'$(UpkeepFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/AnimalContainmentFixture.cs" Condition="'$(UpkeepFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/AnimalFeedFixture.cs" Condition="'$(UpkeepFixture)' == 'true'" />
