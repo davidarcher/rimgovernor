@@ -23,6 +23,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/haul"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/melee"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/mineacquisition"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/movement"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/ranged"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/rescue"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/supply"
@@ -113,6 +114,7 @@ type buildingServiceBridge struct {
 	clockReads          serviceClockReads
 	melee               *melee.MeleeCapabilities
 	ranged              *ranged.RangedCapabilities
+	movement            *movement.MovementCapabilities
 	tend                *tend.TendCapabilities
 	rescue              *rescue.RescueCapabilities
 	capture             *capture.CaptureCapabilities
@@ -209,6 +211,10 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
+	movementControl, err := bridge.NewMovementControl(client)
+	if err != nil {
+		return buildingServiceBridge{}, errors.Join(err, client.Close())
+	}
 	pawnOrder, err := bridge.NewPawnOrderControl(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
@@ -277,6 +283,7 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		draft:               &draft.DraftCapabilities{Native: client, Writer: drafts, Cleanup: cleanup},
 		melee:               &melee.MeleeCapabilities{Native: client, Writer: attack},
 		ranged:              &ranged.RangedCapabilities{Native: client, Writer: attack},
+		movement:            &movement.MovementCapabilities{Native: client, Writer: movementControl},
 		tend:                &tend.TendCapabilities{Native: client, Writer: pawnOrder},
 		rescue:              &rescue.RescueCapabilities{Native: client, Writer: pawnOrder},
 		capture:             &capture.CaptureCapabilities{Native: client, Writer: pawnOrder},
@@ -472,11 +479,12 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	}
 	var meleeCapabilities *melee.MeleeCapabilities
 	var rangedCapabilities *ranged.RangedCapabilities
+	var movementCapabilities *movement.MovementCapabilities
 	if config.routineDefensePlans {
-		if client.melee == nil || client.ranged == nil {
-			return errors.New("defense plans require typed melee and ranged capabilities")
+		if client.melee == nil || client.ranged == nil || client.movement == nil {
+			return errors.New("defense plans require typed melee, ranged and movement capabilities")
 		}
-		meleeCapabilities, rangedCapabilities = client.melee, client.ranged
+		meleeCapabilities, rangedCapabilities, movementCapabilities = client.melee, client.ranged, client.movement
 	}
 	var tendCapabilities *tend.TendCapabilities
 	if config.routineTendPlans {
@@ -615,6 +623,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		Clock:               clockCapabilities,
 		Melee:               meleeCapabilities,
 		Ranged:              rangedCapabilities,
+		Movement:            movementCapabilities,
 		Tend:                tendCapabilities,
 		Rescue:              rescueCapabilities,
 		Capture:             captureCapabilities,

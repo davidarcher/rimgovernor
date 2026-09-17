@@ -17,6 +17,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/haul"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/melee"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/mineacquisition"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/movement"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/ranged"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/rescue"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/supply"
@@ -44,6 +45,7 @@ type SessionConfig struct {
 	Melee           *melee.MeleeCapabilities
 	Haul            *haul.HaulCapabilities
 	Ranged          *ranged.RangedCapabilities
+	Movement        *movement.MovementCapabilities
 	Tend            *tend.TendCapabilities
 	Rescue          *rescue.RescueCapabilities
 	Capture         *capture.CaptureCapabilities
@@ -211,6 +213,9 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.Ranged != nil && (config.Ranged.Native == nil || config.Ranged.Writer == nil || config.Draft == nil) {
 		return nil, errors.New("complete ranged and draft capabilities required")
 	}
+	if config.Movement != nil && (config.Movement.Native == nil || config.Movement.Writer == nil || config.Draft == nil) {
+		return nil, errors.New("complete movement and draft capabilities required")
+	}
 	if config.Clock != nil && (config.Clock.Native == nil || config.Clock.Writer == nil) {
 		return nil, errors.New("complete clock capabilities required")
 	}
@@ -268,6 +273,16 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 			return cleanup(ErrControl)
 		}
 		rangedBoundary, err = ranged.NewRangedBoundary(config.Ranged.Native, config.Ranged.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
+		if err != nil {
+			return cleanup(err)
+		}
+	}
+	var movementBoundary *movement.MovementBoundary
+	if config.Movement != nil {
+		if config.Movement.Native == nil || config.Movement.Writer == nil {
+			return cleanup(ErrControl)
+		}
+		movementBoundary, err = movement.NewMovementBoundary(config.Movement.Native, config.Movement.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
 		if err != nil {
 			return cleanup(err)
 		}
@@ -347,12 +362,20 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	}
 	routine := []executor.RoutineScope{planAuthorizer{journal, config.RoutineMethods}}
 	switch {
+	case meleeBoundary != nil && rangedBoundary != nil && movementBoundary != nil:
+		worker, err = executor.NewWithMeleeRangedAndMovement(journal, place, draftBoundary, meleeBoundary, rangedBoundary, movementBoundary, clock, config.Executor, routine...)
 	case meleeBoundary != nil && rangedBoundary != nil:
 		worker, err = executor.NewWithMeleeAndRanged(journal, place, draftBoundary, meleeBoundary, rangedBoundary, clock, config.Executor, routine...)
+	case meleeBoundary != nil && movementBoundary != nil:
+		worker, err = executor.NewWithMeleeAndMovement(journal, place, draftBoundary, meleeBoundary, movementBoundary, clock, config.Executor, routine...)
+	case rangedBoundary != nil && movementBoundary != nil:
+		worker, err = executor.NewWithRangedAndMovement(journal, place, draftBoundary, rangedBoundary, movementBoundary, clock, config.Executor, routine...)
 	case meleeBoundary != nil:
 		worker, err = executor.NewWithMelee(journal, place, draftBoundary, meleeBoundary, clock, config.Executor, routine...)
 	case rangedBoundary != nil:
 		worker, err = executor.NewWithRanged(journal, place, draftBoundary, rangedBoundary, clock, config.Executor, routine...)
+	case movementBoundary != nil:
+		worker, err = executor.NewWithMovement(journal, place, draftBoundary, movementBoundary, clock, config.Executor, routine...)
 	case draftBoundary != nil:
 		worker, err = executor.NewWithDraft(journal, place, draftBoundary, clock, config.Executor, routine...)
 	default:

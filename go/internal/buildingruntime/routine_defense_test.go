@@ -68,9 +68,10 @@ func TestRoutineDefenseRequiresConsistentCompletePawnDetails(t *testing.T) {
 
 func TestHoldTheLineActionKindsAreRoutineExecutable(t *testing.T) {
 	t.Parallel()
-	// The hold plan drafts and then fires; the worker must be able
-	// to dispatch each kind or the plan sits pending forever (M4, #5).
-	for _, kind := range []domain.ActionKind{domain.OwnedDraftAction, domain.RangedAttackAction} {
+	// The hold plan drafts, moves to the firing cell and then fires; the
+	// worker must be able to dispatch each kind or the plan sits pending
+	// forever (M4, #5; movement restored under #68).
+	for _, kind := range []domain.ActionKind{domain.OwnedDraftAction, domain.MovementAction, domain.RangedAttackAction} {
 		if !routineExecutableKind(kind) {
 			t.Fatalf("%s is not routine-executable", kind)
 		}

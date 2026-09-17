@@ -23,6 +23,7 @@ what each action must observe.
 | `trade` | Guarded open/stage/preview/accept with participant, content and silver-budget checks; hauling/storage remain separate. |
 | Caravan formation and travel | Exact living crew with observed loaded departure, destination arrival or home-map return; assembly and route receipts alone do not complete travel. |
 | Quest acceptance | Fresh scoped acceptance tick; native quest success remains a separate observed state. |
+| `movement` (hold-the-line positioning) | Walk-to-cell order layered on the defender's owned draft, admitted only while the draft claim is current and native previews the `Goto` job. Completion is the verified job observed finished on a later native tick; the receipt alone proves nothing about arrival, and arrival certifies position, not combat outcome. The hold plan's ranged attack depends on the move. |
 | `clock`, `stand_down` | Native clock control or verified release of selected current-load AI-owned drafts; neither certifies combat victory. |
 | `building_temperature` (PatchBuilding target temperature) | CAS-gated setpoint patch on one exact `CompTempControl` building; the receipt's after-token must match a fresh building read. When `MaintainRefrigeration` commits it as a routine method, the patch completing never clears the goal: the stock's measured temperature must be observed at or under the release threshold on a later native tick. |
 
