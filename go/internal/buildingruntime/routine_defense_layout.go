@@ -232,7 +232,8 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context) (Routine
 	// breached wall, a sprung trap) re-opens it. Settled plans retire out
 	// of goal.Methods, so the census, not the journal, is the source of
 	// truth.
-	if err = r.observeTiers(call, state, read, &record); err != nil {
+	edifice, err := r.observeTiers(call, state, read, &record)
+	if err != nil {
 		return RoutineDefenseLayoutResult{}, err
 	}
 	tick := read.Projection.Identity.Tick
@@ -249,6 +250,12 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context) (Routine
 				return RoutineDefenseLayoutResult{}, err
 			}
 			return RoutineDefenseLayoutResult{Reason: BuildingMethodExhausted, Tier: name}, nil
+		}
+		buildings = defenseMissingBuildings(buildings, edifice)
+		if len(buildings) == 0 {
+			// The census re-opened the tier on a cell it cannot see
+			// (fogged); nothing can be admitted until it can.
+			return RoutineDefenseLayoutResult{Reason: BuildingMethodUnknown, Tier: name}, nil
 		}
 		return r.admit(call, epoch, goal, state, read, record, tier, buildings, defenseTierMethodID(name, tier.Attempts))
 	}
@@ -319,22 +326,24 @@ func defenseTierCensus(record *store.DefenseLayoutRecord, edifice map[domain.Cel
 }
 
 // observeTiers reads the layout's census once and applies it to every
-// tier's Built state, saving the record when anything changed.
-func (r *RoutineDefenseLayoutPlanner) observeTiers(call context.Context, state ControlState, read observation.RoutineReading, record *store.DefenseLayoutRecord) error {
+// tier's Built state, saving the record when anything changed. It returns
+// the census (edifice definition by cell) so admission can be limited to
+// the buildings actually missing.
+func (r *RoutineDefenseLayoutPlanner) observeTiers(call context.Context, state ControlState, read observation.RoutineReading, record *store.DefenseLayoutRecord) (map[domain.Cell]string, error) {
 	placed := false
 	for _, tier := range record.Tiers {
 		placed = placed || len(tier.Buildings) > 0
 	}
 	if !placed {
-		return nil
+		return nil, nil
 	}
 	projection := read.Projection
 	site, _, err := r.native.ReadDefenseSite(call, boundary.Identity(state.Snapshot), defenseRecordRegion(*record, projection.Bounds))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if err = r.sameTick(site.Context, state, projection.Identity.Tick); err != nil {
-		return err
+		return nil, err
 	}
 	edifice := map[domain.Cell]string{}
 	for _, cell := range site.Cells {
@@ -343,9 +352,27 @@ func (r *RoutineDefenseLayoutPlanner) observeTiers(call context.Context, state C
 		}
 	}
 	if !defenseTierCensus(record, edifice) {
-		return nil
+		return edifice, nil
 	}
-	return r.reviewer.player.journal.SaveDefenseLayout(call, *record)
+	return edifice, r.reviewer.player.journal.SaveDefenseLayout(call, *record)
+}
+
+// defenseMissingBuildings keeps the tier's buildings the census does not
+// show standing. A tier re-opened by one lost building (a sprung trap, a
+// breached wall) is repaired by that building alone: previewing a standing
+// one is refused as an identical thing, which would hold the whole tier.
+// Before any census (nil) every building is missing.
+func defenseMissingBuildings(buildings []domain.Building, edifice map[domain.Cell]string) []domain.Building {
+	if edifice == nil {
+		return buildings
+	}
+	var missing []domain.Building
+	for _, b := range buildings {
+		if edifice[b.Cell()] != b.Definition() {
+			missing = append(missing, b)
+		}
+	}
+	return missing
 }
 
 // propose reads the census around the colony centre, the defenders' gear and

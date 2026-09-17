@@ -141,6 +141,35 @@ func TestDefenseTierCensusReopensLostBuildings(t *testing.T) {
 	}
 }
 
+func TestDefenseMissingBuildingsSkipsStanding(t *testing.T) {
+	t.Parallel()
+	// A re-opened tier is repaired by the buildings the census lost, not
+	// the whole tier: previewing a standing trap is refused as an identical
+	// thing, which held the corridor's repair forever after #72's rebuild.
+	trapA, fenceA, trapB := domain.Cell{X: 142, Z: 132}, domain.Cell{X: 143, Z: 132}, domain.Cell{X: 142, Z: 130}
+	var buildings []domain.Building
+	for _, b := range []struct {
+		def  string
+		cell domain.Cell
+	}{{"TrapSpike", trapA}, {"Fence", fenceA}, {"TrapSpike", trapB}} {
+		building, err := domain.NewBuilding(b.def, b.cell, domain.North, "WoodLog")
+		if err != nil {
+			t.Fatal(err)
+		}
+		buildings = append(buildings, building)
+	}
+	if got := defenseMissingBuildings(buildings, nil); len(got) != 3 {
+		t.Fatalf("before any census every building is missing: %+v", got)
+	}
+	got := defenseMissingBuildings(buildings, map[domain.Cell]string{trapA: "TrapSpike", fenceA: "Sandbags"})
+	if len(got) != 2 || got[0].Cell() != fenceA || got[1].Cell() != trapB {
+		t.Fatalf("%+v", got)
+	}
+	if got = defenseMissingBuildings(buildings, map[domain.Cell]string{trapA: "TrapSpike", fenceA: "Fence", trapB: "TrapSpike"}); len(got) != 0 {
+		t.Fatalf("%+v", got)
+	}
+}
+
 func TestDefenseReverifyDueAfterCombatOrInterval(t *testing.T) {
 	t.Parallel()
 	record := store.DefenseLayoutRecord{Complete: true, VerifiedTick: 10000, VerifiedCombat: "routine-1-ActiveCombat/0"}
