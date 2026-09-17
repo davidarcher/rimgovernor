@@ -906,7 +906,7 @@ func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSch
 		if review.Review.Mood != nil {
 			for _, state := range review.Review.Mood.States {
 				if state.Active && state.MentalRisk {
-					return executor.ErrHeld
+					return fmt.Errorf("%w: mental break risk for %s", executor.ErrHeld, state.Pawn.ID)
 				}
 			}
 		}

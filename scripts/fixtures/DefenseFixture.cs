@@ -89,6 +89,9 @@ namespace HomeBridge.BridgeTools
                 gapDirection = "north", corridorWidth = 2 * GapHalfWidth + 1, corridorLength = Half - BandInner + 1 };
         }
 
+        // Stock also provisions the colonists for the multi-hour build: fed and
+        // rested now, with pemmican within reach, so a starvation mental break
+        // does not hold the clock (and the layout) before the raid is staged.
         private static object Stock(Map map, IntVec3 center)
         {
             var wood = ThingDefOf.WoodLog; var spawned = 0;
@@ -97,7 +100,19 @@ namespace HomeBridge.BridgeTools
                 if (!GenPlace.TryPlaceThing(thing, center, map, ThingPlaceMode.Near)) return Refuse("Fixture wood placement failed.");
                 thing.SetForbidden(false, false); spawned += thing.stackCount;
             }
-            return new { success = true, spawned, resource = wood.defName };
+            var pemmican = DefDatabase<ThingDef>.GetNamed("Pemmican"); var food = 0;
+            for (var left = 300; left > 0;) {
+                var thing = ThingMaker.MakeThing(pemmican); thing.stackCount = Math.Min(pemmican.stackLimit, left); left -= thing.stackCount;
+                if (!GenPlace.TryPlaceThing(thing, center, map, ThingPlaceMode.Near)) return Refuse("Fixture food placement failed.");
+                thing.SetForbidden(false, false); food += thing.stackCount;
+            }
+            var provisioned = 0;
+            foreach (var pawn in map.mapPawns.FreeColonistsSpawned.Where(p => p.needs != null)) {
+                if (pawn.needs.food != null) pawn.needs.food.CurLevelPercentage = 1f;
+                if (pawn.needs.rest != null) pawn.needs.rest.CurLevelPercentage = 1f;
+                provisioned++;
+            }
+            return new { success = true, spawned, resource = wood.defName, food, provisioned };
         }
 
         private static object Ranged(Map map, List<Pawn> colonists, int rifles)
