@@ -81,6 +81,8 @@ func main() {
 	clockSpeed := flag.String("clock-speed", "Superfast", "serve's --clock-speed (Normal, Fast or Superfast); faster packs more simulated ticks into each variant's wall-clock -watch window")
 	startTimeout := flag.Duration("start-timeout", 180*time.Second, "in -manifest mode, rimworld/start_debug_game_ready timeout per generated variant")
 	stopOnError := flag.Bool("stop-on-error", false, "abort the remaining variants after the first harness error instead of continuing the matrix")
+	families := flag.String("families", "", "serve's RIMGOVERNOR_ROUTINE_FAMILIES for every variant; empty composes EnsureFoodSupply's full pipeline, \"all\" serve's autonomous default; narrow it on a machine running peer headless games (issue #103)")
+	stepStall := flag.Duration("step-stall", 90*time.Second, "per variant, fail fast unless a scheduler step has admitted a clock window this long after the watch starts (0 disables)")
 	reuseGame := flag.Bool("reuse-game", false, "launch RimWorld once and reload each variant's save into the same process (issue #22); a variant failure retires the game and ends the matrix")
 	flag.Parse()
 	if *root == "" {
@@ -248,7 +250,8 @@ func main() {
 			RimgovernorBinary: *rimgovernorBinary, Save: v.Save,
 			Watch: *watch, Poll: *poll, NativeTimeout: *nativeTimeout, ClockSpeed: *clockSpeed,
 			RequestPrefix: "sustained-matrix-" + sanitize(v.Save),
-			Reuse:         reuse,
+			Families:      *families, StepStall: *stepStall,
+			Reuse: reuse,
 		}
 		timeline, err := sustainedfood.Run(ctx, cfg, variantReport)
 		cancel()

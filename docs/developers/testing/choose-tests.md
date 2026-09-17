@@ -284,7 +284,14 @@ starts harnesses longest-first by that run's wall times, so a slow one
 does not land last. Measured: six short harnesses on two workers in 68s
 unordered, 58s ordered, against about 125s in sequence. The installed mod build
 must carry every fixture the list needs, and each harness must fit the
-step budget with N-1 peer games running (#73 measured three).
+step budget with N-1 peer games running (#73 measured three). A harness
+that composes several routine families in one service (`sustainedfoodaccept`
+and `sustainedmatrixaccept` run EnsureFoodSupply's whole pipeline by
+default) shares one 30s step across all of them, and under three peer games
+that step admits nothing: pass `-families <family>` to keep the budget for
+the family under test (`farmselectaccept` defaults to `field`), or let the
+default `-step-stall 90s` fail the run as soon as the first window has not
+been admitted instead of watching an idle service for twenty minutes (#103).
 
 Process reuse carries the same static-state caveat as `-reuse-game`
 (next paragraph), and process-wide `Prefs` too: `letteraccept` sets the

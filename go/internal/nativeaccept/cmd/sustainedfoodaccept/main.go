@@ -2,8 +2,10 @@
 // acceptance run for issue #1's "crop labor and interim food before rations
 // run out" eight-colonist startup deficit: it loads the real
 // RimGovernor-tribal8-baseline.rws save, launches the live Go player-control
-// service (every routine family on, per go/README.md's "naming zero of those
-// flags turns all of them on"), acquires player authority, and then polls the
+// service (EnsureFoodSupply's own routine families by default; -families
+// narrows or widens the composition, since every family shares one step
+// budget and a shared machine starves the full pipeline -- issue #103),
+// acquires player authority, and then polls the
 // durable store's EnsureFoodSupply goal state over a long wall-clock window
 // to build a timeline of its Status/Need/Priority and committed methods --
 // evidence for exactly where a real 8-colonist campaign's crop-replacement
@@ -50,6 +52,8 @@ func main() {
 	timeout := flag.Duration("timeout", 30*time.Minute, "overall run timeout (must exceed -watch plus startup/shutdown)")
 	nativeTimeout := flag.Duration("native-timeout", 15*time.Second, "serve subprocess's own --timeout (native call budget per ClockScheduler.Step, shared across every chained routine planner in that step)")
 	clockSpeed := flag.String("clock-speed", "Superfast", "serve's --clock-speed (Normal, Fast or Superfast); faster packs more simulated ticks into the same wall-clock -watch window")
+	families := flag.String("families", "", "serve's RIMGOVERNOR_ROUTINE_FAMILIES; empty composes EnsureFoodSupply's full pipeline (field,food-storage,acquisition,cooking,supply,production-policy), \"all\" serve's autonomous default. Every family shares one step budget: on a machine running peer headless games narrow it to the family under test (e.g. field), as farmselectaccept does")
+	stepStall := flag.Duration("step-stall", 90*time.Second, "fail fast unless a scheduler step has admitted a clock window this long after the watch starts (0 disables); a starved step budget under peer contention otherwise reads as an unchanged 20-minute timeline (issue #103)")
 	flag.Parse()
 	if *root == "" {
 		fmt.Fprintln(os.Stderr, "-root is required")
@@ -85,6 +89,7 @@ func main() {
 		Root: *root, Output: *output, GameID: *game, Headless: !*rendered,
 		RimgovernorBinary: *rimgovernorBinary, Save: *save,
 		Watch: *watch, Poll: *poll, NativeTimeout: *nativeTimeout, ClockSpeed: *clockSpeed,
+		Families: *families, StepStall: *stepStall,
 	}
 	timeline, err := sustainedfood.Run(ctx, cfg, report)
 	if err != nil {

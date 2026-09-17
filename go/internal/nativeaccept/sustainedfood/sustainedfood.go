@@ -67,8 +67,16 @@ type RunConfig struct {
 	// fixture-prep bridge session after the save is loaded and the naming
 	// dialog dismissed, before the service starts, so a harness can record
 	// the live baseline its audit later compares against.
-	Families  string
-	Goal      policy.GoalID
+	Families string
+	Goal     policy.GoalID
+	// StepStall, when > 0, fails the run fast instead of watching an idle
+	// service for the whole window: unless a scheduler step has admitted a
+	// clock window (a journaled clock attempt) within StepStall of the watch
+	// starting, Run returns a StepStallError naming the last step failure
+	// the service logged. Under peer contention (several headless games on
+	// one machine, issue #103) every planner in the composed pipeline shares
+	// one step budget and a starved step admits nothing for the whole watch.
+	StepStall time.Duration
 	ServeArgs []string
 	Prepare   func(ctx context.Context, h *na.Harness, report na.Report) error
 	Until     func(sample map[string]any) bool
@@ -505,10 +513,23 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) (timeline []map[s
 	if goalID == "" {
 		goalID = policy.EnsureFoodSupply
 	}
-	watchDeadline := time.Now().Add(cfg.Watch)
+	watchStarted := time.Now()
+	watchDeadline := watchStarted.Add(cfg.Watch)
 	checkpointed := false
+	stepped := false
 	for time.Now().Before(watchDeadline) {
 		sample, err := SampleGoal(ctx, verifyStore, goalID)
+		if !stepped {
+			attempts, _ := verifyStore.LoadClockAttempts(ctx, 4096)
+			if len(attempts) > 0 {
+				stepped = true
+				report["first_clock_attempt_after"] = time.Since(watchStarted).Round(time.Second).String()
+			} else if cfg.StepStall > 0 && time.Since(watchStarted) >= cfg.StepStall {
+				report["timeline"] = timeline
+				report["events"] = events
+				return timeline, stepStall(cfg.StepStall, families, lastStepFailure(stderrFile.Name()))
+			}
+		}
 		if err != nil {
 			sample = map[string]any{"error": err.Error(), "at": time.Now().UTC().Format(time.RFC3339)}
 		}
