@@ -363,11 +363,15 @@ func clockSchedulerLog(format string, args ...any) {
 // renews an epoch, acknowledges events, or starts a background loop.
 func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error) {
 	var out ClockSchedulerResult
+	entered := time.Now()
 	call, epoch, done, err := s.player.enter(ctx, false)
 	if err != nil {
 		return out, err
 	}
 	defer done()
+	if wait := time.Since(entered); wait > 50*time.Millisecond {
+		clockSchedulerLog("step waited %s for the player gate", wait.Round(time.Millisecond))
+	}
 	// Every native observation this step issues -- the identity and status
 	// reads below, the routine census and each planner's own reads -- goes
 	// through one cache that lives exactly as long as the step, so the

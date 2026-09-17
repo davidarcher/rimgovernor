@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -161,6 +162,39 @@ func TestClockWorkerUnchangedDecisionBacksOff(t *testing.T) {
 	time.Sleep(120 * time.Millisecond)
 	if n := steps.Load(); n < 3 || n > 7 {
 		t.Fatal("unchanged decision failed bounded backoff", n)
+	}
+}
+
+// A step that cleaned or reconciled an epoch is followed by the next step at
+// once (issue #91): the window that stopped on its tick budget is replanned
+// without a StepInterval idle. Never twice in a row, so a cleanup that keeps
+// succeeding still backs off instead of spinning.
+func TestClockWorkerStepsAgainAtOnceAfterSettlingAnEpoch(t *testing.T) {
+	t.Parallel()
+	w := clockLoopFixture(t)
+	w.config.StepInterval = 40 * time.Millisecond
+	w.config.MaxBackoff = 40 * time.Millisecond
+	var stamps []time.Time
+	var mu sync.Mutex
+	w.step = func(context.Context) (ClockSchedulerResult, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		stamps = append(stamps, time.Now())
+		// Every step settles an epoch: the skip must alternate, never chain.
+		return ClockSchedulerResult{Cleaned: true}, nil
+	}
+	w.start()
+	time.Sleep(150 * time.Millisecond)
+	mu.Lock()
+	defer mu.Unlock()
+	if len(stamps) < 4 {
+		t.Fatal("too few steps", len(stamps))
+	}
+	if gap := stamps[1].Sub(stamps[0]); gap > 20*time.Millisecond {
+		t.Fatal("cleanup step was not followed at once", gap)
+	}
+	if gap := stamps[2].Sub(stamps[1]); gap < 30*time.Millisecond {
+		t.Fatal("two skips in a row", gap)
 	}
 }
 

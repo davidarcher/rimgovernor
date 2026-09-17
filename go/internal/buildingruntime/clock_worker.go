@@ -182,6 +182,7 @@ func (w *ClockWorker) stepLoop() {
 	var previous clockStepKey
 	havePrevious := false
 	repeats := 0
+	skipped := false
 	for w.ctx.Err() == nil {
 		call, cancel := context.WithTimeout(w.ctx, w.config.StepTimeout)
 		result, err := w.step(call)
@@ -211,6 +212,18 @@ func (w *ClockWorker) stepLoop() {
 			delay = w.config.StepInterval
 		}
 		previous, havePrevious = key, true
+		// A step that only reconciled or cleaned up an epoch (a window that
+		// stopped on its tick budget, or a dispatch to reconcile) has left
+		// the planners for the next step: run it now rather than idle a
+		// StepInterval with the game paused (issue #91). Never twice in a
+		// row: a cleanup that keeps succeeding without settling is a
+		// backoff case, not a hot loop.
+		if err == nil && (result.Reconciled || result.Cleaned) && !skipped {
+			skipped = true
+			clockSchedulerLog("step settled an epoch (reconciled=%v cleaned=%v): stepping again at once", result.Reconciled, result.Cleaned)
+			continue
+		}
+		skipped = false
 		if !w.wait(delay) {
 			return
 		}
