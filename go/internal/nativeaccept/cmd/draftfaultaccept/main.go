@@ -148,22 +148,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 		return err
 	}
 
-	statusReply, err := h.Wire(ctx, "status", "authority_read_status", map[string]any{"identity": identity})
-	if err != nil {
-		return err
-	}
-	_, status, err := na.Outcome(statusReply, "status")
-	if err != nil {
-		return err
-	}
-	statusContext, _ := na.AsMap(status["context"])
-	grantReply, err := h.Wire(ctx, "acquire", "authority_control", map[string]any{"acquire": map[string]any{
-		"identity": identity, "expectedGeneration": statusContext["nativeGeneration"], "owner": na.Owner, "leaseMs": 30000,
-	}})
-	if err != nil {
-		return err
-	}
-	_, grant, err := na.Outcome(grantReply, "granted")
+	grant, err := na.GrantAuto(ctx, h.WireFunc(), "acquire", identity)
 	if err != nil {
 		return err
 	}

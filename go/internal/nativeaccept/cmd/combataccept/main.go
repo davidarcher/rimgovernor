@@ -245,22 +245,7 @@ func run(ctx context.Context, root, output, gameID string, headless, ranged, exp
 	if err != nil {
 		return err
 	}
-	statusReply, err := h.Wire(ctx, "authority-status", "authority_read_status", map[string]any{"identity": identity})
-	if err != nil {
-		return err
-	}
-	_, status, err := na.Outcome(statusReply, "status")
-	if err != nil {
-		return err
-	}
-	statusContext, _ := na.AsMap(status["context"])
-	grantReply, err := h.Wire(ctx, "acquire", "authority_control", map[string]any{"acquire": map[string]any{
-		"identity": identity, "expectedGeneration": statusContext["nativeGeneration"], "owner": na.Owner, "leaseMs": 30000,
-	}})
-	if err != nil {
-		return err
-	}
-	_, grant, err := na.Outcome(grantReply, "granted")
+	grant, err := na.GrantAuto(ctx, h.WireFunc(), "acquire", identity)
 	if err != nil {
 		return err
 	}
@@ -372,22 +357,7 @@ func run(ctx context.Context, root, output, gameID string, headless, ranged, exp
 	report["interrupted_attempt"] = attempt
 	report["interrupted_progress"] = interrupted
 
-	overrideStatusReply, err := h.Wire(ctx, "override-authority", "authority_read_status", map[string]any{"identity": identity})
-	if err != nil {
-		return err
-	}
-	_, overrideStatus, err := na.Outcome(overrideStatusReply, "status")
-	if err != nil {
-		return err
-	}
-	overrideStatusContext, _ := na.AsMap(overrideStatus["context"])
-	unownedGrantReply, err := h.Wire(ctx, "unowned-acquire", "authority_control", map[string]any{"acquire": map[string]any{
-		"identity": identity, "expectedGeneration": overrideStatusContext["nativeGeneration"], "owner": na.Owner, "leaseMs": 30000,
-	}})
-	if err != nil {
-		return err
-	}
-	_, grant, err = na.Outcome(unownedGrantReply, "granted")
+	grant, err = na.GrantAuto(ctx, h.WireFunc(), "unowned-acquire", identity)
 	if err != nil {
 		return err
 	}
@@ -433,22 +403,7 @@ func run(ctx context.Context, root, output, gameID string, headless, ranged, exp
 	if drafted, _ := na.AsBool(actor["drafted"]); drafted {
 		return fmt.Errorf("fresh-undrafted: pawn is still drafted")
 	}
-	freshStatusReply, err := h.Wire(ctx, "fresh-authority-status", "authority_read_status", map[string]any{"identity": identity})
-	if err != nil {
-		return err
-	}
-	_, freshStatus, err := na.Outcome(freshStatusReply, "status")
-	if err != nil {
-		return err
-	}
-	freshStatusContext, _ := na.AsMap(freshStatus["context"])
-	freshGrantReply, err := h.Wire(ctx, "fresh-acquire", "authority_control", map[string]any{"acquire": map[string]any{
-		"identity": identity, "expectedGeneration": freshStatusContext["nativeGeneration"], "owner": na.Owner, "leaseMs": 30000,
-	}})
-	if err != nil {
-		return err
-	}
-	_, grant, err = na.Outcome(freshGrantReply, "granted")
+	grant, err = na.GrantAuto(ctx, h.WireFunc(), "fresh-acquire", identity)
 	if err != nil {
 		return err
 	}
@@ -667,8 +622,8 @@ func run(ctx context.Context, root, output, gameID string, headless, ranged, exp
 	return nil
 }
 
-// attackRequest builds an operations_execute attackTarget request under grant's
-// lease.
+// attackRequest builds an operations_execute attackTarget request at grant's
+// generation.
 func attackRequest(identity, grant, actor, victim map[string]any, number int, mode string) map[string]any {
 	request := na.ExecuteRequest(identity, grant, actor, number)
 	request["operation"] = map[string]any{"attackTarget": map[string]any{

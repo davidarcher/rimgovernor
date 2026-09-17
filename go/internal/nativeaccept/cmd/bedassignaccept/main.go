@@ -156,30 +156,9 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	// tick-advance window precedes it, since TryAssignPawn is synchronous),
 	// so a single acquire before the whole stale-token/preview/execute
 	// sequence is enough.
-	var grant map[string]any
 	acquire := func(label string) error {
-		statusReply, err := h.Wire(ctx, label+"-status", "authority_read_status", map[string]any{"identity": identity})
-		if err != nil {
-			return err
-		}
-		_, status, err := na.Outcome(statusReply, "status")
-		if err != nil {
-			return err
-		}
-		statusContext, _ := na.AsMap(status["context"])
-		grantReply, err := h.Wire(ctx, label, "authority_control", map[string]any{"acquire": map[string]any{
-			"identity": identity, "expectedGeneration": statusContext["nativeGeneration"],
-			"owner": map[string]any{"controllerSessionId": sessionOwner, "playerDirection": "1"}, "leaseMs": 30000,
-		}})
-		if err != nil {
-			return err
-		}
-		_, newGrant, err := na.Outcome(grantReply, "granted")
-		if err != nil {
-			return err
-		}
-		grant = newGrant
-		return nil
+		_, err := na.GrantAuto(ctx, h.WireFunc(), label, identity)
+		return err
 	}
 	if err := acquire("acquire"); err != nil {
 		return err
@@ -278,7 +257,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	buildRequest := func(actionID string, generation any, operation map[string]any) map[string]any {
 		return map[string]any{
 			"precondition": map[string]any{
-				"identity": identity, "expectedGeneration": generation, "leaseId": grant["leaseId"],
+				"identity": identity, "expectedGeneration": generation,
 				"attempt": map[string]any{"controllerSessionId": sessionOwner, "actionId": actionID, "attemptId": "1"},
 			},
 			"operation": operation,

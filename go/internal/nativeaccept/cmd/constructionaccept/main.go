@@ -109,11 +109,12 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	initialContext, _ := na.AsMap(initial["context"])
 	identity, _ := na.AsMap(initialContext["identity"])
 
-	// Authority is deliberately NOT acquired yet: construction-prepare and the
-	// candidate-cell/preview search below are read-only/fixture calls that need no
-	// lease at all, and the real-time-bounded lease (leaseMs is capped at 30000ms,
-	// not tick-bounded) must instead be acquired as late as possible, immediately
-	// before the first operations_execute that actually depends on it.
+	// Authority is deliberately NOT granted yet: construction-prepare and the
+	// candidate-cell/preview search below are read-only/fixture calls that need
+	// no authority at all, and fixture activity outside an authority.Owned()
+	// scope would revoke it anyway (NativeControlAuthority.RevokeExternal), so
+	// SetMode(Auto) is issued as late as possible, immediately before the first
+	// operations_execute that actually depends on it.
 	supervisor := &na.ScenarioClock{
 		Wire: func(ctx context.Context, label, method string, request map[string]any) (map[string]any, error) {
 			return h.Wire(ctx, label, method, request)
@@ -435,15 +436,11 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 }
 
 // renewOrAcquire refreshes supervisor's authority grant immediately before an
-// operations_execute that needs it. It prefers Renew (cheap, keeps the same
-// lease) but falls back to a fresh Acquire whenever the prior lease is no
-// longer renewable — most notably after NativeControlAuthority's own
-// wall-clock (not tick-bound) leaseMs deadline has already lapsed between
-// native round-trips, which unconditionally revokes the lease and advances
-// the generation (NativeControlAuthority.Invalidate/Advance), independent of
-// game-tick time. A lapsed lease is exactly the condition under which a
-// fresh Acquire is legal again (the server-side lease is already nil), so
-// this fallback is always safe to attempt after any Renew failure.
+// operations_execute that needs it. It prefers RenewAuthority (a generation
+// continuity check that keeps the existing grant) and falls back to a fresh
+// SetMode(Auto) whenever authority was revoked in between — most notably by
+// native activity outside an authority.Owned() scope
+// (NativeControlAuthority.RevokeExternal), which advances the generation.
 func renewOrAcquire(ctx context.Context, supervisor *na.ScenarioClock, label string) error {
 	if supervisor.Grant != nil {
 		if err := supervisor.RenewAuthority(ctx); err == nil {
