@@ -19,15 +19,14 @@ import (
 //
 // What genuinely cannot be recovered from one static IngredientRequirement
 // row is a *different* required count per allowed alternative: RimWorld's
-// stuff-adjustable cost scaling (CostStuffCount) can make an ingredient's
-// needed count depend on which permitted material is chosen, and this
-// bridge has no per-material recipe-cost preview (unlike building
-// placement, which previews per stuff) to resolve that — the same class of
-// unverified-native-contract gap already flagged elsewhere in this doc for
-// lack of native C# mod source. So a slot naming more than one allowed
-// material is reported Unknown here rather than guessed at; a slot the
-// native side resolved to exactly one allowed material's required count
-// (Complete and a whole, non-negative Required) maps cleanly and is used.
+// small-volume scaling and nutrition-valued recipes (kibble, meals) make
+// the unit count depend on which permitted item is chosen, and this bridge
+// has no per-material recipe-cost preview to resolve that. A slot naming
+// several allowed items (any meat, any hay) therefore maps every
+// alternative at the slot's one reported count. That count is the slot's
+// value, so funding against it is optimistic, never pessimistic: it only
+// decides whether a StockTarget bill is worth queueing, and the native
+// bill's own ingredient scan remains authoritative for what gets consumed.
 //
 // This narrows, but does not close, the GearProduce blocker: no bridge
 // census yet requests populated RecipeState.Ingredients for gear benches at
@@ -55,7 +54,7 @@ func gearIngredientSlot(row *o.IngredientRequirement) ([]policy.Amount, bool) {
 		return nil, false
 	}
 	names := row.GetAllowedDefNames()
-	if len(names) != 1 || len(names) > 256 {
+	if len(names) == 0 || len(names) > 256 {
 		return nil, false
 	}
 	required := row.GetRequired()
@@ -63,8 +62,14 @@ func gearIngredientSlot(row *o.IngredientRequirement) ([]policy.Amount, bool) {
 	if float64(count) != required || count <= 0 {
 		return nil, false
 	}
-	if validID(names[0]) != nil {
-		return nil, false
+	seen := map[string]bool{}
+	slot := make([]policy.Amount, 0, len(names))
+	for _, name := range names {
+		if validID(name) != nil || seen[name] {
+			return nil, false
+		}
+		seen[name] = true
+		slot = append(slot, policy.Amount{Resource: policy.Resource(name), Count: count})
 	}
-	return []policy.Amount{{Resource: policy.Resource(names[0]), Count: count}}, true
+	return slot, true
 }

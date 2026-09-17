@@ -50,6 +50,17 @@ func RoutineDevelopmentDeficit(id GoalID, f RoutineFacts, p RoutinePolicy) domai
 			return domain.Unknown[float64]()
 		}
 		return domain.Known(1.0)
+	case MaintainMedicalReserves:
+		// The reserve review's own stock/target: the harvest or bench method
+		// needs a ranked deficit to be admitted at development priority.
+		review, err := ReviewMedicalReserve(f.MedicalReserve, f.UpkeepIssued[MaintainMedicalReserves], p.MedicalReserve)
+		if err != nil {
+			return domain.Unknown[float64]()
+		}
+		var targetKnown bool
+		stock, known = review.Stock.Value()
+		target, targetKnown = review.Target.Value()
+		known = known && targetKnown
 	case MaintainWaste:
 		// Census-driven, not stock/target: any exposed, eligible item still
 		// pending is a full deficit: there's no partial-credit fraction for

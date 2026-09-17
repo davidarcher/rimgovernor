@@ -36,24 +36,30 @@ namespace HomeBridge.BridgeTools
                 using (var hash = SHA256.Create()) return "plant-" + BitConverter.ToString(hash.ComputeHash(bytes.ToArray())).Replace("-", "").ToLowerInvariant();
             }
         }
+        // The token hashes harvestability rather than YieldNow, whose random rounding would make a
+        // read's token miss its own execute.
         private static Obs.SnapshotRef Snapshot(Plant plant, Common.ObservationContext context) => new Obs.SnapshotRef {
             Context = context.Clone(), EntityId = plant.GetUniqueLoadID(), Token = Token(context.Identity, plant.GetUniqueLoadID(),
-                plant.def.plant.harvestedThingDef.defName, plant.Position.x, plant.Position.z, plant.Growth, plant.YieldNow(), ResourceAcquisitionTools.Designated(plant)) };
+                plant.def.plant.harvestedThingDef.defName, plant.Position.x, plant.Position.z, plant.Growth, plant.HarvestableNow ? 1 : 0, ResourceAcquisitionTools.Designated(plant)) };
         internal static void Read(Obs.ColonyFactsSnapshot result, Map map, IntVec3 center, Func<ThingDef, bool> humanFood, int limit)
         {
             var plants = map.listerThings.AllThings.OfType<Plant>().Where(p => p.def.plant.harvestedThingDef != null).ToArray();
             // The candidate pool is the nearest bounded set; pending yield below covers all designations.
-            var selected = plants.Where(p => p.Position.DistanceTo(center) <= 35 && (p.def.plant.IsTree || humanFood(p.def.plant.harvestedThingDef)) && Eligible(p))
-                .OrderBy(p => p.Position.DistanceToSquared(center)).ThenBy(p => p.thingIDNumber).Take(Math.Max(0, limit - 2)).ToArray();
-            foreach (var plant in selected)
+            // Medicine-yielding wild plants (healroot) join trees and food so MaintainMedicalReserves can harvest.
+            // YieldNow rounds randomly, so one sample per plant decides both eligibility and the row: a plant
+            // whose sample is zero (below harvest growth, or a fractional yield rounded down) is not a source.
+            var selected = plants.Where(p => p.Position.DistanceTo(center) <= 35 && (p.def.plant.IsTree || humanFood(p.def.plant.harvestedThingDef) || p.def.plant.harvestedThingDef.IsMedicine) && Eligible(p))
+                .OrderBy(p => p.Position.DistanceToSquared(center)).ThenBy(p => p.thingIDNumber).Take(Math.Max(0, limit - 2))
+                .Select(p => (plant: p, yield: p.YieldNow())).Where(s => s.yield > 0).ToArray();
+            foreach (var (plant, yield) in selected)
             {
                 var resource = plant.def.plant.harvestedThingDef;
                 var food = humanFood(resource);
                 result.Acquisition.Add(new Obs.AcquisitionFacts {
                     Source = new Obs.EntityRef { Id = plant.GetUniqueLoadID(), DefName = plant.def.defName, MapId = map.uniqueID,
                         Position = new Common.Cell { X = plant.Position.x, Z = plant.Position.z }, Snapshot = Snapshot(plant, result.Context) },
-                    Resource = resource.defName, Tree = plant.def.plant.IsTree, Food = food, Yield = plant.YieldNow(),
-                    NutritionYield = food ? plant.YieldNow() * resource.GetStatValueAbstract(StatDefOf.Nutrition) : 0,
+                    Resource = resource.defName, Tree = plant.def.plant.IsTree, Food = food, Yield = yield,
+                    NutritionYield = food ? yield * resource.GetStatValueAbstract(StatDefOf.Nutrition) : 0,
                     Designated = ResourceAcquisitionTools.Designated(plant), Hunt = false });
             }
             var pending = plants.Where(ResourceAcquisitionTools.Designated).ToArray();

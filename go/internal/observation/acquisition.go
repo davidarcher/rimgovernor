@@ -6,14 +6,21 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-func colonyAcquisition(v *o.ColonyFactsSnapshot, r *ColonyProjection) {
-	if !hasIssue(v.Issues, "acquisition") {
-		rows := []policy.AcquisitionSource{}
-		for _, row := range v.Acquisition {
-			rows = append(rows, policy.AcquisitionSource{ID: row.Source.GetId(), Resource: row.GetResource(), Token: row.Source.Snapshot.GetToken(), Cell: domain.Cell{X: row.Source.Position.GetX(), Z: row.Source.Position.GetZ()}, Hunt: row.GetHunt(), Tree: row.GetTree(), Food: row.GetFood(), Designated: row.GetDesignated(), Yield: row.GetYield(), NutritionYield: row.GetNutritionYield()})
-		}
-		r.Acquisition = domain.Known(rows)
+// ColonyAcquisition decodes the native-approved harvest/hunt source census
+// of one colony facts read; unknown when the acquisition section failed.
+func ColonyAcquisition(v *o.ColonyFactsSnapshot) domain.Fact[[]policy.AcquisitionSource] {
+	if hasIssue(v.Issues, "acquisition") {
+		return domain.Unknown[[]policy.AcquisitionSource]()
 	}
+	rows := []policy.AcquisitionSource{}
+	for _, row := range v.Acquisition {
+		rows = append(rows, policy.AcquisitionSource{ID: row.Source.GetId(), Resource: row.GetResource(), Token: row.Source.Snapshot.GetToken(), Cell: domain.Cell{X: row.Source.Position.GetX(), Z: row.Source.Position.GetZ()}, Hunt: row.GetHunt(), Tree: row.GetTree(), Food: row.GetFood(), Designated: row.GetDesignated(), Yield: row.GetYield(), NutritionYield: row.GetNutritionYield()})
+	}
+	return domain.Known(rows)
+}
+
+func colonyAcquisition(v *o.ColonyFactsSnapshot, r *ColonyProjection) {
+	r.Acquisition = ColonyAcquisition(v)
 	if !hasIssue(v.Issues, "pending_food_nutrition") {
 		r.PendingFoodNutrition = optional(v.PendingFoodNutrition)
 	}

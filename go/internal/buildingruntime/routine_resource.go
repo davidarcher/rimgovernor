@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"time"
 
@@ -204,27 +205,11 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 	}
 	benches := make([]policy.GearBench, 0, len(census))
 	tokens := map[string]string{}
-	ingredients := map[string]bool{}
 	for _, row := range census {
 		benches = append(benches, row.Bench)
 		tokens[row.Bench.ID] = row.Token
-		if recipes, known := row.Bench.Recipes.Value(); known {
-			for _, recipe := range recipes {
-				if slots, known := recipe.Ingredients.Value(); known {
-					for _, slot := range slots {
-						for _, alt := range slot {
-							ingredients[string(alt.Resource)] = true
-						}
-					}
-				}
-			}
-		}
 	}
-	names := make([]string, 0, len(ingredients))
-	for name := range ingredients {
-		names = append(names, name)
-	}
-	sort.Strings(names)
+	names := recipeIngredientNames(census, resource)
 	var supply []policy.Stock
 	if len(names) > 0 {
 		supply, _, err = r.native.ReadSupplyStock(call, identity, names)
@@ -522,4 +507,45 @@ func (r *RoutineResourcePlanner) dispatchMineSource(call, epoch context.Context,
 		return RoutineResourceResult{}, false, err
 	}
 	return RoutineResourceResult{Reason: BuildingMethodAdmitted, Plan: id}, true, nil
+}
+
+// maxSupplyStockNames is bridge.ReadSupplyStock's query bound.
+const maxSupplyStockNames = 256
+
+// recipeIngredientNames lists, sorted, every ingredient alternative of the
+// census recipes that produce product ("" for all recipes), for one
+// ReadSupplyStock funding read. Category filters (any meat, any hay) make a
+// single recipe name well over a hundred alternatives, so the list is cut
+// at the read's bound; alternatives past it merely read as unknown stock.
+func recipeIngredientNames(census []bridge.GearBenchRead, product policy.Resource) []string {
+	ingredients := map[string]bool{}
+	for _, row := range census {
+		recipes, known := row.Bench.Recipes.Value()
+		if !known {
+			continue
+		}
+		for _, recipe := range recipes {
+			if product != "" && !slices.Contains(recipe.Products, product) {
+				continue
+			}
+			slots, known := recipe.Ingredients.Value()
+			if !known {
+				continue
+			}
+			for _, slot := range slots {
+				for _, alt := range slot {
+					ingredients[string(alt.Resource)] = true
+				}
+			}
+		}
+	}
+	names := make([]string, 0, len(ingredients))
+	for name := range ingredients {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	if len(names) > maxSupplyStockNames {
+		names = names[:maxSupplyStockNames]
+	}
+	return names
 }

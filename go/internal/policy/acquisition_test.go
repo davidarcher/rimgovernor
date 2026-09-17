@@ -65,3 +65,20 @@ func TestAcquisitionHarvestPrecedesBoundedHunting(t *testing.T) {
 		t.Fatal("pending material caused another hunt", selected, err)
 	}
 }
+
+func TestResourceAcquisitionSelectsOnlyTheNamedHarvest(t *testing.T) {
+	rows := []AcquisitionSource{
+		{ID: "berry", Resource: "RawBerries", Token: "cas", Food: true, Yield: 8, NutritionYield: 0.4},
+		{ID: "root1", Resource: "MedicineHerbal", Token: "cas", Yield: 2},
+		{ID: "root2", Resource: "MedicineHerbal", Token: "cas", Yield: 2, Designated: true},
+		{ID: "root3", Resource: "MedicineHerbal", Token: "cas", Yield: 2},
+		{ID: "tree", Resource: "WoodLog", Token: "cas", Tree: true, Yield: 20},
+	}
+	selected, err := SelectResourceAcquisition(domain.Known(rows), domain.Known(5.0), domain.Known(2.0), "MedicineHerbal", nil)
+	if err != nil || len(selected) != 2 || selected[0].ID != "root1" || selected[1].ID != "root3" {
+		t.Fatal(selected, err)
+	}
+	if _, err = SelectResourceAcquisition(domain.Known(rows), domain.Known(5.0), domain.Known(0.0), "", nil); err == nil {
+		t.Fatal("empty resource accepted")
+	}
+}

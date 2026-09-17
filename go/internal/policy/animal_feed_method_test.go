@@ -71,16 +71,22 @@ func TestAnimalFeedNoDeficitWhenNoTargets(t *testing.T) {
 	}
 }
 
-func TestAnimalFeedNoStockWhenNothingCovers(t *testing.T) {
+func TestAnimalFeedFallsBackToKibbleWhenNothingCovers(t *testing.T) {
 	targets := []AnimalFeedTarget{{ID: "muffalo1", Definition: "Muffalo", Nutrition: 4}}
-	choice, err := SelectAnimalFeedMethod(targets, nil, nil, nil)
-	if err != nil || choice.Reason != AnimalFeedNoStock {
+	choice, err := SelectAnimalFeedMethod(targets, nil, map[Resource]int64{"Kibble": 3}, nil)
+	// 4 nutrition at 0.05 per kibble is 80 items above the 3 in stock.
+	if err != nil || choice.Reason != AnimalFeedSelected || choice.Resource != AnimalFeedFallbackResource || choice.Target != 83 {
 		t.Fatalf("%+v %v", choice, err)
 	}
-	// A stock that doesn't cover the deficit animal is likewise no-stock.
+	// A stock that doesn't cover the deficit animal is likewise kibble.
 	stocks := []FoodStock{feedStock("hay", "Hay", "", 10, 40, "other")}
 	choice, err = SelectAnimalFeedMethod(targets, stocks, nil, nil)
-	if err != nil || choice.Reason != AnimalFeedNoStock {
+	if err != nil || choice.Reason != AnimalFeedSelected || choice.Resource != AnimalFeedFallbackResource {
+		t.Fatalf("%+v %v", choice, err)
+	}
+	// Unless the player stopped kibble spending.
+	choice, err = SelectAnimalFeedMethod(targets, stocks, nil, []Resource{"Kibble"})
+	if err != nil || choice.Reason != AnimalFeedRestricted {
 		t.Fatalf("%+v %v", choice, err)
 	}
 }

@@ -655,6 +655,9 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 	if sc.routineAnimalFeedPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainAnimalFeed)
 	}
+	if sc.routineMedicalPlans {
+		capabilities.Methods = append(capabilities.Methods, policy.MaintainMedicalReserves)
+	}
 	if sc.routineProductionPolicyPlans {
 		thresholds.ResourceReserves = sc.routineResourceReserves.Map()
 		thresholds.StoppedResources = sc.routineStoppedResources.Slice()

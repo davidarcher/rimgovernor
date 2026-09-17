@@ -31,7 +31,7 @@ namespace HomeBridge.BridgeTools
                 GenSpawn.Spawn(pet, center, map);
                 pet.playerSettings.AreaRestrictionInPawnCurrentMap = area;
                 pet.needs.food.CurLevelPercentage = .2f;
-                foreach (var def in new[] { DefDatabase<ThingDef>.GetNamed("Hay"), DefDatabase<ThingDef>.AllDefs.First(d => d.IsMeat) }) {
+                foreach (var def in new[] { DefDatabase<ThingDef>.GetNamed("Hay"), DefDatabase<ThingDef>.GetNamed("Meat_Muffalo") }) {
                     for (int i = 0; i < 12; i++) {
                         var stock = ThingMaker.MakeThing(def);
                         stock.stackCount = def.stackLimit;

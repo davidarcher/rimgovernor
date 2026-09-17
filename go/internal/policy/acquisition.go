@@ -18,6 +18,29 @@ type AcquisitionSource struct {
 // SelectAcquisition retains native distance ordering. Pending yield and unresolved
 // sources prevent duplicate work but never count as recovered stock.
 func SelectAcquisition(sources domain.Fact[[]AcquisitionSource], deficit, pending domain.Fact[float64], food bool, held map[string]bool, huntSlots ...domain.Fact[int]) ([]AcquisitionSource, error) {
+	accept := func(row AcquisitionSource) (float64, bool) {
+		if food {
+			return row.NutritionYield, row.Food && row.NutritionYield > 0
+		}
+		return row.Yield, row.Tree && row.Resource == "WoodLog"
+	}
+	return selectAcquisition(sources, deficit, pending, accept, held, huntSlots...)
+}
+
+// SelectResourceAcquisition is SelectAcquisition for one harvested
+// definition (herbal medicine from wild healroot): every non-hunt source
+// yielding exactly that resource counts by its unit yield.
+func SelectResourceAcquisition(sources domain.Fact[[]AcquisitionSource], deficit, pending domain.Fact[float64], resource Resource, held map[string]bool) ([]AcquisitionSource, error) {
+	if !validResource(resource) {
+		return nil, errors.New("invalid acquisition resource")
+	}
+	accept := func(row AcquisitionSource) (float64, bool) {
+		return row.Yield, !row.Hunt && Resource(row.Resource) == resource
+	}
+	return selectAcquisition(sources, deficit, pending, accept, held)
+}
+
+func selectAcquisition(sources domain.Fact[[]AcquisitionSource], deficit, pending domain.Fact[float64], accept func(AcquisitionSource) (float64, bool), held map[string]bool, huntSlots ...domain.Fact[int]) ([]AcquisitionSource, error) {
 	rows, known := sources.Value()
 	need, nk := deficit.Value()
 	outstanding, pk := pending.Value()
@@ -57,13 +80,8 @@ func SelectAcquisition(sources domain.Fact[[]AcquisitionSource], deficit, pendin
 		if row.Hunt && slots == 0 {
 			continue
 		}
-		amount := row.Yield
-		if food {
-			if !row.Food || row.NutritionYield <= 0 {
-				continue
-			}
-			amount = row.NutritionYield
-		} else if !row.Tree || row.Resource != "WoodLog" {
+		amount, ok := accept(row)
+		if !ok {
 			continue
 		}
 		if row.Hunt {

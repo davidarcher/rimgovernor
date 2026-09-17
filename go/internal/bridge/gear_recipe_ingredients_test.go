@@ -23,12 +23,18 @@ func TestGearRecipeIngredientsSingleAllowedDefName(t *testing.T) {
 	}
 }
 
-func TestGearRecipeIngredientsMultipleAllowedDefNamesUnknown(t *testing.T) {
+func TestGearRecipeIngredientsMultipleAllowedDefNamesShareTheSlotCount(t *testing.T) {
 	rows := []*o.IngredientRequirement{
 		{AllowedDefNames: []string{"Steel", "Plasteel"}, Required: proto.Float64(10), Complete: proto.Bool(true)},
 	}
-	if _, known := GearRecipeIngredients(rows).Value(); known {
-		t.Fatalf("expected unknown for a multi-alternative slot (unverifiable stuff-adjusted cost)")
+	got, known := GearRecipeIngredients(rows).Value()
+	want := []policy.Amount{{Resource: "Steel", Count: 10}, {Resource: "Plasteel", Count: 10}}
+	if !known || len(got) != 1 || len(got[0]) != 2 || got[0][0] != want[0] || got[0][1] != want[1] {
+		t.Fatalf("got %v known %v", got, known)
+	}
+	rows[0].AllowedDefNames = []string{"Steel", "Steel"}
+	if _, known = GearRecipeIngredients(rows).Value(); known {
+		t.Fatal("duplicate alternative accepted")
 	}
 }
 
@@ -92,7 +98,7 @@ func TestGearRecipeIngredientsEmptyIsKnownEmpty(t *testing.T) {
 func TestGearRecipeIngredientsOneUnknownSlotPoisonsWholeRecipe(t *testing.T) {
 	rows := []*o.IngredientRequirement{
 		{AllowedDefNames: []string{"Steel"}, Required: proto.Float64(10), Complete: proto.Bool(true)},
-		{AllowedDefNames: []string{"Steel", "Plasteel"}, Required: proto.Float64(10), Complete: proto.Bool(true)},
+		{AllowedDefNames: []string{"Steel"}, Required: proto.Float64(10), Complete: proto.Bool(false)},
 	}
 	if _, known := GearRecipeIngredients(rows).Value(); known {
 		t.Fatalf("expected the whole recipe to be unknown when any one slot is unknown")

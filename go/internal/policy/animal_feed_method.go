@@ -10,7 +10,6 @@ type AnimalFeedReason string
 
 const (
 	AnimalFeedNoDeficit    AnimalFeedReason = "no_animal_feed_deficit"
-	AnimalFeedNoStock      AnimalFeedReason = "no_edible_shared_feed_stock"
 	AnimalFeedRestricted   AnimalFeedReason = "feed_resource_restricted_by_player_policy"
 	AnimalFeedExceedsBound AnimalFeedReason = "feed_requirement_exceeds_bounded_stock_planning_limit"
 	AnimalFeedSelected     AnimalFeedReason = "feed_resource_selected"
@@ -29,6 +28,14 @@ type AnimalFeedMethod struct {
 
 const maxAnimalFeedTarget = 10000
 
+// AnimalFeedFallbackResource is produced when no shared stock covers the
+// deficit animals; animalFeedFallbackNutrition is RimWorld's per-item
+// nutrition for it (Kibble: 0.05).
+const (
+	AnimalFeedFallbackResource  Resource = "Kibble"
+	animalFeedFallbackNutrition          = 0.05
+)
+
 // SelectAnimalFeedMethod picks the feed stock for a deficit herd: among the
 // worst-affected deficit race's animals (AnimalFeedTarget is already sorted
 // worst-runway-first by ReviewAnimalUpkeep), pick the shared (unheld),
@@ -40,6 +47,8 @@ const maxAnimalFeedTarget = 10000
 // under player spending restriction (StoppedResources) is skipped, the same
 // gate the resource-policy planner applies. Only the animals presently below
 // threshold are covered, since AnimalFeedTarget carries only deficit rows.
+// When no shared stock covers them at all, the method is kibble production
+// (AnimalFeedFallbackResource) sized by the same missing nutrition.
 func SelectAnimalFeedMethod(targets []AnimalFeedTarget, stocks []FoodStock, have map[Resource]int64, stopped []Resource) (AnimalFeedMethod, error) {
 	if len(targets) > 256 || len(stocks) > 4096 || len(have) > 4096 {
 		return AnimalFeedMethod{}, errors.New("animal feed inputs exceed bound")
@@ -103,7 +112,12 @@ func SelectAnimalFeedMethod(targets []AnimalFeedTarget, stocks []FoodStock, have
 		}
 	}
 	if !found {
-		return AnimalFeedMethod{Reason: AnimalFeedNoStock}, nil
+		// Nothing the animals can reach: fall back to producing kibble, the
+		// one feed every animal eats and any butcher spot makes from meat and
+		// hay. The bench's output lands where it is made, so a confined
+		// animal is fed by a bench inside its area rather than by stock it
+		// cannot walk to.
+		bestResource, bestNutritionPerItem = AnimalFeedFallbackResource, animalFeedFallbackNutrition
 	}
 	if restricted[bestResource] {
 		return AnimalFeedMethod{Reason: AnimalFeedRestricted}, nil

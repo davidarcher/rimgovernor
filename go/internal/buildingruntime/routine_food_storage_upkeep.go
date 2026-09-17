@@ -230,27 +230,11 @@ func (r *RoutineFoodStorageUpkeepPlanner) step(call, epoch context.Context, arbi
 	}
 	benches := make([]policy.GearBench, 0, len(census))
 	tokens := map[string]string{}
-	ingredients := map[string]bool{}
 	for _, row := range census {
 		benches = append(benches, row.Bench)
 		tokens[row.Bench.ID] = row.Token
-		if recipes, known := row.Bench.Recipes.Value(); known {
-			for _, recipe := range recipes {
-				if slots, known := recipe.Ingredients.Value(); known {
-					for _, slot := range slots {
-						for _, alt := range slot {
-							ingredients[string(alt.Resource)] = true
-						}
-					}
-				}
-			}
-		}
 	}
-	ingredientNames := make([]string, 0, len(ingredients))
-	for name := range ingredients {
-		ingredientNames = append(ingredientNames, name)
-	}
-	sort.Strings(ingredientNames)
+	ingredientNames := recipeIngredientNames(census, "")
 	var stock []policy.Stock
 	if len(ingredientNames) > 0 {
 		stock, _, err = r.native.ReadSupplyStock(call, identity, ingredientNames)

@@ -64,7 +64,7 @@ func admitAcquisitionMethod(ctx context.Context, tx *sql.Tx, goal GoalState, pla
 	}
 	bound := false
 	for _, binding := range review.Goals {
-		bound = bound || (binding.Need == policy.MaintainWood || binding.Need == policy.EnsureFoodSupply) && binding.Goal == goal.Goal.ID
+		bound = bound || (binding.Need == policy.MaintainWood || binding.Need == policy.EnsureFoodSupply || binding.Need == policy.MaintainMedicalReserves) && binding.Goal == goal.Goal.ID
 	}
 	if !bound {
 		return ErrConflict

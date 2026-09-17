@@ -747,7 +747,6 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	addAssessment(MaintainMedicalReserves, medicalReservePriority, medicalReserveRecovered)
 	if !positive(medicalReserveRecovered) {
 		addGoal(MaintainMedicalReserves, medicalReservePriority)
-		r.Goals[len(r.Goals)-1].MethodUnavailable = true
 	}
 	foodStorageActive := foodStorage.Active || f.UpkeepIssued[MaintainFoodStorage]
 	foodStorageRecovered := domain.Unknown[bool]()

@@ -3,12 +3,14 @@ package buildingruntime
 import (
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
-	"sort"
+	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -216,27 +218,11 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 	}
 	benches := make([]policy.GearBench, 0, len(census))
 	tokens := map[string]string{}
-	ingredients := map[string]bool{}
 	for _, row := range census {
 		benches = append(benches, row.Bench)
 		tokens[row.Bench.ID] = row.Token
-		if recipes, known := row.Bench.Recipes.Value(); known {
-			for _, recipe := range recipes {
-				if slots, known := recipe.Ingredients.Value(); known {
-					for _, slot := range slots {
-						for _, alt := range slot {
-							ingredients[string(alt.Resource)] = true
-						}
-					}
-				}
-			}
-		}
 	}
-	names := make([]string, 0, len(ingredients))
-	for name := range ingredients {
-		names = append(names, name)
-	}
-	sort.Strings(names)
+	names := recipeIngredientNames(census, medicineResourceDefinition)
 	var stock []policy.Stock
 	if len(names) > 0 {
 		stock, _, err = r.native.ReadSupplyStock(call, identity, names)
@@ -247,6 +233,9 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 	choice, err := policy.SelectMedicineMethod(policy.MedicinePlanningRequest{Review: medicalReview, Resource: medicineResourceDefinition, Seen: seen, Benches: domain.Known(benches), Stock: stock})
 	if err != nil {
 		return RoutineMedicalResult{}, err
+	}
+	if choice.Kind == policy.MedicineBlocked {
+		return r.harvestMedicine(call, epoch, state, goal, observed, medicalReview, started)
 	}
 	if choice.Kind != policy.MedicineProduce {
 		return RoutineMedicalResult{Reason: BuildingMethodUsed}, nil
@@ -295,6 +284,93 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 		return RoutineMedicalResult{}, ErrControl
 	}
 	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, choice.ID, plan); err != nil {
+		return RoutineMedicalResult{}, err
+	}
+	return RoutineMedicalResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+}
+
+// harvestMedicine is MaintainMedicalReserves' method when no bench produces
+// herbal medicine (a tribal start): an ordinary plant-cutting acquisition of
+// the nearest native-approved wild plants yielding the medicine definition
+// (wild healroot), sized by the review's replenishment and the harvest
+// already designated. The same executor and native designation path
+// EnsureFoodSupply's berry harvest uses carry it out; recovery is still
+// only the observed reserve.
+func (r *RoutineMedicalPlanner) harvestMedicine(call, epoch context.Context, state ControlState, goal store.GoalState, observed *o.ColonyFactsSnapshot, medicalReview policy.MedicalReserveReview, started time.Time) (RoutineMedicalResult, error) {
+	p := r.reviewer.player
+	replenish, known := medicalReview.Replenish.Value()
+	if !known {
+		return RoutineMedicalResult{Reason: BuildingMethodUnknown}, nil
+	}
+	if replenish <= 0 {
+		return RoutineMedicalResult{Reason: BuildingMethodNoDeficit}, nil
+	}
+	sources := observation.ColonyAcquisition(observed)
+	rows, known := sources.Value()
+	if !known {
+		return RoutineMedicalResult{Reason: BuildingMethodUnknown}, nil
+	}
+	pending := 0.0
+	for _, row := range rows {
+		if row.Designated && !row.Hunt && policy.Resource(row.Resource) == medicineResourceDefinition {
+			pending += row.Yield
+		}
+	}
+	plans, err := p.journal.LoadPlans(call, 256)
+	if err != nil {
+		return RoutineMedicalResult{}, err
+	}
+	held := map[string]bool{}
+	for _, plan := range plans {
+		for _, progress := range plan.Progress {
+			if acquisition, ok := progress.Action().Acquisition(); ok && domain.GoalWorkOpen([]domain.Progress{progress}) {
+				held[acquisition.Thing()] = true
+			}
+		}
+	}
+	selected, err := policy.SelectResourceAcquisition(sources, domain.Known(float64(replenish)), domain.Known(pending), medicineResourceDefinition, held)
+	if err != nil {
+		return RoutineMedicalResult{Reason: BuildingMethodUnknown}, nil
+	}
+	if len(selected) == 0 {
+		return RoutineMedicalResult{Reason: BuildingMethodUsed}, nil
+	}
+	hash := sha256.New()
+	for _, row := range selected {
+		fmt.Fprintf(hash, "%s/%s/%s/%d/%d\n", row.ID, row.Resource, row.Token, row.Cell.X, row.Cell.Z)
+	}
+	method := domain.MethodID(fmt.Sprintf("acquire-%x", hash.Sum(nil)[:16]))
+	if _, err = p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
+		return RoutineMedicalResult{Reason: BuildingMethodUsed}, nil
+	} else if !errors.Is(err, store.ErrNotFound) {
+		return RoutineMedicalResult{}, err
+	}
+	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
+	id := domain.PlanID(fmt.Sprintf("routine-medical-acquire-%x", digest[:16]))
+	var actions []domain.Action
+	for i, row := range selected {
+		value, err := domain.NewAcquisition(row.ID, row.Resource, row.Cell)
+		if err != nil {
+			return RoutineMedicalResult{}, err
+		}
+		action, err := domain.NewAcquisitionAction(domain.ActionID(fmt.Sprintf("%s-%d", id, i)), value)
+		if err != nil {
+			return RoutineMedicalResult{}, err
+		}
+		actions = append(actions, action)
+	}
+	plan, err := domain.NewPlan(id, 1, actions)
+	if err != nil {
+		return RoutineMedicalResult{}, err
+	}
+	if err = p.current(call, epoch); err != nil {
+		return RoutineMedicalResult{}, err
+	}
+	elapsed := r.reviewer.clock.Now().Sub(started)
+	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
+		return RoutineMedicalResult{}, ErrControl
+	}
+	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
 		return RoutineMedicalResult{}, err
 	}
 	return RoutineMedicalResult{Reason: BuildingMethodAdmitted, Plan: id}, nil

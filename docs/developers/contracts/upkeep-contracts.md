@@ -216,7 +216,11 @@ the reserve. Forbidden, expired, unreachable and future stock cannot establish i
 Replenishment uses the native herbal-medicine definition and the existing resource
 source/production method. Required PlantCutting work joins shared allocation while
 player overrides remain authoritative. Native eligibility decides mature wild
-healroot acquisition; unavailable sources or recipes remain explicit blockers.
+healroot acquisition: when no bench recipe can produce the definition, the
+planner harvests undesignated medicine-yielding wild plants from the acquisition
+census, counting designated plants as pending. Plants below harvest growth
+yield nothing and are not sources. Unavailable sources and recipes remain
+explicit blockers.
 The method preserves patient care, drug policies and player production bills.
 Designations and bill receipts never prove replenishment.
 
@@ -242,7 +246,10 @@ starting-animal upkeep does not replace those choices.
 Native feed definitions include non-human food and the installed kibble food-type
 flag, excluding drugs and corpses. Definition nutrition sizes bounded acquisition;
 actual reachable stock and demand determine recovery. At most eight eligible
-resources are considered through the shared source/bill method. Existing adequate
+resources are considered through the shared source/bill method. When no
+covering feed is reachable the method falls back to the kibble bill. A recipe
+slot that accepts several ingredient definitions is funded by the cheapest
+alternative in stock. Existing adequate
 bills are reused, player resource restrictions remain authoritative, and required
 production work joins shared allocation. The method never changes diets, animal
 areas, breeding or removal settings. Adequate global stock with insufficient animal

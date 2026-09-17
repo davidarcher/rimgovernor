@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
-	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
@@ -191,27 +190,11 @@ func (r *RoutineGearPlanner) step(call, epoch context.Context, arbiter *stepArbi
 			return RoutineGearResult{}, ErrControl
 		}
 		benches := make([]policy.GearBench, 0, len(census))
-		ingredients := map[string]bool{}
 		for _, row := range census {
 			benches = append(benches, row.Bench)
 			tokens[row.Bench.ID] = row.Token
-			if recipes, known := row.Bench.Recipes.Value(); known {
-				for _, recipe := range recipes {
-					if slots, known := recipe.Ingredients.Value(); known {
-						for _, slot := range slots {
-							for _, alt := range slot {
-								ingredients[string(alt.Resource)] = true
-							}
-						}
-					}
-				}
-			}
 		}
-		names := make([]string, 0, len(ingredients))
-		for name := range ingredients {
-			names = append(names, name)
-		}
-		sort.Strings(names)
+		names := recipeIngredientNames(census, "")
 		if len(names) > 0 {
 			stock, _, err = r.native.ReadSupplyStock(call, identity, names)
 			if err != nil {

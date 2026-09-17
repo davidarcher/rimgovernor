@@ -106,8 +106,11 @@ func (r *RoutineAnimalFeedPlanner) step(call, epoch context.Context, arbiter *st
 		return RoutineResourceResult{}, err
 	}
 	targets, known := reviewed.Feed.Value()
-	if !known || len(targets) == 0 {
-		return RoutineResourceResult{Reason: BuildingMethodUsed}, nil
+	if !known {
+		return RoutineResourceResult{Reason: BuildingMethodUnknown}, nil
+	}
+	if len(targets) == 0 {
+		return RoutineResourceResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	supply, known := upkeep.Food.Value()
 	if !known {
@@ -138,8 +141,12 @@ func (r *RoutineAnimalFeedPlanner) step(call, epoch context.Context, arbiter *st
 	if err != nil {
 		return RoutineResourceResult{}, err
 	}
-	if choice.Reason != policy.AnimalFeedSelected {
-		return RoutineResourceResult{Reason: BuildingMethodUsed}, nil
+	switch choice.Reason {
+	case policy.AnimalFeedSelected:
+	case policy.AnimalFeedNoDeficit:
+		return RoutineResourceResult{Reason: BuildingMethodNoDeficit}, nil
+	default:
+		return RoutineResourceResult{Reason: BuildingMethodRefused}, nil
 	}
 	return r.core.dispatchResourceGoal(call, epoch, state, goal, review.Tick, identity, choice.Resource, choice.Target, stock, started)
 }
