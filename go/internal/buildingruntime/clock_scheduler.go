@@ -363,14 +363,22 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 	// through one cache that lives exactly as long as the step, so the
 	// facts the planners share are read from native once per tick. A write
 	// within the step discards it; see bridge.StepReadCache.
-	reads := bridge.NewStepReadCache()
-	call = bridge.WithStepReadCache(call, reads)
-	if clockSchedulerDebug {
-		defer func() {
-			stats := reads.Stats()
-			clockSchedulerLog("step read cache: hits=%d misses=%d coalesced=%d invalidations=%d", stats.Hits, stats.Misses, stats.Coalesced, stats.Invalidations)
-		}()
-	}
+	cache := bridge.NewStepReadCache()
+	call = bridge.WithStepReadCache(call, cache)
+	// The round trips that still cross the bridge (cache misses, the
+	// uncacheable reads, writes) are tallied by tool so the cost of the
+	// composition is visible per step: on stderr under
+	// RIMGOVERNOR_CLOCK_DEBUG=1 beside the cache's hit/miss counts, and as a
+	// clock_step row in the flight recorder, which `rimgovernor phases`
+	// reports as reads/step.
+	call, reads := bridge.WithReadTally(call)
+	stepBegan := time.Now()
+	defer func() {
+		elapsed := time.Since(stepBegan)
+		stats := cache.Stats()
+		clockSchedulerLog("step reads: %s cache hits=%d misses=%d coalesced=%d invalidations=%d running=%v elapsed=%s", reads, stats.Hits, stats.Misses, stats.Coalesced, stats.Invalidations, out.Running, elapsed.Round(time.Millisecond))
+		reads.Publish(call, map[string]any{"cache_hits": stats.Hits, "running": out.Running, "elapsed_ms": float64(elapsed) / float64(time.Millisecond)})
+	}()
 	attempts, err := s.player.journal.LoadClockAttempts(call, 4096)
 	if err != nil {
 		return out, err

@@ -99,8 +99,9 @@ func TestPhaseTimingRecordedAndSummarized(t *testing.T) {
 			}
 		}
 	}
-	// Each typed call is one describe plus one call receipt.
-	if responses != 8 || decodes != 4 {
+	// Each typed call is one call receipt; the describe round trip happens
+	// once per method per session (identity, clock status), not per call.
+	if responses != 6 || decodes != 4 {
 		t.Fatalf("responses %d decodes %d", responses, decodes)
 	}
 
@@ -123,7 +124,7 @@ func TestPhaseTimingRecordedAndSummarized(t *testing.T) {
 	if identityCall.NativeTimed != 0 || identityCall.NativeQueueMs != 0 || clockCall.NativeTimed != 1 || clockCall.NativeQueueMs != 1.5 || clockCall.NativeExecuteMs != 0.25 {
 		t.Fatalf("native split: identity %+v clock %+v", identityCall, clockCall)
 	}
-	if identityCall.Calls != 3 || identityDetail.Calls != 3 || identityCall.Errors != 0 {
+	if identityCall.Calls != 3 || identityDetail.Calls != 1 || identityCall.Errors != 0 {
 		t.Fatalf("identity counts: %+v %+v", identityCall, identityDetail)
 	}
 	// Sub-millisecond phases (decode, gate wait) can legitimately read 0 on

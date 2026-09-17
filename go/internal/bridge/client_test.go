@@ -29,6 +29,7 @@ type testServer struct {
 	schema        string
 	sessions      []*mcp.ServerSession
 	starts        int
+	details       int
 }
 
 func structured(raw string) *mcp.CallToolResult {
@@ -51,6 +52,9 @@ func (s *testServer) server() *mcp.Server {
 				}
 				return structured(`{"success":true}`), nil
 			case "games_tool_detail":
+				s.mu.Lock()
+				s.details++
+				s.mu.Unlock()
 				if s.detailResult != nil {
 					return s.detailResult, nil
 				}

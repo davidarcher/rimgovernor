@@ -110,6 +110,14 @@ type liveSession struct {
 	ctx       context.Context
 	cancel    context.CancelFunc
 	discovery Discovery
+	// described records the native methods whose games_tool_detail input
+	// schema this session has already fetched and validated. Tool schemas
+	// are static for the life of a GABS session (the companion registers
+	// them once at attach), so protoCall describes each method once per
+	// session instead of before every call; a Reconnect/Reattach starts a
+	// fresh liveSession and therefore a fresh set.
+	describeMu sync.Mutex
+	described  map[string]bool
 }
 
 // maxConcurrentCalls bounds how many native calls one Client may have in
@@ -488,6 +496,11 @@ func (c *Client) core(ctx context.Context, live *liveSession, name string, argum
 		return out
 	}
 	nativeTool := nativeToolOf(name, arguments)
+	if name == "games_call_tool" {
+		readTallyFrom(ctx).add(c, nativeTool)
+	} else {
+		readTallyFrom(ctx).add(c, name)
+	}
 	var raw json.RawMessage
 	var receiptErr error
 	select {

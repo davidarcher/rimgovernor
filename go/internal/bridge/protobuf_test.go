@@ -306,3 +306,55 @@ func TestAdditionalTypedSDKFailures(t *testing.T) {
 		})
 	}
 }
+
+// TestDescribeOncePerSession: the input-schema describe that guards every
+// typed call is paid once per method per live session. A describe that
+// fails validation is not remembered, and a reconnect (fresh session)
+// describes again.
+func TestDescribeOncePerSession(t *testing.T) {
+	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+		return pbResult(pbLoaded()), nil
+	}}
+	client := testClient(t, s, time.Second)
+	details := func() int { s.mu.Lock(); defer s.mu.Unlock(); return s.details }
+	for i := 0; i < 3; i++ {
+		if _, _, err := client.Identity(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if details() != 1 || len(s.calls) != 3 {
+		t.Fatalf("describes %d calls %d", details(), len(s.calls))
+	}
+	// The handler answers status with an identity reply; the typed reply
+	// fails to parse, which is irrelevant here: only the describe count matters.
+	_, _, _ = client.Status(context.Background(), pbIdentity())
+	if details() != 2 {
+		t.Fatalf("second method not described once: %d", details())
+	}
+	if err := client.Reconnect(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := client.Identity(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if details() != 3 {
+		t.Fatalf("reconnect must describe again: %d", details())
+	}
+
+	// A rejected schema is retried on the next call rather than cached.
+	bad := &testServer{detailResult: structured(`{"inputSchema":` + emptySchema + `}`), handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+		return pbResult(pbLoaded()), nil
+	}}
+	client = testClient(t, bad, time.Second)
+	for i := 0; i < 2; i++ {
+		if _, _, err := client.Identity(context.Background()); !errors.Is(err, ErrContract) {
+			t.Fatalf("bad schema accepted: %v", err)
+		}
+	}
+	bad.mu.Lock()
+	n, calls := bad.details, len(bad.calls)
+	bad.mu.Unlock()
+	if n != 2 || calls != 0 {
+		t.Fatalf("failed describe cached: describes %d calls %d", n, calls)
+	}
+}

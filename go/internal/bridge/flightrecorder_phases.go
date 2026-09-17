@@ -46,8 +46,23 @@ type PhaseSummary struct {
 	WallSecs  float64      `json:"wall_seconds"`
 	Tools     []ToolPhases `json:"tools"`
 	Clock     ClockSample  `json:"clock"`
+	Steps     StepSample   `json:"steps"`
 	FirstWall float64      `json:"first_wall_time"`
 	LastWall  float64      `json:"last_wall_time"`
+}
+
+// StepSample aggregates the "clock_step" rows a ClockScheduler step publishes
+// from its ReadTally: how many steps the timeline covers, the native round
+// trips they issued in total and at most, the reads the step cache served
+// instead, and the round trips per tool summed over all steps (divide by
+// Steps for a per-step mean). Rows are absent when the controller ran
+// without a scheduler, leaving Steps at 0.
+type StepSample struct {
+	Steps     uint64            `json:"steps"`
+	Reads     uint64            `json:"reads"`
+	MaxReads  uint64            `json:"max_reads"`
+	CacheHits uint64            `json:"cache_hits"`
+	Tools     map[string]uint64 `json:"tools,omitempty"`
 }
 
 // ClockSample is wall TPS derived from the observation-context ticks carried
@@ -137,6 +152,21 @@ func SummarizePhases(records []TimelineRecord) PhaseSummary {
 		case "native_cache_hit":
 			_, entry := phaseEntry(tools, row)
 			entry.CacheHits++
+		case "clock_step":
+			steps := &summary.Steps
+			steps.Steps++
+			reads := uint64(field(row.Payload, "reads"))
+			steps.Reads += reads
+			steps.MaxReads = max(steps.MaxReads, reads)
+			steps.CacheHits += uint64(field(row.Payload, "cache_hits"))
+			if tools, ok := row.Payload["tools"].(map[string]any); ok {
+				if steps.Tools == nil {
+					steps.Tools = map[string]uint64{}
+				}
+				for tool := range tools {
+					steps.Tools[tool] += uint64(field(tools, tool))
+				}
+			}
 		case "native_decode":
 			request, ok := number(row.Payload["request"])
 			if !ok {
@@ -257,6 +287,23 @@ func WritePhaseReport(w io.Writer, summary PhaseSummary) {
 		fmt.Fprintf(w, "clock: %d ticks over %.1fs = %.1f wall TPS (%d tick samples, %d resets)", clock.TicksAdvanced, clock.WallSecs, clock.WallTPS, clock.TickSamples, clock.Resets)
 		if clock.ClockSamples > 0 {
 			fmt.Fprintf(w, ", paused %d/%d status samples", clock.PausedSamples, clock.ClockSamples)
+		}
+		fmt.Fprintln(w)
+	}
+	if steps := summary.Steps; steps.Steps > 0 {
+		fmt.Fprintf(w, "steps: %d, reads/step mean %.1f max %d, cache hits/step %.1f", steps.Steps, float64(steps.Reads)/float64(steps.Steps), steps.MaxReads, float64(steps.CacheHits)/float64(steps.Steps))
+		names := make([]string, 0, len(steps.Tools))
+		for tool := range steps.Tools {
+			names = append(names, tool)
+		}
+		sort.Slice(names, func(i, j int) bool {
+			if steps.Tools[names[i]] != steps.Tools[names[j]] {
+				return steps.Tools[names[i]] > steps.Tools[names[j]]
+			}
+			return names[i] < names[j]
+		})
+		for _, tool := range names {
+			fmt.Fprintf(w, "\n  %-52s %6.1f", tool, float64(steps.Tools[tool])/float64(steps.Steps))
 		}
 		fmt.Fprintln(w)
 	}

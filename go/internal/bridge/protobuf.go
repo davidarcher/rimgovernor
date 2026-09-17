@@ -301,12 +301,8 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 	var recordCtx map[string]any
 	var requestRow uint64
 	result, err := caller.operation(ctx, func(ctx context.Context, live *liveSession) (Result, error) {
-		detail, err := caller.describe(ctx, live, name)
-		if err != nil {
-			return detail, fmt.Errorf("describe %s: %w", name, err)
-		}
-		if err = validateOwnedStringInput(detail.Structured, "request"); err != nil {
-			return Result{}, fmt.Errorf("describe %s: %w", name, err)
+		if detail, err := caller.ensureDescribed(ctx, live, name); err != nil {
+			return detail, err
 		}
 		invoked = true
 		if caller.recorder != nil {
@@ -414,6 +410,33 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 	}
 	return result, nil
 }
+
+// ensureDescribed validates the method's owned string-wrapper input schema
+// once per live session (liveSession.described). A failed describe is never
+// remembered, so the next call retries it.
+func (caller *Client) ensureDescribed(ctx context.Context, live *liveSession, name string) (Result, error) {
+	live.describeMu.Lock()
+	known := live.described[name]
+	live.describeMu.Unlock()
+	if known {
+		return Result{}, nil
+	}
+	detail, err := caller.describe(ctx, live, name)
+	if err != nil {
+		return detail, fmt.Errorf("describe %s: %w", name, err)
+	}
+	if err = validateOwnedStringInput(detail.Structured, "request"); err != nil {
+		return Result{}, fmt.Errorf("describe %s: %w", name, err)
+	}
+	live.describeMu.Lock()
+	if live.described == nil {
+		live.described = map[string]bool{}
+	}
+	live.described[name] = true
+	live.describeMu.Unlock()
+	return Result{}, nil
+}
+
 func decodePayload(raw []byte, limit int) ([]byte, error) {
 	if len(raw) == 0 || len(raw) > maxResponseBytes {
 		return nil, contract("invalid wrapper size")
