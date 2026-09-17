@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -62,10 +63,10 @@ func TestClockSchedulerIsolatesFailingPlanner(t *testing.T) {
 
 func TestPlannerGroupIsolatesFailuresUntilContextEnds(t *testing.T) {
 	t.Parallel()
-	g := newPlannerGroup(context.Background())
+	g := newPlannerGroup(context.Background(), 2)
 	boom := errors.New("boom")
-	g.Go(func() error { return boom })
-	g.Go(func() error { return nil })
+	g.Go(plannerFoothold, func() error { return boom })
+	g.Go(plannerFoothold, func() error { return nil })
 	if err := g.Wait(); err != nil {
 		t.Fatal(err)
 	}
@@ -73,9 +74,76 @@ func TestPlannerGroupIsolatesFailuresUntilContextEnds(t *testing.T) {
 		t.Fatal(failures)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	cancelled := newPlannerGroup(ctx)
-	cancelled.Go(func() error { cancel(); return boom })
+	cancelled := newPlannerGroup(ctx, 1)
+	cancelled.Go(plannerPreempt, func() error { cancel(); return boom })
+	ran := false
+	cancelled.Go(plannerComfort, func() error { ran = true; return nil })
 	if err := cancelled.Wait(); !errors.Is(err, context.Canceled) || !errors.Is(err, boom) {
+		t.Fatal(err)
+	}
+	if ran {
+		t.Fatal("planner queued behind a finished step context still ran")
+	}
+}
+
+// Planners run lowest priority class first, queue order breaking ties, so a
+// tight step budget reaches naming/combat and critical medicine before
+// comfort and expansion (#76).
+func TestPlannerGroupAdmitsByPriorityThenQueueOrder(t *testing.T) {
+	t.Parallel()
+	g := newPlannerGroup(context.Background(), 1)
+	var order []string
+	queue := func(name string, priority int) {
+		g.Go(priority, func() error { order = append(order, name); return nil })
+	}
+	queue("comfort", plannerComfort)
+	queue("work", plannerFoothold)
+	queue("naming", plannerPreempt)
+	queue("fields", plannerFoothold)
+	queue("gear", plannerMaintenance)
+	queue("rescue", plannerCritical)
+	if err := g.Wait(); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(order, " ") != "naming rescue work fields gear comfort" {
+		t.Fatal(order)
+	}
+}
+
+// A slot is taken before the next planner starts, so a lower priority
+// planner waits for a running higher priority one rather than racing it for
+// the bridge gate.
+func TestPlannerGroupHoldsLowPriorityUntilASlotFrees(t *testing.T) {
+	t.Parallel()
+	g := newPlannerGroup(context.Background(), 2)
+	gate := make(chan struct{})
+	started := make(chan string, 3)
+	hold := func(name string, priority int) {
+		g.Go(priority, func() error {
+			started <- name
+			<-gate
+			return nil
+		})
+	}
+	hold("comfort", plannerComfort)
+	hold("naming", plannerPreempt)
+	hold("rescue", plannerCritical)
+	done := make(chan error, 1)
+	go func() { done <- g.Wait() }()
+	first, second := <-started, <-started
+	if !(first == "naming" && second == "rescue" || first == "rescue" && second == "naming") {
+		t.Fatal(first, second)
+	}
+	select {
+	case name := <-started:
+		t.Fatal("third planner started before a slot freed:", name)
+	case <-time.After(50 * time.Millisecond):
+	}
+	close(gate)
+	if name := <-started; name != "comfort" {
+		t.Fatal(name)
+	}
+	if err := <-done; err != nil {
 		t.Fatal(err)
 	}
 }

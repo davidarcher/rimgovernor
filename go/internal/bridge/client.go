@@ -120,7 +120,7 @@ type liveSession struct {
 	described  map[string]bool
 }
 
-// maxConcurrentCalls bounds how many native calls one Client may have in
+// MaxConcurrentCalls bounds how many native calls one Client may have in
 // flight at once. GABP only requires outbound frame writes to stay atomic
 // when responses/events are produced concurrently (github.com/pardeike/GABS
 // docs/releases/v1.1.1.md); the go-sdk transport already guarantees that
@@ -128,9 +128,9 @@ type liveSession struct {
 // (jsonrpc2.Connection.outgoingCalls), same as GABS's own GABP client
 // (pendingReqs). So calls need not be single-flight; this cap is only
 // backpressure against a caller bug flooding the native bridge at once.
-const maxConcurrentCalls = 8
+const MaxConcurrentCalls = 8
 
-// Client owns a single session. Up to maxConcurrentCalls calls may be in
+// Client owns a single session. Up to MaxConcurrentCalls calls may be in
 // flight at once; Close cancels in-flight and queued work. Reconnect is
 // explicit and never repeats a native call. A session whose transport dies
 // (GABS exiting, its stdio closing) is dropped as soon as the SDK observes
@@ -206,7 +206,7 @@ func open(ctx context.Context, gameID string, timeout time.Duration, recorder *F
 	if timeout < time.Millisecond || timeout > 120*time.Second {
 		return nil, fmt.Errorf("%w: timeout outside 1ms..120s", ErrContract)
 	}
-	c := &Client{factory: factory, gameID: gameID, timeout: timeout, gate: make(chan struct{}, maxConcurrentCalls), lifecycle: make(chan struct{}, 1), recorder: recorder}
+	c := &Client{factory: factory, gameID: gameID, timeout: timeout, gate: make(chan struct{}, MaxConcurrentCalls), lifecycle: make(chan struct{}, 1), recorder: recorder}
 	if err := c.Reconnect(ctx); err != nil {
 		return nil, err
 	}

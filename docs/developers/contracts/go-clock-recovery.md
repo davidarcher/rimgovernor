@@ -230,6 +230,13 @@ commits nothing and is reported in `ClockSchedulerResult.PlannerFailures` (the
 clock worker logs each changed set once), but its peers finish and the window is
 still evaluated on what they committed, so one broken family cannot keep the
 clock from ever starting. Only the step's own context ending fails the wave.
+The wave admits planners in goal-priority order (naming and active combat, then
+critical medicine and recovery, then foothold needs, then maintenance, then
+comfort and expansion), at most `bridge.MaxConcurrentCalls` at a time with a
+slot taken before the next planner starts, so a tight step budget is spent on
+the highest priorities first. Native reads still execute one at a time on the
+game's main thread; the wave only overlaps their round trips, so a wider
+session pool would not help.
 The step itself has no polling loop; autonomous play attaches ClockWorker.
 
 Every native observation a step issues (identity, the routine census and each

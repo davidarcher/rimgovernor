@@ -500,13 +500,13 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 	}
 	clockSchedulerLog("reached stepPlanners")
 	arbiter := newStepArbiter()
-	g := newPlannerGroup(call)
+	g := newPlannerGroup(call, plannerWidth)
 	gctx := call
 	if err = s.stepPlanners(call, epoch, &out, g, arbiter); err != nil {
 		return out, err
 	}
 	if s.config.SecureSupplies != nil {
-		g.Go(func() error {
+		g.Go(plannerFoothold, func() error {
 			method, err := s.config.SecureSupplies.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("secureSupplies: %w", err)
@@ -516,7 +516,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		})
 	}
 	if s.config.Repair != nil {
-		g.Go(func() error {
+		g.Go(plannerMaintenance, func() error {
 			method, err := s.config.Repair.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("repair: %w", err)
@@ -526,7 +526,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		})
 	}
 	if s.config.Clean != nil {
-		g.Go(func() error {
+		g.Go(plannerMaintenance, func() error {
 			method, err := s.config.Clean.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("clean: %w", err)
@@ -536,7 +536,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		})
 	}
 	if s.config.Waste != nil {
-		g.Go(func() error {
+		g.Go(plannerMaintenance, func() error {
 			method, err := s.config.Waste.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("waste: %w", err)
@@ -546,7 +546,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		})
 	}
 	if s.config.MoodRelief != nil {
-		g.Go(func() error {
+		g.Go(plannerMaintenance, func() error {
 			method, err := s.config.MoodRelief.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("moodRelief: %w", err)
@@ -556,7 +556,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		})
 	}
 	if s.config.Haul != nil {
-		g.Go(func() error {
+		g.Go(plannerMaintenance, func() error {
 			method, err := s.config.Haul.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("haul: %w", err)
@@ -567,7 +567,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		})
 	}
 	if s.config.Gear != nil {
-		g.Go(func() error {
+		g.Go(plannerMaintenance, func() error {
 			method, err := s.config.Gear.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("gear: %w", err)
@@ -577,7 +577,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		})
 	}
 	if s.config.Medical != nil {
-		g.Go(func() error {
+		g.Go(plannerCritical, func() error {
 			method, err := s.config.Medical.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("medical: %w", err)
@@ -587,7 +587,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		})
 	}
 	if s.config.FoodStorageUpkeep != nil {
-		g.Go(func() error {
+		g.Go(plannerFoothold, func() error {
 			method, err := s.config.FoodStorageUpkeep.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("foodStorageUpkeep: %w", err)
@@ -597,7 +597,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		})
 	}
 	if s.config.AnimalContainment != nil {
-		g.Go(func() error {
+		g.Go(plannerMaintenance, func() error {
 			method, err := s.config.AnimalContainment.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("animalContainment: %w", err)
@@ -607,7 +607,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		})
 	}
 	if s.config.Recovery != nil {
-		g.Go(func() error {
+		g.Go(plannerCritical, func() error {
 			method, err := s.config.Recovery.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("recovery: %w", err)
@@ -617,7 +617,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		})
 	}
 	if s.config.Husbandry != nil {
-		g.Go(func() error {
+		g.Go(plannerMaintenance, func() error {
 			method, err := s.config.Husbandry.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("husbandry: %w", err)
@@ -627,7 +627,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		})
 	}
 	if s.config.PrisonerInteraction != nil {
-		g.Go(func() error {
+		g.Go(plannerMaintenance, func() error {
 			method, err := s.config.PrisonerInteraction.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("prisonerInteraction: %w", err)
@@ -637,7 +637,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		})
 	}
 	if s.config.PopulationCustody != nil {
-		g.Go(func() error {
+		g.Go(plannerFoothold, func() error {
 			method, err := s.config.PopulationCustody.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("populationCustody: %w", err)
@@ -647,7 +647,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		})
 	}
 	if s.config.Research != nil {
-		g.Go(func() error {
+		g.Go(plannerMaintenance, func() error {
 			method, err := s.config.Research.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("research: %w", err)
@@ -657,7 +657,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		})
 	}
 	if s.config.Naming != nil {
-		g.Go(func() error {
+		g.Go(plannerPreempt, func() error {
 			method, err := s.config.Naming.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("naming: %w", err)
@@ -667,7 +667,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		})
 	}
 	if s.config.Resource != nil {
-		g.Go(func() error {
+		g.Go(plannerMaintenance, func() error {
 			method, err := s.config.Resource.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("resource: %w", err)
@@ -677,7 +677,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		})
 	}
 	if s.config.AnimalFeed != nil {
-		g.Go(func() error {
+		g.Go(plannerMaintenance, func() error {
 			method, err := s.config.AnimalFeed.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("animalFeed: %w", err)
@@ -687,7 +687,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		})
 	}
 	if s.config.ProductionPolicy != nil {
-		g.Go(func() error {
+		g.Go(plannerMaintenance, func() error {
 			method, err := s.config.ProductionPolicy.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("productionPolicy: %w", err)
@@ -697,7 +697,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		})
 	}
 	if s.config.CaravanJourney != nil {
-		g.Go(func() error {
+		g.Go(plannerMaintenance, func() error {
 			method, err := s.config.CaravanJourney.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("caravanJourney: %w", err)
@@ -707,7 +707,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		})
 	}
 	if s.config.HomeCoverage != nil {
-		g.Go(func() error {
+		g.Go(plannerComfort, func() error {
 			method, err := s.config.HomeCoverage.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("homeCoverage: %w", err)
@@ -717,7 +717,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		})
 	}
 	if s.config.StoneShell != nil {
-		g.Go(func() error {
+		g.Go(plannerComfort, func() error {
 			method, err := s.config.StoneShell.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("stoneShell: %w", err)
@@ -727,7 +727,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		})
 	}
 	if s.config.DefenseLayout != nil {
-		g.Go(func() error {
+		g.Go(plannerMaintenance, func() error {
 			method, err := s.config.DefenseLayout.step(gctx, epoch)
 			if err != nil {
 				return fmt.Errorf("defenseLayout: %w", err)
@@ -912,7 +912,7 @@ func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSch
 		}
 	}
 	if s.config.Work != nil {
-		g.Go(func() error {
+		g.Go(plannerFoothold, func() error {
 			method, err := s.config.Work.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("work: %w", err)
@@ -922,7 +922,7 @@ func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSch
 		})
 	}
 	if s.config.Fields != nil {
-		g.Go(func() error {
+		g.Go(plannerFoothold, func() error {
 			started := time.Now()
 			method, err := s.config.Fields.step(gctx, epoch, arbiter)
 			if err != nil {
@@ -935,7 +935,7 @@ func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSch
 		})
 	}
 	if s.config.FoodStorage != nil {
-		g.Go(func() error {
+		g.Go(plannerFoothold, func() error {
 			method, err := s.config.FoodStorage.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("foodStorage: %w", err)
@@ -945,7 +945,7 @@ func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSch
 		})
 	}
 	if s.config.FoodAcquisition != nil {
-		g.Go(func() error {
+		g.Go(plannerFoothold, func() error {
 			method, err := s.config.FoodAcquisition.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("foodAcquisition: %w", err)
@@ -955,7 +955,7 @@ func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSch
 		})
 	}
 	if s.config.WoodAcquisition != nil {
-		g.Go(func() error {
+		g.Go(plannerMaintenance, func() error {
 			method, err := s.config.WoodAcquisition.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("woodAcquisition: %w", err)
@@ -965,7 +965,7 @@ func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSch
 		})
 	}
 	if s.config.Supplies != nil {
-		g.Go(func() error {
+		g.Go(plannerFoothold, func() error {
 			method, err := s.config.Supplies.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("supplies: %w", err)
@@ -975,7 +975,7 @@ func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSch
 		})
 	}
 	if s.config.Sleeping != nil {
-		g.Go(func() error {
+		g.Go(plannerFoothold, func() error {
 			method, err := s.config.Sleeping.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("sleeping: %w", err)
@@ -986,7 +986,7 @@ func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSch
 		})
 	}
 	if s.config.Power != nil {
-		g.Go(func() error {
+		g.Go(plannerFoothold, func() error {
 			method, err := s.config.Power.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("power: %w", err)
@@ -997,7 +997,7 @@ func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSch
 		})
 	}
 	if s.config.Temperature != nil {
-		g.Go(func() error {
+		g.Go(plannerFoothold, func() error {
 			method, err := s.config.Temperature.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("temperature: %w", err)
@@ -1007,7 +1007,7 @@ func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSch
 		})
 	}
 	if s.config.Refrigeration != nil {
-		g.Go(func() error {
+		g.Go(plannerMaintenance, func() error {
 			method, err := s.config.Refrigeration.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("refrigeration: %w", err)
@@ -1018,7 +1018,7 @@ func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSch
 		})
 	}
 	if s.config.Lighting != nil {
-		g.Go(func() error {
+		g.Go(plannerMaintenance, func() error {
 			method, err := s.config.Lighting.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("lighting: %w", err)
@@ -1029,7 +1029,7 @@ func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSch
 		})
 	}
 	if s.config.Cooking != nil {
-		g.Go(func() error {
+		g.Go(plannerFoothold, func() error {
 			method, err := s.config.Cooking.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("cooking: %w", err)
@@ -1039,7 +1039,7 @@ func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSch
 		})
 	}
 	if s.config.Butcher != nil {
-		g.Go(func() error {
+		g.Go(plannerMaintenance, func() error {
 			method, err := s.config.Butcher.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("butcher: %w", err)
@@ -1055,7 +1055,11 @@ func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSch
 	}{{"cookingBills", s.config.CookingBills, &out.CookingBills}, {"preservationBills", s.config.PreservationBills, &out.PreservationBills}, {"butcherBills", s.config.ButcherBills, &out.ButcherBills}} {
 		if entry.planner != nil {
 			entry := entry
-			g.Go(func() error {
+			priority := plannerFoothold
+			if entry.name == "butcherBills" {
+				priority = plannerMaintenance
+			}
+			g.Go(priority, func() error {
 				method, err := entry.planner.step(gctx, epoch, arbiter)
 				if err != nil {
 					return fmt.Errorf("%s: %w", entry.name, err)
@@ -1066,7 +1070,7 @@ func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSch
 		}
 	}
 	if s.config.Comfort != nil {
-		g.Go(func() error {
+		g.Go(plannerComfort, func() error {
 			method, err := s.config.Comfort.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("comfort: %w", err)
@@ -1076,7 +1080,7 @@ func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSch
 		})
 	}
 	if s.config.Expansion != nil {
-		g.Go(func() error {
+		g.Go(plannerComfort, func() error {
 			method, err := s.config.Expansion.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("expansion: %w", err)
@@ -1086,7 +1090,7 @@ func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSch
 		})
 	}
 	if s.config.Defense != nil {
-		g.Go(func() error {
+		g.Go(plannerPreempt, func() error {
 			method, err := s.config.Defense.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("defense: %w", err)
@@ -1096,7 +1100,7 @@ func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSch
 		})
 	}
 	if s.config.Tend != nil {
-		g.Go(func() error {
+		g.Go(plannerCritical, func() error {
 			method, err := s.config.Tend.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("tend: %w", err)
@@ -1106,7 +1110,7 @@ func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSch
 		})
 	}
 	if s.config.Rescue != nil {
-		g.Go(func() error {
+		g.Go(plannerCritical, func() error {
 			method, err := s.config.Rescue.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("rescue: %w", err)
@@ -1116,7 +1120,7 @@ func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSch
 		})
 	}
 	if s.config.Equip != nil {
-		g.Go(func() error {
+		g.Go(plannerMaintenance, func() error {
 			method, err := s.config.Equip.step(gctx, epoch, arbiter)
 			if err != nil {
 				return fmt.Errorf("equip: %w", err)
