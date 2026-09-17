@@ -3,6 +3,9 @@ package buildingruntime
 import (
 	"context"
 	"errors"
+	"fmt"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -71,6 +74,21 @@ type workerWait struct {
 	scope   ControlState
 	delay   time.Duration
 	until   time.Time
+	// outcome is the last surfaced "stage/refusals/error" of this action, so
+	// a sustained hold logs once instead of every step (see issue #70).
+	outcome string
+}
+
+// workerOutcome keys one action run by what a reader of the log needs to
+// diagnose a stuck action: its stage, the executor's refusal reasons and the
+// error. Refusal reasons matter most -- an owned draft held before prepare
+// otherwise leaves no trace but a bare "building execution held".
+func workerOutcome(after domain.ProgressView, result executor.Result, err error) string {
+	reasons := make([]string, 0, len(result.Refused))
+	for _, r := range result.Refused {
+		reasons = append(reasons, string(r.Reason))
+	}
+	return fmt.Sprintf("stage=%s attempt=%d refused=[%s] err=%v", after.Stage, after.Attempt, strings.Join(reasons, ","), err)
 }
 
 func NewWorker(ctx context.Context, config WorkerConfig, player *Player, session *Session) (*Worker, error) {
@@ -264,7 +282,11 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 				delay = w.config.MaxBackoff
 			}
 		}
-		w.waits[v.Action] = workerWait{cleanup: candidate.cleanup, view: after, scope: workerScope(w.session.State()), delay: delay, until: now.Add(delay)}
+		outcome := workerOutcome(after, result, err)
+		if err != nil && outcome != wait.outcome {
+			fmt.Fprintf(os.Stderr, "[worker] %s %s\n", v.Action, outcome)
+		}
+		w.waits[v.Action] = workerWait{cleanup: candidate.cleanup, view: after, scope: workerScope(w.session.State()), delay: delay, until: now.Add(delay), outcome: outcome}
 		clockSchedulerLog("worker ran %s: stage %s -> %s attempt %d err=%v", v.Action, v.Stage, after.Stage, after.Attempt, err)
 		return errors.Join(worldErr, err)
 	}

@@ -361,3 +361,26 @@ func TestDraftCancelledUnresolvedCompletionPreservesCancellation(t *testing.T) {
 		t.Fatal(r, err)
 	}
 }
+
+// An ordinary (non-emergency) draft refusal must be persisted like every
+// other family's, so a draft held before prepare is diagnosable from the
+// journal instead of surfacing only as a bare ErrHeld (issue #70).
+func TestDraftOrdinaryRefusalPersistsHold(t *testing.T) {
+	f, d := newDraftFixture(t)
+	d.inspect = func(v *DraftInspection) { v.Pawn.Drafted = domain.Known(true) }
+	r, err := f.run()
+	if !errors.Is(err, ErrHeld) || d.calls != 0 || len(r.Refused) != 1 || r.Refused[0].Reason != policy.DraftOwnership {
+		t.Fatal(r, err)
+	}
+	held, ok := f.progress(t).FreshHeldReason()
+	if !ok || len(held) != 1 || held[0] != domain.HeldDraftOwnership {
+		t.Fatal("draft refusal was not persisted as a held reason", held)
+	}
+	d.inspect = func(v *DraftInspection) { v.Current.Native++ }
+	if r, err = f.run(); !errors.Is(err, ErrHeld) || len(r.Refused) != 1 || r.Refused[0].Reason != policy.StaleFacts {
+		t.Fatal(r, err)
+	}
+	if held, ok = f.progress(t).FreshHeldReason(); !ok || len(held) != 1 || held[0] != domain.HeldStaleFacts {
+		t.Fatal("stale draft inspection was not persisted as a held reason", held)
+	}
+}
