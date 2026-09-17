@@ -26,7 +26,7 @@ namespace HomeBridge.BridgeTools
     public sealed class NativeHusbandryObservation
     {
         [Tool("rimgovernor/observations_read_husbandry", Title = "Read colony husbandry census",
-            Description = "Official HusbandryRequest ProtoJSON. Read current map player animals: exact settings/census CAS tokens, training eligibility and safe-to-slaughter facts. Single complete page 1..256; unavailable instead of truncation.")]
+            Description = "Official HusbandryRequest ProtoJSON. Read current map player animals (plus factionless animals with include_wild): exact settings/census CAS tokens, training, tame, release and safe-to-slaughter eligibility facts. Single complete page 1..256; unavailable instead of truncation.")]
         [ToolResponse("payload", "string", "Official observations HusbandryReply ProtoJSON.", Always = true)]
         public async Task<object> ReadHusbandry(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw value must be a HusbandryRequest ProtoJSON string.")] object? request = null)
@@ -54,6 +54,11 @@ namespace HomeBridge.BridgeTools
         {
             var player = Faction.OfPlayerSilentFail ?? throw new InvalidOperationException("Player faction missing.");
             var animals = map.mapPawns.AllPawnsSpawned.Where(p => p.RaceProps.Animal && p.Faction == player).OrderBy(p => p.thingIDNumber).ToList();
+            // include_wild adds the factionless animals a TameAnimal write can
+            // target, so a tame target refreshes its CAS tokens through the
+            // same read the player herd uses.
+            if (request.IncludeWild)
+                animals.AddRange(map.mapPawns.AllPawnsSpawned.Where(p => p.RaceProps.Animal && p.Faction == null && !p.Dead).OrderBy(p => p.thingIDNumber));
             var limit = request.Page?.HasLimit == true ? (int)request.Page.Limit : 256;
             if (animals.Count > limit) throw new ReadLimit("Complete husbandry census exceeds the requested bound; paging is unavailable.");
             var snapshot = new Obs.HusbandrySnapshot { Context = context };
@@ -88,8 +93,11 @@ namespace HomeBridge.BridgeTools
                 var designations = animal.MapHeld.designationManager.AllDesignationsOn(animal);
                 row.Slaughter = designations.Any(d => d.def == DesignationDefOf.Slaughter);
                 row.Release = designations.Any(d => d.def == DesignationDefOf.ReleaseAnimalToWild);
+                row.Tame = designations.Any(d => d.def == DesignationDefOf.Tame);
             }
             row.SafeToSlaughter = NativeHusbandryOperations.Eligible(animal) && NativeHusbandryOperations.SafeToSlaughter(animal);
+            row.SafeToRelease = NativeHusbandryOperations.Eligible(animal) && NativeHusbandryOperations.SafeToRelease(animal);
+            row.Tameable = NativeHusbandryOperations.Tameable(animal);
             var pregnancy = animal.health?.hediffSet?.hediffs.OfType<Hediff_Pregnant>().FirstOrDefault();
             if (pregnancy != null) { row.Pregnant = true; row.Gestation = Number(pregnancy.Severity); }
             var milk = animal.GetComp<CompMilkable>(); if (milk != null) row.MilkFullness = Number(milk.Fullness);

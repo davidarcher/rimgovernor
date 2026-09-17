@@ -10,12 +10,12 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// HusbandryMethod names MaintainHerd-*'s two direct-write animal management
-// orders: recursive training request and slaughter designation. The native
-// contract is NativeHusbandryOperations.cs
-// (integrations/rimgovernor-native/src/Bridge/Protocol), wired onto
-// Operation_SetAnimalTraining/Operation_SlaughterAnimal in
-// NativeOperationTools.cs's Execute/Preview dispatch. It ports the legacy
+// HusbandryMethod names MaintainHerd-*'s direct-write animal management
+// orders: recursive training request and the slaughter, tame and
+// release-to-wild designations. The native contract is
+// NativeHusbandryOperations.cs (integrations/rimgovernor-native/src/Bridge/Protocol),
+// wired onto Operation_SetAnimalTraining/SlaughterAnimal/TameAnimal/
+// ReleaseAnimal in NativeOperationTools.cs's Execute/Preview dispatch. It ports the legacy
 // JSON home/husbandry_config tool's (HusbandryTools.Configure) eligibility
 // checks behind the typed boundary: an accepted order is a direct settings
 // write (no native job), so acceptance is the effect, not a promise of one.
@@ -25,9 +25,11 @@ const (
 	HusbandryMethodUnspecified HusbandryMethod = iota
 	HusbandryMethodTrain
 	HusbandryMethodSlaughter
+	HusbandryMethodTame
+	HusbandryMethodRelease
 )
 
-var husbandryMethodValid = map[HusbandryMethod]bool{HusbandryMethodTrain: true, HusbandryMethodSlaughter: true}
+var husbandryMethodValid = map[HusbandryMethod]bool{HusbandryMethodTrain: true, HusbandryMethodSlaughter: true, HusbandryMethodTame: true, HusbandryMethodRelease: true}
 
 type HusbandryAttempt struct {
 	Identity            *c.Identity
@@ -50,6 +52,14 @@ func husbandryOperation(animal, animalToken, census, trainableDef string, method
 		return &o.Operation{Command: &o.Operation_SlaughterAnimal{SlaughterAnimal: &o.SlaughterAnimal{
 			Animal: entity, ExpectedCensusToken: proto.String(census),
 		}}}
+	case HusbandryMethodTame:
+		return &o.Operation{Command: &o.Operation_TameAnimal{TameAnimal: &o.TameAnimal{
+			Animal: entity, ExpectedCensusToken: proto.String(census),
+		}}}
+	case HusbandryMethodRelease:
+		return &o.Operation{Command: &o.Operation_ReleaseAnimal{ReleaseAnimal: &o.ReleaseAnimal{
+			Animal: entity, ExpectedCensusToken: proto.String(census),
+		}}}
 	default:
 		return &o.Operation{}
 	}
@@ -67,16 +77,16 @@ func husbandryCommand(animal, animalToken, census string, method HusbandryMethod
 		if validID(trainableDef) != nil {
 			return contract("invalid husbandry trainable def")
 		}
-	case HusbandryMethodSlaughter:
+	case HusbandryMethodSlaughter, HusbandryMethodTame, HusbandryMethodRelease:
 		if trainableDef != "" {
-			return contract("slaughter does not take a trainable def")
+			return contract("animal designation does not take a trainable def")
 		}
 	}
 	return nil
 }
 
 // PreviewHusbandry checks an exact already-selected training request or
-// slaughter designation; acceptance is not authority.
+// slaughter/tame/release designation; acceptance is not authority.
 func (client *Client) PreviewHusbandry(ctx context.Context, identity *c.Identity, animal, animalToken, census string, method HusbandryMethod, trainableDef string) (*o.PreviewReply, Result, error) {
 	if err := ValidateIdentity(identity); err != nil {
 		return nil, Result{}, err
@@ -140,14 +150,25 @@ func husbandryEvidence(effect *r.AnimalEffect, expected HusbandryAttempt) (*r.An
 	if effect == nil || effect.Animal.GetEntityId() != expected.Animal {
 		return nil, contract("husbandry animal mismatch")
 	}
+	// Each method reports exactly its own effect field; any other field set
+	// means the native side answered a different order.
+	designation := effect.SlaughterDesignated != nil || effect.TameDesignated != nil || effect.ReleaseDesignated != nil
 	switch expected.Method {
 	case HusbandryMethodTrain:
-		if effect.GetTrainableDef() != expected.TrainableDef || effect.SlaughterDesignated != nil {
+		if effect.GetTrainableDef() != expected.TrainableDef || designation {
 			return nil, contract("husbandry training effect fields missing or unsupported")
 		}
 	case HusbandryMethodSlaughter:
-		if effect.TrainableDef != nil || effect.Wanted != nil {
+		if effect.TrainableDef != nil || effect.Wanted != nil || effect.SlaughterDesignated == nil || effect.TameDesignated != nil || effect.ReleaseDesignated != nil {
 			return nil, contract("husbandry slaughter effect fields missing or unsupported")
+		}
+	case HusbandryMethodTame:
+		if effect.TrainableDef != nil || effect.Wanted != nil || effect.TameDesignated == nil || effect.SlaughterDesignated != nil || effect.ReleaseDesignated != nil {
+			return nil, contract("husbandry tame effect fields missing or unsupported")
+		}
+	case HusbandryMethodRelease:
+		if effect.TrainableDef != nil || effect.Wanted != nil || effect.ReleaseDesignated == nil || effect.SlaughterDesignated != nil || effect.TameDesignated != nil {
+			return nil, contract("husbandry release effect fields missing or unsupported")
 		}
 	}
 	return effect, nil
@@ -191,7 +212,7 @@ func NewHusbandryWriter(client *Client) (*HusbandryWriter, error) {
 }
 
 // ApplyHusbandry dispatches one already-admitted training request or
-// slaughter designation.
+// slaughter/tame/release designation.
 func (writer *HusbandryWriter) ApplyHusbandry(ctx context.Context, pre *a.WritePrecondition, animal, animalToken, census string, method HusbandryMethod, trainableDef string) (*o.ExecuteReply, Result, error) {
 	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 {
 		return nil, Result{}, contract("invalid husbandry execution")

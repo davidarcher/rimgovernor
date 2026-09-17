@@ -101,3 +101,42 @@ func TestHusbandryDefenseHolds(t *testing.T) {
 		})
 	}
 }
+
+func TestHusbandryTameAndReleaseAdmission(t *testing.T) {
+	cases := []struct {
+		method domain.HusbandryMethod
+		facts  func(bool) HusbandryAnimalFacts
+	}{
+		{domain.HusbandryTame, func(ok bool) HusbandryAnimalFacts {
+			return HusbandryAnimalFacts{Animal: "animal", SnapshotToken: "animal-cas", Dead: domain.Known(false), Tameable: domain.Known(ok)}
+		}},
+		{domain.HusbandryRelease, func(ok bool) HusbandryAnimalFacts {
+			return HusbandryAnimalFacts{Animal: "animal", SnapshotToken: "animal-cas", Dead: domain.Known(false), SafeToRelease: domain.Known(ok)}
+		}},
+	}
+	for _, c := range cases {
+		t.Run(string(c.method), func(t *testing.T) {
+			h, _ := domain.NewHusbandry("animal", c.method, "")
+			a, _ := domain.NewHusbandryAction("husbandry-1", h)
+			plan, err := domain.NewPlan("plan", 1, []domain.Action{a})
+			if err != nil {
+				t.Fatal(err)
+			}
+			s := domain.GenerationSnapshot{Colony: "colony", Map: 0, Load: "load", Plan: plan.ID(), Revision: 1, Native: 1}
+			p, _ := domain.NewProgress(plan, a.ID())
+			r := HusbandryRequest{Action: a, Progress: p, Current: s, MinimumTick: 11, Facts: HusbandryFacts{Snapshot: s, PawnTick: 12, PreviewTick: 13, Animal: c.facts(true), CensusToken: "census-cas", NativeCanTry: domain.Known(true)}}
+			if d := EvaluateHusbandry(r); !d.Admitted || len(d.Refused) != 0 {
+				t.Fatal(d)
+			}
+			r.Facts.Animal = c.facts(false)
+			if d := EvaluateHusbandry(r); d.Admitted || len(d.Refused) != 1 || d.Refused[0].Reason != NativeIneligible {
+				t.Fatal(d)
+			}
+			// The other method's eligibility fact is never a substitute.
+			r.Facts.Animal = HusbandryAnimalFacts{Animal: "animal", SnapshotToken: "animal-cas", Dead: domain.Known(false), SafeToSlaughter: domain.Known(true), CanTrain: domain.Known(true), Learned: domain.Known(false)}
+			if d := EvaluateHusbandry(r); d.Admitted || len(d.Refused) != 1 || d.Refused[0].Reason != UnknownFacts {
+				t.Fatal(d)
+			}
+		})
+	}
+}

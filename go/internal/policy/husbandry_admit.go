@@ -20,6 +20,8 @@ type HusbandryAnimalFacts struct {
 	CanTrain        domain.Fact[bool]
 	Learned         domain.Fact[bool]
 	SafeToSlaughter domain.Fact[bool]
+	Tameable        domain.Fact[bool]
+	SafeToRelease   domain.Fact[bool]
 }
 
 type HusbandryFacts struct {
@@ -93,6 +95,22 @@ func EvaluateHusbandry(r HusbandryRequest) DraftDecision {
 		}
 	case domain.HusbandrySlaughter:
 		safe, known := f.Animal.SafeToSlaughter.Value()
+		if !known {
+			return refuse(UnknownFacts)
+		}
+		if !safe {
+			return refuse(NativeIneligible)
+		}
+	case domain.HusbandryTame:
+		tameable, known := f.Animal.Tameable.Value()
+		if !known {
+			return refuse(UnknownFacts)
+		}
+		if !tameable {
+			return refuse(NativeIneligible)
+		}
+	case domain.HusbandryRelease:
+		safe, known := f.Animal.SafeToRelease.Value()
 		if !known {
 			return refuse(UnknownFacts)
 		}

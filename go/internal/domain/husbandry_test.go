@@ -78,3 +78,21 @@ func TestHusbandryHandlerCoverageIsRequired(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestHusbandryTameAndReleaseVariants(t *testing.T) {
+	for _, method := range []HusbandryMethod{HusbandryTame, HusbandryRelease} {
+		h, err := NewHusbandry("animal", method, "")
+		if err != nil || h.Method() != method || h.TrainableDef() != "" {
+			t.Fatal(h, err)
+		}
+		if _, err := NewHusbandry("animal", method, "Trainability_Advanced"); err == nil {
+			t.Fatal(method, "with a trainable definition accepted")
+		}
+		if _, err := NewHusbandryAction("husbandry-1", h); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := NewHusbandry("animal", "pen", ""); err == nil {
+		t.Fatal("unknown method accepted")
+	}
+}

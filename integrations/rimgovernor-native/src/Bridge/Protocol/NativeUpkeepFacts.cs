@@ -173,7 +173,8 @@ namespace HomeBridge.BridgeTools
                     var suitable = requiresPen ? AnimalPenUtility.ClosestSuitablePen(p, false) : null;
                     var state = new Obs.AnimalState {
                         Release = map.designationManager.DesignationOn(p, DesignationDefOf.ReleaseAnimalToWild) != null,
-                        Slaughter = map.designationManager.DesignationOn(p, DesignationDefOf.Slaughter) != null
+                        Slaughter = map.designationManager.DesignationOn(p, DesignationDefOf.Slaughter) != null,
+                        SafeToRelease = NativeHusbandryOperations.Eligible(p) && NativeHusbandryOperations.SafeToRelease(p)
                     };
                     if (requiresPen) state.Contained = pen != null;
                     if (pen != null) state.PenId = Id(pen.parent.GetUniqueLoadID());
@@ -199,6 +200,22 @@ namespace HomeBridge.BridgeTools
                     return value;
                 }).ToList();
                 result.Animals.AddRange(values);
+            });
+            // The factionless animals a MaintainHerd tame write can target:
+            // native tame eligibility only, no feed or pen facts. A wild
+            // census beyond the bound leaves the section unknown rather than
+            // silently truncating the tame candidate list.
+            Read("wild_animals", result, () => {
+                var wild = map.mapPawns.AllPawnsSpawned.Where(p => !p.Dead && p.RaceProps.Animal && p.Faction == null)
+                    .OrderBy(p => p.thingIDNumber).ToList();
+                Require(wild.Count, 256);
+                result.WildAnimals.AddRange(wild.Select(p => new Obs.AnimalFeed {
+                    Pawn = new Obs.PawnState { Pawn = Ref(p), Wild = true, AnimalState = new Obs.AnimalState {
+                        Tameable = NativeHusbandryOperations.Tameable(p),
+                        Tame = map.designationManager.DesignationOn(p, DesignationDefOf.Tame) != null,
+                        MinimumHandlingSkill = TrainableUtility.MinimumHandlingSkill(p) } },
+                    Diet = Id(p.RaceProps.foodType.ToString()), RequiresPen = false
+                }));
             });
         }
 

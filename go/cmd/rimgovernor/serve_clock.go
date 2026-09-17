@@ -123,7 +123,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	lighting := sc.routineLightingPlans
 	animalContainment, recovery, husbandry, homeCoverage := sc.routineAnimalContainmentPlans, sc.routineRecoveryPlans, sc.routineHusbandryPlans, sc.routineHomeCoveragePlans
 	caravanJourneyTracking, researchTarget, resourceTargets := sc.caravanJourneyTracking, sc.routineResearchTarget, sc.routineResourceTargets.Map()
-	allowSlaughter, herdPopulationMax := sc.routineAllowSlaughter, sc.routineHerdPopulationMax.Map()
+	allowSlaughter, allowRelease, herdPopulationMax, herdPopulationMin := sc.routineAllowSlaughter, sc.routineAllowRelease, sc.routineHerdPopulationMax.Map(), sc.routineHerdPopulationMin.Map()
 	animalFeedPlans, productionPolicyPlans, productionReserves, productionStopped := sc.routineAnimalFeedPlans, sc.routineProductionPolicyPlans, sc.routineResourceReserves.Map(), sc.routineStoppedResources.Slice()
 	fields, bills, foodStorage := sc.routineFieldPlans, sc.routineBillPlans, sc.routineFoodStoragePlans
 	prisonerInteraction, populationCustody, stoneShell, defensiveLayout := sc.routinePrisonerInteractionPlans, sc.routinePopulationCustodyPlans, sc.routineStoneShellPlans, sc.routineDefensiveLayoutPlans
@@ -202,7 +202,9 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 		}
 		if husbandry {
 			thresholds.AllowSlaughter = allowSlaughter
+			thresholds.AllowRelease = allowRelease
 			thresholds.HerdPopulationMax = herdPopulationMax
+			thresholds.HerdPopulationMin = herdPopulationMin
 			capabilities.Methods = append(capabilities.Methods, policy.MaintainHerd)
 		}
 		if prisonerInteraction || populationCustody {

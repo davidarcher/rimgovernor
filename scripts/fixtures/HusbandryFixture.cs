@@ -19,13 +19,18 @@ namespace HomeBridge.BridgeTools
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 if (created) throw new InvalidOperationException("Fixture already created");
                 var map = Find.CurrentMap;
-                var handler = map.mapPawns.FreeColonistsSpawned.First(p => !p.WorkTypeIsDisabled(WorkTypeDefOf.Handling));
+                var handler = map.mapPawns.FreeColonistsSpawned.FirstOrDefault(p => !p.WorkTypeIsDisabled(WorkTypeDefOf.Handling))
+                    ?? throw new InvalidOperationException("husbandry fixture: no spawned colonist can do Handling");
                 var removed = map.mapPawns.FreeColonistsSpawned.Where(p => p != handler).ToArray();
                 foreach (var other in removed) { other.jobs.StopAll(); other.DeSpawn(); }
-                var origin = GenRadial.RadialCellsAround(handler.Position, 35, true).First(c =>
+                // The debug-start map is random; sweep well beyond the handler's
+                // landing spot so a rough or fogged neighbourhood does not
+                // starve the enclosure of an 11x11 heavy-affordance clearing.
+                var clearing = GenRadial.RadialCellsAround(handler.Position, GenRadial.MaxRadialPatternRadius - 1, true).Where(c =>
                     CellRect.FromLimits(c, c + new IntVec3(10, 0, 10)).Cells.All(p => p.InBounds(map)
                         && !p.Fogged(map) && p.Standable(map) && p.GetEdifice(map) == null
-                        && p.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Heavy)));
+                        && p.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Heavy))).Select(c => (IntVec3?)c).FirstOrDefault();
+                var origin = clearing ?? throw new InvalidOperationException("husbandry fixture: no 11x11 buildable clearing near " + handler.Position);
                 Func<string, int, int, Thing> spawn = (name, x, z) => {
                     var def = ThingDef.Named(name);
                     var t = ThingMaker.MakeThing(def, def.MadeFromStuff ? ThingDef.Named("BlocksGranite") : null);
@@ -68,6 +73,13 @@ namespace HomeBridge.BridgeTools
                 mother.health.AddHediff(pregnancy); pregnancy.Severity = .999f;
                 AccessTools.Field(typeof(CompHasGatherableBodyResource), "fullness").SetValue(mother.TryGetComp<CompShearable>(), 1f);
                 AccessTools.Field(typeof(CompHasGatherableBodyResource), "fullness").SetValue(cow.TryGetComp<CompMilkable>(), 1f);
+                // A factionless muffalo just outside the enclosure: the tame
+                // target. Muffalo wildness is below 1 so TameUtility.CanTame
+                // accepts it; the handler's level-20 Animals skill clears the
+                // minimum handling requirement.
+                var wild = PawnGenerator.GeneratePawn(new PawnGenerationRequest(PawnKindDef.Named("Muffalo"), null,
+                    fixedGender: Gender.Female, fixedBiologicalAge: 4));
+                GenSpawn.Spawn(wild, origin + new IntVec3(12, 0, 5), map);
                 var trainingSteps = (DefMap<TrainableDef, int>)AccessTools.Field(typeof(Pawn_TrainingTracker), "steps").GetValue(dog.training);
                 trainingSteps[TrainableDefOf.Obedience] = TrainableDefOf.Obedience.steps - 1;
                 for (var z = 2; z <= 8; z++)
@@ -84,9 +96,9 @@ namespace HomeBridge.BridgeTools
                 handler.jobs.StopAll();
                 created = true;
                 return new { success = true, mother = mother.GetUniqueLoadID(), father = father.GetUniqueLoadID(),
-                    cow = cow.GetUniqueLoadID(), dog = dog.GetUniqueLoadID(), handler = handler.GetUniqueLoadID(),
+                    cow = cow.GetUniqueLoadID(), dog = dog.GetUniqueLoadID(), wild = wild.GetUniqueLoadID(), handler = handler.GetUniqueLoadID(),
                     removedColonists = removed.Select(p => p.GetUniqueLoadID()).ToArray(),
-                    setup = "Single-handler fixture: other colonists despawned; roofed enclosure, bed, food and full initial handler needs. Mature full-producing animals, near-term pregnancy and one remaining training step. No completed outcome credited to setup; subsequent needs and work use normal rules." };
+                    setup = "Single-handler fixture: other colonists despawned; roofed enclosure, bed, food and full initial handler needs. Mature full-producing animals, near-term pregnancy, one remaining training step and one factionless tameable muffalo outside. No completed outcome credited to setup; subsequent needs and work use normal rules." };
             }, cancellationToken);
         }
     }

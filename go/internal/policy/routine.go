@@ -114,6 +114,18 @@ type RoutinePolicy struct {
 	// supported (no minimum, protected-id set or breeding-reserve count),
 	// narrowed the same way ResearchTarget's doc comment discloses its own gap.
 	HerdPopulationMax map[Resource]int64
+	// AllowRelease is the operator opt-in for MaintainHerd to remove a
+	// surplus animal by release-to-wild instead of slaughter. It defaults to
+	// false; when both AllowRelease and AllowSlaughter are set, release is
+	// preferred because it is non-lethal. Like slaughter it needs a
+	// HerdPopulationMax entry for the race.
+	AllowRelease bool
+	// HerdPopulationMin is an operator-declared map of native animal
+	// definition name to the population minimum MaintainHerd should keep
+	// that race at or above by designating tameable wild animals of that
+	// race for taming. Taming is otherwise never proposed. A race declared
+	// in both maps must have minimum <= maximum.
+	HerdPopulationMin map[Resource]int64
 	// DefensiveLayout is an operator-declared opt-in for EnsureDefensiveLayout
 	// (issue #5): the staged chokepoint/firing-line/funnel/trap-corridor
 	// construction RoutineDefenseLayoutPlanner proposes from a fresh native
@@ -169,7 +181,20 @@ func (p RoutinePolicy) Validate() error {
 	if err := ValidateHerdPopulationMax(p.HerdPopulationMax); err != nil {
 		return err
 	}
+	if err := ValidateHerdPopulationMax(p.HerdPopulationMin); err != nil {
+		return err
+	}
+	for race, minimum := range p.HerdPopulationMin {
+		if max, ok := p.HerdPopulationMax[race]; ok && minimum > max {
+			return errors.New("herd population minimum exceeds maximum")
+		}
+	}
 	return nil
+}
+
+// Herd is the MaintainHerd slice of this policy.
+func (p RoutinePolicy) Herd() HerdPolicy {
+	return HerdPolicy{AllowSlaughter: p.AllowSlaughter, AllowRelease: p.AllowRelease, PopulationMin: p.HerdPopulationMin, PopulationMax: p.HerdPopulationMax}
 }
 
 // ValidateHerdPopulationMax checks every configured MaintainHerd population
@@ -796,7 +821,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		animalFeed = domain.Known(len(targets) == 0)
 	}
 	herdRecovered := domain.Unknown[bool]()
-	if deficit, known := AnimalHerdDeficit(f.AnimalUpkeep.Animals, p.AllowSlaughter, p.HerdPopulationMax).Value(); known {
+	if deficit, known := AnimalHerdDeficit(f.AnimalUpkeep.Animals, f.AnimalUpkeep.WildAnimals, p.Herd()).Value(); known {
 		herdRecovered = domain.Known(!deficit)
 	}
 	addAssessment(MaintainHerd, 3, herdRecovered)

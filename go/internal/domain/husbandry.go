@@ -2,20 +2,24 @@ package domain
 
 import "errors"
 
-// HusbandryMethod names MaintainHerd-*'s two direct-write animal management
-// orders, mirroring bridge.HusbandryMethod: a recursive training request or a
-// slaughter designation. Both are direct settings writes (no native job), so
-// admission is the effect, not a promise of one.
+// HusbandryMethod names MaintainHerd-*'s direct-write animal management
+// orders, mirroring bridge.HusbandryMethod: a recursive training request, or
+// a slaughter, tame or release-to-wild designation. All are direct settings
+// writes (no native job), so admission is the effect, not a promise of one;
+// the taming and release work itself is native handler labor afterwards.
+// Tame targets a wild animal, the others a player animal.
 type HusbandryMethod string
 
 const (
 	HusbandryTrain     HusbandryMethod = "train"
 	HusbandrySlaughter HusbandryMethod = "slaughter"
+	HusbandryTame      HusbandryMethod = "tame"
+	HusbandryRelease   HusbandryMethod = "release"
 )
 
 // Husbandry is explicit intent to write one already-observed animal's
-// training request or slaughter designation. Native eligibility (canTrain,
-// safeToSlaughter, protected/breeding-reserve policy) is established at
+// training request or slaughter/tame/release designation. Native eligibility
+// (canTrain, safeToSlaughter, tameable, safeToRelease) is established at
 // inspection, not here.
 type Husbandry struct {
 	animal       PawnID
@@ -32,9 +36,9 @@ func NewHusbandry(animal PawnID, method HusbandryMethod, trainableDef string) (H
 		if !validID(trainableDef) {
 			return Husbandry{}, errors.New("husbandry training requires a valid trainable definition")
 		}
-	case HusbandrySlaughter:
+	case HusbandrySlaughter, HusbandryTame, HusbandryRelease:
 		if trainableDef != "" {
-			return Husbandry{}, errors.New("husbandry slaughter does not take a trainable definition")
+			return Husbandry{}, errors.New("husbandry designation does not take a trainable definition")
 		}
 	default:
 		return Husbandry{}, errors.New("invalid husbandry method")

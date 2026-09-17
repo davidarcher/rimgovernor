@@ -11,9 +11,11 @@ import (
 
 // herdPopulationMaxFlags collects repeatable --routine-herd-population-max
 // RACE:MAX flags into RoutinePolicy.HerdPopulationMax, the MaintainHerd
-// slaughter surplus's operator-declared per-race population ceiling. It is
-// only ever consulted once --routine-allow-slaughter also opts in; declaring
-// a maximum alone never dispatches a slaughter write.
+// surplus's operator-declared per-race population ceiling, and likewise
+// --routine-herd-population-min RACE:MIN into HerdPopulationMin, the floor
+// MaintainHerd tames wild animals toward. A maximum is only ever consulted
+// once --routine-allow-release or --routine-allow-slaughter also opts in;
+// declaring a maximum alone never dispatches a removal write.
 type herdPopulationMaxFlags map[policy.Resource]int64
 
 func (targets *herdPopulationMaxFlags) String() string {

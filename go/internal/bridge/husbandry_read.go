@@ -29,14 +29,19 @@ type HusbandryTarget struct {
 	LearnedKnown         bool
 	SafeToSlaughter      bool
 	SafeToSlaughterKnown bool
+	Tameable             bool
+	TameableKnown        bool
+	SafeToRelease        bool
+	SafeToReleaseKnown   bool
 }
 
 // ReadHusbandryTarget reads the whole herd census via the dedicated
 // ReadHusbandry observation and extracts one already-selected animal's fresh
-// tokens and eligibility facts. It requires a single complete page, like
+// tokens and eligibility facts. includeWild adds the factionless animals a
+// tame write targets. It requires a single complete page, like
 // ReadTendPawns/ReadPawns; a paginated herd is deferred to whatever candidate
 // search eventually drives a routine herd planner.
-func (client *Client) ReadHusbandryTarget(ctx context.Context, identity *c.Identity, animal, trainableDef string) (HusbandryTarget, Result, error) {
+func (client *Client) ReadHusbandryTarget(ctx context.Context, identity *c.Identity, animal, trainableDef string, includeWild bool) (HusbandryTarget, Result, error) {
 	if validID(animal) != nil {
 		return HusbandryTarget{}, Result{}, contract("invalid husbandry target identity")
 	}
@@ -45,7 +50,11 @@ func (client *Client) ReadHusbandryTarget(ctx context.Context, identity *c.Ident
 	}
 	identity = proto.Clone(identity).(*c.Identity)
 	reply := &o.HusbandryReply{}
-	raw, err := client.protoRead(ctx, "rimgovernor/observations_read_husbandry", &o.HusbandryRequest{Scope: &o.ReadScope{ExpectedIdentity: identity}}, reply)
+	request := &o.HusbandryRequest{Scope: &o.ReadScope{ExpectedIdentity: identity}}
+	if includeWild {
+		request.IncludeWild = proto.Bool(true)
+	}
+	raw, err := client.protoRead(ctx, "rimgovernor/observations_read_husbandry", request, reply)
 	if err != nil {
 		return HusbandryTarget{}, raw, err
 	}
@@ -86,6 +95,12 @@ func (client *Client) ReadHusbandryTarget(ctx context.Context, identity *c.Ident
 	if state != nil {
 		if state.SafeToSlaughter != nil {
 			out.SafeToSlaughterKnown, out.SafeToSlaughter = true, state.GetSafeToSlaughter()
+		}
+		if state.Tameable != nil {
+			out.TameableKnown, out.Tameable = true, state.GetTameable()
+		}
+		if state.SafeToRelease != nil {
+			out.SafeToReleaseKnown, out.SafeToRelease = true, state.GetSafeToRelease()
 		}
 		if trainableDef != "" {
 			for _, entry := range state.Training {

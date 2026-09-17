@@ -120,3 +120,29 @@ func TestHusbandryAdmissionPreparedRefreshThenCancelRetainsEvidence(t *testing.T
 		t.Fatal(state, err)
 	}
 }
+
+func TestHusbandryTameAndReleaseActionsRoundTrip(t *testing.T) {
+	ctx := context.Background()
+	s := open(t, filepath.Join(t.TempDir(), "husbandry-designations.db"))
+	for i, method := range []domain.HusbandryMethod{domain.HusbandryTame, domain.HusbandryRelease} {
+		h, _ := domain.NewHusbandry("animal", method, "")
+		id := domain.ActionID("husbandry-" + string(method))
+		a, _ := domain.NewHusbandryAction(id, h)
+		planID := domain.PlanID("plan-" + string(method))
+		plan, err := domain.NewPlan(planID, 1, []domain.Action{a})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err = s.CreatePlan(ctx, plan); err != nil {
+			t.Fatal(i, err)
+		}
+		state, err := s.LoadPlan(ctx, planID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got, ok := state.Spec.Actions()[0].Husbandry()
+		if !ok || got != h {
+			t.Fatal(method, got, ok)
+		}
+	}
+}

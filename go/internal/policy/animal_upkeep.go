@@ -21,7 +21,12 @@ type UpkeepAnimal struct {
 	// decodes containment/feed facts (AnimalState already exposes both), so
 	// no dedicated per-cycle husbandry read is needed to detect the deficit.
 	SafeToSlaughter domain.Fact[bool]
+	SafeToRelease   domain.Fact[bool]
 	Training        []HusbandryTrainable
+	// Tameable and Tame are only populated for the wild census
+	// (AnimalUpkeepObservation.WildAnimals): native tame eligibility and a
+	// standing tame designation.
+	Tameable, Tame domain.Fact[bool]
 }
 
 // HusbandryTrainable is one trainable definition's recursive-training
@@ -31,7 +36,10 @@ type HusbandryTrainable struct {
 	Available, Learned domain.Fact[bool]
 }
 type AnimalUpkeepObservation struct {
-	Animals       domain.Fact[[]UpkeepAnimal]
+	Animals domain.Fact[[]UpkeepAnimal]
+	// WildAnimals is the factionless census MaintainHerd tames from; it
+	// carries no feed or pen facts.
+	WildAnimals   domain.Fact[[]UpkeepAnimal]
 	Food          domain.Fact[FoodSupply]
 	DirectedHerds []Resource
 }

@@ -170,7 +170,7 @@ message JobEffect {
   optional string target_snapshot_token = 23;
 }
 message SurgeryEffect { optional string patient_id = 1; optional string recipe_def = 2; optional int32 part_index = 3; optional string bill_id = 4; optional bool queued = 5; optional string health_token = 6; SnapshotEvidence bill_stack = 7; }
-message AnimalEffect { SnapshotEvidence animal = 1; optional string census_token = 2; optional string trainable_def = 3; optional bool wanted = 4; optional bool slaughter_designated = 5; }
+message AnimalEffect { SnapshotEvidence animal = 1; optional string census_token = 2; optional string trainable_def = 3; optional bool wanted = 4; optional bool slaughter_designated = 5; optional bool tame_designated = 6; optional bool release_designated = 7; }
 // outcome is the pawn's actual custody state read from native at observation:
 // held (still a colony prisoner), recruited, enslaved, converted, released,
 // escaped or died. It is the evidence a completed or unsuccessful progress
