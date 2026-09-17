@@ -31,3 +31,9 @@ it('rejects a state without a source or with an unknown kind', async () => {
   stub({...state, source: {kind: 'drone'}});
   await expect(leaseVideo('t', 15)).rejects.toThrow();
 });
+it('reads the unavailable detail of an inactive lease', async () => {
+  stub({...state, active: false, unavailable: 'The pawn is not spawned on the current map.'});
+  const lease = await leaseVideo('t', 15, {kind: 'pawn', pawnId: 'Thing_Human42'});
+  expect(lease.active).toBe(false);
+  expect(lease.unavailable).toBe('The pawn is not spawned on the current map.');
+});

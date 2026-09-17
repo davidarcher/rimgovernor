@@ -220,6 +220,8 @@ namespace HomeBridge.BridgeTools
                 return result;
             }
             result.Active = status.Active;
+            if (!status.Active && !string.IsNullOrEmpty(status.UnavailableDetail))
+                result.Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.NotObserved, Detail = status.UnavailableDetail };
             if (status.Active)
             {
                 result.SourceId = status.SourceId;

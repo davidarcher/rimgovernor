@@ -1,6 +1,6 @@
 // What a lease captures: the presented screen, a colonist followed by a second camera, or the whole map.
 export type VideoSource = {kind: 'screen'} | {kind: 'pawn'; pawnId: string; width?: number; height?: number; framesPerSecond?: number} | {kind: 'map'; height?: number; framesPerSecond?: number};
-export type VideoState = {supported: boolean; active: boolean; sourceId: string; source: VideoSource; remainingLeaseMs: number; capturedFrames: number; framesPerSecond: number; pixelFormat: string; captureMethod: string};
+export type VideoState = {supported: boolean; active: boolean; sourceId: string; source: VideoSource; unavailable?: string; remainingLeaseMs: number; capturedFrames: number; framesPerSecond: number; pixelFormat: string; captureMethod: string};
 export type RenderStatus = {supported: boolean; suspended: boolean; windowVisible: boolean; remainingLeaseMs: number};
 export type VideoTicket = {ticket: string; expiresMs: number};
 
@@ -40,7 +40,7 @@ function readVideoSource(value: unknown): VideoSource {
 }
 function readVideoState(value: unknown): VideoState {
   const v = object(value, ['supported', 'active', 'sourceId', 'source', 'remainingLeaseMs', 'capturedFrames', 'framesPerSecond', 'pixelFormat', 'captureMethod']);
-  return {supported: bool(v.supported), active: bool(v.active), sourceId: text(v.sourceId), source: readVideoSource(v.source), remainingLeaseMs: uint(v.remainingLeaseMs), capturedFrames: uint(v.capturedFrames), framesPerSecond: uint(v.framesPerSecond), pixelFormat: text(v.pixelFormat), captureMethod: text(v.captureMethod)};
+  return {supported: bool(v.supported), active: bool(v.active), sourceId: text(v.sourceId), source: readVideoSource(v.source), unavailable: v.unavailable === undefined ? undefined : text(v.unavailable), remainingLeaseMs: uint(v.remainingLeaseMs), capturedFrames: uint(v.capturedFrames), framesPerSecond: uint(v.framesPerSecond), pixelFormat: text(v.pixelFormat), captureMethod: text(v.captureMethod)};
 }
 function readRenderStatus(value: unknown): RenderStatus {
   const v = object(value, ['supported', 'suspended', 'windowVisible', 'remainingLeaseMs']);

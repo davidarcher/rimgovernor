@@ -1,7 +1,7 @@
 import {useEffect, useRef, useState} from 'react';
 import {decodeVideoFrameMessage, demandRendering, leaseVideo, mintVideoTicket, videoEncodingNames, VideoHTTPError, type VideoFrame, type VideoSource} from './videoStreamData';
 
-type Status = 'idle' | 'leasing' | 'connecting' | 'streaming' | 'unsupported' | 'error';
+type Status = 'idle' | 'leasing' | 'connecting' | 'streaming' | 'unsupported' | 'unavailable' | 'error';
 
 // Draws one decoded frame onto the canvas. PNG/JPEG frames decode through the
 // browser's image pipeline; raw pixel frames are blitted by hand because the
@@ -70,6 +70,9 @@ export function VideoFeed({token, active, source, label, className}: {token: str
     };
     const connectOnce = async () => {
       if (stopped) return;
+      // No source to connect to (the pawn is off the map); a renewal that
+      // finds it again reconnects.
+      if (!sourceId.current) return;
       try {
         setStatus('connecting');
         const ticket = await mintVideoTicket(token, lifetime.signal, sourceId.current);
@@ -108,11 +111,24 @@ export function VideoFeed({token, active, source, label, className}: {token: str
         const lease = await leaseVideo(token, 15, spec, lifetime.signal);
         if (stopped) return;
         if (!lease.supported) {setStatus('unsupported'); setMessage('Live video is not supported by this game session.'); return;}
-        sourceId.current = lease.sourceId;
+        const unavailable = (state: {active: boolean; unavailable?: string}) => {
+          sourceId.current = '';
+          setStatus('unavailable'); setMessage(state.unavailable ?? 'The source is not available right now.');
+          socket?.close();
+        };
+        if (lease.active) sourceId.current = lease.sourceId; else unavailable(lease);
         await demandRendering(token, 15, lifetime.signal).catch(() => { /* best-effort; the stream still attempts to connect */ });
         renewTimer = setInterval(() => {
           void leaseVideo(token, 15, spec, lifetime.signal).then(renewed => {
-            if (!stopped && renewed.active && renewed.sourceId !== sourceId.current) {sourceId.current = renewed.sourceId; socket?.close();}
+            if (stopped) return;
+            if (!renewed.active) {unavailable(renewed); return;}
+            // The source may have been re-created (after a load, or the pawn
+            // returned): follow the new id on a fresh connection.
+            if (renewed.sourceId !== sourceId.current) {
+              const reconnect = !sourceId.current;
+              sourceId.current = renewed.sourceId;
+              if (reconnect) void connectOnce(); else socket?.close();
+            }
           }).catch(() => { /* a lapsed lease surfaces as a socket close, which retries */ });
           void demandRendering(token, 15, lifetime.signal).catch(() => { /* best-effort */ });
         }, 10000);
@@ -141,6 +157,7 @@ export function VideoFeed({token, active, source, label, className}: {token: str
         : status === 'leasing' ? 'Requesting a video lease…'
         : status === 'connecting' ? 'Connecting to the video stream…'
         : status === 'unsupported' ? `Live video unavailable. ${message}`
+        : status === 'unavailable' ? `${message} Waiting�`
         : `Video connection issue. ${message} Retrying…`}
     </p>}
     {status === 'streaming' && frames === 0 && <p className="game-video-status" role="status">Connected — waiting for the first frame…</p>}

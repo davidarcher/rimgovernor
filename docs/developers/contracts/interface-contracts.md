@@ -144,9 +144,16 @@ sequence and cadence (`frames_per_second`: screen 60, pawn up to 30, map up to
 render right after the game's own draw pass, with the player camera's culling
 rect widened to cover them only on the frames they are due, and clip the
 silhouette and overlay altitudes so a far player zoom never blanks the pawns
-(their cached far-zoom sprites are still what the game submits). A pawn that is
-not spawned on the viewed map, or a map that is not the viewed one, yields no
-frames until it is again. Stopping without `source_id` ends every source.
+(their cached far-zoom sprites are still what the game submits). A lease for a
+pawn that is not spawned on the current map, or for any source with no map
+loaded, is refused as `supported: true, active: false` with an `unavailable`
+detail; a running pawn feed ends when its pawn leaves the map, and every
+rendered source ends when the current map changes (a load), so `ReadFrame` on
+the old `sourceId` fails `UNAVAILABLE` and the dashboard tile re-leases and
+follows the new id. Stopping without `source_id` ends every source. The
+`videofeedsmatrix` harness measures the cost: on the reference machine five
+pawn feeds cost no ticks (60 TPS, p95 frame 33 ms either way) and five pawn
+feeds plus map plus screen held 55 TPS with a 50 ms p95 frame.
 
 Unity captures the full framebuffer after rendering, at most 60 times per second
 and up to 3840×2160. Private Xvfb workers capture their process-owned presented

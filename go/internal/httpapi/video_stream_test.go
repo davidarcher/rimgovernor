@@ -14,6 +14,7 @@ import (
 
 	"github.com/coder/websocket"
 	"github.com/davidarcher/RimGovernor/go/internal/videoshm"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	p "github.com/davidarcher/RimGovernor/go/internal/wire/presentationpb"
 	"google.golang.org/protobuf/proto"
 )
@@ -471,5 +472,19 @@ func TestVideoStreamTicketBindsTheSource(t *testing.T) {
 	// Every ReadFrame asked for the ticket's source, not the default screen.
 	if f.frameRequestSource != "feed-1" {
 		t.Fatal(f.frameRequestSource)
+	}
+}
+
+func TestVideoLeaseReportsAnUnavailableSource(t *testing.T) {
+	s, f, token := presentationMediaAPI(t)
+	f.video.GetState().Active = proto.Bool(false)
+	f.video.GetState().Unavailable = &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_OBSERVED.Enum(), Detail: proto.String("The pawn is not spawned on the current map.")}
+	out := playerCall(s, "POST", "/api/presentation/video-lease", `{"leaseSeconds":8,"source":{"kind":"pawn","pawnId":"Thing_Human1"}}`, token)
+	if out.Code != 200 {
+		t.Fatal(out.Code, out.Body.String())
+	}
+	var state VideoStateDTO
+	if err := json.Unmarshal(out.Body.Bytes(), &state); err != nil || state.Active || !state.Supported || state.Unavailable != "The pawn is not spawned on the current map." {
+		t.Fatal(out.Body.String(), err)
 	}
 }

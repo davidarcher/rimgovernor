@@ -100,6 +100,13 @@ namespace HomeBridge.BridgeTools
         internal string CaptureMethod { get; }
     }
 
+    // A rendered source that cannot be opened right now: no current map, or a
+    // pawn that is not spawned on it. Capture itself is supported.
+    internal sealed class VideoSourceUnavailableException : InvalidOperationException
+    {
+        internal VideoSourceUnavailableException(string message) : base(message) { }
+    }
+
     internal readonly struct VideoLeaseStatus
     {
         internal VideoLeaseStatus(bool supported, string unavailableDetail, bool active, string sourceId,
@@ -306,15 +313,16 @@ namespace HomeBridge.BridgeTools
             if (seconds > 0)
             {
                 try { source = Ensure().Begin(spec, seconds); }
+                catch (VideoSourceUnavailableException e) { return Status(null, e.Message, spec, true); }
                 catch (Exception e) { return Status(null, e.Message, spec); }
             }
             else if (instance != null) instance.Stop(sourceId);
             return Status(source, null, spec);
         }
 
-        static VideoLeaseStatus Status(VideoSource source, string unavailable, VideoSourceSpec spec)
+        static VideoLeaseStatus Status(VideoSource source, string unavailable, VideoSourceSpec spec, bool supported = false)
         {
-            bool supported = unavailable == null;
+            supported = supported || unavailable == null;
             bool active = source != null && source.Open;
             return new VideoLeaseStatus(supported, unavailable, active, active ? source.Name : null,
                 active ? Mathf.Max(0, source.Until - Time.realtimeSinceStartup) : 0,
@@ -358,7 +366,9 @@ namespace HomeBridge.BridgeTools
         {
             var map = Find.CurrentMap;
             if (spec.Rendered && (map == null || Find.Camera == null))
-                throw new InvalidOperationException("A rendered feed requires a current map.");
+                throw new VideoSourceUnavailableException("A rendered feed requires a current map.");
+            if (spec.Kind == VideoSourceKind.Pawn && FeedPawn(spec.PawnId, map) == null)
+                throw new VideoSourceUnavailableException("The pawn is not spawned on the current map.");
             var source = sources.Values.FirstOrDefault(s => s.Spec.Equals(spec) && ReferenceEquals(s.Map, map));
             if (source == null)
             {
@@ -401,10 +411,14 @@ namespace HomeBridge.BridgeTools
             source.Until = 0;
         }
 
+        // Ends sources past their lease, and rendered sources whose map is no
+        // longer current (a load replaced it): a viewer re-leases for the new map.
         void Expire()
         {
             var now = Time.realtimeSinceStartup;
-            foreach (var source in sources.Values.Where(s => now >= s.Until).ToArray()) Stop(source.Name);
+            var map = Find.CurrentMap;
+            foreach (var source in sources.Values.Where(s => now >= s.Until || (s.Spec.Rendered && !ReferenceEquals(s.Map, map))).ToArray())
+                Stop(source.Name);
         }
 
         IEnumerator Start()
@@ -563,10 +577,12 @@ namespace HomeBridge.BridgeTools
         // CameraDriver's minimum camera height; feeds always look down from there.
         const float FeedCameraAltitude = 15f;
 
-        static Pawn FeedPawn(VideoSource source, Map map)
+        static Pawn FeedPawn(VideoSource source, Map map) => FeedPawn(source.Spec.PawnId, map);
+
+        static Pawn FeedPawn(string pawnId, Map map)
         {
             foreach (var pawn in map.mapPawns.AllPawnsSpawned)
-                if (pawn.GetUniqueLoadID() == source.Spec.PawnId) return pawn.Dead ? null : pawn;
+                if (pawn.GetUniqueLoadID() == pawnId) return pawn.Dead ? null : pawn;
             return null;
         }
 
@@ -578,18 +594,26 @@ namespace HomeBridge.BridgeTools
             var map = Find.CurrentMap;
             if (map == null || Find.Camera == null) return;
             var now = Time.realtimeSinceStartup;
+            List<VideoSource> gone = null;
             foreach (var source in instance.sources.Values)
             {
                 if (!source.Spec.Rendered || !ReferenceEquals(source.Map, map) || source.Pending || now < source.Next) continue;
                 source.Next = now + (float)source.Interval;
-                // A pawn that is not on this map right now (dead, in a caravan,
-                // elsewhere) simply yields no frame this round.
                 source.FramePawn = source.Spec.Kind == VideoSourceKind.Pawn ? FeedPawn(source, map) : null;
+                if (source.Spec.Kind == VideoSourceKind.Pawn && source.FramePawn == null)
+                {
+                    // The pawn left this map (dead, removed, in a caravan): the
+                    // feed ends rather than freezing on its last frame; a viewer
+                    // that re-leases learns it is unavailable until it returns.
+                    (gone ??= new List<VideoSource>()).Add(source);
+                    continue;
+                }
                 var rect = FeedRect(source, map, source.FramePawn);
                 if (!rect.HasValue) continue;
                 instance.due.Add(source);
                 instance.dueRects.Add(rect.Value);
             }
+            if (gone != null) foreach (var source in gone) instance.Stop(source.Name);
             instance.drawing = instance.due.Count > 0;
         }
 

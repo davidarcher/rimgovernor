@@ -46,15 +46,18 @@ type videoLeaseRequestDTO struct {
 	SourceID string `json:"sourceId,omitempty"`
 }
 type VideoStateDTO struct {
-	Supported        bool           `json:"supported"`
-	Active           bool           `json:"active"`
-	SourceID         string         `json:"sourceId"`
-	Source           VideoSourceDTO `json:"source"`
-	RemainingLeaseMs uint32         `json:"remainingLeaseMs"`
-	CapturedFrames   uint64         `json:"capturedFrames"`
-	FramesPerSecond  float64        `json:"framesPerSecond"`
-	PixelFormat      string         `json:"pixelFormat"`
-	CaptureMethod    string         `json:"captureMethod"`
+	Supported bool           `json:"supported"`
+	Active    bool           `json:"active"`
+	SourceID  string         `json:"sourceId"`
+	Source    VideoSourceDTO `json:"source"`
+	// Unavailable says why a supported lease is not active: the pawn is not
+	// on the current map, or there is no map yet.
+	Unavailable      string  `json:"unavailable,omitempty"`
+	RemainingLeaseMs uint32  `json:"remainingLeaseMs"`
+	CapturedFrames   uint64  `json:"capturedFrames"`
+	FramesPerSecond  float64 `json:"framesPerSecond"`
+	PixelFormat      string  `json:"pixelFormat"`
+	CaptureMethod    string  `json:"captureMethod"`
 }
 type videoTicketRequestDTO struct {
 	// SourceID binds the ticket's stream to one leased source; absent means
@@ -202,7 +205,7 @@ func (s *Server) handleVideoLease(w http.ResponseWriter, r *http.Request) {
 	}
 	state := reply.GetState()
 	s.write(w, r, 200, VideoStateDTO{
-		Supported: state.GetSupported(), Active: state.GetActive(), SourceID: state.GetSourceId(), Source: videoSourceDTO(state.GetSource()),
+		Supported: state.GetSupported(), Active: state.GetActive(), SourceID: state.GetSourceId(), Source: videoSourceDTO(state.GetSource()), Unavailable: state.GetUnavailable().GetDetail(),
 		RemainingLeaseMs: state.GetRemainingLeaseMs(), CapturedFrames: state.GetCapturedFrames(),
 		FramesPerSecond: state.GetFramesPerSecond(), PixelFormat: state.GetPixelFormat().String(), CaptureMethod: state.GetCaptureMethod().String(),
 	})
