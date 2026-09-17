@@ -22,7 +22,7 @@ func draftTestPawn() *o.EntityPrecondition {
 	return &o.EntityPrecondition{EntityId: proto.String("pawn"), ExpectedSnapshotToken: proto.String("before")}
 }
 func draftTestJob() *r.JobEffect {
-	return &r.JobEffect{PawnId: proto.String("pawn"), Drafted: proto.Bool(true), Issued: proto.Bool(true), Verified: proto.Bool(true), DraftOwner: proto.String("controller"), DraftClaimId: proto.String("claim"), ResultingSnapshotToken: proto.String("after")}
+	return &r.JobEffect{PawnId: proto.String("pawn"), Drafted: proto.Bool(true), Issued: proto.Bool(true), Verified: proto.Bool(true), DraftClaimId: proto.String("claim"), ResultingSnapshotToken: proto.String("after")}
 }
 func draftTestEvidence() *r.EffectEvidence {
 	return &r.EffectEvidence{Effect: &r.EffectEvidence_Job{Job: draftTestJob()}}
@@ -173,7 +173,6 @@ func TestDraftLeaseFreeLookupAndProgress(t *testing.T) {
 	}
 	job := draftTestJob()
 	job.DraftClaimId = nil
-	job.DraftOwner = nil
 	job.Verified = proto.Bool(false)
 	v.Effect = &r.Progress_Unsuccessful{Unsuccessful: &r.UnsuccessfulEffect{Reason: r.UnsuccessfulReason_UNSUCCESSFUL_REASON_INTERRUPTED.Enum(), Evidence: &r.EffectEvidence{Effect: &r.EffectEvidence_Job{Job: job}}}}
 	v.CompleteInspection = proto.Bool(true)

@@ -135,7 +135,7 @@ func TestDraftCleanupInspectionArms(t *testing.T) {
 }
 func TestDraftReleaseExactRequestAndNoRetry(t *testing.T) {
 	t.Parallel()
-	for _, kind := range []string{"released", "already", "lost", "wrong-token", "wrong-owner", "wrong-world", "old-generation"} {
+	for _, kind := range []string{"released", "already", "lost", "wrong-token", "wrong-world", "old-generation"} {
 		t.Run(kind, func(t *testing.T) {
 			b, f := NewFixture(t)
 			release := domain.DraftRelease{Sequence: 1, Request: domain.DraftReleaseRequest{Claim: KnownClaim(f), PawnSnapshotToken: "persisted-old-token", Observed: f.P.Snapshot, Tick: 10}}
@@ -151,10 +151,6 @@ func TestDraftReleaseExactRequestAndNoRetry(t *testing.T) {
 			case "wrong-token":
 				f.MutateRelease = func(reply *o.ReleaseOwnedDraftReply) {
 					reply.GetReleased().Request.Pawn.ExpectedSnapshotToken = proto.String("other")
-				}
-			case "wrong-owner":
-				f.MutateRelease = func(reply *o.ReleaseOwnedDraftReply) {
-					reply.GetReleased().Observed.DraftOwner = proto.String("foreign")
 				}
 			case "wrong-world":
 				f.Ctx.Identity.LoadToken = proto.String("new")

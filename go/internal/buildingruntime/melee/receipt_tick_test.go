@@ -46,7 +46,6 @@ func TestMeleeBoundaryReceiptTickAcrossObservations(t *testing.T) {
 				current.Native++
 				f.Progress.Context.NativeGeneration = proto.Uint64(uint64(current.Native))
 				evidence.GetJob().Drafted = proto.Bool(false)
-				evidence.GetJob().DraftOwner = nil
 				evidence.GetJob().DraftClaimId = nil
 				evidence.GetJob().Verified = proto.Bool(false)
 				f.Progress.Effect = &r.Progress_Unsuccessful{Unsuccessful: &r.UnsuccessfulEffect{Reason: r.UnsuccessfulReason_UNSUCCESSFUL_REASON_INTERRUPTED.Enum(), Evidence: evidence}}

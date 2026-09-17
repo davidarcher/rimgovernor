@@ -127,7 +127,6 @@ func TestMeleeBoundaryRecoveryAfterManualAndUnknownReceipt(t *testing.T) {
 		f.Progress.Context.NativeGeneration = proto.Uint64(9)
 		job := f.Progress.GetCompleted().Evidence.GetJob()
 		job.Drafted = proto.Bool(false)
-		job.DraftOwner = nil
 		job.DraftClaimId = nil
 		got, err := b.ObserveMelee(context.Background(), d, current)
 		if err != nil || got.Observation.Effect != domain.EffectCompleted || !got.Complete || f.Leases != 0 || f.Writes != 0 || f.Lookups != 1 {

@@ -57,7 +57,7 @@ func (b *MeleeBoundary) ObserveMelee(ctx context.Context, dispatch executor.Mele
 			return out, executor.ErrEvidence
 		}
 		job = v.Pending.GetEvidence().GetJob()
-		if !out.Complete || job == nil || !job.GetVerified() || !job.GetDrafted() || job.DraftClaimId == nil || job.DraftOwner == nil || actual.Native != p.Snapshot.Native {
+		if !out.Complete || job == nil || !job.GetVerified() || !job.GetDrafted() || job.DraftClaimId == nil || actual.Native != p.Snapshot.Native {
 			return out, executor.ErrEvidence
 		}
 		out.Observation.Effect = domain.EffectPending
@@ -122,7 +122,7 @@ func (b *MeleeBoundary) checkReceipt(receipt *r.Receipt, dispatch executor.Melee
 	}
 	switch v := receipt.Outcome.(type) {
 	case *r.Receipt_Applied:
-		if v.Applied == nil || job == nil || !job.GetVerified() || !job.GetIssued() || !job.GetDrafted() || job.DraftClaimId == nil || job.DraftOwner == nil {
+		if v.Applied == nil || job == nil || !job.GetVerified() || !job.GetIssued() || !job.GetDrafted() || job.DraftClaimId == nil {
 			return executor.ErrEvidence
 		}
 	case *r.Receipt_Uncertain:

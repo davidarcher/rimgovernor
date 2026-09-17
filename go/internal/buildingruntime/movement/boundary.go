@@ -165,7 +165,7 @@ func movementJob(job *r.JobEffect, dispatch executor.MovementDispatch) error {
 	if job.GetPawnId() != string(m.Pawn()) || cell.GetX() != m.Destination().X || cell.GetZ() != m.Destination().Z || job.GetJobDef() != "Goto" {
 		return executor.ErrEvidence
 	}
-	if job.DraftClaimId != nil && job.GetDraftClaimId() != string(dispatch.Admission.DraftClaim.Claim) || job.DraftOwner != nil && job.GetDraftOwner() != string(dispatch.Admission.DraftClaim.Session) {
+	if job.DraftClaimId != nil && job.GetDraftClaimId() != string(dispatch.Admission.DraftClaim.Claim) {
 		return executor.ErrEvidence
 	}
 	return nil

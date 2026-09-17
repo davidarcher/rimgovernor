@@ -41,7 +41,7 @@ func attackReceipt(v *r.Receipt, expected AttackAttempt) error {
 	if err != nil {
 		return err
 	}
-	if complete && ((issued && job.JobId == nil || !issued && job.JobId != nil) || job.Drafted == nil || !job.GetDrafted() || job.Verified == nil || !job.GetVerified() || job.Issued == nil || job.GetIssued() != issued || job.DraftClaimId == nil || job.DraftOwner == nil || job.ResultingSnapshotToken == nil) {
+	if complete && ((issued && job.JobId == nil || !issued && job.JobId != nil) || job.Drafted == nil || !job.GetDrafted() || job.Verified == nil || !job.GetVerified() || job.Issued == nil || job.GetIssued() != issued || job.DraftClaimId == nil || job.ResultingSnapshotToken == nil) {
 		return contract("verified owned draft facts missing")
 	}
 	return nil
@@ -51,22 +51,19 @@ func attackEvidence(evidence *r.EffectEvidence, expected AttackAttempt) (*r.JobE
 	if job == nil || job.PawnId == nil || job.GetPawnId() != expected.PawnID || job.TargetA == nil || job.TargetA.GetThingId() != expected.TargetID {
 		return nil, contract("attack pawn or target mismatch")
 	}
-	allowed := &r.JobEffect{PawnId: job.PawnId, JobId: job.JobId, JobDef: job.JobDef, TargetA: job.TargetA, Drafted: job.Drafted, Issued: job.Issued, Verified: job.Verified, VerifiedReason: job.VerifiedReason, DraftOwner: job.DraftOwner, DraftClaimId: job.DraftClaimId, ResultingSnapshotToken: job.ResultingSnapshotToken}
+	allowed := &r.JobEffect{PawnId: job.PawnId, JobId: job.JobId, JobDef: job.JobDef, TargetA: job.TargetA, Drafted: job.Drafted, Issued: job.Issued, Verified: job.Verified, VerifiedReason: job.VerifiedReason, DraftClaimId: job.DraftClaimId, ResultingSnapshotToken: job.ResultingSnapshotToken}
 	if !proto.Equal(job, allowed) || !diagnostic(job.VerifiedReason) || job.Issued == nil || job.Verified == nil || job.Drafted == nil || job.ResultingSnapshotToken == nil {
 		return nil, contract("attack effect fields missing or unsupported")
 	}
 	if job.JobId == nil || job.JobDef == nil || job.GetJobId() < 0 || job.GetJobDef() != attackJobDef(expected.Mode) {
 		return nil, contract("attack job mismatch")
 	}
-	for _, id := range []*string{job.DraftOwner, job.DraftClaimId, job.ResultingSnapshotToken} {
+	for _, id := range []*string{job.DraftClaimId, job.ResultingSnapshotToken} {
 		if id != nil {
 			if err := validID(*id); err != nil {
 				return nil, err
 			}
 		}
-	}
-	if (job.DraftOwner == nil) != (job.DraftClaimId == nil) {
-		return nil, contract("attack claim owner mismatch")
 	}
 	return job, nil
 }
@@ -127,7 +124,7 @@ func attackProgress(v *r.Progress, expected AttackAttempt, admitted *r.Receipt) 
 	if err != nil {
 		return err
 	}
-	if pending && (v.Context.NativeGeneration == nil || v.Context.GetNativeGeneration() != expected.NativeGeneration || !job.GetVerified() || !job.GetDrafted() || job.DraftClaimId == nil || job.DraftOwner == nil) {
+	if pending && (v.Context.NativeGeneration == nil || v.Context.GetNativeGeneration() != expected.NativeGeneration || !job.GetVerified() || !job.GetDrafted() || job.DraftClaimId == nil) {
 		return contract("attack pending owned evidence missing")
 	}
 	// Native causality is latched before ownership loss. Current generation,

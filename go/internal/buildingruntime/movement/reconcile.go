@@ -58,7 +58,7 @@ func (b *MovementBoundary) ObserveMovement(ctx context.Context, dispatch executo
 			return out, executor.ErrEvidence
 		}
 		job = v.Pending.GetEvidence().GetJob()
-		if !out.Complete || job == nil || !job.GetVerified() || !job.GetDrafted() || job.DraftClaimId == nil || job.DraftOwner == nil || actual.Native != p.Snapshot.Native {
+		if !out.Complete || job == nil || !job.GetVerified() || !job.GetDrafted() || job.DraftClaimId == nil || actual.Native != p.Snapshot.Native {
 			return out, executor.ErrEvidence
 		}
 		out.Observation.Effect = domain.EffectPending

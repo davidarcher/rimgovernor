@@ -158,7 +158,7 @@ func (b *DraftBoundary) claim(p executor.Placement, job *r.JobEffect, row *n.Paw
 		return domain.Unknown[domain.DraftClaim](), nil
 	}
 	pawn, _ := p.Action.OwnedDraft()
-	if job.GetPawnId() != string(pawn.Pawn()) || job.GetDraftOwner() != b.session || !boundary.ValidID(job.GetDraftClaimId()) {
+	if job.GetPawnId() != string(pawn.Pawn()) || !boundary.ValidID(job.GetDraftClaimId()) {
 		return domain.Unknown[domain.DraftClaim](), executor.ErrEvidence
 	}
 	owned := row.GetDraftClaim().GetOwned()

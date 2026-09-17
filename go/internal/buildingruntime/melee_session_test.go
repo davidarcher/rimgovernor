@@ -15,7 +15,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/store/storetest"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
-	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -42,13 +41,6 @@ func TestMeleeSessionCompositionAndWorkerDraftRetention(t *testing.T) {
 	}
 	f.Receipt.Attempt.ControllerSessionId = proto.String(string(id))
 	f.Progress.Attempt.ControllerSessionId = proto.String(string(id))
-	boundary.ReceiptJob(f.Receipt).DraftOwner = proto.String(string(id))
-	f.Progress.GetCompleted().Evidence.GetJob().DraftOwner = proto.String(string(id))
-	f.MutateRelease = func(reply *o.ReleaseOwnedDraftReply) {
-		if released := reply.GetReleased(); released != nil && released.Observed != nil {
-			released.Observed.DraftOwner = proto.String(string(id))
-		}
-	}
 	pawnDraft, _ := domain.NewOwnedDraft("pawn")
 	d, _ := domain.NewOwnedDraftAction("action", pawnDraft)
 	plan, err := domain.NewPlan("plan", 1, []domain.Action{d, dispatch.Attempt.Action})

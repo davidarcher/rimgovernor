@@ -45,7 +45,7 @@ func NewFixture(t *testing.T) (*DraftBoundary, *Fixture) {
 	ctx := &c.ObservationContext{Identity: boundary.Identity(snapshot), Tick: proto.Int64(10), NativeGeneration: proto.Uint64(2)}
 	ref := &n.SnapshotRef{Context: proto.Clone(ctx).(*c.ObservationContext), EntityId: proto.String("pawn"), Token: proto.String("cas")}
 	row := &n.PawnState{Pawn: &n.EntityRef{Id: proto.String("pawn"), Snapshot: ref}, Drafted: proto.Bool(true), DraftClaim: &n.DraftClaimObservation{State: &n.DraftClaimObservation_Owned{Owned: &n.OwnedDraftClaim{ClaimId: proto.String("claim"), PawnSnapshot: proto.Clone(ref).(*n.SnapshotRef)}}}, Job: &n.JobEvidence{PlayerForced: proto.Bool(false), QueuedJobs: proto.Uint32(0)}}
-	job := &r.JobEffect{PawnId: proto.String("pawn"), Drafted: proto.Bool(true), Verified: proto.Bool(true), Issued: proto.Bool(true), DraftOwner: proto.String("session"), DraftClaimId: proto.String("claim"), ResultingSnapshotToken: proto.String("cas")}
+	job := &r.JobEffect{PawnId: proto.String("pawn"), Drafted: proto.Bool(true), Verified: proto.Bool(true), Issued: proto.Bool(true), DraftClaimId: proto.String("claim"), ResultingSnapshotToken: proto.String("cas")}
 	effect := &r.EffectEvidence{Effect: &r.EffectEvidence_Job{Job: job}}
 	key := &c.AttemptKey{ControllerSessionId: proto.String("session"), ActionId: proto.String("action"), AttemptId: proto.Uint64(1)}
 	f := &Fixture{P: p, Ctx: ctx, Row: row, Receipt: &r.Receipt{Attempt: key, AdmittedContext: proto.Clone(ctx).(*c.ObservationContext), Outcome: &r.Receipt_Applied{Applied: &r.Applied{Observed: effect}}}, Progress: &r.Progress{Attempt: proto.Clone(key).(*c.AttemptKey), Context: proto.Clone(ctx).(*c.ObservationContext), CompleteInspection: proto.Bool(true), Effect: &r.Progress_Completed{Completed: &r.CompletedEffect{Evidence: proto.Clone(effect).(*r.EffectEvidence)}}}}
@@ -103,7 +103,7 @@ func (f *Fixture) DraftPawn(_ context.Context, pre *a.WritePrecondition, pawn *o
 func (f *Fixture) ReleaseOwnedDraft(_ context.Context, q *o.ReleaseOwnedDraftRequest) (*o.ReleaseOwnedDraftReply, bridge.Result, error) {
 	f.Releases++
 	f.LastRelease = proto.Clone(q).(*o.ReleaseOwnedDraftRequest)
-	reply := &o.ReleaseOwnedDraftReply{Outcome: &o.ReleaseOwnedDraftReply_Released{Released: &o.DraftRelease{Request: proto.Clone(q).(*o.ReleaseOwnedDraftRequest), Context: proto.Clone(f.Ctx).(*c.ObservationContext), Observed: &r.JobEffect{PawnId: q.Pawn.EntityId, Drafted: proto.Bool(false), Verified: proto.Bool(true), Issued: proto.Bool(true), DraftOwner: proto.String("session"), DraftClaimId: q.ExpectedClaimId, ResultingSnapshotToken: proto.String("after")}}}}
+	reply := &o.ReleaseOwnedDraftReply{Outcome: &o.ReleaseOwnedDraftReply_Released{Released: &o.DraftRelease{Request: proto.Clone(q).(*o.ReleaseOwnedDraftRequest), Context: proto.Clone(f.Ctx).(*c.ObservationContext), Observed: &r.JobEffect{PawnId: q.Pawn.EntityId, Drafted: proto.Bool(false), Verified: proto.Bool(true), Issued: proto.Bool(true), DraftClaimId: q.ExpectedClaimId, ResultingSnapshotToken: proto.String("after")}}}}
 	if f.MutateRelease != nil {
 		f.MutateRelease(reply)
 	}
