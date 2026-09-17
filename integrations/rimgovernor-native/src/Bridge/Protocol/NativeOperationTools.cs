@@ -78,7 +78,7 @@ namespace HomeBridge.BridgeTools
             Operations.ExecuteRequest parsed; Common.Failure failure;
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/operations_execute", request, Operations.ExecuteRequest.Parser, out parsed, out failure))
                 return ProtoBoundary.Encode(new Operations.ExecuteReply { Failure = failure });
-            return await ctx.MainThread.InvokeAsync<object>(() => ProtoBoundary.Encode(ExecuteNative(parsed)), cancellationToken).ConfigureAwait(false);
+            return await ProtoBoundary.OnMainThread(ctx, () => ProtoBoundary.Encode(ExecuteNative(parsed)), cancellationToken).ConfigureAwait(false);
         }
 
         internal static Operations.ExecuteReply ExecuteNative(Operations.ExecuteRequest request)
@@ -221,7 +221,7 @@ namespace HomeBridge.BridgeTools
             Operations.PreviewRequest parsed; Common.Failure failure;
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/operations_preview", request, Operations.PreviewRequest.Parser, out parsed, out failure))
                 return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = failure });
-            return await ctx.MainThread.InvokeAsync<object>(() =>
+            return await ProtoBoundary.OnMainThread(ctx, () =>
             {
                 Common.ObservationContext context; Common.Failure invalid;
                 if (!ProtoBoundary.ValidateIdentity(parsed.Identity, Find.CurrentMap, out context, out invalid))
@@ -314,7 +314,7 @@ namespace HomeBridge.BridgeTools
             Receipts.LookupRequest parsed; Common.Failure failure;
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/receipts_lookup", request, Receipts.LookupRequest.Parser, out parsed, out failure))
                 return ProtoBoundary.Encode(new Receipts.LookupReply { Failure = failure });
-            return await ctx.MainThread.InvokeAsync<object>(() =>
+            return await ProtoBoundary.OnMainThread(ctx, () =>
             {
                 Common.ObservationContext context; Common.Failure invalid;
                 if (!ValidAttempt(parsed.Attempt)) return ProtoBoundary.Encode(new Receipts.LookupReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A complete attempt is required.") });
@@ -335,7 +335,7 @@ namespace HomeBridge.BridgeTools
             Receipts.ProgressRequest parsed; Common.Failure failure;
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/receipts_observe_progress", request, Receipts.ProgressRequest.Parser, out parsed, out failure))
                 return ProtoBoundary.Encode(new Receipts.ProgressReply { Failure = failure });
-            return await ctx.MainThread.InvokeAsync<object>(() =>
+            return await ProtoBoundary.OnMainThread(ctx, () =>
             {
                 Common.ObservationContext context; Common.Failure invalid;
                 if (!ValidAttempt(parsed.Attempt)) return ProtoBoundary.Encode(new Receipts.ProgressReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A complete attempt is required.") });
@@ -451,7 +451,7 @@ namespace HomeBridge.BridgeTools
             Operations.ReleaseOwnedDraftRequest parsed; Common.Failure failure;
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/operations_release_owned_draft", request, Operations.ReleaseOwnedDraftRequest.Parser, out parsed, out failure))
                 return ProtoBoundary.Encode(new Operations.ReleaseOwnedDraftReply { Failure = failure });
-            return await ctx.MainThread.InvokeAsync<object>(() => ProtoBoundary.Encode(NativeDraftOperations.Release(parsed)), cancellationToken).ConfigureAwait(false);
+            return await ProtoBoundary.OnMainThread(ctx, () => ProtoBoundary.Encode(NativeDraftOperations.Release(parsed)), cancellationToken).ConfigureAwait(false);
         }
 
         private static bool ValidAttempt(Common.AttemptKey value) => value != null && value.HasControllerSessionId

@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using Google.Protobuf;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -119,6 +122,43 @@ namespace HomeBridge.BridgeTools
                 throw new InvalidOperationException("Media reply exceeds the 48 MiB media envelope limit.");
             return new Dictionary<string, object>(StringComparer.Ordinal) { ["payload"] = payload };
         }
+
+        // Timing is reported beside the payload so the Go sampler can split
+        // native main-thread scheduling from tool execution: queueMs is the
+        // wait between requesting the main thread and the body starting,
+        // executeMs is the body itself including ProtoJSON formatting. It
+        // covers every tool whose single main-thread hop goes through
+        // OnMainThread; multi-hop media captures stay unreported.
+        internal const string TimingField = "timing";
+
+        internal static Task<object> OnMainThread(IRimBridgeContext ctx, Func<object> body, CancellationToken cancellationToken)
+        {
+            var queued = Stopwatch.GetTimestamp();
+            return ctx.MainThread.InvokeAsync<object>(() =>
+            {
+                var started = Stopwatch.GetTimestamp();
+                var reply = body();
+                return WithTiming(reply, queued, started, Stopwatch.GetTimestamp());
+            }, cancellationToken);
+        }
+
+        internal static Task<object> OnMainThreadEncoded(IRimBridgeContext ctx, Func<IMessage> body, CancellationToken cancellationToken)
+            => OnMainThread(ctx, () => Encode(body()), cancellationToken);
+
+        internal static object WithTiming(object reply, long queued, long started, long finished)
+        {
+            var envelope = reply as Dictionary<string, object>;
+            if (envelope == null || !envelope.ContainsKey("payload") || envelope.ContainsKey(TimingField)) return reply;
+            envelope[TimingField] = new Dictionary<string, object>(StringComparer.Ordinal)
+            {
+                ["queueMs"] = Millis(started - queued),
+                ["executeMs"] = Millis(finished - started),
+            };
+            return envelope;
+        }
+
+        private static double Millis(long ticks)
+            => ticks <= 0 ? 0.0 : Math.Round(ticks * 1000.0 / Stopwatch.Frequency, 3);
 
         internal static Common.Failure Fail(Common.FailureCode code, string detail)
         {

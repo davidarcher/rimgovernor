@@ -36,7 +36,7 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/observations_read_spatial_access", request!, Obs.SpatialAccessRequest.Parser, out var parsed, out var failure)
                 || !Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.SpatialAccessReply { Failure = failure });
-            return await ctx.MainThread.InvokeAsync<object>(() => {
+            return await ProtoBoundary.OnMainThread(ctx, () => {
                 var map = Find.CurrentMap;
                 if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity!, map, out var context, out failure))
                     return ProtoBoundary.Encode(new Obs.SpatialAccessReply { Failure = failure });

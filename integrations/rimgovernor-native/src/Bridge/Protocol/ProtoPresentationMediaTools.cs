@@ -29,7 +29,7 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/presentation_render_state", request, Presentation.ReadRequest.Parser, out var parsed, out var failure)
                 || !NativePresentationReadTools.ValidateRead(parsed, out failure)) return ProtoBoundary.Encode(new Presentation.RenderReply { Failure = failure });
-            return await ctx.MainThread.InvokeAsync<object>(() => {
+            return await ProtoBoundary.OnMainThread(ctx, () => {
                 if (!ProtoBoundary.ValidateIdentity(parsed.Identity, Find.CurrentMap, out var context, out var error))
                     return ProtoBoundary.Encode(new Presentation.RenderReply { Failure = error });
                 return ProtoBoundary.Encode(new Presentation.RenderReply { Status = Status(context, RenderDemandDriver.Peek()) });
@@ -43,7 +43,7 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/presentation_render_demand", request, Presentation.RenderDemand.Parser, out var parsed, out var failure)
                 || !ValidateDemand(parsed, out failure)) return ProtoBoundary.Encode(new Presentation.RenderReply { Failure = failure });
-            return await ctx.MainThread.InvokeAsync<object>(() => {
+            return await ProtoBoundary.OnMainThread(ctx, () => {
                 if (!ProtoBoundary.ValidateIdentity(parsed.Viewer.Identity, Find.CurrentMap, out var context, out var error))
                     return ProtoBoundary.Encode(new Presentation.RenderReply { Failure = error });
                 var status = RenderDemandDriver.Lease((int)parsed.LeaseSeconds);
@@ -109,7 +109,7 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/presentation_lease_video", request, Presentation.VideoLeaseRequest.Parser, out var parsed, out var failure)
                 || !ValidateVideoLease(parsed, out failure)) return ProtoBoundary.Encode(new Presentation.VideoReply { Failure = failure });
-            return await ctx.MainThread.InvokeAsync<object>(() => {
+            return await ProtoBoundary.OnMainThread(ctx, () => {
                 var viewer = parsed.OperationCase == Presentation.VideoLeaseRequest.OperationOneofCase.Start ? parsed.Start.Viewer : parsed.Stop.Viewer;
                 if (!ProtoBoundary.ValidateIdentity(viewer.Identity, Find.CurrentMap, out var context, out var error))
                     return ProtoBoundary.Encode(new Presentation.VideoReply { Failure = error });
@@ -126,7 +126,7 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/presentation_read_frame", request, Presentation.FrameRequest.Parser, out var parsed, out var failure)
                 || !ValidateFrameRequest(parsed, out failure)) return ProtoBoundary.Encode(new Presentation.FrameReply { Failure = failure });
-            return await ctx.MainThread.InvokeAsync<object>(() => {
+            return await ProtoBoundary.OnMainThread(ctx, () => {
                 if (!ProtoBoundary.ValidateIdentity(parsed.Viewer.Identity, Find.CurrentMap, out var context, out var error))
                     return ProtoBoundary.Encode(new Presentation.FrameReply { Failure = error });
                 if (!VideoStreamDriver.TryReadLatestFrame(parsed.HasSourceId ? parsed.SourceId : null, out var snapshot))
@@ -158,7 +158,7 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/presentation_acknowledge_frame", request, Presentation.FrameAcknowledgement.Parser, out var parsed, out var failure)
                 || !ValidateFrameAcknowledgement(parsed, out failure)) return ProtoBoundary.Encode(new Presentation.FrameAcknowledgementReply { Refusal = failure });
-            return await ctx.MainThread.InvokeAsync<object>(() => {
+            return await ProtoBoundary.OnMainThread(ctx, () => {
                 if (!ProtoBoundary.ValidateIdentity(parsed.Viewer.Identity, Find.CurrentMap, out _, out var error))
                     return ProtoBoundary.Encode(new Presentation.FrameAcknowledgementReply { Refusal = error });
                 return ProtoBoundary.Encode(new Presentation.FrameAcknowledgementReply

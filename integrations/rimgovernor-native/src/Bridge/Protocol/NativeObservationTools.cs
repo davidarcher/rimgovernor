@@ -25,7 +25,7 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/observations_read_status", request!, Obs.StatusRequest.Parser, out var parsed, out var failure)
                 || !ValidateStatus(parsed, out failure)) return ProtoBoundary.Encode(new Obs.StatusReply { Failure = failure });
-            return await ctx.MainThread.InvokeAsync<object>(() => {
+            return await ProtoBoundary.OnMainThread(ctx, () => {
                 var map = Find.CurrentMap;
                 if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity!, map, out var context, out failure))
                     return ProtoBoundary.Encode(new Obs.StatusReply { Failure = failure });
@@ -43,7 +43,7 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/observations_get_cells", request!, Obs.GetCellsRequest.Parser, out var parsed, out var failure)
                 || !ValidateCells(parsed, out failure)) return ProtoBoundary.Encode(new Obs.GetCellsReply { Failure = failure });
-            return await ctx.MainThread.InvokeAsync<object>(() => {
+            return await ProtoBoundary.OnMainThread(ctx, () => {
                 var map = Find.CurrentMap;
                 if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity!, map, out var context, out failure))
                     return ProtoBoundary.Encode(new Obs.GetCellsReply { Failure = failure });
@@ -88,7 +88,7 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/observations_read_excavation_site", request!, Obs.ExcavationSiteRequest.Parser, out var parsed, out var failure)
                 || !NativeExcavationSite.Validate(parsed, out failure)) return ProtoBoundary.Encode(new Obs.ExcavationSiteReply { Failure = failure });
-            return await ctx.MainThread.InvokeAsync<object>(() => {
+            return await ProtoBoundary.OnMainThread(ctx, () => {
                 var map = Find.CurrentMap;
                 if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity!, map, out var context, out failure))
                     return ProtoBoundary.Encode(new Obs.ExcavationSiteReply { Failure = failure });

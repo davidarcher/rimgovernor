@@ -22,7 +22,7 @@ namespace HomeBridge.BridgeTools
             Common.Failure failure;
             if (!ProtoBoundary.TryParse(ctx, ToolName, request, Authority.ControlRequest.Parser, out parsed, out failure))
                 return ProtoBoundary.Encode(new Authority.ControlReply { Failure = failure });
-            return await ctx.MainThread.InvokeAsync<object>(() => ProtoBoundary.Encode(Apply(parsed)), cancellationToken).ConfigureAwait(false);
+            return await ProtoBoundary.OnMainThread(ctx, () => ProtoBoundary.Encode(Apply(parsed)), cancellationToken).ConfigureAwait(false);
         }
 
         internal static Authority.ControlReply Apply(Authority.ControlRequest request)

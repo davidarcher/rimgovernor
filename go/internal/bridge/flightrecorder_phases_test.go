@@ -32,7 +32,9 @@ func TestPhaseTimingRecordedAndSummarized(t *testing.T) {
 			status := &k.Status{Context: &c.ObservationContext{Identity: pbIdentity(), Tick: proto.Int64(tick), NativeGeneration: proto.Uint64(1)},
 				State: &k.Status_NeverStarted{NeverStarted: &k.NeverStarted{}}, NativeTickBoundary: proto.Bool(true), DurableEvents: proto.Bool(true),
 				NewestCursor: proto.Int64(0), ObservedSpeed: k.ObservedSpeed_OBSERVED_SPEED_PAUSED.Enum(), ActualPaused: proto.Bool(true)}
-			return pbResult(&k.StatusReply{Outcome: &k.StatusReply_Status{Status: status}}), nil
+			// Only the clock reply carries the companion's own split, as an
+			// older companion would for none of them.
+			return pbTimedResult(&k.StatusReply{Outcome: &k.StatusReply_Status{Status: status}}, 1.5, 0.25), nil
 		}
 		return &mcp.CallToolResult{IsError: true}, nil
 	}}
@@ -77,6 +79,13 @@ func TestPhaseTimingRecordedAndSummarized(t *testing.T) {
 			if field(timing, "total_ms") < field(timing, "call_ms") {
 				t.Fatalf("total below call: %+v", timing)
 			}
+			_, nativeTimed := timing["native_queue_ms"]
+			if nativeTimed != (row.Payload["native_tool"] == "rimgovernor/clock_read_status" && row.Payload["tool"] == "games_call_tool") {
+				t.Fatalf("native split misattributed: %+v", row.Payload)
+			}
+			if nativeTimed && (field(timing, "native_queue_ms") != 1.5 || field(timing, "native_execute_ms") != 0.25) {
+				t.Fatalf("native split not carried: %+v", timing)
+			}
 			if row.Payload["tool"] == "games_call_tool" && !strings.HasPrefix(row.Payload["native_tool"].(string), "rimgovernor/") {
 				t.Fatalf("native tool not attributed: %+v", row.Payload)
 			}
@@ -96,20 +105,23 @@ func TestPhaseTimingRecordedAndSummarized(t *testing.T) {
 	}
 
 	summary := SummarizePhases(rows)
-	var identityCall, identityDetail *ToolPhases
+	var identityCall, identityDetail, clockCall *ToolPhases
 	for i := range summary.Tools {
 		tool := &summary.Tools[i]
-		if tool.NativeTool == "rimgovernor/lifecycle_read_identity" {
-			switch tool.Wrapper {
-			case "games_call_tool":
-				identityCall = tool
-			case "games_tool_detail":
-				identityDetail = tool
-			}
+		switch {
+		case tool.NativeTool == "rimgovernor/lifecycle_read_identity" && tool.Wrapper == "games_call_tool":
+			identityCall = tool
+		case tool.NativeTool == "rimgovernor/lifecycle_read_identity" && tool.Wrapper == "games_tool_detail":
+			identityDetail = tool
+		case tool.NativeTool == "rimgovernor/clock_read_status" && tool.Wrapper == "games_call_tool":
+			clockCall = tool
 		}
 	}
-	if identityCall == nil || identityDetail == nil {
-		t.Fatalf("identity phases missing: %+v", summary.Tools)
+	if identityCall == nil || identityDetail == nil || clockCall == nil {
+		t.Fatalf("tool phases missing: %+v", summary.Tools)
+	}
+	if identityCall.NativeTimed != 0 || identityCall.NativeQueueMs != 0 || clockCall.NativeTimed != 1 || clockCall.NativeQueueMs != 1.5 || clockCall.NativeExecuteMs != 0.25 {
+		t.Fatalf("native split: identity %+v clock %+v", identityCall, clockCall)
 	}
 	if identityCall.Calls != 3 || identityDetail.Calls != 3 || identityCall.Errors != 0 {
 		t.Fatalf("identity counts: %+v %+v", identityCall, identityDetail)
@@ -137,6 +149,24 @@ func TestPhaseTimingRecordedAndSummarized(t *testing.T) {
 	WritePhaseReport(&report, summary)
 	if !strings.Contains(report.String(), "rimgovernor/lifecycle_read_identity") || !strings.Contains(report.String(), "wall TPS") {
 		t.Fatalf("report: %s", report.String())
+	}
+	// A reply without the companion split reads as absent, not zero.
+	for _, line := range strings.Split(report.String(), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 9 || fields[1] != "call_tool" {
+			continue
+		}
+		queue, execute := fields[7], fields[8]
+		switch fields[0] {
+		case "rimgovernor/lifecycle_read_identity":
+			if queue != "-" || execute != "-" {
+				t.Fatalf("untimed native split not shown as absent: %q", line)
+			}
+		case "rimgovernor/clock_read_status":
+			if queue != "1.5" || execute != "0.2" && execute != "0.3" {
+				t.Fatalf("native split not reported: %q", line)
+			}
+		}
 	}
 }
 

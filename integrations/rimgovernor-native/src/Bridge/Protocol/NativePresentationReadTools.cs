@@ -24,7 +24,7 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/presentation_camera", request, Presentation.ReadRequest.Parser, out var parsed, out var failure)
                 || !ValidateRead(parsed, out failure)) return ProtoBoundary.Encode(new Presentation.CameraReply { Failure = failure });
-            return await ctx.MainThread.InvokeAsync<object>(() => {
+            return await ProtoBoundary.OnMainThread(ctx, () => {
                 if (!ProtoBoundary.ValidateIdentity(parsed.Identity, Find.CurrentMap, out var context, out var error))
                     return ProtoBoundary.Encode(new Presentation.CameraReply { Failure = error });
                 try
@@ -59,7 +59,7 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/presentation_selection", request, Presentation.ReadRequest.Parser, out var parsed, out var failure)
                 || !ValidateRead(parsed, out failure)) return ProtoBoundary.Encode(new Presentation.SelectionReply { Failure = failure });
-            return await ctx.MainThread.InvokeAsync<object>(() => {
+            return await ProtoBoundary.OnMainThread(ctx, () => {
                 var map = Find.CurrentMap;
                 if (!ProtoBoundary.ValidateIdentity(parsed.Identity, map, out var context, out var error))
                     return ProtoBoundary.Encode(new Presentation.SelectionReply { Failure = error });
@@ -86,7 +86,7 @@ namespace HomeBridge.BridgeTools
         {
             if (!ProtoBoundary.TryParse(ctx, "rimgovernor/presentation_colonists", request, Presentation.ColonistRosterRequest.Parser, out var parsed, out var failure)
                 || !ValidateColonists(parsed, out failure)) return ProtoBoundary.Encode(new Presentation.ColonistRosterReply { Failure = failure });
-            return await ctx.MainThread.InvokeAsync<object>(() => {
+            return await ProtoBoundary.OnMainThread(ctx, () => {
                 if (!ProtoBoundary.ValidateIdentity(parsed.Identity, Find.CurrentMap, out var context, out var error))
                     return ProtoBoundary.Encode(new Presentation.ColonistRosterReply { Failure = error });
                 try

@@ -49,6 +49,26 @@ func pbResult(message proto.Message) *mcp.CallToolResult {
 	}{Payload: string(inner)})
 	return &mcp.CallToolResult{StructuredContent: outer}
 }
+
+// pbTimedResult is pbResult from a companion that reports its main-thread
+// queue wait and tool body beside the payload.
+func pbTimedResult(message proto.Message, queueMs, executeMs float64) *mcp.CallToolResult {
+	inner, err := protojson.Marshal(message)
+	if err != nil {
+		panic(err)
+	}
+	outer := encode(struct {
+		Payload string `json:"payload"`
+		Timing  struct {
+			QueueMs   float64 `json:"queueMs"`
+			ExecuteMs float64 `json:"executeMs"`
+		} `json:"timing"`
+	}{Payload: string(inner), Timing: struct {
+		QueueMs   float64 `json:"queueMs"`
+		ExecuteMs float64 `json:"executeMs"`
+	}{queueMs, executeMs}})
+	return &mcp.CallToolResult{StructuredContent: outer}
+}
 func TestOfficialReadSDKBoundary(t *testing.T) {
 	s := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
 		var outer struct {

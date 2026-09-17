@@ -96,7 +96,7 @@ namespace HomeBridge.BridgeTools
         {
             T parsed; Common.Failure failure;
             if (!ProtoBoundary.TryParse(ctx, tool, request, parser, out parsed, out failure)) return ProtoBoundary.Encode(refused(failure));
-            return await ctx.MainThread.InvokeAsync<object>(() => {
+            return await ProtoBoundary.OnMainThread(ctx, () => {
                 var reply = apply(parsed);
                 return ProtoBoundary.Encode(Fits(reply) ? reply : refused(ProtoBoundary.Fail(Common.FailureCode.CapacityExhausted, "Clock read exceeds the bounded reply envelope; no rows were omitted.")));
             }, token).ConfigureAwait(false);

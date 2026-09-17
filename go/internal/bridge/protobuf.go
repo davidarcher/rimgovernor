@@ -336,7 +336,7 @@ func decodePayload(raw []byte) ([]byte, error) {
 		if _, ok = fields[key]; ok {
 			return nil, contract("duplicate wrapper key")
 		}
-		if key != "payload" && key != "operation" {
+		if key != "payload" && key != "operation" && key != "timing" {
 			return nil, contract("unknown wrapper field %s", key)
 		}
 		var value json.RawMessage

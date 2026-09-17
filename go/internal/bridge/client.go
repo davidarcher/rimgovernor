@@ -442,7 +442,12 @@ func (c *Client) core(ctx context.Context, live *liveSession, name string, argum
 		if decodeErr != nil {
 			c.recorder.Event("native_error", recordCtx, true, map[string]any{"request": request, "tool": name, "native_tool": nativeTool, "error": decodeErr.Error(), "timing": phases(decodeElapsed, len(raw))})
 		} else {
-			c.recorder.Event("native_response", recordCtx, false, map[string]any{"request": request, "tool": name, "native_tool": nativeTool, "result": decoded.Structured, "timing": phases(decodeElapsed, len(raw))})
+			timing := phases(decodeElapsed, len(raw))
+			if queueMs, executeMs, ok := nativeTiming(decoded.Structured); ok {
+				timing["native_queue_ms"] = queueMs
+				timing["native_execute_ms"] = executeMs
+			}
+			c.recorder.Event("native_response", recordCtx, false, map[string]any{"request": request, "tool": name, "native_tool": nativeTool, "result": decoded.Structured, "timing": timing})
 		}
 	}
 	return decoded, decodeErr

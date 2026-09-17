@@ -9,21 +9,28 @@ import (
 )
 
 // ToolPhases aggregates the recorded call phases for one native tool.
-// Milliseconds are summed over Calls; divide for means. NativeTool is the
+// Milliseconds are summed over Calls; divide for means. NativeQueueMs and
+// NativeExecuteMs are the companion's own split of the round trip (main
+// thread wait, tool body), summed over the NativeTimed calls whose reply
+// carried it; a companion that predates the field leaves NativeTimed at 0,
+// which the report shows as absent rather than zero. NativeTool is the
 // inner rimgovernor/* method for games_call_tool and games_tool_detail rows,
 // so describe round trips for a method appear under the same name with
 // Wrapper "games_tool_detail".
 type ToolPhases struct {
-	NativeTool    string  `json:"native_tool"`
-	Wrapper       string  `json:"wrapper"`
-	Calls         uint64  `json:"calls"`
-	Errors        uint64  `json:"errors"`
-	GateWaitMs    float64 `json:"gate_wait_ms"`
-	CallMs        float64 `json:"call_ms"`
-	DecodeMs      float64 `json:"decode_ms"`
-	ProtoDecodeMs float64 `json:"proto_decode_ms"`
-	TotalMs       float64 `json:"total_ms"`
-	ResponseBytes uint64  `json:"response_bytes"`
+	NativeTool      string  `json:"native_tool"`
+	Wrapper         string  `json:"wrapper"`
+	Calls           uint64  `json:"calls"`
+	Errors          uint64  `json:"errors"`
+	GateWaitMs      float64 `json:"gate_wait_ms"`
+	CallMs          float64 `json:"call_ms"`
+	DecodeMs        float64 `json:"decode_ms"`
+	ProtoDecodeMs   float64 `json:"proto_decode_ms"`
+	TotalMs         float64 `json:"total_ms"`
+	ResponseBytes   uint64  `json:"response_bytes"`
+	NativeTimed     uint64  `json:"native_timed"`
+	NativeQueueMs   float64 `json:"native_queue_ms"`
+	NativeExecuteMs float64 `json:"native_execute_ms"`
 }
 
 // PhaseSummary is a read-only aggregation of one flight-recorder timeline:
@@ -95,6 +102,11 @@ func SummarizePhases(records []TimelineRecord) PhaseSummary {
 				entry.DecodeMs += field(timing, "decode_ms")
 				entry.TotalMs += field(timing, "total_ms")
 				entry.ResponseBytes += uint64(field(timing, "response_bytes"))
+				if queue, ok := number(timing["native_queue_ms"]); ok {
+					entry.NativeTimed++
+					entry.NativeQueueMs += queue
+					entry.NativeExecuteMs += field(timing, "native_execute_ms")
+				}
 			}
 			if row.Kind != "native_response" || entry.Wrapper != "games_call_tool" {
 				continue
@@ -242,14 +254,22 @@ func WritePhaseReport(w io.Writer, summary PhaseSummary) {
 		}
 		fmt.Fprintln(w)
 	}
-	fmt.Fprintf(w, "%-52s %-17s %6s %4s %9s %9s %9s %9s %9s %9s\n", "native tool", "wrapper", "calls", "err", "total ms", "gate ms", "call ms", "decode ms", "proto ms", "avg KiB")
+	fmt.Fprintf(w, "%-52s %-17s %6s %4s %9s %9s %9s %9s %9s %9s %9s %9s\n", "native tool", "wrapper", "calls", "err", "total ms", "gate ms", "call ms", "queue ms", "exec ms", "decode ms", "proto ms", "avg KiB")
 	for _, tool := range summary.Tools {
 		calls := float64(tool.Calls)
 		if calls == 0 {
 			calls = 1
 		}
 		wrapper := strings.TrimPrefix(tool.Wrapper, "games_")
-		fmt.Fprintf(w, "%-52s %-17s %6d %4d %9.1f %9.1f %9.1f %9.2f %9.2f %9.1f\n", tool.NativeTool, wrapper, tool.Calls, tool.Errors,
-			tool.TotalMs/calls, tool.GateWaitMs/calls, tool.CallMs/calls, tool.DecodeMs/calls, tool.ProtoDecodeMs/calls, float64(tool.ResponseBytes)/calls/1024)
+		// The native split is a mean over the calls that reported it; "-"
+		// marks a tool whose replies never carried timing (older
+		// companion, multi-hop media capture), not a zero.
+		queue, execute := "-", "-"
+		if tool.NativeTimed > 0 {
+			queue = fmt.Sprintf("%.1f", tool.NativeQueueMs/float64(tool.NativeTimed))
+			execute = fmt.Sprintf("%.1f", tool.NativeExecuteMs/float64(tool.NativeTimed))
+		}
+		fmt.Fprintf(w, "%-52s %-17s %6d %4d %9.1f %9.1f %9.1f %9s %9s %9.2f %9.2f %9.1f\n", tool.NativeTool, wrapper, tool.Calls, tool.Errors,
+			tool.TotalMs/calls, tool.GateWaitMs/calls, tool.CallMs/calls, queue, execute, tool.DecodeMs/calls, tool.ProtoDecodeMs/calls, float64(tool.ResponseBytes)/calls/1024)
 	}
 }

@@ -22,7 +22,7 @@ namespace HomeBridge.BridgeTools
                 out var parsed, out var failure))
                 return ProtoBoundary.Encode(new Authority.StatusReply { Failure = failure });
 
-            return await ctx.MainThread.InvokeAsync<object>(() =>
+            return await ProtoBoundary.OnMainThread(ctx, () =>
             {
                 if (!ProtoBoundary.ValidateIdentity(parsed.Identity, Find.CurrentMap, out var context, out var invalid))
                     return ProtoBoundary.Encode(new Authority.StatusReply { Failure = invalid });
