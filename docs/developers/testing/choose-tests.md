@@ -46,6 +46,37 @@ checks they affect. "The full affected suite" means the applicable automated
 suite, not every gameplay scenario. Finish when agreed completion criteria and
 relevant checks pass; put unrelated discoveries in the backlog.
 
+## Reusing one game across acceptance cases
+
+Native acceptance binaries are fresh-process by default: one `games_start`,
+the cases, one `games_stop`. That launch is the expensive part (tens of
+seconds against a few seconds to reload a paused save), so a binary that
+runs several cases in a loop may opt into `nativeaccept.GameReuse`
+([reuse.go](../../../go/internal/nativeaccept/reuse.go)): RimWorld is
+launched once and each case begins with a reload of its save into the same
+process. `sustainedmatrixaccept -reuse-game -saves a,b,c` is the first
+consumer; [reuseaccept](../../../go/internal/nativeaccept/cmd/reuseaccept/main.go)
+is the acceptance for the lifecycle itself.
+
+Reuse is only valid because every reload is checked against a reset
+contract before the case starts (`CheckReset`): a load token never issued
+before, the game paused at the baseline tick, no active authority, no owned
+draft claim, and the sampled resource census equal to the first load's. The
+colony id is not compared -- a fixture save the mod never wrote has no
+persisted id, so native mints one per load; for the same reason reloads go
+through `rimworld/load_game_ready`, not `lifecycle_load`. A case
+that fails, or that ends with authority or a draft still held, retires the
+game (`games_stop`) rather than handing it on. Each case gets its own output
+directory and, when it launches `rimgovernor serve`, its own SQLite state.
+
+Reuse does **not** reset mod static state: process-scoped statics such as
+`OrderedWorkHistory`, `PlayerFrame`, the `Supervisor` journal and
+`PawnConfigTool`'s letter maps survive a reload (see
+[native-static-state.md](../../../contracts/native-static-state.md)). Any
+case whose assertion depends on one of those, and any case run as static-
+state or fresh-Go-session evidence, stays in fresh-process mode. Manifest
+variants (`-manifest`) are still generated in their own fresh process.
+
 ## Available checks
 
 | What changed / what you need to establish | Available support | Requirements and limits |

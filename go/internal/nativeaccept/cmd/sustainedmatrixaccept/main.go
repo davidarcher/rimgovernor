@@ -78,6 +78,7 @@ func main() {
 	clockSpeed := flag.String("clock-speed", "Superfast", "serve's --clock-speed (Normal, Fast or Superfast); faster packs more simulated ticks into each variant's wall-clock -watch window")
 	startTimeout := flag.Duration("start-timeout", 180*time.Second, "in -manifest mode, rimworld/start_debug_game_ready timeout per generated variant")
 	stopOnError := flag.Bool("stop-on-error", false, "abort the remaining variants after the first harness error instead of continuing the matrix")
+	reuseGame := flag.Bool("reuse-game", false, "launch RimWorld once and reload each variant's save into the same process (issue #22); -saves mode only, and a variant failure retires the game and ends the matrix")
 	flag.Parse()
 	if *root == "" {
 		fmt.Fprintln(os.Stderr, "-root is required")
@@ -93,6 +94,10 @@ func main() {
 	}
 	if *saves != "" && *manifest != "" {
 		fmt.Fprintln(os.Stderr, "-saves and -manifest are mutually exclusive")
+		os.Exit(2)
+	}
+	if *reuseGame && *manifest != "" {
+		fmt.Fprintln(os.Stderr, "-reuse-game needs -saves: manifest variants are generated in their own fresh process")
 		os.Exit(2)
 	}
 
@@ -153,6 +158,30 @@ func main() {
 	report["variant_saves"] = saveNames
 	report["manifest_mode"] = *manifest != ""
 
+	// -reuse-game: one launch for the whole matrix. Root/GameID/Headless are
+	// the same for every variant, so one prepared Config serves them all;
+	// each Run then loads its save as a case of this lifecycle.
+	var reuse *na.GameReuse
+	if *reuseGame {
+		reuseCfg := &na.Config{Root: *root, Output: *output, Headless: !*rendered, GameID: *game}
+		if err := reuseCfg.PrepareConfig(); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(2)
+		}
+		gabsExecutable, err := na.GABSExecutable(*root, reuseCfg.Configuration)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(2)
+		}
+		openCtx, openCancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		reuse, err = na.OpenReusableGame(openCtx, reuseCfg, gabsExecutable)
+		openCancel()
+		if err != nil {
+			report["error"] = "open reusable game: " + err.Error()
+			os.Exit(report.Finalize(*output))
+		}
+	}
+
 	var rows []map[string]any
 	allHarnessOK := true
 	for i, v := range variants {
@@ -202,9 +231,18 @@ func main() {
 			RimgovernorBinary: *rimgovernorBinary, Save: v.Save,
 			Watch: *watch, Poll: *poll, NativeTimeout: *nativeTimeout, ClockSpeed: *clockSpeed,
 			RequestPrefix: "sustained-matrix-" + sanitize(v.Save),
+			Reuse:         reuse,
 		}
 		timeline, err := sustainedfood.Run(ctx, cfg, variantReport)
 		cancel()
+		if retired, reason := reuseRetired(reuse); retired {
+			// The shared game is gone; every remaining variant would fail
+			// at load, so end the matrix here and say why.
+			row["reuse_retired"] = reason
+			if err == nil {
+				err = fmt.Errorf("reusable game retired: %s", reason)
+			}
+		}
 
 		row["harness_ok"] = err == nil
 		if err != nil {
@@ -237,7 +275,20 @@ func main() {
 	// run (generation, load/service/authority/log-check errors), the same
 	// bar sustainedfoodaccept applies to a single run.
 	report["passed"] = allHarnessOK && len(rows) == len(variants)
+	if reuse != nil {
+		retireCtx, retireCancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		_ = reuse.Retire(retireCtx, "matrix complete")
+		retireCancel()
+		reuse.Record(report)
+	}
 	os.Exit(report.Finalize(*output))
+}
+
+func reuseRetired(reuse *na.GameReuse) (bool, string) {
+	if reuse == nil {
+		return false, ""
+	}
+	return reuse.Retired()
 }
 
 func sanitize(name string) string {

@@ -10,6 +10,14 @@ root; excluded duplicate helpers have been deleted. Historical compatibility
 requirements in the audit are not active gates; current-session lifecycle hazards
 remain N01.05 work.
 
+Rows below that say "verify repeated game reuse" name the hazard the
+opt-in reusable-game acceptance lifecycle
+([nativeaccept.GameReuse](../go/internal/nativeaccept/reuse.go), exercised by
+`reuseaccept`) does *not* clear: a reload into the same process leaves every
+static in this table untouched. `reuseaccept` proves the load-token /
+authority / draft / stock reset contract only; a case asserting on one of
+these statics runs in fresh-process mode.
+
 ## Coverage method
 
 All 86 C# files under the two integration source trees were parsed with Roslyn

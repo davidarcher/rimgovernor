@@ -139,6 +139,24 @@ func (p *ServiceProcess) Stop() {
 	<-p.done
 }
 
+// AssertStopped verifies a stopped service no longer answers: its old session
+// token (and any client still holding its URL) is dead, so a game reused after
+// this service cannot be reached through the retired controller. Stop must
+// have been called first.
+func (p *ServiceProcess) AssertStopped() error {
+	p.mu.Lock()
+	stopped := p.stopped
+	p.mu.Unlock()
+	if !stopped {
+		return fmt.Errorf("service %d has not been stopped", p.PID)
+	}
+	_, status, err := p.API("GET", "/api/health", nil, "")
+	if err == nil {
+		return fmt.Errorf("stopped service %d still answers /api/health with status %d", p.PID, status)
+	}
+	return nil
+}
+
 // API issues one HTTP request against the service, recording every exchange
 // under output/service/http-NNNN.json.
 func (p *ServiceProcess) API(method, path string, body map[string]any, token string) (map[string]any, int, error) {

@@ -158,7 +158,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	if err != nil {
 		return fmt.Errorf("load-start: %w", err)
 	}
-	completed, err := pollLoad(ctx, h, loadReply, loadRequestID, "load-poll")
+	completed, err := na.PollLoad(ctx, h, loadReply, loadRequestID, "load-poll")
 	if err != nil {
 		return fmt.Errorf("load-happy: %w", err)
 	}
@@ -202,7 +202,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	if err != nil {
 		return fmt.Errorf("load-visual-start: %w", err)
 	}
-	visualCompleted, err := pollLoad(ctx, h, visualLoadReply, visualRequestID, "load-visual-poll")
+	visualCompleted, err := na.PollLoad(ctx, h, visualLoadReply, visualRequestID, "load-visual-poll")
 	if err != nil {
 		return fmt.Errorf("load-visual: %w", err)
 	}
@@ -232,37 +232,4 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 		return err
 	}
 	return nil
-}
-
-// pollLoad drives rimgovernor/lifecycle_read_load until a completed outcome,
-// a native failure, or a bounded number of attempts elapses. A pending or
-// superseded outcome is otherwise a definite non-completion this test must
-// fail on rather than loop past.
-func pollLoad(ctx context.Context, h *na.Harness, first map[string]any, requestID, label string) (map[string]any, error) {
-	reply := first
-	for attempt := 0; attempt < 300; attempt++ {
-		if _, completed, err := na.Outcome(reply, "completed"); err == nil {
-			return completed, nil
-		}
-		if _, superseded, err := na.Outcome(reply, "superseded"); err == nil {
-			return nil, fmt.Errorf("load was superseded: %v", superseded["detail"])
-		}
-		if code, ok := na.FailureCode(reply); ok {
-			return nil, fmt.Errorf("load failed: %s", code)
-		}
-		if _, _, err := na.Outcome(reply, "pending"); err != nil {
-			return nil, fmt.Errorf("unexpected load reply shape: %v", reply)
-		}
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-time.After(200 * time.Millisecond):
-		}
-		next, err := h.Wire(ctx, fmt.Sprintf("%s-%d", label, attempt), "lifecycle_read_load", map[string]any{"requestId": requestID})
-		if err != nil {
-			return nil, err
-		}
-		reply = next
-	}
-	return nil, fmt.Errorf("load did not complete within the polling budget")
 }
