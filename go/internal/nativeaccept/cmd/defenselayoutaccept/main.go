@@ -62,6 +62,8 @@ func main() {
 	layoutTimeout := flag.Duration("layout-timeout", 20*time.Minute, "budget for the layout to be built natively")
 	raidTimeout := flag.Duration("raid-timeout", 8*time.Minute, "budget for the raid response and resolution")
 	timeout := flag.Duration("timeout", 45*time.Minute, "overall run timeout")
+	checkpoint := flag.String("checkpoint", "", "after the layout is built and audited, save the game under this name (root/profile/Saves/<name>.rws plus <name>.checkpoint.json) so later runs can start at the raid")
+	fromCheckpoint := flag.String("from-checkpoint", "", "load this checkpoint instead of building the layout: re-audits the saved layout, then stages the raid")
 	flag.Parse()
 	if *root == "" || *rimgovernorBinary == "" || !filepath.IsAbs(*rimgovernorBinary) {
 		fmt.Fprintln(os.Stderr, "-root and an absolute -rimgovernor are required")
@@ -83,7 +85,14 @@ func main() {
 		"trap-cell reads, and a real RaidEnemy incident is answered with hold-the-line (edge assault) or squad defense (bypass).", !*rendered)
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
-	opts := options{strategy: *strategy, arrival: *arrival, save: *save, bypass: *bypass, layoutTimeout: *layoutTimeout, raidTimeout: *raidTimeout}
+	if *checkpoint != "" && *fromCheckpoint != "" {
+		fmt.Fprintln(os.Stderr, "-checkpoint and -from-checkpoint are exclusive")
+		os.Exit(2)
+	}
+	if *fromCheckpoint != "" {
+		*save = *fromCheckpoint
+	}
+	opts := options{strategy: *strategy, arrival: *arrival, save: *save, bypass: *bypass, layoutTimeout: *layoutTimeout, raidTimeout: *raidTimeout, checkpoint: *checkpoint, fromCheckpoint: *fromCheckpoint}
 	if err := run(ctx, *root, *output, *game, !*rendered, *rimgovernorBinary, opts, report); err != nil {
 		report["error"] = err.Error()
 	} else {
@@ -96,6 +105,25 @@ type options struct {
 	strategy, arrival, save    string
 	bypass                     bool
 	layoutTimeout, raidTimeout time.Duration
+	// checkpoint names the save written once the layout is built and
+	// audited; fromCheckpoint names one to resume from, skipping the
+	// fixture setup and the layout scenario (AGENTS.md: stage the slow
+	// precondition, then advance only the ticks the assertion needs).
+	checkpoint, fromCheckpoint string
+}
+
+// layoutCheckpoint is what a raid-only run needs besides the save itself:
+// the layout the service built (the raid assertions compare the hold plan
+// against it) and the guarded-construction site the service is pointed at.
+type layoutCheckpoint struct {
+	Layout      store.DefenseLayoutRecord `json:"layout"`
+	SiteX       int                       `json:"siteX"`
+	SiteZ       int                       `json:"siteZ"`
+	SavedAtTick int64                     `json:"savedAtTick"`
+}
+
+func checkpointPath(root, name string) string {
+	return filepath.Join(root, "profile", "Saves", name+".checkpoint.json")
 }
 
 type apiFunc func(method, path string, body map[string]any, token string) (map[string]any, int, error)
@@ -340,68 +368,89 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 		}
 		return out, nil
 	}
-	terrain, err := fixture("terrain", map[string]any{"op": "terrain"})
-	if err != nil {
-		return err
-	}
-	report["terrain"] = terrain
-	if _, err = fixture("stock", map[string]any{"op": "stock"}); err != nil {
-		return err
-	}
-	ranged, err := fixture("ranged", map[string]any{"op": "ranged", "rifles": 3})
-	if err != nil {
-		return err
-	}
-	report["ranged"] = ranged
-	construction, err := h.Call(ctx, "prepare-construction", "test/guarded_construction_prepare", map[string]any{"siteCount": 1})
-	if err != nil {
-		return err
-	}
-	if success, _ := na.AsBool(construction["success"]); !success || !matchesIdentity(construction) {
-		return fmt.Errorf("guarded_construction_prepare refused or identity mismatch: %#v", construction)
-	}
-	sites := na.AsSlice(construction["sites"])
-	if len(sites) != 1 {
-		return fmt.Errorf("guarded_construction_prepare: expected exactly one site, got %#v", construction)
-	}
-	site0, _ := na.AsMap(sites[0])
-	siteX, siteZ := int(na.AsNumber(site0["x"])), int(na.AsNumber(site0["z"]))
-	before, err := fixture("inspect-before", map[string]any{"op": "inspect"})
-	if err != nil {
-		return err
-	}
-	report["inspect_before"] = before
-	if int(na.AsNumber(before["traps"])) != 0 {
-		return fmt.Errorf("fresh colony already has traps: %#v", before)
-	}
-	if err := closeClient(); err != nil {
-		return fmt.Errorf("close fixture-prep bridge session: %w", err)
-	}
-
+	var layout store.DefenseLayoutRecord
+	var siteX, siteZ int
 	statePath := filepath.Join(output, "service.sqlite")
+	var svc *service
 	launch := func(name string) (*service, error) {
 		return launchService(ctx, output, name, rimgovernorBinary, gabsExecutable, cfg.Configuration, gameID, statePath, identity, matchesIdentity, siteX, siteZ, report)
 	}
+	if opts.fromCheckpoint != "" {
+		data, err := os.ReadFile(checkpointPath(root, opts.fromCheckpoint))
+		if err != nil {
+			return fmt.Errorf("read checkpoint: %w", err)
+		}
+		var cp layoutCheckpoint
+		if err := json.Unmarshal(data, &cp); err != nil {
+			return fmt.Errorf("decode checkpoint: %w", err)
+		}
+		layout, siteX, siteZ = cp.Layout, cp.SiteX, cp.SiteZ
+		report["checkpoint"] = map[string]any{"name": opts.fromCheckpoint, "savedAtTick": cp.SavedAtTick}
+		// Storyteller comps come back with the load; silence them again.
+		if _, err := fixture("quiet", map[string]any{"op": "quiet"}); err != nil {
+			return err
+		}
+	} else {
+		terrain, err := fixture("terrain", map[string]any{"op": "terrain"})
+		if err != nil {
+			return err
+		}
+		report["terrain"] = terrain
+		if _, err = fixture("stock", map[string]any{"op": "stock"}); err != nil {
+			return err
+		}
+		ranged, err := fixture("ranged", map[string]any{"op": "ranged", "rifles": 3})
+		if err != nil {
+			return err
+		}
+		report["ranged"] = ranged
+		construction, err := h.Call(ctx, "prepare-construction", "test/guarded_construction_prepare", map[string]any{"siteCount": 1})
+		if err != nil {
+			return err
+		}
+		if success, _ := na.AsBool(construction["success"]); !success || !matchesIdentity(construction) {
+			return fmt.Errorf("guarded_construction_prepare refused or identity mismatch: %#v", construction)
+		}
+		sites := na.AsSlice(construction["sites"])
+		if len(sites) != 1 {
+			return fmt.Errorf("guarded_construction_prepare: expected exactly one site, got %#v", construction)
+		}
+		site0, _ := na.AsMap(sites[0])
+		siteX, siteZ = int(na.AsNumber(site0["x"])), int(na.AsNumber(site0["z"]))
+		before, err := fixture("inspect-before", map[string]any{"op": "inspect"})
+		if err != nil {
+			return err
+		}
+		report["inspect_before"] = before
+		if int(na.AsNumber(before["traps"])) != 0 {
+			return fmt.Errorf("fresh colony already has traps: %#v", before)
+		}
+		if err := closeClient(); err != nil {
+			return fmt.Errorf("close fixture-prep bridge session: %w", err)
+		}
 
-	// Scenario 1: the layout is planned on the constrained site and every
-	// tier is built natively under the live routine reviewer/planner.
-	svc, err := launch("layout")
-	if err != nil {
-		return err
-	}
-	defer svc.stop()
-	layout, err := waitLayoutComplete(ctx, svc.store, world, svc.wait(opts.layoutTimeout), report)
-	if err != nil {
-		return fmt.Errorf("layout: %w", err)
-	}
-	svc.stop()
-	report["layout_authority"] = svc.keepAlive.snapshot()
+		// Scenario 1: the layout is planned on the constrained site and every
+		// tier is built natively under the live routine reviewer/planner.
+		svc, err = launch("layout")
+		if err != nil {
+			return err
+		}
+		defer svc.stop()
+		layout, err = waitLayoutComplete(ctx, svc.store, world, svc.wait(opts.layoutTimeout), report)
+		if err != nil {
+			return fmt.Errorf("layout: %w", err)
+		}
+		svc.stop()
+		report["layout_authority"] = svc.keepAlive.snapshot()
 
-	client, h, err = reopenHarness()
-	if err != nil {
-		return err
+		client, h, err = reopenHarness()
+		if err != nil {
+			return err
+		}
+		open = client
 	}
-	open = client
+	// The audits below run on a resumed checkpoint too: they are cheap
+	// reads, and they prove the save still carries the layout it claims.
 	after, err := fixture("inspect-after-layout", map[string]any{"op": "inspect"})
 	if err != nil {
 		return err
@@ -455,6 +504,12 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 	report["lines_of_fire_after_layout"] = fire
 	if err := assertCover(fire, layout); err != nil {
 		return fmt.Errorf("lines of fire after layout: %w", err)
+	}
+	if opts.checkpoint != "" {
+		if err := writeCheckpoint(ctx, h, root, opts.checkpoint, layoutCheckpoint{Layout: layout, SiteX: siteX, SiteZ: siteZ, SavedAtTick: int64(na.AsNumber(after["tick"]))}); err != nil {
+			return fmt.Errorf("checkpoint: %w", err)
+		}
+		report["checkpoint"] = map[string]any{"name": opts.checkpoint, "path": checkpointPath(root, opts.checkpoint)}
 	}
 
 	// Scenario 2/3: a real raid.
@@ -556,6 +611,55 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 // harness session must be closed), waits for it to attach to the fixture's
 // identity, submits the one player building plan the routine arbitration
 // slot needs, acquires authority and keeps it alive, and opens the journal.
+// writeCheckpoint saves the running game and stages the save beside the
+// baseline under root/profile/Saves, where Prepare copies every save into the
+// headless profile, so a later -from-checkpoint run loads it like any other.
+// The game writes into the active profile's Saves directory: headless runs
+// use root/headless-profile, rendered runs root/profile itself.
+func writeCheckpoint(ctx context.Context, h *na.Harness, root, name string, cp layoutCheckpoint) error {
+	started := time.Now()
+	if _, err := h.Call(ctx, "save-checkpoint", "rimworld/save_game", map[string]any{"saveName": name}); err != nil {
+		return err
+	}
+	staged := filepath.Join(root, "profile", "Saves", name+".rws")
+	deadline := started.Add(60 * time.Second)
+	for {
+		for _, profile := range []string{"headless-profile", "profile"} {
+			candidate := filepath.Join(root, profile, "Saves", name+".rws")
+			info, err := os.Stat(candidate)
+			if err != nil || info.Size() == 0 || info.ModTime().Before(started.Add(-time.Second)) {
+				continue
+			}
+			if candidate != staged {
+				if err := copyFile(candidate, staged); err != nil {
+					return err
+				}
+			}
+			data, err := json.MarshalIndent(cp, "", "  ")
+			if err != nil {
+				return err
+			}
+			return os.WriteFile(checkpointPath(root, name), data, 0644)
+		}
+		if time.Now().After(deadline) {
+			return fmt.Errorf("save %s.rws did not appear under root/headless-profile/Saves or root/profile/Saves", name)
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(time.Second):
+		}
+	}
+}
+
+func copyFile(src, dst string) error {
+	data, err := os.ReadFile(src)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(dst, data, 0644)
+}
+
 func launchService(ctx context.Context, output, name, binary, gabs, config, gameID, statePath string, identity map[string]any, matchesIdentity func(map[string]any) bool, siteX, siteZ int, report na.Report) (*service, error) {
 	// One profile for every service: the state journal binds its clock
 	// inbox to the first profile path and refuses any other.

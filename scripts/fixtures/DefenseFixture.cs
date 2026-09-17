@@ -41,7 +41,8 @@ namespace HomeBridge.BridgeTools
                     case "raid": return Raid(map, strategy, arrival, points);
                     case "damage": return Damage(map, wall);
                     case "inspect": return Inspect(map, player);
-                    default: return Refuse("Use terrain, stock, ranged, raid, damage or inspect.");
+                    case "quiet": return Quiet();
+                    default: return Refuse("Use terrain, stock, ranged, raid, damage, inspect or quiet.");
                 }
             }, cancellationToken).ConfigureAwait(false);
         }
@@ -106,10 +107,7 @@ namespace HomeBridge.BridgeTools
                 if (!GenPlace.TryPlaceThing(thing, center, map, ThingPlaceMode.Near)) return Refuse("Fixture food placement failed.");
                 thing.SetForbidden(false, false); food += thing.stackCount;
             }
-            // The scenario stages its own raid; a storyteller incident or quest
-            // letter meanwhile pauses the game and cancels the layout plans.
-            Find.Storyteller.storytellerComps.Clear();
-            Find.Storyteller.incidentQueue.Clear();
+            Quiet();
             var provisioned = 0;
             foreach (var pawn in map.mapPawns.FreeColonistsSpawned.Where(p => p.needs != null)) {
                 if (pawn.needs.food != null) pawn.needs.food.CurLevelPercentage = 1f;
@@ -161,6 +159,17 @@ namespace HomeBridge.BridgeTools
             var before = target.HitPoints;
             target.TakeDamage(new DamageInfo(DamageDefOf.Blunt, Math.Max(1, target.MaxHitPoints / 2)));
             return new { success = !target.Destroyed && target.HitPoints < before, before, after = target.HitPoints, max = target.MaxHitPoints };
+        }
+
+        // The scenario stages its own raid; a storyteller incident or quest
+        // letter meanwhile pauses the game and cancels the layout plans. The
+        // comps are rebuilt from the storyteller def on every load, so a run
+        // resumed from a checkpoint save calls this op again.
+        private static object Quiet()
+        {
+            Find.Storyteller.storytellerComps.Clear();
+            Find.Storyteller.incidentQueue.Clear();
+            return new { success = true };
         }
 
         private static object Inspect(Map map, Faction player)

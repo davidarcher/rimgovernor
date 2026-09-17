@@ -67,6 +67,12 @@ namespace HomeBridge.BridgeTools
             new Spec("ZoneManager.DeregisterZone", () => AccessTools.Method(typeof(ZoneManager), "DeregisterZone", new[] { typeof(Zone) }), nameof(BeforeZoneRemoval), nameof(AfterZoneRemoval)),
             new Spec("Command_Toggle.ProcessInput", () => AccessTools.Method(typeof(Command_Toggle), "ProcessInput", new[] { AccessTools.TypeByName("UnityEngine.Event") ?? throw new TypeLoadException("UnityEngine.Event") }), null, nameof(PlayerToggle)),
             new Spec("Pawn_DraftController.Drafted", () => AccessTools.PropertySetter(typeof(Pawn_DraftController), "Drafted"), nameof(BeforeDraft), nameof(AfterDraft)),
+            // Auto-rebuild and trap auto-rearm place player-faction blueprints
+            // from inside Destroy/Kill/Spring: game automation, not a player
+            // order. The blueprint hook ignores placements made under them.
+            new Spec("ThingUtility.CheckAutoRebuildOnDestroyed", () => AccessTools.Method(typeof(ThingUtility), "CheckAutoRebuildOnDestroyed", new[] { typeof(Thing), typeof(DestroyMode), typeof(Map), typeof(BuildableDef) }), nameof(BeforeAutoRebuild), nameof(AfterAutoRebuild)),
+            new Spec("ThingUtility.CheckAutoRebuildTerrainOnDestroyed", () => AccessTools.Method(typeof(ThingUtility), "CheckAutoRebuildTerrainOnDestroyed", new[] { typeof(TerrainDef), typeof(IntVec3), typeof(Map) }), nameof(BeforeAutoRebuild), nameof(AfterAutoRebuild)),
+            new Spec("Building_Trap.CheckAutoRebuild", () => AccessTools.Method(typeof(Building_Trap), "CheckAutoRebuild", new[] { typeof(Map) }), nameof(BeforeAutoRebuild), nameof(AfterAutoRebuild)),
             new Spec("GenConstruct.PlaceBlueprintForBuild", () => AccessTools.Method(typeof(GenConstruct), "PlaceBlueprintForBuild", new[] { typeof(BuildableDef), typeof(IntVec3), typeof(Map), typeof(Rot4), typeof(Faction), typeof(ThingDef), typeof(Precept_ThingStyle), typeof(ThingStyleDef), typeof(bool) }), null, nameof(Built)),
             new Spec("GenConstruct.PlaceBlueprintForInstall", () => AccessTools.Method(typeof(GenConstruct), "PlaceBlueprintForInstall", new[] { typeof(MinifiedThing), typeof(IntVec3), typeof(Map), typeof(Rot4), typeof(Faction), typeof(bool) }), null, nameof(Installed)),
             new Spec("GenConstruct.PlaceBlueprintForReinstall", () => AccessTools.Method(typeof(GenConstruct), "PlaceBlueprintForReinstall", new[] { typeof(Building), typeof(IntVec3), typeof(Map), typeof(Rot4), typeof(Faction), typeof(bool) }), null, nameof(Installed)),
@@ -241,9 +247,12 @@ namespace HomeBridge.BridgeTools
             if (__state == __instance.Drafted) return;
             Revoke(NativeControlRevocationReason.PlayerControl, () => Describe(__instance.pawn, __instance.Drafted ? "draft" : "undraft"));
         }
+        [ThreadStatic] private static int autoRebuildDepth;
+        private static void BeforeAutoRebuild() => autoRebuildDepth++;
+        private static void AfterAutoRebuild() { if (autoRebuildDepth > 0) autoRebuildDepth--; }
         private static void Built(Blueprint_Build __result, Faction faction)
         {
-            if (__result == null || faction != Faction.OfPlayer) return;
+            if (__result == null || faction != Faction.OfPlayer || autoRebuildDepth > 0) return;
             Revoke(NativeControlRevocationReason.ExternalOrder, () => Describe(null, "blueprint " + (__result.def?.entityDefToBuild?.defName ?? "?") + " at " + __result.Position));
         }
         private static void Installed(Blueprint_Install __result, Faction faction)
