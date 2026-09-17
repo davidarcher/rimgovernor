@@ -214,7 +214,9 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 			return DevelopmentState{}, errors.New("invalid development goal")
 		}
 		seen[g.ID] = true
-		emergency = emergency || g.Priority < 2
+		// A mental break's mood goal is priority 1 but not an emergency: it
+		// ends only as ticks pass, so it must not freeze development.
+		emergency = emergency || g.Priority < 2 && !IsMoodGoal(g.ID)
 		startup = startup || g.Priority < 3
 	}
 	for _, g := range r.Goals {

@@ -107,6 +107,13 @@ func TestDevelopmentHolds(t *testing.T) {
 		})
 	}
 }
+// A mental break's mood goal is priority 1 yet not an emergency: it ends
+// only as ticks pass, so development keeps its slot.
+func TestDevelopmentMentalBreakIsNotAnEmergency(t *testing.T) {
+	r := developmentFixture()
+	r.Goals = append(r.Goals[:1], DevelopmentGoal{ID: MoodGoal("pawn"), Source: AutopilotGoal, Priority: 1})
+	requireSelected(t, rank(t, r), "storage")
+}
 func TestDevelopmentPlayerPreferenceAgeAndReset(t *testing.T) {
 	r := developmentFixture()
 	r.Goals[2].Source = PlayerGoal

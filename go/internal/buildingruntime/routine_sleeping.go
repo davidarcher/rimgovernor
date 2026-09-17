@@ -148,7 +148,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 			return RoutineBuildingResult{Reason: BuildingShellBlocked}, nil
 		}
 	}
-	if r.goal == policy.EnsureComfort || r.goal == policy.EnsureExpansion || r.goal == policy.MaintainLighting {
+	if r.goal == policy.EnsureComfort || r.goal == policy.EnsureExpansion || r.goal == policy.MaintainLighting || r.goal == policy.MaintainResource {
 		selected := false
 		for _, row := range review.Development.Rows {
 			selected = selected || row.Goal == r.goal && row.Selected
