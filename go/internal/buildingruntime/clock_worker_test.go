@@ -14,7 +14,7 @@ import (
 func clockLoopFixture(t *testing.T) *ClockWorker {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
-	w := &ClockWorker{ctx: ctx, cancel: cancel, config: ClockWorkerConfig{PollInterval: 5 * time.Millisecond, RenewInterval: 5 * time.Millisecond, StepInterval: 5 * time.Millisecond, MaxBackoff: 80 * time.Millisecond, PollTimeout: 20 * time.Millisecond, RenewTimeout: 20 * time.Millisecond, StepTimeout: 20 * time.Millisecond}, done: make(chan struct{}), ready: make(chan struct{}), stopGate: make(chan struct{}, 1), disable: func() error { return nil }, cleanup: func(context.Context) error { return nil }, poll: func(context.Context) (ClockPollResult, error) { return ClockPollResult{}, nil }, renew: func(context.Context) (ClockRenewResult, error) { return ClockRenewResult{}, nil }, step: func(context.Context) (ClockSchedulerResult, error) { return ClockSchedulerResult{}, nil }}
+	w := &ClockWorker{ctx: ctx, cancel: cancel, config: ClockWorkerConfig{PollInterval: 5 * time.Millisecond, RenewInterval: 5 * time.Millisecond, StepInterval: 5 * time.Millisecond, MaxBackoff: 80 * time.Millisecond, PollTimeout: 20 * time.Millisecond, RenewTimeout: 20 * time.Millisecond, StepTimeout: 20 * time.Millisecond}, done: make(chan struct{}), ready: make(chan struct{}), stopGate: make(chan struct{}, 1), disable: func() error { return nil }, cleanup: func(context.Context) error { return nil }, poll: func(context.Context) (ClockPollResult, error) { return ClockPollResult{}, nil }, renew: func(context.Context) (ClockRenewResult, error) { return ClockRenewResult{}, nil }, step: func(context.Context, StepReason) (ClockSchedulerResult, error) { return ClockSchedulerResult{}, nil }, wake: NewWakeSignal()}
 	t.Cleanup(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
@@ -90,7 +90,7 @@ func TestClockWorkerPollBarrierAndIndependentLoops(t *testing.T) {
 		}
 	}
 	w.renew = func(context.Context) (ClockRenewResult, error) { renews.Add(1); return ClockRenewResult{}, nil }
-	w.step = func(ctx context.Context) (ClockSchedulerResult, error) {
+	w.step = func(ctx context.Context, _ StepReason) (ClockSchedulerResult, error) {
 		if steps.Add(1) == 1 {
 			close(enteredStep)
 		}
@@ -132,7 +132,7 @@ func TestClockWorkerStopJoinsBeforeRetryableCleanup(t *testing.T) {
 	entered, release := make(chan struct{}), make(chan struct{})
 	var disabled, cleanups atomic.Int32
 	w.disable = func() error { disabled.Add(1); return nil }
-	w.step = func(context.Context) (ClockSchedulerResult, error) {
+	w.step = func(context.Context, StepReason) (ClockSchedulerResult, error) {
 		close(entered)
 		<-release
 		return ClockSchedulerResult{}, nil
@@ -163,7 +163,10 @@ func TestClockWorkerUnchangedDecisionBacksOff(t *testing.T) {
 	t.Parallel()
 	w := clockLoopFixture(t)
 	var steps atomic.Int32
-	w.step = func(context.Context) (ClockSchedulerResult, error) { steps.Add(1); return ClockSchedulerResult{}, nil }
+	w.step = func(context.Context, StepReason) (ClockSchedulerResult, error) {
+		steps.Add(1)
+		return ClockSchedulerResult{}, nil
+	}
 	w.start()
 	time.Sleep(120 * time.Millisecond)
 	if n := steps.Load(); n < 3 || n > 7 {
@@ -182,7 +185,7 @@ func TestClockWorkerStepsAgainAtOnceAfterSettlingAnEpoch(t *testing.T) {
 	w.config.MaxBackoff = 40 * time.Millisecond
 	var stamps []time.Time
 	var mu sync.Mutex
-	w.step = func(context.Context) (ClockSchedulerResult, error) {
+	w.step = func(context.Context, StepReason) (ClockSchedulerResult, error) {
 		mu.Lock()
 		defer mu.Unlock()
 		stamps = append(stamps, time.Now())

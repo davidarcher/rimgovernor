@@ -210,3 +210,22 @@ func TestClockWindowEmergencyAndTickBudgetBoundaries(t *testing.T) {
 		}
 	}
 }
+
+// Planner facts are bound by tick, not by MaxAge: facts from the admitted
+// tick admit however old the planning step was, facts from another tick
+// hold, and no planner facts at all leave the journal's work to admit.
+func TestClockWindowFactsTickHoldsStalePlanning(t *testing.T) {
+	f, limits := clockWindowFixture(t)
+	f.FactsTick = domain.Known(f.Tick)
+	if d := EvaluateClockWindow(f, limits); !d.Admitted {
+		t.Fatal(d)
+	}
+	f.FactsTick = domain.Known(f.Tick - 1)
+	if d := EvaluateClockWindow(f, limits); d.Admitted || !reflect.DeepEqual(d.Refused, []ClockWindowReason{ClockWindowStalePlanning}) {
+		t.Fatal(d)
+	}
+	f.FactsTick = domain.Unknown[domain.Tick]()
+	if d := EvaluateClockWindow(f, limits); !d.Admitted {
+		t.Fatal(d)
+	}
+}

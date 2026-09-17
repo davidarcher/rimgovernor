@@ -327,14 +327,30 @@ budgets are bounded below a quarter of the native lease duration so a late renew
 can never let the epoch lapse. The step budget is independent of the lease and
 bounded only by the Player's call timeout: a step holds the Player gate, never
 `renewGate`, so a slow planner census cannot delay renewal (`serve` budgets 7s for
-poll/renew and 30s for the step, with the scheduler's `MaxAge` covering the whole
-step). Unchanged scheduling decisions back off, except while a combat window is
-admitted or running, which keeps the short poll. A captured page wakes the step
-loop through the shared `WakeSignal` and resets that backoff; the same signal
-wakes the routine `Worker`, which reconciles the actions named by any
-`OperationOutcome` or `WatchLatched` evidence ahead of its rotation and without
-their retry backoff (at most 64 focused actions). Autonomous play attaches the
-worker; `--observe` does not.
+poll/renew and 30s for the step; the scheduler's `MaxAge` bounds the admission
+reads, which follow the planners, and the planner facts are bound by tick
+through `ClockWindowFacts.FactsTick`). Unchanged scheduling decisions back
+off, except while a combat window is admitted or running, which keeps the
+short poll. A captured page wakes the step loop through the worker's own
+`WakeSignal` and resets that backoff, carrying the outcomes, invalidated
+families and authority flag as the step's `StepReason`; the poll notifies the
+shared signal too, which wakes the routine `Worker` to reconcile the actions
+named by any `OperationOutcome` or `WatchLatched` evidence ahead of its
+rotation and without their retry backoff (at most 64 focused actions).
+Autonomous play attaches the worker; `--observe` does not.
+
+`StepReason.Cause` is `timer`, `wake`, `settled` or `full`. The planners the
+scheduler queues are the `plannerCatalog` entries `plannerSelection` picks:
+every configured entry for `full`, `settled` and a `timer` whose tick moved;
+none for a `timer` at the same tick (the admission tail alone, promoted to
+`full` once `FullStepEvery`, 30 s, has passed without a full wave); for a
+`wake`, the entries whose dispatched `kinds` include a latched outcome's kind
+(as the scheduler remembered arming it; an unremembered action selects all)
+or whose `families` include an `ObservationInvalidated` family, and all of
+them when authority changed. The routine reviewer runs before any planner
+wave; its retained census is retired by any typed-event invalidation
+(`routineCensusStore` generation) so a same-tick reuse never serves facts an
+event made stale.
 
 The scheduler arms `WatchPolicy.watched_attempts` with the dispatched or
 awaiting-observation building-action attempts of the planned wave (first 16,

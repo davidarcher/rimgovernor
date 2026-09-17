@@ -18,6 +18,7 @@ type ClockPollResult struct {
 	// Wake and AuthorityChanged summarize evidence the journal committed in
 	// this poll; they are empty when nothing was captured.
 	Wake             []WakeOutcome
+	Invalidated      []bridge.FactFamily
 	AuthorityChanged bool
 }
 

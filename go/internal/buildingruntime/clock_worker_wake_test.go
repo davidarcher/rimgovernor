@@ -2,29 +2,43 @@ package buildingruntime
 
 import (
 	"context"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Committed poll evidence wakes the step loop out of its backoff at once.
+// Committed poll evidence wakes the step loop out of its backoff at once,
+// carrying the evidence as the step's reason; the shared Worker signal is
+// notified too, and keeps its own pending set. The first step is full and
+// timer steps say so.
 func TestClockWorkerWakesStepOnCapturedEvents(t *testing.T) {
 	t.Parallel()
 	w := clockLoopFixture(t)
 	w.config.StepInterval = 20 * time.Millisecond
 	w.config.MaxBackoff = 2 * time.Second
-	w.config.PollInterval = 2 * time.Second
 	w.config.Wake = NewWakeSignal()
 	var steps atomic.Int32
-	w.step = func(context.Context) (ClockSchedulerResult, error) { steps.Add(1); return ClockSchedulerResult{}, nil }
+	var mu sync.Mutex
+	var reasons []StepReason
+	w.step = func(_ context.Context, reason StepReason) (ClockSchedulerResult, error) {
+		mu.Lock()
+		reasons = append(reasons, reason)
+		mu.Unlock()
+		steps.Add(1)
+		return ClockSchedulerResult{}, nil
+	}
+	polled := make(chan struct{})
 	var polls atomic.Int32
 	w.poll = func(context.Context) (ClockPollResult, error) {
-		if polls.Add(1) == 3 {
-			return ClockPollResult{Captured: true, Wake: []WakeOutcome{{Action: "wall", Attempt: 1, Terminal: true}}}, nil
+		if polls.Add(1) != 2 {
+			return ClockPollResult{}, nil
 		}
-		return ClockPollResult{}, nil
+		<-polled
+		return ClockPollResult{Captured: true, Wake: []WakeOutcome{{Action: "wall", Attempt: 1, Terminal: true}}, Invalidated: []bridge.FactFamily{bridge.FactRooms}}, nil
 	}
 	w.start()
 	// Two unchanged steps push the backoff to 80ms; wait until the loop is
@@ -34,14 +48,28 @@ func TestClockWorkerWakesStepOnCapturedEvents(t *testing.T) {
 		time.Sleep(5 * time.Millisecond)
 	}
 	before := steps.Load()
-	w.config.Wake.Notify([]WakeOutcome{{Action: "wall", Attempt: 1, Terminal: true}}, false)
-	time.Sleep(15 * time.Millisecond)
-	if steps.Load() != before+1 {
-		t.Fatal("wake did not step at once", before, steps.Load())
+	closed := time.Now()
+	close(polled)
+	for steps.Load() == before && time.Since(closed) < 200*time.Millisecond {
+		time.Sleep(time.Millisecond)
 	}
-	outcomes, _ := w.config.Wake.Take()
-	if outcomes["wall"].Attempt != 1 {
-		t.Fatal(outcomes)
+	if steps.Load() == before || time.Since(closed) > 40*time.Millisecond {
+		t.Fatal("wake did not step at once", before, steps.Load(), time.Since(closed))
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if reasons[0].Cause != StepFull || reasons[1].Cause != StepTimer {
+		t.Fatal(reasons)
+	}
+	woken := reasons[before]
+	if woken.Cause != StepWake || len(woken.Events) != 1 || woken.Events[0].Action != "wall" || len(woken.Families) != 1 || woken.Families[0] != bridge.FactRooms || woken.Authority {
+		t.Fatal(woken)
+	}
+	if outcomes, _ := w.config.Wake.Take(); outcomes["wall"].Attempt != 1 {
+		t.Fatal("shared signal missed the wake", outcomes)
+	}
+	if drained := w.wake.TakeInvalidated(); len(drained.Events) != 0 || len(drained.Families) != 0 {
+		t.Fatal("step wake not drained", drained)
 	}
 }
 

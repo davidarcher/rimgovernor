@@ -33,8 +33,12 @@ type ClockWindowObligations struct {
 }
 
 type ClockWindowFacts struct {
-	Current               domain.GenerationSnapshot
-	Tick                  domain.Tick
+	Current domain.GenerationSnapshot
+	Tick    domain.Tick
+	// FactsTick is the tick the planner facts behind WorkRemaining were
+	// observed at; unknown when no planner has run yet (the work is then
+	// the journal's alone). Known facts from another tick hold the window.
+	FactsTick             domain.Fact[domain.Tick]
 	StartedAt, ObservedAt time.Time
 	Emergency             EmergencySnapshot
 	Review                ClockWindowReview
@@ -75,6 +79,8 @@ const (
 	ClockWindowNotPaused     ClockWindowReason = "not_paused"
 	ClockWindowNoWork        ClockWindowReason = "no_work"
 	ClockWindowInvalidLimits ClockWindowReason = "invalid_limits"
+	// ClockWindowStalePlanning: the planner facts predate the admitted tick.
+	ClockWindowStalePlanning ClockWindowReason = "stale_planning"
 )
 
 // Hostiles lists, sorted, the live undowned threats a combat window

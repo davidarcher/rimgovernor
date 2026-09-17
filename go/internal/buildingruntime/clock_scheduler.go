@@ -39,6 +39,9 @@ type ClockSchedulerConfig struct {
 	// holds an admitted plan and hostiles are alive; zero keeps Start.MaxTicks.
 	// Short windows let the raid be re-planned between them.
 	CombatMaxTicks uint32
+	// FullStepEvery bounds how long timer steps without a tick advance may
+	// skip the planners; zero means DefaultFullStepEvery.
+	FullStepEvery time.Duration
 	// Routine is reviewed only after owned clock obligations have drained.
 	Routine                          *RoutineReviewer
 	FoodAcquisition, WoodAcquisition *RoutineAcquisitionPlanner
@@ -149,6 +152,9 @@ type ClockSchedulerResult struct {
 	Watched int
 	// Planners names the catalog planners this step queued, in catalog order.
 	Planners []string
+	// Reason is the step reason applied, with TickAdvanced resolved and a
+	// timer promoted to full by FullStepEvery.
+	Reason StepReason
 }
 type ClockScheduler struct {
 	player              *Player
@@ -159,6 +165,13 @@ type ClockScheduler struct {
 	pollGate, renewGate chan struct{}
 	// facts carries reviewed observations between steps; see clockFacts.
 	facts *clockFacts
+	// lastTick is the previous step's status tick, the basis of
+	// StepReason.TickAdvanced; plannedTick is the tick the last planner
+	// wave observed and lastFull when the last full wave ran. All are
+	// touched only under the player gate.
+	lastTick, plannedTick           int64
+	lastTickKnown, plannedTickKnown bool
+	lastFull                        time.Time
 
 	// tickTrace is a TEMPORARY diagnostic aid (RIMGOVERNOR_CLOCK_DEBUG=1),
 	// read and written only from Step() which the ClockWorker's stepLoop
@@ -380,9 +393,12 @@ func clockSchedulerLog(format string, args ...any) {
 	}
 }
 
-// Step performs at most one scheduling decision. It never acquires authority,
-// renews an epoch, acknowledges events, or starts a background loop.
-func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error) {
+// StepWithReason performs at most one scheduling decision for reason. It
+// never acquires authority, renews an epoch, acknowledges events, or starts
+// a background loop. Which planners run is the reason's plannerSelection;
+// the admission tail (status, emergency, review and plan reads, then
+// EvaluateClockWindow) runs on every step that reaches it.
+func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) (ClockSchedulerResult, error) {
 	var out ClockSchedulerResult
 	entered := time.Now()
 	call, epoch, done, err := s.player.enter(ctx, false)
@@ -465,20 +481,19 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 	if !state.ObservationKnown || !boundary.World(state.Snapshot, domain.GenerationSnapshot{Colony: domain.ColonyID(loaded.Context.Identity.GetColonyId()), Load: domain.LoadID(loaded.Context.Identity.GetLoadToken()), Map: domain.MapID(loaded.Context.Identity.GetMapId())}) || loaded.Context.NativeGeneration == nil || loaded.Context.GetNativeGeneration() != uint64(state.Snapshot.Native) {
 		return out, errors.Join(executor.ErrAuthority, s.session.Disable())
 	}
-	statusReply, _, err := s.native.ReadClockStatus(call, loaded.Context.Identity)
+	status, err := s.readClockStatus(call, loaded.Context.Identity, state.Snapshot)
 	if err != nil {
-		return out, errors.Join(err, s.session.Disable())
-	}
-	status := statusReply.GetStatus()
-	if err = bridge.ValidateClockStatus(status, loaded.Context.Identity); err != nil {
-		return out, errors.Join(err, s.session.Disable())
-	}
-	if _, err = boundary.Context(status.Context, state.Snapshot); err != nil {
 		return out, errors.Join(err, s.session.Disable())
 	}
 	if status.Context.GetTick() < loaded.Context.GetTick() {
 		return out, errors.Join(executor.ErrEvidence, s.session.Disable())
 	}
+	reason.TickAdvanced = !s.lastTickKnown || status.Context.GetTick() != s.lastTick
+	s.lastTick, s.lastTickKnown = status.Context.GetTick(), true
+	if reason.Cause == StepTimer && !reason.TickAdvanced && s.fullStepDue() {
+		reason.Cause = StepFull
+	}
+	out.Reason = reason
 	if clockSchedulerDebug {
 		now := s.clock.Now()
 		tick := status.Context.GetTick()
@@ -537,21 +552,44 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 	if err = s.player.current(call, epoch); err != nil {
 		return out, err
 	}
-	clockSchedulerLog("reached stepPlanners")
-	arbiter := newStepArbiter()
-	g := newPlannerGroup(call, plannerWidth)
-	if out.Planners, err = s.stepPlanners(call, epoch, &out, g, arbiter); err != nil {
-		return out, err
+	// The tick the planner facts describe: this step's, when it plans, else
+	// the last planning step's. Admission holds when it predates the
+	// admitted tick.
+	factsTick := domain.Unknown[domain.Tick]()
+	if s.plannedTickKnown {
+		factsTick = domain.Known(domain.Tick(s.plannedTick))
 	}
-	if err = g.Wait(); err != nil {
-		return out, err
-	}
-	// A failed planner is reported, not fatal: the step still evaluates the
-	// clock window on what the other planners committed, and the failed
-	// planner retries next step (#62).
-	out.PlannerFailures = g.Failures()
-	for _, failure := range out.PlannerFailures {
-		clockSchedulerLog("planner failed (isolated): %v", failure)
+	planners, pick := plannerSelection(reason, s.facts.kindOf)
+	clockSchedulerLog("step reason: %s planners=%v", reason, planners)
+	if planners {
+		arbiter := newStepArbiter()
+		g := newPlannerGroup(call, plannerWidth)
+		if out.Planners, err = s.stepPlanners(call, epoch, &out, g, arbiter, pick); err != nil {
+			return out, err
+		}
+		if err = g.Wait(); err != nil {
+			return out, err
+		}
+		// A failed planner is reported, not fatal: the step still evaluates the
+		// clock window on what the other planners committed, and the failed
+		// planner retries next step (#62).
+		out.PlannerFailures = g.Failures()
+		for _, failure := range out.PlannerFailures {
+			clockSchedulerLog("planner failed (isolated): %v", failure)
+		}
+		factsTick = domain.Known(domain.Tick(status.Context.GetTick()))
+		s.plannedTick, s.plannedTickKnown = status.Context.GetTick(), true
+		if pick == nil {
+			s.lastFull = s.clock.Now()
+		}
+		// The planners ran between the status read and admission; MaxAge
+		// bounds the admission reads alone, so read the status again here.
+		if out.Routine != nil || len(out.Planners) > 0 {
+			started = s.clock.Now()
+			if status, err = s.readClockStatus(call, loaded.Context.Identity, state.Snapshot); err != nil {
+				return out, err
+			}
+		}
 	}
 	emergency, _, err := s.native.ReadEmergency(call, loaded.Context.Identity)
 	if err != nil {
@@ -633,7 +671,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 	if status.GetStopped() != nil {
 		clockState = policy.ClockStopped
 	}
-	facts := policy.ClockWindowFacts{Current: state.Snapshot, Tick: domain.Tick(status.Context.GetTick()), StartedAt: started, ObservedAt: s.clock.Now(), Emergency: emergencyFacts, Review: policy.ClockWindowReview{Revision: review.Revision, Captured: review.InboxCursor, Reviewed: review.ReviewedCursor, Acknowledged: review.AcknowledgedCursor, HasHolds: domain.Known(len(review.Holds) > 0)}, Status: policy.ClockWindowStatus{Snapshot: state.Snapshot, Tick: domain.Tick(status.Context.GetTick()), State: clockState, ActualPaused: boundary.FactBool(status.ActualPaused), NativeTickBoundary: boundary.FactBool(status.NativeTickBoundary), DurableEvents: boundary.FactBool(status.DurableEvents)}, Obligations: policy.ClockWindowObligations{Complete: domain.Known(true), OwnedEpochPending: domain.Known(false), UnknownStartPending: domain.Known(false)}, WorkRemaining: domain.Known(work), CombatPlan: domain.Known(combatPlan)}
+	facts := policy.ClockWindowFacts{Current: state.Snapshot, Tick: domain.Tick(status.Context.GetTick()), FactsTick: factsTick, StartedAt: started, ObservedAt: s.clock.Now(), Emergency: emergencyFacts, Review: policy.ClockWindowReview{Revision: review.Revision, Captured: review.InboxCursor, Reviewed: review.ReviewedCursor, Acknowledged: review.AcknowledgedCursor, HasHolds: domain.Known(len(review.Holds) > 0)}, Status: policy.ClockWindowStatus{Snapshot: state.Snapshot, Tick: domain.Tick(status.Context.GetTick()), State: clockState, ActualPaused: boundary.FactBool(status.ActualPaused), NativeTickBoundary: boundary.FactBool(status.NativeTickBoundary), DurableEvents: boundary.FactBool(status.DurableEvents)}, Obligations: policy.ClockWindowObligations{Complete: domain.Known(true), OwnedEpochPending: domain.Known(false), UnknownStartPending: domain.Known(false)}, WorkRemaining: domain.Known(work), CombatPlan: domain.Known(combatPlan)}
 	if status.NewestCursor != nil {
 		facts.Status.NewestCursor = domain.Known(status.GetNewestCursor())
 	}
@@ -706,14 +744,41 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 	return out, err
 }
 
+// readClockStatus reads and validates the native clock status under the
+// enabled snapshot.
+func (s *ClockScheduler) readClockStatus(call context.Context, identity *c.Identity, snapshot domain.GenerationSnapshot) (*k.Status, error) {
+	statusReply, _, err := s.native.ReadClockStatus(call, identity)
+	if err != nil {
+		return nil, err
+	}
+	status := statusReply.GetStatus()
+	if err = bridge.ValidateClockStatus(status, identity); err != nil {
+		return nil, err
+	}
+	if _, err = boundary.Context(status.Context, snapshot); err != nil {
+		return nil, err
+	}
+	return status, nil
+}
+
+// fullStepDue reports whether the FullStepEvery safety net promotes a timer
+// step that would otherwise skip the planners.
+func (s *ClockScheduler) fullStepDue() bool {
+	every := s.config.FullStepEvery
+	if every <= 0 {
+		every = DefaultFullStepEvery
+	}
+	return s.lastFull.IsZero() || s.clock.Now().Sub(s.lastFull) >= every
+}
+
 // stepPlanners runs the routine reviewer synchronously first (every other
 // planner's dispatch depends on being able to load the review it commits),
-// then queues every configured catalog planner onto g as one concurrent
-// wave sharing arbiter, returning the queued names without waiting.
-// Routine's own error aborts before anything is queued; an error from a
-// queued planner is isolated by g and surfaces later, from g.Failures(),
-// without stopping the step.
-func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSchedulerResult, g *plannerGroup, arbiter *stepArbiter) ([]string, error) {
+// then queues the configured catalog planners pick selects (nil: all) onto
+// g as one concurrent wave sharing arbiter, returning the queued names
+// without waiting. Routine's own error aborts before anything is queued;
+// an error from a queued planner is isolated by g and surfaces later, from
+// g.Failures(), without stopping the step.
+func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSchedulerResult, g *plannerGroup, arbiter *stepArbiter, pick func(plannerEntry) bool) ([]string, error) {
 	if s.config.Routine != nil {
 		review, err := s.config.Routine.step(call, epoch, arbiter)
 		if err != nil {
@@ -725,7 +790,7 @@ func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSch
 		// autonomous play. The break stays visible through the pawn's mood
 		// goal and the native hazard supervisor keeps its authority.
 	}
-	return s.queuePlanners(call, epoch, out, g, arbiter, nil), nil
+	return s.queuePlanners(call, epoch, out, g, arbiter, pick), nil
 }
 
 type clockWorkItem struct {

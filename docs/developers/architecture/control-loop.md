@@ -42,15 +42,27 @@ empty read for up to `wait_ms` (at most 5 s) and answer as soon as a row lands.
 The service does not hold reads yet: the game transport answers one call at a
 time, so a held read stalls every planner and worker call behind it, and the
 service polls once a second instead. Every
-captured page wakes the scheduler step and the routine worker through one shared
-wake signal, which also resets the step backoff; a page whose events carry
+captured page wakes the scheduler step and the routine worker through their
+wake signals, which also reset the step backoff; a page whose events carry
 attempt outcomes names those actions so the worker reconciles them first. A
 window can be armed with watched attempts: the native supervisor stops it at the
 tick boundary on which any of them reaches a terminal outcome
 (`STOP_REASON_WATCH_LATCHED`, a benign stop like the tick budget), so a completed
-wall does not play out the rest of a 600-tick budget before the controller
+wall does not play out the rest of its tick budget before the controller
 notices. Authority changes observed while no epoch is running are journaled as
 owner-less `AuthorityChanged` rows so a waiting poll learns of them at once.
+
+Each scheduler step carries the reason it ran, and the reason selects the
+planners: a step after a settled window, a tick advance or the 30 s safety
+net plans everything; a timer step at the same paused tick runs no planner
+and only re-evaluates admission from the journal; a wake runs the planners
+that dispatch the latched outcomes' action kinds and the readers of any
+invalidated fact family (an authority change plans everything). Planner
+facts are bound to the tick they observed, so admission holds with
+`stale_planning` when a window has since outrun them; the scheduler's
+`MaxAge` bounds only the admission reads. A colony window runs 2500 ticks by
+default (`--clock-window-ticks`, at most one game day), combat windows 300;
+a native work allowance (a growing field, a home fire) still clamps it.
 
 ## Verify progress
 

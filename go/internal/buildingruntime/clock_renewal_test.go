@@ -273,7 +273,7 @@ func TestClockRenewalContinuesDuringSlowStep(t *testing.T) {
 	stepEntered, stepReleased, stepDone := make(chan struct{}), make(chan struct{}), make(chan struct{})
 	worker := &ClockWorker{ctx: ctx, cancel: cancel, config: ClockWorkerConfig{PollInterval: time.Hour, RenewInterval: 5 * time.Millisecond, StepInterval: time.Hour, MaxBackoff: time.Hour, PollTimeout: 2 * time.Second, RenewTimeout: 2 * time.Second, StepTimeout: 8 * time.Second}, done: make(chan struct{}), ready: make(chan struct{}), stopGate: make(chan struct{}, 1), disable: func() error { return nil }, cleanup: func(context.Context) error { return nil }, renew: s.RenewEpoch}
 	worker.poll = func(context.Context) (ClockPollResult, error) { return ClockPollResult{}, nil }
-	worker.step = func(ctx context.Context) (ClockSchedulerResult, error) {
+	worker.step = func(ctx context.Context, _ StepReason) (ClockSchedulerResult, error) {
 		defer close(stepDone)
 		_, _, done, err := s.player.enter(ctx, false)
 		if err != nil {

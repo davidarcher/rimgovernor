@@ -22,11 +22,17 @@ type routineCensus struct {
 	rooms       bool
 	claims      bool
 	definitions map[string]bool
+	generation  uint64
 }
 
+// routineCensusStore keeps the latest census across steps: a planning step
+// at the same paused tick reuses it. generation counts the typed-event
+// invalidations since the census was retained; a census from an older
+// generation is not served even at the same tick.
 type routineCensusStore struct {
-	mu     sync.Mutex
-	latest *routineCensus
+	mu         sync.Mutex
+	latest     *routineCensus
+	generation uint64
 }
 
 func (s *routineCensusStore) retain(reading observation.RoutineReading, rooms bool, claims domain.Fact[[]policy.ConstructionClaim]) {
@@ -36,7 +42,16 @@ func (s *routineCensusStore) retain(reading observation.RoutineReading, rooms bo
 		census.definitions[definition.Name] = true
 	}
 	s.mu.Lock()
+	census.generation = s.generation
 	s.latest = census
+	s.mu.Unlock()
+}
+
+// invalidate retires the retained census: committed clock evidence made
+// some of what it observed stale.
+func (s *routineCensusStore) invalidate() {
+	s.mu.Lock()
+	s.generation++
 	s.mu.Unlock()
 }
 
@@ -52,9 +67,9 @@ func (s *routineCensusStore) lookup(source, reviewerSource any, expected observa
 		return observation.RoutineReading{}, false
 	}
 	s.mu.Lock()
-	census := s.latest
+	census, generation := s.latest, s.generation
 	s.mu.Unlock()
-	if census == nil || !sameObservedIdentity(census.reading.Projection.Identity, expected) {
+	if census == nil || census.generation != generation || !sameObservedIdentity(census.reading.Projection.Identity, expected) {
 		return observation.RoutineReading{}, false
 	}
 	if rooms && !census.rooms {

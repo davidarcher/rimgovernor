@@ -85,4 +85,14 @@ func TestRoutineCensusLookupConditions(t *testing.T) {
 	if _, ok := partial.lookup(source, source, identity, true, domain.Unknown[[]policy.ConstructionClaim](), nil); !ok {
 		t.Fatal("rooms census refused a rooms request")
 	}
+	// A typed-event invalidation retires the census at the same tick until
+	// the reviewer retains a fresh one.
+	partial.invalidate()
+	if _, ok := partial.lookup(source, source, identity, true, domain.Unknown[[]policy.ConstructionClaim](), nil); ok {
+		t.Fatal("invalidated census was served")
+	}
+	partial.retain(reading, true, domain.Unknown[[]policy.ConstructionClaim]())
+	if _, ok := partial.lookup(source, source, identity, true, domain.Unknown[[]policy.ConstructionClaim](), nil); !ok {
+		t.Fatal("re-retained census refused")
+	}
 }

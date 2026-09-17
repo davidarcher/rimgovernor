@@ -47,14 +47,16 @@ func (f *clockFacts) kindOf(id domain.ActionID) (domain.ActionKind, bool) {
 	return kind, ok
 }
 
-// apply drops the cached facts a committed events page makes stale.
-func (f *clockFacts) apply(page *k.EventsPage) {
+// apply drops the cached facts a committed events page makes stale and
+// reports whether anything was dropped.
+func (f *clockFacts) apply(page *k.EventsPage) bool {
 	all, families := clockPageInvalidation(page, f.kindOf)
 	if all {
 		f.cache.Invalidate()
-		return
+		return true
 	}
 	f.cache.InvalidateFamilies(families...)
+	return len(families) > 0
 }
 
 // operationFamilies names the fact families an operation of kind changes

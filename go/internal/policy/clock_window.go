@@ -31,6 +31,14 @@ func EvaluateClockWindow(f ClockWindowFacts, limits ClockWindowLimits) ClockWind
 	if f.Status.Snapshot != f.Current || f.Status.Tick != f.Tick {
 		hold(ClockWindowStale)
 	}
+	// MaxAge below bounds the admission reads alone; the planner facts are
+	// bound by tick instead, so a step that skipped the planners still
+	// admits from facts observed at this paused tick and never from facts
+	// an earlier window has since outrun. Unknown means no planner has
+	// observed yet: the work then comes from the journal alone.
+	if planned, known := f.FactsTick.Value(); known && planned != f.Tick {
+		hold(ClockWindowStalePlanning)
+	}
 	if f.StartedAt.IsZero() || f.ObservedAt.IsZero() || f.ObservedAt.Before(f.StartedAt) || f.ObservedAt.After(limits.Now) || f.StartedAt.After(limits.Now) || limits.Now.Sub(f.StartedAt) > limits.MaxAge || limits.Now.Sub(f.ObservedAt) > limits.MaxAge {
 		hold(ClockWindowStale)
 	}

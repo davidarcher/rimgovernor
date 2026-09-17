@@ -26,8 +26,12 @@ type ClockWorker struct {
 	cleanup    func(context.Context) error
 	poll       func(context.Context) (ClockPollResult, error)
 	renew      func(context.Context) (ClockRenewResult, error)
-	step       func(context.Context) (ClockSchedulerResult, error)
+	step       func(context.Context, StepReason) (ClockSchedulerResult, error)
 	stopParent func() bool
+	// wake is the step loop's own signal. The poll loop notifies it and
+	// config.Wake alike, so the Worker and the step loop each drain their
+	// own pending evidence instead of racing for one channel token.
+	wake *WakeSignal
 }
 
 func NewClockWorker(ctx context.Context, scheduler *ClockScheduler, nativeEvents ClockEventNative, config ClockWorkerConfig) (*ClockWorker, error) {
@@ -55,7 +59,7 @@ func NewClockWorker(ctx context.Context, scheduler *ClockScheduler, nativeEvents
 		return nil, ErrControl
 	}
 	lifetime, cancel := context.WithCancel(ctx)
-	w := &ClockWorker{ctx: lifetime, cancel: cancel, config: config, done: make(chan struct{}), ready: make(chan struct{}), stopGate: make(chan struct{}, 1), disable: scheduler.session.disableClockWorker, cleanup: scheduler.session.CleanupClock, step: scheduler.Step, renew: scheduler.RenewEpoch}
+	w := &ClockWorker{ctx: lifetime, cancel: cancel, config: config, done: make(chan struct{}), ready: make(chan struct{}), stopGate: make(chan struct{}, 1), disable: scheduler.session.disableClockWorker, cleanup: scheduler.session.CleanupClock, step: scheduler.StepWithReason, renew: scheduler.RenewEpoch, wake: NewWakeSignal()}
 	w.poll = func(ctx context.Context) (ClockPollResult, error) {
 		return scheduler.PollEvents(ctx, nativeEvents, config.PageLimit, config.PollWait)
 	}
@@ -151,8 +155,9 @@ func (w *ClockWorker) pollLoop() {
 			close(w.ready)
 			ready = true
 		}
-		if err == nil && (result.Captured || len(result.Wake) > 0 || result.AuthorityChanged) {
-			w.config.Wake.Notify(result.Wake, result.AuthorityChanged)
+		if err == nil && (result.Captured || len(result.Wake) > 0 || len(result.Invalidated) > 0 || result.AuthorityChanged) {
+			w.config.Wake.NotifyInvalidated(result.Wake, result.Invalidated, result.AuthorityChanged)
+			w.wake.NotifyInvalidated(result.Wake, result.Invalidated, result.AuthorityChanged)
 		}
 		waited := w.config.PollWait > 0 && time.Since(started) >= w.config.PollWait/2
 		if err == nil && (waited || result.Captured) {
@@ -214,9 +219,12 @@ func (w *ClockWorker) stepLoop() {
 	havePrevious := false
 	repeats := 0
 	skipped := false
+	// The first step plans everything; each later step's reason is what
+	// ended the wait before it: the timer, a wake, or a settled epoch.
+	reason := StepReason{Cause: StepFull}
 	for w.ctx.Err() == nil {
 		call, cancel := context.WithTimeout(w.ctx, w.config.StepTimeout)
-		result, err := w.step(call)
+		result, err := w.step(call, reason)
 		cancel()
 		key := clockWorkerKey(result, err)
 		changed := !havePrevious || key != previous
@@ -252,19 +260,22 @@ func (w *ClockWorker) stepLoop() {
 		if err == nil && (result.Reconciled || result.Cleaned) && !skipped {
 			skipped = true
 			clockSchedulerLog("step settled an epoch (reconciled=%v cleaned=%v): stepping again at once", result.Reconciled, result.Cleaned)
+			reason = StepReason{Cause: StepSettled}
 			continue
 		}
 		skipped = false
 		// Committed clock evidence (a latched outcome, an authority change)
 		// wakes the step at once and resets the backoff: the decision inputs
 		// changed, so the unchanged-key backoff no longer applies.
-		woken, alive := w.waitOrWake(delay, w.config.Wake.C())
+		woken, alive := w.waitOrWake(delay, w.wake.C())
 		if !alive {
 			return
 		}
+		reason = StepReason{Cause: StepTimer}
 		if woken {
 			delay = w.config.StepInterval
 			havePrevious = false
+			reason = w.wake.TakeInvalidated()
 		}
 	}
 }
