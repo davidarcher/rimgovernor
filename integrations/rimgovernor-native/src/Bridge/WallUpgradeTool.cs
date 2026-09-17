@@ -117,6 +117,8 @@ namespace HomeBridge.BridgeTools
         }
         private static WallRemovalRecord Claim(Thing t) => t == null ? null : State()?.Records.LastOrDefault(r =>
             r.Target == t.GetUniqueLoadID() && !r.Complete);
+        /// <summary>The ledger's open removal of this exact wall, if any; read-only for the typed census.</summary>
+        internal static WallRemovalRecord Pending(Thing t) => Claim(t);
         private static void Eligible(Thing t, ref bool __result)
         {
             var r = Claim(t); if (r == null || !__result) return;

@@ -15,8 +15,7 @@ import (
 // this set when its native tool lands; a new caller must not add to it
 // without an issue.
 var nativeToolGaps = map[string]string{
-	"rimgovernor/observations_list_wall_upgrade_sites": "https://github.com/davidarcher/rimgovernor/issues/78",
-	"rimgovernor/presentation_notifications":           "https://github.com/davidarcher/rimgovernor/issues/79",
+	"rimgovernor/presentation_notifications": "https://github.com/davidarcher/rimgovernor/issues/79",
 }
 
 // TestEveryBridgeToolExistsNatively guards the bridge's call sites against

@@ -76,7 +76,7 @@ Sources in this table are under
 | NativeDefenseObservationTools.cs / observations_read_lines_of_fire | ReadLinesOfFire; native GenSight line of sight and CoverUtility block chance per (firing, approach) pair, at most 64×64 | defense layout, defensive positioning (B06c) |
 | RoofSupportTool.cs / roof_support | ReadRoofSupport; exact target, RoofSupportCell | wall/room upkeep and roof safety |
 | ExcavationTool.cs / read_excavation_site | ReadExcavationSite; ExcavationCell per requested cell (fogged = unknown), site-level ExcavationSupport after counterfactual removal, worker/access evidence | staged room/corridor excavation (B06f) |
-| WallUpgradeTool.cs / wall_upgrade_sites | ListWallUpgradeSites; WallUpgradeSite, material and worker evidence | wall_upgrade, colony_upkeep |
+| WallUpgradeTool.cs / wall_upgrade_sites | ListWallUpgradeSites; WallUpgradeSite, material and worker evidence (native handler `NativeWallUpgradeObservationTools.cs`: a `target_id` lists that wall's replacement candidates per normal, no target lists cleanup rows naming the next same-stuff backup; `wallupgradeaccept` covers it) | wall_upgrade, colony_upkeep |
 | ResourceAcquisitionTool.cs / resource_sources | ListResourceSources; ResourceSource, StorageCapacity, ExtractionDevelopment | resource_control, extraction_development, mining |
 | HusbandryTool.cs / husbandry_facts | ReadHusbandry; HusbandryAnimal, TrainingEntry, HandlerState | husbandry, animal_feed |
 | WasteTools.cs / waste_state | ReadWaste; WasteItem with exposed/relocated/buried state | waste, waste_outcome |
