@@ -91,20 +91,32 @@ func TestClockWorkerPollBarrierAndIndependentLoops(t *testing.T) {
 		return ClockSchedulerResult{}, ctx.Err()
 	}
 	w.start()
-	time.Sleep(35 * time.Millisecond)
-	if steps.Load() != 0 || polls.Load() < 2 || renews.Load() < 2 {
-		t.Fatal("barrier or independent polling failed", steps.Load(), polls.Load(), renews.Load())
+	// Wait on the loops' observed progress, not a wall-clock budget: under
+	// CPU contention a fixed sleep saw fewer timer firings than expected.
+	clockLoopWait(t, "independent polling", func() bool { return polls.Load() >= 2 && renews.Load() >= 2 })
+	if steps.Load() != 0 {
+		t.Fatal("barrier failed", steps.Load(), polls.Load(), renews.Load())
 	}
 	close(allowPoll)
 	select {
 	case <-enteredStep:
-	case <-time.After(time.Second):
+	case <-time.After(5 * time.Second):
 		t.Fatal("successful poll did not unblock scheduling")
 	}
 	beforePoll, beforeRenew := polls.Load(), renews.Load()
-	time.Sleep(30 * time.Millisecond)
-	if polls.Load() <= beforePoll || renews.Load() <= beforeRenew {
-		t.Fatal("slow step starved independent loops")
+	clockLoopWait(t, "loops independent of the slow step", func() bool { return polls.Load() > beforePoll && renews.Load() > beforeRenew })
+}
+
+// clockLoopWait polls for condition, failing after a bound that is generous
+// against contention yet far below the per-test budget.
+func clockLoopWait(t *testing.T, label string, condition func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for !condition() {
+		if time.Now().After(deadline) {
+			t.Fatal("timed out: " + label)
+		}
+		time.Sleep(time.Millisecond)
 	}
 }
 func TestClockWorkerStopJoinsBeforeRetryableCleanup(t *testing.T) {
