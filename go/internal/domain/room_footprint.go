@@ -272,6 +272,26 @@ func EllipseFootprint(center Cell, radiusX, radiusZ int32, orientation EllipseOr
 	if radiusX < 2 || radiusX > 30 || radiusZ < 2 || radiusZ > 30 {
 		return RoomFootprint{}, errors.New("ellipse radii must be 2..30 cells")
 	}
+	interior := EllipseInterior(center, radiusX, radiusZ, orientation)
+	footprint, err := NewRoomFootprint(interior, ellipseDoor(center, interior, entrance), entrance)
+	if err != nil {
+		return RoomFootprint{}, err
+	}
+	if !footprint.RoofSupported() {
+		return RoomFootprint{}, errors.New("ellipse interior exceeds roof support")
+	}
+	return footprint, nil
+}
+
+// EllipseInterior is the cell set of EllipseFootprint without its wall ring
+// or door: the cells whose centres lie on or inside the ellipse, in z-outer,
+// x-inner order. Radii below one, above 30 or an unknown orientation yield
+// nil. Excavation reuses it to carve round rooms out of rock, where the
+// surrounding rock is the wall.
+func EllipseInterior(center Cell, radiusX, radiusZ int32, orientation EllipseOrientation) []Cell {
+	if orientation.Validate() != nil || radiusX < 1 || radiusX > 30 || radiusZ < 1 || radiusZ > 30 {
+		return nil
+	}
 	rx, rz := int64(radiusX), int64(radiusZ)
 	if orientation == EllipseEastWest {
 		rx, rz = rz, rx
@@ -296,14 +316,7 @@ func EllipseFootprint(center Cell, radiusX, radiusZ int32, orientation EllipseOr
 			}
 		}
 	}
-	footprint, err := NewRoomFootprint(interior, ellipseDoor(center, interior, entrance), entrance)
-	if err != nil {
-		return RoomFootprint{}, err
-	}
-	if !footprint.RoofSupported() {
-		return RoomFootprint{}, errors.New("ellipse interior exceeds roof support")
-	}
-	return footprint, nil
+	return interior
 }
 
 // ellipseDoor picks the entrance-side wall cell nearest the centre axis that

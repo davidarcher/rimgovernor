@@ -8,6 +8,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -590,5 +591,41 @@ func TestRoutineExcavationDispatchedStageSurvivesPauseAndResume(t *testing.T) {
 	stage1, cells := excavationCells(t, db, result.Decision, excavationStageMethod(1))
 	if stage1 != excavationPlanID(result.Decision.Goal, excavationTestTarget, "1") || len(cells) != 7 {
 		t.Fatal(stage1, cells)
+	}
+}
+
+func TestRoutineExcavationDigsRoundRoomForNeolithicColony(t *testing.T) {
+	t.Parallel()
+	// A neolithic colony prefers the round room: the shape order follows
+	// shelterStyle, and the stage plans carry the ellipse in their key so
+	// a restart rebuilds the same 49-cell circle. Faces still rank by the
+	// room centre's distance and the circle's bounding box must clear the
+	// map edge, so the anchor sits on the circle's centre behind the face
+	// at z=5; at z=4 the rectangle would have been the only legal shape.
+	r, db, x := excavationFixture(t)
+	x.sleepingNative.reply.GetObserved().PlayerTechLevel = proto.String("Neolithic")
+	x.sleepingNative.reply.GetObserved().Center = &c.Cell{X: proto.Int32(15), Z: proto.Int32(5)}
+	shapes := excavationShapes(observation.ColonyProjection{PlayerTechLevel: domain.Known("Neolithic")})
+	if len(shapes) != 2 || shapes[0].Kind != policy.ExcavationEllipse || shapes[1].Kind != policy.ExcavationRectangle {
+		t.Fatal(shapes)
+	}
+	if plain := excavationShapes(observation.ColonyProjection{}); len(plain) != 2 || plain[0].Kind != policy.ExcavationRectangle || plain[1].Kind != policy.ExcavationEllipse {
+		t.Fatal(plain)
+	}
+	ctx := context.Background()
+	result, err := r.Step(ctx)
+	if err != nil || result.Reason != BuildingMethodAdmitted {
+		t.Fatal(result, err)
+	}
+	planID, cells := excavationCells(t, db, result.Decision, excavationStageMethod(0))
+	target, err := excavationPlanTarget(planID)
+	if err != nil {
+		t.Fatal(planID, err)
+	}
+	if target.Shape != policy.EllipseShape(excavationRoundRadius, excavationRoundRadius, domain.EllipseNorthSouth) || len(target.InteriorCells()) != 49 || target.Access != (domain.Cell{X: 8, Z: 5}) || target.Interior != (policy.Rectangle{X: 11, Z: 1, Width: 9, Height: 9}) || len(cells) != 2 || cells[0] != (domain.Cell{X: 9, Z: 5}) {
+		t.Fatal(target, cells)
+	}
+	if planID != excavationPlanID(result.Decision.Goal, target, "0") {
+		t.Fatal(planID)
 	}
 }

@@ -33,7 +33,23 @@ const (
 	excavationStageBound   = 64
 	excavationCandidates   = 4
 	excavationInteriorSize = 7
+	// excavationRoundRadius sizes the round room a neolithic colony digs:
+	// 49 cells like the 7×7 rectangle, within the roof support radius.
+	excavationRoundRadius = 4
 )
+
+// excavationShapes follows shelterStyle: a neolithic colony digs a round
+// room first and falls back to the rectangle where the circle is blocked;
+// everyone else prefers the rectangle with the circle as fallback. Either
+// way the shapes are tried at every face in this order.
+func excavationShapes(facts observation.ColonyProjection) []policy.ExcavationShape {
+	rectangle := policy.RectangleShape(excavationInteriorSize, excavationInteriorSize)
+	round := policy.EllipseShape(excavationRoundRadius, excavationRoundRadius, domain.EllipseNorthSouth)
+	if shelterStyle(facts) == policy.ShelterHut {
+		return []policy.ExcavationShape{round, rectangle}
+	}
+	return []policy.ExcavationShape{rectangle, round}
+}
 
 func excavationStageMethod(stage int) domain.MethodID {
 	return domain.MethodID(fmt.Sprintf("%s%d", excavationStagePrefix, stage))
@@ -137,7 +153,7 @@ func (r *RoutineBuildingPlanner) excavationCandidate(call context.Context, snaps
 			return previous, nil
 		}
 	}
-	targets, err := policy.ExcavationSites(policy.ExcavationSiteRequest{Bounds: facts.Bounds, Region: facts.Region, Anchor: facts.Center, Cells: facts.Cells, Protected: protected, Interior: policy.Bounds{Width: excavationInteriorSize, Height: excavationInteriorSize}, MinCorridor: 2, MaxCorridor: 4})
+	targets, err := policy.ExcavationSites(policy.ExcavationSiteRequest{Bounds: facts.Bounds, Region: facts.Region, Anchor: facts.Center, Cells: facts.Cells, Protected: protected, Shapes: excavationShapes(facts), MinCorridor: 2, MaxCorridor: 4})
 	if err != nil {
 		return nil, err
 	}

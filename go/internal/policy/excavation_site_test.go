@@ -316,3 +316,101 @@ func TestExcavationSitesReadoptsPartlyDugTarget(t *testing.T) {
 		t.Fatal("open pocket planned as excavation", targets[0])
 	}
 }
+
+func TestExcavationSitesRoundInterior(t *testing.T) {
+	// Shapes are tried in preference order at every face: a neolithic
+	// colony asks for the circle first and gets a 49-cell round room whose
+	// bounding box sits where the 9×9 rectangle would.
+	r := mountainSite()
+	r.Interior = Bounds{}
+	r.Shapes = []ExcavationShape{EllipseShape(4, 4, domain.EllipseNorthSouth), RectangleShape(7, 7)}
+	targets, err := ExcavationSites(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(targets) == 0 {
+		t.Fatal("no targets")
+	}
+	best := targets[0]
+	if best.Shape.Kind != ExcavationEllipse || best.Access != (domain.Cell{X: 9, Z: 15}) || best.Door != (domain.Cell{X: 11, Z: 15}) || best.Interior != (Rectangle{X: 12, Z: 11, Width: 9, Height: 9}) {
+		t.Fatal(best)
+	}
+	room := best.InteriorCells()
+	cells := best.Cells()
+	if len(room) != 49 || len(cells) != 51 || cells[2] != (domain.Cell{X: 12, Z: 15}) || best.Center() != (domain.Cell{X: 16, Z: 15}) {
+		t.Fatal(len(room), cells[:3], best.Center())
+	}
+	inside := map[domain.Cell]bool{}
+	for _, c := range room {
+		inside[c] = true
+	}
+	// Round: the box corners are rock, the axis extremes are interior.
+	if inside[domain.Cell{X: 12, Z: 11}] || inside[domain.Cell{X: 20, Z: 19}] || !inside[domain.Cell{X: 20, Z: 15}] || !inside[domain.Cell{X: 16, Z: 11}] || !inside[best.Center()] {
+		t.Fatal(room)
+	}
+	if !excavationSupported(cells) {
+		t.Fatal("round room outside support")
+	}
+	if best.Key() != "9.15.1.0.2.12.11.9.9.e.4.4.north_south" {
+		t.Fatal(best.Key())
+	}
+	parsed, err := ParseExcavationKey(best.Key())
+	if err != nil || parsed.Key() != best.Key() || parsed.Shape != best.Shape || len(parsed.Cells()) != 51 || parsed.Cells()[50] != cells[50] {
+		t.Fatal(parsed, err)
+	}
+	for _, bad := range []string{"9.15.1.0.2.12.11.9.9.e.4.4.sideways", "9.15.1.0.2.12.11.9.9.x.4.4.north_south", "9.15.1.0.2.12.11.9.9.e.6.4.north_south", "9.15.1.0.2.12.11.9.9.e.0.4.north_south", "9.15.1.0.2.12.12.7.7.e.4.4.north_south", "9.15.1.0.2.12.11.9.9.e.4"} {
+		if _, err := ParseExcavationKey(bad); err == nil {
+			t.Fatal("accepted", bad)
+		}
+	}
+	// A pocket on the circle's rim but outside the 7×7 rectangle rejects
+	// the preferred shape at that face and the rectangle takes its place
+	// at the same corridor.
+	r.Cells = append(r.Cells, SiteCell{Cell: domain.Cell{X: 20, Z: 15}, Walkable: domain.Known(true), Occupied: domain.Known(false)})
+	targets, err = ExcavationSites(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, target := range targets {
+		if target.Access == (domain.Cell{X: 9, Z: 15}) && len(target.Corridor) == 2 {
+			if target.Shape.Kind != ExcavationRectangle || target.Interior != (Rectangle{X: 12, Z: 12, Width: 7, Height: 7}) || target.Key() != "9.15.1.0.2.12.12.7.7" {
+				t.Fatal(target)
+			}
+			return
+		}
+	}
+	t.Fatal("no fallback rectangle at the blocked face", targets)
+}
+
+func TestExcavationShapeValidation(t *testing.T) {
+	r := mountainSite()
+	r.Shapes = []ExcavationShape{EllipseShape(5, 5, domain.EllipseNorthSouth)}
+	if _, err := ExcavationSites(r); err == nil {
+		t.Fatal("81-cell circle accepted")
+	}
+	r.Shapes = []ExcavationShape{EllipseShape(6, 3, domain.EllipseEastWest)}
+	if _, err := ExcavationSites(r); err == nil {
+		t.Fatal("oversized radius accepted")
+	}
+	r.Shapes = []ExcavationShape{{Kind: "blob"}}
+	if _, err := ExcavationSites(r); err == nil {
+		t.Fatal("unknown shape accepted")
+	}
+	r.Shapes = []ExcavationShape{EllipseShape(5, 3, domain.EllipseEastWest), RectangleShape(3, 11)}
+	r.MaxCorridor = 9
+	if _, err := ExcavationSites(r); err != nil {
+		t.Fatal(err)
+	}
+	// Every cell of a 13-wide block is not within six of untouched rock.
+	if excavationSupported(rectCells(Rectangle{X: 5, Z: 5, Width: 13, Height: 13})) {
+		t.Fatal("13×13 supported")
+	}
+	if !excavationSupported(rectCells(Rectangle{X: 5, Z: 5, Width: 11, Height: 11})) {
+		t.Fatal("11×11 unsupported")
+	}
+	// A diagonal oval whose axis extreme misses the door cell is skipped
+	// rather than dug with a corridor that opens into rock.
+	if _, _, opens := EllipseShape(5, 2, domain.EllipseNorthEast).place(domain.Cell{X: 11, Z: 15}, domain.Cell{X: 1, Z: 0}); opens {
+		t.Fatal("diagonal oval reported open at its box midpoint")
+	}
+}

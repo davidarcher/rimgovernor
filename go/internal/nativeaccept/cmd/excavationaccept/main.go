@@ -350,7 +350,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 			return fmt.Errorf("stage 0 plan %s: %w", plan, err)
 		}
 		target, targetCells = t, t.Cells()
-		report[label] = map[string]any{"key": t.Key(), "access": t.Access, "door": t.Door, "corridor": t.Corridor, "interior": t.Interior}
+		report[label] = map[string]any{"key": t.Key(), "access": t.Access, "door": t.Door, "corridor": t.Corridor, "shape": t.Shape, "interior": t.Interior, "interior_cells": len(t.InteriorCells())}
 		for _, c := range targetCells {
 			if !inBlock(c) {
 				return fmt.Errorf("target cell %v lies outside the fixture block", c)
@@ -608,7 +608,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 			return fmt.Errorf("door presence at %v: %v, want %v", c, isDoor, c == target.Door)
 		}
 	}
-	center := domain.Cell{X: target.Interior.X + target.Interior.Width/2, Z: target.Interior.Z + target.Interior.Height/2}
+	center := target.Center()
 	room, err := inspect("room", center)
 	if err != nil {
 		return err
@@ -618,8 +618,8 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 	if !proper || outdoors {
 		return fmt.Errorf("interior is not a proper enclosed room: %#v", room)
 	}
-	if int(na.AsNumber(room["roomCells"])) != int(target.Interior.Width*target.Interior.Height) {
-		return fmt.Errorf("room spans %v cells, want the %d-cell interior", room["roomCells"], target.Interior.Width*target.Interior.Height)
+	if want := len(target.InteriorCells()); int(na.AsNumber(room["roomCells"])) != want {
+		return fmt.Errorf("room spans %v cells, want the %d-cell interior", room["roomCells"], want)
 	}
 	if int(na.AsNumber(room["bedsInRoom"])) < 1 {
 		return fmt.Errorf("no bed inside the excavated room: %#v", room)
