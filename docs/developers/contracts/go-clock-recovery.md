@@ -217,7 +217,16 @@ deadline. Admission carries its snapshot and review revision for dispatch bindin
 
 A live, undowned hostile or hunting predator refuses the window (`unsafe_colony`)
 unless the facts say the ActiveCombat goal holds an admitted plan with open work;
-unknown plan evidence refuses as `unknown_facts`. With such a plan the decision
+unknown plan evidence refuses as `unknown_facts`. A hostile or hunting *animal*
+known to be at least `policy.DistantThreatCells` (50) from every colonist is not
+an emergency at all: no planner answers it, and the native supervisor's own
+radius (`hostile_within`, 20 cells in serve; 40 for a predator hunt) stops a
+running window before it can reach anyone, at which point it is an ordinary
+close threat. A humanlike or mechanoid threat, or one whose race or distance
+is unknown, holds at any distance. A method refused only for insufficient
+stock lends the window a bounded `stockWaitTicks` of native work: the census
+does not see a stack in a hauler's hands, so without ticks the haul that would
+clear the refusal never lands and the window is refused as `no_work` for good. With such a plan the decision
 is a combat watch: it names, sorted, every live hostile the window acknowledges
 and uses the combat budget (never above the colony budget). Once every hostile
 is dead or downed the decision is back in colony mode, acknowledging nothing.

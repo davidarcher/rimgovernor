@@ -148,3 +148,31 @@ func TestEmergencyUnavailableAndRefusal(t *testing.T) {
 		}
 	}
 }
+
+// A threat row's race and nearest-colonist distance reach the policy so a
+// distant animal can be watched rather than held; a row without them stays
+// unknown, which the policy holds (#66).
+func TestEmergencyThreatCarriesRaceAndDistance(t *testing.T) {
+	v := emergencyFixture()
+	far := emergencyRow("far")
+	far.Animal = proto.Bool(true)
+	far.NearestColonistDistance = proto.Float64(120)
+	v.Threats.Hostiles = []*o.ThreatPawn{{Pawn: far}, {Pawn: emergencyRow("bare")}}
+	v.Threats.Completeness = emergencyCounts(2)
+	got, e := emergencyStatus(v, pbIdentity())
+	if e != nil || len(got.Facts.Threats) != 2 {
+		t.Fatal(got, e)
+	}
+	if animal, known := got.Facts.Threats[0].Animal.Value(); !known || !animal {
+		t.Fatal(got.Facts.Threats[0])
+	}
+	if distance, known := got.Facts.Threats[0].Distance.Value(); !known || distance != 120 || !got.Facts.Threats[0].DistantThreat() {
+		t.Fatal(got.Facts.Threats[0])
+	}
+	if _, known := got.Facts.Threats[1].Animal.Value(); known {
+		t.Fatal("race fabricated")
+	}
+	if _, known := got.Facts.Threats[1].Distance.Value(); known || got.Facts.Threats[1].DistantThreat() {
+		t.Fatal("distance fabricated")
+	}
+}

@@ -540,7 +540,30 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	if decision.Admitted {
 		reason = BuildingMethodAdmitted
 	}
-	return RoutineBuildingResult{Reason: reason, Decision: decision}, nil
+	return RoutineBuildingResult{Reason: reason, Decision: decision, NativeWorkTicks: stockRefusalWait(decision)}, nil
+}
+
+// stockWaitTicks bounds one clock window lent to a method refused for
+// insufficient stock. The census counts what lies on the map, and a stack a
+// pawn is carrying to a stockpile, a bench is about to finish or a hauler is
+// about to unforbid is invisible to it; without ticks the haul never lands
+// and the refusal repeats until the clock parks on no_work. The next step
+// re-reads the census, so the wait is the window, not a belief about stock.
+const stockWaitTicks = 2500
+
+// stockRefusalWait is stockWaitTicks when every refusal is insufficient
+// stock and zero otherwise: geometry, spending and unknown facts are not
+// resolved by letting time pass.
+func stockRefusalWait(decision store.BuildingMethodDecision) uint32 {
+	if decision.Admitted || len(decision.Refused) == 0 {
+		return 0
+	}
+	for _, refusal := range decision.Refused {
+		if refusal.Reason != policy.InsufficientStock {
+			return 0
+		}
+	}
+	return stockWaitTicks
 }
 
 func (r *RoutineBuildingPlanner) previewMethod(call context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, missing int64, check func() error) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, error) {

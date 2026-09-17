@@ -346,3 +346,25 @@ func TestRoutineSleepingKeepsDoorwayAislesClear(t *testing.T) {
 		}
 	}
 }
+
+// Only a refusal made entirely of insufficient stock lends the stock wait:
+// anything ticks cannot resolve (geometry, spending, unknown facts) gets none,
+// and neither does an admission (#66).
+func TestStockRefusalWaitOnlyForStock(t *testing.T) {
+	stock := policy.Refusal{Action: "a", Reason: policy.InsufficientStock, Resource: "Steel"}
+	for _, c := range []struct {
+		decision store.BuildingMethodDecision
+		want     uint32
+	}{
+		{store.BuildingMethodDecision{Admitted: true}, 0},
+		{store.BuildingMethodDecision{}, 0},
+		{store.BuildingMethodDecision{Refused: []policy.Refusal{stock}}, stockWaitTicks},
+		{store.BuildingMethodDecision{Refused: []policy.Refusal{stock, {Action: "b", Reason: policy.InsufficientStock, Resource: "WoodLog"}}}, stockWaitTicks},
+		{store.BuildingMethodDecision{Refused: []policy.Refusal{stock, {Action: "b", Reason: policy.GeometryBlocked}}}, 0},
+		{store.BuildingMethodDecision{Refused: []policy.Refusal{{Action: "a", Reason: policy.SpendingBlocked, Resource: "Steel"}}}, 0},
+	} {
+		if got := stockRefusalWait(c.decision); got != c.want {
+			t.Fatal(c.decision, got)
+		}
+	}
+}

@@ -162,6 +162,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter)
 		return store.RoutineReviewResult{}, err
 	}
 	reading.Projection.Facts.Hostiles, reading.Projection.Facts.CriticalPatients = policy.EmergencyNeeds(emergency, state.Snapshot, expected.Tick)
+	reading.Projection.Facts.UrgentPatients = policy.UrgentPatients(emergency, state.Snapshot, expected.Tick)
 	// Owned drafts belong to this persistent controller's shared journal.
 	// Use the same complete catalog and cleanup predicate as the release sweep.
 	cleanup := false

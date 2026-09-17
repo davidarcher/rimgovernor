@@ -229,3 +229,40 @@ func TestClockWindowFactsTickHoldsStalePlanning(t *testing.T) {
 		t.Fatal(d)
 	}
 }
+
+// A manhunter or hunting animal DistantThreatCells from every colonist admits
+// an ordinary colony window: the native supervisor's radius stops it on
+// approach. The same animal nearer, or a raider at any distance, refuses (#66).
+func TestClockWindowDistantAnimalThreatAdmitsColonyWindow(t *testing.T) {
+	f, limits := clockWindowFixture(t)
+	threat := func(kind ThreatKind, animal bool, distance float64) EmergencyThreat {
+		return EmergencyThreat{ID: "animal", Kind: kind, Dead: domain.Known(false), Downed: domain.Known(false), Animal: domain.Known(animal), Distance: domain.Known(distance)}
+	}
+	for _, c := range []struct {
+		name     string
+		threat   EmergencyThreat
+		admitted bool
+	}{
+		{"manhunter far", threat(Hostile, true, DistantThreatCells), true},
+		{"hunting far", threat(HuntingPredator, true, 120), true},
+		{"manhunter near", threat(Hostile, true, 30), false},
+		{"raider far", threat(Hostile, false, 200), false},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			facts := EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true), Colonists: []EmergencyPawn{{ID: "pawn", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false)}}, Threats: []EmergencyThreat{c.threat}}
+			emergency, err := NewEmergencySnapshot(f.Current, 10, facts)
+			if err != nil {
+				t.Fatal(err)
+			}
+			g := f
+			g.Emergency = emergency
+			d := EvaluateClockWindow(g, limits)
+			if d.Admitted != c.admitted || c.admitted && (d.Mode != ClockWindowColony || len(d.Hostiles) != 0) {
+				t.Fatal(d)
+			}
+			if !c.admitted && !reflect.DeepEqual(d.Refused, []ClockWindowReason{ClockWindowUnsafe}) {
+				t.Fatal(d)
+			}
+		})
+	}
+}

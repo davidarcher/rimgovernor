@@ -198,7 +198,9 @@ func TestRoutinePowerMissingNativeComponentsPreventsGeneration(t *testing.T) {
 		preview.Stock.Values = append(preview.Stock.Values, policy.Stock{Resource: "ComponentIndustrial", Available: domain.Known(int64(0))})
 	}
 	result, err := p.Step(context.Background())
-	if err != nil || result.Reason != BuildingMethodRefused || result.Decision.Admitted || result.NativeWorkTicks != 0 {
+	// The stock refusal lends the bounded stock wait: the components may be
+	// in a hauler's hands or on a bench (#66).
+	if err != nil || result.Reason != BuildingMethodRefused || result.Decision.Admitted || result.NativeWorkTicks != stockWaitTicks {
 		t.Fatal(result, err)
 	}
 	plans, err := db.LoadPlans(context.Background(), 256)

@@ -2,6 +2,7 @@ package policy
 
 import (
 	"errors"
+	"math"
 	"sort"
 	"strings"
 	"unicode/utf8"
@@ -24,11 +25,34 @@ const (
 	NearbyDowned
 )
 
+// EmergencyThreat is one native threat row. Animal and Distance (Chebyshev
+// cells from the nearest living colonist) decide whether a hostile or hunting
+// animal is close enough to be an emergency; either unknown keeps the hold.
 type EmergencyThreat struct {
 	ID           PawnID
 	Kind         ThreatKind
 	Dead, Downed domain.Fact[bool]
+	Animal       domain.Fact[bool]
+	Distance     domain.Fact[float64]
 }
+
+// DistantThreatCells is the nearest-colonist distance from which a hostile or
+// hunting animal is watched rather than held: the native supervisor stops a
+// running window for a hostile within the watch policy's hostile_within (20
+// cells in serve) and for a predator hunt within 40 cells, both inside this
+// band, so the approach re-enters the emergency before it can reach anyone.
+// A humanlike or mechanoid threat holds at any distance: a raid is planned
+// for from the map edge, not from twenty cells out.
+const DistantThreatCells = 50.0
+
+// DistantThreat reports a hostile or hunting animal known to be at least
+// DistantThreatCells from every colonist.
+func (t EmergencyThreat) DistantThreat() bool {
+	animal, ak := t.Animal.Value()
+	distance, dk := t.Distance.Value()
+	return ak && animal && dk && distance >= DistantThreatCells
+}
+
 type EmergencyFacts struct {
 	ColonistsComplete, ThreatsComplete domain.Fact[bool]
 	Colonists                          []EmergencyPawn
@@ -88,6 +112,9 @@ func NewEmergencySnapshot(current domain.GenerationSnapshot, tick domain.Tick, f
 		}{threat.ID, threat.Kind}
 		if !validID(threat.ID) || threat.Kind < Hostile || threat.Kind > NearbyDowned || seen[key] {
 			return EmergencySnapshot{}, errors.New("invalid or duplicate emergency threat")
+		}
+		if distance, known := threat.Distance.Value(); known && (math.IsNaN(distance) || math.IsInf(distance, 0) || distance < 0) {
+			return EmergencySnapshot{}, errors.New("invalid emergency threat distance")
 		}
 		seen[key] = true
 	}
@@ -156,7 +183,10 @@ func EvaluateEmergency(snapshot EmergencySnapshot, current domain.GenerationSnap
 		if !deadKnown || !downedKnown {
 			hold(EmergencyUnknownFacts, threat.ID)
 		}
-		if threat.Kind == Hostile || threat.Kind == HuntingPredator {
+		// A distant animal is watched by the native supervisor's radius,
+		// not held: no planner answers a manhunter or a hunting predator a
+		// hundred cells out, and holding for one parked the clock for good.
+		if (threat.Kind == Hostile || threat.Kind == HuntingPredator) && !threat.DistantThreat() {
 			hold(EmergencyUnsafeThreat, threat.ID)
 		}
 	}

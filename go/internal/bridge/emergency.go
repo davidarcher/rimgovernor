@@ -255,7 +255,11 @@ func emergencyStatus(v *o.StatusSnapshot, id *c.Identity) (EmergencyObservation,
 			if err = observe(pawn); err != nil {
 				return EmergencyObservation{}, err
 			}
-			result.Facts.Threats = append(result.Facts.Threats, policy.EmergencyThreat{ID: pawn.ID, Kind: group.kind, Dead: pawn.Dead, Downed: pawn.Downed})
+			threat := policy.EmergencyThreat{ID: pawn.ID, Kind: group.kind, Dead: pawn.Dead, Downed: pawn.Downed, Animal: emergencyBool(row.Pawn.Animal)}
+			if row.Pawn.NearestColonistDistance != nil {
+				threat.Distance = domain.Known(row.Pawn.GetNearestColonistDistance())
+			}
+			result.Facts.Threats = append(result.Facts.Threats, threat)
 		}
 	}
 	result.Context = proto.Clone(v.Context).(*c.ObservationContext)

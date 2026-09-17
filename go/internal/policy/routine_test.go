@@ -148,6 +148,34 @@ func TestRoutineRestingMedicalStillRequiresKnownPatients(t *testing.T) {
 		t.Fatal(r)
 	}
 }
+
+// A patient who only needs tending keeps CriticalMedicine active at priority
+// 2 (tended, but not suspending the colony); a downed or bleeding patient, or
+// an unknown urgent count, is the priority-1 emergency (#66).
+func TestRoutineStablePatientsAreNotAnEmergency(t *testing.T) {
+	f := stableRoutine()
+	f.CriticalPatients = domain.Known(int64(1))
+	f.UrgentPatients = domain.Known(int64(0))
+	r := needs(t, f, RoutineLatches{})
+	if r.Goals[0].ID != CriticalMedicine || r.Goals[0].Priority != 2 {
+		t.Fatal(r)
+	}
+	for _, a := range r.Assessments {
+		if a.ID == CriticalMedicine && (a.Priority != 2 || a.Need != domain.NeedDeficit) {
+			t.Fatal(a)
+		}
+	}
+	for _, urgent := range []domain.Fact[int64]{domain.Known(int64(1)), domain.Unknown[int64]()} {
+		f.UrgentPatients = urgent
+		if r := needs(t, f, RoutineLatches{}); r.Goals[0].ID != CriticalMedicine || r.Goals[0].Priority != 1 {
+			t.Fatal(r)
+		}
+	}
+	f.UrgentPatients = domain.Known(int64(-1))
+	if _, err := DetectRoutine(f, RoutineLatches{}, DefaultRoutinePolicy()); err == nil {
+		t.Fatal("negative urgent count accepted")
+	}
+}
 func TestRoutineRejectsInvalidFactsAndPolicy(t *testing.T) {
 	f := stableRoutine()
 	f.FoodDays = domain.Known(math.NaN())

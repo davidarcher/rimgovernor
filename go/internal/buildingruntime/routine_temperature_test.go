@@ -254,7 +254,13 @@ func TestTemperatureUnknownExistingFacilityAndRecoveredRoom(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if result.Decision.Admitted || result.NativeWorkTicks != 0 {
+			// Only a stock refusal lends the bounded stock wait; a spilled
+			// footprint or a missing builder is not resolved by ticks (#66).
+			wait := uint32(0)
+			if mode == "stock" {
+				wait = stockWaitTicks
+			}
+			if result.Decision.Admitted || result.NativeWorkTicks != wait {
 				t.Fatal(result)
 			}
 			plans, err := db.LoadPlans(context.Background(), 256)

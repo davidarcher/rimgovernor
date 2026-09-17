@@ -313,8 +313,14 @@ type RoutineFacts struct {
 	// Research is the native research state read inside the same paused
 	// identity bracket as the other routine facts. Unknown when the source
 	// cannot read research; missing facts never recover EnsureResearch.
-	Research                                                             domain.Fact[ResearchFacts]
-	Hostiles, CriticalPatients                                           domain.Fact[int64]
+	Research                   domain.Fact[ResearchFacts]
+	Hostiles, CriticalPatients domain.Fact[int64]
+	// UrgentPatients counts the critical patients who are downed or bleeding
+	// (policy.UrgentPatients). CriticalMedicine is an emergency, suspending
+	// every other goal, only while one exists or the count is unknown; a
+	// colonist who merely needs tending keeps the goal active at priority 2
+	// so the colony's other work and the clock go on around the tend.
+	UrgentPatients                                                       domain.Fact[int64]
 	AllPatientsResting, ColonyNaming, CleanupPawns, ForbiddenSupplies    domain.Fact[bool]
 	FoodStorage, Cooking, WorkCoverage, PowerRequired, DisabledConsumers domain.Fact[bool]
 }
@@ -476,7 +482,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if err := p.Validate(); err != nil {
 		return RoutineNeeds{}, err
 	}
-	for _, fact := range []domain.Fact[int64]{f.Colonists, f.HousingTarget, f.BedCapacity, f.IndoorCapacity, f.GrowingCells, f.Armed, f.Wood, f.Hostiles, f.CriticalPatients} {
+	for _, fact := range []domain.Fact[int64]{f.Colonists, f.HousingTarget, f.BedCapacity, f.IndoorCapacity, f.GrowingCells, f.Armed, f.Wood, f.Hostiles, f.CriticalPatients, f.UrgentPatients} {
 		if v, k := fact.Value(); k && (v < 0 || v > math.MaxInt64/10) {
 			return RoutineNeeds{}, errors.New("invalid routine count")
 		}
@@ -558,14 +564,9 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if !positive(measured(f.Hostiles, func(n int64) bool { return n == 0 })) {
 		addGoal(ActiveCombat, 0)
 	}
+	medicalPriority := criticalMedicinePriority(f)
 	if !positive(g.Medical) {
-		priority := 1
-		if positive(f.AllPatientsResting) {
-			if n, k := f.CriticalPatients.Value(); k && n > 0 {
-				priority = 2
-			}
-		}
-		addGoal(CriticalMedicine, priority)
+		addGoal(CriticalMedicine, medicalPriority)
 	}
 	if positive(measured(f.Hostiles, func(n int64) bool { return n == 0 })) && positive(f.CleanupPawns) {
 		addGoal(RestoreWorkers, 1)
@@ -655,12 +656,6 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	}
 	addAssessment(ConfirmColonyNames, 0, not(f.ColonyNaming))
 	addAssessment(ActiveCombat, 0, measured(f.Hostiles, func(n int64) bool { return n == 0 }))
-	medicalPriority := 1
-	if positive(f.AllPatientsResting) {
-		if n, k := f.CriticalPatients.Value(); k && n > 0 {
-			medicalPriority = 2
-		}
-	}
 	addAssessment(CriticalMedicine, medicalPriority, g.Medical)
 	addAssessment(RestoreWorkers, 1, not(f.CleanupPawns))
 	addAssessment(AllowStartingSupplies, 2, not(f.ForbiddenSupplies))
@@ -1012,4 +1007,24 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		}
 	}
 	return r, nil
+}
+
+// criticalMedicinePriority is 1 (an emergency that suspends every other goal)
+// while any critical patient is downed or bleeding or the urgent count is
+// unknown, and 2 while every patient is stable: resting under care, or only
+// needing a tend. A stable patient is treated by the same tend method; what
+// the lower priority drops is the suspension that otherwise parked the colony
+// and its clock behind a chronic condition nobody could clear.
+func criticalMedicinePriority(f RoutineFacts) int {
+	patients, pk := f.CriticalPatients.Value()
+	if !pk || patients == 0 {
+		return 1
+	}
+	if positive(f.AllPatientsResting) {
+		return 2
+	}
+	if urgent, known := f.UrgentPatients.Value(); known && urgent == 0 {
+		return 2
+	}
+	return 1
 }

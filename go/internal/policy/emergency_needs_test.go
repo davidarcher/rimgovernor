@@ -51,3 +51,41 @@ func TestEmergencyNeedsCountPatientsAndThreatsWithoutDoubleCounting(t *testing.T
 		})
 	}
 }
+
+func TestUrgentPatientsCountsDownedOrBleedingOnly(t *testing.T) {
+	current := domain.GenerationSnapshot{Colony: "colony", Load: "load", Plan: "plan"}
+	pawn := func(id PawnID, downed, bleeding, needsTend bool) EmergencyPawn {
+		return EmergencyPawn{ID: id, Dead: domain.Known(false), Downed: domain.Known(downed), Bleeding: domain.Known(bleeding), NeedsTend: domain.Known(needsTend)}
+	}
+	facts := EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true),
+		Colonists: []EmergencyPawn{pawn("chronic", false, false, true), pawn("downed", true, false, false), pawn("bleeding", false, true, true), pawn("well", false, false, false)}}
+	snapshot, err := NewEmergencySnapshot(current, 7, facts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, patients := EmergencyNeeds(snapshot, current, 7); patients != domain.Known(int64(3)) {
+		t.Fatal(patients)
+	}
+	if urgent := UrgentPatients(snapshot, current, 7); urgent != domain.Known(int64(2)) {
+		t.Fatal(urgent)
+	}
+	// A dead colonist is nobody's patient; uncertainty stays unknown.
+	dead := facts
+	dead.Colonists = append([]EmergencyPawn(nil), facts.Colonists...)
+	dead.Colonists[1].Dead = domain.Known(true)
+	if s, err := NewEmergencySnapshot(current, 7, dead); err != nil {
+		t.Fatal(err)
+	} else if urgent := UrgentPatients(s, current, 7); urgent != domain.Known(int64(1)) {
+		t.Fatal(urgent)
+	}
+	partial := facts
+	partial.ColonistsComplete = domain.Unknown[bool]()
+	if s, err := NewEmergencySnapshot(current, 7, partial); err != nil {
+		t.Fatal(err)
+	} else if _, known := UrgentPatients(s, current, 7).Value(); known {
+		t.Fatal("uncertainty recovered urgency")
+	}
+	if _, known := UrgentPatients(snapshot, current, 8).Value(); known {
+		t.Fatal("stale facts recovered urgency")
+	}
+}

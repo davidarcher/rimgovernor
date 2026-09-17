@@ -2,6 +2,7 @@ package policy
 
 import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"math"
 	"reflect"
 	"strings"
 	"testing"
@@ -187,5 +188,54 @@ func TestEmergencyImmutableAndDeterministic(t *testing.T) {
 	reversed.Colonists = []EmergencyPawn{{ID: "a"}, {ID: "b"}}
 	if !reflect.DeepEqual(evaluateEmergency(t, reversed), EvaluateEmergency(s, emergencyScope(), 10)) {
 		t.Fatal("input order changed decision")
+	}
+}
+
+func TestEmergencyDistantAnimalThreatIsWatchedNotHeld(t *testing.T) {
+	live := func(kind ThreatKind, animal domain.Fact[bool], distance domain.Fact[float64]) EmergencyThreat {
+		return EmergencyThreat{ID: "t", Kind: kind, Dead: domain.Known(false), Downed: domain.Known(false), Animal: animal, Distance: distance}
+	}
+	far, near := domain.Known(DistantThreatCells), domain.Known(DistantThreatCells-1)
+	cases := []struct {
+		name   string
+		threat EmergencyThreat
+		held   bool
+	}{
+		{"manhunter far", live(Hostile, domain.Known(true), far), false},
+		{"predator hunting far", live(HuntingPredator, domain.Known(true), far), false},
+		{"manhunter near", live(Hostile, domain.Known(true), near), true},
+		{"predator hunting near", live(HuntingPredator, domain.Known(true), near), true},
+		{"raider far", live(Hostile, domain.Known(false), far), true},
+		{"race unknown far", live(Hostile, domain.Unknown[bool](), far), true},
+		{"distance unknown animal", live(Hostile, domain.Known(true), domain.Unknown[float64]()), true},
+		{"legacy row", live(Hostile, domain.Unknown[bool](), domain.Unknown[float64]()), true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			f := completeEmergency()
+			f.Colonists = []EmergencyPawn{healthyPawn("p")}
+			f.Threats = []EmergencyThreat{c.threat}
+			d := evaluateEmergency(t, f)
+			if hasEmergencyHold(d, EmergencyUnsafeThreat, "t") != c.held || d.Clear == c.held {
+				t.Fatal(d)
+			}
+			if c.threat.DistantThreat() == c.held {
+				t.Fatal("DistantThreat disagrees with the hold")
+			}
+		})
+	}
+	// A dead or downed distant animal is no threat either way, and a distant
+	// animal with unknown status still holds as unknown facts.
+	f := completeEmergency()
+	f.Threats = []EmergencyThreat{{ID: "t", Kind: Hostile, Dead: domain.Unknown[bool](), Downed: domain.Known(false), Animal: domain.Known(true), Distance: far}}
+	if d := evaluateEmergency(t, f); !hasEmergencyHold(d, EmergencyUnknownFacts, "t") || hasEmergencyHold(d, EmergencyUnsafeThreat, "t") {
+		t.Fatal(d)
+	}
+	for _, bad := range []float64{-1, math.NaN(), math.Inf(1)} {
+		f := completeEmergency()
+		f.Threats = []EmergencyThreat{live(Hostile, domain.Known(true), domain.Known(bad))}
+		if _, err := NewEmergencySnapshot(emergencyScope(), 10, f); err == nil {
+			t.Fatal("invalid distance accepted", bad)
+		}
 	}
 }
