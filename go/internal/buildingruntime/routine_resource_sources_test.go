@@ -115,3 +115,16 @@ func TestSourcesForDeficitReturnsStorageOnSuccess(t *testing.T) {
 		t.Fatal(gotStorage, ok)
 	}
 }
+
+func TestResourceIngredientNamesFundOnlyTheProducingRecipes(t *testing.T) {
+	census := []bridge.GearBenchRead{{Bench: policy.GearBench{ID: "spot", Recipes: domain.Known([]policy.GearRecipe{
+		{Definition: "Make_MeleeWeapon_Club", Products: []policy.Resource{"MeleeWeapon_Club"}, Ingredients: domain.Known([][]policy.Amount{{{Resource: "WoodLog", Count: 40}, {Resource: "Steel", Count: 40}}})},
+		{Definition: "Make_Apparel_TribalA", Products: []policy.Resource{"Apparel_TribalA"}, Ingredients: domain.Known([][]policy.Amount{{{Resource: "Cloth", Count: 60}, {Resource: "Leather_Plain", Count: 60}}})},
+	})}}}
+	if got := recipeIngredientNames(census, "MeleeWeapon_Club"); !reflect.DeepEqual(got, []string{"Steel", "WoodLog"}) {
+		t.Fatal(got)
+	}
+	if got := recipeIngredientNames(census, "Pemmican"); len(got) != 0 {
+		t.Fatal(got)
+	}
+}
