@@ -25,3 +25,17 @@ func TestWorkshopBenchCompletedSeesActiveAndRetiredPlans(t *testing.T) {
 		}
 	}
 }
+
+// The first observed product ends the watch; a bench plan alone does not.
+func TestBillProducedSeesOnlyCompletedResourcePlans(t *testing.T) {
+	t.Parallel()
+	bench := map[string]any{"plan": "routine-workshop-1", "actions": 1, "stages": map[string]int{"completed": 1}}
+	open := map[string]any{"plan": "routine-resource-1", "actions": 1, "stages": map[string]int{"awaiting_observation": 1}}
+	if billProduced(map[string]any{"plans": []map[string]any{bench, open}}) {
+		t.Fatal("an open bill counted as produced")
+	}
+	done := map[string]any{"plan": "routine-resource-1", "actions": 1, "stages": map[string]int{"completed": 1}}
+	if !billProduced(map[string]any{"retired_plans": []map[string]any{done}}) {
+		t.Fatal("a completed retired bill plan did not count")
+	}
+}

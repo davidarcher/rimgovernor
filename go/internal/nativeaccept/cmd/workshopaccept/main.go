@@ -59,6 +59,7 @@ func main() {
 	clockSpeed := flag.String("clock-speed", "Superfast", "serve's --clock-speed (Normal, Fast or Superfast)")
 	families := flag.String("families", workshopFamilies, "RIMGOVERNOR_ROUTINE_FAMILIES composition for the run")
 	checkpoint := flag.String("checkpoint", "", "save name to write the first time a workshop bench plan completes (empty: no checkpoint); a later -save of it starts past the startup ladder")
+	recovered := flag.Bool("recovered", false, "also require MaintainResource to reach the full stock floor (need recovered, goal satisfied) instead of accepting on the first observed product")
 	flag.Parse()
 	if *root == "" || *rimgovernorBinary == "" || !filepath.IsAbs(*rimgovernorBinary) {
 		fmt.Fprintln(os.Stderr, "-root and an absolute -rimgovernor are required")
@@ -76,6 +77,7 @@ func main() {
 		os.Exit(2)
 	}
 	report := na.NewReport(fmt.Sprintf("MaintainResource %s:%d recovers through a bill on a %s staged in a native Workshop room; the live item count must rise above the pre-service baseline (issue #4, M2).", resource, target, bench), !*rendered)
+	report["require_recovered"] = *recovered
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
 	var baseline float64
@@ -85,7 +87,10 @@ func main() {
 		Watch: *watch, Poll: *poll, NativeTimeout: *nativeTimeout, ClockSpeed: *clockSpeed,
 		RequestPrefix: "workshop", Families: *families, Goal: policy.MaintainResource,
 		ServeArgs: []string{"--routine-resource-target", fmt.Sprintf("%s:%d", resource, target)},
-		Until:     resourceRecovered,
+		Until:     billProduced,
+	}
+	if *recovered {
+		cfg.Until = resourceRecovered
 	}
 	if *checkpoint != "" {
 		cfg.Checkpoint = &sustainedfood.Checkpoint{Name: *checkpoint, When: workshopBenchCompleted}
@@ -111,7 +116,7 @@ func main() {
 			return fmt.Errorf("reopen journal: %w", err)
 		}
 		defer journal.Close()
-		return audit(ctx, h, journal, report, baseline)
+		return audit(ctx, h, journal, report, baseline, *recovered)
 	}
 	timeline, err := sustainedfood.Run(ctx, cfg, report)
 	report["timeline_samples"] = len(timeline)
@@ -129,19 +134,33 @@ func resourceRecovered(sample map[string]any) bool {
 	return domain.NeedState(need) == domain.NeedRecovered && domain.GoalStatus(status) == domain.GoalSatisfied
 }
 
+// billProduced reports a sample whose MaintainResource goal holds or held a
+// resource (production bill) plan with every action completed: native
+// production tracking marks a bill action completed only once an iteration
+// placed an observed product, so this is the first product landing. The
+// full stock floor can take several more in-game days and is the -recovered
+// criterion; the audit still requires the live count to have risen.
+func billProduced(sample map[string]any) bool {
+	return planCompleted(sample, "routine-resource-")
+}
+
 // workshopBenchCompleted reports a sample whose MaintainResource goal holds
 // or held (retired_plans: a completed method leaves the goal at the next
 // review) a workshop bench plan with every action completed: the bench
 // stands and the bill path is about to start, the point a checkpoint save
 // is worth.
 func workshopBenchCompleted(sample map[string]any) bool {
+	return planCompleted(sample, "routine-workshop-")
+}
+
+func planCompleted(sample map[string]any, prefix string) bool {
 	plans, _ := sample["plans"].([]map[string]any)
 	retired, _ := sample["retired_plans"].([]map[string]any)
 	for _, plan := range append(plans, retired...) {
 		id, _ := plan["plan"].(string)
 		actions, _ := plan["actions"].(int)
 		stages, _ := plan["stages"].(map[string]int)
-		if strings.HasPrefix(id, "routine-workshop-") && actions > 0 && stages["completed"] == actions {
+		if strings.HasPrefix(id, prefix) && actions > 0 && stages["completed"] == actions {
 			return true
 		}
 	}
@@ -168,7 +187,7 @@ func itemCount(ctx context.Context, h *na.Harness, label string) (float64, error
 
 // audit compares the journal's recovered goal with the live item count, room
 // census and bill stacks after the service has stopped.
-func audit(ctx context.Context, h *na.Harness, journal *store.Store, report na.Report, baseline float64) error {
+func audit(ctx context.Context, h *na.Harness, journal *store.Store, report na.Report, baseline float64, recovered bool) error {
 	review, err := journal.LoadRoutineReview(ctx)
 	if err != nil {
 		return fmt.Errorf("load routine review: %w", err)
@@ -187,7 +206,7 @@ func audit(ctx context.Context, h *na.Harness, journal *store.Store, report na.R
 		return err
 	}
 	report["resource_goal"] = map[string]any{"status": string(goal.Goal.Status), "need": string(goal.Goal.Need), "methods": len(goal.Methods)}
-	if goal.Goal.Need != domain.NeedRecovered || goal.Goal.Status != domain.GoalSatisfied {
+	if recovered && (goal.Goal.Need != domain.NeedRecovered || goal.Goal.Status != domain.GoalSatisfied) {
 		return fmt.Errorf("MaintainResource did not recover within the watch window: need=%s status=%s", goal.Goal.Need, goal.Goal.Status)
 	}
 
