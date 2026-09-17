@@ -600,8 +600,10 @@ family (issue #4 M2) applies the same ladder to production: when a
 recipe, it reads the native recipe catalog for the product, previews the first
 research-available, unpowered, unskilled bench definition (`CraftingSpot` on the
 tribal baseline; `TableStonecutter` once stonecutting is researched) inside a
-Workshop-hosting room (method `workshop-<definition>`), or stages the starter
-shell first (`workshop-shell`). Research-gated or powered benches stop at
+Workshop-hosting room (method `workshop-<definition>`), or stages a shell
+first (`workshop-shell`); while `EnsureInitialShelter` is still in deficit it
+waits (`earlier_shell_blocked`) for that starter shell to become the first
+room rather than split the builders across two rings. Research-gated or powered benches stop at
 `workshop_bench_unavailable`. The `resource` family then places the bill on the
 new bench and the `work` family covers the bench's own DoBill work type.
 Unknown access, existing inaccessible

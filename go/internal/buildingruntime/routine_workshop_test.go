@@ -183,3 +183,26 @@ func TestWorkshopFurnishingOnlyPreviewsHostingRoomsAndFallsBackToShell(t *testin
 		t.Fatal(missing, method, reason)
 	}
 }
+
+func TestWorkshopShellWaitsWhileInitialShelterIsOwed(t *testing.T) {
+	t.Parallel()
+	r, db, _ := shelterFixture(t)
+	review, err := db.LoadRoutineReview(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	owed, err := initialShelterOwed(context.Background(), r.reviewer.player, review)
+	if err != nil || !owed {
+		t.Fatal("initial shelter deficit not seen as owed:", owed, err)
+	}
+	var others []store.RoutineGoal
+	for _, binding := range review.Goals {
+		if binding.Need != policy.EnsureInitialShelter {
+			others = append(others, binding)
+		}
+	}
+	review.Goals = others
+	if owed, err = initialShelterOwed(context.Background(), r.reviewer.player, review); err != nil || owed {
+		t.Fatal("no shelter binding must not block a workshop shell:", owed, err)
+	}
+}

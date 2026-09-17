@@ -134,6 +134,20 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	if goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit {
 		return RoutineBuildingResult{Reason: BuildingMethodNoDeficit}, nil
 	}
+	// A workshop shell is the ladder's last rung. While the initial shelter
+	// is still owed, its starter shell becomes the first room, which the
+	// Workshop role admits; siting a second shell beside it would split the
+	// same builders across two rings (issue #4 M2 run: both rings finished
+	// together, far later than one). Wait for that room instead.
+	if r.goal == policy.MaintainResource && r.shelter {
+		blocked, err := initialShelterOwed(call, p, review)
+		if err != nil {
+			return RoutineBuildingResult{}, err
+		}
+		if blocked {
+			return RoutineBuildingResult{Reason: BuildingShellBlocked}, nil
+		}
+	}
 	if r.goal == policy.EnsureComfort || r.goal == policy.EnsureExpansion || r.goal == policy.MaintainLighting {
 		selected := false
 		for _, row := range review.Development.Rows {
@@ -641,4 +655,20 @@ func routineBuildingBoundary(actual observation.Identity, expected domain.Genera
 	paused, known := actual.Paused.Value()
 	generation, generationKnown := actual.NativeGeneration.Value()
 	return actual.Colony == expected.Colony && actual.Load == expected.Load && actual.Map == expected.Map && actual.Tick == tick && known && paused && generationKnown && generation == expected.Native
+}
+
+// initialShelterOwed reports whether the review binds an active
+// EnsureInitialShelter goal still in deficit.
+func initialShelterOwed(ctx context.Context, p *Player, review store.RoutineReview) (bool, error) {
+	for _, binding := range review.Goals {
+		if binding.Need != policy.EnsureInitialShelter {
+			continue
+		}
+		goal, err := p.journal.LoadGoal(ctx, binding.Goal)
+		if err != nil {
+			return false, err
+		}
+		return goal.Goal.Status == domain.GoalActive && goal.Goal.Need == domain.NeedDeficit, nil
+	}
+	return false, nil
 }
