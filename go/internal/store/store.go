@@ -128,7 +128,7 @@ func Open(ctx context.Context, path string) (*Store, error) {
 	q.Add("_pragma", "foreign_keys(1)")
 	q.Add("_pragma", "synchronous("+syncMode()+")")
 	u.RawQuery = q.Encode()
-	db, err := sql.Open("sqlite", u.String())
+	db, err := sql.Open(DriverName, u.String())
 	if err != nil {
 		return nil, err
 	}

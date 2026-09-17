@@ -69,7 +69,7 @@ func memoryPath(t testing.TB) string {
 	}
 	t.Cleanup(func() { _ = keeper.Close() })
 	ctx := context.Background()
-	if _, err = memoryTemplate.db.ExecContext(ctx, "VACUUM INTO '"+uri+"'"); err != nil {
+	if err = CopyPages(ctx, memoryTemplate.db, uri); err != nil {
 		t.Fatal("memory clone:", err)
 	}
 	var entropy [32]byte
