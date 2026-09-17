@@ -370,10 +370,17 @@ namespace HomeBridge.BridgeTools
                         && t.def.entityDefToBuild is ThingDef built && typeof(Building_Door).IsAssignableFrom(built.thingClass)),
                     Indoors = room != null && room.ProperRoom && !room.PsychologicallyOutdoors,
                     StorageEmpty = !c.GetThingList(map).Any(t => t is Plant || t is Building || t is Blueprint || t is Frame || t.def.category == ThingCategory.Item) };
-                if (roof != null) row.Roof = roof.defName; else row.Issues.Add(Issue("roof", Common.UnavailableReason.NotApplicable, "No roof."));
-                if (zone != null) row.ZoneId = zone.ID.ToString(System.Globalization.CultureInfo.InvariantCulture); else row.Issues.Add(Issue("zone_id", Common.UnavailableReason.NotApplicable, "No zone."));
+                // Absent roof/zone/room are expressed by the applied field being
+                // set with no value: AppliedFields declares Roof/Zone/Room were
+                // read, so a missing value is a known absence, not an unread
+                // field. Per-cell "not applicable" issue rows said the same
+                // thing at ~290 JSON bytes per cell, which put a 45x45 planning
+                // window alone at the 1 MiB envelope bound on ordinary maps
+                // (issue #2: the routine review then failed every step once a
+                // few fogged cells were revealed, holding the clock forever).
+                if (roof != null) row.Roof = roof.defName;
+                if (zone != null) row.ZoneId = zone.ID.ToString(System.Globalization.CultureInfo.InvariantCulture);
                 if (room != null) { row.RoomId = room.ID.ToString(System.Globalization.CultureInfo.InvariantCulture); row.TemperatureC = Finite(room.Temperature); }
-                else row.Issues.Add(Issue("room_id", Common.UnavailableReason.NotApplicable, "No room."));
                 cells.Cells.Add(row);
             }
             cells.Completeness = Complete(cells.Cells.Count, fogged);

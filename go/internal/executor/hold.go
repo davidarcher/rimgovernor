@@ -39,6 +39,7 @@ var reasonHeldReasons = map[policy.Reason]domain.HeldReason{
 	policy.FilthIneligible:                domain.HeldFilthIneligible,
 	policy.GearReplacePawnUnavailable:     domain.HeldGearReplacePawnUnavailable,
 	policy.HaulerUnavailable:              domain.HeldHaulerUnavailable,
+	policy.ThingAbsent:                    domain.HeldThingAbsent,
 	policy.HomeCoverageExcluded:           domain.HeldHomeCoverageExcluded,
 	policy.HomeCoverageGeometryChanged:    domain.HeldHomeCoverageGeometryChanged,
 	policy.HusbandryAnimalUnavailable:     domain.HeldHusbandryAnimalUnavailable,

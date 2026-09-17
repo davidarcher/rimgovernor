@@ -111,7 +111,13 @@ func (b *HaulBoundary) InspectHaul(ctx context.Context, target executor.Target) 
 		thingToken, found = candidate.Token, true
 	}
 	if !found {
-		return out, executor.ErrHeld
+		// The thing left the selected cell (ordinary hauling, consumption or
+		// destruction). Report a known absence so the executor records a
+		// visible thing_absent hold rather than retrying silently.
+		facts := policy.HaulFacts{Snapshot: current, PawnTick: domain.Tick(targets.Context.GetTick()), PreviewTick: domain.Tick(targets.Context.GetTick()), ThingPresent: domain.Known(false), NativeCanTry: domain.Known(false)}
+		facts.Pawn = haulPawnFacts(haul.Pawn(), row, pawnToken)
+		out.Facts, out.ObservedAt = facts, b.clock.Now()
+		return out, ctx.Err()
 	}
 	preview, _, err := b.native.PreviewPawnOrder(ctx, boundary.Identity(current), haulCommand(string(haul.Pawn()), haul.Thing(), pawnToken, thingToken))
 	if err != nil {
@@ -128,7 +134,7 @@ func (b *HaulBoundary) InspectHaul(ctx context.Context, target executor.Target) 
 	if evaluated.Context.GetTick() < targets.Context.GetTick() || evaluated.Accepted == nil || job == nil || job.GetPawnId() != string(haul.Pawn()) || job.GetTargetA().GetThingId() != haul.Thing() || !haulJobDefAllowed(job.GetJobDef()) || job.CanTry == nil || job.GetCanTry() != evaluated.GetAccepted() {
 		return out, executor.ErrEvidence
 	}
-	facts := policy.HaulFacts{Snapshot: current, PawnTick: domain.Tick(targets.Context.GetTick()), PreviewTick: domain.Tick(evaluated.Context.GetTick()), ThingSnapshotToken: thingToken, NativeCanTry: boundary.FactBool(job.CanTry)}
+	facts := policy.HaulFacts{Snapshot: current, PawnTick: domain.Tick(targets.Context.GetTick()), PreviewTick: domain.Tick(evaluated.Context.GetTick()), ThingSnapshotToken: thingToken, ThingPresent: domain.Known(true), NativeCanTry: boundary.FactBool(job.CanTry)}
 	facts.Pawn = haulPawnFacts(haul.Pawn(), row, pawnToken)
 	out.Facts, out.ObservedAt = facts, b.clock.Now()
 	return out, ctx.Err()

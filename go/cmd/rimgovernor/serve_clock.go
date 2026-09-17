@@ -94,7 +94,7 @@ func serviceClockConfig(profile string, speed k.Speed) buildingruntime.ClockSche
 // Session owns the attached worker's drain, including failed startup cleanup.
 // Starting these loops does not enable Player or acquire native authority.
 func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, journal *store.Store, sc serveConfig, timeout time.Duration) error {
-	profile, clockSpeed, routine, projectLimit := sc.profile, sc.clockSpeed, sc.routineReviews, sc.routineProjectLimit
+	profile, clockSpeed, routine := sc.profile, sc.clockSpeed, sc.routineReviews
 	sleeping, cooking, shelter, comfort, expansion, power, temperature := sc.routineSleepingPlans, sc.routineCookingPlans, sc.routineShelterPlans, sc.routineComfortPlans, sc.routineExpansionPlans, sc.routinePowerPlans, sc.routineTemperaturePlans
 	supplies, work, acquisition, defense, tend, rescue, equip := sc.routineSupplyPlans, sc.routineWorkPlans, sc.routineAcquisitionPlans, sc.routineDefensePlans, sc.routineTendPlans, sc.routineRescuePlans, sc.routineEquipPlans
 	secureSupplies, repair, clean, gear, medical, foodStorageUpkeep := sc.routineSecureSuppliesPlans, sc.routineRepairPlans, sc.routineCleanPlans, sc.routineGearPlans, sc.routineMedicalPlans, sc.routineFoodStorageUpkeepPlans
@@ -102,8 +102,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	lighting := sc.routineLightingPlans
 	animalContainment, recovery, husbandry, homeCoverage := sc.routineAnimalContainmentPlans, sc.routineRecoveryPlans, sc.routineHusbandryPlans, sc.routineHomeCoveragePlans
 	caravanJourneyTracking, researchTarget, resourceTargets := sc.caravanJourneyTracking, sc.routineResearchTarget, sc.routineResourceTargets.Map()
-	allowSlaughter, herdPopulationMax := sc.routineAllowSlaughter, sc.routineHerdPopulationMax.Map()
-	animalFeedPlans, productionPolicyPlans, productionReserves, productionStopped := sc.routineAnimalFeedPlans, sc.routineProductionPolicyPlans, sc.routineResourceReserves.Map(), sc.routineStoppedResources.Slice()
+	animalFeedPlans, productionPolicyPlans := sc.routineAnimalFeedPlans, sc.routineProductionPolicyPlans
 	fields, bills, foodStorage := sc.routineFieldPlans, sc.routineBillPlans, sc.routineFoodStoragePlans
 	prisonerInteraction, populationCustody, stoneShell, defensiveLayout := sc.routinePrisonerInteractionPlans, sc.routinePopulationCustodyPlans, sc.routineStoneShellPlans, sc.routineDefensiveLayoutPlans
 	haul, waste, moodRelief, naming := sc.routineHaulPlans, sc.routineWastePlans, sc.routineMoodPlans, sc.routineNamingPlans
@@ -128,91 +127,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 		if !ok {
 			return errors.New("routine reviews require typed colony and emergency observations")
 		}
-		thresholds := policy.DefaultRoutinePolicy()
-		thresholds.MaxDevelopmentProjects = projectLimit
-		capabilities := buildingruntime.RoutineCapabilities{}
-		if acquisition || fields || bills {
-			capabilities.Methods = append(capabilities.Methods, policy.EnsureFoodSupply)
-		}
-		if foodStorage {
-			capabilities.Methods = append(capabilities.Methods, policy.EnsureFoodStorage)
-		}
-		if acquisition {
-			capabilities.Methods = append(capabilities.Methods, policy.MaintainWood)
-		}
-		if bills {
-			capabilities.Methods = append(capabilities.Methods, policy.EnsureCooking)
-		}
-		if temperature {
-			capabilities.Methods = append(capabilities.Methods, policy.EnsureTemperatureSafety)
-		}
-		if power {
-			capabilities.Methods = append(capabilities.Methods, policy.EnsureBasicPower)
-		}
-		if refrigeration {
-			capabilities.Methods = append(capabilities.Methods, policy.MaintainRefrigeration)
-		}
-		if lighting {
-			capabilities.Methods = append(capabilities.Methods, policy.MaintainLighting)
-		}
-		if comfort {
-			capabilities.Methods = append(capabilities.Methods, policy.EnsureComfort)
-		}
-		if expansion {
-			capabilities.Methods = append(capabilities.Methods, policy.EnsureExpansion)
-		}
-		if animalContainment {
-			capabilities.Methods = append(capabilities.Methods, policy.MaintainAnimalContainment)
-		}
-		if repair {
-			capabilities.Methods = append(capabilities.Methods, policy.MaintainEssentialRepairs)
-		}
-		if clean {
-			capabilities.Methods = append(capabilities.Methods, policy.MaintainCleanFacilities)
-		}
-		if haul {
-			capabilities.Methods = append(capabilities.Methods, policy.MaintainStorage)
-		}
-		if waste {
-			capabilities.Methods = append(capabilities.Methods, policy.MaintainWaste)
-		}
-		if recovery {
-			capabilities.Methods = append(capabilities.Methods, policy.RecoverDisasterServices)
-		}
-		if husbandry {
-			thresholds.AllowSlaughter = allowSlaughter
-			thresholds.HerdPopulationMax = herdPopulationMax
-			capabilities.Methods = append(capabilities.Methods, policy.MaintainHerd)
-		}
-		if prisonerInteraction || populationCustody {
-			capabilities.Methods = append(capabilities.Methods, policy.MaintainPopulation)
-		}
-		if homeCoverage {
-			capabilities.Methods = append(capabilities.Methods, policy.MaintainHomeCoverage)
-		}
-		if stoneShell {
-			capabilities.Methods = append(capabilities.Methods, policy.MaintainStoneShell)
-		}
-		if defensiveLayout {
-			thresholds.DefensiveLayout = true
-			capabilities.Methods = append(capabilities.Methods, policy.EnsureDefensiveLayout)
-		}
-		if researchTarget != "" {
-			thresholds.ResearchTarget = researchTarget
-			capabilities.Methods = append(capabilities.Methods, policy.EnsureResearch)
-		}
-		if len(resourceTargets) > 0 {
-			thresholds.ResourceTargets = resourceTargets
-			capabilities.Methods = append(capabilities.Methods, policy.MaintainResource)
-		}
-		if animalFeedPlans {
-			capabilities.Methods = append(capabilities.Methods, policy.MaintainAnimalFeed)
-		}
-		if productionPolicyPlans {
-			thresholds.ResourceReserves = productionReserves
-			thresholds.StoppedResources = productionStopped
-			capabilities.Methods = append(capabilities.Methods, policy.ProductionPolicy)
-		}
+		thresholds, capabilities := routineCapabilities(sc)
 		reviewer, err := buildingruntime.NewRoutineReviewer(player, native, wallClock{}, thresholds, config.MaxAge, capabilities)
 		if err != nil {
 			return err
@@ -614,4 +529,101 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 		MaxBackoff: 10 * time.Second, CallTimeout: timeout, PageLimit: 128,
 	})
 	return err
+}
+
+// routineCapabilities derives the routine policy thresholds and the method
+// capabilities a composed serve declares from its enabled families. Every
+// family whose planner acts only while the development ranking selected its
+// goal must declare that goal here, or the review ranks it method_unavailable
+// and the planner never runs.
+func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.RoutineCapabilities) {
+	thresholds := policy.DefaultRoutinePolicy()
+	thresholds.MaxDevelopmentProjects = sc.routineProjectLimit
+	capabilities := buildingruntime.RoutineCapabilities{}
+	if sc.routineAcquisitionPlans || sc.routineFieldPlans || sc.routineBillPlans {
+		capabilities.Methods = append(capabilities.Methods, policy.EnsureFoodSupply)
+	}
+	if sc.routineFoodStoragePlans {
+		capabilities.Methods = append(capabilities.Methods, policy.EnsureFoodStorage)
+	}
+	if sc.routineAcquisitionPlans {
+		capabilities.Methods = append(capabilities.Methods, policy.MaintainWood)
+	}
+	if sc.routineBillPlans {
+		capabilities.Methods = append(capabilities.Methods, policy.EnsureCooking)
+	}
+	if sc.routineTemperaturePlans {
+		capabilities.Methods = append(capabilities.Methods, policy.EnsureTemperatureSafety)
+	}
+	if sc.routinePowerPlans {
+		capabilities.Methods = append(capabilities.Methods, policy.EnsureBasicPower)
+	}
+	if sc.routineRefrigerationPlans {
+		capabilities.Methods = append(capabilities.Methods, policy.MaintainRefrigeration)
+	}
+	if sc.routineLightingPlans {
+		capabilities.Methods = append(capabilities.Methods, policy.MaintainLighting)
+	}
+	if sc.routineComfortPlans {
+		capabilities.Methods = append(capabilities.Methods, policy.EnsureComfort)
+	}
+	if sc.routineExpansionPlans {
+		capabilities.Methods = append(capabilities.Methods, policy.EnsureExpansion)
+	}
+	if sc.routineAnimalContainmentPlans {
+		capabilities.Methods = append(capabilities.Methods, policy.MaintainAnimalContainment)
+	}
+	if sc.routineSecureSuppliesPlans {
+		capabilities.Methods = append(capabilities.Methods, policy.SecureSupplies)
+	}
+	if sc.routineRepairPlans {
+		capabilities.Methods = append(capabilities.Methods, policy.MaintainEssentialRepairs)
+	}
+	if sc.routineCleanPlans {
+		capabilities.Methods = append(capabilities.Methods, policy.MaintainCleanFacilities)
+	}
+	if sc.routineHaulPlans {
+		capabilities.Methods = append(capabilities.Methods, policy.MaintainStorage)
+	}
+	if sc.routineWastePlans {
+		capabilities.Methods = append(capabilities.Methods, policy.MaintainWaste)
+	}
+	if sc.routineRecoveryPlans {
+		capabilities.Methods = append(capabilities.Methods, policy.RecoverDisasterServices)
+	}
+	if sc.routineHusbandryPlans {
+		thresholds.AllowSlaughter = sc.routineAllowSlaughter
+		thresholds.HerdPopulationMax = sc.routineHerdPopulationMax.Map()
+		capabilities.Methods = append(capabilities.Methods, policy.MaintainHerd)
+	}
+	if sc.routinePrisonerInteractionPlans || sc.routinePopulationCustodyPlans {
+		capabilities.Methods = append(capabilities.Methods, policy.MaintainPopulation)
+	}
+	if sc.routineHomeCoveragePlans {
+		capabilities.Methods = append(capabilities.Methods, policy.MaintainHomeCoverage)
+	}
+	if sc.routineStoneShellPlans {
+		capabilities.Methods = append(capabilities.Methods, policy.MaintainStoneShell)
+	}
+	if sc.routineDefensiveLayoutPlans {
+		thresholds.DefensiveLayout = true
+		capabilities.Methods = append(capabilities.Methods, policy.EnsureDefensiveLayout)
+	}
+	if sc.routineResearchTarget != "" {
+		thresholds.ResearchTarget = sc.routineResearchTarget
+		capabilities.Methods = append(capabilities.Methods, policy.EnsureResearch)
+	}
+	if len(sc.routineResourceTargets.Map()) > 0 {
+		thresholds.ResourceTargets = sc.routineResourceTargets.Map()
+		capabilities.Methods = append(capabilities.Methods, policy.MaintainResource)
+	}
+	if sc.routineAnimalFeedPlans {
+		capabilities.Methods = append(capabilities.Methods, policy.MaintainAnimalFeed)
+	}
+	if sc.routineProductionPolicyPlans {
+		thresholds.ResourceReserves = sc.routineResourceReserves.Map()
+		thresholds.StoppedResources = sc.routineStoppedResources.Slice()
+		capabilities.Methods = append(capabilities.Methods, policy.ProductionPolicy)
+	}
+	return thresholds, capabilities
 }

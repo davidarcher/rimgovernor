@@ -196,7 +196,7 @@ namespace HomeBridge.BridgeTools
             {
                 if (!Prepare(command, context, out _, out var pawn, out var thing, out var snapshot, out var failure))
                     return new Operations.PreviewReply { Failure = failure };
-                var result = WorkGiverDispatch.TryJob(pawn!, thing!, def => def.workType == WorkTypeDefOf.Hauling, out _);
+                var result = WorkGiverDispatch.TryJob(pawn!, thing!, def => def.workType == WorkTypeDefOf.Hauling, out var reason);
                 var accepted = result != null;
                 var jobDef = accepted ? (result!.Job.def?.defName ?? "HaulToCell") : "HaulToCell";
                 return NativeOperationEnvelope.Preview(new Operations.PreviewReply
@@ -204,7 +204,7 @@ namespace HomeBridge.BridgeTools
                     Evaluated = new Operations.PreviewEvaluation
                     {
                         Context = context.Clone(), Accepted = accepted,
-                        Reason = accepted ? "Exact native hauling WorkGiver produced a job for this target." : "No native hauling WorkGiver would produce a job for this pawn and target.",
+                        Reason = accepted ? "Exact native hauling WorkGiver produced a job for this target." : "No native hauling WorkGiver would produce a job for this pawn and target" + (string.IsNullOrEmpty(reason) ? "." : ": " + reason),
                         Projected = new Receipts.EffectEvidence
                         {
                             Job = new Receipts.JobEffect

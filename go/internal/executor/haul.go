@@ -3,6 +3,7 @@ package executor
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -47,14 +48,32 @@ func (e *Executor) runHaul(ctx context.Context, action domain.Action, p domain.P
 		if err = e.guard(ctx, expected, generation); err != nil {
 			return result, err
 		}
-		if inspection.Facts.Snapshot != expected || !e.fresh(inspection.StartedAt, inspection.ObservedAt) {
-			return result, ErrHeld
+		if inspection.Facts.Snapshot != expected {
+			return result, fmt.Errorf("%w: haul inspection snapshot %+v differs from expected %+v", ErrHeld, inspection.Facts.Snapshot, expected)
+		}
+		if !e.fresh(inspection.StartedAt, inspection.ObservedAt) {
+			return result, fmt.Errorf("%w: haul inspection stale", ErrHeld)
 		}
 		facts := inspection.Facts
 		minimum = max(minimum, facts.PawnTick)
 		decision := policy.EvaluateHaul(policy.HaulRequest{Action: action, Progress: result.Progress, Current: expected, MinimumTick: minimum, Facts: facts})
 		result.Refused = decision.Refused
 		if !decision.Admitted {
+			for _, refusal := range decision.Refused {
+				if refusal.Reason != policy.ThingAbsent {
+					continue
+				}
+				// The thing left its cell (ordinary hauling, a consumer, the
+				// player): this proposal can never succeed, so settle it
+				// instead of holding the goal's method slot forever. The
+				// planner re-proposes from the current deficit.
+				next, err := e.journal.Cancel(ctx, v.Plan, v.Action)
+				if err != nil {
+					return result, err
+				}
+				result.Progress = next
+				return result, fmt.Errorf("%w: haul target absent, action cancelled", ErrHeld)
+			}
 			result.Progress = e.holdRefusal(ctx, v.Plan, v.Action, decision.Refused, minimum, result.Progress)
 			return result, ErrHeld
 		}

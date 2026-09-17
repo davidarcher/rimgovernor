@@ -94,15 +94,6 @@ func (r *RoutineHaulPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit {
 		return RoutineHaulResult{Reason: BuildingMethodNoDeficit}, nil
 	}
-	for _, method := range goal.Methods {
-		plan, err := p.journal.LoadPlan(call, method.Plan)
-		if err != nil {
-			return RoutineHaulResult{}, err
-		}
-		if domain.GoalWorkOpen(plan.Progress) {
-			return RoutineHaulResult{Reason: BuildingMethodExistingWork}, nil
-		}
-	}
 	// MaintainStorage competes for the same bounded concurrent-project
 	// capacity as comfort/expansion/other priority>=3 autopilot goals; only
 	// act while this review's arbitration actually selected it. Checked after
@@ -146,6 +137,11 @@ func (r *RoutineHaulPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	}
 	if len(targetIDs) == 0 {
 		return RoutineHaulResult{Reason: BuildingMethodUsed}, nil
+	}
+	if open, err := cancelStaleHaulMethods(call, p.journal, goal, targetIDs); err != nil {
+		return RoutineHaulResult{}, err
+	} else if open {
+		return RoutineHaulResult{Reason: BuildingMethodExistingWork}, nil
 	}
 	byID := map[string]policy.UpkeepItem{}
 	if rows, known := reading.Projection.Facts.Upkeep.Items.Value(); known {

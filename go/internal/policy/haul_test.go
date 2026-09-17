@@ -81,3 +81,20 @@ func TestHaulDefenseHolds(t *testing.T) {
 		})
 	}
 }
+
+// A thing the cell-scoped read no longer finds refuses with thing_absent even
+// though every other fact is stale-free, so the journal shows why the haul is
+// held; a known-present or unknown presence changes nothing else.
+func TestHaulRefusesAbsentThing(t *testing.T) {
+	r := haulRequest(t)
+	r.Facts.ThingSnapshotToken, r.Facts.ThingPresent, r.Facts.NativeCanTry = "", domain.Known(false), domain.Known(false)
+	d := EvaluateHaul(r)
+	if d.Admitted || len(d.Refused) != 1 || d.Refused[0].Reason != ThingAbsent {
+		t.Fatal(d)
+	}
+	r = haulRequest(t)
+	r.Facts.ThingPresent = domain.Known(true)
+	if d := EvaluateHaul(r); !d.Admitted {
+		t.Fatal(d)
+	}
+}

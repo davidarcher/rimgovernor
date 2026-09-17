@@ -37,11 +37,15 @@ func (client *Client) ReadRepairTarget(ctx context.Context, identity *c.Identity
 	if e == nil || e.GetId() != structure {
 		return RepairTarget{}, raw, contract("repair target identity mismatch")
 	}
-	if e.Snapshot == nil {
+	// The native building census carries the CAS ref on the BuildingState row
+	// (NativeBuildingObservationTools.Token hashes status/hit points/burning),
+	// not on the EntityRef inside it.
+	snapshot := row.GetSnapshot()
+	if snapshot == nil || snapshot.GetEntityId() != structure || validID(snapshot.GetToken()) != nil {
 		return RepairTarget{}, raw, contract("repair target CAS token unavailable")
 	}
 	if row.HitPoints == nil || row.MaxHitPoints == nil {
 		return RepairTarget{}, raw, contract("repair target hit points unknown")
 	}
-	return RepairTarget{Context: v.Context, Structure: structure, Token: e.Snapshot.GetToken(), HitPoints: int64(row.GetHitPoints()), MaxHitPoints: int64(row.GetMaxHitPoints())}, raw, nil
+	return RepairTarget{Context: v.Context, Structure: structure, Token: snapshot.GetToken(), HitPoints: int64(row.GetHitPoints()), MaxHitPoints: int64(row.GetMaxHitPoints())}, raw, nil
 }

@@ -121,13 +121,29 @@ func hasIssue(issues []*o.ReadIssue, field string) bool {
 	return false
 }
 func nativePresence(value *string, issues []*o.ReadIssue, field string) domain.Fact[bool] {
+	return appliedPresence(value, issues, field, false)
+}
+
+// appliedPresence is nativePresence for a field the reply declares it read
+// (CellsSnapshot.applied_fields): a missing value with no issue row is then a
+// known absence. The native planning window stopped emitting a
+// "not applicable" issue per absent roof/zone/room because those rows alone
+// pushed a 45x45 window to the 1 MiB envelope bound (issue #2); an issue row
+// still wins when present so older replies decode the same way.
+func appliedPresence(value *string, issues []*o.ReadIssue, field string, applied bool) domain.Fact[bool] {
 	if value != nil {
 		return domain.Known(true)
 	}
 	for _, issue := range issues {
-		if issue.GetField() == field && issue.GetUnavailable().GetReason() == c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE {
-			return domain.Known(false)
+		if issue.GetField() == field {
+			if issue.GetUnavailable().GetReason() == c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE {
+				return domain.Known(false)
+			}
+			return domain.Unknown[bool]()
 		}
+	}
+	if applied {
+		return domain.Known(false)
 	}
 	return domain.Unknown[bool]()
 }
@@ -325,12 +341,13 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 		if region := planning.Cells.GetRegion(); region != nil && region.Minimum != nil && region.Maximum != nil {
 			r.Region = policy.Rectangle{X: region.Minimum.GetX(), Z: region.Minimum.GetZ(), Width: region.Maximum.GetX() - region.Minimum.GetX() + 1, Height: region.Maximum.GetZ() - region.Minimum.GetZ() + 1}
 		}
+		applied := planning.Cells.GetAppliedFields()
 		for _, row := range planning.Cells.Cells {
 			// Missing visibility is not evidence that a cell is safe to plan on.
 			if row.Fogged == nil || row.GetFogged() {
 				continue
 			}
-			r.Cells = append(r.Cells, policy.SiteCell{Cell: domain.Cell{X: row.Cell.GetX(), Z: row.Cell.GetZ()}, Walkable: optional(row.Walkable), Occupied: optional(row.Occupied), Zone: nativePresence(row.ZoneId, row.Issues, "zone_id"), Roofed: nativePresence(row.Roof, row.Issues, "roof"), Roof: optional(row.Roof), Indoors: optional(row.Indoors), SupportsLight: optional(row.SupportsLight), Doorway: optional(row.Doorway), Fertility: optional(row.Fertility), StorageEmpty: optional(row.StorageEmpty), ZoneID: optional(row.ZoneId)})
+			r.Cells = append(r.Cells, policy.SiteCell{Cell: domain.Cell{X: row.Cell.GetX(), Z: row.Cell.GetZ()}, Walkable: optional(row.Walkable), Occupied: optional(row.Occupied), Zone: appliedPresence(row.ZoneId, row.Issues, "zone_id", applied.GetZone()), Roofed: appliedPresence(row.Roof, row.Issues, "roof", applied.GetRoof()), Roof: optional(row.Roof), Indoors: optional(row.Indoors), SupportsLight: optional(row.SupportsLight), Doorway: optional(row.Doorway), Fertility: optional(row.Fertility), StorageEmpty: optional(row.StorageEmpty), ZoneID: optional(row.ZoneId)})
 		}
 	}
 	if planning := v.GetPlanning().GetObserved(); planning != nil && planning.Environment != nil && !hasIssue(planning.Issues, "environment") {

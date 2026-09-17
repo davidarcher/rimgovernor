@@ -11,6 +11,13 @@ import (
 // occupied, mid a conflicting player order, or already running this job.
 const HaulerUnavailable Reason = "hauler_unavailable"
 
+// ThingAbsent records that the exact thing is no longer at the cell the
+// review selected it from: ordinary colonist hauling (or consumption) moved
+// it since the method was planned. The hold is visible in the journal instead
+// of a silent retry so the next review can retire the method when its
+// deficit has cleared (issue #2 scattered-supplies acceptance).
+const ThingAbsent Reason = "thing_absent"
+
 // HaulPawnFacts describes the one already-selected undrafted candidate pawn.
 // Unlike SelectTend's colony-wide pairing, the planner has already chosen this
 // pawn and thing; EvaluateHaul only re-validates the pair immediately before
@@ -28,7 +35,10 @@ type HaulFacts struct {
 	PawnTick, PreviewTick domain.Tick
 	Pawn                  HaulPawnFacts
 	ThingSnapshotToken    string
-	NativeCanTry          domain.Fact[bool]
+	// ThingPresent is known false when the cell-scoped target read found no
+	// such thing; unknown leaves the token validation to refuse instead.
+	ThingPresent domain.Fact[bool]
+	NativeCanTry domain.Fact[bool]
 }
 
 type HaulRequest struct {
@@ -65,6 +75,9 @@ func EvaluateHaul(r HaulRequest) DraftDecision {
 	}
 	validToken := func(s string) bool {
 		return len(s) <= 256 && utf8.ValidString(s) && strings.TrimSpace(s) != "" && !strings.ContainsRune(s, 0)
+	}
+	if present, known := f.ThingPresent.Value(); known && !present {
+		return refuse(ThingAbsent)
 	}
 	if f.Pawn.Pawn != haul.Pawn() || !validToken(f.Pawn.SnapshotToken) || !validToken(f.ThingSnapshotToken) {
 		return refuse(UnknownFacts)

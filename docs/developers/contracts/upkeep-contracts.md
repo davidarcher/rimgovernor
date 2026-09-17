@@ -108,6 +108,12 @@ first unavailable read creates an ordinary visible blocker rather than an invent
 emergency. Fire risk preempts development. Unknown or oversized fire intervention
 retains an emergency hold.
 
+The typed item census (at most 256 rows) covers items in the home area, items
+in valid storage anywhere, and deteriorating, perishable or medicine stacks
+wherever they were dropped; a map's natural chunk and slag field outside the
+home area never enters it, since a whole-map census exceeded the bound on every
+real map and no upkeep goal may target that debris.
+
 Methods inspect at most eight targets and eight enabled, available workers in a
 review. Stable target and pawn IDs break ties. Medicine and rot deadlines rank
 hauling; native medical beds, temperature controls and generators lead repairs,
@@ -329,5 +335,9 @@ archive when the same target needs maintenance again. Waiting, blocked, uncertai
 or cancelled work cannot be retired to bypass duplicate-intent protection.
 
 These maintenance predicates are separate from `FOOTHOLD_STABLE`. Their presence
-does not certify the complete startup/upkeep matrix or sustained survival. Remaining
-implementation and gameplay acceptance belong in [B04h](https://github.com/davidarcher/rimgovernor/issues/2).
+does not certify the complete startup/upkeep matrix or sustained survival. The
+per-deficit live acceptance is `go/internal/nativeaccept/cmd/upkeepaccept`
+([B04h](https://github.com/davidarcher/rimgovernor/issues/2)): one staged
+deficit per scenario, the owning families only, recovery observed on the native
+postcondition. Wall replacement and the sustained multi-season campaigns are
+tracked separately.

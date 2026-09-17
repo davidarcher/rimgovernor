@@ -31,11 +31,28 @@ namespace HomeBridge.BridgeTools
                         thing.Destroy();
                     }
                 }
+                // Starting colonists may arrive injured; an untended patient
+                // is a priority-1 medical emergency that holds the clock and
+                // every development row, so the upkeep deficits under test
+                // could never be reviewed. Healthy workers are a precondition.
+                foreach (var p in map.mapPawns.FreeColonistsSpawned)
+                    foreach (var h in p.health.hediffSet.hediffs.Where(h => (h.def.tendable || h.def.isBad) && !(h is Hediff_MissingPart)).ToList())
+                        p.health.RemoveHediff(h);
                 var people = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Downed && !p.Drafted && !p.InMentalState).ToList();
-                var origin = GenRadial.RadialCellsAround(people.First().Position, 35, true).First(c =>
+                // Dense rolls (Scarlands, mountainous maps) rarely offer a
+                // clear 9x9 within 35 cells; search to the radial pattern's
+                // limit, nearest first, and refuse so a fresh map is a
+                // rerun, never an exception.
+                var origin = GenRadial.RadialCellsAround(people.First().Position, 55, true).FirstOrDefault(c =>
                     CellRect.FromLimits(c, c + new IntVec3(8, 0, 8)).Cells.All(p => p.InBounds(map)
                         && !p.Fogged(map) && p.Standable(map) && p.GetEdifice(map) == null
-                        && map.zoneManager.ZoneAt(p) == null && p.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Heavy)));
+                        && map.zoneManager.ZoneAt(p) == null && p.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Heavy)
+                        // Standable cells still carry loose items (the scenario's
+                        // dropped starting gear); one on the storage cell keeps the
+                        // medicine unstorable and every haul refused.
+                        && !p.GetThingList(map).Any(t => t.def.category == ThingCategory.Item)));
+                if (!origin.IsValid)
+                    return new { success = false, error = "no clear 9x9 heavy-affordance site within 55 cells of the colonists; reroll the map" };
                 foreach (var cell in CellRect.FromLimits(origin, origin + new IntVec3(8, 0, 8)))
                     map.areaManager.Home[cell] = true;
                 var wall = ThingMaker.MakeThing(ThingDefOf.Wall, ThingDefOf.WoodLog);
@@ -78,10 +95,17 @@ namespace HomeBridge.BridgeTools
                     fire.fireSize = fireSize;
                     GenSpawn.Spawn(fire, origin + new IntVec3(5, 0, 5), map);
                 }
+                // Workers stay capable but their Work-tab priorities for the
+                // staged deficits are cleared, so only the controller's forced
+                // orders (which ignore priorities, like the float menu) act on
+                // the medicine, wall and dirt; otherwise ordinary colonist
+                // hauling races the SecureSupplies dispatch and the harness
+                // cannot tell whose job recovered the deficit. Firefighting
+                // stays on: MaintainFireSafety is observed, never ordered.
                 foreach (var pawn in people)
                     foreach (var name in new[] { "Hauling", "Cleaning", "Construction", "Firefighter" }) {
                         var work = DefDatabase<WorkTypeDef>.GetNamedSilentFail(name);
-                        if (work != null && !pawn.WorkTypeIsDisabled(work)) pawn.workSettings.SetPriority(work, 1);
+                        if (work != null && !pawn.WorkTypeIsDisabled(work)) pawn.workSettings.SetPriority(work, name == "Firefighter" ? 1 : 0);
                     }
                 Pawn penAnimal = null, pet = null, looseAnimal = null;
                 Thing penMarker = null, penWall = null, feed = null;
@@ -124,7 +148,7 @@ namespace HomeBridge.BridgeTools
                     pet = pet?.GetUniqueLoadID(), pen = penMarker?.GetUniqueLoadID(),
                     penWall = penWall?.GetUniqueLoadID(), feed = feed?.GetUniqueLoadID(),
                     workers = people.Select(p => p.GetUniqueLoadID()).ToList(),
-                    setup = "Spawned damaged wall, covered storage, medicine and dirt; enabled capable workers. Outcomes require ordinary pawn jobs." };
+                    setup = "Spawned damaged wall, covered storage, medicine and dirt; capable workers with hauling/cleaning/construction priorities cleared. Outcomes require controller-ordered pawn jobs." };
                 } catch (Exception error) { return new { success = false, error = error.ToString() }; }
             }, cancellationToken);
         }

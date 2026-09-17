@@ -15,13 +15,18 @@ type haulEnvironment struct {
 	*environment
 	inspected, dispatched, observed int
 	uncertain, ineligible, foreign  bool
+	absent                          bool
 	effect                          domain.Effect
 }
 
 func (n *haulEnvironment) haulFacts(target Target) policy.HaulFacts {
 	haul, _ := target.Action.Haul()
 	pawn := policy.HaulPawnFacts{Pawn: haul.Pawn(), SnapshotToken: "pawn-token", Dead: domain.Known(false), Downed: domain.Known(false), Drafted: domain.Known(false), MentalState: domain.Known(false), ExistingJobDef: domain.Known("")}
-	return policy.HaulFacts{Snapshot: target.Snapshot, PawnTick: n.tick, PreviewTick: n.tick, Pawn: pawn, ThingSnapshotToken: "thing-token", NativeCanTry: domain.Known(!n.ineligible)}
+	facts := policy.HaulFacts{Snapshot: target.Snapshot, PawnTick: n.tick, PreviewTick: n.tick, Pawn: pawn, ThingSnapshotToken: "thing-token", NativeCanTry: domain.Known(!n.ineligible)}
+	if n.absent {
+		facts.ThingPresent, facts.ThingSnapshotToken, facts.NativeCanTry = domain.Known(false), "", domain.Known(false)
+	}
+	return facts
 }
 func (n *haulEnvironment) InspectHaul(_ context.Context, target Target) (HaulInspection, error) {
 	n.inspected++
@@ -136,6 +141,17 @@ func TestHaulNativeIneligibleBlocksDispatch(t *testing.T) {
 	held, ok := result.Progress.View().FreshHeldReason()
 	if !ok || len(held) != 1 || held[0] != domain.HeldNativeIneligible {
 		t.Fatal("ordinary refusal was not persisted as a held reason", held)
+	}
+}
+
+// A thing that left its cell can never be hauled by this proposal; the action
+// settles as cancelled so the goal's method slot frees for a fresh target.
+func TestHaulAbsentThingCancelsTheAction(t *testing.T) {
+	f, n := haulFixture(t)
+	n.absent = true
+	result, err := f.run()
+	if !errors.Is(err, ErrHeld) || result.Progress.View().Stage != domain.Cancelled || n.dispatched != 0 {
+		t.Fatal(result, err)
 	}
 }
 

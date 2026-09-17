@@ -639,6 +639,25 @@ For a same-colony scenario retry, stage the retained initial save as
 `profile/Saves/RimGovernor-tribal8-baseline.rws` and pass
 `--start-save RimGovernor-tribal8-baseline`; headless preparation copies that
 baseline into its private profile.
+`upkeepaccept -scenario <name>` (issue #2, B04h) is the per-deficit startup-upkeep
+acceptance: each scenario opens on a fixture that already holds one deficit,
+composes the live service with only the routine families that own it
+(`secure-supplies,repair,clean` for the `UpkeepFixture` scenarios, no `work`
+family so ordinary colonist hauling does not race the controller's orders),
+follows the journal from deficit through method and plan to observed recovery,
+and re-reads the native postcondition after the service releases the game.
+Scenarios: `scattered` (haul medicine into covered storage, repair a damaged
+home wall through the native `PAWN_ORDER_KIND_REPAIR` order, outdoor dirt
+never ordered), `storage-missing` (haul refused until SecureSupplies creates a
+filtered stockpile), `blocked` (allowed areas exclude the targets; deficits
+stay visible, nothing completes), `fire` (home fire latches as an emergency
+that defers every development row), `medicine` (reserve deficit resolves
+through acquisition, a bill or mining), `feed` (pet without reachable stored
+feed), `sleeping` (bed shortage builds one sleeping place) and `cold`
+(sleeping room below the cold floor gets a heat source). `-debug` adds the
+flight recorder and clock/worker diagnostics. Run it from the repo root with
+`-root <bridge root> -rimgovernor <service exe>`; the scenario's output
+directory must not exist.
 Animal upkeep reviews retain containment risk and per-animal feed thresholds.
 Feed shares the observed diet/rot forecast with human consumers. Missing censuses
 remain unknown; a complete empty census clears animal needs. Release and slaughter

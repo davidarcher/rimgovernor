@@ -30,7 +30,8 @@ func NewPawnOrderControl(client *Client) (*PawnOrderControl, error) {
 // rescue and capture are single fixed undrafted vanilla jobs; haul's storage
 // search may produce either a cell or container destination job; equip is a
 // single fixed job available to a drafted or undrafted pawn
-// (FloatMenuOptionProvider_Equip applies no draft gate). Explosives and
+// (FloatMenuOptionProvider_Equip applies no draft gate); repair is
+// WorkGiver_Repair's single fixed job (issue #2). Explosives and
 // drafted combat stay on the AttackTarget contract.
 func pawnOrderJobDefs(kind o.PawnOrderKind) []string {
 	switch kind {
@@ -46,6 +47,8 @@ func pawnOrderJobDefs(kind o.PawnOrderKind) []string {
 		return []string{"Equip"}
 	case o.PawnOrderKind_PAWN_ORDER_KIND_CLEAN:
 		return []string{"Clean"}
+	case o.PawnOrderKind_PAWN_ORDER_KIND_REPAIR:
+		return []string{"Repair"}
 	default:
 		return nil
 	}

@@ -104,15 +104,6 @@ func (r *RoutineSecureSuppliesPlanner) step(call, epoch context.Context, arbiter
 	if !selected {
 		return RoutineSecureSuppliesResult{Reason: BuildingMethodRefused}, nil
 	}
-	for _, method := range goal.Methods {
-		plan, err := p.journal.LoadPlan(call, method.Plan)
-		if err != nil {
-			return RoutineSecureSuppliesResult{}, err
-		}
-		if domain.GoalWorkOpen(plan.Progress) {
-			return RoutineSecureSuppliesResult{Reason: BuildingMethodExistingWork}, nil
-		}
-	}
 	identity, _, err := r.native.Identity(call)
 	if err != nil {
 		return RoutineSecureSuppliesResult{}, err
@@ -141,6 +132,11 @@ func (r *RoutineSecureSuppliesPlanner) step(call, epoch context.Context, arbiter
 	}
 	if len(targetIDs) == 0 {
 		return RoutineSecureSuppliesResult{Reason: BuildingMethodUsed}, nil
+	}
+	if open, err := cancelStaleHaulMethods(call, p.journal, goal, targetIDs); err != nil {
+		return RoutineSecureSuppliesResult{}, err
+	} else if open {
+		return RoutineSecureSuppliesResult{Reason: BuildingMethodExistingWork}, nil
 	}
 	byID := map[string]policy.UpkeepItem{}
 	if rows, known := reading.Projection.Facts.Upkeep.Items.Value(); known {

@@ -17,8 +17,22 @@ namespace HomeBridge.BridgeTools
         {
             var things = map.listerThings.AllThings.Where(t => t.Spawned && !t.Position.Fogged(map)).ToList();
             Read("items", result, () => {
-                var rows = things.Where(t => t.def.category == ThingCategory.Item
-                    && (t.Faction == null || t.Faction == Faction.OfPlayerSilentFail)).OrderBy(t => t.thingIDNumber).ToList();
+                // Every real map carries hundreds of natural chunk and slag
+                // stacks that no upkeep goal may ever target, and a whole-map
+                // census exceeded the bound on every real map. Items count
+                // when the home area holds them (MaintainStorage debris),
+                // when they sit in storage (reserve stock wherever it is
+                // kept), or when they are the deteriorating, perishable or
+                // medicine stacks SecureSupplies and MaintainMedicalReserves
+                // follow wherever they were dropped.
+                // Corpses deteriorate and rot like food but are never
+                // supplies to secure: a raider corpse across the map would
+                // otherwise keep the SecureSupplies deficit open forever.
+                var rows = things.Where(t => t.def.category == ThingCategory.Item && !t.def.IsCorpse
+                    && (t.Faction == null || t.Faction == Faction.OfPlayerSilentFail)
+                    && (map.areaManager.Home[t.Position] || t.IsInValidStorage() || t.def.IsMedicine
+                        || t.def.GetStatValueAbstract(StatDefOf.DeteriorationRate, t.Stuff) > 0f
+                        || (t.TryGetComp<CompRottable>()?.Active ?? false))).OrderBy(t => t.thingIDNumber).ToList();
                 Require(rows.Count, 256);
                 var values = rows.Select(t => {
                     var rot = t.TryGetComp<CompRottable>();
