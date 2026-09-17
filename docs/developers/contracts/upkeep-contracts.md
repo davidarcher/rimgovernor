@@ -339,5 +339,9 @@ does not certify the complete startup/upkeep matrix or sustained survival. The
 per-deficit live acceptance is `go/internal/nativeaccept/cmd/upkeepaccept`
 ([B04h](https://github.com/davidarcher/rimgovernor/issues/2)): one staged
 deficit per scenario, the owning families only, recovery observed on the native
-postcondition. Wall replacement and the sustained multi-season campaigns are
-tracked separately.
+postcondition (`-scenario a,b` picks scenarios; `-reuse` reloads the baseline
+save into one running game between them instead of relaunching RimWorld).
+`MaintainFireSafety` has no order to issue: its `fire` family only grants the
+clock a bounded native-work window while `EvaluateFireSafety` finds a bounded
+home fire with an eligible firefighter. Wall replacement and the sustained
+multi-season campaigns are tracked separately.

@@ -91,8 +91,12 @@ func temperatureNativeWorkTicks(plan store.PlanState, current domain.GenerationS
 	if !ok || building.Definition() != "Campfire" && building.Definition() != "PassiveCooler" {
 		return 0
 	}
+	// Native order-generation drift (authority reacquired since the build)
+	// does not unbuild the structure: the receipt must match the world and
+	// the plan revision it served, not the native generation.
 	current.Plan, current.Revision = plan.Spec.ID(), plan.Spec.Revision()
 	v := progress.View()
+	current.Native = v.Snapshot.Native
 	effect, known := v.Effect.Value()
 	if v.Stage != domain.Completed || v.Unresolved || !known || effect != domain.EffectCompleted || !v.Snapshot.Matches(current) || tick < v.Tick || tick-v.Tick >= 10000 {
 		return 0

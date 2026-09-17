@@ -109,9 +109,15 @@ func TestTemperatureNativeWorkBudgetRequiresCompletedCurrentDirection(t *testing
 				t.Fatal(definition, row, got)
 			}
 		}
+		// A reacquired direction keeps the budget (the heater was re-observed
+		// under it); a reloaded world does not.
 		snapshot.Native++
+		if got := temperatureNativeWorkTicks(state, snapshot, 100); got != 120 && definition != "Wall" {
+			t.Fatal("new direction lost heat-exchange budget", got)
+		}
+		snapshot.Load = "reload"
 		if temperatureNativeWorkTicks(state, snapshot, 100) != 0 {
-			t.Fatal("new direction inherited heat-exchange budget")
+			t.Fatal("reloaded world inherited heat-exchange budget")
 		}
 	}
 }
