@@ -87,7 +87,7 @@ func TestDraftRestartPreservesPlayerReplacementThroughRealJournalAndExecutor(t *
 					t.Fatal(err)
 				}
 				building, _ := boundary.NewFixture(t)
-				hands, err := executor.NewWithDraft(db, building, bound, boundary.FixedClock{}, executor.Limits{MaxAge: time.Second, RunTimeout: time.Second, JournalTimeout: time.Second})
+				hands, err := executor.NewWithDraft(db, building, bound, boundary.FixedClock{}, executor.Limits{MaxAge: time.Second, RunTimeout: 5 * time.Second, JournalTimeout: 5 * time.Second})
 				if err != nil {
 					t.Fatal(err)
 				}

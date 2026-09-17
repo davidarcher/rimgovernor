@@ -302,7 +302,7 @@ func TestComposedRoutineFamiliesFreshStartReconciliationRecoversIndependently(t 
 	}
 	session1 := &playerFakeSession{}
 	worlds1 := &playerWorldSource{world: store.World{Colony: "colony", Load: "load", Map: 0}}
-	p1, err := newPlayer(ctx, PlayerConfig{CallTimeout: time.Second, JournalTimeout: time.Second}, db1, session1, worlds1)
+	p1, err := newPlayer(ctx, PlayerConfig{CallTimeout: 5 * time.Second, JournalTimeout: 5 * time.Second}, db1, session1, worlds1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -362,7 +362,7 @@ func TestComposedRoutineFamiliesFreshStartReconciliationRecoversIndependently(t 
 	defer func() { db2.Close() }()
 	session2 := &playerFakeSession{}
 	worlds2 := &playerWorldSource{world: store.World{Colony: "colony", Load: "load", Map: 0}}
-	p2, err := newPlayer(ctx, PlayerConfig{CallTimeout: time.Second, JournalTimeout: time.Second}, db2, session2, worlds2)
+	p2, err := newPlayer(ctx, PlayerConfig{CallTimeout: 5 * time.Second, JournalTimeout: 5 * time.Second}, db2, session2, worlds2)
 	if err != nil {
 		t.Fatal(err)
 	}

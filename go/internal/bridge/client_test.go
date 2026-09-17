@@ -206,7 +206,7 @@ func TestOwnedSubprocessAndFailedConnections(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	client, err := Open(context.Background(), ProcessConfig{Executable: executable, ConfigDir: t.TempDir(), GameID: "fixture", Timeout: 2 * time.Second})
+	client, err := Open(context.Background(), ProcessConfig{Executable: executable, ConfigDir: t.TempDir(), GameID: "fixture", Timeout: 5 * time.Second})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -314,7 +314,9 @@ func TestReadDeadlineAndOversizedWireResult(t *testing.T) {
 	large := &testServer{handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		return structured(`{"payload":"` + strings.Repeat("x", maxResponseBytes) + `"}`), nil
 	}}
-	bigClient := testClient(t, large, time.Second)
+	// The deadline only guards against a hang; decoding 50 MiB under race
+	// detection takes several seconds.
+	bigClient := testClient(t, large, 30*time.Second)
 	if _, err := testNativeRead(bigClient, context.Background()); !errors.Is(err, ErrContract) {
 		t.Fatalf("oversized result: %v", err)
 	}

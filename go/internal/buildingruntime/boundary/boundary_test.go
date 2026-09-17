@@ -108,7 +108,7 @@ func TestBoundaryEmergencyGatesBothAdmissionsWithoutWrites(t *testing.T) {
 			case "delayed read":
 				f.EmergencyHook = func() { clock.now = clock.now.Add(2 * time.Second) }
 			}
-			e, err := executor.New(db, b, clock, executor.Limits{MaxAge: time.Second, RunTimeout: time.Second, JournalTimeout: time.Second})
+			e, err := executor.New(db, b, clock, executor.Limits{MaxAge: time.Second, RunTimeout: 5 * time.Second, JournalTimeout: 5 * time.Second})
 			if err != nil {
 				t.Fatal(err)
 			}

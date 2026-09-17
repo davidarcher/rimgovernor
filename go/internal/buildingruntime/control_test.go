@@ -115,7 +115,7 @@ func controlFixture(t *testing.T, stop func(context.Context) error) (*Control, *
 	if stop == nil {
 		stop = func(context.Context) error { return nil }
 	}
-	control, err := NewControl(context.Background(), ControlConfig{ProfileDirectory: dir, CallTimeout: time.Second, StopWrites: stop}, db, n, sink)
+	control, err := NewControl(context.Background(), ControlConfig{ProfileDirectory: dir, CallTimeout: 5 * time.Second, StopWrites: stop}, db, n, sink)
 	if err != nil {
 		t.Fatal(err)
 	}

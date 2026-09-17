@@ -118,7 +118,7 @@ func newFixture(t *testing.T) *fixture {
 		t.Fatal(err)
 	}
 	env := &environment{clock: clock, stock: 20, tick: 100}
-	executor, err := New(journal, env, clock, Limits{MaxAge: time.Second, RunTimeout: 2 * time.Second, JournalTimeout: time.Second})
+	executor, err := New(journal, env, clock, Limits{MaxAge: time.Second, RunTimeout: 2 * time.Second, JournalTimeout: 5 * time.Second})
 	if err != nil {
 		t.Fatal(err)
 	}

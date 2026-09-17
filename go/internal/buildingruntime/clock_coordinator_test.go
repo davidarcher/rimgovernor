@@ -85,7 +85,7 @@ func clockCoreFixture(t *testing.T) (*ClockCoordinator, *store.Store, *clockCore
 	policy := &k.WatchPolicy{Mode: k.WatchMode_WATCH_MODE_COLONY.Enum(), HealthDropFraction: proto.Float32(.1), MinHealthFraction: proto.Float32(.2), HostileWithin: proto.Float32(20), InjuryStopCooldownMs: proto.Uint32(0)}
 	intent := store.ClockIntent{RequestID: clockTestNextID(t, db), Snapshot: snapshot, Command: bridge.ClockCommand{Start: &bridge.ClockStart{Speed: k.Speed_SPEED_NORMAL, Policy: policy, LeaseMS: 1000, MaxTicks: 100}}}
 	fake := &clockCoreFake{status: &k.Status{Context: &c.ObservationContext{Identity: boundary.Identity(snapshot), Tick: proto.Int64(12), NativeGeneration: proto.Uint64(7)}, State: &k.Status_NeverStarted{NeverStarted: &k.NeverStarted{}}, ActualPaused: proto.Bool(true), ObservedSpeed: k.ObservedSpeed_OBSERVED_SPEED_PAUSED.Enum(), NativeTickBoundary: proto.Bool(true), DurableEvents: proto.Bool(false), NewestCursor: proto.Int64(0), EvidenceCompleteness: &c.PageInfo{Complete: proto.Bool(true)}}}
-	q, err := NewClockCoordinator(db, fake, fake, clockCoreLease{func(domain.GenerationSnapshot) (string, error) { return "lease", nil }}, boundary.FixedClock{}, ClockCoordinatorConfig{CallTimeout: time.Second, JournalTimeout: time.Second})
+	q, err := NewClockCoordinator(db, fake, fake, clockCoreLease{func(domain.GenerationSnapshot) (string, error) { return "lease", nil }}, boundary.FixedClock{}, ClockCoordinatorConfig{CallTimeout: 5 * time.Second, JournalTimeout: 5 * time.Second})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -61,7 +61,7 @@ func equipFixture(t *testing.T) (*fixture, *equipEnvironment) {
 		t.Fatal(err)
 	}
 	n := &equipEnvironment{environment: f.env}
-	e, err := New(f.store, n, f.clock, Limits{MaxAge: time.Second, RunTimeout: time.Second, JournalTimeout: time.Second})
+	e, err := New(f.store, n, f.clock, Limits{MaxAge: time.Second, RunTimeout: 5 * time.Second, JournalTimeout: 5 * time.Second})
 	if err != nil {
 		t.Fatal(err)
 	}

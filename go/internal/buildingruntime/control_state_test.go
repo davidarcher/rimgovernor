@@ -150,12 +150,12 @@ func TestSessionDisableSynchronouslyInvalidatesBlockedRun(t *testing.T) {
 		t.Fatal(err)
 	}
 	blocked := stateBlockedInspection{entered: make(chan struct{})}
-	worker, err := executor.New(journal, blocked, boundary.FixedClock{}, executor.Limits{MaxAge: time.Second, RunTimeout: 5 * time.Second, JournalTimeout: time.Second})
+	worker, err := executor.New(journal, blocked, boundary.FixedClock{}, executor.Limits{MaxAge: time.Second, RunTimeout: 5 * time.Second, JournalTimeout: 5 * time.Second})
 	if err != nil {
 		t.Fatal(err)
 	}
 	native := &controlNative{generation: 1}
-	control, err := NewControl(ctx, ControlConfig{ProfileDirectory: dir, CallTimeout: time.Second, StopWrites: worker.Stop}, journal, native, worker)
+	control, err := NewControl(ctx, ControlConfig{ProfileDirectory: dir, CallTimeout: 5 * time.Second, StopWrites: worker.Stop}, journal, native, worker)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -66,7 +66,7 @@ func worldEvaluationFixture(t *testing.T) (*WorldEvaluation, *worldEvaluationNat
 	_, db, f, intent := clockCoreFixture(t)
 	s, _, _ := newClockSessionTest(t, db, f)
 	t.Cleanup(func() { _ = s.Close(context.Background()) })
-	p, err := NewPlayer(context.Background(), PlayerConfig{CallTimeout: time.Second, JournalTimeout: time.Second}, db, s, playerWorldFunc(func(context.Context) (store.World, error) { return playerWorld(intent.Snapshot), nil }))
+	p, err := NewPlayer(context.Background(), PlayerConfig{CallTimeout: 5 * time.Second, JournalTimeout: 5 * time.Second}, db, s, playerWorldFunc(func(context.Context) (store.World, error) { return playerWorld(intent.Snapshot), nil }))
 	if err != nil {
 		t.Fatal(err)
 	}

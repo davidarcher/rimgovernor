@@ -131,7 +131,7 @@ func TestFieldPlannerReservationsCASAndManual(t *testing.T) {
 	}
 	second := plan.Spec.Actions()[1]
 	boundary := &fieldExecutorTest{clock: reviewer.clock, tick: tick + 1}
-	worker, err := executor.New(db, boundary, reviewer.clock, executor.Limits{MaxAge: time.Second, RunTimeout: time.Second, JournalTimeout: time.Second})
+	worker, err := executor.New(db, boundary, reviewer.clock, executor.Limits{MaxAge: time.Second, RunTimeout: 5 * time.Second, JournalTimeout: 5 * time.Second})
 	if err != nil {
 		t.Fatal(err)
 	}

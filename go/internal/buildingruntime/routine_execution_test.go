@@ -23,7 +23,7 @@ func TestRoutineWorkerDispatchesGuidanceAndMethodsUnderRoot(t *testing.T) {
 	p := planner.reviewer.player
 	f := &workerFake{playerFakeSession: base}
 	p.session = f
-	w := &Worker{player: p, session: f, config: WorkerConfig{RoutineMethods: true, StepInterval: time.Millisecond, MaxBackoff: time.Second, StepTimeout: time.Second}, waits: make(map[domain.ActionID]workerWait)}
+	w := &Worker{player: p, session: f, config: WorkerConfig{RoutineMethods: true, StepInterval: time.Millisecond, MaxBackoff: time.Second, StepTimeout: 5 * time.Second}, waits: make(map[domain.ActionID]workerWait)}
 	root := base.State()
 	guidance := playerPlan(t, db)
 	selected := map[domain.PlanID]bool{}

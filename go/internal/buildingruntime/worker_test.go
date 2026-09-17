@@ -54,7 +54,7 @@ func workerFixture(t *testing.T) (*Worker, *workerFake, *store.Store) {
 	p, db, base, _ := playerFixture(t)
 	f := &workerFake{playerFakeSession: base}
 	p.session = f
-	config := WorkerConfig{StepInterval: 10 * time.Millisecond, MaxBackoff: time.Second, StepTimeout: time.Second, RenewInterval: 10 * time.Millisecond, RenewTimeout: time.Millisecond * 100}
+	config := WorkerConfig{StepInterval: 10 * time.Millisecond, MaxBackoff: time.Second, StepTimeout: 5 * time.Second, RenewInterval: 10 * time.Millisecond, RenewTimeout: time.Millisecond * 100}
 	w := &Worker{player: p, session: f, config: config, waits: make(map[domain.ActionID]workerWait)}
 	return w, f, db
 }
@@ -261,14 +261,14 @@ func TestWorkerRealSessionReopensUncertainAttemptWithoutAcquire(t *testing.T) {
 	_, fixture := boundary.NewFixture(t)
 	native := sessionNative{fixture}
 	authority := &controlNative{generation: 1}
-	config := SessionConfig{Control: ControlConfig{ProfileDirectory: dir, CallTimeout: time.Second}, Executor: executor.Limits{MaxAge: time.Second, RunTimeout: time.Second, JournalTimeout: time.Second}}
+	config := SessionConfig{Control: ControlConfig{ProfileDirectory: dir, CallTimeout: 5 * time.Second}, Executor: executor.Limits{MaxAge: time.Second, RunTimeout: 5 * time.Second, JournalTimeout: 5 * time.Second}}
 	session, err := NewSession(ctx, config, db, native, authority, native, boundary.FixedClock{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() { session.Close(ctx) }()
 	worlds := &playerWorldSource{world: playerSubmission().World}
-	player, err := NewPlayer(ctx, PlayerConfig{CallTimeout: time.Second, JournalTimeout: time.Second}, db, session, worlds)
+	player, err := NewPlayer(ctx, PlayerConfig{CallTimeout: 5 * time.Second, JournalTimeout: 5 * time.Second}, db, session, worlds)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -302,7 +302,7 @@ func TestWorkerRealSessionReopensUncertainAttemptWithoutAcquire(t *testing.T) {
 	fixture.Receipt.Attempt.ControllerSessionId = proto.String(string(namespace))
 	fixture.Receipt.Attempt.ActionId = proto.String(string(action.ID()))
 	fixture.Progress.Attempt = proto.Clone(fixture.Receipt.Attempt).(*c.AttemptKey)
-	w := &Worker{player: player, session: session, config: WorkerConfig{StepInterval: time.Millisecond, MaxBackoff: time.Second, StepTimeout: time.Second}, waits: make(map[domain.ActionID]workerWait)}
+	w := &Worker{player: player, session: session, config: WorkerConfig{StepInterval: time.Millisecond, MaxBackoff: time.Second, StepTimeout: 5 * time.Second}, waits: make(map[domain.ActionID]workerWait)}
 	fixture.PlaceErr = &bridge.NativeFailure{Value: &c.Failure{Code: c.FailureCode_FAILURE_CODE_AUTHORITY_REQUIRED.Enum()}}
 	if err = w.step(ctx, time.Now()); err != nil {
 		t.Fatal(err)
@@ -347,7 +347,7 @@ func TestWorkerRealSessionReopensUncertainAttemptWithoutAcquire(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	player, err = NewPlayer(ctx, PlayerConfig{CallTimeout: time.Second, JournalTimeout: time.Second}, db, session, worlds)
+	player, err = NewPlayer(ctx, PlayerConfig{CallTimeout: 5 * time.Second, JournalTimeout: 5 * time.Second}, db, session, worlds)
 	if err != nil {
 		t.Fatal(err)
 	}

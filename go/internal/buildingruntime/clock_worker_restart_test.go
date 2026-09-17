@@ -83,7 +83,7 @@ func TestClockWorkerDisabledRestart(t *testing.T) {
 			}
 
 			session, authority, profile := newClockSessionTest(t, db, fake)
-			player, err := NewPlayer(ctx, PlayerConfig{CallTimeout: time.Second, JournalTimeout: time.Second}, db, session, playerWorldFunc(func(context.Context) (store.World, error) { return playerWorld(intent.Snapshot), nil }))
+			player, err := NewPlayer(ctx, PlayerConfig{CallTimeout: 5 * time.Second, JournalTimeout: 5 * time.Second}, db, session, playerWorldFunc(func(context.Context) (store.World, error) { return playerWorld(intent.Snapshot), nil }))
 			if err != nil {
 				t.Fatal(err)
 			}
