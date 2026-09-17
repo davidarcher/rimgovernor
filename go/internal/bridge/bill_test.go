@@ -344,13 +344,27 @@ func TestReadBillTarget(t *testing.T) {
 	fixture := productionFixture(t)
 	fixture.Planning = &o.PlanningSection{Outcome: &o.PlanningSection_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_REQUESTED.Enum()}}}
 	fixture.Cooking[0].Bench.Snapshot = &o.SnapshotRef{Context: proto.Clone(fixture.Context).(*c.ObservationContext), EntityId: proto.String("stove"), Token: proto.String("stove-token")}
-	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+	stacks := &o.BillsReply{Outcome: &o.BillsReply_Observed{Observed: &o.BillsSnapshot{Context: proto.Clone(fixture.Context).(*c.ObservationContext),
+		Benches: []*o.BillStack{{Snapshot: &o.SnapshotRef{Context: proto.Clone(fixture.Context).(*c.ObservationContext), EntityId: proto.String("spot"), Token: proto.String("spot-token")}, Bench: &o.EntityRef{Id: proto.String("spot")}}},
+		Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}}}}}
+	recipes := &o.RecipesReply{Outcome: &o.RecipesReply_Observed{Observed: &o.RecipesSnapshot{Context: proto.Clone(fixture.Context).(*c.ObservationContext), Snapshot: &o.SnapshotRef{EntityId: proto.String("spot")}, Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}}}}}
+	s := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+		switch arg.Tool {
+		case "rimgovernor/observations_read_bills":
+			return pbResult(stacks), nil
+		case "rimgovernor/observations_read_recipes":
+			return pbResult(recipes), nil
+		}
 		return pbResult(&o.ColonyFactsReply{Outcome: &o.ColonyFactsReply_Observed{Observed: fixture}}), nil
 	}}
 	client := testClient(t, s, time.Second)
 	read, _, err := client.ReadBillTarget(context.Background(), fixture.Context.Identity, "stove")
 	if err != nil || read.Token != "stove-token" {
 		t.Fatal("bench token lost", read, err)
+	}
+	// A bench outside the cooking/butchering rows resolves through the generic stack census.
+	if read, _, err = client.ReadBillTarget(context.Background(), fixture.Context.Identity, "spot"); err != nil || read.Token != "spot-token" {
+		t.Fatal("generic bench token lost", read, err)
 	}
 	if _, _, err = client.ReadBillTarget(context.Background(), fixture.Context.Identity, "missing"); !errors.Is(err, ErrUnavailable) {
 		t.Fatal("unknown bench treated as found", err)

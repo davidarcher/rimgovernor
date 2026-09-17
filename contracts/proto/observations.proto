@@ -194,7 +194,7 @@ message StockFilter { repeated string def_names = 1; optional string category = 
 message SuppliesSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated ResourceStock stocks = 2; Completeness completeness = 3; }
 message ListSuppliesRequest { ReadScope scope = 1; StockFilter filter = 2; rimgovernor.common.v1.PageRequest page = 3; }
 message ListSuppliesReply { oneof outcome { SuppliesSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
-message IngredientRequirement { repeated string allowed_def_names = 1; optional double required = 2; optional double available = 3; optional double missing = 4; optional bool complete = 5; repeated ReadIssue issues = 6; }
+message IngredientRequirement { repeated string allowed_def_names = 1; optional double required = 2; optional double available = 3; optional double missing = 4; optional bool complete = 5; repeated ReadIssue issues = 6; repeated Quantity alternatives = 7; } // alternatives: required units per allowed definition when the count depends on the material chosen.
 message FilterSpecialRule { optional string def_name = 1; optional bool allowed = 2; }
 message StockpileFilter {
   repeated string allowed_def_names = 1; repeated FilterSpecialRule special_rules = 2;
@@ -210,7 +210,12 @@ message BillState {
   optional bool can_run_now = 20; repeated string blockers = 21; repeated IngredientRequirement ingredients = 22; repeated ReadIssue issues = 23;
 }
 message BillStack { SnapshotRef snapshot = 1; EntityRef bench = 2; optional bool usable = 3; optional string unusable_reason = 4; optional uint32 capacity = 5; repeated BillState bills = 6; Completeness completeness = 7; }
-message RecipeState { DefinitionRef recipe = 1; optional bool available_now = 2; optional bool available_on_bench = 3; optional double work_amount = 4; optional string work_skill = 5; repeated SkillRequirement skills = 6; repeated IngredientRequirement ingredients = 7; repeated Quantity products = 8; StockpileFilter default_filter = 9; }
+message RecipeState {
+  DefinitionRef recipe = 1; optional bool available_now = 2; optional bool available_on_bench = 3; optional double work_amount = 4; optional string work_skill = 5;
+  repeated SkillRequirement skills = 6; repeated IngredientRequirement ingredients = 7; repeated Quantity products = 8; StockpileFilter default_filter = 9;
+  optional string work_type = 10; // WorkTypeDef whose DoBill giver serves the recipe's bench; the type a worker must enable.
+  repeated string bench_defs = 11; // Player-buildable bench definitions hosting the recipe (catalog reads without bench_id).
+}
 message BuildingSettings {
   SnapshotRef snapshot = 1; optional bool forbidden = 2; optional bool flickable = 3; optional bool desired_switch_on = 4;
   optional bool switch_on = 5; optional bool flick_designated = 6; optional bool connected = 7; optional bool powered = 8;
@@ -446,7 +451,7 @@ message BillsSnapshot { rimgovernor.common.v1.ObservationContext context = 1; re
 message BillsRequest { ReadScope scope = 1; optional string bench_id = 2; optional bool all_factions = 3; rimgovernor.common.v1.PageRequest page = 4; }
 message BillsReply { oneof outcome { BillsSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message RecipesSnapshot { rimgovernor.common.v1.ObservationContext context = 1; SnapshotRef snapshot = 2; repeated RecipeState recipes = 3; Completeness completeness = 4; }
-message RecipesRequest { ReadScope scope = 1; optional string bench_id = 2; rimgovernor.common.v1.PageRequest page = 3; }
+message RecipesRequest { ReadScope scope = 1; optional string bench_id = 2; rimgovernor.common.v1.PageRequest page = 3; optional string product_def = 4; } // No bench_id: definition catalog, optionally narrowed to recipes producing product_def.
 message RecipesReply { oneof outcome { RecipesSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message BuildingSettingsRequest { ReadScope scope = 1; optional string thing_id = 2; }
 message BuildingSettingsReply { oneof outcome { BuildingSettings observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
@@ -511,7 +516,7 @@ message DevelopmentFacts { repeated DevelopmentPower power = 1; repeated Develop
 message EnvironmentCondition { optional string id = 1; optional string def_name = 2; optional string implementation = 3; optional string label = 4; optional bool permanent = 5; optional int64 ticks_left = 6; }
 message FoodClimate { optional double growing_days = 1; optional double growing_days_remaining = 2; repeated ReadIssue issues = 3; optional bool sowing_now = 4; }
 message FarmFacts { optional string zone_id = 1; optional string crop = 2; optional uint32 usable_cells = 3; optional uint32 planted_cells = 4; optional uint32 growing_cells = 5; optional bool edible_crop = 6; optional double harvest_lower_bound_days = 7; optional double nutrition_per_harvest_cell = 8; optional bool sowing_now = 9; }
-message PlanningDefinition { DefinitionRef definition = 1; optional string stuff = 2; optional bool available = 3; repeated string research_prerequisites = 4; optional int32 construction_skill = 5; MapSize size = 6; repeated Quantity costs = 7; optional double rest_effectiveness = 8; optional double grow_days = 9; optional double fertility_min = 10; optional double fertility_sensitivity = 11; optional double harvest_nutrition = 12; optional double nutrition_demand_per_day = 13; optional bool edible = 14; repeated ReadIssue issues = 15; repeated string sow_tags = 16; optional double grow_min_glow = 17; optional double power_w = 18; /* native base draw: positive consumes, negative generates */ optional double grower_fertility = 19; optional string sow_tag = 20; optional double glow_radius = 21; }
+message PlanningDefinition { DefinitionRef definition = 1; optional string stuff = 2; optional bool available = 3; repeated string research_prerequisites = 4; optional int32 construction_skill = 5; MapSize size = 6; repeated Quantity costs = 7; optional double rest_effectiveness = 8; optional double grow_days = 9; optional double fertility_min = 10; optional double fertility_sensitivity = 11; optional double harvest_nutrition = 12; optional double nutrition_demand_per_day = 13; optional bool edible = 14; repeated ReadIssue issues = 15; repeated string sow_tags = 16; optional double grow_min_glow = 17; optional double power_w = 18; /* native base draw: positive consumes, negative generates */ optional double grower_fertility = 19; optional string sow_tag = 20; optional double glow_radius = 21; optional bool needs_power = 22; }
 // Controlled-environment growing facts within the planning region: sun lamps
 // with the exact cells they grow, plant growers (hydroponics) with their
 // fertility and sow tag, roofed rooms with temperature, and per-network

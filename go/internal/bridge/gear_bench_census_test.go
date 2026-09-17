@@ -37,6 +37,8 @@ func TestReadGearBenchesAssemblesCensusAcrossBillsAndRecipes(t *testing.T) {
 			AvailableNow:     proto.Bool(true),
 			AvailableOnBench: proto.Bool(true),
 			Products:         []*o.Quantity{{DefName: proto.String("Parka")}},
+			WorkSkill:        proto.String("Crafting"),
+			WorkType:         proto.String("Tailoring"),
 			Skills:           []*o.SkillRequirement{{DefName: proto.String("Crafting"), Minimum: proto.Int32(4)}},
 			Ingredients:      []*o.IngredientRequirement{{AllowedDefNames: []string{"Synthread"}, Required: proto.Float64(4), Complete: proto.Bool(true)}},
 		}},
@@ -82,7 +84,7 @@ func TestReadGearBenchesAssemblesCensusAcrossBillsAndRecipes(t *testing.T) {
 		t.Fatal(slots)
 	}
 	work, known := recipeList[0].RequiredWork.Value()
-	if !known || len(work) != 1 || work[0].Skill != "Crafting" || work[0].Minimum != 4 {
+	if !known || len(work) != 1 || work[0].Work != "Tailoring" || work[0].Skill != "Crafting" || work[0].Minimum != 4 {
 		t.Fatal(work)
 	}
 	billList, known := census[0].Bench.Bills.Value()
@@ -130,5 +132,57 @@ func TestReadSupplyStockRejectsInvalidInput(t *testing.T) {
 	}
 	if out, _, err := client.ReadSupplyStock(context.Background(), pbIdentity(), nil); err != nil || out != nil {
 		t.Fatal(out, err)
+	}
+}
+
+func TestReadRecipeCatalogListsHostingBenchDefinitions(t *testing.T) {
+	catalog := &o.RecipesReply{Outcome: &o.RecipesReply_Observed{Observed: &o.RecipesSnapshot{
+		Context:  gearBenchContext(),
+		Snapshot: &o.SnapshotRef{Context: gearBenchContext()},
+		Recipes: []*o.RecipeState{{
+			Recipe:       &o.DefinitionRef{DefName: proto.String("Make_MeleeWeapon_Club")},
+			AvailableNow: proto.Bool(true),
+			Products:     []*o.Quantity{{DefName: proto.String("MeleeWeapon_Club"), Units: proto.Int64(1)}},
+			WorkSkill:    proto.String("Crafting"),
+			WorkType:     proto.String("Crafting"),
+			BenchDefs:    []string{"CraftingSpot"},
+			Ingredients: []*o.IngredientRequirement{{AllowedDefNames: []string{"WoodLog"}, Required: proto.Float64(40), Complete: proto.Bool(true),
+				Alternatives: []*o.Quantity{{DefName: proto.String("WoodLog"), Units: proto.Int64(40)}}}},
+		}},
+		Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}},
+	}}}
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+		var outer struct {
+			Request string `json:"request"`
+		}
+		if err := json.Unmarshal(arg.Arguments, &outer); err != nil {
+			t.Fatal(err)
+		}
+		if arg.Tool != "rimgovernor/observations_read_recipes" {
+			t.Fatal(arg.Tool)
+		}
+		q := &o.RecipesRequest{}
+		if err := protojson.Unmarshal([]byte(outer.Request), q); err != nil {
+			t.Fatal(err)
+		}
+		if q.BenchId != nil || q.GetProductDef() != "MeleeWeapon_Club" {
+			t.Fatal("unexpected catalog request", q)
+		}
+		return pbResult(catalog), nil
+	}}, time.Second)
+	hosts, _, err := client.ReadRecipeCatalog(context.Background(), pbIdentity(), "MeleeWeapon_Club")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hosts) != 1 || hosts[0].Definition != "Make_MeleeWeapon_Club" || !hosts[0].Available || len(hosts[0].Benches) != 1 || hosts[0].Benches[0] != "CraftingSpot" || len(hosts[0].Products) != 1 || hosts[0].Products[0] != "MeleeWeapon_Club" {
+		t.Fatal(hosts)
+	}
+	work, known := hosts[0].RequiredWork.Value()
+	if !known || len(work) != 1 || work[0].Work != "Crafting" {
+		t.Fatal(work)
+	}
+	slots, known := hosts[0].Ingredients.Value()
+	if !known || len(slots) != 1 || slots[0][0].Count != 40 {
+		t.Fatal(slots)
 	}
 }

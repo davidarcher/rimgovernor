@@ -324,6 +324,7 @@ namespace HomeBridge.BridgeTools
                 row.Available = def.researchPrerequisites == null || def.researchPrerequisites.All(r => r.IsFinished);
                 row.ResearchPrerequisites.Add((def.researchPrerequisites ?? new List<ResearchProjectDef>()).Select(r => r.defName));
                 row.ConstructionSkill = def.constructionSkillPrerequisite;
+                row.NeedsPower = def.GetCompProperties<CompProperties_Power>()?.PowerConsumption > 0;
                 row.Size = new Obs.MapSize { Width = (uint)def.size.x, Height = (uint)def.size.z };
                 var wood = DefDatabase<ThingDef>.GetNamedSilentFail("WoodLog");
                 var stuff = def.MadeFromStuff ? wood : null;

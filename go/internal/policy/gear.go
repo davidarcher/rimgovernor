@@ -140,6 +140,20 @@ type GearBench struct {
 	Bills   domain.Fact[[]GearBill]
 	Recipes domain.Fact[[]GearRecipe]
 }
+
+// RecipeHost is one native recipe definition with the player-buildable
+// bench definitions that host it, read before any such bench exists so a
+// workshop project can choose which bench to stage. Available is the
+// recipe's own research gate; the bench definitions' own availability is
+// judged against the planning census separately.
+type RecipeHost struct {
+	Definition   string
+	Products     []Resource
+	Available    bool
+	Benches      []string
+	Ingredients  domain.Fact[[][]Amount]
+	RequiredWork domain.Fact[[]WorkRequirement]
+}
 type GearPlanningRequest struct {
 	Observation domain.Fact[GearObservation]
 	Seen        []domain.MethodID

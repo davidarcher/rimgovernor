@@ -48,6 +48,19 @@ func (client *Client) ReadBillTarget(ctx context.Context, identity *c.Identity, 
 			token = row.Bench.GetSnapshot().GetToken()
 		}
 	}
+	if token == "" {
+		// Any other bill giver (a crafting spot, a stonecutter) lives only in the
+		// generic bill-stack census, whose token is the same whole-stack hash.
+		census, censusRaw, err := client.ReadGearBenches(ctx, identity)
+		if err != nil {
+			return BillRead{}, censusRaw, err
+		}
+		for _, row := range census {
+			if row.Bench.ID == bench {
+				token = row.Token
+			}
+		}
+	}
 	if validID(token) != nil {
 		return BillRead{}, raw, ErrUnavailable
 	}

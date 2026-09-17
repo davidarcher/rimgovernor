@@ -26,11 +26,10 @@ namespace HomeBridge.BridgeTools {
   });
   internal static Obs.SnapshotRef Snapshot(Thing bench,IBillGiver giver,Common.ObservationContext context)=>new Obs.SnapshotRef{Context=context.Clone(),EntityId=bench.GetUniqueLoadID(),Token=Hash(w=>{w.Write(context.Identity.ColonyId);w.Write(context.Identity.LoadToken);w.Write(context.Identity.MapId);w.Write(bench.GetUniqueLoadID());w.Write(giver.BillStack.Count);if(giver.BillStack.Count>15)throw new InvalidOperationException("Bill stack bound");foreach(var b in giver.BillStack.Bills){w.Write(Configuration(b));w.Write(b is Bill_Production p&&p.paused);}})};
   internal static bool Usable(Thing bench)=>bench.Spawned&&ProtoBoundary.IsLoaded(bench.Map)&&bench.Faction==Faction.OfPlayer&&!bench.IsForbidden(Faction.OfPlayer)&&!bench.Position.Fogged(bench.Map)&&!bench.IsBurning()&&bench is IBillGiver g&&g.CurrentlyUsableForBills();
-  internal static bool Food(ThingDef d)=>d!=null&&d.IsNutritionGivingIngestible&&!d.IsDrug&&d.ingestible!=null&&(d.ingestible.foodType&(FoodTypeFlags.Corpse|FoodTypeFlags.Kibble))==0;
-  // Kibble is the animal feed UpkeepFacts counts; it is billable and tracked as a product though it is not human food.
-  internal static bool Feed(ThingDef d)=>d!=null&&d.IsNutritionGivingIngestible&&!d.IsDrug&&d.ingestible!=null&&(d.ingestible.foodType&FoodTypeFlags.Corpse)==0&&(d.ingestible.foodType&FoodTypeFlags.Kibble)!=0;
-  internal static bool Product(ThingDef d)=>Food(d)||Feed(d);
+  // Ordinary production: every product is a spawnable item (food, kibble,
+  // blocks, weapons, apparel alike); corpse butchering keeps its special case.
   internal static bool Recipe(Thing bench,RecipeDef recipe)=>recipe.AvailableNow&&recipe.AvailableOnNow(bench)&&bench.def.AllRecipes.Contains(recipe)&&(recipe.defName=="ButcherCorpseFlesh"||recipe.products.Count>0&&recipe.products.All(p=>Product(p.thingDef)));
+  internal static bool Product(ThingDef d)=>d!=null&&d.category==ThingCategory.Item&&!d.IsCorpse;
   internal static Obs.BillState BillRow(Bill bill,int index){
    var row=new Obs.BillState{Id=bill.GetUniqueLoadID(),Index=(uint)index,Recipe=new Obs.DefinitionRef{DefName=bill.recipe.defName},Suspended=bill.suspended};
    if(bill is Bill_Production p){row.RepeatMode=p.repeatMode.defName;row.RepeatCount=p.repeatCount;row.TargetCount=p.targetCount;row.UnpauseBelow=p.unpauseWhenYouHave;row.PauseWhenSatisfied=p.pauseWhenSatisfied;row.Paused=p.paused;row.Finished=BillCommon.IsFinished(p);}
@@ -51,8 +50,8 @@ namespace HomeBridge.BridgeTools {
    if(bench==null||giver==null||!Usable(bench)||giver.BillStack.Count>=15||Snapshot(bench,giver,context).Token!=command.Bench.ExpectedSnapshotToken||giver.BillStack.Bills.Any(b=>b.recipe.defName==command.RecipeDef))return false;
    recipe=DefDatabase<RecipeDef>.GetNamedSilentFail(command.RecipeDef);if(recipe==null||!Recipe(bench,recipe))return false;
    if(command.RecipeDef!="ButcherCorpseFlesh"&&(recipe.WorkerCounter.GetType()!=typeof(RecipeWorkerCounter)||recipe.specialProducts!=null||recipe.products.Count!=1))return false;
-   var target=bench;var wanted=recipe;var cooking=DefDatabase<WorkTypeDef>.GetNamedSilentFail("Cooking");
-   return cooking!=null&&ProtoBoundary.LoadedMap(context).mapPawns.FreeColonistsSpawned.Any(p=>!p.Dead&&!p.Downed&&!p.Drafted&&!p.InMentalState&&p.workSettings?.Initialized==true&&p.workSettings.GetPriority(cooking)>0&&!p.WorkTypeIsDisabled(cooking)&&!target.IsForbidden(p)&&p.Position.DistanceTo(target.Position)<=40&&p.CanReach(target,PathEndMode.InteractionCell,Danger.None)&&(wanted.skillRequirements==null||wanted.skillRequirements.All(s=>p.skills?.GetSkill(s.skill)!=null&&!p.skills.GetSkill(s.skill).TotallyDisabled&&p.skills.GetSkill(s.skill).Level>=s.minLevel)));
+   var target=bench;var wanted=recipe;var work=NativeBillObservationTools.WorkType(bench.def,recipe);
+   return work!=null&&ProtoBoundary.LoadedMap(context).mapPawns.FreeColonistsSpawned.Any(p=>!p.Dead&&!p.Downed&&!p.Drafted&&!p.InMentalState&&p.workSettings?.Initialized==true&&p.workSettings.GetPriority(work)>0&&!p.WorkTypeIsDisabled(work)&&!target.IsForbidden(p)&&p.Position.DistanceTo(target.Position)<=40&&p.CanReach(target,PathEndMode.InteractionCell,Danger.None)&&(wanted.skillRequirements==null||wanted.skillRequirements.All(s=>p.skills?.GetSkill(s.skill)!=null&&!p.skills.GetSkill(s.skill).TotallyDisabled&&p.skills.GetSkill(s.skill).Level>=s.minLevel)));
   }
   internal static Operations.PreviewReply Preview(Operations.AddBill command,Common.ObservationContext context)=>Prepare(command,context,out _,out _,out _,out var failure)?new Operations.PreviewReply{Evaluated=new Operations.PreviewEvaluation{Context=context.Clone(),Accepted=true}}:new Operations.PreviewReply{Failure=failure};
   internal static Operations.ExecuteReply Execute(NativeOperationState state,Operations.ExecuteRequest request,Common.ObservationContext context){

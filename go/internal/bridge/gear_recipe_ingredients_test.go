@@ -104,3 +104,21 @@ func TestGearRecipeIngredientsOneUnknownSlotPoisonsWholeRecipe(t *testing.T) {
 		t.Fatalf("expected the whole recipe to be unknown when any one slot is unknown")
 	}
 }
+
+func TestGearRecipeIngredientsAlternativesPerMaterial(t *testing.T) {
+	rows := []*o.IngredientRequirement{
+		{AllowedDefNames: []string{"WoodLog", "Steel"}, Required: proto.Float64(40), Complete: proto.Bool(true),
+			Alternatives: []*o.Quantity{{DefName: proto.String("WoodLog"), Units: proto.Int64(40)}, {DefName: proto.String("Steel"), Units: proto.Int64(40)}}},
+	}
+	got, known := GearRecipeIngredients(rows).Value()
+	if !known || len(got) != 1 || len(got[0]) != 2 || got[0][0] != (policy.Amount{Resource: "WoodLog", Count: 40}) || got[0][1] != (policy.Amount{Resource: "Steel", Count: 40}) {
+		t.Fatalf("got %v", got)
+	}
+	bad := []*o.IngredientRequirement{
+		{AllowedDefNames: []string{"WoodLog"}, Required: proto.Float64(40), Complete: proto.Bool(true),
+			Alternatives: []*o.Quantity{{DefName: proto.String("Steel"), Units: proto.Int64(40)}}},
+	}
+	if _, known := GearRecipeIngredients(bad).Value(); known {
+		t.Fatalf("expected unknown for an alternative outside the allowed definitions")
+	}
+}

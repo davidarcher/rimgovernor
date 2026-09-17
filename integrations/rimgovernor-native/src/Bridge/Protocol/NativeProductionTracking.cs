@@ -28,9 +28,9 @@ namespace HomeBridge.BridgeTools {
    if(!value.Present){result.CompleteInspection=false;result.Unknown=new Receipts.UnknownEffect{Reason="Original bill unavailable."};}
    else if(!value.ConfigurationMatches)result.Unsuccessful=new Receipts.UnsuccessfulEffect{Reason=Receipts.UnsuccessfulReason.OutcomeNotAchieved,Evidence=evidence,Detail="Original bill configuration changed."};
    else if(value.Iterations>0&&value.OutputComplete&&value.OutputObserved)result.Completed=new Receipts.CompletedEffect{Evidence=evidence};
-   else if(value.Iterations>0&&value.OutputComplete&&value.Outputs.Count==0)result.Unsuccessful=new Receipts.UnsuccessfulEffect{Reason=Receipts.UnsuccessfulReason.OutcomeNotAchieved,Evidence=evidence,Detail="Ordinary bill iteration produced no food."};
+   else if(value.Iterations>0&&value.OutputComplete&&value.Outputs.Count==0)result.Unsuccessful=new Receipts.UnsuccessfulEffect{Reason=Receipts.UnsuccessfulReason.OutcomeNotAchieved,Evidence=evidence,Detail="Ordinary bill iteration produced no item."};
    else if(value.Iterations==0)result.Pending=new Receipts.PendingEffect{Evidence=evidence};
-   else {result.CompleteInspection=false;result.Unknown=new Receipts.UnknownEffect{Reason="Produced food requires complete placement observation."};}
+   else {result.CompleteInspection=false;result.Unknown=new Receipts.UnknownEffect{Reason="Produced items require complete placement observation."};}
    return result;
   }
  }

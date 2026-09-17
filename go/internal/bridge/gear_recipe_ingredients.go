@@ -53,6 +53,9 @@ func gearIngredientSlot(row *o.IngredientRequirement) ([]policy.Amount, bool) {
 	if row == nil || !row.GetComplete() || row.Required == nil {
 		return nil, false
 	}
+	if len(row.Alternatives) > 0 {
+		return gearIngredientAlternatives(row)
+	}
 	names := row.GetAllowedDefNames()
 	if len(names) == 0 || len(names) > 256 {
 		return nil, false
@@ -72,4 +75,29 @@ func gearIngredientSlot(row *o.IngredientRequirement) ([]policy.Amount, bool) {
 		slot = append(slot, policy.Amount{Resource: policy.Resource(name), Count: count})
 	}
 	return slot, true
+}
+
+// gearIngredientAlternatives maps a slot whose native read resolved the
+// required count per allowed material (RecipeState.ingredients[].alternatives,
+// the per-material CountRequiredOfFor the doc comment above describes as
+// otherwise unrecoverable) into one alternative per material. Every listed
+// alternative must be a whole positive count over an allowed definition.
+func gearIngredientAlternatives(row *o.IngredientRequirement) ([]policy.Amount, bool) {
+	if len(row.Alternatives) > 256 {
+		return nil, false
+	}
+	allowed := map[string]bool{}
+	for _, name := range row.GetAllowedDefNames() {
+		allowed[name] = true
+	}
+	seen := map[string]bool{}
+	out := make([]policy.Amount, 0, len(row.Alternatives))
+	for _, q := range row.Alternatives {
+		if q == nil || q.Units == nil || q.GetUnits() <= 0 || validID(q.GetDefName()) != nil || !allowed[q.GetDefName()] || seen[q.GetDefName()] {
+			return nil, false
+		}
+		seen[q.GetDefName()] = true
+		out = append(out, policy.Amount{Resource: policy.Resource(q.GetDefName()), Count: q.GetUnits()})
+	}
+	return out, true
 }

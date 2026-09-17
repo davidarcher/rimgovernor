@@ -15,6 +15,7 @@ type PlanningDefinition struct {
 	Stuff                                                                                 domain.Fact[string]
 	Available                                                                             domain.Fact[bool]
 	ConstructionSkill                                                                     domain.Fact[int32]
+	NeedsPower                                                                            domain.Fact[bool]
 	Costs                                                                                 domain.Fact[[]policy.Amount]
 	Size                                                                                  domain.Fact[policy.Bounds]
 	GrowDays, FertilityMin, FertilitySensitivity, HarvestNutrition, NutritionDemandPerDay domain.Fact[float64]
@@ -319,7 +320,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 			r.ZoneMapToken = domain.Known(planning.ZoneMapSnapshot.GetToken())
 		}
 		for _, row := range planning.Definitions {
-			d := PlanningDefinition{Edible: optional(row.Edible), Name: row.Definition.GetDefName(), Stuff: optional(row.Stuff), Available: optional(row.Available), ConstructionSkill: optional(row.ConstructionSkill), GrowDays: optional(row.GrowDays), FertilityMin: optional(row.FertilityMin), FertilitySensitivity: optional(row.FertilitySensitivity), HarvestNutrition: optional(row.HarvestNutrition), NutritionDemandPerDay: optional(row.NutritionDemandPerDay), GrowMinGlow: optional(row.GrowMinGlow), PowerW: optional(row.PowerW), GrowerFertility: optional(row.GrowerFertility), GlowRadius: optional(row.GlowRadius), SowTag: optional(row.SowTag)}
+			d := PlanningDefinition{Edible: optional(row.Edible), Name: row.Definition.GetDefName(), Stuff: optional(row.Stuff), Available: optional(row.Available), ConstructionSkill: optional(row.ConstructionSkill), NeedsPower: optional(row.NeedsPower), GrowDays: optional(row.GrowDays), FertilityMin: optional(row.FertilityMin), FertilitySensitivity: optional(row.FertilitySensitivity), HarvestNutrition: optional(row.HarvestNutrition), NutritionDemandPerDay: optional(row.NutritionDemandPerDay), GrowMinGlow: optional(row.GrowMinGlow), PowerW: optional(row.PowerW), GrowerFertility: optional(row.GrowerFertility), GlowRadius: optional(row.GlowRadius), SowTag: optional(row.SowTag)}
 			if row.GrowDays != nil {
 				d.SowTags = domain.Known(append([]string{}, row.SowTags...))
 			}
