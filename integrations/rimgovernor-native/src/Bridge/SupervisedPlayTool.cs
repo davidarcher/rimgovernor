@@ -924,6 +924,7 @@ namespace HomeBridge.BridgeTools
             RestoreBoost(s);
             s.StopAtMs = NowMs();
             s.Active = false; s.StopReason = kind; s.StopDetail = detail; Add(kind, detail, s, payload);
+            if (kind == "lease_expired") RevokeDisconnected(s);
         }
         private static void RestoreBoost(State s)
         {

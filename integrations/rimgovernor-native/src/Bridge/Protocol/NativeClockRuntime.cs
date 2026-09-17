@@ -53,6 +53,20 @@ namespace HomeBridge.BridgeTools
             Stop(s, kind, "Authorizing native authority stopped: " + reason + "; " + result.Error, true, null);
             return true;
         }
+        // A typed epoch's lease lapsing is the only native-observable sign that
+        // the bot process is gone: it renews every live epoch well inside the
+        // lease, so silence past it means a crash, hang or dropped transport.
+        // Authority follows the clock down as Disconnect, so a reconnecting or
+        // restarted controller observes Inactive and grants Auto afresh instead
+        // of finding an Auto it cannot prove it owns. Legacy (untyped) epochs
+        // carry no authority precondition and are left alone.
+        private static void RevokeDisconnected(State s)
+        {
+            if (s.Typed == null || !ReferenceEquals(Current.Game, s.Session)) return;
+            NativeControlAuthority authority;
+            if (NativeControlAuthority.TryGetForGame(Current.Game, out authority) && authority != null)
+                authority.RevokeExternal(NativeControlRevocationReason.Disconnect);
+        }
         private static void CaptureTypedContext(State s)
         {
             if (s.Typed == null) return;
