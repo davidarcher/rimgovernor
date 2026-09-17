@@ -110,9 +110,16 @@ viewer leases; headless sessions cannot supply video.
 
 ## Frame-bound transport
 
-The dashboard leases capture (`POST /api/presentation/video-lease`), mints a
-short-lived single-use ticket and opens the same-origin
-`/api/presentation/video-stream` WebSocket. Each binary message is a 34-byte
+The dashboard leases capture (`POST /api/presentation/video-lease` with a
+`source` of `screen`, `pawn` + `pawnId` or `map`, plus optional size and frame
+rate; the reply echoes the resolved `source` and its `sourceId`), mints a
+short-lived single-use ticket bound to that `sourceId`
+(`POST /api/presentation/video-stream/ticket`, `{sourceId}`; absent means the
+screen) and opens the same-origin `/api/presentation/video-stream` WebSocket.
+One socket carries one source, so each dashboard tile (colony camera, a
+colonist feed, the map overview) owns its own lease, ticket and socket and
+stops only its own source (`leaseSeconds: 0` with `sourceId`; without it, every
+source ends). Each binary message is a 34-byte
 header (sequence, width, height, encoding, capture method, capture time,
 readback cost; little-endian) followed by raw pixels; the client drops stale or
 duplicate sequences and paints the latest frame.

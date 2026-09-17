@@ -30,22 +30,87 @@ const videoTicketWindow = 5 * time.Second
 // duplicate/stale frames), not maximum achievable throughput.
 const defaultVideoPollInterval = 40 * time.Millisecond
 
+// VideoSourceDTO names what a lease captures: the presented screen (the
+// default), a colonist followed by a second camera, or the whole map.
+type VideoSourceDTO struct {
+	Kind            string  `json:"kind"`
+	PawnID          string  `json:"pawnId,omitempty"`
+	Width           uint32  `json:"width,omitempty"`
+	Height          uint32  `json:"height,omitempty"`
+	FramesPerSecond float64 `json:"framesPerSecond,omitempty"`
+}
 type videoLeaseRequestDTO struct {
-	LeaseSeconds *uint32 `json:"leaseSeconds"`
+	LeaseSeconds *uint32         `json:"leaseSeconds"`
+	Source       *VideoSourceDTO `json:"source,omitempty"`
+	// SourceID selects the source a stop (leaseSeconds 0) ends; absent stops all.
+	SourceID string `json:"sourceId,omitempty"`
 }
 type VideoStateDTO struct {
-	Supported        bool    `json:"supported"`
-	Active           bool    `json:"active"`
-	SourceID         string  `json:"sourceId"`
-	RemainingLeaseMs uint32  `json:"remainingLeaseMs"`
-	CapturedFrames   uint64  `json:"capturedFrames"`
-	FramesPerSecond  float64 `json:"framesPerSecond"`
-	PixelFormat      string  `json:"pixelFormat"`
-	CaptureMethod    string  `json:"captureMethod"`
+	Supported        bool           `json:"supported"`
+	Active           bool           `json:"active"`
+	SourceID         string         `json:"sourceId"`
+	Source           VideoSourceDTO `json:"source"`
+	RemainingLeaseMs uint32         `json:"remainingLeaseMs"`
+	CapturedFrames   uint64         `json:"capturedFrames"`
+	FramesPerSecond  float64        `json:"framesPerSecond"`
+	PixelFormat      string         `json:"pixelFormat"`
+	CaptureMethod    string         `json:"captureMethod"`
+}
+type videoTicketRequestDTO struct {
+	// SourceID binds the ticket's stream to one leased source; absent means
+	// the screen.
+	SourceID string `json:"sourceId,omitempty"`
 }
 type videoTicketDTO struct {
 	Ticket    string `json:"ticket"`
 	ExpiresMs int64  `json:"expiresMs"`
+}
+type videoTicket struct {
+	expiry   time.Time
+	sourceID string
+}
+
+var videoSourceKinds = map[string]p.VideoSourceKind{
+	"screen": p.VideoSourceKind_VIDEO_SOURCE_KIND_SCREEN,
+	"pawn":   p.VideoSourceKind_VIDEO_SOURCE_KIND_PAWN,
+	"map":    p.VideoSourceKind_VIDEO_SOURCE_KIND_MAP,
+}
+
+func videoSourceWire(dto *VideoSourceDTO) (*p.VideoSource, bool) {
+	if dto == nil {
+		return nil, true
+	}
+	kind, ok := videoSourceKinds[dto.Kind]
+	if !ok || (kind == p.VideoSourceKind_VIDEO_SOURCE_KIND_PAWN) != (dto.PawnID != "") || len(dto.PawnID) > 256 {
+		return nil, false
+	}
+	if dto.Width > 3840 || dto.Height > 2160 || dto.FramesPerSecond < 0 || dto.FramesPerSecond > 60 {
+		return nil, false
+	}
+	source := &p.VideoSource{Kind: kind.Enum()}
+	if dto.PawnID != "" {
+		source.PawnId = proto.String(dto.PawnID)
+	}
+	if dto.Width > 0 {
+		source.Width = proto.Uint32(dto.Width)
+	}
+	if dto.Height > 0 {
+		source.Height = proto.Uint32(dto.Height)
+	}
+	if dto.FramesPerSecond > 0 {
+		source.FramesPerSecond = proto.Float64(dto.FramesPerSecond)
+	}
+	return source, true
+}
+
+func videoSourceDTO(source *p.VideoSource) VideoSourceDTO {
+	dto := VideoSourceDTO{Kind: "screen", PawnID: source.GetPawnId(), Width: source.GetWidth(), Height: source.GetHeight(), FramesPerSecond: source.GetFramesPerSecond()}
+	for name, kind := range videoSourceKinds {
+		if kind == source.GetKind() {
+			dto.Kind = name
+		}
+	}
+	return dto
 }
 
 func (s *Server) handleVideoStream(w http.ResponseWriter, r *http.Request) bool {
@@ -99,8 +164,13 @@ func (s *Server) handleVideoLease(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body videoLeaseRequestDTO
-	if err := decodeMediaBody(r, &body); err != nil || body.LeaseSeconds == nil || *body.LeaseSeconds > 15 {
+	if err := decodeMediaBody(r, &body); err != nil || body.LeaseSeconds == nil || *body.LeaseSeconds > 15 || len(body.SourceID) > 256 {
 		s.failure(w, r, 400, "invalid_request", "leaseSeconds (0-15) is required")
+		return
+	}
+	source, ok := videoSourceWire(body.Source)
+	if !ok {
+		s.failure(w, r, 400, "invalid_request", "source must be screen, pawn (with pawnId) or map, with a bounded size and frame rate")
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), s.config.ReadTimeout)
@@ -114,9 +184,13 @@ func (s *Server) handleVideoLease(w http.ResponseWriter, r *http.Request) {
 	viewer := &p.PlayerIdentity{Identity: wire}
 	var request *p.VideoLeaseRequest
 	if *body.LeaseSeconds > 0 {
-		request = &p.VideoLeaseRequest{Operation: &p.VideoLeaseRequest_Start{Start: &p.VideoStart{Viewer: viewer, LeaseSeconds: proto.Uint32(*body.LeaseSeconds)}}}
+		request = &p.VideoLeaseRequest{Operation: &p.VideoLeaseRequest_Start{Start: &p.VideoStart{Viewer: viewer, LeaseSeconds: proto.Uint32(*body.LeaseSeconds), Source: source}}}
 	} else {
-		request = &p.VideoLeaseRequest{Operation: &p.VideoLeaseRequest_Stop{Stop: &p.VideoStop{Viewer: viewer}}}
+		stop := &p.VideoStop{Viewer: viewer}
+		if body.SourceID != "" {
+			stop.SourceId = proto.String(body.SourceID)
+		}
+		request = &p.VideoLeaseRequest{Operation: &p.VideoLeaseRequest_Stop{Stop: stop}}
 	}
 	reply, _, err := s.config.PresentationMedia.LeaseVideo(ctx, request)
 	if err == nil {
@@ -128,7 +202,7 @@ func (s *Server) handleVideoLease(w http.ResponseWriter, r *http.Request) {
 	}
 	state := reply.GetState()
 	s.write(w, r, 200, VideoStateDTO{
-		Supported: state.GetSupported(), Active: state.GetActive(), SourceID: state.GetSourceId(),
+		Supported: state.GetSupported(), Active: state.GetActive(), SourceID: state.GetSourceId(), Source: videoSourceDTO(state.GetSource()),
 		RemainingLeaseMs: state.GetRemainingLeaseMs(), CapturedFrames: state.GetCapturedFrames(),
 		FramesPerSecond: state.GetFramesPerSecond(), PixelFormat: state.GetPixelFormat().String(), CaptureMethod: state.GetCaptureMethod().String(),
 	})
@@ -138,6 +212,13 @@ func (s *Server) handleVideoTicket(w http.ResponseWriter, r *http.Request) {
 	if !s.playerTokenGated(w, r) {
 		return
 	}
+	var body videoTicketRequestDTO
+	if r.ContentLength != 0 {
+		if err := decodeMediaBody(r, &body); err != nil || len(body.SourceID) > 256 {
+			s.failure(w, r, 400, "invalid_request", "sourceId must be a leased source id")
+			return
+		}
+	}
 	var raw [24]byte
 	if _, err := rand.Read(raw[:]); err != nil {
 		s.failure(w, r, 503, "unavailable", "Unable to mint a video stream ticket")
@@ -146,7 +227,7 @@ func (s *Server) handleVideoTicket(w http.ResponseWriter, r *http.Request) {
 	ticket := hex.EncodeToString(raw[:])
 	expiry := time.Now().Add(videoTicketWindow)
 	s.sweepVideoTickets()
-	s.videoTickets.Store(ticket, expiry)
+	s.videoTickets.Store(ticket, videoTicket{expiry: expiry, sourceID: body.SourceID})
 	s.write(w, r, 200, videoTicketDTO{Ticket: ticket, ExpiresMs: expiry.UnixMilli()})
 }
 
@@ -155,7 +236,7 @@ func (s *Server) handleVideoTicket(w http.ResponseWriter, r *http.Request) {
 func (s *Server) sweepVideoTickets() {
 	now := time.Now()
 	s.videoTickets.Range(func(key, value any) bool {
-		if expiry, ok := value.(time.Time); !ok || now.After(expiry) {
+		if ticket, ok := value.(videoTicket); !ok || now.After(ticket.expiry) {
 			s.videoTickets.Delete(key)
 		}
 		return true
@@ -163,14 +244,18 @@ func (s *Server) sweepVideoTickets() {
 }
 
 // consumeVideoTicket atomically removes and validates a ticket: a ticket is
-// good for exactly one WebSocket connection attempt within its short window.
-func (s *Server) consumeVideoTicket(ticket string) bool {
+// good for exactly one WebSocket connection attempt within its short window,
+// and names the source that connection streams.
+func (s *Server) consumeVideoTicket(ticket string) (string, bool) {
 	value, ok := s.videoTickets.LoadAndDelete(ticket)
 	if !ok {
-		return false
+		return "", false
 	}
-	expiry, ok := value.(time.Time)
-	return ok && time.Now().Before(expiry)
+	minted, ok := value.(videoTicket)
+	if !ok || !time.Now().Before(minted.expiry) {
+		return "", false
+	}
+	return minted.sourceID, true
 }
 
 func (s *Server) handleVideoSocket(w http.ResponseWriter, r *http.Request) {
@@ -194,7 +279,8 @@ func (s *Server) handleVideoSocket(w http.ResponseWriter, r *http.Request) {
 		s.failure(w, r, 400, "invalid_request", "A single valid ticket query parameter is required")
 		return
 	}
-	if !s.consumeVideoTicket(tickets[0]) {
+	sourceID, ok := s.consumeVideoTicket(tickets[0])
+	if !ok {
 		s.failure(w, r, 403, "player_auth", "Video stream ticket is invalid, expired or already used")
 		return
 	}
@@ -217,7 +303,7 @@ func (s *Server) handleVideoSocket(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.CloseNow()
 	streamCtx := conn.CloseRead(context.Background())
-	s.runVideoStream(streamCtx, conn, viewer)
+	s.runVideoStream(streamCtx, conn, viewer, sourceID)
 }
 
 func equalFoldHost(a, b string) bool {
@@ -254,6 +340,8 @@ func isHex(v string) bool {
 // bytes. It stops cleanly when the context is done (client disconnect or
 // handler shutdown), the lease ends, or a write fails.
 //
+// The stream is bound to the source its ticket named (empty: the screen);
+// ReadFrame asks for that source, so the socket closes when that lease ends.
 // Frames come from ReadFrame until the first reply names the source; when
 // Config.VideoFrames can open that source's shared-memory buffer, later
 // frames are read from it directly and ReadFrame is only called once per
@@ -263,7 +351,11 @@ func isHex(v string) bool {
 // which the buffer header does not carry. AcknowledgeFrame is telemetry
 // only, so only ReadFrame-delivered frames are acknowledged; shared-memory
 // frames never cost a round trip.
-func (s *Server) runVideoStream(ctx context.Context, conn *websocket.Conn, viewer *p.PlayerIdentity) {
+func (s *Server) runVideoStream(ctx context.Context, conn *websocket.Conn, viewer *p.PlayerIdentity, wantSource string) {
+	request := &p.FrameRequest{Viewer: viewer}
+	if wantSource != "" {
+		request.SourceId = proto.String(wantSource)
+	}
 	interval := s.config.VideoStreamPollInterval
 	if interval <= 0 {
 		interval = defaultVideoPollInterval
@@ -308,7 +400,7 @@ func (s *Server) runVideoStream(ctx context.Context, conn *websocket.Conn, viewe
 				continue
 			}
 			readCtx, cancel := context.WithTimeout(ctx, s.config.ReadTimeout)
-			reply, _, err := s.config.PresentationMedia.ReadFrame(readCtx, &p.FrameRequest{Viewer: viewer})
+			reply, _, err := s.config.PresentationMedia.ReadFrame(readCtx, request)
 			cancel()
 			if err != nil {
 				_ = conn.Close(websocket.StatusNormalClosure, "video lease ended")

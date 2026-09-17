@@ -27,6 +27,8 @@ type presentationMediaFake struct {
 	frameCalls int
 	ackCalls   int
 	seen       proto.Message
+	// frameRequestSource records the source id of the last ReadFrame.
+	frameRequestSource string
 }
 
 func (f *presentationMediaFake) DemandRendering(ctx context.Context, q *p.RenderDemand) (*p.RenderReply, bridge.Result, error) {
@@ -48,6 +50,7 @@ func (f *presentationMediaFake) ReadFrame(ctx context.Context, q *p.FrameRequest
 	f.calls++
 	f.seen = q
 	f.frameCalls++
+	f.frameRequestSource = q.GetSourceId()
 	if len(f.frames) > 0 {
 		next := f.frames[0]
 		if len(f.frames) > 1 {

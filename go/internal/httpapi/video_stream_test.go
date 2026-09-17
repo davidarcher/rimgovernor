@@ -408,3 +408,72 @@ func TestVideoStreamFallsBackToReadFrameWhenSharedMemoryIsUnavailable(t *testing
 		t.Fatal("RPC-delivered frames are still acknowledged", f.ackCalls)
 	}
 }
+
+func TestVideoLeaseForwardsSourceAndStopBySourceID(t *testing.T) {
+	s, f, token := presentationMediaAPI(t)
+	f.video.GetState().Source = &p.VideoSource{Kind: p.VideoSourceKind_VIDEO_SOURCE_KIND_PAWN.Enum(), PawnId: proto.String("Thing_Human1"), Width: proto.Uint32(320), Height: proto.Uint32(200), FramesPerSecond: proto.Float64(15)}
+	out := playerCall(s, "POST", "/api/presentation/video-lease", `{"leaseSeconds":8,"source":{"kind":"pawn","pawnId":"Thing_Human1","width":320,"height":200,"framesPerSecond":15}}`, token)
+	if out.Code != 200 {
+		t.Fatal(out.Code, out.Body.String())
+	}
+	request, ok := f.seen.(*p.VideoLeaseRequest)
+	source := request.GetStart().GetSource()
+	if !ok || source.GetKind() != p.VideoSourceKind_VIDEO_SOURCE_KIND_PAWN || source.GetPawnId() != "Thing_Human1" || source.GetWidth() != 320 || source.GetFramesPerSecond() != 15 {
+		t.Fatal(f.seen)
+	}
+	var state VideoStateDTO
+	if err := json.Unmarshal(out.Body.Bytes(), &state); err != nil || state.Source.Kind != "pawn" || state.Source.PawnID != "Thing_Human1" || state.Source.Height != 200 {
+		t.Fatal(out.Body.String(), err)
+	}
+	out = playerCall(s, "POST", "/api/presentation/video-lease", `{"leaseSeconds":0,"sourceId":"buffer-7"}`, token)
+	if out.Code != 200 {
+		t.Fatal(out.Code, out.Body.String())
+	}
+	if request, ok = f.seen.(*p.VideoLeaseRequest); !ok || request.GetStop().GetSourceId() != "buffer-7" {
+		t.Fatal(f.seen)
+	}
+	for _, body := range []string{
+		`{"leaseSeconds":8,"source":{"kind":"drone"}}`,
+		`{"leaseSeconds":8,"source":{"kind":"pawn"}}`,
+		`{"leaseSeconds":8,"source":{"kind":"map","pawnId":"x"}}`,
+		`{"leaseSeconds":8,"source":{"kind":"map","framesPerSecond":61}}`,
+	} {
+		if out := playerCall(s, "POST", "/api/presentation/video-lease", body, token); out.Code != 400 {
+			t.Fatal(body, out.Code, out.Body.String())
+		}
+	}
+}
+
+func TestVideoStreamTicketBindsTheSource(t *testing.T) {
+	server, f, token := videoStreamServer(t)
+	f.frames = []*p.FrameReply{rpcFrame("feed-1", 1, []byte{1, 2, 3, 4})}
+	req, err := http.NewRequest("POST", server.URL+"/api/presentation/video-stream/ticket", strings.NewReader(`{"sourceId":"feed-1"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("X-RimGovernor-Player", token)
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := server.Client().Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var body videoTicketDTO
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil || resp.StatusCode != 200 {
+		t.Fatal(resp.StatusCode, err)
+	}
+	resp.Body.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	conn, _, err := websocket.Dial(ctx, wsURL(server, body.Ticket), &websocket.DialOptions{HTTPHeader: http.Header{"Origin": {server.URL}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close(websocket.StatusNormalClosure, "")
+	if sequence, _, _ := readFrameMessage(t, ctx, conn); sequence != 1 {
+		t.Fatal(sequence)
+	}
+	// Every ReadFrame asked for the ticket's source, not the default screen.
+	if f.frameRequestSource != "feed-1" {
+		t.Fatal(f.frameRequestSource)
+	}
+}

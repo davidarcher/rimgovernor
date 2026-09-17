@@ -7,7 +7,7 @@ import PlayerControls from './PlayerControls';
 import PresentationPanel from './PresentationPanel';
 import NotificationPanel from './NotificationPanel';
 import DevelopmentPanel from './DevelopmentPanel';
-import GameVideoGo from './GameVideoGo';
+import GameVideoGo, {MapOverviewGo, PawnFeedGo} from './GameVideoGo';
 import PawnPortraitGo from './PawnPortraitGo';
 import PlayerGuide from './PlayerGuide';
 
@@ -78,9 +78,15 @@ function ColonyPortraits({token, active}: {token: string | null; active: boolean
     return () => {stopped = true; controller.abort(); if (timer) clearTimeout(timer);};
   }, [active]);
   if (!token || !roster || roster.colonists.length === 0) return null;
-  return <section className="observation-panel" aria-label="Colonist portraits"><h2>Portraits</h2><div className="pawn-portrait-grid">
-    {roster.colonists.filter(c => c.pawnId !== null).slice(0, 24).map(c => <PawnPortraitGo key={c.pawnId} token={token} pawnId={c.pawnId as string} name={c.name ?? (c.pawnId as string)} active={active}/>)}
-  </div></section>;
+  const colonists = roster.colonists.filter(c => c.pawnId !== null).slice(0, 24);
+  return <>
+    <section className="observation-panel" aria-label="Colonist feeds"><h2>Colonist feeds</h2><div className="pawn-feed-grid">
+      {colonists.slice(0, 8).map(c => <PawnFeedGo key={c.pawnId} token={token} pawnId={c.pawnId as string} name={c.name ?? (c.pawnId as string)} active={active}/>)}
+    </div></section>
+    <section className="observation-panel" aria-label="Colonist portraits"><h2>Portraits</h2><div className="pawn-portrait-grid">
+      {colonists.map(c => <PawnPortraitGo key={c.pawnId} token={token} pawnId={c.pawnId as string} name={c.name ?? (c.pawnId as string)} active={active}/>)}
+    </div></section>
+  </>;
 }
 
 export default function ObservationDashboard() {
@@ -154,6 +160,7 @@ export default function ObservationDashboard() {
       </dl></section>
       {view === 'watch' && <>
         <section className="observation-panel"><h2>Camera</h2><GameVideoGo token={token} active/></section>
+        <section className="observation-panel"><h2>Map overview</h2><MapOverviewGo token={token} active/></section>
         <PlayerControls observation={state} observationFresh={observationFresh}/>
       </>}
       {view === 'work' && <>
