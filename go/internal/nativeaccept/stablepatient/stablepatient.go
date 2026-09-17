@@ -113,9 +113,7 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) ([]map[string]any
 		return nil, err
 	}
 
-	if _, err := h.Call(ctx, "new-game", "rimworld/start_debug_game_ready", map[string]any{
-		"readiness": "visual", "pauseIfNeeded": true, "timeoutMs": 120000,
-	}); err != nil {
+	if _, err := na.StartDebugGame(ctx, h, nil, na.QuietRequired); err != nil {
 		return nil, err
 	}
 	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {

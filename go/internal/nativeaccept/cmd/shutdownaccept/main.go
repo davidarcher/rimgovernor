@@ -175,10 +175,8 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 
 // newGame starts a paused debug colony and returns its identity.
 func newGame(ctx context.Context, h *na.Harness, label string) (map[string]any, error) {
-	if _, err := h.Call(ctx, label, "rimworld/start_debug_game_ready", map[string]any{
-		"readiness": "visual", "pauseIfNeeded": true, "timeoutMs": 120000,
-	}); err != nil {
-		return nil, err
+	if _, err := na.StartDebugGame(ctx, h, nil, na.QuietIfAvailable); err != nil {
+		return nil, fmt.Errorf("%s: %w", label, err)
 	}
 	if _, err := h.Call(ctx, label+"-pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return nil, err

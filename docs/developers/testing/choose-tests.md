@@ -45,19 +45,28 @@ drops every `ludeon.rimworld.*` expansion from the headless/rendered
 `ModsConfig.xml` it generates, because each active expansion adds def loading
 and per-tick systems no harness needs unless it tests that DLC. A harness that
 does sets `Config.Expansions` (or the run sets
-`RIMGOVERNOR_ACCEPT_EXPANSIONS=royalty,biotech`); a committed `.rws` saved
-with an expansion active needs the same opt-in or a Core-only regeneration.
+`RIMGOVERNOR_ACCEPT_EXPANSIONS=royalty,biotech`). A save refuses to load
+(`save.missing_mods`) under a profile missing an expansion it was recorded
+with, so a harness that loads a save calls `cfg.UseSaveExpansions(save)`
+before `PrepareConfig`, which activates exactly the expansions in that
+save's `<modIds>` header; regenerate saves Core-only (`variantsavegen` now
+does) rather than carrying DLC forward.
 
 Fixture games are also quiet by default: `test/configure_start` applies
 `test/quiet_storyteller` once the colony exists (pass `quiet=false` to keep
-the ordinary storyteller), and any harness that loads a save or a debug game
-can call `test/quiet_storyteller` itself. Quiet means a Custom difficulty at
+the ordinary storyteller), and harnesses start their debug colony through
+`na.StartDebugGame(ctx, h, names, mode)`, which applies the same op per
+mode: `QuietRequired` for fixture-dependent harnesses (a missing op is a
+stale-mod error; every fixture build carries it), `QuietIfAvailable` for
+harnesses that also run against a production build, and `Loud` for
+interruption harnesses. Quiet means a Custom difficulty at
 zero threat scale with no big/intro threats, violent quests or humanlike
 hunting, no queued incidents, no storyteller ticks, and every non-colony pawn
 removed from the map; because the Custom difficulty is what the save
 persists, a quiet save stays quiet after reload while a fixture build is
-installed. Interruption harnesses (combat, disconnect, `test/world_incident`
-users) must not quiet the game. Issues #91 and #92 track the remaining speed
+installed. Interruption harnesses (`combataccept`, `defenselayoutaccept`,
+`movementaccept`, `disconnectaccept`, `test/world_incident` users) stay
+`Loud`. Issues #91 and #92 track the remaining speed
 and quiet work (small maps, stall-based early exit, frozen needs, letter
 acknowledgement).
 

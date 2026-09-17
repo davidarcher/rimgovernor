@@ -528,3 +528,42 @@ func (e *xmlElem) li() []string {
 	}
 	return out
 }
+
+func TestSaveExpansions(t *testing.T) {
+	root := t.TempDir()
+	saves := filepath.Join(root, "profile", "Saves")
+	if err := os.MkdirAll(saves, 0755); err != nil {
+		t.Fatal(err)
+	}
+	dlc := "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<savegame>\n\t<meta>\n\t\t<gameVersion>1.6.4871 rev591</gameVersion>\n\t\t<modIds>\n\t\t\t<li>ludeon.rimworld</li>\n\t\t\t<li>ludeon.rimworld.royalty</li>\n\t\t\t<li>Ludeon.RimWorld.Biotech</li>\n\t\t\t<li>brrainz.harmony</li>\n\t\t</modIds>\n\t</meta>\n</savegame>"
+	core := "<savegame><meta><modIds><li>ludeon.rimworld</li><li>brrainz.harmony</li></modIds></meta></savegame>"
+	for name, body := range map[string]string{"dlc": dlc, "core": core, "broken": "<savegame/>"} {
+		if err := os.WriteFile(filepath.Join(saves, name+".rws"), []byte(body), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err := SaveExpansions(root, "dlc")
+	if err != nil || strings.Join(got, ",") != "ludeon.rimworld.royalty,ludeon.rimworld.biotech" {
+		t.Fatalf("SaveExpansions(dlc) = %v, %v", got, err)
+	}
+	if got, err := SaveExpansions(root, "core"); err != nil || len(got) != 0 {
+		t.Fatalf("SaveExpansions(core) = %v, %v", got, err)
+	}
+	if _, err := SaveExpansions(root, "broken"); err == nil {
+		t.Fatal("expected error for a save without modIds")
+	}
+	if _, err := SaveExpansions(root, "missing"); err == nil {
+		t.Fatal("expected error for a missing save")
+	}
+
+	cfg := &Config{Root: root}
+	if err := cfg.UseSaveExpansions("", ""); err != nil || cfg.Expansions != nil {
+		t.Fatalf("all-empty names must leave Expansions nil: %v, %v", cfg.Expansions, err)
+	}
+	if err := cfg.UseSaveExpansions("core"); err != nil || cfg.Expansions == nil || len(cfg.Expansions) != 0 {
+		t.Fatalf("core save must pin Core-only explicitly: %#v, %v", cfg.Expansions, err)
+	}
+	if err := cfg.UseSaveExpansions("dlc", "", "dlc"); err != nil || strings.Join(cfg.Expansions, ",") != "ludeon.rimworld.royalty,ludeon.rimworld.biotech" {
+		t.Fatalf("union: %v, %v", cfg.Expansions, err)
+	}
+}

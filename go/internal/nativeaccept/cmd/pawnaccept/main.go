@@ -91,9 +91,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	if !nativeaccept.Contains(names, "rimgovernor/observations_list_pawns") {
 		return fmt.Errorf("missing rimgovernor/observations_list_pawns in discovery")
 	}
-	if _, err := h.Call(ctx, "new-game", "rimworld/start_debug_game_ready", map[string]any{
-		"readiness": "visual", "pauseIfNeeded": true, "timeoutMs": 120000,
-	}); err != nil {
+	if _, err := nativeaccept.StartDebugGame(ctx, h, nil, nativeaccept.QuietIfAvailable); err != nil {
 		return err
 	}
 	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {

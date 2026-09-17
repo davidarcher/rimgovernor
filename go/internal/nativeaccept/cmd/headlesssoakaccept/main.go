@@ -205,9 +205,7 @@ func run(ctx context.Context, cfg soakConfig, report na.Report) error {
 	}
 
 	tl.row("gabs-status", map[string]any{"gabs": gabsStatus(ctx, client), "proc": processSample()})
-	if _, err := h.Call(ctx, "new-game", "rimworld/start_debug_game_ready", map[string]any{
-		"readiness": "visual", "pauseIfNeeded": true, "timeoutMs": 120000,
-	}); err != nil {
+	if _, err := na.StartDebugGame(ctx, h, nil, na.QuietIfAvailable); err != nil {
 		return err
 	}
 	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {

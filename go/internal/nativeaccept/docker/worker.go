@@ -172,7 +172,13 @@ func prepareConfig(cfg WorkerConfig) error {
 	if err := copyFile(filepath.Join(cfg.Inputs.Profile, "Saves", baselineSave), filepath.Join(profileSavesDir, baselineSave)); err != nil {
 		return fmt.Errorf("copy baseline save: %w", err)
 	}
-	if err := nativeaccept.PrepareNativeModConfig(filepath.Join(profileConfigDir, "ModsConfig.xml")); err != nil {
+	// The worker's only save is the baseline, so its expansion list is the
+	// profile's: a Core-only profile would refuse to load it.
+	expansions, err := nativeaccept.SaveExpansions(cfg.Root, strings.TrimSuffix(baselineSave, ".rws"))
+	if err != nil {
+		return err
+	}
+	if err := nativeaccept.PrepareNativeModConfig(filepath.Join(profileConfigDir, "ModsConfig.xml"), expansions...); err != nil {
 		return fmt.Errorf("prepare ModsConfig.xml: %w", err)
 	}
 

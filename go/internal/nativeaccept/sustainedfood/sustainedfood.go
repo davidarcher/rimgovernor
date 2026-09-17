@@ -103,6 +103,10 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) (timeline []map[s
 		prefix = "sustained-food"
 	}
 	naCfg := &na.Config{Root: root, Output: output, Headless: cfg.Headless, GameID: cfg.GameID}
+	// The save carries its own expansion list; a Core-only profile would refuse it.
+	if err := naCfg.UseSaveExpansions(cfg.Save); err != nil {
+		return nil, fmt.Errorf("prepare profile: %w", err)
+	}
 	if err := naCfg.PrepareConfig(); err != nil {
 		return nil, fmt.Errorf("prepare profile: %w", err)
 	}

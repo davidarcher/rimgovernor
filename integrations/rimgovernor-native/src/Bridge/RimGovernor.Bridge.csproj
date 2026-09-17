@@ -36,6 +36,7 @@
     <Compile Include="../../../../scripts/fixtures/DeepMiningFixture.cs" Condition="'$(MiningFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/MountainFixture.cs" Condition="'$(MountainFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/QuietStorytellerFixture.cs" Condition="'$(QuietStorytellerFixture)' == 'true' Or '$(MountainFixture)' == 'true' Or '$(ScenarioStartFixture)' == 'true'" />
+    <!-- build_native_mod.ps1 adds QuietStorytellerFixture to every fixture build; the extra conditions cover direct dotnet builds of the two fixtures that call into it. -->
     <Compile Include="../../../../scripts/fixtures/VideoSourceFixture.cs" Condition="'$(VideoSourceFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/FoodObservationFixture.cs" Condition="'$(FoodObservationFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/UpkeepFixture.cs" Condition="'$(UpkeepFixture)' == 'true'" />

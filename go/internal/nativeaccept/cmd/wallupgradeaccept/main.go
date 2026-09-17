@@ -55,6 +55,10 @@ func main() {
 
 func run(ctx context.Context, root, output, gameID, save, prepare string, maxWalls int, headless bool, report na.Report) error {
 	cfg := &na.Config{Root: root, Output: output, Headless: headless, GameID: gameID}
+	// The save carries its own expansion list; a Core-only profile would refuse it.
+	if err := cfg.UseSaveExpansions(save); err != nil {
+		return err
+	}
 	if err := cfg.PrepareConfig(); err != nil {
 		return fmt.Errorf("prepare profile: %w", err)
 	}

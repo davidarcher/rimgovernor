@@ -52,6 +52,10 @@ func main() {
 
 func run(ctx context.Context, root, output, gameID, save, prepare string, headless bool, report na.Report) error {
 	cfg := &na.Config{Root: root, Output: output, Headless: headless, GameID: gameID}
+	// The save carries its own expansion list; a Core-only profile would refuse it.
+	if err := cfg.UseSaveExpansions(save); err != nil {
+		return err
+	}
 	if err := cfg.PrepareConfig(); err != nil {
 		return fmt.Errorf("prepare profile: %w", err)
 	}
@@ -90,9 +94,7 @@ func run(ctx context.Context, root, output, gameID, save, prepare string, headle
 		}); err != nil {
 			return err
 		}
-	} else if _, err := h.Call(ctx, "new-game", "rimworld/start_debug_game_ready", map[string]any{
-		"readiness": "visual", "pauseIfNeeded": true, "timeoutMs": 120000,
-	}); err != nil {
+	} else if _, err := na.StartDebugGame(ctx, h, names, na.QuietRequired); err != nil {
 		return err
 	}
 	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {

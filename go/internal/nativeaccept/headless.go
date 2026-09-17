@@ -12,6 +12,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -475,4 +476,75 @@ func Prepare(root string, expansions ...string) (string, error) {
 		return "", err
 	}
 	return destination, nil
+}
+
+// SaveExpansions reads the official expansions a save at
+// root/profile/Saves/<saveName>.rws was recorded with (its <modIds> header).
+// A save refuses to load (save.missing_mods) under a profile missing any of
+// them, so a harness that loads a save passes its result to Config.Expansions
+// rather than relying on the Core-only default.
+func SaveExpansions(root, saveName string) ([]string, error) {
+	path := filepath.Join(mustAbs(root), "profile", "Saves", saveName+".rws")
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("read save header: %w", err)
+	}
+	defer f.Close()
+	// modIds sit in the first few hundred bytes of the meta block; 64 KiB
+	// bounds the scan of a multi-megabyte save.
+	head := make([]byte, 64*1024)
+	n, err := io.ReadFull(f, head)
+	if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
+		return nil, fmt.Errorf("read save header: %w", err)
+	}
+	text := string(head[:n])
+	start := strings.Index(text, "<modIds>")
+	end := strings.Index(text, "</modIds>")
+	if start < 0 || end < start {
+		return nil, fmt.Errorf("save %s has no modIds header in its first %d bytes", saveName, n)
+	}
+	var out []string
+	for _, m := range saveModItem.FindAllStringSubmatch(text[start:end], -1) {
+		id := casefold(m[1])
+		if strings.HasPrefix(id, ExpansionPrefix) {
+			out = append(out, id)
+		}
+	}
+	return out, nil
+}
+
+var saveModItem = regexp.MustCompile(`<li>\s*([^<\s]+)\s*</li>`)
+
+// UseSaveExpansions sets Expansions to the union of the official expansions
+// the named saves were recorded with, so PrepareConfig keeps exactly those
+// active. Empty names are skipped; when every name is empty Expansions is
+// left as it was (nil: the Core-only default or ExpansionsEnv).
+func (c *Config) UseSaveExpansions(saveNames ...string) error {
+	seen := map[string]bool{}
+	var out []string
+	any := false
+	for _, name := range saveNames {
+		if name == "" {
+			continue
+		}
+		any = true
+		ids, err := SaveExpansions(c.Root, name)
+		if err != nil {
+			return err
+		}
+		for _, id := range ids {
+			if !seen[id] {
+				seen[id] = true
+				out = append(out, id)
+			}
+		}
+	}
+	if !any {
+		return nil
+	}
+	if out == nil {
+		out = []string{}
+	}
+	c.Expansions = out
+	return nil
 }

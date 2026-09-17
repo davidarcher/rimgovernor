@@ -156,9 +156,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	// acquisition source fails fast with a distinct message instead of
 	// polling pointlessly for minutes; callers unlucky enough to roll one
 	// simply rerun the whole harness (a fresh process, fresh GABS session).
-	if _, err := h.Call(ctx, "new-game", "rimworld/start_debug_game_ready", map[string]any{
-		"readiness": "visual", "pauseIfNeeded": true, "timeoutMs": 120000,
-	}); err != nil {
+	if _, err := na.StartDebugGame(ctx, h, names, na.QuietIfAvailable); err != nil {
 		return err
 	}
 	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {

@@ -102,9 +102,7 @@ func run(ctx context.Context, root, output, gameID string, report na.Report) err
 			return fmt.Errorf("missing %s in discovery", tool)
 		}
 	}
-	if _, err := h.Call(ctx, "new-game", "rimworld/start_debug_game_ready", map[string]any{
-		"readiness": "visual", "pauseIfNeeded": true, "timeoutMs": 120000,
-	}); err != nil {
+	if _, err := na.StartDebugGame(ctx, h, names, na.QuietIfAvailable); err != nil {
 		return err
 	}
 	// Unpaused so successive captured frames are actually likely to differ

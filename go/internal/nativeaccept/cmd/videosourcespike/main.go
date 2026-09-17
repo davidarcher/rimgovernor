@@ -80,9 +80,7 @@ func run(ctx context.Context, root, output, gameID string, frames, feeds int, re
 	if !na.Contains(names, "test/video_source_spike") {
 		return fmt.Errorf("missing test/video_source_spike in discovery; rebuild the native mod with -Fixture VideoSourceFixture")
 	}
-	if _, err := h.Call(ctx, "new-game", "rimworld/start_debug_game_ready", map[string]any{
-		"readiness": "visual", "pauseIfNeeded": true, "timeoutMs": 120000,
-	}); err != nil {
+	if _, err := na.StartDebugGame(ctx, h, names, na.QuietRequired); err != nil {
 		return err
 	}
 	speed := func(label, speed string) error {
