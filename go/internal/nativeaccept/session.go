@@ -72,6 +72,12 @@ func (r Report) Finalize(output string) int {
 	if hashes, err := ArtifactHashes(output); err == nil {
 		r["artifacts"] = hashes
 	}
+	if _, has := r["wait_stats"]; !has {
+		r["wait_stats"] = WaitStats()
+	}
+	if _, has := r["installed_package"]; !has && installedPackage != nil {
+		r["installed_package"] = installedPackage
+	}
 	data, err := json.MarshalIndent(r, "", "  ")
 	if err == nil {
 		_ = os.WriteFile(filepath.Join(output, "result.json"), data, 0644)

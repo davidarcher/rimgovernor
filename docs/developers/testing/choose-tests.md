@@ -201,8 +201,18 @@ the serve subprocess having exited (`service.Exited`). The shared
 `WaitReview` (a latch or binding on the routine review), `WaitPlan` (a
 plan's stages, with `PlanSignature`), `WaitGoalMethod`, `WaitPlanTerminal`
 and `WaitRoutineReview` already do this
-with `na.StallBudget()` (10 minutes, `RIMGOVERNOR_ACCEPT_STALL` overrides);
+with `na.StallBudget()` (3 minutes, `RIMGOVERNOR_ACCEPT_STALL` overrides);
 harnesses with their own loops take a `-stall` flag defaulting to the same.
+The budget was 10 minutes until a sweep of failed runs showed every one of
+them spending those ten minutes on an unchanged signature (a 14-minute
+defense run held its last signature for 10m1s; a 20-minute hut run for
+10m0s): a stall is a broken run, and a wait that legitimately needs the
+game to do more than a few minutes of work is bounded in ticks (`Wait.Ticks`,
+`RunUntil`), not by a longer stall. Every `result.json` carries
+`wait_stats` (`waits`, `stalled`, `max_quiet_ms` with the signature that
+held longest, `stall_budget_ms`); a passing run whose `max_quiet_ms`
+approaches the budget is the evidence for raising it, or for moving that
+wait onto a tick budget.
 The headless profile's `Prefs.xml` is the player's copy trimmed by
 `na.TrimPrefs` (`HeadlessPrefs`): autosaves effectively off (1000 days;
 the interval must stay under ~35791 days or the autosaver's int threshold
@@ -217,6 +227,27 @@ across agents; conflict resolution or dependency changes require only the
 checks they affect. "The full affected suite" means the applicable automated
 suite, not every gameplay scenario. Finish when agreed completion criteria and
 relevant checks pass; put unrelated discoveries in the backlog.
+
+## The installed build must match the worktree
+
+`Prepare` and `PrepareRendered` refuse, before GABS or RimWorld start, an
+installed `Mods/RimGovernor` whose native sources differ from the worktree
+the harness runs from (`na.RequireCurrentPackage`, under a second). A stale
+build otherwise fails minutes later and obliquely: a fixture op missing from
+discovery, an `INVALID_REQUEST` ProtoJSON refusal, a receipt the Go side no
+longer decodes; several one-minute runs were burned on each of those before
+anyone suspected the DLL. `scripts/build_native_mod.ps1` records
+`sourceTree` in `native-manifest.json`, a hash over exactly the files it
+copies into `build/source` (`na.SourceTreeHash` reproduces the list from
+the same copy rules, so a dirty tree compares correctly); a build from
+before that field falls back to `git diff --quiet <sourceRevision> --
+<inputs>`. The refusal names the build's fixtures and the rebuild command;
+`RIMGOVERNOR_ACCEPT_ALLOW_STALE_MOD=1` runs against the stale build anyway
+(bisecting the mod against newer Go code). The report records the check
+under `installed_package` (`checked`, `method`, `fixtures`,
+`source_revision`, or `skipped` with the reason: no manifest, no enclosing
+checkout, no git). The fixture set is not part of the hash; a harness that
+needs an op the build lacks still says so at discovery.
 
 ## Reusing one game across acceptance cases
 

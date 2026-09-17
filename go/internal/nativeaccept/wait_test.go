@@ -110,3 +110,44 @@ func TestWaitProgressTickBudgetDoneInTime(t *testing.T) {
 		t.Fatalf("unexpected: %v", err)
 	}
 }
+
+func TestWaitStatsRecordTheLongestQuietSpan(t *testing.T) {
+	before := WaitStats()
+	waits, stalled := before["waits"].(int), before["stalled"].(int)
+	// A wait whose signature moves on every probe and finishes.
+	n := 0
+	if err := WaitProgress(context.Background(), Wait{Interval: time.Millisecond, Stall: time.Second}, func(context.Context) (string, bool, error) {
+		n++
+		return Signature(n), n >= 3, nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	// A wait that stalls on "held" after 30ms.
+	err := WaitProgress(context.Background(), Wait{Interval: time.Millisecond, Stall: 30 * time.Millisecond}, func(context.Context) (string, bool, error) {
+		return "held", false, nil
+	})
+	if !IsStalled(err) {
+		t.Fatalf("want stalled, got %v", err)
+	}
+	after := WaitStats()
+	if after["waits"].(int) != waits+2 || after["stalled"].(int) != stalled+1 {
+		t.Fatalf("counts %v -> %v", before, after)
+	}
+	if after["max_quiet_ms"].(int64) < 30 {
+		t.Fatalf("max_quiet_ms %v", after["max_quiet_ms"])
+	}
+	if after["stall_budget_ms"].(int64) != StallBudget().Milliseconds() {
+		t.Fatalf("stall_budget_ms %v", after["stall_budget_ms"])
+	}
+}
+
+func TestDefaultStallIsMinutesNotTens(t *testing.T) {
+	t.Setenv(StallEnv, "")
+	if StallBudget() != DefaultStall || DefaultStall > 5*time.Minute {
+		t.Fatalf("StallBudget = %s (DefaultStall %s)", StallBudget(), DefaultStall)
+	}
+	t.Setenv(StallEnv, "90s")
+	if StallBudget() != 90*time.Second {
+		t.Fatalf("override ignored: %s", StallBudget())
+	}
+}

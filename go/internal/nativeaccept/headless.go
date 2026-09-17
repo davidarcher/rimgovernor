@@ -398,6 +398,9 @@ func PrepareRendered(root string, expansions ...string) (string, error) {
 	if err := RequireNativePackage(filepath.Join(workingDir, "Mods")); err != nil {
 		return "", err
 	}
+	if _, err := RequireCurrentPackage(filepath.Join(workingDir, "Mods", "RimGovernor")); err != nil {
+		return "", err
+	}
 	profile := filepath.Join(root, "profile")
 	if err := PrepareNativeModConfig(filepath.Join(profile, "Config", "ModsConfig.xml"), expansions...); err != nil {
 		return "", err
@@ -430,6 +433,9 @@ func Prepare(root string, expansions ...string) (string, error) {
 	}
 	workingDir, _ := game["workingDir"].(string)
 	if err := RequireNativePackage(filepath.Join(workingDir, "Mods")); err != nil {
+		return "", err
+	}
+	if _, err := RequireCurrentPackage(filepath.Join(workingDir, "Mods", "RimGovernor")); err != nil {
 		return "", err
 	}
 	profile := filepath.Join(root, "headless-profile")

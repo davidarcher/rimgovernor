@@ -88,6 +88,20 @@ foreach ($taskFile in Get-ChildItem -LiteralPath $taskFixtureSource -Recurse -Fi
 }
 Copy-Item -LiteralPath (Join-Path $taskRepo 'THIRD_PARTY.md') -Destination $taskCopyRoot
 Copy-Item -LiteralPath (Join-Path $taskSource 'README.md') -Destination $taskCopyNative
+# sourceTree hashes the copied inputs (before the build writes obj/bin into
+# them) so an acceptance harness can tell, without git, whether the installed
+# package matches its worktree (nativeaccept.SourceTreeHash reproduces this
+# list from the copy rules above): sorted ordinal by copy-relative path with
+# forward slashes, one "<path>`t<sha256>`n" line each, SHA-256 of the lines.
+$taskSourceLines = [System.Collections.Generic.List[string]]::new()
+foreach ($taskFile in Get-ChildItem -LiteralPath $taskCopyRoot -Recurse -File) {
+    $taskRelative = $taskFile.FullName.Substring($taskCopyRoot.Length + 1).Replace('\', '/')
+    $taskSourceLines.Add($taskRelative + "`t" + (Get-FileHash -LiteralPath $taskFile.FullName -Algorithm SHA256).Hash.ToLowerInvariant() + "`n")
+}
+$taskSourceLines.Sort([System.StringComparer]::Ordinal)
+$taskSourceHasher = [System.Security.Cryptography.SHA256]::Create()
+$taskSourceTree = [BitConverter]::ToString($taskSourceHasher.ComputeHash([System.Text.Encoding]::UTF8.GetBytes(-join $taskSourceLines))).Replace('-', '').ToLowerInvariant()
+$taskSourceHasher.Dispose()
 $taskArgs = @('build', (Join-Path $taskCopyNative 'src/Bridge/RimGovernor.Bridge.csproj'),
     '-c', 'Release', '-v', 'minimal', '-p:RestoreLockedMode=true', "-p:OutputPath=$taskCompiled/",
     "-p:RimWorldManagedDir=$RimWorldManagedDir", "-p:HarmonyAssembly=$HarmonyAssembly",
@@ -138,6 +152,7 @@ $taskManifest = [ordered]@{
     runtimeDependencies = $taskRuntimeDependencies
     sourceRevision = (& git -C $taskRepo rev-parse HEAD)
     sourceDirty = [bool](& git -C $taskRepo status --porcelain)
+    sourceTree = $taskSourceTree
     dotnetSdk = $taskSdkVersion
     inputs = @($taskInputs | Sort-Object -Unique | ForEach-Object {
         [ordered]@{ path = $_; sha256 = (Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash.ToLowerInvariant() }

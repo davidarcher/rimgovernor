@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -14,9 +15,16 @@ import (
 const StallEnv = "RIMGOVERNOR_ACCEPT_STALL"
 
 // DefaultStall is the shared stall budget: long enough for a wall segment or
-// a haul at speed 1, short enough that a letter pause, a lost service or a
-// plan the executor never moves ends the run well before its ceiling.
-const DefaultStall = 10 * time.Minute
+// a haul under the serve clock at Fast, short enough that a letter pause, a
+// lost service or a plan the executor never moves ends the run soon after
+// it stops moving. It was 10 minutes until every failed run was found to
+// spend those ten minutes watching an unchanged signature (a 14-minute
+// defense run held its last signature for 10m1s); a wait that needs the
+// game to do more than a few minutes of work is bounded in ticks
+// (Wait.Ticks, RunUntil), not by a longer stall. Finalize records each
+// run's longest quiet span under wait_stats so the budget can be tuned
+// from passing runs.
+const DefaultStall = 3 * time.Minute
 
 // StallBudget returns StallEnv's duration, or DefaultStall when unset or
 // unparsable.
@@ -131,6 +139,42 @@ func IsStalled(err error) bool {
 	return errors.As(err, &w) && w.Outcome == WaitStalled
 }
 
+// waitStats is what Finalize reports under wait_stats: how many waits the
+// run made, the longest a signature stayed unchanged before it moved or the
+// wait ended (the evidence for tuning DefaultStall), and how many waits
+// stalled.
+var waitStats struct {
+	mu       sync.Mutex
+	waits    int
+	stalled  int
+	maxQuiet time.Duration
+	maxLabel string
+}
+
+// recordWait folds one finished wait into waitStats.
+func recordWait(quiet time.Duration, signature string, stalled bool) {
+	waitStats.mu.Lock()
+	defer waitStats.mu.Unlock()
+	waitStats.waits++
+	if stalled {
+		waitStats.stalled++
+	}
+	if quiet > waitStats.maxQuiet {
+		waitStats.maxQuiet, waitStats.maxLabel = quiet, signature
+	}
+}
+
+// WaitStats is the run's wait statistics for the report.
+func WaitStats() map[string]any {
+	waitStats.mu.Lock()
+	defer waitStats.mu.Unlock()
+	return map[string]any{
+		"waits": waitStats.waits, "stalled": waitStats.stalled,
+		"max_quiet_ms": waitStats.maxQuiet.Milliseconds(), "max_quiet_signature": waitStats.maxLabel,
+		"stall_budget_ms": StallBudget().Milliseconds(),
+	}
+}
+
 // Signature joins parts into a progress signature for a Probe.
 func Signature(parts ...any) string {
 	s := make([]string, len(parts))
@@ -150,6 +194,16 @@ func WaitProgress(ctx context.Context, w Wait, probe Probe) error {
 	last, lastChange := "", start
 	rounds := 0
 	var startTick, ticksElapsed uint64
+	// The longest the signature stayed unchanged, including the final span
+	// when the wait ends; Finalize reports the run's maximum.
+	longest := time.Duration(0)
+	stalled := false
+	defer func() {
+		if quiet := time.Since(lastChange); quiet > longest {
+			longest = quiet
+		}
+		recordWait(longest, last, stalled)
+	}()
 	for {
 		now := time.Now()
 		if w.Terminal != nil {
@@ -179,6 +233,9 @@ func WaitProgress(ctx context.Context, w Wait, probe Probe) error {
 		}
 		now = time.Now()
 		if rounds == 1 || signature != last {
+			if quiet := now.Sub(lastChange); quiet > longest {
+				longest = quiet
+			}
 			last, lastChange = signature, now
 		}
 		quiet := now.Sub(lastChange)
@@ -186,6 +243,7 @@ func WaitProgress(ctx context.Context, w Wait, probe Probe) error {
 			return &WaitError{Outcome: WaitTicks, Signature: last, Quiet: quiet, Elapsed: now.Sub(start), Rounds: rounds, TicksElapsed: ticksElapsed}
 		}
 		if w.Stall > 0 && quiet >= w.Stall {
+			stalled = true
 			return &WaitError{Outcome: WaitStalled, Signature: last, Quiet: quiet, Elapsed: now.Sub(start), Rounds: rounds, TicksElapsed: ticksElapsed}
 		}
 		if w.Ceiling > 0 && now.Sub(start) >= w.Ceiling {
