@@ -33,6 +33,13 @@ the harness too slow to rerun after a fix. Reach for, in order of preference:
   the buildings, pawns, items and conditions the test needs in one call;
 - `variantsavegen` / `ScenarioStartFixture` for a programmatic scenario start
   when the stressor is map- or start-level (seed, biome, season, scarcity).
+  The checked-in artifact is the manifest (a JSON array of
+  `variantgen.Variant`), the generated `.rws` under `profile/Saves` is the
+  pre-generated world: `variantsavegen -manifest` writes it once offline
+  (about 5s a variant on a kept process, `RIMGOVERNOR_ACCEPT_KEEP_GAME=1`),
+  and `sustainedmatrixaccept -manifest` loads whatever already exists,
+  generating only what is missing before any variant runs (`-regenerate`
+  forces it). A load takes about 3s; nothing regenerates a world per run.
 
 Budget a targeted harness at minutes. If the precondition is the slow part,
 build the fixture before writing the assertion, and review the generated save
@@ -178,8 +185,8 @@ plan's stages, with `PlanSignature`), `WaitGoalMethod`, `WaitPlanTerminal`
 and `WaitRoutineReview` already do this
 with `na.StallBudget()` (10 minutes, `RIMGOVERNOR_ACCEPT_STALL` overrides);
 harnesses with their own loops take a `-stall` flag defaulting to the same.
-Issues #91 and #92 track the remaining speed and quiet work (pre-generated
-worlds).
+Issue #91 tracks the remaining speed work (ticks at speed, a parallel suite
+driver, a trimmed headless `Prefs.xml`).
 
 Passing evidence follows relevant code, dependencies, inputs and environment,
 not the main HEAD hash. Unrelated main commits, clean cherry-picks and rebases
@@ -241,7 +248,8 @@ Reuse does **not** reset mod static state: process-scoped statics such as
 [native-static-state.md](../../../contracts/native-static-state.md)). Any
 case whose assertion depends on one of those, and any case run as static-
 state or fresh-Go-session evidence, stays in fresh-process mode. Manifest
-variants (`-manifest`) are still generated in their own fresh process.
+variants (`-manifest`) that are missing are generated before the reused game
+opens, so `-reuse-game` works in both modes.
 
 ## Available checks
 

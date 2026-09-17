@@ -16,14 +16,12 @@ package variantgen
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"time"
 
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 )
 
@@ -107,85 +105,42 @@ func Exists(root, save string) bool {
 	return err == nil && !info.IsDir()
 }
 
-// openFixtureSession opens one fresh GABS/native session and validates that
-// the ScenarioStartFixture endpoints this package depends on are actually
+// openFixtureSession opens a session at the main menu (na.OpenGame: a fresh
+// process, or with RIMGOVERNOR_ACCEPT_KEEP_GAME an attach to the process an
+// earlier harness left running, unloaded) and validates that the
+// ScenarioStartFixture endpoints this package depends on are actually
 // present, so a plain production-mod misconfiguration fails immediately with
-// a clear cause instead of a confusing later error.
-func openFixtureSession(ctx context.Context, root, output, gameID string, headless bool) (*na.Config, *na.Harness, func(), error) {
+// a clear cause instead of a confusing later error. The returned close
+// records what became of the process under row (na.Game.Close).
+func openFixtureSession(ctx context.Context, root, output, gameID string, headless bool, row map[string]any) (*na.Config, *na.Harness, func(), error) {
 	cfg := &na.Config{Root: root, Output: output, Headless: headless, GameID: gameID}
 	if err := cfg.PrepareConfig(); err != nil {
 		return nil, nil, nil, fmt.Errorf("prepare profile: %w", err)
 	}
-	gabsExecutable, err := na.GABSExecutable(root, cfg.Configuration)
+	held, err := na.OpenGame(ctx, cfg)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	client, err := na.OpenSession(ctx, gabsExecutable, cfg.Configuration, gameID, 60*time.Second)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	h := na.NewHarness(client, output)
+	h := na.NewHarness(held.Client, output)
 	names, err := h.Discovery(ctx)
 	if err != nil {
-		_ = client.Close()
+		held.Close(nil)
 		return nil, nil, nil, err
 	}
 	for _, want := range []string{"test/configure_start", "test/list_start_scenarios"} {
 		if !na.Contains(names, want) {
-			_ = client.Close()
+			held.Close(nil)
 			return nil, nil, nil, fmt.Errorf("missing %s in discovery -- install a ScenarioStartFixture-built mod "+
 				"(scripts/build_native_mod.ps1 -Fixture ScenarioStartFixture ...), not the production mod", want)
 		}
 	}
-	closeFn := func() {
-		stopCtx, stopCancel := context.WithTimeout(context.Background(), 60*time.Second)
-		defer stopCancel()
-		_, _ = client.GamesStop(stopCtx)
-		awaitStopped(stopCtx, client)
-		_ = client.Close()
-	}
-	return cfg, h, closeFn, nil
-}
-
-// awaitStopped polls games_status after games_stop until GABS reports the
-// underlying RimWorld process is actually gone (or ctx expires). Without this,
-// a caller's next openFixtureSession can race the still-tearing-down process:
-// ConnectWithPoll short-circuits and reattaches to it if GABS still reports it
-// GABP-connected, handing test/configure_start a process that is mid-game
-// (loaded, Current.Game != null) rather than the fresh main-menu process it
-// requires -- observed directly generating a manifest's second variant right
-// after the first.
-func awaitStopped(ctx context.Context, client *bridge.Client) {
-	for {
-		status, err := client.GameStatus(ctx)
-		if err != nil {
-			return
-		}
-		var state struct {
-			Status string `json:"status"`
-		}
-		if err := json.Unmarshal(status.Structured, &state); err != nil {
-			return
-		}
-		switch state.Status {
-		case "stopped", "stale-runtime-cleaned", "disconnected", "":
-			return
-		}
-		if ctx.Err() != nil {
-			return
-		}
-		select {
-		case <-ctx.Done():
-			return
-		case <-time.After(250 * time.Millisecond):
-		}
-	}
+	return cfg, h, func() { held.Close(na.Report(row)) }, nil
 }
 
 // ListScenarios reads test/list_start_scenarios once, for discovering valid
 // -scenario/-difficulty names before writing a manifest.
 func ListScenarios(ctx context.Context, root, output, gameID string, headless bool) (map[string]any, error) {
-	_, h, closeFn, err := openFixtureSession(ctx, root, output, gameID, headless)
+	_, h, closeFn, err := openFixtureSession(ctx, root, output, gameID, headless, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -197,16 +152,17 @@ func ListScenarios(ctx context.Context, root, output, gameID string, headless bo
 // the naming dialog, save under v.Save, and persist that save to SavePath so
 // it survives past this disposable session's own profile copy. row records
 // evidence for the caller's own report, mirroring every other native
-// acceptance binary's convention. It requires its own fresh main-menu native
-// process -- test/configure_start refuses otherwise -- so it always opens a
-// new session; callers generating several variants must do so sequentially
-// (see sustainedmatrixaccept's saves loop for why: one native session can be
-// connected through the sole GABP slot at a time).
+// acceptance binary's convention. It needs the main menu --
+// test/configure_start refuses with a game loaded -- which na.OpenGame
+// guarantees for a fresh process and a kept one alike; callers generating
+// several variants must do so sequentially (see sustainedmatrixaccept's
+// saves loop for why: one native session can be connected through the
+// sole GABP slot at a time).
 func Generate(ctx context.Context, root, output, gameID string, headless bool, startTimeout time.Duration, v Variant, row map[string]any) error {
 	if err := v.Validate(); err != nil {
 		return err
 	}
-	_, h, closeFn, err := openFixtureSession(ctx, root, output, gameID, headless)
+	_, h, closeFn, err := openFixtureSession(ctx, root, output, gameID, headless, row)
 	if err != nil {
 		return err
 	}

@@ -120,10 +120,41 @@ func (g *Game) Close(report Report) {
 		if report != nil {
 			report["stop"] = string(stopped.Envelope)
 		}
+		awaitStopped(ctx, g.Client)
 	} else if report != nil {
 		report["stop_error"] = err.Error()
 	}
 	_ = g.Client.Close()
+}
+
+// awaitStopped polls games_status after games_stop until GABS reports the
+// process gone (or ctx expires). Without it the next OpenGame under the
+// same root can race the teardown: GABS still reports the process
+// connected, games_start attaches to it mid-game, and a fixture that needs
+// the main menu (test/configure_start) refuses -- observed generating a
+// manifest's second variant right after its first.
+func awaitStopped(ctx context.Context, client *bridge.Client) {
+	for {
+		status, err := client.GameStatus(ctx)
+		if err != nil {
+			return
+		}
+		var state struct {
+			Status string `json:"status"`
+		}
+		if err := json.Unmarshal(status.Structured, &state); err != nil {
+			return
+		}
+		switch state.Status {
+		case "stopped", "stale-runtime-cleaned", "disconnected", "":
+			return
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(250 * time.Millisecond):
+		}
+	}
 }
 
 // toMainMenu unloads whatever is loaded and waits until no game answers.
