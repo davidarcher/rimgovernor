@@ -35,6 +35,8 @@ type ServiceProcess struct {
 	cmd     *exec.Cmd
 	done    chan error
 	stopped bool
+	exited  bool
+	exit    error
 	dir     string
 	client  *http.Client
 	ctx     context.Context
@@ -133,10 +135,38 @@ func (p *ServiceProcess) Stop() {
 		return
 	}
 	p.stopped = true
+	if p.exited {
+		return
+	}
 	if p.cmd.ProcessState == nil {
 		_ = p.cmd.Process.Kill()
 	}
 	<-p.done
+}
+
+// Exited reports, without blocking, whether the service has already exited
+// on its own; the error names its exit. It is a Wait.Terminal for the poll
+// loops that verify the service's durable state.
+func (p *ServiceProcess) Exited() error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if !p.exited {
+		select {
+		case err := <-p.done:
+			p.exited, p.exit = true, err
+		default:
+			return nil
+		}
+	}
+	return fmt.Errorf("service %d exited: %w", p.PID, errOrExit(p.exit))
+}
+
+// errOrExit names a clean exit, which is as terminal for a wait as a crash.
+func errOrExit(err error) error {
+	if err == nil {
+		return errors.New("exit status 0")
+	}
+	return err
 }
 
 // AssertStopped verifies a stopped service no longer answers: its old session
@@ -458,12 +488,13 @@ func OpenStoreWithRetry(ctx context.Context, path string) (*store.Store, error) 
 
 // WaitRoutineReview polls until the service reaches automate mode and a
 // routine review has been persisted, returning the diagnostics it gathered.
+// Besides timeout the wait stalls (StallBudget) when neither the service
+// mode nor the review revision changes.
 func (p *ServiceProcess) WaitRoutineReview(ctx context.Context, s *store.Store, timeout time.Duration) (store.RoutineReview, []map[string]any, error) {
-	deadline := time.Now().Add(timeout)
 	var diagnostics []map[string]any
 	sawAutomate := false
 	var review store.RoutineReview
-	for time.Now().Before(deadline) {
+	err := WaitProgress(ctx, Wait{Ceiling: timeout, Stall: StallBudget(), Terminal: p.Exited}, func(ctx context.Context) (string, bool, error) {
 		st, _, stErr := p.API("GET", "/api/state", nil, "")
 		clk, _, clkErr := p.API("GET", "/api/player/clock", nil, "")
 		entry := map[string]any{"state": st, "clock": clk}
@@ -480,19 +511,18 @@ func (p *ServiceProcess) WaitRoutineReview(ctx context.Context, s *store.Store, 
 		if r, err := s.LoadRoutineReview(ctx); err == nil {
 			review = r
 			if review.Revision > 0 && sawAutomate {
-				return review, diagnostics, nil
+				return "", true, nil
 			}
 		}
-		select {
-		case <-ctx.Done():
-			return review, diagnostics, ctx.Err()
-		case <-time.After(2 * time.Second):
-		}
+		return Signature(AsString(st["mode"]), review.Revision), false, nil
+	})
+	if err == nil {
+		return review, diagnostics, nil
 	}
 	if !sawAutomate {
-		return review, diagnostics, fmt.Errorf("service never reached automate mode after acquire")
+		return review, diagnostics, fmt.Errorf("service never reached automate mode after acquire: %w", err)
 	}
-	return review, diagnostics, fmt.Errorf("service reached automate mode but the routine review was never persisted (revision 0)")
+	return review, diagnostics, fmt.Errorf("service reached automate mode but the routine review was never persisted (revision 0): %w", err)
 }
 
 // WaitGoalMethod polls the durable routine review for need's goal binding
@@ -501,11 +531,15 @@ func (p *ServiceProcess) WaitRoutineReview(ctx context.Context, s *store.Store, 
 // A method whose plan completed and retired within a single clock window
 // (the goal recovered before the harness polled) is no longer on the goal's
 // live Methods, so the current epoch's bounded history is consulted too.
+// The wait stalls (StallBudget) when the binding and its method count stop
+// changing.
 func WaitGoalMethod(ctx context.Context, s *store.Store, need policy.GoalID, previous *domain.GoalMethod) (domain.GoalID, domain.GoalMethod, error) {
-	for {
+	var foundGoal domain.GoalID
+	var found domain.GoalMethod
+	err := WaitProgress(ctx, Wait{Stall: StallBudget(), Interval: time.Second}, func(ctx context.Context) (string, bool, error) {
 		review, err := s.LoadRoutineReview(ctx)
 		if err != nil {
-			return "", domain.GoalMethod{}, err
+			return "", false, err
 		}
 		var goalID domain.GoalID
 		for _, binding := range review.Goals {
@@ -514,69 +548,72 @@ func WaitGoalMethod(ctx context.Context, s *store.Store, need policy.GoalID, pre
 				break
 			}
 		}
-		if goalID != "" {
-			goal, err := s.LoadGoal(ctx, goalID)
-			if err != nil && !errors.Is(err, store.ErrNotFound) {
-				return "", domain.GoalMethod{}, err
-			}
-			methods := goal.Methods
-			if err == nil && len(methods) == 0 {
-				if methods, err = s.LoadGoalMethods(ctx, goalID, goal.Goal.Epoch); err != nil {
-					return "", domain.GoalMethod{}, err
-				}
-			}
-			for _, method := range methods {
-				if previous == nil || method.Method != previous.Method || method.Plan != previous.Plan {
-					return goalID, method, nil
-				}
+		if goalID == "" {
+			return Signature("unbound", review.Revision > 0), false, nil
+		}
+		goal, err := s.LoadGoal(ctx, goalID)
+		if err != nil && !errors.Is(err, store.ErrNotFound) {
+			return "", false, err
+		}
+		methods := goal.Methods
+		if err == nil && len(methods) == 0 {
+			if methods, err = s.LoadGoalMethods(ctx, goalID, goal.Goal.Epoch); err != nil {
+				return "", false, err
 			}
 		}
-		select {
-		case <-ctx.Done():
-			return "", domain.GoalMethod{}, ctx.Err()
-		case <-time.After(time.Second):
+		for _, method := range methods {
+			if previous == nil || method.Method != previous.Method || method.Plan != previous.Plan {
+				foundGoal, found = goalID, method
+				return "", true, nil
+			}
 		}
+		return Signature(goalID, len(methods)), false, nil
+	})
+	if err != nil {
+		return "", domain.GoalMethod{}, fmt.Errorf("goal method for %s: %w", need, err)
 	}
+	return foundGoal, found, nil
 }
 
 // WaitPlanTerminal polls plan until every action reaches a terminal stage.
 // incidental reports the executor's own authority-discontinuity cancellation
 // (Cancelled with Effect Absent, see domain.Progress.Observe), which the
-// caller should follow with a fresh WaitGoalMethod rather than fail on.
+// caller should follow with a fresh WaitGoalMethod rather than fail on. The
+// wait stalls (StallBudget) when no action's stage or attempt changes.
 func WaitPlanTerminal(ctx context.Context, s *store.Store, planID domain.PlanID) (state store.PlanState, incidental bool, err error) {
-	for {
+	err = WaitProgress(ctx, Wait{Stall: StallBudget(), Interval: time.Second}, func(ctx context.Context) (string, bool, error) {
 		state, err = s.LoadPlan(ctx, planID)
 		if err != nil {
-			return state, false, err
+			return "", false, err
 		}
 		terminal := len(state.Progress) > 0
+		var signature []any
 		for _, progress := range state.Progress {
 			view := progress.View()
+			signature = append(signature, view.Stage, view.Attempt, view.Unresolved)
 			switch view.Stage {
 			case domain.Completed:
 			case domain.Unsuccessful:
-				return state, false, fmt.Errorf("plan %s reached unsuccessful instead of completed", planID)
+				return "", false, fmt.Errorf("plan %s reached unsuccessful instead of completed", planID)
 			case domain.Cancelled:
 				// Never dispatched, or dispatched with a known absent effect:
 				// the executor's own no-effect rule (executor/accounting.go).
 				effect, known := view.Effect.Value()
 				if !view.Unresolved && (view.Attempt == 0 || known && effect == domain.EffectAbsent) {
-					return state, true, nil
+					incidental = true
+					return "", true, nil
 				}
-				return state, false, fmt.Errorf("plan %s reached cancelled instead of completed", planID)
+				return "", false, fmt.Errorf("plan %s reached cancelled instead of completed", planID)
 			default:
 				terminal = false
 			}
 		}
-		if terminal {
-			return state, false, nil
-		}
-		select {
-		case <-ctx.Done():
-			return state, false, ctx.Err()
-		case <-time.After(time.Second):
-		}
+		return Signature(signature...), terminal, nil
+	})
+	if err != nil {
+		return state, false, err
 	}
+	return state, incidental, nil
 }
 
 // ReopenSession retries OpenSession for a few seconds after a service stop,

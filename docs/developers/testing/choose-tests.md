@@ -38,6 +38,51 @@ Budget a targeted harness at minutes. If the precondition is the slow part,
 build the fixture before writing the assertion, and review the generated save
 once so later runs can trust it.
 
+## Performance guidelines for a new harness
+
+Every harness under `go/internal/nativeaccept/cmd/*` is written against
+this checklist; the refactors behind #91 and #92 exist because earlier ones
+were not. A reviewer holds a new harness to it.
+
+1. **Open on the precondition.** A committed `.rws` or a single
+   `test/*_prepare` call (previous section). The run's first assertion-bearing
+   tick should come within a minute of the game being ready.
+2. **Core-only unless the test is about DLC.** Do nothing and the profile is
+   Core-only; a save-loading harness calls `cfg.UseSaveExpansions(save)` so a
+   save's own `<modIds>` decide. Only a DLC-content test sets
+   `Config.Expansions` (or `RIMGOVERNOR_ACCEPT_EXPANSIONS`).
+3. **Quiet by default.** Start the debug colony with `na.StartDebugGame`
+   and pick the mode deliberately: `QuietRequired` when the harness needs a
+   fixture build anyway, `QuietIfAvailable` when it must also run on a
+   production build, `Loud` only when the assertion is about an interruption.
+   `test/configure_start` is quiet unless told otherwise.
+4. **Every wait is stall-bounded.** Poll through `na.WaitProgress` with a
+   signature over the thing that must move and `Terminal: service.Exited`
+   when a serve subprocess is involved; use the shared `WaitGoalMethod`,
+   `WaitPlanTerminal` and `WaitRoutineReview` where they fit. No bare
+   `for { ...; time.Sleep }` loops bounded only by the run timeout, and no
+   per-phase ceilings measured in tens of minutes: a ceiling is the safety
+   net, the stall budget (`-stall`, default `na.StallBudget()`) is what ends a
+   broken run.
+5. **Budget in minutes and say so.** `-timeout` defaults reflect a healthy
+   run plus margin, not the worst run seen. If the honest default exceeds
+   ~15 minutes, the precondition is not staged well enough (item 1) or the
+   assertion covers too much; split it.
+6. **Advance by ticks, at speed.** Run at `Fast` (or the clock's
+   `tickDeadline`) and bound game-time waits by ticks where the assertion
+   allows, so wall-clock is spent on the assertion, not on watching the game.
+7. **One fixture call, not a script.** Spawn, forbid, damage, assign and
+   settle in one `test/*_prepare` op rather than a sequence of production ops
+   each paying a bridge round trip; production ops are for the behavior under
+   test, not for setup.
+8. **Fail fast on terminal signals.** A `ScenarioInterrupted` hold, a plan in
+   `Unsuccessful`/`Cancelled`, a serve exit or a missing fixture op ends the
+   run at once with the evidence in the report; do not wait out the ceiling
+   hoping it recovers.
+9. **Prefer reuse over boot.** When several cases share a save, run them
+   through `sustainedmatrixaccept -reuse-game` ([below](#reusing-one-game-across-acceptance-cases)) rather
+   than booting RimWorld per case.
+
 ## Keep the game quiet and small
 
 Acceptance profiles are Core-only: `nativeaccept.PrepareNativeModConfig`
@@ -66,9 +111,22 @@ removed from the map; because the Custom difficulty is what the save
 persists, a quiet save stays quiet after reload while a fixture build is
 installed. Interruption harnesses (`combataccept`, `defenselayoutaccept`,
 `movementaccept`, `disconnectaccept`, `test/world_incident` users) stay
-`Loud`. Issues #91 and #92 track the remaining speed
-and quiet work (small maps, stall-based early exit, frozen needs, letter
-acknowledgement).
+`Loud`.
+
+Bound waits by stall, not only by ceiling. A broken run stops changing long
+before its wall-clock budget runs out, so a poll loop goes through
+`na.WaitProgress(ctx, na.Wait{Ceiling, Stall, Terminal}, probe)`: the probe
+returns a progress signature (`na.Signature(...)` over whatever must move:
+plan stages, a goal binding, a method count) and the wait fails once it has
+not changed for the stall budget. Leave the game tick out of the signature
+unless the wait tolerates a plan that is not moving while the game runs.
+`Terminal` fails fast on a signal that nothing can recover from, typically
+the serve subprocess having exited (`service.Exited`). The shared
+`WaitGoalMethod`, `WaitPlanTerminal` and `WaitRoutineReview` already do this
+with `na.StallBudget()` (10 minutes, `RIMGOVERNOR_ACCEPT_STALL` overrides);
+harnesses with their own loops take a `-stall` flag defaulting to the same.
+Issues #91 and #92 track the remaining speed and quiet work (small maps,
+process reuse, frozen needs, letter acknowledgement).
 
 Passing evidence follows relevant code, dependencies, inputs and environment,
 not the main HEAD hash. Unrelated main commits, clean cherry-picks and rebases
