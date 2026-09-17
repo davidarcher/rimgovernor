@@ -4,6 +4,8 @@
 // letter that does not pause under the profile's AutomaticPauseMode leaves
 // the window untouched; an unexpected threat letter still interrupts, and a
 // strict window (WithExpectedLetters()) interrupts on an informational one.
+// It also checks rimgovernor/presentation_notifications (#79) against the
+// home/status letter stack while a letter is up.
 package main
 
 import (
@@ -81,7 +83,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	if err != nil {
 		return err
 	}
-	for _, tool := range []string{na.DismissLetterTool, "test/deliver_letter", "test/letter_pause_mode"} {
+	for _, tool := range []string{na.DismissLetterTool, "test/deliver_letter", "test/letter_pause_mode", "rimgovernor/presentation_notifications"} {
 		if !na.Contains(names, tool) {
 			return fmt.Errorf("%s is not installed: build the mod with -Fixture LetterFixture", tool)
 		}
@@ -252,9 +254,100 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	} else if !stacked {
 		return fmt.Errorf("strict window dismissed letter %s", strictID)
 	}
+	// 5. The typed notifications read (#79) sees the same stack as home/status
+	// and answers every section; an explicit include_letters:false omits only
+	// the letter section.
+	typed, err := notificationsMatch(ctx, h, identity, strictID)
+	if err != nil {
+		return err
+	}
+	summary["typed_notifications"] = typed
 	if err := dismiss("strict-dismiss", strictID); err != nil {
 		return err
 	}
 	summary["strict"] = map[string]any{"letterId": strictID, "reason": interrupted.Reason}
 	return nil
+}
+
+// notificationsMatch reads rimgovernor/presentation_notifications and checks
+// it against home/status: the letter under test is listed with its def, the
+// letter listing counts agree, messages and alerts are observed, and an
+// explicit include_letters:false leaves the letter section absent.
+func notificationsMatch(ctx context.Context, h *na.Harness, identity map[string]any, letterID string) (map[string]any, error) {
+	status, err := h.Call(ctx, "notifications-status", "home/status", map[string]any{})
+	if err != nil {
+		return nil, err
+	}
+	statusLetters := na.AsSlice(status["letters"])
+	reply, err := h.Wire(ctx, "notifications", "presentation_notifications", map[string]any{"identity": identity})
+	if err != nil {
+		return nil, err
+	}
+	_, snapshot, err := na.Outcome(reply, "notifications")
+	if err != nil {
+		return nil, fmt.Errorf("presentation_notifications: %w", err)
+	}
+	observed := func(section string) (map[string]any, error) {
+		raw, ok := na.AsMap(snapshot[section])
+		if !ok {
+			return nil, fmt.Errorf("presentation_notifications: %s section absent", section)
+		}
+		_, value, err := na.Outcome(raw, "observed")
+		if err != nil {
+			return nil, fmt.Errorf("presentation_notifications: %s: %w", section, err)
+		}
+		return value, nil
+	}
+	letters, err := observed("letters")
+	if err != nil {
+		return nil, err
+	}
+	rows := na.AsSlice(letters["letters"])
+	if len(rows) != len(statusLetters) {
+		return nil, fmt.Errorf("typed letters %d, home/status letters %d", len(rows), len(statusLetters))
+	}
+	listing, _ := na.AsMap(letters["listing"])
+	if int(na.AsNumber(listing["totalCount"])) != len(rows) || int(na.AsNumber(listing["returnedCount"])) != len(rows) || listing["complete"] != true {
+		return nil, fmt.Errorf("typed letter listing does not describe %d rows: %#v", len(rows), listing)
+	}
+	var found map[string]any
+	for _, raw := range rows {
+		if row, ok := na.AsMap(raw); ok && na.AsString(row["id"]) == letterID {
+			found = row
+		}
+	}
+	if found == nil {
+		return nil, fmt.Errorf("typed letters omit %s: %#v", letterID, rows)
+	}
+	if na.AsString(found["defName"]) != "PositiveEvent" || na.AsString(found["label"]) == "" || na.AsString(found["nativeType"]) == "" {
+		return nil, fmt.Errorf("typed letter %s lacks def, label or type: %#v", letterID, found)
+	}
+	if _, err := observed("messages"); err != nil {
+		return nil, err
+	}
+	alerts, err := observed("alerts")
+	if err != nil {
+		return nil, err
+	}
+	if na.AsString(alerts["snapshotFingerprint"]) == "" {
+		return nil, fmt.Errorf("typed alerts lack a snapshot fingerprint: %#v", alerts)
+	}
+	narrowed, err := h.Wire(ctx, "notifications-no-letters", "presentation_notifications",
+		map[string]any{"identity": identity, "includeLetters": false, "alertLimit": 1})
+	if err != nil {
+		return nil, err
+	}
+	_, narrowedSnapshot, err := na.Outcome(narrowed, "notifications")
+	if err != nil {
+		return nil, fmt.Errorf("presentation_notifications(includeLetters=false): %w", err)
+	}
+	if _, present := narrowedSnapshot["letters"]; present {
+		return nil, fmt.Errorf("includeLetters:false still returned a letter section")
+	}
+	narrowedAlerts, _ := na.AsMap(narrowedSnapshot["alerts"])
+	if _, ok := narrowedAlerts["observed"]; !ok {
+		return nil, fmt.Errorf("includeLetters:false lost the alert section: %#v", narrowedSnapshot)
+	}
+	return map[string]any{"letterId": letterID, "letters": len(rows), "alerts": len(na.AsSlice(alerts["alerts"])),
+		"alertFingerprint": alerts["snapshotFingerprint"]}, nil
 }

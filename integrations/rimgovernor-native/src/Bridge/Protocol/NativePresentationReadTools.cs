@@ -165,6 +165,6 @@ namespace HomeBridge.BridgeTools
             return ProtoBoundary.Encode(reply);
         }
         private static void Require(bool value, string detail) { if (!value) throw new ReadLimit(detail); }
-        private sealed class ReadLimit : Exception { internal ReadLimit(string message) : base(message) {} }
+        internal sealed class ReadLimit : Exception { internal ReadLimit(string message) : base(message) {} }
     }
 }
