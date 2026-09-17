@@ -87,6 +87,16 @@ starter shell, converting the new bed on a later review. Tending, rescue, the
 medicine reserve and doctor coverage stay their own families; the bed patch
 completing never clears the deficit.
 
+The bedroom row works the same way for `MaintainSleeping` (the `sleeping`
+family): a colonist without an owned suitable bed is first assigned a vacant
+one through the typed `bed_assign` operation, and only when nobody can be
+assigned is one `Bed` staged in a Bedroom-hosting room (Bedroom, Barracks or
+generic Room) whose observed temperature lies inside the comfortable band of
+every colonist still unhoused, one bed per method, assigned on a later review.
+A sleeping spot is never suitable and never staged here; neither the
+assignment nor the construction receipt clears the deficit, only the
+colonist's observed sleep in the owned bed does.
+
 The first shelter's shape is chosen from the native player-faction tech level:
 Neolithic colonies raise a circular or oval hut, others a 9x9 rectangle, and
 constrained terrain grows a connected irregular footprint when no template fits

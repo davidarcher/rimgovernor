@@ -204,22 +204,32 @@ complete roofing must be observed before the filtered zone is created; the entra
 aisle stays free. The controller does not build duplicate rooms after interruption
 or change another stockpile's filters.
 
-`MaintainSleeping` reuses vacant eligible beds before building one affordable bed
-beside a controller-created floor spot. Ordinary construction uses shared resource
-admission, exact native placement/access previews and observed cell temperatures.
-Unavailable bed research enters the existing admitted-capability research system.
-The spot remains available throughout construction and after reassignment. An
-upgrade requires its exact confirmed native placement identity; matching coordinates
-alone cannot establish ownership. Player assignments and legacy receipts without
-that identity remain protected. The native `home/upkeep_bed` operation checks the
-previous assignment, vacancy, eligibility, allowed area, access and temperature
-together before transferring ownership; it never evicts another owner.
+`MaintainSleeping` is declared by the `sleeping` family: with it enabled the goal
+is a method-available deficit ranked like any other development row; without it
+the deficit stays visible as method-unavailable. Each review re-derives the
+sleeping targets (colonists without an owned suitable bed, or without observed
+use of one) from the upkeep census against the retained use history. The method
+assigns first: the lowest waiting colonist with a vacant suitable bed receives
+the lowest such bed through the typed `bed_assign` operation, one assignment per
+goal epoch, carrying that colonist's expected previous bed so a player change
+since the review is refused rather than overwritten. The native side re-checks
+vacancy, humanlike/non-medical/non-prisoner eligibility, roof, forbidden state,
+allowed area, reach and the pawn's comfortable temperature band together before
+transferring ownership; it never evicts another owner. Only when nobody can be
+assigned is one `Bed` staged, through the shared building ladder, in a room that
+can host a Bedroom (Bedroom, Barracks or generic Room) whose observed
+temperature lies inside the comfortable band of every colonist still unhoused;
+a room too cold or hot for them is not a site, and with no such room the ladder
+falls to its starter shell, which waits while the initial shelter is owed.
+Construction uses shared resource admission and exact native placement/access
+previews, one bed per method, and the staged bed is assigned on a later review.
+A sleeping spot is never a suitable bed and is never staged by this goal.
 
 Assignment and construction receipts do not complete sleeping upkeep. Recovery
 requires observed use by the assigned pawn in a suitable bed, retained only for
 that bed and current load. Missing reads, changed assignments, access loss and
 unsafe temperature reopen the deficit. Natural sleep uses the existing schedule;
-the method does not force rest, remove a floor spot or change a player's timetable.
+the method does not force rest or change a player's timetable.
 
 `MaintainMedicalReserves` starts below the configured medicine units per colonist
 and remains active until the higher recovery reserve is observed. Defaults are one

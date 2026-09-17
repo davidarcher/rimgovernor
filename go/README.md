@@ -619,6 +619,13 @@ default routine thresholds and requires typed colony observations. Startup
 remains disabled. The reviewer journals needs; the `sleeping` family compiles
 eligible shelter deficits into pending methods at that same paused boundary
 under the player gate, and a failed preview prevents a new clock window. The
+same family declares `MaintainSleeping`: its upkeep planner assigns a vacant
+suitable bed to a colonist without one through the typed `bed_assign`
+operation (one per goal epoch, carrying the expected previous bed) and, when
+nobody can be assigned, stages one `Bed` through the building ladder in a
+Bedroom-hosting room whose observed temperature suits the unhoused colonists;
+neither receipt recovers the goal, only observed sleep in the owned bed does
+(see [upkeep contracts](../docs/developers/contracts/upkeep-contracts.md)). The
 `shelter` family includes indoor
 furnishing and falls back to a bounded 9×9 starter shell when the whole sleeping
 method lacks verified space, or digs a corridor and room into a visible rock face
@@ -703,8 +710,8 @@ Animal reference captures additionally check pen state, reachable feed, shared
 food competition and both reserve thresholds. Sleeping captures compare owners,
 users, access and comfort against native facts and retain exact pawn/bed use.
 A safe assignment still needs observed use; unsafe assignments remain deficits.
-Native floor-place replay establishes upgrade detection; actual real-bed use
-acceptance and sleeping assignment/building methods remain open.
+Native floor-place replay establishes upgrade detection; the `upkeepaccept`
+`sleeping` scenario covers the assignment/building methods and real-bed use.
 Completed autonomous building methods retain exact native origin/current IDs in
 the journal, including after retirement and Manual. Routine reviews query those
 current IDs inside the paused observation bracket and verify definition, position,
@@ -740,7 +747,8 @@ filtered stockpile), `blocked` (allowed areas exclude the targets; deficits
 stay visible, nothing completes), `fire` (home fire latches as an emergency
 that defers every development row), `medicine` (reserve deficit resolves
 through acquisition, a bill or mining), `feed` (pet without reachable stored
-feed), `sleeping` (bed shortage builds one sleeping place) and `cold`
+feed), `sleeping` (one-bed shortage: a bed is built, ownership follows and
+every colonist is observed sleeping in an owned bed) and `cold`
 (sleeping room below the cold floor gets a heat source). `-debug` adds the
 flight recorder and clock/worker diagnostics. Run it from the repo root with
 `-root <bridge root> -rimgovernor <service exe>`; the scenario's output
