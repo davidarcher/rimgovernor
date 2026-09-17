@@ -106,6 +106,10 @@ namespace HomeBridge.BridgeTools
                 if (!GenPlace.TryPlaceThing(thing, center, map, ThingPlaceMode.Near)) return Refuse("Fixture food placement failed.");
                 thing.SetForbidden(false, false); food += thing.stackCount;
             }
+            // The scenario stages its own raid; a storyteller incident or quest
+            // letter meanwhile pauses the game and cancels the layout plans.
+            Find.Storyteller.storytellerComps.Clear();
+            Find.Storyteller.incidentQueue.Clear();
             var provisioned = 0;
             foreach (var pawn in map.mapPawns.FreeColonistsSpawned.Where(p => p.needs != null)) {
                 if (pawn.needs.food != null) pawn.needs.food.CurLevelPercentage = 1f;
