@@ -58,7 +58,9 @@ were not. A reviewer holds a new harness to it.
    and pick the mode deliberately: `QuietRequired` when the harness needs a
    fixture build anyway, `QuietIfAvailable` when it must also run on a
    production build, `Loud` only when the assertion is about an interruption.
-   `test/configure_start` is quiet unless told otherwise.
+   `test/configure_start` is quiet unless told otherwise. Pass the discovered
+   names as `ScenarioRuntime.Tools` so `AdvanceGame` dismisses the letters it
+   acknowledges; reserve `WithExpectedLetters` for interruption windows.
 5. **Every wait is stall-bounded.** Poll through `na.WaitProgress` with a
    signature over the thing that must move and `Terminal: service.Exited`
    when a serve subprocess is involved; use the shared `WaitReview`,
@@ -117,6 +119,22 @@ installed. Interruption harnesses (`combataccept`, `defenselayoutaccept`,
 `movementaccept`, `disconnectaccept`, `test/world_incident` users) stay
 `Loud`.
 
+Letters are acknowledged, not fatal. `na.AdvanceGame` used to fail a window
+on any pausing letter outside its expected list; it now acknowledges the
+informational defs in `na.AcknowledgedLetterDefs` (Neutral/Positive/Negative
+events, quests, joiners, rituals, births), dismisses them through
+`test/dismiss_letter` (`LetterFixture`, in every fixture build) when the
+harness passes its discovered names as `ScenarioRuntime.Tools`, and records
+the acknowledgement under the window's interruption. Threat letters still
+need `WithExpectedLetters(pairs...)`, and that option also makes the window
+strict (no informational acknowledgement), which is what interruption
+harnesses want. Only letters whose def pauses under the profile's
+`automaticPauseMode` (MajorThreat in the headless profile: ThreatBig only)
+ever reach the loop; `letteraccept` covers both modes through
+`test/letter_pause_mode` and `test/deliver_letter`. Routine plans under the
+serve process are still cancelled by any letter pause (`clock_poll`
+invalidation); that is controller behaviour, not harness tooling.
+
 Starts are small by default. `test/configure_debug_start` (in every fixture
 build) arms the next quick start with a map size and planet coverage, and
 `na.StartDebugGame` uses it whenever it is discoverable: 200x200 on a 5%
@@ -146,7 +164,7 @@ and `WaitRoutineReview` already do this
 with `na.StallBudget()` (10 minutes, `RIMGOVERNOR_ACCEPT_STALL` overrides);
 harnesses with their own loops take a `-stall` flag defaulting to the same.
 Issues #91 and #92 track the remaining speed and quiet work (pre-generated worlds,
-process reuse, frozen needs, letter acknowledgement).
+process reuse, frozen needs).
 
 Passing evidence follows relevant code, dependencies, inputs and environment,
 not the main HEAD hash. Unrelated main commits, clean cherry-picks and rebases

@@ -104,7 +104,11 @@ func run(ctx context.Context, root, output, gameID string, headless, ranged, exp
 	}()
 	h := na.NewHarness(client, output)
 
-	if _, err := na.StartDebugGame(ctx, h, nil, na.Loud); err != nil {
+	names, err := h.Discovery(ctx)
+	if err != nil {
+		return err
+	}
+	if _, err := na.StartDebugGame(ctx, h, names, na.Loud); err != nil {
 		return err
 	}
 	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
@@ -519,7 +523,7 @@ func run(ctx context.Context, root, output, gameID string, headless, ranged, exp
 		},
 		Identity: identity, Owner: na.AsString(na.Owner["controllerSessionId"]), Report: report, Grant: grant, CombatTargets: targets,
 	}
-	rt := &na.ScenarioRuntime{Query: h.Call, Clock: supervisor, Report: report, CombatTargets: targets}
+	rt := &na.ScenarioRuntime{Query: h.Call, Clock: supervisor, Report: report, Tools: names, CombatTargets: targets}
 
 	var completed map[string]any
 	var progress map[string]any

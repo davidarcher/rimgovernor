@@ -88,7 +88,11 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	}()
 	h := na.NewHarness(client, output)
 
-	if _, err := na.StartDebugGame(ctx, h, nil, na.Loud); err != nil {
+	names, err := h.Discovery(ctx)
+	if err != nil {
+		return err
+	}
+	if _, err := na.StartDebugGame(ctx, h, names, na.Loud); err != nil {
 		return err
 	}
 	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
@@ -335,7 +339,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	if err := supervisor.RenewAuthority(ctx); err != nil {
 		return err
 	}
-	rt := &na.ScenarioRuntime{Query: h.Call, Clock: supervisor, Report: report}
+	rt := &na.ScenarioRuntime{Query: h.Call, Clock: supervisor, Report: report, Tools: names}
 	if _, err := na.AdvanceGame(ctx, rt, 240, na.WithTimeout(180*time.Second)); err != nil {
 		return err
 	}

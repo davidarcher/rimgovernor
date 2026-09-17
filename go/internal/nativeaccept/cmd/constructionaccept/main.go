@@ -90,7 +90,11 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	}()
 	h := na.NewHarness(client, output)
 
-	if _, err := na.StartDebugGame(ctx, h, nil, na.QuietRequired); err != nil {
+	names, err := h.Discovery(ctx)
+	if err != nil {
+		return err
+	}
+	if _, err := na.StartDebugGame(ctx, h, names, na.QuietRequired); err != nil {
 		return err
 	}
 	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
@@ -244,7 +248,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	if err := renewOrAcquire(ctx, supervisor, "frame-wait-start"); err != nil {
 		return err
 	}
-	rt := &na.ScenarioRuntime{Query: h.Call, Clock: supervisor, Report: report}
+	rt := &na.ScenarioRuntime{Query: h.Call, Clock: supervisor, Report: report, Tools: names}
 
 	// A lone prepared colonist with reachable wood finishes an ordinary Wall
 	// (small WorkToBuild, single stack of WoodLog) well inside a few hundred

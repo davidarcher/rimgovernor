@@ -104,7 +104,11 @@ func run(ctx context.Context, root, output, gameID, buildingSmoke, expectedOutco
 	}()
 	h := na.NewHarness(client, output)
 
-	if _, err := na.StartDebugGame(ctx, h, nil, na.QuietRequired); err != nil {
+	names, err := h.Discovery(ctx)
+	if err != nil {
+		return err
+	}
+	if _, err := na.StartDebugGame(ctx, h, names, na.QuietRequired); err != nil {
 		return err
 	}
 	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
@@ -682,7 +686,7 @@ func run(ctx context.Context, root, output, gameID, buildingSmoke, expectedOutco
 	if err := renewOrAcquire(ctx, supervisor, "construction-wait"); err != nil {
 		return err
 	}
-	rt := &na.ScenarioRuntime{Query: h.Call, Clock: supervisor, Report: report}
+	rt := &na.ScenarioRuntime{Query: h.Call, Clock: supervisor, Report: report, Tools: names}
 	complete := expectedOutcome == "cancelled"
 	windows := 0
 	if expectedOutcome == "completed" {

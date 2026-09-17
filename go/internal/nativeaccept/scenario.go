@@ -615,7 +615,45 @@ type ScenarioRuntime struct {
 	// Leave nil outside combat scenarios.
 	CombatTargets []string
 
+	// Tools are the discovered tool names; when they include DismissLetterTool
+	// AdvanceGame takes each acknowledged letter off the stack. Nil leaves
+	// letters on the stack, as before the fixture existed.
+	Tools []string
+
 	clockEvents []any
+}
+
+// DismissLetterTool removes one letter from the stack
+// (scripts/fixtures/LetterFixture.cs); every fixture build carries it.
+const DismissLetterTool = "test/dismiss_letter"
+
+// AcknowledgedLetterDefs are the letter defs AdvanceGame acknowledges by
+// default (issue #92): informational events and the choice letters whose
+// unanswered outcome is harmless to an assertion (a joiner leaves, a quest
+// stays offered). Threat letters are never here: they still need
+// WithExpectedLetters, and the window's own safety checks (no hostiles, no
+// downed or bleeding colonist) run for every letter regardless.
+var AcknowledgedLetterDefs = map[string]bool{
+	"NeutralEvent": true, "PositiveEvent": true, "NegativeEvent": true,
+	"NewQuest": true, "AcceptJoiner": true, "AcceptVisitors": true, "AcceptCreepJoiner": true,
+	"RitualOutcomePositive": true, "RitualOutcomeNegative": true,
+	"BabyBirth": true, "BabyToChild": true, "ChildToAdult": true, "ChildBirthday": true,
+}
+
+// letterApproval classifies one letter for an advance window: expected
+// letters (label and def listed) are inspected fixture warnings and stay on
+// the stack; acknowledged defs are informational and are dismissed; anything
+// else interrupts. strict (WithExpectedLetters) disables acknowledgement.
+func letterApproval(label, def string, expected [][2]string, strict bool) (approved, acknowledged bool) {
+	for _, pair := range expected {
+		if pair[0] == label && pair[1] == def {
+			return true, false
+		}
+	}
+	if !strict && AcknowledgedLetterDefs[def] {
+		return true, true
+	}
+	return false, false
 }
 
 func (rt *ScenarioRuntime) receiveClockEvents() {
@@ -656,17 +694,19 @@ type AdvanceOption func(*advanceOptions)
 type advanceOptions struct {
 	timeout         time.Duration
 	expectedLetters [][2]string
+	strictLetters   bool
 	combatTargets   []string
 }
 
 // WithTimeout bounds the whole advance, like advance_game's timeout= keyword.
 func WithTimeout(d time.Duration) AdvanceOption { return func(o *advanceOptions) { o.timeout = d } }
 
-// WithExpectedLetters overrides the letters this window may acknowledge. Pass no
+// WithExpectedLetters makes the window strict: only the listed (label, def)
+// pairs may pause it and AcknowledgedLetterDefs no longer apply. Pass no
 // pairs (WithExpectedLetters()) for interruption acceptance, matching
 // advance_game's expected_letters=().
 func WithExpectedLetters(letters ...[2]string) AdvanceOption {
-	return func(o *advanceOptions) { o.expectedLetters = letters }
+	return func(o *advanceOptions) { o.expectedLetters, o.strictLetters = letters, true }
 }
 
 // WithCombatTargets requires the exact committed defense targets already on
@@ -675,10 +715,13 @@ func WithCombatTargets(targets ...string) AdvanceOption {
 	return func(o *advanceOptions) { o.combatTargets = targets }
 }
 
-// AdvanceGame advances exactly ticks native ticks, acknowledging only inspected
-// fixture warnings. It never dismisses letters, clears player holds, or retries
-// game orders; an unexpected injury, new threat, or drifted identity raises
-// *ScenarioInterrupted with the failing evidence retained on rt.Report.
+// AdvanceGame advances exactly ticks native ticks, acknowledging inspected
+// fixture warnings and, unless the window is strict, the informational
+// letters in AcknowledgedLetterDefs (dismissed through DismissLetterTool when
+// rt.Tools carries it, recorded under the interruption either way). It never
+// clears player holds or retries game orders; an unexpected injury, new
+// threat, or drifted identity raises *ScenarioInterrupted with the failing
+// evidence retained on rt.Report.
 func AdvanceGame(ctx context.Context, rt *ScenarioRuntime, ticks uint64, opts ...AdvanceOption) (map[string]any, error) {
 	if ticks < 1 || ticks > 1800000 {
 		return nil, fmt.Errorf("ticks must be 1..1800000, got %d", ticks)
@@ -884,15 +927,10 @@ func AdvanceGame(ctx context.Context, rt *ScenarioRuntime, ticks uint64, opts ..
 					matchedLetters = append(matchedLetters, row)
 				}
 			}
-			approved := false
+			approved, acknowledged := false, false
 			if len(matchedLetters) == 1 {
-				label, def := AsString(matchedLetters[0]["label"]), AsString(matchedLetters[0]["letterDef"])
-				for _, pair := range options.expectedLetters {
-					if pair[0] == label && pair[1] == def {
-						approved = true
-						break
-					}
-				}
+				detail["letter"] = matchedLetters[0]
+				approved, acknowledged = letterApproval(AsString(matchedLetters[0]["label"]), AsString(matchedLetters[0]["letterDef"]), options.expectedLetters, options.strictLetters)
 			}
 			if err := require(approved, "Letter is not approved for this scenario"); err != nil {
 				return err
@@ -952,7 +990,19 @@ func AdvanceGame(ctx context.Context, rt *ScenarioRuntime, ticks uint64, opts ..
 			}
 			seen[letterID] = true
 			detail["acknowledgedLetterId"] = letterID
-			rt.note("scenario_interruption", "Acknowledged inspected fixture warning", detail)
+			if acknowledged {
+				detail["informational"] = true
+				if Contains(rt.Tools, DismissLetterTool) {
+					dismissed, err := rt.Query(ctx, "dismiss-letter", DismissLetterTool, map[string]any{"letterId": letterID})
+					if err != nil {
+						return fmt.Errorf("%s: %w", DismissLetterTool, err)
+					}
+					detail["dismissed"] = dismissed
+				}
+				rt.note("scenario_interruption", "Acknowledged informational letter", detail)
+			} else {
+				rt.note("scenario_interruption", "Acknowledged inspected fixture warning", detail)
+			}
 			events, err := supervisor.Poll(ctx)
 			if err != nil {
 				return err

@@ -446,3 +446,26 @@ func isScenarioInterrupted(err error, out **ScenarioInterrupted) bool {
 	}
 	return false
 }
+
+func TestLetterApproval(t *testing.T) {
+	expected := [][2]string{{"Ancient danger", "ThreatBig"}}
+	cases := []struct {
+		label, def             string
+		strict                 bool
+		approved, acknowledged bool
+	}{
+		{"Ancient danger", "ThreatBig", false, true, false},
+		{"Ancient danger", "ThreatBig", true, true, false},
+		{"Raid", "ThreatBig", false, false, false},
+		{"Cargo pods", "PositiveEvent", false, true, true},
+		{"Cargo pods", "PositiveEvent", true, false, false},
+		{"Wanderer joins", "AcceptJoiner", false, true, true},
+		{"Manhunter pack", "ThreatSmall", false, false, false},
+	}
+	for _, c := range cases {
+		approved, acknowledged := letterApproval(c.label, c.def, expected, c.strict)
+		if approved != c.approved || acknowledged != c.acknowledged {
+			t.Errorf("%s/%s strict=%v: got approved=%v acknowledged=%v, want %v/%v", c.label, c.def, c.strict, approved, acknowledged, c.approved, c.acknowledged)
+		}
+	}
+}
