@@ -56,7 +56,12 @@ func (e *Executor) runDraft(ctx context.Context, action domain.Action, progress 
 	}
 	expected := authority.Snapshot
 	if expected.Plan != v.Plan || expected.Revision != v.Revision {
-		return result, ErrAuthority
+		// A routine method plan (e.g. hold-the-line) runs under the root
+		// authority; guard re-authorizes it before every native call.
+		if e.routineScope == nil {
+			return result, ErrAuthority
+		}
+		expected.Plan, expected.Revision = v.Plan, v.Revision
 	}
 	var inspection DraftInspection
 	for range 2 {

@@ -3,6 +3,7 @@ package draft
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -72,14 +73,14 @@ func (b *DraftBoundary) pawnRead(ctx context.Context, pawn string, current domai
 	}
 	v := reply.GetObserved()
 	if v == nil {
-		return nil, nil, executor.ErrHeld
+		return nil, nil, fmt.Errorf("%w: pawn %s not observed", executor.ErrHeld, pawn)
 	}
 	if _, err = boundary.Context(v.Context, current); err != nil {
 		return nil, nil, err
 	}
 	counts := v.Completeness
 	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() || counts.Page.GetNextCursor() != "" || counts.Matched == nil || counts.Returned == nil || counts.Unreadable == nil || counts.GetUnreadable() != 0 || counts.GetMatched() != uint64(len(v.Pawns)) || counts.GetReturned() != uint64(len(v.Pawns)) || len(v.Pawns) != 1 {
-		return nil, nil, executor.ErrHeld
+		return nil, nil, fmt.Errorf("%w: pawn %s read incomplete (%d rows)", executor.ErrHeld, pawn, len(v.Pawns))
 	}
 	row := v.Pawns[0]
 	if row == nil || row.Pawn == nil || row.Pawn.GetId() != pawn {
@@ -110,7 +111,7 @@ func (b *DraftBoundary) InspectDraft(ctx context.Context, target executor.Target
 	}
 	evaluated := preview.GetEvaluated()
 	if evaluated == nil {
-		return out, executor.ErrHeld
+		return out, fmt.Errorf("%w: draft preview for %s not evaluated", executor.ErrHeld, pawn)
 	}
 	if _, err = boundary.Context(evaluated.Context, target.Snapshot); err != nil {
 		return out, err
