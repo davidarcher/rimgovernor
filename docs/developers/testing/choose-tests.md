@@ -142,9 +142,11 @@ strict (no informational acknowledgement), which is what interruption
 harnesses want. Only letters whose def pauses under the profile's
 `automaticPauseMode` (MajorThreat in the headless profile: ThreatBig only)
 ever reach the loop; `letteraccept` covers both modes through
-`test/letter_pause_mode` and `test/deliver_letter`. Routine plans under the
-serve process are still cancelled by any letter pause (`clock_poll`
-invalidation); that is controller behaviour, not harness tooling.
+`test/letter_pause_mode` and `test/deliver_letter`. Under the serve process
+a letter pause drops authority but only suspends routine goals (#65): the
+next enabled review reactivates the same goal with its plans still open, so
+a harness following a routine plan sees the same plan resume, not a
+successor.
 
 Starts are small by default. `test/configure_debug_start` (in every fixture
 build) arms the next quick start with a map size and planet coverage, and
