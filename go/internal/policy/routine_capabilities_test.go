@@ -63,3 +63,35 @@ func TestRoutineComposedCapabilitiesValidateOnEmptyFacts(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// MaintainSleeping's method availability follows the declared capability:
+// a confirmed sleeping deficit ranks as a known Deficit and is only marked
+// method-unavailable when the sleeping family is not declared.
+func TestRoutineSleepingMethodFollowsDeclaredCapability(t *testing.T) {
+	f := stableRoutine()
+	f.SleepingRecovered = domain.Known(false)
+	for _, declared := range []bool{false, true} {
+		methods := []GoalID{}
+		if declared {
+			methods = append(methods, MaintainSleeping)
+		}
+		f.AvailableMethods = domain.Known(methods)
+		needs := needs(t, f, RoutineLatches{})
+		found := false
+		for _, g := range needs.Goals {
+			if g.ID != MaintainSleeping {
+				continue
+			}
+			found = true
+			if deficit, known := g.Deficit.Value(); !known || deficit != 1 {
+				t.Fatal(declared, g)
+			}
+			if g.MethodUnavailable == declared {
+				t.Fatal("method availability does not follow the declared capability", declared, g)
+			}
+		}
+		if !found {
+			t.Fatal("sleeping deficit not raised", declared)
+		}
+	}
+}
