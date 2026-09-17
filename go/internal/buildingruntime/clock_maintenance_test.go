@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/store/clock"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	"google.golang.org/protobuf/proto"
 )
@@ -90,24 +91,35 @@ func TestClockMaintenanceFailureDisablesAndRollsBack(t *testing.T) {
 	}
 }
 
+// TestClockPollCompactsReviewedEventsAndFailsClosed polls past the
+// compaction boundary, so it shrinks clock.HistoryTail to keep the boundary
+// coverage without paying for 128 real polls. Not t.Parallel(): it mutates
+// shared package state for its duration and restores it on cleanup, which
+// is only safe while the parallel tests are still paused.
 func TestClockPollCompactsReviewedEventsAndFailsClosed(t *testing.T) {
-	t.Parallel()
+	const tail = 16
+	original := clock.HistoryTail
+	clock.HistoryTail = tail
+	t.Cleanup(func() { clock.HistoryTail = original })
 	s, f, db := clockPollFixture(t)
 	ctx := context.Background()
-	for i := range 130 {
+	// Two polls past the boundary: compaction keeps its 8-page tail, then
+	// those two pages land on top of it.
+	const polls = tail + 2
+	for i := range polls {
 		result, err := s.PollEvents(ctx, &clockPollNative{page: clockPollPage(f, int64(i), "benign")}, 128)
 		if err != nil || result.Interrupted || result.Review.ReviewedCursor != int64(i+1) {
 			t.Fatal(i, result, err)
 		}
 	}
 	inbox, err := s.player.journal.ReadClockInbox(ctx, s.config.Profile)
-	if err != nil || inbox.PageCount != 10 || inbox.Cursor != 130 {
+	if err != nil || inbox.PageCount != 10 || inbox.Cursor != polls {
 		t.Fatal(inbox, err)
 	}
 	if _, err = db.Exec("DELETE FROM clock_history_checkpoint"); err != nil {
 		t.Fatal(err)
 	}
-	result, err := s.PollEvents(ctx, &clockPollNative{page: clockPollPage(f, 130, "empty")}, 128)
+	result, err := s.PollEvents(ctx, &clockPollNative{page: clockPollPage(f, polls, "empty")}, 128)
 	if err == nil || !result.Interrupted || s.session.State().Enabled {
 		t.Fatal(result, err)
 	}
