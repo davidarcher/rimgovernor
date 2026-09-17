@@ -50,7 +50,7 @@ namespace HomeBridge.BridgeTools {
    if(bench==null||giver==null||!Usable(bench)||giver.BillStack.Count>=15||Snapshot(bench,giver,context).Token!=command.Bench.ExpectedSnapshotToken||giver.BillStack.Bills.Any(b=>b.recipe.defName==command.RecipeDef))return false;
    recipe=DefDatabase<RecipeDef>.GetNamedSilentFail(command.RecipeDef);if(recipe==null||!Recipe(bench,recipe))return false;
    if(command.RecipeDef!="ButcherCorpseFlesh"&&(recipe.WorkerCounter.GetType()!=typeof(RecipeWorkerCounter)||recipe.specialProducts!=null||recipe.products.Count!=1))return false;
-   var target=bench;var wanted=recipe;var work=NativeBillObservationTools.WorkType(bench.def,recipe);
+   var target=bench;var wanted=recipe;var work=NativeBillsObservationTools.WorkType(bench.def,recipe);
    return work!=null&&ProtoBoundary.LoadedMap(context).mapPawns.FreeColonistsSpawned.Any(p=>!p.Dead&&!p.Downed&&!p.Drafted&&!p.InMentalState&&p.workSettings?.Initialized==true&&p.workSettings.GetPriority(work)>0&&!p.WorkTypeIsDisabled(work)&&!target.IsForbidden(p)&&p.Position.DistanceTo(target.Position)<=40&&p.CanReach(target,PathEndMode.InteractionCell,Danger.None)&&(wanted.skillRequirements==null||wanted.skillRequirements.All(s=>p.skills?.GetSkill(s.skill)!=null&&!p.skills.GetSkill(s.skill).TotallyDisabled&&p.skills.GetSkill(s.skill).Level>=s.minLevel)));
   }
   internal static Operations.PreviewReply Preview(Operations.AddBill command,Common.ObservationContext context)=>Prepare(command,context,out _,out _,out _,out var failure)?new Operations.PreviewReply{Evaluated=new Operations.PreviewEvaluation{Context=context.Clone(),Accepted=true}}:new Operations.PreviewReply{Failure=failure};

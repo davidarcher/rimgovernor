@@ -18,7 +18,9 @@ namespace HomeBridge.BridgeTools
     // Every bench row carries the same NativeProductionBills.Snapshot token
     // Operations/Execute AddBill checks, so a caller can read then dispatch in
     // one step. Pawns also implement IBillGiver (surgery); they are not benches
-    // and are excluded here.
+    // and are excluded here. A recipe read without bench_id is the definition
+    // catalog: which player-buildable benches host a recipe and whether its
+    // research is complete, so a planner can stage a bench before one exists.
     public sealed class NativeBillsObservationTools
     {
         internal const string BillsToolName = "rimgovernor/observations_read_bills";
@@ -61,11 +63,11 @@ namespace HomeBridge.BridgeTools
                     return Encode(new Obs.BillsReply { Observed = snapshot });
                 }
                 catch (ReadLimit limit) { return ProtoBoundary.Encode(new Obs.BillsReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, limit.Message) }); }
-                catch (Exception) { return ProtoBoundary.Encode(new Obs.BillsReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Bench or bill facts could not be read completely.") }); }
+                catch (Exception e) { return ProtoBoundary.Encode(new Obs.BillsReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, Failed("Bench or bill facts", e)) }); }
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        [Tool(RecipesToolName, Title = "Read typed bench recipes", Description = "Complete bounded recipe catalog of one bench: availability, work, skill requirements, per-slot required ingredient counts and products. No stock scan; ingredient rows carry required amounts only.")]
+        [Tool(RecipesToolName, Title = "Read typed bench recipes", Description = "With bench_id: complete bounded recipe catalog of one bench: availability, work, the work type a worker must enable, skill requirements, per-slot required ingredient counts and products. Without: the recipe definition catalog with hosting player-buildable bench definitions, optionally narrowed to recipes producing product_def. No stock scan; ingredient rows carry required amounts only.")]
         [ToolResponse("payload", "string", "Official ProtoJSON RecipesReply.", Always = true)]
         public async Task<object> ReadRecipes(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official ProtoJSON RecipesRequest string in raw transport value.")] object? request = null)
@@ -79,18 +81,34 @@ namespace HomeBridge.BridgeTools
                 {
                     if (Faction.OfPlayerSilentFail == null || map.listerThings == null)
                         return ProtoBoundary.Encode(new Obs.RecipesReply { Unavailable = Unavailable(Common.UnavailableReason.NativeComponentMissing, "Player faction or map things are unavailable.") });
+                    var limit = parsed.Page?.HasLimit == true ? (int)parsed.Page.Limit : MaxRows;
+                    if (!parsed.HasBenchId)
+                    {
+                        var catalog = DefDatabase<RecipeDef>.AllDefsListForReading
+                            .Where(r => r.products != null && r.products.Count > 0 && (!parsed.HasProductDef || r.products.Any(p => p.thingDef?.defName == parsed.ProductDef)))
+                            .Where(r => Hosts(r).Count > 0).OrderBy(r => r.defName, StringComparer.Ordinal).ToList();
+                        Require(catalog.Count <= limit, "Recipe catalog exceeds the page limit; narrow with product_def.");
+                        var definitions = new Obs.RecipesSnapshot { Context = context, Snapshot = new Obs.SnapshotRef { Context = context.Clone() }, Completeness = Complete(catalog.Count) };
+                        foreach (var recipe in catalog)
+                        {
+                            var hosts = Hosts(recipe);
+                            var row = Recipe(hosts[0], null, recipe);
+                            foreach (var host in hosts) row.BenchDefs.Add(Id(host.defName));
+                            definitions.Recipes.Add(row);
+                        }
+                        return Encode(new Obs.RecipesReply { Observed = definitions });
+                    }
                     var bench = Benches(map, true).FirstOrDefault(b => b.GetUniqueLoadID() == parsed.BenchId);
                     if (bench == null)
                         return ProtoBoundary.Encode(new Obs.RecipesReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "No spawned bench with that id is on the current map.") });
                     var recipes = (bench.def.AllRecipes ?? new List<RecipeDef>()).Where(r => r != null).OrderBy(r => r.defName, StringComparer.Ordinal).ToList();
-                    var limit = parsed.Page?.HasLimit == true ? (int)parsed.Page.Limit : MaxRows;
                     Require(recipes.Count <= limit, "Bench recipe catalog exceeds the page limit; the catalog is never sampled.");
                     var snapshot = new Obs.RecipesSnapshot { Context = context, Snapshot = NativeProductionBills.Snapshot(bench, (IBillGiver)bench, context), Completeness = Complete(recipes.Count) };
-                    foreach (var recipe in recipes) snapshot.Recipes.Add(Recipe(bench, recipe));
+                    foreach (var recipe in recipes) snapshot.Recipes.Add(Recipe(bench.def, bench, recipe));
                     return Encode(new Obs.RecipesReply { Observed = snapshot });
                 }
                 catch (ReadLimit limit) { return ProtoBoundary.Encode(new Obs.RecipesReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, limit.Message) }); }
-                catch (Exception) { return ProtoBoundary.Encode(new Obs.RecipesReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Bench recipe facts could not be read completely.") }); }
+                catch (Exception e) { return ProtoBoundary.Encode(new Obs.RecipesReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, Failed("Bench recipe facts", e)) }); }
             }, cancellationToken).ConfigureAwait(false);
         }
 
@@ -103,9 +121,10 @@ namespace HomeBridge.BridgeTools
 
         internal static bool Validate(Obs.RecipesRequest request, out Common.Failure failure)
         {
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity, bench id and page limit 1..256 are required.");
+            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity and page limit 1..256 are required; bench id and product def must be identifiers.");
             return request?.Scope?.ExpectedIdentity != null && Page(request.Page)
-                && request.HasBenchId && ProtoBoundary.IsIdentifier(request.BenchId);
+                && (!request.HasBenchId || ProtoBoundary.IsIdentifier(request.BenchId))
+                && (!request.HasProductDef || ProtoBoundary.IsIdentifier(request.ProductDef));
         }
 
         private static bool Page(Common.PageRequest? page) => page == null
@@ -134,12 +153,33 @@ namespace HomeBridge.BridgeTools
             return row;
         }
 
-        private static Obs.RecipeState Recipe(Thing bench, RecipeDef recipe)
+        // Player-buildable building definitions that host the recipe.
+        internal static List<ThingDef> Hosts(RecipeDef recipe) => (recipe.AllRecipeUsers ?? Enumerable.Empty<ThingDef>())
+            .Where(d => d.category == ThingCategory.Building && d.BuildableByPlayer && typeof(IBillGiver).IsAssignableFrom(d.thingClass))
+            .Distinct().OrderBy(d => d.defName, StringComparer.Ordinal).ToList();
+
+        // The work type whose DoBill giver serves this bench definition, so a
+        // worker must have it enabled to take the bill; null when no giver
+        // serves it or the recipe demands a different giver work type.
+        internal static WorkTypeDef? WorkType(ThingDef bench, RecipeDef recipe) => DefDatabase<WorkGiverDef>.AllDefsListForReading
+            .Where(d => d.workType != null && d.Worker is WorkGiver_DoBill && d.fixedBillGiverDefs != null && d.fixedBillGiverDefs.Contains(bench)
+                && (recipe.requiredGiverWorkType == null || recipe.requiredGiverWorkType == d.workType))
+            .OrderBy(d => d.defName, StringComparer.Ordinal).Select(d => d.workType).FirstOrDefault();
+
+        private static Obs.RecipeState Recipe(ThingDef benchDef, Thing? bench, RecipeDef recipe)
         {
-            var row = NativeProductionBills.RecipeRow(bench, recipe);
+            var row = new Obs.RecipeState { Recipe = new Obs.DefinitionRef { DefName = Id(recipe.defName) }, AvailableNow = recipe.AvailableNow };
+            if (bench != null) row.AvailableOnBench = recipe.AvailableOnNow(bench);
             row.Recipe.Label = PlacementPreviewOperation.Diagnostic(recipe.LabelCap);
-            row.WorkAmount = recipe.WorkAmountTotal(null);
+            // workAmount is -1 when the work comes from the product's own
+            // WorkToMake (every stuff-made item); WorkAmountTotal resolves it
+            // the way the game does but throws for multi-product recipes, so
+            // leave the amount unset rather than fail the whole read.
+            if (recipe.workAmount >= 0) row.WorkAmount = recipe.workAmount;
+            else { try { row.WorkAmount = recipe.WorkAmountTotal(null); } catch (Exception) { } }
             if (recipe.workSkill != null) row.WorkSkill = Id(recipe.workSkill.defName);
+            var work = WorkType(benchDef, recipe);
+            if (work != null) row.WorkType = Id(work.defName);
             var skills = recipe.skillRequirements ?? new List<SkillRequirement>();
             Require(skills.Count <= MaxRows, "Recipe skill requirements exceed bound.");
             foreach (var skill in skills.Where(s => s?.skill != null))
@@ -170,6 +210,14 @@ namespace HomeBridge.BridgeTools
                 ? (double)ingredient.CountRequiredOfFor(DefDatabase<ThingDef>.GetNamed(allowed[0]), recipe, null)
                 : Math.Ceiling(ingredient.GetBaseCount());
             row.Required = required;
+            // Per-material counts so a slot admitting several materials still
+            // funds exactly (RecipeState.ingredients[].alternatives).
+            foreach (var name in allowed)
+            {
+                var count = ingredient.CountRequiredOfFor(DefDatabase<ThingDef>.GetNamed(name), recipe, null);
+                if (count < 0) throw new InvalidOperationException("Negative ingredient count.");
+                row.Alternatives.Add(new Obs.Quantity { DefName = name, Units = count });
+            }
             row.Complete = required >= 0 && !double.IsNaN(required) && !double.IsInfinity(required);
             row.Issues.Add(Issue("available", Common.UnavailableReason.NotRequested, "Recipe catalog reads carry no stock scan."));
             return row;
@@ -187,6 +235,13 @@ namespace HomeBridge.BridgeTools
             return ProtoBoundary.Encode(reply);
         }
         private static void Require(bool condition, string message) { if (!condition) throw new ReadLimit(message); }
+        // The detail names the failure so a controller log is diagnosable
+        // without the game log; the full trace still goes to the game log.
+        private static string Failed(string what, Exception e)
+        {
+            Log.Warning("[RimGovernor] " + what + " read failed: " + e);
+            return what + " could not be read completely: " + PlacementPreviewOperation.Diagnostic(e.GetType().Name + ": " + e.Message);
+        }
         private sealed class ReadLimit : Exception { internal ReadLimit(string message) : base(message) {} }
     }
 }
