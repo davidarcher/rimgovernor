@@ -94,10 +94,15 @@ were not. A reviewer holds a new harness to it.
    tick budget means the same at every speed and on every machine; the
    stall budget still catches a game that stops ticking (a pausing letter)
    and the wall ceiling a run that never finishes. Serve-driven harnesses
-   keep `--clock-speed Fast`: the clock wire admits speeds 1-3 only, and
-   the executor holds an action whose inspection snapshot no longer
-   matches or is older than its `MaxAge` (refrigeration held at tick 1225
-   under Superfast, passed in 74s at Fast).
+   default to `--clock-speed Fast` (`na.ClockSpeed`, override with
+   `RIMGOVERNOR_ACCEPT_CLOCK_SPEED`; the clock wire admits Normal, Fast and
+   Superfast only). Their wall time is the controller's cadence, not the
+   game's: lightaccept spends ~6s of ~21s of supervised play ticking (two
+   600-tick windows) and the rest in ~1s scheduler steps of native reads
+   plus the worker's 1s-to-10s backoff, so Superfast passes but measures no
+   faster (36s vs 31s). The refrigerationaccept "held at tick 1225"
+   failure once blamed on Superfast is a stock-in-transit deadlock (#66,
+   item 6) that happens at Fast too.
 8. **One fixture call, not a script.** Spawn, forbid, damage, assign and
    settle in one `test/*_prepare` op rather than a sequence of production ops
    each paying a bridge round trip; production ops are for the behavior under
