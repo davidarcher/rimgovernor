@@ -201,3 +201,24 @@ func TestFlooringTrafficTierFloorsBusyNaturalHomeCells(t *testing.T) {
 		t.Fatal("accepted a traffic cell on an unmeasured terrain")
 	}
 }
+
+func TestDetectRoutineRanksTrafficFlooringLast(t *testing.T) {
+	f := stableRoutine()
+	v := FlooringObservation{Rooms: []FloorRoom{flooringRoom("done", RoomRoleKitchen, "WoodPlankFloor", 40, 40)}, Terrains: flooringTerrains(), TrafficSamples: 100}
+	v.Traffic = []TrafficCell{{Cell: domain.Cell{X: 1, Z: 1}, Samples: 40, Terrain: "Soil", Home: true}}
+	f.Upkeep.Flooring = domain.Known(v)
+	r := needs(t, f, RoutineLatches{})
+	found := false
+	for _, g := range r.Goals {
+		if g.ID == MaintainFlooring {
+			found = true
+			// The lowest goal rank is 4; a traffic deficit must not overflow it.
+			if g.Priority != 4 {
+				t.Fatal(g)
+			}
+		}
+	}
+	if !found {
+		t.Fatal(r.Goals)
+	}
+}

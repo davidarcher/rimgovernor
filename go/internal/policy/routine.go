@@ -48,7 +48,8 @@ const refrigerationPriority = 2
 const lightingPriority = 3
 
 // flooringPriority ranks MaintainFlooring while a clean workspace is short
-// of floor; living-room flooring alone ranks one step lower.
+// of floor; living-room flooring alone ranks one step lower and traffic
+// flooring last, never below the lowest goal rank.
 const flooringPriority = 3
 
 // routesPriority ranks MaintainRoutes with the other upkeep projects: an
@@ -852,7 +853,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if flooring.Known {
 		flooringRecovered = domain.Known(!flooring.Active)
 		if flooring.Active && flooring.Deficits[0].Tier != FloorTierClean {
-			flooringPriority += floorTierOrder[flooring.Deficits[0].Tier]
+			flooringPriority = min(4, flooringPriority+floorTierOrder[flooring.Deficits[0].Tier])
 		}
 	} else if !flooring.Active {
 		flooringPriority = 4
