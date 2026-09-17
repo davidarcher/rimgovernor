@@ -4,8 +4,9 @@
 # root; each project ships a Taskfile.yml implementing both, so a missing one
 # fails to load instead of being skipped. `build` includes the static gates that
 # produce a build failure (gofmt, vet, staticcheck, tsc, eslint, warnings as
-# errors, locked restores); `test` is tests only. Projects needing machine-local
-# inputs (game DLLs) report `unavailable` with the missing path rather than pass.
+# errors, locked restores); `test` is tests only and runs every project
+# concurrently. Projects needing machine-local inputs (game DLLs) report
+# `unavailable` with the missing path rather than pass.
 # Build outputs and evidence land under .rimgovernor/task; CI starts from a
 # clean checkout so nothing there is reused.
 #
@@ -43,13 +44,13 @@ tasks:
       - task: fixtures:build
 
   test:
-    desc: Tests for every project
-    cmds:
-      - task: go:test
-      - task: dashboard:test
-      - task: wire:test
-      - task: protobuf-go:test
-      - task: protobuf:test
-      - task: native:test
-      - task: probes:test
-      - task: fixtures:test
+    desc: Tests for every project, run concurrently
+    deps:
+      - go:test
+      - dashboard:test
+      - wire:test
+      - protobuf-go:test
+      - protobuf:test
+      - native:test
+      - probes:test
+      - fixtures:test

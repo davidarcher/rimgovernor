@@ -25,9 +25,17 @@ tasks:
       - go build -trimpath -o {{.EVIDENCE}}/go/rimgovernor{{exeExt}} ./cmd/rimgovernor
 
   test:
-    desc: Unit tests under a 10s per-test ceiling; race tests when a C compiler is present
+    desc: Unit tests under a 10s per-test ceiling alongside race tests when a C compiler is present
+    deps: [test:unit, test:race]
+
+  test:unit:
+    internal: true
     cmds:
       - go test -json ./... | go run ./internal/testkit/cmd/checktesttimes -max 10s
+
+  test:race:
+    internal: true
+    cmds:
       - |
         if command -v gcc >/dev/null 2>&1; then
           # Ownership tests exercise a one-second subprocess shutdown deadline.
