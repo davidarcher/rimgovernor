@@ -193,7 +193,12 @@ plan's stages, with `PlanSignature`), `WaitGoalMethod`, `WaitPlanTerminal`
 and `WaitRoutineReview` already do this
 with `na.StallBudget()` (10 minutes, `RIMGOVERNOR_ACCEPT_STALL` overrides);
 harnesses with their own loops take a `-stall` flag defaulting to the same.
-Issue #91 tracks the remaining speed work (a trimmed headless `Prefs.xml`).
+The headless profile's `Prefs.xml` is the player's copy trimmed by
+`na.TrimPrefs` (`HeadlessPrefs`): autosaves effectively off (1000 days;
+the interval must stay under ~35791 days or the autosaver's int threshold
+overflows and it saves every tick), run in background, the smallest
+window, no eye candy, and no ModsConfig reset on crash. Pause preferences
+are left alone. That is the last of the #91 speed work.
 
 Passing evidence follows relevant code, dependencies, inputs and environment,
 not the main HEAD hash. Unrelated main commits, clean cherry-picks and rebases
