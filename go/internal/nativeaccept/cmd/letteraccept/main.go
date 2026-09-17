@@ -331,6 +331,11 @@ func notificationsMatch(ctx context.Context, h *na.Harness, identity map[string]
 	if na.AsString(alerts["snapshotFingerprint"]) == "" {
 		return nil, fmt.Errorf("typed alerts lack a snapshot fingerprint: %#v", alerts)
 	}
+	// A fresh debug colony always has at least "Need colonist beds"; an empty
+	// list here means the headless alert readout stopped running (#94).
+	if len(na.AsSlice(alerts["alerts"])) == 0 {
+		return nil, fmt.Errorf("typed alerts are empty on a fresh colony: the headless AlertsReadout is not updating")
+	}
 	narrowed, err := h.Wire(ctx, "notifications-no-letters", "presentation_notifications",
 		map[string]any{"identity": identity, "includeLetters": false, "alertLimit": 1})
 	if err != nil {
