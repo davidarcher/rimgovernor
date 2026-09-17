@@ -69,6 +69,9 @@ type RoutineBuildingPlanner struct {
 	// function; with none observed, furnishing has no verified space and the
 	// same planner falls back to staging a starter shell for it.
 	facility *policy.FacilityRequirement
+	// workshop holds the MaintainResource pre-observation reads (deficit
+	// resource, bench census, recipe catalog) for this step only.
+	workshop *workshopSelection
 }
 
 func NewRoutineSleepingPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
@@ -94,7 +97,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	if r.shelter {
 		indoor := *r
 		indoor.shelter, indoor.definition = false, "SleepingSpot"
-		if r.goal == policy.EnsureComfort {
+		if r.goal == policy.EnsureComfort || r.goal == policy.MaintainResource {
 			indoor.definition = ""
 		}
 		result, err := indoor.step(call, epoch, arbiter)
@@ -160,9 +163,21 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
 		return RoutineBuildingResult{}, ErrControl
 	}
+	if r.goal == policy.MaintainResource {
+		selection, reason, err := r.prepareWorkshop(call, state, review)
+		if err != nil || reason != "" {
+			return RoutineBuildingResult{Reason: reason}, err
+		}
+		prepared := *r
+		prepared.workshop = selection
+		r = &prepared
+	}
 	definitions := []string{r.definition}
 	if r.goal == policy.EnsureComfort && !r.shelter {
 		definitions = []string{"Table1x2c", "DiningChair", "HorseshoesPin"}
+	}
+	if r.goal == policy.MaintainResource && !r.shelter {
+		definitions = r.workshop.candidates
 	}
 	if r.goal == policy.EnsureBasicPower {
 		definitions = append([]string{"PowerConduit"}, policy.GeneratorDefinitions...)
@@ -183,7 +198,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	_, routineSource := r.native.(observation.RoutineSource)
 	_, roomSource := r.native.(observation.TemperatureSource)
 	separation := (r.goal == policy.EnsureFoodSupply || r.goal == policy.EnsureCooking) && routineSource && roomSource
-	if r.goal == policy.EnsureTemperatureSafety || r.goal == policy.EnsureComfort || r.goal == policy.MaintainRefrigeration || r.goal == policy.MaintainLighting || separation {
+	if r.goal == policy.EnsureTemperatureSafety || r.goal == policy.EnsureComfort || r.goal == policy.MaintainResource || r.goal == policy.MaintainRefrigeration || r.goal == policy.MaintainLighting || separation {
 		// Cooking and butcher placements read rooms too when the source can
 		// serve them, so kitchen/butcher separation protects each other's
 		// rooms (issue #6 slice 2); without a census nothing is protected.
@@ -199,7 +214,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineBuildingResult{}, err
 	}
 	facts := reading.Projection
-	if r.goal == policy.EnsureComfort && !r.shelter || r.goal == policy.EnsureBasicPower || r.goal == policy.EnsureTemperatureSafety || r.goal == policy.MaintainRefrigeration || r.goal == policy.MaintainLighting {
+	if (r.goal == policy.EnsureComfort || r.goal == policy.MaintainResource) && !r.shelter || r.goal == policy.EnsureBasicPower || r.goal == policy.EnsureTemperatureSafety || r.goal == policy.MaintainRefrigeration || r.goal == policy.MaintainLighting {
 		var resolved *RoutineBuildingPlanner
 		var reason RoutineBuildingReason
 		var coolingAllowance uint32
@@ -216,6 +231,8 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 			resolved, reason, err = r.selectPower(facts)
 		} else if r.goal == policy.MaintainLighting {
 			resolved, reason, err = r.selectLighting(facts, review.Latches)
+		} else if r.goal == policy.MaintainResource {
+			resolved, reason, err = r.selectWorkshop(facts)
 		} else {
 			resolved, reason, err = r.selectComfort(facts, review.Comfort)
 		}
@@ -288,7 +305,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		}
 	}
 	available := routineDefinitionsAvailable(facts, definitions, r.shelter)
-	if r.goal == policy.EnsureComfort && !r.shelter || r.goal == policy.EnsureBasicPower || r.goal == policy.EnsureTemperatureSafety || r.goal == policy.MaintainRefrigeration || r.goal == policy.MaintainLighting {
+	if (r.goal == policy.EnsureComfort || r.goal == policy.MaintainResource) && !r.shelter || r.goal == policy.EnsureBasicPower || r.goal == policy.EnsureTemperatureSafety || r.goal == policy.MaintainRefrigeration || r.goal == policy.MaintainLighting {
 		preferences, loadErr := p.journal.LoadWorkPreferences(call, state.Snapshot.Plan)
 		if loadErr != nil && !errors.Is(loadErr, store.ErrNotFound) {
 			return RoutineBuildingResult{}, loadErr
@@ -350,6 +367,9 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	if r.goal == policy.MaintainLighting {
 		prefix = "routine-lighting"
 	}
+	if r.goal == policy.MaintainResource {
+		prefix = "routine-workshop"
+	}
 	if r.shelter {
 		prefix = "routine-shell"
 	}
@@ -361,7 +381,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	if !r.shelter && (r.goal == policy.EnsureFoodSupply || r.goal == policy.EnsureCooking || r.goal == policy.EnsureComfort || r.goal == policy.EnsureExpansion || r.goal == policy.EnsureBasicPower || r.goal == policy.EnsureTemperatureSafety || r.goal == policy.MaintainRefrigeration || r.goal == policy.MaintainLighting) {
+	if !r.shelter && (r.goal == policy.EnsureFoodSupply || r.goal == policy.EnsureCooking || r.goal == policy.EnsureComfort || r.goal == policy.MaintainResource || r.goal == policy.EnsureExpansion || r.goal == policy.EnsureBasicPower || r.goal == policy.EnsureTemperatureSafety || r.goal == policy.MaintainRefrigeration || r.goal == policy.MaintainLighting) {
 		pending := func(progress domain.Progress) bool {
 			if r.goal == policy.EnsureTemperatureSafety {
 				if r.temperature.Method == policy.TemperatureHeat {

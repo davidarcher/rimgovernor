@@ -345,7 +345,7 @@ func TestReadBillTarget(t *testing.T) {
 	fixture.Planning = &o.PlanningSection{Outcome: &o.PlanningSection_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_REQUESTED.Enum()}}}
 	fixture.Cooking[0].Bench.Snapshot = &o.SnapshotRef{Context: proto.Clone(fixture.Context).(*c.ObservationContext), EntityId: proto.String("stove"), Token: proto.String("stove-token")}
 	stacks := &o.BillsReply{Outcome: &o.BillsReply_Observed{Observed: &o.BillsSnapshot{Context: proto.Clone(fixture.Context).(*c.ObservationContext),
-		Benches: []*o.BillStack{{Snapshot: &o.SnapshotRef{Context: proto.Clone(fixture.Context).(*c.ObservationContext), EntityId: proto.String("spot"), Token: proto.String("spot-token")}, Bench: &o.EntityRef{Id: proto.String("spot")}}},
+		Benches:      []*o.BillStack{{Snapshot: &o.SnapshotRef{Context: proto.Clone(fixture.Context).(*c.ObservationContext), EntityId: proto.String("spot"), Token: proto.String("spot-token")}, Bench: &o.EntityRef{Id: proto.String("spot")}}},
 		Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}}}}}
 	recipes := &o.RecipesReply{Outcome: &o.RecipesReply_Observed{Observed: &o.RecipesSnapshot{Context: proto.Clone(fixture.Context).(*c.ObservationContext), Snapshot: &o.SnapshotRef{EntityId: proto.String("spot")}, Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}}}}}
 	s := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {

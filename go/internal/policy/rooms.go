@@ -133,7 +133,7 @@ func FacilityCatalog() []FacilityRequirement {
 		{Role: RoomRolePrisonBarracks, Status: FacilityPending},
 		{Role: RoomRoleHospital, Status: FacilityPending},
 		{Role: RoomRoleLaboratory, Status: FacilityPending},
-		{Role: RoomRoleWorkshop, Status: FacilityPending},
+		{Role: RoomRoleWorkshop, Status: FacilityImplemented, Compatible: generic, Furniture: []string{"CraftingSpot", "TableStonecutter"}},
 		{Role: RoomRoleStoreroom, Status: FacilityPending},
 		{Role: RoomRoleKitchen, Status: FacilityPending},
 		{Role: RoomRoleTomb, Status: FacilityPending},

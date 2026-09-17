@@ -117,6 +117,7 @@ type serviceClockTimeoutConfig struct{ Poll, Renew, Step time.Duration }
 func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, journal *store.Store, sc serveConfig, timeouts serviceClockTimeoutConfig) error {
 	profile, clockSpeed, routine := sc.profile, sc.clockSpeed, sc.routineReviews
 	sleeping, cooking, shelter, comfort, expansion, power, temperature := sc.routineSleepingPlans, sc.routineCookingPlans, sc.routineShelterPlans, sc.routineComfortPlans, sc.routineExpansionPlans, sc.routinePowerPlans, sc.routineTemperaturePlans
+	workshop := sc.routineWorkshopPlans && len(sc.routineResourceTargets.Map()) > 0
 	supplies, work, acquisition, defense, tend, rescue, equip := sc.routineSupplyPlans, sc.routineWorkPlans, sc.routineAcquisitionPlans, sc.routineDefensePlans, sc.routineTendPlans, sc.routineRescuePlans, sc.routineEquipPlans
 	secureSupplies, repair, clean, gear, medical, foodStorageUpkeep := sc.routineSecureSuppliesPlans, sc.routineRepairPlans, sc.routineCleanPlans, sc.routineGearPlans, sc.routineMedicalPlans, sc.routineFoodStorageUpkeepPlans
 	refrigeration := sc.routineRefrigerationPlans
@@ -485,7 +486,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				return err
 			}
 		}
-		if sleeping || cooking || shelter || comfort || expansion || power || temperature || refrigeration || lighting {
+		if sleeping || cooking || shelter || comfort || workshop || expansion || power || temperature || refrigeration || lighting {
 			source, ok := reads.(buildingruntime.RoutineBuildingSource)
 			if !ok {
 				return errors.New("building plans require typed placement previews")
@@ -546,6 +547,12 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 			}
 			if comfort {
 				config.Comfort, err = buildingruntime.NewRoutineComfortPlanner(reviewer, source)
+				if err != nil {
+					return err
+				}
+			}
+			if workshop {
+				config.Workshop, err = buildingruntime.NewRoutineWorkshopPlanner(reviewer, source)
 				if err != nil {
 					return err
 				}
