@@ -91,20 +91,29 @@ restart) suspends every routine goal and reactivates it in the same world
 with its plans still open. A world change (load token, map, tick rewind)
 instead invalidates the goal and cancels its plans, and the executor cancels
 the cancelled plan's native blueprints and frames; the walls and door already
-completed natively are then the only durable record of a shell in progress.
-Before siting a shell, the routine reads the player wall and door census
-within 64 cells of the colony centre and, for each player door nearest the
-centre first, tries every starter shape whose south door lands on that cell
-(the hut templates for the hut style, then the 9x9 rectangle). Shapes at
-one door share their lowest courses, so the shape adopted is the one whose
-ring the census matches best (most standing cells, earliest template on a
-tie), decided before any placement preview; the admitted plan holds only
-that shape's missing cells, and its walls do not wait for a door that
-already stands. When a missing cell of the best-matched shape is not
-placeable now (for instance a cancelled frame still clearing) the review
-reports `earlier_shell_blocked` and waits: it never adopts a lesser shape at
-the same door nor sites a second shell beside the first. A grown irregular
-shell (which has no template) is not adopted and the routine sites afresh.
+completed natively, and the shell plans in the controller's own journal, are
+then the only durable records of a shell in progress. Before siting a shell,
+the routine reads the player wall and door census within 64 cells of the
+colony centre and its earlier shell plans (`routine-shell-*`, retired or not,
+the newest 64), and for each candidate door nearest the centre first -- a
+door standing natively or one an earlier plan ordered -- tries, first, every
+earlier plan that placed a door on that cell (its whole ring, which is how a
+grown irregular shell with no template is recognised) and then every starter
+shape whose south door lands there (the hut templates for the hut style, then
+the 9x9 rectangle). Shapes at one door share their lowest courses, so the
+shape adopted is the one whose ring the census matches best (most standing
+cells; an earlier plan, then the earliest template, on a tie), decided before
+any placement preview; a shape nothing standing matches is never adopted, so
+a ring cancelled before anything was built is sited afresh. The admitted plan
+holds only that shape's missing cells; its walls do not wait for a door that
+already stands, and a ring whose door was cancelled is reissued door first
+with the walls gated on it as a fresh shell would be. When a missing cell of
+the best-matched shape is not placeable now (for instance a cancelled frame
+still clearing) the review reports `earlier_shell_blocked` and waits: it
+never adopts a lesser shape at the same door nor sites a second shell beside
+the first. A controller restarted with an empty journal recognises template
+shells from the census alone; a grown shell is then not recognised and the
+routine sites afresh.
 
 Indoor furnishing treats the four orthogonal neighbours of every observed
 doorway (a door, or a door blueprint or frame) as protected: the entrance

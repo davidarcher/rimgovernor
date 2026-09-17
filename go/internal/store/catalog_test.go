@@ -105,3 +105,46 @@ func TestCatalogCorruptionNeverReturnsEarlierPlans(t *testing.T) {
 		t.Fatal("corrupt later plan returned partial catalog")
 	}
 }
+
+func TestPlanHistoryWithPrefixIsANewestFirstWindowIncludingRetiredPlans(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	s := open(t, memoryPath(t))
+	if _, err := s.PlanHistoryWithPrefix(ctx, "", 8); err == nil {
+		t.Fatal("empty prefix accepted")
+	}
+	for _, limit := range []int{0, 257} {
+		if _, err := s.PlanHistoryWithPrefix(ctx, "shell-", limit); err == nil {
+			t.Fatal("invalid history bound accepted")
+		}
+	}
+	empty, err := s.PlanHistoryWithPrefix(ctx, "shell-", 8)
+	if err != nil || len(empty) != 0 {
+		t.Fatal(empty, err)
+	}
+	// Committed in this order; IDs sort the other way so the window is
+	// proven to follow commit order, not ID order.
+	for _, id := range []domain.PlanID{"shell-c", "other-b", "shell-b", "shell-a"} {
+		if err = s.CreatePlan(ctx, plan(t, id, domain.ActionID("action-"+string(id)))); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err = s.db.ExecContext(ctx, "UPDATE plans SET retired=1 WHERE id='shell-b'"); err != nil {
+		t.Fatal(err)
+	}
+	states, err := s.PlanHistoryWithPrefix(ctx, "shell-", 8)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []domain.PlanID
+	for _, state := range states {
+		got = append(got, state.Spec.ID())
+	}
+	if !reflect.DeepEqual(got, []domain.PlanID{"shell-a", "shell-b", "shell-c"}) || !states[1].Retired {
+		t.Fatal("history is not newest first with retired plans included:", got)
+	}
+	window, err := s.PlanHistoryWithPrefix(ctx, "shell-", 2)
+	if err != nil || len(window) != 2 || window[0].Spec.ID() != "shell-a" || window[1].Spec.ID() != "shell-b" {
+		t.Fatal("window did not keep the newest plans:", window, err)
+	}
+}

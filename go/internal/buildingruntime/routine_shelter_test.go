@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"strings"
 	"testing"
@@ -753,5 +754,172 @@ func TestRoutineShelterAdoptsTheBestMatchedShapeOrWaits(t *testing.T) {
 		if !got[w] {
 			t.Fatal("missing wall not reissued", w)
 		}
+	}
+}
+
+// earlierGrownShell records, as an earlier controller would have, a grown
+// concave shell plan over the L-shaped strip the constrained-terrain test
+// uses, and returns its ring keyed by cell with the door.
+func earlierGrownShell(t *testing.T, db *store.Store, id domain.PlanID) (domain.RoomFootprint, map[domain.Cell]domain.Building) {
+	t.Helper()
+	lit := func(c domain.Cell) bool {
+		return c.X >= 0 && c.Z >= 0 && c.X < 21 && c.Z < 21 && (c.X >= 8 && c.X <= 12 && c.Z >= 1 || c.Z >= 8 && c.Z <= 12 && c.X >= 8)
+	}
+	shell, ok := domain.GrowFootprint(domain.Cell{X: 10, Z: 10}, lit, 49)
+	if !ok {
+		t.Fatal("no grown shell over the strip")
+	}
+	if len(policy.ShellShapesAtDoor(shell.Door(), policy.ShelterHut)) == 0 {
+		t.Fatal("fixture door has no template shapes to be confused with")
+	}
+	ring := map[domain.Cell]domain.Building{}
+	var actions []domain.Action
+	for i, b := range shell.Placements("Wall", "Door", "WoodLog") {
+		a, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", id, i)), b)
+		if err != nil {
+			t.Fatal(err)
+		}
+		actions = append(actions, a)
+		ring[b.Cell()] = b
+	}
+	plan, err := domain.NewPlan(id, 1, actions)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.CreatePlan(context.Background(), plan); err != nil {
+		t.Fatal(err)
+	}
+	return shell, ring
+}
+
+func TestRoutineShelterAdoptsAnEarlierGrownShellFromItsPlan(t *testing.T) {
+	t.Parallel()
+	r, db, base := shelterFixture(t)
+	base.reply.GetObserved().PlayerTechLevel = proto.String("Neolithic")
+	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
+	hutCells(base, 21, func(int32, int32) bool { return true })
+	// An earlier controller grew a concave shell over constrained terrain,
+	// which no template describes, and a restart left its door and three of
+	// its walls standing. The terrain is open now: every hut template at the
+	// door is placeable, so only the journal tells the true ring apart.
+	shell, ring := earlierGrownShell(t, db, "routine-shell-earlier")
+	n := &adoptingNative{sleepingNative: base}
+	standing := map[domain.Cell]bool{}
+	walls := shell.Walls()
+	for i, cell := range append([]domain.Cell{shell.Door()}, walls[len(walls)-3:]...) {
+		if i > 0 && cell == shell.Door() {
+			t.Fatal("fixture picked the door twice")
+		}
+		standing[cell] = true
+		n.standing = append(n.standing, bridge.Structure{ID: strconv.Itoa(i), Definition: ring[cell].Definition(), Cell: cell, Status: "built"})
+	}
+	planner, err := NewRoutineShelterPlanner(r.reviewer, n, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	n.last = r.reviewer.player.session.State().Snapshot
+	result, err := planner.Step(context.Background())
+	if err != nil || result.Reason != BuildingMethodAdmitted {
+		t.Fatal(result, err)
+	}
+	plan, err := db.LoadPlan(context.Background(), result.Decision.Goal.Methods[0].Plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[domain.Cell]bool{}
+	for _, action := range plan.Spec.Actions() {
+		b, ok := action.Building()
+		if !ok || b.Definition() != "Wall" || b.Stuff() != "WoodLog" || standing[b.Cell()] || got[b.Cell()] {
+			t.Fatal("unexpected reissued action", action)
+		}
+		if _, onRing := ring[b.Cell()]; !onRing {
+			t.Fatal("reissued a cell off the grown ring (a template shape was adopted)", b.Cell())
+		}
+		got[b.Cell()] = true
+	}
+	if len(got) != len(ring)-len(standing) {
+		t.Fatalf("reissued %d cells, want the %d missing cells of the grown ring", len(got), len(ring)-len(standing))
+	}
+	if len(plan.Spec.Dependencies()) != 0 {
+		t.Fatal("walls of an adopted shell must not wait for a door that already stands")
+	}
+}
+
+func TestRoutineShelterReissuesTheCancelledDoorOfAnEarlierShell(t *testing.T) {
+	t.Parallel()
+	r, db, base := shelterFixture(t)
+	base.reply.GetObserved().PlayerTechLevel = proto.String("Neolithic")
+	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
+	hutCells(base, 21, func(int32, int32) bool { return true })
+	// The player cancelled the door of an earlier shell whose walls stand;
+	// with no door standing the census alone sees nothing to adopt, but the
+	// journal remembers the ring, so it is completed door first with the
+	// walls gated on the door exactly as a fresh shell would be.
+	shell, ring := earlierGrownShell(t, db, "routine-shell-earlier")
+	n := &adoptingNative{sleepingNative: base}
+	standing := map[domain.Cell]bool{}
+	walls := shell.Walls()
+	for i := 0; i < 3; i++ {
+		cell := walls[len(walls)-1-i]
+		if cell == shell.Door() {
+			t.Fatal("fixture picked the door")
+		}
+		standing[cell] = true
+		n.standing = append(n.standing, bridge.Structure{ID: strconv.Itoa(i), Definition: "Wall", Cell: cell, Status: "built"})
+	}
+	planner, err := NewRoutineShelterPlanner(r.reviewer, n, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	n.last = r.reviewer.player.session.State().Snapshot
+	result, err := planner.Step(context.Background())
+	if err != nil || result.Reason != BuildingMethodAdmitted {
+		t.Fatal(result, err)
+	}
+	plan, err := db.LoadPlan(context.Background(), result.Decision.Goal.Methods[0].Plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	door, got := shellCells(t, plan)
+	if door.Cell() != shell.Door() {
+		t.Fatal("door reissued elsewhere", door.Cell(), shell.Door())
+	}
+	for cell := range got {
+		if _, onRing := ring[cell]; !onRing || standing[cell] {
+			t.Fatal("reissued a cell off the grown ring or already standing", cell)
+		}
+	}
+	if len(got) != len(ring)-len(standing) {
+		t.Fatalf("reissued %d cells, want the %d missing cells of the grown ring", len(got), len(ring)-len(standing))
+	}
+}
+
+func TestRoutineShelterIgnoresEarlierShellsNothingStandingMatches(t *testing.T) {
+	t.Parallel()
+	r, db, base := shelterFixture(t)
+	base.reply.GetObserved().PlayerTechLevel = proto.String("Neolithic")
+	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
+	hutCells(base, 21, func(int32, int32) bool { return true })
+	// A shell plan whose every cell was cancelled before anything was built
+	// leaves no durable native record; the ring is not adopted from the
+	// journal alone and the planner sites afresh.
+	shell, _ := earlierGrownShell(t, db, "routine-shell-earlier")
+	n := &adoptingNative{sleepingNative: base}
+	planner, err := NewRoutineShelterPlanner(r.reviewer, n, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	n.last = r.reviewer.player.session.State().Snapshot
+	result, err := planner.Step(context.Background())
+	if err != nil || result.Reason != BuildingMethodAdmitted {
+		t.Fatal(result, err)
+	}
+	plan, err := db.LoadPlan(context.Background(), result.Decision.Goal.Methods[0].Plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	door, _ := shellCells(t, plan)
+	if door.Cell() == shell.Door() {
+		t.Fatal("re-adopted a ring nothing standing matches")
 	}
 }

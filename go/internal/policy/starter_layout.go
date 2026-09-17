@@ -329,8 +329,9 @@ func HutTemplateShells(c domain.Cell) []domain.RoomFootprint {
 // stand on door: the hut templates for the hut style, then the 9x9
 // rectangle. A shell planner uses it to recognise a shell it began earlier
 // from the door still standing natively, so a restart reissues only the
-// cells that shell is missing instead of siting a second one. Grown
-// irregular shells have no template and are not recognised this way.
+// cells that shell is missing instead of siting a second one. These are the
+// fallback behind the planner's own journal of earlier shell plans, which
+// also recognises grown irregular shells that have no template.
 func ShellShapesAtDoor(door domain.Cell, style ShelterStyle) []domain.RoomFootprint {
 	var shells []domain.RoomFootprint
 	if style == ShelterHut {

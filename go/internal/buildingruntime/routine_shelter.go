@@ -181,23 +181,42 @@ func (r *RoutineBuildingPlanner) previewShellCell(ctx context.Context, snapshot 
 	return preview, placeable, "", nil
 }
 
+// shellPlanPrefix names every whole-shell plan a shelter-style planner
+// admits (initial shelter, expansion, workshop and hospital shells alike);
+// adoptShell reads them back as the durable record of the rings it ordered.
+const shellPlanPrefix = "routine-shell"
+
+// shellHistoryLimit bounds how many earlier shell plans adoption consults.
+// A world orders a handful of shells over its life and each interruption
+// adds one partial plan, so the window comfortably holds every ring.
+const shellHistoryLimit = 64
+
 // adoptShell recognises a shell this controller began earlier in this world
 // and reissues only the cells it is missing. Resuming control invalidates
 // routine goals and cancels their plans, so after a restart the walls and
 // door already standing, framed or blueprinted natively are the only durable
-// record of the shell; a cancelled frame likewise leaves a gap in an
+// native record of the shell; a cancelled frame likewise leaves a gap in an
 // otherwise ordered ring. Without this the next review would site a second
-// shell beside the first. A shell is recognised from a standing player door
-// on one of the shapes the starter search issues at that door
-// (policy.ShellShapesAtDoor); a lone door suffices because an interrupted
-// plan's blueprints and frames are cancelled natively and only its completed
-// cells survive. Shapes at one door share their lowest courses, so the shape
-// is the one the census matches best, decided before any preview: adopting
-// the first shape whose remaining cells happened to be placeable issued a
-// second, taller ring over a half-built hut once the true ring was briefly
-// blocked. When the best-matched shape is not placeable now the review
-// waits (BuildingShellBlocked) rather than siting a fresh shell beside it.
-// Doors are tried nearest the colony centre first.
+// shell beside the first.
+//
+// The shapes considered at a door are, first, the rings this controller
+// itself ordered in this world -- every earlier shell plan carrying a door
+// at that cell, read back from the journal, which is how a grown irregular
+// shell with no template is recognised -- and then the template shapes the
+// starter search issues at that door (policy.ShellShapesAtDoor), which are
+// all that remains when the journal did not survive the restart. A door is
+// a candidate when it stands natively or when an earlier plan ordered it: a
+// ring whose door was cancelled but whose walls stand is still one ring, and
+// reissuing it orders the door first with the walls gated on it as a fresh
+// shell would. Shapes at one door share their lowest courses, so the shape
+// is the one the census matches best, decided before any preview and with
+// an earlier plan winning ties over a template: adopting the first shape
+// whose remaining cells happened to be placeable issued a second, taller
+// ring over a half-built hut once the true ring was briefly blocked. A shape
+// nothing standing matches is not adopted. When the best-matched shape is
+// not placeable now the review waits (BuildingShellBlocked) rather than
+// siting a fresh shell beside it. Doors are tried nearest the colony centre
+// first.
 func (r *RoutineBuildingPlanner) adoptShell(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, style policy.ShelterStyle, check func() error) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, bool, error) {
 	reader, ok := r.native.(structureReader)
 	if !ok {
@@ -219,11 +238,23 @@ func (r *RoutineBuildingPlanner) adoptShell(ctx context.Context, snapshot domain
 		return nil, policy.StockObservation{}, "", false, ErrControl
 	}
 	standing := make(map[domain.Cell]string, len(census.Structures))
+	seen := map[domain.Cell]bool{}
 	var doors []domain.Cell
 	for _, s := range census.Structures {
 		standing[s.Cell] = s.Definition
-		if s.Definition == "Door" {
+		if s.Definition == "Door" && !seen[s.Cell] {
+			seen[s.Cell] = true
 			doors = append(doors, s.Cell)
+		}
+	}
+	earlier, err := r.earlierShells(ctx, minimum, maximum)
+	if err != nil {
+		return nil, policy.StockObservation{}, "", false, err
+	}
+	for door := range earlier {
+		if !seen[door] {
+			seen[door] = true
+			doors = append(doors, door)
 		}
 	}
 	if len(doors) == 0 {
@@ -241,11 +272,14 @@ func (r *RoutineBuildingPlanner) adoptShell(ctx context.Context, snapshot domain
 		guarded[c] = true
 	}
 	for d, door := range doors {
-		shapes := policy.ShellShapesAtDoor(door, style)
+		shapes := earlier[door]
+		for _, shell := range policy.ShellShapesAtDoor(door, style) {
+			shapes = append(shapes, shell.Placements("Wall", "Door", "WoodLog"))
+		}
 		best, bestMatched := -1, 0
-		for shape, shell := range shapes {
+		for shape, perimeter := range shapes {
 			matched := 0
-			for _, building := range shell.Placements("Wall", "Door", "WoodLog") {
+			for _, building := range perimeter {
 				if standing[building.Cell()] == building.Definition() {
 					matched++
 				}
@@ -257,10 +291,9 @@ func (r *RoutineBuildingPlanner) adoptShell(ctx context.Context, snapshot domain
 		if best < 0 {
 			continue
 		}
-		perimeter := shapes[best].Placements("Wall", "Door", "WoodLog")
 		stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
 		var selected []policy.Preview
-		for i, building := range perimeter {
+		for i, building := range shapes[best] {
 			cell := building.Cell()
 			if standing[cell] == building.Definition() {
 				continue
@@ -290,6 +323,41 @@ func (r *RoutineBuildingPlanner) adoptShell(ctx context.Context, snapshot domain
 		return selected, stock, "", true, nil
 	}
 	return nil, policy.StockObservation{}, "", false, nil
+}
+
+// earlierShells reads back the rings this controller ordered earlier in this
+// world from its shell plans, keyed by door cell: every plan that placed
+// exactly one door contributes its complete perimeter (door first, as it
+// was admitted), newest first. Partial plans -- adoptions of a ring whose
+// door already stood -- carry no door and describe no ring of their own.
+// Only doors within the census window count, so a ring the census cannot
+// see is never matched against it.
+func (r *RoutineBuildingPlanner) earlierShells(ctx context.Context, minimum, maximum domain.Cell) (map[domain.Cell][][]domain.Building, error) {
+	history, err := r.reviewer.player.journal.PlanHistoryWithPrefix(ctx, shellPlanPrefix+"-", shellHistoryLimit)
+	if err != nil {
+		return nil, err
+	}
+	earlier := map[domain.Cell][][]domain.Building{}
+	for _, plan := range history {
+		var perimeter []domain.Building
+		var door domain.Cell
+		doors := 0
+		for _, action := range plan.Spec.Actions() {
+			b, ok := action.Building()
+			if !ok {
+				continue
+			}
+			if b.Definition() == "Door" {
+				door, doors = b.Cell(), doors+1
+			}
+			perimeter = append(perimeter, b)
+		}
+		if doors != 1 || door.X < minimum.X || door.X > maximum.X || door.Z < minimum.Z || door.Z > maximum.Z {
+			continue
+		}
+		earlier[door] = append(earlier[door], perimeter)
+	}
+	return earlier, nil
 }
 
 func squaredDistance(a, b domain.Cell) int64 {

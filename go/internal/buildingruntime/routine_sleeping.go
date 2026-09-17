@@ -416,7 +416,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		prefix = "routine-hospital"
 	}
 	if r.shelter {
-		prefix = "routine-shell"
+		prefix = shellPlanPrefix
 	}
 	planID := domain.PlanID(fmt.Sprintf("%s-%x", prefix, digest[:16]))
 	snapshot := state.Snapshot
