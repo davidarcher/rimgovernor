@@ -80,7 +80,7 @@ func clockTransportFixture(t *testing.T, blockStart bool) (*ClockScheduler, *blo
 	s.session.clock.native = native
 	s.session.clock.writer = native
 	s.session.control.config.Worlds = clockWorldSource{native}
-	worker, err := NewClockWorker(context.Background(), s, native, ClockWorkerConfig{PollInterval: 10 * time.Millisecond, RenewInterval: 50 * time.Millisecond, StepInterval: 10 * time.Millisecond, MaxBackoff: 100 * time.Millisecond, CallTimeout: 200 * time.Millisecond, PageLimit: 128})
+	worker, err := NewClockWorker(context.Background(), s, native, ClockWorkerConfig{PollInterval: 10 * time.Millisecond, RenewInterval: 50 * time.Millisecond, StepInterval: 10 * time.Millisecond, MaxBackoff: 100 * time.Millisecond, PollTimeout: 200 * time.Millisecond, RenewTimeout: 200 * time.Millisecond, StepTimeout: 200 * time.Millisecond, PageLimit: 128})
 	if err != nil {
 		t.Fatal(err)
 	}

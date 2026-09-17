@@ -22,7 +22,13 @@ type ClockRenewResult struct {
 	Renewed, Reconciled bool
 }
 
+// ClockWorkerConfig sizes the three loops independently. PollTimeout and
+// RenewTimeout stay under a quarter of the native epoch lease so a late poll
+// or renew call can never let the lease lapse. StepTimeout has no lease
+// constraint: a step is the routine census plus every composed planner's
+// native reads, and it is bounded only by the Player's own call timeout.
 type ClockWorkerConfig struct {
-	PollInterval, RenewInterval, StepInterval, MaxBackoff, CallTimeout time.Duration
-	PageLimit                                                          uint32
+	PollInterval, RenewInterval, StepInterval, MaxBackoff time.Duration
+	PollTimeout, RenewTimeout, StepTimeout                time.Duration
+	PageLimit                                             uint32
 }

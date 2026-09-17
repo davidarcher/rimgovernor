@@ -417,16 +417,6 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 			return errors.New("clock service requires complete clock capabilities")
 		}
 		clockCapabilities = client.clock
-		// ClockWorker.CallTimeout must stay under lease/4 (NewClockWorker's
-		// validation in clock_worker.go), where lease is itself capped at
-		// NewControl's 30s LeaseDuration ceiling (control.go) -- so 7.5s is
-		// the hard structural maximum here, not an arbitrary tuning knob.
-		// This used to be hardcoded to 5s with no documented rationale and
-		// no margin left for RoutineReviewer's full colony census (~2.7s
-		// alone on a real, populated map) plus any chained planner's native
-		// reads, which made every stepPlanners() call time out and the
-		// native clock never start. See issue #45.
-		callTimeout = min(callTimeout, 7*time.Second)
 	}
 	var supplyCapabilities *supply.SupplyCapabilities
 	if config.routineSupplyPlans {
@@ -660,7 +650,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	}
 	owner = player
 	if config.clockControl {
-		if err = startServiceClock(lifetime, player, session, client.clockReads, database, config, callTimeout); err != nil {
+		if err = startServiceClock(lifetime, player, session, client.clockReads, database, config, serviceClockTimeouts(callTimeout)); err != nil {
 			return err
 		}
 	}

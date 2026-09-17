@@ -99,7 +99,7 @@ func TestClockWorkerDisabledRestart(t *testing.T) {
 			if session.State().Enabled || authority.acquires.Load() != 0 {
 				t.Fatal("restart restored permission")
 			}
-			worker, err := NewClockWorker(ctx, scheduler, native, ClockWorkerConfig{PollInterval: 10 * time.Millisecond, RenewInterval: 10 * time.Millisecond, StepInterval: 10 * time.Millisecond, MaxBackoff: 100 * time.Millisecond, CallTimeout: 200 * time.Millisecond, PageLimit: 128})
+			worker, err := NewClockWorker(ctx, scheduler, native, ClockWorkerConfig{PollInterval: 10 * time.Millisecond, RenewInterval: 10 * time.Millisecond, StepInterval: 10 * time.Millisecond, MaxBackoff: 100 * time.Millisecond, PollTimeout: 200 * time.Millisecond, RenewTimeout: 200 * time.Millisecond, StepTimeout: 200 * time.Millisecond, PageLimit: 128})
 			if err != nil {
 				t.Fatal(err)
 			}

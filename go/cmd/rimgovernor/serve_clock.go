@@ -77,13 +77,12 @@ func parseClockSpeed(speed string) k.Speed {
 func serviceClockConfig(profile string, speed k.Speed) buildingruntime.ClockSchedulerConfig {
 	return buildingruntime.ClockSchedulerConfig{
 		// MaxAge bounds how stale the facts read during Step() may be by the
-		// time EvaluateClockWindow admits a window. On a real, populated map
-		// the routine reviewer's full colony census plus any chained
-		// planner's native reads can alone take 5s+ (see issue #45), so a 5s
-		// MaxAge routinely refused with stale_facts before the write was
-		// ever attempted. Not tied to ClockWorkerConfig.CallTimeout's
-		// lease/4 ceiling (serve_building.go) -- validated up to 1 minute.
-		Profile: profile, MaxAge: 10 * time.Second,
+		// time EvaluateClockWindow admits a window. It must cover the whole
+		// step budget (serviceClockTimeouts): the routine census plus every
+		// composed planner's native reads run inside one step, and facts read
+		// at its start are admitted at its end. A MaxAge shorter than the
+		// step refuses with stale_facts before the write is ever attempted.
+		Profile: profile, MaxAge: serviceClockStepTimeout,
 		// A raid runs in 300-tick combat windows so the defense planner can
 		// re-target between them; colony windows keep the 600-tick budget.
 		CombatMaxTicks: 300,
@@ -94,9 +93,28 @@ func serviceClockConfig(profile string, speed k.Speed) buildingruntime.ClockSche
 	}
 }
 
+// serviceClockStepTimeout budgets one scheduler step: the routine review
+// census plus every composed planner's native reads. It matches the Player's
+// CallTimeout (serve_building.go) and is independent of the epoch lease. Under
+// peer load (several headless RimWorld instances on one machine) a planner
+// read alone can exceed the lease-bound 7s renew budget, which used to time
+// out every step so no clock window was ever admitted (issue #73).
+const serviceClockStepTimeout = 30 * time.Second
+
+// serviceClockTimeouts sizes the worker loops. Poll and renew share the
+// bridge call timeout clamped under lease/4 (NewClockWorker's validation,
+// with LeaseMS 30000 in serviceClockConfig): a renew call must never be late
+// enough to let the native epoch lapse. The step has no lease constraint.
+func serviceClockTimeouts(callTimeout time.Duration) serviceClockTimeoutConfig {
+	lease := min(callTimeout, 7*time.Second)
+	return serviceClockTimeoutConfig{Poll: lease, Renew: lease, Step: serviceClockStepTimeout}
+}
+
+type serviceClockTimeoutConfig struct{ Poll, Renew, Step time.Duration }
+
 // Session owns the attached worker's drain, including failed startup cleanup.
 // Starting these loops does not enable Player or acquire native authority.
-func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, journal *store.Store, sc serveConfig, timeout time.Duration) error {
+func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, journal *store.Store, sc serveConfig, timeouts serviceClockTimeoutConfig) error {
 	profile, clockSpeed, routine, projectLimit := sc.profile, sc.clockSpeed, sc.routineReviews, sc.routineProjectLimit
 	sleeping, cooking, shelter, comfort, expansion, power, temperature := sc.routineSleepingPlans, sc.routineCookingPlans, sc.routineShelterPlans, sc.routineComfortPlans, sc.routineExpansionPlans, sc.routinePowerPlans, sc.routineTemperaturePlans
 	supplies, work, acquisition, defense, tend, rescue, equip := sc.routineSupplyPlans, sc.routineWorkPlans, sc.routineAcquisitionPlans, sc.routineDefensePlans, sc.routineTendPlans, sc.routineRescuePlans, sc.routineEquipPlans
@@ -614,7 +632,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	}
 	_, err = buildingruntime.NewClockWorker(ctx, scheduler, reads, buildingruntime.ClockWorkerConfig{
 		PollInterval: time.Second, RenewInterval: 5 * time.Second, StepInterval: time.Second,
-		MaxBackoff: 10 * time.Second, CallTimeout: timeout, PageLimit: 128,
+		MaxBackoff: 10 * time.Second, PollTimeout: timeouts.Poll, RenewTimeout: timeouts.Renew, StepTimeout: timeouts.Step, PageLimit: 128,
 	})
 	return err
 }

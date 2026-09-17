@@ -13,7 +13,7 @@ import (
 func clockLoopFixture(t *testing.T) *ClockWorker {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
-	w := &ClockWorker{ctx: ctx, cancel: cancel, config: ClockWorkerConfig{PollInterval: 5 * time.Millisecond, RenewInterval: 5 * time.Millisecond, StepInterval: 5 * time.Millisecond, MaxBackoff: 80 * time.Millisecond, CallTimeout: 20 * time.Millisecond}, done: make(chan struct{}), ready: make(chan struct{}), stopGate: make(chan struct{}, 1), disable: func() error { return nil }, cleanup: func(context.Context) error { return nil }, poll: func(context.Context) (ClockPollResult, error) { return ClockPollResult{}, nil }, renew: func(context.Context) (ClockRenewResult, error) { return ClockRenewResult{}, nil }, step: func(context.Context) (ClockSchedulerResult, error) { return ClockSchedulerResult{}, nil }}
+	w := &ClockWorker{ctx: ctx, cancel: cancel, config: ClockWorkerConfig{PollInterval: 5 * time.Millisecond, RenewInterval: 5 * time.Millisecond, StepInterval: 5 * time.Millisecond, MaxBackoff: 80 * time.Millisecond, PollTimeout: 20 * time.Millisecond, RenewTimeout: 20 * time.Millisecond, StepTimeout: 20 * time.Millisecond}, done: make(chan struct{}), ready: make(chan struct{}), stopGate: make(chan struct{}, 1), disable: func() error { return nil }, cleanup: func(context.Context) error { return nil }, poll: func(context.Context) (ClockPollResult, error) { return ClockPollResult{}, nil }, renew: func(context.Context) (ClockRenewResult, error) { return ClockRenewResult{}, nil }, step: func(context.Context) (ClockSchedulerResult, error) { return ClockSchedulerResult{}, nil }}
 	t.Cleanup(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
@@ -32,7 +32,7 @@ func (clockWorkerEventUnavailable) ReadClockEvents(context.Context, *k.EventsReq
 func TestClockWorkerConstructorRejectsInvalidAndCancelledWithoutAttachment(t *testing.T) {
 	t.Parallel()
 	s, _ := schedulerFixture(t)
-	cfg := ClockWorkerConfig{PollInterval: 10 * time.Millisecond, RenewInterval: 10 * time.Millisecond, StepInterval: 10 * time.Millisecond, MaxBackoff: time.Second, CallTimeout: 20 * time.Millisecond, PageLimit: 128}
+	cfg := ClockWorkerConfig{PollInterval: 10 * time.Millisecond, RenewInterval: 10 * time.Millisecond, StepInterval: 10 * time.Millisecond, MaxBackoff: time.Second, PollTimeout: 20 * time.Millisecond, RenewTimeout: 20 * time.Millisecond, StepTimeout: 20 * time.Millisecond, PageLimit: 128}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	if _, err := NewClockWorker(ctx, s, clockWorkerEventUnavailable{}, cfg); !errors.Is(err, context.Canceled) {
@@ -43,6 +43,19 @@ func TestClockWorkerConstructorRejectsInvalidAndCancelledWithoutAttachment(t *te
 	if _, err := NewClockWorker(context.Background(), s, clockWorkerEventUnavailable{}, bad); err == nil {
 		t.Fatal("unsafe renewal cadence")
 	}
+	// The fixture lease is 1s: renew and poll must stay under lease/4, the
+	// step is bounded only by the Player's 10s CallTimeout.
+	for _, unsafe := range []ClockWorkerConfig{{RenewTimeout: time.Second}, {PollTimeout: time.Second}, {StepTimeout: 11 * time.Second}} {
+		bad = cfg
+		bad.RenewTimeout = max(bad.RenewTimeout, unsafe.RenewTimeout)
+		bad.PollTimeout = max(bad.PollTimeout, unsafe.PollTimeout)
+		bad.StepTimeout = max(bad.StepTimeout, unsafe.StepTimeout)
+		if _, err := NewClockWorker(context.Background(), s, clockWorkerEventUnavailable{}, bad); err == nil {
+			t.Fatal("unsafe loop timeout accepted", unsafe)
+		}
+	}
+	// A step budget far above lease/4 is valid.
+	cfg.StepTimeout = 10 * time.Second
 	w, err := NewClockWorker(context.Background(), s, clockWorkerEventUnavailable{}, cfg)
 	if err != nil {
 		t.Fatal(err)

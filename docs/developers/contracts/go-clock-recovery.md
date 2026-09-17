@@ -271,10 +271,15 @@ does not.
 The session attaches one clock worker before its loops start. Close cancels and
 joins the loops and their cancellation handler before releasing native handles,
 the journal or profile owner. Concurrent Stop calls serialize, successful cleanup
-is cached, and failed cleanup remains retryable. Worker intervals and call budgets
-are bounded below the native lease duration; unchanged scheduling decisions back
-off, except while a combat window is admitted or running, which keeps the short
-poll. Autonomous play attaches the worker; `--observe` does not.
+is cached, and failed cleanup remains retryable. Poll and renew intervals and call
+budgets are bounded below a quarter of the native lease duration so a late renew
+can never let the epoch lapse. The step budget is independent of the lease and
+bounded only by the Player's call timeout: a step holds the Player gate, never
+`renewGate`, so a slow planner census cannot delay renewal (`serve` budgets 7s for
+poll/renew and 30s for the step, with the scheduler's `MaxAge` covering the whole
+step). Unchanged scheduling decisions back off, except while a combat window is
+admitted or running, which keeps the short poll. Autonomous play attaches the
+worker; `--observe` does not.
 
 A fresh worker over reopened state remains disabled while recovering original
 attempts and pausing retained ownership; it does not acquire authority or issue a
