@@ -120,6 +120,9 @@ func scenarios() map[string]*scenario {
 	s["blocked"] = blocked
 
 	fire := upkeep("fire", map[string]any{"fireSize": 0.9})
+	// MaintainFireSafety's method is a clock window for native firefighting;
+	// without the fire family nothing ever admits one (refused=[no_work]).
+	fire.families = append([]string{"fire"}, fire.families...)
 	fire.watch = watchFire
 	fire.verify = verifyFire
 	s["fire"] = fire

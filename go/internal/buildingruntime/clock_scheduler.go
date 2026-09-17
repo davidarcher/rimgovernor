@@ -58,6 +58,7 @@ type ClockSchedulerConfig struct {
 	Equip                            *RoutineEquipPlanner
 	SecureSupplies                   *RoutineSecureSuppliesPlanner
 	Repair                           *RoutineRepairPlanner
+	FireSafety                       *RoutineFireSafetyPlanner
 	Clean                            *RoutineCleanPlanner
 	Haul                             *RoutineHaulPlanner
 	Gear                             *RoutineGearPlanner
@@ -106,6 +107,7 @@ type ClockSchedulerResult struct {
 	Equip                                         *RoutineEquipResult
 	SecureSupplies                                *RoutineSecureSuppliesResult
 	Repair                                        *RoutineRepairResult
+	FireSafety                                    *RoutineFireSafetyResult
 	Clean                                         *RoutineCleanResult
 	Haul                                          *RoutineHaulResult
 	Gear                                          *RoutineGearResult
@@ -237,6 +239,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, ErrControl
 	}
 	if config.Repair != nil && (config.Routine == nil || config.Repair.reviewer != config.Routine) {
+		return nil, ErrControl
+	}
+	if config.FireSafety != nil && (config.Routine == nil || config.FireSafety.reviewer != config.Routine) {
 		return nil, ErrControl
 	}
 	if config.Clean != nil && (config.Routine == nil || config.Clean.reviewer != config.Routine) {
@@ -525,6 +530,17 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 			return nil
 		})
 	}
+	if s.config.FireSafety != nil {
+		g.Go(plannerFoothold, func() error {
+			method, err := s.config.FireSafety.step(gctx, epoch)
+			if err != nil {
+				return fmt.Errorf("fireSafety: %w", err)
+			}
+			clockSchedulerLog("FireSafety.step result: reason=%v outcome=%v nativeWorkTicks=%d", method.Reason, method.Outcome, method.NativeWorkTicks)
+			out.FireSafety = &method
+			return nil
+		})
+	}
 	if s.config.Clean != nil {
 		g.Go(plannerMaintenance, func() error {
 			method, err := s.config.Clean.step(gctx, epoch, arbiter)
@@ -582,6 +598,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 			if err != nil {
 				return fmt.Errorf("medical: %w", err)
 			}
+			clockSchedulerLog("Medical.step result: reason=%v plan=%s", method.Reason, method.Plan)
 			out.Medical = &method
 			return nil
 		})
@@ -682,6 +699,7 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 			if err != nil {
 				return fmt.Errorf("animalFeed: %w", err)
 			}
+			clockSchedulerLog("AnimalFeed.step result: reason=%v plan=%s", method.Reason, method.Plan)
 			out.AnimalFeed = &method
 			return nil
 		})
@@ -806,6 +824,11 @@ func (s *ClockScheduler) Step(ctx context.Context) (ClockSchedulerResult, error)
 		if result != nil {
 			nativeWorkTicks = max(nativeWorkTicks, result.NativeWorkTicks)
 		}
+	}
+	// A bounded home fire is fought by native firefighters, never by an
+	// order: the planner's only method is a short clock window.
+	if out.FireSafety != nil {
+		nativeWorkTicks = max(nativeWorkTicks, out.FireSafety.NativeWorkTicks)
 	}
 	if !work && s.config.RoutineMethods && nativeWorkTicks > 0 {
 		work = true
@@ -1002,6 +1025,7 @@ func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSch
 			if err != nil {
 				return fmt.Errorf("temperature: %w", err)
 			}
+			clockSchedulerLog("Temperature.step result: reason=%v decision=%+v nativeWorkTicks=%d", method.Reason, method.Decision, method.NativeWorkTicks)
 			out.Temperature = &method
 			return nil
 		})

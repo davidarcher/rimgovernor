@@ -20,6 +20,7 @@ func TestRoutineCapabilitiesDeclareSelectedGoals(t *testing.T) {
 	}{
 		{"secure-supplies", policy.SecureSupplies},
 		{"repair", policy.MaintainEssentialRepairs},
+		{"fire", policy.MaintainFireSafety},
 		{"clean", policy.MaintainCleanFacilities},
 		{"haul", policy.MaintainStorage},
 		{"waste", policy.MaintainWaste},
