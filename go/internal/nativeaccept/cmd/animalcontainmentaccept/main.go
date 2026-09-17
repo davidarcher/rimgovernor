@@ -118,11 +118,10 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 
 	// Fixture: clears a legal 6x6 room, spawns just enough WoodLog for the
 	// full shell, spawns the uncontained herd animal + non-pen pet, and
-	// enables one colonist's Construction/Handling. Run this BEFORE
-	// acquiring authority: the fixture spawns pawns/things directly outside
-	// any authority.Owned() scope, and NativeControlAuthority.RevokeExternal
-	// revokes any held lease for such external activity regardless of who
-	// holds it, mirroring populationcustodyaccept's own ordering.
+	// enables one colonist's Construction/Handling. Run this BEFORE granting
+	// Auto so the fixture's own direct spawning bumps the native generation
+	// before the first WritePrecondition reads it, mirroring
+	// populationcustodyaccept's own ordering.
 	prepared, err := h.Call(ctx, "prepare", "test/containment_construct_prepare", map[string]any{})
 	if err != nil {
 		return err
@@ -149,83 +148,18 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	}
 	report["fixture_room"] = room
 
-	// acquire takes a *fresh* authority lease (the explicit player-control
-	// takeover path): native Acquire unconditionally refuses with
-	// OwnerConflict whenever any lease is still active, including this
-	// tool's own -- it is not a "renew my own lease" call. renew extends the
-	// currently held lease in place (same leaseId) and only works while that
-	// lease is still active. renewOrAcquire (mirroring constructionaccept's
-	// and guardedconstructionaccept's own helper of the same name) prefers
-	// renew -- cheap, keeps the same lease -- and falls back to acquire
-	// whenever the prior lease is no longer renewable. That happens whenever
-	// native activity happens outside an authority.Owned() scope (the
-	// fixture's own spawning above, or running ticks forward at Fast speed to
-	// observe construction/containment progress below) via
-	// NativeControlAuthority.RevokeExternal, or simply because the lease's
-	// own 30s wall-clock deadline lapsed during a long Fast-speed observation
-	// window -- so this must be called again before every fresh dispatch that
-	// follows such a window, not just once at the start.
-	var grant map[string]any
-	acquire := func(label string) error {
-		statusReply, err := h.Wire(ctx, label+"-status", "authority_read_status", map[string]any{"identity": identity})
-		if err != nil {
-			return err
-		}
-		_, status, err := na.Outcome(statusReply, "status")
-		if err != nil {
-			return err
-		}
-		statusContext, _ := na.AsMap(status["context"])
-		grantReply, err := h.Wire(ctx, label, "authority_control", map[string]any{"acquire": map[string]any{
-			"identity": identity, "expectedGeneration": statusContext["nativeGeneration"],
-			"owner": map[string]any{"controllerSessionId": sessionOwner, "playerDirection": "1"}, "leaseMs": 30000,
-		}})
-		if err != nil {
-			return err
-		}
-		_, newGrant, err := na.Outcome(grantReply, "granted")
-		if err != nil {
-			return err
-		}
-		grant = newGrant
-		return nil
+	// Authority is a single Auto/Manual mode switch (SIMP02): SetMode(Auto)
+	// grants outright at the current generation and there is no lease to
+	// renew or lose. Fixture spawning above and the Fast-speed observation
+	// windows below do not revoke anything; the per-write generation is simply
+	// re-read fresh before each dispatch. grantAuto is re-issued before the
+	// marker dispatch purely to mirror the production controller's own
+	// re-grant after a long observation window.
+	grantAuto := func(label string) error {
+		_, err := na.GrantAuto(ctx, h.WireFunc(), label, identity)
+		return err
 	}
-	renew := func(label string) error {
-		// Renew's own CheckLease demands the exact current generation (unlike
-		// grant["context"]'s generation as of the original acquire, which is
-		// stale by the time this is called), so read it fresh first.
-		statusReply, err := h.Wire(ctx, label+"-status", "authority_read_status", map[string]any{"identity": identity})
-		if err != nil {
-			return err
-		}
-		_, status, err := na.Outcome(statusReply, "status")
-		if err != nil {
-			return err
-		}
-		statusContext, _ := na.AsMap(status["context"])
-		renewReply, err := h.Wire(ctx, label, "authority_control", map[string]any{"renew": map[string]any{
-			"identity": identity, "expectedGeneration": statusContext["nativeGeneration"],
-			"controllerSessionId": sessionOwner, "leaseId": grant["leaseId"], "leaseMs": 30000,
-		}})
-		if err != nil {
-			return err
-		}
-		_, newGrant, err := na.Outcome(renewReply, "granted")
-		if err != nil {
-			return err
-		}
-		grant = newGrant
-		return nil
-	}
-	renewOrAcquire := func(label string) error {
-		if grant != nil {
-			if err := renew(label + "-renew"); err == nil {
-				return nil
-			}
-		}
-		return acquire(label + "-acquire")
-	}
-	if err := acquire("acquire"); err != nil {
+	if err := grantAuto("grant-auto"); err != nil {
 		return err
 	}
 
@@ -244,7 +178,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	buildRequest := func(actionID string, generation any, operation map[string]any) map[string]any {
 		return map[string]any{
 			"precondition": map[string]any{
-				"identity": identity, "expectedGeneration": generation, "leaseId": grant["leaseId"],
+				"identity": identity, "expectedGeneration": generation,
 				"attempt": map[string]any{"controllerSessionId": sessionOwner, "actionId": actionID, "attemptId": "1"},
 			},
 			"operation": operation,
@@ -301,13 +235,8 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 		return fmt.Errorf("preview-door: expected the FenceGate placement to be accepted, got %#v", previewEvaluated)
 	}
 
-	// A single acquire (above, before the preview) covers this whole run of
-	// dispatches: re-issuing Acquire here would be refused (native OwnerConflict
-	// -- Acquire is the explicit player-control takeover path and always fails
-	// while any lease, including this tool's own, is still active). Nothing
-	// between these dispatches runs a tick or touches native state outside
-	// authority.Owned() scope, so the lease from the single acquire above stays
-	// valid for the whole loop; only the per-cell generation is re-read fresh.
+	// The single SetMode(Auto) above covers this whole run of dispatches;
+	// only the per-cell generation is re-read fresh.
 	shellAttempts := make([]map[string]any, 0, len(perimeter))
 	for i, cell := range perimeter {
 		generation, err := currentGeneration(fmt.Sprintf("generation-shell-%d", i))
@@ -357,7 +286,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	// --- Place the PenMarker at the shell's interior, matching placeMarker's
 	// own nearest-northwest-interior-corner choice. ---
 	markerX, markerZ := roomX+1, roomZ+1
-	if err := renewOrAcquire("marker"); err != nil {
+	if err := grantAuto("grant-auto-marker"); err != nil {
 		return err
 	}
 	markerGeneration, err := currentGeneration("generation-marker")
