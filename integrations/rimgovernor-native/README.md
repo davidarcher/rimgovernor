@@ -10,6 +10,10 @@ Build a complete local development package from the repository root:
 ./scripts/build_native_mod.ps1 -RimWorldManagedDir 'C:/path/to/RimWorldWin64_Data/Managed' -HarmonyAssembly 'C:/path/to/0Harmony.dll' -RimBridgeSdkDir 'C:/path/to/RimBridgeServer/1.6/Assemblies' -DotNet 'C:/path/to/dotnet.exe'
 ```
 
+Without an installed game, `./scripts/fetch_native_build_inputs.ps1 -OutputRoot <dir>`
+stages pinned substitutes for the three inputs (`<dir>/managed`,
+`<dir>/0Harmony.dll`, `<dir>/rimbridge`); CI builds from them.
+
 The command prints the staged `RimGovernor` directory. `-OutputRoot` chooses a
 fresh parent directory; an existing directory is refused. Default outputs live
 under `.rimgovernor/native-builds`. Add `-Fixture InstallFixture` (or an array of

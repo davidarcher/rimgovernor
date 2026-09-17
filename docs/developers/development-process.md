@@ -78,7 +78,16 @@ project. Projects with nothing to test say so. Projects that need
 machine-local inputs (the game's managed assemblies, Harmony, the
 RimBridgeServer SDK) report `unavailable` naming the missing path instead of
 passing; override the defaults with `RIMWORLD_MANAGED_DIR`, `HARMONY_ASSEMBLY`
-and `RIMBRIDGE_SDK_DIR`. Outputs and evidence land under `.rimgovernor/task/`;
+and `RIMBRIDGE_SDK_DIR`, and set `NATIVE_INPUTS_REQUIRED=1` to fail instead.
+CI has no game installed: `scripts/fetch_native_build_inputs.ps1` stages
+pinned, SHA-256-verified substitutes (the `Krafs.Rimworld.Ref` publicised
+reference assemblies for the installed game build, the matching `Lib.Harmony`
+NuGet and the RimBridgeServer release's `Assemblies`) and CI points the three
+variables at them with `NATIVE_INPUTS_REQUIRED=1`, so a native or fixture
+compile error fails the run on both runners. The staged build is
+byte-identical to one against the installed game; bump the script's pins
+together with the game, Harmony and RimBridgeServer versions the acceptance
+harnesses run. Outputs and evidence land under `.rimgovernor/task/`;
 the protobuf exchange and the native build are checksum-skipped while their
 inputs are unchanged (`task --force` reruns them). Everything in the first
 table fails the gate; everything in the second is reviewed by hand.
