@@ -6,9 +6,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/httpapi"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
+	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
+	"google.golang.org/protobuf/proto"
 )
 
 // readState retains the last good observation while refreshes run serially.
@@ -93,4 +96,27 @@ func (s *readState) Poll(ctx context.Context, interval time.Duration) {
 			_ = s.Refresh(ctx)
 		}
 	}
+}
+
+// factTickSource serves the read-state poll's tick from the scheduler's
+// fact cache when the identity row it holds was stored within maxAge (the
+// bundle seeds it every scheduler step), and reads natively otherwise: no
+// clock control, a stalled scheduler, or a row a write or scope change
+// dropped (#168). A served reply is what the dedicated read would have
+// returned for that row, so DecodeTick validates it unchanged.
+type factTickSource struct {
+	observation.Source
+	facts  *bridge.FactCache
+	maxAge time.Duration
+	now    func() time.Time
+}
+
+func (s factTickSource) Tick(ctx context.Context) (*l.TickReply, bridge.Result, error) {
+	if cached, ok := s.facts.Context(); ok && s.now().Sub(cached.StoredAt) <= s.maxAge {
+		if err := ctx.Err(); err != nil {
+			return nil, bridge.Result{}, err
+		}
+		return &l.TickReply{Outcome: &l.TickReply_Loaded{Loaded: &l.LoadedTick{Context: cached.Context, Paused: proto.Bool(cached.Paused)}}}, bridge.Result{}, nil
+	}
+	return s.Source.Tick(ctx)
 }

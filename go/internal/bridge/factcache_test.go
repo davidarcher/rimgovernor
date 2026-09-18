@@ -188,12 +188,15 @@ func TestFactCacheContextServesTheSeededIdentity(t *testing.T) {
 	}
 	server := newBundleServer()
 	client := testClient(t, &testServer{schema: protoSchema, handler: server.handle}, time.Second)
+	stored := time.Date(2026, 9, 18, 0, 0, 0, 0, time.UTC)
+	factCacheNow = func() time.Time { return stored }
+	defer func() { factCacheNow = time.Now }()
 	ctx := WithStepReadCache(context.Background(), NewChildReadCache(parent))
 	if _, _, err := client.ReadBundle(ctx, bundleTestRequest()); err != nil {
 		t.Fatal(err)
 	}
 	observed, ok := parent.Context()
-	if !ok || observed.GetTick() != 12 || observed.GetIdentity().GetLoadToken() != pbIdentity().GetLoadToken() {
+	if !ok || observed.Context.GetTick() != 12 || observed.Context.GetIdentity().GetLoadToken() != pbIdentity().GetLoadToken() || observed.Paused || !observed.StoredAt.Equal(stored) {
 		t.Fatal(observed, ok)
 	}
 	// Serving it establishes no step scope: a fresh step's first read is native.
@@ -210,7 +213,7 @@ func TestFactCacheContextServesTheSeededIdentity(t *testing.T) {
 	if _, _, err := identity.Identity(WithStepReadCache(context.Background(), NewChildReadCache(parent))); err != nil {
 		t.Fatal(err)
 	}
-	if observed, ok = parent.Context(); !ok || observed.GetIdentity().GetLoadToken() != pbIdentity().GetLoadToken() {
+	if observed, ok = parent.Context(); !ok || observed.Context.GetIdentity().GetLoadToken() != pbIdentity().GetLoadToken() || !observed.Paused {
 		t.Fatal("identity read did not restore the context", observed, ok)
 	}
 	cache.Invalidate()

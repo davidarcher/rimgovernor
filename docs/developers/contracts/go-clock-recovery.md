@@ -336,6 +336,10 @@ loaded world it reconciles against from the parent's `identity` row
 worker step costs no `lifecycle_read_tick` of its own while the scheduler
 keeps seeding it; serving it fixes no step scope, and an empty parent (no
 clock control, a write, a scope change) falls back to the native read.
+The read-state poll behind the HTTP snapshot (`-refresh`, 3 s) serves its
+tick the same way when the row was stored within one refresh interval
+(`FactCache.Context` reports `StoredAt`), so a stalled scheduler never
+passes off an old tick as current; otherwise it reads natively.
 
 ## Independent clock workers
 

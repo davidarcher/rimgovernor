@@ -133,3 +133,21 @@ func TestInitialUnavailableReadHasNoInventedFacts(t *testing.T) {
 		t.Fatal("invented authority")
 	}
 }
+
+// Without a held identity row (no clock control seeding it, or a write
+// dropped it) the poll's tick read still crosses the bridge; the served
+// path is the bridge package's FactCache.Context contract (#168).
+func TestFactTickSourceReadsNativelyWithoutAFreshRow(t *testing.T) {
+	for _, facts := range []*bridge.FactCache{nil, bridge.NewFactCache()} {
+		source := &fakeSource{paused: proto.Bool(true), entered: make(chan struct{}, 1)}
+		reply, _, err := factTickSource{Source: source, facts: facts, maxAge: time.Second, now: time.Now}.Tick(context.Background())
+		if err != nil || !reply.GetLoaded().GetPaused() {
+			t.Fatal(reply, err)
+		}
+		select {
+		case <-source.entered:
+		default:
+			t.Fatal("tick served without a native read", facts == nil)
+		}
+	}
+}

@@ -744,7 +744,11 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	if _, err = rand.Read(entropy[:]); err != nil {
 		return err
 	}
-	reads, err := newReadState(hex.EncodeToString(entropy[:]), client.reads, wallClock{}, 2*config.refresh+config.bridge.Timeout)
+	var readSource observation.Source = client.reads
+	if config.clockControl {
+		readSource = factTickSource{Source: client.reads, facts: facts, maxAge: config.refresh, now: time.Now}
+	}
+	reads, err := newReadState(hex.EncodeToString(entropy[:]), readSource, wallClock{}, 2*config.refresh+config.bridge.Timeout)
 	if err != nil {
 		return err
 	}

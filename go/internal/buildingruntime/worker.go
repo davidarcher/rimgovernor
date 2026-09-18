@@ -233,8 +233,8 @@ func (w *Worker) takeWake() {
 // read seeds into Facts each step serves it without a round trip; a write
 // or a scope change drops that row and the next step reads natively (#181).
 func (w *Worker) readWorld(ctx context.Context) (store.World, error) {
-	if observed, ok := w.config.Facts.Context(); ok && bridge.ValidateContext(observed) == nil {
-		identity := observed.GetIdentity()
+	if cached, ok := w.config.Facts.Context(); ok && bridge.ValidateContext(cached.Context) == nil {
+		identity := cached.Context.GetIdentity()
 		world := store.World{Colony: domain.ColonyID(identity.GetColonyId()), Load: domain.LoadID(identity.GetLoadToken()), Map: domain.MapID(identity.GetMapId())}
 		if world.Validate() == nil {
 			return world, ctx.Err()

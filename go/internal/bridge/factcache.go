@@ -2,6 +2,7 @@ package bridge
 
 import (
 	"sync"
+	"time"
 
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -118,10 +119,23 @@ type FactCacheStats struct {
 }
 
 type factRow struct {
-	tick    int64
-	family  FactFamily
-	payload []byte
-	result  Result
+	tick     int64
+	family   FactFamily
+	payload  []byte
+	result   Result
+	storedAt time.Time
+}
+
+// factCacheNow stamps stored rows; tests substitute it.
+var factCacheNow = time.Now
+
+// CachedContext is the identity row Context serves: the observation
+// context and pause state the scheduler last read, and when the cache
+// stored it (wall clock), so a caller with a freshness bound can apply it.
+type CachedContext struct {
+	Context  *c.ObservationContext
+	Paused   bool
+	StoredAt time.Time
 }
 
 // NewFactCache returns an empty parent cache.
@@ -202,17 +216,16 @@ func (f *FactCache) lookup(key readCacheKey, scope readScope) ([]byte, Result, b
 	return row.payload, row.result, true
 }
 
-// Context returns the observation context of the identity row the cache
-// holds (the tick the bundle seeds each scheduler step, or a full identity
-// read), regardless of the tick it was read at, and false when none is
-// held. It serves callers that need the current load, map and colony but
-// not the tick: the identity family is dropped by every write and by every
-// scope change, so a held row names the load the scheduler last observed.
-// No step scope is established by it; the caller's own first native read
-// still does that.
-func (f *FactCache) Context() (*c.ObservationContext, bool) {
+// Context returns the identity row the cache holds (the tick the bundle
+// seeds each scheduler step, or a full identity read), regardless of the
+// tick it was read at, and false when none is held. The identity family
+// is dropped by every write and by every scope change, so a held row is
+// what the scheduler last observed; its StoredAt bounds how long ago. No
+// step scope is established by it; a caller's own first native read still
+// does that.
+func (f *FactCache) Context() (CachedContext, bool) {
 	if f == nil {
-		return nil, false
+		return CachedContext{}, false
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -220,17 +233,17 @@ func (f *FactCache) Context() (*c.ObservationContext, bool) {
 		reply := &l.TickReply{}
 		if err := proto.Unmarshal(row.payload, reply); err == nil && reply.GetLoaded().GetContext() != nil {
 			f.stats.Hits++
-			return reply.GetLoaded().GetContext(), true
+			return CachedContext{Context: reply.GetLoaded().GetContext(), Paused: reply.GetLoaded().GetPaused(), StoredAt: row.storedAt}, true
 		}
 	}
 	if row := f.rows[readCacheKey{method: "rimgovernor/lifecycle_read_identity"}]; row != nil {
 		reply := &l.IdentityReply{}
 		if err := proto.Unmarshal(row.payload, reply); err == nil && reply.GetLoaded().GetContext() != nil {
 			f.stats.Hits++
-			return reply.GetLoaded().GetContext(), true
+			return CachedContext{Context: reply.GetLoaded().GetContext(), Paused: reply.GetLoaded().GetPaused(), StoredAt: row.storedAt}, true
 		}
 	}
-	return nil, false
+	return CachedContext{}, false
 }
 
 // store keeps a native reply read under scope. A different (load,
@@ -249,6 +262,6 @@ func (f *FactCache) store(key readCacheKey, scope readScope, payload []byte, res
 		f.rows = map[readCacheKey]*factRow{}
 		f.load, f.gen = scope.load, scope.generation
 	}
-	f.rows[key] = &factRow{tick: scope.tick, family: family, payload: payload, result: result}
+	f.rows[key] = &factRow{tick: scope.tick, family: family, payload: payload, result: result, storedAt: factCacheNow()}
 	f.stats.Stores++
 }
