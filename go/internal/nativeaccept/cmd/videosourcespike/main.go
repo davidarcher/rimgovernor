@@ -51,43 +51,17 @@ func main() {
 
 func run(ctx context.Context, root, output, gameID string, frames, feeds int, report na.Report) error {
 	cfg := &na.Config{Root: root, Output: output, Headless: false, GameID: gameID}
-	if err := cfg.PrepareConfig(); err != nil {
-		return fmt.Errorf("prepare profile: %w", err)
-	}
-	gabsExecutable, err := na.GABSExecutable(root, cfg.Configuration)
+	s, err := na.OpenSession(ctx, cfg, report, na.DebugStart{}, na.QuietRequired)
 	if err != nil {
 		return err
 	}
-	client, err := na.OpenBridgeSession(ctx, gabsExecutable, cfg.Configuration, gameID, 90*time.Second)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		stopCtx, stopCancel := context.WithTimeout(context.Background(), 60*time.Second)
-		defer stopCancel()
-		if stopped, err := client.GamesStop(stopCtx); err == nil {
-			report["stop"] = string(stopped.Envelope)
-		} else {
-			report["stop_error"] = err.Error()
-		}
-		_ = client.Close()
-	}()
-	h := na.NewHarness(client, output)
-	names, err := h.Discovery(ctx)
-	if err != nil {
-		return err
-	}
-	if !na.Contains(names, "test/video_source_spike") {
+	defer s.Close()
+	h := s.Harness
+	if !na.Contains(s.Names, "test/video_source_spike") {
 		return fmt.Errorf("missing test/video_source_spike in discovery; rebuild the native mod with -Fixture VideoSourceFixture")
-	}
-	if _, err := na.StartDebugGame(ctx, h, names, na.QuietRequired); err != nil {
-		return err
 	}
 	speed := func(label, speed string) error {
 		_, err := h.Call(ctx, label, "rimworld/set_time_speed", map[string]any{"speed": speed, "ultraSpeedBoost": false})
-		return err
-	}
-	if err := speed("pause", "Paused"); err != nil {
 		return err
 	}
 

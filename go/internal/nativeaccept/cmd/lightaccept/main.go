@@ -296,11 +296,9 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 		}
 		journal.Close()
 		service.Stop()
-		client, err = held.Reattach(ctx)
-		if err != nil {
+		if h, err = s.Reattach(ctx); err != nil {
 			return fmt.Errorf("reopen harness session after service stop: %w", err)
 		}
-		h = na.NewHarness(client, output)
 		if _, err := h.Call(ctx, "pause-after", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 			return err
 		}

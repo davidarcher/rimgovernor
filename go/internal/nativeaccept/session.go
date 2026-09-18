@@ -108,6 +108,10 @@ type Config struct {
 	// package IDs); nil defers to ExpansionsEnv, and either way the default is
 	// Core-only. Harnesses that test DLC content set it explicitly.
 	Expansions []string
+	// Spawned, when set, is told the PID of each GABS process the game's
+	// session launches (bridge.ProcessConfig.Spawned), for a harness that
+	// kills its own transport.
+	Spawned func(pid int)
 }
 
 // PrepareConfig runs Prepare (headless) or PrepareRendered (windowed) against Root

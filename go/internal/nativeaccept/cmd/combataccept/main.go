@@ -72,37 +72,13 @@ func run(ctx context.Context, root, output, gameID string, headless, ranged, exp
 		jobDef = "AttackStatic"
 	}
 	cfg := &na.Config{Root: root, Output: output, Headless: headless, GameID: gameID}
-	if err := cfg.PrepareConfig(); err != nil {
-		return fmt.Errorf("prepare profile: %w", err)
-	}
-	game, err := cfg.GameSection()
+	s, err := na.OpenSession(ctx, cfg, report, na.DebugStart{}, na.Loud)
 	if err != nil {
 		return err
 	}
-	files, err := na.PackageFiles(fmt.Sprint(game["workingDir"]))
-	if err != nil {
-		return err
-	}
-	report["package_files"] = files
-	held, err := na.OpenGame(ctx, cfg)
-	if err != nil {
-		return err
-	}
-	defer held.Close(report)
-	client := held.Client
-	h := na.NewHarness(client, output)
-
-	names, err := h.Discovery(ctx)
-	if err != nil {
-		return err
-	}
-	if _, err := na.StartDebugGame(ctx, h, names, na.Loud); err != nil {
-		return err
-	}
-	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
-		return err
-	}
-	identityReply, err := h.Wire(ctx, "identity", "lifecycle_read_identity", map[string]any{})
+	defer s.Close()
+	h, names, identity := s.Harness, s.Names, s.Identity
+	identityReply, err := h.Wire(ctx, "identity-paused", "lifecycle_read_identity", map[string]any{})
 	if err != nil {
 		return err
 	}
@@ -114,7 +90,6 @@ func run(ctx context.Context, root, output, gameID string, headless, ranged, exp
 		return fmt.Errorf("fresh debug game did not start paused")
 	}
 	initialContext, _ := na.AsMap(initial["context"])
-	identity, _ := na.AsMap(initialContext["identity"])
 
 	query := func(label string, filters map[string]any) (map[string]any, error) {
 		return h.Wire(ctx, label, "observations_list_pawns", map[string]any{

@@ -61,58 +61,22 @@ func main() {
 }
 
 func run(ctx context.Context, root, output, gameID string, headless bool, report na.Report) error {
-	cfg := &na.Config{Root: root, Output: output, Headless: headless, GameID: gameID}
-	if err := cfg.PrepareConfig(); err != nil {
-		return fmt.Errorf("prepare profile: %w", err)
-	}
-	gabsExecutable, err := na.GABSExecutable(root, cfg.Configuration)
-	if err != nil {
-		return err
-	}
+	// The transport-drop case kills the harness's own GABS by PID, so the
+	// session records each one it spawns (the reattach spawns a fresh one).
 	var gabsPID atomic.Int64
-	client, err := na.OpenBridgeSessionWith(ctx, bridge.ProcessConfig{
-		Executable: gabsExecutable, ConfigDir: cfg.Configuration, GameID: gameID, Timeout: 90 * time.Second,
-		Spawned: func(pid int) { gabsPID.Store(int64(pid)) },
-	})
+	cfg := &na.Config{Root: root, Output: output, Headless: headless, GameID: gameID,
+		Spawned: func(pid int) { gabsPID.Store(int64(pid)) }}
+	s, err := na.OpenSession(ctx, cfg, report, na.DebugStart{}, na.Loud)
 	if err != nil {
 		return err
 	}
-	defer func() {
-		stopCtx, stopCancel := context.WithTimeout(context.Background(), 60*time.Second)
-		defer stopCancel()
-		if stopped, err := client.GamesStop(stopCtx); err == nil {
-			report["stop"] = string(stopped.Envelope)
-		} else {
-			report["stop_error"] = err.Error()
-		}
-		_ = client.Close()
-	}()
-	h := na.NewHarness(client, output)
-	names, err := h.Discovery(ctx)
-	if err != nil {
-		return err
-	}
+	defer s.Close()
+	h, identity := s.Harness, s.Identity
 	for _, tool := range []string{"rimgovernor/authority_read_status", "rimgovernor/authority_control", "rimgovernor/clock_start", "rimgovernor/clock_read_status", "home/supervised_play"} {
-		if !na.Contains(names, tool) {
+		if !na.Contains(s.Names, tool) {
 			return fmt.Errorf("missing %s in discovery", tool)
 		}
 	}
-	if _, err := na.StartDebugGame(ctx, h, names, na.Loud); err != nil {
-		return err
-	}
-	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
-		return err
-	}
-	identityReply, err := h.Wire(ctx, "identity", "lifecycle_read_identity", map[string]any{})
-	if err != nil {
-		return err
-	}
-	_, loaded, err := na.Outcome(identityReply, "loaded")
-	if err != nil {
-		return err
-	}
-	loadedContext, _ := na.AsMap(loaded["context"])
-	identity, _ := na.AsMap(loadedContext["identity"])
 
 	// Setup: grant Auto at the fresh game's generation. Authority is
 	// initialized by the game's own update polling; a read that lands before

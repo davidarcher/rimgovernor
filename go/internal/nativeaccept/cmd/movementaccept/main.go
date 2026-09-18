@@ -56,36 +56,12 @@ func main() {
 
 func run(ctx context.Context, root, output, gameID string, headless bool, report na.Report) error {
 	cfg := &na.Config{Root: root, Output: output, Headless: headless, GameID: gameID}
-	if err := cfg.PrepareConfig(); err != nil {
-		return fmt.Errorf("prepare profile: %w", err)
-	}
-	game, err := cfg.GameSection()
+	s, err := na.OpenSession(ctx, cfg, report, na.DebugStart{}, na.Loud)
 	if err != nil {
 		return err
 	}
-	files, err := na.PackageFiles(fmt.Sprint(game["workingDir"]))
-	if err != nil {
-		return err
-	}
-	report["package_files"] = files
-	held, err := na.OpenGame(ctx, cfg)
-	if err != nil {
-		return err
-	}
-	defer held.Close(report)
-	client := held.Client
-	h := na.NewHarness(client, output)
-
-	names, err := h.Discovery(ctx)
-	if err != nil {
-		return err
-	}
-	if _, err := na.StartDebugGame(ctx, h, names, na.Loud); err != nil {
-		return err
-	}
-	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
-		return err
-	}
+	defer s.Close()
+	h, names, identity := s.Harness, s.Names, s.Identity
 	identityBeforeReply, err := h.Wire(ctx, "identity-before", "lifecycle_read_identity", map[string]any{})
 	if err != nil {
 		return err
@@ -98,7 +74,6 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 		return fmt.Errorf("fresh debug game did not start paused")
 	}
 	initialContext, _ := na.AsMap(initial["context"])
-	identity, _ := na.AsMap(initialContext["identity"])
 
 	read := func(label, pawnID string) (map[string]any, error) {
 		filter := map[string]any{"colonist": true, "downed": false}
@@ -332,7 +307,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 		return err
 	}
 	grant = supervisor.Grant
-	if err := na.WaitForNativeTool(ctx, client, "test/b04f_setup", 30*time.Second); err != nil {
+	if err := na.WaitForNativeTool(ctx, h.Client, "test/b04f_setup", 30*time.Second); err != nil {
 		if names, discErr := h.Discovery(ctx); discErr == nil {
 			report["post_clock_discovery"] = names
 		} else {
@@ -592,7 +567,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	}
 	// The clock window may have hidden fixture tools again, exactly as after
 	// AdvanceGame above; the player-override step below needs test/b04f_setup.
-	if err := na.WaitForNativeTool(ctx, client, "test/b04f_setup", 30*time.Second); err != nil {
+	if err := na.WaitForNativeTool(ctx, h.Client, "test/b04f_setup", 30*time.Second); err != nil {
 		return fmt.Errorf("fixture tool did not become discoverable after the disconnect clock window: %w", err)
 	}
 

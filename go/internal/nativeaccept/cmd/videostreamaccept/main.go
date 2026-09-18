@@ -60,66 +60,22 @@ func run(ctx context.Context, root, output, gameID string, report na.Report) err
 	// headless batch-mode run can never exercise LeaseVideo/ReadFrame's
 	// success paths, only their batch-mode-refusal paths.
 	cfg := &na.Config{Root: root, Output: output, Headless: false, GameID: gameID}
-	if err := cfg.PrepareConfig(); err != nil {
-		return fmt.Errorf("prepare profile: %w", err)
-	}
-	game, err := cfg.GameSection()
+	s, err := na.OpenSession(ctx, cfg, report, na.DebugStart{}, na.QuietIfAvailable)
 	if err != nil {
 		return err
 	}
-	files, err := na.PackageFiles(fmt.Sprint(game["workingDir"]))
-	if err != nil {
-		return err
-	}
-	report["package_files"] = files
-	gabsExecutable, err := na.GABSExecutable(root, cfg.Configuration)
-	if err != nil {
-		return err
-	}
-	client, err := na.OpenBridgeSession(ctx, gabsExecutable, cfg.Configuration, gameID, 90*time.Second)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		stopCtx, stopCancel := context.WithTimeout(context.Background(), 60*time.Second)
-		defer stopCancel()
-		if stopped, err := client.GamesStop(stopCtx); err == nil {
-			report["stop"] = string(stopped.Envelope)
-		} else {
-			report["stop_error"] = err.Error()
-		}
-		_ = client.Close()
-	}()
-	h := na.NewHarness(client, output)
-
-	names, err := h.Discovery(ctx)
-	if err != nil {
-		return err
-	}
-	report["discovery"] = names
+	defer s.Close()
+	h, identity := s.Harness, s.Identity
 	for _, tool := range []string{"rimgovernor/presentation_lease_video", "rimgovernor/presentation_read_frame", "rimgovernor/presentation_acknowledge_frame"} {
-		if !na.Contains(names, tool) {
+		if !na.Contains(s.Names, tool) {
 			return fmt.Errorf("missing %s in discovery", tool)
 		}
-	}
-	if _, err := na.StartDebugGame(ctx, h, names, na.QuietIfAvailable); err != nil {
-		return err
 	}
 	// Unpaused so successive captured frames are actually likely to differ
 	// (colonist and camera-adjacent animation), not just carry a new sequence.
 	if _, err := h.Call(ctx, "unpause", "rimworld/set_time_speed", map[string]any{"speed": "Normal", "ultraSpeedBoost": false}); err != nil {
 		return err
 	}
-	identityReply, err := h.Wire(ctx, "identity", "lifecycle_read_identity", map[string]any{})
-	if err != nil {
-		return err
-	}
-	_, loaded, err := na.Outcome(identityReply, "loaded")
-	if err != nil {
-		return err
-	}
-	loadedContext, _ := na.AsMap(loaded["context"])
-	identity, _ := na.AsMap(loadedContext["identity"])
 	viewer := map[string]any{"identity": identity, "playerDirection": 1, "viewerId": "videostreamaccept"}
 
 	// Case 1: LeaseVideo start with a five-second lease.
