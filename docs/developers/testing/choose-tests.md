@@ -16,6 +16,39 @@ rerun the affected harness; expand coverage only when the changed behavior or
 failure justifies it. Do not duplicate tests or reviews already supported by
 applicable evidence.
 
+## Record a harness run in the commit: the `Verified:` trailer
+
+Whether a passing harness run still applies after a merge is a hash
+comparison, not a judgment call. After a harness passes, stamp the commit
+that carries the verified change:
+
+```bash
+go run ./internal/nativeaccept/cmd/verified trailer upkeepaccept
+```
+
+prints `Verified: upkeepaccept inputs=<hash>`; paste that line at the end of
+the commit message (one line per harness). The hash covers the working-tree
+contents of everything checked in that the run depended on
+(`na.HarnessInputs`): every non-test file of each in-module Go package the
+harness and `cmd/rimgovernor` import, the native mod's build inputs (the
+same list `RequireCurrentPackage` compares), `go.mod`/`go.sum`,
+`scripts/fixtures` and `contracts/fixtures`. `verified inputs <harness>`
+lists them. The game, GABS and the machine are environment, not inputs.
+
+Before landing, or when deciding whether to rerun:
+
+```bash
+go run ./internal/nativeaccept/cmd/verified check
+```
+
+reads the trailers in `main..HEAD` (`-range` for another range; name
+harnesses to check only those) and reports each harness `ok` when the
+current tree's hash matches its newest trailer, otherwise `stale` or
+`unrecorded` with exit 1. A merge of `main` that only moved files outside
+the inputs keeps every trailer `ok`; that run counts as done and is not
+repeated. A `stale` harness is rerun and restamped in the commit that
+changed its inputs.
+
 ## Stage the precondition, do not play into it
 
 A native acceptance harness should open on a colony that is already in the

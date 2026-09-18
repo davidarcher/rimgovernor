@@ -65,6 +65,11 @@
   the main HEAD hash. Unrelated main commits, clean cherry-picks and rebases do
   not invalidate passing results. Rerun only checks affected by changed behavior,
   dependencies or conflict resolution. Reuse other agents' applicable evidence.
+  For native acceptance this is mechanical: stamp the verified commit with the
+  `Verified:` trailer from `go run ./internal/nativeaccept/cmd/verified trailer
+  <harness>` and run `verified check` before landing; a harness that reads
+  `ok` is done, whatever else moved on `main` (see
+  [choose-tests](docs/developers/testing/choose-tests.md)).
 
 
 ## Architecture and implementation
