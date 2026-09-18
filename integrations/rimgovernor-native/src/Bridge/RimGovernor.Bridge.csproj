@@ -42,6 +42,7 @@
     <Compile Include="../../../../scripts/fixtures/DebugStartFixture.cs" Condition="'$(DebugStartFixture)' == 'true' Or '$(ScenarioStartFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/LetterFixture.cs" Condition="'$(LetterFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/DialogFixture.cs" Condition="'$(DialogFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/NamingFixture.cs" Condition="'$(NamingFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/FreezeNeedsFixture.cs" Condition="'$(FreezeNeedsFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/VideoSourceFixture.cs" Condition="'$(VideoSourceFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/VideoMatrixFixture.cs" Condition="'$(VideoMatrixFixture)' == 'true'" />

@@ -253,3 +253,52 @@ func TestRoutineExecutionAuthorizesDialogAnswerPlan(t *testing.T) {
 		t.Fatal("dialog answer plan was not authorized", err)
 	}
 }
+
+// A naming confirmation plan committed under the ConfirmColonyNames goal
+// persists through CreatePlan, reloads with its exact observed suggestions
+// and is a supported routine method the worker dispatches under the root
+// authority (#178).
+func TestRoutineExecutionAuthorizesNamingConfirmationPlan(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	s := open(t, memoryPath(t))
+	r := routineRequest()
+	r.Current.Native = 2
+	r.Facts.ColonyNaming = domain.Known(true)
+	out := reviewRoutine(t, s, &r)
+	g := routineGoal(t, out, policy.ConfirmColonyNames)
+	if g.Goal.Need != domain.NeedDeficit {
+		t.Fatal(g)
+	}
+	naming, err := domain.NewNamingConfirmation(7, "New Arrivals", "Hopeville")
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, err := domain.NewNamingConfirmationAction("naming", naming)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, err := domain.NewPlan("naming-plan", 1, []domain.Action{a})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "naming", plan); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := s.LoadPlan(ctx, "naming-plan")
+	if err != nil {
+		t.Fatal(err)
+	}
+	actions := loaded.Spec.Actions()
+	if len(actions) != 1 {
+		t.Fatal(actions)
+	}
+	if got, ok := actions[0].NamingConfirmation(); !ok || got != naming || actions[0].ID() != "naming" {
+		t.Fatal(actions[0])
+	}
+	target := r.Current
+	target.Plan, target.Revision = "naming-plan", 1
+	if err = s.AuthorizeRoutinePlan(ctx, r.Current, target); err != nil {
+		t.Fatal("naming confirmation plan was not authorized", err)
+	}
+}

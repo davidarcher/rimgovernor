@@ -302,9 +302,12 @@ func (s *session) Serve(ctx context.Context, spec na.ServeSpec) (*na.ServiceProc
 		return nil, errors.New("no game open: an Owned case holds its own session")
 	}
 	// The colony-naming dialog a loaded save can still hold stops the clock
-	// for good under the service; answer it before releasing the slot.
-	if _, err := na.ConfirmColonyNames(ctx, s.Session.Harness, s.report); err != nil {
-		return nil, err
+	// for good under the service; answer it before releasing the slot unless
+	// the case is there to watch the service answer it.
+	if !spec.KeepColonyNaming {
+		if _, err := na.ConfirmColonyNames(ctx, s.Session.Harness, s.report); err != nil {
+			return nil, err
+		}
 	}
 	service, err := na.Serve(ctx, s.config, s.Session.Game, s.Session.Identity, spec, s.report)
 	if err != nil {

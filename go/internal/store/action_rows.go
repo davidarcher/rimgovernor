@@ -135,6 +135,10 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		// x carries the window ID and z the option's list position; definition
 		// is the exact observed option label.
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,definition,x,z) VALUES(?,?,?,'dialog_answer',?,?,?)", a.ID(), plan, ordinal, dialog.OptionLabel(), dialog.WindowID(), dialog.OptionIndex())
+	} else if naming, ok := a.NamingConfirmation(); ok {
+		// x carries the window ID; definition and stuff are the exact observed
+		// faction and settlement suggestions.
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,definition,stuff,x) VALUES(?,?,?,'naming_confirmation',?,?,?)", a.ID(), plan, ordinal, naming.FactionName(), naming.SettlementName(), naming.WindowID())
 	} else {
 		return errors.New("unsupported persisted action")
 	}
@@ -467,6 +471,17 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 			return domain.Action{}, 0, err
 		}
 		a, err := domain.NewDialogAnswerAction(id, v)
+		return a, ordinal, err
+	}
+	if kind == "naming_confirmation" && def.Valid && stuff.Valid && x.Valid && !z.Valid && !pawn.Valid && !target.Valid && !draftAction.Valid && !rotation.Valid && work == nil && zone == nil && bill == nil {
+		if x.Int64 < 0 || x.Int64 > math.MaxInt32 {
+			return domain.Action{}, 0, errors.New("naming confirmation window out of range")
+		}
+		v, err := domain.NewNamingConfirmation(int32(x.Int64), def.String, stuff.String)
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		a, err := domain.NewNamingConfirmationAction(id, v)
 		return a, ordinal, err
 	}
 	if kind == "research_select" && def.Valid && !pawn.Valid && !target.Valid && !draftAction.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid && work == nil && zone == nil && bill == nil {

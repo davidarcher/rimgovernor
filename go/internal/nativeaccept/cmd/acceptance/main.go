@@ -53,6 +53,7 @@ import (
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/medical"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/mood"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/movement"
+	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/naming"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/needs"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/pawn"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/power"

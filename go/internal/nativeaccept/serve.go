@@ -52,6 +52,10 @@ type ServeSpec struct {
 	// Prefix disambiguates the requestIds the handle issues (resume,
 	// acknowledge); empty means "serve".
 	Prefix string
+	// KeepColonyNaming leaves a pending faction/settlement naming dialog
+	// open for the service instead of dismissing it before the slot is
+	// released: the case proves the ConfirmColonyNames routine family.
+	KeepColonyNaming bool
 }
 
 // ServiceProcess is one running `rimgovernor serve` launched by Serve (or
