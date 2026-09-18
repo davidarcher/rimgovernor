@@ -271,6 +271,49 @@ func TestClockWindowCombatPolicyMustMatchDecision(t *testing.T) {
 	}
 }
 
+// A window over a colonist already known downed must acknowledge exactly
+// that colonist, in colony and combat mode alike (#213); an unacknowledged or
+// different acknowledgement holds.
+func TestClockWindowDownedPolicyMustMatchDecision(t *testing.T) {
+	t.Parallel()
+	downed := func(t *testing.T) (*ClockCoordinator, *store.Store, *clockCoreFake, ClockWindowRequest) {
+		t.Helper()
+		q, db, f, _, request := clockWindowFixture(t)
+		var err error
+		request.Facts.Emergency, err = policy.NewEmergencySnapshot(request.Intent.Snapshot, 12, policy.EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true), Colonists: []policy.EmergencyPawn{{ID: "casualty", Dead: domain.Known(false), Downed: domain.Known(true), Bleeding: domain.Known(false), NeedsTend: domain.Known(true)}}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		request.Intent.Command.Start.Policy.AcknowledgedDownedColonistIds = []string{"casualty"}
+		return q, db, f, request
+	}
+	q, _, f, request := downed(t)
+	if got, err := q.CommandWindow(context.Background(), request); err != nil || got.Phase != store.ClockApplied || f.writes != 1 {
+		t.Fatal(got, err, f.writes)
+	}
+	mutations := map[string]func(*ClockWindowRequest){
+		"unacknowledged": func(r *ClockWindowRequest) { r.Intent.Command.Start.Policy.AcknowledgedDownedColonistIds = nil },
+		"different colonist": func(r *ClockWindowRequest) {
+			r.Intent.Command.Start.Policy.AcknowledgedDownedColonistIds = []string{"other"}
+		},
+		"extra colonist": func(r *ClockWindowRequest) {
+			r.Intent.Command.Start.Policy.AcknowledgedDownedColonistIds = []string{"casualty", "other"}
+		},
+	}
+	for name, mutate := range mutations {
+		t.Run(name, func(t *testing.T) {
+			q, db, f, request := downed(t)
+			mutate(&request)
+			if _, err := q.CommandWindow(context.Background(), request); !errors.Is(err, executor.ErrHeld) {
+				t.Fatal(err)
+			}
+			if _, err := db.LookupClockAttempt(context.Background(), request.Intent.RequestID); !errors.Is(err, store.ErrNotFound) || f.writes != 0 {
+				t.Fatal(err, f.writes)
+			}
+		})
+	}
+}
+
 // The admitting step's bundle status stands in for the pre-dispatch native
 // clock_read_status while it is within MaxAge (#200); it is still checked,
 // and a stale one falls back to the native read.

@@ -121,6 +121,7 @@ func EvaluateClockWindow(f ClockWindowFacts, limits ClockWindowLimits) ClockWind
 	result.CapturedCursor = review.Captured
 	result.MaxTicks = limits.MaxTicks
 	result.Mode = ClockWindowColony
+	result.Downed = knownDownedColonists(f.Emergency)
 	if len(hostiles) > 0 {
 		sort.Slice(hostiles, func(i, j int) bool { return hostiles[i] < hostiles[j] })
 		result.Mode = ClockWindowCombat
@@ -130,4 +131,21 @@ func EvaluateClockWindow(f ClockWindowFacts, limits ClockWindowLimits) ClockWind
 		}
 	}
 	return result
+}
+
+// knownDownedColonists lists, sorted, the living colonists the emergency
+// census knows to be downed. The window acknowledges them so the native
+// watcher lets ticks pass for their rescue instead of stopping at once on a
+// casualty the service already holds a CriticalMedical goal for.
+func knownDownedColonists(snapshot EmergencySnapshot) []PawnID {
+	var downed []PawnID
+	for _, pawn := range snapshot.facts.Colonists {
+		dead, deadKnown := pawn.Dead.Value()
+		down, downKnown := pawn.Downed.Value()
+		if deadKnown && !dead && downKnown && down {
+			downed = append(downed, pawn.ID)
+		}
+	}
+	sort.Slice(downed, func(i, j int) bool { return downed[i] < downed[j] })
+	return downed
 }

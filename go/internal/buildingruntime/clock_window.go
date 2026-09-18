@@ -17,10 +17,10 @@ func (q *ClockCoordinator) CommandWindow(ctx context.Context, request ClockWindo
 	if intent.Window == nil || intent.Command.Start == nil || intent.Command.Renew != nil || intent.Command.Speed != nil {
 		return store.ClockAttempt{}, executor.ErrHeld
 	}
-	// Colony mode acknowledges nothing; combat mode acknowledges only the
-	// hostiles the window decision names below. Medical suppression never.
+	// Either mode acknowledges only the downed colonists the window decision
+	// names below; combat mode also its hostiles. Medical suppression never.
 	p := intent.Command.Start.Policy
-	if p == nil || len(p.AcknowledgedDownedColonistIds)+len(p.AcknowledgedInjuredColonistIds)+len(p.SurgicalRecoveryIds)+len(p.MedicalRestIds) != 0 || p.GetInjuryStopCooldownMs() != 0 {
+	if p == nil || len(p.AcknowledgedInjuredColonistIds)+len(p.SurgicalRecoveryIds)+len(p.MedicalRestIds) != 0 || p.GetInjuryStopCooldownMs() != 0 {
 		return store.ClockAttempt{}, executor.ErrHeld
 	}
 	switch p.GetMode() {
@@ -64,7 +64,8 @@ func (q *ClockCoordinator) CommandWindow(ctx context.Context, request ClockWindo
 }
 
 // clockWindowPolicyMatches holds unless the start policy watches in the mode
-// the window decision admitted and acknowledges exactly its hostiles.
+// the window decision admitted and acknowledges exactly its hostiles and its
+// known downed colonists.
 func clockWindowPolicyMatches(p *k.WatchPolicy, decision policy.ClockWindowDecision) error {
 	var mode k.WatchMode
 	switch decision.Mode {
@@ -80,6 +81,14 @@ func clockWindowPolicyMatches(p *k.WatchPolicy, decision policy.ClockWindowDecis
 	}
 	for i, id := range decision.Hostiles {
 		if p.AcknowledgedHostileIds[i] != string(id) {
+			return executor.ErrHeld
+		}
+	}
+	if len(p.AcknowledgedDownedColonistIds) != len(decision.Downed) {
+		return executor.ErrHeld
+	}
+	for i, id := range decision.Downed {
+		if p.AcknowledgedDownedColonistIds[i] != string(id) {
 			return executor.ErrHeld
 		}
 	}

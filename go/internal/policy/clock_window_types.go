@@ -84,7 +84,12 @@ const (
 )
 
 // Hostiles lists, sorted, the live undowned threats a combat window
-// acknowledges; it is empty in colony mode.
+// acknowledges; it is empty in colony mode. Downed lists, sorted, the
+// colonists already known downed at admission: the native watcher stops a
+// window for any unacknowledged downed colonist, so an unacknowledged known
+// casualty stopped every window at zero ticks and neither the fight nor the
+// rescue could finish (#213). A colonist who goes down during the window
+// still stops it.
 type ClockWindowDecision struct {
 	Admitted       bool
 	Refused        []ClockWindowReason
@@ -95,4 +100,5 @@ type ClockWindowDecision struct {
 	MaxTicks       uint32
 	Mode           ClockWindowMode
 	Hostiles       []PawnID
+	Downed         []PawnID
 }

@@ -75,6 +75,45 @@ func TestClockWindowCombatPlanWatchesLiveHostiles(t *testing.T) {
 		t.Fatal(d)
 	}
 }
+
+// A colonist the census already knows downed is acknowledged in either mode
+// so the native watcher does not stop the window at zero ticks on the same
+// casualty (#213); a dead, unknown or merely bleeding colonist is not.
+func TestClockWindowAcknowledgesKnownDownedColonists(t *testing.T) {
+	f, l := clockWindowFixture(t)
+	colonist := func(id PawnID, dead, downed, bleeding domain.Fact[bool]) EmergencyPawn {
+		return EmergencyPawn{ID: id, Dead: dead, Downed: downed, Bleeding: bleeding, NeedsTend: domain.Known(false)}
+	}
+	census := func(colonists []EmergencyPawn, threats ...EmergencyThreat) {
+		t.Helper()
+		var err error
+		f.Emergency, err = NewEmergencySnapshot(f.Current, f.Tick, EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true), Colonists: colonists, Threats: threats})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	known, no := domain.Known[bool], domain.Known(false)
+	census([]EmergencyPawn{colonist("zed", no, known(true), no), colonist("abe", no, known(true), known(true)), colonist("cut", no, no, known(true)), colonist("gone", known(true), known(true), no), colonist("well", no, no, no)})
+	d := EvaluateClockWindow(f, l)
+	if !d.Admitted || d.Mode != ClockWindowColony || !reflect.DeepEqual(d.Downed, []PawnID{"abe", "zed"}) {
+		t.Fatal(d)
+	}
+	// Combat mode acknowledges the casualty alongside the hostiles.
+	l.CombatMaxTicks = 30
+	f.CombatPlan = domain.Known(true)
+	census([]EmergencyPawn{colonist("zed", no, known(true), no)}, EmergencyThreat{ID: "raider", Kind: Hostile, Dead: no, Downed: no})
+	if d := EvaluateClockWindow(f, l); !d.Admitted || d.Mode != ClockWindowCombat || !reflect.DeepEqual(d.Hostiles, []PawnID{"raider"}) || !reflect.DeepEqual(d.Downed, []PawnID{"zed"}) {
+		t.Fatal(d)
+	}
+	// Unknown downed status holds the window rather than acknowledging.
+	census([]EmergencyPawn{colonist("fog", no, domain.Unknown[bool](), no)})
+	if d := EvaluateClockWindow(f, l); d.Admitted || len(d.Downed) != 0 {
+		t.Fatal(d)
+	}
+	if d := EvaluateClockWindow(clockWindowFixture(t)); len(d.Downed) != 0 {
+		t.Fatal(d)
+	}
+}
 func TestClockWindowConservativeHolds(t *testing.T) {
 	cases := map[string]struct {
 		edit   func(*ClockWindowFacts, *ClockWindowLimits)

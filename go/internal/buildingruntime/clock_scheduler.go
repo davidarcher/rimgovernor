@@ -872,6 +872,13 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	start.Policy.WatchedAttempts = clockSchedulerWatches(fingerprint, string(namespace))
 	out.Watched = len(start.Policy.WatchedAttempts)
 	s.facts.remember(fingerprint)
+	// A colonist already known downed is acknowledged in either mode: the
+	// native watcher otherwise stops every window at zero ticks on the same
+	// casualty and the rescue never gets the ticks it needs (#213).
+	start.Policy.AcknowledgedDownedColonistIds = make([]string, 0, len(out.Decision.Downed))
+	for _, id := range out.Decision.Downed {
+		start.Policy.AcknowledgedDownedColonistIds = append(start.Policy.AcknowledgedDownedColonistIds, string(id))
+	}
 	if out.Decision.Mode == policy.ClockWindowCombat {
 		// The native watcher stops on any unacknowledged hostile within
 		// HostileWithin; a combat window acknowledges exactly the live
