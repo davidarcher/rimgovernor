@@ -38,7 +38,7 @@ func init() {
 			"the measured census, not the receipt, releases the latch, confirmed by an independent native read.",
 		Start:   cases.Fixture{Op: "test/flooring_prepare"},
 		Service: true,
-		Budget:  6 * time.Minute,
+		Budget:  5 * time.Minute,
 		Run:     run,
 	})
 }

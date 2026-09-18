@@ -36,7 +36,7 @@ func init() {
 		Scope: "Watched construction attempt latches a clock stop at completion; long-polled event " +
 			"delivery; owner-less authority change outside an epoch.",
 		Start:  cases.Fixture{Op: "test/guarded_construction_prepare", Args: map[string]any{"siteCount": 2}},
-		Budget: 6 * time.Minute,
+		Budget: 5 * time.Minute,
 		Run:    run,
 	})
 }

@@ -53,6 +53,14 @@ const prefix = "light-accept"
 // hold without committing a lighting method.
 const hold = 4 * time.Minute
 
+// budgets are ~2x the measured healthy runs (403eebbb): dark and partial
+// admit a lamp in under a minute; outage and fungus play a power hold or a
+// day of plant growth for ~4 minutes.
+var budgets = map[string]time.Duration{
+	"dark": 5 * time.Minute, "partial": 5 * time.Minute,
+	"outage": 10 * time.Minute, "fungus": 10 * time.Minute,
+}
+
 func init() {
 	for _, scenario := range []string{"dark", "outage", "partial", "fungus"} {
 		scenario := scenario
@@ -65,7 +73,7 @@ func init() {
 				"confirmed by an independent native read.",
 			Start:   cases.Fixture{Op: "test/lighting_prepare", Args: map[string]any{"scenario": scenario}},
 			Service: true,
-			Budget:  10 * time.Minute,
+			Budget:  budgets[scenario],
 			Run:     func(ctx context.Context, s cases.Session) error { return run(ctx, s, scenario) },
 		})
 	}

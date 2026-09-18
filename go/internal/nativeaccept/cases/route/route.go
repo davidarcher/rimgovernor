@@ -41,7 +41,7 @@ func init() {
 			"with observed traffic samples.",
 		Start:   cases.Fixture{Op: "test/routes_prepare"},
 		Service: true,
-		Budget:  6 * time.Minute,
+		Budget:  5 * time.Minute,
 		Run:     run,
 	})
 }

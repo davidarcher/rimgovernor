@@ -57,7 +57,7 @@ func init() {
 				"existingCooler": scenario != "build", "disconnected": scenario == "power", "roomTemperatureC": 30,
 			}},
 			Service: true,
-			Budget:  12 * time.Minute,
+			Budget:  5 * time.Minute,
 			Run:     func(ctx context.Context, s cases.Session) error { return run(ctx, s, scenario) },
 		})
 	}

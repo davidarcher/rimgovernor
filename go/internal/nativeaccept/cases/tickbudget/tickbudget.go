@@ -37,7 +37,7 @@ func init() {
 		Start:  cases.Save{Name: baselineSave},
 		Quiet:  na.QuietIfAvailable,
 		Reason: "also runs against the production mod build, which has no quiet-storyteller fixture; the assertions are about the clock, not events",
-		Budget: cases.MaxBudget,
+		Budget: 5 * time.Minute,
 		Run:    run,
 	})
 }

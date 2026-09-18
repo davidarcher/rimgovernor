@@ -52,7 +52,7 @@ func init() {
 				"confirmed by an independent native read.",
 			Start:   cases.Fixture{Op: "test/cleanliness_prepare", Args: map[string]any{"scenario": scenario, "filthPerRoom": 3}},
 			Service: true,
-			Budget:  6 * time.Minute,
+			Budget:  5 * time.Minute,
 			Run:     func(ctx context.Context, s cases.Session) error { return run(ctx, s, scenario) },
 		})
 	}

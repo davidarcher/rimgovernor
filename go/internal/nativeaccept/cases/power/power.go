@@ -36,6 +36,10 @@ import (
 
 const prefix = "power-accept"
 
+// budgets are ~2x the measured healthy runs (403eebbb): the refuel hold
+// plays ~4 minutes, the reserve generator is admitted in under one.
+var budgets = map[string]time.Duration{"fuel": 10 * time.Minute, "reserve": 5 * time.Minute}
+
 func init() {
 	for _, scenario := range []string{"fuel", "reserve"} {
 		scenario := scenario
@@ -46,7 +50,7 @@ func init() {
 				"family admit one more generator that the colonists build; both confirmed by an independent native read.",
 			Start:   cases.Fixture{Op: "test/power_prepare", Args: map[string]any{"scenario": scenario}},
 			Service: true,
-			Budget:  10 * time.Minute,
+			Budget:  budgets[scenario],
 			Run:     func(ctx context.Context, s cases.Session) error { return run(ctx, s, scenario) },
 		})
 	}
