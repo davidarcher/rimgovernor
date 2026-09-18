@@ -12,20 +12,22 @@ import (
 )
 
 // harnessSharedInputs are the checked-in inputs every acceptance run
-// depends on besides its Go packages: the native mod build
-// (nativeSourceInputs, the same list RequireCurrentPackage compares) and
-// the fixture saves and contract fixtures a case loads.
+// depends on besides its Go packages and the native mod build
+// (nativeSourceInputs, the same list RequireCurrentPackage compares). The
+// test fixtures (FixtureRoot) are not shared: FixtureInputs scopes them to
+// the cases that call their ops or load their saves (#170), and the
+// contract fixtures (contracts/fixtures) feed unit tests only.
 var harnessSharedInputs = []string{
 	"go/go.mod",
 	"go/go.sum",
-	"scripts/fixtures",
-	"contracts/fixtures",
 }
 
 // HarnessInputs lists, repo-relative with forward slashes, the files an
 // acceptance case run depends on: every non-test file of each in-module
 // Go package the case's area, the shared acceptance runner and the
-// rimgovernor binary it drives import, the native mod's build inputs and
+// rimgovernor binary it drives import (the other areas the runner
+// registers excluded), the native mod's build inputs, the fixture
+// sources and saves those Go files name (FixtureInputs) and
 // harnessSharedInputs. harness is a registered case "<area>/<case>"
 // (#135), whose packages are the area's under
 // go/internal/nativeaccept/cases and go/internal/nativeaccept/cmd/acceptance.
@@ -33,7 +35,7 @@ var harnessSharedInputs = []string{
 // not inputs.
 func HarnessInputs(repo, harness string) ([]string, error) {
 	goDir := filepath.Join(repo, "go")
-	patterns, err := casePackages(goDir, harness)
+	area, patterns, err := casePackages(goDir, harness)
 	if err != nil {
 		return nil, err
 	}
@@ -41,6 +43,7 @@ func HarnessInputs(repo, harness string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	dirs = WithoutOtherAreas(goDir, area, dirs)
 	seen := map[string]bool{}
 	var files []string
 	add := func(relative string) {
@@ -66,6 +69,9 @@ func HarnessInputs(repo, harness string) ([]string, error) {
 		}
 	}
 	for _, input := range nativeSourceInputs {
+		if input.repo == FixtureRoot {
+			continue
+		}
 		if err := walkInput(repo, input.repo, input.keep, add); err != nil {
 			return nil, err
 		}
@@ -75,21 +81,49 @@ func HarnessInputs(repo, harness string) ([]string, error) {
 			return nil, err
 		}
 	}
+	refs, err := ScanFixtureRefs(dirs)
+	if err != nil {
+		return nil, err
+	}
+	fixtures, err := FixtureInputs(repo, refs)
+	if err != nil {
+		return nil, err
+	}
+	for _, file := range fixtures {
+		add(file)
+	}
 	sort.Strings(files)
 	return files, nil
 }
 
-// casePackages resolves a registered case's "<area>/<case>" to the go
-// list patterns of its own packages.
-func casePackages(goDir, harness string) ([]string, error) {
+// casePackages resolves a registered case's "<area>/<case>" to its area
+// and the go list patterns of its own packages.
+func casePackages(goDir, harness string) (string, []string, error) {
 	area, name, isCase := strings.Cut(harness, "/")
 	if !isCase || area == "" || name == "" || strings.ContainsAny(area+name, `/\.`) {
-		return nil, fmt.Errorf("case %q is not <area>/<case>", harness)
+		return "", nil, fmt.Errorf("case %q is not <area>/<case>", harness)
 	}
 	if _, err := os.Stat(filepath.Join(goDir, "internal", "nativeaccept", "cases", area)); err != nil {
-		return nil, fmt.Errorf("case %s: %w", harness, err)
+		return "", nil, fmt.Errorf("case %s: %w", harness, err)
 	}
-	return []string{"./internal/nativeaccept/cases/" + area, "./internal/nativeaccept/cmd/acceptance"}, nil
+	return area, []string{"./internal/nativeaccept/cases/" + area, "./internal/nativeaccept/cmd/acceptance"}, nil
+}
+
+// WithoutOtherAreas drops from dirs (absolute package directories) the
+// case area packages under go/internal/nativeaccept/cases other than
+// area's: the runner imports every area to register it, but a case only
+// runs its own.
+func WithoutOtherAreas(goDir, area string, dirs []string) []string {
+	casesDir := filepath.Join(goDir, "internal", "nativeaccept", "cases")
+	var kept []string
+	for _, dir := range dirs {
+		rel, err := filepath.Rel(casesDir, dir)
+		if err == nil && rel != "." && !strings.HasPrefix(rel, "..") && strings.Split(filepath.ToSlash(rel), "/")[0] != area {
+			continue
+		}
+		kept = append(kept, dir)
+	}
+	return kept
 }
 
 // walkInput calls add for each file under the repo-relative input (or the
@@ -160,11 +194,15 @@ func goList(goDir string, args ...string) (string, error) {
 
 // HarnessInputRoots lists, repo-relative with forward slashes, the files
 // and directories outside a case's Go packages that every acceptance run
-// depends on: the native mod's build inputs and harnessSharedInputs. A
-// change under any of them affects every case.
+// depends on: the native mod's build inputs (less the test fixtures,
+// which FixtureInputs scopes per case) and harnessSharedInputs. A change
+// under any of them affects every case.
 func HarnessInputRoots() []string {
 	roots := make([]string, 0, len(nativeSourceInputs)+len(harnessSharedInputs))
 	for _, input := range nativeSourceInputs {
+		if input.repo == FixtureRoot {
+			continue
+		}
 		roots = append(roots, input.repo)
 	}
 	roots = append(roots, harnessSharedInputs...)

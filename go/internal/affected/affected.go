@@ -29,7 +29,9 @@ type Selection struct {
 	// area registers is affected (acceptance run <area>/...).
 	Cases []string
 	// AllHarnesses means a shared acceptance input changed (native mod
-	// sources, fixtures, go.mod): every case is affected.
+	// sources, go.mod): every case is affected. A test fixture change is
+	// not shared: it affects the areas whose Go sources name one of the
+	// fixture's ops or its save (na.FixtureInputs, #170).
 	AllHarnesses bool
 }
 
@@ -74,10 +76,14 @@ func Select(repo string, changed []string) (Selection, error) {
 	goDir := filepath.Join(repo, "go")
 	changedPkgs := map[string]bool{}
 	dirs := map[string]bool{}
+	changedFixtures := map[string]bool{}
 	for _, file := range changed {
 		file = filepath.ToSlash(file)
 		if file == "go/go.mod" || file == "go/go.sum" {
 			sel.AllGo = true
+		}
+		if na.FixtureFile(file) {
+			changedFixtures[file] = true
 		}
 		for _, root := range na.HarnessInputRoots() {
 			if file == root || strings.HasPrefix(file, root+"/") {
@@ -97,10 +103,14 @@ func Select(repo string, changed []string) (Selection, error) {
 	if sel.AllGo {
 		return sel, nil
 	}
-	if len(dirs) == 0 && !sel.AllHarnesses {
+	if len(dirs) == 0 && len(changedFixtures) == 0 && !sel.AllHarnesses {
 		return sel, nil
 	}
 	graph, err := dependencyGraph(goDir)
+	if err != nil {
+		return sel, err
+	}
+	fixtureAreas, err := areasUsingFixtures(repo, graph, changedFixtures)
 	if err != nil {
 		return sel, err
 	}
@@ -152,7 +162,7 @@ func Select(repo string, changed []string) (Selection, error) {
 		if !strings.HasPrefix(pkg, prefix) || strings.Contains(name, "/") {
 			continue
 		}
-		affected := runnerAffected || changedPkgs[pkg]
+		affected := runnerAffected || changedPkgs[pkg] || fixtureAreas[name]
 		for _, dep := range deps {
 			if affected {
 				break
@@ -165,6 +175,53 @@ func Select(repo string, changed []string) (Selection, error) {
 	}
 	sort.Strings(sel.Cases)
 	return sel, nil
+}
+
+// areasUsingFixtures names the case areas whose Go sources (the area, the
+// runner and what they import, other areas excluded) depend on one of the
+// changed fixture files: a fixture source whose op they call, a save they
+// load, or a build file every build reads.
+func areasUsingFixtures(repo string, g *graph, changedFixtures map[string]bool) (map[string]bool, error) {
+	areas := map[string]bool{}
+	if len(changedFixtures) == 0 {
+		return areas, nil
+	}
+	goDir := filepath.Join(repo, "go")
+	dirByPkg := map[string]string{}
+	for dir, pkg := range g.byDir {
+		dirByPkg[pkg] = dir
+	}
+	prefix := g.module + "/internal/nativeaccept/cases/"
+	runner := g.module + "/internal/nativeaccept/cmd/acceptance"
+	for pkg := range g.deps {
+		name := strings.TrimPrefix(pkg, prefix)
+		if !strings.HasPrefix(pkg, prefix) || strings.Contains(name, "/") {
+			continue
+		}
+		seen := map[string]bool{}
+		var dirs []string
+		for _, dep := range append([]string{pkg, runner}, append(g.deps[pkg], g.deps[runner]...)...) {
+			if dir, ok := dirByPkg[dep]; ok && !seen[dep] {
+				seen[dep] = true
+				dirs = append(dirs, dir)
+			}
+		}
+		refs, err := na.ScanFixtureRefs(na.WithoutOtherAreas(goDir, name, dirs))
+		if err != nil {
+			return nil, err
+		}
+		inputs, err := na.FixtureInputs(repo, refs)
+		if err != nil {
+			return nil, err
+		}
+		for _, input := range inputs {
+			if changedFixtures[input] {
+				areas[name] = true
+				break
+			}
+		}
+	}
+	return areas, nil
 }
 
 // goPackageDir returns the absolute package directory a changed file
@@ -290,7 +347,7 @@ func Test(repo string, changed []string) error {
 		return err
 	}
 	if sel.AllHarnesses {
-		fmt.Println("cases affected: all (a shared acceptance input changed: native sources, fixtures or go.mod)")
+		fmt.Println("cases affected: all (a shared acceptance input changed: native sources or go.mod)")
 	}
 	for _, area := range sel.Cases {
 		fmt.Printf("case: go run ./internal/nativeaccept/cmd/acceptance run %s/... -root <abs root> -output <fresh dir>\n", area)

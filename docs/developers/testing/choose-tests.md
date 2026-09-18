@@ -23,9 +23,14 @@ case areas a change touches before it runs the Go tests, one
 `acceptance run <area>/...` line each: an area whose own package, the
 shared runner (`cmd/acceptance`) or `cmd/rimgovernor` imports a changed
 package, and every area when a shared input changed (the native mod's
-build inputs, the same list `RequireCurrentPackage` compares,
-`go.mod`/`go.sum`, `scripts/fixtures`, `contracts/fixtures`;
-`na.HarnessInputs` lists a case's inputs). Selection is per package, not
+build inputs, the same list `RequireCurrentPackage` compares, and
+`go.mod`/`go.sum`). A test fixture under `scripts/fixtures` is not shared
+(#170): a `<Name>Fixture.cs` affects the areas whose Go sources name one
+of its `[Tool("test/...")]` ops (and the fixtures it mentions by class
+name), a committed save under `saves/` the area naming it, and the
+fixture build files (`.csproj`, `Taskfile.yml`, lock file) every area;
+`contracts/fixtures` feeds unit tests only. `na.HarnessInputs` lists a
+case's inputs. Selection is per package, not
 per symbol: any code edit to a package the runner imports
 (`internal/nativeaccept`, `cases`, `clock`, ...) names every area, even an
 additive one whose zero value keeps the old path, because nothing cheaper

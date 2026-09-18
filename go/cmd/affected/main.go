@@ -62,7 +62,7 @@ func main() {
 		fmt.Println("# nothing to test: no Go file changed")
 	}
 	if sel.AllHarnesses {
-		fmt.Println("# a shared acceptance input changed (native sources, fixtures or go.mod): every case is affected")
+		fmt.Println("# a shared acceptance input changed (native sources or go.mod): every case is affected")
 	}
 	for _, area := range sel.Cases {
 		fmt.Printf("go run ./internal/nativeaccept/cmd/acceptance run %s/... ...\n", area)

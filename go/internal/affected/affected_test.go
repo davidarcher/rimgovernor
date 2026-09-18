@@ -102,6 +102,41 @@ func TestSelectFollowsImports(t *testing.T) {
 	}
 }
 
+// A fixture source affects the areas calling its ops (#170), a committed
+// save the area loading it, and a fixture build file every area, none of
+// them as a shared-input change.
+func TestSelectScopesFixtures(t *testing.T) {
+	r := repo(t)
+	sel, err := Select(r, []string{"scripts/fixtures/DefenseFixture.cs", "scripts/fixtures/saves/RimGovernor-defense-layout.rws"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sel.AllHarnesses || !slices.Equal(sel.Cases, []string{"defense"}) || len(sel.Packages) != 0 {
+		t.Errorf("defense fixture change selected %+v", sel)
+	}
+	sel, err = Select(r, []string{"scripts/fixtures/GuardedConstructionFixture.cs"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sel.AllHarnesses || !slices.Contains(sel.Cases, "construction") || !slices.Contains(sel.Cases, "defense") || slices.Contains(sel.Cases, "light") {
+		t.Errorf("guarded construction fixture change selected %+v", sel)
+	}
+	sel, err = Select(r, []string{"scripts/fixtures/CombatFixtures.csproj"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sel.AllHarnesses || !slices.Contains(sel.Cases, "light") || !slices.Contains(sel.Cases, "smoke") {
+		t.Errorf("fixture build file change selected %+v", sel)
+	}
+	sel, err = Select(r, []string{"contracts/fixtures/colony-core.json"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sel.AllHarnesses || len(sel.Cases) != 0 {
+		t.Errorf("contract fixture change selected %+v", sel)
+	}
+}
+
 func TestSelectIgnoresDeletedDirs(t *testing.T) {
 	sel, err := Select(repo(t), []string{"go/internal/gone/x.go"})
 	if err != nil {
