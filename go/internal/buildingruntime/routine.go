@@ -226,7 +226,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter)
 	if err != nil {
 		clockSchedulerLog("routine.step: ReviewRoutine err=%v", err)
 	} else {
-		clockSchedulerLog("routine.step: ReviewRoutine ok newRevision=%d", result.Review.Revision)
+		clockSchedulerLog("routine.step: ReviewRoutine ok newRevision=%d emergency=%v", result.Review.Revision, result.Emergency)
 	}
 	return result, err
 }

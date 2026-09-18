@@ -99,7 +99,13 @@ type variant struct {
 }
 
 func init() {
-	spec := &cases.ServeSpec{Families: []string{"defensive-layout", "defense", "tend", "rescue"}, Env: []string{"RIMGOVERNOR_CLOCK_DEBUG=1"}, Prefix: "defense"}
+	// The fire family belongs here: a raid can leave a home fire burning
+	// on the corridor, and MaintainFireSafety is a priority-1 emergency
+	// whose only method is a short native-firefighting window. Without the
+	// family nothing admits one, so the fire holds every other goal
+	// suspended while the clock is refused no_work and the tick never moves
+	// -- the post-raid repair stall of #221.
+	spec := &cases.ServeSpec{Families: []string{"defensive-layout", "defense", "tend", "rescue", "fire"}, Env: []string{"RIMGOVERNOR_CLOCK_DEBUG=1"}, Prefix: "defense"}
 	// The baseline save keeps the site deterministic; a random debug colony
 	// can spawn beside ruins the rock band cannot close.
 	baseline := cases.Save{Name: sustained.BaselineSave}

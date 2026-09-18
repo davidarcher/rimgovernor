@@ -54,6 +54,11 @@ type RoutineReviewResult struct {
 	Review RoutineReview
 	Needs  policy.RoutineNeeds
 	Goals  []GoalState
+	// Emergency names the assessed needs that suspended every priority>=2
+	// goal in this review (a home fire, live hostiles, a critical patient);
+	// empty when nothing did. The development rows only say "emergency", so
+	// this is the log's answer to which need held the colony (#221).
+	Emergency []policy.GoalID
 }
 
 func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
@@ -410,6 +415,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		for _, n := range needs.Assessments {
 			if n.Priority < 2 && n.ID != policy.ConfirmColonyNames && n.ID != policy.AnswerDialog && !policy.IsMoodGoal(n.ID) && n.Need != domain.NeedRecovered {
 				emergency = true
+				result.Emergency = append(result.Emergency, n.ID)
 			}
 		}
 		for _, n := range needs.Assessments {

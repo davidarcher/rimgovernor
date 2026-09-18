@@ -13,14 +13,23 @@ func TestRoutineUpkeepRetainsEmergencyAcrossUnknownManualAndRestart(t *testing.T
 	db := open(t, path)
 	r := routineRequest()
 	out := reviewRoutine(t, db, &r)
-	if g := routineGoal(t, out, policy.MaintainFireSafety); g.Goal.Priority != 4 || g.Goal.Need != domain.NeedUnknown {
-		t.Fatal(g)
+	if g := routineGoal(t, out, policy.MaintainFireSafety); g.Goal.Priority != 4 || g.Goal.Need != domain.NeedUnknown || len(out.Emergency) != 0 {
+		t.Fatal(g, out.Emergency)
 	}
 	r.Facts.Upkeep.Fires = domain.Known([]policy.UpkeepFire{{ID: "fire", Home: true, Size: domain.Known(.5)}})
-	g := routineGoal(t, reviewRoutine(t, db, &r), policy.MaintainFireSafety)
+	out = reviewRoutine(t, db, &r)
+	g := routineGoal(t, out, policy.MaintainFireSafety)
 	epoch := g.Goal.Epoch
 	if g.Goal.Priority != 1 || g.Goal.Need != domain.NeedDeficit {
 		t.Fatal(g)
+	}
+	// The review names the need behind the emergency: a home fire suspends
+	// every development goal, and the rows alone only say so (#221).
+	if len(out.Emergency) != 1 || out.Emergency[0] != policy.MaintainFireSafety {
+		t.Fatal("emergency source not reported", out.Emergency)
+	}
+	if g := routineGoal(t, out, policy.MaintainWood); g.Goal.Status != domain.GoalSuspended {
+		t.Fatal("fire emergency left a priority-3 goal active", g)
 	}
 	r.Enabled = false
 	reviewRoutine(t, db, &r)
