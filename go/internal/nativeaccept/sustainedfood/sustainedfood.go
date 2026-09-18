@@ -24,7 +24,16 @@ import (
 
 // RunConfig is one variant's run parameters: which save to load and how long
 // to observe it. Root/Output/GameID/Headless/RimgovernorBinary mirror
-// na.Config's fields; Save/Watch/Poll/NativeTimeout vary per matrix row.
+// na.Config's fields; Save/Watch/Window/Poll/NativeTimeout vary per matrix
+// row.
+//
+// Watch is the wall-clock length of the observation window. Window, when
+// > 0, is the same window measured in game ticks: the watch ends as soon
+// as the live game tick has advanced Window ticks past the first sampled
+// tick, and Watch becomes the ceiling that ends it regardless (a paused or
+// starved game never advances). A tick window ties the sample length to
+// what the assertion needs (issue #133) instead of a flat diagnostic
+// length: 2500 ticks is one in-game hour, 60000 one day.
 type RunConfig struct {
 	Root              string
 	Output            string
@@ -33,6 +42,7 @@ type RunConfig struct {
 	RimgovernorBinary string
 	Save              string
 	Watch             time.Duration
+	Window            uint64
 	Poll              time.Duration
 	NativeTimeout     time.Duration
 	// RequestPrefix disambiguates the anchor-plan/acquire/keep-alive
@@ -268,7 +278,9 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) (timeline []map[s
 
 	// The observation window: sample EnsureFoodSupply's goal state and the
 	// stage of every one of its committed methods' plans, at cfg.Poll
-	// intervals, for cfg.Watch wall-clock duration. Every sample is retained
+	// intervals, for cfg.Watch wall-clock duration or, with cfg.Window set,
+	// until the live game tick has advanced cfg.Window ticks (Watch then
+	// only caps a game that stops advancing). Every sample is retained
 	// (report["timeline"]); "events" additionally isolates the moments that
 	// actually changed (a method count change or a Need transition) so the
 	// failure mode is readable without wading through every sample.
@@ -281,10 +293,16 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) (timeline []map[s
 	}
 	watchStarted := time.Now()
 	watchDeadline := watchStarted.Add(cfg.Watch)
+	window := newTickWindow(cfg.Window)
+	report["window"] = window
 	checkpointed := false
 	stepped := false
 	for time.Now().Before(watchDeadline) {
 		sample, err := SampleGoal(ctx, verifyStore, goalID)
+		if tick, ok := liveTick(apiCall); ok {
+			sample["tick"] = tick
+			window.observe(tick)
+		}
 		if !stepped {
 			var stepErr error
 			if stepped, stepErr = service.StepAdmitted(ctx, watchStarted); stepErr != nil {
@@ -307,6 +325,9 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) (timeline []map[s
 			report["watch_ended_early"] = true
 			break
 		}
+		if window.reached() {
+			break
+		}
 		if cfg.Checkpoint != nil && !checkpointed && err == nil && cfg.Checkpoint.When(sample) {
 			checkpointed = true
 			saved, err := checkpoint(ctx, cfg, service.HoldAuthority, apiCall, identity, token, prefix)
@@ -327,6 +348,8 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) (timeline []map[s
 	report["timeline"] = timeline
 	report["events"] = events
 	report["timeline_samples"] = len(timeline)
+	window.WatchWall = time.Since(watchStarted).Round(time.Second).String()
+	window.Reached = window.reached()
 
 	stopService()
 	var finalHarness *na.Harness
@@ -364,6 +387,59 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) (timeline []map[s
 		return timeline, err
 	}
 	return timeline, nil
+}
+
+// TickWindow is the report's record of the tick-measured watch window
+// (report["window"]): the configured length, the first and last live ticks
+// the watch sampled, how many ticks elapsed between them, whether the
+// configured length was reached before the wall-clock ceiling, and how
+// long the watch ran on the wall clock. Ticks is 0 when the run watched on
+// wall-clock alone, in which case Reached stays false.
+type TickWindow struct {
+	Ticks     uint64 `json:"ticks"`
+	FirstTick uint64 `json:"first_tick"`
+	LastTick  uint64 `json:"last_tick"`
+	Elapsed   uint64 `json:"elapsed_ticks"`
+	Sampled   bool   `json:"tick_sampled"`
+	Reached   bool   `json:"reached"`
+	WatchWall string `json:"watch_wall"`
+}
+
+func newTickWindow(ticks uint64) *TickWindow {
+	return &TickWindow{Ticks: ticks}
+}
+
+// observe folds one live tick into the window; the first observation
+// anchors it and a tick below the anchor (a rewind) is ignored.
+func (w *TickWindow) observe(tick uint64) {
+	if !w.Sampled {
+		w.Sampled = true
+		w.FirstTick = tick
+	}
+	if tick >= w.FirstTick {
+		w.LastTick = tick
+		w.Elapsed = tick - w.FirstTick
+	}
+}
+
+// reached reports whether a configured tick window has elapsed.
+func (w *TickWindow) reached() bool {
+	return w.Ticks > 0 && w.Sampled && w.Elapsed >= w.Ticks
+}
+
+// liveTick reads the service's live game tick from /api/state; false when
+// the snapshot has none (not connected yet, or a stale read).
+func liveTick(apiCall func(string, string, map[string]any, string) (map[string]any, int, error)) (uint64, bool) {
+	st, status, err := apiCall("GET", "/api/state", nil, "")
+	if err != nil || status != 200 {
+		return 0, false
+	}
+	game, _ := st["game"].(map[string]any)
+	tick, ok := game["tick"].(float64)
+	if !ok || tick < 0 {
+		return 0, false
+	}
+	return uint64(tick), true
 }
 
 // SampleGoal reads one maintained goal's current binding (if any) and its

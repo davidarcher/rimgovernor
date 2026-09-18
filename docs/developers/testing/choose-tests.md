@@ -403,7 +403,13 @@ under three peer games that step admits nothing: pass `-families <family>`
 to keep the budget for the family under test (`farmselectaccept` defaults
 to `field`), or let the default `-step-stall 90s` fail the run as soon as
 the first window has not been admitted instead of watching an idle service
-for twenty minutes (#103).
+for twenty minutes (#103). The watch itself is a tick window, not a flat
+wall-clock length (#133): `sustainedmatrixaccept -window` defaults to 2500
+ticks (one in-game hour) per variant so the ten-variant matrix is a
+regression gate, `-watch` is only the ceiling for a game that stops
+advancing, and `-window 0` restores the full wall-clock diagnostic
+timeline (`sustainedfoodaccept`'s default). Each variant's `result.json`
+records the observed window under `window`.
 
 Process reuse carries the same static-state caveat as `-reuse-game`
 (next paragraph), and process-wide `Prefs` too: the `letter/pause` case sets the

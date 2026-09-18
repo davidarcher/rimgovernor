@@ -47,7 +47,8 @@ func main() {
 	game := flag.String("game", "rimgovernor-trial", "configured game ID")
 	rimgovernorBinary := flag.String("rimgovernor", "", "absolute path to a prebuilt rimgovernor binary (go build ./go/cmd/rimgovernor)")
 	save := flag.String("save", baselineSave, "save name to load (default: the tribal8 baseline)")
-	watch := flag.Duration("watch", 20*time.Minute, "wall-clock duration to observe EnsureFoodSupply after authority is acquired")
+	watch := flag.Duration("watch", 20*time.Minute, "wall-clock duration to observe EnsureFoodSupply after authority is acquired (the ceiling when -window is set)")
+	window := flag.Uint64("window", 0, "sample window in game ticks (2500 = one in-game hour); the watch ends once the live tick has advanced this far, or at -watch if the game stops advancing; 0 watches the full -watch length (sustainedmatrixaccept defaults to a short window, this diagnostic to the wall-clock length)")
 	poll := flag.Duration("poll", 5*time.Second, "sampling interval during the watch window")
 	timeout := flag.Duration("timeout", 30*time.Minute, "overall run timeout (must exceed -watch plus startup/shutdown)")
 	nativeTimeout := flag.Duration("native-timeout", 15*time.Second, "serve subprocess's own --timeout (native call budget per ClockScheduler.Step, shared across every chained routine planner in that step)")
@@ -87,7 +88,7 @@ func main() {
 	cfg := sustainedfood.RunConfig{
 		Root: *root, Output: *output, GameID: *game, Headless: !*rendered,
 		RimgovernorBinary: *rimgovernorBinary, Save: *save,
-		Watch: *watch, Poll: *poll, NativeTimeout: *nativeTimeout,
+		Watch: *watch, Window: *window, Poll: *poll, NativeTimeout: *nativeTimeout,
 		Families: *families, StepStall: *stepStall,
 	}
 	timeline, err := sustainedfood.Run(ctx, cfg, report)

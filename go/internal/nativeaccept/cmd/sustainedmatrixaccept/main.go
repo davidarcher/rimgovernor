@@ -74,7 +74,8 @@ func main() {
 	saves := flag.String("saves", "", "comma-separated save names that already exist, one variant per save (mutually exclusive with -manifest)")
 	manifest := flag.String("manifest", "", "path to a JSON array of variantgen.Variant specs; missing saves are generated before their watch window runs (mutually exclusive with -saves)")
 	regenerate := flag.Bool("regenerate", false, "in -manifest mode, regenerate every variant's save even if it already exists at profile/Saves/<save>.rws")
-	watch := flag.Duration("watch", 20*time.Minute, "per-variant wall-clock duration to observe EnsureFoodSupply after authority is acquired")
+	watch := flag.Duration("watch", 20*time.Minute, "per-variant wall-clock ceiling on observing EnsureFoodSupply after authority is acquired; the whole window when -window is 0")
+	window := flag.Uint64("window", 2500, "per-variant sample window in game ticks (2500 = one in-game hour, 60000 = one day): the watch ends once the live tick has advanced this far, or at -watch if the game stops advancing; 0 watches the full -watch wall-clock length (the diagnostic timeline); each variant's result.json records the window it observed under \"window\"")
 	poll := flag.Duration("poll", 5*time.Second, "sampling interval during each variant's watch window")
 	perVariantTimeout := flag.Duration("variant-timeout", 30*time.Minute, "per-variant run timeout (must exceed -watch plus startup/shutdown)")
 	nativeTimeout := flag.Duration("native-timeout", 15*time.Second, "serve subprocess's own --timeout (native call budget per ClockScheduler.Step, shared across every chained routine planner in that step)")
@@ -157,6 +158,8 @@ func main() {
 		len(variants), strings.Join(saveNames, ", ")), !*rendered)
 	report["variant_saves"] = saveNames
 	report["manifest_mode"] = *manifest != ""
+	report["window_ticks"] = *window
+	report["watch"] = watch.String()
 
 	// -manifest: every save the manifest names exists before any variant
 	// runs. A save already at profile/Saves is the pre-generated world and is
@@ -247,7 +250,7 @@ func main() {
 		cfg := sustainedfood.RunConfig{
 			Root: *root, Output: variantDir, GameID: *game, Headless: !*rendered,
 			RimgovernorBinary: *rimgovernorBinary, Save: v.Save,
-			Watch: *watch, Poll: *poll, NativeTimeout: *nativeTimeout,
+			Watch: *watch, Window: *window, Poll: *poll, NativeTimeout: *nativeTimeout,
 			RequestPrefix: "sustained-matrix-" + sanitize(v.Save),
 			Families:      *families, StepStall: *stepStall,
 			Reuse: reuse,
@@ -270,6 +273,7 @@ func main() {
 		}
 		metrics := sustainedfood.DeriveMetrics(timeline)
 		row["metrics"] = metrics
+		row["window"] = variantReport["window"]
 		variantReport["metrics"] = metrics
 		if err == nil {
 			variantReport["passed"] = true
