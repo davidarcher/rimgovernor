@@ -503,7 +503,9 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 		return fmt.Errorf("close fixture-prep bridge session: %w", err)
 	}
 
-	extra := append([]string{"--clock-speed", "Fast"}, sc.extra...)
+	// The clock speed follows RIMGOVERNOR_ACCEPT_CLOCK_SPEED like the other
+	// serve-driven harnesses; Ultrafast adds the headless dev tick boost.
+	extra := append(na.ClockSpeedArgs(), sc.extra...)
 	var env []string
 	if debug {
 		extra = append(extra, "--flight-recorder", filepath.Join(output, "flight.jsonl"))
