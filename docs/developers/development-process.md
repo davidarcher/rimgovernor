@@ -122,10 +122,12 @@ Keep failed evidence and report unavailable platform, model or gameplay coverage
 Review ownership, failure handling, compatibility and unnecessary abstractions.
 Commit each completed iteration with its checks and limitations. Keep generated
 builds, logs, saves, databases and temporary scripts out of commits. Report the
-branch and commit. Land authorized work on local `main` (fast-forward rebase
-preferred, merge acceptable) following the rules in [AGENTS.md](../../AGENTS.md);
-pull requests are disabled and the maintainer pushes `main` manually. Recheck the target checkout before
-integration and rerun affected checks if conflict resolution changes tested code.
+branch and commit. Land authorized work on local `main` through the landing
+lane, `go run ./cmd/land` from `go/` in the branch's worktree (one squash
+commit per task; see [AGENTS.md](../../AGENTS.md)); pull requests are disabled
+and the maintainer pushes `main` manually. The lane merges `main` into the
+branch first and runs the affected Go tests; rerun affected acceptance checks
+only when its `Verified:` report says a harness is stale.
 
 ## Keep deployment and docs maintainable
 

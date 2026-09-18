@@ -15,12 +15,9 @@
 package main
 
 import (
-	"bytes"
 	"flag"
 	"fmt"
 	"os"
-	"os/exec"
-	"strings"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 )
@@ -73,7 +70,7 @@ func main() {
 
 // check prints one line per harness and returns the exit status.
 func check(repo, rev string, wanted []string) int {
-	recorded, err := recordedTrailers(repo, rev)
+	recorded, err := na.RecordedVerifiedTrailers(repo, rev)
 	if err != nil {
 		fail(err)
 	}
@@ -107,27 +104,6 @@ func check(repo, rev string, wanted []string) int {
 		status = 1
 	}
 	return status
-}
-
-// recordedTrailers returns each harness's newest trailer in the range.
-func recordedTrailers(repo, rev string) (map[string]na.VerifiedTrailer, error) {
-	cmd := exec.Command("git", "log", "--format=%B%x00", rev)
-	cmd.Dir = repo
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	out, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("git log %s: %w: %s", rev, err, strings.TrimSpace(stderr.String()))
-	}
-	latest := map[string]na.VerifiedTrailer{}
-	for _, message := range strings.Split(string(out), "\x00") {
-		for _, trailer := range na.ParseVerifiedTrailers(message) {
-			if _, seen := latest[trailer.Harness]; !seen {
-				latest[trailer.Harness] = trailer
-			}
-		}
-	}
-	return latest, nil
 }
 
 func usage() {

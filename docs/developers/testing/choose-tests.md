@@ -35,7 +35,9 @@ same list `RequireCurrentPackage` compares), `go.mod`/`go.sum`,
 `scripts/fixtures` and `contracts/fixtures`. `verified inputs <harness>`
 lists them. The game, GABS and the machine are environment, not inputs.
 
-Before landing, or when deciding whether to rerun:
+The landing lane (`go run ./cmd/land`) prints the same comparison before it
+squashes the branch, and keeps the newest trailer per harness in the squash
+commit. To check by hand:
 
 ```bash
 go run ./internal/nativeaccept/cmd/verified check

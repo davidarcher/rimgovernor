@@ -9,12 +9,15 @@
 - Commit each completed iteration after relevant checks. Local checkpoint commits
   are authorized; do not ask again. Report the branch and commit hash.
 - Pull requests are disabled on this project; GitHub is used only for issue
-  tracking. Never open a PR. All work lands on the local `main` branch via
-  `git merge --no-ff <branch>` from a clean `main` checkout. Do not rebase a
-  verified branch just to fast-forward: a rebase rewrites the commits the test
-  evidence was recorded against and invites a retest every time a peer lands.
-  Rebase only to resolve an actual conflict. Do not push to GitHub; the
-  maintainer pushes `main` manually.
+  tracking. Never open a PR. All work lands on the local `main` branch as one
+  squash commit through the landing lane: `go run ./cmd/land` from `go/` in
+  the branch's worktree. It takes the repository-wide lock, merges `main` into
+  the branch, runs the Go tests the diff affects, reports `Verified:` trailers,
+  squash-merges into the clean `main` checkout carrying the branch's trailers,
+  and resets the branch to `main`. Call it once and stop watching `main`; do
+  not rebase, poll or retest by hand. Rebase only to resolve an actual
+  conflict it reports. Do not push to GitHub; the maintainer pushes `main`
+  manually.
 - Close the GitHub issue as soon as its work has merged into local `main`, with
   a terse comment naming the merge commit. Closure does not wait for the
   maintainer to push `origin/main` and does not need maintainer confirmation.
@@ -55,8 +58,9 @@
   divergence at once. Never `reset --soft main` to squash; check the diff file
   list after any integration. `rerere.enabled` is on for this repository so a
   conflict resolved once replays on later merges; keep it on in new worktrees.
-- When landing is authorized, stream small verified commits into main as they
-  become ready. Assume main is continuously updated: validate the task and merge;
+- When landing is authorized, land each coherent verified milestone through
+  the lane as it becomes ready; do not hold a branch until the whole task is
+  done. Assume main is continuously updated: validate the task and land;
   do not chase each new HEAD with a rebase/retest cycle. Do not wait for unrelated
   teams or require a global quiet period.
   Check the target checkout and diff locally; coordinate only actual overlap or

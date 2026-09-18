@@ -209,3 +209,25 @@ func NewVerifiedTrailer(repo, harness string) (VerifiedTrailer, error) {
 	}
 	return VerifiedTrailer{Harness: harness, Inputs: hash}, nil
 }
+
+// RecordedVerifiedTrailers returns each harness's newest Verified trailer
+// among the commit messages in the git revision range rev (e.g. main..HEAD).
+func RecordedVerifiedTrailers(repo, rev string) (map[string]VerifiedTrailer, error) {
+	cmd := exec.Command("git", "log", "--format=%B%x1e", rev)
+	cmd.Dir = repo
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("git log %s: %w: %s", rev, err, strings.TrimSpace(stderr.String()))
+	}
+	latest := map[string]VerifiedTrailer{}
+	for _, message := range strings.Split(string(out), string(rune(0x1e))) {
+		for _, trailer := range ParseVerifiedTrailers(message) {
+			if _, seen := latest[trailer.Harness]; !seen {
+				latest[trailer.Harness] = trailer
+			}
+		}
+	}
+	return latest, nil
+}
