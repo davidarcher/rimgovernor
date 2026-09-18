@@ -1,88 +1,75 @@
-// Command reuseaccept is the native acceptance for issue #22's reusable-game
-// lifecycle (nativeaccept.GameReuse), the Go replacement for the removed
-// game_reuse_acceptance.py. One RimWorld process is launched; the tribal8
-// baseline is then loaded -cases times into it, each load a separate case
-// that takes authority, drafts a colonist through operations_execute,
-// releases the draft, revokes authority and -- when -rimgovernor is given --
-// also launches and stops a per-case `rimgovernor serve` with its own SQLite
-// state, asserting the stopped controller no longer answers. Between cases
-// the lifecycle's own reset contract must hold: a load token never issued
-// before, the game paused at the baseline tick, no active authority, no
-// owned draft claim, and the sampled stock equal to the first load's. (The
-// colony id is not compared: a fixture save the mod never wrote carries none,
-// so native mints a fresh one per load.)
+// reuse (the former
+// reuseaccept) is the native acceptance for issue #22's reusable-game
+// lifecycle (nativeaccept.GameReuse). One RimWorld process is launched;
+// the tribal8 baseline is then loaded several times into it, each load a
+// separate case that takes authority, drafts a colonist through
+// operations_execute, releases the draft, revokes authority and -- when
+// BinaryEnv names a rimgovernor binary -- also launches and stops a
+// per-case `rimgovernor serve` with its own SQLite state, asserting the
+// stopped controller no longer answers. Between cases the lifecycle's own
+// reset contract must hold: a load token never issued before, the game
+// paused at the baseline tick, no active authority, no owned draft claim,
+// and the sampled stock equal to the first load's. (The colony id is not
+// compared: a fixture save the mod never wrote carries none, so native
+// mints a fresh one per load.)
 //
 // A final negative case deliberately leaves a colonist owned-drafted and
-// asserts EndCase refuses to hand the game on: it retires (games_stop) the
-// process instead, so a dirty case can never leak into the next one.
+// asserts EndCase refuses to hand the game on: it retires (games_stop)
+// the process instead, so a dirty case can never leak into the next one.
 //
-// It says nothing about mod static state, which a reload does not reset (see
-// contracts/native-static-state.md); cases asserting on those keep running in
-// the ordinary fresh-process binaries.
-package main
+// It says nothing about mod static state, which a reload does not reset
+// (see contracts/native-static-state.md).
+
+package lifecycle
 
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
 	"time"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
+	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 )
 
 const baselineSave = "RimGovernor-tribal8-baseline"
 
-func main() {
-	root := flag.String("root", "", "absolute disposable worker root (e.g. .rimgovernor/bridge)")
-	output := flag.String("output", "", "fresh output directory (default <root>/native-reuse-acceptance)")
-	rendered := flag.Bool("rendered", false, "use the windowed profile instead of headless")
-	game := flag.String("game", "rimgovernor-trial", "configured game ID")
-	binary := flag.String("rimgovernor", "", "optional absolute path to a prebuilt rimgovernor binary; when set each case also launches and stops its own serve process")
-	cases := flag.Int("cases", 3, "number of clean baseline reloads to run before the negative case")
-	timeout := flag.Duration("timeout", 20*time.Minute, "overall run timeout")
-	flag.Parse()
-	if *root == "" {
-		fmt.Fprintln(os.Stderr, "-root is required")
-		os.Exit(2)
-	}
-	if *binary != "" && !filepath.IsAbs(*binary) {
-		fmt.Fprintln(os.Stderr, "-rimgovernor must be an absolute path")
-		os.Exit(2)
-	}
-	if *cases < 2 {
-		fmt.Fprintln(os.Stderr, "-cases must be at least 2 so a second load token is compared against the first")
-		os.Exit(2)
-	}
-	if *output == "" {
-		*output = *root + "/native-reuse-acceptance"
-	}
-	if err := os.MkdirAll(*output, 0755); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(2)
-	}
-	report := na.NewReport(fmt.Sprintf("Reusable game (issue #22): one launch, %d baseline reloads each taking authority, "+
-		"drafting and releasing a colonist, revoking authority and (with -rimgovernor) running a per-case controller; "+
-		"every reload verified against the reset contract; a final unclean case must retire the game. "+
-		"No mod static-state reset is claimed.", *cases), !*rendered)
-	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
-	defer cancel()
-	err := run(ctx, *root, *output, *game, *binary, !*rendered, *cases, report)
-	if err != nil {
-		report["error"] = err.Error()
-	} else {
-		report["passed"] = true
-	}
-	os.Exit(report.Finalize(*output))
+// reloads is how many clean baseline reloads run before the negative
+// case; at least two so a second load token is compared against the first.
+const reloads = 3
+
+// BinaryEnv, when set to an absolute path of a prebuilt rimgovernor
+// binary, makes every clean reload also launch and stop its own
+// controller against that load.
+const BinaryEnv = "RIMGOVERNOR_ACCEPT_RIMGOVERNOR"
+
+func init() {
+	cases.Register(cases.Case{
+		Name: "lifecycle/reuse",
+		Scope: fmt.Sprintf("Reusable game (issue #22): one launch, %d baseline reloads each taking authority, "+
+			"drafting and releasing a colonist, revoking authority and (with %s) running a per-case controller; "+
+			"every reload verified against the reset contract; a final unclean case must retire the game. "+
+			"No mod static-state reset is claimed.", reloads, BinaryEnv),
+		Start:  cases.Owned{Saves: []string{baselineSave}},
+		Reason: "the assertion is the reusable-game lifecycle itself: the case launches the process, reloads the baseline into it and must see it retired (games_stop) after an unclean case",
+		NoKeep: true,
+		Budget: 15 * time.Minute,
+		Run:    runReuse,
+	})
 }
 
-func run(ctx context.Context, root, output, gameID, binary string, headless bool, cases int, report na.Report) error {
-	cfg := &na.Config{Root: root, Output: output, Headless: headless, GameID: gameID}
-	if err := cfg.PrepareConfig(); err != nil {
-		return fmt.Errorf("prepare profile: %w", err)
+// run drives the reusable-game lifecycle itself (an Owned start): the
+// runner prepared the profile; the case launches the process, loads the
+// baseline into it per case and retires it at the end.
+func runReuse(ctx context.Context, s cases.Session) error {
+	cfg, report := s.Config(), s.Report()
+	binary := os.Getenv(BinaryEnv)
+	if binary != "" && !filepath.IsAbs(binary) {
+		return fmt.Errorf("%s must be an absolute path: %s", BinaryEnv, binary)
 	}
+	report["controller_binary"] = binary
 	game, err := cfg.GameSection()
 	if err != nil {
 		return err
@@ -92,7 +79,7 @@ func run(ctx context.Context, root, output, gameID, binary string, headless bool
 		return err
 	}
 	report["package_files"] = files
-	gabsExecutable, err := na.GABSExecutable(root, cfg.Configuration)
+	gabsExecutable, err := na.GABSExecutable(cfg.Root, cfg.Configuration)
 	if err != nil {
 		return err
 	}
@@ -125,9 +112,9 @@ func run(ctx context.Context, root, output, gameID, binary string, headless bool
 	}
 
 	var tokens []string
-	for i := 1; i <= cases; i++ {
+	for i := 1; i <= reloads; i++ {
 		name := fmt.Sprintf("case-%d", i)
-		c, err := reuse.BeginCase(ctx, name, baselineSave, filepath.Join(output, name))
+		c, err := reuse.BeginCase(ctx, name, baselineSave, filepath.Join(cfg.Output, name))
 		if err != nil {
 			return fmt.Errorf("%s: begin: %w", name, err)
 		}
@@ -150,7 +137,7 @@ func run(ctx context.Context, root, output, gameID, binary string, headless bool
 	report["load_tokens"] = tokens
 
 	// Negative case: leave an owned draft behind. EndCase must retire.
-	c, err := reuse.BeginCase(ctx, "case-unclean", baselineSave, filepath.Join(output, "case-unclean"))
+	c, err := reuse.BeginCase(ctx, "case-unclean", baselineSave, filepath.Join(cfg.Output, "case-unclean"))
 	if err != nil {
 		return fmt.Errorf("case-unclean: begin: %w", err)
 	}
@@ -167,15 +154,11 @@ func run(ctx context.Context, root, output, gameID, binary string, headless bool
 		return fmt.Errorf("case-unclean: lifecycle does not report retirement")
 	}
 	report["unclean_case_retired"] = reason
-	if _, err := reuse.BeginCase(ctx, "after-retire", baselineSave, filepath.Join(output, "after-retire")); !errors.Is(err, na.ErrReuseRetired) {
+	if _, err := reuse.BeginCase(ctx, "after-retire", baselineSave, filepath.Join(cfg.Output, "after-retire")); !errors.Is(err, na.ErrReuseRetired) {
 		return fmt.Errorf("BeginCase after retirement should refuse with ErrReuseRetired, got %v", err)
 	}
 
-	logData, err := os.ReadFile(cfg.StartupLogPath())
-	if err != nil {
-		return fmt.Errorf("read startup log: %w", err)
-	}
-	return na.CheckStartupLog(string(logData), headless)
+	return cases.CheckStartupLog(s)
 }
 
 // cleanCase is one well-behaved case: authority on, draft, release, authority

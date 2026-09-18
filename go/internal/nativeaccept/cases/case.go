@@ -22,7 +22,7 @@ import (
 )
 
 // Start is how the runner brings the game to the case's starting state.
-// Exactly one of DebugStart, Save and Fixture.
+// Exactly one of DebugStart, Save, Fixture and Owned.
 type Start interface {
 	// Describe is the start's summary for the report.
 	Describe() map[string]any
@@ -49,9 +49,21 @@ type Fixture struct {
 	On   Start
 }
 
+// Owned is the start of a case that drives the process lifecycle itself
+// (a reusable-game or soak case that launches, restarts or retires the
+// game as its assertion): the runner prepares the profile and hands the
+// case a Session with Config only (no game open, no Harness, Names or
+// Identity), and the case leaves the root's process stopped. Owned
+// implies NoKeep. Saves names the saves the case loads, so the profile
+// keeps the expansions they record active (as a Save start does).
+type Owned struct {
+	Saves []string
+}
+
 func (d DebugStart) start() {}
 func (Save) start()         {}
 func (Fixture) start()      {}
+func (Owned) start()        {}
 
 func (d DebugStart) Describe() map[string]any {
 	return map[string]any{"kind": "debug", "mapSize": d.Size.MapSize, "planetCoverage": d.Size.PlanetCoverage}
@@ -63,6 +75,13 @@ func (f Fixture) Describe() map[string]any {
 		row["on"] = f.On.Describe()
 	}
 	return row
+}
+func (o Owned) Describe() map[string]any {
+	out := map[string]any{"kind": "owned"}
+	if len(o.Saves) > 0 {
+		out["saves"] = o.Saves
+	}
+	return out
 }
 
 // ServeSpec declares the `rimgovernor serve` process a serve-driven case
@@ -86,8 +105,13 @@ type ServeSpec struct {
 // Session is what a case's Run receives: the open, prepared game. The
 // runner implements it over na.OpenSession (lane B, #137).
 type Session interface {
-	// Config is the run's resolved configuration (root, output, profile).
+	// Config is the run's resolved configuration (root, output, profile,
+	// startup log); an Owned case opens its own game with it.
 	Config() *na.Config
+	// GABSPID is the PID of the GABS process the harness's session last
+	// spawned (a reattach spawns a fresh one), 0 when none was recorded;
+	// a transport-drop case kills it by PID, never the game.
+	GABSPID() int
 	// Harness records evidence under the run's output directory.
 	Harness() *na.Harness
 	// Names are the discovered native tool names.
@@ -142,6 +166,14 @@ type Case struct {
 	Letters [][2]string
 	// Run is the assertion.
 	Run func(ctx context.Context, s Session) error
+	// NoKeep stops the process after Run instead of leaving it at the main
+	// menu for the next case (na.KeepGameEnv): the case restarted, faulted
+	// or retired the game on purpose, or touched process-scoped static
+	// state. A suite schedules NoKeep cases last on a worker.
+	NoKeep bool
+	// Rendered opens the windowed profile whatever -headless says: video
+	// capture needs Find.Camera, which batch mode never has.
+	Rendered bool
 }
 
 // Validate is the shape check Register applies.
@@ -154,6 +186,9 @@ func (c Case) Validate() error {
 	}
 	if c.Run == nil {
 		return fmt.Errorf("case %s has no Run", c.Name)
+	}
+	if _, owned := c.Start.(Owned); owned && !c.NoKeep {
+		return fmt.Errorf("case %s owns its process lifecycle (Owned) and must declare NoKeep", c.Name)
 	}
 	return nil
 }

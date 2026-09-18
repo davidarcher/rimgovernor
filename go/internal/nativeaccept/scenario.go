@@ -11,7 +11,7 @@ import (
 )
 
 // This file is the scenario advance loop and typed scenario clock, so
-// cmd/combataccept and cmd/movementaccept can advance real game ticks in a
+// the combat and movement acceptance cases can advance real game ticks in a
 // bounded, letter-acknowledging way. It intentionally omits a medical-rest wait
 // mode: only the combat-target mode is exercised through the typed clock adapter.
 

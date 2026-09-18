@@ -226,7 +226,7 @@ func dependencyGraph(goDir string) (*graph, error) {
 }
 
 // isHarness tells an acceptance harness directory under
-// go/internal/nativeaccept/cmd from the tools beside it (gamesstop,
+// go/internal/nativeaccept/cmd from the tools beside it (acceptance,
 // variantsavegen, verified): harnesses end in "accept".
 func isHarness(name string) bool {
 	return strings.HasSuffix(name, "accept") && !strings.Contains(name, "/")

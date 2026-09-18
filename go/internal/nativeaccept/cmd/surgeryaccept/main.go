@@ -329,7 +329,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 }
 
 // failureCode wires request through operations_execute and returns the
-// failure code, mirroring questfulfillaccept's/movementaccept's helper of the
+// failure code, mirroring questfulfillaccept's/the movement case's helper of the
 // same name.
 func failureCode(ctx context.Context, h *na.Harness, label string, request map[string]any) (string, error) {
 	reply, err := h.Wire(ctx, label, "operations_execute", request)

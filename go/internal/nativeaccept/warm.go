@@ -18,7 +18,7 @@ import (
 // stopping it, and the next OpenGame under the same root attaches to the
 // running process (games_start on a running game is an attach) and skips
 // the boot and def load, roughly 80s of every run; a batch stops the game
-// once at the end (gamesstop). Mod static state is process-scoped and
+// once at the end (acceptance stop). Mod static state is process-scoped and
 // survives the reuse (see contracts/native-static-state.md): a harness
 // asserting on statics, or one that must see a first-boot process, runs
 // with RIMGOVERNOR_ACCEPT_KEEP_GAME=0.

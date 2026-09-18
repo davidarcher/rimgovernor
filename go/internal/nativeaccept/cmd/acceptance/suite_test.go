@@ -38,15 +38,19 @@ func TestScheduleServeLastLongestFirst(t *testing.T) {
 		t.Fatal(err)
 	}
 	serveCase := cases.Case{Name: "x/serve", Serve: &cases.ServeSpec{}}
+	noKeep := cases.Case{Name: "x/shutdown", NoKeep: true}
+	rendered := cases.Case{Name: "x/video", Rendered: true}
 	list := []entry{
 		{Name: "s1", Args: []string{"-rimgovernor", "x"}},
+		{Name: "x/shutdown", registered: &noKeep},
 		{Name: "a"}, {Name: "b"},
 		{Name: "x/serve", registered: &serveCase},
 		{Name: "c"}, {Name: "new"},
 		{Name: "s2", Serve: true},
+		{Name: "x/video", registered: &rendered},
 	}
 	schedule(list, b)
-	if got := names(list); got != "new b c a x/serve s2 s1" {
+	if got := names(list); got != "new b c a x/shutdown x/video x/serve s2 s1" {
 		t.Errorf("order = %q", got)
 	}
 	// Without a baseline the listed order holds within each half.

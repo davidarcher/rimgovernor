@@ -330,7 +330,7 @@ func runFulfill(ctx context.Context, s cases.Session) error {
 }
 
 // failureCode wires request through operations_execute and returns the failure
-// code, mirroring guardedconstructionaccept's/movementaccept's helper of the
+// code, mirroring guardedconstructionaccept's/the movement case's helper of the
 // same name.
 // caravanToken reproduces NativeQuestFulfillOperations.CaravanToken/Go's
 // unexported questFulfillCaravanToken exactly (same joined-string SHA256

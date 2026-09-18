@@ -537,8 +537,8 @@ func run(ctx context.Context, root, output, gameID, buildingSmoke, expectedOutco
 	// lease (REVOCATION_REASON_LEASE_EXPIRED no longer exists). The remaining
 	// native-observable lapse, a typed clock lease running out, needs the
 	// simulation to tick, which this pre-Go section must not do (before-go
-	// below asserts an unchanged tick); it is covered by cmd/disconnectaccept
-	// and cmd/movementaccept instead.
+	// below asserts an unchanged tick); it is covered by the authority/disconnect
+	// and movement/arrival cases instead.
 
 	currentReply, err := h.Wire(ctx, "before-go", "lifecycle_read_identity", map[string]any{})
 	if err != nil {

@@ -1,19 +1,19 @@
-// Command combataccept proves bounded actual
-// combat terminal outcome through the scenario clock's WATCH_MODE_COMBAT policy, with
-// player override/fresh claim, replay, and completed-before-Manual retention. No
-// damage or completion injection; the terminal outcome must be causally verified by
-// the native runtime itself within a bounded shared-clock tick budget.
-package main
+// Package combat holds the Loud combat cases (the former combataccept):
+// bounded actual combat terminal outcome through the scenario clock's
+// WATCH_MODE_COMBAT policy, with player override/fresh claim, replay, and
+// completed-before-Manual retention. No damage or completion injection;
+// the terminal outcome must be causally verified by the native runtime
+// itself within a bounded shared-clock tick budget.
+package combat
 
 import (
 	"context"
-	"flag"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
+	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 )
 
 const (
@@ -22,62 +22,49 @@ const (
 	combatTickBudget = combatWindows * ticksPerWindow
 )
 
-func main() {
-	root := flag.String("root", "", "absolute disposable worker root (e.g. .rimgovernor/bridge)")
-	output := flag.String("output", "", "fresh output directory (default <root>/native-combat-acceptance)")
-	rendered := flag.Bool("rendered", false, "use the windowed profile instead of headless")
-	game := flag.String("game", "rimgovernor-trial", "configured game ID")
-	rangedFlag := flag.Bool("ranged", false, "use ranged attacks instead of melee")
-	explosiveFlag := flag.Bool("explosive", false, "use explosive ranged attacks")
-	timeout := flag.Duration("timeout", 30*time.Minute, "overall run timeout (bounded combat waits add up to 20 shared-clock windows)")
-	flag.Parse()
-	if *root == "" {
-		fmt.Fprintln(os.Stderr, "-root is required")
-		os.Exit(2)
+// loudReason is why every combat case keeps the storyteller: the fixture
+// spawns hostile animals and the WATCH_MODE_COMBAT clock must see them as
+// the game reports hostility, which the quiet op's storyteller swap would
+// mask.
+const loudReason = "the attack target is a fixture-spawned hostile animal and the combat watch policy stops on the game's own hostility and health reporting"
+
+func init() {
+	for _, v := range []struct {
+		name              string
+		ranged, explosive bool
+	}{
+		{"combat/melee", false, false},
+		{"combat/ranged", true, false},
+		{"combat/explosive", true, true},
+	} {
+		v := v
+		cases.Register(cases.Case{
+			Name: v.name,
+			Scope: "Actual attributed combat terminal outcome, player override and fresh claim, replay, " +
+				"completed-before-Manual retention; bounded shared clock waits. No damage or completion injection.",
+			Start:  cases.DebugStart{},
+			Quiet:  na.Loud,
+			Reason: loudReason,
+			Budget: 12 * time.Minute,
+			Run: func(ctx context.Context, s cases.Session) error {
+				return run(ctx, s, v.ranged, v.explosive)
+			},
+		})
 	}
-	if *output == "" {
-		*output = *root + "/native-combat-acceptance"
-	}
-	if err := os.MkdirAll(*output, 0755); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(2)
-	}
-	entries, _ := os.ReadDir(*output)
-	if len(entries) > 0 {
-		fmt.Fprintln(os.Stderr, "-output must be a fresh, empty directory")
-		os.Exit(2)
-	}
-	ranged := *rangedFlag || *explosiveFlag
-	report := na.NewReport("Actual attributed combat terminal outcome, player override and fresh claim, replay, "+
-		"completed-before-Manual retention; bounded shared clock waits. No damage or completion injection.", !*rendered)
-	report["ranged"] = ranged
-	report["explosive"] = *explosiveFlag
-	report["combat_tick_budget"] = combatTickBudget
-	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
-	defer cancel()
-	err := run(ctx, *root, *output, *game, !*rendered, ranged, *explosiveFlag, report)
-	if err != nil {
-		report["error"] = err.Error()
-	} else {
-		report["passed"] = true
-	}
-	os.Exit(report.Finalize(*output))
 }
 
-func run(ctx context.Context, root, output, gameID string, headless, ranged, explosive bool, report na.Report) error {
+func run(ctx context.Context, s cases.Session, ranged, explosive bool) error {
+	report := s.Report()
+	report["ranged"] = ranged
+	report["explosive"] = explosive
+	report["combat_tick_budget"] = combatTickBudget
 	mode := "ATTACK_MODE_MELEE"
 	jobDef := "AttackMelee"
 	if ranged {
 		mode = "ATTACK_MODE_RANGED"
 		jobDef = "AttackStatic"
 	}
-	cfg := &na.Config{Root: root, Output: output, Headless: headless, GameID: gameID}
-	s, err := na.OpenSession(ctx, cfg, report, na.DebugStart{}, na.Loud)
-	if err != nil {
-		return err
-	}
-	defer s.Close()
-	h, names, identity := s.Harness, s.Names, s.Identity
+	h, names, identity := s.Harness(), s.Names(), s.Identity()
 	identityReply, err := h.Wire(ctx, "identity-paused", "lifecycle_read_identity", map[string]any{})
 	if err != nil {
 		return err
@@ -583,11 +570,7 @@ func run(ctx context.Context, root, output, gameID string, headless, ranged, exp
 	if ticks <= 0 || ticks > combatTickBudget {
 		return fmt.Errorf("unexpected tick delta: %v", ticks)
 	}
-	logData, err := os.ReadFile(cfg.StartupLogPath())
-	if err != nil {
-		return fmt.Errorf("read startup log: %w", err)
-	}
-	if err := na.CheckStartupLog(string(logData), headless); err != nil {
+	if err := cases.CheckStartupLog(s); err != nil {
 		return err
 	}
 	report["pawn_id"] = actorID

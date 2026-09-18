@@ -26,17 +26,18 @@ var harnessSharedInputs = []string{
 // acceptance harness run depends on: every non-test file of each in-module
 // Go package the harness and the rimgovernor binary it drives import, the
 // native mod's build inputs and harnessSharedInputs. harness is the
-// directory name under go/internal/nativeaccept/cmd. It does not cover the
-// game, GABS or the machine: those are environment, not inputs.
+// directory name under go/internal/nativeaccept/cmd, or a registered case
+// "<area>/<case>" (#135), whose packages are the area's under
+// go/internal/nativeaccept/cases and the shared acceptance runner. It
+// does not cover the game, GABS or the machine: those are environment,
+// not inputs.
 func HarnessInputs(repo, harness string) ([]string, error) {
-	if harness == "" || strings.ContainsAny(harness, `/\.`) {
-		return nil, fmt.Errorf("harness %q is not a directory name under go/internal/nativeaccept/cmd", harness)
-	}
 	goDir := filepath.Join(repo, "go")
-	if _, err := os.Stat(filepath.Join(goDir, "internal", "nativeaccept", "cmd", harness)); err != nil {
-		return nil, fmt.Errorf("harness %s: %w", harness, err)
+	patterns, err := harnessPackages(goDir, harness)
+	if err != nil {
+		return nil, err
 	}
-	dirs, err := goPackageDirs(goDir, "./internal/nativeaccept/cmd/"+harness, "./cmd/rimgovernor")
+	dirs, err := goPackageDirs(goDir, append(patterns, "./cmd/rimgovernor")...)
 	if err != nil {
 		return nil, err
 	}
@@ -76,6 +77,27 @@ func HarnessInputs(repo, harness string) ([]string, error) {
 	}
 	sort.Strings(files)
 	return files, nil
+}
+
+// harnessPackages resolves harness (a cmd directory name or a registered
+// case's "<area>/<case>") to the go list patterns of its own packages.
+func harnessPackages(goDir, harness string) ([]string, error) {
+	if area, name, isCase := strings.Cut(harness, "/"); isCase {
+		if area == "" || name == "" || strings.ContainsAny(area+name, `/\.`) {
+			return nil, fmt.Errorf("case %q is not <area>/<case>", harness)
+		}
+		if _, err := os.Stat(filepath.Join(goDir, "internal", "nativeaccept", "cases", area)); err != nil {
+			return nil, fmt.Errorf("case %s: %w", harness, err)
+		}
+		return []string{"./internal/nativeaccept/cases/" + area, "./internal/nativeaccept/cmd/acceptance"}, nil
+	}
+	if harness == "" || strings.ContainsAny(harness, `\.`) {
+		return nil, fmt.Errorf("harness %q is not a directory name under go/internal/nativeaccept/cmd", harness)
+	}
+	if _, err := os.Stat(filepath.Join(goDir, "internal", "nativeaccept", "cmd", harness)); err != nil {
+		return nil, fmt.Errorf("harness %s: %w", harness, err)
+	}
+	return []string{"./internal/nativeaccept/cmd/" + harness}, nil
 }
 
 // walkInput calls add for each file under the repo-relative input (or the

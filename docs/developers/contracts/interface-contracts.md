@@ -159,7 +159,7 @@ it independently by `viewer_id` (the dashboard sends one per tile as
 `viewerId`): a stop or timeout by one viewer leaves the others' feed, and
 the source ends with its last hold. Stopping without `source_id` drops the
 viewer's hold on every source. The
-`videofeedsmatrix` harness measures the cost: on the reference machine five
+`video/matrix` acceptance case measures the cost: on the reference machine five
 pawn feeds cost no ticks (60 TPS, p95 frame 33 ms either way) and five pawn
 feeds plus map plus screen held 55 TPS with a 50 ms p95 frame.
 

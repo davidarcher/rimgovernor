@@ -8,7 +8,7 @@ namespace HomeBridge.BridgeTools
     // Private disposable acceptance only. Ends the loaded game the way the
     // player's "quit to main menu" does (GenScene.GoToMainMenu: Game.Dispose
     // now, then a queued MemoryUtility.ClearAllMapsAndWorld and a null
-    // Current.Game), so shutdownaccept can observe native authority's
+    // Current.Game), so the lifecycle/shutdown acceptance case can observe native authority's
     // Shutdown revocation (#88) through authority_read_status once no game
     // is loaded. The process stays up; nothing here saves, orders or
     // changes game state.

@@ -18,11 +18,15 @@ package main
 // "{rimgovernor}" replaced by -rimgovernor. "acceptance" labels the
 // criterion a row stands for and is echoed into its report row.
 //
-// Scheduling: one shared queue, bridge-only cases first and serve-driven
-// cases (a registry case with Serve, a binary whose args pass -rimgovernor
-// or whose row says "serve": true) last, so a worker that has hosted a
-// service never runs a bridge-only case on that process afterwards (#119).
-// Within each half the queue is longest-first by the -baseline suite's
+// Scheduling: one shared queue in three tiers. Bridge-only cases that keep
+// the process come first; cases that end or replace it (NoKeep: a
+// shutdown, a fault, an owned lifecycle; Rendered: a windowed profile the
+// headless worker cannot serve) follow, so the kept process is reused as
+// long as possible; serve-driven cases (a registry case with Serve, a
+// binary whose args pass -rimgovernor or whose row says "serve": true) are
+// last, so a worker that has hosted a service never runs a bridge-only
+// case on that process afterwards (#119). Within each tier the queue is
+// longest-first by the -baseline suite's
 // wall times (untimed cases first, as if long), so a slow case does not
 // land last and idle the other workers.
 //
@@ -256,14 +260,25 @@ func (b *baseline) rank(e entry) float64 {
 	return -1
 }
 
-// schedule orders the queue: bridge-only rows before serve-driven ones,
-// each half longest-first by the baseline. The sort is stable, so equal or
-// untimed rows keep their listed order.
+// tier is the row's scheduling tier: 0 keeps the process, 1 ends or
+// replaces it (NoKeep, Rendered), 2 hosts a service.
+func (e entry) tier() int {
+	switch {
+	case e.serveDriven():
+		return 2
+	case e.registered != nil && (e.registered.NoKeep || e.registered.Rendered):
+		return 1
+	}
+	return 0
+}
+
+// schedule orders the queue by tier (kept-process rows, process-ending
+// rows, serve-driven rows), each tier longest-first by the baseline. The
+// sort is stable, so equal or untimed rows keep their listed order.
 func schedule(list []entry, b *baseline) {
 	sort.SliceStable(list, func(i, j int) bool {
-		si, sj := list[i].serveDriven(), list[j].serveDriven()
-		if si != sj {
-			return !si
+		if ti, tj := list[i].tier(), list[j].tier(); ti != tj {
+			return ti < tj
 		}
 		ri, rj := b.rank(list[i]), b.rank(list[j])
 		if ri < 0 || rj < 0 {

@@ -3,13 +3,16 @@
 //	acceptance list
 //	acceptance run <case>... [-root -output -game -headless -timeout -budget -stall]
 //	acceptance suite (-all | -cases a,b | -suite file.json) -root -output -workers N [-baseline result.json]
+//	acceptance stop -root <dir> [-config -game -takeover]
 //
 // It replaces the per-harness binaries' preamble with one loop: resolve the
 // shared configuration, open the game, bring it to the case's Start, quiet
 // the storyteller, freeze needs, run the case, write result.json with the
 // run's timing. `suite` (suite.go) runs a set across N private game copies
 // with regression flagging. Cases register from the area packages imported
-// below.
+// below. stop ends the game a root keeps between runs (na.KeepGameEnv)
+// through GABS games_stop: the PID-owned launch recorded by that root's own
+// GABS configuration, never a process matched by image name.
 package main
 
 import (
@@ -23,14 +26,18 @@ import (
 	"strings"
 	"time"
 
+	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 
 	// Registered case areas.
+	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/authority"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/bed"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/bills"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/caravan"
+	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/combat"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/lifecycle"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/mapscope"
+	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/movement"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/pawn"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/presentation"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/quest"
@@ -40,6 +47,7 @@ import (
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/smoke"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/supplies"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/trade"
+	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/video"
 )
 
 func main() {
@@ -71,6 +79,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 			return 2
 		}
 		return runSuite(context.Background(), list, opts, stderr)
+	case "stop":
+		return stop(args[1:], stdout, stderr)
 	default:
 		fmt.Fprintf(stderr, "unknown command %q\n%s\n", args[0], usage)
 		return 2
@@ -80,6 +90,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 const usage = `usage:
   acceptance list
   acceptance run <case>... -root <dir> [-output <dir> -game <id> -headless=false -timeout <d> -budget <d> -stall <d>]
+  acceptance stop -root <dir> [-config <dir> -game <id> -takeover]
 ` + suiteUsage
 
 // parseRun resolves the run subcommand's flags and case names. Flags may
@@ -154,4 +165,54 @@ func runCases(ctx context.Context, selected []cases.Case, opts cases.Options, st
 		}
 	}
 	return exit
+}
+
+// stop is the former gamesstop tool: games_stop through the root's own
+// GABS configuration (config-headless first), with -takeover taking the
+// attachment from a stalled controller of that same root first.
+func stop(args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("stop", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	root := fs.String("root", "", "absolute disposable worker root")
+	configDir := fs.String("config", "", "GABS config directory (default <root>/config-headless, then <root>/config)")
+	game := fs.String("game", "rimgovernor-trial", "configured game ID")
+	takeover := fs.Bool("takeover", false, "take the GABS attachment from a stalled controller of this same root before stopping")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	if *root == "" {
+		fmt.Fprintln(stderr, "-root is required")
+		return 2
+	}
+	if *configDir == "" {
+		*configDir = filepath.Join(*root, "config-headless")
+		if _, err := os.Stat(*configDir); err != nil {
+			*configDir = filepath.Join(*root, "config")
+		}
+	}
+	gabs, err := na.GABSExecutable(*root, *configDir)
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return 1
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	client, err := na.OpenBridgeSession(ctx, gabs, *configDir, *game, 60*time.Second)
+	if err != nil && *takeover {
+		// The root's own controller still holds the attachment; the caller
+		// owns both sessions, so the handoff is explicit.
+		client, err = na.OpenBridgeSessionWithTakeover(ctx, gabs, *configDir, *game, 60*time.Second)
+	}
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return 1
+	}
+	defer client.Close()
+	stopped, err := client.GamesStop(ctx)
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return 1
+	}
+	fmt.Fprintln(stdout, string(stopped.Envelope))
+	return 0
 }

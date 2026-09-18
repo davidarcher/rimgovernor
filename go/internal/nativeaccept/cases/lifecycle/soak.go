@@ -1,26 +1,29 @@
-// Command headlesssoakaccept is a diagnostic for "GABS's native tool catalog
-// emptied mid-run" (games_call_tool failing with "availableTotal: 0"). It was
-// written to chase a suspected headless-RimWorld instability while building
-// foodstorageaccept; the captured GABS debug log showed the real cause was
-// external -- another worktree's session running `taskkill /IM
-// RimWorldWin64.exe` as "stray process" cleanup, which kills every session's
-// game (GABS logs "unexpected GABP disconnect ... forcibly closed by the
-// remote host" followed by "pid N not found"). Keep it for the next time a
-// game vanishes: gabs-stderr.log says whether the process died or the bridge
+// headless-soak (the
+// former headlesssoakaccept) is a diagnostic for "GABS's native tool
+// catalog emptied mid-run" (games_call_tool failing with
+// "availableTotal: 0"). It was written to chase a suspected
+// headless-RimWorld instability while building foodstorageaccept; the
+// captured GABS debug log showed the real cause was external -- another
+// worktree's session running `taskkill /IM RimWorldWin64.exe` as "stray
+// process" cleanup, which kills every session's game (GABS logs
+// "unexpected GABP disconnect ... forcibly closed by the remote host"
+// followed by "pid N not found"). Keep it for the next time a game
+// vanishes: gabs-stderr.log says whether the process died or the bridge
 // merely disconnected.
 //
-// It starts a fresh debug game exactly like foodstorageaccept, then drives the
-// clock with one of several call patterns (-mode) while recording a timeline
-// of GABS-side games_status (status/toolCount, never touching the game), the
-// RimWorld process's memory, and the game tick. GABS's own stderr is captured
-// at debug level so the moment and reason the game connection drops is visible.
-package main
+// It starts a fresh debug game, then drives the clock with one of several
+// call patterns (ModeEnv) while recording a timeline of GABS-side
+// games_status (status/toolCount, never touching the game), the RimWorld
+// process's memory, and the game tick. GABS's own stderr is captured at
+// debug level so the moment and reason the game connection drops is
+// visible.
+
+package lifecycle
 
 import (
 	"bufio"
 	"context"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"os"
 	"os/exec"
@@ -30,56 +33,55 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
+	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 )
 
-func main() {
-	root := flag.String("root", "", "absolute disposable worker root (e.g. .rimgovernor/bridge)")
-	output := flag.String("output", "", "fresh output directory (default <root>/native-headless-soak)")
-	rendered := flag.Bool("rendered", false, "use the windowed profile instead of headless")
-	game := flag.String("game", "rimgovernor-trial", "configured game ID")
-	mode := flag.String("mode", "poll", "poll | idle | pausedpoll | playfor | stepticks")
-	duration := flag.Duration("duration", 12*time.Minute, "how long to keep the soak going")
-	poll := flag.Duration("poll", 15*time.Second, "interval between timeline samples / native polls")
-	speed := flag.String("speed", "Superfast", "time speed for poll/idle modes")
-	ultra := flag.Bool("ultra", true, "ultraSpeedBoost for poll/idle modes")
-	chunk := flag.Duration("chunk", 60*time.Second, "play_for real-time chunk length (playfor mode)")
-	stepTicks := flag.Int("step-ticks", 2500, "ticks per step_game_ticks call (stepticks mode)")
-	gabsLog := flag.String("gabs-log-level", "debug", "GABS --log-level captured to gabs-stderr.log")
-	timeout := flag.Duration("timeout", 30*time.Minute, "overall run timeout")
-	flag.Parse()
-	if *root == "" {
-		fmt.Fprintln(os.Stderr, "-root is required")
-		os.Exit(2)
-	}
-	if *output == "" {
-		*output = *root + "/native-headless-soak"
-	}
-	if err := os.MkdirAll(*output, 0755); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(2)
-	}
-	report := na.NewReport("Diagnostic soak: fresh debug game driven by -mode "+*mode+" while recording GABS status, process memory and tick; captures GABS debug stderr.", !*rendered)
-	report["mode"] = *mode
-	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
-	defer cancel()
-	err := run(ctx, soakConfig{
-		root: *root, output: *output, gameID: *game, headless: !*rendered, mode: *mode,
-		duration: *duration, poll: *poll, speed: *speed, ultra: *ultra, chunk: *chunk,
-		stepTicks: *stepTicks, gabsLog: *gabsLog,
-	}, report)
-	if err != nil {
-		report["error"] = err.Error()
-	} else {
-		report["passed"] = true
-	}
-	os.Exit(report.Finalize(*output))
+// ModeEnv and DurationEnv override the registered soak's call pattern and
+// length for a diagnostic chase.
+const (
+	ModeEnv     = "RIMGOVERNOR_ACCEPT_SOAK_MODE"
+	DurationEnv = "RIMGOVERNOR_ACCEPT_SOAK_DURATION"
+)
+
+func init() {
+	cases.Register(cases.Case{
+		Name:   "lifecycle/headless-soak",
+		Scope:  "Diagnostic soak: fresh debug game driven by the soak mode (poll by default) while recording GABS status, process memory and tick; captures GABS debug stderr.",
+		Start:  cases.Owned{},
+		Reason: "the diagnostic opens its own GABS to capture its stderr at debug level and stops the game it soaked",
+		NoKeep: true,
+		Budget: 6 * time.Minute,
+		Run:    runSoak,
+	})
 }
 
+// soakConfig is the soak's shape; DurationEnv and ModeEnv override the
+// registered defaults for a diagnostic run.
 type soakConfig struct {
-	root, output, gameID, mode, speed, gabsLog string
-	headless, ultra                            bool
-	duration, poll, chunk                      time.Duration
-	stepTicks                                  int
+	mode, speed, gabsLog  string
+	ultra                 bool
+	duration, poll, chunk time.Duration
+	stepTicks             int
+}
+
+// soakDefaults is the registered soak: two minutes of Superfast polling
+// with GABS at debug level, inside a minute-scale budget. A diagnostic
+// chase sets DurationEnv (e.g. 12m) and ModeEnv (poll | idle |
+// pausedpoll | playfor | stepticks).
+func soakDefaults() (soakConfig, error) {
+	cfg := soakConfig{mode: "poll", speed: "Superfast", gabsLog: "debug", ultra: true,
+		duration: 2 * time.Minute, poll: 15 * time.Second, chunk: 60 * time.Second, stepTicks: 2500}
+	if mode := os.Getenv(ModeEnv); mode != "" {
+		cfg.mode = mode
+	}
+	if raw := os.Getenv(DurationEnv); raw != "" {
+		d, err := time.ParseDuration(raw)
+		if err != nil {
+			return cfg, fmt.Errorf("%s: %w", DurationEnv, err)
+		}
+		cfg.duration = d
+	}
+	return cfg, nil
 }
 
 type timeline struct {
@@ -142,22 +144,29 @@ func gabsStatus(ctx context.Context, client *bridge.Client) map[string]any {
 	return keep
 }
 
-func run(ctx context.Context, cfg soakConfig, report na.Report) error {
-	naCfg := &na.Config{Root: cfg.root, Output: cfg.output, Headless: cfg.headless, GameID: cfg.gameID}
-	if err := naCfg.PrepareConfig(); err != nil {
-		return fmt.Errorf("prepare profile: %w", err)
-	}
-	gabsExecutable, err := na.GABSExecutable(cfg.root, naCfg.Configuration)
+// runSoak owns the process (an Owned start): it opens GABS itself so its
+// stderr is captured at debug level, starts the game, drives the clock and
+// stops the game at the end.
+func runSoak(ctx context.Context, s cases.Session) error {
+	naCfg, report := s.Config(), s.Report()
+	cfg, err := soakDefaults()
 	if err != nil {
 		return err
 	}
-	stderrFile, err := os.Create(filepath.Join(cfg.output, "gabs-stderr.log"))
+	report["mode"] = cfg.mode
+	report["duration_ms"] = cfg.duration.Milliseconds()
+	output := naCfg.Output
+	gabsExecutable, err := na.GABSExecutable(naCfg.Root, naCfg.Configuration)
+	if err != nil {
+		return err
+	}
+	stderrFile, err := os.Create(filepath.Join(output, "gabs-stderr.log"))
 	if err != nil {
 		return err
 	}
 	defer stderrFile.Close()
 	client, err := bridge.Open(ctx, bridge.ProcessConfig{
-		Executable: gabsExecutable, ConfigDir: naCfg.Configuration, GameID: cfg.gameID,
+		Executable: gabsExecutable, ConfigDir: naCfg.Configuration, GameID: naCfg.GameID,
 		Timeout: 60 * time.Second, LogLevel: cfg.gabsLog, Stderr: stderrFile,
 	})
 	if err != nil {
@@ -182,8 +191,8 @@ func run(ctx context.Context, cfg soakConfig, report na.Report) error {
 		}
 		_ = client.Close()
 	}()
-	h := na.NewHarness(client, cfg.output)
-	tl, err := openTimeline(filepath.Join(cfg.output, "timeline.jsonl"))
+	h := na.NewHarness(client, output)
+	tl, err := openTimeline(filepath.Join(output, "timeline.jsonl"))
 	if err != nil {
 		return err
 	}
@@ -201,7 +210,7 @@ func run(ctx context.Context, cfg soakConfig, report na.Report) error {
 		schemas[name] = json.RawMessage(res.Structured)
 	}
 	if data, err := json.MarshalIndent(schemas, "", "  "); err == nil {
-		_ = os.WriteFile(filepath.Join(cfg.output, "tool-schemas.json"), data, 0644)
+		_ = os.WriteFile(filepath.Join(output, "tool-schemas.json"), data, 0644)
 	}
 
 	tl.row("gabs-status", map[string]any{"gabs": gabsStatus(ctx, client), "proc": processSample()})

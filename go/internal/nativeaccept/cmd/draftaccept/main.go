@@ -422,8 +422,8 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	// There is no authority-lease expiry case any more: #52 removed the timed
 	// lease (REVOCATION_REASON_LEASE_EXPIRED no longer exists). The only
 	// native-observable lapse is a typed clock lease running out, which needs
-	// the simulation to tick and is covered by cmd/disconnectaccept and
-	// cmd/movementaccept; every read here asserts the paused tick is unchanged.
+	// the simulation to tick and is covered by the authority/disconnect and
+	// movement/arrival cases; every read here asserts the paused tick is unchanged.
 	// Owned cleanup after authority is gone is already proven by the Manual
 	// section above.
 

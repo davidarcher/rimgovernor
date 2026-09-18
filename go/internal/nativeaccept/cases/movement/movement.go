@@ -1,67 +1,39 @@
-// Command movementaccept proves real
-// ordinary typed pawn arrival through the scenario clock (no injected movement or
-// completion), exact CAS/replay, no-op, a mid-flight controller disconnect (typed
-// clock lease lapse -> Inactive(DISCONNECT) -> fresh SetMode(Auto) recovery under
-// the same owned claim), and Manual/player override handling.
-package main
+// Package movement holds the Loud movement case (the former
+// movementaccept): real ordinary typed pawn arrival through the scenario
+// clock (no injected movement or completion), exact CAS/replay, no-op, a
+// mid-flight controller disconnect (typed clock lease lapse ->
+// Inactive(DISCONNECT) -> fresh SetMode(Auto) recovery under the same
+// owned claim), and Manual/player override handling.
+package movement
 
 import (
 	"context"
 	"encoding/json"
-	"flag"
 	"fmt"
-	"os"
 	"sort"
 	"time"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
+	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 )
 
-func main() {
-	root := flag.String("root", "", "absolute disposable worker root (e.g. .rimgovernor/bridge)")
-	output := flag.String("output", "", "fresh output directory (default <root>/native-movement-acceptance)")
-	rendered := flag.Bool("rendered", false, "use the windowed profile instead of headless")
-	game := flag.String("game", "rimgovernor-trial", "configured game ID")
-	timeout := flag.Duration("timeout", 20*time.Minute, "overall run timeout")
-	flag.Parse()
-	if *root == "" {
-		fmt.Fprintln(os.Stderr, "-root is required")
-		os.Exit(2)
-	}
-	if *output == "" {
-		*output = *root + "/native-movement-acceptance"
-	}
-	if err := os.MkdirAll(*output, 0755); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(2)
-	}
-	entries, _ := os.ReadDir(*output)
-	if len(entries) > 0 {
-		fmt.Fprintln(os.Stderr, "-output must be a fresh, empty directory")
-		os.Exit(2)
-	}
-	report := na.NewReport("Real ordinary native Goto arrival under typed authority/clock, exact CAS/replay, "+
-		"no-op, mid-flight disconnect (typed clock lease lapse) recovery, Manual and player override. "+
-		"No teleport or completion injection.", !*rendered)
-	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
-	defer cancel()
-	err := run(ctx, *root, *output, *game, !*rendered, report)
-	if err != nil {
-		report["error"] = err.Error()
-	} else {
-		report["passed"] = true
-	}
-	os.Exit(report.Finalize(*output))
+func init() {
+	cases.Register(cases.Case{
+		Name: "movement/arrival",
+		Scope: "Real ordinary native Goto arrival under typed authority/clock, exact CAS/replay, " +
+			"no-op, mid-flight disconnect (typed clock lease lapse) recovery, Manual and player override. " +
+			"No teleport or completion injection.",
+		Start:  cases.DebugStart{},
+		Quiet:  na.Loud,
+		Reason: "an interruption case: the scenario clock's colony watch policy (hostiles within range, injury stops) and the lease-lapse disconnect run against the game's own storyteller, which the quiet op replaces",
+		Budget: 10 * time.Minute,
+		Run:    run,
+	})
 }
 
-func run(ctx context.Context, root, output, gameID string, headless bool, report na.Report) error {
-	cfg := &na.Config{Root: root, Output: output, Headless: headless, GameID: gameID}
-	s, err := na.OpenSession(ctx, cfg, report, na.DebugStart{}, na.Loud)
-	if err != nil {
-		return err
-	}
-	defer s.Close()
-	h, names, identity := s.Harness, s.Names, s.Identity
+func run(ctx context.Context, s cases.Session) error {
+	report := s.Report()
+	h, names, identity := s.Harness(), s.Names(), s.Identity()
 	identityBeforeReply, err := h.Wire(ctx, "identity-before", "lifecycle_read_identity", map[string]any{})
 	if err != nil {
 		return err
@@ -662,11 +634,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	if ticks != 240+disconnectTicks {
 		return fmt.Errorf("expected exactly %v ticks to elapse (240 + %v disconnect window), got %v", 240+disconnectTicks, disconnectTicks, ticks)
 	}
-	logData, err := os.ReadFile(cfg.StartupLogPath())
-	if err != nil {
-		return fmt.Errorf("read startup log: %w", err)
-	}
-	if err := na.CheckStartupLog(string(logData), headless); err != nil {
+	if err := cases.CheckStartupLog(s); err != nil {
 		return err
 	}
 	report["pawn_id"] = pawnID

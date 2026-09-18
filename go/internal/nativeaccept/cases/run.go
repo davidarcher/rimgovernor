@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"time"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
@@ -45,7 +46,7 @@ func (o Options) CaseOutput(c Case) string {
 // budget, and records under wait_stats how many of its waits stalled.
 func Execute(ctx context.Context, c Case, opts Options) (na.Report, int) {
 	output := opts.CaseOutput(c)
-	report := na.NewReport(c.Scope, opts.Headless)
+	report := na.NewReport(c.Scope, opts.Headless && !c.Rendered)
 	report["case"] = c.Name
 	started := time.Now()
 	report["started_at"] = started.UTC().Format(time.RFC3339Nano)
@@ -106,7 +107,36 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 	if c.Serve != nil {
 		return fmt.Errorf("case %s declares Serve: the serve lifecycle is not wired into the runner yet (#138)", c.Name)
 	}
-	cfg := &na.Config{Root: opts.Root, Output: output, Headless: opts.Headless, GameID: opts.GameID}
+	s := &session{c: c, report: report}
+	cfg := &na.Config{Root: opts.Root, Output: output, Headless: opts.Headless && !c.Rendered, GameID: opts.GameID,
+		Spawned: func(pid int) { s.gabsPID.Store(int64(pid)) }}
+	s.config = cfg
+	report["keep"] = !c.NoKeep && na.KeepGame()
+	if owned, ok := c.Start.(Owned); ok {
+		// The case launches, drives and stops the process itself on this
+		// profile (the expansions of the saves it names), so a game an
+		// earlier case kept is stopped first: its profile may differ, and
+		// a kept process cannot change expansions.
+		if err := cfg.UseSaveExpansions(owned.Saves...); err != nil {
+			return err
+		}
+		if err := cfg.PrepareConfig(); err != nil {
+			return fmt.Errorf("prepare profile: %w", err)
+		}
+		report["start"] = owned.Describe()
+		report["quiet_mode"] = c.Quiet.String()
+		if err := na.StopGame(ctx, opts.Root, opts.GameID); err != nil {
+			return fmt.Errorf("stop kept game before owned start: %w", err)
+		}
+		return c.Run(ctx, s)
+	}
+	if c.Rendered && opts.Headless {
+		// A rendered case cannot run on the headless process the root
+		// keeps; end it so the windowed profile launches its own.
+		if err := na.StopGame(ctx, opts.Root, opts.GameID); err != nil {
+			return fmt.Errorf("stop kept headless game before rendered start: %w", err)
+		}
+	}
 	keep := make([]na.NeedDef, len(c.Keep))
 	for i, need := range c.Keep {
 		keep[i] = na.NeedDef(need)
@@ -118,9 +148,14 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 	if err != nil {
 		return err
 	}
+	if c.NoKeep {
+		// The case ends or replaces the process; nothing to keep.
+		opened.Game.Keep = false
+	}
 	defer opened.Close()
 	report["quiet_mode"] = c.Quiet.String()
-	return c.Run(ctx, &session{Session: opened, c: c})
+	s.Session = opened
+	return c.Run(ctx, s)
 }
 
 // nativeStart is the case's Start as the lifecycle library's.
@@ -142,18 +177,28 @@ func nativeStart(start Start) na.Start {
 
 // session is the runner's Session over the lifecycle library's.
 type session struct {
+	// Session is nil for an Owned case, which opens its own game on Config.
 	*na.Session
 	c       Case
+	config  *na.Config
+	report  na.Report
 	runtime *na.ScenarioRuntime
+	gabsPID atomic.Int64
 }
 
-func (s *session) Config() *na.Config       { return s.Session.Config }
+func (s *session) Config() *na.Config       { return s.config }
+func (s *session) GABSPID() int             { return int(s.gabsPID.Load()) }
 func (s *session) Harness() *na.Harness     { return s.Session.Harness }
 func (s *session) Names() []string          { return s.Session.Names }
 func (s *session) Identity() map[string]any { return s.Session.Identity }
 func (s *session) Prepared() map[string]any { return s.Session.Prepared }
-func (s *session) Report() na.Report        { return s.Session.Report }
-func (s *session) Release() error           { return s.Session.Release() }
+func (s *session) Report() na.Report        { return s.report }
+func (s *session) Release() error {
+	if s.Session == nil {
+		return errors.New("no game open: an Owned case holds its own session")
+	}
+	return s.Session.Release()
+}
 
 // Runtime is the case's scenario runtime over a controller clock the
 // runner acquires on first use; the discovered tools let AdvanceGame
