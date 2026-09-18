@@ -36,7 +36,7 @@ type composedFamilyPlanners struct {
 func composedRoutineFacts(t *testing.T, n *routineNative) {
 	t.Helper()
 	v := n.reply.GetObserved()
-	v.ForbiddenSupplies = []*c.Cell{{X: proto.Int32(1), Z: proto.Int32(2)}}
+	v.ForbiddenSupplies = []*o.EntityRef{{Id: proto.String("item-00"), DefName: proto.String("Steel"), MapId: v.Context.Identity.MapId, Position: &c.Cell{X: proto.Int32(1), Z: proto.Int32(2)}}}
 	v.PendingWoodUnits = proto.Float64(0)
 	v.ColonistCount = proto.Uint32(1)
 	v.WorkerCount = proto.Uint32(1)

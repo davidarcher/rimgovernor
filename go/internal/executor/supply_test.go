@@ -14,6 +14,9 @@ type supplyEnvironment struct {
 	*environment
 	inspected, allowed, observed       int
 	uncertain, unsafe, foreign, absent bool
+	// unadmitted marks the absent evidence as the boundary's complete
+	// post-dispatch ledger lookup, as boundary.Unadmitted reports it.
+	unadmitted bool
 	onInspect                          func()
 	gone                               bool
 	effect                             domain.Effect
@@ -55,7 +58,11 @@ func (n *supplyEnvironment) ObserveSupply(_ context.Context, p Placement, curren
 	if n.absent {
 		effect = domain.EffectAbsent
 	}
-	return SupplyEvidence{Observation: domain.Observation{Action: p.Action.ID(), Attempt: p.Attempt, Snapshot: current, Tick: p.Tick + 1, Effect: effect}, StartedAt: n.clock.Now(), ObservedAt: n.clock.Now(), Complete: effect != domain.EffectUnknown, Supply: supply, Allowed: domain.Known(effect == domain.EffectCompleted)}, nil
+	var causality domain.ObservationCausality
+	if n.unadmitted {
+		causality = domain.AfterDispatch
+	}
+	return SupplyEvidence{Observation: domain.Observation{Action: p.Action.ID(), Attempt: p.Attempt, Snapshot: current, Tick: p.Tick + 1, Effect: effect, Causality: causality}, StartedAt: n.clock.Now(), ObservedAt: n.clock.Now(), Complete: effect != domain.EffectUnknown, Supply: supply, Allowed: domain.Known(effect == domain.EffectCompleted)}, nil
 }
 func supplyFixture(t *testing.T) (*fixture, *supplyEnvironment) {
 	t.Helper()
@@ -168,6 +175,32 @@ func TestSupplyRejectsForeignCompletionAndAbsence(t *testing.T) {
 	}
 	if !f.progress(t).Unresolved || n.allowed != 1 {
 		t.Fatal("bad evidence released uncertainty")
+	}
+}
+// A dispatch that timed out before the native ledger admitted it leaves an
+// unknown receipt; the ledger lookup then proves no attempt exists, and the
+// action returns to Pending and is allowed again under a fresh token
+// instead of awaiting an observation that can never arrive (#120).
+func TestSupplyUnadmittedAttemptRetries(t *testing.T) {
+	f, n := supplyFixture(t)
+	n.uncertain = true
+	if _, err := f.run(); err == nil || n.allowed != 1 {
+		t.Fatal(err, n.allowed)
+	}
+	n.uncertain, n.absent, n.unadmitted = false, true, true
+	result, err := f.run()
+	if err != nil || result.Progress.View().Unresolved || result.Progress.View().Stage != domain.Pending || n.allowed != 1 {
+		t.Fatal(result, err, n.allowed)
+	}
+	n.absent, n.unadmitted = false, false
+	n.tick += 10
+	result, err = f.run()
+	if err != nil || n.allowed != 2 || result.Progress.View().Attempt != 2 {
+		t.Fatal(result, err, n.allowed)
+	}
+	n.effect = domain.EffectCompleted
+	if result, err = f.run(); err != nil || result.Progress.View().Stage != domain.Completed {
+		t.Fatal(result, err)
 	}
 }
 func TestSupplyTypedPreparationCannotBeBypassed(t *testing.T) {

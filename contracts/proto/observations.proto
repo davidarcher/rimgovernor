@@ -614,7 +614,7 @@ message ColonyFactsSnapshot {
   optional double sleeping_temperature_min_c = 16; optional double sleeping_temperature_max_c = 17; optional double outdoor_temperature_c = 18;
   repeated EnvironmentCondition environment = 19; FoodClimate food_climate = 20; repeated FarmFacts farms = 21;
   repeated CookingFacts cooking = 22; repeated AcquisitionFacts acquisition = 23; repeated ButcheringFacts butchering = 24;
-  repeated FoodCorpse food_corpses = 25; optional bool food_storage = 26; repeated rimgovernor.common.v1.Cell forbidden_supplies = 27;
+  repeated FoodCorpse food_corpses = 25; optional bool food_storage = 26; repeated EntityRef forbidden_supplies = 27; // Forbidden scenario starting stacks (id, def_name, map_id, position; no snapshot) near the colonists; the load census fixes the cohort and later reads report each stack at its current cell.
   FoodSupplySection food_supply = 28; ForecastSection forecast = 29; UpkeepSection upkeep = 30; DevelopmentSection development = 31;
   PlanningSection planning = 32; RecoveryReply recovery = 33; WasteReply waste = 34; Completeness completeness = 35; repeated ReadIssue issues = 36;
   optional double pending_wood_units = 37;

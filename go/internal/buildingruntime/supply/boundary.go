@@ -87,7 +87,13 @@ func (b *SupplyBoundary) InspectSupply(ctx context.Context, target executor.Targ
 	if _, err = boundary.Context(emergency.Context, current); err != nil {
 		return out, err
 	}
-	if read.Context.GetTick() != v.Context.GetTick() || v.Context.GetTick() != emergency.Context.GetTick() {
+	// The three reads need only be ordered, not simultaneous: the item's
+	// snapshot token already binds the Allow to the stack the read listed,
+	// so a tick that advanced between them is a running clock, not stale
+	// evidence. Demanding one tick held every Allow until the game paused,
+	// and a stack the executor only reached mid-window was never allowed
+	// (#120); the building family accepts the same monotonic order.
+	if v.Context.GetTick() < read.Context.GetTick() || emergency.Context.GetTick() < v.Context.GetTick() {
 		return out, executor.ErrHeld
 	}
 	out.Current, out.Tick, out.Supply, out.SnapshotToken, out.Accepted = current, domain.Tick(v.Context.GetTick()), supply, selected.Token, true

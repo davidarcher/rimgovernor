@@ -1,18 +1,20 @@
-// Command startingsuppliesaccept is the native acceptance run for issue
-// #114: the tribal8 baseline lands its whole starting food (six forbidden
-// pemmican stacks beside the drop pod site) and the supply family must
-// allow every starting stack before the colony eats through the pocket
-// food. Run 24 allowed one stack, the colonists ate it within a day, and
-// the Allow attempt then sat awaiting observation forever because the eaten
-// item was no longer observable: the plan never closed, no further stack was
-// ever allowed and the colony starved with 325 pemmican still forbidden.
+// Command startingsuppliesaccept is the native acceptance run for issues
+// #114 and #120: the tribal8 baseline lands its whole starting food (six
+// forbidden pemmican stacks beside the drop site) plus wood scattered up to
+// 20 cells out, and the supply family must allow every starting stack
+// before the colony eats through the pocket food. Run 24 allowed one stack,
+// the colonists ate it within a day, and the Allow attempt then sat awaiting
+// observation forever because the eaten item was no longer observable (#114);
+// a cohort keyed by cell then lost every stack a builder hauled aside for
+// the shell and never saw the wood outside the old 20-cell radius (#120).
 //
 // The run loads the save, launches the live service with the supply family
-// beside the shelter family that keeps the clock moving, and watches the AllowStartingSupplies goal until its need reads
-// recovered. The audit then compares the durable journal (no starting cell
-// still pending, no allow attempt still awaiting observation) against the
-// live native census (no forbidden supply left near the colonists) so a
-// stack the colonists consumed counts as allowed, not as lost.
+// beside the shelter family that keeps the clock moving, and watches the
+// AllowStartingSupplies goal until its need reads recovered. The audit then
+// compares the durable journal (no starting stack still pending, no allow
+// attempt still awaiting observation) against the live native census: every
+// stack the load census listed must be gone from the forbidden census
+// (allowed, or eaten once allowed), wherever it lies now.
 //
 // The run mechanics (profile, launch, authority, watch window) are shared
 // with sustainedfoodaccept through go/internal/nativeaccept/sustainedfood.
@@ -42,9 +44,12 @@ func main() {
 	game := flag.String("game", "rimgovernor-trial", "configured game ID")
 	rimgovernorBinary := flag.String("rimgovernor", "", "absolute path to a prebuilt rimgovernor binary (go build ./go/cmd/rimgovernor)")
 	save := flag.String("save", baselineSave, "save name to load (default: the tribal8 baseline)")
-	watch := flag.Duration("watch", 8*time.Minute, "wall-clock duration to let the supply planner run after authority is acquired")
+	// The tribal8 cohort is 23 stacks, three eight-action plans landed one
+	// after another with a review between them; at the bridge's live
+	// throughput the third plan closes five to ten minutes in.
+	watch := flag.Duration("watch", 12*time.Minute, "wall-clock duration to let the supply planner run after authority is acquired")
 	poll := flag.Duration("poll", 5*time.Second, "sampling interval during the watch window")
-	timeout := flag.Duration("timeout", 16*time.Minute, "overall run timeout (must exceed -watch plus startup/shutdown)")
+	timeout := flag.Duration("timeout", 20*time.Minute, "overall run timeout (must exceed -watch plus startup/shutdown)")
 	nativeTimeout := flag.Duration("native-timeout", 30*time.Second, "serve subprocess's own --timeout")
 	clockSpeed := flag.String("clock-speed", "Superfast", "serve's --clock-speed (Normal, Fast or Superfast)")
 	stepStall := flag.Duration("step-stall", 3*time.Minute, "fail fast unless a scheduler step has admitted a clock window within this long of the watch starting (0 disables)")
@@ -66,11 +71,11 @@ func main() {
 		os.Exit(2)
 	}
 	report := na.NewReport("Starting supplies against the "+*save+" save under the live supply planner: "+
-		"every forbidden starting stack must be allowed (or eaten once allowed) with no Allow attempt "+
-		"left awaiting observation and no starting cell still pending (issue #114).", !*rendered)
+		"every forbidden starting stack of the load census must be allowed (or eaten once allowed), wherever it "+
+		"was hauled, with no Allow attempt left awaiting observation and no starting stack still pending (issues #114, #120).", !*rendered)
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
-	var baseline int
+	var baseline []map[string]any
 	cfg := sustainedfood.RunConfig{
 		Root: *root, Output: *output, GameID: *game, Headless: !*rendered,
 		RimgovernorBinary: *rimgovernorBinary, Save: *save,
@@ -82,13 +87,13 @@ func main() {
 		// refused Allow can be read back instead of rerun.
 		ServeArgs: []string{"--flight-recorder", filepath.Join(*output, "service", "flight.jsonl")},
 		Prepare: func(ctx context.Context, h *na.Harness, report na.Report) error {
-			cells, err := forbiddenSupplies(ctx, h, "baseline-colony-facts")
+			rows, err := forbiddenSupplies(ctx, h, "baseline-colony-facts")
 			if err != nil {
 				return err
 			}
-			baseline = len(cells)
-			report["baseline_forbidden_cells"] = cells
-			if baseline == 0 {
+			baseline = rows
+			report["baseline_forbidden_supplies"] = rows
+			if len(rows) == 0 {
 				return fmt.Errorf("save holds no forbidden starting supply near the colonists; nothing to allow")
 			}
 			return nil
@@ -101,7 +106,7 @@ func main() {
 			return fmt.Errorf("reopen journal: %w", err)
 		}
 		defer journal.Close()
-		return audit(ctx, h, journal, report)
+		return audit(ctx, h, journal, baseline, report)
 	}
 	timeline, err := sustainedfood.Run(ctx, cfg, report)
 	report["timeline_samples"] = len(timeline)
@@ -140,28 +145,37 @@ func recovered(sample map[string]any) bool {
 }
 
 // forbiddenSupplies reads the same native census the review's
-// ForbiddenSupplies fact is judged on: forbidden food, weapons, medicine
-// and materials reachable within 20 cells of the colonists.
-func forbiddenSupplies(ctx context.Context, h *na.Harness, label string) ([]any, error) {
+// ForbiddenSupplies fact is judged on: forbidden stacks of the scenario's
+// starting definitions reachable near the colonists, each with its thing
+// id, definition, cell and count.
+func forbiddenSupplies(ctx context.Context, h *na.Harness, label string) ([]map[string]any, error) {
 	facts, err := h.Call(ctx, label, "home/colony_facts", map[string]any{})
 	if err != nil {
 		return nil, err
 	}
-	cells, ok := facts["forbiddenSupplies"].([]any)
+	raw, ok := facts["forbiddenSupplies"].([]any)
 	if !ok {
 		return nil, fmt.Errorf("native forbidden supply census unavailable: %#v", facts["forbiddenSupplies"])
 	}
-	return cells, nil
+	rows := make([]map[string]any, 0, len(raw))
+	for _, r := range raw {
+		row, ok := na.AsMap(r)
+		if !ok || na.AsString(row["id"]) == "" {
+			return nil, fmt.Errorf("native forbidden supply row lacks a thing id: %#v", r)
+		}
+		rows = append(rows, row)
+	}
+	return rows, nil
 }
 
 // audit compares the journal's starting-supply history and allow plans with
 // the live census after the service has stopped.
-func audit(ctx context.Context, h *na.Harness, journal *store.Store, report na.Report) error {
+func audit(ctx context.Context, h *na.Harness, journal *store.Store, baseline []map[string]any, report na.Report) error {
 	review, err := journal.LoadRoutineReview(ctx)
 	if err != nil {
 		return fmt.Errorf("load routine review: %w", err)
 	}
-	report["pending_cells"] = review.StartingSupplies.Pending
+	report["pending_supplies"] = review.StartingSupplies.Pending
 	if !review.StartingSupplies.Initialized {
 		return fmt.Errorf("the review never took its starting supply census")
 	}
@@ -221,70 +235,41 @@ func audit(ctx context.Context, h *na.Harness, journal *store.Store, report na.R
 		return fmt.Errorf("%d allow plans left attempts unresolved: %v", allow, open)
 	}
 	if len(review.StartingSupplies.Pending) > 0 {
-		return fmt.Errorf("%d starting supply cells still pending: %v", len(review.StartingSupplies.Pending), review.StartingSupplies.Pending)
+		return fmt.Errorf("%d starting supplies still pending: %v", len(review.StartingSupplies.Pending), review.StartingSupplies.Pending)
 	}
 	// The live census may list forbidden items the colony met later (a
 	// hunted animal's drop, a raider's weapon): the review never adopts
-	// those, so the native check is on the cohort itself. Every item the
-	// journal admitted for Allow must be gone from the forbidden census
-	// (allowed, or eaten once allowed), and the cells still forbidden are
-	// reported with their contents.
+	// those, so the native check is on the load census itself. Every stack
+	// it listed must be gone from the forbidden census (allowed, or eaten
+	// once allowed), wherever a builder hauled it; and every stack the
+	// journal admitted must have come from that census.
 	cohort := map[string]bool{}
+	for _, row := range baseline {
+		cohort[na.AsString(row["id"])] = true
+	}
+	admitted := map[string]bool{}
 	for _, method := range methods {
 		plan, _ := journal.LoadPlan(ctx, method.Plan)
 		for _, admission := range plan.SupplyAdmissions {
-			cohort[admission.Admission.Thing] = true
+			admitted[admission.Admission.Thing] = true
+			if !cohort[admission.Admission.Thing] {
+				return fmt.Errorf("allow admitted %s, which the load census never listed", admission.Admission.Thing)
+			}
 		}
 	}
 	report["cohort_things"] = len(cohort)
-	cells, err := forbiddenSupplies(ctx, h, "audit-colony-facts")
+	report["admitted_things"] = len(admitted)
+	rows, err := forbiddenSupplies(ctx, h, "audit-colony-facts")
 	if err != nil {
 		return err
 	}
-	report["forbidden_cells_after"] = cells
-	if len(cells) == 0 {
-		return nil
-	}
-	identityReply, err := h.Wire(ctx, "audit-identity", "lifecycle_read_identity", map[string]any{})
-	if err != nil {
-		return err
-	}
-	_, loaded, err := na.Outcome(identityReply, "loaded")
-	if err != nil {
-		return fmt.Errorf("identity: %w", err)
-	}
-	loadedContext, _ := na.AsMap(loaded["context"])
-	cellsReply, err := h.Wire(ctx, "audit-forbidden-cells", "observations_get_cells", map[string]any{
-		"scope":      map[string]any{"expectedIdentity": loadedContext["identity"]},
-		"exactCells": map[string]any{"cells": cells},
-		"fields":     map[string]any{"things": true},
-		"page":       map[string]any{"limit": len(cells)},
-	})
-	if err != nil {
-		return err
-	}
-	_, observed, err := na.Outcome(cellsReply, "observed")
-	if err != nil {
-		return fmt.Errorf("forbidden cells: %w", err)
-	}
-	var leftover []map[string]any
+	report["forbidden_supplies_after"] = rows
 	var still []string
-	for _, raw := range na.AsSlice(observed["cells"]) {
-		cell, _ := na.AsMap(raw)
-		for _, t := range na.AsSlice(cell["things"]) {
-			thing, _ := na.AsMap(t)
-			if forbidden, _ := na.AsBool(thing["forbidden"]); !forbidden {
-				continue
-			}
-			ref, _ := na.AsMap(thing["thing"])
-			row := map[string]any{"cell": cell["cell"], "id": ref["id"], "defName": ref["defName"], "count": thing["stackCount"]}
-			leftover = append(leftover, row)
-			if cohort[na.AsString(ref["id"])] {
-				still = append(still, na.AsString(ref["id"]))
-			}
+	for _, row := range rows {
+		if id := na.AsString(row["id"]); cohort[id] {
+			still = append(still, id)
 		}
 	}
-	report["forbidden_things_after"] = leftover
 	if len(still) > 0 {
 		return fmt.Errorf("%d starting supplies are still forbidden after the watch: %v", len(still), still)
 	}

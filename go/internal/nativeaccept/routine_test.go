@@ -66,43 +66,6 @@ func TestMedicalCareNativeEvidenceUsesReferenceAndRejectsFalseRecovery(t *testin
 	}
 }
 
-func TestStartingSupplyEvidenceRequiresExactOriginalCells(t *testing.T) {
-	active := map[string]any{
-		"review": map[string]any{"StartingSupplies": map[string]any{"Initialized": true, "Pending": []any{
-			map[string]any{"X": 2, "Z": 1}, map[string]any{"X": 1, "Z": 2},
-		}}},
-		"goals": map[string]any{"AllowStartingSupplies": map[string]any{"Need": "deficit"}},
-	}
-	cells := []any{map[string]any{"x": 1, "z": 2}, map[string]any{"x": 2, "z": 1}}
-	if err := AuditStartingSupplies(active, cells); err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	for _, mutation := range []struct {
-		field string
-		value any
-	}{{"Initialized", false}, {"Pending", []any{}}, {"Pending", []any{map[string]any{"X": 99, "Z": 99}}}} {
-		changed := deepCopyRoutineAny(active).(map[string]any)
-		review, _ := AsMap(changed["review"])
-		history, _ := AsMap(review["StartingSupplies"])
-		history[mutation.field] = mutation.value
-		if err := AuditStartingSupplies(changed, cells); err == nil {
-			t.Fatalf("expected an error for field %s", mutation.field)
-		}
-	}
-	review, _ := AsMap(active["review"])
-	history, _ := AsMap(review["StartingSupplies"])
-	history["Pending"] = nil
-	goals, _ := AsMap(active["goals"])
-	goal, _ := AsMap(goals["AllowStartingSupplies"])
-	goal["Need"] = "recovered"
-	if err := AuditStartingSupplies(active, []any{}); err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if err := AuditStartingSupplies(active, cells); err == nil {
-		t.Fatal("expected an error once cells are non-empty but the goal says recovered")
-	}
-}
-
 func TestComfortAcceptanceRequiresCurrentAccessibleFacilitiesAndUseHistory(t *testing.T) {
 	active := map[string]any{
 		"review": map[string]any{"Tick": 100, "Comfort": map[string]any{

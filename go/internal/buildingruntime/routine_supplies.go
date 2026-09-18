@@ -10,6 +10,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	"slices"
 	"sort"
 )
 
@@ -82,8 +83,21 @@ func (r *RoutineSupplyPlanner) step(call, epoch context.Context, arbiter *stepAr
 		return RoutineSupplyResult{}, err
 	}
 	started := r.reviewer.clock.Now()
+	// Each pending stack is read at the cell the review's census last saw
+	// it, one read per cell; a stack that moved since is simply absent and
+	// waits for the next census to report its new cell.
+	pending := map[string]policy.StartingSupply{}
+	var cells []domain.Cell
+	for _, row := range review.StartingSupplies.Pending {
+		pending[row.Thing] = row
+		cells = append(cells, row.Cell)
+	}
+	sort.Slice(cells, func(i, j int) bool {
+		return cells[i].Z < cells[j].Z || cells[i].Z == cells[j].Z && cells[i].X < cells[j].X
+	})
+	cells = slices.Compact(cells)
 	var targets []domain.SupplyAllow
-	for _, cell := range review.StartingSupplies.Pending {
+	for _, cell := range cells {
 		read, _, err := r.native.ReadAllowSupplies(call, boundary.Identity(state.Snapshot), cell)
 		if err != nil {
 			return RoutineSupplyResult{}, err
@@ -95,7 +109,8 @@ func (r *RoutineSupplyPlanner) step(call, epoch context.Context, arbiter *stepAr
 			if target.Supply.Cell() != cell {
 				return RoutineSupplyResult{}, ErrControl
 			}
-			if !claims[target.Supply.Thing()] {
+			row, listed := pending[target.Supply.Thing()]
+			if listed && row.Definition == target.Supply.Definition() && row.Cell == cell && !claims[target.Supply.Thing()] {
 				targets = append(targets, target.Supply)
 			}
 		}

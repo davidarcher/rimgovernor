@@ -139,13 +139,12 @@ func ValidateColonyFacts(v *o.ColonyFactsSnapshot, identity *c.Identity) error {
 	if len(v.ForbiddenSupplies) > 256 {
 		return contract("forbidden supplies exceed bound")
 	}
-	seen := map[[2]int32]bool{}
-	for _, cell := range v.ForbiddenSupplies {
-		key := [2]int32{cell.GetX(), cell.GetZ()}
-		if !colonyCell(cell, v.MapSize) || seen[key] {
-			return contract("invalid forbidden supply cell")
+	seen := map[string]bool{}
+	for _, row := range v.ForbiddenSupplies {
+		if row == nil || validID(row.GetId()) != nil || seen[row.GetId()] || validID(row.GetDefName()) != nil || row.MapId == nil || row.GetMapId() != v.Context.Identity.GetMapId() || !colonyCell(row.Position, v.MapSize) {
+			return contract("invalid forbidden supply")
 		}
-		seen[key] = true
+		seen[row.GetId()] = true
 	}
 	if v.Naming != nil {
 		if v.Naming.WindowId == nil || v.Naming.GetWindowId() < 0 || v.Naming.FactionName == nil || v.Naming.SettlementName == nil || len(v.Naming.Issues) != 0 ||

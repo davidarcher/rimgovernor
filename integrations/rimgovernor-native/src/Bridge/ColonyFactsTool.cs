@@ -119,11 +119,8 @@ namespace HomeBridge.BridgeTools
                     nutritionYield = humanFood(p.def.plant.harvestedThingDef)
                         ? p.YieldNow() * p.def.plant.harvestedThingDef.GetStatValueAbstract(StatDefOf.Nutrition) : 0f,
                     designated = map.designationManager.DesignationOn(p) != null }).ToList();
-            var allowedSupplies = things.Where(t => t.def.category == ThingCategory.Item && (t.Faction == null || t.Faction.IsPlayer)
-                && (t.def.IsNutritionGivingIngestible || t.def.IsWeapon || t.def.IsMedicine || t.def.IsStuff || t.def.defName == "Silver")
-                && t.IsForbidden(Faction.OfPlayerSilentFail) && t.Position.DistanceTo(center) <= 20 && reachable(t))
-                .OrderBy(t => t.Position.DistanceToSquared(center)).ThenBy(t => t.thingIDNumber).Take(80)
-                .Select(t => new { x = t.Position.x, z = t.Position.z }).Distinct().ToList();
+            var forbiddenSupplies = StartingSupplyFacts.Forbidden(things, center, reachable)
+                .Select(t => new { id = t.GetUniqueLoadID(), defName = t.def.defName, x = t.Position.x, z = t.Position.z, count = t.stackCount }).ToList();
             var foodStorage = map.zoneManager.AllZones.OfType<Zone_Stockpile>().Any(zone =>
                 zone.GetStoreSettings()?.filter != null
                 && DefDatabase<ThingDef>.AllDefsListForReading.Any(d => humanFood(d) && zone.GetStoreSettings().filter.Allows(d))
@@ -179,7 +176,7 @@ namespace HomeBridge.BridgeTools
                 ["foodStorage"] = foodStorage,
                 ["waste"] = HomeWasteTools.Census("", ""),
                 ["recovery"] = HomeRecoveryTools.Census(),
-                ["forbiddenSupplies"] = allowedSupplies,
+                ["forbiddenSupplies"] = forbiddenSupplies,
                 ["notes"] = new[] { "Raw runway is shared-diet accessible stock divided by fed consumption. foodSupply separately observes holder-owned inventory and native rot deadlines for the controller's per-colonist forecast; neither guarantees future temperature or access.",
                     "Harvest ETA is an optimistic lower bound; it cannot clear food risk. foodClimate samples native seasonal temperature daily; weather and future harvest are not guaranteed." }
             };

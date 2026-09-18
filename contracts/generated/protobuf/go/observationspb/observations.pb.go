@@ -25899,7 +25899,7 @@ type ColonyFactsSnapshot struct {
 	Butchering              []*ButcheringFacts           `protobuf:"bytes,24,rep,name=butchering,proto3" json:"butchering,omitempty"`
 	FoodCorpses             []*FoodCorpse                `protobuf:"bytes,25,rep,name=food_corpses,json=foodCorpses,proto3" json:"food_corpses,omitempty"`
 	FoodStorage             *bool                        `protobuf:"varint,26,opt,name=food_storage,json=foodStorage,proto3,oneof" json:"food_storage,omitempty"`
-	ForbiddenSupplies       []*commonpb.Cell             `protobuf:"bytes,27,rep,name=forbidden_supplies,json=forbiddenSupplies,proto3" json:"forbidden_supplies,omitempty"`
+	ForbiddenSupplies       []*EntityRef                 `protobuf:"bytes,27,rep,name=forbidden_supplies,json=forbiddenSupplies,proto3" json:"forbidden_supplies,omitempty"` // Forbidden scenario starting stacks (id, def_name, map_id, position; no snapshot) near the colonists; the load census fixes the cohort and later reads report each stack at its current cell.
 	FoodSupply              *FoodSupplySection           `protobuf:"bytes,28,opt,name=food_supply,json=foodSupply,proto3" json:"food_supply,omitempty"`
 	Forecast                *ForecastSection             `protobuf:"bytes,29,opt,name=forecast,proto3" json:"forecast,omitempty"`
 	Upkeep                  *UpkeepSection               `protobuf:"bytes,30,opt,name=upkeep,proto3" json:"upkeep,omitempty"`
@@ -26129,7 +26129,7 @@ func (x *ColonyFactsSnapshot) GetFoodStorage() bool {
 	return false
 }
 
-func (x *ColonyFactsSnapshot) GetForbiddenSupplies() []*commonpb.Cell {
+func (x *ColonyFactsSnapshot) GetForbiddenSupplies() []*EntityRef {
 	if x != nil {
 		return x.ForbiddenSupplies
 	}
@@ -31504,7 +31504,7 @@ const file_observations_proto_rawDesc = "" +
 	"\rUpkeepSection\x12F\n" +
 	"\bobserved\x18\x01 \x01(\v2(.rimgovernor.observations.v1.UpkeepFactsH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailableB\t\n" +
-	"\aoutcome\"\x8a\x16\n" +
+	"\aoutcome\"\x95\x16\n" +
 	"\x13ColonyFactsSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12A\n" +
 	"\x06naming\x18\x02 \x01(\v2).rimgovernor.observations.v1.ColonyNamingR\x06naming\x12*\n" +
@@ -31535,8 +31535,8 @@ const file_observations_proto_rawDesc = "" +
 	"butchering\x18\x18 \x03(\v2,.rimgovernor.observations.v1.ButcheringFactsR\n" +
 	"butchering\x12J\n" +
 	"\ffood_corpses\x18\x19 \x03(\v2'.rimgovernor.observations.v1.FoodCorpseR\vfoodCorpses\x12&\n" +
-	"\ffood_storage\x18\x1a \x01(\bH\fR\vfoodStorage\x88\x01\x01\x12J\n" +
-	"\x12forbidden_supplies\x18\x1b \x03(\v2\x1b.rimgovernor.common.v1.CellR\x11forbiddenSupplies\x12O\n" +
+	"\ffood_storage\x18\x1a \x01(\bH\fR\vfoodStorage\x88\x01\x01\x12U\n" +
+	"\x12forbidden_supplies\x18\x1b \x03(\v2&.rimgovernor.observations.v1.EntityRefR\x11forbiddenSupplies\x12O\n" +
 	"\vfood_supply\x18\x1c \x01(\v2..rimgovernor.observations.v1.FoodSupplySectionR\n" +
 	"foodSupply\x12H\n" +
 	"\bforecast\x18\x1d \x01(\v2,.rimgovernor.observations.v1.ForecastSectionR\bforecast\x12B\n" +
@@ -32829,7 +32829,7 @@ var file_observations_proto_depIdxs = []int32{
 	243, // 712: rimgovernor.observations.v1.ColonyFactsSnapshot.acquisition:type_name -> rimgovernor.observations.v1.AcquisitionFacts
 	244, // 713: rimgovernor.observations.v1.ColonyFactsSnapshot.butchering:type_name -> rimgovernor.observations.v1.ButcheringFacts
 	245, // 714: rimgovernor.observations.v1.ColonyFactsSnapshot.food_corpses:type_name -> rimgovernor.observations.v1.FoodCorpse
-	307, // 715: rimgovernor.observations.v1.ColonyFactsSnapshot.forbidden_supplies:type_name -> rimgovernor.common.v1.Cell
+	9,   // 715: rimgovernor.observations.v1.ColonyFactsSnapshot.forbidden_supplies:type_name -> rimgovernor.observations.v1.EntityRef
 	250, // 716: rimgovernor.observations.v1.ColonyFactsSnapshot.food_supply:type_name -> rimgovernor.observations.v1.FoodSupplySection
 	251, // 717: rimgovernor.observations.v1.ColonyFactsSnapshot.forecast:type_name -> rimgovernor.observations.v1.ForecastSection
 	280, // 718: rimgovernor.observations.v1.ColonyFactsSnapshot.upkeep:type_name -> rimgovernor.observations.v1.UpkeepSection

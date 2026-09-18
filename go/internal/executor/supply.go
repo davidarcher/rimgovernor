@@ -99,9 +99,17 @@ func (e *Executor) runSupply(ctx context.Context, action domain.Action, p domain
 			if !evidence.Complete || evidence.Supply != supply || !known || allowed || o.UnsuccessfulReason != domain.OutcomeNotAchieved {
 				return result, ErrEvidence
 			}
+		case domain.EffectAbsent:
+			// The native ledger has no entry for the attempt: the dispatch
+			// timed out before admission (#71), so the Allow never ran and
+			// the action returns to Pending for a fresh attempt under a
+			// fresh token. Only the boundary's complete post-dispatch
+			// lookup says so; anything less cannot authorize a second Allow.
+			if !evidence.Complete || o.Causality != domain.AfterDispatch {
+				return result, ErrEvidence
+			}
 		case domain.EffectUnknown, domain.EffectPending:
 		default:
-			// Missing native attempt/item cannot authorize a second Allow.
 			return result, ErrEvidence
 		}
 		next, err := e.journal.Observe(ctx, v.Plan, o, current)

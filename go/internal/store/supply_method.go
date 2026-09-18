@@ -7,25 +7,72 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// SupplyClaims retains admitted item identities across player directions. A
-// cancelled or uncertain batch cannot adopt a later player forbid as new work.
+// SupplyClaims names every item this world's routine Allow completed. The
+// cohort itself never adopts later forbids, but an item allowed and then
+// re-forbidden by the player before the next census still reads forbidden,
+// and a completed Allow must not be repeated. A cancelled or unsuccessful
+// attempt (the stack left its cell before the write) claims nothing, so the
+// next census can re-target the same stack where it now lies.
+//
+// Only a plan holding a supply action with an observe transition can carry
+// a completed Allow (Completed is reached solely through Observe), so the
+// link query excludes the rest before the full plan load.
 func (s *Store) SupplyClaims(ctx context.Context, world World) (map[string]bool, error) {
-	rows, err := s.db.QueryContext(ctx, "SELECT thing FROM supply_claims WHERE colony=? AND load_token=? AND map_id=?", world.Colony, world.Load, world.Map)
+	tx, err := s.begin(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	out := map[string]bool{}
+	defer tx.Rollback()
+	out, err := supplyClaims(ctx, tx, world)
+	if err != nil {
+		return nil, err
+	}
+	return out, tx.Commit()
+}
+func supplyClaims(ctx context.Context, tx *sql.Tx, world World) (map[string]bool, error) {
+	rows, err := tx.QueryContext(ctx, `SELECT DISTINCT a.plan_id FROM actions a JOIN transitions t ON t.action_id=a.id
+ WHERE a.kind=? AND json_extract(t.payload,'$.Kind')='observe' ORDER BY a.plan_id LIMIT 257`, domain.SupplyAllowAction)
+	if err != nil {
+		return nil, err
+	}
+	var plans []domain.PlanID
 	for rows.Next() {
-		var id string
+		var id domain.PlanID
 		if err = rows.Scan(&id); err != nil {
+			rows.Close()
 			return nil, err
 		}
-		out[id] = true
+		plans = append(plans, id)
 	}
-	return out, rows.Err()
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return nil, err
+	}
+	if len(plans) > 256 {
+		return nil, ErrCapacity
+	}
+	out := map[string]bool{}
+	for _, id := range plans {
+		plan, err := load(ctx, tx, id)
+		if err != nil {
+			return nil, err
+		}
+		for _, progress := range plan.Progress {
+			v := progress.View()
+			supply, ok := progress.Action().SupplyAllow()
+			effect, known := v.Effect.Value()
+			if !ok || !known || effect != domain.EffectCompleted || v.Stage != domain.Completed || v.Snapshot.Colony != world.Colony || v.Snapshot.Load != world.Load || v.Snapshot.Map != world.Map {
+				continue
+			}
+			out[supply.Thing()] = true
+		}
+	}
+	return out, nil
 }
 
+// admitSupplyMethod admits only stacks the review's cohort still lists, each
+// at the cell the census last reported, in bounded batches.
 func admitSupplyMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan domain.PlanSpec) error {
 	hasSupply := false
 	for _, action := range plan.Actions() {
@@ -48,18 +95,18 @@ func admitSupplyMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan dom
 	if !bound {
 		return ErrConflict
 	}
-	cells := map[domain.Cell]bool{}
-	for _, cell := range review.StartingSupplies.Pending {
-		cells[cell] = true
+	pending := map[string]policy.StartingSupply{}
+	for _, row := range review.StartingSupplies.Pending {
+		pending[row.Thing] = row
 	}
 	for _, action := range plan.Actions() {
 		supply, ok := action.SupplyAllow()
-		if !ok || !cells[supply.Cell()] {
+		if !ok {
 			return ErrConflict
 		}
-		scope := review.Snapshot
-		if _, err = tx.ExecContext(ctx, "INSERT INTO supply_claims(colony,load_token,map_id,thing) VALUES(?,?,?,?)", scope.Colony, scope.Load, scope.Map, supply.Thing()); err != nil {
-			return conflict(err)
+		row, listed := pending[supply.Thing()]
+		if !listed || row.Definition != supply.Definition() || row.Cell != supply.Cell() {
+			return ErrConflict
 		}
 	}
 	return nil

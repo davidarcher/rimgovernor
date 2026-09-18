@@ -90,6 +90,31 @@ func TestSupplyBoundaryReportsAbsentTarget(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+// The clock may run between the cell read, the preview and the emergency
+// read: the inspection accepts ticks in that order (the token binds the
+// item) and holds only when one of them predates the read before it (#120).
+func TestSupplyBoundaryAcceptsAdvancingTicksAcrossItsReads(t *testing.T) {
+	t.Parallel()
+	b, f := newSupplyBoundaryFixture(t)
+	p := f.Placement
+	target := executor.Target{Action: p.Action, Snapshot: p.Snapshot}
+	previewTick := f.Receipt.AdmittedContext.GetTick()
+	f.read.Context.Tick = proto.Int64(previewTick - 5)
+	f.Emergency.Context.Tick = proto.Int64(previewTick + 7)
+	inspection, err := b.InspectSupply(context.Background(), target)
+	if err != nil || !inspection.Accepted || inspection.Tick != domain.Tick(previewTick) || inspection.SnapshotToken != "token" {
+		t.Fatal(inspection, err)
+	}
+	f.read.Context.Tick = proto.Int64(previewTick + 1)
+	if _, err := b.InspectSupply(context.Background(), target); !errors.Is(err, executor.ErrHeld) {
+		t.Fatal(err)
+	}
+	f.read.Context.Tick = proto.Int64(previewTick)
+	f.Emergency.Context.Tick = proto.Int64(previewTick - 1)
+	if _, err := b.InspectSupply(context.Background(), target); !errors.Is(err, executor.ErrHeld) {
+		t.Fatal(err)
+	}
+}
 func TestSupplyBoundaryRejectsForeignAndIncompleteEvidence(t *testing.T) {
 	t.Parallel()
 	for _, kind := range []string{"item", "cell", "incomplete", "reason", "world"} {

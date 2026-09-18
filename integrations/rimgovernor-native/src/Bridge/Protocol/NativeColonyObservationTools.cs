@@ -112,11 +112,10 @@ namespace HomeBridge.BridgeTools
                 zone.GetStoreSettings()?.filter != null && DefDatabase<ThingDef>.AllDefsListForReading.Any(d => humanFood(d) && zone.GetStoreSettings().filter.Allows(d))
                 && map.AllCells.Count(c => map.zoneManager.ZoneAt(c) == zone && c.Roofed(map) && c.GetRoom(map) != null
                     && c.GetRoom(map).ProperRoom && !c.GetRoom(map).PsychologicallyOutdoors) >= 9);
-            var forbidden = things.Where(t => t.def.category == ThingCategory.Item && (t.Faction == null || t.Faction.IsPlayer)
-                && (t.def.IsNutritionGivingIngestible || t.def.IsWeapon || t.def.IsMedicine || t.def.IsStuff || t.def.defName == "Silver")
-                && t.IsForbidden(player) && t.Position.DistanceTo(center) <= 20 && reachable(t)).Select(t => t.Position).Distinct().OrderBy(c => c.z).ThenBy(c => c.x).ToList();
+            var forbidden = StartingSupplyFacts.Forbidden(things, center, reachable);
             Bound(forbidden.Count, limit);
-            foreach (var cell in forbidden) result.ForbiddenSupplies.Add(Cell(cell));
+            foreach (var t in forbidden)
+                result.ForbiddenSupplies.Add(new Obs.EntityRef { Id = t.GetUniqueLoadID(), DefName = t.def.defName, MapId = map.uniqueID, Position = Cell(t.Position) });
             ReadProduction(result, map, people, things, reachable, humanFood, limit);
             var naming = ColonyNamingTools.Pending();
             if (naming != null) result.Naming = new Obs.ColonyNaming { WindowId = naming.ID,

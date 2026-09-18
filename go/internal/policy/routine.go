@@ -295,7 +295,7 @@ type RoutineFacts struct {
 	Comfort              domain.Fact[ComfortObservation]
 	ComfortRecovered     domain.Fact[bool]
 	ComfortDeficit       domain.Fact[float64]
-	StartingSupplyCells  domain.Fact[[]domain.Cell]
+	StartingSupplies     domain.Fact[[]StartingSupply]
 	MedicalPawns         domain.Fact[[]CarePawn]
 	MedicalCareRecovered domain.Fact[bool]
 	Workers              domain.Fact[int]

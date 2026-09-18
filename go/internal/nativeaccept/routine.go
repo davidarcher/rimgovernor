@@ -60,50 +60,6 @@ func AuditMedicalCare(active, expected map[string]any) error {
 	return nil
 }
 
-// AuditStartingSupplies asserts a Go routine review's durable StartingSupplies
-// census matches the native original forbidden-supply cells exactly (once sorted
-// into (Z,X) native order) and its AllowStartingSupplies goal need reflects
-// whether any such cells remain.
-func AuditStartingSupplies(active map[string]any, cells []any) error {
-	review, _ := AsMap(active["review"])
-	history, _ := AsMap(review["StartingSupplies"])
-	expected := make([]map[string]any, 0, len(cells))
-	for _, raw := range cells {
-		cell, ok := AsMap(raw)
-		if !ok {
-			return fmt.Errorf("starting supplies cell must be an object")
-		}
-		expected = append(expected, map[string]any{"X": cell["x"], "Z": cell["z"]})
-	}
-	sort.Slice(expected, func(i, j int) bool {
-		zi, zj := AsNumber(expected[i]["Z"]), AsNumber(expected[j]["Z"])
-		if zi != zj {
-			return zi < zj
-		}
-		return AsNumber(expected[i]["X"]) < AsNumber(expected[j]["X"])
-	})
-	expectedAny := make([]any, len(expected))
-	for i, cell := range expected {
-		expectedAny[i] = cell
-	}
-	if initialized, ok := AsBool(history["Initialized"]); !ok || !initialized {
-		return fmt.Errorf("starting supplies was not initialized")
-	}
-	if !DeepEqual(AsSlice(history["Pending"]), expectedAny) {
-		return fmt.Errorf("starting supplies pending does not match the native original cells")
-	}
-	goals, _ := AsMap(active["goals"])
-	goal, _ := AsMap(goals["AllowStartingSupplies"])
-	wantNeed := "recovered"
-	if len(cells) > 0 {
-		wantNeed = "deficit"
-	}
-	if AsString(goal["Need"]) != wantNeed {
-		return fmt.Errorf("starting supplies goal need does not match cell presence")
-	}
-	return nil
-}
-
 // AuditComfortUse asserts a recovered EnsureComfort goal's dining/recreation use
 // proof still identifies a currently accessible native facility for every eligible
 // colonist: a

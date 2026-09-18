@@ -41,7 +41,7 @@ import (
 	"modernc.org/sqlite"
 )
 
-const schemaVersion = 80
+const schemaVersion = 81
 const applicationID = 0x52474f31
 
 var ErrConflict = core.ErrConflict
@@ -229,7 +229,6 @@ CREATE TABLE transitions(sequence INTEGER PRIMARY KEY, action_id TEXT NOT NULL R
 CREATE TABLE action_dependencies(plan_id TEXT NOT NULL REFERENCES plans(id), action_id TEXT NOT NULL REFERENCES actions(id), requires_id TEXT NOT NULL REFERENCES actions(id), PRIMARY KEY(plan_id,action_id,requires_id)) STRICT;
 CREATE TABLE admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL);
 CREATE TABLE draft_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;
-CREATE TABLE supply_claims(colony TEXT NOT NULL, load_token TEXT NOT NULL, map_id INTEGER NOT NULL, thing TEXT NOT NULL, PRIMARY KEY(colony,load_token,map_id,thing)) STRICT;
 CREATE TABLE bill_claims(colony TEXT NOT NULL,load_token TEXT NOT NULL,map_id INTEGER NOT NULL,bench TEXT NOT NULL,recipe TEXT NOT NULL,PRIMARY KEY(colony,load_token,map_id,bench,recipe)) STRICT;
 CREATE TABLE bill_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id),payload BLOB NOT NULL) STRICT;
 CREATE TABLE zone_admissions(action_id TEXT PRIMARY KEY REFERENCES actions(id), payload BLOB NOT NULL) STRICT;

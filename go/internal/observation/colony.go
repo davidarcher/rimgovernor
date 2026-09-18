@@ -314,11 +314,11 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 	}
 	if !hasIssue(v.Issues, "forbidden_supplies") {
 		r.Facts.ForbiddenSupplies = domain.Known(len(v.ForbiddenSupplies) > 0)
-		cells := make([]domain.Cell, 0, len(v.ForbiddenSupplies))
-		for _, cell := range v.ForbiddenSupplies {
-			cells = append(cells, domain.Cell{X: cell.GetX(), Z: cell.GetZ()})
+		rows := make([]policy.StartingSupply, 0, len(v.ForbiddenSupplies))
+		for _, row := range v.ForbiddenSupplies {
+			rows = append(rows, policy.StartingSupply{Thing: row.GetId(), Definition: row.GetDefName(), Cell: domain.Cell{X: row.Position.GetX(), Z: row.Position.GetZ()}})
 		}
-		r.Facts.StartingSupplyCells = domain.Known(cells)
+		r.Facts.StartingSupplies = domain.Known(rows)
 	}
 	if planning := v.GetPlanning().GetObserved(); planning != nil {
 		if planning.ZoneMapSnapshot != nil && !hasIssue(planning.Issues, "zone_map_snapshot") {
