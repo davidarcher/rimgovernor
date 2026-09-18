@@ -33,8 +33,8 @@ import (
 //     test/hut_shell_fixture spawns the ring finished but for a few
 //     load-bearing walls near the door, with wood beside it.
 //  3. run 1: the routine adopts the standing ring from its journal under a
-//     fresh goal and orders exactly the missing cells; the case waits
-//     until they are all ordered natively and one still pends.
+//     fresh goal and orders exactly the missing cells; the case stops at
+//     the first the game acknowledges and has not completed.
 //  4. the service is stopped; through a private bridge session the case
 //     cancels one pending wall in-game (a player edit while the controller
 //     is down).
@@ -60,6 +60,10 @@ const (
 	// spawnWood the WoodLog it drops beside the staged door for them.
 	stagePending = 3
 	spawnWood    = 150
+	// orderPoll is run 1's store poll while it waits for the first
+	// acknowledged wall order: every poll interval is game time the
+	// builders spend on that wall before the service stops.
+	orderPoll = 250 * time.Millisecond
 	// buildWait is the wall-clock ceiling for each construction phase,
 	// furnishWait for a bed completed inside the finished hut.
 	buildWait   = 30 * time.Minute
@@ -255,15 +259,20 @@ func hut(ctx context.Context, s cases.Session, terrain string) error {
 	if err != nil {
 		return err
 	}
-	if err := waitLineage(ctx, st, sh, w.wait(w.build, service), func(l lineage) bool {
-		// Stop only while a load-bearing wall is ordered but not completed,
-		// so the in-game cancel below has one to take. A staged run first
-		// waits for every missing cell to be ordered: the last dispatch is
-		// the freshest, and the builders are quick with a handful of walls.
-		if l.live == nil || l.liveComplete() || len(l.ordered) < len(sh.expect) {
+	run1 := w.wait(w.build, service)
+	run1.Interval = orderPoll
+	if err := waitLineage(ctx, st, sh, run1, func(l lineage) bool {
+		// Stop at the first load-bearing wall the game has acknowledged and
+		// not completed, so the in-game cancel below has one to take. The
+		// builders raise a wall beside staged wood in a few hundred ticks
+		// and the dispatcher paces orders seconds apart, so waiting for the
+		// rest of the missing cells leaves the first standing before the
+		// service is down (run 2 tolerates cells run 1 never ordered); a
+		// dispatch still in flight may never reach the game (undecided).
+		if l.live == nil || l.liveComplete() {
 			return false
 		}
-		for c := range l.undecided {
+		for c := range l.acknowledged {
 			if sh.bearing(c) {
 				return true
 			}
@@ -418,14 +427,16 @@ func start(ctx context.Context, s cases.Session, previous *na.ServiceProcess) (*
 // for the missing cells, so the shell's history is a chain of plans, at most
 // one of them live. Cells ordered natively are the union of every dispatch
 // attempt; a dispatch whose receipt never arrived, or whose effect was never
-// observed, may or may not stand in the game and is undecided.
+// observed, may or may not stand in the game and is undecided; a cell
+// whose receipt arrived but whose completion has not is acknowledged.
 type lineage struct {
-	plans     map[domain.PlanID]bool
-	byID      map[domain.PlanID]store.PlanState
-	ordered   map[domain.Cell]bool
-	undecided map[domain.Cell]bool
-	completed map[domain.Cell]bool
-	live      *store.PlanState
+	plans        map[domain.PlanID]bool
+	byID         map[domain.PlanID]store.PlanState
+	ordered      map[domain.Cell]bool
+	undecided    map[domain.Cell]bool
+	acknowledged map[domain.Cell]bool
+	completed    map[domain.Cell]bool
+	live         *store.PlanState
 }
 
 func (l lineage) planIDs() []string {
@@ -471,7 +482,7 @@ func shellLineage(ctx context.Context, st *store.Store, sh *shell) (lineage, err
 		}
 		plans = append(plans, plan)
 	}
-	l := lineage{plans: map[domain.PlanID]bool{}, byID: map[domain.PlanID]store.PlanState{}, ordered: map[domain.Cell]bool{}, undecided: map[domain.Cell]bool{}, completed: map[domain.Cell]bool{}}
+	l := lineage{plans: map[domain.PlanID]bool{}, byID: map[domain.PlanID]store.PlanState{}, ordered: map[domain.Cell]bool{}, undecided: map[domain.Cell]bool{}, acknowledged: map[domain.Cell]bool{}, completed: map[domain.Cell]bool{}}
 	for _, plan := range plans {
 		cancelled, gap := false, false
 		for i, a := range plan.Spec.Actions() {
@@ -498,8 +509,12 @@ func shellLineage(ctx context.Context, st *store.Store, sh *shell) (lineage, err
 				continue
 			}
 			l.ordered[b.Cell()] = true
-			if _, known := v.Receipt.Value(); !known || v.Unresolved || v.Stage != domain.Completed {
+			_, known := v.Receipt.Value()
+			if !known || v.Unresolved || v.Stage != domain.Completed {
 				l.undecided[b.Cell()] = true
+			}
+			if known && v.Stage != domain.Completed {
+				l.acknowledged[b.Cell()] = true
 			}
 		}
 		l.plans[plan.Spec.ID()] = true

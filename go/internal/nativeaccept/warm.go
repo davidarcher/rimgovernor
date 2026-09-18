@@ -143,6 +143,10 @@ func (g *Game) Release() error {
 	return nil
 }
 
+// Released reports whether the harness's GABP session has been released
+// and not yet reattached: no harness call can reach the game until then.
+func (g *Game) Released() bool { return g.released }
+
 // Reattach reopens the harness's session on the same game after Release,
 // retrying for a while because a stopped service's own GABS subprocess
 // frees the slot asynchronously. The new client replaces g.Client.
