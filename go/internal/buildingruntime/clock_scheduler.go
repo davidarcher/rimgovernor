@@ -88,6 +88,7 @@ type ClockSchedulerConfig struct {
 	PrisonerInteraction              *RoutinePrisonerInteractionPlanner
 	PopulationCustody                *RoutinePopulationCustodyPlanner
 	Research                         *RoutineResearchPlanner
+	IngredientStorage                *RoutineIngredientStoragePlanner
 	Resource                         *RoutineResourcePlanner
 	AnimalFeed                       *RoutineAnimalFeedPlanner
 	ProductionPolicy                 *RoutineProductionPolicyPlanner
@@ -146,6 +147,7 @@ type ClockSchedulerResult struct {
 	PrisonerInteraction              *RoutinePrisonerInteractionResult
 	PopulationCustody                *RoutinePopulationCustodyResult
 	Research                         *RoutineResearchResult
+	IngredientStorage                *RoutineIngredientStorageResult
 	Resource                         *RoutineResourceResult
 	AnimalFeed                       *RoutineResourceResult
 	ProductionPolicy                 *RoutineProductionPolicyResult
@@ -343,6 +345,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, ErrControl
 	}
 	if config.Research != nil && (config.Routine == nil || config.Research.reviewer != config.Routine) {
+		return nil, ErrControl
+	}
+	if config.IngredientStorage != nil && (config.Routine == nil || config.IngredientStorage.reviewer != config.Routine) {
 		return nil, ErrControl
 	}
 	if config.Naming != nil && (config.Routine == nil || config.Naming.reviewer != config.Routine) {
@@ -707,6 +712,10 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	// trap's auto-rearm) needs ticks, not a plan (#72).
 	if out.DefenseLayout != nil {
 		nativeWorkTicks = max(nativeWorkTicks, out.DefenseLayout.NativeWorkTicks)
+	}
+	// A selected research project finishes on native ticks alone (#4 M4).
+	if out.Research != nil {
+		nativeWorkTicks = max(nativeWorkTicks, out.Research.NativeWorkTicks)
 	}
 	// A standing production bill past its first iteration needs game time,
 	// not another method (RoutineResourceResult.NativeWorkTicks).

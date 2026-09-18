@@ -60,16 +60,21 @@ planning census.
 The workshop row is the first production facility on that ladder. A
 `MaintainResource` deficit that no existing bench can produce first discovers,
 from the native recipe catalog, which player-buildable bench definitions host a
-research-available recipe for the resource; the first candidate the planning
-census reports available, unpowered and buildable without construction skill is
-furnished into a Workshop-hosting room (a Workshop, a generic Room, or the
-starter shell once the sleeping spots have made it a Barracks — the bench keeps
-working there and a second ring would split the same builders), or a starter
-shell is staged when no such room exists. Powered and research-gated benches are reported as an explicit
-`workshop_bench_unavailable` prerequisite rather than staged. Once a bench with
-the recipe exists the workshop planner steps aside and the resource goal's bill
-path, worker coverage for the bench's own work type, and native readback of the
-rising item count carry the deficit to recovery.
+recipe for the resource; the first candidate the planning census reports
+available and buildable by a builder the colony has (unpowered first, powered
+once a generator definition is buildable) is furnished into a Workshop-hosting
+room (a Workshop, a generic Room, or the starter shell once the sleeping spots
+have made it a Barracks — the bench keeps working there and a second ring would
+split the same builders), or a starter shell is staged when no such room
+exists. A bench gated only by research records its projects as the derived
+`EnsureResearch` target (`workshop_research_needed`); one needing a skilled
+builder, or power no generator can supply, is an explicit
+`workshop_bench_unavailable` prerequisite. Once a bench with the recipe exists
+the workshop planner steps aside: an allow-list stockpile for the recipe's
+ingredients is placed in the Workshop room, and the resource goal's bill path,
+worker coverage for the bench's own work type, and native readback of the
+rising item count carry the deficit to recovery. The full ladder and the
+per-role matrix are in [facilities](facilities.md).
 
 The hospital row is a hosted function rather than a room of its own: the game
 scores a room as Hospital only when every bed in it is medical, so a colony's

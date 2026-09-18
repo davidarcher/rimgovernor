@@ -198,6 +198,16 @@ func (client *Client) ReadRecipeCatalog(ctx context.Context, identity *c.Identit
 			return nil, raw, contract("recipe catalog row without benches")
 		}
 		host := policy.RecipeHost{Definition: row.Recipe.GetDefName(), Products: products, Available: row.GetAvailableNow(), Ingredients: GearRecipeIngredients(row.Ingredients), RequiredWork: gearRecipeWork(row)}
+		if len(row.ResearchPrerequisites) > 256 {
+			return nil, raw, contract("recipe research prerequisites exceed bound")
+		}
+		for _, project := range row.ResearchPrerequisites {
+			if validID(project) != nil {
+				return nil, raw, contract("invalid recipe research prerequisite")
+			}
+			host.Research = append(host.Research, project)
+		}
+		sort.Strings(host.Research)
 		seen := map[string]bool{}
 		for _, bench := range row.BenchDefs {
 			if validID(bench) != nil || seen[bench] {

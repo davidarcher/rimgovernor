@@ -46,6 +46,8 @@ type serveConfig struct {
 	routineShelterPlans             bool
 	routineComfortPlans             bool
 	routineWorkshopPlans            bool
+	routineResearchPlans            bool
+	routineIngredientStoragePlans   bool
 	routineHospitalPlans            bool
 	routineExpansionPlans           bool
 	routinePowerPlans               bool
@@ -295,6 +297,8 @@ func routineFamilies(c *serveConfig) []routineFamily {
 		{"shelter", &c.routineShelterPlans},
 		{"comfort", &c.routineComfortPlans},
 		{"workshop", &c.routineWorkshopPlans},
+		{"research", &c.routineResearchPlans},
+		{"ingredient-storage", &c.routineIngredientStoragePlans},
 		{"hospital", &c.routineHospitalPlans},
 		{"expansion", &c.routineExpansionPlans},
 		{"temperature", &c.routineTemperaturePlans},
@@ -331,6 +335,13 @@ func routineFamilies(c *serveConfig) []routineFamily {
 		{"animal-feed", &c.routineAnimalFeedPlans},
 		{"production-policy", &c.routineProductionPolicyPlans},
 	}
+}
+
+// researchPlans reports whether EnsureResearch is composed: an operator
+// target always is; the research family alone follows the projects the
+// workshop ladder records for a MaintainResource bench (issue #4 M4).
+func (c serveConfig) researchPlans() bool {
+	return c.routineResearchTarget != "" || c.routineResearchPlans && len(c.routineResourceTargets) > 0
 }
 
 // activeRoutineFamilies reports the name of every routine planner family this

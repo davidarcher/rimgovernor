@@ -173,6 +173,15 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter)
 	}
 	reading.Projection.Facts.CleanupPawns = domain.Known(cleanup)
 	reading.Projection.ApplyFieldBudget(r.policy.FoodTargetDays)
+	// The workshop ladder's recorded research rung is the derived
+	// EnsureResearch target; it is journal evidence, not a native read, so
+	// a review costs no extra call for it.
+	needs, err := routineResearchNeeds(ctx, p.journal, r.policy, state.Snapshot)
+	if err != nil {
+		clockSchedulerLog("routine.step: LoadProductionLadder err=%v", err)
+		return store.RoutineReviewResult{}, err
+	}
+	reading.Projection.Facts.ResearchNeeds = needs
 	if pawns, known := reading.Projection.WorkPawns.Value(); known {
 		reading.Projection.Facts.Workers = policy.RoutineWorkers(pawns)
 		reading.Projection.Facts.Labor = policy.RoutineLabor(pawns)
@@ -191,6 +200,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter)
 			var rows []policy.WorkRequirement
 			rows, known = benchWork.Value()
 			required = mergeWorkRequirements(required, rows)
+			required = mergeWorkRequirements(required, routineResearchWork(r.policy, needs, reading.Projection.Facts.Research))
 		}
 		if known {
 			work, err := policy.AssignWork(pawns, required, preferences.Overrides)

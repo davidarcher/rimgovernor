@@ -269,7 +269,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		} else if r.goal == policy.MaintainRoutes {
 			resolved, reason, err = r.selectRoutes(facts, review.Latches)
 		} else if r.goal == policy.MaintainResource {
-			resolved, reason, err = r.selectWorkshop(facts)
+			resolved, reason, err = r.selectWorkshop(call, state, review, facts)
 		} else if r.goal == policy.MaintainMedicalCare {
 			resolved, reason, err = r.selectHospital(facts)
 		} else if r.goal == policy.MaintainSleeping {

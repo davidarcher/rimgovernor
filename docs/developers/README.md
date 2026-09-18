@@ -29,6 +29,7 @@ the multi-instance colony directory.
 - [Control loop](architecture/control-loop.md): observations, priorities and scheduling.
 - [Plans and Hands](architecture/plans-and-hands.md): admission, execution and completion.
 - [Space and resources](architecture/space-and-resources.md): placement and shared budgets.
+- [Facilities](architecture/facilities.md): the room-function ladder and per-role matrix.
 - [Sessions and recovery](architecture/sessions-and-recovery.md): authority, checkpoints and cleanup.
 - [Dashboard](architecture/dashboard.md): presentation, video and input ownership.
 - [World progression](architecture/world-progression.md): caravans, quests and world outcomes.

@@ -68,11 +68,12 @@ func TestWorkshopPrepareDiscoversBenchOrDefersToExistingBench(t *testing.T) {
 		reason     RoutineBuildingReason
 		candidates []string
 	}{
-		{"no bench", nil, []policy.RecipeHost{clubRecipe}, nil, 0, "", []string{"CraftingSpot"}},
+		{"no bench", nil, []policy.RecipeHost{clubRecipe}, nil, 0, "", append([]string{"CraftingSpot"}, policy.GeneratorDefinitions...)},
 		{"no deficit", nil, []policy.RecipeHost{clubRecipe}, nil, 3, BuildingMethodNoDeficit, nil},
 		{"no targets", nil, []policy.RecipeHost{clubRecipe}, map[policy.Resource]int64{}, 0, BuildingMethodDisabled, nil},
 		{"existing bench", []bridge.GearBenchRead{{Token: "t", Bench: policy.GearBench{ID: "spot", Bills: domain.Known([]policy.GearBill{}), Recipes: domain.Known([]policy.GearRecipe{{Definition: "Make_MeleeWeapon_Club", Products: []policy.Resource{"MeleeWeapon_Club"}, Available: domain.Known(true), AvailableOn: domain.Known(true)}})}}}, []policy.RecipeHost{clubRecipe}, nil, 0, BuildingExistingFacility, nil},
-		{"research gated", nil, []policy.RecipeHost{{Definition: "Make_MeleeWeapon_Club", Products: []policy.Resource{"MeleeWeapon_Club"}, Available: false, Benches: []string{"CraftingSpot"}}}, nil, 0, BuildingWorkshopUnavailable, nil},
+		{"research gated", nil, []policy.RecipeHost{{Definition: "Make_MeleeWeapon_Club", Products: []policy.Resource{"MeleeWeapon_Club"}, Available: false, Benches: []string{"CraftingSpot"}, Research: []string{"Smithing"}}}, nil, 0, "", append([]string{"CraftingSpot"}, policy.GeneratorDefinitions...)},
+		{"no host", nil, []policy.RecipeHost{}, nil, 0, BuildingWorkshopUnavailable, nil},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			planner, session, native := workshopFixture(t)
@@ -91,7 +92,7 @@ func TestWorkshopPrepareDiscoversBenchOrDefersToExistingBench(t *testing.T) {
 				}
 				return
 			}
-			if selection.resource != "MeleeWeapon_Club" || len(selection.candidates) != len(test.candidates) || selection.candidates[0] != test.candidates[0] {
+			if selection.resource != "MeleeWeapon_Club" || len(selection.candidates) != len(test.candidates) || selection.candidates[0] != test.candidates[0] || selection.candidates[1] != test.candidates[1] {
 				t.Fatal(selection)
 			}
 		})
@@ -100,30 +101,50 @@ func TestWorkshopPrepareDiscoversBenchOrDefersToExistingBench(t *testing.T) {
 
 func TestWorkshopSelectStagesFirstUnpoweredBenchInWorkshopRoom(t *testing.T) {
 	t.Parallel()
-	planner, _, _ := workshopFixture(t)
+	planner, session, _ := workshopFixture(t)
 	planner.workshop = &workshopSelection{resource: "MeleeWeapon_Club", hosts: []policy.RecipeHost{clubRecipe, {Definition: "Make_Club_Powered", Products: []policy.Resource{"MeleeWeapon_Club"}, Available: true, Benches: []string{"FabricationBench"}}}, candidates: []string{"CraftingSpot", "FabricationBench"}}
 	definition := func(name string, available, powered bool) observation.PlanningDefinition {
 		return observation.PlanningDefinition{Name: name, Available: domain.Known(available), NeedsPower: domain.Known(powered), ConstructionSkill: domain.Known(int32(0)), Stuff: domain.Known("")}
 	}
+	ctx := context.Background()
+	state := session.State()
+	world := store.World{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snapshot.Map}
 	facts := observation.ColonyProjection{Definitions: []observation.PlanningDefinition{definition("CraftingSpot", true, false), definition("FabricationBench", true, true)}}
-	selected, reason, err := planner.selectWorkshop(facts)
+	selected, reason, err := planner.selectWorkshop(ctx, state, store.RoutineReview{}, facts)
 	if err != nil || reason != "" || selected.definition != "CraftingSpot" || selected.environment != policy.PlacementIndoors || selected.facility == nil || selected.facility.Role != policy.RoomRoleWorkshop {
 		t.Fatal(selected, reason, err)
 	}
 	if planner.definition != "Wall" || planner.facility != nil {
 		t.Fatal("selection mutated reusable compiler", planner)
 	}
+	if ladder, ok, err := planner.reviewer.player.journal.LoadProductionLadder(ctx, world); err != nil || !ok || ladder.Bench != "CraftingSpot" || len(ladder.Research) != 0 {
+		t.Fatal("buildable bench must clear the research rung", ladder, ok, err)
+	}
+	// A research-gated bench records its projects; a powered one is only
+	// staged once a generator definition is available.
 	facts.Definitions = []observation.PlanningDefinition{definition("CraftingSpot", false, false), definition("FabricationBench", true, true)}
-	if selected, reason, err = planner.selectWorkshop(facts); err != nil || reason != BuildingWorkshopUnavailable || selected != nil {
+	facts.Definitions[0].Research = []string{"Smithing"}
+	if selected, reason, err = planner.selectWorkshop(ctx, state, store.RoutineReview{}, facts); err != nil || reason != BuildingWorkshopResearch || selected != nil {
+		t.Fatal(selected, reason, err)
+	}
+	if ladder, ok, err := planner.reviewer.player.journal.LoadProductionLadder(ctx, world); err != nil || !ok || ladder.Bench != "CraftingSpot" || len(ladder.Research) != 1 || ladder.Research[0] != "Smithing" {
+		t.Fatal(ladder, ok, err)
+	}
+	facts.Definitions = append(facts.Definitions, definition("WoodFiredGenerator", true, false))
+	if selected, reason, err = planner.selectWorkshop(ctx, state, store.RoutineReview{}, facts); err != nil || reason != "" || selected.definition != "FabricationBench" {
+		t.Fatal(selected, reason, err)
+	}
+	facts.Definitions = []observation.PlanningDefinition{definition("CraftingSpot", false, false), definition("FabricationBench", true, true)}
+	if selected, reason, err = planner.selectWorkshop(ctx, state, store.RoutineReview{}, facts); err != nil || reason != BuildingWorkshopUnavailable || selected != nil {
 		t.Fatal(selected, reason, err)
 	}
 	facts.Definitions = []observation.PlanningDefinition{definition("CraftingSpot", true, false)}
 	facts.Definitions[0].NeedsPower = domain.Unknown[bool]()
-	if selected, reason, err = planner.selectWorkshop(facts); err != nil || reason != BuildingMethodUnknown || selected != nil {
+	if selected, reason, err = planner.selectWorkshop(ctx, state, store.RoutineReview{}, facts); err != nil || reason != BuildingMethodUnknown || selected != nil {
 		t.Fatal(selected, reason, err)
 	}
 	planner.workshop = nil
-	if selected, reason, err = planner.selectWorkshop(facts); err != nil || reason != BuildingMethodUnknown || selected != nil {
+	if selected, reason, err = planner.selectWorkshop(ctx, state, store.RoutineReview{}, facts); err != nil || reason != BuildingMethodUnknown || selected != nil {
 		t.Fatal(selected, reason, err)
 	}
 }

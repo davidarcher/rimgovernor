@@ -84,12 +84,12 @@ func readResearchSnapshot(v *o.ResearchSnapshot, identity *c.Identity) (Research
 		// acceptance gap alongside G01.12, not a verified equivalence.
 		facts.Hidden = domain.Known(false)
 		facts.KnowledgeCategory = row.GetCategory()
-		if row.Prerequisites != nil {
-			facts.Prerequisites = domain.Known(toProjectIDs(row.GetPrerequisites()))
-		}
-		if row.HiddenPrerequisites != nil {
-			facts.HiddenPrerequisites = domain.Known(toProjectIDs(row.GetHiddenPrerequisites()))
-		}
+		// The native census always emits both lists and never raises an
+		// issue for them; a project with no prerequisites (Smithing) is an
+		// absent repeated field on the wire, which is known-empty, not
+		// unread.
+		facts.Prerequisites = domain.Known(toProjectIDs(row.GetPrerequisites()))
+		facts.HiddenPrerequisites = domain.Known(toProjectIDs(row.GetHiddenPrerequisites()))
 		out.Projects[name] = facts
 		if row.GetFinished() {
 			out.Finished = append(out.Finished, name)

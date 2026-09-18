@@ -23,7 +23,7 @@ func TestResearchTargetNeedMeasuresNativeState(t *testing.T) {
 		{"finished", "Stonecutting", domain.Known(ResearchFacts{Finished: []ResearchProjectID{"Stonecutting"}, Projects: listed.Projects}), domain.Known(true), domain.Known(0.0)},
 	}
 	for _, c := range cases {
-		recovered, deficit := ResearchTargetNeed(c.target, c.facts)
+		recovered, deficit := ResearchTargetNeed(c.target, false, c.facts)
 		if recovered != c.recovered || deficit != c.deficit {
 			t.Fatal(c.name, recovered, deficit)
 		}
@@ -103,5 +103,41 @@ func TestConfiguredTargetsRankForDevelopment(t *testing.T) {
 		if (a.ID == EnsureResearch || a.ID == MaintainResource) && a.Need != domain.NeedUnknown {
 			t.Fatal(a)
 		}
+	}
+}
+
+// A MaintainResource deficit whose bench waits on a recorded research need
+// holds no development slot of its own: with one slot, EnsureResearch takes
+// it; once the project is finished the resource goal competes again.
+func TestResourceGoalYieldsItsSlotToRecordedResearch(t *testing.T) {
+	p := DefaultRoutinePolicy()
+	p.ResourceTargets = map[Resource]int64{"MeleeWeapon_Gladius": 1}
+	f := stableRoutine()
+	f.ResearchNeeds = []string{"Smithing"}
+	f.Research = domain.Known(ResearchFacts{Projects: []ResearchProjectID{"Smithing"}})
+	f.Resources = domain.Known([]Amount{})
+	rank := func() map[GoalID]DevelopmentRow {
+		r, err := DetectRoutine(f, RoutineLatches{}, p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		state, err := RankDevelopment(DevelopmentRequest{Snapshot: domain.GenerationSnapshot{Colony: "colony", Map: 1, Load: "load", Plan: "plan"}, Tick: 100, Workers: domain.Known(3), Limit: 1, Goals: r.Goals})
+		if err != nil {
+			t.Fatal(err)
+		}
+		rows := map[GoalID]DevelopmentRow{}
+		for _, row := range state.Rows {
+			rows[row.Goal] = row
+		}
+		return rows
+	}
+	rows := rank()
+	if !rows[EnsureResearch].Selected || rows[MaintainResource].Reason != DevelopmentMethodUnavailable {
+		t.Fatal(rows[EnsureResearch], rows[MaintainResource])
+	}
+	f.Research = domain.Known(ResearchFacts{Projects: []ResearchProjectID{"Smithing"}, Finished: []ResearchProjectID{"Smithing"}})
+	rows = rank()
+	if _, raised := rows[EnsureResearch]; raised || !rows[MaintainResource].Selected {
+		t.Fatal(rows[EnsureResearch], rows[MaintainResource])
 	}
 }

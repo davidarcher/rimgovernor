@@ -16,7 +16,9 @@ import (
 
 // RoutineResearchSource is the native research census RoutineResearchPlanner
 // reads to find the next prerequisite-ordered project toward
-// RoutinePolicy.ResearchTarget. Laboratory/researcher usability
+// RoutinePolicy.ResearchTarget, or toward the project the workshop ladder
+// recorded as gating a MaintainResource bench when no target is configured
+// (policy.ResearchGoalTarget). Laboratory/researcher usability
 // (policy.UsableResearchLaboratories/EligibleResearchers) is deliberately not
 // re-derived here: unlike ResearchProjectFacts.{Hidden,Prerequisites,...},
 // the wire ResearchProject message's lab-requirement/CanStart fields are not
@@ -36,7 +38,14 @@ type RoutineResearchPlanner struct {
 type RoutineResearchResult struct {
 	Reason RoutineBuildingReason
 	Plan   domain.PlanID
+	// NativeWorkTicks asks the clock for ticks while the selected project
+	// is researched: nothing else owes the window a plan meanwhile.
+	NativeWorkTicks uint32
 }
+
+// researchNativeWorkTicks is the window a current research project asks
+// for per step; the review re-reads progress between windows.
+const researchNativeWorkTicks = 2500
 
 func NewRoutineResearchPlanner(reviewer *RoutineReviewer, native RoutineResearchSource) (*RoutineResearchPlanner, error) {
 	if reviewer == nil || native == nil {
@@ -58,10 +67,6 @@ func (r *RoutineResearchPlanner) step(call, epoch context.Context, arbiter *step
 	if !state.Enabled {
 		return RoutineResearchResult{Reason: BuildingMethodDisabled}, nil
 	}
-	target := r.reviewer.policy.ResearchTarget
-	if target == "" {
-		return RoutineResearchResult{Reason: BuildingMethodDisabled}, nil
-	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineResearchResult{}, ErrControl
 	}
@@ -71,6 +76,19 @@ func (r *RoutineResearchPlanner) step(call, epoch context.Context, arbiter *step
 	}
 	if !review.Enabled || review.Snapshot != state.Snapshot {
 		return RoutineResearchResult{Reason: BuildingMethodNoReview}, nil
+	}
+	target := r.reviewer.policy.ResearchTarget
+	if target == "" {
+		ladder, ok, err := p.journal.LoadProductionLadder(call, store.World{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snapshot.Map})
+		if err != nil {
+			return RoutineResearchResult{}, err
+		}
+		if ok && r.reviewer.policy.ResourceTargets[ladder.Resource] > 0 {
+			target = policy.ResearchGoalTarget("", ladder.Research, domain.Unknown[policy.ResearchFacts]())
+		}
+	}
+	if target == "" {
+		return RoutineResearchResult{Reason: BuildingMethodDisabled}, nil
 	}
 	var goal store.GoalState
 	found := false
@@ -105,14 +123,30 @@ func (r *RoutineResearchPlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineResearchResult{}, ErrControl
 	}
 	if read.CurrentProject != "" {
-		return RoutineResearchResult{Reason: BuildingMethodUsed}, nil
-	}
-	if _, ok := read.Projects[target]; !ok {
-		return RoutineResearchResult{Reason: BuildingMethodUnknown}, nil
+		return RoutineResearchResult{Reason: BuildingMethodUsed, NativeWorkTicks: researchNativeWorkTicks}, nil
 	}
 	finished := make([]policy.ResearchProjectID, len(read.Finished))
 	for i, name := range read.Finished {
 		finished[i] = policy.ResearchProjectID(name)
+	}
+	if r.reviewer.policy.ResearchTarget == "" {
+		// Derived targets: the first recorded project the census lists
+		// and has not finished, in the ladder's own order.
+		ladder, _, err := p.journal.LoadProductionLadder(call, store.World{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snapshot.Map})
+		if err != nil {
+			return RoutineResearchResult{}, err
+		}
+		facts := policy.ResearchFacts{Current: policy.ResearchProjectID(read.CurrentProject), Finished: finished}
+		for name := range read.Projects {
+			facts.Projects = append(facts.Projects, policy.ResearchProjectID(name))
+		}
+		target = policy.ResearchGoalTarget("", ladder.Research, domain.Known(facts))
+		if target == "" {
+			return RoutineResearchResult{Reason: BuildingMethodNoDeficit}, nil
+		}
+	}
+	if _, ok := read.Projects[target]; !ok {
+		return RoutineResearchResult{Reason: BuildingMethodUnknown}, nil
 	}
 	projects := make(map[policy.ResearchProjectID]policy.ResearchProjectFacts, len(read.Projects))
 	for name, facts := range read.Projects {

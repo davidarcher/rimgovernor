@@ -90,6 +90,7 @@ func TestSupplyBoundaryReportsAbsentTarget(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
 // The clock may run between the cell read, the preview and the emergency
 // read: the inspection accepts ticks in that order (the token binds the
 // item) and holds only when one of them predates the read before it (#120).

@@ -89,11 +89,9 @@ type RoutinePolicy struct {
 	// name; empty disables EnsureResearch's routine dispatch. The need is
 	// measured against RoutineFacts.Research each review (idle tab with the
 	// target unfinished is a deficit; any current project or a finished
-	// target is recovered). Targets are not derived from every other active
-	// goal's own observed capability gaps; this only supports one explicit
-	// target -- deriving targets from other goals' evidence generically
-	// remains an open gap (no Go goal family yet records the
-	// UnavailableThings/BlockedRecipes evidence ResearchNeeds expects).
+	// target is recovered). With no explicit target the review derives one
+	// from RoutineFacts.ResearchNeeds, the projects the workshop ladder
+	// recorded as gating a MaintainResource bench (issue #4 M4).
 	ResearchTarget string
 	// ResourceTargets is an operator-declared map of native resource
 	// definition name to the native stock floor MaintainResource should keep
@@ -314,7 +312,12 @@ type RoutineFacts struct {
 	// Research is the native research state read inside the same paused
 	// identity bracket as the other routine facts. Unknown when the source
 	// cannot read research; missing facts never recover EnsureResearch.
-	Research                   domain.Fact[ResearchFacts]
+	Research domain.Fact[ResearchFacts]
+	// ResearchNeeds are the sorted ResearchProjectDefs other goals' recorded
+	// evidence is waiting on (the workshop ladder's research rung); the
+	// first unfinished one is EnsureResearch's target when none is
+	// configured.
+	ResearchNeeds              []string
 	Hostiles, CriticalPatients domain.Fact[int64]
 	// UrgentPatients counts the critical patients who are downed or bleeding
 	// (policy.UrgentPatients). CriticalMedicine is an emergency, suspending
@@ -685,7 +688,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	// configured is certain recovery, a configured target with missing facts is
 	// unknown, and RoutineResearchPlanner/RoutineResourcePlanner still re-read
 	// native state immediately before proposing a method.
-	researchRecovered, researchDeficit := ResearchTargetNeed(p.ResearchTarget, f.Research)
+	researchRecovered, researchDeficit := ResearchTargetNeed(ResearchGoalTarget(p.ResearchTarget, f.ResearchNeeds, f.Research), p.ResearchTarget == "", f.Research)
 	if !positive(researchRecovered) {
 		addGoal(EnsureResearch, 4)
 		r.Goals[len(r.Goals)-1].Deficit = researchDeficit
@@ -695,6 +698,10 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if !positive(resourceRecovered) {
 		addGoal(MaintainResource, 4)
 		r.Goals[len(r.Goals)-1].Deficit = resourceDeficit
+		// The ladder's research rung: while a project the workshop recorded
+		// as gating the bench is unfinished, the goal has no method of its
+		// own and holds no slot, so EnsureResearch can take one (#4 M4).
+		r.Goals[len(r.Goals)-1].MethodUnavailable = ResearchGoalTarget("", f.ResearchNeeds, f.Research) != ""
 	}
 	addAssessment(MaintainResource, 4, resourceRecovered)
 	// ProductionPolicy is a configuration push, not development work: it needs

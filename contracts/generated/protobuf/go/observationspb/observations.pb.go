@@ -5254,20 +5254,21 @@ func (x *BillStack) GetCompleteness() *Completeness {
 }
 
 type RecipeState struct {
-	state            protoimpl.MessageState   `protogen:"open.v1"`
-	Recipe           *DefinitionRef           `protobuf:"bytes,1,opt,name=recipe,proto3" json:"recipe,omitempty"`
-	AvailableNow     *bool                    `protobuf:"varint,2,opt,name=available_now,json=availableNow,proto3,oneof" json:"available_now,omitempty"`
-	AvailableOnBench *bool                    `protobuf:"varint,3,opt,name=available_on_bench,json=availableOnBench,proto3,oneof" json:"available_on_bench,omitempty"`
-	WorkAmount       *float64                 `protobuf:"fixed64,4,opt,name=work_amount,json=workAmount,proto3,oneof" json:"work_amount,omitempty"`
-	WorkSkill        *string                  `protobuf:"bytes,5,opt,name=work_skill,json=workSkill,proto3,oneof" json:"work_skill,omitempty"`
-	Skills           []*SkillRequirement      `protobuf:"bytes,6,rep,name=skills,proto3" json:"skills,omitempty"`
-	Ingredients      []*IngredientRequirement `protobuf:"bytes,7,rep,name=ingredients,proto3" json:"ingredients,omitempty"`
-	Products         []*Quantity              `protobuf:"bytes,8,rep,name=products,proto3" json:"products,omitempty"`
-	DefaultFilter    *StockpileFilter         `protobuf:"bytes,9,opt,name=default_filter,json=defaultFilter,proto3" json:"default_filter,omitempty"`
-	WorkType         *string                  `protobuf:"bytes,10,opt,name=work_type,json=workType,proto3,oneof" json:"work_type,omitempty"` // WorkTypeDef whose DoBill giver serves the recipe's bench; the type a worker must enable.
-	BenchDefs        []string                 `protobuf:"bytes,11,rep,name=bench_defs,json=benchDefs,proto3" json:"bench_defs,omitempty"`    // Player-buildable bench definitions hosting the recipe (catalog reads without bench_id).
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state                 protoimpl.MessageState   `protogen:"open.v1"`
+	Recipe                *DefinitionRef           `protobuf:"bytes,1,opt,name=recipe,proto3" json:"recipe,omitempty"`
+	AvailableNow          *bool                    `protobuf:"varint,2,opt,name=available_now,json=availableNow,proto3,oneof" json:"available_now,omitempty"`
+	AvailableOnBench      *bool                    `protobuf:"varint,3,opt,name=available_on_bench,json=availableOnBench,proto3,oneof" json:"available_on_bench,omitempty"`
+	WorkAmount            *float64                 `protobuf:"fixed64,4,opt,name=work_amount,json=workAmount,proto3,oneof" json:"work_amount,omitempty"`
+	WorkSkill             *string                  `protobuf:"bytes,5,opt,name=work_skill,json=workSkill,proto3,oneof" json:"work_skill,omitempty"`
+	Skills                []*SkillRequirement      `protobuf:"bytes,6,rep,name=skills,proto3" json:"skills,omitempty"`
+	Ingredients           []*IngredientRequirement `protobuf:"bytes,7,rep,name=ingredients,proto3" json:"ingredients,omitempty"`
+	Products              []*Quantity              `protobuf:"bytes,8,rep,name=products,proto3" json:"products,omitempty"`
+	DefaultFilter         *StockpileFilter         `protobuf:"bytes,9,opt,name=default_filter,json=defaultFilter,proto3" json:"default_filter,omitempty"`
+	WorkType              *string                  `protobuf:"bytes,10,opt,name=work_type,json=workType,proto3,oneof" json:"work_type,omitempty"`                                  // WorkTypeDef whose DoBill giver serves the recipe's bench; the type a worker must enable.
+	BenchDefs             []string                 `protobuf:"bytes,11,rep,name=bench_defs,json=benchDefs,proto3" json:"bench_defs,omitempty"`                                     // Player-buildable bench definitions hosting the recipe (catalog reads without bench_id).
+	ResearchPrerequisites []string                 `protobuf:"bytes,12,rep,name=research_prerequisites,json=researchPrerequisites,proto3" json:"research_prerequisites,omitempty"` // ResearchProjectDefs the recipe itself requires; empty when only its bench gates it.
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *RecipeState) Reset() {
@@ -5373,6 +5374,13 @@ func (x *RecipeState) GetWorkType() string {
 func (x *RecipeState) GetBenchDefs() []string {
 	if x != nil {
 		return x.BenchDefs
+	}
+	return nil
+}
+
+func (x *RecipeState) GetResearchPrerequisites() []string {
+	if x != nil {
+		return x.ResearchPrerequisites
 	}
 	return nil
 }
@@ -29299,7 +29307,7 @@ const file_observations_proto_rawDesc = "" +
 	"\fcompleteness\x18\a \x01(\v2).rimgovernor.observations.v1.CompletenessR\fcompletenessB\t\n" +
 	"\a_usableB\x12\n" +
 	"\x10_unusable_reasonB\v\n" +
-	"\t_capacity\"\xc4\x05\n" +
+	"\t_capacity\"\xfb\x05\n" +
 	"\vRecipeState\x12B\n" +
 	"\x06recipe\x18\x01 \x01(\v2*.rimgovernor.observations.v1.DefinitionRefR\x06recipe\x12(\n" +
 	"\ravailable_now\x18\x02 \x01(\bH\x00R\favailableNow\x88\x01\x01\x121\n" +
@@ -29315,7 +29323,8 @@ const file_observations_proto_rawDesc = "" +
 	"\twork_type\x18\n" +
 	" \x01(\tH\x04R\bworkType\x88\x01\x01\x12\x1d\n" +
 	"\n" +
-	"bench_defs\x18\v \x03(\tR\tbenchDefsB\x10\n" +
+	"bench_defs\x18\v \x03(\tR\tbenchDefs\x125\n" +
+	"\x16research_prerequisites\x18\f \x03(\tR\x15researchPrerequisitesB\x10\n" +
 	"\x0e_available_nowB\x15\n" +
 	"\x13_available_on_benchB\x0e\n" +
 	"\f_work_amountB\r\n" +

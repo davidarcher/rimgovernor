@@ -13,9 +13,14 @@ import (
 )
 
 // BuildingWorkshopUnavailable: every bench that could produce the deficit
-// resource needs research, power or a skilled builder this planner does not
-// stage; the deficit falls through to the resource planner's source paths.
+// resource needs a skilled builder or power no generator can supply; the
+// deficit falls through to the resource planner's source paths.
 const BuildingWorkshopUnavailable RoutineBuildingReason = "workshop_bench_unavailable"
+
+// BuildingWorkshopResearch: the first bench that could produce the deficit
+// resource waits on research; the ladder record now names the projects and
+// the review raises EnsureResearch for them (issue #4 M4).
+const BuildingWorkshopResearch RoutineBuildingReason = "workshop_research_needed"
 
 // RoutineWorkshopSource adds the fresh bench and recipe-catalog reads the
 // workshop planner needs on top of the building source.
@@ -36,10 +41,13 @@ type workshopSelection struct {
 
 // NewRoutineWorkshopPlanner stages a production bench for a MaintainResource
 // deficit no existing bench can produce: it discovers which player-buildable
-// benches host a research-available recipe for the resource, furnishes a
-// room whose native role can host a Workshop, and when no such room exists
-// stages a starter shell first, the same ladder EnsureComfort walks. Bills on
-// the staged bench belong to RoutineResourcePlanner.
+// benches host a recipe for the resource, records the research still gating
+// the first of them (the review turns that into EnsureResearch's target),
+// furnishes a room whose native role can host a Workshop, and when no such
+// room exists stages a starter shell first, the same ladder EnsureComfort
+// walks. A powered bench is staged when a generator definition is
+// available; EnsureBasicPower then connects it as an unpowered consumer.
+// Bills on the staged bench belong to RoutineResourcePlanner.
 func NewRoutineWorkshopPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
 	if reviewer == nil || native == nil {
 		return nil, ErrControl
@@ -102,45 +110,69 @@ func (r *RoutineBuildingPlanner) prepareWorkshop(call context.Context, state Con
 	if err != nil {
 		return nil, "", err
 	}
-	selection := &workshopSelection{resource: resource, benches: benches, hosts: hosts, candidates: policy.WorkshopBenchCandidates(resource, hosts)}
+	// The census describes every hosting bench, research-gated ones
+	// included, plus the generator definitions that decide whether a powered
+	// bench can be staged.
+	gated := policy.WorkshopResearchCandidates(resource, hosts)
+	selection := &workshopSelection{resource: resource, benches: benches, hosts: hosts, candidates: append(append([]string{}, gated...), policy.GeneratorDefinitions...)}
 	// Reuse before build: an existing bench with the recipe leaves the deficit
 	// to the bill path even when the census would also allow staging one.
 	choice, err := policy.SelectWorkshopBench(policy.WorkshopRequest{Resource: resource, Benches: domain.Known(benches), Hosts: hosts})
 	if err != nil {
 		return nil, "", err
 	}
-	switch choice.Method {
-	case policy.WorkshopExisting:
+	if choice.Method == policy.WorkshopExisting {
+		if err := r.recordWorkshopLadder(call, state, review, resource, choice); err != nil {
+			return nil, "", err
+		}
 		return nil, BuildingExistingFacility, nil
-	case policy.WorkshopUnavailable:
-		return nil, BuildingWorkshopUnavailable, nil
 	}
-	if len(selection.candidates) == 0 {
+	if len(gated) == 0 {
 		return nil, BuildingWorkshopUnavailable, nil
 	}
 	return selection, "", nil
 }
 
+// recordWorkshopLadder persists the rung the workshop settled on so the next
+// routine review can raise EnsureResearch for a research-gated bench, or
+// clear that need once the bench is buildable or standing.
+func (r *RoutineBuildingPlanner) recordWorkshopLadder(call context.Context, state ControlState, review store.RoutineReview, resource policy.Resource, choice policy.WorkshopChoice) error {
+	record := store.ProductionLadderRecord{World: store.World{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snapshot.Map}, Tick: review.Tick, Resource: resource, Bench: choice.Definition, Recipe: choice.Recipe}
+	if choice.Method == policy.WorkshopResearch {
+		record.Research = choice.Research
+	}
+	return r.reviewer.player.journal.SaveProductionLadder(call, record)
+}
+
 // selectWorkshop resolves the prepared candidates against the planning
 // census the same way selectComfort resolves a comfort method: the chosen
 // bench becomes the definition, placed indoors in a Workshop-hosting room.
-func (r *RoutineBuildingPlanner) selectWorkshop(facts observation.ColonyProjection) (*RoutineBuildingPlanner, RoutineBuildingReason, error) {
+func (r *RoutineBuildingPlanner) selectWorkshop(call context.Context, state ControlState, review store.RoutineReview, facts observation.ColonyProjection) (*RoutineBuildingPlanner, RoutineBuildingReason, error) {
 	if r.workshop == nil {
 		return nil, BuildingMethodUnknown, nil
 	}
 	definitions := make([]policy.BenchDefinition, 0, len(facts.Definitions))
+	available := map[string]domain.Fact[bool]{}
 	for _, d := range facts.Definitions {
-		definitions = append(definitions, policy.BenchDefinition{Name: d.Name, Available: d.Available, NeedsPower: d.NeedsPower, ConstructionSkill: d.ConstructionSkill})
+		definitions = append(definitions, policy.BenchDefinition{Name: d.Name, Available: d.Available, NeedsPower: d.NeedsPower, ConstructionSkill: d.ConstructionSkill, Research: d.Research})
+		available[d.Name] = d.Available
 	}
-	choice, err := policy.SelectWorkshopBench(policy.WorkshopRequest{Resource: r.workshop.resource, Benches: domain.Known(r.workshop.benches), Hosts: r.workshop.hosts, Definitions: definitions})
+	choice, err := policy.SelectWorkshopBench(policy.WorkshopRequest{Resource: r.workshop.resource, Benches: domain.Known(r.workshop.benches), Hosts: r.workshop.hosts, Definitions: definitions, Power: generatorAvailable(available), BuilderSkill: policy.BuilderSkill(facts.WorkPawns)})
 	if err != nil {
 		return nil, "", err
+	}
+	if choice.Method != policy.WorkshopUnknown {
+		if err := r.recordWorkshopLadder(call, state, review, r.workshop.resource, choice); err != nil {
+			return nil, "", err
+		}
 	}
 	switch choice.Method {
 	case policy.WorkshopUnknown:
 		return nil, BuildingMethodUnknown, nil
 	case policy.WorkshopExisting:
 		return nil, BuildingExistingFacility, nil
+	case policy.WorkshopResearch:
+		return nil, BuildingWorkshopResearch, nil
 	case policy.WorkshopUnavailable:
 		return nil, BuildingWorkshopUnavailable, nil
 	}
@@ -160,4 +192,20 @@ func (r *RoutineBuildingPlanner) selectWorkshop(facts observation.ColonyProjecti
 		}
 	}
 	return &resolved, "", nil
+}
+
+// generatorAvailable is whether any generator definition the power family
+// compiles is buildable now, so a powered bench can be staged and connected;
+// a generator row the census did not describe leaves it unknown.
+func generatorAvailable(available map[string]domain.Fact[bool]) domain.Fact[bool] {
+	result := domain.Known(false)
+	for _, name := range policy.GeneratorDefinitions {
+		v, known := available[name].Value()
+		if !known {
+			result = domain.Unknown[bool]()
+		} else if v {
+			return domain.Known(true)
+		}
+	}
+	return result
 }

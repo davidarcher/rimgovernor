@@ -606,7 +606,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		prisonerInteractionCapabilities = client.prisonerInteraction
 	}
 	var researchSelectCapabilities *buildingruntime.ResearchSelectCapabilities
-	if config.routineResearchTarget != "" {
+	if config.researchPlans() {
 		if client.research == nil {
 			return errors.New("research plans require typed capabilities")
 		}

@@ -233,6 +233,17 @@ namespace HomeBridge.BridgeTools
         }
         private static void Number(double value) { if (double.IsNaN(value) || double.IsInfinity(value) || value < 0) throw new InvalidOperationException("Invalid research quantity."); }
         private static void Bound(int count) { if (count > 256) throw new ReadLimit("Research child collection exceeds 256."); }
+        // The token the controller's select boundary carries: the reply the Go
+        // bridge's ReadResearch requests (locked and finished included, one
+        // 256-row page), recomputed statelessly so a select CAS compares
+        // against exactly what the planner observed.
+        internal static string CurrentToken(Common.ObservationContext context, Map map)
+        {
+            var manager = Find.ResearchManager; var player = Faction.OfPlayerSilentFail;
+            if (manager == null || player?.def == null) throw new InvalidOperationException("Research manager unavailable.");
+            var request = new Obs.ResearchRequest { IncludeLocked = true, IncludeFinished = true, Page = new Common.PageRequest { Limit = 256 } };
+            return Read(request, context, map, manager, player).Snapshot.Token;
+        }
         private static string Id(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Invalid research identifier.");
         private static Obs.DefinitionRef Definition(Def def)
         {

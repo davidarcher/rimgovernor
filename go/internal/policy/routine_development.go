@@ -92,11 +92,44 @@ type ResearchFacts struct {
 	Projects []ResearchProjectID
 }
 
-// ResearchTargetNeed measures EnsureResearch: no configured target is certain
-// recovery; a finished target or any current native project (player-chosen
-// research is respected, never replaced) is recovered; an idle research tab
-// with the target unfinished is a full deficit. Missing facts stay unknown.
-func ResearchTargetNeed(target string, facts domain.Fact[ResearchFacts]) (recovered domain.Fact[bool], deficit domain.Fact[float64]) {
+// ResearchGoalTarget is the project EnsureResearch pursues: the configured
+// target when one is set, else the first derived need the native research
+// census lists and has not finished. Unknown facts keep the first derived
+// need so the deficit stays unknown rather than recovered; no need at all
+// is no target.
+func ResearchGoalTarget(configured string, derived []string, facts domain.Fact[ResearchFacts]) string {
+	if configured != "" || len(derived) == 0 {
+		return configured
+	}
+	f, known := facts.Value()
+	if !known {
+		return derived[0]
+	}
+	listed := map[string]bool{}
+	for _, name := range f.Projects {
+		listed[string(name)] = true
+	}
+	finished := map[string]bool{}
+	for _, name := range f.Finished {
+		finished[string(name)] = true
+	}
+	for _, name := range derived {
+		if listed[name] && !finished[name] {
+			return name
+		}
+	}
+	return ""
+}
+
+// ResearchTargetNeed measures EnsureResearch: no target is certain recovery;
+// a finished target is recovered; an idle research tab with the target
+// unfinished is a full deficit. A current native project also recovers a
+// configured target (player-chosen research is respected, never replaced),
+// but not a derived one: another goal's ladder waits on that project, so
+// the deficit stands, and the research planner asks the clock for ticks
+// while any project is current, until it is finished. Missing facts stay
+// unknown.
+func ResearchTargetNeed(target string, derived bool, facts domain.Fact[ResearchFacts]) (recovered domain.Fact[bool], deficit domain.Fact[float64]) {
 	if target == "" {
 		return domain.Known(true), domain.Known(0.0)
 	}
@@ -116,7 +149,7 @@ func ResearchTargetNeed(target string, facts domain.Fact[ResearchFacts]) (recove
 			return domain.Known(true), domain.Known(0.0)
 		}
 	}
-	if f.Current != "" {
+	if f.Current != "" && !derived {
 		return domain.Known(true), domain.Known(0.0)
 	}
 	return domain.Known(false), domain.Known(1.0)

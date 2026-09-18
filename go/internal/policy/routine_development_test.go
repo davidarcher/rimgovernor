@@ -36,3 +36,36 @@ func TestRoutineDevelopmentDeficitDefensiveLayoutFollowsOptIn(t *testing.T) {
 		t.Fatalf("opted-in layout deficit = %v,%v; want 1,true", v, known)
 	}
 }
+
+func TestResearchGoalTargetDerivesFromRecordedNeeds(t *testing.T) {
+	facts := domain.Known(ResearchFacts{Projects: []ResearchProjectID{"Electricity", "Smithing"}, Finished: []ResearchProjectID{"Electricity"}})
+	if got := ResearchGoalTarget("Fabrication", []string{"Smithing"}, facts); got != "Fabrication" {
+		t.Fatal("configured target must win", got)
+	}
+	if got := ResearchGoalTarget("", nil, facts); got != "" {
+		t.Fatal(got)
+	}
+	if got := ResearchGoalTarget("", []string{"Electricity", "Smithing"}, facts); got != "Smithing" {
+		t.Fatal("finished project chosen", got)
+	}
+	if got := ResearchGoalTarget("", []string{"Electricity", "Unlisted"}, facts); got != "" {
+		t.Fatal("unlisted project chosen", got)
+	}
+	if got := ResearchGoalTarget("", []string{"Smithing"}, domain.Unknown[ResearchFacts]()); got != "Smithing" {
+		t.Fatal("unknown facts must keep the need", got)
+	}
+	recovered, deficit := ResearchTargetNeed(ResearchGoalTarget("", []string{"Smithing"}, facts), true, facts)
+	if v, _ := recovered.Value(); v {
+		t.Fatal(recovered, deficit)
+	}
+	// A derived target stays a deficit while it is current and unfinished:
+	// the ladder waits on it, and the clock ticks come from the research
+	// planner, not from a recovered goal.
+	current := domain.Known(ResearchFacts{Projects: []ResearchProjectID{"Electricity", "Smithing"}, Current: "Smithing"})
+	if recovered, _ = ResearchTargetNeed("Smithing", true, current); recovered != domain.Known(false) {
+		t.Fatal("derived target recovered while current", recovered)
+	}
+	if recovered, _ = ResearchTargetNeed("Smithing", false, current); recovered != domain.Known(true) {
+		t.Fatal("configured target must respect the current project", recovered)
+	}
+}

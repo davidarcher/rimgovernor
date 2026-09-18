@@ -56,6 +56,7 @@ import (
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/pawn"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/power"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/presentation"
+	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/production"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/quest"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/reactivewatch"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/recovery"

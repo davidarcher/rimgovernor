@@ -81,6 +81,7 @@
     <Compile Include="../../../../scripts/fixtures/RefrigerationFixture.cs" Condition="'$(RefrigerationFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/PowerFixture.cs" Condition="'$(PowerFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/FarmEnvironmentFixture.cs" Condition="'$(FarmEnvironmentFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/ProductionLadderFixture.cs" Condition="'$(ProductionLadderFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/CleanlinessFixture.cs" Condition="'$(CleanlinessFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/LightingFixture.cs" Condition="'$(LightingFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/FlooringFixture.cs" Condition="'$(FlooringFixture)' == 'true'" />

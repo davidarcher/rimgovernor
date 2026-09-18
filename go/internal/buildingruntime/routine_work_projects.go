@@ -237,3 +237,38 @@ func routineBenchWork(ctx context.Context, benches RoutineWorkBenchSource, snaps
 	}
 	return domain.Known(out), nil
 }
+
+// routineResearchNeeds is the research the workshop ladder recorded as gating
+// a bench for a still-targeted resource (store.ProductionLadderRecord), the
+// derived EnsureResearch target when no operator target is configured.
+func routineResearchNeeds(ctx context.Context, journal *store.Store, p policy.RoutinePolicy, snapshot domain.GenerationSnapshot) ([]string, error) {
+	ladder, ok, err := journal.LoadProductionLadder(ctx, store.World{Colony: snapshot.Colony, Load: snapshot.Load, Map: snapshot.Map})
+	if err != nil {
+		return nil, err
+	}
+	if !ok || p.ResourceTargets[ladder.Resource] <= 0 {
+		return nil, nil
+	}
+	return ladder.Research, nil
+}
+
+// routineResearchWork is the researcher an unfinished research target needs,
+// the same way a bill needs its bench work type: without it AssignWork leaves
+// Research unowned and the development rank reports labor_unavailable. Empty
+// when no target is owed or it is already finished.
+func routineResearchWork(p policy.RoutinePolicy, needs []string, research domain.Fact[policy.ResearchFacts]) []policy.WorkRequirement {
+	target := policy.ResearchGoalTarget(p.ResearchTarget, needs, research)
+	if target == "" {
+		return nil
+	}
+	// The goal recovers as soon as the project is current; the researcher
+	// is owed until it is finished.
+	if facts, known := research.Value(); known {
+		for _, name := range facts.Finished {
+			if string(name) == target {
+				return nil
+			}
+		}
+	}
+	return []policy.WorkRequirement{{Work: policy.WorkResearch, Skill: "Intellectual"}}
+}

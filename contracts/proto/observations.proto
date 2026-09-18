@@ -216,6 +216,7 @@ message RecipeState {
   repeated SkillRequirement skills = 6; repeated IngredientRequirement ingredients = 7; repeated Quantity products = 8; StockpileFilter default_filter = 9;
   optional string work_type = 10; // WorkTypeDef whose DoBill giver serves the recipe's bench; the type a worker must enable.
   repeated string bench_defs = 11; // Player-buildable bench definitions hosting the recipe (catalog reads without bench_id).
+  repeated string research_prerequisites = 12; // ResearchProjectDefs the recipe itself requires; empty when only its bench gates it.
 }
 message BuildingSettings {
   SnapshotRef snapshot = 1; optional bool forbidden = 2; optional bool flickable = 3; optional bool desired_switch_on = 4;

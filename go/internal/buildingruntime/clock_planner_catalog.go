@@ -49,6 +49,7 @@ var plannerCatalog = []plannerEntry{
 			if err != nil {
 				return err
 			}
+			clockSchedulerLog("Work.step result: reason=%v plan=%v", method.Reason, method.Plan)
 			out.Work = &method
 			return nil
 		}},
@@ -486,7 +487,19 @@ var plannerCatalog = []plannerEntry{
 			if err != nil {
 				return err
 			}
+			clockSchedulerLog("Research.step result: reason=%v plan=%v nativeWorkTicks=%d", method.Reason, method.Plan, method.NativeWorkTicks)
 			out.Research = &method
+			return nil
+		}},
+	{name: "ingredient-storage", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.ZoneCreateAction}, families: factsBuilding,
+		configured: func(c *ClockSchedulerConfig) bool { return c.IngredientStorage != nil },
+		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
+			method, err := s.config.IngredientStorage.step(ctx, epoch)
+			if err != nil {
+				return err
+			}
+			clockSchedulerLog("IngredientStorage.step result: reason=%v plan=%v", method.Reason, method.Plan)
+			out.IngredientStorage = &method
 			return nil
 		}},
 	{name: "naming", priority: plannerPreempt, kinds: []domain.ActionKind{domain.NamingConfirmationAction}, families: factsColony,

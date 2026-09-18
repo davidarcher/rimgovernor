@@ -178,6 +178,11 @@ namespace HomeBridge.BridgeTools
             if (recipe.workAmount >= 0) row.WorkAmount = recipe.workAmount;
             else { try { row.WorkAmount = recipe.WorkAmountTotal(null); } catch (Exception) { } }
             if (recipe.workSkill != null) row.WorkSkill = Id(recipe.workSkill.defName);
+            // The recipe's own research gate, apart from its bench's: a
+            // workshop planner researches both before staging the bench.
+            if (recipe.researchPrerequisite != null) row.ResearchPrerequisites.Add(Id(recipe.researchPrerequisite.defName));
+            foreach (var project in recipe.researchPrerequisites ?? new List<ResearchProjectDef>())
+                if (project != null && !row.ResearchPrerequisites.Contains(Id(project.defName))) row.ResearchPrerequisites.Add(Id(project.defName));
             var work = WorkType(benchDef, recipe);
             if (work != null) row.WorkType = Id(work.defName);
             var skills = recipe.skillRequirements ?? new List<SkillRequirement>();

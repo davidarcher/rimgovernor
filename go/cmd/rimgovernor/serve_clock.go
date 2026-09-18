@@ -170,6 +170,8 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	profile, clockSpeed, routine := sc.profile, sc.clockSpeed, sc.routineReviews
 	sleeping, cooking, shelter, comfort, expansion, power, temperature := sc.routineSleepingPlans, sc.routineCookingPlans, sc.routineShelterPlans, sc.routineComfortPlans, sc.routineExpansionPlans, sc.routinePowerPlans, sc.routineTemperaturePlans
 	workshop := sc.routineWorkshopPlans && len(sc.routineResourceTargets.Map()) > 0
+	ingredientStorage := sc.routineIngredientStoragePlans && len(sc.routineResourceTargets.Map()) > 0
+	research := sc.researchPlans()
 	hospital := sc.routineHospitalPlans
 	supplies, work, acquisition, defense, tend, rescue, equip := sc.routineSupplyPlans, sc.routineWorkPlans, sc.routineAcquisitionPlans, sc.routineDefensePlans, sc.routineTendPlans, sc.routineRescuePlans, sc.routineEquipPlans
 	secureSupplies, repair, clean, gear, medical, foodStorageUpkeep := sc.routineSecureSuppliesPlans, sc.routineRepairPlans, sc.routineCleanPlans, sc.routineGearPlans, sc.routineMedicalPlans, sc.routineFoodStorageUpkeepPlans
@@ -482,7 +484,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				return err
 			}
 		}
-		if researchTarget != "" {
+		if research {
 			researchNative, ok := reads.(buildingruntime.RoutineResearchSource)
 			if !ok {
 				return errors.New("research plans require typed research observations")
@@ -641,6 +643,16 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 					return err
 				}
 			}
+			if ingredientStorage {
+				storageNative, ok := reads.(buildingruntime.RoutineIngredientStorageSource)
+				if !ok {
+					return errors.New("ingredient storage plans require typed bench census and zone preview observations")
+				}
+				config.IngredientStorage, err = buildingruntime.NewRoutineIngredientStoragePlanner(reviewer, storageNative)
+				if err != nil {
+					return err
+				}
+			}
 			if hospital {
 				config.Hospital, err = buildingruntime.NewRoutineHospitalPlanner(reviewer, source)
 				if err != nil {
@@ -753,7 +765,7 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 		thresholds.DefensiveLayout = true
 		capabilities.Methods = append(capabilities.Methods, policy.EnsureDefensiveLayout)
 	}
-	if sc.routineResearchTarget != "" {
+	if sc.researchPlans() {
 		thresholds.ResearchTarget = sc.routineResearchTarget
 		capabilities.Methods = append(capabilities.Methods, policy.EnsureResearch)
 	}

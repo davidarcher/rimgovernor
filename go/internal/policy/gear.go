@@ -153,6 +153,9 @@ type RecipeHost struct {
 	Benches      []string
 	Ingredients  domain.Fact[[][]Amount]
 	RequiredWork domain.Fact[[]WorkRequirement]
+	// Research names the ResearchProjectDefs the recipe itself requires
+	// (sorted); empty when only its bench gates it.
+	Research []string
 }
 type GearPlanningRequest struct {
 	Observation domain.Fact[GearObservation]

@@ -55,6 +55,7 @@ namespace HomeBridge.BridgeTools
         internal readonly Dictionary<Common.AttemptKey, NativeCaravanTravelRecord> CaravanTravels = new Dictionary<Common.AttemptKey, NativeCaravanTravelRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeNamingRecord> Naming = new Dictionary<Common.AttemptKey, NativeNamingRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeDialogRecord> Dialogs = new Dictionary<Common.AttemptKey, NativeDialogRecord>();
+        internal readonly Dictionary<Common.AttemptKey, NativeResearchSelectRecord> ResearchSelections = new Dictionary<Common.AttemptKey, NativeResearchSelectRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeBedAssignRecord> BedAssignments = new Dictionary<Common.AttemptKey, NativeBedAssignRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeExcavationRecord> Excavation = new Dictionary<Common.AttemptKey, NativeExcavationRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeWallRemovalRecord> WallRemovals = new Dictionary<Common.AttemptKey, NativeWallRemovalRecord>();
@@ -167,6 +168,8 @@ namespace HomeBridge.BridgeTools
                 return NativeColonyNamingOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.AnswerDialog)
                 return NativeChoiceDialogOperations.Execute(state, request, context);
+            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.SelectResearch)
+                return NativeResearchSelectOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.AssignBed)
                 return NativeBedAssignOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.ExcavateCell)
@@ -306,6 +309,8 @@ namespace HomeBridge.BridgeTools
                     return ProtoBoundary.Encode(NativeColonyNamingOperations.Preview(parsed.Operation.ConfirmColonyNames, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.AnswerDialog)
                     return ProtoBoundary.Encode(NativeChoiceDialogOperations.Preview(parsed.Operation.AnswerDialog, context));
+                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.SelectResearch)
+                    return ProtoBoundary.Encode(NativeResearchSelectOperations.Preview(parsed.Operation.SelectResearch, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.AssignBed)
                     return ProtoBoundary.Encode(NativeBedAssignOperations.Preview(parsed.Operation.AssignBed, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.ExcavateCell)
@@ -455,6 +460,9 @@ namespace HomeBridge.BridgeTools
                     NativeDialogRecord dialog;
                     if (state.Dialogs.TryGetValue(parsed.Attempt, out dialog))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeChoiceDialogOperations.Observe(parsed.Attempt, context, dialog) }));
+                    NativeResearchSelectRecord researchSelect;
+                    if (state.ResearchSelections.TryGetValue(parsed.Attempt, out researchSelect))
+                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeResearchSelectOperations.Observe(parsed.Attempt, context, researchSelect) }));
                     NativeBedAssignRecord bedAssign;
                     if (state.BedAssignments.TryGetValue(parsed.Attempt, out bedAssign))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = bedAssign.Observe(parsed.Attempt, context) }));
