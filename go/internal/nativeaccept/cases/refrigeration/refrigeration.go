@@ -20,6 +20,11 @@
 //	            is powered, and only then the setpoint patch and cooling
 //	            follow.
 //
+// Every scenario ends with spoilage recovery: the fixture seeds one meat
+// stack part-way to rotting, and once the room is chilled the case advances
+// the game until that stack measures under 0 C and then over a further
+// window in which its CompRottable progress must not move (issue #159).
+//
 // Uses the private disposable test/refrigeration_prepare fixture
 // (RefrigerationFixture.cs) since a naturally generated colony never starts
 // with an enclosed stockpile, Cooler research and a hot room together. The
@@ -52,12 +57,12 @@ func init() {
 			Scope: "Native MaintainRefrigeration vertical (" + scenario + "): warm at-risk meat in an enclosed room " +
 				"drives the live Go routine reviewer/planner to admit a Cooler on a vented wall, patch an existing cooler's " +
 				"setpoint, or hold for the power family; native cooling then takes the measured room under the exit " +
-				"threshold, confirmed by an independent native read.",
+				"threshold, confirmed by an independent native read, and the seeded rotting stack's rot progress stops advancing.",
 			Start: cases.Fixture{Op: "test/refrigeration_prepare", Args: map[string]any{
 				"existingCooler": scenario != "build", "disconnected": scenario == "power", "roomTemperatureC": 30,
 			}},
 			Service: true,
-			Budget:  5 * time.Minute,
+			Budget:  8 * time.Minute,
 			Run:     func(ctx context.Context, s cases.Session) error { return run(ctx, s, scenario) },
 		})
 	}
@@ -125,6 +130,20 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 	if before.warmNutrition < policyDefaults.AtRiskNutritionThreshold {
 		return fmt.Errorf("food-before: fixture meat is not warm at-risk stock (warm nutrition %.2f, temperature %.1f C, roofed %d/%d); a cold biome may have overwhelmed the forced room temperature -- rerun",
 			before.warmNutrition, before.temperature, before.roofed, before.rows)
+	}
+
+	rotting, _ := na.AsMap(prepared["rotting"])
+	rotID := na.AsString(rotting["id"])
+	if rotID == "" {
+		return fmt.Errorf("fixture spawned no part-rotted meat stack: %#v", prepared["rotting"])
+	}
+	rotBefore, err := readRot(ctx, h, rotID, "rot-before")
+	if err != nil {
+		return err
+	}
+	report["rot_before"] = rotBefore.evidence()
+	if rotBefore.destroyed || rotBefore.stage != "Fresh" || rotBefore.progress <= 0 {
+		return fmt.Errorf("rot-before: seeded stack %s is not fresh with rot progress (%+v)", rotID, rotBefore)
 	}
 
 	// "work" rides along because every building method's builder check
@@ -381,7 +400,132 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 	if c.target > policyDefaults.FreezerTargetC {
 		return fmt.Errorf("cooler target %.1f C is above the freezer target %.1f C", c.target, policyDefaults.FreezerTargetC)
 	}
+	if err := checkSpoilageRecovery(ctx, s, rotID, rotBefore); err != nil {
+		return fmt.Errorf("spoilage recovery: %w", err)
+	}
 	return checkStartupLog(s)
+}
+
+// Spoilage recovery: rot progress advances (in 250-tick intervals) one rot
+// tick per game tick above ChilledMaxC, proportionally between 0 and 10 C
+// and not at all under 0 C. freezeWindowTicks is one advance while the cooler pulls the room from the
+// release threshold to its freezer target, freezeWindows bounds that wait
+// (half a game day), and the measured window is rotWindowSteps advances of
+// rotStepTicks (one game hour, sampled at CompRottable's own 250-tick
+// cadence). The door still opens for the colonists' own traffic and a
+// rare tick can land on the spike that lets in (seen at 5 of 10 steps under
+// a heat wave), so the window as a whole is the assertion: at least
+// rotStoppedSteps steps move the stack's progress by at most
+// rotStoppedTolerance rot ticks (a rare tick within 0.1 C of zero), and the
+// whole window advances it by under rotWindowMaxFraction of its ticks
+// against the one-per-tick warm rate: a room merely chilled to ChilledExitC
+// would read 50%, a warm one 100%.
+const (
+	freezeWindowTicks    = 2500
+	freezeWindows        = 12
+	rotStepTicks         = 250
+	rotWindowSteps       = 10
+	rotStoppedSteps      = 5
+	rotStoppedTolerance  = 2.5
+	rotWindowMaxFraction = 0.25
+)
+
+// checkSpoilageRecovery is the run's spoilage assertion over the seeded
+// rotting stack: still fresh after the run (its rot advance over the run is
+// recorded, not bounded: a setpoint patch chills in a few hundred ticks, a
+// build in a few thousand), and once it measures under 0 C its CompRottable
+// progress stops for the bulk of a measured hour.
+func checkSpoilageRecovery(ctx context.Context, s cases.Session, rotID string, before rotSummary) error {
+	report := s.Report()
+	after, err := readRot(ctx, s.Harness(), rotID, "rot-after")
+	if err != nil {
+		return err
+	}
+	report["rot_after"] = after.evidence()
+	if after.destroyed || after.stage != "Fresh" {
+		return fmt.Errorf("seeded stack %s did not survive the run fresh: %+v", rotID, after)
+	}
+	report["rot_run_advance"] = map[string]any{"rot_ticks": after.progress - before.progress, "game_ticks": after.tick - before.tick}
+	windows := 0
+	for ; after.temperature >= 0; windows++ {
+		if windows == freezeWindows {
+			return fmt.Errorf("seeded stack still measures %.1f C after %d ticks with the cooler running: rot never stopped", after.temperature, windows*freezeWindowTicks)
+		}
+		if _, err := s.Advance(ctx, freezeWindowTicks); err != nil {
+			return err
+		}
+		if after, err = readRot(ctx, s.Harness(), rotID, "rot-freeze"); err != nil {
+			return err
+		}
+		if after.destroyed {
+			return fmt.Errorf("seeded stack %s vanished while the room froze: %+v", rotID, after)
+		}
+	}
+	report["rot_freeze_windows"] = windows
+	first, start, stopped := after, after, 0
+	steps := make([]map[string]any, 0, rotWindowSteps)
+	report["rot_window"] = map[string]any{"start": start.evidence(), "steps": &steps}
+	for step := 0; step < rotWindowSteps; step++ {
+		if _, err := s.Advance(ctx, rotStepTicks); err != nil {
+			return err
+		}
+		end, err := readRot(ctx, s.Harness(), rotID, "rot-window")
+		if err != nil {
+			return err
+		}
+		if end.destroyed || end.stage != "Fresh" {
+			return fmt.Errorf("seeded stack %s did not survive the frozen window fresh: %+v", rotID, end)
+		}
+		advanced := end.progress - start.progress
+		steps = append(steps, map[string]any{"tick": end.tick, "temperature_c": end.temperature, "rot_advance": advanced, "pawns_in_room": end.pawnsInRoom})
+		if advanced <= rotStoppedTolerance {
+			stopped++
+		}
+		start = end
+	}
+	total, ticks := start.progress-first.progress, start.tick-first.tick
+	report["rot_stopped_steps"] = stopped
+	report["rot_window_advance"] = map[string]any{"rot_ticks": total, "game_ticks": ticks}
+	if stopped < rotStoppedSteps {
+		return fmt.Errorf("rot progress stopped for only %d of %d window steps (%.0f rot ticks over %d game ticks)", stopped, rotWindowSteps, total, ticks)
+	}
+	if ticks <= 0 || total > rotWindowMaxFraction*float64(ticks) {
+		return fmt.Errorf("rot progress advanced %.0f over %d game ticks of the frozen window, more than %.0f%% of the warm rate", total, ticks, 100*rotWindowMaxFraction)
+	}
+	return nil
+}
+
+type rotSummary struct {
+	tick        int64
+	destroyed   bool
+	stage       string
+	progress    float64
+	rotTicks    float64
+	temperature float64
+	pawnsInRoom int
+}
+
+func (r rotSummary) evidence() map[string]any {
+	return map[string]any{"tick": r.tick, "destroyed": r.destroyed, "stage": r.stage, "rot_progress": r.progress, "rot_ticks": r.rotTicks, "temperature_c": r.temperature, "pawns_in_room": r.pawnsInRoom}
+}
+
+// readRot is the private test/refrigeration_rot probe over one thing: its
+// CompRottable progress, stage, runway, ambient temperature and the pawns
+// sharing its room at the game tick of the read.
+func readRot(ctx context.Context, h *na.Harness, id, label string) (rotSummary, error) {
+	reply, err := h.Call(ctx, label, "test/refrigeration_rot", map[string]any{"id": id})
+	if err != nil {
+		return rotSummary{}, err
+	}
+	if ok, _ := na.AsBool(reply["success"]); !ok {
+		return rotSummary{}, fmt.Errorf("%s: %s", label, na.AsString(reply["reason"]))
+	}
+	destroyed, _ := na.AsBool(reply["destroyed"])
+	return rotSummary{
+		tick: int64(na.AsNumber(reply["tick"])), destroyed: destroyed, stage: na.AsString(reply["stage"]),
+		progress: na.AsNumber(reply["rotProgress"]), rotTicks: na.AsNumber(reply["rotTicks"]), temperature: na.AsNumber(reply["temperatureC"]),
+		pawnsInRoom: int(na.AsNumber(reply["pawnsInRoom"])),
+	}, nil
 }
 
 // checkStartupLog is the run's last assertion: no native error in the

@@ -14,16 +14,18 @@ namespace HomeBridge.BridgeTools
     // Cooler research and forces a hot room so refrigerationaccept can
     // exercise MaintainRefrigeration (issue #6 slice 1) deterministically:
     // the room's measured temperature and the meat's rot runway are what the
-    // Go review latches on, and every wall cell of the ring has a vented
-    // outdoor neighbour for the cooler placement search. Optionally spawns
-    // an existing outward-facing Cooler on the west wall at a warm setpoint
-    // (the setpoint-patch path), with or without a conduit run back to the
-    // generator (the "hot-weather freezer failure" power hand-off path).
+    // Go review latches on, one stack starts part-way to rotting so the case
+    // can watch native cooling stop its rot progress (test/refrigeration_rot),
+    // and every wall cell of the ring has a vented outdoor neighbour for the
+    // cooler placement search. Optionally spawns an existing outward-facing
+    // Cooler on the west wall at a warm setpoint (the setpoint-patch path),
+    // with or without a conduit run back to the generator (the "hot-weather
+    // freezer failure" power hand-off path).
     // Nothing here places, sets or cools anything on the controller's behalf.
     public sealed class RefrigerationFixture
     {
-        [Tool("test/refrigeration_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture: build one enclosed roofed stockpile room with warm raw meat, a fuelled generator and wall-ring conduits, finish Cooler research, force a hot room and a heat wave; optionally an existing warm-setpoint Cooler, optionally disconnected from the generator.")]
-        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken, bool existingCooler = false, bool disconnected = false, float roomTemperatureC = 30f)
+        [Tool("test/refrigeration_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture: build one enclosed roofed stockpile room with warm raw meat, a fuelled generator and wall-ring conduits, finish Cooler research, force a hot room and a heat wave; optionally an existing warm-setpoint Cooler, optionally disconnected from the generator; one meat stack starts part-way to rotting.")]
+        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken, bool existingCooler = false, bool disconnected = false, float roomTemperatureC = 30f, float rotProgressFraction = 0.25f)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap; var player = Faction.OfPlayerSilentFail;
@@ -133,8 +135,13 @@ namespace HomeBridge.BridgeTools
                 var zone = new Zone_Stockpile(StorageSettingsPreset.DefaultStockpile, map.zoneManager);
                 map.zoneManager.RegisterZone(zone);
                 foreach (var cell in interior.Cells) zone.AddCell(cell);
+                // Meat only: a default stockpile would also take the leftover
+                // construction stock, and every haul through the wood door
+                // lets the heat wave into the freezer.
+                zone.settings.filter.SetDisallowAll();
                 zone.settings.filter.SetAllow(meatDef, true);
                 var meat = new List<string>();
+                object rotting = null;
                 foreach (var cell in interior.Cells.Take(3))
                 {
                     var stack = ThingMaker.MakeThing(meatDef);
@@ -142,6 +149,18 @@ namespace HomeBridge.BridgeTools
                     GenSpawn.Spawn(stack, cell, map);
                     stack.SetForbidden(false, false);
                     meat.Add(stack.GetUniqueLoadID());
+                    // The first stack is already part-way to rotting: the
+                    // spoilage-recovery read (test/refrigeration_rot) follows
+                    // its CompRottable progress, which native cooling must
+                    // stop advancing. The rest stay fresh so the room keeps
+                    // warm at-risk stock even if this one spoils first.
+                    if (rotting == null && rotProgressFraction > 0f)
+                    {
+                        var rot = stack.TryGetComp<CompRottable>();
+                        if (rot == null) return Refuse("Fixture meat unexpectedly has no CompRottable.");
+                        rot.RotProgress = rot.PropsRot.TicksToRotStart * System.Math.Min(rotProgressFraction, 0.9f);
+                        rotting = new { id = stack.GetUniqueLoadID(), rotProgress = rot.RotProgress, ticksToRotStart = rot.PropsRot.TicksToRotStart };
+                    }
                 }
                 // Construction stock for one Cooler (Steel + components) on the
                 // open rows above the room, one full stack per cell: a single
@@ -196,9 +215,31 @@ namespace HomeBridge.BridgeTools
                     origin = new { x = origin.x, z = origin.z }, interior = new { minX = interior.minX, minZ = interior.minZ, maxX = interior.maxX, maxZ = interior.maxZ },
                     walls, door = new { x = At(0, 3).x, z = At(0, 3).z },
                     cooler = cooler?.GetUniqueLoadID(), coolerCell = existingCooler ? new { x = coolerCell.x, z = coolerCell.z } : null,
-                    generator = generator.GetUniqueLoadID(), disconnected, meat, stock,
+                    generator = generator.GetUniqueLoadID(), disconnected, meat, rotting, stock,
                     spareCell = new { x = At(11, 0).x, z = At(11, 0).z },
                     setup = "Test-only enclosed roofed stockpile room with warm raw meat, wall-ring conduits, fuelled generator, Cooler research, forced hot room and heat wave; cooler placement, setpoint and cooling remain the controller's and native simulation's.",
+                };
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
+        [Tool("test/refrigeration_rot", Description = "Private read-only probe: rot progress, stage, runway, ambient temperature and pawns sharing the room of one thing by unique load id, with the game tick.")]
+        public async Task<object> Rot(IRimBridgeContext ctx, CancellationToken cancellationToken, string id)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                if (map == null || Current.Game == null) return Refuse("A loaded colony map is required.");
+                var thing = map.listerThings.AllThings.FirstOrDefault(t => t.GetUniqueLoadID() == id);
+                if (thing == null) return new { success = true, tick = Find.TickManager.TicksGame, id, destroyed = true };
+                var rot = thing.TryGetComp<CompRottable>();
+                if (rot == null) return Refuse("Thing " + id + " has no CompRottable.");
+                return new {
+                    success = true, tick = Find.TickManager.TicksGame, id, destroyed = thing.Destroyed, spawned = thing.Spawned,
+                    defName = thing.def.defName, count = thing.stackCount,
+                    x = thing.Position.x, z = thing.Position.z,
+                    temperatureC = thing.Spawned ? (float?)thing.AmbientTemperature : null,
+                    pawnsInRoom = thing.Spawned ? (int?)map.mapPawns.AllPawnsSpawned.Count(p => p.GetRoom() == thing.GetRoom()) : null,
+                    stage = rot.Stage.ToString(), rotProgress = rot.RotProgress, ticksToRotStart = rot.PropsRot.TicksToRotStart,
+                    rotTicks = thing.Spawned ? (int?)rot.TicksUntilRotAtCurrentTemp : null,
                 };
             }, cancellationToken).ConfigureAwait(false);
         }
