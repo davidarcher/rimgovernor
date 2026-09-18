@@ -151,7 +151,6 @@ func (r *RoutineSleepingUpkeepPlanner) step(call, epoch context.Context, arbiter
 	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit {
 		return RoutineBuildingResult{Reason: BuildingMethodNoDeficit}, nil
 	}
-	var observe uint32
 	for _, m := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, m.Plan)
 		if err != nil {
@@ -159,6 +158,20 @@ func (r *RoutineSleepingUpkeepPlanner) step(call, epoch context.Context, arbiter
 		}
 		if domain.GoalWorkOpen(plan.Progress) {
 			return RoutineBuildingResult{Reason: BuildingMethodExistingWork}, nil
+		}
+	}
+	// A completed assignment is retired from the goal's active methods once
+	// its epoch is cleaned, so the epoch's full method history is what
+	// still earns the observation window.
+	var observe uint32
+	methods, err := p.journal.LoadGoalMethods(call, goal.Goal.ID, goal.Goal.Epoch)
+	if err != nil {
+		return RoutineBuildingResult{}, err
+	}
+	for _, m := range methods {
+		plan, err := p.journal.LoadPlan(call, m.Plan)
+		if err != nil {
+			return RoutineBuildingResult{}, err
 		}
 		observe = max(observe, sleepingNativeWorkTicks(plan, state.Snapshot, review.Tick))
 	}

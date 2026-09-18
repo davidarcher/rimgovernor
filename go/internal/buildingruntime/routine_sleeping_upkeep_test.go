@@ -228,6 +228,18 @@ func TestSleepingUpkeepRetriesUnadmittedAssignment(t *testing.T) {
 	if result, err := planner.Step(ctx); err != nil || result.Reason != BuildingMethodUsed || result.NativeWorkTicks != sleepingObservationSlice {
 		t.Fatal(result, err)
 	}
+	// The next review retires the settled plan from the goal's active
+	// methods; the window survives that, since the epoch's history still
+	// carries the completed assignment.
+	if _, err = planner.reviewer.Step(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if goal := sleepingGoal(t, db); len(goal.Methods) != 0 {
+		t.Fatal("completed assignment still active", goal.Methods)
+	}
+	if result, err := planner.Step(ctx); err != nil || result.Reason != BuildingMethodUsed || result.NativeWorkTicks != sleepingObservationSlice {
+		t.Fatal("after retirement", result, err)
+	}
 }
 
 func TestSleepingUpkeepAssignmentNeverCompletesTheGoal(t *testing.T) {
