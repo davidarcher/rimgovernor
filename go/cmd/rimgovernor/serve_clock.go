@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -182,7 +183,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	animalFeedPlans, productionPolicyPlans := sc.routineAnimalFeedPlans, sc.routineProductionPolicyPlans
 	fields, bills, foodStorage := sc.routineFieldPlans, sc.routineBillPlans, sc.routineFoodStoragePlans
 	prisonerInteraction, populationCustody, stoneShell, defensiveLayout := sc.routinePrisonerInteractionPlans, sc.routinePopulationCustodyPlans, sc.routineStoneShellPlans, sc.routineDefensiveLayoutPlans
-	haul, waste, moodRelief, naming := sc.routineHaulPlans, sc.routineWastePlans, sc.routineMoodPlans, sc.routineNamingPlans
+	haul, waste, moodRelief, naming, dialog := sc.routineHaulPlans, sc.routineWastePlans, sc.routineMoodPlans, sc.routineNamingPlans, sc.routineDialogPlans
 	config := serviceClockConfig(profile, parseClockSpeed(clockSpeed), sc.clockTestAcceleration, uint32(sc.clockWindowTicks), sc.clockWindowSeconds)
 	config.Facts = facts
 	config.RoutineMethods = session.RoutineMethodsEnabled()
@@ -197,7 +198,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 		}
 		config.CaravanJourney = tracker
 	}
-	if (bills || fields || foodStorage || acquisition || work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || secureSupplies || repair || fireSafety || clean || haul || waste || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || homeCoverage || stoneShell || defensiveLayout || naming || researchTarget != "" || len(resourceTargets) > 0 || animalFeedPlans || productionPolicyPlans) && !routine {
+	if (bills || fields || foodStorage || acquisition || work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || secureSupplies || repair || fireSafety || clean || haul || waste || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || homeCoverage || stoneShell || defensiveLayout || naming || dialog || researchTarget != "" || len(resourceTargets) > 0 || animalFeedPlans || productionPolicyPlans) && !routine {
 		return errors.New("building plans require routine reviews")
 	}
 	if routine {
@@ -501,6 +502,16 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				return err
 			}
 		}
+		if dialog {
+			dialogNative, ok := reads.(buildingruntime.RoutineDialogSource)
+			if !ok {
+				return errors.New("dialog plans require typed colony observations")
+			}
+			config.Dialog, err = buildingruntime.NewRoutineDialogPlanner(reviewer, dialogNative, policy.DialogAnswerPolicy{Prefer: splitDialogPrefer(sc.routineDialogPrefer)})
+			if err != nil {
+				return err
+			}
+		}
 		if len(resourceTargets) > 0 {
 			resourceNative, ok := reads.(buildingruntime.RoutineResourceSource)
 			if !ok {
@@ -762,4 +773,16 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 		capabilities.Methods = append(capabilities.Methods, policy.ProductionPolicy)
 	}
 	return thresholds, capabilities
+}
+
+// splitDialogPrefer parses --routine-dialog-prefer: comma-separated label
+// patterns, blanks dropped, order kept.
+func splitDialogPrefer(raw string) []string {
+	var out []string
+	for _, pattern := range strings.Split(raw, ",") {
+		if pattern = strings.TrimSpace(pattern); pattern != "" {
+			out = append(out, pattern)
+		}
+	}
+	return out
 }

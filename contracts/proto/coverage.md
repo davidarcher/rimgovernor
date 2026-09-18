@@ -48,6 +48,7 @@ discovered/mapped, not as live source links.
 | `home/trade` | Operations.Preview / Execute: OpenTrade / SetTradeLines / AcceptTrade / EndTrade; Observations.ListTraders / ReadTradeSheet / ReadTradeStatus | Typed | `controller/rimgovernor/bridge_game.py:16` |
 | `home/research` | Operations.Preview / Execute: SelectResearch; Observations.ReadResearch | Typed | `controller/rimgovernor/bridge_game.py:16` |
 | `home/dialog_text` | PresentationReads.DialogFields / PreviewDialogText; PlayerPresentation.Apply text | Typed | `controller/rimgovernor/bridge_game.py:16` |
+| (none: game-opened `Verse.Dialog_NodeTree`) | Observations.ReadColonyFacts `dialog` (ChoiceDialog, indexed options); Operations.AnswerDialog; Clock `STOP_REASON_DIALOG_PAUSE` | Typed (#156) | none: the legacy controller never read or answered force-pausing choice dialogs |
 | `home/install` | Operations.Preview / Execute: InstallBuilding; Observations.ReadInstallStatus | Typed | `controller/rimgovernor/bridge_game.py:16` |
 | `rimworld/set_time_speed` | Clock.Start / Pause / ChangeSpeed; unsupervised autonomous bypass removed | Typed replacement | `controller/rimgovernor/bridge_game.py:17` |
 | `rimworld/apply_architect_designator` | Operations.Preview / Execute DesignateThing (Allow/Forbid/Hunt/Harvest/Deconstruct) | Closed replacement | `controller/rimgovernor/bridge_game.py:17` |

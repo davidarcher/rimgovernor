@@ -54,6 +54,7 @@ message EffectEvidence {
     AcquisitionEffect acquisition = 20;
     NamingEffect naming = 21;
     ExcavationEffect excavation = 22;
+    DialogEffect dialog = 23;
   }
 }
 message SnapshotEvidence {
@@ -84,6 +85,17 @@ message ExcavationEffect {
   optional bool cleared = 5;
   optional bool cancelled = 6;
   optional string blocker = 7;
+}
+// activated: the exact option's native Activate ran. closed: the window left
+// the stack; advanced: the dialog moved to a linked node instead (a new
+// ColonyFactsSnapshot.dialog observation names the next choice).
+message DialogEffect {
+  optional int32 window_id = 1;
+  optional int32 option_index = 2;
+  optional string option_label = 3;
+  optional bool activated = 4;
+  optional bool closed = 5;
+  optional bool advanced = 6;
 }
 message NamingEffect {
   optional int32 window_id = 1;

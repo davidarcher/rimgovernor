@@ -157,6 +157,9 @@ func ValidateColonyFacts(v *o.ColonyFactsSnapshot, identity *c.Identity) error {
 			}
 		}
 	}
+	if err := validateChoiceDialog(v.Dialog); err != nil {
+		return err
+	}
 	if len(v.PolicyResources) != 0 || len(v.FoodCorpses) != 0 {
 		return contract("unreviewed colony section")
 	}

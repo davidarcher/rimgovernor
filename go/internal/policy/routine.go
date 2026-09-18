@@ -9,6 +9,7 @@ import (
 
 const (
 	ConfirmColonyNames      GoalID = "ConfirmColonyNames"
+	AnswerDialog            GoalID = "AnswerDialog"
 	ActiveCombat            GoalID = "ActiveCombat"
 	CriticalMedicine        GoalID = "CriticalMedical"
 	RestoreWorkers          GoalID = "RestoreWorkers"
@@ -320,8 +321,11 @@ type RoutineFacts struct {
 	// every other goal, only while one exists or the count is unknown; a
 	// colonist who merely needs tending keeps the goal active at priority 2
 	// so the colony's other work and the clock go on around the tend.
-	UrgentPatients                                                       domain.Fact[int64]
-	AllPatientsResting, ColonyNaming, CleanupPawns, ForbiddenSupplies    domain.Fact[bool]
+	UrgentPatients                                                    domain.Fact[int64]
+	AllPatientsResting, ColonyNaming, CleanupPawns, ForbiddenSupplies domain.Fact[bool]
+	// ChoiceDialog is true while the game is force-paused by a choice dialog
+	// it opened by itself (#156); AnswerDialog is the goal that answers it.
+	ChoiceDialog                                                         domain.Fact[bool]
 	FoodStorage, Cooking, WorkCoverage, PowerRequired, DisabledConsumers domain.Fact[bool]
 }
 
@@ -561,6 +565,9 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if positive(f.ColonyNaming) {
 		addGoal(ConfirmColonyNames, 0)
 	}
+	if positive(f.ChoiceDialog) {
+		addGoal(AnswerDialog, 0)
+	}
 	if !positive(measured(f.Hostiles, func(n int64) bool { return n == 0 })) {
 		addGoal(ActiveCombat, 0)
 	}
@@ -655,6 +662,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		return measured(observed, func(float64) bool { return !active })
 	}
 	addAssessment(ConfirmColonyNames, 0, not(f.ColonyNaming))
+	addAssessment(AnswerDialog, 0, not(f.ChoiceDialog))
 	addAssessment(ActiveCombat, 0, measured(f.Hostiles, func(n int64) bool { return n == 0 }))
 	addAssessment(CriticalMedicine, medicalPriority, g.Medical)
 	addAssessment(RestoreWorkers, 1, not(f.CleanupPawns))

@@ -98,6 +98,7 @@ type ClockSchedulerConfig struct {
 	Waste                            *RoutineWastePlanner
 	MoodRelief                       *RoutineMoodReliefPlanner
 	Naming                           *RoutineNamingPlanner
+	Dialog                           *RoutineDialogPlanner
 	RoutineMethods                   bool
 }
 type ClockSchedulerResult struct {
@@ -155,6 +156,7 @@ type ClockSchedulerResult struct {
 	Waste                            *RoutineWasteResult
 	MoodRelief                       *RoutineMoodReliefResult
 	Naming                           *RoutineNamingResult
+	Dialog                           *RoutineDialogResult
 	Running, Reconciled, Cleaned     bool
 	// Combat is set while a combat watch window was admitted or is running,
 	// so the worker keeps its short poll instead of backing off.
@@ -344,6 +346,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, ErrControl
 	}
 	if config.Naming != nil && (config.Routine == nil || config.Naming.reviewer != config.Routine) {
+		return nil, ErrControl
+	}
+	if config.Dialog != nil && (config.Routine == nil || config.Dialog.reviewer != config.Routine) {
 		return nil, ErrControl
 	}
 	if config.Resource != nil && (config.Routine == nil || config.Resource.reviewer != config.Routine) {
@@ -917,7 +922,7 @@ func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot)
 				domain.MeleeAttackAction, domain.RangedAttackAction, domain.TendAction, domain.RescueAction, domain.CaptureAction,
 				domain.HaulAction, domain.EquipAction, domain.GearReplaceAction, domain.RecoveryServiceAction,
 				domain.MovementAction, domain.HusbandryAction, domain.PrisonerInteractionAction,
-				domain.RepairAction, domain.CleanAction, domain.WasteAction, domain.MineAcquisitionAction, domain.ProductionPolicyAction, domain.MoodReliefAction, domain.ExcavationAction:
+				domain.RepairAction, domain.CleanAction, domain.WasteAction, domain.MineAcquisitionAction, domain.ProductionPolicyAction, domain.MoodReliefAction, domain.ExcavationAction, domain.DialogAnswerAction:
 			default:
 				return false, nil, executor.ErrHeld
 			}

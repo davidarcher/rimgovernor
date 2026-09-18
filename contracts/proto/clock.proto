@@ -56,6 +56,10 @@ enum StopReason {
   // An armed watched attempt reached a terminal outcome; the epoch stopped at
   // the next tick boundary so the controller can react at once.
   STOP_REASON_WATCH_LATCHED = 22;
+  // A force-pausing Verse.Dialog_NodeTree the game opened by itself holds the
+  // clock; PauseEvidence.dialog names it and ColonyFactsSnapshot.dialog lists
+  // its options for Operations.AnswerDialog.
+  STOP_REASON_DIALOG_PAUSE = 23;
 }
 
 message WatchPolicy {
@@ -290,7 +294,9 @@ message PauseEvidence {
   Letter letter = 6;
   optional Speed requested_speed = 7;
   optional ObservedSpeed actual_speed = 8;
+  DialogPause dialog = 9;
 }
+message DialogPause { optional int32 window_id = 1; optional string window_type = 2; optional string title = 3; }
 // Terminal progress of an armed watched attempt, latched at a tick boundary.
 // The outcome mirrors receipts.v1.Progress so the controller reconciles the
 // same attempt through receipts_observe_progress and finds agreement.

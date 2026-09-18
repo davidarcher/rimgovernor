@@ -87,6 +87,7 @@ namespace HomeBridge.BridgeTools
                 case "event_journal_error": return Clock.StopReason.EventJournalError;
                 case "force_paused": return Clock.StopReason.ForcePaused;
                 case "colony_naming": return Clock.StopReason.ColonyNaming;
+                case "dialog_pause": return Clock.StopReason.DialogPause;
                 case "start_refused": return Clock.StopReason.StartRefused;
                 case "notification_batch": return Clock.StopReason.NotificationBatch;
                 case "medical_rest_changed": return Clock.StopReason.MedicalRestChanged;

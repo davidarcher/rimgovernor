@@ -247,6 +247,9 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 	r.Facts.Waste = colonyWaste(v)
 	r.Facts.Upkeep = colonyUpkeep(v)
 	r.Facts.MedicalReserve = colonyMedicalReserve(v)
+	// The dialog section is present exactly while a force-pausing choice
+	// dialog is open (#156); native omits it otherwise.
+	r.Facts.ChoiceDialog = domain.Known(v.Dialog != nil)
 	if v.Naming != nil {
 		r.Facts.ColonyNaming = domain.Known(true)
 	} else {

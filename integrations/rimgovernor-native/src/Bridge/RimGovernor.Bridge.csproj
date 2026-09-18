@@ -40,6 +40,7 @@
     <!-- build_native_mod.ps1 adds QuietStorytellerFixture, DebugStartFixture, LetterFixture, FreezeNeedsFixture and ShutdownFixture to every fixture build; the extra conditions cover direct dotnet builds of the fixtures that call into them. -->
     <Compile Include="../../../../scripts/fixtures/DebugStartFixture.cs" Condition="'$(DebugStartFixture)' == 'true' Or '$(ScenarioStartFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/LetterFixture.cs" Condition="'$(LetterFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/DialogFixture.cs" Condition="'$(DialogFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/FreezeNeedsFixture.cs" Condition="'$(FreezeNeedsFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/VideoSourceFixture.cs" Condition="'$(VideoSourceFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/VideoMatrixFixture.cs" Condition="'$(VideoMatrixFixture)' == 'true'" />

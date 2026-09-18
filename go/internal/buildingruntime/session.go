@@ -73,6 +73,7 @@ type SessionConfig struct {
 	BedAssign           *bedassign.Capabilities
 	ResearchSelect      *ResearchSelectCapabilities
 	ConfirmColonyNames  *ConfirmColonyNamesCapabilities
+	DialogAnswer        *DialogAnswerCapabilities
 	Husbandry           *HusbandryCapabilities
 	HomeCoverage        *HomeCoverageCapabilities
 	PrisonerInteraction *PrisonerInteractionCapabilities
@@ -363,6 +364,9 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.ConfirmColonyNames != nil && (config.ConfirmColonyNames.Native == nil || config.ConfirmColonyNames.Writer == nil) {
 		return cleanup(ErrControl)
 	}
+	if config.DialogAnswer != nil && (config.DialogAnswer.Native == nil || config.DialogAnswer.Writer == nil) {
+		return cleanup(ErrControl)
+	}
 	if config.Husbandry != nil && (config.Husbandry.Native == nil || config.Husbandry.Writer == nil) {
 		return cleanup(ErrControl)
 	}
@@ -471,6 +475,11 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	}
 	if config.ConfirmColonyNames != nil {
 		if err := worker.EnableConfirmColonyNames(&confirmColonyNamesBoundary{Boundary: place, naming: *config.ConfirmColonyNames}); err != nil {
+			return cleanup(err)
+		}
+	}
+	if config.DialogAnswer != nil {
+		if err := worker.EnableDialogAnswer(&dialogAnswerBoundary{Boundary: place, dialog: *config.DialogAnswer}); err != nil {
 			return cleanup(err)
 		}
 	}

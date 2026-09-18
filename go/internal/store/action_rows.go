@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -130,6 +131,10 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 			return encodeErr
 		}
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,mood_relief_payload) VALUES(?,?,?,'mood_relief',?,?)", a.ID(), plan, ordinal, relief.Pawn(), data)
+	} else if dialog, ok := a.DialogAnswer(); ok {
+		// x carries the window ID and z the option's list position; definition
+		// is the exact observed option label.
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,definition,x,z) VALUES(?,?,?,'dialog_answer',?,?,?)", a.ID(), plan, ordinal, dialog.OptionLabel(), dialog.WindowID(), dialog.OptionIndex())
 	} else {
 		return errors.New("unsupported persisted action")
 	}
@@ -451,6 +456,17 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 			return domain.Action{}, 0, err
 		}
 		a, err := domain.NewHomeCoverageAction(id, hc)
+		return a, ordinal, err
+	}
+	if kind == "dialog_answer" && def.Valid && x.Valid && z.Valid && !pawn.Valid && !target.Valid && !draftAction.Valid && !rotation.Valid && !stuff.Valid && work == nil && zone == nil && bill == nil {
+		if x.Int64 < 0 || x.Int64 > math.MaxInt32 || z.Int64 < 0 || z.Int64 > math.MaxInt32 {
+			return domain.Action{}, 0, errors.New("dialog answer window or option out of range")
+		}
+		v, err := domain.NewDialogAnswer(int32(x.Int64), int32(z.Int64), def.String)
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		a, err := domain.NewDialogAnswerAction(id, v)
 		return a, ordinal, err
 	}
 	if kind == "research_select" && def.Valid && !pawn.Valid && !target.Valid && !draftAction.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid && work == nil && zone == nil && bill == nil {

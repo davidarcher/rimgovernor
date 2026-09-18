@@ -216,3 +216,40 @@ func TestRoutineExecutionRecoveredBillNeedRefusesUndispatchedSibling(t *testing.
 		t.Fatal("recovered need authorized a plan with an undispatched bill action")
 	}
 }
+
+// A dialog answer plan committed under the AnswerDialog goal is a supported
+// routine method: the worker dispatches it under the root authority like
+// any building family (#156).
+func TestRoutineExecutionAuthorizesDialogAnswerPlan(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	s := open(t, memoryPath(t))
+	r := routineRequest()
+	r.Current.Native = 2
+	r.Facts.ChoiceDialog = domain.Known(true)
+	out := reviewRoutine(t, s, &r)
+	g := routineGoal(t, out, policy.AnswerDialog)
+	if g.Goal.Need != domain.NeedDeficit {
+		t.Fatal(g)
+	}
+	answer, err := domain.NewDialogAnswer(3, 1, "OK")
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, err := domain.NewDialogAnswerAction("dialog", answer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, err := domain.NewPlan("dialog-plan", 1, []domain.Action{a})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "dialog", plan); err != nil {
+		t.Fatal(err)
+	}
+	target := r.Current
+	target.Plan, target.Revision = "dialog-plan", 1
+	if err = s.AuthorizeRoutinePlan(ctx, r.Current, target); err != nil {
+		t.Fatal("dialog answer plan was not authorized", err)
+	}
+}

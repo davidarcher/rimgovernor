@@ -138,6 +138,12 @@ their own narrow typed receipts, without an import cycle.
   including per-cell `doorway` (a door, door blueprint or door frame) so indoor
   furnishing keeps entrance aisles clear. Source's hardcoded starter definition
   list is replaced by explicit requested open definition names.
+- ChoiceDialogTool.cs (`dialog` section, #156): the topmost open force-pausing
+  `Verse.Dialog_NodeTree` (window id, type, title, text, interactive) with its
+  current node's options in native order, each carrying its index, label,
+  `selectable`/`disabled_reason` and whether activating it resolves (closes or
+  advances) the dialog rather than opening a hyperlink. Absent when no such
+  dialog is open; the initial naming dialog stays under `naming`.
 - NeedReliefTool.cs consumers require current needs, queued/current job identity,
   player-forced/interruptibility/native priority, timetable, carry/fire/draft/
   mental/dead/downed and medical rest facts. PawnState/Settings/JobEvidence carries

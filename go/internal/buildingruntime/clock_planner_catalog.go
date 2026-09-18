@@ -499,6 +499,16 @@ var plannerCatalog = []plannerEntry{
 			out.Naming = &method
 			return nil
 		}},
+	{name: "dialog", priority: plannerPreempt, kinds: []domain.ActionKind{domain.DialogAnswerAction}, families: factsColony,
+		configured: func(c *ClockSchedulerConfig) bool { return c.Dialog != nil },
+		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
+			method, err := s.config.Dialog.step(ctx, epoch, arbiter)
+			if err != nil {
+				return err
+			}
+			out.Dialog = &method
+			return nil
+		}},
 	{name: "resource", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.MineAcquisitionAction, domain.ProductionBillAction, domain.ZoneCreateAction}, families: factsColony,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Resource != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {

@@ -373,6 +373,12 @@ namespace HomeBridge.BridgeTools
                 if (windows.Count > 256) throw new InvalidOperationException("Clock pause evidence exceeds window bound");
                 if (windows.Any(window => !ProtoBoundary.IsIdentifier(window))) throw new InvalidOperationException("Invalid pause window identity");
                 result.Stopped.Pause.ForcePausingWindowIds.Add(windows);
+                if (kind == "dialog_pause")
+                {
+                    var dialog = ChoiceDialogTools.Pending();
+                    if (dialog == null) throw new InvalidOperationException("Dialog pause lacks its force-pausing choice dialog");
+                    result.Stopped.Pause.Dialog = new Clock.DialogPause { WindowId = dialog.ID, WindowType = Text(dialog.GetType().FullName), Title = Text(ChoiceDialogTools.Title(dialog)) };
+                }
                 if (kind == "letter_pause")
                 {
                     object? source, id;

@@ -134,6 +134,7 @@ type buildingServiceBridge struct {
 	prisonerInteraction *buildingruntime.PrisonerInteractionCapabilities
 	research            *buildingruntime.ResearchSelectCapabilities
 	naming              *buildingruntime.ConfirmColonyNamesCapabilities
+	dialog              *buildingruntime.DialogAnswerCapabilities
 	production          *buildingruntime.ProductionPolicyCapabilities
 	buildingTemperature *buildingtemperature.Capabilities
 	bedMedical          *bedmedical.Capabilities
@@ -257,6 +258,10 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
+	dialogControl, err := bridge.NewDialogControl(client)
+	if err != nil {
+		return buildingServiceBridge{}, errors.Join(err, client.Close())
+	}
 	productionPolicyWriter, err := bridge.NewProductionPolicyWriter(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
@@ -317,6 +322,7 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		prisonerInteraction: &buildingruntime.PrisonerInteractionCapabilities{Native: client, Writer: prisonerInteractionWriter},
 		research:            &buildingruntime.ResearchSelectCapabilities{Native: client, Writer: researchSelect},
 		naming:              &buildingruntime.ConfirmColonyNamesCapabilities{Native: client, Writer: namingControl},
+		dialog:              &buildingruntime.DialogAnswerCapabilities{Native: client, Writer: dialogControl},
 		production:          &buildingruntime.ProductionPolicyCapabilities{Native: client, Writer: productionPolicyWriter},
 		buildingTemperature: &buildingtemperature.Capabilities{Native: client, Writer: buildingTemperatureControl},
 		bedMedical:          &bedmedical.Capabilities{Native: client, Writer: bedMedicalControl},
@@ -613,6 +619,13 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		namingCapabilities = client.naming
 	}
+	var dialogCapabilities *buildingruntime.DialogAnswerCapabilities
+	if config.routineDialogPlans {
+		if client.dialog == nil {
+			return errors.New("dialog plans require typed capabilities")
+		}
+		dialogCapabilities = client.dialog
+	}
 	var productionPolicyCapabilities *buildingruntime.ProductionPolicyCapabilities
 	if config.routineProductionPolicyPlans {
 		if client.production == nil {
@@ -684,6 +697,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		PrisonerInteraction: prisonerInteractionCapabilities,
 		ResearchSelect:      researchSelectCapabilities,
 		ConfirmColonyNames:  namingCapabilities,
+		DialogAnswer:        dialogCapabilities,
 		ProductionPolicy:    productionPolicyCapabilities,
 		BuildingTemperature: buildingTemperatureCapabilities,
 		BedMedical:          bedMedicalCapabilities,

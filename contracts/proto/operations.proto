@@ -100,6 +100,7 @@ message Operation {
     SetAnimalArea set_animal_area = 50;
     SetAnimalMaster set_animal_master = 51;
     SetAnimalFollowing set_animal_following = 52;
+    AnswerDialog answer_dialog = 53;
   }
 }
 
@@ -282,6 +283,10 @@ message FulfillQuest { EntityPrecondition quest = 1; EntityPrecondition caravan 
 // which stays reserved for the explicit-player PlayerPresentation.Apply surface;
 // automated Hands never admit that surface. See presentation-coverage.md.
 message ConfirmColonyNames { optional int32 window_id = 1; optional string faction_name = 2; optional string settlement_name = 3; }
+// Activates one option of the force-pausing choice dialog ColonyFactsSnapshot.dialog
+// observed (Verse.Dialog_NodeTree). window_id plus the exact observed option index
+// and label stand in for EntityPrecondition: native refuses on any drift.
+message AnswerDialog { optional int32 window_id = 1; optional int32 option_index = 2; optional string option_label = 3; }
 
 // Safe cleanup may run after authority revocation, only for an unchanged native
 // claim. original_owner (rimgovernor.authority.v1.Owner) was removed: whether

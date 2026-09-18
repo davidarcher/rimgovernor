@@ -453,8 +453,14 @@ namespace HomeBridge.BridgeTools
             if (windows.Count > 0)
             {
                 var naming = ColonyNamingTools.Pending() != null;
-                Stop(s, naming ? "colony_naming" : "force_paused",
-                    naming ? "RimWorld requests initial faction and settlement names." : ForcePauseDetail(), true, null);
+                var dialog = ChoiceDialogTools.Pending();
+                // A choice dialog the game opened by itself is answered through
+                // Operations.AnswerDialog once the controller has read its
+                // options (#156); it is named so the stop is actionable headless.
+                Stop(s, naming ? "colony_naming" : dialog != null ? "dialog_pause" : "force_paused",
+                    naming ? "RimWorld requests initial faction and settlement names."
+                        : dialog != null ? "Game is force-paused by " + dialog.GetType().FullName + " (" + (ChoiceDialogTools.Title(dialog) ?? "") + "); read the colony facts dialog section and answer it."
+                        : ForcePauseDetail(), true, null);
                 return;
             }
             var now = NowMs();

@@ -19,6 +19,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/httpapi"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
@@ -80,6 +81,8 @@ type serveConfig struct {
 	routineStoneShellPlans          bool
 	routineDefensiveLayoutPlans     bool
 	routineNamingPlans              bool
+	routineDialogPlans              bool
+	routineDialogPrefer             string
 	routineResearchTarget           string
 	routineResourcePlans            bool
 	routineResourceTargets          resourceTargetFlags
@@ -135,6 +138,7 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.Float64Var(&c.clockWindowSeconds, "clock-window-seconds", defaultClockWindowSeconds, fmt.Sprintf("least wall seconds a supervised colony window should run at --clock-speed: the window grows past --clock-window-ticks to the ticks the speed runs in this time, or in the pause observed between windows if longer, up to %d ticks; 0 keeps --clock-window-ticks fixed", maxClockWindowTicks))
 	flags.StringVar(&c.flightRecorder, "flight-recorder", "", "absolute path recording every native request/response/error (optional; opt-in diagnostics)")
 	flags.IntVar(&c.routineProjectLimit, "routine-project-limit", 2, "maximum concurrent optional projects, also bounded by observed workers (1..8)")
+	flags.StringVar(&c.routineDialogPrefer, "routine-dialog-prefer", strings.Join(policy.DefaultDialogAnswerPrefer, ","), "comma-separated option label patterns (case-insensitive substrings, first match wins) AnswerDialog prefers when a force-pausing choice dialog is open; the first selectable option otherwise")
 	flags.StringVar(&c.routineResearchTarget, "routine-research-target", "", "native ResearchProjectDef name EnsureResearch selects prerequisite-ordered toward once no research project is current")
 	flags.Var(&c.routineResourceTargets, "routine-resource-target", "repeatable RESOURCE:TARGET native stock floor MaintainResource dispatches a production bill toward")
 	flags.Var(&c.routineResourceReserves, "routine-resource-reserve", "repeatable RESOURCE:FLOOR native stock floor ProductionPolicy replaces into the current native production policy")
@@ -159,7 +163,7 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	explicit := map[string]bool{}
 	flags.Visit(func(f *flag.Flag) { explicit[f.Name] = true })
 	if *observe {
-		for _, name := range []string{"profile", "clock-speed", "clock-test-acceleration", "clock-window-ticks", "clock-window-seconds", "routine-project-limit", "routine-research-target", "routine-resource-target", "routine-resource-reserve", "routine-resource-stop", "routine-allow-slaughter", "routine-herd-population-max", "resource-rule", "world-evaluation-food-margin-days", "chat-model", "chat-base-url", "chat-context-tokens", "chat-max-output-tokens", "resume"} {
+		for _, name := range []string{"profile", "clock-speed", "clock-test-acceleration", "clock-window-ticks", "clock-window-seconds", "routine-project-limit", "routine-dialog-prefer", "routine-research-target", "routine-resource-target", "routine-resource-reserve", "routine-resource-stop", "routine-allow-slaughter", "routine-herd-population-max", "resource-rule", "world-evaluation-food-margin-days", "chat-model", "chat-base-url", "chat-context-tokens", "chat-max-output-tokens", "resume"} {
 			if explicit[name] {
 				return c, fmt.Errorf("--%s does not apply to --observe", name)
 			}
@@ -322,6 +326,7 @@ func routineFamilies(c *serveConfig) []routineFamily {
 		{"stone-shell", &c.routineStoneShellPlans},
 		{"defensive-layout", &c.routineDefensiveLayoutPlans},
 		{"naming", &c.routineNamingPlans},
+		{"dialog", &c.routineDialogPlans},
 		{"resource", &c.routineResourcePlans},
 		{"animal-feed", &c.routineAnimalFeedPlans},
 		{"production-policy", &c.routineProductionPolicyPlans},

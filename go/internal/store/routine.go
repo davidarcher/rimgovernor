@@ -72,7 +72,7 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 		return r, err
 	}
 	canonical, err := json.Marshal(r)
-	if err != nil || !bytes.Equal(data, canonical) || r.Revision == 0 || r.Snapshot.Validate() != nil || r.Tick < 0 || len(r.Goals) > 297 {
+	if err != nil || !bytes.Equal(data, canonical) || r.Revision == 0 || r.Snapshot.Validate() != nil || r.Tick < 0 || len(r.Goals) > 298 {
 		return RoutineReview{}, errors.New("invalid routine review history")
 	}
 	if err := r.MedicalCare.Validate(); err != nil {
@@ -402,7 +402,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		// leave the clock with no work and never let the break end.
 		emergency := false
 		for _, n := range needs.Assessments {
-			if n.Priority < 2 && n.ID != policy.ConfirmColonyNames && !policy.IsMoodGoal(n.ID) && n.Need != domain.NeedRecovered {
+			if n.Priority < 2 && n.ID != policy.ConfirmColonyNames && n.ID != policy.AnswerDialog && !policy.IsMoodGoal(n.ID) && n.Need != domain.NeedRecovered {
 				emergency = true
 			}
 		}

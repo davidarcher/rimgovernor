@@ -267,6 +267,14 @@ func projectEvents(page map[string]any, after uint64) (map[string]any, error) {
 				}
 				row["event"] = map[string]any{"letterId": letterID, "source": "LetterStack.ReceiveLetter"}
 			}
+			if kind == "dialog_pause" {
+				pause, _ := AsMap(stopped["pause"])
+				dialog, ok := AsMap(pause["dialog"])
+				if !ok || dialog["windowId"] == nil {
+					return nil, fmt.Errorf("dialog_pause event missing window id: %#v", event)
+				}
+				row["event"] = map[string]any{"windowId": dialog["windowId"], "windowType": AsString(dialog["windowType"]), "title": AsString(dialog["title"])}
+			}
 		} else {
 			var cases []string
 			for _, key := range []string{"started", "speedChanged", "notification", "alert", "injuryObserved",

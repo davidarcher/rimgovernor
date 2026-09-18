@@ -540,6 +540,15 @@ message AcquisitionFacts { EntityRef source = 1; optional string resource = 2; o
 message ButcheringFacts { EntityRef bench = 1; repeated BillState bills = 2; optional bool usable = 3; repeated RecipeState recipes = 4; optional string room_id = 5; }
 message FoodCorpse { CorpseState corpse = 1; optional bool fresh = 2; optional bool reachable = 3; optional string meat_def = 4; optional double nutrition_yield = 5; }
 message ColonyNaming { optional int32 window_id = 1; optional string faction_name = 2; optional string settlement_name = 3; repeated ReadIssue issues = 4; }
+// One force-pausing Verse.Dialog_NodeTree the game opened by itself (an
+// incident's caravan demand/meeting, a quest dialog, a finished research
+// project's completion dialog). Options are the current node's DiaOptions in
+// native order; index is the exact native list position AnswerDialog names.
+// selectable is false for a disabled option and for a hyperlink row, which
+// never closes the dialog. resolves reports whether the option closes the
+// tree (DiaOption.resolveTree) rather than moving to a linked node.
+message ChoiceDialogOption { optional int32 index = 1; optional string label = 2; optional bool selectable = 3; optional bool resolves = 4; optional string disabled_reason = 5; }
+message ChoiceDialog { optional int32 window_id = 1; optional string window_type = 2; optional string title = 3; optional string text = 4; repeated ChoiceDialogOption options = 5; optional bool interactive = 6; }
 
 // Independently unavailable helper sections never masquerade as empty arrays.
 message ConstructionFacts { repeated ConstructionLineage records = 1; Completeness completeness = 2; }
@@ -622,6 +631,8 @@ message ColonyFactsSnapshot {
   optional uint32 pending_hunts = 38;
   // Player faction TechLevel name (e.g. Neolithic, Industrial); shapes the starter shelter.
   optional string player_tech_level = 39;
+  // Present only while exactly one force-pausing choice dialog is open.
+  ChoiceDialog dialog = 40;
 }
 message ColonyFactsRequest { ReadScope scope = 1; optional bool planning = 2; repeated string requested_definition_names = 3; rimgovernor.common.v1.PageRequest page = 4; }
 message ColonyFactsReply { oneof outcome { ColonyFactsSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }

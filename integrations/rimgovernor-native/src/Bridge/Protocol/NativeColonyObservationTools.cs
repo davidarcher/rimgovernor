@@ -123,6 +123,8 @@ namespace HomeBridge.BridgeTools
             else if (Find.WindowStack == null || Find.WindowStack.Windows.OfType<Dialog_NamePlayerFactionAndSettlement>().Any())
                 result.Issues.Add(Issue("naming", Common.UnavailableReason.Unsupported, "Naming window census is unavailable or obstructed by another paused dialog."));
             else result.Issues.Add(Issue("naming", Common.UnavailableReason.NotApplicable, "No pending colony naming dialog."));
+            var dialog = ChoiceDialogTools.Pending();
+            if (dialog != null) result.Dialog = ChoiceDialogTools.Snapshot(dialog);
             var conditions = new List<GameCondition>();
             map.gameConditionManager.GetAllGameConditionsAffectingMap(map, conditions);
             Bound(conditions.Count, limit);

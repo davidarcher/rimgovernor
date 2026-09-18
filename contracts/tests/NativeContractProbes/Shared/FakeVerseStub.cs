@@ -39,6 +39,7 @@ namespace Verse
         public void DoSingleTick() { }
     }
     public static class LongEventHandler { public static bool AnyEventNowOrWaiting; }
+    public class Dialog_NodeTree { public int ID; }
     public static class GenFilePaths
     {
         public static string SaveDataFolderPath = Path.Combine(Environment.CurrentDirectory, ".rimgovernor", "clock-tests-" + Guid.NewGuid().ToString("N"));
@@ -57,6 +58,13 @@ namespace HomeBridge.BridgeTools
         internal static IEnumerable<Verse.Letter> Letters() => LiveLetters;
     }
     internal static class LetterPauseHook { internal static void EnsurePatched() { } }
+    // NativeClockRuntime attaches DialogPause evidence from this lookup; the
+    // clock probe never stops for a dialog, so no window is ever pending.
+    internal static class ChoiceDialogTools
+    {
+        internal static Verse.Dialog_NodeTree Pending() => null;
+        internal static string Title(Verse.Dialog_NodeTree dialog) => null;
+    }
 
     // native-clock's construction-record double: Observe answers with whatever
     // progress the fixture last set, so a watched attempt can be driven to

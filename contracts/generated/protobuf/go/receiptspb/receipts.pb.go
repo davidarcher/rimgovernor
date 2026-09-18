@@ -648,6 +648,7 @@ type EffectEvidence struct {
 	//	*EffectEvidence_Acquisition
 	//	*EffectEvidence_Naming
 	//	*EffectEvidence_Excavation
+	//	*EffectEvidence_Dialog
 	Effect        isEffectEvidence_Effect `protobuf_oneof:"effect"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -888,6 +889,15 @@ func (x *EffectEvidence) GetExcavation() *ExcavationEffect {
 	return nil
 }
 
+func (x *EffectEvidence) GetDialog() *DialogEffect {
+	if x != nil {
+		if x, ok := x.Effect.(*EffectEvidence_Dialog); ok {
+			return x.Dialog
+		}
+	}
+	return nil
+}
+
 type isEffectEvidence_Effect interface {
 	isEffectEvidence_Effect()
 }
@@ -980,6 +990,10 @@ type EffectEvidence_Excavation struct {
 	Excavation *ExcavationEffect `protobuf:"bytes,22,opt,name=excavation,proto3,oneof"`
 }
 
+type EffectEvidence_Dialog struct {
+	Dialog *DialogEffect `protobuf:"bytes,23,opt,name=dialog,proto3,oneof"`
+}
+
 func (*EffectEvidence_Construction) isEffectEvidence_Effect() {}
 
 func (*EffectEvidence_Installation) isEffectEvidence_Effect() {}
@@ -1023,6 +1037,8 @@ func (*EffectEvidence_Acquisition) isEffectEvidence_Effect() {}
 func (*EffectEvidence_Naming) isEffectEvidence_Effect() {}
 
 func (*EffectEvidence_Excavation) isEffectEvidence_Effect() {}
+
+func (*EffectEvidence_Dialog) isEffectEvidence_Effect() {}
 
 type SnapshotEvidence struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -1339,6 +1355,93 @@ func (x *ExcavationEffect) GetBlocker() string {
 	return ""
 }
 
+// activated: the exact option's native Activate ran. closed: the window left
+// the stack; advanced: the dialog moved to a linked node instead (a new
+// ColonyFactsSnapshot.dialog observation names the next choice).
+type DialogEffect struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WindowId      *int32                 `protobuf:"varint,1,opt,name=window_id,json=windowId,proto3,oneof" json:"window_id,omitempty"`
+	OptionIndex   *int32                 `protobuf:"varint,2,opt,name=option_index,json=optionIndex,proto3,oneof" json:"option_index,omitempty"`
+	OptionLabel   *string                `protobuf:"bytes,3,opt,name=option_label,json=optionLabel,proto3,oneof" json:"option_label,omitempty"`
+	Activated     *bool                  `protobuf:"varint,4,opt,name=activated,proto3,oneof" json:"activated,omitempty"`
+	Closed        *bool                  `protobuf:"varint,5,opt,name=closed,proto3,oneof" json:"closed,omitempty"`
+	Advanced      *bool                  `protobuf:"varint,6,opt,name=advanced,proto3,oneof" json:"advanced,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DialogEffect) Reset() {
+	*x = DialogEffect{}
+	mi := &file_receipts_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DialogEffect) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DialogEffect) ProtoMessage() {}
+
+func (x *DialogEffect) ProtoReflect() protoreflect.Message {
+	mi := &file_receipts_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DialogEffect.ProtoReflect.Descriptor instead.
+func (*DialogEffect) Descriptor() ([]byte, []int) {
+	return file_receipts_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *DialogEffect) GetWindowId() int32 {
+	if x != nil && x.WindowId != nil {
+		return *x.WindowId
+	}
+	return 0
+}
+
+func (x *DialogEffect) GetOptionIndex() int32 {
+	if x != nil && x.OptionIndex != nil {
+		return *x.OptionIndex
+	}
+	return 0
+}
+
+func (x *DialogEffect) GetOptionLabel() string {
+	if x != nil && x.OptionLabel != nil {
+		return *x.OptionLabel
+	}
+	return ""
+}
+
+func (x *DialogEffect) GetActivated() bool {
+	if x != nil && x.Activated != nil {
+		return *x.Activated
+	}
+	return false
+}
+
+func (x *DialogEffect) GetClosed() bool {
+	if x != nil && x.Closed != nil {
+		return *x.Closed
+	}
+	return false
+}
+
+func (x *DialogEffect) GetAdvanced() bool {
+	if x != nil && x.Advanced != nil {
+		return *x.Advanced
+	}
+	return false
+}
+
 type NamingEffect struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	WindowId       *int32                 `protobuf:"varint,1,opt,name=window_id,json=windowId,proto3,oneof" json:"window_id,omitempty"`
@@ -1351,7 +1454,7 @@ type NamingEffect struct {
 
 func (x *NamingEffect) Reset() {
 	*x = NamingEffect{}
-	mi := &file_receipts_proto_msgTypes[9]
+	mi := &file_receipts_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1363,7 +1466,7 @@ func (x *NamingEffect) String() string {
 func (*NamingEffect) ProtoMessage() {}
 
 func (x *NamingEffect) ProtoReflect() protoreflect.Message {
-	mi := &file_receipts_proto_msgTypes[9]
+	mi := &file_receipts_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1376,7 +1479,7 @@ func (x *NamingEffect) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NamingEffect.ProtoReflect.Descriptor instead.
 func (*NamingEffect) Descriptor() ([]byte, []int) {
-	return file_receipts_proto_rawDescGZIP(), []int{9}
+	return file_receipts_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *NamingEffect) GetWindowId() int32 {
@@ -1428,7 +1531,7 @@ type ConstructionEffect struct {
 
 func (x *ConstructionEffect) Reset() {
 	*x = ConstructionEffect{}
-	mi := &file_receipts_proto_msgTypes[10]
+	mi := &file_receipts_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1440,7 +1543,7 @@ func (x *ConstructionEffect) String() string {
 func (*ConstructionEffect) ProtoMessage() {}
 
 func (x *ConstructionEffect) ProtoReflect() protoreflect.Message {
-	mi := &file_receipts_proto_msgTypes[10]
+	mi := &file_receipts_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1453,7 +1556,7 @@ func (x *ConstructionEffect) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConstructionEffect.ProtoReflect.Descriptor instead.
 func (*ConstructionEffect) Descriptor() ([]byte, []int) {
-	return file_receipts_proto_rawDescGZIP(), []int{10}
+	return file_receipts_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ConstructionEffect) GetOriginThingId() string {
@@ -1563,7 +1666,7 @@ type InstallationEffect struct {
 
 func (x *InstallationEffect) Reset() {
 	*x = InstallationEffect{}
-	mi := &file_receipts_proto_msgTypes[11]
+	mi := &file_receipts_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1575,7 +1678,7 @@ func (x *InstallationEffect) String() string {
 func (*InstallationEffect) ProtoMessage() {}
 
 func (x *InstallationEffect) ProtoReflect() protoreflect.Message {
-	mi := &file_receipts_proto_msgTypes[11]
+	mi := &file_receipts_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1588,7 +1691,7 @@ func (x *InstallationEffect) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InstallationEffect.ProtoReflect.Descriptor instead.
 func (*InstallationEffect) Descriptor() ([]byte, []int) {
-	return file_receipts_proto_rawDescGZIP(), []int{11}
+	return file_receipts_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *InstallationEffect) GetInnerThingId() string {
@@ -1660,7 +1763,7 @@ type DesignationEffect struct {
 
 func (x *DesignationEffect) Reset() {
 	*x = DesignationEffect{}
-	mi := &file_receipts_proto_msgTypes[12]
+	mi := &file_receipts_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1672,7 +1775,7 @@ func (x *DesignationEffect) String() string {
 func (*DesignationEffect) ProtoMessage() {}
 
 func (x *DesignationEffect) ProtoReflect() protoreflect.Message {
-	mi := &file_receipts_proto_msgTypes[12]
+	mi := &file_receipts_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1685,7 +1788,7 @@ func (x *DesignationEffect) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DesignationEffect.ProtoReflect.Descriptor instead.
 func (*DesignationEffect) Descriptor() ([]byte, []int) {
-	return file_receipts_proto_rawDescGZIP(), []int{12}
+	return file_receipts_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *DesignationEffect) GetThingId() string {
@@ -1740,7 +1843,7 @@ type FieldResult struct {
 
 func (x *FieldResult) Reset() {
 	*x = FieldResult{}
-	mi := &file_receipts_proto_msgTypes[13]
+	mi := &file_receipts_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1752,7 +1855,7 @@ func (x *FieldResult) String() string {
 func (*FieldResult) ProtoMessage() {}
 
 func (x *FieldResult) ProtoReflect() protoreflect.Message {
-	mi := &file_receipts_proto_msgTypes[13]
+	mi := &file_receipts_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1765,7 +1868,7 @@ func (x *FieldResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FieldResult.ProtoReflect.Descriptor instead.
 func (*FieldResult) Descriptor() ([]byte, []int) {
-	return file_receipts_proto_rawDescGZIP(), []int{13}
+	return file_receipts_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *FieldResult) GetField() SettingsField {
@@ -1855,7 +1958,7 @@ type SettingsEffect struct {
 
 func (x *SettingsEffect) Reset() {
 	*x = SettingsEffect{}
-	mi := &file_receipts_proto_msgTypes[14]
+	mi := &file_receipts_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1867,7 +1970,7 @@ func (x *SettingsEffect) String() string {
 func (*SettingsEffect) ProtoMessage() {}
 
 func (x *SettingsEffect) ProtoReflect() protoreflect.Message {
-	mi := &file_receipts_proto_msgTypes[14]
+	mi := &file_receipts_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1880,7 +1983,7 @@ func (x *SettingsEffect) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SettingsEffect.ProtoReflect.Descriptor instead.
 func (*SettingsEffect) Descriptor() ([]byte, []int) {
-	return file_receipts_proto_rawDescGZIP(), []int{14}
+	return file_receipts_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *SettingsEffect) GetSnapshot() *SnapshotEvidence {
@@ -1916,7 +2019,7 @@ type BillEffect struct {
 
 func (x *BillEffect) Reset() {
 	*x = BillEffect{}
-	mi := &file_receipts_proto_msgTypes[15]
+	mi := &file_receipts_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1928,7 +2031,7 @@ func (x *BillEffect) String() string {
 func (*BillEffect) ProtoMessage() {}
 
 func (x *BillEffect) ProtoReflect() protoreflect.Message {
-	mi := &file_receipts_proto_msgTypes[15]
+	mi := &file_receipts_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1941,7 +2044,7 @@ func (x *BillEffect) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BillEffect.ProtoReflect.Descriptor instead.
 func (*BillEffect) Descriptor() ([]byte, []int) {
-	return file_receipts_proto_rawDescGZIP(), []int{15}
+	return file_receipts_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *BillEffect) GetStack() *SnapshotEvidence {
@@ -2032,7 +2135,7 @@ type ProductionOutput struct {
 
 func (x *ProductionOutput) Reset() {
 	*x = ProductionOutput{}
-	mi := &file_receipts_proto_msgTypes[16]
+	mi := &file_receipts_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2044,7 +2147,7 @@ func (x *ProductionOutput) String() string {
 func (*ProductionOutput) ProtoMessage() {}
 
 func (x *ProductionOutput) ProtoReflect() protoreflect.Message {
-	mi := &file_receipts_proto_msgTypes[16]
+	mi := &file_receipts_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2057,7 +2160,7 @@ func (x *ProductionOutput) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProductionOutput.ProtoReflect.Descriptor instead.
 func (*ProductionOutput) Descriptor() ([]byte, []int) {
-	return file_receipts_proto_rawDescGZIP(), []int{16}
+	return file_receipts_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ProductionOutput) GetThingId() string {
@@ -2092,7 +2195,7 @@ type ResearchEffect struct {
 
 func (x *ResearchEffect) Reset() {
 	*x = ResearchEffect{}
-	mi := &file_receipts_proto_msgTypes[17]
+	mi := &file_receipts_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2104,7 +2207,7 @@ func (x *ResearchEffect) String() string {
 func (*ResearchEffect) ProtoMessage() {}
 
 func (x *ResearchEffect) ProtoReflect() protoreflect.Message {
-	mi := &file_receipts_proto_msgTypes[17]
+	mi := &file_receipts_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2117,7 +2220,7 @@ func (x *ResearchEffect) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResearchEffect.ProtoReflect.Descriptor instead.
 func (*ResearchEffect) Descriptor() ([]byte, []int) {
-	return file_receipts_proto_rawDescGZIP(), []int{17}
+	return file_receipts_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ResearchEffect) GetPreviousProjectDef() string {
@@ -2152,7 +2255,7 @@ type ProductionPolicyEffect struct {
 
 func (x *ProductionPolicyEffect) Reset() {
 	*x = ProductionPolicyEffect{}
-	mi := &file_receipts_proto_msgTypes[18]
+	mi := &file_receipts_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2164,7 +2267,7 @@ func (x *ProductionPolicyEffect) String() string {
 func (*ProductionPolicyEffect) ProtoMessage() {}
 
 func (x *ProductionPolicyEffect) ProtoReflect() protoreflect.Message {
-	mi := &file_receipts_proto_msgTypes[18]
+	mi := &file_receipts_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2177,7 +2280,7 @@ func (x *ProductionPolicyEffect) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProductionPolicyEffect.ProtoReflect.Descriptor instead.
 func (*ProductionPolicyEffect) Descriptor() ([]byte, []int) {
-	return file_receipts_proto_rawDescGZIP(), []int{18}
+	return file_receipts_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ProductionPolicyEffect) GetSnapshot() *SnapshotEvidence {
@@ -2213,7 +2316,7 @@ type CellResult struct {
 
 func (x *CellResult) Reset() {
 	*x = CellResult{}
-	mi := &file_receipts_proto_msgTypes[19]
+	mi := &file_receipts_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2225,7 +2328,7 @@ func (x *CellResult) String() string {
 func (*CellResult) ProtoMessage() {}
 
 func (x *CellResult) ProtoReflect() protoreflect.Message {
-	mi := &file_receipts_proto_msgTypes[19]
+	mi := &file_receipts_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2238,7 +2341,7 @@ func (x *CellResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CellResult.ProtoReflect.Descriptor instead.
 func (*CellResult) Descriptor() ([]byte, []int) {
-	return file_receipts_proto_rawDescGZIP(), []int{19}
+	return file_receipts_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *CellResult) GetCell() *commonpb.Cell {
@@ -2285,7 +2388,7 @@ type ZoneEffect struct {
 
 func (x *ZoneEffect) Reset() {
 	*x = ZoneEffect{}
-	mi := &file_receipts_proto_msgTypes[20]
+	mi := &file_receipts_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2297,7 +2400,7 @@ func (x *ZoneEffect) String() string {
 func (*ZoneEffect) ProtoMessage() {}
 
 func (x *ZoneEffect) ProtoReflect() protoreflect.Message {
-	mi := &file_receipts_proto_msgTypes[20]
+	mi := &file_receipts_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2310,7 +2413,7 @@ func (x *ZoneEffect) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ZoneEffect.ProtoReflect.Descriptor instead.
 func (*ZoneEffect) Descriptor() ([]byte, []int) {
-	return file_receipts_proto_rawDescGZIP(), []int{20}
+	return file_receipts_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ZoneEffect) GetSnapshot() *SnapshotEvidence {
@@ -2382,7 +2485,7 @@ type HomeEffect struct {
 
 func (x *HomeEffect) Reset() {
 	*x = HomeEffect{}
-	mi := &file_receipts_proto_msgTypes[21]
+	mi := &file_receipts_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2394,7 +2497,7 @@ func (x *HomeEffect) String() string {
 func (*HomeEffect) ProtoMessage() {}
 
 func (x *HomeEffect) ProtoReflect() protoreflect.Message {
-	mi := &file_receipts_proto_msgTypes[21]
+	mi := &file_receipts_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2407,7 +2510,7 @@ func (x *HomeEffect) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HomeEffect.ProtoReflect.Descriptor instead.
 func (*HomeEffect) Descriptor() ([]byte, []int) {
-	return file_receipts_proto_rawDescGZIP(), []int{21}
+	return file_receipts_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *HomeEffect) GetSnapshot() *SnapshotEvidence {
@@ -2458,7 +2561,7 @@ type BedEffect struct {
 
 func (x *BedEffect) Reset() {
 	*x = BedEffect{}
-	mi := &file_receipts_proto_msgTypes[22]
+	mi := &file_receipts_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2470,7 +2573,7 @@ func (x *BedEffect) String() string {
 func (*BedEffect) ProtoMessage() {}
 
 func (x *BedEffect) ProtoReflect() protoreflect.Message {
-	mi := &file_receipts_proto_msgTypes[22]
+	mi := &file_receipts_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2483,7 +2586,7 @@ func (x *BedEffect) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BedEffect.ProtoReflect.Descriptor instead.
 func (*BedEffect) Descriptor() ([]byte, []int) {
-	return file_receipts_proto_rawDescGZIP(), []int{22}
+	return file_receipts_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *BedEffect) GetPawnId() string {
@@ -2535,7 +2638,7 @@ type WallEffect struct {
 
 func (x *WallEffect) Reset() {
 	*x = WallEffect{}
-	mi := &file_receipts_proto_msgTypes[23]
+	mi := &file_receipts_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2547,7 +2650,7 @@ func (x *WallEffect) String() string {
 func (*WallEffect) ProtoMessage() {}
 
 func (x *WallEffect) ProtoReflect() protoreflect.Message {
-	mi := &file_receipts_proto_msgTypes[23]
+	mi := &file_receipts_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2560,7 +2663,7 @@ func (x *WallEffect) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WallEffect.ProtoReflect.Descriptor instead.
 func (*WallEffect) Descriptor() ([]byte, []int) {
-	return file_receipts_proto_rawDescGZIP(), []int{23}
+	return file_receipts_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *WallEffect) GetTargetId() string {
@@ -2618,7 +2721,7 @@ type AreaEffect struct {
 
 func (x *AreaEffect) Reset() {
 	*x = AreaEffect{}
-	mi := &file_receipts_proto_msgTypes[24]
+	mi := &file_receipts_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2630,7 +2733,7 @@ func (x *AreaEffect) String() string {
 func (*AreaEffect) ProtoMessage() {}
 
 func (x *AreaEffect) ProtoReflect() protoreflect.Message {
-	mi := &file_receipts_proto_msgTypes[24]
+	mi := &file_receipts_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2643,7 +2746,7 @@ func (x *AreaEffect) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AreaEffect.ProtoReflect.Descriptor instead.
 func (*AreaEffect) Descriptor() ([]byte, []int) {
-	return file_receipts_proto_rawDescGZIP(), []int{24}
+	return file_receipts_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *AreaEffect) GetPawnId() string {
@@ -2694,7 +2797,7 @@ type JobTarget struct {
 
 func (x *JobTarget) Reset() {
 	*x = JobTarget{}
-	mi := &file_receipts_proto_msgTypes[25]
+	mi := &file_receipts_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2706,7 +2809,7 @@ func (x *JobTarget) String() string {
 func (*JobTarget) ProtoMessage() {}
 
 func (x *JobTarget) ProtoReflect() protoreflect.Message {
-	mi := &file_receipts_proto_msgTypes[25]
+	mi := &file_receipts_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2719,7 +2822,7 @@ func (x *JobTarget) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use JobTarget.ProtoReflect.Descriptor instead.
 func (*JobTarget) Descriptor() ([]byte, []int) {
-	return file_receipts_proto_rawDescGZIP(), []int{25}
+	return file_receipts_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *JobTarget) GetTarget() isJobTarget_Target {
@@ -2797,7 +2900,7 @@ type JobEffect struct {
 
 func (x *JobEffect) Reset() {
 	*x = JobEffect{}
-	mi := &file_receipts_proto_msgTypes[26]
+	mi := &file_receipts_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2809,7 +2912,7 @@ func (x *JobEffect) String() string {
 func (*JobEffect) ProtoMessage() {}
 
 func (x *JobEffect) ProtoReflect() protoreflect.Message {
-	mi := &file_receipts_proto_msgTypes[26]
+	mi := &file_receipts_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2822,7 +2925,7 @@ func (x *JobEffect) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use JobEffect.ProtoReflect.Descriptor instead.
 func (*JobEffect) Descriptor() ([]byte, []int) {
-	return file_receipts_proto_rawDescGZIP(), []int{26}
+	return file_receipts_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *JobEffect) GetPawnId() string {
@@ -3001,7 +3104,7 @@ type SurgeryEffect struct {
 
 func (x *SurgeryEffect) Reset() {
 	*x = SurgeryEffect{}
-	mi := &file_receipts_proto_msgTypes[27]
+	mi := &file_receipts_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3013,7 +3116,7 @@ func (x *SurgeryEffect) String() string {
 func (*SurgeryEffect) ProtoMessage() {}
 
 func (x *SurgeryEffect) ProtoReflect() protoreflect.Message {
-	mi := &file_receipts_proto_msgTypes[27]
+	mi := &file_receipts_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3026,7 +3129,7 @@ func (x *SurgeryEffect) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SurgeryEffect.ProtoReflect.Descriptor instead.
 func (*SurgeryEffect) Descriptor() ([]byte, []int) {
-	return file_receipts_proto_rawDescGZIP(), []int{27}
+	return file_receipts_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *SurgeryEffect) GetPatientId() string {
@@ -3097,7 +3200,7 @@ type AnimalEffect struct {
 
 func (x *AnimalEffect) Reset() {
 	*x = AnimalEffect{}
-	mi := &file_receipts_proto_msgTypes[28]
+	mi := &file_receipts_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3109,7 +3212,7 @@ func (x *AnimalEffect) String() string {
 func (*AnimalEffect) ProtoMessage() {}
 
 func (x *AnimalEffect) ProtoReflect() protoreflect.Message {
-	mi := &file_receipts_proto_msgTypes[28]
+	mi := &file_receipts_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3122,7 +3225,7 @@ func (x *AnimalEffect) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnimalEffect.ProtoReflect.Descriptor instead.
 func (*AnimalEffect) Descriptor() ([]byte, []int) {
-	return file_receipts_proto_rawDescGZIP(), []int{28}
+	return file_receipts_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *AnimalEffect) GetAnimal() *SnapshotEvidence {
@@ -3217,7 +3320,7 @@ type PrisonerEffect struct {
 
 func (x *PrisonerEffect) Reset() {
 	*x = PrisonerEffect{}
-	mi := &file_receipts_proto_msgTypes[29]
+	mi := &file_receipts_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3229,7 +3332,7 @@ func (x *PrisonerEffect) String() string {
 func (*PrisonerEffect) ProtoMessage() {}
 
 func (x *PrisonerEffect) ProtoReflect() protoreflect.Message {
-	mi := &file_receipts_proto_msgTypes[29]
+	mi := &file_receipts_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3242,7 +3345,7 @@ func (x *PrisonerEffect) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PrisonerEffect.ProtoReflect.Descriptor instead.
 func (*PrisonerEffect) Descriptor() ([]byte, []int) {
-	return file_receipts_proto_rawDescGZIP(), []int{29}
+	return file_receipts_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *PrisonerEffect) GetPawn() *SnapshotEvidence {
@@ -3277,7 +3380,7 @@ type TradeLineEffect struct {
 
 func (x *TradeLineEffect) Reset() {
 	*x = TradeLineEffect{}
-	mi := &file_receipts_proto_msgTypes[30]
+	mi := &file_receipts_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3289,7 +3392,7 @@ func (x *TradeLineEffect) String() string {
 func (*TradeLineEffect) ProtoMessage() {}
 
 func (x *TradeLineEffect) ProtoReflect() protoreflect.Message {
-	mi := &file_receipts_proto_msgTypes[30]
+	mi := &file_receipts_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3302,7 +3405,7 @@ func (x *TradeLineEffect) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TradeLineEffect.ProtoReflect.Descriptor instead.
 func (*TradeLineEffect) Descriptor() ([]byte, []int) {
-	return file_receipts_proto_rawDescGZIP(), []int{30}
+	return file_receipts_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *TradeLineEffect) GetLineId() string {
@@ -3347,7 +3450,7 @@ type TradeEffect struct {
 
 func (x *TradeEffect) Reset() {
 	*x = TradeEffect{}
-	mi := &file_receipts_proto_msgTypes[31]
+	mi := &file_receipts_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3359,7 +3462,7 @@ func (x *TradeEffect) String() string {
 func (*TradeEffect) ProtoMessage() {}
 
 func (x *TradeEffect) ProtoReflect() protoreflect.Message {
-	mi := &file_receipts_proto_msgTypes[31]
+	mi := &file_receipts_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3372,7 +3475,7 @@ func (x *TradeEffect) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TradeEffect.ProtoReflect.Descriptor instead.
 func (*TradeEffect) Descriptor() ([]byte, []int) {
-	return file_receipts_proto_rawDescGZIP(), []int{31}
+	return file_receipts_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *TradeEffect) GetSessionId() string {
@@ -3481,7 +3584,7 @@ type CaravanEffect struct {
 
 func (x *CaravanEffect) Reset() {
 	*x = CaravanEffect{}
-	mi := &file_receipts_proto_msgTypes[32]
+	mi := &file_receipts_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3493,7 +3596,7 @@ func (x *CaravanEffect) String() string {
 func (*CaravanEffect) ProtoMessage() {}
 
 func (x *CaravanEffect) ProtoReflect() protoreflect.Message {
-	mi := &file_receipts_proto_msgTypes[32]
+	mi := &file_receipts_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3506,7 +3609,7 @@ func (x *CaravanEffect) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CaravanEffect.ProtoReflect.Descriptor instead.
 func (*CaravanEffect) Descriptor() ([]byte, []int) {
-	return file_receipts_proto_rawDescGZIP(), []int{32}
+	return file_receipts_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *CaravanEffect) GetCaravanId() string {
@@ -3572,7 +3675,7 @@ type QuestEffect struct {
 
 func (x *QuestEffect) Reset() {
 	*x = QuestEffect{}
-	mi := &file_receipts_proto_msgTypes[33]
+	mi := &file_receipts_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3584,7 +3687,7 @@ func (x *QuestEffect) String() string {
 func (*QuestEffect) ProtoMessage() {}
 
 func (x *QuestEffect) ProtoReflect() protoreflect.Message {
-	mi := &file_receipts_proto_msgTypes[33]
+	mi := &file_receipts_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3597,7 +3700,7 @@ func (x *QuestEffect) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QuestEffect.ProtoReflect.Descriptor instead.
 func (*QuestEffect) Descriptor() ([]byte, []int) {
-	return file_receipts_proto_rawDescGZIP(), []int{33}
+	return file_receipts_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *QuestEffect) GetQuestId() string {
@@ -3652,7 +3755,7 @@ type LookupRequest struct {
 
 func (x *LookupRequest) Reset() {
 	*x = LookupRequest{}
-	mi := &file_receipts_proto_msgTypes[34]
+	mi := &file_receipts_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3664,7 +3767,7 @@ func (x *LookupRequest) String() string {
 func (*LookupRequest) ProtoMessage() {}
 
 func (x *LookupRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_receipts_proto_msgTypes[34]
+	mi := &file_receipts_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3677,7 +3780,7 @@ func (x *LookupRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LookupRequest.ProtoReflect.Descriptor instead.
 func (*LookupRequest) Descriptor() ([]byte, []int) {
-	return file_receipts_proto_rawDescGZIP(), []int{34}
+	return file_receipts_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *LookupRequest) GetIdentity() *commonpb.Identity {
@@ -3703,7 +3806,7 @@ type UnknownAttempt struct {
 
 func (x *UnknownAttempt) Reset() {
 	*x = UnknownAttempt{}
-	mi := &file_receipts_proto_msgTypes[35]
+	mi := &file_receipts_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3715,7 +3818,7 @@ func (x *UnknownAttempt) String() string {
 func (*UnknownAttempt) ProtoMessage() {}
 
 func (x *UnknownAttempt) ProtoReflect() protoreflect.Message {
-	mi := &file_receipts_proto_msgTypes[35]
+	mi := &file_receipts_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3728,7 +3831,7 @@ func (x *UnknownAttempt) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnknownAttempt.ProtoReflect.Descriptor instead.
 func (*UnknownAttempt) Descriptor() ([]byte, []int) {
-	return file_receipts_proto_rawDescGZIP(), []int{35}
+	return file_receipts_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *UnknownAttempt) GetContext() *commonpb.ObservationContext {
@@ -3748,7 +3851,7 @@ type InFlight struct {
 
 func (x *InFlight) Reset() {
 	*x = InFlight{}
-	mi := &file_receipts_proto_msgTypes[36]
+	mi := &file_receipts_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3760,7 +3863,7 @@ func (x *InFlight) String() string {
 func (*InFlight) ProtoMessage() {}
 
 func (x *InFlight) ProtoReflect() protoreflect.Message {
-	mi := &file_receipts_proto_msgTypes[36]
+	mi := &file_receipts_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3773,7 +3876,7 @@ func (x *InFlight) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InFlight.ProtoReflect.Descriptor instead.
 func (*InFlight) Descriptor() ([]byte, []int) {
-	return file_receipts_proto_rawDescGZIP(), []int{36}
+	return file_receipts_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *InFlight) GetAttempt() *commonpb.AttemptKey {
@@ -3805,7 +3908,7 @@ type LookupReply struct {
 
 func (x *LookupReply) Reset() {
 	*x = LookupReply{}
-	mi := &file_receipts_proto_msgTypes[37]
+	mi := &file_receipts_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3817,7 +3920,7 @@ func (x *LookupReply) String() string {
 func (*LookupReply) ProtoMessage() {}
 
 func (x *LookupReply) ProtoReflect() protoreflect.Message {
-	mi := &file_receipts_proto_msgTypes[37]
+	mi := &file_receipts_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3830,7 +3933,7 @@ func (x *LookupReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LookupReply.ProtoReflect.Descriptor instead.
 func (*LookupReply) Descriptor() ([]byte, []int) {
-	return file_receipts_proto_rawDescGZIP(), []int{37}
+	return file_receipts_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *LookupReply) GetOutcome() isLookupReply_Outcome {
@@ -3914,7 +4017,7 @@ type ProgressRequest struct {
 
 func (x *ProgressRequest) Reset() {
 	*x = ProgressRequest{}
-	mi := &file_receipts_proto_msgTypes[38]
+	mi := &file_receipts_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3926,7 +4029,7 @@ func (x *ProgressRequest) String() string {
 func (*ProgressRequest) ProtoMessage() {}
 
 func (x *ProgressRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_receipts_proto_msgTypes[38]
+	mi := &file_receipts_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3939,7 +4042,7 @@ func (x *ProgressRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProgressRequest.ProtoReflect.Descriptor instead.
 func (*ProgressRequest) Descriptor() ([]byte, []int) {
-	return file_receipts_proto_rawDescGZIP(), []int{38}
+	return file_receipts_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *ProgressRequest) GetIdentity() *commonpb.Identity {
@@ -3965,7 +4068,7 @@ type PendingEffect struct {
 
 func (x *PendingEffect) Reset() {
 	*x = PendingEffect{}
-	mi := &file_receipts_proto_msgTypes[39]
+	mi := &file_receipts_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3977,7 +4080,7 @@ func (x *PendingEffect) String() string {
 func (*PendingEffect) ProtoMessage() {}
 
 func (x *PendingEffect) ProtoReflect() protoreflect.Message {
-	mi := &file_receipts_proto_msgTypes[39]
+	mi := &file_receipts_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3990,7 +4093,7 @@ func (x *PendingEffect) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PendingEffect.ProtoReflect.Descriptor instead.
 func (*PendingEffect) Descriptor() ([]byte, []int) {
-	return file_receipts_proto_rawDescGZIP(), []int{39}
+	return file_receipts_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *PendingEffect) GetEvidence() *EffectEvidence {
@@ -4009,7 +4112,7 @@ type CompletedEffect struct {
 
 func (x *CompletedEffect) Reset() {
 	*x = CompletedEffect{}
-	mi := &file_receipts_proto_msgTypes[40]
+	mi := &file_receipts_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4021,7 +4124,7 @@ func (x *CompletedEffect) String() string {
 func (*CompletedEffect) ProtoMessage() {}
 
 func (x *CompletedEffect) ProtoReflect() protoreflect.Message {
-	mi := &file_receipts_proto_msgTypes[40]
+	mi := &file_receipts_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4034,7 +4137,7 @@ func (x *CompletedEffect) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompletedEffect.ProtoReflect.Descriptor instead.
 func (*CompletedEffect) Descriptor() ([]byte, []int) {
-	return file_receipts_proto_rawDescGZIP(), []int{40}
+	return file_receipts_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *CompletedEffect) GetEvidence() *EffectEvidence {
@@ -4053,7 +4156,7 @@ type AbsentEffect struct {
 
 func (x *AbsentEffect) Reset() {
 	*x = AbsentEffect{}
-	mi := &file_receipts_proto_msgTypes[41]
+	mi := &file_receipts_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4065,7 +4168,7 @@ func (x *AbsentEffect) String() string {
 func (*AbsentEffect) ProtoMessage() {}
 
 func (x *AbsentEffect) ProtoReflect() protoreflect.Message {
-	mi := &file_receipts_proto_msgTypes[41]
+	mi := &file_receipts_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4078,7 +4181,7 @@ func (x *AbsentEffect) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AbsentEffect.ProtoReflect.Descriptor instead.
 func (*AbsentEffect) Descriptor() ([]byte, []int) {
-	return file_receipts_proto_rawDescGZIP(), []int{41}
+	return file_receipts_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *AbsentEffect) GetInspectionToken() string {
@@ -4097,7 +4200,7 @@ type UnknownEffect struct {
 
 func (x *UnknownEffect) Reset() {
 	*x = UnknownEffect{}
-	mi := &file_receipts_proto_msgTypes[42]
+	mi := &file_receipts_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4109,7 +4212,7 @@ func (x *UnknownEffect) String() string {
 func (*UnknownEffect) ProtoMessage() {}
 
 func (x *UnknownEffect) ProtoReflect() protoreflect.Message {
-	mi := &file_receipts_proto_msgTypes[42]
+	mi := &file_receipts_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4122,7 +4225,7 @@ func (x *UnknownEffect) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnknownEffect.ProtoReflect.Descriptor instead.
 func (*UnknownEffect) Descriptor() ([]byte, []int) {
-	return file_receipts_proto_rawDescGZIP(), []int{42}
+	return file_receipts_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *UnknownEffect) GetReason() string {
@@ -4143,7 +4246,7 @@ type UnsuccessfulEffect struct {
 
 func (x *UnsuccessfulEffect) Reset() {
 	*x = UnsuccessfulEffect{}
-	mi := &file_receipts_proto_msgTypes[43]
+	mi := &file_receipts_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4155,7 +4258,7 @@ func (x *UnsuccessfulEffect) String() string {
 func (*UnsuccessfulEffect) ProtoMessage() {}
 
 func (x *UnsuccessfulEffect) ProtoReflect() protoreflect.Message {
-	mi := &file_receipts_proto_msgTypes[43]
+	mi := &file_receipts_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4168,7 +4271,7 @@ func (x *UnsuccessfulEffect) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnsuccessfulEffect.ProtoReflect.Descriptor instead.
 func (*UnsuccessfulEffect) Descriptor() ([]byte, []int) {
-	return file_receipts_proto_rawDescGZIP(), []int{43}
+	return file_receipts_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *UnsuccessfulEffect) GetReason() UnsuccessfulReason {
@@ -4212,7 +4315,7 @@ type Progress struct {
 
 func (x *Progress) Reset() {
 	*x = Progress{}
-	mi := &file_receipts_proto_msgTypes[44]
+	mi := &file_receipts_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4224,7 +4327,7 @@ func (x *Progress) String() string {
 func (*Progress) ProtoMessage() {}
 
 func (x *Progress) ProtoReflect() protoreflect.Message {
-	mi := &file_receipts_proto_msgTypes[44]
+	mi := &file_receipts_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4237,7 +4340,7 @@ func (x *Progress) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Progress.ProtoReflect.Descriptor instead.
 func (*Progress) Descriptor() ([]byte, []int) {
-	return file_receipts_proto_rawDescGZIP(), []int{44}
+	return file_receipts_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *Progress) GetAttempt() *commonpb.AttemptKey {
@@ -4360,7 +4463,7 @@ type ProgressReply struct {
 
 func (x *ProgressReply) Reset() {
 	*x = ProgressReply{}
-	mi := &file_receipts_proto_msgTypes[45]
+	mi := &file_receipts_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4372,7 +4475,7 @@ func (x *ProgressReply) String() string {
 func (*ProgressReply) ProtoMessage() {}
 
 func (x *ProgressReply) ProtoReflect() protoreflect.Message {
-	mi := &file_receipts_proto_msgTypes[45]
+	mi := &file_receipts_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4385,7 +4488,7 @@ func (x *ProgressReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProgressReply.ProtoReflect.Descriptor instead.
 func (*ProgressReply) Descriptor() ([]byte, []int) {
-	return file_receipts_proto_rawDescGZIP(), []int{45}
+	return file_receipts_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *ProgressReply) GetOutcome() isProgressReply_Outcome {
@@ -4450,7 +4553,7 @@ const file_receipts_proto_rawDesc = "" +
 	"\tUncertain\x12L\n" +
 	"\rlast_observed\x18\x01 \x01(\v2'.rimgovernor.receipts.v1.EffectEvidenceR\flastObserved\x12\x1b\n" +
 	"\x06detail\x18\x02 \x01(\tH\x00R\x06detail\x88\x01\x01B\t\n" +
-	"\a_detail\"\xff\v\n" +
+	"\a_detail\"\xc0\f\n" +
 	"\x0eEffectEvidence\x12Q\n" +
 	"\fconstruction\x18\x01 \x01(\v2+.rimgovernor.receipts.v1.ConstructionEffectH\x00R\fconstruction\x12Q\n" +
 	"\finstallation\x18\x02 \x01(\v2+.rimgovernor.receipts.v1.InstallationEffectH\x00R\finstallation\x12N\n" +
@@ -4476,7 +4579,8 @@ const file_receipts_proto_rawDesc = "" +
 	"\x06naming\x18\x15 \x01(\v2%.rimgovernor.receipts.v1.NamingEffectH\x00R\x06naming\x12K\n" +
 	"\n" +
 	"excavation\x18\x16 \x01(\v2).rimgovernor.receipts.v1.ExcavationEffectH\x00R\n" +
-	"excavationB\b\n" +
+	"excavation\x12?\n" +
+	"\x06dialog\x18\x17 \x01(\v2%.rimgovernor.receipts.v1.DialogEffectH\x00R\x06dialogB\b\n" +
 	"\x06effect\"\xb1\x01\n" +
 	"\x10SnapshotEvidence\x12 \n" +
 	"\tentity_id\x18\x01 \x01(\tH\x00R\bentityId\x88\x01\x01\x12&\n" +
@@ -4530,7 +4634,22 @@ const file_receipts_proto_rawDesc = "" +
 	"\n" +
 	"_cancelledB\n" +
 	"\n" +
-	"\b_blocker\"\xea\x01\n" +
+	"\b_blocker\"\xb7\x02\n" +
+	"\fDialogEffect\x12 \n" +
+	"\twindow_id\x18\x01 \x01(\x05H\x00R\bwindowId\x88\x01\x01\x12&\n" +
+	"\foption_index\x18\x02 \x01(\x05H\x01R\voptionIndex\x88\x01\x01\x12&\n" +
+	"\foption_label\x18\x03 \x01(\tH\x02R\voptionLabel\x88\x01\x01\x12!\n" +
+	"\tactivated\x18\x04 \x01(\bH\x03R\tactivated\x88\x01\x01\x12\x1b\n" +
+	"\x06closed\x18\x05 \x01(\bH\x04R\x06closed\x88\x01\x01\x12\x1f\n" +
+	"\badvanced\x18\x06 \x01(\bH\x05R\badvanced\x88\x01\x01B\f\n" +
+	"\n" +
+	"_window_idB\x0f\n" +
+	"\r_option_indexB\x0f\n" +
+	"\r_option_labelB\f\n" +
+	"\n" +
+	"_activatedB\t\n" +
+	"\a_closedB\v\n" +
+	"\t_advanced\"\xea\x01\n" +
 	"\fNamingEffect\x12 \n" +
 	"\twindow_id\x18\x01 \x01(\x05H\x00R\bwindowId\x88\x01\x01\x12&\n" +
 	"\ffaction_name\x18\x02 \x01(\tH\x01R\vfactionName\x88\x01\x01\x12,\n" +
@@ -5023,7 +5142,7 @@ func file_receipts_proto_rawDescGZIP() []byte {
 }
 
 var file_receipts_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
-var file_receipts_proto_msgTypes = make([]protoimpl.MessageInfo, 46)
+var file_receipts_proto_msgTypes = make([]protoimpl.MessageInfo, 47)
 var file_receipts_proto_goTypes = []any{
 	(ConstructionStage)(0),              // 0: rimgovernor.receipts.v1.ConstructionStage
 	(InstallationStage)(0),              // 1: rimgovernor.receipts.v1.InstallationStage
@@ -5039,148 +5158,150 @@ var file_receipts_proto_goTypes = []any{
 	(*AcquisitionOutput)(nil),           // 11: rimgovernor.receipts.v1.AcquisitionOutput
 	(*AcquisitionEffect)(nil),           // 12: rimgovernor.receipts.v1.AcquisitionEffect
 	(*ExcavationEffect)(nil),            // 13: rimgovernor.receipts.v1.ExcavationEffect
-	(*NamingEffect)(nil),                // 14: rimgovernor.receipts.v1.NamingEffect
-	(*ConstructionEffect)(nil),          // 15: rimgovernor.receipts.v1.ConstructionEffect
-	(*InstallationEffect)(nil),          // 16: rimgovernor.receipts.v1.InstallationEffect
-	(*DesignationEffect)(nil),           // 17: rimgovernor.receipts.v1.DesignationEffect
-	(*FieldResult)(nil),                 // 18: rimgovernor.receipts.v1.FieldResult
-	(*SettingsEffect)(nil),              // 19: rimgovernor.receipts.v1.SettingsEffect
-	(*BillEffect)(nil),                  // 20: rimgovernor.receipts.v1.BillEffect
-	(*ProductionOutput)(nil),            // 21: rimgovernor.receipts.v1.ProductionOutput
-	(*ResearchEffect)(nil),              // 22: rimgovernor.receipts.v1.ResearchEffect
-	(*ProductionPolicyEffect)(nil),      // 23: rimgovernor.receipts.v1.ProductionPolicyEffect
-	(*CellResult)(nil),                  // 24: rimgovernor.receipts.v1.CellResult
-	(*ZoneEffect)(nil),                  // 25: rimgovernor.receipts.v1.ZoneEffect
-	(*HomeEffect)(nil),                  // 26: rimgovernor.receipts.v1.HomeEffect
-	(*BedEffect)(nil),                   // 27: rimgovernor.receipts.v1.BedEffect
-	(*WallEffect)(nil),                  // 28: rimgovernor.receipts.v1.WallEffect
-	(*AreaEffect)(nil),                  // 29: rimgovernor.receipts.v1.AreaEffect
-	(*JobTarget)(nil),                   // 30: rimgovernor.receipts.v1.JobTarget
-	(*JobEffect)(nil),                   // 31: rimgovernor.receipts.v1.JobEffect
-	(*SurgeryEffect)(nil),               // 32: rimgovernor.receipts.v1.SurgeryEffect
-	(*AnimalEffect)(nil),                // 33: rimgovernor.receipts.v1.AnimalEffect
-	(*PrisonerEffect)(nil),              // 34: rimgovernor.receipts.v1.PrisonerEffect
-	(*TradeLineEffect)(nil),             // 35: rimgovernor.receipts.v1.TradeLineEffect
-	(*TradeEffect)(nil),                 // 36: rimgovernor.receipts.v1.TradeEffect
-	(*CaravanEffect)(nil),               // 37: rimgovernor.receipts.v1.CaravanEffect
-	(*QuestEffect)(nil),                 // 38: rimgovernor.receipts.v1.QuestEffect
-	(*LookupRequest)(nil),               // 39: rimgovernor.receipts.v1.LookupRequest
-	(*UnknownAttempt)(nil),              // 40: rimgovernor.receipts.v1.UnknownAttempt
-	(*InFlight)(nil),                    // 41: rimgovernor.receipts.v1.InFlight
-	(*LookupReply)(nil),                 // 42: rimgovernor.receipts.v1.LookupReply
-	(*ProgressRequest)(nil),             // 43: rimgovernor.receipts.v1.ProgressRequest
-	(*PendingEffect)(nil),               // 44: rimgovernor.receipts.v1.PendingEffect
-	(*CompletedEffect)(nil),             // 45: rimgovernor.receipts.v1.CompletedEffect
-	(*AbsentEffect)(nil),                // 46: rimgovernor.receipts.v1.AbsentEffect
-	(*UnknownEffect)(nil),               // 47: rimgovernor.receipts.v1.UnknownEffect
-	(*UnsuccessfulEffect)(nil),          // 48: rimgovernor.receipts.v1.UnsuccessfulEffect
-	(*Progress)(nil),                    // 49: rimgovernor.receipts.v1.Progress
-	(*ProgressReply)(nil),               // 50: rimgovernor.receipts.v1.ProgressReply
-	(*commonpb.AttemptKey)(nil),         // 51: rimgovernor.common.v1.AttemptKey
-	(*commonpb.ObservationContext)(nil), // 52: rimgovernor.common.v1.ObservationContext
-	(*commonpb.Cell)(nil),               // 53: rimgovernor.common.v1.Cell
-	(placementpb.Rotation)(0),           // 54: rimgovernor.placement.v1.Rotation
-	(*commonpb.Identity)(nil),           // 55: rimgovernor.common.v1.Identity
-	(*commonpb.Failure)(nil),            // 56: rimgovernor.common.v1.Failure
+	(*DialogEffect)(nil),                // 14: rimgovernor.receipts.v1.DialogEffect
+	(*NamingEffect)(nil),                // 15: rimgovernor.receipts.v1.NamingEffect
+	(*ConstructionEffect)(nil),          // 16: rimgovernor.receipts.v1.ConstructionEffect
+	(*InstallationEffect)(nil),          // 17: rimgovernor.receipts.v1.InstallationEffect
+	(*DesignationEffect)(nil),           // 18: rimgovernor.receipts.v1.DesignationEffect
+	(*FieldResult)(nil),                 // 19: rimgovernor.receipts.v1.FieldResult
+	(*SettingsEffect)(nil),              // 20: rimgovernor.receipts.v1.SettingsEffect
+	(*BillEffect)(nil),                  // 21: rimgovernor.receipts.v1.BillEffect
+	(*ProductionOutput)(nil),            // 22: rimgovernor.receipts.v1.ProductionOutput
+	(*ResearchEffect)(nil),              // 23: rimgovernor.receipts.v1.ResearchEffect
+	(*ProductionPolicyEffect)(nil),      // 24: rimgovernor.receipts.v1.ProductionPolicyEffect
+	(*CellResult)(nil),                  // 25: rimgovernor.receipts.v1.CellResult
+	(*ZoneEffect)(nil),                  // 26: rimgovernor.receipts.v1.ZoneEffect
+	(*HomeEffect)(nil),                  // 27: rimgovernor.receipts.v1.HomeEffect
+	(*BedEffect)(nil),                   // 28: rimgovernor.receipts.v1.BedEffect
+	(*WallEffect)(nil),                  // 29: rimgovernor.receipts.v1.WallEffect
+	(*AreaEffect)(nil),                  // 30: rimgovernor.receipts.v1.AreaEffect
+	(*JobTarget)(nil),                   // 31: rimgovernor.receipts.v1.JobTarget
+	(*JobEffect)(nil),                   // 32: rimgovernor.receipts.v1.JobEffect
+	(*SurgeryEffect)(nil),               // 33: rimgovernor.receipts.v1.SurgeryEffect
+	(*AnimalEffect)(nil),                // 34: rimgovernor.receipts.v1.AnimalEffect
+	(*PrisonerEffect)(nil),              // 35: rimgovernor.receipts.v1.PrisonerEffect
+	(*TradeLineEffect)(nil),             // 36: rimgovernor.receipts.v1.TradeLineEffect
+	(*TradeEffect)(nil),                 // 37: rimgovernor.receipts.v1.TradeEffect
+	(*CaravanEffect)(nil),               // 38: rimgovernor.receipts.v1.CaravanEffect
+	(*QuestEffect)(nil),                 // 39: rimgovernor.receipts.v1.QuestEffect
+	(*LookupRequest)(nil),               // 40: rimgovernor.receipts.v1.LookupRequest
+	(*UnknownAttempt)(nil),              // 41: rimgovernor.receipts.v1.UnknownAttempt
+	(*InFlight)(nil),                    // 42: rimgovernor.receipts.v1.InFlight
+	(*LookupReply)(nil),                 // 43: rimgovernor.receipts.v1.LookupReply
+	(*ProgressRequest)(nil),             // 44: rimgovernor.receipts.v1.ProgressRequest
+	(*PendingEffect)(nil),               // 45: rimgovernor.receipts.v1.PendingEffect
+	(*CompletedEffect)(nil),             // 46: rimgovernor.receipts.v1.CompletedEffect
+	(*AbsentEffect)(nil),                // 47: rimgovernor.receipts.v1.AbsentEffect
+	(*UnknownEffect)(nil),               // 48: rimgovernor.receipts.v1.UnknownEffect
+	(*UnsuccessfulEffect)(nil),          // 49: rimgovernor.receipts.v1.UnsuccessfulEffect
+	(*Progress)(nil),                    // 50: rimgovernor.receipts.v1.Progress
+	(*ProgressReply)(nil),               // 51: rimgovernor.receipts.v1.ProgressReply
+	(*commonpb.AttemptKey)(nil),         // 52: rimgovernor.common.v1.AttemptKey
+	(*commonpb.ObservationContext)(nil), // 53: rimgovernor.common.v1.ObservationContext
+	(*commonpb.Cell)(nil),               // 54: rimgovernor.common.v1.Cell
+	(placementpb.Rotation)(0),           // 55: rimgovernor.placement.v1.Rotation
+	(*commonpb.Identity)(nil),           // 56: rimgovernor.common.v1.Identity
+	(*commonpb.Failure)(nil),            // 57: rimgovernor.common.v1.Failure
 }
 var file_receipts_proto_depIdxs = []int32{
-	51, // 0: rimgovernor.receipts.v1.Receipt.attempt:type_name -> rimgovernor.common.v1.AttemptKey
-	52, // 1: rimgovernor.receipts.v1.Receipt.admitted_context:type_name -> rimgovernor.common.v1.ObservationContext
+	52, // 0: rimgovernor.receipts.v1.Receipt.attempt:type_name -> rimgovernor.common.v1.AttemptKey
+	53, // 1: rimgovernor.receipts.v1.Receipt.admitted_context:type_name -> rimgovernor.common.v1.ObservationContext
 	6,  // 2: rimgovernor.receipts.v1.Receipt.no_change:type_name -> rimgovernor.receipts.v1.NoChange
 	7,  // 3: rimgovernor.receipts.v1.Receipt.applied:type_name -> rimgovernor.receipts.v1.Applied
 	8,  // 4: rimgovernor.receipts.v1.Receipt.uncertain:type_name -> rimgovernor.receipts.v1.Uncertain
 	9,  // 5: rimgovernor.receipts.v1.NoChange.observed:type_name -> rimgovernor.receipts.v1.EffectEvidence
 	9,  // 6: rimgovernor.receipts.v1.Applied.observed:type_name -> rimgovernor.receipts.v1.EffectEvidence
 	9,  // 7: rimgovernor.receipts.v1.Uncertain.last_observed:type_name -> rimgovernor.receipts.v1.EffectEvidence
-	15, // 8: rimgovernor.receipts.v1.EffectEvidence.construction:type_name -> rimgovernor.receipts.v1.ConstructionEffect
-	16, // 9: rimgovernor.receipts.v1.EffectEvidence.installation:type_name -> rimgovernor.receipts.v1.InstallationEffect
-	17, // 10: rimgovernor.receipts.v1.EffectEvidence.designation:type_name -> rimgovernor.receipts.v1.DesignationEffect
-	19, // 11: rimgovernor.receipts.v1.EffectEvidence.settings:type_name -> rimgovernor.receipts.v1.SettingsEffect
-	20, // 12: rimgovernor.receipts.v1.EffectEvidence.bill:type_name -> rimgovernor.receipts.v1.BillEffect
-	22, // 13: rimgovernor.receipts.v1.EffectEvidence.research:type_name -> rimgovernor.receipts.v1.ResearchEffect
-	23, // 14: rimgovernor.receipts.v1.EffectEvidence.production_policy:type_name -> rimgovernor.receipts.v1.ProductionPolicyEffect
-	25, // 15: rimgovernor.receipts.v1.EffectEvidence.zone:type_name -> rimgovernor.receipts.v1.ZoneEffect
-	26, // 16: rimgovernor.receipts.v1.EffectEvidence.home:type_name -> rimgovernor.receipts.v1.HomeEffect
-	27, // 17: rimgovernor.receipts.v1.EffectEvidence.bed:type_name -> rimgovernor.receipts.v1.BedEffect
-	28, // 18: rimgovernor.receipts.v1.EffectEvidence.wall:type_name -> rimgovernor.receipts.v1.WallEffect
-	29, // 19: rimgovernor.receipts.v1.EffectEvidence.area:type_name -> rimgovernor.receipts.v1.AreaEffect
-	31, // 20: rimgovernor.receipts.v1.EffectEvidence.job:type_name -> rimgovernor.receipts.v1.JobEffect
-	32, // 21: rimgovernor.receipts.v1.EffectEvidence.surgery:type_name -> rimgovernor.receipts.v1.SurgeryEffect
-	33, // 22: rimgovernor.receipts.v1.EffectEvidence.animal:type_name -> rimgovernor.receipts.v1.AnimalEffect
-	34, // 23: rimgovernor.receipts.v1.EffectEvidence.prisoner:type_name -> rimgovernor.receipts.v1.PrisonerEffect
-	36, // 24: rimgovernor.receipts.v1.EffectEvidence.trade:type_name -> rimgovernor.receipts.v1.TradeEffect
-	37, // 25: rimgovernor.receipts.v1.EffectEvidence.caravan:type_name -> rimgovernor.receipts.v1.CaravanEffect
-	38, // 26: rimgovernor.receipts.v1.EffectEvidence.quest:type_name -> rimgovernor.receipts.v1.QuestEffect
+	16, // 8: rimgovernor.receipts.v1.EffectEvidence.construction:type_name -> rimgovernor.receipts.v1.ConstructionEffect
+	17, // 9: rimgovernor.receipts.v1.EffectEvidence.installation:type_name -> rimgovernor.receipts.v1.InstallationEffect
+	18, // 10: rimgovernor.receipts.v1.EffectEvidence.designation:type_name -> rimgovernor.receipts.v1.DesignationEffect
+	20, // 11: rimgovernor.receipts.v1.EffectEvidence.settings:type_name -> rimgovernor.receipts.v1.SettingsEffect
+	21, // 12: rimgovernor.receipts.v1.EffectEvidence.bill:type_name -> rimgovernor.receipts.v1.BillEffect
+	23, // 13: rimgovernor.receipts.v1.EffectEvidence.research:type_name -> rimgovernor.receipts.v1.ResearchEffect
+	24, // 14: rimgovernor.receipts.v1.EffectEvidence.production_policy:type_name -> rimgovernor.receipts.v1.ProductionPolicyEffect
+	26, // 15: rimgovernor.receipts.v1.EffectEvidence.zone:type_name -> rimgovernor.receipts.v1.ZoneEffect
+	27, // 16: rimgovernor.receipts.v1.EffectEvidence.home:type_name -> rimgovernor.receipts.v1.HomeEffect
+	28, // 17: rimgovernor.receipts.v1.EffectEvidence.bed:type_name -> rimgovernor.receipts.v1.BedEffect
+	29, // 18: rimgovernor.receipts.v1.EffectEvidence.wall:type_name -> rimgovernor.receipts.v1.WallEffect
+	30, // 19: rimgovernor.receipts.v1.EffectEvidence.area:type_name -> rimgovernor.receipts.v1.AreaEffect
+	32, // 20: rimgovernor.receipts.v1.EffectEvidence.job:type_name -> rimgovernor.receipts.v1.JobEffect
+	33, // 21: rimgovernor.receipts.v1.EffectEvidence.surgery:type_name -> rimgovernor.receipts.v1.SurgeryEffect
+	34, // 22: rimgovernor.receipts.v1.EffectEvidence.animal:type_name -> rimgovernor.receipts.v1.AnimalEffect
+	35, // 23: rimgovernor.receipts.v1.EffectEvidence.prisoner:type_name -> rimgovernor.receipts.v1.PrisonerEffect
+	37, // 24: rimgovernor.receipts.v1.EffectEvidence.trade:type_name -> rimgovernor.receipts.v1.TradeEffect
+	38, // 25: rimgovernor.receipts.v1.EffectEvidence.caravan:type_name -> rimgovernor.receipts.v1.CaravanEffect
+	39, // 26: rimgovernor.receipts.v1.EffectEvidence.quest:type_name -> rimgovernor.receipts.v1.QuestEffect
 	12, // 27: rimgovernor.receipts.v1.EffectEvidence.acquisition:type_name -> rimgovernor.receipts.v1.AcquisitionEffect
-	14, // 28: rimgovernor.receipts.v1.EffectEvidence.naming:type_name -> rimgovernor.receipts.v1.NamingEffect
+	15, // 28: rimgovernor.receipts.v1.EffectEvidence.naming:type_name -> rimgovernor.receipts.v1.NamingEffect
 	13, // 29: rimgovernor.receipts.v1.EffectEvidence.excavation:type_name -> rimgovernor.receipts.v1.ExcavationEffect
-	53, // 30: rimgovernor.receipts.v1.AcquisitionEffect.cell:type_name -> rimgovernor.common.v1.Cell
-	11, // 31: rimgovernor.receipts.v1.AcquisitionEffect.outputs:type_name -> rimgovernor.receipts.v1.AcquisitionOutput
-	53, // 32: rimgovernor.receipts.v1.ExcavationEffect.cell:type_name -> rimgovernor.common.v1.Cell
-	53, // 33: rimgovernor.receipts.v1.ConstructionEffect.cell:type_name -> rimgovernor.common.v1.Cell
-	54, // 34: rimgovernor.receipts.v1.ConstructionEffect.rotation:type_name -> rimgovernor.placement.v1.Rotation
-	0,  // 35: rimgovernor.receipts.v1.ConstructionEffect.stage:type_name -> rimgovernor.receipts.v1.ConstructionStage
-	53, // 36: rimgovernor.receipts.v1.InstallationEffect.cell:type_name -> rimgovernor.common.v1.Cell
-	54, // 37: rimgovernor.receipts.v1.InstallationEffect.rotation:type_name -> rimgovernor.placement.v1.Rotation
-	1,  // 38: rimgovernor.receipts.v1.InstallationEffect.stage:type_name -> rimgovernor.receipts.v1.InstallationStage
-	53, // 39: rimgovernor.receipts.v1.DesignationEffect.cell:type_name -> rimgovernor.common.v1.Cell
-	2,  // 40: rimgovernor.receipts.v1.FieldResult.field:type_name -> rimgovernor.receipts.v1.SettingsField
-	3,  // 41: rimgovernor.receipts.v1.FieldResult.outcome:type_name -> rimgovernor.receipts.v1.FieldOutcome
-	10, // 42: rimgovernor.receipts.v1.SettingsEffect.snapshot:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
-	18, // 43: rimgovernor.receipts.v1.SettingsEffect.fields:type_name -> rimgovernor.receipts.v1.FieldResult
-	10, // 44: rimgovernor.receipts.v1.BillEffect.stack:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
-	21, // 45: rimgovernor.receipts.v1.BillEffect.outputs:type_name -> rimgovernor.receipts.v1.ProductionOutput
-	10, // 46: rimgovernor.receipts.v1.ResearchEffect.snapshot:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
-	10, // 47: rimgovernor.receipts.v1.ProductionPolicyEffect.snapshot:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
-	53, // 48: rimgovernor.receipts.v1.CellResult.cell:type_name -> rimgovernor.common.v1.Cell
-	10, // 49: rimgovernor.receipts.v1.ZoneEffect.snapshot:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
-	24, // 50: rimgovernor.receipts.v1.ZoneEffect.cells:type_name -> rimgovernor.receipts.v1.CellResult
-	10, // 51: rimgovernor.receipts.v1.HomeEffect.snapshot:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
-	10, // 52: rimgovernor.receipts.v1.WallEffect.site:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
-	10, // 53: rimgovernor.receipts.v1.AreaEffect.snapshot:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
-	53, // 54: rimgovernor.receipts.v1.JobTarget.cell:type_name -> rimgovernor.common.v1.Cell
-	30, // 55: rimgovernor.receipts.v1.JobEffect.target_a:type_name -> rimgovernor.receipts.v1.JobTarget
-	30, // 56: rimgovernor.receipts.v1.JobEffect.target_b:type_name -> rimgovernor.receipts.v1.JobTarget
-	10, // 57: rimgovernor.receipts.v1.SurgeryEffect.bill_stack:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
-	10, // 58: rimgovernor.receipts.v1.AnimalEffect.animal:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
-	10, // 59: rimgovernor.receipts.v1.PrisonerEffect.pawn:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
-	35, // 60: rimgovernor.receipts.v1.TradeEffect.lines:type_name -> rimgovernor.receipts.v1.TradeLineEffect
-	10, // 61: rimgovernor.receipts.v1.TradeEffect.snapshot:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
-	10, // 62: rimgovernor.receipts.v1.CaravanEffect.snapshot:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
-	10, // 63: rimgovernor.receipts.v1.QuestEffect.snapshot:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
-	55, // 64: rimgovernor.receipts.v1.LookupRequest.identity:type_name -> rimgovernor.common.v1.Identity
-	51, // 65: rimgovernor.receipts.v1.LookupRequest.attempt:type_name -> rimgovernor.common.v1.AttemptKey
-	52, // 66: rimgovernor.receipts.v1.UnknownAttempt.context:type_name -> rimgovernor.common.v1.ObservationContext
-	51, // 67: rimgovernor.receipts.v1.InFlight.attempt:type_name -> rimgovernor.common.v1.AttemptKey
-	52, // 68: rimgovernor.receipts.v1.InFlight.admitted_context:type_name -> rimgovernor.common.v1.ObservationContext
-	5,  // 69: rimgovernor.receipts.v1.LookupReply.receipt:type_name -> rimgovernor.receipts.v1.Receipt
-	41, // 70: rimgovernor.receipts.v1.LookupReply.in_flight:type_name -> rimgovernor.receipts.v1.InFlight
-	40, // 71: rimgovernor.receipts.v1.LookupReply.unknown:type_name -> rimgovernor.receipts.v1.UnknownAttempt
-	56, // 72: rimgovernor.receipts.v1.LookupReply.failure:type_name -> rimgovernor.common.v1.Failure
-	55, // 73: rimgovernor.receipts.v1.ProgressRequest.identity:type_name -> rimgovernor.common.v1.Identity
-	51, // 74: rimgovernor.receipts.v1.ProgressRequest.attempt:type_name -> rimgovernor.common.v1.AttemptKey
-	9,  // 75: rimgovernor.receipts.v1.PendingEffect.evidence:type_name -> rimgovernor.receipts.v1.EffectEvidence
-	9,  // 76: rimgovernor.receipts.v1.CompletedEffect.evidence:type_name -> rimgovernor.receipts.v1.EffectEvidence
-	4,  // 77: rimgovernor.receipts.v1.UnsuccessfulEffect.reason:type_name -> rimgovernor.receipts.v1.UnsuccessfulReason
-	9,  // 78: rimgovernor.receipts.v1.UnsuccessfulEffect.evidence:type_name -> rimgovernor.receipts.v1.EffectEvidence
-	51, // 79: rimgovernor.receipts.v1.Progress.attempt:type_name -> rimgovernor.common.v1.AttemptKey
-	52, // 80: rimgovernor.receipts.v1.Progress.context:type_name -> rimgovernor.common.v1.ObservationContext
-	47, // 81: rimgovernor.receipts.v1.Progress.unknown:type_name -> rimgovernor.receipts.v1.UnknownEffect
-	44, // 82: rimgovernor.receipts.v1.Progress.pending:type_name -> rimgovernor.receipts.v1.PendingEffect
-	45, // 83: rimgovernor.receipts.v1.Progress.completed:type_name -> rimgovernor.receipts.v1.CompletedEffect
-	46, // 84: rimgovernor.receipts.v1.Progress.absent:type_name -> rimgovernor.receipts.v1.AbsentEffect
-	48, // 85: rimgovernor.receipts.v1.Progress.unsuccessful:type_name -> rimgovernor.receipts.v1.UnsuccessfulEffect
-	49, // 86: rimgovernor.receipts.v1.ProgressReply.progress:type_name -> rimgovernor.receipts.v1.Progress
-	56, // 87: rimgovernor.receipts.v1.ProgressReply.failure:type_name -> rimgovernor.common.v1.Failure
-	39, // 88: rimgovernor.receipts.v1.Attempts.Lookup:input_type -> rimgovernor.receipts.v1.LookupRequest
-	43, // 89: rimgovernor.receipts.v1.Attempts.ObserveProgress:input_type -> rimgovernor.receipts.v1.ProgressRequest
-	42, // 90: rimgovernor.receipts.v1.Attempts.Lookup:output_type -> rimgovernor.receipts.v1.LookupReply
-	50, // 91: rimgovernor.receipts.v1.Attempts.ObserveProgress:output_type -> rimgovernor.receipts.v1.ProgressReply
-	90, // [90:92] is the sub-list for method output_type
-	88, // [88:90] is the sub-list for method input_type
-	88, // [88:88] is the sub-list for extension type_name
-	88, // [88:88] is the sub-list for extension extendee
-	0,  // [0:88] is the sub-list for field type_name
+	14, // 30: rimgovernor.receipts.v1.EffectEvidence.dialog:type_name -> rimgovernor.receipts.v1.DialogEffect
+	54, // 31: rimgovernor.receipts.v1.AcquisitionEffect.cell:type_name -> rimgovernor.common.v1.Cell
+	11, // 32: rimgovernor.receipts.v1.AcquisitionEffect.outputs:type_name -> rimgovernor.receipts.v1.AcquisitionOutput
+	54, // 33: rimgovernor.receipts.v1.ExcavationEffect.cell:type_name -> rimgovernor.common.v1.Cell
+	54, // 34: rimgovernor.receipts.v1.ConstructionEffect.cell:type_name -> rimgovernor.common.v1.Cell
+	55, // 35: rimgovernor.receipts.v1.ConstructionEffect.rotation:type_name -> rimgovernor.placement.v1.Rotation
+	0,  // 36: rimgovernor.receipts.v1.ConstructionEffect.stage:type_name -> rimgovernor.receipts.v1.ConstructionStage
+	54, // 37: rimgovernor.receipts.v1.InstallationEffect.cell:type_name -> rimgovernor.common.v1.Cell
+	55, // 38: rimgovernor.receipts.v1.InstallationEffect.rotation:type_name -> rimgovernor.placement.v1.Rotation
+	1,  // 39: rimgovernor.receipts.v1.InstallationEffect.stage:type_name -> rimgovernor.receipts.v1.InstallationStage
+	54, // 40: rimgovernor.receipts.v1.DesignationEffect.cell:type_name -> rimgovernor.common.v1.Cell
+	2,  // 41: rimgovernor.receipts.v1.FieldResult.field:type_name -> rimgovernor.receipts.v1.SettingsField
+	3,  // 42: rimgovernor.receipts.v1.FieldResult.outcome:type_name -> rimgovernor.receipts.v1.FieldOutcome
+	10, // 43: rimgovernor.receipts.v1.SettingsEffect.snapshot:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
+	19, // 44: rimgovernor.receipts.v1.SettingsEffect.fields:type_name -> rimgovernor.receipts.v1.FieldResult
+	10, // 45: rimgovernor.receipts.v1.BillEffect.stack:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
+	22, // 46: rimgovernor.receipts.v1.BillEffect.outputs:type_name -> rimgovernor.receipts.v1.ProductionOutput
+	10, // 47: rimgovernor.receipts.v1.ResearchEffect.snapshot:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
+	10, // 48: rimgovernor.receipts.v1.ProductionPolicyEffect.snapshot:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
+	54, // 49: rimgovernor.receipts.v1.CellResult.cell:type_name -> rimgovernor.common.v1.Cell
+	10, // 50: rimgovernor.receipts.v1.ZoneEffect.snapshot:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
+	25, // 51: rimgovernor.receipts.v1.ZoneEffect.cells:type_name -> rimgovernor.receipts.v1.CellResult
+	10, // 52: rimgovernor.receipts.v1.HomeEffect.snapshot:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
+	10, // 53: rimgovernor.receipts.v1.WallEffect.site:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
+	10, // 54: rimgovernor.receipts.v1.AreaEffect.snapshot:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
+	54, // 55: rimgovernor.receipts.v1.JobTarget.cell:type_name -> rimgovernor.common.v1.Cell
+	31, // 56: rimgovernor.receipts.v1.JobEffect.target_a:type_name -> rimgovernor.receipts.v1.JobTarget
+	31, // 57: rimgovernor.receipts.v1.JobEffect.target_b:type_name -> rimgovernor.receipts.v1.JobTarget
+	10, // 58: rimgovernor.receipts.v1.SurgeryEffect.bill_stack:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
+	10, // 59: rimgovernor.receipts.v1.AnimalEffect.animal:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
+	10, // 60: rimgovernor.receipts.v1.PrisonerEffect.pawn:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
+	36, // 61: rimgovernor.receipts.v1.TradeEffect.lines:type_name -> rimgovernor.receipts.v1.TradeLineEffect
+	10, // 62: rimgovernor.receipts.v1.TradeEffect.snapshot:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
+	10, // 63: rimgovernor.receipts.v1.CaravanEffect.snapshot:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
+	10, // 64: rimgovernor.receipts.v1.QuestEffect.snapshot:type_name -> rimgovernor.receipts.v1.SnapshotEvidence
+	56, // 65: rimgovernor.receipts.v1.LookupRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	52, // 66: rimgovernor.receipts.v1.LookupRequest.attempt:type_name -> rimgovernor.common.v1.AttemptKey
+	53, // 67: rimgovernor.receipts.v1.UnknownAttempt.context:type_name -> rimgovernor.common.v1.ObservationContext
+	52, // 68: rimgovernor.receipts.v1.InFlight.attempt:type_name -> rimgovernor.common.v1.AttemptKey
+	53, // 69: rimgovernor.receipts.v1.InFlight.admitted_context:type_name -> rimgovernor.common.v1.ObservationContext
+	5,  // 70: rimgovernor.receipts.v1.LookupReply.receipt:type_name -> rimgovernor.receipts.v1.Receipt
+	42, // 71: rimgovernor.receipts.v1.LookupReply.in_flight:type_name -> rimgovernor.receipts.v1.InFlight
+	41, // 72: rimgovernor.receipts.v1.LookupReply.unknown:type_name -> rimgovernor.receipts.v1.UnknownAttempt
+	57, // 73: rimgovernor.receipts.v1.LookupReply.failure:type_name -> rimgovernor.common.v1.Failure
+	56, // 74: rimgovernor.receipts.v1.ProgressRequest.identity:type_name -> rimgovernor.common.v1.Identity
+	52, // 75: rimgovernor.receipts.v1.ProgressRequest.attempt:type_name -> rimgovernor.common.v1.AttemptKey
+	9,  // 76: rimgovernor.receipts.v1.PendingEffect.evidence:type_name -> rimgovernor.receipts.v1.EffectEvidence
+	9,  // 77: rimgovernor.receipts.v1.CompletedEffect.evidence:type_name -> rimgovernor.receipts.v1.EffectEvidence
+	4,  // 78: rimgovernor.receipts.v1.UnsuccessfulEffect.reason:type_name -> rimgovernor.receipts.v1.UnsuccessfulReason
+	9,  // 79: rimgovernor.receipts.v1.UnsuccessfulEffect.evidence:type_name -> rimgovernor.receipts.v1.EffectEvidence
+	52, // 80: rimgovernor.receipts.v1.Progress.attempt:type_name -> rimgovernor.common.v1.AttemptKey
+	53, // 81: rimgovernor.receipts.v1.Progress.context:type_name -> rimgovernor.common.v1.ObservationContext
+	48, // 82: rimgovernor.receipts.v1.Progress.unknown:type_name -> rimgovernor.receipts.v1.UnknownEffect
+	45, // 83: rimgovernor.receipts.v1.Progress.pending:type_name -> rimgovernor.receipts.v1.PendingEffect
+	46, // 84: rimgovernor.receipts.v1.Progress.completed:type_name -> rimgovernor.receipts.v1.CompletedEffect
+	47, // 85: rimgovernor.receipts.v1.Progress.absent:type_name -> rimgovernor.receipts.v1.AbsentEffect
+	49, // 86: rimgovernor.receipts.v1.Progress.unsuccessful:type_name -> rimgovernor.receipts.v1.UnsuccessfulEffect
+	50, // 87: rimgovernor.receipts.v1.ProgressReply.progress:type_name -> rimgovernor.receipts.v1.Progress
+	57, // 88: rimgovernor.receipts.v1.ProgressReply.failure:type_name -> rimgovernor.common.v1.Failure
+	40, // 89: rimgovernor.receipts.v1.Attempts.Lookup:input_type -> rimgovernor.receipts.v1.LookupRequest
+	44, // 90: rimgovernor.receipts.v1.Attempts.ObserveProgress:input_type -> rimgovernor.receipts.v1.ProgressRequest
+	43, // 91: rimgovernor.receipts.v1.Attempts.Lookup:output_type -> rimgovernor.receipts.v1.LookupReply
+	51, // 92: rimgovernor.receipts.v1.Attempts.ObserveProgress:output_type -> rimgovernor.receipts.v1.ProgressReply
+	91, // [91:93] is the sub-list for method output_type
+	89, // [89:91] is the sub-list for method input_type
+	89, // [89:89] is the sub-list for extension type_name
+	89, // [89:89] is the sub-list for extension extendee
+	0,  // [0:89] is the sub-list for field type_name
 }
 
 func init() { file_receipts_proto_init() }
@@ -5218,6 +5339,7 @@ func file_receipts_proto_init() {
 		(*EffectEvidence_Acquisition)(nil),
 		(*EffectEvidence_Naming)(nil),
 		(*EffectEvidence_Excavation)(nil),
+		(*EffectEvidence_Dialog)(nil),
 	}
 	file_receipts_proto_msgTypes[5].OneofWrappers = []any{}
 	file_receipts_proto_msgTypes[6].OneofWrappers = []any{}
@@ -5227,12 +5349,12 @@ func file_receipts_proto_init() {
 	file_receipts_proto_msgTypes[10].OneofWrappers = []any{}
 	file_receipts_proto_msgTypes[11].OneofWrappers = []any{}
 	file_receipts_proto_msgTypes[12].OneofWrappers = []any{}
-	file_receipts_proto_msgTypes[13].OneofWrappers = []any{
+	file_receipts_proto_msgTypes[13].OneofWrappers = []any{}
+	file_receipts_proto_msgTypes[14].OneofWrappers = []any{
 		(*FieldResult_WorkTypeDef)(nil),
 		(*FieldResult_TrainableDef)(nil),
 		(*FieldResult_ScheduleHour)(nil),
 	}
-	file_receipts_proto_msgTypes[15].OneofWrappers = []any{}
 	file_receipts_proto_msgTypes[16].OneofWrappers = []any{}
 	file_receipts_proto_msgTypes[17].OneofWrappers = []any{}
 	file_receipts_proto_msgTypes[18].OneofWrappers = []any{}
@@ -5242,11 +5364,11 @@ func file_receipts_proto_init() {
 	file_receipts_proto_msgTypes[22].OneofWrappers = []any{}
 	file_receipts_proto_msgTypes[23].OneofWrappers = []any{}
 	file_receipts_proto_msgTypes[24].OneofWrappers = []any{}
-	file_receipts_proto_msgTypes[25].OneofWrappers = []any{
+	file_receipts_proto_msgTypes[25].OneofWrappers = []any{}
+	file_receipts_proto_msgTypes[26].OneofWrappers = []any{
 		(*JobTarget_ThingId)(nil),
 		(*JobTarget_Cell)(nil),
 	}
-	file_receipts_proto_msgTypes[26].OneofWrappers = []any{}
 	file_receipts_proto_msgTypes[27].OneofWrappers = []any{}
 	file_receipts_proto_msgTypes[28].OneofWrappers = []any{}
 	file_receipts_proto_msgTypes[29].OneofWrappers = []any{}
@@ -5254,23 +5376,24 @@ func file_receipts_proto_init() {
 	file_receipts_proto_msgTypes[31].OneofWrappers = []any{}
 	file_receipts_proto_msgTypes[32].OneofWrappers = []any{}
 	file_receipts_proto_msgTypes[33].OneofWrappers = []any{}
-	file_receipts_proto_msgTypes[37].OneofWrappers = []any{
+	file_receipts_proto_msgTypes[34].OneofWrappers = []any{}
+	file_receipts_proto_msgTypes[38].OneofWrappers = []any{
 		(*LookupReply_Receipt)(nil),
 		(*LookupReply_InFlight)(nil),
 		(*LookupReply_Unknown)(nil),
 		(*LookupReply_Failure)(nil),
 	}
-	file_receipts_proto_msgTypes[41].OneofWrappers = []any{}
 	file_receipts_proto_msgTypes[42].OneofWrappers = []any{}
 	file_receipts_proto_msgTypes[43].OneofWrappers = []any{}
-	file_receipts_proto_msgTypes[44].OneofWrappers = []any{
+	file_receipts_proto_msgTypes[44].OneofWrappers = []any{}
+	file_receipts_proto_msgTypes[45].OneofWrappers = []any{
 		(*Progress_Unknown)(nil),
 		(*Progress_Pending)(nil),
 		(*Progress_Completed)(nil),
 		(*Progress_Absent)(nil),
 		(*Progress_Unsuccessful)(nil),
 	}
-	file_receipts_proto_msgTypes[45].OneofWrappers = []any{
+	file_receipts_proto_msgTypes[46].OneofWrappers = []any{
 		(*ProgressReply_Progress)(nil),
 		(*ProgressReply_Failure)(nil),
 	}
@@ -5280,7 +5403,7 @@ func file_receipts_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_receipts_proto_rawDesc), len(file_receipts_proto_rawDesc)),
 			NumEnums:      5,
-			NumMessages:   46,
+			NumMessages:   47,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

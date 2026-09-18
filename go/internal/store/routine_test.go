@@ -11,7 +11,7 @@ import (
 )
 
 func routineRequest() RoutineReviewRequest {
-	return RoutineReviewRequest{Current: scope(), Tick: 10, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: policy.RoutineFacts{Workers: domain.Known(2), Wood: domain.Known(int64(100)), Hostiles: domain.Known(int64(0)), CriticalPatients: domain.Known(int64(0)), CleanupPawns: domain.Known(false), ColonyNaming: domain.Known(false)}}
+	return RoutineReviewRequest{Current: scope(), Tick: 10, Enabled: true, Policy: policy.DefaultRoutinePolicy(), Facts: policy.RoutineFacts{Workers: domain.Known(2), Wood: domain.Known(int64(100)), Hostiles: domain.Known(int64(0)), CriticalPatients: domain.Known(int64(0)), CleanupPawns: domain.Known(false), ColonyNaming: domain.Known(false), ChoiceDialog: domain.Known(false)}}
 }
 func routineGoal(t *testing.T, r RoutineReviewResult, need domain.GoalID) GoalState {
 	t.Helper()

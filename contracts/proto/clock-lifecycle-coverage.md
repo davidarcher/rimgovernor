@@ -55,7 +55,13 @@ Typed journal payloads cover started/speed, notification/alert, injury/health,
 hostile/downed/predator/hunting/medical-rest, hostiles-cleared, tick budget,
 watch-latched with its operation outcome, authority changes (owner-less when
 observed outside an epoch), pause-failure, external pause/speed, lease,
-unavailable/watcher/journal errors and force-pause waiting/cleared events. Source numeric pawn IDs must resolve to exact
+unavailable/watcher/journal errors, force-pause waiting/cleared events and
+`STOP_REASON_DIALOG_PAUSE` with its `DialogPause` (window id/type/title) when a
+game-opened `Verse.Dialog_NodeTree` force-pauses a running epoch (#156). Like a
+letter pause it is a non-benign stop the player acknowledges; the controller
+answers the dialog through `Operations.AnswerDialog` and starts a new epoch, and
+a start attempted while such a window is open is refused as unavailable rather
+than reported as a running epoch's pause. Source numeric pawn IDs must resolve to exact
 canonical IDs, never suffix matching. Every event carries its original native
 context, not whichever map happens to be selected during later reads.
 
