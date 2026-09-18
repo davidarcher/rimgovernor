@@ -58,7 +58,7 @@ func EvaluateOwnedDraft(request DraftRequest) DraftDecision {
 	if request.Progress.Action() != request.Action || view.Action != request.Action.ID() || view.Plan != request.Current.Plan || view.Revision != request.Current.Revision || view.Unresolved || (view.Stage != domain.Pending && view.Stage != domain.Prepared) {
 		return refuse(NotReady)
 	}
-	if request.Tick < view.Tick || view.Stage == domain.Prepared && !view.Snapshot.Matches(request.Current) {
+	if request.Tick < view.Tick || view.Stage == domain.Prepared && !sameWorld(view.Snapshot, request.Current) {
 		return refuse(StaleFacts)
 	}
 	if view.Attempt > 0 && (view.Snapshot.Colony != request.Current.Colony || view.Snapshot.Map != request.Current.Map || view.Snapshot.Load != request.Current.Load) {

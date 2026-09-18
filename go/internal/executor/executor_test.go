@@ -221,6 +221,38 @@ func TestResourcesLostDuringPreparationHoldPrepared(t *testing.T) {
 	}
 }
 
+// A Prepared action has no write outstanding, so authority that moved
+// since its preparation (the native generation advanced after a re-acquire)
+// re-prepares it under the current snapshot and dispatches instead of
+// holding it not_ready forever (#122).
+func TestPreparedUnderMovedAuthorityIsRePreparedAndDispatched(t *testing.T) {
+	f := newFixture(t)
+	f.env.onInspect = func(n int, in Inspection) Inspection {
+		if n == 2 {
+			in.Stock.Values[0].Available = domain.Known(int64(0))
+		}
+		return in
+	}
+	if result, err := f.run(); !errors.Is(err, ErrHeld) || result.NativeCalled || f.progress(t).Stage != domain.Prepared {
+		t.Fatalf("preparation did not hold: %+v %v", result, err)
+	}
+	f.env.onInspect = nil
+	moved := f.authority
+	moved.Snapshot.Native++
+	if err := f.executor.UpdateAuthority(moved); err != nil {
+		t.Fatal(err)
+	}
+	f.authority = moved
+	f.env.tick++
+	result, err := f.run()
+	if err != nil || !result.NativeCalled {
+		t.Fatalf("stale Prepared action not re-driven under moved authority: %+v %v", result, err)
+	}
+	if v := f.progress(t); v.Stage != domain.AwaitingObservation || !v.Snapshot.Matches(moved.Snapshot) {
+		t.Fatalf("dispatch did not carry the current snapshot: %+v", v)
+	}
+}
+
 func TestInvalidationAndFreshnessPreventNativeWrites(t *testing.T) {
 	for _, change := range []func(*Authority){func(a *Authority) { a.Enabled = false }, func(a *Authority) { a.Snapshot.Load = "new-load" }, func(a *Authority) { a.Snapshot.Map++ }, func(a *Authority) { a.Snapshot.Native++ }, func(a *Authority) { a.Snapshot.Revision++ }} {
 		f := newFixture(t)
