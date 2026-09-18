@@ -67,11 +67,16 @@ namespace HomeBridge.BridgeTools
     internal static class NativeZoneCreation
     {
         private static string Hash(byte[] data) { using (var hash = SHA256.Create()) return "zone-" + BitConverter.ToString(hash.ComputeHash(data)).Replace("-", "").ToLowerInvariant(); }
+        // Whole-map CAS token for CreateZone: identity plus the zone census
+        // (every zone's id and cells), never the tick. The controller reads it
+        // from colony facts and previews on a running clock (#150), so a token
+        // that hashed the tick could only ever match on a paused map; the cell
+        // conditions themselves are re-checked at preview and execute.
         internal static Obs.SnapshotRef MapSnapshot(Map map, Common.ObservationContext context)
         {
             using (var stream = new MemoryStream()) {
                 using (var writer = new BinaryWriter(stream, Encoding.UTF8, true)) {
-                    writer.Write(context.Identity.ColonyId); writer.Write(context.Identity.LoadToken); writer.Write(map.uniqueID); writer.Write(context.Tick);
+                    writer.Write(context.Identity.ColonyId); writer.Write(context.Identity.LoadToken); writer.Write(map.uniqueID);
                     if (map.zoneManager.AllZones.Count > 256 || map.zoneManager.AllZones.Sum(z => (long)z.Cells.Count) > 65536) throw new InvalidOperationException("Zone census exceeds bound.");
                     foreach (var zone in map.zoneManager.AllZones.OrderBy(z => z.GetUniqueLoadID(), StringComparer.Ordinal)) {
                         writer.Write(zone.GetUniqueLoadID()); writer.Write(zone.Cells.Count);
