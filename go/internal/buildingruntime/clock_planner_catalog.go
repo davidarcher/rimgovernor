@@ -271,7 +271,7 @@ var plannerCatalog = []plannerEntry{
 			if err != nil {
 				return err
 			}
-			clockSchedulerLog("SleepingUpkeep.step result: reason=%v admitted=%v refused=%v", method.Reason, method.Decision.Admitted, method.Decision.Refused)
+			clockSchedulerLog("SleepingUpkeep.step result: reason=%v admitted=%v refused=%v ticks=%d", method.Reason, method.Decision.Admitted, method.Decision.Refused, method.NativeWorkTicks)
 			out.SleepingUpkeep = &method
 			return nil
 		}},
