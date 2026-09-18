@@ -142,7 +142,8 @@ func runStream(ctx context.Context, s cases.Session) error {
 		data          []byte
 	}
 	var polls []polledFrame
-	deadline := time.Now().Add(3 * time.Second)
+	pollStarted := time.Now()
+	deadline := pollStarted.Add(3 * time.Second)
 	for len(polls) < 4 && time.Now().Before(deadline) {
 		frameReply, err := h.Wire(ctx, "read-frame", "presentation_read_frame", map[string]any{
 			"viewer": viewer, "sourceId": sourceID,
@@ -189,8 +190,12 @@ func runStream(ctx context.Context, s cases.Session) error {
 			differed = true
 		}
 	}
+	// Distinct frames the poll delivered per second: the rate shared memory
+	// has to beat on this machine, under whatever peer load it carries.
+	pollRate := float64(len(polls)) / time.Since(pollStarted).Seconds()
 	report["case_read_frame_sequences"] = len(polls)
 	report["case_read_frame_bytes_updated"] = differed
+	report["case_read_frame_frames_per_second"] = pollRate
 	lastPoll := polls[len(polls)-1]
 
 	// Case 2b: the same source read straight out of shared memory, as the
@@ -236,14 +241,24 @@ func runStream(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("shared-memory-read: first shared sequence %d is behind the last ReadFrame sequence %v", sharedSequences[0], lastPoll.sequence)
 	}
 	sharedRate := float64(len(sharedSequences)) / sharedWindow.Seconds()
+	firstShared, lastShared := sharedSequences[0], sharedSequences[len(sharedSequences)-1]
+	published := lastShared - firstShared + 1
 	report["case_shared_memory_frames"] = len(sharedSequences)
 	report["case_shared_memory_frames_per_second"] = sharedRate
-	report["case_shared_memory_first_sequence"] = sharedSequences[0]
-	report["case_shared_memory_last_sequence"] = sharedSequences[len(sharedSequences)-1]
-	// ReadFrame polls at 150 ms plus a base64 round trip cannot exceed
-	// ~6 fps; shared memory must clear that comfortably to be worth having.
-	if sharedRate < 10 {
-		return fmt.Errorf("shared-memory-read: %.1f frames/s is no better than the ReadFrame poll", sharedRate)
+	report["case_shared_memory_first_sequence"] = firstShared
+	report["case_shared_memory_last_sequence"] = lastShared
+	report["case_shared_memory_published_sequences"] = published
+	// The game's capture cadence caps both readers, and it drops with peer
+	// load on the box, so the floor is relative to this run rather than an
+	// absolute fps: shared memory must deliver materially more frames per
+	// second than the ReadFrame poll did, and must see nearly every sequence
+	// the source published in its window (a reader that drops frames is no
+	// faster than the source in any useful sense).
+	if sharedRate < 1.2*pollRate {
+		return fmt.Errorf("shared-memory-read: %.1f frames/s is no better than the ReadFrame poll's %.1f frames/s", sharedRate, pollRate)
+	}
+	if seen := float64(len(sharedSequences)) / float64(published); seen < 0.9 {
+		return fmt.Errorf("shared-memory-read: saw %d of %d published sequences (%.0f%%)", len(sharedSequences), published, 100*seen)
 	}
 	// Case 3: AcknowledgeFrame for the most recently observed frame.
 	ackReply, err := h.Wire(ctx, "acknowledge-frame", "presentation_acknowledge_frame", map[string]any{
@@ -304,9 +319,9 @@ func runStream(ctx context.Context, s cases.Session) error {
 	if err != nil || !ok {
 		return fmt.Errorf("shared-memory-read-after-stop: no current frame (%v)", err)
 	}
-	lastShared := current.Sequence
+	atStop := current.Sequence
 	time.Sleep(300 * time.Millisecond)
-	if _, ok, err := shared.Read(lastShared); err != nil {
+	if _, ok, err := shared.Read(atStop); err != nil {
 		return fmt.Errorf("shared-memory-read-after-stop: %w", err)
 	} else if ok {
 		return fmt.Errorf("shared-memory-read-after-stop: a frame was published after the lease stopped")
