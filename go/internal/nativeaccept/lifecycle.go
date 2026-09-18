@@ -16,7 +16,7 @@ const (
 	NeedJoy  NeedDef = "Joy"
 	// LiveNeeds as the keep list leaves every need live and skips the
 	// freeze, for a harness whose colony must behave as it always has
-	// (animalcontainmentaccept's builder never finishes the pen marker
+	// (the animals/containment case's builder never finishes the pen marker
 	// when frozen). The report's frozen_needs is then nil.
 	LiveNeeds NeedDef = "*"
 )

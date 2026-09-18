@@ -17,7 +17,7 @@ import (
 // running unfocused, the smallest window and no eye candy so a -batchmode
 // player computes as little as possible, and a crash leaving ModsConfig.xml
 // alone so the next launch still loads the mod. Pause behaviour is left to
-// the launch arguments and the harnesses (letteraccept sets and restores
+// the launch arguments and the harnesses (the letter/pause case sets and restores
 // automaticPauseMode itself).
 var HeadlessPrefs = map[string]string{
 	"autosaveIntervalDays":   "1000",

@@ -76,8 +76,8 @@ and the initial identity. The `Session` carries
 `Harness`, `Names`, `Identity`, `Prepared` (the fixture reply) and `Report`
 (`package_files`, `discovery`, `start`, `quiet`, `prepared`, `frozen_needs`,
 `boot_ms`); `Close()` ends the hold and a serve-driven harness uses
-`Release()`/`Reattach(ctx)` around the service (`surgeryaccept`,
-`wasteaccept` and `lightaccept` are the reference conversions). A new
+`Release()`/`Reattach(ctx)` around the service (the `surgery/queue` and
+`waste/haul` cases and `lightaccept` are the reference conversions). A new
 bridge-only harness starts there and writes only its assertions.
 
 1. **Open on the precondition.** A committed `.rws` or a single
@@ -184,7 +184,7 @@ fixture build) pins every free colonist need at maximum after each needs
 interval except the NeedDefs in `keep` (`Food` for a cooking harness, `Rest`
 for a sleeping one, `Mood`/`Joy` for mood relief), for the current game
 only, and the reply names what was frozen: record it on the report so a
-pass cannot hide that nobody ever ate or slept. `needsaccept` proves the
+pass cannot hide that nobody ever ate or slept. The `needs/freeze` case proves the
 pin and the release. The construction harnesses freeze everything; a
 harness whose scenario needs a colonist to eat or break keeps that need.
 
@@ -199,7 +199,7 @@ need `WithExpectedLetters(pairs...)`, and that option also makes the window
 strict (no informational acknowledgement), which is what interruption
 harnesses want. Only letters whose def pauses under the profile's
 `automaticPauseMode` (MajorThreat in the headless profile: ThreatBig only)
-ever reach the loop; `letteraccept` covers both modes through
+ever reach the loop; the `letter/pause` case covers both modes through
 `test/letter_pause_mode` and `test/deliver_letter`. Under the serve process
 a letter pause drops authority but only suspends routine goals (#65): the
 next enabled review reactivates the same goal with its plans still open, so
@@ -353,7 +353,7 @@ grant.
 By default `StartDebugGame` loads a saved copy of the quick start
 (`RimGovernor-debug-<size>-<coverage>[-<dlc>]` in `profile/Saves`,
 written by the first start that misses it) instead of generating a world
-and map: ~2.7s against ~5.4s on a warm process, surgeryaccept 14s to 10s
+and map: ~2.7s against ~5.4s on a warm process, surgery/queue 14s to 10s
 on a kept game. The loaded colony is the same one every run rather than
 a new world, so a harness that is about world generation or a first-load
 identity opts out with `RIMGOVERNOR_ACCEPT_CACHED_START=0`, and the save
@@ -406,7 +406,7 @@ the first window has not been admitted instead of watching an idle service
 for twenty minutes (#103).
 
 Process reuse carries the same static-state caveat as `-reuse-game`
-(next paragraph), and process-wide `Prefs` too: `letteraccept` sets the
+(next paragraph), and process-wide `Prefs` too: the `letter/pause` case sets the
 pause mode it needs and restores the one it found. Harnesses asserting on
 statics or prefs run without the variable.
 
