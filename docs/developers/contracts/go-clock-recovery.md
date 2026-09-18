@@ -240,6 +240,11 @@ is unknown, holds at any distance. A method refused only for insufficient
 stock lends the window a bounded `stockWaitTicks` of native work: the census
 does not see a stack in a hauler's hands, so without ticks the haul that would
 clear the refusal never lands and the window is refused as `no_work` for good.
+The same bounded window is lent when a planner's native preview is refused
+(the resource planner's add-bill preview on a bench that is not yet usable)
+or when a planner fails outright on a native refusal (`bridge.ErrRefused`):
+the refusal describes the world at this tick and game time may change it,
+while a transport or control failure lends nothing (#219).
 Likewise a cooler method that completed on the tick the supervisor latched the
 window still reads `powerOn=false` until the power net ticks once, so the
 refrigeration planner lends its cooling allowance to `cooler_power_needed` as

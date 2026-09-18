@@ -9,10 +9,12 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+	"google.golang.org/protobuf/proto"
 )
 
 // failingBuildingSource refuses every native read, standing in for a planner
@@ -145,5 +147,66 @@ func TestPlannerGroupHoldsLowPriorityUntilASlotFrees(t *testing.T) {
 	}
 	if err := <-done; err != nil {
 		t.Fatal(err)
+	}
+}
+
+// A planner that fails on a native refusal leaves no work and no wait; with
+// nothing else to do the clock would park on no_work while the same read is
+// refused every step. The step lends one stock-sized window instead, and a
+// failure that is not a native refusal still does not (#219).
+func TestClockSchedulerLendsWindowToPlannerRefusedNatively(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name  string
+		err   error
+		lends bool
+	}{
+		{"native refusal", &bridge.NativeFailure{Value: &c.Failure{Code: c.FailureCode_FAILURE_CODE_INVALID_REQUEST.Enum(), Detail: proto.String("bench is not usable for bills")}}, true},
+		{"other failure", errors.New("boom"), false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			s, f := schedulerFixture(t)
+			schedulerRoutine(t, s, f)
+			planner, err := NewRoutineSleepingPlanner(s.config.Routine, failingBuildingSource{tc.err})
+			if err != nil {
+				t.Fatal(err)
+			}
+			config := s.config
+			config.Sleeping = planner
+			config.RoutineMethods = true
+			s.session.routineMethods = true
+			replacement, err := NewClockScheduler(s.player, s.session, f, config, s.clock)
+			if err != nil {
+				t.Fatal(err)
+			}
+			*s = *replacement
+			root := s.session.State().Snapshot
+			p, err := s.player.journal.LoadPlan(context.Background(), root.Plan)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, action := range p.Spec.Actions() {
+				if _, err = s.player.journal.Cancel(context.Background(), p.Spec.ID(), action.ID()); err != nil {
+					t.Fatal(err)
+				}
+			}
+			got, err := s.Step(context.Background())
+			if len(got.PlannerFailures) != 1 || !errors.Is(got.PlannerFailures[0], tc.err) {
+				t.Fatal(got.PlannerFailures)
+			}
+			if !tc.lends {
+				if !errors.Is(err, executor.ErrHeld) || got.Attempt != nil || f.writes != 0 || got.Decision.Admitted {
+					t.Fatal(got, err, f.writes)
+				}
+				return
+			}
+			if err != nil || got.Attempt == nil || got.Attempt.Phase != store.ClockApplied || f.writes != 1 {
+				t.Fatal(got, err, f.writes)
+			}
+			if ticks := got.Attempt.Intent.Command.Start.MaxTicks; ticks == 0 || ticks != min(got.Window.Ticks, stockWaitTicks) {
+				t.Fatalf("refused planner lent %d ticks, want %d", ticks, min(got.Window.Ticks, stockWaitTicks))
+			}
+		})
 	}
 }

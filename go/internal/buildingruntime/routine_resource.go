@@ -263,12 +263,21 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 		return RoutineResourceResult{}, err
 	}
 	preview, _, err := r.native.PreviewBill(call, boundary.Identity(state.Snapshot), bill)
+	var refused *bridge.NativeFailure
+	if errors.As(err, &refused) {
+		// A native refusal (an unfueled bench, no worker in reach) is a
+		// planning outcome that game time may resolve, not a step failure:
+		// lend one window so the hauls that change the answer can run
+		// instead of parking the clock on no_work (#219).
+		clockSchedulerLog("%s: bill preview refused bench=%s recipe=%s code=%v detail=%q", goal.Goal.ID, choice.Bench, choice.Recipe, refused.Value.GetCode(), refused.Value.GetDetail())
+		return RoutineResourceResult{Reason: BuildingMethodRefused, NativeWorkTicks: stockWaitTicks}, nil
+	}
 	if err != nil {
 		return RoutineResourceResult{}, err
 	}
 	evaluated := preview.GetEvaluated()
 	if evaluated == nil || !evaluated.GetAccepted() {
-		return RoutineResourceResult{Reason: BuildingMethodRefused}, nil
+		return RoutineResourceResult{Reason: BuildingMethodRefused, NativeWorkTicks: stockWaitTicks}, nil
 	}
 	if _, err = boundary.Context(evaluated.Context, state.Snapshot); err != nil {
 		return RoutineResourceResult{}, ErrControl

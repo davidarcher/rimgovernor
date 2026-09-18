@@ -837,6 +837,13 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 			nativeWorkTicks = max(nativeWorkTicks, result.NativeWorkTicks)
 		}
 	}
+	// A planner that failed on a native refusal produced neither work nor a
+	// wait, and the same read is refused again next step while the game
+	// stands still; one window lets the world move under it (#219).
+	if wait := plannerRefusalWait(out.PlannerFailures); wait > 0 {
+		clockSchedulerLog("planner failed on a native refusal -> lending %d ticks", wait)
+		nativeWorkTicks = max(nativeWorkTicks, wait)
+	}
 	if !work && s.config.RoutineMethods && nativeWorkTicks > 0 {
 		work = true
 		start.MaxTicks = min(start.MaxTicks, nativeWorkTicks)
@@ -919,6 +926,19 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	}
 	s.running.Store(err == nil)
 	return out, err
+}
+
+// plannerRefusalWait is stockWaitTicks when any isolated planner failure of
+// the step is a native refusal (bridge.ErrRefused) and zero otherwise. A
+// transport or control failure is not resolved by letting time pass; a
+// refused preview or read describes the world at this tick and may be.
+func plannerRefusalWait(failures []error) uint32 {
+	for _, failure := range failures {
+		if errors.Is(failure, bridge.ErrRefused) {
+			return stockWaitTicks
+		}
+	}
+	return 0
 }
 
 // readBundle re-reads the step's bundle (clock status and emergency census)
