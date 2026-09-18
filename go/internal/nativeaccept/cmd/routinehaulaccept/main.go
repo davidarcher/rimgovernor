@@ -55,7 +55,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -146,34 +145,17 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 	// GABS process's games_connect to an already-connected game is refused.
 	// So this harness's own bridge session and the service subprocess's own
 	// bridge session must be used SEQUENTIALLY, never concurrently: this
-	// first session does fixture prep and "before" native reads, then closes
-	// (without calling games_stop, which would actually terminate the game --
-	// Client.Close only tears down this GABS subprocess's own MCP session)
-	// to free the slot for the service. A fresh harness session is reopened
-	// afterwards for the "after" native reads once the service has released
-	// the slot again. games_stop is called exactly once, from whichever
-	// session is open last.
-	openHarness := func() (*bridge.Client, *na.Harness, error) {
-		c, err := na.OpenSession(ctx, gabsExecutable, cfg.Configuration, gameID, 60*time.Second)
-		if err != nil {
-			return nil, nil, err
-		}
-		return c, na.NewHarness(c, output), nil
-	}
-	stopGame := func(c *bridge.Client) {
-		stopCtx, stopCancel := context.WithTimeout(context.Background(), 60*time.Second)
-		defer stopCancel()
-		if stopped, err := c.GamesStop(stopCtx); err == nil {
-			report["stop"] = string(stopped.Envelope)
-		} else {
-			report["stop_error"] = err.Error()
-		}
-	}
-
-	client, h, err := openHarness()
+	// first session does fixture prep and "before" native reads, then is
+	// released (without games_stop, which would actually terminate the game)
+	// to free the slot for the service, and reattached afterwards for the
+	// "after" native reads once the service has released the slot again.
+	// held.Close ends the hold once, after the deferred stopService.
+	held, err := na.OpenGame(ctx, cfg)
 	if err != nil {
 		return err
 	}
+	defer held.Close(report)
+	h := na.NewHarness(held.Client, output)
 
 	if _, err := na.StartDebugGame(ctx, h, nil, na.QuietRequired); err != nil {
 		return err
@@ -287,7 +269,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 
 	// Free the sole GABP slot before the service starts its own bridge
 	// session: this does NOT call games_stop, so the running game survives.
-	if err := client.Close(); err != nil {
+	if err := held.Release(); err != nil {
 		return fmt.Errorf("close fixture-prep bridge session: %w", err)
 	}
 
@@ -742,37 +724,18 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 	}
 
 	// Stop the service and its own bridge session to free the sole GABP slot
-	// again, then reopen a fresh harness session (games_start is idempotent;
-	// the running game is untouched) to take an independent native read of
-	// the stored outcome -- both hauled stacks merged into the one legal
-	// stockpile cell, unforbidden.
+	// again, then reattach the harness session (the running game is
+	// untouched) to take an independent native read of the stored outcome --
+	// both hauled stacks merged into the one legal stockpile cell,
+	// unforbidden. Reattach retries while the killed service's own GABS
+	// subprocess frees the slot.
 	verifyStore.Close()
 	stopService()
-	// The service's own GABS subprocess notices its stdin pipe close when the
-	// killed service process exits and disconnects from the game shortly
-	// after, but that release is not synchronous with stopService returning
-	// -- retry the reopen for a few seconds rather than failing on a
-	// still-refused games_connect.
-	var finalClient *bridge.Client
-	var finalHarness *na.Harness
-	reopenDeadline := time.Now().Add(30 * time.Second)
-	for {
-		finalClient, finalHarness, err = openHarness()
-		if err == nil {
-			break
-		}
-		if time.Now().After(reopenDeadline) {
-			return fmt.Errorf("reopen bridge session for final native check: %w", err)
-		}
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(time.Second):
-		}
+	finalClient, err := held.Reattach(ctx)
+	if err != nil {
+		return fmt.Errorf("reopen bridge session for final native check: %w", err)
 	}
-	// Deferred LIFO: stop the game while the session is still open, then close.
-	defer finalClient.Close()
-	defer stopGame(finalClient)
+	finalHarness := na.NewHarness(finalClient, output)
 
 	afterBoth, err := finalHarness.Call(ctx, "after-both-hauls", "test/storage_haul_control", map[string]any{
 		"colonyId": identity["colonyId"], "loadToken": identity["loadToken"], "mapId": identity["mapId"],

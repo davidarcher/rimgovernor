@@ -13,3 +13,16 @@ func TestCachedStartName(t *testing.T) {
 		t.Errorf("name = %q", got)
 	}
 }
+
+func TestKeepGameAndCachedStartAreOnUnlessOptedOut(t *testing.T) {
+	for _, tc := range []struct {
+		value string
+		want  bool
+	}{{"", true}, {"1", true}, {"yes", true}, {"0", false}, {"false", false}, {"No", false}} {
+		t.Setenv(KeepGameEnv, tc.value)
+		t.Setenv(CachedStartEnv, tc.value)
+		if KeepGame() != tc.want || CachedStart() != tc.want {
+			t.Errorf("%q: KeepGame=%v CachedStart=%v, want %v", tc.value, KeepGame(), CachedStart(), tc.want)
+		}
+	}
+}

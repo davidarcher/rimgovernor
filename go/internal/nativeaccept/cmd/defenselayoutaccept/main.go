@@ -46,7 +46,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -274,72 +273,32 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 	report["rimgovernor_binary"] = map[string]string{"path": rimgovernorBinary, "sha256": binarySHA}
 	report["raid"] = map[string]any{"strategy": opts.strategy, "arrival": opts.arrival, "bypass": opts.bypass}
 
-	openHarness := func() (*bridge.Client, *na.Harness, error) {
-		c, err := na.OpenSession(ctx, gabsExecutable, cfg.Configuration, gameID, 60*time.Second)
-		if err != nil {
-			return nil, nil, err
-		}
-		return c, na.NewHarness(c, output), nil
-	}
-	// The service's GABS subprocess releases the game slot shortly after the
-	// service is killed, not synchronously: retry the reopen. The service
-	// leaves the game running, and every fixture op needs a paused map, so
-	// the reopened session pauses first.
-	reopenHarness := func() (*bridge.Client, *na.Harness, error) {
-		deadline := time.Now().Add(45 * time.Second)
-		for {
-			c, h, err := openHarness()
-			if err == nil {
-				if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
-					return nil, nil, err
-				}
-				return c, h, nil
-			}
-			if time.Now().After(deadline) {
-				return nil, nil, fmt.Errorf("reopen bridge session: %w", err)
-			}
-			select {
-			case <-ctx.Done():
-				return nil, nil, ctx.Err()
-			case <-time.After(time.Second):
-			}
-		}
-	}
-	stopGame := func(c *bridge.Client) {
-		stopCtx, stopCancel := context.WithTimeout(context.Background(), 60*time.Second)
-		defer stopCancel()
-		if stopped, err := c.GamesStop(stopCtx); err == nil {
-			report["stop"] = string(stopped.Envelope)
-		} else {
-			report["stop_error"] = err.Error()
-		}
-	}
-
-	client, h, err := openHarness()
+	// Whatever happens after the game starts, end the hold on it exactly
+	// once at the end (games_stop, or the main menu under na.KeepGameEnv) so
+	// a failed run never leaves a stray RimWorld holding the slot; the
+	// services (deferred later, so stopped first) are gone by then.
+	held, err := na.OpenGame(ctx, cfg)
 	if err != nil {
 		return err
 	}
-	// Whatever happens after the game starts, stop it exactly once at the
-	// end so a failed run never leaves a stray RimWorld holding the slot;
-	// the service (deferred later, so run first) is already stopped by then.
-	var open *bridge.Client = client
-	closeClient := func() error {
-		err := open.Close()
-		open = nil
-		return err
-	}
-	defer func() {
-		if open == nil {
-			c, _, err := reopenHarness()
-			if err != nil {
-				report["stop_error"] = err.Error()
-				return
-			}
-			open = c
+	defer held.Close(report)
+	h := na.NewHarness(held.Client, output)
+	closeClient := held.Release
+	// The service's GABS subprocess releases the game slot shortly after the
+	// service is killed, not synchronously: Reattach retries. The service
+	// leaves the game running, and every fixture op needs a paused map, so
+	// the reattached session pauses first.
+	reopenHarness := func() (*na.Harness, error) {
+		c, err := held.Reattach(ctx)
+		if err != nil {
+			return nil, err
 		}
-		stopGame(open)
-		_ = open.Close()
-	}()
+		h := na.NewHarness(c, output)
+		if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
+			return nil, err
+		}
+		return h, nil
+	}
 	// The baseline save keeps the site deterministic; a random debug colony
 	// can spawn beside ruins the rock band cannot close.
 	if opts.save != "" {
@@ -501,11 +460,10 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 		svc.stop()
 		report["layout_authority"] = svc.keepAlive.snapshot()
 
-		client, h, err = reopenHarness()
+		h, err = reopenHarness()
 		if err != nil {
 			return err
 		}
-		open = client
 	}
 	// The audits below run on a resumed checkpoint too: they are cheap
 	// reads, and they prove the save still carries the layout it claims.
@@ -640,11 +598,10 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 		// same journal.
 		svc.stop()
 		report["raid_authority"] = svc.keepAlive.snapshot()
-		client, h, err = reopenHarness()
+		h, err = reopenHarness()
 		if err != nil {
 			return err
 		}
-		open = client
 		healed, err := fixture("heal-after-raid", map[string]any{"op": "heal"})
 		if err != nil {
 			return err
@@ -671,11 +628,10 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 		report["repair_authority"] = svc.keepAlive.snapshot()
 	}
 
-	client, h, err = reopenHarness()
+	h, err = reopenHarness()
 	if err != nil {
 		return err
 	}
-	open = client
 	final, err := fixture("inspect-after-raid", map[string]any{"op": "inspect"})
 	if err != nil {
 		return err

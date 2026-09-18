@@ -25,7 +25,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -154,27 +153,10 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) (timeline []map[s
 	}
 
 	// Sequential native sessions, exactly like routinehaulaccept: this
-	// harness's own session loads the save and reads identity, then closes
-	// (without games_stop) to free the sole GABP slot for the service. A
-	// fresh session is reopened at the very end for the final games_stop.
-	openHarness := func() (*bridge.Client, *na.Harness, error) {
-		c, err := na.OpenSession(ctx, gabsExecutable, naCfg.Configuration, cfg.GameID, 60*time.Second)
-		if err != nil {
-			return nil, nil, err
-		}
-		return c, na.NewHarness(c, output), nil
-	}
-	stopGame := func(c *bridge.Client) {
-		stopCtx, stopCancel := context.WithTimeout(context.Background(), 60*time.Second)
-		defer stopCancel()
-		if stopped, err := c.GamesStop(stopCtx); err == nil {
-			report["stop"] = string(stopped.Envelope)
-		} else {
-			report["stop_error"] = err.Error()
-		}
-	}
-
-	var client *bridge.Client
+	// harness's own session loads the save and reads identity, then
+	// releases (without games_stop) to free the sole GABP slot for the
+	// service, and reattaches at the very end for the audit and the close.
+	var held *na.Game
 	var h *na.Harness
 	if cfg.Reuse != nil {
 		reuseCase, err = cfg.Reuse.BeginCase(ctx, filepath.Base(output), cfg.Save, output)
@@ -184,10 +166,15 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) (timeline []map[s
 		h = reuseCase.Harness
 		report["reuse_case"] = map[string]any{"loadToken": reuseCase.Reset.LoadToken, "tick": reuseCase.Reset.Tick}
 	} else {
-		client, h, err = openHarness()
+		held, err = na.OpenGame(ctx, naCfg)
 		if err != nil {
 			return nil, err
 		}
+		// Runs after the service's deferred stop (LIFO), so the slot is
+		// free for the reattach Close makes on its own; every earlier
+		// failure path ends the game too instead of orphaning it.
+		defer held.Close(report)
+		h = na.NewHarness(held.Client, output)
 		if _, err := h.Call(ctx, "load-save", "rimworld/load_game_ready", map[string]any{
 			"saveName": cfg.Save, "readiness": "visual", "timeoutMs": 90000, "ignoreModCompatibility": false,
 		}); err != nil {
@@ -253,7 +240,7 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) (timeline []map[s
 		if err := cfg.Reuse.ReleaseSession(); err != nil {
 			return nil, fmt.Errorf("release reuse bridge session: %w", err)
 		}
-	} else if err := client.Close(); err != nil {
+	} else if err := held.Release(); err != nil {
 		return nil, fmt.Errorf("close fixture-prep bridge session: %w", err)
 	}
 
@@ -582,25 +569,11 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) (timeline []map[s
 			report["authority_released"] = revoked
 		}
 	} else {
-		var finalClient *bridge.Client
-		reopenDeadline := time.Now().Add(30 * time.Second)
-		for {
-			finalClient, finalHarness, err = openHarness()
-			if err == nil {
-				break
-			}
-			if time.Now().After(reopenDeadline) {
-				return timeline, fmt.Errorf("reopen bridge session for final games_stop: %w", err)
-			}
-			select {
-			case <-ctx.Done():
-				return timeline, ctx.Err()
-			case <-time.After(time.Second):
-			}
+		finalClient, err := held.Reattach(ctx)
+		if err != nil {
+			return timeline, err
 		}
-		// Deferred LIFO: stop the game while the session is still open, then close.
-		defer finalClient.Close()
-		defer stopGame(finalClient)
+		finalHarness = na.NewHarness(finalClient, output)
 	}
 	if cfg.Audit != nil {
 		if err := cfg.Audit(ctx, finalHarness, report); err != nil {

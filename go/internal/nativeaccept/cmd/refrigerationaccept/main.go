@@ -111,18 +111,12 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 	if err != nil {
 		return err
 	}
-	client, err := na.OpenSession(ctx, gabsExecutable, cfg.Configuration, gameID, 120*time.Second)
+	held, err := na.OpenGame(ctx, cfg)
 	if err != nil {
 		return err
 	}
+	client := held.Client
 	h := na.NewHarness(client, output)
-	// sessionOpen tracks whether client is usable: the harness closes its
-	// GABS session while the rimgovernor service owns the game slot and
-	// reopens one afterwards. On any failure in between, stopGame must stop
-	// the service and reopen a session first, or games_stop fails with
-	// "bridge closed" and the disposable game outlives the run (observed:
-	// the orphan then made the next run's start_debug_game_ready time out).
-	sessionOpen := true
 	var service *na.ServiceProcess
 	// postmortem is the identity the failure path reads the food census
 	// under once the fixture exists; nil until then.
@@ -138,42 +132,33 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 		}
 		stopCtx, stopCancel := context.WithTimeout(context.Background(), 90*time.Second)
 		defer stopCancel()
-		if !sessionOpen {
-			reopened, err := na.ReopenSession(stopCtx, gabsExecutable, cfg.Configuration, gameID)
-			if err != nil {
-				report["stop_error"] = "reopen session for games_stop: " + err.Error()
-				return
-			}
-			client, sessionOpen = reopened, true
-			// Failure evidence: the same independent food read a pass ends
-			// with, so a dropped refrigeration latch can be explained
-			// (stock hauled out, rotted, or genuinely chilled).
-			if postmortem != nil {
-				if _, hasAfter := report["food_after"]; !hasAfter {
-					ph := na.NewHarness(client, output)
-					if after, err := readFoodStorage(stopCtx, ph, postmortem, "food-postmortem"); err == nil {
-						report["food_postmortem"] = after.evidence()
-					} else {
-						report["food_postmortem_error"] = err.Error()
-					}
-					// The emergency reviewer's own threat census, so an
-					// unsafe_colony hold names the pawns behind it.
-					if reply, err := ph.Wire(stopCtx, "threats-postmortem", "observations_read_status", map[string]any{
-						"scope": map[string]any{"expectedIdentity": postmortem}, "colonists": false, "threats": true, "colonistDetail": false, "page": map[string]any{"limit": 256},
-					}); err == nil {
-						if _, observed, err := na.Outcome(reply, "observed"); err == nil {
-							report["threats_postmortem"] = observed["threats"]
-						}
+		if _, err := held.Reattach(stopCtx); err != nil {
+			report["stop_error"] = "reopen session for games_stop: " + err.Error()
+			return
+		}
+		// Failure evidence: the same independent food read a pass ends
+		// with, so a dropped refrigeration latch can be explained
+		// (stock hauled out, rotted, or genuinely chilled).
+		if postmortem != nil {
+			if _, hasAfter := report["food_after"]; !hasAfter {
+				ph := na.NewHarness(held.Client, output)
+				if after, err := readFoodStorage(stopCtx, ph, postmortem, "food-postmortem"); err == nil {
+					report["food_postmortem"] = after.evidence()
+				} else {
+					report["food_postmortem_error"] = err.Error()
+				}
+				// The emergency reviewer's own threat census, so an
+				// unsafe_colony hold names the pawns behind it.
+				if reply, err := ph.Wire(stopCtx, "threats-postmortem", "observations_read_status", map[string]any{
+					"scope": map[string]any{"expectedIdentity": postmortem}, "colonists": false, "threats": true, "colonistDetail": false, "page": map[string]any{"limit": 256},
+				}); err == nil {
+					if _, observed, err := na.Outcome(reply, "observed"); err == nil {
+						report["threats_postmortem"] = observed["threats"]
 					}
 				}
 			}
 		}
-		if s, err := client.GamesStop(stopCtx); err == nil {
-			report["stop"] = string(s.Envelope)
-		} else {
-			report["stop_error"] = err.Error()
-		}
-		_ = client.Close()
+		held.Close(report)
 	}
 	defer stopGame()
 
@@ -241,10 +226,9 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 		return fmt.Errorf("food-before: fixture meat is not warm at-risk stock (warm nutrition %.2f, temperature %.1f C, roofed %d/%d); a cold biome may have overwhelmed the forced room temperature -- rerun",
 			before.warmNutrition, before.temperature, before.roofed, before.rows)
 	}
-	if err := client.Close(); err != nil {
+	if err := held.Release(); err != nil {
 		return fmt.Errorf("close fixture-prep bridge session: %w", err)
 	}
-	sessionOpen = false
 
 	// "work" rides along because every building method's builder check
 	// (comfortBuilderAvailable) requires the colony's work priorities to match
@@ -418,11 +402,10 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 	// Independent native read after the service releases the game slot.
 	journal.Close()
 	service.Stop()
-	client, err = na.ReopenSession(ctx, gabsExecutable, cfg.Configuration, gameID)
+	client, err = held.Reattach(ctx)
 	if err != nil {
 		return fmt.Errorf("reopen harness session after service stop: %w", err)
 	}
-	sessionOpen = true
 	h = na.NewHarness(client, output)
 	if _, err := h.Call(ctx, "pause-after", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return err

@@ -103,18 +103,12 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 	if err != nil {
 		return err
 	}
-	client, err := na.OpenSession(ctx, gabsExecutable, cfg.Configuration, gameID, 120*time.Second)
+	held, err := na.OpenGame(ctx, cfg)
 	if err != nil {
 		return err
 	}
+	client := held.Client
 	h := na.NewHarness(client, output)
-	// sessionOpen tracks whether client is usable: the harness closes its
-	// GABS session while the rimgovernor service owns the game slot and
-	// reopens one afterwards. On any failure in between, stopGame must stop
-	// the service and reopen a session first, or games_stop fails with
-	// "bridge closed" and the disposable game outlives the run (observed:
-	// the orphan then made the next run's start_debug_game_ready time out).
-	sessionOpen := true
 	var service *na.ServiceProcess
 	stopped := false
 	stopGame := func() {
@@ -127,20 +121,11 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 		}
 		stopCtx, stopCancel := context.WithTimeout(context.Background(), 90*time.Second)
 		defer stopCancel()
-		if !sessionOpen {
-			reopened, err := na.ReopenSession(stopCtx, gabsExecutable, cfg.Configuration, gameID)
-			if err != nil {
-				report["stop_error"] = "reopen session for games_stop: " + err.Error()
-				return
-			}
-			client, sessionOpen = reopened, true
+		if _, err := held.Reattach(stopCtx); err != nil {
+			report["stop_error"] = "reopen session for games_stop: " + err.Error()
+			return
 		}
-		if s, err := client.GamesStop(stopCtx); err == nil {
-			report["stop"] = string(s.Envelope)
-		} else {
-			report["stop_error"] = err.Error()
-		}
-		_ = client.Close()
+		held.Close(report)
 	}
 	defer stopGame()
 
@@ -248,10 +233,9 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 		return err
 	}
 	report["colony_power_before"] = topology
-	if err := client.Close(); err != nil {
+	if err := held.Release(); err != nil {
 		return fmt.Errorf("close fixture-prep bridge session: %w", err)
 	}
-	sessionOpen = false
 
 	service, err = na.LaunchService(ctx, cfg, gabsExecutable, na.ServiceLaunch{Binary: binary, Families: []string{"power", "work"}, Extra: na.ClockSpeedArgs()}, report)
 	if err != nil {
@@ -370,11 +354,10 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 
 	journal.Close()
 	service.Stop()
-	client, err = na.ReopenSession(ctx, gabsExecutable, cfg.Configuration, gameID)
+	client, err = held.Reattach(ctx)
 	if err != nil {
 		return fmt.Errorf("reopen harness session after service stop: %w", err)
 	}
-	sessionOpen = true
 	h = na.NewHarness(client, output)
 	if _, err := h.Call(ctx, "pause-after", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return err

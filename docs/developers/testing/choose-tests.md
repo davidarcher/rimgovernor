@@ -36,7 +36,7 @@ the harness too slow to rerun after a fix. Reach for, in order of preference:
   The checked-in artifact is the manifest (a JSON array of
   `variantgen.Variant`), the generated `.rws` under `profile/Saves` is the
   pre-generated world: `variantsavegen -manifest` writes it once offline
-  (about 5s a variant on a kept process, `RIMGOVERNOR_ACCEPT_KEEP_GAME=1`),
+  (about 5s a variant on a kept process, the default),
   and `sustainedmatrixaccept -manifest` loads whatever already exists,
   generating only what is missing before any variant runs (`-regenerate`
   forces it). A load takes about 3s; nothing regenerates a world per run.
@@ -115,9 +115,9 @@ were not. A reviewer holds a new harness to it.
    hoping it recovers.
 10. **Prefer reuse over boot.** When several cases share a save, run them
    through `sustainedmatrixaccept -reuse-game` ([below](#reusing-one-game-across-acceptance-cases)) rather
-   than booting RimWorld per case. Between harness binaries, set
-   `RIMGOVERNOR_ACCEPT_KEEP_GAME=1` so each leaves the process at the main
-   menu and the next attaches to it ([below](#keeping-the-process-between-harnesses)).
+   than booting RimWorld per case. Between harness binaries the process is
+   kept by default: each leaves it at the main menu and the next attaches
+   to it ([below](#keeping-the-process-between-harnesses)).
 
 ## Keep the game quiet and small
 
@@ -277,32 +277,49 @@ directory and, when it launches `rimgovernor serve`, its own SQLite state.
 ### Keeping the process between harnesses
 
 Every harness opens its game through `na.OpenGame(ctx, cfg)` and ends it
-with `held.Close(report)`. By default that is a launch and a `games_stop`.
-With `RIMGOVERNOR_ACCEPT_KEEP_GAME=1` in the environment, `Close` instead
-returns the game to the main menu (`test/shutdown_unload`,
-`ShutdownFixture`, in every fixture build) and leaves the process running;
-the next `OpenGame` under the same root finds it (`games_status`
-`shared-running`), attaches through `games_start`, unloads whatever is
-loaded and starts from the menu like a fresh launch would. Measured on the
-headless profile: opening a fresh process takes about 5s, an attach about
-0.2s, and the harness still generates its own colony. The report records
-`game_reuse` (`reused`, `kept`, `openMs`). A batch sets the variable once
-and stops the game at the end with `gamesstop -root <root>`; a harness
-that fails still leaves the process at the menu, and a harness that dies
+with `held.Close(report)`. A serve-driven harness releases the session
+(`held.Release()`) while `rimgovernor serve` owns the sole GABP slot and
+reattaches (`held.Reattach(ctx)`) for its postmortem reads; `Close`
+reattaches on its own if the harness did not. By default `Close` returns
+the game to the main menu (`test/shutdown_unload`, `ShutdownFixture`, in
+every fixture build) and leaves the process running; the next `OpenGame`
+under the same root finds it (`games_status` `shared-running`), attaches
+through `games_start`, unloads whatever is loaded and starts from the menu
+like a fresh launch would. Measured on the headless profile: opening a
+fresh process takes about 5s, an attach about 0.2s, and the harness still
+generates (or loads, below) its own colony. The report records
+`game_reuse` (`reused`, `kept`, `openMs`). Stop a kept game with
+`gamesstop -root <root>` when you are done with the root; a harness that
+fails still leaves the process at the menu, and a harness that dies
 without reaching `Close` leaves a game loaded, which the next `OpenGame`
 unloads.
 
+`RIMGOVERNOR_ACCEPT_KEEP_GAME=0` opts out (launch and `games_stop` per
+harness). Do so for a harness that asserts on mod static state, which is
+process-scoped and survives the reuse (`contracts/native-static-state.md`),
+or that must observe a first boot; `suiteaccept` forces the keep on for its
+workers regardless.
+
+A serve-driven harness (one that `Release`d its session to `rimgovernor
+serve`) stops its game regardless (`game_reuse.keepSkipped` says so): a
+process that hosted a service, killed with its authority and clock epoch
+still granted, never keeps the next service's authority (measured on
+`stablepatientaccept`: automate mode lost within 2s of every resume on
+such a process, 3/3 runs, against 3/3 passes on a fresh process and on a
+process kept by a bridge-only harness). Bridge-only harnesses before a
+serve-driven one still hand it a warm process.
+
 ### Loading the debug start instead of generating it
 
-`RIMGOVERNOR_ACCEPT_CACHED_START=1` makes `StartDebugGame` load a saved
-copy of the quick start (`RimGovernor-debug-<size>-<coverage>[-<dlc>]`
-in `profile/Saves`, written by the first start that misses it) instead
-of generating a world and map: ~2.7s against ~5.4s on a warm process,
-surgeryaccept 14s to 10s on a kept game. It is opt-in: the loaded colony
-is the same one every run rather than a new world, so a harness that is
-about world generation or a first-load identity runs without it, and
-the save must be deleted to pick up a fixture or start change that
-alters the colony.
+By default `StartDebugGame` loads a saved copy of the quick start
+(`RimGovernor-debug-<size>-<coverage>[-<dlc>]` in `profile/Saves`,
+written by the first start that misses it) instead of generating a world
+and map: ~2.7s against ~5.4s on a warm process, surgeryaccept 14s to 10s
+on a kept game. The loaded colony is the same one every run rather than
+a new world, so a harness that is about world generation or a first-load
+identity opts out with `RIMGOVERNOR_ACCEPT_CACHED_START=0`, and the save
+must be deleted to pick up a fixture or start change that alters the
+colony.
 
 ### Running harnesses in parallel
 

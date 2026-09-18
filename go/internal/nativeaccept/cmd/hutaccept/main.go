@@ -123,6 +123,14 @@ func run(ctx context.Context, cfg liveservice.Config, w waits, report na.Report)
 	if err != nil {
 		return err
 	}
+	finished := false
+	defer func() {
+		// A failed run still ends its hold on the game (with the report's
+		// stop fields); the success path's Finish also checks the log.
+		if !finished {
+			_ = prepared.Finish(ctx, report)
+		}
+	}()
 	// Run 1: admission and the first walls.
 	service, err := prepared.Start(ctx, report)
 	if err != nil {
@@ -252,15 +260,14 @@ func run(ctx context.Context, cfg liveservice.Config, w waits, report na.Report)
 	report["bed"] = map[string]any{"plan": string(bedPlan), "cells": bedCells}
 
 	// Native verification through a fresh bridge session.
-	client, h, err := prepared.Open(ctx)
+	_, h, err := prepared.Open(ctx)
 	if err != nil {
 		return err
 	}
 	if err := verifyNative(ctx, h, prepared, sh, bedCells, report); err != nil {
-		client.Close()
 		return err
 	}
-	client.Close()
+	finished = true
 	return prepared.Finish(ctx, report)
 }
 
@@ -577,11 +584,11 @@ func stagesOf(ctx context.Context, st *store.Store, id domain.PlanID) map[string
 // cancelOneWall cancels the pending wall order nearest the door through the
 // game's own cancellation path and returns its cell.
 func cancelOneWall(ctx context.Context, p *liveservice.Prepared, sh *shell, report na.Report) (domain.Cell, error) {
-	client, h, err := p.Open(ctx)
+	_, h, err := p.Open(ctx)
 	if err != nil {
 		return domain.Cell{}, err
 	}
-	defer client.Close()
+	defer p.Release()
 	if _, err := h.Call(ctx, "pause-for-edit", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return domain.Cell{}, err
 	}

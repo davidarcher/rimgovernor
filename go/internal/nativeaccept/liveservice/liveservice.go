@@ -51,11 +51,13 @@ type Config struct {
 }
 
 // Prepared is a loaded save whose bridge session has been released so the
-// service can attach.
+// service can attach. The game itself is held through na.Game, so a kept
+// process (na.KeepGameEnv) is reused across harnesses.
 type Prepared struct {
 	cfg       Config
 	naCfg     *na.Config
 	gabs      string
+	game      *na.Game
 	Identity  map[string]any
 	StatePath string
 	starts    int
@@ -118,11 +120,14 @@ func Prepare(ctx context.Context, cfg Config, report na.Report) (*Prepared, erro
 		return nil, err
 	}
 	p := &Prepared{cfg: cfg, naCfg: naCfg, gabs: gabs, StatePath: filepath.Join(cfg.Output, "service.sqlite")}
-	client, h, err := p.Open(ctx)
+	p.game, err = na.OpenGame(ctx, naCfg)
 	if err != nil {
 		return nil, err
 	}
-	defer client.Close()
+	// Any failure below leaves the game to Finish's caller; release the
+	// slot either way so a service (or Finish) can take it.
+	defer p.Release()
+	h := na.NewHarness(p.game.Client, cfg.Output)
 	if _, err := h.Call(ctx, "load-save", "rimworld/load_game_ready", map[string]any{
 		"saveName": cfg.Save, "readiness": "visual", "timeoutMs": 90000, "ignoreModCompatibility": false,
 	}); err != nil {
@@ -176,24 +181,21 @@ func Prepare(ctx context.Context, cfg Config, report na.Report) (*Prepared, erro
 	return p, nil
 }
 
-// Open opens a private bridge session. Only one session can hold the GABP
-// slot, so this is valid only while no service is running.
+// Open reattaches the harness's private bridge session to the game. Only
+// one session can hold the GABP slot, so this is valid only while no service
+// is running; Release it before the next Start.
 func (p *Prepared) Open(ctx context.Context) (*bridge.Client, *na.Harness, error) {
-	deadline := time.Now().Add(30 * time.Second)
-	for {
-		c, err := na.OpenSession(ctx, p.gabs, p.naCfg.Configuration, p.cfg.GameID, 60*time.Second)
-		if err == nil {
-			return c, na.NewHarness(c, p.cfg.Output), nil
-		}
-		if time.Now().After(deadline) {
-			return nil, nil, fmt.Errorf("open bridge session: %w", err)
-		}
-		select {
-		case <-ctx.Done():
-			return nil, nil, ctx.Err()
-		case <-time.After(time.Second):
-		}
+	c, err := p.game.Reattach(ctx)
+	if err != nil {
+		return nil, nil, err
 	}
+	return c, na.NewHarness(c, p.cfg.Output), nil
+}
+
+// Release closes the harness's session without touching the game, freeing
+// the GABP slot for a service.
+func (p *Prepared) Release() error {
+	return p.game.Release()
 }
 
 // SameIdentity reports whether v names the loaded colony, load and map.
@@ -447,21 +449,11 @@ func (p *Prepared) OpenStore(ctx context.Context) (*store.Store, error) {
 	}
 }
 
-// Finish stops the game through a fresh bridge session and checks the
-// startup log. Call it with no service running.
+// Finish ends the hold on the game (games_stop, or the main menu under
+// na.KeepGameEnv) and checks the startup log. Call it with no service
+// running; it is safe after a failed run too.
 func (p *Prepared) Finish(ctx context.Context, report na.Report) error {
-	client, _, err := p.Open(ctx)
-	if err != nil {
-		return err
-	}
-	defer client.Close()
-	stopCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	defer cancel()
-	if stopped, err := client.GamesStop(stopCtx); err == nil {
-		report["stop"] = string(stopped.Envelope)
-	} else {
-		report["stop_error"] = err.Error()
-	}
+	p.game.Close(report)
 	logData, err := os.ReadFile(p.naCfg.StartupLogPath())
 	if err != nil {
 		return fmt.Errorf("read startup log: %w", err)

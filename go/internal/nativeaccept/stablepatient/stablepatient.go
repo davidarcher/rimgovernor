@@ -31,7 +31,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -88,30 +87,14 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) ([]map[string]any
 
 	// Sequential native sessions, exactly like sustainedfood.Run: this
 	// harness's own session starts the debug game and seeds the fixtures,
-	// then closes (without games_stop) to free the sole GABP slot for the
-	// service. A fresh session is reopened at the end for the final
-	// games_stop.
-	openHarness := func() (*bridge.Client, *na.Harness, error) {
-		c, err := na.OpenSession(ctx, gabsExecutable, naCfg.Configuration, cfg.GameID, 60*time.Second)
-		if err != nil {
-			return nil, nil, err
-		}
-		return c, na.NewHarness(c, output), nil
-	}
-	stopGame := func(c *bridge.Client) {
-		stopCtx, stopCancel := context.WithTimeout(context.Background(), 60*time.Second)
-		defer stopCancel()
-		if stopped, err := c.GamesStop(stopCtx); err == nil {
-			report["stop"] = string(stopped.Envelope)
-		} else {
-			report["stop_error"] = err.Error()
-		}
-	}
-
-	client, h, err := openHarness()
+	// then releases (without games_stop) to free the sole GABP slot for the
+	// service; Close reattaches at the end, on every path.
+	held, err := na.OpenGame(ctx, naCfg)
 	if err != nil {
 		return nil, err
 	}
+	defer held.Close(report)
+	h := na.NewHarness(held.Client, output)
 
 	if _, err := na.StartDebugGame(ctx, h, nil, na.QuietRequired); err != nil {
 		return nil, err
@@ -162,7 +145,7 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) ([]map[string]any
 	// Free the sole GABP slot before the service starts its own bridge
 	// session; this does NOT call games_stop, so the fixture-seeded colony
 	// survives.
-	if err := client.Close(); err != nil {
+	if err := held.Release(); err != nil {
 		return nil, fmt.Errorf("close fixture-prep bridge session: %w", err)
 	}
 
@@ -439,25 +422,9 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) ([]map[string]any
 
 	verifyStore.Close()
 	stopService()
-	var finalClient *bridge.Client
-	reopenDeadline := time.Now().Add(30 * time.Second)
-	for {
-		finalClient, _, err = openHarness()
-		if err == nil {
-			break
-		}
-		if time.Now().After(reopenDeadline) {
-			return timeline, fmt.Errorf("reopen bridge session for final games_stop: %w", err)
-		}
-		select {
-		case <-ctx.Done():
-			return timeline, ctx.Err()
-		case <-time.After(time.Second):
-		}
+	if _, err := held.Reattach(ctx); err != nil {
+		return timeline, err
 	}
-	// Deferred LIFO: stop the game while the session is still open, then close.
-	defer finalClient.Close()
-	defer stopGame(finalClient)
 
 	logData, err := os.ReadFile(naCfg.StartupLogPath())
 	if err != nil {
@@ -537,6 +504,9 @@ type authorityKeepAlive struct {
 	acknowledged      int
 	acknowledgeFailed int
 	lastError         string
+	// lastLoss is the service state the last reacquisition found: why the
+	// service left automate mode, for the report.
+	lastLoss map[string]any
 }
 
 func (k *authorityKeepAlive) snapshot() map[string]any {
@@ -548,6 +518,9 @@ func (k *authorityKeepAlive) snapshot() map[string]any {
 	}
 	if k.lastError != "" {
 		out["last_error"] = k.lastError
+	}
+	if k.lastLoss != nil {
+		out["last_loss"] = k.lastLoss
 	}
 	return out
 }
@@ -566,7 +539,13 @@ func (k *authorityKeepAlive) run(ctx context.Context) {
 		if na.AsString(state["mode"]) == "automate" {
 			continue
 		}
+		k.mu.Lock()
+		k.lastLoss = map[string]any{"mode": state["mode"], "status": state["status"], "authority": state["authority"], "generation": state["generation"], "game": state["game"]}
+		k.mu.Unlock()
 		if clk, clkStatus, clkErr := k.apiCall("GET", "/api/player/clock", nil, ""); clkErr == nil && clkStatus == 200 {
+			k.mu.Lock()
+			k.lastLoss["clock"] = clk
+			k.mu.Unlock()
 			if holds := na.AsSlice(clk["holds"]); len(holds) > 0 {
 				ackBody := map[string]any{
 					"requestId":        fmt.Sprintf("%s-ack-%d", k.prefix, time.Now().UnixNano()),

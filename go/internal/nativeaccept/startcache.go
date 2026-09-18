@@ -9,16 +9,17 @@ import (
 	"time"
 )
 
-// CachedStartEnv makes StartDebugGame load a saved copy of the debug quick
-// start instead of generating a world and map every time (issue #91: a
-// load is ~2.7s where a warm quick start is ~5.4s). The first start under a
-// given map size, planet coverage and expansion set generates as before,
-// saves the result as RimGovernor-debug-<size>-<coverage>[-<expansions>]
-// through lifecycle_save, and copies it into profile/Saves so every later
-// Prepare carries it; later starts load it (rimworld/load_game_ready). The
-// quiet storyteller is applied after either path, as before. Delete the
-// save to regenerate; a harness that must see a never-before-seen world
-// (world generation itself under test) runs without this.
+// CachedStartEnv controls whether StartDebugGame loads a saved copy of the
+// debug quick start instead of generating a world and map every time
+// (issue #91: a load is ~2.7s where a warm quick start is ~5.4s). It is on
+// by default. The first start under a given map size, planet coverage and
+// expansion set generates as before, saves the result as
+// RimGovernor-debug-<size>-<coverage>[-<expansions>] through
+// lifecycle_save, and copies it into profile/Saves so every later Prepare
+// carries it; later starts load it (rimworld/load_game_ready). The quiet
+// storyteller is applied after either path, as before. Delete the save to
+// regenerate; a harness that must see a never-before-seen world (world
+// generation itself under test) runs with RIMGOVERNOR_ACCEPT_CACHED_START=0.
 const CachedStartEnv = "RIMGOVERNOR_ACCEPT_CACHED_START"
 
 // startCache is what PrepareConfig knows and StartDebugGame needs to find
@@ -30,14 +31,9 @@ var startCache struct {
 	expansions []string
 }
 
-// CachedStart reports whether CachedStartEnv asks for the saved start.
-func CachedStart() bool {
-	switch os.Getenv(CachedStartEnv) {
-	case "", "0", "false", "no":
-		return false
-	}
-	return true
-}
+// CachedStart reports whether the saved start is used: true unless
+// CachedStartEnv opts out.
+func CachedStart() bool { return !envOptsOut(CachedStartEnv) }
 
 func cachedStartName(start DebugStart) string {
 	name := fmt.Sprintf("RimGovernor-debug-%d-%g", start.MapSize, start.PlanetCoverage)

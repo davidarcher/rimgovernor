@@ -187,6 +187,8 @@ func run(ctx context.Context, h harness, workerRoot, output string, worker int) 
 	args := append([]string{"-root", workerRoot, "-output", output}, h.Args...)
 	row["argv"] = append([]string{h.Binary}, args...)
 	cmd := exec.CommandContext(ctx, h.Binary, args...)
+	// Explicit even though it is the default: a caller's opt-out must not
+	// leak into the workers, which stop their game once at the end.
 	cmd.Env = append(os.Environ(), na.KeepGameEnv+"=1")
 	logPath := output + ".log"
 	logFile, err := os.Create(logPath)

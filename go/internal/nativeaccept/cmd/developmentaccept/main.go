@@ -117,42 +117,20 @@ func run(ctx context.Context, c runConfig, report na.Report) error {
 	if err != nil {
 		return err
 	}
-	client, err := na.OpenSession(ctx, gabsExecutable, cfg.Configuration, c.gameID, 120*time.Second)
+	held, err := na.OpenGame(ctx, cfg)
 	if err != nil {
 		return err
 	}
-	h := na.NewHarness(client, output)
-	// The harness closes its GABS session while a controller owns the sole
-	// slot and reopens one to stop the game; see cmd/restartaccept.
-	sessionOpen := true
+	h := na.NewHarness(held.Client, output)
+	// The harness releases its GABS session while a controller owns the
+	// sole slot; held.Close reattaches to end the hold on the game.
 	var service *na.ServiceProcess
-	stopped := false
-	stopGame := func() {
-		if stopped {
-			return
-		}
-		stopped = true
+	defer func() {
 		if service != nil {
 			service.Stop()
 		}
-		stopCtx, stopCancel := context.WithTimeout(context.Background(), 90*time.Second)
-		defer stopCancel()
-		if !sessionOpen {
-			reopened, err := na.ReopenSession(stopCtx, gabsExecutable, cfg.Configuration, c.gameID)
-			if err != nil {
-				report["stop_error"] = "reopen session for games_stop: " + err.Error()
-				return
-			}
-			client, sessionOpen = reopened, true
-		}
-		if s, err := client.GamesStop(stopCtx); err == nil {
-			report["stop"] = string(s.Envelope)
-		} else {
-			report["stop_error"] = err.Error()
-		}
-		_ = client.Close()
-	}
-	defer stopGame()
+		held.Close(report)
+	}()
 
 	if c.save != "" {
 		if _, err := h.Call(ctx, "load-save", "rimworld/load_game_ready", map[string]any{
@@ -196,10 +174,9 @@ func run(ctx context.Context, c runConfig, report na.Report) error {
 	loadedContext, _ := na.AsMap(loaded["context"])
 	identity, _ := na.AsMap(loadedContext["identity"])
 	report["identity"] = identity
-	if err := client.Close(); err != nil {
+	if err := held.Release(); err != nil {
 		return fmt.Errorf("close fixture-prep bridge session: %w", err)
 	}
-	sessionOpen = false
 
 	extra := []string{"--resume", "--clock-speed", c.clockSpeed, "--routine-project-limit", fmt.Sprint(c.limit), "--flight-recorder", filepath.Join(output, "flight.jsonl")}
 	if c.researchTarget != "" {

@@ -418,23 +418,18 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 			}
 		}()
 	} else {
-		client, err := na.OpenSession(ctx, gabsExecutable, cfg.Configuration, gameID, 120*time.Second)
+		held, err := na.OpenGame(ctx, cfg)
 		if err != nil {
 			return err
 		}
-		h = na.NewHarness(client, output)
-		sessionOpen := true
-		releaseSession = func() error {
-			sessionOpen = false
-			return client.Close()
-		}
+		h = na.NewHarness(held.Client, output)
+		releaseSession = held.Release
 		reacquireSession = func() (*na.Harness, error) {
-			reopened, err := na.ReopenSession(ctx, gabsExecutable, cfg.Configuration, gameID)
+			reopened, err := held.Reattach(ctx)
 			if err != nil {
 				return nil, fmt.Errorf("reopen harness session after service stop: %w", err)
 			}
-			client, sessionOpen = reopened, true
-			return na.NewHarness(client, output), nil
+			return na.NewHarness(reopened, output), nil
 		}
 		defer func() {
 			if stopped {
@@ -446,21 +441,12 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 			}
 			stopCtx, stopCancel := context.WithTimeout(context.Background(), 90*time.Second)
 			defer stopCancel()
-			if !sessionOpen {
-				reopened, err := na.ReopenSession(stopCtx, gabsExecutable, cfg.Configuration, gameID)
-				if err != nil {
-					report["stop_error"] = "reopen session for games_stop: " + err.Error()
-					return
+			if err != nil {
+				if reopened, err := held.Reattach(stopCtx); err == nil {
+					readPostmortem(stopCtx, na.NewHarness(reopened, output))
 				}
-				client, sessionOpen = reopened, true
-				readPostmortem(stopCtx, na.NewHarness(client, output))
 			}
-			if s, err := client.GamesStop(stopCtx); err == nil {
-				report["stop"] = string(s.Envelope)
-			} else {
-				report["stop_error"] = err.Error()
-			}
-			_ = client.Close()
+			held.Close(report)
 		}()
 		if _, err := h.Call(ctx, "new-game", "rimworld/start_debug_game_ready", map[string]any{
 			"readiness": "visual", "pauseIfNeeded": true, "timeoutMs": 120000,
