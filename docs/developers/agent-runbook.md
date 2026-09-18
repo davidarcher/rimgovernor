@@ -14,8 +14,11 @@ RimWorld running.
    `main`; a branch that predates them has neither).
 2. Nothing else until the task needs the game. Go work needs no game and no
    mod build; `go run ./cmd/test` is the loop.
-3. Before the first native acceptance run, set up the private game copy and
-   build the mod (below), then keep to the run pattern.
+3. Before the first native acceptance run, `go run
+   ./internal/nativeaccept/cmd/acceptance setup` from `go/` builds the
+   private layout below (game copy, bridge root, fixture mod, binaries) and
+   prints the first run command; rerun it after merging `main` to rebuild a
+   stale mod. Then keep to the run pattern.
 
 ## Shared with peers: never touch these from a task
 
@@ -41,34 +44,48 @@ RimWorld running.
 
 ## Private to the worktree
 
+`acceptance setup` (from `go/`: `go run ./internal/nativeaccept/cmd/acceptance
+setup`) makes all of this and is idempotent: it discovers the Steam
+RimWorld install, the workshop Harmony and a peer worktree's `gabs.exe`
+(`-rimworld`, `-harmony`, `-gabs` or `RIMGOVERNOR_RIMWORLD_DIR`,
+`RIMGOVERNOR_HARMONY_DLL`, `RIMGOVERNOR_GABS_EXE` override discovery),
+skips the mod build when the installed manifest already matches the
+worktree's native sources and fixture set, and refuses to install while a
+game runs from the copy. `-fixture A,B` narrows the build (every class
+`build_native_mod.ps1` accepts by default), `-production` builds without
+fixtures (what the storage/food cases need), `-rebuild` forces a build,
+`-skip-mod`/`-skip-binaries` leave those parts alone. Keep the worktree
+under `.claude/worktrees/`: RimWorld cannot open its own Defs from a copy
+whose path passes ~140 characters (`setup` refuses one).
+
+What it produces:
+
 - **The game copy**, `.rimgovernor/native-rimworld/`: the Steam install's
   loose files copied, `Data`, `RimWorldWin64_Data`, `MonoBleedingEdge` and
   `Mods/RimBridgeServer` as NTFS junctions to Steam, and `Mods/RimGovernor`
-  from this worktree's own build. Copy the layout from any peer worktree's
-  `.rimgovernor/native-rimworld` (`robocopy /XJ` for the files, `New-Item
-  -ItemType Junction` for the junctions).
+  from this worktree's own build.
 - **The bridge root**, `.rimgovernor/bridge/` (or whatever `-root` you pass):
   `gabs/`, `config/config.json` whose DirectPath target is the private exe,
-  `profile/Config/{ModsConfig,Prefs}.xml`, `profile/Saves/` (Prepare stages
+  `profile/Config/{ModsConfig,Prefs}.xml` (Prefs from the player's own
+  RimWorld profile when there is one), `profile/Saves/` (Prepare stages
   the committed `scripts/fixtures/saves/RimGovernor-tribal8-baseline.rws`
   there itself, replacing an older copy).
-  Rewrite the paths in `config.json` after copying.
-- **The mod build**, `.rimgovernor/native-builds/<tag>/`, from
-  `scripts/build_native_mod.ps1` (called in-process from PowerShell:
-  `& scripts/build_native_mod.ps1 -RimWorldManagedDir "<Steam RimWorld>\RimWorldWin64_Data\Managed"
+- **The mod build**, `.rimgovernor/native-builds/<role>-<stamp>/`, from
+  `scripts/build_native_mod.ps1`, installed over the copy's
+  `Mods/RimGovernor`. By hand it is called in-process from PowerShell
+  (`& scripts/build_native_mod.ps1 -RimWorldManagedDir "<Steam RimWorld>\RimWorldWin64_Data\Managed"
   -HarmonyAssembly "<workshop>\2009463077\Current\Assemblies\0Harmony.dll"
   -RimBridgeSdkDir "<Steam RimWorld>\Mods\RimBridgeServer\1.6\Assemblies"
   -OutputRoot <absolute path> -Fixture @('UpkeepFixture','ShutdownFixture')`;
-  `pwsh -File` does not parse the fixture list). Copy its `RimGovernor/`
-  over the private copy's `Mods/RimGovernor` **only while no game of yours
-  is running**; `Prepare` refuses a stale install before boot
-  (`na.RequireCurrentPackage`) and its error names the rebuild command.
-  Rebuild whenever `integrations/rimgovernor-native` or `scripts/fixtures`
-  changed, including after merging `main`.
-- **The controller binary** a serve-driven case drives (`-rimgovernor
-  <path>`). Build it to `.rimgovernor/bin/` and never rebuild it, or the
-  mod, while a case is running from it: the service restart reads EOF and
-  the run dies.
+  `pwsh -File` does not parse the fixture list), and copied in **only while
+  no game of yours is running**. `Prepare` refuses a stale install before
+  boot (`na.RequireCurrentPackage`) and its error names the rebuild
+  command. Rebuild whenever `integrations/rimgovernor-native` or
+  `scripts/fixtures` changed, including after merging `main`.
+- **The controller binaries**, `.rimgovernor/bin/{acceptance,rimgovernor}.exe`
+  (a serve-driven case takes `-rimgovernor <path>`). Never rebuild them,
+  or the mod, while a case is running from them: the service restart reads
+  EOF and the run dies.
 
 ## Running a case
 

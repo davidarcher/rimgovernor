@@ -144,3 +144,26 @@ func TestListPrintsRegistry(t *testing.T) {
 		t.Fatalf("no command exit %d", code)
 	}
 }
+
+func TestParseSetup(t *testing.T) {
+	var stderr bytes.Buffer
+	o, err := parseSetup([]string{"-worktree", absRoot(), "-fixture", "UpkeepFixture, ShutdownFixture", "-rebuild"}, &stderr)
+	if err != nil {
+		t.Fatalf("parseSetup: %v (%s)", err, stderr.String())
+	}
+	if o.repo != absRoot() || o.overrides.Repo != absRoot() || !o.run.Rebuild {
+		t.Fatalf("options = %+v", o)
+	}
+	if strings.Join(o.run.Fixtures, ",") != "UpkeepFixture,ShutdownFixture" {
+		t.Fatalf("fixtures = %v", o.run.Fixtures)
+	}
+	for name, args := range map[string][]string{
+		"fixture and production": {"-worktree", absRoot(), "-fixture", "UpkeepFixture", "-production"},
+		"positional":             {"-worktree", absRoot(), "smoke/identity"},
+		"unknown flag":           {"-worktree", absRoot(), "-bogus"},
+	} {
+		if _, err := parseSetup(args, &stderr); err == nil {
+			t.Errorf("%s: parseSetup(%v) = nil", name, args)
+		}
+	}
+}

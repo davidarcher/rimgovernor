@@ -4,6 +4,7 @@
 //	acceptance run <case>... [-root -output -game -headless -timeout -budget -stall -rimgovernor]
 //	acceptance suite (-all | -cases a,b | -suite file.json) -root -output -workers N [-baseline result.json]
 //	acceptance stop -root <dir> [-config -game -takeover]
+//	acceptance setup [-worktree -rimworld -harmony -gabs -fixture -production -rebuild -skip-mod -skip-binaries]
 //
 // It replaces the per-harness binaries' preamble with one loop: resolve the
 // shared configuration, open the game, bring it to the case's Start, quiet
@@ -119,6 +120,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runSuite(context.Background(), list, opts, stderr)
 	case "stop":
 		return stop(args[1:], stdout, stderr)
+	case "setup":
+		return runSetup(context.Background(), args[1:], stdout, stderr)
 	default:
 		fmt.Fprintf(stderr, "unknown command %q\n%s\n", args[0], usage)
 		return 2
@@ -129,7 +132,7 @@ const usage = `usage:
   acceptance list
   acceptance run <case>... -root <dir> [-output <dir> -game <id> -headless=false -timeout <d> -budget <d> -stall <d> -rimgovernor <binary>]
   acceptance stop -root <dir> [-config <dir> -game <id> -takeover]
-` + suiteUsage
+` + setupUsage + suiteUsage
 
 // parseRun resolves the run subcommand's flags and case names. Flags may
 // follow the case names (flag.FlagSet stops at the first non-flag, so the
