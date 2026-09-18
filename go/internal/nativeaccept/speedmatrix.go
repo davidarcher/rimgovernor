@@ -11,9 +11,9 @@ import (
 )
 
 // SpeedCase is one column of the speed matrix (issue #111): the serve
-// --clock-speed flag it runs under and whether the headless-only test
-// acceleration (#109) is on. "uncapped" is Ultrafast with acceleration; the
-// rendered profile refuses it, so a harness checks -rendered before opening.
+// --clock-speed flag it runs under and whether the test acceleration (#109)
+// is on. "uncapped" is Ultrafast with acceleration; both acceptance profiles
+// (headless and rendered) admit it, a player launch does not.
 type SpeedCase struct {
 	Name             string `json:"name"`
 	Speed            string `json:"speed"`

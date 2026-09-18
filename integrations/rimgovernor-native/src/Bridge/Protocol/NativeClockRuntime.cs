@@ -35,7 +35,7 @@ namespace HomeBridge.BridgeTools
         private static bool typedSpeedCall;
         // Test acceleration (the native dev tick boost behind an Ultrafast
         // epoch) is admitted only for a game launched with this argument, which
-        // nativeaccept's headless Prepare adds and no rendered or player launch
+        // nativeaccept's Prepare and PrepareRendered add and no player launch
         // does. Read once at startup; never toggled at runtime.
         internal static readonly bool TestAccelerationLaunch = Array.IndexOf(Environment.GetCommandLineArgs(), "-rimgovernor-test-acceleration") >= 0;
         internal static bool TestAccelerationAvailable => TestAccelerationLaunch && BoostField != null && BoostField.FieldType == typeof(bool);

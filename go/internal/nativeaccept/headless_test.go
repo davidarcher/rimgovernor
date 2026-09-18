@@ -554,13 +554,13 @@ func TestPrepareRenderedRewritesWindowedArgs(t *testing.T) {
 	for _, a := range args {
 		joined[a.(string)] = true
 	}
-	for _, flag := range []string{"-screen-fullscreen", "-screen-width", "-screen-height", "-rimgovernor-pause-on-load"} {
+	for _, flag := range []string{"-screen-fullscreen", "-screen-width", "-screen-height", "-rimgovernor-pause-on-load", "-rimgovernor-test-acceleration"} {
 		if !joined[flag] {
 			t.Fatalf("windowed args missing %s: %v", flag, args)
 		}
 	}
-	if joined["-batchmode"] || joined["-nographics"] || joined["-rimgovernor-test-acceleration"] {
-		t.Fatalf("rendered args must not include batch flags or the test-acceleration gate: %v", args)
+	if joined["-batchmode"] || joined["-nographics"] {
+		t.Fatalf("rendered args must not include batch flags: %v", args)
 	}
 }
 

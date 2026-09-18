@@ -41,8 +41,8 @@ available. New direction or a load change prevents resuming. The clock wire also
 admits Ultrafast (`rimgovernor serve --clock-speed Ultrafast`); the native tick
 boost behind it (`--clock-test-acceleration`, `StartRequest.test_acceleration`)
 is refused unless the game was launched with `-rimgovernor-test-acceleration`,
-which only headless acceptance profiles carry, so boosted simulation stays
-outside the production gameplay surface.
+which only the acceptance profiles (headless and rendered) carry, so boosted
+simulation stays outside the production gameplay surface.
 
 Discrete camera navigation uses a separate player-only endpoint with a fixed
 pan/zoom action set. Each request validates the live native contract under the

@@ -635,6 +635,7 @@ func prepareRendered(root string, fixtureOps, expansions []string) (string, erro
 	game["args"] = []any{
 		"-savedatafolder=" + profile, "-logFile", filepath.Join(root, "Player.log"),
 		"-screen-fullscreen", "0", "-screen-width", "1280", "-screen-height", "720", "-rimgovernor-pause-on-load",
+		"-rimgovernor-test-acceleration",
 	}
 	if err := writeConfig(filepath.Join(configuration, "config.json"), config); err != nil {
 		return "", err
@@ -710,8 +711,9 @@ func prepare(root string, fixtureOps, expansions []string) (string, error) {
 		}
 	}
 	// -rimgovernor-test-acceleration is the native gate for clock test
-	// acceleration (StartRequest.test_acceleration); only this batch-mode
-	// profile carries it, never PrepareRendered or a player launch.
+	// acceleration (StartRequest.test_acceleration); both acceptance
+	// profiles (this one and PrepareRendered) carry it, a player launch
+	// never does.
 	game["args"] = []any{
 		"-savedatafolder=" + profile, "-logFile", filepath.Join(root, "HeadlessPlayer.log"),
 		"-batchmode", "-nographics", "-rimgovernor-pause-on-load", "-rimgovernor-test-acceleration",

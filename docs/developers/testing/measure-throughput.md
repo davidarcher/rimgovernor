@@ -128,7 +128,7 @@ go test ./internal/buildingruntime -run TestClockSpeedMatrix
 ```
 
 Drives the scheduler and worker against a wall-clock fake native at tick
-multipliers 1, 3, 6, 15 and 150 (Normal through the uncapped headless
+multipliers 1, 3, 6, 15 and 150 (Normal through the uncapped test
 acceleration) and asserts an identical window-decision sequence per game
 tick across multipliers, and that every budget stop wakes a step within
 `StepInterval` (#112). Run it first after any scheduler, `WakeSignal` or
@@ -140,8 +140,8 @@ worker change.
 go run ./internal/nativeaccept/cmd/acceptance run speedmatrix/plain -root <abs root> -rimgovernor <abs path to rimgovernor.exe>
 ```
 
-Needs a `ThroughputFixture` build and the headless profile for the uncapped
-case. One staged colony is reloaded per speed and served with the `haul` and
+Needs a `ThroughputFixture` build; both profiles admit the uncapped case
+(a rendered run reports a lower wall TPS for it, since every frame also draws). One staged colony is reloaded per speed and served with the `haul` and
 `work` families for a 6000-tick budget, or until the stage runs out of work
 (every wall plan completed, no storage deficit pending; the clock admits no
 window after that, #210); each speed runs `serve` with the

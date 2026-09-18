@@ -391,7 +391,7 @@ namespace RimGovernor.Protocol.Clock {
   /// Requested epoch speeds. Ultrafast is an ordinary speed on the wire; the
   /// native dev tick boost behind it is test acceleration
   /// (StartRequest.test_acceleration), which only a game launched with
-  /// -rimgovernor-test-acceleration (headless acceptance profiles) admits.
+  /// -rimgovernor-test-acceleration (acceptance profiles) admits.
   /// </summary>
   public enum Speed {
     [pbr::OriginalName("SPEED_UNSPECIFIED")] Unspecified = 0,

@@ -1,6 +1,6 @@
 // Package speedmatrix (issue #111, M4a) runs the same staged colony under
 // rimgovernor serve once per clock speed -- Normal, Fast, Superfast,
-// Ultrafast and uncapped (Ultrafast with the headless test acceleration,
+// Ultrafast and uncapped (Ultrafast with the acceptance test acceleration,
 // #109) -- with an identical game-tick budget, and requires the pawns to
 // achieve the same outcome at every speed.
 //
@@ -101,13 +101,6 @@ func run(ctx context.Context, s cases.Session) error {
 	speedCases, err := na.ParseSpeedCases(na.DefaultSpeedMatrix)
 	if err != nil {
 		return err
-	}
-	if !s.Config().Headless {
-		for _, c := range speedCases {
-			if c.TestAcceleration {
-				return errors.New("the uncapped case needs the headless profile (test acceleration is headless-only)")
-			}
-		}
 	}
 	m := &matrix{s: s, report: s.Report(), cases: speedCases}
 	m.report["speeds"] = speedCases
