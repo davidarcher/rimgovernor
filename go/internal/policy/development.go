@@ -25,6 +25,12 @@ type DevelopmentGoal struct {
 	Deficit                     domain.Fact[float64]
 	Cancelled, Blocked, Comfort bool
 	MethodUnavailable           bool
+	// Served: the goal has a method on record (an active plan under any of
+	// its epochs). A startup-survival goal (priority class 0-2) holds comfort
+	// back only until it is served or declared monitoring-only, so a colony
+	// whose fields are planted and campfire lit may furnish a table while
+	// the food latch is still open.
+	Served bool
 	// Labor is the goal's profile (GoalLabor); nil means no pawn work.
 	Labor LaborProfile
 	// Risk is observed exposure of the goal's work (0 none .. 1 unsafe), from
@@ -221,7 +227,7 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 		// A mental break's mood goal is priority 1 but not an emergency: it
 		// ends only as ticks pass, so it must not freeze development.
 		emergency = emergency || g.Priority < 2 && !IsMoodGoal(g.ID)
-		startup = startup || g.Priority < 3
+		startup = startup || g.Priority < 3 && !g.Served && !g.MethodUnavailable && !g.Cancelled
 	}
 	for _, g := range r.Goals {
 		if g.Priority < 3 {

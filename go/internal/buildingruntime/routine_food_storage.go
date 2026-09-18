@@ -207,18 +207,33 @@ func (r *RoutineFoodStoragePlanner) step(call, epoch context.Context, arbiter *s
 // construction claims rather than recomputing candidate sites: once walls
 // exist, StarterLayouts' own site-legality scan would no longer treat that
 // ground as free, so the built room can only be identified by what is there.
+// A plan's Wall/Door cells are matched against every starter shell shape
+// whose south door stands on the plan's door, hut templates and the 9x9
+// rectangle alike, so a neolithic colony's hut is a room too (#196).
 func starterRoom(claims domain.Fact[[]policy.ConstructionClaim]) (policy.Rectangle, bool) {
 	rows, known := claims.Value()
 	if !known {
 		return policy.Rectangle{}, false
 	}
-	byPlan := map[domain.PlanID][]domain.Cell{}
+	type ring struct {
+		cells map[domain.Cell]bool
+		doors []domain.Cell
+	}
+	byPlan := map[domain.PlanID]*ring{}
 	for _, claim := range rows {
 		def := claim.Building.Definition()
 		if def != "Wall" && def != "Door" {
 			continue
 		}
-		byPlan[claim.Plan] = append(byPlan[claim.Plan], claim.Building.Cell())
+		r := byPlan[claim.Plan]
+		if r == nil {
+			r = &ring{cells: map[domain.Cell]bool{}}
+			byPlan[claim.Plan] = r
+		}
+		r.cells[claim.Building.Cell()] = true
+		if def == "Door" {
+			r.doors = append(r.doors, claim.Building.Cell())
+		}
 	}
 	plans := make([]domain.PlanID, 0, len(byPlan))
 	for id := range byPlan {
@@ -226,25 +241,34 @@ func starterRoom(claims domain.Fact[[]policy.ConstructionClaim]) (policy.Rectang
 	}
 	sort.Slice(plans, func(i, j int) bool { return plans[i] < plans[j] })
 	for _, id := range plans {
-		cells := byPlan[id]
-		if len(cells) != 32 {
-			continue
+		r := byPlan[id]
+		for _, door := range r.doors {
+			for _, shell := range policy.ShellShapesAtDoor(door, policy.ShelterHut) {
+				walls := shell.Walls()
+				if len(walls) != len(r.cells) {
+					continue
+				}
+				match := true
+				for _, cell := range walls {
+					if !r.cells[cell] {
+						match = false
+						break
+					}
+				}
+				if !match {
+					continue
+				}
+				b := shell.Bounds()
+				return policy.Rectangle{X: b.X, Z: b.Z, Width: b.Width, Height: b.Height}, true
+			}
 		}
-		minX, minZ, maxX, maxZ := cells[0].X, cells[0].Z, cells[0].X, cells[0].Z
-		for _, cell := range cells {
-			minX, maxX = min(minX, cell.X), max(maxX, cell.X)
-			minZ, maxZ = min(minZ, cell.Z), max(maxZ, cell.Z)
-		}
-		if maxX-minX != 8 || maxZ-minZ != 8 {
-			continue
-		}
-		return policy.Rectangle{X: minX, Z: minZ, Width: 9, Height: 9}, true
 	}
 	return policy.Rectangle{}, false
 }
 
 // foodStorageCells prefers the same back-of-room 3x3 spot StarterLayouts
-// reserves for this room (Storage: {room.X+3, room.Z+5, 3, 3}), then searches
+// reserves for this room (Storage: {room.X+3, room.Z+5, 3, 3} on the 9x9;
+// the same upper-middle patch of any other shell's bounds), then searches
 // outward and shrinks toward single free cells only if that spot is occupied
 // by something the starter layout's own reservation did not anticipate.
 func foodStorageCells(room policy.Rectangle, cells map[domain.Cell]policy.SiteCell, occupied map[domain.Cell]bool) ([]domain.Cell, bool) {
@@ -263,7 +287,7 @@ func foodStorageCells(room policy.Rectangle, cells map[domain.Cell]policy.SiteCe
 		unzoned, zk := c.Zone.Value()
 		return ik && indoors && rk && roofed && wk && walkable && ok && !unoccupied && zk && !unzoned
 	}
-	target := domain.Cell{X: room.X + 3, Z: room.Z + 5}
+	target := domain.Cell{X: room.X + room.Width/2 - 1, Z: room.Z + room.Height/2 + 1}
 	type candidate struct {
 		dist int64
 		x, z int32

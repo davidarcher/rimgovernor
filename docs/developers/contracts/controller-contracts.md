@@ -66,7 +66,10 @@ preference, one point per 1,000 waiting game ticks, a 20-point selection hystere
 bonus, a bottleneck penalty of up to 30 points and a risk penalty of up to 40 points
 (`policy.DefaultDevelopmentWeights`). Stable goal IDs break ties. These weights are
 policy ordering, not measured benefit or time estimates. Emergencies retain precedence,
-and comfort waits for startup-survival goals.
+and comfort waits for startup-survival goals until each is served (a method on
+record) or monitoring-only; a food latch that stays open while planted fields
+grow no longer holds a table back. The comfort shell rung waits like the
+workshop's while the initial shelter is still owed.
 
 The age weight is the starvation bound: an eligible optional goal overtakes any
 persistently larger deficit within 100,000 waiting ticks (under two game days), and the

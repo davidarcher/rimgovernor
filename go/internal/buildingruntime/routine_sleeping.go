@@ -144,12 +144,14 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	if goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit {
 		return RoutineBuildingResult{Reason: BuildingMethodNoDeficit}, nil
 	}
-	// A workshop shell is the ladder's last rung. While the initial shelter
+	// A facility shell is the ladder's last rung. While the initial shelter
 	// is still owed, its starter shell becomes the first room, which the
-	// Workshop role admits; siting a second shell beside it would split the
-	// same builders across two rings (issue #4 M2 run: both rings finished
-	// together, far later than one). Wait for that room instead.
-	if (r.goal == policy.MaintainResource || r.goal == policy.MaintainMedicalCare || r.goal == policy.MaintainSleeping) && r.shelter {
+	// Workshop, Hospital and Dining roles admit; siting a second shell beside
+	// it would split the same builders across two rings (issue #4 M2 run:
+	// both rings finished together, far later than one). Wait for that room
+	// instead. Comfort reaches this rung once the starter shell is on record
+	// (development no longer holds it for the whole startup ladder, #196).
+	if (r.goal == policy.EnsureComfort || r.goal == policy.MaintainResource || r.goal == policy.MaintainMedicalCare || r.goal == policy.MaintainSleeping) && r.shelter {
 		blocked, err := initialShelterOwed(call, p, review)
 		if err != nil {
 			return RoutineBuildingResult{}, err

@@ -108,6 +108,28 @@ func TestDevelopmentHolds(t *testing.T) {
 	}
 }
 
+// Comfort waits for the startup ladder only until every startup-survival
+// goal is served (a method on record) or monitoring-only; a food latch that
+// stays open for a season while the fields grow must not hold a table back
+// (#196). An unserved startup goal still holds it.
+func TestDevelopmentComfortWaitsForUnservedStartupGoalsOnly(t *testing.T) {
+	r := developmentFixture()
+	r.Goals = r.Goals[:1]
+	r.Goals[0].Comfort = true
+	r.Goals = append(r.Goals,
+		DevelopmentGoal{ID: "food", Source: AutopilotGoal, Priority: 2, Served: true},
+		DevelopmentGoal{ID: "medical", Source: AutopilotGoal, Priority: 2, MethodUnavailable: true})
+	requireSelected(t, rank(t, r), "storage")
+	r.Goals = append(r.Goals, DevelopmentGoal{ID: "cooking", Source: AutopilotGoal, Priority: 2})
+	s := rank(t, r)
+	requireSelected(t, s)
+	if s.Rows[0].Reason != DevelopmentStartup {
+		t.Fatal(s)
+	}
+	r.Goals[3].Served = true
+	requireSelected(t, rank(t, r), "storage")
+}
+
 // A mental break's mood goal is priority 1 yet not an emergency: it ends
 // only as ticks pass, so development keeps its slot.
 func TestDevelopmentMentalBreakIsNotAnEmergency(t *testing.T) {

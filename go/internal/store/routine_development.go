@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -86,6 +87,13 @@ func rankRoutineDevelopment(ctx context.Context, tx *sql.Tx, r RoutineReviewRequ
 				g := states[j].Goal
 				goals[i].Cancelled = g.Status == domain.GoalCancelled
 				goals[i].Blocked = g.Status != domain.GoalActive
+				// Served counts retired methods too: a startup goal whose
+				// campfire plan completed and retired is served, not owed.
+				var served int
+				if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM goal_methods WHERE goal_id=? AND epoch=?", g.ID, strconv.FormatUint(g.Epoch, 10)).Scan(&served); err != nil {
+					return policy.DevelopmentState{}, err
+				}
+				goals[i].Served = served > 0
 			}
 		}
 	}

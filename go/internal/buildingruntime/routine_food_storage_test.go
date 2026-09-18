@@ -8,8 +8,8 @@ import (
 )
 
 // perimeterClaims builds the 32 Wall/Door claims RoutineBuildingPlanner's
-// starter shell always produces: a 9x9 room's outer ring, anchored at
-// (originX, originZ).
+// rectangle starter shell produces: a 9x9 room's outer ring, anchored at
+// (originX, originZ), with the south door where RectangleFootprint puts it.
 func perimeterClaims(t *testing.T, plan domain.PlanID, originX, originZ int32) []policy.ConstructionClaim {
 	t.Helper()
 	var cells []domain.Cell
@@ -24,9 +24,9 @@ func perimeterClaims(t *testing.T, plan domain.PlanID, originX, originZ int32) [
 		t.Fatalf("perimeter helper produced %d cells, want 32", len(cells))
 	}
 	var claims []policy.ConstructionClaim
-	for i, cell := range cells {
+	for _, cell := range cells {
 		def := "Wall"
-		if i == 4 {
+		if cell == (domain.Cell{X: originX + 4, Z: originZ}) {
 			def = "Door"
 		}
 		b, err := domain.NewBuilding(def, cell, domain.North, "")
@@ -43,6 +43,41 @@ func TestStarterRoomRecoversNineByNineFromThirtyTwoCellPerimeter(t *testing.T) {
 	room, known := starterRoom(domain.Known(claims))
 	if !known || room != (policy.Rectangle{X: 10, Z: 20, Width: 9, Height: 9}) {
 		t.Fatal(room, known)
+	}
+}
+
+// hutClaims builds the Wall/Door claims of the hut template centred on c
+// that the neolithic starter shell raises (#196).
+func hutClaims(t *testing.T, plan domain.PlanID, c domain.Cell) ([]policy.ConstructionClaim, domain.RoomFootprint) {
+	t.Helper()
+	shell := policy.HutTemplateShells(c)[0]
+	var claims []policy.ConstructionClaim
+	for _, cell := range shell.Walls() {
+		def := "Wall"
+		if cell == shell.Door() {
+			def = "Door"
+		}
+		b, err := domain.NewBuilding(def, cell, domain.North, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		claims = append(claims, policy.ConstructionClaim{Plan: plan, Building: b})
+	}
+	return claims, shell
+}
+
+func TestStarterRoomRecoversHutShellBounds(t *testing.T) {
+	claims, shell := hutClaims(t, "starter-shell", domain.Cell{X: 40, Z: 40})
+	if len(claims) == 32 {
+		t.Fatal("hut template is not distinguishable from the rectangle")
+	}
+	room, known := starterRoom(domain.Known(claims))
+	b := shell.Bounds()
+	if !known || room != (policy.Rectangle{X: b.X, Z: b.Z, Width: b.Width, Height: b.Height}) {
+		t.Fatal(room, known, b)
+	}
+	if _, known := starterRoom(domain.Known(claims[:len(claims)-1])); known {
+		t.Fatal("incomplete hut recognized as a room")
 	}
 }
 

@@ -308,3 +308,50 @@ func TestRoutineDevelopmentLaborPersistsAndDefers(t *testing.T) {
 		t.Fatal(loaded, err)
 	}
 }
+
+// The review marks a startup goal served once a method is on record, and
+// comfort's development row leaves startup_survival on the next ranking
+// (#196: EnsureComfort sat refused for two in-game days behind startup goals
+// whose fields, campfire and storage were already placed).
+func TestRoutineDevelopmentComfortFollowsServedStartupGoals(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	s := open(t, memoryPath(t))
+	r := routineRequest()
+	r.Facts.Colonists, r.Facts.HousingTarget, r.Facts.BedCapacity, r.Facts.IndoorCapacity = domain.Known(int64(3)), domain.Known(int64(0)), domain.Known(int64(3)), domain.Known(int64(4))
+	r.Facts.GrowingCells, r.Facts.Armed = domain.Known(int64(30)), domain.Known(int64(2))
+	r.Facts.FoodDays, r.Facts.FieldCoverage, r.Facts.SleepingMin, r.Facts.SleepingMax = domain.Known(8.0), domain.Known(1.0), domain.Known(20.0), domain.Known(20.0)
+	r.Facts.SleepingRecovered, r.Facts.ForbiddenSupplies, r.Facts.WorkCoverage = domain.Known(true), domain.Known(false), domain.Known(true)
+	r.Facts.FoodStorage, r.Facts.PowerRequired, r.Facts.DisabledConsumers, r.Facts.MedicalCareRecovered = domain.Known(true), domain.Known(false), domain.Known(false), domain.Known(true)
+	r.Facts.FoodStorageUpkeep = policy.FoodStorageObservation{Stocks: domain.Known([]policy.FoodStorageStock{})}
+	r.Facts.Cooking = domain.Known(false)
+	r.Facts.Comfort = domain.Known(comfortCensus(false))
+	out := reviewRoutine(t, s, &r)
+	if row := developmentRow(t, out.Review, policy.EnsureComfort); row.Selected || row.Reason != policy.DevelopmentStartup {
+		t.Fatal(row)
+	}
+	cooking := routineGoal(t, out, policy.EnsureCooking)
+	if cooking.Goal.Need != domain.NeedDeficit {
+		t.Fatal(cooking)
+	}
+	if _, err := s.CommitGoalMethod(ctx, cooking.Goal.ID, cooking.Revision, "campfire", plan(t, "campfire", "campfire-action")); err != nil {
+		t.Fatal(err)
+	}
+	out = reviewRoutine(t, s, &r)
+	if row := developmentRow(t, out.Review, policy.EnsureComfort); !row.Selected || row.Reason != "" {
+		t.Fatal(row, out.Review.Development.Rows)
+	}
+	// A settled method retires its plan (a completed campfire leaves the
+	// active catalog) but the goal stays served.
+	if _, err := s.Cancel(ctx, "campfire", "campfire-action"); err != nil {
+		t.Fatal(err)
+	}
+	reviewRoutine(t, s, &r)
+	out = reviewRoutine(t, s, &r)
+	if cooking = routineGoal(t, out, policy.EnsureCooking); len(cooking.Methods) != 0 {
+		t.Fatal("campfire method not retired", cooking.Methods)
+	}
+	if row := developmentRow(t, out.Review, policy.EnsureComfort); !row.Selected || row.Reason != "" {
+		t.Fatal("retired startup method counted as unserved", row)
+	}
+}

@@ -435,7 +435,8 @@ with no breach at all is reported (`route_no_breach`) so the deficit stays
 visible; an unavailable door defers (`route_door_unavailable`). A build
 receipt never clears the deficit.
 
-`EnsureComfort` maintains dining and recreation after startup survival work.
+`EnsureComfort` maintains dining and recreation once every startup survival goal
+has a method on record or is monitoring-only.
 Its deficit remains visible during emergencies; admission waits rather than
 claiming the facilities complete. Sleeping upgrades belong to `MaintainSleeping`.
 Dining uses native eating surfaces with adjacent sittable furniture, an enclosed
