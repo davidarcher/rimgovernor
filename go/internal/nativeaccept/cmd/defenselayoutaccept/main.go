@@ -39,8 +39,6 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -49,9 +47,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -134,11 +130,11 @@ func main() {
 }
 
 type options struct {
-	strategy, arrival, save    string
-	bypass                     bool
+	strategy, arrival, save string
+	bypass                  bool
 	// threat is the incident staged after the layout: "raid" or
 	// "predator" (a wild predatorKind hunting a colonist, #157).
-	threat, predatorKind string
+	threat, predatorKind       string
 	layoutTimeout, raidTimeout time.Duration
 	// repairTimeout bounds the post-raid wait in wall time; repairTicks
 	// bounds it in game ticks from the tick the ActiveCombat goal recovered.
@@ -193,14 +189,8 @@ type apiFunc func(method, path string, body map[string]any, token string) (map[s
 // service is one launch of the rimgovernor serve subprocess against the
 // shared game, with the harness's player authority acquired and kept alive.
 type service struct {
-	cmd       *exec.Cmd
-	done      chan error
+	*na.ServiceProcess
 	stopped   bool
-	exited    bool
-	exit      error
-	api       apiFunc
-	token     string
-	url       string
 	keepAlive *authorityKeepAlive
 	stopKeep  context.CancelFunc
 	keepWG    sync.WaitGroup
@@ -219,44 +209,21 @@ func (s *service) stop() {
 	// Hand native authority back to manual before the kill: a killed
 	// service leaves the native side in auto mode under its dead session,
 	// and the next service's acquire would resolve uncertain against it.
-	if s.keepAlive != nil && s.api != nil {
-		_, _, _ = s.api("POST", "/api/player/control/pause", map[string]any{
+	if s.keepAlive != nil {
+		_, _, _ = s.API("POST", "/api/player/control/pause", map[string]any{
 			"requestId": fmt.Sprintf("defense-%s-pause-%d", s.keepAlive.name, time.Now().UnixNano()), "expected": s.keepAlive.identity,
-		}, s.token)
+		}, s.Token)
 	}
 	if s.store != nil {
 		s.store.Close()
 	}
-	if s.exited {
-		return
-	}
-	if s.cmd.ProcessState == nil {
-		_ = s.cmd.Process.Kill()
-	}
-	<-s.done
-}
-
-// exitedErr is the journal waits' na.Wait.Terminal: a service that died on
-// its own ends a wait at once.
-func (s *service) exitedErr() error {
-	if !s.exited {
-		select {
-		case s.exit = <-s.done:
-			s.exited = true
-		default:
-			return nil
-		}
-	}
-	if s.exit == nil {
-		return fmt.Errorf("service %d exited with status 0", s.cmd.Process.Pid)
-	}
-	return fmt.Errorf("service %d exited: %w", s.cmd.Process.Pid, s.exit)
+	s.ServiceProcess.Stop()
 }
 
 // wait bounds a journal poll by budget, the shared stall budget and the
 // service's own exit.
 func (s *service) wait(budget time.Duration) na.Wait {
-	return na.Wait{Ceiling: budget, Stall: na.StallBudget(), Terminal: s.exitedErr}
+	return na.Wait{Ceiling: budget, Stall: na.StallBudget(), Terminal: s.Exited}
 }
 
 func run(ctx context.Context, root, output, gameID string, headless bool, rimgovernorBinary string, opts options, report na.Report) error {
@@ -283,10 +250,6 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 		return err
 	}
 	report["package_files"] = files
-	gabsExecutable, err := na.GABSExecutable(root, cfg.Configuration)
-	if err != nil {
-		return err
-	}
 	binarySHA, err := sha256File(rimgovernorBinary)
 	if err != nil {
 		return fmt.Errorf("hash rimgovernor binary: %w", err)
@@ -392,10 +355,11 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 	}
 	var layout store.DefenseLayoutRecord
 	var siteX, siteZ int
+	// na.Serve keeps every service on this one state journal.
 	statePath := filepath.Join(output, "service.sqlite")
 	var svc *service
 	launch := func(name string) (*service, error) {
-		return launchService(ctx, output, name, rimgovernorBinary, gabsExecutable, cfg.Configuration, gameID, statePath, identity, matchesIdentity, siteX, siteZ, report)
+		return launchService(ctx, cfg, held, name, rimgovernorBinary, identity, siteX, siteZ, report)
 	}
 	if opts.fromCheckpoint != "" {
 		data, err := os.ReadFile(checkpointPath(root, opts.fromCheckpoint))
@@ -809,152 +773,30 @@ func copyFile(src, dst string) error {
 	return os.WriteFile(dst, data, 0644)
 }
 
-func launchService(ctx context.Context, output, name, binary, gabs, config, gameID, statePath string, identity map[string]any, matchesIdentity func(map[string]any) bool, siteX, siteZ int, report na.Report) (*service, error) {
-	// One profile for every service: the state journal binds its clock
-	// inbox to the first profile path and refuses any other.
-	profileDir := filepath.Join(output, "service-profile")
-	serviceDir := filepath.Join(output, "service-"+name)
-	for _, dir := range []string{profileDir, serviceDir} {
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			return nil, err
-		}
-	}
-	argv := []string{"serve", "--profile", profileDir, "--gabs", gabs, "--config", config, "--game", gameID, "--state", statePath, "--listen", "127.0.0.1:0", "--refresh", "1s", "--timeout", "15s", "--flight-recorder", filepath.Join(serviceDir, "flight.jsonl")}
-	report["service_argv_"+name] = append([]string{binary}, argv...)
-	cmd := exec.CommandContext(ctx, binary, argv...)
-	// Tend and rescue ride along for the aftermath: raid injuries hold
-	// CriticalMedical in deficit, which suspends every priority>=2 goal
+func launchService(ctx context.Context, cfg *na.Config, held *na.Game, name, binary string, identity map[string]any, siteX, siteZ int, report na.Report) (*service, error) {
+	// Every launch shares one profile and state journal (na.Serve): the
+	// journal binds its clock inbox to the first profile path and refuses
+	// any other. Tend and rescue ride along for the aftermath: raid injuries
+	// hold CriticalMedical in deficit, which suspends every priority>=2 goal
 	// including the layout repair until the wounded are treated (#72).
-	cmd.Env = append(os.Environ(), "RIMGOVERNOR_CLOCK_DEBUG=1", "RIMGOVERNOR_ROUTINE_FAMILIES=defensive-layout,defense,tend,rescue")
-	stdoutPipe, err := cmd.StdoutPipe()
+	proc, err := na.Serve(ctx, cfg, held, identity, na.ServeSpec{
+		Binary: binary, Prefix: "defense-" + name,
+		Families: []string{"defensive-layout", "defense", "tend", "rescue"},
+		Env:      []string{"RIMGOVERNOR_CLOCK_DEBUG=1"},
+	}, report)
 	if err != nil {
 		return nil, err
 	}
-	stderrFile, err := os.Create(filepath.Join(serviceDir, "stderr.log"))
-	if err != nil {
-		return nil, err
-	}
-	cmd.Stderr = stderrFile
-	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("start rimgovernor serve: %w", err)
-	}
-	svc := &service{cmd: cmd, done: make(chan error, 1)}
-	go func() { svc.done <- cmd.Wait(); stderrFile.Close() }()
-	reader := bufio.NewReader(stdoutPipe)
-	firstLine, err := reader.ReadString('\n')
-	if err != nil {
-		svc.stop()
-		return nil, fmt.Errorf("read service startup line: %w", err)
-	}
-	const prefix = "RimGovernor Go player service: "
-	firstLine = strings.TrimSpace(firstLine)
-	if !strings.HasPrefix(firstLine, prefix) {
-		svc.stop()
-		return nil, fmt.Errorf("unexpected service startup line: %q", firstLine)
-	}
-	svc.url = strings.TrimPrefix(firstLine, prefix)
-	report["service_url_"+name] = svc.url
-	stdoutLogFile, err := os.Create(filepath.Join(serviceDir, "stdout.log"))
-	if err != nil {
-		svc.stop()
-		return nil, err
-	}
-	go func() { _, _ = io.Copy(stdoutLogFile, reader); stdoutLogFile.Close() }()
-
-	httpClient := &http.Client{Timeout: 20 * time.Second}
-	requestCounter := 0
-	var counterMu sync.Mutex
-	svc.api = func(method, path string, body map[string]any, token string) (map[string]any, int, error) {
-		var reqBody io.Reader
-		if body != nil {
-			data, err := json.Marshal(body)
-			if err != nil {
-				return nil, 0, err
-			}
-			reqBody = bytes.NewReader(data)
-		}
-		req, err := http.NewRequestWithContext(ctx, method, svc.url+path, reqBody)
-		if err != nil {
-			return nil, 0, err
-		}
-		if body != nil {
-			req.Header.Set("Content-Type", "application/json")
-		}
-		if token != "" {
-			req.Header.Set("X-RimGovernor-Player", token)
-		}
-		req.Header.Set("Origin", svc.url)
-		resp, err := httpClient.Do(req)
-		if err != nil {
-			return nil, 0, err
-		}
-		defer resp.Body.Close()
-		data, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return nil, 0, err
-		}
-		counterMu.Lock()
-		requestCounter++
-		n := requestCounter
-		counterMu.Unlock()
-		_ = os.WriteFile(filepath.Join(serviceDir, fmt.Sprintf("http-%04d.json", n)), mustJSON(map[string]any{
-			"method": method, "path": path, "request": body, "status": resp.StatusCode, "response": json.RawMessage(data),
-		}), 0644)
-		var out map[string]any
-		if len(data) > 0 {
-			if err := json.Unmarshal(data, &out); err != nil {
-				return nil, resp.StatusCode, fmt.Errorf("decode %s %s: %w", method, path, err)
-			}
-		}
-		return out, resp.StatusCode, nil
-	}
+	report["service_"+name] = proc.Entry()
+	svc := &service{ServiceProcess: proc}
 	fail := func(err error) (*service, error) { svc.stop(); return nil, err }
-
-	health, status, err := svc.api("GET", "/api/health", nil, "")
-	if err != nil {
-		return fail(err)
-	}
-	if status != 200 || na.AsString(health["service"]) != "rimgovernor" || int(na.AsNumber(health["pid"])) != cmd.Process.Pid {
-		return fail(fmt.Errorf("unexpected /api/health: status=%d body=%#v", status, health))
-	}
-	session, status, err := svc.api("GET", "/api/player/session", nil, "")
-	if err != nil {
-		return fail(err)
-	}
-	if status != 200 || na.AsString(session["token"]) == "" {
-		return fail(fmt.Errorf("unexpected /api/player/session: status=%d body=%#v", status, session))
-	}
-	svc.token = na.AsString(session["token"])
-	deadline := time.Now().Add(90 * time.Second)
-	for {
-		state, status, err := svc.api("GET", "/api/state", nil, "")
-		if err != nil {
-			return fail(err)
-		}
-		if status != 200 {
-			return fail(fmt.Errorf("unexpected /api/state status=%d body=%#v", status, state))
-		}
-		if connected, _ := na.AsBool(state["connected"]); connected {
-			if svcIdentity, ok := na.AsMap(state["identity"]); ok && matchesIdentity(svcIdentity) {
-				break
-			}
-		}
-		if time.Now().After(deadline) {
-			return fail(fmt.Errorf("service did not attach to the fixture's identity in time: %#v", state))
-		}
-		select {
-		case <-ctx.Done():
-			return fail(ctx.Err())
-		case <-time.After(500 * time.Millisecond):
-		}
-	}
 	// The player's accepted building project occupies the routine
 	// arbitration slot (policy.RankDevelopment); it is submitted once per
 	// journal and replayed idempotently on a relaunch.
-	submission, status, err := svc.api("POST", "/api/buildings/plans", map[string]any{
+	submission, status, err := svc.API("POST", "/api/buildings/plans", map[string]any{
 		"requestId": "defense-layout-construction-1", "expected": identity,
 		"building": map[string]any{"defName": "Wall", "x": siteX, "z": siteZ, "rotation": "north", "stuff": "WoodLog"},
-	}, svc.token)
+	}, svc.Token)
 	if err != nil {
 		return fail(err)
 	}
@@ -965,7 +807,7 @@ func launchService(ctx context.Context, output, name, binary, gabs, config, game
 		return fail(fmt.Errorf("unexpected building submission: %#v", submission))
 	}
 	report["submission_"+name] = submission
-	keep := &authorityKeepAlive{apiCall: svc.api, identity: identity, token: svc.token, name: name}
+	keep := &authorityKeepAlive{apiCall: svc.API, identity: identity, token: svc.Token, name: name}
 	if err := keep.start(); err != nil {
 		return fail(err)
 	}
@@ -973,7 +815,7 @@ func launchService(ctx context.Context, output, name, binary, gabs, config, game
 	svc.keepAlive, svc.stopKeep = keep, stopKeep
 	svc.keepWG.Add(1)
 	go func() { defer svc.keepWG.Done(); keep.run(keepCtx) }()
-	svc.store, err = openStoreWithRetry(ctx, statePath)
+	svc.store, err = na.OpenStoreWithRetry(ctx, proc.StatePath)
 	if err != nil {
 		return fail(fmt.Errorf("open verification store: %w", err))
 	}
@@ -1930,24 +1772,6 @@ func (k *authorityKeepAlive) run(ctx context.Context) {
 	}
 }
 
-func openStoreWithRetry(ctx context.Context, path string) (*store.Store, error) {
-	deadline := time.Now().Add(60 * time.Second)
-	for {
-		s, err := store.Open(ctx, path)
-		if err == nil {
-			return s, nil
-		}
-		if time.Now().After(deadline) {
-			return nil, err
-		}
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-time.After(500 * time.Millisecond):
-		}
-	}
-}
-
 func sha256File(path string) (string, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -1959,12 +1783,4 @@ func sha256File(path string) (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(h.Sum(nil)), nil
-}
-
-func mustJSON(v any) []byte {
-	data, err := json.MarshalIndent(v, "", "  ")
-	if err != nil {
-		return []byte("{}")
-	}
-	return data
 }

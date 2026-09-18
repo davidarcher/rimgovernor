@@ -138,8 +138,10 @@ func ClockSpeed() string {
 
 // ClockSpeedArgs is the serve flag set for ClockSpeed: --clock-speed, plus
 // --clock-test-acceleration at Ultrafast.
-func ClockSpeedArgs() []string {
-	speed := ClockSpeed()
+func ClockSpeedArgs() []string { return ClockSpeedFlags(ClockSpeed()) }
+
+// ClockSpeedFlags is ClockSpeedArgs for an explicit speed (ServeSpec.ClockSpeed).
+func ClockSpeedFlags(speed string) []string {
 	args := []string{"--clock-speed", speed}
 	if speed == "Ultrafast" {
 		args = append(args, "--clock-test-acceleration")

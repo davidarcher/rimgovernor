@@ -17,22 +17,16 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -138,10 +132,10 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 	// once before returning: through the session that is open at the time,
 	// or through a fresh one when the service held the slot at failure.
 	var open *bridge.Client = client
-	var svc *service
+	var svc *na.ServiceProcess
 	defer func() {
 		if svc != nil {
-			svc.stop()
+			svc.Stop()
 		}
 		if open == nil {
 			reopenCtx, reopenCancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -201,12 +195,6 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 	}
 	loadedContext, _ := na.AsMap(loaded["context"])
 	identity, _ := na.AsMap(loadedContext["identity"])
-	matchesIdentity := func(v map[string]any) bool {
-		return na.AsString(v["colonyId"]) == na.AsString(identity["colonyId"]) &&
-			na.AsString(v["loadToken"]) == na.AsString(identity["loadToken"]) &&
-			na.AsNumber(v["mapId"]) == na.AsNumber(identity["mapId"])
-	}
-
 	names, err := h.Discovery(ctx)
 	if err != nil {
 		return err
@@ -267,20 +255,33 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 	}
 	open = nil
 
-	svc = &service{ctx: ctx, binary: rimgovernorBinary, output: output, gabs: gabsExecutable, configuration: cfg.Configuration, gameID: gameID, report: report}
-	if err := svc.launch(); err != nil {
-		return err
+	// Random debug colonies may start with wounds; tend and rescue clear the
+	// medical emergency that would otherwise suspend every development goal,
+	// defense answers the hostile threats that otherwise hold the clock, and
+	// naming confirms the colony name the game asks for a few days in
+	// (STOP_REASON_COLONY_NAMING otherwise stops the clock for good).
+	spec := na.ServeSpec{
+		Binary: rimgovernorBinary, Prefix: "excavation",
+		Families: []string{"shelter", "tend", "rescue", "defense", "naming"},
+		Env:      []string{"RIMGOVERNOR_CLOCK_DEBUG=1"},
 	}
-	if err := svc.attach(matchesIdentity); err != nil {
+	// Fifty-odd granite cells under one or two miners span several game
+	// days; Superfast packs them into the run's wall-clock budget unless
+	// RIMGOVERNOR_ACCEPT_CLOCK_SPEED says otherwise.
+	spec.ClockSpeed = "Superfast"
+	// The harness manages its own bridge sessions here (closed above), so
+	// Serve gets no game and the identity it must see.
+	svc, err = na.Serve(ctx, cfg, nil, identity, spec, report)
+	if err != nil {
 		return err
 	}
 
 	// The one player-submitted plan the authority grant is bound to.
-	submission, status, err := svc.api("POST", "/api/buildings/plans", map[string]any{
+	submission, status, err := svc.API("POST", "/api/buildings/plans", map[string]any{
 		"requestId": "excavation-player-plan-1",
 		"expected":  identity,
 		"building":  map[string]any{"defName": "Wall", "x": spareX, "z": spareZ, "rotation": "north", "stuff": "WoodLog"},
-	}, svc.token())
+	}, svc.Token)
 	if err != nil {
 		return err
 	}
@@ -293,33 +294,17 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 	}
 	report["submission"] = submission
 	// Resume enters automate mode under the world's root plan (#55).
-	acquired, status, err := svc.api("POST", "/api/player/control/resume", map[string]any{
-		"requestId": "excavation-resume-1", "expected": identity,
-	}, svc.token())
-	if err != nil {
+	if _, err := svc.Acquire(); err != nil {
 		return err
 	}
-	if status != 200 {
-		return fmt.Errorf("unexpected resume status=%d body=%#v", status, acquired)
-	}
-	acquiredRecord, _ := na.AsMap(acquired["record"])
-	if na.AsString(acquiredRecord["phase"]) != "running" {
-		return fmt.Errorf("resume was not running: %#v", acquired)
-	}
-	report["resumed"] = acquired
+	report["resumed"] = svc.Entry()["resumed"]
 
-	keepAlive := &authorityKeepAlive{svc: svc, identity: identity}
-	keepAliveCtx, stopKeepAlive := context.WithCancel(ctx)
-	var keepAliveWG sync.WaitGroup
-	keepAliveWG.Add(1)
-	go func() { defer keepAliveWG.Done(); keepAlive.run(keepAliveCtx) }()
-	defer func() {
-		stopKeepAlive()
-		keepAliveWG.Wait()
-		report["authority_reacquisitions"] = keepAlive.snapshot()
-	}()
+	// The keep-alive re-acquires bounded native player authority whenever
+	// the service leaves automate mode (acknowledging any hold first); each
+	// launch's counters land under its report entry ("keepalive").
+	svc.KeepAuthority(ctx)
 
-	verifyStore, err := openStoreWithRetry(ctx, svc.statePath())
+	verifyStore, err := na.OpenStoreWithRetry(ctx, svc.StatePath)
 	if err != nil {
 		return fmt.Errorf("open verification store: %w", err)
 	}
@@ -444,21 +429,17 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 			verifyStore.Close()
 			// The kill is ungraceful: the old process never hands native
 			// authority back, and the relaunch must reclaim the stale Auto
-			// grant itself (#67). The keep-alive pauses across the restart so
-			// it does not resume against a half-attached service.
-			keepAlive.pause(true)
-			svc.stop()
-			if err := svc.launch(); err != nil {
+			// grant itself (#67). The keep-alive ends with the old handle
+			// and starts again on the new one once it has attached.
+			svc.Stop()
+			if svc, err = svc.Restart(ctx); err != nil {
 				return fmt.Errorf("relaunch service: %w", err)
 			}
-			if err := svc.attach(matchesIdentity); err != nil {
-				return fmt.Errorf("reattach after restart: %w", err)
-			}
-			verifyStore, err = openStoreWithRetry(ctx, svc.statePath())
+			svc.KeepAuthority(ctx)
+			verifyStore, err = na.OpenStoreWithRetry(ctx, svc.StatePath)
 			if err != nil {
 				return fmt.Errorf("reopen verification store: %w", err)
 			}
-			keepAlive.pause(false)
 			report["restarted_after_stage"] = stage
 		}
 		stage++
@@ -515,7 +496,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 	report["furnishing_plan"] = string(spot.Plan)
 
 	if err := na.AssertRoutineRunning(func(method, path string) (map[string]any, error) {
-		v, status, err := svc.api(method, path, nil, "")
+		v, status, err := svc.API(method, path, nil, "")
 		if err != nil {
 			return nil, err
 		}
@@ -528,8 +509,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 	}
 
 	verifyStore.Close()
-	stopKeepAlive()
-	svc.stop()
+	report["authority_reacquisitions"] = svc.Stop()
 	var finalClient *bridge.Client
 	var finalHarness *na.Harness
 	reopenDeadline := time.Now().Add(30 * time.Second)
@@ -633,325 +613,6 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 		return fmt.Errorf("read startup log: %w", err)
 	}
 	return na.CheckStartupLog(string(logData), headless)
-}
-
-// service owns one rimgovernor serve subprocess at a time; launch after stop
-// reuses the same state file so the restart exercises journal recovery.
-type service struct {
-	ctx           context.Context
-	binary        string
-	output        string
-	gabs          string
-	configuration string
-	gameID        string
-	report        na.Report
-
-	mu       sync.Mutex
-	launches int
-	url      string
-	tok      string
-	cmd      *exec.Cmd
-	done     chan error
-	files    []*os.File
-	requests int
-	client   *http.Client
-}
-
-func (s *service) statePath() string { return filepath.Join(s.output, "service.sqlite") }
-
-func (s *service) token() string {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.tok
-}
-
-func (s *service) launch() error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.launches++
-	profileDir := filepath.Join(s.output, "service-profile")
-	serviceDir := filepath.Join(s.output, fmt.Sprintf("service-%d", s.launches))
-	for _, dir := range []string{profileDir, serviceDir} {
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			return err
-		}
-	}
-	argv := []string{
-		"serve", "--profile", profileDir, "--gabs", s.gabs, "--config", s.configuration, "--game", s.gameID,
-		"--state", s.statePath(), "--listen", "127.0.0.1:0", "--refresh", "1s", "--timeout", "15s",
-		// Fifty-odd granite cells under one or two miners span several game
-		// days; Superfast packs them into the run's wall-clock budget.
-		"--clock-speed", "Superfast",
-	}
-	s.report[fmt.Sprintf("service_argv_%d", s.launches)] = append([]string{s.binary}, argv...)
-	cmd := exec.CommandContext(s.ctx, s.binary, argv...)
-	// Random debug colonies may start with wounds; tend and rescue clear the
-	// medical emergency that would otherwise suspend every development goal,
-	// defense answers the hostile threats that otherwise hold the clock, and
-	// naming confirms the colony name the game asks for a few days in
-	// (STOP_REASON_COLONY_NAMING otherwise stops the clock for good).
-	cmd.Env = append(os.Environ(), "RIMGOVERNOR_CLOCK_DEBUG=1", "RIMGOVERNOR_ROUTINE_FAMILIES=shelter,tend,rescue,defense,naming")
-	stdoutPipe, err := cmd.StdoutPipe()
-	if err != nil {
-		return err
-	}
-	stderrFile, err := os.Create(filepath.Join(serviceDir, "stderr.log"))
-	if err != nil {
-		return err
-	}
-	cmd.Stderr = stderrFile
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("start rimgovernor serve: %w", err)
-	}
-	s.report[fmt.Sprintf("service_pid_%d", s.launches)] = cmd.Process.Pid
-	done := make(chan error, 1)
-	go func() { done <- cmd.Wait() }()
-	reader := bufio.NewReader(stdoutPipe)
-	firstLine, err := reader.ReadString('\n')
-	if err != nil {
-		return fmt.Errorf("read service startup line: %w", err)
-	}
-	const prefix = "RimGovernor Go player service: "
-	firstLine = strings.TrimSpace(firstLine)
-	if !strings.HasPrefix(firstLine, prefix) {
-		return fmt.Errorf("unexpected service startup line: %q", firstLine)
-	}
-	stdoutFile, err := os.Create(filepath.Join(serviceDir, "stdout.log"))
-	if err != nil {
-		return err
-	}
-	go func() { _, _ = io.Copy(stdoutFile, reader) }()
-	s.url = strings.TrimPrefix(firstLine, prefix)
-	s.report[fmt.Sprintf("service_url_%d", s.launches)] = s.url
-	s.cmd, s.done = cmd, done
-	s.files = []*os.File{stderrFile, stdoutFile}
-	if s.client == nil {
-		s.client = &http.Client{Timeout: 20 * time.Second}
-	}
-	return nil
-}
-
-func (s *service) stop() {
-	s.mu.Lock()
-	cmd, done, files := s.cmd, s.done, s.files
-	s.cmd, s.done, s.files = nil, nil, nil
-	s.mu.Unlock()
-	if cmd == nil {
-		return
-	}
-	if cmd.ProcessState == nil {
-		_ = cmd.Process.Kill()
-	}
-	<-done
-	for _, f := range files {
-		_ = f.Close()
-	}
-}
-
-// attach waits for health, a player session token and the service's own
-// bridge session to see the fixture's identity.
-func (s *service) attach(matchesIdentity func(map[string]any) bool) error {
-	health, status, err := s.api("GET", "/api/health", nil, "")
-	if err != nil {
-		return err
-	}
-	if status != 200 || na.AsString(health["service"]) != "rimgovernor" || na.AsString(health["backend"]) != "go" {
-		return fmt.Errorf("unexpected /api/health: status=%d body=%#v", status, health)
-	}
-	session, status, err := s.api("GET", "/api/player/session", nil, "")
-	if err != nil {
-		return err
-	}
-	if status != 200 || na.AsString(session["mode"]) != "explicit-player" || na.AsString(session["token"]) == "" {
-		return fmt.Errorf("unexpected /api/player/session: status=%d body=%#v", status, session)
-	}
-	s.mu.Lock()
-	s.tok = na.AsString(session["token"])
-	s.mu.Unlock()
-	deadline := time.Now().Add(90 * time.Second)
-	for {
-		state, status, err := s.api("GET", "/api/state", nil, "")
-		if err != nil {
-			return err
-		}
-		if status != 200 {
-			return fmt.Errorf("unexpected /api/state status=%d body=%#v", status, state)
-		}
-		if connected, _ := na.AsBool(state["connected"]); connected {
-			if svcIdentity, ok := na.AsMap(state["identity"]); ok && matchesIdentity(svcIdentity) {
-				s.report[fmt.Sprintf("service_state_attached_%d", s.launches)] = state
-				return nil
-			}
-		}
-		if time.Now().After(deadline) {
-			return fmt.Errorf("service did not attach to the fixture's identity in time: %#v", state)
-		}
-		select {
-		case <-s.ctx.Done():
-			return s.ctx.Err()
-		case <-time.After(500 * time.Millisecond):
-		}
-	}
-}
-
-func (s *service) api(method, path string, body map[string]any, token string) (map[string]any, int, error) {
-	s.mu.Lock()
-	url, client := s.url, s.client
-	s.mu.Unlock()
-	if url == "" {
-		return nil, 0, errors.New("service is not running")
-	}
-	var reqBody io.Reader
-	if body != nil {
-		data, err := json.Marshal(body)
-		if err != nil {
-			return nil, 0, err
-		}
-		reqBody = bytes.NewReader(data)
-	}
-	req, err := http.NewRequestWithContext(s.ctx, method, url+path, reqBody)
-	if err != nil {
-		return nil, 0, err
-	}
-	if body != nil {
-		req.Header.Set("Content-Type", "application/json")
-	}
-	if token != "" {
-		req.Header.Set("X-RimGovernor-Player", token)
-	}
-	req.Header.Set("Origin", url)
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, 0, err
-	}
-	defer resp.Body.Close()
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, 0, err
-	}
-	s.mu.Lock()
-	s.requests++
-	n := s.requests
-	s.mu.Unlock()
-	_ = os.WriteFile(filepath.Join(s.output, fmt.Sprintf("http-%04d.json", n)), mustJSON(map[string]any{
-		"method": method, "path": path, "request": body, "status": resp.StatusCode, "response": json.RawMessage(data),
-	}), 0644)
-	var out map[string]any
-	if len(data) > 0 {
-		if err := json.Unmarshal(data, &out); err != nil {
-			return nil, resp.StatusCode, fmt.Errorf("decode %s %s: %w", method, path, err)
-		}
-	}
-	return out, resp.StatusCode, nil
-}
-
-// authorityKeepAlive re-acquires bounded native player authority whenever
-// the service leaves automate mode (acknowledging any hold first), including
-// after the paired restart, exactly as routinehaulaccept does.
-type authorityKeepAlive struct {
-	svc      *service
-	identity map[string]any
-
-	mu                sync.Mutex
-	paused            bool
-	attempts          int
-	reacquired        int
-	acknowledged      int
-	acknowledgeFailed int
-	lastError         string
-}
-
-func (k *authorityKeepAlive) snapshot() map[string]any {
-	k.mu.Lock()
-	defer k.mu.Unlock()
-	out := map[string]any{
-		"attempts": k.attempts, "reacquired": k.reacquired,
-		"acknowledged": k.acknowledged, "acknowledge_failed": k.acknowledgeFailed,
-	}
-	if k.lastError != "" {
-		out["last_error"] = k.lastError
-	}
-	return out
-}
-
-func (k *authorityKeepAlive) pause(paused bool) {
-	k.mu.Lock()
-	defer k.mu.Unlock()
-	k.paused = paused
-}
-
-func (k *authorityKeepAlive) run(ctx context.Context) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-time.After(2 * time.Second):
-		}
-		k.mu.Lock()
-		paused := k.paused
-		k.mu.Unlock()
-		if paused {
-			continue
-		}
-		state, status, err := k.svc.api("GET", "/api/state", nil, "")
-		if err != nil || status != 200 {
-			continue
-		}
-		if na.AsString(state["mode"]) == "automate" {
-			continue
-		}
-		if connected, _ := na.AsBool(state["connected"]); !connected {
-			continue
-		}
-		token := k.svc.token()
-		if clk, clkStatus, clkErr := k.svc.api("GET", "/api/player/clock", nil, ""); clkErr == nil && clkStatus == 200 {
-			if holds := na.AsSlice(clk["holds"]); len(holds) > 0 {
-				ackBody := map[string]any{
-					"requestId":        fmt.Sprintf("excavation-ack-%d", time.Now().UnixNano()),
-					"expectedRevision": na.AsString(clk["revision"]),
-					"throughCursor":    na.AsString(clk["inboxCursor"]),
-				}
-				k.mu.Lock()
-				if _, ackStatus, ackErr := k.svc.api("POST", "/api/player/clock/acknowledge", ackBody, token); ackErr != nil || ackStatus != 200 {
-					if ackErr != nil {
-						k.lastError = "acknowledge: " + ackErr.Error()
-					} else {
-						k.lastError = fmt.Sprintf("acknowledge status=%d", ackStatus)
-					}
-					k.acknowledgeFailed++
-				} else {
-					k.acknowledged++
-				}
-				k.mu.Unlock()
-			}
-		}
-		k.mu.Lock()
-		k.attempts++
-		k.mu.Unlock()
-		body := map[string]any{
-			"requestId": fmt.Sprintf("excavation-resume-%d", time.Now().UnixNano()),
-			"expected":  k.identity,
-		}
-		acquired, status, err := k.svc.api("POST", "/api/player/control/resume", body, token)
-		if err != nil {
-			k.mu.Lock()
-			k.lastError = err.Error()
-			k.mu.Unlock()
-			continue
-		}
-		record, _ := na.AsMap(acquired["record"])
-		k.mu.Lock()
-		switch {
-		case status != 200:
-			k.lastError = fmt.Sprintf("resume status=%d body=%#v", status, acquired)
-		case na.AsString(record["phase"]) != "running":
-			k.lastError = fmt.Sprintf("resume not running: %#v", acquired)
-		default:
-			k.reacquired++
-			k.lastError = ""
-		}
-		k.mu.Unlock()
-	}
 }
 
 // waitMethod polls the routine review for the EnsureInitialShelter binding
@@ -1151,24 +812,6 @@ func containsCell(cells []domain.Cell, c domain.Cell) bool {
 	return false
 }
 
-func openStoreWithRetry(ctx context.Context, path string) (*store.Store, error) {
-	deadline := time.Now().Add(60 * time.Second)
-	for {
-		s, err := store.Open(ctx, path)
-		if err == nil {
-			return s, nil
-		}
-		if time.Now().After(deadline) {
-			return nil, err
-		}
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-time.After(500 * time.Millisecond):
-		}
-	}
-}
-
 func sha256File(path string) (string, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -1180,12 +823,4 @@ func sha256File(path string) (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(h.Sum(nil)), nil
-}
-
-func mustJSON(v any) []byte {
-	data, err := json.MarshalIndent(v, "", "  ")
-	if err != nil {
-		return []byte("{}")
-	}
-	return data
 }

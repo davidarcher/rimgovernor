@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 )
 
@@ -18,12 +19,12 @@ func TestCheckpointPausesSavesCopiesAndResumes(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	keepAlive := &authorityKeepAlive{}
+	var held atomic.Bool
 	var calls []string
 	mode := "automate"
 	api := func(method, path string, body map[string]any, token string) (map[string]any, int, error) {
 		calls = append(calls, method+" "+path)
-		if !keepAlive.hold.Load() {
+		if !held.Load() {
 			t.Fatal("keep-alive not held during", path)
 		}
 		switch path {
@@ -48,11 +49,11 @@ func TestCheckpointPausesSavesCopiesAndResumes(t *testing.T) {
 		return nil, 0, nil
 	}
 	cfg := RunConfig{Root: root, Headless: true, Checkpoint: &Checkpoint{Name: "workshop"}}
-	out, err := checkpoint(context.Background(), cfg, keepAlive, api, map[string]any{"colonyId": "c"}, "tok", "test")
+	out, err := checkpoint(context.Background(), cfg, held.Store, api, map[string]any{"colonyId": "c"}, "tok", "test")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if keepAlive.hold.Load() {
+	if held.Load() {
 		t.Fatal("keep-alive still held")
 	}
 	if data, err := os.ReadFile(filepath.Join(root, "profile", "Saves", "workshop.rws")); err != nil || string(data) != "save" {

@@ -1,7 +1,6 @@
 package nativeaccept
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -10,10 +9,9 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -21,171 +19,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
-
-// ServiceProcess is a prebuilt rimgovernor "serve" subprocess launched by a
-// routine-family acceptance harness against the same GABS configuration and
-// game the harness itself prepared. It mirrors cmd/routinehaulaccept's own
-// inline launch: the harness must have closed its own bridge session first,
-// since only one GABP client may be connected to the running game at a time.
-type ServiceProcess struct {
-	URL       string
-	PID       int
-	StatePath string
-
-	cmd     *exec.Cmd
-	done    chan error
-	stopped bool
-	exited  bool
-	exit    error
-	dir     string
-	client  *http.Client
-	ctx     context.Context
-	counter int
-	mu      sync.Mutex
-}
-
-// ServiceLaunch names the inputs LaunchService needs beyond the harness's own
-// Config: the binary, the routine families to compose (RIMGOVERNOR_ROUTINE_
-// FAMILIES) and any further serve flags.
-type ServiceLaunch struct {
-	Binary   string
-	Families []string
-	Extra    []string
-	Env      []string
-}
-
-// LaunchService starts rimgovernor serve under output/service with a fresh
-// SQLite state at output/service.sqlite and waits for its startup line.
-func LaunchService(ctx context.Context, cfg *Config, gabsExecutable string, launch ServiceLaunch, report Report) (*ServiceProcess, error) {
-	output := cfg.Output
-	profileDir := filepath.Join(output, "service-profile")
-	serviceDir := filepath.Join(output, "service")
-	for _, dir := range []string{profileDir, serviceDir} {
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			return nil, err
-		}
-	}
-	statePath := filepath.Join(output, "service.sqlite")
-	argv := append([]string{
-		"serve",
-		"--profile", profileDir,
-		"--gabs", gabsExecutable,
-		"--config", cfg.Configuration,
-		"--game", cfg.GameID,
-		"--state", statePath,
-		"--listen", "127.0.0.1:0",
-		"--refresh", "1s",
-		"--timeout", "15s",
-	}, launch.Extra...)
-	report["service_argv"] = append([]string{launch.Binary}, argv...)
-	cmd := exec.CommandContext(ctx, launch.Binary, argv...)
-	cmd.Env = append(os.Environ(), launch.Env...)
-	if len(launch.Families) > 0 {
-		cmd.Env = append(cmd.Env, "RIMGOVERNOR_ROUTINE_FAMILIES="+strings.Join(launch.Families, ","))
-	}
-	stdoutPipe, err := cmd.StdoutPipe()
-	if err != nil {
-		return nil, err
-	}
-	stderrFile, err := os.Create(filepath.Join(serviceDir, "stderr.log"))
-	if err != nil {
-		return nil, err
-	}
-	cmd.Stderr = stderrFile
-	if err := cmd.Start(); err != nil {
-		stderrFile.Close()
-		return nil, fmt.Errorf("start rimgovernor serve: %w", err)
-	}
-	p := &ServiceProcess{PID: cmd.Process.Pid, StatePath: statePath, cmd: cmd, done: make(chan error, 1), dir: serviceDir,
-		client: &http.Client{Timeout: 20 * time.Second}, ctx: ctx}
-	go func() { p.done <- cmd.Wait(); stderrFile.Close() }()
-	report["service_pid"] = p.PID
-
-	reader := bufio.NewReader(stdoutPipe)
-	firstLine, err := reader.ReadString('\n')
-	if err != nil {
-		p.Stop()
-		return nil, fmt.Errorf("read service startup line: %w", err)
-	}
-	const prefix = "RimGovernor Go player service: "
-	firstLine = strings.TrimSpace(firstLine)
-	if !strings.HasPrefix(firstLine, prefix) {
-		p.Stop()
-		return nil, fmt.Errorf("unexpected service startup line: %q", firstLine)
-	}
-	p.URL = strings.TrimPrefix(firstLine, prefix)
-	report["service_url"] = p.URL
-	stdoutLogFile, err := os.Create(filepath.Join(serviceDir, "stdout.log"))
-	if err != nil {
-		p.Stop()
-		return nil, err
-	}
-	go func() { _, _ = io.Copy(stdoutLogFile, reader); stdoutLogFile.Close() }()
-	return p, nil
-}
-
-// Stop kills the service if still running and waits for it to exit. The
-// service's own GABS subprocess ends with it (bridge's job object) and
-// releases the game shortly (not synchronously) afterwards; callers reopening
-// a harness session should retry for a few seconds.
-func (p *ServiceProcess) Stop() {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	if p.stopped {
-		return
-	}
-	p.stopped = true
-	if p.exited {
-		return
-	}
-	if p.cmd.ProcessState == nil {
-		_ = p.cmd.Process.Kill()
-	}
-	<-p.done
-}
-
-// Exited reports, without blocking, whether the service has already exited
-// on its own; the error names its exit. It is a Wait.Terminal for the poll
-// loops that verify the service's durable state.
-func (p *ServiceProcess) Exited() error {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	if !p.exited {
-		select {
-		case err := <-p.done:
-			p.exited, p.exit = true, err
-		default:
-			return nil
-		}
-	}
-	return fmt.Errorf("service %d exited: %w", p.PID, errOrExit(p.exit))
-}
-
-// errOrExit names a clean exit, which is as terminal for a wait as a crash.
-func errOrExit(err error) error {
-	if err == nil {
-		return errors.New("exit status 0")
-	}
-	return err
-}
-
-// AssertStopped verifies a stopped service no longer answers: its old session
-// token (and any client still holding its URL) is dead, so a game reused after
-// this service cannot be reached through the retired controller. Stop must
-// have been called first.
-func (p *ServiceProcess) AssertStopped() error {
-	p.mu.Lock()
-	stopped := p.stopped
-	p.mu.Unlock()
-	if !stopped {
-		return fmt.Errorf("service %d has not been stopped", p.PID)
-	}
-	_, status, err := p.API("GET", "/api/health", nil, "")
-	if err == nil {
-		return fmt.Errorf("stopped service %d still answers /api/health with status %d", p.PID, status)
-	}
-	return nil
-}
 
 // API issues one HTTP request against the service, recording every exchange
 // under output/service/http-NNNN.json.
@@ -360,6 +193,10 @@ type AuthorityKeepAlive struct {
 	Identity map[string]any
 	Token    string
 
+	// hold, while set, stops the loop re-acquiring: a checkpoint pauses the
+	// clock on purpose and the save needs manual control to stay manual.
+	hold atomic.Bool
+
 	mu                sync.Mutex
 	attempts          int
 	reacquired        int
@@ -395,6 +232,9 @@ func (k *AuthorityKeepAlive) Snapshot() map[string]any {
 	return out
 }
 
+// Hold pauses (true) or resumes (false) re-acquisition.
+func (k *AuthorityKeepAlive) Hold(held bool) { k.hold.Store(held) }
+
 func (k *AuthorityKeepAlive) fail(message string) {
 	k.mu.Lock()
 	k.lastError = message
@@ -407,6 +247,9 @@ func (k *AuthorityKeepAlive) run(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-time.After(2 * time.Second):
+		}
+		if k.hold.Load() {
+			continue
 		}
 		state, status, err := k.Service.API("GET", "/api/state", nil, "")
 		if err != nil || status != 200 {
@@ -602,9 +445,14 @@ func WaitGoalMethod(ctx context.Context, s *store.Store, need policy.GoalID, pre
 // stay in LoadGoalMethods) would otherwise hand the same old plan back on
 // every call that names only the last one.
 func WaitGoalMethodExcluding(ctx context.Context, s *store.Store, need policy.GoalID, seen map[domain.PlanID]bool) (domain.GoalID, domain.GoalMethod, error) {
+	return waitGoalMethod(ctx, s, Wait{Stall: StallBudget(), Interval: time.Second}, need, seen)
+}
+
+// waitGoalMethod is WaitGoalMethodExcluding under an explicit Wait.
+func waitGoalMethod(ctx context.Context, s *store.Store, w Wait, need policy.GoalID, seen map[domain.PlanID]bool) (domain.GoalID, domain.GoalMethod, error) {
 	var foundGoal domain.GoalID
 	var found domain.GoalMethod
-	err := WaitProgress(ctx, Wait{Stall: StallBudget(), Interval: time.Second}, func(ctx context.Context) (string, bool, error) {
+	err := WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
 		review, err := s.LoadRoutineReview(ctx)
 		if err != nil {
 			return "", false, err
@@ -649,7 +497,12 @@ func WaitGoalMethodExcluding(ctx context.Context, s *store.Store, need policy.Go
 // caller should follow with a fresh WaitGoalMethod rather than fail on. The
 // wait stalls (StallBudget) when no action's stage or attempt changes.
 func WaitPlanTerminal(ctx context.Context, s *store.Store, planID domain.PlanID) (state store.PlanState, incidental bool, err error) {
-	err = WaitProgress(ctx, Wait{Stall: StallBudget(), Interval: time.Second}, func(ctx context.Context) (string, bool, error) {
+	return waitPlanTerminal(ctx, s, Wait{Stall: StallBudget(), Interval: time.Second}, planID)
+}
+
+// waitPlanTerminal is WaitPlanTerminal under an explicit Wait.
+func waitPlanTerminal(ctx context.Context, s *store.Store, w Wait, planID domain.PlanID) (state store.PlanState, incidental bool, err error) {
+	err = WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
 		state, err = s.LoadPlan(ctx, planID)
 		if err != nil {
 			return "", false, err

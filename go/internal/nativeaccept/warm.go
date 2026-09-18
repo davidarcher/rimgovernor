@@ -55,6 +55,9 @@ type Game struct {
 	output   string
 	cfg      *Config
 	released bool
+	// serves counts the services Serve launched on this game, numbering
+	// their report entries and output directories.
+	serves int
 }
 
 // OpenGame opens a session on cfg's game the way every harness does
