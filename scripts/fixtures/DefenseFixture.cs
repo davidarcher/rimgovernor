@@ -16,7 +16,8 @@ namespace HomeBridge.BridgeTools
     // ranged (rifles for existing colonists), raid (a real RaidEnemy incident
     // with the chosen strategy/arrival), predator (a wild predator spawned
     // inside the band already hunting a colonist, #157), damage (one wall
-    // hit), inspect (colonists on trap cells, trap ids, sprung traps,
+    // hit), breach (the game's auto-rebuild off, one trap gone, #117),
+    // inspect (colonists on trap cells, trap ids and cells, sprung traps,
     // hostiles, the fixture predator). No completed-work injection:
     // construction, movement and combat stay native.
     public sealed class DefenseFixture
@@ -27,7 +28,7 @@ namespace HomeBridge.BridgeTools
 
         private static Pawn fixturePredator;
 
-        [Tool("test/defense_setup", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable defensive-layout fixture: op=terrain|stock|ranged|raid|predator|damage|heal|inspect|quiet.")]
+        [Tool("test/defense_setup", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable defensive-layout fixture: op=terrain|stock|ranged|raid|predator|damage|breach|heal|inspect|quiet.")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken, string op, string strategy = "ImmediateAttack", string arrival = "EdgeWalkIn", int points = 0, string wall = "", int rifles = 3, string kind = "Cougar")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -45,10 +46,11 @@ namespace HomeBridge.BridgeTools
                     case "raid": return Raid(map, strategy, arrival, points);
                     case "predator": return Predator(map, colonists, kind);
                     case "damage": return Damage(map, wall);
+                    case "breach": return Breach(map);
                     case "heal": return Heal(map);
                     case "inspect": return Inspect(map, player);
                     case "quiet": return Quiet();
-                    default: return Refuse("Use terrain, stock, ranged, raid, predator, damage, heal, inspect or quiet.");
+                    default: return Refuse("Use terrain, stock, ranged, raid, predator, damage, breach, heal, inspect or quiet.");
                 }
             }, cancellationToken).ConfigureAwait(false);
         }
@@ -218,6 +220,41 @@ namespace HomeBridge.BridgeTools
             return new { success = !target.Destroyed && target.HitPoints < before, before, after = target.HitPoints, max = target.MaxHitPoints };
         }
 
+        // Breach stages the repair precondition so the layout planner's own
+        // rebuild is what restores the trap corridor (#117): the game's
+        // auto-rebuild is switched off (the play setting and every trap's
+        // auto-rearm), its pending spike-trap blueprints and frames are
+        // removed, and one standing trap (if any survived) vanishes. Every
+        // trap missing afterwards can only come back through the planner.
+        private static object Breach(Map map)
+        {
+            Find.PlaySettings.autoRebuild = false;
+            var spike = DefDatabase<ThingDef>.GetNamed("TrapSpike");
+            var traps = map.listerBuildings.allBuildingsColonist.Where(b => b.def == spike).OrderBy(b => b.thingIDNumber).ToList();
+            // autoRearm is private to Building_Trap itself, so it is looked
+            // up on that type, not on the spike trap's subclass.
+            var autoRearm = typeof(Building_Trap).GetField("autoRearm", BindingFlags.Instance | BindingFlags.NonPublic);
+            if (autoRearm == null) return Refuse("Building_Trap.autoRearm not found.");
+            var disarmed = 0;
+            foreach (var trap in traps) { autoRearm.SetValue(trap, false); disarmed++; }
+            var pending = map.listerThings.AllThings.Where(t => t.Faction == Faction.OfPlayer
+                && ((t is Blueprint_Build bp && bp.def.entityDefToBuild == spike) || (t is Frame fr && fr.def.entityDefToBuild == spike))).ToList();
+            var cleared = pending.Select(t => new { x = t.Position.x, z = t.Position.z, kind = t.def.category.ToString() }).ToList();
+            foreach (var thing in pending) thing.Destroy(DestroyMode.Cancel);
+            // A raid that sprang every trap leaves nothing to vanish; the
+            // corridor is already the planner's to rebuild.
+            object breached = null;
+            var target = traps.FirstOrDefault();
+            if (target != null)
+            {
+                breached = new { id = target.GetUniqueLoadID(), x = target.Position.x, z = target.Position.z };
+                target.Destroy(DestroyMode.Vanish);
+                if (!target.Destroyed) return Refuse("Trap was not destroyed.");
+            }
+            var standing = map.listerBuildings.allBuildingsColonist.Count(b => b.def == spike);
+            return new { success = true, breached, disarmed, cleared, standing, autoRebuild = Find.PlaySettings.autoRebuild, tick = Find.TickManager.TicksGame };
+        }
+
         // Heal stages the post-raid precondition for the repair scenario:
         // every colonist's injury is removed so no CriticalMedical hold
         // suspends the layout goal. The controller's own tend order has no
@@ -271,7 +308,8 @@ namespace HomeBridge.BridgeTools
             // Trap ids let a later inspect tell a destroyed trap (its id is
             // gone) from its replacement (a new id on the same cell).
             var trapIds = traps.Select(t => t.GetUniqueLoadID()).OrderBy(id => id).ToList();
-            return new { success = true, traps = traps.Count, trapIds, sprung, colonistsOnTraps, colonists, hostiles, predator, walls, tick = Find.TickManager.TicksGame, paused = Find.TickManager.Paused };
+            var cells = traps.OrderBy(t => t.thingIDNumber).Select(t => new { x = t.Position.x, z = t.Position.z }).ToList();
+            return new { success = true, traps = traps.Count, trapIds, trapCells = cells, sprung, colonistsOnTraps, colonists, hostiles, predator, walls, tick = Find.TickManager.TicksGame, paused = Find.TickManager.Paused };
         }
 
         // Building_TrapRearmable keeps its armed state private; a trap whose

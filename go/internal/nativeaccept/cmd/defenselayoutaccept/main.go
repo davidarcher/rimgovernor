@@ -24,9 +24,14 @@
 // released and the layout planner re-admits every tier the raid degraded
 // (a sprung spike trap is destroyed; a breached wall is gone) until the
 // stored record is verified standing again within a bounded number of
-// ticks. Natively the run then asserts that the raiders are dead or downed,
-// at least one trap sprung, the trap and wall counts match the audited
-// layout and no colonist is left drafted.
+// ticks. The repair is the planner's own (#117): before the repair
+// service starts, the fixture switches the game's auto-rebuild off,
+// removes its pending trap blueprints and vanishes a surviving trap,
+// so every missing trap can only be replaced by a re-admitted tier
+// method. Natively the run then asserts that the raiders are dead or
+// downed, at least one trap sprung, the trap and wall counts match the
+// audited layout, the breached cell holds a trap again and no colonist is
+// left drafted.
 //
 // Like routinehaulaccept, only one GABP client may hold the game at a time:
 // the harness's fixture session and the service's session are used strictly
@@ -632,6 +637,19 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 			return err
 		}
 		report["healed_after_raid"] = healed
+		// The game's auto-rebuild must not repair the corridor for the
+		// planner: its pending trap blueprints are removed and one more
+		// trap vanishes (when any survived), so the traps missing now are
+		// the planner's to replace.
+		breach, err := fixture("breach-after-raid", map[string]any{"op": "breach"})
+		if err != nil {
+			return err
+		}
+		report["breach_after_raid"] = breach
+		missingTraps := int(na.AsNumber(after["traps"])) - int(na.AsNumber(breach["standing"]))
+		if missingTraps < 1 {
+			return fmt.Errorf("breach left no trap missing: %#v", breach)
+		}
 		if err := closeClient(); err != nil {
 			return err
 		}
@@ -644,6 +662,9 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 		report["layout_repair"] = repaired
 		if err != nil {
 			return fmt.Errorf("layout repair after raid: %w", err)
+		}
+		if rebuilt, _ := repaired["traps_rebuilt"].(int); rebuilt < missingTraps {
+			return fmt.Errorf("planner rebuilt %d traps in its repair methods, %d were missing after the breach: %#v", rebuilt, missingTraps, repaired)
 		}
 	}
 	svc.stop()
@@ -668,10 +689,9 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 	if !opts.bypass {
 		// A spike trap is trapDestroyOnSpring: springing destroys it, so a
 		// trap id from the layout audit that is gone now was sprung, and an
-		// id that is new now is its replacement (the game's own auto-rearm
-		// blueprint or the planner's re-admitted tier, whichever the census
-		// found first); the fixture's armed-state count only covers
-		// rearmable traps.
+		// id that is new now is its replacement (the planner's re-admitted
+		// tier: the breach removed the game's own auto-rearm blueprints);
+		// the fixture's armed-state count only covers rearmable traps.
 		sprung, rebuilt := trapIDDelta(after, final)
 		report["traps_sprung"] = len(sprung) + int(na.AsNumber(final["sprung"]))
 		report["traps_sprung_ids"] = sprung
@@ -687,6 +707,10 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 		}
 		if traps, want := int(na.AsNumber(final["traps"])), int(na.AsNumber(after["traps"])); traps < want {
 			return fmt.Errorf("native trap count %d after repair, %d after the layout audit", traps, want)
+		}
+		breachReport, _ := na.AsMap(report["breach_after_raid"])
+		if breached, ok := na.AsMap(breachReport["breached"]); ok && !hasCell(na.AsSlice(final["trapCells"]), int(na.AsNumber(breached["x"])), int(na.AsNumber(breached["z"]))) {
+			return fmt.Errorf("breached trap cell %v holds no trap after repair: %v", breached, final["trapCells"])
 		}
 		if walls, want := len(na.AsSlice(final["walls"])), len(na.AsSlice(after["walls"])); walls < want {
 			return fmt.Errorf("native wall count %d after repair, %d after the layout audit", walls, want)
@@ -1487,14 +1511,15 @@ func waitDefendersReleased(ctx context.Context, s *store.Store, first domain.Pla
 // waitLayoutRepaired waits until the stored layout has been re-verified
 // after the raid's combat epoch with every tier standing: the planner
 // re-opens each tier that lost a building and admits a fresh tier method
-// ("defense-<tier>-<attempt>") to rebuild whatever the game's own
-// auto-rearm blueprint does not. At least one tier must have been observed
+// ("defense-<tier>-<attempt>") to rebuild it; traps_rebuilt counts the
+// spike traps those methods placed. At least one tier must have been observed
 // degraded (the edge raid springs at least one trap), and the verification
 // must land within repairTicks of the tick the goal recovered.
 func waitLayoutRepaired(ctx context.Context, s *store.Store, world store.World, resolvedTick, repairTicks int64, w na.Wait) (map[string]any, error) {
 	out := map[string]any{"resolved_tick": resolvedTick}
 	methods := map[string]any{}
 	reopened := map[string]bool{}
+	plans := map[string]domain.PlanID{}
 	trapsRebuilt := 0
 	err := na.WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
 		review, err := s.LoadRoutineReview(ctx)
@@ -1526,6 +1551,7 @@ func waitLayoutRepaired(ctx context.Context, s *store.Store, world store.World, 
 						}
 					}
 					trapsRebuilt += traps
+					plans[string(m.Method)] = m.Plan
 					methods[string(m.Method)] = map[string]any{"plan": string(m.Plan), "actions": len(plan.Spec.Actions()), "traps": traps}
 				}
 			}
@@ -1568,12 +1594,44 @@ func waitLayoutRepaired(ctx context.Context, s *store.Store, world store.World, 
 			}
 			return "", true, nil
 		}
-		return na.Signature(standing, record.VerifiedCombat, record.VerifiedTick, len(methods), names), false, nil
+		// The rebuild is native work: while a repair plan's frames are
+		// under construction nothing in the record moves, so the review
+		// tick and each plan's stages carry the progress; repairTicks
+		// bounds the wait in game time.
+		var progress []string
+		for _, name := range sortedKeys(plans) {
+			state, err := s.LoadPlan(ctx, plans[name])
+			if err != nil {
+				return "", false, err
+			}
+			progress = append(progress, name+":"+strings.Join(stages(state.Progress), ","))
+		}
+		return na.Signature(standing, record.VerifiedCombat, record.VerifiedTick, len(methods), names, review.Tick, progress), false, nil
 	})
 	if err != nil {
 		return out, fmt.Errorf("layout not repaired (%#v): %w", out, err)
 	}
 	return out, nil
+}
+
+func sortedKeys[V any](m map[string]V) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+// hasCell reports whether the fixture's {x, z} list contains the cell.
+func hasCell(cells []any, x, z int) bool {
+	for _, raw := range cells {
+		row, _ := na.AsMap(raw)
+		if int(na.AsNumber(row["x"])) == x && int(na.AsNumber(row["z"])) == z {
+			return true
+		}
+	}
+	return false
 }
 
 func stages(progress []domain.Progress) []string {
