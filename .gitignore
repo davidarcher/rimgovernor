@@ -33,3 +33,15 @@ node_modules/
 .pnpm-store/
 dashboard/dist/
 .task/
+
+# Compiled binaries (agents keep committing stray builds)
+*.exe
+*.dll
+*.pdb
+*.so
+*.dylib
+*.a
+*.lib
+*.o
+*.obj
+*.test
