@@ -16,7 +16,15 @@ import (
 // method completes (a build or a setpoint patch): a cooler needs a while to
 // pull an enclosed room down, and a second cooler is only proposed once this
 // allowance has elapsed without the room reaching the exit temperature.
-const refrigerationCoolingTicks = 2 * 60000
+// refrigerationCoolingWindowTicks bounds each clock window the allowance
+// lends: a cooler exchanges heat once every 250 ticks (its rare tick) and
+// the review reads the stock's temperature at the window's stop, so one game
+// hour per window follows the room closely enough while a two-day
+// allowance still elapses in a few dozen windows.
+const (
+	refrigerationCoolingTicks       = 2 * 60000
+	refrigerationCoolingWindowTicks = 2500
+)
 
 // NewRoutineRefrigerationPlanner composes MaintainRefrigeration's building
 // method: cool the rooms holding warm at-risk perishable food with a Cooler
@@ -118,7 +126,7 @@ func refrigerationLatchAllowance(since, tick domain.Tick) (uint32, bool) {
 	if tick-since >= refrigerationCoolingTicks {
 		return 0, true
 	}
-	return min(uint32(120), uint32(refrigerationCoolingTicks-(tick-since))), false
+	return min(uint32(refrigerationCoolingWindowTicks), uint32(refrigerationCoolingTicks-(tick-since))), false
 }
 
 func refrigerationNativeWorkTicks(plan store.PlanState, current domain.GenerationSnapshot, tick domain.Tick) (uint32, bool) {
@@ -149,7 +157,7 @@ func refrigerationNativeWorkTicks(plan store.PlanState, current domain.Generatio
 	if tick-v.Tick >= refrigerationCoolingTicks {
 		return 0, true
 	}
-	return min(uint32(120), uint32(refrigerationCoolingTicks-(tick-v.Tick))), true
+	return min(uint32(refrigerationCoolingWindowTicks), uint32(refrigerationCoolingTicks-(tick-v.Tick))), true
 }
 
 // previewRefrigeration previews the one exact wall cell and rotation the

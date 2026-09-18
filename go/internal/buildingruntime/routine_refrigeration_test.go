@@ -278,11 +278,11 @@ func TestRefrigerationNativeWorkTicksSurviveGenerationMoves(t *testing.T) {
 		}
 	}
 	state := store.PlanState{Spec: spec, Progress: []domain.Progress{progress}}
-	if got, completed := refrigerationNativeWorkTicks(state, snapshot, 100); got != 120 || !completed {
+	if got, completed := refrigerationNativeWorkTicks(state, snapshot, 100); got != refrigerationCoolingWindowTicks || !completed {
 		t.Fatal(got, completed)
 	}
 	snapshot.Native = 12
-	if got, completed := refrigerationNativeWorkTicks(state, snapshot, 100); got != 120 || !completed {
+	if got, completed := refrigerationNativeWorkTicks(state, snapshot, 100); got != refrigerationCoolingWindowTicks || !completed {
 		t.Fatal("moved native generation lost the cooling allowance", got, completed)
 	}
 	snapshot.Load = "reload"
@@ -387,7 +387,7 @@ func TestRefrigerationEpochWithoutMethodLendsAllowanceFromLatch(t *testing.T) {
 		allowance uint32
 		exhausted bool
 	}{
-		{since, 120, false},
+		{since, refrigerationCoolingWindowTicks, false},
 		{since + refrigerationCoolingTicks - 60, 60, false},
 		{since + refrigerationCoolingTicks, 0, true},
 		{since + 3*refrigerationCoolingTicks, 0, true},

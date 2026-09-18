@@ -256,7 +256,11 @@ in an earlier epoch and re-latched when the season warmed, or a cooler the
 player set) lends the same allowance from the tick the refrigeration latch
 engaged (`RoutineLatches.RefrigerationSince`), so a second cooler is still
 proposed once it elapses; that lent time never covers `cooler_power_needed`,
-since no cooler is settling. A skilled furniture or cooler build needs one available pawn with
+since no cooler is settling. Either allowance is lent one game hour (2500
+ticks) per window: a cooler exchanges heat every 250 ticks and the review
+re-reads the stock at each stop, so the two-day allowance elapses in a few
+dozen windows rather than a thousand (`refrigeration/season-second-cooler`
+covers it natively). A skilled furniture or cooler build needs one available pawn with
 Construction enabled at the native skill minimum; it no longer waits for the
 whole colony's checkboxes to match a Construction-only allocation the work
 planner never applies. With such a plan the decision
