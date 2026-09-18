@@ -220,9 +220,11 @@ const shellHistoryLimit = 64
 // whose remaining cells happened to be placeable issued a second, taller
 // ring over a half-built hut once the true ring was briefly blocked. A shape
 // nothing standing matches is not adopted. When the best-matched shape is
-// not placeable now the review waits (BuildingShellBlocked) rather than
-// siting a fresh shell beside it. Doors are tried nearest the colony centre
-// first.
+// not placeable now, or stands whole but encloses no finished room yet, the
+// review waits (BuildingShellBlocked) rather than siting a fresh shell
+// beside it; a facility ladder passes by any ring that already encloses a
+// room, whole or not, since its furnishing step found no site there (#218).
+// Doors are tried nearest the colony centre first.
 func (r *RoutineBuildingPlanner) adoptShell(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, style policy.ShelterStyle, check func() error) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, bool, error) {
 	reader, ok := r.native.(structureReader)
 	if !ok {
@@ -297,6 +299,15 @@ func (r *RoutineBuildingPlanner) adoptShell(ctx context.Context, snapshot domain
 		if best < 0 {
 			continue
 		}
+		// A ring that already encloses a census room is a finished room,
+		// whatever cells its best-matched template still lacks. The initial
+		// shelter and expansion own such a ring (adopting it reissues a gap
+		// or waits on its roof); a facility ladder reaches here only because
+		// its furnishing step found no site inside, so it passes the ring
+		// by rather than bind its one shell method to a repair of it (#218).
+		if r.facilityLadder() && shellEncloses(shapes[best], facts.Rooms) {
+			continue
+		}
 		stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
 		var selected []policy.Preview
 		for i, building := range shapes[best] {
@@ -323,12 +334,53 @@ func (r *RoutineBuildingPlanner) adoptShell(ctx context.Context, snapshot domain
 			selected = append(selected, preview.Preview)
 		}
 		if len(selected) == 0 {
-			// The shell stands whole; nothing to adopt and nothing to site.
+			// The shell stands whole; nothing to adopt and nothing to site
+			// while it waits on its roof.
 			return nil, policy.StockObservation{}, BuildingShellBlocked, true, nil
 		}
 		return selected, stock, "", true, nil
 	}
 	return nil, policy.StockObservation{}, "", false, nil
+}
+
+// facilityLadder reports whether the planner walks a facility ladder whose
+// last rung stages a room for the furniture (comfort, workshop, hospital,
+// sleeping), as opposed to the initial shelter and expansion, whose shell is
+// the deficit itself.
+func (r *RoutineBuildingPlanner) facilityLadder() bool {
+	return r.goal == policy.EnsureComfort || r.goal == policy.MaintainResource || r.goal == policy.MaintainMedicalCare || r.goal == policy.MaintainSleeping
+}
+
+// shellEncloses reports whether a standing ring is a finished room: some
+// enclosed room of the same-tick census lies within the ring. A ring still
+// waiting for its roof encloses nothing, and a facility ladder keeps waiting
+// on it rather than siting a second ring beside an unfinished first (#218).
+func shellEncloses(perimeter []domain.Building, rooms domain.Fact[policy.RoomObservation]) bool {
+	census, known := rooms.Value()
+	if !known || len(perimeter) == 0 {
+		return false
+	}
+	ring := make(map[domain.Cell]bool, len(perimeter))
+	minimum, maximum := perimeter[0].Cell(), perimeter[0].Cell()
+	for _, b := range perimeter {
+		cell := b.Cell()
+		ring[cell] = true
+		minimum.X, minimum.Z = min(minimum.X, cell.X), min(minimum.Z, cell.Z)
+		maximum.X, maximum.Z = max(maximum.X, cell.X), max(maximum.Z, cell.Z)
+	}
+	for _, room := range census.Rooms {
+		if enclosed, known := room.Enclosed.Value(); !known || !enclosed || len(room.Cells) == 0 {
+			continue
+		}
+		inside := true
+		for _, cell := range room.Cells {
+			inside = inside && !ring[cell] && cell.X > minimum.X && cell.X < maximum.X && cell.Z > minimum.Z && cell.Z < maximum.Z
+		}
+		if inside {
+			return true
+		}
+	}
+	return false
 }
 
 // earlierShells reads back the rings this controller ordered earlier in this

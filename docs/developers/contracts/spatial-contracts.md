@@ -109,9 +109,13 @@ holds only that shape's missing cells; its walls do not wait for a door that
 already stands, and a ring whose door was cancelled is reissued door first
 with the walls gated on it as a fresh shell would be. When a missing cell of
 the best-matched shape is not placeable now (for instance a cancelled frame
-still clearing) the review reports `earlier_shell_blocked` and waits: it
+still clearing), or when it stands whole but the room census lists no enclosed
+room inside it yet, the review reports `earlier_shell_blocked` and waits: it
 never adopts a lesser shape at the same door nor sites a second shell beside
-the first. A controller restarted with an empty journal recognises template
+an unfinished first. A facility ladder (comfort, workshop, hospital, sleeping)
+reaches adoption only because its furnishing step found no site, so it passes
+by every ring that already encloses a census room, whole or a template cell
+short, and sites a fresh shell for the facility, at most one per goal epoch. A controller restarted with an empty journal recognises template
 shells from the census alone; a grown shell is then not recognised and the
 routine sites afresh.
 

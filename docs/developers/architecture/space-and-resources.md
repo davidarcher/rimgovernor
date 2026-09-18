@@ -66,7 +66,8 @@ once a generator definition is buildable) is furnished into a Workshop-hosting
 room (a Workshop, a generic Room, or the starter shell once the sleeping spots
 have made it a Barracks — the bench keeps working there and a second ring would
 split the same builders), or a starter shell is staged when no such room
-exists. A bench gated only by research records its projects as the derived
+exists or the only room is too full to site the bench (one sleeping spot per
+colonist can fill the starter hut). A bench gated only by research records its projects as the derived
 `EnsureResearch` target (`workshop_research_needed`); one needing a skilled
 builder, or power no generator can supply, is an explicit
 `workshop_bench_unavailable` prerequisite. Once a bench with the recipe exists

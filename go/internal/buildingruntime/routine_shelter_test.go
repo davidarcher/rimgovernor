@@ -10,6 +10,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -1005,5 +1006,77 @@ func TestRoutineShelterRepairsAGapLeftByAnUnsuccessfulCellUnderTheSameEpoch(t *t
 	third, err := planner.Step(ctx)
 	if err != nil || third.Reason != BuildingMethodExistingWork {
 		t.Fatal(third, err)
+	}
+}
+
+// A whole ring blocks the initial shelter (its roof is that goal's own
+// budget) and a facility ladder while it encloses no finished room; once the
+// census lists an enclosed room inside it, a facility ladder whose furnishing
+// step found no site there passes the ring by and sites afresh (#218).
+func TestFacilityLadderPassesAWholeRoofedRingBy(t *testing.T) {
+	t.Parallel()
+	r, _, base := shelterFixture(t)
+	base.reply.GetObserved().PlayerTechLevel = proto.String("Neolithic")
+	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
+	hutCells(base, 21, func(int32, int32) bool { return true })
+	ring, err := domain.EllipseFootprint(domain.Cell{X: 10, Z: 10}, 4, 4, domain.EllipseNorthSouth, domain.South)
+	if err != nil {
+		t.Fatal(err)
+	}
+	n := &adoptingNative{sleepingNative: base}
+	for i, b := range ring.Placements("Wall", "Door", "WoodLog") {
+		n.standing = append(n.standing, bridge.Structure{ID: strconv.Itoa(i), Definition: b.Definition(), Cell: b.Cell(), Status: "built"})
+	}
+	snapshot := r.reviewer.player.session.State().Snapshot
+	snapshot.Plan, snapshot.Revision = "routine-shell-test", 1
+	n.last = snapshot
+	facts := observation.ColonyProjection{Bounds: policy.Bounds{Width: 21, Height: 21}, Center: domain.Cell{X: 10, Z: 10}, Identity: observation.Identity{Tick: domain.Tick(base.reply.GetObserved().Context.GetTick())}}
+	inside := policy.Room{ID: "hut", Role: domain.Known(policy.RoomRoleBarracks), Enclosed: domain.Known(true), Cells: []domain.Cell{{X: 10, Z: 10}, {X: 11, Z: 10}}}
+	unroofed := inside
+	unroofed.Enclosed = domain.Known(false)
+	elsewhere := inside
+	elsewhere.Cells = []domain.Cell{{X: 1, Z: 1}}
+	for _, test := range []struct {
+		name    string
+		goal    policy.GoalID
+		rooms   domain.Fact[policy.RoomObservation]
+		adopted bool
+	}{
+		{"initial shelter waits on its roof", policy.EnsureInitialShelter, domain.Known(policy.RoomObservation{Rooms: []policy.Room{inside}}), true},
+		{"workshop waits while the ring is unroofed", policy.MaintainResource, domain.Known(policy.RoomObservation{Rooms: []policy.Room{unroofed}}), true},
+		{"workshop waits without a census", policy.MaintainResource, domain.Unknown[policy.RoomObservation](), true},
+		{"a room elsewhere is not this ring's", policy.MaintainResource, domain.Known(policy.RoomObservation{Rooms: []policy.Room{elsewhere}}), true},
+		{"workshop passes a finished room by", policy.MaintainResource, domain.Known(policy.RoomObservation{Rooms: []policy.Room{inside}}), false},
+		{"comfort passes a finished room by", policy.EnsureComfort, domain.Known(policy.RoomObservation{Rooms: []policy.Room{inside}}), false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			planner := &RoutineBuildingPlanner{reviewer: r.reviewer, native: n, goal: test.goal, definition: "Wall", shelter: true}
+			facts := facts
+			facts.Rooms = test.rooms
+			selected, _, reason, adopted, err := planner.adoptShell(context.Background(), snapshot, facts, nil, policy.ShelterHut, func() error { return nil })
+			if err != nil || len(selected) != 0 || adopted != test.adopted {
+				t.Fatal(selected, reason, adopted, err)
+			}
+			if test.adopted && reason != BuildingShellBlocked || !test.adopted && reason != "" {
+				t.Fatal("reason", reason)
+			}
+		})
+	}
+	// A ring one template cell short still encloses the room (the #218
+	// checkpoint hut): the initial shelter repairs the gap, while a facility
+	// ladder passes it by rather than bind its one shell method to that
+	// wall.
+	gap := &adoptingNative{sleepingNative: base, standing: n.standing[:len(n.standing)-1], last: snapshot}
+	roomed := facts
+	roomed.Rooms = domain.Known(policy.RoomObservation{Rooms: []policy.Room{inside}})
+	for _, test := range []struct {
+		goal    policy.GoalID
+		adopted bool
+	}{{policy.EnsureInitialShelter, true}, {policy.MaintainResource, false}} {
+		planner := &RoutineBuildingPlanner{reviewer: r.reviewer, native: gap, goal: test.goal, definition: "Wall", shelter: true}
+		selected, _, reason, adopted, err := planner.adoptShell(context.Background(), snapshot, roomed, nil, policy.ShelterHut, func() error { return nil })
+		if err != nil || reason != "" || adopted != test.adopted || (len(selected) == 1) != test.adopted {
+			t.Fatal(test.goal, selected, reason, adopted, err)
+		}
 	}
 }

@@ -31,7 +31,9 @@ const (
 	BuildingMethodRefused      RoutineBuildingReason = "shared_admission_refused"
 	// BuildingShellBlocked: a shell begun earlier stands at the colony centre
 	// but the cells it still needs are not placeable this review, or it
-	// stands whole; the routine waits rather than site a second shell.
+	// stands whole without a finished room inside; the routine waits rather
+	// than site a second shell. A facility ladder at a whole ring that
+	// already encloses a room sites afresh instead (#218).
 	BuildingShellBlocked    RoutineBuildingReason = "earlier_shell_blocked"
 	BuildingMethodExhausted RoutineBuildingReason = "retry_bound_exhausted"
 	// BuildingExcavationBlocked: the goal's excavation project cannot be

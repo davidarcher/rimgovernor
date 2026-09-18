@@ -46,11 +46,12 @@ const (
 // a choice dialog the DLC save opens by itself (Verse.Dialog_NodeTree)
 // force-pauses the game and holds every development row as an emergency
 // until the dialog planner answers it (#156). The sleeping and shelter
-// families (both serve EnsureInitialShelter with sleeping spots) stay off:
-// the checkpoint's single hut is the workshop room, and eight sleeping spots
-// (one per colonist) fill its interior before the bench rung runs, so every
-// smithy preview lands on an occupied cell (the M4 live runs). An unserved
-// priority-2 shelter goal gates only comfort, never MaintainResource.
+// families (both serve EnsureInitialShelter with sleeping spots) stay off
+// for time: with them on, eight sleeping spots fill the checkpoint hut and
+// the workshop ladder stages a second shell before its bench (#218, a 16
+// minute run whose ingredient stockpile then has no clean floor, #223). An
+// unserved priority-2 shelter goal gates only comfort, never
+// MaintainResource.
 const ladderFamilies = "temperature,comfort,work,supply,defense,tend,rescue,medical,field,food-storage,acquisition,cooking,production-policy,resource,workshop,research,ingredient-storage,gear,dialog,naming"
 
 // window is how long the ladder gets to land its first product: research
