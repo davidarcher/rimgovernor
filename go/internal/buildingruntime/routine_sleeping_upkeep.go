@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -188,10 +189,11 @@ func sleepingNativeWorkTicks(plan store.PlanState, current domain.GenerationSnap
 	if _, ok := p.Action().BedAssign(); !ok {
 		return 0
 	}
-	current.Plan, current.Revision = plan.Spec.ID(), plan.Spec.Revision()
+	// The assignment's observation is taken at the root plan's scope, so
+	// only the world (colony, load, map) is compared, not the plan.
 	v := p.View()
 	effect, known := v.Effect.Value()
-	if v.Stage != domain.Completed || v.Unresolved || !known || effect != domain.EffectCompleted || !v.Snapshot.Matches(current) || tick < v.Tick || tick-v.Tick >= sleepingObservationBudget {
+	if v.Stage != domain.Completed || v.Unresolved || !known || effect != domain.EffectCompleted || !boundary.World(v.Snapshot, current) || tick < v.Tick || tick-v.Tick >= sleepingObservationBudget {
 		return 0
 	}
 	return min(uint32(sleepingObservationSlice), uint32(sleepingObservationBudget-(tick-v.Tick)))

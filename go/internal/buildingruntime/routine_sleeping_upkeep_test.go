@@ -186,7 +186,9 @@ func TestSleepingUpkeepRetriesUnadmittedAssignment(t *testing.T) {
 		if _, err = db.RecordReceipt(ctx, plan, action, 1, domain.ReceiptUnknown); err != nil {
 			t.Fatal(err)
 		}
-		if _, err = db.Observe(ctx, plan, domain.Observation{Action: action, Attempt: 1, Snapshot: snapshot, Tick: review.Tick, Causality: domain.AfterDispatch, Effect: effect}, snapshot); err != nil {
+		// The worker observes at the root plan's scope, as the live
+		// executor does.
+		if _, err = db.Observe(ctx, plan, domain.Observation{Action: action, Attempt: 1, Snapshot: review.Snapshot, Tick: review.Tick, Causality: domain.AfterDispatch, Effect: effect}, review.Snapshot); err != nil {
 			t.Fatal(err)
 		}
 		// The worker retires an absent attempt by cancelling it (the live
