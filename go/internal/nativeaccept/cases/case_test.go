@@ -2,7 +2,11 @@ package cases
 
 import (
 	"context"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 )
 
 func noop(context.Context, Session) error { return nil }
@@ -47,5 +51,26 @@ func TestAllSortsAndLookupFinds(t *testing.T) {
 	}
 	if _, ok := Lookup("c/none"); ok {
 		t.Fatalf("Lookup(c/none) found a case")
+	}
+}
+
+func TestExecuteRefusesLintFailureBeforeOpening(t *testing.T) {
+	output := t.TempDir()
+	c := Case{Name: "lint/nobudget", Scope: "lint", Start: DebugStart{}, Run: noop}
+	report, code := Execute(context.Background(), c, Options{Root: output, Output: output, Timeout: time.Second})
+	if code == 0 {
+		t.Fatalf("Execute passed a case without a budget")
+	}
+	if err, _ := report["error"].(string); !strings.Contains(err, "Budget is missing") {
+		t.Fatalf("error = %q", err)
+	}
+	if _, has := report["boot_ms"]; has {
+		t.Fatalf("the game was opened for a case that fails lint: %v", report)
+	}
+	if _, err := os.Stat(filepath.Join(output, "lint", "nobudget", "result.json")); err != nil {
+		t.Fatalf("no result.json: %v", err)
+	}
+	if stats, ok := report["wait_stats"].(map[string]any); !ok || stats["stalled"] != 0 {
+		t.Fatalf("wait_stats = %#v", report["wait_stats"])
 	}
 }

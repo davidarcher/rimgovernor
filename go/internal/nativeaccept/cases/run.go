@@ -11,10 +11,6 @@ import (
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 )
 
-// DefaultBudget is the wall-clock budget a case gets when it declares none:
-// the checklist's minute-scale target, well inside the -timeout safety net.
-const DefaultBudget = 10 * time.Minute
-
 // DefaultTimeout is the per-case safety net when Options names none.
 const DefaultTimeout = 20 * time.Minute
 
@@ -44,17 +40,25 @@ func (o Options) CaseOutput(c Case) string {
 
 // Execute runs one case end to end (prepare, open, start, quiet, freeze,
 // Run, close) and writes its report; it returns the report and the process
-// exit code Report.Finalize computed.
+// exit code Report.Finalize computed. A case that fails Lint is refused
+// before the game opens; the run fails when Run took longer than the
+// budget, and records under wait_stats how many of its waits stalled.
 func Execute(ctx context.Context, c Case, opts Options) (na.Report, int) {
 	output := opts.CaseOutput(c)
 	report := na.NewReport(c.Scope, opts.Headless)
 	report["case"] = c.Name
 	started := time.Now()
 	report["started_at"] = started.UTC().Format(time.RFC3339Nano)
+	na.ResetWaitStats()
 	code := func() int {
 		finished := time.Now()
 		report["finished_at"] = finished.UTC().Format(time.RFC3339Nano)
 		report["wall_ms"] = finished.Sub(started).Milliseconds()
+		stats := na.WaitStats()
+		report["wait_stats"] = stats
+		if stalled, _ := stats["stalled"].(int); stalled > 0 {
+			report["stalled_waits"] = stalled
+		}
 		return report.Finalize(output)
 	}
 	if err := os.MkdirAll(output, 0755); err != nil {
@@ -65,12 +69,13 @@ func Execute(ctx context.Context, c Case, opts Options) (na.Report, int) {
 		report["error"] = fmt.Sprintf("%s is not empty: every run needs a fresh output directory", output)
 		return report, code()
 	}
+	if err := c.Lint(); err != nil {
+		report["error"] = err.Error()
+		return report, code()
+	}
 	budget := c.Budget
 	if opts.Budget > 0 {
 		budget = opts.Budget
-	}
-	if budget <= 0 {
-		budget = DefaultBudget
 	}
 	report["budget_ms"] = budget.Milliseconds()
 	if opts.Stall > 0 {
@@ -124,7 +129,7 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 		return err
 	}
 	report["discovery"] = names
-	s := &session{game: game, harness: h, names: names, report: report}
+	s := &session{c: c, game: game, harness: h, names: names, report: report}
 	switch start := c.Start.(type) {
 	case DebugStart:
 		if _, err := na.StartDebugGameSized(ctx, h, names, c.Quiet, resolvedStart(start).(DebugStart).Size); err != nil {
@@ -198,12 +203,14 @@ func readIdentity(ctx context.Context, h *na.Harness) (map[string]any, error) {
 
 // session is the runner's Session over today's na.Game.
 type session struct {
+	c        Case
 	game     *na.Game
 	harness  *na.Harness
 	names    []string
 	identity map[string]any
 	prepared map[string]any
 	report   na.Report
+	runtime  *na.ScenarioRuntime
 }
 
 func (s *session) Harness() *na.Harness     { return s.harness }
@@ -212,3 +219,32 @@ func (s *session) Identity() map[string]any { return s.identity }
 func (s *session) Prepared() map[string]any { return s.prepared }
 func (s *session) Report() na.Report        { return s.report }
 func (s *session) Release() error           { return s.game.Release() }
+
+// Runtime is the case's scenario runtime over a controller clock the
+// runner acquires on first use; the discovered tools let AdvanceGame
+// dismiss the letters it acknowledges (checklist item 4).
+func (s *session) Runtime(ctx context.Context) (*na.ScenarioRuntime, error) {
+	if s.runtime != nil {
+		return s.runtime, nil
+	}
+	clock := &na.ScenarioClock{Wire: s.harness.WireFunc(), Identity: s.identity, Owner: na.Controller, Report: s.report}
+	if _, err := clock.Acquire(ctx, "acquire"); err != nil {
+		return nil, err
+	}
+	s.runtime = &na.ScenarioRuntime{Query: s.harness.Call, Clock: clock, Report: s.report, Tools: s.names}
+	return s.runtime, nil
+}
+
+// Advance is na.AdvanceGame on Runtime with the case's Letters as the
+// expected interruption letters when it declared any; the case's own
+// options follow and may override them.
+func (s *session) Advance(ctx context.Context, ticks uint64, opts ...na.AdvanceOption) (map[string]any, error) {
+	rt, err := s.Runtime(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if s.c.Letters != nil {
+		opts = append([]na.AdvanceOption{na.WithExpectedLetters(s.c.Letters...)}, opts...)
+	}
+	return na.AdvanceGame(ctx, rt, ticks, opts...)
+}

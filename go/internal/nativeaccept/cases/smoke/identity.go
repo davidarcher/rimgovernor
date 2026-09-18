@@ -5,6 +5,7 @@ package smoke
 import (
 	"context"
 	"fmt"
+	"time"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
@@ -15,6 +16,8 @@ func init() {
 		Name:  "smoke/identity",
 		Scope: "Runner smoke: the shared runner opens a quiet debug game, freezes needs and hands the case a loaded identity.",
 		Start: cases.DebugStart{},
+		// Boot plus a handful of reads on a kept process.
+		Budget: 5 * time.Minute,
 		Run: func(ctx context.Context, s cases.Session) error {
 			identity := s.Identity()
 			for _, key := range []string{"colonyId", "loadToken"} {

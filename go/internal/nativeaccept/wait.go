@@ -164,6 +164,14 @@ func recordWait(quiet time.Duration, signature string, stalled bool) {
 	}
 }
 
+// ResetWaitStats empties the process's wait statistics so a runner that
+// executes several cases in one process reports each case's own.
+func ResetWaitStats() {
+	waitStats.mu.Lock()
+	defer waitStats.mu.Unlock()
+	waitStats.waits, waitStats.stalled, waitStats.maxQuiet, waitStats.maxLabel = 0, 0, 0, ""
+}
+
 // WaitStats is the run's wait statistics for the report.
 func WaitStats() map[string]any {
 	waitStats.mu.Lock()

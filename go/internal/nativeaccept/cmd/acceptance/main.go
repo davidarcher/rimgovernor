@@ -78,7 +78,7 @@ func parseRun(args []string, stderr io.Writer) ([]cases.Case, cases.Options, err
 	fs.StringVar(&opts.GameID, "game", "rimgovernor-trial", "configured game ID")
 	fs.BoolVar(&opts.Headless, "headless", true, "use the headless profile (false: windowed)")
 	fs.DurationVar(&opts.Timeout, "timeout", cases.DefaultTimeout, "per-case safety net")
-	fs.DurationVar(&opts.Budget, "budget", 0, "per-case wall-clock budget that fails the run (default: the case's own, else 10m)")
+	fs.DurationVar(&opts.Budget, "budget", 0, "per-case wall-clock budget that fails the run (default: the case's own)")
 	fs.DurationVar(&opts.Stall, "stall", 0, "stall budget for the shared waits (default: RIMGOVERNOR_ACCEPT_STALL or 3m)")
 	if err := fs.Parse(flagArgs); err != nil {
 		return nil, opts, err
@@ -103,6 +103,9 @@ func parseRun(args []string, stderr io.Writer) ([]cases.Case, cases.Options, err
 		c, ok := cases.Lookup(name)
 		if !ok {
 			return nil, opts, fmt.Errorf("unknown case %q (see `acceptance list`)", name)
+		}
+		if err := c.Lint(); err != nil {
+			return nil, opts, err
 		}
 		selected = append(selected, c)
 	}

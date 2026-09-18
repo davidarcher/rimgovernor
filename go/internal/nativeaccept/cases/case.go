@@ -11,7 +11,9 @@ package cases
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"regexp"
 	"sort"
 	"sync"
 	"time"
@@ -93,6 +95,13 @@ type Session interface {
 	// Release closes the harness's bridge session without stopping the game
 	// so a service can take the sole GABP slot.
 	Release() error
+	// Runtime is a scenario runtime over a controller clock the runner
+	// acquires on first use, for the cases that advance the game
+	// themselves.
+	Runtime(ctx context.Context) (*na.ScenarioRuntime, error)
+	// Advance is na.AdvanceGame on Runtime with the case's Letters passed
+	// as the expected interruption letters.
+	Advance(ctx context.Context, ticks uint64, opts ...na.AdvanceOption) (map[string]any, error)
 }
 
 // Case is one registered acceptance case.
@@ -103,18 +112,27 @@ type Case struct {
 	Scope string
 	// Start is how the game reaches the case's precondition.
 	Start Start
-	// Quiet defaults to na.QuietRequired; a Loud case declares it.
+	// Quiet defaults to na.QuietRequired; a Loud (or QuietIfAvailable)
+	// case declares it and says why in Reason.
 	Quiet na.QuietMode
+	// Reason says why the case departs from the checklist's defaults: a
+	// storyteller that is not quieted (item 4) or a DebugStart bigger
+	// than the default (item 2). Lint requires it for either.
+	Reason string
 	// Keep are the NeedDef names (Food, Rest, Joy...) left unfrozen;
 	// everything else is frozen before Run.
 	Keep []string
 	// Serve is nil for a bridge-only case.
 	Serve *ServeSpec
 	// Budget fails the run when exceeded, distinct from the -timeout safety
-	// net; zero takes the runner's default.
+	// net. Every case declares one, at most MaxBudget (checklist item 6).
 	Budget time.Duration
 	// Letters are the interruption letters the case expects, as
-	// {defName, label} pairs.
+	// {label, letterDef} pairs in AdvanceGame's order. Nil leaves
+	// Session.Advance on AdvanceGame's lenient default (the acknowledged
+	// informational letters); a non-nil slice, even empty, makes every
+	// advance a strict window over exactly these letters
+	// (na.WithExpectedLetters).
 	Letters [][2]string
 	// Run is the assertion.
 	Run func(ctx context.Context, s Session) error
@@ -132,6 +150,55 @@ func (c Case) Validate() error {
 		return fmt.Errorf("case %s has no Run", c.Name)
 	}
 	return nil
+}
+
+// MaxBudget is the largest Budget a case may declare: past ~15 minutes
+// the precondition is not staged well enough or the assertion covers too
+// much (checklist item 6).
+const MaxBudget = 15 * time.Minute
+
+// nameShape is "<area>/<case>": lowercase words joined by hyphens on each
+// side of one slash, so the output path and the report row are the name.
+var nameShape = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*/[a-z0-9]+(-[a-z0-9]+)*$`)
+
+// Lint holds c to the performance checklist in
+// docs/developers/testing/choose-tests.md: what the runner cannot make
+// true by construction it refuses to run. Every violation is reported,
+// each naming the rule and the checklist item, so a new case fixes them
+// in one round. The registry test in cmd/acceptance walks All() with it.
+func (c Case) Lint() error {
+	var errs []error
+	fail := func(rule string, item int, title string) {
+		errs = append(errs, fmt.Errorf("case %q: %s (checklist item %d, %q)", c.Name, rule, item, title))
+	}
+	if err := c.Validate(); err != nil {
+		errs = append(errs, err)
+	}
+	if !nameShape.MatchString(c.Name) {
+		errs = append(errs, fmt.Errorf("case %q: Name is not <area>/<case> (lowercase words and hyphens on each side of one slash)", c.Name))
+	}
+	switch {
+	case c.Budget <= 0:
+		fail("Budget is missing: every case declares the wall clock it needs", 6, "Budget in minutes and say so")
+	case c.Budget > MaxBudget:
+		fail(fmt.Sprintf("Budget %s exceeds %s: stage the precondition or split the assertion", c.Budget, MaxBudget), 6, "Budget in minutes and say so")
+	}
+	if c.Quiet != na.QuietRequired && c.Reason == "" {
+		fail(fmt.Sprintf("Quiet is %s without a Reason: only an assertion about an interruption keeps the storyteller", c.Quiet), 4, "Quiet by default")
+	}
+	if d, ok := c.Start.(DebugStart); ok && c.Reason == "" {
+		if d.Size.MapSize > na.DefaultMapSize || d.Size.PlanetCoverage > na.DefaultPlanetCoverage {
+			fail(fmt.Sprintf("DebugStart %dx%d at %g planet coverage is bigger than the default %dx%d at %g without a Reason", d.Size.MapSize, d.Size.MapSize, d.Size.PlanetCoverage, na.DefaultMapSize, na.DefaultMapSize, na.DefaultPlanetCoverage), 2, "Small map, tiny planet")
+		}
+	}
+	if c.Serve != nil {
+		switch c.Start.(type) {
+		case Save, Fixture:
+		default:
+			fail("Serve declared on a bare DebugStart: a serve-driven case opens on a committed save or a fixture op", 1, "Open on the precondition")
+		}
+	}
+	return errors.Join(errs...)
 }
 
 var (
