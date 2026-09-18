@@ -152,6 +152,11 @@ func run(branch, message, messageFile string, lockTimeout time.Duration, skipTes
 		return err
 	}
 	fmt.Printf("landed %s on main as %s\n", branch, landed)
+	// main may have moved again while the tests ran; catch the branch up
+	// so the identical-tree check below sees only what this landing missed.
+	if _, err := git(worktree, "merge", "--no-edit", "main"); err != nil {
+		_, _ = git(worktree, "merge", "--abort")
+	}
 	if _, err := git(worktree, "diff", "--quiet", "main"); err == nil {
 		if _, err := git(worktree, "reset", "--hard", "main"); err != nil {
 			return err
