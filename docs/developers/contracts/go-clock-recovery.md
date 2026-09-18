@@ -251,7 +251,12 @@ refrigeration planner lends its cooling allowance to `cooler_power_needed` as
 well as to `cooling`; a cooler still unpowered when the allowance runs out is a
 genuine hold for the power family. The allowance keys on the method's dispatch
 scope and world, not the native generation, which moves with every stopped
-window. A skilled furniture or cooler build needs one available pawn with
+window. A goal epoch with no cooler method of its own (a freezer that settled
+in an earlier epoch and re-latched when the season warmed, or a cooler the
+player set) lends the same allowance from the tick the refrigeration latch
+engaged (`RoutineLatches.RefrigerationSince`), so a second cooler is still
+proposed once it elapses; that lent time never covers `cooler_power_needed`,
+since no cooler is settling. A skilled furniture or cooler build needs one available pawn with
 Construction enabled at the native skill minimum; it no longer waits for the
 whole colony's checkboxes to match a Construction-only allocation the work
 planner never applies. With such a plan the decision

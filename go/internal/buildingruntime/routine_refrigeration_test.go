@@ -341,3 +341,67 @@ func TestRefrigerationUsedSetpointPatchLendsCoolingTime(t *testing.T) {
 		t.Fatal(next, err)
 	}
 }
+
+// A freezer that settled in an earlier epoch has no cooler method in the
+// epoch that re-latched when the season warmed, so the allowance is lent
+// from the tick the latch engaged and a second cooler becomes proposable
+// once it elapses (#202).
+func TestRefrigerationEpochWithoutMethodLendsAllowanceFromLatch(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	p, db, n, _ := refrigerationFixture(t, true)
+	n.buildings.GetObserved().Buildings[0].Settings.TargetTemperatureC = proto.Float64(-5)
+	review, err := db.LoadRoutineReview(ctx)
+	if err != nil || !review.Latches.Refrigeration || review.Latches.RefrigerationSince != review.Tick {
+		t.Fatal(review.Latches, review.Tick, err)
+	}
+	// Re-reviewing keeps the tick the latch first engaged.
+	if _, err := p.reviewer.Step(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if again, err := db.LoadRoutineReview(ctx); err != nil || again.Latches.RefrigerationSince != review.Latches.RefrigerationSince {
+		t.Fatal(again.Latches, err)
+	}
+	result, err := p.Step(ctx)
+	if err != nil || result.Reason != RoutineBuildingReason(policy.RefrigerationWait) || result.Decision.Admitted || n.previews != 0 {
+		t.Fatal(result, err)
+	}
+	if result.NativeWorkTicks == 0 {
+		t.Fatal("epoch without a cooler method lent no native cooling time")
+	}
+	var goal store.GoalState
+	for _, binding := range review.Goals {
+		if binding.Need == policy.MaintainRefrigeration {
+			if goal, err = db.LoadGoal(ctx, binding.Goal); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	if len(goal.Methods) != 0 {
+		t.Fatal(goal.Methods)
+	}
+	since := review.Latches.RefrigerationSince
+	snapshot := p.reviewer.player.State().Snapshot
+	for _, row := range []struct {
+		tick      domain.Tick
+		allowance uint32
+		exhausted bool
+	}{
+		{since, 120, false},
+		{since + refrigerationCoolingTicks - 60, 60, false},
+		{since + refrigerationCoolingTicks, 0, true},
+		{since + 3*refrigerationCoolingTicks, 0, true},
+	} {
+		allowance, exhausted, lent, err := refrigerationOutputAllowance(ctx, db, goal.Goal, snapshot, row.tick, since)
+		if err != nil || !lent || allowance != row.allowance || exhausted != row.exhausted {
+			t.Fatal(row, allowance, exhausted, lent, err)
+		}
+	}
+	// A latch without a tick (a review written before the field existed)
+	// or a rewound clock lends nothing and never exhausts.
+	for _, row := range []struct{ since, tick domain.Tick }{{0, since + 3*refrigerationCoolingTicks}, {since, since - 1}} {
+		if allowance, exhausted, lent, err := refrigerationOutputAllowance(ctx, db, goal.Goal, snapshot, row.tick, row.since); err != nil || !lent || allowance != 0 || exhausted {
+			t.Fatal(row, allowance, exhausted, lent, err)
+		}
+	}
+}

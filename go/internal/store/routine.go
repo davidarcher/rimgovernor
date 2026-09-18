@@ -313,6 +313,12 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 			return RoutineReviewResult{}, err
 		}
 		disaster = needs.Disaster
+		if needs.Latches.Refrigeration {
+			needs.Latches.RefrigerationSince = request.Tick
+			if latches.Refrigeration && latches.RefrigerationSince > 0 {
+				needs.Latches.RefrigerationSince = latches.RefrigerationSince
+			}
+		}
 	}
 	old := map[domain.GoalID]GoalState{}
 	assessed := map[domain.GoalID]bool{}

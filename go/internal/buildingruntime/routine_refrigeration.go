@@ -82,22 +82,43 @@ func (r *RoutineBuildingPlanner) selectRefrigeration(call context.Context, facts
 
 // refrigerationOutputAllowance lends bounded native cooling time after the
 // latest completed cooler method; exhausted reports that such a method
-// completed and its allowance has fully elapsed.
-func refrigerationOutputAllowance(ctx context.Context, journal *store.Store, goal domain.Goal, current domain.GenerationSnapshot, tick domain.Tick) (allowance uint32, exhausted bool, err error) {
+// completed and its allowance has fully elapsed. An epoch with no cooler
+// method of its own (a freezer that settled in an earlier epoch and
+// re-latched when the season warmed, or a cooler the player set) lends the
+// same allowance from the tick the latch engaged, so a second cooler can
+// still be proposed once it elapses (#202); lent reports that case.
+func refrigerationOutputAllowance(ctx context.Context, journal *store.Store, goal domain.Goal, current domain.GenerationSnapshot, tick domain.Tick, since domain.Tick) (allowance uint32, exhausted bool, lent bool, err error) {
 	methods, err := journal.LoadGoalMethods(ctx, goal.ID, goal.Epoch)
 	if err != nil {
-		return 0, false, err
+		return 0, false, false, err
+	}
+	if len(methods) == 0 {
+		allowance, exhausted = refrigerationLatchAllowance(since, tick)
+		return allowance, exhausted, true, nil
 	}
 	for _, method := range methods {
 		plan, err := journal.LoadPlan(ctx, method.Plan)
 		if err != nil {
-			return 0, false, err
+			return 0, false, false, err
 		}
 		remaining, completed := refrigerationNativeWorkTicks(plan, current, tick)
 		allowance = max(allowance, remaining)
 		exhausted = exhausted || completed && remaining == 0
 	}
-	return allowance, exhausted && allowance == 0, nil
+	return allowance, exhausted && allowance == 0, false, nil
+}
+
+// refrigerationLatchAllowance is the cooling allowance measured from the
+// tick the refrigeration latch engaged; nothing is lent before the latch
+// has a tick or when the clock has rewound past it.
+func refrigerationLatchAllowance(since, tick domain.Tick) (uint32, bool) {
+	if since <= 0 || tick < since {
+		return 0, false
+	}
+	if tick-since >= refrigerationCoolingTicks {
+		return 0, true
+	}
+	return min(uint32(120), uint32(refrigerationCoolingTicks-(tick-since))), false
 }
 
 func refrigerationNativeWorkTicks(plan store.PlanState, current domain.GenerationSnapshot, tick domain.Tick) (uint32, bool) {

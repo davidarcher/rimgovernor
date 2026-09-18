@@ -265,6 +265,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	}
 	facts := reading.Projection
 	var coolingAllowance uint32
+	var coolingLent bool
 	if (r.goal == policy.EnsureComfort || r.goal == policy.MaintainResource || r.goal == policy.MaintainMedicalCare || r.goal == policy.MaintainSleeping) && !r.shelter || r.goal == policy.EnsureBasicPower || r.goal == policy.EnsureTemperatureSafety || r.goal == policy.MaintainRefrigeration || r.goal == policy.MaintainLighting || r.goal == policy.MaintainFlooring || r.goal == policy.MaintainRoutes {
 		var resolved *RoutineBuildingPlanner
 		var reason RoutineBuildingReason
@@ -272,7 +273,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 			resolved, reason, err = r.selectTemperature(facts, review.Latches)
 		} else if r.goal == policy.MaintainRefrigeration {
 			var exhausted bool
-			coolingAllowance, exhausted, err = refrigerationOutputAllowance(call, p.journal, goal.Goal, state.Snapshot, facts.Identity.Tick)
+			coolingAllowance, exhausted, coolingLent, err = refrigerationOutputAllowance(call, p.journal, goal.Goal, state.Snapshot, facts.Identity.Tick, review.Latches.RefrigerationSince)
 			if err != nil {
 				return RoutineBuildingResult{}, err
 			}
@@ -303,7 +304,9 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 			// window reads powerOn=false until the power net ticks once, so
 			// the cooling allowance also covers cooler_power_needed; a
 			// cooler still unpowered when it runs out is a real hold (#66).
-			powerSettling := r.goal == policy.MaintainRefrigeration && reason == RoutineBuildingReason(policy.RefrigerationPowerNeeded)
+			// Time lent from the latch alone does not cover it: with no
+			// method in the epoch there is no cooler still settling (#202).
+			powerSettling := r.goal == policy.MaintainRefrigeration && reason == RoutineBuildingReason(policy.RefrigerationPowerNeeded) && !coolingLent
 			if reason == BuildingComfortWait || reason == RoutineBuildingReason(policy.PowerWaitOutput) || reason == RoutineBuildingReason(policy.TemperatureWait) || reason == RoutineBuildingReason(policy.RefrigerationWait) || powerSettling {
 				if r.goal == policy.EnsureTemperatureSafety {
 					result.NativeWorkTicks, err = temperatureOutputAllowance(call, p.journal, goal.Goal, state.Snapshot, facts.Identity.Tick)

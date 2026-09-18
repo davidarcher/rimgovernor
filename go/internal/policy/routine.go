@@ -357,6 +357,11 @@ type RoutineLatches struct {
 	MedicalReserve           bool
 	FoodStorage              bool
 	Refrigeration            bool
+	// RefrigerationSince is the review tick the Refrigeration latch last
+	// engaged, kept while it holds and zero when it is released: the
+	// refrigeration planner lends native cooling time from it when the
+	// goal's epoch has no cooler method of its own (#202).
+	RefrigerationSince domain.Tick `json:",omitempty"`
 	// Lighting holds the bench IDs MaintainLighting last measured dark.
 	Lighting []string
 	// Flooring holds the room keys MaintainFlooring last measured short.
