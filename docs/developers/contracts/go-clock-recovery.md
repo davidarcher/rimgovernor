@@ -133,7 +133,9 @@ journal recovery and hook failures remain unavailable evidence.
 
 `ValidateClockEventsPage` checks the typed request and page together. The native
 reader scans at most the requested limit of cursor positions, including missing
-event files. Therefore `next_cursor - after_cursor` equals the number of returned
+event files and retained files that no longer decode as their row (both are
+loss; the damaged cursors are also reported by `home/runtime_health`).
+Therefore `next_cursor - after_cursor` equals the number of returned
 events plus `lost_count`; `gap` is true exactly when loss is reported. Missing tail
 files and entirely missing windows can advance `next_cursor` without a final event
 at that cursor. Returned events are strictly ordered within the scanned window.

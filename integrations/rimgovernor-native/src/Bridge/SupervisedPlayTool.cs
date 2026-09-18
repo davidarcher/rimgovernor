@@ -128,6 +128,28 @@ namespace HomeBridge.BridgeTools
             _epoch = Math.Max(_epoch, _cursor);
             return journal;
         }
+        // Journal evidence for home/runtime_health: the newest retained cursor
+        // and every retained row that reads as damaged. Read-only; a journal
+        // that has not been opened yet is reported as such, not opened here.
+        internal static object JournalHealth()
+        {
+            lock (Gate)
+            {
+                var journal = Journal;
+                if (journal == null) return new { initialized = false };
+                return new
+                {
+                    initialized = true,
+                    newestCursor = journal.Newest.ToString(CultureInfo.InvariantCulture),
+                    corruptRows = journal.Corrupt.Select(c => new { cursor = c.Key.ToString(CultureInfo.InvariantCulture), error = c.Value }).ToArray()
+                };
+            }
+        }
+        // For a disposable fixture only: the retained file of one published row.
+        internal static string RetainedJournalRowPath(long cursor)
+        {
+            lock (Gate) return EnsureJournal().RetainedPath(cursor);
+        }
         private static State? _state;
         private static State ActiveState => _state ?? throw new InvalidOperationException("No supervised clock epoch.");
         private static long _epoch;

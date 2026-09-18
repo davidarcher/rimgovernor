@@ -17,6 +17,12 @@ namespace HomeBridge.BridgeTools
     {
         private readonly string directory;
         internal long Newest { get; private set; }
+        // Retained rows whose file is present but no longer decodes as the
+        // event at its cursor: external damage to an immutable file. Bounded;
+        // the cursors are health evidence, never a repair list.
+        private const int CorruptCapacity = 32;
+        private readonly SortedDictionary<long, string> corrupt = new SortedDictionary<long, string>();
+        internal KeyValuePair<long, string>[] Corrupt { get { return corrupt.ToArray(); } }
 
         internal ClockEventJournal()
         {
@@ -46,6 +52,14 @@ namespace HomeBridge.BridgeTools
         }
 
         private string EventPath(long cursor) { return Path.Combine(directory, cursor.ToString("D20", CultureInfo.InvariantCulture) + ".xml"); }
+
+        // The retained file of one published row, for a disposable fixture to
+        // damage. Nothing in production resolves a row's path outside this class.
+        internal string RetainedPath(long cursor)
+        {
+            if (cursor < 1 || cursor > Newest) throw new ArgumentOutOfRangeException(nameof(cursor));
+            return EventPath(cursor);
+        }
 
         internal void Append(Dictionary<string, object?> row)
         {
@@ -89,7 +103,11 @@ namespace HomeBridge.BridgeTools
         }
 
         // Bound file probes as well as returned rows. A missing immutable file is
-        // explicit cursor loss; corrupt or conflicting content remains a read failure.
+        // explicit cursor loss, and so is one that exists but no longer decodes
+        // as the row at its cursor: the damage is to one retained file, so the
+        // window reports it as lost (the controller holds on the gap, as for a
+        // wiped directory) instead of refusing every read that crosses it for
+        // the rest of the process. The cursor is kept for runtime_health.
         internal Window ReadWindow(long after, int limit)
         {
             if (after < 0 || after > Newest || limit < 1 || limit > 128)
@@ -106,6 +124,13 @@ namespace HomeBridge.BridgeTools
                 }
                 catch (FileNotFoundException) { result.Lost++; }
                 catch (DirectoryNotFoundException) { result.Lost++; }
+                catch (Exception error) when (error is IOException || error is System.Xml.XmlException || error is InvalidDataException
+                    || error is FormatException || error is OverflowException || error is InvalidCastException || error is KeyNotFoundException
+                    || error is InvalidOperationException)
+                {
+                    result.Lost++;
+                    if (corrupt.Count < CorruptCapacity || corrupt.ContainsKey(cursor)) corrupt[cursor] = error.GetType().Name;
+                }
                 result.Next = cursor;
             }
             return result;

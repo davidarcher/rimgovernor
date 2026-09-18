@@ -12,14 +12,15 @@ namespace HomeBridge.BridgeTools
     /// <summary>
     /// Read-only native runtime health: every required authority hook by
     /// name with whether it is in place and why not, the typed clock hooks,
-    /// and the current game's authority snapshot. Reads never install a hook;
+    /// the clock event journal's damaged rows and the current game's
+    /// authority snapshot. Reads never install a hook;
     /// installation is retried by the next admission or update poll. A caller
     /// uses this to tell "retry" (a hook missing, generation still advancing)
     /// from "restart required" (a hook whose target cannot be resolved at all).
     /// </summary>
     public sealed class RuntimeHealthTool
     {
-        [Tool("home/runtime_health", Description = "Read-only native runtime health: required authority hooks by name, typed clock hooks and the current authority snapshot. Never installs anything.")]
+        [Tool("home/runtime_health", Description = "Read-only native runtime health: required authority hooks by name, typed clock hooks, clock journal damage and the current authority snapshot. Never installs anything.")]
         public async Task<object> Read(IRimBridgeContext ctx, CancellationToken cancellationToken)
         {
             return await ctx.MainThread.InvokeAsync<object>(() =>
@@ -47,6 +48,10 @@ namespace HomeBridge.BridgeTools
                     hooks = hooks.Select(h => new { name = h.Name, installed = h.Installed, resolved = h.Method != null, error = h.Error }).ToArray(),
                     // Installed lazily by the first clock epoch; false before any is fine.
                     clockHooksInstalled = Supervisor.TypedHooksReady(),
+                    // Retained rows that no longer decode read as lost on
+                    // clock_read_events (a gap the controller holds on) and
+                    // stay listed here for the life of the process.
+                    journal = Supervisor.JournalHealth(),
                     authority
                 };
             }, cancellationToken).ConfigureAwait(false);

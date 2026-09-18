@@ -404,7 +404,13 @@ under a live process is what #119 was: every `clock_read_events` refused
 cursor continuity, the service's clock inbox died and took its authority
 refresh with it (automate mode lost within 2s of every resume). The
 native journal now re-creates its directory on the next append and reads
-the removed rows as lost, so a wipe costs a gap rather than the process.
+the removed rows as lost, so a wipe costs a gap rather than the process. A
+retained row whose file is present but no longer decodes (truncated or
+overwritten on disk) reads the same way: one lost cursor on the page that
+crosses it, listed under `home/runtime_health` `journal.corruptRows`, and
+the journal keeps appending after it. `lifecycle/runtime-fault` injects
+both faults (`RuntimeFaultFixture`: `test/runtime_fault_unpatch`,
+`test/runtime_fault_corrupt_row`) and asserts the recovery.
 The `authority/warm` case (below) is the regression: its second phase
 prepares the profile again the way a second run would, attaches to the
 kept process, pages the journal from cursor 0 and holds a fresh Auto

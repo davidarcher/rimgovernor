@@ -36,16 +36,19 @@ func init() {
 		Budget: 8 * time.Minute,
 		Run:    runShutdown,
 	})
-	// runtime-fault (the former runtimefaultaccept, #35 M3): a required
-	// authority invalidation hook that goes missing at runtime (a partial
-	// startup install, or another mod unpatching it) is reported by
-	// home/runtime_health, invalidates authority as HOOKS_UNAVAILABLE,
-	// and is reinstalled by the next admission without a game restart.
+	// runtime-fault (the former runtimefaultaccept, #35 M3; journal fault
+	// #90): a required authority invalidation hook that goes missing at
+	// runtime (a partial startup install, or another mod unpatching it) is
+	// reported by home/runtime_health, invalidates authority as
+	// HOOKS_UNAVAILABLE, and is reinstalled by the next admission without
+	// a game restart. A retained clock journal row damaged on disk reads
+	// as one lost cursor (a gap the controller holds on), is named by
+	// home/runtime_health, and the journal keeps publishing past it.
 	// Requires a build with -Fixture RuntimeFaultFixture for
-	// test/runtime_fault_unpatch.
+	// test/runtime_fault_unpatch and test/runtime_fault_corrupt_row.
 	cases.Register(cases.Case{
 		Name:   "lifecycle/runtime-fault",
-		Scope:  "A required authority hook removed at runtime: the fixture observes it missing, authority goes Inactive(HOOKS_UNAVAILABLE) at generation+1 and the hook is reinstalled by the game's own update poll, a SetMode(Auto) at that generation is granted, and home/runtime_health is whole again. No journal fault injection.",
+		Scope:  "A required authority hook removed at runtime: the fixture observes it missing, authority goes Inactive(HOOKS_UNAVAILABLE) at generation+1 and the hook is reinstalled by the game's own update poll, a SetMode(Auto) at that generation is granted, and home/runtime_health is whole again. Then the newest retained clock journal row is truncated on disk: clock_read_events across it answers a page with gap=true, lostCount=1 and no failure, home/runtime_health lists the cursor under journal.corruptRows, and the next authority change publishes the row after it, which reads back whole.",
 		Start:  cases.DebugStart{},
 		Reason: "the fixture unpatches a Harmony hook: process-scoped static state no later case should inherit",
 		NoKeep: true,
@@ -262,12 +265,17 @@ func waitShutdown(ctx context.Context, h *na.Harness, identity map[string]any, l
 
 func runRuntimeFault(ctx context.Context, s cases.Session) error {
 	report, h, identity, names := s.Report(), s.Harness(), s.Identity(), s.Names()
-	for _, tool := range []string{"rimgovernor/authority_read_status", "rimgovernor/authority_control", "home/runtime_health", "test/runtime_fault_unpatch"} {
+	for _, tool := range []string{"rimgovernor/authority_read_status", "rimgovernor/authority_control", "rimgovernor/clock_read_status", "rimgovernor/clock_read_events", "home/runtime_health", "test/runtime_fault_unpatch", "test/runtime_fault_corrupt_row"} {
 		if !na.Contains(names, tool) {
 			return fmt.Errorf("missing %s in discovery (fixture build required)", tool)
 		}
 	}
-	// Setup: whole hooks, Auto granted.
+	// Setup: clock watchers installed (a status read, as a controller's
+	// first call does; the authority seam publishes journal rows only once
+	// they are), whole hooks, Auto granted.
+	if _, err := h.Wire(ctx, "clock-status", "clock_read_status", map[string]any{"identity": identity}); err != nil {
+		return fmt.Errorf("clock-status: %w", err)
+	}
 	whole, err := health(ctx, h, "health-whole")
 	if err != nil {
 		return err
@@ -353,7 +361,91 @@ func runRuntimeFault(ctx context.Context, s cases.Session) error {
 	}
 	report["case_reinstalled"] = map[string]any{"health": repaired, "generation": regranted}
 
+	// Case 3: one retained journal row damaged on disk. The authority
+	// changes above published rows; the newest is truncated to half a file.
+	// A page across it reports the cursor lost rather than failing (the
+	// controller holds on the gap, as it does for a wiped directory), the
+	// damage is named by runtime_health, and the next publication lands at
+	// the cursor after it and reads back whole. No restart, no repair.
+	wholePage, err := events(ctx, h, "events-whole", identity, 0, 128)
+	if err != nil {
+		return err
+	}
+	newest := int64(na.AsNumber(wholePage["newestCursor"]))
+	if newest < 1 {
+		return fmt.Errorf("events-whole: no retained rows to damage: %v", wholePage)
+	}
+	if gap, _ := wholePage["gap"].(bool); gap || na.AsNumber(wholePage["lostCount"]) != 0 {
+		return fmt.Errorf("events-whole: journal already broken before the fault: %v", wholePage)
+	}
+	corrupted, err := h.Call(ctx, "corrupt-row", "test/runtime_fault_corrupt_row", map[string]any{"cursor": newest})
+	if err != nil {
+		return fmt.Errorf("corrupt-row: %w", err)
+	}
+	if na.AsNumber(corrupted["damagedBytes"]) >= na.AsNumber(corrupted["intactBytes"]) {
+		return fmt.Errorf("corrupt-row: row %d was not truncated: %v", newest, corrupted)
+	}
+	damaged, err := events(ctx, h, "events-damaged", identity, newest-1, 1)
+	if err != nil {
+		return err
+	}
+	if gap, _ := damaged["gap"].(bool); !gap || na.AsNumber(damaged["lostCount"]) != 1 || int64(na.AsNumber(damaged["nextCursor"])) != newest || len(na.AsSlice(damaged["events"])) != 0 {
+		return fmt.Errorf("events-damaged: expected cursor %d reported lost (gap, lostCount 1, nextCursor %d, no events), got %v", newest, newest, damaged)
+	}
+	sick, err := health(ctx, h, "health-corrupt")
+	if err != nil {
+		return err
+	}
+	journal, _ := na.AsMap(sick["journal"])
+	if !corruptListed(journal, newest) {
+		return fmt.Errorf("health-corrupt: expected journal.corruptRows to name cursor %d: %v", newest, sick["journal"])
+	}
+	report["case_row_corrupted"] = map[string]any{"cursor": newest, "corrupted": corrupted, "page": damaged, "journal": journal}
+
+	// The journal appends past the damage: a Manual revocation at the
+	// granted generation publishes the next authority change.
+	if _, err := na.RevokeManual(ctx, h.WireFunc(), "manual", identity, map[string]any{"context": map[string]any{"nativeGeneration": fmt.Sprint(regranted)}}); err != nil {
+		return err
+	}
+	after, err := events(ctx, h, "events-after", identity, newest, 128)
+	if err != nil {
+		return err
+	}
+	rows := na.AsSlice(after["events"])
+	if gap, _ := after["gap"].(bool); gap || na.AsNumber(after["lostCount"]) != 0 || len(rows) == 0 {
+		return fmt.Errorf("events-after: expected whole rows after cursor %d, got %v", newest, after)
+	}
+	first, _ := na.AsMap(rows[0])
+	if int64(na.AsNumber(first["cursor"])) != newest+1 {
+		return fmt.Errorf("events-after: expected the next publication at cursor %d, got %v", newest+1, first)
+	}
+	report["case_journal_resumed"] = map[string]any{"page": after}
+
 	return cases.CheckStartupLog(s)
+}
+
+// events pages clock_read_events and returns the page, failing on any
+// other outcome.
+func events(ctx context.Context, h *na.Harness, label string, identity map[string]any, after int64, limit int) (map[string]any, error) {
+	reply, err := h.Wire(ctx, label, "clock_read_events", map[string]any{"identity": identity, "afterCursor": fmt.Sprint(after), "limit": limit})
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", label, err)
+	}
+	_, page, err := na.Outcome(reply, "page")
+	if err != nil {
+		return nil, fmt.Errorf("%s: expected a page outcome: %w", label, err)
+	}
+	return page, nil
+}
+
+func corruptListed(journal map[string]any, cursor int64) bool {
+	for _, row := range na.AsSlice(journal["corruptRows"]) {
+		m, _ := na.AsMap(row)
+		if int64(na.AsNumber(m["cursor"])) == cursor {
+			return true
+		}
+	}
+	return false
 }
 
 func health(ctx context.Context, h *na.Harness, label string) (map[string]any, error) {
