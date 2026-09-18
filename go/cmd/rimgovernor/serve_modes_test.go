@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 )
 
 func withRoutineFamilies(t *testing.T, value string, set bool) {
@@ -53,6 +55,29 @@ func TestServeDefaultsToAutonomousComposition(t *testing.T) {
 	}
 }
 
+// Ultrafast is an ordinary --clock-speed; --clock-test-acceleration rides on
+// it only, and reaches the window start request.
+func TestServeClockTestAccelerationRequiresUltrafast(t *testing.T) {
+	dir := t.TempDir()
+	withRoutineFamilies(t, "", false)
+	for _, speed := range []string{"Normal", "Fast", "Superfast"} {
+		if _, err := parseServe(append(serveBase(dir), "--profile", dir, "--clock-speed", speed, "--clock-test-acceleration"), io.Discard); err == nil {
+			t.Fatalf("test acceleration accepted at %s", speed)
+		}
+	}
+	c, err := parseServe(append(serveBase(dir), "--profile", dir, "--clock-speed", "Ultrafast", "--clock-test-acceleration"), io.Discard)
+	if err != nil || !c.clockTestAcceleration {
+		t.Fatalf("ultrafast acceleration: %+v %v", c, err)
+	}
+	config := serviceClockConfig(dir, parseClockSpeed(c.clockSpeed), c.clockTestAcceleration, uint32(c.clockWindowTicks))
+	if config.Start.Speed != k.Speed_SPEED_ULTRAFAST || !config.Start.TestAcceleration {
+		t.Fatalf("window start: %+v", config.Start)
+	}
+	if c, err := parseServe(append(serveBase(dir), "--profile", dir, "--clock-speed", "Ultrafast"), io.Discard); err != nil || c.clockTestAcceleration {
+		t.Fatalf("plain ultrafast: %+v %v", c, err)
+	}
+}
+
 func TestServeObserveTakesNoControlOptions(t *testing.T) {
 	dir := t.TempDir()
 	withRoutineFamilies(t, "", false)
@@ -60,7 +85,7 @@ func TestServeObserveTakesNoControlOptions(t *testing.T) {
 	if err != nil || c.playerControl || c.clockControl || c.routineReviews || c.routineMethods || c.profile != "" || len(c.activeRoutineFamilies()) != 0 {
 		t.Fatalf("observe configuration: %+v %v", c, err)
 	}
-	for _, extra := range [][]string{{"--profile", dir}, {"--resource-rule", "WoodLog:stop:10"}, {"--routine-project-limit", "2"}, {"--chat-model", "m"}, {"--resume"}, {"--clock-speed", "Fast"}, {"--world-evaluation-food-margin-days", "1"}, {"unexpected"}} {
+	for _, extra := range [][]string{{"--profile", dir}, {"--resource-rule", "WoodLog:stop:10"}, {"--routine-project-limit", "2"}, {"--chat-model", "m"}, {"--resume"}, {"--clock-speed", "Fast"}, {"--clock-speed", "Ultrafast", "--clock-test-acceleration"}, {"--world-evaluation-food-margin-days", "1"}, {"unexpected"}} {
 		if _, err := parseServe(append(append(serveBase(dir), "--observe"), extra...), io.Discard); err == nil {
 			t.Fatalf("observe accepted %v", extra)
 		}

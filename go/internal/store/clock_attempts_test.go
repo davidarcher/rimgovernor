@@ -346,3 +346,27 @@ func TestClockAttemptConflictRequiresReceiptResolution(t *testing.T) {
 		t.Fatal(got, err)
 	}
 }
+
+// An accelerated start persists its acceleration and reads it back; an
+// unaccelerated record keeps the pre-field canonical encoding.
+func TestClockIntentPersistsTestAcceleration(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	s := open(t, memoryPath(t))
+	input := clockIntent(clockTestID(t, s, "fast"))
+	input.Command.Start.Speed, input.Command.Start.TestAcceleration = k.Speed_SPEED_ULTRAFAST, true
+	if _, _, err := s.PrepareClock(ctx, input); err != nil {
+		t.Fatal(err)
+	}
+	v, err := s.LookupClockAttempt(ctx, input.RequestID)
+	if err != nil || v.Intent.Command.Start == nil || !v.Intent.Command.Start.TestAcceleration || v.Intent.Command.Start.Speed != k.Speed_SPEED_ULTRAFAST {
+		t.Fatalf("%+v %v", v.Intent.Command.Start, err)
+	}
+	plain := clockIntent(clockTestID(t, s, "plain"))
+	if _, _, err := s.PrepareClock(ctx, plain); err != nil {
+		t.Fatal(err)
+	}
+	if v, err = s.LookupClockAttempt(ctx, plain.RequestID); err != nil || v.Intent.Command.Start.TestAcceleration {
+		t.Fatalf("%+v %v", v.Intent.Command.Start, err)
+	}
+}

@@ -24,7 +24,10 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Ordinary production speeds. Fixture acceleration is outside this capability.
+// Requested epoch speeds. Ultrafast is an ordinary speed on the wire; the
+// native dev tick boost behind it is test acceleration
+// (StartRequest.test_acceleration), which only a game launched with
+// -rimgovernor-test-acceleration (headless acceptance profiles) admits.
 type Speed int32
 
 const (
@@ -32,6 +35,7 @@ const (
 	Speed_SPEED_NORMAL      Speed = 1
 	Speed_SPEED_FAST        Speed = 2
 	Speed_SPEED_SUPERFAST   Speed = 3
+	Speed_SPEED_ULTRAFAST   Speed = 4
 )
 
 // Enum value maps for Speed.
@@ -41,12 +45,14 @@ var (
 		1: "SPEED_NORMAL",
 		2: "SPEED_FAST",
 		3: "SPEED_SUPERFAST",
+		4: "SPEED_ULTRAFAST",
 	}
 	Speed_value = map[string]int32{
 		"SPEED_UNSPECIFIED": 0,
 		"SPEED_NORMAL":      1,
 		"SPEED_FAST":        2,
 		"SPEED_SUPERFAST":   3,
+		"SPEED_ULTRAFAST":   4,
 	}
 )
 
@@ -599,14 +605,18 @@ func (x *EpochOwner) GetEpoch() int64 {
 }
 
 type StartRequest struct {
-	state         protoimpl.MessageState         `protogen:"open.v1"`
-	Authority     *authoritypb.WritePrecondition `protobuf:"bytes,1,opt,name=authority,proto3" json:"authority,omitempty"`
-	Speed         *Speed                         `protobuf:"varint,2,opt,name=speed,proto3,enum=rimgovernor.clock.v1.Speed,oneof" json:"speed,omitempty"`
-	Policy        *WatchPolicy                   `protobuf:"bytes,3,opt,name=policy,proto3" json:"policy,omitempty"`
-	LeaseMs       *uint32                        `protobuf:"varint,4,opt,name=lease_ms,json=leaseMs,proto3,oneof" json:"lease_ms,omitempty"`
-	MaxTicks      *uint32                        `protobuf:"varint,5,opt,name=max_ticks,json=maxTicks,proto3,oneof" json:"max_ticks,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state     protoimpl.MessageState         `protogen:"open.v1"`
+	Authority *authoritypb.WritePrecondition `protobuf:"bytes,1,opt,name=authority,proto3" json:"authority,omitempty"`
+	Speed     *Speed                         `protobuf:"varint,2,opt,name=speed,proto3,enum=rimgovernor.clock.v1.Speed,oneof" json:"speed,omitempty"`
+	Policy    *WatchPolicy                   `protobuf:"bytes,3,opt,name=policy,proto3" json:"policy,omitempty"`
+	LeaseMs   *uint32                        `protobuf:"varint,4,opt,name=lease_ms,json=leaseMs,proto3,oneof" json:"lease_ms,omitempty"`
+	MaxTicks  *uint32                        `protobuf:"varint,5,opt,name=max_ticks,json=maxTicks,proto3,oneof" json:"max_ticks,omitempty"`
+	// Enable the native tick boost for this epoch. Requires SPEED_ULTRAFAST and
+	// a game launched with test acceleration (Status.test_acceleration_available);
+	// refused otherwise. An accelerated epoch cannot change speed, only pause.
+	TestAcceleration *bool `protobuf:"varint,6,opt,name=test_acceleration,json=testAcceleration,proto3,oneof" json:"test_acceleration,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *StartRequest) Reset() {
@@ -672,6 +682,13 @@ func (x *StartRequest) GetMaxTicks() uint32 {
 		return *x.MaxTicks
 	}
 	return 0
+}
+
+func (x *StartRequest) GetTestAcceleration() bool {
+	if x != nil && x.TestAcceleration != nil {
+		return *x.TestAcceleration
+	}
+	return false
 }
 
 type OwnedRequest struct {
@@ -900,6 +917,7 @@ type Epoch struct {
 	TickDeadline     *int64                       `protobuf:"varint,6,opt,name=tick_deadline,json=tickDeadline,proto3,oneof" json:"tick_deadline,omitempty"`
 	LeaseRemainingMs *uint32                      `protobuf:"varint,7,opt,name=lease_remaining_ms,json=leaseRemainingMs,proto3,oneof" json:"lease_remaining_ms,omitempty"`
 	LastTick         *int64                       `protobuf:"varint,8,opt,name=last_tick,json=lastTick,proto3,oneof" json:"last_tick,omitempty"`
+	TestAcceleration *bool                        `protobuf:"varint,9,opt,name=test_acceleration,json=testAcceleration,proto3,oneof" json:"test_acceleration,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -988,6 +1006,13 @@ func (x *Epoch) GetLastTick() int64 {
 		return *x.LastTick
 	}
 	return 0
+}
+
+func (x *Epoch) GetTestAcceleration() bool {
+	if x != nil && x.TestAcceleration != nil {
+		return *x.TestAcceleration
+	}
+	return false
 }
 
 type Running struct {
@@ -1255,8 +1280,10 @@ type Status struct {
 	EvidenceCompleteness *commonpb.PageInfo `protobuf:"bytes,17,opt,name=evidence_completeness,json=evidenceCompleteness,proto3" json:"evidence_completeness,omitempty"`
 	ObservedSpeed        *ObservedSpeed     `protobuf:"varint,18,opt,name=observed_speed,json=observedSpeed,proto3,enum=rimgovernor.clock.v1.ObservedSpeed,oneof" json:"observed_speed,omitempty"`
 	ActualPaused         *bool              `protobuf:"varint,19,opt,name=actual_paused,json=actualPaused,proto3,oneof" json:"actual_paused,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// The launch admits StartRequest.test_acceleration.
+	TestAccelerationAvailable *bool `protobuf:"varint,20,opt,name=test_acceleration_available,json=testAccelerationAvailable,proto3,oneof" json:"test_acceleration_available,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *Status) Reset() {
@@ -1435,6 +1462,13 @@ func (x *Status) GetObservedSpeed() ObservedSpeed {
 func (x *Status) GetActualPaused() bool {
 	if x != nil && x.ActualPaused != nil {
 		return *x.ActualPaused
+	}
+	return false
+}
+
+func (x *Status) GetTestAccelerationAvailable() bool {
+	if x != nil && x.TestAccelerationAvailable != nil {
+		return *x.TestAccelerationAvailable
 	}
 	return false
 }
@@ -4289,17 +4323,19 @@ const file_clock_proto_rawDesc = "" +
 	"\x15controller_session_id\x18\x01 \x01(\tH\x00R\x13controllerSessionId\x88\x01\x01\x12\x19\n" +
 	"\x05epoch\x18\x02 \x01(\x03H\x01R\x05epoch\x88\x01\x01B\x18\n" +
 	"\x16_controller_session_idB\b\n" +
-	"\x06_epoch\"\xb3\x02\n" +
+	"\x06_epoch\"\xfb\x02\n" +
 	"\fStartRequest\x12I\n" +
 	"\tauthority\x18\x01 \x01(\v2+.rimgovernor.authority.v1.WritePreconditionR\tauthority\x126\n" +
 	"\x05speed\x18\x02 \x01(\x0e2\x1b.rimgovernor.clock.v1.SpeedH\x00R\x05speed\x88\x01\x01\x129\n" +
 	"\x06policy\x18\x03 \x01(\v2!.rimgovernor.clock.v1.WatchPolicyR\x06policy\x12\x1e\n" +
 	"\blease_ms\x18\x04 \x01(\rH\x01R\aleaseMs\x88\x01\x01\x12 \n" +
-	"\tmax_ticks\x18\x05 \x01(\rH\x02R\bmaxTicks\x88\x01\x01B\b\n" +
+	"\tmax_ticks\x18\x05 \x01(\rH\x02R\bmaxTicks\x88\x01\x01\x120\n" +
+	"\x11test_acceleration\x18\x06 \x01(\bH\x03R\x10testAcceleration\x88\x01\x01B\b\n" +
 	"\x06_speedB\v\n" +
 	"\t_lease_msB\f\n" +
 	"\n" +
-	"_max_ticks\"\x83\x01\n" +
+	"_max_ticksB\x14\n" +
+	"\x12_test_acceleration\"\x83\x01\n" +
 	"\fOwnedRequest\x12;\n" +
 	"\bidentity\x18\x01 \x01(\v2\x1f.rimgovernor.common.v1.IdentityR\bidentity\x126\n" +
 	"\x05owner\x18\x02 \x01(\v2 .rimgovernor.clock.v1.EpochOwnerR\x05owner\"\xc0\x01\n" +
@@ -4314,7 +4350,7 @@ const file_clock_proto_rawDesc = "" +
 	"\x05speed\x18\x03 \x01(\x0e2\x1b.rimgovernor.clock.v1.SpeedH\x00R\x05speed\x88\x01\x01B\b\n" +
 	"\x06_speed\"L\n" +
 	"\rStatusRequest\x12;\n" +
-	"\bidentity\x18\x01 \x01(\v2\x1f.rimgovernor.common.v1.IdentityR\bidentity\"\x85\x04\n" +
+	"\bidentity\x18\x01 \x01(\v2\x1f.rimgovernor.common.v1.IdentityR\bidentity\"\xcd\x04\n" +
 	"\x05Epoch\x126\n" +
 	"\x05owner\x18\x01 \x01(\v2 .rimgovernor.clock.v1.EpochOwnerR\x05owner\x12A\n" +
 	"\x06origin\x18\x02 \x01(\v2).rimgovernor.common.v1.ObservationContextR\x06origin\x12I\n" +
@@ -4324,13 +4360,15 @@ const file_clock_proto_rawDesc = "" +
 	"start_tick\x18\x05 \x01(\x03H\x01R\tstartTick\x88\x01\x01\x12(\n" +
 	"\rtick_deadline\x18\x06 \x01(\x03H\x02R\ftickDeadline\x88\x01\x01\x121\n" +
 	"\x12lease_remaining_ms\x18\a \x01(\rH\x03R\x10leaseRemainingMs\x88\x01\x01\x12 \n" +
-	"\tlast_tick\x18\b \x01(\x03H\x04R\blastTick\x88\x01\x01B\x12\n" +
+	"\tlast_tick\x18\b \x01(\x03H\x04R\blastTick\x88\x01\x01\x120\n" +
+	"\x11test_acceleration\x18\t \x01(\bH\x05R\x10testAcceleration\x88\x01\x01B\x12\n" +
 	"\x10_requested_speedB\r\n" +
 	"\v_start_tickB\x10\n" +
 	"\x0e_tick_deadlineB\x15\n" +
 	"\x13_lease_remaining_msB\f\n" +
 	"\n" +
-	"_last_tick\"<\n" +
+	"_last_tickB\x14\n" +
+	"\x12_test_acceleration\"<\n" +
 	"\aRunning\x121\n" +
 	"\x05epoch\x18\x01 \x01(\v2\x1b.rimgovernor.clock.v1.EpochR\x05epoch\"\x82\x02\n" +
 	"\bStopping\x121\n" +
@@ -4355,8 +4393,7 @@ const file_clock_proto_rawDesc = "" +
 	"\x0f_pause_verifiedB\x12\n" +
 	"\x10_pause_requestedB\x15\n" +
 	"\x13_stopped_at_unix_ms\"\x0e\n" +
-	"\fNeverStarted\"\xc7\n" +
-	"\n" +
+	"\fNeverStarted\"\xac\v\n" +
 	"\x06Status\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x129\n" +
 	"\arunning\x18\x02 \x01(\v2\x1d.rimgovernor.clock.v1.RunningH\x00R\arunning\x12<\n" +
@@ -4379,7 +4416,8 @@ const file_clock_proto_rawDesc = "" +
 	"\x15evidence_completeness\x18\x11 \x01(\v2\x1f.rimgovernor.common.v1.PageInfoR\x14evidenceCompleteness\x12O\n" +
 	"\x0eobserved_speed\x18\x12 \x01(\x0e2#.rimgovernor.clock.v1.ObservedSpeedH\tR\robservedSpeed\x88\x01\x01\x12(\n" +
 	"\ractual_paused\x18\x13 \x01(\bH\n" +
-	"R\factualPaused\x88\x01\x01B\a\n" +
+	"R\factualPaused\x88\x01\x01\x12C\n" +
+	"\x1btest_acceleration_available\x18\x14 \x01(\bH\vR\x19testAccelerationAvailable\x88\x01\x01B\a\n" +
 	"\x05stateB\x17\n" +
 	"\x15_native_tick_boundaryB\x11\n" +
 	"\x0f_durable_eventsB\x10\n" +
@@ -4390,7 +4428,8 @@ const file_clock_proto_rawDesc = "" +
 	"\x13_max_probe_tick_gapB\x0e\n" +
 	"\f_probe_countB\x11\n" +
 	"\x0f_observed_speedB\x10\n" +
-	"\x0e_actual_paused\"\x8c\x01\n" +
+	"\x0e_actual_pausedB\x1e\n" +
+	"\x1c_test_acceleration_available\"\x8c\x01\n" +
 	"\vStatusReply\x126\n" +
 	"\x06status\x18\x01 \x01(\v2\x1c.rimgovernor.clock.v1.StatusH\x00R\x06status\x12:\n" +
 	"\afailure\x18\x02 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
@@ -4651,13 +4690,14 @@ const file_clock_proto_rawDesc = "" +
 	"\vEventsReply\x126\n" +
 	"\x04page\x18\x01 \x01(\v2 .rimgovernor.clock.v1.EventsPageH\x00R\x04page\x12:\n" +
 	"\afailure\x18\x02 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome*U\n" +
+	"\aoutcome*j\n" +
 	"\x05Speed\x12\x15\n" +
 	"\x11SPEED_UNSPECIFIED\x10\x00\x12\x10\n" +
 	"\fSPEED_NORMAL\x10\x01\x12\x0e\n" +
 	"\n" +
 	"SPEED_FAST\x10\x02\x12\x13\n" +
-	"\x0fSPEED_SUPERFAST\x10\x03*\xba\x01\n" +
+	"\x0fSPEED_SUPERFAST\x10\x03\x12\x13\n" +
+	"\x0fSPEED_ULTRAFAST\x10\x04*\xba\x01\n" +
 	"\rObservedSpeed\x12\x1e\n" +
 	"\x1aOBSERVED_SPEED_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15OBSERVED_SPEED_PAUSED\x10\x01\x12\x19\n" +

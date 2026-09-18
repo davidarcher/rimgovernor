@@ -37,8 +37,12 @@ The dashboard adds session-bound player time and camera endpoints. Time
 controls enter Manual, invalidate pending execution, verify a native pause and release
 owned drafts before requesting Normal, Fast or Superfast through the existing
 supervisor. An in-flight review must finish before a play request; Pause remains
-available. New direction or a load change prevents resuming. Ultrafast and boosted
-simulation remain outside the production gameplay surface.
+available. New direction or a load change prevents resuming. The clock wire also
+admits Ultrafast (`rimgovernor serve --clock-speed Ultrafast`); the native tick
+boost behind it (`--clock-test-acceleration`, `StartRequest.test_acceleration`)
+is refused unless the game was launched with `-rimgovernor-test-acceleration`,
+which only headless acceptance profiles carry, so boosted simulation stays
+outside the production gameplay surface.
 
 Discrete camera navigation uses a separate player-only endpoint with a fixed
 pan/zoom action set. Each request validates the live native contract under the

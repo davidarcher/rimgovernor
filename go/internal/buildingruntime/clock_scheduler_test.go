@@ -151,6 +151,11 @@ func TestClockSchedulerIdentityAndInertPrepared(t *testing.T) {
 	if same != key {
 		t.Fatal("unstable logical key")
 	}
+	accelerated := s.config.Start
+	accelerated.Speed, accelerated.TestAcceleration = k.Speed_SPEED_ULTRAFAST, true
+	if other, _ := clockSchedulerKey(admission, work, accelerated); other == key {
+		t.Fatal("logical key ignores test acceleration")
+	}
 	start := s.config.Start
 	id := clockTestNextID(t, s.player.journal)
 	_, _, err = s.player.journal.PrepareClock(context.Background(), store.ClockIntent{RequestID: id, Key: key, Snapshot: state.Snapshot, Command: bridge.ClockCommand{Start: &start}, Window: admission})

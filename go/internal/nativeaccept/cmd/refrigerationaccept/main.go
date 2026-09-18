@@ -253,7 +253,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 	if scenario == "power" {
 		families = append(families, "power")
 	}
-	service, err = na.LaunchService(ctx, cfg, gabsExecutable, na.ServiceLaunch{Binary: binary, Families: families, Extra: []string{"--clock-speed", na.ClockSpeed()}}, report)
+	service, err = na.LaunchService(ctx, cfg, gabsExecutable, na.ServiceLaunch{Binary: binary, Families: families, Extra: na.ClockSpeedArgs()}, report)
 	if err != nil {
 		return err
 	}

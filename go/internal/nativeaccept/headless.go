@@ -484,9 +484,12 @@ func Prepare(root string, expansions ...string) (string, error) {
 			return "", err
 		}
 	}
+	// -rimgovernor-test-acceleration is the native gate for clock test
+	// acceleration (StartRequest.test_acceleration); only this batch-mode
+	// profile carries it, never PrepareRendered or a player launch.
 	game["args"] = []any{
 		"-savedatafolder=" + profile, "-logFile", filepath.Join(root, "HeadlessPlayer.log"),
-		"-batchmode", "-nographics", "-rimgovernor-pause-on-load",
+		"-batchmode", "-nographics", "-rimgovernor-pause-on-load", "-rimgovernor-test-acceleration",
 	}
 	destination := filepath.Join(root, "config-headless")
 	if err := os.MkdirAll(destination, 0755); err != nil {

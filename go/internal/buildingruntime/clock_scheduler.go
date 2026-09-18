@@ -908,13 +908,14 @@ func clockSchedulerKey(admission *store.ClockWindowAdmission, work []clockWorkIt
 		return "", err
 	}
 	payload := struct {
-		Version   int
-		Admission *store.ClockWindowAdmission
-		Work      []clockWorkItem
-		Speed     k.Speed
-		LeaseMS   uint32
-		Policy    []byte
-	}{1, admission, work, start.Speed, start.LeaseMS, policyBytes}
+		Version          int
+		Admission        *store.ClockWindowAdmission
+		Work             []clockWorkItem
+		Speed            k.Speed
+		TestAcceleration bool
+		LeaseMS          uint32
+		Policy           []byte
+	}{2, admission, work, start.Speed, start.TestAcceleration, start.LeaseMS, policyBytes}
 	data, err := json.Marshal(payload)
 	if err != nil {
 		return "", err

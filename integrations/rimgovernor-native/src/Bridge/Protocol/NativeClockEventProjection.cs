@@ -177,6 +177,6 @@ namespace HomeBridge.BridgeTools
         // receipts evidence inside it round-trips exactly.
         private static Clock.OperationOutcome Outcome(Dictionary<string, object?> row)
             => Clock.OperationOutcome.Parser.ParseJson((string)Required(row, "outcome"));
-        private static Clock.Speed ParseSpeed(string value) => value == "Normal" ? Clock.Speed.Normal : value == "Fast" ? Clock.Speed.Fast : value == "Superfast" ? Clock.Speed.Superfast : throw new InvalidOperationException("Nonordinary clock speed");
+        private static Clock.Speed ParseSpeed(string value) => value == "Normal" ? Clock.Speed.Normal : value == "Fast" ? Clock.Speed.Fast : value == "Superfast" ? Clock.Speed.Superfast : value == "Ultrafast" ? Clock.Speed.Ultrafast : throw new InvalidOperationException("Nonordinary clock speed");
     }
 }

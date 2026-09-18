@@ -33,6 +33,12 @@ namespace HomeBridge.BridgeTools
         }
         private static TypedEpoch? pendingTyped;
         private static bool typedSpeedCall;
+        // Test acceleration (the native dev tick boost behind an Ultrafast
+        // epoch) is admitted only for a game launched with this argument, which
+        // nativeaccept's headless Prepare adds and no rendered or player launch
+        // does. Read once at startup; never toggled at runtime.
+        internal static readonly bool TestAccelerationLaunch = Array.IndexOf(Environment.GetCommandLineArgs(), "-rimgovernor-test-acceleration") >= 0;
+        internal static bool TestAccelerationAvailable => TestAccelerationLaunch && BoostField != null && BoostField.FieldType == typeof(bool);
         private static readonly Stopwatch TypedClock = Stopwatch.StartNew();
         private static TypedEpoch TypedOf(State s) => s.Typed ?? throw new InvalidOperationException("Clock epoch is not typed.");
         private static long LeaseNow(State s) => s.Typed == null ? NowMs() : TypedClock.ElapsedMilliseconds;
@@ -86,6 +92,10 @@ namespace HomeBridge.BridgeTools
             if (!request.HasSpeed || !OrdinarySpeed(request.Speed) || !request.HasLeaseMs || request.LeaseMs < 1000 || request.LeaseMs > 30000
                 || !request.HasMaxTicks || request.MaxTicks < 1 || request.MaxTicks > 1800000 || !ValidPolicy(request.Policy, request.MaxTicks))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Start requires an ordinary speed, lease1000..30000, tick budget1..1800000 and a complete bounded watch policy.");
+            if (request.TestAcceleration && request.Speed != Clock.Speed.Ultrafast)
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Test acceleration requires SPEED_ULTRAFAST.");
+            if (request.TestAcceleration && !TestAccelerationAvailable)
+                return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Test acceleration is admitted only for a game launched with -rimgovernor-test-acceleration.");
             lock (Gate)
             {
                 if (_state != null && _state.Active) return ProtoBoundary.Fail(Common.FailureCode.OwnerConflict, "A clock epoch is already active.");
@@ -121,7 +131,7 @@ namespace HomeBridge.BridgeTools
                         policy.Mode == Clock.WatchMode.Colony ? "colony" : "combat", policy.HealthDropFraction,
                         policy.MinHealthFraction, policy.HostileWithin, ResolveIds(ProtoBoundary.LoadedMap(context), policy.AcknowledgedHostileIds),
                         ResolveIds(ProtoBoundary.LoadedMap(context), policy.AcknowledgedDownedColonistIds), ResolveIds(ProtoBoundary.LoadedMap(context), policy.AcknowledgedInjuredColonistIds),
-                        (int)policy.InjuryStopCooldownMs, (int)request.MaxTicks, ResolveIds(ProtoBoundary.LoadedMap(context), policy.SurgicalRecoveryIds), false, ResolveIds(ProtoBoundary.LoadedMap(context), policy.MedicalRestIds));
+                        (int)policy.InjuryStopCooldownMs, (int)request.MaxTicks, ResolveIds(ProtoBoundary.LoadedMap(context), policy.SurgicalRecoveryIds), request.TestAcceleration, ResolveIds(ProtoBoundary.LoadedMap(context), policy.MedicalRestIds));
                     if (_state == null || !ReferenceEquals(_state.Typed, metadata)) throw new InvalidOperationException("Native start did not create the admitted epoch");
                     ArmWatches(_state, context);
                     return TypedStatus(context);
@@ -156,11 +166,24 @@ namespace HomeBridge.BridgeTools
                 return TypedStatus(context);
             }
         }
+        // An accelerated epoch owns the boost for its whole life: it pauses,
+        // it never slows.
+        internal static Common.Failure? ValidateTypedSpeedChange(Clock.SpeedRequest request)
+        {
+            lock (Gate)
+            {
+                var s = _state;
+                return s != null && s.Active && s.TestAcceleration && request.Speed != Clock.Speed.Ultrafast
+                    ? ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "An accelerated epoch cannot change speed; pause it instead.")
+                    : null;
+            }
+        }
         internal static Clock.Status TypedSpeed(Clock.SpeedRequest request, Common.ObservationContext context)
         {
             lock (Gate)
             {
                 if (ValidateTypedGrant(request.Authority) != null) throw new InvalidOperationException("Clock epoch authority grant changed");
+                if (ActiveState.TestAcceleration && request.Speed != Clock.Speed.Ultrafast) throw new InvalidOperationException("An accelerated epoch cannot change speed; pause it instead.");
                 try
                 {
                     typedSpeedCall = true;
@@ -218,7 +241,7 @@ namespace HomeBridge.BridgeTools
                 EnsurePatched();
                 var result = new Clock.Status { Context = context.Clone(), ActualPaused = Find.TickManager.Paused,
                     ObservedSpeed = ObservedSpeed(Find.TickManager.CurTimeSpeed), NativeTickBoundary = TypedHooksReady(),
-                    EvidenceCompleteness = new Common.PageInfo { Complete = true },
+                    EvidenceCompleteness = new Common.PageInfo { Complete = true }, TestAccelerationAvailable = TestAccelerationAvailable,
                     DurableEvents = Journal != null && _state?.StopReason != "event_journal_error" && _state?.PendingKind != "event_journal_error" };
                 if (Journal != null) result.NewestCursor = Journal.Newest;
                 var s = _state;
@@ -250,7 +273,7 @@ namespace HomeBridge.BridgeTools
         private static long Deadline(State s) => s.TickDeadline ?? throw new InvalidOperationException("Typed epoch has no tick deadline.");
         private static Clock.Epoch Epoch(State s) => new Clock.Epoch { Owner = TypedOf(s).Owner.Clone(), Origin = TypedOf(s).Origin.Clone(),
             RequestedSpeed = WireSpeed(s.RequestedSpeed), Policy = TypedOf(s).Policy.Clone(), StartTick = s.StartTick,
-            TickDeadline = Deadline(s), LastTick = s.LastTick, LeaseRemainingMs = s.Active ? (uint)Math.Min(30000, Math.Max(0, s.LeaseExpiresMs - LeaseNow(s))) : 0 };
+            TickDeadline = Deadline(s), LastTick = s.LastTick, TestAcceleration = s.TestAcceleration, LeaseRemainingMs = s.Active ? (uint)Math.Min(30000, Math.Max(0, s.LeaseExpiresMs - LeaseNow(s))) : 0 };
 
         internal static Clock.EventsReply TypedEvents(Clock.EventsRequest request, Common.ObservationContext context)
             => TypedEvents(request, context, 0, out _);
@@ -402,9 +425,9 @@ namespace HomeBridge.BridgeTools
             && value.OutcomeCase != Clock.OperationOutcome.OutcomeOneofCase.None;
         private static bool ValidWatchKey([NotNullWhen(true)] Common.AttemptKey? key) => key != null && key.HasControllerSessionId && ProtoBoundary.IsIdentifier(key.ControllerSessionId)
             && key.HasActionId && ProtoBoundary.IsIdentifier(key.ActionId) && key.HasAttemptId && key.AttemptId > 0;
-        internal static bool OrdinarySpeed(Clock.Speed speed) => speed == Clock.Speed.Normal || speed == Clock.Speed.Fast || speed == Clock.Speed.Superfast;
-        private static TimeSpeed NativeSpeed(Clock.Speed speed) => speed == Clock.Speed.Normal ? TimeSpeed.Normal : speed == Clock.Speed.Fast ? TimeSpeed.Fast : speed == Clock.Speed.Superfast ? TimeSpeed.Superfast : throw new ArgumentOutOfRangeException(nameof(speed));
-        private static Clock.Speed WireSpeed(TimeSpeed speed) => speed == TimeSpeed.Normal ? Clock.Speed.Normal : speed == TimeSpeed.Fast ? Clock.Speed.Fast : speed == TimeSpeed.Superfast ? Clock.Speed.Superfast : throw new InvalidOperationException("Nonordinary owned epoch");
+        internal static bool OrdinarySpeed(Clock.Speed speed) => speed == Clock.Speed.Normal || speed == Clock.Speed.Fast || speed == Clock.Speed.Superfast || speed == Clock.Speed.Ultrafast;
+        private static TimeSpeed NativeSpeed(Clock.Speed speed) => speed == Clock.Speed.Normal ? TimeSpeed.Normal : speed == Clock.Speed.Fast ? TimeSpeed.Fast : speed == Clock.Speed.Superfast ? TimeSpeed.Superfast : speed == Clock.Speed.Ultrafast ? TimeSpeed.Ultrafast : throw new ArgumentOutOfRangeException(nameof(speed));
+        private static Clock.Speed WireSpeed(TimeSpeed speed) => speed == TimeSpeed.Normal ? Clock.Speed.Normal : speed == TimeSpeed.Fast ? Clock.Speed.Fast : speed == TimeSpeed.Superfast ? Clock.Speed.Superfast : speed == TimeSpeed.Ultrafast ? Clock.Speed.Ultrafast : throw new InvalidOperationException("Nonordinary owned epoch");
         internal static Clock.ObservedSpeed ObservedSpeed(TimeSpeed speed) => speed == TimeSpeed.Paused ? Clock.ObservedSpeed.Paused : speed == TimeSpeed.Normal ? Clock.ObservedSpeed.Normal : speed == TimeSpeed.Fast ? Clock.ObservedSpeed.Fast : speed == TimeSpeed.Superfast ? Clock.ObservedSpeed.Superfast : speed == TimeSpeed.Ultrafast ? Clock.ObservedSpeed.Ultrafast : throw new InvalidOperationException("Unknown native speed");
         internal static bool TypedHooksReady()
         {

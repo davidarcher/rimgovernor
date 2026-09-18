@@ -17,6 +17,10 @@ type ClockStart struct {
 	Speed             k.Speed
 	Policy            *k.WatchPolicy
 	LeaseMS, MaxTicks uint32
+	// TestAcceleration asks for the native tick boost; it requires
+	// SPEED_ULTRAFAST and a game launched with test acceleration (headless
+	// acceptance profiles only), which native refuses otherwise.
+	TestAcceleration bool
 }
 
 type ClockRenew struct {

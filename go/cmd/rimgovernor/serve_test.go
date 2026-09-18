@@ -389,11 +389,11 @@ func TestServeClockWindowTicksFlag(t *testing.T) {
 			t.Fatal("accepted --clock-window-ticks", bad)
 		}
 	}
-	config := serviceClockConfig(dir, parseClockSpeed("Normal"), 200)
+	config := serviceClockConfig(dir, parseClockSpeed("Normal"), false, 200)
 	if config.Start.MaxTicks != 200 || config.CombatMaxTicks != 200 {
 		t.Fatal(config.Start.MaxTicks, config.CombatMaxTicks)
 	}
-	config = serviceClockConfig(dir, parseClockSpeed("Normal"), defaultClockWindowTicks)
+	config = serviceClockConfig(dir, parseClockSpeed("Normal"), false, defaultClockWindowTicks)
 	if config.Start.MaxTicks != defaultClockWindowTicks || config.CombatMaxTicks != combatClockWindowTicks {
 		t.Fatal(config.Start.MaxTicks, config.CombatMaxTicks)
 	}

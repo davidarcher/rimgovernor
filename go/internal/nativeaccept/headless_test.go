@@ -398,7 +398,7 @@ func TestPrepareRewritesHeadlessArgs(t *testing.T) {
 	for i, a := range args {
 		joined[i] = a.(string)
 	}
-	foundBatch, foundNoGraphics := false, false
+	foundBatch, foundNoGraphics, foundAcceleration := false, false, false
 	for _, a := range joined {
 		if a == "-batchmode" {
 			foundBatch = true
@@ -406,9 +406,15 @@ func TestPrepareRewritesHeadlessArgs(t *testing.T) {
 		if a == "-nographics" {
 			foundNoGraphics = true
 		}
+		if a == "-rimgovernor-test-acceleration" {
+			foundAcceleration = true
+		}
 	}
 	if !foundBatch || !foundNoGraphics {
 		t.Fatalf("headless args missing batch/nographics flags: %v", joined)
+	}
+	if !foundAcceleration {
+		t.Fatalf("headless args missing the test-acceleration gate: %v", joined)
 	}
 	if _, err := os.Stat(filepath.Join(root, "headless-profile", "Config", "ModsConfig.xml")); err != nil {
 		t.Fatalf("headless-profile ModsConfig.xml missing: %v", err)
@@ -512,8 +518,8 @@ func TestPrepareRenderedRewritesWindowedArgs(t *testing.T) {
 			t.Fatalf("windowed args missing %s: %v", flag, args)
 		}
 	}
-	if joined["-batchmode"] || joined["-nographics"] {
-		t.Fatalf("rendered args must not include batch flags: %v", args)
+	if joined["-batchmode"] || joined["-nographics"] || joined["-rimgovernor-test-acceleration"] {
+		t.Fatalf("rendered args must not include batch flags or the test-acceleration gate: %v", args)
 	}
 }
 

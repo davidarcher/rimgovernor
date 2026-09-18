@@ -81,7 +81,7 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "Official clock SpeedRequest ProtoJSON string.")] object? request = null)
             => Dispatch(ctx, cancellationToken, "rimgovernor/clock_change_speed", request, Clock.SpeedRequest.Parser,
                 failure => new Clock.ControlReply { Failure = failure }, parsed => Control("ChangeSpeed", parsed, parsed.Authority, parsed.Epoch,
-                    () => parsed.HasSpeed && Supervisor.OrdinarySpeed(parsed.Speed) ? null : Invalid("Clock speed must be normal, fast or superfast."),
+                    () => !parsed.HasSpeed || !Supervisor.OrdinarySpeed(parsed.Speed) ? Invalid("Clock speed must be normal, fast, superfast or ultrafast.") : Supervisor.ValidateTypedSpeedChange(parsed),
                     context => Supervisor.TypedSpeed(parsed, context)));
 
         [Tool("rimgovernor/clock_pause", Title = "Pause exact owned clock", Description = "Safe cleanup of the exact current identity/controller/epoch, including after authority revocation. Never pauses a replacement epoch.")]

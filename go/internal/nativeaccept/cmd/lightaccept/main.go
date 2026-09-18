@@ -231,7 +231,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 	// "work" rides along because every building method's builder check
 	// requires the colony's work priorities to match the controller's own
 	// assignment, which only the work family applies.
-	service, err = na.LaunchService(ctx, cfg, gabsExecutable, na.ServiceLaunch{Binary: binary, Families: []string{"lighting", "work"}, Extra: append([]string{"--clock-speed", na.ClockSpeed()}, na.FlightRecorderArgs(cfg.Output, flightRecorder)...)}, report)
+	service, err = na.LaunchService(ctx, cfg, gabsExecutable, na.ServiceLaunch{Binary: binary, Families: []string{"lighting", "work"}, Extra: append(na.ClockSpeedArgs(), na.FlightRecorderArgs(cfg.Output, flightRecorder)...)}, report)
 	if err != nil {
 		return err
 	}

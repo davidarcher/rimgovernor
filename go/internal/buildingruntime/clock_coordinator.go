@@ -316,7 +316,7 @@ func (q *ClockCoordinator) command(ctx context.Context, intent store.ClockIntent
 	switch command := v.Intent.Command; {
 	case command.Start != nil:
 		s := command.Start
-		reply, _, err = q.writer.Start(call, &k.StartRequest{Authority: pre, Speed: s.Speed.Enum(), Policy: s.Policy, LeaseMs: proto.Uint32(s.LeaseMS), MaxTicks: proto.Uint32(s.MaxTicks)})
+		reply, _, err = q.writer.Start(call, &k.StartRequest{Authority: pre, Speed: s.Speed.Enum(), Policy: s.Policy, LeaseMs: proto.Uint32(s.LeaseMS), MaxTicks: proto.Uint32(s.MaxTicks), TestAcceleration: proto.Bool(s.TestAcceleration)})
 	case command.Renew != nil:
 		r := command.Renew
 		reply, _, err = q.writer.Renew(call, &k.RenewRequest{Epoch: &k.OwnedRequest{Identity: e.Identity, Owner: r.Original.Owner}, Authority: pre, LeaseMs: proto.Uint32(r.LeaseMS)}, r.Original)

@@ -94,6 +94,7 @@ type serveConfig struct {
 	resourceRules                   resourceRuleFlags
 	refresh                         time.Duration
 	clockSpeed                      string
+	clockTestAcceleration           bool
 	clockWindowTicks                uint
 	chat                            bool
 	resume                          bool
@@ -126,7 +127,8 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.StringVar(&c.listen, "listen", "127.0.0.1:0", "loopback IP:port; 0 selects an available port")
 	flags.DurationVar(&c.refresh, "refresh", 3*time.Second, "observation refresh interval")
 	flags.DurationVar(&c.bridge.Timeout, "timeout", 15*time.Second, "native call timeout")
-	flags.StringVar(&c.clockSpeed, "clock-speed", "Normal", "requested native game-clock speed while a supervised window is held: Normal, Fast or Superfast")
+	flags.StringVar(&c.clockSpeed, "clock-speed", "Normal", "requested native game-clock speed while a supervised window is held: Normal, Fast, Superfast or Ultrafast")
+	flags.BoolVar(&c.clockTestAcceleration, "clock-test-acceleration", false, "acceptance only: ask native for its dev tick boost under each Ultrafast window; the game refuses it unless launched with -rimgovernor-test-acceleration (headless acceptance profiles)")
 	flags.UintVar(&c.clockWindowTicks, "clock-window-ticks", defaultClockWindowTicks, fmt.Sprintf("game ticks one supervised colony window may run before it pauses for review (1..%d); a watched outcome, danger or player input still stops it earlier", maxClockWindowTicks))
 	flags.StringVar(&c.flightRecorder, "flight-recorder", "", "absolute path recording every native request/response/error (optional; opt-in diagnostics)")
 	flags.IntVar(&c.routineProjectLimit, "routine-project-limit", 2, "maximum concurrent optional projects, also bounded by observed workers (1..8)")
@@ -154,7 +156,7 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	explicit := map[string]bool{}
 	flags.Visit(func(f *flag.Flag) { explicit[f.Name] = true })
 	if *observe {
-		for _, name := range []string{"profile", "clock-speed", "clock-window-ticks", "routine-project-limit", "routine-research-target", "routine-resource-target", "routine-resource-reserve", "routine-resource-stop", "routine-allow-slaughter", "routine-herd-population-max", "resource-rule", "world-evaluation-food-margin-days", "chat-model", "chat-base-url", "chat-context-tokens", "chat-max-output-tokens", "resume"} {
+		for _, name := range []string{"profile", "clock-speed", "clock-test-acceleration", "clock-window-ticks", "routine-project-limit", "routine-research-target", "routine-resource-target", "routine-resource-reserve", "routine-resource-stop", "routine-allow-slaughter", "routine-herd-population-max", "resource-rule", "world-evaluation-food-margin-days", "chat-model", "chat-base-url", "chat-context-tokens", "chat-max-output-tokens", "resume"} {
 			if explicit[name] {
 				return c, fmt.Errorf("--%s does not apply to --observe", name)
 			}
@@ -176,8 +178,11 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	if c.routineProjectLimit < 1 || c.routineProjectLimit > 8 {
 		return c, errors.New("--routine-project-limit must be 1 through 8")
 	}
-	if c.clockSpeed != "Normal" && c.clockSpeed != "Fast" && c.clockSpeed != "Superfast" {
-		return c, errors.New("--clock-speed must be Normal, Fast or Superfast")
+	if c.clockSpeed != "Normal" && c.clockSpeed != "Fast" && c.clockSpeed != "Superfast" && c.clockSpeed != "Ultrafast" {
+		return c, errors.New("--clock-speed must be Normal, Fast, Superfast or Ultrafast")
+	}
+	if c.clockTestAcceleration && c.clockSpeed != "Ultrafast" {
+		return c, errors.New("--clock-test-acceleration requires --clock-speed Ultrafast")
 	}
 	if c.clockWindowTicks < 1 || c.clockWindowTicks > maxClockWindowTicks {
 		return c, fmt.Errorf("--clock-window-ticks must be 1 through %d", maxClockWindowTicks)

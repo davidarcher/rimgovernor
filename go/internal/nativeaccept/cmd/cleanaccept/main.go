@@ -288,7 +288,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 		// assignment, which only the work family applies.
 		families = []string{"bill", "work"}
 	}
-	service, err = na.LaunchService(ctx, cfg, gabsExecutable, na.ServiceLaunch{Binary: binary, Families: families, Extra: []string{"--clock-speed", na.ClockSpeed()}}, report)
+	service, err = na.LaunchService(ctx, cfg, gabsExecutable, na.ServiceLaunch{Binary: binary, Families: families, Extra: na.ClockSpeedArgs()}, report)
 	if err != nil {
 		return err
 	}

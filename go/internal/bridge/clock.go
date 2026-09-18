@@ -70,13 +70,16 @@ func (control *ClockControl) Start(ctx context.Context, request *k.StartRequest)
 	if err := errors.Join(clockWire(request), clockPrecondition(request.Authority), authorityDuration(request.LeaseMs)); err != nil {
 		return nil, Result{}, err
 	}
-	if request.Speed == nil || request.GetSpeed() < 1 || request.GetSpeed() > 3 || request.MaxTicks == nil || request.GetMaxTicks() < 1 || request.GetMaxTicks() > 1800000 {
+	if request.Speed == nil || request.GetSpeed() < 1 || request.GetSpeed() > 4 || request.MaxTicks == nil || request.GetMaxTicks() < 1 || request.GetMaxTicks() > 1800000 {
 		return nil, Result{}, contract("clock start speed or tick budget")
+	}
+	if request.GetTestAcceleration() && request.GetSpeed() != k.Speed_SPEED_ULTRAFAST {
+		return nil, Result{}, contract("clock test acceleration requires ultrafast")
 	}
 	if err := clockPolicy(request.Policy, int64(request.GetMaxTicks())); err != nil {
 		return nil, Result{}, err
 	}
-	expectation := ClockExpectation{request.Authority.Identity, request.Authority.Attempt, request.Authority.GetExpectedGeneration(), ClockCommand{Start: &ClockStart{Speed: request.GetSpeed(), Policy: request.Policy, LeaseMS: request.GetLeaseMs(), MaxTicks: request.GetMaxTicks()}}}
+	expectation := ClockExpectation{request.Authority.Identity, request.Authority.Attempt, request.Authority.GetExpectedGeneration(), ClockCommand{Start: &ClockStart{Speed: request.GetSpeed(), Policy: request.Policy, LeaseMS: request.GetLeaseMs(), MaxTicks: request.GetMaxTicks(), TestAcceleration: request.GetTestAcceleration()}}}
 	return control.clockCall(ctx, "rimgovernor/clock_start", request, request.Authority, func(r *k.ControlReceipt) error { return ValidateClockReceipt(r, expectation) })
 }
 func (control *ClockControl) Renew(ctx context.Context, request *k.RenewRequest, originalEpoch *k.Epoch) (*k.ControlReply, Result, error) {
@@ -102,8 +105,11 @@ func (control *ClockControl) ChangeSpeed(ctx context.Context, request *k.SpeedRe
 	if err := errors.Join(clockWire(request), clockPrecondition(request.Authority)); err != nil {
 		return nil, Result{}, err
 	}
-	if request.Speed == nil || request.GetSpeed() < 1 || request.GetSpeed() > 3 {
+	if request.Speed == nil || request.GetSpeed() < 1 || request.GetSpeed() > 4 {
 		return nil, Result{}, contract("clock ordinary speed required")
+	}
+	if originalEpoch.GetTestAcceleration() && request.GetSpeed() != k.Speed_SPEED_ULTRAFAST {
+		return nil, Result{}, contract("clock accelerated epoch cannot change speed")
 	}
 	if err := clockOriginal(request.Epoch, request.Authority, originalEpoch); err != nil {
 		return nil, Result{}, err
@@ -113,7 +119,7 @@ func (control *ClockControl) ChangeSpeed(ctx context.Context, request *k.SpeedRe
 	return control.clockCall(ctx, "rimgovernor/clock_change_speed", request, request.Authority, func(r *k.ControlReceipt) error { return ValidateClockReceipt(r, expectation) })
 }
 func clockSameEpoch(actual, original *k.Epoch, speed k.Speed) error {
-	if actual == nil || !proto.Equal(actual.Owner, original.Owner) || !proto.Equal(actual.Origin, original.Origin) || !proto.Equal(actual.Policy, original.Policy) || actual.GetStartTick() != original.GetStartTick() || actual.GetTickDeadline() != original.GetTickDeadline() || actual.GetRequestedSpeed() != speed || actual.GetLastTick() < original.GetLastTick() {
+	if actual == nil || !proto.Equal(actual.Owner, original.Owner) || !proto.Equal(actual.Origin, original.Origin) || !proto.Equal(actual.Policy, original.Policy) || actual.GetStartTick() != original.GetStartTick() || actual.GetTickDeadline() != original.GetTickDeadline() || actual.GetRequestedSpeed() != speed || actual.GetTestAcceleration() != original.GetTestAcceleration() || actual.GetLastTick() < original.GetLastTick() {
 		return contract("clock immutable epoch mismatch")
 	}
 	return nil
@@ -310,8 +316,11 @@ func clockEpoch(e *k.Epoch) error {
 	if err := errors.Join(clockWire(e), clockOwner(e.Owner), ValidateContext(e.Origin)); err != nil {
 		return err
 	}
-	if e.Origin.NativeGeneration == nil || e.StartTick == nil || e.GetStartTick() != e.Origin.GetTick() || e.TickDeadline == nil || e.GetTickDeadline() <= e.GetStartTick() || e.GetTickDeadline()-e.GetStartTick() > 1800000 || e.LastTick == nil || e.GetLastTick() < e.GetStartTick() || e.LeaseRemainingMs == nil || e.GetLeaseRemainingMs() > 30000 || e.RequestedSpeed == nil || e.GetRequestedSpeed() < 1 || e.GetRequestedSpeed() > 3 {
+	if e.Origin.NativeGeneration == nil || e.StartTick == nil || e.GetStartTick() != e.Origin.GetTick() || e.TickDeadline == nil || e.GetTickDeadline() <= e.GetStartTick() || e.GetTickDeadline()-e.GetStartTick() > 1800000 || e.LastTick == nil || e.GetLastTick() < e.GetStartTick() || e.LeaseRemainingMs == nil || e.GetLeaseRemainingMs() > 30000 || e.RequestedSpeed == nil || e.GetRequestedSpeed() < 1 || e.GetRequestedSpeed() > 4 {
 		return contract("clock epoch bounds or presence")
+	}
+	if e.GetTestAcceleration() && e.GetRequestedSpeed() != k.Speed_SPEED_ULTRAFAST {
+		return contract("clock accelerated epoch speed")
 	}
 	return clockPolicy(e.Policy, e.GetTickDeadline()-e.GetStartTick())
 }

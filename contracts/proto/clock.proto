@@ -6,12 +6,16 @@ import "common.proto";
 import "authority.proto";
 import "receipts.proto";
 
-// Ordinary production speeds. Fixture acceleration is outside this capability.
+// Requested epoch speeds. Ultrafast is an ordinary speed on the wire; the
+// native dev tick boost behind it is test acceleration
+// (StartRequest.test_acceleration), which only a game launched with
+// -rimgovernor-test-acceleration (headless acceptance profiles) admits.
 enum Speed {
   SPEED_UNSPECIFIED = 0;
   SPEED_NORMAL = 1;
   SPEED_FAST = 2;
   SPEED_SUPERFAST = 3;
+  SPEED_ULTRAFAST = 4;
 }
 enum ObservedSpeed {
   OBSERVED_SPEED_UNSPECIFIED = 0;
@@ -84,6 +88,10 @@ message StartRequest {
   WatchPolicy policy = 3;
   optional uint32 lease_ms = 4;
   optional uint32 max_ticks = 5;
+  // Enable the native tick boost for this epoch. Requires SPEED_ULTRAFAST and
+  // a game launched with test acceleration (Status.test_acceleration_available);
+  // refused otherwise. An accelerated epoch cannot change speed, only pause.
+  optional bool test_acceleration = 6;
 }
 message OwnedRequest {
   rimgovernor.common.v1.Identity identity = 1;
@@ -110,6 +118,7 @@ message Epoch {
   optional int64 tick_deadline = 6;
   optional uint32 lease_remaining_ms = 7;
   optional int64 last_tick = 8;
+  optional bool test_acceleration = 9;
 }
 message Running { Epoch epoch = 1; }
 message Stopping {
@@ -151,6 +160,8 @@ message Status {
   rimgovernor.common.v1.PageInfo evidence_completeness = 17;
   optional ObservedSpeed observed_speed = 18;
   optional bool actual_paused = 19;
+  // The launch admits StartRequest.test_acceleration.
+  optional bool test_acceleration_available = 20;
 }
 message StatusReply {
   oneof outcome {

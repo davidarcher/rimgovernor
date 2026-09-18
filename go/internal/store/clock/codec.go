@@ -27,6 +27,8 @@ type clockIntentRecord struct {
 	LeaseMS, MaxTicks uint32
 	Policy, Original  []byte
 	Window            *WindowAdmission
+	// Omitted when false so records written before the field stay canonical.
+	TestAcceleration bool `json:",omitempty"`
 }
 
 func clockExpectation(v Attempt) bridge.ClockExpectation {
@@ -92,6 +94,7 @@ func encodeClockIntent(v Attempt) ([]byte, error) {
 		record.Speed = int32(command.Start.Speed)
 		record.LeaseMS = command.Start.LeaseMS
 		record.MaxTicks = command.Start.MaxTicks
+		record.TestAcceleration = command.Start.TestAcceleration
 		record.Policy, err = clockBinary(command.Start.Policy)
 	case command.Renew != nil:
 		record.Kind = "renew"
@@ -132,7 +135,7 @@ func decodeClockIntent(id string, attempt *c.AttemptKey, b []byte) (Intent, erro
 		if err = clockUnmarshal(record.Policy, policy); err != nil {
 			return Intent{}, err
 		}
-		intent.Command.Start = &bridge.ClockStart{Speed: k.Speed(record.Speed), Policy: policy, LeaseMS: record.LeaseMS, MaxTicks: record.MaxTicks}
+		intent.Command.Start = &bridge.ClockStart{Speed: k.Speed(record.Speed), Policy: policy, LeaseMS: record.LeaseMS, MaxTicks: record.MaxTicks, TestAcceleration: record.TestAcceleration}
 	case "renew", "speed":
 		epoch := &k.Epoch{}
 		if err = clockUnmarshal(record.Original, epoch); err != nil {

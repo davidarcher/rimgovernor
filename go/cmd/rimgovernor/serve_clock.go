@@ -69,6 +69,8 @@ func parseClockSpeed(speed string) k.Speed {
 		return k.Speed_SPEED_FAST
 	case "Superfast":
 		return k.Speed_SPEED_SUPERFAST
+	case "Ultrafast":
+		return k.Speed_SPEED_ULTRAFAST
 	default:
 		return k.Speed_SPEED_NORMAL
 	}
@@ -87,7 +89,7 @@ const (
 	combatClockWindowTicks  = 300
 )
 
-func serviceClockConfig(profile string, speed k.Speed, windowTicks uint32) buildingruntime.ClockSchedulerConfig {
+func serviceClockConfig(profile string, speed k.Speed, testAcceleration bool, windowTicks uint32) buildingruntime.ClockSchedulerConfig {
 	return buildingruntime.ClockSchedulerConfig{
 		// MaxAge bounds how stale the admission reads (status, emergency)
 		// may be by the time EvaluateClockWindow admits a window. The
@@ -96,7 +98,7 @@ func serviceClockConfig(profile string, speed k.Speed, windowTicks uint32) build
 		// a slow admission read under peer load still admits.
 		Profile: profile, MaxAge: serviceClockStepTimeout,
 		CombatMaxTicks: min(combatClockWindowTicks, windowTicks),
-		Start: bridge.ClockStart{Speed: speed, LeaseMS: 30000, MaxTicks: windowTicks,
+		Start: bridge.ClockStart{Speed: speed, TestAcceleration: testAcceleration, LeaseMS: 30000, MaxTicks: windowTicks,
 			Policy: &k.WatchPolicy{Mode: k.WatchMode_WATCH_MODE_COLONY.Enum(),
 				HealthDropFraction: proto.Float32(.1), MinHealthFraction: proto.Float32(.5),
 				HostileWithin: proto.Float32(20), InjuryStopCooldownMs: proto.Uint32(0)}},
@@ -149,7 +151,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	fields, bills, foodStorage := sc.routineFieldPlans, sc.routineBillPlans, sc.routineFoodStoragePlans
 	prisonerInteraction, populationCustody, stoneShell, defensiveLayout := sc.routinePrisonerInteractionPlans, sc.routinePopulationCustodyPlans, sc.routineStoneShellPlans, sc.routineDefensiveLayoutPlans
 	haul, waste, moodRelief, naming := sc.routineHaulPlans, sc.routineWastePlans, sc.routineMoodPlans, sc.routineNamingPlans
-	config := serviceClockConfig(profile, parseClockSpeed(clockSpeed), uint32(sc.clockWindowTicks))
+	config := serviceClockConfig(profile, parseClockSpeed(clockSpeed), sc.clockTestAcceleration, uint32(sc.clockWindowTicks))
 	config.RoutineMethods = session.RoutineMethodsEnabled()
 	if caravanJourneyTracking {
 		native, ok := reads.(buildingruntime.CaravanJourneyNative)

@@ -29,8 +29,11 @@ func ValidateClockExpectation(e ClockExpectation) error {
 		return contract("one clock command required")
 	}
 	if start := e.Command.Start; start != nil {
-		if start.Speed < 1 || start.Speed > 3 || start.MaxTicks < 1 || start.MaxTicks > 1800000 {
+		if start.Speed < 1 || start.Speed > 4 || start.MaxTicks < 1 || start.MaxTicks > 1800000 {
 			return contract("clock start speed or tick budget")
+		}
+		if start.TestAcceleration && start.Speed != k.Speed_SPEED_ULTRAFAST {
+			return contract("clock test acceleration requires ultrafast")
 		}
 		return errors.Join(authorityDuration(&start.LeaseMS), clockPolicy(start.Policy, int64(start.MaxTicks)))
 	}
@@ -43,8 +46,11 @@ func ValidateClockExpectation(e ClockExpectation) error {
 	}
 	if speed := e.Command.Speed; speed != nil {
 		original = speed.Original
-		if speed.Speed < 1 || speed.Speed > 3 {
+		if speed.Speed < 1 || speed.Speed > 4 {
 			return contract("clock ordinary speed required")
+		}
+		if speed.Original.GetTestAcceleration() && speed.Speed != k.Speed_SPEED_ULTRAFAST {
+			return contract("clock accelerated epoch cannot change speed")
 		}
 	}
 	if err := clockEpoch(original); err != nil {
@@ -71,7 +77,7 @@ func ValidateClockReceipt(r *k.ControlReceipt, e ClockExpectation) error {
 	}
 	actual := clockStatusEpoch(r.GetApplied().GetStatus())
 	if start := e.Command.Start; start != nil {
-		if actual == nil || !proto.Equal(actual.Origin, r.AdmittedContext) || actual.GetTickDeadline()-actual.GetStartTick() != int64(start.MaxTicks) || actual.GetRequestedSpeed() != start.Speed || !proto.Equal(actual.Policy, start.Policy) || actual.GetLeaseRemainingMs() > start.LeaseMS {
+		if actual == nil || !proto.Equal(actual.Origin, r.AdmittedContext) || actual.GetTickDeadline()-actual.GetStartTick() != int64(start.MaxTicks) || actual.GetRequestedSpeed() != start.Speed || actual.GetTestAcceleration() != start.TestAcceleration || !proto.Equal(actual.Policy, start.Policy) || actual.GetLeaseRemainingMs() > start.LeaseMS {
 			return contract("clock start epoch mismatch")
 		}
 		return nil

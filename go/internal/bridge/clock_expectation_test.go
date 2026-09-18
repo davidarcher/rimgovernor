@@ -23,9 +23,12 @@ func TestClockExpectationInvalidEvidence(t *testing.T) {
 		"zero budget":      func(e *ClockExpectation) { e.Command.Start.MaxTicks = 0 },
 		"long budget":      func(e *ClockExpectation) { e.Command.Start.MaxTicks = 1800001 },
 		"short lease":      func(e *ClockExpectation) { e.Command.Start.LeaseMS = 999 },
-		"unknown speed":    func(e *ClockExpectation) { e.Command.Start.Speed = k.Speed(4) },
-		"missing policy":   func(e *ClockExpectation) { e.Command.Start.Policy = nil },
-		"nonfinite":        func(e *ClockExpectation) { e.Command.Start.Policy.HostileWithin = proto.Float32(float32(math.NaN())) },
+		"unknown speed":    func(e *ClockExpectation) { e.Command.Start.Speed = k.Speed(5) },
+		"slow acceleration": func(e *ClockExpectation) {
+			e.Command.Start.Speed, e.Command.Start.TestAcceleration = k.Speed_SPEED_SUPERFAST, true
+		},
+		"missing policy": func(e *ClockExpectation) { e.Command.Start.Policy = nil },
+		"nonfinite":      func(e *ClockExpectation) { e.Command.Start.Policy.HostileWithin = proto.Float32(float32(math.NaN())) },
 		"medical budget": func(e *ClockExpectation) {
 			e.Command.Start.Policy.MedicalRestIds = []string{"pawn"}
 			e.Command.Start.MaxTicks = 601
@@ -60,6 +63,10 @@ func TestClockReceiptRecoveryCorrelatesFullAdmission(t *testing.T) {
 		"speed": func(r *k.ControlReceipt) {
 			r.GetApplied().Status.GetRunning().Epoch.RequestedSpeed = k.Speed_SPEED_FAST.Enum()
 		},
+		"acceleration": func(r *k.ControlReceipt) {
+			r.GetApplied().Status.GetRunning().Epoch.RequestedSpeed = k.Speed_SPEED_ULTRAFAST.Enum()
+			r.GetApplied().Status.GetRunning().Epoch.TestAcceleration = proto.Bool(true)
+		},
 		"budget": func(r *k.ControlReceipt) { r.GetApplied().Status.GetRunning().Epoch.TickDeadline = proto.Int64(113) },
 		"lease": func(r *k.ControlReceipt) {
 			r.GetApplied().Status.GetRunning().Epoch.LeaseRemainingMs = proto.Uint32(1001)
@@ -75,6 +82,43 @@ func TestClockReceiptRecoveryCorrelatesFullAdmission(t *testing.T) {
 				t.Fatal("uncorrelated receipt accepted")
 			}
 		})
+	}
+}
+
+// Ultrafast is an ordinary wire speed; test acceleration rides only on it
+// and an accelerated epoch never slows, it pauses.
+func TestClockExpectationUltrafastAndAcceleration(t *testing.T) {
+	e := clockExpectationFixture()
+	e.Command.Start.Speed, e.Command.Start.TestAcceleration = k.Speed_SPEED_ULTRAFAST, true
+	if err := ValidateClockExpectation(e); err != nil {
+		t.Fatal(err)
+	}
+	r := clockTestReceipt()
+	r.GetApplied().Status.GetRunning().Epoch.RequestedSpeed = k.Speed_SPEED_ULTRAFAST.Enum()
+	if ValidateClockReceipt(r, e) == nil {
+		t.Fatal("unaccelerated epoch correlated to an accelerated start")
+	}
+	r.GetApplied().Status.GetRunning().Epoch.TestAcceleration = proto.Bool(true)
+	if err := ValidateClockReceipt(r, e); err != nil {
+		t.Fatal(err)
+	}
+	accelerated := r.GetApplied().Status.GetRunning().Epoch
+	if err := ValidateClockEpoch(accelerated); err != nil {
+		t.Fatal(err)
+	}
+	accelerated.RequestedSpeed = k.Speed_SPEED_SUPERFAST.Enum()
+	if ValidateClockEpoch(accelerated) == nil {
+		t.Fatal("accelerated epoch below ultrafast accepted")
+	}
+	accelerated.RequestedSpeed = k.Speed_SPEED_ULTRAFAST.Enum()
+	change := clockExpectationFixture()
+	change.Command = ClockCommand{Speed: &ClockSpeed{Original: accelerated, Speed: k.Speed_SPEED_FAST}}
+	if ValidateClockExpectation(change) == nil {
+		t.Fatal("accelerated epoch speed change accepted")
+	}
+	change.Command.Speed.Speed = k.Speed_SPEED_ULTRAFAST
+	if err := ValidateClockExpectation(change); err != nil {
+		t.Fatal(err)
 	}
 }
 func TestClockExpectationOutcomesAndReadPurity(t *testing.T) {
