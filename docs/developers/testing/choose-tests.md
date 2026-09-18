@@ -352,7 +352,7 @@ unloads.
 `RIMGOVERNOR_ACCEPT_KEEP_GAME=0` opts out (launch and `games_stop` per
 harness). Do so for a harness that asserts on mod static state, which is
 process-scoped and survives the reuse (`contracts/native-static-state.md`),
-or that must observe a first boot; `suiteaccept` forces the keep on for its
+or that must observe a first boot; `acceptance suite` forces the keep on for its
 workers regardless.
 
 The native clock journal (`ClockEventJournal.cs`, one XML row per event
@@ -385,16 +385,28 @@ colony.
 
 ### Running harnesses in parallel
 
-`suiteaccept -root <root> -output <out> -bin <bin> -workers N -harnesses a,b,c`
-(or `-suite file.json` with `[{"name", "binary", "args", "acceptance"}]`,
-a relative `binary` resolving under `-bin` and `{rimgovernor}` in `args`
-replaced by `-rimgovernor`) clones the root into N worker roots
-(`na.IsolatedRoot`: own GABS state, config and profile, same game
-installation), gives each worker a queue of harnesses chained on one kept
-process, and stops every worker's game at the end. The suite's
-`result.json` lists each harness's exit, wall time, `game_reuse`,
-`acceptance` label and error; it passes only when every harness did.
-`cmd/suiteaccept/suites/issue-6-matrix.json` is issue #6's cross-slice
+`acceptance suite (-all | -cases a,b | -suite file.json) -root <root>
+-output <out> -workers N [-baseline <result.json> -bin <bin> -rimgovernor
+<bin>]` (`go/internal/nativeaccept/cmd/acceptance`) clones the root into N
+worker roots (`na.IsolatedRoot`: own GABS state, config and profile, same
+game installation), gives each worker a queue of cases chained on one kept
+process, and stops every worker's game at the end. `-all` and `-cases`
+name registry cases; a `-suite` file (`[{"name", "binary", "args",
+"acceptance", "serve"}]`) may list registry cases and old per-harness
+binaries side by side: a name that is a registered case runs through
+`acceptance run`, any other is `<bin>/<name>.exe` (a relative `binary`
+resolves under `-bin`, `{rimgovernor}` in `args` is replaced by
+`-rimgovernor`). The queue puts bridge-only cases first and serve-driven
+ones (a case with `Serve`, a binary passing `-rimgovernor` or marked
+`"serve": true`) last, so no bridge-only case inherits a process that
+hosted a service (#119); within each half it runs longest-first by the
+`-baseline` suite's wall times (untimed cases first). The suite's
+`result.json` lists each case's kind, worker, exit, `wall_ms`, `boot_ms`,
+`game_reuse`, `acceptance` label and error, the sum of case wall times
+beside the baseline's, and `regressions`: every case more than 25% slower
+than its baseline row (flagged, never failing on its own). The suite
+passes only when every case did.
+`cmd/acceptance/suites/issue-6-matrix.json` is issue #6's cross-slice
 acceptance matrix: one row per criterion in the issue text (dark and
 partially lit benches, protected fungus rooms, filthy vs inherently dirty
 rooms, kitchen/butcher separation, unreachable stores, disconnected
@@ -402,19 +414,19 @@ consumers, exhausted fuel and batteries, hot-weather freezer failure), each
 mapped to the harness scenario that exercises it; `suite_test.go` fails
 when a criterion loses its row. The mod build for it needs
 `PowerFixture RefrigerationFixture CleanlinessFixture LightingFixture
-FlooringFixture RoutesFixture`. `-order <earlier result.json>`
-starts harnesses longest-first by that run's wall times, so a slow one
-does not land last. Measured: six short harnesses on two workers in 68s
-unordered, 58s ordered, against about 125s in sequence. The installed mod build
-must carry every fixture the list needs, and each harness must fit the
-step budget with N-1 peer games running (#73 measured three). A harness
-that composes several routine families in one service (`sustainedfoodaccept`
-and `sustainedmatrixaccept` run EnsureFoodSupply's whole pipeline by
-default) shares one 30s step across all of them, and under three peer games
-that step admits nothing: pass `-families <family>` to keep the budget for
-the family under test (`farmselectaccept` defaults to `field`), or let the
-default `-step-stall 90s` fail the run as soon as the first window has not
-been admitted instead of watching an idle service for twenty minutes (#103).
+FlooringFixture RoutesFixture`. Measured: six short harnesses on two
+workers in 68s unordered, 58s ordered, against about 125s in sequence;
+the same six plus `smoke/identity` through `acceptance suite` in 47s. The
+installed mod build must carry every fixture the list needs, and each
+harness must fit the step budget with N-1 peer games running (#73 measured
+three). A harness that composes several routine families in one service
+(`sustainedfoodaccept` and `sustainedmatrixaccept` run EnsureFoodSupply's
+whole pipeline by default) shares one 30s step across all of them, and
+under three peer games that step admits nothing: pass `-families <family>`
+to keep the budget for the family under test (`farmselectaccept` defaults
+to `field`), or let the default `-step-stall 90s` fail the run as soon as
+the first window has not been admitted instead of watching an idle service
+for twenty minutes (#103).
 
 Process reuse carries the same static-state caveat as `-reuse-game`
 (next paragraph), and process-wide `Prefs` too: `letteraccept` sets the

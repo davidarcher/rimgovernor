@@ -2,11 +2,14 @@
 //
 //	acceptance list
 //	acceptance run <case>... [-root -output -game -headless -timeout -budget -stall]
+//	acceptance suite (-all | -cases a,b | -suite file.json) -root -output -workers N [-baseline result.json]
 //
 // It replaces the per-harness binaries' preamble with one loop: resolve the
 // shared configuration, open the game, bring it to the case's Start, quiet
 // the storyteller, freeze needs, run the case, write result.json with the
-// run's timing. Cases register from the area packages imported below.
+// run's timing. `suite` (suite.go) runs a set across N private game copies
+// with regression flagging. Cases register from the area packages imported
+// below.
 package main
 
 import (
@@ -48,6 +51,13 @@ func run(args []string, stdout, stderr io.Writer) int {
 			return 2
 		}
 		return runCases(context.Background(), selected, opts, stdout)
+	case "suite":
+		list, opts, err := parseSuite(args[1:], stderr)
+		if err != nil {
+			fmt.Fprintln(stderr, err)
+			return 2
+		}
+		return runSuite(context.Background(), list, opts, stderr)
 	default:
 		fmt.Fprintf(stderr, "unknown command %q\n%s\n", args[0], usage)
 		return 2
@@ -56,7 +66,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 const usage = `usage:
   acceptance list
-  acceptance run <case>... -root <dir> [-output <dir> -game <id> -headless=false -timeout <d> -budget <d> -stall <d>]`
+  acceptance run <case>... -root <dir> [-output <dir> -game <id> -headless=false -timeout <d> -budget <d> -stall <d>]
+` + suiteUsage
 
 // parseRun resolves the run subcommand's flags and case names. Flags may
 // follow the case names (flag.FlagSet stops at the first non-flag, so the
