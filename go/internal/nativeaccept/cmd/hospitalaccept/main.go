@@ -52,7 +52,6 @@ func main() {
 	settle := flag.Duration("settle", 4*time.Minute, "wall-clock window after the service stops for a patient to reach the hospital bed")
 	timeout := flag.Duration("timeout", 40*time.Minute, "overall run timeout (must exceed -watch plus -settle plus startup/shutdown)")
 	nativeTimeout := flag.Duration("native-timeout", 15*time.Second, "serve subprocess's own --timeout")
-	clockSpeed := flag.String("clock-speed", "Superfast", "serve's --clock-speed (Normal, Fast or Superfast)")
 	families := flag.String("families", hospitalFamilies, "RIMGOVERNOR_ROUTINE_FAMILIES composition for the run")
 	flightRecorder := flag.Bool("flight-recorder", false, "record every native request/response of the service under <output>/flight-recorder.jsonl")
 	flag.Parse()
@@ -78,7 +77,7 @@ func main() {
 	cfg := sustainedfood.RunConfig{
 		Root: *root, Output: *output, GameID: *game, Headless: !*rendered,
 		RimgovernorBinary: *rimgovernorBinary, Save: *save,
-		Watch: *watch, Poll: *poll, NativeTimeout: *nativeTimeout, ClockSpeed: *clockSpeed,
+		Watch: *watch, Poll: *poll, NativeTimeout: *nativeTimeout,
 		RequestPrefix: "hospital", Families: *families, Goal: policy.MaintainMedicalCare,
 		Until: bedConverted,
 	}

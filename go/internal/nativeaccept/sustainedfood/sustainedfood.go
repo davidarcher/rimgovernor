@@ -39,12 +39,6 @@ type RunConfig struct {
 	// requestIds across variants sharing one -root's HTTP log; defaults to
 	// "sustained-food" when empty.
 	RequestPrefix string
-	// ClockSpeed is the harness's own serve --clock-speed default, applied
-	// only while RIMGOVERNOR_ACCEPT_CLOCK_SPEED is unset (na.ClockSpeedArgs
-	// otherwise decides, #128). A watch window measures wall-clock minutes,
-	// not ticks, so a faster clock packs more simulated ticks -- and more
-	// chances for EnsureFoodSupply to actually progress -- into cfg.Watch.
-	ClockSpeed string
 	// Families is serve's RIMGOVERNOR_ROUTINE_FAMILIES value; empty composes
 	// only EnsureFoodSupply's own pipeline and "all" the autonomous default. Goal is the maintained goal the
 	// timeline samples (default EnsureFoodSupply). Until, when set, ends the
@@ -200,7 +194,6 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) (timeline []map[s
 	spec := na.ServeSpec{
 		Binary: cfg.RimgovernorBinary, Families: []string{families},
 		Extra:         cfg.ServeArgs,
-		ClockSpeed:    cfg.ClockSpeed,
 		NativeTimeout: cfg.NativeTimeout, StepStall: cfg.StepStall, Prefix: prefix,
 	}
 	var service *na.ServiceProcess

@@ -78,7 +78,6 @@ func main() {
 	poll := flag.Duration("poll", 5*time.Second, "sampling interval during each variant's watch window")
 	perVariantTimeout := flag.Duration("variant-timeout", 30*time.Minute, "per-variant run timeout (must exceed -watch plus startup/shutdown)")
 	nativeTimeout := flag.Duration("native-timeout", 15*time.Second, "serve subprocess's own --timeout (native call budget per ClockScheduler.Step, shared across every chained routine planner in that step)")
-	clockSpeed := flag.String("clock-speed", "Superfast", "serve's --clock-speed (Normal, Fast or Superfast); faster packs more simulated ticks into each variant's wall-clock -watch window")
 	startTimeout := flag.Duration("start-timeout", 180*time.Second, "in -manifest mode, rimworld/start_debug_game_ready timeout per generated variant")
 	stopOnError := flag.Bool("stop-on-error", false, "abort the remaining variants after the first harness error instead of continuing the matrix")
 	families := flag.String("families", "", "serve's RIMGOVERNOR_ROUTINE_FAMILIES for every variant; empty composes EnsureFoodSupply's full pipeline, \"all\" serve's autonomous default; narrow it on a machine running peer headless games (issue #103)")
@@ -248,7 +247,7 @@ func main() {
 		cfg := sustainedfood.RunConfig{
 			Root: *root, Output: variantDir, GameID: *game, Headless: !*rendered,
 			RimgovernorBinary: *rimgovernorBinary, Save: v.Save,
-			Watch: *watch, Poll: *poll, NativeTimeout: *nativeTimeout, ClockSpeed: *clockSpeed,
+			Watch: *watch, Poll: *poll, NativeTimeout: *nativeTimeout,
 			RequestPrefix: "sustained-matrix-" + sanitize(v.Save),
 			Families:      *families, StepStall: *stepStall,
 			Reuse: reuse,

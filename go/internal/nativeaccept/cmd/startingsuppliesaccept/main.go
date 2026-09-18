@@ -51,7 +51,6 @@ func main() {
 	poll := flag.Duration("poll", 5*time.Second, "sampling interval during the watch window")
 	timeout := flag.Duration("timeout", 20*time.Minute, "overall run timeout (must exceed -watch plus startup/shutdown)")
 	nativeTimeout := flag.Duration("native-timeout", 30*time.Second, "serve subprocess's own --timeout")
-	clockSpeed := flag.String("clock-speed", "Superfast", "serve's --clock-speed (Normal, Fast or Superfast)")
 	stepStall := flag.Duration("step-stall", 3*time.Minute, "fail fast unless a scheduler step has admitted a clock window within this long of the watch starting (0 disables)")
 	families := flag.String("families", "supply,shelter,sleeping", "serve's RIMGOVERNOR_ROUTINE_FAMILIES; the supply family alone allows every stack at the paused load tick and then never advances the clock, so no later review re-reads the census: the shelter (and its sleeping spots) keeps windows running the way run 24 did, with the shell built over the drop site")
 	flag.Parse()
@@ -79,7 +78,7 @@ func main() {
 	cfg := sustainedfood.RunConfig{
 		Root: *root, Output: *output, GameID: *game, Headless: !*rendered,
 		RimgovernorBinary: *rimgovernorBinary, Save: *save,
-		Watch: *watch, Poll: *poll, NativeTimeout: *nativeTimeout, ClockSpeed: *clockSpeed,
+		Watch: *watch, Poll: *poll, NativeTimeout: *nativeTimeout,
 		RequestPrefix: "starting-supplies", Families: *families, StepStall: *stepStall,
 		Goal:  policy.AllowStartingSupplies,
 		Until: recovered,

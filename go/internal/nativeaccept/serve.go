@@ -41,9 +41,6 @@ type ServeSpec struct {
 	Families []string
 	// Extra are further serve arguments, appended verbatim.
 	Extra []string
-	// ClockSpeed is the harness's own default clock speed (its -clock-speed
-	// flag), used only while ClockSpeedEnv is unset; empty takes ClockSpeed().
-	ClockSpeed string
 	// Env are further environment entries (KEY=value) for the process.
 	Env []string
 	// NativeTimeout is the service's --timeout; zero means 15s.
@@ -211,11 +208,7 @@ func ServeArgs(cfg *Config, gabs, profileDir, statePath, flightPath string, spec
 		"--timeout", timeout.String(),
 		"--flight-recorder", flightPath,
 	}
-	speed := ClockSpeed()
-	if spec.ClockSpeed != "" && os.Getenv(ClockSpeedEnv) == "" {
-		speed = spec.ClockSpeed
-	}
-	argv = append(argv, ClockSpeedFlags(speed)...)
+	argv = append(argv, ClockSpeedArgs()...)
 	if spec.Resume {
 		argv = append(argv, "--resume")
 	}

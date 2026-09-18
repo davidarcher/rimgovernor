@@ -43,7 +43,6 @@ func main() {
 	poll := flag.Duration("poll", 5*time.Second, "sampling interval during the watch window")
 	timeout := flag.Duration("timeout", 30*time.Minute, "overall run timeout (must exceed -watch plus startup/shutdown)")
 	nativeTimeout := flag.Duration("native-timeout", 15*time.Second, "serve subprocess's own --timeout (native call budget per ClockScheduler.Step, shared across every chained routine planner in that step)")
-	clockSpeed := flag.String("clock-speed", "Superfast", "serve's --clock-speed (Normal, Fast or Superfast); faster packs more simulated ticks into the same wall-clock -watch window")
 	flag.Parse()
 	if *root == "" {
 		fmt.Fprintln(os.Stderr, "-root is required")
@@ -79,7 +78,7 @@ func main() {
 	cfg := stablepatient.RunConfig{
 		Root: *root, Output: *output, GameID: *game, Headless: !*rendered,
 		RimgovernorBinary: *rimgovernorBinary,
-		Watch:             *watch, Poll: *poll, NativeTimeout: *nativeTimeout, ClockSpeed: *clockSpeed,
+		Watch:             *watch, Poll: *poll, NativeTimeout: *nativeTimeout,
 	}
 	_, err := stablepatient.Run(ctx, cfg, report)
 	if err != nil {

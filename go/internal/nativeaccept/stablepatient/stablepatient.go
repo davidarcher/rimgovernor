@@ -41,7 +41,6 @@ type RunConfig struct {
 	Poll              time.Duration
 	NativeTimeout     time.Duration
 	RequestPrefix     string
-	ClockSpeed        string
 }
 
 // Run executes one run against a fresh fixture-seeded debug game. cfg.Output
@@ -128,7 +127,7 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) ([]map[string]any
 	spec := na.ServeSpec{
 		Binary:        cfg.RimgovernorBinary,
 		Families:      []string{"tend,medical,field,food-storage,acquisition,cooking,supply,production-policy"},
-		NativeTimeout: cfg.NativeTimeout, Prefix: prefix, ClockSpeed: cfg.ClockSpeed,
+		NativeTimeout: cfg.NativeTimeout, Prefix: prefix,
 	}
 	// Serve releases the harness session first (no games_stop, so the
 	// fixture-seeded colony survives) and waits for the service to attach.

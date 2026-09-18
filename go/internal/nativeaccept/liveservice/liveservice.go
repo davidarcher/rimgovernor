@@ -30,10 +30,6 @@ type Config struct {
 	Binary               string
 	Save                 string
 	NativeTimeout        time.Duration
-	// ClockSpeed is the harness's own serve --clock-speed default, applied
-	// only while RIMGOVERNOR_ACCEPT_CLOCK_SPEED is unset (na.ClockSpeedArgs
-	// otherwise decides, #128).
-	ClockSpeed string
 	// Families is RIMGOVERNOR_ROUTINE_FAMILIES; empty runs the autonomous
 	// default with every family on.
 	Families string
@@ -148,7 +144,7 @@ func (p *Prepared) Start(ctx context.Context, report na.Report) (*Service, error
 	var proc *na.ServiceProcess
 	var err error
 	if p.last == nil {
-		spec := na.ServeSpec{Binary: p.cfg.Binary, NativeTimeout: p.cfg.NativeTimeout, Prefix: p.cfg.Prefix, ClockSpeed: p.cfg.ClockSpeed}
+		spec := na.ServeSpec{Binary: p.cfg.Binary, NativeTimeout: p.cfg.NativeTimeout, Prefix: p.cfg.Prefix}
 		if p.cfg.Families != "" {
 			spec.Families = strings.Split(p.cfg.Families, ",")
 		}

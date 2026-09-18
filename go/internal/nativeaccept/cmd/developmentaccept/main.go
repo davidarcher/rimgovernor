@@ -39,7 +39,6 @@ func main() {
 	minReviews := flag.Int("min-reviews", 2, "distinct review ticks the timeline must contain; fewer means the clock never advanced and the run is vacuous")
 	researchTarget := flag.String("research-target", "MicroelectronicsBasics", "serve's --routine-research-target; empty leaves research unranked")
 	resourceTargets := flag.String("resource-targets", "WoodLog:400", "comma-separated RESOURCE:TARGET list for --routine-resource-target (requires the resource family)")
-	clockSpeed := flag.String("clock-speed", "Fast", "serve's --clock-speed")
 	pauseMode := flag.String("pause-mode", "Never", "headless profile's automaticPauseMode (Never, MajorThreat, AnyThreat, AnyLetter); a letter that pauses is a player interruption the controller waits on, so the default lets the ranking play through the save's threats")
 	nativeTimeout := flag.Duration("native-timeout", 15*time.Second, "serve's --timeout (native call budget per clock step)")
 	watch := flag.Duration("watch", 6*time.Minute, "maximum wall-clock sampling window before the restart; ends early once -min-reviews distinct review ticks were sampled")
@@ -64,7 +63,7 @@ func main() {
 	}
 	report := na.NewReport("Development priorities (#9): a resumed controller's recorded ranking is sampled through /api/routines across a kill-and-restart pair; admission stays within the project limit, worker count and free labor, every deferral carries a reason, a configured research target is measured at review time, and waiting ages survive the restart. Pawn progress is out of scope.", !*rendered)
 	cfg := runConfig{root: *root, output: *output, gameID: *game, headless: !*rendered, binary: *binary, save: *save, families: *families, limit: *limit, minReviews: *minReviews,
-		researchTarget: *researchTarget, resourceTargets: *resourceTargets, clockSpeed: *clockSpeed, pauseMode: *pauseMode, nativeTimeout: *nativeTimeout, watch: *watch, afterRestart: *afterRestart, poll: *poll}
+		researchTarget: *researchTarget, resourceTargets: *resourceTargets, pauseMode: *pauseMode, nativeTimeout: *nativeTimeout, watch: *watch, afterRestart: *afterRestart, poll: *poll}
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
 	err := run(ctx, cfg, report)
@@ -77,10 +76,10 @@ func main() {
 }
 
 type runConfig struct {
-	root, output, gameID, binary, save, families, researchTarget, resourceTargets, clockSpeed, pauseMode string
-	headless                                                                                             bool
-	limit, minReviews                                                                                    int
-	nativeTimeout, watch, afterRestart, poll                                                             time.Duration
+	root, output, gameID, binary, save, families, researchTarget, resourceTargets, pauseMode string
+	headless                                                                                 bool
+	limit, minReviews                                                                        int
+	nativeTimeout, watch, afterRestart, poll                                                 time.Duration
 }
 
 func run(ctx context.Context, c runConfig, report na.Report) error {
@@ -178,7 +177,7 @@ func run(ctx context.Context, c runConfig, report na.Report) error {
 		return fmt.Errorf("close fixture-prep bridge session: %w", err)
 	}
 
-	extra := []string{"--resume", "--clock-speed", c.clockSpeed, "--routine-project-limit", fmt.Sprint(c.limit), "--flight-recorder", filepath.Join(output, "flight.jsonl")}
+	extra := append(na.ClockSpeedArgs(), "--resume", "--routine-project-limit", fmt.Sprint(c.limit), "--flight-recorder", filepath.Join(output, "flight.jsonl"))
 	if c.researchTarget != "" {
 		extra = append(extra, "--routine-research-target", c.researchTarget)
 	}

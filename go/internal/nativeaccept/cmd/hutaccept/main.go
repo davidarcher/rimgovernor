@@ -55,7 +55,6 @@ func main() {
 	stall := flag.Duration("stall", na.StallBudget(), "fail a wait once its progress signature (shell lineage stages, shelter goal binding, bed plan stage) has not changed for this long; "+na.StallEnv+" sets the default")
 	timeout := flag.Duration("timeout", 100*time.Minute, "overall run timeout")
 	nativeTimeout := flag.Duration("native-timeout", 60*time.Second, "serve subprocess's own --timeout (the shelter planner previews the whole shell per cell natively; shorter budgets time out under load; serve caps this at 1m)")
-	clockSpeed := flag.String("clock-speed", na.ClockSpeed(), "serve's --clock-speed (Normal, Fast, Superfast or Ultrafast; Ultrafast headless also takes native test acceleration); "+na.ClockSpeedEnv+" sets the default")
 	terrain := flag.String("terrain", "open", "open: the save's own ground, where a hut template fits; corridor: test/corridor_terrain_fixture first raises granite rows every sixth cell around the colonists so no template or 9x9 rectangle fits and the routine must grow an irregular shell (needs the mod built with -Fixture CorridorTerrainFixture)")
 	designateWood := flag.Int("designate-wood", 400, "before the service starts, designate the nearest wild trees for cutting until their estimated WoodLog yield reaches this amount (0 = leave wood supply entirely to the acquisition family)")
 	debug := flag.Bool("debug", false, "trace the service's scheduler steps (RIMGOVERNOR_CLOCK_DEBUG=1) into the service stderr log")
@@ -86,7 +85,7 @@ func main() {
 	defer cancel()
 	cfg := liveservice.Config{
 		Root: *root, Output: *output, GameID: *game, Headless: !*rendered,
-		Binary: *binary, Save: *save, NativeTimeout: *nativeTimeout, ClockSpeed: *clockSpeed,
+		Binary: *binary, Save: *save, NativeTimeout: *nativeTimeout,
 		Families: *families, Prefix: "hut", Debug: *debug,
 	}
 	if *terrain != "open" && *terrain != "corridor" {

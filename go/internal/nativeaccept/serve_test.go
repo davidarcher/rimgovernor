@@ -51,16 +51,11 @@ func TestServeArgsFixesTheSharedFlags(t *testing.T) {
 	if got := ServeArgs(cfg, "g", "p", "s", "f", ServeSpec{NativeTimeout: 45 * time.Second}); !strings.Contains(strings.Join(got, " "), "--timeout 45s") {
 		t.Errorf("NativeTimeout not applied: %q", got)
 	}
-	// The env decides over a harness's own default; without it the default
-	// applies, and either way exactly one --clock-speed is emitted.
-	if got := strings.Join(ServeArgs(cfg, "g", "p", "s", "f", ServeSpec{ClockSpeed: "Superfast"}), " "); !strings.Contains(got, "--clock-speed Ultrafast") || strings.Contains(got, "Superfast") {
-		t.Errorf("env must win over ServeSpec.ClockSpeed: %q", got)
-	}
+	// RIMGOVERNOR_ACCEPT_CLOCK_SPEED is the only knob (#128): without it the
+	// shared Superfast default applies, and exactly one --clock-speed is
+	// emitted either way.
 	t.Setenv(ClockSpeedEnv, "")
-	if got := strings.Join(ServeArgs(cfg, "g", "p", "s", "f", ServeSpec{ClockSpeed: "Superfast"}), " "); !strings.Contains(got, "--clock-speed Superfast") || strings.Count(got, "--clock-speed") != 1 {
-		t.Errorf("ServeSpec.ClockSpeed: %q", got)
-	}
-	if got := strings.Join(ServeArgs(cfg, "g", "p", "s", "f", ServeSpec{}), " "); !strings.Contains(got, "--clock-speed Fast") {
+	if got := strings.Join(ServeArgs(cfg, "g", "p", "s", "f", ServeSpec{}), " "); !strings.Contains(got, "--clock-speed Superfast") || strings.Count(got, "--clock-speed") != 1 {
 		t.Errorf("default speed: %q", got)
 	}
 }

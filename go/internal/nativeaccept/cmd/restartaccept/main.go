@@ -156,7 +156,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 
 	// "work" is the lightest family that still produces a routine review with
 	// a bound goal; the point is autonomy, not any particular planner.
-	launch := na.ServiceLaunch{Binary: binary, Families: []string{"work"}, Extra: []string{"--resume", "--clock-speed", "Fast", "--flight-recorder", filepath.Join(output, "flight.jsonl")}}
+	launch := na.ServiceLaunch{Binary: binary, Families: []string{"work"}, Extra: append(na.ClockSpeedArgs(), "--resume", "--flight-recorder", filepath.Join(output, "flight.jsonl"))}
 	service, err = na.LaunchService(ctx, cfg, gabsExecutable, launch, report)
 	if err != nil {
 		return err

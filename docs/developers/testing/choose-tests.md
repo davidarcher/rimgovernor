@@ -149,7 +149,7 @@ bridge-only harness starts there and writes only its assertions.
    tick budget means the same at every speed and on every machine; the
    stall budget still catches a game that stops ticking (a pausing letter)
    and the wall ceiling a run that never finishes. Serve-driven harnesses
-   default to `--clock-speed Fast` (`na.ClockSpeedArgs`, override with
+   default to `--clock-speed Superfast` (`na.ClockSpeedArgs`, override with
    `RIMGOVERNOR_ACCEPT_CLOCK_SPEED`; the clock wire admits Normal, Fast,
    Superfast and Ultrafast, and at Ultrafast the harness also passes
    `--clock-test-acceleration`, the native dev tick boost that only a

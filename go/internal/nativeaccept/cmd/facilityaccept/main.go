@@ -53,7 +53,6 @@ func main() {
 	poll := flag.Duration("poll", 5*time.Second, "sampling interval during the watch window")
 	timeout := flag.Duration("timeout", 40*time.Minute, "overall run timeout (must exceed -watch plus startup/shutdown)")
 	nativeTimeout := flag.Duration("native-timeout", 15*time.Second, "serve subprocess's own --timeout")
-	clockSpeed := flag.String("clock-speed", "Superfast", "serve's --clock-speed (Normal, Fast or Superfast)")
 	flag.Parse()
 	if *root == "" || *rimgovernorBinary == "" || !filepath.IsAbs(*rimgovernorBinary) {
 		fmt.Fprintln(os.Stderr, "-root and an absolute -rimgovernor are required")
@@ -76,7 +75,7 @@ func main() {
 	cfg := sustainedfood.RunConfig{
 		Root: *root, Output: *output, GameID: *game, Headless: !*rendered,
 		RimgovernorBinary: *rimgovernorBinary, Save: *save,
-		Watch: *watch, Poll: *poll, NativeTimeout: *nativeTimeout, ClockSpeed: *clockSpeed,
+		Watch: *watch, Poll: *poll, NativeTimeout: *nativeTimeout,
 		RequestPrefix: "facility", Families: facilityFamilies, Goal: policy.EnsureComfort,
 		Until: comfortRecovered,
 	}

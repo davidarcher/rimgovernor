@@ -57,7 +57,6 @@ func main() {
 	poll := flag.Duration("poll", 5*time.Second, "sampling interval during the watch window")
 	timeout := flag.Duration("timeout", 12*time.Minute, "overall run timeout (must exceed -watch plus startup/shutdown)")
 	nativeTimeout := flag.Duration("native-timeout", 30*time.Second, "serve subprocess's own --timeout")
-	clockSpeed := flag.String("clock-speed", "Superfast", "serve's --clock-speed (Normal, Fast or Superfast)")
 	expectKind := flag.String("expect-kind", "outdoor", "site kind every traced selection must choose (empty accepts any)")
 	expectCrop := flag.String("expect-crop", "", "crop every traced selection must choose (empty accepts any)")
 	minCells := flag.Int("expect-min-cells", 1, "minimum cells every traced selection must plant")
@@ -98,7 +97,7 @@ func main() {
 	cfg := sustainedfood.RunConfig{
 		Root: *root, Output: *output, GameID: *game, Headless: !*rendered,
 		RimgovernorBinary: *rimgovernorBinary, Save: *save,
-		Watch: *watch, Poll: *poll, NativeTimeout: *nativeTimeout, ClockSpeed: *clockSpeed,
+		Watch: *watch, Poll: *poll, NativeTimeout: *nativeTimeout,
 		RequestPrefix: "farm-select", Families: *families,
 		// Every native request and reply lands beside the service logs so a
 		// refused preview can be read back instead of rerun.

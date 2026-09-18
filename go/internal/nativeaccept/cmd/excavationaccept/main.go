@@ -265,10 +265,6 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 		Families: []string{"shelter", "tend", "rescue", "defense", "naming"},
 		Env:      []string{"RIMGOVERNOR_CLOCK_DEBUG=1"},
 	}
-	// Fifty-odd granite cells under one or two miners span several game
-	// days; Superfast packs them into the run's wall-clock budget unless
-	// RIMGOVERNOR_ACCEPT_CLOCK_SPEED says otherwise.
-	spec.ClockSpeed = "Superfast"
 	// The harness manages its own bridge sessions here (closed above), so
 	// Serve gets no game and the identity it must see.
 	svc, err = na.Serve(ctx, cfg, nil, identity, spec, report)

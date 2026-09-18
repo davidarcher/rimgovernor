@@ -122,25 +122,26 @@ func ObserveCompleted(ctx context.Context, h *Harness, label string, ticks uint6
 }
 
 // ClockSpeedEnv overrides the clock speed a serve-driven harness passes to
-// rimgovernor serve (--clock-speed); the default is Fast. The clock wire
-// admits Normal, Fast, Superfast and Ultrafast. Ultrafast also asks for test
+// rimgovernor serve (--clock-speed); the default is Superfast (#128;
+// Ultrafast once #122 lands). The clock wire admits Normal, Fast, Superfast
+// and Ultrafast. Ultrafast also asks for test
 // acceleration (the native dev tick boost), which only a headless.Prepare
 // launch admits: under a rendered profile native refuses the window.
 const ClockSpeedEnv = "RIMGOVERNOR_ACCEPT_CLOCK_SPEED"
 
-// ClockSpeed is ClockSpeedEnv or Fast.
+// ClockSpeed is ClockSpeedEnv or Superfast.
 func ClockSpeed() string {
 	if v := os.Getenv(ClockSpeedEnv); v != "" {
 		return v
 	}
-	return "Fast"
+	return "Superfast"
 }
 
 // ClockSpeedArgs is the serve flag set for ClockSpeed: --clock-speed, plus
 // --clock-test-acceleration at Ultrafast.
 func ClockSpeedArgs() []string { return ClockSpeedFlags(ClockSpeed()) }
 
-// ClockSpeedFlags is ClockSpeedArgs for an explicit speed (ServeSpec.ClockSpeed).
+// ClockSpeedFlags is ClockSpeedArgs for an explicit speed.
 func ClockSpeedFlags(speed string) []string {
 	args := []string{"--clock-speed", speed}
 	if speed == "Ultrafast" {

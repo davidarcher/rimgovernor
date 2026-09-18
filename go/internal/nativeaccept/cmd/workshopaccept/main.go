@@ -57,7 +57,6 @@ func main() {
 	poll := flag.Duration("poll", 5*time.Second, "sampling interval during the watch window")
 	timeout := flag.Duration("timeout", 40*time.Minute, "overall run timeout (must exceed -watch plus startup/shutdown)")
 	nativeTimeout := flag.Duration("native-timeout", 15*time.Second, "serve subprocess's own --timeout")
-	clockSpeed := flag.String("clock-speed", "Superfast", "serve's --clock-speed (Normal, Fast or Superfast)")
 	families := flag.String("families", workshopFamilies, "RIMGOVERNOR_ROUTINE_FAMILIES composition for the run")
 	checkpoint := flag.String("checkpoint", "", "save name to write the first time a workshop bench plan completes (empty: no checkpoint); a later -save of it starts past the startup ladder")
 	recovered := flag.Bool("recovered", false, "also require MaintainResource to reach the full stock floor (need recovered, goal satisfied) instead of accepting on the first observed product")
@@ -85,7 +84,7 @@ func main() {
 	cfg := sustainedfood.RunConfig{
 		Root: *root, Output: *output, GameID: *game, Headless: !*rendered,
 		RimgovernorBinary: *rimgovernorBinary, Save: *save,
-		Watch: *watch, Poll: *poll, NativeTimeout: *nativeTimeout, ClockSpeed: *clockSpeed,
+		Watch: *watch, Poll: *poll, NativeTimeout: *nativeTimeout,
 		RequestPrefix: "workshop", Families: *families, Goal: policy.MaintainResource,
 		ServeArgs: []string{"--routine-resource-target", fmt.Sprintf("%s:%d", resource, target)},
 		Until:     billProduced,
