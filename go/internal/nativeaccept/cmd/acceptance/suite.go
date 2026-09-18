@@ -10,26 +10,20 @@ package main
 // passes only when every case did.
 //
 // The set is the registry (-all), registry names (-cases a,b) or a JSON
-// suite file (-suite) whose rows may name registry cases and old
-// per-harness binaries side by side: a row whose name is a registered case
-// runs through `acceptance run`; any other row is a binary, <bin>/<name>.exe
-// by default (a relative "binary" resolves under -bin, an absolute one is
-// used as given), given -root/-output and then its "args" with
-// "{rimgovernor}" replaced by -rimgovernor, which a registry case that
-// hosts a service (Case.Service) also receives. "acceptance" labels the
-// criterion a row stands for and is echoed into its report row.
+// suite file (-suite) whose rows name registry cases; every row runs
+// through `acceptance run`, and a case that hosts a service (Serve or
+// Service) receives -rimgovernor. "acceptance" labels the criterion a row
+// stands for and is echoed into its report row.
 //
 // Scheduling: one shared queue in three tiers. Bridge-only cases that keep
 // the process come first; cases that end or replace it (NoKeep: a
 // shutdown, a fault, an owned lifecycle; Rendered: a windowed profile the
 // headless worker cannot serve) follow, so the kept process is reused as
-// long as possible; serve-driven cases (a registry case with Serve or Service,
-// a binary whose args pass -rimgovernor or whose row says "serve": true) are
-// last, so a worker that has hosted a service never runs a bridge-only
-// case on that process afterwards (#119). Within each tier the queue is
-// longest-first by the -baseline suite's
-// wall times (untimed cases first, as if long), so a slow case does not
-// land last and idle the other workers.
+// long as possible; serve-driven cases (Serve or Service) are last, so a
+// worker that has hosted a service never runs a bridge-only case on that
+// process afterwards (#119). Within each tier the queue is longest-first
+// by the -baseline suite's wall times (untimed cases first, as if long),
+// so a slow case does not land last and idle the other workers.
 //
 // -baseline also drives regression flagging: a case whose run time (wall
 // time net of the game boot, so queue placement does not count) is more
@@ -67,48 +61,33 @@ const (
 	RegressionFloorMs = 5000
 )
 
-// entry is one row of a suite: a registry case or an old per-harness binary.
+// entry is one row of a suite: a registry case.
 type entry struct {
-	Name   string   `json:"name"`
-	Binary string   `json:"binary,omitempty"`
-	Args   []string `json:"args,omitempty"`
+	Name string `json:"name"`
 	// Acceptance names the criterion this row stands for (documentation
 	// echoed into the suite report), if the suite file says.
 	Acceptance string `json:"acceptance,omitempty"`
-	// Serve marks a serve-driven binary whose args do not show it.
-	Serve bool `json:"serve,omitempty"`
 
-	// registered is the registry case a row resolves to; nil for a binary.
+	// registered is the registry case the row resolves to.
 	registered *cases.Case
 }
 
 // serveDriven reports whether the row hosts a `rimgovernor serve` process.
 func (e entry) serveDriven() bool {
-	if e.registered != nil {
-		return e.registered.Serve != nil || e.registered.Service
-	}
-	if e.Serve {
-		return true
-	}
-	for _, a := range e.Args {
-		if a == "-rimgovernor" || strings.HasPrefix(a, "-rimgovernor=") {
-			return true
-		}
-	}
-	return false
+	return e.registered != nil && (e.registered.Serve != nil || e.registered.Service)
 }
 
 // suiteOptions is the suite subcommand's resolved configuration.
 type suiteOptions struct {
-	Root, Output, Bin, Rimgovernor, Baseline, GameID string
-	Workers                                          int
-	Timeout                                          time.Duration
-	// CaseTimeout, Budget and Stall pass through to `acceptance run` for
-	// the registry rows; zero leaves the runner's defaults.
+	Root, Output, Rimgovernor, Baseline, GameID string
+	Workers                                     int
+	Timeout                                     time.Duration
+	// CaseTimeout, Budget and Stall pass through to `acceptance run`;
+	// zero leaves the runner's defaults.
 	CaseTimeout, Budget, Stall time.Duration
 }
 
-const suiteUsage = `  acceptance suite (-all | -cases a,b,... | -suite file.json) -root <dir> -output <dir> [-workers N -baseline <result.json> -bin <dir> -rimgovernor <bin> -game <id> -timeout <d> -case-timeout <d> -budget <d> -stall <d>]`
+const suiteUsage = `  acceptance suite (-all | -cases a,b,... | -suite file.json) -root <dir> -output <dir> [-workers N -baseline <result.json> -rimgovernor <bin> -game <id> -timeout <d> -case-timeout <d> -budget <d> -stall <d>]`
 
 // parseSuite resolves the suite subcommand's flags into the list of rows
 // (in file order, before scheduling) and the options.
@@ -120,18 +99,17 @@ func parseSuite(args []string, stderr io.Writer) ([]entry, suiteOptions, error) 
 	var names, suite string
 	fs.BoolVar(&all, "all", false, "run every registered case")
 	fs.StringVar(&names, "cases", "", "comma-separated registry case names")
-	fs.StringVar(&suite, "suite", "", "JSON suite file: array of {name, binary, args, acceptance, serve}; names may be registry cases or binaries")
+	fs.StringVar(&suite, "suite", "", "JSON suite file: array of {name, acceptance}; names are registry cases")
 	fs.StringVar(&opts.Root, "root", "", "absolute worker root to clone for every worker (e.g. .rimgovernor/bridge)")
 	fs.StringVar(&opts.Output, "output", "", "fresh output directory")
-	fs.StringVar(&opts.Bin, "bin", "", "directory holding the old harness binaries (<bin>/<name>.exe)")
-	fs.StringVar(&opts.Rimgovernor, "rimgovernor", "", "prebuilt rimgovernor binary substituted for {rimgovernor} in suite args")
+	fs.StringVar(&opts.Rimgovernor, "rimgovernor", "", "prebuilt rimgovernor binary (absolute path) passed to the cases that host a service")
 	fs.StringVar(&opts.Baseline, "baseline", "", "earlier suite result.json: orders the queue longest-first and flags regressions")
 	fs.StringVar(&opts.GameID, "game", "rimgovernor-trial", "configured game ID")
 	fs.IntVar(&opts.Workers, "workers", 2, "private game copies to run at once")
 	fs.DurationVar(&opts.Timeout, "timeout", 2*time.Hour, "overall suite timeout")
-	fs.DurationVar(&opts.CaseTimeout, "case-timeout", 0, "per-case safety net for registry cases (default: the runner's)")
-	fs.DurationVar(&opts.Budget, "budget", 0, "per-case budget override for registry cases")
-	fs.DurationVar(&opts.Stall, "stall", 0, "stall budget override for registry cases")
+	fs.DurationVar(&opts.CaseTimeout, "case-timeout", 0, "per-case safety net (default: the runner's)")
+	fs.DurationVar(&opts.Budget, "budget", 0, "per-case budget override")
+	fs.DurationVar(&opts.Stall, "stall", 0, "stall budget override")
 	if err := fs.Parse(args); err != nil {
 		return nil, opts, err
 	}
@@ -157,9 +135,6 @@ func parseSuite(args []string, stderr io.Writer) ([]entry, suiteOptions, error) 
 		return nil, opts, errors.New("-workers must be at least 1")
 	}
 	opts.Output = mustAbs(opts.Output)
-	if opts.Bin != "" {
-		opts.Bin = mustAbs(opts.Bin)
-	}
 	var list []entry
 	switch {
 	case all:
@@ -178,19 +153,18 @@ func parseSuite(args []string, stderr io.Writer) ([]entry, suiteOptions, error) 
 			return nil, opts, err
 		}
 		if err := json.Unmarshal(data, &list); err != nil {
-			return nil, opts, fmt.Errorf("-suite must be a JSON array of {name, binary, args}: %w", err)
+			return nil, opts, fmt.Errorf("-suite must be a JSON array of {name, acceptance}: %w", err)
 		}
 	}
-	if err := resolveEntries(list, opts, suite == ""); err != nil {
+	if err := resolveEntries(list); err != nil {
 		return nil, opts, err
 	}
 	return list, opts, nil
 }
 
-// resolveEntries binds each row to its registry case or binary and rejects
-// duplicate or empty names. registryOnly (the -all/-cases selectors) makes
-// an unregistered name an error instead of a binary.
-func resolveEntries(list []entry, opts suiteOptions, registryOnly bool) error {
+// resolveEntries binds each row to its registry case and rejects unknown,
+// duplicate or empty names.
+func resolveEntries(list []entry) error {
 	if len(list) == 0 {
 		return errors.New("no cases listed")
 	}
@@ -201,35 +175,17 @@ func resolveEntries(list []entry, opts suiteOptions, registryOnly bool) error {
 			return fmt.Errorf("case names must be unique and non-empty, got %q", e.Name)
 		}
 		seen[e.Name] = true
-		if c, ok := cases.Lookup(e.Name); ok && e.Binary == "" {
-			e.registered = &c
-			if len(e.Args) > 0 {
-				return fmt.Errorf("%s: a registry case takes no args", e.Name)
-			}
-			continue
-		}
-		if registryOnly {
+		c, ok := cases.Lookup(e.Name)
+		if !ok {
 			return fmt.Errorf("unknown case %q (see `acceptance list`)", e.Name)
 		}
-		switch {
-		case filepath.IsAbs(e.Binary):
-		case opts.Bin == "":
-			return fmt.Errorf("%s is not a registered case and -bin is not set", e.Name)
-		case e.Binary == "":
-			e.Binary = filepath.Join(opts.Bin, e.Name+".exe")
-		default:
-			e.Binary = filepath.Join(opts.Bin, e.Binary)
-		}
-		for j, a := range e.Args {
-			e.Args[j] = strings.ReplaceAll(a, "{rimgovernor}", opts.Rimgovernor)
-		}
+		e.registered = &c
 	}
 	return nil
 }
 
-// baseline is what an earlier suite's result.json contributes: wall times
-// by case name. It reads both this command's "cases" rows and the former
-// suiteaccept's "harnesses" rows.
+// baseline is what an earlier suite's result.json contributes: wall and
+// boot times by case name.
 type baseline struct {
 	path string
 	wall map[string]float64
@@ -247,14 +203,13 @@ func loadBaseline(path string) (*baseline, error) {
 		BootMs float64 `json:"boot_ms"`
 	}
 	var prior struct {
-		Cases     []row `json:"cases"`
-		Harnesses []row `json:"harnesses"`
+		Cases []row `json:"cases"`
 	}
 	if err := json.Unmarshal(data, &prior); err != nil {
 		return nil, fmt.Errorf("-baseline: %s is not a suite result.json: %w", path, err)
 	}
 	b := &baseline{path: path, wall: map[string]float64{}, boot: map[string]float64{}}
-	for _, r := range append(prior.Harnesses, prior.Cases...) {
+	for _, r := range prior.Cases {
 		b.wall[r.Name] = r.WallMs
 		b.boot[r.Name] = r.BootMs
 	}
@@ -448,14 +403,9 @@ func runSuite(ctx context.Context, list []entry, opts suiteOptions, stderr io.Wr
 	return report.Finalize(opts.Output)
 }
 
-// entryCommand is the argv a row runs as on a worker: `acceptance run`
-// for a registry case, the binary with -root/-output and its args
-// otherwise. It also returns where the row's result.json lands.
+// entryCommand is the argv a row runs as on a worker (`acceptance run`
+// on this executable) and where the row's result.json lands.
 func entryCommand(e entry, opts suiteOptions, self, workerRoot string) (argv []string, output string) {
-	if e.registered == nil {
-		output = filepath.Join(opts.Output, e.Name)
-		return append([]string{e.Binary, "-root", workerRoot, "-output", output}, e.Args...), output
-	}
 	argv = []string{self, "run", e.Name, "-root", workerRoot, "-output", opts.Output, "-game", opts.GameID}
 	if opts.Rimgovernor != "" && e.serveDriven() {
 		argv = append(argv, "-rimgovernor", opts.Rimgovernor)
@@ -476,11 +426,7 @@ func entryCommand(e entry, opts suiteOptions, self, workerRoot string) (argv []s
 // directory and the row's own result.json verdict.
 func runEntry(ctx context.Context, e entry, opts suiteOptions, self, workerRoot string, worker int, stderr io.Writer) map[string]any {
 	argv, output := entryCommand(e, opts, self, workerRoot)
-	kind := "binary"
-	if e.registered != nil {
-		kind = "case"
-	}
-	row := map[string]any{"name": e.Name, "kind": kind, "worker": worker, "output": output, "argv": argv, "serve": e.serveDriven(), "passed": false}
+	row := map[string]any{"name": e.Name, "worker": worker, "output": output, "argv": argv, "serve": e.serveDriven(), "passed": false}
 	if e.Acceptance != "" {
 		row["acceptance"] = e.Acceptance
 	}
@@ -524,27 +470,15 @@ func runEntry(ctx context.Context, e entry, opts suiteOptions, self, workerRoot 
 				row["error"] = e
 			}
 			row["game_reuse"] = result["game_reuse"]
-			row["boot_ms"] = bootMs(result)
+			if ms, ok := result["boot_ms"].(float64); ok {
+				row["boot_ms"] = int64(ms)
+			}
 		}
 	} else if row["error"] == nil {
 		row["error"] = "no result.json: " + err.Error()
 	}
 	fmt.Fprintf(stderr, "[worker %d] %s exit=%v passed=%v %s\n", worker, e.Name, row["exit"], row["passed"], time.Since(started).Round(time.Second))
 	return row
-}
-
-// bootMs is the time a row's result.json says opening the game took: the
-// runner's boot_ms, else an old binary's game_reuse.openMs.
-func bootMs(result map[string]any) int64 {
-	if ms, ok := result["boot_ms"].(float64); ok {
-		return int64(ms)
-	}
-	if reuse, ok := na.AsMap(result["game_reuse"]); ok {
-		if ms, ok := reuse["openMs"].(float64); ok {
-			return int64(ms)
-		}
-	}
-	return 0
 }
 
 func mustAbs(path string) string {

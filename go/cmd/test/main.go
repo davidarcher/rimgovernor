@@ -8,7 +8,7 @@
 // (committed, staged, unstaged and untracked) against -base, so it is the
 // edit/test loop's check as well as the pre-land one; the landing lane
 // (cmd/land) does not test, so run this before landing. Affected
-// acceptance harnesses are named, not run: run them at the milestone,
+// acceptance case areas are named, not run: run them at the milestone,
 // before landing.
 package main
 

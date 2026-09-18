@@ -26,7 +26,7 @@ func TestSelectNothingForDocs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if sel.AllGo || sel.AllHarnesses || len(sel.Packages) != 0 || len(sel.Harnesses) != 0 {
+	if sel.AllGo || sel.AllHarnesses || len(sel.Packages) != 0 || len(sel.Cases) != 0 {
 		t.Errorf("docs change selected %+v", sel)
 	}
 }
@@ -36,24 +36,24 @@ func TestSelectGoModIsEverything(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !sel.AllGo || !sel.AllHarnesses || !slices.Contains(sel.Harnesses, "warmauthorityaccept") {
+	if !sel.AllGo || !sel.AllHarnesses || !slices.Contains(sel.Cases, "authority") {
 		t.Errorf("go.mod change selected %+v", sel)
 	}
 }
 
-func TestSelectNativeSourceIsEveryHarnessNoGo(t *testing.T) {
+func TestSelectNativeSourceIsEveryCaseNoGo(t *testing.T) {
 	sel, err := Select(repo(t), []string{"integrations/rimgovernor-native/src/Foo.cs"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if sel.AllGo || !sel.AllHarnesses || len(sel.Packages) != 0 || len(sel.Harnesses) < 2 || len(sel.Cases) < 10 {
+	if sel.AllGo || !sel.AllHarnesses || len(sel.Packages) != 0 || len(sel.Cases) < 10 {
 		t.Errorf("native change selected %+v", sel)
 	}
 }
 
 // A change to this package reaches the packages that import it (cmd/land,
-// cmd/affected) and no harness, since no harness or the binary imports it;
-// a change to nativeaccept itself reaches every harness.
+// cmd/affected) and no case, since no case area or the binary imports it;
+// a change to nativeaccept itself reaches every case area.
 func TestSelectFollowsImports(t *testing.T) {
 	r := repo(t)
 	sel, err := Select(r, []string{"go/internal/affected/affected.go"})
@@ -69,31 +69,19 @@ func TestSelectFollowsImports(t *testing.T) {
 			t.Errorf("packages lack %s: %v", want, sel.Packages)
 		}
 	}
-	if len(sel.Harnesses) != 0 || sel.AllHarnesses {
-		t.Errorf("harnesses selected for a tooling-only change: %v", sel.Harnesses)
+	if len(sel.Cases) != 0 || sel.AllHarnesses {
+		t.Errorf("cases selected for a tooling-only change: %v", sel.Cases)
 	}
 
 	sel, err = Select(r, []string{"go/internal/nativeaccept/clock.go"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Contains(sel.Harnesses, "warmauthorityaccept") || slices.Contains(sel.Harnesses, "verified") {
-		t.Errorf("nativeaccept change selected harnesses %v", sel.Harnesses)
+	if !slices.Contains(sel.Cases, "authority") || !slices.Contains(sel.Cases, "smoke") {
+		t.Errorf("nativeaccept change selected cases %v", sel.Cases)
 	}
 	if sel.AllHarnesses {
 		t.Errorf("a Go change is not a shared-input change")
-	}
-
-	// A harness's own file selects only that harness (plus its test package).
-	sel, err = Select(r, []string{"go/internal/nativeaccept/cmd/warmauthorityaccept/main.go"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !slices.Equal(sel.Harnesses, []string{"warmauthorityaccept"}) {
-		t.Errorf("harness-local change selected %v", sel.Harnesses)
-	}
-	if len(sel.Cases) != 0 {
-		t.Errorf("harness-local change selected case areas %v", sel.Cases)
 	}
 
 	// A case area's own file selects only that area; the runner selects
@@ -102,15 +90,15 @@ func TestSelectFollowsImports(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Equal(sel.Cases, []string{"light"}) || len(sel.Harnesses) != 0 {
-		t.Errorf("area-local change selected cases %v harnesses %v", sel.Cases, sel.Harnesses)
+	if !slices.Equal(sel.Cases, []string{"light"}) {
+		t.Errorf("area-local change selected cases %v", sel.Cases)
 	}
 	sel, err = Select(r, []string{"go/internal/nativeaccept/cases/run.go"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Contains(sel.Cases, "light") || !slices.Contains(sel.Cases, "smoke") || len(sel.Harnesses) != 0 {
-		t.Errorf("runner change selected cases %v harnesses %v", sel.Cases, sel.Harnesses)
+	if !slices.Contains(sel.Cases, "light") || !slices.Contains(sel.Cases, "smoke") {
+		t.Errorf("runner change selected cases %v", sel.Cases)
 	}
 }
 

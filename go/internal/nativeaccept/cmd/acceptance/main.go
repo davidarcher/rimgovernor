@@ -40,6 +40,7 @@ import (
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/construction"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/custody"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/defense"
+	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/dialog"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/draft"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/facility"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/farm"

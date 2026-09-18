@@ -1,8 +1,9 @@
-// Command dialogpauseaccept proves issue #156 end to end against a live game
-// under the real Go player service: a force-pausing choice dialog the game
-// opens by itself (Verse.Dialog_NodeTree, the shape of a finished research
-// project's completion dialog or a caravan demand) no longer strands the
-// native clock. Two dialogs are staged through the DialogFixture before the
+// Package dialog holds the dialog/pause case (the former dialogpauseaccept),
+// issue #156 end to end against a live game under the real Go player
+// service: a force-pausing choice dialog the game opens by itself
+// (Verse.Dialog_NodeTree, the shape of a finished research project's
+// completion dialog or a caravan demand) no longer strands the native
+// clock. Two dialogs are staged through the DialogFixture before the
 // service attaches: one already open when the service acquires authority
 // (the clock cannot start at all until it is answered), and one scheduled
 // to open on a later game tick while a supervised window is running (the
@@ -10,20 +11,18 @@
 // each, the routine review raises AnswerDialog, the dialog planner picks the
 // policy-preferred option ("OK" over "Research screen"), the executor
 // activates it through Operations.AnswerDialog, and the clock runs again.
-package main
+package dialog
 
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
-	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
-	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/liveservice"
+	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/store/clock"
@@ -33,63 +32,31 @@ import (
 const (
 	baselineSave = "RimGovernor-tribal8-baseline"
 	fixtureTool  = "test/open_choice_dialog"
-	// scheduledDelay is how many ticks after the harness's setup the second
+	// scheduledDelay is how many ticks after the case's setup the second
 	// dialog opens: far enough that the service has answered the first one
 	// and admitted a running window, short enough for a Normal-speed run.
 	scheduledDelay = 600
+	// ceiling bounds each dialog's wait to be answered and the clock to run
+	// again; the stall budget ends it earlier when nothing moves.
+	ceiling = 8 * time.Minute
 )
 
-func main() {
-	root := flag.String("root", "", "absolute disposable worker root (e.g. .rimgovernor/bridge)")
-	output := flag.String("output", "", "fresh output directory (default <root>/native-dialog-pause-acceptance)")
-	rendered := flag.Bool("rendered", false, "use the windowed profile instead of headless")
-	game := flag.String("game", "rimgovernor-trial", "configured game ID")
-	binary := flag.String("rimgovernor", "", "absolute path to a prebuilt rimgovernor binary (go build ./go/cmd/rimgovernor)")
-	save := flag.String("save", baselineSave, "save name to load (default: the tribal8 baseline)")
-	families := flag.String("families", "dialog,supply,shelter,sleeping", "RIMGOVERNOR_ROUTINE_FAMILIES; the building families keep supervised windows running so the scheduled dialog opens mid-window")
-	nativeTimeout := flag.Duration("native-timeout", 15*time.Second, "service native call timeout")
-	wait := flag.Duration("wait", 8*time.Minute, "ceiling for each dialog to be answered and the clock to run again")
-	stall := flag.Duration("stall", na.StallBudget(), "stall budget for each wait")
-	timeout := flag.Duration("timeout", 25*time.Minute, "overall run timeout")
-	na.BudgetFlag((25 * time.Minute) / 2)
-	debug := flag.Bool("debug", false, "trace the service's scheduler steps (RIMGOVERNOR_CLOCK_DEBUG=1)")
-	flag.Parse()
-	if *root == "" || !filepath.IsAbs(*root) || *binary == "" || !filepath.IsAbs(*binary) {
-		fmt.Fprintln(os.Stderr, "-root and -rimgovernor must be absolute paths")
-		os.Exit(2)
-	}
-	if *output == "" {
-		*output = filepath.Join(*root, "native-dialog-pause-acceptance")
-	}
-	if err := os.MkdirAll(*output, 0755); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(2)
-	}
-	if entries, _ := os.ReadDir(*output); len(entries) > 0 {
-		fmt.Fprintln(os.Stderr, "-output must be a fresh, empty directory")
-		os.Exit(2)
-	}
-	report := na.NewReport("Issue #156: a force-pausing Dialog_NodeTree the game opens by itself is read as the colony "+
-		"facts dialog section, answered with the policy-preferred option through Operations.AnswerDialog under the "+
-		"AnswerDialog routine goal, its STOP_REASON_DIALOG_PAUSE hold acknowledged like a letter pause, and the "+
-		"native clock runs again afterwards; both an already-open dialog at acquire and one opening mid-window.", !*rendered)
-	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
-	defer cancel()
-	staged := &stagedDialogs{}
-	cfg := liveservice.Config{
-		Root: *root, Output: *output, GameID: *game, Headless: !*rendered,
-		Binary: *binary, Save: *save, NativeTimeout: *nativeTimeout,
-		Families: *families, Prefix: "dialog-pause", Debug: *debug,
-		BeforeService: func(ctx context.Context, h *na.Harness, identity, facts map[string]any) error {
-			return staged.open(ctx, h, identity, report)
+func init() {
+	cases.Register(cases.Case{
+		Name: "dialog/pause",
+		Scope: "Issue #156: a force-pausing Dialog_NodeTree the game opens by itself is read as the colony " +
+			"facts dialog section, answered with the policy-preferred option through Operations.AnswerDialog under the " +
+			"AnswerDialog routine goal, its STOP_REASON_DIALOG_PAUSE hold acknowledged like a letter pause, and the " +
+			"native clock runs again afterwards; both an already-open dialog at acquire and one opening mid-window.",
+		Start: cases.Save{Name: baselineSave},
+		// The building families keep supervised windows running so the
+		// scheduled dialog opens mid-window.
+		Serve: &cases.ServeSpec{
+			Families: []string{"dialog", "supply", "shelter", "sleeping"}, NativeTimeout: 15 * time.Second, Prefix: "dialog-pause",
 		},
-	}
-	if err := run(ctx, cfg, staged, *wait, *stall, report); err != nil {
-		report["error"] = err.Error()
-	} else {
-		report["passed"] = true
-	}
-	os.Exit(report.Finalize(*output))
+		Budget: 12 * time.Minute,
+		Run:    run,
+	})
 }
 
 // stagedDialogs records what the fixture opened before the service took
@@ -102,11 +69,7 @@ type stagedDialogs struct {
 	setupTick       int64
 }
 
-func (d *stagedDialogs) open(ctx context.Context, h *na.Harness, identity map[string]any, report na.Report) error {
-	names, err := h.Discovery(ctx)
-	if err != nil {
-		return err
-	}
+func (d *stagedDialogs) open(ctx context.Context, h *na.Harness, names []string, identity map[string]any, report na.Report) error {
 	if !na.Contains(names, fixtureTool) {
 		return fmt.Errorf("missing %s in discovery; rebuild the native mod with -Fixture DialogFixture", fixtureTool)
 	}
@@ -257,37 +220,36 @@ func traceClock(ctx context.Context, st *store.Store, profile string) (clockTrac
 	return t, nil
 }
 
-func run(ctx context.Context, cfg liveservice.Config, staged *stagedDialogs, ceiling, stall time.Duration, report na.Report) error {
-	prepared, err := liveservice.Prepare(ctx, cfg, report)
+func run(ctx context.Context, s cases.Session) error {
+	report := s.Report()
+	// The baseline's naming dialog goes first, so the fixture's dialogs are
+	// the only force-pausing windows the service meets.
+	if _, err := na.ConfirmColonyNames(ctx, s.Harness(), report); err != nil {
+		return err
+	}
+	staged := &stagedDialogs{}
+	if err := staged.open(ctx, s.Harness(), s.Names(), s.Identity(), report); err != nil {
+		return fmt.Errorf("before service: %w", err)
+	}
+	service, err := s.Serve(ctx, s.Spec())
 	if err != nil {
 		return err
 	}
-	finished := false
-	defer func() {
-		if !finished {
-			_ = prepared.Finish(ctx, report)
-		}
-	}()
-	service, err := prepared.Start(ctx, report)
+	if _, err := service.Acquire(); err != nil {
+		return err
+	}
+	service.KeepAuthority(ctx)
+	st, err := service.Store(ctx)
 	if err != nil {
 		return err
 	}
-	stopped := false
-	defer func() {
-		if !stopped {
-			service.Stop()
-		}
-	}()
-	st, err := prepared.OpenStore(ctx)
-	if err != nil {
-		return err
-	}
-	defer st.Close()
-	profile := filepath.Join(cfg.Output, "service-profile")
+	// The service's clock inbox is keyed by its profile directory (na.Serve
+	// puts it beside the state under the case's output).
+	profile := filepath.Join(s.Config().Output, "service-profile")
 	waitFor := func(label string, ready func(map[int32]answered, clockTrace) (bool, error)) (map[int32]answered, clockTrace, error) {
 		var answers map[int32]answered
 		var trace clockTrace
-		err := na.WaitProgress(ctx, na.Wait{Ceiling: ceiling, Stall: stall, Terminal: service.Exited}, func(ctx context.Context) (string, bool, error) {
+		err := na.WaitProgress(ctx, na.Wait{Ceiling: ceiling, Stall: na.StallBudget(), Terminal: service.Exited}, func(ctx context.Context) (string, bool, error) {
 			a, err := dialogAnswers(ctx, st)
 			if err != nil {
 				return "", false, err
@@ -360,7 +322,6 @@ func run(ctx context.Context, cfg liveservice.Config, staged *stagedDialogs, cei
 			return fmt.Errorf("phase2: a running epoch reported the dialog open at acquire (window %d) as its pause: %+v", window, trace2)
 		}
 	}
-	stopped = true
 	report["run_keepalive"] = service.Stop()
 	if keep, ok := report["run_keepalive"].(map[string]any); ok {
 		if acked := int(na.AsNumber(keep["acknowledged"])); acked == 0 {
@@ -371,9 +332,9 @@ func run(ctx context.Context, cfg liveservice.Config, staged *stagedDialogs, cei
 	// Independent native read after the service releases the game slot:
 	// the fixture's last dialog is closed, OK was the option that ran, no
 	// force-pausing window remains and the game ticked past the due tick.
-	_, h, err := prepared.Open(ctx)
+	h, err := s.Reattach(ctx)
 	if err != nil {
-		return fmt.Errorf("reopen harness session after service stop: %w", err)
+		return fmt.Errorf("reopen session after service stop: %w", err)
 	}
 	if _, err := h.Call(ctx, "pause-after", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return err
@@ -398,9 +359,5 @@ func run(ctx context.Context, cfg liveservice.Config, staged *stagedDialogs, cei
 	if tick := int64(na.AsNumber(after["tick"])); tick <= staged.dueTick {
 		return fmt.Errorf("dialog-after: game tick %d never passed the scheduled dialog's due tick %d", tick, staged.dueTick)
 	}
-	if err := prepared.Release(); err != nil {
-		return err
-	}
-	finished = true
-	return prepared.Finish(ctx, report)
+	return nil
 }

@@ -153,8 +153,9 @@ Multi-instance colony directory serving (`--colonies`) does not exist in Go
   sections below) establish parsing and durable review, not native outcomes.
 - Fewer integration tests inside packages (`clock_worker_integration_test.go`
   and similar) against in-memory MCP sessions and temporary SQLite databases.
-- A small set of native acceptance harnesses under `internal/nativeaccept/cmd/*`
-  verified against a real headless RimWorld instance; see
+- A small set of native acceptance cases under `internal/nativeaccept/cases/*`,
+  run by `internal/nativeaccept/cmd/acceptance` (`acceptance list`, `run`,
+  `suite`) and verified against a real headless RimWorld instance; see
   [choose-tests.md](../docs/developers/testing/choose-tests.md) for when to run
   them and [issue #38](https://github.com/davidarcher/rimgovernor/issues/38)
   for coverage gaps. `internal/buildingruntime/cmd/{buildingsmoke,billsmoke,haulsmoke}`

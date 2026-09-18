@@ -7,14 +7,14 @@ import (
 )
 
 func TestHarnessInputsRejectsPaths(t *testing.T) {
-	for _, harness := range []string{"", "../x", "cmd/warmauthorityaccept", "no-such-harness"} {
+	for _, harness := range []string{"", "../x", "warmauthorityaccept", "cmd/acceptance", "no-such-area/case", "authority/../x"} {
 		if _, err := HarnessInputs(t.TempDir(), harness); err == nil {
 			t.Errorf("HarnessInputs(%q) accepted", harness)
 		}
 	}
 }
 
-// The inputs cover the harness's own package and the native sources, and
+// The inputs cover the case's area, the runner and the native sources, and
 // ignore files outside the inputs and test files.
 func TestHarnessInputsTrackInputs(t *testing.T) {
 	if testing.Short() {
@@ -25,7 +25,7 @@ func TestHarnessInputsTrackInputs(t *testing.T) {
 	if !ok {
 		t.Skip("not in a checkout")
 	}
-	files, err := HarnessInputs(repo, "warmauthorityaccept")
+	files, err := HarnessInputs(repo, "authority/warm")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,7 +38,8 @@ func TestHarnessInputsTrackInputs(t *testing.T) {
 		return false
 	}
 	for _, want := range []string{
-		"go/internal/nativeaccept/cmd/warmauthorityaccept/main.go",
+		"go/internal/nativeaccept/cases/authority/warm.go",
+		"go/internal/nativeaccept/cmd/acceptance/main.go",
 		"go/internal/nativeaccept/inputs/harness_inputs.go",
 		"go/cmd/rimgovernor/main.go",
 		"go/go.mod",

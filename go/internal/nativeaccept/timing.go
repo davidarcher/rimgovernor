@@ -1,7 +1,6 @@
 package nativeaccept
 
 import (
-	"flag"
 	"fmt"
 	"sync"
 	"time"
@@ -25,22 +24,11 @@ const (
 	WallTPSKey       = "wall_tps"
 )
 
-// runBudget is the process-wide budget BudgetFlag registers; a Report
-// without its own budget_ms is held to it.
-var runBudget time.Duration
-
-// BudgetFlag registers -budget on the default flag set: the wall-clock
-// budget a passing run fails on when its wall time exceeds it, separate
-// from the -timeout safety net. def is the harness's healthy run (the
-// checklist's item 6); the binaries default it to half their -timeout.
-func BudgetFlag(def time.Duration) *time.Duration {
-	flag.DurationVar(&runBudget, "budget", def, "wall-clock budget the run fails on when exceeded (-timeout is the safety net; 0 disables)")
-	return &runBudget
-}
-
-// SetBudget records the report's own budget, overriding the process-wide
-// BudgetFlag for this report (a matrix summary spanning several budgeted
-// runs).
+// SetBudget records the report's budget (budget_ms): the wall-clock budget
+// a passing run fails on when its wall time exceeds it, separate from the
+// -timeout safety net. The case runner sets it from the case's Budget (the
+// checklist's item 6) or its -budget override; a report without one is
+// not held to any.
 func (r Report) SetBudget(budget time.Duration) { r[BudgetMsKey] = budget.Milliseconds() }
 
 // finalizeTiming fills the timing fields at Finalize and applies the
@@ -68,11 +56,9 @@ func (r Report) finalizeTiming(finished time.Time) {
 	if _, has := r[WallTPSKey]; !has && wall > 0 {
 		r[WallTPSKey] = float64(advanced) / wall.Seconds()
 	}
-	budget := runBudget
+	var budget time.Duration
 	if ms, ok := asUint64(r[BudgetMsKey]); ok {
 		budget = time.Duration(ms) * time.Millisecond
-	} else if budget > 0 {
-		r[BudgetMsKey] = budget.Milliseconds()
 	}
 	if budget > 0 && wall > budget {
 		r["budget_exceeded"] = true

@@ -62,8 +62,10 @@ issue comments, not chat.
 ## Checks
 
 - Pyramid: many fast Go unit tests (via `cmd/test`), fewer integration
-  tests, a small set of targeted native acceptance harnesses
-  (`go/internal/nativeaccept/cmd/*`) against a real headless RimWorld.
+  tests, a small set of targeted native acceptance cases run by
+  `go/internal/nativeaccept/cmd/acceptance` (`acceptance run
+  <area>/<case>`, `acceptance suite`; `cmd/test` names the areas a change
+  owes) against a real headless RimWorld.
   Before a slow check, say what changed behaviour it verifies and why the
   cheaper check is insufficient.
 - `task build && task test` runs every project's gates (dashboard,
@@ -73,8 +75,8 @@ issue comments, not chat.
   postcondition. Distinguish compilation/protocol checks from gameplay
   validation.
 - After an acceptance failure, add a fast regression test where feasible
-  and rerun that harness.
-- A new harness starts from a fixture that already exercises the behaviour
+  and rerun that case.
+- A new case starts from a fixture that already exercises the behaviour
   (a committed save, a `test/*_prepare` op, or a programmatic start) and
   follows the performance checklist in choose-tests: Core-only, quiet
   storyteller, stall-bounded waits, minute-scale budgets. Playing a colony

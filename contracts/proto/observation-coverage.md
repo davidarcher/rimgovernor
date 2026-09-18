@@ -86,7 +86,7 @@ Sources in this table are under
 | WorldProgressionTool.cs / world_progression | ReadWorldProgression; WorldMap, FactionState, CaravanState, QuestState, CaravanAssembly | world_progression, expedition_policy, trade_policy |
 | PlacementPreviewsTool.cs / placement_previews | placement.proto; exact ordered candidate request and evaluated/failure result | placement_previews, construction_preflight |
 | PawnImageTool.cs / pawn_image | presentation.proto; scoped render capture and unavailable | player presentation |
-| BillsTool.cs / bills list and recipes | ReadBills / ReadRecipes; BillStack, BillState, RecipeState, IngredientRequirement (native handler `NativeBillsObservationTools.cs`; recipe ingredient rows carry required counts only, no stock scan; `billsaccept` covers it) | colony_skills, production_policy, gear/medical/resource benches, player inspections |
+| BillsTool.cs / bills list and recipes | ReadBills / ReadRecipes; BillStack, BillState, RecipeState, IngredientRequirement (native handler `NativeBillsObservationTools.cs`; recipe ingredient rows carry required counts only, no stock scan; the `bills/census` acceptance case covers it) | colony_skills, production_policy, gear/medical/resource benches, player inspections |
 | BuildingConfigTool.cs / building_config read | ReadBuildingSettings; BuildingSettings, scoped token; gizmos in presentation | building_config, thermal_control, player inspections |
 | PawnConfigTool.cs / pawn_config read | ReadPawnSettings; PawnSettings, scoped token | pawn_config, medical/work/settings readers |
 | OrderTool.cs / order resolve | ResolveTarget; exact typed target or explicit ambiguity | hands, target resolution, player inspections |

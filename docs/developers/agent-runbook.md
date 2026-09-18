@@ -64,15 +64,17 @@ RimWorld running.
   (`na.RequireCurrentPackage`) and its error names the rebuild command.
   Rebuild whenever `integrations/rimgovernor-native` or `scripts/fixtures`
   changed, including after merging `main`.
-- **The controller binary** the harness drives (`-rimgovernor <path>`).
-  Build it to `.rimgovernor/bin/` and never rebuild it, or the mod, while
-  a harness is running from it: the service restart reads EOF and the run
-  dies.
+- **The controller binary** a serve-driven case drives (`-rimgovernor
+  <path>`). Build it to `.rimgovernor/bin/` and never rebuild it, or the
+  mod, while a case is running from it: the service restart reads EOF and
+  the run dies.
 
-## Running a harness
+## Running a case
 
-- Build it to an exe and launch it detached: `Start-Process -WindowStyle
-  Hidden -PassThru` with stdout/stderr redirected under `.rimgovernor/`.
+- There is one runner, `go/internal/nativeaccept/cmd/acceptance`
+  (`list`, `run <area>/<case>...`, `suite`, `stop`). Build it to an exe
+  and launch it detached: `Start-Process -WindowStyle Hidden -PassThru`
+  with stdout/stderr redirected under `.rimgovernor/`.
   The tool shell caps a command at ten minutes even in the background, and
   without `-WindowStyle Hidden` a console window opens on the user's
   desktop.
@@ -94,7 +96,7 @@ RimWorld running.
   transport problem; `[worker] ... bridge transport failure` lines repeat a
   handful of real failures (`native_error` rows in the flight recorder).
 - Report evidence from `result.json`/`report.json` and the retained logs;
-  name the harnesses you ran in the commit message.
+  name the cases you ran in the commit message.
 
 ## Landing
 

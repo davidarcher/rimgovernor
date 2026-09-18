@@ -30,32 +30,34 @@ func names(list []entry) string {
 	return strings.Join(out, " ")
 }
 
-// The queue is bridge-only first, then serve-driven, each half
-// longest-first by the baseline with untimed rows ahead as if long; the
-// baseline may be the former suiteaccept's "harnesses" rows.
+// The queue is kept-process cases first, then the ones that end the
+// process, then serve-driven, each tier longest-first by the baseline with
+// untimed rows ahead as if long.
 func TestScheduleServeLastLongestFirst(t *testing.T) {
-	b, err := loadBaseline(writeBaseline(t, `{"harnesses":[{"name":"a","wall_ms":10},{"name":"b","wall_ms":30},{"name":"c","wall_ms":20},{"name":"s1","wall_ms":50},{"name":"s2","wall_ms":90}]}`))
+	b, err := loadBaseline(writeBaseline(t, `{"cases":[{"name":"a","wall_ms":10},{"name":"b","wall_ms":30},{"name":"c","wall_ms":20},{"name":"s1","wall_ms":50},{"name":"s2","wall_ms":90}]}`))
 	if err != nil {
 		t.Fatal(err)
 	}
 	serveCase := cases.Case{Name: "x/serve", Serve: &cases.ServeSpec{}}
+	serviceCase := cases.Case{Name: "x/service", Service: true}
 	noKeep := cases.Case{Name: "x/shutdown", NoKeep: true}
 	rendered := cases.Case{Name: "x/video", Rendered: true}
+	bridge := cases.Case{Name: "x/bridge"}
 	list := []entry{
-		{Name: "s1", Args: []string{"-rimgovernor", "x"}},
+		{Name: "s1", registered: &serviceCase},
 		{Name: "x/shutdown", registered: &noKeep},
-		{Name: "a"}, {Name: "b"},
+		{Name: "a", registered: &bridge}, {Name: "b", registered: &bridge},
 		{Name: "x/serve", registered: &serveCase},
-		{Name: "c"}, {Name: "new"},
-		{Name: "s2", Serve: true},
+		{Name: "c", registered: &bridge}, {Name: "new", registered: &bridge},
+		{Name: "s2", registered: &serveCase},
 		{Name: "x/video", registered: &rendered},
 	}
 	schedule(list, b)
 	if got := names(list); got != "new b c a x/shutdown x/video x/serve s2 s1" {
 		t.Errorf("order = %q", got)
 	}
-	// Without a baseline the listed order holds within each half.
-	list = []entry{{Name: "s1", Serve: true}, {Name: "a"}, {Name: "b"}}
+	// Without a baseline the listed order holds within each tier.
+	list = []entry{{Name: "s1", registered: &serveCase}, {Name: "a", registered: &bridge}, {Name: "b", registered: &bridge}}
 	schedule(list, nil)
 	if got := names(list); got != "a b s1" {
 		t.Errorf("unordered = %q", got)
@@ -110,47 +112,43 @@ func TestRegressionsFlagOverRatioAndFloorNetOfBoot(t *testing.T) {
 	}
 }
 
-func TestParseSuiteResolvesRegistryAndBinaries(t *testing.T) {
-	root, bin := absRoot(), filepath.Join(absRoot(), "bin")
+func TestParseSuiteResolvesRegistry(t *testing.T) {
+	root := absRoot()
 	suite := filepath.Join(t.TempDir(), "suite.json")
 	if err := os.WriteFile(suite, []byte(`[
 		{"name": "smoke/identity", "acceptance": "runner smoke"},
-		{"name": "needsaccept"},
-		{"name": "light-dark", "binary": "lightaccept.exe", "args": ["-rimgovernor", "{rimgovernor}", "-scenario", "dark"]}
+		{"name": "light/dark"}
 	]`), 0644); err != nil {
 		t.Fatal(err)
 	}
 	var stderr bytes.Buffer
-	list, opts, err := parseSuite([]string{"-suite", suite, "-root", root, "-output", filepath.Join(root, "out"), "-bin", bin, "-rimgovernor", "rg.exe", "-workers", "3", "-budget", "4m"}, &stderr)
+	list, opts, err := parseSuite([]string{"-suite", suite, "-root", root, "-output", filepath.Join(root, "out"), "-rimgovernor", "rg.exe", "-workers", "3", "-budget", "4m"}, &stderr)
 	if err != nil {
 		t.Fatalf("parseSuite: %v (%s)", err, stderr.String())
 	}
-	if opts.Workers != 3 || opts.Budget != 4*time.Minute || opts.Bin != bin {
+	if opts.Workers != 3 || opts.Budget != 4*time.Minute {
 		t.Fatalf("opts = %+v", opts)
 	}
-	if list[0].registered == nil || list[0].registered.Name != "smoke/identity" || list[0].serveDriven() {
-		t.Errorf("registry row = %+v", list[0])
+	if list[0].registered == nil || list[0].registered.Name != "smoke/identity" || list[0].serveDriven() || list[0].Acceptance != "runner smoke" {
+		t.Errorf("bridge row = %+v", list[0])
 	}
-	if list[1].registered != nil || list[1].Binary != filepath.Join(bin, "needsaccept.exe") || list[1].serveDriven() {
-		t.Errorf("default binary row = %+v", list[1])
-	}
-	if list[2].Binary != filepath.Join(bin, "lightaccept.exe") || list[2].Args[1] != "rg.exe" || !list[2].serveDriven() {
-		t.Errorf("serve binary row = %+v", list[2])
+	if list[1].registered == nil || !list[1].serveDriven() {
+		t.Errorf("service row = %+v", list[1])
 	}
 	self, worker := filepath.Join(root, "acceptance.exe"), filepath.Join(root, "out", "workers", "1")
 	argv, output := entryCommand(list[0], opts, self, worker)
 	if want := []string{self, "run", "smoke/identity", "-root", worker, "-output", opts.Output, "-game", "rimgovernor-trial", "-budget", "4m0s"}; strings.Join(argv, " ") != strings.Join(want, " ") {
-		t.Errorf("registry argv = %v", argv)
+		t.Errorf("bridge argv = %v", argv)
 	}
 	if output != filepath.Join(opts.Output, "smoke", "identity") {
-		t.Errorf("registry output = %q", output)
+		t.Errorf("bridge output = %q", output)
 	}
-	argv, output = entryCommand(list[2], opts, self, worker)
-	if want := []string{list[2].Binary, "-root", worker, "-output", filepath.Join(opts.Output, "light-dark"), "-rimgovernor", "rg.exe", "-scenario", "dark"}; strings.Join(argv, " ") != strings.Join(want, " ") {
-		t.Errorf("binary argv = %v", argv)
+	argv, output = entryCommand(list[1], opts, self, worker)
+	if want := []string{self, "run", "light/dark", "-root", worker, "-output", opts.Output, "-game", "rimgovernor-trial", "-rimgovernor", "rg.exe", "-budget", "4m0s"}; strings.Join(argv, " ") != strings.Join(want, " ") {
+		t.Errorf("service argv = %v", argv)
 	}
-	if output != filepath.Join(opts.Output, "light-dark") {
-		t.Errorf("binary output = %q", output)
+	if output != filepath.Join(opts.Output, "light", "dark") {
+		t.Errorf("service output = %q", output)
 	}
 
 	list, _, err = parseSuite([]string{"-all", "-root", root, "-output", filepath.Join(root, "out")}, &stderr)
@@ -166,33 +164,21 @@ func TestParseSuiteResolvesRegistryAndBinaries(t *testing.T) {
 func TestParseSuiteRejects(t *testing.T) {
 	root, out := absRoot(), filepath.Join(absRoot(), "out")
 	for name, args := range map[string][]string{
-		"no selector":          {"-root", root, "-output", out},
-		"two selectors":        {"-all", "-cases", "smoke/identity", "-root", root, "-output", out},
-		"unknown case":         {"-cases", "smoke/nope", "-root", root, "-output", out},
-		"missing output":       {"-all", "-root", root},
-		"relative root":        {"-all", "-root", "bridge", "-output", out},
-		"zero workers":         {"-all", "-root", root, "-output", out, "-workers", "0"},
-		"positional":           {"-all", "-root", root, "-output", out, "extra"},
-		"binary without -bin":  {"-suite", writeBaseline(t, `[{"name":"needsaccept"}]`), "-root", root, "-output", out},
-		"duplicate names":      {"-suite", writeBaseline(t, `[{"name":"smoke/identity"},{"name":"smoke/identity"}]`), "-root", root, "-output", out},
-		"registry row w/ args": {"-suite", writeBaseline(t, `[{"name":"smoke/identity","args":["-x"]}]`), "-root", root, "-output", out},
+		"no selector":         {"-root", root, "-output", out},
+		"two selectors":       {"-all", "-cases", "smoke/identity", "-root", root, "-output", out},
+		"unknown case":        {"-cases", "smoke/nope", "-root", root, "-output", out},
+		"missing output":      {"-all", "-root", root},
+		"relative root":       {"-all", "-root", "bridge", "-output", out},
+		"zero workers":        {"-all", "-root", root, "-output", out, "-workers", "0"},
+		"positional":          {"-all", "-root", root, "-output", out, "extra"},
+		"retired binary name": {"-suite", writeBaseline(t, `[{"name":"needsaccept"}]`), "-root", root, "-output", out},
+		"duplicate names":     {"-suite", writeBaseline(t, `[{"name":"smoke/identity"},{"name":"smoke/identity"}]`), "-root", root, "-output", out},
+		"empty suite":         {"-suite", writeBaseline(t, `[]`), "-root", root, "-output", out},
 	} {
 		var stderr bytes.Buffer
 		if _, _, err := parseSuite(args, &stderr); err == nil {
 			t.Errorf("%s: parseSuite(%v) = nil", name, args)
 		}
-	}
-}
-
-func TestBootMs(t *testing.T) {
-	if got := bootMs(map[string]any{"boot_ms": 5723.0}); got != 5723 {
-		t.Errorf("runner boot_ms = %d", got)
-	}
-	if got := bootMs(map[string]any{"game_reuse": map[string]any{"openMs": 210.0}}); got != 210 {
-		t.Errorf("game_reuse openMs = %d", got)
-	}
-	if got := bootMs(map[string]any{}); got != 0 {
-		t.Errorf("no boot = %d", got)
 	}
 }
 
@@ -212,7 +198,7 @@ func TestIssue6MatrixCoversEveryCriterion(t *testing.T) {
 		t.Fatal(err)
 	}
 	var stderr bytes.Buffer
-	resolved, _, err := parseSuite([]string{"-suite", path, "-root", absRoot(), "-output", filepath.Join(absRoot(), "out"), "-bin", filepath.Join(absRoot(), "bin")}, &stderr)
+	resolved, _, err := parseSuite([]string{"-suite", path, "-root", absRoot(), "-output", filepath.Join(absRoot(), "out")}, &stderr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -222,9 +208,6 @@ func TestIssue6MatrixCoversEveryCriterion(t *testing.T) {
 		"disconnected consumers": false, "exhausted fuel": false, "exhausted batteries": false, "hot-weather freezer failure": false,
 	}
 	for i, h := range list {
-		if h.Binary != "" || len(h.Args) != 0 {
-			t.Errorf("%s: the matrix runs registry cases, got binary %q args %v", h.Name, h.Binary, h.Args)
-		}
 		if h.Acceptance == "" {
 			t.Errorf("%s: acceptance criterion missing", h.Name)
 		}

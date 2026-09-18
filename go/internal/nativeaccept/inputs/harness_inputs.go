@@ -11,10 +11,10 @@ import (
 	"strings"
 )
 
-// harnessSharedInputs are the checked-in inputs every harness run depends
-// on besides its Go packages: the native mod build (nativeSourceInputs, the
-// same list RequireCurrentPackage compares) and the fixture saves and
-// contract fixtures a harness loads.
+// harnessSharedInputs are the checked-in inputs every acceptance run
+// depends on besides its Go packages: the native mod build
+// (nativeSourceInputs, the same list RequireCurrentPackage compares) and
+// the fixture saves and contract fixtures a case loads.
 var harnessSharedInputs = []string{
 	"go/go.mod",
 	"go/go.sum",
@@ -23,17 +23,17 @@ var harnessSharedInputs = []string{
 }
 
 // HarnessInputs lists, repo-relative with forward slashes, the files an
-// acceptance harness run depends on: every non-test file of each in-module
-// Go package the harness and the rimgovernor binary it drives import, the
-// native mod's build inputs and harnessSharedInputs. harness is the
-// directory name under go/internal/nativeaccept/cmd, or a registered case
-// "<area>/<case>" (#135), whose packages are the area's under
-// go/internal/nativeaccept/cases and the shared acceptance runner. It
-// does not cover the game, GABS or the machine: those are environment,
+// acceptance case run depends on: every non-test file of each in-module
+// Go package the case's area, the shared acceptance runner and the
+// rimgovernor binary it drives import, the native mod's build inputs and
+// harnessSharedInputs. harness is a registered case "<area>/<case>"
+// (#135), whose packages are the area's under
+// go/internal/nativeaccept/cases and go/internal/nativeaccept/cmd/acceptance.
+// It does not cover the game, GABS or the machine: those are environment,
 // not inputs.
 func HarnessInputs(repo, harness string) ([]string, error) {
 	goDir := filepath.Join(repo, "go")
-	patterns, err := harnessPackages(goDir, harness)
+	patterns, err := casePackages(goDir, harness)
 	if err != nil {
 		return nil, err
 	}
@@ -79,25 +79,17 @@ func HarnessInputs(repo, harness string) ([]string, error) {
 	return files, nil
 }
 
-// harnessPackages resolves harness (a cmd directory name or a registered
-// case's "<area>/<case>") to the go list patterns of its own packages.
-func harnessPackages(goDir, harness string) ([]string, error) {
-	if area, name, isCase := strings.Cut(harness, "/"); isCase {
-		if area == "" || name == "" || strings.ContainsAny(area+name, `/\.`) {
-			return nil, fmt.Errorf("case %q is not <area>/<case>", harness)
-		}
-		if _, err := os.Stat(filepath.Join(goDir, "internal", "nativeaccept", "cases", area)); err != nil {
-			return nil, fmt.Errorf("case %s: %w", harness, err)
-		}
-		return []string{"./internal/nativeaccept/cases/" + area, "./internal/nativeaccept/cmd/acceptance"}, nil
+// casePackages resolves a registered case's "<area>/<case>" to the go
+// list patterns of its own packages.
+func casePackages(goDir, harness string) ([]string, error) {
+	area, name, isCase := strings.Cut(harness, "/")
+	if !isCase || area == "" || name == "" || strings.ContainsAny(area+name, `/\.`) {
+		return nil, fmt.Errorf("case %q is not <area>/<case>", harness)
 	}
-	if harness == "" || strings.ContainsAny(harness, `\.`) {
-		return nil, fmt.Errorf("harness %q is not a directory name under go/internal/nativeaccept/cmd", harness)
+	if _, err := os.Stat(filepath.Join(goDir, "internal", "nativeaccept", "cases", area)); err != nil {
+		return nil, fmt.Errorf("case %s: %w", harness, err)
 	}
-	if _, err := os.Stat(filepath.Join(goDir, "internal", "nativeaccept", "cmd", harness)); err != nil {
-		return nil, fmt.Errorf("harness %s: %w", harness, err)
-	}
-	return []string{"./internal/nativeaccept/cmd/" + harness}, nil
+	return []string{"./internal/nativeaccept/cases/" + area, "./internal/nativeaccept/cmd/acceptance"}, nil
 }
 
 // walkInput calls add for each file under the repo-relative input (or the
@@ -167,9 +159,9 @@ func goList(goDir string, args ...string) (string, error) {
 }
 
 // HarnessInputRoots lists, repo-relative with forward slashes, the files
-// and directories outside a harness's Go packages that every harness run
+// and directories outside a case's Go packages that every acceptance run
 // depends on: the native mod's build inputs and harnessSharedInputs. A
-// change under any of them affects every harness.
+// change under any of them affects every case.
 func HarnessInputRoots() []string {
 	roots := make([]string, 0, len(nativeSourceInputs)+len(harnessSharedInputs))
 	for _, input := range nativeSourceInputs {

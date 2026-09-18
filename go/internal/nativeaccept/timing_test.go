@@ -82,25 +82,15 @@ func TestFinalizeFailsARunOverBudget(t *testing.T) {
 	}
 }
 
-func TestFinalizeAppliesTheProcessBudget(t *testing.T) {
-	defer func(prior time.Duration) { runBudget = prior }(runBudget)
-	runBudget = time.Second
+func TestFinalizeWithoutABudgetPasses(t *testing.T) {
 	report := NewReport("budget", true)
 	report[StartedAtKey] = time.Now().Add(-2 * time.Second).UTC().Format(time.RFC3339Nano)
 	report["passed"] = true
-	if code := report.Finalize(t.TempDir()); code != 1 {
-		t.Fatalf("exit %d for a run over the process budget", code)
-	}
-	if report[BudgetMsKey] != int64(1000) {
-		t.Errorf("budget_ms = %v", report[BudgetMsKey])
-	}
-	// A report's own budget wins.
-	report = NewReport("budget", true)
-	report[StartedAtKey] = time.Now().Add(-2 * time.Second).UTC().Format(time.RFC3339Nano)
-	report["passed"] = true
-	report.SetBudget(time.Minute)
 	if code := report.Finalize(t.TempDir()); code != 0 {
-		t.Errorf("exit %d: %v", code, report["error"])
+		t.Errorf("exit %d for a run with no budget: %v", code, report["error"])
+	}
+	if _, has := report[BudgetMsKey]; has {
+		t.Errorf("budget_ms = %v without SetBudget", report[BudgetMsKey])
 	}
 }
 

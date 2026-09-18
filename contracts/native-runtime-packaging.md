@@ -11,7 +11,7 @@ Historical captures do not gate active development; use new disposable state.
 | Early native runtime | `src/Runtime/RimGovernor.Runtime.csproj`; persistence and batch-gated headless startup; `Assemblies/RimGovernor.Runtime.dll`. |
 | SDK tool adapter | `src/Bridge/RimGovernor.Bridge.csproj`; references Runtime; `BridgeTools/RimGovernor/RimGovernor.Bridge.dll`. |
 | Package builder | `scripts/build_native_mod.ps1`; one About manifest, private build inputs, fresh staging, notices/source and artifact manifest. |
-| Native consumers | `launch-go.ps1`, the Docker `go-controller` target and the Go native acceptance harnesses (`go/internal/nativeaccept/cmd/*`) use the unified package in batch and graphical modes. |
+| Native consumers | `launch-go.ps1`, the Docker `go-controller` target and the Go native acceptance runner (`go/internal/nativeaccept/cmd/acceptance`) use the unified package in batch and graphical modes. |
 
 Both assemblies target net472 with warnings as errors. Runtime is loaded early
 for Verse component discovery and startup hooks; the SDK loads tools separately.

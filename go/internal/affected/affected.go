@@ -24,15 +24,12 @@ type Selection struct {
 	// changed Go files (or testdata) and every in-module package importing
 	// them. Empty with AllGo set means ./... .
 	Packages []string
-	// Harnesses are the go/internal/nativeaccept/cmd directories whose
-	// inputs (na.HarnessInputs) include a changed file.
-	Harnesses []string
 	// Cases are the go/internal/nativeaccept/cases areas (#135) whose
-	// inputs include a changed file: every case the area registers is
-	// affected (acceptance run <area>/...).
+	// inputs (na.HarnessInputs) include a changed file: every case the
+	// area registers is affected (acceptance run <area>/...).
 	Cases []string
-	// AllHarnesses means a shared harness input changed (native mod
-	// sources, fixtures, go.mod): every harness and case is affected.
+	// AllHarnesses means a shared acceptance input changed (native mod
+	// sources, fixtures, go.mod): every case is affected.
 	AllHarnesses bool
 }
 
@@ -85,11 +82,7 @@ func Select(repo string, changed []string) (Selection, error) {
 		}
 	}
 	if sel.AllHarnesses {
-		harnesses, err := harnessNames(goDir)
-		if err != nil {
-			return sel, err
-		}
-		sel.Harnesses = harnesses
+		var err error
 		if sel.Cases, err = caseAreas(goDir); err != nil {
 			return sel, err
 		}
@@ -127,41 +120,18 @@ func Select(repo string, changed []string) (Selection, error) {
 	if sel.AllHarnesses {
 		return sel, nil
 	}
-	// A harness is affected when it or the rimgovernor binary it drives
-	// imports a changed package.
-	binaryDeps := map[string]bool{}
-	for _, dep := range graph.deps[graph.module+"/cmd/rimgovernor"] {
-		binaryDeps[dep] = true
-	}
+	// A case area is affected when it, the runner or the rimgovernor binary
+	// the cases drive imports a changed package. The runner imports every
+	// area to register it, so the areas themselves do not count as its
+	// inputs here.
 	binaryAffected := false
-	for dep := range binaryDeps {
+	for _, dep := range graph.deps[graph.module+"/cmd/rimgovernor"] {
 		if changedPkgs[dep] {
 			binaryAffected = true
 			break
 		}
 	}
-	prefix := graph.module + "/internal/nativeaccept/cmd/"
-	for pkg, deps := range graph.deps {
-		name := strings.TrimPrefix(pkg, prefix)
-		if !strings.HasPrefix(pkg, prefix) || !isHarness(name) {
-			continue
-		}
-		affected := binaryAffected || changedPkgs[pkg]
-		for _, dep := range deps {
-			if affected {
-				break
-			}
-			affected = changedPkgs[dep]
-		}
-		if affected {
-			sel.Harnesses = append(sel.Harnesses, name)
-		}
-	}
-	sort.Strings(sel.Harnesses)
-	// A case area is affected when it, the runner or the binary imports a
-	// changed package. The runner imports every area to register it, so
-	// the areas themselves do not count as its inputs here.
-	prefix = graph.module + "/internal/nativeaccept/cases/"
+	prefix := graph.module + "/internal/nativeaccept/cases/"
 	runner := graph.module + "/internal/nativeaccept/cmd/acceptance"
 	runnerAffected := binaryAffected || changedPkgs[runner]
 	for _, dep := range graph.deps[runner] {
@@ -261,27 +231,6 @@ func dependencyGraph(goDir string) (*graph, error) {
 	return g, nil
 }
 
-// isHarness tells an acceptance harness directory under
-// go/internal/nativeaccept/cmd from the tools beside it (acceptance,
-// variantsavegen, verified): harnesses end in "accept".
-func isHarness(name string) bool {
-	return strings.HasSuffix(name, "accept") && !strings.Contains(name, "/")
-}
-
-func harnessNames(goDir string) ([]string, error) {
-	entries, err := os.ReadDir(filepath.Join(goDir, "internal", "nativeaccept", "cmd"))
-	if err != nil {
-		return nil, err
-	}
-	var names []string
-	for _, entry := range entries {
-		if entry.IsDir() && isHarness(entry.Name()) {
-			names = append(names, entry.Name())
-		}
-	}
-	return names, nil
-}
-
 // caseAreas lists the case area packages under
 // go/internal/nativeaccept/cases.
 func caseAreas(goDir string) ([]string, error) {
@@ -325,7 +274,7 @@ func output(dir, name string, args ...string) (string, error) {
 }
 
 // Test runs go test for what the changed files affect (Select), streaming
-// the output to stdout/stderr, and names the affected harnesses first so
+// the output to stdout/stderr, and names the affected case areas first so
 // the caller knows which acceptance runs the change may still owe.
 func Test(repo string, changed []string) error {
 	goDir := filepath.Join(repo, "go")
@@ -334,10 +283,10 @@ func Test(repo string, changed []string) error {
 		return err
 	}
 	if sel.AllHarnesses {
-		fmt.Println("harnesses affected: all (a shared harness input changed: native sources, fixtures or go.mod)")
+		fmt.Println("cases affected: all (a shared acceptance input changed: native sources, fixtures or go.mod)")
 	}
-	for _, harness := range sel.Harnesses {
-		fmt.Printf("harness: go run ./internal/nativeaccept/cmd/%s -root <abs root> -output <fresh dir>\n", harness)
+	for _, area := range sel.Cases {
+		fmt.Printf("case: go run ./internal/nativeaccept/cmd/acceptance run %s/... -root <abs root> -output <fresh dir>\n", area)
 	}
 	switch {
 	case sel.AllGo:

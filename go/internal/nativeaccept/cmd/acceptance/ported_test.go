@@ -58,3 +58,29 @@ func TestStopNeedsRoot(t *testing.T) {
 		t.Fatalf("stop without -root exit %d: %s", code, stderr.String())
 	}
 }
+
+// TestLastPortedCases pins the two cases that retired the last per-harness
+// binaries (#146): dialog/pause hosts a service on the baseline save, and
+// authority/warm owns its process (two controllers on one kept process)
+// and retires it.
+func TestLastPortedCases(t *testing.T) {
+	dialog, ok := cases.Lookup("dialog/pause")
+	if !ok || dialog.Serve == nil || dialog.Quiet != na.QuietRequired {
+		t.Errorf("dialog/pause = %+v", dialog)
+	}
+	if _, save := dialog.Start.(cases.Save); !save {
+		t.Errorf("dialog/pause does not open on a save: %T", dialog.Start)
+	}
+	warm, ok := cases.Lookup("authority/warm")
+	if !ok || !warm.NoKeep || warm.Serve != nil {
+		t.Errorf("authority/warm = %+v", warm)
+	}
+	if _, owned := warm.Start.(cases.Owned); !owned {
+		t.Errorf("authority/warm does not own its process: %T", warm.Start)
+	}
+	for _, c := range []cases.Case{dialog, warm} {
+		if err := c.Lint(); err != nil {
+			t.Error(err)
+		}
+	}
+}

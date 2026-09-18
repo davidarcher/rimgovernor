@@ -1,5 +1,5 @@
 // Command affected prints the checks a change needs: the Go packages to
-// test and the native acceptance harnesses whose inputs the change touched.
+// test and the native acceptance case areas whose inputs the change touched.
 //
 //	go run ./cmd/affected [-base main] [-files] [<file>...]
 //
@@ -8,10 +8,10 @@
 // The output is one command per line, ready to run from go/:
 //
 //	go test ./internal/policy/... ...
-//	go run ./internal/nativeaccept/cmd/temperatureaccept ...
+//	go run ./internal/nativeaccept/cmd/acceptance run temperature/... ...
 //
 // and "nothing to test" when no Go file changed. cmd/test runs the go test
-// line; the harness lines are advice: run them at the milestone, before
+// line; the acceptance lines are advice: run them at the milestone, before
 // landing.
 package main
 
@@ -62,10 +62,7 @@ func main() {
 		fmt.Println("# nothing to test: no Go file changed")
 	}
 	if sel.AllHarnesses {
-		fmt.Println("# a shared harness input changed (native sources, fixtures or go.mod): every harness is affected")
-	}
-	for _, harness := range sel.Harnesses {
-		fmt.Printf("go run ./internal/nativeaccept/cmd/%s ...\n", harness)
+		fmt.Println("# a shared acceptance input changed (native sources, fixtures or go.mod): every case is affected")
 	}
 	for _, area := range sel.Cases {
 		fmt.Printf("go run ./internal/nativeaccept/cmd/acceptance run %s/... ...\n", area)
