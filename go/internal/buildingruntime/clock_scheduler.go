@@ -801,14 +801,16 @@ type clockWorkItem struct {
 	Unresolved bool
 }
 
-// clockSchedulerWatches names the dispatched construction attempts the
-// native clock watches for this window, in catalog order and bounded. A
-// latched terminal outcome stops the window at once instead of running out
-// the tick budget. Construction is the only watched family so far.
+// clockSchedulerWatches names the dispatched attempts the native clock
+// watches for this window, in catalog order and bounded. A latched terminal
+// outcome stops the window at once instead of running out the tick budget.
+// Only families with a native operation record the clock can observe are
+// armed: construction and haul (#108). Immediate designations (allow, zones,
+// work settings) settle within their own write and have nothing to watch.
 func clockSchedulerWatches(items []clockWorkItem, namespace string) []*c.AttemptKey {
 	var watched []*c.AttemptKey
 	for _, item := range items {
-		if item.Kind != domain.BuildingAction || item.Attempt == 0 || item.Stage != domain.Dispatched && item.Stage != domain.AwaitingObservation {
+		if !clockWatchedKind(item.Kind) || item.Attempt == 0 || item.Stage != domain.Dispatched && item.Stage != domain.AwaitingObservation {
 			continue
 		}
 		if len(watched) == bridge.ClockWatchedAttemptsMax {
@@ -817,6 +819,12 @@ func clockSchedulerWatches(items []clockWorkItem, namespace string) []*c.Attempt
 		watched = append(watched, &c.AttemptKey{ControllerSessionId: proto.String(namespace), ActionId: proto.String(string(item.Action)), AttemptId: proto.Uint64(uint64(item.Attempt))})
 	}
 	return watched
+}
+
+// clockWatchedKind reports whether the native clock keeps an operation
+// record for kind that a watch can observe (NativeClockWatch.cs).
+func clockWatchedKind(kind domain.ActionKind) bool {
+	return kind == domain.BuildingAction || kind == domain.HaulAction
 }
 
 func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot) (bool, []clockWorkItem, error) {

@@ -22,12 +22,16 @@ namespace HomeBridge.BridgeTools
         private readonly Pawn pawn;
         private readonly Thing thing;
         private readonly NativeControlIdentity identity;
-        private readonly Job job;
+        // The issued Job's id and def are copied at admission: RimWorld pools
+        // Job instances, so once the haul ends the object is cleared and
+        // reused for the pawn's next job (its def reads "" or GotoWander),
+        // and evidence built from it fails the controller's job contract.
         private readonly int jobId;
+        private readonly string jobDef;
         private readonly string trackingId;
         private readonly Common.ObservationContext admitted;
         internal NativeHaulRecord(NativeControlIdentity identity, Pawn pawn, Thing thing, Job job, string trackingId, Common.ObservationContext context)
-        { this.identity = identity; this.pawn = pawn; this.thing = thing; this.job = job; jobId = job.loadID; this.trackingId = trackingId; admitted = context.Clone(); }
+        { this.identity = identity; this.pawn = pawn; this.thing = thing; jobId = job.loadID; jobDef = job.def?.defName ?? ""; this.trackingId = trackingId; admitted = context.Clone(); }
 
         // Issued describes only whether THIS call just issued a new job; the
         // pawn-order evidence contract requires Progress to always report
@@ -37,7 +41,7 @@ namespace HomeBridge.BridgeTools
         {
             Job = new Receipts.JobEffect
             {
-                PawnId = snapshot.PawnId, JobId = jobId, JobDef = job.def?.defName ?? "",
+                PawnId = snapshot.PawnId, JobId = jobId, JobDef = jobDef,
                 TargetA = new Receipts.JobTarget { ThingId = thing.GetUniqueLoadID() },
                 Issued = issued, Verified = verified,
                 VerifiedReason = verified ? "Exact issued native haul job and quantity ledger observed." : "Issued job outcome requires observation.",

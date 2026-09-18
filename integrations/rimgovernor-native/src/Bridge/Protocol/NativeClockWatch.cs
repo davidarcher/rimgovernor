@@ -12,20 +12,28 @@ namespace HomeBridge.BridgeTools
 {
     // Native action watches: an epoch armed with watched attempts stops at the
     // tick boundary on which any of them reaches a terminal outcome, instead
-    // of playing out its whole tick budget. Only the construction family is
-    // watchable so far; every key must resolve to a tracked construction
-    // record under the requesting identity or the start is refused.
+    // of playing out its whole tick budget. A key is watchable when it names
+    // a tracked construction or haul record under the requesting identity
+    // (the families whose records observe their own terminal outcome);
+    // otherwise the start is refused.
     internal static partial class Supervisor
     {
         internal const int MaxWatchedAttempts = 16;
         private sealed class ArmedWatch
         {
             internal readonly Common.AttemptKey Key;
-            internal readonly NativeConstructionRecord Record;
+            internal readonly Func<Common.AttemptKey, Common.ObservationContext, Receipts.Progress> Observe;
             // Unknown is terminal only once the record has been seen pending:
             // a record that was never observed pending cannot have regressed.
             internal readonly bool WasPending;
-            internal ArmedWatch(Common.AttemptKey key, NativeConstructionRecord record, bool wasPending) { Key = key; Record = record; WasPending = wasPending; }
+            internal ArmedWatch(Common.AttemptKey key, Func<Common.AttemptKey, Common.ObservationContext, Receipts.Progress> observe, bool wasPending) { Key = key; Observe = observe; WasPending = wasPending; }
+        }
+        // WatchedRecord resolves a key to the observer of its tracked record.
+        private static Func<Common.AttemptKey, Common.ObservationContext, Receipts.Progress>? WatchedRecord(NativeOperationState state, Common.AttemptKey key)
+        {
+            if (state.Construction.TryGetValue(key, out var construction)) return construction.Observe;
+            if (state.Hauls.TryGetValue(key, out var haul)) return haul.Observe;
+            return null;
         }
         private static Common.Failure? ValidWatchedAttempts(Clock.WatchPolicy policy, Common.Identity identity)
         {
@@ -33,8 +41,8 @@ namespace HomeBridge.BridgeTools
             if (!NativeOperationState.TryGet(identity, out var state))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Watched attempts name no admitted native operation under this identity.");
             foreach (var key in policy.WatchedAttempts)
-                if (!state.Construction.ContainsKey(key))
-                    return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Watched attempt " + key.ActionId + "/" + key.AttemptId + " is not a tracked construction operation.");
+                if (WatchedRecord(state, key) == null)
+                    return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Watched attempt " + key.ActionId + "/" + key.AttemptId + " is not a tracked construction or haul operation.");
             return null;
         }
         // Caller holds Gate; the epoch has just started. An attempt that is
@@ -46,11 +54,11 @@ namespace HomeBridge.BridgeTools
             if (!NativeOperationState.TryGet(typed.Origin.Identity, out var state)) throw new InvalidOperationException("Watched attempts lost their operation state");
             foreach (var key in typed.Policy.WatchedAttempts)
             {
-                var record = state.Construction[key];
-                var progress = record.Observe(key, typed.LastObservation);
+                var observe = WatchedRecord(state, key) ?? throw new InvalidOperationException("Watched attempt lost its operation record");
+                var progress = observe(key, typed.LastObservation);
                 var outcome = Terminal(key, progress, false, s.LastTick);
                 if (outcome != null) { Add("operation_outcome", "Watched attempt was already terminal at start.", s, OutcomePayload(outcome)); continue; }
-                typed.Watches.Add(new ArmedWatch(key, record, progress.Pending != null));
+                typed.Watches.Add(new ArmedWatch(key, observe, progress.Pending != null));
             }
         }
         // Caller holds Gate at a tick boundary. The outcome row precedes the
@@ -62,7 +70,7 @@ namespace HomeBridge.BridgeTools
             foreach (var watch in typed.Watches)
             {
                 Receipts.Progress progress;
-                try { progress = watch.Record.Observe(watch.Key, typed.LastObservation); }
+                try { progress = watch.Observe(watch.Key, typed.LastObservation); }
                 catch (Exception error) { Stop(s, "watcher_error", "Watched attempt could not be observed: " + error.GetType().Name, true, null); return true; }
                 var outcome = Terminal(watch.Key, progress, watch.WasPending, s.LastTick);
                 if (outcome == null) continue;

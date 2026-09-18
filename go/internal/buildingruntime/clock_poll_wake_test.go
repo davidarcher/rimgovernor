@@ -56,18 +56,19 @@ func TestClockPollWatchLatchedIsBenignAndWakes(t *testing.T) {
 	}
 }
 
-func TestClockSchedulerWatchesConstructionOnly(t *testing.T) {
+func TestClockSchedulerWatchesConstructionAndHaul(t *testing.T) {
 	t.Parallel()
 	items := []clockWorkItem{
 		{Action: "allow", Kind: domain.SupplyAllowAction, Stage: domain.Dispatched, Attempt: 1},
 		{Action: "haul", Kind: domain.HaulAction, Stage: domain.Dispatched, Attempt: 1},
+		{Action: "tend", Kind: domain.TendAction, Stage: domain.Dispatched, Attempt: 1},
 		{Action: "planned", Kind: domain.BuildingAction, Stage: domain.Prepared, Attempt: 1},
 		{Action: "done", Kind: domain.BuildingAction, Stage: domain.Completed, Attempt: 1},
 		{Action: "wall", Kind: domain.BuildingAction, Stage: domain.Dispatched, Attempt: 2},
 		{Action: "door", Kind: domain.BuildingAction, Stage: domain.AwaitingObservation, Attempt: 1},
 	}
 	watched := clockSchedulerWatches(items, "session")
-	if len(watched) != 2 || watched[0].GetActionId() != "wall" || watched[0].GetAttemptId() != 2 || watched[1].GetActionId() != "door" || watched[0].GetControllerSessionId() != "session" {
+	if len(watched) != 3 || watched[0].GetActionId() != "haul" || watched[1].GetActionId() != "wall" || watched[1].GetAttemptId() != 2 || watched[2].GetActionId() != "door" || watched[0].GetControllerSessionId() != "session" {
 		t.Fatal(watched)
 	}
 	var many []clockWorkItem

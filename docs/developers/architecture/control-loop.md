@@ -44,12 +44,17 @@ time, so a held read stalls every planner and worker call behind it, and the
 service polls once a second instead. Every
 captured page wakes the scheduler step and the routine worker through their
 wake signals, which also reset the step backoff; a page whose events carry
-attempt outcomes names those actions so the worker reconciles them first. A
+attempt outcomes names those actions so the worker reconciles them first, and
+while any named action is still unreconciled the worker steps again at once
+instead of waiting out its step interval. A
 window can be armed with watched attempts: the native supervisor stops it at the
 tick boundary on which any of them reaches a terminal outcome
 (`STOP_REASON_WATCH_LATCHED`, a benign stop like the tick budget), so a completed
 wall does not play out the rest of its tick budget before the controller
-notices. Authority changes observed while no epoch is running are journaled as
+notices. The scheduler arms the dispatched construction and haul attempts of
+the window (the families whose native operation records observe their own
+terminal outcome, at most 16); immediate designations have nothing to
+watch. Authority changes observed while no epoch is running are journaled as
 owner-less `AuthorityChanged` rows so a waiting poll learns of them at once.
 
 Each scheduler step carries the reason it ran, and the reason selects the
