@@ -7,6 +7,9 @@ using RimBridgeServer.Sdk;
 using RimWorld;
 using Verse;
 using Verse.AI;
+using Common = RimGovernor.Protocol.Common;
+using Operations = RimGovernor.Protocol.Operations;
+using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
@@ -18,9 +21,10 @@ namespace HomeBridge.BridgeTools
         private static readonly List<Pawn> SpawnedOpponents = new List<Pawn>();
         [Tool("test/b04f_setup", Description = "Disposable B04f initial conditions: stocks, two manhunters, wound, mental state or native player-order equivalent. No completed-work injection.")]
         public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "stocks, combat-equipment, ranged-equipment, explosive-equipment, development-settings (Peaceful), opponents, ranged-opponents, explosive-opponents, clear-opponents, wound, low-health, resting-patient, resting-injury, unavailable-doctor, external-order, external-draft")] string op,
+            [ToolParameter(Description = "stocks, combat-equipment, ranged-equipment, explosive-equipment, development-settings (Peaceful), opponents, ranged-opponents, explosive-opponents, clear-opponents, wound, low-health, resting-patient, resting-injury, unavailable-doctor, external-order, external-draft, fill-ledger")] string op,
             [ToolParameter(Description = "Exact colonist identity for pawn cases.", DefaultValue = "")] string pawn = "",
-            [ToolParameter(Description = "Desired external-draft value.", DefaultValue = false)] bool drafted = false)
+            [ToolParameter(Description = "Desired external-draft value.", DefaultValue = false)] bool drafted = false,
+            [ToolParameter(Description = "fill-ledger: admissions left free below the ordinary ledger's capacity.", DefaultValue = 8)] int remaining = 8)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
@@ -29,6 +33,7 @@ namespace HomeBridge.BridgeTools
                 var actor = people.FirstOrDefault(p => p.GetUniqueLoadID() == pawn);
                 var center = people[0].Position;
                 var weapons = new System.Collections.Generic.List<string>();
+                if (op == "fill-ledger") return FillLedger(map, remaining);
                 if (op == "harvest-plant" || op == "harvest-regrowth") {
                     Plant plant;
                     if (op == "harvest-plant") {
@@ -157,6 +162,51 @@ namespace HomeBridge.BridgeTools
                     orderGeneration=actor==null?(long?)null:OrderedWorkHistory.Read(actor),
                     setupOnly=true, completedWorkInjected=false };
             }, cancellationToken).ConfigureAwait(false);
+        }
+
+        // Fills the current load's ordinary attempt ledger to Capacity - remaining
+        // through the ledger's own Admit/Finish path, so a harness proves real
+        // capacity exhaustion with a handful of executes instead of ~4k round trips.
+        // Requires granted native authority: the synthetic attempts carry the current
+        // generation exactly as an admitted execute would. Fixture entries are
+        // finished as NoChange under their own controller session and never collide
+        // with a harness's attempt keys.
+        private static object FillLedger(Map map, int remaining)
+        {
+            if (remaining < 0 || remaining > NativeAttemptLedger.Capacity)
+                throw new ArgumentOutOfRangeException(nameof(remaining), "remaining must lie within the ledger capacity");
+            if (!ProtoBoundary.TryReadContext(map, out var context, out var unavailable))
+                throw new InvalidOperationException("Native context unavailable: " + unavailable.Detail);
+            if (!context.HasNativeGeneration || context.NativeGeneration == 0)
+                throw new InvalidOperationException("Granted native authority required before filling the ledger");
+            var state = NativeOperationState.ForAdmission(context.Identity);
+            var ledger = state.Ledger;
+            var before = ledger.Count;
+            var target = NativeAttemptLedger.Capacity - remaining;
+            var session = "fixture-ledger-fill-" + Guid.NewGuid().ToString("N");
+            var admitted = 0;
+            for (var n = 1; ledger.Count < target; n++)
+            {
+                var request = new Operations.ExecuteRequest
+                {
+                    Precondition = new RimGovernor.Protocol.Authority.WritePrecondition
+                    {
+                        Identity = context.Identity.Clone(),
+                        Attempt = new Common.AttemptKey { ControllerSessionId = session, ActionId = "fill", AttemptId = (ulong)n },
+                        ExpectedGeneration = context.NativeGeneration,
+                    },
+                    Operation = new Operations.Operation { SetDrafted = new Operations.SetDrafted { Drafted = false } },
+                };
+                var decision = ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
+                if (decision.Kind != NativeAttemptLedger.DecisionKind.Admitted)
+                    throw new InvalidOperationException("Fixture fill was not admitted at count " + ledger.Count + ": " + decision.Kind);
+                ledger.FinishNoChange(decision.AdmittedHandle, new Receipts.EffectEvidence { Settings = new Receipts.SettingsEffect() },
+                    "Fixture ledger fill; no effect was dispatched.");
+                admitted++;
+            }
+            return new { success = true, op = "fill-ledger", before, admitted, count = ledger.Count,
+                capacity = NativeAttemptLedger.Capacity, remaining = NativeAttemptLedger.Capacity - ledger.Count,
+                generation = context.NativeGeneration, tick = Find.TickManager.TicksGame, setupOnly = true, completedWorkInjected = false };
         }
     }
 }

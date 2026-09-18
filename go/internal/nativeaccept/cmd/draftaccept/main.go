@@ -29,14 +29,19 @@ import (
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 )
 
-const ledgerCapacity = 4096
+const (
+	ledgerCapacity = 4096
+	// The fill-ledger fixture leaves this many admissions free; the harness then
+	// spends them with real executes and proves the refusal at the boundary.
+	ledgerRemaining = 8
+)
 
 func main() {
 	root := flag.String("root", "", "absolute disposable worker root (e.g. .rimgovernor/bridge)")
 	output := flag.String("output", "", "fresh output directory (default <root>/native-draft-acceptance)")
 	rendered := flag.Bool("rendered", false, "use the windowed profile instead of headless")
 	game := flag.String("game", "rimgovernor-trial", "configured game ID")
-	timeout := flag.Duration("timeout", 1800*time.Second, "overall run timeout (ledger exhaustion adds ~4k bounded round trips)")
+	timeout := flag.Duration("timeout", 600*time.Second, "overall run timeout")
 	flag.Parse()
 	if *root == "" {
 		fmt.Fprintln(os.Stderr, "-root is required")
@@ -564,10 +569,21 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 		return na.ExecuteRequest(identity, ledgerGrant, ledgerOwned, 1000+n)
 	}
 
+	// The fixture fills the ordinary ledger natively to capacity-ledgerRemaining
+	// (#130); the remaining admissions are real executes so the exhaustion
+	// boundary itself is still crossed by operations_execute.
+	filled, err := h.Call(ctx, "ledger-fill", "test/b04f_setup", map[string]any{"op": "fill-ledger", "remaining": ledgerRemaining})
+	if err != nil {
+		return err
+	}
+	if success, _ := na.AsBool(filled["success"]); !success {
+		return fmt.Errorf("ledger-fill fixture refused")
+	}
+	if count := na.AsNumber(filled["count"]); count != ledgerCapacity-ledgerRemaining {
+		return fmt.Errorf("ledger-fill: expected count %d, got %v", ledgerCapacity-ledgerRemaining, filled["count"])
+	}
 	exhaustedAt := -1
-	// Authority no longer lapses on wall-clock time (#52), so the ~4k fill
-	// round trips need no periodic renewal; the generation stays put throughout.
-	for n := 1; n < ledgerCapacity+16; n++ {
+	for n := 1; n <= ledgerRemaining+1; n++ {
 		reply, err := rawWire(ctx, client, "operations_execute", fillRequest(n))
 		if err != nil {
 			return fmt.Errorf("ledger fill %d: %w", n, err)
@@ -591,8 +607,9 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	if exhaustedAt < 0 {
 		return fmt.Errorf("ordinary ledger never reported capacity exhaustion")
 	}
-	if exhaustedAt < 4000 || exhaustedAt >= ledgerCapacity {
-		return fmt.Errorf("unexpected real exhaustion point %d", exhaustedAt)
+	// Exactly the fixture's free admissions succeed; the next one is refused.
+	if exhaustedAt != ledgerRemaining+1 {
+		return fmt.Errorf("unexpected real exhaustion point %d, want %d", exhaustedAt, ledgerRemaining+1)
 	}
 	stillFull, err := rawWire(ctx, client, "operations_execute", fillRequest(exhaustedAt+1))
 	if err != nil {
@@ -650,6 +667,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	if code, ok := na.FailureCode(stillExhausted); !ok || code != "FAILURE_CODE_CAPACITY_EXHAUSTED" {
 		return fmt.Errorf("still-exhausted: expected FAILURE_CODE_CAPACITY_EXHAUSTED, got %q", code)
 	}
+	report["ledger_fill"] = filled
 	report["ledger_exhausted_at"] = exhaustedAt
 
 	identityAfterReply, err := h.Wire(ctx, "identity-after", "lifecycle_read_identity", map[string]any{})
@@ -698,8 +716,8 @@ func failureCode(ctx context.Context, h *na.Harness, label string, request map[s
 }
 
 // rawWire calls a rimgovernor/* Protobuf-JSON tool directly against client, bypassing
-// Harness evidence recording. Used only for the ~4k-call ledger exhaustion loop, to
-// avoid writing one evidence file per fill attempt.
+// Harness evidence recording. Used only for the ledger exhaustion fills, to avoid
+// writing one evidence file per fill attempt.
 func rawWire(ctx context.Context, client *bridge.Client, method string, request map[string]any) (map[string]any, error) {
 	encoded, err := json.Marshal(request)
 	if err != nil {
