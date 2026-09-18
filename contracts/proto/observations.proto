@@ -419,7 +419,7 @@ message RecoveryArea { optional string id = 1; repeated rimgovernor.common.v1.Ce
 message RecoverySnapshot { rimgovernor.common.v1.ObservationContext context = 1; optional bool roof_hazard = 2; repeated RecoveryArea areas = 3; repeated RecoveryRestriction restrictions = 4; repeated BuildingState buildings = 5; Completeness completeness = 6; }
 message RecoveryRequest { ReadScope scope = 1; rimgovernor.common.v1.PageRequest page = 2; }
 message RecoveryReply { oneof outcome { RecoverySnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
-message PopulationPerson { PawnState pawn = 1; optional bool admitted = 2; optional bool guest = 3; optional bool recruitable = 4; optional double resistance = 5; optional string interaction = 6; BuildingState owned_bed = 7; optional double nutrition_per_day = 8; }
+message PopulationPerson { PawnState pawn = 1; optional bool admitted = 2; optional bool guest = 3; optional bool recruitable = 4; optional double resistance = 5; optional string interaction = 6; BuildingState owned_bed = 7; optional double nutrition_per_day = 8; optional int64 prisoner_ticks = 9; }
 message PopulationSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated PopulationPerson persons = 2; repeated DefinitionRef supported_interactions = 3; Completeness completeness = 4; }
 message PopulationRequest { ReadScope scope = 1; rimgovernor.common.v1.PageRequest page = 2; }
 message PopulationReply { oneof outcome { PopulationSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }

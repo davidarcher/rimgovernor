@@ -78,6 +78,10 @@ namespace HomeBridge.BridgeTools
                     person.Resistance = Number(p.guest.Resistance);
                     var interaction = p.guest.ExclusiveInteractionMode?.defName;
                     if (interaction != null) person.Interaction = NativePawnObservationTools.Id(interaction);
+                    // Time held so far (the TimeAsPrisoner record, in ticks): the
+                    // routine release path's "held N days with resistance
+                    // unbroken" clock. Only a current prisoner carries it.
+                    if (p.IsPrisoner && p.records != null) person.PrisonerTicks = (long)p.records.GetValue(RecordDefOf.TimeAsPrisoner);
                 }
                 if (p.ownership?.OwnedBed != null) person.OwnedBed = new Obs.BuildingState { Building = NativePawnObservationTools.Entity(p.ownership.OwnedBed) };
                 if (p.needs?.food != null) person.NutritionPerDay = Number(p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true) * 60000f);

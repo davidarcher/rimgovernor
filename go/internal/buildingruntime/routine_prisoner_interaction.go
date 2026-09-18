@@ -11,14 +11,15 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// RoutinePrisonerInteractionPlanner proposes one recruit-interaction write
-// for MaintainPopulation's deficit: policy.PrisonerRecruitDeficit and
+// RoutinePrisonerInteractionPlanner proposes one interaction write for
+// MaintainPopulation's deficit: policy.PrisonerRecruitDeficit and
 // SelectPrisonerInteractionMethod read the dedicated per-cycle population
-// census (RoutineFacts.Prisoners, sourced from the new
+// census (RoutineFacts.Prisoners, sourced from the
 // rimgovernor/observations_read_population read) since, unlike husbandry,
 // no other per-cycle read already carries recruitable/interaction facts.
-// Disclosed narrowing: only the Recruit interaction is ever dispatched,
-// never release, execution, or any other player-only order -- see
+// Disclosed narrowing: only the Recruit interaction, and Release once the
+// operator opts in with PrisonerReleaseAfterDays, are ever dispatched --
+// never execution or any other player-only order; see
 // policy.MaintainPopulation's doc comment for why.
 type RoutinePrisonerInteractionPlanner struct {
 	reviewer *RoutineReviewer
@@ -99,23 +100,24 @@ func (r *RoutinePrisonerInteractionPlanner) step(call, epoch context.Context, ar
 	if err != nil {
 		return RoutinePrisonerInteractionResult{}, err
 	}
-	choice := policy.SelectPrisonerInteractionMethod(read.Projection.Facts.Prisoners)
+	choice := policy.SelectPrisonerInteractionMethod(read.Projection.Facts.Prisoners, read.Projection.Facts.FoodDays, r.reviewer.policy.Prisoners())
 	switch choice.Reason {
 	case policy.PrisonerNoDeficit:
 		return RoutinePrisonerInteractionResult{Reason: BuildingMethodUsed}, nil
 	case policy.PrisonerUnknown:
 		return RoutinePrisonerInteractionResult{Reason: BuildingMethodUnknown}, nil
 	}
-	// Keyed by pawn and attempt count, mirroring RoutineHusbandryPlanner's
-	// method key: a fresh attempt after an interrupted or failed try
-	// re-selects whichever recruitable prisoner is currently best.
-	prefix := fmt.Sprintf("recruit-%s-", choice.Pawn)
+	// Keyed by mode, pawn and attempt count, mirroring
+	// RoutineHusbandryPlanner's method key: a fresh attempt after an
+	// interrupted or failed try re-selects whichever prisoner and write is
+	// currently best.
+	prefix := fmt.Sprintf("%s-%s-", choice.Interaction, choice.Pawn)
 	attempt := medicalAttemptCount(goal.Methods, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
 		return RoutinePrisonerInteractionResult{Reason: BuildingMethodExhausted}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
-	interaction, err := domain.NewPrisonerInteraction(choice.Pawn, domain.PrisonerInteractionRecruit)
+	interaction, err := domain.NewPrisonerInteraction(choice.Pawn, choice.Interaction)
 	if err != nil {
 		return RoutinePrisonerInteractionResult{}, err
 	}

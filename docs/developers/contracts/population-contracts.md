@@ -17,13 +17,21 @@ assigned doctors and wardens. Native capture/rescue previews separately require 
 eligible worker, reachable target and suitable available custody bed.
 
 `rimgovernor/observations_read_population` reads human pawn custody, recruitment
-eligibility, current exclusive interaction, resistance, food need, bed and owned bed,
+eligibility, current exclusive interaction, resistance, time held as a prisoner
+(`prisoner_ticks`, the `TimeAsPrisoner` record), food need, bed and owned bed,
 and lists the installed exclusive interactions `SetPrisonerInteraction` accepts:
 `AttemptRecruit`, `MaintainOnly`, `ReduceResistance`, `Release`, and `Enslave` and
 `Convert` while Ideology is active. Execution and non-exclusive toggles are player-only.
 A write requires the exact prior prisoner settings token and a living current-map
 colony prisoner; native gates (recruitable, wild man, classic ideology mode) refuse
-ineligible modes. Routine planning only ever proposes `AttemptRecruit`; every other
+ineligible modes. Routine planning (`MaintainPopulation`) proposes `AttemptRecruit`
+for any recruitable prisoner not already set to it and, only once the operator sets
+`--routine-prisoner-release-after-days N`, `Release` for a prisoner held at least
+`N` days whom the colony cannot turn (recruit resistance still above zero, or never
+recruitable) while the colony food runway is below its routine target
+(`RoutinePolicy.FoodTargetDays`); a colony at or above its target keeps feeding the
+prisoner, and an unknown resistance, held-time or food fact never authorizes a
+release. Release takes precedence over recruit for the same prisoner. Every other
 mode is an explicit order. Native faction admission, resistance and recruitment
 probability are never written.
 

@@ -78,6 +78,7 @@ type serveConfig struct {
 	routineHerdPopulationMax        herdPopulationMaxFlags
 	routineHerdPopulationMin        herdPopulationMaxFlags
 	routinePrisonerInteractionPlans bool
+	routinePrisonerReleaseAfterDays float64
 	routinePopulationCustodyPlans   bool
 	routineHomeCoveragePlans        bool
 	routineStoneShellPlans          bool
@@ -149,6 +150,7 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.BoolVar(&c.routineAllowRelease, "routine-allow-release", false, "let MaintainHerd propose a release-to-wild write for a surplus animal once --routine-herd-population-max is declared; preferred over slaughter when both are set")
 	flags.Var(&c.routineHerdPopulationMax, "routine-herd-population-max", "repeatable RACE:MAX native animal definition population ceiling MaintainHerd removes surplus toward, only once --routine-allow-release or --routine-allow-slaughter is also set")
 	flags.Var(&c.routineHerdPopulationMin, "routine-herd-population-min", "repeatable RACE:MIN native animal definition population floor MaintainHerd designates tameable wild animals toward")
+	flags.Float64Var(&c.routinePrisonerReleaseAfterDays, "routine-prisoner-release-after-days", 0, "days in custody after which MaintainPopulation proposes releasing a prisoner whose recruit resistance is unbroken (or who was never recruitable) while the colony food runway is below its routine target; 0 (the default) never releases")
 	flags.Var(&c.resourceRules, "resource-rule", "repeatable RESOURCE:allow|stop|defense_only:RESERVE for building admission and dispatch")
 	flags.Float64Var(&c.worldEvaluationFoodMarginDays, "world-evaluation-food-margin-days", 0.5, "days of caravan food required beyond its home route's estimated travel time before it is reported as needing recovery")
 	flags.BoolVar(&c.resume, "resume", false, "run the bot for the observed world at startup and again after every native load, without a dashboard Resume")
@@ -210,6 +212,9 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	}
 	if (c.routineAllowSlaughter || c.routineAllowRelease || len(c.routineHerdPopulationMax) > 0 || len(c.routineHerdPopulationMin) > 0) && !c.routineHusbandryPlans {
 		return c, errors.New("--routine-allow-slaughter, --routine-allow-release, --routine-herd-population-max and --routine-herd-population-min require the husbandry routine family")
+	}
+	if c.routinePrisonerReleaseAfterDays != 0 && !c.routinePrisonerInteractionPlans {
+		return c, errors.New("--routine-prisoner-release-after-days requires the prisoner-interaction routine family")
 	}
 	for race, minimum := range c.routineHerdPopulationMin {
 		if max, ok := c.routineHerdPopulationMax[race]; ok && minimum > max {

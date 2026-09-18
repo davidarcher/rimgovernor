@@ -99,8 +99,16 @@ func (r *RoutineHusbandryPlanner) step(call, epoch context.Context, arbiter *ste
 	if err != nil {
 		return RoutineHusbandryResult{}, err
 	}
-	animals := read.Projection.Facts.AnimalUpkeep.Animals
-	choice := policy.SelectHusbandryMethod(animals, read.Projection.Facts.AnimalUpkeep.WildAnimals, r.reviewer.policy.Herd())
+	upkeep := read.Projection.Facts.AnimalUpkeep
+	animals := upkeep.Animals
+	// The tame fallback is gated on the same feed review
+	// RoutineAnimalFeedPlanner plans from, so a herd already short of feed
+	// never takes on another mouth.
+	reviewed, err := policy.ReviewAnimalUpkeep(upkeep, review.Latches.Animals, r.reviewer.policy.AnimalUpkeep)
+	if err != nil {
+		return RoutineHusbandryResult{}, err
+	}
+	choice := policy.SelectHusbandryMethod(animals, upkeep.WildAnimals, policy.HerdFeedShort(reviewed), r.reviewer.policy.Herd())
 	switch choice.Reason {
 	case policy.HusbandryNoDeficit:
 		return RoutineHusbandryResult{Reason: BuildingMethodUsed}, nil

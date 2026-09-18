@@ -9,7 +9,8 @@ import (
 // MaintainHerd names MaintainHerd-*'s deficit: any observed,
 // non-release/slaughter-flagged animal with an available-but-untrained
 // trainable; any race below an operator-declared HerdPopulationMin with a
-// tameable wild animal on the map; and -- only once an operator has opted in
+// tameable wild animal on the map while the existing herd's feed forecast
+// (MaintainAnimalFeed's review) reports no shortfall; and -- only once an operator has opted in
 // via AllowRelease or AllowSlaughter and declared a HerdPopulationMax -- any
 // surplus animal of that race safe to release or slaughter. Disclosed
 // narrowing: there is no per-race protected-id, breeding-reserve or
@@ -56,13 +57,14 @@ type HusbandryChoice struct {
 
 // AnimalHerdDeficit reports whether any observed animal still has an
 // available, not-yet-learned trainable, any tracked race is below its
-// minimum with a tameable wild candidate, or -- only when a removal method
+// minimum with a tameable wild candidate while feedShort (the herd's feed
+// forecast reporting a shortfall) is known false, or -- only when a removal method
 // is allowed and populationMax declares at least one tracked race -- any
 // race has an observed surplus with an eligible candidate not yet
 // designated. An unknown census, or any animal whose release/slaughter/
 // training facts are incomplete, leaves the whole need unknown rather than
 // silently treating it as recovered.
-func AnimalHerdDeficit(animals, wild domain.Fact[[]UpkeepAnimal], herd HerdPolicy) domain.Fact[bool] {
+func AnimalHerdDeficit(animals, wild domain.Fact[[]UpkeepAnimal], feedShort domain.Fact[bool], herd HerdPolicy) domain.Fact[bool] {
 	rows, known := animals.Value()
 	if !known {
 		return domain.Unknown[bool]()
@@ -104,7 +106,13 @@ func AnimalHerdDeficit(animals, wild domain.Fact[[]UpkeepAnimal], herd HerdPolic
 			return domain.Unknown[bool]()
 		}
 		if len(candidates) > 0 {
-			deficit = true
+			short, fk := feedShort.Value()
+			if !fk {
+				return domain.Unknown[bool]()
+			}
+			if !short {
+				deficit = true
+			}
 		}
 	}
 	if method, ok := herdSurplusMethod(herd); ok {
@@ -253,14 +261,27 @@ func herdTameCandidates(rows, wild []UpkeepAnimal, populationMin map[Resource]in
 	return candidates, false
 }
 
+// HerdFeedShort is the feed gate SelectHusbandryMethod's tame fallback
+// reads from MaintainAnimalFeed's own review: known true while any player
+// animal is below its feed threshold, unknown while the feed forecast is.
+func HerdFeedShort(review AnimalUpkeepReview) domain.Fact[bool] {
+	targets, known := review.Feed.Value()
+	if !known {
+		return domain.Unknown[bool]()
+	}
+	return domain.Known(len(targets) > 0)
+}
+
 // SelectHusbandryMethod picks the lowest animal-ID, lowest-def-name available
 // untrained trainable to dispatch next, trying training first the same way
 // it always has. Only once no training candidate exists does it fall back to
-// the lowest-ID tame candidate for a race below its declared minimum, and
-// only after that to the lowest-ID surplus candidate for the operator's
+// the lowest-ID tame candidate for a race below its declared minimum -- and
+// only while the herd's feed forecast is known not short, since a new mouth
+// on a herd already short of feed deepens MaintainAnimalFeed's deficit --
+// and only after that to the lowest-ID surplus candidate for the operator's
 // chosen removal method -- so an operator who opts into tame or removal
 // never loses the pre-existing training behavior.
-func SelectHusbandryMethod(animals, wild domain.Fact[[]UpkeepAnimal], herd HerdPolicy) HusbandryChoice {
+func SelectHusbandryMethod(animals, wild domain.Fact[[]UpkeepAnimal], feedShort domain.Fact[bool], herd HerdPolicy) HusbandryChoice {
 	rows, known := animals.Value()
 	if !known {
 		return HusbandryChoice{Reason: HusbandryUnknown}
@@ -294,7 +315,13 @@ func SelectHusbandryMethod(animals, wild domain.Fact[[]UpkeepAnimal], herd HerdP
 			return HusbandryChoice{Reason: HusbandryUnknown}
 		}
 		if len(candidates) > 0 {
-			return HusbandryChoice{Animal: candidates[0].ID, Method: domain.HusbandryTame}
+			short, fk := feedShort.Value()
+			if !fk {
+				return HusbandryChoice{Reason: HusbandryUnknown}
+			}
+			if !short {
+				return HusbandryChoice{Animal: candidates[0].ID, Method: domain.HusbandryTame}
+			}
 		}
 	}
 	if method, ok := herdSurplusMethod(herd); ok {

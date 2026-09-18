@@ -21,6 +21,11 @@ type PrisonerFacts struct {
 	Prisoner           domain.Fact[bool]
 	Recruitable        domain.Fact[bool]
 	CurrentInteraction domain.Fact[domain.PrisonerInteractionMode]
+	// Resistance and HeldTicks feed the routine release path only
+	// (PrisonerReleaseCandidates): native's remaining recruit resistance and
+	// the TimeAsPrisoner record, in ticks. Admission never reads them.
+	Resistance domain.Fact[float64]
+	HeldTicks  domain.Fact[int64]
 }
 
 type PrisonerInteractionFacts struct {

@@ -8,13 +8,17 @@ operator's herd policy (`RoutinePolicy`, set by `rimgovernor serve` flags):
 
 | Field | Flag | Effect |
 | --- | --- | --- |
-| `HerdPopulationMin` | `--routine-herd-population-min RACE:MIN` | Below the floor, designate the lowest-ID tameable wild animal of that race (`tame`). |
+| `HerdPopulationMin` | `--routine-herd-population-min RACE:MIN` | Below the floor, designate the lowest-ID tameable wild animal of that race (`tame`) while the herd's feed forecast reports no shortfall. |
 | `HerdPopulationMax` | `--routine-herd-population-max RACE:MAX` | Above the ceiling, remove the lowest-ID eligible surplus animal — only with one of the two opt-ins below. |
 | `AllowRelease` | `--routine-allow-release` | Remove surplus by release-to-wild (`release`); preferred when both opt-ins are set. |
 | `AllowSlaughter` | `--routine-allow-slaughter` | Remove surplus by slaughter (`slaughter`). |
 
 All default off. A ceiling alone never removes an animal; a floor alone does
-propose taming. A race in both maps must have minimum ≤ maximum. There is no
+propose taming, gated on `MaintainAnimalFeed`'s own review: while any player
+animal is below its feed threshold, or the feed forecast is unknown, no tame is
+proposed and the shortfall is not counted as a herd deficit (the wild animal's
+own appetite is not forecast; the gate only refuses to add a mouth to a herd
+already short). A race in both maps must have minimum ≤ maximum. There is no
 per-race protected-ID list, breeder-pair reserve or feed-reserve bookkeeping:
 eligibility relies on native's own `SafeToSlaughter`, `SafeToRelease` and
 `Tameable` facts.

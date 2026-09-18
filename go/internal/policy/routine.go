@@ -143,6 +143,12 @@ type RoutinePolicy struct {
 	// race for taming. Taming is otherwise never proposed. A race declared
 	// in both maps must have minimum <= maximum.
 	HerdPopulationMin map[Resource]int64
+	// PrisonerReleaseAfterDays is the operator opt-in for MaintainPopulation
+	// to release a prisoner the colony cannot turn (recruit resistance
+	// unbroken, or never recruitable) once held that many days while the
+	// food runway is below FoodTargetDays. Zero, the default, keeps the
+	// recruit-only behaviour; see PrisonerPolicy.
+	PrisonerReleaseAfterDays float64
 	// DefensiveLayout is an operator-declared opt-in for EnsureDefensiveLayout
 	// (issue #5): the staged chokepoint/firing-line/funnel/trap-corridor
 	// construction RoutineDefenseLayoutPlanner proposes from a fresh native
@@ -173,7 +179,7 @@ func (p RoutinePolicy) Validate() error {
 	if p.MaxDevelopmentProjects < 1 || p.MaxDevelopmentProjects > 8 {
 		return errors.New("invalid development project limit")
 	}
-	for _, n := range []float64{p.FoodMinDays, p.FoodTargetDays, p.FootholdFoodDays, p.ColdEnter, p.ColdExit, p.HotExit, p.HotEnter} {
+	for _, n := range []float64{p.FoodMinDays, p.FoodTargetDays, p.FootholdFoodDays, p.ColdEnter, p.ColdExit, p.HotExit, p.HotEnter, p.PrisonerReleaseAfterDays} {
 		if math.IsNaN(n) || math.IsInf(n, 0) {
 			return errors.New("nonfinite routine threshold")
 		}
@@ -182,6 +188,9 @@ func (p RoutinePolicy) Validate() error {
 		p.ColdEnter >= p.ColdExit || p.ColdExit >= p.HotExit || p.HotExit >= p.HotEnter ||
 		p.WoodMin < 0 || p.WoodTarget <= p.WoodMin || p.WoodMax < p.WoodTarget {
 		return errors.New("unordered routine thresholds")
+	}
+	if p.PrisonerReleaseAfterDays < 0 || p.PrisonerReleaseAfterDays > 120 {
+		return errors.New("invalid prisoner release threshold")
 	}
 	if p.HuntStallTicks <= 0 {
 		return errors.New("invalid hunt stall grace")
@@ -215,6 +224,11 @@ func (p RoutinePolicy) Validate() error {
 // Herd is the MaintainHerd slice of this policy.
 func (p RoutinePolicy) Herd() HerdPolicy {
 	return HerdPolicy{AllowSlaughter: p.AllowSlaughter, AllowRelease: p.AllowRelease, PopulationMin: p.HerdPopulationMin, PopulationMax: p.HerdPopulationMax}
+}
+
+// Prisoners is the MaintainPopulation slice of this policy.
+func (p RoutinePolicy) Prisoners() PrisonerPolicy {
+	return PrisonerPolicy{ReleaseAfterDays: p.PrisonerReleaseAfterDays, FoodTargetDays: p.FoodTargetDays}
 }
 
 // ValidateHerdPopulationMax checks every configured MaintainHerd population
@@ -916,7 +930,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		animalFeed = domain.Known(len(targets) == 0)
 	}
 	herdRecovered := domain.Unknown[bool]()
-	if deficit, known := AnimalHerdDeficit(f.AnimalUpkeep.Animals, f.AnimalUpkeep.WildAnimals, p.Herd()).Value(); known {
+	if deficit, known := AnimalHerdDeficit(f.AnimalUpkeep.Animals, f.AnimalUpkeep.WildAnimals, HerdFeedShort(animals), p.Herd()).Value(); known {
 		herdRecovered = domain.Known(!deficit)
 	}
 	addAssessment(MaintainHerd, 3, herdRecovered)
@@ -930,7 +944,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	// other optional sub-step fact in this function -- only a known deficit,
 	// in either prisoner recruitment or custody, blocks recovery.
 	populationRecovered := domain.Unknown[bool]()
-	prisonerDeficit, prisonerDeficitKnown := PrisonerRecruitDeficit(f.Prisoners).Value()
+	prisonerDeficit, prisonerDeficitKnown := PrisonerRecruitDeficit(f.Prisoners, f.FoodDays, p.Prisoners()).Value()
 	custodyDeficit, custodyDeficitKnown := CustodyDeficit(f.Custody).Value()
 	switch {
 	case prisonerDeficitKnown && prisonerDeficit, custodyDeficitKnown && custodyDeficit:

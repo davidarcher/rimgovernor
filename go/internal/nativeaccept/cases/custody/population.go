@@ -395,6 +395,16 @@ func run(ctx context.Context, s cases.Session) error {
 	if prisoner, _ := na.AsBool(prisonerPawn["prisoner"]); !prisoner {
 		return fmt.Errorf("prisoner-before: expected the captured candidate to be a prisoner: %#v", prisonerBefore)
 	}
+	// The routine release path's facts (#236): a current prisoner carries
+	// native's recruit resistance and the TimeAsPrisoner record, which
+	// ProtoJSON renders as a decimal string for int64.
+	if _, ok := prisonerBefore["resistance"]; !ok {
+		return fmt.Errorf("prisoner-before: expected resistance on the captured prisoner: %#v", prisonerBefore)
+	}
+	if _, ok := prisonerBefore["prisonerTicks"]; !ok {
+		return fmt.Errorf("prisoner-before: expected prisonerTicks on the captured prisoner: %#v", prisonerBefore)
+	}
+	report["prisoner_ticks"] = prisonerBefore["prisonerTicks"]
 	interactionOperation := func(token, mode string) map[string]any {
 		return map[string]any{"setPrisonerInteraction": map[string]any{
 			"pawn": map[string]any{"entityId": candidateID, "expectedSnapshotToken": token}, "interaction": mode,

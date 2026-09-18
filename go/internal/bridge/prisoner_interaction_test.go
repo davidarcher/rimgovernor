@@ -42,6 +42,7 @@ func TestPrisonerInteractionReadsEveryExposedMode(t *testing.T) {
 		"Enslave": PrisonerInteractionEnslave, "Convert": PrisonerInteractionConvert,
 	}
 	persons := []*o.PopulationPerson{prisonerPerson("p-Execution", "Execution"), prisonerPerson("p-none", "")}
+	persons[0].Resistance, persons[0].PrisonerTicks = proto.Float64(12.5), proto.Int64(180000)
 	for name := range names {
 		persons = append(persons, prisonerPerson("p-"+name, name))
 	}
@@ -81,6 +82,18 @@ func TestPrisonerInteractionReadsEveryExposedMode(t *testing.T) {
 	}
 	if mode, known := seen["p-Convert"].Value(); !known || mode != domain.PrisonerInteractionConvert {
 		t.Fatal(seen["p-Convert"])
+	}
+	// The release path's facts decode only when native carried them.
+	for _, row := range rows {
+		resistance, rk := row.Resistance.Value()
+		held, hk := row.HeldTicks.Value()
+		if row.Pawn == "p-Execution" {
+			if !rk || resistance != 12.5 || !hk || held != 180000 {
+				t.Fatal(row)
+			}
+		} else if rk || hk {
+			t.Fatal(row)
+		}
 	}
 }
 

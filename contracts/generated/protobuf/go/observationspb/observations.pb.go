@@ -14054,6 +14054,7 @@ type PopulationPerson struct {
 	Interaction     *string                `protobuf:"bytes,6,opt,name=interaction,proto3,oneof" json:"interaction,omitempty"`
 	OwnedBed        *BuildingState         `protobuf:"bytes,7,opt,name=owned_bed,json=ownedBed,proto3" json:"owned_bed,omitempty"`
 	NutritionPerDay *float64               `protobuf:"fixed64,8,opt,name=nutrition_per_day,json=nutritionPerDay,proto3,oneof" json:"nutrition_per_day,omitempty"`
+	PrisonerTicks   *int64                 `protobuf:"varint,9,opt,name=prisoner_ticks,json=prisonerTicks,proto3,oneof" json:"prisoner_ticks,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -14140,6 +14141,13 @@ func (x *PopulationPerson) GetOwnedBed() *BuildingState {
 func (x *PopulationPerson) GetNutritionPerDay() float64 {
 	if x != nil && x.NutritionPerDay != nil {
 		return *x.NutritionPerDay
+	}
+	return 0
+}
+
+func (x *PopulationPerson) GetPrisonerTicks() int64 {
+	if x != nil && x.PrisonerTicks != nil {
+		return *x.PrisonerTicks
 	}
 	return 0
 }
@@ -30587,7 +30595,7 @@ const file_observations_proto_rawDesc = "" +
 	"\bobserved\x18\x01 \x01(\v2-.rimgovernor.observations.v1.RecoverySnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
 	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"\xd3\x03\n" +
+	"\aoutcome\"\x92\x04\n" +
 	"\x10PopulationPerson\x12:\n" +
 	"\x04pawn\x18\x01 \x01(\v2&.rimgovernor.observations.v1.PawnStateR\x04pawn\x12\x1f\n" +
 	"\badmitted\x18\x02 \x01(\bH\x00R\badmitted\x88\x01\x01\x12\x19\n" +
@@ -30598,13 +30606,15 @@ const file_observations_proto_rawDesc = "" +
 	"resistance\x88\x01\x01\x12%\n" +
 	"\vinteraction\x18\x06 \x01(\tH\x04R\vinteraction\x88\x01\x01\x12G\n" +
 	"\towned_bed\x18\a \x01(\v2*.rimgovernor.observations.v1.BuildingStateR\bownedBed\x12/\n" +
-	"\x11nutrition_per_day\x18\b \x01(\x01H\x05R\x0fnutritionPerDay\x88\x01\x01B\v\n" +
+	"\x11nutrition_per_day\x18\b \x01(\x01H\x05R\x0fnutritionPerDay\x88\x01\x01\x12*\n" +
+	"\x0eprisoner_ticks\x18\t \x01(\x03H\x06R\rprisonerTicks\x88\x01\x01B\v\n" +
 	"\t_admittedB\b\n" +
 	"\x06_guestB\x0e\n" +
 	"\f_recruitableB\r\n" +
 	"\v_resistanceB\x0e\n" +
 	"\f_interactionB\x14\n" +
-	"\x12_nutrition_per_day\"\xd4\x02\n" +
+	"\x12_nutrition_per_dayB\x11\n" +
+	"\x0f_prisoner_ticks\"\xd4\x02\n" +
 	"\x12PopulationSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12G\n" +
 	"\apersons\x18\x02 \x03(\v2-.rimgovernor.observations.v1.PopulationPersonR\apersons\x12a\n" +

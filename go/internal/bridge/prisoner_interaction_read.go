@@ -209,6 +209,12 @@ func (client *Client) ReadRoutinePopulation(ctx context.Context, identity *c.Ide
 		if person.Recruitable != nil {
 			f.Recruitable = domain.Known(person.GetRecruitable())
 		}
+		if person.Resistance != nil {
+			f.Resistance = domain.Known(person.GetResistance())
+		}
+		if person.PrisonerTicks != nil {
+			f.HeldTicks = domain.Known(person.GetPrisonerTicks())
+		}
 		if person.Interaction != nil {
 			if mode, ok := prisonerInteractionDefNames[person.GetInteraction()]; ok {
 				f.CurrentInteraction = domain.Known(prisonerInteractionDomain[mode])

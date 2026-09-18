@@ -771,6 +771,7 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainHerd)
 	}
 	if sc.routinePrisonerInteractionPlans || sc.routinePopulationCustodyPlans {
+		thresholds.PrisonerReleaseAfterDays = sc.routinePrisonerReleaseAfterDays
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainPopulation)
 	}
 	if sc.routineHomeCoveragePlans {
