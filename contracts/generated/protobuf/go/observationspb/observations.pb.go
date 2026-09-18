@@ -23111,9 +23111,15 @@ func (x *ColonyNaming) GetIssues() []*ReadIssue {
 // incident's caravan demand/meeting, a quest dialog, a finished research
 // project's completion dialog). Options are the current node's DiaOptions in
 // native order; index is the exact native list position AnswerDialog names.
-// selectable is false for a disabled option and for a hyperlink row, which
-// never closes the dialog. resolves reports whether the option closes the
-// tree (DiaOption.resolveTree) rather than moving to a linked node.
+// selectable is false for a disabled option, for a hyperlink row (never
+// closes the dialog) and for an option that neither closes the tree nor links
+// to a further node: its action opens another window the controller does not
+// drive (CaravanMeeting's Trade opening Dialog_Trade). resolves reports
+// whether the option closes the tree (DiaOption.resolveTree) rather than
+// moving to a linked node. keys are the language-neutral Keyed translation
+// keys whose active- or English-language text produces the label, sorted;
+// empty for a label no keyed entry yields (a mod's literal text, a quest's
+// composed choice).
 type ChoiceDialogOption struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	Index          *int32                 `protobuf:"varint,1,opt,name=index,proto3,oneof" json:"index,omitempty"`
@@ -23121,6 +23127,7 @@ type ChoiceDialogOption struct {
 	Selectable     *bool                  `protobuf:"varint,3,opt,name=selectable,proto3,oneof" json:"selectable,omitempty"`
 	Resolves       *bool                  `protobuf:"varint,4,opt,name=resolves,proto3,oneof" json:"resolves,omitempty"`
 	DisabledReason *string                `protobuf:"bytes,5,opt,name=disabled_reason,json=disabledReason,proto3,oneof" json:"disabled_reason,omitempty"`
+	Keys           []string               `protobuf:"bytes,6,rep,name=keys,proto3" json:"keys,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -23188,6 +23195,13 @@ func (x *ChoiceDialogOption) GetDisabledReason() string {
 		return *x.DisabledReason
 	}
 	return ""
+}
+
+func (x *ChoiceDialogOption) GetKeys() []string {
+	if x != nil {
+		return x.Keys
+	}
+	return nil
 }
 
 type ChoiceDialog struct {
@@ -31715,7 +31729,7 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"_window_idB\x0f\n" +
 	"\r_faction_nameB\x12\n" +
-	"\x10_settlement_name\"\x82\x02\n" +
+	"\x10_settlement_name\"\x96\x02\n" +
 	"\x12ChoiceDialogOption\x12\x19\n" +
 	"\x05index\x18\x01 \x01(\x05H\x00R\x05index\x88\x01\x01\x12\x19\n" +
 	"\x05label\x18\x02 \x01(\tH\x01R\x05label\x88\x01\x01\x12#\n" +
@@ -31723,7 +31737,8 @@ const file_observations_proto_rawDesc = "" +
 	"selectable\x18\x03 \x01(\bH\x02R\n" +
 	"selectable\x88\x01\x01\x12\x1f\n" +
 	"\bresolves\x18\x04 \x01(\bH\x03R\bresolves\x88\x01\x01\x12,\n" +
-	"\x0fdisabled_reason\x18\x05 \x01(\tH\x04R\x0edisabledReason\x88\x01\x01B\b\n" +
+	"\x0fdisabled_reason\x18\x05 \x01(\tH\x04R\x0edisabledReason\x88\x01\x01\x12\x12\n" +
+	"\x04keys\x18\x06 \x03(\tR\x04keysB\b\n" +
 	"\x06_indexB\b\n" +
 	"\x06_labelB\r\n" +
 	"\v_selectableB\v\n" +

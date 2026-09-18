@@ -46,13 +46,13 @@ namespace HomeBridge.BridgeTools
         {
             try
             {
-                if (!PrepareStale(command, out _, out var option))
+                if (!PrepareStale(command, out var dialog, out var option))
                     return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,
                         "Choice dialog or option changed; inspect again.") };
-                var accepted = ChoiceDialogTools.Selectable(option);
+                var accepted = ChoiceDialogTools.Answerable(dialog, option);
                 return NativeOperationEnvelope.Preview(new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation {
                     Context = context.Clone(), Accepted = accepted,
-                    Reason = accepted ? "" : "The option is disabled or a hyperlink and cannot answer the dialog." } });
+                    Reason = accepted ? "" : ChoiceDialogTools.Unanswerable(dialog, option) } });
             }
             catch (Exception error) { return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Dialog preview failed: " + error.GetType().Name) }; }
         }
@@ -74,9 +74,8 @@ namespace HomeBridge.BridgeTools
                 if (!PrepareStale(command, out var dialog, out var option))
                     return new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,
                         "Choice dialog or option changed; inspect again.") };
-                if (!ChoiceDialogTools.Selectable(option))
-                    return new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,
-                        "The option is disabled or a hyperlink and cannot answer the dialog.") };
+                if (!ChoiceDialogTools.Answerable(dialog, option))
+                    return new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, ChoiceDialogTools.Unanswerable(dialog, option)) };
                 if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
                     return new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.AuthorityRequired, "Native authority is required.") };
                 var guard = authority.Check(pre.ExpectedGeneration);
@@ -91,7 +90,7 @@ namespace HomeBridge.BridgeTools
                 {
                     if (!authority.Check(pre.ExpectedGeneration).Success
                         || !PrepareStale(command, out var checkedDialog, out var checkedOption) || !ReferenceEquals(checkedDialog, dialog)
-                        || !ReferenceEquals(checkedOption, option) || !ChoiceDialogTools.Selectable(checkedOption))
+                        || !ReferenceEquals(checkedOption, option) || !ChoiceDialogTools.Answerable(checkedDialog, checkedOption))
                         throw new InvalidOperationException("Dialog admission changed before effect.");
                     ChoiceDialogTools.Activate(checkedOption);
                     record.Activated = true;

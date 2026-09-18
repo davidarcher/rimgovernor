@@ -78,6 +78,32 @@ func TestRoutineDialogGoalAndPlannerAnswerPreferredOption(t *testing.T) {
 	}
 }
 
+// A dialog still inside its interactivity delay is not unanswerable: the
+// planner waits for the next review instead of reporting exhaustion (#179).
+func TestRoutineDialogPlannerWaitsForInteractivity(t *testing.T) {
+	t.Parallel()
+	r, _, _, _, n := routineFixture(t)
+	ctx := context.Background()
+	dialog := choiceDialog("OK")
+	dialog.Interactive = proto.Bool(false)
+	n.reply.GetObserved().Dialog = dialog
+	if _, err := r.Step(ctx); err != nil {
+		t.Fatal(err)
+	}
+	planner, err := NewRoutineDialogPlanner(r, n, policy.DialogAnswerPolicy{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := planner.Step(ctx)
+	if err != nil || result.Reason != BuildingMethodNotInteractive {
+		t.Fatal(result, err)
+	}
+	dialog.Interactive = proto.Bool(true)
+	if result, err = planner.Step(ctx); err != nil || result.Reason != BuildingMethodAdmitted || result.Option != "OK" {
+		t.Fatal(result, err)
+	}
+}
+
 func TestRoutineDialogPlannerHoldsWithoutSelectableOption(t *testing.T) {
 	t.Parallel()
 	r, _, _, _, n := routineFixture(t)

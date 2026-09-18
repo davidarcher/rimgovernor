@@ -38,6 +38,9 @@ const (
 	// BuildingMethodSeparation defers a butcher bill while the separated
 	// butcher spot build still owns the food-supply goal.
 	BuildingMethodSeparation RoutineBuildingReason = "butcher_separation_pending"
+	// BuildingMethodNotInteractive: the choice dialog's own interactivity
+	// delay has not elapsed; the next review re-reads it.
+	BuildingMethodNotInteractive RoutineBuildingReason = "dialog_not_interactive"
 )
 
 type RoutineBuildingResult struct {

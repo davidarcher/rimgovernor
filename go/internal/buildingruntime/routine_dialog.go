@@ -105,14 +105,22 @@ func (r *RoutineDialogPlanner) step(call, epoch context.Context, arbiter *stepAr
 	if dialog == nil || dialog.WindowId == nil {
 		return RoutineDialogResult{Reason: BuildingMethodUnknown}, nil
 	}
+	if !dialog.GetInteractive() {
+		// Dialog_NodeTree.delayInteractivity greys the options for a second
+		// of real time after opening; native refuses an answer until then, so
+		// the planner waits for the next review rather than reporting the
+		// dialog unanswerable (#179).
+		return RoutineDialogResult{Reason: BuildingMethodNotInteractive}, nil
+	}
 	options := make([]policy.DialogOption, 0, len(dialog.Options))
 	for _, option := range dialog.Options {
-		options = append(options, policy.DialogOption{Index: option.GetIndex(), Label: option.GetLabel(), Selectable: option.GetSelectable(), Resolves: option.GetResolves()})
+		options = append(options, policy.DialogOption{Index: option.GetIndex(), Label: option.GetLabel(), Keys: option.GetKeys(), Selectable: option.GetSelectable(), Resolves: option.GetResolves()})
 	}
 	chosen, ok := policy.ChooseDialogOption(options, r.policy)
 	if !ok {
-		// Every option is disabled or a hyperlink: nothing the controller can
-		// activate answers this dialog, so the hold stays with the player.
+		// Every option is disabled, a hyperlink or opens another window:
+		// nothing the controller can activate answers this dialog, so the
+		// hold stays with the player.
 		return RoutineDialogResult{Reason: BuildingMethodExhausted}, nil
 	}
 	windowID := dialog.GetWindowId()

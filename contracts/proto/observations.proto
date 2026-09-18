@@ -545,10 +545,16 @@ message ColonyNaming { optional int32 window_id = 1; optional string faction_nam
 // incident's caravan demand/meeting, a quest dialog, a finished research
 // project's completion dialog). Options are the current node's DiaOptions in
 // native order; index is the exact native list position AnswerDialog names.
-// selectable is false for a disabled option and for a hyperlink row, which
-// never closes the dialog. resolves reports whether the option closes the
-// tree (DiaOption.resolveTree) rather than moving to a linked node.
-message ChoiceDialogOption { optional int32 index = 1; optional string label = 2; optional bool selectable = 3; optional bool resolves = 4; optional string disabled_reason = 5; }
+// selectable is false for a disabled option, for a hyperlink row (never
+// closes the dialog) and for an option that neither closes the tree nor links
+// to a further node: its action opens another window the controller does not
+// drive (CaravanMeeting's Trade opening Dialog_Trade). resolves reports
+// whether the option closes the tree (DiaOption.resolveTree) rather than
+// moving to a linked node. keys are the language-neutral Keyed translation
+// keys whose active- or English-language text produces the label, sorted;
+// empty for a label no keyed entry yields (a mod's literal text, a quest's
+// composed choice).
+message ChoiceDialogOption { optional int32 index = 1; optional string label = 2; optional bool selectable = 3; optional bool resolves = 4; optional string disabled_reason = 5; repeated string keys = 6; }
 message ChoiceDialog { optional int32 window_id = 1; optional string window_type = 2; optional string title = 3; optional string text = 4; repeated ChoiceDialogOption options = 5; optional bool interactive = 6; }
 
 // Independently unavailable helper sections never masquerade as empty arrays.

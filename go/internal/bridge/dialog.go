@@ -12,8 +12,9 @@ import (
 )
 
 // maxDialogOptions bounds a ChoiceDialog census; RimWorld dialog trees never
-// offer more than a handful of options per node.
-const maxDialogOptions = 32
+// offer more than a handful of options per node. maxDialogOptionKeys bounds
+// the translation keys native recovers for one label.
+const maxDialogOptions, maxDialogOptionKeys = 32, 32
 
 // DialogAttempt targets one exact option of the single force-pausing choice
 // dialog (Verse.Dialog_NodeTree) the game opened by itself (#156): the
@@ -59,8 +60,13 @@ func validateChoiceDialog(v *ob.ChoiceDialog) error {
 	}
 	for i, option := range v.Options {
 		if option == nil || option.Index == nil || option.GetIndex() != int32(i) || option.Label == nil || validID(option.GetLabel()) != nil || option.Selectable == nil || option.Resolves == nil ||
-			(option.GetSelectable() && option.GetDisabledReason() != "") || len(option.ProtoReflect().GetUnknown()) != 0 {
+			(option.GetSelectable() && option.GetDisabledReason() != "") || len(option.Keys) > maxDialogOptionKeys || len(option.ProtoReflect().GetUnknown()) != 0 {
 			return contract("invalid choice dialog option")
+		}
+		for _, key := range option.Keys {
+			if validID(key) != nil {
+				return contract("invalid choice dialog option key")
+			}
 		}
 	}
 	return nil

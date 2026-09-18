@@ -40,7 +40,20 @@ namespace HomeBridge.BridgeTools
             return !(at is float) || UnityEngine.Time.realtimeSinceStartup >= (float)at;
         }
 
-        internal static bool Selectable(DiaOption option) => !option.disabled && option.hyperlink.def == null;
+        // An option the controller can answer with: enabled, not a hyperlink,
+        // and one that either closes the tree or links to a further node. An
+        // option doing neither runs an action that opens another window
+        // (CaravanMeeting's Trade opens Dialog_Trade) which the controller does
+        // not drive, so it stays with the player (#179).
+        internal static bool Selectable(DiaOption option) =>
+            !option.disabled && option.hyperlink.def == null && (option.resolveTree || option.link != null || option.linkLateBind != null);
+
+        // Selectable, on a dialog whose delayInteractivity grace has passed:
+        // the same gate the option's own button applies (OptOnGUI's active).
+        internal static bool Answerable(Dialog_NodeTree dialog, DiaOption option) => Interactive(dialog) && Selectable(option);
+
+        internal static string Unanswerable(Dialog_NodeTree dialog, DiaOption option) =>
+            !Interactive(dialog) ? "The dialog is not interactive yet." : "The option is disabled, a hyperlink or opens another window and cannot answer the dialog.";
 
         internal static List<DiaOption> Options(Dialog_NodeTree dialog) => Node(dialog)?.options ?? new List<DiaOption>();
 
@@ -53,8 +66,10 @@ namespace HomeBridge.BridgeTools
             for (var i = 0; i < options.Count; i++)
             {
                 var option = options[i];
-                var row = new Obs.ChoiceDialogOption { Index = i, Label = Text(Label(option)), Selectable = Selectable(option), Resolves = option.resolveTree };
+                var label = Text(Label(option));
+                var row = new Obs.ChoiceDialogOption { Index = i, Label = label, Selectable = Selectable(option), Resolves = option.resolveTree };
                 if (option.disabled && !string.IsNullOrEmpty(option.disabledReason)) row.DisabledReason = Text(option.disabledReason);
+                row.Keys.AddRange(ChoiceDialogKeys.ForLabel(label.Trim()));
                 result.Options.Add(row);
             }
             return result;
