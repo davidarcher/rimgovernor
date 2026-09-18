@@ -126,3 +126,52 @@ func TestWakeSignalPauseDrain(t *testing.T) {
 		t.Fatal("detaching the last Worker releases the hold")
 	}
 }
+
+// Each report that lowers the outstanding count for the current stop
+// signals progress, so the step loop's hold restarts its idle bound per
+// admission instead of running out after the first (#211); a stale stop,
+// an unchanged count and the final report to zero do not.
+func TestWakeSignalPauseProgress(t *testing.T) {
+	t.Parallel()
+	progressed := func(ch <-chan struct{}) bool {
+		select {
+		case <-ch:
+			return true
+		default:
+			return false
+		}
+	}
+	var none *WakeSignal
+	if none.PauseProgressed() != nil {
+		t.Fatal("nil signal never progresses")
+	}
+	w := NewWakeSignal()
+	defer w.AttachWorker()()
+	w.NotifyStopped(nil, nil, false, true)
+	stop, _ := w.TakeStop()
+	ch := w.PauseProgressed()
+	w.ReportPauseWork(stop, 3)
+	if progressed(ch) {
+		t.Fatal("the first report is the backlog, not progress")
+	}
+	w.ReportPauseWork(stop, 3)
+	if progressed(ch) {
+		t.Fatal("an unchanged count is not progress")
+	}
+	w.ReportPauseWork(stop+1, 2)
+	if progressed(ch) {
+		t.Fatal("a report for another stop is stale")
+	}
+	w.ReportPauseWork(stop, 2)
+	if !progressed(ch) {
+		t.Fatal("one admission tried")
+	}
+	ch = w.PauseProgressed()
+	if progressed(ch) {
+		t.Fatal("a fresh channel waits for the next admission")
+	}
+	w.ReportPauseWork(stop, 0)
+	if progressed(ch) || !progressed(w.PauseDrained()) {
+		t.Fatal("the last report drains rather than progresses")
+	}
+}

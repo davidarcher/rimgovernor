@@ -49,12 +49,16 @@ type WakeSignal struct {
 	// pauseIdle is closed while that count is zero.
 	pauseWork int
 	pauseIdle chan struct{}
+	// pauseProgress is closed and replaced each time a report lowers the
+	// count for the same stop: the Worker made an admission, so the stop
+	// is worth holding a little longer (#211).
+	pauseProgress chan struct{}
 }
 
 func NewWakeSignal() *WakeSignal {
 	idle := make(chan struct{})
 	close(idle)
-	return &WakeSignal{ch: make(chan struct{}, 1), pending: map[domain.ActionID]WakeOutcome{}, families: map[bridge.FactFamily]bool{}, pauseIdle: idle}
+	return &WakeSignal{ch: make(chan struct{}, 1), pending: map[domain.ActionID]WakeOutcome{}, families: map[bridge.FactFamily]bool{}, pauseIdle: idle, pauseProgress: make(chan struct{})}
 }
 
 // Notify merges outcomes into the pending set and signals without blocking.
@@ -191,7 +195,23 @@ func (w *WakeSignal) setPauseWorkLocked(remaining int) {
 	} else if remaining > 0 && w.pauseWork == 0 {
 		w.pauseIdle = make(chan struct{})
 	}
+	if remaining > 0 && remaining < w.pauseWork {
+		close(w.pauseProgress)
+		w.pauseProgress = make(chan struct{})
+	}
 	w.pauseWork = remaining
+}
+
+// PauseProgressed is closed when the attached Worker's next report lowers
+// its outstanding pause-bound work without draining it; a nil signal never
+// progresses.
+func (w *WakeSignal) PauseProgressed() <-chan struct{} {
+	if w == nil {
+		return nil
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.pauseProgress
 }
 
 // PauseDrained is closed while no attached Worker has pause-bound work

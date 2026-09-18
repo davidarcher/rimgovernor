@@ -418,11 +418,14 @@ dispatched): the
 step loop leaves the player gate to the worker and steps again when a worker
 step advances any action (`WorkerConfig.Advanced` nudges it) or a
 `StepInterval` later, without backoff. Since the step that settles a stop
-reviews and admits in the same pass, the step loop first waits, bounded by
-`clockPauseDrainMax` (5 s), for the worker to report its pause-bound
-admissions for that stop tried (`WakeSignal.PauseDrained`, #129); a window admitted
-before that would watch the settled attempt again, which the native clock
-never re-latches, and run out its whole budget (issue #162).
+reviews and admits in the same pass, the step loop first waits for the
+worker to report its pause-bound admissions for that stop tried
+(`WakeSignal.PauseDrained`, #129), bounded by `clockPauseDrainMax` (5 s)
+since the last admission the worker reported tried
+(`WakeSignal.PauseProgressed`, #211) and by `clockPauseDrainTotal` (2 min)
+in all, so a backlog of pause-bound actions lands in one stop; a window
+admitted before that would watch the settled attempt again, which the native
+clock never re-latches, and run out its whole budget (issue #162).
 
 `StepReason.Cause` is `timer`, `wake`, `settled` or `full`. The planners the
 scheduler queues are the `plannerCatalog` entries `plannerSelection` picks:

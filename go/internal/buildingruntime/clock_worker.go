@@ -241,21 +241,41 @@ func clockWorkerKey(result ClockSchedulerResult, err error) clockStepKey {
 }
 
 // clockPauseDrainMax bounds how long a settled epoch waits for the Worker
-// to try its pause-bound admissions before the next window starts.
-const clockPauseDrainMax = 5 * time.Second
+// to try its next pause-bound admission before the next window starts;
+// clockPauseDrainTotal bounds the whole hold. Each admission costs the
+// Worker one step of native reads, so a backlog of them (an eight-action
+// harvest plan, or two) needs a stop that lasts while admissions keep
+// landing, not one bounded by the cost of the first (#211).
+const (
+	clockPauseDrainMax   = 5 * time.Second
+	clockPauseDrainTotal = 2 * time.Minute
+)
 
 // awaitPauseWork waits until the Worker reports no pause-bound work for the
-// latest stop, the bound elapses or the loop ends; it returns the time held.
+// latest stop, an admission has not landed for clockPauseDrainMax, the
+// whole hold reaches clockPauseDrainTotal or the loop ends; it returns the
+// time held.
 func (w *ClockWorker) awaitPauseWork() time.Duration {
 	started := time.Now()
-	timer := time.NewTimer(clockPauseDrainMax)
-	defer timer.Stop()
-	select {
-	case <-w.ctx.Done():
-	case <-timer.C:
-	case <-w.config.Wake.PauseDrained():
+	idle := time.NewTimer(clockPauseDrainMax)
+	defer idle.Stop()
+	total := time.NewTimer(clockPauseDrainTotal)
+	defer total.Stop()
+	for {
+		select {
+		case <-w.ctx.Done():
+		case <-idle.C:
+		case <-total.C:
+		case <-w.config.Wake.PauseDrained():
+		case <-w.config.Wake.PauseProgressed():
+			if !idle.Stop() {
+				<-idle.C
+			}
+			idle.Reset(clockPauseDrainMax)
+			continue
+		}
+		return time.Since(started)
 	}
-	return time.Since(started)
 }
 
 func (w *ClockWorker) stepLoop() {
