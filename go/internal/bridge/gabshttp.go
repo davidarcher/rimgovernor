@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/childproc"
 	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -82,6 +83,7 @@ func (t *gabsHTTPTransport) start(ctx context.Context) (mcp.Connection, error) {
 	}
 	addr := net.JoinHostPort("127.0.0.1", strconv.Itoa(port))
 	cmd := exec.Command(t.executable, "server", "http", "--addr", addr, "--configDir", t.configDir, "--log-level", t.logLevel)
+	childproc.HideConsole(cmd)
 	cmd.Stderr = t.stderr
 	if err := cmd.Start(); err != nil {
 		return nil, err

@@ -46,6 +46,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/childproc"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 )
@@ -450,6 +451,7 @@ func runEntry(ctx context.Context, e entry, opts suiteOptions, self, workerRoot 
 		row["acceptance"] = e.Acceptance
 	}
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
+	childproc.HideConsole(cmd)
 	// Explicit even though it is the default: a caller's opt-out must not
 	// leak into the workers, which stop their game once at the end.
 	cmd.Env = append(os.Environ(), na.KeepGameEnv+"=1")

@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/childproc"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
@@ -249,6 +250,7 @@ func launchServe(ctx context.Context, cfg *Config, gabs string, spec ServeSpec, 
 		report[key] = entry
 	}
 	cmd := exec.CommandContext(ctx, spec.Binary, argv...)
+	childproc.HideConsole(cmd)
 	cmd.Env = append(os.Environ(), spec.Env...)
 	if spec.Families != nil {
 		families := strings.Join(spec.Families, ",")
