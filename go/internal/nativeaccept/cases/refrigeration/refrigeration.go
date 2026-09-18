@@ -19,6 +19,15 @@
 //	            problem), the power family must route conduits so the cooler
 //	            is powered, and only then the setpoint patch and cooling
 //	            follow.
+//	season   -- seasonal demand (#160): the storeroom starts settled cold
+//	            with the fixture cooler idling at its warm setpoint and
+//	            nothing at risk; heat waves ramp the outdoors up from the
+//	            current tick and the harness runs the game until the cold
+//	            room has followed and the stock reads warm (the native
+//	            season turn, not a forced room), then starts the service,
+//	            whose review must latch on the warmed stock, patch the
+//	            setpoint down to the freezer target and release once native
+//	            cooling holds -- with the cooler count still one.
 //
 // Every scenario ends with spoilage recovery: the fixture seeds one meat
 // stack part-way to rotting, and once the room is chilled the case advances
@@ -50,16 +59,22 @@ import (
 const prefix = "refrigeration-accept"
 
 func init() {
-	for _, scenario := range []string{"build", "setpoint", "power"} {
+	for _, scenario := range []string{"build", "setpoint", "power", "season"} {
 		scenario := scenario
+		roomC := 30
+		if scenario == "season" {
+			roomC = 0
+		}
 		cases.Register(cases.Case{
 			Name: "refrigeration/" + scenario,
 			Scope: "Native MaintainRefrigeration vertical (" + scenario + "): warm at-risk meat in an enclosed room " +
 				"drives the live Go routine reviewer/planner to admit a Cooler on a vented wall, patch an existing cooler's " +
-				"setpoint, or hold for the power family; native cooling then takes the measured room under the exit " +
-				"threshold, confirmed by an independent native read, and the seeded rotting stack's rot progress stops advancing.",
+				"setpoint, or hold for the power family; or a settled cold room warms as heat waves ramp in and the live " +
+				"review latches and patches the idle cooler's setpoint; native cooling then takes the measured room under " +
+				"the exit threshold, confirmed by an independent native read, and the seeded rotting stack's rot progress " +
+				"stops advancing.",
 			Start: cases.Fixture{Op: "test/refrigeration_prepare", Args: map[string]any{
-				"existingCooler": scenario != "build", "disconnected": scenario == "power", "roomTemperatureC": 30,
+				"existingCooler": scenario != "build", "disconnected": scenario == "power", "roomTemperatureC": roomC, "season": scenario == "season",
 			}},
 			Service: true,
 			Budget:  8 * time.Minute,
@@ -120,14 +135,38 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 	}
 
 	// Before: the typed colony facts must show the meat warm, roofed, in the
-	// fixture room and short of runway -- the exact facts the review latches on.
+	// fixture room and short of runway -- the exact facts the review latches
+	// on -- or, for the season scenario, settled cold with nothing at risk.
 	before, err := readFoodStorage(ctx, h, identity, "food-before")
 	if err != nil {
 		return err
 	}
 	report["food_before"] = before.evidence()
 	policyDefaults := policy.DefaultFoodStoragePolicy()
-	if before.warmNutrition < policyDefaults.AtRiskNutritionThreshold {
+	if scenario == "season" {
+		if before.rows == 0 || before.temperature > policyDefaults.ChilledMaxC || before.warmNutrition != 0 {
+			return fmt.Errorf("food-before: fixture meat is not settled cold stock (warm nutrition %.2f, temperature %.1f C, rows %d)", before.warmNutrition, before.temperature, before.rows)
+		}
+		// The season turn is the game's own: the heat waves lerp the
+		// outdoors up over 12000 ticks and the room equalises behind them
+		// (the idle cooler holds nothing below its warm setpoint), so run
+		// until the stock reads warm at-risk, bounded in game days.
+		var warmed foodSummary
+		advanced, err := na.RunUntil(ctx, h, "season-warm", 3*na.TicksPerDay, na.Wait{Stall: na.StallBudget()}, func(ctx context.Context) (string, bool, error) {
+			f, err := readFoodStorage(ctx, h, identity, "season-warm-food")
+			if err != nil {
+				return "", false, err
+			}
+			warmed = f
+			return na.Signature(int(f.temperature), int(f.warmNutrition)), f.warmNutrition >= policyDefaults.AtRiskNutritionThreshold, nil
+		})
+		if err != nil {
+			return fmt.Errorf("season-warm: the room never warmed the stock past the at-risk threshold (warm nutrition %.2f, temperature %.1f C): %w", warmed.warmNutrition, warmed.temperature, err)
+		}
+		before = warmed
+		report["season_warm_ticks"] = advanced
+		report["food_warm"] = warmed.evidence()
+	} else if before.warmNutrition < policyDefaults.AtRiskNutritionThreshold {
 		return fmt.Errorf("food-before: fixture meat is not warm at-risk stock (warm nutrition %.2f, temperature %.1f C, roofed %d/%d); a cold biome may have overwhelmed the forced room temperature -- rerun",
 			before.warmNutrition, before.temperature, before.roofed, before.rows)
 	}
@@ -150,10 +189,11 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 	// (comfortBuilderAvailable) requires the colony's work priorities to match
 	// the controller's own assignment, which only the work family applies.
 	families := []string{"refrigeration", "work"}
+	extra := na.ClockSpeedArgs()
 	if scenario == "power" {
 		families = append(families, "power")
 	}
-	service, err = s.Launch(ctx, na.ServiceLaunch{Families: families, Extra: na.ClockSpeedArgs()})
+	service, err = s.Launch(ctx, na.ServiceLaunch{Families: families, Extra: extra})
 	if err != nil {
 		return err
 	}
@@ -639,22 +679,37 @@ func storeWait(service *na.ServiceProcess) na.Wait {
 	return na.Wait{Stall: na.StallBudget(), Terminal: service.Exited}
 }
 
+// waitLatch waits for the review to latch refrigeration with a bound goal.
 func waitLatch(ctx context.Context, s *store.Store, service *na.ServiceProcess) (store.RoutineReview, error) {
-	review, err := na.WaitReview(ctx, s, storeWait(service), func(r store.RoutineReview) bool {
-		if !r.Latches.Refrigeration {
-			return false
+	w := storeWait(service)
+	var review store.RoutineReview
+	err := na.WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
+		r, err := s.LoadRoutineReview(ctx)
+		if err != nil {
+			return "", false, err
 		}
-		for _, binding := range r.Goals {
-			if binding.Need == policy.MaintainRefrigeration {
-				return true
-			}
+		review = r
+		if latchedWithGoal(r) {
+			return "", true, nil
 		}
-		return false
+		return na.Signature(fmt.Sprintf("%+v", r.Latches), len(r.Goals)), false, nil
 	})
 	if err != nil {
 		return review, fmt.Errorf("review never latched refrigeration with a bound goal (revision %d, latches %+v): %w", review.Revision, review.Latches, err)
 	}
 	return review, nil
+}
+
+func latchedWithGoal(r store.RoutineReview) bool {
+	if !r.Latches.Refrigeration {
+		return false
+	}
+	for _, binding := range r.Goals {
+		if binding.Need == policy.MaintainRefrigeration {
+			return true
+		}
+	}
+	return false
 }
 
 // waitRelease waits for native cooling to release the latch. Nothing in the

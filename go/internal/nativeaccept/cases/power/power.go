@@ -15,6 +15,15 @@
 //	           supplies, so the reserve runway is under a day. The service
 //	           must admit one more generator (a plan whose actions are a
 //	           single generator definition) and the colonists must build it.
+//	battery -- an exhausted battery bank and no generator at all (#160): the
+//	           consumer is off and nothing on the network wants refuelling or
+//	           repair, so the service must add generation (one generator
+//	           plan) rather than wait on the bank, then connect it (a conduit
+//	           plan: the generator is placed by the consumer, which does not
+//	           transmit). Once both are built the independent read shows the
+//	           built generator as the only one, connected, and -- after the
+//	           colonists fuel it in a bounded native window -- the consumer
+//	           powered.
 //
 // Uses the private disposable test/power_prepare and test/power_observe
 // fixtures (PowerFixture.cs). The case's own bridge session and the
@@ -29,6 +38,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -37,17 +47,19 @@ import (
 const prefix = "power-accept"
 
 // budgets are ~2x the measured healthy runs (403eebbb): the refuel hold
-// plays ~4 minutes, the reserve generator is admitted in under one.
-var budgets = map[string]time.Duration{"fuel": 10 * time.Minute, "reserve": 5 * time.Minute}
+// plays ~4 minutes, the reserve and battery generators are admitted in
+// under one and built in about two.
+var budgets = map[string]time.Duration{"fuel": 10 * time.Minute, "reserve": 5 * time.Minute, "battery": 5 * time.Minute}
 
 func init() {
-	for _, scenario := range []string{"fuel", "reserve"} {
+	for _, scenario := range []string{"fuel", "reserve", "battery"} {
 		scenario := scenario
 		cases.Register(cases.Case{
 			Name: "power/" + scenario,
 			Scope: "Native EnsureBasicPower reliability vertical (" + scenario + "): an out-of-fuel generator holds the " +
-				"live Go power family until native colonists refuel it, or a draining battery under a day of reserve has the " +
-				"family admit one more generator that the colonists build; both confirmed by an independent native read.",
+				"live Go power family until native colonists refuel it, a draining battery under a day of reserve has the " +
+				"family admit one more generator that the colonists build, or an exhausted bank with no generator has it add " +
+				"generation that powers the consumer; each confirmed by an independent native read.",
 			Start:   cases.Fixture{Op: "test/power_prepare", Args: map[string]any{"scenario": scenario}},
 			Service: true,
 			Budget:  budgets[scenario],
@@ -67,11 +79,14 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 	}
 	generatorID := na.AsString(prepared["generator"])
 	spare, _ := na.AsMap(prepared["spareCell"])
-	var ids []string
-	ids = append(ids, generatorID)
-	for _, raw := range na.AsSlice(prepared["consumers"]) {
-		ids = append(ids, fmt.Sprint(raw))
+	var ids, consumers []string
+	if generatorID != "" {
+		ids = append(ids, generatorID)
 	}
+	for _, raw := range na.AsSlice(prepared["consumers"]) {
+		consumers = append(consumers, fmt.Sprint(raw))
+	}
+	ids = append(ids, consumers...)
 	if battery := na.AsString(prepared["battery"]); battery != "" {
 		ids = append(ids, battery)
 	}
@@ -92,21 +107,32 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 	report["power_before"] = before
 	rows := indexRows(before)
 	generatorBefore := rows[generatorID]
-	if scenario == "fuel" {
+	switch scenario {
+	case "fuel":
 		if out, _ := na.AsBool(generatorBefore["outOfFuel"]); !out {
 			return fmt.Errorf("power-before: fixture generator is not out of fuel: %#v", generatorBefore)
 		}
-		for _, id := range ids[1:] {
+		for _, id := range consumers {
 			if on, _ := na.AsBool(rows[id]["powerOn"]); on {
 				return fmt.Errorf("power-before: consumer %s already powered: %#v", id, rows[id])
 			}
 		}
-	} else {
-		for _, id := range ids[1:] {
-			if row := rows[id]; row["storedWattDays"] == nil {
-				if on, _ := na.AsBool(row["powerOn"]); !on {
-					return fmt.Errorf("power-before: consumer %s should be powered on battery reserve: %#v", id, row)
-				}
+	case "reserve":
+		for _, id := range consumers {
+			if on, _ := na.AsBool(rows[id]["powerOn"]); !on {
+				return fmt.Errorf("power-before: consumer %s should be powered on battery reserve: %#v", id, rows[id])
+			}
+		}
+	case "battery":
+		if generatorID != "" || len(na.AsSlice(before["generators"])) != 0 {
+			return fmt.Errorf("power-before: the battery fixture spawned a generator: %#v", before["generators"])
+		}
+		if stored := na.AsNumber(rows[na.AsString(prepared["battery"])]["storedWattDays"]); stored != 0 {
+			return fmt.Errorf("power-before: fixture battery holds %.1f Wd, expected an exhausted bank", stored)
+		}
+		for _, id := range consumers {
+			if on, _ := na.AsBool(rows[id]["powerOn"]); on {
+				return fmt.Errorf("power-before: consumer %s powered with no generator and an empty bank: %#v", id, rows[id])
 			}
 		}
 	}
@@ -186,7 +212,7 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 			}
 		}
 		report["power_goal_bound"] = sawGoal
-	case "reserve":
+	case "reserve", "battery":
 		methodCtx, methodCancel := context.WithTimeout(ctx, 8*time.Minute)
 		goalID, method, err := na.WaitGoalMethod(methodCtx, journal, policy.EnsureBasicPower, nil)
 		methodCancel()
@@ -227,6 +253,41 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 				return fmt.Errorf("renewed generator method after incidental cancellation #%d: %w", renewals+1, err)
 			}
 		}
+		if scenario == "battery" {
+			// The generator stands beside the consumer, off the conduit
+			// line, so the family's next method routes conduits to it.
+			seen := map[domain.PlanID]bool{method.Plan: true}
+			connectCtx, connectCancel := context.WithTimeout(ctx, 5*time.Minute)
+			defer connectCancel()
+			for renewals := 0; ; renewals++ {
+				_, connect, err := na.WaitGoalMethodExcluding(connectCtx, journal, policy.EnsureBasicPower, seen)
+				if err != nil {
+					return fmt.Errorf("connect method after the generator build: %w", err)
+				}
+				seen[connect.Plan] = true
+				plan, err := journal.LoadPlan(ctx, connect.Plan)
+				if err != nil {
+					return err
+				}
+				for _, action := range plan.Spec.Actions() {
+					b, ok := action.Building()
+					if !ok || b.Definition() != "PowerConduit" {
+						return fmt.Errorf("power family committed a non-conduit action after the generator: %#v", action)
+					}
+				}
+				state, incidental, err := na.WaitPlanTerminal(connectCtx, journal, connect.Plan)
+				if err != nil {
+					return fmt.Errorf("conduit plan: %w", err)
+				}
+				if !incidental {
+					report["connect_plan"] = string(connect.Plan)
+					report["connect_conduits"] = len(plan.Spec.Actions())
+					report["connect_completed_tick"] = int64(state.Progress[0].View().Tick)
+					report["connect_incidental_renewals"] = renewals
+					break
+				}
+			}
+		}
 	}
 	if err := na.AssertRoutineRunning(service.Get); err != nil {
 		return err
@@ -247,22 +308,45 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 	report["power_after"] = after
 	rows = indexRows(after)
 	generators := na.AsSlice(after["generators"])
-	switch scenario {
-	case "fuel":
+	if scenario == "battery" {
+		// The built generator joins the read so its fuel and connection are
+		// in evidence alongside the consumer it should power.
+		for _, raw := range generators {
+			if id := fmt.Sprint(raw); !na.Contains(ids, id) {
+				ids = append(ids, id)
+			}
+		}
+		if after, err = observe("power-after-generators"); err != nil {
+			return err
+		}
+		report["power_after"] = after
+		rows = indexRows(after)
+	}
+	if scenario == "fuel" {
 		if out, _ := na.AsBool(rows[generatorID]["outOfFuel"]); out {
 			return fmt.Errorf("power-after: generator still out of fuel after the hold window; colonists never refuelled it: %#v", rows[generatorID])
 		}
+	}
+	if scenario != "reserve" {
 		// A refuel landing just before the pause leaves the generator
 		// fuelled while the power net has not ticked its consumers back on;
-		// let the game run a few seconds and read again before judging.
-		for attempt := 1; attempt <= 3 && !allPowered(rows, ids[1:]); attempt++ {
-			if _, err := h.Call(ctx, fmt.Sprintf("resume-after-%d", attempt), "rimworld/set_time_speed", map[string]any{"speed": "Normal", "ultraSpeedBoost": false}); err != nil {
+		// let the game run a few seconds and read again before judging. The
+		// controller's new generator is built empty and, with its plan done,
+		// no family asks for another clock window, so the battery run gives
+		// the colonists a bounded Fast window (about four game hours) to
+		// fuel it before the consumer is judged.
+		attempts, speed := 3, "Normal"
+		if scenario == "battery" {
+			attempts, speed = 12, "Fast"
+		}
+		for attempt := 1; attempt <= attempts && !allPowered(rows, consumers); attempt++ {
+			if _, err := h.Call(ctx, fmt.Sprintf("resume-after-%d", attempt), "rimworld/set_time_speed", map[string]any{"speed": speed, "ultraSpeedBoost": false}); err != nil {
 				return err
 			}
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
-			case <-time.After(3 * time.Second):
+			case <-time.After(5 * time.Second):
 			}
 			if _, err := h.Call(ctx, fmt.Sprintf("pause-after-%d", attempt), "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 				return err
@@ -274,7 +358,10 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 			rows = indexRows(after)
 			generators = na.AsSlice(after["generators"])
 		}
-		for _, id := range ids[1:] {
+	}
+	switch scenario {
+	case "fuel":
+		for _, id := range consumers {
 			if on, _ := na.AsBool(rows[id]["powerOn"]); !on {
 				return fmt.Errorf("power-after: consumer %s still unpowered after refuelling: %#v", id, rows[id])
 			}
@@ -285,6 +372,19 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 	case "reserve":
 		if len(generators) != 2 {
 			return fmt.Errorf("power-after: expected the fixture generator plus one built by the controller, observed %d: %#v", len(generators), generators)
+		}
+	case "battery":
+		if len(generators) != 1 {
+			return fmt.Errorf("power-after: expected exactly the generator the controller built, observed %d: %#v", len(generators), generators)
+		}
+		built := rows[fmt.Sprint(generators[0])]
+		if connected, _ := na.AsBool(built["connected"]); !connected {
+			return fmt.Errorf("power-after: the controller's generator is not connected to a power net: %#v", built)
+		}
+		for _, id := range consumers {
+			if on, _ := na.AsBool(rows[id]["powerOn"]); !on {
+				return fmt.Errorf("power-after: consumer %s still unpowered after the controller's generator (fuelled by native colonists?): %#v", id, rows[id])
+			}
 		}
 	}
 	topology, err = readPowerFacts(ctx, h, identity, "colony-facts-after")

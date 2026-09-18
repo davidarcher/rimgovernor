@@ -21,11 +21,16 @@ namespace HomeBridge.BridgeTools
     // Cooler on the west wall at a warm setpoint (the setpoint-patch path),
     // with or without a conduit run back to the generator (the "hot-weather
     // freezer failure" power hand-off path).
+    // With season, the storeroom starts settled cold and the heat waves ramp
+    // in from the current tick instead of arriving fully ramped: the harness
+    // runs the game through the warming (an inactive family asks for no
+    // clock window) and the live controller then meets warm stock the
+    // settled freezer's warm setpoint no longer covers (#160).
     // Nothing here places, sets or cools anything on the controller's behalf.
     public sealed class RefrigerationFixture
     {
-        [Tool("test/refrigeration_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture: build one enclosed roofed stockpile room with warm raw meat, a fuelled generator and wall-ring conduits, finish Cooler research, force a hot room and a heat wave; optionally an existing warm-setpoint Cooler, optionally disconnected from the generator; one meat stack starts part-way to rotting.")]
-        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken, bool existingCooler = false, bool disconnected = false, float roomTemperatureC = 30f, float rotProgressFraction = 0.25f)
+        [Tool("test/refrigeration_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture: build one enclosed roofed stockpile room with warm raw meat, a fuelled generator and wall-ring conduits, finish Cooler research, force a hot room and a heat wave; optionally an existing warm-setpoint Cooler, optionally disconnected from the generator; one meat stack starts part-way to rotting; season ramps the heat waves in from now instead of arriving fully ramped.")]
+        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken, bool existingCooler = false, bool disconnected = false, float roomTemperatureC = 30f, float rotProgressFraction = 0.25f, bool season = false)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap; var player = Faction.OfPlayerSilentFail;
@@ -190,6 +195,8 @@ namespace HomeBridge.BridgeTools
                 // controller's cooler runs. Aiming any higher stacks waves that
                 // give the unsheltered debug colonists heatstroke, and the
                 // resulting CriticalMedical hold suspends refrigeration itself.
+                // The season scenario keeps the ramp: the outdoors warms over
+                // the first 12000 ticks and the cold room follows it up.
                 var heat = DefDatabase<GameConditionDef>.GetNamedSilentFail("HeatWave");
                 var heatWaves = 0;
                 if (heat != null)
@@ -199,7 +206,7 @@ namespace HomeBridge.BridgeTools
                     for (var i = 0; i < heatWaves; i++)
                     {
                         var wave = GameConditionMaker.MakeCondition(heat, 4 * 60000 + 12000);
-                        wave.startTick = Find.TickManager.TicksGame - 12000;
+                        wave.startTick = Find.TickManager.TicksGame - (season ? 0 : 12000);
                         map.gameConditionManager.RegisterCondition(wave);
                     }
                 }
@@ -215,7 +222,7 @@ namespace HomeBridge.BridgeTools
                     origin = new { x = origin.x, z = origin.z }, interior = new { minX = interior.minX, minZ = interior.minZ, maxX = interior.maxX, maxZ = interior.maxZ },
                     walls, door = new { x = At(0, 3).x, z = At(0, 3).z },
                     cooler = cooler?.GetUniqueLoadID(), coolerCell = existingCooler ? new { x = coolerCell.x, z = coolerCell.z } : null,
-                    generator = generator.GetUniqueLoadID(), disconnected, meat, rotting, stock,
+                    generator = generator.GetUniqueLoadID(), disconnected, season, meat, rotting, stock,
                     spareCell = new { x = At(11, 0).x, z = At(11, 0).z },
                     setup = "Test-only enclosed roofed stockpile room with warm raw meat, wall-ring conduits, fuelled generator, Cooler research, forced hot room and heat wave; cooler placement, setpoint and cooling remain the controller's and native simulation's.",
                 };

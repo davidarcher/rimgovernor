@@ -21,19 +21,23 @@ namespace HomeBridge.BridgeTools
     //              every consumer is powered right now but the network's
     //              reserve runway is under a day: EnsureBasicPower must admit
     //              one more generator before the battery empties.
+    //   battery -- no generator at all: one empty battery, conduits and one
+    //              consumer that the bank can no longer carry. Nothing on the
+    //              network wants refuelling or repair, so EnsureBasicPower
+    //              must add generation rather than wait on the bank (#160).
     //
     // Nothing here refuels, builds or connects anything on the controller's
     // behalf.
     public sealed class PowerFixture
     {
-        [Tool("test/power_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture: scenario 'fuel' spawns a drained generator, conduits, one consumer and wood; scenario 'reserve' spawns a fuelled generator, a partly charged battery and consumers overdrawing it.")]
+        [Tool("test/power_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture: scenario 'fuel' spawns a drained generator, conduits, one consumer and wood; scenario 'reserve' spawns a fuelled generator, a partly charged battery and consumers overdrawing it; scenario 'battery' spawns an empty battery, conduits and one consumer with no generator.")]
         public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken, string scenario = "fuel")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap; var player = Faction.OfPlayerSilentFail;
                 if (map == null || Current.Game == null || player == null || !Find.TickManager.Paused)
                     return Refuse("A paused disposable colony map is required.");
-                if (scenario != "fuel" && scenario != "reserve") return Refuse("scenario must be 'fuel' or 'reserve'.");
+                if (scenario != "fuel" && scenario != "reserve" && scenario != "battery") return Refuse("scenario must be 'fuel', 'reserve' or 'battery'.");
                 var builder = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed && !p.Drafted && !p.InMentalState
                     && !p.WorkTypeIsDisabled(WorkTypeDefOf.Construction) && !p.WorkTypeIsDisabled(WorkTypeDefOf.Hauling))
                     .OrderBy(p => p.thingIDNumber).FirstOrDefault();
@@ -99,9 +103,10 @@ namespace HomeBridge.BridgeTools
                     }
                 }
 
-                // Generator (2x2) at (2,3); conduit line along z=1 from x=1 to x=11.
-                var generator = Spawn(generatorDef, At(2, 3));
-                var fuel = generator.TryGetComp<CompRefuelable>();
+                // Generator (2x2) at (2,3) unless the scenario has none; conduit
+                // line along z=1 from x=1 to x=11.
+                Thing generator = scenario == "battery" ? null : Spawn(generatorDef, At(2, 3));
+                var fuel = generator?.TryGetComp<CompRefuelable>();
                 for (var x = 1; x <= 11; x++) Spawn(conduitDef, At(x, 1));
                 var consumers = new List<string>();
                 Thing battery = null;
@@ -110,6 +115,18 @@ namespace HomeBridge.BridgeTools
                     fuel.ConsumeFuel(fuel.Fuel);
                     consumers.Add(Spawn(stoveDef, At(8, 2)).GetUniqueLoadID());
                     Stock("WoodLog", 150);
+                }
+                else if (scenario == "battery")
+                {
+                    // The bank is discharged and nothing generates: the consumer
+                    // stays off until generation is added, and the stock covers
+                    // one wood-fired generator plus its first fuel.
+                    battery = Spawn(batteryDef, At(5, 2));
+                    battery.TryGetComp<CompPowerBattery>().SetStoredEnergyPct(0f);
+                    consumers.Add(Spawn(stoveDef, At(8, 2)).GetUniqueLoadID());
+                    Stock("WoodLog", 300);
+                    Stock("Steel", 150);
+                    Stock("ComponentIndustrial", 6);
                 }
                 else
                 {
@@ -138,7 +155,7 @@ namespace HomeBridge.BridgeTools
                     success = true, colonyId = identity?.ColonyId, loadToken = identity?.LoadToken, mapId = map.uniqueID,
                     tick = Find.TickManager.TicksGame, scenario, builder = builder.GetUniqueLoadID(),
                     origin = new { x = origin.x, z = origin.z },
-                    generator = generator.GetUniqueLoadID(), fuel = fuel.Fuel, fuelCapacity = fuel.Props.fuelCapacity,
+                    generator = generator?.GetUniqueLoadID(), fuel = fuel?.Fuel, fuelCapacity = fuel?.Props.fuelCapacity,
                     battery = battery?.GetUniqueLoadID(), storedWattDays = battery?.TryGetComp<CompPowerBattery>().StoredEnergy,
                     consumers, spareCell = new { x = At(13, 0).x, z = At(13, 0).z },
                     setup = "Test-only single power network; refuelling, generator construction and reconnection remain the controller's and native colonists' own work.",

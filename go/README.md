@@ -385,9 +385,10 @@ not a hardcoded wood-fired default. Solar flares and player-disabled equipment
 hold proposals. Completed methods lend at most 10,000 ticks for native power
 recovery, scoped to the current load token; native consumer power establishes
 recovery. Targeted gameplay acceptance is `acceptance run power/fuel`
-(out-of-fuel generator: hold, colonists refuel, consumer recovers) and
-`power/reserve` (draining battery: one more generator admitted and built),
-against `PowerFixture`. Replay of captured generation/conduit scenarios uses
+(out-of-fuel generator: hold, colonists refuel, consumer recovers),
+`power/reserve` (draining battery: one more generator admitted and built) and
+`power/battery` (exhausted bank, no generator: generation added, consumer
+recovers), against `PowerFixture`. Replay of captured generation/conduit scenarios uses
 `RIMGOVERNOR_NATIVE_POWER_METHODS_CAPTURE=<capture-directory> go test
 ./internal/observation -run TestNativePowerMethodsReplay`.
 
@@ -426,9 +427,12 @@ native `Cooler` planning availability (`cooler_research_needed`). A cooler's
 cold and hot sides derive from its rotation on the Go side. The goal runs at
 priority 2 so it bypasses ranked development: spoilage is a bounded loss the
 colony is already paying for. Targeted acceptance is `acceptance run
-refrigeration/build|setpoint|power` against `RefrigerationFixture`; each
-scenario ends by measuring spoilage recovery on the fixture's part-rotted
-meat stack (its `CompRottable` progress stops once the room is under 0 C).
+refrigeration/build|setpoint|power|season` against `RefrigerationFixture`;
+`season` starts settled cold, runs the game while heat waves ramp in, and
+starts the service on the warmed stock so its review latches on the season
+turn. Each scenario ends by measuring spoilage recovery on the fixture's
+part-rotted meat stack (its `CompRottable` progress stops once the room is
+under 0 C).
 
 `MaintainCleanFacilities` is a bounded response to failed work coverage, not a
 janitor. The typed room census carries RimWorld's own room `Cleanliness` stat
