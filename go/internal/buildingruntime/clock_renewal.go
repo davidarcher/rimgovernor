@@ -69,11 +69,11 @@ func (s *ClockScheduler) RenewEpoch(ctx context.Context) (ClockRenewResult, erro
 	}
 	original := owned.Epoch
 	started := s.clock.Now()
-	identity, _, err := s.native.Identity(call)
+	tick, _, err := s.native.Tick(call)
 	if err != nil {
 		return out, s.renewalHold(err)
 	}
-	current := identity.GetLoaded().GetContext()
+	current := tick.GetLoaded().GetContext()
 	if _, err = boundary.Context(current, state.Snapshot); err != nil {
 		return out, s.renewalHold(err)
 	}

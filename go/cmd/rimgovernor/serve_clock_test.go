@@ -56,6 +56,10 @@ func (f *clockServiceFake) Identity(ctx context.Context) (*l.IdentityReply, brid
 	return f.reads.Identity(ctx)
 }
 
+func (f *clockServiceFake) Tick(ctx context.Context) (*l.TickReply, bridge.Result, error) {
+	return f.reads.Tick(ctx)
+}
+
 func (f *clockServiceFake) ReadClockStatus(context.Context, *c.Identity) (*k.StatusReply, bridge.Result, error) {
 	return nil, bridge.Result{}, errors.New("clock status unavailable")
 }

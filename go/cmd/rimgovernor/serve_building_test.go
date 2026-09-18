@@ -50,6 +50,13 @@ type buildingReadFake struct {
 	block atomic.Bool
 }
 
+func (f *buildingReadFake) Tick(ctx context.Context) (*lifecyclepb.TickReply, bridge.Result, error) {
+	reply, raw, err := f.Identity(ctx)
+	if err != nil {
+		return nil, raw, err
+	}
+	return &lifecyclepb.TickReply{Outcome: &lifecyclepb.TickReply_Loaded{Loaded: &lifecyclepb.LoadedTick{Context: reply.GetLoaded().Context, Paused: reply.GetLoaded().Paused}}}, raw, nil
+}
 func (f *buildingReadFake) Identity(ctx context.Context) (*lifecyclepb.IdentityReply, bridge.Result, error) {
 	f.active.Add(1)
 	defer f.active.Add(-1)

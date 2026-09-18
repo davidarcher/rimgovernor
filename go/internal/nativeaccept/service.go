@@ -7,6 +7,7 @@ import (
 
 var serviceReads = map[string]bool{
 	"rimgovernor/lifecycle_read_identity":  true,
+	"rimgovernor/lifecycle_read_tick":      true,
 	"rimgovernor/observations_read_status": true,
 }
 
@@ -15,7 +16,8 @@ var serviceDiagnostics = map[string]bool{"rimbridge/list_operation_events": true
 // ServiceTrace asserts a native operation-event history is gapless from baseline,
 // attributes every non-diagnostic event to a known read capability, and never
 // attributes a write capability, then returns the ordered read-operation names. It requires at least two
-// observations_read_status and four lifecycle_read_identity operations, matching
+// observations_read_status and four lifecycle_read_identity or
+// lifecycle_read_tick operations, matching
 // the fixed read cadence a read-only Go service session must reproduce.
 func ServiceTrace(events []map[string]any, baseline int, capabilities map[string][]string) ([]string, error) {
 	ordered := append([]map[string]any(nil), events...)
@@ -76,7 +78,7 @@ func ServiceTrace(events []map[string]any, baseline int, capabilities map[string
 		switch name {
 		case "rimgovernor/observations_read_status":
 			statusCount++
-		case "rimgovernor/lifecycle_read_identity":
+		case "rimgovernor/lifecycle_read_identity", "rimgovernor/lifecycle_read_tick":
 			identityCount++
 		}
 	}
@@ -84,7 +86,7 @@ func ServiceTrace(events []map[string]any, baseline int, capabilities map[string
 		return nil, fmt.Errorf("expected at least 2 observations_read_status operations, got %d", statusCount)
 	}
 	if identityCount < 4 {
-		return nil, fmt.Errorf("expected at least 4 lifecycle_read_identity operations, got %d", identityCount)
+		return nil, fmt.Errorf("expected at least 4 lifecycle_read_identity/lifecycle_read_tick operations, got %d", identityCount)
 	}
 	return names, nil
 }

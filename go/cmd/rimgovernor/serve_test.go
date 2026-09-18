@@ -112,10 +112,20 @@ func (f *serviceFake) Reattach(context.Context) error {
 func (f *serviceFake) ConnectWithPoll(context.Context, bridge.Result) (bridge.Result, error) {
 	return bridge.Result{}, nil
 }
+
+// Tick is the read-only service poll: the initial refresh succeeds, the
+// first background poll blocks until the session is cancelled.
+func (f *serviceFake) Tick(ctx context.Context) (*lifecyclepb.TickReply, bridge.Result, error) {
+	reply, raw, err := f.Identity(ctx)
+	if err != nil {
+		return nil, raw, err
+	}
+	return &lifecyclepb.TickReply{Outcome: &lifecyclepb.TickReply_Loaded{Loaded: &lifecyclepb.LoadedTick{Context: reply.GetLoaded().Context, Paused: reply.GetLoaded().Paused}}}, raw, nil
+}
 func (f *serviceFake) Identity(ctx context.Context) (*lifecyclepb.IdentityReply, bridge.Result, error) {
 	f.active.Add(1)
 	defer f.active.Add(-1)
-	if f.reads.Add(1) > 2 {
+	if f.reads.Add(1) > 1 {
 		select {
 		case f.entered <- struct{}{}:
 		default:

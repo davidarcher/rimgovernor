@@ -111,6 +111,35 @@ func (caller *Client) Identity(ctx context.Context) (*l.IdentityReply, Result, e
 	return reply, raw, err
 }
 
+// Tick is the bare observation scope: Identity's context and pause state
+// without the capability list. It is the read for callers that only need
+// the current load, map, tick and generation; the full identity read stays
+// with the scheduler step, which validates the capability list once.
+func (caller *Client) Tick(ctx context.Context) (*l.TickReply, Result, error) {
+	reply := &l.TickReply{}
+	raw, err := caller.protoRead(ctx, "rimgovernor/lifecycle_read_tick", &l.TickRequest{}, reply)
+	if err != nil {
+		return nil, raw, err
+	}
+	switch value := reply.Outcome.(type) {
+	case *l.TickReply_Loaded:
+		if value.Loaded == nil {
+			return nil, raw, contract("missing loaded tick")
+		}
+		err = ValidateContext(value.Loaded.Context)
+	case *l.TickReply_Unavailable:
+		err = unavailable(value.Unavailable, raw)
+	case *l.TickReply_Failure:
+		err = failure(value.Failure, raw)
+	default:
+		err = contract("tick outcome missing")
+	}
+	if err != nil && !errors.Is(err, ErrRefused) && !errors.Is(err, ErrUnavailable) {
+		return nil, raw, err
+	}
+	return reply, raw, err
+}
+
 // Status requests context only. Rich colonist/threat projections need their own
 // complete typed observation adapters before being exposed to callers.
 func (caller *Client) Status(ctx context.Context, identity *c.Identity) (*o.StatusReply, Result, error) {
@@ -191,7 +220,7 @@ func nativeReadMethod(name string) bool {
 	switch name {
 	case "rimgovernor/observations_list_supplies", "rimgovernor/observations_read_colony_facts", "rimgovernor/observations_list_buildings", "rimgovernor/observations_list_rooms", "rimgovernor/observations_read_research", "rimgovernor/observations_list_wall_upgrade_sites", "rimgovernor/observations_list_zones", "rimgovernor/observations_read_defense_site", "rimgovernor/observations_read_lines_of_fire", "rimgovernor/observations_read_spatial_access":
 	case "rimgovernor/presentation_camera", "rimgovernor/presentation_selection", "rimgovernor/presentation_colonists", "rimgovernor/presentation_notifications", "rimgovernor/presentation_render_state":
-	case "rimgovernor/clock_read_events", "rimgovernor/clock_read_status", "rimgovernor/clock_read_attempt", "rimgovernor/operations_preview", "rimgovernor/observations_list_pawns", "rimgovernor/observations_get_cells", "rimgovernor/lifecycle_read_identity", "rimgovernor/observations_read_status", "rimgovernor/placement_preview", "rimgovernor/authority_read_status", "rimgovernor/receipts_lookup", "rimgovernor/receipts_observe_progress", "rimgovernor/observations_read_caravan_catalog", "rimgovernor/observations_read_world_progression", "rimgovernor/observations_read_world", "rimgovernor/observations_read_bills", "rimgovernor/observations_read_recipes", "rimgovernor/observations_list_resource_sources", "rimgovernor/observations_read_production_policy", "rimgovernor/observations_read_population", "rimgovernor/observations_read_trade_sheet", "rimgovernor/observations_read_excavation_site":
+	case "rimgovernor/clock_read_events", "rimgovernor/clock_read_status", "rimgovernor/clock_read_attempt", "rimgovernor/operations_preview", "rimgovernor/observations_list_pawns", "rimgovernor/observations_get_cells", "rimgovernor/lifecycle_read_identity", "rimgovernor/lifecycle_read_tick", "rimgovernor/observations_read_status", "rimgovernor/placement_preview", "rimgovernor/authority_read_status", "rimgovernor/receipts_lookup", "rimgovernor/receipts_observe_progress", "rimgovernor/observations_read_caravan_catalog", "rimgovernor/observations_read_world_progression", "rimgovernor/observations_read_world", "rimgovernor/observations_read_bills", "rimgovernor/observations_read_recipes", "rimgovernor/observations_list_resource_sources", "rimgovernor/observations_read_production_policy", "rimgovernor/observations_read_population", "rimgovernor/observations_read_trade_sheet", "rimgovernor/observations_read_excavation_site":
 	default:
 		return false
 	}
@@ -290,7 +319,7 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 	switch name {
 	case "rimgovernor/observations_list_supplies", "rimgovernor/observations_read_colony_facts", "rimgovernor/observations_list_buildings", "rimgovernor/observations_list_rooms", "rimgovernor/observations_read_research", "rimgovernor/observations_list_wall_upgrade_sites", "rimgovernor/observations_list_zones", "rimgovernor/observations_read_defense_site", "rimgovernor/observations_read_lines_of_fire", "rimgovernor/observations_read_spatial_access":
 	case "rimgovernor/presentation_camera", "rimgovernor/presentation_selection", "rimgovernor/presentation_colonists", "rimgovernor/presentation_notifications", "rimgovernor/presentation_render_state", "rimgovernor/presentation_render_demand", "rimgovernor/presentation_capture_pawn", "rimgovernor/presentation_lease_video", "rimgovernor/presentation_read_frame", "rimgovernor/presentation_acknowledge_frame":
-	case "rimgovernor/clock_read_events", "rimgovernor/clock_read_status", "rimgovernor/clock_read_attempt", "rimgovernor/operations_preview", "rimgovernor/observations_list_pawns", "rimgovernor/observations_get_cells", "rimgovernor/lifecycle_read_identity", "rimgovernor/observations_read_status", "rimgovernor/placement_preview", "rimgovernor/authority_read_status", "rimgovernor/receipts_lookup", "rimgovernor/receipts_observe_progress", "rimgovernor/authority_control", "rimgovernor/operations_release_owned_draft", "rimgovernor/operations_execute", "rimgovernor/clock_start", "rimgovernor/clock_renew", "rimgovernor/clock_change_speed", "rimgovernor/clock_pause", "rimgovernor/observations_read_caravan_catalog", "rimgovernor/observations_read_world_progression", "rimgovernor/observations_read_world", "rimgovernor/observations_read_bills", "rimgovernor/observations_read_recipes", "rimgovernor/observations_list_resource_sources", "rimgovernor/observations_read_production_policy", "rimgovernor/observations_read_population", "rimgovernor/observations_read_trade_sheet", "rimgovernor/observations_read_excavation_site", "rimgovernor/lifecycle_save", "rimgovernor/lifecycle_read_save", "rimgovernor/lifecycle_load", "rimgovernor/lifecycle_read_load":
+	case "rimgovernor/clock_read_events", "rimgovernor/clock_read_status", "rimgovernor/clock_read_attempt", "rimgovernor/operations_preview", "rimgovernor/observations_list_pawns", "rimgovernor/observations_get_cells", "rimgovernor/lifecycle_read_identity", "rimgovernor/lifecycle_read_tick", "rimgovernor/observations_read_status", "rimgovernor/placement_preview", "rimgovernor/authority_read_status", "rimgovernor/receipts_lookup", "rimgovernor/receipts_observe_progress", "rimgovernor/authority_control", "rimgovernor/operations_release_owned_draft", "rimgovernor/operations_execute", "rimgovernor/clock_start", "rimgovernor/clock_renew", "rimgovernor/clock_change_speed", "rimgovernor/clock_pause", "rimgovernor/observations_read_caravan_catalog", "rimgovernor/observations_read_world_progression", "rimgovernor/observations_read_world", "rimgovernor/observations_read_bills", "rimgovernor/observations_read_recipes", "rimgovernor/observations_list_resource_sources", "rimgovernor/observations_read_production_policy", "rimgovernor/observations_read_population", "rimgovernor/observations_read_trade_sheet", "rimgovernor/observations_read_excavation_site", "rimgovernor/lifecycle_save", "rimgovernor/lifecycle_read_save", "rimgovernor/lifecycle_load", "rimgovernor/lifecycle_read_load":
 	default:
 		return Result{}, contract("unreviewed native method")
 	}

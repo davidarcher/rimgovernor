@@ -137,7 +137,7 @@ func (s *StepReadCache) invalidateLocked() {
 // receipt and preview reads are excluded: they report live controller or UI
 // state rather than paused-world facts, or have side effects.
 func cacheableRead(name string) bool {
-	return name == "rimgovernor/lifecycle_read_identity" || strings.HasPrefix(name, "rimgovernor/observations_")
+	return name == "rimgovernor/lifecycle_read_identity" || name == "rimgovernor/lifecycle_read_tick" || strings.HasPrefix(name, "rimgovernor/observations_")
 }
 
 // acquire returns the entry for key and whether the caller is its leader:

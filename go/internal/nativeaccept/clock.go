@@ -13,6 +13,7 @@ import (
 
 var clockReads = map[string]bool{
 	"rimgovernor/lifecycle_read_identity":     true,
+	"rimgovernor/lifecycle_read_tick":         true,
 	"rimgovernor/observations_read_status":    true,
 	"rimgovernor/observations_get_cells":      true,
 	"rimgovernor/observations_list_buildings": true,

@@ -59,6 +59,7 @@ Use [shared rules](README.md) and the family coverage documents for exact valida
 | `rimgovernor/clock_start` | `rimgovernor.clock.v1.Clock/Start` | `rimgovernor.clock.v1.StartRequest` | `rimgovernor.clock.v1.ControlReply` |
 | `rimgovernor/lifecycle_load` | `rimgovernor.lifecycle.v1.Lifecycle/Load` | `rimgovernor.lifecycle.v1.LoadRequest` | `rimgovernor.lifecycle.v1.LoadReply` |
 | `rimgovernor/lifecycle_read_identity` | `rimgovernor.lifecycle.v1.Lifecycle/ReadIdentity` | `rimgovernor.lifecycle.v1.IdentityRequest` | `rimgovernor.lifecycle.v1.IdentityReply` |
+| `rimgovernor/lifecycle_read_tick` | `rimgovernor.lifecycle.v1.Lifecycle/ReadTick` | `rimgovernor.lifecycle.v1.TickRequest` | `rimgovernor.lifecycle.v1.TickReply` |
 | `rimgovernor/lifecycle_read_load` | `rimgovernor.lifecycle.v1.Lifecycle/ReadLoad` | `rimgovernor.lifecycle.v1.RequestStatus` | `rimgovernor.lifecycle.v1.LoadReply` |
 | `rimgovernor/lifecycle_read_save` | `rimgovernor.lifecycle.v1.Lifecycle/ReadSave` | `rimgovernor.lifecycle.v1.RequestStatus` | `rimgovernor.lifecycle.v1.SaveReply` |
 | `rimgovernor/lifecycle_save` | `rimgovernor.lifecycle.v1.Lifecycle/Save` | `rimgovernor.lifecycle.v1.SaveRequest` | `rimgovernor.lifecycle.v1.SaveReply` |

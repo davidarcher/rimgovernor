@@ -41,7 +41,7 @@ func FactFamilyOf(method string) (FactFamily, bool) {
 		return FactDefinitions, true
 	case "rimgovernor/observations_read_world":
 		return FactWorld, true
-	case "rimgovernor/lifecycle_read_identity":
+	case "rimgovernor/lifecycle_read_identity", "rimgovernor/lifecycle_read_tick":
 		return FactIdentity, true
 	case "rimgovernor/observations_list_supplies", "rimgovernor/observations_read_colony_facts", "rimgovernor/observations_list_buildings",
 		"rimgovernor/observations_list_wall_upgrade_sites", "rimgovernor/observations_list_zones", "rimgovernor/observations_read_spatial_access",

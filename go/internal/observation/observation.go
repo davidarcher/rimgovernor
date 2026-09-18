@@ -12,10 +12,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
-	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -76,9 +73,10 @@ type Status struct {
 	Speed        domain.Fact[Speed]
 }
 
-// Snapshot brackets the status read with identity reads. Equal ticks describe
-// the observed interval; they do not turn separate native calls into an atomic read.
-// Native generation is an optional observed fact; Manual and player direction are not inferred.
+// Snapshot is one tick observation. Before and After are the identity the
+// reply's ObservationContext reported; Observe issues a single native call,
+// so they are equal and SameTick holds. Native generation is an optional
+// observed fact; Manual and player direction are not inferred.
 type Snapshot struct {
 	Before     Identity
 	After      Identity
@@ -113,16 +111,19 @@ func (s Snapshot) CheckFresh(now time.Time, maxAge time.Duration, current Identi
 // Source is implemented by bridge.Client. Typed observation code never receives
 // arbitrary call names or arguments through this interface.
 type Source interface {
-	Identity(context.Context) (*l.IdentityReply, bridge.Result, error)
-	Status(context.Context, *c.Identity) (*o.StatusReply, bridge.Result, error)
+	Tick(context.Context) (*l.TickReply, bridge.Result, error)
 }
 type Clock interface{ Now() time.Time }
 
 type Reading struct {
 	Snapshot Snapshot
-	Receipts [3]bridge.Result
+	Receipt  bridge.Result
 }
 
+// Observe is one lifecycle_read_tick call: the reply's ObservationContext
+// carries the colony, load, map, tick and generation and the reply its pause
+// state, which is everything a status observation reports. An unavailable
+// reply (no game or no map) is the typed bridge.ErrUnavailable.
 func Observe(ctx context.Context, source Source, clock Clock) (Reading, error) {
 	var result Reading
 	if source == nil || clock == nil {
@@ -130,46 +131,18 @@ func Observe(ctx context.Context, source Source, clock Clock) (Reading, error) {
 	}
 	result.Snapshot.StartedAt = clock.Now()
 	var err error
-	var first, last *l.IdentityReply
-	var status *o.StatusReply
-	first, result.Receipts[0], err = source.Identity(ctx)
+	var reply *l.TickReply
+	reply, result.Receipt, err = source.Tick(ctx)
 	if err != nil {
 		return result, err
 	}
-	result.Snapshot.Before, err = DecodeIdentity(first)
+	result.Snapshot.Before, err = DecodeTick(reply)
 	if err != nil {
 		return result, err
 	}
-	before := result.Snapshot.Before
-	expected := &c.Identity{ColonyId: proto.String(string(before.Colony)), LoadToken: proto.String(string(before.Load)), MapId: proto.Int32(int32(before.Map))}
-	status, result.Receipts[1], err = source.Status(ctx, expected)
-	if err != nil {
-		return result, err
-	}
-	result.Snapshot.Status, err = DecodeStatus(status)
-	if err != nil {
-		return result, err
-	}
-	last, result.Receipts[2], err = source.Identity(ctx)
-	if err != nil {
-		return result, err
-	}
-	result.Snapshot.After, err = DecodeIdentity(last)
-	if err != nil {
-		return result, err
-	}
-	statusIdentity, statusErr := contextIdentity(status.GetObserved().Context)
-	if statusErr != nil {
-		return result, statusErr
-	}
-	if !statusIdentity.SameContext(before) || statusIdentity.Tick < before.Tick || statusIdentity.Tick > result.Snapshot.After.Tick {
-		return result, ErrChanged
-	}
-	result.Snapshot.Status.Paused = result.Snapshot.After.Paused
+	result.Snapshot.After = result.Snapshot.Before
+	result.Snapshot.Status = Status{Availability: GameLoaded, Paused: result.Snapshot.Before.Paused}
 	result.Snapshot.ObservedAt = clock.Now()
-	if !result.Snapshot.Before.SameContext(result.Snapshot.After) || result.Snapshot.After.Tick < result.Snapshot.Before.Tick || result.Snapshot.Status.Availability != GameLoaded {
-		return result, ErrChanged
-	}
 	if result.Snapshot.StartedAt.IsZero() || result.Snapshot.ObservedAt.Before(result.Snapshot.StartedAt) {
 		return result, ErrStale
 	}

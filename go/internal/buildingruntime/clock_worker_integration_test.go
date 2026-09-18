@@ -29,6 +29,12 @@ func (f *joinedClockNative) Identity(ctx context.Context) (*l.IdentityReply, bri
 	f.calls++
 	return f.source.Identity(ctx)
 }
+func (f *joinedClockNative) Tick(ctx context.Context) (*l.TickReply, bridge.Result, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.calls++
+	return f.source.Tick(ctx)
+}
 func (f *joinedClockNative) ReadClockStatus(ctx context.Context, id *c.Identity) (*k.StatusReply, bridge.Result, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()

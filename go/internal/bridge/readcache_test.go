@@ -29,7 +29,7 @@ type readCacheServer struct {
 
 func newReadCacheServer() *readCacheServer {
 	s := &readCacheServer{calls: map[string]*atomic.Int64{}}
-	for _, name := range []string{"rimgovernor/lifecycle_read_identity", "rimgovernor/observations_read_world", "rimgovernor/observations_list_rooms", "rimgovernor/clock_pause"} {
+	for _, name := range []string{"rimgovernor/lifecycle_read_identity", "rimgovernor/lifecycle_read_tick", "rimgovernor/observations_read_world", "rimgovernor/observations_list_rooms", "rimgovernor/clock_pause"} {
 		s.calls[name] = &atomic.Int64{}
 	}
 	s.generation.Store(1)
@@ -51,6 +51,8 @@ func (s *readCacheServer) handle(_ context.Context, arg nativeArgument) (*mcp.Ca
 	switch arg.Tool {
 	case "rimgovernor/lifecycle_read_identity":
 		return pbResult(&l.IdentityReply{Outcome: &l.IdentityReply_Loaded{Loaded: &l.LoadedIdentity{Context: s.context(), Paused: proto.Bool(true)}}}), nil
+	case "rimgovernor/lifecycle_read_tick":
+		return pbResult(&l.TickReply{Outcome: &l.TickReply_Loaded{Loaded: &l.LoadedTick{Context: s.context(), Paused: proto.Bool(true)}}}), nil
 	case "rimgovernor/observations_read_world":
 		if s.unavailable.Load() {
 			return pbResult(&o.WorldReply{Outcome: &o.WorldReply_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_LOADED.Enum()}}}), nil
@@ -109,6 +111,18 @@ func TestStepReadCacheServesRepeatedReadsOnce(t *testing.T) {
 	stats := cache.Stats()
 	if stats.Hits != 4 || stats.Misses != 3 || stats.Invalidations != 0 {
 		t.Fatalf("stats %+v", stats)
+	}
+
+	// The bare tick read is its own row in the same scope: one native call,
+	// then hits.
+	for i := 0; i < 2; i++ {
+		tick, _, err := client.Tick(ctx)
+		if err != nil || !tick.GetLoaded().GetPaused() {
+			t.Fatal(tick, err)
+		}
+	}
+	if got := server.count("rimgovernor/lifecycle_read_tick"); got != 1 {
+		t.Fatalf("tick read natively %d times", got)
 	}
 
 	// The same reads outside the cached context still go to native.

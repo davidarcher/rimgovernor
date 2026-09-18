@@ -45,7 +45,7 @@ func TestRoutineResearchAndResourceFactsStayInsideBracket(t *testing.T) {
 		t.Fatal(err)
 	}
 	newSource := func() *projectSource {
-		return &projectSource{colonySource: &colonySource{source: &source{ids: []*l.IdentityReply{identity(), identity()}}, reply: base}}
+		return &projectSource{colonySource: &colonySource{reply: base}}
 	}
 	clock := testkit.NewManualClock(time.Now())
 	ctx := context.Background()

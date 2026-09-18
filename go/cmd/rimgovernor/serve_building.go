@@ -70,11 +70,11 @@ func readMoodReliefLongitude(ctx context.Context, identitySource observation.Sou
 	if identitySource == nil || worldSource == nil {
 		return unknown
 	}
-	reply, _, err := identitySource.Identity(ctx)
+	reply, _, err := identitySource.Tick(ctx)
 	if err != nil {
 		return unknown
 	}
-	identity, err := observation.DecodeIdentity(reply)
+	identity, err := observation.DecodeTick(reply)
 	if err != nil {
 		return unknown
 	}
@@ -329,11 +329,11 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 type buildingWorldSource struct{ reads observation.Source }
 
 func (s buildingWorldSource) ReadWorld(ctx context.Context) (store.World, error) {
-	reply, _, err := s.reads.Identity(ctx)
+	reply, _, err := s.reads.Tick(ctx)
 	if err != nil {
 		return store.World{}, err
 	}
-	identity, err := observation.DecodeIdentity(reply)
+	identity, err := observation.DecodeTick(reply)
 	if err != nil {
 		return store.World{}, err
 	}

@@ -20,6 +20,15 @@ func (f *clockCoreFake) Identity(ctx context.Context) (*l.IdentityReply, bridge.
 	}
 	return &l.IdentityReply{Outcome: &l.IdentityReply_Loaded{Loaded: &l.LoadedIdentity{Context: proto.Clone(f.status.Context).(*c.ObservationContext)}}}, bridge.Result{}, ctx.Err()
 }
+
+// Tick is the identity read without the capability list; the poll and
+// renewal loops take it (#125).
+func (f *clockCoreFake) Tick(ctx context.Context) (*l.TickReply, bridge.Result, error) {
+	if f.identityError != nil {
+		return nil, bridge.Result{}, f.identityError
+	}
+	return &l.TickReply{Outcome: &l.TickReply_Loaded{Loaded: &l.LoadedTick{Context: proto.Clone(f.status.Context).(*c.ObservationContext)}}}, bridge.Result{}, ctx.Err()
+}
 func (f *clockCoreFake) OwnedPause(ctx context.Context, r *k.OwnedRequest) (*k.StatusReply, bridge.Result, error) {
 	f.pauses++
 	if !proto.Equal(r.Identity, f.status.Context.Identity) || !proto.Equal(r.Owner, clockCoordinatorEpoch(f.status).Owner) {

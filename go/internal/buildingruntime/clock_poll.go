@@ -54,11 +54,13 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 		return fail(err)
 	}
 	before := s.session.State()
-	identity, _, err := s.native.Identity(call)
+	// The bare tick read: the poll needs the current scope, not the
+	// capability list the step validates.
+	tick, _, err := s.native.Tick(call)
 	if err != nil {
 		return fail(err)
 	}
-	current := identity.GetLoaded().GetContext()
+	current := tick.GetLoaded().GetContext()
 	if err = bridge.ValidateContext(current); err != nil {
 		return fail(err)
 	}

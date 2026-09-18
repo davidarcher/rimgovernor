@@ -10,21 +10,17 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	commonpb "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	lifecyclepb "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
-	observationspb "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// longitudeIdentityFake is the minimal observation.Source readMoodReliefLongitude
-// needs: only Identity is ever called, but the interface requires Status too.
+// longitudeIdentityFake is the observation.Source readMoodReliefLongitude
+// needs: the tick read that names the colony identity.
 type longitudeIdentityFake struct{ err error }
 
-func (f longitudeIdentityFake) Identity(context.Context) (*lifecyclepb.IdentityReply, bridge.Result, error) {
+func (f longitudeIdentityFake) Tick(context.Context) (*lifecyclepb.TickReply, bridge.Result, error) {
 	if f.err != nil {
 		return nil, bridge.Result{}, f.err
 	}
-	return &lifecyclepb.IdentityReply{Outcome: &lifecyclepb.IdentityReply_Loaded{Loaded: &lifecyclepb.LoadedIdentity{Context: serviceContext()}}}, bridge.Result{}, nil
-}
-func (f longitudeIdentityFake) Status(context.Context, *commonpb.Identity) (*observationspb.StatusReply, bridge.Result, error) {
-	return nil, bridge.Result{}, errors.New("unused")
+	return &lifecyclepb.TickReply{Outcome: &lifecyclepb.TickReply_Loaded{Loaded: &lifecyclepb.LoadedTick{Context: serviceContext()}}}, bridge.Result{}, nil
 }
 
 var _ observation.Source = longitudeIdentityFake{}

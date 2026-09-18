@@ -25,6 +25,7 @@ import (
 
 type ClockWindowNative interface {
 	Identity(context.Context) (*l.IdentityReply, bridge.Result, error)
+	Tick(context.Context) (*l.TickReply, bridge.Result, error)
 	ReadClockStatus(context.Context, *c.Identity) (*k.StatusReply, bridge.Result, error)
 	ReadEmergency(context.Context, *c.Identity) (bridge.EmergencyObservation, bridge.Result, error)
 }

@@ -45,6 +45,34 @@ func DecodeIdentity(reply *l.IdentityReply) (Identity, error) {
 		return Identity{}, fmt.Errorf("%w: identity outcome", ErrContract)
 	}
 }
+
+// DecodeTick reads the identity a lifecycle_read_tick reply reports; it is
+// DecodeIdentity without the capability list.
+func DecodeTick(reply *l.TickReply) (Identity, error) {
+	if reply == nil {
+		return Identity{}, fmt.Errorf("%w: missing tick", ErrContract)
+	}
+	switch value := reply.Outcome.(type) {
+	case *l.TickReply_Loaded:
+		if value.Loaded == nil {
+			return Identity{}, fmt.Errorf("%w: missing loaded tick", ErrContract)
+		}
+		result, err := contextIdentity(value.Loaded.Context)
+		if err != nil {
+			return result, err
+		}
+		if value.Loaded.Paused != nil {
+			result.Paused = domain.Known(value.Loaded.GetPaused())
+		}
+		return result, nil
+	case *l.TickReply_Unavailable:
+		return Identity{}, bridge.ErrUnavailable
+	case *l.TickReply_Failure:
+		return Identity{}, bridge.ErrRefused
+	default:
+		return Identity{}, fmt.Errorf("%w: tick outcome", ErrContract)
+	}
+}
 func DecodeStatus(reply *o.StatusReply) (Status, error) {
 	if reply == nil {
 		return Status{}, fmt.Errorf("%w: missing status", ErrContract)

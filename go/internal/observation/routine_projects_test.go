@@ -59,7 +59,7 @@ func TestRoutineProjectDefinitionsStayInsideObservationBracket(t *testing.T) {
 			identity := func() *l.IdentityReply {
 				return &l.IdentityReply{Outcome: &l.IdentityReply_Loaded{Loaded: &l.LoadedIdentity{Context: proto.Clone(base.GetObserved().Context).(*c.ObservationContext), Paused: proto.Bool(true)}}}
 			}
-			s := &projectSource{colonySource: &colonySource{source: &source{ids: []*l.IdentityReply{identity(), identity()}}, reply: base}, extra: proto.Clone(base).(*o.ColonyFactsReply)}
+			s := &projectSource{colonySource: &colonySource{reply: base}, extra: proto.Clone(base).(*o.ColonyFactsReply)}
 			s.extra.GetObserved().Planning.GetObserved().Definitions[0].Definition.DefName = proto.String("HospitalBed")
 			s.extra.GetObserved().Planning.GetObserved().Definitions[0].ConstructionSkill = proto.Int32(8)
 			expected, err := DecodeIdentity(identity())

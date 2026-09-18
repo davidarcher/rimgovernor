@@ -83,6 +83,11 @@ func TestOfficialReadSDKBoundary(t *testing.T) {
 				t.Error("identity request not actual ProtoJSON")
 			}
 			return pbResult(pbLoaded()), nil
+		case "rimgovernor/lifecycle_read_tick":
+			if outer.Request != "{}" {
+				t.Error("tick request not actual ProtoJSON")
+			}
+			return pbResult(&l.TickReply{Outcome: &l.TickReply_Loaded{Loaded: &l.LoadedTick{Context: pbContext(), Paused: proto.Bool(true)}}}), nil
 		case "rimgovernor/observations_read_status":
 			q := &o.StatusRequest{}
 			if err := protojson.Unmarshal([]byte(outer.Request), q); err != nil {
@@ -111,6 +116,10 @@ func TestOfficialReadSDKBoundary(t *testing.T) {
 	if _, _, err = client.Status(context.Background(), pbIdentity()); err != nil {
 		t.Fatal(err)
 	}
+	tick, raw, err := client.Tick(context.Background())
+	if err != nil || tick.GetLoaded().Context.GetNativeGeneration() != ^uint64(0) || tick.GetLoaded().Paused == nil || !tick.GetLoaded().GetPaused() || len(raw.Envelope) == 0 {
+		t.Fatalf("tick %v %v", tick, err)
+	}
 	reply, _, err := client.PlacementPreviews(context.Background(), pbRequest())
 	if err != nil {
 		t.Fatal(err)
@@ -124,8 +133,30 @@ func TestOfficialReadSDKBoundary(t *testing.T) {
 			t.Fatalf("unapproved name accepted: %s", name)
 		}
 	}
-	if len(s.calls) != 3 {
+	if len(s.calls) != 4 {
 		t.Fatal("unexpected invocation")
+	}
+}
+
+// TestTickOutcomes covers the bare tick read: an unavailable reply is the
+// typed ErrUnavailable, a failure is ErrRefused, and a loaded reply must
+// carry a valid ObservationContext.
+func TestTickOutcomes(t *testing.T) {
+	for name, tc := range map[string]struct {
+		reply *l.TickReply
+		want  error
+	}{
+		"unavailable": {&l.TickReply{Outcome: &l.TickReply_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_LOADED.Enum()}}}, ErrUnavailable},
+		"failure":     {&l.TickReply{Outcome: &l.TickReply_Failure{Failure: &c.Failure{Code: c.FailureCode_FAILURE_CODE_UNAVAILABLE.Enum()}}}, ErrRefused},
+		"missing":     {&l.TickReply{}, ErrContract},
+		"no context":  {&l.TickReply{Outcome: &l.TickReply_Loaded{Loaded: &l.LoadedTick{}}}, ErrContract},
+	} {
+		s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+			return pbResult(tc.reply), nil
+		}}
+		if _, _, err := testClient(t, s, time.Second).Tick(context.Background()); !errors.Is(err, tc.want) {
+			t.Fatalf("%s: got %v want %v", name, err, tc.want)
+		}
 	}
 }
 func TestProtoRefusalUnavailableAndWrapperFailures(t *testing.T) {

@@ -25,7 +25,7 @@ type sample struct {
 	ObservedAt  time.Time            `json:"observedAt"`
 	PausedKnown bool                 `json:"pausedKnown"`
 	Paused      bool                 `json:"paused"`
-	Receipts    [3]bridge.Result     `json:"receipts"`
+	Receipt     bridge.Result        `json:"receipt"`
 }
 type report struct {
 	Passed  bool     `json:"passed"`
@@ -86,7 +86,7 @@ func observe(ctx context.Context, config bridge.ProcessConfig, result *report) (
 		reading, readErr := observation.Observe(ctx, client, clock{})
 		snapshot := reading.Snapshot
 		paused, known := snapshot.Status.Paused.Value()
-		result.Samples = append(result.Samples, sample{Before: snapshot.Before, After: snapshot.After, StartedAt: snapshot.StartedAt, ObservedAt: snapshot.ObservedAt, PausedKnown: known, Paused: paused, Receipts: reading.Receipts})
+		result.Samples = append(result.Samples, sample{Before: snapshot.Before, After: snapshot.After, StartedAt: snapshot.StartedAt, ObservedAt: snapshot.ObservedAt, PausedKnown: known, Paused: paused, Receipt: reading.Receipt})
 		if readErr != nil {
 			return readErr
 		}

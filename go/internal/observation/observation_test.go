@@ -25,33 +25,26 @@ func contextFixture(tick int64) *c.ObservationContext {
 func identityFixture(tick int64) *l.IdentityReply {
 	return &l.IdentityReply{Outcome: &l.IdentityReply_Loaded{Loaded: &l.LoadedIdentity{Context: contextFixture(tick), Paused: proto.Bool(false)}}}
 }
-func statusFixture(tick int64) *o.StatusReply {
-	return &o.StatusReply{Outcome: &o.StatusReply_Observed{Observed: &o.StatusSnapshot{Context: contextFixture(tick)}}}
+func tickFixture(tick int64) *l.TickReply {
+	return &l.TickReply{Outcome: &l.TickReply_Loaded{Loaded: &l.LoadedTick{Context: contextFixture(tick), Paused: proto.Bool(false)}}}
 }
 
 type source struct {
-	ids    []*l.IdentityReply
-	status *o.StatusReply
-	index  int
-	err    error
+	ticks []*l.TickReply
+	index int
+	err   error
 }
 
-func (s *source) Identity(ctx context.Context) (*l.IdentityReply, bridge.Result, error) {
+func (s *source) Tick(ctx context.Context) (*l.TickReply, bridge.Result, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, bridge.Result{}, err
 	}
 	if s.err != nil {
 		return nil, bridge.Result{Envelope: json.RawMessage(`{"error":true}`)}, s.err
 	}
-	v := s.ids[s.index]
+	v := s.ticks[s.index]
 	s.index++
-	return v, bridge.Result{Envelope: json.RawMessage(`{"identity":true}`)}, nil
-}
-func (s *source) Status(ctx context.Context, identity *c.Identity) (*o.StatusReply, bridge.Result, error) {
-	if identity.GetMapId() != 0 {
-		return nil, bridge.Result{}, errors.New("wrong identity")
-	}
-	return s.status, bridge.Result{Envelope: json.RawMessage(`{"status":true}`)}, ctx.Err()
+	return v, bridge.Result{Envelope: json.RawMessage(`{"tick":true}`)}, nil
 }
 func TestIdentityPresenceAndFalsePause(t *testing.T) {
 	value, err := DecodeIdentity(identityFixture(0))
@@ -85,14 +78,17 @@ func TestIdentityPresenceAndFalsePause(t *testing.T) {
 		t.Fatal("generation invented")
 	}
 }
-func TestBracketedSnapshotAndFreshness(t *testing.T) {
+func TestTickSnapshotAndFreshness(t *testing.T) {
 	now := time.Now()
-	s := &source{ids: []*l.IdentityReply{identityFixture(10), identityFixture(12)}, status: statusFixture(11)}
+	s := &source{ticks: []*l.TickReply{tickFixture(10)}}
 	reading, err := Observe(context.Background(), s, testkit.NewManualClock(now))
 	if err != nil {
 		t.Fatal(err)
 	}
 	snapshot := reading.Snapshot
+	if s.index != 1 || !snapshot.SameTick() || snapshot.Before.Tick != 10 || snapshot.After != snapshot.Before || snapshot.Status.Availability != GameLoaded {
+		t.Fatalf("one tick read describes the snapshot: %+v", snapshot)
+	}
 	if err = snapshot.CheckFresh(now, time.Second, snapshot.After); err != nil {
 		t.Fatal(err)
 	}
@@ -115,17 +111,20 @@ func TestBracketedSnapshotAndFreshness(t *testing.T) {
 	if err = snapshot.CheckFresh(now, -1, snapshot.After); !errors.Is(err, ErrStale) {
 		t.Fatal(err)
 	}
-	for _, tick := range []int64{9, 13} {
-		s := &source{ids: []*l.IdentityReply{identityFixture(10), identityFixture(12)}, status: statusFixture(tick)}
-		if _, err := Observe(context.Background(), s, testkit.NewManualClock(now)); !errors.Is(err, ErrChanged) {
-			t.Fatalf("status outside bracket: %v", err)
-		}
+	unavailable := &source{ticks: []*l.TickReply{{Outcome: &l.TickReply_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_LOADED.Enum()}}}}}
+	if _, err := Observe(context.Background(), unavailable, testkit.NewManualClock(now)); !errors.Is(err, bridge.ErrUnavailable) {
+		t.Fatalf("unavailable tick: %v", err)
+	}
+	invalid := &source{ticks: []*l.TickReply{tickFixture(10)}}
+	invalid.ticks[0].GetLoaded().Context.NativeGeneration = proto.Uint64(0)
+	if _, err := Observe(context.Background(), invalid, testkit.NewManualClock(now)); !errors.Is(err, ErrContract) {
+		t.Fatalf("invalid tick context: %v", err)
 	}
 }
 func TestObservationUnavailableAndFailureRetainReceipt(t *testing.T) {
 	s := &source{err: bridge.ErrUnavailable}
 	reading, err := Observe(context.Background(), s, testkit.NewManualClock(time.Now()))
-	if !errors.Is(err, bridge.ErrUnavailable) || len(reading.Receipts[0].Envelope) == 0 {
+	if !errors.Is(err, bridge.ErrUnavailable) || len(reading.Receipt.Envelope) == 0 {
 		t.Fatal("lost failure receipt")
 	}
 	if _, err := DecodeStatus(&o.StatusReply{Outcome: &o.StatusReply_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_LOADED.Enum()}}}); !errors.Is(err, bridge.ErrUnavailable) {
@@ -147,12 +146,10 @@ func TestMain(m *testing.M) {
 					}
 					var message proto.Message
 					switch args.Tool {
-					case "rimgovernor/lifecycle_read_identity":
-						r := identityFixture(0)
+					case "rimgovernor/lifecycle_read_tick":
+						r := tickFixture(0)
 						r.GetLoaded().Paused = proto.Bool(true)
 						message = r
-					case "rimgovernor/observations_read_status":
-						message = statusFixture(0)
 					default:
 						return nil, errors.New("unreviewed tool")
 					}

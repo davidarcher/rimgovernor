@@ -29,6 +29,21 @@ message IdentityReply {
     rimgovernor.common.v1.Failure failure = 3;
   }
 }
+// ReadTick is the bare observation scope: the context and pause state
+// ReadIdentity reports, without its capability list, for callers that only
+// need the current load, map, tick and generation.
+message TickRequest {}
+message LoadedTick {
+  rimgovernor.common.v1.ObservationContext context = 1;
+  optional bool paused = 2;
+}
+message TickReply {
+  oneof outcome {
+    LoadedTick loaded = 1;
+    rimgovernor.common.v1.Unavailable unavailable = 2;
+    rimgovernor.common.v1.Failure failure = 3;
+  }
+}
 
 // These requests belong to explicit session lifecycle, outside gameplay/model dispatch.
 message PlayerLifecycleContext {

@@ -11,17 +11,20 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// ColonySource is the planner-side colony read. Identity is the paused
+// identity a planner observes before it plans; ObserveColony itself reads
+// only the facts and validates them by their ObservationContext.
 type ColonySource interface {
 	Identity(context.Context) (*l.IdentityReply, bridge.Result, error)
 	ReadColonyFacts(context.Context, *c.Identity, bool, []string) (*o.ColonyFactsReply, bridge.Result, error)
 }
 
-// ColonyReading is a paused, same-tick observation interval. It conveys facts,
-// not authority; callers must still check their player direction before committing.
+// ColonyReading is a paused, same-tick observation. It conveys facts, not
+// authority; callers must still check their player direction before committing.
 type ColonyReading struct {
 	Projection            ColonyProjection
 	StartedAt, ObservedAt time.Time
-	Receipts              [3]bridge.Result
+	Receipt               bridge.Result
 }
 
 func sameColonyBoundary(actual, expected Identity) bool {
@@ -31,8 +34,11 @@ func sameColonyBoundary(actual, expected Identity) bool {
 	return actual.SameContext(expected) && actual.Tick == expected.Tick && ak && bk && a == b && known && paused
 }
 
-// ObserveColony requires an externally observed paused identity, then brackets
-// the facts read with fresh identities. Missing generations cannot confirm it.
+// ObserveColony requires an externally observed paused identity and reads
+// the facts under it. Every reply carries an ObservationContext, so the
+// facts themselves prove they were read at the expected load, map, tick and
+// generation; no identity read brackets them. Missing generations cannot
+// confirm the boundary, and the pause state is the caller's observation.
 func ObserveColony(ctx context.Context, source ColonySource, clock Clock, expected Identity, maxAge time.Duration, planning bool, definitions []string) (ColonyReading, error) {
 	var result ColonyReading
 	if source == nil || clock == nil || maxAge <= 0 || expected.Validate() != nil {
@@ -48,21 +54,9 @@ func ObserveColony(ctx context.Context, source ColonySource, clock Clock, expect
 	if err := ctx.Err(); err != nil {
 		return result, err
 	}
-	first, receipt, err := source.Identity(ctx)
-	result.Receipts[0] = receipt
-	if err != nil {
-		return result, err
-	}
-	before, err := DecodeIdentity(first)
-	if err != nil {
-		return result, err
-	}
-	if !sameColonyBoundary(before, expected) {
-		return result, ErrChanged
-	}
 	id := &c.Identity{ColonyId: proto.String(string(expected.Colony)), LoadToken: proto.String(string(expected.Load)), MapId: proto.Int32(int32(expected.Map))}
 	reply, receipt, err := source.ReadColonyFacts(ctx, id, planning, append([]string(nil), definitions...))
-	result.Receipts[1] = receipt
+	result.Receipt = receipt
 	if err != nil {
 		return result, err
 	}
@@ -70,22 +64,10 @@ func ObserveColony(ctx context.Context, source ColonySource, clock Clock, expect
 	if err != nil {
 		return result, err
 	}
-	// Colony facts do not carry pause state; that fact belongs to the brackets.
+	// Colony facts do not carry pause state; that fact is the caller's.
 	observed := projection.Identity
-	observed.Paused = before.Paused
+	observed.Paused = expected.Paused
 	if !sameColonyBoundary(observed, expected) {
-		return result, ErrChanged
-	}
-	last, receipt, err := source.Identity(ctx)
-	result.Receipts[2] = receipt
-	if err != nil {
-		return result, err
-	}
-	after, err := DecodeIdentity(last)
-	if err != nil {
-		return result, err
-	}
-	if !sameColonyBoundary(after, expected) {
 		return result, ErrChanged
 	}
 	result.ObservedAt = clock.Now()

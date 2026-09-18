@@ -10,6 +10,24 @@ namespace HomeBridge.BridgeTools
 {
     public sealed class ProtoIdentityTools
     {
+        [Tool("rimgovernor/lifecycle_read_tick", Title = "Read native tick",
+            Description = "Read the current colony, load, map, tick, generation and pause state without the capability list.")]
+        [ToolResponse("payload", "string", "Official ProtoJSON rimgovernor.lifecycle.v1.TickReply.", Always = true)]
+        public async Task<object> ReadTick(IRimBridgeContext ctx, CancellationToken cancellationToken,
+            [ToolParameter(Description = "Official lifecycle TickRequest ProtoJSON string.")] object? request = null)
+        {
+            if (!ProtoBoundary.TryParse(ctx, "rimgovernor/lifecycle_read_tick", request,
+                Lifecycle.TickRequest.Parser, out var parsed, out var failure))
+                return ProtoBoundary.Encode(new Lifecycle.TickReply { Failure = failure });
+
+            return await ProtoBoundary.OnMainThreadEncoded(ctx, () =>
+            {
+                if (!ProtoBoundary.TryReadContext(Find.CurrentMap, out var context, out var unavailable))
+                    return new Lifecycle.TickReply { Unavailable = unavailable };
+                return new Lifecycle.TickReply { Loaded = new Lifecycle.LoadedTick { Context = context, Paused = Find.TickManager.Paused } };
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
         [Tool("rimgovernor/lifecycle_read_identity", Title = "Read native identity",
             Description = "Read the current colony, load, map and native contract capabilities.")]
         [ToolResponse("payload", "string", "Official ProtoJSON rimgovernor.lifecycle.v1.IdentityReply.", Always = true)]
@@ -29,6 +47,12 @@ namespace HomeBridge.BridgeTools
                 {
                     FullMethodName = "rimgovernor.lifecycle.v1.Lifecycle/ReadIdentity",
                     Support = Lifecycle.CapabilitySupport.Supported
+                });
+                loaded.Capabilities.Add(new Lifecycle.Capability
+                {
+                    FullMethodName = "rimgovernor.lifecycle.v1.Lifecycle/ReadTick",
+                    Support = Lifecycle.CapabilitySupport.Supported,
+                    Detail = "ReadIdentity's context and pause state without the capability list."
                 });
                 loaded.Capabilities.Add(new Lifecycle.Capability
                 {

@@ -378,6 +378,195 @@ func (*IdentityReply_Unavailable) isIdentityReply_Outcome() {}
 
 func (*IdentityReply_Failure) isIdentityReply_Outcome() {}
 
+// ReadTick is the bare observation scope: the context and pause state
+// ReadIdentity reports, without its capability list, for callers that only
+// need the current load, map, tick and generation.
+type TickRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TickRequest) Reset() {
+	*x = TickRequest{}
+	mi := &file_lifecycle_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TickRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TickRequest) ProtoMessage() {}
+
+func (x *TickRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_lifecycle_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TickRequest.ProtoReflect.Descriptor instead.
+func (*TickRequest) Descriptor() ([]byte, []int) {
+	return file_lifecycle_proto_rawDescGZIP(), []int{4}
+}
+
+type LoadedTick struct {
+	state         protoimpl.MessageState       `protogen:"open.v1"`
+	Context       *commonpb.ObservationContext `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
+	Paused        *bool                        `protobuf:"varint,2,opt,name=paused,proto3,oneof" json:"paused,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LoadedTick) Reset() {
+	*x = LoadedTick{}
+	mi := &file_lifecycle_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LoadedTick) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LoadedTick) ProtoMessage() {}
+
+func (x *LoadedTick) ProtoReflect() protoreflect.Message {
+	mi := &file_lifecycle_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LoadedTick.ProtoReflect.Descriptor instead.
+func (*LoadedTick) Descriptor() ([]byte, []int) {
+	return file_lifecycle_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *LoadedTick) GetContext() *commonpb.ObservationContext {
+	if x != nil {
+		return x.Context
+	}
+	return nil
+}
+
+func (x *LoadedTick) GetPaused() bool {
+	if x != nil && x.Paused != nil {
+		return *x.Paused
+	}
+	return false
+}
+
+type TickReply struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Outcome:
+	//
+	//	*TickReply_Loaded
+	//	*TickReply_Unavailable
+	//	*TickReply_Failure
+	Outcome       isTickReply_Outcome `protobuf_oneof:"outcome"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TickReply) Reset() {
+	*x = TickReply{}
+	mi := &file_lifecycle_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TickReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TickReply) ProtoMessage() {}
+
+func (x *TickReply) ProtoReflect() protoreflect.Message {
+	mi := &file_lifecycle_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TickReply.ProtoReflect.Descriptor instead.
+func (*TickReply) Descriptor() ([]byte, []int) {
+	return file_lifecycle_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *TickReply) GetOutcome() isTickReply_Outcome {
+	if x != nil {
+		return x.Outcome
+	}
+	return nil
+}
+
+func (x *TickReply) GetLoaded() *LoadedTick {
+	if x != nil {
+		if x, ok := x.Outcome.(*TickReply_Loaded); ok {
+			return x.Loaded
+		}
+	}
+	return nil
+}
+
+func (x *TickReply) GetUnavailable() *commonpb.Unavailable {
+	if x != nil {
+		if x, ok := x.Outcome.(*TickReply_Unavailable); ok {
+			return x.Unavailable
+		}
+	}
+	return nil
+}
+
+func (x *TickReply) GetFailure() *commonpb.Failure {
+	if x != nil {
+		if x, ok := x.Outcome.(*TickReply_Failure); ok {
+			return x.Failure
+		}
+	}
+	return nil
+}
+
+type isTickReply_Outcome interface {
+	isTickReply_Outcome()
+}
+
+type TickReply_Loaded struct {
+	Loaded *LoadedTick `protobuf:"bytes,1,opt,name=loaded,proto3,oneof"`
+}
+
+type TickReply_Unavailable struct {
+	Unavailable *commonpb.Unavailable `protobuf:"bytes,2,opt,name=unavailable,proto3,oneof"`
+}
+
+type TickReply_Failure struct {
+	Failure *commonpb.Failure `protobuf:"bytes,3,opt,name=failure,proto3,oneof"`
+}
+
+func (*TickReply_Loaded) isTickReply_Outcome() {}
+
+func (*TickReply_Unavailable) isTickReply_Outcome() {}
+
+func (*TickReply_Failure) isTickReply_Outcome() {}
+
 // These requests belong to explicit session lifecycle, outside gameplay/model dispatch.
 type PlayerLifecycleContext struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
@@ -390,7 +579,7 @@ type PlayerLifecycleContext struct {
 
 func (x *PlayerLifecycleContext) Reset() {
 	*x = PlayerLifecycleContext{}
-	mi := &file_lifecycle_proto_msgTypes[4]
+	mi := &file_lifecycle_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -402,7 +591,7 @@ func (x *PlayerLifecycleContext) String() string {
 func (*PlayerLifecycleContext) ProtoMessage() {}
 
 func (x *PlayerLifecycleContext) ProtoReflect() protoreflect.Message {
-	mi := &file_lifecycle_proto_msgTypes[4]
+	mi := &file_lifecycle_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -415,7 +604,7 @@ func (x *PlayerLifecycleContext) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlayerLifecycleContext.ProtoReflect.Descriptor instead.
 func (*PlayerLifecycleContext) Descriptor() ([]byte, []int) {
-	return file_lifecycle_proto_rawDescGZIP(), []int{4}
+	return file_lifecycle_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *PlayerLifecycleContext) GetIdentity() *commonpb.Identity {
@@ -450,7 +639,7 @@ type SaveRequest struct {
 
 func (x *SaveRequest) Reset() {
 	*x = SaveRequest{}
-	mi := &file_lifecycle_proto_msgTypes[5]
+	mi := &file_lifecycle_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -462,7 +651,7 @@ func (x *SaveRequest) String() string {
 func (*SaveRequest) ProtoMessage() {}
 
 func (x *SaveRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_lifecycle_proto_msgTypes[5]
+	mi := &file_lifecycle_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -475,7 +664,7 @@ func (x *SaveRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SaveRequest.ProtoReflect.Descriptor instead.
 func (*SaveRequest) Descriptor() ([]byte, []int) {
-	return file_lifecycle_proto_rawDescGZIP(), []int{5}
+	return file_lifecycle_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *SaveRequest) GetPlayer() *PlayerLifecycleContext {
@@ -513,7 +702,7 @@ type SaveCompleted struct {
 
 func (x *SaveCompleted) Reset() {
 	*x = SaveCompleted{}
-	mi := &file_lifecycle_proto_msgTypes[6]
+	mi := &file_lifecycle_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -525,7 +714,7 @@ func (x *SaveCompleted) String() string {
 func (*SaveCompleted) ProtoMessage() {}
 
 func (x *SaveCompleted) ProtoReflect() protoreflect.Message {
-	mi := &file_lifecycle_proto_msgTypes[6]
+	mi := &file_lifecycle_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -538,7 +727,7 @@ func (x *SaveCompleted) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SaveCompleted.ProtoReflect.Descriptor instead.
 func (*SaveCompleted) Descriptor() ([]byte, []int) {
-	return file_lifecycle_proto_rawDescGZIP(), []int{6}
+	return file_lifecycle_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *SaveCompleted) GetRequestId() string {
@@ -595,7 +784,7 @@ type SaveUncertain struct {
 
 func (x *SaveUncertain) Reset() {
 	*x = SaveUncertain{}
-	mi := &file_lifecycle_proto_msgTypes[7]
+	mi := &file_lifecycle_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -607,7 +796,7 @@ func (x *SaveUncertain) String() string {
 func (*SaveUncertain) ProtoMessage() {}
 
 func (x *SaveUncertain) ProtoReflect() protoreflect.Message {
-	mi := &file_lifecycle_proto_msgTypes[7]
+	mi := &file_lifecycle_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -620,7 +809,7 @@ func (x *SaveUncertain) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SaveUncertain.ProtoReflect.Descriptor instead.
 func (*SaveUncertain) Descriptor() ([]byte, []int) {
-	return file_lifecycle_proto_rawDescGZIP(), []int{7}
+	return file_lifecycle_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *SaveUncertain) GetRequestId() string {
@@ -665,7 +854,7 @@ type SaveReply struct {
 
 func (x *SaveReply) Reset() {
 	*x = SaveReply{}
-	mi := &file_lifecycle_proto_msgTypes[8]
+	mi := &file_lifecycle_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -677,7 +866,7 @@ func (x *SaveReply) String() string {
 func (*SaveReply) ProtoMessage() {}
 
 func (x *SaveReply) ProtoReflect() protoreflect.Message {
-	mi := &file_lifecycle_proto_msgTypes[8]
+	mi := &file_lifecycle_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -690,7 +879,7 @@ func (x *SaveReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SaveReply.ProtoReflect.Descriptor instead.
 func (*SaveReply) Descriptor() ([]byte, []int) {
-	return file_lifecycle_proto_rawDescGZIP(), []int{8}
+	return file_lifecycle_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *SaveReply) GetOutcome() isSaveReply_Outcome {
@@ -766,7 +955,7 @@ type LoadRequest struct {
 
 func (x *LoadRequest) Reset() {
 	*x = LoadRequest{}
-	mi := &file_lifecycle_proto_msgTypes[9]
+	mi := &file_lifecycle_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -778,7 +967,7 @@ func (x *LoadRequest) String() string {
 func (*LoadRequest) ProtoMessage() {}
 
 func (x *LoadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_lifecycle_proto_msgTypes[9]
+	mi := &file_lifecycle_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -791,7 +980,7 @@ func (x *LoadRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LoadRequest.ProtoReflect.Descriptor instead.
 func (*LoadRequest) Descriptor() ([]byte, []int) {
-	return file_lifecycle_proto_rawDescGZIP(), []int{9}
+	return file_lifecycle_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *LoadRequest) GetRequestId() string {
@@ -855,7 +1044,7 @@ type LoadCompleted struct {
 
 func (x *LoadCompleted) Reset() {
 	*x = LoadCompleted{}
-	mi := &file_lifecycle_proto_msgTypes[10]
+	mi := &file_lifecycle_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -867,7 +1056,7 @@ func (x *LoadCompleted) String() string {
 func (*LoadCompleted) ProtoMessage() {}
 
 func (x *LoadCompleted) ProtoReflect() protoreflect.Message {
-	mi := &file_lifecycle_proto_msgTypes[10]
+	mi := &file_lifecycle_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -880,7 +1069,7 @@ func (x *LoadCompleted) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LoadCompleted.ProtoReflect.Descriptor instead.
 func (*LoadCompleted) Descriptor() ([]byte, []int) {
-	return file_lifecycle_proto_rawDescGZIP(), []int{10}
+	return file_lifecycle_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *LoadCompleted) GetRequestId() string {
@@ -925,7 +1114,7 @@ type LoadPending struct {
 
 func (x *LoadPending) Reset() {
 	*x = LoadPending{}
-	mi := &file_lifecycle_proto_msgTypes[11]
+	mi := &file_lifecycle_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -937,7 +1126,7 @@ func (x *LoadPending) String() string {
 func (*LoadPending) ProtoMessage() {}
 
 func (x *LoadPending) ProtoReflect() protoreflect.Message {
-	mi := &file_lifecycle_proto_msgTypes[11]
+	mi := &file_lifecycle_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -950,7 +1139,7 @@ func (x *LoadPending) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LoadPending.ProtoReflect.Descriptor instead.
 func (*LoadPending) Descriptor() ([]byte, []int) {
-	return file_lifecycle_proto_rawDescGZIP(), []int{11}
+	return file_lifecycle_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *LoadPending) GetRequestId() string {
@@ -1006,7 +1195,7 @@ type LoadSuperseded struct {
 
 func (x *LoadSuperseded) Reset() {
 	*x = LoadSuperseded{}
-	mi := &file_lifecycle_proto_msgTypes[12]
+	mi := &file_lifecycle_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1018,7 +1207,7 @@ func (x *LoadSuperseded) String() string {
 func (*LoadSuperseded) ProtoMessage() {}
 
 func (x *LoadSuperseded) ProtoReflect() protoreflect.Message {
-	mi := &file_lifecycle_proto_msgTypes[12]
+	mi := &file_lifecycle_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1031,7 +1220,7 @@ func (x *LoadSuperseded) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LoadSuperseded.ProtoReflect.Descriptor instead.
 func (*LoadSuperseded) Descriptor() ([]byte, []int) {
-	return file_lifecycle_proto_rawDescGZIP(), []int{12}
+	return file_lifecycle_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *LoadSuperseded) GetRequestId() string {
@@ -1070,7 +1259,7 @@ type LoadReply struct {
 
 func (x *LoadReply) Reset() {
 	*x = LoadReply{}
-	mi := &file_lifecycle_proto_msgTypes[13]
+	mi := &file_lifecycle_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1082,7 +1271,7 @@ func (x *LoadReply) String() string {
 func (*LoadReply) ProtoMessage() {}
 
 func (x *LoadReply) ProtoReflect() protoreflect.Message {
-	mi := &file_lifecycle_proto_msgTypes[13]
+	mi := &file_lifecycle_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1095,7 +1284,7 @@ func (x *LoadReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LoadReply.ProtoReflect.Descriptor instead.
 func (*LoadReply) Descriptor() ([]byte, []int) {
-	return file_lifecycle_proto_rawDescGZIP(), []int{13}
+	return file_lifecycle_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *LoadReply) GetOutcome() isLoadReply_Outcome {
@@ -1179,7 +1368,7 @@ type RequestStatus struct {
 
 func (x *RequestStatus) Reset() {
 	*x = RequestStatus{}
-	mi := &file_lifecycle_proto_msgTypes[14]
+	mi := &file_lifecycle_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1191,7 +1380,7 @@ func (x *RequestStatus) String() string {
 func (*RequestStatus) ProtoMessage() {}
 
 func (x *RequestStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_lifecycle_proto_msgTypes[14]
+	mi := &file_lifecycle_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1204,7 +1393,7 @@ func (x *RequestStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RequestStatus.ProtoReflect.Descriptor instead.
 func (*RequestStatus) Descriptor() ([]byte, []int) {
-	return file_lifecycle_proto_rawDescGZIP(), []int{14}
+	return file_lifecycle_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *RequestStatus) GetRequestId() string {
@@ -1243,6 +1432,17 @@ const file_lifecycle_proto_rawDesc = "" +
 	"\a_paused\"\xe2\x01\n" +
 	"\rIdentityReply\x12B\n" +
 	"\x06loaded\x18\x01 \x01(\v2(.rimgovernor.lifecycle.v1.LoadedIdentityH\x00R\x06loaded\x12F\n" +
+	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
+	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
+	"\aoutcome\"\r\n" +
+	"\vTickRequest\"y\n" +
+	"\n" +
+	"LoadedTick\x12C\n" +
+	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12\x1b\n" +
+	"\x06paused\x18\x02 \x01(\bH\x00R\x06paused\x88\x01\x01B\t\n" +
+	"\a_paused\"\xda\x01\n" +
+	"\tTickReply\x12>\n" +
+	"\x06loaded\x18\x01 \x01(\v2$.rimgovernor.lifecycle.v1.LoadedTickH\x00R\x06loaded\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
 	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
 	"\aoutcome\"\xcd\x01\n" +
@@ -1385,7 +1585,7 @@ func file_lifecycle_proto_rawDescGZIP() []byte {
 }
 
 var file_lifecycle_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_lifecycle_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_lifecycle_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_lifecycle_proto_goTypes = []any{
 	(CapabilitySupport)(0),              // 0: rimgovernor.lifecycle.v1.CapabilitySupport
 	(Readiness)(0),                      // 1: rimgovernor.lifecycle.v1.Readiness
@@ -1393,60 +1593,67 @@ var file_lifecycle_proto_goTypes = []any{
 	(*Capability)(nil),                  // 3: rimgovernor.lifecycle.v1.Capability
 	(*LoadedIdentity)(nil),              // 4: rimgovernor.lifecycle.v1.LoadedIdentity
 	(*IdentityReply)(nil),               // 5: rimgovernor.lifecycle.v1.IdentityReply
-	(*PlayerLifecycleContext)(nil),      // 6: rimgovernor.lifecycle.v1.PlayerLifecycleContext
-	(*SaveRequest)(nil),                 // 7: rimgovernor.lifecycle.v1.SaveRequest
-	(*SaveCompleted)(nil),               // 8: rimgovernor.lifecycle.v1.SaveCompleted
-	(*SaveUncertain)(nil),               // 9: rimgovernor.lifecycle.v1.SaveUncertain
-	(*SaveReply)(nil),                   // 10: rimgovernor.lifecycle.v1.SaveReply
-	(*LoadRequest)(nil),                 // 11: rimgovernor.lifecycle.v1.LoadRequest
-	(*LoadCompleted)(nil),               // 12: rimgovernor.lifecycle.v1.LoadCompleted
-	(*LoadPending)(nil),                 // 13: rimgovernor.lifecycle.v1.LoadPending
-	(*LoadSuperseded)(nil),              // 14: rimgovernor.lifecycle.v1.LoadSuperseded
-	(*LoadReply)(nil),                   // 15: rimgovernor.lifecycle.v1.LoadReply
-	(*RequestStatus)(nil),               // 16: rimgovernor.lifecycle.v1.RequestStatus
-	(*commonpb.ObservationContext)(nil), // 17: rimgovernor.common.v1.ObservationContext
-	(*commonpb.Unavailable)(nil),        // 18: rimgovernor.common.v1.Unavailable
-	(*commonpb.Failure)(nil),            // 19: rimgovernor.common.v1.Failure
-	(*commonpb.Identity)(nil),           // 20: rimgovernor.common.v1.Identity
+	(*TickRequest)(nil),                 // 6: rimgovernor.lifecycle.v1.TickRequest
+	(*LoadedTick)(nil),                  // 7: rimgovernor.lifecycle.v1.LoadedTick
+	(*TickReply)(nil),                   // 8: rimgovernor.lifecycle.v1.TickReply
+	(*PlayerLifecycleContext)(nil),      // 9: rimgovernor.lifecycle.v1.PlayerLifecycleContext
+	(*SaveRequest)(nil),                 // 10: rimgovernor.lifecycle.v1.SaveRequest
+	(*SaveCompleted)(nil),               // 11: rimgovernor.lifecycle.v1.SaveCompleted
+	(*SaveUncertain)(nil),               // 12: rimgovernor.lifecycle.v1.SaveUncertain
+	(*SaveReply)(nil),                   // 13: rimgovernor.lifecycle.v1.SaveReply
+	(*LoadRequest)(nil),                 // 14: rimgovernor.lifecycle.v1.LoadRequest
+	(*LoadCompleted)(nil),               // 15: rimgovernor.lifecycle.v1.LoadCompleted
+	(*LoadPending)(nil),                 // 16: rimgovernor.lifecycle.v1.LoadPending
+	(*LoadSuperseded)(nil),              // 17: rimgovernor.lifecycle.v1.LoadSuperseded
+	(*LoadReply)(nil),                   // 18: rimgovernor.lifecycle.v1.LoadReply
+	(*RequestStatus)(nil),               // 19: rimgovernor.lifecycle.v1.RequestStatus
+	(*commonpb.ObservationContext)(nil), // 20: rimgovernor.common.v1.ObservationContext
+	(*commonpb.Unavailable)(nil),        // 21: rimgovernor.common.v1.Unavailable
+	(*commonpb.Failure)(nil),            // 22: rimgovernor.common.v1.Failure
+	(*commonpb.Identity)(nil),           // 23: rimgovernor.common.v1.Identity
 }
 var file_lifecycle_proto_depIdxs = []int32{
 	0,  // 0: rimgovernor.lifecycle.v1.Capability.support:type_name -> rimgovernor.lifecycle.v1.CapabilitySupport
-	17, // 1: rimgovernor.lifecycle.v1.LoadedIdentity.context:type_name -> rimgovernor.common.v1.ObservationContext
+	20, // 1: rimgovernor.lifecycle.v1.LoadedIdentity.context:type_name -> rimgovernor.common.v1.ObservationContext
 	3,  // 2: rimgovernor.lifecycle.v1.LoadedIdentity.capabilities:type_name -> rimgovernor.lifecycle.v1.Capability
 	4,  // 3: rimgovernor.lifecycle.v1.IdentityReply.loaded:type_name -> rimgovernor.lifecycle.v1.LoadedIdentity
-	18, // 4: rimgovernor.lifecycle.v1.IdentityReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
-	19, // 5: rimgovernor.lifecycle.v1.IdentityReply.failure:type_name -> rimgovernor.common.v1.Failure
-	20, // 6: rimgovernor.lifecycle.v1.PlayerLifecycleContext.identity:type_name -> rimgovernor.common.v1.Identity
-	6,  // 7: rimgovernor.lifecycle.v1.SaveRequest.player:type_name -> rimgovernor.lifecycle.v1.PlayerLifecycleContext
-	17, // 8: rimgovernor.lifecycle.v1.SaveCompleted.context:type_name -> rimgovernor.common.v1.ObservationContext
-	17, // 9: rimgovernor.lifecycle.v1.SaveUncertain.observed_context:type_name -> rimgovernor.common.v1.ObservationContext
-	8,  // 10: rimgovernor.lifecycle.v1.SaveReply.completed:type_name -> rimgovernor.lifecycle.v1.SaveCompleted
-	9,  // 11: rimgovernor.lifecycle.v1.SaveReply.uncertain:type_name -> rimgovernor.lifecycle.v1.SaveUncertain
-	19, // 12: rimgovernor.lifecycle.v1.SaveReply.failure:type_name -> rimgovernor.common.v1.Failure
-	1,  // 13: rimgovernor.lifecycle.v1.LoadRequest.readiness:type_name -> rimgovernor.lifecycle.v1.Readiness
-	6,  // 14: rimgovernor.lifecycle.v1.LoadRequest.expected_player:type_name -> rimgovernor.lifecycle.v1.PlayerLifecycleContext
-	4,  // 15: rimgovernor.lifecycle.v1.LoadCompleted.loaded:type_name -> rimgovernor.lifecycle.v1.LoadedIdentity
-	1,  // 16: rimgovernor.lifecycle.v1.LoadCompleted.readiness:type_name -> rimgovernor.lifecycle.v1.Readiness
-	17, // 17: rimgovernor.lifecycle.v1.LoadSuperseded.observed_context:type_name -> rimgovernor.common.v1.ObservationContext
-	12, // 18: rimgovernor.lifecycle.v1.LoadReply.completed:type_name -> rimgovernor.lifecycle.v1.LoadCompleted
-	13, // 19: rimgovernor.lifecycle.v1.LoadReply.pending:type_name -> rimgovernor.lifecycle.v1.LoadPending
-	19, // 20: rimgovernor.lifecycle.v1.LoadReply.failure:type_name -> rimgovernor.common.v1.Failure
-	14, // 21: rimgovernor.lifecycle.v1.LoadReply.superseded:type_name -> rimgovernor.lifecycle.v1.LoadSuperseded
-	2,  // 22: rimgovernor.lifecycle.v1.Lifecycle.ReadIdentity:input_type -> rimgovernor.lifecycle.v1.IdentityRequest
-	7,  // 23: rimgovernor.lifecycle.v1.Lifecycle.Save:input_type -> rimgovernor.lifecycle.v1.SaveRequest
-	11, // 24: rimgovernor.lifecycle.v1.Lifecycle.Load:input_type -> rimgovernor.lifecycle.v1.LoadRequest
-	16, // 25: rimgovernor.lifecycle.v1.Lifecycle.ReadLoad:input_type -> rimgovernor.lifecycle.v1.RequestStatus
-	16, // 26: rimgovernor.lifecycle.v1.Lifecycle.ReadSave:input_type -> rimgovernor.lifecycle.v1.RequestStatus
-	5,  // 27: rimgovernor.lifecycle.v1.Lifecycle.ReadIdentity:output_type -> rimgovernor.lifecycle.v1.IdentityReply
-	10, // 28: rimgovernor.lifecycle.v1.Lifecycle.Save:output_type -> rimgovernor.lifecycle.v1.SaveReply
-	15, // 29: rimgovernor.lifecycle.v1.Lifecycle.Load:output_type -> rimgovernor.lifecycle.v1.LoadReply
-	15, // 30: rimgovernor.lifecycle.v1.Lifecycle.ReadLoad:output_type -> rimgovernor.lifecycle.v1.LoadReply
-	10, // 31: rimgovernor.lifecycle.v1.Lifecycle.ReadSave:output_type -> rimgovernor.lifecycle.v1.SaveReply
-	27, // [27:32] is the sub-list for method output_type
-	22, // [22:27] is the sub-list for method input_type
-	22, // [22:22] is the sub-list for extension type_name
-	22, // [22:22] is the sub-list for extension extendee
-	0,  // [0:22] is the sub-list for field type_name
+	21, // 4: rimgovernor.lifecycle.v1.IdentityReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	22, // 5: rimgovernor.lifecycle.v1.IdentityReply.failure:type_name -> rimgovernor.common.v1.Failure
+	20, // 6: rimgovernor.lifecycle.v1.LoadedTick.context:type_name -> rimgovernor.common.v1.ObservationContext
+	7,  // 7: rimgovernor.lifecycle.v1.TickReply.loaded:type_name -> rimgovernor.lifecycle.v1.LoadedTick
+	21, // 8: rimgovernor.lifecycle.v1.TickReply.unavailable:type_name -> rimgovernor.common.v1.Unavailable
+	22, // 9: rimgovernor.lifecycle.v1.TickReply.failure:type_name -> rimgovernor.common.v1.Failure
+	23, // 10: rimgovernor.lifecycle.v1.PlayerLifecycleContext.identity:type_name -> rimgovernor.common.v1.Identity
+	9,  // 11: rimgovernor.lifecycle.v1.SaveRequest.player:type_name -> rimgovernor.lifecycle.v1.PlayerLifecycleContext
+	20, // 12: rimgovernor.lifecycle.v1.SaveCompleted.context:type_name -> rimgovernor.common.v1.ObservationContext
+	20, // 13: rimgovernor.lifecycle.v1.SaveUncertain.observed_context:type_name -> rimgovernor.common.v1.ObservationContext
+	11, // 14: rimgovernor.lifecycle.v1.SaveReply.completed:type_name -> rimgovernor.lifecycle.v1.SaveCompleted
+	12, // 15: rimgovernor.lifecycle.v1.SaveReply.uncertain:type_name -> rimgovernor.lifecycle.v1.SaveUncertain
+	22, // 16: rimgovernor.lifecycle.v1.SaveReply.failure:type_name -> rimgovernor.common.v1.Failure
+	1,  // 17: rimgovernor.lifecycle.v1.LoadRequest.readiness:type_name -> rimgovernor.lifecycle.v1.Readiness
+	9,  // 18: rimgovernor.lifecycle.v1.LoadRequest.expected_player:type_name -> rimgovernor.lifecycle.v1.PlayerLifecycleContext
+	4,  // 19: rimgovernor.lifecycle.v1.LoadCompleted.loaded:type_name -> rimgovernor.lifecycle.v1.LoadedIdentity
+	1,  // 20: rimgovernor.lifecycle.v1.LoadCompleted.readiness:type_name -> rimgovernor.lifecycle.v1.Readiness
+	20, // 21: rimgovernor.lifecycle.v1.LoadSuperseded.observed_context:type_name -> rimgovernor.common.v1.ObservationContext
+	15, // 22: rimgovernor.lifecycle.v1.LoadReply.completed:type_name -> rimgovernor.lifecycle.v1.LoadCompleted
+	16, // 23: rimgovernor.lifecycle.v1.LoadReply.pending:type_name -> rimgovernor.lifecycle.v1.LoadPending
+	22, // 24: rimgovernor.lifecycle.v1.LoadReply.failure:type_name -> rimgovernor.common.v1.Failure
+	17, // 25: rimgovernor.lifecycle.v1.LoadReply.superseded:type_name -> rimgovernor.lifecycle.v1.LoadSuperseded
+	2,  // 26: rimgovernor.lifecycle.v1.Lifecycle.ReadIdentity:input_type -> rimgovernor.lifecycle.v1.IdentityRequest
+	10, // 27: rimgovernor.lifecycle.v1.Lifecycle.Save:input_type -> rimgovernor.lifecycle.v1.SaveRequest
+	14, // 28: rimgovernor.lifecycle.v1.Lifecycle.Load:input_type -> rimgovernor.lifecycle.v1.LoadRequest
+	19, // 29: rimgovernor.lifecycle.v1.Lifecycle.ReadLoad:input_type -> rimgovernor.lifecycle.v1.RequestStatus
+	19, // 30: rimgovernor.lifecycle.v1.Lifecycle.ReadSave:input_type -> rimgovernor.lifecycle.v1.RequestStatus
+	5,  // 31: rimgovernor.lifecycle.v1.Lifecycle.ReadIdentity:output_type -> rimgovernor.lifecycle.v1.IdentityReply
+	13, // 32: rimgovernor.lifecycle.v1.Lifecycle.Save:output_type -> rimgovernor.lifecycle.v1.SaveReply
+	18, // 33: rimgovernor.lifecycle.v1.Lifecycle.Load:output_type -> rimgovernor.lifecycle.v1.LoadReply
+	18, // 34: rimgovernor.lifecycle.v1.Lifecycle.ReadLoad:output_type -> rimgovernor.lifecycle.v1.LoadReply
+	13, // 35: rimgovernor.lifecycle.v1.Lifecycle.ReadSave:output_type -> rimgovernor.lifecycle.v1.SaveReply
+	31, // [31:36] is the sub-list for method output_type
+	26, // [26:31] is the sub-list for method input_type
+	26, // [26:26] is the sub-list for extension type_name
+	26, // [26:26] is the sub-list for extension extendee
+	0,  // [0:26] is the sub-list for field type_name
 }
 
 func init() { file_lifecycle_proto_init() }
@@ -1461,33 +1668,39 @@ func file_lifecycle_proto_init() {
 		(*IdentityReply_Unavailable)(nil),
 		(*IdentityReply_Failure)(nil),
 	}
-	file_lifecycle_proto_msgTypes[4].OneofWrappers = []any{}
 	file_lifecycle_proto_msgTypes[5].OneofWrappers = []any{}
-	file_lifecycle_proto_msgTypes[6].OneofWrappers = []any{}
+	file_lifecycle_proto_msgTypes[6].OneofWrappers = []any{
+		(*TickReply_Loaded)(nil),
+		(*TickReply_Unavailable)(nil),
+		(*TickReply_Failure)(nil),
+	}
 	file_lifecycle_proto_msgTypes[7].OneofWrappers = []any{}
-	file_lifecycle_proto_msgTypes[8].OneofWrappers = []any{
+	file_lifecycle_proto_msgTypes[8].OneofWrappers = []any{}
+	file_lifecycle_proto_msgTypes[9].OneofWrappers = []any{}
+	file_lifecycle_proto_msgTypes[10].OneofWrappers = []any{}
+	file_lifecycle_proto_msgTypes[11].OneofWrappers = []any{
 		(*SaveReply_Completed)(nil),
 		(*SaveReply_Uncertain)(nil),
 		(*SaveReply_Failure)(nil),
 	}
-	file_lifecycle_proto_msgTypes[9].OneofWrappers = []any{}
-	file_lifecycle_proto_msgTypes[10].OneofWrappers = []any{}
-	file_lifecycle_proto_msgTypes[11].OneofWrappers = []any{}
 	file_lifecycle_proto_msgTypes[12].OneofWrappers = []any{}
-	file_lifecycle_proto_msgTypes[13].OneofWrappers = []any{
+	file_lifecycle_proto_msgTypes[13].OneofWrappers = []any{}
+	file_lifecycle_proto_msgTypes[14].OneofWrappers = []any{}
+	file_lifecycle_proto_msgTypes[15].OneofWrappers = []any{}
+	file_lifecycle_proto_msgTypes[16].OneofWrappers = []any{
 		(*LoadReply_Completed)(nil),
 		(*LoadReply_Pending)(nil),
 		(*LoadReply_Failure)(nil),
 		(*LoadReply_Superseded)(nil),
 	}
-	file_lifecycle_proto_msgTypes[14].OneofWrappers = []any{}
+	file_lifecycle_proto_msgTypes[17].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_lifecycle_proto_rawDesc), len(file_lifecycle_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   15,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
