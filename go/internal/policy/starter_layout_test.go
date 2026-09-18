@@ -263,3 +263,45 @@ func TestShellShapesAtDoorReproduceStarterShells(t *testing.T) {
 		t.Fatalf("map-edge door produced %d shapes", len(shapes))
 	}
 }
+
+func TestStarterHutGrowsAlongCorridorTerrainRows(t *testing.T) {
+	// The corridor terrain fixture (scripts/fixtures/CorridorTerrainFixture.cs):
+	// granite rows every sixth cell, each pierced by a walkway every twelfth
+	// cell, adjacent rows offset by six. Five-cell strips fit no hut template
+	// and no 9x9 rectangle, so the only shell is a grown one confined to a
+	// strip; the walkways must not let a seven-row template through.
+	r := starterFixture()
+	r.Shelter = ShelterHut
+	rock := func(c domain.Cell) bool {
+		if (c.Z-20)%6 != 0 {
+			return false
+		}
+		phase := int32(0)
+		if ((c.Z-20)/6)%2 != 0 {
+			phase = 6
+		}
+		return ((c.X-20)%12+12)%12 != phase
+	}
+	for i := range r.Cells {
+		if rock(r.Cells[i].Cell) {
+			r.Cells[i].Walkable = domain.Known(false)
+			r.Cells[i].Occupied = domain.Known(true)
+		}
+	}
+	layouts, err := StarterLayouts(r)
+	if err != nil || len(layouts) != 1 {
+		t.Fatal(layouts, err)
+	}
+	grown := layouts[0]
+	if len(grown.Shell.Interior()) != starterInterior || !grown.Shell.RoofSupported() {
+		t.Fatalf("grown shell %v interior %d", grown.Room, len(grown.Shell.Interior()))
+	}
+	if b := grown.Shell.Bounds(); b.Height != 5 {
+		t.Fatalf("grown shell %v is not confined to a five-cell strip", b)
+	}
+	for _, c := range grown.Shell.Cells() {
+		if rock(c) {
+			t.Fatalf("grown shell cell %v on a rock row", c)
+		}
+	}
+}

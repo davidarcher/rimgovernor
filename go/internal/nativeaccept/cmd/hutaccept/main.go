@@ -55,7 +55,8 @@ func main() {
 	stall := flag.Duration("stall", na.StallBudget(), "fail a wait once its progress signature (shell lineage stages, shelter goal binding, bed plan stage) has not changed for this long; "+na.StallEnv+" sets the default")
 	timeout := flag.Duration("timeout", 100*time.Minute, "overall run timeout")
 	nativeTimeout := flag.Duration("native-timeout", 60*time.Second, "serve subprocess's own --timeout (the shelter planner previews the whole shell per cell natively; shorter budgets time out under load; serve caps this at 1m)")
-	clockSpeed := flag.String("clock-speed", "Fast", "serve's --clock-speed (Normal, Fast or Superfast; Superfast starves the bridge calls inside the worker's 8s step budget)")
+	clockSpeed := flag.String("clock-speed", na.ClockSpeed(), "serve's --clock-speed (Normal, Fast, Superfast or Ultrafast; Ultrafast headless also takes native test acceleration); "+na.ClockSpeedEnv+" sets the default")
+	terrain := flag.String("terrain", "open", "open: the save's own ground, where a hut template fits; corridor: test/corridor_terrain_fixture first raises granite rows every sixth cell around the colonists so no template or 9x9 rectangle fits and the routine must grow an irregular shell (needs the mod built with -Fixture CorridorTerrainFixture)")
 	designateWood := flag.Int("designate-wood", 400, "before the service starts, designate the nearest wild trees for cutting until their estimated WoodLog yield reaches this amount (0 = leave wood supply entirely to the acquisition family)")
 	debug := flag.Bool("debug", false, "trace the service's scheduler steps (RIMGOVERNOR_CLOCK_DEBUG=1) into the service stderr log")
 	flag.Parse()
@@ -88,12 +89,46 @@ func main() {
 		Binary: *binary, Save: *save, NativeTimeout: *nativeTimeout, ClockSpeed: *clockSpeed,
 		Families: *families, Prefix: "hut", Debug: *debug,
 	}
-	if *designateWood > 0 {
-		cfg.BeforeService = func(ctx context.Context, h *na.Harness, identity, facts map[string]any) error {
+	if *terrain != "open" && *terrain != "corridor" {
+		fmt.Fprintln(os.Stderr, "-terrain must be open or corridor")
+		os.Exit(2)
+	}
+	cfg.BeforeService = func(ctx context.Context, h *na.Harness, identity, facts map[string]any) error {
+		// Eating, joy and mood are not this assertion; a colonist who breaks
+		// or goes down over them stops the clock for a run that has no
+		// medical family (run 11 under corridor terrain). Rest stays live:
+		// the furnished bed is meant to be slept in. The op ships with every
+		// fixture build; a production build (no fixtures) has none, and the
+		// open-terrain run is short enough to go without.
+		if names, err := h.Discovery(ctx); err != nil {
+			return err
+		} else if na.Contains(names, na.FreezeNeedsTool) {
+			frozen, err := na.FreezeNeeds(ctx, h, names, "Rest")
+			if err != nil {
+				return err
+			}
+			report["frozen_needs"] = frozen
+		} else if *terrain == "corridor" {
+			return errors.New("missing " + na.FreezeNeedsTool + " in discovery; rebuild the native mod with -Fixture CorridorTerrainFixture")
+		}
+		if *terrain == "corridor" {
+			if err := raiseCorridors(ctx, h, report); err != nil {
+				return err
+			}
+			// The rows felled trees and moved the colony's centre of
+			// attention; designate from the terrain the routine will see.
+			fresh, err := h.Call(ctx, "colony-facts-corridor", "home/colony_facts", map[string]any{})
+			if err != nil {
+				return err
+			}
+			facts = fresh
+		}
+		if *designateWood > 0 {
 			return designateTrees(ctx, h, identity, facts, *designateWood, report)
 		}
+		return nil
 	}
-	if err := run(ctx, cfg, waits{build: *buildWait, furnish: *furnishWait, stall: *stall}, report); err != nil {
+	if err := run(ctx, cfg, waits{build: *buildWait, furnish: *furnishWait, stall: *stall, terrain: *terrain}, report); err != nil {
 		report["error"] = err.Error()
 	} else {
 		report["passed"] = true
@@ -109,6 +144,7 @@ type shell struct {
 	cells     map[domain.Cell]int // shell cell -> action index
 	shape     string
 	seen      map[domain.PlanID]bool // every shell plan the store has listed
+	solid     map[domain.Cell]bool   // impassable ground beside the ring (corridor rock)
 }
 
 // bearing reports a wall the enclosure depends on: one orthogonally between
@@ -116,6 +152,8 @@ type shell struct {
 // places and the game keeps the room enclosed without the redundant cell,
 // in which case the routine rightly leaves a player's cancel of it alone
 // and the repair path is never exercised (runs 3 and 4 of this harness).
+// Impassable ground (corridor rock) encloses like a wall: a ring cell whose
+// only outside neighbour is rock is redundant too (run 16).
 func (sh *shell) bearing(c domain.Cell) bool {
 	interior := map[domain.Cell]bool{}
 	for _, i := range sh.footprint.Interior() {
@@ -125,14 +163,17 @@ func (sh *shell) bearing(c domain.Cell) bool {
 	for _, n := range []domain.Cell{{X: c.X + 1, Z: c.Z}, {X: c.X - 1, Z: c.Z}, {X: c.X, Z: c.Z + 1}, {X: c.X, Z: c.Z - 1}} {
 		_, onRing := sh.cells[n]
 		in = in || interior[n]
-		out = out || !interior[n] && !onRing
+		out = out || !interior[n] && !onRing && !sh.solid[n]
 	}
 	return in && out
 }
 
 // waits are the run's wall-clock ceilings and its stall budget; each wait
 // is also ended by the service exiting on its own.
-type waits struct{ build, furnish, stall time.Duration }
+type waits struct {
+	build, furnish, stall time.Duration
+	terrain               string
+}
 
 func (w waits) wait(ceiling time.Duration, service *liveservice.Service) na.Wait {
 	return na.Wait{Ceiling: ceiling, Stall: w.stall, Terminal: service.Exited}
@@ -172,6 +213,17 @@ func run(ctx context.Context, cfg liveservice.Config, w waits, report na.Report)
 		"door": sh.footprint.Door(), "entrance": string(sh.footprint.Entrance()),
 		"interior_cells": len(sh.footprint.Interior()), "wall_cells": len(sh.footprint.Walls()),
 		"roof_supported": sh.footprint.RoofSupported(), "bounds": sh.footprint.Bounds(),
+	}
+	if w.terrain == "corridor" && sh.shape != "irregular" {
+		service.Stop()
+		return fmt.Errorf("corridor terrain: the routine sited %s, want an irregular grown shell", sh.shape)
+	}
+	if w.terrain == "corridor" && sh.footprint.Bounds().Height > 5 && sh.footprint.Bounds().Width > 5 {
+		service.Stop()
+		return fmt.Errorf("corridor terrain: the shell's bounds %v are not confined to a corridor", sh.footprint.Bounds())
+	}
+	if w.terrain == "corridor" {
+		sh.solid = corridorRock(report)
 	}
 	if err := waitLineage(ctx, st, sh, w.wait(w.build, service), func(l lineage) bool {
 		// Stop only while a load-bearing wall is ordered but not completed,
@@ -233,6 +285,7 @@ func run(ctx context.Context, cfg liveservice.Config, w waits, report na.Report)
 		return false
 	}); err != nil {
 		service.Stop()
+		postmortem(ctx, prepared, unsettledCells(ctx, st, sh), report)
 		return fmt.Errorf("run 2 did not reissue the cancelled wall: %w", err)
 	}
 	reissued := map[domain.Cell]bool{}
@@ -257,6 +310,7 @@ func run(ctx context.Context, cfg liveservice.Config, w waits, report na.Report)
 		return true
 	}); err != nil {
 		service.Stop()
+		postmortem(ctx, prepared, unsettledCells(ctx, st, sh), report)
 		return fmt.Errorf("run 2 did not complete the shell: %w", err)
 	}
 	report["run2_shell_plans"] = final.planIDs()
@@ -442,6 +496,106 @@ func cellList(set map[domain.Cell]bool) []domain.Cell {
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Z < out[j].Z || out[i].Z == out[j].Z && out[i].X < out[j].X })
 	return out
+}
+
+// postmortem records every colonist's health and needs after a run-2 wait
+// fails, through a fresh bridge session, so a clock stopped on a downed
+// colonist (run 11 under corridor terrain) names its cause in the report;
+// under corridor terrain it also inspects the given shell cells (what stands
+// or lies on each, who reserves it) through the fixture.
+func postmortem(ctx context.Context, prepared *liveservice.Prepared, cells []domain.Cell, report na.Report) {
+	_, h, err := prepared.Open(ctx)
+	if err != nil {
+		report["postmortem_error"] = err.Error()
+		return
+	}
+	pawns, err := h.Call(ctx, "postmortem-pawns", "home/list_pawns", map[string]any{"health": true, "needs": true, "withinOfColonists": 40})
+	if err != nil {
+		report["postmortem_error"] = err.Error()
+		return
+	}
+	report["postmortem_pawns"] = pawns["pawns"]
+	if cells == nil {
+		return
+	}
+	names, err := h.Discovery(ctx)
+	if err != nil || !na.Contains(names, "test/corridor_terrain_fixture") {
+		return
+	}
+	inspected := map[string]any{}
+	for _, c := range cells {
+		row, err := h.Call(ctx, "postmortem-cell", "test/corridor_terrain_fixture", map[string]any{"action": "inspect", "x": int(c.X), "z": int(c.Z)})
+		if err != nil {
+			inspected[fmt.Sprintf("%d,%d", c.X, c.Z)] = err.Error()
+			continue
+		}
+		inspected[fmt.Sprintf("%d,%d", c.X, c.Z)] = row
+	}
+	report["postmortem_cells"] = inspected
+}
+
+// unsettledCells are the ring cells no shell plan has completed.
+func unsettledCells(ctx context.Context, st *store.Store, sh *shell) []domain.Cell {
+	l, err := shellLineage(ctx, st, sh)
+	if err != nil {
+		return nil
+	}
+	var cells []domain.Cell
+	for _, w := range sh.footprint.Walls() {
+		if !l.completed[w] {
+			cells = append(cells, w)
+		}
+	}
+	return cells
+}
+
+// corridorRock recovers the rock rows the fixture raised from its setup
+// result: every cell of a row within reach of the centre except the row's
+// walkway cells. Cells the fixture skipped (already impassable, occupied)
+// are counted as rock too, which only makes bearing more conservative.
+func corridorRock(report na.Report) map[domain.Cell]bool {
+	setup, _ := na.AsMap(report["corridor_terrain"])
+	center, _ := na.AsMap(setup["center"])
+	cx, reach := int32(na.AsNumber(center["x"])), int32(na.AsNumber(setup["reach"]))
+	walkway := int32(na.AsNumber(setup["walkwayPeriod"]))
+	rock := map[domain.Cell]bool{}
+	for _, raw := range na.AsSlice(setup["rows"]) {
+		row, _ := na.AsMap(raw)
+		z, phase := int32(na.AsNumber(row["z"])), int32(na.AsNumber(row["walkwayPhase"]))
+		for x := cx - reach; x <= cx+reach; x++ {
+			if walkway > 0 && ((x-cx)%walkway+walkway)%walkway == phase {
+				continue
+			}
+			rock[domain.Cell{X: x, Z: z}] = true
+		}
+	}
+	return rock
+}
+
+// raiseCorridors has the disposable fixture constrain the terrain before the
+// service sees the save: granite rows every sixth cell around the colonists
+// (one walkway each) leave five-cell corridors in which no hut template or
+// 9x9 rectangle fits, so the shelter routine's only shell is a grown one.
+func raiseCorridors(ctx context.Context, h *na.Harness, report na.Report) error {
+	names, err := h.Discovery(ctx)
+	if err != nil {
+		return err
+	}
+	if !na.Contains(names, "test/corridor_terrain_fixture") {
+		return errors.New("missing test/corridor_terrain_fixture in discovery; rebuild the native mod with -Fixture CorridorTerrainFixture")
+	}
+	prepared, err := h.Call(ctx, "corridor-setup", "test/corridor_terrain_fixture", map[string]any{"action": "setup"})
+	if err != nil {
+		return err
+	}
+	if success, _ := na.AsBool(prepared["success"]); !success {
+		return fmt.Errorf("corridor_terrain_fixture setup refused: %#v", prepared)
+	}
+	if na.AsNumber(prepared["raised"]) < 100 {
+		return fmt.Errorf("corridor_terrain_fixture raised only %v rock cells", prepared["raised"])
+	}
+	report["corridor_terrain"] = prepared
+	return nil
 }
 
 func designateTrees(ctx context.Context, h *na.Harness, identity, facts map[string]any, target int, report na.Report) error {
