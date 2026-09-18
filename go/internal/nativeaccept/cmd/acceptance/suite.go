@@ -30,10 +30,12 @@ package main
 // wall times (untimed cases first, as if long), so a slow case does not
 // land last and idle the other workers.
 //
-// -baseline also drives regression flagging: a case whose wall time is
-// more than RegressionRatio times its baseline is listed under
-// "regressions" (the list never fails the suite on its own) and the report
-// carries the sum of case wall times beside the baseline's.
+// -baseline also drives regression flagging: a case whose run time (wall
+// time net of the game boot, so queue placement does not count) is more
+// than RegressionRatio times its baseline's and RegressionFloorMs over it
+// is listed under "regressions" (the list never fails the suite on its
+// own) and the report carries the sum of case wall times beside the
+// baseline's.
 
 import (
 	"context"
@@ -55,9 +57,14 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 )
 
-// RegressionRatio is the wall-time growth over the baseline that flags a
-// case as a regression.
-const RegressionRatio = 1.25
+// RegressionRatio is the run-time growth over the baseline that flags a
+// case as a regression, and RegressionFloorMs the absolute growth it must
+// also exceed: on a ~10s case the peer load of the other workers moves
+// the time by more than 25% run to run (#176).
+const (
+	RegressionRatio   = 1.25
+	RegressionFloorMs = 5000
+)
 
 // entry is one row of a suite: a registry case or an old per-harness binary.
 type entry struct {
@@ -225,6 +232,7 @@ func resolveEntries(list []entry, opts suiteOptions, registryOnly bool) error {
 type baseline struct {
 	path string
 	wall map[string]float64
+	boot map[string]float64
 }
 
 func loadBaseline(path string) (*baseline, error) {
@@ -235,6 +243,7 @@ func loadBaseline(path string) (*baseline, error) {
 	type row struct {
 		Name   string  `json:"name"`
 		WallMs float64 `json:"wall_ms"`
+		BootMs float64 `json:"boot_ms"`
 	}
 	var prior struct {
 		Cases     []row `json:"cases"`
@@ -243,9 +252,10 @@ func loadBaseline(path string) (*baseline, error) {
 	if err := json.Unmarshal(data, &prior); err != nil {
 		return nil, fmt.Errorf("-baseline: %s is not a suite result.json: %w", path, err)
 	}
-	b := &baseline{path: path, wall: map[string]float64{}}
+	b := &baseline{path: path, wall: map[string]float64{}, boot: map[string]float64{}}
 	for _, r := range append(prior.Harnesses, prior.Cases...) {
 		b.wall[r.Name] = r.WallMs
+		b.boot[r.Name] = r.BootMs
 	}
 	return b, nil
 }
@@ -288,17 +298,19 @@ func schedule(list []entry, b *baseline) {
 	})
 }
 
-// regression is one case that ran slower than RegressionRatio times its
-// baseline.
+// regression is one case whose run time (wall time net of boot) grew over
+// its baseline's by more than RegressionRatio and RegressionFloorMs.
 type regression struct {
-	Name       string  `json:"name"`
-	WallMs     int64   `json:"wall_ms"`
-	BaselineMs int64   `json:"baseline_ms"`
-	Ratio      float64 `json:"ratio"`
+	Name          string  `json:"name"`
+	WallMs        int64   `json:"wall_ms"`
+	BaselineMs    int64   `json:"baseline_ms"`
+	RunMs         int64   `json:"run_ms"`
+	BaselineRunMs int64   `json:"baseline_run_ms"`
+	Ratio         float64 `json:"ratio"`
 }
 
 // regressions lists the rows over their baseline, in queue order, and the
-// baseline's total over the rows it timed.
+// baseline's total wall time over the rows it timed.
 func regressions(rows []map[string]any, b *baseline) (list []regression, baselineTotal int64) {
 	list = []regression{}
 	for _, row := range rows {
@@ -308,9 +320,12 @@ func regressions(rows []map[string]any, b *baseline) (list []regression, baselin
 			continue
 		}
 		baselineTotal += int64(base)
+		baseRun := base - b.boot[name]
 		wall, _ := row["wall_ms"].(int64)
-		if float64(wall) > base*RegressionRatio {
-			list = append(list, regression{Name: name, WallMs: wall, BaselineMs: int64(base), Ratio: float64(wall) / base})
+		boot, _ := row["boot_ms"].(int64)
+		run := float64(wall - boot)
+		if baseRun > 0 && run > baseRun*RegressionRatio && run-baseRun > RegressionFloorMs {
+			list = append(list, regression{Name: name, WallMs: wall, BaselineMs: int64(base), RunMs: int64(run), BaselineRunMs: int64(baseRun), Ratio: run / baseRun})
 		}
 	}
 	return list, baselineTotal
@@ -420,7 +435,7 @@ func runSuite(ctx context.Context, list []entry, opts suiteOptions, stderr io.Wr
 			for _, r := range list {
 				names = append(names, fmt.Sprintf("%s %.2fx", r.Name, r.Ratio))
 			}
-			fmt.Fprintf(stderr, "regressions (>%.0f%% over baseline): %s\n", (RegressionRatio-1)*100, strings.Join(names, ", "))
+			fmt.Fprintf(stderr, "regressions (>%.0f%% and >%ds over baseline, net of boot): %s\n", (RegressionRatio-1)*100, RegressionFloorMs/1000, strings.Join(names, ", "))
 		}
 	}
 	if len(failed) > 0 {

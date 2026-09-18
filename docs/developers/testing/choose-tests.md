@@ -394,9 +394,10 @@ hosted a service (#119); within each half it runs longest-first by the
 `-baseline` suite's wall times (untimed cases first). The suite's
 `result.json` lists each case's kind, worker, exit, `wall_ms`, `boot_ms`,
 `game_reuse`, `acceptance` label and error, the sum of case wall times
-beside the baseline's, and `regressions`: every case more than 25% slower
-than its baseline row (flagged, never failing on its own). The suite
-passes only when every case did.
+beside the baseline's, and `regressions`: every case whose run time
+(`wall_ms` net of `boot_ms`, so which worker paid the game boot does not
+count) is both 25% and 5s over its baseline row's (flagged, never failing
+on its own; #176). The suite passes only when every case did.
 `cmd/acceptance/suites/issue-6-matrix.json` is issue #6's cross-slice
 acceptance matrix: one row per criterion in the issue text (dark and
 partially lit benches, protected fungus rooms, filthy vs inherently dirty

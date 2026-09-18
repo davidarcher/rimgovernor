@@ -64,26 +64,48 @@ func TestScheduleServeLastLongestFirst(t *testing.T) {
 	}
 }
 
-func TestRegressionsFlagOverRatio(t *testing.T) {
-	b, err := loadBaseline(writeBaseline(t, `{"cases":[{"name":"a","wall_ms":1000},{"name":"b","wall_ms":1000},{"name":"c","wall_ms":1000}]}`))
+func TestRegressionsFlagOverRatioAndFloorNetOfBoot(t *testing.T) {
+	b, err := loadBaseline(writeBaseline(t, `{"cases":[
+		{"name":"a","wall_ms":10000},
+		{"name":"b","wall_ms":10000},
+		{"name":"c","wall_ms":10000},
+		{"name":"d","wall_ms":100000},
+		{"name":"e","wall_ms":10100,"boot_ms":100},
+		{"name":"f","wall_ms":1000}]}`))
 	if err != nil {
 		t.Fatal(err)
 	}
 	rows := []map[string]any{
-		{"name": "a", "wall_ms": int64(1250)},
-		{"name": "b", "wall_ms": int64(1251)},
-		{"name": "c", "wall_ms": int64(400)},
+		// Over the ratio and the floor.
+		{"name": "a", "wall_ms": int64(15001)},
+		// Over the ratio but not the floor (#176: letteraccept 1.28x).
+		{"name": "b", "wall_ms": int64(12800)},
+		// Faster.
+		{"name": "c", "wall_ms": int64(4000)},
+		// Over the floor but not the ratio.
+		{"name": "d", "wall_ms": int64(110000)},
+		// Over both on wall time only because this run booted the game
+		// (#176: smoke/identity 1.53x with boot_ms 5083 against a 200ms attach).
+		{"name": "e", "wall_ms": int64(15400), "boot_ms": int64(5083)},
+		// A tiny baseline never trips the floor.
+		{"name": "f", "wall_ms": int64(4000)},
 		{"name": "new", "wall_ms": int64(99999)},
 	}
 	list, total := regressions(rows, b)
-	if total != 3000 {
+	if total != 141100 {
 		t.Errorf("baseline total = %d", total)
 	}
-	if len(list) != 1 || list[0].Name != "b" || list[0].BaselineMs != 1000 || list[0].WallMs != 1251 {
+	if len(list) != 1 || list[0].Name != "a" || list[0].BaselineMs != 10000 || list[0].WallMs != 15001 || list[0].RunMs != 15001 || list[0].BaselineRunMs != 10000 {
 		t.Errorf("regressions = %+v", list)
 	}
-	if data, _ := json.Marshal(list); !strings.Contains(string(data), `"ratio":1.251`) {
+	if data, _ := json.Marshal(list); !strings.Contains(string(data), `"ratio":1.5001`) {
 		t.Errorf("ratio json = %s", data)
+	}
+	// A run that attached is compared to a baseline that booted.
+	rows = []map[string]any{{"name": "e", "wall_ms": int64(15200), "boot_ms": int64(100)}}
+	b.boot["e"] = 5100
+	if list, _ = regressions(rows, b); len(list) != 1 || list[0].RunMs != 15100 || list[0].BaselineRunMs != 5000 {
+		t.Errorf("regressions = %+v", list)
 	}
 }
 
