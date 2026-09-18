@@ -107,118 +107,53 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 		return fmt.Errorf("case %s declares Serve: the serve lifecycle is not wired into the runner yet (#138)", c.Name)
 	}
 	cfg := &na.Config{Root: opts.Root, Output: output, Headless: opts.Headless, GameID: opts.GameID}
-	if save, ok := c.Start.(Save); ok {
-		if err := cfg.UseSaveExpansions(save.Name); err != nil {
-			return err
-		}
+	keep := make([]na.NeedDef, len(c.Keep))
+	for i, need := range c.Keep {
+		keep[i] = na.NeedDef(need)
 	}
-	if err := cfg.PrepareConfig(); err != nil {
-		return fmt.Errorf("prepare profile: %w", err)
-	}
-	report["start"] = resolvedStart(c.Start).Describe()
-	report["quiet"] = c.Quiet.String()
-	game, err := na.OpenGame(ctx, cfg)
+	// na.OpenSession is the shared preamble (#137): stale-package check,
+	// profile, a kept process, discovery, the start, pause, the fixture op,
+	// frozen needs and the identity, each on the report.
+	opened, err := na.OpenSession(ctx, cfg, report, nativeStart(c.Start), c.Quiet, keep...)
 	if err != nil {
 		return err
 	}
-	defer game.Close(report)
-	report["boot_ms"] = game.Open.Milliseconds()
-	h := na.NewHarness(game.Client, output)
-	names, err := h.Discovery(ctx)
-	if err != nil {
-		return err
-	}
-	report["discovery"] = names
-	s := &session{c: c, game: game, harness: h, names: names, report: report}
-	switch start := c.Start.(type) {
+	defer opened.Close()
+	report["quiet_mode"] = c.Quiet.String()
+	return c.Run(ctx, &session{Session: opened, c: c})
+}
+
+// nativeStart is the case's Start as the lifecycle library's.
+func nativeStart(start Start) na.Start {
+	switch start := start.(type) {
 	case DebugStart:
-		if _, err := na.StartDebugGameSized(ctx, h, names, c.Quiet, resolvedStart(start).(DebugStart).Size); err != nil {
-			return err
-		}
-	case Fixture:
-		if _, err := na.StartDebugGame(ctx, h, names, c.Quiet); err != nil {
-			return err
-		}
+		return start.Size
 	case Save:
-		if _, err := h.Call(ctx, "load-save", "rimworld/load_game_ready", map[string]any{
-			"saveName": start.Name, "readiness": "visual", "timeoutMs": 90000, "ignoreModCompatibility": false,
-		}); err != nil {
-			return err
+		return na.Save{Name: start.Name}
+	case Fixture:
+		var on na.Start
+		if start.On != nil {
+			on = nativeStart(start.On)
 		}
-	default:
-		return fmt.Errorf("case %s: unknown Start %T", c.Name, c.Start)
+		return na.Fixture{Op: start.Op, Args: start.Args, On: on}
 	}
-	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
-		return err
-	}
-	if fixture, ok := c.Start.(Fixture); ok {
-		prepared, err := h.Call(ctx, "prepare", fixture.Op, fixture.Args)
-		if err != nil {
-			return err
-		}
-		if success, _ := na.AsBool(prepared["success"]); !success {
-			return fmt.Errorf("%s refused: %#v", fixture.Op, prepared)
-		}
-		report["prepared"] = prepared
-		s.prepared = prepared
-	}
-	frozen, err := na.FreezeNeeds(ctx, h, names, c.Keep...)
-	if err != nil {
-		return err
-	}
-	report["frozen_needs"] = frozen
-	if s.identity, err = readIdentity(ctx, h); err != nil {
-		return err
-	}
-	report["identity"] = s.identity
-	return c.Run(ctx, s)
+	panic(fmt.Sprintf("unknown Start %T", start))
 }
 
-// resolvedStart fills a DebugStart's zero Size with the default (or the
-// environment's override) so the report names the start actually used.
-func resolvedStart(start Start) Start {
-	if d, ok := start.(DebugStart); ok && d.Size == (na.DebugStart{}) {
-		return DebugStart{Size: na.DefaultDebugStart()}
-	}
-	return start
-}
-
-// readIdentity is the loaded colony's identity through the wire contract.
-func readIdentity(ctx context.Context, h *na.Harness) (map[string]any, error) {
-	reply, err := h.Wire(ctx, "identity", "lifecycle_read_identity", map[string]any{})
-	if err != nil {
-		return nil, err
-	}
-	_, loaded, err := na.Outcome(reply, "loaded")
-	if err != nil {
-		return nil, err
-	}
-	loadedContext, _ := na.AsMap(loaded["context"])
-	identity, ok := na.AsMap(loadedContext["identity"])
-	if !ok {
-		return nil, fmt.Errorf("lifecycle_read_identity: no identity in %#v", loaded)
-	}
-	return identity, nil
-}
-
-// session is the runner's Session over today's na.Game.
+// session is the runner's Session over the lifecycle library's.
 type session struct {
-	c        Case
-	game     *na.Game
-	harness  *na.Harness
-	names    []string
-	identity map[string]any
-	prepared map[string]any
-	report   na.Report
-	runtime  *na.ScenarioRuntime
+	*na.Session
+	c       Case
+	runtime *na.ScenarioRuntime
 }
 
-func (s *session) Harness() *na.Harness     { return s.harness }
-func (s *session) Names() []string          { return s.names }
-func (s *session) Identity() map[string]any { return s.identity }
-func (s *session) Prepared() map[string]any { return s.prepared }
-func (s *session) Report() na.Report        { return s.report }
-func (s *session) Release() error           { return s.game.Release() }
+func (s *session) Config() *na.Config       { return s.Session.Config }
+func (s *session) Harness() *na.Harness     { return s.Session.Harness }
+func (s *session) Names() []string          { return s.Session.Names }
+func (s *session) Identity() map[string]any { return s.Session.Identity }
+func (s *session) Prepared() map[string]any { return s.Session.Prepared }
+func (s *session) Report() na.Report        { return s.Session.Report }
+func (s *session) Release() error           { return s.Session.Release() }
 
 // Runtime is the case's scenario runtime over a controller clock the
 // runner acquires on first use; the discovered tools let AdvanceGame
@@ -227,11 +162,11 @@ func (s *session) Runtime(ctx context.Context) (*na.ScenarioRuntime, error) {
 	if s.runtime != nil {
 		return s.runtime, nil
 	}
-	clock := &na.ScenarioClock{Wire: s.harness.WireFunc(), Identity: s.identity, Owner: na.Controller, Report: s.report}
+	clock := &na.ScenarioClock{Wire: s.Harness().WireFunc(), Identity: s.Identity(), Owner: na.Controller, Report: s.Report()}
 	if _, err := clock.Acquire(ctx, "acquire"); err != nil {
 		return nil, err
 	}
-	s.runtime = &na.ScenarioRuntime{Query: s.harness.Call, Clock: clock, Report: s.report, Tools: s.names}
+	s.runtime = &na.ScenarioRuntime{Query: s.Harness().Call, Clock: clock, Report: s.Report(), Tools: s.Names()}
 	return s.runtime, nil
 }
 

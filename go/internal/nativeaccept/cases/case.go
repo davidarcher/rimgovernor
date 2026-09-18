@@ -41,11 +41,12 @@ type Save struct {
 	Name string
 }
 
-// Fixture starts the debug colony, then calls the test fixture Op with
-// Args; the reply is the session's Prepared.
+// Fixture brings the game up through On (nil: the debug colony), then
+// calls the test fixture Op with Args; the reply is the session's Prepared.
 type Fixture struct {
 	Op   string
 	Args map[string]any
+	On   Start
 }
 
 func (d DebugStart) start() {}
@@ -57,7 +58,11 @@ func (d DebugStart) Describe() map[string]any {
 }
 func (s Save) Describe() map[string]any { return map[string]any{"kind": "save", "name": s.Name} }
 func (f Fixture) Describe() map[string]any {
-	return map[string]any{"kind": "fixture", "op": f.Op, "args": f.Args}
+	row := map[string]any{"kind": "fixture", "op": f.Op, "args": f.Args}
+	if f.On != nil {
+		row["on"] = f.On.Describe()
+	}
+	return row
 }
 
 // ServeSpec declares the `rimgovernor serve` process a serve-driven case
@@ -78,10 +83,11 @@ type ServeSpec struct {
 	StepStall     time.Duration
 }
 
-// Session is what a case's Run receives: the open, prepared game (lane B,
-// #137, owns the implementation). The runner adapts today's na.OpenGame to
-// it until then.
+// Session is what a case's Run receives: the open, prepared game. The
+// runner implements it over na.OpenSession (lane B, #137).
 type Session interface {
+	// Config is the run's resolved configuration (root, output, profile).
+	Config() *na.Config
 	// Harness records evidence under the run's output directory.
 	Harness() *na.Harness
 	// Names are the discovered native tool names.

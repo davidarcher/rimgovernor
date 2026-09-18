@@ -26,7 +26,20 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 
 	// Registered case areas.
+	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/bed"
+	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/bills"
+	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/caravan"
+	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/lifecycle"
+	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/mapscope"
+	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/pawn"
+	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/presentation"
+	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/quest"
+	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/research"
+	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/rooms"
+	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/settlement"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/smoke"
+	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/supplies"
+	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/trade"
 )
 
 func main() {

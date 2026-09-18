@@ -19,9 +19,9 @@ $taskOutput = Join-Path $taskRepo ('.rimgovernor/n0103-acceptance-' + [guid]::Ne
 $taskProdPackage = & "$PSScriptRoot/build_native_mod.ps1" -RimWorldManagedDir $RimWorldManagedDir `
     -HarmonyAssembly $HarmonyAssembly -RimBridgeSdkDir $RimBridgeSdkDir -DotNet $DotNet `
     -OutputRoot (Join-Path $taskOutput 'build-production')
-# researchaccept exercises test/research_observation_fingerprint, a private fixture
+# research/reads exercises test/research_observation_fingerprint, a private fixture
 # tool (scripts/fixtures/ResearchObservationFixture.cs) that build_native_mod.ps1 only
-# compiles in when -Fixture names it. roomsaccept/suppliesaccept assert the installed
+# compiles in when -Fixture names it. rooms/reads and supplies/reads assert the installed
 # package carries NO fixture-only tools (a production-shape discovery invariant), so
 # research needs its own fixture package instead of sharing the other three's build.
 $taskFixturePackage = & "$PSScriptRoot/build_native_mod.ps1" -RimWorldManagedDir $RimWorldManagedDir `
@@ -37,37 +37,39 @@ New-Item -ItemType Directory -Path $taskResults | Out-Null
 $taskFailed = @()
 $taskBinaries = Join-Path $taskOutput 'go-bin'
 New-Item -ItemType Directory -Path $taskBinaries | Out-Null
+# The four cases run through the shared `acceptance` runner (#135); one build.
+$taskRunner = Join-Path $taskBinaries 'acceptance.exe'
 Push-Location (Join-Path $taskRepo 'go')
 try {
-    foreach ($taskCmd in @('pawnaccept', 'researchaccept', 'roomsaccept', 'suppliesaccept')) {
-        & $Go build -o (Join-Path $taskBinaries "$taskCmd.exe") "./internal/nativeaccept/cmd/$taskCmd"
-        if ($LASTEXITCODE) { throw "go build failed for $taskCmd" }
-    }
+    & $Go build -o $taskRunner ./internal/nativeaccept/cmd/acceptance
+    if ($LASTEXITCODE) { throw 'go build failed for acceptance' }
 } finally { Pop-Location }
+$taskCases = @('pawn/reads', 'research/reads', 'rooms/reads', 'supplies/reads')
 $taskPackageFor = @{
-    pawnaccept     = $taskProdPackage
-    researchaccept = $taskFixturePackage
-    roomsaccept    = $taskProdPackage
-    suppliesaccept = $taskProdPackage
+    'pawn/reads'     = $taskProdPackage
+    'research/reads' = $taskFixturePackage
+    'rooms/reads'    = $taskProdPackage
+    'supplies/reads' = $taskProdPackage
 }
 try {
     Push-Location $taskRepo
     try {
-        foreach ($taskScript in @('pawnaccept', 'researchaccept', 'roomsaccept', 'suppliesaccept')) {
+        foreach ($taskScript in $taskCases) {
             Write-Host "=== $taskScript ==="
+            $taskLabel = $taskScript.Replace('/', '-')
             # Copy (never move) the pristine build output so it can be reused for
-            # every binary that shares it, and this binary's installed copy can be
+            # every case that shares it, and this case's installed copy can be
             # discarded independently of the others.
             Copy-Item -LiteralPath $taskPackageFor[$taskScript] -Destination $taskInstalled -Recurse
             try {
-                & (Join-Path $taskBinaries "$taskScript.exe") -root ".rimgovernor/bridge" -output (Join-Path $taskResults $taskScript)
+                & $taskRunner run $taskScript -root (Join-Path $taskRepo '.rimgovernor/bridge') -output (Join-Path $taskResults $taskLabel)
                 if ($LASTEXITCODE) { $taskFailed += $taskScript }
             } finally {
                 if (Get-Process | Where-Object ProcessName -Like 'RimWorld*') {
                     throw "Game still running after $taskScript; close it before continuing."
                 }
                 if (Test-Path -LiteralPath $taskInstalled) {
-                    Move-Item -LiteralPath $taskInstalled -Destination (Join-Path $taskOutput "tested-package-$taskScript")
+                    Move-Item -LiteralPath $taskInstalled -Destination (Join-Path $taskOutput "tested-package-$taskLabel")
                 }
             }
         }
