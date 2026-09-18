@@ -66,6 +66,7 @@ func main() {
 	ultrafastRatio := flag.Float64("min-ultrafast-tps-ratio", 0, "when positive, the least multiple of the Fast case's wall TPS the Ultrafast case must reach (issue #126 asks for 2); 0 only reports it")
 	reuseGame := flag.Bool("reuse-game", true, "reload the stage through GameReuse's reset contract (issue #22); off reloads without the contract checks")
 	timeout := flag.Duration("timeout", 60*time.Minute, "overall run timeout")
+	na.BudgetFlag((60 * time.Minute) / 2)
 	stall := flag.Duration("stall", 0, "stall budget for each speed's wait (default na.StallBudget)")
 	flag.Parse()
 	if *root == "" {

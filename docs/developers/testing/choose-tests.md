@@ -110,7 +110,15 @@ bridge-only harness starts there and writes only its assertions.
 6. **Budget in minutes and say so.** `-timeout` defaults reflect a healthy
    run plus margin, not the worst run seen. If the honest default exceeds
    ~15 minutes, the precondition is not staged well enough (item 1) or the
-   assertion covers too much; split it.
+   assertion covers too much; split it. The budget is enforced: a
+   registered case's `Budget` and a binary's `-budget` (`na.BudgetFlag`,
+   default half its `-timeout`) fail a run that passed but took longer
+   (`budget_exceeded`, "run exceeded its budget"), while `-timeout` stays
+   the safety net. Every `result.json` records `started_at`, `finished_at`,
+   `wall_ms`, `budget_ms`, `boot_ms`, `ticks_advanced` (the game ticks the
+   harness saw pass through its native replies) and `wall_tps`, so a
+   slower harness shows in its own report and the suite's `-baseline`
+   comparison, not in evidence-file mtimes.
 7. **Advance by ticks, at speed.** A wait for something the game itself
    must do (a haul, a surgery, a pen, a capture) is bounded in ticks, not
    wall clock: `na.RunUntil` runs at `na.RunSpeed` with `na.RunBoost`

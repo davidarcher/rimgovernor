@@ -51,6 +51,7 @@ func main() {
 	window := flag.Uint64("window", 0, "sample window in game ticks (2500 = one in-game hour); the watch ends once the live tick has advanced this far, or at -watch if the game stops advancing; 0 watches the full -watch length (sustainedmatrixaccept defaults to a short window, this diagnostic to the wall-clock length)")
 	poll := flag.Duration("poll", 5*time.Second, "sampling interval during the watch window")
 	timeout := flag.Duration("timeout", 30*time.Minute, "overall run timeout (must exceed -watch plus startup/shutdown)")
+	na.BudgetFlag((30 * time.Minute) / 2)
 	nativeTimeout := flag.Duration("native-timeout", 15*time.Second, "serve subprocess's own --timeout (native call budget per ClockScheduler.Step, shared across every chained routine planner in that step)")
 	families := flag.String("families", "", "serve's RIMGOVERNOR_ROUTINE_FAMILIES; empty composes EnsureFoodSupply's full pipeline (field,food-storage,acquisition,cooking,supply,production-policy), \"all\" serve's autonomous default. Every family shares one step budget: on a machine running peer headless games narrow it to the family under test (e.g. field), as farmselectaccept does")
 	stepStall := flag.Duration("step-stall", 90*time.Second, "fail fast unless a scheduler step has admitted a clock window this long after the watch starts (0 disables); a starved step budget under peer contention otherwise reads as an unchanged 20-minute timeline (issue #103)")

@@ -187,6 +187,7 @@ func main() {
 	binary := flag.String("rimgovernor", "", "absolute path to a prebuilt rimgovernor binary (go build ./go/cmd/rimgovernor)")
 	names := flag.String("scenario", "scattered", "comma-separated list of scattered, storage-missing, blocked, fire, medicine, feed, sleeping, cold (or all)")
 	timeout := flag.Duration("timeout", 40*time.Minute, "per-scenario timeout")
+	budget := na.BudgetFlag((40 * time.Minute) / 2)
 	debug := flag.Bool("debug", false, "record every native call (flight.jsonl) and the clock/worker diagnostic log")
 	reuseGame := flag.Bool("reuse", false, "launch RimWorld once and reload "+reuseSave+" for every scenario (issue #22); a failed scenario retires the game and the next one relaunches")
 	flag.Parse()
@@ -245,7 +246,7 @@ func main() {
 		}
 		os.Exit(report.Finalize(*output))
 	}
-	os.Exit(runMany(*root, *output, *game, !*rendered, *binary, selected, *debug, *reuseGame, *timeout))
+	os.Exit(runMany(*root, *output, *game, !*rendered, *binary, selected, *debug, *reuseGame, *timeout, *budget))
 }
 
 func newScenarioReport(name string, headless bool) na.Report {
@@ -261,9 +262,11 @@ func newScenarioReport(name string, headless bool) na.Report {
 // game serves every scenario until a case fails or leaves the game unclean,
 // after which the next scenario pays for a relaunch; without it every
 // scenario is its own fresh process.
-func runMany(root, output, gameID string, headless bool, binary string, selected []*scenario, debug, reuseGame bool, timeout time.Duration) int {
+func runMany(root, output, gameID string, headless bool, binary string, selected []*scenario, debug, reuseGame bool, timeout, budget time.Duration) int {
 	summary := na.NewReport("Native colony upkeep matrix (issue #2 B04h): every listed scenario run in sequence, "+
 		"each under its own directory with its own result.json.", headless)
+	// -budget is per scenario; the matrix spans them all.
+	summary.SetBudget(budget * time.Duration(len(selected)))
 	summary["reuse_game"] = reuseGame
 	var rows []map[string]any
 	var lifecycles []map[string]any

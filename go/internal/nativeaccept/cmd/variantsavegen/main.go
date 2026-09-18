@@ -43,6 +43,7 @@ func main() {
 	rendered := flag.Bool("rendered", false, "use the windowed profile instead of headless")
 	game := flag.String("game", "rimgovernor-trial", "configured game ID")
 	timeout := flag.Duration("timeout", 20*time.Minute, "overall run timeout (must cover every variant's world/colony generation and save)")
+	na.BudgetFlag((20 * time.Minute) / 2)
 	startTimeout := flag.Duration("start-timeout", 180*time.Second, "rimworld/start_debug_game_ready timeout per variant (world/colony generation is slower than the plain debug scenario)")
 
 	manifest := flag.String("manifest", "", "path to a JSON array of variant specs (batch mode; see variantgen.Variant)")

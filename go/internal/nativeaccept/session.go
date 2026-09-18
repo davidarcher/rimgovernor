@@ -67,16 +67,20 @@ func OpenBridgeSessionWithTakeover(ctx context.Context, gabsExecutable, configDi
 
 // Report is the shared JSON report shape every acceptance binary writes: a dynamic
 // bag of fields, always including
-// "passed", "scope" and, on failure, "error".
+// "passed", "scope", "started_at" and, on failure, "error"; Finalize adds
+// the timing fields (timing.go).
 type Report map[string]any
 
 func NewReport(scope string, headless bool) Report {
-	return Report{"passed": false, "headless": headless, "scope": scope}
+	return Report{"passed": false, "headless": headless, "scope": scope, StartedAtKey: time.Now().UTC().Format(time.RFC3339Nano)}
 }
 
-// Finalize computes the artifact hash manifest for output, writes result.json, and
-// returns the process exit code (0 when report["passed"] is true).
+// Finalize fills the timing fields and applies the budget (a passing run
+// over its budget fails), computes the artifact hash manifest for output,
+// writes result.json, and returns the process exit code (0 when
+// report["passed"] is true).
 func (r Report) Finalize(output string) int {
+	r.finalizeTiming(time.Now())
 	if hashes, err := ArtifactHashes(output); err == nil {
 		r["artifacts"] = hashes
 	}

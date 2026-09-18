@@ -78,6 +78,7 @@ func main() {
 	repairTimeout := flag.Duration("repair-timeout", 15*time.Minute, "budget for the post-raid draft release and layout repair (raid injuries are tended first: CriticalMedical suspends the layout goal)")
 	repairTicks := flag.Int64("repair-ticks", 60000, "game ticks after the raid resolves within which the layout must be verified standing again (one day)")
 	timeout := flag.Duration("timeout", 45*time.Minute, "overall run timeout")
+	na.BudgetFlag((45 * time.Minute) / 2)
 	checkpoint := flag.String("checkpoint", "", "after the layout is built and audited, save the game under this name (root/profile/Saves/<name>.rws plus <name>.checkpoint.json) so later runs can start at the raid")
 	fromCheckpoint := flag.String("from-checkpoint", "", "load this checkpoint instead of building the layout: re-audits the saved layout, then stages the raid")
 	checkpoints := flag.String("checkpoints", "scripts/fixtures/saves", "committed checkpoint directory: -checkpoint also writes the save and its .checkpoint.json here, -from-checkpoint stages them from here into root/profile/Saves when the root lacks them")

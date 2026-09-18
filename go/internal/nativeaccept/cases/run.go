@@ -15,9 +15,6 @@ import (
 // DefaultTimeout is the per-case safety net when Options names none.
 const DefaultTimeout = 20 * time.Minute
 
-// ErrBudget is the failure a run over its Budget is reported with.
-var ErrBudget = errors.New("run exceeded its budget")
-
 // Options is the per-invocation configuration shared by every case of a run.
 type Options struct {
 	// Root is the private disposable worker root (e.g. .rimgovernor/bridge).
@@ -42,19 +39,16 @@ func (o Options) CaseOutput(c Case) string {
 // Execute runs one case end to end (prepare, open, start, quiet, freeze,
 // Run, close) and writes its report; it returns the report and the process
 // exit code Report.Finalize computed. A case that fails Lint is refused
-// before the game opens; the run fails when Run took longer than the
-// budget, and records under wait_stats how many of its waits stalled.
+// before the game opens; Finalize fails the run when it took longer than
+// the budget (budget_ms) and stamps its timing; the report records under
+// wait_stats how many of its waits stalled.
 func Execute(ctx context.Context, c Case, opts Options) (na.Report, int) {
 	output := opts.CaseOutput(c)
 	report := na.NewReport(c.Scope, opts.Headless && !c.Rendered)
 	report["case"] = c.Name
-	started := time.Now()
-	report["started_at"] = started.UTC().Format(time.RFC3339Nano)
 	na.ResetWaitStats()
+	na.ResetTickStats()
 	code := func() int {
-		finished := time.Now()
-		report["finished_at"] = finished.UTC().Format(time.RFC3339Nano)
-		report["wall_ms"] = finished.Sub(started).Milliseconds()
 		stats := na.WaitStats()
 		report["wait_stats"] = stats
 		if stalled, _ := stats["stalled"].(int); stalled > 0 {
@@ -78,7 +72,7 @@ func Execute(ctx context.Context, c Case, opts Options) (na.Report, int) {
 	if opts.Budget > 0 {
 		budget = opts.Budget
 	}
-	report["budget_ms"] = budget.Milliseconds()
+	report.SetBudget(budget)
 	if opts.Stall > 0 {
 		// The shared waits and the future Session read the stall budget
 		// from the environment; a flag override is a per-process setting.
@@ -92,9 +86,6 @@ func Execute(ctx context.Context, c Case, opts Options) (na.Report, int) {
 	runCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	err := execute(runCtx, c, opts, output, report)
-	if err == nil && time.Since(started) > budget {
-		err = fmt.Errorf("%w: %s > %s", ErrBudget, time.Since(started).Round(time.Millisecond), budget)
-	}
 	if err != nil {
 		report["error"] = err.Error()
 	} else {

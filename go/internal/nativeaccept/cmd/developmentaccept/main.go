@@ -45,6 +45,7 @@ func main() {
 	afterRestart := flag.Duration("after-restart", 3*time.Minute, "maximum wall-clock sampling window after the restart; ends early once a review beyond the pre-kill tick was sampled")
 	poll := flag.Duration("poll", 5*time.Second, "sampling interval")
 	timeout := flag.Duration("timeout", 30*time.Minute, "overall run timeout")
+	na.BudgetFlag((30 * time.Minute) / 2)
 	flag.Parse()
 	if *root == "" || *binary == "" || !filepath.IsAbs(*binary) {
 		fmt.Fprintln(os.Stderr, "-root and an absolute -rimgovernor are required")

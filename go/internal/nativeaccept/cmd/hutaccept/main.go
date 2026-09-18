@@ -54,6 +54,7 @@ func main() {
 	furnishWait := flag.Duration("furnish-wait", 15*time.Minute, "wall-clock budget for a bed to be completed inside the finished hut")
 	stall := flag.Duration("stall", na.StallBudget(), "fail a wait once its progress signature (shell lineage stages, shelter goal binding, bed plan stage) has not changed for this long; "+na.StallEnv+" sets the default")
 	timeout := flag.Duration("timeout", 100*time.Minute, "overall run timeout")
+	na.BudgetFlag((100 * time.Minute) / 2)
 	nativeTimeout := flag.Duration("native-timeout", 60*time.Second, "serve subprocess's own --timeout (the shelter planner previews the whole shell per cell natively; shorter budgets time out under load; serve caps this at 1m)")
 	terrain := flag.String("terrain", "open", "open: the save's own ground, where a hut template fits; corridor: test/corridor_terrain_fixture first raises granite rows every sixth cell around the colonists so no template or 9x9 rectangle fits and the routine must grow an irregular shell (needs the mod built with -Fixture CorridorTerrainFixture)")
 	designateWood := flag.Int("designate-wood", 400, "before the service starts, designate the nearest wild trees for cutting until their estimated WoodLog yield reaches this amount (0 = leave wood supply entirely to the acquisition family)")

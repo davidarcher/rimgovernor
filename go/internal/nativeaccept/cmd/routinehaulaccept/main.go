@@ -62,6 +62,7 @@ func main() {
 	game := flag.String("game", "rimgovernor-trial", "configured game ID")
 	rimgovernorBinary := flag.String("rimgovernor", "", "absolute path to a prebuilt rimgovernor binary (go build ./go/cmd/rimgovernor)")
 	timeout := flag.Duration("timeout", 25*time.Minute, "overall run timeout")
+	na.BudgetFlag((25 * time.Minute) / 2)
 	flightRecorder := flag.Bool("flight-recorder", false, "summarize the service's native timeline (flight.jsonl, always recorded) into the report's phases (reads/step, cache and parent hits)")
 	flag.Parse()
 	if *root == "" {

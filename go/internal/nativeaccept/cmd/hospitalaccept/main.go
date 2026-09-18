@@ -51,6 +51,7 @@ func main() {
 	poll := flag.Duration("poll", 5*time.Second, "sampling interval during the watch window")
 	settle := flag.Duration("settle", 4*time.Minute, "wall-clock window after the service stops for a patient to reach the hospital bed")
 	timeout := flag.Duration("timeout", 40*time.Minute, "overall run timeout (must exceed -watch plus -settle plus startup/shutdown)")
+	na.BudgetFlag((40 * time.Minute) / 2)
 	nativeTimeout := flag.Duration("native-timeout", 15*time.Second, "serve subprocess's own --timeout")
 	families := flag.String("families", hospitalFamilies, "RIMGOVERNOR_ROUTINE_FAMILIES composition for the run")
 	flightRecorder := flag.Bool("flight-recorder", false, "record every native request/response of the service under <output>/flight-recorder.jsonl")

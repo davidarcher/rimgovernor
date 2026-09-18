@@ -51,6 +51,7 @@ func main() {
 	wait := flag.Duration("wait", 8*time.Minute, "ceiling for each dialog to be answered and the clock to run again")
 	stall := flag.Duration("stall", na.StallBudget(), "stall budget for each wait")
 	timeout := flag.Duration("timeout", 25*time.Minute, "overall run timeout")
+	na.BudgetFlag((25 * time.Minute) / 2)
 	debug := flag.Bool("debug", false, "trace the service's scheduler steps (RIMGOVERNOR_CLOCK_DEBUG=1)")
 	flag.Parse()
 	if *root == "" || !filepath.IsAbs(*root) || *binary == "" || !filepath.IsAbs(*binary) {

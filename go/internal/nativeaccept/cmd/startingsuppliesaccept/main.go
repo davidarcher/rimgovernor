@@ -50,6 +50,7 @@ func main() {
 	watch := flag.Duration("watch", 12*time.Minute, "wall-clock duration to let the supply planner run after authority is acquired")
 	poll := flag.Duration("poll", 5*time.Second, "sampling interval during the watch window")
 	timeout := flag.Duration("timeout", 20*time.Minute, "overall run timeout (must exceed -watch plus startup/shutdown)")
+	na.BudgetFlag((20 * time.Minute) / 2)
 	nativeTimeout := flag.Duration("native-timeout", 30*time.Second, "serve subprocess's own --timeout")
 	stepStall := flag.Duration("step-stall", 3*time.Minute, "fail fast unless a scheduler step has admitted a clock window within this long of the watch starting (0 disables)")
 	families := flag.String("families", "supply,shelter,sleeping", "serve's RIMGOVERNOR_ROUTINE_FAMILIES; the supply family alone allows every stack at the paused load tick and then never advances the clock, so no later review re-reads the census: the shelter (and its sleeping spots) keeps windows running the way run 24 did, with the shell built over the drop site")

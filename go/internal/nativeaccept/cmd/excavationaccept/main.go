@@ -44,6 +44,7 @@ func main() {
 	game := flag.String("game", "rimgovernor-trial", "configured game ID")
 	rimgovernorBinary := flag.String("rimgovernor", "", "absolute path to a prebuilt rimgovernor binary (go build ./go/cmd/rimgovernor)")
 	timeout := flag.Duration("timeout", 90*time.Minute, "overall run timeout")
+	na.BudgetFlag((90 * time.Minute) / 2)
 	stall := flag.Duration("stall", na.StallBudget(), "fail a store wait once its progress signature (goal binding, stage method, plan stages) has not changed for this long; "+na.StallEnv+" sets the default")
 	flag.Parse()
 	stallBudget = *stall

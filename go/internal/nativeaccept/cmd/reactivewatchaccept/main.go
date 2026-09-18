@@ -35,6 +35,7 @@ func main() {
 	game := flag.String("game", "rimgovernor-trial", "configured game ID")
 	speed := flag.String("speed", "Superfast", "clock speed for every window: Normal, Fast or Superfast")
 	timeout := flag.Duration("timeout", 15*time.Minute, "overall run timeout")
+	na.BudgetFlag((15 * time.Minute) / 2)
 	flag.Parse()
 	if *root == "" {
 		fmt.Fprintln(os.Stderr, "-root is required")

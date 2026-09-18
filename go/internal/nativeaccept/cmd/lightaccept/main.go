@@ -60,6 +60,7 @@ func main() {
 	scenario := flag.String("scenario", "dark", "dark, outage, partial or fungus")
 	hold := flag.Duration("hold", 4*time.Minute, "outage/fungus: how long the service must hold without committing a lighting method")
 	timeout := flag.Duration("timeout", 25*time.Minute, "overall run timeout")
+	na.BudgetFlag((25 * time.Minute) / 2)
 	flightRecorder := flag.Bool("flight-recorder", false, "record the service's native timeline (flight.jsonl) and summarize its phases (reads/step, cache and parent hits) into the report")
 	flag.Parse()
 	if *root == "" || *binary == "" || !filepath.IsAbs(*binary) {

@@ -52,6 +52,7 @@ func main() {
 	watch := flag.Duration("watch", 25*time.Minute, "wall-clock duration to observe EnsureComfort before giving up")
 	poll := flag.Duration("poll", 5*time.Second, "sampling interval during the watch window")
 	timeout := flag.Duration("timeout", 40*time.Minute, "overall run timeout (must exceed -watch plus startup/shutdown)")
+	na.BudgetFlag((40 * time.Minute) / 2)
 	nativeTimeout := flag.Duration("native-timeout", 15*time.Second, "serve subprocess's own --timeout")
 	flag.Parse()
 	if *root == "" || *rimgovernorBinary == "" || !filepath.IsAbs(*rimgovernorBinary) {

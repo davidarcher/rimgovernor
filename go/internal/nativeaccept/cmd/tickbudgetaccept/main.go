@@ -32,6 +32,7 @@ func main() {
 	rendered := flag.Bool("rendered", false, "use the windowed profile instead of headless")
 	game := flag.String("game", "rimgovernor-trial", "configured game ID")
 	timeout := flag.Duration("timeout", 20*time.Minute, "overall run timeout")
+	na.BudgetFlag((20 * time.Minute) / 2)
 	flag.Parse()
 	if *root == "" {
 		fmt.Fprintln(os.Stderr, "-root is required")

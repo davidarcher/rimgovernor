@@ -78,6 +78,7 @@ func main() {
 	window := flag.Uint64("window", 2500, "per-variant sample window in game ticks (2500 = one in-game hour, 60000 = one day): the watch ends once the live tick has advanced this far, or at -watch if the game stops advancing; 0 watches the full -watch wall-clock length (the diagnostic timeline); each variant's result.json records the window it observed under \"window\"")
 	poll := flag.Duration("poll", 5*time.Second, "sampling interval during each variant's watch window")
 	perVariantTimeout := flag.Duration("variant-timeout", 30*time.Minute, "per-variant run timeout (must exceed -watch plus startup/shutdown)")
+	budget := na.BudgetFlag((30 * time.Minute) / 2)
 	nativeTimeout := flag.Duration("native-timeout", 15*time.Second, "serve subprocess's own --timeout (native call budget per ClockScheduler.Step, shared across every chained routine planner in that step)")
 	startTimeout := flag.Duration("start-timeout", 180*time.Second, "in -manifest mode, rimworld/start_debug_game_ready timeout per generated variant")
 	stopOnError := flag.Bool("stop-on-error", false, "abort the remaining variants after the first harness error instead of continuing the matrix")
@@ -156,6 +157,8 @@ func main() {
 		"(%s), evidence for issue #1's acceptance bar that a fix must hold across seeds/colony sizes/resource/"+
 		"season variants, not just one sampled stable window. Not a pass/fail acceptance gate.",
 		len(variants), strings.Join(saveNames, ", ")), !*rendered)
+	// -budget is per variant; the matrix spans them all.
+	report.SetBudget(*budget * time.Duration(len(variants)))
 	report["variant_saves"] = saveNames
 	report["manifest_mode"] = *manifest != ""
 	report["window_ticks"] = *window

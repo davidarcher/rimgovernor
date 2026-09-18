@@ -61,6 +61,7 @@ func (h *Harness) Call(ctx context.Context, label, tool string, arguments any) (
 	if err := json.Unmarshal(result.Structured, &payload); err != nil {
 		return nil, fmt.Errorf("%s: structuredContent must be an object: %w", tool, err)
 	}
+	observeReplyTick(tool, payload)
 	return payload, nil
 }
 
@@ -93,6 +94,7 @@ func (h *Harness) Wire(ctx context.Context, label, method string, request any) (
 	if err := json.Unmarshal([]byte(payloadString), &message); err != nil {
 		return nil, fmt.Errorf("%s: invalid ProtoJSON reply: %w", method, err)
 	}
+	observeWireTick(message)
 	return message, nil
 }
 

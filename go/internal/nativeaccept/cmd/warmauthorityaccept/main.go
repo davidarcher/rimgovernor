@@ -41,6 +41,7 @@ func main() {
 	hold := flag.Duration("hold", 15*time.Second, "how long phase 2's grant must stay active")
 	skipPhase1 := flag.Bool("skip-phase1", false, "attach to a process another harness left at the main menu and run phase 2 only (diagnostic)")
 	timeout := flag.Duration("timeout", 600*time.Second, "overall run timeout")
+	na.BudgetFlag((600 * time.Second) / 2)
 	flag.Parse()
 	if *root == "" {
 		fmt.Fprintln(os.Stderr, "-root is required")

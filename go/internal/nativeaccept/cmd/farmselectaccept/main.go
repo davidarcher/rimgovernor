@@ -56,6 +56,7 @@ func main() {
 	watch := flag.Duration("watch", 4*time.Minute, "wall-clock duration to let the field planner run after authority is acquired")
 	poll := flag.Duration("poll", 5*time.Second, "sampling interval during the watch window")
 	timeout := flag.Duration("timeout", 12*time.Minute, "overall run timeout (must exceed -watch plus startup/shutdown)")
+	na.BudgetFlag((12 * time.Minute) / 2)
 	nativeTimeout := flag.Duration("native-timeout", 30*time.Second, "serve subprocess's own --timeout")
 	expectKind := flag.String("expect-kind", "outdoor", "site kind every traced selection must choose (empty accepts any)")
 	expectCrop := flag.String("expect-crop", "", "crop every traced selection must choose (empty accepts any)")

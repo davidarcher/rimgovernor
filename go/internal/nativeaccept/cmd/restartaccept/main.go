@@ -26,6 +26,7 @@ func main() {
 	game := flag.String("game", "rimgovernor-trial", "configured game ID")
 	binary := flag.String("rimgovernor", "", "absolute path to a prebuilt rimgovernor binary (go build ./go/cmd/rimgovernor)")
 	timeout := flag.Duration("timeout", 20*time.Minute, "overall run timeout")
+	na.BudgetFlag((20 * time.Minute) / 2)
 	flag.Parse()
 	if *root == "" || *binary == "" || !filepath.IsAbs(*binary) {
 		fmt.Fprintln(os.Stderr, "-root and an absolute -rimgovernor are required")
