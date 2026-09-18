@@ -18,7 +18,11 @@
 //     the subject and body) carrying the branch's Co-Authored-By
 //     trailers;
 //  5. resets the branch to the new main when its tree is identical, so
-//     the next task starts from main rather than re-landing the same diff.
+//     the next task starts from main rather than re-landing the same diff;
+//  6. closes the GitHub issue the branch is for (the number in a branch
+//     name like claude/github-issue-128-abc, or -issue N) with a comment
+//     naming the landing commit; -no-close skips it, and a missing gh or
+//     a failed close is reported, never fatal.
 package main
 
 import (
@@ -29,6 +33,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -43,18 +49,20 @@ func main() {
 	messageFile := flag.String("F", "", "file holding the squash commit subject and body")
 	lockTimeout := flag.Duration("lock-timeout", 15*time.Minute, "how long to wait for another landing to finish")
 	runTests := flag.Bool("test", false, "also run the affected Go tests against the merged tree before landing")
+	issue := flag.Int("issue", 0, "GitHub issue to close with the landing commit (default: the number in the branch name)")
+	noClose := flag.Bool("no-close", false, "do not close a GitHub issue")
 	flag.Parse()
 	if flag.NArg() > 1 {
-		fmt.Fprintln(os.Stderr, "usage: land [-m msg | -F file] [-lock-timeout d] [-test] [<branch>]")
+		fmt.Fprintln(os.Stderr, "usage: land [-m msg | -F file] [-lock-timeout d] [-test] [-issue N | -no-close] [<branch>]")
 		os.Exit(2)
 	}
-	if err := run(flag.Arg(0), *message, *messageFile, *lockTimeout, *runTests); err != nil {
+	if err := run(flag.Arg(0), *message, *messageFile, *lockTimeout, *runTests, closeIssue(*issue, *noClose)); err != nil {
 		fmt.Fprintln(os.Stderr, "land:", err)
 		os.Exit(1)
 	}
 }
 
-func run(branch, message, messageFile string, lockTimeout time.Duration, runTests bool) error {
+func run(branch, message, messageFile string, lockTimeout time.Duration, runTests bool, close issueCloser) error {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return err
@@ -162,7 +170,40 @@ func run(branch, message, messageFile string, lockTimeout time.Duration, runTest
 	} else {
 		fmt.Printf("%s left as is: its tree differs from the landed main\n", branch)
 	}
+	if close != nil {
+		close(worktree, branch, landed)
+	}
 	return nil
+}
+
+// issueCloser closes the GitHub issue a landed branch was for, or does
+// nothing; it never fails the landing.
+type issueCloser func(worktree, branch, landed string)
+
+var issueInBranch = regexp.MustCompile(`(?:^|[/-])issue-(\d+)(?:-|$)`)
+
+// closeIssue returns the closer for the flags: none with -no-close, the
+// given issue with -issue, otherwise the number in the branch name.
+func closeIssue(issue int, noClose bool) issueCloser {
+	if noClose {
+		return nil
+	}
+	return func(worktree, branch, landed string) {
+		number := issue
+		if number == 0 {
+			m := issueInBranch.FindStringSubmatch(branch)
+			if m == nil {
+				return
+			}
+			number, _ = strconv.Atoi(m[1])
+		}
+		comment := fmt.Sprintf("Landed on main as %s.", landed)
+		if _, err := output(worktree, "gh", "issue", "close", strconv.Itoa(number), "--comment", comment); err != nil {
+			fmt.Printf("issue #%d not closed (%v); close it by hand with the landing commit\n", number, err)
+			return
+		}
+		fmt.Printf("closed issue #%d\n", number)
+	}
 }
 
 // branchWorktree returns the worktree path that has branch checked out, or

@@ -1,179 +1,110 @@
 # Working agreement
 
-## Work safely together
+`AGENTS.md` is the source of these instructions; `CLAUDE.md` is a symlink to
+it. Machine-level setup (game copy, mod build, running harnesses) is the
+[agent runbook](docs/developers/agent-runbook.md); which checks a change
+needs is [choose-tests](docs/developers/testing/choose-tests.md).
 
-- Use a separate Git worktree and task branch when other agents or developers may
-  be working in the repository. Check status before editing; preserve their work.
-- Keep changes scoped to the task. Coordinate shared-file changes and integration;
-  do not merge into an actively edited checkout without coordination.
-- Commit each completed iteration after relevant checks. Local checkpoint commits
-  are authorized; do not ask again. Report the branch and commit hash.
-- Pull requests are disabled on this project; GitHub is used only for issue
-  tracking. Never open a PR. All work lands on the local `main` branch as one
-  squash commit through the landing lane: `go run ./cmd/land` from `go/` in
-  the branch's worktree. It takes the repository-wide lock, merges `main` into
-  the branch, squash-merges into the clean `main` checkout (keeping the
-  branch's Co-Authored-By trailers), and resets the branch to `main`. Call
-  it once and stop watching `main`; do not rebase, poll or retest by hand.
-  Rebase only to resolve an actual conflict it reports. `main` moving under
-  you is never a reason to rerun anything: a test or harness that passed on
-  the branch's code stays passed. Never rerun-then-land more than once for
-  the same milestone; if you find yourself on a second cycle, land as is and
-  file an issue naming what is unverified. Do not push to GitHub; the
-  maintainer pushes `main` manually. Testing is the separate tool: `go run ./cmd/test` from `go/`
-  runs the Go tests the working tree's change affects (the changed packages
-  and their in-module importers; `./...` only when `go.mod`/`go.sum`
-  changed). Use it as the edit/test loop and once before landing; the lane
-  does not run tests, so do not follow `cmd/test` with a hand-run `go test
-  ./...` either. Keep the default shared `GOCACHE`: it is what makes a
-  repeated `cmd/test` a cache hit rather than a rebuild.
-- Close the GitHub issue as soon as its work has merged into local `main`, with
-  a terse comment naming the merge commit. Closure does not wait for the
-  maintainer to push `origin/main` and does not need maintainer confirmation.
-- Open a GitHub issue yourself (`gh issue create`) for anything you would
-  otherwise flag as "for follow-up" or ask the maintainer about in a summary:
-  bugs found in passing, deferred scope, unverified assumptions, questions that
-  need a decision. Do not ask first, and do not bury the item in a wall of text;
-  issues get closed, remarks in chat get lost. One issue per item, labeled by
-  priority or area as below, with a terse title, the concrete evidence (file,
-  commit, log line) and what would resolve it. Mention the issue number in your
-  report instead of restating it. Check open issues first so you comment on an
-  existing one rather than duplicating it.
-- Keep generated builds, logs, saves, databases and temporary scripts out of commits.
+## The loop
 
-## Delivery speed and coordination
+1. Work on a task branch in your own worktree; `git merge main` once at
+   session start.
+2. Edit; `go run ./cmd/test` from `go/` is the test loop. It tests the
+   packages the working tree changed and their in-module importers
+   (`./...` only when `go.mod`/`go.sum` changed) and names the acceptance
+   harnesses the change touches. Do not follow it with `go test ./...`.
+3. Commit each completed iteration. Checkpoint commits are authorized; do
+   not ask. Size an iteration to a coherent milestone, not the smallest
+   possible edit, so slow checks run once against meaningful progress.
+4. At the milestone, run the harnesses `cmd/test` named (native behaviour
+   changes need game-level acceptance before completion; documentation
+   needs none) and name them in the commit message.
+5. `go run ./cmd/land` from the branch worktree. The lane takes the
+   repository lock, merges `main` into the branch, squash-lands on the
+   `main` checkout, resets the branch to `main` and closes the branch's
+   GitHub issue with the landing commit. Call it once and move on; land
+   each ready milestone rather than holding a branch until the whole task
+   is done. Rebase or merge by hand only to resolve a conflict it reports.
+6. Continue to the next milestone of an authorized task without waiting to
+   be re-prompted.
 
-- Define a completion criterion sized to a coherent milestone, not the smallest
-  possible increment. Game and acceptance checks are slow: batch the related
-  steps that share a milestone into one iteration so verification runs once
-  against meaningful progress, instead of once per trivial edit. Once checks
-  pass, commit and deliver; file unrelated discoveries as GitHub issues. Continue
-  to the next coherent milestone of an authorized task without waiting to be
-  re-prompted.
-- Default to one agent. Use requested teams for independent, bounded work. Agree
-  once on file/component ownership, shared contracts and one integration owner,
-  then work independently. Do not narrate edits to peers or ask for speculative
-  conflict checks before each change or merge.
-- Communicate only actual ownership overlap, contract changes, blockers needing
-  a decision, or a ready handoff. Batch questions; hand off a commit, affected
-  paths and concise verification evidence. No acknowledgment loops, status
-  polling, relay chains or coordination-only agents without a concrete need.
-- `main` moves constantly. After each commit on a task branch, check whether
-  local `main` has moved (`git rev-parse main` vs your merge base) and, if it
-  has, merge it in (`git merge main`; rebase only for a real conflict). Also do
-  this at the start of each work session and before an acceptance run whose
-  inputs `main` touched. Small, frequent integrations keep conflicts trivial;
-  a branch that waits until it is "done" to catch up inherits days of
-  divergence at once. Never `reset --soft main` to squash; check the diff file
-  list after any integration. `rerere.enabled` is on for this repository so a
-  conflict resolved once replays on later merges; keep it on in new worktrees.
-- When landing is authorized, land each coherent verified milestone through
-  the lane as it becomes ready; do not hold a branch until the whole task is
-  done. Assume main is continuously updated: validate the task and land;
-  do not chase each new HEAD with a rebase/retest cycle. Do not wait for unrelated
-  teams or require a global quiet period.
-  Check the target checkout and diff locally; coordinate only actual overlap or
-  an actively edited target. Resolve routine integration locally.
-- Test evidence follows relevant code, dependencies, inputs and environment, not
-  the main HEAD hash. Unrelated main commits, clean cherry-picks and rebases do
-  not invalidate passing results. Rerun only checks affected by changed behavior,
-  dependencies or conflict resolution; `go run ./cmd/affected` from `go/`
-  names those checks and `go run ./cmd/test` runs the Go half and names
-  the acceptance harnesses the change touches (a harness, or the
-  `rimgovernor` binary it drives, imports a changed package; every harness
-  when native sources or fixtures changed). Run those harnesses at the
-  milestone, before landing, and say in the commit message which ran; no
-  stamp or hash records it, and `main` moving afterwards is never a reason
-  to rerun (see [choose-tests](docs/developers/testing/choose-tests.md)).
-  Reuse other agents' applicable evidence.
+`main` moves constantly and that is never a reason to redo anything: a test
+or harness that passed on the branch's code stays passed, the lane's merge
+does not invalidate it, and a second rerun-and-land cycle for one milestone
+is forbidden. If something is left unverified, land and file an issue
+saying what.
 
+## Never
 
-## Architecture and implementation
+- Open a pull request, or push to GitHub. GitHub holds issues only; the
+  maintainer pushes `main` by hand.
+- `git reset --soft main` to squash, or edit the `main` checkout directly.
+- Kill `RimWorldWin64.exe` or `gabs.exe` by image name; peers' games run
+  beside yours. Stop your own by root or pid (runbook).
+- Replace an installed DLL while any RimWorld instance is running, yours or
+  a peer's.
+- `go clean -cache`, or set a private `GOCACHE`.
+- Rebuild the controller binary or the mod while a harness is running from
+  them.
+- Commit generated builds, logs, saves, databases or temporary scripts.
 
-- Follow the [development process](docs/developers/development-process.md): verified
-  slices sized to a milestone rather than the smallest possible step, strict typed
-  contracts and explicit component ownership. Integrate features through existing
-  architecture; keep unstructured data at validated boundaries.
-- Start with the [documentation map](docs/README.md), [system overview](docs/developers/architecture/overview.md)
-  and the [backlog issues](https://github.com/davidarcher/rimgovernor/issues).
-  Read the component guide and contracts for the subsystem being changed.
-  Runtime: Go (`go/`), React (`dashboard/`), GABS/RimBridgeServer and
-  `integrations/rimgovernor-native`. Native acceptance tooling is Go.
-- Keep one shared goal/action system and deterministic Hands. Routine control is
-  deterministic; player chat interprets explicit semantic requests. Advisers cannot
-  write game orders or own colony invariants.
-- Preserve normal game rules. Discover native schemas and definitions; keep
-  editor/cheat operations outside model execution. RimWorld owns simulation.
-- Use configured local LM Studio models with no silent paid-provider fallback.
-- Verify native outcomes: receipts do not prove pawn work completed. Observe
-  uncertain writes before retrying. Plans do not own arbitrary map coordinates.
-- Manual mode is the only thing that pauses controller action: while
-  `NativeControlAuthority` reads Manual (e.g. the player took over during
-  combat), the controller does nothing. Once it reads Auto again, the
-  controller may act on anything on the map immediately, including
-  something the player just drafted, forced, restricted or placed — there is
-  no per-subsystem "player owns this, hands off" state and no waiting
-  period. Colony/load/map changes and stale in-flight snapshots still
-  invalidate pending work; that is ordinary concurrency safety, not a
-  player-ownership rule.
-- Preserve UI drafts and last good data during background refreshes.
+## Issues
 
-## Validation
+Open a GitHub issue (`gh issue create`) for anything you would otherwise
+leave as "follow-up" or ask about in a summary: bugs found in passing,
+deferred scope, unverified assumptions, decisions needed. One issue per
+item, terse title, concrete evidence (file, commit, log line), what would
+resolve it, labeled `priority:P0`/`P1`/`P2` or `area:G01`/`N01`/`tooling`.
+Check open issues first and comment on a match instead of duplicating.
+Cite the number in your report instead of restating it. Status goes in
+issue comments, not chat.
 
-- Follow the testing pyramid: many fast Go unit tests (`go test ./...` under
-  `go/`), fewer integration tests and a small set of targeted native
-  acceptance harnesses (`go/internal/nativeaccept/cmd/*`) verified against a
-  real headless RimWorld instance. Keep the edit/test loop fast.
-- Before a slow check, identify the changed behavior or unresolved failure it
-  verifies and why cheaper checks are insufficient. Run targeted native
-  acceptance at relevant feature milestones, not after every edit.
-- After an acceptance failure, add a fast regression test where feasible and
-  rerun the affected harness. Do not duplicate tests or reviews already
-  supported by applicable evidence.
-- A new acceptance harness follows the performance checklist in
-  `docs/developers/testing/choose-tests.md` (Core-only, quiet storyteller,
-  staged precondition, stall-bounded waits, minute-scale budgets); review it
-  against that list before landing.
-- Acceptance harnesses start from a save or fixture that already exercises
-  the behavior under test, not from a baseline/foothold colony that must first
-  be played into the right state. A single harness run that spends 20-30
-  minutes of game time reaching its precondition is a fixture bug, not a test:
-  stage the precondition instead (a prepared `.rws` save committed under the
-  fixture set, a `test/*_prepare` op in the test fixture mod, or
-  `variantsavegen`/`ScenarioStartFixture` for a programmatic start), then
-  advance only the ticks the assertion itself needs. Budget a targeted harness
-  at minutes, not tens of minutes; if reaching the precondition is the slow
-  part, build the fixture before writing the assertion.
-- Use checks appropriate to the change; `task build && task test` runs every
-  project's gates (`go vet`, `go test`, `go build`, dashboard, protobuf, C#). Distinguish
-  compilation/protocol checks from actual gameplay validation.
-- Never replace installed DLLs while any RimWorld instance is running, including
-  another worktree's tests. Isolated tests must restore temporarily swapped DLLs.
-- Never kill `RimWorldWin64.exe` or `gabs.exe` by image name (`taskkill /IM`,
-  `Stop-Process -Name`): several worktrees run headless RimWorld concurrently
-  on one machine, and an image-name kill ends every other session's game
-  mid-run (it surfaces there as GABS's tool catalog going empty,
-  `availableTotal: 0`). Stop your own game with `games_stop`; if you must kill a
-  stray, select only processes whose command line contains your own `-root`
-  path (e.g. `Get-CimInstance Win32_Process` filtered on `-savedatafolder=`).
-- Native behavior changes need targeted game-level acceptance before completion.
-  Documentation-only edits need no game session. The full affected suite means
-  the applicable automated suite, not the entire gameplay scenario matrix.
+## Checks
+
+- Pyramid: many fast Go unit tests (via `cmd/test`), fewer integration
+  tests, a small set of targeted native acceptance harnesses
+  (`go/internal/nativeaccept/cmd/*`) against a real headless RimWorld.
+  Before a slow check, say what changed behaviour it verifies and why the
+  cheaper check is insufficient.
+- `task build && task test` runs every project's gates (dashboard,
+  protobuf, C#); use it when the change touches those, not for Go-only
+  work.
+- A receipt does not prove pawn work completed: assert the native
+  postcondition. Distinguish compilation/protocol checks from gameplay
+  validation.
+- After an acceptance failure, add a fast regression test where feasible
+  and rerun that harness.
+- A new harness starts from a fixture that already exercises the behaviour
+  (a committed save, a `test/*_prepare` op, or a programmatic start) and
+  follows the performance checklist in choose-tests: Core-only, quiet
+  storyteller, stall-bounded waits, minute-scale budgets. Playing a colony
+  into its precondition for 20 minutes is a fixture bug.
 - Checks named in old commits or issues may no longer exist; trust
   `go/internal/nativeaccept/cmd/` over history.
 
-## Documentation and comments
+## Architecture
 
-- Keep prose and code comments concise and forward-looking. Explain current
-  behavior, contracts, constraints and useful rationale; no design archeology,
-  chronological implementation diaries or accounts of superseded approaches.
-- Organize docs around players and developers. Give the reader the behavior,
-  commands or contracts needed for their task; link to detail and avoid repeating
-  shared rules. Keep the [documentation map](docs/README.md) current.
-- Keep all unfinished implementation, audit and acceptance work tracked as
-  [GitHub issues](https://github.com/davidarcher/rimgovernor/issues), labeled
-  by priority (`priority:P0`/`P1`/`P2`) or rewrite area (`area:G01`/`N01`/`tooling`).
-  Update architecture and procedures when behavior changes.
-- Put iteration evidence in commit messages and generated test artifacts. Keep
-  applicable source and dependency notices beside retained code, without change diaries.
-- `AGENTS.md` is the source of these instructions; `CLAUDE.md` is a symlink to it.
+Start with the [documentation map](docs/README.md), the
+[system overview](docs/developers/architecture/overview.md) and the
+[development process](docs/developers/development-process.md); read the
+component guide and contracts for the subsystem you change. Runtime: Go
+(`go/`), React (`dashboard/`), GABS/RimBridgeServer and
+`integrations/rimgovernor-native`; native acceptance tooling is Go.
+
+Non-negotiables: RimWorld owns simulation and normal game rules hold
+(discover native schemas; editor/cheat operations stay outside model
+execution). One shared goal/action system with deterministic Hands;
+advisers never write game orders or own colony invariants. Local LM Studio
+models only, no silent paid-provider fallback. Typed contracts at
+boundaries; explicit component ownership; integrate through the existing
+architecture. Manual control semantics are in the
+[control loop guide](docs/developers/architecture/control-loop.md#manual-control).
+
+## Docs and comments
+
+Concise and forward-looking: current behaviour, contracts, constraints,
+useful rationale. No design archaeology, implementation diaries or
+accounts of superseded approaches, in prose or in commit messages beyond
+the evidence. Organise for players and developers; link rather than
+repeat; keep the [documentation map](docs/README.md) current and update
+architecture and procedure docs when behaviour changes.

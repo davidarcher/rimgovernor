@@ -15,7 +15,8 @@ automation and save your session.
 its contracts and run the relevant checks.
 
 - [Architecture](developers/architecture/overview.md) and [source map](developers/source-map.md)
-- [Development workflow](developers/development-process.md)
+- [Development workflow](developers/development-process.md) and the
+  [agent runbook](developers/agent-runbook.md) (shared machine, private game copy, running harnesses)
 - [Subsystem contracts](developers/contracts/README.md) and
   [wire contracts](../contracts/README.md)
 - [Generated wire contracts](../contracts/schema-generation.md)

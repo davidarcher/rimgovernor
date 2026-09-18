@@ -74,6 +74,20 @@ longer, at most one game day (#126); each step's flight-recorder
 `clock_step` row carries the window it sized. Combat windows stay at 300; a
 native work allowance (a growing field, a home fire) still clamps it.
 
+## Manual control
+
+Manual mode is the only thing that pauses controller action. While
+`NativeControlAuthority` reads Manual (for example the player took over
+during combat), the controller does nothing. Once it reads Auto again the
+controller may act on anything on the map immediately, including something
+the player just drafted, forced, restricted or placed: there is no
+per-subsystem "player owns this, hands off" state and no waiting period.
+Colony, load and map changes and stale in-flight snapshots still invalidate
+pending work; that is ordinary concurrency safety, not a player-ownership
+rule. A pause or letter pause only suspends routine goals and their open
+work until control resumes in the same world (see the
+[overview](overview.md)).
+
 ## Verify progress
 
 Hands records receipts; completion tracking checks native postconditions. A

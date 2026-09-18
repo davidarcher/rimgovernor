@@ -10,7 +10,8 @@ component you will change. Keep work in small verified slices using the
 | Task | Start here |
 | --- | --- |
 | Set up locally | [Windows setup](../players/setup.md) |
-| Run checks without game files | `go vet ./...` / `go test ./...` under `go/` (see [Go module](../../go/README.md)) |
+| Work beside other agent sessions on one machine | [Agent runbook](agent-runbook.md) |
+| Run checks without game files | `go run ./cmd/test` under `go/` (see [Go module](../../go/README.md)) |
 | Change game behavior | [Subsystem contracts](contracts/README.md) |
 | Change deployment names | [Project identity](project-identity.md) |
 | Work on the Go controller | [Go module](../../go/README.md) and [wire contracts](../../contracts/README.md) |

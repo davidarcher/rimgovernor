@@ -282,9 +282,10 @@ func Test(repo string, changed []string) error {
 		return err
 	}
 	if sel.AllHarnesses {
-		fmt.Println("harnesses affected: all (a shared harness input changed)")
-	} else if len(sel.Harnesses) > 0 {
-		fmt.Println("harnesses affected: " + strings.Join(sel.Harnesses, " "))
+		fmt.Println("harnesses affected: all (a shared harness input changed: native sources, fixtures or go.mod)")
+	}
+	for _, harness := range sel.Harnesses {
+		fmt.Printf("harness: go run ./internal/nativeaccept/cmd/%s -root <abs root> -output <fresh dir>\n", harness)
 	}
 	switch {
 	case sel.AllGo:

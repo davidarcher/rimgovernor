@@ -124,13 +124,12 @@ Commit each completed iteration with its checks and limitations. Keep generated
 builds, logs, saves, databases and temporary scripts out of commits. Report the
 branch and commit. Land authorized work on local `main` through the landing
 lane, `go run ./cmd/land` from `go/` in the branch's worktree (one squash
-commit per task; see [AGENTS.md](../../AGENTS.md)); pull requests are disabled
-and the maintainer pushes `main` manually. Run `go run ./cmd/test` from
-`go/` before landing (it tests what the working tree's change affects; the
-lane itself runs no tests, and a hand-run `go test ./...` after it is
-waste). Run the acceptance harnesses `cmd/test` names at the milestone,
-before landing, and at most once per milestone; `main` moving afterwards is
-never a reason to rerun one.
+commit per milestone; the loop is in [AGENTS.md](../../AGENTS.md), the
+machine setup in the [agent runbook](agent-runbook.md)); pull requests are
+disabled and the maintainer pushes `main` manually. `go run ./cmd/test`
+from `go/` is the test loop and the pre-land check (the lane runs no
+tests); run the acceptance harnesses it names at the milestone, at most
+once per milestone. `main` moving afterwards is never a reason to rerun.
 
 ## Keep deployment and docs maintainable
 

@@ -13,7 +13,7 @@ Use Go **1.27.1** from `.go-version`. From this directory:
 ```powershell
 $env:GOTOOLCHAIN = 'go1.27.1'
 $env:CGO_ENABLED = '0'
-go test ./...
+go run ./cmd/test   # the packages your change affects; go test ./... for everything
 go vet ./...
 go build -o ../.rimgovernor/go/rimgovernor.exe ./cmd/rimgovernor
 ```
@@ -147,7 +147,7 @@ Multi-instance colony directory serving (`--colonies`) does not exist in Go
 
 ## Testing pyramid
 
-- Many fast unit tests: `go test ./...` (no game needed). Native reply fixtures
+- Many fast unit tests: `go run ./cmd/test` for what a change affects, `go test ./...` for all (no game needed). Native reply fixtures
   under `contracts/fixtures` and captured payloads replayed through
   `RIMGOVERNOR_NATIVE_*_CAPTURE` environment variables (see the component
   sections below) establish parsing and durable review, not native outcomes.

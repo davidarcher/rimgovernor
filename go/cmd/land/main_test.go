@@ -43,7 +43,7 @@ func write(t *testing.T, path, content string) {
 	}
 }
 
-func TestLandSquashesOntoMainAndCarriesTrailers(t *testing.T) {
+func TestLandSquashesOntoMainAndKeepsCoAuthors(t *testing.T) {
 	root, wt := newRepo(t)
 	write(t, filepath.Join(wt, "b.txt"), "b\n")
 	mustGit(t, wt, "add", ".")
@@ -56,7 +56,7 @@ func TestLandSquashesOntoMainAndCarriesTrailers(t *testing.T) {
 	mustGit(t, root, "commit", "-qm", "peer: add c")
 
 	t.Chdir(wt)
-	if err := run("", "", "", time.Second, false); err != nil {
+	if err := run("", "", "", time.Second, false, nil); err != nil {
 		t.Fatal(err)
 	}
 	if got := mustGit(t, root, "log", "--format=%s", "main"); got != "fix: b again\npeer: add c\ninit" {
@@ -72,9 +72,6 @@ func TestLandSquashesOntoMainAndCarriesTrailers(t *testing.T) {
 		if !strings.Contains(body, want) {
 			t.Errorf("message lacks %q:\n%s", want, body)
 		}
-	}
-	if strings.Contains(body, "inputs=0000000000000001") {
-		t.Errorf("message keeps the superseded trailer:\n%s", body)
 	}
 	if parents := mustGit(t, root, "log", "-1", "--format=%P", "main"); strings.Contains(parents, " ") {
 		t.Errorf("landed commit is a merge: parents %s", parents)
@@ -97,14 +94,14 @@ func TestLandRefusesDirtyMainAndConflicts(t *testing.T) {
 	t.Chdir(wt)
 
 	write(t, filepath.Join(root, "a.txt"), "dirty\n")
-	if err := run("", "", "", time.Second, false); err == nil || !strings.Contains(err.Error(), "main checkout") {
+	if err := run("", "", "", time.Second, false, nil); err == nil || !strings.Contains(err.Error(), "main checkout") {
 		t.Errorf("dirty main: got %v", err)
 	}
 	mustGit(t, root, "checkout", "--", "a.txt")
 
 	write(t, filepath.Join(root, "a.txt"), "main\n")
 	mustGit(t, root, "commit", "-qam", "main edit")
-	err := run("", "", "", time.Second, false)
+	err := run("", "", "", time.Second, false, nil)
 	if err == nil || !strings.Contains(err.Error(), "resolve the conflict") {
 		t.Errorf("conflict: got %v", err)
 	}
@@ -123,11 +120,29 @@ func TestLandWaitsForLock(t *testing.T) {
 	mustGit(t, wt, "commit", "-qm", "b")
 	write(t, filepath.Join(root, ".git", lockName), "pid=0 branch=other\n")
 	t.Chdir(wt)
-	err := run("", "", "", 0, true)
+	err := run("", "", "", 0, false, nil)
 	if err == nil || !strings.Contains(err.Error(), "landing lock") {
 		t.Errorf("held lock: got %v", err)
 	}
 }
 
-// Only the branch's own edits after the stamp make a trailer stale; what
-// main moved under the harness's inputs is not a rerun trigger.
+func TestCloseIssueReadsTheBranchName(t *testing.T) {
+	for branch, want := range map[string]string{
+		"claude/github-issue-128-dbc221": "128",
+		"issue-7-corridor":               "7",
+		"claude/rimgovernor-issue-39-x":  "39",
+		"claude/agents-duplicate-tests":  "",
+		"feature/issue-abc":              "",
+	} {
+		got := ""
+		if m := issueInBranch.FindStringSubmatch(branch); m != nil {
+			got = m[1]
+		}
+		if got != want {
+			t.Errorf("%s: issue %q, want %q", branch, got, want)
+		}
+	}
+	if closeIssue(0, true) != nil {
+		t.Error("-no-close should disable closing")
+	}
+}
