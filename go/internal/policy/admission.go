@@ -447,9 +447,13 @@ func Admit(input Input) Decision {
 		if heldProblem == "" {
 			for i, h := range result.Held {
 				cv, hv := c.Progress.View(), h.Progress.View()
-				if c.Action == h.Action && cv.Stage == domain.Prepared && cv.Snapshot.Matches(r.Current) &&
+				// A Prepared attempt 0 has no write outstanding (dispatch is
+				// journaled before the native call), so its own earlier hold
+				// -- current or left behind by a generation that moved (#101)
+				// -- is superseded by this fresh admission.
+				if c.Action == h.Action && cv.Stage == domain.Prepared &&
 					cv.Attempt == 0 && !cv.Unresolved && (hv.Stage == domain.Pending || hv.Stage == domain.Prepared) &&
-					hv.Attempt == 0 && !hv.Unresolved && h.Snapshot.Matches(r.Current) {
+					hv.Attempt == 0 && !hv.Unresolved {
 					// Replace the hold only if fresh revalidation succeeds. Failed
 					// admission must not expose its resources or geometry to rivals.
 					replace = i
@@ -490,8 +494,12 @@ func Admit(input Input) Decision {
 }
 func assess(c Candidate, r Request, bounds Bounds, boundsKnown, stockFresh bool, stock map[Resource]domain.Fact[int64], rules map[Resource]ResourceRule, used map[Resource]int64, occupied map[domain.Cell]int, heldIDs map[domain.ActionID]bool, heldProblem Reason) (Reason, Resource) {
 	v := c.Progress.View()
+	// A Prepared action prepared under an older snapshot is not ready to
+	// dispatch as it stands, but an attempt 0 has no write outstanding and is
+	// re-prepared under the current one (#101); only a later attempt's stale
+	// preparation waits.
 	if (v.Stage != domain.Pending && v.Stage != domain.Prepared) || v.Unresolved || v.Tick > r.CurrentTick ||
-		v.Stage == domain.Prepared && !v.Snapshot.Matches(r.Current) {
+		v.Stage == domain.Prepared && v.Attempt > 0 && !v.Snapshot.Matches(r.Current) {
 		return NotReady, ""
 	}
 	if heldIDs[c.Action.ID()] {

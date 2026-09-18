@@ -290,3 +290,54 @@ func TestRefrigerationNativeWorkTicksSurviveGenerationMoves(t *testing.T) {
 		t.Fatal("reloaded world inherited the cooling allowance", got)
 	}
 }
+
+// A setpoint patch that lands on a paused game leaves the census reading
+// the old target until the game ticks: the same patch is proposed again
+// and found used, and that outcome must still lend native cooling time or
+// the clock never runs to refresh the census.
+func TestRefrigerationUsedSetpointPatchLendsCoolingTime(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	p, db, _, _ := refrigerationFixture(t, true)
+	result, err := p.Step(ctx)
+	if err != nil || result.Reason != BuildingMethodAdmitted {
+		t.Fatal(result, err)
+	}
+	review, err := db.LoadRoutineReview(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var goal store.GoalState
+	for _, binding := range review.Goals {
+		if binding.Need == policy.MaintainRefrigeration {
+			if goal, err = db.LoadGoal(ctx, binding.Goal); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	if len(goal.Methods) != 1 {
+		t.Fatal(goal.Methods)
+	}
+	plan, err := db.LoadPlan(ctx, goal.Methods[0].Plan)
+	if err != nil || len(plan.Progress) != 1 {
+		t.Fatal(plan, err)
+	}
+	action := plan.Progress[0].Action().ID()
+	snapshot := goal.Goal.Snapshot
+	snapshot.Plan, snapshot.Revision = plan.Spec.ID(), plan.Spec.Revision()
+	tick := goal.Goal.Tick
+	if _, err := db.PrepareBuildingTemperature(ctx, plan.Spec.ID(), action, store.BuildingTemperatureAdmission{Snapshot: snapshot, Tick: tick, Thing: "cooler", SnapshotToken: "tok-1"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Dispatch(ctx, plan.Spec.ID(), action, snapshot, tick); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Observe(ctx, plan.Spec.ID(), domain.Observation{Action: action, Attempt: 1, Snapshot: snapshot, Tick: tick, Effect: domain.EffectCompleted, Causality: domain.AfterDispatch}, snapshot); err != nil {
+		t.Fatal(err)
+	}
+	// The census still reads the warm target: the same patch is used.
+	next, err := p.Step(ctx)
+	if err != nil || next.Reason != BuildingMethodUsed || next.NativeWorkTicks == 0 {
+		t.Fatal(next, err)
+	}
+}

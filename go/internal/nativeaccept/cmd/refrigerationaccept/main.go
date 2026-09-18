@@ -309,11 +309,53 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 		} else if len(fridge) != 0 {
 			return fmt.Errorf("refrigeration committed %d methods while its cooler was unpowered: %#v", len(fridge), fridge)
 		}
-		done, _, err := na.WaitPlanTerminal(powerCtx, journal, conduit.Plan)
+		// The evidence is the cooler regaining power, not every conduit
+		// landing: the planner traces a path with slack, and once enough of
+		// it is built the deficit clears and the rest never dispatches. The
+		// refrigeration family commits its setpoint only once the cooler
+		// reads powered, so a committed method ends the wait too.
+		var completed int
+		var completedTick uint64
+		err = na.WaitProgress(powerCtx, na.Wait{Stall: na.StallBudget(), Interval: time.Second}, func(ctx context.Context) (string, bool, error) {
+			state, err := journal.LoadPlan(ctx, conduit.Plan)
+			if err != nil {
+				return "", false, err
+			}
+			completed = 0
+			terminal := len(state.Progress) > 0
+			var signature []any
+			for _, progress := range state.Progress {
+				view := progress.View()
+				signature = append(signature, view.Stage, view.Attempt, view.Unresolved)
+				switch view.Stage {
+				case domain.Completed:
+					completed++
+					if uint64(view.Tick) > completedTick {
+						completedTick = uint64(view.Tick)
+					}
+				case domain.Unsuccessful:
+					return "", false, fmt.Errorf("conduit plan %s reached unsuccessful instead of completed", conduit.Plan)
+				default:
+					terminal = false
+				}
+			}
+			if terminal {
+				return "", true, nil
+			}
+			fridge, err := refrigerationMethods(ctx, journal)
+			if err != nil {
+				return "", false, err
+			}
+			if completed > 0 && len(fridge) != 0 {
+				return "", true, nil
+			}
+			return na.Signature(signature...), false, nil
+		})
 		if err != nil {
 			return fmt.Errorf("conduit plan: %w", err)
 		}
-		report["power_conduit_completed_tick"] = int64(done.Progress[len(done.Progress)-1].View().Tick)
+		report["power_conduits_completed"] = completed
+		report["power_conduit_completed_tick"] = int64(completedTick)
 	}
 
 	// The refrigeration method: a Cooler build on a wall cell (build) or a
@@ -597,8 +639,34 @@ func waitLatch(ctx context.Context, s *store.Store, service *na.ServiceProcess) 
 	return review, nil
 }
 
+// waitRelease waits for native cooling to release the latch. Nothing in the
+// review moves while the room cools, so the signature carries the review's
+// tick: a running game never reads as stalled, a paused one still does, and
+// the tick budget (two game days, ample for a cooler against a heat wave)
+// bounds the cooling itself.
 func waitRelease(ctx context.Context, s *store.Store, service *na.ServiceProcess) (store.RoutineReview, error) {
-	review, err := na.WaitReview(ctx, s, storeWait(service), func(r store.RoutineReview) bool { return !r.Latches.Refrigeration })
+	var review store.RoutineReview
+	w := storeWait(service)
+	w.Interval = time.Second
+	w.Ticks = 2 * na.TicksPerDay
+	w.Tick = func(ctx context.Context) (uint64, error) {
+		r, err := s.LoadRoutineReview(ctx)
+		if err != nil {
+			return 0, err
+		}
+		return uint64(r.Tick), nil
+	}
+	err := na.WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
+		r, err := s.LoadRoutineReview(ctx)
+		if err != nil {
+			return "", false, err
+		}
+		review = r
+		if !r.Latches.Refrigeration {
+			return "", true, nil
+		}
+		return na.Signature(fmt.Sprintf("%+v", r.Latches), r.Revision, r.Tick), false, nil
+	})
 	if err != nil {
 		return review, fmt.Errorf("review never released the refrigeration latch (revision %d): %w", review.Revision, err)
 	}

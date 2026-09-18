@@ -289,3 +289,34 @@ func TestUnskilledBuilderNeedsOnlyOneEnabledConstructionPawn(t *testing.T) {
 		t.Fatal("unavailable builder accepted")
 	}
 }
+
+// A skilled build (Cooler: construction 5) needs one qualified pawn with
+// Construction enabled; a colony whose other settings differ from a
+// Construction-only allocation (open bills keep bench work types on) must
+// not hold it.
+func TestSkilledBuilderIgnoresUnrelatedWorkSettings(t *testing.T) {
+	t.Parallel()
+	builder := policy.WorkPawn{ID: "builder", Available: domain.Known(true), Applies: domain.Known(true), Manual: domain.Known(false), Ranged: domain.Known(false),
+		Skills: domain.Known([]policy.WorkSkill{{Name: "Construction", Level: 6, Passion: "None"}}),
+		Work:   domain.Known([]policy.WorkPriority{{Work: "Construction", Priority: 3}, {Work: "Art", Priority: 3}, {Work: "Mining", Priority: 3}})}
+	artist := policy.WorkPawn{ID: "artist", Available: domain.Known(true), Applies: domain.Known(true), Manual: domain.Known(false), Ranged: domain.Known(false),
+		Skills: domain.Known([]policy.WorkSkill{{Name: "Construction", Level: 2, Passion: "None"}}),
+		Work:   domain.Known([]policy.WorkPriority{{Work: "Construction", Priority: 0}, {Work: "Art", Priority: 1}, {Work: "Research", Priority: 3}})}
+	facts := observation.ColonyProjection{WorkPawns: domain.Known([]policy.WorkPawn{builder, artist}), Definitions: []observation.PlanningDefinition{{Name: "Cooler", Available: domain.Known(true), ConstructionSkill: domain.Known(int32(5))}}}
+	if !comfortBuilderAvailable(facts, "Cooler", nil) {
+		t.Fatal("skilled build held behind unrelated work settings")
+	}
+	if comfortBuilderAvailable(facts, "Cooler", []policy.WorkOverride{{Pawn: "builder", Work: "Construction", Priority: 0}}) {
+		t.Fatal("player disabled builder was ignored")
+	}
+	builder.Skills = domain.Known([]policy.WorkSkill{{Name: "Construction", Level: 4, Passion: "None"}})
+	facts.WorkPawns = domain.Known([]policy.WorkPawn{builder, artist})
+	if comfortBuilderAvailable(facts, "Cooler", nil) {
+		t.Fatal("native construction prerequisite bypassed")
+	}
+	builder.Skills = domain.Known([]policy.WorkSkill{{Name: "Construction", Level: 6, Passion: "None", Disabled: true}})
+	facts.WorkPawns = domain.Known([]policy.WorkPawn{builder, artist})
+	if comfortBuilderAvailable(facts, "Cooler", nil) {
+		t.Fatal("natively disabled construction skill accepted")
+	}
+}

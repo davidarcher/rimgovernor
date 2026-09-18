@@ -14,6 +14,17 @@
 //	          lamp does not glow, so the cell stays dark, but the service
 //	          must hold for the power family (lamp_power_needed) rather than
 //	          double up with a torch: no lighting method may be committed.
+//	partial -- a wider room with a lit torch at the far end whose glow
+//	          radius reaches the interaction cell but whose light has fallen
+//	          off below lit by then (the issue's "partially lit bench"). The
+//	          service must not defer to the far torch: it admits a lamp of
+//	          its own beside the cell, the census releases on measured glow,
+//	          and both lamps stand lit afterwards.
+//	fungus -- the dark room grows a cave plant that dies to light (the
+//	          issue's "protected fungus room"). The census must mark the
+//	          work cell light-sensitive, the review must never latch it,
+//	          no lighting method may be committed over the hold, and the
+//	          plant must still be alive on an independent native read.
 //
 // Uses the private disposable test/lighting_prepare fixture
 // (LightingFixture.cs). As with the other native harnesses, the harness's
@@ -26,6 +37,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -45,8 +57,8 @@ func main() {
 	rendered := flag.Bool("rendered", false, "use the windowed profile instead of headless")
 	game := flag.String("game", "rimgovernor-trial", "configured game ID")
 	binary := flag.String("rimgovernor", "", "absolute path to a prebuilt rimgovernor binary (go build ./go/cmd/rimgovernor)")
-	scenario := flag.String("scenario", "dark", "dark or outage")
-	hold := flag.Duration("hold", 4*time.Minute, "outage: how long the service must hold without committing a lighting method")
+	scenario := flag.String("scenario", "dark", "dark, outage, partial or fungus")
+	hold := flag.Duration("hold", 4*time.Minute, "outage/fungus: how long the service must hold without committing a lighting method")
 	timeout := flag.Duration("timeout", 25*time.Minute, "overall run timeout")
 	flightRecorder := flag.Bool("flight-recorder", false, "record the service's native timeline (flight.jsonl) and summarize its phases (reads/step, cache and parent hits) into the report")
 	flag.Parse()
@@ -54,8 +66,8 @@ func main() {
 		fmt.Fprintln(os.Stderr, "-root and an absolute -rimgovernor are required")
 		os.Exit(2)
 	}
-	if *scenario != "dark" && *scenario != "outage" {
-		fmt.Fprintln(os.Stderr, "-scenario must be dark or outage")
+	if *scenario != "dark" && *scenario != "outage" && *scenario != "partial" && *scenario != "fungus" {
+		fmt.Fprintln(os.Stderr, "-scenario must be dark, outage, partial or fungus")
 		os.Exit(2)
 	}
 	if *output == "" {
@@ -70,8 +82,9 @@ func main() {
 		os.Exit(2)
 	}
 	report := na.NewReport("Native MaintainLighting vertical ("+*scenario+"): a measured-dark stove interaction cell in an enclosed room "+
-		"drives the live Go routine reviewer/planner to admit one affordable lamp beside it (dark) or to hold for the power "+
-		"family behind an unpowered lamp already in reach (outage); the measured glow, not the receipt, releases the latch, "+
+		"drives the live Go routine reviewer/planner to admit one affordable lamp beside it (dark, partial) or to hold for the power "+
+		"family behind an unpowered lamp already in reach (outage), and a room growing a light-killed cave plant is never latched (fungus); "+
+		"the measured glow, not the receipt, releases the latch, "+
 		"confirmed by an independent native read.", !*rendered)
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
@@ -135,6 +148,8 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 	}
 	stoveID := na.AsString(prepared["stove"])
 	lampID := na.AsString(prepared["lamp"])
+	plantCellMap, _ := na.AsMap(prepared["plantCell"])
+	plantCell := domain.Cell{X: int32(na.AsNumber(plantCellMap["x"])), Z: int32(na.AsNumber(plantCellMap["z"]))}
 	interior, _ := na.AsMap(prepared["interior"])
 	workCellMap, _ := na.AsMap(prepared["workCell"])
 	workCell := domain.Cell{X: int32(na.AsNumber(workCellMap["x"])), Z: int32(na.AsNumber(workCellMap["z"]))}
@@ -156,13 +171,42 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 	if !ok || !stove.roofed || stove.glow >= lighting.LitGlow || stove.cell != workCell {
 		return fmt.Errorf("lighting-before: fixture stove is not a roofed dark work cell: %+v", stove)
 	}
-	if scenario == "outage" {
+	switch scenario {
+	case "outage":
 		lamp, ok := before.lamps[lampID]
 		if !ok || lamp.lit || lamp.powered {
 			return fmt.Errorf("lighting-before: fixture lamp is not an unlit unpowered lamp: %+v", lamp)
 		}
-	} else if len(before.lamps) != 0 {
-		return fmt.Errorf("lighting-before: %d lamps present before the controller acts", len(before.lamps))
+	case "partial":
+		// The far torch is lit and its radius reaches the cell, yet the
+		// cell measures dark: partial coverage, beyond the placement radius.
+		lamp, ok := before.lamps[lampID]
+		reach := math.Hypot(float64(lamp.cell.X-workCell.X), float64(lamp.cell.Z-workCell.Z))
+		if !ok || !lamp.lit || reach > lamp.radius || max(abs(lamp.cell.X-workCell.X), abs(lamp.cell.Z-workCell.Z)) <= lighting.PlacementRadius {
+			return fmt.Errorf("lighting-before: fixture torch is not a lit lamp reaching the cell from beyond the placement radius: %+v (reach %.1f)", lamp, reach)
+		}
+	case "fungus":
+		if !stove.lightSensitive {
+			return fmt.Errorf("lighting-before: the census does not mark the fungus room's work cell light-sensitive: %+v", stove)
+		}
+		if len(before.lamps) != 0 {
+			return fmt.Errorf("lighting-before: %d lamps present before the controller acts", len(before.lamps))
+		}
+		plant, err := inspectPlant(ctx, h, plantCell, "plant-before")
+		if err != nil {
+			return err
+		}
+		report["plant_before"] = plant
+		if alive, _ := na.AsBool(plant["alive"]); !alive {
+			return fmt.Errorf("plant-before: no live cave plant at %v: %#v", plantCell, plant)
+		}
+	default:
+		if len(before.lamps) != 0 {
+			return fmt.Errorf("lighting-before: %d lamps present before the controller acts", len(before.lamps))
+		}
+	}
+	if scenario != "fungus" && stove.lightSensitive {
+		return fmt.Errorf("lighting-before: work cell marked light-sensitive without a cave plant: %+v", stove)
 	}
 	if err := s.Release(); err != nil {
 		return fmt.Errorf("close fixture-prep bridge session: %w", err)
@@ -208,6 +252,83 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 	}
 	reviewData, _ := json.Marshal(review)
 	report["routine_review_first"] = json.RawMessage(reviewData)
+
+	if scenario == "fungus" {
+		// Hold: the protected room must never latch, whatever the glow.
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(hold):
+		}
+		methods, err := lightingMethods(ctx, journal)
+		if err != nil {
+			return err
+		}
+		if len(methods) != 0 {
+			return fmt.Errorf("lighting committed %d methods in a protected fungus room: %#v", len(methods), methods)
+		}
+		still, err := journal.LoadRoutineReview(ctx)
+		if err != nil {
+			return err
+		}
+		if latchedOn(still, stoveID) || len(still.Latches.Lighting) != 0 {
+			return fmt.Errorf("lighting latched a protected fungus room (revision %d, latches %+v)", still.Revision, still.Latches.Lighting)
+		}
+		report["held_review_revision"] = still.Revision
+		stderr, err := os.ReadFile(filepath.Join(output, "service", "stderr.log"))
+		if err != nil {
+			return fmt.Errorf("read service stderr: %w", err)
+		}
+		reasons := stepReasons(string(stderr))
+		report["lighting_step_reasons"] = reasons
+		// The planner's own reason for an inactive goal, not a policy method.
+		const noDeficit = "no_active_deficit"
+		if reasons[noDeficit] == 0 {
+			return fmt.Errorf("service never reported %s; observed step reasons %v", noDeficit, reasons)
+		}
+		for reason := range reasons {
+			if reason != noDeficit {
+				return fmt.Errorf("service reported %s in a protected fungus room: %v", reason, reasons)
+			}
+		}
+		if err := na.AssertRoutineRunning(service.Get); err != nil {
+			return err
+		}
+		journal.Close()
+		service.Stop()
+		client, err = held.Reattach(ctx)
+		if err != nil {
+			return fmt.Errorf("reopen harness session after service stop: %w", err)
+		}
+		h = na.NewHarness(client, output)
+		if _, err := h.Call(ctx, "pause-after", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
+			return err
+		}
+		after, err := readLighting(ctx, h, identity, "lighting-after")
+		if err != nil {
+			return err
+		}
+		report["lighting_after"] = after.evidence()
+		if len(after.lamps) != 0 {
+			return fmt.Errorf("lighting-after: %d lamps stand in the protected fungus room", len(after.lamps))
+		}
+		if s := after.cells[stoveID]; s.glow >= lighting.LitGlow || !s.lightSensitive {
+			return fmt.Errorf("lighting-after: work cell no longer a dark light-sensitive cell: %+v", s)
+		}
+		plant, err := inspectPlant(ctx, h, plantCell, "plant-after")
+		if err != nil {
+			return err
+		}
+		report["plant_after"] = plant
+		if alive, _ := na.AsBool(plant["alive"]); !alive {
+			return fmt.Errorf("plant-after: the cave plant at %v did not survive: %#v", plantCell, plant)
+		}
+		logData, err := os.ReadFile(cfg.StartupLogPath())
+		if err != nil {
+			return fmt.Errorf("read startup log: %w", err)
+		}
+		return na.CheckStartupLog(string(logData), headless)
+	}
 
 	// The review must latch the stove and bind MaintainLighting.
 	waitCtx, waitCancel := context.WithTimeout(ctx, 3*time.Minute)
@@ -371,13 +492,30 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 	if !ok || stoveAfter.glow < lighting.LitGlow {
 		return fmt.Errorf("lighting-after: stove cell glow %.2f is still under %.2f", stoveAfter.glow, lighting.LitGlow)
 	}
-	if len(after.lamps) != 1 {
-		return fmt.Errorf("expected exactly one lamp after the run, observed %d: %+v", len(after.lamps), after.lamps)
+	// dark: only the admitted lamp; partial: the fixture torch and the
+	// admitted lamp, both lit, nothing else doubled up.
+	expectedLamps := 1
+	if scenario == "partial" {
+		expectedLamps = 2
 	}
-	for _, l := range after.lamps {
+	if len(after.lamps) != expectedLamps {
+		return fmt.Errorf("expected exactly %d lamps after the run, observed %d: %+v", expectedLamps, len(after.lamps), after.lamps)
+	}
+	admitted := false
+	for id, l := range after.lamps {
+		if scenario == "partial" && id == lampID {
+			if !l.lit {
+				return fmt.Errorf("the fixture torch %+v went out during the run", l)
+			}
+			continue
+		}
 		if l.cell != builtCell || l.definition != builtDefinition || !l.lit {
 			return fmt.Errorf("the surviving lamp %+v is not the lit %s admitted at %v", l, builtDefinition, builtCell)
 		}
+		admitted = true
+	}
+	if !admitted {
+		return fmt.Errorf("the admitted %s at %v does not stand after the run: %+v", builtDefinition, builtCell, after.lamps)
 	}
 	logData, err := os.ReadFile(cfg.StartupLogPath())
 	if err != nil {
@@ -420,9 +558,10 @@ func confirmColonyNames(ctx context.Context, h *na.Harness, report na.Report) er
 }
 
 type workCellRow struct {
-	cell   domain.Cell
-	glow   float64
-	roofed bool
+	cell           domain.Cell
+	glow           float64
+	roofed         bool
+	lightSensitive bool
 }
 type lampRow struct {
 	definition string
@@ -439,7 +578,7 @@ type lightingSummary struct {
 func (s lightingSummary) evidence() map[string]any {
 	cells := map[string]any{}
 	for id, c := range s.cells {
-		cells[id] = map[string]any{"x": c.cell.X, "z": c.cell.Z, "glow": c.glow, "roofed": c.roofed}
+		cells[id] = map[string]any{"x": c.cell.X, "z": c.cell.Z, "glow": c.glow, "roofed": c.roofed, "light_sensitive": c.lightSensitive}
 	}
 	lamps := map[string]any{}
 	for id, l := range s.lamps {
@@ -483,7 +622,8 @@ func readLighting(ctx context.Context, h *na.Harness, identity map[string]any, l
 		bench, _ := na.AsMap(row["bench"])
 		cell, _ := na.AsMap(row["cell"])
 		roofed, _ := na.AsBool(row["roofed"])
-		s.cells[na.AsString(bench["id"])] = workCellRow{cell: domain.Cell{X: int32(na.AsNumber(cell["x"])), Z: int32(na.AsNumber(cell["z"]))}, glow: na.AsNumber(row["glow"]), roofed: roofed}
+		sensitive, _ := na.AsBool(row["lightSensitive"])
+		s.cells[na.AsString(bench["id"])] = workCellRow{cell: domain.Cell{X: int32(na.AsNumber(cell["x"])), Z: int32(na.AsNumber(cell["z"]))}, glow: na.AsNumber(row["glow"]), roofed: roofed, lightSensitive: sensitive}
 	}
 	for _, raw := range na.AsSlice(facts["lamps"]) {
 		row, _ := na.AsMap(raw)
@@ -496,6 +636,19 @@ func readLighting(ctx context.Context, h *na.Harness, identity map[string]any, l
 		s.lamps[na.AsString(ref["id"])] = lampRow{definition: na.AsString(ref["defName"]), cell: domain.Cell{X: int32(na.AsNumber(position["x"])), Z: int32(na.AsNumber(position["z"]))}, radius: na.AsNumber(row["glowRadius"]), lit: lit, powered: powered}
 	}
 	return s, nil
+}
+
+// inspectPlant reads the fixture's own account of the plant on a cell (alive,
+// growth, dying) and the measured glow there, independent of the census.
+func inspectPlant(ctx context.Context, h *na.Harness, cell domain.Cell, label string) (map[string]any, error) {
+	reply, err := h.Call(ctx, label, "test/lighting_inspect", map[string]any{"x": cell.X, "z": cell.Z})
+	if err != nil {
+		return nil, err
+	}
+	if success, _ := na.AsBool(reply["success"]); !success {
+		return nil, fmt.Errorf("%s: lighting_inspect refused: %#v", label, reply)
+	}
+	return reply, nil
 }
 
 func latchedOn(review store.RoutineReview, bench string) bool {

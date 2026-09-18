@@ -247,10 +247,10 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineBuildingResult{}, err
 	}
 	facts := reading.Projection
+	var coolingAllowance uint32
 	if (r.goal == policy.EnsureComfort || r.goal == policy.MaintainResource || r.goal == policy.MaintainMedicalCare || r.goal == policy.MaintainSleeping) && !r.shelter || r.goal == policy.EnsureBasicPower || r.goal == policy.EnsureTemperatureSafety || r.goal == policy.MaintainRefrigeration || r.goal == policy.MaintainLighting || r.goal == policy.MaintainFlooring || r.goal == policy.MaintainRoutes {
 		var resolved *RoutineBuildingPlanner
 		var reason RoutineBuildingReason
-		var coolingAllowance uint32
 		if r.goal == policy.EnsureTemperatureSafety {
 			resolved, reason, err = r.selectTemperature(facts, review.Latches)
 		} else if r.goal == policy.MaintainRefrigeration {
@@ -325,7 +325,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		definitions = []string{r.definition}
 	}
 	if r.refrigeration != nil && r.refrigeration.Method == policy.RefrigerationSetTarget {
-		return r.commitRefrigerationTarget(call, goal, func() error {
+		result, err := r.commitRefrigerationTarget(call, goal, func() error {
 			if err := p.current(call, epoch); err != nil {
 				return err
 			}
@@ -334,6 +334,15 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 			}
 			return nil
 		})
+		// A setpoint patch that landed on a paused game leaves the census
+		// reading the old target until the game ticks (the review re-reads
+		// on tick advance), so the same patch is proposed again and found
+		// used. Lend the cooling allowance anyway: the clock then runs, the
+		// census refreshes and the room cools.
+		if err == nil && result.Reason == BuildingMethodUsed {
+			result.NativeWorkTicks = coolingAllowance
+		}
+		return result, err
 	}
 	missing, method, reason := r.selection(facts)
 	if reason != "" {

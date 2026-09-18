@@ -65,6 +65,10 @@ type WorkLightCell struct {
 	Glow              float64
 	Roofed            bool
 	Room              domain.Fact[string]
+	// LightSensitive is native's word that the cell's room grows a plant
+	// that dies to light (cave fungus); such a room is protected and the
+	// cell is never a lighting deficit however dark it measures.
+	LightSensitive bool
 }
 type Lamp struct {
 	ID, Definition string
@@ -111,7 +115,9 @@ type LightingReview struct {
 // ReviewLighting measures every roofed work cell against LitGlow. There is
 // no hysteresis: a lamp within reach lifts the cell well above the
 // threshold, and unroofed cells are skipped because sky glow would flap the
-// latch with the day. An unknown census keeps the previous dark set.
+// latch with the day. A light-sensitive cell (its room grows cave fungus) is
+// never dark: lighting it would kill the crop. An unknown census keeps the
+// previous dark set.
 func ReviewLighting(fact domain.Fact[LightingObservation], previous []string, p LightingPolicy) (LightingReview, error) {
 	if !p.valid() {
 		return LightingReview{}, errors.New("invalid lighting policy")
@@ -127,7 +133,7 @@ func ReviewLighting(fact domain.Fact[LightingObservation], previous []string, p 
 	}
 	r := LightingReview{Known: true}
 	for _, c := range v.WorkCells {
-		if c.Roofed && c.Glow < p.LitGlow {
+		if c.Roofed && !c.LightSensitive && c.Glow < p.LitGlow {
 			r.Dark = append(r.Dark, c.Bench)
 		}
 	}
@@ -178,10 +184,12 @@ type LightingFacts struct {
 // SelectLightingMethod resolves the lowest-sorted dark bench. An existing
 // lamp whose radius reaches the cell but which is not lit is somebody
 // else's job (power, refueling, repair, flicking) and yields a deferring
-// outcome; a lit lamp in range that still leaves the cell dark is reported
-// as blocked rather than doubled. Otherwise the first affordable definition
-// is placed on the nearest free walkable cell of the same room within
-// PlacementRadius.
+// outcome. A lit lamp already standing within PlacementRadius that still
+// leaves the cell dark is reported as blocked rather than doubled; a lit
+// lamp further away whose radius only grazes the cell is partial coverage
+// (glow falls off with distance and stops at walls), and the cell gets its
+// own lamp. Otherwise the first affordable definition is placed on the
+// nearest free walkable cell of the same room within PlacementRadius.
 func SelectLightingMethod(review LightingReview, fact domain.Fact[LightingObservation], facts LightingFacts, p LightingPolicy) (LightingProposal, error) {
 	if !p.valid() {
 		return LightingProposal{}, errors.New("invalid lighting policy")
@@ -230,12 +238,7 @@ func SelectLightingMethod(review LightingReview, fact domain.Fact[LightingObserv
 			}
 		}
 		sort.Slice(serving, func(i, j int) bool { return serving[i].ID < serving[j].ID })
-		if len(serving) > 0 {
-			lamp := serving[0]
-			method := LightingBlocked
-			if !lamp.Lit {
-				method = lampService(lamp)
-			}
+		if method := servingOutcome(serving, target.Cell, p.PlacementRadius); method != "" {
 			deferred = firstLightingReason(deferred, method)
 			continue
 		}
@@ -256,6 +259,25 @@ func SelectLightingMethod(review LightingReview, fact domain.Fact[LightingObserv
 		return LightingProposal{Method: LightingNoMethod}, nil
 	}
 	return LightingProposal{Method: deferred}, nil
+}
+
+// servingOutcome classifies the lamps whose radius reaches a dark cell:
+// the lowest-ID unlit one names the service it waits for; with every lamp
+// lit, one already within the placement radius means the cell is blocked;
+// lit lamps only reaching from further away leave the cell partially lit
+// and yield "" so a lamp of its own is placed.
+func servingOutcome(serving []Lamp, target domain.Cell, radius int32) LightingMethod {
+	near := false
+	for _, l := range serving {
+		if !l.Lit {
+			return lampService(l)
+		}
+		near = near || chebyshev(l.Cell, target) <= radius
+	}
+	if near {
+		return LightingBlocked
+	}
+	return ""
 }
 
 func firstLightingReason(current, next LightingMethod) LightingMethod {

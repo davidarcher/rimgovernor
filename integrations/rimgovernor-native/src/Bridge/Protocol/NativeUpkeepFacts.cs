@@ -123,7 +123,14 @@ namespace HomeBridge.BridgeTools
                     var cell = b.InteractionCell;
                     var row = new Obs.WorkLightCell { Bench = Ref(b), Cell = Cell(cell), Glow = Number(map.glowGrid.GroundGlowAt(cell)), Roofed = cell.Roofed(map) };
                     var room = cell.GetRoom(map);
-                    if (room != null) row.RoomId = room.ID.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                    if (room != null)
+                    {
+                        row.RoomId = room.ID.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                        // A room growing a plant that dies to light (cave
+                        // fungus) is protected: lighting it kills the crop.
+                        row.LightSensitive = room.ProperRoom && room.Cells.Any(c => c.GetPlant(map) is Plant plant && plant.def.plant != null && plant.def.plant.diesToLight
+                            || c.GetZone(map) is Zone_Growing zone && zone.GetPlantDefToGrow()?.plant?.diesToLight == true);
+                    }
                     facts.WorkCells.Add(row);
                 }
                 foreach (var b in lamps) {

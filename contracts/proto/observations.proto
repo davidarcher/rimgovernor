@@ -562,8 +562,11 @@ message HomeCoverageSection { oneof outcome { HomeCoverageFacts observed = 1; ri
 // interaction cell plus the colony's glowing fixtures, so MaintainLighting
 // reasons from illumination at the cell a pawn actually stands on rather than
 // from fixture counts. Glow follows the native GlowGrid (0..1; RimWorld treats
-// >= 0.3 as lit). A lamp is lit only when native currently emits light.
-message WorkLightCell { EntityRef bench = 1; rimgovernor.common.v1.Cell cell = 2; optional double glow = 3; optional bool roofed = 4; optional string room_id = 5; }
+// >= 0.3 as lit). A lamp is lit only when native currently emits light. A work
+// cell is light_sensitive when its room holds a plant (or a growing zone set
+// to a plant) that native says dies to light, such as cave fungus: lighting
+// that room would kill the crop, so the cell is never a lighting deficit.
+message WorkLightCell { EntityRef bench = 1; rimgovernor.common.v1.Cell cell = 2; optional double glow = 3; optional bool roofed = 4; optional string room_id = 5; optional bool light_sensitive = 6; }
 message LampState { BuildingState building = 1; optional double glow_radius = 2; optional bool lit = 3; optional string room_id = 4; }
 message LightingFacts { repeated WorkLightCell work_cells = 1; repeated LampState lamps = 2; Completeness completeness = 3; }
 message LightingSection { oneof outcome { LightingFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }

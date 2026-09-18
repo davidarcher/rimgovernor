@@ -374,6 +374,28 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 		if out, _ := na.AsBool(rows[generatorID]["outOfFuel"]); out {
 			return fmt.Errorf("power-after: generator still out of fuel after the hold window; colonists never refuelled it: %#v", rows[generatorID])
 		}
+		// A refuel landing just before the pause leaves the generator
+		// fuelled while the power net has not ticked its consumers back on;
+		// let the game run a few seconds and read again before judging.
+		for attempt := 1; attempt <= 3 && !allPowered(rows, ids[1:]); attempt++ {
+			if _, err := h.Call(ctx, fmt.Sprintf("resume-after-%d", attempt), "rimworld/set_time_speed", map[string]any{"speed": "Normal", "ultraSpeedBoost": false}); err != nil {
+				return err
+			}
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(3 * time.Second):
+			}
+			if _, err := h.Call(ctx, fmt.Sprintf("pause-after-%d", attempt), "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
+				return err
+			}
+			if after, err = observe(fmt.Sprintf("power-after-%d", attempt)); err != nil {
+				return err
+			}
+			report["power_after"] = after
+			rows = indexRows(after)
+			generators = na.AsSlice(after["generators"])
+		}
 		for _, id := range ids[1:] {
 			if on, _ := na.AsBool(rows[id]["powerOn"]); !on {
 				return fmt.Errorf("power-after: consumer %s still unpowered after refuelling: %#v", id, rows[id])
@@ -397,6 +419,16 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 		return fmt.Errorf("read startup log: %w", err)
 	}
 	return na.CheckStartupLog(string(logData), headless)
+}
+
+// allPowered reports whether every listed consumer row reads powerOn.
+func allPowered(rows map[string]map[string]any, ids []string) bool {
+	for _, id := range ids {
+		if on, _ := na.AsBool(rows[id]["powerOn"]); !on {
+			return false
+		}
+	}
+	return true
 }
 
 func indexRows(reply map[string]any) map[string]map[string]any {

@@ -332,12 +332,19 @@ table and research bench's interaction cell with its measured ground glow
 lit flag and service state. A roofed work cell measuring under 0.3 (RimWorld's
 own lit threshold) latches its bench; unroofed cells are ignored because sky
 glow would flap the latch with the day, and an unknown census preserves the
-previous latch. The goal ranks as an ordinary development project. Its method
-first looks for a fixture whose radius reaches the cell: one that is not lit
-defers to power, refuelling, repair or flicking (`lamp_power_needed`,
-`lamp_fuel_needed`, `lamp_repair_needed`, `lamp_switched_off`) rather than
-doubling up, and a lit one that still leaves the cell dark is reported
-blocked. Otherwise it places the first affordable lamp -- a `StandingLamp`
+previous latch. A cell whose room grows a plant native says dies to light
+(cave fungus, `WorkLightCell.light_sensitive`: any such plant standing in the
+room, or a growing zone set to one) is protected and never latches, however
+dark it measures -- lighting it would kill the crop. The goal ranks as an
+ordinary development project. Its method first looks for a fixture whose
+radius reaches the cell: one that is not lit defers to power, refuelling,
+repair or flicking (`lamp_power_needed`, `lamp_fuel_needed`,
+`lamp_repair_needed`, `lamp_switched_off`) rather than doubling up; a lit one
+already standing within the placement radius that still leaves the cell dark
+is reported blocked; a lit one reaching only from further away has left the
+cell partially lit (glow falls off with distance and stops at walls) and does
+not stop the cell getting a lamp of its own. Otherwise it places the first
+affordable lamp -- a `StandingLamp`
 only while some network has an active source, else a `TorchLamp` -- on the
 nearest free, walkable, unzoned cell of the same room within two cells of the
 interaction cell (never the cell itself), each candidate validated by the

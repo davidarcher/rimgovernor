@@ -315,22 +315,21 @@ func TestPreparedRestartRevalidatesWithoutDoubleReservation(t *testing.T) {
 	}
 	r.Held[1].Costs[0].Count = 21
 	reason(t, r, InsufficientStock)
-	for _, change := range []func(*Request){
-		func(r *Request) {
-			r.Current.Native++
-			r.Stock.Snapshot = r.Current
-			r.Candidates[0].Preview.Snapshot = r.Current
-		},
-		func(r *Request) {
-			r.Current.Native++
-			r.Stock.Snapshot = r.Current
-			r.Candidates[0].Preview.Snapshot = r.Current
-		},
-	} {
-		stale := request(c)
-		change(&stale)
-		reason(t, stale, NotReady)
+	// The native generation moved after preparation: an attempt-0 Prepared
+	// action has no write outstanding, so it is re-prepared under the
+	// current snapshot and its own stale hold is superseded, not double
+	// counted (#101).
+	stale := request(c)
+	stale.Current.Native++
+	stale.Stock.Snapshot = stale.Current
+	stale.Candidates[0].Preview.Snapshot = stale.Current
+	stale.Held = []Reservation{old, hold(candidate(t, "competing", 2, 20))}
+	d = decide(t, stale)
+	if len(d.Admitted) != 1 || len(d.Held) != 1 || d.Held[0].Action.ID() != "competing" {
+		t.Fatal("stale prepared attempt 0 not re-prepared", d)
 	}
+	stale.Held[1].Costs[0].Count = 21
+	reason(t, stale, InsufficientStock)
 	r = request(c)
 	r.Candidates[0].Preview.SafeToPlace = domain.Known(false)
 	r.Held = []Reservation{old}

@@ -15,10 +15,19 @@
 //
 // Harnesses are named on the command line (-harnesses a,b,c: <bin>/a.exe
 // -root <worker> -output <output>/a) or listed in a JSON suite file
-// (-suite: [{"name": "...", "binary": "...", "args": ["..."]}], binary
-// defaulting to <bin>/<name>.exe, args appended after -root/-output).
+// (-suite: [{"name": "...", "binary": "...", "args": ["..."],
+// "acceptance": "..."}], binary defaulting to <bin>/<name>.exe and a
+// relative binary resolving under <bin>, args appended after
+// -root/-output, acceptance an optional label echoed into the row so a
+// suite can name the acceptance criterion each run stands for).
 // -rimgovernor is passed to any harness whose args mention it as
 // "{rimgovernor}".
+//
+// suites/issue-6-matrix.json is issue #6's cross-slice acceptance matrix:
+// one row per criterion in the issue text, each mapped to the harness and
+// scenario that exercises it, so the whole epic is re-accepted with one
+// suite run. suite_test.go guards the file against typos and against a
+// criterion losing its row.
 //
 // -order names an earlier suite's result.json: harnesses then start
 // longest-first by that run's wall times (ones it did not time go first,
@@ -47,6 +56,9 @@ type harness struct {
 	Name   string   `json:"name"`
 	Binary string   `json:"binary,omitempty"`
 	Args   []string `json:"args,omitempty"`
+	// Acceptance names the criterion this run stands for (documentation
+	// echoed into the suite report), if the suite file says.
+	Acceptance string `json:"acceptance,omitempty"`
 }
 
 func main() {
@@ -91,11 +103,7 @@ func main() {
 	}
 	binDir := mustAbs(*bin)
 	for i := range list {
-		if list[i].Binary == "" {
-			list[i].Binary = filepath.Join(binDir, list[i].Name+".exe")
-		} else {
-			list[i].Binary = mustAbs(list[i].Binary)
-		}
+		list[i].Binary = resolveBinary(binDir, list[i])
 		for j, a := range list[i].Args {
 			list[i].Args[j] = strings.ReplaceAll(a, "{rimgovernor}", *rimgovernor)
 		}
@@ -184,6 +192,9 @@ func main() {
 // the harness's own result.json verdict.
 func run(ctx context.Context, h harness, workerRoot, output string, worker int) map[string]any {
 	row := map[string]any{"name": h.Name, "worker": worker, "output": output, "passed": false}
+	if h.Acceptance != "" {
+		row["acceptance"] = h.Acceptance
+	}
 	args := append([]string{"-root", workerRoot, "-output", output}, h.Args...)
 	row["argv"] = append([]string{h.Binary}, args...)
 	cmd := exec.CommandContext(ctx, h.Binary, args...)
@@ -227,6 +238,19 @@ func run(ctx context.Context, h harness, workerRoot, output string, worker int) 
 	}
 	fmt.Fprintf(os.Stderr, "[worker %d] %s exit=%v passed=%v %s\n", worker, h.Name, row["exit"], row["passed"], time.Since(started).Round(time.Second))
 	return row
+}
+
+// resolveBinary names the harness executable: <bin>/<name>.exe by default,
+// a relative binary under <bin>, an absolute one as given.
+func resolveBinary(binDir string, h harness) string {
+	switch {
+	case h.Binary == "":
+		return filepath.Join(binDir, h.Name+".exe")
+	case filepath.IsAbs(h.Binary):
+		return h.Binary
+	default:
+		return filepath.Join(binDir, h.Binary)
+	}
 }
 
 func loadSuite(names, path string) ([]harness, error) {

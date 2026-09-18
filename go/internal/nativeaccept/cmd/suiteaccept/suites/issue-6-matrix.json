@@ -1,0 +1,141 @@
+[
+  {
+    "name": "light-dark",
+    "binary": "lightaccept.exe",
+    "args": [
+      "-rimgovernor",
+      "{rimgovernor}",
+      "-scenario",
+      "dark"
+    ],
+    "acceptance": "dark benches: a measured-dark roofed work cell gets one affordable lamp beside it"
+  },
+  {
+    "name": "light-partial",
+    "binary": "lightaccept.exe",
+    "args": [
+      "-rimgovernor",
+      "{rimgovernor}",
+      "-scenario",
+      "partial"
+    ],
+    "acceptance": "partially lit benches: a lit lamp whose radius only grazes the work cell does not stop a lamp of its own"
+  },
+  {
+    "name": "light-outage",
+    "binary": "lightaccept.exe",
+    "args": [
+      "-rimgovernor",
+      "{rimgovernor}",
+      "-scenario",
+      "outage"
+    ],
+    "acceptance": "lamp outage: an unpowered lamp in reach holds for the power family instead of doubling up"
+  },
+  {
+    "name": "light-fungus",
+    "binary": "lightaccept.exe",
+    "args": [
+      "-rimgovernor",
+      "{rimgovernor}",
+      "-scenario",
+      "fungus"
+    ],
+    "acceptance": "protected fungus rooms: a room growing a plant that dies to light is never latched nor lit"
+  },
+  {
+    "name": "clean-filthy",
+    "binary": "cleanaccept.exe",
+    "args": [
+      "-rimgovernor",
+      "{rimgovernor}",
+      "-scenario",
+      "filthy"
+    ],
+    "acceptance": "filthy vs inherently dirty rooms: a filthy kitchen is cleaned, butchery and barn are never latched"
+  },
+  {
+    "name": "clean-separation",
+    "binary": "cleanaccept.exe",
+    "args": [
+      "-rimgovernor",
+      "{rimgovernor}",
+      "-scenario",
+      "separation"
+    ],
+    "acceptance": "kitchen/butcher separation: a co-located butcher bench is replaced by one outside the kitchen"
+  },
+  {
+    "name": "floor-roles",
+    "binary": "flooraccept.exe",
+    "args": [
+      "-rimgovernor",
+      "{rimgovernor}"
+    ],
+    "acceptance": "role-driven floors: the clean tier floors the kitchen from the measured terrain census"
+  },
+  {
+    "name": "routes-unreachable-store",
+    "binary": "routeaccept.exe",
+    "args": [
+      "-rimgovernor",
+      "{rimgovernor}"
+    ],
+    "acceptance": "unreachable stores: a sealed stockpile is opened by a door on an observed breach wall"
+  },
+  {
+    "name": "power-fuel",
+    "binary": "poweraccept.exe",
+    "args": [
+      "-rimgovernor",
+      "{rimgovernor}",
+      "-scenario",
+      "fuel"
+    ],
+    "acceptance": "exhausted fuel: an out-of-fuel generator holds for refuel and raises the fuel stock target"
+  },
+  {
+    "name": "power-reserve",
+    "binary": "poweraccept.exe",
+    "args": [
+      "-rimgovernor",
+      "{rimgovernor}",
+      "-scenario",
+      "reserve"
+    ],
+    "acceptance": "exhausted batteries: reserve runway under one day admits a generator"
+  },
+  {
+    "name": "refrigeration-hot-weather",
+    "binary": "refrigerationaccept.exe",
+    "args": [
+      "-rimgovernor",
+      "{rimgovernor}",
+      "-scenario",
+      "power"
+    ],
+    "acceptance": "hot-weather freezer failure: the cooler cut off from the generator is reconnected by the power family, then set and cooled"
+  },
+  {
+    "name": "refrigeration-disconnected",
+    "binary": "refrigerationaccept.exe",
+    "args": [
+      "-rimgovernor",
+      "{rimgovernor}",
+      "-scenario",
+      "build"
+    ],
+    "acceptance": "disconnected consumers: no cooler at all, one is admitted on a vented wall and measured cooling follows"
+  },
+  {
+    "name": "refrigeration-setpoint",
+    "binary": "refrigerationaccept.exe",
+    "args": [
+      "-rimgovernor",
+      "{rimgovernor}",
+      "-scenario",
+      "setpoint"
+    ],
+    "acceptance": "maintained temperature: a warm freezer is corrected through its cooler setpoint, not a second cooler"
+  }
+]

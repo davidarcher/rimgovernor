@@ -24457,16 +24457,20 @@ func (*HomeCoverageSection_Unavailable) isHomeCoverageSection_Outcome() {}
 // interaction cell plus the colony's glowing fixtures, so MaintainLighting
 // reasons from illumination at the cell a pawn actually stands on rather than
 // from fixture counts. Glow follows the native GlowGrid (0..1; RimWorld treats
-// >= 0.3 as lit). A lamp is lit only when native currently emits light.
+// >= 0.3 as lit). A lamp is lit only when native currently emits light. A work
+// cell is light_sensitive when its room holds a plant (or a growing zone set
+// to a plant) that native says dies to light, such as cave fungus: lighting
+// that room would kill the crop, so the cell is never a lighting deficit.
 type WorkLightCell struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Bench         *EntityRef             `protobuf:"bytes,1,opt,name=bench,proto3" json:"bench,omitempty"`
-	Cell          *commonpb.Cell         `protobuf:"bytes,2,opt,name=cell,proto3" json:"cell,omitempty"`
-	Glow          *float64               `protobuf:"fixed64,3,opt,name=glow,proto3,oneof" json:"glow,omitempty"`
-	Roofed        *bool                  `protobuf:"varint,4,opt,name=roofed,proto3,oneof" json:"roofed,omitempty"`
-	RoomId        *string                `protobuf:"bytes,5,opt,name=room_id,json=roomId,proto3,oneof" json:"room_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Bench          *EntityRef             `protobuf:"bytes,1,opt,name=bench,proto3" json:"bench,omitempty"`
+	Cell           *commonpb.Cell         `protobuf:"bytes,2,opt,name=cell,proto3" json:"cell,omitempty"`
+	Glow           *float64               `protobuf:"fixed64,3,opt,name=glow,proto3,oneof" json:"glow,omitempty"`
+	Roofed         *bool                  `protobuf:"varint,4,opt,name=roofed,proto3,oneof" json:"roofed,omitempty"`
+	RoomId         *string                `protobuf:"bytes,5,opt,name=room_id,json=roomId,proto3,oneof" json:"room_id,omitempty"`
+	LightSensitive *bool                  `protobuf:"varint,6,opt,name=light_sensitive,json=lightSensitive,proto3,oneof" json:"light_sensitive,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *WorkLightCell) Reset() {
@@ -24532,6 +24536,13 @@ func (x *WorkLightCell) GetRoomId() string {
 		return *x.RoomId
 	}
 	return ""
+}
+
+func (x *WorkLightCell) GetLightSensitive() bool {
+	if x != nil && x.LightSensitive != nil {
+		return *x.LightSensitive
+	}
+	return false
 }
 
 type LampState struct {
@@ -31333,17 +31344,19 @@ const file_observations_proto_rawDesc = "" +
 	"\x13HomeCoverageSection\x12L\n" +
 	"\bobserved\x18\x01 \x01(\v2..rimgovernor.observations.v1.HomeCoverageFactsH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailableB\t\n" +
-	"\aoutcome\"\xf2\x01\n" +
+	"\aoutcome\"\xb4\x02\n" +
 	"\rWorkLightCell\x12<\n" +
 	"\x05bench\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\x05bench\x12/\n" +
 	"\x04cell\x18\x02 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04cell\x12\x17\n" +
 	"\x04glow\x18\x03 \x01(\x01H\x00R\x04glow\x88\x01\x01\x12\x1b\n" +
 	"\x06roofed\x18\x04 \x01(\bH\x01R\x06roofed\x88\x01\x01\x12\x1c\n" +
-	"\aroom_id\x18\x05 \x01(\tH\x02R\x06roomId\x88\x01\x01B\a\n" +
+	"\aroom_id\x18\x05 \x01(\tH\x02R\x06roomId\x88\x01\x01\x12,\n" +
+	"\x0flight_sensitive\x18\x06 \x01(\bH\x03R\x0elightSensitive\x88\x01\x01B\a\n" +
 	"\x05_glowB\t\n" +
 	"\a_roofedB\n" +
 	"\n" +
-	"\b_room_id\"\xd2\x01\n" +
+	"\b_room_idB\x12\n" +
+	"\x10_light_sensitive\"\xd2\x01\n" +
 	"\tLampState\x12F\n" +
 	"\bbuilding\x18\x01 \x01(\v2*.rimgovernor.observations.v1.BuildingStateR\bbuilding\x12$\n" +
 	"\vglow_radius\x18\x02 \x01(\x01H\x00R\n" +

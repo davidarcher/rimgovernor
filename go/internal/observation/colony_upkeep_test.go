@@ -112,7 +112,7 @@ func TestUpkeepProjectionDecodesFlooring(t *testing.T) {
 func TestUpkeepProjectionDecodesLighting(t *testing.T) {
 	cell := func(x, z int32) *c.Cell { return &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)} }
 	lighting := &o.LightingFacts{
-		WorkCells: []*o.WorkLightCell{{Bench: &o.EntityRef{Id: proto.String("stove"), DefName: proto.String("FueledStove"), Position: cell(10, 10)}, Cell: cell(10, 11), Glow: proto.Float64(0.1), Roofed: proto.Bool(true), RoomId: proto.String("7")}},
+		WorkCells: []*o.WorkLightCell{{Bench: &o.EntityRef{Id: proto.String("stove"), DefName: proto.String("FueledStove"), Position: cell(10, 10)}, Cell: cell(10, 11), Glow: proto.Float64(0.1), Roofed: proto.Bool(true), RoomId: proto.String("7"), LightSensitive: proto.Bool(true)}},
 		Lamps:     []*o.LampState{{Building: &o.BuildingState{Building: &o.EntityRef{Id: proto.String("lamp"), DefName: proto.String("StandingLamp"), Position: cell(12, 12)}, Service: &o.BuildingServiceState{Connected: proto.Bool(true), PowerOn: proto.Bool(false), SwitchedOn: proto.Bool(true), BrokenDown: proto.Bool(false)}}, GlowRadius: proto.Float64(12), Lit: proto.Bool(false), RoomId: proto.String("7")}},
 	}
 	u := &o.UpkeepFacts{Lighting: &o.LightingSection{Outcome: &o.LightingSection_Observed{Observed: lighting}}}
@@ -122,7 +122,7 @@ func TestUpkeepProjectionDecodesLighting(t *testing.T) {
 		t.Fatal(f, known)
 	}
 	w := f.WorkCells[0]
-	if w.Bench != "stove" || w.Definition != "FueledStove" || w.Cell != (domain.Cell{X: 10, Z: 11}) || w.Glow != 0.1 || !w.Roofed {
+	if w.Bench != "stove" || w.Definition != "FueledStove" || w.Cell != (domain.Cell{X: 10, Z: 11}) || w.Glow != 0.1 || !w.Roofed || !w.LightSensitive {
 		t.Fatal(w)
 	}
 	if room, ok := w.Room.Value(); !ok || room != "7" {

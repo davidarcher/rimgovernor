@@ -378,12 +378,23 @@ colony.
 ### Running harnesses in parallel
 
 `suiteaccept -root <root> -output <out> -bin <bin> -workers N -harnesses a,b,c`
-(or `-suite file.json` with `[{"name", "binary", "args"}]`) clones the root
-into N worker roots (`na.IsolatedRoot`: own GABS state, config and profile,
-same game installation), gives each worker a queue of harnesses chained on
-one kept process, and stops every worker's game at the end. The suite's
-`result.json` lists each harness's exit, wall time, `game_reuse` and error;
-it passes only when every harness did. `-order <earlier result.json>`
+(or `-suite file.json` with `[{"name", "binary", "args", "acceptance"}]`,
+a relative `binary` resolving under `-bin` and `{rimgovernor}` in `args`
+replaced by `-rimgovernor`) clones the root into N worker roots
+(`na.IsolatedRoot`: own GABS state, config and profile, same game
+installation), gives each worker a queue of harnesses chained on one kept
+process, and stops every worker's game at the end. The suite's
+`result.json` lists each harness's exit, wall time, `game_reuse`,
+`acceptance` label and error; it passes only when every harness did.
+`cmd/suiteaccept/suites/issue-6-matrix.json` is issue #6's cross-slice
+acceptance matrix: one row per criterion in the issue text (dark and
+partially lit benches, protected fungus rooms, filthy vs inherently dirty
+rooms, kitchen/butcher separation, unreachable stores, disconnected
+consumers, exhausted fuel and batteries, hot-weather freezer failure), each
+mapped to the harness scenario that exercises it; `suite_test.go` fails
+when a criterion loses its row. The mod build for it needs
+`PowerFixture RefrigerationFixture CleanlinessFixture LightingFixture
+FlooringFixture RoutesFixture`. `-order <earlier result.json>`
 starts harnesses longest-first by that run's wall times, so a slow one
 does not land last. Measured: six short harnesses on two workers in 68s
 unordered, 58s ordered, against about 125s in sequence. The installed mod build

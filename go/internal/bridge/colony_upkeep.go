@@ -300,7 +300,7 @@ func validateLighting(section *o.LightingSection, size *o.MapSize, mapID int32, 
 	}
 	benches := map[string]bool{}
 	for _, row := range l.WorkCells {
-		if row == nil || !entity(row.Bench, benches) || !colonyCell(row.Cell, size) || row.RoomId != nil && validID(row.GetRoomId()) != nil || !proto.Equal(row, &o.WorkLightCell{Bench: row.Bench, Cell: row.Cell, Glow: row.Glow, Roofed: row.Roofed, RoomId: row.RoomId}) {
+		if row == nil || !entity(row.Bench, benches) || !colonyCell(row.Cell, size) || row.RoomId != nil && validID(row.GetRoomId()) != nil || !proto.Equal(row, &o.WorkLightCell{Bench: row.Bench, Cell: row.Cell, Glow: row.Glow, Roofed: row.Roofed, RoomId: row.RoomId, LightSensitive: row.LightSensitive}) {
 			return contract("invalid lighting work cell")
 		}
 		if row.Glow != nil && (math.IsNaN(row.GetGlow()) || row.GetGlow() < 0 || row.GetGlow() > 1) {

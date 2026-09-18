@@ -197,7 +197,7 @@ func colonyLighting(section *o.LightingSection) domain.Fact[policy.LightingObser
 		if row.Glow == nil || row.Roofed == nil {
 			return domain.Fact[policy.LightingObservation]{}
 		}
-		r.WorkCells = append(r.WorkCells, policy.WorkLightCell{Bench: row.Bench.GetId(), Definition: row.Bench.GetDefName(), Cell: domain.Cell{X: row.Cell.GetX(), Z: row.Cell.GetZ()}, Glow: row.GetGlow(), Roofed: row.GetRoofed(), Room: optional(row.RoomId)})
+		r.WorkCells = append(r.WorkCells, policy.WorkLightCell{Bench: row.Bench.GetId(), Definition: row.Bench.GetDefName(), Cell: domain.Cell{X: row.Cell.GetX(), Z: row.Cell.GetZ()}, Glow: row.GetGlow(), Roofed: row.GetRoofed(), Room: optional(row.RoomId), LightSensitive: row.GetLightSensitive()})
 	}
 	for _, row := range l.Lamps {
 		b := row.GetBuilding()

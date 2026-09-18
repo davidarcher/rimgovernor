@@ -44,6 +44,13 @@ func TestReviewLightingMeasuresRoofedWorkCells(t *testing.T) {
 	if err != nil || !r.Known || r.Active || len(r.Dark) != 0 {
 		t.Fatal(r, err)
 	}
+	// A protected fungus room is never dark: lighting it kills the crop.
+	fungus := lightingCensus()
+	fungus.WorkCells[0].LightSensitive = true
+	r, err = ReviewLighting(domain.Known(fungus), []string{"stove"}, p)
+	if err != nil || !r.Known || r.Active || len(r.Dark) != 0 {
+		t.Fatal(r, err)
+	}
 }
 
 func TestSelectLightingBuildsAffordableLampBesideDarkCell(t *testing.T) {
@@ -111,6 +118,9 @@ func TestSelectLightingDefersToUnservicedLampInRange(t *testing.T) {
 		{Lamp{ID: "lamp", Definition: "StandingLamp", Cell: domain.Cell{X: 11, Z: 11}, Radius: 12, Lit: true}, LightingBlocked},
 		// Out of range: not serving, so a new lamp is placed.
 		{Lamp{ID: "lamp", Definition: "TorchLamp", Cell: domain.Cell{X: 40, Z: 40}, Radius: 10, Lit: true}, LightingBuild},
+		// Partially lit: a lit lamp beyond the placement radius whose
+		// radius only grazes the cell leaves it dark and gets no deference.
+		{Lamp{ID: "lamp", Definition: "TorchLamp", Cell: domain.Cell{X: 18, Z: 10}, Radius: 10, Lit: true}, LightingBuild},
 	} {
 		v := lightingCensus()
 		v.Lamps = []Lamp{tc.lamp}

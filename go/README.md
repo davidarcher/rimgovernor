@@ -458,13 +458,17 @@ ground glow, roof and room, and every `CompGlower` fixture with radius, lit
 flag and service state. A roofed cell under 0.3 latches its bench
 (`RoutineLatches.Lighting`); an unknown census keeps the latch. The planner
 defers to an in-range fixture that is merely unserviced (`lamp_power_needed`,
-`lamp_fuel_needed`, `lamp_repair_needed`, `lamp_switched_off`; a lit one that
-still leaves the cell dark is `lamp_lit_but_cell_dark`), else previews the
-policy's candidate cells nearest first -- free, walkable, unzoned cells of the
-same room within two of the interaction cell -- and admits one `StandingLamp`
-(only with an active power source) or `TorchLamp`. The latch releases on the
-next measured census, never on the receipt. Targeted acceptance is `lightaccept
--scenario dark|outage` against `LightingFixture`.
+`lamp_fuel_needed`, `lamp_repair_needed`, `lamp_switched_off`; a lit one
+already within the placement radius that still leaves the cell dark is
+`lamp_lit_but_cell_dark`, while a lit one reaching only from further away is
+partial coverage and does not stop a lamp of the cell's own), else previews
+the policy's candidate cells nearest first -- free, walkable, unzoned cells of
+the same room within two of the interaction cell -- and admits one
+`StandingLamp` (only with an active power source) or `TorchLamp`. A cell whose
+room grows a plant that dies to light (`light_sensitive`, cave fungus) is
+protected and never latches. The latch releases on the next measured census,
+never on the receipt. Targeted acceptance is `lightaccept -scenario
+dark|outage|partial|fungus` against `LightingFixture`.
 
 `MaintainFlooring` (`flooring` family, issue #6 slice 4) lays role-driven
 floors from the measured terrain under each room cell: `UpkeepFacts.flooring`
