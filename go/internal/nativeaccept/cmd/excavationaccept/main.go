@@ -114,7 +114,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 	report["rimgovernor_binary"] = map[string]string{"path": rimgovernorBinary, "sha256": binarySHA}
 
 	openHarness := func() (*bridge.Client, *na.Harness, error) {
-		c, err := na.OpenSession(ctx, gabsExecutable, cfg.Configuration, gameID, 60*time.Second)
+		c, err := na.OpenBridgeSession(ctx, gabsExecutable, cfg.Configuration, gameID, 60*time.Second)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -148,7 +148,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 			defer reopenCancel()
 			deadline := time.Now().Add(30 * time.Second)
 			for open == nil {
-				c, err := na.OpenSession(reopenCtx, gabsExecutable, cfg.Configuration, gameID, 30*time.Second)
+				c, err := na.OpenBridgeSession(reopenCtx, gabsExecutable, cfg.Configuration, gameID, 30*time.Second)
 				if err == nil {
 					open = c
 					break

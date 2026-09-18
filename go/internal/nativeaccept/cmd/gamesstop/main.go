@@ -36,11 +36,11 @@ func main() {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
-	client, err := na.OpenSession(ctx, gabs, *configDir, *game, 60*time.Second)
+	client, err := na.OpenBridgeSession(ctx, gabs, *configDir, *game, 60*time.Second)
 	if err != nil && *takeover {
 		// The root's own controller still holds the attachment; the caller
 		// owns both sessions, so the handoff is explicit.
-		client, err = na.OpenSessionWithTakeover(ctx, gabs, *configDir, *game, 60*time.Second)
+		client, err = na.OpenBridgeSessionWithTakeover(ctx, gabs, *configDir, *game, 60*time.Second)
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)

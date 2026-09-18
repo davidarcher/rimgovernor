@@ -70,7 +70,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 		return err
 	}
 	var gabsPID atomic.Int64
-	client, err := na.OpenSessionWith(ctx, bridge.ProcessConfig{
+	client, err := na.OpenBridgeSessionWith(ctx, bridge.ProcessConfig{
 		Executable: gabsExecutable, ConfigDir: cfg.Configuration, GameID: gameID, Timeout: 90 * time.Second,
 		Spawned: func(pid int) { gabsPID.Store(int64(pid)) },
 	})

@@ -67,7 +67,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	if err != nil {
 		return err
 	}
-	client, err := nativeaccept.OpenSession(ctx, gabsExecutable, cfg.Configuration, gameID, 60*time.Second)
+	client, err := nativeaccept.OpenBridgeSession(ctx, gabsExecutable, cfg.Configuration, gameID, 60*time.Second)
 	if err != nil {
 		return err
 	}

@@ -22,7 +22,7 @@ var ErrReuseRetired = errors.New("reusable game retired")
 // into the same process and a reset check (ResetState/CheckReset) that the
 // reload actually gave the case a clean baseline; a case that fails, or that
 // leaves ownership behind, retires the whole game rather than letting the next
-// case inherit its state. Fresh-process mode (one OpenSession per binary) stays
+// case inherit its state. Fresh-process mode (one OpenBridgeSession per binary) stays
 // the default everywhere; this is an opt-in optimisation for multi-case loops
 // such as sustainedmatrixaccept.
 //
@@ -180,7 +180,7 @@ func (g *GameReuse) Session(ctx context.Context) (*Harness, error) {
 	}
 	deadline := time.Now().Add(30 * time.Second)
 	for {
-		client, err := OpenSession(ctx, g.GABS, g.Config.Configuration, g.Config.GameID, 60*time.Second)
+		client, err := OpenBridgeSession(ctx, g.GABS, g.Config.Configuration, g.Config.GameID, 60*time.Second)
 		if err == nil {
 			g.client = client
 			g.harness = NewHarness(client, g.harnessOutput())
@@ -355,7 +355,7 @@ func (g *GameReuse) retire(ctx context.Context, reason string) error {
 		// A service may still be letting go; reopen just to stop.
 		deadline := time.Now().Add(30 * time.Second)
 		for g.client == nil {
-			client, err := OpenSession(stopCtx, g.GABS, g.Config.Configuration, g.Config.GameID, 60*time.Second)
+			client, err := OpenBridgeSession(stopCtx, g.GABS, g.Config.Configuration, g.Config.GameID, 60*time.Second)
 			if err == nil {
 				g.client = client
 				break

@@ -11,19 +11,19 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 )
 
-// OpenSession starts a fresh GABS process, tells it to launch the configured game
+// OpenBridgeSession starts a fresh GABS process, tells it to launch the configured game
 // (games_start), then connects and waits for the native tool catalog to be
 // discoverable (ConnectWithPoll). On any failure it closes the GABS process before
 // returning, so callers never leak a half-open session.
-func OpenSession(ctx context.Context, gabsExecutable, configDir, gameID string, timeout time.Duration) (*bridge.Client, error) {
-	return OpenSessionWith(ctx, bridge.ProcessConfig{
+func OpenBridgeSession(ctx context.Context, gabsExecutable, configDir, gameID string, timeout time.Duration) (*bridge.Client, error) {
+	return OpenBridgeSessionWith(ctx, bridge.ProcessConfig{
 		Executable: gabsExecutable, ConfigDir: configDir, GameID: gameID, Timeout: timeout,
 	})
 }
 
-// OpenSessionWith is OpenSession for a caller that needs the full
+// OpenBridgeSessionWith is OpenBridgeSession for a caller that needs the full
 // bridge.ProcessConfig (a flight recorder, or the Spawned PID hook).
-func OpenSessionWith(ctx context.Context, config bridge.ProcessConfig) (*bridge.Client, error) {
+func OpenBridgeSessionWith(ctx context.Context, config bridge.ProcessConfig) (*bridge.Client, error) {
 	client, err := bridge.Open(ctx, config)
 	if err != nil {
 		return nil, fmt.Errorf("open GABS session: %w", err)
@@ -48,10 +48,10 @@ func OpenSessionWith(ctx context.Context, config bridge.ProcessConfig) (*bridge.
 	return client, nil
 }
 
-// OpenSessionWithTakeover attaches even when another GABS session of the same
+// OpenBridgeSessionWithTakeover attaches even when another GABS session of the same
 // root still owns the game. Only for stopping a game whose controller stalled;
 // the caller owns both sessions.
-func OpenSessionWithTakeover(ctx context.Context, gabsExecutable, configDir, gameID string, timeout time.Duration) (*bridge.Client, error) {
+func OpenBridgeSessionWithTakeover(ctx context.Context, gabsExecutable, configDir, gameID string, timeout time.Duration) (*bridge.Client, error) {
 	client, err := bridge.Open(ctx, bridge.ProcessConfig{
 		Executable: gabsExecutable, ConfigDir: configDir, GameID: gameID, Timeout: timeout,
 	})

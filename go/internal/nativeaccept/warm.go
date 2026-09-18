@@ -58,7 +58,7 @@ type Game struct {
 }
 
 // OpenGame opens a session on cfg's game the way every harness does
-// (GABSExecutable, OpenSession) and, when the process was already running,
+// (GABSExecutable, OpenBridgeSession) and, when the process was already running,
 // returns it to the main menu so the harness starts from the same state a
 // fresh launch would give it. cfg must have been prepared.
 func OpenGame(ctx context.Context, cfg *Config) (*Game, error) {
@@ -220,7 +220,7 @@ func StopGame(ctx context.Context, root, gameID string) error {
 	if err != nil {
 		return err
 	}
-	client, err := OpenSession(ctx, gabs, configDir, gameID, 60*time.Second)
+	client, err := OpenBridgeSession(ctx, gabs, configDir, gameID, 60*time.Second)
 	if err != nil {
 		return err
 	}
