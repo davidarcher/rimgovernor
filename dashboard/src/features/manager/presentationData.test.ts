@@ -25,4 +25,15 @@ it('rejects malformed identities, numeric bounds, variants and collection eviden
  expect(() => readSelection({selection: {context, selectedObjects: [{position: {x: -1}}]}})).toThrow();
  expect(() => readRoster({roster: {context, colonists: [{mapId: 1}]}})).toThrow();
  expect(() => readRoster({roster: {context, colonists: Array.from({length: 4097}, () => ({}))}})).toThrow();
+ expect(() => readRoster({roster: {context, colonists: [{pawnId: 'a', dossier: {pawn: {id: 'b'}}}]}})).toThrow();
+ expect(() => readRoster({roster: {context, colonists: [{pawnId: 'a', dossier: {pawn: {id: 'a'}, needs: {mood: 7}}}]}})).toThrow();
+});
+it('reads the colonist dossier and ignores observation fields it does not show', () => {
+ const dossier = {pawn: {id: 'a', label: 'Ann'}, colonist: true, drafted: true, job: {defName: 'Haul', loadId: 'j1'}, needs: {mood: 0.42, food: 0.9, breakRisk: 'none', issues: []},
+  health: {summaryFraction: 0.8, needsTend: true, hediffs: [{definition: {defName: 'Cut', label: 'Cut'}, partLabel: 'Left arm', severityLabel: '12%', visible: true}]},
+  equipment: {equipped: [{thing: {id: 'w', defName: 'Bow', label: 'Short bow'}, weapon: true}], apparel: []},
+  biography: {biologicalAgeYears: 31.5, childhood: {defName: 'C', label: 'Urchin'}, skills: [{definition: {defName: 'Shooting', label: 'Shooting'}, level: 9, passion: 'Minor'}], traits: [{defName: 'Tough'}]},
+  social: {memories: [{label: 'Ate without table', moodOffsetTotal: -3, count: 1}]}, snapshot: {token: 'x'}};
+ const roster = readRoster({roster: {context, colonists: [{pawnId: 'a', dossier}]}});
+ expect(roster.colonists[0].dossier).toMatchObject({job: 'Haul', drafted: true, downed: false, needs: {mood: 0.42, food: 0.9, rest: null}, health: {summaryFraction: 0.8, needsTend: true, hediffs: [{label: 'Cut', partLabel: 'Left arm'}]}, gear: {weapons: [{label: 'Short bow'}]}, biography: {biologicalAgeYears: 31.5, childhood: {label: 'Urchin'}, skills: [{label: 'Shooting', level: 9, passion: 'Minor'}], traits: [{defName: 'Tough'}]}, thoughts: [{label: 'Ate without table', moodOffsetTotal: -3}]});
 });

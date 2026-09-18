@@ -5,7 +5,21 @@ type Cell = {x: number | null; z: number | null};
 export type Camera = {context: PresentationContext; mapPosition: Cell | null; rootSize: number | null; zoomRootSize: number | null; minimumRootSize: number | null; maximumRootSize: number | null; nativeZoomRange: string | null; zoomExtensionEnabled: boolean | null; viewRect: {minX: number | null; minZ: number | null; maxX: number | null; maxZ: number | null} | null};
 export type SelectedObject = {id: string | null; nativeKind: string | null; nativeType: string | null; label: string | null; defName: string | null; mapId: number | null; position: Cell | null; inspectLabel: string | null; inspectText: string | null};
 export type Selection = {context: PresentationContext; fingerprint: string | null; selectedObjects: SelectedObject[]; listing: Listing | null; visibleGizmoCount: number | null};
-export type Colonist = {pawnId: string | null; name: string | null; mapId: number | null; spawned: boolean | null; position: Cell | null};
+export type Named = {defName: string | null; label: string | null};
+export type DossierSkill = Named & {level: number | null; passion: string | null; disabled: boolean};
+export type DossierHediff = Named & {partLabel: string | null; severityLabel: string | null; visible: boolean; bad: boolean | null};
+export type DossierThought = {label: string | null; count: number | null; moodOffsetTotal: number | null};
+// The observation PawnState the roster attaches; ProtoJSON keys the dashboard
+// does not show are ignored rather than rejected.
+export type Dossier = {
+  needs: {food: number | null; rest: number | null; mood: number | null; joy: number | null; hungerCategory: string | null; breakRisk: string | null};
+  health: {summaryFraction: number | null; needsTend: boolean | null; bleeding: boolean | null; pain: number | null; hediffs: DossierHediff[]};
+  gear: {weapons: Named[]; apparel: Named[]};
+  biography: {biologicalAgeYears: number | null; childhood: Named | null; adulthood: Named | null; skills: DossierSkill[]; traits: Array<Named & {degree: number | null}>};
+  thoughts: DossierThought[];
+  job: string | null; mentalState: string | null; downed: boolean; drafted: boolean; inBed: boolean;
+};
+export type Colonist = {pawnId: string | null; name: string | null; mapId: number | null; spawned: boolean | null; position: Cell | null; dossier: Dossier | null};
 export type Roster = {context: PresentationContext; colonists: Colonist[]; listing: Listing | null};
 function isObject(v: unknown): v is Record<string, unknown> {return typeof v === 'object' && v !== null && !Array.isArray(v);}
 function object(v: unknown, keys: string[]): Record<string, unknown> {if (!isObject(v) || Object.keys(v).some(key => !keys.includes(key))) throw Error('Invalid presentation fields'); return v;}
@@ -37,9 +51,29 @@ export function readSelection(value: unknown): Selection {
   const selectedObjects = array(s.selectedObjects, 4096, value => {const v = object(value, ['id', 'nativeKind', 'nativeType', 'label', 'defName', 'mapId', 'position', 'inspectLabel', 'inspectText']); return {id: optional(v.id, id), nativeKind: optional(v.nativeKind, text), nativeType: optional(v.nativeType, text), label: optional(v.label, text), defName: optional(v.defName, text), mapId: optional(v.mapId, mapID), position: optional(v.position, cell), inspectLabel: optional(v.inspectLabel, text), inspectText: optional(v.inspectText, text)};});
   unique(selectedObjects.map(v => v.id)); return {context: context(s.context), selectedObjects, fingerprint: optional(s.fingerprint, fingerprint), listing: optional(s.listing, v => listing(v, selectedObjects.length)), visibleGizmoCount: optional(s.visibleGizmoCount, uint)};
 }
+function loose(v: unknown): Record<string, unknown> {if (!isObject(v)) throw Error('Invalid presentation fields'); return v;}
+function fraction(v: unknown): number {const n = finite(v); if (n < 0 || n > 1.5) throw Error('Invalid presentation fraction'); return n;}
+function named(v: unknown): Named {const n = loose(v); return {defName: optional(n.defName, text), label: optional(n.label, text)};}
+function gear(v: unknown): Named {const g = loose(v); return named(g.thing ?? {});}
+export function readDossier(value: unknown, pawnId: string | null): Dossier {
+  const d = loose(value), pawn = loose(d.pawn ?? {});
+  if (optional(pawn.id, id) !== pawnId) throw Error('Dossier belongs to another colonist');
+  const needs = loose(d.needs ?? {}), health = loose(d.health ?? {}), equipment = loose(d.equipment ?? {}), biography = loose(d.biography ?? {}), social = loose(d.social ?? {}), job = loose(d.job ?? {});
+  return {
+    needs: {food: optional(needs.food, fraction), rest: optional(needs.rest, fraction), mood: optional(needs.mood, fraction), joy: optional(needs.joy, fraction), hungerCategory: optional(needs.hungerCategory, text), breakRisk: optional(needs.breakRisk, text)},
+    health: {summaryFraction: optional(health.summaryFraction, fraction), needsTend: optional(health.needsTend, bool), bleeding: optional(health.bleeding, bool), pain: optional(health.pain, finite),
+      hediffs: array(health.hediffs, 256, v => {const h = loose(v); return {...named(h.definition ?? {}), partLabel: optional(h.partLabel, text), severityLabel: optional(h.severityLabel, text), visible: optional(h.visible, bool) ?? true, bad: optional(h.bad, bool)};})},
+    gear: {weapons: array(equipment.equipped, 256, gear), apparel: array(equipment.apparel, 256, gear)},
+    biography: {biologicalAgeYears: optional(biography.biologicalAgeYears, finite), childhood: optional(biography.childhood, named), adulthood: optional(biography.adulthood, named),
+      skills: array(biography.skills, 256, v => {const s = loose(v); return {...named(s.definition ?? {}), level: optional(s.level, integer), passion: optional(s.passion, text), disabled: optional(s.disabled, bool) ?? false};}),
+      traits: array(biography.traits, 256, v => {const t = loose(v); return {defName: optional(t.defName, text), label: null, degree: optional(t.degree, integer)};})},
+    thoughts: array(social.memories, 256, v => {const t = loose(v); return {label: optional(t.label, text), count: optional(t.count, uint), moodOffsetTotal: optional(t.moodOffsetTotal, finite)};}),
+    job: optional(job.defName, text), mentalState: optional(d.mentalState, text), downed: optional(d.downed, bool) ?? false, drafted: optional(d.drafted, bool) ?? false, inBed: optional(d.inBed, bool) ?? false,
+  };
+}
 export function readRoster(value: unknown): Roster {
   const s = object(reply(value, 'roster'), ['context', 'colonists', 'listing']), actual = context(s.context);
-  const colonists = array(s.colonists, 4096, value => {const v = object(value, ['pawnId', 'name', 'mapId', 'spawned', 'position']); return {pawnId: optional(v.pawnId, id), name: optional(v.name, text), mapId: optional(v.mapId, mapID), spawned: optional(v.spawned, bool), position: optional(v.position, cell)};});
+  const colonists = array(s.colonists, 4096, value => {const v = object(value, ['pawnId', 'name', 'mapId', 'spawned', 'position', 'dossier']); const pawnId = optional(v.pawnId, id); return {pawnId, name: optional(v.name, text), mapId: optional(v.mapId, mapID), spawned: optional(v.spawned, bool), position: optional(v.position, cell), dossier: optional(v.dossier, d => readDossier(d, pawnId))};});
   unique(colonists.map(v => v.pawnId)); if (colonists.some(v => v.mapId !== null && v.mapId !== actual.identity.mapId)) throw Error('Roster belongs to another map'); return {context: actual, colonists, listing: optional(s.listing, v => listing(v, colonists.length))};
 }
 export function samePresentationWorld(a: PresentationWorld, b: PresentationWorld): boolean {return a.colonyId === b.colonyId && a.mapId === b.mapId && a.loadToken === b.loadToken;}

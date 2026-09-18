@@ -278,6 +278,37 @@ func validateRoster(v *p.ColonistRoster, q *p.ColonistRosterRequest) error {
 		if item.MapId != nil && (item.GetMapId() < 0 || (q.GetCurrentMapOnly() && item.GetMapId() != q.Identity.GetMapId())) {
 			return contract("invalid roster map")
 		}
+		if err := validateDossier(item, q); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// A dossier is the observation PawnState for the same pawn, present exactly
+// when the request asked for it; settings and animal detail never ride along.
+func validateDossier(item *p.ColonistReference, q *p.ColonistRosterRequest) error {
+	if item.Dossier == nil {
+		if q.GetIncludeDossier() {
+			return contract("missing colonist dossier")
+		}
+		return nil
+	}
+	if !q.GetIncludeDossier() {
+		return contract("unrequested colonist dossier")
+	}
+	d := item.Dossier
+	if d.GetPawn().GetId() == "" || d.GetPawn().GetId() != item.GetPawnId() {
+		return contract("dossier pawn mismatch")
+	}
+	if d.Settings != nil || d.AnimalState != nil {
+		return contract("dossier carries unrequested detail")
+	}
+	if !d.GetColonist() || d.GetDead() {
+		return contract("dossier is not a live colonist")
+	}
+	if len(d.GetBiography().GetSkills()) > 256 || len(d.GetBiography().GetTraits()) > 256 || len(d.GetHealth().GetHediffs()) > 256 {
+		return contract("oversized colonist dossier")
 	}
 	return nil
 }

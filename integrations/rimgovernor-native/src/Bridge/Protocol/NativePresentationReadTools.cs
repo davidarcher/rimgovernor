@@ -12,6 +12,7 @@ using UnityEngine;
 using Verse;
 using Common = RimGovernor.Protocol.Common;
 using Presentation = RimGovernor.Protocol.Presentation;
+using Obs = RimGovernor.Protocol.Observations;
 
 namespace HomeBridge.BridgeTools
 {
@@ -79,7 +80,7 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        [Tool("rimgovernor/presentation_colonists", Title = "Read native colonist roster", Description = "Complete bounded FreeColonistsSpawned roster. Default includes all loaded maps; currentMapOnly narrows it. No world caravan, prisoner, slave or unspawned-pawn claim.")]
+        [Tool("rimgovernor/presentation_colonists", Title = "Read native colonist roster", Description = "Complete bounded FreeColonistsSpawned roster. Default includes all loaded maps; currentMapOnly narrows it; includeDossier attaches each colonist's observation PawnState (needs, health, equipment, biography, social). No world caravan, prisoner, slave or unspawned-pawn claim.")]
         [ToolResponse("payload", "string", "Official ProtoJSON ColonistRosterReply; usable in headless and graphical games.", Always = true)]
         public async Task<object> Colonists(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official ProtoJSON ColonistRosterRequest string in raw transport value.")] object? request = null)
@@ -98,9 +99,11 @@ namespace HomeBridge.BridgeTools
                     foreach (var pawn in pawns)
                     {
                         if (!pawn.Spawned || pawn.Map == null || !pawn.Position.InBounds(pawn.Map)) throw new InvalidOperationException("Spawned colonist context unavailable.");
-                        roster.Colonists.Add(new Presentation.ColonistReference { PawnId = Id(pawn.GetUniqueLoadID()),
+                        var reference = new Presentation.ColonistReference { PawnId = Id(pawn.GetUniqueLoadID()),
                             Name = Diagnostic(pawn.Name?.ToStringShort ?? pawn.LabelShort), MapId = pawn.Map.uniqueID,
-                            Spawned = true, Position = Cell(pawn.Position) });
+                            Spawned = true, Position = Cell(pawn.Position) };
+                        if (parsed.IncludeDossier) reference.Dossier = Dossier(pawn, pawns, context);
+                        roster.Colonists.Add(reference);
                     }
                     if (roster.Colonists.Select(p => p.PawnId).Distinct(StringComparer.Ordinal).Count() != roster.Colonists.Count)
                         throw new InvalidOperationException("Native colonist IDs are not unique.");
@@ -108,6 +111,19 @@ namespace HomeBridge.BridgeTools
                 }
                 catch (Exception errorRead) { return ProtoBoundary.Encode(new Presentation.ColonistRosterReply { Failure = ReadFailure(errorRead) }); }
             }, cancellationToken).ConfigureAwait(false);
+        }
+
+        // The roster dossier is the observation PawnState the ListPawns reader
+        // projects, minus settings and animal detail: the same needs, health,
+        // equipment, biography and social facts, from the same native reads.
+        private static Obs.PawnState Dossier(Pawn pawn, List<Pawn> colonists, Common.ObservationContext context)
+        {
+            var row = NativePawnObservationTools.Core(pawn, colonists, context);
+            NativePawnDetails.Apply(pawn, colonists, row, new Obs.PawnDetails {
+                Needs = true, Health = true, Equipment = true, Biography = true, Social = true,
+                Settings = false, Animals = false, VisibleHediffsOnly = true }, context);
+            row.Snapshot = NativePawnObservationTools.PawnSnapshotToken(pawn, row, context);
+            return row;
         }
 
         internal static bool ValidateRead(Presentation.ReadRequest request, out Common.Failure failure)
@@ -158,7 +174,7 @@ namespace HomeBridge.BridgeTools
         private static double Positive(double value) => Finite(value) > 0 ? value : throw new InvalidOperationException("Native camera size is not positive.");
         internal static Presentation.Listing Listing(int count) => new Presentation.Listing { TotalCount = checked((uint)count), ReturnedCount = checked((uint)count), Complete = true, Truncated = false };
         private static Common.Failure Unavailable(string detail) => ProtoBoundary.Fail(Common.FailureCode.Unavailable, detail);
-        private static Common.Failure ReadFailure(Exception error) => error is ReadLimit ? ProtoBoundary.Fail(Common.FailureCode.CapacityExhausted, error.Message) : Unavailable("Native presentation facts could not be read completely.");
+        private static Common.Failure ReadFailure(Exception error) => error is ReadLimit || error is NativePawnObservationTools.ReadLimit ? ProtoBoundary.Fail(Common.FailureCode.CapacityExhausted, error.Message) : Unavailable("Native presentation facts could not be read completely.");
         internal static object Encode(IMessage reply)
         {
             Require(Encoding.UTF8.GetByteCount(JsonFormatter.Default.Format(reply)) <= 1024 * 1024, "Presentation reply exceeds 1 MiB.");

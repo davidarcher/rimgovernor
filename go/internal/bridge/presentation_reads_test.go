@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	p "github.com/davidarcher/RimGovernor/go/internal/wire/presentationpb"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -110,6 +111,27 @@ func TestPresentationFactValidation(t *testing.T) {
 	}
 	if e := validateRoster(&p.ColonistRoster{Context: pbContext()}, q); e != nil {
 		t.Fatal(e)
+	}
+	dossier := func(change func(*o.PawnState)) *p.ColonistRoster {
+		d := &o.PawnState{Pawn: &o.EntityRef{Id: proto.String("p")}, Colonist: proto.Bool(true)}
+		change(d)
+		return &p.ColonistRoster{Context: pbContext(), Colonists: []*p.ColonistReference{{PawnId: proto.String("p"), Dossier: d}}}
+	}
+	withDossier := &p.ColonistRosterRequest{Identity: id, CurrentMapOnly: proto.Bool(true), IncludeDossier: proto.Bool(true)}
+	if e := validateRoster(dossier(func(*o.PawnState) {}), withDossier); e != nil {
+		t.Fatal(e)
+	}
+	if e := validateRoster(dossier(func(*o.PawnState) {}), q); e == nil {
+		t.Fatal("unrequested dossier accepted")
+	}
+	if e := validateRoster(&p.ColonistRoster{Context: pbContext(), Colonists: []*p.ColonistReference{{PawnId: proto.String("p")}}}, withDossier); e == nil {
+		t.Fatal("missing dossier accepted")
+	}
+	for _, change := range []func(*o.PawnState){func(d *o.PawnState) { d.Pawn.Id = proto.String("other") }, func(d *o.PawnState) { d.Settings = &o.PawnSettings{} },
+		func(d *o.PawnState) { d.AnimalState = &o.AnimalState{} }, func(d *o.PawnState) { d.Dead = proto.Bool(true) }, func(d *o.PawnState) { d.Colonist = nil }} {
+		if e := validateRoster(dossier(change), withDossier); e == nil {
+			t.Fatal("invalid dossier accepted")
+		}
 	}
 	if e := validateSelection(&p.SelectionSnapshot{Context: pbContext(), Listing: &p.Listing{TotalCount: proto.Uint32(0), ReturnedCount: proto.Uint32(0), Complete: proto.Bool(true), Truncated: proto.Bool(false)}}, id); e != nil {
 		t.Fatal(e)

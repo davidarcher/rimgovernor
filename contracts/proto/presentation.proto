@@ -3,6 +3,7 @@ package rimgovernor.presentation.v1;
 option csharp_namespace = "RimGovernor.Protocol.Presentation";
 option go_package = "github.com/davidarcher/RimGovernor/go/internal/wire/presentationpb;presentationpb";
 import "common.proto";
+import "observations.proto";
 
 // Contract-only: capabilities must deny all player-control RPCs to automation.
 // Every optional fact requires Has* checks. Bounds/admission live in normal code.
@@ -60,11 +61,17 @@ message SelectionReply {
 message ColonistRosterRequest {
   rimgovernor.common.v1.Identity identity = 1;
   optional bool current_map_only = 2;
+  // include_dossier attaches the observation PawnState (needs, health,
+  // equipment, biography, social) to every reference; settings and animal
+  // detail stay out of the roster.
+  optional bool include_dossier = 3;
 }
 message ColonistReference {
   optional string pawn_id = 1; optional string name = 2;
   optional int32 map_id = 3; optional bool spawned = 4;
   rimgovernor.common.v1.Cell position = 5;
+  // Present only when the request asked for it; dossier.pawn.id == pawn_id.
+  rimgovernor.observations.v1.PawnState dossier = 6;
 }
 message ColonistRoster {
   rimgovernor.common.v1.ObservationContext context = 1;

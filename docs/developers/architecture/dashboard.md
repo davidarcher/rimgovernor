@@ -31,10 +31,13 @@ instructions, not just a spinner.
 There is no multi-instance local colony directory (`--colonies`) or `/colonies`
 route; see [issue #47](https://github.com/davidarcher/rimgovernor/issues/47).
 
-Colony currently shows what `GET /api/presentation/colonists` actually
-returns: colonist id, name, map and position. Full dossiers (worn gear,
-biography, skills, health, mood, job history) have no backend read model yet —
-this is a tracked gap (issue #50), not a UI omission.
+Colony shows `GET /api/presentation/colonists`: each spawned free colonist's
+id, name, map and position plus a dossier, the observation `PawnState` the
+roster requests with `include_dossier` (needs, health and visible hediffs,
+worn gear and weapons, biography with skills and traits, mood memories, the
+current job). Settings and animal detail stay out of the roster; the bridge
+rejects a dossier whose pawn differs from the reference or that carries them.
+Job history is not observed anywhere; the dossier reports the current job only.
 
 ## Video and simulation are independent
 

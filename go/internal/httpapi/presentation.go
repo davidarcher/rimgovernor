@@ -57,7 +57,7 @@ func (s *Server) handlePresentation(w http.ResponseWriter, r *http.Request) bool
 		reply = value
 		observed = value.GetSelection().GetContext()
 	case "/api/presentation/colonists":
-		value, _, cause := s.config.Presentation.ReadColonistRoster(ctx, &p.ColonistRosterRequest{Identity: proto.Clone(wire).(*c.Identity), CurrentMapOnly: proto.Bool(true)})
+		value, _, cause := s.config.Presentation.ReadColonistRoster(ctx, &p.ColonistRosterRequest{Identity: proto.Clone(wire).(*c.Identity), CurrentMapOnly: proto.Bool(true), IncludeDossier: proto.Bool(true)})
 		err = cause
 		reply = value
 		observed = value.GetRoster().GetContext()

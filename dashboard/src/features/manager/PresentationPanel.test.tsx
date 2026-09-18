@@ -40,3 +40,12 @@ it('supersedes late world/session responses and aborts old requests', async () =
  await act(async () => {view.rerender(<PresentationPanel observation={next} observationFresh/>);}); expect(oldSignal?.aborted).toBe(true);
  await act(async () => {release?.(reply(values.selection));}); expect(screen.queryByText('Granite wall')).toBeNull(); expect(screen.queryByText('Position: 12, unknown')).toBeNull(); expect(screen.getAllByText(/Observed world changed/)).toHaveLength(3);
 });
+it('renders the colonist dossier when the roster carries one', async () => {
+ const dossier = {pawn: {id: 'a'}, colonist: true, job: {defName: 'Haul'}, needs: {mood: 0.42, breakRisk: 'minor'}, health: {summaryFraction: 0.8, hediffs: [{definition: {label: 'Cut'}, partLabel: 'Left arm', visible: true}]}, equipment: {equipped: [{thing: {label: 'Short bow'}}]}, biography: {childhood: {label: 'Urchin'}, skills: [{definition: {label: 'Shooting'}, level: 9, passion: 'Major'}], traits: [{defName: 'Tough'}]}, social: {memories: [{label: 'Ate without table', moodOffsetTotal: -3}]}};
+ const roster = {roster: {context, listing: {...listing, totalCount: 1, returnedCount: 1}, colonists: [{pawnId: 'a', name: 'Ann', position: {x: 1, z: 2}, dossier}]}};
+ vi.stubGlobal('fetch', async (url: string) => url.endsWith('/colonists') ? reply(roster) : response(url));
+ await act(async () => {render(<PresentationPanel observation={observation} observationFresh/>);});
+ const region = screen.getByRole('region', {name: 'Colonist observation'});
+ expect(within(region).getByText('Ann')).toBeVisible(); expect(within(region).getByText(/Job: Haul/)).toBeVisible(); expect(within(region).getByText(/Mood 42% \(minor break risk\)/)).toBeVisible();
+ expect(within(region).getByText(/Cut \(Left arm\)/)).toBeVisible(); expect(within(region).getByText(/Shooting 9\*\*/)).toBeVisible(); expect(within(region).getByText(/Traits: Tough/)).toBeVisible(); expect(within(region).getByText('Short bow')).toBeVisible(); expect(within(region).getByText(/Ate without table \(-3\)/)).toBeVisible();
+});
