@@ -4,6 +4,9 @@ import (
 	"sync"
 
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
+	"google.golang.org/protobuf/proto"
 )
 
 // FactFamily groups the cacheable observation reads that go stale together.
@@ -197,6 +200,37 @@ func (f *FactCache) lookup(key readCacheKey, scope readScope) ([]byte, Result, b
 	}
 	f.stats.Hits++
 	return row.payload, row.result, true
+}
+
+// Context returns the observation context of the identity row the cache
+// holds (the tick the bundle seeds each scheduler step, or a full identity
+// read), regardless of the tick it was read at, and false when none is
+// held. It serves callers that need the current load, map and colony but
+// not the tick: the identity family is dropped by every write and by every
+// scope change, so a held row names the load the scheduler last observed.
+// No step scope is established by it; the caller's own first native read
+// still does that.
+func (f *FactCache) Context() (*c.ObservationContext, bool) {
+	if f == nil {
+		return nil, false
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if row := f.rows[readCacheKey{method: "rimgovernor/lifecycle_read_tick"}]; row != nil {
+		reply := &l.TickReply{}
+		if err := proto.Unmarshal(row.payload, reply); err == nil && reply.GetLoaded().GetContext() != nil {
+			f.stats.Hits++
+			return reply.GetLoaded().GetContext(), true
+		}
+	}
+	if row := f.rows[readCacheKey{method: "rimgovernor/lifecycle_read_identity"}]; row != nil {
+		reply := &l.IdentityReply{}
+		if err := proto.Unmarshal(row.payload, reply); err == nil && reply.GetLoaded().GetContext() != nil {
+			f.stats.Hits++
+			return reply.GetLoaded().GetContext(), true
+		}
+	}
+	return nil, false
 }
 
 // store keeps a native reply read under scope. A different (load,

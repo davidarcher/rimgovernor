@@ -175,3 +175,46 @@ func TestFactCacheIgnoresRowsFromAnotherScope(t *testing.T) {
 		t.Fatal("uncacheable method stored")
 	}
 }
+
+// TestFactCacheContextServesTheSeededIdentity: the identity row the bundle
+// seeds (or an identity read stores) names the current load without a
+// round trip and without fixing a step scope; a tick advance keeps it, a
+// write or an identity invalidation drops it, and a later identity read at
+// the new scope restores it (#181).
+func TestFactCacheContextServesTheSeededIdentity(t *testing.T) {
+	parent := NewFactCache()
+	if _, ok := parent.Context(); ok {
+		t.Fatal("empty cache served a context")
+	}
+	server := newBundleServer()
+	client := testClient(t, &testServer{schema: protoSchema, handler: server.handle}, time.Second)
+	ctx := WithStepReadCache(context.Background(), NewChildReadCache(parent))
+	if _, _, err := client.ReadBundle(ctx, bundleTestRequest()); err != nil {
+		t.Fatal(err)
+	}
+	observed, ok := parent.Context()
+	if !ok || observed.GetTick() != 12 || observed.GetIdentity().GetLoadToken() != pbIdentity().GetLoadToken() {
+		t.Fatal(observed, ok)
+	}
+	// Serving it establishes no step scope: a fresh step's first read is native.
+	cache := NewChildReadCache(parent)
+	ctx = WithStepReadCache(context.Background(), cache)
+	if _, _, err := client.Tick(ctx); err != nil || server.calls["rimgovernor/lifecycle_read_tick"].Load() != 1 {
+		t.Fatal(err, "tick served from the parent before a native read")
+	}
+	parent.InvalidateFamilies(FactIdentity)
+	if _, ok = parent.Context(); ok {
+		t.Fatal("identity invalidation kept the context")
+	}
+	identity := testClient(t, &testServer{schema: protoSchema, handler: newReadCacheServer().handle}, time.Second)
+	if _, _, err := identity.Identity(WithStepReadCache(context.Background(), NewChildReadCache(parent))); err != nil {
+		t.Fatal(err)
+	}
+	if observed, ok = parent.Context(); !ok || observed.GetIdentity().GetLoadToken() != pbIdentity().GetLoadToken() {
+		t.Fatal("identity read did not restore the context", observed, ok)
+	}
+	cache.Invalidate()
+	if _, ok = parent.Context(); ok {
+		t.Fatal("write kept the context")
+	}
+}

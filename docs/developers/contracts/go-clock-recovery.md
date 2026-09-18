@@ -330,6 +330,12 @@ operation kind changes (construction: `colony`, `rooms`, `pawns`; an attempt
 the scheduler did not arm drops everything); `ObservationInvalidated` drops
 the families it names. The step's `clock_step` row carries `parent_hits`,
 which `rimgovernor phases` reports as parent hits/step.
+The worker's step runs under a child of the same parent and takes the
+loaded world it reconciles against from the parent's `identity` row
+(`FactCache.Context`, whatever tick it was read at) when one is held, so a
+worker step costs no `lifecycle_read_tick` of its own while the scheduler
+keeps seeding it; serving it fixes no step scope, and an empty parent (no
+clock control, a write, a scope change) falls back to the native read.
 
 ## Independent clock workers
 

@@ -228,6 +228,20 @@ func (w *Worker) takeWake() {
 		delete(w.waits, id)
 	}
 }
+// readWorld names the loaded world a step reconciles against. The step
+// needs the load, not its tick, so the identity row the scheduler's bundle
+// read seeds into Facts each step serves it without a round trip; a write
+// or a scope change drops that row and the next step reads natively (#181).
+func (w *Worker) readWorld(ctx context.Context) (store.World, error) {
+	if observed, ok := w.config.Facts.Context(); ok && bridge.ValidateContext(observed) == nil {
+		identity := observed.GetIdentity()
+		world := store.World{Colony: domain.ColonyID(identity.GetColonyId()), Load: domain.LoadID(identity.GetLoadToken()), Map: domain.MapID(identity.GetMapId())}
+		if world.Validate() == nil {
+			return world, ctx.Err()
+		}
+	}
+	return w.player.worlds.ReadWorld(ctx)
+}
 func (w *Worker) focusNamed(id domain.ActionID) bool { _, ok := w.focus[id]; return ok }
 func (w *Worker) step(ctx context.Context, now time.Time) error {
 	w.takeWake()
@@ -241,7 +255,7 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 		return err
 	}
 	defer done()
-	world, worldErr := w.player.worlds.ReadWorld(call)
+	world, worldErr := w.readWorld(call)
 	if worldErr == nil {
 		worldErr = world.Validate()
 	}

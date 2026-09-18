@@ -629,3 +629,24 @@ func TestWorkerStepCarriesChildOfSharedFactCache(t *testing.T) {
 		t.Fatal("worker step cache is not a child of the shared fact cache")
 	}
 }
+
+// The step's world identity comes from the scheduler's seeded identity row
+// when the fact cache holds one; without a cache, or with an empty one,
+// the step still reads the world natively (#181). The served path is the
+// bridge package's contract (FactCache.Context).
+func TestWorkerStepReadsWorldNativelyWithoutASeededIdentity(t *testing.T) {
+	t.Parallel()
+	w, _, _ := workerFixture(t)
+	worlds := &playerWorldSource{world: playerSubmission().World}
+	w.player.worlds = worlds
+	for _, facts := range []*bridge.FactCache{nil, bridge.NewFactCache()} {
+		w.config.Facts = facts
+		before := worlds.calls
+		if err := w.step(context.Background(), time.Now()); err != nil {
+			t.Fatal(err)
+		}
+		if worlds.calls != before+1 {
+			t.Fatal("step without a seeded identity row did not read the world natively", facts == nil, worlds.calls-before)
+		}
+	}
+}
