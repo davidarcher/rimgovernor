@@ -93,7 +93,7 @@ namespace HomeBridge.BridgeTools
                         && p.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation) && p.health.capacities.CapableOf(PawnCapacityDefOf.Moving)
                         && p.skills.GetSkill(SkillDefOf.Construction).Level >= ThingDefOf.Wall.constructionSkillPrerequisite)
                     .OrderBy(p => p.thingIDNumber).ToList();
-                if (people.Count < 3) return Refuse("At least three healthy colonists capable of construction and hauling are required.");
+                if (people.Count < 3) return Refuse("At least three healthy colonists capable of construction and hauling are required (a debug start rolled before #152 may be cached in profile/Saves; delete its RimGovernor-debug-* save).");
                 var anchor = people[0];
                 var wood = map.listerThings.ThingsOfDef(ThingDefOf.WoodLog)
                     .Where(t => t.Spawned && t.stackCount > 0 && !t.Position.Fogged(map) && (t.Faction == null || t.Faction == player)

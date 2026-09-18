@@ -71,7 +71,37 @@ namespace HomeBridge.BridgeTools
             }
             Find.GameInitData.mapSize = mapSize;
             Find.Scenario.PostIdeoChosen();
+            EnsureCapableColonists();
             return false;
+        }
+
+        // Every starting colonist can Construct and Haul (issue #152): the
+        // throughput stage needs three such pawns, and a random roll with
+        // one incapable pawn used to fail the run -- and, under the cached
+        // start, every run after it. Incapable pawns are rerolled the way
+        // the starting-pawn page's randomize button rerolls them; a roll
+        // that never produces one is a hard error rather than a bad save.
+        public const int MaxRerollsPerPawn = 40;
+
+        public static bool CapableColonist(Pawn p) =>
+            p != null && !p.WorkTypeIsDisabled(WorkTypeDefOf.Construction) && !p.WorkTypeIsDisabled(WorkTypeDefOf.Hauling)
+            && (p.skills?.GetSkill(SkillDefOf.Construction).Level ?? 0) >= ThingDefOf.Wall.constructionSkillPrerequisite;
+
+        private static void EnsureCapableColonists()
+        {
+            var pawns = Find.GameInitData.startingAndOptionalPawns;
+            var rerolls = 0;
+            for (var i = 0; i < Find.GameInitData.startingPawnCount && i < pawns.Count; i++)
+            {
+                var tries = 0;
+                while (!CapableColonist(pawns[i]))
+                {
+                    if (++tries > MaxRerollsPerPawn) throw new InvalidOperationException($"Starting pawn {i} was incapable of Construction or Hauling after {MaxRerollsPerPawn} rerolls.");
+                    StartingPawnUtility.RandomizeInPlace(pawns[i]);
+                    rerolls++;
+                }
+            }
+            if (rerolls > 0) Log.Message($"[RimGovernor] debug start rerolled {rerolls} starting pawn(s) incapable of Construction or Hauling.");
         }
     }
 

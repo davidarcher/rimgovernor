@@ -278,6 +278,11 @@ fixture's `biomes` parameter): the start settles a random valid tile of
 the first biome the planet offers and fails when it offers none, and the
 cached start is keyed on the preference. storage/food pins a berry-rich
 biome this way rather than leaving food to the roll (#172).
+Every starting colonist of a configured debug start can Construct and
+Haul: the fixture rerolls an incapable pawn in place (#152), so a stage
+that needs three such pawns (`test/throughput_prepare`) never depends on
+the roll. A cached start saved before that guarantee keeps its pawns;
+delete the `RimGovernor-debug-*` save when the stage refuses for it.
 
 Bound waits by stall, not only by ceiling. A broken run stops changing long
 before its wall-clock budget runs out, so a poll loop goes through
