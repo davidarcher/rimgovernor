@@ -231,3 +231,17 @@ func RecordedVerifiedTrailers(repo, rev string) (map[string]VerifiedTrailer, err
 	}
 	return latest, nil
 }
+
+// HarnessInputRoots lists, repo-relative with forward slashes, the files
+// and directories outside a harness's Go packages that every harness run
+// depends on: the native mod's build inputs and harnessSharedInputs. A
+// change under any of them affects every harness.
+func HarnessInputRoots() []string {
+	roots := make([]string, 0, len(nativeSourceInputs)+len(harnessSharedInputs))
+	for _, input := range nativeSourceInputs {
+		roots = append(roots, input.repo)
+	}
+	roots = append(roots, harnessSharedInputs...)
+	sort.Strings(roots)
+	return roots
+}

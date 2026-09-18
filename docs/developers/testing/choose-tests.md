@@ -430,8 +430,17 @@ after fixture or save-format changes.
 | Docker packaging of the Go controller | `docker build -f containers/Dockerfile --target go-controller`, `docker run --rm rimgovernor-go:local version`/`help` | Confirms the image builds and the binary starts without a licensed game; not gameplay evidence. See [go/README.md](../../../go/README.md#go-launch-and-packaging-the-production-default-g0111-g0112). |
 | The Go controller as a Linux worker container reaching a connected native session, and the worker storage contract (private volume, export after stop, database integrity, verified cleanup) | `go run ./internal/nativeaccept/docker/cmd/dockerworkeraccept` from `go/` with the Linux game/mods/profile/GABS inputs (`-storage bind` for the host-bind-mount comparison); `go test ./internal/nativeaccept/docker/` covers the stop/export/retain/release branches against a fake `docker` without an engine | Linux Docker engine, licensed Linux game build and prepared profile; one worker, no pawn work. A retained volume in `storage_evidence` is recovery evidence from a failed export, not a leak to sweep. |
 
-For agents: inspect the affected tests and choose the smallest relevant check, then
-run the full affected suite once before handoff. Go-only changes need the full Go
+For agents: `go run ./cmd/affected` from `go/` prints the checks a change
+needs, one command per line: the `go test` line for the packages holding the
+changed Go files plus every in-module package importing them (`./...` when
+`go.mod`/`go.sum` changed), and one `go run ./internal/nativeaccept/cmd/<harness>`
+line per harness whose inputs the change touched (a harness or the `rimgovernor`
+binary imports a changed package; every harness when the native sources, fixtures
+or `go.mod` changed). It diffs the working tree, including uncommitted and
+untracked files, against the merge base with `main` (`-base` for another
+revision); pass paths to ask about a hypothetical change. The landing lane runs
+the `go test` line itself. Run the harness lines at the milestone, then stamp
+the `Verified:` trailer. Run the full affected suite once before handoff. Go-only changes need the full Go
 suite; dashboard-only changes need typecheck, Vitest and build. Changes to shared
 Protobuf contracts need both plus generation checks. Reuse a successful run when
 relevant code, dependencies, inputs and environment are unchanged, even if main has

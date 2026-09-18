@@ -68,7 +68,8 @@
 - Test evidence follows relevant code, dependencies, inputs and environment, not
   the main HEAD hash. Unrelated main commits, clean cherry-picks and rebases do
   not invalidate passing results. Rerun only checks affected by changed behavior,
-  dependencies or conflict resolution. Reuse other agents' applicable evidence.
+  dependencies or conflict resolution; `go run ./cmd/affected` from `go/`
+  names those checks. Reuse other agents' applicable evidence.
   For native acceptance this is mechanical: stamp the verified commit with the
   `Verified:` trailer from `go run ./internal/nativeaccept/cmd/verified trailer
   <harness>` and run `verified check` before landing; a harness that reads

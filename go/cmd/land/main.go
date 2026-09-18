@@ -12,7 +12,8 @@
 //     conflict aborts the merge and leaves the resolution to the caller;
 //  3. runs go test for the packages the branch changed since main and
 //     the in-module packages that import them (all packages when go.mod
-//     or go.sum changed); nothing outside go/ is tested here;
+//     or go.sum changed) and names the affected acceptance harnesses,
+//     as cmd/affected computes them; nothing outside go/ is tested here;
 //  4. reports each recorded Verified: trailer as ok or stale for the
 //     merged tree (informational; acceptance stays out of the lane);
 //  5. squash-merges the branch into the main checkout, which must be clean,
@@ -35,6 +36,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/affected"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 )
 
@@ -220,76 +222,27 @@ func lock(repo, branch string, timeout time.Duration) (func(), error) {
 }
 
 // testAffected runs go test for the packages the changed files belong to
-// and every in-module package importing them.
+// and every in-module package importing them (affected.Select), and names
+// the harnesses the change touches.
 func testAffected(worktree string, changed []string) error {
 	goDir := filepath.Join(worktree, "go")
-	all := false
-	dirs := map[string]bool{}
-	for _, file := range changed {
-		if !strings.HasPrefix(file, "go/") {
-			continue
-		}
-		switch {
-		case file == "go/go.mod" || file == "go/go.sum":
-			all = true
-		case strings.HasSuffix(file, ".go"):
-			dir := filepath.Join(worktree, filepath.FromSlash(file))
-			dir = filepath.Dir(dir)
-			if info, err := os.Stat(dir); err == nil && info.IsDir() {
-				dirs[dir] = true
-			}
-		}
-	}
-	if all {
-		fmt.Println("tests: go.mod/go.sum changed, testing ./...")
-		return goRun(goDir, "test", "./...")
-	}
-	if len(dirs) == 0 {
-		fmt.Println("tests: no Go files changed, nothing to test")
-		return nil
-	}
-	changedPkgs := map[string]bool{}
-	for dir := range dirs {
-		rel, err := filepath.Rel(goDir, dir)
-		if err != nil {
-			return err
-		}
-		out, err := goOutput(goDir, "list", "-f", "{{.ImportPath}}", "./"+filepath.ToSlash(rel))
-		if err != nil {
-			return err
-		}
-		if pkg := strings.TrimSpace(out); pkg != "" {
-			changedPkgs[pkg] = true
-		}
-	}
-	out, err := goOutput(goDir, "list", "-f", `{{.ImportPath}} {{join .Deps " "}} {{join .TestImports " "}} {{join .XTestImports " "}}`, "./...")
+	sel, err := affected.Select(worktree, changed)
 	if err != nil {
 		return err
 	}
-	affected := map[string]bool{}
-	for _, line := range strings.Split(out, "\n") {
-		fields := strings.Fields(line)
-		if len(fields) == 0 {
-			continue
-		}
-		if changedPkgs[fields[0]] {
-			affected[fields[0]] = true
-			continue
-		}
-		for _, dep := range fields[1:] {
-			if changedPkgs[dep] {
-				affected[fields[0]] = true
-				break
-			}
-		}
+	if len(sel.Harnesses) > 0 {
+		fmt.Println("harnesses affected: " + strings.Join(sel.Harnesses, " "))
 	}
-	pkgs := make([]string, 0, len(affected))
-	for pkg := range affected {
-		pkgs = append(pkgs, pkg)
+	switch {
+	case sel.AllGo:
+		fmt.Println("tests: go.mod/go.sum changed, testing ./...")
+		return goRun(goDir, "test", "./...")
+	case len(sel.Packages) == 0:
+		fmt.Println("tests: no Go files changed, nothing to test")
+		return nil
 	}
-	sort.Strings(pkgs)
-	fmt.Printf("tests: %d changed package(s), %d affected\n", len(changedPkgs), len(pkgs))
-	return goRun(goDir, append([]string{"test"}, pkgs...)...)
+	fmt.Println("tests:", len(sel.Packages), "affected package(s)")
+	return goRun(goDir, append([]string{"test"}, sel.Packages...)...)
 }
 
 // reportVerified prints the branch's Verified trailers against the merged tree.

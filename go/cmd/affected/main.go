@@ -1,0 +1,75 @@
+// Command affected prints the checks a change needs: the Go packages to
+// test and the native acceptance harnesses whose inputs the change touched.
+//
+//	go run ./cmd/affected [-base main] [-files] [<file>...]
+//
+// With no files it diffs the working tree (committed, staged, unstaged and
+// untracked) against -base. -files prints the changed files it considered.
+// The output is one command per line, ready to run from go/:
+//
+//	go test ./internal/policy/... ...
+//	go run ./internal/nativeaccept/cmd/upkeepaccept ...
+//
+// and "nothing to test" when no Go file changed. The land command runs the
+// go test line itself; the harness lines are advice, since acceptance runs
+// at milestones and the Verified: trailer says whether one is still valid.
+package main
+
+import (
+	"flag"
+	"fmt"
+	"os"
+	"strings"
+
+	"github.com/davidarcher/RimGovernor/go/internal/affected"
+	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
+)
+
+func main() {
+	base := flag.String("base", "main", "revision to diff the working tree against")
+	showFiles := flag.Bool("files", false, "also print the changed files considered")
+	flag.Parse()
+	cwd, err := os.Getwd()
+	if err != nil {
+		fail(err)
+	}
+	repo, ok := na.FindRepo(cwd)
+	if !ok {
+		fail(fmt.Errorf("not inside a git checkout: %s", cwd))
+	}
+	changed := flag.Args()
+	if len(changed) == 0 {
+		changed, err = affected.ChangedFiles(repo, *base)
+		if err != nil {
+			fail(err)
+		}
+	}
+	if *showFiles {
+		for _, file := range changed {
+			fmt.Println("#", file)
+		}
+	}
+	sel, err := affected.Select(repo, changed)
+	if err != nil {
+		fail(err)
+	}
+	switch {
+	case sel.AllGo:
+		fmt.Println("go test ./...")
+	case len(sel.Packages) > 0:
+		fmt.Println("go test " + strings.Join(sel.Packages, " "))
+	default:
+		fmt.Println("# nothing to test: no Go file changed")
+	}
+	if sel.AllHarnesses {
+		fmt.Println("# a shared harness input changed (native sources, fixtures or go.mod): every harness is affected")
+	}
+	for _, harness := range sel.Harnesses {
+		fmt.Printf("go run ./internal/nativeaccept/cmd/%s ...\n", harness)
+	}
+}
+
+func fail(err error) {
+	fmt.Fprintln(os.Stderr, "affected:", err)
+	os.Exit(1)
+}
