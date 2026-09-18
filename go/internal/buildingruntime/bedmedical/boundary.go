@@ -87,9 +87,15 @@ func (b *Boundary) InspectBedMedical(ctx context.Context, t executor.Target) (ex
 	if _, err = boundary.Context(emergency.Context, t.Snapshot); err != nil {
 		return out, err
 	}
-	if domain.Tick(v.Context.GetTick()) != tick || domain.Tick(emergency.Context.GetTick()) != tick {
+	// The three reads need only be ordered, not simultaneous: the target's
+	// before-token already binds the write to the settings the read listed,
+	// so a tick that advanced between them is a running clock, not stale
+	// evidence. Demanding one tick held every dispatch until the game
+	// paused (#195); bills, zones and supplies accept the same order.
+	if v.Context.GetTick() < int64(tick) || emergency.Context.GetTick() < v.Context.GetTick() {
 		return out, executor.ErrHeld
 	}
+	tick = domain.Tick(v.Context.GetTick())
 	out.Current, out.Tick, out.Medical, out.SnapshotToken, out.Accepted = t.Snapshot, tick, medical, medical.BeforeToken(), true
 	out.Emergency, err = policy.NewEmergencySnapshot(t.Snapshot, tick, emergency.Facts)
 	out.ObservedAt = b.Clock.Now()
