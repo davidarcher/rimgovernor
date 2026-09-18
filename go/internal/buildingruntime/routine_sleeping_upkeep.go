@@ -150,6 +150,7 @@ func (r *RoutineSleepingUpkeepPlanner) step(call, epoch context.Context, arbiter
 	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit {
 		return RoutineBuildingResult{Reason: BuildingMethodNoDeficit}, nil
 	}
+	var observe uint32
 	for _, m := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, m.Plan)
 		if err != nil {
@@ -158,7 +159,46 @@ func (r *RoutineSleepingUpkeepPlanner) step(call, epoch context.Context, arbiter
 		if domain.GoalWorkOpen(plan.Progress) {
 			return RoutineBuildingResult{Reason: BuildingMethodExistingWork}, nil
 		}
+		observe = max(observe, sleepingNativeWorkTicks(plan, state.Snapshot, review.Tick))
 	}
+	result, err := r.decide(call, epoch, arbiter, state, review, goal)
+	if err == nil && result.Reason != BuildingMethodAdmitted && result.NativeWorkTicks == 0 {
+		result.NativeWorkTicks = observe
+	}
+	return result, err
+}
+
+// sleepingObservationBudget bounds the game time the planner asks for after
+// an assignment completed so the colonist's sleep in that bed can be
+// observed: one full day covers the next rest period, and the budget is not
+// renewed by later observations.
+const sleepingObservationBudget = 60000
+
+// sleepingObservationSlice is one clock window inside that budget.
+const sleepingObservationSlice = 600
+
+// sleepingNativeWorkTicks is the clock window a completed assignment of this
+// epoch still earns; only observed use recovers the goal, and without ticks
+// nobody sleeps.
+func sleepingNativeWorkTicks(plan store.PlanState, current domain.GenerationSnapshot, tick domain.Tick) uint32 {
+	if len(plan.Progress) != 1 {
+		return 0
+	}
+	p := plan.Progress[0]
+	if _, ok := p.Action().BedAssign(); !ok {
+		return 0
+	}
+	current.Plan, current.Revision = plan.Spec.ID(), plan.Spec.Revision()
+	v := p.View()
+	effect, known := v.Effect.Value()
+	if v.Stage != domain.Completed || v.Unresolved || !known || effect != domain.EffectCompleted || !v.Snapshot.Matches(current) || tick < v.Tick || tick-v.Tick >= sleepingObservationBudget {
+		return 0
+	}
+	return min(uint32(sleepingObservationSlice), uint32(sleepingObservationBudget-(tick-v.Tick)))
+}
+
+func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbiter *stepArbiter, state ControlState, review store.RoutineReview, goal store.GoalState) (RoutineBuildingResult, error) {
+	p := r.reviewer.player
 	started := r.reviewer.clock.Now()
 	identity, _, err := r.native.Identity(call)
 	if err != nil {

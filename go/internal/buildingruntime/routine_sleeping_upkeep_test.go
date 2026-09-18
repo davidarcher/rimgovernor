@@ -186,7 +186,7 @@ func TestSleepingUpkeepRetriesUnadmittedAssignment(t *testing.T) {
 		if _, err = db.RecordReceipt(ctx, plan, action, 1, domain.ReceiptUnknown); err != nil {
 			t.Fatal(err)
 		}
-		if _, err = db.Observe(ctx, plan, domain.Observation{Action: action, Attempt: 1, Snapshot: snapshot, Tick: review.Tick + 1, Causality: domain.AfterDispatch, Effect: effect}, snapshot); err != nil {
+		if _, err = db.Observe(ctx, plan, domain.Observation{Action: action, Attempt: 1, Snapshot: snapshot, Tick: review.Tick, Causality: domain.AfterDispatch, Effect: effect}, snapshot); err != nil {
 			t.Fatal(err)
 		}
 		// The worker retires an absent attempt by cancelling it (the live
@@ -207,7 +207,7 @@ func TestSleepingUpkeepRetriesUnadmittedAssignment(t *testing.T) {
 		}
 		settle(method, domain.EffectAbsent)
 	}
-	if result, err := planner.Step(ctx); err != nil || result.Reason != BuildingMethodUsed {
+	if result, err := planner.Step(ctx); err != nil || result.Reason != BuildingMethodUsed || result.NativeWorkTicks != 0 {
 		t.Fatal("fourth attempt", result, err)
 	}
 	// A completed (admitted) attempt is final for the epoch even when the
@@ -220,7 +220,10 @@ func TestSleepingUpkeepRetriesUnadmittedAssignment(t *testing.T) {
 		t.Fatal(result, err)
 	}
 	settle("sleeping-assign-patient-bed", domain.EffectCompleted)
-	if result, err := planner.Step(ctx); err != nil || result.Reason != BuildingMethodUsed {
+	// Only observed sleep completes the goal, so the completed assignment
+	// earns a bounded clock window; the unadmitted attempts above earned
+	// none.
+	if result, err := planner.Step(ctx); err != nil || result.Reason != BuildingMethodUsed || result.NativeWorkTicks != sleepingObservationSlice {
 		t.Fatal(result, err)
 	}
 }
