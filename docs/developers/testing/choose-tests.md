@@ -25,8 +25,15 @@ shared runner (`cmd/acceptance`) or `cmd/rimgovernor` imports a changed
 package, and every area when a shared input changed (the native mod's
 build inputs, the same list `RequireCurrentPackage` compares,
 `go.mod`/`go.sum`, `scripts/fixtures`, `contracts/fixtures`;
-`na.HarnessInputs` lists a case's inputs). Run those at the milestone,
-before landing, and name them in the commit message. A run counts for the code it ran against: `main` moving under the
+`na.HarnessInputs` lists a case's inputs). Selection is per package, not
+per symbol: any code edit to a package the runner imports
+(`internal/nativeaccept`, `cases`, `clock`, ...) names every area, even an
+additive one whose zero value keeps the old path, because nothing cheaper
+proves that. A Go file whose edit changed only comments (compiler
+directives such as `//go:build` count as code) is not a change at all and
+names nothing. Run the named areas at the milestone, before landing, and
+name them in the commit message; an area you judged unaffected and skipped
+is "left unverified" below: land and say so in an issue. A run counts for the code it ran against: `main` moving under the
 branch afterwards, a clean rebase or a cherry-pick does not invalidate it,
 and nothing hashes or grades it. Never enter a second rerun-and-land cycle
 for one milestone; land and file an issue for anything left unverified.

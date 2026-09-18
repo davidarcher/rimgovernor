@@ -35,7 +35,10 @@ type Selection struct {
 
 // ChangedFiles lists the repo-relative files the working tree changed
 // since it diverged from base (the merge base, so what base gained
-// meanwhile does not count), including uncommitted and untracked ones.
+// meanwhile does not count), including uncommitted and untracked ones. A
+// Go file whose edit is comment-only (commentOnly) is left out: it changes
+// no behaviour, so it should not name the packages importing it or the
+// harnesses they drive.
 func ChangedFiles(repo, base string) ([]string, error) {
 	mergeBase, err := gitLines(repo, "merge-base", base, "HEAD")
 	if err != nil {
@@ -52,10 +55,14 @@ func ChangedFiles(repo, base string) ([]string, error) {
 	seen := map[string]bool{}
 	var files []string
 	for _, file := range append(committed, untracked...) {
-		if file != "" && !seen[file] {
-			seen[file] = true
-			files = append(files, file)
+		if file == "" || seen[file] {
+			continue
 		}
+		seen[file] = true
+		if commentOnly(repo, mergeBase[0], file) {
+			continue
+		}
+		files = append(files, file)
 	}
 	sort.Strings(files)
 	return files, nil

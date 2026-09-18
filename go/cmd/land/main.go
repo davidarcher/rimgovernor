@@ -120,7 +120,7 @@ func run(branch, message, messageFile string, lockTimeout time.Duration, runTest
 		return nil
 	}
 	if runTests {
-		changed, err := gitLines(worktree, "diff", "--name-only", "main", "HEAD")
+		changed, err := affected.ChangedFiles(worktree, "main")
 		if err != nil {
 			return err
 		}
@@ -334,14 +334,6 @@ func firstLine(s string) string {
 func git(dir string, args ...string) (string, error) {
 	out, err := gitOutput(dir, args...)
 	return strings.TrimSpace(out), err
-}
-
-func gitLines(dir string, args ...string) ([]string, error) {
-	out, err := git(dir, args...)
-	if err != nil || out == "" {
-		return nil, err
-	}
-	return strings.Split(out, "\n"), nil
 }
 
 func gitOutput(dir string, args ...string) (string, error) {
