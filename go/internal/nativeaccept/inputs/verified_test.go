@@ -1,4 +1,4 @@
-package nativeaccept
+package inputs
 
 import (
 	"os"
@@ -57,7 +57,7 @@ func TestHarnessInputHashTracksInputs(t *testing.T) {
 	}
 	for _, want := range []string{
 		"go/internal/nativeaccept/cmd/verified/main.go",
-		"go/internal/nativeaccept/verified.go",
+		"go/internal/nativeaccept/inputs/verified.go",
 		"go/cmd/rimgovernor/main.go",
 		"go/go.mod",
 		"integrations/rimgovernor-native/README.md",

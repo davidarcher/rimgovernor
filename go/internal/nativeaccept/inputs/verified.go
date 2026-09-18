@@ -1,4 +1,4 @@
-package nativeaccept
+package inputs
 
 import (
 	"bytes"

@@ -13,7 +13,7 @@ import (
 	"sort"
 	"strings"
 
-	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
+	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/inputs"
 )
 
 // Selection is what a change affects.

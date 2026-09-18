@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"os"
 
-	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
+	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/inputs"
 )
 
 func main() {

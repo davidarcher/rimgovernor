@@ -43,7 +43,7 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/affected"
-	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
+	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/inputs"
 )
 
 const lockName = "rimgovernor-land.lock"
