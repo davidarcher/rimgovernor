@@ -162,28 +162,25 @@ func explicitFalse(v any) bool {
 	return ok && !b
 }
 
-// RequireHealthyColonists asserts a fresh observations_list_pawns reply is a
-// complete, fully-matched census of colonists with none dead, downed, bleeding,
-// or needing tend: a missing health fact is never treated as healthy,
-// only an explicit false is.
+// RequireHealthyColonists asserts a fresh observations_list_pawns reply
+// (filter colonist=true) is a complete, fully-matched, fully-readable census
+// with none dead, downed, bleeding, or needing tend: a missing health fact
+// is never treated as healthy, only an explicit false is. Pawns the colonist
+// filter dropped (animals, prisoners) are expected, not a defect.
 func RequireHealthyColonists(reply map[string]any) error {
 	_, observed, err := Outcome(reply, "observed")
 	if err != nil {
 		return err
 	}
-	colony, _ := AsMap(observed["colonists"])
-	completeness, _ := AsMap(colony["completeness"])
+	completeness, _ := AsMap(observed["completeness"])
 	page, _ := AsMap(completeness["page"])
 	if complete, ok := AsBool(page["complete"]); !ok || !complete {
 		return fmt.Errorf("colonists page is not complete")
 	}
-	if numberOrDefault(completeness, "filtered", -1) != 0 {
-		return fmt.Errorf("colonists completeness filtered is not zero")
-	}
 	if numberOrDefault(completeness, "unreadable", -1) != 0 {
 		return fmt.Errorf("colonists completeness unreadable is not zero")
 	}
-	pawns := AsSlice(colony["pawns"])
+	pawns := AsSlice(observed["pawns"])
 	if len(pawns) == 0 {
 		return fmt.Errorf("no colonists returned")
 	}

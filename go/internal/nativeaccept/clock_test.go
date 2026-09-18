@@ -106,18 +106,28 @@ func clockHealthyPawnFixture(field string) map[string]any {
 		health, _ := AsMap(pawn["health"])
 		delete(health, "needsTend")
 	}
-	return map[string]any{"observed": map[string]any{"colonists": map[string]any{
+	// The reply as the game returns it for filter colonist=true: pawns and
+	// completeness directly under observed, filtered counting non-colonists.
+	return map[string]any{"observed": map[string]any{
 		"pawns": []any{pawn},
 		"completeness": map[string]any{
-			"page": map[string]any{"complete": true}, "matched": "1", "returned": "1", "filtered": "0", "unreadable": "0",
+			"page": map[string]any{"complete": true}, "matched": "1", "returned": "1", "filtered": "1", "unreadable": "0",
 		},
-	}}}
+	}}
 }
 
 func TestClockFixtureReportsMedicalPrerequisiteBeforeRunning(t *testing.T) {
-	for _, field := range []string{"", "dead", "downed", "bleeding", "needsTend", "unknown"} {
+	for _, field := range []string{"", "dead", "downed", "bleeding", "needsTend", "unknown", "unreadable", "incomplete"} {
 		t.Run(field, func(t *testing.T) {
 			reply := clockHealthyPawnFixture(field)
+			observed, _ := AsMap(reply["observed"])
+			completeness, _ := AsMap(observed["completeness"])
+			switch field {
+			case "unreadable":
+				completeness["unreadable"] = "1"
+			case "incomplete":
+				completeness["page"] = map[string]any{"complete": false}
+			}
 			err := RequireHealthyColonists(reply)
 			if field == "" {
 				if err != nil {
