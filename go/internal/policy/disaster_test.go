@@ -18,7 +18,7 @@ func recoveryBuilding(id string) RecoveryBuilding {
 func TestDisasterCompoundExpiryAndRenewal(t *testing.T) {
 	g := disasterGates()
 	empty := domain.Known([]DisasterCondition{})
-	conditions := domain.Known([]DisasterCondition{{"2", "SolarFlare"}, {"1", "ColdSnap"}})
+	conditions := domain.Known([]DisasterCondition{{ID: "2", Definition: "SolarFlare"}, {ID: "1", Definition: "ColdSnap"}})
 	buildings := domain.Known([]RecoveryBuilding{})
 	h, err := ReviewDisaster(empty, buildings, g, nil, 10)
 	if err != nil || h != nil {
@@ -34,7 +34,7 @@ func TestDisasterCompoundExpiryAndRenewal(t *testing.T) {
 	}
 	first := cloneDisaster(h)
 	h, err = ReviewDisaster(empty, buildings, g, h, 12)
-	if err != nil || h.Phase != DisasterRecovering || !reflect.DeepEqual(first.Conditions, []DisasterCondition{{"1", "ColdSnap"}, {"2", "SolarFlare"}}) {
+	if err != nil || h.Phase != DisasterRecovering || !reflect.DeepEqual(first.Conditions, []DisasterCondition{{ID: "1", Definition: "ColdSnap"}, {ID: "2", Definition: "SolarFlare"}}) {
 		t.Fatal(h, err)
 	}
 	h, err = ReviewDisaster(empty, buildings, disasterGates(), h, 13)
@@ -51,7 +51,7 @@ func TestDisasterCompoundExpiryAndRenewal(t *testing.T) {
 	}
 }
 func TestDisasterUnknownAndExactDamageRecovery(t *testing.T) {
-	conditions := domain.Known([]DisasterCondition{{"1", "ColdSnap"}})
+	conditions := domain.Known([]DisasterCondition{{ID: "1", Definition: "ColdSnap"}})
 	g := disasterGates()
 	b := recoveryBuilding("wall")
 	b.HitPoints = domain.Known(int64(50))
@@ -78,7 +78,7 @@ func TestDisasterUnknownAndExactDamageRecovery(t *testing.T) {
 	}
 }
 func TestDisasterTemporarySurvivalRequiresCompleteServices(t *testing.T) {
-	conditions := domain.Known([]DisasterCondition{{"1", "ToxicFallout"}})
+	conditions := domain.Known([]DisasterCondition{{ID: "1", Definition: "ToxicFallout"}})
 	buildings := domain.Known([]RecoveryBuilding{})
 	h, err := ReviewDisaster(conditions, buildings, disasterGates(), nil, 1)
 	if err != nil || h.Phase != DisasterSurvival {
@@ -90,7 +90,7 @@ func TestDisasterTemporarySurvivalRequiresCompleteServices(t *testing.T) {
 	if err != nil || h.Phase != DisasterUnknown {
 		t.Fatal(h, err)
 	}
-	if _, err = ReviewDisaster(domain.Known([]DisasterCondition{{"1", "ColdSnap"}, {"1", "SolarFlare"}}), buildings, g, nil, 3); err == nil {
+	if _, err = ReviewDisaster(domain.Known([]DisasterCondition{{ID: "1", Definition: "ColdSnap"}, {ID: "1", Definition: "SolarFlare"}}), buildings, g, nil, 3); err == nil {
 		t.Fatal("accepted duplicate condition")
 	}
 }
@@ -127,7 +127,7 @@ func TestRecoveryPendingNativeThresholdsAndProtection(t *testing.T) {
 	}
 }
 func TestDisasterHistoryRejectsFalseRecoveryAndAliasing(t *testing.T) {
-	h, err := ReviewDisaster(domain.Known([]DisasterCondition{{"1", "ColdSnap"}}), domain.Known([]RecoveryBuilding{}), disasterGates(), nil, 1)
+	h, err := ReviewDisaster(domain.Known([]DisasterCondition{{ID: "1", Definition: "ColdSnap"}}), domain.Known([]RecoveryBuilding{}), disasterGates(), nil, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -144,7 +144,7 @@ func TestDisasterHistoryRejectsFalseRecoveryAndAliasing(t *testing.T) {
 }
 
 func TestRoutineDisasterPromotesOnlyObservedServiceDeficits(t *testing.T) {
-	f := RoutineFacts{Colonists: domain.Known(int64(3)), BedCapacity: domain.Known(int64(3)), IndoorCapacity: domain.Known(int64(3)), GrowingCells: domain.Known(int64(30)), FoodDays: domain.Known(10.0), FieldCoverage: domain.Known(1.0), FoodStorage: domain.Known(true), Cooking: domain.Known(true), PowerRequired: domain.Known(false), DisabledConsumers: domain.Known(false), SleepingMin: domain.Known(0.0), SleepingMax: domain.Known(22.0), Wood: domain.Known(int64(0)), DisasterConditions: domain.Known([]DisasterCondition{{"cold", "ColdSnap"}}), RecoveryBuildings: domain.Known([]RecoveryBuilding{}), DisasterTick: 10}
+	f := RoutineFacts{Colonists: domain.Known(int64(3)), BedCapacity: domain.Known(int64(3)), IndoorCapacity: domain.Known(int64(3)), GrowingCells: domain.Known(int64(30)), FoodDays: domain.Known(10.0), FieldCoverage: domain.Known(1.0), FoodStorage: domain.Known(true), Cooking: domain.Known(true), PowerRequired: domain.Known(false), DisabledConsumers: domain.Known(false), SleepingMin: domain.Known(0.0), SleepingMax: domain.Known(22.0), Wood: domain.Known(int64(0)), DisasterConditions: domain.Known([]DisasterCondition{{ID: "cold", Definition: "ColdSnap"}}), RecoveryBuildings: domain.Known([]RecoveryBuilding{}), DisasterTick: 10}
 	r, err := DetectRoutine(f, RoutineLatches{}, DefaultRoutinePolicy())
 	if err != nil || r.Disaster.Phase != DisasterDisrupted {
 		t.Fatal(r.Disaster, err)
@@ -173,5 +173,23 @@ func TestRoutineDisasterPromotesOnlyObservedServiceDeficits(t *testing.T) {
 		if n.ID == RecoverDisasterServices && n.Need != domain.NeedRecovered {
 			t.Fatal(n)
 		}
+	}
+}
+
+func TestReviewDisasterRejectsInconsistentDuration(t *testing.T) {
+	g := FootholdGates{}
+	five := int64(5)
+	negative := int64(-1)
+	for _, bad := range [][]DisasterCondition{
+		{{ID: "1", Definition: "ColdSnap", Permanent: true, TicksLeft: &five}},
+		{{ID: "1", Definition: "ColdSnap", TicksLeft: &negative}},
+	} {
+		if _, err := ReviewDisaster(domain.Known(bad), domain.Known([]RecoveryBuilding{}), g, nil, 3); err == nil {
+			t.Fatal("accepted", bad)
+		}
+	}
+	h, err := ReviewDisaster(domain.Known([]DisasterCondition{{ID: "1", Definition: "ColdSnap", TicksLeft: &five}}), domain.Known([]RecoveryBuilding{}), g, nil, 3)
+	if err != nil || h == nil || h.Validate() != nil || *h.Conditions[0].TicksLeft != 5 {
+		t.Fatal(h, err)
 	}
 }

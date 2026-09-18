@@ -71,6 +71,33 @@ func runArea(ctx context.Context, s cases.Session) error {
 	report["fixture_refuge"] = refugeID
 	report["fixture_outdoor"] = outdoorID
 
+	// The fixture's registered hazard is a timed ToxicFallout, so the
+	// colony-facts environment census (#235) must carry it with its native
+	// remaining duration: the row Go's disaster review plans against.
+	facts, err := h.Wire(ctx, "environment-census", "observations_read_colony_facts", map[string]any{"scope": map[string]any{"expectedIdentity": identity}})
+	if err != nil {
+		return err
+	}
+	_, observed, err := na.Outcome(facts, "observed")
+	if err != nil {
+		return err
+	}
+	hazard := map[string]any(nil)
+	for _, raw := range na.AsSlice(observed["environment"]) {
+		row, _ := na.AsMap(raw)
+		if na.AsString(row["defName"]) == "ToxicFallout" {
+			hazard = row
+		}
+	}
+	if hazard == nil {
+		return fmt.Errorf("environment census lacks the fixture's ToxicFallout: %#v", observed["environment"])
+	}
+	permanent, _ := na.AsBool(hazard["permanent"])
+	if permanent || na.AsNumber(hazard["ticksLeft"]) <= 0 || na.AsString(hazard["id"]) == "" {
+		return fmt.Errorf("environment census row lacks a timed remaining duration: %#v", hazard)
+	}
+	report["environment_hazard"] = hazard
+
 	// acquire takes a fresh authority lease: the explicit player-control
 	// takeover path. Only one dispatch happens in this tool (no Fast-speed
 	// tick-advance window precedes it, since the PatchPawn AllowedArea

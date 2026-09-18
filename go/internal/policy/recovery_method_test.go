@@ -17,7 +17,7 @@ func recoveryPlanning(t *testing.T, hazard bool) (RecoveryPlanning, *DisasterHis
 	b := recoveryBuilding("wall")
 	b.HitPoints = domain.Known(int64(50))
 	p := RecoveryPlanning{Buildings: domain.Known([]RecoveryBuilding{b}), Workers: domain.Known([]RecoveryWorker{recoveryWorker("b"), recoveryWorker("a")}), Safety: domain.Known(RecoverySafety{RoofHazard: domain.Known(hazard), SafeAreas: []string{"roof2", "roof1"}, Restrictions: []RecoveryRestriction{{"b", domain.Known("")}, {"a", domain.Known("player")}}})}
-	h, err := ReviewDisaster(domain.Known([]DisasterCondition{{"event", "ToxicFallout"}}), p.Buildings, disasterGates(), nil, 10)
+	h, err := ReviewDisaster(domain.Known([]DisasterCondition{{ID: "event", Definition: "ToxicFallout"}}), p.Buildings, disasterGates(), nil, 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -171,7 +171,7 @@ func TestRecoverySelectionStableBoundedAndNonAliasing(t *testing.T) {
 func TestRecoveryRoofHazardMaintainsNeedWithoutDamagedBuildings(t *testing.T) {
 	p, _ := recoveryPlanning(t, true)
 	p.Buildings = domain.Known([]RecoveryBuilding{})
-	h, err := ReviewDisaster(domain.Known([]DisasterCondition{{"event", "ToxicFallout"}}), p.Buildings, disasterGates(), nil, 10)
+	h, err := ReviewDisaster(domain.Known([]DisasterCondition{{ID: "event", Definition: "ToxicFallout"}}), p.Buildings, disasterGates(), nil, 10)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -3,7 +3,14 @@
 [Documentation](../../README.md) · [Issues](https://github.com/davidarcher/rimgovernor/issues)
 
 Go routine reviews track environmental disruption inside the shared goal journal.
-Native condition identities start an episode. The existing food, production,
+Native condition identities start an episode. `ColonyFactsSnapshot.environment`
+is the game-condition census: every condition affecting the map with its
+definition, implementation class, label, whether it is permanent and, for a
+timed condition, the native remaining ticks. Remaining time is planning evidence
+only; an episode ends when the condition is no longer observed, never when the
+count runs out. A condition starting or ending under a running clock window
+invalidates the `colony` fact family (see the clock contract), because such
+events arrive as non-stopping letters. The existing food, production,
 sleeping, shelter, temperature, cooking, power and storage gates determine affected
 services; a complete native recovery census supplies infrastructure evidence.
 

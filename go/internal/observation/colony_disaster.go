@@ -5,13 +5,18 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+	"google.golang.org/protobuf/proto"
 )
 
 func colonyDisaster(v *o.ColonyFactsSnapshot, facts *policy.RoutineFacts) {
 	if !hasIssue(v.Issues, "environment") {
 		conditions := make([]policy.DisasterCondition, 0, len(v.Environment))
 		for _, row := range v.Environment {
-			conditions = append(conditions, policy.DisasterCondition{ID: row.GetId(), Definition: row.GetDefName()})
+			condition := policy.DisasterCondition{ID: row.GetId(), Definition: row.GetDefName(), Permanent: row.GetPermanent()}
+			if row.TicksLeft != nil && !condition.Permanent && row.GetTicksLeft() >= 0 {
+				condition.TicksLeft = proto.Int64(row.GetTicksLeft())
+			}
+			conditions = append(conditions, condition)
 		}
 		facts.DisasterConditions = domain.Known(conditions)
 	}

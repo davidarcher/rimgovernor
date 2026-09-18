@@ -138,8 +138,7 @@ namespace HomeBridge.BridgeTools
             var conditions = new List<GameCondition>();
             map.gameConditionManager.GetAllGameConditionsAffectingMap(map, conditions);
             Bound(conditions.Count, limit);
-            foreach (var condition in conditions)
-                result.Environment.Add(new Obs.EnvironmentCondition { Id = condition.uniqueID.ToString(System.Globalization.CultureInfo.InvariantCulture), DefName = condition.def.defName });
+            foreach (var condition in conditions) result.Environment.Add(EnvironmentCondition(condition));
             result.Recovery = NativeRecoveryFacts.Read(map, context, limit);
             foreach (var field in new[] { "policy_resources", "food_corpses", "waste" })
                 result.Issues.Add(Issue(field, Common.UnavailableReason.Unsupported, "Section is not yet projected."));
@@ -156,6 +155,20 @@ namespace HomeBridge.BridgeTools
             result.Planning = request.Planning ? new Obs.PlanningSection { Observed = Planning(map, center, request, context, limit) }
                 : new Obs.PlanningSection { Unavailable = Unavailable(Common.UnavailableReason.NotRequested, "Planning was not requested.") };
             return result;
+        }
+
+        // The game-condition census: every condition affecting the map, with
+        // the native remaining duration so Go can plan for the length of a
+        // fallout or volcanic winter. A permanent condition has no ticks_left;
+        // a label read that throws leaves the label unset.
+        internal static Obs.EnvironmentCondition EnvironmentCondition(GameCondition condition)
+        {
+            var row = new Obs.EnvironmentCondition { Id = condition.uniqueID.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                DefName = condition.def.defName, Implementation = condition.GetType().FullName, Permanent = condition.Permanent };
+            if (!condition.Permanent) row.TicksLeft = Math.Max(0, condition.TicksLeft);
+            var label = BridgeCommon.SafeString(() => condition.LabelCap);
+            if (!string.IsNullOrEmpty(label)) row.Label = label;
+            return row;
         }
 
         private static Obs.UpkeepSection ReadComfort(Map map)

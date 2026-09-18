@@ -593,6 +593,7 @@ namespace HomeBridge.BridgeTools
         /// otherwise keep serving: a research project finishing changes the
         /// research and definitions families (recipes and buildables it
         /// unlocks); a faction relation or goodwill move changes the world
+        /// family; a game condition starting or ending changes the colony
         /// family. The first probe of an epoch only baselines; each later
         /// change appends one observation_invalidated row naming the stale
         /// families, coalesced per probe.
@@ -600,11 +601,13 @@ namespace HomeBridge.BridgeTools
         {
             var research = ResearchDigest();
             var world = WorldDigest();
+            var conditions = ConditionDigest(s.Map);
             var families = new List<string>();
             var reasons = new List<string>();
             if (s.ResearchDigest != null && s.ResearchDigest != research) { families.Add("research"); families.Add("definitions"); reasons.Add("research " + research); }
             if (s.WorldDigest != null && s.WorldDigest != world) { families.Add("world"); reasons.Add("faction relations changed"); }
-            s.ResearchDigest = research; s.WorldDigest = world;
+            if (s.ConditionDigest != null && s.ConditionDigest != conditions) { families.Add("colony"); reasons.Add("game conditions " + (conditions == "" ? "cleared" : conditions)); }
+            s.ResearchDigest = research; s.WorldDigest = world; s.ConditionDigest = conditions;
             if (families.Count == 0) return;
             Add("observation_invalidated", "Observed facts changed: " + string.Join("; ", reasons) + ".", s,
                 new Dictionary<string, object?> { { "families", families }, { "reason", string.Join("; ", reasons) } });
@@ -617,6 +620,16 @@ namespace HomeBridge.BridgeTools
             foreach (var project in DefDatabase<ResearchProjectDef>.AllDefsListForReading) if (project.IsFinished) finished++;
             var current = manager.GetProject();
             return finished + ":" + (current != null ? current.defName : "");
+        }
+        // Game conditions (toxic fallout, blight, a cold snap) arrive as
+        // non-stopping NegativeEvent letters, so the set affecting the map is
+        // digested the same way: a change invalidates the colony family whose
+        // environment census carries it.
+        private static string ConditionDigest(Map map)
+        {
+            var conditions = new List<GameCondition>();
+            try { map?.gameConditionManager?.GetAllGameConditionsAffectingMap(map, conditions); } catch { return ""; }
+            return string.Join(",", conditions.Select(c => c.def.defName + "#" + c.uniqueID).OrderBy(n => n, StringComparer.Ordinal));
         }
         private static string WorldDigest()
         {
@@ -1182,7 +1195,7 @@ namespace HomeBridge.BridgeTools
             public string? StopReason; public string? StopDetail;
             public string? PendingKind; public string? PendingDetail;
             // null until the epoch's first probe baselined them; see PublishFactChanges.
-            public string? ResearchDigest; public string? WorldDigest;
+            public string? ResearchDigest; public string? WorldDigest; public string? ConditionDigest;
             // Wall-clock ms at which a windowless force pause began, 0 when none.
             public long ForcePauseSinceMs; public string? ForcePauseKind;
             public Dictionary<string, object?>? PendingPayload;

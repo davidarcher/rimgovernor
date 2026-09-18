@@ -172,8 +172,10 @@ the window's tick deadline. `ObservationInvalidated` rows name one to eight
 distinct `FactFamily` values (never unspecified) that changed under a running
 epoch without a controller write or a stop; the native supervisor publishes
 them from its probe when a research project finishes (`research`,
-`definitions`) or a faction's relation, goodwill or defeat state moves
-(`world`). Like outcomes and authority changes they are facts, not holds.
+`definitions`), a faction's relation, goodwill or defeat state moves
+(`world`) or the set of game conditions affecting the map changes (`colony`,
+whose environment census carries them). Like outcomes and authority changes
+they are facts, not holds.
 
 An empty journal can report `oldest_cursor = 0` and `newest_cursor = 0`. An absent
 oldest cursor is also valid. A positive oldest cursor requires a nonempty journal;

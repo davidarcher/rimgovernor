@@ -36,7 +36,25 @@ const (
 
 var disasterServices = []DisasterService{DisasterFood, DisasterProduction, DisasterSleeping, DisasterShelter, DisasterTemperature, DisasterCooking, DisasterPower, DisasterStorage, DisasterInfrastructure}
 
-type DisasterCondition struct{ ID, Definition string }
+// DisasterCondition is one native game condition affecting the colony map.
+// TicksLeft is the native remaining duration when the condition is timed and
+// that read was available; it is nil for a permanent condition or when native
+// did not report one. Remaining time is planning evidence only: an episode
+// ends when the condition is no longer observed, never when the count runs out.
+type DisasterCondition struct {
+	ID, Definition string
+	Permanent      bool   `json:",omitempty"`
+	TicksLeft      *int64 `json:",omitempty"`
+}
+
+// RemainingTicks reports the observed remaining duration when known.
+func (c DisasterCondition) RemainingTicks() domain.Fact[int64] {
+	if c.TicksLeft == nil {
+		return domain.Unknown[int64]()
+	}
+	return domain.Known(*c.TicksLeft)
+}
+
 type DisasterEvidence struct {
 	Service DisasterService
 	Need    domain.NeedState
@@ -169,7 +187,7 @@ func (h *DisasterHistory) Validate() error {
 	}
 	seen := map[string]bool{}
 	for _, c := range h.Conditions {
-		if !foodID(c.ID) || !foodID(c.Definition) || seen[c.ID] {
+		if !foodID(c.ID) || !foodID(c.Definition) || seen[c.ID] || c.TicksLeft != nil && (c.Permanent || *c.TicksLeft < 0) {
 			return errors.New("invalid disaster condition")
 		}
 		seen[c.ID] = true
@@ -251,6 +269,9 @@ func ReviewDisaster(conditions domain.Fact[[]DisasterCondition], buildings domai
 	for _, c := range current {
 		if !foodID(c.ID) || !foodID(c.Definition) || seen[c.ID] {
 			return nil, errors.New("invalid environmental condition")
+		}
+		if c.TicksLeft != nil && (c.Permanent || *c.TicksLeft < 0) {
+			return nil, errors.New("invalid environmental condition duration")
 		}
 		seen[c.ID] = true
 	}
