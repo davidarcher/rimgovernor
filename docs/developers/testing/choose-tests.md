@@ -195,6 +195,12 @@ only, and the reply names what was frozen: record it on the report so a
 pass cannot hide that nobody ever ate or slept. The `needs/freeze` case proves the
 pin and the release. The construction harnesses freeze everything; a
 harness whose scenario needs a colonist to eat or break keeps that need.
+Every serve-driven harness freezes too (#131): `na.OpenSession` takes
+`keep`, `sustainedfood.RunConfig.Keep` and `liveservice.Config.Keep` name
+the live needs for their families, and the harnesses that load on their
+own (`upkeepaccept`, `excavationaccept`, `defenselayoutaccept`) call
+`na.RecordFrozenNeeds` once the fixture has staged the scenario. Each
+reports `frozen_needs`; a serve-driven run therefore needs a fixture build.
 
 Letters are acknowledged, not fatal. `na.AdvanceGame` used to fail a window
 on any pausing letter outside its expected list; it now acknowledges the

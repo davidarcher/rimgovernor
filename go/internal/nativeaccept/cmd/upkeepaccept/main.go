@@ -85,9 +85,12 @@ type scenario struct {
 	fixture  string
 	families []string
 	extra    []string
-	prepare  func(ctx context.Context, h *na.Harness, identity map[string]any, report na.Report) (map[string]any, error)
-	watch    func(ctx context.Context, journal *store.Store, prepared map[string]any, report na.Report) error
-	verify   func(ctx context.Context, h *na.Harness, identity, prepared map[string]any, report na.Report) error
+	// keep names the colonist needs left live; the rest are frozen once
+	// the fixture has staged the deficit (#131).
+	keep    []na.NeedDef
+	prepare func(ctx context.Context, h *na.Harness, identity map[string]any, report na.Report) (map[string]any, error)
+	watch   func(ctx context.Context, journal *store.Store, prepared map[string]any, report na.Report) error
+	verify  func(ctx context.Context, h *na.Harness, identity, prepared map[string]any, report na.Report) error
 }
 
 func scenarios() map[string]*scenario {
@@ -140,6 +143,7 @@ func scenarios() map[string]*scenario {
 	}
 	s["feed"] = &scenario{name: "feed", fixture: "test/feed_setup",
 		families: []string{"animal-feed", "resource", "bill", "work"},
+		keep:     []na.NeedDef{na.NeedFood},
 		prepare: func(ctx context.Context, h *na.Harness, identity map[string]any, report na.Report) (map[string]any, error) {
 			return callFixture(ctx, h, identity, "test/feed_setup", map[string]any{})
 		},
@@ -148,6 +152,7 @@ func scenarios() map[string]*scenario {
 	}
 	s["sleeping"] = &scenario{name: "sleeping", fixture: "test/sleeping_setup",
 		families: []string{"sleeping", "work"},
+		keep:     []na.NeedDef{na.NeedRest},
 		prepare: func(ctx context.Context, h *na.Harness, identity map[string]any, report na.Report) (map[string]any, error) {
 			prepared, err := callFixture(ctx, h, identity, "test/sleeping_setup", map[string]any{})
 			if err != nil {
@@ -497,6 +502,9 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 		return err
 	}
 	report["prepared"] = prepared
+	if err := na.RecordFrozenNeeds(ctx, h, names, report, sc.keep...); err != nil {
+		return err
+	}
 	before, err := readUpkeep(ctx, h, identity, "upkeep-before")
 	if err != nil {
 		return err

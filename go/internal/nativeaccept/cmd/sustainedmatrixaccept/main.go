@@ -257,6 +257,8 @@ func main() {
 			RequestPrefix: "sustained-matrix-" + sanitize(v.Save),
 			Families:      *families, StepStall: *stepStall,
 			Reuse: reuse,
+			// The food pipeline is the subject: colonists must keep eating.
+			Keep: []na.NeedDef{na.NeedFood},
 		}
 		timeline, err := sustainedfood.Run(ctx, cfg, variantReport)
 		cancel()

@@ -344,6 +344,12 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 		}
 	}
 
+	// The layout and repair phases are construction; a builder leaving for
+	// a meal or a bed mid-phase stalls the run, and combat is decided by
+	// drafting, not mood (#131).
+	if err := na.RecordFrozenNeeds(ctx, h, names, report); err != nil {
+		return err
+	}
 	fixture := func(label string, args map[string]any) (map[string]any, error) {
 		out, err := h.Call(ctx, label, "test/defense_setup", args)
 		if err != nil {

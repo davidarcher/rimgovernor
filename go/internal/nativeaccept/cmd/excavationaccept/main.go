@@ -214,6 +214,11 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 	if success, _ := na.AsBool(prepared["success"]); !success {
 		return fmt.Errorf("mountain_fixture setup refused: %#v", prepared)
 	}
+	// Excavation is about designations and mining, not about eating or
+	// sleeping; a miner walking off to a meal mid-window stalls the run (#131).
+	if err := na.RecordFrozenNeeds(ctx, h, names, report); err != nil {
+		return err
+	}
 	report["prepared"] = prepared
 	block, _ := na.AsMap(prepared["block"])
 	blockMinX, blockMinZ := int32(na.AsNumber(block["minX"])), int32(na.AsNumber(block["minZ"]))

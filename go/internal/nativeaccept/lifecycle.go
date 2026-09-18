@@ -258,19 +258,7 @@ func (s *Session) open(ctx context.Context, start Start, quiet QuietMode, keep [
 	if quiet == QuietIfAvailable && !Contains(names, FreezeNeedsTool) {
 		return nil
 	}
-	kept := make([]string, 0, len(keep))
-	for _, need := range keep {
-		if need == LiveNeeds {
-			return nil
-		}
-		kept = append(kept, string(need))
-	}
-	frozen, err := FreezeNeeds(ctx, s.Harness, names, kept...)
-	if err != nil {
-		return err
-	}
-	s.Report["frozen_needs"] = frozen
-	return nil
+	return RecordFrozenNeeds(ctx, s.Harness, names, s.Report, keep...)
 }
 
 // Pause pauses the game.

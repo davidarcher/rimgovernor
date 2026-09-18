@@ -91,6 +91,8 @@ func main() {
 		RimgovernorBinary: *rimgovernorBinary, Save: *save,
 		Watch: *watch, Window: *window, Poll: *poll, NativeTimeout: *nativeTimeout,
 		Families: *families, StepStall: *stepStall,
+		// The food pipeline is the subject: colonists must keep eating.
+		Keep: []na.NeedDef{na.NeedFood},
 	}
 	timeline, err := sustainedfood.Run(ctx, cfg, report)
 	if err != nil {

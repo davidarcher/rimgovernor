@@ -79,6 +79,8 @@ func main() {
 		Watch: *watch, Poll: *poll, NativeTimeout: *nativeTimeout,
 		RequestPrefix: "facility", Families: facilityFamilies, Goal: policy.EnsureComfort,
 		Until: comfortRecovered,
+		// Dining and recreation use proofs need colonists who eat and play.
+		Keep: []na.NeedDef{na.NeedFood, na.NeedJoy},
 	}
 	var journal *store.Store
 	statePath := filepath.Join(*output, "service.sqlite")

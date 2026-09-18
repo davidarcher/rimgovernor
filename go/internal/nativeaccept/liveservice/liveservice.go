@@ -42,6 +42,10 @@ type Config struct {
 	// place for a harness's own in-game setup (a player edit the run then
 	// has to live with). facts is the home/colony_facts reply.
 	BeforeService func(ctx context.Context, h *na.Harness, identity, facts map[string]any) error
+	// Keep names the NeedDefs left live; every other colonist need is
+	// frozen at maximum after BeforeService, before the service starts
+	// (#131). The reply lands on the report as frozen_needs.
+	Keep []na.NeedDef
 }
 
 // Prepared is a loaded save whose bridge session has been released so the
@@ -110,6 +114,9 @@ func Prepare(ctx context.Context, cfg Config, report na.Report) (*Prepared, erro
 		if err := cfg.BeforeService(ctx, h, p.Identity, facts); err != nil {
 			return nil, fmt.Errorf("before service: %w", err)
 		}
+	}
+	if err := na.RecordFrozenNeeds(ctx, h, nil, report, cfg.Keep...); err != nil {
+		return nil, err
 	}
 	return p, nil
 }

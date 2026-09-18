@@ -88,6 +88,12 @@ type RunConfig struct {
 	// resumes. A later run started with -save Name skips the startup ladder
 	// and begins where this run got interesting.
 	Checkpoint *Checkpoint
+	// Keep names the NeedDefs (na.NeedFood, na.NeedRest, na.NeedJoy) left
+	// live; every other colonist need is frozen at maximum once the save is
+	// loaded and staged, before the service starts (#131), so a run whose
+	// assertion is not about eating, sleeping or mood never stalls on
+	// colonists doing them. The reply lands on the report as frozen_needs.
+	Keep []na.NeedDef
 }
 
 // Checkpoint names a save to take mid-run and the sample that triggers it.
@@ -183,6 +189,9 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) (timeline []map[s
 		if err := cfg.Prepare(ctx, h, report); err != nil {
 			return nil, fmt.Errorf("prepare: %w", err)
 		}
+	}
+	if err := na.RecordFrozenNeeds(ctx, h, nil, report, cfg.Keep...); err != nil {
+		return nil, err
 	}
 
 	// Compose only EnsureFoodSupply's own pipeline so the food outcome under

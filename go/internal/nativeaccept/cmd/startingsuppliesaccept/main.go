@@ -83,6 +83,8 @@ func main() {
 		RequestPrefix: "starting-supplies", Families: *families, StepStall: *stepStall,
 		Goal:  policy.AllowStartingSupplies,
 		Until: recovered,
+		// The race under test is the colony eating the pocket food (#114).
+		Keep: []na.NeedDef{na.NeedFood},
 		// Every native request and reply lands beside the service logs so a
 		// refused Allow can be read back instead of rerun.
 		ServeArgs: []string{"--flight-recorder", filepath.Join(*output, "service", "flight.jsonl")},

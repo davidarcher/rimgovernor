@@ -81,6 +81,8 @@ func main() {
 		Watch: *watch, Poll: *poll, NativeTimeout: *nativeTimeout,
 		RequestPrefix: "hospital", Families: *families, Goal: policy.MaintainMedicalCare,
 		Until: bedConverted,
+		// The seeded patients must still seek bed rest.
+		Keep: []na.NeedDef{na.NeedRest},
 	}
 	if *flightRecorder {
 		cfg.ServeArgs = []string{"--flight-recorder", filepath.Join(*output, "flight-recorder.jsonl")}
