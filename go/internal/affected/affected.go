@@ -271,3 +271,41 @@ func output(dir, name string, args ...string) (string, error) {
 	}
 	return string(out), nil
 }
+
+// Test runs go test for what the changed files affect (Select), streaming
+// the output to stdout/stderr, and names the affected harnesses first so
+// the caller knows which acceptance runs the change may still owe.
+func Test(repo string, changed []string) error {
+	goDir := filepath.Join(repo, "go")
+	sel, err := Select(repo, changed)
+	if err != nil {
+		return err
+	}
+	if sel.AllHarnesses {
+		fmt.Println("harnesses affected: all (a shared harness input changed)")
+	} else if len(sel.Harnesses) > 0 {
+		fmt.Println("harnesses affected: " + strings.Join(sel.Harnesses, " "))
+	}
+	switch {
+	case sel.AllGo:
+		fmt.Println("tests: go.mod/go.sum changed, testing ./...")
+		return goRun(goDir, "test", "./...")
+	case len(sel.Packages) == 0:
+		fmt.Println("tests: no Go files changed, nothing to test")
+		return nil
+	}
+	fmt.Println("tests:", len(sel.Packages), "affected package(s)")
+	return goRun(goDir, append([]string{"test"}, sel.Packages...)...)
+}
+
+// goRun streams a go command's output so test failures are visible.
+func goRun(dir string, args ...string) error {
+	cmd := exec.Command("go", args...)
+	cmd.Dir = dir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("go %s: %w", strings.Join(args, " "), err)
+	}
+	return nil
+}

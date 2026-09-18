@@ -1,0 +1,47 @@
+// Command test runs the Go tests a change affects: the packages holding
+// the changed files and every in-module package importing them, as
+// cmd/affected computes them (all packages when go.mod or go.sum changed).
+//
+//	go run ./cmd/test [-base main]
+//
+// run from anywhere inside the worktree. It diffs the working tree
+// (committed, staged, unstaged and untracked) against -base, so it is the
+// edit/test loop's check as well as the pre-land one; the landing lane
+// (cmd/land) does not test, so run this before landing. Affected
+// acceptance harnesses are named, not run: run them at the milestone,
+// before landing.
+package main
+
+import (
+	"flag"
+	"fmt"
+	"os"
+
+	"github.com/davidarcher/RimGovernor/go/internal/affected"
+	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/inputs"
+)
+
+func main() {
+	base := flag.String("base", "main", "revision to diff the working tree against")
+	flag.Parse()
+	if err := run(*base); err != nil {
+		fmt.Fprintln(os.Stderr, "test:", err)
+		os.Exit(1)
+	}
+}
+
+func run(base string) error {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	repo, ok := na.FindRepo(cwd)
+	if !ok {
+		return fmt.Errorf("not inside a git checkout: %s", cwd)
+	}
+	changed, err := affected.ChangedFiles(repo, base)
+	if err != nil {
+		return err
+	}
+	return affected.Test(repo, changed)
+}

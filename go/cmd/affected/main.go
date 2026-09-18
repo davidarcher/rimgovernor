@@ -10,9 +10,9 @@
 //	go test ./internal/policy/... ...
 //	go run ./internal/nativeaccept/cmd/upkeepaccept ...
 //
-// and "nothing to test" when no Go file changed. The land command runs the
-// go test line itself; the harness lines are advice, since acceptance runs
-// at milestones and the Verified: trailer says whether one is still valid.
+// and "nothing to test" when no Go file changed. cmd/test runs the go test
+// line; the harness lines are advice: run them at the milestone, before
+// landing.
 package main
 
 import (

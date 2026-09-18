@@ -7,45 +7,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 )
-
-// VerifiedTrailerKey is the commit trailer that records an acceptance
-// harness run: "Verified: <harness> inputs=<hash>". The hash covers every
-// checked-in file the harness outcome depends on (HarnessInputs), so a
-// landing commit whose hash still matches the trailer counts as run; a
-// merge or rebase that only moved unrelated files does not invalidate it.
-const VerifiedTrailerKey = "Verified"
-
-// VerifiedHashLength is how many hex digits of the sha256 the trailer keeps.
-const VerifiedHashLength = 16
-
-// VerifiedTrailer is one parsed "Verified:" trailer.
-type VerifiedTrailer struct {
-	Harness string
-	Inputs  string
-}
-
-// String renders the trailer line as it appears in a commit message.
-func (t VerifiedTrailer) String() string {
-	return fmt.Sprintf("%s: %s inputs=%s", VerifiedTrailerKey, t.Harness, t.Inputs)
-}
-
-var verifiedTrailerLine = regexp.MustCompile(`^` + VerifiedTrailerKey + `:\s+(\S+)\s+inputs=([0-9a-f]+)\s*$`)
-
-// ParseVerifiedTrailers returns the Verified trailers in a commit message,
-// in order. Lines that do not parse are ignored.
-func ParseVerifiedTrailers(message string) []VerifiedTrailer {
-	var trailers []VerifiedTrailer
-	for _, line := range strings.Split(message, "\n") {
-		if m := verifiedTrailerLine.FindStringSubmatch(strings.TrimSpace(line)); m != nil {
-			trailers = append(trailers, VerifiedTrailer{Harness: m[1], Inputs: m[2]})
-		}
-	}
-	return trailers
-}
 
 // harnessSharedInputs are the checked-in inputs every harness run depends
 // on besides its Go packages: the native mod build (nativeSourceInputs, the
@@ -178,58 +142,6 @@ func goList(goDir string, args ...string) (string, error) {
 		return "", fmt.Errorf("go list %s: %w: %s", strings.Join(args, " "), err, strings.TrimSpace(stderr.String()))
 	}
 	return string(out), nil
-}
-
-// HarnessInputHash hashes the working-tree contents of HarnessInputs the
-// way SourceTreeHash does, truncated to VerifiedHashLength. Run it in the
-// checkout the harness ran from, before committing anything else, and in
-// the landing checkout to compare.
-func HarnessInputHash(repo, harness string) (string, error) {
-	files, err := HarnessInputs(repo, harness)
-	if err != nil {
-		return "", err
-	}
-	lines := make(map[string]string, len(files))
-	for _, file := range files {
-		sum, err := fileHash(filepath.Join(repo, filepath.FromSlash(file)))
-		if err != nil {
-			return "", err
-		}
-		lines[file] = sum
-	}
-	return hashLines(lines)[:VerifiedHashLength], nil
-}
-
-// NewVerifiedTrailer records that harness ran against the current working
-// tree of repo.
-func NewVerifiedTrailer(repo, harness string) (VerifiedTrailer, error) {
-	hash, err := HarnessInputHash(repo, harness)
-	if err != nil {
-		return VerifiedTrailer{}, err
-	}
-	return VerifiedTrailer{Harness: harness, Inputs: hash}, nil
-}
-
-// RecordedVerifiedTrailers returns each harness's newest Verified trailer
-// among the commit messages in the git revision range rev (e.g. main..HEAD).
-func RecordedVerifiedTrailers(repo, rev string) (map[string]VerifiedTrailer, error) {
-	cmd := exec.Command("git", "log", "--format=%B%x1e", rev)
-	cmd.Dir = repo
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	out, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("git log %s: %w: %s", rev, err, strings.TrimSpace(stderr.String()))
-	}
-	latest := map[string]VerifiedTrailer{}
-	for _, message := range strings.Split(string(out), string(rune(0x1e))) {
-		for _, trailer := range ParseVerifiedTrailers(message) {
-			if _, seen := latest[trailer.Harness]; !seen {
-				latest[trailer.Harness] = trailer
-			}
-		}
-	}
-	return latest, nil
 }
 
 // HarnessInputRoots lists, repo-relative with forward slashes, the files

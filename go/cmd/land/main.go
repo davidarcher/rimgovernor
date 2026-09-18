@@ -10,23 +10,14 @@
 //  1. takes the repository-wide landing lock (one landing at a time);
 //  2. merges main into the branch's worktree, which must be clean; a
 //     conflict aborts the merge and leaves the resolution to the caller;
-//  3. runs go test for the packages the branch changed since main and
-//     the in-module packages that import them (all packages when go.mod
-//     or go.sum changed) and names the affected acceptance harnesses,
-//     as cmd/affected computes them; nothing outside go/ is tested here;
-//  4. reports each recorded Verified: trailer against the branch's own
-//     tree as it stood before the merge: ok when the branch has not
-//     changed the harness's inputs since it stamped the trailer, STALE
-//     when it has. Inputs that only main moved never make a trailer
-//     stale here; the lane's merge is exactly the "unrelated main
-//     commits" case that does not invalidate evidence, so a landing is
-//     never followed by a rerun-and-land-again cycle (informational;
-//     acceptance stays out of the lane);
-//  5. squash-merges the branch into the main checkout, which must be clean,
+//  3. with -test, runs the Go tests the branch affects as cmd/test does
+//     (off by default: the branch runs cmd/test before landing, and the
+//     lane does not repeat it);
+//  4. squash-merges the branch into the main checkout, which must be clean,
 //     with a message built from the branch's commits (-m or -F overrides
-//     the subject and body) carrying the branch's Verified: and
-//     Co-Authored-By trailers;
-//  6. resets the branch to the new main when its tree is identical, so
+//     the subject and body) carrying the branch's Co-Authored-By
+//     trailers;
+//  5. resets the branch to the new main when its tree is identical, so
 //     the next task starts from main rather than re-landing the same diff.
 package main
 
@@ -38,7 +29,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
 	"strings"
 	"time"
 
@@ -52,19 +42,19 @@ func main() {
 	message := flag.String("m", "", "squash commit subject and body (the trailers are appended)")
 	messageFile := flag.String("F", "", "file holding the squash commit subject and body")
 	lockTimeout := flag.Duration("lock-timeout", 15*time.Minute, "how long to wait for another landing to finish")
-	skipTests := flag.Bool("skip-tests", false, "land without running the affected Go tests")
+	runTests := flag.Bool("test", false, "also run the affected Go tests against the merged tree before landing")
 	flag.Parse()
 	if flag.NArg() > 1 {
-		fmt.Fprintln(os.Stderr, "usage: land [-m msg | -F file] [-lock-timeout d] [-skip-tests] [<branch>]")
+		fmt.Fprintln(os.Stderr, "usage: land [-m msg | -F file] [-lock-timeout d] [-test] [<branch>]")
 		os.Exit(2)
 	}
-	if err := run(flag.Arg(0), *message, *messageFile, *lockTimeout, *skipTests); err != nil {
+	if err := run(flag.Arg(0), *message, *messageFile, *lockTimeout, *runTests); err != nil {
 		fmt.Fprintln(os.Stderr, "land:", err)
 		os.Exit(1)
 	}
 }
 
-func run(branch, message, messageFile string, lockTimeout time.Duration, skipTests bool) error {
+func run(branch, message, messageFile string, lockTimeout time.Duration, runTests bool) error {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return err
@@ -113,9 +103,6 @@ func run(branch, message, messageFile string, lockTimeout time.Duration, skipTes
 	if err := requireClean(mainCheckout, "main checkout"); err != nil {
 		return err
 	}
-	// Hash the harness inputs before main comes in: the evidence is judged
-	// against what the branch verified, not against what peers landed since.
-	verified := verifiedOnBranch(worktree)
 	if _, err := git(worktree, "merge", "--no-edit", "main"); err != nil {
 		_, _ = git(worktree, "merge", "--abort")
 		return fmt.Errorf("merging main into %s: %w\nresolve the conflict on the branch (git merge main), commit, and run land again", branch, err)
@@ -124,16 +111,17 @@ func run(branch, message, messageFile string, lockTimeout time.Duration, skipTes
 		fmt.Printf("%s has nothing to land: its tree matches main\n", branch)
 		return nil
 	}
-	changed, err := gitLines(worktree, "diff", "--name-only", "main", "HEAD")
-	if err != nil {
-		return err
+	if runTests {
+		changed, err := gitLines(worktree, "diff", "--name-only", "main", "HEAD")
+		if err != nil {
+			return err
+		}
+		if err := affected.Test(worktree, changed); err != nil {
+			return err
+		}
+	} else {
+		fmt.Println("tests: not run by the lane (go run ./cmd/test before landing, or pass -test)")
 	}
-	if skipTests {
-		fmt.Println("tests: skipped (-skip-tests)")
-	} else if err := testAffected(worktree, changed); err != nil {
-		return err
-	}
-	reportVerified(verified)
 
 	head, err := git(worktree, "rev-parse", "HEAD")
 	if err != nil {
@@ -235,86 +223,9 @@ func lock(repo, branch string, timeout time.Duration) (func(), error) {
 	}
 }
 
-// testAffected runs go test for the packages the changed files belong to
-// and every in-module package importing them (affected.Select), and names
-// the harnesses the change touches.
-func testAffected(worktree string, changed []string) error {
-	goDir := filepath.Join(worktree, "go")
-	sel, err := affected.Select(worktree, changed)
-	if err != nil {
-		return err
-	}
-	if len(sel.Harnesses) > 0 {
-		fmt.Println("harnesses affected: " + strings.Join(sel.Harnesses, " "))
-	}
-	switch {
-	case sel.AllGo:
-		fmt.Println("tests: go.mod/go.sum changed, testing ./...")
-		return goRun(goDir, "test", "./...")
-	case len(sel.Packages) == 0:
-		fmt.Println("tests: no Go files changed, nothing to test")
-		return nil
-	}
-	fmt.Println("tests:", len(sel.Packages), "affected package(s)")
-	return goRun(goDir, append([]string{"test"}, sel.Packages...)...)
-}
-
-// verifiedStatus is one recorded Verified: trailer judged against the
-// branch's own tree before main was merged in.
-type verifiedStatus struct {
-	harness  string
-	recorded string // the newest trailer's inputs hash
-	branch   string // the hash of the same inputs on the pre-merge branch tree
-	err      error
-}
-
-// verifiedOnBranch reads the branch's Verified trailers and hashes each
-// harness's inputs on the branch tree as it stands, before the lane merges
-// main. It never fails the landing: an unreadable trailer set reports as
-// a single error line.
-func verifiedOnBranch(worktree string) []verifiedStatus {
-	recorded, err := na.RecordedVerifiedTrailers(worktree, "main..HEAD")
-	if err != nil {
-		return []verifiedStatus{{err: err}}
-	}
-	harnesses := make([]string, 0, len(recorded))
-	for harness := range recorded {
-		harnesses = append(harnesses, harness)
-	}
-	sort.Strings(harnesses)
-	statuses := make([]verifiedStatus, 0, len(harnesses))
-	for _, harness := range harnesses {
-		current, err := na.HarnessInputHash(worktree, harness)
-		statuses = append(statuses, verifiedStatus{harness: harness, recorded: recorded[harness].Inputs, branch: current, err: err})
-	}
-	return statuses
-}
-
-// reportVerified prints each trailer as ok or STALE. Only the branch's own
-// edits after the stamp make a harness STALE; whatever main moved under it
-// is not a rerun trigger and is not reported as one.
-func reportVerified(statuses []verifiedStatus) {
-	if len(statuses) == 0 {
-		fmt.Println("verified: no Verified: trailers on the branch")
-		return
-	}
-	for _, s := range statuses {
-		switch {
-		case s.err != nil && s.harness == "":
-			fmt.Println("verified:", s.err)
-		case s.err != nil:
-			fmt.Printf("verified: %s: %v\n", s.harness, s.err)
-		case s.branch == s.recorded:
-			fmt.Printf("verified: %s ok\n", s.harness)
-		default:
-			fmt.Printf("verified: %s STALE (recorded %s, branch tree %s): the branch changed its inputs after stamping; rerun it or land knowingly\n", s.harness, s.recorded, s.branch)
-		}
-	}
-}
-
 // squashMessage builds the squash commit message: the given message, or
 // the branch's single non-merge commit message, or the newest subject with
-// the others listed; then the branch's Verified and Co-Authored-By trailers.
+// the others listed; then the branch's Co-Authored-By trailers.
 func squashMessage(worktree, branch, message string) (string, error) {
 	messages, err := gitOutput(worktree, "log", "--no-merges", "--format=%B%x1e", "main..HEAD")
 	if err != nil {
@@ -338,7 +249,7 @@ func squashMessage(worktree, branch, message string) (string, error) {
 		var kept []string
 		for _, line := range strings.Split(m, "\n") {
 			t := strings.TrimSpace(line)
-			if strings.HasPrefix(t, na.VerifiedTrailerKey+":") || strings.HasPrefix(t, "Co-Authored-By:") {
+			if strings.HasPrefix(t, "Co-Authored-By:") {
 				addTrailer(t)
 				continue
 			}
@@ -368,22 +279,10 @@ func squashMessage(worktree, branch, message string) (string, error) {
 			body = strings.Join(lines, "\n")
 		}
 	}
-	// Keep only the newest Verified trailer per harness.
-	seenHarness := map[string]bool{}
-	var final []string
-	for _, line := range trailerLines {
-		if t := na.ParseVerifiedTrailers(line); len(t) == 1 {
-			if seenHarness[t[0].Harness] {
-				continue
-			}
-			seenHarness[t[0].Harness] = true
-		}
-		final = append(final, line)
-	}
-	if len(final) == 0 {
+	if len(trailerLines) == 0 {
 		return body + "\n", nil
 	}
-	return body + "\n\n" + strings.Join(final, "\n") + "\n", nil
+	return body + "\n\n" + strings.Join(trailerLines, "\n") + "\n", nil
 }
 
 func firstLine(s string) string {
@@ -422,16 +321,4 @@ func output(dir, name string, args ...string) (string, error) {
 		return "", fmt.Errorf("%s %s: %w: %s", name, strings.Join(args, " "), err, strings.TrimSpace(stderr.String()))
 	}
 	return string(out), nil
-}
-
-// goRun streams a go command's output so test failures are visible.
-func goRun(dir string, args ...string) error {
-	cmd := exec.Command("go", args...)
-	cmd.Dir = dir
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("go %s: %w", strings.Join(args, " "), err)
-	}
-	return nil
 }

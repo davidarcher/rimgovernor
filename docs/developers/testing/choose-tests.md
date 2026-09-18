@@ -16,45 +16,19 @@ rerun the affected harness; expand coverage only when the changed behavior or
 failure justifies it. Do not duplicate tests or reviews already supported by
 applicable evidence.
 
-## Record a harness run in the commit: the `Verified:` trailer
+## Which harnesses a change owes
 
-Whether a passing harness run still applies after a merge is a hash
-comparison, not a judgment call. After a harness passes, stamp the commit
-that carries the verified change:
-
-```bash
-go run ./internal/nativeaccept/cmd/verified trailer upkeepaccept
-```
-
-prints `Verified: upkeepaccept inputs=<hash>`; paste that line at the end of
-the commit message (one line per harness). The hash covers the working-tree
-contents of everything checked in that the run depended on
-(`na.HarnessInputs`): every non-test file of each in-module Go package the
-harness and `cmd/rimgovernor` import, the native mod's build inputs (the
-same list `RequireCurrentPackage` compares), `go.mod`/`go.sum`,
-`scripts/fixtures` and `contracts/fixtures`. `verified inputs <harness>`
-lists them. The game, GABS and the machine are environment, not inputs.
-
-The landing lane (`go run ./cmd/land`) prints the same comparison before it
-squashes the branch, and keeps the newest trailer per harness in the squash
-commit. To check by hand:
-
-```bash
-go run ./internal/nativeaccept/cmd/verified check
-```
-
-reads the trailers in `main..HEAD` (`-range` for another range; name
-harnesses to check only those) and reports each harness `ok` when the
-current tree's hash matches its newest trailer, otherwise `stale` or
-`unrecorded` with exit 1. Run it on the branch before merging `main` in
-(or let the lane do it: `land` hashes the inputs before its own merge).
-A `stale` harness there means the branch changed its inputs after
-stamping; rerun it and restamp in the commit that changed them. A `stale`
-that only appears after `main` was merged in comes from peers' changes to
-shared inputs (native sources, fixtures) and is not a rerun trigger: the
-evidence follows the branch's code, not `main`'s HEAD, and the lane reports
-such a harness `ok`. Never enter a second rerun-and-land cycle for one
-milestone; land and file an issue for anything left unverified.
+`go run ./cmd/test` (and `cmd/affected`, which only prints) names the
+harnesses a change touches before it runs the Go tests: a harness whose own
+package or `cmd/rimgovernor` imports a changed package, and every harness
+when a shared input changed (the native mod's build inputs, the same list
+`RequireCurrentPackage` compares, `go.mod`/`go.sum`, `scripts/fixtures`,
+`contracts/fixtures`; `na.HarnessInputs` lists a harness's inputs). Run
+those at the milestone, before landing, and name them in the commit
+message. A run counts for the code it ran against: `main` moving under the
+branch afterwards, a clean rebase or a cherry-pick does not invalidate it,
+and nothing hashes or grades it. Never enter a second rerun-and-land cycle
+for one milestone; land and file an issue for anything left unverified.
 
 ## Stage the precondition, do not play into it
 
@@ -482,9 +456,10 @@ line per harness whose inputs the change touched (a harness or the `rimgovernor`
 binary imports a changed package; every harness when the native sources, fixtures
 or `go.mod` changed). It diffs the working tree, including uncommitted and
 untracked files, against the merge base with `main` (`-base` for another
-revision); pass paths to ask about a hypothetical change. The landing lane runs
-the `go test` line itself. Run the harness lines at the milestone, then stamp
-the `Verified:` trailer. Run the full affected suite once before handoff. Go-only changes need the full Go
+revision); pass paths to ask about a hypothetical change. `go run ./cmd/test`
+runs the `go test` line (the landing lane does not). Run the harness lines at
+the milestone and name them in the commit message. Run `cmd/test` once before
+landing. Go-only changes need the full Go
 suite; dashboard-only changes need typecheck, Vitest and build. Changes to shared
 Protobuf contracts need both plus generation checks. Reuse a successful run when
 relevant code, dependencies, inputs and environment are unchanged, even if main has

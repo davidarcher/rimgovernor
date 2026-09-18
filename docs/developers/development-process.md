@@ -125,10 +125,12 @@ builds, logs, saves, databases and temporary scripts out of commits. Report the
 branch and commit. Land authorized work on local `main` through the landing
 lane, `go run ./cmd/land` from `go/` in the branch's worktree (one squash
 commit per task; see [AGENTS.md](../../AGENTS.md)); pull requests are disabled
-and the maintainer pushes `main` manually. The lane merges `main` into the
-branch first and runs the affected Go tests; rerun an acceptance harness
-only when its `Verified:` report says the branch itself made the harness
-stale (`main` moving never does), and at most once per milestone.
+and the maintainer pushes `main` manually. Run `go run ./cmd/test` from
+`go/` before landing (it tests what the working tree's change affects; the
+lane itself runs no tests, and a hand-run `go test ./...` after it is
+waste). Run the acceptance harnesses `cmd/test` names at the milestone,
+before landing, and at most once per milestone; `main` moving afterwards is
+never a reason to rerun one.
 
 ## Keep deployment and docs maintainable
 

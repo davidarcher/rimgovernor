@@ -12,20 +12,21 @@
   tracking. Never open a PR. All work lands on the local `main` branch as one
   squash commit through the landing lane: `go run ./cmd/land` from `go/` in
   the branch's worktree. It takes the repository-wide lock, merges `main` into
-  the branch, runs the Go tests the diff affects, reports `Verified:` trailers,
-  squash-merges into the clean `main` checkout carrying the branch's trailers,
-  and resets the branch to `main`. Call it once and stop watching `main`; do
-  not rebase, poll or retest by hand. Rebase only to resolve an actual
-  conflict it reports. A verified branch lands on the first call: the lane
-  judges `Verified:` trailers against the branch's own tree before its merge
-  of `main`, so whatever peers landed meanwhile never makes a harness stale
-  and never sends you back to rerun it. Rerun a harness only when the lane
-  (or `verified check` on the branch before landing) reports it STALE
-  because the branch itself changed the harness's inputs after stamping.
-  Never rerun-then-land more than once for the same milestone; if you find
-  yourself on a second cycle, land as is and file an issue naming what is
-  unverified. Do not push to GitHub; the maintainer pushes `main`
-  manually.
+  the branch, squash-merges into the clean `main` checkout (keeping the
+  branch's Co-Authored-By trailers), and resets the branch to `main`. Call
+  it once and stop watching `main`; do not rebase, poll or retest by hand.
+  Rebase only to resolve an actual conflict it reports. `main` moving under
+  you is never a reason to rerun anything: a test or harness that passed on
+  the branch's code stays passed. Never rerun-then-land more than once for
+  the same milestone; if you find yourself on a second cycle, land as is and
+  file an issue naming what is unverified. Do not push to GitHub; the
+  maintainer pushes `main` manually. Testing is the separate tool: `go run ./cmd/test` from `go/`
+  runs the Go tests the working tree's change affects (the changed packages
+  and their in-module importers; `./...` only when `go.mod`/`go.sum`
+  changed). Use it as the edit/test loop and once before landing; the lane
+  does not run tests, so do not follow `cmd/test` with a hand-run `go test
+  ./...` either. Keep the default shared `GOCACHE`: it is what makes a
+  repeated `cmd/test` a cache hit rather than a rebuild.
 - Close the GitHub issue as soon as its work has merged into local `main`, with
   a terse comment naming the merge commit. Closure does not wait for the
   maintainer to push `origin/main` and does not need maintainer confirmation.
@@ -77,13 +78,14 @@
   the main HEAD hash. Unrelated main commits, clean cherry-picks and rebases do
   not invalidate passing results. Rerun only checks affected by changed behavior,
   dependencies or conflict resolution; `go run ./cmd/affected` from `go/`
-  names those checks. Reuse other agents' applicable evidence.
-  For native acceptance this is mechanical: stamp the verified commit with the
-  `Verified:` trailer from `go run ./internal/nativeaccept/cmd/verified trailer
-  <harness>` and run `verified check` before landing; a harness that reads
-  `ok` is done, whatever else moved on `main`; `main` moving after the stamp
-  is never a reason to rerun (see
-  [choose-tests](docs/developers/testing/choose-tests.md)).
+  names those checks and `go run ./cmd/test` runs the Go half and names
+  the acceptance harnesses the change touches (a harness, or the
+  `rimgovernor` binary it drives, imports a changed package; every harness
+  when native sources or fixtures changed). Run those harnesses at the
+  milestone, before landing, and say in the commit message which ran; no
+  stamp or hash records it, and `main` moving afterwards is never a reason
+  to rerun (see [choose-tests](docs/developers/testing/choose-tests.md)).
+  Reuse other agents' applicable evidence.
 
 
 ## Architecture and implementation
