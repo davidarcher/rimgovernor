@@ -26,9 +26,11 @@ func siteFixture(outdoor float64) SiteTypeRequest {
 		f.Choices[i].MinGlow = domain.Known(0.3)
 	}
 	f.Choices[1].SowTags = domain.Known([]string{"Ground"})
-	lamp := Infrastructure{Name: "SunLamp", Available: domain.Known(true), PowerW: domain.Known(2900.0)}
-	basin := Infrastructure{Name: "HydroponicsBasin", Available: domain.Known(true), PowerW: domain.Known(70.0), Fertility: domain.Known(2.8)}
-	heater := Infrastructure{Name: "Heater", Available: domain.Known(true), PowerW: domain.Known(175.0)}
+	// Native cost lists: a lamp is 40 steel, a basin 100 steel and a
+	// component, a heater 50 steel and a component.
+	lamp := Infrastructure{Name: "SunLamp", Available: domain.Known(true), PowerW: domain.Known(2900.0), Costs: domain.Known([]Amount{{"Steel", 40}})}
+	basin := Infrastructure{Name: "HydroponicsBasin", Available: domain.Known(true), PowerW: domain.Known(70.0), Fertility: domain.Known(2.8), Costs: domain.Known([]Amount{{"Steel", 100}, {"ComponentIndustrial", 1}})}
+	heater := Infrastructure{Name: "Heater", Available: domain.Known(true), PowerW: domain.Known(175.0), Costs: domain.Known([]Amount{{"Steel", 50}, {"ComponentIndustrial", 1}})}
 	return SiteTypeRequest{Field: f, Lamp: domain.Known(lamp), Basin: domain.Known(basin), Heater: domain.Known(heater), LampGrowthRadius: 5.8}
 }
 
@@ -274,6 +276,58 @@ func TestPlanSiteTypeDarkRoomOnlyForDarkCrops(t *testing.T) {
 			if _, ok := lit[cell]; ok {
 				t.Fatal("dark crop planted under a lamp", cell)
 			}
+		}
+	}
+}
+
+// The default weights are RimWorld's own prices (#104): a sun lamp on its
+// day schedule costs ~7.4 cells of output; a basin's steel and component make it worth building for
+// rice, which gains from its fertility, but not for potatoes on lit soil.
+func TestPlanSiteTypeDefaultWeightsFollowNativePrices(t *testing.T) {
+	r := siteFixture(1.0)
+	r.Field.Climate = CropClimate{Sowing: domain.Known(false), DaysRemaining: domain.Unknown[float64]()}
+	r.Basin = domain.Unknown[Infrastructure]()
+	env := siteEnv(21)
+	env.Networks = []PowerHeadroom{siteNetwork(4000, 1700, 600)}
+	r.Environment = domain.Known(env)
+	plan, ok := PlanSiteType(r)
+	if !ok || plan.Kind != SiteGreenhouseNew {
+		t.Fatal(plan.Explain())
+	}
+	terms := map[string]float64{}
+	for _, term := range plan.Candidates[0].Terms {
+		terms[term.Name] = term.Value
+	}
+	unit := cropRate(plan.Crop, 1)
+	if got := (terms["construction"] + terms["power"]) / unit; got > -7.3 || got < -7.5 {
+		t.Fatalf("lamp costs %.2f cells, want ~7.4: %s", -got, plan.Explain())
+	}
+	// Lit soil with basins researched: rice builds basins, potatoes plant
+	// the soil.
+	r = siteFixture(1.0)
+	r.Field.Climate = CropClimate{Sowing: domain.Known(false), DaysRemaining: domain.Unknown[float64]()}
+	r.Environment = domain.Known(siteEnv(21, siteLamp(domain.Cell{X: 6, Z: 6}, true)))
+	plan, ok = PlanSiteType(r)
+	if !ok || plan.Kind != SiteHydroponics || plan.Crop.Name != "Plant_Rice" {
+		t.Fatal(plan.Explain())
+	}
+	if reuse, basins := siteCandidateOf(plan, SiteGreenhouseReuse, "Plant_Potato"), siteCandidateOf(plan, SiteHydroponics, "Plant_Potato"); reuse.Cells == 0 || basins.Cells == 0 || basins.Score >= reuse.Score {
+		t.Fatal(plan.Explain())
+	}
+	// The cold threshold is the native optimal-growth minimum: 6C grows at
+	// full rate unheated, 5C is heated.
+	for _, temperature := range []float64{6, 5} {
+		r.Environment = domain.Known(siteEnv(temperature, siteLamp(domain.Cell{X: 6, Z: 6}, true)))
+		plan, ok := PlanSiteType(r)
+		if !ok {
+			t.Fatal(plan.Explain())
+		}
+		heated := false
+		for _, term := range siteCandidateOf(plan, SiteGreenhouseReuse, "Plant_Rice").Terms {
+			heated = heated || term.Name == "heating"
+		}
+		if heated != (temperature < siteColdC) {
+			t.Fatal(temperature, plan.Explain())
 		}
 	}
 }

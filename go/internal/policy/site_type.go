@@ -36,24 +36,72 @@ type Infrastructure struct {
 	PowerW    domain.Fact[float64]
 	// Fertility is a grower's native soil equivalent (2.8 for a basin).
 	Fertility domain.Fact[float64]
+	// Costs is the native cost list; unknown prices as 100 steel.
+	Costs domain.Fact[[]Amount]
 }
 
 // SiteTypeWeights price infrastructure in normal-soil cells of the crop's
 // daily nutrition, like FarmSiteWeights, so a lamp is only worth building
 // when the soil it lights outgrows its cost.
 type SiteTypeWeights struct {
-	// Construction is charged per new building.
+	// Construction is charged per 100 steel-equivalent of a new building's
+	// cost list (siteSteelEquivalent).
 	Construction float64
-	// Power is charged per kilowatt of added draw.
+	// Power is charged per kilowatt of added draw, averaged over the day.
 	Power float64
 }
 
-// DefaultSiteTypeWeights make a 2.9 kW sun lamp cost about seven cells of
-// output per day: outdoor soil wins in season, a greenhouse wins in winter.
-func DefaultSiteTypeWeights() SiteTypeWeights { return SiteTypeWeights{Construction: 1, Power: 2} }
+// DefaultSiteTypeWeights price infrastructure at the game's own numbers
+// amortised over one 60-day year. A unit is one normal-soil cell's harvest
+// nutrition per grow day; plants grow only while not resting (06:00-19:12),
+// so a unit is ~0.055 nutrition/day of rice, 1.1 raw food at 1.1 silver:
+// about 1.2 silver/day. A solar generator (100 steel + 3 components, 286
+// silver) yields ~0.55 of its 1700W over a day, so a kilowatt-day costs ~5
+// silver, 4 units (wood-fired fuel, 22 wood/day per kW, would be ~22). 100
+// steel is 190 silver, ~3.2 silver/day over the year: 2.6 units, so a
+// 40-steel sun lamp costs ~1 unit, a basin ~3 and a heater ~1.75. A 2900W
+// lamp on its 55% duty then costs ~7.4 units: a greenhouse needs eight
+// roofed cells to pay for itself, and basins beat lit soil only for crops
+// that gain from their fertility (rice, not potatoes).
+func DefaultSiteTypeWeights() SiteTypeWeights { return SiteTypeWeights{Construction: 2.6, Power: 4} }
 
-// siteColdC is the temperature below which vanilla crops stop growing.
-const siteColdC = 10.0
+// siteColdC is the native PlantProperties.minOptimalGrowthTemperature:
+// growth falls linearly to nothing between it and 0C, and a cell below 0C
+// cannot be sown, so a room under it is heated or refused.
+const siteColdC = 6.0
+
+// siteLampDuty is the fraction of the day a sun lamp draws power: its
+// CompProperties_Schedule runs 0.25-0.8 of the day, the plants' growing
+// hours. Basins and heaters draw all day.
+const siteLampDuty = 0.55
+
+// siteSteelEquivalents prices cost-list resources in steel by market value
+// (a component is 32 silver to steel's 1.9); unlisted resources count as
+// steel.
+var siteSteelEquivalents = map[Resource]float64{"Steel": 1, "ComponentIndustrial": 17}
+
+// siteSteelEquivalent is a building's cost list in steel; an unknown list
+// prices as 100 steel so every kind still pays for what it builds.
+func siteSteelEquivalent(infra Infrastructure) float64 {
+	costs, known := infra.Costs.Value()
+	if !known {
+		return 100
+	}
+	total := 0.0
+	for _, c := range costs {
+		rate, listed := siteSteelEquivalents[c.Resource]
+		if !listed {
+			rate = 1
+		}
+		total += rate * float64(c.Count)
+	}
+	return total
+}
+
+// siteConstructionCharge is the daily unit cost of count new buildings.
+func siteConstructionCharge(w SiteTypeWeights, unit float64, infra Infrastructure, count int) float64 {
+	return -w.Construction * unit * siteSteelEquivalent(infra) / 100 * float64(count)
+}
 
 // siteBasinCells is the native HydroponicsBasin footprint (1x4).
 const siteBasinCells = 4
@@ -125,7 +173,7 @@ func (p SiteTypePlan) Explain() string {
 // take only cells the native environment census supports (a running lamp's
 // growth cells, roofed indoor soil, unlit rooms for dark crops), and charge
 // construction, power against the best network's observed day or night
-// headroom, and a heater when the room or outdoors is below 10C. A kind whose
+// headroom, and a heater when the room or outdoors is below siteColdC. A kind whose
 // power, heating, crop compatibility or infrastructure is unavailable is kept
 // as an excluded candidate with its reason. Unknown environment facts yield
 // only the outdoor candidates.
@@ -303,7 +351,7 @@ func siteCandidate(r SiteTypeRequest, w SiteTypeWeights, env ControlledEnvironme
 			c.Reason = "no night power headroom for heating"
 			return false
 		}
-		charge("heating", -w.Power*unit*total/1000-w.Construction*unit*float64(coldRooms))
+		charge("heating", -w.Power*unit*total/1000+siteConstructionCharge(w, unit, heater, coldRooms))
 		return true
 	}
 	roofedIndoorSoil := func(s SiteCell) bool {
@@ -400,8 +448,8 @@ func siteCandidate(r SiteTypeRequest, w SiteTypeWeights, env ControlledEnvironme
 			return c
 		}
 		c.Terms = siteTerms(c.Sites)
-		charge("construction", -w.Construction*unit)
-		charge("power", -w.Power*unit*draw/1000)
+		charge("construction", siteConstructionCharge(w, unit, lamp, 1))
+		charge("power", -w.Power*unit*draw*siteLampDuty/1000)
 		c.Buildings = []SiteBuilding{{Definition: lamp.Name, Cell: center, Rotation: domain.North}}
 		cold := 0
 		if outdoorCold {
@@ -508,7 +556,7 @@ func siteHydroponics(r SiteTypeRequest, w SiteTypeWeights, env ControlledEnviron
 	if weights == (FarmSiteWeights{}) {
 		weights = DefaultFarmSiteWeights()
 	}
-	c.Terms = []FarmSiteTerm{{"yield", cropRate(v.crop, fertility) * float64(c.Cells)}, {"travel", -weights.Travel * unit * float64(walk)}, {"construction", -w.Construction * unit * float64(n)}, {"power", -w.Power * unit * draw * float64(n) / 1000}}
+	c.Terms = []FarmSiteTerm{{"yield", cropRate(v.crop, fertility) * float64(c.Cells)}, {"travel", -weights.Travel * unit * float64(walk)}, {"construction", siteConstructionCharge(w, unit, basin, n)}, {"power", -w.Power * unit * draw * float64(n) / 1000}}
 	total := 0.0
 	for _, t := range c.Terms {
 		total += t.Value

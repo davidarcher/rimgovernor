@@ -166,7 +166,7 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 	site := policy.FarmSiteRequest{Bounds: projection.Bounds, Anchor: projection.Center, Storage: domain.Unknown[domain.Cell](), Cells: projection.Cells, Protected: protected, Zones: zones}
 	request := policy.SiteTypeRequest{Field: policy.FieldRequest{Choices: choices, Climate: projection.CropClimate, Runway: projection.Facts.FoodDays, Colonists: projection.Facts.Colonists, ReserveDays: r.reviewer.policy.FoodTargetDays, Coverage: coverage, Site: site}, Environment: projection.Environment, LampGrowthRadius: fieldLampGrowthRadius}
 	for _, d := range projection.Definitions {
-		infrastructure := domain.Known(policy.Infrastructure{Name: d.Name, Available: d.Available, PowerW: d.PowerW, Fertility: d.GrowerFertility})
+		infrastructure := domain.Known(policy.Infrastructure{Name: d.Name, Available: d.Available, PowerW: d.PowerW, Fertility: d.GrowerFertility, Costs: d.Costs})
 		switch d.Name {
 		case "SunLamp":
 			request.Lamp = infrastructure

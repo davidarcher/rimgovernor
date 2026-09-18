@@ -234,9 +234,14 @@ indoor soil plus one lamp placed where its growth disc covers the most soil),
 hydroponics (new basins on lit roofed floor, for every crop with the `Hydroponic` sow
 tag) and
 dark-room (unlit roofed indoor soil for a zero-glow crop) by the same net-nutrition-per-
-needed-cell score, charging construction per building and power per added kilowatt
-against the best network's day headroom (lamps) or night/calm-night headroom (basins,
-heaters), and a heater per room or outdoors below 10C; a kind without the power,
+needed-cell score, charging construction per 100 steel-equivalent of the building's
+cost list (a component priced as 17 steel by market value) and power per added kilowatt
+(a lamp on its 55% day schedule) against the best network's day headroom (lamps) or
+night/calm-night headroom (basins, heaters), and a heater per room or outdoors below
+6C, the native optimal-growth minimum; the default weights
+(`policy.DefaultSiteTypeWeights`) are the game's prices amortised over a 60-day year,
+so a sun lamp costs about 7.4 cells of output and a basin pays only for a crop that
+gains from its fertility. A kind without the power,
 heater, infrastructure or crop compatibility it needs stays in the candidate list with
 its reason, and an unknown environment leaves only outdoor candidates. Controlled kinds
 ignore the outdoor season, and native growing-zone creation checks each cell's own
