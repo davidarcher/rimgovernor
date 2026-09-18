@@ -799,41 +799,65 @@ func verifyNative(ctx context.Context, h *na.Harness, p *liveservice.Prepared, s
 		return fmt.Errorf("identity changed during the run: %#v", identity)
 	}
 	scope := map[string]any{"scope": map[string]any{"expectedIdentity": identity}, "includeCells": true}
-	reply, err := h.Wire(ctx, "rooms-after", "observations_list_rooms", scope)
-	if err != nil {
-		return err
-	}
-	_, observed, err := na.Outcome(reply, "observed")
-	if err != nil {
-		return err
-	}
 	inside := map[domain.Cell]bool{}
 	for _, c := range sh.footprint.Interior() {
 		inside[c] = true
 	}
 	door := sh.footprint.Door()
 	var hut, doorway map[string]any
-	for _, raw := range na.AsSlice(observed["rooms"]) {
-		row, _ := na.AsMap(raw)
-		cells := roomCells(row)
-		if len(cells) == 1 && cells[0] == door {
-			doorway = row
-			continue
+	readHut := func(label string) error {
+		reply, err := h.Wire(ctx, label, "observations_list_rooms", scope)
+		if err != nil {
+			return err
 		}
-		if len(cells) != len(inside) {
-			continue
+		_, observed, err := na.Outcome(reply, "observed")
+		if err != nil {
+			return err
 		}
-		match := true
-		for _, c := range cells {
-			match = match && inside[c]
+		hut, doorway = nil, nil
+		for _, raw := range na.AsSlice(observed["rooms"]) {
+			row, _ := na.AsMap(raw)
+			cells := roomCells(row)
+			if len(cells) == 1 && cells[0] == door {
+				doorway = row
+				continue
+			}
+			if len(cells) != len(inside) {
+				continue
+			}
+			match := true
+			for _, c := range cells {
+				match = match && inside[c]
+			}
+			if match {
+				hut = row
+			}
 		}
-		if match {
-			hut = row
+		if hut == nil {
+			return fmt.Errorf("no native room whose cells equal the planned interior (%d cells)", len(inside))
+		}
+		return nil
+	}
+	if err := readHut("rooms-after"); err != nil {
+		return err
+	}
+	// Roofing is the game's own work after the ring closes: builders roof an
+	// enclosed room over the following hours. The shell completing last (a
+	// repaired ring) can leave that in progress when the bed lands, so give
+	// it the same four in-game hours the roofing budget allows, stepping
+	// the paused game and re-reading the room.
+	const roofStep, roofBudget = 2500, 10000
+	waited := 0
+	for na.AsNumber(hut["openRoofCount"]) != 0 && waited < roofBudget {
+		if _, err := h.Call(ctx, fmt.Sprintf("roof-step-%d", waited/roofStep), "rimworld/step_game_ticks", map[string]any{"ticks": roofStep}); err != nil {
+			return err
+		}
+		waited += roofStep
+		if err := readHut(fmt.Sprintf("rooms-after-roof-%d", waited)); err != nil {
+			return err
 		}
 	}
-	if hut == nil {
-		return fmt.Errorf("no native room whose cells equal the planned interior (%d cells)", len(inside))
-	}
+	report["roof_wait_ticks"] = waited
 	// Doorway rooms are excluded from the typed census unless outdoors rooms
 	// are included; a second census without cells (the outdoors mega-room
 	// would otherwise list the whole map) finds the door's one-tile room by
