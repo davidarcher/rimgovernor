@@ -76,7 +76,12 @@ func (b *ZoneBoundary) InspectZone(ctx context.Context, target executor.Target) 
 	if _, err = boundary.Context(emergency.Context, current); err != nil {
 		return out, err
 	}
-	if read.Context.GetTick() != v.Context.GetTick() || v.Context.GetTick() != emergency.Context.GetTick() {
+	// The three reads need only be ordered, not simultaneous: the zone target's token already binds the create to the cells the read listed,
+	// so a tick that advanced between them is a running clock, not stale
+	// evidence. Demanding one tick held every dispatch until the game
+	// paused, starving the Worker under 2500-tick windows (#150); supply
+	// and the building family accept the same monotonic order.
+	if v.Context.GetTick() < read.Context.GetTick() || emergency.Context.GetTick() < v.Context.GetTick() {
 		return out, executor.ErrHeld
 	}
 	out.Current, out.Tick, out.Zone, out.SnapshotToken, out.Accepted = current, domain.Tick(v.Context.GetTick()), zone, selected.Token, true

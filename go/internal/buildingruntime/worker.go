@@ -468,14 +468,14 @@ func workerBackoffCap(config WorkerConfig, v domain.ProgressView) time.Duration 
 
 // workerPauseBound reports an admission the native side refuses while the
 // game runs: these kinds inspect and dispatch against a paused map only
-// (their native tools check TimeSpeed.Paused, or their boundary demands
-// its reads land on one tick: acquisition, bill and zone), so between
-// windows is the only time they can be made (#150).
+// (their native tools check TimeSpeed.Paused), so between windows is the
+// only time they can be made (#150). Bills and zones left the set once
+// their boundaries accepted ordered reads: nothing native gates them on a
+// paused map, so they dispatch mid-window like buildings and supplies.
 func workerPauseBound(kind domain.ActionKind, v domain.ProgressView) bool {
 	switch kind {
 	case domain.ExcavationAction, domain.BedAssignAction, domain.AcquisitionAction, domain.MineAcquisitionAction,
-		domain.WallRemovalAction, domain.HusbandryAction, domain.ProductionPolicyAction, domain.ResearchSelectAction, domain.HomeCoverageAction,
-		domain.ProductionBillAction, domain.ZoneCreateAction:
+		domain.WallRemovalAction, domain.HusbandryAction, domain.ProductionPolicyAction, domain.ResearchSelectAction, domain.HomeCoverageAction:
 	default:
 		return false
 	}

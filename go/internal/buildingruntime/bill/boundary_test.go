@@ -110,6 +110,20 @@ func TestInspectBillAcceptsMatchingTripleReadTicks(t *testing.T) {
 	}
 }
 
+// The clock may run between the bench read, the preview and the emergency
+// read: the inspection accepts ticks in that order (the before-token binds
+// the bench) so a bill dispatches mid-window instead of waiting for the
+// next pause (#150).
+func TestInspectBillAcceptsAdvancingTicksAcrossItsReads(t *testing.T) {
+	bb, f, target, _, _ := newBillBoundaryFixture(t)
+	f.read.Context.Tick = proto.Int64(6)
+	f.emergency.Context.Tick = proto.Int64(18)
+	out, err := bb.InspectBill(context.Background(), target)
+	if err != nil || !out.Accepted || out.Tick != 11 {
+		t.Fatal(err, out)
+	}
+}
+
 func TestInspectBillRejections(t *testing.T) {
 	for name, change := range map[string]func(*billBoundaryFixture){
 		"stale token":          func(f *billBoundaryFixture) { f.read.Token = "other" },
@@ -117,9 +131,9 @@ func TestInspectBillRejections(t *testing.T) {
 		"projected present": func(f *billBoundaryFixture) {
 			f.preview.GetEvaluated().Projected = &r.EffectEvidence{}
 		},
-		"read tick mismatch":      func(f *billBoundaryFixture) { f.read.Context.Tick = proto.Int64(9) },
-		"emergency tick mismatch": func(f *billBoundaryFixture) { f.emergency.Context.Tick = proto.Int64(9) },
-		"foreign world":           func(f *billBoundaryFixture) { f.read.Context.Identity.LoadToken = proto.String("other") },
+		"read after preview":       func(f *billBoundaryFixture) { f.read.Context.Tick = proto.Int64(12) },
+		"emergency before preview": func(f *billBoundaryFixture) { f.emergency.Context.Tick = proto.Int64(9) },
+		"foreign world":            func(f *billBoundaryFixture) { f.read.Context.Identity.LoadToken = proto.String("other") },
 	} {
 		t.Run(name, func(t *testing.T) {
 			bb, f, target, _, _ := newBillBoundaryFixture(t)
