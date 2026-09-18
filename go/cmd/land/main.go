@@ -348,10 +348,6 @@ func gitOutput(dir string, args ...string) (string, error) {
 	return output(dir, "git", args...)
 }
 
-func goOutput(dir string, args ...string) (string, error) {
-	return output(dir, "go", args...)
-}
-
 func output(dir, name string, args ...string) (string, error) {
 	cmd := exec.Command(name, args...)
 	cmd.Dir = dir
