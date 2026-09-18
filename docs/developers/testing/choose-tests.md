@@ -208,7 +208,13 @@ does sets `Config.Expansions` (or the run sets
 with, so a `Save` start activates the save's own expansions (`cfg.UseSaveExpansions`)
 before `PrepareConfig`, which activates exactly the expansions in that
 save's `<modIds>` header; regenerate saves Core-only (the
-`tools/variantsavegen-*` cases do) rather than carrying DLC forward.
+`tools/variantsavegen-*` cases do) rather than carrying DLC forward. Every committed save is Core-only
+since #192, including the tribal8 baseline (`scripts/fixtures/saves/`,
+Lost Tribe, eight colonists, `-seed rimgovernor-tribal-eight-e -biome TemperateForest -map-size 250
+-planet-coverage 0.3 -world-temperature LittleBitColder -difficulty
+Medium`, quiet); `Prepare`/`PrepareRendered` stage it into
+`<root>/profile/Saves` and replace an older copy there, so no root needs a
+peer's save.
 
 Fixture games are also quiet by default: `test/configure_start` applies
 `test/quiet_storyteller` once the colony exists (pass `quiet=false` to keep

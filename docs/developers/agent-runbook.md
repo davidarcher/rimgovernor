@@ -49,8 +49,9 @@ RimWorld running.
   -ItemType Junction` for the junctions).
 - **The bridge root**, `.rimgovernor/bridge/` (or whatever `-root` you pass):
   `gabs/`, `config/config.json` whose DirectPath target is the private exe,
-  `profile/Config/{ModsConfig,Prefs}.xml`, `profile/Saves/` with the
-  baseline save (`RimGovernor-tribal8-baseline.rws`, copy it from a peer).
+  `profile/Config/{ModsConfig,Prefs}.xml`, `profile/Saves/` (Prepare stages
+  the committed `scripts/fixtures/saves/RimGovernor-tribal8-baseline.rws`
+  there itself, replacing an older copy).
   Rewrite the paths in `config.json` after copying.
 - **The mod build**, `.rimgovernor/native-builds/<tag>/`, from
   `scripts/build_native_mod.ps1` (called in-process from PowerShell:

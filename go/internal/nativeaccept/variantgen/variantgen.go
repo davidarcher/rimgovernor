@@ -54,7 +54,7 @@ const ConstrainedPlanetCoverage = 0.3
 
 // WithDefaults fills in test/configure_start's own defaults for any field a
 // hand-written manifest entry left zero, so a minimal spec ({"save": ...,
-// "scenario": "Tribal", "count": 8, "seed": "..."}) is enough.
+// "scenario": "LostTribe", "count": 8, "seed": "..."}) is enough.
 func (v Variant) WithDefaults() Variant {
 	if v.Difficulty == "" {
 		v.Difficulty = "Rough"
@@ -94,7 +94,7 @@ func (v Variant) Validate() error {
 
 // SavePath is where a variant's generated save durably lives: profile/Saves
 // under the disposable worker root, exactly where docs/players/setup.md says
-// to stage the hand-prepared tribal8 baseline. PrepareRendered points
+// the committed tribal8 baseline is staged (na.StageBaselineSave). PrepareRendered points
 // RimWorld straight at this directory; Prepare (headless) mirrors every
 // .rws here into its own disposable headless-profile copy on each run.
 func SavePath(root, save string) string {

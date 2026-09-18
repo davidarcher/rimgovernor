@@ -16,7 +16,7 @@ RimGovernor uses the following names across its deployment boundary.
 | Colony companion package | `davidarcher.rimgovernor.native` |
 | Companion assemblies | `RimGovernor.Runtime.dll`, `RimGovernor.Bridge.dll` |
 | Private native mod directories | `RimGovernor` |
-| Prepared baseline save | `RimGovernor-tribal8-baseline.rws` |
+| Committed baseline save | `scripts/fixtures/saves/RimGovernor-tribal8-baseline.rws` |
 
 Deployment names are an exact contract, with no alternate product-name aliases.
 Build the controller binary, dashboard, companion DLLs and container images

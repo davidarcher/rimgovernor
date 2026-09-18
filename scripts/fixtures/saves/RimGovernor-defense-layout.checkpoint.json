@@ -1,86 +1,86 @@
 {
   "layout": {
     "World": {
-      "Colony": "c456f65f0c11414992a32ebb58f4b48e",
-      "Load": "2653c63e6cfa498c8113fdb70772b47b",
+      "Colony": "7f60d09eec774440b7135c426cb600bc",
+      "Load": "16e4d39332ad4d829fd202d68ff03e7e",
       "Map": 0
     },
-    "Goal": "routine-f2cdcaf966a7efb8-EnsureDefensiveLayout",
+    "Goal": "routine-c603cc6e7e4d7a8e-EnsureDefensiveLayout",
     "Epoch": 0,
     "Chokepoint": {
-      "X": 142,
-      "Z": 133
+      "X": 112,
+      "Z": 136
     },
     "Entry": {
-      "X": 142,
-      "Z": 133
+      "X": 112,
+      "Z": 136
     },
     "Toward": "south",
     "Width": 3,
     "TrapLane": [
       {
-        "X": 142,
+        "X": 112,
+        "Z": 136
+      },
+      {
+        "X": 112,
+        "Z": 135
+      },
+      {
+        "X": 112,
+        "Z": 134
+      },
+      {
+        "X": 112,
         "Z": 133
       },
       {
-        "X": 142,
+        "X": 112,
         "Z": 132
       },
       {
-        "X": 142,
+        "X": 112,
         "Z": 131
-      },
-      {
-        "X": 142,
-        "Z": 130
-      },
-      {
-        "X": 142,
-        "Z": 129
-      },
-      {
-        "X": 142,
-        "Z": 128
       }
     ],
     "SafeLane": [
       {
-        "X": 143,
+        "X": 113,
+        "Z": 136
+      },
+      {
+        "X": 113,
+        "Z": 135
+      },
+      {
+        "X": 113,
+        "Z": 134
+      },
+      {
+        "X": 113,
         "Z": 133
       },
       {
-        "X": 143,
+        "X": 113,
         "Z": 132
       },
       {
-        "X": 143,
+        "X": 113,
         "Z": 131
-      },
-      {
-        "X": 143,
-        "Z": 130
-      },
-      {
-        "X": 143,
-        "Z": 129
-      },
-      {
-        "X": 143,
-        "Z": 128
       }
     ],
     "Firing": [
       {
-        "X": 142,
-        "Z": 124
+        "X": 112,
+        "Z": 127
       },
       {
-        "X": 143,
-        "Z": 124
+        "X": 113,
+        "Z": 127
       },
       {
-        "X": 141,
-        "Z": 124
+        "X": 111,
+        "Z": 127
       }
     ],
     "Entrances": [],
@@ -90,52 +90,52 @@
         "Buildings": null,
         "Reserved": [
           {
-            "X": 142,
+            "X": 112,
+            "Z": 136
+          },
+          {
+            "X": 112,
+            "Z": 135
+          },
+          {
+            "X": 112,
+            "Z": 134
+          },
+          {
+            "X": 112,
             "Z": 133
           },
           {
-            "X": 142,
+            "X": 112,
             "Z": 132
           },
           {
-            "X": 142,
+            "X": 112,
             "Z": 131
           },
           {
-            "X": 142,
-            "Z": 130
+            "X": 113,
+            "Z": 136
           },
           {
-            "X": 142,
-            "Z": 129
+            "X": 113,
+            "Z": 135
           },
           {
-            "X": 142,
-            "Z": 128
+            "X": 113,
+            "Z": 134
           },
           {
-            "X": 143,
+            "X": 113,
             "Z": 133
           },
           {
-            "X": 143,
+            "X": 113,
             "Z": 132
           },
           {
-            "X": 143,
+            "X": 113,
             "Z": 131
-          },
-          {
-            "X": 143,
-            "Z": 130
-          },
-          {
-            "X": 143,
-            "Z": 129
-          },
-          {
-            "X": 143,
-            "Z": 128
           }
         ],
         "Attempts": 0,
@@ -147,8 +147,8 @@
           {
             "Definition": "Barricade",
             "Cell": {
-              "X": 142,
-              "Z": 125
+              "X": 112,
+              "Z": 128
             },
             "Rotation": "north",
             "Stuff": "WoodLog"
@@ -156,8 +156,8 @@
           {
             "Definition": "Barricade",
             "Cell": {
-              "X": 143,
-              "Z": 125
+              "X": 113,
+              "Z": 128
             },
             "Rotation": "north",
             "Stuff": "WoodLog"
@@ -165,8 +165,8 @@
           {
             "Definition": "Barricade",
             "Cell": {
-              "X": 141,
-              "Z": 125
+              "X": 111,
+              "Z": 128
             },
             "Rotation": "north",
             "Stuff": "WoodLog"
@@ -174,40 +174,40 @@
         ],
         "Reserved": [
           {
-            "X": 142,
-            "Z": 125
+            "X": 112,
+            "Z": 128
           },
           {
-            "X": 142,
-            "Z": 124
+            "X": 112,
+            "Z": 127
           },
           {
-            "X": 142,
-            "Z": 123
+            "X": 112,
+            "Z": 126
           },
           {
-            "X": 143,
-            "Z": 125
+            "X": 113,
+            "Z": 128
           },
           {
-            "X": 143,
-            "Z": 124
+            "X": 113,
+            "Z": 127
           },
           {
-            "X": 143,
-            "Z": 123
+            "X": 113,
+            "Z": 126
           },
           {
-            "X": 141,
-            "Z": 125
+            "X": 111,
+            "Z": 128
           },
           {
-            "X": 141,
-            "Z": 124
+            "X": 111,
+            "Z": 127
           },
           {
-            "X": 141,
-            "Z": 123
+            "X": 111,
+            "Z": 126
           }
         ],
         "Attempts": 1,
@@ -219,7 +219,52 @@
           {
             "Definition": "Wall",
             "Cell": {
-              "X": 141,
+              "X": 111,
+              "Z": 136
+            },
+            "Rotation": "north",
+            "Stuff": "WoodLog"
+          },
+          {
+            "Definition": "Wall",
+            "Cell": {
+              "X": 111,
+              "Z": 135
+            },
+            "Rotation": "north",
+            "Stuff": "WoodLog"
+          },
+          {
+            "Definition": "Wall",
+            "Cell": {
+              "X": 114,
+              "Z": 135
+            },
+            "Rotation": "north",
+            "Stuff": "WoodLog"
+          },
+          {
+            "Definition": "Wall",
+            "Cell": {
+              "X": 111,
+              "Z": 134
+            },
+            "Rotation": "north",
+            "Stuff": "WoodLog"
+          },
+          {
+            "Definition": "Wall",
+            "Cell": {
+              "X": 114,
+              "Z": 134
+            },
+            "Rotation": "north",
+            "Stuff": "WoodLog"
+          },
+          {
+            "Definition": "Wall",
+            "Cell": {
+              "X": 111,
               "Z": 133
             },
             "Rotation": "north",
@@ -228,7 +273,16 @@
           {
             "Definition": "Wall",
             "Cell": {
-              "X": 141,
+              "X": 114,
+              "Z": 133
+            },
+            "Rotation": "north",
+            "Stuff": "WoodLog"
+          },
+          {
+            "Definition": "Wall",
+            "Cell": {
+              "X": 111,
               "Z": 132
             },
             "Rotation": "north",
@@ -237,7 +291,7 @@
           {
             "Definition": "Wall",
             "Cell": {
-              "X": 144,
+              "X": 114,
               "Z": 132
             },
             "Rotation": "north",
@@ -246,7 +300,7 @@
           {
             "Definition": "Wall",
             "Cell": {
-              "X": 141,
+              "X": 111,
               "Z": 131
             },
             "Rotation": "north",
@@ -255,62 +309,8 @@
           {
             "Definition": "Wall",
             "Cell": {
-              "X": 144,
+              "X": 114,
               "Z": 131
-            },
-            "Rotation": "north",
-            "Stuff": "WoodLog"
-          },
-          {
-            "Definition": "Wall",
-            "Cell": {
-              "X": 141,
-              "Z": 130
-            },
-            "Rotation": "north",
-            "Stuff": "WoodLog"
-          },
-          {
-            "Definition": "Wall",
-            "Cell": {
-              "X": 144,
-              "Z": 130
-            },
-            "Rotation": "north",
-            "Stuff": "WoodLog"
-          },
-          {
-            "Definition": "Wall",
-            "Cell": {
-              "X": 141,
-              "Z": 129
-            },
-            "Rotation": "north",
-            "Stuff": "WoodLog"
-          },
-          {
-            "Definition": "Wall",
-            "Cell": {
-              "X": 144,
-              "Z": 129
-            },
-            "Rotation": "north",
-            "Stuff": "WoodLog"
-          },
-          {
-            "Definition": "Wall",
-            "Cell": {
-              "X": 141,
-              "Z": 128
-            },
-            "Rotation": "north",
-            "Stuff": "WoodLog"
-          },
-          {
-            "Definition": "Wall",
-            "Cell": {
-              "X": 144,
-              "Z": 128
             },
             "Rotation": "north",
             "Stuff": "WoodLog"
@@ -318,48 +318,48 @@
         ],
         "Reserved": [
           {
-            "X": 141,
+            "X": 111,
+            "Z": 136
+          },
+          {
+            "X": 111,
+            "Z": 135
+          },
+          {
+            "X": 114,
+            "Z": 135
+          },
+          {
+            "X": 111,
+            "Z": 134
+          },
+          {
+            "X": 114,
+            "Z": 134
+          },
+          {
+            "X": 111,
             "Z": 133
           },
           {
-            "X": 141,
+            "X": 114,
+            "Z": 133
+          },
+          {
+            "X": 111,
             "Z": 132
           },
           {
-            "X": 144,
+            "X": 114,
             "Z": 132
           },
           {
-            "X": 141,
+            "X": 111,
             "Z": 131
           },
           {
-            "X": 144,
+            "X": 114,
             "Z": 131
-          },
-          {
-            "X": 141,
-            "Z": 130
-          },
-          {
-            "X": 144,
-            "Z": 130
-          },
-          {
-            "X": 141,
-            "Z": 129
-          },
-          {
-            "X": 144,
-            "Z": 129
-          },
-          {
-            "X": 141,
-            "Z": 128
-          },
-          {
-            "X": 144,
-            "Z": 128
           }
         ],
         "Attempts": 1,
@@ -371,8 +371,8 @@
           {
             "Definition": "TrapSpike",
             "Cell": {
-              "X": 142,
-              "Z": 132
+              "X": 112,
+              "Z": 135
             },
             "Rotation": "north",
             "Stuff": "WoodLog"
@@ -380,8 +380,8 @@
           {
             "Definition": "Fence",
             "Cell": {
-              "X": 143,
-              "Z": 132
+              "X": 113,
+              "Z": 135
             },
             "Rotation": "north",
             "Stuff": "WoodLog"
@@ -389,8 +389,8 @@
           {
             "Definition": "TrapSpike",
             "Cell": {
-              "X": 142,
-              "Z": 130
+              "X": 112,
+              "Z": 133
             },
             "Rotation": "north",
             "Stuff": "WoodLog"
@@ -398,8 +398,8 @@
           {
             "Definition": "Fence",
             "Cell": {
-              "X": 143,
-              "Z": 130
+              "X": 113,
+              "Z": 133
             },
             "Rotation": "north",
             "Stuff": "WoodLog"
@@ -407,8 +407,8 @@
           {
             "Definition": "TrapSpike",
             "Cell": {
-              "X": 142,
-              "Z": 128
+              "X": 112,
+              "Z": 131
             },
             "Rotation": "north",
             "Stuff": "WoodLog"
@@ -416,8 +416,8 @@
           {
             "Definition": "Fence",
             "Cell": {
-              "X": 143,
-              "Z": 128
+              "X": 113,
+              "Z": 131
             },
             "Rotation": "north",
             "Stuff": "WoodLog"
@@ -425,61 +425,63 @@
         ],
         "Reserved": [
           {
-            "X": 142,
+            "X": 112,
+            "Z": 136
+          },
+          {
+            "X": 112,
+            "Z": 135
+          },
+          {
+            "X": 112,
+            "Z": 134
+          },
+          {
+            "X": 112,
             "Z": 133
           },
           {
-            "X": 142,
+            "X": 112,
             "Z": 132
           },
           {
-            "X": 142,
+            "X": 112,
             "Z": 131
           },
           {
-            "X": 142,
-            "Z": 130
+            "X": 113,
+            "Z": 136
           },
           {
-            "X": 142,
-            "Z": 129
+            "X": 113,
+            "Z": 135
           },
           {
-            "X": 142,
-            "Z": 128
+            "X": 113,
+            "Z": 134
           },
           {
-            "X": 143,
+            "X": 113,
             "Z": 133
           },
           {
-            "X": 143,
+            "X": 113,
             "Z": 132
           },
           {
-            "X": 143,
+            "X": 113,
             "Z": 131
-          },
-          {
-            "X": 143,
-            "Z": 130
-          },
-          {
-            "X": 143,
-            "Z": 129
-          },
-          {
-            "X": 143,
-            "Z": 128
           }
         ],
         "Attempts": 1,
         "Built": true
       }
     ],
-    "Complete": true
+    "Complete": true,
+    "VerifiedTick": 15054,
+    "VerifiedCombat": "routine-c603cc6e7e4d7a8e-ActiveCombat/0"
   },
-  "siteX": 143,
-  "siteZ": 123,
-  "savedAtTick": 12609
+  "siteX": 113,
+  "siteZ": 130,
+  "savedAtTick": 15054
 }

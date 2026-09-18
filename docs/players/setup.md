@@ -8,9 +8,10 @@ The current launcher uses a prepared colony fixture. A clean checkout needs:
   Protobuf contracts).
 - RimWorld 1.6, Harmony and RimBridgeServer.
 - GABS v1.1.1 at `.rimgovernor/bridge/gabs/gabs-v1.1.1-windows-amd64/gabs.exe`.
-- The required `RimGovernor-tribal8-baseline.rws` in an existing RimWorld profile.
+- The baseline colony save, `scripts/fixtures/saves/RimGovernor-tribal8-baseline.rws`
+  (committed; the launcher stages it into the profile it prepares).
 
-Game files, GABS and the baseline save are not in Git; setup does not download them.
+Game files and GABS are not in Git; setup does not download them.
 There is no local-model requirement: the autopilot (routine work) needs no
 model. Chat is optional and needs LM Studio serving the model named by
 `--chat-model`.

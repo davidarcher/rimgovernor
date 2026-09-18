@@ -739,10 +739,9 @@ Replay the captured native facts against its real journal backup with
 The capture verifies 35 causally completed autonomous buildings, native Home
 geometry/exclusions and 31 flammable owned walls. Replay uses the real journal
 backup for durable needs, unknown preservation, Manual and reopen checks.
-For a same-colony scenario retry, stage the retained initial save as
-`profile/Saves/RimGovernor-tribal8-baseline.rws` and pass
-`--start-save RimGovernor-tribal8-baseline`; headless preparation copies that
-baseline into its private profile.
+For a same-colony scenario retry, pass `--start-save RimGovernor-tribal8-baseline`;
+headless preparation stages the committed baseline
+(`scripts/fixtures/saves/RimGovernor-tribal8-baseline.rws`) into its private profile.
 The `upkeep/<scenario>` cases (issue #2, B04h) are the per-deficit startup-upkeep
 acceptance: each scenario opens on a fixture that already holds one deficit,
 composes the live service with only the routine families that own it
@@ -786,9 +785,8 @@ an outdoor site and requires a complete wall-and-door shell, normal roofing,
 indoor sleeping capacity and a satisfied shelter goal. Its retained native event
 history covers the whole construction run, including Manual and disabled restart.
 It requires healthy colonists and no initial hostiles, and retains `initial-save.rws`.
-For the container runner, stage that file as the private profile's
-`Saves/RimGovernor-tribal8-baseline.rws` and pass
-`--start-save RimGovernor-tribal8-baseline` to repeat the same starting colony.
+For the container runner, pass `--start-save RimGovernor-tribal8-baseline` to
+repeat the committed starting colony.
 `--cooking-methods` adds campfire
 construction and verifies that cooking still needs a bill after the building
 completes. Its `--resource-rule WoodLog:stop:0` variant uses the same room fixture
