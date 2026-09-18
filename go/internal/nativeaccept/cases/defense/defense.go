@@ -69,9 +69,8 @@ import (
 
 const (
 	// checkpointName is the committed layout checkpoint the raid cases
-	// resume from; checkpointDir is where it lives, relative to the repo.
+	// resume from, under cases.CommittedSavesDir.
 	checkpointName = "RimGovernor-defense-layout"
-	checkpointDir  = "scripts/fixtures/saves"
 	// layoutTimeout bounds the native layout build, raidTimeout the raid
 	// response and resolution, repairTimeout the post-raid draft release and
 	// layout repair in wall time (raid injuries are tended first:
@@ -104,7 +103,7 @@ func init() {
 	// The baseline save keeps the site deterministic; a random debug colony
 	// can spawn beside ruins the rock band cannot close.
 	baseline := cases.Save{Name: sustained.BaselineSave}
-	checkpoint := cases.Save{Name: checkpointName, From: committedCheckpoints()}
+	checkpoint := cases.Save{Name: checkpointName, From: cases.CommittedSaves()}
 	edge := variant{strategy: "ImmediateAttack", arrival: "EdgeWalkIn", threat: "raid", predatorKind: "Cougar"}
 	register := func(name, scope string, start cases.Start, budget time.Duration, v variant) {
 		var reason string
@@ -165,26 +164,6 @@ type layoutCheckpoint struct {
 
 func checkpointPath(root, name string) string {
 	return filepath.Join(root, "profile", "Saves", name+".checkpoint.json")
-}
-
-// committedCheckpoints is the committed checkpoint directory, found from
-// the working directory upwards (the runner runs from go/ or the repo root).
-func committedCheckpoints() string {
-	dir, err := os.Getwd()
-	if err != nil {
-		return checkpointDir
-	}
-	for {
-		candidate := filepath.Join(dir, checkpointDir)
-		if _, err := os.Stat(candidate); err == nil {
-			return candidate
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			return checkpointDir
-		}
-		dir = parent
-	}
 }
 
 type apiFunc func(method, path string, body map[string]any, token string) (map[string]any, int, error)
@@ -423,7 +402,7 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 		return fmt.Errorf("lines of fire after layout: %w", err)
 	}
 	if v.writeCheckpoint {
-		committed := committedCheckpoints()
+		committed := cases.CommittedSaves()
 		if err := writeCheckpoint(ctx, h, root, committed, checkpointName, layoutCheckpoint{Layout: layout, SiteX: siteX, SiteZ: siteZ, SavedAtTick: int64(na.AsNumber(after["tick"]))}); err != nil {
 			return fmt.Errorf("checkpoint: %w", err)
 		}

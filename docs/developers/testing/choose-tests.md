@@ -521,6 +521,18 @@ when it lacks them, loads the save, re-runs the cheap layout audits and goes
 straight to the raid; the checkpoint is fixture-mod state, so rebuild it
 after fixture or save-format changes.
 
+The same shape serves a goal that ranks behind the whole startup ladder:
+`tools/facility-checkpoint` plays the tribal8 baseline under the comfort
+case's families until RankDevelopment first admits `EnsureComfort` (every
+priority-0..2 goal served: shelter, campfire, storage, fields, work
+assignments), saves through the service's lifecycle save and commits
+`RimGovernor-facility-startup.rws`; `facility/comfort` opens on it so its
+12-minute watch covers comfort's own planning and use instead of the
+ladder (#201). Regenerate it when the startup ladder's goals, the
+`comfortFamilies` composition or the save format change; until the
+ladder can complete on the baseline (#217) the save is not committed and
+`facility/comfort` fails at staging.
+
 ## Available checks
 
 | What changed / what you need to establish | Available support | Requirements and limits |

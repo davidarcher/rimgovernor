@@ -357,3 +357,28 @@ func (s *session) Advance(ctx context.Context, ticks uint64, opts ...na.AdvanceO
 	}
 	return na.AdvanceGame(ctx, rt, ticks, opts...)
 }
+
+// CommittedSavesDir is the repository directory holding checkpointed
+// preconditions (a Save.From source), relative to the repository root.
+const CommittedSavesDir = "scripts/fixtures/saves"
+
+// CommittedSaves is CommittedSavesDir as an absolute path, found from the
+// working directory upwards (the runner runs from go/ or the repo root);
+// the relative name when no ancestor holds it.
+func CommittedSaves() string {
+	dir, err := os.Getwd()
+	if err != nil {
+		return CommittedSavesDir
+	}
+	for {
+		candidate := filepath.Join(dir, CommittedSavesDir)
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return CommittedSavesDir
+		}
+		dir = parent
+	}
+}

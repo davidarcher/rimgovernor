@@ -279,6 +279,13 @@ func SampleGoal(ctx context.Context, s *store.Store, need policy.GoalID) (map[st
 		return sample, nil
 	}
 	sample["goal_bound"] = true
+	// The review's ranking row (keyed by need) says why a deficit goal is
+	// or is not selected this review (startup_survival, capacity_committed...).
+	for _, row := range review.Development.Rows {
+		if row.Goal == need {
+			sample["development"] = map[string]any{"reason": string(row.Reason), "selected": row.Selected, "committed": row.Committed}
+		}
+	}
 	goal, err := s.LoadGoal(ctx, goalID)
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {

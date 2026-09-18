@@ -73,6 +73,7 @@ var plannerCatalog = []plannerEntry{
 			if err != nil {
 				return err
 			}
+			clockSchedulerLog("FoodStorage.step result: reason=%v plan=%s", method.Reason, method.Plan)
 			out.FoodStorage = &method
 			return nil
 		}},

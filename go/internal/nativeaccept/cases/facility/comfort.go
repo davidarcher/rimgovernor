@@ -16,7 +16,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
-	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/sustained"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/sustainedfood"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
@@ -27,10 +26,13 @@ import (
 // priority-0..2 need (starting supplies, work assignments, food, shelter,
 // temperature, cooking, storage) has recovered, so those families must be
 // able to act. gear rides along now that its bill/recipe reads have native
-// handlers (issue #62). The full autonomous composition is still not used:
-// with every family on, the parallel planner step exceeds its call timeout
-// on a shared machine, so the clock never starts.
-const comfortFamilies = "sleeping,shelter,temperature,comfort,work,supply,field,food-storage,acquisition,cooking,production-policy,gear"
+// handlers (issue #62). tend and rescue serve CriticalMedical: a colonist
+// downed by food poisoning is a priority-1 emergency that otherwise parks
+// every development slot and the clock for the rest of the run (#201). The
+// full autonomous composition is still not used: with every family on, the
+// parallel planner step exceeds its call timeout on a shared machine, so
+// the clock never starts.
+const comfortFamilies = "sleeping,shelter,temperature,comfort,work,supply,field,food-storage,acquisition,cooking,production-policy,gear,tend,rescue"
 
 // window is how long a facility goal gets to recover; the window ends
 // early on recovery.
@@ -54,7 +56,11 @@ func init() {
 	cases.Register(cases.Case{
 		Name:  "facility/comfort",
 		Scope: "EnsureComfort recovers through a native DiningRoom/RecRoom-hosted facility that colonists actually use; a facility outside a hosting room never counts (issue #4, M1).",
-		Start: cases.Save{Name: sustained.BaselineSave},
+		// The startup ladder is already served in the checkpoint (#201);
+		// the watch covers comfort's own planning and use. Until
+		// tools/facility-checkpoint has committed the save (#217) the
+		// runner refuses to stage it, which is the case's failure.
+		Start: cases.Save{Name: startupCheckpoint, From: cases.CommittedSaves()},
 		// The use proofs need colonists to eat at the table and play: Food
 		// and Joy stay live.
 		Keep:   []string{string(na.NeedFood), string(na.NeedJoy)},
