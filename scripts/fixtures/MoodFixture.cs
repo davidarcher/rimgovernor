@@ -57,15 +57,43 @@ namespace HomeBridge.BridgeTools
         {
             var pinDef = DefDatabase<ThingDef>.GetNamed("HorseshoesPin");
             if (map.listerThings.ThingsOfDef(pinDef).Any(t => t.Faction == Faction.OfPlayerSilentFail && !t.IsForbidden(p))) return;
-            var center = GenRadial.RadialCellsAround(p.Position, 30, true).First(c =>
-                CellRect.CenteredOn(c, 7).Cells.All(v => v.InBounds(map) && !v.Fogged(map) && !v.Roofed(map)
-                    && v.Standable(map) && v.GetEdifice(map) == null && map.zoneManager.ZoneAt(v) == null));
-            foreach (var c in CellRect.CenteredOn(center, 7))
-                foreach (var t in c.GetThingList(map).Where(t => t is Plant || t.def.category == ThingCategory.Item).ToList()) t.Destroy();
+            var center = FindPinCell(map, p);
+            foreach (var c in CellRect.CenteredOn(center, 7).ClipInsideMap(map))
+                foreach (var t in c.GetThingList(map).Where(Clearable).ToList()) t.Destroy();
             var pin = ThingMaker.MakeThing(pinDef, ThingDefOf.WoodLog);
             pin.SetFaction(Faction.OfPlayerSilentFail);
             GenSpawn.Spawn(pin, center, map);
             pin.SetForbidden(false, false);
         }
+
+        // Plants, items and filth get cleared before the pin spawns, so they
+        // must not disqualify a cell; only terrain, edifices and non-clearable
+        // impassable things do. The fresh debug-start map (#92) has no
+        // guaranteed 7x7 patch of bare standable ground within 30 cells of the
+        // pawn, so the search widens in radius and shrinks the rect before
+        // falling back to the pawn's own cell rather than throwing.
+        private static IntVec3 FindPinCell(Map map, Pawn p)
+        {
+            foreach (var size in new[] { 7, 5, 3 })
+                foreach (var radius in new[] { 30f, 55f })
+                {
+                    var found = GenRadial.RadialCellsAround(p.Position, radius, true)
+                        .FirstOrDefault(c => CellRect.CenteredOn(c, size).Cells.All(v => PinFriendly(map, v)));
+                    if (found.IsValid) return found;
+                }
+            var any = GenRadial.RadialCellsAround(p.Position, 55f, true).FirstOrDefault(c => PinFriendly(map, c));
+            return any.IsValid ? any : p.Position;
+        }
+
+        private static bool PinFriendly(Map map, IntVec3 v)
+        {
+            if (!v.InBounds(map) || v.Fogged(map) || v.Roofed(map)) return false;
+            if (v.GetTerrain(map).passability == Traversability.Impassable) return false;
+            if (v.GetEdifice(map) != null || map.zoneManager.ZoneAt(v) != null) return false;
+            return v.GetThingList(map).All(t => Clearable(t) || t.def.passability != Traversability.Impassable);
+        }
+
+        private static bool Clearable(Thing t) =>
+            t is Plant || t is Filth || t.def.category == ThingCategory.Item;
     }
 }
