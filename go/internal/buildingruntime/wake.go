@@ -26,10 +26,28 @@ type WakeSignal struct {
 	pending   map[domain.ActionID]WakeOutcome
 	families  map[bridge.FactFamily]bool
 	authority bool
+	// stopped records that a committed page carried a Stopped event: the
+	// game is paused between windows, the only moment an admission that
+	// needs a paused map (excavation, bed assignment) can be made.
+	stopped bool
+	// stops counts committed stops; a Worker's pause-work report names the
+	// stop it answers so a report from a step begun before the stop
+	// cannot pass for the stop's own.
+	stops uint64
+	// workers counts attached Workers: with none, no stop ever waits for
+	// pause-bound work.
+	workers int
+	// pauseWork is how many pause-bound admissions the attached Worker
+	// still has to try on the current stop, -1 until it has reported;
+	// pauseIdle is closed while that count is zero.
+	pauseWork int
+	pauseIdle chan struct{}
 }
 
 func NewWakeSignal() *WakeSignal {
-	return &WakeSignal{ch: make(chan struct{}, 1), pending: map[domain.ActionID]WakeOutcome{}, families: map[bridge.FactFamily]bool{}}
+	idle := make(chan struct{})
+	close(idle)
+	return &WakeSignal{ch: make(chan struct{}, 1), pending: map[domain.ActionID]WakeOutcome{}, families: map[bridge.FactFamily]bool{}, pauseIdle: idle}
 }
 
 // Notify merges outcomes into the pending set and signals without blocking.
@@ -40,6 +58,12 @@ func (w *WakeSignal) Notify(outcomes []WakeOutcome, authority bool) {
 // NotifyInvalidated is Notify carrying the fact families the committed
 // page's ObservationInvalidated events named as well.
 func (w *WakeSignal) NotifyInvalidated(outcomes []WakeOutcome, families []bridge.FactFamily, authority bool) {
+	w.NotifyStopped(outcomes, families, authority, false)
+}
+
+// NotifyStopped is NotifyInvalidated that also records whether the page
+// stopped the clock.
+func (w *WakeSignal) NotifyStopped(outcomes []WakeOutcome, families []bridge.FactFamily, authority, stopped bool) {
 	if w == nil {
 		return
 	}
@@ -51,6 +75,14 @@ func (w *WakeSignal) NotifyInvalidated(outcomes []WakeOutcome, families []bridge
 		w.families[family] = true
 	}
 	w.authority = w.authority || authority
+	if stopped {
+		w.stopped = true
+		w.stops++
+		if w.workers > 0 && w.pauseWork == 0 {
+			w.pauseWork = -1
+			w.pauseIdle = make(chan struct{})
+		}
+	}
 	w.mu.Unlock()
 	select {
 	case w.ch <- struct{}{}:
@@ -81,6 +113,88 @@ func (w *WakeSignal) Take() (map[domain.ActionID]WakeOutcome, bool) {
 	return outcomes, authority
 }
 
+// TakeStopped drains the stopped flag.
+func (w *WakeSignal) TakeStopped() bool {
+	_, stopped := w.TakeStop()
+	return stopped
+}
+
+// TakeStop is TakeStopped that also names the latest committed stop, the
+// one a pause-work report answers.
+func (w *WakeSignal) TakeStop() (stop uint64, stopped bool) {
+	if w == nil {
+		return 0, false
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	stopped = w.stopped
+	w.stopped = false
+	return w.stops, stopped
+}
+
+// AttachWorker registers a Worker that will report its pause-bound work on
+// every stop; the returned func detaches it and releases any wait.
+func (w *WakeSignal) AttachWorker() func() {
+	if w == nil {
+		return func() {}
+	}
+	w.mu.Lock()
+	w.workers++
+	w.mu.Unlock()
+	return func() {
+		w.mu.Lock()
+		defer w.mu.Unlock()
+		w.workers--
+		if w.workers == 0 {
+			w.setPauseWorkLocked(0)
+		}
+	}
+}
+
+// ReportPauseWork records how many pause-bound admissions the Worker still
+// has to try for the named stop. A report for an earlier stop is stale: the
+// step it summarises began before the game paused.
+func (w *WakeSignal) ReportPauseWork(stop uint64, remaining int) {
+	if w == nil {
+		return
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if stop != w.stops {
+		return
+	}
+	w.setPauseWorkLocked(remaining)
+}
+
+func (w *WakeSignal) setPauseWorkLocked(remaining int) {
+	if remaining < 0 {
+		remaining = 0
+	}
+	if remaining == 0 && w.pauseWork != 0 {
+		close(w.pauseIdle)
+	} else if remaining > 0 && w.pauseWork == 0 {
+		w.pauseIdle = make(chan struct{})
+	}
+	w.pauseWork = remaining
+}
+
+// PauseDrained is closed while no attached Worker has pause-bound work
+// outstanding for the latest stop; a nil signal is always drained.
+func (w *WakeSignal) PauseDrained() <-chan struct{} {
+	if w == nil {
+		return closedChan
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.pauseIdle
+}
+
+var closedChan = func() chan struct{} {
+	ch := make(chan struct{})
+	close(ch)
+	return ch
+}()
+
 // TakeInvalidated drains the pending outcomes, invalidated families and the
 // authority flag into one step reason.
 func (w *WakeSignal) TakeInvalidated() StepReason {
@@ -107,12 +221,20 @@ func (w *WakeSignal) TakeInvalidated() StepReason {
 // the latched outcomes, the families its ObservationInvalidated events
 // named, and whether authority changed.
 func clockPageWake(page *k.EventsPage) (outcomes []WakeOutcome, families []bridge.FactFamily, authority bool) {
+	outcomes, families, authority, _ = clockPageWakeStopped(page)
+	return outcomes, families, authority
+}
+
+// clockPageWakeStopped is clockPageWake that also reports whether the page
+// carried a Stopped event.
+func clockPageWakeStopped(page *k.EventsPage) (outcomes []WakeOutcome, families []bridge.FactFamily, authority, stopped bool) {
 	seen := map[bridge.FactFamily]bool{}
 	for _, event := range page.GetEvents() {
 		switch v := event.Event.(type) {
 		case *k.Event_OperationOutcome:
 			outcomes = append(outcomes, wakeOutcome(v.OperationOutcome))
 		case *k.Event_Stopped:
+			stopped = true
 			if watch := v.Stopped.GetWatch(); watch != nil {
 				outcomes = append(outcomes, wakeOutcome(watch.Outcome))
 			}
@@ -133,7 +255,7 @@ func clockPageWake(page *k.EventsPage) (outcomes []WakeOutcome, families []bridg
 			}
 		}
 	}
-	return outcomes, families, authority
+	return outcomes, families, authority, stopped
 }
 func wakeOutcome(o *k.OperationOutcome) WakeOutcome {
 	_, unknown := o.Outcome.(*k.OperationOutcome_Unknown)

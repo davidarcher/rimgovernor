@@ -22,6 +22,9 @@ type ClockPollResult struct {
 	Wake             []WakeOutcome
 	Invalidated      []bridge.FactFamily
 	AuthorityChanged bool
+	// Stopped reports that the committed page stopped the clock: the game
+	// is paused until the next window starts.
+	Stopped bool
 }
 
 type ClockRenewResult struct {

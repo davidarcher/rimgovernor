@@ -156,7 +156,10 @@ func (w *ClockWorker) pollLoop() {
 			ready = true
 		}
 		if err == nil && (result.Captured || len(result.Wake) > 0 || len(result.Invalidated) > 0 || result.AuthorityChanged) {
-			w.config.Wake.NotifyInvalidated(result.Wake, result.Invalidated, result.AuthorityChanged)
+			// The Worker alone acts on a stop: the step loop reacts to the
+			// same page by settling the epoch, and the stop is not a
+			// decision input of its own.
+			w.config.Wake.NotifyStopped(result.Wake, result.Invalidated, result.AuthorityChanged, result.Stopped)
 			w.wake.NotifyInvalidated(result.Wake, result.Invalidated, result.AuthorityChanged)
 		}
 		waited := w.config.PollWait > 0 && time.Since(started) >= w.config.PollWait/2
@@ -208,6 +211,25 @@ func clockWorkerKey(result ClockSchedulerResult, err error) clockStepKey {
 	key.reasons = strings.Join(reasons, "\x00")
 	return key
 }
+
+// clockPauseDrainMax bounds how long a settled epoch waits for the Worker
+// to try its pause-bound admissions before the next window starts.
+const clockPauseDrainMax = 5 * time.Second
+
+// awaitPauseWork waits until the Worker reports no pause-bound work for the
+// latest stop, the bound elapses or the loop ends; it returns the time held.
+func (w *ClockWorker) awaitPauseWork() time.Duration {
+	started := time.Now()
+	timer := time.NewTimer(clockPauseDrainMax)
+	defer timer.Stop()
+	select {
+	case <-w.ctx.Done():
+	case <-timer.C:
+	case <-w.config.Wake.PauseDrained():
+	}
+	return time.Since(started)
+}
+
 func (w *ClockWorker) stepLoop() {
 	select {
 	case <-w.ctx.Done():
@@ -259,7 +281,15 @@ func (w *ClockWorker) stepLoop() {
 		// backoff case, not a hot loop.
 		if err == nil && (result.Reconciled || result.Cleaned) && !skipped {
 			skipped = true
-			clockSchedulerLog("step settled an epoch (reconciled=%v cleaned=%v): stepping again at once", result.Reconciled, result.Cleaned)
+			// The game is paused between windows and that is the only
+			// moment the Worker can make a pause-bound admission
+			// (excavation, acquisition, bed assignment): hold the next
+			// window until it has tried each one, within a bound (#129).
+			held := w.awaitPauseWork()
+			if w.ctx.Err() != nil {
+				return
+			}
+			clockSchedulerLog("step settled an epoch (reconciled=%v cleaned=%v): stepping again at once (pause-bound admissions held %s)", result.Reconciled, result.Cleaned, held.Round(time.Millisecond))
 			reason = StepReason{Cause: StepSettled}
 			continue
 		}

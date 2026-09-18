@@ -73,6 +73,13 @@ type Worker struct {
 	cursor domain.ActionID
 	// focus holds woken actions not yet reconciled since the wake.
 	focus map[domain.ActionID]WakeOutcome
+	// paused is set by a clock stop until the step has focused the
+	// admissions that need the paused map; stopSeq names that stop and
+	// pauseFocus the focused admissions that need it, reported to the
+	// step loop so it holds the clock until they have been tried.
+	paused     bool
+	stopSeq    uint64
+	pauseFocus map[domain.ActionID]bool
 }
 
 type workerCandidate struct {
@@ -176,6 +183,7 @@ func (w *Worker) Close(ctx context.Context) error {
 }
 func (w *Worker) steps() {
 	ticker := time.NewTicker(w.config.StepInterval)
+	defer w.config.Wake.AttachWorker()()
 	defer ticker.Stop()
 	// The per-action outcome line already names the failing action; the
 	// step-level error only adds information when it changes.
@@ -185,6 +193,7 @@ func (w *Worker) steps() {
 			return
 		}
 		err := w.step(w.ctx, time.Now())
+		w.config.Wake.ReportPauseWork(w.stopSeq, len(w.pauseFocus))
 		message := ""
 		if err != nil {
 			message = err.Error()
@@ -213,6 +222,9 @@ func (w *Worker) steps() {
 const workerFocusMax = 64
 
 func (w *Worker) takeWake() {
+	if stop, stopped := w.config.Wake.TakeStop(); stopped {
+		w.paused, w.stopSeq = true, stop
+	}
 	woken, _ := w.config.Wake.Take()
 	if len(woken) == 0 {
 		return
@@ -307,9 +319,29 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 			if cleanup || worldErr == nil && (routineObservation || workerEligible(plan, v, planScope, world)) {
 				live[v.Action] = true
 				candidates = append(candidates, workerCandidate{view: v, cleanup: cleanup})
+				// An admission the native side accepts only on a paused map
+				// can be made in the second or so between windows and at no
+				// other time, so a stop retries every one of them at once
+				// instead of on a backoff that lands mid-window (#129).
+				if w.paused && !cleanup && workerPauseBound(progress.Action().Kind(), v) {
+					if w.focus == nil {
+						w.focus = map[domain.ActionID]WakeOutcome{}
+					}
+					if _, focused := w.focus[v.Action]; !focused && len(w.focus) < workerFocusMax {
+						w.focus[v.Action] = WakeOutcome{Action: v.Action, Attempt: v.Attempt}
+						delete(w.waits, v.Action)
+					}
+					if w.pauseFocus == nil {
+						w.pauseFocus = map[domain.ActionID]bool{}
+					}
+					if w.focusNamed(v.Action) {
+						w.pauseFocus[v.Action] = true
+					}
+				}
 			}
 		}
 	}
+	w.paused = false
 	for id := range w.waits {
 		if !live[id] {
 			delete(w.waits, id)
@@ -318,6 +350,11 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 	for id := range w.focus {
 		if !live[id] {
 			delete(w.focus, id)
+		}
+	}
+	for id := range w.pauseFocus {
+		if !live[id] {
+			delete(w.pauseFocus, id)
 		}
 	}
 	// Catalog order is stable; rotate by the last selected action, including on
@@ -347,6 +384,7 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 			continue
 		}
 		delete(w.focus, v.Action)
+		delete(w.pauseFocus, v.Action)
 		w.cursor = v.Action
 		if err = w.player.current(call, epoch); err != nil {
 			return err
@@ -425,6 +463,22 @@ func workerBackoffCap(config WorkerConfig, v domain.ProgressView) time.Duration 
 		return max(config.MaxBackoff, min(6*config.MaxBackoff, time.Minute))
 	}
 	return config.MaxBackoff
+}
+
+// workerPauseBound reports an admission the native side refuses while the
+// game runs: these kinds inspect and dispatch against a paused map only
+// (their native tools check TimeSpeed.Paused, or their boundary demands
+// its reads land on one tick: acquisition, bill and zone), so between
+// windows is the only time they can be made (#150).
+func workerPauseBound(kind domain.ActionKind, v domain.ProgressView) bool {
+	switch kind {
+	case domain.ExcavationAction, domain.BedAssignAction, domain.AcquisitionAction, domain.MineAcquisitionAction,
+		domain.WallRemovalAction, domain.HusbandryAction, domain.ProductionPolicyAction, domain.ResearchSelectAction, domain.HomeCoverageAction,
+		domain.ProductionBillAction, domain.ZoneCreateAction:
+	default:
+		return false
+	}
+	return !v.Unresolved && (v.Stage == domain.Pending || v.Stage == domain.Prepared)
 }
 
 func workerEligible(plan store.PlanState, v domain.ProgressView, scope ControlState, world store.World) bool {

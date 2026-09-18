@@ -16,24 +16,49 @@ namespace HomeBridge.BridgeTools
     // every cell is dug by ordinary pawn mining under the controller's
     // excavation plans. The fixture never designates, mines, builds or
     // assigns anything itself.
+    //
+    // Staging (#129): setup can open the project's first cells itself --
+    // the two-cell corridor on the block's centre line and the nearest
+    // predig columns of the 7x7 room past it -- exactly as pawns would have
+    // left them (rock gone, rock roof kept, the open cells and the rock
+    // bordering them unfogged). The planner's sunk-work credit then binds
+    // the same target a fresh run would dig, and the run's own stages cover
+    // only the columns left standing.
     public sealed class MountainFixture
     {
         private const int BlockWidth = 13;  // across the face (z extent)
         private const int BlockDepth = 12;  // into the mountain (x extent)
         private const int FaceGap = 4;      // clear cells between the anchor and the face
+        private const int CorridorLength = 2; // the planner's shortest corridor
+        private const int RoomSize = 7;       // the planner's rectangular interior
 
-        [Tool("test/mountain_fixture", Description = "UNSAFE FOR MODEL EXECUTION. Disposable mountain-base fixture: setup raises a fogged granite block beside the colonists; inspect reads one cell's rock, roof, fog, designation, collapse marks, room and sleeper state.")]
+        [Tool("test/mountain_fixture", Description = "UNSAFE FOR MODEL EXECUTION. Disposable mountain-base fixture: setup raises a fogged granite block beside the colonists (predig opens the corridor and that many room columns first); inspect reads one cell's rock, roof, fog, designation, collapse marks, room and sleeper state; tire exhausts every colonist so the next bed is slept in at once.")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            string action = "setup", int x = 0, int z = 0)
+            string action = "setup", int x = 0, int z = 0, int predig = 0)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
                 if (map == null) throw new InvalidOperationException("Disposable map required.");
                 if (action == "inspect") return Inspect(map, new IntVec3(x, 0, z));
+                if (action == "tire") return Tire(map);
                 if (action != "setup") throw new InvalidOperationException("Unknown action " + action);
                 if (!Find.TickManager.Paused) throw new InvalidOperationException("Paused map required for setup.");
-                return Setup(map);
+                if (predig < 0 || predig > RoomSize) throw new InvalidOperationException("predig must be 0.." + RoomSize + " room columns.");
+                return Setup(map, predig);
             }, cancellationToken);
+        }
+
+        // Rest is the only need the sleeping assertion waits on; at 5% every
+        // colonist heads for a bed at the next chance instead of on their own
+        // schedule, so the furnished room is used within the hour.
+        private static object Tire(Map map)
+        {
+            var tired = new List<string>();
+            foreach (var p in map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && p.needs?.rest != null)) {
+                p.needs.rest.CurLevel = 0.05f;
+                tired.Add(p.ThingID);
+            }
+            return new { success = true, tick = Find.TickManager.TicksGame, tired };
         }
 
         private static object Inspect(Map map, IntVec3 cell)
@@ -70,7 +95,7 @@ namespace HomeBridge.BridgeTools
             };
         }
 
-        private static object Setup(Map map)
+        private static object Setup(Map map, int predig)
         {
             var people = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead).ToList();
             if (people.Count < 1 || people.Count > 8) throw new InvalidOperationException("Require 1..8 colonists.");
@@ -143,6 +168,28 @@ namespace HomeBridge.BridgeTools
                     setFog(c);
                     fogged++;
                 }
+                // Staged sunk work: the corridor on the centre line plus the
+                // nearest predig room columns are opened the way finished
+                // mining leaves them. The rock roof stays; the open cells and
+                // every cell bordering them are unfogged, as the game reveals
+                // them when a miner breaks through, so the next column is
+                // visible and designatable while the rest stays unknown.
+                var predug = new List<IntVec3>();
+                if (predig > 0) {
+                    var face = dir.x != 0 ? new IntVec3(faceX, 0, block.CenterCell.z) : new IntVec3(block.CenterCell.x, 0, faceZ);
+                    var across = dir.x != 0 ? new IntVec3(0, 0, 1) : new IntVec3(1, 0, 0);
+                    for (var depth = 0; depth < CorridorLength + predig; depth++) {
+                        var line = face + dir * depth;
+                        var half = depth < CorridorLength ? 0 : RoomSize / 2;
+                        for (var offset = -half; offset <= half; offset++) predug.Add(line + across * offset);
+                    }
+                    foreach (var c in predug)
+                        foreach (var t in c.GetThingList(map).OfType<Mineable>().ToList()) t.Destroy(DestroyMode.Vanish);
+                    foreach (var c in predug)
+                        foreach (var n in GenAdj.CellsAdjacent8Way(new TargetInfo(c, map)).Concat(new[] { c }))
+                            if (n.InBounds(map)) map.fogGrid.Unfog(n);
+                    fogged = block.Cells.Count(c => c.Fogged(map));
+                }
                 map.mapDrawer.WholeMapChanged(MapMeshFlagDefOf.FogOfWar);
                 map.roofGrid.Drawer.SetDirty();
                 foreach (var food in map.listerThings.AllThings.Where(t => t.def.category == ThingCategory.Item
@@ -176,6 +223,7 @@ namespace HomeBridge.BridgeTools
                     direction = new { x = dir.x, z = dir.z },
                     block = new { minX = block.minX, minZ = block.minZ, maxX = block.maxX, maxZ = block.maxZ },
                     faceX, faceZ, fogged,
+                    predig, predug = predug.Select(c => new { c.x, c.z }).ToList(),
                     miners = miners.Select(p => p.ThingID).ToList(),
                     builders = builders.Select(p => p.ThingID).ToList(),
                     colonists = people.Count,

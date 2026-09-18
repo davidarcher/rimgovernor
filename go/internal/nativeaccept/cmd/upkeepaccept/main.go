@@ -91,6 +91,23 @@ type scenario struct {
 	prepare func(ctx context.Context, h *na.Harness, identity map[string]any, report na.Report) (map[string]any, error)
 	watch   func(ctx context.Context, journal *store.Store, prepared map[string]any, report na.Report) error
 	verify  func(ctx context.Context, h *na.Harness, identity, prepared map[string]any, report na.Report) error
+	// deadline is the scenario's timeout when -timeout is not given: a
+	// healthy run plus margin for the scenarios measured under the
+	// paused-map admission cadence (#129), scenarioDeadline otherwise.
+	deadline time.Duration
+}
+
+// scenarioDeadline is the timeout of a scenario without a measured deadline.
+const scenarioDeadline = 40 * time.Minute
+
+func (s *scenario) timeout(flag time.Duration) time.Duration {
+	if flag > 0 {
+		return flag
+	}
+	if s.deadline > 0 {
+		return s.deadline
+	}
+	return scenarioDeadline
 }
 
 func scenarios() map[string]*scenario {
@@ -133,7 +150,10 @@ func scenarios() map[string]*scenario {
 	fire.verify = verifyFire
 	s["fire"] = fire
 
-	s["medicine"] = &scenario{name: "medicine", fixture: "test/medicine_setup",
+	// Every medicine stack destroyed and forty mature healroot within
+	// fifteen cells: eight harvests, all admitted on one stop, recover the
+	// reserve in about a minute of wall time (#129).
+	s["medicine"] = &scenario{name: "medicine", fixture: "test/medicine_setup", deadline: 15 * time.Minute,
 		families: []string{"medical", "resource", "bill", "acquisition", "work"},
 		prepare: func(ctx context.Context, h *na.Harness, identity map[string]any, report na.Report) (map[string]any, error) {
 			return callFixture(ctx, h, identity, "test/medicine_setup", map[string]any{})
@@ -191,7 +211,7 @@ func main() {
 	game := flag.String("game", "rimgovernor-trial", "configured game ID")
 	binary := flag.String("rimgovernor", "", "absolute path to a prebuilt rimgovernor binary (go build ./go/cmd/rimgovernor)")
 	names := flag.String("scenario", "scattered", "comma-separated list of scattered, storage-missing, blocked, fire, medicine, feed, sleeping, cold (or all)")
-	timeout := flag.Duration("timeout", 40*time.Minute, "per-scenario timeout")
+	timeout := flag.Duration("timeout", 0, "per-scenario timeout (default: the scenario's deadline, 15m for medicine and 40m otherwise)")
 	budget := na.BudgetFlag((40 * time.Minute) / 2)
 	debug := flag.Bool("debug", false, "record every native call (flight.jsonl) and the clock/worker diagnostic log")
 	reuseGame := flag.Bool("reuse", false, "launch RimWorld once and reload "+reuseSave+" for every scenario (issue #22); a failed scenario retires the game and the next one relaunches")
@@ -241,7 +261,7 @@ func main() {
 	}
 	if len(selected) == 1 && !*reuseGame {
 		report := newScenarioReport(selected[0].name, !*rendered)
-		ctx, cancel := context.WithTimeout(context.Background(), *timeout)
+		ctx, cancel := context.WithTimeout(context.Background(), selected[0].timeout(*timeout))
 		defer cancel()
 		err := run(ctx, *root, *output, *game, !*rendered, *binary, selected[0], *debug, report, nil)
 		if err != nil {
@@ -290,7 +310,7 @@ func runMany(root, output, gameID string, headless bool, binary string, selected
 	for _, sc := range selected {
 		caseOutput := filepath.Join(output, sc.name)
 		report := newScenarioReport(sc.name, headless)
-		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		ctx, cancel := context.WithTimeout(context.Background(), sc.timeout(timeout))
 		if reuseGame && reuse == nil {
 			cfg := &na.Config{Root: root, Output: output, Headless: headless, GameID: gameID}
 			err := cfg.UseSaveExpansions(reuseSave)

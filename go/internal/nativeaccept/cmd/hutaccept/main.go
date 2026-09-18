@@ -65,8 +65,8 @@ func main() {
 	buildWait := flag.Duration("build-wait", 30*time.Minute, "wall-clock budget for each construction phase")
 	furnishWait := flag.Duration("furnish-wait", 15*time.Minute, "wall-clock budget for a bed to be completed inside the finished hut")
 	stall := flag.Duration("stall", na.StallBudget(), "fail a wait once its progress signature (shell lineage stages, shelter goal binding, bed plan stage) has not changed for this long; "+na.StallEnv+" sets the default")
-	timeout := flag.Duration("timeout", 100*time.Minute, "overall run timeout")
-	na.BudgetFlag((100 * time.Minute) / 2)
+	timeout := flag.Duration("timeout", 0, "overall run timeout (default 20m with -stage, whose healthy run is about seven minutes, and 100m building the whole shell live; #129)")
+	budget := na.BudgetFlag(0)
 	nativeTimeout := flag.Duration("native-timeout", 60*time.Second, "serve subprocess's own --timeout (the shelter planner previews the whole shell per cell natively; shorter budgets time out under load; serve caps this at 1m)")
 	terrain := flag.String("terrain", "open", "open: the save's own ground, where a hut template fits; corridor: test/corridor_terrain_fixture first raises granite rows every sixth cell around the colonists so no template or 9x9 rectangle fits and the routine must grow an irregular shell (needs the mod built with -Fixture CorridorTerrainFixture)")
 	stage := flag.Bool("stage", true, "once run 0 has admitted the shell plan, reload the save and have test/hut_shell_fixture spawn the ring finished but for -stage-pending load-bearing walls, so run 1 adopts the ring from the journal and orders only those (needs the mod built with -Fixture HutShellFixture or CorridorTerrainFixture); false leaves the whole shell to the builders and stops run 1 at mid-construction instead")
@@ -93,6 +93,15 @@ func main() {
 	if entries, _ := os.ReadDir(*output); len(entries) > 0 {
 		fmt.Fprintln(os.Stderr, "-output must be a fresh, empty directory")
 		os.Exit(2)
+	}
+	if *timeout <= 0 {
+		*timeout = 100 * time.Minute
+		if *stage {
+			*timeout = 20 * time.Minute
+		}
+	}
+	if *budget <= 0 {
+		*budget = *timeout / 2
 	}
 	report := na.NewReport("Issue #7: the live autopilot raises a natively enclosed, roofed and furnished oval hut "+
 		"(or grown irregular shell) for the tribal "+*save+" colony, reissuing exactly one cancelled wall "+

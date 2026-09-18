@@ -8,6 +8,12 @@
 // after the first stage completes to prove the project is rediscovered from
 // the durable journal without re-designating cleared cells.
 //
+// The precondition is staged (#129): the fixture opens the corridor and
+// the nearest -predig room columns itself, as finished mining would have
+// left them, so the planner binds the same target through its sunk-work
+// credit and the run's own stages dig only the columns left standing. With
+// -predig 0 the whole room is dug live, the original 4-5 game-day run.
+//
 // Session discipline follows routinehaulaccept: only one GABP client can be
 // attached to the game at a time, so this harness prepares the fixture,
 // closes its own bridge session (without games_stop), lets the service run
@@ -43,8 +49,9 @@ func main() {
 	rendered := flag.Bool("rendered", false, "use the windowed profile instead of headless")
 	game := flag.String("game", "rimgovernor-trial", "configured game ID")
 	rimgovernorBinary := flag.String("rimgovernor", "", "absolute path to a prebuilt rimgovernor binary (go build ./go/cmd/rimgovernor)")
-	timeout := flag.Duration("timeout", 90*time.Minute, "overall run timeout")
-	na.BudgetFlag((90 * time.Minute) / 2)
+	timeout := flag.Duration("timeout", 15*time.Minute, "overall run timeout (a healthy run takes about four minutes, #129)")
+	na.BudgetFlag((15 * time.Minute) / 2)
+	predig := flag.Int("predig", 5, "room columns (of 7) the fixture opens before the run, after the two-cell corridor; 0 digs the whole room live")
 	stall := flag.Duration("stall", na.StallBudget(), "fail a store wait once its progress signature (goal binding, stage method, plan stages) has not changed for this long; "+na.StallEnv+" sets the default")
 	flag.Parse()
 	stallBudget = *stall
@@ -69,7 +76,8 @@ func main() {
 		"and a colonist sleeps inside.", !*rendered)
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
-	err := run(ctx, *root, *output, *game, !*rendered, *rimgovernorBinary, report)
+	report["predig"] = *predig
+	err := run(ctx, *root, *output, *game, !*rendered, *rimgovernorBinary, *predig, report)
 	if err != nil {
 		report["error"] = err.Error()
 	} else {
@@ -78,7 +86,7 @@ func main() {
 	os.Exit(report.Finalize(*output))
 }
 
-func run(ctx context.Context, root, output, gameID string, headless bool, rimgovernorBinary string, report na.Report) error {
+func run(ctx context.Context, root, output, gameID string, headless bool, rimgovernorBinary string, predig int, report na.Report) error {
 	if abs, err := filepath.Abs(root); err == nil {
 		root = abs
 	}
@@ -207,7 +215,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 		}
 	}
 
-	prepared, err := h.Call(ctx, "mountain-setup", "test/mountain_fixture", map[string]any{"action": "setup"})
+	prepared, err := h.Call(ctx, "mountain-setup", "test/mountain_fixture", map[string]any{"action": "setup", "predig": predig})
 	if err != nil {
 		return err
 	}
@@ -232,15 +240,16 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 	}
 	spareX, spareZ := int(na.AsNumber(spare["x"])), int(na.AsNumber(spare["z"]))
 
-	// Before any dispatch: the face is visible rock under a rock roof and no
+	// Before any dispatch: the face (off the centre line, where a staged
+	// corridor may already be open) is visible rock under a rock roof and no
 	// cell of the block is designated.
 	faceX, faceZ := int(na.AsNumber(prepared["faceX"])), int(na.AsNumber(prepared["faceZ"]))
 	direction, _ := na.AsMap(prepared["direction"])
 	var probe map[string]any
 	if na.AsNumber(direction["x"]) != 0 {
-		probe = map[string]any{"action": "inspect", "x": faceX, "z": int(blockMinZ) + 6}
+		probe = map[string]any{"action": "inspect", "x": faceX, "z": int(blockMinZ) + 1}
 	} else {
-		probe = map[string]any{"action": "inspect", "x": int(blockMinX) + 6, "z": faceZ}
+		probe = map[string]any{"action": "inspect", "x": int(blockMinX) + 1, "z": faceZ}
 	}
 	before, err := h.Call(ctx, "face-before", "test/mountain_fixture", probe)
 	if err != nil {
@@ -316,7 +325,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 	// A random debug colony can start under a standing emergency (injured
 	// colonists, hostiles) that suspends every development goal; fail with
 	// the ranking instead of waiting out the whole run.
-	stage0Ctx, stage0Cancel := context.WithTimeout(ctx, 12*time.Minute)
+	stage0Ctx, stage0Cancel := context.WithTimeout(ctx, 5*time.Minute)
 	goalID, stage0, err := waitMethod(stage0Ctx, verifyStore, "", buildingruntime.ExcavationStageMethod(0))
 	stage0Cancel()
 	if err != nil {
@@ -577,7 +586,14 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 	}
 	report["room"] = room
 
-	// Functional use: run the game and wait for a colonist to sleep inside.
+	// Functional use: exhaust the colonists (the assertion is that the room
+	// is slept in, not when their schedule says so), run the game and wait
+	// for one of them to sleep inside.
+	tired, err := finalHarness.Call(ctx, "tire", "test/mountain_fixture", map[string]any{"action": "tire"})
+	if err != nil {
+		return err
+	}
+	report["tired"] = tired
 	if _, err := finalHarness.Call(ctx, "run-fast", "rimworld/set_time_speed", map[string]any{"speed": "Superfast", "ultraSpeedBoost": false}); err != nil {
 		return err
 	}
@@ -586,7 +602,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 	// instead of running out the ceiling.
 	var slept map[string]any
 	sleepWait := storeWait()
-	sleepWait.Ceiling, sleepWait.Interval = 12*time.Minute, 5*time.Second
+	sleepWait.Ceiling, sleepWait.Interval = 5*time.Minute, 5*time.Second
 	if err := na.WaitProgress(ctx, sleepWait, func(ctx context.Context) (string, bool, error) {
 		row, err := inspect("sleepers", center)
 		if err != nil {
