@@ -143,7 +143,21 @@ namespace HomeBridge.BridgeTools
             var result = new Receipts.Progress { Attempt = attempt.Clone(), Context = context.Clone(), CompleteInspection = false };
             if (observed == null || !observed.HasPresent || observed.ThingId != original.ThingId
                 || observed.ResourceDef != original.ResourceDef || observed.DesignationDef != "Allow")
-                result.Unknown = new Receipts.UnknownEffect { Reason = "Exact admitted supply is no longer observable; absence does not prove Allow." };
+            {
+                // The exact item leaving the loose census is the ordinary
+                // consequence of a successful Allow (a colonist ate, carried,
+                // merged or hauled it), and Execute recorded this evidence
+                // only after verifying the item allowed inside the owned
+                // authority. That record completes the attempt; holding it
+                // Unknown kept a plan open forever and starved the remaining
+                // starting supplies of any further Allow (#114).
+                if (original != null && original.HasPresent && original.Present && original.DesignationDef == "Allow")
+                {
+                    result.CompleteInspection = true;
+                    result.Completed = new Receipts.CompletedEffect { Evidence = new Receipts.EffectEvidence { Designation = original.Clone() } };
+                }
+                else result.Unknown = new Receipts.UnknownEffect { Reason = "Exact admitted supply is no longer observable; absence does not prove Allow." };
+            }
             else
             {
                 result.CompleteInspection = true;

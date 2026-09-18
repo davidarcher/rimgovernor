@@ -2,6 +2,7 @@ package supply
 
 import (
 	"context"
+	"errors"
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -19,13 +20,14 @@ type supplyBoundaryFixture struct {
 	target    bridge.SupplyTarget
 	read      bridge.SupplyRead
 	projected *r.EffectEvidence
+	refused   bool
 }
 
 func (f *supplyBoundaryFixture) ReadAllowSupplies(context.Context, *c.Identity, domain.Cell) (bridge.SupplyRead, bridge.Result, error) {
 	return f.read, bridge.Result{}, nil
 }
 func (f *supplyBoundaryFixture) PreviewSupplyAllow(context.Context, *c.Identity, bridge.SupplyTarget) (*op.PreviewReply, bridge.Result, error) {
-	return &op.PreviewReply{Outcome: &op.PreviewReply_Evaluated{Evaluated: &op.PreviewEvaluation{Context: proto.Clone(f.Receipt.AdmittedContext).(*c.ObservationContext), Accepted: proto.Bool(true), Projected: f.projected}}}, bridge.Result{}, nil
+	return &op.PreviewReply{Outcome: &op.PreviewReply_Evaluated{Evaluated: &op.PreviewEvaluation{Context: proto.Clone(f.Receipt.AdmittedContext).(*c.ObservationContext), Accepted: proto.Bool(!f.refused), Projected: f.projected}}}, bridge.Result{}, nil
 }
 func (f *supplyBoundaryFixture) AllowSupply(_ context.Context, pre *a.WritePrecondition, target bridge.SupplyTarget) (*op.ExecuteReply, bridge.Result, error) {
 	f.Places++
@@ -69,6 +71,23 @@ func TestSupplyBoundaryLeaseFreeReadbackAndExactPrecondition(t *testing.T) {
 	evidence, err := b.ObserveSupply(ctx, p, p.Snapshot)
 	if err != nil || evidence.Observation.Effect != domain.EffectCompleted || f.Leases != 1 || f.Places != 1 {
 		t.Fatal(evidence, err)
+	}
+}
+
+// A fresh cell read without the exact item is the absent sentinel, so the
+// executor can settle the proposal instead of holding it (#114); a preview
+// refusal on a present item still only holds.
+func TestSupplyBoundaryReportsAbsentTarget(t *testing.T) {
+	t.Parallel()
+	b, f := newSupplyBoundaryFixture(t)
+	p := f.Placement
+	f.read.Targets = nil
+	if _, err := b.InspectSupply(context.Background(), executor.Target{Action: p.Action, Snapshot: p.Snapshot}); !errors.Is(err, executor.ErrSupplyAbsent) {
+		t.Fatal(err)
+	}
+	f.read.Targets, f.refused = []bridge.SupplyTarget{f.target}, true
+	if _, err := b.InspectSupply(context.Background(), executor.Target{Action: p.Action, Snapshot: p.Snapshot}); !errors.Is(err, executor.ErrHeld) || errors.Is(err, executor.ErrSupplyAbsent) {
+		t.Fatal(err)
 	}
 }
 func TestSupplyBoundaryRejectsForeignAndIncompleteEvidence(t *testing.T) {

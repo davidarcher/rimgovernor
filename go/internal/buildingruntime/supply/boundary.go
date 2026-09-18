@@ -62,7 +62,9 @@ func (b *SupplyBoundary) InspectSupply(ctx context.Context, target executor.Targ
 		}
 	}
 	if selected.Supply != supply || selected.Token == "" {
-		return out, executor.ErrHeld
+		// The read is fresh and bound to this colony/load/map: the exact
+		// item is simply not at its cell any more.
+		return out, executor.ErrSupplyAbsent
 	}
 	preview, _, err := b.supply.Native.PreviewSupplyAllow(ctx, boundary.Identity(current), selected)
 	if err != nil {

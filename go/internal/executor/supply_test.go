@@ -15,6 +15,7 @@ type supplyEnvironment struct {
 	inspected, allowed, observed       int
 	uncertain, unsafe, foreign, absent bool
 	onInspect                          func()
+	gone                               bool
 	effect                             domain.Effect
 }
 
@@ -22,6 +23,9 @@ func (n *supplyEnvironment) InspectSupply(_ context.Context, target Target) (Sup
 	n.inspected++
 	if n.onInspect != nil {
 		n.onInspect()
+	}
+	if n.gone {
+		return SupplyInspection{}, ErrSupplyAbsent
 	}
 	supply, _ := target.Action.SupplyAllow()
 	emergency, _ := policy.NewEmergencySnapshot(target.Snapshot, n.tick, policy.EmergencyFacts{ColonistsComplete: domain.Known(!n.unsafe), ThreatsComplete: domain.Known(true)})
@@ -133,6 +137,20 @@ func TestSupplyEmergencyAndDirectionChangesBlockDispatch(t *testing.T) {
 				t.Fatal("emergency hold was not persisted as a held reason", held)
 			}
 		})
+	}
+}
+
+// A supply that left its cell before dispatch (eaten, hauled aside, allowed
+// by the player) is cancelled so the plan can close, never held or allowed
+// blind (#114).
+func TestSupplyAbsentBeforeDispatchCancels(t *testing.T) {
+	f, n := supplyFixture(t)
+	n.gone = true
+	if _, err := f.run(); !errors.Is(err, ErrHeld) || n.allowed != 0 {
+		t.Fatal(err, n.allowed)
+	}
+	if stage := f.progress(t).Stage; stage != domain.Cancelled {
+		t.Fatal("absent target left the action open", stage)
 	}
 }
 func TestSupplyRejectsForeignCompletionAndAbsence(t *testing.T) {

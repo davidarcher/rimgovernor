@@ -3,6 +3,7 @@ package executor
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
@@ -13,6 +14,13 @@ type SupplyJournal interface {
 	Journal
 	PrepareSupply(context.Context, domain.PlanID, domain.ActionID, store.SupplyAdmission) (domain.Progress, error)
 }
+
+// ErrSupplyAbsent reports a fresh cell read that no longer lists the exact
+// supply an Allow targets: it was eaten, hauled aside by a builder, merged
+// or allowed by the player. The proposal can never succeed, so the executor
+// cancels it instead of holding the plan (#114).
+var ErrSupplyAbsent = errors.New("supply target absent")
+
 type SupplyInspection struct {
 	Current               domain.GenerationSnapshot
 	Tick                  domain.Tick
@@ -123,6 +131,18 @@ func (e *Executor) runSupply(ctx context.Context, action domain.Action, p domain
 		}
 		var err error
 		inspection, err = e.supply.InspectSupply(ctx, Target{action, expected})
+		if errors.Is(err, ErrSupplyAbsent) {
+			// Settle the proposal so the plan closes and the planner
+			// re-proposes from the next census, as haul does for a thing
+			// that left its cell; holding it kept every remaining starting
+			// supply forbidden (#114).
+			next, err := e.journal.Cancel(ctx, v.Plan, v.Action)
+			if err != nil {
+				return result, err
+			}
+			result.Progress = next
+			return result, fmt.Errorf("%w: supply target absent, action cancelled", ErrHeld)
+		}
 		if err != nil {
 			return result, err
 		}
