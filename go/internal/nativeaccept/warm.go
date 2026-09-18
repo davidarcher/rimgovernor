@@ -55,8 +55,6 @@ type Game struct {
 	output   string
 	cfg      *Config
 	released bool
-	// keepSkipped is why Close stops a game it would otherwise keep.
-	keepSkipped string
 }
 
 // OpenGame opens a session on cfg's game the way every harness does
@@ -76,14 +74,14 @@ func OpenGame(ctx context.Context, cfg *Config) (*Game, error) {
 	// Evidence for the unloads goes under its own directory so its numbering
 	// never collides with the harness's own.
 	g := &Game{Client: client, Keep: KeepGame(), output: filepath.Join(cfg.Output, "warm"), cfg: cfg}
-	if status, err := client.GameStatus(ctx); err == nil {
-		var state struct {
-			Status string `json:"status"`
-		}
-		if json.Unmarshal(status.Structured, &state) == nil {
-			// "shared-running": the process belongs to an earlier harness's
-			// session; games_start attaches this one.
-			g.Reused = state.Status == "running" || state.Status == "connected" || state.Status == "shared-running"
+	// A running process (an earlier harness's, "shared-running") is
+	// attached by games_start and keeps its clock journal; only a fresh
+	// launch starts with the journal cleared (#119).
+	g.Reused = GameRunning(ctx, client)
+	if !g.Reused {
+		if err := ClearStaleClockJournal(cfg.Configuration); err != nil {
+			_ = client.Close()
+			return nil, err
 		}
 	}
 	launched, err := client.GamesStart(ctx)
@@ -109,23 +107,11 @@ func OpenGame(ctx context.Context, cfg *Config) (*Game, error) {
 // a rimgovernor serve subprocess can take the sole slot on the same game.
 // Reattach (or Close, which reattaches on its own) follows once the service
 // has stopped.
-//
-// A released game is not kept: a process that hosted a service (killed
-// with its authority and clock epoch still granted) never keeps the next
-// service's authority (stablepatientaccept on such a process loses
-// automate mode within 2s of every resume, 3/3 runs, where the same
-// harness passes 3/3 on a fresh process and on a process kept by a
-// bridge-only harness). Until the native side clears that on unload,
-// serve-driven harnesses end with games_stop.
 func (g *Game) Release() error {
 	if g.released {
 		return nil
 	}
 	g.released = true
-	if g.Keep {
-		g.Keep = false
-		g.keepSkipped = "released to a service: a process that hosted rimgovernor serve does not keep the next service's authority"
-	}
 	if err := g.Client.Close(); err != nil {
 		return fmt.Errorf("release bridge session: %w", err)
 	}
@@ -159,11 +145,7 @@ func (g *Game) Close(report Report) {
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 	if report != nil {
-		reuse := map[string]any{"reused": g.Reused, "kept": g.Keep, "openMs": g.Open.Milliseconds()}
-		if g.keepSkipped != "" {
-			reuse["keepSkipped"] = g.keepSkipped
-		}
-		report["game_reuse"] = reuse
+		report["game_reuse"] = map[string]any{"reused": g.Reused, "kept": g.Keep, "openMs": g.Open.Milliseconds()}
 	}
 	if g.released {
 		if _, err := g.Reattach(ctx); err != nil {

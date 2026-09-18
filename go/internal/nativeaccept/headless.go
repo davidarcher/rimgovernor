@@ -6,6 +6,7 @@
 package nativeaccept
 
 import (
+	"context"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
@@ -14,6 +15,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 )
 
 // NativePackage is the unified native mod's package ID.
@@ -257,6 +260,65 @@ func gameSection(config map[string]any) (map[string]any, error) {
 	return game, nil
 }
 
+// ClockJournalDir is the native clock journal (ClockEventJournal.cs, one
+// XML row per event under RimGovernorClockEvents in the save-data folder)
+// of the game that configDir's config.json launches, taken from its
+// -savedatafolder argument.
+func ClockJournalDir(configDir string) (string, error) {
+	config, err := loadConfig(filepath.Join(mustAbs(configDir), "config.json"))
+	if err != nil {
+		return "", err
+	}
+	game, err := gameSection(config)
+	if err != nil {
+		return "", err
+	}
+	args, _ := game["args"].([]any)
+	for _, arg := range args {
+		if value, ok := arg.(string); ok && strings.HasPrefix(value, "-savedatafolder=") {
+			return filepath.Join(strings.TrimPrefix(value, "-savedatafolder="), "RimGovernorClockEvents"), nil
+		}
+	}
+	return "", fmt.Errorf("%s: the game's launch arguments carry no -savedatafolder", filepath.Join(configDir, "config.json"))
+}
+
+// ClearStaleClockJournal removes the clock journal configDir's game writes.
+// The journal outlives the game process, and a service starting from cursor
+// 1 pages every stale row before it sees a live event -- thousands of them
+// after a day of runs, enough to eat the first review's budget -- so a
+// fresh launch starts it empty. It is only ever called right before a
+// fresh games_start: the running process holds the journal's cursor in
+// static state (contracts/native-static-state.md), so removing the
+// directory under a kept process leaves every later clock_read_events
+// refused for cursor continuity and a service unable to hold authority
+// (#119). Missing config or arguments are not an error: the game then
+// starts with whatever is there.
+func ClearStaleClockJournal(configDir string) error {
+	journal, err := ClockJournalDir(configDir)
+	if err != nil {
+		return nil
+	}
+	return os.RemoveAll(journal)
+}
+
+// GameRunning reports whether games_status says a RimWorld process for the
+// session's game is already up: the next games_start attaches to it
+// rather than launching one. "shared-running" is a process another GABS
+// session of the same root started.
+func GameRunning(ctx context.Context, client *bridge.Client) bool {
+	status, err := client.GameStatus(ctx)
+	if err != nil {
+		return false
+	}
+	var state struct {
+		Status string `json:"status"`
+	}
+	if json.Unmarshal(status.Structured, &state) != nil {
+		return false
+	}
+	return state.Status == "running" || state.Status == "connected" || state.Status == "shared-running"
+}
+
 // GABSExecutable resolves the GABS binary path from rimgovernor.gabsExecutable in
 // configDir/config.json (default: configDir if empty, root/config), defaulting to
 // gabs/gabs-v1.1.1-windows-amd64/gabs.exe relative to root.
@@ -443,14 +505,6 @@ func Prepare(root string, expansions ...string) (string, error) {
 		return "", err
 	}
 	if err := os.MkdirAll(filepath.Join(profile, "Saves"), 0755); err != nil {
-		return "", err
-	}
-	// The native clock journal (ClockEventJournal.cs, one XML row per event
-	// under the save-data folder) outlives the game process. A headless run
-	// is a fresh supervised session, and a service starting from cursor 1
-	// pages every stale row before it sees a live event -- thousands of them
-	// after a day of runs, enough to eat the first review's budget.
-	if err := os.RemoveAll(filepath.Join(profile, "RimGovernorClockEvents")); err != nil {
 		return "", err
 	}
 	for _, name := range []string{"Prefs.xml", "ModsConfig.xml"} {

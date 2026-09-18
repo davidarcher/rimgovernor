@@ -28,6 +28,14 @@ func OpenSessionWith(ctx context.Context, config bridge.ProcessConfig) (*bridge.
 	if err != nil {
 		return nil, fmt.Errorf("open GABS session: %w", err)
 	}
+	// A fresh launch starts with an empty clock journal; a kept process
+	// owns its journal and must find it intact (#119).
+	if !GameRunning(ctx, client) {
+		if err := ClearStaleClockJournal(config.ConfigDir); err != nil {
+			_ = client.Close()
+			return nil, err
+		}
+	}
 	started, err := client.GamesStart(ctx)
 	if err != nil {
 		_ = client.Close()
