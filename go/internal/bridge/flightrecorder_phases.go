@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"sort"
 	"strings"
 )
@@ -56,15 +57,22 @@ type PhaseSummary struct {
 // trips they issued in total and at most, the reads the step cache served
 // instead, the reads the cross-step FactCache served (ParentHits), and the
 // round trips per tool summed over all steps (divide by Steps for a
-// per-step mean). Rows are absent when the controller ran without a
-// scheduler, leaving Steps at 0.
+// per-step mean), plus the colony windows the steps sized by wall time
+// (issue #126): how many steps reached the admission tail (Windows), the
+// ticks they asked for in total and at most, and the largest wall target.
+// Rows are absent when the controller ran without a scheduler, leaving
+// Steps at 0.
 type StepSample struct {
-	Steps      uint64            `json:"steps"`
-	Reads      uint64            `json:"reads"`
-	MaxReads   uint64            `json:"max_reads"`
-	CacheHits  uint64            `json:"cache_hits"`
-	ParentHits uint64            `json:"parent_hits"`
-	Tools      map[string]uint64 `json:"tools,omitempty"`
+	Steps          uint64            `json:"steps"`
+	Reads          uint64            `json:"reads"`
+	MaxReads       uint64            `json:"max_reads"`
+	CacheHits      uint64            `json:"cache_hits"`
+	ParentHits     uint64            `json:"parent_hits"`
+	Tools          map[string]uint64 `json:"tools,omitempty"`
+	Windows        uint64            `json:"windows"`
+	WindowTicks    uint64            `json:"window_ticks"`
+	MaxWindowTicks uint64            `json:"max_window_ticks"`
+	MaxWindowSecs  float64           `json:"max_window_target_secs"`
 }
 
 // ClockSample is wall TPS derived from the observation-context ticks carried
@@ -162,6 +170,12 @@ func SummarizePhases(records []TimelineRecord) PhaseSummary {
 			steps.MaxReads = max(steps.MaxReads, reads)
 			steps.CacheHits += uint64(field(row.Payload, "cache_hits"))
 			steps.ParentHits += uint64(field(row.Payload, "parent_hits"))
+			if ticks := uint64(field(row.Payload, "window_ticks")); ticks > 0 {
+				steps.Windows++
+				steps.WindowTicks += ticks
+				steps.MaxWindowTicks = max(steps.MaxWindowTicks, ticks)
+				steps.MaxWindowSecs = math.Max(steps.MaxWindowSecs, field(row.Payload, "window_target_s"))
+			}
 			if tools, ok := row.Payload["tools"].(map[string]any); ok {
 				if steps.Tools == nil {
 					steps.Tools = map[string]uint64{}
@@ -295,6 +309,9 @@ func WritePhaseReport(w io.Writer, summary PhaseSummary) {
 	}
 	if steps := summary.Steps; steps.Steps > 0 {
 		fmt.Fprintf(w, "steps: %d, reads/step mean %.1f max %d, cache hits/step %.1f, parent hits/step %.1f", steps.Steps, float64(steps.Reads)/float64(steps.Steps), steps.MaxReads, float64(steps.CacheHits)/float64(steps.Steps), float64(steps.ParentHits)/float64(steps.Steps))
+		if steps.Windows > 0 {
+			fmt.Fprintf(w, ", window ticks mean %.0f max %d (target up to %.1fs) over %d sized steps", float64(steps.WindowTicks)/float64(steps.Windows), steps.MaxWindowTicks, steps.MaxWindowSecs, steps.Windows)
+		}
 		names := make([]string, 0, len(steps.Tools))
 		for tool := range steps.Tools {
 			names = append(names, tool)

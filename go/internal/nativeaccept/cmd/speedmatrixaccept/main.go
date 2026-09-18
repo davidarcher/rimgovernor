@@ -16,8 +16,10 @@
 // service, reads the outcome natively (stored units, walls built,
 // RequireHealthyColonists) and counts unsuccessful plan stages in the
 // service journal. The flight recorder gives wall TPS, paused fraction,
-// steps, reads/step, parent hits and the budget-vs-reactive stop split with
-// stop latency.
+// steps, reads/step, parent hits, the wall-sized colony window (#126) and
+// the budget-vs-reactive stop split with stop latency and budget stops per
+// 6000 ticks; -max-paused-fraction and -min-ultrafast-tps-ratio turn the
+// #126 throughput expectations into failures.
 //
 // Postconditions must agree within -tolerance (default 1) across speeds
 // and no case may record an unsuccessful plan stage; report.json under
@@ -60,6 +62,8 @@ func main() {
 	items := flag.Int("items", 4, "Steel stacks the stage spawns (1..8)")
 	segments := flag.Int("segments", 6, "wall segments the stage lays out (1..12)")
 	tolerance := flag.Int("tolerance", 1, "allowed spread of each pawn-outcome postcondition across speeds")
+	maxPaused := flag.Float64("max-paused-fraction", 0, "when positive, the paused fraction every case at Superfast or faster may reach (issue #126 asks for 0.5); 0 only reports it")
+	ultrafastRatio := flag.Float64("min-ultrafast-tps-ratio", 0, "when positive, the least multiple of the Fast case's wall TPS the Ultrafast case must reach (issue #126 asks for 2); 0 only reports it")
 	reuseGame := flag.Bool("reuse-game", true, "reload the stage through GameReuse's reset contract (issue #22); off reloads without the contract checks")
 	timeout := flag.Duration("timeout", 60*time.Minute, "overall run timeout")
 	stall := flag.Duration("stall", 0, "stall budget for each speed's wait (default na.StallBudget)")
@@ -93,10 +97,13 @@ func main() {
 	report["speeds"] = cases
 	report["tick_budget"] = *ticks
 	report["tolerance"] = *tolerance
+	report["max_paused_fraction"] = *maxPaused
+	report["min_ultrafast_tps_ratio"] = *ultrafastRatio
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
 	m := &matrix{root: *root, output: *output, gameID: *game, headless: !*rendered, binary: *binary,
 		cases: cases, ticks: *ticks, items: *items, segments: *segments, tolerance: *tolerance,
+		maxPaused: *maxPaused, ultrafastRatio: *ultrafastRatio,
 		reuseGame: *reuseGame, stall: *stall, report: report}
 	if err := m.run(ctx); err != nil {
 		report["error"] = err.Error()
@@ -112,6 +119,7 @@ type matrix struct {
 	cases                        []na.SpeedCase
 	ticks                        int64
 	items, segments, tolerance   int
+	maxPaused, ultrafastRatio    float64
 	reuseGame                    bool
 	stall                        time.Duration
 	report                       na.Report
@@ -215,6 +223,11 @@ func (m *matrix) run(ctx context.Context) (err error) {
 		if o.StoredUnits == 0 && o.WallsBuilt == 0 {
 			return fmt.Errorf("%s: nothing was hauled or built within the tick budget; raise -ticks or check the stage", o.Case)
 		}
+	}
+	rows, _ := m.report["metrics"].([]map[string]any)
+	if problems := na.CheckSpeedMetrics(na.SpeedMetricsFromRows(rows), m.maxPaused, m.ultrafastRatio); len(problems) > 0 {
+		m.report["metric_problems"] = problems
+		return fmt.Errorf("clock throughput short of the thresholds: %s", strings.Join(problems, "; "))
 	}
 	logData, err := os.ReadFile(m.cfg.StartupLogPath())
 	if err != nil {
@@ -638,16 +651,25 @@ func caseMetrics(c na.SpeedCase, phases bridge.PhaseSummary, stops na.StopSummar
 	if phases.Clock.ClockSamples > 0 {
 		pausedFraction = float64(phases.Clock.PausedSamples) / float64(phases.Clock.ClockSamples)
 	}
-	budgetTPS := 0.0
+	budgetTPS, budgetStopsPer6000 := 0.0, 0.0
 	if wallSeconds > 0 && lastTick > startTick {
 		budgetTPS = float64(lastTick-startTick) / wallSeconds
+	}
+	if lastTick > startTick {
+		budgetStopsPer6000 = float64(stops.BudgetStops) * 6000 / float64(lastTick-startTick)
+	}
+	// The colony windows the service sized by wall time (issue #126).
+	windowMean := 0.0
+	if phases.Steps.Windows > 0 {
+		windowMean = float64(phases.Steps.WindowTicks) / float64(phases.Steps.Windows)
 	}
 	return map[string]any{
 		"case": c.Name, "speed": c.Speed, "test_acceleration": c.TestAcceleration,
 		"ticks_advanced": lastTick - startTick, "wall_seconds": wallSeconds, "budget_wall_tps": budgetTPS,
 		"wall_tps": phases.Clock.WallTPS, "paused_fraction": pausedFraction,
 		"steps": phases.Steps.Steps, "reads_per_step": readsPerStep, "parent_hits": phases.Steps.ParentHits,
-		"cache_hits": phases.Steps.CacheHits, "stops": stops.Stops, "budget_stops": stops.BudgetStops,
+		"window_ticks_mean": windowMean, "window_ticks_max": phases.Steps.MaxWindowTicks, "window_target_secs_max": phases.Steps.MaxWindowSecs,
+		"cache_hits": phases.Steps.CacheHits, "stops": stops.Stops, "budget_stops": stops.BudgetStops, "budget_stops_per_6000_ticks": budgetStopsPer6000,
 		"reactive_stops": stops.ReactiveStops, "stop_reasons": stops.Reasons,
 		"stop_latency_mean_ms": stops.MeanLatencyMs, "stop_latency_max_ms": stops.MaxLatencyMs,
 	}

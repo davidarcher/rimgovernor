@@ -85,3 +85,30 @@ func TestSummarizeStops(t *testing.T) {
 		t.Fatalf("empty timeline %+v", empty)
 	}
 }
+
+// CheckSpeedMetrics bounds the paused fraction only at Superfast and
+// faster, compares the Ultrafast wall TPS against Fast only when both ran,
+// and is silent with both thresholds off.
+func TestCheckSpeedMetrics(t *testing.T) {
+	rows := SpeedMetricsFromRows([]map[string]any{
+		{"case": "Normal", "speed": "Normal", "wall_tps": 49.0, "paused_fraction": 0.36},
+		{"case": "Fast", "speed": "Fast", "wall_tps": 111.0, "paused_fraction": 0.57},
+		{"case": "Superfast", "speed": "Superfast", "wall_tps": 138.0, "paused_fraction": 0.74},
+		{"case": "Ultrafast", "speed": "Ultrafast", "wall_tps": 188.0, "paused_fraction": 0.91},
+		{"case": "uncapped", "speed": "Ultrafast", "wall_tps": 188.0, "paused_fraction": 0.4},
+	})
+	if got := CheckSpeedMetrics(rows, 0, 0); len(got) != 0 {
+		t.Fatal(got)
+	}
+	got := CheckSpeedMetrics(rows, 0.5, 2)
+	if len(got) != 3 || got[0] != "Superfast: paused fraction 0.74 exceeds 0.50" || got[1] != "Ultrafast: paused fraction 0.91 exceeds 0.50" || got[2] != "Ultrafast wall TPS 188.0 is under 2.0x the Fast wall TPS 111.0" {
+		t.Fatal(got)
+	}
+	if got := CheckSpeedMetrics(rows[2:], 0.5, 2); len(got) != 2 {
+		t.Fatal(got)
+	}
+	rows[3].WallTPS, rows[3].PausedFraction, rows[2].PausedFraction = 222, 0.5, 0.49
+	if got := CheckSpeedMetrics(rows, 0.5, 2); len(got) != 0 {
+		t.Fatal(got)
+	}
+}

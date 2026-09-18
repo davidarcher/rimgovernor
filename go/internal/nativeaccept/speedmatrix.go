@@ -275,3 +275,51 @@ func int64Value(v any) (int64, bool) {
 	}
 	return 0, false
 }
+
+// SpeedMetrics is the per-case row a speed matrix reports (caseMetrics in
+// speedmatrixaccept): the fields CheckSpeedMetrics reads, decoded from the
+// report's metrics rows.
+type SpeedMetrics struct {
+	Case           string
+	Speed          string
+	WallTPS        float64
+	PausedFraction float64
+}
+
+// SpeedMetricsFromRows decodes the "case", "speed", "wall_tps" and
+// "paused_fraction" fields of each metrics row.
+func SpeedMetricsFromRows(rows []map[string]any) []SpeedMetrics {
+	out := make([]SpeedMetrics, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, SpeedMetrics{Case: AsString(row["case"]), Speed: AsString(row["speed"]), WallTPS: AsNumber(row["wall_tps"]), PausedFraction: AsNumber(row["paused_fraction"])})
+	}
+	return out
+}
+
+// CheckSpeedMetrics lists the clock-throughput expectations of issue #126
+// the matrix missed. maxPausedFraction, when positive, bounds the paused
+// fraction of every case at Superfast or faster (the speeds whose windows
+// the wall-time sizing must widen). minUltrafastRatio, when positive,
+// requires the Ultrafast case's wall TPS to be at least that multiple of
+// the Fast case's; it is skipped unless both ran. An empty result means
+// the matrix met every enabled expectation.
+func CheckSpeedMetrics(rows []SpeedMetrics, maxPausedFraction, minUltrafastRatio float64) []string {
+	var problems []string
+	var fast, ultrafast *SpeedMetrics
+	for i := range rows {
+		row := &rows[i]
+		switch row.Case {
+		case "Fast":
+			fast = row
+		case "Ultrafast":
+			ultrafast = row
+		}
+		if maxPausedFraction > 0 && (row.Speed == "Superfast" || row.Speed == "Ultrafast") && row.PausedFraction > maxPausedFraction {
+			problems = append(problems, fmt.Sprintf("%s: paused fraction %.2f exceeds %.2f", row.Case, row.PausedFraction, maxPausedFraction))
+		}
+	}
+	if minUltrafastRatio > 0 && fast != nil && ultrafast != nil && ultrafast.WallTPS < minUltrafastRatio*fast.WallTPS {
+		problems = append(problems, fmt.Sprintf("Ultrafast wall TPS %.1f is under %.1fx the Fast wall TPS %.1f", ultrafast.WallTPS, minUltrafastRatio, fast.WallTPS))
+	}
+	return problems
+}

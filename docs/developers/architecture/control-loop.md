@@ -65,9 +65,13 @@ that dispatch the latched outcomes' action kinds and the readers of any
 invalidated fact family (an authority change plans everything). Planner
 facts are bound to the tick they observed, so admission holds with
 `stale_planning` when a window has since outrun them; the scheduler's
-`MaxAge` bounds only the admission reads. A colony window runs 2500 ticks by
-default (`--clock-window-ticks`, at most one game day), combat windows 300;
-a native work allowance (a growing field, a home fire) still clamps it.
+`MaxAge` bounds only the admission reads. A colony window runs at least 2500
+ticks (`--clock-window-ticks`) and is sized by wall time at the configured
+speed: the ticks `--clock-speed` runs in `--clock-window-seconds` (default
+2) or in the pause the scheduler has observed between windows, whichever is
+longer, at most one game day (#126); each step's flight-recorder
+`clock_step` row carries the window it sized. Combat windows stay at 300; a
+native work allowance (a growing field, a home fire) still clamps it.
 
 ## Verify progress
 

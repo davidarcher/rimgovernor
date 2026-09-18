@@ -52,7 +52,12 @@ func TestReadTallyCountsPerStepAndSummarizes(t *testing.T) {
 		if step == 0 && tally.String() != "total=4 lifecycle_read_identity=3 games_status=1" {
 			t.Fatalf("tally text: %q", tally.String())
 		}
-		tally.Publish(ctx, map[string]any{"running": false, "cache_hits": 2, "parent_hits": 3})
+		extra := map[string]any{"running": false, "cache_hits": 2, "parent_hits": 3}
+		if step == 1 {
+			// Only the step that reached the admission tail sized a window.
+			extra["window_ticks"], extra["window_target_s"], extra["window_tps"] = uint32(2700), 3.0, 900.0
+		}
+		tally.Publish(ctx, extra)
 	}
 	var empty ReadTally
 	empty.Publish(context.Background(), nil) // nothing tallied: no row, no panic
@@ -65,12 +70,12 @@ func TestReadTallyCountsPerStepAndSummarizes(t *testing.T) {
 	}
 	summary := SummarizePhases(rows)
 	steps := summary.Steps
-	if steps.Steps != 2 || steps.Reads != 6 || steps.MaxReads != 4 || steps.CacheHits != 4 || steps.ParentHits != 6 || steps.Tools["rimgovernor/lifecycle_read_identity"] != 4 || steps.Tools["games_status"] != 2 {
+	if steps.Steps != 2 || steps.Reads != 6 || steps.MaxReads != 4 || steps.CacheHits != 4 || steps.ParentHits != 6 || steps.Tools["rimgovernor/lifecycle_read_identity"] != 4 || steps.Tools["games_status"] != 2 || steps.Windows != 1 || steps.WindowTicks != 2700 || steps.MaxWindowTicks != 2700 || steps.MaxWindowSecs != 3 {
 		t.Fatalf("step summary: %+v", steps)
 	}
 	var report bytes.Buffer
 	WritePhaseReport(&report, summary)
-	if text := report.String(); !strings.Contains(text, "steps: 2, reads/step mean 3.0 max 4, cache hits/step 2.0, parent hits/step 3.0") || !strings.Contains(text, "rimgovernor/lifecycle_read_identity") {
+	if text := report.String(); !strings.Contains(text, "steps: 2, reads/step mean 3.0 max 4, cache hits/step 2.0, parent hits/step 3.0, window ticks mean 2700 max 2700 (target up to 3.0s) over 1 sized steps") || !strings.Contains(text, "rimgovernor/lifecycle_read_identity") {
 		t.Fatalf("report lacks step reads:\n%s", text)
 	}
 }

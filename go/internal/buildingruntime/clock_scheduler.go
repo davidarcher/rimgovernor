@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"time"
 
@@ -39,6 +40,9 @@ type ClockSchedulerConfig struct {
 	// holds an admitted plan and hostiles are alive; zero keeps Start.MaxTicks.
 	// Short windows let the raid be re-planned between them.
 	CombatMaxTicks uint32
+	// Window sizes each colony window by wall time from Start.MaxTicks up
+	// to Window.MaxTicks; the zero value keeps Start.MaxTicks fixed.
+	Window ClockWindowSizing
 	// FullStepEvery bounds how long timer steps without a tick advance may
 	// skip the planners; zero means DefaultFullStepEvery.
 	FullStepEvery time.Duration
@@ -100,52 +104,55 @@ type ClockSchedulerResult struct {
 	FoodStorage                                   *RoutineFoodStorageResult
 	Attempt                                       *store.ClockAttempt
 	Decision                                      policy.ClockWindowDecision
-	Routine                                       *store.RoutineReviewResult
-	FoodAcquisition, WoodAcquisition              *RoutineAcquisitionResult
-	Work                                          *RoutineWorkResult
-	Supplies                                      *RoutineSupplyResult
-	Sleeping                                      *RoutineBuildingResult
-	Cooking                                       *RoutineBuildingResult
-	Comfort                                       *RoutineBuildingResult
-	Workshop                                      *RoutineBuildingResult
-	Hospital                                      *RoutineBuildingResult
-	SleepingUpkeep                                *RoutineBuildingResult
-	Expansion                                     *RoutineBuildingResult
-	Power                                         *RoutineBuildingResult
-	Temperature                                   *RoutineBuildingResult
-	Refrigeration                                 *RoutineBuildingResult
-	Lighting                                      *RoutineBuildingResult
-	Flooring                                      *RoutineBuildingResult
-	Routes                                        *RoutineBuildingResult
-	Defense                                       *RoutineDefenseResult
-	Tend                                          *RoutineTendResult
-	Rescue                                        *RoutineRescueResult
-	Equip                                         *RoutineEquipResult
-	SecureSupplies                                *RoutineSecureSuppliesResult
-	Repair                                        *RoutineRepairResult
-	FireSafety                                    *RoutineFireSafetyResult
-	Clean                                         *RoutineCleanResult
-	Haul                                          *RoutineHaulResult
-	Gear                                          *RoutineGearResult
-	Medical                                       *RoutineMedicalResult
-	FoodStorageUpkeep                             *RoutineFoodStorageUpkeepResult
-	AnimalContainment                             *RoutineAnimalContainmentResult
-	Recovery                                      *RoutineRecoveryResult
-	Husbandry                                     *RoutineHusbandryResult
-	PrisonerInteraction                           *RoutinePrisonerInteractionResult
-	PopulationCustody                             *RoutinePopulationCustodyResult
-	Research                                      *RoutineResearchResult
-	Resource                                      *RoutineResourceResult
-	AnimalFeed                                    *RoutineResourceResult
-	ProductionPolicy                              *RoutineProductionPolicyResult
-	CaravanJourney                                *CaravanJourneyResult
-	HomeCoverage                                  *RoutineHomeCoverageResult
-	StoneShell                                    *RoutineStoneShellResult
-	DefenseLayout                                 *RoutineDefenseLayoutResult
-	Waste                                         *RoutineWasteResult
-	MoodRelief                                    *RoutineMoodReliefResult
-	Naming                                        *RoutineNamingResult
-	Running, Reconciled, Cleaned                  bool
+	// Window is the colony window the admission tail sized (before any
+	// native-work or combat bound), zero when the tail did not run.
+	Window                           ClockWindowSize
+	Routine                          *store.RoutineReviewResult
+	FoodAcquisition, WoodAcquisition *RoutineAcquisitionResult
+	Work                             *RoutineWorkResult
+	Supplies                         *RoutineSupplyResult
+	Sleeping                         *RoutineBuildingResult
+	Cooking                          *RoutineBuildingResult
+	Comfort                          *RoutineBuildingResult
+	Workshop                         *RoutineBuildingResult
+	Hospital                         *RoutineBuildingResult
+	SleepingUpkeep                   *RoutineBuildingResult
+	Expansion                        *RoutineBuildingResult
+	Power                            *RoutineBuildingResult
+	Temperature                      *RoutineBuildingResult
+	Refrigeration                    *RoutineBuildingResult
+	Lighting                         *RoutineBuildingResult
+	Flooring                         *RoutineBuildingResult
+	Routes                           *RoutineBuildingResult
+	Defense                          *RoutineDefenseResult
+	Tend                             *RoutineTendResult
+	Rescue                           *RoutineRescueResult
+	Equip                            *RoutineEquipResult
+	SecureSupplies                   *RoutineSecureSuppliesResult
+	Repair                           *RoutineRepairResult
+	FireSafety                       *RoutineFireSafetyResult
+	Clean                            *RoutineCleanResult
+	Haul                             *RoutineHaulResult
+	Gear                             *RoutineGearResult
+	Medical                          *RoutineMedicalResult
+	FoodStorageUpkeep                *RoutineFoodStorageUpkeepResult
+	AnimalContainment                *RoutineAnimalContainmentResult
+	Recovery                         *RoutineRecoveryResult
+	Husbandry                        *RoutineHusbandryResult
+	PrisonerInteraction              *RoutinePrisonerInteractionResult
+	PopulationCustody                *RoutinePopulationCustodyResult
+	Research                         *RoutineResearchResult
+	Resource                         *RoutineResourceResult
+	AnimalFeed                       *RoutineResourceResult
+	ProductionPolicy                 *RoutineProductionPolicyResult
+	CaravanJourney                   *CaravanJourneyResult
+	HomeCoverage                     *RoutineHomeCoverageResult
+	StoneShell                       *RoutineStoneShellResult
+	DefenseLayout                    *RoutineDefenseLayoutResult
+	Waste                            *RoutineWasteResult
+	MoodRelief                       *RoutineMoodReliefResult
+	Naming                           *RoutineNamingResult
+	Running, Reconciled, Cleaned     bool
 	// Combat is set while a combat watch window was admitted or is running,
 	// so the worker keeps its short poll instead of backing off.
 	Combat bool
@@ -177,6 +184,9 @@ type ClockScheduler struct {
 	lastTick, plannedTick           int64
 	lastTickKnown, plannedTickKnown bool
 	lastFull                        time.Time
+	// pause is the observed wall time between windows that sizes the next
+	// one (ClockWindowSizing); touched only under the player gate.
+	pause clockWindowPause
 
 	// tickTrace is a TEMPORARY diagnostic aid (RIMGOVERNOR_CLOCK_DEBUG=1),
 	// read and written only from Step() which the ClockWorker's stepLoop
@@ -362,6 +372,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	if config.CombatMaxTicks > config.Start.MaxTicks {
 		return nil, ErrControl
 	}
+	if w := config.Window; w.Seconds < 0 || w.TicksPerSecond < 0 || math.IsNaN(w.Seconds) || math.IsNaN(w.TicksPerSecond) || math.IsInf(w.Seconds, 0) || math.IsInf(w.TicksPerSecond, 0) || w.MaxTicks != 0 && w.MaxTicks < config.Start.MaxTicks {
+		return nil, ErrControl
+	}
 	// Validate command arguments through the canonical bridge validator; these
 	// fixed validation identities carry no runtime permission.
 	err := bridge.ValidateClockExpectation(bridge.ClockExpectation{Identity: &c.Identity{ColonyId: proto.String("validation"), LoadToken: proto.String("validation"), MapId: proto.Int32(0)}, Attempt: &c.AttemptKey{ControllerSessionId: proto.String("validation"), ActionId: proto.String("validation"), AttemptId: proto.Uint64(1)}, NativeGeneration: 1, Command: bridge.ClockCommand{Start: &config.Start}})
@@ -440,7 +453,11 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		elapsed := time.Since(stepBegan)
 		stats := cache.Stats()
 		clockSchedulerLog("step reads: %s cache hits=%d misses=%d coalesced=%d parent_hits=%d invalidations=%d running=%v elapsed=%s", reads, stats.Hits, stats.Misses, stats.Coalesced, stats.ParentHits, stats.Invalidations, out.Running, elapsed.Round(time.Millisecond))
-		reads.Publish(call, map[string]any{"cache_hits": stats.Hits, "parent_hits": stats.ParentHits, "running": out.Running, "elapsed_ms": float64(elapsed) / float64(time.Millisecond)})
+		extra := map[string]any{"cache_hits": stats.Hits, "parent_hits": stats.ParentHits, "running": out.Running, "elapsed_ms": float64(elapsed) / float64(time.Millisecond)}
+		if out.Window.Ticks != 0 {
+			extra["window_ticks"], extra["window_target_s"], extra["window_tps"] = out.Window.Ticks, out.Window.TargetSeconds, out.Window.TicksPerSecond
+		}
+		reads.Publish(call, extra)
 	}()
 	attempts, err := s.player.journal.LoadClockAttempts(call, 4096)
 	if err != nil {
@@ -650,6 +667,12 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	}
 	clockState := policy.ClockWindowState("")
 	start := s.config.Start
+	// The colony window is sized by wall time at the configured speed
+	// (issue #126) before a native-work or combat bound narrows it.
+	s.pause.observe(status, s.clock.Now())
+	out.Window = s.config.Window.colonyWindow(start.MaxTicks, s.pause)
+	start.MaxTicks = out.Window.Ticks
+	clockSchedulerLog("colony window: %d ticks (target %.1fs at %.0f ticks/s, pause estimate known=%v %.1fs)", out.Window.Ticks, out.Window.TargetSeconds, out.Window.TicksPerSecond, s.pause.known, s.pause.seconds)
 	var nativeWorkTicks uint32
 	if out.Fields != nil {
 		nativeWorkTicks = out.Fields.NativeWorkTicks

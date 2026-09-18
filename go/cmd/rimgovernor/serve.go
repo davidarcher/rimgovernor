@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"os"
 	"path/filepath"
@@ -96,6 +97,7 @@ type serveConfig struct {
 	clockSpeed                      string
 	clockTestAcceleration           bool
 	clockWindowTicks                uint
+	clockWindowSeconds              float64
 	chat                            bool
 	resume                          bool
 	chatModel                       string
@@ -130,6 +132,7 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.StringVar(&c.clockSpeed, "clock-speed", "Normal", "requested native game-clock speed while a supervised window is held: Normal, Fast, Superfast or Ultrafast")
 	flags.BoolVar(&c.clockTestAcceleration, "clock-test-acceleration", false, "acceptance only: ask native for its dev tick boost under each Ultrafast window; the game refuses it unless launched with -rimgovernor-test-acceleration (headless acceptance profiles)")
 	flags.UintVar(&c.clockWindowTicks, "clock-window-ticks", defaultClockWindowTicks, fmt.Sprintf("game ticks one supervised colony window may run before it pauses for review (1..%d); a watched outcome, danger or player input still stops it earlier", maxClockWindowTicks))
+	flags.Float64Var(&c.clockWindowSeconds, "clock-window-seconds", defaultClockWindowSeconds, fmt.Sprintf("least wall seconds a supervised colony window should run at --clock-speed: the window grows past --clock-window-ticks to the ticks the speed runs in this time, or in the pause observed between windows if longer, up to %d ticks; 0 keeps --clock-window-ticks fixed", maxClockWindowTicks))
 	flags.StringVar(&c.flightRecorder, "flight-recorder", "", "absolute path recording every native request/response/error (optional; opt-in diagnostics)")
 	flags.IntVar(&c.routineProjectLimit, "routine-project-limit", 2, "maximum concurrent optional projects, also bounded by observed workers (1..8)")
 	flags.StringVar(&c.routineResearchTarget, "routine-research-target", "", "native ResearchProjectDef name EnsureResearch selects prerequisite-ordered toward once no research project is current")
@@ -156,7 +159,7 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	explicit := map[string]bool{}
 	flags.Visit(func(f *flag.Flag) { explicit[f.Name] = true })
 	if *observe {
-		for _, name := range []string{"profile", "clock-speed", "clock-test-acceleration", "clock-window-ticks", "routine-project-limit", "routine-research-target", "routine-resource-target", "routine-resource-reserve", "routine-resource-stop", "routine-allow-slaughter", "routine-herd-population-max", "resource-rule", "world-evaluation-food-margin-days", "chat-model", "chat-base-url", "chat-context-tokens", "chat-max-output-tokens", "resume"} {
+		for _, name := range []string{"profile", "clock-speed", "clock-test-acceleration", "clock-window-ticks", "clock-window-seconds", "routine-project-limit", "routine-research-target", "routine-resource-target", "routine-resource-reserve", "routine-resource-stop", "routine-allow-slaughter", "routine-herd-population-max", "resource-rule", "world-evaluation-food-margin-days", "chat-model", "chat-base-url", "chat-context-tokens", "chat-max-output-tokens", "resume"} {
 			if explicit[name] {
 				return c, fmt.Errorf("--%s does not apply to --observe", name)
 			}
@@ -186,6 +189,9 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	}
 	if c.clockWindowTicks < 1 || c.clockWindowTicks > maxClockWindowTicks {
 		return c, fmt.Errorf("--clock-window-ticks must be 1 through %d", maxClockWindowTicks)
+	}
+	if c.clockWindowSeconds < 0 || math.IsNaN(c.clockWindowSeconds) || math.IsInf(c.clockWindowSeconds, 0) {
+		return c, errors.New("--clock-window-seconds must be non-negative")
 	}
 	if c.worldEvaluationFoodMarginDays < 0 {
 		return c, errors.New("--world-evaluation-food-margin-days must be non-negative")

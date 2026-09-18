@@ -76,21 +76,52 @@ func parseClockSpeed(speed string) k.Speed {
 	}
 }
 
-// Window policy. A colony window runs defaultClockWindowTicks (a little
-// over one game hour) before it pauses for a full review; --clock-window-ticks
-// widens or narrows it up to maxClockWindowTicks (one game day), never
-// unbounded. Watched outcomes, danger and player input stop a window early
-// regardless, so a wider window costs review latency only while nothing
-// happens. A raid runs in combatClockWindowTicks windows so the defense
-// planner re-targets between them.
+// Window policy. A colony window runs at least defaultClockWindowTicks (a
+// little over one game hour) before it pauses for a full review;
+// --clock-window-ticks widens or narrows that floor up to
+// maxClockWindowTicks (one game day), never unbounded. Faster clocks run
+// the floor in less wall time than a review takes, so the scheduler grows
+// the window to the ticks the configured speed runs in
+// --clock-window-seconds of wall time, or in the pause it observes between
+// windows if that is longer, still capped at maxClockWindowTicks (issue
+// #126; buildingruntime.ClockWindowSizing). Watched outcomes, danger and
+// player input stop a window early regardless, so a wider window costs
+// review latency only while nothing happens. A raid runs in
+// combatClockWindowTicks windows so the defense planner re-targets between
+// them; that bound is fixed.
 const (
-	defaultClockWindowTicks = 2500
-	maxClockWindowTicks     = 60000
-	combatClockWindowTicks  = 300
+	defaultClockWindowTicks   = 2500
+	maxClockWindowTicks       = 60000
+	combatClockWindowTicks    = 300
+	defaultClockWindowSeconds = 2.0
 )
 
-func serviceClockConfig(profile string, speed k.Speed, testAcceleration bool, windowTicks uint32) buildingruntime.ClockSchedulerConfig {
+// clockTicksPerSecond is the nominal wall tick rate of a speed: RimWorld
+// ticks 60 times a game second at Normal and multiplies that by 3, 6 and 15
+// for Fast, Superfast and Ultrafast. The headless test boost (an Ultrafast
+// epoch with test acceleration) ticks as fast as the game thread allows;
+// acceleratedClockTicksPerSecond is the rate #109 measured.
+func clockTicksPerSecond(speed k.Speed, testAcceleration bool) float64 {
+	if testAcceleration && speed == k.Speed_SPEED_ULTRAFAST {
+		return acceleratedClockTicksPerSecond
+	}
+	switch speed {
+	case k.Speed_SPEED_FAST:
+		return 180
+	case k.Speed_SPEED_SUPERFAST:
+		return 360
+	case k.Speed_SPEED_ULTRAFAST:
+		return 900
+	default:
+		return 60
+	}
+}
+
+const acceleratedClockTicksPerSecond = 7000
+
+func serviceClockConfig(profile string, speed k.Speed, testAcceleration bool, windowTicks uint32, windowSeconds float64) buildingruntime.ClockSchedulerConfig {
 	return buildingruntime.ClockSchedulerConfig{
+		Window: buildingruntime.ClockWindowSizing{Seconds: windowSeconds, TicksPerSecond: clockTicksPerSecond(speed, testAcceleration), MaxTicks: maxClockWindowTicks},
 		// MaxAge bounds how stale the admission reads (status, emergency)
 		// may be by the time EvaluateClockWindow admits a window. The
 		// planner facts are bound by tick instead (FactsTick), so the step
@@ -152,7 +183,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	fields, bills, foodStorage := sc.routineFieldPlans, sc.routineBillPlans, sc.routineFoodStoragePlans
 	prisonerInteraction, populationCustody, stoneShell, defensiveLayout := sc.routinePrisonerInteractionPlans, sc.routinePopulationCustodyPlans, sc.routineStoneShellPlans, sc.routineDefensiveLayoutPlans
 	haul, waste, moodRelief, naming := sc.routineHaulPlans, sc.routineWastePlans, sc.routineMoodPlans, sc.routineNamingPlans
-	config := serviceClockConfig(profile, parseClockSpeed(clockSpeed), sc.clockTestAcceleration, uint32(sc.clockWindowTicks))
+	config := serviceClockConfig(profile, parseClockSpeed(clockSpeed), sc.clockTestAcceleration, uint32(sc.clockWindowTicks), sc.clockWindowSeconds)
 	config.Facts = facts
 	config.RoutineMethods = session.RoutineMethodsEnabled()
 	if caravanJourneyTracking {
