@@ -661,12 +661,26 @@ message StatusReply { oneof outcome { StatusSnapshot observed = 1; rimgovernor.c
 // is a StaleIdentity failure. An events section may long-poll like
 // ReadEvents (wait_ms 0..5000): the whole bundle is then re-read after the
 // wait, so its sections still share one hop.
+//
+// The census families a planning step reads after the bundle may ride in
+// it too: colony_facts (ReadColonyFacts, planning, no definitions, page
+// 256), population (ReadPopulation), research (ReadResearch, locked and
+// finished included, page 256) and colonist_pawns (ListPawns for the
+// emergency section's colonists, by id, dead included, with needs, health,
+// equipment, biography, animals, work and schedule detail; it requires
+// emergency). They are best effort: a family that cannot be read, or that
+// would push the reply over the envelope, is omitted rather than failing
+// the bundle, and the caller reads it on its own.
 message BundleEventsRequest { optional int64 after_cursor = 1; optional uint32 limit = 2; optional uint32 wait_ms = 3; }
 message BundleRequest {
   ReadScope scope = 1;
   optional bool clock_status = 2;
   optional bool emergency = 3;
   BundleEventsRequest events = 4;
+  optional bool colony_facts = 5;
+  optional bool population = 6;
+  optional bool research = 7;
+  optional bool colonist_pawns = 8;
 }
 message BundleSnapshot {
   rimgovernor.common.v1.ObservationContext context = 1;
@@ -674,6 +688,10 @@ message BundleSnapshot {
   rimgovernor.clock.v1.Status clock_status = 3;
   StatusSnapshot emergency = 4;
   rimgovernor.clock.v1.EventsPage events = 5;
+  ColonyFactsSnapshot colony_facts = 6;
+  PopulationSnapshot population = 7;
+  ResearchSnapshot research = 8;
+  PawnSnapshot colonist_pawns = 9;
 }
 message BundleReply { oneof outcome { BundleSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message ObservationBatchSnapshot {

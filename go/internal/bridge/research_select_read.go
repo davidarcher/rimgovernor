@@ -28,11 +28,17 @@ type ResearchRead struct {
 	Researchers    []string
 }
 
+// researchRequest is the exact request ReadResearch issues, the key the
+// bundle seeds its research section under.
+func researchRequest(identity *c.Identity) *o.ResearchRequest {
+	return &o.ResearchRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, IncludeLocked: proto.Bool(true), IncludeFinished: proto.Bool(true), Page: &c.PageRequest{Limit: proto.Uint32(256)}}
+}
+
 func (client *Client) ReadResearch(ctx context.Context, identity *c.Identity) (ResearchRead, Result, error) {
 	if err := ValidateIdentity(identity); err != nil {
 		return ResearchRead{}, Result{}, err
 	}
-	request := &o.ResearchRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, IncludeLocked: proto.Bool(true), IncludeFinished: proto.Bool(true), Page: &c.PageRequest{Limit: proto.Uint32(256)}}
+	request := researchRequest(identity)
 	reply := &o.ResearchReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/observations_read_research", request, reply)
 	if err != nil {

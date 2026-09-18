@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -40,6 +41,15 @@ namespace HomeBridge.BridgeTools
                 catch (ReadLimit error) { return ProtoBoundary.Encode(new Obs.PopulationReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, error.Message) }); }
                 catch (Exception) { return ProtoBoundary.Encode(new Obs.PopulationReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Native population facts could not be read completely.") }); }
             }, cancellationToken).ConfigureAwait(false);
+        }
+
+        // The population as a bundle section (issue #180): the same rows the
+        // tool answers, or false for any read failure the bundle then omits.
+        internal static bool TryRead(Map map, Obs.PopulationRequest request, Common.ObservationContext context, [NotNullWhen(true)] out Obs.PopulationSnapshot? snapshot)
+        {
+            snapshot = null;
+            try { snapshot = Population(map, request, context); return true; }
+            catch (Exception) { return false; }
         }
 
         internal static bool ValidatePopulation(Obs.PopulationRequest request, out Common.Failure failure)

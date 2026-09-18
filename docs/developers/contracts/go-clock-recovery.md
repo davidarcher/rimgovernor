@@ -335,7 +335,22 @@ itself is never memoized (its clock sections are live controller state), but
 its tick and emergency sections are seeded into the step cache under the keys
 `lifecycle_read_tick` and the emergency `observations_read_status` use, so the
 routine census and the planners read them without another round trip and the
-parent files them under the `identity` and `emergency` families. The routine
+parent files them under the `identity` and `emergency` families. A step
+expected to review (`bundleRequest`: a reviewer is configured, no window
+runs, and the cause selects the planners, a timer only with the full step
+due) asks the same bundle for the routine census's families (issue #180):
+the planning colony facts, the population, the research page and the pawn
+detail of the emergency section's colonists, each seeded under the exact key
+its dedicated read builds (`colonyFactsRequest`, `populationRequest`,
+`researchRequest`, `pawnDetailsRequest` over the census's ids in order),
+so the review costs no census round trip and the parent files them under
+`colony`, `pawns` and `research`. The families are best effort on both
+sides: the native omits one it cannot read, and all of them when they push
+the reply past the envelope; an omitted family's read then goes natively,
+exactly as before, and a bundle that carries a family the request did not
+ask for, or one whose context differs from the bundle's, is a contract
+failure. A steady planning step is thus the bundle, the admission bundle
+and the window start. The routine
 reviewer, its acquisition and containment planners and the caravan tracker
 take their scope through `lifecycle_read_tick` when the source offers it
 (`stepScope`), so the review after a stop crosses the bridge for no identity

@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -27,49 +28,62 @@ namespace HomeBridge.BridgeTools
             return await ProtoBoundary.OnMainThread(ctx, () => {
                 if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out failure))
                     return ProtoBoundary.Encode(new Obs.ListPawnsReply { Failure = failure });
-                try {
-                    var source = map.mapPawns.AllPawnsSpawned.ToList();
-                    if (parsed.Filter?.IncludeDead == true)
-                        source.AddRange(map.listerThings.ThingsInGroup(ThingRequestGroup.Corpse).Cast<Corpse>().Select(c => c.InnerPawn));
-                    if (source.Any(p => p == null)) throw new InvalidOperationException("Null native pawn.");
-                    source = source.Distinct().ToList();
-                    var colonists = source.Where(p => !p.Dead && p.IsColonist && p.Spawned).ToList();
-                    var selected = new List<KeyValuePair<Pawn, Obs.PawnState>>();
-                    foreach (var pawn in source) {
-                        var row = Core(pawn, colonists, context);
-                        if (Matches(row, parsed.Filter)) selected.Add(new KeyValuePair<Pawn, Obs.PawnState>(pawn, row));
-                    }
-                    var ordered = selected.OrderBy(p => p.Value.Pawn.Id, StringComparer.Ordinal).ToList();
-                    var seed = QuerySeed(parsed.Filter);
-                    var afterCursor = ordered;
-                    if (parsed.Page != null && parsed.Page.HasCursor && parsed.Page.Cursor.Length != 0) {
-                        if (!NativeObservationSnapshot.Cursor.TryDecode(context.Identity, seed, parsed.Page.Cursor, out var after))
-                            return ProtoBoundary.Encode(new Obs.ListPawnsReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, "Pawn cursor is stale or does not match this query.") });
-                        afterCursor = ordered.Where(p => string.CompareOrdinal(p.Value.Pawn.Id, after) > 0).ToList();
-                    }
-                    var limit = parsed.Page?.HasLimit == true ? (int)parsed.Page.Limit : 256;
-                    var page = afterCursor.Take(limit).ToList();
-                    Require(page.Count, 256);
-                    var truncated = afterCursor.Count > page.Count;
-                    var result = new Obs.PawnSnapshot { Context = context, Completeness = Complete(page.Count, source.Count-selected.Count) };
-                    result.Completeness.Page.Complete = !truncated;
-                    if (truncated) result.Completeness.Page.NextCursor = NativeObservationSnapshot.Cursor.Encode(context.Identity, seed, page[page.Count-1].Value.Pawn.Id);
-                    foreach (var item in page) {
-                        NativePawnDetails.Apply(item.Key, colonists, item.Value, parsed.Details, context);
-                        if (item.Value.Settings != null) {
-                            item.Value.Settings.Snapshot = NativeWorkSettings.Snapshot(item.Key, context);
-                            if (item.Value.Settings.Snapshot != null)
-                                foreach (var issue in item.Value.Settings.Issues.Where(i => i.Field == "snapshot").ToArray()) item.Value.Settings.Issues.Remove(issue);
-                        }
-                        item.Value.Snapshot = PawnSnapshotToken(item.Key, item.Value, context);
-                        result.Pawns.Add(item.Value);
-                    }
-                    return Encode(new Obs.ListPawnsReply { Observed = result });
-                }
+                try { return Encode(new Obs.ListPawnsReply { Observed = Read(map, parsed, context) }); }
                 catch (ReadLimit error) { return ProtoBoundary.Encode(new Obs.ListPawnsReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, error.Message) }); }
                 catch (Exception error) { return ProtoBoundary.Encode(new Obs.ListPawnsReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed,
                     PlacementPreviewOperation.Diagnostic("Pawn facts could not be read completely: "+error)) }); }
             }, cancellationToken).ConfigureAwait(false);
+        }
+
+        // The pawn list as a bundle section (issue #180): the same rows the
+        // tool answers, or false for any read failure the bundle then omits.
+        internal static bool TryRead(Map map, Obs.ListPawnsRequest request, Common.ObservationContext context, [NotNullWhen(true)] out Obs.PawnSnapshot? snapshot)
+        {
+            snapshot = null;
+            try { snapshot = Read(map, request, context); return true; }
+            catch (Exception) { return false; }
+        }
+
+        // On the main thread. A stale cursor is a ReadLimit, as the tool reports it.
+        private static Obs.PawnSnapshot Read(Map map, Obs.ListPawnsRequest parsed, Common.ObservationContext context)
+        {
+            var source = map.mapPawns.AllPawnsSpawned.ToList();
+            if (parsed.Filter?.IncludeDead == true)
+                source.AddRange(map.listerThings.ThingsInGroup(ThingRequestGroup.Corpse).Cast<Corpse>().Select(c => c.InnerPawn));
+            if (source.Any(p => p == null)) throw new InvalidOperationException("Null native pawn.");
+            source = source.Distinct().ToList();
+            var colonists = source.Where(p => !p.Dead && p.IsColonist && p.Spawned).ToList();
+            var selected = new List<KeyValuePair<Pawn, Obs.PawnState>>();
+            foreach (var pawn in source) {
+                var row = Core(pawn, colonists, context);
+                if (Matches(row, parsed.Filter)) selected.Add(new KeyValuePair<Pawn, Obs.PawnState>(pawn, row));
+            }
+            var ordered = selected.OrderBy(p => p.Value.Pawn.Id, StringComparer.Ordinal).ToList();
+            var seed = QuerySeed(parsed.Filter);
+            var afterCursor = ordered;
+            if (parsed.Page != null && parsed.Page.HasCursor && parsed.Page.Cursor.Length != 0) {
+                if (!NativeObservationSnapshot.Cursor.TryDecode(context.Identity, seed, parsed.Page.Cursor, out var after))
+                    throw new ReadLimit("Pawn cursor is stale or does not match this query.");
+                afterCursor = ordered.Where(p => string.CompareOrdinal(p.Value.Pawn.Id, after) > 0).ToList();
+            }
+            var limit = parsed.Page?.HasLimit == true ? (int)parsed.Page.Limit : 256;
+            var page = afterCursor.Take(limit).ToList();
+            Require(page.Count, 256);
+            var truncated = afterCursor.Count > page.Count;
+            var result = new Obs.PawnSnapshot { Context = context, Completeness = Complete(page.Count, source.Count-selected.Count) };
+            result.Completeness.Page.Complete = !truncated;
+            if (truncated) result.Completeness.Page.NextCursor = NativeObservationSnapshot.Cursor.Encode(context.Identity, seed, page[page.Count-1].Value.Pawn.Id);
+            foreach (var item in page) {
+                NativePawnDetails.Apply(item.Key, colonists, item.Value, parsed.Details, context);
+                if (item.Value.Settings != null) {
+                    item.Value.Settings.Snapshot = NativeWorkSettings.Snapshot(item.Key, context);
+                    if (item.Value.Settings.Snapshot != null)
+                        foreach (var issue in item.Value.Settings.Issues.Where(i => i.Field == "snapshot").ToArray()) item.Value.Settings.Issues.Remove(issue);
+                }
+                item.Value.Snapshot = PawnSnapshotToken(item.Key, item.Value, context);
+                result.Pawns.Add(item.Value);
+            }
+            return result;
         }
 
         internal static bool Validate(Obs.ListPawnsRequest request, out Common.Failure failure)

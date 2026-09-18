@@ -548,9 +548,10 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	// The step's one native read: the current scope, the owned clock status
 	// and the emergency census of the same tick (issue #127). Its tick and
 	// emergency sections are seeded into the step cache, so the routine
-	// census and the planners read them without another round trip.
+	// census and the planners read them without another round trip; a step
+	// about to review asks for the census families too (issue #180).
 	started := s.clock.Now()
-	bundle, _, err := s.native.ReadBundle(call, &o.BundleRequest{ClockStatus: proto.Bool(true), Emergency: proto.Bool(true)})
+	bundle, _, err := s.native.ReadBundle(call, s.bundleRequest(reason))
 	if err != nil {
 		return out, errors.Join(err, s.session.Disable())
 	}
@@ -955,6 +956,34 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	}
 	s.running.Store(err == nil)
 	return out, err
+}
+
+// bundleRequest is the step's first bundle: the clock status and the
+// emergency census always, plus the routine census's families (colony
+// facts, population, research, the colonists' pawn detail) when the step
+// is expected to review, so the review costs no census round trips. The
+// expectation is the planner selection the step will make once the status
+// is read: a timer step reviews only when the full-step safety net is due
+// (a tick that moved under a stopped clock, or a stop the timer catches
+// before the poll, is the exception, read natively as before), any other
+// cause reviews unless the window the last status read reported still runs
+// and the wake did not carry its stop. A wrong guess costs a heavier bundle
+// or the dedicated reads, never a wrong fact.
+func (s *ClockScheduler) bundleRequest(reason StepReason) *o.BundleRequest {
+	request := &o.BundleRequest{ClockStatus: proto.Bool(true), Emergency: proto.Bool(true)}
+	if s.config.Routine == nil {
+		return request
+	}
+	review := false
+	if reason.Cause == StepTimer {
+		review = !s.running.Load() && s.fullStepDue()
+	} else if reason.Stopped || !s.running.Load() {
+		review, _ = plannerSelection(reason, s.facts.kindOf)
+	}
+	if review {
+		request.ColonyFacts, request.Population, request.Research, request.ColonistPawns = proto.Bool(true), proto.Bool(true), proto.Bool(true), proto.Bool(true)
+	}
+	return request
 }
 
 // plannerRefusalWait is stockWaitTicks when any isolated planner failure of

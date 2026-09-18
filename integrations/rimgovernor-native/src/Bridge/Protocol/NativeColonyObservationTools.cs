@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -43,6 +44,15 @@ namespace HomeBridge.BridgeTools
                 catch (ReadLimit e) { return ProtoBoundary.Encode(new Obs.ColonyFactsReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, e.Message) }); }
                 catch (Exception) { return ProtoBoundary.Encode(new Obs.ColonyFactsReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Native colony facts could not be read completely.") }); }
             }, cancellationToken).ConfigureAwait(false);
+        }
+
+        // The colony facts as a bundle section (issue #180): the same facts the
+        // tool answers, or false for any read failure the bundle then omits.
+        internal static bool TryRead(Map map, Obs.ColonyFactsRequest request, Common.ObservationContext context, [NotNullWhen(true)] out Obs.ColonyFactsSnapshot? snapshot)
+        {
+            snapshot = null;
+            try { snapshot = Read(map, request, context); return true; }
+            catch (Exception) { return false; }
         }
 
         internal static bool Validate(Obs.ColonyFactsRequest request, out Common.Failure failure)

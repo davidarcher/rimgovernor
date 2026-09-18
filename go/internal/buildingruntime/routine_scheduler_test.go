@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -83,5 +84,52 @@ func TestClockSchedulerRejectsDifferentRoutineOwner(t *testing.T) {
 	config.Routine = r
 	if _, err := NewClockScheduler(s.player, s.session, s.native, config, s.clock); err == nil {
 		t.Fatal("different player accepted")
+	}
+}
+
+// TestClockSchedulerBundleRequestsFamiliesForAReview: the step's first
+// bundle carries the census families exactly when the step is expected to
+// review (issue #180): never without a reviewer or while the window runs, on
+// a timer only when the full step is due, on evidence when the selection
+// runs the reviewer (a subset selection included).
+func TestClockSchedulerBundleRequestsFamiliesForAReview(t *testing.T) {
+	t.Parallel()
+	s, f := schedulerFixture(t)
+	families := func(r *o.BundleRequest) bool {
+		return r.GetColonyFacts() && r.GetPopulation() && r.GetResearch() && r.GetColonistPawns()
+	}
+	bare := func(r *o.BundleRequest) bool {
+		return r.GetClockStatus() && r.GetEmergency() && r.ColonyFacts == nil && r.Population == nil && r.Research == nil && r.ColonistPawns == nil
+	}
+	if r := s.bundleRequest(StepReason{Cause: StepFull}); !bare(r) {
+		t.Fatal("families without a reviewer", r)
+	}
+	schedulerRoutine(t, s, f)
+	if r := s.bundleRequest(StepReason{Cause: StepFull}); !families(r) || !r.GetClockStatus() || !r.GetEmergency() {
+		t.Fatal(r)
+	}
+	if r := s.bundleRequest(StepReason{Cause: StepTimer}); !families(r) {
+		t.Fatal("timer with the full step due", r)
+	}
+	s.lastFull = s.clock.Now()
+	if r := s.bundleRequest(StepReason{Cause: StepTimer}); !bare(r) {
+		t.Fatal("timer between full steps", r)
+	}
+	if r := s.bundleRequest(StepReason{Cause: StepWake, Authority: true}); !families(r) {
+		t.Fatal("authority wake", r)
+	}
+	if r := s.bundleRequest(StepReason{Cause: StepWake, Families: []bridge.FactFamily{bridge.FactPawns}}); !families(r) {
+		t.Fatal("wake selecting a planner subset still reviews", r)
+	}
+	s.running.Store(true)
+	if r := s.bundleRequest(StepReason{Cause: StepFull}); !bare(r) {
+		t.Fatal("families under a running window", r)
+	}
+	if r := s.bundleRequest(StepReason{Cause: StepWake, Stopped: true}); !families(r) {
+		t.Fatal("wake carrying the window's stop", r)
+	}
+	s.lastFull = time.Time{}
+	if r := s.bundleRequest(StepReason{Cause: StepTimer}); !bare(r) {
+		t.Fatal("timer under a running window", r)
 	}
 }

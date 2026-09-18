@@ -78,7 +78,8 @@ Steps (`steps`, from `clock_step` rows):
 | Field | Meaning |
 | --- | --- |
 | `steps` | `ClockScheduler.Step` calls that ran (held steps publish too). |
-| `reads`, `max_reads`, `tools` | Native round trips the steps issued; the report shows the mean and max per step and the split by tool. A rising reads/step means a planner lost its cache. |
+| `reads`, `max_reads`, `tools` | Native round trips the steps issued; the report shows the mean and max per step and the split by tool. A rising reads/step means a planner lost its cache. A steady step is one bundle; a reviewing step is the bundle (carrying the census families, #180), the admission bundle and the window start. |
+| `schema_fetches` | Describe (`games_tool_detail`) round trips the step paid for a tool's first call, counted apart from `reads` (#180): a session's startup cost, not a step's. |
 | `cache_hits` | Reads served by the per-step read cache (same tool and arguments within one step). |
 | `parent_hits` | Reads served by the cross-step `FactCache` from the previous step's facts; `> 0` with a lower reads/step is the evidence that the cache is working. |
 | `windows`, `window_ticks`, `max_window_ticks`, `max_window_target_secs` | The wall-sized colony windows (#126): how many ticks each window was budgeted and the wall target it was sized to. |

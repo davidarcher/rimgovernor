@@ -24,7 +24,7 @@ func (client *Client) ReadColonyFacts(ctx context.Context, identity *c.Identity,
 		}
 		seen[name] = true
 	}
-	request := &o.ColonyFactsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Planning: proto.Bool(planning), RequestedDefinitionNames: append([]string(nil), definitions...), Page: &c.PageRequest{Limit: proto.Uint32(256)}}
+	request := colonyFactsRequest(identity, planning, definitions)
 	reply := &o.ColonyFactsReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/observations_read_colony_facts", request, reply)
 	if err != nil {
@@ -60,6 +60,13 @@ func (client *Client) ReadColonyFacts(ctx context.Context, identity *c.Identity,
 		err = contract("missing colony outcome")
 	}
 	return reply, raw, err
+}
+
+// colonyFactsRequest is the exact request ReadColonyFacts issues; the
+// bundle seeds its colony_facts section under the planning form of it
+// (planning, no definitions).
+func colonyFactsRequest(identity *c.Identity, planning bool, definitions []string) *o.ColonyFactsRequest {
+	return &o.ColonyFactsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Planning: proto.Bool(planning), RequestedDefinitionNames: append([]string(nil), definitions...), Page: &c.PageRequest{Limit: proto.Uint32(256)}}
 }
 
 func colonyCounts(v *o.Completeness, count, limit int) error {

@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -40,6 +41,22 @@ namespace HomeBridge.BridgeTools
                 catch (StaleCursor) { return ProtoBoundary.Encode(new Obs.ResearchReply { Unavailable = Missing(Common.UnavailableReason.LimitExceeded, "Research cursor is stale or does not match this query.") }); }
                 catch (Exception) { return ProtoBoundary.Encode(new Obs.ResearchReply { Unavailable = Missing(Common.UnavailableReason.ReadFailed, "Research state or required native eligibility facts could not be read completely.") }); }
             }, cancellationToken).ConfigureAwait(false);
+        }
+
+        // The research state as a bundle section (issue #180): the same page
+        // the tool answers, or false for any read failure the bundle then omits.
+        internal static bool TryRead(Map map, Obs.ResearchRequest request, Common.ObservationContext context, [NotNullWhen(true)] out Obs.ResearchSnapshot? snapshot)
+        {
+            snapshot = null;
+            try
+            {
+                var manager = Find.ResearchManager;
+                var player = Faction.OfPlayerSilentFail;
+                if (manager == null || player?.def == null) return false;
+                snapshot = Read(request, context, map, manager, player);
+                return true;
+            }
+            catch (Exception) { return false; }
         }
 
         internal static bool Validate(Obs.ResearchRequest request, out Common.Failure failure)

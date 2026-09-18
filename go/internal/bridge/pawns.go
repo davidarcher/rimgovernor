@@ -43,14 +43,7 @@ func (client *Client) readPawnDetails(ctx context.Context, identity *c.Identity,
 	// the caller never asked for, which validateSettings correctly refuses as
 	// unrequested detail, permanently failing every routine review (confirmed
 	// live: routinehaulaccept/issue #42).
-	request := &o.ListPawnsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Filter: &o.PawnFilter{Ids: copied, IncludeDead: proto.Bool(true)}, Details: &o.PawnDetails{Needs: proto.Bool(false), Health: proto.Bool(combat), Equipment: proto.Bool(combat), Biography: proto.Bool(combat), Settings: proto.Bool(care), Social: proto.Bool(false), Animals: proto.Bool(combat)}, Page: &c.PageRequest{Limit: proto.Uint32(uint32(len(copied)))}}
-	if work {
-		request.Details.Work = proto.Bool(true)
-		request.Details.Needs = proto.Bool(true)
-	}
-	if schedule {
-		request.Details.Schedule = proto.Bool(true)
-	}
+	request := pawnDetailsRequest(identity, copied, combat, work, care, schedule)
 	reply := &o.ListPawnsReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/observations_list_pawns", request, reply)
 	if err != nil {
@@ -71,6 +64,22 @@ func (client *Client) readPawnDetails(ctx context.Context, identity *c.Identity,
 	}
 	return reply, raw, err
 }
+
+// pawnDetailsRequest is the exact request readPawnDetails issues for ids
+// (validated, in the caller's order); the bundle seeds its colonist_pawns
+// section under the routine form of it (ReadRoutinePawns).
+func pawnDetailsRequest(identity *c.Identity, ids []string, combat, work, care, schedule bool) *o.ListPawnsRequest {
+	request := &o.ListPawnsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Filter: &o.PawnFilter{Ids: append([]string(nil), ids...), IncludeDead: proto.Bool(true)}, Details: &o.PawnDetails{Needs: proto.Bool(false), Health: proto.Bool(combat), Equipment: proto.Bool(combat), Biography: proto.Bool(combat), Settings: proto.Bool(care), Social: proto.Bool(false), Animals: proto.Bool(combat)}, Page: &c.PageRequest{Limit: proto.Uint32(uint32(len(ids)))}}
+	if work {
+		request.Details.Work = proto.Bool(true)
+		request.Details.Needs = proto.Bool(true)
+	}
+	if schedule {
+		request.Details.Schedule = proto.Bool(true)
+	}
+	return request
+}
+
 func pawnsSnapshot(v *o.PawnSnapshot, id *c.Identity, requested map[string]bool) error {
 	return pawnsSnapshotDetails(v, id, requested, false)
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 func bundleTestRequest() *o.BundleRequest {
@@ -240,5 +241,201 @@ func TestBundleReadSeedsTheStepCache(t *testing.T) {
 	}
 	if _, _, err = client.Tick(context.Background()); err != nil || server.calls["rimgovernor/lifecycle_read_tick"].Load() != 3 {
 		t.Fatal(err, "tick served without a native read")
+	}
+}
+
+// retagContexts sets every ObservationContext inside message, at any depth,
+// to context, so a fixture read under another tick joins a bundle's.
+func retagContexts(message proto.Message, context *c.ObservationContext) {
+	var walk func(m protoreflect.Message)
+	walk = func(m protoreflect.Message) {
+		m.Range(func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
+			if fd.Kind() != protoreflect.MessageKind || fd.IsMap() {
+				return true
+			}
+			if fd.IsList() {
+				for i := 0; i < v.List().Len(); i++ {
+					walk(v.List().Get(i).Message())
+				}
+				return true
+			}
+			if _, ok := v.Message().Interface().(*c.ObservationContext); ok {
+				m.Set(fd, protoreflect.ValueOfMessage(proto.Clone(context).ProtoReflect()))
+				return true
+			}
+			walk(v.Message())
+			return true
+		})
+	}
+	walk(message.ProtoReflect())
+}
+
+// bundleFamilyServer answers the bundle with every census family and the
+// dedicated family reads with the same rows, counting each.
+type bundleFamilyServer struct {
+	*bundleServer
+	colony     *o.ColonyFactsReply
+	population *o.PopulationReply
+	research   *o.ResearchReply
+	pawns      *o.ListPawnsReply
+}
+
+var bundleFamilyTools = []string{"rimgovernor/observations_read_colony_facts", "rimgovernor/observations_read_population", "rimgovernor/observations_read_research", "rimgovernor/observations_list_pawns"}
+
+func newBundleFamilyServer(t *testing.T) *bundleFamilyServer {
+	t.Helper()
+	context := authorityTestContext(7)
+	s := &bundleFamilyServer{bundleServer: newBundleServer()}
+	for _, name := range bundleFamilyTools {
+		s.calls[name] = &atomic.Int64{}
+	}
+	s.colony = colonyFixture(t)
+	retagContexts(s.colony, context)
+	s.population = populationReply(prisonerPerson("prisoner-1", ""))
+	retagContexts(s.population, context)
+	s.research = &o.ResearchReply{Outcome: &o.ResearchReply_Observed{Observed: &o.ResearchSnapshot{Context: proto.Clone(context).(*c.ObservationContext), Snapshot: &o.SnapshotRef{Token: proto.String("research-token")}}}}
+	pawns := combatPawnsFixture()
+	pawns.Pawns[0].Settings = &o.PawnSettings{WorkApplies: proto.Bool(true), ManualWorkPriorities: proto.Bool(false), Work: []*o.WorkSetting{{DefName: proto.String("Construction"), Priority: proto.Int32(3), Disabled: proto.Bool(false)}}}
+	s.pawns = &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: pawns}}
+	s.snapshot.Emergency.Colonists.Pawns = []*o.PawnState{emergencyRow("pawn-1")}
+	s.snapshot.Emergency.Colonists.Completeness = emergencyCounts(1)
+	s.snapshot.ColonyFacts = proto.Clone(s.colony.GetObserved()).(*o.ColonyFactsSnapshot)
+	s.snapshot.Population = proto.Clone(s.population.GetObserved()).(*o.PopulationSnapshot)
+	s.snapshot.Research = proto.Clone(s.research.GetObserved()).(*o.ResearchSnapshot)
+	s.snapshot.ColonistPawns = proto.Clone(pawns).(*o.PawnSnapshot)
+	return s
+}
+
+func (s *bundleFamilyServer) handle(ctx context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+	switch arg.Tool {
+	case "rimgovernor/observations_read_colony_facts":
+		s.calls[arg.Tool].Add(1)
+		return pbResult(s.colony), nil
+	case "rimgovernor/observations_read_population":
+		s.calls[arg.Tool].Add(1)
+		return pbResult(s.population), nil
+	case "rimgovernor/observations_read_research":
+		s.calls[arg.Tool].Add(1)
+		return pbResult(s.research), nil
+	case "rimgovernor/observations_list_pawns":
+		s.calls[arg.Tool].Add(1)
+		return pbResult(s.pawns), nil
+	}
+	return s.bundleServer.handle(ctx, arg)
+}
+
+func bundleFamilyRequest() *o.BundleRequest {
+	request := bundleTestRequest()
+	request.ColonyFacts, request.Population, request.Research, request.ColonistPawns = proto.Bool(true), proto.Bool(true), proto.Bool(true), proto.Bool(true)
+	return request
+}
+
+// familyReads issues the routine census's family reads under ctx and
+// reports how many crossed the bridge.
+func (s *bundleFamilyServer) familyReads(t *testing.T, ctx context.Context, client *Client) int64 {
+	t.Helper()
+	before := s.familyCalls()
+	if _, _, err := client.ReadColonyFacts(ctx, pbIdentity(), true, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := client.ReadRoutinePopulation(ctx, pbIdentity()); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := client.ReadResearch(ctx, pbIdentity()); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := client.ReadRoutinePawns(ctx, pbIdentity(), []string{"pawn-1"}); err != nil {
+		t.Fatal(err)
+	}
+	return s.familyCalls() - before
+}
+
+func (s *bundleFamilyServer) familyCalls() int64 {
+	var n int64
+	for _, name := range bundleFamilyTools {
+		n += s.calls[name].Load()
+	}
+	return n
+}
+
+// TestBundleReadSeedsTheCensusFamilies: a bundle that carries the census
+// families serves the routine census's colony facts, population, research
+// and colonist pawn reads from the step cache (issue #180); a family the
+// native left out is read natively, exactly as before.
+func TestBundleReadSeedsTheCensusFamilies(t *testing.T) {
+	server := newBundleFamilyServer(t)
+	client := testClient(t, &testServer{schema: protoSchema, handler: server.handle}, time.Second)
+	parent := NewFactCache()
+	ctx := WithStepReadCache(context.Background(), NewChildReadCache(parent))
+	reply, _, err := client.ReadBundle(ctx, bundleFamilyRequest())
+	if err != nil || reply.GetObserved().GetColonyFacts() == nil || reply.GetObserved().GetColonistPawns() == nil {
+		t.Fatal(reply, err)
+	}
+	if n := server.familyReads(t, ctx, client); n != 0 {
+		t.Fatal("seeded families crossed the bridge", n)
+	}
+	if parent.Len() != 6 {
+		t.Fatal(parent.Len())
+	}
+	// A planning read with definitions is another key and still goes natively.
+	if _, _, err = client.ReadColonyFacts(ctx, pbIdentity(), true, []string{"Wall"}); err != nil || server.calls["rimgovernor/observations_read_colony_facts"].Load() != 1 {
+		t.Fatal(err, "definition read served from the bundle")
+	}
+	// Families the native omitted (best effort) leave the request satisfied
+	// and the dedicated reads native.
+	server.snapshot.ColonyFacts, server.snapshot.Population, server.snapshot.Research, server.snapshot.ColonistPawns = nil, nil, nil, nil
+	ctx = WithStepReadCache(context.Background(), NewStepReadCache())
+	if _, _, err = client.ReadBundle(ctx, bundleFamilyRequest()); err != nil {
+		t.Fatal(err)
+	}
+	if n := server.familyReads(t, ctx, client); n != 4 {
+		t.Fatal("omitted families served without a read", n)
+	}
+	// An incomplete colonist census seeds no pawn rows: the bracket reads
+	// none, and a read of any ids goes natively.
+	server = newBundleFamilyServer(t)
+	server.snapshot.Emergency.Colonists.Completeness.Page.Complete = proto.Bool(false)
+	client = testClient(t, &testServer{schema: protoSchema, handler: server.handle}, time.Second)
+	ctx = WithStepReadCache(context.Background(), NewStepReadCache())
+	if _, _, err = client.ReadBundle(ctx, bundleFamilyRequest()); err != nil {
+		t.Fatal(err)
+	}
+	if n := server.familyReads(t, ctx, client); n != 1 || server.calls["rimgovernor/observations_list_pawns"].Load() != 1 {
+		t.Fatal("pawns seeded from an incomplete census", n)
+	}
+}
+
+func TestBundleReadValidatesTheCensusFamilies(t *testing.T) {
+	server := newBundleFamilyServer(t)
+	client := testClient(t, &testServer{schema: protoSchema, handler: server.handle}, time.Second)
+	if _, _, err := client.ReadBundle(context.Background(), &o.BundleRequest{ColonistPawns: proto.Bool(true)}); !errors.Is(err, ErrContract) || server.calls[bundleMethod].Load() != 0 {
+		t.Fatal("colonist pawns without the emergency section", err)
+	}
+	cases := map[string]struct {
+		request func(*o.BundleRequest)
+		mutate  func(*o.BundleSnapshot)
+	}{
+		"colony unrequested":     {request: func(r *o.BundleRequest) { r.ColonyFacts = nil }},
+		"population unrequested": {request: func(r *o.BundleRequest) { r.Population = proto.Bool(false) }},
+		"research unrequested":   {request: func(r *o.BundleRequest) { r.Research = nil }},
+		"pawns unrequested":      {request: func(r *o.BundleRequest) { r.ColonistPawns = nil }},
+		"colony tick":            {mutate: func(s *o.BundleSnapshot) { s.ColonyFacts.Context.Tick = proto.Int64(13) }},
+		"population identity":    {mutate: func(s *o.BundleSnapshot) { s.Population.Context.Identity.LoadToken = proto.String("other") }},
+		"research context":       {mutate: func(s *o.BundleSnapshot) { s.Research.Context = nil }},
+		"pawns tick":             {mutate: func(s *o.BundleSnapshot) { s.ColonistPawns.Context.Tick = proto.Int64(13) }},
+	}
+	for name, tc := range cases {
+		server := newBundleFamilyServer(t)
+		if tc.mutate != nil {
+			tc.mutate(server.snapshot)
+		}
+		request := bundleFamilyRequest()
+		if tc.request != nil {
+			tc.request(request)
+		}
+		client := testClient(t, &testServer{schema: protoSchema, handler: server.handle}, time.Second)
+		if reply, _, err := client.ReadBundle(context.Background(), request); !errors.Is(err, ErrContract) || reply != nil {
+			t.Fatal(name, reply, err)
+		}
 	}
 }

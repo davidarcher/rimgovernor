@@ -65,7 +65,7 @@ func (client *Client) ReadPrisonerInteractionTarget(ctx context.Context, identit
 	}
 	identity = proto.Clone(identity).(*c.Identity)
 	reply := &o.PopulationReply{}
-	raw, err := client.protoRead(ctx, "rimgovernor/observations_read_population", &o.PopulationRequest{Scope: &o.ReadScope{ExpectedIdentity: identity}}, reply)
+	raw, err := client.protoRead(ctx, "rimgovernor/observations_read_population", populationRequest(identity), reply)
 	if err != nil {
 		return PrisonerTarget{}, raw, err
 	}
@@ -135,13 +135,19 @@ type PrisonerCensus struct {
 // living-or-dead prisoner's recruit/maintain facts. It requires a single
 // complete page, like ReadPrisonerInteractionTarget; a paginated population
 // is deferred to whatever candidate search eventually needs one.
+// populationRequest is the exact request the population reads issue, the
+// key the bundle seeds its population section under.
+func populationRequest(identity *c.Identity) *o.PopulationRequest {
+	return &o.PopulationRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}}
+}
+
 func (client *Client) ReadRoutinePopulation(ctx context.Context, identity *c.Identity) (PrisonerCensus, Result, error) {
 	if err := ValidateIdentity(identity); err != nil {
 		return PrisonerCensus{}, Result{}, err
 	}
 	identity = proto.Clone(identity).(*c.Identity)
 	reply := &o.PopulationReply{}
-	raw, err := client.protoRead(ctx, "rimgovernor/observations_read_population", &o.PopulationRequest{Scope: &o.ReadScope{ExpectedIdentity: identity}}, reply)
+	raw, err := client.protoRead(ctx, "rimgovernor/observations_read_population", populationRequest(identity), reply)
 	if err != nil {
 		return PrisonerCensus{}, raw, err
 	}

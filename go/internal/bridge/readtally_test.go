@@ -79,3 +79,49 @@ func TestReadTallyCountsPerStepAndSummarizes(t *testing.T) {
 		t.Fatalf("report lacks step reads:\n%s", text)
 	}
 }
+
+// The schema fetch before a tool's first call is a session cost, tallied
+// apart from the step's reads (issue #180).
+func TestReadTallyCountsSchemaFetchesApart(t *testing.T) {
+	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
+		return pbResult(pbLoaded()), nil
+	}}
+	path := filepath.Join(t.TempDir(), "timeline.jsonl")
+	rec, err := NewFlightRecorder(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { rec.Close() })
+	client, err := open(context.Background(), "fixture-game", time.Second, rec, s.factory(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = client.Close() })
+	ctx, tally := WithReadTally(context.Background())
+	for i := 0; i < 2; i++ {
+		if _, _, err = client.Identity(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if tally.Total() != 2 || tally.Schema() != 1 || tally.Counts()["games_tool_detail"] != 0 || tally.String() != "total=2 lifecycle_read_identity=2 schema=1" {
+		t.Fatalf("tally: total %d schema %d %q", tally.Total(), tally.Schema(), tally.String())
+	}
+	tally.Publish(ctx, nil)
+	if err = rec.Close(); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := ReadTimeline(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, row := range rows {
+		if row.Kind != "clock_step" {
+			continue
+		}
+		if field(row.Payload, "reads") != 2 || field(row.Payload, "schema_fetches") != 1 {
+			t.Fatalf("clock_step payload: %v", row.Payload)
+		}
+		return
+	}
+	t.Fatal("no clock_step row")
+}

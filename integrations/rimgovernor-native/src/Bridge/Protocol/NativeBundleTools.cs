@@ -20,13 +20,22 @@ namespace HomeBridge.BridgeTools
     /// the dedicated reads report. An events section long-polls like
     /// clock_read_events: the first hop registers the waiter, and the hop
     /// after the wake re-reads the whole bundle without waiting.
+    ///
+    /// A planning step also asks for the routine census's families (issue
+    /// #180): the planning colony facts, the population, the research state
+    /// and the pawn detail of the emergency section's colonists, each the
+    /// exact read the scheduler would otherwise issue after the bundle. They
+    /// are best effort: a family that fails to read is omitted, and when the
+    /// families push the reply past the envelope they are all omitted, so the
+    /// dedicated reads then serve them as before and the bundle itself never
+    /// fails on their account.
     /// </summary>
     public sealed class NativeBundleTools
     {
         private const string ToolName = "rimgovernor/observations_read_bundle";
 
         [Tool(ToolName, Title = "Read scheduler bundle",
-            Description = "Official BundleRequest ProtoJSON. One read of the current scope plus, as requested, the owned clock status, the emergency status (colonists and threats) and one clock events page (cursor>=0, limit1..128, wait_ms<=5000), all from one tick. Read-only.")]
+            Description = "Official BundleRequest ProtoJSON. One read of the current scope plus, as requested, the owned clock status, the emergency status (colonists and threats), one clock events page (cursor>=0, limit1..128, wait_ms<=5000) and, best effort, the planning colony facts, population, research and colonist pawn detail families, all from one tick. Read-only.")]
         [ToolResponse("payload", "string", "Official observations BundleReply ProtoJSON.", Always = true)]
         public async Task<object> ReadBundle(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw value must be a BundleRequest ProtoJSON string.")] object? request = null)
@@ -47,6 +56,11 @@ namespace HomeBridge.BridgeTools
             if (request.Scope != null && !ProtoBoundary.Complete(request.Scope.ExpectedIdentity))
             {
                 failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A bundle scope must carry a complete valid colony, load and map identity.");
+                return false;
+            }
+            if (request.HasColonistPawns && request.ColonistPawns && !(request.HasEmergency && request.Emergency))
+            {
+                failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Bundle colonist pawns require the emergency section.");
                 return false;
             }
             var events = request.Events;
@@ -91,13 +105,53 @@ namespace HomeBridge.BridgeTools
                 if (page.Failure != null) { wake = null; return ProtoBoundary.Encode(new Obs.BundleReply { Failure = page.Failure }); }
                 observed.Events = page.Page;
             }
+            var families = wake == null && ReadFamilies(map, request, context, observed);
             var reply = new Obs.BundleReply { Observed = observed };
-            if (new System.Text.UTF8Encoding(false, true).GetByteCount(JsonFormatter.Default.Format(reply)) > ProtoBoundary.MaximumEnvelopeBytes)
+            if (families && Oversized(reply))
+            {
+                observed.ColonyFacts = null; observed.Population = null; observed.Research = null; observed.ColonistPawns = null;
+            }
+            if (Oversized(reply))
             {
                 wake = null;
                 return ProtoBoundary.Encode(new Obs.BundleReply { Failure = ProtoBoundary.Fail(Common.FailureCode.CapacityExhausted, "Bundle exceeds the bounded reply envelope; no rows were omitted.") });
             }
-            return ProtoBoundary.Encode(reply);
+            return ProtoBoundary.Encode(reply, compact: true);
+        }
+
+        private static bool Oversized(Obs.BundleReply reply) =>
+            new System.Text.UTF8Encoding(false, true).GetByteCount(ProtoBoundary.Format(reply, compact: true)) > ProtoBoundary.MaximumEnvelopeBytes;
+
+        // On the main thread. Adds the requested census families to observed,
+        // each keyed as its dedicated read, omitting any that fails; reports
+        // whether any was added. A waiting events hop carries none: the hop
+        // after the wake reads them, so the census describes the woken tick.
+        private static bool ReadFamilies(Map map, Obs.BundleRequest request, Common.ObservationContext context, Obs.BundleSnapshot observed)
+        {
+            var added = false;
+            Obs.ReadScope Scope() => new Obs.ReadScope { ExpectedIdentity = context.Identity.Clone() };
+            if (request.HasColonyFacts && request.ColonyFacts
+                && NativeColonyObservationTools.TryRead(map, new Obs.ColonyFactsRequest { Scope = Scope(), Planning = true, Page = new Common.PageRequest { Limit = 256 } }, context, out var colony))
+            { observed.ColonyFacts = colony; added = true; }
+            if (request.HasPopulation && request.Population
+                && NativePopulationObservation.TryRead(map, new Obs.PopulationRequest { Scope = Scope() }, context, out var population))
+            { observed.Population = population; added = true; }
+            if (request.HasResearch && request.Research
+                && NativeResearchObservationTools.TryRead(map, new Obs.ResearchRequest { Scope = Scope(), IncludeLocked = true, IncludeFinished = true, Page = new Common.PageRequest { Limit = 256 } }, context, out var research))
+            { observed.Research = research; added = true; }
+            if (request.HasColonistPawns && request.ColonistPawns && observed.Emergency?.Colonists != null
+                && observed.Emergency.Colonists.Completeness?.Page?.Complete == true && observed.Emergency.Colonists.Pawns.Count > 0)
+            {
+                var pawns = new Obs.ListPawnsRequest {
+                    Scope = Scope(),
+                    Filter = new Obs.PawnFilter { IncludeDead = true },
+                    Details = new Obs.PawnDetails { Needs = true, Health = true, Equipment = true, Biography = true, Settings = false, Social = false, Animals = true, Work = true, Schedule = true },
+                    Page = new Common.PageRequest { Limit = (uint)observed.Emergency.Colonists.Pawns.Count },
+                };
+                foreach (var row in observed.Emergency.Colonists.Pawns) pawns.Filter.Ids.Add(row.Pawn.Id);
+                if (NativePawnObservationTools.TryRead(map, pawns, context, out var detail)) { observed.ColonistPawns = detail; added = true; }
+            }
+            return added;
         }
     }
 }

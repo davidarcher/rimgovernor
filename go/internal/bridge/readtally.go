@@ -16,12 +16,22 @@ import (
 // visible per step (RIMGOVERNOR_CLOCK_DEBUG=1) and, through Publish, in the
 // flight recorder the throughput profiler summarizes. It is safe for
 // concurrent use; planners run in parallel under the same step context.
+//
+// The one-off schema fetches (games_tool_detail) the Client issues before
+// a tool's first call are counted apart, as Schema: they are a session's
+// startup cost, not a step's reads, and would otherwise make the first
+// full step look several reads heavier than any other (issue #180).
 type ReadTally struct {
 	mu     sync.Mutex
 	counts map[string]uint64
 	total  uint64
+	schema uint64
 	client *Client
 }
+
+// schemaTool is the GABS tool the Client's ensureDescribed fetches a
+// native tool's schema with.
+const schemaTool = "games_tool_detail"
 
 type readTallyKey struct{}
 
@@ -42,12 +52,26 @@ func (t *ReadTally) add(client *Client, tool string) {
 		return
 	}
 	t.mu.Lock()
-	t.counts[tool]++
-	t.total++
+	if tool == schemaTool {
+		t.schema++
+	} else {
+		t.counts[tool]++
+		t.total++
+	}
 	if t.client == nil {
 		t.client = client
 	}
 	t.mu.Unlock()
+}
+
+// Schema is the number of schema fetches tallied so far, apart from Total.
+func (t *ReadTally) Schema() uint64 {
+	if t == nil {
+		return 0
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.schema
 }
 
 // Total is the number of round trips tallied so far.
@@ -93,12 +117,15 @@ func (t *ReadTally) String() string {
 	for _, tool := range names {
 		fmt.Fprintf(&b, " %s=%d", strings.TrimPrefix(tool, "rimgovernor/"), counts[tool])
 	}
+	if schema := t.Schema(); schema > 0 {
+		fmt.Fprintf(&b, " schema=%d", schema)
+	}
 	return b.String()
 }
 
 // Publish writes the tally as one "clock_step" flight-recorder row (payload:
-// reads, tools, plus the caller's extra fields such as the step cache's
-// cache_hits and parent_hits) on the recorder of the Client
+// reads, tools, schema_fetches, plus the caller's extra fields such as the
+// step cache's cache_hits and parent_hits) on the recorder of the Client
 // that served the tallied calls. Without a recorder, or when nothing was
 // tallied, it is a no-op; the profiler (SummarizePhases) aggregates the rows.
 func (t *ReadTally) Publish(ctx context.Context, extra map[string]any) {
@@ -115,7 +142,7 @@ func (t *ReadTally) Publish(ctx context.Context, extra map[string]any) {
 	for tool, n := range t.Counts() {
 		tools[tool] = n
 	}
-	payload := map[string]any{"reads": t.Total(), "tools": tools}
+	payload := map[string]any{"reads": t.Total(), "tools": tools, "schema_fetches": t.Schema()}
 	for key, value := range extra {
 		payload[key] = value
 	}
