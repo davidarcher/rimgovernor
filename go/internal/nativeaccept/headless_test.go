@@ -424,24 +424,46 @@ func TestPrepareRewritesHeadlessArgs(t *testing.T) {
 	}
 }
 
-func TestPrepareDropsStaleClockJournal(t *testing.T) {
+// Prepare runs on every harness start, including one attaching to a kept
+// process whose journal cursor lives in native static state, so it must
+// leave the journal alone; only a fresh launch clears it (#119).
+func TestPrepareKeepsClockJournal(t *testing.T) {
 	source := writeSourceRoot(t)
 	root, err := IsolatedRoot(source, filepath.Join(t.TempDir(), "worker"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	journal := filepath.Join(root, "headless-profile", "RimGovernorClockEvents")
+	row := filepath.Join(journal, "00000000000000000001.xml")
 	if err := os.MkdirAll(journal, 0755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(journal, "00000000000000000001.xml"), []byte("<row/>"), 0644); err != nil {
+	if err := os.WriteFile(row, []byte("<row/>"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Prepare(root); err != nil {
+	configuration, err := Prepare(root)
+	if err != nil {
 		t.Fatalf("Prepare failed: %v", err)
 	}
+	if _, err := os.Stat(row); err != nil {
+		t.Fatalf("Prepare touched the live clock journal: %v", err)
+	}
+	if got, err := ClockJournalDir(configuration); err != nil || got != journal {
+		t.Fatalf("ClockJournalDir = %q, %v; want %q", got, err, journal)
+	}
+	if err := ClearStaleClockJournal(configuration); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := os.Stat(journal); !os.IsNotExist(err) {
-		t.Fatalf("stale clock journal survived Prepare: %v", err)
+		t.Fatalf("stale clock journal survived ClearStaleClockJournal: %v", err)
+	}
+	// Clearing an already-empty journal, or one of a config that names no
+	// save-data folder, is not an error.
+	if err := ClearStaleClockJournal(configuration); err != nil {
+		t.Fatal(err)
+	}
+	if err := ClearStaleClockJournal(filepath.Join(root, "missing")); err != nil {
+		t.Fatal(err)
 	}
 }
 
