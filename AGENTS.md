@@ -15,6 +15,15 @@
 - Close the GitHub issue as soon as its work has merged into local `main`, with
   a terse comment naming the merge commit. Closure does not wait for the
   maintainer to push `origin/main` and does not need maintainer confirmation.
+- Open a GitHub issue yourself (`gh issue create`) for anything you would
+  otherwise flag as "for follow-up" or ask the maintainer about in a summary:
+  bugs found in passing, deferred scope, unverified assumptions, questions that
+  need a decision. Do not ask first, and do not bury the item in a wall of text;
+  issues get closed, remarks in chat get lost. One issue per item, labeled by
+  priority or area as below, with a terse title, the concrete evidence (file,
+  commit, log line) and what would resolve it. Mention the issue number in your
+  report instead of restating it. Check open issues first so you comment on an
+  existing one rather than duplicating it.
 - Keep generated builds, logs, saves, databases and temporary scripts out of commits.
 
 ## Delivery speed and coordination
@@ -23,7 +32,7 @@
   possible increment. Game and acceptance checks are slow: batch the related
   steps that share a milestone into one iteration so verification runs once
   against meaningful progress, instead of once per trivial edit. Once checks
-  pass, commit and deliver; put unrelated discoveries in the backlog. Continue
+  pass, commit and deliver; file unrelated discoveries as GitHub issues. Continue
   to the next coherent milestone of an authorized task without waiting to be
   re-prompted.
 - Default to one agent. Use requested teams for independent, bounded work. Agree
