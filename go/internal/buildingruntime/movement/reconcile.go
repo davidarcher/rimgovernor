@@ -101,7 +101,7 @@ func (b *MovementBoundary) ObserveMovement(ctx context.Context, dispatch executo
 		return out, executor.ErrEvidence
 	}
 	if job != nil {
-		if err = movementJob(job, dispatch); err != nil {
+		if err = movementJob(job, dispatch, noChangeReceipt(receipt)); err != nil {
 			return out, err
 		}
 		if job.Issued == nil || job.GetIssued() {

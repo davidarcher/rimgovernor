@@ -461,6 +461,24 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 		}
 	}
 	// Scenario 2/3: a real raid.
+	if v.fromCheckpoint && !v.bypass {
+		// The checkpoint was saved with the colonists parked inside the
+		// corridor they had been building. A hold plan drafts and moves
+		// them one action per window, so a raider reaching the corridor
+		// first bounced authority on a colonist-health stop and settled
+		// the plan before dispatch (#222). The line is held from the
+		// firing positions, so stand the defenders there before the raid;
+		// the plan's own drafts and moves are still what the run asserts.
+		cells := make([]string, 0, len(layout.Firing))
+		for _, f := range layout.Firing {
+			cells = append(cells, fmt.Sprintf("%d,%d", f.X, f.Z))
+		}
+		mustered, err := fixture("muster", map[string]any{"op": "muster", "cells": strings.Join(cells, ";")})
+		if err != nil {
+			return err
+		}
+		report["muster"] = mustered
+	}
 	raidArgs := map[string]any{"op": "raid", "strategy": v.strategy, "arrival": v.arrival}
 	if v.turrets {
 		// The turret scenario needs the raid to come through the corridor

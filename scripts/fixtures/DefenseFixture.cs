@@ -43,8 +43,8 @@ namespace HomeBridge.BridgeTools
             return fixturePredator;
         }
 
-        [Tool("test/defense_setup", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable defensive-layout fixture: op=terrain|stock|ranged|raid|predator|damage|breach|heal|inspect|quiet|power|depower.")]
-        public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken, string op, string strategy = "ImmediateAttack", string arrival = "EdgeWalkIn", int points = 0, string wall = "", int rifles = 3, string kind = "Cougar", int x = -1, int z = -1)
+        [Tool("test/defense_setup", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable defensive-layout fixture: op=terrain|stock|ranged|raid|predator|damage|breach|heal|inspect|quiet|power|depower|muster.")]
+        public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken, string op, string strategy = "ImmediateAttack", string arrival = "EdgeWalkIn", int points = 0, string wall = "", int rifles = 3, string kind = "Cougar", int x = -1, int z = -1, string cells = "")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap; var player = Faction.OfPlayerSilentFail;
@@ -67,7 +67,8 @@ namespace HomeBridge.BridgeTools
                     case "quiet": return Quiet();
                     case "power": return Power(map, new IntVec3(x, 0, z));
                     case "depower": return Depower(map, new IntVec3(x, 0, z));
-                    default: return Refuse("Use terrain, stock, ranged, raid, predator, damage, breach, heal, inspect, quiet, power or depower.");
+                    case "muster": return Muster(map, colonists, cells);
+                    default: return Refuse("Use terrain, stock, ranged, raid, predator, damage, breach, heal, inspect, quiet, power, depower or muster.");
                 }
             }, cancellationToken).ConfigureAwait(false);
         }
@@ -443,6 +444,48 @@ namespace HomeBridge.BridgeTools
                     targeting = t.CurrentTarget.IsValid,
                     home = map.areaManager.Home[t.Position] };
             }).ToList();
+        }
+
+        // Muster stands the colonists on the given cells ("x,z;x,z;...", one
+        // per colonist, round-robin when there are more colonists than cells;
+        // the nearest standable cell when one is blocked) and ends their
+        // jobs. The layout checkpoint was saved with the colonists parked
+        // inside the corridor they had been building; a raid staged from it
+        // reached them before the hold plan's one-action-per-window drafts
+        // and moves had got them behind the firing line (#222), so a
+        // from-checkpoint raid musters them there first.
+        private static object Muster(Map map, List<Pawn> colonists, string cells)
+        {
+            var targets = (cells ?? "").Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries).Select(pair => {
+                var xz = pair.Split(',');
+                return new IntVec3(int.Parse(xz[0].Trim()), 0, int.Parse(xz[1].Trim()));
+            }).ToList();
+            if (targets.Count == 0) return Refuse("muster needs cells=x,z;x,z;...");
+            var moved = new List<object>();
+            for (var i = 0; i < colonists.Count; i++)
+            {
+                var pawn = colonists[i];
+                var want = targets[i % targets.Count];
+                var at = want;
+                object blocked = null;
+                // A tree grown onto a firing cell since the checkpoint blocks
+                // the hold plan's move; the layout keeps no cell clear.
+                if (want.InBounds(map))
+                    foreach (var plant in want.GetThingList(map).OfType<Plant>().ToList()) plant.Destroy(DestroyMode.Vanish);
+                if (!at.InBounds(map) || !at.Standable(map))
+                {
+                    blocked = want.InBounds(map)
+                        ? new { terrain = want.GetTerrain(map)?.defName, things = want.GetThingList(map).Select(t => t.def.defName).ToList() }
+                        : new { terrain = "out of bounds", things = new List<string>() };
+                    at = GenRadial.RadialCellsAround(want, 5.9f, true).FirstOrDefault(c => c.InBounds(map) && c.Standable(map));
+                }
+                if (!at.IsValid) return Refuse("No standable cell near " + want);
+                pawn.jobs?.StopAll();
+                pawn.Position = at;
+                pawn.Notify_Teleported(true, true);
+                moved.Add(new { id = pawn.GetUniqueLoadID(), x = at.x, z = at.z, wantX = want.x, wantZ = want.z, blocked });
+            }
+            return new { success = true, moved };
         }
 
         private static object Inspect(Map map, Faction player)

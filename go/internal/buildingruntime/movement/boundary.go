@@ -159,13 +159,24 @@ func (b *MovementBoundary) attempt(dispatch executor.MovementDispatch) (bridge.M
 	return bridge.MovementAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, NativeGeneration: uint64(p.Snapshot.Native), PawnID: string(m.Pawn()), Destination: &c.Cell{X: proto.Int32(m.Destination().X), Z: proto.Int32(m.Destination().Z)}}, nil
 }
 
-func movementJob(job *r.JobEffect, dispatch executor.MovementDispatch) error {
+// movementJob checks evidence against the admitted move. A no-change
+// receipt (the pawn already stood on the destination) issues no Goto, so
+// its evidence carries no job id or def by contract; every other job must
+// be the exact Goto.
+func movementJob(job *r.JobEffect, dispatch executor.MovementDispatch, noChange bool) error {
 	if job == nil {
 		return nil
 	}
 	m, _ := dispatch.Attempt.Action.Movement()
 	cell := job.GetTargetA().GetCell()
-	if job.GetPawnId() != string(m.Pawn()) || cell.GetX() != m.Destination().X || cell.GetZ() != m.Destination().Z || job.GetJobDef() != "Goto" {
+	if job.GetPawnId() != string(m.Pawn()) || cell.GetX() != m.Destination().X || cell.GetZ() != m.Destination().Z {
+		return executor.ErrEvidence
+	}
+	if noChange {
+		if job.JobDef != nil || job.JobId != nil {
+			return executor.ErrEvidence
+		}
+	} else if job.GetJobDef() != "Goto" {
 		return executor.ErrEvidence
 	}
 	if job.DraftClaimId != nil && job.GetDraftClaimId() != string(dispatch.Admission.DraftClaim.Claim) {
@@ -206,13 +217,18 @@ func (b *MovementBoundary) MoveTo(ctx context.Context, dispatch executor.Movemen
 		return out, err
 	}
 	switch receipt.Outcome.(type) {
-	case *r.Receipt_Applied:
+	case *r.Receipt_Applied, *r.Receipt_NoChange:
 		out.Kind = domain.ReceiptAccepted
 	case *r.Receipt_Uncertain:
 	default:
 		return out, executor.ErrEvidence
 	}
 	return out, ctx.Err()
+}
+
+func noChangeReceipt(receipt *r.Receipt) bool {
+	_, ok := receipt.GetOutcome().(*r.Receipt_NoChange)
+	return ok
 }
 
 func (b *MovementBoundary) checkReceipt(receipt *r.Receipt, dispatch executor.MovementDispatch) error {
@@ -224,7 +240,7 @@ func (b *MovementBoundary) checkReceipt(receipt *r.Receipt, dispatch executor.Mo
 		return executor.ErrEvidence
 	}
 	job := boundary.ReceiptJob(receipt)
-	return movementJob(job, dispatch)
+	return movementJob(job, dispatch, noChangeReceipt(receipt))
 }
 
 var _ executor.MovementBoundary = (*MovementBoundary)(nil)

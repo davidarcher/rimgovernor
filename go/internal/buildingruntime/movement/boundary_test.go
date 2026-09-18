@@ -2,6 +2,7 @@ package movement
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -9,6 +10,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/draft"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
 	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	n "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -78,5 +80,70 @@ func TestInspectMovementReadsCombatHealth(t *testing.T) {
 	}
 	if _, known := inspection.Facts.NativeCanTry.Value(); !known {
 		t.Fatal("native canTry unknown")
+	}
+}
+
+// noChange answers the write and the ledger with the native no-change
+// receipt a move to the pawn's current cell earns: the evidence names the
+// destination and the owned claim but, by contract, no job id or def.
+type noChange struct {
+	*fixture
+	receipt *r.Receipt
+}
+
+func (f *noChange) MovePawn(context.Context, *a.WritePrecondition, *o.MovePawn) (*o.ExecuteReply, bridge.Result, error) {
+	return &o.ExecuteReply{Outcome: &o.ExecuteReply_Receipt{Receipt: proto.Clone(f.receipt).(*r.Receipt)}}, bridge.Result{}, nil
+}
+func (f *noChange) LookupMovementAttempt(context.Context, bridge.MovementAttempt) (*r.LookupReply, bridge.Result, error) {
+	return &r.LookupReply{Outcome: &r.LookupReply_Receipt{Receipt: proto.Clone(f.receipt).(*r.Receipt)}}, bridge.Result{}, nil
+}
+func (f *noChange) ObserveMovementProgress(_ context.Context, attempt bridge.MovementAttempt, _ *r.Receipt) (*r.ProgressReply, bridge.Result, error) {
+	evidence := proto.Clone(f.receipt.GetNoChange().GetObserved()).(*r.EffectEvidence)
+	progress := &r.Progress{Attempt: proto.Clone(attempt.Attempt).(*c.AttemptKey), Context: proto.Clone(f.Ctx).(*c.ObservationContext), CompleteInspection: proto.Bool(true), Effect: &r.Progress_Completed{Completed: &r.CompletedEffect{Evidence: evidence}}}
+	return &r.ProgressReply{Outcome: &r.ProgressReply_Progress{Progress: progress}}, bridge.Result{}, nil
+}
+
+// A hold-the-line move whose pawn already stands on the firing position is
+// admitted natively as a no-change receipt with no Goto in its evidence
+// (#222: the defenders mustered on the line never dispatched because the
+// receipt read as invalid evidence and the action waited forever).
+func TestMoveToAcceptsNoChangeReceipt(t *testing.T) {
+	_, df := draft.NewFixture(t)
+	movement, err := domain.NewMovement("pawn", domain.Cell{X: 3, Z: 4}, "action")
+	if err != nil {
+		t.Fatal(err)
+	}
+	action, err := domain.NewMovementAction("move", movement)
+	if err != nil {
+		t.Fatal(err)
+	}
+	job := &r.JobEffect{PawnId: proto.String("pawn"), TargetA: &r.JobTarget{Target: &r.JobTarget_Cell{Cell: &c.Cell{X: proto.Int32(3), Z: proto.Int32(4)}}}, Issued: proto.Bool(false), Verified: proto.Bool(true), Drafted: proto.Bool(true), DraftClaimId: proto.String("claim"), ResultingSnapshotToken: proto.String("cas")}
+	key := &c.AttemptKey{ControllerSessionId: proto.String("session"), ActionId: proto.String("move"), AttemptId: proto.Uint64(1)}
+	receipt := &r.Receipt{Attempt: key, AdmittedContext: proto.Clone(df.Ctx).(*c.ObservationContext), Outcome: &r.Receipt_NoChange{NoChange: &r.NoChange{Observed: &r.EffectEvidence{Effect: &r.EffectEvidence_Job{Job: job}}, Detail: proto.String("Pawn already occupies the exact destination.")}}}
+	f := &noChange{fixture: &fixture{Fixture: df}, receipt: receipt}
+	b, err := NewMovementBoundary(f, f, f, boundary.FixedClock{}, "session")
+	if err != nil {
+		t.Fatal(err)
+	}
+	placement := executor.Placement{Action: action, Snapshot: df.P.Snapshot, Attempt: 1, Tick: 10}
+	dispatch := executor.MovementDispatch{Attempt: placement, Admission: store.MovementAdmission{Snapshot: df.P.Snapshot, Tick: 10, Pawn: "pawn", Destination: domain.Cell{X: 3, Z: 4}, PawnSnapshotToken: "cas", DraftClaim: draft.KnownClaim(df)}}
+	out, err := b.MoveTo(context.Background(), dispatch)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.Kind != domain.ReceiptAccepted {
+		t.Fatalf("receipt kind = %v", out.Kind)
+	}
+	evidence, err := b.ObserveMovement(context.Background(), dispatch, df.P.Snapshot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !evidence.Complete || evidence.Observation.Effect != domain.EffectCompleted {
+		t.Fatalf("observation = %+v", evidence.Observation)
+	}
+	// An issued Goto that reports no job def is still invalid evidence.
+	job.JobDef = proto.String("Goto")
+	if _, err := b.MoveTo(context.Background(), dispatch); !errors.Is(err, executor.ErrEvidence) {
+		t.Fatalf("no-change receipt with an issued job def: err = %v", err)
 	}
 }
