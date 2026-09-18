@@ -17,6 +17,7 @@ component you will change. Keep work in small verified slices using the
 | Work on the Go controller | [Go module](../../go/README.md) and [wire contracts](../../contracts/README.md) |
 | Pick up unfinished work | [Backlog issues](https://github.com/davidarcher/rimgovernor/issues) |
 | Choose which checks to run | [Testing pyramid and evidence rules](testing/choose-tests.md) |
+| Measure controller throughput or find where bridge time goes | [Measure throughput](testing/measure-throughput.md) |
 | Run or add native acceptance | [go/internal/nativeaccept](../../go/internal/nativeaccept) cases through `cmd/acceptance`; [choose-tests.md](testing/choose-tests.md#adding-a-case) says how to add one and lists the [available checks](testing/choose-tests.md#available-checks) |
 
 [testing/choose-tests.md](testing/choose-tests.md) covers the checks that exist

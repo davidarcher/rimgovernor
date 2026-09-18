@@ -20,6 +20,8 @@ its contracts and run the relevant checks.
 - [Subsystem contracts](developers/contracts/README.md) and
   [wire contracts](../contracts/README.md)
 - [Generated wire contracts](../contracts/schema-generation.md)
+- [Choose tests](developers/testing/choose-tests.md) and
+  [measure throughput](developers/testing/measure-throughput.md) (flight recorder, `rimgovernor phases`, speed matrix)
 - [Go controller development](../go/README.md), including its testing pyramid;
   native acceptance tooling is tracked in
   [issue #38](https://github.com/davidarcher/rimgovernor/issues/38)
