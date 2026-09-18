@@ -308,39 +308,51 @@ func runRemoval(ctx context.Context, s cases.Session) error {
 		return observed, nil
 	}
 	// runUntilCompleted drives the supervised native clock, heartbeating it
-	// and restarting bounded windows, until the attempt is observed Completed.
-	runUntilCompleted := func(label string, attempt map[string]any, budget time.Duration) error {
-		deadline := time.Now().Add(budget)
+	// and restarting bounded windows, until the attempt is observed Completed
+	// within ticks of game time. The signature carries the game tick (the
+	// clock's windows are what must keep moving; the attempt itself has no
+	// intermediate progress to observe), so a game that stops ticking stalls
+	// and one that keeps ticking without completing spends the tick budget.
+	runUntilCompleted := func(label string, attempt map[string]any, ticks uint64) error {
 		maxTicks := uint64(6000)
 		if _, err := clock.Change(ctx, h, label+"-run", "Fast", &maxTicks); err != nil {
 			return err
 		}
-		for {
-			if time.Now().After(deadline) {
-				return fmt.Errorf("%s: attempt did not complete within the polling deadline", label)
+		polls := 0
+		var latest uint64
+		tick := func(ctx context.Context) (uint64, error) {
+			t, err := h.Tick(ctx)
+			latest = t
+			return t, err
+		}
+		err := na.WaitProgress(ctx, na.Wait{Stall: na.StallBudget(), Ticks: ticks, Tick: tick}, func(ctx context.Context) (string, bool, error) {
+			polls++
+			if _, err := clock.Poll(ctx, h, fmt.Sprintf("%s-poll-%d", label, polls)); err != nil {
+				return "", false, err
 			}
-			if _, err := clock.Poll(ctx, h, label+"-poll"); err != nil {
-				return err
-			}
-			observed, err := progress(label+"-progress", attempt)
+			observed, err := progress(fmt.Sprintf("%s-progress-%d", label, polls), attempt)
 			if err != nil {
-				return err
+				return "", false, err
 			}
 			if unsuccessful, ok := na.AsMap(observed["unsuccessful"]); ok {
-				return fmt.Errorf("%s: attempt became unsuccessful before completion: %#v", label, unsuccessful)
+				return "", false, fmt.Errorf("%s: attempt became unsuccessful before completion: %#v", label, unsuccessful)
 			}
 			if _, ok := na.AsMap(observed["completed"]); ok {
-				_, err := clock.Change(ctx, h, label+"-pause", "Paused", nil)
-				return err
+				return "", true, nil
 			}
 			if active, _ := na.AsBool(clock.State["active"]); !active {
 				clock.AllowResume()
-				if _, err := clock.Change(ctx, h, label+"-rerun", "Fast", &maxTicks); err != nil {
-					return err
+				if _, err := clock.Change(ctx, h, fmt.Sprintf("%s-rerun-%d", label, polls), "Fast", &maxTicks); err != nil {
+					return "", false, err
 				}
 			}
-			time.Sleep(2 * time.Second)
+			return na.Signature(latest, clock.State["epoch"]), false, nil
+		})
+		if err != nil {
+			return fmt.Errorf("%s: %w", label, err)
 		}
+		_, err = clock.Change(ctx, h, label+"-pause", "Paused", nil)
+		return err
 	}
 	spawn := func(label, cells string) ([]string, error) {
 		reply, err := h.Call(ctx, label, "test/stone_walls_spawn", map[string]any{"cells": cells, "stuff": chosen.stuff})
@@ -486,7 +498,7 @@ func runRemoval(ctx context.Context, s cases.Session) error {
 	if _, ok := na.AsMap(pending["pending"]); !ok {
 		return fmt.Errorf("progress-demolish-pending: expected a pending effect, got %#v", pending)
 	}
-	if err := runUntilCompleted("demolish", demolishAttempt, 12*time.Minute); err != nil {
+	if err := runUntilCompleted("demolish", demolishAttempt, 2*na.TicksPerDay); err != nil {
 		return err
 	}
 	completed, err := progress("progress-demolish-completed", demolishAttempt)
@@ -532,7 +544,7 @@ func runRemoval(ctx context.Context, s cases.Session) error {
 	if err != nil {
 		return err
 	}
-	if err := runUntilCompleted("cleanup", attemptOf(cleanupRequest), 12*time.Minute); err != nil {
+	if err := runUntilCompleted("cleanup", attemptOf(cleanupRequest), 2*na.TicksPerDay); err != nil {
 		return err
 	}
 	afterCleanup, err := census("after-cleanup-census", "")

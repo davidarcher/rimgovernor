@@ -137,35 +137,36 @@ func run(ctx context.Context, s cases.Session) error {
 		// wall-clock-driven instability (resource leak, watchdog, GC), not
 		// something tied to simulated time, so there is no speed setting that
 		// avoids it -- only staying within a safe real-time budget does.
-		// Given that ceiling, ultraSpeedBoost maximizes simulated progress
-		// (and thus the chance colonists get hungry enough to create a real
-		// FoodStock row) within the same safe window, so it is worth the
-		// small consistency risk that dropping it didn't actually fix.
-		if _, err := h.Call(ctx, "resume", "rimworld/set_time_speed", map[string]any{"speed": "Superfast", "ultraSpeedBoost": true}); err != nil {
-			return err
-		}
+		// Given that ceiling, the wait is stated in game time (RunUntil at
+		// the boosted run speed maximizes simulated progress, and thus the
+		// chance colonists get hungry enough to create a real FoodStock row)
+		// with a wall-clock ceiling well under the crash mark as the safety
+		// net, and the stall budget for a game that stops ticking.
+		//
 		// A read can transiently fail mid-poll -- tolerate a handful of
-		// consecutive failures rather than aborting on one hiccup -- but stay
-		// well under the observed ~8 minute wall-clock crash ceiling.
+		// consecutive failures rather than aborting on one hiccup.
 		const maxConsecutiveFailures = 4
 		consecutiveFailures := 0
-		deadline := time.Now().Add(7 * time.Minute)
-		for len(stocks) == 0 && time.Now().Before(deadline) {
-			time.Sleep(15 * time.Second)
+		polls := 0
+		ticks, err := na.RunUntil(ctx, h, "harvest", 4*na.TicksPerDay, na.Wait{Stall: na.StallBudget(), Ceiling: 4 * time.Minute, Interval: 5 * time.Second}, func(ctx context.Context) (string, bool, error) {
+			polls++
 			var pollErr error
-			_, stocks, pollErr = readFoodSupply(identity, fmt.Sprintf("colony-facts-poll-%d", time.Now().Unix()))
+			_, stocks, pollErr = readFoodSupply(identity, fmt.Sprintf("colony-facts-poll-%d", polls))
 			if pollErr != nil {
 				consecutiveFailures++
 				report["poll_error_last"] = pollErr.Error()
 				if consecutiveFailures > maxConsecutiveFailures {
-					return fmt.Errorf("colony-facts read failed %d times in a row while polling: %w", consecutiveFailures, pollErr)
+					return "", false, fmt.Errorf("colony-facts read failed %d times in a row while polling: %w", consecutiveFailures, pollErr)
 				}
-				continue
+				return na.Signature("read-failed", consecutiveFailures), false, nil
 			}
 			consecutiveFailures = 0
-		}
-		if _, err := h.Call(ctx, "re-pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
-			return err
+			return na.Signature(len(stocks)), len(stocks) > 0, nil
+		})
+		report["harvest_ticks"] = ticks
+		report["harvest_polls"] = polls
+		if err != nil {
+			return fmt.Errorf("no observed food stock after waiting for colonists to harvest/haul; cannot confirm roofed presence: %w", err)
 		}
 	}
 	if len(stocks) == 0 {
