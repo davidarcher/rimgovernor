@@ -280,6 +280,7 @@ func (wallClock) Now() time.Time { return time.Now() }
 // acted on and what it decided.
 type speedStep struct {
 	began  time.Time
+	ended  time.Time
 	reason StepReason
 	result ClockSchedulerResult
 	err    error
@@ -331,7 +332,7 @@ func speedMatrixFixture(t *testing.T, native *speedNative, snapshot domain.Gener
 	worker.step = func(ctx context.Context, reason StepReason) (ClockSchedulerResult, error) {
 		began := time.Now()
 		result, err := scheduler.StepWithReason(ctx, reason)
-		record(speedStep{began: began, reason: reason, result: result, err: err})
+		record(speedStep{began: began, ended: time.Now(), reason: reason, result: result, err: err})
 		return result, err
 	}
 	worker.poll = func(ctx context.Context, wait time.Duration) (ClockPollResult, error) {
@@ -352,6 +353,29 @@ func speedMatrixFixture(t *testing.T, native *speedNative, snapshot domain.Gener
 	return scheduler, worker
 }
 
+// stepsInFlight is the wall time between from and to during which some
+// recorded step other than the one beginning at to was running. The steps
+// are serial, so their clipped spans add without overlapping.
+func stepsInFlight(steps []speedStep, from, to time.Time) time.Duration {
+	var busy time.Duration
+	for _, step := range steps {
+		if step.began.Equal(to) {
+			continue
+		}
+		began, ended := step.began, step.ended
+		if began.Before(from) {
+			began = from
+		}
+		if ended.After(to) {
+			ended = to
+		}
+		if ended.After(began) {
+			busy += ended.Sub(began)
+		}
+	}
+	return busy
+}
+
 // speedDecision is one clock decision keyed by game tick: a window's start
 // or its deadline.
 type speedDecision struct {
@@ -365,10 +389,14 @@ type speedDecision struct {
 // (each window admitted, each budget stop settled) must be the same
 // sequence per game tick at every multiplier: the decisions follow the
 // game's ticks, not the wall clock. And every step a budget stop woke must
-// begin within one StepInterval of the native stop: the long poll and the
-// wake signal deliver the stop at once instead of waiting out the timer
-// cadence, which the step's clock_step row reports as its stop latency
-// (issue #112).
+// begin within one StepInterval of the native stop, not counting the time
+// another step was in flight in between: the long poll and the wake signal
+// deliver the stop at once instead of waiting out the timer cadence, which
+// the step's clock_step row reports as its stop latency (issue #112). The
+// in-flight time is excluded because a step that settles the epoch holds
+// the worker for as long as its SQLite work takes, hundreds of
+// milliseconds under machine load, and that is the worker's serial
+// cadence, not a wake the timer had to catch (issue #203).
 func TestClockSpeedMatrixDecidesPerTickAndWakesWithinStepInterval(t *testing.T) {
 	t.Parallel()
 	const windows = 3
@@ -444,8 +472,10 @@ func TestClockSpeedMatrixDecidesPerTickAndWakesWithinStepInterval(t *testing.T) 
 				if step.reason.Cause != StepWake || step.reason.StopAt.IsZero() {
 					t.Fatalf("stop reason: %s at %v", step.reason, step.reason.StopAt)
 				}
-				if latency := step.began.Sub(step.reason.StopAt); latency < 0 || latency > config.StepInterval {
-					t.Fatalf("x%d: stop-to-step latency %s exceeds the %s step interval", multiplier, latency, config.StepInterval)
+				latency := step.began.Sub(step.reason.StopAt)
+				busy := stepsInFlight(steps, step.reason.StopAt, step.began)
+				if latency < 0 || latency-busy > config.StepInterval {
+					t.Fatalf("x%d: stop-to-step latency %s (%s of it with a step in flight) exceeds the %s step interval", multiplier, latency, busy, config.StepInterval)
 				}
 			}
 			if len(decisions) != 2*windows {
