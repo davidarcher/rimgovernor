@@ -3,10 +3,10 @@
 // lifecycle (nativeaccept.GameReuse). One RimWorld process is launched;
 // the tribal8 baseline is then loaded several times into it, each load a
 // separate case that takes authority, drafts a colonist through
-// operations_execute, releases the draft, revokes authority and -- when
-// BinaryEnv names a rimgovernor binary -- also launches and stops a
-// per-case `rimgovernor serve` with its own SQLite state, asserting the
-// stopped controller no longer answers. Between cases the lifecycle's own
+// operations_execute, releases the draft, revokes authority and launches
+// and stops a per-case `rimgovernor serve` (the run's -rimgovernor) with
+// its own SQLite state, asserting the stopped controller no longer
+// answers. Between cases the lifecycle's own
 // reset contract must hold: a load token never issued before, the game
 // paused at the baseline tick, no active authority, no owned draft claim,
 // and the sampled stock equal to the first load's. (The colony id is not
@@ -40,23 +40,21 @@ const baselineSave = "RimGovernor-tribal8-baseline"
 // case; at least two so a second load token is compared against the first.
 const reloads = 3
 
-// BinaryEnv, when set to an absolute path of a prebuilt rimgovernor
-// binary, makes every clean reload also launch and stop its own
-// controller against that load.
-const BinaryEnv = "RIMGOVERNOR_ACCEPT_RIMGOVERNOR"
-
 func init() {
 	cases.Register(cases.Case{
 		Name: "lifecycle/reuse",
 		Scope: fmt.Sprintf("Reusable game (issue #22): one launch, %d baseline reloads each taking authority, "+
-			"drafting and releasing a colonist, revoking authority and (with %s) running a per-case controller; "+
+			"drafting and releasing a colonist, revoking authority and running a per-case controller; "+
 			"every reload verified against the reset contract; a final unclean case must retire the game. "+
-			"No mod static-state reset is claimed.", reloads, BinaryEnv),
+			"No mod static-state reset is claimed.", reloads),
 		Start:  cases.Owned{Saves: []string{baselineSave}},
 		Reason: "the assertion is the reusable-game lifecycle itself: the case launches the process, reloads the baseline into it and must see it retired (games_stop) after an unclean case",
-		NoKeep: true,
-		Budget: 15 * time.Minute,
-		Run:    runReuse,
+		// The per-reload controller is hosted by the case itself over its
+		// own game, so the suite passes -rimgovernor and schedules it last.
+		Service: true,
+		NoKeep:  true,
+		Budget:  15 * time.Minute,
+		Run:     runReuse,
 	})
 }
 
@@ -65,9 +63,9 @@ func init() {
 // baseline into it per case and retires it at the end.
 func runReuse(ctx context.Context, s cases.Session) error {
 	cfg, report := s.Config(), s.Report()
-	binary := os.Getenv(BinaryEnv)
-	if binary != "" && !filepath.IsAbs(binary) {
-		return fmt.Errorf("%s must be an absolute path: %s", BinaryEnv, binary)
+	binary := s.Rimgovernor()
+	if binary == "" {
+		return errors.New("the case launches a controller per reload: run it with -rimgovernor <absolute path to a prebuilt binary>")
 	}
 	report["controller_binary"] = binary
 	game, err := cfg.GameSection()
@@ -162,7 +160,7 @@ func runReuse(ctx context.Context, s cases.Session) error {
 }
 
 // cleanCase is one well-behaved case: authority on, draft, release, authority
-// off, optionally a controller launched and stopped against this very load.
+// off, then a controller launched and stopped against this very load.
 func cleanCase(ctx context.Context, cfg *na.Config, reuse *na.GameReuse, c *na.ReuseCase, gabsExecutable, binary string, report na.Report) error {
 	h, identity := c.Harness, c.Identity
 	row := map[string]any{"loadToken": c.Reset.LoadToken}
@@ -205,38 +203,36 @@ func cleanCase(ctx context.Context, cfg *na.Config, reuse *na.GameReuse, c *na.R
 	}
 	row["drafted_and_released"] = na.AsString(na.Target(row0)["entityId"])
 
-	if binary != "" {
-		if err := reuse.ReleaseSession(); err != nil {
-			return fmt.Errorf("release session for the controller: %w", err)
-		}
-		caseCfg := *cfg
-		caseCfg.Output = c.Output
-		serviceReport := na.Report{}
-		service, err := na.LaunchService(ctx, &caseCfg, gabsExecutable, na.ServiceLaunch{Binary: binary}, serviceReport)
-		if err != nil {
-			return fmt.Errorf("launch controller: %w", err)
-		}
-		token, err := service.SessionToken()
-		if err != nil {
-			service.Stop()
-			return err
-		}
-		if _, err := service.WaitAttached(identity, 90*time.Second); err != nil {
-			service.Stop()
-			return err
-		}
-		service.Stop()
-		if err := service.AssertStopped(); err != nil {
-			return err
-		}
-		if _, err := os.Stat(service.StatePath); err != nil {
-			return fmt.Errorf("per-case state database missing: %w", err)
-		}
-		serviceReport["session_token_issued"] = token != ""
-		serviceReport["state_path"] = service.StatePath
-		serviceReport["stopped_and_unreachable"] = true
-		row["controller"] = serviceReport
+	if err := reuse.ReleaseSession(); err != nil {
+		return fmt.Errorf("release session for the controller: %w", err)
 	}
+	caseCfg := *cfg
+	caseCfg.Output = c.Output
+	serviceReport := na.Report{}
+	service, err := na.LaunchService(ctx, &caseCfg, gabsExecutable, na.ServiceLaunch{Binary: binary}, serviceReport)
+	if err != nil {
+		return fmt.Errorf("launch controller: %w", err)
+	}
+	token, err := service.SessionToken()
+	if err != nil {
+		service.Stop()
+		return err
+	}
+	if _, err := service.WaitAttached(identity, 90*time.Second); err != nil {
+		service.Stop()
+		return err
+	}
+	service.Stop()
+	if err := service.AssertStopped(); err != nil {
+		return err
+	}
+	if _, err := os.Stat(service.StatePath); err != nil {
+		return fmt.Errorf("per-case state database missing: %w", err)
+	}
+	serviceReport["session_token_issued"] = token != ""
+	serviceReport["state_path"] = service.StatePath
+	serviceReport["stopped_and_unreachable"] = true
+	row["controller"] = serviceReport
 	report[c.Name] = row
 	return nil
 }

@@ -140,6 +140,10 @@ type Session interface {
 	// Spec is the case's declared Serve spec (Binary resolved to the run's
 	// -rimgovernor), or the zero spec for a bridge-only case.
 	Spec() ServeSpec
+	// Rimgovernor is the run's -rimgovernor binary (absolute path), empty
+	// when none was passed; an Owned case that launches controllers over
+	// its own game (na.LaunchService) takes it from here.
+	Rimgovernor() string
 	// Reload takes the slot back (Reattach) and runs the case's Start again
 	// over the running game: a world change that keeps the durable journal
 	// (routine goals of the old world invalidate), with the fixture op,

@@ -260,6 +260,7 @@ func (s *session) Spec() ServeSpec {
 	}
 	return spec
 }
+func (s *session) Rimgovernor() string      { return s.binary }
 func (s *session) GABSPID() int             { return int(s.gabsPID.Load()) }
 func (s *session) Harness() *na.Harness     { return s.Session.Harness }
 func (s *session) Names() []string          { return s.Session.Names }

@@ -350,7 +350,9 @@ lifecycle an `Owned` case that loops over saves drives itself: RimWorld
 is launched once and each case begins with a reload of its save into the
 same process; the `lifecycle/reuse` case
 ([cases/lifecycle/reuse.go](../../../go/internal/nativeaccept/cases/lifecycle/reuse.go))
-is the acceptance for the lifecycle itself.
+is the acceptance for the lifecycle itself; it launches and stops a
+controller per reload, so it takes `-rimgovernor` like every
+service-hosting case.
 
 Reuse is only valid because every reload is checked against a reset
 contract before the case starts (`CheckReset`): a load token never issued
