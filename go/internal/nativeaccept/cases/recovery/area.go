@@ -100,12 +100,14 @@ func runArea(ctx context.Context, s cases.Session) error {
 	// pawnState reads the exact native pawn-control snapshot token and the
 	// pawn's current allowedAreaId through rimgovernor/observations_list_pawns,
 	// the same call buildingruntime/work.WorkBoundary.readWork's own
-	// bridge.ReadRoutinePawns issues.
+	// bridge.ReadRoutinePawns issues. allowedAreaId is projected only under
+	// the work detail flag (#167): it belongs to the work snapshot token
+	// domain, not the care-policy row the default details select.
 	pawnState := func(label string) (token, areaID string, err error) {
 		reply, err := h.Wire(ctx, label, "observations_list_pawns", map[string]any{
 			"scope":   map[string]any{"expectedIdentity": identity},
 			"filter":  map[string]any{"ids": []string{pawnID}},
-			"details": map[string]any{},
+			"details": map[string]any{"settings": false, "work": true},
 			"page":    map[string]any{"limit": 1},
 		})
 		if err != nil {

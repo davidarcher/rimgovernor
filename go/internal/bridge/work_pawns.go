@@ -22,13 +22,15 @@ func ValidateRoutinePawnSnapshot(snapshot *o.PawnSnapshot, id *c.Identity, ids [
 }
 
 // validateSettings enforces that PawnSettings carries only the fields the
-// request actually asked for: work priorities under work, care policy under
-// care, timetable slots under schedule. Any subset may be set; unrequested
-// fields are refused.
+// request actually asked for: work priorities and the allowed area under
+// work (the work snapshot token commits to both, and PatchPawn writes both --
+// WorkBoundary's area readback depends on it, #167), care policy under care,
+// timetable slots under schedule. Any subset may be set; unrequested fields
+// are refused.
 func validateSettings(s *o.PawnSettings, work, care, schedule bool) error {
 	allowed := &o.PawnSettings{Snapshot: s.Snapshot, Issues: s.Issues}
 	if work {
-		allowed.Work, allowed.WorkApplies, allowed.ManualWorkPriorities = s.Work, s.WorkApplies, s.ManualWorkPriorities
+		allowed.Work, allowed.WorkApplies, allowed.ManualWorkPriorities, allowed.AllowedAreaId = s.Work, s.WorkApplies, s.ManualWorkPriorities, s.AllowedAreaId
 	}
 	if care {
 		allowed.MedicalCare, allowed.SelfTend = s.MedicalCare, s.SelfTend
@@ -58,6 +60,11 @@ func validateSettings(s *o.PawnSettings, work, care, schedule bool) error {
 			if s.ManualWorkPriorities != nil && !s.GetManualWorkPriorities() && w.Priority != nil && w.GetPriority() != 0 && w.GetPriority() != 3 {
 				return contract("invalid effective checkbox priority")
 			}
+		}
+	}
+	if work && s.AllowedAreaId != nil {
+		if err := validID(s.GetAllowedAreaId()); err != nil {
+			return err
 		}
 	}
 	if care && s.MedicalCare != nil {

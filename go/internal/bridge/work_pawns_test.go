@@ -53,3 +53,34 @@ func TestRoutinePawnsOwnWorkSelectionAndValidatePriorities(t *testing.T) {
 		})
 	}
 }
+
+// TestWorkAllowedAreaDetailValidation covers issue #167: allowed_area_id is
+// part of the work snapshot (NativeWorkSettings' token commits to it and
+// PatchPawn writes it), so every selection that requests work detail --
+// routine and tend -- must accept it, while the combat-only selection must
+// keep refusing it as unrequested settings detail.
+func TestWorkAllowedAreaDetailValidation(t *testing.T) {
+	for _, test := range []struct {
+		name   string
+		area   *string
+		accept bool
+	}{
+		{"restricted", proto.String("Area_6"), true},
+		{"unrestricted", nil, true},
+		{"invalid id", proto.String("  "), false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			s := combatPawnsFixture()
+			s.Pawns[0].Settings = &o.PawnSettings{WorkApplies: proto.Bool(true), ManualWorkPriorities: proto.Bool(false), AllowedAreaId: test.area}
+			if err := ValidateRoutinePawnSnapshot(s, pbIdentity(), []string{"pawn-1"}); (err == nil) != test.accept {
+				t.Fatal("routine", err)
+			}
+			if err := ValidateTendPawnSnapshot(s, pbIdentity(), []string{"pawn-1"}); (err == nil) != test.accept {
+				t.Fatal("tend", err)
+			}
+			if ValidateCombatPawnSnapshot(s, pbIdentity(), []string{"pawn-1"}) == nil {
+				t.Fatal("combat-only selection accepted work settings")
+			}
+		})
+	}
+}

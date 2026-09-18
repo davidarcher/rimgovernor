@@ -45,14 +45,15 @@ namespace HomeBridge.BridgeTools
                 // validateSettings) enforces that a PawnSettings reply carries
                 // ONLY the fields the request actually asked for: care policy
                 // (medical_care, self_tend) under d.Settings, work priorities
-                // under d.Work, the 24 timetable slots under d.Schedule.
+                // plus the allowed area under d.Work, the 24 timetable slots
+                // under d.Schedule.
                 // Callers that request several (e.g. ReadTendPawns,
                 // ReadRoutinePawns) must therefore get exactly their union,
                 // never the wider Assign-tab row (hostility_response, follow
                 // flags, master, allowed area) that home/pawn_config's own
                 // PawnSettingsRead.SettingsBlock reports instead.
                 if(d.Settings) CarePolicy(pawn,row.Settings);
-                if(d.Work) Work(pawn,row.Settings);
+                if(d.Work) { Work(pawn,row.Settings); AllowedArea(pawn,row.Settings); }
                 if(d.Schedule) Schedule(pawn,row.Settings);
             } else row.Issues.Add(Skipped("settings"));
             if(d.Social) row.Social=Social(pawn,colonists);
@@ -230,12 +231,13 @@ namespace HomeBridge.BridgeTools
         // Populates ONLY the care-policy fields (medical_care, self_tend) that
         // go/internal/bridge/work_pawns.go's validateSettings allows through
         // when a caller asks for `care`. hostility_response, the follow flags,
-        // master_id, allowed_area_id and the 24-hour schedule are the wider
-        // Assign-tab row -- deliberately never requested via this protobuf
+        // master_id and the 24-hour schedule are the wider Assign-tab row --
+        // deliberately never requested via this protobuf
         // (rimgovernor/observations_list_pawns) path, so they must never be
         // set here regardless of what native happens to hold; home/pawn_config
         // and home/list_pawns reach that wider row through PawnSettingsRead's
         // own dictionary-based SettingsBlock/ScheduleBlock instead.
+        // allowed_area_id belongs to the work snapshot (AllowedArea below).
         private static void CarePolicy(Pawn pawn,Obs.PawnSettings row)
         {
             var settings=pawn.playerSettings;
@@ -257,6 +259,22 @@ namespace HomeBridge.BridgeTools
             if(pawn.workSettings?.Initialized!=true || !row.WorkApplies) { row.Issues.Add(Missing("work"));return; }
             var defs=DefDatabase<WorkTypeDef>.AllDefsListForReading;Require(defs.Count);
             foreach(var def in defs) row.Work.Add(new Obs.WorkSetting {DefName=Id(def.defName),Priority=pawn.workSettings.GetPriority(def),Disabled=pawn.WorkTypeIsDisabled(def)});
+        }
+
+        // Projects the pawn's current allowed-area restriction under d.Work
+        // (issue #167): NativeWorkSettings.Token commits the work snapshot to
+        // CurrentAreaId and PatchPawn's AllowedArea assignment writes through
+        // the same token domain, so a work-snapshot reader (buildingruntime/
+        // work.WorkBoundary's readback, the recovery/area case) must see the
+        // area alongside the priorities. Unset when the pawn is unrestricted,
+        // matching the AllowedArea{Clear} write; Missing when the pawn has no
+        // player settings at all.
+        private static void AllowedArea(Pawn pawn,Obs.PawnSettings row)
+        {
+            var settings=pawn.playerSettings;
+            if(settings==null) { row.Issues.Add(Missing("allowed_area_id")); return; }
+            var area=settings.AreaRestrictionInPawnCurrentMap;
+            if(area!=null) row.AllowedAreaId=Id(area.GetUniqueLoadID());
         }
 
         // Projects the pawn's 24-hour timetable as one TimetableSlot per hour
