@@ -151,22 +151,34 @@ const serviceClockStepTimeout = 30 * time.Second
 // enough to let the native epoch lapse. The step has no lease constraint.
 func serviceClockTimeouts(callTimeout time.Duration) serviceClockTimeoutConfig {
 	lease := min(callTimeout, 7*time.Second)
-	// A held clock_read_events read (wait_ms) still stalls every call queued
-	// behind it: the GABS session now runs over its HTTP server
-	// (bridge/gabshttp.go), but RimBridgeServer registers companion-mod tools
-	// through LegacyToolExecution, which blocks Lib.GAB's per-connection
-	// reader until the tool returns, so no later message on the game
-	// connection is even parsed while a read is held (issue #115; verified
-	// by speaking GABP to the mod directly). Until the host overlaps its
-	// extension tools, the service polls at the PollInterval cadence instead.
-	return serviceClockTimeoutConfig{Poll: lease, Renew: lease, Step: serviceClockStepTimeout, PollWait: 0}
+	// A held journal read (wait_ms) stalls every call queued behind it: the
+	// GABS session runs over its HTTP server (bridge/gabshttp.go), but
+	// RimBridgeServer registers companion-mod tools through
+	// LegacyToolExecution, which blocks Lib.GAB's per-connection reader
+	// until the tool returns, so no later message on the game connection is
+	// even parsed while a read is held (issue #115; verified by speaking
+	// GABP to the mod directly). Under a running window those calls are
+	// the routine Worker's dispatch of the successor order (a preview and
+	// an execute per action) and the epoch renew, and a 2s hold made each
+	// of them wait its full length: the renew lapsed and the dispatch
+	// timed out (issue #162). So the read is never held; while a window
+	// runs the poll instead repeats every serviceClockRunningPoll, which
+	// bounds how long a stop waits to be seen at one short read per
+	// cadence, and between windows it keeps the PollInterval cadence, off
+	// the planners' reads.
+	return serviceClockTimeoutConfig{Poll: lease, Renew: lease, Step: serviceClockStepTimeout, PollWait: 0, RunningPoll: serviceClockRunningPoll}
 }
 
-type serviceClockTimeoutConfig struct{ Poll, Renew, Step, PollWait time.Duration }
+// serviceClockRunningPoll is the unheld poll cadence under a running window:
+// a stop is seen within it plus one bundle read, and the host stays free
+// for the Worker's calls between reads.
+const serviceClockRunningPoll = 250 * time.Millisecond
+
+type serviceClockTimeoutConfig struct{ Poll, Renew, Step, PollWait, RunningPoll time.Duration }
 
 // Session owns the attached worker's drain, including failed startup cleanup.
 // Starting these loops does not enable Player or acquire native authority.
-func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, journal *store.Store, sc serveConfig, timeouts serviceClockTimeoutConfig, wake *buildingruntime.WakeSignal, facts *bridge.FactCache) error {
+func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, journal *store.Store, sc serveConfig, timeouts serviceClockTimeoutConfig, wake *buildingruntime.WakeSignal, facts *bridge.FactCache) (*buildingruntime.ClockWorker, error) {
 	profile, clockSpeed, routine := sc.profile, sc.clockSpeed, sc.routineReviews
 	sleeping, cooking, shelter, comfort, expansion, power, temperature := sc.routineSleepingPlans, sc.routineCookingPlans, sc.routineShelterPlans, sc.routineComfortPlans, sc.routineExpansionPlans, sc.routinePowerPlans, sc.routineTemperaturePlans
 	workshop := sc.routineWorkshopPlans && len(sc.routineResourceTargets.Map()) > 0
@@ -188,489 +200,489 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	haul, waste, moodRelief, naming, dialog := sc.routineHaulPlans, sc.routineWastePlans, sc.routineMoodPlans, sc.routineNamingPlans, sc.routineDialogPlans
 	config := serviceClockConfig(profile, parseClockSpeed(clockSpeed), sc.clockTestAcceleration, uint32(sc.clockWindowTicks), sc.clockWindowSeconds)
 	config.Facts = facts
+	config.Worker = true
 	config.RoutineMethods = session.RoutineMethodsEnabled()
 	if caravanJourneyTracking {
 		native, ok := reads.(buildingruntime.CaravanJourneyNative)
 		if !ok {
-			return errors.New("caravan journey tracking requires typed world progression and home colonist observations")
+			return nil, errors.New("caravan journey tracking requires typed world progression and home colonist observations")
 		}
 		tracker, err := buildingruntime.NewCaravanJourneyTracker(player, native, journal, wallClock{}, config.MaxAge)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		config.CaravanJourney = tracker
 	}
 	if (bills || fields || foodStorage || acquisition || work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || secureSupplies || repair || fireSafety || clean || haul || waste || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || homeCoverage || stoneShell || defensiveLayout || naming || dialog || researchTarget != "" || len(resourceTargets) > 0 || animalFeedPlans || productionPolicyPlans) && !routine {
-		return errors.New("building plans require routine reviews")
+		return nil, errors.New("building plans require routine reviews")
 	}
 	if routine {
 		native, ok := reads.(observation.RoutineSource)
 		if !ok {
-			return errors.New("routine reviews require typed colony and emergency observations")
+			return nil, errors.New("routine reviews require typed colony and emergency observations")
 		}
 		thresholds, capabilities := routineCapabilities(sc)
 		reviewer, err := buildingruntime.NewRoutineReviewer(player, native, wallClock{}, thresholds, config.MaxAge, capabilities)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		config.Routine = reviewer
 		if bills {
 			nativeBills, ok := reads.(buildingruntime.BillPlannerNative)
 			if !ok {
-				return errors.New("bill plans require typed preview")
+				return nil, errors.New("bill plans require typed preview")
 			}
 			config.CookingBills, err = buildingruntime.NewRoutineBillPlanner(reviewer, nativeBills, policy.CookFood)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			config.PreservationBills, err = buildingruntime.NewRoutineBillPlanner(reviewer, nativeBills, policy.PreserveFood)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			config.ButcherBills, err = buildingruntime.NewRoutineBillPlanner(reviewer, nativeBills, policy.ButcherFood)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			buildingNative, ok := reads.(buildingruntime.RoutineBuildingSource)
 			if !ok {
-				return errors.New("bill prerequisites require building observations")
+				return nil, errors.New("bill prerequisites require building observations")
 			}
 			config.Butcher, err = buildingruntime.NewRoutineButcherPlanner(reviewer, buildingNative)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 		if fields {
 			fieldNative, ok := reads.(buildingruntime.FieldNative)
 			if !ok {
-				return errors.New("field planning requires typed preview")
+				return nil, errors.New("field planning requires typed preview")
 			}
 			config.Fields, err = buildingruntime.NewRoutineFieldPlanner(reviewer, fieldNative)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 		if foodStorage {
 			fieldNative, ok := reads.(buildingruntime.FieldNative)
 			if !ok {
-				return errors.New("food storage planning requires typed preview")
+				return nil, errors.New("food storage planning requires typed preview")
 			}
 			config.FoodStorage, err = buildingruntime.NewRoutineFoodStoragePlanner(reviewer, fieldNative)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 		if acquisition {
 			config.FoodAcquisition, err = buildingruntime.NewRoutineAcquisitionPlanner(reviewer, policy.EnsureFoodSupply)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			config.WoodAcquisition, err = buildingruntime.NewRoutineAcquisitionPlanner(reviewer, policy.MaintainWood)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 		if work {
 			config.Work, err = buildingruntime.NewRoutineWorkPlanner(reviewer)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 		if defense {
 			defenseNative, ok := reads.(buildingruntime.RoutineDefenseSource)
 			if !ok {
-				return errors.New("defense plans require typed combat observations")
+				return nil, errors.New("defense plans require typed combat observations")
 			}
 			config.Defense, err = buildingruntime.NewRoutineDefensePlanner(reviewer, defenseNative)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 		if tend {
 			tendNative, ok := reads.(buildingruntime.RoutineTendSource)
 			if !ok {
-				return errors.New("tend plans require typed tend observations")
+				return nil, errors.New("tend plans require typed tend observations")
 			}
 			config.Tend, err = buildingruntime.NewRoutineTendPlanner(reviewer, tendNative)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 		if rescue {
 			rescueNative, ok := reads.(buildingruntime.RoutineRescueSource)
 			if !ok {
-				return errors.New("rescue plans require typed combat observations")
+				return nil, errors.New("rescue plans require typed combat observations")
 			}
 			config.Rescue, err = buildingruntime.NewRoutineRescuePlanner(reviewer, rescueNative)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 		if equip {
 			equipNative, ok := reads.(buildingruntime.RoutineEquipSource)
 			if !ok {
-				return errors.New("equip plans require typed equip observations")
+				return nil, errors.New("equip plans require typed equip observations")
 			}
 			config.Equip, err = buildingruntime.NewRoutineEquipPlanner(reviewer, equipNative)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 		if secureSupplies {
 			secureSuppliesNative, ok := reads.(buildingruntime.RoutineSecureSuppliesSource)
 			if !ok {
-				return errors.New("secure supplies plans require typed colony and tend observations")
+				return nil, errors.New("secure supplies plans require typed colony and tend observations")
 			}
 			config.SecureSupplies, err = buildingruntime.NewRoutineSecureSuppliesPlanner(reviewer, secureSuppliesNative)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 		if fireSafety {
 			fireNative, ok := reads.(buildingruntime.RoutineFireSafetySource)
 			if !ok {
-				return errors.New("fire safety plans require typed colony and tend observations")
+				return nil, errors.New("fire safety plans require typed colony and tend observations")
 			}
 			config.FireSafety, err = buildingruntime.NewRoutineFireSafetyPlanner(reviewer, fireNative)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 		if repair {
 			repairNative, ok := reads.(buildingruntime.RoutineRepairSource)
 			if !ok {
-				return errors.New("repair plans require typed colony and tend observations")
+				return nil, errors.New("repair plans require typed colony and tend observations")
 			}
 			config.Repair, err = buildingruntime.NewRoutineRepairPlanner(reviewer, repairNative)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 		if clean {
 			cleanNative, ok := reads.(buildingruntime.RoutineCleanSource)
 			if !ok {
-				return errors.New("clean plans require typed colony and tend observations")
+				return nil, errors.New("clean plans require typed colony and tend observations")
 			}
 			config.Clean, err = buildingruntime.NewRoutineCleanPlanner(reviewer, cleanNative)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 		if haul {
 			haulNative, ok := reads.(buildingruntime.RoutineHaulSource)
 			if !ok {
-				return errors.New("haul plans require typed colony and tend observations")
+				return nil, errors.New("haul plans require typed colony and tend observations")
 			}
 			config.Haul, err = buildingruntime.NewRoutineHaulPlanner(reviewer, haulNative)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 		if waste {
 			wasteNative, ok := reads.(buildingruntime.RoutineWasteSource)
 			if !ok {
-				return errors.New("waste plans require typed colony and tend observations")
+				return nil, errors.New("waste plans require typed colony and tend observations")
 			}
 			config.Waste, err = buildingruntime.NewRoutineWastePlanner(reviewer, wasteNative)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 		if moodRelief {
 			moodReliefNative, ok := reads.(buildingruntime.RoutineMoodReliefSource)
 			if !ok {
-				return errors.New("mood plans require typed colony observations")
+				return nil, errors.New("mood plans require typed colony observations")
 			}
 			config.MoodRelief, err = buildingruntime.NewRoutineMoodReliefPlanner(reviewer, moodReliefNative)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 		if gear {
 			gearNative, ok := reads.(buildingruntime.RoutineGearSource)
 			if !ok {
-				return errors.New("gear plans require typed colony observations")
+				return nil, errors.New("gear plans require typed colony observations")
 			}
 			config.Gear, err = buildingruntime.NewRoutineGearPlanner(reviewer, gearNative)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 		if medical {
 			medicalNative, ok := reads.(buildingruntime.RoutineMedicalSource)
 			if !ok {
-				return errors.New("medical reserve plans require typed colony observations")
+				return nil, errors.New("medical reserve plans require typed colony observations")
 			}
 			config.Medical, err = buildingruntime.NewRoutineMedicalPlanner(reviewer, medicalNative)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 		if foodStorageUpkeep {
 			foodStorageNative, ok := reads.(buildingruntime.RoutineFoodStorageUpkeepSource)
 			if !ok {
-				return errors.New("food storage upkeep plans require typed colony and resource-source observations")
+				return nil, errors.New("food storage upkeep plans require typed colony and resource-source observations")
 			}
 			config.FoodStorageUpkeep, err = buildingruntime.NewRoutineFoodStorageUpkeepPlanner(reviewer, foodStorageNative)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 		if animalContainment {
 			containmentNative, ok := reads.(buildingruntime.RoutineBuildingSource)
 			if !ok {
-				return errors.New("animal containment plans require typed placement previews")
+				return nil, errors.New("animal containment plans require typed placement previews")
 			}
 			config.AnimalContainment, err = buildingruntime.NewRoutineAnimalContainmentPlanner(reviewer, containmentNative)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 		if recovery {
 			config.Recovery, err = buildingruntime.NewRoutineRecoveryPlanner(reviewer)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 		if husbandry {
 			config.Husbandry, err = buildingruntime.NewRoutineHusbandryPlanner(reviewer)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 		if prisonerInteraction {
 			config.PrisonerInteraction, err = buildingruntime.NewRoutinePrisonerInteractionPlanner(reviewer)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 		if populationCustody {
 			custodyNative, ok := reads.(buildingruntime.RoutineRescueSource)
 			if !ok {
-				return errors.New("population custody plans require typed combat observations")
+				return nil, errors.New("population custody plans require typed combat observations")
 			}
 			config.PopulationCustody, err = buildingruntime.NewRoutinePopulationCustodyPlanner(reviewer, custodyNative)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 		if homeCoverage {
 			homeCoverageNative, ok := reads.(buildingruntime.RoutineHomeCoverageSource)
 			if !ok {
-				return errors.New("home coverage plans require typed colony and construction observations")
+				return nil, errors.New("home coverage plans require typed colony and construction observations")
 			}
 			config.HomeCoverage, err = buildingruntime.NewRoutineHomeCoveragePlanner(reviewer, homeCoverageNative)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 		if stoneShell {
 			stoneShellNative, ok := reads.(buildingruntime.RoutineStoneShellSource)
 			if !ok {
-				return errors.New("stone shell plans require typed wall upgrade site and placement observations")
+				return nil, errors.New("stone shell plans require typed wall upgrade site and placement observations")
 			}
 			config.StoneShell, err = buildingruntime.NewRoutineStoneShellPlanner(reviewer, stoneShellNative)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 		if defensiveLayout {
 			defenseNative, ok := reads.(buildingruntime.RoutineDefenseLayoutSource)
 			if !ok {
-				return errors.New("defensive layout plans require typed defense site, lines of fire, spatial access, combat pawn and placement observations")
+				return nil, errors.New("defensive layout plans require typed defense site, lines of fire, spatial access, combat pawn and placement observations")
 			}
 			config.DefenseLayout, err = buildingruntime.NewRoutineDefenseLayoutPlanner(reviewer, defenseNative)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 		if research {
 			researchNative, ok := reads.(buildingruntime.RoutineResearchSource)
 			if !ok {
-				return errors.New("research plans require typed research observations")
+				return nil, errors.New("research plans require typed research observations")
 			}
 			config.Research, err = buildingruntime.NewRoutineResearchPlanner(reviewer, researchNative)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 		if naming {
 			namingNative, ok := reads.(buildingruntime.RoutineNamingSource)
 			if !ok {
-				return errors.New("naming plans require typed colony observations")
+				return nil, errors.New("naming plans require typed colony observations")
 			}
 			config.Naming, err = buildingruntime.NewRoutineNamingPlanner(reviewer, namingNative)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 		if dialog {
 			dialogNative, ok := reads.(buildingruntime.RoutineDialogSource)
 			if !ok {
-				return errors.New("dialog plans require typed colony observations")
+				return nil, errors.New("dialog plans require typed colony observations")
 			}
 			config.Dialog, err = buildingruntime.NewRoutineDialogPlanner(reviewer, dialogNative, policy.DialogAnswerPolicy{Prefer: splitDialogPrefer(sc.routineDialogPrefer)})
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 		if len(resourceTargets) > 0 {
 			resourceNative, ok := reads.(buildingruntime.RoutineResourceSource)
 			if !ok {
-				return errors.New("resource plans require typed colony observations")
+				return nil, errors.New("resource plans require typed colony observations")
 			}
 			config.Resource, err = buildingruntime.NewRoutineResourcePlanner(reviewer, resourceNative)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 		if animalFeedPlans {
 			animalFeedNative, ok := reads.(buildingruntime.RoutineResourceSource)
 			if !ok {
-				return errors.New("animal feed plans require typed colony observations")
+				return nil, errors.New("animal feed plans require typed colony observations")
 			}
 			config.AnimalFeed, err = buildingruntime.NewRoutineAnimalFeedPlanner(reviewer, animalFeedNative)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 		if productionPolicyPlans {
 			productionPolicyNative, ok := reads.(buildingruntime.RoutineProductionPolicySource)
 			if !ok {
-				return errors.New("production policy plans require typed production policy observations")
+				return nil, errors.New("production policy plans require typed production policy observations")
 			}
 			config.ProductionPolicy, err = buildingruntime.NewRoutineProductionPolicyPlanner(reviewer, productionPolicyNative)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 		if supplies {
 			source, ok := reads.(buildingruntime.RoutineSupplySource)
 			if !ok {
-				return errors.New("supply plans require typed supply observations")
+				return nil, errors.New("supply plans require typed supply observations")
 			}
 			config.Supplies, err = buildingruntime.NewRoutineSupplyPlanner(reviewer, source)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 		if sleeping || cooking || shelter || comfort || workshop || hospital || expansion || power || temperature || refrigeration || lighting || flooring || routes {
 			source, ok := reads.(buildingruntime.RoutineBuildingSource)
 			if !ok {
-				return errors.New("building plans require typed placement previews")
+				return nil, errors.New("building plans require typed placement previews")
 			}
 			var excavation buildingruntime.RoutineExcavationSource
 			if shelter || expansion {
 				excavation, ok = reads.(buildingruntime.RoutineExcavationSource)
 				if !ok {
-					return errors.New("shelter and expansion plans require typed excavation site reads")
+					return nil, errors.New("shelter and expansion plans require typed excavation site reads")
 				}
 			}
 			if shelter {
 				config.Sleeping, err = buildingruntime.NewRoutineShelterPlanner(reviewer, source, excavation)
 				if err != nil {
-					return err
+					return nil, err
 				}
 			} else if sleeping {
 				config.Sleeping, err = buildingruntime.NewRoutineSleepingPlanner(reviewer, source)
 				if err != nil {
-					return err
+					return nil, err
 				}
 			}
 			if sleeping {
 				config.SleepingUpkeep, err = buildingruntime.NewRoutineSleepingUpkeepPlanner(reviewer, source)
 				if err != nil {
-					return err
+					return nil, err
 				}
 			}
 			if temperature {
 				config.Temperature, err = buildingruntime.NewRoutineTemperaturePlanner(reviewer, source)
 				if err != nil {
-					return err
+					return nil, err
 				}
 			}
 			if power {
 				config.Power, err = buildingruntime.NewRoutinePowerPlanner(reviewer, source)
 				if err != nil {
-					return err
+					return nil, err
 				}
 			}
 			if refrigeration {
 				config.Refrigeration, err = buildingruntime.NewRoutineRefrigerationPlanner(reviewer, source)
 				if err != nil {
-					return err
+					return nil, err
 				}
 			}
 			if lighting {
 				config.Lighting, err = buildingruntime.NewRoutineLightingPlanner(reviewer, source)
 				if err != nil {
-					return err
+					return nil, err
 				}
 			}
 			if flooring {
 				config.Flooring, err = buildingruntime.NewRoutineFlooringPlanner(reviewer, source)
 				if err != nil {
-					return err
+					return nil, err
 				}
 			}
 			if routes {
 				config.Routes, err = buildingruntime.NewRoutineRoutesPlanner(reviewer, source)
 				if err != nil {
-					return err
+					return nil, err
 				}
 			}
 			if cooking || bills {
 				config.Cooking, err = buildingruntime.NewRoutineCookingPlanner(reviewer, source)
 				if err != nil {
-					return err
+					return nil, err
 				}
 			}
 			if expansion {
 				config.Expansion, err = buildingruntime.NewRoutineExpansionPlanner(reviewer, source, excavation)
 				if err != nil {
-					return err
+					return nil, err
 				}
 			}
 			if comfort {
 				config.Comfort, err = buildingruntime.NewRoutineComfortPlanner(reviewer, source)
 				if err != nil {
-					return err
+					return nil, err
 				}
 			}
 			if workshop {
 				config.Workshop, err = buildingruntime.NewRoutineWorkshopPlanner(reviewer, source)
 				if err != nil {
-					return err
+					return nil, err
 				}
 			}
 			if ingredientStorage {
 				storageNative, ok := reads.(buildingruntime.RoutineIngredientStorageSource)
 				if !ok {
-					return errors.New("ingredient storage plans require typed bench census and zone preview observations")
+					return nil, errors.New("ingredient storage plans require typed bench census and zone preview observations")
 				}
 				config.IngredientStorage, err = buildingruntime.NewRoutineIngredientStoragePlanner(reviewer, storageNative)
 				if err != nil {
-					return err
+					return nil, err
 				}
 			}
 			if hospital {
 				config.Hospital, err = buildingruntime.NewRoutineHospitalPlanner(reviewer, source)
 				if err != nil {
-					return err
+					return nil, err
 				}
 			}
 		}
 	}
 	scheduler, err := buildingruntime.NewClockScheduler(player, session, reads, config, wallClock{})
 	if err != nil {
-		return err
+		return nil, err
 	}
-	_, err = buildingruntime.NewClockWorker(ctx, scheduler, reads, buildingruntime.ClockWorkerConfig{
+	return buildingruntime.NewClockWorker(ctx, scheduler, reads, buildingruntime.ClockWorkerConfig{
 		PollInterval: time.Second, RenewInterval: 5 * time.Second, StepInterval: time.Second,
 		MaxBackoff: 10 * time.Second, PollTimeout: timeouts.Poll, RenewTimeout: timeouts.Renew, StepTimeout: timeouts.Step, PageLimit: 128,
-		PollWait: timeouts.PollWait, Wake: wake,
+		PollWait: timeouts.PollWait, RunningPollInterval: timeouts.RunningPoll, Wake: wake,
 	})
-	return err
 }
 
 // routineCapabilities derives the routine policy thresholds and the method

@@ -147,9 +147,16 @@ waiting. The native side registers the waiter under the same lock that found
 the page empty, so an append between the read and the wait cannot be missed,
 and keeps at most four waiters so waiting readers never starve other tools.
 `ClockWorkerConfig.PollWait` must leave one second of the poll call budget for
-the two main-thread hops (`serve` uses 4 s under the 7 s poll timeout). A poll
-that returns early with nothing (a native build ignoring `wait_ms`) falls back
-to the ordinary poll interval instead of spinning.
+the two main-thread hops and is applied only while the scheduler reports a
+window it admitted running (`ClockScheduler.WindowRunning`); otherwise the
+read is not held, because the game host runs tools one at a time and a held
+read would queue ahead of the review's own reads. `serve` sets it to zero:
+under a running window the routine worker's dispatch calls and the lease
+renew queue behind the poll too, and a 2 s hold timed the dispatch out and
+let the renew lapse (issue #162). It polls unheld instead at
+`RunningPollInterval` (250 ms) while the window runs and at `PollInterval`
+(1 s) between windows. A poll that returns early with nothing (a native
+build ignoring `wait_ms`) falls back to the cadence instead of spinning.
 
 `Event.owner` is required for every event except an `AuthorityChanged` observed
 outside an epoch, which the native supervisor publishes from the authority
@@ -382,7 +389,21 @@ families and authority flag as the step's `StepReason`; the poll notifies the
 shared signal too, which wakes the routine `Worker` to reconcile the actions
 named by any `OperationOutcome` or `WatchLatched` evidence ahead of its
 rotation and without their retry backoff (at most 64 focused actions).
-Autonomous play attaches the worker; `--observe` does not.
+Autonomous play attaches the worker; `--observe` does not. A wake's terminal
+outcome for an attempt the plan still shows dispatched defers the admission
+(`ClockSchedulerResult.Deferred`, at most three steps per outcome and three
+deferred steps in a row over every hold and action, and not
+while another watched attempt is in flight, since a window admitted then has
+that one to latch; likewise while a watched successor is queued but not yet
+dispatched): the
+step loop leaves the player gate to the worker and steps again when a worker
+step advances any action (`WorkerConfig.Advanced` nudges it) or a
+`StepInterval` later, without backoff. Since the step that settles a stop
+reviews and admits in the same pass, the step loop first waits, bounded by
+`clockPauseDrainMax` (5 s), for the worker to report its pause-bound
+admissions for that stop tried (`WakeSignal.PauseDrained`, #129); a window admitted
+before that would watch the settled attempt again, which the native clock
+never re-latches, and run out its whole budget (issue #162).
 
 `StepReason.Cause` is `timer`, `wake`, `settled` or `full`. The planners the
 scheduler queues are the `plannerCatalog` entries `plannerSelection` picks:

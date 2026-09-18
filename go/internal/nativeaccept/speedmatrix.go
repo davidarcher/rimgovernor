@@ -150,9 +150,15 @@ type StopSummary struct {
 	MaxLatencyMs  float64        `json:"max_latency_ms"`
 }
 
-const clockEventsTool = "rimgovernor/clock_read_events"
+const (
+	clockEventsTool = "rimgovernor/clock_read_events"
+	bundleTool      = "rimgovernor/observations_read_bundle"
+)
 
-// SummarizeStops scans the timeline's clock_read_events replies. Events are
+// SummarizeStops scans the timeline's clock_read_events replies and the
+// bundle replies that carry an events page (the service's poll since
+// issue #127; a scan keyed on the events tool alone reported no stops
+// against a bundle-polling service). Events are
 // keyed by cursor so a page re-read after a hold counts once. Events
 // observed before sinceUnixMs are skipped: the native event journal
 // survives a reload in the same process, so a service's first page carries
@@ -165,7 +171,7 @@ func SummarizeStops(rows []bridge.TimelineRecord, sinceUnixMs int64) StopSummary
 		if row.Kind != "native_response" {
 			continue
 		}
-		if tool, _ := row.Payload["native_tool"].(string); tool != clockEventsTool {
+		if tool, _ := row.Payload["native_tool"].(string); tool != clockEventsTool && tool != bundleTool {
 			continue
 		}
 		wrapper, ok := row.Payload["result"].(map[string]any)

@@ -327,15 +327,15 @@ func speedMatrixFixture(t *testing.T, native *speedNative, snapshot domain.Gener
 	// NewClockWorker starts its loops before returning, so the step is
 	// wrapped here, on a worker built the same way.
 	lifetime, cancel := context.WithCancel(context.Background())
-	worker := &ClockWorker{ctx: lifetime, cancel: cancel, config: config, done: make(chan struct{}), ready: make(chan struct{}), stopGate: make(chan struct{}, 1), disable: session.disableClockWorker, cleanup: session.CleanupClock, renew: scheduler.RenewEpoch, wake: NewWakeSignal()}
+	worker := &ClockWorker{ctx: lifetime, cancel: cancel, config: config, done: make(chan struct{}), ready: make(chan struct{}), stopGate: make(chan struct{}, 1), disable: session.disableClockWorker, cleanup: session.CleanupClock, renew: scheduler.RenewEpoch, held: scheduler.WindowRunning, wake: NewWakeSignal()}
 	worker.step = func(ctx context.Context, reason StepReason) (ClockSchedulerResult, error) {
 		began := time.Now()
 		result, err := scheduler.StepWithReason(ctx, reason)
 		record(speedStep{began: began, reason: reason, result: result, err: err})
 		return result, err
 	}
-	worker.poll = func(ctx context.Context) (ClockPollResult, error) {
-		return scheduler.PollEvents(ctx, native, config.PageLimit, config.PollWait)
+	worker.poll = func(ctx context.Context, wait time.Duration) (ClockPollResult, error) {
+		return scheduler.PollEvents(ctx, native, config.PageLimit, wait)
 	}
 	worker.stopParent = context.AfterFunc(player.lifetime, cancel)
 	if err = session.attachClockWorker(worker); err != nil {

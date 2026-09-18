@@ -15,6 +15,16 @@ import (
 // Cleanup joins commands and their journal writes, including after Stop. It never
 // acquires authority or a lease; only the immutable original epoch can be paused.
 func (q *ClockCoordinator) Cleanup(ctx context.Context) error {
+	return q.CleanupObserved(ctx, nil)
+}
+
+// CleanupObserved is Cleanup given a clock status the caller has just read
+// and validated (a scheduler step's bundle). An epoch obligation under that
+// status's identity is observed from it instead of re-reading the identity
+// and the status: two round trips that, behind the game host's one-at-a-time
+// tool execution, used to sit between a window's stop and the review that
+// admits the next one (issue #162). A nil status reads as before.
+func (q *ClockCoordinator) CleanupObserved(ctx context.Context, observed *k.Status) error {
 	select {
 	case q.gate <- struct{}{}:
 	case <-ctx.Done():
@@ -55,7 +65,7 @@ func (q *ClockCoordinator) Cleanup(ctx context.Context) error {
 			return errors.Join(append(failures, err)...)
 		}
 		call, cancel := context.WithTimeout(ctx, q.config.CallTimeout)
-		err = q.cleanupEpoch(call, epoch)
+		err = q.cleanupEpoch(call, epoch, observed)
 		cancel()
 		if err != nil {
 			failures = append(failures, err)
@@ -106,13 +116,16 @@ func (q *ClockCoordinator) cleanupStart(ctx context.Context, v store.ClockAttemp
 	}
 	return nil
 }
-func (q *ClockCoordinator) cleanupEpoch(ctx context.Context, v store.ClockEpochObligation) error {
-	current, err := q.cleanupIdentity(ctx)
-	if err != nil {
+func (q *ClockCoordinator) cleanupEpoch(ctx context.Context, v store.ClockEpochObligation, observed *k.Status) error {
+	var current *c.ObservationContext
+	var status *k.Status
+	var err error
+	if observed != nil && proto.Equal(observed.Context.GetIdentity(), v.Epoch.Origin.Identity) {
+		current, status = proto.Clone(observed.Context).(*c.ObservationContext), observed
+	} else if current, err = q.cleanupIdentity(ctx); err != nil {
 		return err
 	}
-	var status *k.Status
-	if proto.Equal(current.Identity, v.Epoch.Origin.Identity) {
+	if status == nil && proto.Equal(current.Identity, v.Epoch.Origin.Identity) {
 		reply, _, readErr := q.native.ReadClockStatus(ctx, current.Identity)
 		if readErr != nil {
 			return readErr
@@ -155,11 +168,11 @@ func (q *ClockCoordinator) cleanupEpoch(ctx context.Context, v store.ClockEpochO
 	status = reply.GetStatus()
 	persist, cancel := context.WithTimeout(context.Background(), q.config.JournalTimeout)
 	defer cancel()
-	observed, err := q.journal.ObserveClockEpoch(persist, v.StartRequestID, v.Sequence, status.Context, status)
+	settled, err := q.journal.ObserveClockEpoch(persist, v.StartRequestID, v.Sequence, status.Context, status)
 	if err != nil {
 		return q.cleanupPauseUncertain(v, errors.Join(err, ctx.Err()))
 	}
-	if !clockCoordinatorTerminal(observed.Stage) {
+	if !clockCoordinatorTerminal(settled.Stage) {
 		return errors.Join(ctx.Err(), executor.ErrHeld)
 	}
 	return ctx.Err()

@@ -22,6 +22,7 @@ import (
 func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative, limit uint32, wait time.Duration) (out ClockPollResult, err error) {
 	fail := func(cause error) (ClockPollResult, error) {
 		out.Interrupted = true
+		s.running.Store(false)
 		disabled := s.session.Disable()
 		cleanup, cancel := context.WithTimeout(context.Background(), s.session.control.config.CallTimeout)
 		defer cancel()
@@ -127,7 +128,15 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 		return fail(err)
 	}
 	if out.Captured {
+		if clockPollStopped(page) {
+			s.running.Store(false)
+		}
 		out.Wake, out.Invalidated, out.AuthorityChanged, out.Stopped, out.StoppedAt = clockPageWakeStopped(page)
+		// Recorded here, not only through the step's wake reason: a step
+		// already past taking its reason (waiting on the player gate
+		// behind the Worker) must still see an outcome this page carried
+		// before it admits a window (issue #162).
+		s.latched.remember(out.Wake)
 		// The reviewer's retained census observed through the same facts:
 		// whatever the page made stale retires it too.
 		if s.facts.apply(page) && s.config.Routine != nil {
@@ -176,6 +185,17 @@ func clockPollEventKinds(page *k.EventsPage) string {
 		}
 	}
 	return strings.Join(kinds, ",")
+}
+
+// clockPollStopped reports whether the page carries a stopped event: the
+// window the scheduler admitted is no longer running, whatever stopped it.
+func clockPollStopped(page *k.EventsPage) bool {
+	for _, event := range page.Events {
+		if _, ok := event.Event.(*k.Event_Stopped); ok {
+			return true
+		}
+	}
+	return false
 }
 func clockPollInterrupts(page *k.EventsPage) bool {
 	for _, event := range page.Events {

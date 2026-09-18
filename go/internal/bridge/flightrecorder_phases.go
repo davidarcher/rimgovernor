@@ -61,8 +61,11 @@ type PhaseSummary struct {
 // (issue #126): how many steps reached the admission tail (Windows), the
 // ticks they asked for in total and at most, and the largest wall target;
 // the steps by the reason they acted on (timer, wake, settled, full) and
-// the clock stops the wake steps answered (issue #112). Rows are absent
-// when the controller ran without a scheduler, leaving Steps at 0.
+// the clock stops the wake steps answered (issue #112); and the
+// stop-to-readmit pauses the admitting steps closed (issue #162): how many
+// admissions followed a stopped window, the wall seconds those pauses
+// summed to and the longest. Rows are absent when the controller ran
+// without a scheduler, leaving Steps at 0.
 type StepSample struct {
 	Steps          uint64            `json:"steps"`
 	Reads          uint64            `json:"reads"`
@@ -74,6 +77,9 @@ type StepSample struct {
 	WindowTicks    uint64            `json:"window_ticks"`
 	MaxWindowTicks uint64            `json:"max_window_ticks"`
 	MaxWindowSecs  float64           `json:"max_window_target_secs"`
+	Pauses         uint64            `json:"pauses"`
+	PauseSecs      float64           `json:"pause_seconds"`
+	MaxPauseSecs   float64           `json:"max_pause_seconds"`
 	Reasons        map[string]uint64 `json:"reasons,omitempty"`
 	Stops          StopSample        `json:"stops"`
 }
@@ -92,8 +98,12 @@ type StopSample struct {
 
 // ClockSample is wall TPS derived from the observation-context ticks carried
 // by native replies, excluding intervals where the tick went backwards
-// (load, rewind, map change), plus the paused fraction of clock_read_status
-// samples. Wall TPS includes paused time by construction.
+// (load, rewind, map change), plus the paused state the clock status
+// samples report: as a count of samples and weighted by the wall time each
+// sample stood for (until the next one). The count over-represents pauses,
+// when the service issues most of its reads; the time-weighted fraction
+// (PausedSecs / SampledSecs) is the share of the sampled wall time the
+// clock was paused. Wall TPS includes paused time by construction.
 type ClockSample struct {
 	TickSamples   uint64  `json:"tick_samples"`
 	TicksAdvanced int64   `json:"ticks_advanced"`
@@ -102,6 +112,20 @@ type ClockSample struct {
 	Resets        uint64  `json:"resets"`
 	PausedSamples uint64  `json:"paused_samples"`
 	ClockSamples  uint64  `json:"clock_samples"`
+	PausedSecs    float64 `json:"paused_seconds"`
+	SampledSecs   float64 `json:"sampled_seconds"`
+}
+
+// PausedFraction is the time-weighted share of the sampled wall time the
+// clock was paused, or the sample count ratio when no sample spans time.
+func (c ClockSample) PausedFraction() float64 {
+	if c.SampledSecs > 0 {
+		return c.PausedSecs / c.SampledSecs
+	}
+	if c.ClockSamples > 0 {
+		return float64(c.PausedSamples) / float64(c.ClockSamples)
+	}
+	return 0
 }
 
 // SummarizePhases aggregates rows produced by Client (native_response,
@@ -114,6 +138,8 @@ func SummarizePhases(records []TimelineRecord) PhaseSummary {
 	var lastTick int64
 	haveTick := false
 	var tickWall float64
+	var pausedWall float64
+	var lastPaused, havePaused bool
 	var stopLatencyMs float64
 	for _, row := range records {
 		summary.Records++
@@ -161,6 +187,14 @@ func SummarizePhases(records []TimelineRecord) PhaseSummary {
 				if paused {
 					summary.Clock.PausedSamples++
 				}
+				if havePaused && row.WallTime > pausedWall {
+					span := row.WallTime - pausedWall
+					summary.Clock.SampledSecs += span
+					if lastPaused {
+						summary.Clock.PausedSecs += span
+					}
+				}
+				lastPaused, pausedWall, havePaused = paused, row.WallTime, true
 			}
 			if !hasTick {
 				continue
@@ -191,6 +225,11 @@ func SummarizePhases(records []TimelineRecord) PhaseSummary {
 				steps.WindowTicks += ticks
 				steps.MaxWindowTicks = max(steps.MaxWindowTicks, ticks)
 				steps.MaxWindowSecs = math.Max(steps.MaxWindowSecs, field(row.Payload, "window_target_s"))
+			}
+			if pause := field(row.Payload, "stop_pause_s"); pause > 0 {
+				steps.Pauses++
+				steps.PauseSecs += pause
+				steps.MaxPauseSecs = math.Max(steps.MaxPauseSecs, pause)
 			}
 			if tools, ok := row.Payload["tools"].(map[string]any); ok {
 				if steps.Tools == nil {
@@ -306,17 +345,43 @@ func replyClock(result any) (tick int64, paused bool, hasTick bool, hasPaused bo
 				tick, hasTick = value, true
 			}
 		}
-		if value, ok := body["actualPaused"].(bool); ok {
+		if value, ok := statusPaused(body); ok {
 			paused, hasPaused = value, true
 		}
-		// A bundle carries the clock status as a section.
+		// A bundle carries the clock status as a section; a control
+		// receipt's applied outcome carries the status it applied.
 		if status, ok := body["clockStatus"].(map[string]any); ok {
-			if value, ok := status["actualPaused"].(bool); ok {
+			if value, ok := statusPaused(status); ok {
 				paused, hasPaused = value, true
+			}
+		}
+		if applied, ok := body["applied"].(map[string]any); ok {
+			if status, ok := applied["status"].(map[string]any); ok {
+				if value, ok := statusPaused(status); ok {
+					paused, hasPaused = value, true
+				}
 			}
 		}
 	}
 	return
+}
+
+// statusPaused reads whether a recorded clock status shows the clock paused:
+// its actual-paused flag when present, else its running/stopped state. A
+// start's applied status is the one sample taken while a window runs, so
+// counting it keeps the time-weighted paused share honest under polls that
+// only return once the window has stopped (issue #162).
+func statusPaused(status map[string]any) (bool, bool) {
+	if value, ok := status["actualPaused"].(bool); ok {
+		return value, true
+	}
+	if _, ok := status["running"].(map[string]any); ok {
+		return false, true
+	}
+	if _, ok := status["stopped"].(map[string]any); ok {
+		return true, true
+	}
+	return false, false
 }
 
 // tickValue accepts ProtoJSON int64 encodings: a JSON string or a number.
@@ -343,7 +408,7 @@ func WritePhaseReport(w io.Writer, summary PhaseSummary) {
 	if clock.TickSamples > 0 {
 		fmt.Fprintf(w, "clock: %d ticks over %.1fs = %.1f wall TPS (%d tick samples, %d resets)", clock.TicksAdvanced, clock.WallSecs, clock.WallTPS, clock.TickSamples, clock.Resets)
 		if clock.ClockSamples > 0 {
-			fmt.Fprintf(w, ", paused %d/%d status samples", clock.PausedSamples, clock.ClockSamples)
+			fmt.Fprintf(w, ", paused %d/%d status samples (%.0f%% of %.1fs sampled)", clock.PausedSamples, clock.ClockSamples, 100*clock.PausedFraction(), clock.SampledSecs)
 		}
 		fmt.Fprintln(w)
 	}
@@ -351,6 +416,9 @@ func WritePhaseReport(w io.Writer, summary PhaseSummary) {
 		fmt.Fprintf(w, "steps: %d, reads/step mean %.1f max %d, cache hits/step %.1f, parent hits/step %.1f", steps.Steps, float64(steps.Reads)/float64(steps.Steps), steps.MaxReads, float64(steps.CacheHits)/float64(steps.Steps), float64(steps.ParentHits)/float64(steps.Steps))
 		if steps.Windows > 0 {
 			fmt.Fprintf(w, ", window ticks mean %.0f max %d (target up to %.1fs) over %d sized steps", float64(steps.WindowTicks)/float64(steps.Windows), steps.MaxWindowTicks, steps.MaxWindowSecs, steps.Windows)
+		}
+		if steps.Pauses > 0 {
+			fmt.Fprintf(w, ", stop-to-readmit pause mean %.2fs max %.2fs over %d admissions", steps.PauseSecs/float64(steps.Pauses), steps.MaxPauseSecs, steps.Pauses)
 		}
 		if len(steps.Reasons) > 0 {
 			reasons := make([]string, 0, len(steps.Reasons))

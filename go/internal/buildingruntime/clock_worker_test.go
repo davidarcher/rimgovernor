@@ -14,7 +14,7 @@ import (
 func clockLoopFixture(t *testing.T) *ClockWorker {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
-	w := &ClockWorker{ctx: ctx, cancel: cancel, config: ClockWorkerConfig{PollInterval: 5 * time.Millisecond, RenewInterval: 5 * time.Millisecond, StepInterval: 5 * time.Millisecond, MaxBackoff: 80 * time.Millisecond, PollTimeout: 20 * time.Millisecond, RenewTimeout: 20 * time.Millisecond, StepTimeout: 20 * time.Millisecond}, done: make(chan struct{}), ready: make(chan struct{}), stopGate: make(chan struct{}, 1), disable: func() error { return nil }, cleanup: func(context.Context) error { return nil }, poll: func(context.Context) (ClockPollResult, error) { return ClockPollResult{}, nil }, renew: func(context.Context) (ClockRenewResult, error) { return ClockRenewResult{}, nil }, step: func(context.Context, StepReason) (ClockSchedulerResult, error) { return ClockSchedulerResult{}, nil }, wake: NewWakeSignal()}
+	w := &ClockWorker{ctx: ctx, cancel: cancel, config: ClockWorkerConfig{PollInterval: 5 * time.Millisecond, RenewInterval: 5 * time.Millisecond, StepInterval: 5 * time.Millisecond, MaxBackoff: 80 * time.Millisecond, PollTimeout: 20 * time.Millisecond, RenewTimeout: 20 * time.Millisecond, StepTimeout: 20 * time.Millisecond}, done: make(chan struct{}), ready: make(chan struct{}), stopGate: make(chan struct{}, 1), disable: func() error { return nil }, cleanup: func(context.Context) error { return nil }, poll: func(context.Context, time.Duration) (ClockPollResult, error) { return ClockPollResult{}, nil }, renew: func(context.Context) (ClockRenewResult, error) { return ClockRenewResult{}, nil }, step: func(context.Context, StepReason) (ClockSchedulerResult, error) { return ClockSchedulerResult{}, nil }, wake: NewWakeSignal()}
 	t.Cleanup(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
@@ -80,7 +80,7 @@ func TestClockWorkerPollBarrierAndIndependentLoops(t *testing.T) {
 	var polls, renews, steps atomic.Int32
 	allowPoll := make(chan struct{})
 	enteredStep := make(chan struct{})
-	w.poll = func(context.Context) (ClockPollResult, error) {
+	w.poll = func(context.Context, time.Duration) (ClockPollResult, error) {
 		polls.Add(1)
 		select {
 		case <-allowPoll:

@@ -2,9 +2,11 @@ package buildingruntime
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	"google.golang.org/protobuf/proto"
@@ -102,17 +104,15 @@ func TestClockSchedulerSizesTheColonyWindow(t *testing.T) {
 	if got.Window != (ClockWindowSize{Ticks: 1800, TargetSeconds: 2, TicksPerSecond: 900}) || got.Attempt.Intent.Command.Start.MaxTicks != 1800 || f.status.GetRunning().Epoch.GetTickDeadline() != 12+1800 {
 		t.Fatal(got.Window, got.Attempt.Intent.Command.Start.MaxTicks, f.status.GetRunning().Epoch.GetTickDeadline())
 	}
-	// That window ran out 3s before the fixed clock's now: once the
-	// scheduler has retired the epoch, the observed pause stretches the
-	// target to 3s for the next admission (which the fixture's status
-	// facts then refuse; the first window proved the size reaches native).
+	// That window ran out 3s before the fixed clock's now: the step that
+	// retires the epoch reviews at once (issue #162), and the observed
+	// pause stretches the target to 3s for the next admission (which the
+	// fixture's status facts then refuse; the first window proved the
+	// size reaches native).
 	f.status.State = &k.Status_Stopped{Stopped: &k.Stopped{Epoch: f.status.GetRunning().Epoch, Reason: k.StopReason_STOP_REASON_TICK_BUDGET.Enum(), ActualPaused: proto.Bool(true), PauseVerified: proto.Bool(true), PauseRequested: proto.Bool(false), StoppedAtUnixMs: proto.Int64(s.clock.Now().Add(-3 * time.Second).UnixMilli())}}
 	f.status.ActualPaused = proto.Bool(true)
-	if got, err = s.Step(context.Background()); err != nil || !got.Cleaned {
+	if got, err = s.Step(context.Background()); !errors.Is(err, executor.ErrHeld) || got.Cleaned || got.Window != (ClockWindowSize{Ticks: 2700, TargetSeconds: 3, TicksPerSecond: 900}) {
 		t.Fatal(got, err)
-	}
-	if got, _ = s.Step(context.Background()); got.Window != (ClockWindowSize{Ticks: 2700, TargetSeconds: 3, TicksPerSecond: 900}) {
-		t.Fatal(got.Window)
 	}
 	// Seeing the same stop again does not compound the estimate.
 	if got, _ = s.Step(context.Background()); got.Window != (ClockWindowSize{Ticks: 2700, TargetSeconds: 3, TicksPerSecond: 900}) {

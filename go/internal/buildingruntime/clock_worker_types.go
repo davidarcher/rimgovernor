@@ -43,10 +43,16 @@ type ClockWorkerConfig struct {
 	PollInterval, RenewInterval, StepInterval, MaxBackoff time.Duration
 	PollTimeout, RenewTimeout, StepTimeout                time.Duration
 	PageLimit                                             uint32
-	// PollWait is the long-poll bound passed to the native journal read: the
-	// call returns as soon as an event lands or after PollWait. Zero polls at
+	// PollWait is the long-poll bound passed to the native journal read
+	// while the scheduler believes its window is running: the call returns
+	// as soon as an event lands or after PollWait. Zero polls at
 	// PollInterval only. It must leave a second of PollTimeout for the read.
 	PollWait time.Duration
+	// RunningPollInterval, when set, is the cadence of the unheld poll
+	// while the scheduler believes its window is running; zero keeps
+	// PollInterval. A short cadence bounds how long a stop waits to be
+	// seen where a held read cannot be afforded (issue #162).
+	RunningPollInterval time.Duration
 	// Wake receives committed poll evidence and shortcuts the step loop's
 	// backoff; nil keeps the timer cadence.
 	Wake *WakeSignal

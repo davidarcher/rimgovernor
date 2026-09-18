@@ -15,16 +15,19 @@ import (
 // ClockWorker owns only its three loops. Session retains native capabilities,
 // the profile lock and journal until Stop has joined and cleanup succeeds.
 type ClockWorker struct {
-	ctx        context.Context
-	cancel     context.CancelFunc
-	config     ClockWorkerConfig
-	done       chan struct{}
-	ready      chan struct{}
-	stopGate   chan struct{}
-	stopped    bool
-	disable    func() error
-	cleanup    func(context.Context) error
-	poll       func(context.Context) (ClockPollResult, error)
+	ctx      context.Context
+	cancel   context.CancelFunc
+	config   ClockWorkerConfig
+	done     chan struct{}
+	ready    chan struct{}
+	stopGate chan struct{}
+	stopped  bool
+	disable  func() error
+	cleanup  func(context.Context) error
+	poll     func(context.Context, time.Duration) (ClockPollResult, error)
+	// held reports whether the next poll may hold its native read for
+	// config.PollWait; nil holds whenever PollWait is set.
+	held       func() bool
 	renew      func(context.Context) (ClockRenewResult, error)
 	step       func(context.Context, StepReason) (ClockSchedulerResult, error)
 	stopParent func() bool
@@ -59,9 +62,9 @@ func NewClockWorker(ctx context.Context, scheduler *ClockScheduler, nativeEvents
 		return nil, ErrControl
 	}
 	lifetime, cancel := context.WithCancel(ctx)
-	w := &ClockWorker{ctx: lifetime, cancel: cancel, config: config, done: make(chan struct{}), ready: make(chan struct{}), stopGate: make(chan struct{}, 1), disable: scheduler.session.disableClockWorker, cleanup: scheduler.session.CleanupClock, step: scheduler.StepWithReason, renew: scheduler.RenewEpoch, wake: NewWakeSignal()}
-	w.poll = func(ctx context.Context) (ClockPollResult, error) {
-		return scheduler.PollEvents(ctx, nativeEvents, config.PageLimit, config.PollWait)
+	w := &ClockWorker{ctx: lifetime, cancel: cancel, config: config, done: make(chan struct{}), ready: make(chan struct{}), stopGate: make(chan struct{}, 1), disable: scheduler.session.disableClockWorker, cleanup: scheduler.session.CleanupClock, step: scheduler.StepWithReason, renew: scheduler.RenewEpoch, held: scheduler.WindowRunning, wake: NewWakeSignal()}
+	w.poll = func(ctx context.Context, wait time.Duration) (ClockPollResult, error) {
+		return scheduler.PollEvents(ctx, nativeEvents, config.PageLimit, wait)
 	}
 	w.stopParent = context.AfterFunc(scheduler.player.lifetime, cancel)
 	if err := errors.Join(ctx.Err(), scheduler.player.lifetime.Err()); err != nil {
@@ -125,6 +128,13 @@ func (w *ClockWorker) wait(delay time.Duration) bool {
 	return alive && !woken
 }
 
+// Nudge wakes the step loop without evidence: the Worker calls it after a
+// step that advanced a plan, so a review deferred on the latched outcome it
+// just reconciled runs as soon as the successor is dispatched (issue #162).
+func (w *ClockWorker) Nudge() {
+	w.wake.Notify(nil, false)
+}
+
 // waitOrWake sleeps for delay unless the wake signal fires first. It reports
 // whether the wake fired and whether the worker is still alive.
 func (w *ClockWorker) waitOrWake(delay time.Duration, wake <-chan struct{}) (woken, alive bool) {
@@ -140,16 +150,33 @@ func (w *ClockWorker) waitOrWake(delay time.Duration, wake <-chan struct{}) (wok
 	}
 }
 
-// pollLoop long-polls the native journal. A call that waited (it returned
-// no sooner than half of PollWait) or that captured evidence is followed by
-// the next poll at once; a call that returned early against a native build
-// that ignores wait_ms falls back to the PollInterval cadence.
+// pollLoop reads the native journal. While held reports a window running
+// the read is a long poll bounded by PollWait, so a stop wakes the step as
+// soon as its event lands instead of at the next PollInterval, or, with
+// PollWait zero, an unheld read at the RunningPollInterval cadence;
+// otherwise the read returns at once and the loop keeps the PollInterval
+// cadence. A held read blocks every call queued behind it on the game host
+// (issue #115), so it is never used under a review, and serve does not
+// use it at all: the routine Worker dispatches and the renew loop renews
+// under a running window too (issue #162). A call that waited (it returned
+// no sooner than half of its wait) or that captured evidence is followed
+// by the next poll at once; a call that returned early against a native
+// build that ignores wait_ms falls back to the cadence.
 func (w *ClockWorker) pollLoop() {
 	ready := false
 	for w.ctx.Err() == nil {
+		var wait time.Duration
+		running := w.held == nil || w.held()
+		if w.config.PollWait > 0 && running {
+			wait = w.config.PollWait
+		}
+		interval := w.config.PollInterval
+		if running && w.config.RunningPollInterval > 0 {
+			interval = w.config.RunningPollInterval
+		}
 		call, cancel := context.WithTimeout(w.ctx, w.config.PollTimeout)
 		started := time.Now()
-		result, err := w.poll(call)
+		result, err := w.poll(call, wait)
 		cancel()
 		if err == nil && !ready && w.ctx.Err() == nil {
 			close(w.ready)
@@ -163,14 +190,14 @@ func (w *ClockWorker) pollLoop() {
 			w.config.Wake.NotifyStopped(result.Wake, result.Invalidated, result.AuthorityChanged, result.Stopped)
 			w.wake.NotifyStopAt(result.Wake, result.Invalidated, result.AuthorityChanged, result.Stopped, result.StoppedAt)
 		}
-		waited := w.config.PollWait > 0 && time.Since(started) >= w.config.PollWait/2
+		waited := wait > 0 && time.Since(started) >= wait/2
 		if err == nil && (waited || result.Captured) {
 			if w.ctx.Err() != nil {
 				return
 			}
 			continue
 		}
-		if !w.wait(w.config.PollInterval) {
+		if !w.wait(interval) {
 			return
 		}
 	}
@@ -184,12 +211,12 @@ func (w *ClockWorker) renewLoop() {
 }
 
 type clockStepKey struct {
-	request, phase, reasons, failure     string
-	failed, running, reconciled, cleaned bool
+	request, phase, reasons, failure               string
+	failed, running, reconciled, cleaned, deferred bool
 }
 
 func clockWorkerKey(result ClockSchedulerResult, err error) clockStepKey {
-	key := clockStepKey{failed: err != nil, running: result.Running, reconciled: result.Reconciled, cleaned: result.Cleaned}
+	key := clockStepKey{failed: err != nil, running: result.Running, reconciled: result.Reconciled, cleaned: result.Cleaned, deferred: result.Deferred}
 	if err != nil {
 		// A different failure is a state change worth one more log line:
 		// otherwise a planner error that follows the routine startup
@@ -268,7 +295,9 @@ func (w *ClockWorker) stepLoop() {
 		}
 		// A combat window is short by design and the raid is re-planned
 		// between windows, so an unchanged decision does not back off.
-		if havePrevious && key == previous && !result.Combat {
+		// A deferred step waits on the Worker, not on a backoff either: it
+		// steps again on the Worker's advance (Nudge) or a StepInterval later.
+		if havePrevious && key == previous && !result.Combat && !result.Deferred {
 			delay = min(w.config.MaxBackoff, delay*2)
 		} else {
 			delay = w.config.StepInterval
@@ -280,7 +309,12 @@ func (w *ClockWorker) stepLoop() {
 		// StepInterval with the game paused (issue #91). Never twice in a
 		// row: a cleanup that keeps succeeding without settling is a
 		// backoff case, not a hot loop.
-		if err == nil && (result.Reconciled || result.Cleaned) && !skipped {
+		// A step deferred on work the Worker owes does not step again at
+		// once: the Worker is waiting on the player gate this step just
+		// released, and an immediate step would take it back for another
+		// round of reads that can only defer again. It waits for the
+		// Worker's advance instead (issue #162).
+		if err == nil && (result.Reconciled || result.Cleaned) && !result.Deferred && !skipped {
 			skipped = true
 			// The game is paused between windows and that is the only
 			// moment the Worker can make a pause-bound admission
@@ -307,6 +341,16 @@ func (w *ClockWorker) stepLoop() {
 			delay = w.config.StepInterval
 			havePrevious = false
 			reason = w.wake.TakeInvalidated()
+			// The step that settles a committed stop reviews and admits in
+			// the same pass (issue #162), so the Worker's pause-bound
+			// admissions are held for before it, not after (#129).
+			if _, stopped := w.wake.TakeStop(); stopped {
+				held := w.awaitPauseWork()
+				if w.ctx.Err() != nil {
+					return
+				}
+				clockSchedulerLog("stop committed: pause-bound admissions held %s before the review", held.Round(time.Millisecond))
+			}
 		}
 	}
 }

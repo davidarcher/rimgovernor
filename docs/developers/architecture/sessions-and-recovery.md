@@ -45,8 +45,12 @@ its GABS, and on Windows a job object kills GABS however the controller ends;
 the game GABS launched keeps running either way, as it does when GABS exits
 on its own. The game side still answers companion-mod tools one at a time:
 RimBridgeServer runs each on the GABP connection's reader thread, so the
-service does not hold `clock_read_events` (`wait_ms` 0) and polls the journal
-at its own cadence instead.
+service never holds its journal read (`wait_ms` 0): under a running window the
+routine worker dispatches the successor order and the lease is renewed, and a
+held read made each of those calls wait its full length. Instead the poll
+repeats every 250 ms while a colony window the service admitted is running,
+so a stop is seen within that plus one short read, and keeps its 1 s cadence
+between windows, while the planners read (issue #162).
 
 A GABS session lost while the service runs (the GABS process exiting, its
 endpoint gone) is recovered in-process: the bridge client drops the session as

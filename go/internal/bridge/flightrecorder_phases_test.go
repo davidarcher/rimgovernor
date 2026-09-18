@@ -206,6 +206,33 @@ func TestSummarizePhasesHandlesLegacyRowsGapsAndResets(t *testing.T) {
 	}
 }
 
+// The paused share is weighted by wall time between status samples, and a
+// start receipt's applied status counts as a running sample: polls held
+// under a window only return once it has stopped, so without it every
+// window's wall time would be charged to the paused status read before
+// its admission (issue #162).
+func TestSummarizePhasesWeighsPausedTimeAndCountsAppliedStarts(t *testing.T) {
+	sample := func(wall float64, payload string) TimelineRecord {
+		return TimelineRecord{Kind: "native_response", WallTime: wall, Payload: map[string]any{"request": wall, "tool": "games_call_tool", "native_tool": "x", "timing": map[string]any{}, "result": map[string]any{"payload": payload}}}
+	}
+	rows := []TimelineRecord{
+		sample(10, `{"bundle":{"clockStatus":{"actualPaused":true,"stopped":{}}}}`),
+		sample(11, `{"receipt":{"applied":{"status":{"running":{"epoch":{}}}}}}`),
+		sample(15, `{"bundle":{"clockStatus":{"actualPaused":true,"stopped":{}}}}`),
+		sample(16, `{"bundle":{"clockStatus":{"actualPaused":true,"stopped":{}}}}`),
+	}
+	clock := SummarizePhases(rows).Clock
+	if clock.ClockSamples != 4 || clock.PausedSamples != 3 || clock.SampledSecs != 6 || clock.PausedSecs != 2 {
+		t.Fatalf("clock: %+v", clock)
+	}
+	if got := clock.PausedFraction(); got < 0.33 || got > 0.34 {
+		t.Fatal(got)
+	}
+	if got := (ClockSample{ClockSamples: 4, PausedSamples: 3}).PausedFraction(); got != 0.75 {
+		t.Fatal("count ratio fallback", got)
+	}
+}
+
 // Wake-reason clock_step rows carry the stop they answered and the latency
 // from the native stop stamp to the step; the summary counts stops, means
 // the samples that carried a latency and drops a skewed negative one

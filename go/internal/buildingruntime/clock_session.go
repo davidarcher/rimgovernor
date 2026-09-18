@@ -7,6 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 )
 
 // ClockCapabilities gates the complete owned clock boundary. Constructing a
@@ -91,8 +92,14 @@ func (s *Session) ReconcileClock(ctx context.Context, requestID string) (store.C
 }
 
 func (s *Session) CleanupClock(ctx context.Context) error {
+	return s.CleanupClockObserved(ctx, nil)
+}
+
+// CleanupClockObserved is CleanupClock given a clock status the caller just
+// read (ClockCoordinator.CleanupObserved).
+func (s *Session) CleanupClockObserved(ctx context.Context, observed *k.Status) error {
 	if s.clock == nil {
 		return nil
 	}
-	return s.clock.Cleanup(ctx)
+	return s.clock.CleanupObserved(ctx, observed)
 }

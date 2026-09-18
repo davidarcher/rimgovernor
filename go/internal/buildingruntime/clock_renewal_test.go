@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -114,8 +115,10 @@ func TestClockRenewalBudgetFinishesDuringPreflight(t *testing.T) {
 				if err != nil || retained.Phase != store.ClockPrepared {
 					t.Fatal(retained, err)
 				}
+				// The step retires the epoch and reviews at once (#162);
+				// the fixture's status facts refuse the next window.
 				cleaned, err := s.Step(context.Background())
-				if err != nil || !cleaned.Cleaned || !s.session.State().Enabled || w.renews != 0 {
+				if !errors.Is(err, executor.ErrHeld) || cleaned.Cleaned || !s.session.State().Enabled || w.renews != 0 {
 					t.Fatal(cleaned, err)
 				}
 			}
@@ -221,7 +224,7 @@ func TestClockRenewalBudgetFinishesAfterDispatch(t *testing.T) {
 					t.Fatal(retained, err)
 				}
 				cleaned, err := s.Step(context.Background())
-				if err != nil || !cleaned.Cleaned || !s.session.State().Enabled || w.renews != 1 {
+				if !errors.Is(err, executor.ErrHeld) || cleaned.Cleaned || !s.session.State().Enabled || w.renews != 1 {
 					t.Fatal(cleaned, err, s.session.State())
 				}
 			}
@@ -277,7 +280,7 @@ func TestClockRenewalContinuesDuringSlowStep(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	stepEntered, stepReleased, stepDone := make(chan struct{}), make(chan struct{}), make(chan struct{})
 	worker := &ClockWorker{ctx: ctx, cancel: cancel, config: ClockWorkerConfig{PollInterval: time.Hour, RenewInterval: 5 * time.Millisecond, StepInterval: time.Hour, MaxBackoff: time.Hour, PollTimeout: 2 * time.Second, RenewTimeout: 2 * time.Second, StepTimeout: 8 * time.Second}, done: make(chan struct{}), ready: make(chan struct{}), stopGate: make(chan struct{}, 1), disable: func() error { return nil }, cleanup: func(context.Context) error { return nil }, renew: s.RenewEpoch}
-	worker.poll = func(context.Context) (ClockPollResult, error) { return ClockPollResult{}, nil }
+	worker.poll = func(context.Context, time.Duration) (ClockPollResult, error) { return ClockPollResult{}, nil }
 	worker.step = func(ctx context.Context, _ StepReason) (ClockSchedulerResult, error) {
 		defer close(stepDone)
 		_, _, done, err := s.player.enter(ctx, false)

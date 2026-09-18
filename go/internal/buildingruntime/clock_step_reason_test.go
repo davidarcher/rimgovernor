@@ -2,12 +2,14 @@ package buildingruntime
 
 import (
 	"context"
+	"errors"
 	"reflect"
 	"testing"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	"google.golang.org/protobuf/proto"
 )
@@ -86,12 +88,13 @@ func TestClockSchedulerTimerStepSkipsPlannersUntilTickMoves(t *testing.T) {
 	if err != nil || first.Reason.Cause != StepFull || !first.Reason.TickAdvanced || first.Attempt == nil {
 		t.Fatal(first, err)
 	}
-	// The window ran out under our epoch; the next step retires it.
+	// The window ran out under our epoch; the next step retires it and,
+	// the tick having moved, reviews in the same step (issue #162).
 	epoch := f.status.GetRunning().GetEpoch()
 	f.status.State = &k.Status_Stopped{Stopped: &k.Stopped{Epoch: epoch, Reason: k.StopReason_STOP_REASON_TICK_BUDGET.Enum(), ActualPaused: proto.Bool(true), PauseVerified: proto.Bool(true), PauseRequested: proto.Bool(false), StoppedAtUnixMs: proto.Int64(1)}}
 	f.status.Context.Tick = proto.Int64(f.status.Context.GetTick() + 100)
 	settled, err := s.StepWithReason(ctx, StepReason{Cause: StepTimer})
-	if err != nil || !settled.Cleaned || settled.Reason.Cause != StepTimer || !settled.Reason.TickAdvanced {
+	if !errors.Is(err, executor.ErrHeld) || settled.Cleaned || settled.Reason.Cause != StepTimer || !settled.Reason.TickAdvanced {
 		t.Fatal(settled, err)
 	}
 	reads := f.reads

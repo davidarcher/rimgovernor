@@ -23,6 +23,9 @@ type WorkerConfig struct {
 	// step reconciles them first and ignores their backoff. Nil keeps the
 	// ticker cadence.
 	Wake *WakeSignal
+	// Advanced, when set, is called after a step that moved an action to a
+	// new stage, so the clock step loop reviews at once (issue #162).
+	Advanced func()
 	// Facts is the scheduler's cross-step fact cache. Every worker step
 	// runs under a child of it, so a write the worker issues (a setpoint
 	// patch, a dispatch) discards the facts the planners would otherwise
@@ -73,6 +76,9 @@ type Worker struct {
 	cursor domain.ActionID
 	// focus holds woken actions not yet reconciled since the wake.
 	focus map[domain.ActionID]WakeOutcome
+	// advanced reports that the last step moved an action to another
+	// stage, so a successor may have become dispatchable.
+	advanced bool
 	// paused is set by a clock stop until the step has focused the
 	// admissions that need the paused map; stopSeq names that stop and
 	// pauseFocus the focused admissions that need it, reported to the
@@ -81,6 +87,9 @@ type Worker struct {
 	stopSeq    uint64
 	pauseFocus map[domain.ActionID]bool
 }
+
+// workerBurstMax bounds the steps one wake or advance runs back to back.
+const workerBurstMax = 16
 
 type workerCandidate struct {
 	view    domain.ProgressView
@@ -188,11 +197,13 @@ func (w *Worker) steps() {
 	// The per-action outcome line already names the failing action; the
 	// step-level error only adds information when it changes.
 	previous, repeats := "", 0
+	burst := 0
 	for {
 		if w.ctx.Err() != nil {
 			return
 		}
 		err := w.step(w.ctx, time.Now())
+		burst++
 		w.config.Wake.ReportPauseWork(w.stopSeq, len(w.pauseFocus))
 		message := ""
 		if err != nil {
@@ -205,10 +216,14 @@ func (w *Worker) steps() {
 			repeats++
 		}
 		// A wake steps at once; while focused actions remain, keep stepping
-		// so each of them is reconciled without waiting a StepInterval.
-		if len(w.focus) > 0 {
+		// so each of them is reconciled without waiting a StepInterval, and
+		// a step that advanced an action steps again so the successor it
+		// unblocked dispatches before the clock readmits a window rather
+		// than a StepInterval or its own backoff later (issue #162).
+		if (len(w.focus) > 0 || w.advanced) && burst < workerBurstMax {
 			continue
 		}
+		burst = 0
 		select {
 		case <-w.ctx.Done():
 			return
@@ -229,6 +244,9 @@ func (w *Worker) takeWake() {
 	if len(woken) == 0 {
 		return
 	}
+	// Latched outcomes change what every other action in their plans is
+	// waiting on: drop the backoffs so successors are reconsidered at once.
+	w.waits = map[domain.ActionID]workerWait{}
 	if w.focus == nil {
 		w.focus = map[domain.ActionID]WakeOutcome{}
 	}
@@ -257,6 +275,7 @@ func (w *Worker) readWorld(ctx context.Context) (store.World, error) {
 }
 func (w *Worker) focusNamed(id domain.ActionID) bool { _, ok := w.focus[id]; return ok }
 func (w *Worker) step(ctx context.Context, now time.Time) error {
+	w.advanced = false
 	w.takeWake()
 	call, cancel := context.WithTimeout(ctx, w.config.StepTimeout)
 	defer cancel()
@@ -411,6 +430,10 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 		delay := w.config.StepInterval
 		if workerSameView(after, v) && workerSameView(wait.view, v) && wait.scope == workerScope(scope) && wait.cleanup == candidate.cleanup {
 			delay = min(wait.delay*2, workerBackoffCap(w.config, after))
+		}
+		w.advanced = err == nil && after.Stage != v.Stage
+		if w.advanced && w.config.Advanced != nil {
+			w.config.Advanced()
 		}
 		// One line per change of outcome, in either log: a refusal that
 		// repeats verbatim on every retry (a CAS token that never matches, a

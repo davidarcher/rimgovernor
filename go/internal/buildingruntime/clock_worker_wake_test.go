@@ -33,7 +33,7 @@ func TestClockWorkerWakesStepOnCapturedEvents(t *testing.T) {
 	}
 	polled := make(chan struct{})
 	var polls atomic.Int32
-	w.poll = func(context.Context) (ClockPollResult, error) {
+	w.poll = func(context.Context, time.Duration) (ClockPollResult, error) {
 		if polls.Add(1) != 2 {
 			return ClockPollResult{}, nil
 		}
@@ -82,7 +82,7 @@ func TestClockWorkerLongPollCadence(t *testing.T) {
 		w.config.PollInterval = 30 * time.Millisecond
 		w.config.PollWait = 10 * time.Millisecond
 		var polls atomic.Int32
-		w.poll = func(ctx context.Context) (ClockPollResult, error) {
+		w.poll = func(ctx context.Context, _ time.Duration) (ClockPollResult, error) {
 			polls.Add(1)
 			if waits {
 				time.Sleep(w.config.PollWait)

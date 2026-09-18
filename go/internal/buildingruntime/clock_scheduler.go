@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"sync/atomic"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -39,6 +40,11 @@ type ClockSchedulerConfig struct {
 	Profile                                       string
 	Start                                         bridge.ClockStart
 	MaxAge                                        time.Duration
+	// Worker is set when a routine Worker reconciles and dispatches beside
+	// this scheduler: a review then defers admission while the Worker owes
+	// a latched outcome's reconcile or a successor's dispatch (issue #162).
+	// Without one nothing would ever settle them, so the review proceeds.
+	Worker bool
 	// CombatMaxTicks bounds each window admitted while the ActiveCombat goal
 	// holds an admitted plan and hostiles are alive; zero keeps Start.MaxTicks.
 	// Short windows let the raid be re-planned between them.
@@ -160,6 +166,10 @@ type ClockSchedulerResult struct {
 	Naming                           *RoutineNamingResult
 	Dialog                           *RoutineDialogResult
 	Running, Reconciled, Cleaned     bool
+	// Deferred is set when the step admitted nothing because the Worker
+	// has yet to reconcile an attempt whose terminal outcome the clock
+	// latched; the step loop steps again at once (issue #162).
+	Deferred bool
 	// Combat is set while a combat watch window was admitted or is running,
 	// so the worker keeps its short poll instead of backing off.
 	Combat bool
@@ -194,6 +204,18 @@ type ClockScheduler struct {
 	// pause is the observed wall time between windows that sizes the next
 	// one (ClockWindowSizing); touched only under the player gate.
 	pause clockWindowPause
+	// running is the scheduler's belief that a colony window it admitted
+	// is still running: set by the step that dispatched or observed it,
+	// cleared by the step or poll that saw it stopped. The poll loop holds
+	// its journal read only while it is set (ClockWorkerConfig.PollWait).
+	running *atomic.Bool
+	// latched holds the attempts whose terminal outcome a committed page
+	// reported and the Worker has yet to reconcile; see clockLatched.
+	latched *clockLatched
+	// readmitOwed is set by a step that settled its own stopped window and
+	// then deferred, so the step that finally admits reports the whole
+	// stop-to-readmit pause; touched only under the player gate.
+	readmitOwed bool
 
 	// tickTrace is a TEMPORARY diagnostic aid (RIMGOVERNOR_CLOCK_DEBUG=1),
 	// read and written only from Step() which the ClockWorker's stepLoop
@@ -412,7 +434,7 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, err
 	}
 	config.Profile = inbox.Profile
-	return &ClockScheduler{player: player, session: session, native: native, config: config, clock: clock, pollGate: make(chan struct{}, 1), renewGate: make(chan struct{}, 1), facts: newClockFacts(config.Facts)}, nil
+	return &ClockScheduler{player: player, session: session, native: native, config: config, clock: clock, pollGate: make(chan struct{}, 1), renewGate: make(chan struct{}, 1), facts: newClockFacts(config.Facts), running: new(atomic.Bool), latched: newClockLatched()}, nil
 }
 
 var clockSchedulerDebug = os.Getenv("RIMGOVERNOR_CLOCK_DEBUG") != ""
@@ -421,6 +443,12 @@ var clockSchedulerDebug = os.Getenv("RIMGOVERNOR_CLOCK_DEBUG") != ""
 // for tracing which Step() branch is taken; added while root-causing the
 // clock-restart-cadence gap surfaced by G01.07b's RoutineHaulPlanner
 // acceptance work (see follow-up issue for MaintainStorage haul completion).
+// WindowRunning reports whether the last evidence the scheduler saw had a
+// window it admitted still running. It is a hint for the poll cadence, not
+// authority: a stale true costs one held poll before the next step or page
+// clears it.
+func (s *ClockScheduler) WindowRunning() bool { return s.running.Load() }
+
 func clockSchedulerLog(format string, args ...any) {
 	if clockSchedulerDebug {
 		fmt.Fprintf(os.Stderr, "[clock-scheduler] "+format+"\n", args...)
@@ -434,7 +462,12 @@ func clockSchedulerLog(format string, args ...any) {
 // EvaluateClockWindow) runs on every step that reaches it.
 func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) (ClockSchedulerResult, error) {
 	var out ClockSchedulerResult
+	var paused time.Duration
+	var readmit bool
 	entered := time.Now()
+	// The poll records latched outcomes as it commits them; the reason
+	// repeats them for a step driven without the poll loop.
+	s.latched.remember(reason.Events)
 	call, epoch, done, err := s.player.enter(ctx, false)
 	if err != nil {
 		return out, err
@@ -483,6 +516,21 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		}
 		if out.Window.Ticks != 0 {
 			extra["window_ticks"], extra["window_target_s"], extra["window_tps"] = out.Window.Ticks, out.Window.TargetSeconds, out.Window.TicksPerSecond
+		}
+		// The stop-to-readmit pause this step closed: the wall time from
+		// the stop of a window this scheduler owed to the admission it
+		// dispatched (issue #162). Absent when the step admitted nothing or
+		// the stop was not one of its own windows (a caller's pause).
+		if out.Deferred {
+			s.readmitOwed = s.readmitOwed || readmit
+		} else {
+			s.latched.released()
+			if out.Attempt != nil {
+				readmit, s.readmitOwed = readmit || s.readmitOwed, false
+			}
+		}
+		if paused > 0 && readmit && out.Attempt != nil && out.Attempt.Phase != store.ClockRefused {
+			extra["stop_pause_s"] = paused.Seconds()
 		}
 		reads.Publish(call, extra)
 	}()
@@ -544,6 +592,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	if status.Context.GetTick() < loaded.Context.GetTick() {
 		return out, errors.Join(executor.ErrEvidence, s.session.Disable())
 	}
+	s.running.Store(false)
 	reason.TickAdvanced = !s.lastTickKnown || status.Context.GetTick() != s.lastTick
 	s.lastTick, s.lastTickKnown = status.Context.GetTick(), true
 	if reason.Cause == StepTimer && !reason.TickAdvanced && s.fullStepDue() {
@@ -594,13 +643,32 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 			return out, executor.ErrHeld
 		}
 		out.Running = true
+		s.running.Store(status.GetRunning() != nil)
 		clockSchedulerLog("clock already running under our own epoch -> skip planners this tick")
 		return out, nil
 	}
 	if obligations {
-		out.Cleaned = true
+		// The window this step still owes is already stopped: settle it
+		// from the status just read and, once nothing is owed, review in
+		// this same step rather than leave the game paused for another
+		// bundle read and a second pass (issue #162).
 		clockSchedulerLog("obligations present, not running -> cleanup")
-		return out, s.session.CleanupClock(call)
+		readmit = true
+		if err = s.session.CleanupClockObserved(call, status); err != nil {
+			out.Cleaned = true
+			return out, err
+		}
+		if epochs, err = s.player.journal.LoadClockEpochs(call, 4096); err != nil {
+			out.Cleaned = true
+			return out, err
+		}
+		for _, owned := range epochs {
+			if !clockCoordinatorTerminal(owned.Stage) {
+				out.Cleaned = true
+				return out, nil
+			}
+		}
+		clockSchedulerLog("cleanup settled every owed epoch -> reviewing in the same step")
 	}
 	if !state.Enabled {
 		return out, executor.ErrAuthority
@@ -696,6 +764,21 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 			fingerprint = append(fingerprint, items...)
 		}
 	}
+	if pending := s.latched.pending(fingerprint); s.config.Worker && len(pending) > 0 {
+		// The window just stopped on a latched outcome the Worker has not
+		// reconciled: a window admitted now would watch that attempt again
+		// (the native clock never re-latches a settled one) and run out
+		// its budget before the successor it unblocks is dispatched.
+		clockSchedulerLog("latched outcomes await the worker %v -> deferring admission", pending)
+		out.Deferred = true
+		return out, nil
+	}
+	if waiting := s.latched.undispatched(fingerprint); s.config.Worker && len(waiting) > 0 {
+		// Likewise while the successor is queued but not yet dispatched.
+		clockSchedulerLog("undispatched work awaits the worker %v -> deferring admission", waiting)
+		out.Deferred = true
+		return out, nil
+	}
 	combatPlan, err := clockSchedulerCombatPlan(call, s.player.journal, state.Snapshot)
 	if err != nil {
 		return out, err
@@ -704,7 +787,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	start := s.config.Start
 	// The colony window is sized by wall time at the configured speed
 	// (issue #126) before a native-work or combat bound narrows it.
-	s.pause.observe(status, s.clock.Now())
+	paused = s.pause.observe(status, s.clock.Now())
 	out.Window = s.config.Window.colonyWindow(start.MaxTicks, s.pause)
 	start.MaxTicks = out.Window.Ticks
 	clockSchedulerLog("colony window: %d ticks (target %.1fs at %.0f ticks/s, pause estimate known=%v %.1fs)", out.Window.Ticks, out.Window.TargetSeconds, out.Window.TicksPerSecond, s.pause.known, s.pause.seconds)
@@ -818,6 +901,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	if errors.Is(err, store.ErrConflict) {
 		return out, errors.Join(executor.ErrHeld, err)
 	}
+	s.running.Store(err == nil)
 	return out, err
 }
 

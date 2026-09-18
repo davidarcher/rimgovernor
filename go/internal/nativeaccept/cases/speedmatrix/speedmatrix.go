@@ -17,9 +17,10 @@
 // counts unsuccessful plan stages in the service journal. The flight
 // recorder gives wall TPS, paused fraction, steps, reads/step, parent hits,
 // the wall-sized colony window (#126) and the budget-vs-reactive stop split
-// with stop latency and budget stops per 6000 ticks; the #126 throughput
-// thresholds (maxPausedFraction, minUltrafastTPSRatio) are reported, not
-// enforced, at zero.
+// with stop latency, the stop-to-readmit pause each admission closed
+// (#162) and budget stops per 6000 ticks; the #126 throughput thresholds
+// (maxPausedFraction, minUltrafastTPSRatio) are reported, not enforced, at
+// zero.
 //
 // Postconditions must agree within tolerance across speeds and no case may
 // record an unsuccessful plan stage. Reloads go through a plain hold; the
@@ -494,10 +495,9 @@ func caseMetrics(c na.SpeedCase, phases bridge.PhaseSummary, stops na.StopSummar
 	if phases.Steps.Steps > 0 {
 		readsPerStep = float64(phases.Steps.Reads) / float64(phases.Steps.Steps)
 	}
-	pausedFraction := 0.0
-	if phases.Clock.ClockSamples > 0 {
-		pausedFraction = float64(phases.Clock.PausedSamples) / float64(phases.Clock.ClockSamples)
-	}
+	// Time-weighted (bridge.ClockSample.PausedFraction): the count ratio
+	// over-represents pauses, when the service issues most of its reads.
+	pausedFraction := phases.Clock.PausedFraction()
 	budgetTPS, budgetStopsPer6000 := 0.0, 0.0
 	if wallSeconds > 0 && lastTick > startTick {
 		budgetTPS = float64(lastTick-startTick) / wallSeconds
@@ -505,20 +505,25 @@ func caseMetrics(c na.SpeedCase, phases bridge.PhaseSummary, stops na.StopSummar
 	if lastTick > startTick {
 		budgetStopsPer6000 = float64(stops.BudgetStops) * 6000 / float64(lastTick-startTick)
 	}
-	// The colony windows the service sized by wall time (issue #126).
-	windowMean := 0.0
+	// The colony windows the service sized by wall time (issue #126) and
+	// the stop-to-readmit pauses its admissions closed (issue #162).
+	windowMean, pauseMean := 0.0, 0.0
 	if phases.Steps.Windows > 0 {
 		windowMean = float64(phases.Steps.WindowTicks) / float64(phases.Steps.Windows)
+	}
+	if phases.Steps.Pauses > 0 {
+		pauseMean = phases.Steps.PauseSecs / float64(phases.Steps.Pauses)
 	}
 	return map[string]any{
 		"case": c.Name, "speed": c.Speed, "test_acceleration": c.TestAcceleration,
 		"ticks_advanced": lastTick - startTick, "wall_seconds": wallSeconds, "budget_wall_tps": budgetTPS,
-		"wall_tps": phases.Clock.WallTPS, "paused_fraction": pausedFraction,
+		"wall_tps": phases.Clock.WallTPS, "paused_fraction": pausedFraction, "paused_samples": phases.Clock.PausedSamples, "clock_samples": phases.Clock.ClockSamples, "paused_sampled_seconds": phases.Clock.SampledSecs,
 		"steps": phases.Steps.Steps, "reads_per_step": readsPerStep, "parent_hits": phases.Steps.ParentHits,
 		"window_ticks_mean": windowMean, "window_ticks_max": phases.Steps.MaxWindowTicks, "window_target_secs_max": phases.Steps.MaxWindowSecs,
 		"cache_hits": phases.Steps.CacheHits, "stops": stops.Stops, "budget_stops": stops.BudgetStops, "budget_stops_per_6000_ticks": budgetStopsPer6000,
 		"reactive_stops": stops.ReactiveStops, "stop_reasons": stops.Reasons,
 		"stop_latency_mean_ms": stops.MeanLatencyMs, "stop_latency_max_ms": stops.MaxLatencyMs,
+		"readmit_pause_count": phases.Steps.Pauses, "readmit_pause_mean_s": pauseMean, "readmit_pause_max_s": phases.Steps.MaxPauseSecs,
 	}
 }
 

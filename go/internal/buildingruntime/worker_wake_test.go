@@ -10,7 +10,9 @@ import (
 )
 
 // A wake naming an attempt reconciles that action first and ignores its
-// backoff; the rotation resumes fairly afterwards.
+// backoff; every other action's backoff is dropped too, since the latched
+// outcome may have unblocked it (issue #162), and the rotation resumes
+// fairly afterwards.
 func TestWorkerWakeReconcilesNamedAttemptFirst(t *testing.T) {
 	t.Parallel()
 	w, f, db := workerFixture(t)
@@ -49,12 +51,25 @@ func TestWorkerWakeReconcilesNamedAttemptFirst(t *testing.T) {
 	if len(order) != 3 || order[2] != last || len(w.focus) != 0 {
 		t.Fatal(order, w.focus)
 	}
-	// A wake for an action that no plan carries is dropped.
+	// The wake dropped the other action's backoff: it runs next.
+	if err := w.step(context.Background(), now); err != nil {
+		t.Fatal(err)
+	}
+	if len(order) != 4 || order[3] == last {
+		t.Fatal(order)
+	}
+	if err := w.step(context.Background(), now); err != nil {
+		t.Fatal(err)
+	}
+	if len(order) != 4 {
+		t.Fatal("backoff ignored", order)
+	}
+	// A wake for an action that no plan carries is dropped from the focus.
 	w.config.Wake.Notify([]WakeOutcome{{Action: "ghost", Attempt: 1}}, false)
 	if err := w.step(context.Background(), now); err != nil {
 		t.Fatal(err)
 	}
-	if len(order) != 3 || len(w.focus) != 0 {
+	if len(w.focus) != 0 {
 		t.Fatal(order, w.focus)
 	}
 }
@@ -108,5 +123,55 @@ func TestWorkerWakeStepsConsecutivelyWhileFocused(t *testing.T) {
 	case a := <-ran:
 		t.Fatal("step after the focus drained", a)
 	case <-time.After(50 * time.Millisecond):
+	}
+}
+
+// A step that advanced an action steps again at once: the successor the
+// advance unblocked dispatches before the clock readmits a window instead
+// of a StepInterval later (issue #162). A step that changed nothing idles.
+func TestWorkerAdvanceStepsAgainAtOnce(t *testing.T) {
+	t.Parallel()
+	w, f, db := workerFixture(t)
+	w.config.Wake = NewWakeSignal()
+	w.config.StepInterval = time.Hour
+	w.ctx, w.cancel = context.WithCancel(context.Background())
+	defer w.cancel()
+	first := workerPending(t, w, "one", true)
+	second := workerPending(t, w, "two", true)
+	ran := make(chan domain.ActionID, 8)
+	f.run = func(ctx context.Context, p domain.PlanID, a domain.ActionID) (executor.Result, error) {
+		ran <- a
+		plan, err := db.LoadPlan(ctx, p)
+		if err != nil {
+			return executor.Result{}, err
+		}
+		// The run settles the dispatched action: a stage change.
+		if v := plan.Progress[0].View(); v.Stage == domain.Dispatched {
+			progress, err := db.RecordReceipt(ctx, p, a, v.Attempt, domain.ReceiptRefused)
+			return executor.Result{Progress: progress}, err
+		}
+		return executor.Result{Progress: plan.Progress[0]}, nil
+	}
+	go w.steps()
+	next := func() domain.ActionID {
+		select {
+		case a := <-ran:
+			return a
+		case <-time.After(5 * time.Second):
+			t.Fatal("no step within the deadline")
+			return ""
+		}
+	}
+	// The first step advances one action; the loop steps again and
+	// advances the other without waiting on the hour ticker.
+	got := []domain.ActionID{next(), next()}
+	if got[0] == got[1] || (got[0] != first.Action && got[0] != second.Action) || (got[1] != first.Action && got[1] != second.Action) {
+		t.Fatal(got)
+	}
+	// Both actions are settled; the loop is idle until the next wake or tick.
+	select {
+	case a := <-ran:
+		t.Fatal("step after nothing advanced", a)
+	case <-time.After(100 * time.Millisecond):
 	}
 }

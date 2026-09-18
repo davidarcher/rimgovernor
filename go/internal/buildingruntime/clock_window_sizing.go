@@ -66,16 +66,17 @@ type clockWindowPause struct {
 	stoppedAt          int64
 }
 
-// observe folds the span since status's native stop into the estimate.
-func (p *clockWindowPause) observe(status *k.Status, now time.Time) {
+// observe folds the span since status's native stop into the estimate and
+// returns that span, or zero when status carries no usable stop.
+func (p *clockWindowPause) observe(status *k.Status, now time.Time) time.Duration {
 	stopped := status.GetStopped()
 	if stopped == nil || stopped.StoppedAtUnixMs == nil {
-		return
+		return 0
 	}
 	at := stopped.GetStoppedAtUnixMs()
 	span := now.Sub(time.UnixMilli(at))
 	if span <= 0 || span > clockWindowPauseLimit {
-		return
+		return 0
 	}
 	if at == p.stoppedAt && p.known {
 		p.seconds, p.known = p.before, p.beforeKnown
@@ -85,9 +86,10 @@ func (p *clockWindowPause) observe(status *k.Status, now time.Time) {
 	sample := span.Seconds()
 	if !p.known {
 		p.known, p.seconds = true, sample
-		return
+		return span
 	}
 	p.seconds = clockWindowPauseAlpha*sample + (1-clockWindowPauseAlpha)*p.seconds
+	return span
 }
 
 // colonyWindow sizes the next colony window from the configured sizing,
