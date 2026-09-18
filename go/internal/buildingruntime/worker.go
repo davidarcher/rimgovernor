@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
@@ -22,6 +23,11 @@ type WorkerConfig struct {
 	// step reconciles them first and ignores their backoff. Nil keeps the
 	// ticker cadence.
 	Wake *WakeSignal
+	// Facts is the scheduler's cross-step fact cache. Every worker step
+	// runs under a child of it, so a write the worker issues (a setpoint
+	// patch, a dispatch) discards the facts the planners would otherwise
+	// keep reading from before it; nil leaves the worker uncached (#66).
+	Facts *bridge.FactCache
 }
 
 // routineExecutableKind lists every action kind the worker (and, for a
@@ -227,6 +233,9 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 	w.takeWake()
 	call, cancel := context.WithTimeout(ctx, w.config.StepTimeout)
 	defer cancel()
+	if w.config.Facts != nil {
+		call = bridge.WithStepReadCache(call, bridge.NewChildReadCache(w.config.Facts))
+	}
 	call, epoch, done, err := w.player.enter(call, false)
 	if err != nil {
 		return err

@@ -20,8 +20,11 @@ type clockFacts struct {
 
 const clockFactsWatchedMax = 256
 
-func newClockFacts() *clockFacts {
-	return &clockFacts{cache: bridge.NewFactCache(), watched: map[domain.ActionID]domain.ActionKind{}}
+func newClockFacts(cache *bridge.FactCache) *clockFacts {
+	if cache == nil {
+		cache = bridge.NewFactCache()
+	}
+	return &clockFacts{cache: cache, watched: map[domain.ActionID]domain.ActionKind{}}
 }
 
 // remember keeps the kind of every attempt a window arms; the map is

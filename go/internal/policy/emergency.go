@@ -164,13 +164,21 @@ func EvaluateEmergency(snapshot EmergencySnapshot, current domain.GenerationSnap
 		if !known {
 			hold(EmergencyUnknownFacts, pawn.ID)
 		}
-		for _, health := range []domain.Fact[bool]{pawn.Downed, pawn.Bleeding, pawn.NeedsTend} {
+		// Downed or bleeding is the emergency. A colonist who only needs
+		// tending (a chronic condition, a scratch a doctor or the pawn
+		// tends natively while ticks pass) is the tend planner's patient,
+		// not a reason to hold every dispatch until nobody can clear it
+		// (#66); the fact still has to be known.
+		for _, health := range []domain.Fact[bool]{pawn.Downed, pawn.Bleeding} {
 			bad, known := health.Value()
 			if !known {
 				hold(EmergencyUnknownFacts, pawn.ID)
 			} else if bad {
 				hold(EmergencyCriticalMedical, pawn.ID)
 			}
+		}
+		if _, known := pawn.NeedsTend.Value(); !known {
+			hold(EmergencyUnknownFacts, pawn.ID)
 		}
 	}
 	for _, threat := range snapshot.facts.Threats {

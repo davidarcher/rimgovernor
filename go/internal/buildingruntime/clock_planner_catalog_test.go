@@ -59,7 +59,7 @@ func TestPlannerCatalogMatchesInlineSet(t *testing.T) {
 			continue
 		}
 		name := v.Type().Field(i).Name
-		if name == "Routine" {
+		if name == "Routine" || name == "Facts" {
 			continue
 		}
 		field.Set(reflect.New(field.Type().Elem()))

@@ -42,6 +42,9 @@ type ClockSchedulerConfig struct {
 	// FullStepEvery bounds how long timer steps without a tick advance may
 	// skip the planners; zero means DefaultFullStepEvery.
 	FullStepEvery time.Duration
+	// Facts is the cross-step fact cache the scheduler's steps fill and the
+	// worker's writes discard (WorkerConfig.Facts); nil makes a private one.
+	Facts *bridge.FactCache
 	// Routine is reviewed only after owned clock obligations have drained.
 	Routine                          *RoutineReviewer
 	FoodAcquisition, WoodAcquisition *RoutineAcquisitionPlanner
@@ -378,7 +381,7 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, err
 	}
 	config.Profile = inbox.Profile
-	return &ClockScheduler{player: player, session: session, native: native, config: config, clock: clock, pollGate: make(chan struct{}, 1), renewGate: make(chan struct{}, 1), facts: newClockFacts()}, nil
+	return &ClockScheduler{player: player, session: session, native: native, config: config, clock: clock, pollGate: make(chan struct{}, 1), renewGate: make(chan struct{}, 1), facts: newClockFacts(config.Facts)}, nil
 }
 
 var clockSchedulerDebug = os.Getenv("RIMGOVERNOR_CLOCK_DEBUG") != ""

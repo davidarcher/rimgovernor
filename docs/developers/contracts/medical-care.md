@@ -40,7 +40,11 @@ every other goal, only while a critical patient is downed or bleeding or that co
 is unknown (`policy.UrgentPatients`). A living colonist who merely needs tending, a
 chronic condition among them, keeps the goal active at priority 2: the same tend
 method treats them, but the colony's other work and its clock go on around it
-rather than parking behind a condition nobody can clear.
+rather than parking behind a condition nobody can clear. The executor's
+emergency gate (`policy.EvaluateEmergency`) holds dispatch as `critical_medical`
+on the same terms: a downed or bleeding colonist, or an unknown health fact,
+holds every action; a colonist who only needs tending is the tend planner's
+patient and holds nothing (#66).
 The reviewer also projects ongoing care into a separate priority-2
 maintained need. Its same-tick native census distinguishes chronic conditions from
 urgent tending. Tracked patient identities persist through Manual and restart;

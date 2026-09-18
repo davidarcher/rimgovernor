@@ -23,7 +23,7 @@ func clockFactsOutcome(action string) *k.Event {
 // ObservationInvalidated event drops exactly the families it names, and an
 // unknown family is treated as everything rather than ignored.
 func TestClockPageInvalidation(t *testing.T) {
-	facts := newClockFacts()
+	facts := newClockFacts(nil)
 	facts.remember([]clockWorkItem{{Action: "build", Kind: domain.BuildingAction, Attempt: 1}, {Action: "unarmed", Kind: domain.HaulAction}})
 	cases := []struct {
 		name     string
@@ -63,7 +63,7 @@ func TestClockPageInvalidation(t *testing.T) {
 // TestClockFactsRememberBounded: the watched-kind memory never grows past
 // its bound; overflow clears it, which only broadens later invalidation.
 func TestClockFactsRememberBounded(t *testing.T) {
-	facts := newClockFacts()
+	facts := newClockFacts(nil)
 	for i := 0; i < clockFactsWatchedMax+5; i++ {
 		facts.remember([]clockWorkItem{{Action: domain.ActionID(string(rune('a'+i%26)) + string(rune('a'+i/26))), Kind: domain.BuildingAction, Attempt: 1}})
 	}

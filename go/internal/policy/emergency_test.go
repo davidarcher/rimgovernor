@@ -75,6 +75,14 @@ func TestEmergencyKnownAndMedicalFacts(t *testing.T) {
 				}
 				continue
 			}
+			if field == "tend" && known {
+				// Needing tending alone is the tend planner's patient, not
+				// a hold on every dispatch (#66).
+				if !d.Clear {
+					t.Fatal(field, d)
+				}
+				continue
+			}
 			reason := EmergencyUnknownFacts
 			if known {
 				reason = EmergencyCriticalMedical

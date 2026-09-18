@@ -601,3 +601,31 @@ func TestWorkerBackoffIgnoresTickAndStretchesForUnknownEffects(t *testing.T) {
 		t.Fatal("cap never exceeds a minute", got)
 	}
 }
+
+// The worker's step runs under a child of the scheduler's fact cache, so a
+// write an executor issues through it (a setpoint patch) discards the facts
+// the planners would otherwise keep reading from before it (#66).
+func TestWorkerStepCarriesChildOfSharedFactCache(t *testing.T) {
+	t.Parallel()
+	w, f, db := workerFixture(t)
+	facts := bridge.NewFactCache()
+	w.config.Facts = facts
+	pending := workerPending(t, w, "patch", true)
+	var seen *bridge.StepReadCache
+	f.run = func(ctx context.Context, p domain.PlanID, a domain.ActionID) (executor.Result, error) {
+		seen = bridge.StepReadCacheFrom(ctx)
+		plan, err := db.LoadPlan(ctx, p)
+		return executor.Result{Progress: plan.Progress[0]}, err
+	}
+	if err := w.step(context.Background(), time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if f.runs.Load() != 1 || seen == nil {
+		t.Fatal("worker step ran without a step cache", f.runs.Load(), pending.Action)
+	}
+	before := facts.Stats().Invalidations
+	seen.Invalidate()
+	if facts.Stats().Invalidations != before+1 {
+		t.Fatal("worker step cache is not a child of the shared fact cache")
+	}
+}
