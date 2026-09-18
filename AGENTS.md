@@ -16,7 +16,15 @@
   squash-merges into the clean `main` checkout carrying the branch's trailers,
   and resets the branch to `main`. Call it once and stop watching `main`; do
   not rebase, poll or retest by hand. Rebase only to resolve an actual
-  conflict it reports. Do not push to GitHub; the maintainer pushes `main`
+  conflict it reports. A verified branch lands on the first call: the lane
+  judges `Verified:` trailers against the branch's own tree before its merge
+  of `main`, so whatever peers landed meanwhile never makes a harness stale
+  and never sends you back to rerun it. Rerun a harness only when the lane
+  (or `verified check` on the branch before landing) reports it STALE
+  because the branch itself changed the harness's inputs after stamping.
+  Never rerun-then-land more than once for the same milestone; if you find
+  yourself on a second cycle, land as is and file an issue naming what is
+  unverified. Do not push to GitHub; the maintainer pushes `main`
   manually.
 - Close the GitHub issue as soon as its work has merged into local `main`, with
   a terse comment naming the merge commit. Closure does not wait for the
@@ -73,7 +81,8 @@
   For native acceptance this is mechanical: stamp the verified commit with the
   `Verified:` trailer from `go run ./internal/nativeaccept/cmd/verified trailer
   <harness>` and run `verified check` before landing; a harness that reads
-  `ok` is done, whatever else moved on `main` (see
+  `ok` is done, whatever else moved on `main`; `main` moving after the stamp
+  is never a reason to rerun (see
   [choose-tests](docs/developers/testing/choose-tests.md)).
 
 

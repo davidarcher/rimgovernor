@@ -126,8 +126,9 @@ branch and commit. Land authorized work on local `main` through the landing
 lane, `go run ./cmd/land` from `go/` in the branch's worktree (one squash
 commit per task; see [AGENTS.md](../../AGENTS.md)); pull requests are disabled
 and the maintainer pushes `main` manually. The lane merges `main` into the
-branch first and runs the affected Go tests; rerun affected acceptance checks
-only when its `Verified:` report says a harness is stale.
+branch first and runs the affected Go tests; rerun an acceptance harness
+only when its `Verified:` report says the branch itself made the harness
+stale (`main` moving never does), and at most once per milestone.
 
 ## Keep deployment and docs maintainable
 

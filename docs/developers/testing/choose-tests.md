@@ -46,10 +46,15 @@ go run ./internal/nativeaccept/cmd/verified check
 reads the trailers in `main..HEAD` (`-range` for another range; name
 harnesses to check only those) and reports each harness `ok` when the
 current tree's hash matches its newest trailer, otherwise `stale` or
-`unrecorded` with exit 1. A merge of `main` that only moved files outside
-the inputs keeps every trailer `ok`; that run counts as done and is not
-repeated. A `stale` harness is rerun and restamped in the commit that
-changed its inputs.
+`unrecorded` with exit 1. Run it on the branch before merging `main` in
+(or let the lane do it: `land` hashes the inputs before its own merge).
+A `stale` harness there means the branch changed its inputs after
+stamping; rerun it and restamp in the commit that changed them. A `stale`
+that only appears after `main` was merged in comes from peers' changes to
+shared inputs (native sources, fixtures) and is not a rerun trigger: the
+evidence follows the branch's code, not `main`'s HEAD, and the lane reports
+such a harness `ok`. Never enter a second rerun-and-land cycle for one
+milestone; land and file an issue for anything left unverified.
 
 ## Stage the precondition, do not play into it
 

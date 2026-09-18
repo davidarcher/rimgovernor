@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -127,5 +128,27 @@ func TestLandWaitsForLock(t *testing.T) {
 	err := run("", "", "", 0, true)
 	if err == nil || !strings.Contains(err.Error(), "landing lock") {
 		t.Errorf("held lock: got %v", err)
+	}
+}
+
+// Only the branch's own edits after the stamp make a trailer stale; what
+// main moved under the harness's inputs is not a rerun trigger.
+func TestReportVerifiedJudgesTheBranchNotMain(t *testing.T) {
+	r, w, _ := os.Pipe()
+	stdout := os.Stdout
+	os.Stdout = w
+	reportVerified([]verifiedStatus{
+		{harness: "fooaccept", recorded: "aaaa", branch: "aaaa"},
+		{harness: "baraccept", recorded: "aaaa", branch: "bbbb"},
+	})
+	w.Close()
+	os.Stdout = stdout
+	out, _ := io.ReadAll(r)
+	got := string(out)
+	if !strings.Contains(got, "verified: fooaccept ok\n") {
+		t.Errorf("unchanged branch inputs should read ok:\n%s", got)
+	}
+	if !strings.Contains(got, "verified: baraccept STALE (recorded aaaa, branch tree bbbb)") {
+		t.Errorf("branch-side input change should read STALE:\n%s", got)
 	}
 }

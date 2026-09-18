@@ -14,8 +14,14 @@
 //     the in-module packages that import them (all packages when go.mod
 //     or go.sum changed) and names the affected acceptance harnesses,
 //     as cmd/affected computes them; nothing outside go/ is tested here;
-//  4. reports each recorded Verified: trailer as ok or stale for the
-//     merged tree (informational; acceptance stays out of the lane);
+//  4. reports each recorded Verified: trailer against the branch's own
+//     tree as it stood before the merge: ok when the branch has not
+//     changed the harness's inputs since it stamped the trailer, STALE
+//     when it has. Inputs that only main moved never make a trailer
+//     stale here; the lane's merge is exactly the "unrelated main
+//     commits" case that does not invalidate evidence, so a landing is
+//     never followed by a rerun-and-land-again cycle (informational;
+//     acceptance stays out of the lane);
 //  5. squash-merges the branch into the main checkout, which must be clean,
 //     with a message built from the branch's commits (-m or -F overrides
 //     the subject and body) carrying the branch's Verified: and
@@ -107,6 +113,9 @@ func run(branch, message, messageFile string, lockTimeout time.Duration, skipTes
 	if err := requireClean(mainCheckout, "main checkout"); err != nil {
 		return err
 	}
+	// Hash the harness inputs before main comes in: the evidence is judged
+	// against what the branch verified, not against what peers landed since.
+	verified := verifiedOnBranch(worktree)
 	if _, err := git(worktree, "merge", "--no-edit", "main"); err != nil {
 		_, _ = git(worktree, "merge", "--abort")
 		return fmt.Errorf("merging main into %s: %w\nresolve the conflict on the branch (git merge main), commit, and run land again", branch, err)
@@ -124,7 +133,7 @@ func run(branch, message, messageFile string, lockTimeout time.Duration, skipTes
 	} else if err := testAffected(worktree, changed); err != nil {
 		return err
 	}
-	reportVerified(worktree)
+	reportVerified(verified)
 
 	head, err := git(worktree, "rev-parse", "HEAD")
 	if err != nil {
@@ -250,31 +259,55 @@ func testAffected(worktree string, changed []string) error {
 	return goRun(goDir, append([]string{"test"}, sel.Packages...)...)
 }
 
-// reportVerified prints the branch's Verified trailers against the merged tree.
-func reportVerified(worktree string) {
+// verifiedStatus is one recorded Verified: trailer judged against the
+// branch's own tree before main was merged in.
+type verifiedStatus struct {
+	harness  string
+	recorded string // the newest trailer's inputs hash
+	branch   string // the hash of the same inputs on the pre-merge branch tree
+	err      error
+}
+
+// verifiedOnBranch reads the branch's Verified trailers and hashes each
+// harness's inputs on the branch tree as it stands, before the lane merges
+// main. It never fails the landing: an unreadable trailer set reports as
+// a single error line.
+func verifiedOnBranch(worktree string) []verifiedStatus {
 	recorded, err := na.RecordedVerifiedTrailers(worktree, "main..HEAD")
 	if err != nil {
-		fmt.Println("verified:", err)
-		return
-	}
-	if len(recorded) == 0 {
-		fmt.Println("verified: no Verified: trailers on the branch")
-		return
+		return []verifiedStatus{{err: err}}
 	}
 	harnesses := make([]string, 0, len(recorded))
 	for harness := range recorded {
 		harnesses = append(harnesses, harness)
 	}
 	sort.Strings(harnesses)
+	statuses := make([]verifiedStatus, 0, len(harnesses))
 	for _, harness := range harnesses {
 		current, err := na.HarnessInputHash(worktree, harness)
+		statuses = append(statuses, verifiedStatus{harness: harness, recorded: recorded[harness].Inputs, branch: current, err: err})
+	}
+	return statuses
+}
+
+// reportVerified prints each trailer as ok or STALE. Only the branch's own
+// edits after the stamp make a harness STALE; whatever main moved under it
+// is not a rerun trigger and is not reported as one.
+func reportVerified(statuses []verifiedStatus) {
+	if len(statuses) == 0 {
+		fmt.Println("verified: no Verified: trailers on the branch")
+		return
+	}
+	for _, s := range statuses {
 		switch {
-		case err != nil:
-			fmt.Printf("verified: %s: %v\n", harness, err)
-		case current == recorded[harness].Inputs:
-			fmt.Printf("verified: %s ok\n", harness)
+		case s.err != nil && s.harness == "":
+			fmt.Println("verified:", s.err)
+		case s.err != nil:
+			fmt.Printf("verified: %s: %v\n", s.harness, s.err)
+		case s.branch == s.recorded:
+			fmt.Printf("verified: %s ok\n", s.harness)
 		default:
-			fmt.Printf("verified: %s STALE (recorded %s, merged tree %s); rerun it or land knowingly\n", harness, recorded[harness].Inputs, current)
+			fmt.Printf("verified: %s STALE (recorded %s, branch tree %s): the branch changed its inputs after stamping; rerun it or land knowingly\n", s.harness, s.recorded, s.branch)
 		}
 	}
 }
