@@ -469,3 +469,80 @@ func TestLetterApproval(t *testing.T) {
 		}
 	}
 }
+
+func TestAdvanceGameCombatContinuesPastColonistHealthStop(t *testing.T) {
+	attempt := map[string]any{"controllerSessionId": "owner-1", "actionId": "typed-clock-1", "attemptId": "1"}
+	standing := map[string]any{
+		"blocks": map[string]any{"colonists": true, "threats": true}, "skipped": []any{},
+		"colonists": []any{map[string]any{"dead": false, "downed": false, "bleeding": true}},
+	}
+	fw := &fakeWire{replies: map[string][]map[string]any{
+		"clock_read_status": {
+			{"status": map[string]any{"context": scenarioContext(0), "neverStarted": map[string]any{}}},
+			{"status": stoppedStatus("owner-1", 1, 0, 20, 60, 0, "STOP_REASON_COLONIST_HEALTH", true)},
+			// The next Change reads the stopped epoch before starting a fresh one.
+			{"status": stoppedStatus("owner-1", 1, 0, 20, 60, 0, "STOP_REASON_COLONIST_HEALTH", true)},
+			{"status": stoppedStatus("owner-1", 2, 20, 60, 60, 0, "STOP_REASON_TICK_BUDGET", true)},
+		},
+		"clock_start": {
+			controlReceiptReply("owner-1", 1, 0, 0, 60, attempt),
+			controlReceiptReply("owner-1", 2, 20, 20, 60, map[string]any{"controllerSessionId": "owner-1", "actionId": "typed-clock-2", "attemptId": "1"}),
+		},
+		"clock_read_events": {{"page": eventPage(scenarioIdentity(), 0, nil)}},
+	}}
+	fq := &fakeQuery{byTool: map[string][]map[string]any{
+		"home/colony_identity": {identityToolReply(), identityToolReply(), identityToolReply(), identityToolReply(), identityToolReply()},
+		"home/status":          {standing},
+	}}
+	clock := &ScenarioClock{
+		Wire: fw.wire, Identity: scenarioIdentity(), Owner: "owner-1", Report: Report{}, CombatTargets: []string{"hare-1"},
+		Grant: map[string]any{"context": map[string]any{"nativeGeneration": float64(1)}, "authority": map[string]any{"mode": "MODE_AUTO"}},
+	}
+	rt := &ScenarioRuntime{Query: fq.query, Clock: clock, Report: Report{}, CombatTargets: []string{"hare-1"}}
+	final, err := AdvanceGame(context.Background(), rt, 60, WithCombatTargets("hare-1"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if AsString(final["stopReason"]) != "tick_budget" {
+		t.Fatalf("unexpected final status: %#v", final)
+	}
+	entry, _ := AsMap(AsSlice(rt.Report["simulation"])[0])
+	interruptions := AsSlice(entry["interruptions"])
+	if entry["completed"] != true || len(interruptions) != 1 {
+		t.Fatalf("expected one recorded health interruption and completion: %#v", entry)
+	}
+	if detail, _ := AsMap(interruptions[0]); detail["combatHealth"] != true {
+		t.Fatalf("expected the interruption marked as a combat health stop: %#v", detail)
+	}
+}
+
+func TestAdvanceGameCombatHealthStopInterruptsWhenColonistDowned(t *testing.T) {
+	attempt := map[string]any{"controllerSessionId": "owner-1", "actionId": "typed-clock-1", "attemptId": "1"}
+	downed := map[string]any{
+		"blocks": map[string]any{"colonists": true, "threats": true}, "skipped": []any{},
+		"colonists": []any{map[string]any{"dead": false, "downed": true}},
+	}
+	fw := &fakeWire{replies: map[string][]map[string]any{
+		"clock_read_status": {
+			{"status": map[string]any{"context": scenarioContext(0), "neverStarted": map[string]any{}}},
+			{"status": stoppedStatus("owner-1", 1, 0, 20, 60, 0, "STOP_REASON_COLONIST_HEALTH", true)},
+			// The interruption's cleanup re-reads the (already stopped) clock.
+			{"status": stoppedStatus("owner-1", 1, 0, 20, 60, 0, "STOP_REASON_COLONIST_HEALTH", true)},
+		},
+		"clock_start": {controlReceiptReply("owner-1", 1, 0, 0, 60, attempt)},
+	}}
+	fq := &fakeQuery{byTool: map[string][]map[string]any{
+		"home/colony_identity": {identityToolReply(), identityToolReply(), identityToolReply(), identityToolReply()},
+		"home/status":          {downed},
+	}}
+	clock := &ScenarioClock{
+		Wire: fw.wire, Identity: scenarioIdentity(), Owner: "owner-1", Report: Report{}, CombatTargets: []string{"hare-1"},
+		Grant: map[string]any{"context": map[string]any{"nativeGeneration": float64(1)}, "authority": map[string]any{"mode": "MODE_AUTO"}},
+	}
+	rt := &ScenarioRuntime{Query: fq.query, Clock: clock, Report: Report{}, CombatTargets: []string{"hare-1"}}
+	_, err := AdvanceGame(context.Background(), rt, 60, WithCombatTargets("hare-1"))
+	var interrupted *ScenarioInterrupted
+	if !isScenarioInterrupted(err, &interrupted) || !strings.Contains(interrupted.Reason, "downed") {
+		t.Fatalf("expected a downed-colonist interruption, got %v", err)
+	}
+}

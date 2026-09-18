@@ -700,6 +700,11 @@ func (rt *ScenarioRuntime) identityNow(ctx context.Context) (map[string]any, err
 	return out, nil
 }
 
+// combatHealthStopsPerAdvance bounds the colonist_health stops one combat
+// AdvanceGame call continues past; the native guard needs a fresh drop of
+// healthDropFraction per window, so this many is a colonist near downing.
+const combatHealthStopsPerAdvance = 8
+
 // AdvanceOption configures one AdvanceGame call.
 type AdvanceOption func(*advanceOptions)
 
@@ -730,10 +735,11 @@ func WithCombatTargets(targets ...string) AdvanceOption {
 // AdvanceGame advances exactly ticks native ticks, acknowledging inspected
 // fixture warnings and, unless the window is strict, the informational
 // letters in AcknowledgedLetterDefs (dismissed through DismissLetterTool when
-// rt.Tools carries it, recorded under the interruption either way). It never
-// clears player holds or retries game orders; an unexpected injury, new
-// threat, or drifted identity raises *ScenarioInterrupted with the failing
-// evidence retained on rt.Report.
+// rt.Tools carries it, recorded under the interruption either way). A combat
+// window (WithCombatTargets) also continues past a colonist_health stop while
+// every colonist still stands. It never clears player holds or retries game
+// orders; an unexpected injury, new threat, or drifted identity raises
+// *ScenarioInterrupted with the failing evidence retained on rt.Report.
 func AdvanceGame(ctx context.Context, rt *ScenarioRuntime, ticks uint64, opts ...AdvanceOption) (map[string]any, error) {
 	if ticks < 1 || ticks > 1800000 {
 		return nil, fmt.Errorf("ticks must be 1..1800000, got %d", ticks)
@@ -791,6 +797,7 @@ func AdvanceGame(ctx context.Context, rt *ScenarioRuntime, ticks uint64, opts ..
 	havePreviousTick := false
 	remaining := ticks
 	seen := map[string]bool{}
+	healthStops := 0
 
 	runErr := func() error {
 		for remaining > 0 {
@@ -882,6 +889,43 @@ func AdvanceGame(ctx context.Context, rt *ScenarioRuntime, ticks uint64, opts ..
 
 			detail := map[string]any{"clock": state, "events": []any{}}
 			evidence["interruptions"] = append(AsSlice(evidence["interruptions"]), detail)
+			if stopReason == "colonist_health" && len(options.combatTargets) > 0 {
+				// A colonist ordered to engage the committed targets may take
+				// the wounds the combat policy flags; the stop is recorded and
+				// the next window continues so the fight can resolve (issue
+				// #182). Each window baselines health afresh, so a repeat needs
+				// a further drop; the cap keeps a pawn who bleeds out under
+				// the guard from consuming the whole tick budget window by
+				// window. A downed or dead colonist still interrupts.
+				healthStops++
+				detail["combatHealth"] = true
+				if err := require(healthStops <= combatHealthStopsPerAdvance, "Combat health stops exhausted"); err != nil {
+					return err
+				}
+				status, err := rt.Query(ctx, "scenario-status", "home/status", map[string]any{"colonists": true, "threats": true})
+				if err != nil {
+					return err
+				}
+				detail["status"] = status
+				blocks, _ := AsMap(status["blocks"])
+				colonistsBlocked, _ := blocks["colonists"].(bool)
+				if err := require(len(AsSlice(status["skipped"])) == 0 && colonistsBlocked, "Safety observation incomplete"); err != nil {
+					return err
+				}
+				standing := len(AsSlice(status["colonists"])) > 0
+				for _, raw := range AsSlice(status["colonists"]) {
+					pawn, ok := AsMap(raw)
+					dead, _ := pawn["dead"].(bool)
+					downed, _ := pawn["downed"].(bool)
+					if !ok || dead || downed {
+						standing = false
+					}
+				}
+				if err := require(standing, "Colonist downed under the combat health guard"); err != nil {
+					return err
+				}
+				continue
+			}
 			if err := require(stopReason == "letter_pause", "Unexpected native interruption"); err != nil {
 				return err
 			}

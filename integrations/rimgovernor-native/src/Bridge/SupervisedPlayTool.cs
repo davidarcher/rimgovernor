@@ -35,7 +35,7 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "Normal, Fast, Superfast or Ultrafast.", DefaultValue = "Superfast")] string speed = "Superfast",
             [ToolParameter(Description = "colony stops on any new/worsened injury; combat records ordinary wounds and stops only at configured health thresholds.", DefaultValue = "colony")] string mode = "colony",
             [ToolParameter(Description = "Combat mode: stop when summary health drops this fraction from start, clamped 0.01..1.", DefaultValue = 0.15f)] float healthDropFraction = 0.15f,
-            [ToolParameter(Description = "Combat mode: stop when summary health reaches this fraction, clamped 0.01..1.", DefaultValue = 0.5f)] float minHealthFraction = 0.5f,
+            [ToolParameter(Description = "Combat mode: stop when summary health crosses under this fraction within the epoch, clamped 0.01..1.", DefaultValue = 0.5f)] float minHealthFraction = 0.5f,
             [ToolParameter(Description = "Accepted and ignored: alerts never stop play.", DefaultValue = "")] string ignoredAlertLabels = "",
             [ToolParameter(Description = "Pause for hostiles within this many cells of a colonist; distant cave occupants alone do not stop play.", DefaultValue = 40f)] float hostileWithin = 40f,
             [ToolParameter(Description = "Stable IDs of explicitly acknowledged hostiles or nearby hunting predators, comma-separated.", DefaultValue = "")] string ignoredHostileIds = "",
@@ -714,10 +714,15 @@ namespace HomeBridge.BridgeTools
                         s.Injuries[p.thingIDNumber] = after;
                         continue;
                     }
+                    // Both thresholds are crossings from the epoch's start
+                    // baseline. A colonist already under minHealthFraction
+                    // when the epoch started is not news: the stop that put
+                    // them there was already reported, and re-stopping every
+                    // window at zero ticks would pin the clock while the
+                    // raider who hurt them still stands (issue #154).
                     if (before != null
                         && s.Mode == "combat"
-                        && (after.Health <= s.MinHealthFraction
-                            || before.Health - after.Health >= s.HealthDropFraction))
+                        && HealthThresholdCrossed(s, before, after))
                         return new Hit("colonist_health", HomePlayUntilEventTools.SafeName(p)
                             + " crossed a combat health threshold.",
                             new Dictionary<string, object?> { { "pawnId", p.thingIDNumber },
@@ -739,8 +744,7 @@ namespace HomeBridge.BridgeTools
                                 { "bleedRateAfter", after.BleedRate }, { "bloodLossBefore", before.BloodLoss },
                                 { "bloodLossAfter", after.BloodLoss }, { "healthAtStart", before.Health },
                                 { "healthNow", after.Health } };
-                        var threshold = after.Health <= s.MinHealthFraction
-                            || before.Health - after.Health >= s.HealthDropFraction;
+                        var threshold = HealthThresholdCrossed(s, before, after);
                         // Colony mode stops on any worsening -- except for a
                         // colonist who already caused a colonist_injury stop
                         // inside the cooldown, or who was acknowledged. A wolf
@@ -784,6 +788,16 @@ namespace HomeBridge.BridgeTools
                 }
             }
             return null;
+        }
+
+        /// True when a colonist's summary health crossed under the policy's
+        /// floor, or fell by the policy's drop fraction, since the epoch's
+        /// start baseline. Health already under the floor at the baseline
+        /// only trips on a further drop.
+        private static bool HealthThresholdCrossed(State s, InjurySnapshot before, InjurySnapshot after)
+        {
+            return (before.Health > s.MinHealthFraction && after.Health <= s.MinHealthFraction)
+                || before.Health - after.Health >= s.HealthDropFraction;
         }
 
         /// Non-stopping reminder for the moment a fight ends: the last hostile
