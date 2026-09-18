@@ -47,6 +47,10 @@ type Game struct {
 	Client *bridge.Client
 	// Reused is true when OpenGame attached to a process already running.
 	Reused bool
+	// Relaunched is why OpenGame stopped a running process instead of
+	// reusing it ("expansions", "unrecorded"; see LaunchedModsMismatch), or
+	// "" when nothing was running or the process was reused (#166).
+	Relaunched string
 	// Keep is whether Close leaves the process up for the next harness.
 	Keep bool
 	// Open is how long OpenGame took, for the report.
@@ -63,7 +67,11 @@ type Game struct {
 // OpenGame opens a session on cfg's game the way every harness does
 // (GABSExecutable, OpenBridgeSession) and, when the process was already running,
 // returns it to the main menu so the harness starts from the same state a
-// fresh launch would give it. cfg must have been prepared.
+// fresh launch would give it. A running process launched with a different
+// mod list than cfg prepared (ModsConfig.xml only applies at launch, so a
+// Core-only process cannot load a DLC save, #166) is stopped and launched
+// fresh instead; Game.Relaunched and the report's game_reuse.relaunched say
+// so. cfg must have been prepared.
 func OpenGame(ctx context.Context, cfg *Config) (*Game, error) {
 	started := time.Now()
 	gabsExecutable, err := GABSExecutable(cfg.Root, cfg.Configuration)
@@ -81,8 +89,22 @@ func OpenGame(ctx context.Context, cfg *Config) (*Game, error) {
 	// attached by games_start and keeps its clock journal; only a fresh
 	// launch starts with the journal cleared (#119).
 	g.Reused = GameRunning(ctx, client)
+	if g.Reused {
+		reason, err := LaunchedModsMismatch(cfg.Configuration)
+		if err != nil {
+			_ = client.Close()
+			return nil, err
+		}
+		if reason != "" {
+			if err := stopRunning(ctx, client); err != nil {
+				_ = client.Close()
+				return nil, fmt.Errorf("stop kept game with a different mod list (%s): %w", reason, err)
+			}
+			g.Reused, g.Relaunched = false, reason
+		}
+	}
 	if !g.Reused {
-		if err := ClearStaleClockJournal(cfg.Configuration); err != nil {
+		if err := prepareFreshLaunch(cfg.Configuration); err != nil {
 			_ = client.Close()
 			return nil, err
 		}
@@ -148,7 +170,11 @@ func (g *Game) Close(report Report) {
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 	if report != nil {
-		report["game_reuse"] = map[string]any{"reused": g.Reused, "kept": g.Keep, "openMs": g.Open.Milliseconds()}
+		reuse := map[string]any{"reused": g.Reused, "kept": g.Keep, "openMs": g.Open.Milliseconds()}
+		if g.Relaunched != "" {
+			reuse["relaunched"] = g.Relaunched
+		}
+		report["game_reuse"] = reuse
 	}
 	if g.released {
 		if _, err := g.Reattach(ctx); err != nil {
@@ -178,6 +204,24 @@ func (g *Game) Close(report Report) {
 		report["stop_error"] = err.Error()
 	}
 	_ = g.Client.Close()
+}
+
+// stopRunning attaches to the process GABS reports running and stops it,
+// waiting until it is gone, the way StopGame does for a batch; the client
+// stays open for the fresh games_start that follows.
+func stopRunning(ctx context.Context, client *bridge.Client) error {
+	attached, err := client.GamesStart(ctx)
+	if err != nil {
+		return fmt.Errorf("games_start (attach): %w", err)
+	}
+	if _, err := client.ConnectWithPoll(ctx, attached); err != nil {
+		return fmt.Errorf("connect: %w", err)
+	}
+	if _, err := client.GamesStop(ctx); err != nil {
+		return fmt.Errorf("games_stop: %w", err)
+	}
+	awaitStopped(ctx, client)
+	return nil
 }
 
 // awaitStopped polls games_status after games_stop until GABS reports the

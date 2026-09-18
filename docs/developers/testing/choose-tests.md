@@ -332,7 +332,16 @@ through `games_start`, unloads whatever is loaded and starts from the menu
 like a fresh launch would. Measured on the headless profile: opening a
 fresh process takes about 5s, an attach about 0.2s, and the harness still
 generates (or loads, below) its own colony. The report records
-`game_reuse` (`reused`, `kept`, `openMs`). Stop a kept game with
+`game_reuse` (`reused`, `kept`, `openMs`, and `relaunched` when the
+process was not reused). A process runs with the `ModsConfig.xml` it was
+launched with, so a fresh launch snapshots the prepared file to the
+profile's `RimGovernorLaunchedMods.xml` and `OpenGame` compares it to
+what the current `PrepareConfig` wrote: a different load order (a
+Core-only process facing a harness whose `UseSaveExpansions` activated
+DLC, which would fail `save.missing_mods` at once, or the reverse) stops
+the kept process and launches fresh, `relaunched: "expansions"`; a
+process with no snapshot (an older binary's, or a hand launch) relaunches
+as `"unrecorded"` (#166). Stop a kept game with
 `acceptance stop -root <root>` when you are done with the root (a case
 that must not hand its process on declares `NoKeep` and the runner stops
 it itself); a harness that

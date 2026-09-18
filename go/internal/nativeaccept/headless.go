@@ -265,6 +265,17 @@ func gameSection(config map[string]any) (map[string]any, error) {
 // of the game that configDir's config.json launches, taken from its
 // -savedatafolder argument.
 func ClockJournalDir(configDir string) (string, error) {
+	profile, err := SaveDataFolder(configDir)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(profile, "RimGovernorClockEvents"), nil
+}
+
+// SaveDataFolder is the profile directory (-savedatafolder) the game that
+// configDir's config.json launches reads its Config/ModsConfig.xml and saves
+// from: root/headless-profile for Prepare, root/profile for PrepareRendered.
+func SaveDataFolder(configDir string) (string, error) {
 	config, err := loadConfig(filepath.Join(mustAbs(configDir), "config.json"))
 	if err != nil {
 		return "", err
@@ -276,10 +287,83 @@ func ClockJournalDir(configDir string) (string, error) {
 	args, _ := game["args"].([]any)
 	for _, arg := range args {
 		if value, ok := arg.(string); ok && strings.HasPrefix(value, "-savedatafolder=") {
-			return filepath.Join(strings.TrimPrefix(value, "-savedatafolder="), "RimGovernorClockEvents"), nil
+			return strings.TrimPrefix(value, "-savedatafolder="), nil
 		}
 	}
 	return "", fmt.Errorf("%s: the game's launch arguments carry no -savedatafolder", filepath.Join(configDir, "config.json"))
+}
+
+// LaunchedModsFile is the snapshot of the profile's ModsConfig.xml taken
+// right before a fresh games_start, beside the clock journal in the
+// save-data folder. ModsConfig.xml only applies at launch and every Prepare
+// rewrites it, so this copy is the one record of which mods a kept process
+// is actually running with (#166).
+const LaunchedModsFile = "RimGovernorLaunchedMods.xml"
+
+// RecordLaunchedMods snapshots the profile's ModsConfig.xml to
+// LaunchedModsFile. Called only right before a fresh games_start, like
+// ClearStaleClockJournal; a missing config or profile is not an error.
+func RecordLaunchedMods(configDir string) error {
+	profile, err := SaveDataFolder(configDir)
+	if err != nil {
+		return nil
+	}
+	source := filepath.Join(profile, "Config", "ModsConfig.xml")
+	if _, err := os.Stat(source); err != nil {
+		return nil
+	}
+	return copyFile(source, filepath.Join(profile, LaunchedModsFile))
+}
+
+// ActiveMods reads the casefolded activeMods list of a ModsConfig.xml.
+func ActiveMods(path string) ([]string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	_, root, err := parseXML(data)
+	if err != nil {
+		return nil, fmt.Errorf("parse %s: %w", path, err)
+	}
+	active := root.find("activeMods")
+	if active == nil {
+		return nil, fmt.Errorf("%s: missing activeMods", path)
+	}
+	var ids []string
+	for _, li := range active.findAll("li") {
+		ids = append(ids, casefold(li.text()))
+	}
+	return ids, nil
+}
+
+// LaunchedModsMismatch compares the mods a kept process was launched with
+// (LaunchedModsFile) to the profile's freshly prepared ModsConfig.xml. It
+// returns "" when they match, so the process can be reused, or a short
+// reason to relaunch: "expansions" when the lists differ (a Core-only
+// process cannot load a save recorded with DLC and fails save.missing_mods
+// at once, #166) and "unrecorded" when no snapshot exists (a process an
+// older binary or a hand launch started). The comparison is on the whole
+// load order, since that is what the process is bound to.
+func LaunchedModsMismatch(configDir string) (string, error) {
+	profile, err := SaveDataFolder(configDir)
+	if err != nil {
+		return "", err
+	}
+	wanted, err := ActiveMods(filepath.Join(profile, "Config", "ModsConfig.xml"))
+	if err != nil {
+		return "", err
+	}
+	launched, err := ActiveMods(filepath.Join(profile, LaunchedModsFile))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "unrecorded", nil
+		}
+		return "", err
+	}
+	if strings.Join(wanted, "\n") != strings.Join(launched, "\n") {
+		return "expansions", nil
+	}
+	return "", nil
 }
 
 // ClearStaleClockJournal removes the clock journal configDir's game writes.

@@ -616,3 +616,61 @@ func TestSaveExpansions(t *testing.T) {
 		t.Fatalf("union: %v, %v", cfg.Expansions, err)
 	}
 }
+
+// A kept process runs with the ModsConfig.xml it was launched with, so
+// OpenGame compares the snapshot a fresh launch records against what the
+// current Prepare wrote and relaunches on a difference (#166).
+func TestLaunchedModsMismatch(t *testing.T) {
+	source := writeSourceRoot(t)
+	root, err := IsolatedRoot(source, filepath.Join(t.TempDir(), "worker"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	configuration, err := Prepare(root)
+	if err != nil {
+		t.Fatalf("Prepare failed: %v", err)
+	}
+	snapshot := filepath.Join(root, "headless-profile", LaunchedModsFile)
+	if reason, err := LaunchedModsMismatch(configuration); err != nil || reason != "unrecorded" {
+		t.Fatalf("before any launch: reason %q, err %v; want unrecorded", reason, err)
+	}
+	if err := RecordLaunchedMods(configuration); err != nil {
+		t.Fatal(err)
+	}
+	launched, err := ActiveMods(snapshot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{CorePackage, "brrainz.harmony", "brrainz.rimbridgeserver", casefold(NativePackage)}; strings.Join(launched, ",") != strings.Join(want, ",") {
+		t.Fatalf("Core-only launch recorded %v, want %v", launched, want)
+	}
+	if reason, err := LaunchedModsMismatch(configuration); err != nil || reason != "" {
+		t.Fatalf("same profile: reason %q, err %v; want reuse", reason, err)
+	}
+	// The next harness wants a DLC save's expansions: the Core-only process
+	// cannot load it.
+	if _, err := Prepare(root, "royalty", "biotech"); err != nil {
+		t.Fatalf("Prepare with expansions failed: %v", err)
+	}
+	if reason, err := LaunchedModsMismatch(configuration); err != nil || reason != "expansions" {
+		t.Fatalf("DLC profile on a Core-only process: reason %q, err %v; want expansions", reason, err)
+	}
+	if err := RecordLaunchedMods(configuration); err != nil {
+		t.Fatal(err)
+	}
+	if reason, err := LaunchedModsMismatch(configuration); err != nil || reason != "" {
+		t.Fatalf("relaunched with the DLC profile: reason %q, err %v; want reuse", reason, err)
+	}
+	// And the reverse: a Core-only harness after a DLC process relaunches
+	// too, rather than running slower with the extra defs.
+	if _, err := Prepare(root); err != nil {
+		t.Fatal(err)
+	}
+	if reason, err := LaunchedModsMismatch(configuration); err != nil || reason != "expansions" {
+		t.Fatalf("Core-only profile on a DLC process: reason %q, err %v; want expansions", reason, err)
+	}
+	// A config naming no save-data folder records nothing and is not an error.
+	if err := RecordLaunchedMods(filepath.Join(root, "missing")); err != nil {
+		t.Fatal(err)
+	}
+}

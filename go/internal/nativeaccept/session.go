@@ -28,10 +28,8 @@ func OpenBridgeSessionWith(ctx context.Context, config bridge.ProcessConfig) (*b
 	if err != nil {
 		return nil, fmt.Errorf("open GABS session: %w", err)
 	}
-	// A fresh launch starts with an empty clock journal; a kept process
-	// owns its journal and must find it intact (#119).
 	if !GameRunning(ctx, client) {
-		if err := ClearStaleClockJournal(config.ConfigDir); err != nil {
+		if err := prepareFreshLaunch(config.ConfigDir); err != nil {
 			_ = client.Close()
 			return nil, err
 		}
@@ -46,6 +44,17 @@ func OpenBridgeSessionWith(ctx context.Context, config bridge.ProcessConfig) (*b
 		return nil, fmt.Errorf("connect: %w", err)
 	}
 	return client, nil
+}
+
+// prepareFreshLaunch runs right before a games_start that launches (not
+// attaches): the clock journal starts empty, since a kept process owns its
+// journal and must find it intact (#119), and the prepared ModsConfig.xml is
+// snapshotted so a later OpenGame can tell what the process runs with (#166).
+func prepareFreshLaunch(configDir string) error {
+	if err := ClearStaleClockJournal(configDir); err != nil {
+		return err
+	}
+	return RecordLaunchedMods(configDir)
 }
 
 // OpenBridgeSessionWithTakeover attaches even when another GABS session of the same
