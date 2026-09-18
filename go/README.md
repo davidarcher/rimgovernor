@@ -158,7 +158,7 @@ Multi-instance colony directory serving (`--colonies`) does not exist in Go
   [choose-tests.md](../docs/developers/testing/choose-tests.md) for when to run
   them and [issue #38](https://github.com/davidarcher/rimgovernor/issues/38)
   for coverage gaps. `internal/buildingruntime/cmd/{buildingsmoke,billsmoke,haulsmoke}`
-  are single-family native smoke hosts. `restartaccept` is the kill-and-restart
+  are single-family native smoke hosts. The `service/restart` case is the kill-and-restart
   acceptance: `serve --resume` plays with no HTTP write, is killed, and a
   restart on the same state resumes autonomous play for the same world.
 
@@ -690,7 +690,7 @@ The paused gear read is compared against native upkeep for the exact pawn/loadou
 census, deficit flags, eligible candidate identities and gains, and replacement
 needs. `MaintainEquipment` remains visible as `method_unavailable` until its
 execution family is connected; it does not consume an optional development slot.
-`go run ./internal/nativeaccept/cmd/facilityaccept -root <abs .rimgovernor/bridge>
+`go run ./internal/nativeaccept/cmd/acceptance run facility/comfort -root <abs .rimgovernor/bridge>
 -rimgovernor <abs binary> -output <fresh dir>` runs the autonomous service on the
 tribal8 baseline save and watches `EnsureComfort` until it recovers. After the
 service stops it audits the journal's dining/recreation use proofs against live
@@ -698,8 +698,7 @@ service stops it audits the journal's dining/recreation use proofs against live
 whose native role hosts it, and every eligible colonist needs an accessible
 hosted facility of each kind. Blueprints and labels prove nothing there.
 Recreation previews require native playing-cell access, separate from placement
-legality. `go run ./internal/nativeaccept/cmd/workshopaccept -root <abs
-.rimgovernor/bridge> -rimgovernor <abs binary> -output <fresh dir>` runs the same
+legality. `acceptance run facility/workshop` (same flags) runs the same
 composition plus `resource,workshop,gear` with `--routine-resource-target
 MeleeWeapon_Club:3` and watches `MaintainResource`; the audit requires the live
 club count from `home/colony_facts` to exceed the pre-service baseline and a
@@ -714,8 +713,8 @@ Animal reference captures additionally check pen state, reachable feed, shared
 food competition and both reserve thresholds. Sleeping captures compare owners,
 users, access and comfort against native facts and retain exact pawn/bed use.
 A safe assignment still needs observed use; unsafe assignments remain deficits.
-Native floor-place replay establishes upgrade detection; the `upkeepaccept`
-`sleeping` scenario covers the assignment/building methods and real-bed use.
+Native floor-place replay establishes upgrade detection; the `upkeep/sleeping`
+case covers the assignment/building methods and real-bed use.
 Completed autonomous building methods retain exact native origin/current IDs in
 the journal, including after retirement and Manual. Routine reviews query those
 current IDs inside the paused observation bracket and verify definition, position,
@@ -737,7 +736,7 @@ For a same-colony scenario retry, stage the retained initial save as
 `profile/Saves/RimGovernor-tribal8-baseline.rws` and pass
 `--start-save RimGovernor-tribal8-baseline`; headless preparation copies that
 baseline into its private profile.
-`upkeepaccept -scenario <name>` (issue #2, B04h) is the per-deficit startup-upkeep
+The `upkeep/<scenario>` cases (issue #2, B04h) are the per-deficit startup-upkeep
 acceptance: each scenario opens on a fixture that already holds one deficit,
 composes the live service with only the routine families that own it
 (`secure-supplies,repair,clean` for the `UpkeepFixture` scenarios, no `work`
@@ -753,10 +752,9 @@ that defers every development row), `medicine` (reserve deficit resolves
 through acquisition, a bill or mining), `feed` (pet without reachable stored
 feed), `sleeping` (one-bed shortage: a bed is built, ownership follows and
 every colonist is observed sleeping in an owned bed) and `cold`
-(sleeping room below the cold floor gets a heat source). `-debug` adds the
-flight recorder and clock/worker diagnostics. Run it from the repo root with
-`-root <bridge root> -rimgovernor <service exe>`; the scenario's output
-directory must not exist.
+(sleeping room below the cold floor gets a heat source). Run them through
+`acceptance run upkeep/<scenario>... -root <bridge root> -rimgovernor <service exe>
+-output <fresh dir>` from `go/`.
 Animal upkeep reviews retain containment risk and per-animal feed thresholds.
 Feed shares the observed diet/rot forecast with human consumers. Missing censuses
 remain unknown; a complete empty census clears animal needs. Release and slaughter

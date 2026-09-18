@@ -466,7 +466,7 @@ or cancelled work cannot be retired to bypass duplicate-intent protection.
 
 These maintenance predicates are separate from `FOOTHOLD_STABLE`. Their presence
 does not certify the complete startup/upkeep matrix or sustained survival. The
-per-deficit live acceptance is `go/internal/nativeaccept/cmd/upkeepaccept`
+per-deficit live acceptance is the `upkeep/<scenario>` case set
 ([B04h](https://github.com/davidarcher/rimgovernor/issues/2)): one staged
 deficit per scenario, the owning families only, recovery observed on the native
 postcondition (`-scenario a,b` picks scenarios; `-reuse` reloads the baseline

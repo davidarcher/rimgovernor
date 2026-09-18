@@ -604,7 +604,7 @@ func Prepare(root string, expansions ...string) (string, error) {
 	}
 	// Every save under profile/Saves -- not just the tribal8 baseline -- so a
 	// headless run (the default for the native acceptance binaries) can load
-	// any variant save deposited there, e.g. by variantsavegen, the same way
+	// any variant save deposited there, e.g. by a tools/variantsavegen-* case, the same way
 	// a rendered run already can (PrepareRendered points RimWorld straight at
 	// profile/Saves with no copy step). The baseline itself stays required:
 	// its absence is exactly the "fresh checkout, save not staged yet" state

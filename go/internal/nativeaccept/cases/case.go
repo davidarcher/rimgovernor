@@ -40,6 +40,11 @@ type DebugStart struct {
 // expansions (Config.UseSaveExpansions).
 type Save struct {
 	Name string
+	// From, when set, is a committed directory holding Name.rws (and any
+	// sidecar files) that the runner copies into <root>/profile/Saves when
+	// the root lacks the save, before the profile is prepared: a
+	// checkpointed precondition a fresh root can resume from.
+	From string
 }
 
 // Fixture brings the game up through On (nil: the debug colony), then
@@ -61,10 +66,17 @@ type Owned struct {
 	Saves []string
 }
 
+// Scenario starts a programmatic scenario from the main menu through the
+// ScenarioStartFixture (na.ScenarioStart): how a save variant is generated.
+type Scenario struct {
+	Spec na.ScenarioStart
+}
+
 func (d DebugStart) start() {}
 func (Save) start()         {}
 func (Fixture) start()      {}
 func (Owned) start()        {}
+func (Scenario) start()     {}
 
 func (d DebugStart) Describe() map[string]any {
 	row := map[string]any{"kind": "debug", "mapSize": d.Size.MapSize, "planetCoverage": d.Size.PlanetCoverage}
@@ -81,6 +93,9 @@ func (f Fixture) Describe() map[string]any {
 	}
 	return row
 }
+func (s Scenario) Describe() map[string]any {
+	return map[string]any{"kind": "scenario", "scenario": s.Spec.Scenario, "seed": s.Spec.Seed, "count": s.Spec.Count, "biome": s.Spec.Biome}
+}
 func (o Owned) Describe() map[string]any {
 	out := map[string]any{"kind": "owned"}
 	if len(o.Saves) > 0 {
@@ -90,22 +105,11 @@ func (o Owned) Describe() map[string]any {
 }
 
 // ServeSpec declares the `rimgovernor serve` process a serve-driven case
-// runs against (lane C, #138, owns the behaviour; only the shape is agreed
-// here). Clock speed always comes from na.ClockSpeedArgs; the flight
-// recorder and --listen 127.0.0.1:0 are always on.
-type ServeSpec struct {
-	// Binary is the prebuilt rimgovernor binary; empty builds it.
-	Binary string
-	// Save is the save the service loads; Resume starts it with --resume.
-	Save   string
-	Resume bool
-	// Extra are further serve arguments.
-	Extra []string
-	// NativeTimeout and StepStall bound the service's native calls and the
-	// waits bound to the handle; zero takes the shared defaults.
-	NativeTimeout time.Duration
-	StepStall     time.Duration
-}
+// runs against: na.ServeSpec (Session.Serve launches it; an empty Binary
+// takes the run's -rimgovernor). Clock speed always comes from
+// na.ClockSpeedArgs; the flight recorder and --listen 127.0.0.1:0 are
+// always on.
+type ServeSpec = na.ServeSpec
 
 // Session is what a case's Run receives: the open, prepared game. The
 // runner implements it over na.OpenSession (lane B, #137).
@@ -133,6 +137,16 @@ type Session interface {
 	// Reattach takes the slot back once the service has stopped; the
 	// returned Harness replaces Harness().
 	Reattach(ctx context.Context) (*na.Harness, error)
+	// Spec is the case's declared Serve spec (Binary resolved to the run's
+	// -rimgovernor), or the zero spec for a bridge-only case.
+	Spec() ServeSpec
+	// Reload takes the slot back (Reattach) and runs the case's Start again
+	// over the running game: a world change that keeps the durable journal
+	// (routine goals of the old world invalidate), with the fixture op,
+	// frozen needs and Identity repeated for the reloaded world. The
+	// returned Harness replaces Harness(); a Serve afterwards opens on the
+	// new identity.
+	Reload(ctx context.Context) (*na.Harness, error)
 	// Launch releases the slot and starts rimgovernor serve for a case that
 	// manages the attach and authority steps itself (na.LaunchService); an
 	// empty Binary takes the run's -rimgovernor. The runner stops whatever
@@ -164,7 +178,8 @@ type Case struct {
 	Quiet na.QuietMode
 	// Reason says why the case departs from the checklist's defaults: a
 	// storyteller that is not quieted (item 4) or a DebugStart bigger
-	// than the default (item 2). Lint requires it for either.
+	// than the default (item 2) or a Budget past MaxBudget (item 6). Lint
+	// requires it for any of the three.
 	Reason string
 	// Keep are the NeedDef names (Food, Rest, Joy...) left unfrozen;
 	// everything else is frozen before Run.
@@ -215,9 +230,18 @@ func (c Case) Validate() error {
 	return nil
 }
 
-// MaxBudget is the largest Budget a case may declare: past ~15 minutes
-// the precondition is not staged well enough or the assertion covers too
-// much (checklist item 6).
+// keepNeeds is Keep as need defs.
+func (c Case) keepNeeds() []na.NeedDef {
+	keep := make([]na.NeedDef, len(c.Keep))
+	for i, need := range c.Keep {
+		keep[i] = na.NeedDef(need)
+	}
+	return keep
+}
+
+// MaxBudget is the largest Budget a case may declare without a Reason:
+// past ~15 minutes the precondition is not staged well enough or the
+// assertion covers too much (checklist item 6).
 const MaxBudget = 15 * time.Minute
 
 // nameShape is "<area>/<case>": lowercase words joined by hyphens on each
@@ -243,8 +267,8 @@ func (c Case) Lint() error {
 	switch {
 	case c.Budget <= 0:
 		fail("Budget is missing: every case declares the wall clock it needs", 6, "Budget in minutes and say so")
-	case c.Budget > MaxBudget:
-		fail(fmt.Sprintf("Budget %s exceeds %s: stage the precondition or split the assertion", c.Budget, MaxBudget), 6, "Budget in minutes and say so")
+	case c.Budget > MaxBudget && c.Reason == "":
+		fail(fmt.Sprintf("Budget %s exceeds %s: stage the precondition, split the assertion or give a Reason", c.Budget, MaxBudget), 6, "Budget in minutes and say so")
 	}
 	if c.Quiet != na.QuietRequired && c.Reason == "" {
 		fail(fmt.Sprintf("Quiet is %s without a Reason: only an assertion about an interruption keeps the storyteller", c.Quiet), 4, "Quiet by default")

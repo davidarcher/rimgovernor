@@ -15,6 +15,10 @@ import (
 // DefaultTimeout is the per-case safety net when Options names none.
 const DefaultTimeout = 20 * time.Minute
 
+// timeoutMargin is how far past a case's Budget the safety net sits when
+// the Budget alone would exceed it.
+const timeoutMargin = 5 * time.Minute
+
 // Options is the per-invocation configuration shared by every case of a run.
 type Options struct {
 	// Root is the private disposable worker root (e.g. .rimgovernor/bridge).
@@ -86,6 +90,11 @@ func Execute(ctx context.Context, c Case, opts Options) (na.Report, int) {
 	if timeout <= 0 {
 		timeout = DefaultTimeout
 	}
+	if timeout < budget+timeoutMargin {
+		// A case whose budget outruns the safety net still fails on its
+		// budget, not on a context cut a few minutes short of it.
+		timeout = budget + timeoutMargin
+	}
 	runCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	err := execute(runCtx, c, opts, output, report)
@@ -98,8 +107,11 @@ func Execute(ctx context.Context, c Case, opts Options) (na.Report, int) {
 }
 
 func execute(ctx context.Context, c Case, opts Options, output string, report na.Report) error {
-	if c.Serve != nil {
-		return fmt.Errorf("case %s declares Serve: the serve lifecycle is not wired into the runner yet (#138)", c.Name)
+	if c.Serve != nil && opts.Rimgovernor == "" {
+		return fmt.Errorf("case %s launches rimgovernor serve: run it with -rimgovernor <absolute path to a prebuilt binary>", c.Name)
+	}
+	if err := stageSaves(c.Start, opts.Root); err != nil {
+		return err
 	}
 	s := &session{c: c, report: report, binary: opts.Rimgovernor}
 	cfg := &na.Config{Root: opts.Root, Output: output, Headless: opts.Headless && !c.Rendered, GameID: opts.GameID,
@@ -131,14 +143,10 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 			return fmt.Errorf("stop kept headless game before rendered start: %w", err)
 		}
 	}
-	keep := make([]na.NeedDef, len(c.Keep))
-	for i, need := range c.Keep {
-		keep[i] = na.NeedDef(need)
-	}
 	// na.OpenSession is the shared preamble (#137): stale-package check,
 	// profile, a kept process, discovery, the start, pause, the fixture op,
 	// frozen needs and the identity, each on the report.
-	opened, err := na.OpenSession(ctx, cfg, report, nativeStart(c.Start), c.Quiet, keep...)
+	opened, err := na.OpenSession(ctx, cfg, report, nativeStart(c.Start), c.Quiet, c.keepNeeds()...)
 	if err != nil {
 		return err
 	}
@@ -150,7 +158,49 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 	defer s.stopServices()
 	report["quiet_mode"] = c.Quiet.String()
 	s.Session = opened
-	return c.Run(ctx, s)
+	if err := c.Run(ctx, s); err != nil {
+		return err
+	}
+	// The game's own startup log is part of every case's evidence: a
+	// native load error there fails the case even when its assertion held.
+	return CheckStartupLog(s)
+}
+
+// stageSaves copies every Save.From checkpoint the start names into
+// <root>/profile/Saves when the root lacks the .rws (every file of that
+// name, e.g. its .checkpoint.json sidecar, comes along).
+func stageSaves(start Start, root string) error {
+	switch v := start.(type) {
+	case Fixture:
+		if v.On != nil {
+			return stageSaves(v.On, root)
+		}
+	case Save:
+		if v.From == "" {
+			return nil
+		}
+		target := filepath.Join(root, "profile", "Saves")
+		if _, err := os.Stat(filepath.Join(target, v.Name+".rws")); err == nil {
+			return nil
+		}
+		matches, _ := filepath.Glob(filepath.Join(v.From, v.Name+".*"))
+		if len(matches) == 0 {
+			return fmt.Errorf("save %s: nothing to stage from %s", v.Name, v.From)
+		}
+		if err := os.MkdirAll(target, 0755); err != nil {
+			return err
+		}
+		for _, src := range matches {
+			data, err := os.ReadFile(src)
+			if err != nil {
+				return err
+			}
+			if err := os.WriteFile(filepath.Join(target, filepath.Base(src)), data, 0644); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // nativeStart is the case's Start as the lifecycle library's.
@@ -160,6 +210,8 @@ func nativeStart(start Start) na.Start {
 		return start.Size
 	case Save:
 		return na.Save{Name: start.Name}
+	case Scenario:
+		return start.Spec
 	case Fixture:
 		var on na.Start
 		if start.On != nil {
@@ -184,7 +236,30 @@ type session struct {
 	gabsPID  atomic.Int64
 }
 
-func (s *session) Config() *na.Config       { return s.config }
+func (s *session) Config() *na.Config { return s.config }
+func (s *session) Reload(ctx context.Context) (*na.Harness, error) {
+	if s.Session == nil {
+		return nil, errors.New("no game open: an Owned case holds its own session")
+	}
+	h, err := s.Reattach(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.Session.Reopen(ctx, nativeStart(s.c.Start), s.c.Quiet, s.c.keepNeeds()...); err != nil {
+		return nil, err
+	}
+	return h, nil
+}
+func (s *session) Spec() ServeSpec {
+	if s.c.Serve == nil {
+		return ServeSpec{}
+	}
+	spec := *s.c.Serve
+	if spec.Binary == "" {
+		spec.Binary = s.binary
+	}
+	return spec
+}
 func (s *session) GABSPID() int             { return int(s.gabsPID.Load()) }
 func (s *session) Harness() *na.Harness     { return s.Session.Harness }
 func (s *session) Names() []string          { return s.Session.Names }
@@ -225,6 +300,11 @@ func (s *session) Serve(ctx context.Context, spec na.ServeSpec) (*na.ServiceProc
 	}
 	if s.Session == nil {
 		return nil, errors.New("no game open: an Owned case holds its own session")
+	}
+	// The colony-naming dialog a loaded save can still hold stops the clock
+	// for good under the service; answer it before releasing the slot.
+	if _, err := na.ConfirmColonyNames(ctx, s.Session.Harness, s.report); err != nil {
+		return nil, err
 	}
 	service, err := na.Serve(ctx, s.config, s.Session.Game, s.Session.Identity, spec, s.report)
 	if err != nil {

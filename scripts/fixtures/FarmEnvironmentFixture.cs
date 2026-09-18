@@ -10,7 +10,7 @@ using Verse;
 namespace HomeBridge.BridgeTools
 {
     // Private disposable acceptance only. Stages the controlled-environment
-    // precondition for farmselectaccept (issue #3 M4): one enclosed roofed
+    // precondition for the farm/select-* cases (issue #3 M4): one enclosed roofed
     // room with a running sun lamp and heaters, its own fuelled wood-fired
     // generators, a cold snap that closes the outdoor growing season, and
     // parkas so the colonists survive it. Two scenarios:

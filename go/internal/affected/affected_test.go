@@ -36,7 +36,7 @@ func TestSelectGoModIsEverything(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !sel.AllGo || !sel.AllHarnesses || !slices.Contains(sel.Harnesses, "upkeepaccept") {
+	if !sel.AllGo || !sel.AllHarnesses || !slices.Contains(sel.Harnesses, "warmauthorityaccept") {
 		t.Errorf("go.mod change selected %+v", sel)
 	}
 }
@@ -46,7 +46,7 @@ func TestSelectNativeSourceIsEveryHarnessNoGo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if sel.AllGo || !sel.AllHarnesses || len(sel.Packages) != 0 || len(sel.Harnesses) < 10 {
+	if sel.AllGo || !sel.AllHarnesses || len(sel.Packages) != 0 || len(sel.Harnesses) < 2 || len(sel.Cases) < 10 {
 		t.Errorf("native change selected %+v", sel)
 	}
 }
@@ -77,7 +77,7 @@ func TestSelectFollowsImports(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Contains(sel.Harnesses, "upkeepaccept") || slices.Contains(sel.Harnesses, "verified") {
+	if !slices.Contains(sel.Harnesses, "warmauthorityaccept") || slices.Contains(sel.Harnesses, "verified") {
 		t.Errorf("nativeaccept change selected harnesses %v", sel.Harnesses)
 	}
 	if sel.AllHarnesses {
@@ -85,11 +85,11 @@ func TestSelectFollowsImports(t *testing.T) {
 	}
 
 	// A harness's own file selects only that harness (plus its test package).
-	sel, err = Select(r, []string{"go/internal/nativeaccept/cmd/upkeepaccept/main.go"})
+	sel, err = Select(r, []string{"go/internal/nativeaccept/cmd/warmauthorityaccept/main.go"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Equal(sel.Harnesses, []string{"upkeepaccept"}) {
+	if !slices.Equal(sel.Harnesses, []string{"warmauthorityaccept"}) {
 		t.Errorf("harness-local change selected %v", sel.Harnesses)
 	}
 	if len(sel.Cases) != 0 {

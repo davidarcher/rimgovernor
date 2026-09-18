@@ -45,15 +45,15 @@ the harness too slow to rerun after a fix. Reach for, in order of preference:
   `cleanliness_prepare`, `power_prepare`, `refrigeration_prepare`,
   `storage_haul_prepare`, `guarded_construction_prepare` families) that spawns
   the buildings, pawns, items and conditions the test needs in one call;
-- `variantsavegen` / `ScenarioStartFixture` for a programmatic scenario start
-  when the stressor is map- or start-level (seed, biome, season, scarcity).
-  The checked-in artifact is the manifest (a JSON array of
+- the `tools/variantsavegen-<save>` cases / `ScenarioStartFixture` for a
+  programmatic scenario start when the stressor is map- or start-level
+  (seed, biome, season, scarcity). The checked-in artifact is the manifest
+  (`cases/sustained/manifests/issue-1-matrix.json`, a JSON array of
   `variantgen.Variant`), the generated `.rws` under `profile/Saves` is the
-  pre-generated world: `variantsavegen -manifest` writes it once offline
-  (about 5s a variant on a kept process, the default),
-  and `sustainedmatrixaccept -manifest` loads whatever already exists,
-  generating only what is missing before any variant runs (`-regenerate`
-  forces it). A load takes about 3s; nothing regenerates a world per run.
+  pre-generated world: a `tools/variantsavegen-<save>` case writes it once
+  offline (about 5s a variant on a kept process), and the matching
+  `sustained/matrix-<save>` case opens on that scenario start directly.
+  A load takes about 3s; nothing regenerates a world per run.
 
 Budget a targeted harness at minutes. If the precondition is the slow part,
 build the fixture before writing the assertion, and review the generated save
@@ -158,7 +158,7 @@ rimgovernor.exe>]` runs them on one kept process, writing each case's
    run at once with the evidence in the report; do not wait out the ceiling
    hoping it recovers.
 10. **Prefer reuse over boot.** When several cases share a save, run them
-   through `sustainedmatrixaccept -reuse-game` ([below](#reusing-one-game-across-acceptance-cases)) rather
+   through one `acceptance run a b c` invocation ([below](#reusing-one-game-across-acceptance-cases)) rather
    than booting RimWorld per case. Between harness binaries the process is
    kept by default: each leaves it at the main menu and the next attaches
    to it ([below](#keeping-the-process-between-harnesses)).
@@ -174,8 +174,8 @@ does sets `Config.Expansions` (or the run sets
 (`save.missing_mods`) under a profile missing an expansion it was recorded
 with, so a harness that loads a save calls `cfg.UseSaveExpansions(save)`
 before `PrepareConfig`, which activates exactly the expansions in that
-save's `<modIds>` header; regenerate saves Core-only (`variantsavegen` now
-does) rather than carrying DLC forward.
+save's `<modIds>` header; regenerate saves Core-only (the
+`tools/variantsavegen-*` cases do) rather than carrying DLC forward.
 
 Fixture games are also quiet by default: `test/configure_start` applies
 `test/quiet_storyteller` once the colony exists (pass `quiet=false` to keep
@@ -190,7 +190,7 @@ hunting, no queued incidents, no storyteller ticks, and every non-colony pawn
 removed from the map; because the Custom difficulty is what the save
 persists, a quiet save stays quiet after reload while a fixture build is
 installed. Interruption harnesses (the `combat/*`, `movement/arrival` and
-`authority/disconnect` cases, `defenselayoutaccept`, `test/world_incident`
+`authority/disconnect` and `defense/*` cases, `test/world_incident`
 users) stay `Loud`; a registered case declares why in `Reason`.
 
 Needs are frozen when the assertion is not about them. `na.FreezeNeeds(ctx,
@@ -203,11 +203,9 @@ pass cannot hide that nobody ever ate or slept. The `needs/freeze` case proves t
 pin and the release. The construction harnesses freeze everything; a
 harness whose scenario needs a colonist to eat or break keeps that need.
 Every serve-driven harness freezes too (#131): `na.OpenSession` takes
-`keep`, `sustainedfood.RunConfig.Keep` and `liveservice.Config.Keep` name
-the live needs for their families, and the harnesses that load on their
-own (`upkeepaccept`, `excavationaccept`, `defenselayoutaccept`) call
-`na.RecordFrozenNeeds` once the fixture has staged the scenario. Each
-reports `frozen_needs`; a serve-driven run therefore needs a fixture build.
+`Keep` and `liveservice.Config.Keep` name the live needs for their
+families. Each reports `frozen_needs`; a serve-driven run therefore needs a
+fixture build.
 
 Letters are acknowledged, not fatal. `na.AdvanceGame` used to fail a window
 on any pausing letter outside its expected list; it now acknowledges the
@@ -233,8 +231,8 @@ build) arms the next quick start with a map size and planet coverage, and
 planet (`na.DefaultDebugStart`; `RIMGOVERNOR_ACCEPT_MAP_SIZE` and
 `RIMGOVERNOR_ACCEPT_PLANET_COVERAGE` override a run), which took the quick
 start from 11.5s to 4s. `test/configure_start` takes the same `mapSize` and
-`planetCoverage` parameters, `variantsavegen` exposes them as `-map-size` /
-`-planet-coverage` and manifest fields (a variant that picks a biome or a
+`planetCoverage` parameters, the variant manifest exposes them as
+`mapSize` / `planetCoverage` fields (a variant that picks a biome or a
 temperature band defaults to a 30% planet, since a 5% planet has no
 guaranteed tundra or extreme-desert tile). A harness that reasons about
 surrounding terrain calls `na.StartDebugGameSized` with what it needs (150
@@ -315,8 +313,8 @@ seconds against a few seconds to reload a paused save), so a binary that
 runs several cases in a loop may opt into `nativeaccept.GameReuse`
 ([reuse.go](../../../go/internal/nativeaccept/reuse.go)): RimWorld is
 launched once and each case begins with a reload of its save into the same
-process. `sustainedmatrixaccept -reuse-game -saves a,b,c` is the first
-consumer; the `lifecycle/reuse` case
+process. The case runner's kept process (`acceptance run a b c`) is the
+registry's form of it; the `lifecycle/reuse` case
 ([cases/lifecycle/reuse.go](../../../go/internal/nativeaccept/cases/lifecycle/reuse.go))
 is the acceptance for the lifecycle itself.
 
@@ -434,19 +432,20 @@ the same six plus `smoke/identity` through `acceptance suite` in 47s. The
 installed mod build must carry every fixture the list needs, and each
 harness must fit the step budget with N-1 peer games running (#73 measured
 three). A harness that composes several routine families in one service
-(`sustainedfoodaccept` and `sustainedmatrixaccept` run EnsureFoodSupply's
+(`sustained/food` and `sustained/matrix-*` run EnsureFoodSupply's
 whole pipeline by default) shares one 30s step across all of them, and
 under three peer games that step admits nothing: pass `-families <family>`
-to keep the budget for the family under test (`farmselectaccept` defaults
-to `field`), or let the default `-step-stall 90s` fail the run as soon as
+to keep the budget for the family under test (`farm/select-*` declare
+`field` alone), or let the default `-step-stall 90s` fail the run as soon as
 the first window has not been admitted instead of watching an idle service
 for twenty minutes (#103). The watch itself is a tick window, not a flat
-wall-clock length (#133): `sustainedmatrixaccept -window` defaults to 2500
+wall-clock length (#133): the `sustained/matrix-*` cases watch 2500
 ticks (one in-game hour) per variant so the ten-variant matrix is a
-regression gate, `-watch` is only the ceiling for a game that stops
-advancing, and `-window 0` restores the full wall-clock diagnostic
-timeline (`sustainedfoodaccept`'s default). Each variant's `result.json`
-records the observed window under `window`.
+regression gate, the wall-clock ceiling (`RIMGOVERNOR_ACCEPT_WINDOW`, a Go
+duration, default 8m) only ends a game that stops advancing, and
+`sustained/food` watches the whole wall-clock window as the diagnostic
+timeline. Each case's `result.json` records the observed window under
+`window` and the ceiling under `window_ms`.
 
 Process reuse carries the same static-state caveat as `-reuse-game`
 (next paragraph), and process-wide `Prefs` too: the `letter/pause` case sets the
@@ -466,13 +465,14 @@ opens, so `-reuse-game` works in both modes.
 
 A harness whose late scenario depends on minutes of earlier play (the
 defense layout build before its raid) checkpoints the precondition as a
-prepared save instead of replaying it: `defenselayoutaccept -checkpoint
-<name>` saves the game once the layout is built and audited, writing
-`<name>.rws` and `<name>.checkpoint.json` (the layout record and site the
+prepared save instead of replaying it: `tools/defense-checkpoint` saves the
+game once the layout is built and audited, writing
+`RimGovernor-defense-layout.rws` and `.checkpoint.json` (the layout record and site the
 raid assertions need) to `root/profile/Saves` and to the committed
-[scripts/fixtures/saves](../../../scripts/fixtures/saves/). A later
-`-from-checkpoint <name>` run stages those files into the root when it
-lacks them, loads the save, re-runs the cheap layout audits and goes
+[scripts/fixtures/saves](../../../scripts/fixtures/saves/). The
+`defense/raid`, `defense/raid-bypass` and `defense/predator` cases declare
+`cases.Save{From: ...}` and the runner stages those files into the root
+when it lacks them, loads the save, re-runs the cheap layout audits and goes
 straight to the raid; the checkpoint is fixture-mod state, so rebuild it
 after fixture or save-format changes.
 
@@ -483,8 +483,8 @@ after fixture or save-format changes.
 | Go controller logic, contracts, persistence | From `go/`: `go test ./...`, `go vet ./...`, `go build -o ../.rimgovernor/go/rimgovernor.exe ./cmd/rimgovernor` (also run together, with staticcheck and the test-time budget, by `task go:build && task go:test` from the [root Taskfile](../../../Taskfile.yml)) | Pin Go via [go/.go-version](../../../go/.go-version); `CGO_ENABLED=0`. Linux race tests need CGO/GCC. Native control and fresh Go-session recovery have separate behavioral checks below. See [go/README.md](../../../go/README.md). |
 | Dashboard behavior and build | `task dashboard:build` runs `pnpm run typecheck`, `pnpm run lint` and `pnpm run build`; `task dashboard:test` runs `pnpm test` (Vitest) | Local pnpm and dashboard dependencies; native UI acceptance is separate. |
 | Shared Protobuf contracts | Official C#/Go generation `--check` for both languages | [Generation commands](../../../contracts/schema-generation.md); native adapters additionally need gameplay acceptance. |
-| Completed pawn work, recovery or another live-game invariant | A registered case through the shared runner, `go run ./internal/nativeaccept/cmd/acceptance run <area>/<case> -root <abs root> -output <fresh dir>` from `go/` (`acceptance list` prints the registry: the synchronous typed-op cases `bed/assign`, `bills/census`, `caravan/control`, `caravan/departure`, `lifecycle/checkpoint`, `lifecycle/load`, `mapscope/isolation`, `pawn/reads`, `presentation/media` (needs `-headless=false`), `quest/accept`, `quest/fulfill`, `research/reads`, `rooms/reads`, `settlement/gift`, `supplies/reads`, `trade/open`; the Loud cases `combat/melee`, `combat/ranged`, `combat/explosive`, `movement/arrival`, `authority/disconnect`; the lifecycle cases `lifecycle/shutdown`, `lifecycle/runtime-fault`, `lifecycle/reuse`, `lifecycle/headless-soak`; the rendered `video/stream`, `video/feeds`, `video/matrix`, `video/source-spike`; more land per #135), or a targeted `go/internal/nativeaccept/cmd/*accept` harness not yet ported (`constructionaccept`, `developmentaccept`, `draftaccept`, `excavationaccept`, `facilityaccept`, `hospitalaccept`, `husbandryaccept`, `recoveryareaaccept`, `recoveryserviceaccept`, `sustainedfoodaccept`, `upkeepaccept`, `wallremovalaccept`, `wallupgradeaccept`, `workshopaccept`, `zoneaccept` and others — see the current set under `go/internal/nativeaccept/cmd/`) | Disposable prepared colony, matching native DLLs, GABS and a real headless RimWorld instance. Never replace installed DLLs while any RimWorld instance is running, including another worktree's tests. Isolated tests must restore temporarily swapped DLLs. Never kill `RimWorldWin64.exe`/`gabs.exe` by image name — that ends every concurrent worktree's game (seen there as GABS's catalog emptying, `availableTotal: 0`); stop your own via `games_stop` or kill only pids whose command line contains your `-root`. A receipt alone does not prove pawn work completed — verify the observed postcondition. |
-| A wild predator hunting a colonist during supervised play is answered by squad defense instead of parking the clock on `predator_hunt` / `unsafe_colony` (#157): the hunt resolves under the service through combat windows, the drafts are released and colony windows resume | `go run ./internal/nativeaccept/cmd/defenselayoutaccept -root <abs root> -output <fresh dir> -rimgovernor <path to rimgovernor.exe> -from-checkpoint RimGovernor-defense-layout -threat predator` from `go/` (`-predator` picks the PawnKindDef, default Cougar) against a `DefenseFixture,GuardedConstructionFixture` build; `result.json` carries `predator_incident`, `combat_method` (`squad-…`), `hunt_resolution`, `defenders_released`, `clock_resumed` and `inspect_after_hunt` | Serve-driven on the committed layout checkpoint; the fixture spawns the predator inside the band already on the game's own `PredatorHunt` job (no combat outcome injected). About 5 minutes. Rerun when `routine_defense.go`, `squad_defense.go`, `squad_facts.go` or the emergency threat census changes. |
+| Completed pawn work, recovery or another live-game invariant | A registered case through the shared runner, `go run ./internal/nativeaccept/cmd/acceptance run <area>/<case> -root <abs root> -output <fresh dir>` from `go/` (`acceptance list` prints the registry: the synchronous typed-op cases `bed/assign`, `bills/census`, `caravan/control`, `caravan/departure`, `lifecycle/checkpoint`, `lifecycle/load`, `mapscope/isolation`, `pawn/reads`, `presentation/media` (needs `-headless=false`), `quest/accept`, `quest/fulfill`, `research/reads`, `rooms/reads`, `settlement/gift`, `supplies/reads`, `trade/open`; the Loud cases `combat/melee`, `combat/ranged`, `combat/explosive`, `movement/arrival`, `authority/disconnect`; the lifecycle cases `lifecycle/shutdown`, `lifecycle/runtime-fault`, `lifecycle/reuse`, `lifecycle/headless-soak`; the rendered `video/stream`, `video/feeds`, `video/matrix`, `video/source-spike`; more land per #135), or a targeted `go/internal/nativeaccept/cmd/*accept` harness not yet ported (`dialogpauseaccept`, `recoveryareaaccept`, `recoveryserviceaccept`, `reuseaccept`, `headlesssoakaccept` and others — see the current set under `go/internal/nativeaccept/cmd/`) | Disposable prepared colony, matching native DLLs, GABS and a real headless RimWorld instance. Never replace installed DLLs while any RimWorld instance is running, including another worktree's tests. Isolated tests must restore temporarily swapped DLLs. Never kill `RimWorldWin64.exe`/`gabs.exe` by image name — that ends every concurrent worktree's game (seen there as GABS's catalog emptying, `availableTotal: 0`); stop your own via `games_stop` or kill only pids whose command line contains your `-root`. A receipt alone does not prove pawn work completed — verify the observed postcondition. |
+| A wild predator hunting a colonist during supervised play is answered by squad defense instead of parking the clock on `predator_hunt` / `unsafe_colony` (#157): the hunt resolves under the service through combat windows, the drafts are released and colony windows resume | `go run ./internal/nativeaccept/cmd/acceptance run defense/predator -root <abs root> -output <fresh dir> -rimgovernor <path to rimgovernor.exe>` from `go/` (the case opens on the committed `RimGovernor-defense-layout` checkpoint and spawns a Cougar) against a `DefenseFixture,GuardedConstructionFixture` build; `result.json` carries `predator_incident`, `combat_method` (`squad-…`), `hunt_resolution`, `defenders_released`, `clock_resumed` and `inspect_after_hunt` | Serve-driven on the committed layout checkpoint; the fixture spawns the predator inside the band already on the game's own `PredatorHunt` job (no combat outcome injected). About 5 minutes. Rerun when `routine_defense.go`, `squad_defense.go`, `squad_facts.go` or the emergency threat census changes. |
 | Reactive clock delivery: a watched construction attempt stops its window at completion (`STOP_REASON_WATCH_LATCHED`) with the outcome and stop on one long-polled page, a baseline window still plays to `STOP_REASON_TICK_BUDGET`, an idle `wait_ms` read is held, and an authority change outside any epoch arrives as an owner-less row | `go run ./internal/nativeaccept/cmd/acceptance run reactivewatch/construction -root <abs root>` from `go/` (every window at Superfast) against a `GuardedConstructionFixture` build; reports wake latency, latched tick, ticks saved and window counts in `result.json` | Bridge-driven (no `serve`), Core-only debug start, frozen needs, quiet storyteller; about 2 minutes. Bounds: wake latency (page return minus the stop's `observed_at_unix_ms`) at most 250 ms, stop within one tick of the latched tick and before the deadline. Rerun with `acceptance run tickbudget/boundaries` and `guardedconstructionaccept` when the stop-reason or classification surface changes. |
 | Kept process between harnesses: a process that hosted a controller killed with its Auto grant and typed clock epoch still active (session dropped, then unload to the menu) must, for the next controller that prepares the profile again and attaches, still page its clock journal from cursor 0 with no gap and hold a fresh Auto grant for the whole hold window (#119) | `go run ./internal/nativeaccept/cmd/warmauthorityaccept -root <abs root> -output <fresh dir>` from `go/` (`-hold`, default 15s; `-skip-phase1` attaches to a process another harness left at the menu) against any fixture build; `result.json` records both phases, `clock_journal` (`newestCursor`, `lostCount`, `gap`) and `held_reads` | Bridge-driven, two sessions on one process; about a minute after the first start is cached. Rerun when `nativeaccept` profile preparation, `OpenGame`/`OpenSessionWith`, `ClockEventJournal.cs` or the authority hooks change. |
 | Whether pawn outcomes and controller throughput hold across clock speeds (Normal, Fast, Superfast, Ultrafast, uncapped = Ultrafast with the headless test acceleration, #109) | `go run ./internal/nativeaccept/cmd/acceptance run speedmatrix/plain -root <abs root> -rimgovernor <abs path to rimgovernor.exe>` from `go/` against a `ThroughputFixture` build (every speed of `na.DefaultSpeedMatrix`, a 6000-tick budget per speed; `-headless=false` refuses uncapped). One staged colony (`test/throughput_prepare`: three colonists on Construct/Haul, loose Steel with a stockpile, a 6-segment wall run) saved once and reloaded per speed through a plain hold (the GameReuse reset contract is `reuseaccept`'s subject); one `serve` process per speed with the `haul` and `work` families. `report.json` carries per speed wall TPS, paused fraction, steps, reads/step, parent hits, the wall-sized colony window (mean/max ticks, #126), stop latency, budget-vs-reactive stops and budget stops per 6000 ticks, plus the outcome row (stored units, walls built, healthy colonists, unsuccessful plan stages) | Serve-driven, frozen needs, quiet storyteller, stall-bounded waits; about 2 minutes per speed. Fails (non-zero exit) when any outcome differs by more than 1 across speeds, when a case records an unsuccessful plan stage, or when nothing was hauled or built; the #126 paused-fraction and Ultrafast-vs-Fast TPS thresholds are reported, not enforced. Rerun when the clock scheduler, step cache, or the Ultrafast/acceleration path changes. |

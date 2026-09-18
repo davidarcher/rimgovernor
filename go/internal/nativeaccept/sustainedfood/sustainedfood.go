@@ -1,11 +1,10 @@
-// Package sustainedfood holds the single-run mechanics behind
-// sustainedfoodaccept and sustainedmatrixaccept (issue #1's sustained-matrix
-// acceptance): load a save, launch the live Go player service with the food
-// pipeline's routine families, acquire player authority, and poll
-// EnsureFoodSupply's durable goal state over a wall-clock window. It exists
-// as its own package (rather than living only in cmd/sustainedfoodaccept) so
-// sustainedmatrixaccept can drive the exact same mechanics across a save
-// variant list without duplicating them.
+// Package sustainedfood holds the watch mechanics behind the serve-driven
+// registry cases (sustained/food, sustained/matrix-*, facility/*, farm/*,
+// supply/starting, medical/stable-patient; issue #1's sustained-matrix
+// acceptance first): on a session the runner opened, launch the live Go
+// player service with the routine families under test, acquire player
+// authority, and poll a goal's durable state over a wall-clock window
+// (Observe), then stop the service and audit against live native facts.
 package sustainedfood
 
 import (
@@ -22,221 +21,57 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// RunConfig is one variant's run parameters: which save to load and how long
-// to observe it. Root/Output/GameID/Headless/RimgovernorBinary mirror
-// na.Config's fields; Save/Watch/Window/Poll/NativeTimeout vary per matrix
-// row.
-//
-// Watch is the wall-clock length of the observation window. Window, when
-// > 0, is the same window measured in game ticks: the watch ends as soon
-// as the live game tick has advanced Window ticks past the first sampled
-// tick, and Watch becomes the ceiling that ends it regardless (a paused or
-// starved game never advances). A tick window ties the sample length to
-// what the assertion needs (issue #133) instead of a flat diagnostic
-// length: 2500 ticks is one in-game hour, 60000 one day.
-type RunConfig struct {
-	Root              string
-	Output            string
-	GameID            string
-	Headless          bool
-	RimgovernorBinary string
-	Save              string
-	Watch             time.Duration
-	Window            uint64
-	Poll              time.Duration
-	NativeTimeout     time.Duration
-	// RequestPrefix disambiguates the anchor-plan/acquire/keep-alive
-	// requestIds across variants sharing one -root's HTTP log; defaults to
-	// "sustained-food" when empty.
-	RequestPrefix string
-	// Families is serve's RIMGOVERNOR_ROUTINE_FAMILIES value; empty composes
-	// only EnsureFoodSupply's own pipeline and "all" the autonomous default. Goal is the maintained goal the
-	// timeline samples (default EnsureFoodSupply). Until, when set, ends the
-	// watch window early once a sample satisfies it. Audit, when set, runs
-	// against a fresh bridge session after the service has stopped and
-	// before the game is stopped, so a harness can compare the durable
-	// journal against live native facts.
-	// ServeArgs are appended to the serve argv verbatim (for example a
-	// --routine-resource-target); Prepare, when set, runs against the
-	// fixture-prep bridge session after the save is loaded and the naming
-	// dialog dismissed, before the service starts, so a harness can record
-	// the live baseline its audit later compares against.
-	Families string
-	Goal     policy.GoalID
-	// StepStall, when > 0, fails the run fast instead of watching an idle
-	// service for the whole window: unless a scheduler step has admitted a
-	// clock window (a journaled clock attempt) within StepStall of the watch
-	// starting, Run returns a StepStallError naming the last step failure
-	// the service logged. Under peer contention (several headless games on
-	// one machine, issue #103) every planner in the composed pipeline shares
-	// one step budget and a starved step admits nothing for the whole watch.
-	StepStall time.Duration
-	ServeArgs []string
-	Prepare   func(ctx context.Context, h *na.Harness, report na.Report) error
-	Until     func(sample map[string]any) bool
-	Audit     func(ctx context.Context, h *na.Harness, report na.Report) error
-	// Reuse, when set, runs this variant as one case of an already-launched
-	// game (issue #22): the save is loaded through Reuse.BeginCase into the
-	// running process instead of a fresh games_start, and the run ends with
-	// Reuse.EndCase instead of games_stop. The caller owns the lifecycle and
-	// its final Retire. Root/GameID/Headless must match Reuse.Config.
-	Reuse *na.GameReuse
-	// Checkpoint, when set, saves the live game the first time a sample
-	// satisfies When: the clock is paused, the service's lifecycle save
-	// writes Name, the .rws is copied into root/profile/Saves (the durable
-	// location Prepare mirrors into the headless profile), and the clock
-	// resumes. A later run started with -save Name skips the startup ladder
-	// and begins where this run got interesting.
-	Checkpoint *Checkpoint
-	// Keep names the NeedDefs (na.NeedFood, na.NeedRest, na.NeedJoy) left
-	// live; every other colonist need is frozen at maximum once the save is
-	// loaded and staged, before the service starts (#131), so a run whose
-	// assertion is not about eating, sleeping or mood never stalls on
-	// colonists doing them. The reply lands on the report as frozen_needs.
-	Keep []na.NeedDef
-}
-
 // Checkpoint names a save to take mid-run and the sample that triggers it.
 type Checkpoint struct {
 	Name string
 	When func(sample map[string]any) bool
 }
 
-// Run executes exactly one variant: it must be called with a fresh, empty
-// cfg.Output directory. Every finding goes into report (mutated in place),
-// matching every other native acceptance binary's convention; the timeline
-// samples are also returned directly so a caller (sustainedmatrixaccept) can
-// derive cross-variant metrics without re-reading result.json.
-func Run(ctx context.Context, cfg RunConfig, report na.Report) (timeline []map[string]any, err error) {
-	// A reuse case that fails anywhere below retires the shared game; a
-	// successful one is verified quiescent by EndCase. This defer runs after
-	// the service's own deferred stop, so the GABP slot is free again.
-	var reuseCase *na.ReuseCase
-	defer func() {
-		if reuseCase == nil {
-			return
-		}
-		if endErr := cfg.Reuse.EndCase(ctx, reuseCase, err != nil); endErr != nil && err == nil {
-			err = endErr
-		}
-	}()
-	root, output := cfg.Root, cfg.Output
-	if abs, err := filepath.Abs(root); err == nil {
-		root = abs
-	}
-	if abs, err := filepath.Abs(output); err == nil {
-		output = abs
-	}
-	prefix := cfg.RequestPrefix
-	if prefix == "" {
-		prefix = "sustained-food"
-	}
-	naCfg := &na.Config{Root: root, Output: output, Headless: cfg.Headless, GameID: cfg.GameID}
-	// The save carries its own expansion list; a Core-only profile would refuse it.
-	if err := naCfg.UseSaveExpansions(cfg.Save); err != nil {
-		return nil, fmt.Errorf("prepare profile: %w", err)
-	}
-	if err := naCfg.PrepareConfig(); err != nil {
-		return nil, fmt.Errorf("prepare profile: %w", err)
-	}
-	game, err := naCfg.GameSection()
-	if err != nil {
-		return nil, err
-	}
-	files, err := na.PackageFiles(fmt.Sprint(game["workingDir"]))
-	if err != nil {
-		return nil, err
-	}
-	report["package_files"] = files
+// WatchConfig is the observation window Watch samples on a launched
+// service: the goal, how long and how often, an early exit and a
+// checkpoint.
+type WatchConfig struct {
+	// Watch is the wall-clock length of the observation window. Window,
+	// when > 0, is the same window measured in game ticks: the watch ends
+	// as soon as the live game tick has advanced Window ticks past the
+	// first sampled tick, and Watch becomes the ceiling that ends it
+	// regardless (a paused or starved game never advances). A tick window
+	// ties the sample length to what the assertion needs (issue #133)
+	// instead of a flat diagnostic length: 2500 ticks is one in-game hour,
+	// 60000 one day.
+	Watch  time.Duration
+	Window uint64
+	Poll   time.Duration
+	// Goal is the maintained goal the timeline samples (default
+	// EnsureFoodSupply).
+	Goal policy.GoalID
+	// Extra are further goals each sample also reads, under the goal id.
+	Extra []policy.GoalID
+	// Until, when set, ends the window early once a sample satisfies it.
+	Until func(sample map[string]any) bool
+	// Checkpoint, when set, saves the live game the first time a sample
+	// satisfies When (see Checkpoint).
+	Checkpoint *Checkpoint
+}
 
-	// Sequential native sessions, exactly like routinehaulaccept: this
-	// harness's own session loads the save and reads identity, then
-	// releases (without games_stop) to free the sole GABP slot for the
-	// service, and reattaches at the very end for the audit and the close.
-	var held *na.Game
-	var h *na.Harness
-	if cfg.Reuse != nil {
-		reuseCase, err = cfg.Reuse.BeginCase(ctx, filepath.Base(output), cfg.Save, output)
-		if err != nil {
-			return nil, err
-		}
-		h = reuseCase.Harness
-		report["reuse_case"] = map[string]any{"loadToken": reuseCase.Reset.LoadToken, "tick": reuseCase.Reset.Tick}
-		// BeginCase loaded the save; the naming dialog still needs dismissing.
-		if _, err := na.ConfirmColonyNames(ctx, h, report); err != nil {
-			return nil, err
-		}
-	} else {
-		held, err = na.OpenGame(ctx, naCfg)
-		if err != nil {
-			return nil, err
-		}
-		// Runs after the service's deferred stop (LIFO), so the slot is
-		// free for the reattach Close makes on its own; every earlier
-		// failure path ends the game too instead of orphaning it.
-		defer held.Close(report)
-		h = na.NewHarness(held.Client, output)
-		if _, err := na.LoadSave(ctx, h, cfg.Save, report); err != nil {
-			return nil, err
-		}
-	}
-	identity, err := na.ReadIdentity(ctx, h, "identity")
-	if err != nil {
-		return nil, err
-	}
-
-	if cfg.Prepare != nil {
-		if err := cfg.Prepare(ctx, h, report); err != nil {
-			return nil, fmt.Errorf("prepare: %w", err)
-		}
-	}
-	if err := na.RecordFrozenNeeds(ctx, h, nil, report, cfg.Keep...); err != nil {
-		return nil, err
-	}
-
-	// Compose only EnsureFoodSupply's own pipeline so the food outcome under
-	// diagnosis is not confounded by other families: field growing, food
-	// storage, harvest/wood acquisition, cooking bills and starting supplies.
-	// production-policy is composed only so the executor's ProductionPolicy
-	// capability is wired up -- the acquire below dispatches through it.
-	// With no --routine-resource-reserve/--routine-resource-stop the planner
-	// it also enables stays a no-op. "all" composes serve's autonomous
-	// default (an empty selection enables every family); empty keeps
-	// EnsureFoodSupply's own pipeline.
-	families := cfg.Families
-	switch families {
-	case "":
-		families = "field,food-storage,acquisition,cooking,supply,production-policy"
-	case "all":
-		families = ""
-	}
-	spec := na.ServeSpec{
-		Binary: cfg.RimgovernorBinary, Families: []string{families},
-		Extra:         cfg.ServeArgs,
-		NativeTimeout: cfg.NativeTimeout, StepStall: cfg.StepStall, Prefix: prefix,
-	}
-	var service *na.ServiceProcess
-	if reuseCase != nil {
-		// Free the sole GABP slot before the service starts its own bridge
-		// session; this does NOT call games_stop, so the loaded save survives.
-		if err := cfg.Reuse.ReleaseSession(); err != nil {
-			return nil, fmt.Errorf("release reuse bridge session: %w", err)
-		}
-		service, err = na.Serve(ctx, naCfg, nil, identity, spec, report)
-	} else {
-		service, err = na.Serve(ctx, naCfg, held, identity, spec, report)
-	}
-	if err != nil {
-		return nil, err
-	}
-	stopService := func() {
-		if keep := service.Stop(); keep != nil {
-			report["authority_reacquisitions"] = keep
-		}
-	}
-	defer stopService()
+// Watch is the serve-driven family's observation window on a service
+// na.Serve has just launched (not yet acquired): it acquires player
+// authority and keeps it granted, confirms the scheduler reaches automate
+// with a persisted routine review, then samples the goal's durable state
+// every Poll for Watch (or until Until) with the step-stall check from the
+// service's spec. It records timeline, events and timeline_samples on
+// report and returns the samples; the caller stops the service.
+func Watch(ctx context.Context, naCfg *na.Config, service *na.ServiceProcess, cfg WatchConfig, report na.Report) (timeline []map[string]any, err error) {
 	apiCall := service.API
 	token := service.Token
+	identity := service.Identity
+	prefix := service.Spec.Prefix
+	if prefix == "" {
+		prefix = "serve"
+	}
+	if cfg.Poll <= 0 {
+		cfg.Poll = 5 * time.Second
+	}
 
 	// Resume needs no anchor plan: authority is the world's own root plan,
 	// created on first resume (SIMP02, #55).
@@ -244,6 +79,9 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) (timeline []map[s
 		return nil, err
 	}
 	report["acquired"] = service.Entry()["resumed"]
+	report["window_ms"] = cfg.Watch.Milliseconds()
+	window := newTickWindow(cfg.Window)
+	report["window"] = window
 
 	verifyStore, err := service.Store(ctx)
 	if err != nil {
@@ -285,11 +123,9 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) (timeline []map[s
 		return nil, fmt.Errorf("service reached automate mode but the routine review was never persisted")
 	}
 
-	// The observation window: sample EnsureFoodSupply's goal state and the
-	// stage of every one of its committed methods' plans, at cfg.Poll
-	// intervals, for cfg.Watch wall-clock duration or, with cfg.Window set,
-	// until the live game tick has advanced cfg.Window ticks (Watch then
-	// only caps a game that stops advancing). Every sample is retained
+	// The observation window: sample the goal's state and the stage of
+	// every one of its committed methods' plans, at Poll intervals, for
+	// Watch wall-clock duration. Every sample is retained
 	// (report["timeline"]); "events" additionally isolates the moments that
 	// actually changed (a method count change or a Need transition) so the
 	// failure mode is readable without wading through every sample.
@@ -302,26 +138,34 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) (timeline []map[s
 	}
 	watchStarted := time.Now()
 	watchDeadline := watchStarted.Add(cfg.Watch)
-	window := newTickWindow(cfg.Window)
-	report["window"] = window
 	checkpointed := false
 	stepped := false
+	defer func() {
+		report["timeline"] = timeline
+		report["events"] = events
+		report["timeline_samples"] = len(timeline)
+	}()
 	for time.Now().Before(watchDeadline) {
 		sample, err := SampleGoal(ctx, verifyStore, goalID)
-		if tick, ok := liveTick(apiCall); ok {
-			sample["tick"] = tick
-			window.observe(tick)
-		}
 		if !stepped {
 			var stepErr error
 			if stepped, stepErr = service.StepAdmitted(ctx, watchStarted); stepErr != nil {
-				report["timeline"] = timeline
-				report["events"] = events
 				return timeline, stepErr
 			}
 		}
 		if err != nil {
 			sample = map[string]any{"error": err.Error(), "at": time.Now().UTC().Format(time.RFC3339)}
+		}
+		for _, extra := range cfg.Extra {
+			also, err := SampleGoal(ctx, verifyStore, extra)
+			if err != nil {
+				also = map[string]any{"error": err.Error()}
+			}
+			sample[string(extra)] = also
+		}
+		if tick, ok := liveTick(apiCall); ok {
+			sample["tick"] = tick
+			window.observe(tick)
 		}
 		timeline = append(timeline, sample)
 		methodCount, _ := sample["method_count"].(int)
@@ -339,7 +183,7 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) (timeline []map[s
 		}
 		if cfg.Checkpoint != nil && !checkpointed && err == nil && cfg.Checkpoint.When(sample) {
 			checkpointed = true
-			saved, err := checkpoint(ctx, cfg, service.HoldAuthority, apiCall, identity, token, prefix)
+			saved, err := checkpoint(ctx, naCfg, cfg.Checkpoint, service.HoldAuthority, apiCall, identity, token, prefix)
 			if err != nil {
 				report["checkpoint"] = map[string]any{"name": cfg.Checkpoint.Name, "error": err.Error()}
 				return timeline, fmt.Errorf("checkpoint %s: %w", cfg.Checkpoint.Name, err)
@@ -348,53 +192,12 @@ func Run(ctx context.Context, cfg RunConfig, report na.Report) (timeline []map[s
 		}
 		select {
 		case <-ctx.Done():
-			report["timeline"] = timeline
-			report["events"] = events
 			return timeline, ctx.Err()
 		case <-time.After(cfg.Poll):
 		}
 	}
-	report["timeline"] = timeline
-	report["events"] = events
-	report["timeline_samples"] = len(timeline)
 	window.WatchWall = time.Since(watchStarted).Round(time.Second).String()
 	window.Reached = window.reached()
-
-	stopService()
-	var finalHarness *na.Harness
-	if reuseCase != nil {
-		finalHarness, err = cfg.Reuse.Session(ctx)
-		if err != nil {
-			return timeline, err
-		}
-		// The service was killed, not shut down, so the authority it held
-		// stays granted until its tick budget lapses; EndCase would retire
-		// the game over it. Revoke at the current generation.
-		if revoked, err := na.ReleaseAuthority(ctx, finalHarness, identity); err != nil {
-			return timeline, err
-		} else if revoked != nil {
-			report["authority_released"] = revoked
-		}
-	} else {
-		finalClient, err := held.Reattach(ctx)
-		if err != nil {
-			return timeline, err
-		}
-		finalHarness = na.NewHarness(finalClient, output)
-	}
-	if cfg.Audit != nil {
-		if err := cfg.Audit(ctx, finalHarness, report); err != nil {
-			return timeline, err
-		}
-	}
-
-	logData, err := os.ReadFile(naCfg.StartupLogPath())
-	if err != nil {
-		return timeline, fmt.Errorf("read startup log: %w", err)
-	}
-	if err := na.CheckStartupLog(string(logData), cfg.Headless); err != nil {
-		return timeline, err
-	}
 	return timeline, nil
 }
 
@@ -525,8 +328,8 @@ func SampleGoal(ctx context.Context, s *store.Store, need policy.GoalID) (map[st
 // (which needs manual control), copies the save into root/profile/Saves and
 // resumes. The keep-alive is held (hold) for the duration so it does not
 // re-acquire under the save. The result is the report's checkpoint record.
-func checkpoint(ctx context.Context, cfg RunConfig, hold func(bool), apiCall func(string, string, map[string]any, string) (map[string]any, int, error), identity map[string]any, token, prefix string) (map[string]any, error) {
-	name := cfg.Checkpoint.Name
+func checkpoint(ctx context.Context, naCfg *na.Config, cp *Checkpoint, hold func(bool), apiCall func(string, string, map[string]any, string) (map[string]any, int, error), identity map[string]any, token, prefix string) (map[string]any, error) {
+	name := cp.Name
 	hold(true)
 	defer hold(false)
 	stamp := time.Now().UnixNano()
@@ -561,14 +364,14 @@ func checkpoint(ctx context.Context, cfg RunConfig, hold func(bool), apiCall fun
 		return nil, fmt.Errorf("save status=%d body=%#v", status, saved)
 	}
 	profile := "profile"
-	if cfg.Headless {
+	if naCfg.Headless {
 		profile = "headless-profile"
 	}
-	src := filepath.Join(cfg.Root, profile, "Saves", name+".rws")
+	src := filepath.Join(naCfg.Root, profile, "Saves", name+".rws")
 	if _, err := os.Stat(src); err != nil {
 		return nil, fmt.Errorf("save completed but %s is missing: %w", src, err)
 	}
-	dst := filepath.Join(cfg.Root, "profile", "Saves", name+".rws")
+	dst := filepath.Join(naCfg.Root, "profile", "Saves", name+".rws")
 	if src != dst {
 		if err := na.CopyFile(src, dst); err != nil {
 			return nil, err
@@ -582,4 +385,70 @@ func checkpoint(ctx context.Context, cfg RunConfig, hold func(bool), apiCall fun
 		return nil, fmt.Errorf("resume status=%d body=%#v", status, resumed)
 	}
 	return map[string]any{"name": name, "path": dst, "saved": saved, "at": time.Now().UTC().Format(time.RFC3339)}, nil
+}
+
+// Observed is the slice of a registry case's session Observe drives
+// (cases.Session satisfies it): the loaded, paused, frozen game the shared
+// runner opened.
+type Observed interface {
+	Harness() *na.Harness
+	Config() *na.Config
+	Report() na.Report
+	Spec() na.ServeSpec
+	Serve(ctx context.Context, spec na.ServeSpec) (*na.ServiceProcess, error)
+	Reattach(ctx context.Context) (*na.Harness, error)
+}
+
+// Observation is one serve-driven case's shape over Watch: Prepare runs
+// against the loaded game before the service starts (the place to record a
+// live baseline), the service declared on the case is launched and
+// watched, then stopped, and Audit runs against the reattached session so
+// the durable journal can be compared with live native facts. Spec, when
+// set, edits the case's declared serve spec before launch.
+type Observation struct {
+	WatchConfig
+	Spec    func(spec *na.ServeSpec)
+	Prepare func(ctx context.Context, h *na.Harness, report na.Report) error
+	Audit   func(ctx context.Context, h *na.Harness, report na.Report) error
+}
+
+// Observe runs one Observation on s and returns the timeline; the service
+// is stopped and the session reattached before Audit, on every path.
+func Observe(ctx context.Context, s Observed, o Observation) ([]map[string]any, error) {
+	report := s.Report()
+	if o.Prepare != nil {
+		if err := o.Prepare(ctx, s.Harness(), report); err != nil {
+			return nil, fmt.Errorf("prepare: %w", err)
+		}
+	}
+	spec := s.Spec()
+	if o.Spec != nil {
+		o.Spec(&spec)
+	}
+	service, err := s.Serve(ctx, spec)
+	if err != nil {
+		return nil, err
+	}
+	stopService := func() {
+		if keep := service.Stop(); keep != nil {
+			report["authority_reacquisitions"] = keep
+		}
+	}
+	defer stopService()
+	timeline, err := Watch(ctx, s.Config(), service, o.WatchConfig, report)
+	report["metrics"] = DeriveMetrics(timeline)
+	if err != nil {
+		return timeline, err
+	}
+	stopService()
+	h, err := s.Reattach(ctx)
+	if err != nil {
+		return timeline, err
+	}
+	if o.Audit != nil {
+		if err := o.Audit(ctx, h, report); err != nil {
+			return timeline, err
+		}
+	}
+	return timeline, nil
 }

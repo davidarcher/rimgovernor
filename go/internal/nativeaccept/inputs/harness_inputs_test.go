@@ -7,7 +7,7 @@ import (
 )
 
 func TestHarnessInputsRejectsPaths(t *testing.T) {
-	for _, harness := range []string{"", "../x", "cmd/upkeepaccept", "no-such-harness"} {
+	for _, harness := range []string{"", "../x", "cmd/warmauthorityaccept", "no-such-harness"} {
 		if _, err := HarnessInputs(t.TempDir(), harness); err == nil {
 			t.Errorf("HarnessInputs(%q) accepted", harness)
 		}
@@ -25,7 +25,7 @@ func TestHarnessInputsTrackInputs(t *testing.T) {
 	if !ok {
 		t.Skip("not in a checkout")
 	}
-	files, err := HarnessInputs(repo, "upkeepaccept")
+	files, err := HarnessInputs(repo, "warmauthorityaccept")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,7 +38,7 @@ func TestHarnessInputsTrackInputs(t *testing.T) {
 		return false
 	}
 	for _, want := range []string{
-		"go/internal/nativeaccept/cmd/upkeepaccept/main.go",
+		"go/internal/nativeaccept/cmd/warmauthorityaccept/main.go",
 		"go/internal/nativeaccept/inputs/harness_inputs.go",
 		"go/cmd/rimgovernor/main.go",
 		"go/go.mod",

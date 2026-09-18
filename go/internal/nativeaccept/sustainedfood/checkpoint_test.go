@@ -2,6 +2,7 @@ package sustainedfood
 
 import (
 	"context"
+	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"os"
 	"path/filepath"
 	"strings"
@@ -48,8 +49,8 @@ func TestCheckpointPausesSavesCopiesAndResumes(t *testing.T) {
 		t.Fatal("unexpected call", path)
 		return nil, 0, nil
 	}
-	cfg := RunConfig{Root: root, Headless: true, Checkpoint: &Checkpoint{Name: "workshop"}}
-	out, err := checkpoint(context.Background(), cfg, held.Store, api, map[string]any{"colonyId": "c"}, "tok", "test")
+	cfg := &na.Config{Root: root, Headless: true}
+	out, err := checkpoint(context.Background(), cfg, &Checkpoint{Name: "workshop"}, held.Store, api, map[string]any{"colonyId": "c"}, "tok", "test")
 	if err != nil {
 		t.Fatal(err)
 	}

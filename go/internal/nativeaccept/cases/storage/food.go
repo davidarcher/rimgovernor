@@ -21,7 +21,7 @@
 // registry rather than the one case that needed a production build. The
 // repo's standing RimGovernor-tribal8-baseline save was tried as an
 // alternative but is itself a deliberately-captured zero-food-runway crisis
-// snapshot (see sustainedfoodaccept's own doc comment), so it never has
+// snapshot (see the sustained/food case's own doc comment), so it never has
 // stock either. The biome check stays as a guard: a planet that offers none
 // of the preferred biomes fails the start itself, so reaching a foodless map
 // here means the preference is wrong, not the roll.

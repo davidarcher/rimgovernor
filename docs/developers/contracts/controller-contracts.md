@@ -126,10 +126,10 @@ per optional goal with score, nullable deficit and risk, `waitingSince`, selecti
 commitment flags, the deferral reason and, for `labor_unavailable`, the bottleneck work
 type. The dashboard's Work view renders it read-only as "Development priorities"; the
 panel hides itself when routine diagnostics are disabled. Native labor forecasts remain
-evidence with unknown completion times. `cmd/developmentaccept` samples this record
+evidence with unknown completion times. The `service/development` case samples this record
 from a resumed controller across a kill-and-restart pair and asserts the bounds,
 reasons, review-time research measurement and retained waiting ages above; pawn
-progress on the admitted projects is campaign evidence from `cmd/sustainedmatrixaccept`,
+progress on the admitted projects is campaign evidence from the `sustained/matrix-*` cases,
 tracked in [issue #9](https://github.com/davidarcher/rimgovernor/issues/9).
 
 ## Method compilation and work allocation
@@ -253,9 +253,9 @@ step ranks every observed grower that can sow (`policy.PlanGrowerCrops`: the ava
 edible crops carrying the grower's sow tag by nutrition rate over its fertility, the
 fastest first under urgency) and commits a one-shot `grower_crop` patch
 (PatchBuilding `plant_def`, CAS-gated on the grower's current crop) for a grower not
-on the winner, once per grower per goal epoch. `nativeaccept/cmd/farmselectaccept`
-asserts the traced selection kind/crop, the winner's term breakdown and every loser's
-reason; `-environment greenhouse|hydroponics` stages a lit, heated room under a cold
+on the winner, once per grower per goal epoch. The `farm/select-*` cases
+assert the traced selection kind/crop, the winner's term breakdown and every loser's
+reason; `farm/select-greenhouse` and `farm/select-hydroponics` stage a lit, heated room under a cold
 snap through `FarmEnvironmentFixture` and audits the zones or basin placements inside
 it, and `-environment hydroponics -unavailable-crops Plant_Rice -expect-crop
 Plant_Potato` proves a built basin re-cropped to the winner. Insufficient farmland does not reject an otherwise legal

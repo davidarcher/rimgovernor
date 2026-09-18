@@ -24,7 +24,7 @@ var ErrReuseRetired = errors.New("reusable game retired")
 // leaves ownership behind, retires the whole game rather than letting the next
 // case inherit its state. Fresh-process mode (one OpenBridgeSession per binary) stays
 // the default everywhere; this is an opt-in optimisation for multi-case loops
-// such as sustainedmatrixaccept.
+// (the case runner's kept process is the registry's form of it).
 //
 // The single GABP slot constraint (see routinehaulaccept) is respected through
 // Session/ReleaseSession: a case that launches `rimgovernor serve` releases the
