@@ -12,25 +12,42 @@ namespace HomeBridge.BridgeTools
     // Disposable prerequisites only. All asserted outcomes happen afterward through normal ticks.
     public sealed class HusbandryFixture
     {
-        private static bool created;
+        // Per map, not per process: a kept game hosts one debug start after
+        // another, and each new map may seed the fixture once.
+        private static readonly System.WeakReference<Map> createdOn = new System.WeakReference<Map>(null);
         [Tool("test/husbandry_setup", Description = "Seed a disposable husbandry acceptance fixture; test builds only.")]
         public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
-                if (created) throw new InvalidOperationException("Fixture already created");
                 var map = Find.CurrentMap;
+                if (createdOn.TryGetTarget(out var seeded) && ReferenceEquals(seeded, map)) throw new InvalidOperationException("Fixture already created on this map");
                 var handler = map.mapPawns.FreeColonistsSpawned.FirstOrDefault(p => !p.WorkTypeIsDisabled(WorkTypeDefOf.Handling))
                     ?? throw new InvalidOperationException("husbandry fixture: no spawned colonist can do Handling");
                 var removed = map.mapPawns.FreeColonistsSpawned.Where(p => p != handler).ToArray();
                 foreach (var other in removed) { other.jobs.StopAll(); other.DeSpawn(); }
-                // The debug-start map is random; sweep the whole map nearest
-                // first so a rough or fogged neighbourhood does not starve the
-                // enclosure of an 11x11 heavy-affordance clearing.
-                var clearing = map.AllCells.OrderBy(c => c.DistanceToSquared(handler.Position)).Where(c =>
-                    CellRect.FromLimits(c, c + new IntVec3(10, 0, 10)).Cells.All(p => p.InBounds(map)
-                        && !p.Fogged(map) && p.Standable(map) && p.GetEdifice(map) == null
-                        && p.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Heavy))).Select(c => (IntVec3?)c).FirstOrDefault();
-                var origin = clearing ?? throw new InvalidOperationException("husbandry fixture: no 11x11 buildable clearing near " + handler.Position);
+                // The debug-start map is random and a natural 11x11
+                // heavy-affordance clearing is not guaranteed (#185). Take
+                // the nearest 13x11 site (enclosure plus the column the wild
+                // muffalo stands in) that is unfogged, dry, and free of pawns,
+                // player buildings and work in progress, then level it: clear
+                // rock, plants, items and filth and lay concrete so the walls
+                // have their affordance whatever terrain the world generated.
+                const int siteWidth = 13, siteHeight = 11;
+                var site = map.AllCells.OrderBy(c => c.DistanceToSquared(handler.Position)).Select(c => new CellRect(c.x, c.z, siteWidth, siteHeight))
+                    .FirstOrDefault(r => r.FullyContainedWithin(CellRect.WholeMap(map)) && r.Cells.All(p => !p.Fogged(map)
+                        && !p.GetTerrain(map).IsWater && p.GetTerrain(map).passability != Traversability.Impassable
+                        && p.GetZone(map) == null && p.GetEdifice(map)?.def.building.isNaturalRock != false
+                        && !p.GetThingList(map).Any(t => t is Pawn || t is Blueprint || t is Frame
+                            || t is Building b && !b.def.building.isNaturalRock)));
+                if (site.IsEmpty) throw new InvalidOperationException("husbandry fixture: no 13x11 dry unfogged site free of pawns and buildings near " + handler.Position + "; reroll the world");
+                foreach (var cell in site.Cells)
+                {
+                    foreach (var thing in cell.GetThingList(map).Where(t => t is Plant || t is Filth || t.def.category == ThingCategory.Item
+                        || t is Building rock && rock.def.building.isNaturalRock).ToList()) thing.Destroy(DestroyMode.Vanish);
+                    map.roofGrid.SetRoof(cell, null);
+                    map.terrainGrid.SetTerrain(cell, TerrainDefOf.Concrete);
+                }
+                var origin = site.Min;
                 Func<string, int, int, Thing> spawn = (name, x, z) => {
                     var def = ThingDef.Named(name);
                     var t = ThingMaker.MakeThing(def, def.MadeFromStuff ? ThingDef.Named("BlocksGranite") : null);
@@ -107,7 +124,7 @@ namespace HomeBridge.BridgeTools
                     if (!handler.WorkTypeIsDisabled(work)) handler.workSettings.SetPriority(work, work == WorkTypeDefOf.Handling ? 1 : 0);
                 handler.Position = origin + new IntVec3(4, 0, 5);
                 handler.jobs.StopAll();
-                created = true;
+                createdOn.SetTarget(map);
                 return new { success = true, mother = mother.GetUniqueLoadID(), father = father.GetUniqueLoadID(),
                     cow = cow.GetUniqueLoadID(), dog = dog.GetUniqueLoadID(), wild = wild.GetUniqueLoadID(), handler = handler.GetUniqueLoadID(),
                     guard = guard.GetUniqueLoadID(), area = area.GetUniqueLoadID(),

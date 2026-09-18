@@ -25,13 +25,27 @@ namespace HomeBridge.BridgeTools
                 // capture). Each item independently walks the same candidate
                 // pool until placement actually succeeds, rather than
                 // committing to a single guessed cell.
+                //
+                // Candidate cells hold no item already: Direct placement
+                // absorbs a fixture stack into an existing stack of the same
+                // def at the cell (the debug start's own starting Steel, #185),
+                // leaving the fixture's Thing destroyed and its Position
+                // off-map. The pool is filtered up front and the placement is
+                // checked afterwards so the returned item is the one spawned.
                 var candidates = GenRadial.RadialCellsAround(pawn.Position, 10, true).Where(c => c.InBounds(map)
-                    && !c.Fogged(map) && c.Standable(map) && c.GetEdifice(map) == null).Distinct().ToList();
-                if (candidates.Count < 8) throw new System.InvalidOperationException("Not enough standable cells near the fixture pawn.");
+                    && !c.Fogged(map) && c.Standable(map) && c.GetEdifice(map) == null
+                    && !c.GetThingList(map).Any(t => t.def.category == ThingCategory.Item)).Distinct().ToList();
+                if (candidates.Count < 8) throw new System.InvalidOperationException("Not enough empty standable cells near the fixture pawn; reroll the world.");
                 Thing PlaceSomewhere(Thing thing)
                 {
                     foreach (var cell in candidates)
-                        if (GenPlace.TryPlaceThing(thing, cell, map, ThingPlaceMode.Direct, out _)) return thing;
+                    {
+                        if (cell.GetThingList(map).Any(t => t.def.category == ThingCategory.Item)) continue;
+                        if (!GenPlace.TryPlaceThing(thing, cell, map, ThingPlaceMode.Direct, out var placed)) continue;
+                        if (placed != thing || !thing.Spawned || thing.Position != cell)
+                            throw new System.InvalidOperationException($"Fixture {thing.def.defName} was absorbed or displaced at {cell} instead of spawning there.");
+                        return thing;
+                    }
                     throw new System.InvalidOperationException($"Could not place a fixture {thing.def.defName} on any of {candidates.Count} candidate cells.");
                 }
                 var source = candidates[0];
