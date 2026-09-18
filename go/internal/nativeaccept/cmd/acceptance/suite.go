@@ -15,15 +15,16 @@ package main
 // runs through `acceptance run`; any other row is a binary, <bin>/<name>.exe
 // by default (a relative "binary" resolves under -bin, an absolute one is
 // used as given), given -root/-output and then its "args" with
-// "{rimgovernor}" replaced by -rimgovernor. "acceptance" labels the
+// "{rimgovernor}" replaced by -rimgovernor, which a registry case that
+// hosts a service (Case.Service) also receives. "acceptance" labels the
 // criterion a row stands for and is echoed into its report row.
 //
 // Scheduling: one shared queue in three tiers. Bridge-only cases that keep
 // the process come first; cases that end or replace it (NoKeep: a
 // shutdown, a fault, an owned lifecycle; Rendered: a windowed profile the
 // headless worker cannot serve) follow, so the kept process is reused as
-// long as possible; serve-driven cases (a registry case with Serve, a
-// binary whose args pass -rimgovernor or whose row says "serve": true) are
+// long as possible; serve-driven cases (a registry case with Serve or Service,
+// a binary whose args pass -rimgovernor or whose row says "serve": true) are
 // last, so a worker that has hosted a service never runs a bridge-only
 // case on that process afterwards (#119). Within each tier the queue is
 // longest-first by the -baseline suite's
@@ -84,7 +85,7 @@ type entry struct {
 // serveDriven reports whether the row hosts a `rimgovernor serve` process.
 func (e entry) serveDriven() bool {
 	if e.registered != nil {
-		return e.registered.Serve != nil
+		return e.registered.Serve != nil || e.registered.Service
 	}
 	if e.Serve {
 		return true
@@ -456,6 +457,9 @@ func entryCommand(e entry, opts suiteOptions, self, workerRoot string) (argv []s
 		return append([]string{e.Binary, "-root", workerRoot, "-output", output}, e.Args...), output
 	}
 	argv = []string{self, "run", e.Name, "-root", workerRoot, "-output", opts.Output, "-game", opts.GameID}
+	if opts.Rimgovernor != "" && e.serveDriven() {
+		argv = append(argv, "-rimgovernor", opts.Rimgovernor)
+	}
 	for _, f := range []struct {
 		name string
 		d    time.Duration

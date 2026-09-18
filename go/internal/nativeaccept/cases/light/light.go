@@ -1,6 +1,6 @@
-// Command lightaccept exercises the MaintainLighting vertical (issue #6
-// slice 3) end to end against a live game and a live rimgovernor Go
-// player-control service composed with the lighting family:
+// Package light holds the MaintainLighting vertical (issue #6 slice 3): a
+// live game and a live rimgovernor Go player-control service composed with
+// the lighting family, one case per scenario:
 //
 //	dark   -- an enclosed roofed room holds a fuelled stove whose interaction
 //	          cell native measures dark, with no lamp in reach. The service
@@ -27,124 +27,78 @@
 //	          plant must still be alive on an independent native read.
 //
 // Uses the private disposable test/lighting_prepare fixture
-// (LightingFixture.cs). As with the other native harnesses, the harness's
-// own bridge session and the service's are used sequentially, never
-// concurrently (one GABP client per game).
-package main
+// (LightingFixture.cs). The case's own bridge session and the service's
+// are used sequentially, never concurrently (one GABP client per game).
+package light
 
 import (
 	"context"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"math"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
+	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
 const prefix = "light-accept"
 
-func main() {
-	root := flag.String("root", "", "absolute disposable worker root (e.g. .rimgovernor/bridge)")
-	output := flag.String("output", "", "fresh output directory (default <root>/native-lighting-acceptance-<scenario>)")
-	rendered := flag.Bool("rendered", false, "use the windowed profile instead of headless")
-	game := flag.String("game", "rimgovernor-trial", "configured game ID")
-	binary := flag.String("rimgovernor", "", "absolute path to a prebuilt rimgovernor binary (go build ./go/cmd/rimgovernor)")
-	scenario := flag.String("scenario", "dark", "dark, outage, partial or fungus")
-	hold := flag.Duration("hold", 4*time.Minute, "outage/fungus: how long the service must hold without committing a lighting method")
-	timeout := flag.Duration("timeout", 25*time.Minute, "overall run timeout")
-	na.BudgetFlag((25 * time.Minute) / 2)
-	flightRecorder := flag.Bool("flight-recorder", false, "record the service's native timeline (flight.jsonl) and summarize its phases (reads/step, cache and parent hits) into the report")
-	flag.Parse()
-	if *root == "" || *binary == "" || !filepath.IsAbs(*binary) {
-		fmt.Fprintln(os.Stderr, "-root and an absolute -rimgovernor are required")
-		os.Exit(2)
+// hold is how long the outage and fungus cases require the service to
+// hold without committing a lighting method.
+const hold = 4 * time.Minute
+
+func init() {
+	for _, scenario := range []string{"dark", "outage", "partial", "fungus"} {
+		scenario := scenario
+		cases.Register(cases.Case{
+			Name: "light/" + scenario,
+			Scope: "Native MaintainLighting vertical (" + scenario + "): a measured-dark stove interaction cell in an enclosed room " +
+				"drives the live Go routine reviewer/planner to admit one affordable lamp beside it (dark, partial) or to hold for the power " +
+				"family behind an unpowered lamp already in reach (outage), and a room growing a light-killed cave plant is never latched (fungus); " +
+				"the measured glow, not the receipt, releases the latch, " +
+				"confirmed by an independent native read.",
+			Start:   cases.Fixture{Op: "test/lighting_prepare", Args: map[string]any{"scenario": scenario}},
+			Service: true,
+			Budget:  10 * time.Minute,
+			Run:     func(ctx context.Context, s cases.Session) error { return run(ctx, s, scenario) },
+		})
 	}
-	if *scenario != "dark" && *scenario != "outage" && *scenario != "partial" && *scenario != "fungus" {
-		fmt.Fprintln(os.Stderr, "-scenario must be dark, outage, partial or fungus")
-		os.Exit(2)
-	}
-	if *output == "" {
-		*output = *root + "/native-lighting-acceptance-" + *scenario
-	}
-	if err := os.MkdirAll(*output, 0755); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(2)
-	}
-	if entries, _ := os.ReadDir(*output); len(entries) > 0 {
-		fmt.Fprintln(os.Stderr, "-output must be a fresh, empty directory")
-		os.Exit(2)
-	}
-	report := na.NewReport("Native MaintainLighting vertical ("+*scenario+"): a measured-dark stove interaction cell in an enclosed room "+
-		"drives the live Go routine reviewer/planner to admit one affordable lamp beside it (dark, partial) or to hold for the power "+
-		"family behind an unpowered lamp already in reach (outage), and a room growing a light-killed cave plant is never latched (fungus); "+
-		"the measured glow, not the receipt, releases the latch, "+
-		"confirmed by an independent native read.", !*rendered)
-	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
-	defer cancel()
-	err := run(ctx, *root, *output, *game, !*rendered, *binary, *scenario, *hold, *flightRecorder, report)
-	if err != nil {
-		report["error"] = err.Error()
-	} else {
-		report["passed"] = true
-	}
-	na.ReportPhases(report, *output, *flightRecorder)
-	os.Exit(report.Finalize(*output))
 }
 
-func run(ctx context.Context, root, output, gameID string, headless bool, binary, scenario string, hold time.Duration, flightRecorder bool, report na.Report) error {
-	if abs, err := filepath.Abs(root); err == nil {
-		root = abs
-	}
-	if abs, err := filepath.Abs(output); err == nil {
-		output = abs
-	}
-	cfg := &na.Config{Root: root, Output: output, Headless: headless, GameID: gameID}
+func run(ctx context.Context, s cases.Session, scenario string) error {
+	report := s.Report()
+	h, identity, prepared := s.Harness(), s.Identity(), s.Prepared()
 	var service *na.ServiceProcess
-	var postmortem map[string]any
-	var s *na.Session
-	stopped := false
-	stopGame := func() {
-		if stopped {
+	// Failure evidence: the same independent lighting read a pass ends
+	// with, taken once the service has let go of the game.
+	defer func() {
+		if _, hasAfter := report["lighting_after"]; hasAfter {
 			return
 		}
-		stopped = true
 		if service != nil {
 			service.Stop()
+			na.ReportPhases(report, s.Config().Output, true)
 		}
 		stopCtx, stopCancel := context.WithTimeout(context.Background(), 90*time.Second)
 		defer stopCancel()
 		ph, err := s.Reattach(stopCtx)
 		if err != nil {
-			report["stop_error"] = "reopen session for games_stop: " + err.Error()
+			report["postmortem_error"] = "reopen session for the postmortem: " + err.Error()
 			return
 		}
-		if postmortem != nil {
-			if _, hasAfter := report["lighting_after"]; !hasAfter {
-				if after, err := readLighting(stopCtx, ph, postmortem, "lighting-postmortem"); err == nil {
-					report["lighting_postmortem"] = after.evidence()
-				} else {
-					report["lighting_postmortem_error"] = err.Error()
-				}
-			}
+		if after, err := readLighting(stopCtx, ph, identity, "lighting-postmortem"); err == nil {
+			report["lighting_postmortem"] = after.evidence()
+		} else {
+			report["lighting_postmortem_error"] = err.Error()
 		}
-		s.Close()
-	}
-	s, err := na.OpenSession(ctx, cfg, report, na.Fixture{Op: "test/lighting_prepare", Args: map[string]any{"scenario": scenario}}, na.QuietRequired)
-	if err != nil {
-		return err
-	}
-	defer stopGame()
-	h, identity, prepared := s.Harness, s.Identity, s.Prepared
-	postmortem = identity
-	if err := confirmColonyNames(ctx, h, report); err != nil {
+	}()
+	if _, err := na.ConfirmColonyNames(ctx, h, report); err != nil {
 		return err
 	}
 	stoveID := na.AsString(prepared["stove"])
@@ -209,18 +163,20 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 	if scenario != "fungus" && stove.lightSensitive {
 		return fmt.Errorf("lighting-before: work cell marked light-sensitive without a cave plant: %+v", stove)
 	}
-	if err := s.Release(); err != nil {
-		return fmt.Errorf("close fixture-prep bridge session: %w", err)
-	}
 
 	// "work" rides along because every building method's builder check
 	// requires the colony's work priorities to match the controller's own
 	// assignment, which only the work family applies.
-	service, err = na.LaunchService(ctx, cfg, s.GABS, na.ServiceLaunch{Binary: binary, Families: []string{"lighting", "work"}, Extra: append(na.ClockSpeedArgs(), na.FlightRecorderArgs(cfg.Output, flightRecorder)...)}, report)
+	// The outage and fungus holds are attributed from the scheduler's
+	// step-reason trace, which only RIMGOVERNOR_CLOCK_DEBUG prints.
+	service, err = s.Launch(ctx, na.ServiceLaunch{
+		Families: []string{"lighting", "work"},
+		Extra:    append(na.ClockSpeedArgs(), na.FlightRecorderArgs(s.Config().Output, true)...),
+		Env:      []string{"RIMGOVERNOR_CLOCK_DEBUG=1"},
+	})
 	if err != nil {
 		return err
 	}
-	defer service.Stop()
 	token, err := service.SessionToken()
 	if err != nil {
 		return err
@@ -276,7 +232,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 			return fmt.Errorf("lighting latched a protected fungus room (revision %d, latches %+v)", still.Revision, still.Latches.Lighting)
 		}
 		report["held_review_revision"] = still.Revision
-		stderr, err := os.ReadFile(filepath.Join(output, "service", "stderr.log"))
+		stderr, err := os.ReadFile(service.StderrPath())
 		if err != nil {
 			return fmt.Errorf("read service stderr: %w", err)
 		}
@@ -322,11 +278,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 		if alive, _ := na.AsBool(plant["alive"]); !alive {
 			return fmt.Errorf("plant-after: the cave plant at %v did not survive: %#v", plantCell, plant)
 		}
-		logData, err := os.ReadFile(cfg.StartupLogPath())
-		if err != nil {
-			return fmt.Errorf("read startup log: %w", err)
-		}
-		return na.CheckStartupLog(string(logData), headless)
+		return finish(s)
 	}
 
 	// The review must latch the stove and bind MaintainLighting.
@@ -361,7 +313,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 			return fmt.Errorf("lighting latch dropped during the hold (revision %d, latches %+v)", still.Revision, still.Latches.Lighting)
 		}
 		report["held_review_revision"] = still.Revision
-		stderr, err := os.ReadFile(filepath.Join(output, "service", "stderr.log"))
+		stderr, err := os.ReadFile(service.StderrPath())
 		if err != nil {
 			return fmt.Errorf("read service stderr: %w", err)
 		}
@@ -397,11 +349,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 		if s := after.cells[stoveID]; s.glow >= lighting.LitGlow {
 			return fmt.Errorf("lighting-after: stove cell reads lit (%.2f) with no power; the fixture lamp must not glow", s.glow)
 		}
-		logData, err := os.ReadFile(cfg.StartupLogPath())
-		if err != nil {
-			return fmt.Errorf("read startup log: %w", err)
-		}
-		return na.CheckStartupLog(string(logData), headless)
+		return finish(s)
 	}
 
 	// The lighting method: one lamp build on a free interior cell within
@@ -516,11 +464,18 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 	if !admitted {
 		return fmt.Errorf("the admitted %s at %v does not stand after the run: %+v", builtDefinition, builtCell, after.lamps)
 	}
-	logData, err := os.ReadFile(cfg.StartupLogPath())
+	return finish(s)
+}
+
+// finish summarizes the stopped service's flight recording and checks the
+// game's startup log, the way every scenario ends.
+func finish(s cases.Session) error {
+	na.ReportPhases(s.Report(), s.Config().Output, true)
+	logData, err := os.ReadFile(s.Config().StartupLogPath())
 	if err != nil {
 		return fmt.Errorf("read startup log: %w", err)
 	}
-	return na.CheckStartupLog(string(logData), headless)
+	return na.CheckStartupLog(string(logData), s.Config().Headless)
 }
 
 func abs(v int32) int32 {
@@ -528,32 +483,6 @@ func abs(v int32) int32 {
 		return -v
 	}
 	return v
-}
-
-// confirmColonyNames dismisses the fresh debug game's naming dialog, which
-// RankDevelopment otherwise treats as a global emergency (see routinehaulaccept).
-func confirmColonyNames(ctx context.Context, h *na.Harness, report na.Report) error {
-	facts, err := h.Call(ctx, "colony-facts", "home/colony_facts", map[string]any{})
-	if err != nil {
-		return err
-	}
-	naming, ok := na.AsMap(facts["colonyNaming"])
-	if !ok || naming == nil {
-		report["confirmed_colony_names"] = "no pending naming dialog"
-		return nil
-	}
-	confirmed, err := h.Call(ctx, "confirm-colony-names", "home/confirm_colony_names", map[string]any{
-		"windowId": int(na.AsNumber(naming["windowId"])), "factionName": na.AsString(naming["factionName"]),
-		"settlementName": na.AsString(naming["settlementName"]), "dryRun": false,
-	})
-	if err != nil {
-		return err
-	}
-	if success, _ := na.AsBool(confirmed["success"]); !success {
-		return fmt.Errorf("confirm_colony_names refused: %#v", confirmed)
-	}
-	report["confirmed_colony_names"] = confirmed
-	return nil
 }
 
 type workCellRow struct {

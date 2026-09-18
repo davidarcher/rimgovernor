@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-// SupervisedPlayClock is the bounded supervised clock cmd/tickbudgetaccept
+// SupervisedPlayClock is the bounded supervised clock cases/tickbudget
 // drives: Change("Paused"), Change(speed, maxTicks) for the ordinary colony-mode
 // start/replace flow, and Poll's heartbeat/event-cursor bookkeeping. It
 // intentionally omits durable cursor/epoch persistence, dialog pausing, combat

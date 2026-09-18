@@ -104,6 +104,12 @@ type ServiceLaunch struct {
 	Families []string
 	Extra    []string
 	Env      []string
+	// Output, when set, is where this launch's service directory (state,
+	// logs) goes instead of Config.Output, and Report, when set, is where
+	// the launch is recorded instead of the harness's report: a case that
+	// launches once per sub-run (speedmatrix) keeps each apart.
+	Output string
+	Report Report
 }
 
 // Serve is the serve-driven family's one lifecycle: it loads spec.Save
@@ -170,6 +176,14 @@ func serve(ctx context.Context, cfg *Config, game *Game, identity map[string]any
 // attach and authority steps itself (the routine verticals); Serve is the
 // full lifecycle. The service is recorded under report["service"].
 func LaunchService(ctx context.Context, cfg *Config, gabsExecutable string, launch ServiceLaunch, report Report) (*ServiceProcess, error) {
+	if launch.Output != "" {
+		own := *cfg
+		own.Output = launch.Output
+		cfg = &own
+	}
+	if launch.Report != nil {
+		report = launch.Report
+	}
 	return launchServe(ctx, cfg, gabsExecutable, ServeSpec{Binary: launch.Binary, Families: launch.Families, Extra: launch.Extra, Env: launch.Env}, 1, report)
 }
 

@@ -1,5 +1,5 @@
-// Command speedmatrixaccept (issue #111, M4a) runs the same staged colony
-// under rimgovernor serve once per clock speed -- Normal, Fast, Superfast,
+// Package speedmatrix (issue #111, M4a) runs the same staged colony under
+// rimgovernor serve once per clock speed -- Normal, Fast, Superfast,
 // Ultrafast and uncapped (Ultrafast with the headless test acceleration,
 // #109) -- with an identical game-tick budget, and requires the pawns to
 // achieve the same outcome at every speed.
@@ -9,22 +9,22 @@
 // Construct/Haul, loose Steel stacks with a stockpile to haul them to, and a
 // contiguous run of legal Wall cells. That game is saved once; every speed
 // reloads the save, so the map, pawns and stacks are the same. Per speed
-// the harness releases the game to one serve process (haul + work
-// families) with the speed's --clock-speed, submits the wall run as
-// building plans, resumes automatic control and waits, stall-bounded,
-// until the serve-side tick has advanced by the budget. It then stops the
-// service, reads the outcome natively (stored units, walls built,
-// RequireHealthyColonists) and counts unsuccessful plan stages in the
-// service journal. The flight recorder gives wall TPS, paused fraction,
-// steps, reads/step, parent hits, the wall-sized colony window (#126) and
-// the budget-vs-reactive stop split with stop latency and budget stops per
-// 6000 ticks; -max-paused-fraction and -min-ultrafast-tps-ratio turn the
-// #126 throughput expectations into failures.
+// the case releases the game to one serve process (haul + work families)
+// with the speed's --clock-speed, submits the wall run as building plans,
+// resumes automatic control and waits, stall-bounded, until the serve-side
+// tick has advanced by the budget. It then stops the service, reads the
+// outcome natively (stored units, walls built, RequireHealthyColonists) and
+// counts unsuccessful plan stages in the service journal. The flight
+// recorder gives wall TPS, paused fraction, steps, reads/step, parent hits,
+// the wall-sized colony window (#126) and the budget-vs-reactive stop split
+// with stop latency and budget stops per 6000 ticks; the #126 throughput
+// thresholds (maxPausedFraction, minUltrafastTPSRatio) are reported, not
+// enforced, at zero.
 //
-// Postconditions must agree within -tolerance (default 1) across speeds
-// and no case may record an unsuccessful plan stage; report.json under
-// -output carries the matrix and the process exits non-zero on failure.
-package main
+// Postconditions must agree within tolerance across speeds and no case may
+// record an unsuccessful plan stage. Reloads go through a plain hold; the
+// GameReuse reset contract (issue #22) is reuseaccept's own subject.
+package speedmatrix
 
 import (
 	"context"
@@ -32,7 +32,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -42,6 +41,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
+	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
@@ -49,87 +49,41 @@ const (
 	prepareTool = "test/throughput_prepare"
 	controlTool = "test/throughput_control"
 	stageSave   = "RimGovernor-speedmatrix-stage"
+
+	// ticks is the game-tick budget each speed runs after resume (the
+	// serve-side tick must advance by this much).
+	ticks = 6000
+	// items and segments size the stage: Steel stacks spawned and wall
+	// segments laid out.
+	items    = 4
+	segments = 6
+	// tolerance is the allowed spread of each pawn-outcome postcondition
+	// across speeds.
+	tolerance = 1
+	// maxPausedFraction and minUltrafastTPSRatio are the issue #126
+	// throughput expectations (0.5 and 2); at zero they are reported, not
+	// enforced.
+	maxPausedFraction    = 0
+	minUltrafastTPSRatio = 0
 )
 
-func main() {
-	root := flag.String("root", "", "absolute disposable worker root (e.g. .rimgovernor/bridge)")
-	output := flag.String("output", "", "fresh output directory (default <root>/native-speedmatrix-acceptance)")
-	rendered := flag.Bool("rendered", false, "use the windowed profile instead of headless (refuses uncapped)")
-	game := flag.String("game", "rimgovernor-trial", "configured game ID")
-	binary := flag.String("rimgovernor", "", "path to the rimgovernor binary (default: PATH lookup)")
-	speeds := flag.String("speeds", na.DefaultSpeedMatrix, "comma-separated cases to run, in order")
-	ticks := flag.Int64("ticks", 6000, "game ticks each speed runs after resume (the serve-side tick must advance by this much)")
-	items := flag.Int("items", 4, "Steel stacks the stage spawns (1..8)")
-	segments := flag.Int("segments", 6, "wall segments the stage lays out (1..12)")
-	tolerance := flag.Int("tolerance", 1, "allowed spread of each pawn-outcome postcondition across speeds")
-	maxPaused := flag.Float64("max-paused-fraction", 0, "when positive, the paused fraction every case at Superfast or faster may reach (issue #126 asks for 0.5); 0 only reports it")
-	ultrafastRatio := flag.Float64("min-ultrafast-tps-ratio", 0, "when positive, the least multiple of the Fast case's wall TPS the Ultrafast case must reach (issue #126 asks for 2); 0 only reports it")
-	reuseGame := flag.Bool("reuse-game", true, "reload the stage through GameReuse's reset contract (issue #22); off reloads without the contract checks")
-	timeout := flag.Duration("timeout", 60*time.Minute, "overall run timeout")
-	na.BudgetFlag((60 * time.Minute) / 2)
-	stall := flag.Duration("stall", 0, "stall budget for each speed's wait (default na.StallBudget)")
-	flag.Parse()
-	if *root == "" {
-		fmt.Fprintln(os.Stderr, "-root is required")
-		os.Exit(2)
-	}
-	if *output == "" {
-		*output = filepath.Join(*root, "native-speedmatrix-acceptance")
-	}
-	if err := os.MkdirAll(*output, 0755); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(2)
-	}
-	cases, err := na.ParseSpeedCases(*speeds)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(2)
-	}
-	for _, c := range cases {
-		if c.TestAcceleration && *rendered {
-			fmt.Fprintln(os.Stderr, "the uncapped case needs the headless profile (test acceleration is headless-only); drop it from -speeds or run without -rendered")
-			os.Exit(2)
-		}
-	}
-	if *binary == "" {
-		*binary = "rimgovernor"
-	}
-	report := na.NewReport("Speed matrix (#111): one staged colony reloaded per clock speed under rimgovernor serve with an identical tick budget; wall TPS, paused fraction, steps, reads/step, parent hits, stop latency and budget-vs-reactive stops per speed; pawn outcomes equal within a tolerance.", !*rendered)
-	report["speeds"] = cases
-	report["tick_budget"] = *ticks
-	report["tolerance"] = *tolerance
-	report["max_paused_fraction"] = *maxPaused
-	report["min_ultrafast_tps_ratio"] = *ultrafastRatio
-	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
-	defer cancel()
-	m := &matrix{root: *root, output: *output, gameID: *game, headless: !*rendered, binary: *binary,
-		cases: cases, ticks: *ticks, items: *items, segments: *segments, tolerance: *tolerance,
-		maxPaused: *maxPaused, ultrafastRatio: *ultrafastRatio,
-		reuseGame: *reuseGame, stall: *stall, report: report}
-	if err := m.run(ctx); err != nil {
-		report["error"] = err.Error()
-	} else {
-		report["passed"] = true
-	}
-	os.Exit(report.Finalize(*output))
+func init() {
+	cases.Register(cases.Case{
+		Name: "speedmatrix/plain",
+		Scope: "Speed matrix (#111): one staged colony reloaded per clock speed under rimgovernor serve with an " +
+			"identical tick budget; wall TPS, paused fraction, steps, reads/step, parent hits, stop latency and " +
+			"budget-vs-reactive stops per speed; pawn outcomes equal within a tolerance.",
+		Start:   cases.Fixture{Op: prepareTool, Args: map[string]any{"itemCount": items, "wallSegments": segments}},
+		Service: true,
+		Budget:  cases.MaxBudget,
+		Run:     run,
+	})
 }
 
 type matrix struct {
-	root, output, gameID, binary string
-	headless                     bool
-	cases                        []na.SpeedCase
-	ticks                        int64
-	items, segments, tolerance   int
-	maxPaused, ultrafastRatio    float64
-	reuseGame                    bool
-	stall                        time.Duration
-	report                       na.Report
-
-	cfg      *na.Config
-	gabs     string
-	reuse    *na.GameReuse
-	game     *na.Game
-	prepared map[string]any
+	s      cases.Session
+	report na.Report
+	cases  []na.SpeedCase
 	// storage and walls are the fixture's cell lists, in the "x:z" form
 	// test/throughput_control reads back.
 	storage, walls string
@@ -137,86 +91,29 @@ type matrix struct {
 	outcomes       []na.SpeedOutcome
 }
 
-func (m *matrix) stallBudget() time.Duration {
-	if m.stall > 0 {
-		return m.stall
-	}
-	return na.StallBudget()
-}
-
-func (m *matrix) run(ctx context.Context) (err error) {
-	if abs, err := filepath.Abs(m.root); err == nil {
-		m.root = abs
-	}
-	if abs, err := filepath.Abs(m.output); err == nil {
-		m.output = abs
-	}
-	m.cfg = &na.Config{Root: m.root, Output: m.output, Headless: m.headless, GameID: m.gameID}
-	if err := m.cfg.PrepareConfig(); err != nil {
-		return fmt.Errorf("prepare profile: %w", err)
-	}
-	game, err := m.cfg.GameSection()
+func run(ctx context.Context, s cases.Session) error {
+	speedCases, err := na.ParseSpeedCases(na.DefaultSpeedMatrix)
 	if err != nil {
 		return err
 	}
-	files, err := na.PackageFiles(fmt.Sprint(game["workingDir"]))
-	if err != nil {
-		return err
-	}
-	m.report["package_files"] = files
-	if m.gabs, err = na.GABSExecutable(m.root, m.cfg.Configuration); err != nil {
-		return err
-	}
-
-	// One RimWorld process for the whole matrix. With -reuse-game the
-	// reloads go through GameReuse's reset contract; otherwise a plain hold
-	// (na.OpenSession) reloads the stage itself.
-	if m.reuseGame {
-		if m.reuse, err = na.OpenReusableGame(ctx, m.cfg, m.gabs); err != nil {
-			return err
-		}
-		defer func() {
-			retireCtx, retireCancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			defer retireCancel()
-			reason := "matrix complete"
-			if err != nil {
-				reason = "matrix failed: " + err.Error()
+	if !s.Config().Headless {
+		for _, c := range speedCases {
+			if c.TestAcceleration {
+				return errors.New("the uncapped case needs the headless profile (test acceleration is headless-only)")
 			}
-			_ = m.reuse.Retire(retireCtx, reason)
-			m.reuse.Record(m.report)
-		}()
-		h, err := m.reuse.Session(ctx)
-		if err != nil {
-			return err
 		}
-		h.Output = filepath.Join(m.output, "stage")
-		if err := os.MkdirAll(h.Output, 0755); err != nil {
-			return err
-		}
-		if err := m.stage(ctx, h); err != nil {
-			return fmt.Errorf("stage: %w", err)
-		}
-	} else {
-		s, err := na.OpenSession(ctx, m.cfg, m.report, na.Fixture{Op: prepareTool, Args: map[string]any{"itemCount": m.items, "wallSegments": m.segments}}, na.QuietRequired)
-		if err != nil {
-			return err
-		}
-		defer s.Close()
-		m.game = s.Game
-		h := s.Harness
-		h.Output = filepath.Join(m.output, "stage")
-		if err := os.MkdirAll(h.Output, 0755); err != nil {
-			return err
-		}
-		if !na.Contains(s.Names, controlTool) {
-			return fmt.Errorf("missing %s in discovery; rebuild the native mod with -Fixture ThroughputFixture", controlTool)
-		}
-		if err := confirmColonyNames(ctx, h, m.report); err != nil {
-			return fmt.Errorf("stage: %w", err)
-		}
-		if err := m.saveStage(ctx, h, s.Prepared); err != nil {
-			return fmt.Errorf("stage: %w", err)
-		}
+	}
+	m := &matrix{s: s, report: s.Report(), cases: speedCases}
+	m.report["speeds"] = speedCases
+	m.report["tick_budget"] = ticks
+	m.report["tolerance"] = tolerance
+	m.report["max_paused_fraction"] = maxPausedFraction
+	m.report["min_ultrafast_tps_ratio"] = minUltrafastTPSRatio
+	if !na.Contains(s.Names(), controlTool) {
+		return fmt.Errorf("missing %s in discovery; rebuild the native mod with -Fixture ThroughputFixture", controlTool)
+	}
+	if err := m.stage(ctx); err != nil {
+		return fmt.Errorf("stage: %w", err)
 	}
 
 	for _, c := range m.cases {
@@ -229,7 +126,7 @@ func (m *matrix) run(ctx context.Context) (err error) {
 		fmt.Printf("DONE %s: stored=%d/%d walls=%d colonists=%d unsuccessful=%d\n", c.Name,
 			outcome.StoredUnits, outcome.StoredUnits+outcome.LooseUnits, outcome.WallsBuilt, outcome.HealthyColonists, outcome.UnsuccessfulStages)
 	}
-	if problems := na.CompareOutcomes(m.outcomes, m.tolerance); len(problems) > 0 {
+	if problems := na.CompareOutcomes(m.outcomes, tolerance); len(problems) > 0 {
 		m.report["outcome_problems"] = problems
 		return fmt.Errorf("pawn outcomes differ across speeds: %s", strings.Join(problems, "; "))
 	}
@@ -237,69 +134,36 @@ func (m *matrix) run(ctx context.Context) (err error) {
 	// hauled or built agrees trivially and proves nothing.
 	for _, o := range m.outcomes {
 		if o.StoredUnits == 0 && o.WallsBuilt == 0 {
-			return fmt.Errorf("%s: nothing was hauled or built within the tick budget; raise -ticks or check the stage", o.Case)
+			return fmt.Errorf("%s: nothing was hauled or built within the tick budget; raise ticks or check the stage", o.Case)
 		}
 	}
 	rows, _ := m.report["metrics"].([]map[string]any)
-	if problems := na.CheckSpeedMetrics(na.SpeedMetricsFromRows(rows), m.maxPaused, m.ultrafastRatio); len(problems) > 0 {
+	if problems := na.CheckSpeedMetrics(na.SpeedMetricsFromRows(rows), maxPausedFraction, minUltrafastTPSRatio); len(problems) > 0 {
 		m.report["metric_problems"] = problems
 		return fmt.Errorf("clock throughput short of the thresholds: %s", strings.Join(problems, "; "))
 	}
-	logData, err := os.ReadFile(m.cfg.StartupLogPath())
-	if err != nil {
-		return fmt.Errorf("read startup log: %w", err)
-	}
-	return na.CheckStartupLog(string(logData), m.headless)
+	return checkStartupLog(s)
 }
 
-// stage starts the quiet debug colony, applies the fixture and saves the
-// result as stageSave for every case to reload (the GameReuse path; a plain
-// hold gets the same from na.OpenSession).
-func (m *matrix) stage(ctx context.Context, h *na.Harness) error {
-	names, err := h.Discovery(ctx)
-	if err != nil {
+// stage takes the fixture's layout from the prepared colony and saves it
+// as stageSave for every case to reload.
+func (m *matrix) stage(ctx context.Context) error {
+	h, prepared := m.s.Harness(), m.s.Prepared()
+	h.Output = filepath.Join(m.s.Config().Output, "stage")
+	if err := os.MkdirAll(h.Output, 0755); err != nil {
 		return err
 	}
-	m.report["discovery"] = names
-	for _, tool := range []string{prepareTool, controlTool} {
-		if !na.Contains(names, tool) {
-			return fmt.Errorf("missing %s in discovery; rebuild the native mod with -Fixture ThroughputFixture", tool)
-		}
-	}
-	quiet, err := na.StartDebugGame(ctx, h, names, na.QuietRequired)
-	if err != nil {
+	if _, err := na.ConfirmColonyNames(ctx, h, m.report); err != nil {
 		return err
 	}
-	m.report["quiet"] = quiet
-	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
-		return err
-	}
-	if err := confirmColonyNames(ctx, h, m.report); err != nil {
-		return err
-	}
-	prepared, err := h.Call(ctx, "prepare", prepareTool, map[string]any{"itemCount": m.items, "wallSegments": m.segments})
-	if err != nil {
-		return err
-	}
-	if ok, _ := na.AsBool(prepared["success"]); !ok {
-		return fmt.Errorf("%s refused: %#v", prepareTool, prepared)
-	}
-	return m.saveStage(ctx, h, prepared)
-}
-
-// saveStage records the fixture's layout and saves the staged game as
-// stageSave.
-func (m *matrix) saveStage(ctx context.Context, h *na.Harness, prepared map[string]any) error {
-	m.prepared = prepared
-	m.report["prepared"] = prepared
 	m.storage = cellList(prepared["storageCells"])
 	m.walls = cellList(prepared["sites"])
 	for _, raw := range na.AsSlice(prepared["sites"]) {
 		site, _ := na.AsMap(raw)
 		m.sites = append(m.sites, site)
 	}
-	if len(m.sites) != m.segments {
-		return fmt.Errorf("stage laid out %d wall sites, want %d", len(m.sites), m.segments)
+	if len(m.sites) != segments {
+		return fmt.Errorf("stage laid out %d wall sites, want %d", len(m.sites), segments)
 	}
 	// Frozen needs do not survive a reload (the op is per game), so the
 	// save carries the stage only; each case freezes again after loading.
@@ -313,10 +177,11 @@ func (m *matrix) saveStage(ctx context.Context, h *na.Harness, prepared map[stri
 // waitSaved waits for the game to finish writing the stage save into the
 // active profile's Saves directory (headless-profile or profile).
 func (m *matrix) waitSaved(ctx context.Context, started time.Time) error {
+	root := m.s.Config().Root
 	deadline := started.Add(90 * time.Second)
 	for {
 		for _, profile := range []string{"headless-profile", "profile"} {
-			candidate := filepath.Join(m.root, profile, "Saves", stageSave+".rws")
+			candidate := filepath.Join(root, profile, "Saves", stageSave+".rws")
 			info, err := os.Stat(candidate)
 			if err == nil && info.Size() > 0 && !info.ModTime().Before(started.Add(-time.Second)) {
 				// A save the game is still writing grows; require it stable.
@@ -328,7 +193,7 @@ func (m *matrix) waitSaved(ctx context.Context, started time.Time) error {
 			}
 		}
 		if time.Now().After(deadline) {
-			return fmt.Errorf("stage save %s did not appear under %s within 90s", stageSave, m.root)
+			return fmt.Errorf("stage save %s did not appear under %s within 90s", stageSave, root)
 		}
 		select {
 		case <-ctx.Done():
@@ -341,11 +206,11 @@ func (m *matrix) waitSaved(ctx context.Context, started time.Time) error {
 // runCase reloads the stage, hands the game to one serve process at the
 // case's speed, waits out the tick budget and reads the outcome back.
 func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedOutcome, err error) {
-	output := filepath.Join(m.output, c.Name)
+	output := filepath.Join(m.s.Config().Output, c.Name)
 	if err := os.MkdirAll(output, 0755); err != nil {
 		return outcome, err
 	}
-	report := na.NewReport("speed case "+c.Name, m.headless)
+	report := na.NewReport("speed case "+c.Name, m.s.Config().Headless)
 	report["case"] = c
 	defer func() {
 		if err != nil {
@@ -355,56 +220,25 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 		}
 		report.Finalize(output)
 	}()
-	cfg := *m.cfg
-	cfg.Output = output
 
-	var h *na.Harness
 	var service *na.ServiceProcess
-	var reuseCase *na.ReuseCase
-	stopped := false
-	if m.reuse != nil {
-		if reuseCase, err = m.reuse.BeginCase(ctx, c.Name, stageSave, output); err != nil {
-			return outcome, err
+	defer func() {
+		if service != nil {
+			service.Stop()
 		}
-		h = reuseCase.Harness
-		report["reuse_case"] = map[string]any{"loadToken": reuseCase.Reset.LoadToken, "tick": reuseCase.Reset.Tick}
-		defer func() {
-			if stopped {
-				return
-			}
-			stopped = true
-			if service != nil {
-				service.Stop()
-			}
-			endCtx, endCancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			defer endCancel()
-			if endErr := m.reuse.EndCase(endCtx, reuseCase, err != nil); endErr != nil && err == nil {
-				err = endErr
-			}
-		}()
-	} else {
-		client, reattachErr := m.game.Reattach(ctx)
-		if reattachErr != nil {
-			return outcome, reattachErr
-		}
-		h = na.NewHarness(client, output)
-		defer func() {
-			if stopped {
-				return
-			}
-			stopped = true
-			if service != nil {
-				service.Stop()
-			}
-		}()
-		if _, err := h.Call(ctx, "load-stage", "rimworld/load_game_ready", map[string]any{
-			"saveName": stageSave, "readiness": "visual", "timeoutMs": 90000, "ignoreModCompatibility": false,
-		}); err != nil {
-			return outcome, err
-		}
-		if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
-			return outcome, err
-		}
+	}()
+	h, err := m.s.Reattach(ctx)
+	if err != nil {
+		return outcome, err
+	}
+	h.Output = output
+	if _, err := h.Call(ctx, "load-stage", "rimworld/load_game_ready", map[string]any{
+		"saveName": stageSave, "readiness": "visual", "timeoutMs": 90000, "ignoreModCompatibility": false,
+	}); err != nil {
+		return outcome, err
+	}
+	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
+		return outcome, err
 	}
 	identityReply, err := h.Wire(ctx, "identity", "lifecycle_read_identity", map[string]any{})
 	if err != nil {
@@ -416,9 +250,6 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 	}
 	loadedContext, _ := na.AsMap(loaded["context"])
 	identity, _ := na.AsMap(loadedContext["identity"])
-	if reuseCase != nil && !na.MatchesIdentity(identity, reuseCase.Identity) {
-		return outcome, fmt.Errorf("identity %#v does not match the reuse case %#v", identity, reuseCase.Identity)
-	}
 	frozen, err := na.FreezeNeeds(ctx, h, nil)
 	if err != nil {
 		return outcome, err
@@ -433,16 +264,8 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 		return outcome, fmt.Errorf("stage is not fresh after reload: %#v", before)
 	}
 	startTick := uint64(na.AsNumber(before["tick"]))
-	release := m.reuse.ReleaseSession
-	if m.reuse == nil {
-		release = m.game.Release
-	}
-	if err := release(); err != nil {
-		return outcome, fmt.Errorf("release the game to the service: %w", err)
-	}
-
 	extra := append(c.ServeArgs(), na.FlightRecorderArgs(output, true)...)
-	service, err = na.LaunchService(ctx, &cfg, m.gabs, na.ServiceLaunch{Binary: m.binary, Families: []string{"haul", "work"}, Extra: extra}, report)
+	service, err = m.s.Launch(ctx, na.ServiceLaunch{Families: []string{"haul", "work"}, Extra: extra, Output: output, Report: report})
 	if err != nil {
 		return outcome, err
 	}
@@ -482,14 +305,14 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 	// tick has advanced by -ticks past the reload tick. The signature is
 	// the tick itself, so a clock that stops advancing stalls the wait.
 	var lastTick uint64
-	waitErr := na.WaitProgress(ctx, na.Wait{Stall: m.stallBudget(), Interval: 2 * time.Second, Terminal: service.Exited},
+	waitErr := na.WaitProgress(ctx, na.Wait{Stall: na.StallBudget(), Interval: 2 * time.Second, Terminal: service.Exited},
 		func(ctx context.Context) (string, bool, error) {
 			review, err := journal.LoadRoutineReview(ctx)
 			if err != nil {
 				return "", false, err
 			}
 			lastTick = uint64(review.Tick)
-			return na.Signature(lastTick), lastTick >= startTick+uint64(m.ticks), nil
+			return na.Signature(lastTick), lastTick >= startTick+uint64(ticks), nil
 		})
 	wallSeconds := time.Since(resumedAt).Seconds()
 	report["wait"] = map[string]any{"start_tick": startTick, "last_tick": lastTick, "wall_seconds": wallSeconds}
@@ -498,7 +321,7 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 			data, _ := json.Marshal(final)
 			report["routine_review_at_failure"] = json.RawMessage(data)
 		}
-		return outcome, fmt.Errorf("tick budget wait (start %d, last %d, want +%d): %w", startTick, lastTick, m.ticks, waitErr)
+		return outcome, fmt.Errorf("tick budget wait (start %d, last %d, want +%d): %w", startTick, lastTick, ticks, waitErr)
 	}
 	unsuccessful, planCount, err := countUnsuccessful(ctx, journal, planIDs)
 	if err != nil {
@@ -520,24 +343,15 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 	appendMetrics(m.report, metrics)
 
 	// Independent native read after the service released the slot.
-	if m.reuse != nil {
-		if h, err = m.reuse.Session(ctx); err != nil {
-			return outcome, err
-		}
-		h.Output = output
-	} else {
-		client, reattachErr := m.game.Reattach(ctx)
-		if reattachErr != nil {
-			return outcome, reattachErr
-		}
-		h = na.NewHarness(client, output)
+	if h, err = m.s.Reattach(ctx); err != nil {
+		return outcome, err
 	}
+	h.Output = output
 	if _, err := h.Call(ctx, "pause-after", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return outcome, err
 	}
 	// The service was stopped, not shut down: its authority grant lingers
-	// until the tick budget lapses, and EndCase would retire the game over
-	// it.
+	// until the tick budget lapses, and the next reload would carry it.
 	if revoked, err := na.ReleaseAuthority(ctx, h, identity); err != nil {
 		return outcome, err
 	} else if revoked != nil {
@@ -563,6 +377,16 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 	outcome.UnsuccessfulStages = unsuccessful
 	report["outcome"] = outcome
 	return outcome, nil
+}
+
+// checkStartupLog is the run's last assertion: no native error in the
+// game's startup log.
+func checkStartupLog(s cases.Session) error {
+	logData, err := os.ReadFile(s.Config().StartupLogPath())
+	if err != nil {
+		return fmt.Errorf("read startup log: %w", err)
+	}
+	return na.CheckStartupLog(string(logData), s.Config().Headless)
 }
 
 // control reads the stage's counters through test/throughput_control.
@@ -718,30 +542,4 @@ func randomSuffix() string {
 	buf := make([]byte, 4)
 	_, _ = rand.Read(buf)
 	return hex.EncodeToString(buf)
-}
-
-// confirmColonyNames dismisses the debug colony's naming dialog, which
-// otherwise holds the clock (STOP_REASON_COLONY_NAMING).
-func confirmColonyNames(ctx context.Context, h *na.Harness, report na.Report) error {
-	facts, err := h.Call(ctx, "colony-facts", "home/colony_facts", map[string]any{})
-	if err != nil {
-		return err
-	}
-	naming, ok := na.AsMap(facts["colonyNaming"])
-	if !ok || naming == nil {
-		report["confirmed_colony_names"] = "no pending naming dialog"
-		return nil
-	}
-	confirmed, err := h.Call(ctx, "confirm-colony-names", "home/confirm_colony_names", map[string]any{
-		"windowId": int(na.AsNumber(naming["windowId"])), "factionName": na.AsString(naming["factionName"]),
-		"settlementName": na.AsString(naming["settlementName"]), "dryRun": false,
-	})
-	if err != nil {
-		return err
-	}
-	if success, _ := na.AsBool(confirmed["success"]); !success {
-		return fmt.Errorf("confirm_colony_names refused: %#v", confirmed)
-	}
-	report["confirmed_colony_names"] = confirmed
-	return nil
 }

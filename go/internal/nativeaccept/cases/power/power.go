@@ -1,6 +1,7 @@
-// Command poweraccept exercises the EnsureBasicPower reliability vertical
-// (issue #6 slice 1, milestone A) end to end against a live game and a live
-// rimgovernor Go player-control service composed with the power family:
+// Package power holds the EnsureBasicPower reliability vertical (issue #6
+// slice 1, milestone A): a live game and a live rimgovernor Go
+// player-control service composed with the power family, one case per
+// scenario:
 //
 //	fuel    -- a wood-fired generator is out of fuel and its one consumer
 //	           unpowered, with unforbidden wood nearby. Refuelling is
@@ -16,123 +17,49 @@
 //	           single generator definition) and the colonists must build it.
 //
 // Uses the private disposable test/power_prepare and test/power_observe
-// fixtures (PowerFixture.cs). As with routinehaulaccept, the harness's own
-// bridge session and the service's are used sequentially (one GABP client
-// per game).
-package main
+// fixtures (PowerFixture.cs). The case's own bridge session and the
+// service's are used sequentially (one GABP client per game).
+package power
 
 import (
 	"context"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
+	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
 const prefix = "power-accept"
 
-func main() {
-	root := flag.String("root", "", "absolute disposable worker root (e.g. .rimgovernor/bridge)")
-	output := flag.String("output", "", "fresh output directory (default <root>/native-power-acceptance-<scenario>)")
-	rendered := flag.Bool("rendered", false, "use the windowed profile instead of headless")
-	game := flag.String("game", "rimgovernor-trial", "configured game ID")
-	binary := flag.String("rimgovernor", "", "absolute path to a prebuilt rimgovernor binary (go build ./go/cmd/rimgovernor)")
-	scenario := flag.String("scenario", "fuel", "fuel or reserve")
-	timeout := flag.Duration("timeout", 30*time.Minute, "overall run timeout")
-	na.BudgetFlag((30 * time.Minute) / 2)
-	flag.Parse()
-	if *root == "" || *binary == "" || !filepath.IsAbs(*binary) {
-		fmt.Fprintln(os.Stderr, "-root and an absolute -rimgovernor are required")
-		os.Exit(2)
+func init() {
+	for _, scenario := range []string{"fuel", "reserve"} {
+		scenario := scenario
+		cases.Register(cases.Case{
+			Name: "power/" + scenario,
+			Scope: "Native EnsureBasicPower reliability vertical (" + scenario + "): an out-of-fuel generator holds the " +
+				"live Go power family until native colonists refuel it, or a draining battery under a day of reserve has the " +
+				"family admit one more generator that the colonists build; both confirmed by an independent native read.",
+			Start:   cases.Fixture{Op: "test/power_prepare", Args: map[string]any{"scenario": scenario}},
+			Service: true,
+			Budget:  10 * time.Minute,
+			Run:     func(ctx context.Context, s cases.Session) error { return run(ctx, s, scenario) },
+		})
 	}
-	if *scenario != "fuel" && *scenario != "reserve" {
-		fmt.Fprintln(os.Stderr, "-scenario must be fuel or reserve")
-		os.Exit(2)
-	}
-	if *output == "" {
-		*output = *root + "/native-power-acceptance-" + *scenario
-	}
-	if err := os.MkdirAll(*output, 0755); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(2)
-	}
-	if entries, _ := os.ReadDir(*output); len(entries) > 0 {
-		fmt.Fprintln(os.Stderr, "-output must be a fresh, empty directory")
-		os.Exit(2)
-	}
-	report := na.NewReport("Native EnsureBasicPower reliability vertical ("+*scenario+"): an out-of-fuel generator holds the "+
-		"live Go power family until native colonists refuel it, or a draining battery under a day of reserve has the "+
-		"family admit one more generator that the colonists build; both confirmed by an independent native read.", !*rendered)
-	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
-	defer cancel()
-	err := run(ctx, *root, *output, *game, !*rendered, *binary, *scenario, report)
-	if err != nil {
-		report["error"] = err.Error()
-	} else {
-		report["passed"] = true
-	}
-	os.Exit(report.Finalize(*output))
 }
 
-func run(ctx context.Context, root, output, gameID string, headless bool, binary, scenario string, report na.Report) error {
-	if abs, err := filepath.Abs(root); err == nil {
-		root = abs
-	}
-	if abs, err := filepath.Abs(output); err == nil {
-		output = abs
-	}
-	cfg := &na.Config{Root: root, Output: output, Headless: headless, GameID: gameID}
-	var service *na.ServiceProcess
-	var s *na.Session
-	stopped := false
-	stopGame := func() {
-		if stopped {
-			return
-		}
-		stopped = true
-		if service != nil {
-			service.Stop()
-		}
-		stopCtx, stopCancel := context.WithTimeout(context.Background(), 90*time.Second)
-		defer stopCancel()
-		if _, err := s.Reattach(stopCtx); err != nil {
-			report["stop_error"] = "reopen session for games_stop: " + err.Error()
-			return
-		}
-		s.Close()
-	}
-
-	s, err := na.OpenSession(ctx, cfg, report, na.Fixture{Op: "test/power_prepare", Args: map[string]any{"scenario": scenario}}, na.QuietRequired)
-	if err != nil {
-		return err
-	}
-	defer stopGame()
-	h, identity, prepared := s.Harness, s.Identity, s.Prepared
-	if !na.Contains(s.Names, "test/power_observe") {
+func run(ctx context.Context, s cases.Session, scenario string) error {
+	report := s.Report()
+	h, identity, prepared := s.Harness(), s.Identity(), s.Prepared()
+	if !na.Contains(s.Names(), "test/power_observe") {
 		return fmt.Errorf("missing test/power_observe in discovery; rebuild the native mod with -Fixture PowerFixture")
 	}
-	facts, err := h.Call(ctx, "colony-facts", "home/colony_facts", map[string]any{})
-	if err != nil {
+	if _, err := na.ConfirmColonyNames(ctx, h, report); err != nil {
 		return err
-	}
-	if naming, ok := na.AsMap(facts["colonyNaming"]); ok && naming != nil {
-		confirmed, err := h.Call(ctx, "confirm-colony-names", "home/confirm_colony_names", map[string]any{
-			"windowId": int(na.AsNumber(naming["windowId"])), "factionName": na.AsString(naming["factionName"]),
-			"settlementName": na.AsString(naming["settlementName"]), "dryRun": false,
-		})
-		if err != nil {
-			return err
-		}
-		if success, _ := na.AsBool(confirmed["success"]); !success {
-			return fmt.Errorf("confirm_colony_names refused: %#v", confirmed)
-		}
-		report["confirmed_colony_names"] = confirmed
 	}
 	generatorID := na.AsString(prepared["generator"])
 	spare, _ := na.AsMap(prepared["spareCell"])
@@ -186,15 +113,11 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 		return err
 	}
 	report["colony_power_before"] = topology
-	if err := s.Release(); err != nil {
-		return fmt.Errorf("close fixture-prep bridge session: %w", err)
-	}
 
-	service, err = na.LaunchService(ctx, cfg, s.GABS, na.ServiceLaunch{Binary: binary, Families: []string{"power", "work"}, Extra: na.ClockSpeedArgs()}, report)
+	service, err := s.Launch(ctx, na.ServiceLaunch{Families: []string{"power", "work"}, Extra: na.ClockSpeedArgs()})
 	if err != nil {
 		return err
 	}
-	defer service.Stop()
 	token, err := service.SessionToken()
 	if err != nil {
 		return err
@@ -365,11 +288,17 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 		return err
 	}
 	report["colony_power_after"] = topology
-	logData, err := os.ReadFile(cfg.StartupLogPath())
+	return checkStartupLog(s)
+}
+
+// checkStartupLog is the run's last assertion: no native error in the
+// game's startup log.
+func checkStartupLog(s cases.Session) error {
+	logData, err := os.ReadFile(s.Config().StartupLogPath())
 	if err != nil {
 		return fmt.Errorf("read startup log: %w", err)
 	}
-	return na.CheckStartupLog(string(logData), headless)
+	return na.CheckStartupLog(string(logData), s.Config().Headless)
 }
 
 // allPowered reports whether every listed consumer row reads powerOn.

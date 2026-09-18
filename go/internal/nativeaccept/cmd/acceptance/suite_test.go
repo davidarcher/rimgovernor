@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -196,8 +197,8 @@ func TestBootMs(t *testing.T) {
 }
 
 // The issue #6 acceptance matrix must keep one row per criterion in the
-// issue text, each naming a harness that exists, so a typo or a dropped row
-// fails go test rather than a spent native session.
+// issue text, each naming a registered service case (#142), so a typo or a
+// dropped row fails go test rather than a spent native session.
 func TestIssue6MatrixCoversEveryCriterion(t *testing.T) {
 	path := filepath.Join("suites", "issue-6-matrix.json")
 	data, err := os.ReadFile(path)
@@ -221,20 +222,14 @@ func TestIssue6MatrixCoversEveryCriterion(t *testing.T) {
 		"disconnected consumers": false, "exhausted fuel": false, "exhausted batteries": false, "hot-weather freezer failure": false,
 	}
 	for i, h := range list {
-		if h.Binary == "" || filepath.IsAbs(h.Binary) || !strings.HasSuffix(h.Binary, ".exe") {
-			t.Errorf("%s: binary %q must be a harness name relative to -bin", h.Name, h.Binary)
-		}
-		if _, err := os.Stat(filepath.Join("..", strings.TrimSuffix(h.Binary, ".exe"), "main.go")); err != nil {
-			t.Errorf("%s: no harness command for %s: %v", h.Name, h.Binary, err)
-		}
-		if len(h.Args) < 2 || h.Args[0] != "-rimgovernor" || h.Args[1] != "{rimgovernor}" {
-			t.Errorf("%s: args must start with -rimgovernor {rimgovernor}, got %v", h.Name, h.Args)
+		if h.Binary != "" || len(h.Args) != 0 {
+			t.Errorf("%s: the matrix runs registry cases, got binary %q args %v", h.Name, h.Binary, h.Args)
 		}
 		if h.Acceptance == "" {
 			t.Errorf("%s: acceptance criterion missing", h.Name)
 		}
-		if resolved[i].registered != nil || !resolved[i].serveDriven() {
-			t.Errorf("%s: must resolve to a serve-driven binary, got %+v", h.Name, resolved[i])
+		if resolved[i].registered == nil || !resolved[i].serveDriven() {
+			t.Errorf("%s: must resolve to a registered service case, got %+v", h.Name, resolved[i])
 		}
 		for criterion := range criteria {
 			if strings.HasPrefix(h.Acceptance, criterion+":") {
@@ -247,7 +242,8 @@ func TestIssue6MatrixCoversEveryCriterion(t *testing.T) {
 			t.Errorf("criterion %q has no row", criterion)
 		}
 	}
-	if got := resolved[0].Binary; got != filepath.Join(absRoot(), "bin", list[0].Binary) {
-		t.Errorf("relative binary resolved to %q", got)
+	argv, _ := entryCommand(resolved[0], suiteOptions{Output: absRoot(), Rimgovernor: "rg.exe", GameID: "rimgovernor-trial"}, "acceptance.exe", "w1")
+	if !slices.Contains(argv, "-rimgovernor") {
+		t.Errorf("service case argv lacks -rimgovernor: %v", argv)
 	}
 }

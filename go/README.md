@@ -383,9 +383,9 @@ availability and fuel stock (solar, then wood with wood on hand, then chemfuel),
 not a hardcoded wood-fired default. Solar flares and player-disabled equipment
 hold proposals. Completed methods lend at most 10,000 ticks for native power
 recovery, scoped to the current load token; native consumer power establishes
-recovery. Targeted gameplay acceptance is `poweraccept -scenario fuel`
+recovery. Targeted gameplay acceptance is `acceptance run power/fuel`
 (out-of-fuel generator: hold, colonists refuel, consumer recovers) and
-`-scenario reserve` (draining battery: one more generator admitted and built),
+`power/reserve` (draining battery: one more generator admitted and built),
 against `PowerFixture`. Replay of captured generation/conduit scenarios uses
 `RIMGOVERNOR_NATIVE_POWER_METHODS_CAPTURE=<capture-directory> go test
 ./internal/observation -run TestNativePowerMethodsReplay`.
@@ -424,8 +424,8 @@ room that has a straight inside-wall-outdoors line, front outward, gated on
 native `Cooler` planning availability (`cooler_research_needed`). A cooler's
 cold and hot sides derive from its rotation on the Go side. The goal runs at
 priority 2 so it bypasses ranked development: spoilage is a bounded loss the
-colony is already paying for. Targeted acceptance is `refrigerationaccept
--scenario build|setpoint|power` against `RefrigerationFixture`.
+colony is already paying for. Targeted acceptance is `acceptance run
+refrigeration/build|setpoint|power` against `RefrigerationFixture`.
 
 `MaintainCleanFacilities` is a bounded response to failed work coverage, not a
 janitor. The typed room census carries RimWorld's own room `Cleanliness` stat
@@ -448,8 +448,8 @@ reverse; when every butcher bench shares a room with a cooking bench the
 butcher bill defers (`butcher_separation_pending`) until that method has been
 tried and then prefers a bench whose room holds no cooking bench. Deconstructing
 the co-located bench needs a generic deconstruct action the tree lacks
-(follow-up under #6). Targeted acceptance is `cleanaccept -scenario
-filthy|separation` against `CleanlinessFixture`.
+(follow-up under #6). Targeted acceptance is `acceptance run
+clean/filthy|separation` against `CleanlinessFixture`.
 
 `MaintainLighting` (`lighting` family, issue #6 slice 3) keeps work-bench
 interaction cells lit from the measured native glow: `UpkeepFacts.lighting`
@@ -467,8 +467,8 @@ the same room within two of the interaction cell -- and admits one
 `StandingLamp` (only with an active power source) or `TorchLamp`. A cell whose
 room grows a plant that dies to light (`light_sensitive`, cave fungus) is
 protected and never latches. The latch releases on the next measured census,
-never on the receipt. Targeted acceptance is `lightaccept -scenario
-dark|outage|partial|fungus` against `LightingFixture`.
+never on the receipt. Targeted acceptance is `acceptance run
+light/dark|outage|partial|fungus` against `LightingFixture`.
 
 `MaintainFlooring` (`flooring` family, issue #6 slice 4) lays role-driven
 floors from the measured terrain under each room cell: `UpkeepFacts.flooring`
@@ -494,7 +494,7 @@ floors the busiest natural home cells outside any tiered room using the
 routes census's observed travel samples (never a projected path): a cell
 counts once the census holds at least four times the per-cell minimum (12)
 and the cell itself at least that many, scored for path cost first. Targeted
-acceptance is `flooraccept` against `FlooringFixture`; the traffic tier is
+acceptance is `acceptance run floor/kitchen` against `FlooringFixture`; the traffic tier is
 unit-tested against the same review.
 
 `MaintainRoutes` (`routes` family, issue #6 slice 5) keeps every facility
@@ -523,7 +523,7 @@ blueprint or frame). `route_door_pending`, `route_no_breach` and
 census reading the facility reachable with no door still ordered on its
 border: a door frame is walkable before the door stands, so an ordered door
 holds the latch (and its plan) until it lands. Targeted acceptance is
-`routeaccept` against `RoutesFixture`.
+`acceptance run route/stockpile` against `RoutesFixture`.
 
 Routine reviews also read native pawn needs and thought targets. Per-pawn mood
 goals retain break-threshold and food/rest/recreation hysteresis through Manual and

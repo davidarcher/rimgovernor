@@ -1,22 +1,22 @@
-// Command reactivewatchaccept proves the reactive native control path of #10
-// in a private game running the GuardedConstructionFixture build: a clock
+// Package reactivewatch proves the reactive native control path of #10 in
+// a private game running the GuardedConstructionFixture build: a clock
 // window armed with a watched construction attempt stops at the tick the
-// attempt completes (STOP_REASON_WATCH_LATCHED) with the outcome and the stop
-// on one long-polled clock_read_events page, the same construction without a
-// watch plays its whole budget to STOP_REASON_TICK_BUDGET, and an authority
-// change observed outside any epoch arrives as an owner-less AuthorityChanged
-// row within one long poll.
-package main
+// attempt completes (STOP_REASON_WATCH_LATCHED) with the outcome and the
+// stop on one long-polled clock_read_events page, the same construction
+// without a watch plays its whole budget to STOP_REASON_TICK_BUDGET, and an
+// authority change observed outside any epoch arrives as an owner-less
+// AuthorityChanged row within one long poll.
+package reactivewatch
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"os"
 	"strings"
 	"time"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
+	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 )
 
 const sessionOwner = "native-reactive-watch-acceptance"
@@ -26,55 +26,25 @@ const (
 	maxWindows    = 30
 	pollWaitMs    = 4000
 	wakeLatencyMs = 250
+	// speed is the clock speed for every window.
+	speed = "Superfast"
 )
 
-func main() {
-	root := flag.String("root", "", "absolute disposable worker root (e.g. .rimgovernor/bridge)")
-	output := flag.String("output", "", "fresh output directory (default <root>/native-reactive-watch-acceptance)")
-	rendered := flag.Bool("rendered", false, "use the windowed profile instead of headless")
-	game := flag.String("game", "rimgovernor-trial", "configured game ID")
-	speed := flag.String("speed", "Superfast", "clock speed for every window: Normal, Fast or Superfast")
-	timeout := flag.Duration("timeout", 15*time.Minute, "overall run timeout")
-	na.BudgetFlag((15 * time.Minute) / 2)
-	flag.Parse()
-	if *root == "" {
-		fmt.Fprintln(os.Stderr, "-root is required")
-		os.Exit(2)
-	}
-	if *output == "" {
-		*output = *root + "/native-reactive-watch-acceptance"
-	}
-	if err := os.MkdirAll(*output, 0755); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(2)
-	}
-	entries, _ := os.ReadDir(*output)
-	if len(entries) > 0 {
-		fmt.Fprintln(os.Stderr, "-output must be a fresh, empty directory")
-		os.Exit(2)
-	}
-	report := na.NewReport("Watched construction attempt latches a clock stop at completion; long-polled event "+
-		"delivery; owner-less authority change outside an epoch.", !*rendered)
-	report["speed"] = *speed
-	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
-	defer cancel()
-	err := run(ctx, *root, *output, *game, *speed, !*rendered, report)
-	if err != nil {
-		report["error"] = err.Error()
-	} else {
-		report["passed"] = true
-	}
-	os.Exit(report.Finalize(*output))
+func init() {
+	cases.Register(cases.Case{
+		Name: "reactivewatch/construction",
+		Scope: "Watched construction attempt latches a clock stop at completion; long-polled event " +
+			"delivery; owner-less authority change outside an epoch.",
+		Start:  cases.Fixture{Op: "test/guarded_construction_prepare", Args: map[string]any{"siteCount": 2}},
+		Budget: 6 * time.Minute,
+		Run:    run,
+	})
 }
 
-func run(ctx context.Context, root, output, gameID, speed string, headless bool, report na.Report) error {
-	cfg := &na.Config{Root: root, Output: output, Headless: headless, GameID: gameID}
-	s, err := na.OpenSession(ctx, cfg, report, na.Fixture{Op: "test/guarded_construction_prepare", Args: map[string]any{"siteCount": 2}}, na.QuietRequired)
-	if err != nil {
-		return err
-	}
-	defer s.Close()
-	h, identity, prepared := s.Harness, s.Identity, s.Prepared
+func run(ctx context.Context, s cases.Session) error {
+	report := s.Report()
+	h, identity, prepared := s.Harness(), s.Identity(), s.Prepared()
+	report["speed"] = speed
 	sites := na.AsSlice(prepared["sites"])
 	if len(sites) != 2 {
 		return fmt.Errorf("expected exactly 2 prepared wall sites, found %d", len(sites))
@@ -136,11 +106,7 @@ func run(ctx context.Context, root, output, gameID, speed string, headless bool,
 	report["authority_outside_epoch"] = authorityRun
 	fmt.Printf("PASS authority change outside an epoch delivered in %.0f ms\n", authorityRun["wake_latency_ms"])
 
-	logData, err := os.ReadFile(cfg.StartupLogPath())
-	if err != nil {
-		return fmt.Errorf("read startup log: %w", err)
-	}
-	return na.CheckStartupLog(string(logData), headless)
+	return checkStartupLog(s)
 }
 
 type controller struct {
@@ -500,4 +466,14 @@ func completedWall(completed map[string]any) error {
 		return fmt.Errorf("expected a present built Wall, got %#v", effect)
 	}
 	return nil
+}
+
+// checkStartupLog is the run's last assertion: no native error in the
+// game's startup log.
+func checkStartupLog(s cases.Session) error {
+	logData, err := os.ReadFile(s.Config().StartupLogPath())
+	if err != nil {
+		return fmt.Errorf("read startup log: %w", err)
+	}
+	return na.CheckStartupLog(string(logData), s.Config().Headless)
 }

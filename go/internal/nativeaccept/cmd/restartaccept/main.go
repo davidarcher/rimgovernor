@@ -85,7 +85,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 	}
 	h := na.NewHarness(client, output)
 	// The harness closes its GABS session while a controller owns the game
-	// slot and reopens one to stop the game; see cmd/poweraccept.
+	// slot and reopens one to stop the game; see cases/power.
 	sessionOpen := true
 	var service *na.ServiceProcess
 	stopped := false

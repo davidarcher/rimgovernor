@@ -184,7 +184,7 @@ func (p *ServiceProcess) Resume(prefix string, identity map[string]any, token st
 
 // AuthorityKeepAlive resumes native player authority whenever the service
 // drops out of automate mode, acknowledging any clock hold first, exactly as
-// cmd/routinehaulaccept's own keep-alive does: a bounded native generation
+// cases/routinehaul's own keep-alive does: a bounded native generation
 // legitimately lapses on any unrecognised clock event (a random world
 // letter), and nothing resumes it automatically.
 type AuthorityKeepAlive struct {

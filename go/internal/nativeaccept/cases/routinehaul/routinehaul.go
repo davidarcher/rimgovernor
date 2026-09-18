@@ -1,11 +1,11 @@
-// Command routinehaulaccept exercises the RoutineHaulPlanner/MaintainStorage
-// vertical (G01.07b 05.2) end to end against a live game and a live
-// rimgovernor Go player-control service: a worker is assigned and hauls a
-// real ordinary (non-decaying) item into shared storage, the stored outcome
-// is observed via a native read, a renewed deficit (a second item) is picked
-// up without a duplicate or conflicting order, and a player-revoked Hauling
-// priority interrupts dispatch without RoutineHaulPlanner overriding player
-// intent or double-issuing. Uses a private disposable fixture
+// Package routinehaul holds the RoutineHaulPlanner/MaintainStorage
+// vertical (G01.07b 05.2): a live game and a live rimgovernor Go
+// player-control service. A worker is assigned and hauls a real ordinary
+// (non-decaying) item into shared storage, the stored outcome is observed
+// via a native read, a renewed deficit (a second item) is picked up without
+// a duplicate or conflicting order, and a player-revoked Hauling priority
+// interrupts dispatch without RoutineHaulPlanner overriding player intent
+// or double-issuing. Uses a private disposable fixture
 // (test/storage_haul_prepare, test/storage_haul_control) since native random
 // colony generation cannot reliably produce a MaintainStorage deficit (an
 // ordinary item outside legal storage) with a deterministic single eligible
@@ -14,27 +14,17 @@
 // be occupied by "the accepted player project," matching
 // policy.RankDevelopment/AuditDevelopment's own accounting.
 //
-// This binary launches its own GABS-backed bridge session (like every other
-// nativeaccept command) to prepare the fixture and take independent native
-// reads, and separately launches a prebuilt rimgovernor "serve" binary
-// against the *same* GABS configuration/game so its own routine reviewer and
-// haul planner/executor drive the actual native dispatch under test -- the
-// planner and its dispatch are Go-owned production logic
+// The case's own bridge session prepares the fixture and takes independent
+// native reads; a prebuilt rimgovernor "serve" binary is then launched
+// against the *same* GABS configuration/game so its own routine reviewer
+// and haul planner/executor drive the actual native dispatch under test --
+// the planner and its dispatch are Go-owned production logic
 // (buildingruntime.RoutineHaulPlanner), not something a bridge fixture can
-// exercise directly.
-//
-// Only one GABP (game-side) client can be connected to the running game at a
-// time, so this harness's own bridge session and the service subprocess's
-// own bridge session are used SEQUENTIALLY, never concurrently: the harness
-// prepares the fixture, then closes its session (without calling games_stop,
-// which would actually terminate the game -- Client.Close only tears down
-// this GABS subprocess's own MCP session, confirmed via bridge.Client's
-// implementation) to free the slot before the service starts and connects.
-// Once the service has completed dispatch and is stopped, a fresh harness
-// session is reopened (games_start is idempotent) to take the final
-// independent native read of the stored outcome. games_stop is called
-// exactly once, from that last session, at the very end.
-package main
+// exercise directly. Only one GABP client can be connected to the running
+// game at a time, so the two sessions are used sequentially: Serve
+// releases the case's session before the service starts, and the session
+// is reattached once the service is stopped for the final native read.
+package routinehaul
 
 import (
 	"context"
@@ -42,147 +32,44 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
+	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-func main() {
-	root := flag.String("root", "", "absolute disposable worker root (e.g. .rimgovernor/bridge)")
-	output := flag.String("output", "", "fresh output directory (default <root>/native-routine-haul-acceptance)")
-	rendered := flag.Bool("rendered", false, "use the windowed profile instead of headless")
-	game := flag.String("game", "rimgovernor-trial", "configured game ID")
-	rimgovernorBinary := flag.String("rimgovernor", "", "absolute path to a prebuilt rimgovernor binary (go build ./go/cmd/rimgovernor)")
-	timeout := flag.Duration("timeout", 25*time.Minute, "overall run timeout")
-	na.BudgetFlag((25 * time.Minute) / 2)
-	flightRecorder := flag.Bool("flight-recorder", false, "summarize the service's native timeline (flight.jsonl, always recorded) into the report's phases (reads/step, cache and parent hits)")
-	flag.Parse()
-	if *root == "" {
-		fmt.Fprintln(os.Stderr, "-root is required")
-		os.Exit(2)
-	}
-	if *rimgovernorBinary == "" {
-		fmt.Fprintln(os.Stderr, "-rimgovernor is required (absolute path to a prebuilt rimgovernor binary)")
-		os.Exit(2)
-	}
-	if !filepath.IsAbs(*rimgovernorBinary) {
-		fmt.Fprintln(os.Stderr, "-rimgovernor must be an absolute path")
-		os.Exit(2)
-	}
-	if *output == "" {
-		*output = *root + "/native-routine-haul-acceptance"
-	}
-	if err := os.MkdirAll(*output, 0755); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(2)
-	}
-	entries, _ := os.ReadDir(*output)
-	if len(entries) > 0 {
-		fmt.Fprintln(os.Stderr, "-output must be a fresh, empty directory")
-		os.Exit(2)
-	}
-	report := na.NewReport("Native RoutineHaulPlanner/MaintainStorage vertical: a worker hauls a real "+
-		"ordinary item into shared storage under the live Go routine reviewer/planner/executor, the stored "+
-		"outcome is confirmed by an independent native read, a renewed deficit is picked up without a "+
-		"duplicate order, and a player-revoked Hauling priority interrupts dispatch without the planner "+
-		"overriding player intent or double-issuing.", !*rendered)
-	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
-	defer cancel()
-	err := run(ctx, *root, *output, *game, !*rendered, *rimgovernorBinary, report)
-	if err != nil {
-		report["error"] = err.Error()
-	} else {
-		report["passed"] = true
-	}
-	na.ReportPhases(report, *output, *flightRecorder)
-	os.Exit(report.Finalize(*output))
+func init() {
+	cases.Register(cases.Case{
+		Name: "routinehaul/storage",
+		Scope: "Native RoutineHaulPlanner/MaintainStorage vertical: a worker hauls a real " +
+			"ordinary item into shared storage under the live Go routine reviewer/planner/executor, the stored " +
+			"outcome is confirmed by an independent native read, a renewed deficit is picked up without a " +
+			"duplicate order, and a player-revoked Hauling priority interrupts dispatch without the planner " +
+			"overriding player intent or double-issuing.",
+		Start:   cases.Fixture{Op: "test/storage_haul_prepare", Args: map[string]any{"itemCount": 2}},
+		Service: true,
+		Budget:  cases.MaxBudget,
+		Run:     run,
+	})
 }
 
-func run(ctx context.Context, root, output, gameID string, headless bool, rimgovernorBinary string, report na.Report) error {
-	if abs, err := filepath.Abs(root); err == nil {
-		root = abs
-	}
-	if abs, err := filepath.Abs(output); err == nil {
-		output = abs
-	}
-	cfg := &na.Config{Root: root, Output: output, Headless: headless, GameID: gameID}
-	binarySHA, err := sha256File(rimgovernorBinary)
-	if err != nil {
-		return fmt.Errorf("hash rimgovernor binary: %w", err)
-	}
-	report["rimgovernor_binary"] = map[string]string{"path": rimgovernorBinary, "sha256": binarySHA}
-
-	// Only one GABP (game-side) client can be connected at a time -- a second
-	// GABS process's games_connect to an already-connected game is refused.
-	// So this harness's own bridge session and the service subprocess's own
-	// bridge session must be used SEQUENTIALLY, never concurrently: this
-	// first session does fixture prep and "before" native reads, then is
-	// released (without games_stop, which would actually terminate the game)
-	// to free the slot for the service, and reattached afterwards for the
-	// "after" native reads once the service has released the slot again.
-	// s.Close ends the hold once, after the deferred stopService.
-	s, err := na.OpenSession(ctx, cfg, report, na.DebugStart{}, na.QuietRequired)
-	if err != nil {
-		return err
-	}
-	defer s.Close()
-	h, identity, names := s.Harness, s.Identity, s.Names
-
-	// A fresh debug-started game leaves the initial faction/settlement naming
-	// dialog open; RankDevelopment (go/internal/policy/development.go) treats
-	// ConfirmColonyNames (priority 0) as a global "emergency" that blocks
-	// every other goal -- including MaintainStorage -- from ever being
-	// Selected until it is resolved. A real player would dismiss this dialog
-	// within seconds of a new game; do the same here, from the harness's own
-	// GABP session, before handing the sole slot to the service.
-	facts, err := h.Call(ctx, "colony-facts", "home/colony_facts", map[string]any{})
-	if err != nil {
-		return err
-	}
-	if naming, ok := na.AsMap(facts["colonyNaming"]); ok && naming != nil {
-		confirmed, err := h.Call(ctx, "confirm-colony-names", "home/confirm_colony_names", map[string]any{
-			"windowId":       int(na.AsNumber(naming["windowId"])),
-			"factionName":    na.AsString(naming["factionName"]),
-			"settlementName": na.AsString(naming["settlementName"]),
-			"dryRun":         false,
-		})
-		if err != nil {
-			return err
-		}
-		if success, _ := na.AsBool(confirmed["success"]); !success {
-			return fmt.Errorf("confirm_colony_names refused: %#v", confirmed)
-		}
-		report["confirmed_colony_names"] = confirmed
-	} else {
-		report["confirmed_colony_names"] = "no pending naming dialog"
-	}
-
-	for _, want := range []string{"test/storage_haul_prepare", "test/storage_haul_control", "test/guarded_construction_prepare"} {
-		if !na.Contains(names, want) {
+func run(ctx context.Context, s cases.Session) error {
+	report := s.Report()
+	h, identity, prepared := s.Harness(), s.Identity(), s.Prepared()
+	defer na.ReportPhases(report, s.Config().Output, true)
+	for _, want := range []string{"test/storage_haul_control", "test/guarded_construction_prepare"} {
+		if !na.Contains(s.Names(), want) {
 			return fmt.Errorf("missing %s in discovery; rebuild the native mod with -Fixture StorageHaulFixture -Fixture GuardedConstructionFixture", want)
 		}
 	}
-
-	matchesIdentity := func(v map[string]any) bool {
-		return na.AsString(v["colonyId"]) == na.AsString(identity["colonyId"]) &&
-			na.AsString(v["loadToken"]) == na.AsString(identity["loadToken"]) &&
-			na.AsNumber(v["mapId"]) == na.AsNumber(identity["mapId"])
-	}
-
-	prepared, err := h.Call(ctx, "prepare-storage", "test/storage_haul_prepare", map[string]any{"itemCount": 2})
-	if err != nil {
+	if _, err := na.ConfirmColonyNames(ctx, h, report); err != nil {
 		return err
-	}
-	if success, _ := na.AsBool(prepared["success"]); !success || !matchesIdentity(prepared) {
-		return fmt.Errorf("storage_haul_prepare refused or identity mismatch: %#v", prepared)
 	}
 	report["prepared_storage"] = prepared
 	haulerID := na.AsString(prepared["haulerId"])
@@ -212,7 +99,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 	if err != nil {
 		return err
 	}
-	if success, _ := na.AsBool(construction["success"]); !success || !matchesIdentity(construction) {
+	if success, _ := na.AsBool(construction["success"]); !success || !na.MatchesIdentity(construction, identity) {
 		return fmt.Errorf("guarded_construction_prepare refused or identity mismatch: %#v", construction)
 	}
 	report["prepared_construction"] = construction
@@ -231,12 +118,17 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 	// root-causing why the routine review never persists (G01.07b). Remove
 	// this env injection once resolved.
 	// Compose only the haul family so the receipt under test is unambiguous.
-	service, err := na.Serve(ctx, cfg, s.Game, identity, na.ServeSpec{
-		Binary: rimgovernorBinary, Prefix: "routine-haul",
+	service, err := s.Serve(ctx, na.ServeSpec{
+		Prefix:   "routine-haul",
 		Families: []string{"haul"}, Env: []string{"RIMGOVERNOR_CLOCK_DEBUG=1"},
-	}, report)
+	})
 	if err != nil {
 		return err
+	}
+	if sum, err := sha256File(service.Spec.Binary); err == nil {
+		report["rimgovernor_binary"] = map[string]string{"path": service.Spec.Binary, "sha256": sum}
+	} else {
+		return fmt.Errorf("hash rimgovernor binary: %w", err)
 	}
 	stopService := func() {
 		if keep := service.Stop(); keep != nil {
@@ -532,11 +424,17 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 	}
 	report["after_both_hauls_storage"] = afterBoth
 
-	logData, err := os.ReadFile(cfg.StartupLogPath())
+	return checkStartupLog(s)
+}
+
+// checkStartupLog is the run's last assertion: no native error in the
+// game's startup log.
+func checkStartupLog(s cases.Session) error {
+	logData, err := os.ReadFile(s.Config().StartupLogPath())
 	if err != nil {
 		return fmt.Errorf("read startup log: %w", err)
 	}
-	return na.CheckStartupLog(string(logData), headless)
+	return na.CheckStartupLog(string(logData), s.Config().Headless)
 }
 
 // waitHaulMethod polls the durable routine review for a MaintainStorage goal

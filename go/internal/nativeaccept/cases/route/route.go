@@ -1,95 +1,61 @@
-// Command routeaccept exercises the MaintainRoutes vertical (issue #6
-// slice 5) end to end against a live game and a live rimgovernor Go
-// player-control service composed with the routes family: a stockpile zone
-// sits in a roofed room walled on every side with no door. The native
-// reachability census (the game's own pathing per colonist, never a flood
-// fill) must read it unreachable and list breach walls; the service must
-// latch the facility, admit exactly one door on a listed breach wall, the
-// colonists build it, and the next measured census must read the stockpile
-// reachable with a measured path and release the latch. An independent
-// native read then confirms the reachability and that observed traffic
-// samples exist (actual travel evidence), reporting the door cell's own.
+// Package route holds the MaintainRoutes vertical (issue #6 slice 5): a
+// live game and a live rimgovernor Go player-control service composed with
+// the routes family. A stockpile zone sits in a roofed room walled on every
+// side with no door. The native reachability census (the game's own pathing
+// per colonist, never a flood fill) must read it unreachable and list
+// breach walls; the service must latch the facility, admit exactly one door
+// on a listed breach wall, the colonists build it, and the next measured
+// census must read the stockpile reachable with a measured path and release
+// the latch. An independent native read then confirms the reachability and
+// that observed traffic samples exist (actual travel evidence), reporting
+// the door cell's own.
 //
 // Uses the private disposable test/routes_prepare fixture
-// (RoutesFixture.cs). As with the other native harnesses, the harness's
-// own bridge session and the service's are used sequentially, never
-// concurrently (one GABP client per game).
-package main
+// (RoutesFixture.cs). The case's own bridge session and the service's are
+// used sequentially, never concurrently (one GABP client per game).
+package route
 
 import (
 	"context"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
 	"sort"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
+	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
 const prefix = "route-accept"
 
-func main() {
-	root := flag.String("root", "", "absolute disposable worker root (e.g. .rimgovernor/bridge)")
-	output := flag.String("output", "", "fresh output directory (default <root>/native-routes-acceptance)")
-	rendered := flag.Bool("rendered", false, "use the windowed profile instead of headless")
-	game := flag.String("game", "rimgovernor-trial", "configured game ID")
-	binary := flag.String("rimgovernor", "", "absolute path to a prebuilt rimgovernor binary (go build ./go/cmd/rimgovernor)")
-	timeout := flag.Duration("timeout", 30*time.Minute, "overall run timeout")
-	na.BudgetFlag((30 * time.Minute) / 2)
-	flag.Parse()
-	if *root == "" || *binary == "" || !filepath.IsAbs(*binary) {
-		fmt.Fprintln(os.Stderr, "-root and an absolute -rimgovernor are required")
-		os.Exit(2)
-	}
-	if *output == "" {
-		*output = *root + "/native-routes-acceptance"
-	}
-	if err := os.MkdirAll(*output, 0755); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(2)
-	}
-	if entries, _ := os.ReadDir(*output); len(entries) > 0 {
-		fmt.Fprintln(os.Stderr, "-output must be a fresh, empty directory")
-		os.Exit(2)
-	}
-	report := na.NewReport("Native MaintainRoutes vertical: a stockpile the game's own pathing reads unreachable drives the live Go "+
-		"routine reviewer/planner to admit one door on a listed breach wall; the measured reachability census, not the "+
-		"receipt, releases the latch, confirmed by an independent native read with observed traffic samples.", !*rendered)
-	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
-	defer cancel()
-	err := run(ctx, *root, *output, *game, !*rendered, *binary, report)
-	if err != nil {
-		report["error"] = err.Error()
-	} else {
-		report["passed"] = true
-	}
-	os.Exit(report.Finalize(*output))
+func init() {
+	cases.Register(cases.Case{
+		Name: "route/stockpile",
+		Scope: "Native MaintainRoutes vertical: a walled-in stockpile the native reachability census reads unreachable " +
+			"drives the live Go routine reviewer/planner to admit exactly one door on a listed breach wall; the colonists " +
+			"build it and the measured census, not the receipt, releases the latch, confirmed by an independent native read " +
+			"with observed traffic samples.",
+		Start:   cases.Fixture{Op: "test/routes_prepare"},
+		Service: true,
+		Budget:  6 * time.Minute,
+		Run:     run,
+	})
 }
 
-func run(ctx context.Context, root, output, gameID string, headless bool, binary string, report na.Report) error {
-	if abs, err := filepath.Abs(root); err == nil {
-		root = abs
-	}
-	if abs, err := filepath.Abs(output); err == nil {
-		output = abs
-	}
-	cfg := &na.Config{Root: root, Output: output, Headless: headless, GameID: gameID}
+func run(ctx context.Context, s cases.Session) error {
+	report := s.Report()
+	h, identity, prepared := s.Harness(), s.Identity(), s.Prepared()
 	var service *na.ServiceProcess
-	var s *na.Session
-	var postmortem map[string]any
 	facility := ""
-	stopped := false
-	stopGame := func() {
-		if stopped {
+	// Failure evidence: the same independent routes read a pass ends with.
+	defer func() {
+		if _, hasAfter := report["routes_after"]; hasAfter {
 			return
 		}
-		stopped = true
 		if service != nil {
 			service.Stop()
 		}
@@ -97,29 +63,16 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 		defer stopCancel()
 		ph, err := s.Reattach(stopCtx)
 		if err != nil {
-			report["stop_error"] = "reopen session for games_stop: " + err.Error()
+			report["postmortem_error"] = "reopen session for the postmortem: " + err.Error()
 			return
 		}
-		if postmortem != nil {
-			if _, hasAfter := report["routes_after"]; !hasAfter {
-				if after, err := readRoutes(stopCtx, ph, postmortem, "routes-postmortem", facility); err == nil {
-					report["routes_postmortem"] = after.evidence()
-				} else {
-					report["routes_postmortem_error"] = err.Error()
-				}
-			}
+		if after, err := readRoutes(stopCtx, ph, identity, "routes-postmortem", facility); err == nil {
+			report["routes_postmortem"] = after.evidence()
+		} else {
+			report["routes_postmortem_error"] = err.Error()
 		}
-		s.Close()
-	}
-
-	s, err := na.OpenSession(ctx, cfg, report, na.Fixture{Op: "test/routes_prepare"}, na.QuietRequired)
-	if err != nil {
-		return err
-	}
-	defer stopGame()
-	h, identity, prepared := s.Harness, s.Identity, s.Prepared
-	postmortem = identity
-	if err := confirmColonyNames(ctx, h, report); err != nil {
+	}()
+	if _, err := na.ConfirmColonyNames(ctx, h, report); err != nil {
 		return err
 	}
 	facility = na.AsString(prepared["facility"])
@@ -149,18 +102,14 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 			return fmt.Errorf("routes-before: breach %+v is not a wall of the fixture room %+v", b, room)
 		}
 	}
-	if err := s.Release(); err != nil {
-		return fmt.Errorf("close fixture-prep bridge session: %w", err)
-	}
 
 	// "work" rides along because every building method's builder check
 	// requires the colony's work priorities to match the controller's own
 	// assignment, which only the work family applies.
-	service, err = na.LaunchService(ctx, cfg, s.GABS, na.ServiceLaunch{Binary: binary, Families: []string{"routes", "work"}, Extra: na.ClockSpeedArgs()}, report)
+	service, err = s.Launch(ctx, na.ServiceLaunch{Families: []string{"routes", "work"}, Extra: na.ClockSpeedArgs()})
 	if err != nil {
 		return err
 	}
-	defer service.Stop()
 	token, err := service.SessionToken()
 	if err != nil {
 		return err
@@ -299,37 +248,17 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 		return fmt.Errorf("routes-after: no observed traffic samples")
 	}
 	report["door_traffic_samples"] = after.samplesAt(door)
-	logData, err := os.ReadFile(cfg.StartupLogPath())
+	return checkStartupLog(s)
+}
+
+// checkStartupLog is the run's last assertion: no native error in the
+// game's startup log.
+func checkStartupLog(s cases.Session) error {
+	logData, err := os.ReadFile(s.Config().StartupLogPath())
 	if err != nil {
 		return fmt.Errorf("read startup log: %w", err)
 	}
-	return na.CheckStartupLog(string(logData), headless)
-}
-
-// confirmColonyNames dismisses the fresh debug game's naming dialog, which
-// RankDevelopment otherwise treats as a global emergency (see routinehaulaccept).
-func confirmColonyNames(ctx context.Context, h *na.Harness, report na.Report) error {
-	facts, err := h.Call(ctx, "colony-facts", "home/colony_facts", map[string]any{})
-	if err != nil {
-		return err
-	}
-	naming, ok := na.AsMap(facts["colonyNaming"])
-	if !ok || naming == nil {
-		report["confirmed_colony_names"] = "no pending naming dialog"
-		return nil
-	}
-	confirmed, err := h.Call(ctx, "confirm-colony-names", "home/confirm_colony_names", map[string]any{
-		"windowId": int(na.AsNumber(naming["windowId"])), "factionName": na.AsString(naming["factionName"]),
-		"settlementName": na.AsString(naming["settlementName"]), "dryRun": false,
-	})
-	if err != nil {
-		return err
-	}
-	if success, _ := na.AsBool(confirmed["success"]); !success {
-		return fmt.Errorf("confirm_colony_names refused: %#v", confirmed)
-	}
-	report["confirmed_colony_names"] = confirmed
-	return nil
+	return na.CheckStartupLog(string(logData), s.Config().Headless)
 }
 
 type cellRect struct{ minX, minZ, maxX, maxZ int32 }

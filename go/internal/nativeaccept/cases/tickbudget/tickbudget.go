@@ -1,18 +1,22 @@
-// Command tickbudgetaccept proves exact
-// native execution tick boundaries and external clock ownership in a private game.
-package main
+// Package tickbudget proves exact native execution tick boundaries and
+// external clock ownership in a private game: every speed runs exactly
+// its tick budget and pauses verified, an external pause or speed change
+// stops the supervised clock and holds it until the player resumes, a
+// lease expires before its tick limit, and loading a save retires the
+// old watcher without claiming the new session's clock.
+package tickbudget
 
 import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"flag"
 	"fmt"
 	"os"
 	"strings"
 	"time"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
+	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 )
 
 func randomOwner() string {
@@ -26,48 +30,21 @@ const baselineSave = "RimGovernor-tribal8-baseline"
 var speeds = []string{"Normal", "Fast", "Superfast"}
 var budgets = []uint64{1, 37, 600}
 
-func main() {
-	root := flag.String("root", "", "absolute disposable worker root (e.g. .rimgovernor/bridge)")
-	output := flag.String("output", "", "fresh output directory (default <root>/native-tick-budget-acceptance)")
-	rendered := flag.Bool("rendered", false, "use the windowed profile instead of headless")
-	game := flag.String("game", "rimgovernor-trial", "configured game ID")
-	timeout := flag.Duration("timeout", 20*time.Minute, "overall run timeout")
-	na.BudgetFlag((20 * time.Minute) / 2)
-	flag.Parse()
-	if *root == "" {
-		fmt.Fprintln(os.Stderr, "-root is required")
-		os.Exit(2)
-	}
-	if *output == "" {
-		*output = *root + "/native-tick-budget-acceptance"
-	}
-	if err := os.MkdirAll(*output, 0755); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(2)
-	}
-	report := na.NewReport("Verify exact native execution boundaries and external clock ownership in a private game.", !*rendered)
-	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
-	defer cancel()
-	err := run(ctx, *root, *output, *game, !*rendered, report)
-	if err != nil {
-		report["error"] = err.Error()
-	} else {
-		report["passed"] = true
-	}
-	os.Exit(report.Finalize(*output))
+func init() {
+	cases.Register(cases.Case{
+		Name:   "tickbudget/boundaries",
+		Scope:  "Verify exact native execution boundaries and external clock ownership in a private game.",
+		Start:  cases.Save{Name: baselineSave},
+		Quiet:  na.QuietIfAvailable,
+		Reason: "also runs against the production mod build, which has no quiet-storyteller fixture; the assertions are about the clock, not events",
+		Budget: cases.MaxBudget,
+		Run:    run,
+	})
 }
 
-func run(ctx context.Context, root, output, gameID string, headless bool, report na.Report) error {
-	cfg := &na.Config{Root: root, Output: output, Headless: headless, GameID: gameID}
-	// The save carries its own expansion list; a Core-only profile would
-	// refuse it. OpenSession enables them for a Save start.
-	s, err := na.OpenSession(ctx, cfg, report, na.Save{Name: baselineSave}, na.QuietIfAvailable)
-	if err != nil {
-		return err
-	}
-	defer s.Close()
-	h := s.Harness
-
+func run(ctx context.Context, s cases.Session) error {
+	report := s.Report()
+	h := s.Harness()
 	loadBaseline := func(label string) error {
 		_, err := h.Call(ctx, label, "rimworld/load_game_ready", map[string]any{
 			"saveName": baselineSave, "readiness": "visual", "timeoutMs": 90000, "ignoreModCompatibility": false,
@@ -103,7 +80,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 		return err
 	}
 
-	var cases []any
+	var results []any
 	for _, speed := range speeds {
 		for _, budget := range budgets {
 			budget := budget
@@ -180,11 +157,11 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 			if clock.Hold != "" {
 				return fmt.Errorf("%s: unexpected clock hold %q", label, clock.Hold)
 			}
-			cases = append(cases, map[string]any{"speed": speed, "budget": budget, "start": start, "stop": end, "readback": observed, "stable": stable})
+			results = append(results, map[string]any{"speed": speed, "budget": budget, "start": start, "stop": end, "readback": observed, "stable": stable})
 			fmt.Printf("PASS %s: exactly %d ticks\n", speed, budget)
 		}
 	}
-	report["cases"] = cases
+	report["results"] = results
 
 	for _, external := range []struct{ speed, reason string }{{"Paused", "external_pause"}, {"Fast", "external_speed_changed"}} {
 		maxTicks := uint64(3000)
@@ -213,10 +190,10 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 			return err
 		}
 		clock.AllowResume()
-		cases = append(cases, map[string]any{"external_speed": external.speed, "stop": end})
+		results = append(results, map[string]any{"external_speed": external.speed, "stop": end})
 		fmt.Printf("PASS %s: explicit resume required\n", external.reason)
 	}
-	report["cases"] = cases
+	report["results"] = results
 
 	leaseReply, err := h.Call(ctx, "lease-start", "home/supervised_play", map[string]any{
 		"op": "start", "owner": clock.Owner, "speed": "Normal", "leaseMs": 1000, "maxTicks": 3000,
@@ -239,8 +216,8 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	if na.AsNumber(expired["lastTick"]) >= na.AsNumber(expired["tickDeadline"]) {
 		return fmt.Errorf("lease-expired: expected lastTick before tickDeadline: %#v", expired)
 	}
-	cases = append(cases, map[string]any{"lease_expiry": expired})
-	report["cases"] = cases
+	results = append(results, map[string]any{"lease_expiry": expired})
+	report["results"] = results
 	fmt.Println("PASS lease expiry before tick limit")
 
 	// Loading a native save retires the old watcher without claiming the new
@@ -261,12 +238,18 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	if na.AsString(changed["stopReason"]) != "session_changed" {
 		return fmt.Errorf("session-changed: unexpected stop result %#v", changed)
 	}
-	cases = append(cases, map[string]any{"load_change": changed})
-	report["cases"] = cases
+	results = append(results, map[string]any{"load_change": changed})
+	report["results"] = results
 
-	logData, err := os.ReadFile(cfg.StartupLogPath())
+	return checkStartupLog(s)
+}
+
+// checkStartupLog is the run's last assertion: no native error in the
+// game's startup log.
+func checkStartupLog(s cases.Session) error {
+	logData, err := os.ReadFile(s.Config().StartupLogPath())
 	if err != nil {
 		return fmt.Errorf("read startup log: %w", err)
 	}
-	return na.CheckStartupLog(string(logData), headless)
+	return na.CheckStartupLog(string(logData), s.Config().Headless)
 }

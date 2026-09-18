@@ -125,6 +125,18 @@ type Session interface {
 	// Release closes the harness's bridge session without stopping the game
 	// so a service can take the sole GABP slot.
 	Release() error
+	// Reattach takes the slot back once the service has stopped; the
+	// returned Harness replaces Harness().
+	Reattach(ctx context.Context) (*na.Harness, error)
+	// Launch releases the slot and starts rimgovernor serve for a case that
+	// manages the attach and authority steps itself (na.LaunchService); an
+	// empty Binary takes the run's -rimgovernor. The runner stops whatever
+	// is still running when Run returns.
+	Launch(ctx context.Context, launch na.ServiceLaunch) (*na.ServiceProcess, error)
+	// Serve is the full serve lifecycle over the session's game (na.Serve):
+	// release, launch, attach to the session's identity. An empty Binary
+	// takes the run's -rimgovernor.
+	Serve(ctx context.Context, spec na.ServeSpec) (*na.ServiceProcess, error)
 	// Runtime is a scenario runtime over a controller clock the runner
 	// acquires on first use, for the cases that advance the game
 	// themselves.
@@ -154,6 +166,11 @@ type Case struct {
 	Keep []string
 	// Serve is nil for a bridge-only case.
 	Serve *ServeSpec
+	// Service marks a case whose Run hosts rimgovernor serve itself
+	// through Session.Launch or Session.Serve (a Serve spec implies it):
+	// the suite schedules it after the bridge-only cases (#119) and passes
+	// its -rimgovernor to the run.
+	Service bool
 	// Budget fails the run when exceeded, distinct from the -timeout safety
 	// net. Every case declares one, at most MaxBudget (checklist item 6).
 	Budget time.Duration

@@ -1,6 +1,6 @@
-// Command cleanaccept exercises MaintainCleanFacilities' bounded cleaning
-// response and the kitchen/butcher separation rule (issue #6 slice 2) end to
-// end against a live game and a live rimgovernor Go player-control service:
+// Package clean holds MaintainCleanFacilities' bounded cleaning response
+// and the kitchen/butcher separation rule (issue #6 slice 2): a live game
+// and a live rimgovernor Go player-control service, one case per scenario:
 //
 //	filthy     -- a kitchen and a butchery each hold blood filth, and every
 //	              colonist has Cleaning at priority 0, so ordinary coverage
@@ -20,87 +20,55 @@
 //	              bill must land on the separated spot.
 //
 // Uses the private disposable test/cleanliness_prepare fixture
-// (CleanlinessFixture.cs). The harness's own bridge session and the
+// (CleanlinessFixture.cs). The case's own bridge session and the
 // service's are used sequentially, never concurrently.
-package main
+package clean
 
 import (
 	"context"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
+	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
 const prefix = "clean-accept"
 
-func main() {
-	root := flag.String("root", "", "absolute disposable worker root (e.g. .rimgovernor/bridge)")
-	output := flag.String("output", "", "fresh output directory (default <root>/native-clean-acceptance-<scenario>)")
-	rendered := flag.Bool("rendered", false, "use the windowed profile instead of headless")
-	game := flag.String("game", "rimgovernor-trial", "configured game ID")
-	binary := flag.String("rimgovernor", "", "absolute path to a prebuilt rimgovernor binary (go build ./go/cmd/rimgovernor)")
-	scenario := flag.String("scenario", "filthy", "filthy or separation")
-	timeout := flag.Duration("timeout", 30*time.Minute, "overall run timeout")
-	na.BudgetFlag((30 * time.Minute) / 2)
-	flag.Parse()
-	if *root == "" || *binary == "" || !filepath.IsAbs(*binary) {
-		fmt.Fprintln(os.Stderr, "-root and an absolute -rimgovernor are required")
-		os.Exit(2)
+func init() {
+	for _, scenario := range []string{"filthy", "separation"} {
+		scenario := scenario
+		cases.Register(cases.Case{
+			Name: "clean/" + scenario,
+			Scope: "Native MaintainCleanFacilities vertical (" + scenario + "): blood filth in a kitchen with no cleaners " +
+				"drives the live Go routine reviewer/planner to latch the kitchen alone and order its filth cleaned one " +
+				"target at a time until the measured cleanliness releases the latch (filthy), or a co-located butcher spot " +
+				"has the food-supply family admit a separated ButcherSpot that takes the bill (separation); " +
+				"confirmed by an independent native read.",
+			Start:   cases.Fixture{Op: "test/cleanliness_prepare", Args: map[string]any{"scenario": scenario, "filthPerRoom": 3}},
+			Service: true,
+			Budget:  6 * time.Minute,
+			Run:     func(ctx context.Context, s cases.Session) error { return run(ctx, s, scenario) },
+		})
 	}
-	if *scenario != "filthy" && *scenario != "separation" {
-		fmt.Fprintln(os.Stderr, "-scenario must be filthy or separation")
-		os.Exit(2)
-	}
-	if *output == "" {
-		*output = *root + "/native-clean-acceptance-" + *scenario
-	}
-	if err := os.MkdirAll(*output, 0755); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(2)
-	}
-	if entries, _ := os.ReadDir(*output); len(entries) > 0 {
-		fmt.Fprintln(os.Stderr, "-output must be a fresh, empty directory")
-		os.Exit(2)
-	}
-	report := na.NewReport("Native MaintainCleanFacilities vertical ("+*scenario+"): measured room cleanliness latches only "+
-		"a dirty workspace, direct clean orders respond at once when no cleaner exists and never touch an inherently dirty "+
-		"room; butcher placement and bills keep butchery out of the cooking room; confirmed by independent native reads.", !*rendered)
-	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
-	defer cancel()
-	err := run(ctx, *root, *output, *game, !*rendered, *binary, *scenario, report)
-	if err != nil {
-		report["error"] = err.Error()
-	} else {
-		report["passed"] = true
-	}
-	os.Exit(report.Finalize(*output))
 }
 
-func run(ctx context.Context, root, output, gameID string, headless bool, binary, scenario string, report na.Report) error {
-	if abs, err := filepath.Abs(root); err == nil {
-		root = abs
-	}
-	if abs, err := filepath.Abs(output); err == nil {
-		output = abs
-	}
-	cfg := &na.Config{Root: root, Output: output, Headless: headless, GameID: gameID}
+func run(ctx context.Context, s cases.Session, scenario string) error {
+	report := s.Report()
+	h, identity, prepared := s.Harness(), s.Identity(), s.Prepared()
 	var service *na.ServiceProcess
-	var s *na.Session
-	var postmortem map[string]any
-	stopped := false
-	stopGame := func() {
-		if stopped {
+	// Failure evidence: the same independent room and filth reads a pass
+	// ends with, and the emergency reviewer's own threat census, so an
+	// unsafe_colony hold names the pawns behind it.
+	defer func() {
+		if _, hasAfter := report["filth_after"]; hasAfter {
 			return
 		}
-		stopped = true
 		if service != nil {
 			service.Stop()
 		}
@@ -108,39 +76,28 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 		defer stopCancel()
 		ph, err := s.Reattach(stopCtx)
 		if err != nil {
-			report["stop_error"] = "reopen session for games_stop: " + err.Error()
+			report["postmortem_error"] = "reopen session for the postmortem: " + err.Error()
 			return
 		}
-		if postmortem != nil {
-			if rooms, err := readRooms(stopCtx, ph, postmortem, "rooms-postmortem"); err == nil {
-				report["rooms_postmortem"] = rooms
-			} else {
-				report["rooms_postmortem_error"] = err.Error()
-			}
-			if filth, err := readFilth(stopCtx, ph, postmortem, "filth-postmortem"); err == nil {
-				report["filth_postmortem"] = filth
-			} else {
-				report["filth_postmortem_error"] = err.Error()
-			}
-			if reply, err := ph.Wire(stopCtx, "threats-postmortem", "observations_read_status", map[string]any{
-				"scope": map[string]any{"expectedIdentity": postmortem}, "colonists": false, "threats": true, "colonistDetail": false, "page": map[string]any{"limit": 256},
-			}); err == nil {
-				if _, observed, err := na.Outcome(reply, "observed"); err == nil {
-					report["threats_postmortem"] = observed["threats"]
-				}
+		if rooms, err := readRooms(stopCtx, ph, identity, "rooms-postmortem"); err == nil {
+			report["rooms_postmortem"] = rooms
+		} else {
+			report["rooms_postmortem_error"] = err.Error()
+		}
+		if filth, err := readFilth(stopCtx, ph, identity, "filth-postmortem"); err == nil {
+			report["filth_postmortem"] = filth
+		} else {
+			report["filth_postmortem_error"] = err.Error()
+		}
+		if reply, err := ph.Wire(stopCtx, "threats-postmortem", "observations_read_status", map[string]any{
+			"scope": map[string]any{"expectedIdentity": identity}, "colonists": false, "threats": true, "colonistDetail": false, "page": map[string]any{"limit": 256},
+		}); err == nil {
+			if _, observed, err := na.Outcome(reply, "observed"); err == nil {
+				report["threats_postmortem"] = observed["threats"]
 			}
 		}
-		s.Close()
-	}
-
-	s, err := na.OpenSession(ctx, cfg, report, na.Fixture{Op: "test/cleanliness_prepare", Args: map[string]any{"scenario": scenario, "filthPerRoom": 3}}, na.QuietRequired)
-	if err != nil {
-		return err
-	}
-	defer stopGame()
-	h, identity, prepared := s.Harness, s.Identity, s.Prepared
-	postmortem = identity
-	if err := confirmColonyNames(ctx, h, report); err != nil {
+	}()
+	if _, err := na.ConfirmColonyNames(ctx, h, report); err != nil {
 		return err
 	}
 	// The service's own routine read is the typed colony facts with planning
@@ -220,9 +177,6 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 			}
 		}
 	}
-	if err := s.Release(); err != nil {
-		return fmt.Errorf("close fixture-prep bridge session: %w", err)
-	}
 
 	families := []string{"clean"}
 	if scenario == "separation" {
@@ -231,11 +185,10 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 		// assignment, which only the work family applies.
 		families = []string{"bill", "work"}
 	}
-	service, err = na.LaunchService(ctx, cfg, s.GABS, na.ServiceLaunch{Binary: binary, Families: families, Extra: na.ClockSpeedArgs()}, report)
+	service, err = s.Launch(ctx, na.ServiceLaunch{Families: families, Extra: na.ClockSpeedArgs()})
 	if err != nil {
 		return err
 	}
-	defer service.Stop()
 	token, err := service.SessionToken()
 	if err != nil {
 		return err
@@ -345,11 +298,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 			}
 		}
 	}
-	logData, err := os.ReadFile(cfg.StartupLogPath())
-	if err != nil {
-		return fmt.Errorf("read startup log: %w", err)
-	}
-	return na.CheckStartupLog(string(logData), headless)
+	return checkStartupLog(s)
 }
 
 // runFilthy follows the review's dirty-room latch and the clean methods it
@@ -540,28 +489,14 @@ func runSeparation(ctx context.Context, journal *store.Store, service *na.Servic
 	}
 }
 
-func confirmColonyNames(ctx context.Context, h *na.Harness, report na.Report) error {
-	facts, err := h.Call(ctx, "colony-facts", "home/colony_facts", map[string]any{})
+// checkStartupLog is the run's last assertion: no native error in the
+// game's startup log.
+func checkStartupLog(s cases.Session) error {
+	logData, err := os.ReadFile(s.Config().StartupLogPath())
 	if err != nil {
-		return err
+		return fmt.Errorf("read startup log: %w", err)
 	}
-	naming, ok := na.AsMap(facts["colonyNaming"])
-	if !ok || naming == nil {
-		report["confirmed_colony_names"] = "no pending naming dialog"
-		return nil
-	}
-	confirmed, err := h.Call(ctx, "confirm-colony-names", "home/confirm_colony_names", map[string]any{
-		"windowId": int(na.AsNumber(naming["windowId"])), "factionName": na.AsString(naming["factionName"]),
-		"settlementName": na.AsString(naming["settlementName"]), "dryRun": false,
-	})
-	if err != nil {
-		return err
-	}
-	if success, _ := na.AsBool(confirmed["success"]); !success {
-		return fmt.Errorf("confirm_colony_names refused: %#v", confirmed)
-	}
-	report["confirmed_colony_names"] = confirmed
-	return nil
+	return na.CheckStartupLog(string(logData), s.Config().Headless)
 }
 
 type roomRow struct {

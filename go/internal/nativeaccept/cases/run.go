@@ -29,6 +29,9 @@ type Options struct {
 	Timeout time.Duration
 	Budget  time.Duration
 	Stall   time.Duration
+	// Rimgovernor is the prebuilt rimgovernor binary (absolute path) a case
+	// that launches `rimgovernor serve` runs; a bridge-only case ignores it.
+	Rimgovernor string
 }
 
 // CaseOutput is where a case's evidence and result.json go.
@@ -98,7 +101,7 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 	if c.Serve != nil {
 		return fmt.Errorf("case %s declares Serve: the serve lifecycle is not wired into the runner yet (#138)", c.Name)
 	}
-	s := &session{c: c, report: report}
+	s := &session{c: c, report: report, binary: opts.Rimgovernor}
 	cfg := &na.Config{Root: opts.Root, Output: output, Headless: opts.Headless && !c.Rendered, GameID: opts.GameID,
 		Spawned: func(pid int) { s.gabsPID.Store(int64(pid)) }}
 	s.config = cfg
@@ -144,6 +147,7 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 		opened.Game.Keep = false
 	}
 	defer opened.Close()
+	defer s.stopServices()
 	report["quiet_mode"] = c.Quiet.String()
 	s.Session = opened
 	return c.Run(ctx, s)
@@ -166,15 +170,18 @@ func nativeStart(start Start) na.Start {
 	panic(fmt.Sprintf("unknown Start %T", start))
 }
 
-// session is the runner's Session over the lifecycle library's.
+// session is the runner's Session over the lifecycle library's, plus the
+// services a case launched so close can stop them before the game closes.
 type session struct {
 	// Session is nil for an Owned case, which opens its own game on Config.
 	*na.Session
-	c       Case
-	config  *na.Config
-	report  na.Report
-	runtime *na.ScenarioRuntime
-	gabsPID atomic.Int64
+	c        Case
+	config   *na.Config
+	report   na.Report
+	binary   string
+	services []*na.ServiceProcess
+	runtime  *na.ScenarioRuntime
+	gabsPID  atomic.Int64
 }
 
 func (s *session) Config() *na.Config       { return s.config }
@@ -189,6 +196,51 @@ func (s *session) Release() error {
 		return errors.New("no game open: an Owned case holds its own session")
 	}
 	return s.Session.Release()
+}
+
+func (s *session) Launch(ctx context.Context, launch na.ServiceLaunch) (*na.ServiceProcess, error) {
+	if launch.Binary == "" {
+		launch.Binary = s.binary
+	}
+	if launch.Binary == "" {
+		return nil, errors.New("the case launches rimgovernor serve: run it with -rimgovernor <absolute path to a prebuilt binary>")
+	}
+	if err := s.Release(); err != nil {
+		return nil, err
+	}
+	service, err := na.LaunchService(ctx, s.config, s.Session.GABS, launch, s.report)
+	if err != nil {
+		return nil, err
+	}
+	s.services = append(s.services, service)
+	return service, nil
+}
+
+func (s *session) Serve(ctx context.Context, spec na.ServeSpec) (*na.ServiceProcess, error) {
+	if spec.Binary == "" {
+		spec.Binary = s.binary
+	}
+	if spec.Binary == "" {
+		return nil, errors.New("the case launches rimgovernor serve: run it with -rimgovernor <absolute path to a prebuilt binary>")
+	}
+	if s.Session == nil {
+		return nil, errors.New("no game open: an Owned case holds its own session")
+	}
+	service, err := na.Serve(ctx, s.config, s.Session.Game, s.Session.Identity, spec, s.report)
+	if err != nil {
+		return nil, err
+	}
+	s.services = append(s.services, service)
+	return service, nil
+}
+
+// stopServices stops any service still running (Stop is idempotent)
+// before the session closes; na.Session.Close reattaches a released
+// session on its own.
+func (s *session) stopServices() {
+	for _, service := range s.services {
+		service.Stop()
+	}
 }
 
 // Runtime is the case's scenario runtime over a controller clock the

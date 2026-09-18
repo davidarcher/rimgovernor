@@ -92,6 +92,26 @@ func TestSelectFollowsImports(t *testing.T) {
 	if !slices.Equal(sel.Harnesses, []string{"upkeepaccept"}) {
 		t.Errorf("harness-local change selected %v", sel.Harnesses)
 	}
+	if len(sel.Cases) != 0 {
+		t.Errorf("harness-local change selected case areas %v", sel.Cases)
+	}
+
+	// A case area's own file selects only that area; the runner selects
+	// every area.
+	sel, err = Select(r, []string{"go/internal/nativeaccept/cases/light/light.go"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(sel.Cases, []string{"light"}) || len(sel.Harnesses) != 0 {
+		t.Errorf("area-local change selected cases %v harnesses %v", sel.Cases, sel.Harnesses)
+	}
+	sel, err = Select(r, []string{"go/internal/nativeaccept/cases/run.go"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(sel.Cases, "light") || !slices.Contains(sel.Cases, "smoke") || len(sel.Harnesses) != 0 {
+		t.Errorf("runner change selected cases %v harnesses %v", sel.Cases, sel.Harnesses)
+	}
 }
 
 func TestSelectIgnoresDeletedDirs(t *testing.T) {

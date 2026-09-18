@@ -1,7 +1,8 @@
-// Command refrigerationaccept exercises the MaintainRefrigeration vertical
-// (issue #6 slice 1, milestone B) end to end against a live game and a live
-// rimgovernor Go player-control service composed with the refrigeration
-// family (and, for the power hand-off scenario, the power family too):
+// Package refrigeration holds the MaintainRefrigeration vertical (issue #6
+// slice 1, milestone B): a live game and a live rimgovernor Go
+// player-control service composed with the refrigeration family (and, for
+// the power hand-off scenario, the power family too), one case per
+// scenario:
 //
 //	build    -- an enclosed roofed stockpile room holds warm raw meat and has
 //	            no cooler. The service must admit exactly one Cooler on a
@@ -21,92 +22,59 @@
 //
 // Uses the private disposable test/refrigeration_prepare fixture
 // (RefrigerationFixture.cs) since a naturally generated colony never starts
-// with an enclosed stockpile, Cooler research and a hot room together. As
-// with routinehaulaccept, the harness's own bridge session and the service's
-// are used sequentially, never concurrently (one GABP client per game).
-package main
+// with an enclosed stockpile, Cooler research and a hot room together. The
+// case's own bridge session and the service's are used sequentially, never
+// concurrently (one GABP client per game).
+package refrigeration
 
 import (
 	"context"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"math"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
+	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
 const prefix = "refrigeration-accept"
 
-func main() {
-	root := flag.String("root", "", "absolute disposable worker root (e.g. .rimgovernor/bridge)")
-	output := flag.String("output", "", "fresh output directory (default <root>/native-refrigeration-acceptance)")
-	rendered := flag.Bool("rendered", false, "use the windowed profile instead of headless")
-	game := flag.String("game", "rimgovernor-trial", "configured game ID")
-	binary := flag.String("rimgovernor", "", "absolute path to a prebuilt rimgovernor binary (go build ./go/cmd/rimgovernor)")
-	scenario := flag.String("scenario", "build", "build, setpoint or power")
-	timeout := flag.Duration("timeout", 30*time.Minute, "overall run timeout")
-	na.BudgetFlag((30 * time.Minute) / 2)
-	flag.Parse()
-	if *root == "" || *binary == "" || !filepath.IsAbs(*binary) {
-		fmt.Fprintln(os.Stderr, "-root and an absolute -rimgovernor are required")
-		os.Exit(2)
+func init() {
+	for _, scenario := range []string{"build", "setpoint", "power"} {
+		scenario := scenario
+		cases.Register(cases.Case{
+			Name: "refrigeration/" + scenario,
+			Scope: "Native MaintainRefrigeration vertical (" + scenario + "): warm at-risk meat in an enclosed room " +
+				"drives the live Go routine reviewer/planner to admit a Cooler on a vented wall, patch an existing cooler's " +
+				"setpoint, or hold for the power family; native cooling then takes the measured room under the exit " +
+				"threshold, confirmed by an independent native read.",
+			Start: cases.Fixture{Op: "test/refrigeration_prepare", Args: map[string]any{
+				"existingCooler": scenario != "build", "disconnected": scenario == "power", "roomTemperatureC": 30,
+			}},
+			Service: true,
+			Budget:  12 * time.Minute,
+			Run:     func(ctx context.Context, s cases.Session) error { return run(ctx, s, scenario) },
+		})
 	}
-	if *scenario != "build" && *scenario != "setpoint" && *scenario != "power" {
-		fmt.Fprintln(os.Stderr, "-scenario must be build, setpoint or power")
-		os.Exit(2)
-	}
-	if *output == "" {
-		*output = *root + "/native-refrigeration-acceptance-" + *scenario
-	}
-	if err := os.MkdirAll(*output, 0755); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(2)
-	}
-	if entries, _ := os.ReadDir(*output); len(entries) > 0 {
-		fmt.Fprintln(os.Stderr, "-output must be a fresh, empty directory")
-		os.Exit(2)
-	}
-	report := na.NewReport("Native MaintainRefrigeration vertical ("+*scenario+"): warm at-risk meat in an enclosed room "+
-		"drives the live Go routine reviewer/planner to admit a Cooler on a vented wall, patch an existing cooler's "+
-		"setpoint, or hold for the power family; native cooling then takes the measured room under the exit "+
-		"threshold, confirmed by an independent native read.", !*rendered)
-	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
-	defer cancel()
-	err := run(ctx, *root, *output, *game, !*rendered, *binary, *scenario, report)
-	if err != nil {
-		report["error"] = err.Error()
-	} else {
-		report["passed"] = true
-	}
-	os.Exit(report.Finalize(*output))
 }
 
-func run(ctx context.Context, root, output, gameID string, headless bool, binary, scenario string, report na.Report) error {
-	if abs, err := filepath.Abs(root); err == nil {
-		root = abs
-	}
-	if abs, err := filepath.Abs(output); err == nil {
-		output = abs
-	}
-	cfg := &na.Config{Root: root, Output: output, Headless: headless, GameID: gameID}
+func run(ctx context.Context, s cases.Session, scenario string) error {
+	report := s.Report()
+	h, identity, prepared := s.Harness(), s.Identity(), s.Prepared()
 	var service *na.ServiceProcess
-	var s *na.Session
-	// postmortem is the identity the failure path reads the food census
-	// under once the fixture exists; nil until then.
-	var postmortem map[string]any
-	stopped := false
-	stopGame := func() {
-		if stopped {
+	// Failure evidence: the same independent food read a pass ends with,
+	// so a dropped refrigeration latch can be explained (stock hauled out,
+	// rotted, or genuinely chilled), and the emergency reviewer's own
+	// threat census, so an unsafe_colony hold names the pawns behind it.
+	defer func() {
+		if _, hasAfter := report["food_after"]; hasAfter {
 			return
 		}
-		stopped = true
 		if service != nil {
 			service.Stop()
 		}
@@ -114,43 +82,23 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 		defer stopCancel()
 		ph, err := s.Reattach(stopCtx)
 		if err != nil {
-			report["stop_error"] = "reopen session for games_stop: " + err.Error()
+			report["postmortem_error"] = "reopen session for the postmortem: " + err.Error()
 			return
 		}
-		// Failure evidence: the same independent food read a pass ends
-		// with, so a dropped refrigeration latch can be explained
-		// (stock hauled out, rotted, or genuinely chilled).
-		if postmortem != nil {
-			if _, hasAfter := report["food_after"]; !hasAfter {
-				if after, err := readFoodStorage(stopCtx, ph, postmortem, "food-postmortem"); err == nil {
-					report["food_postmortem"] = after.evidence()
-				} else {
-					report["food_postmortem_error"] = err.Error()
-				}
-				// The emergency reviewer's own threat census, so an
-				// unsafe_colony hold names the pawns behind it.
-				if reply, err := ph.Wire(stopCtx, "threats-postmortem", "observations_read_status", map[string]any{
-					"scope": map[string]any{"expectedIdentity": postmortem}, "colonists": false, "threats": true, "colonistDetail": false, "page": map[string]any{"limit": 256},
-				}); err == nil {
-					if _, observed, err := na.Outcome(reply, "observed"); err == nil {
-						report["threats_postmortem"] = observed["threats"]
-					}
-				}
+		if after, err := readFoodStorage(stopCtx, ph, identity, "food-postmortem"); err == nil {
+			report["food_postmortem"] = after.evidence()
+		} else {
+			report["food_postmortem_error"] = err.Error()
+		}
+		if reply, err := ph.Wire(stopCtx, "threats-postmortem", "observations_read_status", map[string]any{
+			"scope": map[string]any{"expectedIdentity": identity}, "colonists": false, "threats": true, "colonistDetail": false, "page": map[string]any{"limit": 256},
+		}); err == nil {
+			if _, observed, err := na.Outcome(reply, "observed"); err == nil {
+				report["threats_postmortem"] = observed["threats"]
 			}
 		}
-		s.Close()
-	}
-
-	s, err := na.OpenSession(ctx, cfg, report, na.Fixture{Op: "test/refrigeration_prepare", Args: map[string]any{
-		"existingCooler": scenario != "build", "disconnected": scenario == "power", "roomTemperatureC": 30,
-	}}, na.QuietRequired)
-	if err != nil {
-		return err
-	}
-	defer stopGame()
-	h, identity, prepared := s.Harness, s.Identity, s.Prepared
-	postmortem = identity
-	if err := confirmColonyNames(ctx, h, report); err != nil {
+	}()
+	if _, err := na.ConfirmColonyNames(ctx, h, report); err != nil {
 		return err
 	}
 	coolerID := na.AsString(prepared["cooler"])
@@ -178,9 +126,6 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 		return fmt.Errorf("food-before: fixture meat is not warm at-risk stock (warm nutrition %.2f, temperature %.1f C, roofed %d/%d); a cold biome may have overwhelmed the forced room temperature -- rerun",
 			before.warmNutrition, before.temperature, before.roofed, before.rows)
 	}
-	if err := s.Release(); err != nil {
-		return fmt.Errorf("close fixture-prep bridge session: %w", err)
-	}
 
 	// "work" rides along because every building method's builder check
 	// (comfortBuilderAvailable) requires the colony's work priorities to match
@@ -189,11 +134,10 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 	if scenario == "power" {
 		families = append(families, "power")
 	}
-	service, err = na.LaunchService(ctx, cfg, s.GABS, na.ServiceLaunch{Binary: binary, Families: families, Extra: na.ClockSpeedArgs()}, report)
+	service, err = s.Launch(ctx, na.ServiceLaunch{Families: families, Extra: na.ClockSpeedArgs()})
 	if err != nil {
 		return err
 	}
-	defer service.Stop()
 	token, err := service.SessionToken()
 	if err != nil {
 		return err
@@ -437,37 +381,17 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 	if c.target > policyDefaults.FreezerTargetC {
 		return fmt.Errorf("cooler target %.1f C is above the freezer target %.1f C", c.target, policyDefaults.FreezerTargetC)
 	}
-	logData, err := os.ReadFile(cfg.StartupLogPath())
+	return checkStartupLog(s)
+}
+
+// checkStartupLog is the run's last assertion: no native error in the
+// game's startup log.
+func checkStartupLog(s cases.Session) error {
+	logData, err := os.ReadFile(s.Config().StartupLogPath())
 	if err != nil {
 		return fmt.Errorf("read startup log: %w", err)
 	}
-	return na.CheckStartupLog(string(logData), headless)
-}
-
-// confirmColonyNames dismisses the fresh debug game's naming dialog, which
-// RankDevelopment otherwise treats as a global emergency (see routinehaulaccept).
-func confirmColonyNames(ctx context.Context, h *na.Harness, report na.Report) error {
-	facts, err := h.Call(ctx, "colony-facts", "home/colony_facts", map[string]any{})
-	if err != nil {
-		return err
-	}
-	naming, ok := na.AsMap(facts["colonyNaming"])
-	if !ok || naming == nil {
-		report["confirmed_colony_names"] = "no pending naming dialog"
-		return nil
-	}
-	confirmed, err := h.Call(ctx, "confirm-colony-names", "home/confirm_colony_names", map[string]any{
-		"windowId": int(na.AsNumber(naming["windowId"])), "factionName": na.AsString(naming["factionName"]),
-		"settlementName": na.AsString(naming["settlementName"]), "dryRun": false,
-	})
-	if err != nil {
-		return err
-	}
-	if success, _ := na.AsBool(confirmed["success"]); !success {
-		return fmt.Errorf("confirm_colony_names refused: %#v", confirmed)
-	}
-	report["confirmed_colony_names"] = confirmed
-	return nil
+	return na.CheckStartupLog(string(logData), s.Config().Headless)
 }
 
 type foodSummary struct {

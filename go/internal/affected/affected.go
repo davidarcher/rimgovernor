@@ -27,8 +27,12 @@ type Selection struct {
 	// Harnesses are the go/internal/nativeaccept/cmd directories whose
 	// inputs (na.HarnessInputs) include a changed file.
 	Harnesses []string
+	// Cases are the go/internal/nativeaccept/cases areas (#135) whose
+	// inputs include a changed file: every case the area registers is
+	// affected (acceptance run <area>/...).
+	Cases []string
 	// AllHarnesses means a shared harness input changed (native mod
-	// sources, fixtures, go.mod): every harness is affected.
+	// sources, fixtures, go.mod): every harness and case is affected.
 	AllHarnesses bool
 }
 
@@ -86,6 +90,9 @@ func Select(repo string, changed []string) (Selection, error) {
 			return sel, err
 		}
 		sel.Harnesses = harnesses
+		if sel.Cases, err = caseAreas(goDir); err != nil {
+			return sel, err
+		}
 	}
 	if sel.AllGo {
 		return sel, nil
@@ -151,6 +158,35 @@ func Select(repo string, changed []string) (Selection, error) {
 		}
 	}
 	sort.Strings(sel.Harnesses)
+	// A case area is affected when it, the runner or the binary imports a
+	// changed package. The runner imports every area to register it, so
+	// the areas themselves do not count as its inputs here.
+	prefix = graph.module + "/internal/nativeaccept/cases/"
+	runner := graph.module + "/internal/nativeaccept/cmd/acceptance"
+	runnerAffected := binaryAffected || changedPkgs[runner]
+	for _, dep := range graph.deps[runner] {
+		if runnerAffected {
+			break
+		}
+		runnerAffected = changedPkgs[dep] && !strings.HasPrefix(dep, prefix)
+	}
+	for pkg, deps := range graph.deps {
+		name := strings.TrimPrefix(pkg, prefix)
+		if !strings.HasPrefix(pkg, prefix) || strings.Contains(name, "/") {
+			continue
+		}
+		affected := runnerAffected || changedPkgs[pkg]
+		for _, dep := range deps {
+			if affected {
+				break
+			}
+			affected = changedPkgs[dep]
+		}
+		if affected {
+			sel.Cases = append(sel.Cases, name)
+		}
+	}
+	sort.Strings(sel.Cases)
 	return sel, nil
 }
 
@@ -240,6 +276,22 @@ func harnessNames(goDir string) ([]string, error) {
 	var names []string
 	for _, entry := range entries {
 		if entry.IsDir() && isHarness(entry.Name()) {
+			names = append(names, entry.Name())
+		}
+	}
+	return names, nil
+}
+
+// caseAreas lists the case area packages under
+// go/internal/nativeaccept/cases.
+func caseAreas(goDir string) ([]string, error) {
+	entries, err := os.ReadDir(filepath.Join(goDir, "internal", "nativeaccept", "cases"))
+	if err != nil {
+		return nil, err
+	}
+	var names []string
+	for _, entry := range entries {
+		if entry.IsDir() {
 			names = append(names, entry.Name())
 		}
 	}

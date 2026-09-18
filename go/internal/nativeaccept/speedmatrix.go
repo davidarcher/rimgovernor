@@ -277,7 +277,7 @@ func int64Value(v any) (int64, bool) {
 }
 
 // SpeedMetrics is the per-case row a speed matrix reports (caseMetrics in
-// speedmatrixaccept): the fields CheckSpeedMetrics reads, decoded from the
+// cases/speedmatrix): the fields CheckSpeedMetrics reads, decoded from the
 // report's metrics rows.
 type SpeedMetrics struct {
 	Case           string

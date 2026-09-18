@@ -67,6 +67,9 @@ func main() {
 	for _, harness := range sel.Harnesses {
 		fmt.Printf("go run ./internal/nativeaccept/cmd/%s ...\n", harness)
 	}
+	for _, area := range sel.Cases {
+		fmt.Printf("go run ./internal/nativeaccept/cmd/acceptance run %s/... ...\n", area)
+	}
 }
 
 func fail(err error) {

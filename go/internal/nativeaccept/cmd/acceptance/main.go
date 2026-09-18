@@ -1,7 +1,7 @@
 // Command acceptance is the shared runner over the case registry (#135):
 //
 //	acceptance list
-//	acceptance run <case>... [-root -output -game -headless -timeout -budget -stall]
+//	acceptance run <case>... [-root -output -game -headless -timeout -budget -stall -rimgovernor]
 //	acceptance suite (-all | -cases a,b | -suite file.json) -root -output -workers N [-baseline result.json]
 //	acceptance stop -root <dir> [-config -game -takeover]
 //
@@ -35,29 +35,39 @@ import (
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/bed"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/bills"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/caravan"
+	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/clean"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/combat"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/construction"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/custody"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/draft"
+	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/floor"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/husbandry"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/letter"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/lifecycle"
+	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/light"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/mapscope"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/mood"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/movement"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/needs"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/pawn"
+	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/power"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/presentation"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/quest"
+	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/reactivewatch"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/recovery"
+	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/refrigeration"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/research"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/rooms"
+	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/route"
+	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/routinehaul"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/settlement"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/smoke"
+	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/speedmatrix"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/storage"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/supplies"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/surgery"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/temperature"
+	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/tickbudget"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/trade"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/video"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/wall"
@@ -104,7 +114,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 const usage = `usage:
   acceptance list
-  acceptance run <case>... -root <dir> [-output <dir> -game <id> -headless=false -timeout <d> -budget <d> -stall <d>]
+  acceptance run <case>... -root <dir> [-output <dir> -game <id> -headless=false -timeout <d> -budget <d> -stall <d> -rimgovernor <binary>]
   acceptance stop -root <dir> [-config <dir> -game <id> -takeover]
 ` + suiteUsage
 
@@ -130,6 +140,7 @@ func parseRun(args []string, stderr io.Writer) ([]cases.Case, cases.Options, err
 	fs.DurationVar(&opts.Timeout, "timeout", cases.DefaultTimeout, "per-case safety net")
 	fs.DurationVar(&opts.Budget, "budget", 0, "per-case wall-clock budget that fails the run (default: the case's own)")
 	fs.DurationVar(&opts.Stall, "stall", 0, "stall budget for the shared waits (default: RIMGOVERNOR_ACCEPT_STALL or 3m)")
+	fs.StringVar(&opts.Rimgovernor, "rimgovernor", "", "absolute path to a prebuilt rimgovernor binary (go build ./go/cmd/rimgovernor) for cases that launch a service")
 	if err := fs.Parse(flagArgs); err != nil {
 		return nil, opts, err
 	}
@@ -144,6 +155,9 @@ func parseRun(args []string, stderr io.Writer) ([]cases.Case, cases.Options, err
 	}
 	if !filepath.IsAbs(opts.Root) {
 		return nil, opts, fmt.Errorf("-root must be absolute: %s", opts.Root)
+	}
+	if opts.Rimgovernor != "" && !filepath.IsAbs(opts.Rimgovernor) {
+		return nil, opts, fmt.Errorf("-rimgovernor must be absolute: %s", opts.Rimgovernor)
 	}
 	if opts.Output == "" {
 		opts.Output = filepath.Join(opts.Root, "acceptance")
