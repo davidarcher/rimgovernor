@@ -12,9 +12,13 @@
 // the case releases the game to one serve process (haul + work families)
 // with the speed's --clock-speed, submits the wall run as building plans,
 // resumes automatic control and waits, stall-bounded, until the serve-side
-// tick has advanced by the budget. It then stops the service, reads the
-// outcome natively (stored units, walls built, RequireHealthyColonists) and
-// counts unsuccessful plan stages in the service journal. The flight
+// tick has advanced by the budget or the stage has run out of work (every
+// wall plan completed and no storage deficit pending): once the work is done
+// the clock scheduler admits no further window (refused=[no_work]) and the
+// tick stops, so a budget the stage cannot fill would stall the wait (#210).
+// It then stops the service, reads the outcome natively (stored units, walls
+// built, RequireHealthyColonists) and counts unsuccessful plan stages in the
+// service journal. The flight
 // recorder gives wall TPS, paused fraction, steps, reads/step, parent hits,
 // the wall-sized colony window (#126) and the budget-vs-reactive stop split
 // with stop latency, the stop-to-readmit pause each admission closed
@@ -43,6 +47,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
@@ -303,9 +308,12 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 		return outcome, err
 	}
 	// The budget is game time: the wait ends once the service's own review
-	// tick has advanced by -ticks past the reload tick. The signature is
-	// the tick itself, so a clock that stops advancing stalls the wait.
+	// tick has advanced by -ticks past the reload tick, or earlier once the
+	// stage has no work left for the clock to admit. The signature is the
+	// tick itself, so a clock that stops advancing with work pending stalls
+	// the wait.
 	var lastTick uint64
+	var workDone bool
 	waitErr := na.WaitProgress(ctx, na.Wait{Stall: na.StallBudget(), Interval: 2 * time.Second, Terminal: service.Exited},
 		func(ctx context.Context) (string, bool, error) {
 			review, err := journal.LoadRoutineReview(ctx)
@@ -313,10 +321,17 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 				return "", false, err
 			}
 			lastTick = uint64(review.Tick)
-			return na.Signature(lastTick), lastTick >= startTick+uint64(ticks), nil
+			if lastTick >= startTick+uint64(ticks) {
+				return na.Signature(lastTick), true, nil
+			}
+			workDone, err = stageWorkDone(ctx, journal, review, planIDs)
+			if err != nil {
+				return "", false, err
+			}
+			return na.Signature(lastTick), workDone, nil
 		})
 	wallSeconds := time.Since(resumedAt).Seconds()
-	report["wait"] = map[string]any{"start_tick": startTick, "last_tick": lastTick, "wall_seconds": wallSeconds}
+	report["wait"] = map[string]any{"start_tick": startTick, "last_tick": lastTick, "wall_seconds": wallSeconds, "work_done": workDone}
 	if waitErr != nil {
 		if final, loadErr := journal.LoadRoutineReview(ctx); loadErr == nil {
 			data, _ := json.Marshal(final)
@@ -433,6 +448,47 @@ func (m *matrix) submitWalls(service *na.ServiceProcess, prefix string, identity
 	}
 	report["submissions"] = submissions
 	return ids, nil
+}
+
+// stageWorkDone reports whether the stage has run out of work: every wall
+// plan has observed its building completed and the routine review holds no
+// MaintainStorage goal still active in deficit (a satisfied goal may have
+// retired its binding). After that the clock scheduler refuses every window
+// as no_work and the review tick no longer advances.
+func stageWorkDone(ctx context.Context, s *store.Store, review store.RoutineReview, walls []domain.PlanID) (bool, error) {
+	for _, id := range walls {
+		state, err := s.LoadPlan(ctx, id)
+		if err != nil {
+			if errors.Is(err, store.ErrNotFound) {
+				return false, nil
+			}
+			return false, err
+		}
+		if len(state.Progress) == 0 {
+			return false, nil
+		}
+		for _, progress := range state.Progress {
+			if progress.View().Stage != domain.Completed {
+				return false, nil
+			}
+		}
+	}
+	for _, binding := range review.Goals {
+		if binding.Need != policy.MaintainStorage {
+			continue
+		}
+		goal, err := s.LoadGoal(ctx, binding.Goal)
+		if err != nil {
+			if errors.Is(err, store.ErrNotFound) {
+				continue
+			}
+			return false, err
+		}
+		if goal.Goal.Status == domain.GoalActive && goal.Goal.Need == domain.NeedDeficit {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 // countUnsuccessful counts Unsuccessful action stages over the wall plans

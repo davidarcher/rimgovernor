@@ -142,13 +142,15 @@ go run ./internal/nativeaccept/cmd/acceptance run speedmatrix/plain -root <abs r
 
 Needs a `ThroughputFixture` build and the headless profile for the uncapped
 case. One staged colony is reloaded per speed and served with the `haul` and
-`work` families for a 6000-tick budget; each speed runs `serve` with the
+`work` families for a 6000-tick budget, or until the stage runs out of work
+(every wall plan completed, no storage deficit pending; the clock admits no
+window after that, #210); each speed runs `serve` with the
 flight recorder and the case reduces the recording with `SummarizePhases`
 and `SummarizeStops`. `report.json` carries, per speed under `metrics`:
 
 | Key | Meaning |
 | --- | --- |
-| `wall_tps`, `budget_wall_tps`, `paused_fraction` | The phase report's clock numbers; `budget_wall_tps` is the 6000 ticks over the wait's own wall time. |
+| `wall_tps`, `budget_wall_tps`, `paused_fraction` | The phase report's clock numbers; `budget_wall_tps` is `ticks_advanced` over the wait's own wall time. |
 | `steps`, `reads_per_step`, `cache_hits`, `parent_hits` | As above. |
 | `window_ticks_mean`, `window_ticks_max`, `window_target_secs_max` | The wall-sized windows at that speed; ticks per window should scale with the multiplier while the wall target stays put. |
 | `stops`, `budget_stops`, `reactive_stops`, `stop_reasons`, `budget_stops_per_6000_ticks` | Stops classified from the `clock_read_events` replies: budget stops (the window's ticks ran out) versus reactive ones (a watch latch, a letter, a requested pause). Budget stops per 6000 ticks is the comparable rate across speeds. |
