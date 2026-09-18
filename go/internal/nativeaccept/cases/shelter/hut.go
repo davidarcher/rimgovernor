@@ -154,7 +154,7 @@ func (w waits) wait(ceiling time.Duration, service *na.ServiceProcess) na.Wait {
 // template fits) or corridor terrain (the fixture op the case opened on
 // raised the rock rows; the routine must grow an irregular shell).
 func hut(ctx context.Context, s cases.Session, terrain string) error {
-	report, h := s.Report(), s.Harness()
+	report := s.Report()
 	w := waits{build: buildWait, furnish: furnishWait, stall: na.StallBudget(), terrain: terrain}
 	if terrain == "corridor" {
 		prepared := s.Prepared()
@@ -206,7 +206,7 @@ func hut(ctx context.Context, s cases.Session, terrain string) error {
 	report["run0_keepalive"] = service.Stop()
 	sh.ignore = map[domain.PlanID]bool{sh.planID: true}
 	corridor := report["corridor_terrain"]
-	h, err = s.Reload(ctx)
+	h, err := s.Reload(ctx)
 	if err != nil {
 		return err
 	}

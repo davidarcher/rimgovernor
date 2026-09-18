@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/inputs"
 )
@@ -202,6 +203,32 @@ func areasUsingFixtures(repo string, g *graph, changedFixtures map[string]bool) 
 	if len(changedFixtures) == 0 {
 		return areas, nil
 	}
+	inputs, err := g.areaFixtureInputs(repo)
+	if err != nil {
+		return nil, err
+	}
+	for name, files := range inputs {
+		for _, input := range files {
+			if changedFixtures[input] {
+				areas[name] = true
+				break
+			}
+		}
+	}
+	return areas, nil
+}
+
+// areaFixtureInputs maps each case area to the fixture files its sources
+// depend on, scanned once per graph: the scan walks every area's import
+// closure and is the expensive half of a fixture-scoped Select.
+func (g *graph) areaFixtureInputs(repo string) (map[string][]string, error) {
+	g.fixturesOnce.Do(func() {
+		g.fixtures, g.fixturesErr = g.scanAreaFixtureInputs(repo)
+	})
+	return g.fixtures, g.fixturesErr
+}
+
+func (g *graph) scanAreaFixtureInputs(repo string) (map[string][]string, error) {
 	goDir := filepath.Join(repo, "go")
 	dirByPkg := map[string]string{}
 	for dir, pkg := range g.byDir {
@@ -209,6 +236,7 @@ func areasUsingFixtures(repo string, g *graph, changedFixtures map[string]bool) 
 	}
 	prefix := g.module + "/internal/nativeaccept/cases/"
 	runner := g.module + "/internal/nativeaccept/cmd/acceptance"
+	inputsByArea := map[string][]string{}
 	for pkg := range g.deps {
 		name := strings.TrimPrefix(pkg, prefix)
 		if !strings.HasPrefix(pkg, prefix) || strings.Contains(name, "/") {
@@ -230,14 +258,9 @@ func areasUsingFixtures(repo string, g *graph, changedFixtures map[string]bool) 
 		if err != nil {
 			return nil, err
 		}
-		for _, input := range inputs {
-			if changedFixtures[input] {
-				areas[name] = true
-				break
-			}
-		}
+		inputsByArea[name] = inputs
 	}
-	return areas, nil
+	return inputsByArea, nil
 }
 
 // goPackageDir returns the absolute package directory a changed file
@@ -266,10 +289,35 @@ type graph struct {
 	module string
 	byDir  map[string]string   // absolute directory -> import path
 	deps   map[string][]string // import path -> in-module deps (transitive) plus direct test imports
+
+	fixturesOnce sync.Once
+	fixtures     map[string][]string // case area -> fixture inputs its sources depend on
+	fixturesErr  error
 }
 
-// dependencyGraph reads the module's packages once.
+var (
+	graphsMu sync.Mutex
+	graphs   = map[string]*graph{} // module dir -> graph, read once per process
+)
+
+// dependencyGraph reads the module's packages once per process: Select is
+// a one-shot query over a checkout, and go list over the module is the
+// bulk of its cost.
 func dependencyGraph(goDir string) (*graph, error) {
+	graphsMu.Lock()
+	defer graphsMu.Unlock()
+	if g, ok := graphs[goDir]; ok {
+		return g, nil
+	}
+	g, err := readDependencyGraph(goDir)
+	if err != nil {
+		return nil, err
+	}
+	graphs[goDir] = g
+	return g, nil
+}
+
+func readDependencyGraph(goDir string) (*graph, error) {
 	module, err := goOutput(goDir, "list", "-m", "-f", "{{.Path}}")
 	if err != nil {
 		return nil, err

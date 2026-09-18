@@ -74,12 +74,6 @@ func init() {
 	})
 }
 
-func resourceRecovered(sample map[string]any) bool {
-	need, _ := sample["need"].(string)
-	status, _ := sample["status"].(string)
-	return domain.NeedState(need) == domain.NeedRecovered && domain.GoalStatus(status) == domain.GoalSatisfied
-}
-
 // billProduced reports a sample whose MaintainResource goal holds or held a
 // resource (production bill) plan with every action completed: native
 // production tracking marks a bill action completed only once an iteration

@@ -237,17 +237,11 @@ func (w *WakeSignal) TakeInvalidated() StepReason {
 	return reason
 }
 
-// clockPageWake reads the wake-relevant facts out of one committed page:
-// the latched outcomes, the families its ObservationInvalidated events
-// named, and whether authority changed.
-func clockPageWake(page *k.EventsPage) (outcomes []WakeOutcome, families []bridge.FactFamily, authority bool) {
-	outcomes, families, authority, _, _ = clockPageWakeStopped(page)
-	return outcomes, families, authority
-}
-
-// clockPageWakeStopped is clockPageWake that also reports whether the page
-// carried a Stopped event and the earliest such event's native stamp
-// (zero when the event carried none).
+// clockPageWakeStopped reads the wake-relevant facts out of one committed
+// page: the latched outcomes, the families its ObservationInvalidated
+// events named, whether authority changed, and whether the page carried a
+// Stopped event with the earliest such event's native stamp (zero when the
+// event carried none).
 func clockPageWakeStopped(page *k.EventsPage) (outcomes []WakeOutcome, families []bridge.FactFamily, authority, stopped bool, stopAt time.Time) {
 	seen := map[bridge.FactFamily]bool{}
 	for _, event := range page.GetEvents() {

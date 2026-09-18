@@ -37,6 +37,7 @@ func TestMaintainedGoalUnknownRenewalAndCancellation(t *testing.T) {
 		t.Fatal(next, e)
 	}
 }
+
 // A recovery measured while the method's effects were still open (the
 // lamp stands, the plan not yet observed) never reaches satisfaction; the
 // next deficit after that work settles still opens a new epoch so the
