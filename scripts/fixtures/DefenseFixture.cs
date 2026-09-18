@@ -14,17 +14,21 @@ namespace HomeBridge.BridgeTools
     // Private disposable acceptance only (issue #5 M4). Ops: terrain (a rock
     // band around the colony with one straight corridor gap), stock (wood),
     // ranged (rifles for existing colonists), raid (a real RaidEnemy incident
-    // with the chosen strategy/arrival), damage (one wall hit), inspect
-    // (colonists on trap cells, trap ids, sprung traps, hostiles). No completed-work
-    // injection: construction, movement and combat stay native.
+    // with the chosen strategy/arrival), predator (a wild predator spawned
+    // inside the band already hunting a colonist, #157), damage (one wall
+    // hit), inspect (colonists on trap cells, trap ids, sprung traps,
+    // hostiles, the fixture predator). No completed-work injection:
+    // construction, movement and combat stay native.
     public sealed class DefenseFixture
     {
         private const int Half = 22;
         private const int BandInner = 13;
         private const int GapHalfWidth = 1;
 
-        [Tool("test/defense_setup", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable defensive-layout fixture: op=terrain|stock|ranged|raid|damage|heal|inspect|quiet.")]
-        public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken, string op, string strategy = "ImmediateAttack", string arrival = "EdgeWalkIn", int points = 0, string wall = "", int rifles = 3)
+        private static Pawn fixturePredator;
+
+        [Tool("test/defense_setup", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable defensive-layout fixture: op=terrain|stock|ranged|raid|predator|damage|heal|inspect|quiet.")]
+        public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken, string op, string strategy = "ImmediateAttack", string arrival = "EdgeWalkIn", int points = 0, string wall = "", int rifles = 3, string kind = "Cougar")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap; var player = Faction.OfPlayerSilentFail;
@@ -39,11 +43,12 @@ namespace HomeBridge.BridgeTools
                     case "stock": return Stock(map, center);
                     case "ranged": return Ranged(map, colonists, rifles);
                     case "raid": return Raid(map, strategy, arrival, points);
+                    case "predator": return Predator(map, colonists, kind);
                     case "damage": return Damage(map, wall);
                     case "heal": return Heal(map);
                     case "inspect": return Inspect(map, player);
                     case "quiet": return Quiet();
-                    default: return Refuse("Use terrain, stock, ranged, raid, damage, heal, inspect or quiet.");
+                    default: return Refuse("Use terrain, stock, ranged, raid, predator, damage, heal, inspect or quiet.");
                 }
             }, cancellationToken).ConfigureAwait(false);
         }
@@ -169,6 +174,41 @@ namespace HomeBridge.BridgeTools
             return new { success = applied && added.Count > 0, applied, faction = faction.def.defName, points = parms.points, strategy, arrival, added, tick = Find.TickManager.TicksGame };
         }
 
+        // Predator stages the #157 precondition directly: a wild predator of
+        // the given kind spawned inside the band, a few cells from the first
+        // colonist, already running the game's own PredatorHunt job on that
+        // colonist (the job a hungry cougar starts by itself; RimWorld's
+        // JobDriver_PredatorHunt does the rest). The native census then lists
+        // it under huntingPredators, the clock stops with predator_hunt and
+        // the emergency holds it as an unsafe threat: exactly the state
+        // productionaccept parked in. The predator is starving so the driver
+        // has no reason to abandon the hunt on its own.
+        private static object Predator(Map map, List<Pawn> colonists, string kind)
+        {
+            if (fixturePredator != null && fixturePredator.Spawned && !fixturePredator.Dead && fixturePredator.Map == map)
+                return Refuse("Fixture predator already on the map; inspect it before staging another.");
+            var kindDef = DefDatabase<PawnKindDef>.GetNamedSilentFail(kind);
+            if (kindDef == null || !kindDef.RaceProps.predator) return Refuse("kind must name a predator PawnKindDef.");
+            var prey = colonists.FirstOrDefault(p => !p.Dead && !p.Downed);
+            if (prey == null) return Refuse("No standing colonist to hunt.");
+            var cell = GenRadial.RadialCellsAround(prey.Position, 12, true).FirstOrDefault(c => c.InBounds(map)
+                && c.Standable(map) && !c.Fogged(map) && c.DistanceTo(prey.Position) >= 8
+                && map.reachability.CanReach(c, prey.Position, Verse.AI.PathEndMode.Touch, TraverseMode.NoPassClosedDoors, Danger.Deadly));
+            if (!cell.IsValid) return Refuse("No standable cell 8-12 cells from the prey that reaches it.");
+            var predator = PawnGenerator.GeneratePawn(kindDef, null);
+            GenSpawn.Spawn(predator, cell, map);
+            if (predator.needs?.food != null) predator.needs.food.CurLevelPercentage = 0.02f;
+            var job = JobMaker.MakeJob(JobDefOf.PredatorHunt, prey);
+            job.killIncappedTarget = true;
+            predator.jobs.StartJob(job, Verse.AI.JobCondition.InterruptForced);
+            var hunting = predator.CurJobDef == JobDefOf.PredatorHunt && predator.CurJob?.GetTarget(Verse.AI.TargetIndex.A).Thing == prey;
+            if (!hunting) { predator.Destroy(DestroyMode.Vanish); return Refuse("The predator did not take the PredatorHunt job."); }
+            fixturePredator = predator;
+            return new { success = true, predator = predator.GetUniqueLoadID(), kind = kindDef.defName, bodySize = predator.BodySize,
+                prey = prey.GetUniqueLoadID(), x = cell.x, z = cell.z, distance = cell.DistanceTo(prey.Position),
+                job = predator.CurJobDef.defName, faction = predator.Faction?.def.defName, tick = Find.TickManager.TicksGame };
+        }
+
         private static object Damage(Map map, string wall)
         {
             var target = map.listerBuildings.allBuildingsColonist.FirstOrDefault(b => b.GetUniqueLoadID() == wall);
@@ -219,10 +259,19 @@ namespace HomeBridge.BridgeTools
                 .Select(b => new { id = b.GetUniqueLoadID(), x = b.Position.x, z = b.Position.z, hp = b.HitPoints, max = b.MaxHitPoints }).ToList();
             var colonists = map.mapPawns.FreeColonistsSpawned
                 .Select(p => new { id = p.GetUniqueLoadID(), x = p.Position.x, z = p.Position.z, drafted = p.Drafted, dead = p.Dead, downed = p.Downed }).ToList();
+            // The fixture predator's fate: gone (despawned or destroyed),
+            // dead, downed, or still on the map with its current job.
+            object predator = null;
+            if (fixturePredator != null)
+            {
+                var p = fixturePredator;
+                predator = new { id = p.GetUniqueLoadID(), spawned = p.Spawned && p.Map == map, dead = p.Dead, downed = p.Downed,
+                    job = p.CurJobDef?.defName, x = p.Position.x, z = p.Position.z };
+            }
             // Trap ids let a later inspect tell a destroyed trap (its id is
             // gone) from its replacement (a new id on the same cell).
             var trapIds = traps.Select(t => t.GetUniqueLoadID()).OrderBy(id => id).ToList();
-            return new { success = true, traps = traps.Count, trapIds, sprung, colonistsOnTraps, colonists, hostiles, walls, tick = Find.TickManager.TicksGame, paused = Find.TickManager.Paused };
+            return new { success = true, traps = traps.Count, trapIds, sprung, colonistsOnTraps, colonists, hostiles, predator, walls, tick = Find.TickManager.TicksGame, paused = Find.TickManager.Paused };
         }
 
         // Building_TrapRearmable keeps its armed state private; a trap whose

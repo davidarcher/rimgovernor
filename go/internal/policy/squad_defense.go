@@ -15,7 +15,10 @@ type SquadThreatFacts struct {
 	Humanlike, Animal domain.Fact[bool]
 	BodySize          domain.Fact[float64]
 	Manhunter         domain.Fact[bool]
-	RangedEquipped    domain.Fact[bool]
+	// Hunting is an animal the emergency census lists as hunting a colonist;
+	// unknown counts as not hunting.
+	Hunting        domain.Fact[bool]
+	RangedEquipped domain.Fact[bool]
 }
 
 // SquadDefenderFacts describes one candidate defender. Health/NeedsTend mirror
@@ -101,7 +104,8 @@ func SelectSquadDefense(threats []SquadThreatFacts, defenders []SquadDefenderFac
 		}
 		size, sk := t.BodySize.Value()
 		manhunter, mk := t.Manhunter.Value()
-		if !sk || !mk || !manhunter {
+		hunting, _ := t.Hunting.Value()
+		if !sk || !mk || !manhunter && !hunting {
 			return false
 		}
 		return size > 0 && size <= 4

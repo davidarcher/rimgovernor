@@ -9,7 +9,14 @@
 // (chosen strategy and arrival) is then raised and the RoutineDefensePlanner
 // must respond with hold-the-line (method "hold-…") for an ordinary edge
 // assault, or with squad defense ("squad-…") when the raid bypasses the line
-// (-strategy ImmediateAttackSappers or -arrival CenterDrop). For the edge
+// (-strategy ImmediateAttackSappers or -arrival CenterDrop). With
+// -threat predator the incident is instead a wild predator the fixture
+// spawns inside the band already hunting a colonist (#157): the clock stops
+// with predator_hunt, the emergency holds the hunt as an unsafe threat, and
+// the RoutineDefensePlanner must answer it with squad defense; the run then
+// waits for the hunt to resolve under the service (the predator dead,
+// downed or gone, the ActiveCombat goal recovered, the drafts released) and
+// for the clock to resume colony windows afterwards. For the edge
 // raid the service then holds the raid itself -- the scheduler admits
 // bounded combat watch windows acknowledging the live hostiles while the
 // ActiveCombat goal has an admitted plan (#69) -- and the run waits for the
@@ -63,6 +70,8 @@ func main() {
 	strategy := flag.String("strategy", "ImmediateAttack", "RaidStrategyDef for the raid (ImmediateAttack, ImmediateAttackSappers, ...)")
 	arrival := flag.String("arrival", "EdgeWalkIn", "PawnsArrivalModeDef for the raid (EdgeWalkIn, CenterDrop, ...)")
 	bypass := flag.Bool("bypass", false, "the raid bypasses the line: expect squad defense, not hold-the-line, and skip the trap-trigger wait")
+	threat := flag.String("threat", "raid", "raid (a RaidEnemy incident) or predator (a wild predator hunting a colonist, #157: expects squad defense, then the hunt resolved and the clock resumed)")
+	predatorKind := flag.String("predator", "Cougar", "predator PawnKindDef for -threat predator")
 	layoutTimeout := flag.Duration("layout-timeout", 20*time.Minute, "budget for the layout to be built natively")
 	raidTimeout := flag.Duration("raid-timeout", 8*time.Minute, "budget for the raid response and resolution")
 	repairTimeout := flag.Duration("repair-timeout", 15*time.Minute, "budget for the post-raid draft release and layout repair (raid injuries are tended first: CriticalMedical suspends the layout goal)")
@@ -93,6 +102,10 @@ func main() {
 		"and after an edge raid the defenders are undrafted and the layout is repaired to its audited state (#72).", !*rendered)
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
+	if *threat != "raid" && *threat != "predator" {
+		fmt.Fprintln(os.Stderr, "-threat must be raid or predator")
+		os.Exit(2)
+	}
 	if *checkpoint != "" && *fromCheckpoint != "" {
 		fmt.Fprintln(os.Stderr, "-checkpoint and -from-checkpoint are exclusive")
 		os.Exit(2)
@@ -100,7 +113,7 @@ func main() {
 	if *fromCheckpoint != "" {
 		*save = *fromCheckpoint
 	}
-	opts := options{strategy: *strategy, arrival: *arrival, save: *save, bypass: *bypass, layoutTimeout: *layoutTimeout, raidTimeout: *raidTimeout, repairTimeout: *repairTimeout, repairTicks: *repairTicks, checkpoint: *checkpoint, fromCheckpoint: *fromCheckpoint, checkpoints: *checkpoints}
+	opts := options{strategy: *strategy, arrival: *arrival, save: *save, bypass: *bypass, threat: *threat, predatorKind: *predatorKind, layoutTimeout: *layoutTimeout, raidTimeout: *raidTimeout, repairTimeout: *repairTimeout, repairTicks: *repairTicks, checkpoint: *checkpoint, fromCheckpoint: *fromCheckpoint, checkpoints: *checkpoints}
 	if opts.fromCheckpoint != "" {
 		if err := stageCheckpoint(*root, opts.checkpoints, opts.fromCheckpoint); err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -118,6 +131,9 @@ func main() {
 type options struct {
 	strategy, arrival, save    string
 	bypass                     bool
+	// threat is the incident staged after the layout: "raid" or
+	// "predator" (a wild predatorKind hunting a colonist, #157).
+	threat, predatorKind string
 	layoutTimeout, raidTimeout time.Duration
 	// repairTimeout bounds the post-raid wait in wall time; repairTicks
 	// bounds it in game ticks from the tick the ActiveCombat goal recovered.
@@ -271,7 +287,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 		return fmt.Errorf("hash rimgovernor binary: %w", err)
 	}
 	report["rimgovernor_binary"] = map[string]string{"path": rimgovernorBinary, "sha256": binarySHA}
-	report["raid"] = map[string]any{"strategy": opts.strategy, "arrival": opts.arrival, "bypass": opts.bypass}
+	report["raid"] = map[string]any{"strategy": opts.strategy, "arrival": opts.arrival, "bypass": opts.bypass, "threat": opts.threat}
 
 	// Whatever happens after the game starts, end the hold on it exactly
 	// once at the end (games_stop, or the main menu under na.KeepGameEnv) so
@@ -528,6 +544,15 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 		report["checkpoint"] = map[string]any{"name": opts.checkpoint, "path": checkpointPath(root, opts.checkpoint), "committed": opts.checkpoints}
 	}
 
+	if opts.threat == "predator" {
+		// The fixture closure reads h; reopening must rebind it here.
+		reopenFixture := func() error {
+			var err error
+			h, err = reopenHarness()
+			return err
+		}
+		return runPredator(ctx, cfg, headless, closeClient, reopenFixture, fixture, launch, layout, opts, report)
+	}
 	// Scenario 2/3: a real raid.
 	raid, err := fixture("raid", map[string]any{"op": "raid", "strategy": opts.strategy, "arrival": opts.arrival})
 	if err != nil {
@@ -585,7 +610,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 		// planner re-verifies the record after the combat epoch, re-opens
 		// every tier that lost a building and rebuilds it.
 		resolvedTick, _ := resolved["resolved_tick"].(int64)
-		released, err := waitDefendersReleased(ctx, svc.store, method.Plan, svc.wait(opts.repairTimeout))
+		released, err := waitDefendersReleased(ctx, svc.store, method.Plan, "hold-", svc.wait(opts.repairTimeout))
 		report["defenders_released"] = released
 		if err != nil {
 			return fmt.Errorf("draft release after raid: %w", err)
@@ -1147,6 +1172,226 @@ func waitRaidResolved(ctx context.Context, s *store.Store, first domain.PlanID, 
 	return out, nil
 }
 
+// runPredator is the -threat predator scenario (#157) after the layout is in
+// place: the fixture spawns a wild predator inside the band already hunting a
+// colonist, the service must answer it with squad defense (the census lists
+// it under huntingPredators, not hostiles: the planner has to admit a
+// hunting predator on its own), fight it through bounded combat windows
+// until the ActiveCombat goal recovers, release the drafts and resume
+// colony windows. Natively the predator must be dead, downed or gone and no
+// colonist dead or drafted.
+func runPredator(ctx context.Context, cfg *na.Config, headless bool, closeClient func() error, reopenHarness func() error,
+	fixture func(string, map[string]any) (map[string]any, error), launch func(string) (*service, error),
+	layout store.DefenseLayoutRecord, opts options, report na.Report) error {
+	staged, err := fixture("predator", map[string]any{"op": "predator", "kind": opts.predatorKind})
+	if err != nil {
+		return err
+	}
+	report["predator_incident"] = staged
+	predatorID := na.AsString(staged["predator"])
+	if predatorID == "" || na.AsString(staged["job"]) != "PredatorHunt" {
+		return fmt.Errorf("predator fixture did not stage a hunt: %#v", staged)
+	}
+	if err := closeClient(); err != nil {
+		return err
+	}
+	svc, err := launch("predator")
+	if err != nil {
+		return err
+	}
+	defer svc.stop()
+	method, err := waitCombatMethod(ctx, svc.store, svc.wait(opts.raidTimeout), report)
+	if err != nil {
+		return fmt.Errorf("combat response: %w", err)
+	}
+	if !strings.HasPrefix(string(method.Method), "squad-") {
+		return fmt.Errorf("combat method %q, expected prefix %q", method.Method, "squad-")
+	}
+	plan, err := svc.store.LoadPlan(ctx, method.Plan)
+	if err != nil {
+		return err
+	}
+	if err := assertNoLinePosition(plan.Spec, layout); err != nil {
+		return err
+	}
+	if err := assertSquadTargets(plan.Spec, predatorID); err != nil {
+		return err
+	}
+	resolved, err := waitHuntResolved(ctx, svc.store, svc.wait(opts.raidTimeout))
+	report["hunt_resolution"] = resolved
+	if err != nil {
+		return fmt.Errorf("hunt resolution: %w", err)
+	}
+	released, err := waitDefendersReleased(ctx, svc.store, method.Plan, "squad-", svc.wait(opts.raidTimeout))
+	report["defenders_released"] = released
+	if err != nil {
+		return fmt.Errorf("draft release after hunt: %w", err)
+	}
+	resumed, err := waitClockResumed(ctx, svc.store, svc.wait(opts.raidTimeout))
+	report["clock_resumed"] = resumed
+	if err != nil {
+		return fmt.Errorf("clock after hunt: %w", err)
+	}
+	svc.stop()
+	report["raid_authority"] = svc.keepAlive.snapshot()
+	if err := reopenHarness(); err != nil {
+		return err
+	}
+	final, err := fixture("inspect-after-hunt", map[string]any{"op": "inspect"})
+	if err != nil {
+		return err
+	}
+	report["inspect_after_hunt"] = final
+	predator, _ := na.AsMap(final["predator"])
+	if na.AsString(predator["id"]) != predatorID {
+		return fmt.Errorf("inspect lost the fixture predator: %#v", final)
+	}
+	spawned, _ := na.AsBool(predator["spawned"])
+	dead, _ := na.AsBool(predator["dead"])
+	downed, _ := na.AsBool(predator["downed"])
+	if spawned && !dead && !downed {
+		return fmt.Errorf("predator still up after the hunt resolved: %#v", predator)
+	}
+	for _, raw := range na.AsSlice(final["colonists"]) {
+		row, _ := na.AsMap(raw)
+		if dead, _ := na.AsBool(row["dead"]); dead {
+			return fmt.Errorf("colonist %s died to the predator", na.AsString(row["id"]))
+		}
+		if drafted, _ := na.AsBool(row["drafted"]); drafted {
+			return fmt.Errorf("colonist %s still drafted after the hunt resolved", na.AsString(row["id"]))
+		}
+	}
+	logData, err := os.ReadFile(cfg.StartupLogPath())
+	if err != nil {
+		return fmt.Errorf("read startup log: %w", err)
+	}
+	return na.CheckStartupLog(string(logData), headless)
+}
+
+// assertSquadTargets requires every attack in the squad plan to target the
+// fixture predator: the only threat on the map is the hunting predator.
+func assertSquadTargets(spec domain.PlanSpec, predatorID string) error {
+	attacks := 0
+	for _, action := range spec.Actions() {
+		target := ""
+		if a, ok := action.RangedAttack(); ok {
+			target = string(a.Target())
+		} else if a, ok := action.MeleeAttack(); ok {
+			target = string(a.Target())
+		} else {
+			continue
+		}
+		attacks++
+		if target != predatorID {
+			return fmt.Errorf("squad plan %s attacks %s, not the hunting predator %s", spec.ID(), target, predatorID)
+		}
+	}
+	if attacks == 0 {
+		return fmt.Errorf("squad plan %s has no attack action", spec.ID())
+	}
+	return nil
+}
+
+// waitHuntResolved polls the journal while the service fights the predator:
+// at least one combat window must have run, and the ActiveCombat goal must
+// have recovered or be unbound.
+func waitHuntResolved(ctx context.Context, s *store.Store, w na.Wait) (map[string]any, error) {
+	out := map[string]any{}
+	err := na.WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
+		combatWindows, colonyWindows, acknowledged, err := clockWindows(ctx, s)
+		if err != nil {
+			return "", false, err
+		}
+		out["combat_windows"] = combatWindows
+		out["colony_windows"] = colonyWindows
+		out["last_acknowledged_hostiles"] = acknowledged
+		review, err := s.LoadRoutineReview(ctx)
+		if err != nil {
+			return "", false, err
+		}
+		bound, need := false, ""
+		for _, binding := range review.Goals {
+			if binding.Need != policy.ActiveCombat {
+				continue
+			}
+			bound = true
+			goal, err := s.LoadGoal(ctx, binding.Goal)
+			if err != nil && !errors.Is(err, store.ErrNotFound) {
+				return "", false, err
+			}
+			need = string(goal.Goal.Need)
+		}
+		out["combat_goal_bound"] = bound
+		out["combat_goal_need"] = need
+		out["resolved_tick"] = int64(review.Tick)
+		if combatWindows > 0 && (!bound || need == string(domain.NeedRecovered)) {
+			return "", true, nil
+		}
+		return na.Signature(combatWindows, colonyWindows, bound, need), false, nil
+	})
+	if err != nil {
+		return out, fmt.Errorf("hunt not resolved under the service (%#v): %w", out, err)
+	}
+	return out, nil
+}
+
+// waitClockResumed waits for a colony (non-combat) window applied after the
+// last combat window: the clock is back to routine play, not parked on the
+// hunt's hold.
+func waitClockResumed(ctx context.Context, s *store.Store, w na.Wait) (map[string]any, error) {
+	out := map[string]any{}
+	err := na.WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
+		attempts, err := s.LoadClockAttempts(ctx, 4096)
+		if err != nil {
+			return "", false, err
+		}
+		lastCombat, lastColony := -1, -1
+		for i, a := range attempts {
+			start := a.Intent.Command.Start
+			if start == nil || a.Phase != store.ClockApplied {
+				continue
+			}
+			if start.Policy.GetMode() == k.WatchMode_WATCH_MODE_COMBAT {
+				lastCombat = i
+			} else {
+				lastColony = i
+			}
+		}
+		out["last_combat_window"] = lastCombat
+		out["last_colony_window"] = lastColony
+		if lastCombat >= 0 && lastColony > lastCombat {
+			return "", true, nil
+		}
+		return na.Signature(lastCombat, lastColony), false, nil
+	})
+	if err != nil {
+		return out, fmt.Errorf("no colony window after the combat windows (%#v): %w", out, err)
+	}
+	return out, nil
+}
+
+// clockWindows counts the applied combat and colony windows in the journal
+// and returns the hostiles the last combat window acknowledged.
+func clockWindows(ctx context.Context, s *store.Store) (combat, colony int, acknowledged []string, err error) {
+	attempts, err := s.LoadClockAttempts(ctx, 4096)
+	if err != nil {
+		return 0, 0, nil, err
+	}
+	for _, a := range attempts {
+		start := a.Intent.Command.Start
+		if start == nil || a.Phase != store.ClockApplied {
+			continue
+		}
+		if start.Policy.GetMode() == k.WatchMode_WATCH_MODE_COMBAT {
+			combat++
+			acknowledged = start.Policy.AcknowledgedHostileIds
+		} else {
+			colony++
+		}
+	}
+	return combat, colony, acknowledged, nil
+}
+
 // trapIDDelta compares the trap ids of two fixture inspects: ids only in
 // before were destroyed (sprung), ids only in after are replacements.
 func trapIDDelta(before, after map[string]any) (sprung, rebuilt []string) {
@@ -1177,7 +1422,7 @@ func trapIDDelta(before, after map[string]any) (sprung, rebuilt []string) {
 // released or superseded: the recovered ActiveCombat goal no longer
 // authorizes the plan, so the worker's draft cleanup returns each defender
 // to colony work. Drafts never dispatched have nothing to release.
-func waitDefendersReleased(ctx context.Context, s *store.Store, first domain.PlanID, w na.Wait) (map[string]any, error) {
+func waitDefendersReleased(ctx context.Context, s *store.Store, first domain.PlanID, prefix string, w na.Wait) (map[string]any, error) {
 	out := map[string]any{}
 	err := na.WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
 		plans := map[domain.PlanID]bool{first: true}
@@ -1194,7 +1439,7 @@ func waitDefendersReleased(ctx context.Context, s *store.Store, first domain.Pla
 				return "", false, err
 			}
 			for _, m := range goal.Methods {
-				if strings.HasPrefix(string(m.Method), "hold-") {
+				if strings.HasPrefix(string(m.Method), prefix) {
 					plans[m.Plan] = true
 				}
 			}

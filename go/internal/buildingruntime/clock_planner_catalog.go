@@ -292,6 +292,7 @@ var plannerCatalog = []plannerEntry{
 			if err != nil {
 				return err
 			}
+			clockSchedulerLog("Defense.step result: reason=%v plan=%v", method.Reason, method.Plan)
 			out.Defense = &method
 			return nil
 		}},

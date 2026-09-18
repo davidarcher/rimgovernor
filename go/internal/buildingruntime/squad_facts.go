@@ -39,6 +39,11 @@ func squadThreatFacts(row *n.PawnState) policy.SquadThreatFacts {
 		facts.Animal = domain.Known(row.GetAnimal())
 	}
 	facts.RangedEquipped = ranged.RangedWeaponEquipped(row.Equipment)
+	// A wild animal has no equipment tracker (the equipped field reads as a
+	// missing native component); it carries no ranged weapon either way.
+	if _, known := facts.RangedEquipped.Value(); !known && facts.Animal == domain.Known(true) {
+		facts.RangedEquipped = domain.Known(false)
+	}
 	facts.Manhunter = manhunterFact(row.MentalState, row.Issues)
 	if animal := row.AnimalState; animal != nil && animal.BodySize != nil && !boundary.IssueField(animal.Issues, "body_size") {
 		facts.BodySize = domain.Known(animal.GetBodySize())

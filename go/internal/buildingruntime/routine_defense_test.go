@@ -173,3 +173,18 @@ func TestOrphanedDraftDependentsAfterDraftRelease(t *testing.T) {
 		}
 	}
 }
+
+func TestDefenseTargetsIncludeANearHuntingPredator(t *testing.T) {
+	t.Parallel()
+	threats := []policy.EmergencyThreat{
+		{ID: "raider", Kind: policy.Hostile},
+		{ID: "bear", Kind: policy.HuntingPredator, Animal: domain.Known(true), Distance: domain.Known(12.0)},
+		{ID: "far-cougar", Kind: policy.HuntingPredator, Animal: domain.Known(true), Distance: domain.Known(policy.DistantThreatCells)},
+		{ID: "wolf", Kind: policy.NearbyPredator, Animal: domain.Known(true), Distance: domain.Known(5.0)},
+		{ID: "hunter", Kind: policy.IgnoredHunter, Animal: domain.Known(true), Distance: domain.Known(5.0)},
+	}
+	got, hunting := defenseTargets(threats)
+	if len(got) != 2 || got[0] != "raider" || got[1] != "bear" || hunting["raider"] || !hunting["bear"] {
+		t.Fatal(got, hunting)
+	}
+}

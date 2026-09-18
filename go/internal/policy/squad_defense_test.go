@@ -118,6 +118,16 @@ func TestSelectSquadDefenseAdmitsSmallManhunterAnimal(t *testing.T) {
 	}
 }
 
+func TestSelectSquadDefenseAdmitsAHuntingPredator(t *testing.T) {
+	bear := squadAnimalThreat("bear", 2.15, false)
+	bear.Hunting = domain.Known(true)
+	defenders := []SquadDefenderFacts{squadDefender("a", false), squadDefender("b", false)}
+	assignments, ok := SelectSquadDefense([]SquadThreatFacts{bear}, defenders)
+	if !ok || len(assignments) != 2 || assignments[0].Target != "bear" {
+		t.Fatal(assignments, ok)
+	}
+}
+
 func TestSelectSquadDefenseExcludesNonManhunterAnimal(t *testing.T) {
 	threats := []SquadThreatFacts{squadAnimalThreat("deer", 1.4, false)}
 	defenders := []SquadDefenderFacts{squadDefender("a", false), squadDefender("b", false)}

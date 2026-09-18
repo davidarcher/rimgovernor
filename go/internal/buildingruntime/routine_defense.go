@@ -111,12 +111,7 @@ func (r *RoutineDefensePlanner) step(call, epoch context.Context, arbiter *stepA
 	if !ck || !colonistsComplete || !tk || !threatsComplete {
 		return RoutineDefenseResult{Reason: BuildingMethodUsed}, nil
 	}
-	var hostileIDs []string
-	for _, threat := range emergency.Facts.Threats {
-		if threat.Kind == policy.Hostile {
-			hostileIDs = append(hostileIDs, string(threat.ID))
-		}
-	}
+	hostileIDs, hunting := defenseTargets(emergency.Facts.Threats)
 	if len(emergency.Facts.Colonists) == 0 || len(hostileIDs) == 0 {
 		return RoutineDefenseResult{Reason: BuildingMethodUsed}, nil
 	}
@@ -170,7 +165,9 @@ func (r *RoutineDefensePlanner) step(call, epoch context.Context, arbiter *stepA
 		if row == nil {
 			return RoutineDefenseResult{}, ErrControl
 		}
-		threats = append(threats, squadThreatFacts(row))
+		facts := squadThreatFacts(row)
+		facts.Hunting = domain.Known(hunting[id])
+		threats = append(threats, facts)
 	}
 	// A complete defensive layout against an ordinary edge assault sends the
 	// ranged line to its firing cells first; anything else is squad defense.
@@ -431,4 +428,24 @@ func orphanedDraftDependents(spec domain.PlanSpec, progress []domain.Progress) [
 		}
 	}
 	return out
+}
+
+// defenseTargets are the threats squad defense answers: every hostile, and a
+// predator hunting a colonist that the emergency holds the clock for (a
+// distant one is watched by the native supervisor instead), reported in the
+// hunting set. Without the predator here the hold has no planner and
+// autonomous play parks until the hunt ends on its own.
+func defenseTargets(threats []policy.EmergencyThreat) ([]string, map[string]bool) {
+	var ids []string
+	hunting := map[string]bool{}
+	for _, threat := range threats {
+		switch {
+		case threat.Kind == policy.Hostile:
+			ids = append(ids, string(threat.ID))
+		case threat.Kind == policy.HuntingPredator && !threat.DistantThreat():
+			ids = append(ids, string(threat.ID))
+			hunting[string(threat.ID)] = true
+		}
+	}
+	return ids, hunting
 }

@@ -23,6 +23,16 @@ func TestSquadThreatFactsAnimalManhunterBodySize(t *testing.T) {
 	if manhunter, ok := facts.Manhunter.Value(); !ok || !manhunter {
 		t.Fatal("manhunter not decoded", facts.Manhunter)
 	}
+	// A wild animal's equipment reads as a missing native component; it
+	// still counts as unarmed, or squad defense could never target it.
+	row.Equipment = &o.PawnEquipment{Issues: []*o.ReadIssue{{Field: proto.String("equipped"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NATIVE_COMPONENT_MISSING.Enum()}}}}
+	if ranged, ok := squadThreatFacts(row).RangedEquipped.Value(); !ok || ranged {
+		t.Fatal("animal must read as not ranged-equipped", facts.RangedEquipped)
+	}
+	row.Animal = nil
+	if _, ok := squadThreatFacts(row).RangedEquipped.Value(); ok {
+		t.Fatal("unknown kind must keep the equipment unknown")
+	}
 }
 
 func TestSquadThreatFactsNonManhunterMentalStateKnownFalse(t *testing.T) {
