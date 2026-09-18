@@ -438,6 +438,13 @@ crosses it, listed under `home/runtime_health` `journal.corruptRows`, and
 the journal keeps appending after it. `lifecycle/runtime-fault` injects
 both faults (`RuntimeFaultFixture`: `test/runtime_fault_unpatch`,
 `test/runtime_fault_corrupt_row`) and asserts the recovery.
+`smoke/dispatch` (#227) is the transport regression: `home/runtime_health`
+reports `extensionDispatch` installed with every discovered companion tool
+rewrapped by `ExtensionDispatchPatch` (RimBridgeServer 2.1.1 registers
+companion tools with Lib.GAB as synchronous handlers on the GABP reader,
+so a held read blocked every later call, #115), and an identity read
+issued under a 4s held `clock_read_events` returns in a round trip (60ms
+measured; 3.8s on the unpatched host). About 15s on a kept process.
 The `authority/warm` case (below) is the regression: its second phase
 prepares the profile again the way a second run would, attaches to the
 kept process, pages the journal from cursor 0 and holds a fresh Auto

@@ -12,8 +12,8 @@ namespace HomeBridge.BridgeTools
     /// <summary>
     /// Read-only native runtime health: every required authority hook by
     /// name with whether it is in place and why not, the typed clock hooks,
-    /// the clock event journal's damaged rows and the current game's
-    /// authority snapshot. Reads never install a hook;
+    /// the clock event journal's damaged rows, the extension dispatch patch
+    /// (#227) and the current game's authority snapshot. Reads never install a hook;
     /// installation is retried by the next admission or update poll. A caller
     /// uses this to tell "retry" (a hook missing, generation still advancing)
     /// from "restart required" (a hook whose target cannot be resolved at all).
@@ -27,6 +27,7 @@ namespace HomeBridge.BridgeTools
             {
                 var hooks = NativeAuthorityHooks.Statuses;
                 var health = NativeAuthorityHooks.Health;
+                var dispatch = ExtensionDispatchPatch.Status;
                 object? authority = null;
                 var game = Current.Game;
                 NativeControlAuthority? state;
@@ -52,6 +53,11 @@ namespace HomeBridge.BridgeTools
                     // clock_read_events (a gap the controller holds on) and
                     // stay listed here for the life of the process.
                     journal = Supervisor.JournalHealth(),
+                    // #227: companion tools dispatched off the GABP reader.
+                    // false means every native call is serial on the host
+                    // again, which is a restart-required fault to fix in
+                    // the mod, not something a retry recovers.
+                    extensionDispatch = new { installed = dispatch.Installed, rewrapped = dispatch.Rewrapped, hostVersion = dispatch.HostVersion, error = dispatch.Error },
                     authority
                 };
             }, cancellationToken).ConfigureAwait(false);

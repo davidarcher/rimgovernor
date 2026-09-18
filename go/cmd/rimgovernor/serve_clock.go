@@ -166,6 +166,12 @@ func serviceClockTimeouts(callTimeout time.Duration) serviceClockTimeoutConfig {
 	// bounds how long a stop waits to be seen at one short read per
 	// cadence, and between windows it keeps the PollInterval cadence, off
 	// the planners' reads.
+	//
+	// Since #227 the companion re-registers its tools off the reader
+	// (ExtensionDispatchPatch; smoke/dispatch measures a read under a held
+	// poll), so a held read no longer stalls the calls behind it. Turning
+	// PollWait back on is the follow-up, gated on the serve-driven cases
+	// under that build.
 	return serviceClockTimeoutConfig{Poll: lease, Renew: lease, Step: serviceClockStepTimeout, PollWait: 0, RunningPoll: serviceClockRunningPoll}
 }
 
