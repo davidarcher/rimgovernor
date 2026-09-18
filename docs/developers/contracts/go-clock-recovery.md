@@ -430,7 +430,7 @@ since the last admission the worker reported tried
 (`WakeSignal.PauseProgressed`, #211) and by `clockPauseDrainTotal` (2 min)
 in all, so a backlog of pause-bound actions lands in one stop; a window
 admitted before that would watch the settled attempt again, which the native
-clock never re-latches, and run out its whole budget (issue #162).
+clock never re-latches, and run out its whole budget (issue #162). The converse is a watched-kind attempt dispatched after a window was armed: a step that sees the epoch running and such an attempt outside its watch list (and the list under the native bound) pauses the epoch through the cleanup path and reports `Cleaned` with `Rearmed`, so the step loop steps again at once and re-admits with the attempt watched (#207).
 
 `StepReason.Cause` is `timer`, `wake`, `settled` or `full`. The planners the
 scheduler queues are the `plannerCatalog` entries `plannerSelection` picks:

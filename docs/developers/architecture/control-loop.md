@@ -55,7 +55,12 @@ wall does not play out the rest of its tick budget before the controller
 notices. The scheduler arms the dispatched construction and haul attempts of
 the window (the families whose native operation records observe their own
 terminal outcome, at most 16); immediate designations have nothing to
-watch. Authority changes observed while no epoch is running are journaled as
+watch. The watch list is fixed at Start, so a step that finds the window
+running while the plan shows a dispatched construction or haul attempt the
+epoch does not watch (the worker released a hold mid-window) pauses the epoch
+(`ClockSchedulerResult.Rearmed`); the next step settles it, reviews and admits
+a window that watches the attempt instead of letting the old one run out its
+whole budget (#207). Authority changes observed while no epoch is running are journaled as
 owner-less `AuthorityChanged` rows so a waiting poll learns of them at once.
 
 Each scheduler step carries the reason it ran, and the reason selects the

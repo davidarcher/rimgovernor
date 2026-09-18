@@ -166,6 +166,10 @@ type ClockSchedulerResult struct {
 	Naming                           *RoutineNamingResult
 	Dialog                           *RoutineDialogResult
 	Running, Reconciled, Cleaned     bool
+	// Rearmed is set with Cleaned when the step paused its own running
+	// window because work of a watched kind had been dispatched after the
+	// window was armed (#207); the next step admits a window that watches it.
+	Rearmed bool
 	// Deferred is set when the step admitted nothing because the Worker
 	// has yet to reconcile an attempt whose terminal outcome the clock
 	// latched; the step loop steps again at once (issue #162).
@@ -654,6 +658,24 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 			out.Combat = false
 			return out, executor.ErrHeld
 		}
+		if status.GetRunning() != nil {
+			unwatched, err := s.unwatchedWork(call, state.Snapshot, actual)
+			if err != nil {
+				return out, err
+			}
+			if len(unwatched) > 0 {
+				// Work of a watched kind was dispatched after this window
+				// started (the Worker released a hold mid-window), so the
+				// window cannot stop on its outcome and would run out its
+				// whole tick budget with the routine review frozen at its
+				// admission tick (#207). Pause the epoch; the next step
+				// settles it, reviews and admits a window that watches it.
+				clockSchedulerLog("window watches none of %v dispatched since it started -> pausing to re-arm", unwatched)
+				out.Cleaned = true
+				out.Rearmed = true
+				return out, s.session.CleanupClockObserved(call, status)
+			}
+		}
 		out.Running = true
 		s.running.Store(status.GetRunning() != nil)
 		clockSchedulerLog("clock already running under our own epoch -> skip planners this tick")
@@ -1037,6 +1059,41 @@ func clockSchedulerWatches(items []clockWorkItem, namespace string) []*c.Attempt
 		watched = append(watched, &c.AttemptKey{ControllerSessionId: proto.String(namespace), ActionId: proto.String(string(item.Action)), AttemptId: proto.Uint64(uint64(item.Attempt))})
 	}
 	return watched
+}
+
+// unwatchedWork names the current plan's dispatched attempts of a watched
+// kind that the running epoch does not watch: work the Worker dispatched
+// after the window was armed. It is empty when the epoch's watch list is
+// already at the native bound (more attempts than that go unwatched by
+// design) or when the plan no longer matches the admitted snapshot (the
+// admission tail reports that as evidence on its own).
+func (s *ClockScheduler) unwatchedWork(call context.Context, snapshot domain.GenerationSnapshot, epoch *k.Epoch) ([]domain.ActionID, error) {
+	watched := epoch.GetPolicy().GetWatchedAttempts()
+	if len(watched) >= bridge.ClockWatchedAttemptsMax {
+		return nil, nil
+	}
+	plan, err := s.player.journal.LoadPlan(call, snapshot.Plan)
+	if err != nil {
+		return nil, err
+	}
+	_, items, err := clockSchedulerWork(plan, snapshot)
+	if err != nil {
+		return nil, nil
+	}
+	armed := map[string]bool{}
+	for _, key := range watched {
+		armed[fmt.Sprintf("%s/%d", key.GetActionId(), key.GetAttemptId())] = true
+	}
+	var missing []domain.ActionID
+	for _, item := range items {
+		if !clockWatchedKind(item.Kind) || item.Attempt == 0 || item.Stage != domain.Dispatched && item.Stage != domain.AwaitingObservation {
+			continue
+		}
+		if !armed[fmt.Sprintf("%s/%d", item.Action, item.Attempt)] {
+			missing = append(missing, item.Action)
+		}
+	}
+	return missing, nil
 }
 
 // clockWatchedKind reports whether the native clock keeps an operation

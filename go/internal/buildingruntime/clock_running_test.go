@@ -300,3 +300,54 @@ func TestClockWorkerPollsFasterUnderARunningWindow(t *testing.T) {
 		t.Fatal("idle cadence", gap)
 	}
 }
+
+// Work of a watched kind dispatched after a window was armed cannot stop
+// that window: the native watch list is fixed at Start. A running step that
+// finds such an attempt in the plan pauses its own epoch, so the next step
+// settles it and admits a window that watches the attempt, instead of
+// letting the window run out its whole budget with the routine review
+// frozen at its admission tick (#207).
+func TestClockSchedulerPausesARunningWindowToWatchWorkDispatchedSinceItStarted(t *testing.T) {
+	t.Parallel()
+	s, f := schedulerFixture(t)
+	ctx := context.Background()
+	got, err := s.Step(ctx)
+	if err != nil || got.Attempt == nil || got.Attempt.Phase != store.ClockApplied || got.Watched != 0 {
+		t.Fatal(got, err)
+	}
+	if got, err = s.Step(ctx); err != nil || !got.Running || got.Rearmed || f.pauses != 0 {
+		t.Fatal(got, err, f.pauses)
+	}
+	// The Worker dispatches the plan's building action mid-window.
+	snapshot := s.session.State().Snapshot
+	state, err := s.player.journal.LoadPlan(ctx, snapshot.Plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	action := state.Progress[0].Action()
+	building, _ := action.Building()
+	if _, err = s.player.journal.ReserveAndPrepare(ctx, snapshot.Plan, action.ID(), store.Admission{Snapshot: snapshot, Tick: 1, Costs: []store.MaterialCost{}, Footprint: []domain.Cell{building.Cell()}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.player.journal.Dispatch(ctx, snapshot.Plan, action.ID(), snapshot, 1); err != nil {
+		t.Fatal(err)
+	}
+	got, err = s.Step(ctx)
+	if err != nil || !got.Cleaned || !got.Rearmed || got.Running || s.WindowRunning() || f.pauses != 1 {
+		t.Fatal(got, err, s.WindowRunning(), f.pauses)
+	}
+	epochs, err := s.player.journal.LoadClockEpochs(ctx, 16)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, owned := range epochs {
+		if !clockCoordinatorTerminal(owned.Stage) {
+			t.Fatal("epoch still owed", owned)
+		}
+	}
+	// The settled step reviews and reaches admission (the fixture's paused
+	// status facts refuse the window itself) without another pause.
+	if got, err = s.StepWithReason(ctx, StepReason{Cause: StepSettled}); !errors.Is(err, executor.ErrHeld) || got.Cleaned || got.Rearmed || f.pauses != 1 {
+		t.Fatal(got, err, f.pauses)
+	}
+}
