@@ -95,29 +95,8 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 		output = abs
 	}
 	cfg := &na.Config{Root: root, Output: output, Headless: headless, GameID: gameID}
-	if err := cfg.PrepareConfig(); err != nil {
-		return fmt.Errorf("prepare profile: %w", err)
-	}
-	game, err := cfg.GameSection()
-	if err != nil {
-		return err
-	}
-	files, err := na.PackageFiles(fmt.Sprint(game["workingDir"]))
-	if err != nil {
-		return err
-	}
-	report["package_files"] = files
-	gabsExecutable, err := na.GABSExecutable(root, cfg.Configuration)
-	if err != nil {
-		return err
-	}
-	held, err := na.OpenGame(ctx, cfg)
-	if err != nil {
-		return err
-	}
-	client := held.Client
-	h := na.NewHarness(client, output)
 	var service *na.ServiceProcess
+	var s *na.Session
 	// postmortem is the identity the failure path reads the food census
 	// under once the fixture exists; nil until then.
 	var postmortem map[string]any
@@ -132,7 +111,8 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 		}
 		stopCtx, stopCancel := context.WithTimeout(context.Background(), 90*time.Second)
 		defer stopCancel()
-		if _, err := held.Reattach(stopCtx); err != nil {
+		ph, err := s.Reattach(stopCtx)
+		if err != nil {
 			report["stop_error"] = "reopen session for games_stop: " + err.Error()
 			return
 		}
@@ -141,7 +121,6 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 		// (stock hauled out, rotted, or genuinely chilled).
 		if postmortem != nil {
 			if _, hasAfter := report["food_after"]; !hasAfter {
-				ph := na.NewHarness(held.Client, output)
 				if after, err := readFoodStorage(stopCtx, ph, postmortem, "food-postmortem"); err == nil {
 					report["food_postmortem"] = after.evidence()
 				} else {
@@ -158,49 +137,21 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 				}
 			}
 		}
-		held.Close(report)
+		s.Close()
+	}
+
+	s, err := na.OpenSession(ctx, cfg, report, na.Fixture{Op: "test/refrigeration_prepare", Args: map[string]any{
+		"existingCooler": scenario != "build", "disconnected": scenario == "power", "roomTemperatureC": 30,
+	}}, na.QuietRequired)
+	if err != nil {
+		return err
 	}
 	defer stopGame()
-
-	if _, err := na.StartDebugGame(ctx, h, nil, na.QuietRequired); err != nil {
-		return err
-	}
-	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
-		return err
-	}
+	h, identity, prepared := s.Harness, s.Identity, s.Prepared
+	postmortem = identity
 	if err := confirmColonyNames(ctx, h, report); err != nil {
 		return err
 	}
-	identityReply, err := h.Wire(ctx, "identity", "lifecycle_read_identity", map[string]any{})
-	if err != nil {
-		return err
-	}
-	_, loaded, err := na.Outcome(identityReply, "loaded")
-	if err != nil {
-		return err
-	}
-	loadedContext, _ := na.AsMap(loaded["context"])
-	identity, _ := na.AsMap(loadedContext["identity"])
-	postmortem = identity
-	names, err := h.Discovery(ctx)
-	if err != nil {
-		return err
-	}
-	report["discovery"] = names
-	if !na.Contains(names, "test/refrigeration_prepare") {
-		return fmt.Errorf("missing test/refrigeration_prepare in discovery; rebuild the native mod with -Fixture RefrigerationFixture")
-	}
-
-	prepared, err := h.Call(ctx, "prepare", "test/refrigeration_prepare", map[string]any{
-		"existingCooler": scenario != "build", "disconnected": scenario == "power", "roomTemperatureC": 30,
-	})
-	if err != nil {
-		return err
-	}
-	if success, _ := na.AsBool(prepared["success"]); !success || !na.MatchesIdentity(prepared, identity) {
-		return fmt.Errorf("refrigeration_prepare refused or identity mismatch: %#v", prepared)
-	}
-	report["prepared"] = prepared
 	coolerID := na.AsString(prepared["cooler"])
 	interior, _ := na.AsMap(prepared["interior"])
 	spare, _ := na.AsMap(prepared["spareCell"])
@@ -226,7 +177,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 		return fmt.Errorf("food-before: fixture meat is not warm at-risk stock (warm nutrition %.2f, temperature %.1f C, roofed %d/%d); a cold biome may have overwhelmed the forced room temperature -- rerun",
 			before.warmNutrition, before.temperature, before.roofed, before.rows)
 	}
-	if err := held.Release(); err != nil {
+	if err := s.Release(); err != nil {
 		return fmt.Errorf("close fixture-prep bridge session: %w", err)
 	}
 
@@ -237,7 +188,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 	if scenario == "power" {
 		families = append(families, "power")
 	}
-	service, err = na.LaunchService(ctx, cfg, gabsExecutable, na.ServiceLaunch{Binary: binary, Families: families, Extra: na.ClockSpeedArgs()}, report)
+	service, err = na.LaunchService(ctx, cfg, s.GABS, na.ServiceLaunch{Binary: binary, Families: families, Extra: na.ClockSpeedArgs()}, report)
 	if err != nil {
 		return err
 	}
@@ -444,11 +395,9 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 	// Independent native read after the service releases the game slot.
 	journal.Close()
 	service.Stop()
-	client, err = held.Reattach(ctx)
-	if err != nil {
+	if h, err = s.Reattach(ctx); err != nil {
 		return fmt.Errorf("reopen harness session after service stop: %w", err)
 	}
-	h = na.NewHarness(client, output)
 	if _, err := h.Call(ctx, "pause-after", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return err
 	}

@@ -58,29 +58,14 @@ func main() {
 
 func run(ctx context.Context, root, output, gameID string, headless bool, report na.Report) error {
 	cfg := &na.Config{Root: root, Output: output, Headless: headless, GameID: gameID}
-	// The save carries its own expansion list; a Core-only profile would refuse it.
-	if err := cfg.UseSaveExpansions(baselineSave); err != nil {
-		return err
-	}
-	if err := cfg.PrepareConfig(); err != nil {
-		return fmt.Errorf("prepare profile: %w", err)
-	}
-	game, err := cfg.GameSection()
+	// The save carries its own expansion list; a Core-only profile would
+	// refuse it. OpenSession enables them for a Save start.
+	s, err := na.OpenSession(ctx, cfg, report, na.Save{Name: baselineSave}, na.QuietIfAvailable)
 	if err != nil {
 		return err
 	}
-	files, err := na.PackageFiles(fmt.Sprint(game["workingDir"]))
-	if err != nil {
-		return err
-	}
-	report["package_files"] = files
-	held, err := na.OpenGame(ctx, cfg)
-	if err != nil {
-		return err
-	}
-	defer held.Close(report)
-	client := held.Client
-	h := na.NewHarness(client, output)
+	defer s.Close()
+	h := s.Harness
 
 	loadBaseline := func(label string) error {
 		_, err := h.Call(ctx, label, "rimworld/load_game_ready", map[string]any{
@@ -112,9 +97,6 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 		}
 	}
 
-	if err := loadBaseline("initial-load"); err != nil {
-		return err
-	}
 	clock := na.NewSupervisedPlayClock(randomOwner())
 	if _, err := clock.Change(ctx, h, "initial-pause", "Paused", nil); err != nil {
 		return err

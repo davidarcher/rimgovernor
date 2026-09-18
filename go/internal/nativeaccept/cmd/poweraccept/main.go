@@ -87,29 +87,8 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 		output = abs
 	}
 	cfg := &na.Config{Root: root, Output: output, Headless: headless, GameID: gameID}
-	if err := cfg.PrepareConfig(); err != nil {
-		return fmt.Errorf("prepare profile: %w", err)
-	}
-	game, err := cfg.GameSection()
-	if err != nil {
-		return err
-	}
-	files, err := na.PackageFiles(fmt.Sprint(game["workingDir"]))
-	if err != nil {
-		return err
-	}
-	report["package_files"] = files
-	gabsExecutable, err := na.GABSExecutable(root, cfg.Configuration)
-	if err != nil {
-		return err
-	}
-	held, err := na.OpenGame(ctx, cfg)
-	if err != nil {
-		return err
-	}
-	client := held.Client
-	h := na.NewHarness(client, output)
 	var service *na.ServiceProcess
+	var s *na.Session
 	stopped := false
 	stopGame := func() {
 		if stopped {
@@ -121,19 +100,21 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 		}
 		stopCtx, stopCancel := context.WithTimeout(context.Background(), 90*time.Second)
 		defer stopCancel()
-		if _, err := held.Reattach(stopCtx); err != nil {
+		if _, err := s.Reattach(stopCtx); err != nil {
 			report["stop_error"] = "reopen session for games_stop: " + err.Error()
 			return
 		}
-		held.Close(report)
+		s.Close()
+	}
+
+	s, err := na.OpenSession(ctx, cfg, report, na.Fixture{Op: "test/power_prepare", Args: map[string]any{"scenario": scenario}}, na.QuietRequired)
+	if err != nil {
+		return err
 	}
 	defer stopGame()
-
-	if _, err := na.StartDebugGame(ctx, h, nil, na.QuietRequired); err != nil {
-		return err
-	}
-	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
-		return err
+	h, identity, prepared := s.Harness, s.Identity, s.Prepared
+	if !na.Contains(s.Names, "test/power_observe") {
+		return fmt.Errorf("missing test/power_observe in discovery; rebuild the native mod with -Fixture PowerFixture")
 	}
 	facts, err := h.Call(ctx, "colony-facts", "home/colony_facts", map[string]any{})
 	if err != nil {
@@ -152,35 +133,6 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 		}
 		report["confirmed_colony_names"] = confirmed
 	}
-	identityReply, err := h.Wire(ctx, "identity", "lifecycle_read_identity", map[string]any{})
-	if err != nil {
-		return err
-	}
-	_, loaded, err := na.Outcome(identityReply, "loaded")
-	if err != nil {
-		return err
-	}
-	loadedContext, _ := na.AsMap(loaded["context"])
-	identity, _ := na.AsMap(loadedContext["identity"])
-	names, err := h.Discovery(ctx)
-	if err != nil {
-		return err
-	}
-	report["discovery"] = names
-	for _, want := range []string{"test/power_prepare", "test/power_observe"} {
-		if !na.Contains(names, want) {
-			return fmt.Errorf("missing %s in discovery; rebuild the native mod with -Fixture PowerFixture", want)
-		}
-	}
-
-	prepared, err := h.Call(ctx, "prepare", "test/power_prepare", map[string]any{"scenario": scenario})
-	if err != nil {
-		return err
-	}
-	if success, _ := na.AsBool(prepared["success"]); !success || !na.MatchesIdentity(prepared, identity) {
-		return fmt.Errorf("power_prepare refused or identity mismatch: %#v", prepared)
-	}
-	report["prepared"] = prepared
 	generatorID := na.AsString(prepared["generator"])
 	spare, _ := na.AsMap(prepared["spareCell"])
 	var ids []string
@@ -233,11 +185,11 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 		return err
 	}
 	report["colony_power_before"] = topology
-	if err := held.Release(); err != nil {
+	if err := s.Release(); err != nil {
 		return fmt.Errorf("close fixture-prep bridge session: %w", err)
 	}
 
-	service, err = na.LaunchService(ctx, cfg, gabsExecutable, na.ServiceLaunch{Binary: binary, Families: []string{"power", "work"}, Extra: na.ClockSpeedArgs()}, report)
+	service, err = na.LaunchService(ctx, cfg, s.GABS, na.ServiceLaunch{Binary: binary, Families: []string{"power", "work"}, Extra: na.ClockSpeedArgs()}, report)
 	if err != nil {
 		return err
 	}
@@ -354,11 +306,9 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 
 	journal.Close()
 	service.Stop()
-	client, err = held.Reattach(ctx)
-	if err != nil {
+	if h, err = s.Reattach(ctx); err != nil {
 		return fmt.Errorf("reopen harness session after service stop: %w", err)
 	}
-	h = na.NewHarness(client, output)
 	if _, err := h.Call(ctx, "pause-after", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return err
 	}

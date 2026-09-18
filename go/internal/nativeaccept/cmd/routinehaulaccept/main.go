@@ -113,18 +113,6 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 		output = abs
 	}
 	cfg := &na.Config{Root: root, Output: output, Headless: headless, GameID: gameID}
-	if err := cfg.PrepareConfig(); err != nil {
-		return fmt.Errorf("prepare profile: %w", err)
-	}
-	game, err := cfg.GameSection()
-	if err != nil {
-		return err
-	}
-	files, err := na.PackageFiles(fmt.Sprint(game["workingDir"]))
-	if err != nil {
-		return err
-	}
-	report["package_files"] = files
 	binarySHA, err := sha256File(rimgovernorBinary)
 	if err != nil {
 		return fmt.Errorf("hash rimgovernor binary: %w", err)
@@ -139,20 +127,13 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 	// released (without games_stop, which would actually terminate the game)
 	// to free the slot for the service, and reattached afterwards for the
 	// "after" native reads once the service has released the slot again.
-	// held.Close ends the hold once, after the deferred stopService.
-	held, err := na.OpenGame(ctx, cfg)
+	// s.Close ends the hold once, after the deferred stopService.
+	s, err := na.OpenSession(ctx, cfg, report, na.DebugStart{}, na.QuietRequired)
 	if err != nil {
 		return err
 	}
-	defer held.Close(report)
-	h := na.NewHarness(held.Client, output)
-
-	if _, err := na.StartDebugGame(ctx, h, nil, na.QuietRequired); err != nil {
-		return err
-	}
-	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
-		return err
-	}
+	defer s.Close()
+	h, identity, names := s.Harness, s.Identity, s.Names
 
 	// A fresh debug-started game leaves the initial faction/settlement naming
 	// dialog open; RankDevelopment (go/internal/policy/development.go) treats
@@ -183,22 +164,6 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 		report["confirmed_colony_names"] = "no pending naming dialog"
 	}
 
-	identityReply, err := h.Wire(ctx, "identity", "lifecycle_read_identity", map[string]any{})
-	if err != nil {
-		return err
-	}
-	_, loaded, err := na.Outcome(identityReply, "loaded")
-	if err != nil {
-		return err
-	}
-	loadedContext, _ := na.AsMap(loaded["context"])
-	identity, _ := na.AsMap(loadedContext["identity"])
-
-	names, err := h.Discovery(ctx)
-	if err != nil {
-		return err
-	}
-	report["discovery"] = names
 	for _, want := range []string{"test/storage_haul_prepare", "test/storage_haul_control", "test/guarded_construction_prepare"} {
 		if !na.Contains(names, want) {
 			return fmt.Errorf("missing %s in discovery; rebuild the native mod with -Fixture StorageHaulFixture -Fixture GuardedConstructionFixture", want)
@@ -265,7 +230,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 	// root-causing why the routine review never persists (G01.07b). Remove
 	// this env injection once resolved.
 	// Compose only the haul family so the receipt under test is unambiguous.
-	service, err := na.Serve(ctx, cfg, held, identity, na.ServeSpec{
+	service, err := na.Serve(ctx, cfg, s.Game, identity, na.ServeSpec{
 		Binary: rimgovernorBinary, Prefix: "routine-haul",
 		Families: []string{"haul"}, Env: []string{"RIMGOVERNOR_CLOCK_DEBUG=1"},
 	}, report)
@@ -543,11 +508,10 @@ func run(ctx context.Context, root, output, gameID string, headless bool, rimgov
 	// unforbidden. Reattach retries while the killed service's own GABS
 	// subprocess frees the slot.
 	stopService()
-	finalClient, err := held.Reattach(ctx)
+	finalHarness, err := s.Reattach(ctx)
 	if err != nil {
 		return fmt.Errorf("reopen bridge session for final native check: %w", err)
 	}
-	finalHarness := na.NewHarness(finalClient, output)
 
 	afterBoth, err := finalHarness.Call(ctx, "after-both-hauls", "test/storage_haul_control", map[string]any{
 		"colonyId": identity["colonyId"], "loadToken": identity["loadToken"], "mapId": identity["mapId"],

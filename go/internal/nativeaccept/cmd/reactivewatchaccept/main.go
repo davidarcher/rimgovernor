@@ -68,59 +68,12 @@ func main() {
 
 func run(ctx context.Context, root, output, gameID, speed string, headless bool, report na.Report) error {
 	cfg := &na.Config{Root: root, Output: output, Headless: headless, GameID: gameID}
-	if err := cfg.PrepareConfig(); err != nil {
-		return fmt.Errorf("prepare profile: %w", err)
-	}
-	game, err := cfg.GameSection()
+	s, err := na.OpenSession(ctx, cfg, report, na.Fixture{Op: "test/guarded_construction_prepare", Args: map[string]any{"siteCount": 2}}, na.QuietRequired)
 	if err != nil {
 		return err
 	}
-	files, err := na.PackageFiles(fmt.Sprint(game["workingDir"]))
-	if err != nil {
-		return err
-	}
-	report["package_files"] = files
-	held, err := na.OpenGame(ctx, cfg)
-	if err != nil {
-		return err
-	}
-	defer held.Close(report)
-	h := na.NewHarness(held.Client, output)
-
-	names, err := h.Discovery(ctx)
-	if err != nil {
-		return err
-	}
-	if _, err := na.StartDebugGame(ctx, h, names, na.QuietRequired); err != nil {
-		return err
-	}
-	frozen, err := na.FreezeNeeds(ctx, h, names)
-	if err != nil {
-		return err
-	}
-	report["frozen_needs"] = frozen
-	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
-		return err
-	}
-	identityReply, err := h.Wire(ctx, "identity", "lifecycle_read_identity", map[string]any{})
-	if err != nil {
-		return err
-	}
-	_, loaded, err := na.Outcome(identityReply, "loaded")
-	if err != nil {
-		return err
-	}
-	loadedContext, _ := na.AsMap(loaded["context"])
-	identity, _ := na.AsMap(loadedContext["identity"])
-
-	prepared, err := h.Call(ctx, "prepare", "test/guarded_construction_prepare", map[string]any{"siteCount": 2})
-	if err != nil {
-		return err
-	}
-	if success, _ := na.AsBool(prepared["success"]); !success {
-		return fmt.Errorf("guarded_construction_prepare refused: %#v", prepared)
-	}
-	report["prepared"] = prepared
+	defer s.Close()
+	h, identity, prepared := s.Harness, s.Identity, s.Prepared
 	sites := na.AsSlice(prepared["sites"])
 	if len(sites) != 2 {
 		return fmt.Errorf("expected exactly 2 prepared wall sites, found %d", len(sites))

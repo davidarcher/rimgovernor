@@ -169,8 +169,7 @@ func (m *matrix) run(ctx context.Context) (err error) {
 
 	// One RimWorld process for the whole matrix. With -reuse-game the
 	// reloads go through GameReuse's reset contract; otherwise a plain hold
-	// reloads the stage itself.
-	var h *na.Harness
+	// (na.OpenSession) reloads the stage itself.
 	if m.reuseGame {
 		if m.reuse, err = na.OpenReusableGame(ctx, m.cfg, m.gabs); err != nil {
 			return err
@@ -185,22 +184,38 @@ func (m *matrix) run(ctx context.Context) (err error) {
 			_ = m.reuse.Retire(retireCtx, reason)
 			m.reuse.Record(m.report)
 		}()
-		if h, err = m.reuse.Session(ctx); err != nil {
+		h, err := m.reuse.Session(ctx)
+		if err != nil {
 			return err
+		}
+		h.Output = filepath.Join(m.output, "stage")
+		if err := os.MkdirAll(h.Output, 0755); err != nil {
+			return err
+		}
+		if err := m.stage(ctx, h); err != nil {
+			return fmt.Errorf("stage: %w", err)
 		}
 	} else {
-		if m.game, err = na.OpenGame(ctx, m.cfg); err != nil {
+		s, err := na.OpenSession(ctx, m.cfg, m.report, na.Fixture{Op: prepareTool, Args: map[string]any{"itemCount": m.items, "wallSegments": m.segments}}, na.QuietRequired)
+		if err != nil {
 			return err
 		}
-		defer m.game.Close(m.report)
-		h = na.NewHarness(m.game.Client, m.output)
-	}
-	h.Output = filepath.Join(m.output, "stage")
-	if err := os.MkdirAll(h.Output, 0755); err != nil {
-		return err
-	}
-	if err := m.stage(ctx, h); err != nil {
-		return fmt.Errorf("stage: %w", err)
+		defer s.Close()
+		m.game = s.Game
+		h := s.Harness
+		h.Output = filepath.Join(m.output, "stage")
+		if err := os.MkdirAll(h.Output, 0755); err != nil {
+			return err
+		}
+		if !na.Contains(s.Names, controlTool) {
+			return fmt.Errorf("missing %s in discovery; rebuild the native mod with -Fixture ThroughputFixture", controlTool)
+		}
+		if err := confirmColonyNames(ctx, h, m.report); err != nil {
+			return fmt.Errorf("stage: %w", err)
+		}
+		if err := m.saveStage(ctx, h, s.Prepared); err != nil {
+			return fmt.Errorf("stage: %w", err)
+		}
 	}
 
 	for _, c := range m.cases {
@@ -236,8 +251,9 @@ func (m *matrix) run(ctx context.Context) (err error) {
 	return na.CheckStartupLog(string(logData), m.headless)
 }
 
-// stage starts the quiet debug colony, freezes needs, applies the fixture
-// and saves the result as stageSave for every case to reload.
+// stage starts the quiet debug colony, applies the fixture and saves the
+// result as stageSave for every case to reload (the GameReuse path; a plain
+// hold gets the same from na.OpenSession).
 func (m *matrix) stage(ctx context.Context, h *na.Harness) error {
 	names, err := h.Discovery(ctx)
 	if err != nil {
@@ -267,6 +283,12 @@ func (m *matrix) stage(ctx context.Context, h *na.Harness) error {
 	if ok, _ := na.AsBool(prepared["success"]); !ok {
 		return fmt.Errorf("%s refused: %#v", prepareTool, prepared)
 	}
+	return m.saveStage(ctx, h, prepared)
+}
+
+// saveStage records the fixture's layout and saves the staged game as
+// stageSave.
+func (m *matrix) saveStage(ctx context.Context, h *na.Harness, prepared map[string]any) error {
 	m.prepared = prepared
 	m.report["prepared"] = prepared
 	m.storage = cellList(prepared["storageCells"])

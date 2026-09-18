@@ -79,29 +79,8 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 		output = abs
 	}
 	cfg := &na.Config{Root: root, Output: output, Headless: headless, GameID: gameID}
-	if err := cfg.PrepareConfig(); err != nil {
-		return fmt.Errorf("prepare profile: %w", err)
-	}
-	game, err := cfg.GameSection()
-	if err != nil {
-		return err
-	}
-	files, err := na.PackageFiles(fmt.Sprint(game["workingDir"]))
-	if err != nil {
-		return err
-	}
-	report["package_files"] = files
-	gabsExecutable, err := na.GABSExecutable(root, cfg.Configuration)
-	if err != nil {
-		return err
-	}
-	held, err := na.OpenGame(ctx, cfg)
-	if err != nil {
-		return err
-	}
-	client := held.Client
-	h := na.NewHarness(client, output)
 	var service *na.ServiceProcess
+	var s *na.Session
 	var postmortem map[string]any
 	facility := ""
 	stopped := false
@@ -115,13 +94,13 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 		}
 		stopCtx, stopCancel := context.WithTimeout(context.Background(), 90*time.Second)
 		defer stopCancel()
-		if _, err := held.Reattach(stopCtx); err != nil {
+		ph, err := s.Reattach(stopCtx)
+		if err != nil {
 			report["stop_error"] = "reopen session for games_stop: " + err.Error()
 			return
 		}
 		if postmortem != nil {
 			if _, hasAfter := report["routes_after"]; !hasAfter {
-				ph := na.NewHarness(held.Client, output)
 				if after, err := readRoutes(stopCtx, ph, postmortem, "routes-postmortem", facility); err == nil {
 					report["routes_postmortem"] = after.evidence()
 				} else {
@@ -129,47 +108,19 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 				}
 			}
 		}
-		held.Close(report)
+		s.Close()
+	}
+
+	s, err := na.OpenSession(ctx, cfg, report, na.Fixture{Op: "test/routes_prepare"}, na.QuietRequired)
+	if err != nil {
+		return err
 	}
 	defer stopGame()
-
-	if _, err := na.StartDebugGame(ctx, h, nil, na.QuietRequired); err != nil {
-		return err
-	}
-	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
-		return err
-	}
+	h, identity, prepared := s.Harness, s.Identity, s.Prepared
+	postmortem = identity
 	if err := confirmColonyNames(ctx, h, report); err != nil {
 		return err
 	}
-	identityReply, err := h.Wire(ctx, "identity", "lifecycle_read_identity", map[string]any{})
-	if err != nil {
-		return err
-	}
-	_, loaded, err := na.Outcome(identityReply, "loaded")
-	if err != nil {
-		return err
-	}
-	loadedContext, _ := na.AsMap(loaded["context"])
-	identity, _ := na.AsMap(loadedContext["identity"])
-	postmortem = identity
-	names, err := h.Discovery(ctx)
-	if err != nil {
-		return err
-	}
-	report["discovery"] = names
-	if !na.Contains(names, "test/routes_prepare") {
-		return fmt.Errorf("missing test/routes_prepare in discovery; rebuild the native mod with -Fixture RoutesFixture")
-	}
-
-	prepared, err := h.Call(ctx, "prepare", "test/routes_prepare", map[string]any{})
-	if err != nil {
-		return err
-	}
-	if success, _ := na.AsBool(prepared["success"]); !success || !na.MatchesIdentity(prepared, identity) {
-		return fmt.Errorf("routes_prepare refused or identity mismatch: %#v", prepared)
-	}
-	report["prepared"] = prepared
 	facility = na.AsString(prepared["facility"])
 	rect, _ := na.AsMap(prepared["room"])
 	room := cellRect{minX: int32(na.AsNumber(rect["minX"])), minZ: int32(na.AsNumber(rect["minZ"])), maxX: int32(na.AsNumber(rect["maxX"])), maxZ: int32(na.AsNumber(rect["maxZ"]))}
@@ -197,14 +148,14 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 			return fmt.Errorf("routes-before: breach %+v is not a wall of the fixture room %+v", b, room)
 		}
 	}
-	if err := held.Release(); err != nil {
+	if err := s.Release(); err != nil {
 		return fmt.Errorf("close fixture-prep bridge session: %w", err)
 	}
 
 	// "work" rides along because every building method's builder check
 	// requires the colony's work priorities to match the controller's own
 	// assignment, which only the work family applies.
-	service, err = na.LaunchService(ctx, cfg, gabsExecutable, na.ServiceLaunch{Binary: binary, Families: []string{"routes", "work"}, Extra: na.ClockSpeedArgs()}, report)
+	service, err = na.LaunchService(ctx, cfg, s.GABS, na.ServiceLaunch{Binary: binary, Families: []string{"routes", "work"}, Extra: na.ClockSpeedArgs()}, report)
 	if err != nil {
 		return err
 	}
@@ -319,11 +270,9 @@ func run(ctx context.Context, root, output, gameID string, headless bool, binary
 	// Independent native read after the service releases the game slot.
 	journal.Close()
 	service.Stop()
-	client, err = held.Reattach(ctx)
-	if err != nil {
+	if h, err = s.Reattach(ctx); err != nil {
 		return fmt.Errorf("reopen harness session after service stop: %w", err)
 	}
-	h = na.NewHarness(client, output)
 	if _, err := h.Call(ctx, "pause-after", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return err
 	}
