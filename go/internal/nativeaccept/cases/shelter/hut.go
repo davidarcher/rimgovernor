@@ -16,15 +16,20 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// The hut case is the native acceptance for issue #7: a tribal
+// The hut cases are the native acceptance for issues #7 and #175: a tribal
 // (Neolithic) colony's first shelter under the live autopilot is a
-// circular/oval hut (or, in constrained terrain, an irregular grown
-// footprint) that the game itself reports as one proper, fully roofed room
-// whose cells are exactly the planned interior, furnished without blocking
-// the entrance aisle, surviving a controller restart and a player edit
-// mid-construction without duplicate or missing orders.
+// circular/oval hut (or, in constrained terrain, a concave template or an
+// irregular grown footprint) that the game itself reports as one proper,
+// fully roofed room whose cells are exactly the planned interior,
+// furnished without blocking the entrance aisle, surviving a controller
+// restart and a player edit or a material shortage mid-construction
+// without duplicate or missing orders.
 //
-// Sequence, all against the loaded tribal8 baseline (staged, #174):
+// Sequence, all against the loaded tribal8 baseline (staged, #174), for
+// the cases that edit the shell mid-build (variant.edit "cancel"; the
+// "shortage" variant takes the map's wood in step 4 instead, waits under
+// the live controller for the plan to hold without a second order, then
+// drops the wood again; the "none" variants build straight through):
 //  1. run 0: the shelter routine admits the shell plan; the case
 //     classifies its geometry from the durable plan and stops the service
 //     at once. The ring is now on the journal.
@@ -68,7 +73,34 @@ const (
 	// furnishWait for a bed completed inside the finished hut.
 	buildWait   = 30 * time.Minute
 	furnishWait = 15 * time.Minute
+	// shortageTicks is how long the shortage variant watches the resumed
+	// plan hold with no wood on the map: long enough for several review
+	// windows to pass without a second shell plan or a second order.
+	shortageTicks = 6000
 )
+
+// variant selects one hut case's terrain, the shell shape it must produce
+// and the mid-build edit it applies.
+type variant struct {
+	// terrain is "open" (the save's own ground), "rows" (corridor strips)
+	// or "pocket" (one clearing shaped to a concave template).
+	terrain string
+	// fixture holds test/corridor_terrain_fixture's setup arguments for
+	// rows and pocket terrain.
+	fixture map[string]any
+	// shape is the template name the sited shell must classify as,
+	// "irregular" for a grown shell, or empty for any hut template.
+	shape string
+	// maxHeight bounds the shell's bounding height on rows terrain: the
+	// strip between two rock rows.
+	maxHeight int32
+	// edit is "cancel" (a player cancels one pending wall while the
+	// controller is down), "shortage" (the wood runs out mid-build) or
+	// "none".
+	edit string
+}
+
+func (v variant) constrained() bool { return v.terrain != "open" }
 
 // corridorFixture raises granite rows every sixth cell around the
 // colonists (one walkway each) so no hut template or 9x9 rectangle fits
@@ -96,17 +128,72 @@ func init() {
 		// budget reads as no progress (run141e, tick 48k).
 		Serve:  spec("hut"),
 		Budget: 15 * time.Minute,
-		Run:    func(ctx context.Context, s cases.Session) error { return hut(ctx, s, "open") },
+		Run:    func(ctx context.Context, s cases.Session) error { return hut(ctx, s, variant{terrain: "open", edit: "cancel"}) },
 	})
 	cases.Register(cases.Case{
 		Name: "shelter/hut-corridor",
 		Scope: "Issue #7 under corridor terrain: granite rows leave five-cell corridors in which no hut template or " +
 			"9x9 rectangle fits, so the shelter routine must grow an irregular shell confined to a corridor, " +
 			"reissuing exactly one cancelled wall across a controller restart.",
-		Start:  cases.Fixture{Op: corridorFixture, Args: map[string]any{"action": "setup"}, On: cases.Save{Name: sustained.BaselineSave}},
+		Start:  cases.Fixture{Op: corridorFixture, Args: map[string]any{"action": "setup", "layout": "rows", "period": 6}, On: cases.Save{Name: sustained.BaselineSave}},
 		Serve:  spec("hut-corridor"),
 		Budget: 15 * time.Minute,
-		Run:    func(ctx context.Context, s cases.Session) error { return hut(ctx, s, "corridor") },
+		Run: func(ctx context.Context, s cases.Session) error {
+			return hut(ctx, s, variant{terrain: "rows", shape: "irregular", maxHeight: 5, edit: "cancel"})
+		},
+	})
+	cases.Register(cases.Case{
+		Name: "shelter/hut-shortage",
+		Scope: "Issue #175: the wood runs out while the hut's last walls are pending; the shell plan holds under the " +
+			"live controller with no second shell or order, then completes once wood is back, every wall built once.",
+		Start:  cases.Save{Name: sustained.BaselineSave},
+		Serve:  spec("hut-shortage"),
+		Budget: 15 * time.Minute,
+		Run:    func(ctx context.Context, s cases.Session) error { return hut(ctx, s, variant{terrain: "open", edit: "shortage"}) },
+	})
+	cases.Register(cases.Case{
+		Name: "shelter/hut-oval",
+		Scope: "Issue #175: granite rows every eleventh cell leave ten-cell strips in which the circle does not fit and " +
+			"the shelter routine sites the medium east-west oval (hut-template-2), built, roofed and furnished natively.",
+		Start:  cases.Fixture{Op: corridorFixture, Args: map[string]any{"action": "setup", "layout": "rows", "period": 11}, On: cases.Save{Name: sustained.BaselineSave}},
+		Serve:  spec("hut-oval"),
+		Budget: 15 * time.Minute,
+		Run: func(ctx context.Context, s cases.Session) error {
+			return hut(ctx, s, variant{terrain: "rows", shape: "hut-template-2", maxHeight: 10, edit: "none"})
+		},
+	})
+	cases.Register(cases.Case{
+		Name: "shelter/hut-low-oval",
+		Scope: "Issue #175: granite rows every ninth cell leave eight-cell strips in which only the low east-west oval " +
+			"(hut-template-7, radius two across and six along) fits with its door on open ground, built, roofed and furnished natively.",
+		Start:  cases.Fixture{Op: corridorFixture, Args: map[string]any{"action": "setup", "layout": "rows", "period": 9}, On: cases.Save{Name: sustained.BaselineSave}},
+		Serve:  spec("hut-low-oval"),
+		Budget: 15 * time.Minute,
+		Run: func(ctx context.Context, s cases.Session) error {
+			return hut(ctx, s, variant{terrain: "rows", shape: "hut-template-7", maxHeight: 8, edit: "none"})
+		},
+	})
+	cases.Register(cases.Case{
+		Name: "shelter/hut-concave",
+		Scope: "Issue #175: granite everywhere but an L-shaped clearing, so no hut or 9x9 fits and the shelter routine " +
+			"sites the concave L template (concave-l-ne), a proper roofed room furnished off its aisle natively.",
+		Start:  cases.Fixture{Op: corridorFixture, Args: map[string]any{"action": "setup", "layout": "pocket-l"}, On: cases.Save{Name: sustained.BaselineSave}},
+		Serve:  spec("hut-concave"),
+		Budget: 15 * time.Minute,
+		Run: func(ctx context.Context, s cases.Session) error {
+			return hut(ctx, s, variant{terrain: "pocket", shape: "concave-l-ne", edit: "none"})
+		},
+	})
+	cases.Register(cases.Case{
+		Name: "shelter/hut-connector",
+		Scope: "Issue #175: granite everywhere but two small clearings a cell apart, so the shelter routine sites the " +
+			"two-chamber connector template (connector-ew), one proper roofed room across its one-cell passage, furnished natively.",
+		Start:  cases.Fixture{Op: corridorFixture, Args: map[string]any{"action": "setup", "layout": "pocket-connector"}, On: cases.Save{Name: sustained.BaselineSave}},
+		Serve:  spec("hut-connector"),
+		Budget: 15 * time.Minute,
+		Run: func(ctx context.Context, s cases.Session) error {
+			return hut(ctx, s, variant{terrain: "pocket", shape: "connector-ew", edit: "none"})
+		},
 	})
 }
 
@@ -149,7 +236,6 @@ func (sh *shell) bearing(c domain.Cell) bool {
 // is also ended by the service exiting on its own.
 type waits struct {
 	build, furnish, stall time.Duration
-	terrain               string
 }
 
 func (w waits) wait(ceiling time.Duration, service *na.ServiceProcess) na.Wait {
@@ -159,10 +245,10 @@ func (w waits) wait(ceiling time.Duration, service *na.ServiceProcess) na.Wait {
 // hut runs the case on open terrain (the save's own ground, where a hut
 // template fits) or corridor terrain (the fixture op the case opened on
 // raised the rock rows; the routine must grow an irregular shell).
-func hut(ctx context.Context, s cases.Session, terrain string) error {
+func hut(ctx context.Context, s cases.Session, v variant) error {
 	report := s.Report()
-	w := waits{build: buildWait, furnish: furnishWait, stall: na.StallBudget(), terrain: terrain}
-	if terrain == "corridor" {
+	w := waits{build: buildWait, furnish: furnishWait, stall: na.StallBudget()}
+	if v.constrained() {
 		prepared := s.Prepared()
 		if success, _ := na.AsBool(prepared["success"]); !success {
 			return fmt.Errorf("%s setup refused: %#v", corridorFixture, prepared)
@@ -199,16 +285,20 @@ func hut(ctx context.Context, s cases.Session, terrain string) error {
 		"interior_cells": len(sh.footprint.Interior()), "wall_cells": len(sh.footprint.Walls()),
 		"roof_supported": sh.footprint.RoofSupported(), "bounds": sh.footprint.Bounds(),
 	}
-	if w.terrain == "corridor" && sh.shape != "irregular" {
+	if v.shape != "" && sh.shape != v.shape || v.shape == "" && !strings.HasPrefix(sh.shape, "hut-template-") {
 		service.Stop()
-		return fmt.Errorf("corridor terrain: the routine sited %s, want an irregular grown shell", sh.shape)
+		want := v.shape
+		if want == "" {
+			want = "a hut template"
+		}
+		return fmt.Errorf("%s terrain: the routine sited %s, want %s", v.terrain, sh.shape, want)
 	}
-	if w.terrain == "corridor" && sh.footprint.Bounds().Height > 5 && sh.footprint.Bounds().Width > 5 {
+	if v.maxHeight > 0 && sh.footprint.Bounds().Height > v.maxHeight {
 		service.Stop()
-		return fmt.Errorf("corridor terrain: the shell's bounds %v are not confined to a corridor", sh.footprint.Bounds())
+		return fmt.Errorf("%s terrain: the shell's bounds %v are not confined to a strip of %d", v.terrain, sh.footprint.Bounds(), v.maxHeight)
 	}
-	if w.terrain == "corridor" {
-		sh.solid = corridorRock(report)
+	if v.constrained() {
+		sh.solid = fixtureRock(report)
 	}
 	// The ring is on the journal; the world it was sited in is discarded,
 	// and the next world holds it nearly finished.
@@ -219,7 +309,7 @@ func hut(ctx context.Context, s cases.Session, terrain string) error {
 	if err != nil {
 		return err
 	}
-	if w.terrain == "corridor" {
+	if v.constrained() {
 		report["corridor_terrain"] = s.Prepared()
 		if !sameCorridor(corridor, report["corridor_terrain"]) {
 			return fmt.Errorf("the reloaded corridor terrain differs from run 0's: %v vs %v", report["corridor_terrain"], corridor)
@@ -259,87 +349,123 @@ func hut(ctx context.Context, s cases.Session, terrain string) error {
 	if err != nil {
 		return err
 	}
-	run1 := w.wait(w.build, service)
-	run1.Interval = orderPoll
-	if err := waitLineage(ctx, st, sh, run1, func(l lineage) bool {
-		// Stop at the first load-bearing wall the game has acknowledged and
-		// not completed, so the in-game cancel below has one to take. The
-		// builders raise a wall beside staged wood in a few hundred ticks
-		// and the dispatcher paces orders seconds apart, so waiting for the
-		// rest of the missing cells leaves the first standing before the
-		// service is down (run 2 tolerates cells run 1 never ordered); a
-		// dispatch still in flight may never reach the game (undecided).
-		if l.live == nil || l.liveComplete() {
-			return false
-		}
-		for c := range l.acknowledged {
-			if sh.bearing(c) {
-				return true
+	// before is the lineage as run 1 left it and repair the plan that
+	// reissued the cancelled wall; reissued its cells. Variants without
+	// the cancel leave them empty.
+	var before lineage
+	reissued := map[domain.Cell]bool{}
+	var cancelled domain.Cell
+	if v.edit != "none" {
+		run1 := w.wait(w.build, service)
+		run1.Interval = orderPoll
+		if err := waitLineage(ctx, st, sh, run1, func(l lineage) bool {
+			// Stop at the first load-bearing wall the game has acknowledged and
+			// not completed, so the in-game edit below has one to take. The
+			// builders raise a wall beside staged wood in a few hundred ticks
+			// and the dispatcher paces orders seconds apart, so waiting for the
+			// rest of the missing cells leaves the first standing before the
+			// service is down (run 2 tolerates cells run 1 never ordered); a
+			// dispatch still in flight may never reach the game (undecided).
+			if l.live == nil || l.liveComplete() {
+				return false
 			}
-		}
-		return false
-	}); err != nil {
-		service.Stop()
-		postmortem(ctx, s, unsettledCells(ctx, st, sh), report)
-		return fmt.Errorf("run 1 did not reach mid-construction: %w", err)
-	}
-	report["run1_keepalive"] = service.Stop()
-	before, err := shellLineage(ctx, st, sh)
-	if err != nil {
-		return err
-	}
-	report["run1_stages"] = stagesOf(ctx, st, before.live.Spec.ID())
-	report["run1_shell_plans"] = before.planIDs()
-	report["run1_ordered_cells"] = len(before.ordered)
-	report["run1_undecided_cells"] = cellList(before.undecided)
-
-	// Player edit while the controller is down: cancel one pending wall.
-	cancelled, err := cancelOneWall(ctx, s, sh, report)
-	if err != nil {
-		return err
-	}
-
-	// Run 2: a paired restart suspends and resumes the routine goals with
-	// their plans open (#65), so run 1's plan carries on and the cancelled
-	// wall settles unsuccessful in it. The controller must then close the
-	// gap from the ring on record: a further shell plan under the same goal
-	// epoch that reissues exactly the cells not standing -- the cancelled
-	// wall and any cell run 1 never decided -- and nothing that stands. A
-	// world interruption (a letter pause) instead invalidates the goal and
-	// the ring is adopted the same way under a fresh goal.
-	service, err = start(ctx, s, service)
-	if err != nil {
-		return err
-	}
-	var repair store.PlanState
-	if err := waitLineage(ctx, st, sh, w.wait(w.build, service), func(l lineage) bool {
-		for id, plan := range l.byID {
-			if before.plans[id] {
-				continue
-			}
-			for _, a := range plan.Spec.Actions() {
-				if b, _ := a.Building(); b.Cell() == cancelled {
-					repair = plan
+			for c := range l.acknowledged {
+				if sh.bearing(c) {
 					return true
 				}
 			}
-		}
-		return false
-	}); err != nil {
-		service.Stop()
-		postmortem(ctx, s, unsettledCells(ctx, st, sh), report)
-		return fmt.Errorf("run 2 did not reissue the cancelled wall: %w", err)
-	}
-	reissued := map[domain.Cell]bool{}
-	for _, a := range repair.Spec.Actions() {
-		b, _ := a.Building()
-		if before.ordered[b.Cell()] && b.Cell() != cancelled && !before.undecided[b.Cell()] {
+			return false
+		}); err != nil {
 			service.Stop()
-			return fmt.Errorf("run 2 reissued %s at %v, which run 1 already ordered", b.Definition(), b.Cell())
+			postmortem(ctx, s, unsettledCells(ctx, st, sh), report)
+			return fmt.Errorf("run 1 did not reach mid-construction: %w", err)
 		}
-		reissued[b.Cell()] = true
+		report["run1_keepalive"] = service.Stop()
+		before, err = shellLineage(ctx, st, sh)
+		if err != nil {
+			return err
+		}
+		report["run1_stages"] = stagesOf(ctx, st, before.live.Spec.ID())
+		report["run1_shell_plans"] = before.planIDs()
+		report["run1_ordered_cells"] = len(before.ordered)
+		report["run1_undecided_cells"] = cellList(before.undecided)
 	}
-	report["run2_shell"] = map[string]any{"plan": string(repair.Spec.ID()), "reissued_cells": len(reissued), "cancelled_reissued": true}
+	switch v.edit {
+	case "cancel":
+		// Player edit while the controller is down: cancel one pending wall.
+		cancelled, err = cancelOneWall(ctx, s, sh, report)
+		if err != nil {
+			return err
+		}
+		// Run 2: a paired restart suspends and resumes the routine goals with
+		// their plans open (#65), so run 1's plan carries on and the cancelled
+		// wall settles unsuccessful in it. The controller must then close the
+		// gap from the ring on record: a further shell plan under the same goal
+		// epoch that reissues exactly the cells not standing -- the cancelled
+		// wall and any cell run 1 never decided -- and nothing that stands. A
+		// world interruption (a letter pause) instead invalidates the goal and
+		// the ring is adopted the same way under a fresh goal.
+		service, err = start(ctx, s, service)
+		if err != nil {
+			return err
+		}
+		var repair store.PlanState
+		if err := waitLineage(ctx, st, sh, w.wait(w.build, service), func(l lineage) bool {
+			for id, plan := range l.byID {
+				if before.plans[id] {
+					continue
+				}
+				for _, a := range plan.Spec.Actions() {
+					if b, _ := a.Building(); b.Cell() == cancelled {
+						repair = plan
+						return true
+					}
+				}
+			}
+			return false
+		}); err != nil {
+			service.Stop()
+			postmortem(ctx, s, unsettledCells(ctx, st, sh), report)
+			return fmt.Errorf("run 2 did not reissue the cancelled wall: %w", err)
+		}
+		for _, a := range repair.Spec.Actions() {
+			b, _ := a.Building()
+			if before.ordered[b.Cell()] && b.Cell() != cancelled && !before.undecided[b.Cell()] {
+				service.Stop()
+				return fmt.Errorf("run 2 reissued %s at %v, which run 1 already ordered", b.Definition(), b.Cell())
+			}
+			reissued[b.Cell()] = true
+		}
+		report["run2_shell"] = map[string]any{"plan": string(repair.Spec.ID()), "reissued_cells": len(reissued), "cancelled_reissued": true}
+	case "shortage":
+		// The wood runs out while the controller is down: every WoodLog on
+		// the map and in the pending frames goes. Run 2 resumes run 1's plan
+		// and must hold it -- the same live plan, no further shell plan, no
+		// wall completing -- while the clock runs on without materials.
+		if err := editWood(ctx, s, sh, "take", missing, 0, report); err != nil {
+			return err
+		}
+		service, err = start(ctx, s, service)
+		if err != nil {
+			return err
+		}
+		held, err := waitShortage(ctx, st, sh, before, w.wait(w.build, service))
+		if err != nil {
+			service.Stop()
+			postmortem(ctx, s, unsettledCells(ctx, st, sh), report)
+			return fmt.Errorf("run 2 did not hold the shell plan through the shortage: %w", err)
+		}
+		report["run2_shortage"] = held
+		report["run2_keepalive"] = service.Stop()
+		// Wood is back: run 3 resumes the same plan and completes the ring.
+		if err := editWood(ctx, s, sh, "wood", missing, spawnWood, report); err != nil {
+			return err
+		}
+		service, err = start(ctx, s, service)
+		if err != nil {
+			return err
+		}
+	}
 	// Completion: every ring cell left to the controller completed exactly
 	// once across the lineage.
 	var final lineage
@@ -357,23 +483,27 @@ func hut(ctx context.Context, s cases.Session, terrain string) error {
 		return fmt.Errorf("run 2 did not complete the shell: %w", err)
 	}
 	report["run2_shell_plans"] = final.planIDs()
-	report["run2_interruptions"] = len(final.plans) - len(before.plans) - 1
+	if v.edit == "cancel" {
+		report["run2_interruptions"] = len(final.plans) - len(before.plans) - 1
+	} else {
+		report["run2_interruptions"] = len(final.plans) - 1
+	}
 	attempts := map[string]int{}
 	for id, plan := range final.byID {
 		for i, p := range plan.Progress {
-			v := p.View()
+			pv := p.View()
 			b, _ := plan.Spec.Actions()[i].Building()
 			key := fmt.Sprintf("%d,%d", b.Cell().X, b.Cell().Z)
-			if v.Stage == domain.Completed {
+			if pv.Stage == domain.Completed {
 				if _, twice := attempts[key]; twice {
 					service.Stop()
 					return fmt.Errorf("shell cell %v completed twice", b.Cell())
 				}
-				attempts[key] = int(v.Attempt)
+				attempts[key] = int(pv.Attempt)
 			}
-			if v.Attempt > 1 || v.Stage != domain.Completed && !(id == before.live.Spec.ID() && reissued[b.Cell()]) {
+			if pv.Attempt > 1 || pv.Stage != domain.Completed && !(before.live != nil && id == before.live.Spec.ID() && reissued[b.Cell()]) {
 				service.Stop()
-				return fmt.Errorf("shell action %s/%d at %v: attempt %d stage %s, want one completed attempt", id, i, b.Cell(), v.Attempt, v.Stage)
+				return fmt.Errorf("shell action %s/%d at %v: attempt %d stage %s, want one completed attempt", id, i, b.Cell(), pv.Attempt, pv.Stage)
 			}
 		}
 	}
@@ -618,16 +748,32 @@ func unsettledCells(ctx context.Context, st *store.Store, sh *shell) []domain.Ce
 	return cells
 }
 
-// corridorRock recovers the rock rows the fixture raised from its setup
-// result: every cell of a row within reach of the centre except the row's
-// walkway cells. Cells the fixture skipped (already impassable, occupied)
-// are counted as rock too, which only makes bearing more conservative.
-func corridorRock(report na.Report) map[domain.Cell]bool {
+// fixtureRock recovers the rock the fixture raised from its setup result.
+// Rows: every cell of a row within reach of the centre except the row's
+// walkway cells. Pocket: every cell of the field but the clearing it
+// lists. Cells the fixture skipped (already impassable, occupied) are
+// counted as rock too, which only makes bearing more conservative.
+func fixtureRock(report na.Report) map[domain.Cell]bool {
 	setup, _ := na.AsMap(report["corridor_terrain"])
 	center, _ := na.AsMap(setup["center"])
-	cx, reach := int32(na.AsNumber(center["x"])), int32(na.AsNumber(setup["reach"]))
+	cx, cz, reach := int32(na.AsNumber(center["x"])), int32(na.AsNumber(center["z"])), int32(na.AsNumber(setup["reach"]))
 	walkway := int32(na.AsNumber(setup["walkwayPeriod"]))
 	rock := map[domain.Cell]bool{}
+	if open, listed := setup["open"]; listed {
+		kept := map[domain.Cell]bool{}
+		for _, raw := range na.AsSlice(open) {
+			m, _ := na.AsMap(raw)
+			kept[domain.Cell{X: int32(na.AsNumber(m["x"])), Z: int32(na.AsNumber(m["z"]))}] = true
+		}
+		for x := cx - reach; x <= cx+reach; x++ {
+			for z := cz - reach; z <= cz+reach; z++ {
+				if c := (domain.Cell{X: x, Z: z}); !kept[c] {
+					rock[c] = true
+				}
+			}
+		}
+		return rock
+	}
 	for _, raw := range na.AsSlice(setup["rows"]) {
 		row, _ := na.AsMap(raw)
 		z, phase := int32(na.AsNumber(row["z"])), int32(na.AsNumber(row["walkwayPhase"]))
@@ -698,7 +844,8 @@ func waitShell(ctx context.Context, st *store.Store, w na.Wait) (*shell, error) 
 }
 
 // classify recovers the interior as the cells the wall ring encloses and
-// names the shape: one of the hut templates, or an irregular grown shell.
+// names the shape: one of the shell templates (hut or concave), or an
+// irregular grown shell.
 func classify(plan store.PlanState) (*shell, error) {
 	actions := plan.Spec.Actions()
 	door, _ := actions[0].Building()
@@ -751,9 +898,9 @@ func classify(plan store.PlanState) (*shell, error) {
 	b := footprint.Bounds()
 	for x := b.X; x < b.X+b.Width; x++ {
 		for z := b.Z; z < b.Z+b.Height; z++ {
-			for i, t := range policy.HutTemplateShells(domain.Cell{X: x, Z: z}) {
-				if domain.SameRoomFootprint(t, footprint) {
-					sh.shape = fmt.Sprintf("hut-template-%d", i)
+			for _, t := range policy.ShellTemplates(policy.ShelterHut) {
+				if shell, err := t.Shape(domain.Cell{X: x, Z: z}); err == nil && domain.SameRoomFootprint(shell, footprint) {
+					sh.shape = t.Name
 					return sh, nil
 				}
 			}
@@ -1075,14 +1222,95 @@ func stageRing(ctx context.Context, h *na.Harness, sh *shell, missing []domain.C
 }
 
 // sameCorridor reports whether two corridor_terrain_fixture setup results
-// raised the same rows around the same centre.
+// raised the same rows, or the same clearing, around the same centre.
 func sameCorridor(a, b any) bool {
 	am, _ := na.AsMap(a)
 	bm, _ := na.AsMap(b)
 	if am == nil || bm == nil {
 		return false
 	}
-	return fmt.Sprint(am["center"], am["rows"]) == fmt.Sprint(bm["center"], bm["rows"])
+	return fmt.Sprint(am["center"], am["rows"], am["open"]) == fmt.Sprint(bm["center"], bm["rows"], bm["open"])
+}
+
+// editWood has test/hut_shell_fixture take every WoodLog off the map (and
+// out of the frames on the gap cells) or drop wood beside the door again,
+// through a private bridge session while the controller is down.
+func editWood(ctx context.Context, s cases.Session, sh *shell, action string, gaps []domain.Cell, wood int, report na.Report) error {
+	h, err := s.Reattach(ctx)
+	if err != nil {
+		return err
+	}
+	defer s.Release()
+	if _, err := h.Call(ctx, "pause-for-"+action, "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
+		return err
+	}
+	door := sh.footprint.Door()
+	var walls []domain.Cell
+	for _, c := range sh.footprint.Walls() {
+		if c != door {
+			walls = append(walls, c)
+		}
+	}
+	result, err := h.Call(ctx, "wood-"+action, "test/hut_shell_fixture", map[string]any{
+		"action": action, "gaps": cellArg(gaps), "walls": cellArg(walls), "door": fmt.Sprintf("%d,%d", door.X, door.Z), "wood": wood,
+	})
+	if err != nil {
+		return err
+	}
+	if ok, _ := na.AsBool(result["success"]); !ok {
+		return fmt.Errorf("hut_shell_fixture %s refused: %#v", action, result)
+	}
+	if action == "take" && na.AsNumber(result["taken"]) <= 0 {
+		return fmt.Errorf("hut_shell_fixture took no wood: %#v", result)
+	}
+	report["wood_"+action] = result
+	return nil
+}
+
+// waitShortage watches the resumed shell plan through shortageTicks of
+// review time with no wood on the map: the plan run 1 left live must stay
+// the live plan, no further shell plan may appear and no wall may
+// complete, since nothing can be built from. Time passing is the
+// progress; the routine review's tick is the clock.
+func waitShortage(ctx context.Context, st *store.Store, sh *shell, before lineage, w na.Wait) (map[string]any, error) {
+	start := domain.Tick(-1)
+	var last domain.Tick
+	var reviews int
+	err := na.WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
+		review, err := st.LoadRoutineReview(ctx)
+		if err != nil {
+			return na.Signature("no-review", err), false, nil
+		}
+		l, err := shellLineage(ctx, st, sh)
+		if err != nil {
+			return "", false, err
+		}
+		if l.live == nil || l.live.Spec.ID() != before.live.Spec.ID() {
+			return "", false, fmt.Errorf("the shell plan %s is no longer live", before.live.Spec.ID())
+		}
+		if len(l.plans) != len(before.plans) {
+			return "", false, fmt.Errorf("a further shell plan appeared with no wood on the map: %v", l.planIDs())
+		}
+		for c := range l.completed {
+			if !before.completed[c] {
+				return "", false, fmt.Errorf("wall %v completed with no wood on the map", c)
+			}
+		}
+		// The review row run 1 left behind is the first read; the clock
+		// starts at the first review run 2 itself writes.
+		if review.Tick != last {
+			if last != 0 && start < 0 {
+				start = review.Tick
+			}
+			reviews++
+			last = review.Tick
+		}
+		return na.Signature(review.Tick), start >= 0 && review.Tick-start >= shortageTicks, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return map[string]any{"from_tick": int64(start), "to_tick": int64(last), "reviews": reviews, "live_plan": string(before.live.Spec.ID()), "stages": stagesOf(ctx, st, before.live.Spec.ID())}, nil
 }
 
 func boolOf(v any) bool { b, _ := na.AsBool(v); return b }

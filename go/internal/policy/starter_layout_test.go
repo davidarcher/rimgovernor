@@ -256,8 +256,21 @@ func TestShellShapesAtDoorReproduceStarterShells(t *testing.T) {
 		t.Fatal(err)
 	}
 	shapes := ShellShapesAtDoor(rect.Door(), ShelterRectangle)
-	if len(shapes) != 1 || !domain.SameRoomFootprint(shapes[0], rect) {
+	if len(shapes) != 1+len(concaveTemplates) || !domain.SameRoomFootprint(shapes[0], rect) {
 		t.Fatalf("rectangle style shapes %d", len(shapes))
+	}
+	for _, template := range concaveTemplates {
+		shell, err := template.Shape(center)
+		if err != nil {
+			t.Fatal(template.Name, err)
+		}
+		found := false
+		for _, s := range ShellShapesAtDoor(shell.Door(), ShelterRectangle) {
+			found = found || domain.SameRoomFootprint(s, shell)
+		}
+		if !found {
+			t.Fatalf("%s not reproduced from its door %v", template.Name, shell.Door())
+		}
 	}
 	if shapes := ShellShapesAtDoor(domain.Cell{X: 1, Z: 0}, ShelterHut); len(shapes) != 0 {
 		t.Fatalf("map-edge door produced %d shapes", len(shapes))
@@ -303,5 +316,112 @@ func TestStarterHutGrowsAlongCorridorTerrainRows(t *testing.T) {
 		if rock(c) {
 			t.Fatalf("grown shell cell %v on a rock row", c)
 		}
+	}
+}
+
+func TestStarterTemplatesOpenOntoFreeGround(t *testing.T) {
+	// A nine-cell strip of lit ground running east-west: the circle (eleven
+	// tall) fails, the east-west oval (nine tall) fits only with its south
+	// door against the blocked row, so the low east-west oval (seven tall)
+	// is the hut.
+	r := starterFixture()
+	r.Shelter = ShelterHut
+	block := func(low, high int32) {
+		for i := range r.Cells {
+			if r.Cells[i].Cell.Z < low || r.Cells[i].Cell.Z > high {
+				r.Cells[i].SupportsLight = domain.Known(false)
+				r.Cells[i].Walkable = domain.Known(false)
+			}
+		}
+	}
+	block(15, 23)
+	layouts, err := StarterLayouts(r)
+	if err != nil || len(layouts) == 0 {
+		t.Fatal(layouts, err)
+	}
+	low, _ := domain.EllipseFootprint(domain.Cell{X: 20, Z: 20}, 2, 6, domain.EllipseEastWest, domain.South)
+	if !domain.SameRoomFootprint(layouts[0].Shell, low) {
+		t.Fatalf("expected the low east-west oval, got %v door %v", layouts[0].Room, layouts[0].Shell.Door())
+	}
+	for _, l := range layouts {
+		if !free(r, l.Shell.Threshold()) {
+			t.Fatalf("shell %v opens onto blocked ground at %v", l.Room, l.Shell.Threshold())
+		}
+	}
+	// One row wider and the medium east-west oval has a threshold.
+	r = starterFixture()
+	r.Shelter = ShelterHut
+	block(15, 24)
+	layouts, err = StarterLayouts(r)
+	if err != nil || len(layouts) == 0 {
+		t.Fatal(layouts, err)
+	}
+	medium, _ := domain.EllipseFootprint(domain.Cell{X: 20, Z: 20}, 3, 5, domain.EllipseEastWest, domain.South)
+	if !domain.SameRoomFootprint(layouts[0].Shell, medium) {
+		t.Fatalf("expected the medium east-west oval, got %v", layouts[0].Room)
+	}
+}
+
+func free(r StarterRequest, c domain.Cell) bool {
+	for _, cell := range r.Cells {
+		if cell.Cell == c {
+			return positive(cell.Walkable)
+		}
+	}
+	return false
+}
+
+func TestStarterConcaveTemplatesWrapAnObstacle(t *testing.T) {
+	// Lit ground only inside an L-shaped clearing around the anchor: no hut
+	// and no 9x9 rectangle fits, so the L template with the matching notch
+	// is sited before any footprint is grown, for either style.
+	for _, style := range []ShelterStyle{ShelterHut, ShelterRectangle} {
+		r := starterFixture()
+		r.Shelter = style
+		want, _ := concaveTemplates[1].Shape(domain.Cell{X: 20, Z: 20})
+		clearing := map[domain.Cell]bool{}
+		for _, c := range want.Cells() {
+			clearing[c] = true
+		}
+		clearing[want.Threshold()] = true
+		for i := range r.Cells {
+			if !clearing[r.Cells[i].Cell] {
+				r.Cells[i].SupportsLight = domain.Known(false)
+			}
+		}
+		layouts, err := StarterLayouts(r)
+		if err != nil || len(layouts) != 1 {
+			t.Fatal(style, layouts, err)
+		}
+		if !domain.SameRoomFootprint(layouts[0].Shell, want) {
+			t.Fatalf("%s: expected %s, got %v with %d cells", style, concaveTemplates[1].Name, layouts[0].Room, len(layouts[0].Shell.Interior()))
+		}
+		inside := map[domain.Cell]bool{}
+		for _, c := range want.Interior() {
+			inside[c] = true
+		}
+		for _, p := range rectCells(layouts[0].Storage) {
+			if !inside[p] {
+				t.Fatalf("storage cell %v outside the L", p)
+			}
+		}
+	}
+	// Two 4x4 clearings a cell apart take the connector room.
+	r := starterFixture()
+	r.Shelter = ShelterHut
+	want, _ := concaveTemplates[4].Shape(domain.Cell{X: 20, Z: 20})
+	clearing := map[domain.Cell]bool{}
+	for _, c := range want.Cells() {
+		clearing[c] = true
+	}
+	clearing[want.Threshold()] = true
+	for i := range r.Cells {
+		if !clearing[r.Cells[i].Cell] {
+			r.Cells[i].SupportsLight = domain.Known(false)
+		}
+	}
+	layouts, err := StarterLayouts(r)
+	if err != nil || len(layouts) != 1 || !domain.SameRoomFootprint(layouts[0].Shell, want) {
+		t.Fatalf("connector: %v %v", layouts, err)
 	}
 }

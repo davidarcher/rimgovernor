@@ -74,17 +74,33 @@ radii 2..30) and are only generated when every interior cell lies within
 Euclidean distance six of a wall, so the finished hut roofs itself without
 columns.
 
+A composite footprint is the union of one to eight interior rectangles
+(`UnionFootprint`), deduplicated, 4-connected and roof-supported like any
+other, with its south door on the bounding box's entrance edge: the door's
+inward cell is interior with interior on both sides and one cell deeper, so a
+door never lands in a notch or on a connector's mouth, and the nearest such
+cell to the centre line wins.
+
 The first shelter's shape follows the colony's observed player faction tech
-level: a Neolithic colony tries the hut templates (circle r4, ovals 3x5 in the
-four orientations, circle r3) at each candidate centre before the 9x9
-rectangle; any other tech level, or an unknown one, keeps the rectangle. When
-no template fits the lit free ground near the anchor, the routine grows a
-connected footprint from the nearest free seed over cells whose eight
-neighbours are all free, stopping at the rectangle's 49 interior cells or
-sooner when the terrain runs out (minimum nine), and walls its ring; that is
-how narrow connectors and concave rooms around rock arise. Site score,
-reserved yard and indoor storage placement are computed from the footprint,
-not a fixed rectangle.
+level, in deterministic tiers. A Neolithic colony tries the hut templates
+(`hut-template-0..7`: circle r4, ovals 3x5 north-south, east-west, north-east
+and north-west, circle r3, then the low ovals 2x6 north-south and east-west
+that fit a strip seven cells wide) at each candidate centre; every colony
+then tries the 9x9 rectangle; when neither fits, the concave templates
+(`concave-l-ne/nw/se/sw`: an L of two three-wide arms, 33 cells in 9x9
+bounds, notch in each quadrant; `connector-ew/ns`: two 4x4 chambers joined
+by a one-cell passage, 35 cells) wrap the obstacle or span two clearings.
+Sites of an earlier tier always outrank a later tier's, however near the
+anchor; within a tier the first template fitting a centre is that centre's
+shell. A shell is buildable only when every cell is free, lit ground and its
+door opens onto free ground (a door against rock seals the room; the
+threshold is checked only where it is observed). When no template fits the
+lit free ground near the anchor, the routine grows a connected footprint
+from the nearest free seed over cells whose eight neighbours are all free,
+stopping at the rectangle's 49 interior cells or sooner when the terrain runs
+out (minimum nine), and walls its ring; that is how shapeless rooms in a
+corridor arise. Site score, reserved yard and indoor storage placement are
+computed from the footprint, not a fixed rectangle.
 
 Pausing and resuming control (a letter pause, a keep-alive resume, a paired
 restart) suspends every routine goal and reactivates it in the same world
@@ -100,7 +116,7 @@ door standing natively or one an earlier plan ordered -- tries, first, every
 earlier plan that placed a door on that cell (its whole ring, which is how a
 grown irregular shell with no template is recognised) and then every starter
 shape whose south door lands there (the hut templates for the hut style, then
-the 9x9 rectangle). Shapes at one door share their lowest courses, so the
+the 9x9 rectangle, then the concave templates). Shapes at one door share their lowest courses, so the
 shape adopted is the one whose ring the census matches best (most standing
 cells; an earlier plan, then the earliest template, on a tie), decided before
 any placement preview; a shape nothing standing matches is never adopted, so

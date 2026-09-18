@@ -287,3 +287,65 @@ func TestGrowFootprintConcaveAroundObstacle(t *testing.T) {
 		t.Fatal("footprint depends on interior order")
 	}
 }
+
+func TestUnionFootprintConcaveAndConnector(t *testing.T) {
+	// An L: a 7x3 arm along the bottom and a 3x7 arm up the left share their
+	// corner; the north-east notch stays outside.
+	l, err := UnionFootprint([]InteriorRect{{10, 10, 7, 3}, {10, 10, 3, 7}}, South)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertEnclosed(t, l)
+	if len(l.Interior()) != 33 || !l.RoofSupported() || l.Bounds() != (RoomBounds{9, 9, 9, 9}) {
+		t.Fatalf("L interior %d bounds %v", len(l.Interior()), l.Bounds())
+	}
+	inside := cellSet(l.Interior())
+	if inside[Cell{15, 15}] || !inside[Cell{10, 16}] || !inside[Cell{16, 10}] {
+		t.Fatal("L interior is not concave around the notch")
+	}
+	// The door sits on the arm's south wall at the bounding box's centre
+	// column, not beside the corner.
+	if l.Door() != (Cell{13, 9}) {
+		t.Fatalf("L door %v", l.Door())
+	}
+	// Two 4x4 chambers joined by a one-cell connector: the door opens into a
+	// chamber, never into the connector's mouth, on the side nearer the
+	// smaller coordinate.
+	d, err := UnionFootprint([]InteriorRect{{10, 10, 4, 4}, {14, 12, 3, 1}, {17, 10, 4, 4}}, South)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertEnclosed(t, d)
+	if len(d.Interior()) != 35 || d.Door() != (Cell{12, 9}) {
+		t.Fatalf("connector interior %d door %v", len(d.Interior()), d.Door())
+	}
+	walls := cellSet(d.Walls())
+	for _, c := range []Cell{{14, 11}, {15, 11}, {16, 11}, {14, 13}, {15, 13}, {16, 13}} {
+		if !walls[c] {
+			t.Fatalf("connector side %v is not walled", c)
+		}
+	}
+	// A north door on the connector room lands on a chamber's north wall.
+	n, err := UnionFootprint([]InteriorRect{{10, 10, 4, 4}, {14, 12, 3, 1}, {17, 10, 4, 4}}, North)
+	if err != nil || n.Door() != (Cell{12, 14}) {
+		t.Fatalf("north door %v %v", n.Door(), err)
+	}
+	// Overlapping parts share cells once; disconnected parts are refused, as
+	// are parts against the map edge and an interior beyond roof support.
+	same, err := UnionFootprint([]InteriorRect{{10, 10, 5, 5}, {12, 12, 5, 5}, {10, 10, 7, 7}}, East)
+	if err != nil || len(same.Interior()) != 49 {
+		t.Fatal(same, err)
+	}
+	if _, err := UnionFootprint([]InteriorRect{{10, 10, 3, 3}, {20, 20, 3, 3}}, South); err == nil {
+		t.Fatal("disconnected parts joined")
+	}
+	if _, err := UnionFootprint([]InteriorRect{{0, 10, 3, 3}}, South); err == nil {
+		t.Fatal("part on the map edge accepted")
+	}
+	if _, err := UnionFootprint([]InteriorRect{{10, 10, 30, 30}}, South); err == nil {
+		t.Fatal("unsupported roof accepted")
+	}
+	if _, err := UnionFootprint(nil, South); err == nil {
+		t.Fatal("empty composite accepted")
+	}
+}

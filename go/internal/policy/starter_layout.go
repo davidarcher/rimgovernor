@@ -2,6 +2,7 @@ package policy
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"sort"
 
@@ -66,9 +67,19 @@ type StarterLayout struct {
 // size an irregular footprint grows to when no template fits.
 const starterInterior = 49
 
+// ShellTemplate is one deterministic shell shape the starter search issues:
+// a generator over a centre cell and the name acceptance tooling reports a
+// sited shell under.
+type ShellTemplate struct {
+	Name  string
+	Shape func(center domain.Cell) (domain.RoomFootprint, error)
+}
+
 // hutTemplates are tried in order at every candidate centre; the first that
 // fits is that centre's hut. Radii keep every interior cell within roof
-// support so the finished hut roofs itself.
+// support so the finished hut roofs itself. The circle and the medium ovals
+// come first; the low ovals (radius two across, six along) are the huts
+// that fit a strip seven cells wide.
 type hutTemplate struct {
 	radiusX, radiusZ int32
 	orientation      domain.EllipseOrientation
@@ -81,6 +92,58 @@ var hutTemplates = []hutTemplate{
 	{3, 5, domain.EllipseNorthEast},
 	{3, 5, domain.EllipseNorthWest},
 	{3, 3, domain.EllipseNorthSouth},
+	{2, 6, domain.EllipseNorthSouth},
+	{2, 6, domain.EllipseEastWest},
+}
+
+func hutShellTemplates() []ShellTemplate {
+	templates := make([]ShellTemplate, 0, len(hutTemplates))
+	for i, template := range hutTemplates {
+		template := template
+		templates = append(templates, ShellTemplate{Name: fmt.Sprintf("hut-template-%d", i), Shape: func(c domain.Cell) (domain.RoomFootprint, error) {
+			return domain.EllipseFootprint(c, template.radiusX, template.radiusZ, template.orientation, domain.South)
+		}})
+	}
+	return templates
+}
+
+// concaveTemplates are the composite shapes tried, in order, at every
+// candidate centre once no hut and no 9x9 rectangle fits: an L of two
+// three-wide arms (33 cells, 9x9 bounds) with its notch in each quadrant,
+// which wraps a site's obstacle instead of giving up on a template, and two
+// 4x4 chambers joined by a one-cell connector (35 cells, 13x6 or 6x13
+// bounds), which spans two small clearings. Each is anchored on its
+// bounding box's centre and faces south.
+var concaveTemplates = []ShellTemplate{
+	{Name: "concave-l-ne", Shape: func(c domain.Cell) (domain.RoomFootprint, error) {
+		return domain.UnionFootprint([]domain.InteriorRect{{X: c.X - 3, Z: c.Z - 3, Width: 7, Height: 3}, {X: c.X - 3, Z: c.Z - 3, Width: 3, Height: 7}}, domain.South)
+	}},
+	{Name: "concave-l-nw", Shape: func(c domain.Cell) (domain.RoomFootprint, error) {
+		return domain.UnionFootprint([]domain.InteriorRect{{X: c.X - 3, Z: c.Z - 3, Width: 7, Height: 3}, {X: c.X + 1, Z: c.Z - 3, Width: 3, Height: 7}}, domain.South)
+	}},
+	{Name: "concave-l-se", Shape: func(c domain.Cell) (domain.RoomFootprint, error) {
+		return domain.UnionFootprint([]domain.InteriorRect{{X: c.X - 3, Z: c.Z + 1, Width: 7, Height: 3}, {X: c.X - 3, Z: c.Z - 3, Width: 3, Height: 7}}, domain.South)
+	}},
+	{Name: "concave-l-sw", Shape: func(c domain.Cell) (domain.RoomFootprint, error) {
+		return domain.UnionFootprint([]domain.InteriorRect{{X: c.X - 3, Z: c.Z + 1, Width: 7, Height: 3}, {X: c.X + 1, Z: c.Z - 3, Width: 3, Height: 7}}, domain.South)
+	}},
+	{Name: "connector-ew", Shape: func(c domain.Cell) (domain.RoomFootprint, error) {
+		return domain.UnionFootprint([]domain.InteriorRect{{X: c.X - 5, Z: c.Z - 2, Width: 4, Height: 4}, {X: c.X - 1, Z: c.Z, Width: 3, Height: 1}, {X: c.X + 2, Z: c.Z - 2, Width: 4, Height: 4}}, domain.South)
+	}},
+	{Name: "connector-ns", Shape: func(c domain.Cell) (domain.RoomFootprint, error) {
+		return domain.UnionFootprint([]domain.InteriorRect{{X: c.X - 2, Z: c.Z - 5, Width: 4, Height: 4}, {X: c.X, Z: c.Z - 1, Width: 1, Height: 3}, {X: c.X - 2, Z: c.Z + 2, Width: 4, Height: 4}}, domain.South)
+	}},
+}
+
+// ShellTemplates lists every template shape the starter search can issue,
+// in search order for the hut style: the huts, then the concave shapes. The
+// rectangle style skips the huts.
+func ShellTemplates(style ShelterStyle) []ShellTemplate {
+	var templates []ShellTemplate
+	if style == ShelterHut {
+		templates = hutShellTemplates()
+	}
+	return append(templates, concaveTemplates...)
 }
 
 // starterStorage is the 3x3 indoor stockpile: the rectangle template's
@@ -193,17 +256,28 @@ func StarterLayouts(r StarterRequest) ([]StarterLayout, error) {
 		c, exists := cells[p]
 		return exists && !protected[p] && positive(c.Walkable) && positive(measured(c.Occupied, func(v bool) bool { return !v })) && positive(measured(c.Zone, func(v bool) bool { return !v }))
 	}
+	// A site's tier is its template's place in the search order: the
+	// search prefers an earlier template a few cells further out over a
+	// later one at the anchor, so a narrow site never trades the circle for
+	// a low oval that happens to fit nearer.
 	type site struct {
+		tier  int
 		score int64
 		shell domain.RoomFootprint
 	}
+	// A shell is buildable when every cell of it is free, lit ground and its
+	// door does not open onto ground observed blocked: a door against rock
+	// or water seals the room as surely as a wall (a template pressed
+	// against a corridor's rock row). A threshold beyond the observed site
+	// window is not held against the shell; the shell's own cells are.
 	buildable := func(shell domain.RoomFootprint) bool {
 		for _, p := range shell.Cells() {
 			if !free(p) || !positive(cells[p].SupportsLight) {
 				return false
 			}
 		}
-		return true
+		_, observed := cells[shell.Threshold()]
+		return !observed || free(shell.Threshold())
 	}
 	// A site scores by its centre's distance to the anchor plus three per
 	// blocked cell in the three-row yard south of the shell.
@@ -218,17 +292,20 @@ func StarterLayouts(r StarterRequest) ([]StarterLayout, error) {
 		return score
 	}
 	var sites []site
-	if r.Shelter == ShelterHut {
+	templated := func(templates []ShellTemplate) {
 		for _, c := range ordered {
-			for _, template := range hutTemplates {
-				shell, err := domain.EllipseFootprint(c, template.radiusX, template.radiusZ, template.orientation, domain.South)
+			for tier, template := range templates {
+				shell, err := template.Shape(c)
 				if err != nil || !buildable(shell) {
 					continue
 				}
-				sites = append(sites, site{score(shell), shell})
+				sites = append(sites, site{tier, score(shell), shell})
 				break
 			}
 		}
+	}
+	if r.Shelter == ShelterHut {
+		templated(hutShellTemplates())
 	}
 	if len(sites) == 0 {
 		for _, c := range ordered {
@@ -239,8 +316,14 @@ func StarterLayouts(r StarterRequest) ([]StarterLayout, error) {
 			if err != nil || !buildable(shell) {
 				continue
 			}
-			sites = append(sites, site{score(shell), shell})
+			sites = append(sites, site{0, score(shell), shell})
 		}
+	}
+	if len(sites) == 0 {
+		// Neither a hut nor the rectangle fits: a concave template wraps
+		// the obstacle or spans two clearings before the search resorts to
+		// growing a shapeless footprint.
+		templated(concaveTemplates)
 	}
 	if len(sites) == 0 {
 		// Constrained terrain: grow one connected footprint from the free cell
@@ -259,12 +342,15 @@ func StarterLayouts(r StarterRequest) ([]StarterLayout, error) {
 				continue
 			}
 			if shell, ok := domain.GrowFootprint(seed, lit, starterInterior); ok {
-				sites = append(sites, site{score(shell), shell})
+				sites = append(sites, site{0, score(shell), shell})
 				break
 			}
 		}
 	}
 	sort.Slice(sites, func(i, j int) bool {
+		if sites[i].tier != sites[j].tier {
+			return sites[i].tier < sites[j].tier
+		}
 		if sites[i].score != sites[j].score {
 			return sites[i].score < sites[j].score
 		}
@@ -315,50 +401,54 @@ func StarterLayouts(r StarterRequest) ([]StarterLayout, error) {
 }
 
 // HutTemplateShells returns every hut template centred on c with a south
-// entrance, in the order the starter search tries them, so acceptance tooling
-// can recognise a native shell as one of the shapes this policy issues.
+// entrance, in the order the starter search tries them.
 func HutTemplateShells(c domain.Cell) []domain.RoomFootprint {
 	var shells []domain.RoomFootprint
-	for _, template := range hutTemplates {
-		shell, err := domain.EllipseFootprint(c, template.radiusX, template.radiusZ, template.orientation, domain.South)
-		if err == nil {
+	for _, template := range hutShellTemplates() {
+		if shell, err := template.Shape(c); err == nil {
 			shells = append(shells, shell)
 		}
 	}
 	return shells
 }
 
-// ShellShapesAtDoor returns every starter shell shape whose south door would
-// stand on door: the hut templates for the hut style, then the 9x9
-// rectangle. A shell planner uses it to recognise a shell it began earlier
-// from the door still standing natively, so a restart reissues only the
-// cells that shell is missing instead of siting a second one. These are the
-// fallback behind the planner's own journal of earlier shell plans, which
-// also recognises grown irregular shells that have no template.
+// ShellShapesAtDoor returns every starter template shape whose south door
+// would stand on door: the hut templates for the hut style, the 9x9
+// rectangle, then the concave templates. A shell planner uses it to
+// recognise a shell it began earlier from the door still standing natively,
+// so a restart reissues only the cells that shell is missing instead of
+// siting a second one. These are the fallback behind the planner's own
+// journal of earlier shell plans, which also recognises grown irregular
+// shells that have no template.
 func ShellShapesAtDoor(door domain.Cell, style ShelterStyle) []domain.RoomFootprint {
 	var shells []domain.RoomFootprint
-	if style == ShelterHut {
-		for _, template := range hutTemplates {
-			// A south door sits just below the interior, near the centre
-			// column but off it where a diagonal ring is two cells thick, so
-			// every centre within the longer radius of the door is tried.
-			reach := max(template.radiusX, template.radiusZ) + 1
-			found := false
-			for dz := int32(2); dz <= reach && !found; dz++ {
-				for dx := int32(-2); dx <= 2 && !found; dx++ {
-					center := domain.Cell{X: door.X + dx, Z: door.Z + dz}
-					shell, err := domain.EllipseFootprint(center, template.radiusX, template.radiusZ, template.orientation, domain.South)
-					if err == nil && shell.Door() == door {
-						shells = append(shells, shell)
-						found = true
-					}
+	// A south door sits below the interior within a few cells of the
+	// centre column (off it where a diagonal ring is two cells thick, or on
+	// a connector room's near chamber), so every centre within the shape's
+	// reach of the door is tried; the first centre reproducing the door is
+	// the template's one placement there.
+	at := func(template ShellTemplate, reach int32) {
+		for dz := int32(2); dz <= reach; dz++ {
+			for dx := -reach; dx <= reach; dx++ {
+				shell, err := template.Shape(domain.Cell{X: door.X + dx, Z: door.Z + dz})
+				if err == nil && shell.Door() == door {
+					shells = append(shells, shell)
+					return
 				}
 			}
+		}
+	}
+	if style == ShelterHut {
+		for i, template := range hutShellTemplates() {
+			at(template, max(hutTemplates[i].radiusX, hutTemplates[i].radiusZ)+1)
 		}
 	}
 	shell, err := domain.RectangleFootprint(domain.RoomBounds{X: door.X - 4, Z: door.Z, Width: 9, Height: 9}, domain.South)
 	if err == nil && shell.Door() == door {
 		shells = append(shells, shell)
+	}
+	for _, template := range concaveTemplates {
+		at(template, 7)
 	}
 	return shells
 }

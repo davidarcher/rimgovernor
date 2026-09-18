@@ -133,6 +133,13 @@ func (f RoomFootprint) Set() bool          { return len(f.interior) > 0 }
 func (f RoomFootprint) Door() Cell         { return f.door }
 func (f RoomFootprint) Entrance() Rotation { return f.entrance }
 
+// Threshold is the cell straight outside the door, the ground the room is
+// entered from.
+func (f RoomFootprint) Threshold() Cell {
+	step := f.entrance.outward()
+	return Cell{X: f.door.X + step.X, Z: f.door.Z + step.Z}
+}
+
 // Interior and Walls return fresh copies in z-outer, x-inner order.
 func (f RoomFootprint) Interior() []Cell { return append([]Cell(nil), f.interior...) }
 func (f RoomFootprint) Walls() []Cell    { return append([]Cell(nil), f.walls...) }
@@ -488,4 +495,122 @@ func connectedCells(seed Cell, points map[Cell]bool) bool {
 		}
 	}
 	return len(seen) == len(points)
+}
+
+// InteriorRect is a rectangle of interior cells, the building block of a
+// composite room. Unlike RoomBounds it holds no walls: the ring is grown
+// around the union afterwards.
+type InteriorRect struct{ X, Z, Width, Height int32 }
+
+func (r InteriorRect) cells() []Cell {
+	cells := make([]Cell, 0, int(r.Width)*int(r.Height))
+	for z := r.Z; z < r.Z+r.Height; z++ {
+		for x := r.X; x < r.X+r.Width; x++ {
+			cells = append(cells, Cell{X: x, Z: z})
+		}
+	}
+	return cells
+}
+
+// UnionFootprint joins one to eight rectangles of interior cells into one
+// room: an L-shaped chamber, a chamber with a wing, two chambers joined by a
+// narrow connector. The parts may overlap or touch; their union must be
+// orthogonally connected and, like every autopilot shape, roof itself. The
+// door stands on the bounding box's entrance edge (never in a notch, where
+// it would open into the room's own recess), on the wall cell nearest the
+// box's centre line whose inward cell has interior on both sides across the
+// entrance axis and interior again behind it -- never a corner and never
+// the mouth or flank of a one-cell connector, which is the room's aisle --
+// and whose outward cell is clear.
+func UnionFootprint(parts []InteriorRect, entrance Rotation) (RoomFootprint, error) {
+	if len(parts) == 0 || len(parts) > 8 {
+		return RoomFootprint{}, errors.New("a composite room takes one to eight parts")
+	}
+	inside := map[Cell]bool{}
+	var interior []Cell
+	for _, part := range parts {
+		if part.X < 1 || part.Z < 1 || part.Width < 1 || part.Height < 1 || part.Width > 62 || part.Height > 62 {
+			return RoomFootprint{}, errors.New("composite room part out of range")
+		}
+		for _, cell := range part.cells() {
+			if !inside[cell] {
+				inside[cell] = true
+				interior = append(interior, cell)
+			}
+		}
+	}
+	door, ok := unionDoor(interior, inside, entrance)
+	if !ok {
+		return RoomFootprint{}, errors.New("composite room has no door site on its entrance side")
+	}
+	footprint, err := NewRoomFootprint(interior, door, entrance)
+	if err != nil {
+		return RoomFootprint{}, err
+	}
+	if !footprint.RoofSupported() {
+		return RoomFootprint{}, errors.New("composite room interior exceeds roof support")
+	}
+	return footprint, nil
+}
+
+// unionDoor is UnionFootprint's door rule over an interior set.
+func unionDoor(interior []Cell, inside map[Cell]bool, entrance Rotation) (Cell, bool) {
+	wall := map[Cell]bool{}
+	minX, minZ, maxX, maxZ := interior[0].X, interior[0].Z, interior[0].X, interior[0].Z
+	for c := range inside {
+		minX, maxX = min(minX, c.X), max(maxX, c.X)
+		minZ, maxZ = min(minZ, c.Z), max(maxZ, c.Z)
+		for _, next := range neighbours8(c) {
+			if !inside[next] {
+				wall[next] = true
+			}
+		}
+	}
+	// The centre line in cell units doubled, so an even extent needs no
+	// rounding: |2·coordinate - (min+max)|.
+	axis := int64(minX + maxX)
+	step := entrance.outward()
+	side := Cell{X: 1}
+	if step.X != 0 {
+		axis = int64(minZ + maxZ)
+		side = Cell{Z: 1}
+	}
+	var edge Cell
+	switch entrance {
+	case North:
+		edge = Cell{Z: maxZ + 1}
+	case South:
+		edge = Cell{Z: minZ - 1}
+	case East:
+		edge = Cell{X: maxX + 1}
+	default:
+		edge = Cell{X: minX - 1}
+	}
+	var door Cell
+	best := int64(-1)
+	for w := range wall {
+		if step.X != 0 && w.X != edge.X || step.Z != 0 && w.Z != edge.Z {
+			continue
+		}
+		in := Cell{X: w.X - step.X, Z: w.Z - step.Z}
+		out := Cell{X: w.X + step.X, Z: w.Z + step.Z}
+		if !inside[in] || inside[out] || wall[out] {
+			continue
+		}
+		deeper := Cell{X: in.X - step.X, Z: in.Z - step.Z}
+		if !inside[deeper] || !inside[Cell{X: in.X + side.X, Z: in.Z + side.Z}] || !inside[Cell{X: in.X - side.X, Z: in.Z - side.Z}] {
+			continue
+		}
+		off := 2*int64(w.X) - axis
+		if step.X != 0 {
+			off = 2*int64(w.Z) - axis
+		}
+		if off < 0 {
+			off = -off
+		}
+		if best < 0 || off < best || off == best && cellBefore(w, door) {
+			best, door = off, w
+		}
+	}
+	return door, best >= 0
 }
