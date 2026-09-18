@@ -91,9 +91,17 @@ func (e *Executor) runWork(ctx context.Context, action domain.Action, p domain.P
 			if !evidence.Complete || evidence.Work != work || !known || allowed || o.UnsuccessfulReason != domain.OutcomeNotAchieved {
 				return result, ErrEvidence
 			}
+		case domain.EffectAbsent:
+			// The native ledger has no entry for the attempt: the dispatch
+			// timed out before admission (#71), so the settings write never ran
+			// and the action returns to Pending for a fresh attempt (#165).
+			// Only the boundary's complete post-dispatch lookup says so;
+			// anything less cannot authorize a second settings write.
+			if !evidence.Complete || o.Causality != domain.AfterDispatch {
+				return result, ErrEvidence
+			}
 		case domain.EffectUnknown, domain.EffectPending:
 		default:
-			// Missing native attempt/pawn cannot authorize a second settings write.
 			return result, ErrEvidence
 		}
 		next, err := e.journal.Observe(ctx, v.Plan, o, current)

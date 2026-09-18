@@ -120,7 +120,7 @@ func (b *BillBoundary) ObserveBill(ctx context.Context, p executor.Placement, cu
 		if err != nil {
 			return out, err
 		}
-		out.Observation, out.Complete, out.ObservedAt = absent, true, b.Clock.Now()
+		out.Observation, out.Complete, out.Bill, out.ObservedAt = absent, true, w.Bill, b.Clock.Now()
 		return out, nil
 	}
 	if err = boundary.Admission(admitted, p, b.Session); err != nil {

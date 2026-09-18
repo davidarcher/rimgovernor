@@ -56,7 +56,7 @@ func (n *billEnvironment) ObserveBill(_ context.Context, p Placement, current do
 		effect = domain.EffectUnknown
 	}
 	complete := effect == domain.EffectCompleted || effect == domain.EffectUnsuccessful || effect == domain.EffectAbsent
-	e := BillEvidence{Observation: domain.Observation{Action: p.Action.ID(), Attempt: p.Attempt, Snapshot: current, Tick: p.Tick + 1, Effect: effect}, StartedAt: n.clock.Now(), ObservedAt: n.clock.Now(), Complete: complete, Bill: bill}
+	e := BillEvidence{Observation: domain.Observation{Action: p.Action.ID(), Attempt: p.Attempt, Snapshot: current, Tick: p.Tick + 1, Effect: effect, Causality: domain.AfterDispatch}, StartedAt: n.clock.Now(), ObservedAt: n.clock.Now(), Complete: complete, Bill: bill}
 	if effect == domain.EffectCompleted || effect == domain.EffectUnsuccessful {
 		e.Matches = domain.Known(n.matches)
 		e.Iterations = n.iterations
@@ -290,5 +290,30 @@ func TestBillLostReplySurvivesRestart(t *testing.T) {
 	}
 	if result.Progress.View().Stage != domain.Completed {
 		t.Fatal("restart did not reconcile the earlier dispatch", result)
+	}
+}
+
+// See TestSupplyUnadmittedAttemptRetries: a dispatch the ledger never
+// admitted (no receipt, no bill) returns to Pending and is added again
+// under a fresh attempt (#165).
+func TestBillUnadmittedAttemptRetries(t *testing.T) {
+	f, n := billFixture(t)
+	n.attemptOutcome = func(Receipt, error) (Receipt, error) { return Receipt{}, errors.New("reply lost") }
+	if _, err := f.run(); err == nil || n.added != 1 {
+		t.Fatal(err, n.added)
+	}
+	n.attemptOutcome, n.effect = nil, domain.EffectAbsent
+	result, err := f.run()
+	if err != nil || result.Progress.View().Unresolved || result.Progress.View().Stage != domain.Pending || n.added != 1 {
+		t.Fatal(result, err, n.added)
+	}
+	n.effect = ""
+	result, err = f.run()
+	if err != nil || n.added != 2 || result.Progress.View().Attempt != 2 {
+		t.Fatal(result, err, n.added)
+	}
+	n.effect, n.matches, n.iterations, n.outputComplete, n.outputObserved, n.outputCount = domain.EffectCompleted, true, 1, true, true, 1
+	if result, err = f.run(); err != nil || result.Progress.View().Stage != domain.Completed {
+		t.Fatal(result, err)
 	}
 }

@@ -18,8 +18,11 @@ type mineAcquisitionEnvironment struct {
 	*environment
 	inspected, allowed, observed       int
 	uncertain, unsafe, foreign, absent bool
-	onInspect                          func()
-	effect                             domain.Effect
+	// unadmitted marks the absent evidence as the boundary's complete
+	// post-dispatch ledger lookup, as boundary.Unadmitted reports it.
+	unadmitted bool
+	onInspect  func()
+	effect     domain.Effect
 }
 
 func (n *mineAcquisitionEnvironment) InspectAcquisition(_ context.Context, target Target) (AcquisitionInspection, error) {
@@ -55,7 +58,11 @@ func (n *mineAcquisitionEnvironment) ObserveAcquisition(_ context.Context, p Pla
 	if n.absent {
 		effect = domain.EffectAbsent
 	}
-	return AcquisitionEvidence{Observation: domain.Observation{Action: p.Action.ID(), Attempt: p.Attempt, Snapshot: current, Tick: p.Tick + 1, Effect: effect}, StartedAt: n.clock.Now(), ObservedAt: n.clock.Now(), Complete: effect != domain.EffectUnknown, Acquisition: acquisition, LaborFinished: effect == domain.EffectCompleted || effect == domain.EffectUnsuccessful, OutputComplete: true, OutputObserved: effect == domain.EffectCompleted, ProducedUnits: 10}, nil
+	var causality domain.ObservationCausality
+	if n.unadmitted {
+		causality = domain.AfterDispatch
+	}
+	return AcquisitionEvidence{Observation: domain.Observation{Action: p.Action.ID(), Attempt: p.Attempt, Snapshot: current, Tick: p.Tick + 1, Effect: effect, Causality: causality}, StartedAt: n.clock.Now(), ObservedAt: n.clock.Now(), Complete: effect != domain.EffectUnknown, Acquisition: acquisition, LaborFinished: effect == domain.EffectCompleted || effect == domain.EffectUnsuccessful, OutputComplete: true, OutputObserved: effect == domain.EffectCompleted, ProducedUnits: 10}, nil
 }
 func mineAcquisitionFixture(t *testing.T) (*fixture, *mineAcquisitionEnvironment) {
 	t.Helper()
@@ -164,5 +171,32 @@ func TestMineAcquisitionTypedPreparationCannotBeBypassed(t *testing.T) {
 	wrong := store.MineAcquisitionAdmission{Snapshot: f.authority.Snapshot, Tick: 100, Thing: "other", SnapshotToken: "token"}
 	if _, err := f.store.PrepareMineAcquisition(context.Background(), f.plan.ID(), f.action.ID(), wrong); err == nil {
 		t.Fatal("foreign item admitted")
+	}
+}
+
+// A dispatch that timed out before the native ledger admitted it leaves an
+// unknown receipt; the ledger lookup then proves no attempt exists, and the
+// action returns to Pending and is dispatched again under a fresh attempt
+// instead of awaiting an observation that can never arrive (#165).
+func TestMineAcquisitionUnadmittedAttemptRetries(t *testing.T) {
+	f, n := mineAcquisitionFixture(t)
+	n.uncertain = true
+	if _, err := f.run(); err == nil || n.allowed != 1 {
+		t.Fatal(err, n.allowed)
+	}
+	n.uncertain, n.absent, n.unadmitted = false, true, true
+	result, err := f.run()
+	if err != nil || result.Progress.View().Unresolved || result.Progress.View().Stage != domain.Pending || n.allowed != 1 {
+		t.Fatal(result, err, n.allowed)
+	}
+	n.absent, n.unadmitted = false, false
+	n.tick += 10
+	result, err = f.run()
+	if err != nil || n.allowed != 2 || result.Progress.View().Attempt != 2 {
+		t.Fatal(result, err, n.allowed)
+	}
+	n.effect = domain.EffectCompleted
+	if result, err = f.run(); err != nil || result.Progress.View().Stage != domain.Completed {
+		t.Fatal(result, err)
 	}
 }

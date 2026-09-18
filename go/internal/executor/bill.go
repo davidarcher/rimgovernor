@@ -95,7 +95,10 @@ func (e *Executor) runBill(ctx context.Context, action domain.Action, p domain.P
 				return result, ErrEvidence
 			}
 		case domain.EffectAbsent:
-			if !evidence.Complete || evidence.Bill != bill {
+			// Either the bill vanished after admission or the ledger never
+			// admitted the attempt (#71, #165); only the boundary's complete
+			// post-dispatch lookup authorizes a second Add.
+			if !evidence.Complete || evidence.Bill != bill || o.Causality != domain.AfterDispatch {
 				return result, ErrEvidence
 			}
 		case domain.EffectUnknown, domain.EffectPending:

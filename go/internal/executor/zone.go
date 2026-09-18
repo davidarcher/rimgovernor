@@ -91,9 +91,17 @@ func (e *Executor) runZone(ctx context.Context, action domain.Action, p domain.P
 			if !evidence.Complete || evidence.Zone != zone || !known || allowed || o.UnsuccessfulReason != domain.OutcomeNotAchieved {
 				return result, ErrEvidence
 			}
+		case domain.EffectAbsent:
+			// The native ledger has no entry for the attempt: the dispatch
+			// timed out before admission (#71), so the creation never ran
+			// and the action returns to Pending for a fresh attempt (#165).
+			// Only the boundary's complete post-dispatch lookup says so;
+			// anything less cannot authorize a second creation.
+			if !evidence.Complete || o.Causality != domain.AfterDispatch {
+				return result, ErrEvidence
+			}
 		case domain.EffectUnknown, domain.EffectPending:
 		default:
-			// Missing native attempt or zone cannot authorize a second creation.
 			return result, ErrEvidence
 		}
 		next, err := e.journal.Observe(ctx, v.Plan, o, current)

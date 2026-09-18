@@ -96,6 +96,15 @@ func (e *Executor) runExcavation(ctx context.Context, action domain.Action, p do
 			if !evidence.Complete || evidence.Excavation != excavation || evidence.Cleared || evidence.Designated || o.UnsuccessfulReason != domain.OutcomeNotAchieved {
 				return result, ErrEvidence
 			}
+		case domain.EffectAbsent:
+			// The native ledger has no entry for the attempt: the dispatch
+			// timed out before admission (#71), so the designation never ran
+			// and the action returns to Pending for a fresh attempt (#165).
+			// Only the boundary's complete post-dispatch lookup says so;
+			// anything less cannot authorize a second designation.
+			if !evidence.Complete || o.Causality != domain.AfterDispatch {
+				return result, ErrEvidence
+			}
 		case domain.EffectUnknown, domain.EffectPending:
 		default:
 			return result, ErrEvidence

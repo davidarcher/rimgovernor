@@ -17,11 +17,14 @@ type excavationEnvironment struct {
 	*environment
 	inspected, allowed, observed int
 	uncertain, unsafe, foreign   bool
-	absent                       bool
-	fogged, unsupported, moved   bool
-	noWorker                     bool
-	onInspect                    func()
-	effect                       domain.Effect
+	// unadmitted marks the absent evidence as the boundary's complete
+	// post-dispatch ledger lookup, as boundary.Unadmitted reports it.
+	unadmitted                 bool
+	absent                     bool
+	fogged, unsupported, moved bool
+	noWorker                   bool
+	onInspect                  func()
+	effect                     domain.Effect
 }
 
 func (n *excavationEnvironment) InspectExcavation(_ context.Context, target Target) (ExcavationInspection, error) {
@@ -71,7 +74,11 @@ func (n *excavationEnvironment) ObserveExcavation(_ context.Context, p Placement
 	if n.absent {
 		effect = domain.EffectAbsent
 	}
-	out := ExcavationEvidence{Observation: domain.Observation{Action: p.Action.ID(), Attempt: p.Attempt, Snapshot: current, Tick: p.Tick + 1, Effect: effect}, StartedAt: n.clock.Now(), ObservedAt: n.clock.Now(), Complete: effect != domain.EffectUnknown, Excavation: excavation}
+	var causality domain.ObservationCausality
+	if n.unadmitted {
+		causality = domain.AfterDispatch
+	}
+	out := ExcavationEvidence{Observation: domain.Observation{Action: p.Action.ID(), Attempt: p.Attempt, Snapshot: current, Tick: p.Tick + 1, Effect: effect, Causality: causality}, StartedAt: n.clock.Now(), ObservedAt: n.clock.Now(), Complete: effect != domain.EffectUnknown, Excavation: excavation}
 	switch effect {
 	case domain.EffectCompleted:
 		out.Cleared = true
@@ -221,5 +228,32 @@ func TestExcavationTypedPreparationCannotBeBypassed(t *testing.T) {
 	wrong := store.ExcavationAdmission{Snapshot: f.authority.Snapshot, Tick: 100, Cell: domain.Cell{X: 9, Z: 9}, Definition: "Granite", SnapshotToken: "token"}
 	if _, err := f.store.PrepareExcavation(context.Background(), f.plan.ID(), f.action.ID(), wrong); err == nil {
 		t.Fatal("foreign cell admitted")
+	}
+}
+
+// A dispatch that timed out before the native ledger admitted it leaves an
+// unknown receipt; the ledger lookup then proves no attempt exists, and the
+// action returns to Pending and is dispatched again under a fresh attempt
+// instead of awaiting an observation that can never arrive (#165).
+func TestExcavationUnadmittedAttemptRetries(t *testing.T) {
+	f, n := excavationFixture(t)
+	n.uncertain = true
+	if _, err := f.run(); err == nil || n.allowed != 1 {
+		t.Fatal(err, n.allowed)
+	}
+	n.uncertain, n.absent, n.unadmitted = false, true, true
+	result, err := f.run()
+	if err != nil || result.Progress.View().Unresolved || result.Progress.View().Stage != domain.Pending || n.allowed != 1 {
+		t.Fatal(result, err, n.allowed)
+	}
+	n.absent, n.unadmitted = false, false
+	n.tick += 10
+	result, err = f.run()
+	if err != nil || n.allowed != 2 || result.Progress.View().Attempt != 2 {
+		t.Fatal(result, err, n.allowed)
+	}
+	n.effect = domain.EffectCompleted
+	if result, err = f.run(); err != nil || result.Progress.View().Stage != domain.Completed {
+		t.Fatal(result, err)
 	}
 }

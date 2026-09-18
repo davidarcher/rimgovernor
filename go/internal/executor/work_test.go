@@ -14,8 +14,11 @@ type workEnvironment struct {
 	*environment
 	inspected, allowed, observed       int
 	uncertain, unsafe, foreign, absent bool
-	onInspect                          func()
-	effect                             domain.Effect
+	// unadmitted marks the absent evidence as the boundary's complete
+	// post-dispatch ledger lookup, as boundary.Unadmitted reports it.
+	unadmitted bool
+	onInspect  func()
+	effect     domain.Effect
 }
 
 func (n *workEnvironment) InspectWork(_ context.Context, target Target) (WorkInspection, error) {
@@ -51,7 +54,11 @@ func (n *workEnvironment) ObserveWork(_ context.Context, p Placement, current do
 	if n.absent {
 		effect = domain.EffectAbsent
 	}
-	return WorkEvidence{Observation: domain.Observation{Action: p.Action.ID(), Attempt: p.Attempt, Snapshot: current, Tick: p.Tick + 1, Effect: effect}, StartedAt: n.clock.Now(), ObservedAt: n.clock.Now(), Complete: effect != domain.EffectUnknown, Work: work, Matches: domain.Known(effect == domain.EffectCompleted)}, nil
+	var causality domain.ObservationCausality
+	if n.unadmitted {
+		causality = domain.AfterDispatch
+	}
+	return WorkEvidence{Observation: domain.Observation{Action: p.Action.ID(), Attempt: p.Attempt, Snapshot: current, Tick: p.Tick + 1, Effect: effect, Causality: causality}, StartedAt: n.clock.Now(), ObservedAt: n.clock.Now(), Complete: effect != domain.EffectUnknown, Work: work, Matches: domain.Known(effect == domain.EffectCompleted)}, nil
 }
 func workFixture(t *testing.T) (*fixture, *workEnvironment) {
 	t.Helper()
@@ -160,5 +167,32 @@ func TestWorkTypedPreparationCannotBeBypassed(t *testing.T) {
 	wrong := store.WorkAdmission{Snapshot: f.authority.Snapshot, Tick: 100, Pawn: "other", SnapshotToken: "token"}
 	if _, err := f.store.PrepareWork(context.Background(), f.plan.ID(), f.action.ID(), wrong); err == nil {
 		t.Fatal("foreign item admitted")
+	}
+}
+
+// A dispatch that timed out before the native ledger admitted it leaves an
+// unknown receipt; the ledger lookup then proves no attempt exists, and the
+// action returns to Pending and is dispatched again under a fresh attempt
+// instead of awaiting an observation that can never arrive (#165).
+func TestWorkUnadmittedAttemptRetries(t *testing.T) {
+	f, n := workFixture(t)
+	n.uncertain = true
+	if _, err := f.run(); err == nil || n.allowed != 1 {
+		t.Fatal(err, n.allowed)
+	}
+	n.uncertain, n.absent, n.unadmitted = false, true, true
+	result, err := f.run()
+	if err != nil || result.Progress.View().Unresolved || result.Progress.View().Stage != domain.Pending || n.allowed != 1 {
+		t.Fatal(result, err, n.allowed)
+	}
+	n.absent, n.unadmitted = false, false
+	n.tick += 10
+	result, err = f.run()
+	if err != nil || n.allowed != 2 || result.Progress.View().Attempt != 2 {
+		t.Fatal(result, err, n.allowed)
+	}
+	n.effect = domain.EffectCompleted
+	if result, err = f.run(); err != nil || result.Progress.View().Stage != domain.Completed {
+		t.Fatal(result, err)
 	}
 }
