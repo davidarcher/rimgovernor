@@ -126,11 +126,14 @@ func TestBundleReadValidatesRequestAndSections(t *testing.T) {
 		t.Fatal("an invalid request crossed the bridge")
 	}
 	cases := map[string]func(*o.BundleSnapshot){
-		"pause missing":            func(s *o.BundleSnapshot) { s.Paused = nil },
-		"section unrequested":      func(s *o.BundleSnapshot) { s.Events = nil },
-		"clock status tick":        func(s *o.BundleSnapshot) { s.ClockStatus.Context.Tick = proto.Int64(13) },
-		"clock status identity":    func(s *o.BundleSnapshot) { s.ClockStatus.Context.Identity.LoadToken = proto.String("other") },
-		"emergency tick":           func(s *o.BundleSnapshot) { s.Emergency.Context.Tick = proto.Int64(13); s.Emergency.Colonists.Context.Tick = proto.Int64(13) },
+		"pause missing":         func(s *o.BundleSnapshot) { s.Paused = nil },
+		"section unrequested":   func(s *o.BundleSnapshot) { s.Events = nil },
+		"clock status tick":     func(s *o.BundleSnapshot) { s.ClockStatus.Context.Tick = proto.Int64(13) },
+		"clock status identity": func(s *o.BundleSnapshot) { s.ClockStatus.Context.Identity.LoadToken = proto.String("other") },
+		"emergency tick": func(s *o.BundleSnapshot) {
+			s.Emergency.Context.Tick = proto.Int64(13)
+			s.Emergency.Colonists.Context.Tick = proto.Int64(13)
+		},
 		"emergency identity":       func(s *o.BundleSnapshot) { s.Emergency.Context.Identity.LoadToken = proto.String("other") },
 		"emergency section":        func(s *o.BundleSnapshot) { s.Emergency.Threats = nil },
 		"events tick":              func(s *o.BundleSnapshot) { s.Events.Context.Tick = proto.Int64(13) },

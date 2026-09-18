@@ -77,10 +77,19 @@ namespace HomeBridge.BridgeTools
         internal RimGovernor.Protocol.Receipts.Progress Observe(RimGovernor.Protocol.Common.AttemptKey attempt, RimGovernor.Protocol.Common.ObservationContext context)
         { var progress = Next.Clone(); progress.Attempt = attempt.Clone(); progress.Context = context.Clone(); return progress; }
     }
+    // Haul double with the same Observe shape; the clock watch resolves a
+    // watched key against both record tables (#108) and the probe only ever
+    // arms construction keys, so no haul is ever recorded here.
+    internal sealed class NativeHaulRecord
+    {
+        internal RimGovernor.Protocol.Receipts.Progress Observe(RimGovernor.Protocol.Common.AttemptKey attempt, RimGovernor.Protocol.Common.ObservationContext context)
+            => throw new InvalidOperationException("The clock probe records no haul operations.");
+    }
     internal sealed class NativeOperationState
     {
         internal NativeAttemptLedger Ledger;
         internal readonly Dictionary<RimGovernor.Protocol.Common.AttemptKey, NativeConstructionRecord> Construction = new Dictionary<RimGovernor.Protocol.Common.AttemptKey, NativeConstructionRecord>();
+        internal readonly Dictionary<RimGovernor.Protocol.Common.AttemptKey, NativeHaulRecord> Hauls = new Dictionary<RimGovernor.Protocol.Common.AttemptKey, NativeHaulRecord>();
         private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<Verse.Game, NativeOperationState> States = new System.Runtime.CompilerServices.ConditionalWeakTable<Verse.Game, NativeOperationState>();
         internal static NativeOperationState ForAdmission(RimGovernor.Protocol.Common.Identity identity) => States.GetValue(Verse.Current.Game, _ => new NativeOperationState { Ledger = new NativeAttemptLedger(identity) });
         internal static bool TryGet(RimGovernor.Protocol.Common.Identity identity, out NativeOperationState state) => States.TryGetValue(Verse.Current.Game, out state);
@@ -99,6 +108,10 @@ namespace HomeBridge.BridgeTools
         internal static long WallTime = 1700000000000;
         internal static bool RefusePause;
         internal static string InitialStop;
+        // The production partial reads TickManager.UltraSpeedBoost by reflection
+        // (#109); the fake TickManager has no boost, so test acceleration is
+        // never available to the probe.
+        private static readonly System.Reflection.FieldInfo BoostField = null;
         private static long NowMs() => WallTime;
         private static void EnsurePatched() { HarmonyLib.Harmony.Installed = true; }
         private static List<string> ForcePausingWindows() => new List<string>();
@@ -154,7 +167,7 @@ namespace HomeBridge.BridgeTools
             internal TypedEpoch Typed; internal bool Active; internal object Session; internal Verse.Map Map; internal long Epoch;
             internal Verse.TimeSpeed RequestedSpeed; internal long LeaseExpiresMs; internal int StartTick, LastTick, MaxProbeTickGap, ProbeCount;
             internal long? TickDeadline, StopAtMs; internal string PendingKind, PendingDetail, StopReason, StopDetail, ForcePauseKind;
-            internal bool? PauseVerified; internal long ForcePauseSinceMs;
+            internal bool? PauseVerified; internal long ForcePauseSinceMs; internal bool TestAcceleration;
             internal List<Dictionary<string, object>> BaselineAlerts = new List<Dictionary<string, object>>(), SuppressedInjuries = new List<Dictionary<string, object>>();
         }
         internal static void FixtureReset()

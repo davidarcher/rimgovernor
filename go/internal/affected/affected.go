@@ -33,7 +33,18 @@ type Selection struct {
 	// not shared: it affects the areas whose Go sources name one of the
 	// fixture's ops or its save (na.FixtureInputs, #170).
 	AllHarnesses bool
+	// Probes means the native contract probes build (task probes:build,
+	// contracts/tests/NativeContractProbes.csproj) is affected: it compiles
+	// production sources under integrations/rimgovernor-native/src against
+	// the hand-written stubs in contracts/tests, so a native source, a probe
+	// or a generated protocol class change can break it while the mod and
+	// the Go suite stay green (#123).
+	Probes bool
 }
+
+// probeInputs are the roots whose files the native contract probes build
+// compiles or links.
+var probeInputs = []string{"integrations/rimgovernor-native/src", "contracts/tests", "contracts/generated/protobuf/csharp"}
 
 // ChangedFiles lists the repo-relative files the working tree changed
 // since it diverged from base (the merge base, so what base gained
@@ -88,6 +99,11 @@ func Select(repo string, changed []string) (Selection, error) {
 		for _, root := range na.HarnessInputRoots() {
 			if file == root || strings.HasPrefix(file, root+"/") {
 				sel.AllHarnesses = true
+			}
+		}
+		for _, root := range probeInputs {
+			if strings.HasPrefix(file, root+"/") {
+				sel.Probes = true
 			}
 		}
 		if dir, ok := goPackageDir(repo, file); ok {
@@ -337,14 +353,22 @@ func output(dir, name string, args ...string) (string, error) {
 	return string(out), nil
 }
 
-// Test runs go test for what the changed files affect (Select), streaming
-// the output to stdout/stderr, and names the affected case areas first so
-// the caller knows which acceptance runs the change may still owe.
+// Test runs go test for what the changed files affect (Select) and the
+// native contract probes build when the change touches its inputs,
+// streaming the output to stdout/stderr, and names the affected case
+// areas first so the caller knows which acceptance runs the change may
+// still owe.
 func Test(repo string, changed []string) error {
 	goDir := filepath.Join(repo, "go")
 	sel, err := Select(repo, changed)
 	if err != nil {
 		return err
+	}
+	if sel.Probes {
+		fmt.Println("probes: native contract probes build affected, running task probes:build")
+		if err := run(repo, "task", "probes:build"); err != nil {
+			return err
+		}
 	}
 	if sel.AllHarnesses {
 		fmt.Println("cases affected: all (a shared acceptance input changed: native sources or go.mod)")
@@ -365,13 +389,16 @@ func Test(repo string, changed []string) error {
 }
 
 // goRun streams a go command's output so test failures are visible.
-func goRun(dir string, args ...string) error {
-	cmd := exec.Command("go", args...)
+func goRun(dir string, args ...string) error { return run(dir, "go", args...) }
+
+// run streams a command's output so failures are visible.
+func run(dir, name string, args ...string) error {
+	cmd := exec.Command(name, args...)
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("go %s: %w", strings.Join(args, " "), err)
+		return fmt.Errorf("%s %s: %w", name, strings.Join(args, " "), err)
 	}
 	return nil
 }

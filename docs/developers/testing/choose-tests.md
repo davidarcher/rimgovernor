@@ -542,8 +542,13 @@ the runner or the `rimgovernor` binary imports a changed package; every area
 when the native sources, fixtures or `go.mod` changed). It diffs the working
 tree, including uncommitted and untracked files, against the merge base with
 `main` (`-base` for another revision); pass paths to ask about a hypothetical
-change. `go run ./cmd/test` runs the `go test` line (the landing lane does
-not). Run the acceptance lines at the milestone and name them in the commit
+change, and a `task probes:build` line when the change touches the native
+contract probes build (a source under `integrations/rimgovernor-native/src`,
+`contracts/tests` or the generated C# protocol classes): the probes compile
+production clock and authority sources against hand-written stubs, so a
+native addition can break them while the mod build stays green (#123).
+`go run ./cmd/test` runs the `go test` line and the probes build (the
+landing lane does not). Run the acceptance lines at the milestone and name them in the commit
 message. Run `cmd/test` once before
 landing. Go-only changes need the full Go
 suite; dashboard-only changes need typecheck, Vitest and build. Changes to shared

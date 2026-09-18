@@ -17,9 +17,9 @@ type supplyEnvironment struct {
 	// unadmitted marks the absent evidence as the boundary's complete
 	// post-dispatch ledger lookup, as boundary.Unadmitted reports it.
 	unadmitted bool
-	onInspect                          func()
-	gone                               bool
-	effect                             domain.Effect
+	onInspect  func()
+	gone       bool
+	effect     domain.Effect
 }
 
 func (n *supplyEnvironment) InspectSupply(_ context.Context, target Target) (SupplyInspection, error) {
@@ -177,6 +177,7 @@ func TestSupplyRejectsForeignCompletionAndAbsence(t *testing.T) {
 		t.Fatal("bad evidence released uncertainty")
 	}
 }
+
 // A dispatch that timed out before the native ledger admitted it leaves an
 // unknown receipt; the ledger lookup then proves no attempt exists, and the
 // action returns to Pending and is allowed again under a fresh token

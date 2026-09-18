@@ -67,6 +67,9 @@ func main() {
 	for _, area := range sel.Cases {
 		fmt.Printf("go run ./internal/nativeaccept/cmd/acceptance run %s/... ...\n", area)
 	}
+	if sel.Probes {
+		fmt.Println("task probes:build")
+	}
 }
 
 func fail(err error) {

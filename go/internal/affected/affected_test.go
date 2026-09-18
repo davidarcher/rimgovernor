@@ -26,7 +26,7 @@ func TestSelectNothingForDocs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if sel.AllGo || sel.AllHarnesses || len(sel.Packages) != 0 || len(sel.Cases) != 0 {
+	if sel.AllGo || sel.AllHarnesses || sel.Probes || len(sel.Packages) != 0 || len(sel.Cases) != 0 {
 		t.Errorf("docs change selected %+v", sel)
 	}
 }
@@ -46,8 +46,28 @@ func TestSelectNativeSourceIsEveryCaseNoGo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if sel.AllGo || !sel.AllHarnesses || len(sel.Packages) != 0 || len(sel.Cases) < 10 {
+	if sel.AllGo || !sel.AllHarnesses || !sel.Probes || len(sel.Packages) != 0 || len(sel.Cases) < 10 {
 		t.Errorf("native change selected %+v", sel)
+	}
+}
+
+// The probes build compiles native sources against stubs under
+// contracts/tests, so a stub or probe change owes the build and nothing
+// else; a generated protocol class (a mod build input too) owes it as well.
+func TestSelectProbeStubOwesProbesBuildOnly(t *testing.T) {
+	r := repo(t)
+	sel, err := Select(r, []string{"contracts/tests/NativeContractProbes/Shared/FakeVerseStub.cs"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !sel.Probes || sel.AllGo || sel.AllHarnesses || len(sel.Packages) != 0 || len(sel.Cases) != 0 {
+		t.Errorf("stub change selected %+v", sel)
+	}
+	if sel, err = Select(r, []string{"contracts/generated/protobuf/csharp/Clock.cs"}); err != nil {
+		t.Fatal(err)
+	}
+	if !sel.Probes || !sel.AllHarnesses {
+		t.Errorf("generated protocol change selected %+v", sel)
 	}
 }
 
