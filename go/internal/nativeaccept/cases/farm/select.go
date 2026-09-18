@@ -97,6 +97,12 @@ func (sel selection) register(name string) cases.Case {
 				if t := na.AsNumber(fixture["outdoorTemperatureC"]); t >= 0 {
 					return fmt.Errorf("outdoor temperature %.1f C did not close the growing season: %#v", t, fixture)
 				}
+				// The season must stay closed through the watch, not only at
+				// the save's hour: at the day's peak the planner rightly goes
+				// outdoors once the room is full (#194).
+				if t := na.AsNumber(fixture["outdoorPeakTemperatureC"]); t >= 0 {
+					return fmt.Errorf("outdoor peak temperature %.1f C reopens the growing season during the watch: %#v", t, fixture)
+				}
 			}
 			observation := sustainedfood.Observation{WatchConfig: sustainedfood.WatchConfig{Watch: window, Poll: 5 * time.Second}}
 			if sel.environment != "" {

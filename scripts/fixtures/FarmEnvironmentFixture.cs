@@ -167,10 +167,15 @@ namespace HomeBridge.BridgeTools
 
                 // A cold snap takes -20C at full ramp (lerped in over 12000
                 // ticks); enough fully ramped snaps close the outdoor sowing
-                // season (below 0C) with margin, and parkas keep the tribal
-                // colonists out of hypothermia for the run.
+                // season (below 0C) with margin for the whole run, and parkas
+                // keep the tribal colonists out of hypothermia. The snaps are
+                // sized on the day's peak, not the save's hour: the sun cycle
+                // swings +-7C, so a snap that closes a cool morning reopened
+                // the season by afternoon and the planner rightly went
+                // outdoors once the greenhouse was full (#194).
                 var outdoors = map.mapTemperature.OutdoorTemp;
-                var snaps = System.Math.Max(1, System.Math.Min(3, (int)System.Math.Ceiling((outdoors + 8f) / 20f)));
+                var peak = outdoors - GenTemperature.OffsetFromSunCycle(Find.TickManager.TicksAbs, map.Tile) + 7f;
+                var snaps = System.Math.Max(1, System.Math.Min(3, (int)System.Math.Ceiling((peak + 8f) / 20f)));
                 for (var i = 0; i < snaps; i++)
                 {
                     var snap = GameConditionMaker.MakeCondition(coldSnap, 4 * 60000 + 12000);
@@ -202,7 +207,7 @@ namespace HomeBridge.BridgeTools
                     tick = Find.TickManager.TicksGame, scenario, builder = builder.GetUniqueLoadID(),
                     origin = new { x = origin.x, z = origin.z },
                     interior = new { minX = interior.minX, minZ = interior.minZ, maxX = interior.maxX, maxZ = interior.maxZ },
-                    roomId = inside.ID, roomTemperatureC = inside.Temperature, outdoorTemperatureC = map.mapTemperature.OutdoorTemp, coldSnaps = snaps,
+                    roomId = inside.ID, roomTemperatureC = inside.Temperature, outdoorTemperatureC = map.mapTemperature.OutdoorTemp, outdoorPeakTemperatureC = peak - 20f * snaps, coldSnaps = snaps,
                     lamp = lamp.GetUniqueLoadID(), lampPowered = lamp.TryGetComp<CompPowerTrader>().PowerOn, lampScheduled = schedule == null || schedule.Allowed,
                     lampGrowthRadius = lampDef.specialDisplayRadius, heaters = heaters.Select(h => h.GetUniqueLoadID()).ToList(),
                     generators, stock, dressed, unavailableCrops = gated,
