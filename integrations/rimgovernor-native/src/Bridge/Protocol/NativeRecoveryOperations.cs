@@ -30,7 +30,7 @@ namespace HomeBridge.BridgeTools
         private readonly NativeControlIdentity identity;
         private readonly Pawn pawn;
         private readonly Building target;
-        private readonly Job job;
+        private readonly string jobDef;
         private readonly int jobId;
         private readonly Operations.ServiceMethod method;
         private readonly Common.ObservationContext admitted;
@@ -38,8 +38,8 @@ namespace HomeBridge.BridgeTools
         internal NativeRecoveryServiceRecord(NativeControlIdentity identity, Pawn pawn, Building target, Job job,
             Operations.ServiceMethod method, Common.ObservationContext context)
         {
-            this.identity = identity; this.pawn = pawn; this.target = target; this.job = job;
-            jobId = job.loadID; this.method = method; admitted = context.Clone();
+            this.identity = identity; this.pawn = pawn; this.target = target; jobId = job.loadID; jobDef = job.def?.defName ?? "";
+            this.method = method; admitted = context.Clone();
         }
 
         // Issued describes only whether THIS call just issued a new job; Progress
@@ -48,7 +48,7 @@ namespace HomeBridge.BridgeTools
         {
             Job = new Receipts.JobEffect
             {
-                PawnId = snapshot.PawnId, JobId = jobId, JobDef = job.def?.defName ?? "",
+                PawnId = snapshot.PawnId, JobId = jobId, JobDef = jobDef,
                 TargetA = new Receipts.JobTarget { ThingId = target.GetUniqueLoadID() },
                 Issued = issued, Verified = verified,
                 VerifiedReason = verified ? "Exact issued native service job observed." : "Issued job outcome requires observation.",

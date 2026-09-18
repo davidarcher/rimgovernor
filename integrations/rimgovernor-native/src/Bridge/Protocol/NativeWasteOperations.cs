@@ -32,12 +32,12 @@ namespace HomeBridge.BridgeTools
         private readonly NativeControlIdentity identity;
         private readonly Pawn pawn;
         private readonly Thing target;
-        private readonly Job job;
+        private readonly string jobDef;
         private readonly int jobId;
         private readonly string trackingId;
         private readonly Common.ObservationContext admitted;
         internal NativeWasteRecord(NativeControlIdentity identity, Pawn pawn, Thing target, Job job, string trackingId, Common.ObservationContext context)
-        { this.identity = identity; this.pawn = pawn; this.target = target; this.job = job; jobId = job.loadID; this.trackingId = trackingId; admitted = context.Clone(); }
+        { this.identity = identity; this.pawn = pawn; this.target = target; jobId = job.loadID; jobDef = job.def?.defName ?? ""; this.trackingId = trackingId; admitted = context.Clone(); }
 
         // Issued describes only whether THIS call just issued a new job; Progress
         // always reports Issued=false, matching the haul/recovery evidence contract.
@@ -45,7 +45,7 @@ namespace HomeBridge.BridgeTools
         {
             Job = new Receipts.JobEffect
             {
-                PawnId = snapshot.PawnId, JobId = jobId, JobDef = job.def?.defName ?? "",
+                PawnId = snapshot.PawnId, JobId = jobId, JobDef = jobDef,
                 TargetA = new Receipts.JobTarget { ThingId = target.GetUniqueLoadID() },
                 Issued = issued, Verified = verified,
                 VerifiedReason = verified ? "Exact issued native waste job and quantity ledger observed." : "Issued job outcome requires observation.",

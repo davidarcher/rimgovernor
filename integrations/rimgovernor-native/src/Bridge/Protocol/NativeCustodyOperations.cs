@@ -32,12 +32,12 @@ namespace HomeBridge.BridgeTools
         private readonly Pawn pawn;
         private readonly Pawn patient;
         private readonly NativeControlIdentity identity;
-        private readonly Job job;
+        private readonly string jobDef;
         private readonly int jobId;
         private readonly bool capture;
         private readonly Common.ObservationContext admitted;
         internal NativeCustodyRecord(NativeControlIdentity identity, Pawn pawn, Pawn patient, Job job, bool capture, Common.ObservationContext context)
-        { this.identity = identity; this.pawn = pawn; this.patient = patient; this.job = job; jobId = job.loadID; this.capture = capture; admitted = context.Clone(); }
+        { this.identity = identity; this.pawn = pawn; this.patient = patient; jobId = job.loadID; jobDef = job.def?.defName ?? ""; this.capture = capture; admitted = context.Clone(); }
 
         // Issued describes only whether THIS call just issued a new job; the
         // pawn-order evidence contract requires Progress to always report
@@ -46,7 +46,7 @@ namespace HomeBridge.BridgeTools
         {
             Job = new Receipts.JobEffect
             {
-                PawnId = snapshot.PawnId, JobId = jobId, JobDef = job.def?.defName ?? "",
+                PawnId = snapshot.PawnId, JobId = jobId, JobDef = jobDef,
                 TargetA = new Receipts.JobTarget { ThingId = patient.GetUniqueLoadID() },
                 Issued = issued, Verified = verified,
                 VerifiedReason = verified

@@ -26,19 +26,19 @@ namespace HomeBridge.BridgeTools
     {
         private readonly NativeControlIdentity identity;
         private readonly Pawn pawn;
-        private readonly Job job;
+        private readonly string jobDef;
         private readonly int jobId;
         private readonly Operations.Need need;
         private readonly Common.ObservationContext admitted;
 
         internal NativeMoodReliefRecord(NativeControlIdentity identity, Pawn pawn, Job job, Operations.Need need, Common.ObservationContext context)
-        { this.identity = identity; this.pawn = pawn; this.job = job; jobId = job.loadID; this.need = need; admitted = context.Clone(); }
+        { this.identity = identity; this.pawn = pawn; jobId = job.loadID; jobDef = job.def?.defName ?? ""; this.need = need; admitted = context.Clone(); }
 
         internal Receipts.EffectEvidence Evidence(NativePawnSnapshot snapshot, bool issued, bool verified) => new Receipts.EffectEvidence
         {
             Job = new Receipts.JobEffect
             {
-                PawnId = snapshot.PawnId, JobId = jobId, JobDef = job.def?.defName ?? "",
+                PawnId = snapshot.PawnId, JobId = jobId, JobDef = jobDef,
                 TargetA = new Receipts.JobTarget { ThingId = pawn.GetUniqueLoadID() },
                 Issued = issued, Verified = verified,
                 VerifiedReason = verified ? "Exact issued native need job observed." : "Issued job outcome requires observation.",

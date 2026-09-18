@@ -27,17 +27,17 @@ namespace HomeBridge.BridgeTools
         private readonly NativeControlIdentity identity;
         private readonly Pawn pawn;
         private readonly Thing weapon;
-        private readonly Job job;
+        private readonly string jobDef;
         private readonly int jobId;
         private readonly Common.ObservationContext admitted;
         internal NativeEquipRecord(NativeControlIdentity identity, Pawn pawn, Thing weapon, Job job, Common.ObservationContext context)
-        { this.identity = identity; this.pawn = pawn; this.weapon = weapon; this.job = job; jobId = job.loadID; admitted = context.Clone(); }
+        { this.identity = identity; this.pawn = pawn; this.weapon = weapon; jobId = job.loadID; jobDef = job.def?.defName ?? ""; admitted = context.Clone(); }
 
         internal Receipts.EffectEvidence Evidence(NativePawnSnapshot snapshot, bool issued, bool verified) => new Receipts.EffectEvidence
         {
             Job = new Receipts.JobEffect
             {
-                PawnId = snapshot.PawnId, JobId = jobId, JobDef = job.def?.defName ?? "",
+                PawnId = snapshot.PawnId, JobId = jobId, JobDef = jobDef,
                 TargetA = new Receipts.JobTarget { ThingId = weapon.GetUniqueLoadID() },
                 Issued = issued, Verified = verified,
                 VerifiedReason = verified ? "Exact issued native equip job or immediate equip readback observed." : "Issued job outcome requires observation.",
