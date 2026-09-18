@@ -558,6 +558,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	world := domain.GenerationSnapshot{Colony: domain.ColonyID(loaded.Context.Identity.GetColonyId()), Load: domain.LoadID(loaded.Context.Identity.GetLoadToken()), Map: domain.MapID(loaded.Context.Identity.GetMapId())}
 	epochs, err := s.player.journal.LoadClockEpochs(call, 4096)
 	if err != nil {
+		clockSchedulerLog("step exit: LoadClockEpochs %v", err)
 		return out, err
 	}
 	obligations := false
@@ -569,27 +570,33 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	for _, v := range attempts {
 		if v.SupersededAt == nil && v.Intent.Command.Start != nil && (v.Phase == store.ClockDispatched || v.Phase == store.ClockUncertain) {
 			if !state.Enabled || !boundary.World(v.Intent.Snapshot, world) {
+				clockSchedulerLog("step exit: start %s dispatched under another world or without authority -> disable and cleanup", v.Intent.RequestID)
 				out.Cleaned = true
 				return out, errors.Join(s.session.Disable(), s.session.CleanupClock(call))
 			}
 			recovered, e := s.session.ReconcileClock(call, v.Intent.RequestID)
 			out.Attempt = &recovered
 			out.Reconciled = true
+			clockSchedulerLog("step exit: reconciled start %s -> phase=%s err=%v", v.Intent.RequestID, recovered.Phase, e)
 			return out, e
 		}
 	}
 	if obligations && (!state.Enabled || !state.ObservationKnown || !boundary.World(state.Snapshot, world) || loaded.Context.NativeGeneration == nil || loaded.Context.GetNativeGeneration() != uint64(state.Snapshot.Native)) {
+		clockSchedulerLog("step exit: owed epoch under enabled=%v known=%v snapshot=%+v observed generation=%d -> disable and cleanup", state.Enabled, state.ObservationKnown, state.Snapshot, loaded.Context.GetNativeGeneration())
 		out.Cleaned = true
 		return out, errors.Join(s.session.Disable(), s.session.CleanupClock(call))
 	}
-	if !state.ObservationKnown || !boundary.World(state.Snapshot, domain.GenerationSnapshot{Colony: domain.ColonyID(loaded.Context.Identity.GetColonyId()), Load: domain.LoadID(loaded.Context.Identity.GetLoadToken()), Map: domain.MapID(loaded.Context.Identity.GetMapId())}) || loaded.Context.NativeGeneration == nil || loaded.Context.GetNativeGeneration() != uint64(state.Snapshot.Native) {
+	if !state.ObservationKnown || !boundary.World(state.Snapshot, world) || loaded.Context.NativeGeneration == nil || loaded.Context.GetNativeGeneration() != uint64(state.Snapshot.Native) {
+		clockSchedulerLog("step exit: observed scope %v generation=%d does not match known=%v snapshot=%+v -> disable", world, loaded.Context.GetNativeGeneration(), state.ObservationKnown, state.Snapshot)
 		return out, errors.Join(executor.ErrAuthority, s.session.Disable())
 	}
 	status, err := s.bundleClockStatus(loaded, state.Snapshot)
 	if err != nil {
+		clockSchedulerLog("step exit: bundle clock status %v -> disable", err)
 		return out, errors.Join(err, s.session.Disable())
 	}
 	if status.Context.GetTick() < loaded.Context.GetTick() {
+		clockSchedulerLog("step exit: clock status tick %d behind scope tick %d -> disable", status.Context.GetTick(), loaded.Context.GetTick())
 		return out, errors.Join(executor.ErrEvidence, s.session.Disable())
 	}
 	s.running.Store(false)
@@ -635,6 +642,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 			}
 		}
 		if (status.GetStopping() != nil || !ownedCurrent) && obligations {
+			clockSchedulerLog("step exit: epoch stopping=%v ownedCurrent=%v with obligations -> cleanup", status.GetStopping() != nil, ownedCurrent)
 			out.Cleaned = true
 			return out, s.session.CleanupClock(call)
 		}
@@ -655,6 +663,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		clockSchedulerLog("obligations present, not running -> cleanup")
 		readmit = true
 		if err = s.session.CleanupClockObserved(call, status); err != nil {
+			clockSchedulerLog("step exit: cleanup %v", err)
 			out.Cleaned = true
 			return out, err
 		}
@@ -664,6 +673,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		}
 		for _, owned := range epochs {
 			if !clockCoordinatorTerminal(owned.Stage) {
+				clockSchedulerLog("step exit: epoch %s still %s after cleanup", owned.StartRequestID, owned.Stage)
 				out.Cleaned = true
 				return out, nil
 			}
@@ -671,9 +681,11 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		clockSchedulerLog("cleanup settled every owed epoch -> reviewing in the same step")
 	}
 	if !state.Enabled {
+		clockSchedulerLog("step exit: authority disabled before the review")
 		return out, executor.ErrAuthority
 	}
 	if err = s.player.current(call, epoch); err != nil {
+		clockSchedulerLog("step exit: player epoch replaced before the review: %v", err)
 		return out, err
 	}
 	// The tick the planner facts describe: this step's, when it plans, else
