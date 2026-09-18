@@ -3,6 +3,7 @@ package rimgovernor.observations.v1;
 option csharp_namespace = "RimGovernor.Protocol.Observations";
 option go_package = "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb;observationspb";
 import "common.proto";
+import "clock.proto";
 
 // All requests are read-only; previews/admission and UI/media have other owners.
 // Validators require context, selected outcome, finite numbers and exact IDs.
@@ -631,6 +632,31 @@ message ThreatsSnapshot { repeated ThreatPawn hostiles = 1; repeated ThreatPawn 
 message StatusSnapshot { rimgovernor.common.v1.ObservationContext context = 1; PawnSnapshot colonists = 2; ThreatsSnapshot threats = 3; repeated ReadIssue issues = 4; }
 message StatusRequest { ReadScope scope = 1; optional bool colonists = 2; optional bool threats = 3; optional bool colonist_detail = 4; optional double predator_radius = 5; rimgovernor.common.v1.PageRequest page = 6; }
 message StatusReply { oneof outcome { StatusSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
+// ReadBundle is the scheduler's one per-step native read: the observation
+// scope ReadTick reports plus, on request, the owned clock status
+// (Clock/ReadStatus), the emergency status (ReadStatus with colonists and
+// threats, no detail, page 256) and one clock events page
+// (Clock/ReadEvents). Every section is the same read its dedicated method
+// answers, taken in one main-thread hop so all describe one tick. Without a
+// scope the bundle describes the current map; with one, a changed identity
+// is a StaleIdentity failure. An events section may long-poll like
+// ReadEvents (wait_ms 0..5000): the whole bundle is then re-read after the
+// wait, so its sections still share one hop.
+message BundleEventsRequest { optional int64 after_cursor = 1; optional uint32 limit = 2; optional uint32 wait_ms = 3; }
+message BundleRequest {
+  ReadScope scope = 1;
+  optional bool clock_status = 2;
+  optional bool emergency = 3;
+  BundleEventsRequest events = 4;
+}
+message BundleSnapshot {
+  rimgovernor.common.v1.ObservationContext context = 1;
+  optional bool paused = 2;
+  rimgovernor.clock.v1.Status clock_status = 3;
+  StatusSnapshot emergency = 4;
+  rimgovernor.clock.v1.EventsPage events = 5;
+}
+message BundleReply { oneof outcome { BundleSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message ObservationBatchSnapshot {
   rimgovernor.common.v1.ObservationContext start_context = 1; rimgovernor.common.v1.ObservationContext end_context = 2;
   StatusReply status_before = 3; ListPawnsReply pawns = 4; ListSuppliesReply supplies = 5;
@@ -671,6 +697,7 @@ service Observations {
   rpc ListArchitectDesignators(ArchitectDesignatorsRequest) returns (ArchitectDesignatorsReply);
   rpc ReadStatus(StatusRequest) returns (StatusReply);
   rpc ReadObservationBatch(ObservationBatchRequest) returns (ObservationBatchReply);
+  rpc ReadBundle(BundleRequest) returns (BundleReply);
   rpc ListPawns(ListPawnsRequest) returns (ListPawnsReply);
   rpc ListSupplies(ListSuppliesRequest) returns (ListSuppliesReply);
   rpc ListBuildings(ListBuildingsRequest) returns (ListBuildingsReply);

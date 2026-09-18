@@ -1,6 +1,7 @@
 #nullable enable
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -143,6 +144,16 @@ namespace HomeBridge.BridgeTools
             Things = source != null && source.HasThings && source.Things,
             Zone = false, Areas = false, Designations = false, Room = false, Growth = false };
 
+        // The status read as a bundle section: the same facts ReadStatus
+        // answers, with its limit and read failures as unavailable.
+        internal static bool TryStatus(Map map, Obs.StatusRequest request, Common.ObservationContext context,
+            [NotNullWhen(true)] out Obs.StatusSnapshot? snapshot, [NotNullWhen(false)] out Common.Unavailable? unavailable)
+        {
+            snapshot = null; unavailable = null;
+            try { snapshot = Status(map, request, context); return true; }
+            catch (ReadLimit error) { unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, error.Message); return false; }
+            catch (Exception) { unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Native status facts could not be read completely."); return false; }
+        }
         private static Obs.StatusSnapshot Status(Map map, Obs.StatusRequest request, Common.ObservationContext context)
         {
             var result = new Obs.StatusSnapshot { Context = context };

@@ -75,6 +75,7 @@ Use [shared rules](README.md) and the family coverage documents for exact valida
 | `rimgovernor/observations_list_wall_upgrade_sites` | `rimgovernor.observations.v1.Observations/ListWallUpgradeSites` | `rimgovernor.observations.v1.WallUpgradeSitesRequest` | `rimgovernor.observations.v1.WallUpgradeSitesReply` |
 | `rimgovernor/observations_list_zones` | `rimgovernor.observations.v1.Observations/ListZones` | `rimgovernor.observations.v1.ListZonesRequest` | `rimgovernor.observations.v1.ListZonesReply` |
 | `rimgovernor/observations_read_excavation_site` | `rimgovernor.observations.v1.Observations/ReadExcavationSite` | `rimgovernor.observations.v1.ExcavationSiteRequest` | `rimgovernor.observations.v1.ExcavationSiteReply` |
+| `rimgovernor/observations_read_bundle` | `rimgovernor.observations.v1.Observations/ReadBundle` | `rimgovernor.observations.v1.BundleRequest` | `rimgovernor.observations.v1.BundleReply` |
 | `rimgovernor/observations_read_bills` | `rimgovernor.observations.v1.Observations/ReadBills` | `rimgovernor.observations.v1.BillsRequest` | `rimgovernor.observations.v1.BillsReply` |
 | `rimgovernor/observations_read_building_settings` | `rimgovernor.observations.v1.Observations/ReadBuildingSettings` | `rimgovernor.observations.v1.BuildingSettingsRequest` | `rimgovernor.observations.v1.BuildingSettingsReply` |
 | `rimgovernor/observations_read_caravan_catalog` | `rimgovernor.observations.v1.Observations/ReadCaravanCatalog` | `rimgovernor.observations.v1.CaravanCatalogRequest` | `rimgovernor.observations.v1.CaravanCatalogReply` |

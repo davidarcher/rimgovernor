@@ -37,6 +37,10 @@ func (f *clockServiceFake) ReadColonyFacts(context.Context, *c.Identity, bool, [
 	return nil, bridge.Result{}, errors.New("colony read unavailable")
 }
 
+func (f *clockServiceFake) ReadEmergency(context.Context, *c.Identity) (bridge.EmergencyObservation, bridge.Result, error) {
+	return bridge.EmergencyObservation{}, bridge.Result{}, errors.New("emergency read unavailable")
+}
+
 func (f *clockServiceFake) ReadRoutinePawns(context.Context, *c.Identity, []string) (*o.ListPawnsReply, bridge.Result, error) {
 	return nil, bridge.Result{}, errors.New("pawn read unavailable")
 }
@@ -64,7 +68,7 @@ func (f *clockServiceFake) ReadClockStatus(context.Context, *c.Identity) (*k.Sta
 	return nil, bridge.Result{}, errors.New("clock status unavailable")
 }
 
-func (f *clockServiceFake) ReadClockEvents(context.Context, *k.EventsRequest) (*k.EventsReply, bridge.Result, error) {
+func (f *clockServiceFake) ReadBundle(context.Context, *o.BundleRequest) (*o.BundleReply, bridge.Result, error) {
 	select {
 	case f.polled <- struct{}{}:
 	default:

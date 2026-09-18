@@ -164,7 +164,7 @@ namespace HomeBridge.BridgeTools
                     "Admitted clock control requires inspection: " + error.GetType().Name) };
             }
         }
-        private static Clock.Status Read(Common.ObservationContext context)
+        internal static Clock.Status Read(Common.ObservationContext context)
         {
             try {
                 var status = Supervisor.TypedStatus(context);

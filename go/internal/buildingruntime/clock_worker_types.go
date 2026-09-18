@@ -4,12 +4,14 @@ import (
 	"context"
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
-	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"time"
 )
 
+// ClockEventNative serves the event poll: one bundle read carrying the
+// current scope and the events page after the review's cursor.
 type ClockEventNative interface {
-	ReadClockEvents(context.Context, *k.EventsRequest) (*k.EventsReply, bridge.Result, error)
+	ReadBundle(context.Context, *o.BundleRequest) (*o.BundleReply, bridge.Result, error)
 }
 
 type ClockPollResult struct {

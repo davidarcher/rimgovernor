@@ -35,7 +35,7 @@ func TestClockPollWatchLatchedIsBenignAndWakes(t *testing.T) {
 		{Cursor: proto.Int64(3), Context: context1, ObservedAtUnixMs: proto.Int64(100), Event: &k.Event_AuthorityChanged{AuthorityChanged: &k.AuthorityChanged{Generation: proto.Uint64(9), Reason: proto.String("acquired")}}},
 	}
 	page.NextCursor, page.NewestCursor = proto.Int64(3), proto.Int64(3)
-	native := &clockPollNative{page: page}
+	native := &clockPollNative{core: f.clockCoreFake, page: page}
 	result, err := s.PollEvents(context.Background(), native, 128, 1500*time.Millisecond)
 	if err != nil || result.Interrupted || !result.Captured || len(result.Review.Holds) != 0 || result.Review.ReviewedCursor != 3 || !s.session.State().Enabled {
 		t.Fatal(result, err, s.session.State())
@@ -47,7 +47,7 @@ func TestClockPollWatchLatchedIsBenignAndWakes(t *testing.T) {
 		t.Fatal(result.Wake, result.AuthorityChanged)
 	}
 	// An empty page commits nothing and therefore wakes nothing.
-	result, err = s.PollEvents(context.Background(), &clockPollNative{page: clockPollPage(f, 3, "empty")}, 128, 0)
+	result, err = s.PollEvents(context.Background(), &clockPollNative{core: f.clockCoreFake, page: clockPollPage(f, 3, "empty")}, 128, 0)
 	if err != nil || result.Captured || len(result.Wake) != 0 || result.AuthorityChanged {
 		t.Fatal(result, err)
 	}

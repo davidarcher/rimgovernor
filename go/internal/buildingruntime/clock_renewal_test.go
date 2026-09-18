@@ -12,6 +12,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -61,6 +62,10 @@ func (n *renewalBoundaryNative) ReadClockStatus(ctx context.Context, id *c.Ident
 		return nil, bridge.Result{}, err
 	}
 	return n.schedulerNative.ReadClockStatus(ctx, id)
+}
+
+func (n *renewalBoundaryNative) ReadBundle(ctx context.Context, request *o.BundleRequest) (*o.BundleReply, bridge.Result, error) {
+	return composeBundle(ctx, request, bundleParts{tick: n.Tick, status: n.ReadClockStatus, emergency: n.ReadEmergency})
 }
 
 func TestClockRenewalBudgetFinishesDuringPreflight(t *testing.T) {

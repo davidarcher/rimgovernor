@@ -10,6 +10,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -68,12 +69,14 @@ func (s *ClockScheduler) RenewEpoch(ctx context.Context) (ClockRenewResult, erro
 		return out, s.renewalHold(errors.Join(err, executor.ErrAuthority))
 	}
 	original := owned.Epoch
+	// The renewal's one native read: the current scope and the owned clock
+	// status from the same hop (issue #127).
 	started := s.clock.Now()
-	tick, _, err := s.native.Tick(call)
+	bundle, _, err := s.native.ReadBundle(call, &o.BundleRequest{ClockStatus: proto.Bool(true)})
 	if err != nil {
 		return out, s.renewalHold(err)
 	}
-	current := tick.GetLoaded().GetContext()
+	current := bundle.GetObserved().GetContext()
 	if _, err = boundary.Context(current, state.Snapshot); err != nil {
 		return out, s.renewalHold(err)
 	}
@@ -91,11 +94,7 @@ func (s *ClockScheduler) RenewEpoch(ctx context.Context) (ClockRenewResult, erro
 		}
 		break
 	}
-	reply, _, err := s.native.ReadClockStatus(call, current.Identity)
-	if err != nil {
-		return out, s.renewalHold(err)
-	}
-	status := reply.GetStatus()
+	status := bundle.GetObserved().GetClockStatus()
 	if err = bridge.ValidateClockStatus(status, current.Identity); err != nil {
 		return out, s.renewalHold(err)
 	}

@@ -12,6 +12,7 @@ one `payload` ProtoJSON string plus host operation metadata.
 | rimgovernor/placement_preview | rimgovernor.placement.v1.Placement/Preview | PlacementPreviewsTool.cs, Protocol/PlacementProtocol.cs, PlacementPreviewOperation.cs |
 | rimgovernor/authority_control | rimgovernor.authority.v1.Authority/Control | Protocol/NativeAuthorityControlTools.cs |
 | rimgovernor/observations_read_status | rimgovernor.observations.v1.Observations/ReadStatus | Protocol/NativeObservationTools.cs |
+| rimgovernor/observations_read_bundle | rimgovernor.observations.v1.Observations/ReadBundle | Protocol/NativeBundleTools.cs |
 | rimgovernor/observations_read_colony_facts | rimgovernor.observations.v1.Observations/ReadColonyFacts | Protocol/NativeColonyObservationTools.cs |
 | rimgovernor/observations_get_cells | rimgovernor.observations.v1.Observations/GetCells | Protocol/NativeObservationTools.cs |
 | rimgovernor/observations_list_buildings | rimgovernor.observations.v1.Observations/ListBuildings | Protocol/NativeBuildingObservationTools.cs |

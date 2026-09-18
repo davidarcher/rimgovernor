@@ -284,7 +284,7 @@ game's main thread; the wave only overlaps their round trips, so a wider
 session pool would not help.
 The step itself has no polling loop; autonomous play attaches ClockWorker.
 
-Every native observation a step issues (identity, the routine census and each
+Every native observation a step issues (the bundle, the routine census and each
 composed planner's own reads) goes through one `bridge.StepReadCache` attached to
 the step's context and dropped at step exit. The first read of a
 `(method, request)` pair crosses the bridge; identical reads later in the step,
@@ -298,9 +298,18 @@ refusals or unavailability. A hit is decoded into a fresh reply, so the typed
 adapters and the context guards validate it as they would a
 native reply. Observations are not bracketed by identity reads: each reply's
 own `ObservationContext` is validated against the identity the step read on
-entry, so a step issues one full `lifecycle_read_identity` (the capability
-list) and the polling, renewal and status paths use the bare
-`lifecycle_read_tick` instead. `RIMGOVERNOR_CLOCK_DEBUG=1` logs the step's hit/miss/coalesced/
+entry. That entry read is one `observations_read_bundle` (issue #127): the
+scope `lifecycle_read_tick` reports plus the owned clock status and the
+emergency census, taken in one main-thread hop so all describe one tick. The
+event poll's bundle carries the scope and the events page after the review's
+cursor; the renewal's carries the scope and the clock status. The bundle
+itself is never memoized (its clock sections are live controller state), but
+its tick and emergency sections are seeded into the step cache under the keys
+`lifecycle_read_tick` and the emergency `observations_read_status` use, so the
+routine census and the planners read them without another round trip and the
+parent files them under the `identity` and `emergency` families. A step that
+ran planners re-reads the bundle, scoped to the identity it observed, before
+admission. `RIMGOVERNOR_CLOCK_DEBUG=1` logs the step's hit/miss/coalesced/
 parent-hit/invalidation counts and the flight recorder reports hits per method
 (the `cached` column of `rimgovernor phases`).
 
@@ -309,7 +318,7 @@ step cache. Each cacheable method belongs to a fact family
 (`bridge.FactFamilyOf`): `definitions` (recipes) and `world` (world tile and
 settlements) survive a tick advance; `identity`, `colony`, `pawns`,
 `emergency`, `rooms` and `research` are facts of one paused tick. Once a
-step's first native reply (the identity read, always native) has fixed its
+step's first native reply (the bundle, always native) has fixed its
 (load, generation, tick) scope, a step miss is served from the parent when
 the row was read under the same load and generation and is either
 tick-independent or from that same tick, so a timer step under a stopped

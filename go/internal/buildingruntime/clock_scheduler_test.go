@@ -13,20 +13,22 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
-	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 )
 
 type schedulerNative struct {
 	*clockCoreFake
 	emergency policy.EmergencyFacts
-	// caches records the step read cache each identity read's context carried.
+	// caches records the step read cache each bundle read's context carried.
 	caches []*bridge.StepReadCache
 }
 
-func (f *schedulerNative) Identity(ctx context.Context) (*l.IdentityReply, bridge.Result, error) {
+// ReadBundle answers what the fake's Tick, ReadClockStatus and
+// ReadEmergency answer, from one call (issue #127).
+func (f *schedulerNative) ReadBundle(ctx context.Context, request *o.BundleRequest) (*o.BundleReply, bridge.Result, error) {
 	f.caches = append(f.caches, bridge.StepReadCacheFrom(ctx))
-	return f.clockCoreFake.Identity(ctx)
+	return composeBundle(ctx, request, bundleParts{tick: f.Tick, status: f.ReadClockStatus, emergency: f.ReadEmergency})
 }
 
 func (f *schedulerNative) ReadEmergency(ctx context.Context, id *c.Identity) (bridge.EmergencyObservation, bridge.Result, error) {
@@ -83,7 +85,7 @@ func TestClockSchedulerReadsThroughAFreshCachePerStep(t *testing.T) {
 		}
 	}
 	if len(f.caches) != 2 || f.caches[0] == nil || f.caches[1] == nil || f.caches[0] == f.caches[1] {
-		t.Fatalf("identity reads carried caches %v", f.caches)
+		t.Fatalf("bundle reads carried caches %v", f.caches)
 	}
 }
 func TestClockSchedulerUnknownRecoversExactRequest(t *testing.T) {

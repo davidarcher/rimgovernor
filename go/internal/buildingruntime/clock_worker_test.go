@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
-	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -27,7 +27,7 @@ func clockLoopFixture(t *testing.T) *ClockWorker {
 
 type clockWorkerEventUnavailable struct{}
 
-func (clockWorkerEventUnavailable) ReadClockEvents(context.Context, *k.EventsRequest) (*k.EventsReply, bridge.Result, error) {
+func (clockWorkerEventUnavailable) ReadBundle(context.Context, *o.BundleRequest) (*o.BundleReply, bridge.Result, error) {
 	return nil, bridge.Result{}, errors.New("unavailable")
 }
 func TestClockWorkerConstructorRejectsInvalidAndCancelledWithoutAttachment(t *testing.T) {

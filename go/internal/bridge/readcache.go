@@ -137,7 +137,35 @@ func (s *StepReadCache) invalidateLocked() {
 // receipt and preview reads are excluded: they report live controller or UI
 // state rather than paused-world facts, or have side effects.
 func cacheableRead(name string) bool {
-	return name == "rimgovernor/lifecycle_read_identity" || name == "rimgovernor/lifecycle_read_tick" || strings.HasPrefix(name, "rimgovernor/observations_")
+	// The bundle carries live clock sections; its observation sections are
+	// seeded into the cache under their own reads' keys instead.
+	return name == "rimgovernor/lifecycle_read_identity" || name == "rimgovernor/lifecycle_read_tick" || strings.HasPrefix(name, "rimgovernor/observations_") && name != bundleMethod
+}
+
+// seed stores a reply another read carried (a bundle section) as if key had
+// been read natively under scope: a later read of key in this step is a
+// hit, and the parent files the row under key's family. A key already held
+// or in flight is left alone; a different scope discards the older rows
+// first, as complete does.
+func (s *StepReadCache) seed(key readCacheKey, scope readScope, payload []byte, result Result) {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.entries[key] != nil {
+		return
+	}
+	if s.scope != scope {
+		if s.scope != (readScope{}) {
+			s.invalidateLocked()
+		}
+		s.scope = scope
+	}
+	entry := &readCacheEntry{done: make(chan struct{}), epoch: s.epoch, payload: payload, result: result, ok: true}
+	close(entry.done)
+	s.entries[key] = entry
+	s.parent.store(key, scope, payload, result)
 }
 
 // acquire returns the entry for key and whether the caller is its leader:

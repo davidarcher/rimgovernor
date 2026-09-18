@@ -244,8 +244,9 @@ func number(value any) (float64, bool) {
 	}
 }
 
-// replyClock reads the observation tick and, for clock status replies, the
-// actual-paused flag out of a recorded games_call_tool result. The recorded
+// replyClock reads the observation tick and, for clock status replies (or a
+// bundle's clock status section), the actual-paused flag out of a recorded
+// games_call_tool result. The recorded
 // result is the ProtoBoundary wrapper {"payload": "<ProtoJSON>"}; the tick
 // lives at <reply>.<outcome>.context.tick for observation replies and at
 // <reply>.status.context.tick for clock status.
@@ -274,6 +275,12 @@ func replyClock(result any) (tick int64, paused bool, hasTick bool, hasPaused bo
 		}
 		if value, ok := body["actualPaused"].(bool); ok {
 			paused, hasPaused = value, true
+		}
+		// A bundle carries the clock status as a section.
+		if status, ok := body["clockStatus"].(map[string]any); ok {
+			if value, ok := status["actualPaused"].(bool); ok {
+				paused, hasPaused = value, true
+			}
 		}
 	}
 	return

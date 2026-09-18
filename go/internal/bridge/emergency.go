@@ -20,7 +20,7 @@ func (client *Client) ReadEmergency(ctx context.Context, id *c.Identity) (Emerge
 		return empty, Result{}, err
 	}
 	id = proto.Clone(id).(*c.Identity)
-	request := &o.StatusRequest{Scope: &o.ReadScope{ExpectedIdentity: id}, Colonists: proto.Bool(true), Threats: proto.Bool(true), ColonistDetail: proto.Bool(false), Page: &c.PageRequest{Limit: proto.Uint32(256)}}
+	request := emergencyRequest(id)
 	reply := &o.StatusReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/observations_read_status", request, reply)
 	if err != nil {
@@ -37,6 +37,12 @@ func (client *Client) ReadEmergency(ctx context.Context, id *c.Identity) (Emerge
 	default:
 		return empty, raw, contract("emergency status outcome missing")
 	}
+}
+
+// emergencyRequest is the status read ReadEmergency issues; a bundle's
+// emergency section is seeded into the step cache under the same request.
+func emergencyRequest(id *c.Identity) *o.StatusRequest {
+	return &o.StatusRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(id).(*c.Identity)}, Colonists: proto.Bool(true), Threats: proto.Bool(true), ColonistDetail: proto.Bool(false), Page: &c.PageRequest{Limit: proto.Uint32(256)}}
 }
 
 // DecodeEmergencyStatus shares live boundary validation with captured replay.

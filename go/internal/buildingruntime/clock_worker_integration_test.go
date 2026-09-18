@@ -6,6 +6,7 @@ import (
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 	"sync"
 	"testing"
@@ -52,6 +53,11 @@ func (f *joinedClockNative) ReadEmergency(ctx context.Context, id *c.Identity) (
 	defer f.mu.Unlock()
 	f.calls++
 	return f.source.ReadEmergency(ctx, id)
+}
+
+// ReadBundle composes the joined reads; each part counts as its own call.
+func (f *joinedClockNative) ReadBundle(ctx context.Context, request *o.BundleRequest) (*o.BundleReply, bridge.Result, error) {
+	return composeBundle(ctx, request, bundleParts{tick: f.Tick, status: f.ReadClockStatus, emergency: f.ReadEmergency, events: f.ReadClockEvents})
 }
 func (f *joinedClockNative) Start(ctx context.Context, r *k.StartRequest) (*k.ControlReply, bridge.Result, error) {
 	f.mu.Lock()

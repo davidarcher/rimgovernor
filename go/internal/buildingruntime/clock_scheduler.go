@@ -19,15 +19,17 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
-	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 )
 
+// ClockWindowNative is the scheduler's native read side: the bundle is the
+// one read a step, an event poll or a renewal opens with (scope, clock
+// status, emergency, events in a single round trip); the plain clock status
+// read serves the renewal's post-write re-check.
 type ClockWindowNative interface {
-	Identity(context.Context) (*l.IdentityReply, bridge.Result, error)
-	Tick(context.Context) (*l.TickReply, bridge.Result, error)
+	ReadBundle(context.Context, *o.BundleRequest) (*o.BundleReply, bridge.Result, error)
 	ReadClockStatus(context.Context, *c.Identity) (*k.StatusReply, bridge.Result, error)
-	ReadEmergency(context.Context, *c.Identity) (bridge.EmergencyObservation, bridge.Result, error)
 }
 type ClockSchedulerConfig struct {
 	CookingBills, PreservationBills, ButcherBills *RoutineBillPlanner
@@ -431,15 +433,15 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	if wait := time.Since(entered); wait > 50*time.Millisecond {
 		clockSchedulerLog("step waited %s for the player gate", wait.Round(time.Millisecond))
 	}
-	// Every native observation this step issues -- the identity and status
-	// reads below, the routine census and each planner's own reads -- goes
-	// through one cache that lives exactly as long as the step, so the
-	// facts the planners share are read from native once per tick. A write
-	// within the step discards it; see bridge.StepReadCache. Its parent
-	// outlives the step: once the identity read has fixed this step's
-	// scope, facts an earlier step read under the same load, generation
-	// and tick (or a tick-independent family) are served from it, and the
-	// typed events PollEvents ingests drop what they make stale.
+	// Every native observation this step issues -- the bundle below, the
+	// routine census and each planner's own reads -- goes through one cache
+	// that lives exactly as long as the step, so the facts the planners
+	// share are read from native once per tick. A write within the step
+	// discards it; see bridge.StepReadCache. Its parent outlives the step:
+	// once the bundle has fixed this step's scope, facts an earlier step
+	// read under the same load, generation and tick (or a tick-independent
+	// family) are served from it, and the typed events PollEvents ingests
+	// drop what they make stale.
 	cache := bridge.NewChildReadCache(s.facts.cache)
 	call = bridge.WithStepReadCache(call, cache)
 	// The round trips that still cross the bridge (cache misses, the
@@ -464,12 +466,16 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	if err != nil {
 		return out, err
 	}
+	// The step's one native read: the current scope, the owned clock status
+	// and the emergency census of the same tick (issue #127). Its tick and
+	// emergency sections are seeded into the step cache, so the routine
+	// census and the planners read them without another round trip.
 	started := s.clock.Now()
-	identity, _, err := s.native.Identity(call)
+	bundle, _, err := s.native.ReadBundle(call, &o.BundleRequest{ClockStatus: proto.Bool(true), Emergency: proto.Bool(true)})
 	if err != nil {
 		return out, errors.Join(err, s.session.Disable())
 	}
-	loaded := identity.GetLoaded()
+	loaded := bundle.GetObserved()
 	if loaded == nil {
 		return out, errors.Join(executor.ErrHeld, s.session.Disable())
 	}
@@ -507,7 +513,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	if !state.ObservationKnown || !boundary.World(state.Snapshot, domain.GenerationSnapshot{Colony: domain.ColonyID(loaded.Context.Identity.GetColonyId()), Load: domain.LoadID(loaded.Context.Identity.GetLoadToken()), Map: domain.MapID(loaded.Context.Identity.GetMapId())}) || loaded.Context.NativeGeneration == nil || loaded.Context.GetNativeGeneration() != uint64(state.Snapshot.Native) {
 		return out, errors.Join(executor.ErrAuthority, s.session.Disable())
 	}
-	status, err := s.readClockStatus(call, loaded.Context.Identity, state.Snapshot)
+	status, err := s.bundleClockStatus(loaded, state.Snapshot)
 	if err != nil {
 		return out, errors.Join(err, s.session.Disable())
 	}
@@ -608,16 +614,20 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		if pick == nil {
 			s.lastFull = s.clock.Now()
 		}
-		// The planners ran between the status read and admission; MaxAge
-		// bounds the admission reads alone, so read the status again here.
+		// The planners ran between the bundle and admission; MaxAge bounds
+		// the admission reads alone, so read the status and the emergency
+		// census again here, in one round trip.
 		if out.Routine != nil || len(out.Planners) > 0 {
 			started = s.clock.Now()
-			if status, err = s.readClockStatus(call, loaded.Context.Identity, state.Snapshot); err != nil {
+			if loaded, err = s.readBundle(call, loaded.Context.Identity, state.Snapshot); err != nil {
+				return out, err
+			}
+			if status, err = s.bundleClockStatus(loaded, state.Snapshot); err != nil {
 				return out, err
 			}
 		}
 	}
-	emergency, _, err := s.native.ReadEmergency(call, loaded.Context.Identity)
+	emergency, err := bridge.BundleEmergency(loaded)
 	if err != nil {
 		return out, err
 	}
@@ -783,18 +793,32 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	return out, err
 }
 
-// readClockStatus reads and validates the native clock status under the
-// enabled snapshot.
-func (s *ClockScheduler) readClockStatus(call context.Context, identity *c.Identity, snapshot domain.GenerationSnapshot) (*k.Status, error) {
-	statusReply, _, err := s.native.ReadClockStatus(call, identity)
+// readBundle re-reads the step's bundle (clock status and emergency census)
+// under the identity the step observed, validated against the enabled
+// snapshot.
+func (s *ClockScheduler) readBundle(call context.Context, identity *c.Identity, snapshot domain.GenerationSnapshot) (*o.BundleSnapshot, error) {
+	reply, _, err := s.native.ReadBundle(call, &o.BundleRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, ClockStatus: proto.Bool(true), Emergency: proto.Bool(true)})
 	if err != nil {
 		return nil, err
 	}
-	status := statusReply.GetStatus()
-	if err = bridge.ValidateClockStatus(status, identity); err != nil {
+	loaded := reply.GetObserved()
+	if loaded == nil {
+		return nil, executor.ErrHeld
+	}
+	if _, err = boundary.Context(loaded.Context, snapshot); err != nil {
 		return nil, err
 	}
-	if _, err = boundary.Context(status.Context, snapshot); err != nil {
+	return loaded, nil
+}
+
+// bundleClockStatus validates a bundle's clock status section under the
+// enabled snapshot.
+func (s *ClockScheduler) bundleClockStatus(loaded *o.BundleSnapshot, snapshot domain.GenerationSnapshot) (*k.Status, error) {
+	status := loaded.GetClockStatus()
+	if err := bridge.ValidateClockStatus(status, loaded.Context.GetIdentity()); err != nil {
+		return nil, err
+	}
+	if _, err := boundary.Context(status.Context, snapshot); err != nil {
 		return nil, err
 	}
 	return status, nil

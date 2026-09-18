@@ -13,6 +13,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store/clock"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -54,13 +55,19 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 		return fail(err)
 	}
 	before := s.session.State()
-	// The bare tick read: the poll needs the current scope, not the
-	// capability list the step validates.
-	tick, _, err := s.native.Tick(call)
+	// The poll's one native read: the current scope and the events page
+	// after the review's cursor, from the same hop (issue #127). The page is
+	// read for the scope the bundle reports, so a load between the two is
+	// impossible; authority is judged against that scope below.
+	events := &o.BundleEventsRequest{AfterCursor: proto.Int64(review.InboxCursor), Limit: proto.Uint32(limit)}
+	if wait > 0 {
+		events.WaitMs = proto.Uint32(uint32(wait / time.Millisecond))
+	}
+	reply, _, err := native.ReadBundle(call, &o.BundleRequest{Events: events})
 	if err != nil {
 		return fail(err)
 	}
-	current := tick.GetLoaded().GetContext()
+	current := reply.GetObserved().GetContext()
 	if err = bridge.ValidateContext(current); err != nil {
 		return fail(err)
 	}
@@ -79,15 +86,8 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 		}
 		out.Interrupted = true
 	}
-	request := &k.EventsRequest{Identity: current.Identity, AfterCursor: proto.Int64(review.InboxCursor), Limit: proto.Uint32(limit)}
-	if wait > 0 {
-		request.WaitMs = proto.Uint32(uint32(wait / time.Millisecond))
-	}
-	reply, _, err := native.ReadClockEvents(call, request)
-	if err != nil {
-		return fail(err)
-	}
-	page := reply.GetPage()
+	request := bridge.BundleEventsRequest(current.Identity, events)
+	page := reply.GetObserved().GetEvents()
 	if err = bridge.ValidateClockEventsPage(page, request); err != nil {
 		return fail(err)
 	}
