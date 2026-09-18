@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
@@ -27,9 +28,22 @@ const defenseSiteHalfExtent = 22
 // MaintainStoneShell upgrades flammable walls afterwards through its own goal.
 var defenseDefinitions = policy.DefenseDefinitions{Sandbag: "Barricade", SandbagStuff: "WoodLog", Wall: "Wall", WallStuff: "WoodLog", Fence: "Fence", FenceStuff: "WoodLog", Trap: "TrapSpike", TrapStuff: "WoodLog"}
 
+// The powered turret tier (#61): the mini turret needs no rearming, and a
+// conduit chain connects it to the network. Both are planning definitions
+// the reviewer's census is asked for, so availability (research, content),
+// draw and cost are observed, never assumed. defenseMaxTurrets bounds the
+// tier; each turret costs steel and components the colony may need first.
+const (
+	defenseTurretDefinition  = "Turret_MiniTurret"
+	defenseConduitDefinition = "PowerConduit"
+	defenseMaxTurrets        = 2
+)
+
+var defenseExtraDefinitions = []string{defenseTurretDefinition, defenseConduitDefinition}
+
 // defenseTierOrder is the staged construction order; a tier without
 // placements (the chokepoint reuses existing geometry) is complete as-is.
-var defenseTierOrder = []policy.DefenseTierName{policy.TierChokepoint, policy.TierFiringLine, policy.TierFunnel, policy.TierTrapCorridor}
+var defenseTierOrder = []policy.DefenseTierName{policy.TierChokepoint, policy.TierFiringLine, policy.TierFunnel, policy.TierTrapCorridor, policy.TierTurrets}
 
 // RoutineDefenseLayoutSource is the native read set the planner needs beyond
 // the reviewer's shared colony observation: the census rectangle, shooting
@@ -206,7 +220,15 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context) (Routine
 	if err != nil {
 		return RoutineDefenseLayoutResult{}, err
 	}
-	read, err := r.reviewer.observeOwned(call, r.reviewer.native, expected, claims)
+	// The turret and conduit definitions are outside the reviewer's shared
+	// census, so they are asked for only while a turret tier may be
+	// proposed: a fresh proposal, or a stored layout without turrets whose
+	// probe interval has elapsed.
+	var definitions []string
+	if !stored || defenseTurretsDue(record, expected.Tick) {
+		definitions = defenseExtraDefinitions
+	}
+	read, err := r.reviewer.observeOwned(call, r.reviewer.native, expected, claims, definitions...)
 	if err != nil {
 		return RoutineDefenseLayoutResult{}, err
 	}
@@ -232,11 +254,23 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context) (Routine
 	// breached wall, a sprung trap) re-opens it. Settled plans retire out
 	// of goal.Methods, so the census, not the journal, is the source of
 	// truth.
-	edifice, err := r.observeTiers(call, state, read, &record)
+	census, err := r.observeTiers(call, state, read, &record)
 	if err != nil {
 		return RoutineDefenseLayoutResult{}, err
 	}
 	tick := read.Projection.Identity.Tick
+	// A layout that stood before turrets could be placed (no research, no
+	// network, no steel) gains the tier once the observed gates open.
+	if len(definitions) > 0 && stored {
+		request := defenseTurretRequest(read)
+		if request.TurretGatesOpen() {
+			if err = r.proposeTurrets(call, state, read, &record); err != nil {
+				return RoutineDefenseLayoutResult{}, err
+			}
+		} else {
+			clockSchedulerLog("defense-layout: turret gates closed %s", defenseTurretGates(request))
+		}
+	}
 	for _, name := range defenseTierOrder {
 		tier, buildings, ok := record.Tier(name)
 		if !ok || len(buildings) == 0 || tier.Built {
@@ -251,7 +285,7 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context) (Routine
 			}
 			return RoutineDefenseLayoutResult{Reason: BuildingMethodExhausted, Tier: name}, nil
 		}
-		buildings = defenseMissingBuildings(buildings, edifice)
+		buildings = defenseMissingBuildings(buildings, census)
 		if len(buildings) == 0 {
 			// The census re-opened the tier on a cell it cannot see
 			// (fogged); nothing can be admitted until it can.
@@ -263,7 +297,253 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context) (Routine
 	if err = p.journal.SaveDefenseLayout(call, record); err != nil {
 		return RoutineDefenseLayoutResult{}, err
 	}
+	// Every tier stands, so combat holds the proven line; a standing turret
+	// without power is still a deficit the layout waits on (the network's
+	// fuel or generation is EnsureBasicPower's, a lost conduit is re-placed
+	// above once the census misses it).
+	if dark := defenseUnpoweredTurrets(record, census); len(dark) > 0 {
+		clockSchedulerLog("defense-layout: turrets unpowered at %v", dark)
+		return RoutineDefenseLayoutResult{Reason: BuildingMethodUnknown, Tier: policy.TierTurrets}, nil
+	}
 	return RoutineDefenseLayoutResult{Reason: BuildingMethodNoDeficit}, nil
+}
+
+// defenseTurretsDue reports whether a stored layout without a placed turret
+// tier is due another proposal: never probed, or a reverify interval since.
+func defenseTurretsDue(record store.DefenseLayoutRecord, tick domain.Tick) bool {
+	turrets, _, ok := record.Tier(policy.TierTurrets)
+	return (!ok || len(turrets.Buildings) == 0) && (record.TurretsProbedTick == 0 || tick-record.TurretsProbedTick >= defenseReverifyTicks)
+}
+
+// defenseCensus is one same-tick observation of the layout's cells: the
+// edifice standing on each visible cell, the conduit cells (conduits are not
+// edifices, so the power census carries them) and each power consumer's
+// powered state by cell.
+type defenseCensus struct {
+	edifice  map[domain.Cell]string
+	conduits map[domain.Cell]bool
+	powered  map[domain.Cell]domain.Fact[bool]
+}
+
+// standing reports whether the building's cell carries it: a conduit by the
+// conduit census, anything else by its edifice.
+func (c *defenseCensus) standing(definition string, cell domain.Cell) bool {
+	if definition == defenseConduitDefinition {
+		return c.conduits[cell]
+	}
+	return c.edifice[cell] == definition
+}
+
+// defenseUnpoweredTurrets lists the record's turret cells whose consumer is
+// observed unpowered. An unknown state is not a deficit: a census without
+// power facts must not hold the layout's completion, and combat, forever.
+func defenseUnpoweredTurrets(record store.DefenseLayoutRecord, census *defenseCensus) []domain.Cell {
+	if census == nil {
+		return nil
+	}
+	var dark []domain.Cell
+	for _, tier := range record.Tiers {
+		if tier.Name != policy.TierTurrets {
+			continue
+		}
+		for _, b := range tier.Buildings {
+			if b.Definition == defenseConduitDefinition {
+				continue
+			}
+			if on, known := census.powered[b.Cell].Value(); known && !on {
+				dark = append(dark, b.Cell)
+			}
+		}
+	}
+	return dark
+}
+
+// defenseTurretRequest is the turret tier's observed gates from the shared
+// routine reading: the turret and conduit planning definitions (availability
+// re-checked against the research snapshot's finished projects), the
+// network with the most spare watts and the conduits that carry it, and the
+// stock census.
+func defenseTurretRequest(read observation.RoutineReading) policy.DefenseRequest {
+	projection := read.Projection
+	request := policy.DefenseRequest{Definitions: defenseDefinitions, UnitCosts: map[string][]policy.Amount{}}
+	request.Turret = policy.DefenseTurretRequest{Definition: defenseTurretDefinition, Conduit: defenseConduitDefinition, Stock: projection.Resources, Max: defenseMaxTurrets}
+	research, rk := projection.Facts.Research.Value()
+	finished := map[policy.ResearchProjectID]bool{}
+	for _, id := range research.Finished {
+		finished[id] = true
+	}
+	for _, d := range projection.Definitions {
+		if d.Name != defenseTurretDefinition && d.Name != defenseConduitDefinition {
+			continue
+		}
+		if costs, known := d.Costs.Value(); known {
+			request.UnitCosts[d.Name] = append([]policy.Amount{}, costs...)
+		}
+		if d.Name != defenseTurretDefinition {
+			continue
+		}
+		available := d.Available
+		if rk {
+			for _, prerequisite := range d.Research {
+				v, k := available.Value()
+				available = domain.Known(k && v && finished[policy.ResearchProjectID(prerequisite)])
+			}
+		} else if len(d.Research) > 0 {
+			available = domain.Unknown[bool]()
+		}
+		request.Turret.Available = available
+		if stuff, known := d.Stuff.Value(); known {
+			request.Turret.Stuff = stuff
+		}
+		if w, known := d.PowerW.Value(); known && w >= 0 {
+			request.Turret.DrawW = domain.Known(w)
+		}
+	}
+	topology, known := projection.PowerPlanning.Value()
+	if !known {
+		return request
+	}
+	best, spare := "", 0.0
+	for _, net := range topology.Networks {
+		generation, gk := net.GenerationW.Value()
+		consumption, ck := net.ConsumptionW.Value()
+		if gk && ck && generation > 0 && (best == "" || generation-consumption > spare) {
+			best, spare = net.ID, generation-consumption
+		}
+	}
+	if best == "" {
+		return request
+	}
+	request.Turret.SpareW = domain.Known(spare)
+	request.Turret.Transmitters = defenseNetworkConduits(topology, best)
+	return request
+}
+
+// defenseTurretGates renders the turret request's gates for the scheduler
+// log: which observation keeps the tier from being proposed.
+func defenseTurretGates(r policy.DefenseRequest) string {
+	q := r.Turret
+	stock, sk := q.Stock.Value()
+	_, ck := r.UnitCosts[q.Definition]
+	return fmt.Sprintf("available=%v draw=%v spare=%v transmitters=%d costs_known=%v stock_known=%v steel=%d components=%d",
+		q.Available, q.DrawW, q.SpareW, len(q.Transmitters), ck, sk, stock["Steel"], stock["ComponentIndustrial"])
+}
+
+// defenseNetworkConduits approximates which conduits carry the network the
+// native way round: a consumer or producer connects to a transmitter within
+// connector reach of its footprint, and conduits chain cardinally.
+func defenseNetworkConduits(topology policy.PowerTopology, network string) []domain.Cell {
+	conduit := map[domain.Cell]bool{}
+	for _, c := range topology.Conduits {
+		conduit[c] = true
+	}
+	seen := map[domain.Cell]bool{}
+	var queue, out []domain.Cell
+	for _, b := range topology.Buildings {
+		if id, known := b.Network.Value(); !known || id != network {
+			continue
+		}
+		for _, cell := range b.Occupied {
+			for _, c := range topology.Conduits {
+				if !seen[c] && abs32(c.X-cell.X) <= 6 && abs32(c.Z-cell.Z) <= 6 {
+					seen[c] = true
+					queue = append(queue, c)
+				}
+			}
+		}
+	}
+	for len(queue) > 0 {
+		c := queue[0]
+		queue = queue[1:]
+		out = append(out, c)
+		for _, d := range []domain.Cell{{X: 1}, {X: -1}, {Z: 1}, {Z: -1}} {
+			n := domain.Cell{X: c.X + d.X, Z: c.Z + d.Z}
+			if conduit[n] && !seen[n] {
+				seen[n] = true
+				queue = append(queue, n)
+			}
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].X < out[j].X || out[i].X == out[j].X && out[i].Z < out[j].Z })
+	return out
+}
+
+func abs32(v int32) int32 {
+	if v < 0 {
+		return -v
+	}
+	return v
+}
+
+// proposeTurrets reads the census around the colony and the turret
+// candidates' lines of fire against the stored geometry and, when the tier
+// places anything, records it pending with a fresh retry budget. The probe
+// tick is recorded either way so an open gate without a placeable site is
+// re-read once per reverify interval, not every step.
+func (r *RoutineDefenseLayoutPlanner) proposeTurrets(call context.Context, state ControlState, read observation.RoutineReading, record *store.DefenseLayoutRecord) error {
+	projection := read.Projection
+	identity := boundary.Identity(state.Snapshot)
+	region := defenseRegion(projection.Center, projection.Bounds)
+	site, _, err := r.native.ReadDefenseSite(call, identity, region)
+	if err != nil {
+		return err
+	}
+	if err = r.sameTick(site.Context, state, projection.Identity.Tick); err != nil {
+		return err
+	}
+	request := defenseTurretRequest(read)
+	request.Bounds, request.Home = projection.Bounds, projection.Center
+	request.Region = policy.Rectangle{X: region.Min.X, Z: region.Min.Z, Width: region.Max.X - region.Min.X + 1, Height: region.Max.Z - region.Min.Z + 1}
+	for _, cell := range site.Cells {
+		request.Cells = append(request.Cells, defenseCellFacts(cell))
+	}
+	geometry := defenseRecordGeometry(*record)
+	record.TurretsProbedTick = projection.Identity.Tick
+	_, candidates, err := policy.DefenseTurrets(request, geometry)
+	if err != nil || len(candidates) == 0 {
+		clockSchedulerLog("defense-layout: no turret candidate (firing=%v cells=%d err=%v %s)", geometry.Firing, len(request.Cells), err, defenseTurretGates(request))
+		return r.reviewer.player.journal.SaveDefenseLayout(call, *record)
+	}
+	var probe []domain.Cell
+	for _, c := range candidates {
+		probe = append(probe, c.Cell)
+	}
+	lines, _, err := r.native.ReadLinesOfFire(call, identity, probe, record.TrapLane)
+	if err != nil {
+		return err
+	}
+	if err = r.sameTick(lines.Context, state, projection.Identity.Tick); err != nil {
+		return err
+	}
+	for _, line := range lines.Lines {
+		l := policy.DefenseLine{From: line.From, To: line.To}
+		if line.Known {
+			l.LineOfSight = domain.Known(line.LineOfSight)
+		}
+		request.Lines = append(request.Lines, l)
+	}
+	tier, verified, err := policy.DefenseTurrets(request, geometry)
+	clockSchedulerLog("defense-layout: turret probe candidates=%+v lines=%d buildings=%d costs=%v err=%v %s", verified, len(lines.Lines), len(tier.Buildings), tier.Costs, err, defenseTurretGates(request))
+	if err != nil || len(tier.Buildings) == 0 {
+		return r.reviewer.player.journal.SaveDefenseLayout(call, *record)
+	}
+	record.SetTurretTier(tier)
+	return r.reviewer.player.journal.SaveDefenseLayout(call, *record)
+}
+
+// defenseRecordGeometry is the stored layout as the turret tier sees it.
+func defenseRecordGeometry(record store.DefenseLayoutRecord) policy.DefenseGeometry {
+	g := policy.DefenseGeometry{Entry: record.Entry, Approach: append([]domain.Cell{}, record.TrapLane...), Toward: record.Toward, Firing: append([]domain.Cell{}, record.Firing...), Lanes: append(append([]domain.Cell{}, record.TrapLane...), record.SafeLane...)}
+	for _, tier := range record.Tiers {
+		if tier.Name == policy.TierTurrets {
+			continue
+		}
+		g.Reserved = append(g.Reserved, tier.Reserved...)
+		for _, b := range tier.Buildings {
+			g.Reserved = append(g.Reserved, b.Cell)
+		}
+	}
+	return g
 }
 
 // defenseReverifyTicks is how much simulation a Complete record's census
@@ -302,7 +582,7 @@ func defenseCombatKey(ctx context.Context, p *Player, review store.RoutineReview
 // defenseTierCensus applies one census to the record: a tier whose
 // buildings all stand is Built; a Built tier that lost a building is
 // re-opened with a fresh retry budget. It reports whether anything changed.
-func defenseTierCensus(record *store.DefenseLayoutRecord, edifice map[domain.Cell]string) bool {
+func defenseTierCensus(record *store.DefenseLayoutRecord, census *defenseCensus) bool {
 	changed := false
 	for _, tier := range record.Tiers {
 		if len(tier.Buildings) == 0 {
@@ -310,7 +590,7 @@ func defenseTierCensus(record *store.DefenseLayoutRecord, edifice map[domain.Cel
 		}
 		standing := true
 		for _, b := range tier.Buildings {
-			standing = standing && edifice[b.Cell] == b.Definition
+			standing = standing && census.standing(b.Definition, b.Cell)
 		}
 		if standing == tier.Built {
 			continue
@@ -327,9 +607,8 @@ func defenseTierCensus(record *store.DefenseLayoutRecord, edifice map[domain.Cel
 
 // observeTiers reads the layout's census once and applies it to every
 // tier's Built state, saving the record when anything changed. It returns
-// the census (edifice definition by cell) so admission can be limited to
-// the buildings actually missing.
-func (r *RoutineDefenseLayoutPlanner) observeTiers(call context.Context, state ControlState, read observation.RoutineReading, record *store.DefenseLayoutRecord) (map[domain.Cell]string, error) {
+// the census so admission can be limited to the buildings actually missing.
+func (r *RoutineDefenseLayoutPlanner) observeTiers(call context.Context, state ControlState, read observation.RoutineReading, record *store.DefenseLayoutRecord) (*defenseCensus, error) {
 	placed := false
 	for _, tier := range record.Tiers {
 		placed = placed || len(tier.Buildings) > 0
@@ -345,16 +624,43 @@ func (r *RoutineDefenseLayoutPlanner) observeTiers(call context.Context, state C
 	if err = r.sameTick(site.Context, state, projection.Identity.Tick); err != nil {
 		return nil, err
 	}
-	edifice := map[domain.Cell]string{}
+	census := &defenseCensus{edifice: map[domain.Cell]string{}, conduits: map[domain.Cell]bool{}, powered: map[domain.Cell]domain.Fact[bool]{}}
 	for _, cell := range site.Cells {
 		if !cell.Fogged {
-			edifice[cell.Cell] = cell.EdificeDefName
+			census.edifice[cell.Cell] = cell.EdificeDefName
 		}
 	}
-	if !defenseTierCensus(record, edifice) {
-		return edifice, nil
+	if topology, known := projection.PowerPlanning.Value(); known {
+		for _, c := range topology.Conduits {
+			census.conduits[c] = true
+		}
+		for _, b := range topology.Buildings {
+			census.powered[b.Cell] = b.Powered
+		}
 	}
-	return edifice, r.reviewer.player.journal.SaveDefenseLayout(call, *record)
+	if !defenseTierCensus(record, census) {
+		return census, nil
+	}
+	return census, r.reviewer.player.journal.SaveDefenseLayout(call, *record)
+}
+
+// routineDefensiveLayoutStanding is the journal's view of the layout for
+// development arbitration: known only while the goal is opted in and a
+// record for this colony is stored; a record from another load is a reload
+// whose tiers are re-observed before it counts.
+func routineDefensiveLayoutStanding(ctx context.Context, journal *store.Store, p policy.RoutinePolicy, snapshot domain.GenerationSnapshot) (domain.Fact[bool], error) {
+	if !p.DefensiveLayout {
+		return domain.Unknown[bool](), nil
+	}
+	world := store.World{Colony: snapshot.Colony, Load: snapshot.Load, Map: snapshot.Map}
+	record, stored, err := journal.LoadDefenseLayout(ctx, world)
+	if err != nil {
+		return domain.Unknown[bool](), err
+	}
+	if !stored {
+		return domain.Known(false), nil
+	}
+	return domain.Known(record.World == world && record.Standing()), nil
 }
 
 // defenseMissingBuildings keeps the tier's buildings the census does not
@@ -362,13 +668,13 @@ func (r *RoutineDefenseLayoutPlanner) observeTiers(call context.Context, state C
 // breached wall) is repaired by that building alone: previewing a standing
 // one is refused as an identical thing, which would hold the whole tier.
 // Before any census (nil) every building is missing.
-func defenseMissingBuildings(buildings []domain.Building, edifice map[domain.Cell]string) []domain.Building {
-	if edifice == nil {
+func defenseMissingBuildings(buildings []domain.Building, census *defenseCensus) []domain.Building {
+	if census == nil {
 		return buildings
 	}
 	var missing []domain.Building
 	for _, b := range buildings {
-		if edifice[b.Cell()] != b.Definition() {
+		if !census.standing(b.Definition(), b.Cell()) {
 			missing = append(missing, b)
 		}
 	}
@@ -390,7 +696,9 @@ func (r *RoutineDefenseLayoutPlanner) propose(call context.Context, state Contro
 	if err = r.sameTick(site.Context, state, projection.Identity.Tick); err != nil {
 		return policy.DefenseLayout{}, nil, false, err
 	}
-	request := policy.DefenseRequest{Bounds: projection.Bounds, Region: policy.Rectangle{X: region.Min.X, Z: region.Min.Z, Width: region.Max.X - region.Min.X + 1, Height: region.Max.Z - region.Min.Z + 1}, Home: projection.Center, Definitions: defenseDefinitions}
+	request := defenseTurretRequest(read)
+	request.Bounds, request.Home = projection.Bounds, projection.Center
+	request.Region = policy.Rectangle{X: region.Min.X, Z: region.Min.Z, Width: region.Max.X - region.Min.X + 1, Height: region.Max.Z - region.Min.Z + 1}
 	for _, cell := range site.Cells {
 		request.Cells = append(request.Cells, defenseCellFacts(cell))
 		if !cell.Fogged && cell.Door && cell.PlayerOwned {
@@ -483,16 +791,17 @@ func (r *RoutineDefenseLayoutPlanner) admit(call, epoch context.Context, goal st
 			return RoutineDefenseLayoutResult{}, err
 		}
 	}
-	// The audit blocks every impassable placement of the whole layout (walls
-	// and fences), not the traps: a spike trap stays walkable and colonists
-	// cross their own with a negligible spring chance, while the fenced safe
-	// lane leaves no trap-free route by design. Trap cells are kept off the
-	// colonists' resting positions separately.
+	// The audit blocks every impassable placement of the whole layout (walls,
+	// fences and turrets), not the traps or conduits: a spike trap stays
+	// walkable and colonists cross their own with a negligible spring
+	// chance, while the fenced safe lane leaves no trap-free route by
+	// design, and a conduit lies under the floor. Trap cells are kept off
+	// the colonists' resting positions separately.
 	blocked := map[domain.Cell]bool{}
 	var blockedCells []domain.Cell
 	for _, t := range record.Tiers {
 		for _, b := range t.Buildings {
-			if b.Definition == defenseDefinitions.Trap {
+			if b.Definition == defenseDefinitions.Trap || b.Definition == defenseConduitDefinition {
 				continue
 			}
 			if !blocked[b.Cell] {

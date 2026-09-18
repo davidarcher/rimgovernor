@@ -60,6 +60,14 @@ namespace HeadlessRim
             Patch(harmony, typeof(MapDrawer), "DrawMapMesh", nameof(SkipPrefix));
             Patch(harmony, typeof(MapDrawer), "Dispose", nameof(DisposeMapPrefix));
             Patch(harmony, typeof(Graphic), "Print", nameof(SkipPrefix));
+            // Some place workers draw while deciding (PlaceWorker_ShowTurretRadius
+            // draws the turret's radius ring inside AllowsPlacing); without a
+            // renderer the field-edge mesh faults and a placement preview of a
+            // turret reads as refused.
+            Patch(harmony, typeof(GenDraw), "DrawFieldEdges",
+                new[] { typeof(List<IntVec3>), typeof(Color), typeof(float?), typeof(HashSet<IntVec3>), typeof(int) }, nameof(SkipPrefix));
+            Patch(harmony, typeof(GenDraw), "DrawRadiusRing",
+                new[] { typeof(IntVec3), typeof(float), typeof(Color), typeof(Func<IntVec3, bool>) }, nameof(SkipPrefix));
 
             // AUDIO
             Patch(harmony, typeof(SoundStarter), "PlayOneShot", nameof(SkipPrefix));

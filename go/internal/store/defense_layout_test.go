@@ -48,11 +48,28 @@ func TestDefenseLayoutRoundTripPerWorld(t *testing.T) {
 		t.Fatal("other colony layout returned", ok, err)
 	}
 	got.Complete = true
+	got.Tiers[0].Built = true
 	if err = db.SaveDefenseLayout(context.Background(), got); err != nil {
 		t.Fatal(err)
 	}
 	if got, _, _ = db.LoadDefenseLayout(context.Background(), world); !got.Complete {
 		t.Fatal("completion not persisted")
+	}
+	// Standing needs completion and every placed tier still built.
+	if !got.Standing() {
+		t.Fatal("complete layout with built tiers not standing", got.Tiers)
+	}
+	for i := range got.Tiers {
+		if len(got.Tiers[i].Buildings) > 0 {
+			got.Tiers[i].Built = false
+			break
+		}
+	}
+	if got.Standing() {
+		t.Fatal("layout with a fallen tier standing")
+	}
+	if (DefenseLayoutRecord{}).Standing() {
+		t.Fatal("empty record standing")
 	}
 	record.Firing = nil
 	if err = db.SaveDefenseLayout(context.Background(), record); err == nil {

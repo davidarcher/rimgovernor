@@ -78,6 +78,15 @@ func (r *RoutineRepairPlanner) step(call, epoch context.Context, arbiter *stepAr
 	if err != nil {
 		return RoutineRepairResult{}, err
 	}
+	if found {
+		// A repair the colonists already made (the goal recovered, or the
+		// structure is ineligible) is settled here, before the need gate:
+		// once the goal recovers the gate returns early, and the open
+		// method would hold the goal's development commitment forever.
+		if err = cancelSettledRepairMethods(call, p.journal, goal); err != nil {
+			return RoutineRepairResult{}, err
+		}
+	}
 	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit {
 		return RoutineRepairResult{Reason: BuildingMethodNoDeficit}, nil
 	}

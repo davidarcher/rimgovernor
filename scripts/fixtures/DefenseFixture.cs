@@ -18,8 +18,12 @@ namespace HomeBridge.BridgeTools
     // inside the band already hunting a colonist, #157), damage (one wall
     // hit), breach (the game's auto-rebuild off, one trap gone, #117),
     // inspect (colonists on trap cells, trap ids and cells, sprung traps,
-    // hostiles, the fixture predator). No completed-work injection:
-    // construction, movement and combat stay native.
+    // hostiles, the fixture predator, turrets with their power and last
+    // attack tick, conduits, generators), power (#61: turret and electricity
+    // research finished, a fuelled wood generator with a conduit stub near
+    // x,z, steel and components in stock), depower (one conduit at x,z
+    // vanishes with the game's auto-rebuild off). No completed-work
+    // injection: construction, movement and combat stay native.
     public sealed class DefenseFixture
     {
         private const int Half = 22;
@@ -28,8 +32,8 @@ namespace HomeBridge.BridgeTools
 
         private static Pawn fixturePredator;
 
-        [Tool("test/defense_setup", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable defensive-layout fixture: op=terrain|stock|ranged|raid|predator|damage|breach|heal|inspect|quiet.")]
-        public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken, string op, string strategy = "ImmediateAttack", string arrival = "EdgeWalkIn", int points = 0, string wall = "", int rifles = 3, string kind = "Cougar")
+        [Tool("test/defense_setup", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable defensive-layout fixture: op=terrain|stock|ranged|raid|predator|damage|breach|heal|inspect|quiet|power|depower.")]
+        public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken, string op, string strategy = "ImmediateAttack", string arrival = "EdgeWalkIn", int points = 0, string wall = "", int rifles = 3, string kind = "Cougar", int x = -1, int z = -1)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap; var player = Faction.OfPlayerSilentFail;
@@ -43,14 +47,16 @@ namespace HomeBridge.BridgeTools
                     case "terrain": return Terrain(map, center);
                     case "stock": return Stock(map, center);
                     case "ranged": return Ranged(map, colonists, rifles);
-                    case "raid": return Raid(map, strategy, arrival, points);
+                    case "raid": return Raid(map, strategy, arrival, points, x < 0 ? IntVec3.Invalid : new IntVec3(x, 0, z));
                     case "predator": return Predator(map, colonists, kind);
                     case "damage": return Damage(map, wall);
                     case "breach": return Breach(map);
                     case "heal": return Heal(map);
                     case "inspect": return Inspect(map, player);
                     case "quiet": return Quiet();
-                    default: return Refuse("Use terrain, stock, ranged, raid, predator, damage, breach, heal, inspect or quiet.");
+                    case "power": return Power(map, new IntVec3(x, 0, z));
+                    case "depower": return Depower(map, new IntVec3(x, 0, z));
+                    default: return Refuse("Use terrain, stock, ranged, raid, predator, damage, breach, heal, inspect, quiet, power or depower.");
                 }
             }, cancellationToken).ConfigureAwait(false);
         }
@@ -155,10 +161,24 @@ namespace HomeBridge.BridgeTools
             return floor;
         }
 
-        private static object Raid(Map map, string strategy, string arrival, int points)
+        // Raid stages the game's own raid incident. With a `near` cell the
+        // edge arrival starts at the standable map-edge cell closest to it
+        // that reaches it (the raid's own worker otherwise picks any edge,
+        // and a raid that walks in behind the colony never meets the
+        // corridor the #61 turrets cover).
+        private static object Raid(Map map, string strategy, string arrival, int points, IntVec3 near)
         {
             var def = DefDatabase<IncidentDef>.GetNamed("RaidEnemy");
             var parms = StorytellerUtility.DefaultParmsNow(def.category, map);
+            if (near.IsValid)
+            {
+                if (!near.InBounds(map)) return Refuse("near cell is off the map.");
+                var edge = CellRect.WholeMap(map).EdgeCells.Where(c => c.Standable(map) && !c.Fogged(map)
+                        && map.reachability.CanReach(c, near, Verse.AI.PathEndMode.OnCell, TraverseMode.PassDoors, Danger.Deadly))
+                    .OrderBy(c => c.DistanceToSquared(near)).FirstOrDefault();
+                if (!edge.IsValid) return Refuse("No standable map-edge cell reaches the near cell.");
+                parms.spawnCenter = edge;
+            }
             var faction = Find.FactionManager.AllFactionsVisible.Where(f => f.HostileTo(Faction.OfPlayer) && !f.def.hidden && f.def.humanlikeFaction
                     && ((IncidentWorker_RaidEnemy)def.Worker).FactionCanBeGroupSource(f, parms))
                 .OrderBy(f => f.def.techLevel).ThenBy(f => f.def.MinPointsToGeneratePawnGroup(PawnGroupKindDefOf.Combat)).FirstOrDefault();
@@ -283,6 +303,136 @@ namespace HomeBridge.BridgeTools
             return new { success = true };
         }
 
+        // Power stages the turret tier's observed gates (#61) without placing
+        // any turret: the research the turret and conduit definitions require
+        // is finished natively (no completion letter, so nothing pauses the
+        // clock), a fuelled wood-fired generator with a three-cell conduit
+        // stub stands on the first placeable anchor near x,z (the case picks
+        // a cell well outside connector reach of the firing row, so the
+        // planner has to route its own conduit chain), and steel and
+        // components for the turrets are dropped by the colonists. Where the
+        // turrets go, and whether they are built, powered and fire, stays
+        // the controller's and the game's.
+        private static object Power(Map map, IntVec3 near)
+        {
+            if (!near.InBounds(map)) return Refuse("x and z must name a map cell for the generator.");
+            var finished = new List<string>();
+            foreach (var name in new[] { "Electricity", "GunTurrets" })
+            {
+                var project = DefDatabase<ResearchProjectDef>.GetNamedSilentFail(name);
+                if (project == null) return Refuse("Research project " + name + " not found.");
+                foreach (var prerequisite in Prerequisites(project))
+                {
+                    if (prerequisite.IsFinished) continue;
+                    Find.ResearchManager.FinishProject(prerequisite, doCompletionDialog: false, researcher: null, doCompletionLetter: false);
+                    finished.Add(prerequisite.defName);
+                }
+            }
+            var turret = DefDatabase<ThingDef>.GetNamed("Turret_MiniTurret");
+            var conduit = DefDatabase<ThingDef>.GetNamed("PowerConduit");
+            var generator = DefDatabase<ThingDef>.GetNamed("WoodFiredGenerator");
+            if (!turret.IsResearchFinished || !conduit.IsResearchFinished || !generator.IsResearchFinished)
+                return Refuse("Turret, conduit or generator research still unfinished after FinishProject.");
+            // Anchor search: the generator's footprint and the stub north of
+            // it must all be placeable on a cell the colonists can reach.
+            IntVec3 anchor = IntVec3.Invalid; var stub = new List<IntVec3>();
+            foreach (var cell in GenRadial.RadialCellsAround(near, 8, true).Where(c => c.InBounds(map)))
+            {
+                if (!GenConstruct.CanPlaceBlueprintAt(generator, cell, Rot4.North, map).Accepted) continue;
+                var rect = GenAdj.OccupiedRect(cell, Rot4.North, generator.size);
+                var line = Enumerable.Range(1, 3).Select(i => new IntVec3(cell.x, 0, rect.maxZ + i)).ToList();
+                if (line.Any(c => !c.InBounds(map) || rect.Contains(c) || !GenConstruct.CanPlaceBlueprintAt(conduit, c, Rot4.North, map).Accepted || c.GetEdifice(map) != null)) continue;
+                if (!map.mapPawns.FreeColonistsSpawned.Any(p => map.reachability.CanReach(p.Position, cell, Verse.AI.PathEndMode.Touch, TraverseMode.PassDoors, Danger.Deadly))) continue;
+                anchor = cell; stub = line; break;
+            }
+            if (!anchor.IsValid) return Refuse("No placeable generator anchor within 8 cells of the requested cell.");
+            var gen = ThingMaker.MakeThing(generator);
+            gen.SetFactionDirect(Faction.OfPlayer);
+            GenSpawn.Spawn(gen, anchor, map, Rot4.North);
+            var refuelable = gen.TryGetComp<CompRefuelable>();
+            if (refuelable == null) return Refuse("Generator has no refuelable comp.");
+            refuelable.Refuel(refuelable.Props.fuelCapacity);
+            var conduits = new List<object>();
+            foreach (var cell in stub)
+            {
+                var wire = ThingMaker.MakeThing(conduit);
+                wire.SetFactionDirect(Faction.OfPlayer);
+                GenSpawn.Spawn(wire, cell, map, Rot4.North);
+                conduits.Add(new { x = cell.x, z = cell.z });
+            }
+            map.powerNetManager.UpdatePowerNetsAndConnections_First();
+            var plant = gen.TryGetComp<CompPowerPlant>();
+            var spawned = new List<object>();
+            foreach (var stock in new[] { new { def = ThingDefOf.Steel, count = 400 }, new { def = ThingDefOf.ComponentIndustrial, count = 20 } })
+            {
+                var total = 0;
+                for (var left = stock.count; left > 0;)
+                {
+                    var thing = ThingMaker.MakeThing(stock.def); thing.stackCount = Math.Min(stock.def.stackLimit, left); left -= thing.stackCount;
+                    if (!GenPlace.TryPlaceThing(thing, near, map, ThingPlaceMode.Near)) return Refuse("Fixture " + stock.def.defName + " placement failed.");
+                    thing.SetForbidden(false, false); total += thing.stackCount;
+                }
+                spawned.Add(new { resource = stock.def.defName, count = total });
+            }
+            // The mini turret needs Construction 5: the best builder is
+            // raised to it so the tier is buildable by someone, as a colony
+            // that researched turrets would have.
+            var builder = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && p.skills != null && !p.WorkTypeIsDisabled(WorkTypeDefOf.Construction))
+                .OrderByDescending(p => p.skills.GetSkill(SkillDefOf.Construction).Level).FirstOrDefault();
+            if (builder == null) return Refuse("No colonist can construct.");
+            var construction = builder.skills.GetSkill(SkillDefOf.Construction);
+            var before = construction.Level;
+            if (construction.Level < turret.constructionSkillPrerequisite) construction.Level = turret.constructionSkillPrerequisite;
+            return new { success = true, finished, builder = new { id = builder.GetUniqueLoadID(), constructionBefore = before, construction = construction.Level },
+                generator = new { id = gen.GetUniqueLoadID(), x = anchor.x, z = anchor.z, fuel = refuelable.Fuel,
+                output = plant?.PowerOutput ?? 0f, network = plant?.PowerNet != null }, conduits, spawned, tick = Find.TickManager.TicksGame };
+        }
+
+        private static IEnumerable<ResearchProjectDef> Prerequisites(ResearchProjectDef project)
+        {
+            foreach (var p in project.prerequisites ?? new List<ResearchProjectDef>())
+                foreach (var q in Prerequisites(p)) yield return q;
+            yield return project;
+        }
+
+        // Depower stages the upkeep precondition for the turret scenario: the
+        // game's auto-rebuild is off and the conduit on x,z vanishes, so any
+        // conduit standing there later was placed by the controller's own
+        // routine (the layout's missing conduit or a power-family route).
+        private static object Depower(Map map, IntVec3 cell)
+        {
+            Find.PlaySettings.autoRebuild = false;
+            var conduit = cell.InBounds(map) ? cell.GetThingList(map).OfType<Building>().FirstOrDefault(b => b.def.defName == "PowerConduit" && b.Faction == Faction.OfPlayer) : null;
+            if (conduit == null) return Refuse("No player conduit on the requested cell.");
+            conduit.Destroy(DestroyMode.Vanish);
+            if (!conduit.Destroyed) return Refuse("Conduit was not destroyed.");
+            map.powerNetManager.UpdatePowerNetsAndConnections_First();
+            return new { success = true, x = cell.x, z = cell.z, turrets = Turrets(map), autoRebuild = Find.PlaySettings.autoRebuild, tick = Find.TickManager.TicksGame };
+        }
+
+        // Turrets reads every player turret gun with the evidence the #61
+        // acceptance needs: power, hit points, the tick the turret last took
+        // aim and its ranged-fire entries in the battle log (each burst the
+        // turret starts is logged with the turret as the initiator).
+        private static List<object> Turrets(Map map)
+        {
+            var shots = Find.BattleLog?.Battles?.SelectMany(b => b.Entries).OfType<BattleLogEntry_RangedFire>().ToList() ?? new List<BattleLogEntry_RangedFire>();
+            return map.listerBuildings.allBuildingsColonist.OfType<Building_TurretGun>().OrderBy(t => t.thingIDNumber).Select(t => {
+                var power = t.TryGetComp<CompPowerTrader>();
+                var net = power?.PowerNet;
+                var fired = shots.Where(s => s.Concerns(t)).Select(s => s.Tick).ToList();
+                return (object)new {
+                    id = t.GetUniqueLoadID(), def = t.def.defName, x = t.Position.x, z = t.Position.z, hp = t.HitPoints, max = t.MaxHitPoints,
+                    powered = power?.PowerOn ?? false, connected = net != null,
+                    parent = power?.connectParent == null ? null : new { x = power.connectParent.parent.Position.x, z = power.connectParent.parent.Position.z, def = power.connectParent.parent.def.defName },
+                    netGain = net?.CurrentEnergyGainRate() ?? 0f, netStored = net?.CurrentStoredEnergy() ?? 0f,
+                    netTransmitters = net?.transmitters.Count ?? 0, netConnectors = net?.connectors.Count ?? 0,
+                    lastAttackTick = t.LastAttackTargetTick, shots = fired.Count, lastShotTick = fired.Count == 0 ? -1 : fired.Max(),
+                    targeting = t.CurrentTarget.IsValid,
+                    home = map.areaManager.Home[t.Position] };
+            }).ToList();
+        }
+
         private static object Inspect(Map map, Faction player)
         {
             var traps = map.listerBuildings.allBuildingsColonist.Where(b => b.def.defName == "TrapSpike").ToList();
@@ -309,7 +459,13 @@ namespace HomeBridge.BridgeTools
             // gone) from its replacement (a new id on the same cell).
             var trapIds = traps.Select(t => t.GetUniqueLoadID()).OrderBy(id => id).ToList();
             var cells = traps.OrderBy(t => t.thingIDNumber).Select(t => new { x = t.Position.x, z = t.Position.z }).ToList();
-            return new { success = true, traps = traps.Count, trapIds, trapCells = cells, sprung, colonistsOnTraps, colonists, hostiles, predator, walls, tick = Find.TickManager.TicksGame, paused = Find.TickManager.Paused };
+            var conduits = map.listerBuildings.allBuildingsColonist.Where(b => b.def.defName == "PowerConduit").OrderBy(b => b.thingIDNumber)
+                .Select(b => new { x = b.Position.x, z = b.Position.z }).ToList();
+            var generators = map.listerBuildings.allBuildingsColonist.Where(b => b.TryGetComp<CompPowerPlant>() != null).OrderBy(b => b.thingIDNumber)
+                .Select(b => new { id = b.GetUniqueLoadID(), def = b.def.defName, x = b.Position.x, z = b.Position.z, output = b.TryGetComp<CompPowerPlant>().PowerOutput,
+                    fuel = b.TryGetComp<CompRefuelable>()?.Fuel ?? -1f }).ToList();
+            return new { success = true, traps = traps.Count, trapIds, trapCells = cells, sprung, colonistsOnTraps, colonists, hostiles, predator, walls,
+                turrets = Turrets(map), conduits, generators, tick = Find.TickManager.TicksGame, paused = Find.TickManager.Paused };
         }
 
         // Building_TrapRearmable keeps its armed state private; a trap whose

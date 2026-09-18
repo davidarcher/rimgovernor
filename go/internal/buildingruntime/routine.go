@@ -177,6 +177,11 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter)
 		return store.RoutineReviewResult{}, err
 	}
 	reading.Projection.Facts.ResearchNeeds = needs
+	reading.Projection.Facts.DefensiveLayoutStanding, err = routineDefensiveLayoutStanding(ctx, p.journal, r.policy, state.Snapshot)
+	if err != nil {
+		clockSchedulerLog("routine.step: LoadDefenseLayout err=%v", err)
+		return store.RoutineReviewResult{}, err
+	}
 	if pawns, known := reading.Projection.WorkPawns.Value(); known {
 		reading.Projection.Facts.Workers = policy.RoutineWorkers(pawns)
 		reading.Projection.Facts.Labor = policy.RoutineLabor(pawns)

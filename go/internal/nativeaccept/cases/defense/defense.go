@@ -94,6 +94,9 @@ type variant struct {
 	threat, predatorKind string
 	fromCheckpoint       bool
 	writeCheckpoint      bool
+	// turrets adds the powered turret tier (#61) before the raid and
+	// replaces the trap breach with a conduit loss and turret damage.
+	turrets bool
 }
 
 func init() {
@@ -108,8 +111,16 @@ func init() {
 		if budget > cases.MaxBudget {
 			reason = "layout audit, raid answer and repair to the audited state are one native campaign; the bypass and predator variants open on the committed layout within MaxBudget"
 		}
+		serve := spec
+		if v.turrets {
+			// The turret aftermath is routine upkeep: the repair family
+			// mends the damaged turret and the power family may route the
+			// lost connection before the layout re-places its conduit.
+			serve = &cases.ServeSpec{Families: append(append([]string{}, spec.Families...), "repair", "power"), Env: spec.Env, Prefix: spec.Prefix}
+			reason = "turret build, raid answer and routine restoration of a depowered, damaged turret are one native campaign on the committed layout"
+		}
 		cases.Register(cases.Case{
-			Name: name, Scope: scope, Start: start, Serve: spec, Budget: budget, Reason: reason,
+			Name: name, Scope: scope, Start: start, Serve: serve, Budget: budget, Reason: reason,
 			Run: func(ctx context.Context, s cases.Session) error { return run(ctx, s, v) },
 		})
 	}
@@ -129,6 +140,12 @@ func init() {
 	bypass.strategy, bypass.bypass = "ImmediateAttackSappers", true
 	register("defense/raid-bypass", "Native defensive layout vertical (#5 M4) from the committed layout checkpoint: a sapper raid that bypasses the line "+
 		"is answered with squad defense, never a line position.", checkpoint, 15*time.Minute, bypass)
+	turrets := fromCheckpoint
+	turrets.turrets = true
+	register("defense/turrets", "Powered turret tier (#61) on the committed layout checkpoint: with turret research, a fuelled network and steel observed, "+
+		"the planner adds turrets behind the firing line with their own conduit chain and builds them natively; a powered turret is observed firing on an edge raid "+
+		"entering the kill zone, and afterwards a depowered, damaged turret is restored through routine upkeep.",
+		checkpoint, 45*time.Minute, turrets)
 	predator := fromCheckpoint
 	predator.threat = "predator"
 	register("defense/predator", "A wild predator hunting a colonist during supervised play (#157) is answered with squad defense from the committed layout checkpoint: "+
@@ -216,7 +233,11 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 	report, h, identity := s.Report(), s.Harness(), s.Identity()
 	root, output := s.Config().Root, s.Config().Output
 	report["raid"] = map[string]any{"strategy": v.strategy, "arrival": v.arrival, "bypass": v.bypass, "threat": v.threat}
-	closeClient := s.Release
+	// Releasing the harness before a launch is the service's own business:
+	// Session.Serve first answers any colony-naming dialog through the
+	// harness (a released one reads "bridge closed"), then na.Serve frees
+	// the sole GABP slot itself. closeClient marks the hand-over points.
+	closeClient := func() error { return nil }
 	// The service's GABS subprocess releases the game slot shortly after the
 	// service is killed, not synchronously: Reattach retries. The service
 	// leaves the game running, and every fixture op needs a paused map, so
@@ -410,17 +431,59 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 		return nil
 	}
 
+	// The fixture closure reads h; reopening must rebind it here.
+	reopenFixture := func() error {
+		var err error
+		h, err = reopenHarness()
+		return err
+	}
 	if v.threat == "predator" {
-		// The fixture closure reads h; reopening must rebind it here.
-		reopenFixture := func() error {
-			var err error
-			h, err = reopenHarness()
-			return err
-		}
 		return runPredator(ctx, closeClient, reopenFixture, fixture, launch, layout, v, report)
 	}
+	if v.turrets {
+		// Scenario T1: the observed gates open and the planner adds the
+		// turret tier to the stored layout and builds it natively.
+		anchor := turretGeneratorAnchor(layout)
+		power, err := fixture("power", map[string]any{"op": "power", "x": int(anchor.X), "z": int(anchor.Z)})
+		if err != nil {
+			return err
+		}
+		report["power"] = power
+		if err := closeClient(); err != nil {
+			return err
+		}
+		svc, err = launch("turrets")
+		if err != nil {
+			return err
+		}
+		defer svc.stop()
+		layout, err = waitTurretTier(ctx, svc.store, world, svc.wait(turretTimeout), report)
+		if err != nil {
+			return fmt.Errorf("turret tier: %w", err)
+		}
+		svc.stop()
+		report["turret_authority"] = svc.keepAlive.snapshot()
+		if err := reopenFixture(); err != nil {
+			return err
+		}
+		built, err := fixture("inspect-after-turrets", map[string]any{"op": "inspect"})
+		if err != nil {
+			return err
+		}
+		report["inspect_after_turrets"] = built
+		if err := assertTurretsPowered(built, layout); err != nil {
+			return fmt.Errorf("after the turret tier: %w", err)
+		}
+	}
 	// Scenario 2/3: a real raid.
-	raid, err := fixture("raid", map[string]any{"op": "raid", "strategy": v.strategy, "arrival": v.arrival})
+	raidArgs := map[string]any{"op": "raid", "strategy": v.strategy, "arrival": v.arrival}
+	if v.turrets {
+		// The turret scenario needs the raid to come through the corridor
+		// the turrets cover: it walks in from the map edge nearest the
+		// corridor entry rather than any edge the raid worker picks.
+		raidArgs["x"], raidArgs["z"] = int(layout.Entry.X), int(layout.Entry.Z)
+	}
+	raid, err := fixture("raid", raidArgs)
 	if err != nil {
 		return err
 	}
@@ -480,6 +543,14 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 		report["defenders_released"] = released
 		if err != nil {
 			return fmt.Errorf("draft release after raid: %w", err)
+		}
+		if v.turrets {
+			// Scenario T2/T3: firing evidence, then the staged loss and the
+			// routine restoration under a fresh service with the upkeep
+			// families.
+			svc.stop()
+			report["raid_authority"] = svc.keepAlive.snapshot()
+			return runTurretUpkeep(ctx, closeClient, reopenFixture, fixture, launch, layout, world, int64(na.AsNumber(raid["tick"])), report)
 		}
 		// The wounded are staged healed before the repair phase: a
 		// CriticalMedical hold suspends every routine goal, the controller's

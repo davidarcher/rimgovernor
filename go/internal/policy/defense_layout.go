@@ -50,6 +50,8 @@ type DefenseRequest struct {
 	// UnitCosts maps a definition to its per-placement cost; a missing entry
 	// leaves that tier's cost unknown.
 	UnitCosts map[string][]Amount
+	// Turret asks for the powered turret tier; see DefenseTurretRequest.
+	Turret DefenseTurretRequest
 }
 
 type DefenseTierName string
@@ -88,7 +90,10 @@ type DefenseLayout struct {
 	Entry              domain.Cell
 	TrapLane, SafeLane []domain.Cell
 	Firing             []FiringPosition
-	Tiers              []DefenseTier
+	// Turrets lists every turret position considered; the turret tier holds
+	// the verified ones the power and stock gates allow.
+	Turrets []TurretPosition
+	Tiers   []DefenseTier
 	// LinesVerified is false until every firing cell carries a known native
 	// line of sight to Entry; Probe lists the pairs to read.
 	LinesVerified bool
@@ -447,6 +452,14 @@ func DefenseLayouts(r DefenseRequest) (DefenseLayout, error) {
 		{Name: TierFunnel, Buildings: funnel, Reserved: funnelReserved, Costs: tierCosts(r.UnitCosts, funnel)},
 		{Name: TierTrapCorridor, Buildings: corridor, Reserved: reservedLanes, Costs: tierCosts(r.UnitCosts, corridor)},
 	}
+	if r.Turret.Definition != "" {
+		turrets, candidates, err := s.turrets(layout.Geometry())
+		if err != nil {
+			return DefenseLayout{}, err
+		}
+		layout.Turrets = candidates
+		layout.Tiers = append(layout.Tiers, turrets)
+	}
 	return layout, nil
 }
 
@@ -505,13 +518,17 @@ func tierCosts(unit map[string][]Amount, buildings []domain.Building) domain.Fac
 }
 
 // Probe lists the firing/approach pairs a caller must read through
-// observations_read_lines_of_fire before the firing line is verified.
+// observations_read_lines_of_fire before the firing line and the turret
+// positions are verified.
 func (l DefenseLayout) Probe() (firing, approach []domain.Cell) {
 	for _, f := range l.Firing {
 		firing = append(firing, f.Cell)
 	}
 	if len(firing) == 0 {
 		return nil, nil
+	}
+	for _, t := range l.Turrets {
+		firing = append(firing, t.Cell)
 	}
 	return firing, []domain.Cell{l.Entry}
 }

@@ -122,10 +122,10 @@ func TestDefenseTierCensusReopensLostBuildings(t *testing.T) {
 		{Name: policy.TierTrapCorridor, Built: true, Attempts: 2, Buildings: []store.DefenseBuilding{{Definition: "TrapSpike", Cell: trap}}},
 		{Name: policy.TierChokepoint, Built: false},
 	}}
-	if defenseTierCensus(&record, map[domain.Cell]string{wall: "Wall", trap: "TrapSpike"}) {
+	if defenseTierCensus(&record, &defenseCensus{edifice: map[domain.Cell]string{wall: "Wall", trap: "TrapSpike"}}) {
 		t.Fatal("unchanged census reported a change")
 	}
-	if !defenseTierCensus(&record, map[domain.Cell]string{wall: "Wall"}) {
+	if !defenseTierCensus(&record, &defenseCensus{edifice: map[domain.Cell]string{wall: "Wall"}}) {
 		t.Fatal("lost trap not observed")
 	}
 	if !record.Tiers[0].Built || record.Tiers[0].Attempts != 1 || record.Tiers[1].Built || record.Tiers[1].Attempts != 0 || record.Tiers[2].Built || !record.Complete {
@@ -133,7 +133,7 @@ func TestDefenseTierCensusReopensLostBuildings(t *testing.T) {
 	}
 	// A rebuilt trap is standing again; a wall replaced by another edifice
 	// (a raider's own sandbag, a blueprint's parent) does not count.
-	if !defenseTierCensus(&record, map[domain.Cell]string{wall: "Sandbags", trap: "TrapSpike"}) {
+	if !defenseTierCensus(&record, &defenseCensus{edifice: map[domain.Cell]string{wall: "Sandbags", trap: "TrapSpike"}}) {
 		t.Fatal("rebuilt trap not observed")
 	}
 	if record.Tiers[0].Built || record.Tiers[0].Attempts != 0 || !record.Tiers[1].Built {
@@ -161,11 +161,11 @@ func TestDefenseMissingBuildingsSkipsStanding(t *testing.T) {
 	if got := defenseMissingBuildings(buildings, nil); len(got) != 3 {
 		t.Fatalf("before any census every building is missing: %+v", got)
 	}
-	got := defenseMissingBuildings(buildings, map[domain.Cell]string{trapA: "TrapSpike", fenceA: "Sandbags"})
+	got := defenseMissingBuildings(buildings, &defenseCensus{edifice: map[domain.Cell]string{trapA: "TrapSpike", fenceA: "Sandbags"}})
 	if len(got) != 2 || got[0].Cell() != fenceA || got[1].Cell() != trapB {
 		t.Fatalf("%+v", got)
 	}
-	if got = defenseMissingBuildings(buildings, map[domain.Cell]string{trapA: "TrapSpike", fenceA: "Fence", trapB: "TrapSpike"}); len(got) != 0 {
+	if got = defenseMissingBuildings(buildings, &defenseCensus{edifice: map[domain.Cell]string{trapA: "TrapSpike", fenceA: "Fence", trapB: "TrapSpike"}}); len(got) != 0 {
 		t.Fatalf("%+v", got)
 	}
 }

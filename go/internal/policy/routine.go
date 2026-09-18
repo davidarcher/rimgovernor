@@ -317,7 +317,12 @@ type RoutineFacts struct {
 	// evidence is waiting on (the workshop ladder's research rung); the
 	// first unfinished one is EnsureResearch's target when none is
 	// configured.
-	ResearchNeeds              []string
+	ResearchNeeds []string
+	// DefensiveLayoutStanding is journal evidence for EnsureDefensiveLayout:
+	// known true while the stored layout was verified complete and every
+	// tier still stood at the last census, so a standing layout no longer
+	// outranks the upkeep goals (repairs, power) that keep it working.
+	DefensiveLayoutStanding    domain.Fact[bool]
 	Hostiles, CriticalPatients domain.Fact[int64]
 	// UrgentPatients counts the critical patients who are downed or bleeding
 	// (policy.UrgentPatients). CriticalMedicine is an emergency, suspending

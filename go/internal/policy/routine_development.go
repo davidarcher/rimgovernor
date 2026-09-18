@@ -43,11 +43,16 @@ func RoutineDevelopmentDeficit(id GoalID, f RoutineFacts, p RoutinePolicy) domai
 	case EnsureDefensiveLayout:
 		// Config-only opt-in (see RoutinePolicy.DefensiveLayout): while
 		// opted in the layout counts as a full deficit so development
-		// arbitration can select it; the planner itself reports no deficit
-		// once the stored layout is complete. Without this the goal ranks
-		// deficit_unknown and every tier admission conflicts.
+		// arbitration can select it, until the journal shows every tier
+		// standing; then it ranks by age alone so an active repair or power
+		// deficit takes the slot first and the planner's periodic
+		// re-verification still runs when a slot is free. Without this
+		// the goal ranks deficit_unknown and every tier admission conflicts.
 		if !p.DefensiveLayout {
 			return domain.Unknown[float64]()
+		}
+		if positive(f.DefensiveLayoutStanding) {
+			return domain.Known(0.0)
 		}
 		return domain.Known(1.0)
 	case MaintainMedicalReserves:

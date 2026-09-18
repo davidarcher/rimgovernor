@@ -61,6 +61,10 @@ type DefenseLayoutRecord struct {
 	// keeps holding the line on the proven geometry.
 	VerifiedTick   domain.Tick `json:",omitempty"`
 	VerifiedCombat string      `json:",omitempty"`
+	// TurretsProbedTick is the tick the turret tier was last proposed
+	// against the stored geometry while it had nothing to place; the
+	// planner re-probes once per reverify interval, not every step.
+	TurretsProbedTick domain.Tick `json:",omitempty"`
 }
 
 const maxDefenseLayoutBytes = 256 * 1024
@@ -74,7 +78,7 @@ func (r DefenseLayoutRecord) Validate() error {
 	if len(r.Firing) == 0 || len(r.Tiers) == 0 || len(r.Tiers) > 8 || len(r.Firing) > 64 || len(r.TrapLane) > 64 || len(r.SafeLane) > 64 || len(r.Entrances) > 64 {
 		return errors.New("defense layout geometry out of bounds")
 	}
-	if r.VerifiedTick < 0 || len(r.VerifiedCombat) > 512 {
+	if r.VerifiedTick < 0 || r.TurretsProbedTick < 0 || len(r.VerifiedCombat) > 512 {
 		return errors.New("defense layout verification invalid")
 	}
 	seen := map[policy.DefenseTierName]bool{}
@@ -109,6 +113,37 @@ func (r DefenseLayoutRecord) Tier(name policy.DefenseTierName) (DefenseTierRecor
 		return tier, out, true
 	}
 	return DefenseTierRecord{}, nil, false
+}
+
+// SetTurretTier replaces the turret tier with a fresh pending record of the
+// policy tier, appending it when the record predates turrets.
+func (r *DefenseLayoutRecord) SetTurretTier(tier policy.DefenseTier) {
+	t := DefenseTierRecord{Name: policy.TierTurrets, Reserved: append([]domain.Cell{}, tier.Reserved...)}
+	for _, b := range tier.Buildings {
+		t.Buildings = append(t.Buildings, DefenseBuilding{Definition: b.Definition(), Cell: b.Cell(), Rotation: b.Rotation(), Stuff: b.Stuff()})
+	}
+	for i := range r.Tiers {
+		if r.Tiers[i].Name == policy.TierTurrets {
+			r.Tiers[i] = t
+			return
+		}
+	}
+	r.Tiers = append(r.Tiers, t)
+}
+
+// Standing reports whether the layout was verified complete and every tier
+// placed since still stands in the last census: the state in which the
+// goal has no deficit for development arbitration.
+func (r DefenseLayoutRecord) Standing() bool {
+	if !r.Complete {
+		return false
+	}
+	for _, tier := range r.Tiers {
+		if len(tier.Buildings) > 0 && !tier.Built {
+			return false
+		}
+	}
+	return true
 }
 
 // SetTier replaces the named tier's record in place; unknown names are ignored.

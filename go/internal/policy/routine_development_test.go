@@ -35,6 +35,19 @@ func TestRoutineDevelopmentDeficitDefensiveLayoutFollowsOptIn(t *testing.T) {
 	if v, known := RoutineDevelopmentDeficit(EnsureDefensiveLayout, RoutineFacts{}, RoutinePolicy{DefensiveLayout: true}).Value(); !known || v != 1 {
 		t.Fatalf("opted-in layout deficit = %v,%v; want 1,true", v, known)
 	}
+	// A standing layout ranks by age alone so an active repair or power
+	// deficit outranks it; an unknown or fallen record keeps the full deficit.
+	standing := RoutineFacts{DefensiveLayoutStanding: domain.Known(true)}
+	if v, known := RoutineDevelopmentDeficit(EnsureDefensiveLayout, standing, RoutinePolicy{DefensiveLayout: true}).Value(); !known || v != 0 {
+		t.Fatalf("standing layout deficit = %v,%v; want 0,true", v, known)
+	}
+	fallen := RoutineFacts{DefensiveLayoutStanding: domain.Known(false)}
+	if v, known := RoutineDevelopmentDeficit(EnsureDefensiveLayout, fallen, RoutinePolicy{DefensiveLayout: true}).Value(); !known || v != 1 {
+		t.Fatalf("fallen layout deficit = %v,%v; want 1,true", v, known)
+	}
+	if _, known := RoutineDevelopmentDeficit(EnsureDefensiveLayout, standing, RoutinePolicy{}).Value(); known {
+		t.Fatal("opted-out layout must rank deficit_unknown even when standing")
+	}
 }
 
 func TestResearchGoalTargetDerivesFromRecordedNeeds(t *testing.T) {

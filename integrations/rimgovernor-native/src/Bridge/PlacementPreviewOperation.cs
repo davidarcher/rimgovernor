@@ -198,7 +198,15 @@ namespace HomeBridge.BridgeTools
                 return result;
             }
             catch (PlacementLimitException error) { return new PlacementPreviewFailure(error.Message, PlacementFailureKind.CapacityExceeded); }
-            catch (Exception error) { return new PlacementPreviewFailure("Placement preview could not be read: " + error.Message); }
+            catch (Exception error)
+            {
+                // The controller only sees the message: name the exception and
+                // its innermost frame so a native fault is diagnosable from
+                // the scheduler log, and keep the full trace in the game log.
+                Log.Warning("[RimGovernor] placement preview failed: " + error);
+                var frame = (error.StackTrace ?? "").Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()?.Trim() ?? "";
+                return new PlacementPreviewFailure("Placement preview could not be read: " + error.GetType().Name + ": " + error.Message + (frame.Length > 0 ? " (" + frame + ")" : ""));
+            }
         }
 
         internal static PlacementRotation EvaluateRotation(Map map, BuildableDef definition, ThingDef? blueprint,

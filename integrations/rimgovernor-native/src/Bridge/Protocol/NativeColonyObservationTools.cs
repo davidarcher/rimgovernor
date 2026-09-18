@@ -328,10 +328,14 @@ namespace HomeBridge.BridgeTools
                 row.ConstructionSkill = def.constructionSkillPrerequisite;
                 row.NeedsPower = def.GetCompProperties<CompProperties_Power>()?.PowerConsumption > 0;
                 row.Size = new Obs.MapSize { Width = (uint)def.size.x, Height = (uint)def.size.z };
+                // Starter wood where the definition allows it; otherwise the
+                // game's own default material (steel for metallic things such
+                // as turrets), so the costs and the stuff to build with are
+                // still observed rather than left unknown.
                 var wood = DefDatabase<ThingDef>.GetNamedSilentFail("WoodLog");
-                var stuff = def.MadeFromStuff ? wood : null;
+                var stuff = def.MadeFromStuff ? (wood != null && GenStuff.AllowedStuffsFor(def).Contains(wood) ? wood : GenStuff.DefaultStuffFor(def)) : null;
                 if (def.MadeFromStuff && (stuff == null || !GenStuff.AllowedStuffsFor(def).Contains(stuff))) {
-                    row.Issues.Add(Issue("costs", Common.UnavailableReason.NotApplicable, "Starter wood is not a native allowed material."));
+                    row.Issues.Add(Issue("costs", Common.UnavailableReason.NotApplicable, "No native allowed material for the definition."));
                 } else {
                     if (stuff != null) row.Stuff = stuff.defName;
                     var costs = def.CostListAdjusted(stuff, false); Bound(costs.Count, 256);

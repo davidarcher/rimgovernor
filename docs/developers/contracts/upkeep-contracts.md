@@ -91,6 +91,36 @@ again; the planner asks for a clock window so native construction finishes
 it. Defenders are undrafted by ordinary draft cleanup once the recovered
 ActiveCombat goal stops authorizing the hold plan.
 
+The `turrets` tier (#61) is added to a layout, fresh or already stored, only
+when every gate is observed: the turret planning definition is available
+(its research prerequisites finished in the research census, never an
+assumed `GunTurrets`), a power network with generation reports spare watts
+for every turret's draw, and the stock census covers the turrets and,
+once routed, their conduits. Turrets stand three cells behind the shooters'
+row in line with the trap lane (and three to either side), then on the
+shooters' row outside the firing span, at least three cells from any
+shooter or other turret (a destroyed turret explodes), never on a lane, a
+reserved cell or unknown ground, each with a native line of sight to a
+cell of the trap lane (the funnel walls hide most of the lane from the
+flanks, which is why the row behind comes first); a conduit
+chain is routed to each turret unless a transmitter already lies within
+native connector reach (six cells), and a turret with no route is dropped.
+A stored layout without turrets re-probes the gates once per game hour. A
+turret tier counts as built by the same census as the others (conduits by
+the power census, since they are not edifices); a standing turret without
+power is a deficit the goal keeps reporting (`unpowered` in the scheduler
+log) while its network is `EnsureBasicPower`'s and a lost tier conduit is
+re-placed like any missing building. Damage is `MaintainEssentialRepairs`'
+(turrets are home-area structures with repair priority 2). While every tier
+stands, the goal reports a known zero deficit to development arbitration so
+those upkeep goals take the free slot first; the periodic re-verification
+still runs whenever a slot is free. The mini turret's barrel (a refuelable
+comp fed with steel) is left to the game's auto-refuel with steel in stock;
+counting an empty or mandatory-fuel barrel as a deficit and rearming it is
+#205. Made-from-stuff definitions the planning read cannot build from wood
+(the turret is metallic) are observed with the game's default material, so
+their costs and stuff are known.
+
 Corners instead require verified existing roof support and both neighboring walls,
 with clear exterior cardinal approaches reachable by enabled haulers. Only the
 permanent stone wall is reserved. Those approaches remain open so ordinary hauling
@@ -119,7 +149,12 @@ Any observed target enters maintenance; recovery requires no remaining deficit
 and no unresolved issued action. Missing evidence retains active risk, while a
 first unavailable read creates an ordinary visible blocker rather than an invented
 emergency. Fire risk preempts development. Unknown or oversized fire intervention
-retains an emergency hold.
+retains an emergency hold. A pending, never-issued repair is cancelled on
+the next repair step, before the need gate, once `MaintainEssentialRepairs`
+has recovered (the colonists mended every target themselves) or its hold
+says the structure is ineligible (already repaired, or gone), so the
+recovered goal never keeps its development commitment on work that can no
+longer matter.
 
 The typed item census (at most 256 rows) covers items in the home area, items
 in valid storage anywhere, and deteriorating, perishable or medicine stacks
