@@ -48,8 +48,9 @@ type Game struct {
 	// Reused is true when OpenGame attached to a process already running.
 	Reused bool
 	// Relaunched is why OpenGame stopped a running process instead of
-	// reusing it ("expansions", "unrecorded"; see LaunchedModsMismatch), or
-	// "" when nothing was running or the process was reused (#166).
+	// reusing it ("expansions", "package", "unrecorded"; see
+	// LaunchedMismatch), or "" when nothing was running or the process was
+	// reused (#166, #209).
 	Relaunched string
 	// Keep is whether Close leaves the process up for the next harness.
 	Keep bool
@@ -69,9 +70,11 @@ type Game struct {
 // returns it to the main menu so the harness starts from the same state a
 // fresh launch would give it. A running process launched with a different
 // mod list than cfg prepared (ModsConfig.xml only applies at launch, so a
-// Core-only process cannot load a DLC save, #166) is stopped and launched
-// fresh instead; Game.Relaunched and the report's game_reuse.relaunched say
-// so. cfg must have been prepared.
+// Core-only process cannot load a DLC save, #166) or with a package other
+// than the one now installed (a rebuilt mod's fixtures are not in the old
+// DLL's catalog, #209) is stopped and launched fresh instead;
+// Game.Relaunched and the report's game_reuse.relaunched say so. cfg must
+// have been prepared.
 func OpenGame(ctx context.Context, cfg *Config) (*Game, error) {
 	started := time.Now()
 	gabsExecutable, err := GABSExecutable(cfg.Root, cfg.Configuration)
@@ -90,7 +93,7 @@ func OpenGame(ctx context.Context, cfg *Config) (*Game, error) {
 	// launch starts with the journal cleared (#119).
 	g.Reused = GameRunning(ctx, client)
 	if g.Reused {
-		reason, err := LaunchedModsMismatch(cfg.Configuration)
+		reason, err := LaunchedMismatch(cfg.Configuration)
 		if err != nil {
 			_ = client.Close()
 			return nil, err
@@ -98,7 +101,7 @@ func OpenGame(ctx context.Context, cfg *Config) (*Game, error) {
 		if reason != "" {
 			if err := stopRunning(ctx, client); err != nil {
 				_ = client.Close()
-				return nil, fmt.Errorf("stop kept game with a different mod list (%s): %w", reason, err)
+				return nil, fmt.Errorf("stop kept game launched with a different %s: %w", reason, err)
 			}
 			g.Reused, g.Relaunched = false, reason
 		}

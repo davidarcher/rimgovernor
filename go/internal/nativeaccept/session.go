@@ -48,13 +48,17 @@ func OpenBridgeSessionWith(ctx context.Context, config bridge.ProcessConfig) (*b
 
 // prepareFreshLaunch runs right before a games_start that launches (not
 // attaches): the clock journal starts empty, since a kept process owns its
-// journal and must find it intact (#119), and the prepared ModsConfig.xml is
-// snapshotted so a later OpenGame can tell what the process runs with (#166).
+// journal and must find it intact (#119), and the prepared ModsConfig.xml
+// and the installed package's hashes are snapshotted so a later OpenGame
+// can tell what the process runs with (#166, #209).
 func prepareFreshLaunch(configDir string) error {
 	if err := ClearStaleClockJournal(configDir); err != nil {
 		return err
 	}
-	return RecordLaunchedMods(configDir)
+	if err := RecordLaunchedMods(configDir); err != nil {
+		return err
+	}
+	return RecordLaunchedPackage(configDir)
 }
 
 // OpenBridgeSessionWithTakeover attaches even when another GABS session of the same
@@ -121,6 +125,10 @@ type Config struct {
 	// package IDs); nil defers to ExpansionsEnv, and either way the default is
 	// Core-only. Harnesses that test DLC content set it explicitly.
 	Expansions []string
+	// FixtureOps are the test ops the run's Start calls; OpenSession fills
+	// it from the start when unset. The stale-package check names their
+	// fixtures in its rebuild hint (#208).
+	FixtureOps []string
 	// Spawned, when set, is told the PID of each GABS process the game's
 	// session launches (bridge.ProcessConfig.Spawned), for a harness that
 	// kills its own transport.
@@ -140,9 +148,9 @@ func (c *Config) PrepareConfig() error {
 	var configuration string
 	var err error
 	if c.Headless {
-		configuration, err = Prepare(c.Root, expansions...)
+		configuration, err = prepare(c.Root, c.FixtureOps, expansions)
 	} else {
-		configuration, err = PrepareRendered(c.Root, expansions...)
+		configuration, err = prepareRendered(c.Root, c.FixtureOps, expansions)
 	}
 	if err != nil {
 		return err

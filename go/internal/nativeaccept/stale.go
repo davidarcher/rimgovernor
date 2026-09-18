@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/inputs"
@@ -71,8 +72,11 @@ var ErrStalePackage = errors.New("installed native build is stale for this workt
 // worktree; a build recorded before sourceTree existed falls back to git
 // (the build revision against the worktree over the same inputs). It is
 // skipped, and says so in the summary, when there is no manifest, no
-// enclosing checkout, no usable git, or AllowStaleModEnv is set.
-func RequireCurrentPackage(pkg string) (map[string]any, error) {
+// enclosing checkout, no usable git, or AllowStaleModEnv is set. fixtureOps
+// are the test ops the run's Start calls (Config.FixtureOps): the rebuild
+// hint names their fixtures beside the installed build's, so following it
+// cannot leave the case's own fixture out (#208).
+func RequireCurrentPackage(pkg string, fixtureOps ...string) (map[string]any, error) {
 	summary := map[string]any{"path": pkg, "checked": false}
 	installedPackage = summary
 	manifest, err := ReadPackageManifest(pkg)
@@ -106,7 +110,7 @@ func RequireCurrentPackage(pkg string) (map[string]any, error) {
 		summary["checked"], summary["method"] = true, "source_tree"
 		summary["source_tree"], summary["worktree_source_tree"] = manifest.SourceTree, current
 		if current != manifest.SourceTree {
-			return summary, staleError(pkg, manifest, repo, "its native sources differ from this worktree's")
+			return summary, staleError(pkg, manifest, repo, fixtureOps, "its native sources differ from this worktree's")
 		}
 		return summary, nil
 	}
@@ -128,20 +132,65 @@ func RequireCurrentPackage(pkg string) (map[string]any, error) {
 		return summary, nil
 	case errors.As(err, &exit) && exit.ExitCode() == 1:
 		summary["checked"], summary["method"] = true, "git_diff"
-		return summary, staleError(pkg, manifest, repo, "native sources changed since revision "+short(manifest.SourceRevision))
+		return summary, staleError(pkg, manifest, repo, fixtureOps, "native sources changed since revision "+short(manifest.SourceRevision))
 	default:
 		summary["skipped"] = "git diff: " + strings.TrimSpace(string(out)) + " " + err.Error()
 		return summary, nil
 	}
 }
 
-func staleError(pkg string, manifest *PackageManifest, repo, why string) error {
+func staleError(pkg string, manifest *PackageManifest, repo string, fixtureOps []string, why string) error {
 	fixtures := ""
-	if len(manifest.Fixtures) > 0 {
-		fixtures = " -Fixture " + strings.Join(manifest.Fixtures, ",")
+	if flags := FixtureFlags(repo, manifest.Fixtures, fixtureOps); len(flags) > 0 {
+		fixtures = " -Fixture " + strings.Join(flags, ",")
 	}
 	return fmt.Errorf("%w: %s was built at %s and %s; rebuild it (pwsh scripts/build_native_mod.ps1%s -OutputRoot <fresh dir>, then install the RimGovernor package over %s) or set %s=1 to run against it anyway",
 		ErrStalePackage, pkg, short(manifest.SourceRevision), why, fixtures, pkg, AllowStaleModEnv)
+}
+
+// FixtureFlags is the sorted -Fixture list a rebuild for this run needs:
+// installed (the manifest's fixtures, so the build keeps serving the
+// cases it already did) plus the fixtures under repo/scripts/fixtures that
+// register fixtureOps (inputs.FixtureClasses). Ops no fixture registers,
+// or an unreadable fixture root, add nothing.
+func FixtureFlags(repo string, installed, fixtureOps []string) []string {
+	seen := map[string]bool{}
+	var flags []string
+	add := func(name string) {
+		if name != "" && !seen[name] {
+			seen[name] = true
+			flags = append(flags, name)
+		}
+	}
+	for _, name := range installed {
+		add(name)
+	}
+	if classes, err := inputs.FixtureClasses(repo, fixtureOps); err == nil {
+		for _, name := range classes {
+			add(name)
+		}
+	}
+	sort.Strings(flags)
+	return flags
+}
+
+// FixtureBuildHint is the "-Fixture <classes>" a discovery failure for op
+// should suggest, from the checkout enclosing the working directory; ""
+// when no fixture there registers op or there is no checkout.
+func FixtureBuildHint(op string) string {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+	repo, ok := FindRepo(cwd)
+	if !ok {
+		return ""
+	}
+	flags := FixtureFlags(repo, nil, []string{op})
+	if len(flags) == 0 {
+		return ""
+	}
+	return " -Fixture " + strings.Join(flags, ",")
 }
 
 func short(revision string) string {

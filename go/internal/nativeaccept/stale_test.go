@@ -226,3 +226,31 @@ func TestFindRepoAcceptsAWorktreeGitFile(t *testing.T) {
 		t.Fatalf("FindRepo = %q, %v", repo, ok)
 	}
 }
+
+// The rebuild hint lists the case's own fixtures beside the installed
+// build's: following the installed list alone left farm/select-hydroponics
+// without FarmEnvironmentFixture (#208).
+func TestRequireCurrentPackageHintNamesTheRunsFixtures(t *testing.T) {
+	t.Setenv(AllowStaleModEnv, "")
+	repo := t.TempDir()
+	writeNativeInputs(t, repo)
+	writeFile(t, repo, "scripts/fixtures/FarmEnvironmentFixture.cs", `[Tool("test/farm_environment_prepare")] class Farm {}`)
+	writeFile(t, repo, "scripts/fixtures/PowerFixture.cs", `[Tool("test/power_prepare")] class Power {}`)
+	pkg := filepath.Join(t.TempDir(), "RimGovernor")
+	writeManifest(t, pkg, `{"packageId":"davidarcher.rimgovernor.native","role":"fixture","fixtures":["QuietStorytellerFixture","PowerFixture"],"sourceRevision":"0123456789abcdef","sourceTree":"not-this-tree"}`)
+	inRepo(t, repo, func() {
+		_, err := RequireCurrentPackage(pkg, "test/farm_environment_prepare", "test/power_prepare", "test/unregistered")
+		if !errors.Is(err, ErrStalePackage) {
+			t.Fatalf("expected ErrStalePackage, got %v", err)
+		}
+		if want := "-Fixture FarmEnvironmentFixture,PowerFixture,QuietStorytellerFixture "; !strings.Contains(err.Error(), want) {
+			t.Fatalf("error lacks %q: %v", want, err)
+		}
+		if hint := FixtureBuildHint("test/farm_environment_prepare"); hint != " -Fixture FarmEnvironmentFixture" {
+			t.Fatalf("FixtureBuildHint = %q", hint)
+		}
+		if hint := FixtureBuildHint("test/unregistered"); hint != "" {
+			t.Fatalf("FixtureBuildHint for an unregistered op = %q", hint)
+		}
+	})
+}

@@ -336,7 +336,11 @@ anyone suspected the DLL. `scripts/build_native_mod.ps1` records
 copies into `build/source` (`na.SourceTreeHash` reproduces the list from
 the same copy rules, so a dirty tree compares correctly); a build from
 before that field falls back to `git diff --quiet <sourceRevision> --
-<inputs>`. The refusal names the build's fixtures and the rebuild command;
+<inputs>`. The refusal names the rebuild command with the `-Fixture` list a
+rebuild for this run needs: the installed build's fixtures plus the ones
+under `scripts/fixtures` registering the ops the case's `Fixture` start
+calls (`Config.FixtureOps`, `inputs.FixtureClasses`), so following the
+hint cannot drop the case's own fixture (#208);
 `RIMGOVERNOR_ACCEPT_ALLOW_STALE_MOD=1` runs against the stale build anyway
 (bisecting the mod against newer Go code). The report records the check
 under `installed_package` (`checked`, `method`, `fixtures`,
@@ -393,7 +397,12 @@ what the current `PrepareConfig` wrote: a different load order (a
 Core-only process facing a case whose `Save` start activated DLC, which
 would fail `save.missing_mods` at once, or the reverse) stops the kept
 process and launches fresh, `relaunched: "expansions"`; a process with no
-snapshot (a hand launch) relaunches as `"unrecorded"` (#166). Stop a kept
+snapshot (a hand launch) relaunches as `"unrecorded"` (#166). The same
+launch snapshots the installed package's file hashes to
+`RimGovernorLaunchedPackage.json`: a process serves the DLLs it loaded,
+so a rebuilt `Mods/RimGovernor` installed under a kept process (new
+fixtures, say) relaunches as `"package"` instead of failing discovery
+against the old catalog (#209). Stop a kept
 game with `acceptance stop -root <root>` when you are done with the root
 (a case that must not hand its process on declares `NoKeep` and the
 runner stops it itself); a case that fails still leaves the process at

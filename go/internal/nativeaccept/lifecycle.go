@@ -27,6 +27,8 @@ const (
 type Start interface {
 	// saves are the save names the start loads, for UseSaveExpansions.
 	saves() []string
+	// fixtureOps are the test ops the start calls, for Config.FixtureOps.
+	fixtureOps() []string
 	// load leaves the game loaded (not necessarily paused) and returns the
 	// report row for "start".
 	load(ctx context.Context, s *Session, quiet QuietMode) (map[string]any, error)
@@ -34,7 +36,8 @@ type Start interface {
 
 // The debug quick start on the small map; the zero value is
 // DefaultDebugStart (the environment's size and coverage).
-func (d DebugStart) saves() []string { return nil }
+func (d DebugStart) saves() []string      { return nil }
+func (d DebugStart) fixtureOps() []string { return nil }
 
 func (d DebugStart) load(ctx context.Context, s *Session, quiet QuietMode) (map[string]any, error) {
 	d = d.withDefaults()
@@ -59,7 +62,8 @@ type Save struct {
 	Timeout time.Duration
 }
 
-func (v Save) saves() []string { return []string{v.Name} }
+func (v Save) saves() []string      { return []string{v.Name} }
+func (v Save) fixtureOps() []string { return nil }
 
 func (v Save) load(ctx context.Context, s *Session, quiet QuietMode) (map[string]any, error) {
 	if v.Name == "" {
@@ -119,6 +123,8 @@ func (f Fixture) base() Start {
 
 func (f Fixture) saves() []string { return f.base().saves() }
 
+func (f Fixture) fixtureOps() []string { return append(f.base().fixtureOps(), f.Op) }
+
 func (f Fixture) load(ctx context.Context, s *Session, quiet QuietMode) (map[string]any, error) {
 	row, err := f.base().load(ctx, s, quiet)
 	if err != nil {
@@ -134,7 +140,7 @@ func (f Fixture) prepare(ctx context.Context, c caller, names []string, identity
 		return nil, fmt.Errorf("fixture start: empty op")
 	}
 	if !Contains(names, f.Op) {
-		return nil, fmt.Errorf("missing %s in discovery; rebuild the native mod with its fixture", f.Op)
+		return nil, fmt.Errorf("missing %s in discovery; rebuild the native mod with its fixture%s", f.Op, FixtureBuildHint(f.Op))
 	}
 	args := f.Args
 	if args == nil {
@@ -192,6 +198,9 @@ func OpenSession(ctx context.Context, cfg *Config, report Report, start Start, q
 		report = Report{}
 	}
 	if cfg.Configuration == "" {
+		if cfg.FixtureOps == nil {
+			cfg.FixtureOps = start.fixtureOps()
+		}
 		if saves := start.saves(); len(saves) > 0 && cfg.Expansions == nil {
 			if err := cfg.UseSaveExpansions(saves...); err != nil {
 				return nil, err
@@ -367,7 +376,8 @@ type ScenarioStart struct {
 	Timeout time.Duration
 }
 
-func (ScenarioStart) saves() []string { return nil }
+func (ScenarioStart) saves() []string      { return nil }
+func (ScenarioStart) fixtureOps() []string { return nil }
 
 func (v ScenarioStart) load(ctx context.Context, s *Session, quiet QuietMode) (map[string]any, error) {
 	if !Contains(s.Names, ScenarioStartTool) {

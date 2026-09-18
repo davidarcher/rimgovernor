@@ -162,3 +162,42 @@ func isIdentByte(b byte) bool {
 func FixtureFile(file string) bool {
 	return strings.HasPrefix(file, FixtureRoot+"/")
 }
+
+// FixtureClasses lists, sorted, the fixture classes (file bases under
+// FixtureRoot, the names build_native_mod.ps1 -Fixture takes) that
+// register any of ops as a [Tool("test/...")]: what a build must include
+// for a case whose Start calls those ops. An op no fixture registers is
+// left out; a missing FixtureRoot is an error.
+func FixtureClasses(repo string, ops []string) ([]string, error) {
+	if len(ops) == 0 {
+		return nil, nil
+	}
+	wanted := map[string]bool{}
+	for _, op := range ops {
+		wanted[op] = true
+	}
+	root := filepath.Join(repo, filepath.FromSlash(FixtureRoot))
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		return nil, fmt.Errorf("fixture sources %s: %w", FixtureRoot, err)
+	}
+	var classes []string
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() || !strings.HasSuffix(name, ".cs") {
+			continue
+		}
+		src, err := os.ReadFile(filepath.Join(root, name))
+		if err != nil {
+			return nil, err
+		}
+		for _, m := range fixtureToolAttribute.FindAllSubmatch(src, -1) {
+			if wanted[string(m[1])] {
+				classes = append(classes, strings.TrimSuffix(name, ".cs"))
+				break
+			}
+		}
+	}
+	sort.Strings(classes)
+	return classes, nil
+}

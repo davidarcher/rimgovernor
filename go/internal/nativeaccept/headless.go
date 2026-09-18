@@ -336,15 +336,62 @@ func ActiveMods(path string) ([]string, error) {
 	return ids, nil
 }
 
-// LaunchedModsMismatch compares the mods a kept process was launched with
-// (LaunchedModsFile) to the profile's freshly prepared ModsConfig.xml. It
-// returns "" when they match, so the process can be reused, or a short
-// reason to relaunch: "expansions" when the lists differ (a Core-only
+// LaunchedPackageFile is the snapshot of the installed package's file
+// hashes (PackageFiles) taken right before a fresh games_start, beside
+// LaunchedModsFile. The process runs the DLLs it loaded at launch, so this
+// is the record of which native build a kept process serves (#209).
+const LaunchedPackageFile = "RimGovernorLaunchedPackage.json"
+
+// RecordLaunchedPackage snapshots the installed package's hashes to
+// LaunchedPackageFile. Called only right before a fresh games_start, like
+// RecordLaunchedMods; a missing config, profile or package is not an error.
+func RecordLaunchedPackage(configDir string) error {
+	profile, err := SaveDataFolder(configDir)
+	if err != nil {
+		return nil
+	}
+	files, err := launchedPackageFiles(configDir)
+	if err != nil {
+		return nil
+	}
+	data, err := json.MarshalIndent(files, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(profile, LaunchedPackageFile), data, 0644)
+}
+
+// launchedPackageFiles hashes the package installed under the game's
+// working directory in configDir's config.json.
+func launchedPackageFiles(configDir string) (map[string]string, error) {
+	config, err := loadConfig(filepath.Join(mustAbs(configDir), "config.json"))
+	if err != nil {
+		return nil, err
+	}
+	game, err := gameSection(config)
+	if err != nil {
+		return nil, err
+	}
+	workingDir, _ := game["workingDir"].(string)
+	if workingDir == "" {
+		return nil, fmt.Errorf("%s: the game has no workingDir", filepath.Join(configDir, "config.json"))
+	}
+	return PackageFiles(workingDir)
+}
+
+// LaunchedMismatch compares what a kept process was launched with (its
+// LaunchedModsFile and LaunchedPackageFile snapshots) to the profile's
+// freshly prepared ModsConfig.xml and the package now installed. It
+// returns "" when both match, so the process can be reused, or a short
+// reason to relaunch: "expansions" when the mod lists differ (a Core-only
 // process cannot load a save recorded with DLC and fails save.missing_mods
-// at once, #166) and "unrecorded" when no snapshot exists (a process an
-// older binary or a hand launch started). The comparison is on the whole
-// load order, since that is what the process is bound to.
-func LaunchedModsMismatch(configDir string) (string, error) {
+// at once, #166), "package" when the installed package's hashes changed
+// (a rebuilt mod installed under a kept process still serves the old
+// DLL's tool catalog, #209) and "unrecorded" when either snapshot is
+// missing (a process an older binary or a hand launch started). The mod
+// comparison is on the whole load order, since that is what the process
+// is bound to.
+func LaunchedMismatch(configDir string) (string, error) {
 	profile, err := SaveDataFolder(configDir)
 	if err != nil {
 		return "", err
@@ -362,6 +409,29 @@ func LaunchedModsMismatch(configDir string) (string, error) {
 	}
 	if strings.Join(wanted, "\n") != strings.Join(launched, "\n") {
 		return "expansions", nil
+	}
+	data, err := os.ReadFile(filepath.Join(profile, LaunchedPackageFile))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "unrecorded", nil
+		}
+		return "", err
+	}
+	var launchedFiles map[string]string
+	if err := json.Unmarshal(data, &launchedFiles); err != nil {
+		return "", fmt.Errorf("parse %s: %w", LaunchedPackageFile, err)
+	}
+	installed, err := launchedPackageFiles(configDir)
+	if err != nil {
+		return "", err
+	}
+	if len(installed) != len(launchedFiles) {
+		return "package", nil
+	}
+	for name, sum := range installed {
+		if launchedFiles[name] != sum {
+			return "package", nil
+		}
 	}
 	return "", nil
 }
@@ -527,6 +597,12 @@ func copyFile(source, destination string) error {
 // PrepareRendered launches the unified native package without batch-mode flags, for
 // a visible window. Returns the rewritten config directory (root/config).
 func PrepareRendered(root string, expansions ...string) (string, error) {
+	return prepareRendered(root, nil, expansions)
+}
+
+// prepareRendered is PrepareRendered with the run's fixture ops for the
+// stale-package check's rebuild hint (Config.FixtureOps).
+func prepareRendered(root string, fixtureOps, expansions []string) (string, error) {
 	root = mustAbs(root)
 	configuration := filepath.Join(root, "config")
 	config, err := loadConfig(filepath.Join(configuration, "config.json"))
@@ -544,7 +620,7 @@ func PrepareRendered(root string, expansions ...string) (string, error) {
 	if err := RequireNativePackage(filepath.Join(workingDir, "Mods")); err != nil {
 		return "", err
 	}
-	if _, err := RequireCurrentPackage(filepath.Join(workingDir, "Mods", "RimGovernor")); err != nil {
+	if _, err := RequireCurrentPackage(filepath.Join(workingDir, "Mods", "RimGovernor"), fixtureOps...); err != nil {
 		return "", err
 	}
 	profile := filepath.Join(root, "profile")
@@ -565,6 +641,12 @@ func PrepareRendered(root string, expansions ...string) (string, error) {
 // and every profile/Saves/*.rws save into it, Prefs.xml trimmed per HeadlessPrefs), rewrites config.json's args for batch
 // mode, writes config-headless/config.json, and returns that directory.
 func Prepare(root string, expansions ...string) (string, error) {
+	return prepare(root, nil, expansions)
+}
+
+// prepare is Prepare with the run's fixture ops for the stale-package
+// check's rebuild hint (Config.FixtureOps).
+func prepare(root string, fixtureOps, expansions []string) (string, error) {
 	root = mustAbs(root)
 	config, err := loadConfig(filepath.Join(root, "config", "config.json"))
 	if err != nil {
@@ -581,7 +663,7 @@ func Prepare(root string, expansions ...string) (string, error) {
 	if err := RequireNativePackage(filepath.Join(workingDir, "Mods")); err != nil {
 		return "", err
 	}
-	if _, err := RequireCurrentPackage(filepath.Join(workingDir, "Mods", "RimGovernor")); err != nil {
+	if _, err := RequireCurrentPackage(filepath.Join(workingDir, "Mods", "RimGovernor"), fixtureOps...); err != nil {
 		return "", err
 	}
 	profile := filepath.Join(root, "headless-profile")

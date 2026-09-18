@@ -620,7 +620,7 @@ func TestSaveExpansions(t *testing.T) {
 // A kept process runs with the ModsConfig.xml it was launched with, so
 // OpenGame compares the snapshot a fresh launch records against what the
 // current Prepare wrote and relaunches on a difference (#166).
-func TestLaunchedModsMismatch(t *testing.T) {
+func TestLaunchedMismatchOnExpansions(t *testing.T) {
 	source := writeSourceRoot(t)
 	root, err := IsolatedRoot(source, filepath.Join(t.TempDir(), "worker"))
 	if err != nil {
@@ -631,10 +631,10 @@ func TestLaunchedModsMismatch(t *testing.T) {
 		t.Fatalf("Prepare failed: %v", err)
 	}
 	snapshot := filepath.Join(root, "headless-profile", LaunchedModsFile)
-	if reason, err := LaunchedModsMismatch(configuration); err != nil || reason != "unrecorded" {
+	if reason, err := LaunchedMismatch(configuration); err != nil || reason != "unrecorded" {
 		t.Fatalf("before any launch: reason %q, err %v; want unrecorded", reason, err)
 	}
-	if err := RecordLaunchedMods(configuration); err != nil {
+	if err := prepareFreshLaunch(configuration); err != nil {
 		t.Fatal(err)
 	}
 	launched, err := ActiveMods(snapshot)
@@ -644,7 +644,7 @@ func TestLaunchedModsMismatch(t *testing.T) {
 	if want := []string{CorePackage, "brrainz.harmony", "brrainz.rimbridgeserver", casefold(NativePackage)}; strings.Join(launched, ",") != strings.Join(want, ",") {
 		t.Fatalf("Core-only launch recorded %v, want %v", launched, want)
 	}
-	if reason, err := LaunchedModsMismatch(configuration); err != nil || reason != "" {
+	if reason, err := LaunchedMismatch(configuration); err != nil || reason != "" {
 		t.Fatalf("same profile: reason %q, err %v; want reuse", reason, err)
 	}
 	// The next harness wants a DLC save's expansions: the Core-only process
@@ -652,13 +652,13 @@ func TestLaunchedModsMismatch(t *testing.T) {
 	if _, err := Prepare(root, "royalty", "biotech"); err != nil {
 		t.Fatalf("Prepare with expansions failed: %v", err)
 	}
-	if reason, err := LaunchedModsMismatch(configuration); err != nil || reason != "expansions" {
+	if reason, err := LaunchedMismatch(configuration); err != nil || reason != "expansions" {
 		t.Fatalf("DLC profile on a Core-only process: reason %q, err %v; want expansions", reason, err)
 	}
-	if err := RecordLaunchedMods(configuration); err != nil {
+	if err := prepareFreshLaunch(configuration); err != nil {
 		t.Fatal(err)
 	}
-	if reason, err := LaunchedModsMismatch(configuration); err != nil || reason != "" {
+	if reason, err := LaunchedMismatch(configuration); err != nil || reason != "" {
 		t.Fatalf("relaunched with the DLC profile: reason %q, err %v; want reuse", reason, err)
 	}
 	// And the reverse: a Core-only harness after a DLC process relaunches
@@ -666,11 +666,52 @@ func TestLaunchedModsMismatch(t *testing.T) {
 	if _, err := Prepare(root); err != nil {
 		t.Fatal(err)
 	}
-	if reason, err := LaunchedModsMismatch(configuration); err != nil || reason != "expansions" {
+	if reason, err := LaunchedMismatch(configuration); err != nil || reason != "expansions" {
 		t.Fatalf("Core-only profile on a DLC process: reason %q, err %v; want expansions", reason, err)
 	}
 	// A config naming no save-data folder records nothing and is not an error.
-	if err := RecordLaunchedMods(filepath.Join(root, "missing")); err != nil {
+	if err := prepareFreshLaunch(filepath.Join(root, "missing")); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// A kept process serves the DLLs it loaded, so a rebuilt package installed
+// under it (new fixtures, say) must relaunch rather than fail discovery
+// against the old catalog (#209).
+func TestLaunchedMismatchOnPackage(t *testing.T) {
+	source := writeSourceRoot(t)
+	root, err := IsolatedRoot(source, filepath.Join(t.TempDir(), "worker"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	configuration, err := Prepare(root)
+	if err != nil {
+		t.Fatalf("Prepare failed: %v", err)
+	}
+	// A mod snapshot without a package snapshot is an older binary's launch.
+	if err := RecordLaunchedMods(configuration); err != nil {
+		t.Fatal(err)
+	}
+	if reason, err := LaunchedMismatch(configuration); err != nil || reason != "unrecorded" {
+		t.Fatalf("mods recorded, package not: reason %q, err %v; want unrecorded", reason, err)
+	}
+	if err := prepareFreshLaunch(configuration); err != nil {
+		t.Fatal(err)
+	}
+	if reason, err := LaunchedMismatch(configuration); err != nil || reason != "" {
+		t.Fatalf("same package: reason %q, err %v; want reuse", reason, err)
+	}
+	dll := filepath.Join(source, "install", "Mods", "RimGovernor", "BridgeTools", "RimGovernor", "RimGovernor.Bridge.dll")
+	if err := os.WriteFile(dll, []byte("rebuilt with more fixtures"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if reason, err := LaunchedMismatch(configuration); err != nil || reason != "package" {
+		t.Fatalf("rebuilt package under a kept process: reason %q, err %v; want package", reason, err)
+	}
+	if err := prepareFreshLaunch(configuration); err != nil {
+		t.Fatal(err)
+	}
+	if reason, err := LaunchedMismatch(configuration); err != nil || reason != "" {
+		t.Fatalf("relaunched on the rebuilt package: reason %q, err %v; want reuse", reason, err)
 	}
 }
