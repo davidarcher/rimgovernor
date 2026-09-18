@@ -442,7 +442,10 @@ func compareCapability(observed map[string]any, legacy map[string]any) error {
 			return fmt.Errorf("researcher %s missing from typed read", id)
 		}
 		for _, field := range []string{"intellectual", "priority", "disabled", "everWork", "active"} {
-			if _, present := row[field]; !present {
+			// A legacy null (a priority never read because the pawn cannot
+			// research or has no priority table) is an unset optional on
+			// the typed side, which ProtoJSON leaves out of the row.
+			if _, present := row[field]; !present && native[field] != nil {
 				return fmt.Errorf("researcher %s missing typed field %q", id, field)
 			}
 			if !na.DeepEqual(row[field], native[field]) {
