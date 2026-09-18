@@ -13,6 +13,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
+	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/sustained"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
@@ -31,50 +32,84 @@ import (
 // the nearest predig room columns itself, as finished mining would have
 // left them, so the planner binds the same target through its sunk-work
 // credit and the run's own stages dig only the columns left standing.
+//
+// Two colonies run it (#64, #116): the debug quick-start (Industrial) digs
+// the 7x7 rectangle; the tribal8 baseline (Neolithic) digs the radius-4
+// round room, whose 49 cells are the ellipse target key
+// "...e.4.4.north_south" every stage plan and the paired restart must
+// rebuild.
 func init() {
-	cases.Register(cases.Case{
-		Name: "shelter/excavation",
-		Scope: "Staged excavation: the shelter planner digs a corridor and room into a fogged " +
-			"granite block through ordinary pawn mining in bounded stages, survives a service restart without " +
-			"re-designating cleared cells, keeps the rock roof supported, closes the room with a door, furnishes it " +
-			"and a colonist sleeps inside.",
-		Start: cases.Fixture{Op: "test/mountain_fixture", Args: map[string]any{"action": "setup", "predig": predig}},
-		// A colonist must sleep in the room at the end: Rest stays live.
-		Keep: []string{string(na.NeedRest)},
-		// Random debug colonies may start with wounds; tend and rescue clear
-		// the medical emergency that would otherwise suspend every
-		// development goal, defense answers the hostile threats that
-		// otherwise hold the clock, and naming confirms the colony name the
-		// game asks for a few days in (STOP_REASON_COLONY_NAMING otherwise
-		// stops the clock for good). Fifty-odd granite cells under one or two
-		// miners span several game days; Superfast packs them into the
-		// budget unless RIMGOVERNOR_ACCEPT_CLOCK_SPEED says otherwise.
-		Serve: &cases.ServeSpec{
-			Families: []string{"shelter", "tend", "rescue", "defense", "naming"},
-			Env:      []string{"RIMGOVERNOR_CLOCK_DEBUG=1"}, Prefix: "excavation",
-		},
-		// Fifty-odd granite cells mined by hand across a service restart ran
-		// 35 minutes on the 2026-09-17 baseline; staged, a healthy run takes
-		// about four minutes (#129).
-		Budget: 15 * time.Minute,
-		Run:    excavation,
-	})
+	register := func(name, colony string, start cases.Start, shape excavationShape) {
+		prefix := strings.TrimPrefix(name, "shelter/")
+		cases.Register(cases.Case{
+			Name: name,
+			Scope: "Staged excavation (" + colony + "): the shelter planner digs a corridor and a " + shape.describe + " into a fogged " +
+				"granite block through ordinary pawn mining in bounded stages, survives a service restart without " +
+				"re-designating cleared cells, keeps the rock roof supported, closes the room with a door, furnishes it " +
+				"and a colonist sleeps inside.",
+			Start: start,
+			// A colonist must sleep in the room at the end: Rest stays live.
+			Keep: []string{string(na.NeedRest)},
+			// Random debug colonies may start with wounds; tend and rescue clear
+			// the medical emergency that would otherwise suspend every
+			// development goal, defense answers the hostile threats that
+			// otherwise hold the clock, and naming confirms the colony name the
+			// game asks for a few days in (STOP_REASON_COLONY_NAMING otherwise
+			// stops the clock for good). Fifty-odd granite cells under one or two
+			// miners span several game days; Superfast packs them into the
+			// budget unless RIMGOVERNOR_ACCEPT_CLOCK_SPEED says otherwise.
+			Serve: &cases.ServeSpec{
+				Families: []string{"shelter", "tend", "rescue", "defense", "naming"},
+				Env:      []string{"RIMGOVERNOR_CLOCK_DEBUG=1"}, Prefix: prefix,
+			},
+			// Fifty-odd granite cells mined by hand across a service restart ran
+			// 35 minutes on the 2026-09-17 baseline; staged, a healthy run takes
+			// about four minutes (#129).
+			Budget: 15 * time.Minute,
+			Run:    func(ctx context.Context, s cases.Session) error { return excavation(ctx, s, shape) },
+		})
+	}
+	register("shelter/excavation", "Industrial debug colony", rectangle.fixture(nil), rectangle)
+	register("shelter/excavation-round", "Neolithic "+sustained.BaselineSave, round.fixture(cases.Save{Name: sustained.BaselineSave}), round)
 }
 
-// predig is how many room columns (of 7) the fixture opens before the run,
-// after the two-cell corridor; 0 would dig the whole room live (the
-// original 4-5 game-day run).
-const predig = 5
+// excavationShape is the room the colony's tech level makes the planner dig
+// (buildingruntime.excavationShapes) and how the fixture stages it: predig
+// is how many room columns the fixture opens before the run, after the
+// two-cell corridor, leaving about a dozen cells (two stages) for the run;
+// 0 would dig the whole room live (the original 4-5 game-day run).
+type excavationShape struct {
+	name     string // the fixture's shape argument
+	describe string
+	kind     policy.ExcavationShapeKind
+	suffix   string // the target key's shape suffix
+	interior int    // interior cells
+	predig   int
+}
 
-func excavation(ctx context.Context, s cases.Session) error {
+var (
+	// The 7x7 rectangle: 5 of 7 columns staged, 14 cells left.
+	rectangle = excavationShape{name: "rectangle", describe: "7x7 room", kind: policy.ExcavationRectangle, interior: 49, predig: 5}
+	// The radius-4 round room: 6 of 9 columns staged, 13 cells (7+5+1) left.
+	round = excavationShape{name: "round", describe: "radius-4 round room", kind: policy.ExcavationEllipse, suffix: ".e.4.4." + string(domain.EllipseNorthSouth), interior: 49, predig: 6}
+)
+
+func (e excavationShape) fixture(on cases.Start) cases.Start {
+	return cases.Fixture{Op: "test/mountain_fixture", Args: map[string]any{"action": "setup", "predig": e.predig, "shape": e.name}, On: on}
+}
+
+func excavation(ctx context.Context, s cases.Session, shape excavationShape) error {
 	report, h := s.Report(), s.Harness()
-	report["predig"] = predig
+	report["predig"], report["shape"] = shape.predig, shape.name
 	for _, want := range []string{"rimgovernor/observations_read_excavation_site"} {
 		if !na.Contains(s.Names(), want) {
 			return fmt.Errorf("missing %s in discovery; rebuild the native mod with -Fixture MountainFixture", want)
 		}
 	}
 	prepared := s.Prepared()
+	if success, _ := na.AsBool(prepared["success"]); !success || na.AsString(prepared["shape"]) != shape.name {
+		return fmt.Errorf("mountain_fixture setup for the %s room refused: %#v", shape.name, prepared)
+	}
 	block, _ := na.AsMap(prepared["block"])
 	blockMinX, blockMinZ := int32(na.AsNumber(block["minX"])), int32(na.AsNumber(block["minZ"]))
 	blockMaxX, blockMaxZ := int32(na.AsNumber(block["maxX"])), int32(na.AsNumber(block["maxZ"]))
@@ -186,6 +221,11 @@ func excavation(ctx context.Context, s cases.Session) error {
 		if inBlock(t.Access) {
 			return fmt.Errorf("access cell %v lies inside the block", t.Access)
 		}
+		// The colony's tech level chose the room shape (#64): the key carries
+		// it, so every later stage plan and the restart rebuild the same cells.
+		if t.Shape.Kind != shape.kind || !strings.HasSuffix(t.Key(), shape.suffix) || len(t.InteriorCells()) != shape.interior {
+			return fmt.Errorf("target %s is not the %s the colony's tech level selects (%d interior cells, want %d, key suffix %q)", t.Key(), shape.describe, len(t.InteriorCells()), shape.interior, shape.suffix)
+		}
 		return nil
 	}
 	if err := bindTarget(stage0.Plan, "target"); err != nil {
@@ -239,6 +279,10 @@ func excavation(ctx context.Context, s cases.Session) error {
 		}
 		if method == nil {
 			break
+		}
+		// Every stage plan, before and after the restart, resumes the key.
+		if t, err := buildingruntime.ExcavationPlanTarget(method.Plan); err != nil || t.Key() != target.Key() {
+			return fmt.Errorf("stage %d plan %s carries target %q, want %q (%v)", stage, method.Plan, t.Key(), target.Key(), err)
 		}
 		cells, err := waitStageCompleted(ctx, verifyStore, method.Plan)
 		if err != nil && invalidated() {

@@ -19,11 +19,14 @@ namespace HomeBridge.BridgeTools
     //
     // Staging (#129): setup can open the project's first cells itself --
     // the two-cell corridor on the block's centre line and the nearest
-    // predig columns of the 7x7 room past it -- exactly as pawns would have
+    // predig columns of the room past it -- exactly as pawns would have
     // left them (rock gone, rock roof kept, the open cells and the rock
     // bordering them unfogged). The planner's sunk-work credit then binds
     // the same target a fresh run would dig, and the run's own stages cover
-    // only the columns left standing.
+    // only the columns left standing. The room is the planner's 7x7
+    // rectangle or, for a neolithic colony (#64), its radius-4 round room:
+    // the 49 cells within four of the centre, nine columns deep, the
+    // nearest and farthest a single cell on the corridor line.
     public sealed class MountainFixture
     {
         private const int BlockWidth = 13;  // across the face (z extent)
@@ -31,10 +34,11 @@ namespace HomeBridge.BridgeTools
         private const int FaceGap = 4;      // clear cells between the anchor and the face
         private const int CorridorLength = 2; // the planner's shortest corridor
         private const int RoomSize = 7;       // the planner's rectangular interior
+        private const int RoundRadius = 4;    // the planner's round interior (policy.EllipseShape(4, 4))
 
-        [Tool("test/mountain_fixture", Description = "UNSAFE FOR MODEL EXECUTION. Disposable mountain-base fixture: setup raises a fogged granite block beside the colonists (predig opens the corridor and that many room columns first); inspect reads one cell's rock, roof, fog, designation, collapse marks, room and sleeper state; tire exhausts every colonist so the next bed is slept in at once.")]
+        [Tool("test/mountain_fixture", Description = "UNSAFE FOR MODEL EXECUTION. Disposable mountain-base fixture: setup raises a fogged granite block beside the colonists (predig opens the corridor and that many room columns first, of the 7x7 rectangle or the radius-4 round shape); inspect reads one cell's rock, roof, fog, designation, collapse marks, room and sleeper state; tire exhausts every colonist so the next bed is slept in at once.")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            string action = "setup", int x = 0, int z = 0, int predig = 0)
+            string action = "setup", int x = 0, int z = 0, int predig = 0, string shape = "rectangle")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
@@ -43,9 +47,24 @@ namespace HomeBridge.BridgeTools
                 if (action == "tire") return Tire(map);
                 if (action != "setup") throw new InvalidOperationException("Unknown action " + action);
                 if (!Find.TickManager.Paused) throw new InvalidOperationException("Paused map required for setup.");
-                if (predig < 0 || predig > RoomSize) throw new InvalidOperationException("predig must be 0.." + RoomSize + " room columns.");
-                return Setup(map, predig);
+                if (shape != "rectangle" && shape != "round") throw new InvalidOperationException("shape must be rectangle or round.");
+                var columns = shape == "round" ? 2 * RoundRadius + 1 : RoomSize;
+                if (predig < 0 || predig > columns) throw new InvalidOperationException("predig must be 0.." + columns + " room columns.");
+                return Setup(map, predig, shape);
             }, cancellationToken);
+        }
+
+        // RoomOffsets lists the across-corridor offsets of the room column at
+        // depth (0 is the column past the door) for the shape.
+        private static IEnumerable<int> RoomOffsets(string shape, int depth)
+        {
+            if (shape == "round") {
+                var dd = depth - RoundRadius;
+                for (var offset = -RoundRadius; offset <= RoundRadius; offset++)
+                    if (dd * dd + offset * offset <= RoundRadius * RoundRadius) yield return offset;
+                yield break;
+            }
+            for (var offset = -(RoomSize / 2); offset <= RoomSize / 2; offset++) yield return offset;
         }
 
         // Rest is the only need the sleeping assertion waits on; at 5% every
@@ -95,7 +114,7 @@ namespace HomeBridge.BridgeTools
             };
         }
 
-        private static object Setup(Map map, int predig)
+        private static object Setup(Map map, int predig, string shape)
         {
             var people = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead).ToList();
             if (people.Count < 1 || people.Count > 8) throw new InvalidOperationException("Require 1..8 colonists.");
@@ -148,9 +167,14 @@ namespace HomeBridge.BridgeTools
                 // Natural rock nearer the colonists than the block is a better
                 // site by the planner's own score; level it (and its rock roof,
                 // before the rock so nothing is left to collapse) so the block
-                // is the only face in the colony window.
+                // is the only face in the colony window. Rock that walls an
+                // enclosed structure (an ancient danger sealed in the
+                // mountain, as on the tribal8 baseline) stays: breaching it
+                // wakes its mechanoids and the run holds on unsafe_threat.
+                var sealing = 0;
                 foreach (var c in GenRadial.RadialCellsAround(anchor, 24, true)) {
                     if (!c.InBounds(map) || block.Contains(c)) continue;
+                    if (SealsStructure(map, c)) { sealing++; continue; }
                     var roof = c.GetRoof(map);
                     if (roof != null && roof.isNatural) map.roofGrid.SetRoof(c, null);
                     foreach (var t in c.GetThingList(map).OfType<Mineable>().ToList()) t.Destroy(DestroyMode.Vanish);
@@ -180,8 +204,8 @@ namespace HomeBridge.BridgeTools
                     var across = dir.x != 0 ? new IntVec3(0, 0, 1) : new IntVec3(1, 0, 0);
                     for (var depth = 0; depth < CorridorLength + predig; depth++) {
                         var line = face + dir * depth;
-                        var half = depth < CorridorLength ? 0 : RoomSize / 2;
-                        for (var offset = -half; offset <= half; offset++) predug.Add(line + across * offset);
+                        var offsets = depth < CorridorLength ? new[] { 0 } : RoomOffsets(shape, depth - CorridorLength).ToArray();
+                        foreach (var offset in offsets) predug.Add(line + across * offset);
                     }
                     foreach (var c in predug)
                         foreach (var t in c.GetThingList(map).OfType<Mineable>().ToList()) t.Destroy(DestroyMode.Vanish);
@@ -222,8 +246,8 @@ namespace HomeBridge.BridgeTools
                     anchor = new { x = anchor.x, z = anchor.z },
                     direction = new { x = dir.x, z = dir.z },
                     block = new { minX = block.minX, minZ = block.minZ, maxX = block.maxX, maxZ = block.maxZ },
-                    faceX, faceZ, fogged,
-                    predig, predug = predug.Select(c => new { c.x, c.z }).ToList(),
+                    faceX, faceZ, fogged, sealing,
+                    predig, shape, predug = predug.Select(c => new { c.x, c.z }).ToList(),
                     miners = miners.Select(p => p.ThingID).ToList(),
                     builders = builders.Select(p => p.ThingID).ToList(),
                     colonists = people.Count,
@@ -249,6 +273,20 @@ namespace HomeBridge.BridgeTools
                 return c + " " + t.def.defName;
             }
             return null;
+        }
+
+        // SealsStructure reports a cell inside an enclosed room or bordering
+        // one: the interior and natural walls of a sealed structure, which
+        // levelling or unfogging would breach. Open rock mass is no room at
+        // all, so ordinary mountain is levelled.
+        private static bool SealsStructure(Map map, IntVec3 c)
+        {
+            foreach (var n in GenAdj.CellsAdjacent8Way(new TargetInfo(c, map)).Concat(new[] { c })) {
+                if (!n.InBounds(map)) continue;
+                var room = n.GetRoom(map);
+                if (room != null && !room.PsychologicallyOutdoors && room.ProperRoom) return true;
+            }
+            return false;
         }
 
         // Direct fog writes: the game only exposes Unfog, so the storage is
