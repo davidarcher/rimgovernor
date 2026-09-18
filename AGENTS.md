@@ -9,9 +9,12 @@
 - Commit each completed iteration after relevant checks. Local checkpoint commits
   are authorized; do not ask again. Report the branch and commit hash.
 - Pull requests are disabled on this project; GitHub is used only for issue
-  tracking. Never open a PR. All work lands on the local `main` branch: prefer a
-  fast-forward rebase onto `main`, but a merge commit is acceptable. Do not push
-  to GitHub; the maintainer pushes `main` manually.
+  tracking. Never open a PR. All work lands on the local `main` branch via
+  `git merge --no-ff <branch>` from a clean `main` checkout. Do not rebase a
+  verified branch just to fast-forward: a rebase rewrites the commits the test
+  evidence was recorded against and invites a retest every time a peer lands.
+  Rebase only to resolve an actual conflict. Do not push to GitHub; the
+  maintainer pushes `main` manually.
 - Close the GitHub issue as soon as its work has merged into local `main`, with
   a terse comment naming the merge commit. Closure does not wait for the
   maintainer to push `origin/main` and does not need maintainer confirmation.
@@ -45,12 +48,13 @@
   polling, relay chains or coordination-only agents without a concrete need.
 - `main` moves constantly. After each commit on a task branch, check whether
   local `main` has moved (`git rev-parse main` vs your merge base) and, if it
-  has, integrate it immediately (merge or rebase, whichever fits the situation;
-  a merge is the safe default for an in-progress branch). Also do this at the
-  start of each work session and before every acceptance run. Small, frequent
-  integrations keep conflicts trivial; a branch that waits until it is "done"
-  to catch up inherits days of divergence at once. Never `reset --soft main`
-  to squash; check the diff file list after any integration.
+  has, merge it in (`git merge main`; rebase only for a real conflict). Also do
+  this at the start of each work session and before an acceptance run whose
+  inputs `main` touched. Small, frequent integrations keep conflicts trivial;
+  a branch that waits until it is "done" to catch up inherits days of
+  divergence at once. Never `reset --soft main` to squash; check the diff file
+  list after any integration. `rerere.enabled` is on for this repository so a
+  conflict resolved once replays on later merges; keep it on in new worktrees.
 - When landing is authorized, stream small verified commits into main as they
   become ready. Assume main is continuously updated: validate the task and merge;
   do not chase each new HEAD with a rebase/retest cycle. Do not wait for unrelated
