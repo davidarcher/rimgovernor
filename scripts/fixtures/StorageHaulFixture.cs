@@ -14,15 +14,19 @@ namespace HomeBridge.BridgeTools
     // reliably produce a MaintainStorage deficit (an ordinary, non-deteriorating
     // item sitting outside legal storage) with a deterministic single eligible
     // hauler, so this fixture builds one directly: a legal Steel stockpile zone,
-    // two unforbidden Steel stacks outside it, and exactly one existing colonist
-    // enabled for Hauling (every other colonist explicitly disabled) so revoking
-    // that one pawn's own Hauling priority is a genuine, provable interruption.
+    // Steel stacks outside it, and exactly one existing colonist enabled for
+    // Hauling (every other colonist explicitly disabled) so revoking that one
+    // pawn's own Hauling priority is a genuine, provable interruption. Only the
+    // first stack spawns unforbidden: the hauler's own vanilla work scanner
+    // would otherwise pick up every later stack the moment its ordered haul
+    // ends, before the planner can renew; test/storage_haul_allow releases a
+    // later stack when the case wants the deficit renewed.
     public sealed class StorageHaulFixture
     {
         private static Game preparedGame;
         private static Map preparedMap;
 
-        [Tool("test/storage_haul_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture: register one legal Steel stockpile zone, spawn ordinary unforbidden Steel stacks outside it, and set exactly one existing colonist's Hauling work priority (all others disabled) so RoutineHaulPlanner's MaintainStorage deficit and its single eligible hauler are deterministic. No quest/travel simulation, no new resources beyond the spawned Steel.")]
+        [Tool("test/storage_haul_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture: register one legal Steel stockpile zone, spawn ordinary Steel stacks outside it (only the first unforbidden), and set exactly one existing colonist's Hauling work priority (all others disabled) so RoutineHaulPlanner's MaintainStorage deficit and its single eligible hauler are deterministic. No quest/travel simulation, no new resources beyond the spawned Steel.")]
         public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken, int itemCount = 2)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -97,9 +101,10 @@ namespace HomeBridge.BridgeTools
                     var stack = ThingMaker.MakeThing(ThingDefOf.Steel);
                     stack.stackCount = 25;
                     GenSpawn.Spawn(stack, cell, map);
-                    stack.SetForbidden(false, false);
+                    stack.SetForbidden(itemIds.Count > 0, false);
                     itemIds.Add(stack.GetUniqueLoadID());
-                    items.Add(new { id = stack.GetUniqueLoadID(), x = cell.x, z = cell.z, count = stack.stackCount });
+                    items.Add(new { id = stack.GetUniqueLoadID(), x = cell.x, z = cell.z, count = stack.stackCount,
+                        forbidden = stack.IsForbidden(player) });
                 }
                 map.regionAndRoomUpdater.RebuildAllRegionsAndRooms();
                 preparedGame = Current.Game; preparedMap = map;
@@ -144,6 +149,23 @@ namespace HomeBridge.BridgeTools
                 if (thing == null || !thing.Spawned) return new { success = true, spawned = false };
                 return new { success = true, spawned = true, x = thing.Position.x, z = thing.Position.z,
                     count = thing.stackCount, forbidden = thing.IsForbidden(Faction.OfPlayerSilentFail) };
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
+        [Tool("test/storage_haul_allow", Description = "UNSAFE FOR MODEL EXECUTION. Private prepared-fixture control: unforbid one prepared Steel stack (by itemId) so it becomes a MaintainStorage deficit the planner must renew for. Mutates only that stack's forbidden flag.")]
+        public async Task<object> Allow(IRimBridgeContext ctx, CancellationToken cancellationToken,
+            string colonyId, string loadToken, int mapId, string itemId)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap; var identity = Current.Game?.GetComponent<ColonyIdentity>();
+                if (Current.Game != preparedGame || map != preparedMap || map == null || identity == null
+                    || identity.ColonyId != colonyId || identity.LoadToken != loadToken || map.uniqueID != mapId)
+                    return Refuse("Prepared paused colony/load/map identity changed.");
+                var thing = map.listerThings.AllThings.FirstOrDefault(t => t.GetUniqueLoadID() == itemId);
+                if (thing == null || !thing.Spawned || thing.def != ThingDefOf.Steel) return Refuse("Prepared Steel stack is not spawned.");
+                thing.SetForbidden(false, false);
+                return new { success = true, x = thing.Position.x, z = thing.Position.z, count = thing.stackCount,
+                    forbidden = thing.IsForbidden(Faction.OfPlayerSilentFail) };
             }, cancellationToken).ConfigureAwait(false);
         }
 

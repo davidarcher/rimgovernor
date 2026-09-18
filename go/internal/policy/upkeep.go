@@ -177,11 +177,15 @@ func ReviewUpkeepWith(v UpkeepObservation, previous UpkeepHistory, issued map[Go
 			if !valid(seen, row.ID) || !foodID(row.Definition) || row.Cell.X < 0 || row.Cell.Z < 0 || !foodNumber(row.Deterioration) || row.Deterioration < 0 || row.Count < 0 || known && rot < 0 {
 				return r, errors.New("invalid upkeep item")
 			}
-			unstored := (!row.Roofed || !row.InStorage) && !row.Forbidden
+			// A deteriorating stack needs a roof as well as legal storage;
+			// an ordinary stack is stored once legal storage holds it. An
+			// unroofed stockpile is common early on, and hauling cannot
+			// move a stored stack anywhere better (#189).
 			switch {
-			case row.Deterioration > 0 && unstored:
+			case row.Forbidden:
+			case row.Deterioration > 0 && (!row.Roofed || !row.InStorage):
 				selected = append(selected, row)
-			case row.Deterioration == 0 && unstored:
+			case row.Deterioration == 0 && !row.InStorage:
 				storageSelected = append(storageSelected, row)
 			}
 		}

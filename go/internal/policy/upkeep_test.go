@@ -20,6 +20,7 @@ func TestUpkeepNativeTargetOrderAndMetrics(t *testing.T) {
 		{ID: "forbidden", Definition: "Steel", Deterioration: 1, Forbidden: true, Count: 50},
 		{ID: "safe", Definition: "Steel", Deterioration: 1, Roofed: true, InStorage: true, Count: 50},
 		{ID: "steel", Definition: "Steel", Count: 50},
+		{ID: "stored-outdoors", Definition: "Steel", InStorage: true, Count: 50},
 	})
 	v.Structures = domain.Known([]UpkeepStructure{
 		{ID: "wall", Home: true, HitPoints: 2, MaxHitPoints: 100, Priority: 1},

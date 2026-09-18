@@ -2,14 +2,18 @@
 // vertical (G01.07b 05.2): a live game and a live rimgovernor Go
 // player-control service. A worker is assigned and hauls a real ordinary
 // (non-decaying) item into shared storage, the stored outcome is observed
-// via a native read, a renewed deficit (a second item) is picked up without
-// a duplicate or conflicting order, and a player-revoked Hauling priority
-// interrupts dispatch without RoutineHaulPlanner overriding player intent
-// or double-issuing. Uses a private disposable fixture
-// (test/storage_haul_prepare, test/storage_haul_control) since native random
-// colony generation cannot reliably produce a MaintainStorage deficit (an
-// ordinary item outside legal storage) with a deterministic single eligible
-// hauler; test/guarded_construction_prepare supplies the one player-submitted
+// via a native read, a renewed deficit (a second item, spawned forbidden and
+// released once the first haul is stored) is picked up without a duplicate
+// or conflicting order, and a player-revoked Hauling priority interrupts
+// dispatch without RoutineHaulPlanner overriding player intent or
+// double-issuing. Uses a private disposable fixture
+// (test/storage_haul_prepare, test/storage_haul_control,
+// test/storage_haul_allow) since native random colony generation cannot
+// reliably produce a MaintainStorage deficit (an ordinary item outside legal
+// storage) with a deterministic single eligible hauler, and the hauler's own
+// vanilla work scanner would haul an unforbidden second item the moment its
+// ordered haul ends, before the planner could renew;
+// test/guarded_construction_prepare supplies the one player-submitted
 // building plan MaintainStorage's own arbitration capacity slot requires to
 // be occupied by "the accepted player project," matching
 // policy.RankDevelopment/AuditDevelopment's own accounting.
@@ -22,8 +26,10 @@
 // (buildingruntime.RoutineHaulPlanner), not something a bridge fixture can
 // exercise directly. Only one GABP client can be connected to the running
 // game at a time, so the two sessions are used sequentially: Serve
-// releases the case's session before the service starts, and the session
-// is reattached once the service is stopped for the final native read.
+// releases the case's session before the service starts; the session is
+// reattached once the service is stopped, to release the second item
+// (the service is then restarted on the same journal) and for the final
+// native read.
 package routinehaul
 
 import (
@@ -63,7 +69,7 @@ func run(ctx context.Context, s cases.Session) error {
 	report := s.Report()
 	h, identity, prepared := s.Harness(), s.Identity(), s.Prepared()
 	defer na.ReportPhases(report, s.Config().Output, true)
-	for _, want := range []string{"test/storage_haul_control", "test/guarded_construction_prepare"} {
+	for _, want := range []string{"test/storage_haul_control", "test/storage_haul_allow", "test/guarded_construction_prepare"} {
 		if !na.Contains(s.Names(), want) {
 			return fmt.Errorf("missing %s in discovery; rebuild the native mod with -Fixture StorageHaulFixture -Fixture GuardedConstructionFixture", want)
 		}
@@ -84,14 +90,19 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 	// Confirm, from the fixture's own spawn-time coordinates, that each item
 	// genuinely starts outside storage -- a pre-condition of this being real
-	// acceptance evidence, not a fixture that already put it there. Taken
-	// while the harness is still connected, before it hands the sole GABP
-	// slot to the service.
-	for _, raw := range na.AsSlice(prepared["items"]) {
+	// acceptance evidence, not a fixture that already put it there -- and
+	// that only the first is unforbidden, so the second is no deficit (and
+	// no vanilla haul target) until the case releases it. Taken while the
+	// harness is still connected, before it hands the sole GABP slot to the
+	// service.
+	for i, raw := range na.AsSlice(prepared["items"]) {
 		item, _ := na.AsMap(raw)
 		x, z := int(na.AsNumber(item["x"])), int(na.AsNumber(item["z"]))
 		if x == storageX && z == storageZ {
 			return fmt.Errorf("item %v already at the storage cell before any haul: %#v", item["id"], item)
+		}
+		if forbidden, _ := na.AsBool(item["forbidden"]); forbidden != (i > 0) {
+			return fmt.Errorf("item %v forbidden=%v at spawn, want %v: %#v", item["id"], forbidden, i > 0, item)
 		}
 	}
 
@@ -283,19 +294,8 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 	report["first_haul_item"] = item1
 
-	// Baseline for the "no duplicate/conflicting order" checks below: the
-	// committed method count once the first haul has genuinely completed,
-	// including any incidental authority-discontinuity renewals absorbed
-	// above -- not a hardcoded 1, since those renewals legitimately add
-	// extra committed methods to the same still-live goal.
-	baselineGoal, err := verifyStore.LoadGoal(ctx, goalID)
-	if err != nil {
-		return fmt.Errorf("load goal after first haul completion: %w", err)
-	}
-	baselineMethodCount := len(baselineGoal.Methods)
-
 	// Interruption: the player revokes the single eligible hauler's Hauling
-	// priority before the renewed deficit (the second item) is dispatched.
+	// priority before the renewed deficit (the second item) exists.
 	// RoutineHaulPlanner must neither dispatch a new haul while overridden
 	// nor double-issue once the override lifts.
 	preferences, status, err := apiCall("GET", "/api/player/work-preferences?planId="+rootPlanID, nil, "")
@@ -320,11 +320,106 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 	report["revoked_hauling"] = revoked
 
+	// Renew the deficit: release the second item. The fixture control needs
+	// the harness's own bridge session, so the service is stopped (its
+	// journal -- goal, methods, the revoke above -- persists), the session
+	// reattached for the one native write, and the service restarted on the
+	// same state. The game keeps running throughout; the restart acquires
+	// authority again exactly as the first launch did.
+	stopService()
+	allowHarness, err := s.Reattach(ctx)
+	if err != nil {
+		return fmt.Errorf("reopen bridge session to release the second item: %w", err)
+	}
+	allowed, err := allowHarness.Call(ctx, "allow-second-item", "test/storage_haul_allow", map[string]any{
+		"colonyId": identity["colonyId"], "loadToken": identity["loadToken"], "mapId": identity["mapId"],
+		"itemId": item2Expected,
+	})
+	if err != nil {
+		return err
+	}
+	if success, _ := na.AsBool(allowed["success"]); !success {
+		return fmt.Errorf("storage_haul_allow refused: %#v", allowed)
+	}
+	if forbidden, _ := na.AsBool(allowed["forbidden"]); forbidden {
+		return fmt.Errorf("second item still forbidden after storage_haul_allow: %#v", allowed)
+	}
+	report["allowed_second_item"] = allowed
+	restartDeadline := time.Now().Add(90 * time.Second)
+	var restarted *na.ServiceProcess
+	for {
+		restarted, err = service.Restart(ctx)
+		if err == nil {
+			break
+		}
+		if time.Now().After(restartDeadline) {
+			return fmt.Errorf("restarted service never attached: %w", err)
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(3 * time.Second):
+		}
+	}
+	stopRestarted := func() {
+		if keep := restarted.Stop(); keep != nil {
+			report["authority_reacquisitions_restarted"] = keep
+		}
+	}
+	defer stopRestarted()
+	report["restarted_pid"] = restarted.PID
+	apiCall, token = restarted.API, restarted.Token
+	w = na.Wait{Stall: na.StallBudget(), Terminal: restarted.Exited}
+	if _, err = restarted.Acquire(); err != nil {
+		return fmt.Errorf("re-acquire after restart: %w", err)
+	}
+	restarted.KeepAuthority(ctx)
+	if verifyStore, err = restarted.Store(ctx); err != nil {
+		return err
+	}
+
+	// The quiet window only proves something once the restarted service has
+	// reviewed the renewed deficit: wait for a MaintainStorage binding whose
+	// goal is active and in deficit, then take the method-count baseline
+	// there rather than after the first haul (a satisfied goal may have
+	// retired its bindings in between).
+	var quietGoal domain.GoalID
+	err = na.WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
+		review, err := verifyStore.LoadRoutineReview(ctx)
+		if err != nil {
+			return "", false, err
+		}
+		for _, binding := range review.Goals {
+			if binding.Need != policy.MaintainStorage {
+				continue
+			}
+			goal, err := verifyStore.LoadGoal(ctx, binding.Goal)
+			if err != nil && !errors.Is(err, store.ErrNotFound) {
+				return "", false, err
+			}
+			if err == nil && goal.Goal.Status == domain.GoalActive && goal.Goal.Need == domain.NeedDeficit {
+				quietGoal = binding.Goal
+				return "", true, nil
+			}
+			return na.Signature("goal", binding.Goal, goal.Goal.Status, goal.Goal.Need), false, nil
+		}
+		return na.Signature("review", review.Revision), false, nil
+	})
+	if err != nil {
+		return fmt.Errorf("renewed deficit never reviewed after the restart: %w", err)
+	}
+	report["renewed_goal_id"] = string(quietGoal)
+	baselineGoal, err := verifyStore.LoadGoal(ctx, quietGoal)
+	if err != nil {
+		return fmt.Errorf("load goal at the quiet window: %w", err)
+	}
+	baselineMethodCount := len(baselineGoal.Methods)
+
 	// Observe several review cycles: no new method should appear for the
 	// renewed deficit while the only eligible hauler is overridden off.
 	quietDeadline := time.Now().Add(20 * time.Second)
 	for time.Now().Before(quietDeadline) {
-		goal, err := verifyStore.LoadGoal(ctx, goalID)
+		goal, err := verifyStore.LoadGoal(ctx, quietGoal)
 		if err != nil {
 			return fmt.Errorf("poll during interruption: %w", err)
 		}
@@ -355,11 +450,11 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 	report["restored_hauling"] = restored
 
-	_, method2, err := waitHaulMethod(ctx, verifyStore, w, goalID, &method1)
+	_, method2, err := waitHaulMethod(ctx, verifyStore, w, quietGoal, &method1)
 	if err != nil {
 		return fmt.Errorf("second haul method: %w", err)
 	}
-	item2, _, renewals2, err := waitHaulItem(ctx, verifyStore, w, goalID, method2)
+	item2, _, renewals2, err := waitHaulItem(ctx, verifyStore, w, quietGoal, method2)
 	if err != nil {
 		return fmt.Errorf("second haul completion: %w", err)
 	}
@@ -367,14 +462,15 @@ func run(ctx context.Context, s cases.Session) error {
 	if item2 != item2Expected {
 		return fmt.Errorf("second haul moved item %q, expected the renewed deficit %q", item2, item2Expected)
 	}
-	finalGoal, err := verifyStore.LoadGoal(ctx, goalID)
+	finalGoal, err := verifyStore.LoadGoal(ctx, quietGoal)
 	if err != nil {
 		return err
 	}
-	// One deliberate second dispatch on top of the baseline, plus whatever
-	// incidental authority-discontinuity renewals waitHaulItem transparently
-	// absorbed while waiting for it -- still no duplicate/conflicting order,
-	// just accounting for legitimate renewals rather than a hardcoded 2.
+	// One deliberate second dispatch on top of the quiet-window baseline,
+	// plus whatever incidental authority-discontinuity renewals waitHaulItem
+	// transparently absorbed while waiting for it -- still no
+	// duplicate/conflicting order, just accounting for legitimate renewals
+	// rather than a hardcoded count.
 	wantMethodCount := baselineMethodCount + 1 + renewals2
 	if len(finalGoal.Methods) != wantMethodCount {
 		return fmt.Errorf("expected exactly %d committed haul methods (no duplicates; baseline=%d incidental_renewals=%d+%d), got %d: %#v", wantMethodCount, baselineMethodCount, renewals1, renewals2, len(finalGoal.Methods), finalGoal.Methods)
@@ -400,7 +496,7 @@ func run(ctx context.Context, s cases.Session) error {
 	// both hauled stacks merged into the one legal stockpile cell,
 	// unforbidden. Reattach retries while the killed service's own GABS
 	// subprocess frees the slot.
-	stopService()
+	stopRestarted()
 	finalHarness, err := s.Reattach(ctx)
 	if err != nil {
 		return fmt.Errorf("reopen bridge session for final native check: %w", err)
