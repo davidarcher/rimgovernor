@@ -18,6 +18,10 @@ type GoalState struct {
 	Goal     domain.Goal
 	Revision uint64
 	Methods  []domain.GoalMethod // Active plans; retired methods remain in LoadGoalMethod.
+	// Admitted counts every method ever committed for the goal, retired
+	// plans included: a monotonic salt for method identities that must not
+	// collide with a retired plan's row (#214).
+	Admitted int
 	Retired  bool
 }
 
@@ -119,6 +123,9 @@ func loadGoal(ctx context.Context, tx *sql.Tx, id domain.GoalID) (GoalState, err
 		return GoalState{}, errors.New("invalid retired goal")
 	}
 	out.Revision = n
+	if err := tx.QueryRowContext(ctx, "SELECT COUNT(*) FROM goal_methods WHERE goal_id=?", id).Scan(&out.Admitted); err != nil {
+		return GoalState{}, err
+	}
 	rows, err := tx.QueryContext(ctx, "SELECT m.epoch,m.method_id,m.plan_id FROM plans p INDEXED BY active_plans CROSS JOIN goal_methods m ON m.plan_id=p.id WHERE p.retired=0 AND m.goal_id=? ORDER BY length(m.epoch),m.epoch,m.method_id", id)
 	if err != nil {
 		return GoalState{}, err

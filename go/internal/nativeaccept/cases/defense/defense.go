@@ -987,8 +987,11 @@ func waitRaidResolved(ctx context.Context, s *store.Store, first domain.PlanID, 
 // it under huntingPredators, not hostiles: the planner has to admit a
 // hunting predator on its own), fight it through bounded combat windows
 // until the ActiveCombat goal recovers, release the drafts and resume
-// colony windows. Natively the predator must be dead, downed or gone and no
-// colonist dead or drafted.
+// colony windows. Natively the predator must be dead, downed, gone or no
+// longer hunting a colonist (the goal answers the census's hunting-predator
+// threat, not every predator on the map: one that broke off to eat wildlife
+// is a nearby predator the native supervisor watches, #214) and no colonist
+// dead or drafted.
 func runPredator(ctx context.Context, closeClient func() error, reopenHarness func() error,
 	fixture func(string, map[string]any) (map[string]any, error), launch func(string) (*service, error),
 	layout store.DefenseLayoutRecord, v variant, report na.Report) error {
@@ -1058,8 +1061,12 @@ func runPredator(ctx context.Context, closeClient func() error, reopenHarness fu
 	spawned, _ := na.AsBool(predator["spawned"])
 	dead, _ := na.AsBool(predator["dead"])
 	downed, _ := na.AsBool(predator["downed"])
-	if spawned && !dead && !downed {
-		return fmt.Errorf("predator still up after the hunt resolved: %#v", predator)
+	hunting, known := na.AsBool(predator["huntingColonist"])
+	if !known {
+		return fmt.Errorf("inspect did not report whether the predator hunts a colonist (stale fixture build?): %#v", predator)
+	}
+	if spawned && !dead && !downed && hunting {
+		return fmt.Errorf("predator still hunting a colonist after the hunt resolved: %#v", predator)
 	}
 	for _, raw := range na.AsSlice(final["colonists"]) {
 		row, _ := na.AsMap(raw)

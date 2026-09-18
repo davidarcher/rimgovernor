@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using RimBridgeServer.Sdk;
 using RimWorld;
+using RimWorld.Planet;
 using Verse;
 using Verse.AI.Group;
 
@@ -31,6 +32,16 @@ namespace HomeBridge.BridgeTools
         private const int GapHalfWidth = 1;
 
         private static Pawn fixturePredator;
+        // The world the predator was staged in. A kept process reloads the
+        // checkpoint between runs, and a pawn from the unloaded world still
+        // answers Spawned/Map through its old map index, so the predator is
+        // only the fixture's while its world is the current one.
+        private static World fixturePredatorWorld;
+        private static Pawn CurrentPredator()
+        {
+            if (fixturePredator == null || fixturePredatorWorld != Find.World) { fixturePredator = null; fixturePredatorWorld = null; }
+            return fixturePredator;
+        }
 
         [Tool("test/defense_setup", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable defensive-layout fixture: op=terrain|stock|ranged|raid|predator|damage|breach|heal|inspect|quiet|power|depower.")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken, string op, string strategy = "ImmediateAttack", string arrival = "EdgeWalkIn", int points = 0, string wall = "", int rifles = 3, string kind = "Cougar", int x = -1, int z = -1)
@@ -207,7 +218,8 @@ namespace HomeBridge.BridgeTools
         // has no reason to abandon the hunt on its own.
         private static object Predator(Map map, List<Pawn> colonists, string kind)
         {
-            if (fixturePredator != null && fixturePredator.Spawned && !fixturePredator.Dead && fixturePredator.Map == map)
+            var staged = CurrentPredator();
+            if (staged != null && staged.Spawned && !staged.Dead && staged.Map == map)
                 return Refuse("Fixture predator already on the map; inspect it before staging another.");
             var kindDef = DefDatabase<PawnKindDef>.GetNamedSilentFail(kind);
             if (kindDef == null || !kindDef.RaceProps.predator) return Refuse("kind must name a predator PawnKindDef.");
@@ -225,7 +237,7 @@ namespace HomeBridge.BridgeTools
             predator.jobs.StartJob(job, Verse.AI.JobCondition.InterruptForced);
             var hunting = predator.CurJobDef == JobDefOf.PredatorHunt && predator.CurJob?.GetTarget(Verse.AI.TargetIndex.A).Thing == prey;
             if (!hunting) { predator.Destroy(DestroyMode.Vanish); return Refuse("The predator did not take the PredatorHunt job."); }
-            fixturePredator = predator;
+            fixturePredator = predator; fixturePredatorWorld = Find.World;
             return new { success = true, predator = predator.GetUniqueLoadID(), kind = kindDef.defName, bodySize = predator.BodySize,
                 prey = prey.GetUniqueLoadID(), x = cell.x, z = cell.z, distance = cell.DistanceTo(prey.Position),
                 job = predator.CurJobDef.defName, faction = predator.Faction?.def.defName, tick = Find.TickManager.TicksGame };
@@ -447,13 +459,18 @@ namespace HomeBridge.BridgeTools
             var colonists = map.mapPawns.FreeColonistsSpawned
                 .Select(p => new { id = p.GetUniqueLoadID(), x = p.Position.x, z = p.Position.z, drafted = p.Drafted, dead = p.Dead, downed = p.Downed }).ToList();
             // The fixture predator's fate: gone (despawned or destroyed),
-            // dead, downed, or still on the map with its current job.
+            // dead, downed, or still on the map with its current job and
+            // whether that job is a PredatorHunt on a colonist -- the
+            // census's huntingPredators predicate, the threat the service
+            // answers; a predator that broke off to eat wildlife is not one.
             object predator = null;
-            if (fixturePredator != null)
+            if (CurrentPredator() != null)
             {
                 var p = fixturePredator;
+                var prey = p.CurJobDef == JobDefOf.PredatorHunt ? p.CurJob?.GetTarget(Verse.AI.TargetIndex.A).Thing as Pawn : null;
+                var huntingColonist = prey != null && prey.Faction == Faction.OfPlayer && prey.RaceProps.Humanlike;
                 predator = new { id = p.GetUniqueLoadID(), spawned = p.Spawned && p.Map == map, dead = p.Dead, downed = p.Downed,
-                    job = p.CurJobDef?.defName, x = p.Position.x, z = p.Position.z };
+                    job = p.CurJobDef?.defName, huntingColonist, x = p.Position.x, z = p.Position.z };
             }
             // Trap ids let a later inspect tell a destroyed trap (its id is
             // gone) from its replacement (a new id on the same cell).
