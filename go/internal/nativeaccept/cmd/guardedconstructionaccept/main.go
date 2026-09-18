@@ -72,48 +72,16 @@ func main() {
 
 func run(ctx context.Context, root, output, gameID, buildingSmoke, expectedOutcome string, headless bool, report na.Report) error {
 	cfg := &na.Config{Root: root, Output: output, Headless: headless, GameID: gameID}
-	if err := cfg.PrepareConfig(); err != nil {
-		return fmt.Errorf("prepare profile: %w", err)
-	}
-	game, err := cfg.GameSection()
-	if err != nil {
-		return err
-	}
-	files, err := na.PackageFiles(fmt.Sprint(game["workingDir"]))
-	if err != nil {
-		return err
-	}
-	report["package_files"] = files
-	gabsExecutable, err := na.GABSExecutable(root, cfg.Configuration)
-	if err != nil {
-		return err
-	}
-	held, err := na.OpenGame(ctx, cfg)
-	if err != nil {
-		return err
-	}
-	defer held.Close(report)
-	client := held.Client
-	h := na.NewHarness(client, output)
-
-	names, err := h.Discovery(ctx)
-	if err != nil {
-		return err
-	}
-	if _, err := na.StartDebugGame(ctx, h, names, na.QuietRequired); err != nil {
-		return err
-	}
 	// Nothing here is about eating, sleeping or mood: the builder stays on
 	// the job for the whole run.
-	frozen, err := na.FreezeNeeds(ctx, h, names)
+	s, err := na.OpenSession(ctx, cfg, report, na.Fixture{Op: "test/guarded_construction_prepare", Args: map[string]any{"siteCount": 3}}, na.QuietRequired)
 	if err != nil {
 		return err
 	}
-	report["frozen_needs"] = frozen
-	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
-		return err
-	}
-	identityReply, err := h.Wire(ctx, "identity", "lifecycle_read_identity", map[string]any{})
+	defer s.Close()
+	h, identity, names, prepared := s.Harness, s.Identity, s.Names, s.Prepared
+	client, gabsExecutable := s.Game.Client, s.GABS
+	identityReply, err := h.Wire(ctx, "identity-capabilities", "lifecycle_read_identity", map[string]any{})
 	if err != nil {
 		return err
 	}
@@ -122,7 +90,6 @@ func run(ctx context.Context, root, output, gameID, buildingSmoke, expectedOutco
 		return err
 	}
 	loadedContext, _ := na.AsMap(loaded["context"])
-	identity, _ := na.AsMap(loadedContext["identity"])
 	tick := loadedContext["tick"]
 	foundListBuildings := false
 	for _, raw := range na.AsSlice(loaded["capabilities"]) {
@@ -138,19 +105,6 @@ func run(ctx context.Context, root, output, gameID, buildingSmoke, expectedOutco
 		return fmt.Errorf("ListBuildings capability not advertised")
 	}
 
-	prepared, err := h.Call(ctx, "prepare", "test/guarded_construction_prepare", map[string]any{"siteCount": 3})
-	if err != nil {
-		return err
-	}
-	if success, _ := na.AsBool(prepared["success"]); !success {
-		return fmt.Errorf("guarded_construction_prepare refused: %#v", prepared)
-	}
-	if na.AsString(prepared["colonyId"]) != na.AsString(identity["colonyId"]) ||
-		na.AsString(prepared["loadToken"]) != na.AsString(identity["loadToken"]) ||
-		na.AsNumber(prepared["mapId"]) != na.AsNumber(identity["mapId"]) {
-		return fmt.Errorf("guarded_construction_prepare identity does not match the fresh debug game")
-	}
-	report["prepared"] = prepared
 	sites := na.AsSlice(prepared["sites"])
 	if len(sites) != 3 {
 		return fmt.Errorf("expected exactly 3 prepared wall sites, found %d", len(sites))

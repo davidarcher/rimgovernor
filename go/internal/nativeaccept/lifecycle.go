@@ -14,6 +14,11 @@ const (
 	NeedFood NeedDef = "Food"
 	NeedRest NeedDef = "Rest"
 	NeedJoy  NeedDef = "Joy"
+	// LiveNeeds as the keep list leaves every need live and skips the
+	// freeze, for a harness whose colony must behave as it always has
+	// (animalcontainmentaccept's builder never finishes the pen marker
+	// when frozen). The report's frozen_needs is then nil.
+	LiveNeeds NeedDef = "*"
 )
 
 // Start says how OpenSession gets a loaded game: the debug quick start
@@ -171,7 +176,8 @@ type Session struct {
 // profile preparation (PrepareConfig; a Save start's expansions first),
 // OpenGame (a kept process is reused), discovery, the start (a cached debug
 // start, a save load and, for a Fixture, its op), pause, the frozen needs
-// except keep, and the initial identity. It records package_files,
+// except keep (LiveNeeds skips the freeze), and the initial identity. It
+// records package_files,
 // discovery, start, quiet, prepared, frozen_needs and boot_ms on report;
 // Close adds game_reuse. A failure after the game opened closes it before
 // returning.
@@ -252,9 +258,12 @@ func (s *Session) open(ctx context.Context, start Start, quiet QuietMode, keep [
 	if quiet == QuietIfAvailable && !Contains(names, FreezeNeedsTool) {
 		return nil
 	}
-	kept := make([]string, len(keep))
-	for i, need := range keep {
-		kept[i] = string(need)
+	kept := make([]string, 0, len(keep))
+	for _, need := range keep {
+		if need == LiveNeeds {
+			return nil
+		}
+		kept = append(kept, string(need))
 	}
 	frozen, err := FreezeNeeds(ctx, s.Harness, names, kept...)
 	if err != nil {

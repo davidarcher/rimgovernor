@@ -57,41 +57,17 @@ func main() {
 
 func run(ctx context.Context, root, output, gameID string, headless bool, report na.Report) error {
 	cfg := &na.Config{Root: root, Output: output, Headless: headless, GameID: gameID}
-	if err := cfg.PrepareConfig(); err != nil {
-		return fmt.Errorf("prepare profile: %w", err)
-	}
-	held, err := na.OpenGame(ctx, cfg)
+	s, err := na.OpenSession(ctx, cfg, report, na.DebugStart{}, na.QuietRequired)
 	if err != nil {
 		return err
 	}
-	defer held.Close(report)
-	client := held.Client
-	h := na.NewHarness(client, output)
-	names, err := h.Discovery(ctx)
-	if err != nil {
-		return err
-	}
+	defer s.Close()
+	h, identity, names := s.Harness, s.Identity, s.Names
 	for _, tool := range []string{na.DismissLetterTool, "test/deliver_letter", "test/letter_pause_mode", "rimgovernor/presentation_notifications"} {
 		if !na.Contains(names, tool) {
 			return fmt.Errorf("%s is not installed: build the mod with -Fixture LetterFixture", tool)
 		}
 	}
-	if _, err := na.StartDebugGame(ctx, h, names, na.QuietRequired); err != nil {
-		return err
-	}
-	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
-		return err
-	}
-	identityReply, err := h.Wire(ctx, "identity", "lifecycle_read_identity", map[string]any{})
-	if err != nil {
-		return err
-	}
-	_, loaded, err := na.Outcome(identityReply, "loaded")
-	if err != nil {
-		return err
-	}
-	loadedContext, _ := na.AsMap(loaded["context"])
-	identity, _ := na.AsMap(loadedContext["identity"])
 	supervisor := &na.ScenarioClock{Wire: h.WireFunc(), Identity: identity, Owner: na.Controller, Report: report}
 	if _, err := supervisor.Acquire(ctx, "acquire"); err != nil {
 		return err

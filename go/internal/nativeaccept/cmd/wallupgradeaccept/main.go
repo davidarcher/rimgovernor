@@ -55,47 +55,23 @@ func main() {
 
 func run(ctx context.Context, root, output, gameID, save, prepare string, maxWalls int, headless bool, report na.Report) error {
 	cfg := &na.Config{Root: root, Output: output, Headless: headless, GameID: gameID}
-	// The save carries its own expansion list; a Core-only profile would refuse it.
-	if err := cfg.UseSaveExpansions(save); err != nil {
-		return err
-	}
-	if err := cfg.PrepareConfig(); err != nil {
-		return fmt.Errorf("prepare profile: %w", err)
-	}
-	held, err := na.OpenGame(ctx, cfg)
-	if err != nil {
-		return err
-	}
-	defer held.Close(report)
-	client := held.Client
-	h := na.NewHarness(client, output)
-
-	names, err := h.Discovery(ctx)
-	if err != nil {
-		return err
-	}
-	if !na.Contains(names, "rimgovernor/observations_list_wall_upgrade_sites") {
-		return fmt.Errorf("missing rimgovernor/observations_list_wall_upgrade_sites in discovery")
-	}
-	if _, err := h.Call(ctx, "load-save", "rimworld/load_game_ready", map[string]any{
-		"saveName": save, "readiness": "visual", "timeoutMs": 90000, "ignoreModCompatibility": false,
-	}); err != nil {
-		return err
-	}
-	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
-		return err
-	}
+	// The save carries its own expansion list (OpenSession enables them);
+	// the fixture, when named, builds the walls on top of it.
+	// Without one this is a production build: no quiet op, no freeze.
+	var start na.Start = na.Save{Name: save}
+	keep := []na.NeedDef{na.LiveNeeds}
 	if prepare != "" {
-		if !na.Contains(names, prepare) {
-			return fmt.Errorf("fixture tool %s not exported by this build", prepare)
-		}
-		prepared, err := h.Call(ctx, "prepare", prepare, map[string]any{})
-		if err != nil {
-			return err
-		}
-		if success, _ := na.AsBool(prepared["success"]); !success {
-			return fmt.Errorf("%s refused: %#v", prepare, prepared)
-		}
+		start = na.Fixture{Op: prepare, On: start}
+		keep = nil
+	}
+	s, err := na.OpenSession(ctx, cfg, report, start, na.QuietIfAvailable, keep...)
+	if err != nil {
+		return err
+	}
+	defer s.Close()
+	h := s.Harness
+	if !na.Contains(s.Names, "rimgovernor/observations_list_wall_upgrade_sites") {
+		return fmt.Errorf("missing rimgovernor/observations_list_wall_upgrade_sites in discovery")
 	}
 	identityReply, err := h.Wire(ctx, "identity-before", "lifecycle_read_identity", map[string]any{})
 	if err != nil {

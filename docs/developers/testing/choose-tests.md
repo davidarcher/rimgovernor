@@ -96,8 +96,9 @@ does by construction (#137): the stale-package check and profile
 preparation, `OpenGame`, discovery, the start (`na.DebugStart{}`,
 `na.Save{Name}` or `na.Fixture{Op, Args}` on either), the pause, every
 need frozen except `keep` (skipped on a production build under
-`QuietIfAvailable`, which carries no freeze tool), and the initial
-identity. The `Session` carries
+`QuietIfAvailable`, which carries no freeze tool, and by `na.LiveNeeds`
+when the colony must keep eating, sleeping and feeling as it always has),
+and the initial identity. The `Session` carries
 `Harness`, `Names`, `Identity`, `Prepared` (the fixture reply) and `Report`
 (`package_files`, `discovery`, `start`, `quiet`, `prepared`, `frozen_needs`,
 `boot_ms`); `Close()` ends the hold and a serve-driven harness uses

@@ -58,43 +58,20 @@ func main() {
 
 func run(ctx context.Context, root, output, gameID string, headless bool, report na.Report) error {
 	cfg := &na.Config{Root: root, Output: output, Headless: headless, GameID: gameID}
-	if err := cfg.PrepareConfig(); err != nil {
-		return fmt.Errorf("prepare profile: %w", err)
-	}
-	game, err := cfg.GameSection()
-	if err != nil {
-		return err
-	}
-	files, err := na.PackageFiles(fmt.Sprint(game["workingDir"]))
-	if err != nil {
-		return err
-	}
-	report["package_files"] = files
-	held, err := na.OpenGame(ctx, cfg)
-	if err != nil {
-		return err
-	}
-	defer held.Close(report)
-	client := held.Client
-	h := na.NewHarness(client, output)
-
-	names, err := h.Discovery(ctx)
-	if err != nil {
-		return err
-	}
-	if _, err := na.StartDebugGame(ctx, h, names, na.QuietRequired); err != nil {
-		return err
-	}
 	// Nothing here is about eating, sleeping or mood: the builder stays on
-	// the job for the whole run.
-	frozen, err := na.FreezeNeeds(ctx, h, names)
+	// the job for the whole run. Authority is deliberately NOT granted yet:
+	// construction-prepare and the candidate-cell/preview search below are
+	// read-only/fixture calls that need no authority at all, and fixture
+	// activity outside an authority.Owned() scope would revoke it anyway
+	// (NativeControlAuthority.RevokeExternal), so SetMode(Auto) is issued as
+	// late as possible, immediately before the first operations_execute that
+	// actually depends on it.
+	s, err := na.OpenSession(ctx, cfg, report, na.Fixture{Op: "test/guarded_construction_prepare", Args: map[string]any{"siteCount": 2}}, na.QuietRequired)
 	if err != nil {
 		return err
 	}
-	report["frozen_needs"] = frozen
-	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
-		return err
-	}
+	defer s.Close()
+	h, identity, names, prepared := s.Harness, s.Identity, s.Names, s.Prepared
 	identityBeforeReply, err := h.Wire(ctx, "identity-before", "lifecycle_read_identity", map[string]any{})
 	if err != nil {
 		return err
@@ -106,15 +83,7 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 	if paused, _ := na.AsBool(initial["paused"]); !paused {
 		return fmt.Errorf("fresh debug game did not start paused")
 	}
-	initialContext, _ := na.AsMap(initial["context"])
-	identity, _ := na.AsMap(initialContext["identity"])
 
-	// Authority is deliberately NOT granted yet: construction-prepare and the
-	// candidate-cell/preview search below are read-only/fixture calls that need
-	// no authority at all, and fixture activity outside an authority.Owned()
-	// scope would revoke it anyway (NativeControlAuthority.RevokeExternal), so
-	// SetMode(Auto) is issued as late as possible, immediately before the first
-	// operations_execute that actually depends on it.
 	supervisor := &na.ScenarioClock{
 		Wire: func(ctx context.Context, label, method string, request map[string]any) (map[string]any, error) {
 			return h.Wire(ctx, label, method, request)
@@ -122,17 +91,6 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 		Identity: identity, Owner: na.AsString(na.Owner["controllerSessionId"]), Report: report,
 	}
 
-	prepared, err := h.Call(ctx, "construction-prepare", "test/guarded_construction_prepare", map[string]any{"siteCount": 2})
-	if err != nil {
-		return err
-	}
-	if success, _ := na.AsBool(prepared["success"]); !success {
-		return fmt.Errorf("guarded_construction_prepare refused: %#v", prepared)
-	}
-	if na.AsString(prepared["colonyId"]) != na.AsString(identity["colonyId"]) ||
-		na.AsString(prepared["loadToken"]) != na.AsString(identity["loadToken"]) {
-		return fmt.Errorf("guarded_construction_prepare identity does not match the fresh debug game")
-	}
 	sites := na.AsSlice(prepared["sites"])
 	if len(sites) < 2 {
 		return fmt.Errorf("expected at least 2 prepared wall sites, found %d", len(sites))

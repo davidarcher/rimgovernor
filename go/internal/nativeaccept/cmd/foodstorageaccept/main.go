@@ -66,31 +66,21 @@ func main() {
 
 func run(ctx context.Context, root, output, gameID string, headless bool, report na.Report) error {
 	cfg := &na.Config{Root: root, Output: output, Headless: headless, GameID: gameID}
-	if err := cfg.PrepareConfig(); err != nil {
-		return fmt.Errorf("prepare profile: %w", err)
-	}
-	game, err := cfg.GameSection()
+	// Repeatedly regenerating a fresh debug game within a single GABS session
+	// to reroll a bad biome proved unreliable in practice (observed:
+	// rimworld/start_debug_game_ready itself timing out on a second call
+	// after several minutes of Superfast simulation), so this harness makes
+	// exactly one attempt per process. A biome with no food-yielding
+	// acquisition source fails fast with a distinct message instead of
+	// polling pointlessly for minutes; callers unlucky enough to roll one
+	// simply rerun the whole harness (a fresh process, fresh GABS session).
+	// Needs stay live: this is a production build with no fixture exports.
+	s, err := na.OpenSession(ctx, cfg, report, na.DebugStart{}, na.QuietIfAvailable, na.LiveNeeds)
 	if err != nil {
 		return err
 	}
-	files, err := na.PackageFiles(fmt.Sprint(game["workingDir"]))
-	if err != nil {
-		return err
-	}
-	report["package_files"] = files
-	held, err := na.OpenGame(ctx, cfg)
-	if err != nil {
-		return err
-	}
-	defer held.Close(report)
-	client := held.Client
-	h := na.NewHarness(client, output)
-
-	names, err := h.Discovery(ctx)
-	if err != nil {
-		return err
-	}
-	report["discovery"] = names
+	defer s.Close()
+	h, names := s.Harness, s.Names
 	if !na.Contains(names, "rimgovernor/observations_read_colony_facts") {
 		return fmt.Errorf("missing rimgovernor/observations_read_colony_facts in discovery")
 	}
@@ -136,20 +126,6 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 		return false
 	}
 
-	// Repeatedly regenerating a fresh debug game within a single GABS session
-	// to reroll a bad biome proved unreliable in practice (observed:
-	// rimworld/start_debug_game_ready itself timing out on a second call
-	// after several minutes of Superfast simulation), so this harness makes
-	// exactly one attempt per process. A biome with no food-yielding
-	// acquisition source fails fast with a distinct message instead of
-	// polling pointlessly for minutes; callers unlucky enough to roll one
-	// simply rerun the whole harness (a fresh process, fresh GABS session).
-	if _, err := na.StartDebugGame(ctx, h, names, na.QuietIfAvailable); err != nil {
-		return err
-	}
-	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
-		return err
-	}
 	identityBefore, err := h.Wire(ctx, "identity-before", "lifecycle_read_identity", map[string]any{})
 	if err != nil {
 		return err

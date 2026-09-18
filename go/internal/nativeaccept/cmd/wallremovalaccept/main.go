@@ -77,56 +77,23 @@ type site struct {
 
 func run(ctx context.Context, root, output, gameID, save string, headless bool, report na.Report) error {
 	cfg := &na.Config{Root: root, Output: output, Headless: headless, GameID: gameID}
-	// The save carries its own expansion list; a Core-only profile would refuse it.
-	if err := cfg.UseSaveExpansions(save); err != nil {
-		return err
-	}
-	if err := cfg.PrepareConfig(); err != nil {
-		return fmt.Errorf("prepare profile: %w", err)
-	}
-	held, err := na.OpenGame(ctx, cfg)
+	// The save carries its own expansion list (OpenSession enables them);
+	// the lighting fixture builds the colonist walls on top of it.
+	s, err := na.OpenSession(ctx, cfg, report, na.Fixture{Op: "test/lighting_prepare", On: na.Save{Name: save}}, na.QuietRequired)
 	if err != nil {
 		return err
 	}
-	defer held.Close(report)
-	client := held.Client
-	h := na.NewHarness(client, output)
-
-	names, err := h.Discovery(ctx)
-	if err != nil {
-		return err
-	}
-	for _, name := range []string{"rimgovernor/operations_execute", "rimgovernor/operations_preview", "rimgovernor/observations_list_wall_upgrade_sites", "test/lighting_prepare", "test/stone_walls_spawn"} {
-		if !na.Contains(names, name) {
+	defer s.Close()
+	h, identity := s.Harness, s.Identity
+	for _, name := range []string{"rimgovernor/operations_execute", "rimgovernor/operations_preview", "rimgovernor/observations_list_wall_upgrade_sites", "test/stone_walls_spawn"} {
+		if !na.Contains(s.Names, name) {
 			return fmt.Errorf("missing %s in discovery; rebuild the native mod with -Fixture LightingFixture,UpkeepFixture", name)
 		}
-	}
-	if _, err := h.Call(ctx, "load-save", "rimworld/load_game_ready", map[string]any{
-		"saveName": save, "readiness": "visual", "timeoutMs": 90000, "ignoreModCompatibility": false,
-	}); err != nil {
-		return err
 	}
 	clock := na.NewSupervisedPlayClock(sessionOwner)
 	if _, err := clock.Change(ctx, h, "initial-pause", "Paused", nil); err != nil {
 		return err
 	}
-	prepared, err := h.Call(ctx, "prepare", "test/lighting_prepare", map[string]any{})
-	if err != nil {
-		return err
-	}
-	if success, _ := na.AsBool(prepared["success"]); !success {
-		return fmt.Errorf("test/lighting_prepare refused: %#v", prepared)
-	}
-	identityReply, err := h.Wire(ctx, "identity", "lifecycle_read_identity", map[string]any{})
-	if err != nil {
-		return err
-	}
-	_, loaded, err := na.Outcome(identityReply, "loaded")
-	if err != nil {
-		return err
-	}
-	loadedContext, _ := na.AsMap(loaded["context"])
-	identity, _ := na.AsMap(loadedContext["identity"])
 	scope := map[string]any{"expectedIdentity": identity}
 
 	census := func(label, target string) ([]any, error) {

@@ -70,68 +70,23 @@ func main() {
 
 func run(ctx context.Context, root, output, gameID string, headless bool, report na.Report) error {
 	cfg := &na.Config{Root: root, Output: output, Headless: headless, GameID: gameID}
-	if err := cfg.PrepareConfig(); err != nil {
-		return fmt.Errorf("prepare profile: %w", err)
-	}
-	game, err := cfg.GameSection()
-	if err != nil {
-		return err
-	}
-	files, err := na.PackageFiles(fmt.Sprint(game["workingDir"]))
-	if err != nil {
-		return err
-	}
-	report["package_files"] = files
-	held, err := na.OpenGame(ctx, cfg)
-	if err != nil {
-		return err
-	}
-	defer held.Close(report)
-	client := held.Client
-	h := na.NewHarness(client, output)
-
-	if _, err := na.StartDebugGame(ctx, h, nil, na.QuietRequired); err != nil {
-		return err
-	}
-	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
-		return err
-	}
-	identityReply, err := h.Wire(ctx, "identity", "lifecycle_read_identity", map[string]any{})
-	if err != nil {
-		return err
-	}
-	_, loaded, err := na.Outcome(identityReply, "loaded")
-	if err != nil {
-		return err
-	}
-	loadedContext, _ := na.AsMap(loaded["context"])
-	identity, _ := na.AsMap(loadedContext["identity"])
-
-	names, err := h.Discovery(ctx)
-	if err != nil {
-		return err
-	}
-	report["discovery"] = names
-	if !na.Contains(names, "rimgovernor/operations_execute") {
-		return fmt.Errorf("missing rimgovernor/operations_execute in discovery")
-	}
-
 	// Fixture: clears a legal 6x6 room, spawns just enough WoodLog for the
 	// full shell, spawns the uncontained herd animal + non-pen pet, and
 	// enables one colonist's Construction/Handling. Run this BEFORE granting
 	// Auto so the fixture's own direct spawning bumps the native generation
 	// before the first WritePrecondition reads it, mirroring
-	// populationcustodyaccept's own ordering.
-	prepared, err := h.Call(ctx, "prepare", "test/containment_construct_prepare", map[string]any{})
+	// populationcustodyaccept's own ordering. Needs stay live: with every
+	// colonist's needs pinned the PenMarker blueprint never gets built
+	// within its day budget (observed twice on 2026-09-17), while the
+	// unfrozen colony finishes it as it always has.
+	s, err := na.OpenSession(ctx, cfg, report, na.Fixture{Op: "test/containment_construct_prepare"}, na.QuietRequired, na.LiveNeeds)
 	if err != nil {
 		return err
 	}
-	if success, _ := na.AsBool(prepared["success"]); !success {
-		return fmt.Errorf("prepare: containment_construct_prepare refused: %#v", prepared)
-	}
-	if na.AsString(prepared["colonyId"]) != na.AsString(identity["colonyId"]) ||
-		na.AsString(prepared["loadToken"]) != na.AsString(identity["loadToken"]) {
-		return fmt.Errorf("prepare: fixture identity does not match the fresh debug game")
+	defer s.Close()
+	h, identity, prepared := s.Harness, s.Identity, s.Prepared
+	if !na.Contains(s.Names, "rimgovernor/operations_execute") {
+		return fmt.Errorf("missing rimgovernor/operations_execute in discovery")
 	}
 	animalID := na.AsString(prepared["animal"])
 	petID := na.AsString(prepared["pet"])

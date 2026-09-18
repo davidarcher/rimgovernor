@@ -52,48 +52,20 @@ func main() {
 
 func run(ctx context.Context, root, output, gameID string, headless bool, report na.Report) error {
 	cfg := &na.Config{Root: root, Output: output, Headless: headless, GameID: gameID}
-	if err := cfg.PrepareConfig(); err != nil {
-		return fmt.Errorf("prepare profile: %w", err)
-	}
-	held, err := na.OpenGame(ctx, cfg)
+	// The session's own freeze is the one under test: everything but Rest.
+	const kept = "Rest"
+	s, err := na.OpenSession(ctx, cfg, report, na.DebugStart{}, na.QuietRequired, na.NeedDef(kept))
 	if err != nil {
 		return err
 	}
-	defer held.Close(report)
-	client := held.Client
-	h := na.NewHarness(client, output)
-	names, err := h.Discovery(ctx)
-	if err != nil {
-		return err
-	}
-	if _, err := na.StartDebugGame(ctx, h, names, na.QuietRequired); err != nil {
-		return err
-	}
-	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
-		return err
-	}
-	identityReply, err := h.Wire(ctx, "identity", "lifecycle_read_identity", map[string]any{})
-	if err != nil {
-		return err
-	}
-	_, loaded, err := na.Outcome(identityReply, "loaded")
-	if err != nil {
-		return err
-	}
-	loadedContext, _ := na.AsMap(loaded["context"])
-	identity, _ := na.AsMap(loadedContext["identity"])
+	defer s.Close()
+	h, identity, names := s.Harness, s.Identity, s.Names
+	report["frozen"] = report["frozen_needs"]
 	supervisor := &na.ScenarioClock{Wire: h.WireFunc(), Identity: identity, Owner: na.Controller, Report: report}
 	if _, err := supervisor.Acquire(ctx, "acquire"); err != nil {
 		return err
 	}
 	rt := &na.ScenarioRuntime{Query: h.Call, Clock: supervisor, Report: report, Tools: names}
-
-	const kept = "Rest"
-	frozen, err := na.FreezeNeeds(ctx, h, names, kept)
-	if err != nil {
-		return err
-	}
-	report["frozen"] = frozen
 	levels := func(label string) (map[string]map[string]float64, error) {
 		reply, err := h.Call(ctx, label, na.FreezeNeedsTool, map[string]any{"action": "inspect"})
 		if err != nil {

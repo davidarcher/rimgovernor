@@ -62,32 +62,12 @@ func main() {
 
 func run(ctx context.Context, root, output, gameID string, headless bool, report na.Report) error {
 	cfg := &na.Config{Root: root, Output: output, Headless: headless, GameID: gameID}
-	if err := cfg.PrepareConfig(); err != nil {
-		return fmt.Errorf("prepare profile: %w", err)
-	}
-	game, err := cfg.GameSection()
+	s, err := na.OpenSession(ctx, cfg, report, na.DebugStart{}, na.QuietRequired)
 	if err != nil {
 		return err
 	}
-	files, err := na.PackageFiles(fmt.Sprint(game["workingDir"]))
-	if err != nil {
-		return err
-	}
-	report["package_files"] = files
-	held, err := na.OpenGame(ctx, cfg)
-	if err != nil {
-		return err
-	}
-	defer held.Close(report)
-	client := held.Client
-	h := na.NewHarness(client, output)
-
-	if _, err := na.StartDebugGame(ctx, h, nil, na.QuietRequired); err != nil {
-		return err
-	}
-	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
-		return err
-	}
+	defer s.Close()
+	h, identity := s.Harness, s.Identity
 	identityBefore, err := h.Wire(ctx, "identity-before", "lifecycle_read_identity", map[string]any{})
 	if err != nil {
 		return err
@@ -100,7 +80,6 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 		return fmt.Errorf("fresh debug game did not start paused")
 	}
 	initialContext, _ := na.AsMap(initial["context"])
-	identity, _ := na.AsMap(initialContext["identity"])
 
 	read := func(label, pawnID string) (map[string]any, error) {
 		filter := map[string]any{"colonist": true, "downed": false}
