@@ -158,10 +158,28 @@ namespace HomeBridge.BridgeTools
             // A protected store needs a roof and clear, empty, walkable floor;
             // the caller (a verified room) is responsible for the roof already
             // existing -- this only refuses ground that is not actually safe.
-            return cells.All(c => c.InBounds(map) && !c.Fogged(map) && c.Walkable(map) && c.Roofed(map)
-                && c.GetEdifice(map) == null && c.GetThingList(map).Count == 0
-                && map.zoneManager.ZoneAt(c) == null && !map.zoneManager.AllZones.Any(z => z.Cells.Contains(c))
-                && !map.roofCollapseBuffer.IsMarkedToCollapse(c));
+            // "Empty" is the cell census's own StorageEmpty: filth, a pawn or
+            // a mote on the floor never made a stockpile cell unusable, and a
+            // stricter check here refused every site the controller picked
+            // from that census on a lived-in floor (#216, #223).
+            foreach (var c in cells) {
+                if (!(c.InBounds(map) && !c.Fogged(map) && c.Walkable(map) && c.Roofed(map)
+                    && c.GetEdifice(map) == null && StorageEmpty(c, map)
+                    && map.zoneManager.ZoneAt(c) == null && !map.zoneManager.AllZones.Any(z => z.Cells.Contains(c))
+                    && !map.roofCollapseBuffer.IsMarkedToCollapse(c))) {
+                    failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Zone creation requires fresh free ground: cell (" + c.x + ", " + c.z + ") is not roofed, walkable, unzoned, empty storage ground.");
+                    return false;
+                }
+            }
+            return true;
+        }
+        // StorageEmpty is the one definition of a cell with nothing stored or
+        // built on it, shared by the cell census (CellState.StorageEmpty,
+        // colony facts) and stockpile zone creation so a site the controller
+        // chose from the census is the site native accepts.
+        internal static bool StorageEmpty(IntVec3 c, Map map)
+        {
+            return !c.GetThingList(map).Any(t => t is Plant || t is Building || t is Blueprint || t is Frame || t.def.category == ThingCategory.Item);
         }
         internal static Operations.PreviewReply Preview(Operations.CreateZone command, Common.ObservationContext context)
         {

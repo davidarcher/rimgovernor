@@ -387,7 +387,7 @@ namespace HomeBridge.BridgeTools
                         && t.def.entityDefToBuild is ThingDef built && typeof(Building_Door).IsAssignableFrom(built.thingClass)),
                     Indoors = room != null && room.ProperRoom && !room.PsychologicallyOutdoors,
                     Reachable = workers.Any(p => p.CanReach(c, PathEndMode.OnCell, Danger.None)),
-                    StorageEmpty = !c.GetThingList(map).Any(t => t is Plant || t is Building || t is Blueprint || t is Frame || t.def.category == ThingCategory.Item) };
+                    StorageEmpty = NativeZoneCreation.StorageEmpty(c, map) };
                 // Absent roof/zone/room are expressed by the applied field being
                 // set with no value: AppliedFields declares Roof/Zone/Room were
                 // read, so a missing value is a known absence, not an unread

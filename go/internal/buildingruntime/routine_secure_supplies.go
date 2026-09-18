@@ -328,14 +328,22 @@ func completedSecureSuppliesZones(ctx context.Context, journal *store.Store, goa
 	return count, nil
 }
 
+// maxSecureSuppliesZoneSites bounds how many census-legal 2x2 patches one
+// covered_storage step previews before giving the site search up for this
+// step: native refuses a patch the census misjudged (a thing the census does
+// not count, a roof that fell since the read), and the next nearest patch is
+// the answer, not the same one again next step (#216, #223).
+const maxSecureSuppliesZoneSites = 4
+
 // coveredStorageFallback is the covered_storage step: once
 // ordinary hauling for the selected vulnerable item has been retried to its
 // bound, propose a small allow-listed stockpile zone (native preset='nothing'
 // with an explicit definition allow-list) on the nearest legal roofed 2x2
 // patch instead. It is bounded to maxSecureSuppliesZoneMethods zones per goal
 // episode. A zero-value, empty-Reason result means the fallback did not apply
-// this step (no zone budget left, no legal site, or a stale read) and the
-// caller should try supplyRoomFallback next.
+// this step (no zone budget left, no legal site, every previewed site refused
+// natively, or a stale read) and the caller should try supplyRoomFallback
+// next.
 func (r *RoutineSecureSuppliesPlanner) coveredStorageFallback(call, epoch context.Context, state ControlState, goal store.GoalState, projection observation.ColonyProjection, item policy.UpkeepItem, started time.Time, arbiter *stepArbiter) (RoutineSecureSuppliesResult, error) {
 	p := r.reviewer.player
 	zoneAttempts, err := haulAttemptCount(call, p.journal, goal, secureSuppliesZonePrefix)
@@ -364,37 +372,25 @@ func (r *RoutineSecureSuppliesPlanner) coveredStorageFallback(call, epoch contex
 	if len(sites) == 0 {
 		return RoutineSecureSuppliesResult{}, nil
 	}
-	site := sites[0]
-	cells := make([]domain.Cell, 0, int(site.Width*site.Height))
-	for x := site.X; x < site.X+site.Width; x++ {
-		for z := site.Z; z < site.Z+site.Height; z++ {
-			cells = append(cells, domain.Cell{X: x, Z: z})
-		}
-	}
-	value, err := domain.NewAllowListStockpileZone(domain.ImportantPriority, []string{item.Definition}, cells)
-	if err != nil {
-		return RoutineSecureSuppliesResult{}, err
-	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", secureSuppliesZonePrefix, zoneAttempts))
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
 	id := domain.PlanID(fmt.Sprintf("routine-secure-supplies-zone-%x", digest[:16]))
 	snapshot := state.Snapshot
 	snapshot.Plan = id
 	snapshot.Revision = 1
-	action, err := domain.NewZoneCreateAction(domain.ActionID(fmt.Sprintf("%s-0", id)), value)
+	value, cells, v, err := previewCoveredStorageSites(call, r.native, boundary.Identity(snapshot), token, item.Definition, sites, goal.Goal.ID)
 	if err != nil {
 		return RoutineSecureSuppliesResult{}, err
 	}
-	reply, _, err := r.native.PreviewZone(call, boundary.Identity(snapshot), bridge.ZoneTarget{Zone: value, Token: token})
-	if err != nil {
-		return RoutineSecureSuppliesResult{}, err
-	}
-	v := reply.GetEvaluated()
-	if v == nil || !v.GetAccepted() {
-		return RoutineSecureSuppliesResult{Reason: BuildingMethodRefused}, nil
+	if v == nil {
+		return RoutineSecureSuppliesResult{}, nil
 	}
 	if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) != projection.Identity.Tick {
 		return RoutineSecureSuppliesResult{}, ErrControl
+	}
+	action, err := domain.NewZoneCreateAction(domain.ActionID(fmt.Sprintf("%s-0", id)), value)
+	if err != nil {
+		return RoutineSecureSuppliesResult{}, err
 	}
 	preview := policy.Preview{Action: action, Snapshot: snapshot, Tick: projection.Identity.Tick, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(false), WatchCellsAccessible: domain.Known(true), Footprint: domain.Known(cells), Costs: domain.Known([]policy.Amount{})}
 	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
@@ -419,6 +415,49 @@ func (r *RoutineSecureSuppliesPlanner) coveredStorageFallback(call, epoch contex
 		return RoutineSecureSuppliesResult{Reason: BuildingMethodRefused}, nil
 	}
 	return RoutineSecureSuppliesResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+}
+
+// zonePreviewer is the one native read previewCoveredStorageSites needs.
+type zonePreviewer interface {
+	PreviewZone(context.Context, *c.Identity, bridge.ZoneTarget) (*op.PreviewReply, bridge.Result, error)
+}
+
+// previewCoveredStorageSites previews the census-legal patches nearest the
+// colony in order, at most maxSecureSuppliesZoneSites of them, and returns
+// the first allow-list stockpile zone native accepts with its cells and
+// evaluation. A native refusal of one patch (bridge.NativeFailure) is that
+// patch's verdict at this tick, not a failed read: it is logged and the next
+// patch is tried. A nil evaluation with a nil error means every previewed
+// patch was refused; any other error is the read's own failure.
+func previewCoveredStorageSites(ctx context.Context, native zonePreviewer, identity *c.Identity, token, definition string, sites []policy.Rectangle, goal domain.GoalID) (domain.ZoneCreate, []domain.Cell, *op.PreviewEvaluation, error) {
+	for i, site := range sites {
+		if i >= maxSecureSuppliesZoneSites {
+			break
+		}
+		cells := make([]domain.Cell, 0, int(site.Width*site.Height))
+		for x := site.X; x < site.X+site.Width; x++ {
+			for z := site.Z; z < site.Z+site.Height; z++ {
+				cells = append(cells, domain.Cell{X: x, Z: z})
+			}
+		}
+		value, err := domain.NewAllowListStockpileZone(domain.ImportantPriority, []string{definition}, cells)
+		if err != nil {
+			return domain.ZoneCreate{}, nil, nil, err
+		}
+		reply, _, err := native.PreviewZone(ctx, identity, bridge.ZoneTarget{Zone: value, Token: token})
+		var refused *bridge.NativeFailure
+		if errors.As(err, &refused) {
+			clockSchedulerLog("%s: covered storage site (%d,%d) refused code=%v detail=%q", goal, site.X, site.Z, refused.Value.GetCode(), refused.Value.GetDetail())
+			continue
+		}
+		if err != nil {
+			return domain.ZoneCreate{}, nil, nil, err
+		}
+		if v := reply.GetEvaluated(); v != nil && v.GetAccepted() {
+			return value, cells, v, nil
+		}
+	}
+	return domain.ZoneCreate{}, nil, nil, nil
 }
 
 // supplyRoomShellMethod names SecureSupplies' whole-room fallback method: a

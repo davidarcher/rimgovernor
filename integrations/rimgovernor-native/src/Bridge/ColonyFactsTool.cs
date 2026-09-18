@@ -214,8 +214,7 @@ namespace HomeBridge.BridgeTools
                         zone = map.zoneManager.ZoneAt(c) != null, roofed = c.Roofed(map),
                         indoors = c.GetRoom(map) != null && c.GetRoom(map).ProperRoom && !c.GetRoom(map).PsychologicallyOutdoors,
                         temperature = c.GetRoom(map)?.Temperature,
-                        storageEmpty = !c.GetThingList(map).Any(t => t is Plant || t is Building || t is Blueprint || t is Frame
-                            || t.def.category == ThingCategory.Item),
+                        storageEmpty = NativeZoneCreation.StorageEmpty(c, map),
                         supportsLight = c.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Light) });
                 }
                 result["definitions"] = definitions;
