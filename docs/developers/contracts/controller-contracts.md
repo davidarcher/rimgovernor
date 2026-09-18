@@ -57,7 +57,13 @@ room, but does not wait for optional development slots held by interrupted gear.
 Placement uses current native room/building geometry and zone previews, preserving
 the entrance aisle and existing zones. Nine valid cells may form several patches
 when service furniture prevents a complete rectangle. Native readback still
-establishes the storage gate.
+establishes the storage gate. A stockpile takes roofed, walkable, storage-empty
+floor: no plant, building, blueprint, frame or item, the same rule the cell census
+reports as storage-empty; filth or a standing pawn never refuses a cell. The
+storage planners (food storage, workshop ingredient storage) preview a bounded,
+ordered list of candidate patches one at a time: a zone preview reports refused
+ground as an evaluation that is not accepted, so a refused patch gives way to the
+next, while a stale map snapshot or an unresolvable configuration is a failure.
 
 Optional goals (priority class 3 and 4: basic equipment defense, wood, comfort,
 expansion, maintained research and resource targets) share a deterministic admission

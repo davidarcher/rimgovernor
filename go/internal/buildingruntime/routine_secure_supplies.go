@@ -453,9 +453,12 @@ func previewCoveredStorageSites(ctx context.Context, native zonePreviewer, ident
 		if err != nil {
 			return domain.ZoneCreate{}, nil, nil, err
 		}
-		if v := reply.GetEvaluated(); v != nil && v.GetAccepted() {
+		v := reply.GetEvaluated()
+		if v != nil && v.GetAccepted() {
 			return value, cells, v, nil
 		}
+		// Native evaluates refused ground as Accepted false (#223).
+		clockSchedulerLog("%s: covered storage site (%d,%d) refused by the native evaluation", goal, site.X, site.Z)
 	}
 	return domain.ZoneCreate{}, nil, nil, nil
 }

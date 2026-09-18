@@ -121,8 +121,11 @@ func (client *Client) PreviewZone(ctx context.Context, identity *c.Identity, tar
 	if reply.GetFailure() != nil {
 		return nil, raw, failure(reply.GetFailure(), raw)
 	}
+	// Accepted false is native refusing the ground itself (a littered or
+	// occupied cell), an evaluation the caller moves past to its next
+	// candidate; a stale snapshot or bad configuration arrives as a failure.
 	v := reply.GetEvaluated()
-	if v == nil || v.Accepted == nil || !v.GetAccepted() || v.Preparation != nil || buildingContext(v.Context, identity, 0, false) != nil || v.Projected != nil {
+	if v == nil || v.Accepted == nil || v.Preparation != nil || buildingContext(v.Context, identity, 0, false) != nil || v.Projected != nil {
 		return nil, raw, contract("invalid zone preview evidence")
 	}
 	return reply, raw, nil

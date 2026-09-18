@@ -140,7 +140,7 @@ func freeInteriorCells(room policy.Rectangle) map[domain.Cell]policy.SiteCell {
 			cell := domain.Cell{X: x, Z: z}
 			cells[cell] = policy.SiteCell{
 				Cell: cell, Indoors: domain.Known(true), Roofed: domain.Known(true),
-				Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false),
+				Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false), StorageEmpty: domain.Known(true),
 			}
 		}
 	}
@@ -187,7 +187,7 @@ func TestFoodStorageCellsShrinksToSingleFreeCell(t *testing.T) {
 	room := policy.Rectangle{X: 0, Z: 0, Width: 9, Height: 9}
 	only := domain.Cell{X: 7, Z: 1}
 	cells := map[domain.Cell]policy.SiteCell{
-		only: {Cell: only, Indoors: domain.Known(true), Roofed: domain.Known(true), Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false)},
+		only: {Cell: only, Indoors: domain.Known(true), Roofed: domain.Known(true), Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false), StorageEmpty: domain.Known(true)},
 	}
 	block, known := foodStorageCells(room, cells, map[domain.Cell]bool{})
 	if !known || len(block) != 1 || block[0] != only {
@@ -205,7 +205,7 @@ func TestFoodStorageCellsReturnsFalseWhenNothingFits(t *testing.T) {
 func TestFoodStorageCellsRequiresEachSitePredicate(t *testing.T) {
 	room := policy.Rectangle{X: 0, Z: 0, Width: 9, Height: 9}
 	only := domain.Cell{X: 7, Z: 1}
-	base := policy.SiteCell{Cell: only, Indoors: domain.Known(true), Roofed: domain.Known(true), Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false)}
+	base := policy.SiteCell{Cell: only, Indoors: domain.Known(true), Roofed: domain.Known(true), Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false), StorageEmpty: domain.Known(true)}
 	for _, change := range []struct {
 		name string
 		make func(policy.SiteCell) policy.SiteCell
@@ -217,6 +217,8 @@ func TestFoodStorageCellsRequiresEachSitePredicate(t *testing.T) {
 		{"occupied", func(c policy.SiteCell) policy.SiteCell { c.Occupied = domain.Known(true); return c }},
 		{"unknown-occupied", func(c policy.SiteCell) policy.SiteCell { c.Occupied = domain.Unknown[bool](); return c }},
 		{"zoned", func(c policy.SiteCell) policy.SiteCell { c.Zone = domain.Known(true); return c }},
+		{"stored", func(c policy.SiteCell) policy.SiteCell { c.StorageEmpty = domain.Known(false); return c }},
+		{"unknown-stored", func(c policy.SiteCell) policy.SiteCell { c.StorageEmpty = domain.Unknown[bool](); return c }},
 	} {
 		t.Run(change.name, func(t *testing.T) {
 			cells := map[domain.Cell]policy.SiteCell{only: change.make(base)}
@@ -224,5 +226,32 @@ func TestFoodStorageCellsRequiresEachSitePredicate(t *testing.T) {
 				t.Fatal("blocked cell accepted as storage ground")
 			}
 		})
+	}
+}
+
+// A refused canonical spot has somewhere to go: the site list is ordered
+// with the canonical block first, every block distinct and legal, and the
+// list bounded (#223).
+func TestFoodStorageSitesListsDistinctFallbacksInOrder(t *testing.T) {
+	room := policy.Rectangle{X: 0, Z: 0, Width: 9, Height: 9}
+	sites := foodStorageSites(room, freeInteriorCells(room), map[domain.Cell]bool{})
+	if len(sites) != maxFoodStorageSites {
+		t.Fatal(len(sites))
+	}
+	first, _ := foodStorageCells(room, freeInteriorCells(room), map[domain.Cell]bool{})
+	if len(first) != 9 || sites[0][0] != first[0] {
+		t.Fatal(sites[0], first)
+	}
+	seen := map[domain.Cell]bool{}
+	for _, site := range sites {
+		if len(site) != 9 || seen[site[0]] {
+			t.Fatal("sites must be distinct 3x3 blocks while the room holds them", site)
+		}
+		seen[site[0]] = true
+		for _, c := range site {
+			if c.X < 1 || c.X > 7 || c.Z < 1 || c.Z > 7 {
+				t.Fatal("site must stay inside the room", site)
+			}
+		}
 	}
 }

@@ -1,12 +1,17 @@
 package bridge
 
 import (
+	"context"
+	"errors"
+	"testing"
+	"time"
+
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/proto"
-	"testing"
 )
 
 func TestZoneExactConfigurationEvidence(t *testing.T) {
@@ -88,5 +93,50 @@ func TestStockpileZoneExactConfigurationEvidence(t *testing.T) {
 	v.GetZone().Cells[1].Cell.X = proto.Int32(2)
 	if matches, _ := ZoneMatches(v, other, "map-token"); matches {
 		t.Fatal("expected mismatch against stale configuration hash")
+	}
+}
+
+// A zone preview native evaluated but refused (littered or occupied ground)
+// is a reply the planner moves past to its next candidate, not a contract
+// violation; a failure outcome or a missing verdict still rejects (#223).
+func TestPreviewZoneReturnsARefusedSiteAsAnEvaluation(t *testing.T) {
+	zone, _ := domain.NewStockpileZone(domain.FoodPreset, domain.ImportantPriority, []domain.Cell{{X: 1, Z: 1}})
+	target := ZoneTarget{Zone: zone, Token: "zone-abc"}
+	valid := &op.PreviewReply{Outcome: &op.PreviewReply_Evaluated{Evaluated: &op.PreviewEvaluation{Context: pbContext(), Accepted: proto.Bool(true)}}}
+	for _, test := range []struct {
+		name     string
+		change   func(*op.PreviewReply)
+		accepted bool
+		ok       bool
+	}{
+		{"accepted", func(*op.PreviewReply) {}, true, true},
+		{"refused site", func(v *op.PreviewReply) { v.GetEvaluated().Accepted = proto.Bool(false) }, false, true},
+		{"missing verdict", func(v *op.PreviewReply) { v.GetEvaluated().Accepted = nil }, false, false},
+		{"unexpected projection", func(v *op.PreviewReply) { v.GetEvaluated().Projected = &r.EffectEvidence{} }, false, false},
+		{"failure outcome", func(v *op.PreviewReply) {
+			v.Outcome = &op.PreviewReply_Failure{Failure: &c.Failure{Code: c.FailureCode_FAILURE_CODE_INVALID_REQUEST.Enum()}}
+		}, false, false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			reply := proto.Clone(valid).(*op.PreviewReply)
+			test.change(reply)
+			s := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+				if arg.Tool != "rimgovernor/operations_preview" {
+					t.Fatal(arg.Tool)
+				}
+				return pbResult(reply), nil
+			}}
+			client := testClient(t, s, time.Second)
+			got, _, err := client.PreviewZone(context.Background(), pbIdentity(), target)
+			if !test.ok {
+				if !errors.Is(err, ErrContract) && !errors.Is(err, ErrRefused) {
+					t.Fatal("expected rejection", err)
+				}
+				return
+			}
+			if err != nil || got.GetEvaluated().GetAccepted() != test.accepted {
+				t.Fatal(got, err)
+			}
+		})
 	}
 }

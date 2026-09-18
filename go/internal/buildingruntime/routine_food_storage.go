@@ -134,45 +134,65 @@ func (r *RoutineFoodStoragePlanner) step(call, epoch context.Context, arbiter *s
 	for _, cell := range projection.Cells {
 		siteCells[cell.Cell] = cell
 	}
-	cells, known := foodStorageCells(room, siteCells, occupied)
-	if !known {
+	sites := foodStorageSites(room, siteCells, occupied)
+	if len(sites) == 0 {
 		return RoutineFoodStorageResult{Reason: BuildingMethodNoSpace}, nil
 	}
-	value, err := domain.NewStockpileZone(domain.FoodPreset, domain.ImportantPriority, cells)
-	if err != nil {
-		return RoutineFoodStorageResult{}, err
+	// The census cannot see everything native refuses (a pawn or a stack
+	// that landed after the read), so each candidate is previewed in turn
+	// and a refused site gives way to the next (#223).
+	var cells []domain.Cell
+	var id domain.PlanID
+	var method domain.MethodID
+	var snapshot domain.GenerationSnapshot
+	var plan domain.PlanSpec
+	var preview policy.Preview
+	accepted := false
+	for _, candidate := range sites {
+		value, err := domain.NewStockpileZone(domain.FoodPreset, domain.ImportantPriority, candidate)
+		if err != nil {
+			return RoutineFoodStorageResult{}, err
+		}
+		hash := sha256.Sum256([]byte(fmt.Sprintf("%v", candidate)))
+		method = domain.MethodID(fmt.Sprintf("food-storage-%x", hash[:16]))
+		if _, err = p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
+			return RoutineFoodStorageResult{Reason: BuildingMethodUsed}, nil
+		} else if !errors.Is(err, store.ErrNotFound) {
+			return RoutineFoodStorageResult{}, err
+		}
+		digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
+		id = domain.PlanID(fmt.Sprintf("routine-food-storage-%x", digest[:16]))
+		snapshot = state.Snapshot
+		snapshot.Plan = id
+		snapshot.Revision = 1
+		action, err := domain.NewZoneCreateAction(domain.ActionID(fmt.Sprintf("%s-0", id)), value)
+		if err != nil {
+			return RoutineFoodStorageResult{}, err
+		}
+		reply, _, err := r.native.PreviewZone(call, boundary.Identity(snapshot), bridge.ZoneTarget{Zone: value, Token: token})
+		if err != nil {
+			return RoutineFoodStorageResult{}, err
+		}
+		v := reply.GetEvaluated()
+		if v == nil {
+			return RoutineFoodStorageResult{}, ErrControl
+		}
+		if !v.GetAccepted() {
+			continue
+		}
+		if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) != projection.Identity.Tick {
+			return RoutineFoodStorageResult{}, ErrControl
+		}
+		cells = candidate
+		preview = policy.Preview{Action: action, Snapshot: snapshot, Tick: projection.Identity.Tick, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(false), WatchCellsAccessible: domain.Known(true), Footprint: domain.Known(cells), Costs: domain.Known([]policy.Amount{})}
+		if plan, err = domain.NewPlan(id, 1, []domain.Action{action}); err != nil {
+			return RoutineFoodStorageResult{}, err
+		}
+		accepted = true
+		break
 	}
-	hash := sha256.Sum256([]byte(fmt.Sprintf("%v", cells)))
-	method := domain.MethodID(fmt.Sprintf("food-storage-%x", hash[:16]))
-	if _, err = p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
-		return RoutineFoodStorageResult{Reason: BuildingMethodUsed}, nil
-	} else if !errors.Is(err, store.ErrNotFound) {
-		return RoutineFoodStorageResult{}, err
-	}
-	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
-	id := domain.PlanID(fmt.Sprintf("routine-food-storage-%x", digest[:16]))
-	snapshot := state.Snapshot
-	snapshot.Plan = id
-	snapshot.Revision = 1
-	action, err := domain.NewZoneCreateAction(domain.ActionID(fmt.Sprintf("%s-0", id)), value)
-	if err != nil {
-		return RoutineFoodStorageResult{}, err
-	}
-	reply, _, err := r.native.PreviewZone(call, boundary.Identity(snapshot), bridge.ZoneTarget{Zone: value, Token: token})
-	if err != nil {
-		return RoutineFoodStorageResult{}, err
-	}
-	v := reply.GetEvaluated()
-	if v == nil || !v.GetAccepted() {
+	if !accepted {
 		return RoutineFoodStorageResult{Reason: BuildingMethodRefused}, nil
-	}
-	if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) != projection.Identity.Tick {
-		return RoutineFoodStorageResult{}, ErrControl
-	}
-	preview := policy.Preview{Action: action, Snapshot: snapshot, Tick: projection.Identity.Tick, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(false), WatchCellsAccessible: domain.Known(true), Footprint: domain.Known(cells), Costs: domain.Known([]policy.Amount{})}
-	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
-	if err != nil {
-		return RoutineFoodStorageResult{}, err
 	}
 	if err = p.current(call, epoch); err != nil {
 		return RoutineFoodStorageResult{}, err
@@ -266,12 +286,27 @@ func starterRoom(claims domain.Fact[[]policy.ConstructionClaim]) (policy.Rectang
 	return policy.Rectangle{}, false
 }
 
-// foodStorageCells prefers the same back-of-room 3x3 spot StarterLayouts
+// foodStorageCells is the first of foodStorageSites, or false when nothing
+// fits.
+func foodStorageCells(room policy.Rectangle, cells map[domain.Cell]policy.SiteCell, occupied map[domain.Cell]bool) ([]domain.Cell, bool) {
+	sites := foodStorageSites(room, cells, occupied)
+	if len(sites) == 0 {
+		return nil, false
+	}
+	return sites[0], true
+}
+
+const maxFoodStorageSites = 8
+
+// foodStorageSites prefers the same back-of-room 3x3 spot StarterLayouts
 // reserves for this room (Storage: {room.X+3, room.Z+5, 3, 3} on the 9x9;
 // the same upper-middle patch of any other shell's bounds), then searches
 // outward and shrinks toward single free cells only if that spot is occupied
-// by something the starter layout's own reservation did not anticipate.
-func foodStorageCells(room policy.Rectangle, cells map[domain.Cell]policy.SiteCell, occupied map[domain.Cell]bool) ([]domain.Cell, bool) {
+// by something the starter layout's own reservation did not anticipate. A
+// cell must observe empty storage as well as free ground: a stack dropped on
+// the floor refuses the zone natively. The result is the bounded, ordered
+// list of legal blocks for the planner to preview in turn.
+func foodStorageSites(room policy.Rectangle, cells map[domain.Cell]policy.SiteCell, occupied map[domain.Cell]bool) [][]domain.Cell {
 	free := func(cell domain.Cell) bool {
 		if occupied[cell] {
 			return false
@@ -285,8 +320,10 @@ func foodStorageCells(room policy.Rectangle, cells map[domain.Cell]policy.SiteCe
 		walkable, wk := c.Walkable.Value()
 		unoccupied, ok := c.Occupied.Value()
 		unzoned, zk := c.Zone.Value()
-		return ik && indoors && rk && roofed && wk && walkable && ok && !unoccupied && zk && !unzoned
+		empty, ek := c.StorageEmpty.Value()
+		return ik && indoors && rk && roofed && wk && walkable && ok && !unoccupied && zk && !unzoned && ek && empty
 	}
+	var sites [][]domain.Cell
 	target := domain.Cell{X: room.X + room.Width/2 - 1, Z: room.Z + room.Height/2 + 1}
 	type candidate struct {
 		dist int64
@@ -323,9 +360,12 @@ func foodStorageCells(room policy.Rectangle, cells map[domain.Cell]policy.SiteCe
 				}
 			}
 			if legal {
-				return block, true
+				sites = append(sites, block)
+				if len(sites) == maxFoodStorageSites {
+					return sites
+				}
 			}
 		}
 	}
-	return nil, false
+	return sites
 }

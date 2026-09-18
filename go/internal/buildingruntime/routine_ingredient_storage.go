@@ -199,36 +199,53 @@ func (r *RoutineIngredientStoragePlanner) step(call, epoch context.Context) (Rou
 	for _, h := range held {
 		protected = append(protected, h.Footprint...)
 	}
-	cells, err := ingredientStorageCells(rooms.Rooms, projection.Bounds, projection.Cells, protected)
+	sites, err := ingredientStorageSites(rooms.Rooms, projection.Bounds, projection.Cells, protected)
 	if err != nil {
 		return RoutineIngredientStorageResult{}, err
 	}
-	if len(cells) == 0 {
+	if len(sites) == 0 {
 		return RoutineIngredientStorageResult{Reason: BuildingMethodNoSpace}, nil
-	}
-	value, err := domain.NewAllowListStockpileZone(domain.ImportantPriority, allow, cells)
-	if err != nil {
-		return RoutineIngredientStorageResult{}, err
 	}
 	snapshot := state.Snapshot
 	snapshot.Plan = id
 	snapshot.Revision = 1
-	action, err := domain.NewZoneCreateAction(domain.ActionID(fmt.Sprintf("%s-0", id)), value)
-	if err != nil {
-		return RoutineIngredientStorageResult{}, err
+	// A freshly built shell's floor carries what the census cannot report
+	// (a pawn, a stack dropped after the read), so each candidate is
+	// previewed in turn and a refused site gives way to the next (#223).
+	var cells []domain.Cell
+	var action domain.Action
+	var evaluated policy.Preview
+	accepted := false
+	for _, candidate := range sites {
+		value, err := domain.NewAllowListStockpileZone(domain.ImportantPriority, allow, candidate)
+		if err != nil {
+			return RoutineIngredientStorageResult{}, err
+		}
+		if action, err = domain.NewZoneCreateAction(domain.ActionID(fmt.Sprintf("%s-0", id)), value); err != nil {
+			return RoutineIngredientStorageResult{}, err
+		}
+		preview, _, err := r.native.PreviewZone(call, boundary.Identity(snapshot), bridge.ZoneTarget{Zone: value, Token: token})
+		if err != nil {
+			return RoutineIngredientStorageResult{}, err
+		}
+		v := preview.GetEvaluated()
+		if v == nil {
+			return RoutineIngredientStorageResult{}, ErrControl
+		}
+		if !v.GetAccepted() {
+			continue
+		}
+		if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) != projection.Identity.Tick {
+			return RoutineIngredientStorageResult{}, ErrControl
+		}
+		cells = candidate
+		evaluated = policy.Preview{Action: action, Snapshot: snapshot, Tick: projection.Identity.Tick, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(false), WatchCellsAccessible: domain.Known(true), Footprint: domain.Known(cells), Costs: domain.Known([]policy.Amount{})}
+		accepted = true
+		break
 	}
-	preview, _, err := r.native.PreviewZone(call, boundary.Identity(snapshot), bridge.ZoneTarget{Zone: value, Token: token})
-	if err != nil {
-		return RoutineIngredientStorageResult{}, err
-	}
-	v := preview.GetEvaluated()
-	if v == nil || !v.GetAccepted() {
+	if !accepted {
 		return RoutineIngredientStorageResult{Reason: BuildingMethodRefused}, nil
 	}
-	if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) != projection.Identity.Tick {
-		return RoutineIngredientStorageResult{}, ErrControl
-	}
-	evaluated := policy.Preview{Action: action, Snapshot: snapshot, Tick: projection.Identity.Tick, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(false), WatchCellsAccessible: domain.Known(true), Footprint: domain.Known(cells), Costs: domain.Known([]policy.Amount{})}
 	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
 	if err != nil {
 		return RoutineIngredientStorageResult{}, err
@@ -305,10 +322,11 @@ func containsProduct(products []policy.Resource, resource policy.Resource) bool 
 	return false
 }
 
-// ingredientStorageCells is the nearest free roofed 2x2 patch inside the
-// first room the census reports in the Workshop role, measured from that
-// room's centroid. Nil when no room holds the role or nothing fits.
-func ingredientStorageCells(rooms []policy.Room, bounds policy.Bounds, cells []policy.SiteCell, protected []domain.Cell) ([]domain.Cell, error) {
+// ingredientStorageSites is the bounded list of free roofed 2x2 patches
+// inside the first room the census reports in the Workshop role, nearest
+// that room's centroid first. Nil when no room holds the role or nothing
+// fits.
+func ingredientStorageSites(rooms []policy.Room, bounds policy.Bounds, cells []policy.SiteCell, protected []domain.Cell) ([][]domain.Cell, error) {
 	for _, room := range rooms {
 		role, known := room.Role.Value()
 		if !known || role != policy.RoomRoleWorkshop || len(room.Cells) == 0 {
@@ -338,12 +356,15 @@ func ingredientStorageCells(rooms []policy.Room, bounds policy.Bounds, cells []p
 		if len(sites) == 0 {
 			return nil, nil
 		}
-		site := sites[0]
-		var out []domain.Cell
-		for x := site.X; x < site.X+site.Width; x++ {
-			for z := site.Z; z < site.Z+site.Height; z++ {
-				out = append(out, domain.Cell{X: x, Z: z})
+		out := make([][]domain.Cell, 0, len(sites))
+		for _, site := range sites {
+			var block []domain.Cell
+			for x := site.X; x < site.X+site.Width; x++ {
+				for z := site.Z; z < site.Z+site.Height; z++ {
+					block = append(block, domain.Cell{X: x, Z: z})
+				}
 			}
+			out = append(out, block)
 		}
 		return out, nil
 	}

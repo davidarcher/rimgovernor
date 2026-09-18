@@ -54,10 +54,11 @@ func TestIngredientStorageCellsStaysInsideTheWorkshopRoom(t *testing.T) {
 		{ID: "workshop", Role: domain.Known(policy.RoomRoleWorkshop), Cells: roomCells},
 	}
 	bounds := policy.Bounds{Width: 40, Height: 40}
-	got, err := ingredientStorageCells(rooms, bounds, cells, nil)
-	if err != nil || len(got) != 4 {
-		t.Fatal(got, err)
+	sites, err := ingredientStorageSites(rooms, bounds, cells, nil)
+	if err != nil || len(sites) == 0 || len(sites[0]) != 4 {
+		t.Fatal(sites, err)
 	}
+	got := sites[0]
 	inside := map[domain.Cell]bool{}
 	for _, c := range roomCells {
 		inside[c] = true
@@ -67,13 +68,25 @@ func TestIngredientStorageCellsStaysInsideTheWorkshopRoom(t *testing.T) {
 			t.Fatal("site must sit inside the workshop room near its centre", got)
 		}
 	}
+	// Every later candidate stays inside the room and none repeats the
+	// first, so a refused preview has somewhere else to go.
+	for _, site := range sites[1:] {
+		if len(site) != 4 || site[0] == got[0] {
+			t.Fatal("later candidates must be distinct 2x2 blocks", site)
+		}
+		for _, c := range site {
+			if !inside[c] {
+				t.Fatal("candidate must sit inside the workshop room", site)
+			}
+		}
+	}
 	// A reservation on the centre pushes the site aside; no workshop room means
 	// no site.
-	shifted, err := ingredientStorageCells(rooms, bounds, cells, got)
-	if err != nil || len(shifted) != 4 || shifted[0] == got[0] {
+	shifted, err := ingredientStorageSites(rooms, bounds, cells, got)
+	if err != nil || len(shifted) == 0 || len(shifted[0]) != 4 || shifted[0][0] == got[0] {
 		t.Fatal(shifted, err)
 	}
-	if none, err := ingredientStorageCells(rooms[:1], bounds, cells, nil); err != nil || none != nil {
+	if none, err := ingredientStorageSites(rooms[:1], bounds, cells, nil); err != nil || none != nil {
 		t.Fatal(none, err)
 	}
 }
