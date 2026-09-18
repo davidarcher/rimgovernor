@@ -104,14 +104,9 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter)
 		clockSchedulerLog("routine.step: LoadRoutineReview err=%v", err)
 		return store.RoutineReviewResult{}, err
 	}
-	identity, _, err := r.native.Identity(ctx)
+	expected, err := stepScope(ctx, r.native)
 	if err != nil {
-		clockSchedulerLog("routine.step: native.Identity err=%v", err)
-		return store.RoutineReviewResult{}, err
-	}
-	expected, err := observation.DecodeIdentity(identity)
-	if err != nil {
-		clockSchedulerLog("routine.step: DecodeIdentity err=%v", err)
+		clockSchedulerLog("routine.step: stepScope err=%v", err)
 		return store.RoutineReviewResult{}, err
 	}
 	native, known := expected.NativeGeneration.Value()

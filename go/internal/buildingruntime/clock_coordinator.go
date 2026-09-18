@@ -145,7 +145,12 @@ func clockCoordinatorEpoch(s *k.Status) *k.Epoch {
 func clockCoordinatorSameEpoch(a, b *k.Epoch) bool {
 	return a != nil && b != nil && proto.Equal(a.Owner, b.Owner) && proto.Equal(a.Origin, b.Origin) && proto.Equal(a.Policy, b.Policy) && a.GetStartTick() == b.GetStartTick() && a.GetTickDeadline() == b.GetTickDeadline()
 }
-func (q *ClockCoordinator) inspect(ctx context.Context, v store.ClockAttempt) error {
+
+// inspect checks the journal and the live clock status before a dispatch.
+// observed, when non-nil, is a validated status the caller read under the
+// same serialized scope moments ago (ClockWindowRequest.Status); it stands in
+// for the native clock_read_status read.
+func (q *ClockCoordinator) inspect(ctx context.Context, v store.ClockAttempt, observed *k.Status) error {
 	epochs, err := q.journal.LoadClockEpochs(ctx, 4096)
 	if err != nil {
 		return err
@@ -191,11 +196,14 @@ func (q *ClockCoordinator) inspect(ctx context.Context, v store.ClockAttempt) er
 		}
 	}
 	identity := boundary.Identity(v.Intent.Snapshot)
-	reply, _, err := q.native.ReadClockStatus(ctx, identity)
-	if err != nil {
-		return err
+	status := observed
+	if status == nil {
+		reply, _, err := q.native.ReadClockStatus(ctx, identity)
+		if err != nil {
+			return err
+		}
+		status = reply.GetStatus()
 	}
-	status := reply.GetStatus()
 	if err = bridge.ValidateClockStatus(status, identity); err != nil {
 		return err
 	}
@@ -250,10 +258,14 @@ func (q *ClockCoordinator) Command(ctx context.Context, intent store.ClockIntent
 	if intent.Window != nil {
 		return store.ClockAttempt{}, executor.ErrHeld
 	}
-	return q.command(ctx, intent, nil)
+	return q.command(ctx, intent, nil, nil)
 }
 
-func (q *ClockCoordinator) command(ctx context.Context, intent store.ClockIntent, check func(store.ClockIntent) error) (store.ClockAttempt, error) {
+// command runs one serialized clock command. check, when set, re-evaluates
+// the caller's admission at each gate; observed, when set, is the status the
+// pre-dispatch inspection checks instead of reading it natively (see
+// ClockWindowRequest.Status).
+func (q *ClockCoordinator) command(ctx context.Context, intent store.ClockIntent, check func(store.ClockIntent) error, observed func() *k.Status) (store.ClockAttempt, error) {
 	call, generation, done, err := q.enter(ctx)
 	if err != nil {
 		return store.ClockAttempt{}, err
@@ -274,7 +286,11 @@ func (q *ClockCoordinator) command(ctx context.Context, intent store.ClockIntent
 	if v.Phase != store.ClockPrepared {
 		return v, nil
 	}
-	if err = q.inspect(call, v); err != nil {
+	var status *k.Status
+	if observed != nil {
+		status = observed()
+	}
+	if err = q.inspect(call, v, status); err != nil {
 		return v, err
 	}
 	if err = q.guard(call, generation, v.Intent.Snapshot); err != nil {

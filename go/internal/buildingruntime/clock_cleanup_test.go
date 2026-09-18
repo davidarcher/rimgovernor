@@ -222,3 +222,23 @@ func TestClockCleanupRejectsStatusGenerationBehindIdentity(t *testing.T) {
 		})
 	}
 }
+
+// A settling step's own bundle status assesses the obligation: an epoch it
+// shows stopped and paused is settled without an identity or status read
+// and without a pause (#200).
+func TestClockCleanupObservedStatusSettlesWithoutReads(t *testing.T) {
+	t.Parallel()
+	q, db, f, intent := clockCleanupStart(t)
+	epoch := clockCoordinatorEpoch(f.status)
+	observed := proto.Clone(f.status).(*k.Status)
+	observed.State = &k.Status_Stopped{Stopped: &k.Stopped{Epoch: proto.Clone(epoch).(*k.Epoch), Reason: k.StopReason_STOP_REASON_TICK_BUDGET.Enum(), ActualPaused: proto.Bool(true), PauseVerified: proto.Bool(true), PauseRequested: proto.Bool(false), StoppedAtUnixMs: proto.Int64(100)}}
+	observed.ActualPaused = proto.Bool(true)
+	reads := f.reads
+	if err := q.CleanupObserved(context.Background(), observed); err != nil {
+		t.Fatal(err)
+	}
+	v, err := db.LookupClockEpoch(context.Background(), intent.RequestID)
+	if err != nil || v.Stage != store.ClockEpochPaused || f.pauses != 0 || f.reads != reads {
+		t.Fatal(v, err, f.pauses, f.reads-reads)
+	}
+}

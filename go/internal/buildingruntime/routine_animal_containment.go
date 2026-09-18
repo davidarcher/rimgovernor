@@ -231,11 +231,7 @@ func (r *RoutineAnimalContainmentPlanner) step(call, epoch context.Context, arbi
 			markerAttempted = true
 		}
 	}
-	identity, _, err := r.reviewer.native.Identity(call)
-	if err != nil {
-		return RoutineAnimalContainmentResult{}, err
-	}
-	expected, err := observation.DecodeIdentity(identity)
+	expected, err := stepScope(call, r.reviewer.native)
 	if err != nil {
 		return RoutineAnimalContainmentResult{}, err
 	}
@@ -344,12 +340,11 @@ func (r *RoutineAnimalContainmentPlanner) buildShell(call, epoch context.Context
 		if p.session.State() != state {
 			return RoutineAnimalContainmentResult{}, ErrControl
 		}
-		last, _, err := r.reviewer.native.Identity(call)
+		actual, err := stepScope(call, r.reviewer.native)
 		if err != nil {
 			return RoutineAnimalContainmentResult{}, err
 		}
-		actual, err := observation.DecodeIdentity(last)
-		if err != nil || !routineBuildingBoundary(actual, state.Snapshot, facts.Identity.Tick) {
+		if !routineBuildingBoundary(actual, state.Snapshot, facts.Identity.Tick) {
 			return RoutineAnimalContainmentResult{}, ErrControl
 		}
 		now := r.reviewer.clock.Now()
@@ -510,12 +505,11 @@ func (r *RoutineAnimalContainmentPlanner) placeMarker(call, epoch context.Contex
 	if p.session.State() != state {
 		return RoutineAnimalContainmentResult{}, ErrControl
 	}
-	last, _, err := r.reviewer.native.Identity(call)
+	actual, err := stepScope(call, r.reviewer.native)
 	if err != nil {
 		return RoutineAnimalContainmentResult{}, err
 	}
-	actual, err := observation.DecodeIdentity(last)
-	if err != nil || !routineBuildingBoundary(actual, state.Snapshot, facts.Identity.Tick) {
+	if !routineBuildingBoundary(actual, state.Snapshot, facts.Identity.Tick) {
 		return RoutineAnimalContainmentResult{}, ErrControl
 	}
 	now := r.reviewer.clock.Now()

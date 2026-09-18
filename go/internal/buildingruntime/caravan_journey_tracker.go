@@ -8,7 +8,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
-	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -148,11 +147,7 @@ func (t *CaravanJourneyTracker) step(call, epoch context.Context, arbiter *stepA
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return CaravanJourneyResult{}, ErrControl
 	}
-	identity, _, err := t.native.Identity(call)
-	if err != nil {
-		return CaravanJourneyResult{}, err
-	}
-	decoded, err := observation.DecodeIdentity(identity)
+	decoded, err := stepScope(call, t.native)
 	if err != nil {
 		return CaravanJourneyResult{}, err
 	}

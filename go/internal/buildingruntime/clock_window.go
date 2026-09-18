@@ -51,7 +51,16 @@ func (q *ClockCoordinator) CommandWindow(ctx context.Context, request ClockWindo
 		}
 		return clockWindowPolicyMatches(value.Command.Start.Policy, decision)
 	}
-	return q.command(ctx, intent, check)
+	// The admitting step's own status stands in for the pre-dispatch
+	// clock_read_status while it is within MaxAge; the check above still
+	// re-evaluates the same facts against the wall clock.
+	observed := func() *k.Status {
+		if request.Status == nil || request.StatusAt.IsZero() || q.clock.Now().Sub(request.StatusAt) > request.MaxAge {
+			return nil
+		}
+		return proto.Clone(request.Status).(*k.Status)
+	}
+	return q.command(ctx, intent, check, observed)
 }
 
 // clockWindowPolicyMatches holds unless the start policy watches in the mode

@@ -109,7 +109,11 @@ composition. Pending starts or owned epochs cannot be opened without clock recov
 capabilities. No constructor starts time or acquires native authority.
 
 Manual invalidates commands before joining them. Cleanup runs under the Control
-gate and cannot call Control or request a lease. A new acquire drains old owned
+gate and cannot call Control or request a lease. It assesses each obligation
+from an identity read and, under the origin identity, a `clock_read_status`;
+the scheduler step that settles a stopped epoch passes the owned status its
+bundle just read (`CleanupObserved`) and both reads are skipped for the
+obligations that status describes (#200). A new acquire drains old owned
 effects before requesting authority. Close joins writers, prioritizes clock pause
 before draft cleanup, and retains the profile, transport and store until cleanup
 succeeds. Lease-free cleanup remains usable after the command coordinator stops.
@@ -259,7 +263,12 @@ admission needed for receipt recovery.
 
 `CommandClockWindow` carries the policy facts through the serialized coordinator.
 It checks age and authority after waiting and before dispatch and native execution;
-the fresh native status must still describe the admitted paused tick and cursor,
+the fresh status must still describe the admitted paused tick and cursor. That
+status is the admitting step's own second bundle (`ClockWindowRequest.Status`,
+stamped `StatusAt`) while it is within `MaxAge`: the bundle was the step's last
+native round trip and every game-host call is serial, so a `clock_read_status`
+issued after it would report the same paused tick (#200); without one, or past
+`MaxAge`, the coordinator reads the status natively. In either case
 and the start policy must watch in the admitted mode with exactly the admitted
 hostiles acknowledged: colony mode acknowledges no pawn, combat mode acknowledges
 only the decision's hostiles, and medical suppression lists are never accepted.
@@ -316,7 +325,12 @@ itself is never memoized (its clock sections are live controller state), but
 its tick and emergency sections are seeded into the step cache under the keys
 `lifecycle_read_tick` and the emergency `observations_read_status` use, so the
 routine census and the planners read them without another round trip and the
-parent files them under the `identity` and `emergency` families. A step that
+parent files them under the `identity` and `emergency` families. The routine
+reviewer, its acquisition and containment planners and the caravan tracker
+take their scope through `lifecycle_read_tick` when the source offers it
+(`stepScope`), so the review after a stop crosses the bridge for no identity
+read; the full `lifecycle_read_identity` stays the fallback for a source
+without the tick read. A step that
 ran planners re-reads the bundle, scoped to the identity it observed, before
 admission. `RIMGOVERNOR_CLOCK_DEBUG=1` logs the step's hit/miss/coalesced/
 parent-hit/invalidation counts and the flight recorder reports hits per method

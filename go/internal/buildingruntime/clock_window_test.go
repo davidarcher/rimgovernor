@@ -270,3 +270,33 @@ func TestClockWindowCombatPolicyMustMatchDecision(t *testing.T) {
 		})
 	}
 }
+
+// The admitting step's bundle status stands in for the pre-dispatch native
+// clock_read_status while it is within MaxAge (#200); it is still checked,
+// and a stale one falls back to the native read.
+func TestClockWindowAdmittingStatusReplacesNativeRead(t *testing.T) {
+	t.Parallel()
+	t.Run("fresh", func(t *testing.T) {
+		q, _, f, clock, request := clockWindowFixture(t)
+		request.Status, request.StatusAt = proto.Clone(f.status).(*k.Status), clock.Now()
+		if got, err := q.CommandWindow(context.Background(), request); err != nil || got.Phase != store.ClockApplied || f.writes != 1 || f.reads != 0 {
+			t.Fatal(got, err, f.writes, f.reads)
+		}
+	})
+	t.Run("stale", func(t *testing.T) {
+		q, _, f, clock, request := clockWindowFixture(t)
+		request.Status, request.StatusAt = proto.Clone(f.status).(*k.Status), clock.Now().Add(-request.MaxAge-time.Millisecond)
+		if got, err := q.CommandWindow(context.Background(), request); err != nil || got.Phase != store.ClockApplied || f.writes != 1 || f.reads == 0 {
+			t.Fatal(got, err, f.writes, f.reads)
+		}
+	})
+	t.Run("checked", func(t *testing.T) {
+		q, _, f, clock, request := clockWindowFixture(t)
+		carried := proto.Clone(f.status).(*k.Status)
+		carried.Context.Tick = proto.Int64(13)
+		request.Status, request.StatusAt = carried, clock.Now()
+		if _, err := q.CommandWindow(context.Background(), request); !errors.Is(err, executor.ErrHeld) || f.writes != 0 || f.reads != 0 {
+			t.Fatal(err, f.writes, f.reads)
+		}
+	})
+}
