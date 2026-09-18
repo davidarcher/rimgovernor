@@ -276,7 +276,7 @@ func TestSleepingUpkeepAssignmentNeverCompletesTheGoal(t *testing.T) {
 func TestSleepingUpkeepBuildsBedInWarmHostingRoom(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	planner, _, native := sleepingUpkeepFixture(t)
+	planner, db, native := sleepingUpkeepFixture(t)
 	// A bed another colonist owns cannot be reassigned, so a Bed is staged
 	// in the barracks; the sleeping spot definition is never a fallback.
 	native.reply.GetObserved().Upkeep.GetObserved().Beds[0].Owners = []string{"other"}
@@ -290,6 +290,56 @@ func TestSleepingUpkeepBuildsBedInWarmHostingRoom(t *testing.T) {
 	}
 	if len(result.Decision.Goal.Methods) != 1 || result.Decision.Goal.Methods[0].Method != "sleeping-Bed-1" {
 		t.Fatal(result.Decision.Goal.Methods)
+	}
+	// The staged bed completes but the census still owes one bed (the
+	// colonist it went to counted as housed already, or another bed turned
+	// unsuitable): the same owed count names a numbered successor rather
+	// than reporting the epoch's method used.
+	review, err := db.LoadRoutineReview(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	complete := func(method domain.MethodID) {
+		t.Helper()
+		var plan domain.PlanID
+		for _, m := range sleepingGoal(t, db).Methods {
+			if m.Method == method {
+				plan = m.Plan
+			}
+		}
+		state, err := db.LoadPlan(ctx, plan)
+		if err != nil {
+			t.Fatal(method, err)
+		}
+		for _, p := range state.Progress {
+			action := p.Action().ID()
+			snapshot := review.Snapshot
+			snapshot.Plan, snapshot.Revision = plan, state.Spec.Revision()
+			b, _ := p.Action().Building()
+			if _, err = db.ReserveAndPrepare(ctx, plan, action, store.Admission{Snapshot: snapshot, Tick: review.Tick, Costs: []store.MaterialCost{}, Footprint: []domain.Cell{b.Cell()}}); err != nil {
+				t.Fatal(err)
+			}
+			if _, err = db.Dispatch(ctx, plan, action, snapshot, review.Tick); err != nil {
+				t.Fatal(err)
+			}
+			if _, err = db.RecordReceipt(ctx, plan, action, 1, domain.ReceiptUnknown); err != nil {
+				t.Fatal(err)
+			}
+			if _, err = db.Observe(ctx, plan, domain.Observation{Action: action, Attempt: 1, Snapshot: review.Snapshot, Tick: review.Tick, Causality: domain.AfterDispatch, Effect: domain.EffectCompleted}, review.Snapshot); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	complete("sleeping-Bed-1")
+	result, err = planner.Step(ctx)
+	if err != nil || result.Reason != BuildingMethodAdmitted {
+		t.Fatal(result, err)
+	}
+	if methods := sleepingGoal(t, db).Methods; len(methods) != 2 || methods[1].Method != "sleeping-Bed-1-1" {
+		t.Fatal(methods)
+	}
+	if result, err = planner.Step(ctx); err != nil || result.Reason != BuildingMethodExistingWork {
+		t.Fatal(result, err)
 	}
 }
 

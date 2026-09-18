@@ -393,10 +393,17 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 			return RoutineBuildingResult{Reason: BuildingMethodUsed, NativeWorkTicks: shelterNativeWorkTicks(*used, state.Snapshot, facts.Identity.Tick)}, nil
 		}
 		method = repaired
-	} else if _, loadErr := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); loadErr == nil {
-		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
-	} else if !errors.Is(loadErr, store.ErrNotFound) {
-		return RoutineBuildingResult{}, loadErr
+	} else {
+		if r.goal == policy.MaintainSleeping {
+			if method, err = r.nextSleepingBedMethod(call, goal, method); err != nil {
+				return RoutineBuildingResult{}, err
+			}
+		}
+		if _, loadErr := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); loadErr == nil {
+			return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
+		} else if !errors.Is(loadErr, store.ErrNotFound) {
+			return RoutineBuildingResult{}, loadErr
+		}
 	}
 	if roofingOnly {
 		return RoutineBuildingResult{Reason: BuildingMethodUsed}, nil
@@ -766,4 +773,53 @@ func initialShelterOwed(ctx context.Context, p *Player, review store.RoutineRevi
 		return goal.Goal.Status == domain.GoalActive && goal.Goal.Need == domain.NeedDeficit, nil
 	}
 	return false, nil
+}
+
+// sleepingBedsPerEpoch bounds the beds one MaintainSleeping epoch may stage
+// for the same owed count.
+const sleepingBedsPerEpoch = 8
+
+// nextSleepingBedMethod returns the method the next bed build takes. The
+// selection names a method by the beds still owed, but that count need not
+// fall after a staged bed is assigned (the colonist it went to may have been
+// counted as housed, or another colonist's bed may have turned unsuitable),
+// so a completed bed's method yields to a numbered successor; a method whose
+// plan is still open, or ended without a bed, stays the one reported used.
+func (r *RoutineBuildingPlanner) nextSleepingBedMethod(call context.Context, goal store.GoalState, method domain.MethodID) (domain.MethodID, error) {
+	p := r.reviewer.player
+	base := method
+	for n := 1; n < sleepingBedsPerEpoch; n++ {
+		existing, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method)
+		if errors.Is(err, store.ErrNotFound) {
+			return method, nil
+		}
+		if err != nil {
+			return "", err
+		}
+		plan, err := p.journal.LoadPlan(call, existing.Plan)
+		if err != nil {
+			return "", err
+		}
+		if domain.GoalWorkOpen(plan.Progress) || !routineBuildingCompleted(plan.Progress) {
+			return method, nil
+		}
+		method = domain.MethodID(fmt.Sprintf("%s-%d", base, n))
+	}
+	return method, nil
+}
+
+// routineBuildingCompleted reports whether every action of a settled plan
+// completed with its effect observed.
+func routineBuildingCompleted(progress []domain.Progress) bool {
+	if len(progress) == 0 {
+		return false
+	}
+	for _, p := range progress {
+		v := p.View()
+		effect, known := v.Effect.Value()
+		if v.Stage != domain.Completed || !known || effect != domain.EffectCompleted {
+			return false
+		}
+	}
+	return true
 }
