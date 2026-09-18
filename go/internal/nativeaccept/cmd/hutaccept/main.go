@@ -636,8 +636,29 @@ func cancelOneWall(ctx context.Context, p *liveservice.Prepared, sh *shell, repo
 	if len(candidates) == 0 {
 		return domain.Cell{}, errors.New("no pending wall order found on the shell to cancel")
 	}
+	// Prefer a wall the enclosure depends on: one orthogonally between an
+	// interior cell and open ground. A diagonal ring is two cells thick in
+	// places and the game keeps the room enclosed without the redundant
+	// cell, in which case the routine rightly leaves the player's edit
+	// alone and the repair path is never exercised.
+	interior := map[domain.Cell]bool{}
+	for _, c := range sh.footprint.Interior() {
+		interior[c] = true
+	}
+	bearing := func(c domain.Cell) bool {
+		in, out := false, false
+		for _, n := range []domain.Cell{{X: c.X + 1, Z: c.Z}, {X: c.X - 1, Z: c.Z}, {X: c.X, Z: c.Z + 1}, {X: c.X, Z: c.Z - 1}} {
+			_, onRing := sh.cells[n]
+			in = in || interior[n]
+			out = out || !interior[n] && !onRing
+		}
+		return in && out
+	}
 	door := sh.footprint.Door()
 	sort.Slice(candidates, func(i, j int) bool {
+		if bi, bj := bearing(candidates[i].cell), bearing(candidates[j].cell); bi != bj {
+			return bi
+		}
 		di := abs(candidates[i].cell.X-door.X) + abs(candidates[i].cell.Z-door.Z)
 		dj := abs(candidates[j].cell.X-door.X) + abs(candidates[j].cell.Z-door.Z)
 		if di != dj {
@@ -658,7 +679,7 @@ func cancelOneWall(ctx context.Context, p *liveservice.Prepared, sh *shell, repo
 	if ok, _ := na.AsBool(result["success"]); !ok || !boolOf(result["removed"]) {
 		return domain.Cell{}, fmt.Errorf("cancel_construction refused: %#v", result)
 	}
-	report["cancelled_wall"] = map[string]any{"cell": target.cell, "pending_walls": len(candidates), "result": result}
+	report["cancelled_wall"] = map[string]any{"cell": target.cell, "pending_walls": len(candidates), "load_bearing": bearing(target.cell), "result": result}
 	return target.cell, nil
 }
 
