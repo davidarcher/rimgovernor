@@ -42,7 +42,10 @@ restore step.
 Settled autopilot plans and superseded invalidated goals are marked retired
 rather than deleted: their IDs, methods and receipts stay readable for
 duplicate prevention (a method that completed in the current goal epoch is
-not proposed again) and for `inspect`-style reads, but they leave active
+not proposed again; a deficit measured after the goal's recovery, once no
+plan's effects are open, starts a new epoch so the same method can repair a
+regression such as a lamp removed behind a lit bench) and for
+`inspect`-style reads, but they leave active
 capacity and cannot be modified or reused. Retirement records a per-world
 observation-tick floor so an older observation cannot make retired
 reservations spendable again. The database still grows with completed work;

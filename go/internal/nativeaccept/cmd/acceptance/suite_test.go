@@ -203,7 +203,7 @@ func TestIssue6MatrixCoversEveryCriterion(t *testing.T) {
 		t.Fatal(err)
 	}
 	criteria := map[string]bool{
-		"dark benches": false, "partially lit benches": false, "protected fungus rooms": false,
+		"dark benches": false, "partially lit benches": false, "protected fungus rooms": false, "layout changes": false,
 		"filthy vs inherently dirty rooms": false, "kitchen/butcher separation": false, "unreachable stores": false,
 		"disconnected consumers": false, "exhausted fuel": false, "exhausted batteries": false, "hot-weather freezer failure": false,
 	}

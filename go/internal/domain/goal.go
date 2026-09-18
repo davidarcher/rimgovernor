@@ -75,7 +75,12 @@ func (g Goal) Validate() error {
 
 // ReviewGoal preserves cancellation and invalidates captured work on world,
 // direction or tick replacement. OpenWork is derived from linked shared plans,
-// including cancelled actions whose effects are still unresolved.
+// including cancelled actions whose effects are still unresolved. A deficit
+// measured after a recovery starts a new method epoch once no work is open:
+// either the recovery was observed as satisfaction, or the previous review
+// measured it while a plan's effects were still unresolved and the world has
+// regressed since (a lamp removed behind a lit bench), so the settled
+// epoch's methods may be proposed again.
 func ReviewGoal(g Goal, current GenerationSnapshot, tick Tick, need NeedState, emergency, openWork bool) (Goal, error) {
 	original := g
 	if err := g.Validate(); err != nil {
@@ -106,7 +111,7 @@ func ReviewGoal(g Goal, current GenerationSnapshot, tick Tick, need NeedState, e
 		g.Need = need
 		return g, nil
 	}
-	if need == NeedDeficit && g.RecoveryObserved && !openWork {
+	if need == NeedDeficit && (g.RecoveryObserved || g.Need == NeedRecovered) && !openWork {
 		if g.Epoch == ^uint64(0) {
 			return original, errors.New("goal epoch exhausted")
 		}

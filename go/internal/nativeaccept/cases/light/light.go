@@ -26,6 +26,14 @@
 //	          no lighting method may be committed over the hold, and the
 //	          plant must still be alive on an independent native read.
 //
+//	repair -- the dark scenario played through its release, after which
+//	          the fixture removes the admitted lamp (issue #161: repair
+//	          after a layout change). The controller, restarted on the same
+//	          journal, must re-latch the bench from the measured dark
+//	          census, admit a replacement lamp within the placement radius
+//	          and release again; an independent read confirms the cell lit
+//	          and exactly the replacement standing.
+//
 // Uses the private disposable test/lighting_prepare fixture
 // (LightingFixture.cs). The case's own bridge session and the service's
 // are used sequentially, never concurrently (one GABP client per game).
@@ -56,22 +64,34 @@ const hold = 4 * time.Minute
 // budgets are ~2x the measured healthy runs (403eebbb): dark and partial
 // admit a lamp in under a minute; outage and fungus play a power hold or a
 // day of plant growth for ~4 minutes.
+// repair plays dark twice around a service restart.
 var budgets = map[string]time.Duration{
 	"dark": 5 * time.Minute, "partial": 5 * time.Minute,
 	"outage": 10 * time.Minute, "fungus": 10 * time.Minute,
+	"repair": 12 * time.Minute,
+}
+
+// fixtureScenario is the test/lighting_prepare scenario a case starts
+// from; repair starts from the dark room.
+func fixtureScenario(scenario string) string {
+	if scenario == "repair" {
+		return "dark"
+	}
+	return scenario
 }
 
 func init() {
-	for _, scenario := range []string{"dark", "outage", "partial", "fungus"} {
+	for _, scenario := range []string{"dark", "outage", "partial", "fungus", "repair"} {
 		scenario := scenario
 		cases.Register(cases.Case{
 			Name: "light/" + scenario,
 			Scope: "Native MaintainLighting vertical (" + scenario + "): a measured-dark stove interaction cell in an enclosed room " +
 				"drives the live Go routine reviewer/planner to admit one affordable lamp beside it (dark, partial) or to hold for the power " +
-				"family behind an unpowered lamp already in reach (outage), and a room growing a light-killed cave plant is never latched (fungus); " +
+				"family behind an unpowered lamp already in reach (outage), a room growing a light-killed cave plant is never latched (fungus), " +
+				"and a lit room whose lamp is removed is re-latched and relit with a replacement (repair); " +
 				"the measured glow, not the receipt, releases the latch, " +
 				"confirmed by an independent native read.",
-			Start:   cases.Fixture{Op: "test/lighting_prepare", Args: map[string]any{"scenario": scenario}},
+			Start:   cases.Fixture{Op: "test/lighting_prepare", Args: map[string]any{"scenario": fixtureScenario(scenario)}},
 			Service: true,
 			Budget:  budgets[scenario],
 			Run:     func(ctx context.Context, s cases.Session) error { return run(ctx, s, scenario) },
@@ -203,7 +223,15 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 	report["root_plan"] = rootPlanID
 	keepAlive := &na.AuthorityKeepAlive{Service: service, Prefix: prefix, Identity: identity, Token: token}
 	stopKeepAlive := keepAlive.Start(ctx)
-	defer func() { report["authority_reacquisitions"] = stopKeepAlive() }()
+	// stopped is what each keep-alive counted once its service was stopped;
+	// repair runs a second one for the restarted controller.
+	stopped := map[string]any{}
+	defer func() {
+		if stopKeepAlive != nil {
+			stopped["running"] = stopKeepAlive()
+		}
+		report["authority_reacquisitions"] = stopped
+	}()
 
 	journal, err := na.OpenStoreWithRetry(ctx, service.StatePath)
 	if err != nil {
@@ -360,77 +388,17 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 		return finish(s)
 	}
 
-	// The lighting method: one lamp build on a free interior cell within
-	// the placement radius of the interaction cell, never on it.
-	methodCtx, methodCancel := context.WithTimeout(ctx, 8*time.Minute)
-	goalID, method, err := na.WaitGoalMethod(methodCtx, journal, policy.MaintainLighting, nil)
-	methodCancel()
-	if err != nil {
-		return fmt.Errorf("lighting method: %w", err)
-	}
-	report["goal_id"] = string(goalID)
-	var builtCell domain.Cell
-	var builtDefinition string
-	for renewals := 0; ; renewals++ {
-		plan, err := journal.LoadPlan(ctx, method.Plan)
-		if err != nil {
-			return err
-		}
-		actions := plan.Spec.Actions()
-		if len(actions) != 1 {
-			return fmt.Errorf("lighting plan %s has %d actions, expected 1", method.Plan, len(actions))
-		}
-		b, ok := actions[0].Building()
-		if !ok {
-			return fmt.Errorf("lighting plan action is not a building: %#v", actions[0])
-		}
-		builtCell, builtDefinition = b.Cell(), b.Definition()
-		if builtDefinition != "TorchLamp" {
-			return fmt.Errorf("lighting admitted %s; a colony without a power source must choose the TorchLamp", builtDefinition)
-		}
-		if builtCell == workCell || !inside(builtCell) || max(abs(builtCell.X-workCell.X), abs(builtCell.Z-workCell.Z)) > lighting.PlacementRadius {
-			return fmt.Errorf("lamp placed at %v: not a free interior cell within %d of the work cell %v", builtCell, lighting.PlacementRadius, workCell)
-		}
-		report["lamp_cell"] = map[string]any{"x": builtCell.X, "z": builtCell.Z, "definition": builtDefinition}
-		doneCtx, doneCancel := context.WithTimeout(ctx, 10*time.Minute)
-		state, incidental, err := na.WaitPlanTerminal(doneCtx, journal, method.Plan)
-		doneCancel()
-		if err != nil {
-			return fmt.Errorf("lighting plan: %w", err)
-		}
-		if !incidental {
-			report["lighting_plan"] = string(method.Plan)
-			report["lighting_completed_tick"] = int64(state.Progress[0].View().Tick)
-			report["incidental_renewals"] = renewals
-			break
-		}
-		renewCtx, renewCancel := context.WithTimeout(ctx, 5*time.Minute)
-		_, method, err = na.WaitGoalMethod(renewCtx, journal, policy.MaintainLighting, &method)
-		renewCancel()
-		if err != nil {
-			return fmt.Errorf("renewed lighting method after incidental cancellation #%d: %w", renewals+1, err)
-		}
-	}
-
-	// The measured census releases the latch once the cell reads lit.
-	releaseCtx, releaseCancel := context.WithTimeout(ctx, 5*time.Minute)
-	released, err := waitRelease(releaseCtx, journal, service, stoveID)
-	releaseCancel()
-	if err != nil {
-		return fmt.Errorf("lighting release: %w", err)
-	}
-	report["released_review_revision"] = released.Revision
-	methods, err := lightingMethods(ctx, journal)
+	lamp, err := admitAndRelease(ctx, admission{journal: journal, service: service, stove: stoveID, work: workCell, inside: inside, radius: lighting.PlacementRadius, report: report})
 	if err != nil {
 		return err
 	}
-	report["lighting_methods"] = len(methods)
 	if err := na.AssertRoutineRunning(service.Get); err != nil {
 		return err
 	}
 
 	// Independent native read after the service releases the game slot.
 	journal.Close()
+	stopped["first"], stopKeepAlive = stopKeepAlive(), nil
 	service.Stop()
 	if h, err = s.Reattach(ctx); err != nil {
 		return fmt.Errorf("reopen harness session after service stop: %w", err)
@@ -438,25 +406,130 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 	if _, err := h.Call(ctx, "pause-after", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return err
 	}
+	if scenario != "repair" {
+		after, err := readLighting(ctx, h, identity, "lighting-after")
+		if err != nil {
+			return err
+		}
+		report["lighting_after"] = after.evidence()
+		if err := checkLit(after, scenario, stoveID, lampID, lamp, lighting.LitGlow); err != nil {
+			return fmt.Errorf("lighting-after: %w", err)
+		}
+		return finish(s)
+	}
+
+	// repair: the room reads lit with the admitted lamp, then the fixture
+	// removes that lamp (the layout change) and the room must read dark
+	// again with no lamp standing, all before the controller returns.
+	lit, err := readLighting(ctx, h, identity, "lighting-lit")
+	if err != nil {
+		return err
+	}
+	report["lighting_lit"] = lit.evidence()
+	if err := checkLit(lit, scenario, stoveID, lampID, lamp, lighting.LitGlow); err != nil {
+		return fmt.Errorf("lighting-lit: %w", err)
+	}
+	disrupted, err := h.Call(ctx, "lighting-disrupt", "test/lighting_disrupt", map[string]any{"x": lamp.cell.X, "z": lamp.cell.Z, "workX": workCell.X, "workZ": workCell.Z})
+	if err != nil {
+		return err
+	}
+	if success, _ := na.AsBool(disrupted["success"]); !success {
+		return fmt.Errorf("lighting-disrupt: lighting_disrupt refused: %#v", disrupted)
+	}
+	report["lighting_disrupted"] = disrupted
+	dark, err := readLighting(ctx, h, identity, "lighting-dark-again")
+	if err != nil {
+		return err
+	}
+	report["lighting_dark_again"] = dark.evidence()
+	if c := dark.cells[stoveID]; c.glow >= lighting.LitGlow || len(dark.lamps) != 0 {
+		return fmt.Errorf("lighting-dark-again: the work cell still reads %.2f with %d lamps after the lamp was removed", c.glow, len(dark.lamps))
+	}
+
+	// The controller returns on the same journal: its released review must
+	// re-latch the bench from the measured dark census, admit a replacement
+	// lamp and release again. Only one GABP client may hold the game, so
+	// the harness session is released first; the restart reuses the first
+	// launch's spec and state under report["service_2"].
+	if err := s.Release(); err != nil {
+		return err
+	}
+	service.Identity = identity
+	restarted, err := service.Restart(ctx)
+	if err != nil {
+		return fmt.Errorf("restart the controller after the layout change: %w", err)
+	}
+	service = restarted
+	defer service.Stop()
+	const repairPrefix = prefix + "-repair"
+	token = service.Token
+	if _, err := service.Resume(repairPrefix, identity, token, report); err != nil {
+		return fmt.Errorf("resume after the layout change: %w", err)
+	}
+	keepAlive = &na.AuthorityKeepAlive{Service: service, Prefix: repairPrefix, Identity: identity, Token: token}
+	stopKeepAlive = keepAlive.Start(ctx)
+	journal, err = na.OpenStoreWithRetry(ctx, service.StatePath)
+	if err != nil {
+		return err
+	}
+	defer journal.Close()
+	relatchCtx, relatchCancel := context.WithTimeout(ctx, 3*time.Minute)
+	relatched, err := waitLatch(relatchCtx, journal, service, stoveID)
+	relatchCancel()
+	if err != nil {
+		return fmt.Errorf("lighting re-latch after the layout change: %w", err)
+	}
+	if relatched.Revision <= lamp.released {
+		return fmt.Errorf("re-latched review revision %d is not past the released revision %d", relatched.Revision, lamp.released)
+	}
+	report["repair_latched_review_revision"] = relatched.Revision
+	replacement, err := admitAndRelease(ctx, admission{journal: journal, service: service, stove: stoveID, work: workCell, inside: inside, radius: lighting.PlacementRadius, report: report, previous: &lamp.method, keys: "repair_"})
+	if err != nil {
+		return fmt.Errorf("repair: %w", err)
+	}
+	if replacement.method.Plan == lamp.method.Plan {
+		return fmt.Errorf("repair reused the first lamp's plan %s", lamp.method.Plan)
+	}
+	if err := na.AssertRoutineRunning(service.Get); err != nil {
+		return err
+	}
+	journal.Close()
+	stopped["repair"], stopKeepAlive = stopKeepAlive(), nil
+	service.Stop()
+	if h, err = s.Reattach(ctx); err != nil {
+		return fmt.Errorf("reopen harness session after the repair: %w", err)
+	}
+	if _, err := h.Call(ctx, "pause-after-repair", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
+		return err
+	}
 	after, err := readLighting(ctx, h, identity, "lighting-after")
 	if err != nil {
 		return err
 	}
 	report["lighting_after"] = after.evidence()
-	stoveAfter, ok := after.cells[stoveID]
-	if !ok || stoveAfter.glow < lighting.LitGlow {
-		return fmt.Errorf("lighting-after: stove cell glow %.2f is still under %.2f", stoveAfter.glow, lighting.LitGlow)
+	if err := checkLit(after, scenario, stoveID, lampID, replacement, lighting.LitGlow); err != nil {
+		return fmt.Errorf("lighting-after: %w", err)
 	}
-	// dark: only the admitted lamp; partial: the fixture torch and the
-	// admitted lamp, both lit, nothing else doubled up.
+	return finish(s)
+}
+
+// checkLit is the independent read every lit scenario ends on: the stove
+// cell lit and exactly the admitted lamp standing lit where it was placed
+// (dark, repair), or that lamp beside the fixture torch, both lit and
+// nothing else doubled up (partial).
+func checkLit(after lightingSummary, scenario, stoveID, lampID string, lamp admitted, litGlow float64) error {
+	stoveAfter, ok := after.cells[stoveID]
+	if !ok || stoveAfter.glow < litGlow {
+		return fmt.Errorf("stove cell glow %.2f is still under %.2f", stoveAfter.glow, litGlow)
+	}
 	expectedLamps := 1
 	if scenario == "partial" {
 		expectedLamps = 2
 	}
 	if len(after.lamps) != expectedLamps {
-		return fmt.Errorf("expected exactly %d lamps after the run, observed %d: %+v", expectedLamps, len(after.lamps), after.lamps)
+		return fmt.Errorf("expected exactly %d lamps, observed %d: %+v", expectedLamps, len(after.lamps), after.lamps)
 	}
-	admitted := false
+	found := false
 	for id, l := range after.lamps {
 		if scenario == "partial" && id == lampID {
 			if !l.lit {
@@ -464,15 +537,115 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 			}
 			continue
 		}
-		if l.cell != builtCell || l.definition != builtDefinition || !l.lit {
-			return fmt.Errorf("the surviving lamp %+v is not the lit %s admitted at %v", l, builtDefinition, builtCell)
+		if l.cell != lamp.cell || l.definition != lamp.definition || !l.lit {
+			return fmt.Errorf("the surviving lamp %+v is not the lit %s admitted at %v", l, lamp.definition, lamp.cell)
 		}
-		admitted = true
+		found = true
 	}
-	if !admitted {
-		return fmt.Errorf("the admitted %s at %v does not stand after the run: %+v", builtDefinition, builtCell, after.lamps)
+	if !found {
+		return fmt.Errorf("the admitted %s at %v does not stand: %+v", lamp.definition, lamp.cell, after.lamps)
 	}
-	return finish(s)
+	return nil
+}
+
+// admission is what admitAndRelease needs from the running case: the
+// service's journal, the latched stove, the room and where to report.
+type admission struct {
+	journal *store.Store
+	service *na.ServiceProcess
+	stove   string
+	work    domain.Cell
+	inside  func(domain.Cell) bool
+	radius  int32
+	report  na.Report
+	// previous, when set, is the plan of a lamp already admitted on the
+	// same journal: the repair wait must see a newer method. keys prefixes
+	// the report keys ("" on the first pass, "repair_" on the second).
+	previous *domain.GoalMethod
+	keys     string
+}
+
+// admitted is the lamp admitAndRelease saw built: its cell, definition
+// and the method that placed it.
+type admitted struct {
+	cell       domain.Cell
+	definition string
+	method     domain.GoalMethod
+	// released is the review revision that let go of the latch.
+	released uint64
+}
+
+// admitAndRelease follows one lighting method from commitment through the
+// build to the measured census releasing the latch: one lamp build on a
+// free interior cell within the placement radius of the interaction cell,
+// never on it, renewed across incidental cancellations.
+func admitAndRelease(ctx context.Context, a admission) (admitted, error) {
+	journal, service, report := a.journal, a.service, a.report
+	key := func(name string) string { return a.keys + name }
+	methodCtx, methodCancel := context.WithTimeout(ctx, 8*time.Minute)
+	goalID, method, err := na.WaitGoalMethod(methodCtx, journal, policy.MaintainLighting, a.previous)
+	methodCancel()
+	if err != nil {
+		return admitted{}, fmt.Errorf("lighting method: %w", err)
+	}
+	report[key("goal_id")] = string(goalID)
+	var builtCell domain.Cell
+	var builtDefinition string
+	for renewals := 0; ; renewals++ {
+		plan, err := journal.LoadPlan(ctx, method.Plan)
+		if err != nil {
+			return admitted{}, err
+		}
+		actions := plan.Spec.Actions()
+		if len(actions) != 1 {
+			return admitted{}, fmt.Errorf("lighting plan %s has %d actions, expected 1", method.Plan, len(actions))
+		}
+		b, ok := actions[0].Building()
+		if !ok {
+			return admitted{}, fmt.Errorf("lighting plan action is not a building: %#v", actions[0])
+		}
+		builtCell, builtDefinition = b.Cell(), b.Definition()
+		if builtDefinition != "TorchLamp" {
+			return admitted{}, fmt.Errorf("lighting admitted %s; a colony without a power source must choose the TorchLamp", builtDefinition)
+		}
+		if builtCell == a.work || !a.inside(builtCell) || max(abs(builtCell.X-a.work.X), abs(builtCell.Z-a.work.Z)) > a.radius {
+			return admitted{}, fmt.Errorf("lamp placed at %v: not a free interior cell within %d of the work cell %v", builtCell, a.radius, a.work)
+		}
+		report[key("lamp_cell")] = map[string]any{"x": builtCell.X, "z": builtCell.Z, "definition": builtDefinition}
+		doneCtx, doneCancel := context.WithTimeout(ctx, 10*time.Minute)
+		state, incidental, err := na.WaitPlanTerminal(doneCtx, journal, method.Plan)
+		doneCancel()
+		if err != nil {
+			return admitted{}, fmt.Errorf("lighting plan: %w", err)
+		}
+		if !incidental {
+			report[key("lighting_plan")] = string(method.Plan)
+			report[key("lighting_completed_tick")] = int64(state.Progress[0].View().Tick)
+			report[key("incidental_renewals")] = renewals
+			break
+		}
+		renewCtx, renewCancel := context.WithTimeout(ctx, 5*time.Minute)
+		_, method, err = na.WaitGoalMethod(renewCtx, journal, policy.MaintainLighting, &method)
+		renewCancel()
+		if err != nil {
+			return admitted{}, fmt.Errorf("renewed lighting method after incidental cancellation #%d: %w", renewals+1, err)
+		}
+	}
+
+	// The measured census releases the latch once the cell reads lit.
+	releaseCtx, releaseCancel := context.WithTimeout(ctx, 5*time.Minute)
+	released, err := waitRelease(releaseCtx, journal, service, a.stove)
+	releaseCancel()
+	if err != nil {
+		return admitted{}, fmt.Errorf("lighting release: %w", err)
+	}
+	report[key("released_review_revision")] = released.Revision
+	methods, err := lightingMethods(ctx, journal)
+	if err != nil {
+		return admitted{}, err
+	}
+	report[key("lighting_methods")] = len(methods)
+	return admitted{cell: builtCell, definition: builtDefinition, method: method, released: released.Revision}, nil
 }
 
 // finish summarizes the stopped service's flight recording and checks the

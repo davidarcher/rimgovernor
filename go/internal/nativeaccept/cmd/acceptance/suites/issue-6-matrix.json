@@ -16,6 +16,10 @@
     "acceptance": "protected fungus rooms: a room growing a plant that dies to light is never latched nor lit"
   },
   {
+    "name": "light/repair",
+    "acceptance": "layout changes: a lit room whose lamp is removed is re-latched from the dark census and relit with a replacement"
+  },
+  {
     "name": "clean/filthy",
     "acceptance": "filthy vs inherently dirty rooms: a filthy kitchen is cleaned, butchery and barn are never latched"
   },

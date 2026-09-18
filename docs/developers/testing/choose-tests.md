@@ -458,7 +458,8 @@ count) is both 25% and 5s over its baseline row's (flagged, never failing
 on its own; #176). The suite passes only when every case did.
 `cmd/acceptance/suites/issue-6-matrix.json` is issue #6's cross-slice
 acceptance matrix: one row per criterion in the issue text (dark and
-partially lit benches, protected fungus rooms, filthy vs inherently dirty
+partially lit benches, protected fungus rooms, lighting repair after a
+layout change (#161), filthy vs inherently dirty
 rooms, kitchen/butcher separation, unreachable stores, disconnected
 consumers, exhausted fuel and batteries, hot-weather freezer failure), each
 mapped to the case that exercises it; `suite_test.go` fails

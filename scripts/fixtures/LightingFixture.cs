@@ -29,6 +29,11 @@ namespace HomeBridge.BridgeTools
     //             must mark the work cell light-sensitive and the controller
     //             must never latch it nor place a lamp.
     //
+    // test/lighting_disrupt is the layout change of the repair case
+    // (light/repair, issue #161): it removes the lamp standing on a cell
+    // once the controller has lit the room, so the next census measures the
+    // bench dark again and the controller must replace the lamp.
+    //
     // Nothing here orders, builds or places anything on the controller's
     // behalf.
     public sealed class LightingFixture
@@ -175,6 +180,29 @@ namespace HomeBridge.BridgeTools
                     success = true, tick = Find.TickManager.TicksGame, glow = map.glowGrid.GroundGlowAt(cell),
                     plant = plant?.GetUniqueLoadID(), plantDef = plant?.def.defName, alive = plant != null && !plant.Destroyed,
                     growth = plant?.Growth, dying = plant?.Dying, diesToLight = plant?.def.plant?.diesToLight,
+                };
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
+        [Tool("test/lighting_disrupt", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture: remove the lamp standing on a cell (a layout change after the controller lit the room) and report the glow left on a work cell.")]
+        public async Task<object> Disrupt(IRimBridgeContext ctx, CancellationToken cancellationToken, int x, int z, int workX, int workZ)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                if (map == null || Current.Game == null || !Find.TickManager.Paused) return Refuse("A paused disposable colony map is required.");
+                var cell = new IntVec3(x, 0, z);
+                var workCell = new IntVec3(workX, 0, workZ);
+                if (!cell.InBounds(map) || !workCell.InBounds(map)) return Refuse("Cell out of bounds.");
+                var lamp = cell.GetThingList(map).FirstOrDefault(t => t is Building && t.TryGetComp<CompGlower>() != null);
+                if (lamp == null) return Refuse("No lamp stands on the cell.");
+                var removed = lamp.GetUniqueLoadID(); var removedDef = lamp.def.defName;
+                // Vanish, not deconstruct: no refunded wood left on the room's
+                // floor to take a placement cell from the replacement lamp.
+                lamp.Destroy(DestroyMode.Vanish);
+                return new {
+                    success = true, tick = Find.TickManager.TicksGame, removed, removedDef,
+                    cell = new { x = cell.x, z = cell.z }, glow = map.glowGrid.GroundGlowAt(workCell),
+                    setup = "Test-only removal of one standing lamp; the replacement lamp, its placement and the latch remain the controller's.",
                 };
             }, cancellationToken).ConfigureAwait(false);
         }
