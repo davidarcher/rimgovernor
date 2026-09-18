@@ -71,48 +71,19 @@ func main() {
 
 func run(ctx context.Context, root, output, gameID string, headless bool, report na.Report) error {
 	cfg := &na.Config{Root: root, Output: output, Headless: headless, GameID: gameID}
-	if err := cfg.PrepareConfig(); err != nil {
-		return fmt.Errorf("prepare profile: %w", err)
-	}
-	game, err := cfg.GameSection()
+	// Fixture: one colonist who already owns a bed (the known "previous
+	// bed" AssignBed guards against) and one roofed, unclaimed, compliant
+	// target bed. It runs BEFORE acquiring authority: the fixture edits
+	// pawn/building state directly outside any authority.Owned() scope,
+	// and NativeControlAuthority.RevokeExternal revokes any held lease for
+	// such external activity regardless of who holds it, mirroring
+	// recoveryareaaccept's own ordering.
+	s, err := na.OpenSession(ctx, cfg, report, na.Fixture{Op: "test/bed_assign_prepare"}, na.QuietRequired)
 	if err != nil {
 		return err
 	}
-	files, err := na.PackageFiles(fmt.Sprint(game["workingDir"]))
-	if err != nil {
-		return err
-	}
-	report["package_files"] = files
-	held, err := na.OpenGame(ctx, cfg)
-	if err != nil {
-		return err
-	}
-	defer held.Close(report)
-	client := held.Client
-	h := na.NewHarness(client, output)
-
-	if _, err := na.StartDebugGame(ctx, h, nil, na.QuietRequired); err != nil {
-		return err
-	}
-	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
-		return err
-	}
-	identityReply, err := h.Wire(ctx, "identity", "lifecycle_read_identity", map[string]any{})
-	if err != nil {
-		return err
-	}
-	_, loaded, err := na.Outcome(identityReply, "loaded")
-	if err != nil {
-		return err
-	}
-	loadedContext, _ := na.AsMap(loaded["context"])
-	identity, _ := na.AsMap(loadedContext["identity"])
-
-	names, err := h.Discovery(ctx)
-	if err != nil {
-		return err
-	}
-	report["discovery"] = names
+	defer s.Close()
+	h, identity, names, prepared := s.Harness, s.Identity, s.Names, s.Prepared
 	if !na.Contains(names, "rimgovernor/operations_execute") {
 		return fmt.Errorf("missing rimgovernor/operations_execute in discovery")
 	}
@@ -123,24 +94,6 @@ func run(ctx context.Context, root, output, gameID string, headless bool, report
 		return fmt.Errorf("missing rimgovernor/observations_list_buildings in discovery")
 	}
 
-	// Fixture: one colonist who already owns a bed (the known "previous
-	// bed" AssignBed guards against) and one roofed, unclaimed, compliant
-	// target bed. Run this BEFORE acquiring authority: the fixture edits
-	// pawn/building state directly outside any authority.Owned() scope,
-	// and NativeControlAuthority.RevokeExternal revokes any held lease for
-	// such external activity regardless of who holds it, mirroring
-	// recoveryareaaccept's own ordering.
-	prepared, err := h.Call(ctx, "prepare", "test/bed_assign_prepare", map[string]any{})
-	if err != nil {
-		return err
-	}
-	if success, _ := na.AsBool(prepared["success"]); !success {
-		return fmt.Errorf("prepare: bed_assign_prepare refused: %#v", prepared)
-	}
-	if na.AsString(prepared["colonyId"]) != na.AsString(identity["colonyId"]) ||
-		na.AsString(prepared["loadToken"]) != na.AsString(identity["loadToken"]) {
-		return fmt.Errorf("prepare: fixture identity does not match the fresh debug game")
-	}
 	pawnID := na.AsString(prepared["pawn"])
 	previousBedID := na.AsString(prepared["previousBed"])
 	bedID := na.AsString(prepared["bed"])

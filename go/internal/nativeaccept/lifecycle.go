@@ -246,6 +246,12 @@ func (s *Session) open(ctx context.Context, start Start, quiet QuietMode, keep [
 		s.Prepared = prepared
 		s.Report["prepared"] = prepared
 	}
+	// A QuietIfAvailable harness also runs against a production build,
+	// which carries no freeze tool; needs stay live there and the report
+	// has no frozen_needs.
+	if quiet == QuietIfAvailable && !Contains(names, FreezeNeedsTool) {
+		return nil
+	}
 	kept := make([]string, len(keep))
 	for i, need := range keep {
 		kept[i] = string(need)

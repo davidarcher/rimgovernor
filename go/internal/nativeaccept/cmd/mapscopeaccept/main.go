@@ -47,55 +47,19 @@ func main() {
 
 func run(ctx context.Context, root, output, gameID string, headless bool, report na.Report) error {
 	cfg := &na.Config{Root: root, Output: output, Headless: headless, GameID: gameID}
-	if err := cfg.PrepareConfig(); err != nil {
-		return fmt.Errorf("prepare profile: %w", err)
-	}
-	gabsExecutable, err := na.GABSExecutable(root, cfg.Configuration)
+	s, err := na.OpenSession(ctx, cfg, report, na.DebugStart{}, na.QuietRequired)
 	if err != nil {
 		return err
 	}
-	client, err := na.OpenBridgeSession(ctx, gabsExecutable, cfg.Configuration, gameID, 90*time.Second)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		stopCtx, stopCancel := context.WithTimeout(context.Background(), 60*time.Second)
-		defer stopCancel()
-		if stopped, err := client.GamesStop(stopCtx); err == nil {
-			report["stop"] = string(stopped.Envelope)
-		} else {
-			report["stop_error"] = err.Error()
-		}
-		_ = client.Close()
-	}()
-	h := na.NewHarness(client, output)
-	names, err := h.Discovery(ctx)
-	if err != nil {
-		return err
-	}
+	defer s.Close()
+	h, home := s.Harness, s.Identity
 	for _, tool := range []string{"rimgovernor/authority_read_status", "rimgovernor/authority_control", "rimgovernor/observations_read_status",
 		"rimgovernor/observations_list_pawns", "rimgovernor/presentation_colonists", "rimgovernor/presentation_selection",
 		"rimgovernor/operations_execute", "test/map_scope_generate", "test/map_scope_view"} {
-		if !na.Contains(names, tool) {
+		if !na.Contains(s.Names, tool) {
 			return fmt.Errorf("missing %s in discovery (fixture build required)", tool)
 		}
 	}
-	if _, err := na.StartDebugGame(ctx, h, names, na.QuietRequired); err != nil {
-		return err
-	}
-	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
-		return err
-	}
-	identityReply, err := h.Wire(ctx, "identity", "lifecycle_read_identity", map[string]any{})
-	if err != nil {
-		return err
-	}
-	_, loaded, err := na.Outcome(identityReply, "loaded")
-	if err != nil {
-		return err
-	}
-	loadedContext, _ := na.AsMap(loaded["context"])
-	home, _ := na.AsMap(loadedContext["identity"])
 	homeMap := int(na.AsNumber(home["mapId"]))
 
 	// Setup: Auto granted on the viewed (home) map.

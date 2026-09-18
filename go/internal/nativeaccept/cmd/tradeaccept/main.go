@@ -83,48 +83,12 @@ func main() {
 
 func run(ctx context.Context, root, output, gameID string, headless bool, report na.Report) error {
 	cfg := &na.Config{Root: root, Output: output, Headless: headless, GameID: gameID}
-	if err := cfg.PrepareConfig(); err != nil {
-		return fmt.Errorf("prepare profile: %w", err)
-	}
-	game, err := cfg.GameSection()
+	s, err := na.OpenSession(ctx, cfg, report, na.DebugStart{}, na.QuietRequired)
 	if err != nil {
 		return err
 	}
-	files, err := na.PackageFiles(fmt.Sprint(game["workingDir"]))
-	if err != nil {
-		return err
-	}
-	report["package_files"] = files
-	held, err := na.OpenGame(ctx, cfg)
-	if err != nil {
-		return err
-	}
-	defer held.Close(report)
-	client := held.Client
-	h := na.NewHarness(client, output)
-
-	if _, err := na.StartDebugGame(ctx, h, nil, na.QuietRequired); err != nil {
-		return err
-	}
-	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
-		return err
-	}
-	identityReply, err := h.Wire(ctx, "identity", "lifecycle_read_identity", map[string]any{})
-	if err != nil {
-		return err
-	}
-	_, loaded, err := na.Outcome(identityReply, "loaded")
-	if err != nil {
-		return err
-	}
-	loadedContext, _ := na.AsMap(loaded["context"])
-	identity, _ := na.AsMap(loadedContext["identity"])
-
-	names, err := h.Discovery(ctx)
-	if err != nil {
-		return err
-	}
-	report["discovery"] = names
+	defer s.Close()
+	h, identity, names := s.Harness, s.Identity, s.Names
 	for _, required := range []string{"rimgovernor/operations_execute", "rimgovernor/operations_preview", "rimgovernor/receipts_lookup", "rimgovernor/receipts_observe_progress"} {
 		if !na.Contains(names, required) {
 			return fmt.Errorf("missing %s in discovery", required)

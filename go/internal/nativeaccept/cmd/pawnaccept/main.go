@@ -51,51 +51,14 @@ func main() {
 
 func run(ctx context.Context, root, output, gameID string, headless bool, report nativeaccept.Report) error {
 	cfg := &nativeaccept.Config{Root: root, Output: output, Headless: headless, GameID: gameID}
-	if err := cfg.PrepareConfig(); err != nil {
-		return fmt.Errorf("prepare profile: %w", err)
-	}
-	game, err := cfg.GameSection()
+	s, err := nativeaccept.OpenSession(ctx, cfg, report, nativeaccept.DebugStart{}, nativeaccept.QuietIfAvailable)
 	if err != nil {
 		return err
 	}
-	if files, err := nativeaccept.PackageFiles(fmt.Sprint(game["workingDir"])); err == nil {
-		report["package_files"] = files
-	} else {
-		return err
-	}
-	gabsExecutable, err := nativeaccept.GABSExecutable(root, cfg.Configuration)
-	if err != nil {
-		return err
-	}
-	client, err := nativeaccept.OpenBridgeSession(ctx, gabsExecutable, cfg.Configuration, gameID, 60*time.Second)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		stopCtx, stopCancel := context.WithTimeout(context.Background(), 60*time.Second)
-		defer stopCancel()
-		if stopped, err := client.GamesStop(stopCtx); err == nil {
-			report["stop"] = string(stopped.Envelope)
-		} else {
-			report["stop_error"] = err.Error()
-		}
-		_ = client.Close()
-	}()
-	h := nativeaccept.NewHarness(client, output)
-
-	names, err := h.Discovery(ctx)
-	if err != nil {
-		return err
-	}
-	report["discovery"] = names
-	if !nativeaccept.Contains(names, "rimgovernor/observations_list_pawns") {
+	defer s.Close()
+	h := s.Harness
+	if !nativeaccept.Contains(s.Names, "rimgovernor/observations_list_pawns") {
 		return fmt.Errorf("missing rimgovernor/observations_list_pawns in discovery")
-	}
-	if _, err := nativeaccept.StartDebugGame(ctx, h, nil, nativeaccept.QuietIfAvailable); err != nil {
-		return err
-	}
-	if _, err := h.Call(ctx, "pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
-		return err
 	}
 	identityBefore, err := h.Wire(ctx, "identity-before", "lifecycle_read_identity", map[string]any{})
 	if err != nil {
