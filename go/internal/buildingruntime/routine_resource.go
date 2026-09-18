@@ -60,6 +60,10 @@ type RoutineResourcePlanner struct {
 type RoutineResourceResult struct {
 	Reason RoutineBuildingReason
 	Plan   domain.PlanID
+	// NativeWorkTicks asks for a clock window without a plan of its own: a
+	// standing production bill whose first iteration completed needs game
+	// time, not another method, while its resource is still in deficit.
+	NativeWorkTicks uint32
 	// Sources is populated whenever the bench/recipe production path
 	// (policy.SelectResourceMethod) could not fund the dynamically-selected
 	// resource and a fresh native ListResourceSources/ReadResourceSources

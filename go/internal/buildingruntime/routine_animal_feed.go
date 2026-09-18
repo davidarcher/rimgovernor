@@ -84,6 +84,20 @@ func (r *RoutineAnimalFeedPlanner) step(call, epoch context.Context, arbiter *st
 			return RoutineResourceResult{Reason: BuildingMethodExistingWork}, nil
 		}
 	}
+	// A completed bill plan retires at the next review and leaves
+	// GoalState.Methods, so the standing-bill check reads the epoch's history.
+	history, err := p.journal.LoadGoalMethods(call, goal.Goal.ID, goal.Goal.Epoch)
+	if err != nil {
+		return RoutineResourceResult{}, err
+	}
+	standingBill := false
+	for _, method := range history {
+		plan, err := p.journal.LoadPlan(call, method.Plan)
+		if err != nil {
+			return RoutineResourceResult{}, err
+		}
+		standingBill = standingBill || completedBillPlan(plan)
+	}
 	identityReply, _, err := r.reviewer.native.Identity(call)
 	if err != nil {
 		return RoutineResourceResult{}, err
@@ -148,5 +162,34 @@ func (r *RoutineAnimalFeedPlanner) step(call, epoch context.Context, arbiter *st
 	default:
 		return RoutineResourceResult{Reason: BuildingMethodRefused}, nil
 	}
-	return r.core.dispatchResourceGoal(call, epoch, state, goal, review.Tick, identity, choice.Resource, choice.Target, stock, started)
+	result, err := r.core.dispatchResourceGoal(call, epoch, state, goal, review.Tick, identity, choice.Resource, choice.Target, stock, started)
+	if err != nil {
+		return result, err
+	}
+	// A completed kibble bill is a standing "do until" bill: its first
+	// iteration is what completed the action, the rest needs colonists to
+	// keep cooking. With the deficit still open and no new method, ask for
+	// game time instead of leaving the clock refused as no_work.
+	if result.Reason == BuildingMethodUsed && standingBill {
+		result.NativeWorkTicks = animalFeedBillWorkTicks
+	}
+	return result, nil
+}
+
+// animalFeedBillWorkTicks bounds one clock window spent letting a standing
+// kibble bill run; the next review re-measures the pet's reachable feed.
+const animalFeedBillWorkTicks = 2500
+
+// completedBillPlan reports a plan whose every action is a production bill
+// that reached completed: the bill exists natively and produced at least once.
+func completedBillPlan(plan store.PlanState) bool {
+	if len(plan.Progress) == 0 {
+		return false
+	}
+	for _, progress := range plan.Progress {
+		if progress.Action().Kind() != domain.ProductionBillAction || progress.View().Stage != domain.Completed {
+			return false
+		}
+	}
+	return true
 }

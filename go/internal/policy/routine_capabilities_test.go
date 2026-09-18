@@ -95,3 +95,29 @@ func TestRoutineSleepingMethodFollowsDeclaredCapability(t *testing.T) {
 		}
 	}
 }
+
+// The animal needs are admitted through the same capability gate as every
+// other optional routine goal: declared, they rank and may take a development
+// slot; undeclared, they stay MethodUnavailable without erasing the need.
+func TestRoutineAnimalNeedsRankWhenTheirMethodIsDeclared(t *testing.T) {
+	f := stableRoutine()
+	f.UpkeepIssued = map[GoalID]bool{MaintainAnimalFeed: true, MaintainAnimalContainment: true}
+	for _, declared := range []bool{true, false} {
+		f.AvailableMethods = domain.Known([]GoalID{})
+		if declared {
+			f.AvailableMethods = domain.Known([]GoalID{MaintainAnimalFeed, MaintainAnimalContainment})
+		}
+		request := developmentFixture()
+		request.Limit = 2
+		request.Goals = needs(t, f, RoutineLatches{}).Goals
+		got := selected(rank(t, request))
+		if declared != (len(got) == 2) {
+			t.Fatalf("declared=%v selected=%v", declared, got)
+		}
+		for _, g := range request.Goals {
+			if (g.ID == MaintainAnimalFeed || g.ID == MaintainAnimalContainment) && g.MethodUnavailable == declared {
+				t.Fatalf("declared=%v goal=%+v", declared, g)
+			}
+		}
+	}
+}

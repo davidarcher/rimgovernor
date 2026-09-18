@@ -280,7 +280,13 @@ bills are reused, player resource restrictions remain authoritative, and require
 production work joins shared allocation. The method never changes diets, animal
 areas, breeding or removal settings. Adequate global stock with insufficient animal
 access or rot runway produces an explicit staging blocker rather than more bills.
-Production receipts do not prove either access or ingestion.
+Production receipts do not prove either access or ingestion. Both animal needs
+rank for a development slot like every other optional goal: the declared
+`animal-feed`/`animal-containment` capability admits them and a known unfed or
+uncontained target is a full deficit. A kibble bill completes on its first
+observed iteration; while the feed deficit persists afterwards the planner asks
+for bounded clock windows (2500 ticks) so colonists keep working the standing
+bill instead of leaving the clock refused as `no_work`.
 
 `MaintainFoodStorage` tracks perishable, not-yet-rotted nutrition split between
 stock already sitting in an adequately covered or enclosed/cold site and stock

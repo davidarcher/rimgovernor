@@ -669,6 +669,13 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	if out.DefenseLayout != nil {
 		nativeWorkTicks = max(nativeWorkTicks, out.DefenseLayout.NativeWorkTicks)
 	}
+	// A standing production bill past its first iteration needs game time,
+	// not another method (RoutineResourceResult.NativeWorkTicks).
+	for _, result := range []*RoutineResourceResult{out.Resource, out.AnimalFeed} {
+		if result != nil {
+			nativeWorkTicks = max(nativeWorkTicks, result.NativeWorkTicks)
+		}
+	}
 	if !work && s.config.RoutineMethods && nativeWorkTicks > 0 {
 		work = true
 		start.MaxTicks = min(start.MaxTicks, nativeWorkTicks)

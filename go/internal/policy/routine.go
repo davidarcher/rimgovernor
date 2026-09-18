@@ -938,8 +938,15 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		}
 		addAssessment(animalNeed.id, priority, recovered)
 		if !positive(recovered) {
+			// Both animal needs have composed planners (RoutineAnimalContainment
+			// Planner, RoutineAnimalFeedPlanner); availability is gated below
+			// through AvailableMethods like MaintainWaste. Like waste, the
+			// deficit is census-driven: any uncontained or unfed target is a
+			// full deficit, so a known need ranks for a development slot.
 			addGoal(animalNeed.id, priority)
-			r.Goals[len(r.Goals)-1].MethodUnavailable = true
+			if _, known := recovered.Value(); known {
+				r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
+			}
 		}
 	}
 	wasteRecovered := domain.Unknown[bool]()

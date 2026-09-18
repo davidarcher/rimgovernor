@@ -827,11 +827,19 @@ func followMethodsExcluding(ctx context.Context, journal *store.Store, need poli
 		if err != nil {
 			return store.PlanState{}, err
 		}
+		// A harvest acquisition designates one action per plant, so a plan
+		// may carry several actions; every one must be acceptable.
 		actions := plan.Spec.Actions()
-		if len(actions) != 1 {
-			return store.PlanState{}, fmt.Errorf("%s plan %s has %d actions, expected 1", label, method.Plan, len(actions))
+		if len(actions) == 0 {
+			return store.PlanState{}, fmt.Errorf("%s plan %s has no actions", label, method.Plan)
 		}
-		if err := accept(actions[0]); err != nil {
+		var rejectedErr error
+		for _, action := range actions {
+			if rejectedErr = accept(action); rejectedErr != nil {
+				break
+			}
+		}
+		if err := rejectedErr; err != nil {
 			rejected++
 			report[label+"_rejected_methods"] = rejected
 			if rejected > 16 {
@@ -871,7 +879,12 @@ func followMethodsExcluding(ctx context.Context, journal *store.Store, need poli
 			deadline = time.Now().Add(10 * time.Minute)
 			continue
 		}
-		report[label+"_completed_tick"] = int64(state.Progress[0].View().Tick)
+		completed := int64(0)
+		for _, progress := range state.Progress {
+			completed = max(completed, int64(progress.View().Tick))
+		}
+		report[label+"_completed_tick"] = completed
+		report[label+"_actions"] = len(actions)
 		report[label+"_recovered_by"] = "controller_order"
 		return state, nil
 	}
