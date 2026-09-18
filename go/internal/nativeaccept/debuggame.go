@@ -27,10 +27,27 @@ const (
 	PlanetCoverageEnv     = "RIMGOVERNOR_ACCEPT_PLANET_COVERAGE"
 )
 
-// DebugStart is the map size and planet coverage a start is generated with.
+// DebugStart is the map size and planet coverage a start is generated with,
+// and optionally the biomes it settles: Biomes is a comma-separated list of
+// BiomeDef names in preference order, and the start lands on a random valid
+// settlement tile of the first one the generated planet offers (issue #172:
+// a case whose assertion needs a food-bearing map cannot leave the biome to
+// the roll, least of all under the cached start, which pins one roll per
+// root). Biomes needs DebugStartTool, so a fixture build.
 type DebugStart struct {
 	MapSize        int
 	PlanetCoverage float64
+	Biomes         string
+}
+
+// withDefaults fills a zero size and coverage from DefaultDebugStart,
+// keeping the biome preference.
+func (d DebugStart) withDefaults() DebugStart {
+	if d.MapSize == 0 && d.PlanetCoverage == 0 {
+		def := DefaultDebugStart()
+		d.MapSize, d.PlanetCoverage = def.MapSize, def.PlanetCoverage
+	}
+	return d
 }
 
 // DefaultDebugStart is the small start, or the environment's override.
@@ -138,11 +155,18 @@ func StartDebugGameSized(ctx context.Context, h *Harness, names []string, mode Q
 		}
 		return applyQuiet(ctx, h, apply)
 	}
+	if !Contains(names, DebugStartTool) && start.Biomes != "" {
+		return nil, fmt.Errorf("%s not in discovery but the start asks for biome %s: rebuild the native mod with any -Fixture flag (every fixture build includes DebugStartFixture)", DebugStartTool, start.Biomes)
+	}
 	if Contains(names, DebugStartTool) {
 		if err := start.Validate(); err != nil {
 			return nil, err
 		}
-		armed, err := h.Call(ctx, "debug-start", DebugStartTool, map[string]any{"mapSize": start.MapSize, "planetCoverage": start.PlanetCoverage})
+		args := map[string]any{"mapSize": start.MapSize, "planetCoverage": start.PlanetCoverage}
+		if start.Biomes != "" {
+			args["biomes"] = start.Biomes
+		}
+		armed, err := h.Call(ctx, "debug-start", DebugStartTool, args)
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", DebugStartTool, err)
 		}

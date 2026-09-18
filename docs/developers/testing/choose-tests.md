@@ -240,6 +240,12 @@ guaranteed tundra or extreme-desert tile). A harness that reasons about
 surrounding terrain calls `na.StartDebugGameSized` with what it needs (150
 is the floor, 400 the ceiling); fixtures read `map.Size` rather than
 assuming 250.
+A case whose assertion needs a particular kind of map sets
+`na.DebugStart.Biomes` (a comma-separated `BiomeDef` preference; the
+fixture's `biomes` parameter): the start settles a random valid tile of
+the first biome the planet offers and fails when it offers none, and the
+cached start is keyed on the preference. storage/food pins a berry-rich
+biome this way rather than leaving food to the roll (#172).
 
 Bound waits by stall, not only by ceiling. A broken run stops changing long
 before its wall-clock budget runs out, so a poll loop goes through
@@ -381,7 +387,7 @@ grant.
 ### Loading the debug start instead of generating it
 
 By default `StartDebugGame` loads a saved copy of the quick start
-(`RimGovernor-debug-<size>-<coverage>[-<dlc>]` in `profile/Saves`,
+(`RimGovernor-debug-<size>-<coverage>[-<dlc>][-<biomes>]` in `profile/Saves`,
 written by the first start that misses it) instead of generating a world
 and map: ~2.7s against ~5.4s on a warm process, surgery/queue 14s to 10s
 on a kept game. The loaded colony is the same one every run rather than

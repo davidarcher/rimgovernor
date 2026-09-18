@@ -37,15 +37,17 @@ type Start interface {
 func (d DebugStart) saves() []string { return nil }
 
 func (d DebugStart) load(ctx context.Context, s *Session, quiet QuietMode) (map[string]any, error) {
-	if d == (DebugStart{}) {
-		d = DefaultDebugStart()
-	}
+	d = d.withDefaults()
 	quietReply, err := StartDebugGameSized(ctx, s.Harness, s.Names, quiet, d)
 	if err != nil {
 		return nil, err
 	}
 	s.Report["quiet"] = quietReply != nil
-	return map[string]any{"kind": "debug", "mapSize": d.MapSize, "planetCoverage": d.PlanetCoverage}, nil
+	row := map[string]any{"kind": "debug", "mapSize": d.MapSize, "planetCoverage": d.PlanetCoverage}
+	if d.Biomes != "" {
+		row["biomes"] = d.Biomes
+	}
+	return row, nil
 }
 
 // Save loads a save from the profile (rimworld/load_game_ready). The save's

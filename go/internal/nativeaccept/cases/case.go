@@ -30,7 +30,8 @@ type Start interface {
 }
 
 // DebugStart starts RimWorld's debug colony on Size, or on the small
-// default (na.DefaultDebugStart) when Size is zero.
+// default (na.DefaultDebugStart) when Size is zero; Size.Biomes pins the
+// start to a biome the assertion needs (fixture builds only).
 type DebugStart struct {
 	Size na.DebugStart
 }
@@ -66,7 +67,11 @@ func (Fixture) start()      {}
 func (Owned) start()        {}
 
 func (d DebugStart) Describe() map[string]any {
-	return map[string]any{"kind": "debug", "mapSize": d.Size.MapSize, "planetCoverage": d.Size.PlanetCoverage}
+	row := map[string]any{"kind": "debug", "mapSize": d.Size.MapSize, "planetCoverage": d.Size.PlanetCoverage}
+	if d.Size.Biomes != "" {
+		row["biomes"] = d.Size.Biomes
+	}
+	return row
 }
 func (s Save) Describe() map[string]any { return map[string]any{"kind": "save", "name": s.Name} }
 func (f Fixture) Describe() map[string]any {

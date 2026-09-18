@@ -12,6 +12,10 @@ func TestCachedStartName(t *testing.T) {
 	if got := cachedStartName(DebugStart{MapSize: 250, PlanetCoverage: 0.3}); got != "RimGovernor-debug-250-0_3-royalty-biotech" {
 		t.Errorf("name = %q", got)
 	}
+	startCache.expansions = nil
+	if got := cachedStartName(DebugStart{MapSize: 200, PlanetCoverage: 0.05, Biomes: "TemperateForest, TropicalRainforest"}); got != "RimGovernor-debug-200-0_05-temperateforest-tropicalrainforest" {
+		t.Errorf("name = %q", got)
+	}
 }
 
 func TestKeepGameAndCachedStartAreOnUnlessOptedOut(t *testing.T) {

@@ -14,7 +14,7 @@ import (
 // (issue #91: a load is ~2.7s where a warm quick start is ~5.4s). It is on
 // by default. The first start under a given map size, planet coverage and
 // expansion set generates as before, saves the result as
-// RimGovernor-debug-<size>-<coverage>[-<expansions>] through
+// RimGovernor-debug-<size>-<coverage>[-<expansions>][-<biomes>] through
 // lifecycle_save, and copies it into profile/Saves so every later Prepare
 // carries it; later starts load it (rimworld/load_game_ready). The quiet
 // storyteller is applied after either path, as before. Delete the save to
@@ -39,6 +39,11 @@ func cachedStartName(start DebugStart) string {
 	name := fmt.Sprintf("RimGovernor-debug-%d-%g", start.MapSize, start.PlanetCoverage)
 	if len(startCache.expansions) > 0 {
 		name += "-" + strings.ToLower(strings.Join(startCache.expansions, "-"))
+	}
+	// A biome preference is part of what the save satisfies: a start pinned
+	// to a food-bearing biome must not load a plain roll's save (#172).
+	if start.Biomes != "" {
+		name += "-" + strings.ToLower(strings.ReplaceAll(strings.ReplaceAll(start.Biomes, " ", ""), ",", "-"))
 	}
 	return strings.ReplaceAll(name, ".", "_")
 }
