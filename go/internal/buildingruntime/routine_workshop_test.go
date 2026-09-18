@@ -207,6 +207,59 @@ func TestWorkshopFurnishingOnlyPreviewsHostingRoomsAndFallsBackToShell(t *testin
 	}
 }
 
+// A bench anchor the native preview rejects facing north (its interaction
+// spot on a wall) is retried facing east, south and west before the cell is
+// given up; other definitions keep the single north preview.
+func TestWorkshopBenchPreviewRetriesRotations(t *testing.T) {
+	t.Parallel()
+	workshop, _ := policy.Facility(policy.RoomRoleWorkshop)
+	hosting := domain.Cell{X: 3, Z: 2}
+	rooms := domain.Known(policy.RoomObservation{Rooms: []policy.Room{{ID: "r", Role: domain.Known(policy.RoomRoleRoom), Cells: []domain.Cell{hosting}}}})
+	facts := func(tick domain.Tick) observation.ColonyProjection {
+		return observation.ColonyProjection{Bounds: policy.Bounds{Width: 10, Height: 10}, Center: hosting, Identity: observation.Identity{Tick: tick}, Cells: []policy.SiteCell{{Cell: hosting, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false), Roofed: domain.Known(true), Indoors: domain.Known(true)}}, Rooms: rooms}
+	}
+	rejectUnless := func(accepted domain.Rotation) func(context.Context, *bridge.BuildingPreview) {
+		return func(_ context.Context, p *bridge.BuildingPreview) {
+			b, _ := p.Preview.Action.Building()
+			p.Preview.Footprint = domain.Known([]domain.Cell{b.Cell()})
+			p.Preview.CanPlace = domain.Known(b.Rotation() == accepted)
+		}
+	}
+	t.Run("bench turns east", func(t *testing.T) {
+		planner, _, session, _, native := sleepingFixture(t)
+		planner.goal, planner.definition, planner.environment, planner.facility = policy.MaintainResource, "FueledSmithy", policy.PlacementIndoors, &workshop
+		planner.workshop = &workshopSelection{resource: "MeleeWeapon_Gladius"}
+		native.onPreview = rejectUnless(domain.East)
+		selected, _, reason, err := planner.previewMethod(context.Background(), session.State().Snapshot, facts(domain.Tick(native.reply.GetObserved().Context.GetTick())), nil, 1, func() error { return nil })
+		if err != nil || reason != "" || len(selected) != 1 {
+			t.Fatal(selected, reason, err)
+		}
+		b, _ := selected[0].Action.Building()
+		if b.Cell() != hosting || b.Rotation() != domain.East || native.previews != 2 {
+			t.Fatal(b, native.previews)
+		}
+	})
+	t.Run("no facing fits", func(t *testing.T) {
+		planner, _, session, _, native := sleepingFixture(t)
+		planner.goal, planner.definition, planner.environment, planner.facility = policy.MaintainResource, "FueledSmithy", policy.PlacementIndoors, &workshop
+		planner.workshop = &workshopSelection{resource: "MeleeWeapon_Gladius"}
+		native.onPreview = rejectUnless("")
+		selected, _, reason, err := planner.previewMethod(context.Background(), session.State().Snapshot, facts(domain.Tick(native.reply.GetObserved().Context.GetTick())), nil, 1, func() error { return nil })
+		if err != nil || reason != BuildingMethodNoSpace || len(selected) != 0 || native.previews != 4 {
+			t.Fatal(selected, reason, err, native.previews)
+		}
+	})
+	t.Run("comfort keeps north", func(t *testing.T) {
+		planner, _, session, _, native := sleepingFixture(t)
+		planner.goal, planner.definition, planner.environment, planner.facility = policy.EnsureComfort, "Table1x2c", policy.PlacementIndoors, &workshop
+		native.onPreview = rejectUnless(domain.East)
+		selected, _, reason, err := planner.previewMethod(context.Background(), session.State().Snapshot, facts(domain.Tick(native.reply.GetObserved().Context.GetTick())), nil, 1, func() error { return nil })
+		if err != nil || reason != BuildingMethodNoSpace || len(selected) != 0 || native.previews != 1 {
+			t.Fatal(selected, reason, err, native.previews)
+		}
+	})
+}
+
 func TestWorkshopShellWaitsWhileInitialShelterIsOwed(t *testing.T) {
 	t.Parallel()
 	r, db, _ := shelterFixture(t)

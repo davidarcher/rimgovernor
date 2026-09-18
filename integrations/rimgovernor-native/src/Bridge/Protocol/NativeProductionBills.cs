@@ -26,6 +26,14 @@ namespace HomeBridge.BridgeTools {
   });
   internal static Obs.SnapshotRef Snapshot(Thing bench,IBillGiver giver,Common.ObservationContext context)=>new Obs.SnapshotRef{Context=context.Clone(),EntityId=bench.GetUniqueLoadID(),Token=Hash(w=>{w.Write(context.Identity.ColonyId);w.Write(context.Identity.LoadToken);w.Write(context.Identity.MapId);w.Write(bench.GetUniqueLoadID());w.Write(giver.BillStack.Count);if(giver.BillStack.Count>15)throw new InvalidOperationException("Bill stack bound");foreach(var b in giver.BillStack.Bills){w.Write(Configuration(b));w.Write(b is Bill_Production p&&p.paused);}})};
   internal static bool Usable(Thing bench)=>bench.Spawned&&ProtoBoundary.IsLoaded(bench.Map)&&bench.Faction==Faction.OfPlayer&&!bench.IsForbidden(Faction.OfPlayer)&&!bench.Position.Fogged(bench.Map)&&!bench.IsBurning()&&bench is IBillGiver g&&g.CurrentlyUsableForBills();
+  // Adding a bill is the player's act of queuing work, and the game lets a
+  // player queue it on an empty fueled bench: haulers refuel the bench on
+  // their own once a bill waits there. Building_WorkTable.CurrentlyUsableForBills
+  // is false without fuel, so a freshly built smithy could never receive
+  // its first bill (#155 M4: the production ladder stalled on the bench
+  // rung's own product). Only the fuel condition is relaxed; a bench that
+  // is unusable for any other reason still refuses.
+  internal static bool UsableForNewBill(Thing bench)=>Usable(bench)||bench.Spawned&&ProtoBoundary.IsLoaded(bench.Map)&&bench.Faction==Faction.OfPlayer&&!bench.IsForbidden(Faction.OfPlayer)&&!bench.Position.Fogged(bench.Map)&&!bench.IsBurning()&&bench is Building_WorkTable table&&table.UsableForBillsAfterFueling();
   // Ordinary production: every product is a spawnable item (food, kibble,
   // blocks, weapons, apparel alike); corpse butchering keeps its special case.
   internal static bool Recipe(Thing bench,RecipeDef recipe)=>recipe.AvailableNow&&recipe.AvailableOnNow(bench)&&bench.def.AllRecipes.Contains(recipe)&&(recipe.defName=="ButcherCorpseFlesh"||recipe.products.Count>0&&recipe.products.All(p=>Product(p.thingDef)));
@@ -43,15 +51,32 @@ namespace HomeBridge.BridgeTools {
    if(command.RecipeDef=="ButcherCorpseFlesh")return s.Equals(new Operations.BillSettings{RepeatMode=Operations.RepeatMode.Forever,Suspended=false,IngredientSearchRadius=40,Store=new Operations.BillStore{Mode=Operations.StoreMode.DropOnFloor}});
    return s.Equals(expected)&&s.RepeatMode==Operations.RepeatMode.Target&&s.HasTargetCount&&s.TargetCount>=1&&s.TargetCount<=10000&&s.HasUnpauseThreshold&&s.UnpauseThreshold==Math.Max(1,s.TargetCount/2)&&s.HasPauseWhenSatisfied&&s.PauseWhenSatisfied;
   }
+  // The refusal names the condition that failed: the production ladder's
+  // bill rung reads only this message back (#155 M4 run 9 stalled on the
+  // one-line summary), and each check below is a different repair.
   private static bool Prepare(Operations.AddBill command,Common.ObservationContext context,out Thing? bench,out IBillGiver? giver,out RecipeDef? recipe,out Common.Failure failure){
-   bench=null;giver=null;recipe=null;failure=ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,"Production bill requires unchanged native bench, available recipe and assigned skilled worker.");
+   bench=null;giver=null;recipe=null;
+   Common.Failure Refuse(string why){return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,"Production bill requires unchanged native bench, available recipe and assigned skilled worker: "+why);}
+   failure=Refuse("invalid request");
    if(!Valid(command)||!NativeProductionTracking.Ready)return false;
    bench=ProtoBoundary.LoadedMap(context).listerThings.AllThings.FirstOrDefault(t=>t.GetUniqueLoadID()==command.Bench.EntityId);giver=bench as IBillGiver;
-   if(bench==null||giver==null||!Usable(bench)||giver.BillStack.Count>=15||Snapshot(bench,giver,context).Token!=command.Bench.ExpectedSnapshotToken||giver.BillStack.Bills.Any(b=>b.recipe.defName==command.RecipeDef))return false;
-   recipe=DefDatabase<RecipeDef>.GetNamedSilentFail(command.RecipeDef);if(recipe==null||!Recipe(bench,recipe))return false;
-   if(command.RecipeDef!="ButcherCorpseFlesh"&&(recipe.WorkerCounter.GetType()!=typeof(RecipeWorkerCounter)||recipe.specialProducts!=null||recipe.products.Count!=1))return false;
+   if(bench==null||giver==null){failure=Refuse("bench "+command.Bench.EntityId+" is not a loaded bill giver");return false;}
+   if(!UsableForNewBill(bench)){failure=Refuse("bench is not usable for bills");return false;}
+   if(giver.BillStack.Count>=15){failure=Refuse("bill stack is full");return false;}
+   if(Snapshot(bench,giver,context).Token!=command.Bench.ExpectedSnapshotToken){failure=Refuse("bench bill stack changed since it was read");return false;}
+   if(giver.BillStack.Bills.Any(b=>b.recipe.defName==command.RecipeDef)){failure=Refuse("bench already carries a "+command.RecipeDef+" bill");return false;}
+   recipe=DefDatabase<RecipeDef>.GetNamedSilentFail(command.RecipeDef);
+   if(recipe==null||!Recipe(bench,recipe)){failure=Refuse("recipe "+command.RecipeDef+" is not available on the bench");return false;}
+   if(command.RecipeDef!="ButcherCorpseFlesh"&&(recipe.WorkerCounter.GetType()!=typeof(RecipeWorkerCounter)||recipe.specialProducts!=null||recipe.products.Count!=1)){failure=Refuse("recipe "+command.RecipeDef+" is not ordinary single-product work");return false;}
    var target=bench;var wanted=recipe;var work=NativeBillsObservationTools.WorkType(bench.def,recipe);
-   return work!=null&&ProtoBoundary.LoadedMap(context).mapPawns.FreeColonistsSpawned.Any(p=>!p.Dead&&!p.Downed&&!p.Drafted&&!p.InMentalState&&p.workSettings?.Initialized==true&&p.workSettings.GetPriority(work)>0&&!p.WorkTypeIsDisabled(work)&&!target.IsForbidden(p)&&p.Position.DistanceTo(target.Position)<=40&&p.CanReach(target,PathEndMode.InteractionCell,Danger.None)&&(wanted.skillRequirements==null||wanted.skillRequirements.All(s=>p.skills?.GetSkill(s.skill)!=null&&!p.skills.GetSkill(s.skill).TotallyDisabled&&p.skills.GetSkill(s.skill).Level>=s.minLevel)));
+   if(work==null){failure=Refuse("recipe "+command.RecipeDef+" has no work type on "+bench.def.defName);return false;}
+   var colonists=ProtoBoundary.LoadedMap(context).mapPawns.FreeColonistsSpawned.Where(p=>!p.Dead&&!p.Downed&&!p.Drafted&&!p.InMentalState&&p.workSettings?.Initialized==true).ToList();
+   if(colonists.Any(p=>p.workSettings.GetPriority(work)>0&&!p.WorkTypeIsDisabled(work)&&!target.IsForbidden(p)&&p.Position.DistanceTo(target.Position)<=40&&p.CanReach(target,PathEndMode.InteractionCell,Danger.None)&&(wanted.skillRequirements==null||wanted.skillRequirements.All(s=>p.skills?.GetSkill(s.skill)!=null&&!p.skills.GetSkill(s.skill).TotallyDisabled&&p.skills.GetSkill(s.skill).Level>=s.minLevel))))return true;
+   var assigned=colonists.Count(p=>p.workSettings.GetPriority(work)>0&&!p.WorkTypeIsDisabled(work));
+   var reaching=colonists.Count(p=>!target.IsForbidden(p)&&p.Position.DistanceTo(target.Position)<=40&&p.CanReach(target,PathEndMode.InteractionCell,Danger.None));
+   var skills=wanted.skillRequirements==null?"none":string.Join(",",wanted.skillRequirements.Select(s=>s.skill.defName+">="+s.minLevel));
+   failure=Refuse("no free colonist works "+work.defName+" within reach of the bench with the recipe's skills (colonists "+colonists.Count+", assigned "+assigned+", reaching "+reaching+", skills "+skills+")");
+   return false;
   }
   internal static Operations.PreviewReply Preview(Operations.AddBill command,Common.ObservationContext context)=>Prepare(command,context,out _,out _,out _,out var failure)?new Operations.PreviewReply{Evaluated=new Operations.PreviewEvaluation{Context=context.Clone(),Accepted=true}}:new Operations.PreviewReply{Failure=failure};
   internal static Operations.ExecuteReply Execute(NativeOperationState state,Operations.ExecuteRequest request,Common.ObservationContext context){

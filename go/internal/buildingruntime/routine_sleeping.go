@@ -115,6 +115,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 			indoor.definition = ""
 		}
 		result, err := indoor.step(call, epoch, arbiter)
+		clockSchedulerLog("%s: indoor step reason=%v err=%v", r.goal, result.Reason, err)
 		if err != nil || result.Reason != BuildingMethodNoSpace && result.Reason != BuildingMethodUsed {
 			return result, err
 		}
@@ -674,6 +675,13 @@ func (r *RoutineBuildingPlanner) previewMethod(call context.Context, snapshot do
 			roomCells[c] = true
 		}
 		if len(roomCells) == 0 {
+			if clockSchedulerDebug {
+				var summary []string
+				for _, room := range rooms.Rooms {
+					summary = append(summary, fmt.Sprintf("%s role=%v enclosed=%v cells=%d", room.ID, room.Role, room.Enclosed, len(room.Cells)))
+				}
+				clockSchedulerLog("%s: no room hosts the facility %+v; rooms=%v", r.goal, *r.facility, summary)
+			}
 			return nil, policy.StockObservation{}, BuildingMethodNoSpace, nil
 		}
 	}
@@ -717,42 +725,62 @@ func (r *RoutineBuildingPlanner) previewMethod(call context.Context, snapshot do
 	unknownWatch := false
 	usedCells := map[domain.Cell]bool{}
 	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
+	// A workshop bench has an interaction spot on one side, so a small room
+	// often rejects the north-facing anchor ("interaction spot is blocked by
+	// wooden wall") while another facing fits; every other definition keeps
+	// the single native-default orientation.
+	rotations := []domain.Rotation{domain.North}
+	if r.workshop != nil {
+		rotations = []domain.Rotation{domain.North, domain.East, domain.South, domain.West}
+	}
 	for i, c := range search.Candidates() {
-		if err = check(); err != nil {
-			return nil, policy.StockObservation{}, "", err
-		}
-		b, err := domain.NewBuilding(r.definition, c, domain.North, r.stuff)
-		if err != nil {
-			return nil, policy.StockObservation{}, "", err
-		}
-		a, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", snapshot.Plan, i)), b)
-		if err != nil {
-			return nil, policy.StockObservation{}, "", err
-		}
-		preview, _, err := r.native.PreviewBuilding(call, a, snapshot)
-		if err != nil {
-			return nil, policy.StockObservation{}, "", err
-		}
-		if err = check(); err != nil {
-			return nil, policy.StockObservation{}, "", err
-		}
-		if preview.Preview.Action != a || !preview.Stock.Snapshot.Matches(snapshot) || preview.Stock.Tick != facts.Identity.Tick {
-			return nil, policy.StockObservation{}, "", ErrControl
-		}
-		made, known := preview.Preview.MadeFromStuff.Value()
-		if r.goal == policy.EnsureComfort && r.definition == "HorseshoesPin" {
-			accessible, known := preview.Preview.WatchCellsAccessible.Value()
-			unknownWatch = unknownWatch || !known
-			if !known || !accessible {
-				continue
+		var choice policy.Preview
+		var preview bridge.BuildingPreview
+		ok := false
+		for _, rotation := range rotations {
+			if err = check(); err != nil {
+				return nil, policy.StockObservation{}, "", err
 			}
-		}
-		if !known || made != (r.stuff != "") {
-			return nil, policy.StockObservation{}, BuildingMethodUnknown, nil
-		}
-		choice, ok, err := search.Select(r.definition, r.stuff, []policy.Preview{preview.Preview})
-		if err != nil {
-			return nil, policy.StockObservation{}, "", err
+			b, err := domain.NewBuilding(r.definition, c, rotation, r.stuff)
+			if err != nil {
+				return nil, policy.StockObservation{}, "", err
+			}
+			id := fmt.Sprintf("%s-%d", snapshot.Plan, i)
+			if rotation != domain.North {
+				id = fmt.Sprintf("%s-%d-%s", snapshot.Plan, i, rotation)
+			}
+			a, err := domain.NewBuildingAction(domain.ActionID(id), b)
+			if err != nil {
+				return nil, policy.StockObservation{}, "", err
+			}
+			preview, _, err = r.native.PreviewBuilding(call, a, snapshot)
+			if err != nil {
+				return nil, policy.StockObservation{}, "", err
+			}
+			if err = check(); err != nil {
+				return nil, policy.StockObservation{}, "", err
+			}
+			if preview.Preview.Action != a || !preview.Stock.Snapshot.Matches(snapshot) || preview.Stock.Tick != facts.Identity.Tick {
+				return nil, policy.StockObservation{}, "", ErrControl
+			}
+			made, known := preview.Preview.MadeFromStuff.Value()
+			if r.goal == policy.EnsureComfort && r.definition == "HorseshoesPin" {
+				accessible, known := preview.Preview.WatchCellsAccessible.Value()
+				unknownWatch = unknownWatch || !known
+				if !known || !accessible {
+					continue
+				}
+			}
+			if !known || made != (r.stuff != "") {
+				return nil, policy.StockObservation{}, BuildingMethodUnknown, nil
+			}
+			choice, ok, err = search.Select(r.definition, r.stuff, []policy.Preview{preview.Preview})
+			if err != nil {
+				return nil, policy.StockObservation{}, "", err
+			}
+			if ok {
+				break
+			}
 		}
 		if !ok {
 			continue
@@ -779,6 +807,21 @@ func (r *RoutineBuildingPlanner) previewMethod(call context.Context, snapshot do
 	if int64(len(selected)) != missing {
 		if unknownWatch {
 			return nil, policy.StockObservation{}, BuildingMethodUnknown, nil
+		}
+		clockSchedulerLog("%s: no site for %s (%s): selected=%d missing=%d candidates=%d siteCells=%d roomCells=%d restricted=%v environment=%s", r.goal, r.definition, r.stuff, len(selected), missing, len(search.Candidates()), len(cells), len(roomCells), restricted, searchRequest.Environment)
+		if clockSchedulerDebug && restricted {
+			blocked := map[domain.Cell]bool{}
+			for _, c := range searchRequest.Protected {
+				blocked[c] = true
+			}
+			var rows []string
+			for _, c := range cells {
+				occupied, _ := c.Occupied.Value()
+				zone, zoneKnown := c.Zone.Value()
+				indoors, _ := c.Indoors.Value()
+				rows = append(rows, fmt.Sprintf("%d,%d w=%v o=%v z=%v/%v i=%v p=%v", c.Cell.X, c.Cell.Z, c.Walkable, occupied, zone, zoneKnown, indoors, blocked[c.Cell]))
+			}
+			clockSchedulerLog("%s: site census %v", r.goal, rows)
 		}
 		return nil, policy.StockObservation{}, BuildingMethodNoSpace, nil
 	}

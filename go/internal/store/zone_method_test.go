@@ -99,6 +99,39 @@ func TestCommitStockpileZoneMethodBindsToSecureSuppliesGoal(t *testing.T) {
 	}
 }
 
+// MaintainResource's ingredient-storage rung (routine_ingredient_storage.go)
+// commits one allow-list stockpile for the recipe's inputs beside the bench;
+// the production ladder stalled on "plan or action identity already exists"
+// at this admission on every live run before the goal was bound (#155).
+func TestCommitStockpileZoneMethodBindsToResourceTargetGoal(t *testing.T) {
+	ctx := context.Background()
+	s := open(t, memoryPath(t))
+	r := routineRequest()
+	r.Current.Native = 2
+	r.Policy.ResourceTargets = map[policy.Resource]int64{"MeleeWeapon_Gladius": 3}
+	r.Facts.Resources = domain.Known([]policy.Amount{})
+	out := reviewRoutine(t, s, &r)
+	g := routineGoal(t, out, policy.MaintainResource)
+	if g.Goal.Need != domain.NeedDeficit {
+		t.Fatal(g)
+	}
+	zone, err := domain.NewAllowListStockpileZone(domain.ImportantPriority, []string{"Steel"}, []domain.Cell{{X: 4, Z: 6}, {X: 5, Z: 6}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	action, err := domain.NewZoneCreateAction("ingredient-zone-a", zone)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, err := domain.NewPlan("ingredient-zone", 1, []domain.Action{action})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "ingredient-storage-0", plan); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // A stockpile zone is created once per colony in this slice: a plan proposing
 // more than one stockpile action for the bound goal must be refused, unlike
 // growing-field plans which may batch many patches per method.

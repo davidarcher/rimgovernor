@@ -41,9 +41,17 @@ const (
 
 // ladderFamilies is facility/workshop's composition plus the research and
 // ingredient-storage rungs M4 adds, and the emergency responders: an injury
-// (a social fight is enough) holds every development goal until tended, and
-// a predator hunting a colonist holds the clock until defense answers it.
-const ladderFamilies = "sleeping,shelter,temperature,comfort,work,supply,defense,tend,rescue,medical,field,food-storage,acquisition,cooking,production-policy,resource,workshop,research,ingredient-storage,gear"
+// (a social fight is enough) holds every development goal until tended, a
+// predator hunting a colonist holds the clock until defense answers it, and
+// a choice dialog the DLC save opens by itself (Verse.Dialog_NodeTree)
+// force-pauses the game and holds every development row as an emergency
+// until the dialog planner answers it (#156). The sleeping and shelter
+// families (both serve EnsureInitialShelter with sleeping spots) stay off:
+// the checkpoint's single hut is the workshop room, and eight sleeping spots
+// (one per colonist) fill its interior before the bench rung runs, so every
+// smithy preview lands on an occupied cell (the M4 live runs). An unserved
+// priority-2 shelter goal gates only comfort, never MaintainResource.
+const ladderFamilies = "temperature,comfort,work,supply,defense,tend,rescue,medical,field,food-storage,acquisition,cooking,production-policy,resource,workshop,research,ingredient-storage,gear,dialog,naming"
 
 // window is how long the ladder gets to land its first product: research
 // and a bench build are waits in ticks, so the window ends early on the

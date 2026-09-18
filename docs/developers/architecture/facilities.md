@@ -35,7 +35,10 @@ Each rung is a separate deficit under an existing maintained goal, ranked by
    room the census scores as the Workshop, as a second method under
    `MaintainResource`. Hauling then brings the inputs to the bench.
 6. **Bill**: `RoutineResourcePlanner` dispatches the bill and native readback
-   of the rising item count carries the deficit to recovery.
+   of the rising item count carries the deficit to recovery. The native
+   preview admits a bill on an unfueled bench (`UsableForBillsAfterFueling`):
+   a bill waiting on the bench is what makes haulers refuel it, and a bench
+   with no bill leaves the clock with no work to run those hauls under.
 
 Each rung reports an explicit reason when it cannot proceed
 (`workshop_research_needed`, `workshop_bench_unavailable`, `no_space`,

@@ -66,12 +66,15 @@ func admitZoneMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan domai
 	// A stockpile zone is created one per method in this slice, unlike the
 	// bounded batches of growing-field zones EnsureFoodSupply may dispatch.
 	// EnsureFoodStorage places the colony's food stockpile; SecureSupplies
-	// places its covered-storage fallback (routine_secure_supplies.go).
+	// places its covered-storage fallback (routine_secure_supplies.go);
+	// MaintainResource places the production ladder's ingredient stockpile
+	// beside the bench (routine_ingredient_storage.go, #155: the rung was
+	// refused here on every live run before it was bound).
 	limit := 32
 	needs := []policy.GoalID{policy.EnsureFoodSupply}
 	if stockpile {
 		limit = 1
-		needs = []policy.GoalID{policy.EnsureFoodStorage, policy.SecureSupplies}
+		needs = []policy.GoalID{policy.EnsureFoodStorage, policy.SecureSupplies, policy.MaintainResource}
 	}
 	if !review.Enabled || review.Snapshot != goal.Goal.Snapshot || goal.Goal.Source != domain.AutopilotGoal || len(plan.Actions()) > limit {
 		return ErrConflict
