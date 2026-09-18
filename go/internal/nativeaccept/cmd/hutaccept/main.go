@@ -111,6 +111,25 @@ type shell struct {
 	seen      map[domain.PlanID]bool // every shell plan the store has listed
 }
 
+// bearing reports a wall the enclosure depends on: one orthogonally between
+// an interior cell and open ground. A diagonal ring is two cells thick in
+// places and the game keeps the room enclosed without the redundant cell,
+// in which case the routine rightly leaves a player's cancel of it alone
+// and the repair path is never exercised (runs 3 and 4 of this harness).
+func (sh *shell) bearing(c domain.Cell) bool {
+	interior := map[domain.Cell]bool{}
+	for _, i := range sh.footprint.Interior() {
+		interior[i] = true
+	}
+	in, out := false, false
+	for _, n := range []domain.Cell{{X: c.X + 1, Z: c.Z}, {X: c.X - 1, Z: c.Z}, {X: c.X, Z: c.Z + 1}, {X: c.X, Z: c.Z - 1}} {
+		_, onRing := sh.cells[n]
+		in = in || interior[n]
+		out = out || !interior[n] && !onRing
+	}
+	return in && out
+}
+
 // waits are the run's wall-clock ceilings and its stall budget; each wait
 // is also ended by the service exiting on its own.
 type waits struct{ build, furnish, stall time.Duration }
@@ -155,7 +174,17 @@ func run(ctx context.Context, cfg liveservice.Config, w waits, report na.Report)
 		"roof_supported": sh.footprint.RoofSupported(), "bounds": sh.footprint.Bounds(),
 	}
 	if err := waitLineage(ctx, st, sh, w.wait(w.build, service), func(l lineage) bool {
-		return len(l.ordered) >= 4 && l.live != nil && !l.liveComplete()
+		// Stop only while a load-bearing wall is ordered but not completed,
+		// so the in-game cancel below has one to take.
+		if len(l.ordered) < 4 || l.live == nil || l.liveComplete() {
+			return false
+		}
+		for c := range l.undecided {
+			if sh.bearing(c) {
+				return true
+			}
+		}
+		return false
 	}); err != nil {
 		service.Stop()
 		return fmt.Errorf("run 1 did not reach mid-construction: %w", err)
@@ -636,24 +665,8 @@ func cancelOneWall(ctx context.Context, p *liveservice.Prepared, sh *shell, repo
 	if len(candidates) == 0 {
 		return domain.Cell{}, errors.New("no pending wall order found on the shell to cancel")
 	}
-	// Prefer a wall the enclosure depends on: one orthogonally between an
-	// interior cell and open ground. A diagonal ring is two cells thick in
-	// places and the game keeps the room enclosed without the redundant
-	// cell, in which case the routine rightly leaves the player's edit
-	// alone and the repair path is never exercised.
-	interior := map[domain.Cell]bool{}
-	for _, c := range sh.footprint.Interior() {
-		interior[c] = true
-	}
-	bearing := func(c domain.Cell) bool {
-		in, out := false, false
-		for _, n := range []domain.Cell{{X: c.X + 1, Z: c.Z}, {X: c.X - 1, Z: c.Z}, {X: c.X, Z: c.Z + 1}, {X: c.X, Z: c.Z - 1}} {
-			_, onRing := sh.cells[n]
-			in = in || interior[n]
-			out = out || !interior[n] && !onRing
-		}
-		return in && out
-	}
+	// Prefer a load-bearing wall; run 1 was stopped while one was pending.
+	bearing := sh.bearing
 	door := sh.footprint.Door()
 	sort.Slice(candidates, func(i, j int) bool {
 		if bi, bj := bearing(candidates[i].cell), bearing(candidates[j].cell); bi != bj {
@@ -667,6 +680,9 @@ func cancelOneWall(ctx context.Context, p *liveservice.Prepared, sh *shell, repo
 		return na.AsString(candidates[i].row["thingId"]) < na.AsString(candidates[j].row["thingId"])
 	})
 	target := candidates[0]
+	if !bearing(target.cell) {
+		return domain.Cell{}, fmt.Errorf("no pending load-bearing wall to cancel (%d pending, nearest %v)", len(candidates), target.cell)
+	}
 	args := map[string]any{
 		"colonyId": p.Identity["colonyId"], "loadToken": p.Identity["loadToken"], "mapId": p.Identity["mapId"],
 		"thing": na.AsString(target.row["thingId"]), "expectedDef": "Wall",
