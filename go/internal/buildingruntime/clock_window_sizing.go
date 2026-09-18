@@ -92,9 +92,56 @@ func (p *clockWindowPause) observe(status *k.Status, now time.Time) time.Duratio
 	return span
 }
 
+// clockWindowRateAlpha weights the newest observed tick rate against the
+// running estimate; clockWindowRateMinSpan is the least wall time between
+// two running statuses for their tick delta to be a rate sample.
+const (
+	clockWindowRateAlpha   = 0.5
+	clockWindowRateMinSpan = 500 * time.Millisecond
+)
+
+// clockWindowRate is the scheduler's running estimate of the tick rate the
+// game actually runs at, from the ticks between consecutive running
+// statuses. The nominal rate (ClockWindowSizing.TicksPerSecond) assumes an
+// unloaded game thread; under peer load an Ultrafast test-boost epoch that
+// nominally runs 7000 ticks/s ran 250 (#193, fourteen concurrent games), so
+// a window sized by the nominal rate outlasts its target thirty times over
+// and work that became admissible waits on a stop that nothing else
+// causes. The observed rate only ever narrows a window: the nominal rate
+// caps it.
+type clockWindowRate struct {
+	known          bool
+	ticksPerSecond float64
+	prevRunning    bool
+	prevTick       int64
+	prevAt         time.Time
+}
+
+// observe folds the rate since the previous running status into the
+// estimate when both statuses are running and enough wall time separates
+// them; a stop breaks the chain, since the ticks a stopped clock did not
+// run say nothing about the rate it runs at.
+func (r *clockWindowRate) observe(status *k.Status, now time.Time) {
+	running := status.GetRunning() != nil
+	tick := status.Context.GetTick()
+	if r.prevRunning && running {
+		span := now.Sub(r.prevAt)
+		if delta := tick - r.prevTick; delta > 0 && span >= clockWindowRateMinSpan {
+			sample := float64(delta) / span.Seconds()
+			if r.known {
+				r.ticksPerSecond = clockWindowRateAlpha*sample + (1-clockWindowRateAlpha)*r.ticksPerSecond
+			} else {
+				r.known, r.ticksPerSecond = true, sample
+			}
+		}
+	}
+	r.prevRunning, r.prevTick, r.prevAt = running, tick, now
+}
+
 // colonyWindow sizes the next colony window from the configured sizing,
-// the floor (the fixed budget) and the observed pause.
-func (w ClockWindowSizing) colonyWindow(floor uint32, pause clockWindowPause) ClockWindowSize {
+// the floor (the fixed budget), the observed pause and the observed tick
+// rate.
+func (w ClockWindowSizing) colonyWindow(floor uint32, pause clockWindowPause, rate clockWindowRate) ClockWindowSize {
 	size := ClockWindowSize{Ticks: floor}
 	if !w.enabled(floor) {
 		return size
@@ -102,6 +149,9 @@ func (w ClockWindowSizing) colonyWindow(floor uint32, pause clockWindowPause) Cl
 	size.TargetSeconds, size.TicksPerSecond = w.Seconds, w.TicksPerSecond
 	if pause.known && pause.seconds > size.TargetSeconds {
 		size.TargetSeconds = pause.seconds
+	}
+	if rate.known && rate.ticksPerSecond > 0 && rate.ticksPerSecond < size.TicksPerSecond {
+		size.TicksPerSecond = rate.ticksPerSecond
 	}
 	ticks := math.Ceil(size.TargetSeconds*size.TicksPerSecond/clockWindowQuantum) * clockWindowQuantum
 	switch {

@@ -9,6 +9,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -71,9 +72,54 @@ func TestClockWindowSizingColonyWindow(t *testing.T) {
 		{"pause stretches", ClockWindowSizing{Seconds: 2, TicksPerSecond: 900, MaxTicks: 60000}, 2500, known(4.01), ClockWindowSize{Ticks: 3700, TargetSeconds: 4.01, TicksPerSecond: 900}},
 		{"cap under boost", ClockWindowSizing{Seconds: 2, TicksPerSecond: 7000, MaxTicks: 60000}, 2500, known(10), ClockWindowSize{Ticks: 60000, TargetSeconds: 10, TicksPerSecond: 7000}},
 	} {
-		if got := tc.sizing.colonyWindow(tc.floor, tc.pause); got != tc.want {
+		if got := tc.sizing.colonyWindow(tc.floor, tc.pause, clockWindowRate{}); got != tc.want {
 			t.Fatal(tc.name, got, tc.want)
 		}
+	}
+}
+
+func runningStatus(tick int64) *k.Status {
+	return &k.Status{Context: &c.ObservationContext{Tick: proto.Int64(tick)}, State: &k.Status_Running{Running: &k.Running{}}}
+}
+
+// The observed rate samples the ticks between consecutive running
+// statuses at least clockWindowRateMinSpan apart, weighting the newest
+// against the estimate; a stop between them breaks the chain, and the
+// rate only narrows a sized window below the nominal rate (#193).
+func TestClockWindowRateNarrowsTheWindowUnderLoad(t *testing.T) {
+	t.Parallel()
+	var r clockWindowRate
+	now := time.UnixMilli(100_000)
+	r.observe(runningStatus(1000), now)
+	r.observe(runningStatus(1100), now.Add(200*time.Millisecond)) // too close
+	if r.known {
+		t.Fatal(r)
+	}
+	r.observe(runningStatus(1500), now.Add(2*time.Second)) // 400 ticks in 1.8s from the last sighting
+	if !r.known || r.ticksPerSecond < 222 || r.ticksPerSecond > 223 {
+		t.Fatal(r)
+	}
+	r.observe(stoppedStatus(102_000), now.Add(3*time.Second))
+	r.observe(runningStatus(9000), now.Add(4*time.Second)) // after a stop: no sample
+	if r.ticksPerSecond < 222 || r.ticksPerSecond > 223 {
+		t.Fatal(r)
+	}
+	r.observe(runningStatus(9300), now.Add(5*time.Second)) // 300/s
+	if want := 0.5*300 + 0.5*r.ticksPerSecond; r.ticksPerSecond > 262 || r.ticksPerSecond < 261 || want < 261 {
+		t.Fatal(r)
+	}
+	sizing := ClockWindowSizing{Seconds: 2, TicksPerSecond: 7000, MaxTicks: 60000}
+	pause := clockWindowPause{known: true, seconds: 4.4}
+	if got := sizing.colonyWindow(2500, pause, clockWindowRate{known: true, ticksPerSecond: 250}); got != (ClockWindowSize{Ticks: 2500, TargetSeconds: 4.4, TicksPerSecond: 250}) {
+		t.Fatal(got)
+	}
+	if got := sizing.colonyWindow(500, pause, clockWindowRate{known: true, ticksPerSecond: 250}); got != (ClockWindowSize{Ticks: 1100, TargetSeconds: 4.4, TicksPerSecond: 250}) {
+		t.Fatal(got)
+	}
+	// A rate above the nominal one (a boost the config underestimates)
+	// never widens the window.
+	if got := sizing.colonyWindow(2500, pause, clockWindowRate{known: true, ticksPerSecond: 9000}); got != (ClockWindowSize{Ticks: 30900, TargetSeconds: 4.4, TicksPerSecond: 7000}) {
+		t.Fatal(got)
 	}
 }
 

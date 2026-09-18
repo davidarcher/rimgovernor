@@ -204,6 +204,9 @@ type ClockScheduler struct {
 	// pause is the observed wall time between windows that sizes the next
 	// one (ClockWindowSizing); touched only under the player gate.
 	pause clockWindowPause
+	// rate is the observed tick rate that narrows the next window under
+	// peer load (clockWindowRate); touched only under the player gate.
+	rate clockWindowRate
 	// running is the scheduler's belief that a colony window it admitted
 	// is still running: set by the step that dispatched or observed it,
 	// cleared by the step or poll that saw it stopped. The poll loop holds
@@ -600,6 +603,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		return out, errors.Join(executor.ErrEvidence, s.session.Disable())
 	}
 	s.running.Store(false)
+	s.rate.observe(status, s.clock.Now())
 	reason.TickAdvanced = !s.lastTickKnown || status.Context.GetTick() != s.lastTick
 	s.lastTick, s.lastTickKnown = status.Context.GetTick(), true
 	if reason.Cause == StepTimer && !reason.TickAdvanced && s.fullStepDue() {
@@ -800,9 +804,9 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	// The colony window is sized by wall time at the configured speed
 	// (issue #126) before a native-work or combat bound narrows it.
 	paused = s.pause.observe(status, s.clock.Now())
-	out.Window = s.config.Window.colonyWindow(start.MaxTicks, s.pause)
+	out.Window = s.config.Window.colonyWindow(start.MaxTicks, s.pause, s.rate)
 	start.MaxTicks = out.Window.Ticks
-	clockSchedulerLog("colony window: %d ticks (target %.1fs at %.0f ticks/s, pause estimate known=%v %.1fs)", out.Window.Ticks, out.Window.TargetSeconds, out.Window.TicksPerSecond, s.pause.known, s.pause.seconds)
+	clockSchedulerLog("colony window: %d ticks (target %.1fs at %.0f ticks/s, pause estimate known=%v %.1fs, observed rate known=%v %.0f ticks/s)", out.Window.Ticks, out.Window.TargetSeconds, out.Window.TicksPerSecond, s.pause.known, s.pause.seconds, s.rate.known, s.rate.ticksPerSecond)
 	var nativeWorkTicks uint32
 	if out.Fields != nil {
 		nativeWorkTicks = out.Fields.NativeWorkTicks

@@ -52,7 +52,9 @@ namespace HomeBridge.BridgeTools
                 blueprint = cell.GetThingList(map).OfType<Blueprint>().Select(b => new { b.def.defName, forbidden = b.IsForbidden(Faction.OfPlayerSilentFail),
                     materials = b is Blueprint_Build bb ? bb.TotalMaterialCost().Select(m => m.thingDef.defName + "x" + m.count).ToList() : null }).FirstOrDefault(),
                 frame = cell.GetThingList(map).OfType<Frame>().Select(f => new { f.def.defName, f.workDone, resources = f.resourceContainer.ContentsString }).FirstOrDefault(),
-                roof = cell.GetRoof(map)?.defName };
+                roof = cell.GetRoof(map)?.defName,
+                room = cell.GetRoom(map) is Room room ? new { id = room.ID, proper = room.ProperRoom, outdoors = room.PsychologicallyOutdoors,
+                    touchesMapEdge = room.TouchesMapEdge, cells = room.CellCount } : null };
         }
 
         private static object Setup(Map map)
@@ -113,8 +115,27 @@ namespace HomeBridge.BridgeTools
                 rows.Add(new { z, walkwayPhase = phase, placed });
                 raised += placed;
             }
+            // The strips between the rows are open ground: natural rock left in
+            // a strip closes a walkway or splits the strip into an enclosed
+            // pocket, and a shell whose gap opens onto an enclosed pocket is
+            // roofed by the game through the gap, so the repair the case
+            // exercises is never owed (#193 run r1: the pocket east of the ring
+            // was sealed by two slate cells and the hut furnished unrepaired).
+            // Natural roof goes with the rock, or the cleared cells read as
+            // roofed indoor space.
+            var cleared = 0;
+            for (int z = center.z - Reach; z <= center.z + Reach; z++) {
+                if (((z - center.z) % Period + Period) % Period == 0) continue;
+                for (int x = center.x - Reach; x <= center.x + Reach; x++) {
+                    var c = new IntVec3(x, 0, z);
+                    if (!c.InBounds(map) || c.Fogged(map)) continue;
+                    if (c.GetEdifice(map) is Mineable rock) { rock.Destroy(DestroyMode.Vanish); cleared++; }
+                    var roof = c.GetRoof(map);
+                    if (roof != null && roof.isNatural) map.roofGrid.SetRoof(c, null);
+                }
+            }
             map.regionAndRoomUpdater.RebuildAllRegionsAndRooms();
-            return new { success = true, tick = Find.TickManager.TicksGame, center = new { x = center.x, z = center.z }, period = Period, walkwayPeriod = WalkwayPeriod, reach = Reach, raised, skipped, moved, rows };
+            return new { success = true, tick = Find.TickManager.TicksGame, center = new { x = center.x, z = center.z }, period = Period, walkwayPeriod = WalkwayPeriod, reach = Reach, raised, skipped, moved, cleared, rows };
         }
     }
 }

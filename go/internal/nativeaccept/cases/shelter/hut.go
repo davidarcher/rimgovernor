@@ -46,13 +46,15 @@ import (
 //     cells: the hut is a proper room, cells == interior, open_roof_count 0,
 //     the door cell is a doorway room, beds sit inside and off the aisle.
 const (
-	// families: the shell needs the supply family to unforbid starting
-	// supplies; the work family is left out because its planner refuses the
-	// tribal8 baseline's work priorities and one failing planner cancels the
-	// whole step, and the acquisition family is left out because its food
+	// families: the work family is left out because its planner refuses
+	// the tribal8 baseline's work priorities and one failing planner
+	// cancels the whole step, and the acquisition family because its food
 	// planner times out under load, so WoodLog comes from the staged ring's
-	// spawnWood instead.
-	families = "shelter,sleeping,supply"
+	// spawnWood (unforbidden) instead. The supply family used to unforbid
+	// the starting supplies for the grown shell; with the ring staged it
+	// only cost the run one worker dispatch (3-4s under peer load) per
+	// starting stack, fifteen of them in run 2 (#193).
+	families = "shelter,sleeping"
 	// stagePending is how many load-bearing walls nearest the door the
 	// fixture leaves for the builders, the one the case cancels among them;
 	// spawnWood the WoodLog it drops beside the staged door for them.
@@ -166,6 +168,9 @@ func hut(ctx context.Context, s cases.Session, terrain string) error {
 		}
 		report["corridor_terrain"] = prepared
 	}
+	if err := allowSupplies(ctx, s.Harness(), "allow-supplies", report); err != nil {
+		return err
+	}
 	// Run 0: admission.
 	service, err := start(ctx, s, nil)
 	if err != nil {
@@ -216,15 +221,23 @@ func hut(ctx context.Context, s cases.Session, terrain string) error {
 			return fmt.Errorf("the reloaded corridor terrain differs from run 0's: %v vs %v", report["corridor_terrain"], corridor)
 		}
 	}
+	if err := allowSupplies(ctx, h, "allow-supplies-reloaded", report); err != nil {
+		return err
+	}
 	open, err := openGround(ctx, h)
 	if err != nil {
 		return err
 	}
-	missing := missingCells(sh, stagePending, open)
-	if len(missing) == 0 {
-		return errors.New("no load-bearing ring cell on open ground to leave for the builders")
+	candidates := missingCells(sh, len(sh.cells), open)
+	if len(candidates) < stagePending {
+		return fmt.Errorf("%d load-bearing ring cells on open ground to leave for the builders, want %d", len(candidates), stagePending)
 	}
+	missing := candidates[:stagePending]
 	if err := stageRing(ctx, h, sh, missing, spawnWood, report); err != nil {
+		return err
+	}
+	missing, err = unpocketedGaps(ctx, h, sh, candidates, missing, report)
+	if err != nil {
 		return err
 	}
 	sh.staged = map[domain.Cell]bool{}
@@ -856,6 +869,117 @@ func missingCells(sh *shell, count int, open func(domain.Cell) bool) []domain.Ce
 	return bearing[:min(count, len(bearing))]
 }
 
+// unpocketedGaps moves a staged gap whose outside neighbour lies in an
+// enclosed native room. The game roofs such a room through the gap once the
+// other cells stand (a pocket sealed by natural rock or ruin walls beside
+// the ring, #193 run r1), the hut then furnishes as a roofed room with the
+// gap open and the repair the case exercises is never owed. Each pocketed
+// gap is filled by the fixture and the next candidate cleared, until every
+// gap opens onto ground the game counts as outdoors; without the corridor
+// fixture's inspect the gaps stay where they are.
+func unpocketedGaps(ctx context.Context, h *na.Harness, sh *shell, candidates, missing []domain.Cell, report na.Report) ([]domain.Cell, error) {
+	names, err := h.Discovery(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !na.Contains(names, corridorFixture) {
+		return missing, nil
+	}
+	interior := map[domain.Cell]bool{}
+	for _, c := range sh.footprint.Interior() {
+		interior[c] = true
+	}
+	outside := func(c domain.Cell) []domain.Cell {
+		var out []domain.Cell
+		for _, n := range []domain.Cell{{X: c.X + 1, Z: c.Z}, {X: c.X - 1, Z: c.Z}, {X: c.X, Z: c.Z + 1}, {X: c.X, Z: c.Z - 1}} {
+			if _, onRing := sh.cells[n]; !onRing && !interior[n] && !sh.solid[n] {
+				out = append(out, n)
+			}
+		}
+		return out
+	}
+	probe := 0
+	pocketed := func(c domain.Cell) (bool, error) {
+		for _, n := range outside(c) {
+			probe++
+			row, err := h.Call(ctx, fmt.Sprintf("gap-room-%d", probe), corridorFixture, map[string]any{"action": "inspect", "x": int(n.X), "z": int(n.Z)})
+			if err != nil {
+				return false, err
+			}
+			if room, ok := na.AsMap(row["room"]); ok && boolOf(room["proper"]) {
+				return true, nil
+			}
+		}
+		return false, nil
+	}
+	used := map[domain.Cell]bool{}
+	for _, c := range missing {
+		used[c] = true
+	}
+	var moves []map[string]any
+	for round := 0; round < len(candidates); round++ {
+		var filled, cleared []domain.Cell
+		for _, c := range missing {
+			pocket, err := pocketed(c)
+			if err != nil {
+				return nil, err
+			}
+			if !pocket {
+				continue
+			}
+			filled = append(filled, c)
+			for _, next := range candidates {
+				if !used[next] {
+					used[next] = true
+					cleared = append(cleared, next)
+					break
+				}
+			}
+		}
+		if len(filled) == 0 {
+			break
+		}
+		if len(cleared) < len(filled) {
+			return nil, fmt.Errorf("every candidate gap opens onto an enclosed pocket: %v", filled)
+		}
+		var kept []domain.Cell
+		for _, c := range missing {
+			if !contains(filled, c) {
+				kept = append(kept, c)
+			}
+		}
+		missing = append(kept, cleared...)
+		moves = append(moves, map[string]any{"filled": filled, "cleared": cleared})
+		if _, err := h.Call(ctx, fmt.Sprintf("fill-gaps-%d", round), "test/hut_shell_fixture", map[string]any{
+			"action": "stage", "walls": cellArg(filled), "door": cellArg([]domain.Cell{sh.footprint.Door()}), "doorRotation": string(sh.footprint.Entrance()),
+		}); err != nil {
+			return nil, err
+		}
+		if _, err := h.Call(ctx, fmt.Sprintf("clear-gaps-%d", round), "test/hut_shell_fixture", map[string]any{"action": "clear", "walls": cellArg(cleared)}); err != nil {
+			return nil, err
+		}
+	}
+	report["staged_gap_moves"] = moves
+	return missing, nil
+}
+
+func contains(cells []domain.Cell, c domain.Cell) bool {
+	for _, o := range cells {
+		if o == c {
+			return true
+		}
+	}
+	return false
+}
+
+func cellArg(cells []domain.Cell) string {
+	parts := make([]string, 0, len(cells))
+	for _, c := range cells {
+		parts = append(parts, fmt.Sprintf("%d,%d", c.X, c.Z))
+	}
+	return strings.Join(parts, ";")
+}
+
 // openGround reports, through test/corridor_terrain_fixture's inspect when
 // the mod carries it, whether a cell is walkable ground; without the
 // fixture every cell counts as open.
@@ -878,9 +1002,27 @@ func openGround(ctx context.Context, h *na.Harness) (func(domain.Cell) bool, err
 	}, nil
 }
 
+// allowSupplies has test/hut_shell_fixture unforbid the starting supplies
+// a fresh load drops forbidden, so the shell's WoodLog stock admits its
+// plan without the supply family: that family cost one worker dispatch
+// (3-4s under peer load) per stack, fifteen of them in run 2 (#193).
+func allowSupplies(ctx context.Context, h *na.Harness, label string, report na.Report) error {
+	result, err := h.Call(ctx, label, "test/hut_shell_fixture", map[string]any{"action": "allow"})
+	if err != nil {
+		return err
+	}
+	if success, _ := na.AsBool(result["success"]); !success {
+		return fmt.Errorf("hut_shell_fixture allow refused: %#v", result)
+	}
+	report[strings.ReplaceAll(label, "-", "_")] = result["allowed"]
+	return nil
+}
+
 // stageRing has test/hut_shell_fixture spawn the sited ring finished (the
 // door with the plan's rotation, every wall but the missing cells) with wood
-// beside the door, in the reloaded world the service is about to see.
+// beside the door, in the reloaded world the service is about to see. The
+// missing cells are cleared of plants and items: a wall under brambles
+// waits on plant cutting the baseline's work priorities never assign.
 func stageRing(ctx context.Context, h *na.Harness, sh *shell, missing []domain.Cell, wood int, report na.Report) error {
 	names, err := h.Discovery(ctx)
 	if err != nil {
@@ -894,14 +1036,14 @@ func stageRing(ctx context.Context, h *na.Harness, sh *shell, missing []domain.C
 		skip[c] = true
 	}
 	door := sh.footprint.Door()
-	var walls []string
+	var walls []domain.Cell
 	for _, c := range sh.footprint.Walls() {
 		if c != door && !skip[c] {
-			walls = append(walls, fmt.Sprintf("%d,%d", c.X, c.Z))
+			walls = append(walls, c)
 		}
 	}
 	staged, err := h.Call(ctx, "stage-ring", "test/hut_shell_fixture", map[string]any{
-		"action": "stage", "walls": strings.Join(walls, ";"),
+		"action": "stage", "walls": cellArg(walls), "gaps": cellArg(missing),
 		"door": fmt.Sprintf("%d,%d", door.X, door.Z), "doorRotation": string(sh.footprint.Entrance()), "wood": wood,
 	})
 	if err != nil {
