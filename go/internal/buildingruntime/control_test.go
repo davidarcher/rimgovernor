@@ -449,3 +449,56 @@ func TestControlAcquireReclaimsStaleAutoFromDeadProcess(t *testing.T) {
 		t.Fatal("targeted process reclaimed foreign auto", err, n.revokes.Load(), n.acquires.Load())
 	}
 }
+
+// A Disable from outside the gate (the clock poll on a gap, an interrupting
+// event or a pending hold) cancels the epoch an Acquire's status read runs
+// under. Nothing has been written yet, so the read starts over under the next
+// epoch instead of reporting an uncertain outcome (#206); a caller's own
+// cancellation still ends it.
+func TestControlAcquireRestartsObservationAfterConcurrentDisable(t *testing.T) {
+	t.Parallel()
+	control, n, sink, _ := controlFixture(t, nil)
+	var reads atomic.Int32
+	n.onRead = func(ctx context.Context) error {
+		if reads.Add(1) == 1 {
+			if err := control.Disable(); err != nil {
+				return err
+			}
+			<-ctx.Done()
+			return ctx.Err()
+		}
+		return nil
+	}
+	granted, err := control.Acquire(context.Background(), controlScope())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reads.Load() != 2 || n.acquires.Load() != 1 || !sink.enabled() || granted.Native != 2 {
+		t.Fatal("observation not restarted once", reads.Load(), n.acquires.Load(), granted)
+	}
+	if err := control.Manual(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	// A disable on every read is a persistent interruption: bounded retries,
+	// then the failure.
+	reads.Store(0)
+	n.onRead = func(ctx context.Context) error {
+		reads.Add(1)
+		if err := control.Disable(); err != nil {
+			return err
+		}
+		<-ctx.Done()
+		return ctx.Err()
+	}
+	if _, err := control.Acquire(context.Background(), controlScope()); !errors.Is(err, context.Canceled) || reads.Load() != acquireObservationRetries+1 || n.acquires.Load() != 1 {
+		t.Fatal("persistent interruption not bounded", err, reads.Load(), n.acquires.Load())
+	}
+	// The caller's own cancellation is never retried.
+	reads.Store(0)
+	ctx, cancel := context.WithCancel(context.Background())
+	n.onRead = func(ctx context.Context) error { reads.Add(1); cancel(); <-ctx.Done(); return ctx.Err() }
+	if _, err := control.Acquire(ctx, controlScope()); !errors.Is(err, context.Canceled) || reads.Load() != 1 {
+		t.Fatal("caller cancellation retried", err, reads.Load())
+	}
+	n.onRead = nil
+}

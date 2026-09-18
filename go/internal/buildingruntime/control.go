@@ -118,37 +118,11 @@ func (control *Control) Acquire(ctx context.Context, requested domain.Generation
 	if requested.Revision == 0 {
 		return domain.GenerationSnapshot{}, ErrControl
 	}
-	control.mu.Lock()
-	if control.closing || control.lifetime.Err() != nil {
-		control.mu.Unlock()
-		return domain.GenerationSnapshot{}, ErrControl
-	}
-	err := control.invalidateLocked()
-	epoch, everTargeted := control.epoch, control.haveTarget
-	control.mu.Unlock()
-	if err != nil {
-		return domain.GenerationSnapshot{}, err
-	}
-	call, done, err := control.enter(ctx, epoch)
+	call, epoch, done, everTargeted, status, err := control.observeForAcquire(ctx, requested)
 	if err != nil {
 		return domain.GenerationSnapshot{}, err
 	}
 	defer done()
-	if control.config.CleanupWrites != nil {
-		if err = control.config.CleanupWrites(call); err != nil {
-			return domain.GenerationSnapshot{}, err
-		}
-	}
-	status, _, err := control.native.ReadAuthority(call, controlIdentity(requested))
-	if err != nil {
-		return domain.GenerationSnapshot{}, control.failedObservation(epoch, err)
-	}
-	if err = controlStatus(status, requested); err != nil {
-		return domain.GenerationSnapshot{}, control.failedObservation(epoch, err)
-	}
-	if err := call.Err(); err != nil {
-		return domain.GenerationSnapshot{}, err
-	}
 	generation := status.GetStatus().Context.GetNativeGeneration()
 	if generation == ^uint64(0) {
 		return domain.GenerationSnapshot{}, ErrControl
@@ -192,6 +166,56 @@ func (control *Control) Acquire(ctx context.Context, requested domain.Generation
 		return domain.GenerationSnapshot{}, err
 	}
 	return requested, nil
+}
+
+// acquireObservationRetries bounds how often observeForAcquire starts over
+// after its epoch was invalidated underneath the status read.
+const acquireObservationRetries = 3
+
+// observeForAcquire is Acquire's read phase: a fresh epoch, the gate, owned
+// cleanup and the authority status read, before any native write. Disable is
+// called outside the gate (the clock poll on a gap, an interrupting event or
+// a pending hold; the renewal loop) and cancels the epoch the read runs
+// under, which surfaced as a `context canceled` authority_read_status and a
+// 503 uncertain resume at generation 0 (#206). Nothing has been written at
+// that point, so an epoch cancelled while the caller's context is still live
+// is not an uncertain outcome: start over under the next epoch, a bounded
+// number of times, and only report the failure once it persists.
+func (control *Control) observeForAcquire(ctx context.Context, requested domain.GenerationSnapshot) (call, epoch context.Context, done func(), everTargeted bool, status *a.StatusReply, err error) {
+	for attempt := 0; ; attempt++ {
+		control.mu.Lock()
+		if control.closing || control.lifetime.Err() != nil {
+			control.mu.Unlock()
+			return nil, nil, nil, false, nil, ErrControl
+		}
+		err = control.invalidateLocked()
+		epoch, everTargeted = control.epoch, control.haveTarget
+		control.mu.Unlock()
+		if err != nil {
+			return nil, nil, nil, false, nil, err
+		}
+		call, done, err = control.enter(ctx, epoch)
+		if err == nil && control.config.CleanupWrites != nil {
+			err = control.config.CleanupWrites(call)
+		}
+		if err == nil {
+			status, _, err = control.native.ReadAuthority(call, controlIdentity(requested))
+			if err == nil {
+				err = controlStatus(status, requested)
+			}
+			if err != nil {
+				err = control.failedObservation(epoch, err)
+			} else if err = call.Err(); err == nil {
+				return call, epoch, done, everTargeted, status, nil
+			}
+		}
+		if done != nil {
+			done()
+		}
+		if attempt >= acquireObservationRetries || ctx.Err() != nil || epoch.Err() == nil {
+			return nil, nil, nil, false, nil, err
+		}
+	}
 }
 
 // Lease reports whether the bot currently holds Auto-mode authority for the
