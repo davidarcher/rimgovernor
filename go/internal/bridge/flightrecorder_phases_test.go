@@ -205,3 +205,31 @@ func TestSummarizePhasesHandlesLegacyRowsGapsAndResets(t *testing.T) {
 		}
 	}
 }
+
+// Wake-reason clock_step rows carry the stop they answered and the latency
+// from the native stop stamp to the step; the summary counts stops, means
+// the samples that carried a latency and drops a skewed negative one
+// (issue #112).
+func TestSummarizePhasesStopLatency(t *testing.T) {
+	rows := []TimelineRecord{
+		{Kind: "clock_step", WallTime: 1, Payload: map[string]any{"reads": 2.0, "reason": "full"}},
+		{Kind: "clock_step", WallTime: 2, Payload: map[string]any{"reads": 0.0, "reason": "timer"}},
+		{Kind: "clock_step", WallTime: 3, Payload: map[string]any{"reads": 1.0, "reason": "wake", "stop": true, "stop_latency_ms": 30.0}},
+		{Kind: "clock_step", WallTime: 4, Payload: map[string]any{"reads": 1.0, "reason": "wake", "stop": true, "stop_latency_ms": 10.0}},
+		{Kind: "clock_step", WallTime: 5, Payload: map[string]any{"reads": 1.0, "reason": "wake", "stop": true, "stop_latency_ms": -5.0}},
+		{Kind: "clock_step", WallTime: 6, Payload: map[string]any{"reads": 1.0, "reason": "wake", "stop": true}},
+		{Kind: "clock_step", WallTime: 7, Payload: map[string]any{"reads": 1.0, "reason": "wake"}},
+	}
+	steps := SummarizePhases(rows).Steps
+	if steps.Steps != 7 || steps.Reasons["full"] != 1 || steps.Reasons["timer"] != 1 || steps.Reasons["wake"] != 5 {
+		t.Fatalf("reasons: %+v", steps)
+	}
+	if stops := steps.Stops; stops.Count != 4 || stops.LatencySamples != 2 || stops.MeanLatencyMs != 20 || stops.MaxLatencyMs != 30 {
+		t.Fatalf("stops: %+v", stops)
+	}
+	var report strings.Builder
+	WritePhaseReport(&report, SummarizePhases(rows))
+	if !strings.Contains(report.String(), "by reason full=1 timer=1 wake=5") || !strings.Contains(report.String(), "stops: 4 woke a step, stop->step latency mean 20.0ms max 30.0ms over 2 samples") {
+		t.Fatal(report.String())
+	}
+}

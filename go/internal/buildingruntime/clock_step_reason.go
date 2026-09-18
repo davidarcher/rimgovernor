@@ -48,6 +48,11 @@ type StepReason struct {
 	// TickAdvanced reports whether the game tick moved since the previous
 	// step's status read (true on the first step).
 	TickAdvanced bool
+	// Stopped is set when the wake's committed pages stopped the clock;
+	// StopAt is the earliest such stop's native stamp (zero when unknown),
+	// from which the step publishes its stop latency (issue #112).
+	Stopped bool
+	StopAt  time.Time
 }
 
 func (r StepReason) String() string {
@@ -58,6 +63,9 @@ func (r StepReason) String() string {
 	}
 	if r.Authority {
 		b.WriteString(" authority")
+	}
+	if r.Stopped {
+		b.WriteString(" stopped")
 	}
 	for _, event := range r.Events {
 		b.WriteString(" ")

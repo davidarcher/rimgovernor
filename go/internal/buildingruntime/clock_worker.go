@@ -158,9 +158,10 @@ func (w *ClockWorker) pollLoop() {
 		if err == nil && (result.Captured || len(result.Wake) > 0 || len(result.Invalidated) > 0 || result.AuthorityChanged) {
 			// The Worker alone acts on a stop: the step loop reacts to the
 			// same page by settling the epoch, and the stop is not a
-			// decision input of its own.
+			// decision input of its own; its step carries the stop only
+			// to publish the stop-to-step latency.
 			w.config.Wake.NotifyStopped(result.Wake, result.Invalidated, result.AuthorityChanged, result.Stopped)
-			w.wake.NotifyInvalidated(result.Wake, result.Invalidated, result.AuthorityChanged)
+			w.wake.NotifyStopAt(result.Wake, result.Invalidated, result.AuthorityChanged, result.Stopped, result.StoppedAt)
 		}
 		waited := w.config.PollWait > 0 && time.Since(started) >= w.config.PollWait/2
 		if err == nil && (waited || result.Captured) {

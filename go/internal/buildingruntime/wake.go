@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"sync"
+	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -30,10 +31,16 @@ type WakeSignal struct {
 	// game is paused between windows, the only moment an admission that
 	// needs a paused map (excavation, bed assignment) can be made.
 	stopped bool
+	// stopAt is the native stamp of the earliest stop still pending for
+	// the step loop, zero when the page carried none; the step that acts
+	// on it publishes the stop-to-step latency (issue #112).
+	stopAt time.Time
 	// stops counts committed stops; a Worker's pause-work report names the
 	// stop it answers so a report from a step begun before the stop
 	// cannot pass for the stop's own.
 	stops uint64
+	// stopsTaken is the stop count the step loop last drained.
+	stopsTaken uint64
 	// workers counts attached Workers: with none, no stop ever waits for
 	// pause-bound work.
 	workers int
@@ -64,6 +71,12 @@ func (w *WakeSignal) NotifyInvalidated(outcomes []WakeOutcome, families []bridge
 // NotifyStopped is NotifyInvalidated that also records whether the page
 // stopped the clock.
 func (w *WakeSignal) NotifyStopped(outcomes []WakeOutcome, families []bridge.FactFamily, authority, stopped bool) {
+	w.NotifyStopAt(outcomes, families, authority, stopped, time.Time{})
+}
+
+// NotifyStopAt is NotifyStopped carrying the native stamp of the stop
+// (the Stopped event's observed_at), zero when unknown.
+func (w *WakeSignal) NotifyStopAt(outcomes []WakeOutcome, families []bridge.FactFamily, authority, stopped bool, stopAt time.Time) {
 	if w == nil {
 		return
 	}
@@ -78,6 +91,9 @@ func (w *WakeSignal) NotifyStopped(outcomes []WakeOutcome, families []bridge.Fac
 	if stopped {
 		w.stopped = true
 		w.stops++
+		if w.stopAt.IsZero() || !stopAt.IsZero() && stopAt.Before(w.stopAt) {
+			w.stopAt = stopAt
+		}
 		if w.workers > 0 && w.pauseWork == 0 {
 			w.pauseWork = -1
 			w.pauseIdle = make(chan struct{})
@@ -195,8 +211,10 @@ var closedChan = func() chan struct{} {
 	return ch
 }()
 
-// TakeInvalidated drains the pending outcomes, invalidated families and the
-// authority flag into one step reason.
+// TakeInvalidated drains the pending outcomes, invalidated families, the
+// authority flag and the pending stop into one step reason. The stopped
+// flag itself is left for TakeStop: the Worker's pause-bound admissions
+// answer it, not the step loop.
 func (w *WakeSignal) TakeInvalidated() StepReason {
 	reason := StepReason{Cause: StepWake}
 	if w == nil {
@@ -211,9 +229,11 @@ func (w *WakeSignal) TakeInvalidated() StepReason {
 		reason.Families = append(reason.Families, family)
 	}
 	reason.Authority = w.authority
+	reason.Stopped, reason.StopAt = w.stops > w.stopsTaken, w.stopAt
 	w.pending = map[domain.ActionID]WakeOutcome{}
 	w.families = map[bridge.FactFamily]bool{}
 	w.authority = false
+	w.stopsTaken, w.stopAt = w.stops, time.Time{}
 	return reason
 }
 
@@ -221,13 +241,14 @@ func (w *WakeSignal) TakeInvalidated() StepReason {
 // the latched outcomes, the families its ObservationInvalidated events
 // named, and whether authority changed.
 func clockPageWake(page *k.EventsPage) (outcomes []WakeOutcome, families []bridge.FactFamily, authority bool) {
-	outcomes, families, authority, _ = clockPageWakeStopped(page)
+	outcomes, families, authority, _, _ = clockPageWakeStopped(page)
 	return outcomes, families, authority
 }
 
 // clockPageWakeStopped is clockPageWake that also reports whether the page
-// carried a Stopped event.
-func clockPageWakeStopped(page *k.EventsPage) (outcomes []WakeOutcome, families []bridge.FactFamily, authority, stopped bool) {
+// carried a Stopped event and the earliest such event's native stamp
+// (zero when the event carried none).
+func clockPageWakeStopped(page *k.EventsPage) (outcomes []WakeOutcome, families []bridge.FactFamily, authority, stopped bool, stopAt time.Time) {
 	seen := map[bridge.FactFamily]bool{}
 	for _, event := range page.GetEvents() {
 		switch v := event.Event.(type) {
@@ -235,6 +256,9 @@ func clockPageWakeStopped(page *k.EventsPage) (outcomes []WakeOutcome, families 
 			outcomes = append(outcomes, wakeOutcome(v.OperationOutcome))
 		case *k.Event_Stopped:
 			stopped = true
+			if at := event.GetObservedAtUnixMs(); at > 0 && (stopAt.IsZero() || time.UnixMilli(at).Before(stopAt)) {
+				stopAt = time.UnixMilli(at)
+			}
 			if watch := v.Stopped.GetWatch(); watch != nil {
 				outcomes = append(outcomes, wakeOutcome(watch.Outcome))
 			}
@@ -255,7 +279,7 @@ func clockPageWakeStopped(page *k.EventsPage) (outcomes []WakeOutcome, families 
 			}
 		}
 	}
-	return outcomes, families, authority, stopped
+	return outcomes, families, authority, stopped, stopAt
 }
 func wakeOutcome(o *k.OperationOutcome) WakeOutcome {
 	_, unknown := o.Outcome.(*k.OperationOutcome_Unknown)

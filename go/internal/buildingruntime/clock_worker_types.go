@@ -23,8 +23,10 @@ type ClockPollResult struct {
 	Invalidated      []bridge.FactFamily
 	AuthorityChanged bool
 	// Stopped reports that the committed page stopped the clock: the game
-	// is paused until the next window starts.
-	Stopped bool
+	// is paused until the next window starts. StoppedAt is the earliest
+	// stop's native stamp, zero when the event carried none.
+	Stopped   bool
+	StoppedAt time.Time
 }
 
 type ClockRenewResult struct {

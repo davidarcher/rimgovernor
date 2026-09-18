@@ -71,7 +71,10 @@ ticks (`--clock-window-ticks`) and is sized by wall time at the configured
 speed: the ticks `--clock-speed` runs in `--clock-window-seconds` (default
 2) or in the pause the scheduler has observed between windows, whichever is
 longer, at most one game day (#126); each step's flight-recorder
-`clock_step` row carries the window it sized. Combat windows stay at 300; a
+`clock_step` row carries the window it sized, the reason the step acted on
+and, for a step a clock stop woke, the latency from the native stop stamp to
+the step (`stop_latency_ms`, #112), which `rimgovernor phases` reports as
+steps by reason and stop-to-step latency. Combat windows stay at 300; a
 native work allowance (a growing field, a home fire) still clamps it.
 
 ## Manual control

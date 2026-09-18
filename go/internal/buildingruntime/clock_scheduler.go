@@ -466,7 +466,21 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		elapsed := time.Since(stepBegan)
 		stats := cache.Stats()
 		clockSchedulerLog("step reads: %s cache hits=%d misses=%d coalesced=%d parent_hits=%d invalidations=%d running=%v elapsed=%s", reads, stats.Hits, stats.Misses, stats.Coalesced, stats.ParentHits, stats.Invalidations, out.Running, elapsed.Round(time.Millisecond))
-		extra := map[string]any{"cache_hits": stats.Hits, "parent_hits": stats.ParentHits, "running": out.Running, "elapsed_ms": float64(elapsed) / float64(time.Millisecond)}
+		// The reason the step acted on (out.Reason once the status read
+		// fixed it, else the caller's) and, for a step woken by a clock
+		// stop, the latency from the native stop stamp to the step
+		// (issue #112); `rimgovernor phases` reports both.
+		cause := out.Reason.Cause
+		if cause == "" {
+			cause = reason.Cause
+		}
+		extra := map[string]any{"cache_hits": stats.Hits, "parent_hits": stats.ParentHits, "running": out.Running, "elapsed_ms": float64(elapsed) / float64(time.Millisecond), "reason": string(cause)}
+		if reason.Stopped {
+			extra["stop"] = true
+			if !reason.StopAt.IsZero() {
+				extra["stop_latency_ms"] = float64(stepBegan.Sub(reason.StopAt)) / float64(time.Millisecond)
+			}
+		}
 		if out.Window.Ticks != 0 {
 			extra["window_ticks"], extra["window_target_s"], extra["window_tps"] = out.Window.Ticks, out.Window.TargetSeconds, out.Window.TicksPerSecond
 		}

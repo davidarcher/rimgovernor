@@ -59,9 +59,10 @@ type PhaseSummary struct {
 // round trips per tool summed over all steps (divide by Steps for a
 // per-step mean), plus the colony windows the steps sized by wall time
 // (issue #126): how many steps reached the admission tail (Windows), the
-// ticks they asked for in total and at most, and the largest wall target.
-// Rows are absent when the controller ran without a scheduler, leaving
-// Steps at 0.
+// ticks they asked for in total and at most, and the largest wall target;
+// the steps by the reason they acted on (timer, wake, settled, full) and
+// the clock stops the wake steps answered (issue #112). Rows are absent
+// when the controller ran without a scheduler, leaving Steps at 0.
 type StepSample struct {
 	Steps          uint64            `json:"steps"`
 	Reads          uint64            `json:"reads"`
@@ -73,6 +74,20 @@ type StepSample struct {
 	WindowTicks    uint64            `json:"window_ticks"`
 	MaxWindowTicks uint64            `json:"max_window_ticks"`
 	MaxWindowSecs  float64           `json:"max_window_target_secs"`
+	Reasons        map[string]uint64 `json:"reasons,omitempty"`
+	Stops          StopSample        `json:"stops"`
+}
+
+// StopSample counts the clock_step rows a committed clock stop woke
+// (payload "stop") and their stop latency: the wall time from the native
+// stop stamp (the Stopped event's observed_at) to the step that acted on
+// it, over the rows that carried "stop_latency_ms" (LatencySamples; a
+// negative sample, clock skew, is dropped).
+type StopSample struct {
+	Count          uint64  `json:"count"`
+	LatencySamples uint64  `json:"latency_samples"`
+	MeanLatencyMs  float64 `json:"mean_latency_ms"`
+	MaxLatencyMs   float64 `json:"max_latency_ms"`
 }
 
 // ClockSample is wall TPS derived from the observation-context ticks carried
@@ -99,6 +114,7 @@ func SummarizePhases(records []TimelineRecord) PhaseSummary {
 	var lastTick int64
 	haveTick := false
 	var tickWall float64
+	var stopLatencyMs float64
 	for _, row := range records {
 		summary.Records++
 		if row.Kind == "recording_gap" {
@@ -184,6 +200,20 @@ func SummarizePhases(records []TimelineRecord) PhaseSummary {
 					steps.Tools[tool] += uint64(field(tools, tool))
 				}
 			}
+			if reason, ok := row.Payload["reason"].(string); ok && reason != "" {
+				if steps.Reasons == nil {
+					steps.Reasons = map[string]uint64{}
+				}
+				steps.Reasons[reason]++
+			}
+			if stop, _ := row.Payload["stop"].(bool); stop {
+				steps.Stops.Count++
+				if latency, ok := number(row.Payload["stop_latency_ms"]); ok && latency >= 0 {
+					steps.Stops.LatencySamples++
+					stopLatencyMs += latency
+					steps.Stops.MaxLatencyMs = math.Max(steps.Stops.MaxLatencyMs, latency)
+				}
+			}
 		case "native_decode":
 			request, ok := number(row.Payload["request"])
 			if !ok {
@@ -206,6 +236,9 @@ func SummarizePhases(records []TimelineRecord) PhaseSummary {
 		return summary.Tools[i].NativeTool+summary.Tools[i].Wrapper < summary.Tools[j].NativeTool+summary.Tools[j].Wrapper
 	})
 	summary.WallSecs = summary.LastWall - summary.FirstWall
+	if summary.Steps.Stops.LatencySamples > 0 {
+		summary.Steps.Stops.MeanLatencyMs = stopLatencyMs / float64(summary.Steps.Stops.LatencySamples)
+	}
 	if summary.Clock.WallSecs > 0 {
 		summary.Clock.WallTPS = float64(summary.Clock.TicksAdvanced) / summary.Clock.WallSecs
 	}
@@ -318,6 +351,23 @@ func WritePhaseReport(w io.Writer, summary PhaseSummary) {
 		fmt.Fprintf(w, "steps: %d, reads/step mean %.1f max %d, cache hits/step %.1f, parent hits/step %.1f", steps.Steps, float64(steps.Reads)/float64(steps.Steps), steps.MaxReads, float64(steps.CacheHits)/float64(steps.Steps), float64(steps.ParentHits)/float64(steps.Steps))
 		if steps.Windows > 0 {
 			fmt.Fprintf(w, ", window ticks mean %.0f max %d (target up to %.1fs) over %d sized steps", float64(steps.WindowTicks)/float64(steps.Windows), steps.MaxWindowTicks, steps.MaxWindowSecs, steps.Windows)
+		}
+		if len(steps.Reasons) > 0 {
+			reasons := make([]string, 0, len(steps.Reasons))
+			for reason := range steps.Reasons {
+				reasons = append(reasons, reason)
+			}
+			sort.Strings(reasons)
+			fmt.Fprint(w, ", by reason")
+			for _, reason := range reasons {
+				fmt.Fprintf(w, " %s=%d", reason, steps.Reasons[reason])
+			}
+		}
+		if stops := steps.Stops; stops.Count > 0 {
+			fmt.Fprintf(w, "\nstops: %d woke a step", stops.Count)
+			if stops.LatencySamples > 0 {
+				fmt.Fprintf(w, ", stop->step latency mean %.1fms max %.1fms over %d samples", stops.MeanLatencyMs, stops.MaxLatencyMs, stops.LatencySamples)
+			}
 		}
 		names := make([]string, 0, len(steps.Tools))
 		for tool := range steps.Tools {

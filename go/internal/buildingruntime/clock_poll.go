@@ -127,7 +127,7 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 		return fail(err)
 	}
 	if out.Captured {
-		out.Wake, out.Invalidated, out.AuthorityChanged, out.Stopped = clockPageWakeStopped(page)
+		out.Wake, out.Invalidated, out.AuthorityChanged, out.Stopped, out.StoppedAt = clockPageWakeStopped(page)
 		// The reviewer's retained census observed through the same facts:
 		// whatever the page made stale retires it too.
 		if s.facts.apply(page) && s.config.Routine != nil {

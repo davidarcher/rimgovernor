@@ -16,11 +16,11 @@ func TestWakeSignalCarriesStop(t *testing.T) {
 		{Cursor: proto.Int64(1), Event: &k.Event_OperationOutcome{OperationOutcome: clockPollOutcome(1)}},
 		{Cursor: proto.Int64(2), Event: &k.Event_Stopped{Stopped: &k.StopEvent{Reason: k.StopReason_STOP_REASON_TICK_BUDGET.Enum()}}},
 	}}
-	outcomes, _, _, stopped := clockPageWakeStopped(page)
+	outcomes, _, _, stopped, _ := clockPageWakeStopped(page)
 	if !stopped || len(outcomes) != 1 {
 		t.Fatal(stopped, outcomes)
 	}
-	if _, _, _, stopped := clockPageWakeStopped(&k.EventsPage{Events: page.Events[:1]}); stopped {
+	if _, _, _, stopped, _ := clockPageWakeStopped(&k.EventsPage{Events: page.Events[:1]}); stopped {
 		t.Fatal("no Stopped event on the page")
 	}
 	w := NewWakeSignal()
