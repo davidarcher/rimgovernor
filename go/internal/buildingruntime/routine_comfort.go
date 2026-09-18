@@ -8,6 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"strings"
 )
 
 const BuildingComfortWait RoutineBuildingReason = "waiting_for_native_comfort_use"
@@ -50,13 +51,14 @@ func NewRoutineComfortPlanner(reviewer *RoutineReviewer, native RoutineBuildingS
 	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, goal: policy.EnsureComfort, definition: "Wall", shelter: true}, nil
 }
 
-// Skilled furniture must have a qualified, assigned builder in the same native
-// observation bracket. Unskilled furniture (native construction minimum 0,
-// such as a crafting spot) only needs one available pawn whose observed
-// Construction setting is enabled: waiting for the whole colony's settings to
-// match the allocator would hold a bench behind an unrelated pawn whose
-// settings cannot be applied (a mental break, an unobservable pawn). This
-// comparison never writes work settings.
+// A definition needs one available pawn whose observed Construction setting
+// is enabled and whose Construction skill meets the native minimum, in the
+// same native observation bracket. The gate used to demand that the whole
+// colony's settings match a Construction-only allocation, but the work
+// planner applies a different allocation (bench and deficit work shift the
+// owners), so the two only agreed by luck and a cooler could wait forever
+// behind an unrelated pawn's Cooking checkbox (#66). This comparison never
+// writes work settings.
 func comfortBuilderAvailable(facts observation.ColonyProjection, definition string, overrides []policy.WorkOverride) bool {
 	for _, d := range facts.Definitions {
 		if d.Name != definition {
@@ -71,14 +73,11 @@ func comfortBuilderAvailable(facts observation.ColonyProjection, definition stri
 		if !known {
 			return false
 		}
-		if minimum == 0 {
-			return unskilledBuilderAvailable(pawns, overrides)
+		available = builderAvailable(pawns, overrides, int(minimum))
+		if clockSchedulerDebug && !available {
+			clockSchedulerLog("%s builder gate: no available pawn with Construction enabled at skill >= %d (%s)", definition, minimum, builderCensus(pawns))
 		}
-		decision, err := policy.AssignWork(pawns, []policy.WorkRequirement{{Work: "Construction", Skill: "Construction", Minimum: int(minimum)}}, overrides)
-		if clockSchedulerDebug {
-			clockSchedulerLog("%s builder gate: err=%v capacity=%v matches=%v mismatches=%v", definition, err, decision.Capacity, decision.Matches, workMismatches(pawns, decision))
-		}
-		return err == nil && decision.Capacity == domain.Known(true) && decision.Matches == domain.Known(true)
+		return available
 	}
 	return false
 }
@@ -153,13 +152,12 @@ func comfortNativeWorkTicks(plan store.PlanState, current domain.GenerationSnaps
 	return min(uint32(120), uint32(10000-(tick-v.Tick)))
 }
 
-// workMismatches lists pawn/work pairs whose observed enablement differs from
-// the allocator's decision, the diagnostic behind a "builder unavailable"
-// wait (RIMGOVERNOR_CLOCK_DEBUG=1 only).
-// unskilledBuilderAvailable reports whether some available pawn has
-// Construction enabled in its observed settings and no player override
-// disabling it. Skill levels are irrelevant: the definition needs none.
-func unskilledBuilderAvailable(pawns []policy.WorkPawn, overrides []policy.WorkOverride) bool {
+// builderAvailable reports whether some available pawn has Construction
+// enabled in its observed settings, no player override disabling it and,
+// when the definition needs one, a Construction skill at the native minimum.
+// builderCensus is the diagnostic behind a "builder unavailable" wait
+// (RIMGOVERNOR_CLOCK_DEBUG=1 only).
+func builderAvailable(pawns []policy.WorkPawn, overrides []policy.WorkOverride, minimum int) bool {
 	for _, pawn := range pawns {
 		if pawn.Available != domain.Known(true) || pawn.Applies != domain.Known(true) {
 			continue
@@ -177,6 +175,21 @@ func unskilledBuilderAvailable(pawns []policy.WorkPawn, overrides []policy.WorkO
 		if !known {
 			continue
 		}
+		if minimum > 0 {
+			skills, known := pawn.Skills.Value()
+			if !known {
+				continue
+			}
+			qualified := false
+			for _, skill := range skills {
+				if skill.Name == "Construction" && !skill.Disabled && skill.Level >= minimum {
+					qualified = true
+				}
+			}
+			if !qualified {
+				continue
+			}
+		}
 		for _, setting := range settings {
 			if setting.Work == "Construction" && !setting.Disabled && setting.Priority > 0 {
 				return true
@@ -186,22 +199,26 @@ func unskilledBuilderAvailable(pawns []policy.WorkPawn, overrides []policy.WorkO
 	return false
 }
 
-func workMismatches(pawns []policy.WorkPawn, decision policy.WorkDecision) []string {
-	observed := map[policy.PawnID]map[policy.WorkType]policy.WorkPriority{}
-	for _, pawn := range pawns {
-		settings, _ := pawn.Work.Value()
-		observed[pawn.ID] = map[policy.WorkType]policy.WorkPriority{}
-		for _, setting := range settings {
-			observed[pawn.ID][setting.Work] = setting
-		}
-	}
+func builderCensus(pawns []policy.WorkPawn) string {
 	var out []string
-	for _, assignment := range decision.Assignments {
-		for _, want := range assignment.Priorities {
-			if have, ok := observed[assignment.Pawn][want.Work]; ok && (have.Priority > 0) != (want.Priority > 0) {
-				out = append(out, fmt.Sprintf("%s/%s observed=%d wanted=%d", assignment.Pawn, want.Work, have.Priority, want.Priority))
+	for _, pawn := range pawns {
+		level := -1
+		if skills, known := pawn.Skills.Value(); known {
+			for _, skill := range skills {
+				if skill.Name == "Construction" {
+					level = skill.Level
+				}
 			}
 		}
+		priority := -1
+		if settings, known := pawn.Work.Value(); known {
+			for _, setting := range settings {
+				if setting.Work == "Construction" {
+					priority = setting.Priority
+				}
+			}
+		}
+		out = append(out, fmt.Sprintf("%s available=%v applies=%v construction=%d priority=%d", pawn.ID, pawn.Available, pawn.Applies, level, priority))
 	}
-	return out
+	return strings.Join(out, "; ")
 }

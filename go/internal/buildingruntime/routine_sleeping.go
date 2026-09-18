@@ -272,7 +272,12 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		}
 		if reason != "" {
 			result := RoutineBuildingResult{Reason: reason}
-			if reason == BuildingComfortWait || reason == RoutineBuildingReason(policy.PowerWaitOutput) || reason == RoutineBuildingReason(policy.TemperatureWait) || reason == RoutineBuildingReason(policy.RefrigerationWait) {
+			// A cooler completed on the tick the supervisor latched the
+			// window reads powerOn=false until the power net ticks once, so
+			// the cooling allowance also covers cooler_power_needed; a
+			// cooler still unpowered when it runs out is a real hold (#66).
+			powerSettling := r.goal == policy.MaintainRefrigeration && reason == RoutineBuildingReason(policy.RefrigerationPowerNeeded)
+			if reason == BuildingComfortWait || reason == RoutineBuildingReason(policy.PowerWaitOutput) || reason == RoutineBuildingReason(policy.TemperatureWait) || reason == RoutineBuildingReason(policy.RefrigerationWait) || powerSettling {
 				if r.goal == policy.EnsureTemperatureSafety {
 					result.NativeWorkTicks, err = temperatureOutputAllowance(call, p.journal, goal.Goal, state.Snapshot, facts.Identity.Tick)
 				} else if r.goal == policy.MaintainRefrigeration {

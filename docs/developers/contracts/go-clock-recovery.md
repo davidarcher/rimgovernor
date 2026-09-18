@@ -226,7 +226,17 @@ close threat. A humanlike or mechanoid threat, or one whose race or distance
 is unknown, holds at any distance. A method refused only for insufficient
 stock lends the window a bounded `stockWaitTicks` of native work: the census
 does not see a stack in a hauler's hands, so without ticks the haul that would
-clear the refusal never lands and the window is refused as `no_work` for good. With such a plan the decision
+clear the refusal never lands and the window is refused as `no_work` for good.
+Likewise a cooler method that completed on the tick the supervisor latched the
+window still reads `powerOn=false` until the power net ticks once, so the
+refrigeration planner lends its cooling allowance to `cooler_power_needed` as
+well as to `cooling`; a cooler still unpowered when the allowance runs out is a
+genuine hold for the power family. The allowance keys on the method's dispatch
+scope and world, not the native generation, which moves with every stopped
+window. A skilled furniture or cooler build needs one available pawn with
+Construction enabled at the native skill minimum; it no longer waits for the
+whole colony's checkboxes to match a Construction-only allocation the work
+planner never applies. With such a plan the decision
 is a combat watch: it names, sorted, every live hostile the window acknowledges
 and uses the combat budget (never above the colony budget). Once every hostile
 is dead or downed the decision is back in colony mode, acknowledging nothing.

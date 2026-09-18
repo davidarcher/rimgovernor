@@ -194,3 +194,99 @@ func TestRefrigerationDefersUnpoweredCoolerToPowerFamily(t *testing.T) {
 		t.Fatal(result, err)
 	}
 }
+
+// A cooler method that just completed reads powerOn=false until the power
+// net ticks once (the supervisor latches the window on the completing tick),
+// so cooler_power_needed lends the cooling allowance instead of parking the
+// clock on no_work (#66).
+func TestRefrigerationPowerNeededAfterCompletedMethodLendsCoolingAllowance(t *testing.T) {
+	t.Parallel()
+	p, db, n, _ := refrigerationFixture(t, true)
+	result, err := p.Step(context.Background())
+	if err != nil || result.Reason != BuildingMethodAdmitted {
+		t.Fatal(result, err)
+	}
+	review, err := db.LoadRoutineReview(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var goal store.GoalState
+	for _, binding := range review.Goals {
+		if binding.Need == policy.MaintainRefrigeration {
+			goal, err = db.LoadGoal(context.Background(), binding.Goal)
+		}
+	}
+	if err != nil || len(goal.Methods) != 1 {
+		t.Fatal(goal.Methods, err)
+	}
+	plan, err := db.LoadPlan(context.Background(), goal.Methods[0].Plan)
+	if err != nil || len(plan.Progress) != 1 {
+		t.Fatal(plan, err)
+	}
+	root := p.reviewer.player.State().Snapshot
+	scope := root
+	scope.Plan, scope.Revision = plan.Spec.ID(), plan.Spec.Revision()
+	action := plan.Progress[0].Action().ID()
+	tick := goal.Goal.Tick
+	patch, _ := plan.Progress[0].Action().BuildingTemperature()
+	if _, err := db.PrepareBuildingTemperature(context.Background(), plan.Spec.ID(), action, store.BuildingTemperatureAdmission{Snapshot: scope, Tick: tick, Thing: patch.Thing(), SnapshotToken: patch.BeforeToken()}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Dispatch(context.Background(), plan.Spec.ID(), action, scope, tick); err != nil {
+		t.Fatal(err)
+	}
+	// The worker observes a completion after the supervisor latched the
+	// window under the root scope, not the plan's.
+	if _, err := db.Observe(context.Background(), plan.Spec.ID(), domain.Observation{Action: action, Attempt: 1, Snapshot: root, Tick: tick, Effect: domain.EffectCompleted, Causality: domain.AfterDispatch}, root); err != nil {
+		t.Fatal(err)
+	}
+	power := n.reply.GetObserved().Development.GetObserved().Power
+	power[len(power)-1].Building.Service.PowerOn = proto.Bool(false)
+	if _, err := p.reviewer.Step(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	result, err = p.Step(context.Background())
+	if err != nil || result.Reason != RoutineBuildingReason(policy.RefrigerationPowerNeeded) || result.Decision.Admitted {
+		t.Fatal(result, err)
+	}
+	if result.NativeWorkTicks == 0 {
+		t.Fatal("completed cooler method left the unpowered cooler with no native work ticks")
+	}
+}
+
+// The native generation moves with every window the supervisor stops; a
+// cooler completed under an earlier generation keeps its cooling allowance
+// (same rule as the temperature budget), a reloaded world does not (#66).
+func TestRefrigerationNativeWorkTicksSurviveGenerationMoves(t *testing.T) {
+	t.Parallel()
+	building, _ := domain.NewBuilding("Cooler", domain.Cell{X: 1, Z: 3}, domain.North, "")
+	action, _ := domain.NewBuildingAction("cooler", building)
+	spec, _ := domain.NewPlan("cooler-plan", 1, []domain.Action{action})
+	progress, _ := domain.NewProgress(spec, action.ID())
+	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Native: 10, Plan: spec.ID(), Revision: 1}
+	var err error
+	for _, step := range []func() (domain.Progress, error){
+		func() (domain.Progress, error) { return progress.Prepare(snapshot, 1) },
+		func() (domain.Progress, error) { return progress.MarkDispatched(snapshot, 1) },
+		func() (domain.Progress, error) { return progress.RecordReceipt(1, domain.ReceiptAccepted) },
+		func() (domain.Progress, error) {
+			return progress.Observe(domain.Observation{Action: action.ID(), Attempt: 1, Snapshot: snapshot, Tick: 100, Effect: domain.EffectCompleted, Causality: domain.AfterDispatch}, snapshot)
+		},
+	} {
+		if progress, err = step(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	state := store.PlanState{Spec: spec, Progress: []domain.Progress{progress}}
+	if got, completed := refrigerationNativeWorkTicks(state, snapshot, 100); got != 120 || !completed {
+		t.Fatal(got, completed)
+	}
+	snapshot.Native = 12
+	if got, completed := refrigerationNativeWorkTicks(state, snapshot, 100); got != 120 || !completed {
+		t.Fatal("moved native generation lost the cooling allowance", got, completed)
+	}
+	snapshot.Load = "reload"
+	if got, _ := refrigerationNativeWorkTicks(state, snapshot, 100); got != 0 {
+		t.Fatal("reloaded world inherited the cooling allowance", got)
+	}
+}

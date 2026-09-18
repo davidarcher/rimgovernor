@@ -152,6 +152,18 @@ func TestComfortBuilderHonorsNativeSkillAndPlayerWorkPreferences(t *testing.T) {
 		t.Fatal("native construction prerequisite bypassed")
 	}
 	skills[0].Level = 4
+	// An unrelated pawn whose checkboxes match no allocation (every work
+	// type on at 3) must not hold the qualified builder (#66).
+	other := policy.WorkPawn{ID: "cook", Available: domain.Known(true), Applies: domain.Known(true), Manual: domain.Known(true), Ranged: domain.Known(false), Skills: domain.Known([]policy.WorkSkill{{Name: "Construction", Level: 0}})}
+	var everything []policy.WorkPriority
+	for _, name := range []policy.WorkType{"Construction", "Growing", "Cooking", "Doctor", "PlantCutting", "Hunting", "Crafting", "Smithing"} {
+		everything = append(everything, policy.WorkPriority{Work: name, Priority: 3})
+	}
+	other.Work = domain.Known(everything)
+	facts.WorkPawns = domain.Known([]policy.WorkPawn{pawn, other})
+	if !comfortBuilderAvailable(facts, "DiningChair", nil) {
+		t.Fatal("qualified builder held behind an unrelated pawn's settings")
+	}
 	facts.WorkPawns = domain.Unknown[[]policy.WorkPawn]()
 	if comfortBuilderAvailable(facts, "DiningChair", nil) {
 		t.Fatal("missing work census accepted")

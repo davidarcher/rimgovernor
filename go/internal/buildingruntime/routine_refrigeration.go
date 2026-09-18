@@ -115,6 +115,12 @@ func refrigerationNativeWorkTicks(plan store.PlanState, current domain.Generatio
 	}
 	current.Plan, current.Revision = plan.Spec.ID(), plan.Spec.Revision()
 	v := progress.View()
+	// The native generation moves with every window the supervisor stops,
+	// so a cooler dispatched two windows ago never matched the current
+	// generation and its allowance was never lent (#66). Same rule as
+	// temperatureNativeWorkTicks: the dispatch scope, this world, any
+	// generation since.
+	current.Native = v.Snapshot.Native
 	effect, known := v.Effect.Value()
 	if v.Stage != domain.Completed || v.Unresolved || !known || effect != domain.EffectCompleted || !v.Snapshot.Matches(current) || tick < v.Tick {
 		return 0, false
