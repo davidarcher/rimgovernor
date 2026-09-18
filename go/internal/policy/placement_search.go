@@ -75,6 +75,11 @@ func NewPlacementSearch(r PlacementSearchRequest) (PlacementSearch, error) {
 				continue
 			}
 		}
+		// An enclosed space no colonist can path to (a dig sealed off, a
+		// walled pocket) is not a room to furnish.
+		if reachable, known := row.Reachable.Value(); known && !reachable {
+			continue
+		}
 		s.free[c] = true
 		if c.X >= r.Center.X-r.Radius && c.X <= r.Center.X+r.Radius && c.Z >= r.Center.Z-r.Radius && c.Z <= r.Center.Z+r.Radius {
 			s.sites = append(s.sites, c)

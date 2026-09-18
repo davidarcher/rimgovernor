@@ -120,7 +120,10 @@ the game only reveals rock as neighbouring rock is cleared, so each stage design
 what pawns can currently see and reach, and the next stage is planned from the
 geometry they actually exposed. Support is a property of the whole removed set, not
 of one cell, which is why the site read evaluates the counterfactual removal and why
-an unknown verdict holds the project instead of failing it.
+an unknown verdict holds the project instead of failing it. What the fog reveals is
+reviewed, not assumed away: an obstacle inside the room is kept and dug around, an
+obstacle in the way in or a lost roof holder ends the project, and the shelter is
+re-sited from the geometry that remains.
 
 ## Reservations prevent competing promises
 

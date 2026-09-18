@@ -7,6 +7,7 @@ using System.Security.Cryptography;
 using System.Text;
 using RimWorld;
 using Verse;
+using Verse.AI;
 using Common = RimGovernor.Protocol.Common;
 using Obs = RimGovernor.Protocol.Observations;
 using Operations = RimGovernor.Protocol.Operations;
@@ -96,7 +97,11 @@ namespace HomeBridge.BridgeTools
             // The access cell may itself be rock (single-cell dispatch reads pass
             // the target): a miner stands on any visible walkable neighbour.
             var stand = ExcavationTools.StandingCell(access, map);
-            snapshot.AccessReachable = stand.IsValid;
+            // A standing cell nobody can path to (the mouth walled shut, the
+            // pocket beyond it enclosed) is not reachable access; only mobile
+            // colonists can say so, an all-downed colony leaves it standing.
+            var mobile = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed).ToList();
+            snapshot.AccessReachable = stand.IsValid && (mobile.Count == 0 || mobile.Any(p => p.CanReach(stand, PathEndMode.OnCell, Danger.None)));
             var workers = snapshot.AccessReachable ? ExcavationTools.Workers(map, stand) : new List<Pawn>();
             snapshot.WorkerAvailable = workers.Count > 0;
             foreach (var worker in workers.Take(32)) snapshot.WorkerIds.Add(worker.GetUniqueLoadID());

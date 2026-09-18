@@ -356,6 +356,7 @@ namespace HomeBridge.BridgeTools
                     }
                 }
             }
+            var workers = people.Where(p => !p.Downed && !p.InMentalState && !p.Drafted).ToList();
             var min = new IntVec3(Math.Max(0, center.x - 22), 0, Math.Max(0, center.z - 22));
             var max = new IntVec3(Math.Min(map.Size.x - 1, center.x + 22), 0, Math.Min(map.Size.z - 1, center.z + 22));
             var cells = new Obs.CellsSnapshot { Context = context, MapSize = Size(map), Region = new Obs.Rectangle { Minimum = Cell(min), Maximum = Cell(max) },
@@ -371,6 +372,7 @@ namespace HomeBridge.BridgeTools
                     Doorway = c.GetDoor(map) != null || c.GetThingList(map).Any(t => (t is Blueprint || t is Frame)
                         && t.def.entityDefToBuild is ThingDef built && typeof(Building_Door).IsAssignableFrom(built.thingClass)),
                     Indoors = room != null && room.ProperRoom && !room.PsychologicallyOutdoors,
+                    Reachable = workers.Any(p => p.CanReach(c, PathEndMode.OnCell, Danger.None)),
                     StorageEmpty = !c.GetThingList(map).Any(t => t is Plant || t is Building || t is Blueprint || t is Frame || t.def.category == ThingCategory.Item) };
                 // Absent roof/zone/room are expressed by the applied field being
                 // set with no value: AppliedFields declares Roof/Zone/Room were

@@ -34,6 +34,10 @@ const (
 	// stands whole; the routine waits rather than site a second shell.
 	BuildingShellBlocked    RoutineBuildingReason = "earlier_shell_blocked"
 	BuildingMethodExhausted RoutineBuildingReason = "retry_bound_exhausted"
+	// BuildingExcavationBlocked: the goal's excavation project cannot be
+	// finished as planned (its roof no longer held, its way in closed); the
+	// same step re-plans the shelter from the geometry the pawns opened.
+	BuildingExcavationBlocked RoutineBuildingReason = "excavation_blocked"
 	BuildingMethodAdmitted  RoutineBuildingReason = "admitted"
 	// BuildingMethodSeparation defers a butcher bill while the separated
 	// butcher spot build still owns the food-supply goal.
@@ -167,6 +171,13 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		}
 		if !selected {
 			return RoutineBuildingResult{Reason: BuildingMethodRefused}, nil
+		}
+	}
+	if r.shelter && r.excavation != nil {
+		// A stage held against geometry that changed under it closes here
+		// so the project below is reviewed instead of waiting on it.
+		if err := cancelStalledExcavation(call, p.journal, goal, review.Tick); err != nil {
+			return RoutineBuildingResult{}, err
 		}
 	}
 	for _, m := range goal.Methods {
@@ -361,7 +372,14 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 			return RoutineBuildingResult{}, err
 		}
 		if target != nil {
-			return r.stepExcavation(call, epoch, excavationStep{state: state, review: review, goal: goal, facts: facts, read: reading, target: *target})
+			result, err := r.stepExcavation(call, epoch, excavationStep{state: state, review: review, goal: goal, facts: facts, read: reading, target: *target})
+			if err != nil || result.Reason != BuildingExcavationBlocked {
+				return result, err
+			}
+			// The project cannot be finished as planned: the shelter is
+			// re-sited below from the geometry the pawns actually opened,
+			// as another dig (a fresh face, or a verified way back into
+			// the same room) or the open-site shell.
 		}
 	}
 	available := routineDefinitionsAvailable(facts, definitions, r.shelter)

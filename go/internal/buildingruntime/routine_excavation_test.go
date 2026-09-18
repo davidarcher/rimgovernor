@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"strings"
 	"testing"
@@ -23,23 +24,34 @@ type excavationNative struct {
 	rock    map[domain.Cell]string
 	fogged  map[domain.Cell]bool
 	blocked map[domain.Cell]bool
-	support policy.ExcavationSupport
-	worker  bool
-	reads   int
-	last    []domain.Cell
+	// hazard cells unfogged into something that is not rock and not open
+	// ground (an ancient wall, deep water): no definition, not walkable.
+	hazard map[domain.Cell]bool
+	// sealed access cells have no visible walkable neighbour.
+	sealed   map[domain.Cell]bool
+	support  policy.ExcavationSupport
+	collapse bool
+	worker   bool
+	reads    int
+	last     []domain.Cell
 }
 
 func (n *excavationNative) ReadExcavationSite(ctx context.Context, _ *c.Identity, cells []domain.Cell, access domain.Cell) (bridge.ExcavationSite, bridge.Result, error) {
 	n.reads++
 	n.last = append([]domain.Cell(nil), cells...)
-	site := bridge.ExcavationSite{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Support: n.support, WorkerAvailable: n.worker, AccessReachable: n.worker}
-	if n.worker {
+	site := bridge.ExcavationSite{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Support: n.support, CollapsePending: n.collapse, WorkerAvailable: n.worker, AccessReachable: n.worker}
+	if n.sealed[access] {
+		site.WorkerAvailable, site.AccessReachable = false, false
+	}
+	if site.WorkerAvailable {
 		site.Workers = []string{"miner"}
 	}
 	for _, cell := range cells {
 		row := bridge.ExcavationSiteCell{Cell: cell}
 		if n.fogged[cell] {
 			row.Fogged = true
+		} else if n.hazard[cell] {
+			row.Roof, row.HoldsRoof, row.Blocker = "RoofRockThick", true, "No native rock at cell"
 		} else if def := n.rock[cell]; def != "" {
 			row.Definition, row.Roof, row.HoldsRoof, row.Eligible, row.Token = def, "RoofRockThick", true, !n.blocked[cell], "tok-"+def
 		} else {
@@ -57,7 +69,7 @@ func (n *excavationNative) ReadExcavationSite(ctx context.Context, _ *c.Identity
 func excavationFixture(t *testing.T) (*RoutineBuildingPlanner, *store.Store, *excavationNative) {
 	t.Helper()
 	planner, db, n := shelterFixture(t)
-	x := &excavationNative{sleepingNative: n, rock: map[domain.Cell]string{}, fogged: map[domain.Cell]bool{}, blocked: map[domain.Cell]bool{}, support: policy.ExcavationSupportSupported, worker: true}
+	x := &excavationNative{sleepingNative: n, rock: map[domain.Cell]string{}, fogged: map[domain.Cell]bool{}, blocked: map[domain.Cell]bool{}, hazard: map[domain.Cell]bool{}, sealed: map[domain.Cell]bool{}, support: policy.ExcavationSupportSupported, worker: true}
 	planning := n.reply.GetObserved().Planning.GetObserved()
 	planning.Cells.Region.Maximum = &c.Cell{X: proto.Int32(29), Z: proto.Int32(19)}
 	for gx := int32(9); gx <= 10; gx++ {
@@ -627,5 +639,259 @@ func TestRoutineExcavationDigsRoundRoomForNeolithicColony(t *testing.T) {
 	}
 	if planID != excavationPlanID(result.Decision.Goal, target, "0") {
 		t.Fatal(planID)
+	}
+}
+
+// digExcavation runs the planner until the stage plans stop, completing
+// each admitted stage the way the executor does, and returns the last
+// result plus every cell any stage designated.
+func digExcavation(t *testing.T, r *RoutineBuildingPlanner, db *store.Store, x *excavationNative, reveal func(stage int)) (RoutineBuildingResult, map[domain.Cell]int) {
+	t.Helper()
+	ctx := context.Background()
+	dug := map[domain.Cell]int{}
+	for stage := 0; stage < 16; stage++ {
+		result, err := r.Step(ctx)
+		if err != nil {
+			t.Fatal(stage, err)
+		}
+		if result.Reason != BuildingMethodAdmitted {
+			return result, dug
+		}
+		method := excavationStageMethod(stage)
+		found := false
+		for _, m := range result.Decision.Goal.Methods {
+			found = found || m.Method == method
+		}
+		if !found {
+			return result, dug
+		}
+		_, cells := excavationCells(t, db, result.Decision, method)
+		for _, c := range cells {
+			if prev, seen := dug[c]; seen {
+				t.Fatal("cell designated twice", c, prev, stage)
+			}
+			dug[c] = stage
+		}
+		completeExcavation(t, db, result.Decision, method, x)
+		reveal(stage)
+	}
+	t.Fatal("stages never ended")
+	return RoutineBuildingResult{}, nil
+}
+
+func revealInterior(x *excavationNative) {
+	for gx := int32(11); gx <= 17; gx++ {
+		for z := int32(1); z <= 7; z++ {
+			if !x.hazard[domain.Cell{X: gx, Z: z}] {
+				x.rock[domain.Cell{X: gx, Z: z}] = "Granite"
+			}
+			delete(x.fogged, domain.Cell{X: gx, Z: z})
+		}
+	}
+}
+
+func TestRoutineExcavationDigsAroundRevealedHazard(t *testing.T) {
+	t.Parallel()
+	// Two interior cells unfog into an ancient wall (no rock, not
+	// walkable, never eligible). They are never designated; the room is
+	// dug around them and closed with the door as usual.
+	r, db, x := excavationFixture(t)
+	hazards := []domain.Cell{{X: 15, Z: 2}, {X: 15, Z: 3}}
+	for _, h := range hazards {
+		x.hazard[h] = true
+	}
+	result, dug := digExcavation(t, r, db, x, func(stage int) {
+		if stage == 0 {
+			revealInterior(x)
+		}
+	})
+	if result.Reason != BuildingMethodAdmitted {
+		t.Fatal(result)
+	}
+	doorPlan := methodPlan(t, result.Decision, excavationDoorMethod)
+	if doorPlan != excavationPlanID(result.Decision.Goal, excavationTestTarget, "door") {
+		t.Fatal(doorPlan)
+	}
+	for _, h := range hazards {
+		if stage, ok := dug[h]; ok {
+			t.Fatal("hazard designated", h, stage)
+		}
+	}
+	if len(dug) != 51-len(hazards) {
+		t.Fatal("dug cells", len(dug))
+	}
+	for _, cell := range excavationTestTarget.Cells() {
+		if x.rock[cell] != "" {
+			t.Fatal("rock left standing", cell)
+		}
+	}
+}
+
+func TestRoutineExcavationBlockedEntranceIsResited(t *testing.T) {
+	t.Parallel()
+	// The cell past the door unfogs into a structure: the corridor can
+	// never open into the room. The project is dropped and the shelter
+	// re-sited; here no other face verifies, so the shell wins.
+	r, db, x := excavationFixture(t)
+	x.hazard[domain.Cell{X: 11, Z: 4}] = true
+	result, dug := digExcavation(t, r, db, x, func(stage int) {
+		if stage == 0 {
+			revealInterior(x)
+			for z := int32(0); z < 9; z++ {
+				if z != 4 {
+					x.blocked[domain.Cell{X: 9, Z: z}], x.blocked[domain.Cell{X: 10, Z: z}] = true, true
+				}
+			}
+		}
+	})
+	if len(dug) != 2 || result.Reason != BuildingMethodAdmitted {
+		t.Fatal(result, dug)
+	}
+	plan, err := db.LoadPlan(context.Background(), result.Decision.Goal.Methods[len(result.Decision.Goal.Methods)-1].Plan)
+	if err != nil || !strings.HasPrefix(string(plan.Spec.ID()), "routine-shell") {
+		t.Fatal(plan.Spec.ID(), err)
+	}
+}
+
+func TestRoutineExcavationBreachedRoofAbandonsTheDig(t *testing.T) {
+	t.Parallel()
+	// After the corridor, the rock around the room is gone (the player
+	// levelled it): removing the rest would leave the roof unsupported and
+	// no collapse is pending, so nothing sound can be finished here. No
+	// further stage is admitted under the target and the shell is sited.
+	r, db, x := excavationFixture(t)
+	result, dug := digExcavation(t, r, db, x, func(stage int) {
+		if stage == 0 {
+			revealInterior(x)
+			x.support = policy.ExcavationSupportUnsupported
+		}
+	})
+	if len(dug) != 2 || result.Reason != BuildingMethodAdmitted {
+		t.Fatal(result, dug)
+	}
+	var shell bool
+	for _, m := range result.Decision.Goal.Methods {
+		if strings.HasPrefix(string(m.Plan), "routine-shell") {
+			shell = true
+		}
+		if m.Method == excavationStageMethod(1) {
+			t.Fatal("stage admitted under a breached target", m)
+		}
+	}
+	if !shell {
+		t.Fatal("shell not sited", result.Decision.Goal.Methods)
+	}
+	// A pending collapse is transient: the project waits instead.
+	r2, db2, x2 := excavationFixture(t)
+	first, err := r2.Step(context.Background())
+	if err != nil || first.Reason != BuildingMethodAdmitted {
+		t.Fatal(first, err)
+	}
+	completeExcavation(t, db2, first.Decision, excavationStageMethod(0), x2)
+	revealInterior(x2)
+	x2.support = policy.ExcavationSupportUnsupported
+	x2.collapse = true
+	held, err := r2.Step(context.Background())
+	if err != nil || held.Reason != BuildingMethodUnknown {
+		t.Fatal(held, err)
+	}
+}
+
+func TestRoutineExcavationSealedAccessIsResited(t *testing.T) {
+	t.Parallel()
+	// The access cell is walled off after the corridor is dug: the site
+	// read reports it unreachable. The project continues from another
+	// face: the next stage is admitted under a new target key with a
+	// reachable access cell, and the old corridor is never designated
+	// again.
+	r, db, x := excavationFixture(t)
+	result, dug := digExcavation(t, r, db, x, func(stage int) {
+		if stage == 0 {
+			x.sealed[excavationTestTarget.Access] = true
+			// The old corridor is enclosed now; the planning window shows
+			// its cells as walls of the sealed pocket.
+			planning := x.reply.GetObserved().Planning.GetObserved()
+			for _, row := range planning.Cells.Cells {
+				if row.Cell.GetZ() == 4 && (row.Cell.GetX() == 8 || row.Cell.GetX() == 9 || row.Cell.GetX() == 10) {
+					row.Walkable, row.Occupied = proto.Bool(false), proto.Bool(true)
+				}
+			}
+		}
+	})
+	if len(dug) != 4 || result.Reason != BuildingMethodUnknown {
+		t.Fatal(result, dug)
+	}
+	goalID := goalIDFor(t, db)
+	goal, err := db.LoadGoal(context.Background(), goalID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stage1, err := db.LoadGoalMethod(context.Background(), goal.Goal.ID, goal.Goal.Epoch, excavationStageMethod(1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	target, err := excavationPlanTarget(stage1.Plan)
+	if err != nil || target.Key() == excavationTestTarget.Key() || target.Access == excavationTestTarget.Access {
+		t.Fatal("stage 1 not re-sited", stage1.Plan, err)
+	}
+	for _, c := range target.Corridor {
+		if _, ok := dug[c]; !ok {
+			t.Fatal("new corridor not designated", c, dug)
+		}
+	}
+	for _, m := range goal.Methods {
+		if strings.HasPrefix(string(m.Plan), "routine-shell") {
+			t.Fatal("shell sited while another face verified", m)
+		}
+	}
+}
+
+func goalIDFor(t *testing.T, db *store.Store) domain.GoalID {
+	t.Helper()
+	review, err := db.LoadRoutineReview(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, binding := range review.Goals {
+		if binding.Need == policy.EnsureInitialShelter {
+			return binding.Goal
+		}
+	}
+	t.Fatal("no shelter goal", review.Goals)
+	return ""
+}
+
+func TestCancelStalledExcavation(t *testing.T) {
+	t.Parallel()
+	r, db, _ := excavationFixture(t)
+	ctx := context.Background()
+	result, err := r.Step(ctx)
+	if err != nil || result.Reason != BuildingMethodAdmitted {
+		t.Fatal(result, err)
+	}
+	planID, _ := excavationCells(t, db, result.Decision, excavationStageMethod(0))
+	action := domain.ActionID(fmt.Sprintf("%s-%d", planID, 0))
+	if _, err := db.Hold(ctx, planID, action, []domain.HeldReason{domain.HeldNotReady}, 7); err != nil {
+		t.Fatal(err)
+	}
+	goal := result.Decision.Goal
+	// Within the grace the hold stands and the stage stays open.
+	if err := cancelStalledExcavation(ctx, db, goal, 7+excavationStallTicks-1); err != nil {
+		t.Fatal(err)
+	}
+	plan, _ := db.LoadPlan(ctx, planID)
+	if !domain.GoalWorkOpen(plan.Progress) {
+		t.Fatal("stage cancelled within the grace")
+	}
+	// Past it, only the held action is cancelled; the other stays pending.
+	if err := cancelStalledExcavation(ctx, db, goal, 7+excavationStallTicks); err != nil {
+		t.Fatal(err)
+	}
+	plan, _ = db.LoadPlan(ctx, planID)
+	for _, p := range plan.Progress {
+		v := p.View()
+		if v.Action == action && v.Stage != domain.Cancelled || v.Action != action && v.Stage != domain.Pending {
+			t.Fatal(v.Action, v.Stage)
+		}
 	}
 }

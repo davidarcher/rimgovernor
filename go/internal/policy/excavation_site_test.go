@@ -209,64 +209,142 @@ func TestChooseExcavation(t *testing.T) {
 	}
 }
 
-func TestExcavationFrontier(t *testing.T) {
+func excavationStates(target ExcavationTarget, cleared, visible int) []ExcavationCellState {
+	var out []ExcavationCellState
+	for i, c := range target.Cells() {
+		s := ExcavationCellState{Cell: c, Rock: "Granite"}
+		switch {
+		case i < cleared:
+			s.Cleared = true
+		case i < visible:
+			s.Eligible = true
+		default:
+			s.Fogged = true
+		}
+		out = append(out, s)
+	}
+	return out
+}
+
+func TestExcavationReviewStagesFrontier(t *testing.T) {
 	targets, _ := ExcavationSites(mountainSite())
 	target := targets[0]
-	states := func(cleared, visible int) []ExcavationCellState {
-		var out []ExcavationCellState
-		for i, c := range target.Cells() {
-			s := ExcavationCellState{Cell: c, Rock: "Granite"}
-			switch {
-			case i < cleared:
-				s.Cleared = true
-			case i < visible:
-				s.Eligible = true
-			default:
-				s.Fogged = true
-			}
-			out = append(out, s)
-		}
-		return out
-	}
+	states := func(cleared, visible int) []ExcavationCellState { return excavationStates(target, cleared, visible) }
 	// Only the two visible corridor cells are known; both are adjacent (the
 	// second through the first) and the rest is unknown.
-	stage, remaining, unknown := ExcavationFrontier(target, states(0, 2), 8)
-	if len(stage) != 2 || stage[0] != target.Corridor[0] || stage[1] != target.Door || remaining != 51 || !unknown {
-		t.Fatal(stage, remaining, unknown)
+	r := ReviewExcavation(target, states(0, 2), 8)
+	if len(r.Stage) != 2 || r.Stage[0] != target.Corridor[0] || r.Stage[1] != target.Door || r.Remaining != 49 || !r.Unknown || !r.Corridor || r.Complete {
+		t.Fatal(r)
 	}
 	// Corridor cleared, first interior column visible: the stage cap holds.
-	stage, remaining, unknown = ExcavationFrontier(target, states(2, 30), 8)
-	if len(stage) != 8 || remaining != 49 || !unknown {
-		t.Fatal(stage, remaining, unknown)
+	r = ReviewExcavation(target, states(2, 30), 8)
+	if len(r.Stage) != 8 || r.Remaining != 41 || !r.Unknown || r.Complete {
+		t.Fatal(r)
 	}
-	for _, c := range stage {
+	for _, c := range r.Stage {
 		if c.X != 12 && c.X != 13 {
-			t.Fatal("stage not frontier-adjacent", stage)
+			t.Fatal("stage not frontier-adjacent", r.Stage)
 		}
 	}
 	// Everything visible: no unknown left; cells not adjacent to open space
 	// wait for a later stage.
-	stage, remaining, unknown = ExcavationFrontier(target, states(2, 51), 8)
-	if len(stage) != 8 || remaining != 49 || unknown {
-		t.Fatal(stage, remaining, unknown)
+	r = ReviewExcavation(target, states(2, 51), 8)
+	if len(r.Stage) != 8 || r.Remaining != 41 || r.Unknown || r.Complete {
+		t.Fatal(r)
 	}
-	// Fully cleared.
-	stage, remaining, unknown = ExcavationFrontier(target, states(51, 51), 8)
-	if len(stage) != 0 || remaining != 0 || unknown {
-		t.Fatal(stage, remaining, unknown)
+	// Fully cleared: complete, the door is owed.
+	r = ReviewExcavation(target, states(51, 51), 8)
+	if len(r.Stage) != 0 || r.Remaining != 0 || r.Unknown || !r.Complete || !r.Corridor {
+		t.Fatal(r)
+	}
+	// Missing rows count as unknown.
+	r = ReviewExcavation(target, nil, 8)
+	if len(r.Stage) != 0 || r.Remaining != 51 || !r.Unknown || r.Complete {
+		t.Fatal(r)
+	}
+}
+
+func TestExcavationReviewKeepsRevealedHazards(t *testing.T) {
+	targets, _ := ExcavationSites(mountainSite())
+	target := targets[0]
+	cells := target.Cells()
+	// Everything visible and dug except two interior cells that unfogged
+	// into a structure (an ancient wall) and one visible rock cell native
+	// refuses: they are kept as part of the walls and the room completes
+	// around them, corridor open, door owed.
+	s := excavationStates(target, 51, 51)
+	s[20].Cleared, s[20].Blocked = false, true
+	s[21].Cleared, s[21].Blocked = false, true
+	s[40].Cleared, s[40].Eligible = false, false
+	r := ReviewExcavation(target, s, 8)
+	if len(r.Stage) != 0 || len(r.Kept) != 3 || r.Kept[0] != cells[20] || r.Kept[2] != cells[40] || r.Remaining != 0 || r.Unknown || !r.Corridor || !r.Complete {
+		t.Fatal(r)
+	}
+	// A hazard next to a diggable cell never enters the stage; digging
+	// continues around it.
+	s = excavationStates(target, 3, 51)
+	s[3].Eligible, s[3].Blocked = false, true
+	r = ReviewExcavation(target, s, 8)
+	if len(r.Stage) != 8 || len(r.Kept) != 1 || r.Kept[0] != cells[3] || r.Complete || !r.Corridor {
+		t.Fatal(r)
+	}
+	for _, c := range r.Stage {
+		if c == cells[3] {
+			t.Fatal("hazard staged", r.Stage)
+		}
+	}
+	// An interior cell sealed off behind kept cells is neither staged nor
+	// unknown: the room is complete without it.
+	s = excavationStates(target, 51, 51)
+	// The far corner and both its interior neighbours.
+	corner := cells[len(cells)-1]
+	for i, c := range cells {
+		if c == corner {
+			s[i].Cleared = false
+		} else if (c.X == corner.X && (c.Z == corner.Z-1 || c.Z == corner.Z+1)) || (c.Z == corner.Z && (c.X == corner.X-1 || c.X == corner.X+1)) {
+			s[i].Cleared, s[i].Blocked = false, true
+		}
+	}
+	s[len(cells)-1].Eligible = true
+	r = ReviewExcavation(target, s, 8)
+	if len(r.Stage) != 0 || r.Remaining != 1 || r.Unknown || !r.Complete {
+		t.Fatal(r)
 	}
 	// Visible but ineligible next cell with fogged remainder: nothing to
 	// dig and still unknown, so the caller re-observes rather than fails.
-	s := states(0, 1)
+	s = excavationStates(target, 0, 1)
 	s[0].Eligible = false
-	stage, remaining, unknown = ExcavationFrontier(target, s, 8)
-	if len(stage) != 0 || remaining != 51 || !unknown {
-		t.Fatal(stage, remaining, unknown)
+	r = ReviewExcavation(target, s, 8)
+	if len(r.Stage) != 0 || r.Remaining != 50 || !r.Unknown || r.Corridor || r.Complete {
+		t.Fatal(r)
 	}
-	// Missing rows count as unknown.
-	stage, remaining, unknown = ExcavationFrontier(target, nil, 8)
-	if len(stage) != 0 || remaining != 51 || !unknown {
-		t.Fatal(stage, remaining, unknown)
+}
+
+func TestExcavationReviewBlockedCorridorNeedsResiting(t *testing.T) {
+	targets, _ := ExcavationSites(mountainSite())
+	target := targets[0]
+	// The door cell unfogged into a structure: the interior is visible and
+	// diggable but can never be entered through this corridor.
+	s := excavationStates(target, 1, 51)
+	s[1].Eligible, s[1].Blocked = false, true
+	r := ReviewExcavation(target, s, 8)
+	if r.Corridor || r.Complete || len(r.Kept) != 1 || r.Kept[0] != target.Door {
+		t.Fatal(r)
+	}
+	// The same with the whole interior dug from elsewhere is still not a
+	// finished project: the door cannot close a room it cannot reach.
+	s = excavationStates(target, 51, 51)
+	s[0].Cleared, s[0].Blocked = false, true
+	r = ReviewExcavation(target, s, 8)
+	if r.Corridor || r.Complete {
+		t.Fatal(r)
+	}
+	// The entrance past the door is part of the way in.
+	s = excavationStates(target, 2, 51)
+	s[2].Eligible, s[2].Blocked = false, true
+	r = ReviewExcavation(target, s, 8)
+	if r.Corridor || r.Complete || len(r.Stage) != 0 {
+		t.Fatal(r)
 	}
 }
 

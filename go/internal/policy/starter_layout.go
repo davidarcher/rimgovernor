@@ -14,7 +14,10 @@ type SiteCell struct {
 	Walkable, Occupied, Zone, Roofed, Indoors, SupportsLight, StorageEmpty domain.Fact[bool]
 	// Doorway reports a door, or a door blueprint or frame, on the cell;
 	// indoor furnishing keeps the cells beside a doorway clear as its aisle.
-	Doorway   domain.Fact[bool]
+	Doorway domain.Fact[bool]
+	// Reachable reports that an available colonist can path to the cell;
+	// indoor furnishing skips a room known to be sealed off.
+	Reachable domain.Fact[bool]
 	Fertility domain.Fact[float64]
 	// Roof names the native roof def over the cell (rock roofs mark a
 	// mountain face for excavation).

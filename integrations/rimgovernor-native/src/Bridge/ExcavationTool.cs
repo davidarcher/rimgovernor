@@ -26,9 +26,12 @@ namespace HomeBridge.BridgeTools
             var radius = RoofCollapseUtility.RoofMaxSupportDistance;
             var removedSet = new HashSet<IntVec3>(removed);
             var roots = new HashSet<IntVec3>();
+            // The roof over a removed holder stays up and needs support like
+            // any other: a room whose surroundings were levelled keeps its
+            // rock roof only while its own remaining rock holds it.
             foreach (var cell in removed)
                 foreach (var near in GenRadial.RadialCellsAround(cell, radius, true))
-                    if (near.InBounds(map) && !near.Fogged(map) && near.Roofed(map) && !removedSet.Contains(near)) roots.Add(near);
+                    if (near.InBounds(map) && !near.Fogged(map) && near.Roofed(map)) roots.Add(near);
             var result = Support.Supported;
             foreach (var root in roots.OrderBy(c => c.x).ThenBy(c => c.z)) {
                 checkedRoofs++;

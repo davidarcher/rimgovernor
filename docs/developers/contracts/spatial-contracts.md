@@ -152,7 +152,9 @@ lie within the native roof-support radius of a cell left untouched, so the rock 
 standing holds the roof. The planner tries its shapes at each face in a preference
 order that follows the shelter style (a neolithic colony digs the round room first,
 everyone else the rectangle) and proposes the first legal shape at the shortest legal
-corridor; faces then rank by distance as before. Every target cell must be visible rock
+corridor; faces then rank by distance as before. Indoor furnishing, here and everywhere, skips cells the planning window reports no
+colonist can reach: a pocket sealed off behind walls is a room to nobody. Every
+target cell must be visible rock
 under a natural rock roof or fogged (unknown) inside the observed planning window;
 any known open, indoor or protected cell inside or beside the room rejects it, and
 nothing outside the observed window is planned. A verified site within the planning
@@ -161,17 +163,29 @@ shell exists or when nearer than the shell. Work proceeds in stages of at most e
 visible, eligible, frontier-adjacent cells, each admitted only after a fresh native
 site read reports the stage supported with a miner able to reach the access cell;
 the next stage waits for the previous stage's observed completion and re-reads the
-geometry, so revealed pockets, changed support or a lost miner hold the project
-rather than the planner assuming the fogged interior. The door is built only after
-every target cell is observed cleared, and furnishing follows the ordinary indoor
-sleeping method. A restarted controller whose goal survives rediscovers the project
+geometry rather than assuming the fogged interior. That review decides what a
+change means. A cell that unfogs into something that is not rock and cannot be
+cleared (an ancient wall, water, a vein the guard refuses) is kept: never staged,
+dug around, and the room completes without it, so long as the corridor and the cell
+past the door stay clear. A kept corridor or entrance cell, or an access cell no
+miner can reach, blocks the way in; the project is dropped and the same review
+re-sites the shelter, another verified face first, the shell otherwise, with the
+stage count continuing under the new target. A whole-target read that is
+unsupported with no collapse pending means the rock that held the roof is gone:
+nothing sound can be finished there, and the project is dropped the same way. A
+pending collapse, an unknown verdict or a missing miner only wait. A stage
+admitted before such a change closes through its own executor (the native cancel
+is an unsuccessful action); a stage action held not ready, unsupported or on
+changed geometry for longer than the stall grace is cancelled so the closed plan
+lets the review run. The door is built only after every target cell is observed
+cleared or kept, and furnishing follows the ordinary indoor sleeping method. A restarted controller whose goal survives rediscovers the project
 from its durable stage plans; when the goal was invalidated (for example by a control
 hand-back before the restart) the successor goal resumes the most recently planned
 target from those same plans, verified by a fresh native site read that still shows
 rock to dig, before any new face is considered — the colony window follows the pawns
 and may no longer show a half-dug room at all. Either way a cleared cell is never
-re-designated; a project the read reports unsupported or fully cleared is dropped
-and the review plans from the geometry the pawns actually opened.
+re-designated; a project the read reports breached, blocked or fully cleared is
+dropped and the review plans from the geometry the pawns actually opened.
 
 Adoption can describe a connected nonrectangular interior of at most 3844 unique
 cells inside the inspected bounds, with an exact boundary entrance and direction.

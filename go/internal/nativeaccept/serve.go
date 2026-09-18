@@ -377,14 +377,22 @@ func (p *ServiceProcess) HoldAuthority(held bool) {
 // shortly (not synchronously) afterwards; Game.Reattach retries for that.
 func (p *ServiceProcess) Stop() map[string]any {
 	p.mu.Lock()
-	defer p.mu.Unlock()
 	if p.stopped {
+		p.mu.Unlock()
 		return nil
 	}
 	p.stopped = true
+	stopKeep := p.stopKeep
+	p.mu.Unlock()
+	// The keep-alive may be inside API, which takes the mutex to number its
+	// record: join it before holding the lock for the shutdown itself.
 	var keep map[string]any
-	if p.stopKeep != nil {
-		keep = p.stopKeep()
+	if stopKeep != nil {
+		keep = stopKeep()
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if keep != nil {
 		p.entry["keepalive"] = keep
 	}
 	if !p.exited {

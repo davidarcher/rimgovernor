@@ -133,3 +133,30 @@ func TestPlacementSelectionUsesWholeFootprintAndFreshSafeEvidence(t *testing.T) 
 		t.Fatal("stale preview accepted")
 	}
 }
+
+func TestPlacementSearchSkipsUnreachableCells(t *testing.T) {
+	// A sealed pocket is indoors and free but no colonist can path to it:
+	// it is never a site. Unknown reachability keeps the old behaviour.
+	r := placementSearchFixture()
+	r.Environment = PlacementIndoors
+	for i := range r.Cells {
+		if r.Cells[i].Cell.X < 5 {
+			r.Cells[i].Reachable = domain.Known(false)
+		} else if r.Cells[i].Cell.X < 8 {
+			r.Cells[i].Reachable = domain.Known(true)
+		}
+	}
+	s, err := NewPlacementSearch(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	candidates := s.Candidates()
+	if len(candidates) == 0 {
+		t.Fatal("no candidates")
+	}
+	for _, c := range candidates {
+		if c.X < 5 {
+			t.Fatal("unreachable cell offered", c)
+		}
+	}
+}

@@ -98,17 +98,45 @@ func (e excavationShape) fixture(on cases.Start) cases.Start {
 	return cases.Fixture{Op: "test/mountain_fixture", Args: map[string]any{"action": "setup", "predig": e.predig, "shape": e.name}, On: on}
 }
 
-func excavation(ctx context.Context, s cases.Session, shape excavationShape) error {
+// excavationStart is the staged rectangle fixture with extra setup
+// arguments for the mid-project scenarios (#63).
+func excavationStart(extra map[string]any) cases.Fixture {
+	f := rectangle.fixture(nil).(cases.Fixture)
+	for k, v := range extra {
+		f.Args[k] = v
+	}
+	return f
+}
+
+// excavationRun is the live excavation project every excavation case
+// drives: the service, its verification store, the bound goal and target,
+// plus the fixture geometry the assertions need.
+type excavationRun struct {
+	s        cases.Session
+	report   na.Report
+	svc      *na.ServiceProcess
+	store    *store.Store
+	goalID   domain.GoalID
+	shape    excavationShape
+	target   policy.ExcavationTarget
+	cells    []domain.Cell
+	inBlock  func(domain.Cell) bool
+	prepared map[string]any
+}
+
+// openExcavation checks the fixture, starts the service under one player
+// plan, acquires authority, and waits for stage 0 to bind the project.
+func openExcavation(ctx context.Context, s cases.Session, shape excavationShape) (*excavationRun, error) {
 	report, h := s.Report(), s.Harness()
 	report["predig"], report["shape"] = shape.predig, shape.name
 	for _, want := range []string{"rimgovernor/observations_read_excavation_site"} {
 		if !na.Contains(s.Names(), want) {
-			return fmt.Errorf("missing %s in discovery; rebuild the native mod with -Fixture MountainFixture", want)
+			return nil, fmt.Errorf("missing %s in discovery; rebuild the native mod with -Fixture MountainFixture", want)
 		}
 	}
 	prepared := s.Prepared()
 	if success, _ := na.AsBool(prepared["success"]); !success || na.AsString(prepared["shape"]) != shape.name {
-		return fmt.Errorf("mountain_fixture setup for the %s room refused: %#v", shape.name, prepared)
+		return nil, fmt.Errorf("mountain_fixture setup for the %s room refused: %#v", shape.name, prepared)
 	}
 	block, _ := na.AsMap(prepared["block"])
 	blockMinX, blockMinZ := int32(na.AsNumber(block["minX"])), int32(na.AsNumber(block["minZ"]))
@@ -118,7 +146,7 @@ func excavation(ctx context.Context, s cases.Session, shape excavationShape) err
 	}
 	spare, ok := na.AsMap(prepared["spare"])
 	if !ok || spare == nil {
-		return fmt.Errorf("mountain_fixture returned no spare cell for the player plan: %#v", prepared)
+		return nil, fmt.Errorf("mountain_fixture returned no spare cell for the player plan: %#v", prepared)
 	}
 	spareX, spareZ := int(na.AsNumber(spare["x"])), int(na.AsNumber(spare["z"]))
 
@@ -135,24 +163,24 @@ func excavation(ctx context.Context, s cases.Session, shape excavationShape) err
 	}
 	before, err := h.Call(ctx, "face-before", "test/mountain_fixture", probe)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if na.AsString(before["mineable"]) != "Granite" || na.AsString(before["roof"]) != "RoofRockThick" {
-		return fmt.Errorf("fixture face is not visible granite under a rock roof: %#v", before)
+		return nil, fmt.Errorf("fixture face is not visible granite under a rock roof: %#v", before)
 	}
 	if designated, _ := na.AsBool(before["designated"]); designated {
-		return fmt.Errorf("fixture face already designated before any dispatch: %#v", before)
+		return nil, fmt.Errorf("fixture face already designated before any dispatch: %#v", before)
 	}
 	if fogged, _ := na.AsBool(before["fogged"]); fogged {
-		return fmt.Errorf("fixture face unexpectedly fogged: %#v", before)
+		return nil, fmt.Errorf("fixture face unexpectedly fogged: %#v", before)
 	}
 
 	identity := s.Identity()
 	svc, err := s.Serve(ctx, s.Spec())
 	if err != nil {
-		return err
+		return nil, err
 	}
-	defer func() { svc.Stop() }()
+	run := &excavationRun{s: s, report: report, svc: svc, shape: shape, inBlock: inBlock, prepared: prepared}
 	// The one player-submitted plan the authority grant is bound to.
 	submission, status, err := svc.API("POST", "/api/buildings/plans", map[string]any{
 		"requestId": "excavation-player-plan-1",
@@ -160,19 +188,19 @@ func excavation(ctx context.Context, s cases.Session, shape excavationShape) err
 		"building":  map[string]any{"defName": "Wall", "x": spareX, "z": spareZ, "rotation": "north", "stuff": "WoodLog"},
 	}, svc.Token)
 	if err != nil {
-		return err
+		return run, err
 	}
 	if status != 200 && status != 201 {
-		return fmt.Errorf("unexpected building submission status=%d body=%#v", status, submission)
+		return run, fmt.Errorf("unexpected building submission status=%d body=%#v", status, submission)
 	}
 	planID, revision := na.AsString(submission["planId"]), na.AsString(submission["revision"])
 	if planID == "" || revision == "" {
-		return fmt.Errorf("unexpected building submission: %#v", submission)
+		return run, fmt.Errorf("unexpected building submission: %#v", submission)
 	}
 	report["submission"] = submission
 	// Resume enters automate mode under the world's root plan (#55).
 	if _, err := svc.Acquire(); err != nil {
-		return err
+		return run, err
 	}
 	report["resumed"] = svc.Entry()["resumed"]
 
@@ -181,59 +209,141 @@ func excavation(ctx context.Context, s cases.Session, shape excavationShape) err
 	// launch's counters land under its report entry ("keepalive").
 	svc.KeepAuthority(ctx)
 
-	verifyStore, err := na.OpenStoreWithRetry(ctx, svc.StatePath)
+	run.store, err = na.OpenStoreWithRetry(ctx, svc.StatePath)
 	if err != nil {
-		return fmt.Errorf("open verification store: %w", err)
+		return run, fmt.Errorf("open verification store: %w", err)
 	}
-	defer func() { verifyStore.Close() }()
 
 	// Stage 0 binds the project: its plan identity carries the target.
 	// A random debug colony can start under a standing emergency (injured
 	// colonists, hostiles) that suspends every development goal; fail with
 	// the ranking instead of waiting out the whole run.
 	stage0Ctx, stage0Cancel := context.WithTimeout(ctx, 5*time.Minute)
-	goalID, stage0, err := waitMethod(stage0Ctx, verifyStore, "", buildingruntime.ExcavationStageMethod(0))
+	goalID, stage0, err := waitMethod(stage0Ctx, run.store, "", buildingruntime.ExcavationStageMethod(0))
 	stage0Cancel()
 	if err != nil {
-		if review, reviewErr := verifyStore.LoadRoutineReview(ctx); reviewErr == nil {
+		if review, reviewErr := run.store.LoadRoutineReview(ctx); reviewErr == nil {
 			report["routine_review_at_failure"] = review
 		}
-		return fmt.Errorf("stage 0 method: %w", err)
+		return run, fmt.Errorf("stage 0 method: %w", err)
 	}
+	run.goalID = goalID
 	report["goal_id"] = string(goalID)
-	var target policy.ExcavationTarget
-	var targetCells []domain.Cell
+	if err := run.bindTarget(stage0.Plan, "target"); err != nil {
+		return run, err
+	}
+	return run, nil
+}
+
+// close stops whatever is still running; safe after the case already did.
+func (run *excavationRun) close() {
+	if run.store != nil {
+		run.store.Close()
+	}
+	if run.svc != nil {
+		run.svc.Stop()
+	}
+}
+
+// bindTarget reads the target a stage plan carries and checks it lies in
+// the fixture block with its access cell outside.
+func (run *excavationRun) bindTarget(plan domain.PlanID, label string) error {
+	t, err := buildingruntime.ExcavationPlanTarget(plan)
+	if err != nil {
+		return fmt.Errorf("stage plan %s: %w", plan, err)
+	}
+	run.target, run.cells = t, t.Cells()
+	run.report[label] = map[string]any{"key": t.Key(), "access": t.Access, "door": t.Door, "corridor": t.Corridor, "shape": t.Shape, "interior": t.Interior, "interior_cells": len(t.InteriorCells())}
+	for _, c := range run.cells {
+		if !run.inBlock(c) {
+			return fmt.Errorf("target cell %v lies outside the fixture block", c)
+		}
+	}
+	if run.inBlock(t.Access) {
+		return fmt.Errorf("access cell %v lies inside the block", t.Access)
+	}
+	return nil
+}
+
+// change stops the service, applies one fixture change to the running game
+// through a reattached bridge session, and restarts the service on the same
+// durable state: what a player does to a dig in progress, seen by the
+// controller as changed geometry on its next review.
+func (run *excavationRun) change(ctx context.Context, label string, args map[string]any) (map[string]any, error) {
+	run.store.Close()
+	run.svc.Stop()
+	h, err := run.s.Reattach(ctx)
+	if err != nil {
+		return nil, err
+	}
+	reply, err := h.Call(ctx, label, "test/mountain_fixture", args)
+	if err != nil {
+		return nil, err
+	}
+	run.report[label] = reply
+	if err := run.s.Release(); err != nil {
+		return nil, err
+	}
+	if run.svc, err = run.svc.Restart(ctx); err != nil {
+		return nil, fmt.Errorf("relaunch service after %s: %w", label, err)
+	}
+	run.svc.KeepAuthority(ctx)
+	if run.store, err = na.OpenStoreWithRetry(ctx, run.svc.StatePath); err != nil {
+		return nil, fmt.Errorf("reopen verification store: %w", err)
+	}
+	return reply, nil
+}
+
+// excavationOptions vary the staged run between the happy path and the
+// mid-project scenarios that share it.
+type excavationOptions struct {
+	// restart kills and relaunches the service after stage 0.
+	restart bool
+	// kept are the interior cells the fixture hid a structure under: never
+	// designated, dug around, still standing at the end.
+	kept []domain.Cell
+	// shape is the room the colony's tech level makes the planner dig; the
+	// zero value is the rectangle.
+	shape excavationShape
+}
+
+func excavation(ctx context.Context, s cases.Session, shape excavationShape) error {
+	return runExcavation(ctx, s, excavationOptions{restart: true, shape: shape})
+}
+
+func runExcavation(ctx context.Context, s cases.Session, opts excavationOptions) error {
+	shape := opts.shape
+	if shape.name == "" {
+		shape = rectangle
+	}
+	run, err := openExcavation(ctx, s, shape)
+	if run != nil {
+		defer run.close()
+	}
+	if err != nil {
+		return err
+	}
+	report := s.Report()
+	svc, verifyStore, goalID := run.svc, run.store, run.goalID
+	target, targetCells := run.target, run.cells
 	// Every stage: ≤8 excavation actions, all target cells, none repeated
 	// across stages, each plan Completed by the executor's own observation.
 	dug := map[domain.Cell]int{}
 	bindTarget := func(plan domain.PlanID, label string) error {
-		t, err := buildingruntime.ExcavationPlanTarget(plan)
-		if err != nil {
-			return fmt.Errorf("stage 0 plan %s: %w", plan, err)
+		if err := run.bindTarget(plan, label); err != nil {
+			return err
 		}
-		target, targetCells = t, t.Cells()
-		report[label] = map[string]any{"key": t.Key(), "access": t.Access, "door": t.Door, "corridor": t.Corridor, "shape": t.Shape, "interior": t.Interior, "interior_cells": len(t.InteriorCells())}
-		for _, c := range targetCells {
-			if !inBlock(c) {
-				return fmt.Errorf("target cell %v lies outside the fixture block", c)
-			}
-		}
-		if inBlock(t.Access) {
-			return fmt.Errorf("access cell %v lies inside the block", t.Access)
-		}
+		target, targetCells = run.target, run.cells
 		// The colony's tech level chose the room shape (#64): the key carries
 		// it, so every later stage plan and the restart rebuild the same cells.
-		if t.Shape.Kind != shape.kind || !strings.HasSuffix(t.Key(), shape.suffix) || len(t.InteriorCells()) != shape.interior {
-			return fmt.Errorf("target %s is not the %s the colony's tech level selects (%d interior cells, want %d, key suffix %q)", t.Key(), shape.describe, len(t.InteriorCells()), shape.interior, shape.suffix)
+		if target.Shape.Kind != shape.kind || !strings.HasSuffix(target.Key(), shape.suffix) || len(target.InteriorCells()) != shape.interior {
+			return fmt.Errorf("target %s is not the %s the colony's tech level selects (%d interior cells, want %d, key suffix %q)", target.Key(), shape.describe, len(target.InteriorCells()), shape.interior, shape.suffix)
 		}
 		return nil
 	}
-	if err := bindTarget(stage0.Plan, "target"); err != nil {
-		return err
-	}
 
 	var stages []map[string]any
-	restarted := false
+	restarted := !opts.restart
 	stage := 0
 	// Only a world change (colony/load/map, tick rewind) invalidates a
 	// routine goal; letter pauses, the keep-alive's resumes and the paired
@@ -304,6 +414,9 @@ func excavation(ctx context.Context, s cases.Session, shape excavationShape) err
 			if !containsCell(targetCells, c) {
 				return fmt.Errorf("stage %d dug %v outside the target", stage, c)
 			}
+			if containsCell(opts.kept, c) {
+				return fmt.Errorf("stage %d designated the hidden structure at %v", stage, c)
+			}
 			dug[c] = stage
 		}
 		stages = append(stages, map[string]any{"stage": stage, "plan": string(method.Plan), "cells": cells})
@@ -326,6 +439,7 @@ func excavation(ctx context.Context, s cases.Session, shape excavationShape) err
 			if err != nil {
 				return fmt.Errorf("reopen verification store: %w", err)
 			}
+			run.svc, run.store = svc, verifyStore
 			report["restarted_after_stage"] = stage
 		}
 		stage++
@@ -337,7 +451,7 @@ func excavation(ctx context.Context, s cases.Session, shape excavationShape) err
 	// truth for every target cell; here only the attribution is recorded.
 	var adopted []domain.Cell
 	for _, c := range targetCells {
-		if _, ok := dug[c]; !ok {
+		if _, ok := dug[c]; !ok && !containsCell(opts.kept, c) {
 			adopted = append(adopted, c)
 		}
 	}
@@ -396,6 +510,7 @@ func excavation(ctx context.Context, s cases.Session, shape excavationShape) err
 
 	verifyStore.Close()
 	report["authority_reacquisitions"] = svc.Stop()
+	run.store, run.svc = nil, nil
 	finalHarness, err := s.Reattach(ctx)
 	if err != nil {
 		return err
@@ -403,49 +518,11 @@ func excavation(ctx context.Context, s cases.Session, shape excavationShape) err
 	if _, err := finalHarness.Call(ctx, "pause-final", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return err
 	}
-
-	// Independent native evidence: every target cell is cleared under an
-	// intact rock roof with no collapse pending; the door stands at the
-	// target's door cell; the interior is a proper indoor room with a bed.
-	inspect := func(label string, c domain.Cell) (map[string]any, error) {
-		return finalHarness.Call(ctx, label, "test/mountain_fixture", map[string]any{"action": "inspect", "x": int(c.X), "z": int(c.Z)})
-	}
-	for i, c := range targetCells {
-		row, err := inspect(fmt.Sprintf("cell-%02d", i), c)
-		if err != nil {
-			return err
-		}
-		if na.AsString(row["mineable"]) != "" {
-			return fmt.Errorf("target cell %v still holds %s", c, row["mineable"])
-		}
-		if na.AsString(row["roof"]) != "RoofRockThick" {
-			return fmt.Errorf("target cell %v lost its rock roof: %#v", c, row)
-		}
-		if int(na.AsNumber(row["collapsing"])) != 0 {
-			return fmt.Errorf("collapse pending near %v: %#v", c, row)
-		}
-		isDoor, _ := na.AsBool(row["door"])
-		if isDoor != (c == target.Door) {
-			return fmt.Errorf("door presence at %v: %v, want %v", c, isDoor, c == target.Door)
-		}
-	}
-	center := target.Center()
-	room, err := inspect("room", center)
+	inspect, err := verifyRoom(ctx, finalHarness, target, opts.kept, report)
 	if err != nil {
 		return err
 	}
-	proper, _ := na.AsBool(room["properRoom"])
-	outdoors, _ := na.AsBool(room["outdoors"])
-	if !proper || outdoors {
-		return fmt.Errorf("interior is not a proper enclosed room: %#v", room)
-	}
-	if want := len(target.InteriorCells()); int(na.AsNumber(room["roomCells"])) != want {
-		return fmt.Errorf("room spans %v cells, want the %d-cell interior", room["roomCells"], want)
-	}
-	if int(na.AsNumber(room["bedsInRoom"])) < 1 {
-		return fmt.Errorf("no bed inside the excavated room: %#v", room)
-	}
-	report["room"] = room
+	center := target.Center()
 
 	// Functional use: exhaust the colonists (the assertion is that the room
 	// is slept in, not when their schedule says so), run the game and wait
@@ -676,6 +753,58 @@ func waitFurnishing(ctx context.Context, s *store.Store, goalID domain.GoalID, i
 		return domain.GoalMethod{}, fmt.Errorf("furnishing: %w", err)
 	}
 	return found, nil
+}
+
+// verifyRoom is the independent native evidence of a finished excavation:
+// every target cell other than the kept ones is cleared under an intact
+// rock roof with no collapse pending; a kept cell still holds what the fog
+// hid; the door stands at the target's door cell; the interior is a proper
+// indoor room of every interior cell not kept, with a bed. It returns the
+// inspect call for further checks.
+func verifyRoom(ctx context.Context, h *na.Harness, target policy.ExcavationTarget, kept []domain.Cell, report na.Report) (func(string, domain.Cell) (map[string]any, error), error) {
+	inspect := func(label string, c domain.Cell) (map[string]any, error) {
+		return h.Call(ctx, label, "test/mountain_fixture", map[string]any{"action": "inspect", "x": int(c.X), "z": int(c.Z)})
+	}
+	for i, c := range target.Cells() {
+		row, err := inspect(fmt.Sprintf("cell-%02d", i), c)
+		if err != nil {
+			return nil, err
+		}
+		if containsCell(kept, c) {
+			if na.AsString(row["edifice"]) == "" || na.AsString(row["mineable"]) != "" {
+				return nil, fmt.Errorf("kept cell %v no longer holds its structure: %#v", c, row)
+			}
+		} else if na.AsString(row["mineable"]) != "" {
+			return nil, fmt.Errorf("target cell %v still holds %s", c, row["mineable"])
+		}
+		if na.AsString(row["roof"]) != "RoofRockThick" {
+			return nil, fmt.Errorf("target cell %v lost its rock roof: %#v", c, row)
+		}
+		if int(na.AsNumber(row["collapsing"])) != 0 {
+			return nil, fmt.Errorf("collapse pending near %v: %#v", c, row)
+		}
+		isDoor, _ := na.AsBool(row["door"])
+		if isDoor != (c == target.Door) {
+			return nil, fmt.Errorf("door presence at %v: %v, want %v", c, isDoor, c == target.Door)
+		}
+	}
+	room, err := inspect("room", target.Center())
+	if err != nil {
+		return nil, err
+	}
+	proper, _ := na.AsBool(room["properRoom"])
+	outdoors, _ := na.AsBool(room["outdoors"])
+	if !proper || outdoors {
+		return nil, fmt.Errorf("interior is not a proper enclosed room: %#v", room)
+	}
+	if want := len(target.InteriorCells()) - len(kept); int(na.AsNumber(room["roomCells"])) != want {
+		return nil, fmt.Errorf("room spans %v cells, want the %d-cell interior", room["roomCells"], want)
+	}
+	if int(na.AsNumber(room["bedsInRoom"])) < 1 {
+		return nil, fmt.Errorf("no bed inside the excavated room: %#v", room)
+	}
+	report["room"] = room
+	return inspect, nil
 }
 
 func containsCell(cells []domain.Cell, c domain.Cell) bool {

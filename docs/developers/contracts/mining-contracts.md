@@ -23,15 +23,19 @@ ThingID, and completes when the cell no longer holds a mineable: yield is incide
 The typed site read (`rimgovernor/observations_read_excavation_site`) reports, for up
 to 64 cells, fog, rock, roof, designation and per-cell eligibility, plus a site-level
 counterfactual roof-support verdict for removing the whole set, a pending-collapse
-flag, miner availability and reachability of the access cell. A fogged cell is
+flag, miner availability and reachability of the access cell (a standing cell beside
+it that a mobile colonist can path to; a walled-off mouth is unreachable even when
+the pocket behind it is walkable). A fogged cell is
 unknown, never eligible and never a support witness, so support is reported unknown
 until the pawns have opened enough rock to see. `ExcavateCell` prepares against that
 read while paused, rejects any pending collapse or an unsupported single-cell removal,
 adopts an existing Mine designation idempotently (reported as adopted), adopts a cell
 the pawns already cleared as done (applied with cleared evidence and no designation),
 and records a save-persistent excavation record. The excavation guard rechecks cell eligibility and
-set-based support before each pick hit and ends the job with the blocker when the
-surroundings change; it does not apply the resource radius rule. Designation, job
+set-based support before each pick hit; when the surroundings have changed it
+records the blocker, cancels the designation and ends the job, so the controller's
+next observation reads the action as unsuccessful with that blocker rather than
+pending forever. It does not apply the resource radius rule. Designation, job
 completion and clearance remain native outcomes; a receipt is not a certificate of a
 usable room.
 

@@ -63,7 +63,18 @@ namespace HomeBridge.BridgeTools
                 excavation.Blocker = ExcavationTools.CellBlocker(target.Position, target.Map);
                 if (excavation.Blocker == null && ExcavationSafety.Check(target.Map, new[] { target.Position }, out _, out var support) != ExcavationSafety.Support.Supported)
                     excavation.Blocker = support;
-                if (excavation.Blocker != null) { __instance.EndJobWith(JobCondition.Incompletable); return false; }
+                if (excavation.Blocker != null)
+                {
+                    // The pick is refused for good: drop the designation so
+                    // pawns stop retrying it and the controller's next
+                    // observation reads the blocker as an unsuccessful action
+                    // instead of a pending one.
+                    var designation = target.Map.designationManager.DesignationAt(target.Position, DesignationDefOf.Mine);
+                    if (designation != null) target.Map.designationManager.RemoveDesignation(designation);
+                    excavation.Cancelled = true;
+                    __instance.EndJobWith(JobCondition.Incompletable);
+                    return false;
+                }
                 __state = new Sample(target.Map, excavation);
                 return true;
             }
