@@ -119,13 +119,14 @@ const serviceClockStepTimeout = 30 * time.Second
 // enough to let the native epoch lapse. The step has no lease constraint.
 func serviceClockTimeouts(callTimeout time.Duration) serviceClockTimeoutConfig {
 	lease := min(callTimeout, 7*time.Second)
-	// The game transport answers one call at a time, so a held
-	// clock_read_events read (wait_ms) stalls every planner and worker call
-	// queued behind it for the whole wait: with a 4s hold a routine step of
-	// ~17 reads exceeded its 30s budget and no window was ever admitted
-	// (issue #115; earlier runs only passed because a stale journal backlog
-	// answered each poll at once). Until the transport can overlap a held
-	// read, the service polls at the PollInterval cadence instead.
+	// A held clock_read_events read (wait_ms) still stalls every call queued
+	// behind it: the GABS session now runs over its HTTP server
+	// (bridge/gabshttp.go), but RimBridgeServer registers companion-mod tools
+	// through LegacyToolExecution, which blocks Lib.GAB's per-connection
+	// reader until the tool returns, so no later message on the game
+	// connection is even parsed while a read is held (issue #115; verified
+	// by speaking GABP to the mod directly). Until the host overlaps its
+	// extension tools, the service polls at the PollInterval cadence instead.
 	return serviceClockTimeoutConfig{Poll: lease, Renew: lease, Step: serviceClockStepTimeout, PollWait: 0}
 }
 

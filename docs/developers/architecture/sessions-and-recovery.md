@@ -37,8 +37,19 @@ startup and again after every load without a dashboard click; otherwise it
 waits for **Resume**. Attached sessions have a separate unchanged-game
 reconnect contract.
 
+The bridge client runs each GABS process as `gabs server http` on a loopback
+port and exchanges every JSON-RPC message by one POST, because GABS's stdio
+server answers one message at a time and a held `clock_read_events` long poll
+would stall every planner read behind it (issue #115). Closing the client kills
+its GABS, and on Windows a job object kills GABS however the controller ends;
+the game GABS launched keeps running either way, as it does when GABS exits
+on its own. The game side still answers companion-mod tools one at a time:
+RimBridgeServer runs each on the GABP connection's reader thread, so the
+service does not hold `clock_read_events` (`wait_ms` 0) and polls the journal
+at its own cadence instead.
+
 A GABS session lost while the service runs (the GABS process exiting, its
-stdio closing) is recovered in-process: the bridge client drops the session as
+endpoint gone) is recovered in-process: the bridge client drops the session as
 soon as the SDK observes the end of its transport, later native calls fail
 fast as disconnected, and a supervisor reattaches with bounded backoff --
 a fresh GABS process, then the same start/connect handshake a restarted

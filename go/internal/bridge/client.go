@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os/exec"
 	"path/filepath"
 	"sync"
 	"time"
@@ -121,19 +120,18 @@ type liveSession struct {
 }
 
 // MaxConcurrentCalls bounds how many native calls one Client may have in
-// flight at once. GABP only requires outbound frame writes to stay atomic
-// when responses/events are produced concurrently (github.com/pardeike/GABS
-// docs/releases/v1.1.1.md); the go-sdk transport already guarantees that
-// (mcp.ioConn.writeMu) and correlates concurrent calls by JSON-RPC ID
-// (jsonrpc2.Connection.outgoingCalls), same as GABS's own GABP client
-// (pendingReqs). So calls need not be single-flight; this cap is only
-// backpressure against a caller bug flooding the native bridge at once.
+// flight at once. The session runs over GABS's HTTP server (gabshttp.go),
+// which handles each request concurrently, and GABS's own GABP client
+// correlates concurrent native calls by request ID (pendingReqs), as the
+// go-sdk correlates ours (jsonrpc2.Connection.outgoingCalls). So calls need
+// not be single-flight; this cap is only backpressure against a caller bug
+// flooding the native bridge at once.
 const MaxConcurrentCalls = 8
 
 // Client owns a single session. Up to MaxConcurrentCalls calls may be in
 // flight at once; Close cancels in-flight and queued work. Reconnect is
 // explicit and never repeats a native call. A session whose transport dies
-// (GABS exiting, its stdio closing) is dropped as soon as the SDK observes
+// (GABS exiting, its HTTP endpoint gone) is dropped as soon as the SDK observes
 // it: calls then fail fast with ErrDisconnected instead of each discovering
 // the dead pipe, Disconnected reports the loss, and Reattach is the bounded
 // recovery a supervisor drives.
@@ -174,26 +172,8 @@ func Open(ctx context.Context, config ProcessConfig) (*Client, error) {
 		return nil, fmt.Errorf("%w: invalid log level", ErrContract)
 	}
 	return open(ctx, config.GameID, config.Timeout, config.Recorder, func() mcp.Transport {
-		cmd := exec.Command(config.Executable, "server", "stdio", "--configDir", config.ConfigDir, "--log-level", config.LogLevel)
-		cmd.Stderr = config.Stderr
-		return &spawnedTransport{Transport: &mcp.CommandTransport{Command: cmd, TerminateDuration: time.Second}, cmd: cmd, spawned: config.Spawned}
+		return &gabsHTTPTransport{executable: config.Executable, configDir: config.ConfigDir, logLevel: config.LogLevel, stderr: config.Stderr, spawned: config.Spawned}
 	})
-}
-
-// spawnedTransport reports the PID of the process a CommandTransport started
-// once its Connect has started it.
-type spawnedTransport struct {
-	mcp.Transport
-	cmd     *exec.Cmd
-	spawned func(pid int)
-}
-
-func (t *spawnedTransport) Connect(ctx context.Context) (mcp.Connection, error) {
-	connection, err := t.Transport.Connect(ctx)
-	if err == nil && t.spawned != nil && t.cmd.Process != nil {
-		t.spawned(t.cmd.Process.Pid)
-	}
-	return connection, err
 }
 
 func open(ctx context.Context, gameID string, timeout time.Duration, recorder *FlightRecorder, factory transportFactory) (*Client, error) {
@@ -528,7 +508,14 @@ func (c *Client) core(ctx context.Context, live *liveSession, name string, argum
 	decodeElapsed := time.Since(decodeBegan)
 	if recording {
 		if decodeErr != nil {
-			c.recorder.Event("native_error", recordCtx, true, map[string]any{"request": request, "tool": name, "native_tool": nativeTool, "error": decodeErr.Error(), "timing": phases(decodeElapsed, len(raw))})
+			row := map[string]any{"request": request, "tool": name, "native_tool": nativeTool, "error": decodeErr.Error(), "timing": phases(decodeElapsed, len(raw))}
+			// A refusal's text names its cause (a GABS ownership block, a
+			// tool the game no longer exposes), which the error alone hides.
+			var refusal *Refusal
+			if errors.As(decodeErr, &refusal) {
+				row["refused_text"] = refusal.Result.Text
+			}
+			c.recorder.Event("native_error", recordCtx, true, row)
 		} else {
 			timing := phases(decodeElapsed, len(raw))
 			if queueMs, executeMs, ok := nativeTiming(decoded.Structured); ok {

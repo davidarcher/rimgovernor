@@ -125,9 +125,9 @@ func LaunchService(ctx context.Context, cfg *Config, gabsExecutable string, laun
 }
 
 // Stop kills the service if still running and waits for it to exit. The
-// service's own GABS subprocess releases the game shortly (not synchronously)
-// afterwards; callers reopening a harness session should retry for a few
-// seconds.
+// service's own GABS subprocess ends with it (bridge's job object) and
+// releases the game shortly (not synchronously) afterwards; callers reopening
+// a harness session should retry for a few seconds.
 func (p *ServiceProcess) Stop() {
 	p.mu.Lock()
 	defer p.mu.Unlock()

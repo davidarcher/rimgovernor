@@ -133,7 +133,7 @@ func TestObservationUnavailableAndFailureRetainReceipt(t *testing.T) {
 	}
 }
 func TestMain(m *testing.M) {
-	if len(os.Args) > 2 && os.Args[1] == "server" && os.Args[2] == "stdio" {
+	if testkit.GABSHTTPMain(os.Args, func() *mcp.Server {
 		server := mcp.NewServer(&mcp.Implementation{Name: "observation-fixture", Version: "1"}, nil)
 		for _, name := range []string{"games_tool_detail", "games_call_tool"} {
 			server.AddTool(&mcp.Tool{Name: name, InputSchema: json.RawMessage(`{"type":"object"}`)}, func(_ context.Context, request *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -170,9 +170,8 @@ func TestMain(m *testing.M) {
 				return &mcp.CallToolResult{StructuredContent: raw}, nil
 			})
 		}
-		if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
-			os.Exit(2)
-		}
+		return server
+	}) {
 		os.Exit(0)
 	}
 	os.Exit(m.Run())

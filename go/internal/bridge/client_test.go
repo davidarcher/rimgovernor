@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -14,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/testkit"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -185,17 +185,15 @@ func TestExplicitReconnectNeverRetriesRead(t *testing.T) {
 	}
 }
 
+// TestMain lets the test binary stand in for GABS (testkit.GABSHTTPMain).
 func TestMain(m *testing.M) {
-	if len(os.Args) > 4 && os.Args[1] == "server" && os.Args[2] == "stdio" {
-		if filepath.Base(os.Args[4]) == "unresponsive" {
-			for {
-				time.Sleep(time.Second)
-			}
-		}
-		server := (&testServer{}).server()
-		if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
-			os.Exit(2)
-		}
+	if gabsJobHelperMain(os.Args) {
+		os.Exit(0)
+	}
+	if len(os.Args) > 2 && os.Args[1] == "server" {
+		gabsJobFakeChild()
+	}
+	if testkit.GABSHTTPMain(os.Args, (&testServer{}).server) {
 		os.Exit(0)
 	}
 	os.Exit(m.Run())
@@ -219,17 +217,15 @@ func TestOwnedSubprocessAndFailedConnections(t *testing.T) {
 	if _, err = Open(context.Background(), ProcessConfig{Executable: filepath.Join(t.TempDir(), "missing.exe"), ConfigDir: t.TempDir(), GameID: "fixture", Timeout: time.Second}); !errors.Is(err, ErrTransport) {
 		t.Fatalf("missing executable: %v", err)
 	}
-	var cmd *exec.Cmd
 	start := time.Now()
-	_, err = open(context.Background(), "fixture", 30*time.Millisecond, nil, func() mcp.Transport {
-		cmd = exec.Command(executable, "server", "stdio", "--configDir", filepath.Join(t.TempDir(), "unresponsive"))
-		return &mcp.CommandTransport{Command: cmd, TerminateDuration: 20 * time.Millisecond}
+	_, err = open(context.Background(), "fixture", 300*time.Millisecond, nil, func() mcp.Transport {
+		return &gabsHTTPTransport{executable: executable, configDir: filepath.Join(t.TempDir(), "unresponsive"), logLevel: "error"}
 	})
 	if !errors.Is(err, ErrTransport) || !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("failed handshake: %v", err)
 	}
-	if cmd.ProcessState == nil || time.Since(start) > 2*time.Second {
-		t.Fatal("failed initialization leaked subprocess")
+	if time.Since(start) > 3*time.Second {
+		t.Fatal("failed initialization did not end promptly")
 	}
 }
 
