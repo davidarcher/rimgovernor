@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -439,7 +440,39 @@ func (c *Client) snapshotRecordingContext(ctx context.Context) map[string]any {
 	return merged
 }
 
+// runtimePublishRetries bounds how many times core re-issues a GABS call
+// refused before it reached the game because GABS could not republish its
+// own runtime.json ownership claim. On Windows the rename of
+// .runtime-*.tmp over runtime.json fails with "Access is denied" while a
+// peer process (a second GABS on the same config root, an AV scan) holds the
+// file; the next attempt succeeds. Retrying is safe for writes too: the
+// claim is taken before the call is forwarded, so a claim failure proves the
+// game never saw the request.
+const runtimePublishRetries = 2
+const runtimePublishBackoff = 150 * time.Millisecond
+
 func (c *Client) core(ctx context.Context, live *liveSession, name string, arguments json.RawMessage) (Result, error) {
+	for attempt := 0; ; attempt++ {
+		result, err := c.callOnce(ctx, live, name, arguments)
+		var refusal *Refusal
+		if err == nil || attempt == runtimePublishRetries || !errors.As(err, &refusal) || !isRuntimePublishRace(refusal) {
+			return result, err
+		}
+		if err := sleepOrDone(ctx, time.Duration(attempt+1)*runtimePublishBackoff); err != nil {
+			return Result{}, err
+		}
+	}
+}
+
+// isRuntimePublishRace reports whether a refusal is GABS failing to publish
+// its runtime ownership state (the runtime.json rename race), as opposed to
+// a refusal the game or a GABS policy produced.
+func isRuntimePublishRace(refusal *Refusal) bool {
+	detail := strings.ToLower(refusalDetail(refusal))
+	return strings.Contains(detail, "failed to publish runtime state") && strings.Contains(detail, "runtime.json")
+}
+
+func (c *Client) callOnce(ctx context.Context, live *liveSession, name string, arguments json.RawMessage) (Result, error) {
 	found := false
 	for _, tool := range live.discovery.Tools {
 		if tool.Name == name {

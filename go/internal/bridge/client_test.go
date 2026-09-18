@@ -517,3 +517,35 @@ func TestReattachAfterLostSession(t *testing.T) {
 		t.Fatalf("reattach after close: %v", err)
 	}
 }
+
+// TestRuntimePublishRaceRetried covers #164: GABS refusing a call because it
+// could not rename .runtime-*.tmp over runtime.json is transient and never
+// reached the game, so core re-issues the call; any other refusal is not.
+func TestRuntimePublishRaceRetried(t *testing.T) {
+	const race = `Failed to claim runtime ownership for 'rimgovernor-trial': failed to publish runtime state: rename C:\u\.rimgovernor\bridge\config-headless\rimgovernor-trial\.runtime-372168833.tmp C:\u\.rimgovernor\bridge\config-headless\rimgovernor-trial\runtime.json: Access is denied.`
+	var refusals int32
+	s := &testServer{handler: func(ctx context.Context, args nativeArgument) (*mcp.CallToolResult, error) {
+		if atomic.AddInt32(&refusals, 1) == 1 {
+			return &mcp.CallToolResult{IsError: true, Content: []mcp.Content{&mcp.TextContent{Text: race}}}, nil
+		}
+		return structured(`{"colonyId":"test-colony","tick":0,"operation":{"id":"receipt-1"}}`), nil
+	}}
+	client := testClient(t, s, 5*time.Second)
+	if _, err := testNativeRead(client, context.Background()); err != nil {
+		t.Fatalf("expected the retried call to succeed, got %v", err)
+	}
+	if got := atomic.LoadInt32(&refusals); got != 2 {
+		t.Fatalf("expected exactly one retry, handler saw %d calls", got)
+	}
+
+	other := &testServer{handler: func(ctx context.Context, args nativeArgument) (*mcp.CallToolResult, error) {
+		return &mcp.CallToolResult{IsError: true, Content: []mcp.Content{&mcp.TextContent{Text: "Failed to claim runtime ownership for 'x': a launch claim for x was published"}}}, nil
+	}}
+	otherClient := testClient(t, other, 5*time.Second)
+	if _, err := testNativeRead(otherClient, context.Background()); !errors.Is(err, ErrRefused) {
+		t.Fatalf("expected a non-race refusal to surface, got %v", err)
+	}
+	if len(other.calls) != 1 {
+		t.Fatalf("expected no retry for a non-race refusal, got %d calls", len(other.calls))
+	}
+}
