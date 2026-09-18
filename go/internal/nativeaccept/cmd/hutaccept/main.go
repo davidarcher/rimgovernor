@@ -6,20 +6,32 @@
 // the entrance aisle, surviving a controller restart and a player edit
 // mid-construction without duplicate or missing orders.
 //
-// Sequence, all against one loaded save:
-//  1. run 1: the shelter routine admits the shell plan; the harness
-//     classifies its geometry from the durable plan and waits until
-//     construction is under way (some walls dispatched, not all completed).
-//  2. the service is stopped; through a private bridge session the harness
-//     cancels one pending wall blueprint/frame in-game (a player edit while
-//     the controller is down).
-//  3. run 2: the same state path; run 1's plan resumes and the cancelled
+// Sequence, all against one loaded save (the staged default, #174):
+//  1. run 0: the shelter routine admits the shell plan; the harness
+//     classifies its geometry from the durable plan and stops the service
+//     at once. The ring is now on the journal.
+//  2. the save is reloaded over the running game (a world change: the
+//     routine goals of run 0 are invalidated, the journal stays) and
+//     test/hut_shell_fixture spawns the ring finished but for a few
+//     load-bearing walls near the door, with wood beside it.
+//  3. run 1: the routine adopts the standing ring from its journal under a
+//     fresh goal and orders exactly the missing cells; the harness waits
+//     until they are all ordered natively and one still pends.
+//  4. the service is stopped; through a private bridge session the harness
+//     cancels one pending wall in-game (a player edit while the controller
+//     is down).
+//  5. run 2: the same state path; run 1's plan resumes and the cancelled
 //     cell settles unsuccessful in it; the routine must reissue exactly that
 //     cell (and nothing that stands) in a repair plan under the same goal,
 //     complete the shell and, under the sleeping family, furnish it.
-//  4. the service is stopped; the bridge reads observations_list_rooms with
+//  6. the service is stopped; the bridge reads observations_list_rooms with
 //     cells: the hut is a proper room, cells == interior, open_roof_count 0,
 //     the door cell is a doorway room, beds sit inside and off the aisle.
+//
+// With -stage=false there is no reload: run 1 builds the whole ring
+// natively and is stopped at mid-construction for the cancel (13-20 min
+// under corridor terrain; the staged run is the one meant to pass in
+// minutes).
 package main
 
 import (
@@ -57,7 +69,10 @@ func main() {
 	na.BudgetFlag((100 * time.Minute) / 2)
 	nativeTimeout := flag.Duration("native-timeout", 60*time.Second, "serve subprocess's own --timeout (the shelter planner previews the whole shell per cell natively; shorter budgets time out under load; serve caps this at 1m)")
 	terrain := flag.String("terrain", "open", "open: the save's own ground, where a hut template fits; corridor: test/corridor_terrain_fixture first raises granite rows every sixth cell around the colonists so no template or 9x9 rectangle fits and the routine must grow an irregular shell (needs the mod built with -Fixture CorridorTerrainFixture)")
-	designateWood := flag.Int("designate-wood", 400, "before the service starts, designate the nearest wild trees for cutting until their estimated WoodLog yield reaches this amount (0 = leave wood supply entirely to the acquisition family)")
+	stage := flag.Bool("stage", true, "once run 0 has admitted the shell plan, reload the save and have test/hut_shell_fixture spawn the ring finished but for -stage-pending load-bearing walls, so run 1 adopts the ring from the journal and orders only those (needs the mod built with -Fixture HutShellFixture or CorridorTerrainFixture); false leaves the whole shell to the builders and stops run 1 at mid-construction instead")
+	stagePending := flag.Int("stage-pending", 3, "with -stage, how many load-bearing walls nearest the door are left for the builders, the one the harness cancels among them")
+	spawnWood := flag.Int("spawn-wood", 150, "with -stage, WoodLog the fixture drops beside the staged door (0 = none; the walls left to the builders then rely on -designate-wood)")
+	designateWood := flag.Int("designate-wood", 400, "before the service starts, designate the nearest wild trees for cutting until their estimated WoodLog yield reaches this amount (0 = leave wood supply entirely to the acquisition family); a staged run with -spawn-wood skips this")
 	debug := flag.Bool("debug", false, "trace the service's scheduler steps (RIMGOVERNOR_CLOCK_DEBUG=1) into the service stderr log")
 	flag.Parse()
 	if *root == "" || !filepath.IsAbs(*root) {
@@ -123,12 +138,16 @@ func main() {
 			}
 			facts = fresh
 		}
-		if *designateWood > 0 {
+		if *designateWood > 0 && !(*stage && *spawnWood > 0) {
 			return designateTrees(ctx, h, identity, facts, *designateWood, report)
 		}
 		return nil
 	}
-	if err := run(ctx, cfg, waits{build: *buildWait, furnish: *furnishWait, stall: *stall, terrain: *terrain}, report); err != nil {
+	if *stagePending < 1 {
+		fmt.Fprintln(os.Stderr, "-stage-pending must be at least 1")
+		os.Exit(2)
+	}
+	if err := run(ctx, cfg, waits{build: *buildWait, furnish: *furnishWait, stall: *stall, terrain: *terrain, stage: *stage, stagePending: *stagePending, spawnWood: *spawnWood}, report); err != nil {
 		report["error"] = err.Error()
 	} else {
 		report["passed"] = true
@@ -145,6 +164,9 @@ type shell struct {
 	shape     string
 	seen      map[domain.PlanID]bool // every shell plan the store has listed
 	solid     map[domain.Cell]bool   // impassable ground beside the ring (corridor rock)
+	ignore    map[domain.PlanID]bool // run 0's plan, from the world before the reload
+	staged    map[domain.Cell]bool   // ring cells the fixture spawned finished
+	expect    map[domain.Cell]bool   // ring cells the controller must complete
 }
 
 // bearing reports a wall the enclosure depends on: one orthogonally between
@@ -173,6 +195,9 @@ func (sh *shell) bearing(c domain.Cell) bool {
 type waits struct {
 	build, furnish, stall time.Duration
 	terrain               string
+	stage                 bool
+	stagePending          int
+	spawnWood             int
 }
 
 func (w waits) wait(ceiling time.Duration, service *liveservice.Service) na.Wait {
@@ -192,7 +217,7 @@ func run(ctx context.Context, cfg liveservice.Config, w waits, report na.Report)
 			_ = prepared.Finish(ctx, report)
 		}
 	}()
-	// Run 1: admission and the first walls.
+	// Run 0 (staged) or run 1: admission.
 	service, err := prepared.Start(ctx, report)
 	if err != nil {
 		return err
@@ -225,10 +250,53 @@ func run(ctx context.Context, cfg liveservice.Config, w waits, report na.Report)
 	if w.terrain == "corridor" {
 		sh.solid = corridorRock(report)
 	}
+	sh.expect = map[domain.Cell]bool{}
+	for _, c := range sh.footprint.Walls() {
+		sh.expect[c] = true
+	}
+	if w.stage {
+		// The ring is on the journal; the world it was sited in is
+		// discarded, and the next world holds it nearly finished.
+		report["run0_keepalive"] = service.Stop()
+		sh.ignore = map[domain.PlanID]bool{sh.planID: true}
+		var missing []domain.Cell
+		corridor := report["corridor_terrain"]
+		if err := prepared.Reload(ctx, report, func(ctx context.Context, h *na.Harness, identity, facts map[string]any) error {
+			if w.terrain == "corridor" && !sameCorridor(corridor, report["corridor_terrain"]) {
+				return fmt.Errorf("the reloaded corridor terrain differs from run 0's: %v vs %v", report["corridor_terrain"], corridor)
+			}
+			open, err := openGround(ctx, h)
+			if err != nil {
+				return err
+			}
+			if missing = missingCells(sh, w.stagePending, open); len(missing) == 0 {
+				return errors.New("no load-bearing ring cell on open ground to leave for the builders")
+			}
+			return stageRing(ctx, h, sh, missing, w.spawnWood, report)
+		}); err != nil {
+			return err
+		}
+		sh.staged = map[domain.Cell]bool{}
+		sh.expect = map[domain.Cell]bool{}
+		for _, c := range sh.footprint.Walls() {
+			sh.staged[c] = true
+		}
+		for _, c := range missing {
+			delete(sh.staged, c)
+			sh.expect[c] = true
+		}
+		report["staged_missing_cells"] = missing
+		service, err = prepared.Start(ctx, report)
+		if err != nil {
+			return err
+		}
+	}
 	if err := waitLineage(ctx, st, sh, w.wait(w.build, service), func(l lineage) bool {
 		// Stop only while a load-bearing wall is ordered but not completed,
-		// so the in-game cancel below has one to take.
-		if len(l.ordered) < 4 || l.live == nil || l.liveComplete() {
+		// so the in-game cancel below has one to take. A staged run first
+		// waits for every missing cell to be ordered: the last dispatch is
+		// the freshest, and the builders are quick with a handful of walls.
+		if len(l.ordered) < min(4, len(sh.expect)) || l.live == nil || l.liveComplete() || w.stage && len(l.ordered) < len(sh.expect) {
 			return false
 		}
 		for c := range l.undecided {
@@ -239,6 +307,7 @@ func run(ctx context.Context, cfg liveservice.Config, w waits, report na.Report)
 		return false
 	}); err != nil {
 		service.Stop()
+		postmortem(ctx, prepared, unsettledCells(ctx, st, sh), report)
 		return fmt.Errorf("run 1 did not reach mid-construction: %w", err)
 	}
 	report["run1_keepalive"] = service.Stop()
@@ -298,11 +367,12 @@ func run(ctx context.Context, cfg liveservice.Config, w waits, report na.Report)
 		reissued[b.Cell()] = true
 	}
 	report["run2_shell"] = map[string]any{"plan": string(repair.Spec.ID()), "reissued_cells": len(reissued), "cancelled_reissued": true}
-	// Completion: every ring cell completed exactly once across the lineage.
+	// Completion: every ring cell left to the controller completed exactly
+	// once across the lineage.
 	var final lineage
 	if err := waitLineage(ctx, st, sh, w.wait(w.build, service), func(l lineage) bool {
-		for _, w := range sh.footprint.Walls() {
-			if !l.completed[w] {
+		for c := range sh.expect {
+			if !l.completed[c] {
 				return false
 			}
 		}
@@ -411,6 +481,9 @@ func shellLineage(ctx context.Context, st *store.Store, sh *shell) (lineage, err
 	}
 	var plans []store.PlanState
 	for id := range sh.seen {
+		if sh.ignore[id] {
+			continue
+		}
 		plan, err := st.LoadPlan(ctx, id)
 		if err != nil {
 			return lineage{}, err
@@ -426,7 +499,10 @@ func shellLineage(ctx context.Context, st *store.Store, sh *shell) (lineage, err
 				return lineage{}, fmt.Errorf("shell plan %s holds a non-shell action", plan.Spec.ID())
 			}
 			if _, onRing := sh.cells[b.Cell()]; !onRing {
-				return lineage{}, fmt.Errorf("shell plan %s orders %v off run 1's ring (a second shell)", plan.Spec.ID(), b.Cell())
+				return lineage{}, fmt.Errorf("shell plan %s orders %v off the sited ring (a second shell)", plan.Spec.ID(), b.Cell())
+			}
+			if sh.staged[b.Cell()] {
+				return lineage{}, fmt.Errorf("shell plan %s orders %v, which stands staged", plan.Spec.ID(), b.Cell())
 			}
 			v := plan.Progress[i].View()
 			if v.Stage == domain.Cancelled {
@@ -542,7 +618,7 @@ func unsettledCells(ctx context.Context, st *store.Store, sh *shell) []domain.Ce
 	}
 	var cells []domain.Cell
 	for _, w := range sh.footprint.Walls() {
-		if !l.completed[w] {
+		if sh.expect[w] && !l.completed[w] {
 			cells = append(cells, w)
 		}
 	}
@@ -851,6 +927,116 @@ func cancelOneWall(ctx context.Context, p *liveservice.Prepared, sh *shell, repo
 	}
 	report["cancelled_wall"] = map[string]any{"cell": target.cell, "pending_walls": len(candidates), "load_bearing": bearing(target.cell), "result": result}
 	return target.cell, nil
+}
+
+// missingCells picks the count load-bearing ring cells nearest the door
+// (never the door) that the fixture leaves to the builders: each is one the
+// enclosure depends on, so the cancel among them exercises the repair path.
+// The map's own rock beside a cell seals the gap as a wall would (run 4 of
+// this harness under #174), so a cell counts only when every outside
+// neighbour is open ground.
+func missingCells(sh *shell, count int, open func(domain.Cell) bool) []domain.Cell {
+	door := sh.footprint.Door()
+	interior := map[domain.Cell]bool{}
+	for _, i := range sh.footprint.Interior() {
+		interior[i] = true
+	}
+	var bearing []domain.Cell
+	for _, c := range sh.footprint.Walls() {
+		if c == door || !sh.bearing(c) {
+			continue
+		}
+		sealed := false
+		for _, n := range []domain.Cell{{X: c.X + 1, Z: c.Z}, {X: c.X - 1, Z: c.Z}, {X: c.X, Z: c.Z + 1}, {X: c.X, Z: c.Z - 1}} {
+			if _, onRing := sh.cells[n]; !onRing && !interior[n] && !sh.solid[n] && !open(n) {
+				sealed = true
+			}
+		}
+		if !sealed {
+			bearing = append(bearing, c)
+		}
+	}
+	sort.Slice(bearing, func(i, j int) bool {
+		di := abs(bearing[i].X-door.X) + abs(bearing[i].Z-door.Z)
+		dj := abs(bearing[j].X-door.X) + abs(bearing[j].Z-door.Z)
+		if di != dj {
+			return di < dj
+		}
+		return bearing[i].Z < bearing[j].Z || bearing[i].Z == bearing[j].Z && bearing[i].X < bearing[j].X
+	})
+	return bearing[:min(count, len(bearing))]
+}
+
+// openGround reports, through test/corridor_terrain_fixture's inspect when
+// the mod carries it, whether a cell is walkable ground; without the
+// fixture every cell counts as open.
+func openGround(ctx context.Context, h *na.Harness) (func(domain.Cell) bool, error) {
+	names, err := h.Discovery(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !na.Contains(names, "test/corridor_terrain_fixture") {
+		return func(domain.Cell) bool { return true }, nil
+	}
+	known := map[domain.Cell]bool{}
+	return func(c domain.Cell) bool {
+		if v, ok := known[c]; ok {
+			return v
+		}
+		row, err := h.Call(ctx, "inspect-ground", "test/corridor_terrain_fixture", map[string]any{"action": "inspect", "x": int(c.X), "z": int(c.Z)})
+		known[c] = err == nil && boolOf(row["success"]) && boolOf(row["walkable"])
+		return known[c]
+	}, nil
+}
+
+// stageRing has test/hut_shell_fixture spawn the sited ring finished (the
+// door with the plan's rotation, every wall but the missing cells) with wood
+// beside the door, in the reloaded world the service is about to see.
+func stageRing(ctx context.Context, h *na.Harness, sh *shell, missing []domain.Cell, wood int, report na.Report) error {
+	names, err := h.Discovery(ctx)
+	if err != nil {
+		return err
+	}
+	if !na.Contains(names, "test/hut_shell_fixture") {
+		return errors.New("missing test/hut_shell_fixture in discovery; rebuild the native mod with -Fixture HutShellFixture (or run with -stage=false)")
+	}
+	skip := map[domain.Cell]bool{}
+	for _, c := range missing {
+		skip[c] = true
+	}
+	door := sh.footprint.Door()
+	var walls []string
+	for _, c := range sh.footprint.Walls() {
+		if c != door && !skip[c] {
+			walls = append(walls, fmt.Sprintf("%d,%d", c.X, c.Z))
+		}
+	}
+	staged, err := h.Call(ctx, "stage-ring", "test/hut_shell_fixture", map[string]any{
+		"action": "stage", "walls": strings.Join(walls, ";"),
+		"door": fmt.Sprintf("%d,%d", door.X, door.Z), "doorRotation": string(sh.footprint.Entrance()), "wood": wood,
+	})
+	if err != nil {
+		return err
+	}
+	report["staged_ring"] = staged
+	if ok, _ := na.AsBool(staged["success"]); !ok {
+		return fmt.Errorf("hut_shell_fixture refused: %#v", staged)
+	}
+	if int(na.AsNumber(staged["spawned"])) != len(walls)+1 {
+		return fmt.Errorf("hut_shell_fixture spawned %v ring cells, want %d", staged["spawned"], len(walls)+1)
+	}
+	return nil
+}
+
+// sameCorridor reports whether two corridor_terrain_fixture setup results
+// raised the same rows around the same centre.
+func sameCorridor(a, b any) bool {
+	am, _ := na.AsMap(a)
+	bm, _ := na.AsMap(b)
+	if am == nil || bm == nil {
+		return false
+	}
+	return fmt.Sprint(am["center"], am["rows"]) == fmt.Sprint(bm["center"], bm["rows"])
 }
 
 func boolOf(v any) bool { b, _ := na.AsBool(v); return b }

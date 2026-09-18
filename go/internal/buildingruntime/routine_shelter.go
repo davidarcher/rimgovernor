@@ -50,17 +50,22 @@ func shelterStyle(facts observation.ColonyProjection) policy.ShelterStyle {
 // A completed starter shell may trigger RimWorld's normal automatic roofing.
 // Give that work at most four in-game hours from the durable completion tick.
 // Polling, restarting or cancelling cannot renew this budget. Shells vary in
-// size by shape, so any nonempty fully completed plan qualifies.
+// size by shape, so any nonempty fully completed plan qualifies. The budget
+// is scoped to the world and plan revision the walls were completed in, not
+// to the native order generation: an authority re-acquisition between the
+// last dispatch and the review (a cancelled transport call, #174) moves the
+// generation on without touching the standing walls, and nothing else lends
+// the clock the roof needs when the shell is the only work.
 func shelterNativeWorkTicks(plan store.PlanState, current domain.GenerationSnapshot, tick domain.Tick) uint32 {
 	if len(plan.Progress) == 0 {
 		return 0
 	}
-	current.Plan, current.Revision = plan.Spec.ID(), plan.Spec.Revision()
 	completed := domain.Tick(0)
 	for _, p := range plan.Progress {
 		v := p.View()
 		effect, known := v.Effect.Value()
-		if v.Stage != domain.Completed || v.Unresolved || !known || effect != domain.EffectCompleted || !v.Snapshot.Matches(current) || v.Tick > tick {
+		if v.Stage != domain.Completed || v.Unresolved || !known || effect != domain.EffectCompleted || !boundary.World(v.Snapshot, current) ||
+			v.Snapshot.Plan != plan.Spec.ID() || v.Snapshot.Revision != plan.Spec.Revision() || v.Tick > tick {
 			return 0
 		}
 		completed = max(completed, v.Tick)

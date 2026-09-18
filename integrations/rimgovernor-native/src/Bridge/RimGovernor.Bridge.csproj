@@ -36,6 +36,7 @@
     <Compile Include="../../../../scripts/fixtures/DeepMiningFixture.cs" Condition="'$(MiningFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/MountainFixture.cs" Condition="'$(MountainFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/CorridorTerrainFixture.cs" Condition="'$(CorridorTerrainFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/HutShellFixture.cs" Condition="'$(HutShellFixture)' == 'true' Or '$(CorridorTerrainFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/QuietStorytellerFixture.cs" Condition="'$(QuietStorytellerFixture)' == 'true' Or '$(MountainFixture)' == 'true' Or '$(CorridorTerrainFixture)' == 'true' Or '$(ScenarioStartFixture)' == 'true'" />
     <!-- build_native_mod.ps1 adds QuietStorytellerFixture, DebugStartFixture, LetterFixture, FreezeNeedsFixture and ShutdownFixture to every fixture build; the extra conditions cover direct dotnet builds of the fixtures that call into them. -->
     <Compile Include="../../../../scripts/fixtures/DebugStartFixture.cs" Condition="'$(DebugStartFixture)' == 'true' Or '$(ScenarioStartFixture)' == 'true'" />

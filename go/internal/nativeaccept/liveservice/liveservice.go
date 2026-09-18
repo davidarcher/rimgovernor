@@ -138,6 +138,48 @@ func (p *Prepared) Release() error {
 	return p.game.Release()
 }
 
+// Reload loads cfg.Save again over the running game with no service
+// attached: a fresh world (new loadToken) that keeps the durable state
+// path, so the next Start is a restart against journal entries from a
+// world the service no longer sees (a world change, not a paired restart).
+// cfg.BeforeService runs again against the reloaded save, then stage, if
+// set, with the same private session before it is released; the loaded
+// identity replaces the one the next Start attaches to.
+func (p *Prepared) Reload(ctx context.Context, report na.Report, stage func(ctx context.Context, h *na.Harness, identity, facts map[string]any) error) error {
+	_, h, err := p.Open(ctx)
+	if err != nil {
+		return err
+	}
+	defer p.Release()
+	facts, err := na.LoadSave(ctx, h, p.cfg.Save, report)
+	if err != nil {
+		return err
+	}
+	identity, err := na.ReadIdentity(ctx, h, "identity-reload")
+	if err != nil {
+		return err
+	}
+	if na.AsString(identity["loadToken"]) == na.AsString(p.Identity["loadToken"]) {
+		return fmt.Errorf("reload kept load token %v", identity["loadToken"])
+	}
+	p.Identity = identity
+	if p.last != nil {
+		p.last.Identity = identity
+	}
+	report["identity_reloaded"] = identity
+	if p.cfg.BeforeService != nil {
+		if err := p.cfg.BeforeService(ctx, h, identity, facts); err != nil {
+			return fmt.Errorf("before service (reload): %w", err)
+		}
+	}
+	if stage != nil {
+		if err := stage(ctx, h, identity, facts); err != nil {
+			return fmt.Errorf("stage (reload): %w", err)
+		}
+	}
+	return nil
+}
+
 // SameIdentity reports whether v names the loaded colony, load and map.
 func (p *Prepared) SameIdentity(v map[string]any) bool {
 	return na.MatchesIdentity(v, p.Identity)

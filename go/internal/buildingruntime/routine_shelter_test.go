@@ -231,9 +231,16 @@ func TestShelterRoofingBudgetRequiresObservedCompletionAndDoesNotRenew(t *testin
 			t.Fatal(test, got)
 		}
 	}
+	// A native order generation moved on by an authority re-acquisition
+	// leaves the standing walls and their roofing budget alone (#174); a
+	// different world does not.
 	current.Native++
+	if shelterNativeWorkTicks(plan, current, 100) != 10000 {
+		t.Fatal("a new native generation dropped the roofing budget")
+	}
+	current.Load = "other-load"
 	if shelterNativeWorkTicks(plan, current, 100) != 0 {
-		t.Fatal("old direction renewed roofing budget")
+		t.Fatal("another world kept the roofing budget")
 	}
 }
 
