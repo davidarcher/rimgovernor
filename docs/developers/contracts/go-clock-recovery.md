@@ -172,9 +172,16 @@ distinct `FactFamily` values (never unspecified) that changed under a running
 epoch without a controller write or a stop; the native supervisor publishes
 them from its probe when a research project finishes (`research`,
 `definitions`), a faction's relation, goodwill or defeat state moves
-(`world`) or the set of game conditions affecting the map changes (`colony`,
-whose environment census carries them). Like outcomes and authority changes
-they are facts, not holds.
+(`world`), the set of game conditions affecting the map changes (`colony`,
+whose environment census carries them) or a zone's cell set changes
+(`colony`). A row may narrow the discard (#359): `entity_ids` (at most 64
+distinct identifiers) name the changed rows of the families, and `cells` is
+one rectangle of inclusive, ordered, nonnegative cell bounds the change
+touched; a zone edit sends the changed zones' ListZones ids and the
+rectangle their old and new cells span, and past the id bound the family
+alone. A native that cannot attribute a change omits both, and an older
+native never sends them. Like outcomes and authority changes they are
+facts, not holds.
 
 An empty journal can report `oldest_cursor = 0` and `newest_cursor = 0`. An absent
 oldest cursor is also valid. A positive oldest cursor requires a nonempty journal;
@@ -403,7 +410,15 @@ by the typed events `PollEvents` commits: `AuthorityChanged`, `EpochStarted`
 and a stop drop everything; an `OperationOutcome` drops the families its
 operation kind changes (construction: `colony`, `rooms`, `pawns`; an attempt
 the scheduler did not arm drops everything); `ObservationInvalidated` drops
-the families it names. The step's `clock_step` row carries `parent_hits`,
+the families it names. The decoded store (`facts.Store`) takes the same
+discards, except that a narrowed `ObservationInvalidated` (#359) keeps every
+value and marks instead (`facts.Store.Apply`): the ids on the family's
+entity sections, the rectangle on a cell section whose held region it
+intersects (a disjoint planning window stays fresh), the whole section when
+the narrowing does not fit its shape; a marked section no longer reads as
+fresh, and a whole-family mention of the same family on the page drops it
+after all. The routine status API reports each section's marks as `stale`.
+The step's `clock_step` row carries `parent_hits`,
 which `rimgovernor phases` reports as parent hits/step.
 The worker's step runs under a child of the same parent and takes the
 loaded world it reconciles against from the parent's `identity` row

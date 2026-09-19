@@ -43,7 +43,8 @@ func init() {
 			"are changed via the typed PatchStockpile operation, one corner cell is removed and then re-added " +
 			"through the typed EditZoneCells operation, and the exact zone is deleted via the typed DeleteZone " +
 			"operation, with stale-token refusal, preview non-mutation, real effect evidence, real ListZones " +
-			"readbacks and replay idempotency.",
+			"readbacks and replay idempotency. The re-add runs under a playing clock window and the journal's " +
+			"observation_invalidated names the zone id and its cell rectangle (#359).",
 		Start:  cases.Fixture{Op: "test/zone_delete_prepare"},
 		Budget: 5 * time.Minute,
 		Run:    run,
@@ -535,13 +536,19 @@ func run(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("preview-edit-add: expected the cell addition to be accepted, got %#v", addPreviewEvaluated)
 	}
 
-	editAddGeneration, err := currentGeneration("generation-before-edit-add")
-	if err != nil {
+	// The add runs under a playing clock window so the native probe sees
+	// the zone change and journals an observation_invalidated narrowed to
+	// this zone and its rectangle (#359); the window is paused again before
+	// the readbacks below.
+	var editAddReply map[string]any
+	if _, err := editUnderEpoch(ctx, h, identity, report, zoneID, cells, func() error {
+		editAddGeneration, err := currentGeneration("generation-before-edit-add")
+		if err != nil {
+			return err
+		}
+		editAddReply, err = h.Wire(ctx, "execute-edit-add", "operations_execute", buildRequest("zone-edit-add", editAddGeneration, addOperation))
 		return err
-	}
-	editAddRequest := buildRequest("zone-edit-add", editAddGeneration, addOperation)
-	editAddReply, err := h.Wire(ctx, "execute-edit-add", "operations_execute", editAddRequest)
-	if err != nil {
+	}); err != nil {
 		return err
 	}
 	_, editAddReceipt, err := na.Outcome(editAddReply, "receipt")

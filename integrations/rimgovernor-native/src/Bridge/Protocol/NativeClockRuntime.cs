@@ -421,8 +421,21 @@ namespace HomeBridge.BridgeTools
             if (value.SpeedChanged != null) return value.SpeedChanged.HasSpeed && OrdinarySpeed(value.SpeedChanged.Speed);
             if (value.Notification != null) return value.Notification.SourceCase != Clock.Notification.SourceOneofCase.None;
             if (value.ObservationInvalidated != null) return value.ObservationInvalidated.Families.Count > 0 && value.ObservationInvalidated.Families.Count <= 8
-                && value.ObservationInvalidated.Families.All(family => family != Clock.FactFamily.Unspecified && Enum.IsDefined(typeof(Clock.FactFamily), family));
+                && value.ObservationInvalidated.Families.All(family => family != Clock.FactFamily.Unspecified && Enum.IsDefined(typeof(Clock.FactFamily), family))
+                && ValidInvalidationScope(value.ObservationInvalidated);
             return true;
+        }
+        // The narrowing of an invalidation (#359): at most 64 distinct entity
+        // ids and one rectangle with present, nonnegative, ordered corners.
+        internal const int InvalidationEntitiesMax = 64;
+        private static bool ValidInvalidationScope(Clock.ObservationInvalidated value)
+        {
+            if (value.EntityIds.Count > InvalidationEntitiesMax || value.EntityIds.Distinct(StringComparer.Ordinal).Count() != value.EntityIds.Count
+                || !value.EntityIds.All(ProtoBoundary.IsIdentifier)) return false;
+            var cells = value.Cells;
+            if (cells == null) return true;
+            return cells.Minimum != null && cells.Maximum != null && cells.Minimum.HasX && cells.Minimum.HasZ && cells.Maximum.HasX && cells.Maximum.HasZ
+                && cells.Minimum.X >= 0 && cells.Minimum.Z >= 0 && cells.Minimum.X <= cells.Maximum.X && cells.Minimum.Z <= cells.Maximum.Z;
         }
         private static bool ValidStoredStop(Clock.StopEvent value) => value.HasReason && value.Reason != Clock.StopReason.Unspecified
             && Enum.IsDefined(typeof(Clock.StopReason), value.Reason) && value.EvidenceCase != Clock.StopEvent.EvidenceOneofCase.None

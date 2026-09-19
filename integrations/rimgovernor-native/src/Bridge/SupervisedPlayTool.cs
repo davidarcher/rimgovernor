@@ -628,7 +628,11 @@ namespace HomeBridge.BridgeTools
         /// family; a game condition starting or ending changes the colony
         /// family. The first probe of an epoch only baselines; each later
         /// change appends one observation_invalidated row naming the stale
-        /// families, coalesced per probe.
+        /// families, coalesced per probe. A zone edit (cells added or removed,
+        /// a zone created or deleted) appends its own row narrowed to the
+        /// changed zones' ids and the one rectangle their old and new cells
+        /// span (#359), so a controller store keeps the rest of the colony
+        /// family; past the id bound the row names the family alone.
         private static void PublishFactChanges(State s)
         {
             var research = ResearchDigest();
@@ -640,9 +644,80 @@ namespace HomeBridge.BridgeTools
             if (s.WorldDigest != null && s.WorldDigest != world) { families.Add("world"); reasons.Add("faction relations changed"); }
             if (s.ConditionDigest != null && s.ConditionDigest != conditions) { families.Add("colony"); reasons.Add("game conditions " + (conditions == "" ? "cleared" : conditions)); }
             s.ResearchDigest = research; s.WorldDigest = world; s.ConditionDigest = conditions;
-            if (families.Count == 0) return;
-            Add("observation_invalidated", "Observed facts changed: " + string.Join("; ", reasons) + ".", s,
-                new Dictionary<string, object?> { { "families", families }, { "reason", string.Join("; ", reasons) } });
+            if (families.Count != 0)
+                Add("observation_invalidated", "Observed facts changed: " + string.Join("; ", reasons) + ".", s,
+                    new Dictionary<string, object?> { { "families", families }, { "reason", string.Join("; ", reasons) } });
+            PublishZoneChanges(s);
+        }
+        private static void PublishZoneChanges(State s)
+        {
+            var zones = ZoneDigests(s.Map);
+            var before = s.ZoneDigests;
+            s.ZoneDigests = zones;
+            if (before == null) return;
+            var changed = new List<string>();
+            ZoneDigest? span = null;
+            foreach (var pair in zones)
+            {
+                ZoneDigest old;
+                if (before.TryGetValue(pair.Key, out old) && old.Count == pair.Value.Count && old.Hash == pair.Value.Hash) continue;
+                changed.Add(pair.Key);
+                span = ZoneDigest.Union(span, pair.Value);
+                if (before.TryGetValue(pair.Key, out old)) span = ZoneDigest.Union(span, old);
+            }
+            foreach (var pair in before)
+            {
+                if (zones.ContainsKey(pair.Key)) continue;
+                changed.Add(pair.Key);
+                span = ZoneDigest.Union(span, pair.Value);
+            }
+            if (changed.Count == 0) return;
+            changed.Sort(StringComparer.Ordinal);
+            var reason = "zones edited: " + string.Join(", ", changed);
+            var payload = new Dictionary<string, object?> { { "families", new List<string> { "colony" } }, { "reason", reason } };
+            if (changed.Count <= InvalidationEntitiesMax && span != null)
+            {
+                payload["entityIds"] = changed;
+                payload["cells"] = new Dictionary<string, object?> { { "minX", span.MinX }, { "minZ", span.MinZ }, { "maxX", span.MaxX }, { "maxZ", span.MaxZ } };
+            }
+            Add("observation_invalidated", "Observed facts changed: " + reason + ".", s, payload);
+        }
+        /// One zone's cell set as a count, an order-independent hash and its
+        /// bounds; equal count and hash read as unchanged.
+        private sealed class ZoneDigest
+        {
+            public int Count; public int Hash; public int MinX, MinZ, MaxX, MaxZ;
+            public static ZoneDigest? Union(ZoneDigest? a, ZoneDigest b)
+            {
+                if (b.Count == 0) return a;
+                if (a == null) return new ZoneDigest { Count = b.Count, MinX = b.MinX, MinZ = b.MinZ, MaxX = b.MaxX, MaxZ = b.MaxZ };
+                return new ZoneDigest { Count = a.Count + b.Count, MinX = Math.Min(a.MinX, b.MinX), MinZ = Math.Min(a.MinZ, b.MinZ), MaxX = Math.Max(a.MaxX, b.MaxX), MaxZ = Math.Max(a.MaxZ, b.MaxZ) };
+            }
+        }
+        private static Dictionary<string, ZoneDigest> ZoneDigests(Map map)
+        {
+            var result = new Dictionary<string, ZoneDigest>(StringComparer.Ordinal);
+            List<Zone> zones;
+            try { zones = map?.zoneManager?.AllZones ?? new List<Zone>(); } catch { return result; }
+            foreach (var zone in zones)
+            {
+                if (zone == null) continue;
+                string id;
+                try { id = zone.GetUniqueLoadID(); } catch { continue; }
+                if (!ProtoBoundary.IsIdentifier(id)) continue;
+                var digest = new ZoneDigest { MinX = int.MaxValue, MinZ = int.MaxValue, MaxX = int.MinValue, MaxZ = int.MinValue };
+                foreach (var cell in zone.Cells)
+                {
+                    digest.Count++;
+                    unchecked { digest.Hash += cell.x * 73856093 ^ cell.z * 19349663; }
+                    if (cell.x < digest.MinX) digest.MinX = cell.x;
+                    if (cell.z < digest.MinZ) digest.MinZ = cell.z;
+                    if (cell.x > digest.MaxX) digest.MaxX = cell.x;
+                    if (cell.z > digest.MaxZ) digest.MaxZ = cell.z;
+                }
+                result[id] = digest;
+            }
+            return result;
         }
         private static string ResearchDigest()
         {
@@ -1253,6 +1328,7 @@ namespace HomeBridge.BridgeTools
             public string? PendingKind; public string? PendingDetail;
             // null until the epoch's first probe baselined them; see PublishFactChanges.
             public string? ResearchDigest; public string? WorldDigest; public string? ConditionDigest;
+            public Dictionary<string, ZoneDigest>? ZoneDigests;
             // Wall-clock ms at which a windowless force pause began, 0 when none.
             public long ForcePauseSinceMs; public string? ForcePauseKind;
             public Dictionary<string, object?>? PendingPayload;

@@ -121,6 +121,19 @@ namespace HomeBridge.BridgeTools
                 case "observation_invalidated":
                     result.ObservationInvalidated = new Clock.ObservationInvalidated { Reason = Text(String(P(), "reason")) };
                     result.ObservationInvalidated.Families.Add(FamilyNames(P()));
+                    // Narrowing (#359): the changed rows' ids and the one rectangle
+                    // the change touched; a probe that cannot attribute a change
+                    // sends the families alone.
+                    object? ids, cells;
+                    if (P().TryGetValue("entityIds", out ids) && ids != null)
+                        result.ObservationInvalidated.EntityIds.Add(((IEnumerable)ids).Cast<object?>().Select(id => Id(id as string ?? throw new InvalidOperationException("Entity id is not a string"))).Distinct().ToList());
+                    if (P().TryGetValue("cells", out cells) && cells != null)
+                    {
+                        var rect = (Dictionary<string, object?>)cells;
+                        result.ObservationInvalidated.Cells = new Clock.Rectangle {
+                            Minimum = new Common.Cell { X = checked((int)Number(rect, "minX")), Z = checked((int)Number(rect, "minZ")) },
+                            Maximum = new Common.Cell { X = checked((int)Number(rect, "maxX")), Z = checked((int)Number(rect, "maxZ")) } };
+                    }
                     break;
                 case "started": result.Started = new Clock.EpochStarted { Epoch = (started ?? throw new ArgumentNullException(nameof(started))).Clone() }; break;
                 case "speed_changed": result.SpeedChanged = new Clock.SpeedChanged { Speed = ParseSpeed(String(P(), "speed")) }; break;

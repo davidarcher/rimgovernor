@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 )
 
 // Section names one decoded state section. Today each maps to a bundle or
@@ -53,15 +54,61 @@ func (s Section) Family() bridge.FactFamily {
 	return ""
 }
 
+// Cells reports whether the section's rows are cells, so an invalidation
+// narrowed to a rectangle can leave it alone when the rectangle lies
+// outside the region it holds.
+func (s Section) Cells() bool { return s == PlanningCells }
+
+// Rect is inclusive cell bounds. The zero Rect is "unknown", which
+// intersects everything.
+type Rect struct{ MinX, MinZ, MaxX, MaxZ int32 }
+
+// Unknown reports the zero Rect.
+func (r Rect) Unknown() bool { return r == Rect{} }
+
+// Intersects reports whether the two rectangles share a cell; an unknown
+// rectangle on either side counts as intersecting.
+func (r Rect) Intersects(o Rect) bool {
+	if r.Unknown() || o.Unknown() {
+		return true
+	}
+	return r.MinX <= o.MaxX && o.MinX <= r.MaxX && r.MinZ <= o.MaxZ && o.MinZ <= r.MaxZ
+}
+
+// Union is the smallest rectangle covering both.
+func (r Rect) Union(o Rect) Rect {
+	if r.Unknown() || o.Unknown() {
+		return Rect{}
+	}
+	return Rect{MinX: min(r.MinX, o.MinX), MinZ: min(r.MinZ, o.MinZ), MaxX: max(r.MaxX, o.MaxX), MaxZ: max(r.MaxZ, o.MaxZ)}
+}
+
+// Staleness is the part of a held section a narrowed invalidation named
+// since it was put: entity ids for entity sections, a rectangle for cell
+// sections, or the whole section when the narrowing did not fit its shape.
+// The value stays held (a plan may still reason over it; apply refuses
+// stale intent) but the section no longer reads as fresh.
+type Staleness struct {
+	IDs  []string
+	Rect *Rect
+	All  bool
+}
+
+// Any reports whether anything is marked stale.
+func (st Staleness) Any() bool { return st.All || st.Rect != nil || len(st.IDs) > 0 }
+
 // Held is one section's decoded value with its provenance: AsOf is the
 // tick the reply described, Complete whether the value covers the whole
 // section (a partial census is held but marked), Source the native method
-// that produced it.
+// that produced it, Region the cells a cell section covers (unknown for
+// the rest) and Stale what a narrowed invalidation has marked since.
 type Held[T any] struct {
 	Value    T
 	AsOf     int64
 	Complete bool
 	Source   string
+	Region   Rect
+	Stale    Staleness
 }
 
 // Scope is the (load, native generation) a held section belongs to, the
@@ -79,6 +126,7 @@ type Status struct {
 	Complete bool
 	Source   string
 	StoredAt time.Time
+	Stale    Staleness
 }
 
 type row struct {
@@ -87,6 +135,8 @@ type row struct {
 	complete bool
 	source   string
 	storedAt time.Time
+	region   Rect
+	stale    Staleness
 }
 
 // Store holds the sections under one scope. One writer (the scheduler
@@ -117,7 +167,7 @@ func Put[T any](s *Store, scope Scope, section Section, held Held[T]) {
 		s.rows = map[Section]row{}
 		s.scope = scope
 	}
-	s.rows[section] = row{value: held.Value, asOf: held.AsOf, complete: held.Complete, source: held.Source, storedAt: storeNow()}
+	s.rows[section] = row{value: held.Value, asOf: held.AsOf, complete: held.Complete, source: held.Source, storedAt: storeNow(), region: held.Region}
 }
 
 // Get returns the held section and false when none is held or it was put
@@ -136,12 +186,12 @@ func Get[T any](s *Store, section Section) (Held[T], bool) {
 	if !ok {
 		return Held[T]{}, false
 	}
-	return Held[T]{Value: value, AsOf: r.asOf, Complete: r.complete, Source: r.source}, true
+	return Held[T]{Value: value, AsOf: r.asOf, Complete: r.complete, Source: r.source, Region: r.region, Stale: r.stale}, true
 }
 
 // Fresh reports whether the held section still serves a step at scopeTick
-// under its family's tolerance (bridge.FactFamily.Fresh); an absent
-// section is never fresh.
+// under its family's tolerance (bridge.FactFamily.Fresh); an absent or
+// stale-marked section is never fresh.
 func (s *Store) Fresh(section Section, scopeTick int64) bool {
 	if s == nil {
 		return false
@@ -149,7 +199,7 @@ func (s *Store) Fresh(section Section, scopeTick int64) bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	r, ok := s.rows[section]
-	return ok && section.Family().Fresh(r.asOf, scopeTick)
+	return ok && !r.stale.Any() && section.Family().Fresh(r.asOf, scopeTick)
 }
 
 // Scope is the scope the held rows belong to.
@@ -202,6 +252,98 @@ func (s *Store) InvalidateFamily(families ...bridge.FactFamily) {
 	}
 }
 
+// Invalidation is one decoded ObservationInvalidated (#359): the families
+// that changed and, when native could attribute the change, the entity
+// ids and the one rectangle of cells it touched.
+type Invalidation struct {
+	Families []bridge.FactFamily
+	IDs      []string
+	Rect     *Rect
+}
+
+// Narrowed reports whether the invalidation names rows rather than whole
+// families.
+func (inv Invalidation) Narrowed() bool { return len(inv.IDs) > 0 || inv.Rect != nil }
+
+// InvalidationFromWire decodes an ObservationInvalidated; an unknown
+// family reports false. A rectangle is taken as the decoder validated it
+// (bridge accepts only present, ordered bounds).
+func InvalidationFromWire(o *k.ObservationInvalidated) (Invalidation, bool) {
+	var inv Invalidation
+	for _, wire := range o.GetFamilies() {
+		family, ok := bridge.FactFamilyFromWire(wire)
+		if !ok {
+			return Invalidation{}, false
+		}
+		inv.Families = append(inv.Families, family)
+	}
+	inv.IDs = append(inv.IDs, o.GetEntityIds()...)
+	if cells := o.GetCells(); cells != nil {
+		inv.Rect = &Rect{MinX: cells.GetMinimum().GetX(), MinZ: cells.GetMinimum().GetZ(), MaxX: cells.GetMaximum().GetX(), MaxZ: cells.GetMaximum().GetZ()}
+	}
+	return inv, true
+}
+
+// Apply takes one invalidation. Without narrowing it drops the families'
+// sections (InvalidateFamily). Narrowed, it keeps every value and marks:
+// the ids on the families' entity sections; the rectangle on a cell
+// section whose region it intersects (a disjoint cell section stays
+// fresh); the whole section when the narrowing does not fit its shape
+// (ids alone against cells, a rectangle alone against entities).
+func (s *Store) Apply(inv Invalidation) {
+	if s == nil {
+		return
+	}
+	if !inv.Narrowed() {
+		s.InvalidateFamily(inv.Families...)
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for section, r := range s.rows {
+		if !containsFamily(inv.Families, section.Family()) {
+			continue
+		}
+		switch {
+		case section.Cells() && inv.Rect != nil:
+			if inv.Rect.Intersects(r.region) {
+				marked := *inv.Rect
+				if r.stale.Rect != nil {
+					marked = marked.Union(*r.stale.Rect)
+				}
+				r.stale.Rect = &marked
+			}
+		case !section.Cells() && len(inv.IDs) > 0:
+			for _, id := range inv.IDs {
+				if !containsID(r.stale.IDs, id) {
+					r.stale.IDs = append(r.stale.IDs, id)
+				}
+			}
+		default:
+			r.stale.All = true
+		}
+		s.rows[section] = r
+	}
+}
+
+func containsFamily(families []bridge.FactFamily, family bridge.FactFamily) bool {
+	for _, f := range families {
+		if f == family {
+			return true
+		}
+	}
+	return false
+}
+
+func containsID(ids []string, id string) bool {
+	for _, held := range ids {
+		if held == id {
+			return true
+		}
+	}
+	return false
+}
+
 // InvalidateAll drops every section; the scope is kept.
 func (s *Store) InvalidateAll() {
 	if s == nil {
@@ -222,7 +364,7 @@ func (s *Store) Status() []Status {
 	out := make([]Status, 0, len(s.rows))
 	for _, section := range Sections() {
 		if r, ok := s.rows[section]; ok {
-			out = append(out, Status{Section: section, Family: section.Family(), AsOf: r.asOf, Complete: r.complete, Source: r.source, StoredAt: r.storedAt})
+			out = append(out, Status{Section: section, Family: section.Family(), AsOf: r.asOf, Complete: r.complete, Source: r.source, StoredAt: r.storedAt, Stale: r.stale})
 		}
 	}
 	return out

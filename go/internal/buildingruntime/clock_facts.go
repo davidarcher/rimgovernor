@@ -57,17 +57,43 @@ func (f *clockFacts) kindOf(id domain.ActionID) (domain.ActionKind, bool) {
 }
 
 // apply drops the cached facts a committed events page makes stale and
-// reports whether anything was dropped.
+// reports whether anything was dropped or marked. The byte cache drops
+// every family named; the store takes each invalidation as narrowed
+// (facts.Store.Apply), so a zone edit marks its rows and leaves a
+// planning window it does not touch fresh.
 func (f *clockFacts) apply(page *k.EventsPage) bool {
-	all, families := clockPageInvalidation(page, f.kindOf)
+	all, families, narrowed := clockPageInvalidation(page, f.kindOf)
 	if all {
 		f.cache.Invalidate()
 		f.store.InvalidateAll()
 		return true
 	}
 	f.cache.InvalidateFamilies(families...)
-	f.store.InvalidateFamily(families...)
+	var whole []bridge.FactFamily
+	for _, family := range families {
+		if !clockNarrowedOnly(family, narrowed) {
+			whole = append(whole, family)
+		}
+	}
+	f.store.InvalidateFamily(whole...)
+	for _, inv := range narrowed {
+		f.store.Apply(inv)
+	}
 	return len(families) > 0
+}
+
+// clockNarrowedOnly reports whether every mention of family on the page
+// was a narrowed invalidation; one whole-family mention drops it.
+func clockNarrowedOnly(family bridge.FactFamily, narrowed []facts.Invalidation) bool {
+	found := false
+	for _, inv := range narrowed {
+		for _, named := range inv.Families {
+			if named == family {
+				found = true
+			}
+		}
+	}
+	return found
 }
 
 // operationFamilies names the fact families an operation of kind changes
@@ -86,9 +112,14 @@ func operationFamilies(kind domain.ActionKind, known bool) (bool, []bridge.FactF
 // clockPageInvalidation folds the typed events of one committed page into
 // either a whole-cache discard (an authority change, epoch start or stop
 // can change any fact) or the union of families the operation outcomes and
-// ObservationInvalidated events name.
-func clockPageInvalidation(page *k.EventsPage, kindOf func(domain.ActionID) (domain.ActionKind, bool)) (all bool, families []bridge.FactFamily) {
+// ObservationInvalidated events name. families is that union, for the
+// byte cache; narrowed lists the ObservationInvalidated events that named
+// entity ids or a rectangle (#359), for the store, while a family an
+// outcome or an unnarrowed event names is whole in families and absent
+// from narrowed's exclusive coverage.
+func clockPageInvalidation(page *k.EventsPage, kindOf func(domain.ActionID) (domain.ActionKind, bool)) (all bool, families []bridge.FactFamily, narrowed []facts.Invalidation) {
 	seen := map[bridge.FactFamily]bool{}
+	whole := map[bridge.FactFamily]bool{}
 	add := func(list []bridge.FactFamily) {
 		for _, family := range list {
 			if !seen[family] {
@@ -100,23 +131,46 @@ func clockPageInvalidation(page *k.EventsPage, kindOf func(domain.ActionID) (dom
 	for _, event := range page.GetEvents() {
 		switch v := event.Event.(type) {
 		case *k.Event_AuthorityChanged, *k.Event_Started, *k.Event_Stopped:
-			return true, nil
+			return true, nil, nil
 		case *k.Event_OperationOutcome:
 			kind, known := kindOf(domain.ActionID(v.OperationOutcome.GetAttempt().GetActionId()))
-			whole, list := operationFamilies(kind, known)
-			if whole {
-				return true, nil
+			everything, list := operationFamilies(kind, known)
+			if everything {
+				return true, nil, nil
 			}
 			add(list)
+			for _, family := range list {
+				whole[family] = true
+			}
 		case *k.Event_ObservationInvalidated:
-			for _, wire := range v.ObservationInvalidated.GetFamilies() {
-				family, ok := bridge.FactFamilyFromWire(wire)
-				if !ok {
-					return true, nil
-				}
-				add([]bridge.FactFamily{family})
+			inv, ok := facts.InvalidationFromWire(v.ObservationInvalidated)
+			if !ok {
+				return true, nil, nil
+			}
+			add(inv.Families)
+			if inv.Narrowed() {
+				narrowed = append(narrowed, inv)
+				continue
+			}
+			for _, family := range inv.Families {
+				whole[family] = true
 			}
 		}
 	}
-	return false, families
+	// A family also named whole on the page is dropped whole; its narrowed
+	// mentions add nothing.
+	kept := narrowed[:0]
+	for _, inv := range narrowed {
+		var partial []bridge.FactFamily
+		for _, family := range inv.Families {
+			if !whole[family] {
+				partial = append(partial, family)
+			}
+		}
+		if len(partial) > 0 {
+			inv.Families = partial
+			kept = append(kept, inv)
+		}
+	}
+	return false, families, kept
 }

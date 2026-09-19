@@ -352,9 +352,20 @@ enum FactFamily {
 }
 // Native noticed the named fact families change under a running epoch
 // without a controller write or a stop (a research project finished, faction
-// relations moved): a controller holding cached rows of those families
-// discards them. Never empty.
-message ObservationInvalidated { repeated FactFamily families = 1; optional string reason = 2; }
+// relations moved, a zone edited): a controller holding cached rows of those
+// families discards them. Never empty. When native can attribute the change
+// it narrows the discard: entity_ids (<= 64) name the changed rows of the
+// families (a zone's ListZones id) and cells is the one rectangle the change
+// touched, so a store keeps the rest of each family. Without either the
+// whole family is stale.
+message ObservationInvalidated {
+  repeated FactFamily families = 1;
+  optional string reason = 2;
+  repeated string entity_ids = 3;
+  Rectangle cells = 4;
+}
+// Inclusive cell bounds, minimum <= maximum on both axes.
+message Rectangle { rimgovernor.common.v1.Cell minimum = 1; rimgovernor.common.v1.Cell maximum = 2; }
 message SpeedChanged { optional Speed speed = 1; }
 message PauseFailed { StopEvent pending = 1; }
 message ForcePauseWaiting {

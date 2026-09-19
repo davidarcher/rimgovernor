@@ -179,8 +179,38 @@ func clockEvent(event *k.Event) error {
 				return contract("clock observation invalidation family")
 			}
 		}
+		return clockInvalidationScope(o)
 	default:
 		return contract("clock event variant missing")
+	}
+	return nil
+}
+
+// ClockInvalidationEntitiesMax bounds the entity ids one ObservationInvalidated
+// names; a change touching more rows than that is sent as the whole family.
+const ClockInvalidationEntitiesMax = 64
+
+// clockInvalidationScope accepts the optional narrowing of an
+// ObservationInvalidated (#359): distinct entity ids within the bound and one
+// rectangle of inclusive cell bounds. An old native omits both.
+func clockInvalidationScope(o *k.ObservationInvalidated) error {
+	if len(o.EntityIds) > ClockInvalidationEntitiesMax {
+		return contract("clock observation invalidation entity bound")
+	}
+	seen := map[string]bool{}
+	for _, id := range o.EntityIds {
+		if validID(id) != nil || seen[id] {
+			return contract("clock observation invalidation entity id")
+		}
+		seen[id] = true
+	}
+	if o.Cells != nil {
+		if err := errors.Join(validCell(o.Cells.Minimum), validCell(o.Cells.Maximum)); err != nil {
+			return err
+		}
+		if o.Cells.Minimum.GetX() > o.Cells.Maximum.GetX() || o.Cells.Minimum.GetZ() > o.Cells.Maximum.GetZ() {
+			return contract("clock observation invalidation rectangle bounds")
+		}
 	}
 	return nil
 }

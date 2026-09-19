@@ -60,7 +60,17 @@ func (p *planningWindow) PlanningWindow(ctx context.Context, identity *c.Identit
 		}
 		return facts.Held[observation.PlanningCells]{}, err
 	}
-	out := facts.Held[observation.PlanningCells]{Value: observation.PlanningCells{Region: window.Region, Cells: window.Cells}, AsOf: window.Context.GetTick(), Complete: true, Source: "rimgovernor/observations_get_cells"}
+	out := facts.Held[observation.PlanningCells]{Value: observation.PlanningCells{Region: window.Region, Cells: window.Cells}, AsOf: window.Context.GetTick(), Complete: true, Source: "rimgovernor/observations_get_cells", Region: planningRegionRect(window.Region)}
 	facts.Put(p.store, p.scope, facts.PlanningCells, out)
 	return out, nil
+}
+
+// planningRegionRect is the inclusive cell bounds of a planning region, so
+// an invalidation narrowed to a rectangle (#359) can leave a window it
+// does not touch fresh.
+func planningRegionRect(region policy.Rectangle) facts.Rect {
+	if region.Width <= 0 || region.Height <= 0 {
+		return facts.Rect{}
+	}
+	return facts.Rect{MinX: region.X, MinZ: region.Z, MaxX: region.X + region.Width - 1, MaxZ: region.Z + region.Height - 1}
 }
