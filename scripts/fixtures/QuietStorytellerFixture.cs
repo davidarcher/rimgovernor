@@ -58,12 +58,24 @@ namespace HomeBridge.BridgeTools
             return strangers.Count;
         }
 
+        // A map-gen insect hive is a hostile building the census lists as a
+        // combat target (#246) and a spawner of the very insects RemoveStrangers
+        // just removed, so every hive leaves the map too (#340). A case that
+        // wants a hive spawns its own after this (defense/hive).
+        public static int RemoveHives(Map map)
+        {
+            var hives = map.listerThings.AllThings.OfType<Hive>().ToList();
+            foreach (var hive in hives) hive.Destroy(DestroyMode.Vanish);
+            return hives.Count;
+        }
+
         public static object Apply(Map map)
         {
             ApplyDifficulty(Find.Storyteller);
             var removed = map == null ? 0 : RemoveStrangers(map);
+            var hives = map == null ? 0 : RemoveHives(map);
             return new { success = true, storyteller = Find.Storyteller.def.defName, difficulty = Custom.defName,
-                threatScale = 0f, comps = 0, strangersRemoved = removed };
+                threatScale = 0f, comps = 0, strangersRemoved = removed, hivesRemoved = hives };
         }
 
         public static void EnsurePatched()
@@ -112,7 +124,7 @@ namespace HomeBridge.BridgeTools
         static QuietStorytellerFixture() { QuietStoryteller.EnsurePatched(); }
         public QuietStorytellerFixture() { QuietStoryteller.EnsurePatched(); }
 
-        [Tool("test/quiet_storyteller", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup: Custom difficulty at zero threat scale with no big/intro threats, violent quests or humanlike-hunting predators, no storyteller comps, queued incidents or storyteller ticks, and every non-colony pawn removed from the current map. Persists across save and reload. Interruption harnesses must not call it.")]
+        [Tool("test/quiet_storyteller", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup: Custom difficulty at zero threat scale with no big/intro threats, violent quests or humanlike-hunting predators, no storyteller comps, queued incidents or storyteller ticks, and every non-colony pawn and insect hive removed from the current map. Persists across save and reload. Interruption harnesses must not call it.")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "apply (default) or inspect, which only reads the current storyteller state.")] string action = "apply")
         {
@@ -124,7 +136,8 @@ namespace HomeBridge.BridgeTools
                     return new { success = true, quiet = QuietStoryteller.IsQuiet(teller), storyteller = teller.def.defName,
                         difficulty = teller.difficultyDef?.defName, threatScale = teller.difficulty.threatScale,
                         allowBigThreats = teller.difficulty.allowBigThreats, comps = teller.storytellerComps.Count,
-                        strangers = Find.CurrentMap?.mapPawns.AllPawnsSpawned.Count(p => p.Faction != Faction.OfPlayer) ?? 0 };
+                        strangers = Find.CurrentMap?.mapPawns.AllPawnsSpawned.Count(p => p.Faction != Faction.OfPlayer) ?? 0,
+                        hives = Find.CurrentMap?.listerThings.AllThings.OfType<Hive>().Count() ?? 0 };
                 }
                 if (action != "apply") throw new ArgumentException("Unknown action.");
                 return QuietStoryteller.Apply(Find.CurrentMap);

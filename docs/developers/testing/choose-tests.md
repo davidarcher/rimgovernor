@@ -371,7 +371,7 @@ harnesses that also run against a production build, and `Loud` for
 interruption harnesses. Quiet means a Custom difficulty at
 zero threat scale with no big/intro threats, violent quests or humanlike
 hunting, no queued incidents, no storyteller ticks, and every non-colony pawn
-removed from the map; because the Custom difficulty is what the save
+and map-gen insect hive removed from the map (#340); because the Custom difficulty is what the save
 persists, a quiet save stays quiet after reload while a fixture build is
 installed. Interruption harnesses (the `combat/*`, `movement/arrival` and
 `authority/disconnect` and `defense/*` cases, `test/world_incident`

@@ -15,13 +15,6 @@ func EmergencyNeeds(snapshot EmergencySnapshot, current domain.GenerationSnapsho
 			threats++
 		}
 	}
-	// A standing hostile building is a deficit without a hold: it never
-	// stops the clock, but ActiveCombat stays open until it is destroyed.
-	for _, threat := range snapshot.facts.Threats {
-		if dead, _ := threat.Dead.Value(); threat.Building() && !dead {
-			threats++
-		}
-	}
 	// Patients are counted from the census, not the holds: a colonist who
 	// only needs tending is the tend planner's patient although the
 	// emergency no longer holds dispatch for them (#66).

@@ -25,11 +25,15 @@ const (
 	NearbyDowned
 	// HostileBuilding is a hostile-faction building the census lists as a
 	// combat target in its own right (an insect hive, a crashed ship part):
-	// a deficit for ActiveCombat, a squad target once no hostile pawn
-	// remains, and an unsafe-threat hold like a hostile pawn, so the fight
-	// is planned under a stopped clock and run under watched combat windows
-	// (the draft and attack executors bind their reads by tick and are not
-	// safe under a running colony window; live 2026-09-18, #246).
+	// a squad target once no hostile pawn remains and, within
+	// DistantThreatCells of a colonist, a deficit for ActiveCombat and an
+	// unsafe-threat hold like a hostile pawn, so the fight is planned under
+	// a stopped clock and run under watched combat windows (the draft and
+	// attack executors bind their reads by tick and are not safe under a
+	// running colony window; live 2026-09-18, #246). A building further
+	// out is watched like a distant animal: a map-gen hive in a cave the
+	// colony never reaches held every window and every development goal
+	// for good (#340).
 	HostileBuilding
 )
 
@@ -58,15 +62,16 @@ func (t EmergencyThreat) Building() bool { return t.Kind == HostileBuilding }
 // cells in serve) and for a predator hunt within 40 cells, both inside this
 // band, so the approach re-enters the emergency before it can reach anyone.
 // A humanlike or mechanoid threat holds at any distance: a raid is planned
-// for from the map edge, not from twenty cells out.
+// for from the map edge, not from twenty cells out. A hostile building
+// (#246) goes nowhere, so the same band applies to it (#340).
 const DistantThreatCells = 50.0
 
-// DistantThreat reports a hostile or hunting animal known to be at least
-// DistantThreatCells from every colonist.
+// DistantThreat reports a hostile or hunting animal, or a hostile building,
+// known to be at least DistantThreatCells from every colonist.
 func (t EmergencyThreat) DistantThreat() bool {
 	animal, ak := t.Animal.Value()
 	distance, dk := t.Distance.Value()
-	return ak && animal && dk && distance >= DistantThreatCells
+	return (t.Building() || ak && animal) && dk && distance >= DistantThreatCells
 }
 
 type EmergencyFacts struct {
@@ -211,8 +216,8 @@ func EvaluateEmergency(snapshot EmergencySnapshot, current domain.GenerationSnap
 		}
 		// A distant animal is watched by the native supervisor's radius,
 		// not held: no planner answers a manhunter or a hunting predator a
-		// hundred cells out, and holding for one parked the clock for good.
-		// A hostile building holds at any distance (see HostileBuilding).
+		// hundred cells out, and holding for one parked the clock for good;
+		// nor is a hostile building that far out (#340).
 		if (threat.Kind == Hostile || threat.Kind == HuntingPredator || threat.Kind == HostileBuilding) && !threat.DistantThreat() {
 			hold(EmergencyUnsafeThreat, threat.ID)
 		}

@@ -524,9 +524,12 @@ Hostile buildings (#246) are threats in their own right: the native threat censu
 lists every spawned insect hive and every hostile-faction building with hit points
 and combat power (crashed ship parts) under `hostileBuildings`, each with its
 definition, hit points and a snapshot token derived from the thing itself. A
-listed building keeps the active-combat deficit open and holds the clock as an
-unsafe threat exactly like a hostile pawn: the fight is planned under the stopped
-clock and run under watched combat windows; the building's id is never
+listed building within `policy.DistantThreatCells` (50) of a colonist keeps the
+active-combat deficit open and holds the clock as an unsafe threat exactly like a
+hostile pawn: the fight is planned under the stopped clock and run under watched
+combat windows; one further out is neither a deficit nor a hold, only a squad
+target while the goal is open for something else (#340: a map-gen hive in a
+cave held every window for good); the building's id is never
 acknowledged to the native watcher, which resolves every acknowledged id as a
 spawned pawn and only stops for unacknowledged hostile pawns, so a lone building
 admits a combat window with an empty acknowledgement list. Squad defense assigns buildings only once no eligible hostile pawn remains (a
