@@ -159,6 +159,10 @@ What it produces:
   in the same root (first output line says so); pass `-fresh` to start
   over, `-rewind N` to step back. Report a resumed pass as such and land
   on a fresh one: `acceptance suite` and the `cmd/test` hint run fresh.
+- Iterating on a case's asserts, not its scenario: `acceptance run
+  <case> -postmortem-only [-from t+7m] -output <empty dir>` reloads the
+  failed bundle on the kept process and runs only the case's
+  `Postmortem` phase (#275), ~20 s; a case without one says so.
 - Flake or regression: `result.json` `world` names the seed, save hash
   and fixture hash the run had, and `flake` its recent failure share.
   `acceptance run <case> -repeat N` measures the pass rate under one

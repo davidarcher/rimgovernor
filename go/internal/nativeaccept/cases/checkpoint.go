@@ -163,7 +163,7 @@ func newRing(c Case, opts Options, s *session, cfg *na.Config, output string, re
 	}
 	ring := &na.CheckpointRing{
 		Dir: opts.RingDir(c), Case: c.Name, Every: opts.CheckpointEvery, Keep: na.CheckpointKeep,
-		Config: cfg, StorePath: filepath.Join(output, "service.sqlite"),
+		Config: cfg, StorePath: filepath.Join(output, "service.sqlite"), Output: output,
 		Fingerprint: fp, SourceRevision: na.SourceRevision(),
 		Bridge: func() *na.Harness {
 			if s.Session == nil || s.Session.Game.Released() {
@@ -250,7 +250,7 @@ func closeRing(ring *na.CheckpointRing, resumed resumption, runErr error, report
 		}
 		return
 	}
-	next := &na.Ring{Case: ring.Case, SourceRevision: ring.SourceRevision, FailedOffsetMs: ring.Offset().Milliseconds(), Failed: failed}
+	next := &na.Ring{Case: ring.Case, SourceRevision: ring.SourceRevision, FailedOffsetMs: ring.Offset().Milliseconds(), Failed: failed, FailedOutput: ring.Output}
 	if failed != nil {
 		next.FailedTick = failed.Tick
 	}

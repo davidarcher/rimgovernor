@@ -630,6 +630,10 @@ func runEntry(ctx context.Context, e entry, opts suiteOptions, self, workerRoot 
 					row["passed"], row["error"] = false, "resumed from a checkpoint: a landing run must pass from scratch"
 				}
 			}
+			if only, _ := result["postmortem_only"].(bool); only {
+				row["passed"], row["postmortem_only"] = false, true
+				row["error"] = "postmortem-only: a landing run must pass from scratch"
+			}
 			row["game_reuse"] = result["game_reuse"]
 			if ms, ok := result["boot_ms"].(float64); ok {
 				row["boot_ms"] = int64(ms)

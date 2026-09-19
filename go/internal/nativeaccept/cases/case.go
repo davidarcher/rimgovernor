@@ -148,6 +148,11 @@ type Session interface {
 	// na.SetCheckpointState before the capture: a Run body that stages
 	// its own fixture reads it to skip the prep the save carries (#316).
 	Resumed() (entry na.Checkpoint, ok bool)
+	// Prior is the failed run's result.json (JSON-typed: slices are []any,
+	// numbers float64) under -postmortem-only (#275), nil on any other run
+	// or when the ring did not record it: the timeline and the report
+	// fields the watch left, for a Postmortem that reads them.
+	Prior() map[string]any
 	// Report is the run's report; the case adds its own fields.
 	Report() na.Report
 	// Release closes the harness's bridge session without stopping the game
@@ -230,8 +235,18 @@ type Case struct {
 	// advance a strict window over exactly these letters
 	// (na.WithExpectedLetters).
 	Letters [][2]string
-	// Run is the assertion.
+	// Run is the assertion, or its scenario when Postmortem is set.
 	Run func(ctx context.Context, s Session) error
+	// Postmortem, when set, is the case's read-and-assert phase (#275): the
+	// runner calls it after Run returns nil, with every service the case
+	// launched stopped and the harness reattached, so the durable store
+	// (<output>/service.sqlite) and the live game can be compared. It is
+	// what `acceptance run -postmortem-only` runs alone over the case's
+	// failed bundle (or a -from entry) reloaded on the kept process: no
+	// Start fixture, no Run. Anything Run learned that the phase needs
+	// travels through na.SetCheckpointState (Session.Resumed's State) or
+	// Session.Prior, never a shared variable alone.
+	Postmortem func(ctx context.Context, s Session) error
 	// NoKeep stops the process after Run instead of leaving it at the main
 	// menu for the next case (na.KeepGameEnv): the case restarted, faulted
 	// or retired the game on purpose, or touched process-scoped static

@@ -45,17 +45,24 @@ func TestParseRunResolvesFlagsAndCases(t *testing.T) {
 	if got := opts.CaseOutput(selected[0]); got != filepath.Join(root, "acceptance", "smoke", "identity") {
 		t.Fatalf("CaseOutput = %q", got)
 	}
+	_, opts, err = parseRun([]string{"smoke/identity", "-root", root, "-postmortem-only", "-from", "t+7m"}, &stderr)
+	if err != nil || !opts.PostmortemOnly || opts.From != "t+7m" {
+		t.Fatalf("postmortem-only: %+v %v", opts, err)
+	}
 }
 
 func TestParseRunRejects(t *testing.T) {
 	root := absRoot()
 	for name, args := range map[string][]string{
-		"no case":         {"-root", root},
-		"unknown case":    {"smoke/nope", "-root", root},
-		"missing root":    {"smoke/identity"},
-		"relative root":   {"smoke/identity", "-root", "bridge"},
-		"case after flag": {"-root", root, "smoke/identity"},
-		"unknown flag":    {"smoke/identity", "-root", root, "-bogus"},
+		"no case":          {"-root", root},
+		"unknown case":     {"smoke/nope", "-root", root},
+		"missing root":     {"smoke/identity"},
+		"relative root":    {"smoke/identity", "-root", "bridge"},
+		"case after flag":  {"-root", root, "smoke/identity"},
+		"unknown flag":     {"smoke/identity", "-root", root, "-bogus"},
+		"from alone":       {"smoke/identity", "-root", root, "-from", "t+7m"},
+		"postmortem+fresh": {"smoke/identity", "-root", root, "-postmortem-only", "-fresh"},
+		"postmortem+seed":  {"smoke/identity", "-root", root, "-postmortem-only", "-seed", "x"},
 	} {
 		var stderr bytes.Buffer
 		if _, _, err := parseRun(args, &stderr); err == nil {

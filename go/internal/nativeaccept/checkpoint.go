@@ -181,6 +181,23 @@ type Ring struct {
 	Note string `json:"note,omitempty"`
 	// SourceRevision is the failed run's.
 	SourceRevision string `json:"source_revision"`
+	// FailedOutput is the failed run's output directory (its result.json
+	// holds the timeline a postmortem-only rerun reads back, #275).
+	FailedOutput string `json:"failed_output,omitempty"`
+}
+
+// ReadCheckpoint reads the sidecar of the bundle at dir, with Path set.
+func ReadCheckpoint(dir string) (Checkpoint, error) {
+	data, err := os.ReadFile(filepath.Join(dir, CheckpointSidecar))
+	if err != nil {
+		return Checkpoint{}, err
+	}
+	var c Checkpoint
+	if err := json.Unmarshal(data, &c); err != nil {
+		return Checkpoint{}, fmt.Errorf("%s: %w", filepath.Join(dir, CheckpointSidecar), err)
+	}
+	c.Path = dir
+	return c, nil
 }
 
 // ReadRing reads dir's index; a missing ring is (nil, nil).
@@ -304,6 +321,9 @@ type CheckpointRing struct {
 	Service func() *ServiceProcess
 	// StorePath is the case's service.sqlite, copied when it exists.
 	StorePath string
+	// Output is the run's output directory, recorded on a failing run's
+	// index (Ring.FailedOutput).
+	Output string
 	// Fingerprint, Serve, Prepared and SourceRevision fill the sidecar.
 	Fingerprint    Fingerprint
 	Serve          map[string]any

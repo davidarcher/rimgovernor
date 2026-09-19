@@ -2,11 +2,13 @@ package cases
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -48,6 +50,12 @@ type Options struct {
 	// Rewind resumes that many entries earlier than the ring's next.
 	Fresh  bool
 	Rewind int
+	// PostmortemOnly runs only the case's Postmortem phase over a staged
+	// bundle (#275): From names the bundle (a ring label such as "t+7m" or
+	// "failed", or a bundle directory), the ring's failed bundle when
+	// empty. The ring is read, never changed.
+	PostmortemOnly bool
+	From           string
 	// Seed pins the world seed of a debug or scenario start (#281): the
 	// seed a result.json's world block recorded reproduces that run's
 	// world. A case that starts from a save has no seed to pin and is
@@ -206,6 +214,9 @@ func diagnose(ctx context.Context, output string, report na.Report) {
 }
 
 func execute(ctx context.Context, c Case, opts Options, output string, report na.Report) error {
+	if opts.PostmortemOnly {
+		return executePostmortem(ctx, c, opts, output, report)
+	}
 	if c.Serve != nil && opts.Rimgovernor == "" {
 		return fmt.Errorf("case %s launches rimgovernor serve: run it with -rimgovernor <absolute path to a prebuilt binary>", c.Name)
 	}
@@ -308,6 +319,9 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 		ring.Activate()
 	}
 	runErr := c.Run(ctx, s)
+	if runErr == nil && c.Postmortem != nil {
+		runErr = s.postmortem(ctx)
+	}
 	if runErr == nil {
 		// The game's own startup log is part of every case's evidence: a
 		// native load error there fails the case even when its assertion
@@ -320,6 +334,139 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 		return err
 	})
 	return runErr
+}
+
+// executePostmortem is the -postmortem-only run (#275): the bundle From
+// names (the ring's failed bundle by default) is staged and loaded on the
+// kept process, its store copied to <output>/service.sqlite, and only the
+// case's Postmortem runs over it. The ring is left as it was, so the next
+// plain run still resumes from it, and the report carries postmortem_only
+// so the landing gate refuses it like a resumed run.
+func executePostmortem(ctx context.Context, c Case, opts Options, output string, report na.Report) error {
+	if c.Postmortem == nil {
+		return fmt.Errorf("case %s declares no Postmortem phase; -postmortem-only has nothing to run (split its Run into the scenario and the reads that assert on it)", c.Name)
+	}
+	entry, ring, err := postmortemBundle(c, opts)
+	if err != nil {
+		return err
+	}
+	fp, err := fingerprint(c, opts.configDir(c))
+	if err != nil {
+		return fmt.Errorf("fingerprint this root: %w", err)
+	}
+	if reason := fp.Mismatch(entry); reason != "" {
+		return fmt.Errorf("bundle %s cannot be loaded under this tree: %s", entry.Path, reason)
+	}
+	s := &session{c: c, report: report, binary: opts.Rimgovernor, resumed: &entry, resumeSuffix: opts.RunID()}
+	cfg := &na.Config{Root: opts.Root, Output: output, Headless: opts.Headless && !c.Rendered, GameID: opts.GameID,
+		QuietWorld: c.QuietWorld, Spawned: func(pid int) { s.gabsPID.Store(int64(pid)) }}
+	s.config = cfg
+	report["keep"] = !c.NoKeep && na.KeepGame()
+	report["checkpointing"] = "off (postmortem-only)"
+	save, err := na.StageCheckpoint(opts.Root, entry, filepath.Join(output, "service.sqlite"))
+	if err != nil {
+		return fmt.Errorf("stage bundle: %w", err)
+	}
+	from := map[string]any{"path": entry.Path, "label": entry.Label, "offset_ms": entry.OffsetMs, "tick": entry.Tick, "source_revision": entry.SourceRevision, "save": save, "store": entry.Store}
+	if ring != nil && ring.FailedOutput != "" {
+		if prior, err := readResult(filepath.Join(ring.FailedOutput, "result.json")); err == nil {
+			s.prior = prior
+			from["prior_result"] = filepath.Join(ring.FailedOutput, "result.json")
+		}
+	}
+	report["postmortem_only"] = true
+	report["postmortem_from"] = from
+	if log := opts.Log; log != nil {
+		fmt.Fprintf(log, "postmortem-only: %s over %s (tick %d); the ring is untouched\n", c.Name, entry.Path, entry.Tick)
+	}
+	if c.Rendered && opts.Headless {
+		if err := na.StopGame(ctx, opts.Root, opts.GameID); err != nil {
+			return fmt.Errorf("stop kept headless game before rendered start: %w", err)
+		}
+	}
+	opened, err := na.OpenSession(ctx, cfg, report, na.Save{Name: save}, c.Quiet, c.keepNeeds()...)
+	if err != nil {
+		return err
+	}
+	if c.NoKeep {
+		opened.Game.Keep = false
+	}
+	defer opened.Close()
+	defer s.stopServices()
+	report["quiet_mode"] = c.Quiet.String()
+	s.Session = opened
+	if entry.Prepared != nil {
+		opened.Prepared = entry.Prepared
+		report["prepared"] = entry.Prepared
+	}
+	if err := c.Postmortem(ctx, s); err != nil {
+		return err
+	}
+	return CheckStartupLog(s)
+}
+
+// postmortemBundle resolves Options.From to a bundle of c: a directory
+// holding a sidecar, a label in c's ring, or the ring's failed bundle. The
+// ring index comes along when the bundle is one of its entries.
+func postmortemBundle(c Case, opts Options) (na.Checkpoint, *na.Ring, error) {
+	dir := opts.RingDir(c)
+	ring, err := na.ReadRing(dir)
+	if err != nil {
+		return na.Checkpoint{}, nil, err
+	}
+	from := opts.From
+	switch {
+	case from == "":
+		if ring == nil || ring.Failed == nil {
+			return na.Checkpoint{}, nil, fmt.Errorf("no failed bundle of %s in %s: a plain run that fails leaves one, or name a bundle with -from", c.Name, dir)
+		}
+		from = ring.Failed.Path
+	case filepath.IsAbs(from) || strings.ContainsAny(from, `/\`):
+	default:
+		from = filepath.Join(dir, from)
+	}
+	entry, err := na.ReadCheckpoint(from)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return na.Checkpoint{}, nil, fmt.Errorf("-from %s: no bundle there (`ls %s` lists the ring)", opts.From, dir)
+		}
+		return na.Checkpoint{}, nil, err
+	}
+	if entry.Case != "" && entry.Case != c.Name {
+		return na.Checkpoint{}, nil, fmt.Errorf("-from %s is a bundle of %s, not %s", opts.From, entry.Case, c.Name)
+	}
+	if rel, err := filepath.Rel(dir, entry.Path); err != nil || strings.HasPrefix(rel, "..") {
+		ring = nil
+	}
+	return entry, ring, nil
+}
+
+// readResult reads a result.json as JSON-typed values.
+func readResult(path string) (map[string]any, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var result map[string]any
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+// postmortem runs the case's Postmortem phase after Run: the services
+// the case launched are stopped and the harness holds the game again.
+func (s *session) postmortem(ctx context.Context) error {
+	s.stopServices()
+	if s.Session != nil && s.Session.Game.Released() {
+		if _, err := s.Session.Reattach(ctx); err != nil {
+			return fmt.Errorf("reattach for postmortem: %w", err)
+		}
+	}
+	if err := s.c.Postmortem(ctx, s); err != nil {
+		return fmt.Errorf("postmortem: %w", err)
+	}
+	return nil
 }
 
 // StageSaves copies every Save.From checkpoint the start names into
@@ -424,6 +571,8 @@ type session struct {
 	seed string
 	// resumed is the checkpoint entry the run resumed from, nil fresh.
 	resumed *na.Checkpoint
+	// prior is the failed run's result.json under -postmortem-only.
+	prior   map[string]any
 	runtime *na.ScenarioRuntime
 	gabsPID atomic.Int64
 }
@@ -469,6 +618,7 @@ func (s *session) Resumed() (na.Checkpoint, bool) {
 	}
 	return *s.resumed, true
 }
+func (s *session) Prior() map[string]any { return s.prior }
 func (s *session) RequestID(base string) string {
 	if s.resumeSuffix == "" {
 		return base

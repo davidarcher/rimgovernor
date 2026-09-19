@@ -75,7 +75,9 @@ func gatedFiles(changed []string) []string {
 // a checkpoint (result.json "resumed_from", `acceptance suite -resume`)
 // pass, and the summary names them: everything before the resume point
 // ran under the earlier revision, so the landing records the fact rather
-// than paying a fresh run to erase it (#249, #308).
+// than paying a fresh run to erase it (#249, #308). A row that ran
+// postmortem-only ("postmortem_only", #275) ran no scenario at all and is
+// refused.
 func readSuiteResults(dir string) (string, error) {
 	path := dir
 	if info, err := os.Stat(dir); err == nil && info.IsDir() {
@@ -90,8 +92,9 @@ func readSuiteResults(dir string) (string, error) {
 		Error  string `json:"error"`
 		Tier   string `json:"tier"`
 		Cases  []struct {
-			Name        string `json:"name"`
-			ResumedFrom any    `json:"resumed_from"`
+			Name           string `json:"name"`
+			ResumedFrom    any    `json:"resumed_from"`
+			PostmortemOnly bool   `json:"postmortem_only"`
 		} `json:"cases"`
 	}
 	if err := json.Unmarshal(data, &report); err != nil {
@@ -99,6 +102,15 @@ func readSuiteResults(dir string) (string, error) {
 	}
 	if report.Cases == nil {
 		return "", fmt.Errorf("-results: %s has no cases: give an `acceptance suite` output directory", path)
+	}
+	var only []string
+	for _, row := range report.Cases {
+		if row.PostmortemOnly {
+			only = append(only, row.Name)
+		}
+	}
+	if len(only) > 0 {
+		return "", fmt.Errorf("-results: %s ran postmortem-only (%s); a landing pass runs the scenario", path, strings.Join(only, ", "))
 	}
 	if !report.Passed {
 		reason := report.Error

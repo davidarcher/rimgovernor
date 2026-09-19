@@ -112,7 +112,7 @@ can see that one costs 4 minutes and another 18, #283), and
 `acceptance run <area>/<case>... -root <abs root> [-output <dir>]
 [-rimgovernor <abs rimgovernor.exe>] [-budget <d> -stall <d> -timeout <d>]
 [-fresh] [-rewind N] [-checkpoint-every <d>] [-evidence capped|full]
-[-repeat N] [-seed <s>]`
+[-repeat N] [-seed <s>] [-postmortem-only [-from <label|dir>]]`
 runs cases on one kept process, writing each case's `result.json` under
 `<output>/<area>/<case>` beside one evidence file per native call
 (`NNNN-<label>.json`) and per service request (`service*/http-NNNN.json`).
@@ -304,6 +304,14 @@ by review alone.
    ([below](#reusing-one-game-across-acceptance-cases)) or an
    `acceptance suite` boot RimWorld once per worker. A case that ends or
    replaces the process declares `NoKeep`; an `Owned` start must.
+11. **Split the scenario from its reads.** A serve-driven case declares
+   its reads and asserts as `Postmortem` (called after `Run` with the
+   services stopped and the harness reattached), keeping `Run` to the
+   prepare and the watch; what `Run` learned that the asserts need goes
+   through `na.SetCheckpointState` (read back from `Session.Resumed`) or
+   `Session.Prior`. That is what lets `-postmortem-only` rerun the asserts
+   over the failed bundle in seconds (#275). `production/ladder` and
+   `research/ladder` are the shape.
 
 ## Keep the game quiet and small
 
@@ -760,6 +768,17 @@ refuses such a suite (#308). The bundles are
 disposable per-worktree state, never committed. Resume replays the case
 body from the top against the restored world and store, so it suits
 watch-shaped cases (a declarative `Serve` spec or an `Observe` loop).
+A case whose reads and asserts are a separate `Postmortem` phase (see
+below) reruns only that phase with `-postmortem-only` (#275): the ring's
+`failed/` bundle (or `-from t+7m`, `-from failed`, `-from <bundle dir>`)
+is staged and loaded on the kept process, its store copied to
+`<output>/service.sqlite`, and `Postmortem` runs against the reattached
+harness with no fixture op, no `Run` and no watch, about 20 s instead of
+the case's wall time; the ring is left as it was for the next plain run.
+`result.json` carries `postmortem_only: true` and `postmortem_from`, and
+the suite and `cmd/land -results` refuse it like a resumed row. It takes
+none of `-fresh`, `-rewind`, `-repeat`, `-seed`, and needs an empty
+`-output` like any run.
 A `Run` that submits a deterministic request id (a building plan whose
 acceptance fills the arbitration slot, a work-preference override) takes
 it from `s.RequestID(base)`: the base on a fresh run, the base suffixed

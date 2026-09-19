@@ -173,7 +173,7 @@ func testRing(opts Options, base time.Duration, saver func(ctx context.Context, 
 	return &na.CheckpointRing{
 		Dir: opts.RingDir(ringCase), Case: ringCase.Name, Every: time.Minute, Keep: na.CheckpointKeep, Base: base,
 		Config: &na.Config{Root: opts.Root, Headless: true, Configuration: opts.configDir(ringCase)},
-		Saver:  saver, SourceRevision: "def456",
+		Saver:  saver, SourceRevision: "def456", Output: filepath.Join(opts.Root, "out"),
 	}
 }
 
@@ -210,6 +210,9 @@ func TestCloseRingKeepsTimelineAndAutoRewinds(t *testing.T) {
 	}
 	if report["checkpoint_next"] != "t+6m" || !strings.Contains(na.AsString(report["checkpoint_note"]), "no progress since t+7m; rewinding to t+6m") {
 		t.Fatalf("%v %v", report["checkpoint_next"], report["checkpoint_note"])
+	}
+	if next.FailedOutput != ring.Output {
+		t.Fatalf("failed_output %q", next.FailedOutput)
 	}
 	if next.Failed == nil || next.Failed.Path != filepath.Join(ring.Dir, na.FailedCheckpoint) {
 		t.Fatalf("failed bundle %+v", next.Failed)

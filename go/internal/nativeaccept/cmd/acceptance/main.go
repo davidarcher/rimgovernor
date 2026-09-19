@@ -1,7 +1,7 @@
 // Command acceptance is the shared runner over the case registry (#135):
 //
 //	acceptance list [-cost [-baseline <result.json|metrics.jsonl>]] [-tier land|full|matrix|smoke] [<case>|<area>/...]...
-//	acceptance run <case>... [-root -output -game -headless -timeout -budget -stall -rimgovernor -series -no-series -evidence -fresh -rewind N -checkpoint-every d -no-doctor -no-heal -repeat N -seed s]
+//	acceptance run <case>... [-root -output -game -headless -timeout -budget -stall -rimgovernor -series -no-series -evidence -fresh -rewind N -checkpoint-every d -no-doctor -no-heal -repeat N -seed s -postmortem-only [-from bundle]]
 //	acceptance suite (-all | -cases a,b | -suite file.json | -tier land|full|matrix|smoke) -root -output -workers N [-baseline result.json -series metrics.jsonl]
 //	acceptance stop -root <dir> [-config -game -takeover]
 //	acceptance setup [-worktree -rimworld -harmony -gabs -fixture -production -rebuild -skip-mod -skip-binaries]
@@ -23,7 +23,10 @@
 // on-demand matrix set. A run
 // checkpoints its case into the root's ring and resumes a case whose last
 // run there failed (#249; -fresh starts over, -rewind steps back,
-// -checkpoint-every 0 turns it off); suite runs fresh unless -resume. Every
+// -checkpoint-every 0 turns it off); suite runs fresh unless -resume.
+// -postmortem-only (#275) reloads the case's failed bundle (or -from) on
+// the kept process and runs only its Postmortem phase, leaving the ring as
+// it was. Every
 // result.json carries a world block (na.RecordWorld, #281: the seed, the
 // loaded save and its hash, the fixture op and its arguments' hash);
 // -repeat N runs a case N times fresh on the kept process and writes
@@ -160,9 +163,10 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 const usage = `usage:
 ` + listUsage + `
-  acceptance run <case>... -root <dir> [-output <dir> -game <id> -headless=false -timeout <d> -budget <d> -stall <d> -rimgovernor <binary> -series <metrics.jsonl> -no-series -evidence capped|full -fresh -rewind <n> -checkpoint-every <d> -no-doctor -no-heal -repeat <n> -seed <s>]
+  acceptance run <case>... -root <dir> [-output <dir> -game <id> -headless=false -timeout <d> -budget <d> -stall <d> -rimgovernor <binary> -series <metrics.jsonl> -no-series -evidence capped|full -fresh -rewind <n> -checkpoint-every <d> -no-doctor -no-heal -repeat <n> -seed <s> -postmortem-only [-from <bundle>]]
     a case whose last run in this root failed resumes from its checkpoint ring (printed on the first line);
     -fresh starts over, -rewind <n> resumes n entries earlier, -checkpoint-every 0 turns the ring off;
+    -postmortem-only reloads the failed bundle (or -from <label|dir>) and runs only the case's Postmortem phase, ring untouched;
     -repeat <n> runs each case n times fresh and reports the pass rate and seeds (<output>/<case>.repeat.json);
     -seed <s> pins a debug or scenario start's world seed (result.json "world".seed) to reproduce a run
   acceptance stop -root <dir> [-config <dir> -game <id> -takeover]
@@ -202,8 +206,16 @@ func parseRun(args []string, stderr io.Writer) ([]cases.Case, cases.Options, err
 	fs.BoolVar(&opts.NoHeal, "no-heal", false, "refuse a stale or fixture-less installed mod instead of rebuilding and reinstalling it (a landing run)")
 	fs.IntVar(&opts.Repeat, "repeat", 1, "run each case this many times fresh on the kept process and report the pass rate and per-attempt seeds")
 	fs.StringVar(&opts.Seed, "seed", "", "pin the world seed of a debug or scenario start (a result.json world.seed) to reproduce that run; implies -fresh")
+	fs.BoolVar(&opts.PostmortemOnly, "postmortem-only", false, "reload the case's failed bundle on the kept process and run only its Postmortem phase; the ring is left as it was")
+	fs.StringVar(&opts.From, "from", "", "with -postmortem-only: the bundle to load, a ring label (t+7m, failed) or a bundle directory (default: the ring's failed bundle)")
 	if err := fs.Parse(flagArgs); err != nil {
 		return nil, opts, err
+	}
+	if opts.From != "" && !opts.PostmortemOnly {
+		return nil, opts, errors.New("-from names the bundle of a -postmortem-only run")
+	}
+	if opts.PostmortemOnly && (opts.Fresh || opts.Rewind != 0 || opts.Repeat > 1 || opts.Seed != "") {
+		return nil, opts, errors.New("-postmortem-only reads the ring as it is: it takes none of -fresh, -rewind, -repeat, -seed")
 	}
 	if opts.Repeat < 1 {
 		return nil, opts, fmt.Errorf("-repeat must be at least 1: %d", opts.Repeat)

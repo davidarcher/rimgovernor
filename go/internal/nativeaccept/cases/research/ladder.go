@@ -76,16 +76,16 @@ func init() {
 					}
 					return nil
 				},
-				Audit: func(ctx context.Context, h *na.Harness, report na.Report) error {
-					journal, err := store.Open(ctx, filepath.Join(s.Config().Output, "service.sqlite"))
-					if err != nil {
-						return fmt.Errorf("reopen journal: %w", err)
-					}
-					defer journal.Close()
-					return audit(ctx, h, journal, report)
-				},
 			})
 			return err
+		},
+		Postmortem: func(ctx context.Context, s cases.Session) error {
+			journal, err := store.Open(ctx, filepath.Join(s.Config().Output, "service.sqlite"))
+			if err != nil {
+				return fmt.Errorf("reopen journal: %w", err)
+			}
+			defer journal.Close()
+			return audit(ctx, s.Harness(), journal, s.Report(), s.Prior())
 		},
 	})
 }
@@ -114,17 +114,26 @@ func secondSelection(sample map[string]any) bool { return completedSelections(sa
 // benchBuilt reports whether any watch sample held a completed research
 // bench plan under the research goal: the timeline keeps only the latest
 // retired plan per sample, so the bench plan leaves the last sample once the
-// selections that follow it retire.
-func benchBuilt(report na.Report) bool {
-	timeline, _ := report["timeline"].([]map[string]any)
+// selections that follow it retire. The timeline is the report's from this
+// run's watch, else the prior run's result.json under -postmortem-only
+// (JSON-typed, so every row is read through the tolerant accessors).
+func benchBuilt(report na.Report, prior map[string]any) bool {
+	timeline := rows(report["timeline"])
+	if len(timeline) == 0 && prior != nil {
+		timeline = rows(prior["timeline"])
+	}
 	for _, sample := range timeline {
-		plans, _ := sample["plans"].([]map[string]any)
-		retired, _ := sample["retired_plans"].([]map[string]any)
-		for _, plan := range append(plans, retired...) {
-			id, _ := plan["plan"].(string)
-			actions, _ := plan["actions"].(int)
-			stages, _ := plan["stages"].(map[string]int)
-			if strings.HasPrefix(id, "routine-laboratory-") && actions > 0 && stages["completed"] == actions {
+		for _, plan := range append(rows(sample["plans"]), rows(sample["retired_plans"])...) {
+			id := na.AsString(plan["plan"])
+			actions := na.AsNumber(plan["actions"])
+			completed := -1.0
+			switch stages := plan["stages"].(type) {
+			case map[string]int:
+				completed = float64(stages["completed"])
+			case map[string]any:
+				completed = na.AsNumber(stages["completed"])
+			}
+			if strings.HasPrefix(id, "routine-laboratory-") && actions > 0 && completed == actions {
 				return true
 			}
 		}
@@ -132,9 +141,27 @@ func benchBuilt(report na.Report) bool {
 	return false
 }
 
+// rows reads a slice of maps as the watch keeps it in memory
+// ([]map[string]any) or as result.json round-trips it ([]any).
+func rows(v any) []map[string]any {
+	switch list := v.(type) {
+	case []map[string]any:
+		return list
+	case []any:
+		out := make([]map[string]any, 0, len(list))
+		for _, raw := range list {
+			if row, ok := raw.(map[string]any); ok {
+				out = append(out, row)
+			}
+		}
+		return out
+	}
+	return nil
+}
+
 // audit compares the journal's research goal with the live research state
 // after the service has stopped.
-func audit(ctx context.Context, h *na.Harness, journal *store.Store, report na.Report) error {
+func audit(ctx context.Context, h *na.Harness, journal *store.Store, report na.Report, prior map[string]any) error {
 	review, err := journal.LoadRoutineReview(ctx)
 	if err != nil {
 		return fmt.Errorf("load routine review: %w", err)
@@ -162,7 +189,7 @@ func audit(ctx context.Context, h *na.Harness, journal *store.Store, report na.R
 	if benches := na.AsNumber(live["researchBenches"]); benches <= 0 {
 		return fmt.Errorf("no research bench stands: the ladder never built one (%v)", live)
 	}
-	if !benchBuilt(report) {
+	if !benchBuilt(report, prior) {
 		return fmt.Errorf("no routine-laboratory bench plan completed; the bench was not the service's")
 	}
 	if finished, _ := na.AsBool(live["finished"]); !finished {

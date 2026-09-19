@@ -107,7 +107,10 @@ issue comments, not chat.
 - After an acceptance failure, add a fast regression test where feasible
   and rerun that case. The rerun resumes from the run's last checkpoint
   by default (`resuming <case> from t+7m ...` on its first line; #249);
-  `-fresh` starts over; the land suite runs fresh unless `-resume`.
+  `-fresh` starts over; the land suite runs fresh unless `-resume`. An
+  edit to a case's reads or asserts alone reruns with `-postmortem-only`
+  (#275), which reloads the failed bundle and runs only its `Postmortem`
+  phase.
 - A new case starts from a fixture that already exercises the behaviour
   (a committed save, a `test/*_prepare` op, or a programmatic start) and
   follows the performance checklist in choose-tests: Core-only, quiet

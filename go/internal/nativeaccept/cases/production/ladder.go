@@ -69,7 +69,6 @@ func init() {
 		Budget: window + 15*time.Minute,
 		Reason: "four dependent rungs (research completion, a bench build, a stockpile and a bill iteration) are one native campaign on the workshop checkpoint; the watch ends on the first product",
 		Run: func(ctx context.Context, s cases.Session) error {
-			var baseline float64
 			_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
 				WatchConfig: sustainedfood.WatchConfig{Watch: window, Goal: policy.MaintainResource, Until: billProduced},
 				Prepare: func(ctx context.Context, h *na.Harness, report na.Report) error {
@@ -82,8 +81,11 @@ func init() {
 					if err != nil {
 						return err
 					}
-					baseline = gladiusCount(before)
+					baseline := gladiusCount(before)
 					report["baseline_count"] = baseline
+					// The postmortem reads the baseline back from the bundle
+					// (Session.Resumed), so a -postmortem-only rerun has it.
+					na.SetCheckpointState(baselineKey, baseline)
 					if baseline >= target {
 						return fmt.Errorf("save already holds %v %s; the stock floor %d leaves no deficit to recover", baseline, resource, target)
 					}
@@ -92,19 +94,32 @@ func init() {
 					}
 					return nil
 				},
-				Audit: func(ctx context.Context, h *na.Harness, report na.Report) error {
-					journal, err := store.Open(ctx, filepath.Join(s.Config().Output, "service.sqlite"))
-					if err != nil {
-						return fmt.Errorf("reopen journal: %w", err)
-					}
-					defer journal.Close()
-					return audit(ctx, h, journal, report, baseline)
-				},
 			})
 			return err
 		},
+		Postmortem: func(ctx context.Context, s cases.Session) error {
+			report := s.Report()
+			baseline, ok := report["baseline_count"].(float64)
+			if !ok {
+				entry, _ := s.Resumed()
+				if baseline, ok = entry.State[baselineKey].(float64); !ok {
+					return fmt.Errorf("no %s in the report or the bundle's state: the prepare phase never ran", baselineKey)
+				}
+				report["baseline_count"] = baseline
+			}
+			journal, err := store.Open(ctx, filepath.Join(s.Config().Output, "service.sqlite"))
+			if err != nil {
+				return fmt.Errorf("reopen journal: %w", err)
+			}
+			defer journal.Close()
+			return audit(ctx, s.Harness(), journal, report, baseline)
+		},
 	})
 }
+
+// baselineKey is the checkpoint state key the prepare phase records the
+// pre-service gladius count under, for the postmortem of a later run.
+const baselineKey = "baseline_count"
 
 // billProduced reports a sample whose MaintainResource goal holds or held a
 // production bill plan with every action completed: the first product landed.

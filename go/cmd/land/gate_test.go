@@ -49,6 +49,11 @@ func TestGateReadsTheSuiteReport(t *testing.T) {
 		t.Errorf("resumed summary %q", summary)
 	}
 
+	write(t, filepath.Join(dir, "result.json"), `{"passed": true, "cases": [{"name": "smoke/identity", "passed": true, "postmortem_only": true}]}`)
+	if err := gate.check(nil); err == nil || !strings.Contains(err.Error(), "ran postmortem-only (smoke/identity)") {
+		t.Errorf("postmortem-only row: got %v", err)
+	}
+
 	write(t, filepath.Join(dir, "result.json"), `{"passed": false, "error": "1 of 2 cases failed: light/dark", "cases": [{"name": "light/dark"}]}`)
 	if err := gate.check(nil); err == nil || !strings.Contains(err.Error(), "1 of 2 cases failed: light/dark") {
 		t.Errorf("failed suite: got %v", err)
