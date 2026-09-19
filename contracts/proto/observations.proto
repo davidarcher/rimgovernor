@@ -254,7 +254,21 @@ message RecipeState {
   optional string work_type = 10; // WorkTypeDef whose DoBill giver serves the recipe's bench; the type a worker must enable.
   repeated string bench_defs = 11; // Player-buildable bench definitions hosting the recipe (catalog reads without bench_id).
   repeated string research_prerequisites = 12; // ResearchProjectDefs the recipe itself requires; empty when only its bench gates it.
+  optional double mood = 13; // Base product taste thought; pawn traits/precepts can override it.
+  RecipeIngredientClasses ingredient_classes = 14; // Each slot is required; classes within a slot are alternatives.
+  optional double nutrient_efficiency = 15; // Total product nutrition / input nutrition, including batch size.
+  optional double work_per_nutrition = 16; // Native work units / total product nutrition.
+  optional bool needs_power = 17; // This bench's power requirement, not its current power state.
 }
+enum FoodIngredientClass {
+  FOOD_INGREDIENT_CLASS_UNSPECIFIED = 0;
+  FOOD_INGREDIENT_CLASS_MEAT = 1;
+  FOOD_INGREDIENT_CLASS_VEGETABLE = 2;
+  FOOD_INGREDIENT_CLASS_ANIMAL_PRODUCT = 3;
+  FOOD_INGREDIENT_CLASS_ANY = 4;
+}
+message FoodIngredientSlot { repeated FoodIngredientClass alternatives = 1; }
+message RecipeIngredientClasses { repeated FoodIngredientSlot slots = 1; }
 message BuildingSettings {
   SnapshotRef snapshot = 1; optional bool forbidden = 2; optional bool flickable = 3; optional bool desired_switch_on = 4;
   optional bool switch_on = 5; optional bool flick_designated = 6; optional bool connected = 7; optional bool powered = 8;

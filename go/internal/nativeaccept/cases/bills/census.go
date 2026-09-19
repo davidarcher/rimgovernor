@@ -169,6 +169,9 @@ func run(ctx context.Context, s cases.Session) error {
 		}
 		for _, rawRecipe := range recipes {
 			recipe, _ := na.AsMap(rawRecipe)
+			if err := checkMealFacts(recipe); err != nil {
+				return err
+			}
 			definition, _ := na.AsMap(recipe["recipe"])
 			if na.AsString(definition["defName"]) == "" {
 				return fmt.Errorf("bench %s: recipe without a def name", id)

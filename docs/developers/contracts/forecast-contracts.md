@@ -23,6 +23,16 @@ demand cannot certify a safe runway. Future harvesting, changing temperature,
 feeding jobs and food sharing are not guaranteed. Harvest ETA is an optimistic
 lower bound, and crop work does not reserve future production.
 
+Cooking recipes expose their product's base taste mood offset, nutrition output
+per nutrition input and native work per output nutrition (batch counts included).
+Ingredient slots are conjunctive; each slot's classes are alternatives, so a fine
+meal accepts meat or animal products in its protein slot and requires vegetables
+in a second slot. Classification intersects the slot, fixed and default filters.
+Unknown or unclassified ingredients remain unavailable rather than becoming an
+unrestricted source. Needs-power describes the bench definition, separately from
+current usability. Mood is a definition fact, not a promise about a pawn's traits
+or ideology. Missing numeric and ingredient facts stay unknown.
+
 Crop and construction work remain separate totals. Native recipe work/capacity
 observations remain available for project planning; bill counts are not labor hours.
 

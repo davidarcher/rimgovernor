@@ -43,7 +43,7 @@ namespace HomeBridge.BridgeTools {
    if(bill is Bill_Production p){row.RepeatMode=p.repeatMode.defName;row.RepeatCount=p.repeatCount;row.TargetCount=p.targetCount;row.UnpauseBelow=p.unpauseWhenYouHave;row.PauseWhenSatisfied=p.pauseWhenSatisfied;row.Paused=p.paused;row.Finished=BillCommon.IsFinished(p);}
    return row;
   }
-  internal static Obs.RecipeState RecipeRow(Thing bench,RecipeDef recipe){var row=new Obs.RecipeState{Recipe=new Obs.DefinitionRef{DefName=recipe.defName},AvailableNow=recipe.AvailableNow,AvailableOnBench=recipe.AvailableOnNow(bench)};return row;}
+  internal static Obs.RecipeState RecipeRow(Thing bench,RecipeDef recipe){var row=new Obs.RecipeState{Recipe=new Obs.DefinitionRef{DefName=recipe.defName},AvailableNow=recipe.AvailableNow,AvailableOnBench=recipe.AvailableOnNow(bench)};NativeMealRecipeFacts.Fill(row,bench.def,recipe);return row;}
   internal static bool Valid(Operations.AddBill? command)=>NativeProductionBillSettings.Valid(command);
   // The refusal names the condition that failed: the production ladder's
   // bill rung reads only this message back (#155 M4 run 9 stalled on the

@@ -106,6 +106,7 @@ func colonyProductionBenches(v *o.ColonyFactsSnapshot) domain.Fact[[]policy.Prod
 		}
 		for _, r := range recipes {
 			recipe := policy.ProductionRecipe{Name: r.Recipe.GetDefName()}
+			mealRecipeFacts(r, &recipe)
 			if r.AvailableNow != nil && r.AvailableOnBench != nil {
 				recipe.Available = domain.Known(r.GetAvailableNow() && r.GetAvailableOnBench())
 			}

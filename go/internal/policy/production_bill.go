@@ -28,9 +28,13 @@ type ProductionProduct struct {
 	Edible, Perishable         domain.Fact[bool]
 }
 type ProductionRecipe struct {
-	Name      string
-	Available domain.Fact[bool]
-	Products  []ProductionProduct
+	Name                                       string
+	Available                                  domain.Fact[bool]
+	Products                                   []ProductionProduct
+	Mood, NutrientEfficiency, WorkPerNutrition domain.Fact[float64]
+	IngredientClasses                          domain.Fact[[]FoodIngredientSlot]
+	NeedsPower                                 domain.Fact[bool]
+	CookSkillFloor                             domain.Fact[int32]
 }
 
 // ExistingProductionBill's TargetCount/Forever describe the bill's own

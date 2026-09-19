@@ -169,6 +169,7 @@ namespace HomeBridge.BridgeTools
         private static Obs.RecipeState Recipe(ThingDef benchDef, Thing? bench, RecipeDef recipe)
         {
             var row = new Obs.RecipeState { Recipe = new Obs.DefinitionRef { DefName = Id(recipe.defName) }, AvailableNow = recipe.AvailableNow };
+            NativeMealRecipeFacts.Fill(row, benchDef, recipe);
             if (bench != null) row.AvailableOnBench = recipe.AvailableOnNow(bench);
             row.Recipe.Label = PlacementPreviewOperation.Diagnostic(recipe.LabelCap);
             // workAmount is -1 when the work comes from the product's own
@@ -187,7 +188,7 @@ namespace HomeBridge.BridgeTools
             if (work != null) row.WorkType = Id(work.defName);
             var skills = recipe.skillRequirements ?? new List<SkillRequirement>();
             Require(skills.Count <= MaxRows, "Recipe skill requirements exceed bound.");
-            foreach (var skill in skills.Where(s => s?.skill != null))
+            foreach (var skill in skills.Where(s => s?.skill != null && !row.Skills.Any(existing => existing.DefName == s.skill.defName)))
                 row.Skills.Add(new Obs.SkillRequirement { DefName = Id(skill.skill.defName), Minimum = skill.minLevel });
             var products = recipe.products ?? new List<ThingDefCountClass>();
             Require(products.Count <= MaxRows, "Recipe products exceed bound.");
