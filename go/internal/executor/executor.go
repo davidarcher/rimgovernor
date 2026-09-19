@@ -149,6 +149,8 @@ type Executor struct {
 	researchSelectJournal      ResearchSelectJournal
 	naming                     ConfirmColonyNamesBoundary
 	namingJournal              ConfirmColonyNamesJournal
+	trade                      TradeBoundary
+	tradeJournal               TradeJournal
 	dialog                     DialogAnswerBoundary
 	dialogJournal              DialogAnswerJournal
 	husbandry                  HusbandryBoundary
@@ -413,6 +415,9 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.NamingConfirmationAction && e.naming != nil {
 		return e.runConfirmColonyNames(ctx, action, progress, authority, generation)
+	}
+	if action.Kind() == domain.TradeAction && e.trade != nil {
+		return e.runTrade(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.DialogAnswerAction && e.dialog != nil {
 		return e.runDialogAnswer(ctx, action, progress, authority, generation)

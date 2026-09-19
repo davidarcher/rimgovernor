@@ -478,7 +478,7 @@ message MedicalRecipe { DefinitionRef recipe = 1; optional int32 part_index = 2;
 message MedicalCatalog { SnapshotRef snapshot = 1; EntityRef patient = 2; optional string medical_care = 3; repeated MedicalRecipe recipes = 4; repeated ResourceStock permitted_medicine = 5; Completeness completeness = 6; }
 message MedicalCatalogRequest { ReadScope scope = 1; optional string patient_id = 2; rimgovernor.common.v1.PageRequest page = 3; }
 message MedicalCatalogReply { oneof outcome { MedicalCatalog observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
-message Trader { EntityRef trader = 1; optional string kind = 2; optional string faction_id = 3; optional int64 ticks_until_departure = 4; optional bool can_trade = 5; optional string reason = 6; optional bool orbital = 7; optional uint32 goods_stacks = 8; }
+message Trader { EntityRef trader = 1; optional string kind = 2; optional string faction_id = 3; optional int64 ticks_until_departure = 4; optional bool can_trade = 5; optional string reason = 6; optional bool orbital = 7; optional uint32 goods_stacks = 8; optional bool travelling = 9; }
 message TradersSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated Trader traders = 2; repeated EntityRef negotiators = 3; repeated BuildingState comms_consoles = 4; Completeness completeness = 5; }
 message TradersRequest { ReadScope scope = 1; rimgovernor.common.v1.PageRequest page = 2; }
 message TradersReply { oneof outcome { TradersSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }

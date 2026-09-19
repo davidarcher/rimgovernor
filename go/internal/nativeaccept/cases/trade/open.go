@@ -1,22 +1,24 @@
 // The trade/open case exercises the OpenTrade vertical (G01.07f) end to end
 // against a live game: a real spawned trader-caravan incident, a real
-// eligible colonist negotiator standing adjacent to the trader, and native
+// eligible colonist negotiator teleported adjacent to the trader (the
+// immediate open path; trade/routine covers the walked one), and native
 // TradeSession admission (an actual TradeSession.SetupWith, mirroring
 // HomeTradeTools' own opening path) invoked through the same
 // rimgovernor/operations_execute wire contract Go's bridge.TradeWriter
 // drives, and its observation/replay/refusal semantics.
 //
-// Per go/README.md's documented limitation, only OpenTrade is exercised
-// here: SetTradeLines, AcceptTrade and EndTrade cannot be driven through a
-// direct single-action submission the way every other vertical in this
-// package is, because native requires an ActionDependency on a sibling
+// Only OpenTrade is exercised here: SetTradeLines, AcceptTrade and EndTrade
+// cannot be driven through a direct single-action submission the way every
+// other vertical in this package is, because native requires an
+// ActionDependency on a sibling
 // OpenTrade action within the same plan -- a constraint this repo's
 // buildingruntime layer enforces above the wire, not something a raw wire
 // harness like this one can honestly bypass without fabricating a
 // plan-level dependency the native mod was never asked to honor. This
 // harness therefore closes with a live, still-open TradeSession; nothing
 // beyond OpenTrade's own admission, evidence, replay and refusal behavior
-// is claimed as verified.
+// is claimed as verified. trade/routine drives the full session through
+// the routine trade family.
 //
 // Uses a private disposable fixture (test/trade_fixture) since a specific
 // eligible trader-caravan incident and an adjacent negotiator cannot be

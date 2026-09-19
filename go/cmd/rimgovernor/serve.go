@@ -88,6 +88,9 @@ type serveConfig struct {
 	routineDefensiveLayoutPlans     bool
 	routineNamingPlans              bool
 	routineDialogPlans              bool
+	routineTradePlans               bool
+	routineSilverReserve            int64
+	routineComponentTarget          int64
 	routineDialogPrefer             string
 	routineResearchTarget           string
 	routineResearchLadder           string
@@ -149,6 +152,8 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.StringVar(&c.flightRecorder, "flight-recorder", "", "absolute path recording every native request/response/error (optional; opt-in diagnostics)")
 	flags.IntVar(&c.routineProjectLimit, "routine-project-limit", 2, "maximum concurrent optional projects, also bounded by observed workers (1..8)")
 	flags.StringVar(&c.routineDialogPrefer, "routine-dialog-prefer", strings.Join(policy.DefaultDialogAnswerPrefer, ","), "comma-separated option patterns AnswerDialog prefers when a force-pausing choice dialog is open: each matches an option's Keyed translation key exactly or its label as a case-insensitive substring, first match wins; the first selectable resolving option otherwise")
+	flags.Int64Var(&c.routineSilverReserve, "routine-silver-reserve", 0, "silver TradeWithCaravan never spends below when buying from a caravan")
+	flags.Int64Var(&c.routineComponentTarget, "routine-component-target", 0, "ComponentIndustrial stock TradeWithCaravan buys toward and, with the resource family, MaintainResource mines toward; 0 tracks no component target")
 	flags.StringVar(&c.routineResearchTarget, "routine-research-target", "", "native ResearchProjectDef name EnsureResearch selects prerequisite-ordered toward once no research project is current")
 	flags.StringVar(&c.routineResearchLadder, "routine-research-ladder", strings.Join(policy.DefaultResearchLadder(), ","), "comma-separated ResearchProjectDef names EnsureResearch walks in order when no --routine-research-target is set and no workshop ladder records a need; empty disables the roadmap")
 	flags.Var(&c.routineResourceTargets, "routine-resource-target", "repeatable RESOURCE:TARGET native stock floor MaintainResource dispatches a production bill toward")
@@ -212,6 +217,19 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	}
 	if c.worldEvaluationFoodMarginDays < 0 {
 		return c, errors.New("--world-evaluation-food-margin-days must be non-negative")
+	}
+	if (c.routineSilverReserve != 0 || c.routineComponentTarget != 0) && !c.routineTradePlans {
+		return c, errors.New("--routine-silver-reserve and --routine-component-target require the trade routine family")
+	}
+	if c.routineSilverReserve < 0 || c.routineComponentTarget < 0 {
+		return c, errors.New("--routine-silver-reserve and --routine-component-target must be non-negative")
+	}
+	if c.routineComponentTarget > 0 && c.routineResourcePlans {
+		if _, set := c.routineResourceTargets[policy.ComponentResource]; !set {
+			if err := c.routineResourceTargets.Set(fmt.Sprintf("%s:%d", policy.ComponentResource, c.routineComponentTarget)); err != nil {
+				return c, err
+			}
+		}
 	}
 	if c.routineStoneBlockTarget < 0 || c.routineStoneBlockTarget > 10000 {
 		return c, errors.New("--routine-stone-block-target must be within 0..10000")
@@ -349,6 +367,7 @@ func routineFamilies(c *serveConfig) []routineFamily {
 		{"defensive-layout", &c.routineDefensiveLayoutPlans},
 		{"naming", &c.routineNamingPlans},
 		{"dialog", &c.routineDialogPlans},
+		{"trade", &c.routineTradePlans},
 		{"resource", &c.routineResourcePlans},
 		{"animal-feed", &c.routineAnimalFeedPlans},
 		{"production-policy", &c.routineProductionPolicyPlans},

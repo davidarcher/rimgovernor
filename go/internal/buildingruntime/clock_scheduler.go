@@ -110,6 +110,7 @@ type ClockSchedulerConfig struct {
 	MoodRelief                       *RoutineMoodReliefPlanner
 	Naming                           *RoutineNamingPlanner
 	Dialog                           *RoutineDialogPlanner
+	Trade                            *RoutineTradePlanner
 	RoutineMethods                   bool
 }
 type ClockSchedulerResult struct {
@@ -171,6 +172,7 @@ type ClockSchedulerResult struct {
 	MoodRelief                       *RoutineMoodReliefResult
 	Naming                           *RoutineNamingResult
 	Dialog                           *RoutineDialogResult
+	Trade                            *RoutineTradeResult
 	Running, Reconciled, Cleaned     bool
 	// Rearmed is set with Cleaned when the step paused its own running
 	// window because work of a watched kind that is not dispatched live had
@@ -400,6 +402,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, ErrControl
 	}
 	if config.Dialog != nil && (config.Routine == nil || config.Dialog.reviewer != config.Routine) {
+		return nil, ErrControl
+	}
+	if config.Trade != nil && (config.Routine == nil || config.Trade.reviewer != config.Routine) {
 		return nil, ErrControl
 	}
 	if config.Resource != nil && (config.Routine == nil || config.Resource.reviewer != config.Routine) {
@@ -903,6 +908,10 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	if out.Research != nil {
 		nativeWorkTicks = max(nativeWorkTicks, out.Research.NativeWorkTicks)
 	}
+	// A caravan walks to its trade spot on native ticks alone (#234).
+	if out.Trade != nil {
+		nativeWorkTicks = max(nativeWorkTicks, out.Trade.NativeWorkTicks)
+	}
 	// A standing production bill past its first iteration needs game time,
 	// not another method (RoutineResourceResult.NativeWorkTicks).
 	for _, result := range []*RoutineResourceResult{out.Resource, out.AnimalFeed} {
@@ -1256,7 +1265,7 @@ func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot)
 				domain.MeleeAttackAction, domain.RangedAttackAction, domain.TendAction, domain.RescueAction, domain.CaptureAction,
 				domain.HaulAction, domain.EquipAction, domain.GearReplaceAction, domain.RecoveryServiceAction,
 				domain.MovementAction, domain.HusbandryAction, domain.PrisonerInteractionAction,
-				domain.RepairAction, domain.CleanAction, domain.WasteAction, domain.MineAcquisitionAction, domain.CutPlantAction, domain.ProductionPolicyAction, domain.MoodReliefAction, domain.ExcavationAction, domain.DialogAnswerAction, domain.NamingConfirmationAction:
+				domain.RepairAction, domain.CleanAction, domain.WasteAction, domain.MineAcquisitionAction, domain.CutPlantAction, domain.ProductionPolicyAction, domain.MoodReliefAction, domain.ExcavationAction, domain.DialogAnswerAction, domain.NamingConfirmationAction, domain.TradeAction:
 			default:
 				return false, nil, executor.ErrHeld
 			}

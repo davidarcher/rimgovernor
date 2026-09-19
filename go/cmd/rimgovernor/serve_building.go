@@ -137,6 +137,7 @@ type buildingServiceBridge struct {
 	research            *buildingruntime.ResearchSelectCapabilities
 	naming              *buildingruntime.ConfirmColonyNamesCapabilities
 	dialog              *buildingruntime.DialogAnswerCapabilities
+	trade               *buildingruntime.TradeCapabilities
 	production          *buildingruntime.ProductionPolicyCapabilities
 	buildingTemperature *buildingtemperature.Capabilities
 	bedMedical          *bedmedical.Capabilities
@@ -268,6 +269,10 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
+	tradeWriter, err := bridge.NewTradeWriter(client)
+	if err != nil {
+		return buildingServiceBridge{}, errors.Join(err, client.Close())
+	}
 	productionPolicyWriter, err := bridge.NewProductionPolicyWriter(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
@@ -330,6 +335,7 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		research:            &buildingruntime.ResearchSelectCapabilities{Native: client, Writer: researchSelect},
 		naming:              &buildingruntime.ConfirmColonyNamesCapabilities{Native: client, Writer: namingControl},
 		dialog:              &buildingruntime.DialogAnswerCapabilities{Native: client, Writer: dialogControl},
+		trade:               &buildingruntime.TradeCapabilities{Native: client, Writer: tradeWriter},
 		production:          &buildingruntime.ProductionPolicyCapabilities{Native: client, Writer: productionPolicyWriter},
 		buildingTemperature: &buildingtemperature.Capabilities{Native: client, Writer: buildingTemperatureControl},
 		bedMedical:          &bedmedical.Capabilities{Native: client, Writer: bedMedicalControl},
@@ -643,6 +649,13 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		dialogCapabilities = client.dialog
 	}
+	var tradeCapabilities *buildingruntime.TradeCapabilities
+	if config.routineTradePlans {
+		if client.trade == nil {
+			return errors.New("trade plans require typed capabilities")
+		}
+		tradeCapabilities = client.trade
+	}
 	var productionPolicyCapabilities *buildingruntime.ProductionPolicyCapabilities
 	if config.routineProductionPolicyPlans {
 		if client.production == nil {
@@ -716,6 +729,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		ResearchSelect:      researchSelectCapabilities,
 		ConfirmColonyNames:  namingCapabilities,
 		DialogAnswer:        dialogCapabilities,
+		Trade:               tradeCapabilities,
 		ProductionPolicy:    productionPolicyCapabilities,
 		BuildingTemperature: buildingTemperatureCapabilities,
 		BedMedical:          bedMedicalCapabilities,

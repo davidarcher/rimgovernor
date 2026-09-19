@@ -115,7 +115,7 @@ func FactFamilyOf(method string) (FactFamily, bool) {
 	case "rimgovernor/observations_list_supplies", "rimgovernor/observations_read_colony_facts", "rimgovernor/observations_list_buildings",
 		"rimgovernor/observations_list_wall_upgrade_sites", "rimgovernor/observations_list_zones", "rimgovernor/observations_read_spatial_access",
 		"rimgovernor/observations_get_cells", "rimgovernor/observations_read_bills", "rimgovernor/observations_list_resource_sources",
-		"rimgovernor/observations_read_production_policy", "rimgovernor/observations_read_trade_sheet", "rimgovernor/observations_read_excavation_site",
+		"rimgovernor/observations_read_production_policy", "rimgovernor/observations_read_trade_sheet", "rimgovernor/observations_list_traders", "rimgovernor/observations_read_excavation_site",
 		"rimgovernor/observations_read_caravan_catalog", "rimgovernor/observations_read_world_progression":
 		return FactColony, true
 	case "rimgovernor/observations_list_pawns", "rimgovernor/observations_read_population":

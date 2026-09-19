@@ -76,6 +76,7 @@ type SessionConfig struct {
 	ResearchSelect      *ResearchSelectCapabilities
 	ConfirmColonyNames  *ConfirmColonyNamesCapabilities
 	DialogAnswer        *DialogAnswerCapabilities
+	Trade               *TradeCapabilities
 	Husbandry           *HusbandryCapabilities
 	HomeCoverage        *HomeCoverageCapabilities
 	PrisonerInteraction *PrisonerInteractionCapabilities
@@ -369,6 +370,9 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.ConfirmColonyNames != nil && (config.ConfirmColonyNames.Native == nil || config.ConfirmColonyNames.Writer == nil) {
 		return cleanup(ErrControl)
 	}
+	if config.Trade != nil && (config.Trade.Native == nil || config.Trade.Writer == nil) {
+		return cleanup(ErrControl)
+	}
 	if config.DialogAnswer != nil && (config.DialogAnswer.Native == nil || config.DialogAnswer.Writer == nil) {
 		return cleanup(ErrControl)
 	}
@@ -485,6 +489,11 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	}
 	if config.ConfirmColonyNames != nil {
 		if err := worker.EnableConfirmColonyNames(&confirmColonyNamesBoundary{Boundary: place, naming: *config.ConfirmColonyNames}); err != nil {
+			return cleanup(err)
+		}
+	}
+	if config.Trade != nil {
+		if err := worker.EnableTrade(&tradeBoundary{Boundary: place, trade: *config.Trade}); err != nil {
 			return cleanup(err)
 		}
 	}

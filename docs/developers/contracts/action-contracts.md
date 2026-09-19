@@ -74,8 +74,14 @@ yet and follows the Allow list when it lands.
 
 ## Trades
 
-Map trades require a paused game and a reachable, eligible negotiator adjacent to
-the trader. Native sessions bind the exact deal, participants, map and colony load.
+Map trades require a paused game. Opening requires a reachable, eligible
+negotiator: an adjacent one opens the session at once; otherwise native walks
+it to the trader with a goto that tracks the trader and opens the session on
+arrival, and the open stays pending during the walk (a walk that ends without
+arriving, or an arrival that cannot open, is an interrupted open). Sheet reads,
+line staging, accept and cancel need only the session's participants present
+and tradeable. Native sessions bind the exact deal, participants, map and
+colony load.
 Set/cancel/accept requests carry the session ID; acceptance also carries the preview
 signature covering exact rows, counts, stock identities and prices. Native acceptance
 rechecks stock eligibility, both silver balances and trader availability after any
@@ -92,7 +98,10 @@ stack counts in the same main-thread operation as the exchange and refuses
 protected exports. Unknown or truncated inventory prevents selection. A policy
 with no eligible affordable lines cancels its own session without an exchange;
 the retained policy evidence explains each target. Neither cancellation nor
-acceptance takes a trader quest. Trade is routine-only; there is no player trade command.
+acceptance takes a trader quest. Trade is routine-only (the `trade` family,
+`--routine-silver-reserve`, `--routine-component-target`); there is no player
+trade command. A caravan reported still travelling holds the goal open and
+lends native ticks until it arrives.
 
 Direct orbital opening is refused. Ordinary orbital input requires the comms
 console's native menu, a powered reachable interaction cell and capable negotiator,

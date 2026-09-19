@@ -10,26 +10,25 @@ using Verse.AI.Group;
 
 namespace HomeBridge.BridgeTools
 {
-    // Test-only incident setup and ordinary ordered jobs; no stock, pawn or save edits.
+    // Test-only incident setup and ordinary ordered jobs. Only routine_setup
+    // edits stock (the colony's medicine and silver, the caravan's medicine).
     public sealed class TradeFixture
     {
         [Tool("test/trade_fixture", Description = "Disposable trade acceptance setup/readback; excluded from production builds and model execution.")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            string action = "snapshot", string traderId = null, string pawnId = null)
+            string action = "snapshot", string traderId = null, string pawnId = null, int silver = 600, int medicine = 30)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
                 if (map == null || !Find.TickManager.Paused) throw new InvalidOperationException("Pause a disposable colony first.");
-                if (action == "incident" || action == "visitor_incident")
-                {
-                    var def = DefDatabase<IncidentDef>.GetNamed(action == "incident" ? "TraderCaravanArrival" : "VisitorGroup");
+                Func<bool, string, object> incident = (caravan, caravanKind) => {
+                    var def = DefDatabase<IncidentDef>.GetNamed(caravan ? "TraderCaravanArrival" : "VisitorGroup");
                     var parms = StorytellerUtility.DefaultParmsNow(def.category, map);
-                    var kind = DefDatabase<TraderKindDef>.GetNamed(action == "incident"
-                        ? "Caravan_Outlander_BulkGoods" : "Visitor_Neolithic_Standard");
+                    var kind = DefDatabase<TraderKindDef>.GetNamed(caravan ? caravanKind : "Visitor_Neolithic_Standard");
                     parms.faction = Find.FactionManager.AllFactions.First(f => !f.IsPlayer && !f.defeated
-                        && !f.HostileTo(Faction.OfPlayer) && (action == "incident"
+                        && !f.HostileTo(Faction.OfPlayer) && (caravan
                             ? f.def.caravanTraderKinds.Contains(kind) : f.def.visitorTraderKinds.Contains(kind)));
-                    if (action == "incident") parms.traderKind = kind;
+                    if (caravan) parms.traderKind = kind;
                     var eligible = def.Worker.CanFireNow(parms);
                     var applied = eligible && def.Worker.TryExecute(parms);
                     var traderIds = applied
@@ -38,6 +37,55 @@ namespace HomeBridge.BridgeTools
                         : new string[0];
                     return new { eligible, applied, definition = def.defName, traderKind = kind.defName,
                         faction = parms.faction.Name, traderIds };
+                };
+                if (action == "incident" || action == "visitor_incident") return incident(action == "incident", "Caravan_Outlander_BulkGoods");
+                // The routine trade case (#234): a colony with no medicine
+                // and unforbidden silver inside the home area (a caravan
+                // buys only home-area or stored items), then an arriving
+                // neolithic bulk-goods caravan (the kind that trades herbal
+                // medicine) whose pack animals carry it (a caravan's goods
+                // are its carriers' inventories). The
+                // caravan walks in from the map edge on its own; nothing is
+                // teleported, and the negotiator is native's to walk.
+                if (action == "routine_setup")
+                {
+                    foreach (var stack in map.listerThings.AllThings.Where(t => t.def.IsMedicine).ToList()) stack.Destroy();
+                    foreach (var colonist in map.mapPawns.FreeColonistsSpawned)
+                        foreach (var held in colonist.inventory.innerContainer.Where(t => t.def.IsMedicine).ToList()) held.Destroy();
+                    var anchor = map.mapPawns.FreeColonistsSpawned.First().Position;
+                    var silverCell = GenRadial.RadialCellsAround(anchor, 8, true).First(c => c.InBounds(map) && c.Standable(map)
+                        && !c.Fogged(map) && c.GetFirstItem(map) == null && c.GetEdifice(map) == null);
+                    // Silver stacks cap at 500; a larger request spawns
+                    // several stacks around the same cell.
+                    var silverStacks = new System.Collections.Generic.List<Thing>();
+                    for (var remaining = silver; remaining > 0; remaining -= ThingDefOf.Silver.stackLimit)
+                    {
+                        var silverStack = ThingMaker.MakeThing(ThingDefOf.Silver);
+                        silverStack.stackCount = Math.Min(remaining, ThingDefOf.Silver.stackLimit);
+                        GenPlace.TryPlaceThing(silverStack, silverCell, map, ThingPlaceMode.Near);
+                        silverStack.SetForbidden(false, false);
+                        map.areaManager.Home[silverStack.Position] = true;
+                        silverStacks.Add(silverStack);
+                    }
+                    var silverStack0 = silverStacks[0];
+                    var arrival = incident(true, "Caravan_Neolithic_BulkGoods");
+                    var traderPawns = map.mapPawns.AllPawnsSpawned.Where(p => p.trader != null && p.trader.traderKind != null
+                        && p.Faction != null && !p.Faction.IsPlayer).ToList();
+                    var stocked = new System.Collections.Generic.List<object>();
+                    foreach (var traderPawn in traderPawns)
+                    {
+                        if (traderPawn.trader.Goods.Any(t => t.def.IsMedicine)) continue;
+                        var stack = ThingMaker.MakeThing(ThingDefOf.MedicineHerbal);
+                        stack.stackCount = medicine;
+                        var lord = traderPawn.GetLord();
+                        var carrier = lord?.ownedPawns.FirstOrDefault(p => p.GetTraderCaravanRole() == TraderCaravanRole.Carrier) ?? traderPawn;
+                        var added = carrier.inventory.innerContainer.TryAdd(stack);
+                        var listed = traderPawn.trader.Goods.Any(t => t.def.IsMedicine && traderPawn.trader.traderKind.WillTrade(t.def));
+                        stocked.Add(new { traderId = traderPawn.GetUniqueLoadID(), carrierId = carrier.GetUniqueLoadID(), added, listed, count = medicine });
+                    }
+                    return new { success = traderPawns.Count > 0, arrival, silver = silverStacks.Sum(t => t.stackCount), silverId = silverStack0.ThingID,
+                        x = silverCell.x, z = silverCell.z, stocked, colonists = map.mapPawns.FreeColonistsSpawnedCount,
+                        colonyMedicine = map.listerThings.AllThings.Count(t => t.def.IsMedicine) };
                 }
                 if (action == "teleport_adjacent")
                 {

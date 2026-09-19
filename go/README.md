@@ -64,6 +64,7 @@ the controller.
 | `--clock-speed` | Native speed while a supervised window is held: `Normal` (default), `Fast`, `Superfast`. |
 | `--clock-window-ticks` | Game ticks one colony window runs before it pauses for a full review: `2500` (default) up to `60000`; combat windows stay at 300. Watched outcomes, danger and player input stop a window earlier regardless. |
 | `--routine-project-limit`, `--routine-research-target`, `--routine-research-ladder`, `--routine-resource-*`, `--routine-allow-slaughter`, `--routine-herd-population-max` | Routine tuning: optional project concurrency, research goal and default research ladder, resource production targets/reserves/stops and herd ceilings. |
+| `--routine-silver-reserve`, `--routine-component-target` | Trade tuning (require the `trade` family): silver `TradeWithCaravan` never spends below; the `ComponentIndustrial` stock it buys toward and, with the `resource` family, `MaintainResource` mines toward. |
 | `--resource-rule`, `--world-evaluation-food-margin-days` | Resource reservation rules for building admission; caravan food margin. |
 | `--resume` | Run the bot for the observed world at startup and after every native load, without a dashboard Resume. |
 | `--chat-model`, `--chat-base-url`, `--chat-context-tokens`, `--chat-max-output-tokens` | Local model chat; the last three require `--chat-model`. |
@@ -185,6 +186,20 @@ preserve the reserve latch; Manual preserves it, while world replacement or tick
 rewind resets it. `RoutineMedicalPlanner` (the `medical` family)
 proposes a `ProductionBillAction` through the shared GearProduce bench/recipe
 census.
+
+`TradeWithCaravan` (the `trade` family, priority 3, development-exempt) stands
+while a tradeable or still-arriving caravan is on the map and the medical
+reserve, the component target or a `ResourceTargets` surplus gives it something
+to trade; an arriving caravan lends the clock one game hour per review instead
+of a plan. Each phase is one bounded plan per caravan and epoch: the open
+(up to three attempts, since a walk can be interrupted) is native's to
+complete -- it walks the eligible negotiator to the trader with a goto that
+tracks the wandering trader and opens the session on arrival, staying pending
+until then; the line staging buys the observed shortfall from observed silver
+above the reserve and sells surplus above target; a sheet with no affordable
+line ends the session without an exchange. Sheet reads, line staging, accept
+and cancel need only present participants. The native resource census after
+the exchange is the evidence; receipts are not.
 
 Startup supply reviews retain the first known native forbidden-supply census.
 Fresh reads can shrink that cohort, but later player forbids cannot expand or

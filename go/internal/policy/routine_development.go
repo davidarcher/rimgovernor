@@ -255,7 +255,7 @@ func ResourceTargetNeed(targets map[Resource]int64, stock domain.Fact[[]Amount])
 // pushes rather than pawn work: they are assessed and admitted without a
 // development ranking row and consume no optional capacity slot.
 func DevelopmentExempt(need GoalID) bool {
-	return need == ProductionPolicy
+	return need == ProductionPolicy || need == TradeWithCaravan
 }
 
 // outdoorHazards are native game conditions under which outdoor pawn work is

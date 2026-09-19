@@ -35,6 +35,7 @@ const (
 	MaintainResource        GoalID = "MaintainResource"
 	ProductionPolicy        GoalID = "ProductionPolicy"
 	EnsureDefensiveLayout   GoalID = "EnsureDefensiveLayout"
+	TradeWithCaravan        GoalID = "TradeWithCaravan"
 )
 
 // foodStorageUpkeepPriority is MaintainFoodStorage's entry development
@@ -149,6 +150,8 @@ type RoutinePolicy struct {
 	// supported (no minimum, protected-id set or breeding-reserve count),
 	// narrowed the same way ResearchTarget's doc comment discloses its own gap.
 	HerdPopulationMax map[Resource]int64
+	// Trade is TradeWithCaravan's configuration (policy/trade_routine.go).
+	Trade RoutineTradePolicy
 	// AllowRelease is the operator opt-in for MaintainHerd to remove a
 	// surplus animal by release-to-wild instead of slaughter. It defaults to
 	// false; when both AllowRelease and AllowSlaughter are set, release is
@@ -218,6 +221,9 @@ func (p RoutinePolicy) Validate() error {
 	}
 	if p.ResearchTarget != "" && !validResource(Resource(p.ResearchTarget)) {
 		return errors.New("invalid research target")
+	}
+	if err := p.Trade.Validate(); err != nil {
+		return err
 	}
 	for _, rung := range p.ResearchLadder {
 		if !validResource(Resource(rung)) {
@@ -326,6 +332,9 @@ type RoutineFacts struct {
 	// pendingWaste/WasteDeficit to detect and, eventually, SelectWasteMethod
 	// to dispatch containment/burial candidates from.
 	Waste domain.Fact[[]WasteItem]
+	// Traders is the map trader census (bridge.ListTraders) TradeWithCaravan
+	// needs; a source without the read leaves it unknown and the goal off.
+	Traders domain.Fact[[]TraderFacts]
 	// Blight carries RemoveBlight's blighted-plant census (the colony read's
 	// blighted_plants section), for BlightDeficit to detect and
 	// SelectBlightCuts to designate from.
@@ -814,6 +823,17 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	// EnsureDefensiveLayout is config-only like EnsureResearch above: opt-in
 	// activates the goal at priority 3 (after the storage gate) and the
 	// planner reports no work once every tier stands.
+	// TradeWithCaravan is config-only like ProductionPolicy: it needs a
+	// negotiator's conversation, not a development slot, and recovers by
+	// itself when the caravan leaves or nothing is left worth trading.
+	tradeRecovered := TradeRecovered(f.Traders, ReviewTradeNeed(medicine, f.Resources, p.ResourceTargets, p.Trade))
+	if !positive(tradeRecovered) {
+		addGoal(TradeWithCaravan, 3)
+		if _, known := tradeRecovered.Value(); known {
+			r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
+		}
+	}
+	addAssessment(TradeWithCaravan, 3, tradeRecovered)
 	defensiveLayoutRecovered := domain.Known(!p.DefensiveLayout)
 	if !positive(defensiveLayoutRecovered) {
 		addGoal(EnsureDefensiveLayout, 3)

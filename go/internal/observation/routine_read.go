@@ -27,10 +27,19 @@ type RoutineResearchSource interface {
 	ReadResearch(context.Context, *c.Identity) (bridge.ResearchRead, bridge.Result, error)
 }
 
+// RoutineTraderSource is the optional trader census a RoutineSource may
+// offer (bridge.ListTraders). Read inside the same paused bracket, it is
+// what TradeWithCaravan measures its caravan from; without it the fact
+// stays unknown and the goal off.
+type RoutineTraderSource interface {
+	ListTraders(context.Context, *c.Identity) (bridge.TradersRead, bridge.Result, error)
+}
+
 type RoutineReading struct {
 	ColonyReading
 	Emergency          policy.EmergencyFacts
 	ResearchReceipt    bridge.Result
+	TradersReceipt     bridge.Result
 	EmergencyReceipt   bridge.Result
 	PawnReceipt        bridge.Result
 	DefinitionReceipt  bridge.Result
@@ -53,6 +62,8 @@ type routineBracket struct {
 	populationReceipt bridge.Result
 	research          domain.Fact[policy.ResearchFacts]
 	researchReceipt   bridge.Result
+	traders           domain.Fact[[]policy.TraderFacts]
+	tradersReceipt    bridge.Result
 	armed             domain.Fact[int64]
 	work              domain.Fact[[]policy.WorkPawn]
 	medical           domain.Fact[[]policy.CarePawn]
@@ -102,6 +113,9 @@ func (s *routineBracket) ReadColonyFacts(ctx context.Context, id *c.Identity, pl
 		return nil, receipt, ErrChanged
 	}
 	if err := s.readResearch(ctx, id); err != nil {
+		return nil, receipt, err
+	}
+	if err := s.readTraders(ctx, id); err != nil {
 		return nil, receipt, err
 	}
 	if complete, known := s.emergency.Facts.ColonistsComplete.Value(); known && complete {
@@ -172,6 +186,7 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 	reading.Projection.Facts.RecoveryWorkers = recoveryWorkers(bracket.mood)
 	reading.Projection.Facts.Gear = routineGear(reading.Projection.Facts.Gear, bracket.emergency.Facts)
 	reading.Projection.Facts.Research = bracket.research
+	reading.Projection.Facts.Traders = bracket.traders
 	reading.Projection.Facts.Prisoners = bracket.population.Prisoners
 	reading.Projection.Facts.Custody = bracket.population.Custody
 	reading.Projection.Definitions = append(reading.Projection.Definitions, bracket.extraDefinitions...)
@@ -180,7 +195,7 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 		reading.Projection.Facts.SleepingMin, reading.Projection.Facts.SleepingMax = policy.TemperatureRange(bracket.temperature)
 		reading.Projection.Facts.Comfort = hostedComfort(reading.Projection.Facts.Comfort, bracket.temperature)
 	}
-	return RoutineReading{ColonyReading: reading, Emergency: bracket.emergency.Facts, EmergencyReceipt: bracket.receipt, PawnReceipt: bracket.pawnReceipt, DefinitionReceipt: bracket.definitionReceipt, TemperatureReceipt: bracket.temperatureReceipt, PopulationReceipt: bracket.populationReceipt, ResearchReceipt: bracket.researchReceipt}, nil
+	return RoutineReading{ColonyReading: reading, Emergency: bracket.emergency.Facts, EmergencyReceipt: bracket.receipt, PawnReceipt: bracket.pawnReceipt, DefinitionReceipt: bracket.definitionReceipt, TemperatureReceipt: bracket.temperatureReceipt, PopulationReceipt: bracket.populationReceipt, ResearchReceipt: bracket.researchReceipt, TradersReceipt: bracket.tradersReceipt}, nil
 }
 
 // Request only project definitions absent from the default planning census. Both
@@ -267,6 +282,35 @@ func (s *routineBracket) readResearch(ctx context.Context, id *c.Identity) error
 		facts.Finished = append(facts.Finished, policy.ResearchProjectID(name))
 	}
 	s.research = domain.Known(facts)
+	return nil
+}
+
+// readTraders mirrors readResearch: a source without the census leaves the
+// fact unknown, and a census from another colony boundary invalidates the
+// reading.
+func (s *routineBracket) readTraders(ctx context.Context, id *c.Identity) error {
+	source, ok := s.RoutineSource.(RoutineTraderSource)
+	if !ok {
+		return nil
+	}
+	read, receipt, err := source.ListTraders(ctx, id)
+	s.tradersReceipt = receipt
+	if err != nil {
+		return err
+	}
+	identity, err := contextIdentity(read.Context)
+	if err != nil {
+		return err
+	}
+	identity.Paused = s.expected.Paused
+	if !sameColonyBoundary(identity, s.expected) {
+		return ErrChanged
+	}
+	rows := make([]policy.TraderFacts, 0, len(read.Traders))
+	for _, row := range read.Traders {
+		rows = append(rows, policy.TraderFacts{ID: row.ID, Kind: row.Kind, Faction: row.Faction, CanTrade: row.CanTrade, Travelling: row.Travelling, GoodsStacks: int64(row.GoodsStacks)})
+	}
+	s.traders = domain.Known(rows)
 	return nil
 }
 

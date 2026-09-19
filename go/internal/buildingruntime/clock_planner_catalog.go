@@ -545,6 +545,17 @@ var plannerCatalog = []plannerEntry{
 			out.Dialog = &method
 			return nil
 		}},
+	{name: "trade", priority: plannerFoothold, kinds: []domain.ActionKind{domain.TradeAction}, families: factsColony,
+		configured: func(c *ClockSchedulerConfig) bool { return c.Trade != nil },
+		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
+			method, err := s.config.Trade.step(ctx, epoch, arbiter)
+			if err != nil {
+				return err
+			}
+			clockSchedulerLog("Trade.step result: reason=%v plan=%v trader=%s phase=%s", method.Reason, method.Plan, method.Trader, method.Phase)
+			out.Trade = &method
+			return nil
+		}},
 	{name: "resource", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.MineAcquisitionAction, domain.ProductionBillAction, domain.ZoneCreateAction}, families: factsColony,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Resource != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {

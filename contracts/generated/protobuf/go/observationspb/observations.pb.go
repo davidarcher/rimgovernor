@@ -18111,6 +18111,7 @@ type Trader struct {
 	Reason              *string                `protobuf:"bytes,6,opt,name=reason,proto3,oneof" json:"reason,omitempty"`
 	Orbital             *bool                  `protobuf:"varint,7,opt,name=orbital,proto3,oneof" json:"orbital,omitempty"`
 	GoodsStacks         *uint32                `protobuf:"varint,8,opt,name=goods_stacks,json=goodsStacks,proto3,oneof" json:"goods_stacks,omitempty"`
+	Travelling          *bool                  `protobuf:"varint,9,opt,name=travelling,proto3,oneof" json:"travelling,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -18199,6 +18200,13 @@ func (x *Trader) GetGoodsStacks() uint32 {
 		return *x.GoodsStacks
 	}
 	return 0
+}
+
+func (x *Trader) GetTravelling() bool {
+	if x != nil && x.Travelling != nil {
+		return *x.Travelling
+	}
+	return false
 }
 
 type TradersSnapshot struct {
@@ -31187,7 +31195,7 @@ const file_observations_proto_rawDesc = "" +
 	"\bobserved\x18\x01 \x01(\v2+.rimgovernor.observations.v1.MedicalCatalogH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
 	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"\xac\x03\n" +
+	"\aoutcome\"\xe0\x03\n" +
 	"\x06Trader\x12>\n" +
 	"\x06trader\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\x06trader\x12\x17\n" +
 	"\x04kind\x18\x02 \x01(\tH\x00R\x04kind\x88\x01\x01\x12\"\n" +
@@ -31197,7 +31205,10 @@ const file_observations_proto_rawDesc = "" +
 	"\tcan_trade\x18\x05 \x01(\bH\x03R\bcanTrade\x88\x01\x01\x12\x1b\n" +
 	"\x06reason\x18\x06 \x01(\tH\x04R\x06reason\x88\x01\x01\x12\x1d\n" +
 	"\aorbital\x18\a \x01(\bH\x05R\aorbital\x88\x01\x01\x12&\n" +
-	"\fgoods_stacks\x18\b \x01(\rH\x06R\vgoodsStacks\x88\x01\x01B\a\n" +
+	"\fgoods_stacks\x18\b \x01(\rH\x06R\vgoodsStacks\x88\x01\x01\x12#\n" +
+	"\n" +
+	"travelling\x18\t \x01(\bH\aR\n" +
+	"travelling\x88\x01\x01B\a\n" +
 	"\x05_kindB\r\n" +
 	"\v_faction_idB\x18\n" +
 	"\x16_ticks_until_departureB\f\n" +
@@ -31206,7 +31217,8 @@ const file_observations_proto_rawDesc = "" +
 	"\a_reasonB\n" +
 	"\n" +
 	"\b_orbitalB\x0f\n" +
-	"\r_goods_stacks\"\x81\x03\n" +
+	"\r_goods_stacksB\r\n" +
+	"\v_travelling\"\x81\x03\n" +
 	"\x0fTradersSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12=\n" +
 	"\atraders\x18\x02 \x03(\v2#.rimgovernor.observations.v1.TraderR\atraders\x12H\n" +
