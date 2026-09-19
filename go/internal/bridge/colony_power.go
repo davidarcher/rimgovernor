@@ -122,7 +122,18 @@ func validateColonyEnvironment(v *o.ColonyFactsSnapshot) error {
 	}
 	seen := map[string]bool{}
 	for _, row := range v.Environment {
-		if row == nil || validID(row.GetId()) != nil || validID(row.GetDefName()) != nil || seen[row.GetId()] || !proto.Equal(row, &o.EnvironmentCondition{Id: row.Id, DefName: row.DefName}) {
+		if row == nil || validID(row.GetId()) != nil || validID(row.GetDefName()) != nil || seen[row.GetId()] {
+			return contract("invalid environment condition")
+		}
+		// Native fills implementation (the GameCondition type name), label,
+		// permanent and, for a timed condition, ticks_left >= 0 (#362).
+		if (row.Implementation != nil && validID(row.GetImplementation()) != nil) || !diagnostic(row.Label) {
+			return contract("invalid environment condition")
+		}
+		if row.TicksLeft != nil && (row.GetTicksLeft() < 0 || row.GetPermanent()) {
+			return contract("invalid environment condition duration")
+		}
+		if !proto.Equal(row, &o.EnvironmentCondition{Id: row.Id, DefName: row.DefName, Implementation: row.Implementation, Label: row.Label, Permanent: row.Permanent, TicksLeft: row.TicksLeft}) {
 			return contract("invalid environment condition")
 		}
 		seen[row.GetId()] = true

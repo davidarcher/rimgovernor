@@ -83,6 +83,25 @@ func TestColonyEnvironmentRejectsUnavailablePopulatedAndDuplicateConditions(t *t
 		t.Fatal("duplicate condition accepted")
 	}
 	v.Environment = v.Environment[:1]
+	// An active cold snap arrives with every field native fills (#362).
+	cold := &o.EnvironmentCondition{Id: proto.String("1"), DefName: proto.String("ColdSnap"), Implementation: proto.String("RimWorld.GameCondition_ColdSnap"), Label: proto.String("Cold snap"), Permanent: proto.Bool(false), TicksLeft: proto.Int64(240000)}
+	v.Environment = append(v.Environment, cold)
+	if err := validateColonyEnvironment(v); err != nil {
+		t.Fatal("cold snap row rejected:", err)
+	}
+	cold.TicksLeft = proto.Int64(-1)
+	if validateColonyEnvironment(v) == nil {
+		t.Fatal("negative ticks_left accepted")
+	}
+	cold.TicksLeft, cold.Permanent = proto.Int64(10), proto.Bool(true)
+	if validateColonyEnvironment(v) == nil {
+		t.Fatal("permanent condition with ticks_left accepted")
+	}
+	cold.TicksLeft = nil
+	if err := validateColonyEnvironment(v); err != nil {
+		t.Fatal("permanent row rejected:", err)
+	}
+	v.Environment = v.Environment[:1]
 	v.Issues = []*o.ReadIssue{{Field: proto.String("environment"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_UNSUPPORTED.Enum()}}}
 	if validateColonyEnvironment(v) == nil {
 		t.Fatal("unavailable populated environment accepted")
