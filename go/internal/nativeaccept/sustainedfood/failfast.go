@@ -46,6 +46,14 @@ type FailFast struct {
 	// usual 5 s poll). The step event logs once per change of outcome, so
 	// an unchanged latest line means the refusal repeated every step since.
 	RefusalSamples int
+	// MethodUnavailableWaits treats a review whose row reads
+	// method_unavailable as neutral for the no-method count: neither a
+	// slot handed to an idle planner nor a reset. A ladder goal that yields
+	// its slot by design while another rung runs (MaintainResource while
+	// the project gating its bench is unfinished, policy.RoutineNeeds)
+	// reads exactly like a planner that found no method, so the case that
+	// knows the design opts in.
+	MethodUnavailableWaits bool
 	// ParkSamples is how many consecutive samples the watched goal may sit
 	// suspended under an emergency with the live tick unchanged before the
 	// watch fails (default 12: a minute at the usual 5 s poll, past the
@@ -156,6 +164,9 @@ func (f *failFastState) noMethod(sample map[string]any) (Verdict, bool) {
 	deficit := asString(sample["need"]) == string(domain.NeedDeficit) && asString(sample["status"]) == string(domain.GoalActive)
 	if !deficit || methodCount > 0 || committed || !idle {
 		f.idleReviews = f.idleReviews[:0]
+		return Verdict{}, false
+	}
+	if f.cfg.MethodUnavailableWaits && asString(development["reason"]) == string(policy.DevelopmentMethodUnavailable) {
 		return Verdict{}, false
 	}
 	f.idleReviews = append(f.idleReviews, revision)

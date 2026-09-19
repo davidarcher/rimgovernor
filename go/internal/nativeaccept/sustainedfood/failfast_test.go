@@ -51,6 +51,32 @@ func TestFailFastNoMethodCountsDistinctIdleReviews(t *testing.T) {
 	}
 }
 
+func TestFailFastNoMethodMethodUnavailableWaits(t *testing.T) {
+	yielded := func(revision uint64) map[string]any {
+		s := idleSample(revision, true, 0)
+		s["development"] = map[string]any{"reason": string(policy.DevelopmentMethodUnavailable), "selected": false, "committed": false, "idle": true}
+		return s
+	}
+	// By default a yielded row counts like any idle review.
+	f := newFailFast(FailFast{NoMethodReviews: 2}, policy.MaintainResource, "")
+	f.check(yielded(1))
+	if _, failed := f.check(yielded(2)); !failed {
+		t.Fatal("two yielded reviews must fail without the opt-in")
+	}
+	// With the opt-in the ladder's research rung is neutral: it neither
+	// counts nor resets, and the count resumes once the slot is handed.
+	g := newFailFast(FailFast{NoMethodReviews: 2, MethodUnavailableWaits: true}, policy.MaintainResource, "")
+	g.check(idleSample(1, true, 0))
+	for rev := uint64(2); rev < 8; rev++ {
+		if v, failed := g.check(yielded(rev)); failed {
+			t.Fatalf("revision %d: %v", rev, v)
+		}
+	}
+	if v, failed := g.check(idleSample(8, true, 0)); !failed || !strings.Contains(v.Reason, "revisions 1..8") {
+		t.Fatalf("the handed slot resumes the count: failed=%v %+v", failed, v)
+	}
+}
+
 func TestFailFastUnsuccessfulStageSkipsReplannedReasons(t *testing.T) {
 	f := newFailFast(FailFast{}, policy.MaintainResource, "")
 	sample := func(reason string) map[string]any {

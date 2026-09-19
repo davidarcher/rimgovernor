@@ -67,9 +67,9 @@ capability cannot certify the requested unlock.
 
 Research acceptance: `production/ladder` proves a derived need (Smithing
 finished natively and the gated bench built) and `research/ladder`
-(`acceptance run research/ladder`) proves the default ladder and its bench on the
-Core tribal baseline with no target: `test/research_ladder_prepare` seeds
-Stonecutting at 97%, a roofed starter hut with sleeping spots, wood and steel beside its door and no bench, and the live research state must show a research
+(`acceptance run research/ladder`) proves the default ladder and its bench, both on the
+Core tribal baseline; the research case runs with no target: `test/research_ladder_prepare` seeds
+Stonecutting at 97%, a roofed starter hut with sleeping spots (`scripts/fixtures/FixtureHut.cs`), wood and steel beside its door and no bench, and the live research state must show a research
 bench the service built, Stonecutting finished and Electricity current. Advanced
 facility installation, all research projects and sustained colony development
 remain separately uncertified either way.

@@ -11,85 +11,71 @@ using Verse;
 namespace HomeBridge.BridgeTools
 {
     // Issue #4 M4: the multi-stage production ladder (research -> bench ->
-    // ingredient storage -> bill) proved on a save whose workshop room already
-    // stands. Prepare seeds what the ladder does not build itself: ingredients
-    // on the ground, a research bench, and Smithing research a few points
-    // short of done so the derived EnsureResearch target finishes within a
-    // minute-scale watch. Audit reads the same native state back.
+    // ingredient storage -> bill) proved on the Core tribal baseline. Prepare
+    // stages what the ladder does not build itself: the room the bench rung
+    // furnishes (FixtureHut: a roofed wood hut with a sleeping spot per
+    // colonist, so the initial shelter is met and the ladder has clean floor
+    // for the bench and its ingredient stockpile), a simple research bench
+    // inside it, ingredients beside its door, and Smithing research a few
+    // points short of done so the derived EnsureResearch target finishes
+    // within a minute-scale watch (#344). Audit reads the same native state
+    // back.
     public sealed class ProductionLadderFixture
     {
         const string Project = "Smithing";
 
-        [Tool("test/production_ladder_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Disposable fixture: drop steel and wood near the colonists, spawn a simple research bench, and advance Smithing research to 97% of its base cost (IsFinished compares real progress to baseCost; a tribal colony still owes the tech-level factor on the rest).")]
+        // HutSize is the ring the production fixtures stage: 9x9 inside, so
+        // eight sleeping spots, the research bench, a smithy or stonecutter's
+        // table and an ingredient stockpile all fit without the workshop
+        // ladder siting a second shell (#218).
+        const int HutSize = 11;
+
+        [Tool("test/production_ladder_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Disposable fixture: build one roofed wood hut with a sleeping spot per colonist and a simple research bench inside, move every colonist in, drop steel and wood beside its door, and advance Smithing research to 97% of its base cost (IsFinished compares real progress to baseCost; a tribal colony still owes the tech-level factor on the rest).")]
         public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
                 if (map == null || !Find.TickManager.Paused) throw new InvalidOperationException("Paused disposable colony required.");
-                var pawn = map.mapPawns.FreeColonistsSpawned.First();
-                var benchDef = ThingDef.Named("SimpleResearchBench");
-                var benchCell = GenRadial.RadialCellsAround(pawn.Position, 20, true).FirstOrDefault(c => c.InBounds(map) && !c.Fogged(map)
-                    && GenConstruct.CanPlaceBlueprintAt(benchDef, c, Rot4.North, map).Accepted
-                    && GenAdj.OccupiedRect(c, Rot4.North, benchDef.size).Cells.All(cell => cell.Standable(map) && cell.GetFirstBuilding(map) == null));
-                if (!benchCell.IsValid) throw new InvalidOperationException("No research bench site.");
-                var bench = ThingMaker.MakeThing(benchDef, GenStuff.DefaultStuffFor(benchDef));
-                bench.SetFaction(Faction.OfPlayer);
-                GenSpawn.Spawn(bench, benchCell, map, Rot4.North);
-                int Drop(ThingDef def, int count)
-                {
-                    var placed = 0;
-                    while (placed < count) {
-                        var stack = Math.Min(def.stackLimit, count - placed);
-                        var thing = ThingMaker.MakeThing(def); thing.stackCount = stack;
-                        if (!GenPlace.TryPlaceThing(thing, pawn.Position, map, ThingPlaceMode.Near)) throw new InvalidOperationException("No drop site for " + def.defName);
-                        placed += stack;
-                    }
-                    return placed;
-                }
-                var steel = Drop(ThingDefOf.Steel, 150);
-                var wood = Drop(ThingDefOf.WoodLog, 150);
-                var project = DefDatabase<ResearchProjectDef>.GetNamed(Project);
-                var manager = Find.ResearchManager;
-                var progress = typeof(ResearchManager).GetField("progress", BindingFlags.Instance | BindingFlags.NonPublic)?.GetValue(manager) as Dictionary<ResearchProjectDef, float>;
-                if (progress == null) throw new InvalidOperationException("ResearchManager.progress unavailable.");
-                progress[project] = project.baseCost * 0.97f;
+                var hut = FixtureHut.Build(map, HutSize);
+                var bench = FixtureHut.SpawnInside(map, hut, ThingDef.Named("SimpleResearchBench"));
+                // The smithy and the gladius cost steel; the bench ladder may
+                // pay wood. The tribal baseline holds neither.
+                var steel = FixtureHut.DropOutside(map, hut, ThingDefOf.Steel, 150);
+                var wood = FixtureHut.DropOutside(map, hut, ThingDefOf.WoodLog, 150);
+                var project = Advance(Project);
                 return new { success = true, researchBench = bench.GetUniqueLoadID(), steel, wood, project = Project,
-                    progress = project.ProgressPercent, finished = project.IsFinished, tick = Find.TickManager.TicksGame };
+                    progress = project.ProgressPercent, finished = project.IsFinished, hut = hut.Summary(), tick = Find.TickManager.TicksGame };
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        // #231: the stonecutting variant. Prepare seeds the research bench,
-        // Stonecutting at 97% and the steel a stonecutter's table costs (the
-        // tribal save holds none); the blocks must come from the chunks the
-        // map already holds, so it also reports the stone chunks in reach.
-        [Tool("test/production_stone_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Disposable fixture: spawn a simple research bench near the colonists, drop the steel a stonecutter's table costs, advance Stonecutting research to 97% of its base cost, and count the unforbidden stone chunks within 40 cells of the colonists by definition.")]
+        // Advance sets the named project to 97% of its base cost.
+        static ResearchProjectDef Advance(string name)
+        {
+            var project = DefDatabase<ResearchProjectDef>.GetNamed(name);
+            var progress = typeof(ResearchManager).GetField("progress", BindingFlags.Instance | BindingFlags.NonPublic)?.GetValue(Find.ResearchManager) as Dictionary<ResearchProjectDef, float>;
+            if (progress == null) throw new InvalidOperationException("ResearchManager.progress unavailable.");
+            progress[project] = project.baseCost * 0.97f;
+            return project;
+        }
+
+        // #231: the stonecutting variant. Prepare stages the same hut and
+        // research bench, Stonecutting at 97% and the steel a stonecutter's
+        // table costs (the tribal save holds none); the blocks must come from
+        // the chunks the map already holds, so it also reports the stone
+        // chunks in reach.
+        [Tool("test/production_stone_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Disposable fixture: build one roofed wood hut with a sleeping spot per colonist and a simple research bench inside, move every colonist in, drop the steel a stonecutter's table costs beside its door, advance Stonecutting research to 97% of its base cost, and count the unforbidden stone chunks within 40 cells of the colonists by definition.")]
         public async Task<object> PrepareStone(IRimBridgeContext ctx, CancellationToken cancellationToken)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
                 if (map == null || !Find.TickManager.Paused) throw new InvalidOperationException("Paused disposable colony required.");
-                var pawn = map.mapPawns.FreeColonistsSpawned.First();
-                var benchDef = ThingDef.Named("SimpleResearchBench");
-                var benchCell = GenRadial.RadialCellsAround(pawn.Position, 20, true).FirstOrDefault(c => c.InBounds(map) && !c.Fogged(map)
-                    && GenConstruct.CanPlaceBlueprintAt(benchDef, c, Rot4.North, map).Accepted
-                    && GenAdj.OccupiedRect(c, Rot4.North, benchDef.size).Cells.All(cell => cell.Standable(map) && cell.GetFirstBuilding(map) == null));
-                if (!benchCell.IsValid) throw new InvalidOperationException("No research bench site.");
-                var bench = ThingMaker.MakeThing(benchDef, GenStuff.DefaultStuffFor(benchDef));
-                bench.SetFaction(Faction.OfPlayer);
-                GenSpawn.Spawn(bench, benchCell, map, Rot4.North);
-                var steel = 0;
-                while (steel < 60) {
-                    var thing = ThingMaker.MakeThing(ThingDefOf.Steel); thing.stackCount = 60 - steel;
-                    if (!GenPlace.TryPlaceThing(thing, pawn.Position, map, ThingPlaceMode.Near)) throw new InvalidOperationException("No drop site for Steel");
-                    steel += thing.stackCount;
-                }
-                var project = DefDatabase<ResearchProjectDef>.GetNamed(StoneProject);
-                var manager = Find.ResearchManager;
-                var progress = typeof(ResearchManager).GetField("progress", BindingFlags.Instance | BindingFlags.NonPublic)?.GetValue(manager) as Dictionary<ResearchProjectDef, float>;
-                if (progress == null) throw new InvalidOperationException("ResearchManager.progress unavailable.");
-                progress[project] = project.baseCost * 0.97f;
+                var hut = FixtureHut.Build(map, HutSize);
+                var bench = FixtureHut.SpawnInside(map, hut, ThingDef.Named("SimpleResearchBench"));
+                var steel = FixtureHut.DropOutside(map, hut, ThingDefOf.Steel, 60);
+                var project = Advance(StoneProject);
                 return new { success = true, researchBench = bench.GetUniqueLoadID(), steel, project = StoneProject,
-                    progress = project.ProgressPercent, finished = project.IsFinished, chunks = StoneChunks(map, pawn.Position), tick = Find.TickManager.TicksGame };
+                    progress = project.ProgressPercent, finished = project.IsFinished, chunks = StoneChunks(map, hut.People[0].Position),
+                    hut = hut.Summary(), tick = Find.TickManager.TicksGame };
             }, cancellationToken).ConfigureAwait(false);
         }
 

@@ -1,11 +1,13 @@
 // Package production holds issue #4 M4's multi-stage production case
-// (production/ladder): open the workshop checkpoint save (a room whose
-// native role hosts the Workshop facility already stands), run the service
-// with a MaintainResource stock floor for an item only a research-gated
-// bench produces (a gladius on a smithy), and watch the ladder walk
-// research -> bench -> ingredient storage -> bill. The fixture seeds what
-// the ladder does not build: steel and wood on the ground, a simple
-// research bench, and Smithing research a few points short of done.
+// (production/ladder): on the Core tribal baseline, run the service with a
+// MaintainResource stock floor for an item only a research-gated bench
+// produces (a gladius on a smithy), and watch the ladder walk research ->
+// bench -> ingredient storage -> bill. The fixture stages what the ladder
+// does not build: a roofed starter hut whose native room role hosts the
+// Workshop facility (with a sleeping spot per colonist, so the initial
+// shelter is met), a simple research bench inside it, steel and wood beside
+// its door, and Smithing research a few points short of done (#344: the
+// workshop checkpoint save the cases once opened was never committed).
 //
 // Passing needs live native evidence, never the journal alone: Smithing
 // finished natively, a smithy standing in a Workshop-hosting room carrying
@@ -23,14 +25,15 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
+	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/sustained"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/sustainedfood"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// checkpointSave is the workshop checkpoint (facility/workshop's bench
-// standing in a Workshop-hosting room) the ladder resumes from.
-const checkpointSave = "RimGovernor-tribal8-workshop"
+// baselineSave is the committed Core tribal start both production cases
+// open; their fixtures stage the workshop room on it.
+const baselineSave = sustained.BaselineSave
 
 const (
 	resource = "MeleeWeapon_Gladius"
@@ -47,11 +50,11 @@ const (
 // force-pauses the game and holds every development row as an emergency
 // until the dialog planner answers it (#156). The sleeping and shelter
 // families (both serve EnsureInitialShelter with sleeping spots) stay off
-// for time: with them on, eight sleeping spots fill the checkpoint hut and
-// the workshop ladder stages a second shell before its bench (#218, a 16
-// minute run whose ingredient stockpile then has no clean floor, #223). An
-// unserved priority-2 shelter goal gates only comfort, never
-// MaintainResource.
+// for time: the fixture hut already holds a sleeping spot per colonist, and
+// with them on the workshop ladder once staged a second shell before its
+// bench (#218, a 16 minute run whose ingredient stockpile then had no clean
+// floor, #223). An unserved priority-2 shelter goal gates only comfort,
+// never MaintainResource.
 const ladderFamilies = "temperature,comfort,work,supply,defense,tend,rescue,medical,field,food-storage,acquisition,cooking,production-policy,resource,workshop,research,ingredient-storage,gear,dialog,naming"
 
 // window is how long the ladder gets to land its first product: research
@@ -59,18 +62,24 @@ const ladderFamilies = "temperature,comfort,work,supply,defense,tend,rescue,medi
 // first observed bill iteration.
 const window = 25 * time.Minute
 
+// ladderFailFast keeps the watch's fail-fast on but lets MaintainResource
+// sit method_unavailable through the research rung: while the project the
+// workshop recorded as gating the bench is unfinished the goal holds no
+// method of its own by design (policy.RoutineNeeds), so those reviews are
+// not the planner committing nothing under a slot it was handed.
+var ladderFailFast = sustainedfood.FailFast{MethodUnavailableWaits: true}
+
 func init() {
 	cases.Register(cases.Case{
 		Name:   "production/ladder",
 		Scope:  fmt.Sprintf("MaintainResource %s:%d walks research (%s) -> smithy -> ingredient stockpile -> bill; the live item count must rise above the pre-service baseline (issue #4, M4).", resource, target, project),
-		Start:  cases.Fixture{Op: "test/production_ladder_prepare", Args: map[string]any{}, On: cases.Save{Name: checkpointSave}},
-		Keep:   []string{string(na.NeedFood)},
+		Start:  cases.Fixture{Op: "test/production_ladder_prepare", Args: map[string]any{}, On: cases.Save{Name: baselineSave}},
 		Serve:  &cases.ServeSpec{Families: []string{ladderFamilies}, NativeTimeout: 15 * time.Second, Prefix: "production", Extra: []string{"--routine-resource-target", fmt.Sprintf("%s:%d", resource, target)}},
 		Budget: window + 15*time.Minute,
-		Reason: "four dependent rungs (research completion, a bench build, a stockpile and a bill iteration) are one native campaign on the workshop checkpoint; the watch ends on the first product",
+		Reason: "four dependent rungs (research completion, a bench build, a stockpile and a bill iteration) are one native campaign on the fixture hut; the watch ends on the first product",
 		Run: func(ctx context.Context, s cases.Session) error {
 			_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
-				WatchConfig: sustainedfood.WatchConfig{Watch: window, Goal: policy.MaintainResource, Until: billProduced},
+				WatchConfig: sustainedfood.WatchConfig{Watch: window, Goal: policy.MaintainResource, Until: billProduced, FailFast: ladderFailFast},
 				Prepare: func(ctx context.Context, h *na.Harness, report na.Report) error {
 					prepared := s.Prepared()
 					report["fixture"] = prepared

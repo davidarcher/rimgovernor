@@ -68,16 +68,18 @@ keeps it complete against the installed RoomRoleDefs.
 ## Acceptance
 
 The `production/ladder` case (`acceptance run production/ladder`, `go/internal/nativeaccept/cases/production`) opens the
-workshop checkpoint save, seeds steel, a simple research bench and Smithing at
-97% through `test/production_ladder_prepare`, and requires live native
-evidence for every rung: Smithing finished, a smithy in a Workshop-hosting
-room carrying the gladius bill, an allow-list stockpile for steel in that room,
-and the gladius count above the pre-service baseline.
+Core tribal baseline; `test/production_ladder_prepare` stages a roofed
+starter hut with a sleeping spot per colonist (the room the workshop rung
+furnishes, `scripts/fixtures/FixtureHut.cs`), a simple research bench inside
+it, steel and wood beside its door and Smithing at 97%, and the case requires
+live native evidence for every rung: Smithing finished, a smithy in a
+Workshop-hosting room carrying the gladius bill, an allow-list stockpile for
+steel in that room, and the gladius count above the pre-service baseline.
 
 The `production/stone` case (`acceptance run production/stone`) runs the
-same checkpoint with only `--routine-stone-block-target 40`: the fixture
-seeds a research bench, the table's steel and Stonecutting at 97% through
-`test/production_stone_prepare`, and the audit requires Stonecutting
+same baseline with only `--routine-stone-block-target 40`: the fixture
+stages the same hut and research bench, the table's steel and Stonecutting at
+97% through `test/production_stone_prepare`, and the audit requires Stonecutting
 finished, a stonecutter's table in a Workshop-hosting room carrying the
 derived stone's `Make_StoneBlocks` bill, and the live block count above the
 pre-service baseline — the chunks are the map's own (#231).

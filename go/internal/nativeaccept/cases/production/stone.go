@@ -17,8 +17,9 @@ import (
 // names only a stone-block floor (--routine-stone-block-target), the review
 // derives the block definition from the chunks the map counts most, and the
 // ladder walks Stonecutting -> stonecutter's table -> do-until bill. The
-// fixture seeds the research bench, Stonecutting at 97% and the steel the
-// table costs (the tribal save has none); the chunks are the map's own. The
+// fixture stages the hut, the research bench, Stonecutting at 97% and the
+// steel the table costs (the tribal save has none); the chunks are the
+// map's own. The
 // ingredient-storage family stays off: a chunk stockpile inside the hut is
 // not a rung this case proves.
 const (
@@ -33,15 +34,14 @@ func init() {
 	cases.Register(cases.Case{
 		Name:   "production/stone",
 		Scope:  fmt.Sprintf("--routine-stone-block-target %d walks research (%s) -> %s -> Make_StoneBlocks bill fed from map chunks; the live block count must rise above the pre-service baseline (#231).", stoneTarget, stoneProject, stoneBench),
-		Start:  cases.Fixture{Op: "test/production_stone_prepare", Args: map[string]any{}, On: cases.Save{Name: checkpointSave}},
-		Keep:   []string{string(na.NeedFood)},
+		Start:  cases.Fixture{Op: "test/production_stone_prepare", Args: map[string]any{}, On: cases.Save{Name: baselineSave}},
 		Serve:  &cases.ServeSpec{Families: []string{stoneFamilies}, NativeTimeout: 15 * time.Second, Prefix: "production", Extra: []string{"--routine-stone-block-target", fmt.Sprintf("%d", stoneTarget)}},
 		Budget: window + 15*time.Minute,
-		Reason: "three dependent rungs (research completion, a bench build and a bill iteration over map chunks) are one native campaign on the workshop checkpoint; the watch ends on the first product",
+		Reason: "three dependent rungs (research completion, a bench build and a bill iteration over map chunks) are one native campaign on the fixture hut; the watch ends on the first product",
 		Run: func(ctx context.Context, s cases.Session) error {
 			var baseline float64
 			_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
-				WatchConfig: sustainedfood.WatchConfig{Watch: window, Goal: policy.MaintainResource, Until: billProduced},
+				WatchConfig: sustainedfood.WatchConfig{Watch: window, Goal: policy.MaintainResource, Until: billProduced, FailFast: ladderFailFast},
 				Prepare: func(ctx context.Context, h *na.Harness, report na.Report) error {
 					prepared := s.Prepared()
 					report["fixture"] = prepared
