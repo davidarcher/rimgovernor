@@ -71,6 +71,11 @@ func (s *playerFakeSession) Acquire(ctx context.Context, requested domain.Genera
 	return requested, err
 }
 func (s *playerFakeSession) Manual(context.Context) error { s.manuals.Add(1); return s.Disable() }
+func (s *playerFakeSession) TargetsWorld(world store.World) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.state.ObservationKnown && playerWorld(s.state.Snapshot) == world
+}
 func (s *playerFakeSession) Close(ctx context.Context) error {
 	s.closes.Add(1)
 	if s.close != nil {
@@ -497,5 +502,56 @@ func TestPlayerCompletionJournalFailureDisablesGrantedLease(t *testing.T) {
 	replay, err := p.Resume(ctx, q)
 	if err != nil || replay.Phase != store.PendingControl || session.acquires.Load() != 1 || p.State().Enabled {
 		t.Fatal(replay, err)
+	}
+}
+
+// TestPlayerResumeRevokesOwnGrantAfterFailedObservation: a status read that
+// fails mid-Resume (a cancelled call under a slow bridge) leaves observation
+// unknown while this process's own Auto grant still stands natively. The next
+// Resume must revoke that grant through the kept target and acquire again,
+// rather than reporting every attempt uncertain because Acquire refuses an
+// Active it once targeted (#328).
+func TestPlayerResumeRevokesOwnGrantAfterFailedObservation(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	dir := t.TempDir()
+	db, err := store.Open(ctx, storetest.Path(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	_, native := boundary.NewFixture(t)
+	authority := &controlNative{generation: 1}
+	session, err := NewSession(ctx, SessionConfig{Control: ControlConfig{ProfileDirectory: dir, CallTimeout: time.Second}, Executor: executor.Limits{MaxAge: time.Second, RunTimeout: time.Second, JournalTimeout: time.Second}}, db, native, authority, native, boundary.FixedClock{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	worlds := &playerWorldSource{world: playerSubmission().World}
+	p, err := NewPlayer(ctx, PlayerConfig{CallTimeout: time.Second, JournalTimeout: time.Second}, db, session, worlds)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer p.Close(ctx)
+	q := playerAcquire(t, p)
+	if _, err = p.Resume(ctx, q); err != nil {
+		t.Fatal(err)
+	}
+	// The second Resume's cleanup read is cancelled: observation becomes
+	// unknown, the native grant stays Active, and the outcome is uncertain.
+	authority.onRead = func(context.Context) error { return context.Canceled }
+	second := q
+	second.RequestID = "second"
+	got, err := p.Resume(ctx, second)
+	state := p.State()
+	if err == nil || got.Phase != store.UncertainControl || state.ObservationKnown || !session.TargetsWorld(q.World) || authority.revokes.Load() != 0 {
+		t.Fatal(got, err, state, authority.revokes.Load())
+	}
+	authority.onRead = nil
+	third := q
+	third.RequestID = "third"
+	got, err = p.Resume(ctx, third)
+	state = p.State()
+	if err != nil || got.Phase != store.RunningControl || !state.Enabled || !state.ObservationKnown || authority.revokes.Load() != 1 || authority.acquires.Load() != 2 {
+		t.Fatal(got, err, state, authority.revokes.Load(), authority.acquires.Load())
 	}
 }

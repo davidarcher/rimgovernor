@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 )
 
@@ -259,5 +260,27 @@ func TestFactFamilyTickTolerance(t *testing.T) {
 	}
 	if FactFamily("other").TickTolerance() != 0 || FactFamily("other").Fresh(1, 2) {
 		t.Fatal("unknown family tolerates an advance")
+	}
+}
+
+// TestFactFamilyOutrunFollowsFresh: a boundary pairing a cached family read
+// with a fresher one (haul targets beside a pawn read) judges the pair by
+// the same widened tolerance the cache serves it under, so a running
+// window's LiveDrift never turns a row the cache still serves into wrong
+// evidence (#328).
+func TestFactFamilyOutrunFollowsFresh(t *testing.T) {
+	t.Cleanup(func() { domain.SetLiveDrift(0) })
+	for _, drift := range []domain.Tick{0, 20000} {
+		domain.SetLiveDrift(drift)
+		for _, family := range FactFamilies() {
+			for advance := int64(0); advance <= 70000; advance += 500 {
+				if family.Outrun(100, 100+advance) == family.Fresh(100, 100+advance) {
+					t.Fatal(family, drift, advance)
+				}
+			}
+			if family.Outrun(100, 99) {
+				t.Fatal(family, "a later read behind the row is not an outrun")
+			}
+		}
 	}
 }

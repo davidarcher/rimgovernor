@@ -11,8 +11,11 @@
 // test/storage_haul_allow) since native random colony generation cannot
 // reliably produce a MaintainStorage deficit (an ordinary item outside legal
 // storage) with a deterministic single eligible hauler, and the hauler's own
-// vanilla work scanner would haul an unforbidden second item the moment its
-// ordered haul ends, before the planner could renew;
+// vanilla work scanner would haul any unforbidden item the moment the clock
+// runs, before the planner's order lands under a running window, and a
+// wandering colonist hauls it opportunistically whatever its Hauling
+// priority (#328), so the fixture holds every colonist on a Wait job while
+// an unforbidden item waits for the planner;
 // test/guarded_construction_prepare supplies the one player-submitted
 // building plan MaintainStorage's own arbitration capacity slot requires to
 // be occupied by "the accepted player project," matching
@@ -91,6 +94,12 @@ func run(ctx context.Context, s cases.Session) error {
 	storageX, storageZ := int(na.AsNumber(storageCell["x"])), int(na.AsNumber(storageCell["z"]))
 	if haulerID == "" || len(itemIDs) != 2 {
 		return fmt.Errorf("storage_haul_prepare: unexpected fixture identifiers: %#v", prepared)
+	}
+	// The hold is what keeps the unforbidden item on the map until the
+	// planner's order lands; a fixture that lost it hands the item to the
+	// hauler's own work scanner instead (#328).
+	if job := na.AsString(prepared["haulerJob"]); job != "Wait" {
+		return fmt.Errorf("storage_haul_prepare left the hauler on %q, want Wait: %#v", job, prepared)
 	}
 	// Confirm, from the fixture's own spawn-time coordinates, that each item
 	// genuinely starts outside storage -- a pre-condition of this being real
@@ -347,6 +356,9 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 	if forbidden, _ := na.AsBool(allowed["forbidden"]); forbidden {
 		return fmt.Errorf("second item still forbidden after storage_haul_allow: %#v", allowed)
+	}
+	if job := na.AsString(allowed["haulerJob"]); job != "Wait" {
+		return fmt.Errorf("storage_haul_allow left the hauler on %q, want Wait: %#v", job, allowed)
 	}
 	report["allowed_second_item"] = allowed
 	restartDeadline := time.Now().Add(90 * time.Second)

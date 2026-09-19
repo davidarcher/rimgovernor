@@ -20,6 +20,7 @@ type playerSession interface {
 	ResourceRules() []policy.ResourceRule
 	Acquire(context.Context, domain.GenerationSnapshot) (domain.GenerationSnapshot, error)
 	Manual(context.Context) error
+	TargetsWorld(store.World) bool
 	Disable() error
 	State() ControlState
 	Close(context.Context) error
@@ -225,8 +226,12 @@ func (p *Player) Resume(ctx context.Context, request store.ControlRequest) (stor
 	if err = p.current(call, epoch); err != nil {
 		return p.uncertain(record, err)
 	}
-	state := p.session.State()
-	if state.ObservationKnown && playerWorld(state.Snapshot) == request.World {
+	// Manual revokes this process's own grant for the world when its
+	// observation is known, and also when a failed status read left the
+	// observation unknown while the grant still stands natively -- Acquire
+	// refuses an Active it once targeted, so without the revoke every later
+	// request would end uncertain (#328).
+	if p.session.TargetsWorld(request.World) {
 		if err = p.session.Manual(call); err != nil {
 			return p.uncertain(record, err)
 		}
@@ -289,8 +294,12 @@ func (p *Player) Pause(ctx context.Context, request store.ControlRequest) (store
 	if err = p.current(call, epoch); err != nil {
 		return p.uncertain(record, err)
 	}
-	state := p.session.State()
-	if state.ObservationKnown && playerWorld(state.Snapshot) == request.World {
+	// Manual revokes this process's own grant for the world when its
+	// observation is known, and also when a failed status read left the
+	// observation unknown while the grant still stands natively -- Acquire
+	// refuses an Active it once targeted, so without the revoke every later
+	// request would end uncertain (#328).
+	if p.session.TargetsWorld(request.World) {
 		if err = p.session.Manual(call); err != nil {
 			return p.uncertain(record, err)
 		}

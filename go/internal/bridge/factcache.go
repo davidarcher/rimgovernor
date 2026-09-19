@@ -103,6 +103,17 @@ func (f FactFamily) Fresh(rowTick, scopeTick int64) bool {
 	return tolerance == FactTickUnbounded || advance <= tolerance+int64(domain.LiveDrift())
 }
 
+// Outrun reports whether a later read at laterTick has left a row of the
+// family read at rowTick behind by more than Fresh tolerates: the row is
+// wrong evidence beside the later read. A boundary that pairs a cached
+// family read with a fresher one applies this rather than the bare
+// TickTolerance, so a running window's drift widens both the same way
+// (#345, #328).
+func (f FactFamily) Outrun(rowTick, laterTick int64) bool {
+	tolerance := f.TickTolerance()
+	return tolerance != FactTickUnbounded && rowTick+tolerance+int64(domain.LiveDrift()) < laterTick
+}
+
 // FactFamilyOf names the family of a cacheable read (cacheableRead) and
 // reports false for every other method.
 func FactFamilyOf(method string) (FactFamily, bool) {

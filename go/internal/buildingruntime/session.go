@@ -713,6 +713,7 @@ func (s *Session) ObserveTarget(ctx context.Context, requested domain.Generation
 	return s.control.ObserveTarget(ctx, requested)
 }
 func (s *Session) Refresh(ctx context.Context) error { return s.control.Refresh(ctx) }
+func (s *Session) TargetsWorld(world store.World) bool { return s.control.TargetsWorld(world) }
 func (s *Session) Manual(ctx context.Context) error {
 	return s.control.Manual(ctx)
 }

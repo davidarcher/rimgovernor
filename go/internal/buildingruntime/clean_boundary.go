@@ -109,7 +109,7 @@ func (b *CleanBoundary) InspectClean(ctx context.Context, target executor.Target
 	// step's first native read (#306); its snapshot token still binds the
 	// order to the filth it listed, so native refuses a stale one at
 	// dispatch. Only a read the pawn read has outrun is wrong evidence.
-	if filth.Context.GetTick()+bridge.FactColony.TickTolerance() < observed.Context.GetTick() {
+	if bridge.FactColony.Outrun(filth.Context.GetTick(), observed.Context.GetTick()) {
 		return out, executor.ErrEvidence
 	}
 	filthToken := filth.Token

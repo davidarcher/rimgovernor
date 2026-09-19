@@ -21,10 +21,42 @@ namespace HomeBridge.BridgeTools
     // would otherwise pick up every later stack the moment its ordered haul
     // ends, before the planner can renew; test/storage_haul_allow releases a
     // later stack when the case wants the deficit renewed.
+    //
+    // The same scanner races the planner for an unforbidden stack the moment
+    // the clock runs: under a running window at boosted pace the worker's
+    // dispatch lands hundreds of ticks after the window starts, and the idle
+    // hauler has carried the stack off by then (thing_absent, #328). So the
+    // colonists are held on ordinary (not player-forced) Wait jobs whenever
+    // an unforbidden stack is waiting for the planner: prepare holds them
+    // beside the first stack and allow holds them again beside the released
+    // one. A waiting pawn never consults its work scanner, while the
+    // planner's own order interrupts the hauler's wait as any ordered job
+    // does, and the hauler reads as eligible throughout (no player-forced
+    // job, Hauling still enabled). The other colonists are held too: vanilla
+    // opportunistic hauling (Pawn_JobTracker.TryOpportunisticJob) ignores
+    // the Hauling priority and lets a wandering colonist carry a stack it
+    // passes into storage.
     public sealed class StorageHaulFixture
     {
         private static Game preparedGame;
         private static Map preparedMap;
+        private static Pawn preparedHauler;
+        private static readonly List<Pawn> preparedPeople = new List<Pawn>();
+
+        // Two in-game days: longer than any run's clock windows before the
+        // planner's order interrupts it, and finite so a disposable colony
+        // that outlives the case still gets its pawn back.
+        private const int HoldTicks = 120000;
+
+        private static void Hold(IEnumerable<Pawn> pawns)
+        {
+            foreach (var pawn in pawns)
+            {
+                if (pawn == null || !pawn.Spawned || pawn.Dead || pawn.Downed || pawn.Drafted) continue;
+                var wait = JobMaker.MakeJob(JobDefOf.Wait, HoldTicks);
+                pawn.jobs.StartJob(wait, JobCondition.InterruptForced);
+            }
+        }
 
         [Tool("test/storage_haul_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture: register one legal Steel stockpile zone, spawn ordinary Steel stacks outside it (only the first unforbidden), and set exactly one existing colonist's Hauling work priority (all others disabled) so RoutineHaulPlanner's MaintainStorage deficit and its single eligible hauler are deterministic. No quest/travel simulation, no new resources beyond the spawned Steel.")]
         public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken, int itemCount = 2)
@@ -107,12 +139,16 @@ namespace HomeBridge.BridgeTools
                         forbidden = stack.IsForbidden(player) });
                 }
                 map.regionAndRoomUpdater.RebuildAllRegionsAndRooms();
-                preparedGame = Current.Game; preparedMap = map;
+                Hold(people);
+                preparedGame = Current.Game; preparedMap = map; preparedHauler = hauler;
+                preparedPeople.Clear(); preparedPeople.AddRange(people);
                 var identity = Current.Game.GetComponent<ColonyIdentity>();
                 return new {
                     success = true, colonyId = identity?.ColonyId, loadToken = identity?.LoadToken, mapId = map.uniqueID,
                     tick = Find.TickManager.TicksGame,
                     haulerId = hauler.GetUniqueLoadID(),
+                    haulerJob = hauler.CurJobDef?.defName,
+                    heldJobs = people.Select(p => p.CurJobDef?.defName).ToArray(),
                     itemIds = itemIds.ToArray(),
                     items = items.ToArray(),
                     looseItemsBefore = looseBeforeCount,
@@ -152,7 +188,7 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        [Tool("test/storage_haul_allow", Description = "UNSAFE FOR MODEL EXECUTION. Private prepared-fixture control: unforbid one prepared Steel stack (by itemId) so it becomes a MaintainStorage deficit the planner must renew for. Mutates only that stack's forbidden flag.")]
+        [Tool("test/storage_haul_allow", Description = "UNSAFE FOR MODEL EXECUTION. Private prepared-fixture control: unforbid one prepared Steel stack (by itemId) so it becomes a MaintainStorage deficit the planner must renew for, and hold the prepared colonists on Wait jobs so no work scanner or opportunistic haul takes the stack first. Mutates only that stack's forbidden flag and the prepared colonists' current jobs.")]
         public async Task<object> Allow(IRimBridgeContext ctx, CancellationToken cancellationToken,
             string colonyId, string loadToken, int mapId, string itemId)
         {
@@ -163,9 +199,14 @@ namespace HomeBridge.BridgeTools
                     return Refuse("Prepared paused colony/load/map identity changed.");
                 var thing = map.listerThings.AllThings.FirstOrDefault(t => t.GetUniqueLoadID() == itemId);
                 if (thing == null || !thing.Spawned || thing.def != ThingDefOf.Steel) return Refuse("Prepared Steel stack is not spawned.");
+                var hauler = preparedHauler;
+                if (hauler == null || !hauler.Spawned || hauler.Dead || hauler.Map != map) return Refuse("Prepared hauler is not spawned on the prepared map.");
                 thing.SetForbidden(false, false);
+                Hold(preparedPeople.Where(p => p.Map == map));
                 return new { success = true, x = thing.Position.x, z = thing.Position.z, count = thing.stackCount,
-                    forbidden = thing.IsForbidden(Faction.OfPlayerSilentFail) };
+                    forbidden = thing.IsForbidden(Faction.OfPlayerSilentFail),
+                    haulerId = hauler.GetUniqueLoadID(), haulerJob = hauler.CurJobDef?.defName,
+                    heldJobs = preparedPeople.Where(p => p.Map == map).Select(p => p.CurJobDef?.defName).ToArray() };
             }, cancellationToken).ConfigureAwait(false);
         }
 

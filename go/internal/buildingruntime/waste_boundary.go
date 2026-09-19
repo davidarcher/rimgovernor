@@ -108,7 +108,7 @@ func (b *WasteBoundary) InspectWaste(ctx context.Context, target executor.Target
 	// step's first native read (#306, #323); its snapshot token still binds
 	// the order to what it listed, so native refuses a stale one at dispatch.
 	// Only a read the pawn read has outrun is wrong evidence.
-	if item.Context.GetTick()+bridge.FactColony.TickTolerance() < observed.Context.GetTick() {
+	if bridge.FactColony.Outrun(item.Context.GetTick(), observed.Context.GetTick()) {
 		return out, executor.ErrEvidence
 	}
 	itemToken := item.Token

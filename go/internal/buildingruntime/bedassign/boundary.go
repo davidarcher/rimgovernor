@@ -103,7 +103,7 @@ func (b *Boundary) InspectBedAssign(ctx context.Context, target executor.Target)
 	// step's first native read (#306, #323); its snapshot token still binds
 	// the order to what it listed, so native refuses a stale one at dispatch.
 	// Only a read the pawn read has outrun is wrong evidence.
-	if bed.Context.GetTick()+bridge.FactColony.TickTolerance() < observed.Context.GetTick() {
+	if bridge.FactColony.Outrun(bed.Context.GetTick(), observed.Context.GetTick()) {
 		return out, executor.ErrEvidence
 	}
 	preview, _, err := b.assign.Native.PreviewBedAssign(ctx, boundary.Identity(current), string(assign.Pawn()), pawnToken, assign.Bed(), bed.Token, previousWire(assign.PreviousBed()))

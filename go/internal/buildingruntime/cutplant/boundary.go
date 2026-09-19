@@ -98,7 +98,7 @@ func (b *CutPlantBoundary) InspectCutPlant(ctx context.Context, target executor.
 	// may predate the preview by the emergency family's tick tolerance and
 	// no more; the cutter is designated, not ordered, so a threat that far
 	// back is the clock scheduler's to stop on.
-	if v.Context.GetTick() < read.Context.GetTick() || emergency.Context.GetTick()+bridge.FactEmergency.TickTolerance() < v.Context.GetTick() {
+	if v.Context.GetTick() < read.Context.GetTick() || bridge.FactEmergency.Outrun(emergency.Context.GetTick(), v.Context.GetTick()) {
 		return out, executor.ErrHeld
 	}
 	out.Current, out.Tick, out.Plant, out.SnapshotToken, out.Accepted = current, domain.Tick(v.Context.GetTick()), plant, selected.Token, true
