@@ -101,8 +101,11 @@ namespace HomeBridge.BridgeTools
                     }
                     var missing = cells.Where(c => !map.areaManager.Home[c]).ToList();
                     if (missing.Count == 0) continue;
+                    // No native exclusion ledger exists yet: every missing cell
+                    // is extendable, so excluded_cells is zero rather than
+                    // absent (absent leaves the Go review unknown, #292, #314).
                     var row = new Obs.HomeCoverageTarget { Id = Id(target), ShapeToken = HomeCoverage.Shape(target, cells),
-                        MissingCells = checked((uint)missing.Count) };
+                        MissingCells = checked((uint)missing.Count), ExcludedCells = 0 };
                     row.Cells.AddRange(cells.Select(Cell));
                     facts.Targets.Add(row);
                 }

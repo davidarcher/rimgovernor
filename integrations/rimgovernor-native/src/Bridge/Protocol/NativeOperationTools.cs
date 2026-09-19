@@ -62,6 +62,7 @@ namespace HomeBridge.BridgeTools
         internal readonly Dictionary<Common.AttemptKey, NativeBedAssignRecord> BedAssignments = new Dictionary<Common.AttemptKey, NativeBedAssignRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeExcavationRecord> Excavation = new Dictionary<Common.AttemptKey, NativeExcavationRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeWallRemovalRecord> WallRemovals = new Dictionary<Common.AttemptKey, NativeWallRemovalRecord>();
+        internal readonly Dictionary<Common.AttemptKey, NativeHomeCoverageRecord> HomeCoverage = new Dictionary<Common.AttemptKey, NativeHomeCoverageRecord>();
         private NativeOperationState(Common.Identity identity)
         { colony = identity.ColonyId; load = identity.LoadToken; Ledger = new NativeAttemptLedger(identity); }
         internal static bool TryGet(Common.Identity identity, [NotNullWhen(true)] out NativeOperationState? state)
@@ -192,6 +193,8 @@ namespace HomeBridge.BridgeTools
                 return NativeZoneCellEdit.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.PatchStockpile)
                 return NativeStockpilePatch.Execute(state, request, context);
+            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.ExtendHome)
+                return NativeHomeCoverageOperations.Execute(state, request, context);
             if (request.Operation.CommandCase != Operations.Operation.CommandOneofCase.PlaceBuilding)
                 return Refuse(Common.FailureCode.Unsupported, "This native adapter implements PlaceBuilding, temporary owned SetDrafted, exact owned MovePawn and melee, direct-bullet or supported injury-only explosive AttackTarget.");
             if (!NativeConstructionTracking.Ready)
@@ -338,6 +341,8 @@ namespace HomeBridge.BridgeTools
                     return ProtoBoundary.Encode(NativeZoneCellEdit.Preview(parsed.Operation.EditZoneCells, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.PatchStockpile)
                     return ProtoBoundary.Encode(NativeStockpilePatch.Preview(parsed.Operation.PatchStockpile, context));
+                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.ExtendHome)
+                    return ProtoBoundary.Encode(NativeHomeCoverageOperations.Preview(parsed.Operation.ExtendHome, context));
                 if (parsed.Operation == null || parsed.Operation.CommandCase != Operations.Operation.CommandOneofCase.PlaceBuilding)
                     return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Preview implements PlaceBuilding, temporary SetDrafted, exact owned MovePawn and melee, direct-bullet or supported injury-only explosive AttackTarget.") });
                 var accepted = NativeConstructionPlan.Prepare(ProtoBoundary.LoadedMap(context), parsed.Operation.PlaceBuilding.Placement, context, out _, out var preview, out var rejected);
@@ -500,6 +505,9 @@ namespace HomeBridge.BridgeTools
                     NativeStockpilePatchRecord stockpilePatch;
                     if (state.StockpilePatches.TryGetValue(parsed.Attempt, out stockpilePatch))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = stockpilePatch.Observe(parsed.Attempt, context) }));
+                    NativeHomeCoverageRecord homeCoverage;
+                    if (state.HomeCoverage.TryGetValue(parsed.Attempt, out homeCoverage))
+                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = homeCoverage.Observe(parsed.Attempt, context) }));
                 }
                 var progress = NativeOperationState.TryGet(context.Identity, out state) && state.Construction.TryGetValue(parsed.Attempt, out record)
                     ? record.Observe(parsed.Attempt, context)

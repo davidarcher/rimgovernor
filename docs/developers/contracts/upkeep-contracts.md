@@ -30,10 +30,17 @@ rooms of at most 128 cells; the complete target is limited to 256 visible cells.
 Stockpiles require their unchanged committed footprint. Missing geometry remains
 unknown. Existing omissions when observation starts and subsequent player Home
 removals are saved as exclusions, including Clear and Invert operations.
-`home/upkeep_home` derives cells again and requires the same geometry hash and
-area revision before adding Home. It does not paint arbitrary terrain or change
-pawn allowed areas. Actual native Home cells establish completion; player
-exclusions retain a visible blocker. Uncertain writes cannot be replayed.
+The typed `ExtendHome` operation (`rimgovernor/operations_execute`,
+`NativeHomeCoverageOperations.cs`; the legacy JSON `home/upkeep_home` applies the
+same rules) derives cells again and requires the same geometry hash and area
+revision before adding Home ([preconditions](action-contracts.md#apply-time-preconditions-and-refusal-reasons)).
+It does not paint arbitrary terrain or change pawn allowed areas. Actual native
+Home cells establish completion; player exclusions retain a visible blocker.
+Uncertain writes cannot be replayed. The census reports `excluded_cells` as zero
+until a native exclusion ledger records player removals (#314).
+`upkeep/home-coverage` is the acceptance case: the controller builds a bed,
+the fixture strips Home from its footprint, and the goal recovers on the
+observed Home cells.
 
 Native construction lineage follows bridge-created blueprints into frames and
 finished buildings, including the game's failed-construction blueprint recovery.

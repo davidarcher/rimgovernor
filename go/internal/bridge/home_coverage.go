@@ -12,15 +12,13 @@ import (
 
 // HomeCoverageAttempt carries the exact already-selected target/shape pair
 // MaintainHomeCoverage's routine review chose. The native contract is the
-// typed ExtendHome operation (contracts/proto/operations.proto), the same
-// one the legacy JSON home/upkeep_home tool (HomeCoverageTool.cs) drives; no
-// native adapter wires Operation_ExtendHome into the typed Execute/Preview
-// dispatch yet (NativeOperationTools.cs), an open native acceptance item
-// like BedAssign/Repair/Clean/Equip's own gaps. Unlike BedAssign, the
-// target's own identity carries no dedicated CAS token: native recomputes
-// the shape hash from the target's current bounded footprint and refuses if
-// it differs, so the EntityPrecondition here never sets an expected snapshot
-// token.
+// typed ExtendHome operation (contracts/proto/operations.proto), dispatched
+// by NativeHomeCoverageOperations.cs with the same scope/shape rules the
+// legacy JSON home/upkeep_home tool (HomeCoverageTool.cs) applies. Unlike
+// BedAssign, the target's own identity carries no dedicated CAS token:
+// native recomputes the shape hash from the target's current bounded
+// footprint and the map-wide Home revision and refuses if either differs,
+// so the EntityPrecondition here never sets an expected snapshot token.
 type HomeCoverageAttempt struct {
 	Identity   *c.Identity
 	Attempt    *c.AttemptKey

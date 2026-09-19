@@ -144,6 +144,7 @@ type buildingServiceBridge struct {
 	bedMedical          *bedmedical.Capabilities
 	growerCrop          *growercrop.Capabilities
 	bedAssign           *bedassign.Capabilities
+	homeCoverage        *buildingruntime.HomeCoverageCapabilities
 	presentationMedia   *bridge.PresentationMedia
 	lifecycle           lifecycleCapability
 }
@@ -294,6 +295,10 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
+	homeCoverageWriter, err := bridge.NewHomeCoverageWriter(client)
+	if err != nil {
+		return buildingServiceBridge{}, errors.Join(err, client.Close())
+	}
 	presentationMedia, err := bridge.NewPresentationMedia(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
@@ -342,6 +347,7 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		bedMedical:          &bedmedical.Capabilities{Native: client, Writer: bedMedicalControl},
 		growerCrop:          &growercrop.Capabilities{Native: client, Writer: growerCropControl},
 		bedAssign:           &bedassign.Capabilities{Native: client, Writer: bedAssignWriter},
+		homeCoverage:        &buildingruntime.HomeCoverageCapabilities{Native: client, Writer: homeCoverageWriter},
 		presentationMedia:   presentationMedia,
 		lifecycle:           lifecycleCapability{lifecycleSave, lifecycleLoad}}, nil
 }
@@ -698,6 +704,16 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		bedAssignCapabilities = client.bedAssign
 	}
+	// The home-coverage family extends Home through the shared executor
+	// (typed ExtendHome, #292); without the capability its plans never leave
+	// pending.
+	var homeCoverageCapabilities *buildingruntime.HomeCoverageCapabilities
+	if config.routineHomeCoveragePlans {
+		if client.homeCoverage == nil {
+			return errors.New("home coverage plans require typed capabilities")
+		}
+		homeCoverageCapabilities = client.homeCoverage
+	}
 	session, err := buildingruntime.NewSession(lifetime, buildingruntime.SessionConfig{RoutineMethods: config.routineMethods,
 		Rules:               config.resourceRules,
 		Control:             buildingruntime.ControlConfig{ProfileDirectory: config.profile, CallTimeout: callTimeout, Worlds: buildingWorldSource{client.reads}},
@@ -737,6 +753,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		BedMedical:          bedMedicalCapabilities,
 		GrowerCrop:          growerCropCapabilities,
 		BedAssign:           bedAssignCapabilities,
+		HomeCoverage:        homeCoverageCapabilities,
 	}, database, client.native, client.authority, client.writes, wallClock{})
 	if err != nil {
 		return err
