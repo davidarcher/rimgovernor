@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log/slog"
 	"math"
 	"net"
 	"os"
@@ -21,6 +22,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 )
 
 type wallClock struct{}
@@ -421,6 +423,12 @@ func serve(ctx context.Context, args []string, out, diagnostics io.Writer) int {
 		fmt.Fprintln(diagnostics, err)
 		return 2
 	}
+	// Service events: every record stamped with time and tick on
+	// diagnostics; kinded records also become flight-recorder rows so the
+	// scheduler, worker and routine layers sit in sequence with the bridge's
+	// native_* rows (#295). Debug records are the clock trace
+	// (RIMGOVERNOR_CLOCK_DEBUG); they reach stderr only.
+	var sink telemetry.Recorder
 	if config.flightRecorder != "" {
 		recorder, err := bridge.NewFlightRecorder(config.flightRecorder)
 		if err != nil {
@@ -429,7 +437,13 @@ func serve(ctx context.Context, args []string, out, diagnostics io.Writer) int {
 		}
 		defer recorder.Close()
 		config.bridge.Recorder = recorder
+		sink = recorder
 	}
+	level := slog.LevelInfo
+	if os.Getenv("RIMGOVERNOR_CLOCK_DEBUG") != "" {
+		level = slog.LevelDebug
+	}
+	slog.SetDefault(telemetry.New(diagnostics, level, sink))
 	if config.playerControl {
 		err = serveBuildingControl(ctx, config, out)
 	} else {

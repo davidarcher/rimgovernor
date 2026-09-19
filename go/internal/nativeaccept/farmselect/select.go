@@ -36,7 +36,10 @@ type Selection struct {
 }
 
 var (
-	selectLine    = regexp.MustCompile(`^\[clock-scheduler\] Fields select: kind=(\S+) crop=(\S+) cells=(\d+) buildings=(\d+) \| \S+ \S+ needed=\d+ urgent=(true|false) buildings=\d+$`)
+	// The service stamps every line with time, tick and level before the
+	// component (internal/telemetry); the candidate lines are the message's
+	// own continuation lines and carry no stamp.
+	selectLine    = regexp.MustCompile(`^(?:\S+ tick=\S+ \w+ )?\[clock-scheduler\] Fields select: kind=(\S+) crop=(\S+) cells=(\d+) buildings=(\d+) \| \S+ \S+ needed=\d+ urgent=(true|false) buildings=\d+$`)
 	candidateLine = regexp.MustCompile(`^ (\S+) (\S+) needed=(\d+) cells=(\d+) score=(-?[0-9.]+)(.*)$`)
 	termToken     = regexp.MustCompile(`^([a-z]+)=(-?[0-9.]+)$`)
 )

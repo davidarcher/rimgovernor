@@ -239,13 +239,23 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	if err != nil {
 		clockSchedulerLog("routine.step: ReviewRoutine err=%v", err)
 	} else {
-		clockSchedulerLog("routine.step: ReviewRoutine ok newRevision=%d emergency=%v", result.Review.Revision, result.Emergency)
+		clockEvent("routine", "routine_review", "routine reviewed", "revision", result.Review.Revision, "previous_revision", previous.Revision, "tick", int64(reading.Projection.Identity.Tick), "goals", len(result.Goals), "emergency", routineEmergencyNames(result.Emergency))
 	}
 	return result, err
 }
 
 // Caller holds the player gate. Invalidating existing work needs no native read,
 // including when a stale browser request stops a different observed world.
+// routineEmergencyNames renders the needs that suspended the review's
+// goals for an event attr.
+func routineEmergencyNames(ids []policy.GoalID) []string {
+	out := make([]string, 0, len(ids))
+	for _, id := range ids {
+		out = append(out, string(id))
+	}
+	return out
+}
+
 func (p *Player) stopRoutine(ctx context.Context) (store.RoutineReviewResult, error) {
 	previous, err := p.journal.LoadRoutineReview(ctx)
 	if err != nil {

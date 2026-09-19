@@ -35,6 +35,34 @@ Every row a phase report reads:
 (`[clock-scheduler] step reads: ...`) with the cache's hit/miss/parent-hit
 counts, for a quick look without a recording.
 
+## Service events
+
+Every service log line is a structured record (`go/internal/telemetry`):
+stderr renders it as `<time> tick=<n|-> <LEVEL> [<component>] <message>
+k=v ...`, where `tick` is the game tick the scheduler or the clock poll last
+read, so a line lines up with an evidence file, a flight row and the game
+clock. The clock trace (`RIMGOVERNOR_CLOCK_DEBUG=1`) is the DEBUG level of
+the same log and reaches stderr only. A record that names an event `kind`
+is also a flight-recorder row of that kind, in sequence with the `native_*`
+rows, its attributes as the payload and `tick`, `level` and `component` in
+the context; `rimgovernor phases` ignores them. The kinds:
+
+- `scheduler_step`: one per change of a step's outcome (`step done` or
+  `step failed: ...` at WARN): error, isolated planner failures, cause,
+  admitted/running/reconciled/cleaned/deferred/combat, the window sized,
+  and how many unlogged steps repeated the previous outcome.
+- `admission_refused`: the admission tail held the window: the refusal
+  reasons, mode, clock state and whether work remained.
+- `scheduler_stop`, `authority_change`, `alert_row`: one per Stopped,
+  AuthorityChanged and Alert event a committed poll page carried, with
+  the event's cursor and native stamp.
+- `worker_outcome`: one per change of an action's reconciliation outcome
+  (WARN when the run failed): action, attempt, stage before and after,
+  outcome text, error. `worker_dispatch` (the per-dispatch read tally)
+  is published by the Worker's read tally as before.
+- `routine_review`: one per committed routine review: revision, tick,
+  goal count and the needs that declared an emergency.
+
 ## Report
 
 ```bash

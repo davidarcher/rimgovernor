@@ -11,7 +11,7 @@ const trace = `[clock-scheduler] Fields plan: Plant_Rice needed=671 urgent=true
  outdoor Plant_Potato needed=0 cells=0 score=0.0000 season too short
  greenhouse-new Plant_Rice needed=671 cells=0 score=0.0000 sun lamp unavailable
 [clock-scheduler] step done: err=<nil>
-[clock-scheduler] Fields select: kind=greenhouse-reuse crop=Plant_Corn cells=59 buildings=0 | greenhouse-reuse Plant_Corn needed=55 urgent=false buildings=0
+2026-09-18T19:46:03.123Z tick=4200 DEBUG [clock-scheduler] Fields select: kind=greenhouse-reuse crop=Plant_Corn cells=59 buildings=0 | greenhouse-reuse Plant_Corn needed=55 urgent=false buildings=0
  greenhouse-reuse Plant_Corn needed=55 cells=59 score=0.0411 yield=5.9000 travel=-2.3385 net 2.2600/day over 5 patches
 `
 

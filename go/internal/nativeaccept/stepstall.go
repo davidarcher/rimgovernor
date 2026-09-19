@@ -36,9 +36,10 @@ func stepStall(stall time.Duration, families, lastFailure string) error {
 	return &StepStallError{Stall: stall, Families: families, LastFailure: lastFailure}
 }
 
-// stepFailurePrefix is the unconditional line ClockWorker.stepLoop writes
-// when a step's error changes (buildingruntime/clock_worker.go).
-const stepFailurePrefix = "[clock-worker] step failed:"
+// stepFailureMark is the unconditional "scheduler_step" line
+// ClockWorker.stepLoop writes when a step's error changes
+// (buildingruntime/clock_worker.go), after the line's time and tick stamp.
+const stepFailureMark = "[clock-worker] step failed:"
 
 // lastStepFailure returns the service's most recent step failure line from
 // its stderr log, or "" when the log has none or cannot be read.
@@ -57,7 +58,7 @@ func LastStepFailure(r io.Reader) string {
 	scanner := bufio.NewScanner(r)
 	scanner.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
 	for scanner.Scan() {
-		if line := strings.TrimSpace(scanner.Text()); strings.HasPrefix(line, stepFailurePrefix) {
+		if line := strings.TrimSpace(scanner.Text()); strings.Contains(line, stepFailureMark) {
 			last = line
 		}
 	}

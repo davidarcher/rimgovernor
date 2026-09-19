@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math"
 	"os"
 	"sync/atomic"
@@ -18,6 +19,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -456,20 +458,38 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 
 var clockSchedulerDebug = os.Getenv("RIMGOVERNOR_CLOCK_DEBUG") != ""
 
-// clockSchedulerLog is a TEMPORARY diagnostic aid (RIMGOVERNOR_CLOCK_DEBUG=1)
-// for tracing which Step() branch is taken; added while root-causing the
-// clock-restart-cadence gap surfaced by G01.07b's RoutineHaulPlanner
-// acceptance work (see follow-up issue for MaintainStorage haul completion).
 // WindowRunning reports whether the last evidence the scheduler saw had a
 // window it admitted still running. It is a hint for the poll cadence, not
 // authority: a stale true costs one held poll before the next step or page
 // clears it.
 func (s *ClockScheduler) WindowRunning() bool { return s.running.Load() }
 
+// clockSchedulerLog is the clock trace (RIMGOVERNOR_CLOCK_DEBUG=1): which
+// Step() branch was taken, what each planner decided, what a routine
+// refused and why. It is a debug record on the service logger, so the
+// stderr line carries the same time and tick stamp as every other; it
+// never becomes a flight row. Typed events (a step's outcome, an admission
+// refusal, a stop, a worker outcome) log through clockEvent instead.
 func clockSchedulerLog(format string, args ...any) {
 	if clockSchedulerDebug {
-		fmt.Fprintf(os.Stderr, "[clock-scheduler] "+format+"\n", args...)
+		slog.Default().Debug(fmt.Sprintf(format, args...), telemetry.ComponentKey, "clock-scheduler")
 	}
+}
+
+// clockEvent logs one typed service event: an Info record that the
+// telemetry handler mirrors into the flight recorder as a row of kind,
+// stamped with the last observed tick, with attrs as its payload.
+func clockEvent(component, kind, message string, attrs ...any) {
+	slog.Default().Info(message, append([]any{telemetry.ComponentKey, component, telemetry.KindKey, kind}, attrs...)...)
+}
+
+// clockReasonNames renders a decision's refusal reasons for an event attr.
+func clockReasonNames(reasons []policy.ClockWindowReason) []string {
+	out := make([]string, 0, len(reasons))
+	for _, r := range reasons {
+		out = append(out, string(r))
+	}
+	return out
 }
 
 // StepWithReason performs at most one scheduling decision for reason. It
@@ -624,6 +644,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	s.rate.observe(status, s.clock.Now())
 	reason.TickAdvanced = !s.lastTickKnown || status.Context.GetTick() != s.lastTick
 	s.lastTick, s.lastTickKnown = status.Context.GetTick(), true
+	telemetry.ObserveTick(status.Context.GetTick())
 	if reason.Cause == StepTimer && !reason.TickAdvanced && s.fullStepDue() {
 		reason.Cause = StepFull
 	}
@@ -909,6 +930,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	out.Decision = policy.EvaluateClockWindow(facts, policy.ClockWindowLimits{Now: s.clock.Now(), MaxAge: s.config.MaxAge, MaxTicks: start.MaxTicks, CombatMaxTicks: combatMaxTicks})
 	clockSchedulerLog("EvaluateClockWindow: work=%v combatPlan=%v admitted=%v mode=%s hostiles=%v refused=%v watched=%d", work, combatPlan, out.Decision.Admitted, out.Decision.Mode, out.Decision.Hostiles, out.Decision.Refused, len(clockSchedulerWatches(fingerprint, "")))
 	if !out.Decision.Admitted {
+		clockEvent("clock-scheduler", "admission_refused", "window not admitted", "refused", clockReasonNames(out.Decision.Refused), "mode", string(out.Decision.Mode), "work", work, "combat_plan", combatPlan, "hostiles", len(out.Decision.Hostiles), "clock_state", string(clockState), "window_ticks", out.Window.Ticks)
 		return out, executor.ErrHeld
 	}
 	start.Policy = proto.Clone(start.Policy).(*k.WatchPolicy)

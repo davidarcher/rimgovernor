@@ -12,10 +12,10 @@ func TestLastStepFailure(t *testing.T) {
 		"[clock-scheduler] reached stepPlanners",
 		"[clock-worker] step failed: routine review: context deadline exceeded",
 		"[clock-scheduler] step done: err=<nil>",
-		"  [clock-worker] step failed: Fields: context deadline exceeded  ",
+		"  2026-09-18T19:46:03.123Z tick=4200 WARN [clock-worker] step failed: Fields: context deadline exceeded err=\"Fields: context deadline exceeded\"  ",
 		"[clock-scheduler] EvaluateClockWindow: work=false",
 	}, "\n")
-	if got := LastStepFailure(strings.NewReader(log)); got != "[clock-worker] step failed: Fields: context deadline exceeded" {
+	if got := LastStepFailure(strings.NewReader(log)); got != "2026-09-18T19:46:03.123Z tick=4200 WARN [clock-worker] step failed: Fields: context deadline exceeded err=\"Fields: context deadline exceeded\"" {
 		t.Fatalf("last failure = %q", got)
 	}
 	if got := LastStepFailure(strings.NewReader("[clock-scheduler] step done: err=<nil>\n")); got != "" {

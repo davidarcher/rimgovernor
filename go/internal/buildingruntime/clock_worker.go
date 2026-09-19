@@ -3,14 +3,14 @@ package buildingruntime
 import (
 	"context"
 	"errors"
-	"fmt"
-	"os"
+	"log/slog"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 )
 
 // ClockWorker owns only its three loops. Session retains native capabilities,
@@ -305,6 +305,24 @@ func (w *ClockWorker) awaitPauseWork() time.Duration {
 	}
 }
 
+// clockWorkerStepEvent publishes one "scheduler_step" event: the step's
+// error (Warn, as "step failed") or its outcome flags (Info, "step done"),
+// the planner failures the step isolated, and how many unlogged steps
+// restated the previous outcome.
+func clockWorkerStepEvent(result ClockSchedulerResult, err error, repeats int) {
+	level, message := slog.LevelInfo, "step done"
+	if err != nil {
+		level, message = slog.LevelWarn, "step failed: "+err.Error()
+	}
+	failures := make([]string, 0, len(result.PlannerFailures))
+	for _, failure := range result.PlannerFailures {
+		failures = append(failures, failure.Error())
+	}
+	slog.Default().Log(context.Background(), level, message, telemetry.ComponentKey, "clock-worker", telemetry.KindKey, "scheduler_step",
+		"err", err, "planner_failures", failures, "cause", string(result.Reason.Cause), "admitted", result.Decision.Admitted, "running", result.Running,
+		"reconciled", result.Reconciled, "cleaned", result.Cleaned, "deferred", result.Deferred, "combat", result.Combat, "window_ticks", result.Window.Ticks, "repeated", repeats)
+}
+
 func (w *ClockWorker) stepLoop() {
 	select {
 	case <-w.ctx.Done():
@@ -326,26 +344,17 @@ func (w *ClockWorker) stepLoop() {
 		w.wakePoll()
 		key := clockWorkerKey(result, err)
 		changed := !havePrevious || key != previous
+		// One scheduler_step event per change of outcome (like the backoff
+		// decision below), so a sustained failure logs once, not every
+		// StepInterval, and the next change carries the repeat count.
+		// stepPlanners wraps each planner's error with its own name
+		// (clock_scheduler.go), so the failure is diagnosable from this
+		// line alone; the stall diagnosis reads it (issues #45, #100).
 		if changed {
-			clockSchedulerLog("step done: err=%v planner failures=%v%s", err, errors.Join(result.PlannerFailures...), workerRepeats(repeats))
+			clockWorkerStepEvent(result, err, repeats)
 			repeats = 0
 		} else {
 			repeats++
-		}
-		// Unconditionally surface which planner failed and why -- stepPlanners
-		// wraps each planner's error with its own name (clock_scheduler.go), so
-		// this is diagnosable without RIMGOVERNOR_CLOCK_DEBUG=1. Gated on state
-		// change (like the backoff decision below) so a sustained failure logs
-		// once, not every StepInterval; the debug line above carries the
-		// repeat count. See issues #45 and #100.
-		if err != nil && changed {
-			fmt.Fprintf(os.Stderr, "[clock-worker] step failed: %v\n", err)
-		}
-		// Isolated planner failures do not fail the step (#62), so without
-		// this line a planner that errors on every step (colony-2's equip
-		// planner never armed anyone) leaves no trace outside debug mode.
-		if len(result.PlannerFailures) > 0 && changed {
-			fmt.Fprintf(os.Stderr, "[clock-worker] planner failures: %v\n", errors.Join(result.PlannerFailures...))
 		}
 		// A combat window is short by design and the raid is re-planned
 		// between windows, so an unchanged decision does not back off.

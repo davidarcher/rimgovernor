@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
+	"log/slog"
 	"strings"
 	"sync"
 	"time"
@@ -14,6 +14,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 )
 
 type WorkerConfig struct {
@@ -491,11 +492,7 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 		outcome := workerOutcome(after, result, err)
 		repeats := wait.repeats
 		if outcome != wait.outcome {
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "[worker] %s %s%s\n", v.Action, outcome, workerRepeats(repeats))
-			} else {
-				clockSchedulerLog("worker ran %s: stage %s -> %s%s", v.Action, v.Stage, outcome, workerRepeats(repeats))
-			}
+			workerOutcomeEvent(v, after, outcome, err, repeats)
 			repeats = 0
 		} else {
 			repeats++
@@ -527,6 +524,17 @@ func workerSameReceipt(a, b domain.ProgressView) bool {
 	x, xk := a.Receipt.Value()
 	y, yk := b.Receipt.Value()
 	return xk == yk && x == y
+}
+
+// workerOutcomeEvent publishes one "worker_outcome" event when an action's
+// reconciliation outcome changes: the action, its stage before and after
+// the run, the outcome text, and the error, at Warn when the run failed.
+func workerOutcomeEvent(before, after domain.ProgressView, outcome string, err error, repeats int) {
+	level := slog.LevelInfo
+	if err != nil {
+		level = slog.LevelWarn
+	}
+	slog.Default().Log(context.Background(), level, "worker outcome", telemetry.ComponentKey, "worker", telemetry.KindKey, "worker_outcome", "action", string(before.Action), "attempt", int64(after.Attempt), "stage", string(before.Stage), "stage_after", string(after.Stage), "outcome", outcome, "err", err, "repeated", repeats)
 }
 
 // workerRepeats renders how many unlogged runs restated the previous outcome.
