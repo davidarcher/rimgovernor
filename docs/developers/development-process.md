@@ -69,10 +69,13 @@ escapes inside a documented adapter with a boundary test; no blanket suppression
 `task build && task test` from the repository root when the change touches
 dashboard, protobuf or C# projects. There is no
 hosted CI: checks run on the developer's machine before work lands on
-`main`, and `go:test` runs the `-race` pass alongside the plain pass whenever a
-C compiler (`gcc`, e.g. WinLibs MinGW-w64 via `winget`) is on `PATH`. The race
-runtime is several times slower on Windows than on Linux, so test deadlines
-that gate on wall-clock time allow at least 5s.
+`main`. The `-race` pass is opt-in, not part of `go:test`: run
+`task go:test:race` (needs a C compiler such as WinLibs MinGW-w64 via `winget`
+on `PATH`) when a change touches shared-state concurrency, or `go test -race`
+on that package alone. The nightly `remote-acceptance` run also has a `race`
+job that runs the whole module on Linux. The race runtime is several times slower on Windows
+than on Linux, so test deadlines that gate on wall-clock time allow at least
+5s.
 [Task](https://taskfile.dev) installs with `winget install Task.Task` or
 `go install github.com/go-task/task/v3/cmd/task@latest`. The root
 `Taskfile.yml` pins `GOTOOLCHAIN`, `GOWORK=off` and `CGO_ENABLED=0` and
@@ -92,7 +95,7 @@ table fails the gate; everything in the second is reviewed by hand.
 | --- | --- |
 | Go toolchain pinned to `go/.go-version` and the root `GOTOOLCHAIN`; gofmt; `go mod verify` and `tidy -diff`; `go vet` | `go`, `wire` (`contracts/generated/protobuf/go`), `protobuf-go` (`tools/protobuf/go`) |
 | Go static analysis: unused code, always-true comparisons, dead assignments, same-type assertions, error-string style | `go` (`go tool staticcheck`, pinned in `go/go.mod`) |
-| Go tests under a 10 s per-test budget; `-race` when a C compiler is present | `go` (`checktesttimes`, `go test -race`) |
+| Go tests under a 10 s per-test budget (`-race` is opt-in via `task go:test:race`) | `go` (`checktesttimes`) |
 | TypeScript `strict`; no `any`, `@ts-ignore`, `@ts-nocheck`, unsafe `any` flow, unnecessary or object-literal assertions, or `as unknown as` double casts; `@ts-expect-error` only with a description | `dashboard` (`dashboard/eslint.config.js`, typescript-eslint type-checked, plus `tsc --noEmit`) |
 | Dashboard dependencies locked | `dashboard` (`pnpm install --frozen-lockfile`) |
 | Generated protobuf C#/Go match the checked-in outputs; C#→Go→C# exchange is byte-identical | `protobuf` (`tools/protobuf`) |

@@ -25,20 +25,18 @@ tasks:
       - go build -trimpath -o {{.EVIDENCE}}/go/rimgovernor{{exeExt}} ./cmd/rimgovernor
 
   test:
-    desc: Unit tests under a 10s per-test ceiling, then race tests when a C compiler is present
-    # Sequential on purpose: the per-test ceiling is a wall-clock check and
-    # loses its headroom when the race pass competes for the same cores.
-    cmds:
-      - task: test:unit
-      - task: test:race
-
-  test:unit:
-    internal: true
+    desc: Unit tests under a 10s per-test ceiling
+    # The -race pass is not part of the landing gate: it is several times
+    # slower on Windows, and every race-related commit in the history fixed
+    # a timing flake the pass itself caused rather than a data race it found.
+    # Run `task go:test:race` when a change touches shared-state concurrency
+    # (clock, bridge, buildingruntime, ownership), or `go test -race` on that
+    # package alone.
     cmds:
       - go test -json ./... | go run ./internal/testkit/cmd/checktesttimes -max 10s
 
   test:race:
-    internal: true
+    desc: Whole-module go test -race; opt-in, needs a C compiler on PATH
     cmds:
       - |
         if command -v gcc >/dev/null 2>&1; then
