@@ -31,10 +31,38 @@ type EquipCandidateWeapon struct {
 	Ranged            domain.Fact[bool]
 }
 
+// WeaponClass ranks a loose equippable by what it is for. The native
+// "weapons" census is ThingDef.IsWeapon, which includes anything a pawn can
+// swing (a wood log, a beer), so the class comes from the Core def naming
+// until the census says ranged/melee itself: colony-6 handed a colonist the
+// wood log at its feet with two short bows a few cells away.
+type WeaponClass int
+
+const (
+	// WeaponMakeshift: equippable but not a weapon by trade (WoodLog, Beer).
+	WeaponMakeshift WeaponClass = iota
+	// WeaponMelee: a MeleeWeapon_* def.
+	WeaponMelee
+	// WeaponRanged: a Bow_*, Gun_* or Pila def; what hunting needs.
+	WeaponRanged
+)
+
+// ClassifyWeapon reads the Core def naming convention.
+func ClassifyWeapon(definition string) WeaponClass {
+	switch {
+	case strings.HasPrefix(definition, "Bow_"), strings.HasPrefix(definition, "Gun_"), definition == "Pila":
+		return WeaponRanged
+	case strings.HasPrefix(definition, "MeleeWeapon_"):
+		return WeaponMelee
+	}
+	return WeaponMakeshift
+}
+
 // SelectEquip pairs the first eligible unarmed, violence-capable pawn with the
-// nearest accessible weapon (ranged preferred, then by thing ID for a stable,
-// deterministic choice). This is a proposal only; EvaluateEquip re-validates
-// the chosen pair immediately before dispatch.
+// best accessible weapon: ranged before melee before makeshift, then nearest,
+// then by thing ID for a stable, deterministic choice. This is a proposal
+// only; EvaluateEquip re-validates the chosen pair immediately before
+// dispatch.
 func SelectEquip(pawns []EquipCandidatePawn, weapons []EquipCandidateWeapon) (domain.PawnID, EquipCandidateWeapon, bool) {
 	eligible := func(p EquipCandidatePawn) bool {
 		dead, dk := p.Dead.Value()
@@ -60,6 +88,9 @@ func SelectEquip(pawns []EquipCandidatePawn, weapons []EquipCandidateWeapon) (do
 	sort.Slice(pool, func(i, j int) bool { return pool[i].Pawn < pool[j].Pawn })
 	chosen := pool[0]
 	nearer := func(a, b EquipCandidateWeapon) bool {
+		if ca, cb := ClassifyWeapon(a.Definition), ClassifyWeapon(b.Definition); ca != cb {
+			return ca > cb
+		}
 		da := distanceSquared(chosen.Position, a.Cell)
 		db := distanceSquared(chosen.Position, b.Cell)
 		if da != db {

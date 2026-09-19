@@ -113,3 +113,26 @@ func TestSelectEquipRequiresEligiblePawnAndWeapon(t *testing.T) {
 		t.Fatal("expected no weapons")
 	}
 }
+
+// A wood log at the pawn's feet is equippable but not a weapon: the bows a
+// few cells away come first (colony-6 armed a colonist with the log).
+func TestSelectEquipPrefersRealWeaponsOverMakeshift(t *testing.T) {
+	pawns := []EquipCandidatePawn{{Pawn: "a", Dead: domain.Known(false), Downed: domain.Known(false), Drafted: domain.Known(false), MentalState: domain.Known(false), IncapableOfViolence: domain.Known(false), Armed: domain.Known(false), Position: domain.Cell{X: 5, Z: 5}}}
+	weapons := []EquipCandidateWeapon{
+		{Thing: "log", Definition: "WoodLog", Cell: domain.Cell{X: 5, Z: 6}},
+		{Thing: "club", Definition: "MeleeWeapon_Club", Cell: domain.Cell{X: 6, Z: 6}},
+		{Thing: "bow-far", Definition: "Bow_Short", Cell: domain.Cell{X: 20, Z: 5}},
+		{Thing: "bow-near", Definition: "Bow_Short", Cell: domain.Cell{X: 9, Z: 5}},
+	}
+	_, weapon, ok := SelectEquip(pawns, weapons)
+	if !ok || weapon.Thing != "bow-near" {
+		t.Fatal(weapon, ok)
+	}
+	_, weapon, _ = SelectEquip(pawns, weapons[:2])
+	if weapon.Thing != "club" {
+		t.Fatal(weapon)
+	}
+	if ClassifyWeapon("Pila") != WeaponRanged || ClassifyWeapon("Gun_Revolver") != WeaponRanged || ClassifyWeapon("Beer") != WeaponMakeshift {
+		t.Fatal("classification")
+	}
+}

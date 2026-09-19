@@ -204,7 +204,15 @@ func loadAdmission(ctx context.Context, tx *sql.Tx, a domain.Action, p domain.Pr
 		return Admission{}, false, fmt.Errorf("invalid action %q admission: %w", a.ID(), err)
 	}
 	v := p.View()
-	if (v.Stage == domain.Prepared || v.Attempt > 0) && !admission.Snapshot.Matches(v.Snapshot) {
+	// A zone's shared record is its footprint, written once at method
+	// admission; the typed zone admission carries the authority it was
+	// prepared under, so the footprint agrees with progress on the world,
+	// plan and revision rather than on the native generation (PrepareZone).
+	recorded, progressed := admission.Snapshot, v.Snapshot
+	if _, isZone := a.ZoneCreate(); isZone {
+		recorded.Native, progressed.Native = 0, 0
+	}
+	if (v.Stage == domain.Prepared || v.Attempt > 0) && !recorded.Matches(progressed) {
 		return Admission{}, false, errors.New("admission and progress authority disagree")
 	}
 	if v.Unresolved && admission.Tick > v.Tick {

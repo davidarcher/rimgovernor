@@ -145,25 +145,51 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArb
 	}
 	var candidates []policy.EquipCandidateWeapon
 	for _, w := range weapons.Targets {
-		candidates = append(candidates, policy.EquipCandidateWeapon{Thing: w.Thing, Definition: w.Definition, Cell: w.Cell, Ranged: domain.Known(true)})
+		candidates = append(candidates, policy.EquipCandidateWeapon{Thing: w.Thing, Definition: w.Definition, Cell: w.Cell, Ranged: domain.Known(policy.ClassifyWeapon(w.Definition) == policy.WeaponRanged)})
 	}
-	pawn, weapon, ok := policy.SelectEquip(pawns, candidates)
-	if ok && !arbiter.tryClaim([]domain.PawnID{pawn}, "equip-weapon:"+weapon.Thing) {
+	// SelectEquip always names the lowest-ID eligible pawn, so a pawn
+	// another planner claims every step, or one that has used up its
+	// attempts, would starve every other unarmed colonist: drop that pawn
+	// and select again until nobody is left (colony-2 ended with all four
+	// survivors unarmed beside loose bows).
+	var pawn domain.PawnID
+	var weapon policy.EquipCandidateWeapon
+	var attempt int
+	var prefix string
+	ok, exhausted := false, false
+	for len(pawns) > 0 {
+		var candidate domain.PawnID
+		candidate, weapon, ok = policy.SelectEquip(pawns, candidates)
+		if !ok {
+			break
+		}
+		// Keyed by pawn and attempt count, not weapon: a fresh attempt after an
+		// interrupted or failed try picks whichever weapon is currently best.
+		prefix = fmt.Sprintf("equip-%s-", candidate)
+		attempt = medicalAttemptCount(goal.Methods, goal.Goal.Epoch, prefix)
+		if attempt < maxMedicalAttemptsPerPatient && arbiter.tryClaim([]domain.PawnID{candidate}, "equip-weapon:"+weapon.Thing) {
+			pawn = candidate
+			break
+		}
+		exhausted = exhausted || attempt >= maxMedicalAttemptsPerPatient
 		ok = false
+		remaining := pawns[:0:0]
+		for _, p := range pawns {
+			if p.Pawn != candidate {
+				remaining = append(remaining, p)
+			}
+		}
+		pawns = remaining
 	}
 	if !ok {
+		if exhausted {
+			return RoutineEquipResult{Reason: BuildingMethodExhausted}, nil
+		}
 		return RoutineEquipResult{Reason: BuildingMethodUsed}, nil
 	}
 	equip, err := domain.NewEquip(pawn, weapon.Thing, weapon.Definition, weapon.Cell)
 	if err != nil {
 		return RoutineEquipResult{}, err
-	}
-	// Keyed by pawn and attempt count, not weapon: a fresh attempt after an
-	// interrupted or failed try picks whichever weapon is currently best.
-	prefix := fmt.Sprintf("equip-%s-", pawn)
-	attempt := medicalAttemptCount(goal.Methods, goal.Goal.Epoch, prefix)
-	if attempt >= maxMedicalAttemptsPerPatient {
-		return RoutineEquipResult{Reason: BuildingMethodExhausted}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))

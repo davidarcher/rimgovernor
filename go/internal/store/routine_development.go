@@ -66,9 +66,37 @@ func routineCommitments(ctx context.Context, tx *sql.Tx, current domain.Generati
 		if source == domain.PlayerGoal && labor == nil {
 			labor = policy.LaborProfile{policy.WorkConstruction}
 		}
-		result = append(result, policy.Commitment{Goal: goalID, Source: source, Priority: priority, Progress: open, Labor: labor})
+		dispatched, err := dispatchTick(ctx, tx, open.View().Action)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, policy.Commitment{Goal: goalID, Source: source, Priority: priority, Progress: open, Labor: labor, Dispatched: dispatched})
 	}
 	return result, nil
+}
+
+// dispatchTick is the tick of the action's latest dispatch transition.
+func dispatchTick(ctx context.Context, tx *sql.Tx, action domain.ActionID) (domain.Fact[domain.Tick], error) {
+	rows, err := tx.QueryContext(ctx, "SELECT payload FROM transitions WHERE action_id=? ORDER BY sequence", action)
+	if err != nil {
+		return domain.Unknown[domain.Tick](), err
+	}
+	defer rows.Close()
+	result := domain.Unknown[domain.Tick]()
+	for rows.Next() {
+		var data []byte
+		if err := rows.Scan(&data); err != nil {
+			return domain.Unknown[domain.Tick](), err
+		}
+		var event transition
+		if err := decode(data, &event); err != nil {
+			return domain.Unknown[domain.Tick](), err
+		}
+		if event.Kind == "dispatch" {
+			result = domain.Known(event.Tick)
+		}
+	}
+	return result, rows.Err()
 }
 
 func rankRoutineDevelopment(ctx context.Context, tx *sql.Tx, r RoutineReviewRequest, needs policy.RoutineNeeds, states []GoalState, previous policy.DevelopmentState) (policy.DevelopmentState, error) {
@@ -97,7 +125,7 @@ func rankRoutineDevelopment(ctx context.Context, tx *sql.Tx, r RoutineReviewRequ
 			}
 		}
 	}
-	return policy.RankDevelopment(policy.DevelopmentRequest{Snapshot: r.Current, Tick: r.Tick, Workers: r.Facts.Workers, Labor: r.Facts.Labor, Limit: r.Policy.MaxDevelopmentProjects, Goals: goals, Commitments: commitments, Previous: previous})
+	return policy.RankDevelopment(policy.DevelopmentRequest{Snapshot: r.Current, Tick: r.Tick, Workers: r.Facts.Workers, Labor: r.Facts.Labor, Limit: r.Policy.MaxDevelopmentProjects, Goals: goals, Commitments: commitments, Previous: previous, Partial: r.PartialPlanners})
 }
 
 // Recheck current commitments inside method admission: a player project accepted

@@ -341,6 +341,12 @@ func (w *ClockWorker) stepLoop() {
 		if err != nil && changed {
 			fmt.Fprintf(os.Stderr, "[clock-worker] step failed: %v\n", err)
 		}
+		// Isolated planner failures do not fail the step (#62), so without
+		// this line a planner that errors on every step (colony-2's equip
+		// planner never armed anyone) leaves no trace outside debug mode.
+		if len(result.PlannerFailures) > 0 && changed {
+			fmt.Fprintf(os.Stderr, "[clock-worker] planner failures: %v\n", errors.Join(result.PlannerFailures...))
+		}
 		// A combat window is short by design and the raid is re-planned
 		// between windows, so an unchanged decision does not back off.
 		// A deferred step waits on the Worker, not on a backoff either: it

@@ -81,6 +81,22 @@ type Commitment struct {
 	// Labor is the work the open commitment already occupies (GoalLabor for
 	// routine goals, construction for player building projects).
 	Labor LaborProfile
+	// Dispatched is the tick of the open action's latest dispatch, when the
+	// caller knows it; a pending effect older than DevelopmentStallTicks is
+	// a stalled commitment and holds no capacity or labor.
+	Dispatched domain.Fact[domain.Tick]
+}
+
+// DevelopmentStallTicks: one game day. colony-6 held a development slot for
+// two days on a wild healroot harvest nobody picked up.
+const DevelopmentStallTicks domain.Tick = 60000
+
+// Stalled reports a dispatched commitment whose effect has stayed pending
+// past DevelopmentStallTicks at tick now.
+func (c Commitment) Stalled(now domain.Tick) bool {
+	since, known := c.Dispatched.Value()
+	effect, effectKnown := c.Progress.View().Effect.Value()
+	return known && effectKnown && effect == domain.EffectPending && now-since > DevelopmentStallTicks
 }
 
 type DevelopmentReason string
@@ -117,6 +133,13 @@ type DevelopmentRow struct {
 	Reason              DevelopmentReason
 	Bottleneck          WorkType
 	Risk                domain.Fact[float64]
+	// Idle: the goal held a slot through a review and its planner committed
+	// nothing. An idle goal keeps its waiting age but no hysteresis, and
+	// ranks behind every other eligible goal until each of them has been
+	// idle too (then the round restarts on score), so a planner with no
+	// method this review (colony-3: EnsureDefensiveLayout and
+	// MaintainAnimalFeed held both slots for a game day) hands the slot on.
+	Idle bool
 }
 
 // DevelopmentState is a value snapshot owned by the review caller. Context and
@@ -131,6 +154,10 @@ type DevelopmentState struct {
 	Capacity  int
 	Committed []GoalID
 	Rows      []DevelopmentRow
+	// Partial: the planner pass that followed this review ran only the
+	// planners a wake named, so a selected goal whose planner did not run
+	// is not judged idle by the next review.
+	Partial bool
 }
 
 type DevelopmentRequest struct {
@@ -144,6 +171,8 @@ type DevelopmentRequest struct {
 	Goals       []DevelopmentGoal
 	Commitments []Commitment
 	Previous    DevelopmentState
+	// Partial marks this review's planner pass as a wake subset.
+	Partial bool
 }
 
 func validGoal(id GoalID, source GoalSource, priority int) bool {
@@ -178,6 +207,7 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 		}
 	}
 	result := DevelopmentState{Snapshot: r.Snapshot, Tick: r.Tick, Workers: r.Workers, Labor: r.Labor, Capacity: min(r.Limit, workers)}
+	result.Partial = r.Partial
 	ledger := newLaborLedger(r.Labor)
 	old := map[GoalID]DevelopmentRow{}
 	if sameWorld(r.Previous.Snapshot, r.Snapshot) && r.Tick >= r.Previous.Tick {
@@ -204,6 +234,9 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 		}
 		// Unknown effects retain capacity even after cancellation. A terminal
 		// observed failure/absence releases it; a command receipt never does.
+		if c.Stalled(r.Tick) {
+			continue
+		}
 		if v.Unresolved || v.Stage == domain.Pending || v.Stage == domain.Prepared || v.Stage == domain.Dispatched || v.Stage == domain.AwaitingObservation {
 			if !committed[c.Goal] {
 				ledger.take(c.Labor)
@@ -243,19 +276,20 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 		if exists {
 			since = previous.WaitingSince
 		}
+		idle := exists && !committed[g.ID] && (previous.Selected && !previous.Committed && !r.Previous.Partial || previous.Idle && !previous.Selected)
 		fraction, known := g.Deficit.Value()
 		score := weights.Deficit*fraction + float64(r.Tick-since)/weights.AgeTicks
 		if g.Source == PlayerGoal {
 			score += weights.Player
 		}
-		if previous.Selected {
+		if previous.Selected && !idle {
 			score += weights.Hysteresis
 		}
 		risk, riskKnown := g.Risk.Value()
 		if riskKnown {
 			score -= weights.Risk * risk
 		}
-		row := DevelopmentRow{Goal: g.ID, Score: score, Deficit: g.Deficit, WaitingSince: since, Committed: committed[g.ID], Risk: g.Risk}
+		row := DevelopmentRow{Goal: g.ID, Score: score, Deficit: g.Deficit, WaitingSince: since, Committed: committed[g.ID], Risk: g.Risk, Idle: idle}
 		switch {
 		case g.Cancelled:
 			row.Reason = DevelopmentCancelled
@@ -317,12 +351,43 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 	}
 	sort.Slice(result.Rows, func(i, j int) bool {
 		a, b := result.Rows[i], result.Rows[j]
+		// An idle selection yields to every other goal before score; the
+		// tier is a total order so rows carrying a reason cannot form a
+		// cycle between an idle and a non-idle eligible row.
+		if tierA, tierB := a.Reason == "" && a.Idle, b.Reason == "" && b.Idle; tierA != tierB {
+			return !tierA
+		}
 		if a.Score != b.Score {
 			return a.Score > b.Score
 		}
 		return a.Goal < b.Goal
 	})
 	free := max(0, result.Capacity-len(committed))
+	// A round ends once every eligible goal has been idle: the flags clear
+	// and score order restarts.
+	eligible, idle := 0, 0
+	for _, row := range result.Rows {
+		if row.Reason == "" {
+			eligible++
+			if row.Idle {
+				idle++
+			}
+		}
+	}
+	if eligible > 0 && idle == eligible {
+		for i := range result.Rows {
+			if result.Rows[i].Reason == "" {
+				result.Rows[i].Idle = false
+			}
+		}
+		sort.SliceStable(result.Rows, func(i, j int) bool {
+			a, b := result.Rows[i], result.Rows[j]
+			if a.Score != b.Score {
+				return a.Score > b.Score
+			}
+			return a.Goal < b.Goal
+		})
+	}
 	for i := range result.Rows {
 		row := &result.Rows[i]
 		if row.Reason != "" {

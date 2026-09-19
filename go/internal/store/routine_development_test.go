@@ -356,3 +356,47 @@ func TestRoutineDevelopmentComfortFollowsServedStartupGoals(t *testing.T) {
 		t.Fatal("retired startup method counted as unserved", row)
 	}
 }
+
+// A selected goal that committed nothing by the next review is recorded
+// idle and hands its slot to the next eligible goal; the flag survives the
+// review record so the ranking sees it (colony-3 held both slots for a game
+// day on goals whose planners had no method).
+func TestRoutineDevelopmentIdleSelectionRotates(t *testing.T) {
+	t.Parallel()
+	s := open(t, memoryPath(t))
+	defer s.Close()
+	r := routineRequest()
+	r.Policy.MaxDevelopmentProjects = 1
+	r.Policy.ResearchTarget = "Stonecutting"
+	r.Policy.ResourceTargets = map[policy.Resource]int64{"Steel": 100}
+	r.Policy.ResourceReserves = map[policy.Resource]int64{"WoodLog": 50}
+	r.Facts.Research = domain.Known(policy.ResearchFacts{Projects: []policy.ResearchProjectID{"Stonecutting"}})
+	r.Facts.Resources = domain.Known([]policy.Amount{{Resource: "Steel", Count: 50}})
+	first := reviewRoutine(t, s, &r)
+	var selected, waiting []domain.GoalID
+	for _, row := range first.Review.Development.Rows {
+		switch {
+		case row.Selected:
+			selected = append(selected, row.Goal)
+		case row.Reason == policy.DevelopmentCapacity:
+			waiting = append(waiting, row.Goal)
+		}
+	}
+	if len(selected) == 0 || len(waiting) == 0 {
+		t.Fatal("fixture needs a selected goal and one waiting on capacity", first.Review.Development.Rows)
+	}
+	second := reviewRoutine(t, s, &r)
+	for _, goal := range selected {
+		row := developmentRow(t, second.Review, goal)
+		if row.Selected || !row.Idle || row.WaitingSince != first.Review.Tick {
+			t.Fatalf("%s should be idle with its age intact: %+v", goal, row)
+		}
+	}
+	if row := developmentRow(t, second.Review, waiting[0]); !row.Selected {
+		t.Fatalf("%s should take the idle slot: %+v", waiting[0], second.Review.Development.Rows)
+	}
+	loaded, err := s.LoadRoutineReview(context.Background())
+	if err != nil || !developmentRow(t, loaded, selected[0]).Idle {
+		t.Fatal("idle flag not persisted", err)
+	}
+}

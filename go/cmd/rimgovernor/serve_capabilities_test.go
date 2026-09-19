@@ -30,6 +30,7 @@ func TestRoutineCapabilitiesDeclareSelectedGoals(t *testing.T) {
 		{"medical", policy.MaintainMedicalReserves},
 		{"home-coverage", policy.MaintainHomeCoverage},
 		{"stone-shell", policy.MaintainStoneShell},
+		{"equip", policy.EnsureBasicDefense},
 	}
 	for _, tc := range cases {
 		var c serveConfig

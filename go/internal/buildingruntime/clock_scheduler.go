@@ -1110,7 +1110,7 @@ func (s *ClockScheduler) fullStepDue() bool {
 // g.Failures(), without stopping the step.
 func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSchedulerResult, g *plannerGroup, arbiter *stepArbiter, pick func(plannerEntry) bool) ([]string, error) {
 	if s.config.Routine != nil {
-		review, err := s.config.Routine.step(call, epoch, arbiter)
+		review, err := s.config.Routine.step(call, epoch, arbiter, pick != nil)
 		if err != nil {
 			return nil, fmt.Errorf("routine: %w", err)
 		}

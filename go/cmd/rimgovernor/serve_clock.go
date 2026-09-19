@@ -801,6 +801,13 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 	if sc.routineMedicalPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainMedicalReserves)
 	}
+	// The equip planner is EnsureBasicDefense's method: without this
+	// declaration the priority-3 goal reviews as method_unavailable, never
+	// wins a development slot, and every equip commit is refused (colony-2
+	// ended with every survivor unarmed beside loose bows).
+	if sc.routineEquipPlans {
+		capabilities.Methods = append(capabilities.Methods, policy.EnsureBasicDefense)
+	}
 	if sc.routineProductionPolicyPlans {
 		thresholds.ResourceReserves = sc.routineResourceReserves.Map()
 		thresholds.StoppedResources = sc.routineStoppedResources.Slice()

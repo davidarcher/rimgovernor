@@ -14,6 +14,8 @@ func TestDevelopmentWeightsDefaultAndValidation(t *testing.T) {
 		t.Fatal(base.Rows, explicit.Rows)
 	}
 	r.Weights.Deficit = 0
+	// Storage committed its selection, so it keeps age and hysteresis.
+	base.Rows[0].Committed = true
 	r.Tick, r.Previous = 2600, base
 	if s := rank(t, r); s.Rows[0].Goal != "storage" || s.Rows[0].Score != 22.5 {
 		t.Fatal("age and hysteresis alone", s.Rows)

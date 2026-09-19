@@ -549,8 +549,14 @@ func (p *ServiceProcess) StepAdmitted(ctx context.Context, since time.Time) (boo
 	if err != nil {
 		return false, err
 	}
-	attempts, err := s.LoadClockAttempts(ctx, 1)
-	if err == nil && len(attempts) > 0 {
+	// The retained window, not one row: LoadClockAttempts refuses
+	// (ErrCapacity) when more attempts are retained than the limit, and
+	// a fast clock retains several between two polls.
+	attempts, err := s.LoadClockAttempts(ctx, 4096)
+	if err != nil {
+		return false, err
+	}
+	if len(attempts) > 0 {
 		p.mu.Lock()
 		p.stepped = true
 		p.entry["first_clock_attempt_after"] = time.Since(since).Round(time.Second).String()

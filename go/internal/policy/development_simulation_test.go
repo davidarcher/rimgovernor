@@ -248,7 +248,9 @@ func TestDevelopmentSimulationContextResets(t *testing.T) {
 	s.review()
 	s.open = map[GoalID]domain.Tick{}
 	aged := s.review()
-	if aged.Rows[0].Goal != "comfort" || aged.Rows[0].Score != 72.5 || s.row(aged, "research").WaitingSince != 100 {
+	// comfort committed nothing: it is idle and research, still waiting since
+	// the first review, takes the slot.
+	if aged.Rows[0].Goal != "research" || aged.Rows[0].Score != 52.5 || s.row(aged, "research").WaitingSince != 100 || !s.row(aged, "comfort").Idle {
 		t.Fatal("history not retained in the same world", aged.Rows)
 	}
 	for _, change := range []func(){

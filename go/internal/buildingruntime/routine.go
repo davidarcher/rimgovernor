@@ -92,11 +92,12 @@ func (r *RoutineReviewer) Step(ctx context.Context) (store.RoutineReviewResult, 
 		return store.RoutineReviewResult{}, err
 	}
 	defer done()
-	return r.step(call, epoch, newStepArbiter())
+	return r.step(call, epoch, newStepArbiter(), false)
 }
 
-// step is also usable by a scheduler already holding the player gate.
-func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter) (store.RoutineReviewResult, error) {
+// step is also usable by a scheduler already holding the player gate;
+// partial says only a wake's planners follow the review.
+func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter, partial bool) (store.RoutineReviewResult, error) {
 	p := r.player
 	state := p.session.State()
 	if !state.Enabled {
@@ -234,7 +235,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter)
 	// Manual cancels ctx before waiting for this gate, then invalidates any
 	// completed review before returning. Never hold the local stop mutex for SQL.
 	reading.Projection.Facts.AvailableMethods = r.methods
-	result, err := p.journal.ReviewRoutine(ctx, store.RoutineReviewRequest{Revision: previous.Revision, WorkPreferenceRevision: preferences.Revision, Current: state.Snapshot, Tick: reading.Projection.Identity.Tick, Enabled: true, Policy: r.policy, Facts: reading.Projection.Facts})
+	result, err := p.journal.ReviewRoutine(ctx, store.RoutineReviewRequest{Revision: previous.Revision, WorkPreferenceRevision: preferences.Revision, Current: state.Snapshot, Tick: reading.Projection.Identity.Tick, Enabled: true, Policy: r.policy, Facts: reading.Projection.Facts, PartialPlanners: partial})
 	if err != nil {
 		clockSchedulerLog("routine.step: ReviewRoutine err=%v", err)
 	} else {

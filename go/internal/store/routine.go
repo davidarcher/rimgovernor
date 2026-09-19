@@ -48,6 +48,9 @@ type RoutineReviewRequest struct {
 	Enabled                bool
 	Policy                 policy.RoutinePolicy
 	Facts                  policy.RoutineFacts
+	// PartialPlanners: only the planners a wake named follow this review,
+	// so the next review must not count an unrun planner's goal idle.
+	PartialPlanners bool
 }
 
 type RoutineReviewResult struct {
