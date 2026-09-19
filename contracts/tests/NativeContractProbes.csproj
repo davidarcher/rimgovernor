@@ -35,6 +35,8 @@
   <!-- ==== Dispatcher ==== -->
   <ItemGroup>
     <Compile Include="NativeContractProbes/Program.cs" />
+    <Compile Include="NativeContractProbes/native-roof-support/Program.cs" />
+    <Compile Include="$(NativeSourceRoot)/Bridge/RoofSupportGeometry.cs" Link="Production/RoofSupportGeometry.cs" />
   </ItemGroup>
 
   <!-- ==== Shared fakes (Category 1/4: in-process, no real Assembly-CSharp.dll) ==== -->

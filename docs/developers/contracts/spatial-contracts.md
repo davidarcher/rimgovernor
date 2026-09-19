@@ -250,6 +250,16 @@ A missing roof blocker means removing this building alone preserves roof
 support; blocked or unknown geometry carries a reason. It does not authorize
 removal, prove access, or establish safety for removing several holders together.
 Ancient-danger rows remain visible as blocked candidates for future policy.
+The native check uses sealed ancient-temple warning regions and enclosed roofed
+rooms with occupied ancient caskets or fogged hives/hostile pawns. The room check
+survives the warning trigger disappearing when a colonist approaches. It checks
+the footprint and adjacent rooms so the enclosing wall is protected too.
+
+For a roof-holding building, the counterfactual excludes every occupied cell and
+seeds connected-roof searches from the union of the installed support-radius
+neighborhoods of those cells. Non-holders cannot remove support. Fog, unknown
+map-edge geometry or a pending collapse blocks the removal. The pure geometry
+probe runs under `task probes:test` with a hand-built multi-cell rectangle.
 
 The complete census is bounded to 256 rows and 1 MiB; overflow or an unreadable
 scan is unavailable, never sampled. The Go observation treats an explicit

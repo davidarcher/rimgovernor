@@ -7,8 +7,13 @@ import (
 	"fmt"
 	"time"
 
+	"encoding/json"
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 func init() {
@@ -44,6 +49,36 @@ func init() {
 				return fmt.Errorf("loadToken changed under the case: %q then %q", identity["loadToken"], again["loadToken"])
 			}
 			s.Report()["identity_again"] = again
+			// Exercise the typed read against the live game, including the
+			// complete-empty result on a fresh map. This does not admit removal.
+			clearance, err := s.Harness().Wire(ctx, "clearance", "observations_get_clearance_targets", map[string]any{"scope": map[string]any{"expectedIdentity": identity}})
+			if err != nil {
+				return err
+			}
+			_, observed, err := na.Outcome(clearance, "observed")
+			if err != nil {
+				return err
+			}
+			encoded, err := json.Marshal(observed)
+			if err != nil {
+				return err
+			}
+			snapshot := &o.ClearanceTargetsSnapshot{}
+			if err := protojson.Unmarshal(encoded, snapshot); err != nil {
+				return err
+			}
+			encoded, err = json.Marshal(identity)
+			if err != nil {
+				return err
+			}
+			expected := &c.Identity{}
+			if err := protojson.Unmarshal(encoded, expected); err != nil {
+				return err
+			}
+			if err := bridge.ValidateClearanceTargets(snapshot, expected); err != nil {
+				return err
+			}
+			s.Report()["clearance"] = observed
 			return nil
 		},
 	})

@@ -16,6 +16,6 @@ tasks:
       - dotnet build NativeContractProbes.csproj -c Release -v minimal -nologo -p:RestoreLockedMode=true "-p:OutputPath={{.EVIDENCE}}/bin/" "-p:BaseIntermediateOutputPath={{.EVIDENCE}}/obj/"
 
   test:
-    desc: No unit tests; probes are executables driven by the native acceptance harnesses
+    desc: Pure roof geometry checks; game-dependent probes run through native acceptance
     cmds:
-      - 'echo "probes test: no unit tests (probe executables are driven by go/internal/nativeaccept)"'
+      - '{{if ne OS "windows"}}mono {{end}}{{.EVIDENCE}}/bin/NativeContractProbes.exe native-roof-support'
