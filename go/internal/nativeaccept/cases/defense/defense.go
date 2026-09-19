@@ -469,6 +469,9 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 		return fmt.Errorf("lines of fire after layout: %w", err)
 	}
 	if v.writeCheckpoint {
+		if err := na.CheckCommittedSaveHeadroom(ctx, h, report); err != nil {
+			return err
+		}
 		committed := cases.CommittedSaves()
 		if err := writeCheckpoint(ctx, h, root, committed, checkpointName, layoutCheckpoint{Layout: layout, SiteX: siteX, SiteZ: siteZ, SavedAtTick: int64(na.AsNumber(after["tick"]))}); err != nil {
 			return fmt.Errorf("checkpoint: %w", err)

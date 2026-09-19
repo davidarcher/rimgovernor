@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	"fmt"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
@@ -25,16 +26,17 @@ func TestColonyGearRequiresExactCompleteLoadoutEvidence(t *testing.T) {
 		t.Fatal(err)
 	}
 	for name, change := range map[string]func(*o.GearSnapshot){
-		"stale census":       func(g *o.GearSnapshot) { g.Context.Tick = proto.Int64(g.Context.GetTick() - 1) },
-		"stale loadout":      func(g *o.GearSnapshot) { g.Pawns[0].Snapshot.Context.Tick = proto.Int64(g.Context.GetTick() - 1) },
-		"changed generation": func(g *o.GearSnapshot) { g.Pawns[0].Snapshot.Context.NativeGeneration = proto.Uint64(99) },
-		"other pawn token":   func(g *o.GearSnapshot) { g.Pawns[0].Snapshot.EntityId = proto.String("other") },
-		"partial":            func(g *o.GearSnapshot) { g.Completeness.Filtered = proto.Uint64(1) },
-		"partial candidates": func(g *o.GearSnapshot) { g.Pawns[0].Completeness.Returned = proto.Uint64(0) },
-		"blocked eligible":   func(g *o.GearSnapshot) { g.Pawns[0].Blocker = proto.String("player job") },
-		"nan gain":           func(g *o.GearSnapshot) { g.Pawns[0].Candidates[0].Gain = proto.Float64(math.NaN()) },
-		"outside map":        func(g *o.GearSnapshot) { g.Pawns[0].Candidates[0].Item.Thing.Position.X = proto.Int32(4096) },
-		"unknown kind":       func(g *o.GearSnapshot) { g.Pawns[0].Candidates[0].Item.Apparel = nil },
+		"stale census":        func(g *o.GearSnapshot) { g.Context.Tick = proto.Int64(g.Context.GetTick() - 1) },
+		"stale loadout":       func(g *o.GearSnapshot) { g.Pawns[0].Snapshot.Context.Tick = proto.Int64(g.Context.GetTick() - 1) },
+		"changed generation":  func(g *o.GearSnapshot) { g.Pawns[0].Snapshot.Context.NativeGeneration = proto.Uint64(99) },
+		"other pawn token":    func(g *o.GearSnapshot) { g.Pawns[0].Snapshot.EntityId = proto.String("other") },
+		"partial":             func(g *o.GearSnapshot) { g.Completeness.Filtered = proto.Uint64(1) },
+		"partial candidates":  func(g *o.GearSnapshot) { g.Pawns[0].Completeness.Returned = proto.Uint64(0) },
+		"omitted under bound": func(g *o.GearSnapshot) { g.Pawns[0].Completeness.Filtered = proto.Uint64(1) },
+		"blocked eligible":    func(g *o.GearSnapshot) { g.Pawns[0].Blocker = proto.String("player job") },
+		"nan gain":            func(g *o.GearSnapshot) { g.Pawns[0].Candidates[0].Gain = proto.Float64(math.NaN()) },
+		"outside map":         func(g *o.GearSnapshot) { g.Pawns[0].Candidates[0].Item.Thing.Position.X = proto.Int32(4096) },
+		"unknown kind":        func(g *o.GearSnapshot) { g.Pawns[0].Candidates[0].Item.Apparel = nil },
 		"duplicate need": func(g *o.GearSnapshot) {
 			g.Pawns[0].ReplacementNeeds = append(g.Pawns[0].ReplacementNeeds, g.Pawns[0].ReplacementNeeds[0])
 		},
@@ -46,6 +48,21 @@ func TestColonyGearRequiresExactCompleteLoadoutEvidence(t *testing.T) {
 				t.Fatal("invalid gear evidence accepted")
 			}
 		})
+	}
+	// A full bound of candidates may report the eligible items it omitted
+	// as filtered (issue #320).
+	v = gearColonyFixture(t)
+	full := v.GetPlanning().GetObserved().Gear.Pawns[0]
+	for len(full.Candidates) < gearCandidateBound {
+		row := proto.Clone(full.Candidates[0]).(*o.GearCandidate)
+		row.Item.Thing.Id = proto.String(fmt.Sprintf("parka-%d", len(full.Candidates)))
+		full.Candidates = append(full.Candidates, row)
+	}
+	full.Completeness.Matched = proto.Uint64(gearCandidateBound)
+	full.Completeness.Returned = proto.Uint64(gearCandidateBound)
+	full.Completeness.Filtered = proto.Uint64(40)
+	if err := ValidateColonyFacts(v, v.Context.Identity); err != nil {
+		t.Fatal(err)
 	}
 	v = gearColonyFixture(t)
 	planning := v.GetPlanning().GetObserved()

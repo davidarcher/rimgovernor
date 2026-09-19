@@ -17419,6 +17419,7 @@ func (x *GearReplacementNeed) GetGain() float64 {
 	return 0
 }
 
+// candidates are the 8 best eligible loose items by gain (then thing id); further eligible items count as completeness.filtered, so a full list with filtered > 0 is complete.
 type GearLoadout struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	Snapshot         *SnapshotRef           `protobuf:"bytes,1,opt,name=snapshot,proto3" json:"snapshot,omitempty"`

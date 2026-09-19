@@ -66,6 +66,11 @@ func init() {
 						}
 						return fmt.Errorf("EnsureComfort was never admitted within the watch window")
 					}
+					// A committed save must leave the routine review headroom
+					// under the 1 MiB colony facts envelope (issue #320).
+					if err := na.CheckCommittedSaveHeadroom(ctx, h, report); err != nil {
+						return err
+					}
 					return commitCheckpoint(s.Config().Root, cases.CommittedSaves(), report)
 				},
 			})

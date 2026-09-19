@@ -73,24 +73,31 @@ func (h *Harness) Call(ctx context.Context, label, tool string, arguments any) (
 // json.Marshal(request)} and unwraps the ProtoJSON string payload from the reply's
 // "payload" field.
 func (h *Harness) Wire(ctx context.Context, label, method string, request any) (map[string]any, error) {
+	message, _, err := h.WireBytes(ctx, label, method, request)
+	return message, err
+}
+
+// WireBytes is Wire returning the reply payload's ProtoJSON byte count
+// beside the decoded message (the size the native 1 MiB envelope bounds).
+func (h *Harness) WireBytes(ctx context.Context, label, method string, request any) (map[string]any, int, error) {
 	encoded, err := json.Marshal(request)
 	if err != nil {
-		return nil, fmt.Errorf("encode wire request for %s: %w", method, err)
+		return nil, 0, fmt.Errorf("encode wire request for %s: %w", method, err)
 	}
 	reply, err := h.Call(ctx, label, "rimgovernor/"+method, map[string]any{"request": string(encoded)})
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	payloadValue, ok := reply["payload"]
 	payloadString, isString := payloadValue.(string)
 	if !ok || !isString {
-		return nil, fmt.Errorf("%s: reply did not preserve the ProtoJSON string envelope", method)
+		return nil, 0, fmt.Errorf("%s: reply did not preserve the ProtoJSON string envelope", method)
 	}
 	var message map[string]any
 	if err := json.Unmarshal([]byte(payloadString), &message); err != nil {
-		return nil, fmt.Errorf("%s: invalid ProtoJSON reply: %w", method, err)
+		return nil, 0, fmt.Errorf("%s: invalid ProtoJSON reply: %w", method, err)
 	}
-	return message, nil
+	return message, len(payloadString), nil
 }
 
 // WireFunc adapts Wire to the map-typed WireFunc the authority helpers and

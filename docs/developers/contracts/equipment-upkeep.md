@@ -21,7 +21,11 @@ biocoding, reservation, safe reachability and resource-budget checks. Native
 apparel scoring includes condition, armor, seasonal warmth and pawn-specific
 requirements. A gain below the native 0.05 threshold does not trigger dressing.
 Forced and locked apparel cannot be displaced. Orders do not change outfit filters
-or create forced apparel entries.
+or create forced apparel entries. A loadout carries at most 8 candidates, the
+best by gain then thing id; the eligible items past that bound count as
+`filtered` in the loadout's completeness, so the routine colony facts do not
+grow with pawns x loose items (issue #320). MaintainEquipment only wears the
+best funded candidate, and the wear order's own census applies the same bound.
 
 Weapon upkeep preserves existing player assignments. It can arm an available
 capable unarmed pawn and replace an upkeep-owned weapon at or below 50% condition

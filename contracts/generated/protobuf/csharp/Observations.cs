@@ -88870,6 +88870,9 @@ namespace RimGovernor.Protocol.Observations {
 
   }
 
+  /// <summary>
+  /// candidates are the 8 best eligible loose items by gain (then thing id); further eligible items count as completeness.filtered, so a full list with filtered > 0 is complete.
+  /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class GearLoadout : pb::IMessage<GearLoadout>
   #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE

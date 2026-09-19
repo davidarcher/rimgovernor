@@ -1,4 +1,6 @@
 #nullable enable
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using Verse;
@@ -10,6 +12,10 @@ namespace HomeBridge.BridgeTools
 {
     internal static class NativeGearFacts
     {
+        // The most candidates one loadout carries: the best by gain, then by
+        // thing id. MaintainEquipment only ever wears the best funded one.
+        internal const int CandidateBound = 8;
+
         internal static Obs.GearSnapshot Read(Map map, Common.ObservationContext context, int limit)
         {
             var people = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).ToList();
@@ -31,17 +37,28 @@ namespace HomeBridge.BridgeTools
                 if (refusal != null) row.Blocker = Text(refusal);
                 if (NativePawnControlState.Observe(identity, pawn, out var control) == NativePawnControlResult.Ready && control != null)
                     row.Pawn.Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = control.PawnId, Token = control.Token };
+                var omitted = 0;
                 if (refusal == null) {
-                    foreach (var apparel in map.listerThings.ThingsInGroup(ThingRequestGroup.Apparel).OfType<Apparel>().OrderBy(a => a.thingIDNumber)) {
+                    // Every eligible loose item scores for every pawn, so on
+                    // a map strewn with raid apparel the census grew with
+                    // pawns x items (~700 JSON bytes per candidate) and put
+                    // the routine colony facts at the 1 MiB envelope (issue
+                    // #320). Only the CandidateBound best by gain are carried;
+                    // the rest count as filtered, never as unmatched.
+                    var candidates = new List<KeyValuePair<Thing, float>>();
+                    foreach (var apparel in map.listerThings.ThingsInGroup(ThingRequestGroup.Apparel).OfType<Apparel>()) {
                         if (GearUpkeepTools.Eligible(pawn, apparel) != null) continue;
                         var gain = GearUpkeepTools.Gain(pawn, apparel);
-                        if (gain >= .05f) row.Candidates.Add(new Obs.GearCandidate { Item = Candidate(apparel, context), Gain = Number(gain) });
+                        if (gain >= .05f) candidates.Add(new KeyValuePair<Thing, float>(apparel, gain));
                     }
-                    foreach (var weapon in map.listerThings.ThingsInGroup(ThingRequestGroup.Weapon).OfType<ThingWithComps>().OrderBy(w => w.thingIDNumber))
+                    foreach (var weapon in map.listerThings.ThingsInGroup(ThingRequestGroup.Weapon).OfType<ThingWithComps>())
                         if (GearUpkeepTools.WeaponEligible(pawn, weapon) == null)
-                            row.Candidates.Add(new Obs.GearCandidate { Item = Candidate(weapon, context), Gain = Number(GearUpkeepTools.WeaponGain(pawn, weapon)) });
+                            candidates.Add(new KeyValuePair<Thing, float>(weapon, GearUpkeepTools.WeaponGain(pawn, weapon)));
+                    var bound = Math.Min(CandidateBound, limit);
+                    omitted = Math.Max(0, candidates.Count - bound);
+                    foreach (var candidate in candidates.OrderByDescending(c => c.Value).ThenBy(c => c.Key.thingIDNumber).Take(bound))
+                        row.Candidates.Add(new Obs.GearCandidate { Item = Candidate(candidate.Key, context), Gain = Number(candidate.Value) });
                 }
-                Require(row.Candidates.Count, limit);
                 var needs = GearUpkeepTools.ProductionNeeds(pawn);
                 Require(needs.Count, limit);
                 foreach (var need in needs) {
@@ -49,7 +66,7 @@ namespace HomeBridge.BridgeTools
                     if (need.stuff != null) replacement.Stuff = Id(need.stuff);
                     row.ReplacementNeeds.Add(replacement);
                 }
-                row.Completeness = Complete(row.Candidates.Count);
+                row.Completeness = Complete(row.Candidates.Count, omitted);
                 result.Pawns.Add(row);
             }
             return result;

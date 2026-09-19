@@ -131,7 +131,9 @@ func TestSelectScopesFixtures(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if sel.AllHarnesses || !slices.Equal(sel.Cases, []string{"defense"}) || len(sel.Packages) != 0 {
+	// tools/saveheadroom-defense-layout loads the committed defense save
+	// too (#320).
+	if sel.AllHarnesses || !slices.Equal(sel.Cases, []string{"defense", "tools"}) || len(sel.Packages) != 0 {
 		t.Errorf("defense fixture change selected %+v", sel)
 	}
 	sel, err = Select(r, []string{"scripts/fixtures/GuardedConstructionFixture.cs"})
