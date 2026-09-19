@@ -360,11 +360,13 @@ yield, covering consumption during its growth allowance plus the persisted food 
 That reserve, the food latch's thresholds and the wood thresholds are seasonal: the
 colony read carries the tile's growing calendar (`policy.Calendar`: growing days per
 year, days until the seasonal temperature leaves and next re-enters the crop range,
-the native sowing flag, season and day of year), and each review widens the configured
+the length of the current or coming non-growing stretch on the same daily walk, the
+native sowing flag, season and day of year), and each review widens the configured
 policy by its harvest gap (`RoutinePolicy.Seasonal`). The gap is the wait until growth
-resumes plus one rice cycle while nothing grows, and the coming non-growing part of the
-year, phased in over the gap plus one field cycle before the frost, while crops grow;
-a year-round tile has none and an unknown calendar keeps the flat thresholds. An
+resumes plus one rice cycle while nothing grows, and the coming non-growing stretch
+plus that cycle, phased in over the gap plus one field cycle and complete on the last
+growing day, while crops grow, so the thresholds are the same on both sides of the
+frost; a year-round tile has none and an unknown calendar keeps the flat thresholds. An
 observed growth pause extends the gap: a `VolcanicWinter` or `ColdSnap` condition
 with a native remaining-duration read (`RoutineFacts.DisasterConditions`,
 `policy.GrowthPauseDays`) adds its remaining days while crops grow, stands in for a

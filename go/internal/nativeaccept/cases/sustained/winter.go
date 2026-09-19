@@ -72,6 +72,7 @@ type winterSample struct {
 	TargetDays float64 `json:"food_target_days"`
 	Until      float64 `json:"growing_days_until"`
 	Remaining  float64 `json:"growing_days_remaining"`
+	NonGrowing float64 `json:"non_growing_days"`
 }
 
 func runWinter(ctx context.Context, s cases.Session) error {
@@ -93,7 +94,10 @@ func runWinter(ctx context.Context, s cases.Session) error {
 // derives the seasonal food policy the reviews will hold the colony to,
 // and stocks the larder up to its FoodTargetDays at the colony's own
 // nutrition demand: the precondition of a colony that filled its larder
-// before the frost, so the window tests the winter and not the summer.
+// before the frost, so the window tests the winter and not the summer. The
+// census's non-growing stretch must be the fixture's own walk to re-entry,
+// and the last growing day's thresholds must already be the winter's
+// (#317).
 func stockWinterLarder(ctx context.Context, h *na.Harness, identity, prepared map[string]any, report na.Report) error {
 	facts, err := h.Wire(ctx, "colony-facts", "observations_read_colony_facts", map[string]any{"scope": map[string]any{"expectedIdentity": identity}})
 	if err != nil {
@@ -111,26 +115,32 @@ func stockWinterLarder(ctx context.Context, h *na.Harness, identity, prepared ma
 	calendar := policy.Calendar{
 		Season: na.AsString(climate["season"]), DayOfYear: int64(na.AsNumber(climate["dayOfYear"])),
 		GrowingDays: na.AsNumber(climate["growingDays"]), GrowingDaysRemaining: na.AsNumber(climate["growingDaysRemaining"]),
-		GrowingDaysUntil: na.AsNumber(climate["growingDaysUntil"]), Sowing: sowing,
+		GrowingDaysUntil: na.AsNumber(climate["growingDaysUntil"]), NonGrowingDays: na.AsNumber(climate["nonGrowingDays"]), Sowing: sowing,
 	}
 	report["calendar"] = calendar
 	if !calendar.Valid() || calendar.GrowingDaysRemaining != 1 || calendar.GrowingDaysUntil != 0 {
 		return fmt.Errorf("fixture calendar is not the last growing day: %+v", calendar)
 	}
-	// The larder is sized on the thresholds the winter reviews will hold
-	// it to, not the last growing day's: once the frost is in, the harvest
-	// gap is the census's walk to re-entry (the fixture's nonGrowingDays)
-	// plus a harvest cycle, which on this tile is above the phased-in
-	// coming-winter estimate the growing-period label gives (#317).
 	nonGrowing := na.AsNumber(prepared["nonGrowingDays"])
 	if nonGrowing <= 0 || nonGrowing >= policy.YearDays {
 		return fmt.Errorf("fixture reports no non-growing stretch: %v", prepared["nonGrowingDays"])
 	}
+	if calendar.NonGrowingDays != nonGrowing {
+		return fmt.Errorf("the census's non-growing stretch %v is not the fixture's walk to re-entry %v", calendar.NonGrowingDays, nonGrowing)
+	}
+	// The larder is sized on the thresholds the winter reviews will hold
+	// it to: with the frost in, the harvest gap is the wait to re-entry
+	// plus a harvest cycle, and the last growing day already phases the
+	// same stretch in fully, so the two agree.
 	winter := calendar
 	winter.GrowingDaysRemaining, winter.GrowingDaysUntil, winter.Sowing = 0, nonGrowing, false
 	noConditions := domain.Unknown[[]policy.DisasterCondition]()
 	before := policy.DefaultRoutinePolicy().Seasonal(domain.Known(calendar), noConditions)
 	seasonal := policy.DefaultRoutinePolicy().Seasonal(domain.Known(winter), noConditions)
+	if math.Abs(before.FoodMinDays-seasonal.FoodMinDays) > 1e-9 || math.Abs(before.FoodTargetDays-seasonal.FoodTargetDays) > 1e-9 {
+		return fmt.Errorf("seasonal food thresholds jump at the frost: %.2f/%.2f on the last growing day, %.2f/%.2f on the first non-growing day",
+			before.FoodMinDays, before.FoodTargetDays, seasonal.FoodMinDays, seasonal.FoodTargetDays)
+	}
 	// The review's FoodDays is policy.ForecastFood over the combined
 	// supply: the colony's pets compete for the same stock, so the larder
 	// is sized on every consumer's demand, not the colonists' alone.
@@ -196,6 +206,7 @@ func auditWinter(output string, report na.Report) error {
 			Revision: uint64(na.AsNumber(row.Payload["revision"])), Tick: int64(na.AsNumber(row.Payload["tick"])),
 			MinDays: na.AsNumber(row.Payload["food_min_days"]), TargetDays: na.AsNumber(row.Payload["food_target_days"]),
 			Until: na.AsNumber(row.Payload["growing_days_until"]), Remaining: na.AsNumber(row.Payload["growing_days_remaining"]),
+			NonGrowing: na.AsNumber(row.Payload["non_growing_days"]),
 		}
 		if days, present := row.Payload["food_days"]; present {
 			sample.FoodDays, sample.Known = na.AsNumber(days), true
@@ -208,11 +219,19 @@ func auditWinter(output string, report na.Report) error {
 	}
 	known, growing, waiting := 0, 0, 0
 	lowest := math.Inf(1)
-	for _, sample := range samples {
+	var lastGrowing, firstWaiting *winterSample
+	for i := range samples {
+		sample := samples[i]
 		if sample.Until > 0 {
 			waiting++
+			if firstWaiting == nil {
+				firstWaiting = &samples[i]
+			}
 		} else {
 			growing++
+			if firstWaiting == nil {
+				lastGrowing = &samples[i]
+			}
 		}
 		if !sample.Known {
 			continue
@@ -230,6 +249,15 @@ func auditWinter(output string, report na.Report) error {
 	}
 	if growing == 0 || waiting == 0 {
 		return fmt.Errorf("the reviews did not straddle the first non-growing day (growing %d, waiting %d over %d reviews; window %v)", growing, waiting, len(samples), report["window"])
+	}
+	// The thresholds do not jump at the flip: the last growing review and
+	// the first waiting one hold the colony to the same figures (#317).
+	if lastGrowing != nil && firstWaiting != nil {
+		report["review_flip"] = map[string]any{"last_growing": *lastGrowing, "first_waiting": *firstWaiting}
+		if math.Abs(lastGrowing.MinDays-firstWaiting.MinDays) > 1e-6 || math.Abs(lastGrowing.TargetDays-firstWaiting.TargetDays) > 1e-6 {
+			return fmt.Errorf("seasonal thresholds jumped at the frost: review %d held %.2f/%.2f, review %d %.2f/%.2f",
+				lastGrowing.Revision, lastGrowing.MinDays, lastGrowing.TargetDays, firstWaiting.Revision, firstWaiting.MinDays, firstWaiting.TargetDays)
+		}
 	}
 	return nil
 }

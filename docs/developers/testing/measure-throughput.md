@@ -65,7 +65,7 @@ the context; `rimgovernor phases` ignores them. The kinds:
   read (`food_days`, when known) with the seasonal thresholds it held it
   to (`food_min_days`, `food_target_days`) and the growing calendar they
   came from (`season`, `day_of_year`, `growing_days_remaining`,
-  `growing_days_until`, when known).
+  `growing_days_until`, `non_growing_days`, when known).
 
 ## Traces
 

@@ -177,7 +177,7 @@ func ValidateColonyFacts(v *o.ColonyFactsSnapshot, identity *c.Identity) error {
 		if err := pawnsIssues(climate.Issues, climate.ProtoReflect()); err != nil {
 			return err
 		}
-		for _, number := range []*float64{climate.GrowingDays, climate.GrowingDaysRemaining, climate.GrowingDaysUntil} {
+		for _, number := range []*float64{climate.GrowingDays, climate.GrowingDaysRemaining, climate.GrowingDaysUntil, climate.NonGrowingDays} {
 			if !combatNumber(number, true) || number != nil && *number > 60 {
 				return contract("invalid seasonal crop budget")
 			}

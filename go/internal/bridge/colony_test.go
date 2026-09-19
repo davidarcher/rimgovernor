@@ -98,6 +98,8 @@ func TestColonyRefusesMalformedAndIncompleteNativeFacts(t *testing.T) {
 				r.FoodClimate = &o.FoodClimate{GrowingDays: proto.Float64(40), GrowingDaysRemaining: proto.Float64(10), GrowingDaysUntil: proto.Float64(0), SowingNow: proto.Bool(true), DayOfYear: proto.Int32(40), Season: proto.String("Autumn")}
 			case "calendar-until":
 				r.FoodClimate = &o.FoodClimate{GrowingDays: proto.Float64(40), GrowingDaysRemaining: proto.Float64(10), GrowingDaysUntil: proto.Float64(61), SowingNow: proto.Bool(true)}
+			case "calendar-non-growing":
+				r.FoodClimate = &o.FoodClimate{GrowingDays: proto.Float64(40), GrowingDaysRemaining: proto.Float64(10), GrowingDaysUntil: proto.Float64(0), NonGrowingDays: proto.Float64(-1), SowingNow: proto.Bool(true)}
 			case "environment-room":
 				r.Planning.GetObserved().Environment = &o.ControlledEnvironment{Rooms: []*o.GrowRoom{{RoomId: proto.String("7"), CellCount: proto.Uint32(4), LitCells: proto.Uint32(5)}}, Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(1), Returned: proto.Uint64(1), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}}
 			}

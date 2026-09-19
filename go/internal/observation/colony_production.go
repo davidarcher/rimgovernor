@@ -139,10 +139,10 @@ func colonyProductionBenches(v *o.ColonyFactsSnapshot) domain.Fact[[]policy.Prod
 // fact. Every day count and the sowing flag must be present; the season
 // name and day of year are informational and default when absent.
 func colonyCalendar(climate *o.FoodClimate) domain.Fact[policy.Calendar] {
-	if climate.GrowingDays == nil || climate.GrowingDaysRemaining == nil || climate.GrowingDaysUntil == nil || climate.SowingNow == nil {
+	if climate.GrowingDays == nil || climate.GrowingDaysRemaining == nil || climate.GrowingDaysUntil == nil || climate.NonGrowingDays == nil || climate.SowingNow == nil {
 		return domain.Unknown[policy.Calendar]()
 	}
-	c := policy.Calendar{Season: climate.GetSeason(), DayOfYear: int64(climate.GetDayOfYear()), GrowingDays: climate.GetGrowingDays(), GrowingDaysRemaining: climate.GetGrowingDaysRemaining(), GrowingDaysUntil: climate.GetGrowingDaysUntil(), Sowing: climate.GetSowingNow()}
+	c := policy.Calendar{Season: climate.GetSeason(), DayOfYear: int64(climate.GetDayOfYear()), GrowingDays: climate.GetGrowingDays(), GrowingDaysRemaining: climate.GetGrowingDaysRemaining(), GrowingDaysUntil: climate.GetGrowingDaysUntil(), NonGrowingDays: climate.GetNonGrowingDays(), Sowing: climate.GetSowingNow()}
 	if !c.Valid() {
 		return domain.Unknown[policy.Calendar]()
 	}

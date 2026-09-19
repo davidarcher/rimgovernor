@@ -35,7 +35,7 @@ func TestFieldPlannerReservationsCASAndManual(t *testing.T) {
 	reviewer.methods = domain.Known([]policy.GoalID{policy.EnsureFoodSupply})
 	v := n.reply.GetObserved()
 	v.Farms = nil
-	v.FoodClimate = &o.FoodClimate{GrowingDays: proto.Float64(60), GrowingDaysRemaining: proto.Float64(60), SowingNow: proto.Bool(true)}
+	v.FoodClimate = &o.FoodClimate{GrowingDays: proto.Float64(60), GrowingDaysRemaining: proto.Float64(60), GrowingDaysUntil: proto.Float64(0), NonGrowingDays: proto.Float64(0), SowingNow: proto.Bool(true)}
 	issues := v.Issues[:0]
 	for _, i := range v.Issues {
 		if i.GetField() != "farms" && i.GetField() != "food_climate" {

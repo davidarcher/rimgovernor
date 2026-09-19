@@ -297,7 +297,7 @@ func TestRoutineReviewerUsesSameTickMedicalCensus(t *testing.T) {
 }
 
 func TestRoutineFoodAttrsCarryRunwayThresholdsAndCalendar(t *testing.T) {
-	calendar := policy.Calendar{Season: "Fall", DayOfYear: 33, GrowingDays: 30, GrowingDaysRemaining: 1, Sowing: true}
+	calendar := policy.Calendar{Season: "Fall", DayOfYear: 33, GrowingDays: 30, GrowingDaysRemaining: 1, NonGrowingDays: 33, Sowing: true}
 	facts := policy.RoutineFacts{FoodDays: domain.Known(38.5), Calendar: domain.Known(calendar)}
 	seasonal := policy.DefaultRoutinePolicy().Seasonal(facts.Calendar, facts.DisasterConditions)
 	attrs := routineFoodAttrs(facts, seasonal)
@@ -308,7 +308,7 @@ func TestRoutineFoodAttrsCarryRunwayThresholdsAndCalendar(t *testing.T) {
 	if got["food_days"] != 38.5 || got["food_min_days"] != seasonal.FoodMinDays || got["food_target_days"] != seasonal.FoodTargetDays {
 		t.Fatalf("food attrs: %v", got)
 	}
-	if got["season"] != "Fall" || got["day_of_year"] != int64(33) || got["growing_days_remaining"] != 1.0 || got["growing_days_until"] != 0.0 {
+	if got["season"] != "Fall" || got["day_of_year"] != int64(33) || got["growing_days_remaining"] != 1.0 || got["growing_days_until"] != 0.0 || got["non_growing_days"] != 33.0 {
 		t.Fatalf("calendar attrs: %v", got)
 	}
 	if seasonal.FoodMinDays <= policy.DefaultRoutinePolicy().FoodMinDays {

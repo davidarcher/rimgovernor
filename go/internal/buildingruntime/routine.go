@@ -262,7 +262,7 @@ func routineFoodAttrs(f policy.RoutineFacts, seasonal policy.RoutinePolicy) []an
 		attrs = append(attrs, "food_days", days)
 	}
 	if c, known := f.Calendar.Value(); known {
-		attrs = append(attrs, "season", c.Season, "day_of_year", c.DayOfYear, "growing_days_remaining", c.GrowingDaysRemaining, "growing_days_until", c.GrowingDaysUntil)
+		attrs = append(attrs, "season", c.Season, "day_of_year", c.DayOfYear, "growing_days_remaining", c.GrowingDaysRemaining, "growing_days_until", c.GrowingDaysUntil, "non_growing_days", c.NonGrowingDays)
 	}
 	return attrs
 }

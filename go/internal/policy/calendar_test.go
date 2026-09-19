@@ -20,12 +20,24 @@ func TestHarvestGapDaysBridgesTheNonGrowingYear(t *testing.T) {
 		calendar Calendar
 		want     float64
 	}{
-		{"the first frost day budgets the whole winter", Calendar{Season: "Fall", GrowingDays: 40, GrowingDaysRemaining: 0, Sowing: true}, 23},
-		{"midsummer phases the winter in over one field cycle", Calendar{Season: "Summer", GrowingDays: 40, GrowingDaysRemaining: 15.25, Sowing: true}, 11.5},
-		{"early summer holds no winter stock yet", Calendar{Season: "Summer", GrowingDays: 40, GrowingDaysRemaining: 35, Sowing: true}, 0},
-		{"winter budgets the wait until growth resumes", Calendar{Season: "Winter", GrowingDays: 40, GrowingDaysRemaining: 0, GrowingDaysUntil: 12}, 15},
-		{"a year-round tile has no gap", Calendar{Season: "PermanentSummer", GrowingDays: 60, GrowingDaysRemaining: 60, Sowing: true}, 0},
-		{"a tile that never grows is capped at one year", Calendar{Season: "PermanentWinter", GrowingDays: 0, GrowingDaysRemaining: 0, GrowingDaysUntil: 60}, 60},
+		{"the last growing day budgets the whole winter", Calendar{Season: "Fall", GrowingDays: 40, GrowingDaysRemaining: 1, NonGrowingDays: 20, Sowing: true}, 23},
+		{"midsummer phases the winter in over one field cycle", Calendar{Season: "Summer", GrowingDays: 40, GrowingDaysRemaining: 16.25, NonGrowingDays: 20, Sowing: true}, 11.5},
+		{"early summer holds no winter stock yet", Calendar{Season: "Summer", GrowingDays: 40, GrowingDaysRemaining: 35, NonGrowingDays: 20, Sowing: true}, 0},
+		{"winter budgets the wait until growth resumes", Calendar{Season: "Winter", GrowingDays: 40, GrowingDaysRemaining: 0, GrowingDaysUntil: 12, NonGrowingDays: 12}, 15},
+		{"a year-round tile has no gap", Calendar{Season: "PermanentSummer", GrowingDays: 60, GrowingDaysRemaining: 60, NonGrowingDays: 0, Sowing: true}, 0},
+		{"a tile that never grows is capped at one year", Calendar{Season: "PermanentWinter", GrowingDays: 0, GrowingDaysRemaining: 0, GrowingDaysUntil: 60, NonGrowingDays: 60}, 60},
+		// The growing-period label (twelfths, 5-day steps) is not the walk:
+		// the walk's stretch is the gap, so the label cannot move it (#317).
+		{"the walk's stretch outranks the growing-period label", Calendar{Season: "Fall", GrowingDays: 30, GrowingDaysRemaining: 1, NonGrowingDays: 33, Sowing: true}, 36},
+	}
+	// The gap the last growing day phases in is the gap the first frost day
+	// reads, so the seasonal thresholds do not jump at the flip (#317).
+	last := Calendar{Season: "Fall", GrowingDays: 30, GrowingDaysRemaining: 1, NonGrowingDays: 33, Sowing: true}
+	first := Calendar{Season: "Fall", GrowingDays: 30, GrowingDaysRemaining: 0, GrowingDaysUntil: 33, NonGrowingDays: 33}
+	before, _ := HarvestGapDays(domain.Known(last), noConditions).Value()
+	after, _ := HarvestGapDays(domain.Known(first), noConditions).Value()
+	if before != after {
+		t.Fatalf("gap jumps at the frost: %v then %v", before, after)
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -38,7 +50,7 @@ func TestHarvestGapDaysBridgesTheNonGrowingYear(t *testing.T) {
 	if _, known := HarvestGapDays(domain.Unknown[Calendar](), noConditions).Value(); known {
 		t.Fatal("unknown calendar produced a gap")
 	}
-	for _, bad := range []Calendar{{GrowingDays: 61}, {GrowingDaysUntil: -1}, {GrowingDaysRemaining: math.NaN()}, {DayOfYear: 60}} {
+	for _, bad := range []Calendar{{GrowingDays: 61}, {GrowingDaysUntil: -1}, {GrowingDaysRemaining: math.NaN()}, {NonGrowingDays: 61}, {DayOfYear: 60}} {
 		if bad.Valid() {
 			t.Fatal("invalid calendar accepted", bad)
 		}
@@ -50,7 +62,7 @@ func TestHarvestGapDaysBridgesTheNonGrowingYear(t *testing.T) {
 
 func TestSeasonalPolicyWidensFoodAndWoodTargetsTogether(t *testing.T) {
 	base := DefaultRoutinePolicy()
-	winter := domain.Known(Calendar{Season: "Winter", GrowingDays: 40, GrowingDaysUntil: 12})
+	winter := domain.Known(Calendar{Season: "Winter", GrowingDays: 40, GrowingDaysUntil: 12, NonGrowingDays: 12})
 	p := base.Seasonal(winter, noConditions)
 	if p.FoodTargetDays != base.FoodTargetDays+15 || p.FoodMinDays != base.FoodMinDays+15 || p.FootholdFoodDays != base.FootholdFoodDays {
 		t.Fatal(p)
@@ -65,10 +77,10 @@ func TestSeasonalPolicyWidensFoodAndWoodTargetsTogether(t *testing.T) {
 	if got := base.Seasonal(domain.Unknown[Calendar](), noConditions); got.FoodTargetDays != base.FoodTargetDays || got.WoodTarget != base.WoodTarget {
 		t.Fatal("unknown calendar changed the targets", got)
 	}
-	if got := base.Seasonal(domain.Known(Calendar{GrowingDays: 60, GrowingDaysRemaining: 60, Sowing: true}), noConditions); got.FoodTargetDays != base.FoodTargetDays || got.WoodTarget != base.WoodTarget || got.WoodMax != base.WoodMax {
+	if got := base.Seasonal(domain.Known(Calendar{GrowingDays: 60, GrowingDaysRemaining: 60, NonGrowingDays: 0, Sowing: true}), noConditions); got.FoodTargetDays != base.FoodTargetDays || got.WoodTarget != base.WoodTarget || got.WoodMax != base.WoodMax {
 		t.Fatal("a year-round tile changed the targets")
 	}
-	capped := base.Seasonal(domain.Known(Calendar{GrowingDaysUntil: 60}), noConditions)
+	capped := base.Seasonal(domain.Known(Calendar{GrowingDaysUntil: 60, NonGrowingDays: 60}), noConditions)
 	if capped.FoodTargetDays != YearDays || capped.FoodMinDays != YearDays-(base.FoodTargetDays-base.FoodMinDays) {
 		t.Fatal("food thresholds exceed one year", capped)
 	}
@@ -83,10 +95,10 @@ func TestRoutineFoodAndWoodLatchesHoldThroughTheHarvestGap(t *testing.T) {
 	if r := needs(t, f, RoutineLatches{}); r.Latches.Food || r.Latches.Wood || hasNeed(r, EnsureFoodSupply) {
 		t.Fatal(r)
 	}
-	// The first frost day with a 20-day winter ahead: the same stock is a
+	// The last growing day with a 20-day winter ahead: the same stock is a
 	// deficit against the seasonal thresholds (26/30 days, 515/1500 wood)
 	// and stays one until it covers the gap.
-	f.Calendar = domain.Known(Calendar{Season: "Fall", DayOfYear: 40, GrowingDays: 40, GrowingDaysRemaining: 0, Sowing: true})
+	f.Calendar = domain.Known(Calendar{Season: "Fall", DayOfYear: 40, GrowingDays: 40, GrowingDaysRemaining: 1, NonGrowingDays: 20, Sowing: true})
 	r := needs(t, f, RoutineLatches{})
 	if !r.Latches.Food || !r.Latches.Wood || !hasNeed(r, EnsureFoodSupply) || !hasNeed(r, MaintainWood) {
 		t.Fatal(r)
@@ -115,8 +127,8 @@ func TestRoutineFoodAndWoodLatchesHoldThroughTheHarvestGap(t *testing.T) {
 }
 
 func TestHarvestGapDaysExtendsByAnObservedGrowthPause(t *testing.T) {
-	summer := domain.Known(Calendar{Season: "Summer", GrowingDays: 40, GrowingDaysRemaining: 35, Sowing: true})
-	winter := domain.Known(Calendar{Season: "Winter", GrowingDays: 40, GrowingDaysUntil: 12})
+	summer := domain.Known(Calendar{Season: "Summer", GrowingDays: 40, GrowingDaysRemaining: 35, NonGrowingDays: 20, Sowing: true})
+	winter := domain.Known(Calendar{Season: "Winter", GrowingDays: 40, GrowingDaysUntil: 12, NonGrowingDays: 12})
 	cases := []struct {
 		name       string
 		calendar   domain.Fact[Calendar]

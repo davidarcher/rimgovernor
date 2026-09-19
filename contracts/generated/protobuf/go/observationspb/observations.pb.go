@@ -21582,8 +21582,12 @@ func (x *EnvironmentCondition) GetTicksLeft() int64 {
 // the tile's growing period per 60-day year, growing_days_remaining the days
 // until the seasonal temperature next leaves the crop growth range (60 while
 // it never does), growing_days_until the days until it next re-enters it (0
-// while crops grow now, 60 when the tile never grows). season is the native
-// Season name at the tile and day_of_year the 0-based day of the 60-day year.
+// while crops grow now, 60 when the tile never grows), and non_growing_days
+// the length of the current or coming non-growing stretch on the same daily
+// walk (first out-of-range day to re-entry: 0 while it never leaves, 60 when
+// it never grows; equal to growing_days_until while crops do not grow).
+// season is the native Season name at the tile and day_of_year the 0-based
+// day of the 60-day year.
 type FoodClimate struct {
 	state                protoimpl.MessageState `protogen:"open.v1"`
 	GrowingDays          *float64               `protobuf:"fixed64,1,opt,name=growing_days,json=growingDays,proto3,oneof" json:"growing_days,omitempty"`
@@ -21593,6 +21597,7 @@ type FoodClimate struct {
 	GrowingDaysUntil     *float64               `protobuf:"fixed64,5,opt,name=growing_days_until,json=growingDaysUntil,proto3,oneof" json:"growing_days_until,omitempty"`
 	Season               *string                `protobuf:"bytes,6,opt,name=season,proto3,oneof" json:"season,omitempty"`
 	DayOfYear            *int32                 `protobuf:"varint,7,opt,name=day_of_year,json=dayOfYear,proto3,oneof" json:"day_of_year,omitempty"`
+	NonGrowingDays       *float64               `protobuf:"fixed64,8,opt,name=non_growing_days,json=nonGrowingDays,proto3,oneof" json:"non_growing_days,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -21672,6 +21677,13 @@ func (x *FoodClimate) GetSeason() string {
 func (x *FoodClimate) GetDayOfYear() int32 {
 	if x != nil && x.DayOfYear != nil {
 		return *x.DayOfYear
+	}
+	return 0
+}
+
+func (x *FoodClimate) GetNonGrowingDays() float64 {
+	if x != nil && x.NonGrowingDays != nil {
+		return *x.NonGrowingDays
 	}
 	return 0
 }
@@ -31811,7 +31823,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x06_labelB\f\n" +
 	"\n" +
 	"_permanentB\r\n" +
-	"\v_ticks_left\"\xb6\x03\n" +
+	"\v_ticks_left\"\xfa\x03\n" +
 	"\vFoodClimate\x12&\n" +
 	"\fgrowing_days\x18\x01 \x01(\x01H\x00R\vgrowingDays\x88\x01\x01\x129\n" +
 	"\x16growing_days_remaining\x18\x02 \x01(\x01H\x01R\x14growingDaysRemaining\x88\x01\x01\x12>\n" +
@@ -31820,13 +31832,15 @@ const file_observations_proto_rawDesc = "" +
 	"sowing_now\x18\x04 \x01(\bH\x02R\tsowingNow\x88\x01\x01\x121\n" +
 	"\x12growing_days_until\x18\x05 \x01(\x01H\x03R\x10growingDaysUntil\x88\x01\x01\x12\x1b\n" +
 	"\x06season\x18\x06 \x01(\tH\x04R\x06season\x88\x01\x01\x12#\n" +
-	"\vday_of_year\x18\a \x01(\x05H\x05R\tdayOfYear\x88\x01\x01B\x0f\n" +
+	"\vday_of_year\x18\a \x01(\x05H\x05R\tdayOfYear\x88\x01\x01\x12-\n" +
+	"\x10non_growing_days\x18\b \x01(\x01H\x06R\x0enonGrowingDays\x88\x01\x01B\x0f\n" +
 	"\r_growing_daysB\x19\n" +
 	"\x17_growing_days_remainingB\r\n" +
 	"\v_sowing_nowB\x15\n" +
 	"\x13_growing_days_untilB\t\n" +
 	"\a_seasonB\x0e\n" +
-	"\f_day_of_year\"\xad\x04\n" +
+	"\f_day_of_yearB\x13\n" +
+	"\x11_non_growing_days\"\xad\x04\n" +
 	"\tFarmFacts\x12\x1c\n" +
 	"\azone_id\x18\x01 \x01(\tH\x00R\x06zoneId\x88\x01\x01\x12\x17\n" +
 	"\x04crop\x18\x02 \x01(\tH\x01R\x04crop\x88\x01\x01\x12&\n" +
