@@ -3,11 +3,15 @@ package nativeaccept
 import (
 	"context"
 	"fmt"
+	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/davidarcher/RimGovernor/go/internal/httpapi"
 )
 
 // TestMain doubles as the fake `rimgovernor serve` the launch tests spawn:
@@ -21,6 +25,16 @@ func TestMain(m *testing.M) {
 			os.Exit(3)
 		case "garbage":
 			fmt.Println("not a service")
+			os.Exit(0)
+		case "pprof":
+			// A real listener with the controller's /debug/pprof routes, so
+			// the launch's profile captures have something to collect.
+			listener, err := net.Listen("tcp", "127.0.0.1:0")
+			if err != nil {
+				os.Exit(2)
+			}
+			fmt.Println("RimGovernor Go player service: http://" + listener.Addr().String())
+			_ = (&http.Server{Handler: httpapi.PprofHandler(), WriteTimeout: time.Second}).Serve(listener)
 			os.Exit(0)
 		}
 		fmt.Println("RimGovernor Go player service: http://127.0.0.1:1")
@@ -39,7 +53,7 @@ func TestServeArgsFixesTheSharedFlags(t *testing.T) {
 	for _, want := range []string{
 		"serve --profile C:/out/service-profile --gabs C:/gabs.exe --config C:/cfg --game rimworld --state C:/out/service.sqlite",
 		"--listen 127.0.0.1:0", "--refresh 1s", "--timeout 15s", "--flight-recorder C:/out/flight.jsonl",
-		"--clock-speed Ultrafast --clock-test-acceleration", "--resume", "--routine-project-limit 2",
+		"--clock-speed Ultrafast --clock-test-acceleration", "--pprof", "--resume", "--routine-project-limit 2",
 	} {
 		if !strings.Contains(joined, want) {
 			t.Errorf("argv %q lacks %q", joined, want)
@@ -57,6 +71,66 @@ func TestServeArgsFixesTheSharedFlags(t *testing.T) {
 	t.Setenv(ClockSpeedEnv, "")
 	if got := strings.Join(ServeArgs(cfg, "g", "p", "s", "f", ServeSpec{}), " "); !strings.Contains(got, "--clock-speed Superfast") || strings.Count(got, "--clock-speed") != 1 {
 		t.Errorf("default speed: %q", got)
+	}
+	t.Setenv(PprofEnv, "0")
+	if got := strings.Join(ServeArgs(cfg, "g", "p", "s", "f", ServeSpec{}), " "); strings.Contains(got, "--pprof") {
+		t.Errorf("%s=0 must drop --pprof: %q", PprofEnv, got)
+	}
+}
+
+// A launch profiles the service for the report's budget and Stop ends the
+// CPU profile and takes the heap snapshot before the kill, both on disk
+// and on the launch's entry (#301).
+func TestLaunchServeCapturesProfilesAtStop(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	cfg := &Config{Output: t.TempDir(), Configuration: "cfg", GameID: "g"}
+	report := NewReport("test", true)
+	report.SetBudget(5 * time.Minute)
+	p, err := launchServe(ctx, cfg, "gabs", fakeServeSpec(t, "pprof"), 1, report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer p.Stop()
+	// Past the fake's WriteTimeout the capture must still be in flight.
+	time.Sleep(1500 * time.Millisecond)
+	p.Stop()
+	entry := report["service"].(map[string]any)
+	pprof, ok := entry["pprof"].(map[string]any)
+	if !ok || pprof["seconds"] != 300 {
+		t.Fatalf("pprof entry %#v", entry["pprof"])
+	}
+	for _, name := range []string{"cpu", "heap"} {
+		want := filepath.Join(cfg.Output, "service", name+".pprof")
+		if pprof[name] != want {
+			t.Fatalf("%s: %v", name, pprof[name])
+		}
+		data, err := os.ReadFile(want)
+		if err != nil || len(data) < 2 || data[0] != 0x1f || data[1] != 0x8b {
+			t.Fatalf("%s: %d bytes, %v", want, len(data), err)
+		}
+	}
+}
+
+// A service that is gone before Stop skips its captures without failing.
+func TestLaunchServeSkipsProfilesWhenTheServiceIsGone(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	cfg := &Config{Output: t.TempDir(), Configuration: "cfg", GameID: "g"}
+	report := NewReport("test", true)
+	p, err := launchServe(ctx, cfg, "gabs", fakeServeSpec(t, "run"), 1, report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.Stop()
+	pprof, _ := report["service"].(map[string]any)["pprof"].(map[string]any)
+	if pprof["seconds"] != defaultProfileSeconds {
+		t.Fatalf("seconds %v", pprof["seconds"])
+	}
+	for _, name := range []string{"cpu", "heap"} {
+		if outcome, _ := pprof[name].(string); !strings.HasPrefix(outcome, "skipped: ") {
+			t.Fatalf("%s: %v", name, pprof[name])
+		}
 	}
 }
 

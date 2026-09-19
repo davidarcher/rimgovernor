@@ -51,6 +51,18 @@ func TestServeRejectsRelativeFlightRecorderPath(t *testing.T) {
 	}
 }
 
+func TestServePprofIsOffUnlessAsked(t *testing.T) {
+	dir := t.TempDir()
+	base := []string{"--observe", "--gabs", filepath.Join(dir, "gabs"), "--config", dir, "--game", "trial", "--state", filepath.Join(dir, "state.db")}
+	config, err := parseServe(base, io.Discard)
+	if err != nil || config.pprof {
+		t.Fatalf("pprof on by default: %+v %v", config, err)
+	}
+	if config, err = parseServe(append(append([]string{}, base...), "--pprof"), io.Discard); err != nil || !config.pprof {
+		t.Fatalf("--pprof not retained: %+v %v", config, err)
+	}
+}
+
 func TestServeWorldEvaluationFlagValidation(t *testing.T) {
 	dir := t.TempDir()
 	withRoutineFamilies(t, "", false)

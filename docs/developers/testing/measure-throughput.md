@@ -116,6 +116,25 @@ on Windows' coarse monotonic clock.
 - Low wall TPS with a low paused fraction: the game itself is slow at that
   speed; the controller is not the bottleneck.
 
+## Profile
+
+`serve --pprof` (off by default) serves `net/http/pprof` under
+`/debug/pprof/` on the controller's own listener, local-only like every
+other route. The CPU route keeps pprof's contract (`GET
+/debug/pprof/profile?seconds=N`) and adds an early end: `DELETE
+/debug/pprof/profile` stops the capture in flight and the pending `GET`
+completes with the profile so far, so a profile started for a whole run
+still arrives when the run ends sooner.
+
+```bash
+go tool pprof -http=: C:\path\to\run\<area>\<case>\service\cpu.pprof
+```
+
+The acceptance runner does this for every service it launches
+(`cpu.pprof` over the case's budget, `heap.pprof` at stop; see
+[choose-tests](choose-tests.md#adding-a-case));
+`RIMGOVERNOR_ACCEPT_PPROF=0` opts out.
+
 ## Across clock speeds
 
 The controller must make the same decisions per game tick and react to a

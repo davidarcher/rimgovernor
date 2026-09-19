@@ -108,6 +108,7 @@ type serveConfig struct {
 	clockWindowSeconds              float64
 	chat                            bool
 	resume                          bool
+	pprof                           bool
 	chatModel                       string
 	chatBaseURL                     string
 	chatContextTokens               int
@@ -141,6 +142,7 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.BoolVar(&c.clockTestAcceleration, "clock-test-acceleration", false, "acceptance only: ask native for its dev tick boost under each Ultrafast window; the game refuses it unless launched with -rimgovernor-test-acceleration (headless acceptance profiles)")
 	flags.UintVar(&c.clockWindowTicks, "clock-window-ticks", defaultClockWindowTicks, fmt.Sprintf("game ticks one supervised colony window may run before it pauses for review (1..%d); a watched outcome, danger or player input still stops it earlier", maxClockWindowTicks))
 	flags.Float64Var(&c.clockWindowSeconds, "clock-window-seconds", defaultClockWindowSeconds, fmt.Sprintf("least wall seconds a supervised colony window should run at --clock-speed: the window grows past --clock-window-ticks to the ticks the speed runs in this time, or in the pause observed between windows if longer, up to %d ticks; 0 keeps --clock-window-ticks fixed", maxClockWindowTicks))
+	flags.BoolVar(&c.pprof, "pprof", false, "serve net/http/pprof under /debug/pprof/ on the listener (CPU profile, heap, trace); off by default")
 	flags.StringVar(&c.flightRecorder, "flight-recorder", "", "absolute path recording every native request/response/error (optional; opt-in diagnostics)")
 	flags.IntVar(&c.routineProjectLimit, "routine-project-limit", 2, "maximum concurrent optional projects, also bounded by observed workers (1..8)")
 	flags.StringVar(&c.routineDialogPrefer, "routine-dialog-prefer", strings.Join(policy.DefaultDialogAnswerPrefer, ","), "comma-separated option patterns AnswerDialog prefers when a force-pausing choice dialog is open: each matches an option's Keyed translation key exactly or its label as a case-insensitive substring, first match wins; the first selectable resolving option otherwise")
@@ -490,7 +492,7 @@ func serveWithBridge(ctx context.Context, config serveConfig, out io.Writer, ope
 	_ = snapshots.Refresh(ctx)
 	presentation, _ := client.(httpapi.PresentationReader)
 	notifications, _ := client.(httpapi.NotificationReader)
-	server, err := httpapi.New(httpapi.Config{Notifications: notifications, Presentation: presentation, AssetsDir: config.assets, ReadTimeout: 5 * time.Second, ShutdownTimeout: 5 * time.Second, MaxResponseBytes: 1 << 20}, snapshots, database)
+	server, err := httpapi.New(httpapi.Config{Notifications: notifications, Presentation: presentation, AssetsDir: config.assets, Pprof: config.pprof, ReadTimeout: 5 * time.Second, ShutdownTimeout: 5 * time.Second, MaxResponseBytes: 1 << 20}, snapshots, database)
 	if err != nil {
 		return err
 	}

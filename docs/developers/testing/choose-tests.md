@@ -98,7 +98,15 @@ check. A serve-driven case declares `Serve: &cases.ServeSpec{...}` and
 calls `s.Serve(ctx, s.Spec())` when its in-game setup is done (the
 `dialog/pause`, `surgery/queue` and `light/*` cases are the reference
 shapes); `s.Reattach(ctx)` takes the slot back for the postmortem reads.
-A case that composes the serve lifecycle itself uses `s.Launch`.
+A case that composes the serve lifecycle itself uses `s.Launch`. Every
+service a run launches is profiled (#301): the runner passes `--pprof`,
+starts a CPU profile for the case's budget at launch and, at the
+service's stop, takes a heap snapshot and ends the profile, writing
+`cpu.pprof` and `heap.pprof` beside the service's logs
+(`<output>/<area>/<case>/service[-N]/`, `go tool pprof <file>`) and
+their outcome under the launch's `service[_N].pprof` in `result.json`;
+a service that exited first records the capture as skipped, never as a
+failure. `RIMGOVERNOR_ACCEPT_PPROF=0` opts out.
 
 The checklist below is what a case is held to. Each item names the runner
 default that makes it true by construction or the lint rule

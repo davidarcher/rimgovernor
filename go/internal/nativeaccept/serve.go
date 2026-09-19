@@ -24,8 +24,10 @@ import (
 // runs against (issue #138). What every launch shares is fixed here rather
 // than per harness: the clock speed comes from ClockSpeedArgs
 // (RIMGOVERNOR_ACCEPT_CLOCK_SPEED, #128), the flight recorder and
-// --listen 127.0.0.1:0 are always on, --refresh is 1s, and the service's
-// profile, state and logs live under the run's output directory.
+// --listen 127.0.0.1:0 are always on, --pprof is on unless
+// RIMGOVERNOR_ACCEPT_PPROF opts out (see pprof.go), --refresh is 1s, and
+// the service's profile, state, logs and profiles live under the run's
+// output directory.
 type ServeSpec struct {
 	// Binary is the prebuilt rimgovernor binary (absolute path).
 	Binary string
@@ -97,6 +99,7 @@ type ServiceProcess struct {
 	keep     *AuthorityKeepAlive
 	stopKeep func() map[string]any
 	stepped  bool
+	profile  *serviceProfile
 	mu       sync.Mutex
 }
 
@@ -227,6 +230,9 @@ func ServeArgs(cfg *Config, gabs, profileDir, statePath, flightPath string, spec
 		"--flight-recorder", flightPath,
 	}
 	argv = append(argv, ClockSpeedArgs()...)
+	if ProfileServices() {
+		argv = append(argv, "--pprof")
+	}
 	if spec.Resume {
 		argv = append(argv, "--resume")
 	}
@@ -305,6 +311,9 @@ func launchServe(ctx context.Context, cfg *Config, gabs string, spec ServeSpec, 
 	}
 	p.URL = strings.TrimPrefix(firstLine, prefix)
 	entry["url"] = p.URL
+	if ProfileServices() {
+		p.profile = startProfile(p.URL, serviceDir, profileSeconds(report), entry)
+	}
 	stdoutLogFile, err := os.Create(filepath.Join(serviceDir, "stdout.log"))
 	if err != nil {
 		p.Stop()
@@ -370,8 +379,9 @@ func (p *ServiceProcess) HoldAuthority(held bool) {
 	}
 }
 
-// Stop ends the keep-alive, kills the service if still running and waits
-// for it to exit, and closes the handle's store. It returns the keep-alive
+// Stop ends the keep-alive, collects the service's profiles (pprof.go),
+// kills the service if still running and waits for it to exit, and closes
+// the handle's store. It returns the keep-alive
 // counters when KeepAuthority ran, else nil. The service's own GABS
 // subprocess ends with it (bridge's job object) and releases the game
 // shortly (not synchronously) afterwards; Game.Reattach retries for that.
@@ -389,6 +399,9 @@ func (p *ServiceProcess) Stop() map[string]any {
 	var keep map[string]any
 	if stopKeep != nil {
 		keep = stopKeep()
+	}
+	if p.profile != nil {
+		p.profile.stop(p.Exited() == nil)
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()

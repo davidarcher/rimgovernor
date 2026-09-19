@@ -783,7 +783,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	if raw, ok := client.reads.(*bridge.Client); ok {
 		attention = attentionAcknowledger{raw}
 	}
-	server, err := httpapi.NewWithPlayer(httpapi.Config{ClockReview: clockReview, Routines: routines, WorldEvaluation: worldEvaluation, Notifications: notifications, Presentation: presentation, PresentationMedia: client.presentationMedia, VideoFrames: videoshm.Open, Lifecycle: client.lifecycle, Attention: attention, AssetsDir: config.assets, ReadTimeout: 35 * time.Second, ShutdownTimeout: 5 * time.Second, MaxResponseBytes: 1 << 20}, buildingSnapshots{reads, player}, database, player, database)
+	server, err := httpapi.NewWithPlayer(httpapi.Config{ClockReview: clockReview, Routines: routines, WorldEvaluation: worldEvaluation, Notifications: notifications, Presentation: presentation, PresentationMedia: client.presentationMedia, VideoFrames: videoshm.Open, Lifecycle: client.lifecycle, Attention: attention, AssetsDir: config.assets, Pprof: config.pprof, ReadTimeout: 35 * time.Second, ShutdownTimeout: 5 * time.Second, MaxResponseBytes: 1 << 20}, buildingSnapshots{reads, player}, database, player, database)
 	if err != nil {
 		return err
 	}

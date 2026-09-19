@@ -63,6 +63,9 @@ type Config struct {
 	// another host, buffer already released) falls back to ReadFrame. Nil
 	// always uses ReadFrame.
 	VideoFrames func(sourceID string) (videoshm.Reader, error)
+	// Pprof mounts net/http/pprof under /debug/pprof/ (see pprof.go); off,
+	// the routes answer 404.
+	Pprof bool
 }
 type State struct {
 	SessionID    string         `json:"sessionId"`
