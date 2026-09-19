@@ -15,6 +15,7 @@ import (
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
+	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/doctor"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/postmortem"
 )
 
@@ -274,5 +275,18 @@ func TestDoctorRefusesBadFlagsAndFailsAnEmptyRoot(t *testing.T) {
 	}
 	if code := runCases(context.Background(), selected, opts, &stdout); code != 2 || !strings.Contains(stdout.String(), "preflight failed") || strings.Contains(stdout.String(), "ok    ") {
 		t.Fatalf("run preflight: code %d\n%s", code, stdout.String())
+	}
+}
+
+func TestHealableOnlyWhenEveryFailHasACode(t *testing.T) {
+	stale := doctor.Check{Name: "mod", Status: doctor.Fail, Code: doctor.HealStaleMod}
+	if got := healable([]doctor.Check{{Name: "root"}, stale}); len(got) != 1 || got[0] != doctor.HealStaleMod {
+		t.Fatalf("healable = %v", got)
+	}
+	if got := healable([]doctor.Check{stale, {Name: "baseline", Status: doctor.Fail}}); got != nil {
+		t.Fatalf("a codeless Fail must refuse the heal: %v", got)
+	}
+	if got := healable([]doctor.Check{{Name: "mod", Status: doctor.Warn, Code: doctor.HealStaleMod}}); got != nil {
+		t.Fatalf("a warn is not healed: %v", got)
 	}
 }

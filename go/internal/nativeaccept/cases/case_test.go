@@ -100,3 +100,13 @@ func TestExecuteFailureWritesDiagnosis(t *testing.T) {
 		t.Fatalf("result.json: %v\n%.80s", err, result)
 	}
 }
+
+func TestFixtureOpsWalksNestedStarts(t *testing.T) {
+	c := Case{Start: Fixture{Op: "test/outer", On: Fixture{Op: "test/inner", On: Save{Name: "tribal8"}}}}
+	if got := c.FixtureOps(); strings.Join(got, ",") != "test/inner,test/outer" {
+		t.Fatalf("FixtureOps = %v", got)
+	}
+	if got := (Case{Start: DebugStart{}}).FixtureOps(); got != nil {
+		t.Fatalf("debug start has ops: %v", got)
+	}
+}

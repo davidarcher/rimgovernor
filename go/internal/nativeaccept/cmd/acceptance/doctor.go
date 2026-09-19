@@ -7,7 +7,6 @@ import (
 	"io"
 	"path/filepath"
 
-	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/doctor"
 )
 
@@ -46,20 +45,4 @@ func runDoctor(ctx context.Context, args []string, stdout, stderr io.Writer) int
 		return 1
 	}
 	return 0
-}
-
-// preflight is run's first step: the same checks, only the failing ones
-// printed, and a Fail refuses the run before any game opens.
-func preflight(ctx context.Context, selected []cases.Case, opts cases.Options, stdout io.Writer) bool {
-	names := make([]string, 0, len(selected))
-	for _, c := range selected {
-		names = append(names, c.Name)
-	}
-	checks := doctor.Run(ctx, doctor.Options{Root: opts.Root, Rimgovernor: opts.Rimgovernor, Output: opts.Output, Cases: names, GameID: opts.GameID})
-	doctor.Write(stdout, checks, true)
-	if doctor.Failed(checks) {
-		fmt.Fprintln(stdout, "preflight failed; fix the checks above or pass -no-doctor to run anyway")
-		return false
-	}
-	return true
 }

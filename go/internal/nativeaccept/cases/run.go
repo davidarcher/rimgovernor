@@ -73,6 +73,15 @@ type Options struct {
 	// NoDoctor skips the runner's doctor preflight (a suite worker whose
 	// parent already ran it on the shared root).
 	NoDoctor bool
+	// NoHeal makes the preflight refuse a stale or fixture-less install
+	// instead of rebuilding and reinstalling the mod (#276): a landing run
+	// never silently rebuilds.
+	NoHeal bool
+	// Healed lists what the preflight healed before this run (the doctor's
+	// heal codes and "relaunched" when it stopped the root's kept game);
+	// the report carries it under "healed" so a slow first run is
+	// explained.
+	Healed []string
 }
 
 // SeriesPath is where the run's series lives: Series, or the default
@@ -111,6 +120,9 @@ func Execute(ctx context.Context, c Case, opts Options) (na.Report, int) {
 	headless := opts.Headless && !c.Rendered
 	report := na.NewReport(c.Scope, headless)
 	report["case"] = c.Name
+	if len(opts.Healed) > 0 {
+		report["healed"] = opts.Healed
+	}
 	na.ResetWaitStats()
 	na.ResetTickStats()
 	gameLog := na.OpenGameLog((&na.Config{Root: opts.Root, Headless: headless}).StartupLogPath())

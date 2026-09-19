@@ -237,6 +237,23 @@ type Case struct {
 	NoCheckpoint bool
 }
 
+// FixtureOps are the test ops the case's Start calls, outermost last:
+// what the installed build must register for the case to start
+// (Config.FixtureOps; the doctor's fixture coverage and a heal's rebuild
+// read them, #276). A start without a fixture op has none.
+func (c Case) FixtureOps() []string {
+	var ops []string
+	for start := c.Start; start != nil; {
+		f, ok := start.(Fixture)
+		if !ok {
+			break
+		}
+		ops = append([]string{f.Op}, ops...)
+		start = f.On
+	}
+	return ops
+}
+
 // Validate is the shape check Register applies.
 func (c Case) Validate() error {
 	if c.Name == "" {

@@ -383,7 +383,17 @@ func runSuite(ctx context.Context, list []entry, opts suiteOptions, stderr io.Wr
 		report["baseline"] = opts.Baseline
 	}
 	schedule(list, b)
-	if !preflight(ctx, nil, cases.Options{Root: opts.Root, Rimgovernor: opts.Rimgovernor, Output: opts.Output, GameID: opts.GameID}, stderr) {
+	// The landing gate never rebuilds the mod on its own (NoHeal, #276);
+	// the rows' fixture ops still let the preflight name a fixture the
+	// build lacks. Cases go unnamed so no row's output directory counts
+	// as occupied here (each worker checks its own).
+	var selected []cases.Case
+	for _, e := range list {
+		if e.registered != nil {
+			selected = append(selected, cases.Case{Start: e.registered.Start})
+		}
+	}
+	if _, ok := preflight(ctx, selected, cases.Options{Root: opts.Root, Rimgovernor: opts.Rimgovernor, Output: opts.Output, GameID: opts.GameID, NoHeal: true}, stderr); !ok {
 		report["error"] = "doctor preflight failed on " + opts.Root
 		return report.Finalize(opts.Output)
 	}

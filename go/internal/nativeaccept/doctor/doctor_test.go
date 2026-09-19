@@ -205,3 +205,50 @@ func TestSaveModIDs(t *testing.T) {
 		t.Fatal("no modIds accepted")
 	}
 }
+
+// fixtureRepo is a checkout whose scripts/fixtures register one op each
+// under PowerFixture and FarmFixture.
+func fixtureRepo(t *testing.T) string {
+	t.Helper()
+	repo := t.TempDir()
+	write(t, filepath.Join(repo, "scripts", "fixtures", "PowerFixture.cs"), `[Tool("test/power_prepare")] class PowerFixture {}`)
+	write(t, filepath.Join(repo, "scripts", "fixtures", "FarmFixture.cs"), `[Tool("test/farm_prepare")] class FarmFixture {}`)
+	return repo
+}
+
+func TestMissingFixturesNamesTheClassesTheBuildLacks(t *testing.T) {
+	repo := fixtureRepo(t)
+	got := MissingFixtures(repo, []string{"PowerFixture", "ShutdownFixture"}, []string{"test/power_prepare", "test/farm_prepare", "test/nobody"})
+	if strings.Join(got, ",") != "FarmFixture" {
+		t.Fatalf("MissingFixtures = %v", got)
+	}
+	if got := MissingFixtures(repo, []string{"PowerFixture"}, []string{"test/power_prepare"}); got != nil {
+		t.Fatalf("installed fixture reported missing: %v", got)
+	}
+	if got := MissingFixtures("", nil, []string{"test/power_prepare"}); got != nil {
+		t.Fatalf("no repo: %v", got)
+	}
+}
+
+func TestStaleModFailsWithHealCode(t *testing.T) {
+	o, l := fakeRoot(t)
+	pkg := filepath.Join(l.GameCopy, "Mods", "RimGovernor")
+	write(t, filepath.Join(pkg, na.PackageManifestName), `{"role":"fixture","fixtures":["PowerFixture"],"sourceRevision":"abcdef0123456789","sourceTree":"not-this-worktree"}`)
+	// RequireCurrentPackage compares against the checkout enclosing the
+	// working directory: this test's, whose tree never hashes to the
+	// manifest's.
+	checks := Run(context.Background(), o)
+	c := byName(checks, "mod")
+	if c.Status != Fail || c.Code != HealStaleMod {
+		t.Fatalf("mod = %+v", c)
+	}
+	if !strings.Contains(c.Fix, "acceptance setup") {
+		t.Fatalf("fix = %q", c.Fix)
+	}
+}
+
+func TestSetupHintSkipsEmptyFlags(t *testing.T) {
+	if got := setupHint("", "", "-rebuild"); got != "go run ./internal/nativeaccept/cmd/acceptance setup -rebuild (from go/)" {
+		t.Fatalf("setupHint = %q", got)
+	}
+}

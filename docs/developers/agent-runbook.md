@@ -17,8 +17,9 @@ RimWorld running.
 3. Before the first native acceptance run, `go run
    ./internal/nativeaccept/cmd/acceptance setup` from `go/` builds the
    private layout below (game copy, bridge root, fixture mod, binaries) and
-   prints the first run command; rerun it after merging `main` to rebuild a
-   stale mod. `acceptance doctor -root <root> [-rimgovernor <bin>]` then
+   prints the first run command. After merging `main` a plain `acceptance
+   run` heals a stale mod itself (below); `setup` again is only for a
+   layout change. `acceptance doctor -root <root> [-rimgovernor <bin>]`
    checks the environment in a second or two (below). Then keep to the
    run pattern.
 
@@ -83,7 +84,8 @@ What it produces:
   arguments contain `C:\Program Files`, which those Steam paths do. The
   build is copied in **only while no game of yours is running**. `Prepare` refuses a stale install before
   boot (`na.RequireCurrentPackage`) and its error names the rebuild
-  command. Rebuild whenever `integrations/rimgovernor-native` or
+  command; `acceptance run` does the rebuild itself (the heal, below).
+  Rebuild whenever `integrations/rimgovernor-native` or
   `scripts/fixtures` changed, including after merging `main`.
 - **The controller binaries**, `.rimgovernor/bin/{acceptance,rimgovernor}.exe`
   (a serve-driven case takes `-rimgovernor <path>`). Never rebuild them,
@@ -110,7 +112,17 @@ What it produces:
   occupied output directory. It exits non-zero only on a check that would
   certainly fail the run; `run` and `suite` run the same checks first,
   print only the failing ones and refuse on a failure (`-no-doctor` on
-  `run` skips it).
+  `run` skips it), with one exception: a stale installed mod, or one
+  lacking a fixture the run's cases call, is **healed** by `run` (#276)
+  rather than refused. The heal stops this root's own kept game (GABS
+  `games_stop`, then any leftover pid running from the worktree's private
+  copy -- never by image name), rebuilds the mod through `setup` with the
+  installed fixture set plus the cases' own, installs it and lets the run
+  launch fresh; the checks run again and `result.json` lists the heal
+  under `healed` (`stale_mod`, `missing_fixture`, `relaunched`) so a slow
+  first run is explained. It only heals a root that launches the
+  worktree's own `.rimgovernor/native-rimworld`. `-no-heal` restores the
+  refusal; `suite`, the landing gate's form, never heals.
 - Pass absolute paths (`-root`, `-output`, `-OutputRoot`): the PowerShell
   tool's working directory follows the last `cd` in the Bash tool.
 - Expect 170-250 ticks/s of game time with peers running whatever speed you
@@ -127,9 +139,9 @@ What it produces:
   right after the mod is installed. It refuses a stale package like a
   run does and a mod rebuilt afterwards relaunches on the package check
   (#285).
-- Before copying a rebuilt mod in, look for your own leftover
+- Before copying a rebuilt mod in by hand, look for your own leftover
   `RimWorldWin64.exe` from an earlier kept run (command-line filter on the
-  worktree path) and stop it by pid.
+  worktree path) and stop it by pid; the heal does this for you.
 - Read the digest first: a failed case writes `diagnosis` at the top of
   its `result.json` and `diagnosis.txt` beside it (`acceptance why
   <output>/<area>/<case>` reprints it, `-json` for the structure): the run

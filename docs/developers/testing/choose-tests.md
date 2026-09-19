@@ -429,7 +429,11 @@ before that field falls back to `git diff --quiet <sourceRevision> --
 rebuild for this run needs: the installed build's fixtures plus the ones
 under `scripts/fixtures` registering the ops the case's `Fixture` start
 calls (`Config.FixtureOps`, `inputs.FixtureClasses`), so following the
-hint cannot drop the case's own fixture (#208);
+hint cannot drop the case's own fixture (#208). `acceptance run` follows
+that hint itself: its preflight heals a stale build, or one lacking a
+fixture the run's cases call, by stopping the root's own game, rebuilding
+through `setup` and reinstalling before the run (`healed` in
+`result.json`, #276); `-no-heal` refuses instead, as `suite` always does.
 `RIMGOVERNOR_ACCEPT_ALLOW_STALE_MOD=1` runs against the stale build anyway
 (bisecting the mod against newer Go code). The report records the check
 under `installed_package` (`checked`, `method`, `fixtures`,

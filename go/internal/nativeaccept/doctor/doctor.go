@@ -54,7 +54,18 @@ type Check struct {
 	// Detail is what was found; Fix is what to do about it (empty on OK).
 	Detail string
 	Fix    string
+	// Code names a Fail the runner can heal on its own (#276):
+	// HealStaleMod (the installed mod's sources differ from the worktree)
+	// or HealMissingFixture (the build lacks a fixture the run's cases
+	// call); "" for every other check.
+	Code string
 }
+
+// Heal codes a run's heal step (cmd/acceptance) acts on.
+const (
+	HealStaleMod       = "stale_mod"
+	HealMissingFixture = "missing_fixture"
+)
 
 // Options name what a run would use.
 type Options struct {
@@ -69,6 +80,11 @@ type Options struct {
 	Cases  []string
 	// GameID is the configured game (setup.GameID by default).
 	GameID string
+	// FixtureOps are the test ops the run's cases call from their Start
+	// (cases.Case.FixtureOps): the installed build must carry the
+	// fixtures registering them, and a stale build's rebuild hint names
+	// them.
+	FixtureOps []string
 	// Repo is the checkout the stale-package check compares against: the
 	// one enclosing the working directory (what Prepare uses), else the
 	// one enclosing Root.
@@ -152,8 +168,10 @@ func setupHint(repo string, flags ...string) string {
 	if repo != "" {
 		cmd += " -worktree " + repo
 	}
-	if len(flags) > 0 {
-		cmd += " " + strings.Join(flags, " ")
+	for _, f := range flags {
+		if f != "" {
+			cmd += " " + f
+		}
 	}
 	return cmd + " (from go/)"
 }
@@ -239,11 +257,12 @@ func mod(o Options, gameCopy string) Check {
 	}
 	// RequireCurrentPackage compares against the checkout enclosing the
 	// working directory, exactly as Prepare will.
-	summary, err := na.RequireCurrentPackage(pkg)
+	summary, err := na.RequireCurrentPackage(pkg, o.FixtureOps...)
 	if err != nil {
 		// The error's rebuild recipe is the by-hand one; setup is the fix.
 		why, _, _ := strings.Cut(err.Error(), "; rebuild it")
-		c.Status, c.Detail, c.Fix = Fail, why, setupHint(o.Repo)+", -rebuild if it says the build is current"
+		c.Status, c.Detail, c.Code = Fail, why, HealStaleMod
+		c.Fix = setupHint(o.Repo, fixtureFlag(o.Repo, manifest.Fixtures, o.FixtureOps)) + ", -rebuild if it says the build is current"
 		return c
 	}
 	if skipped, _ := summary["skipped"].(string); skipped != "" {
@@ -253,7 +272,43 @@ func mod(o Options, gameCopy string) Check {
 			c.Fix = "unset " + na.AllowStaleModEnv + " unless you mean to run against an older native build"
 		}
 	}
+	if missing := MissingFixtures(o.Repo, manifest.Fixtures, o.FixtureOps); len(missing) > 0 {
+		c.Status, c.Code = Fail, HealMissingFixture
+		c.Detail += fmt.Sprintf("; the run's cases call ops of fixtures the build lacks: %v", missing)
+		c.Fix = setupHint(o.Repo, fixtureFlag(o.Repo, manifest.Fixtures, o.FixtureOps))
+	}
 	return c
+}
+
+// MissingFixtures lists, sorted, the fixture classes registering any of
+// fixtureOps that installed (a manifest's fixture list) lacks; nil when
+// repo is unknown or every class is installed.
+func MissingFixtures(repo string, installed, fixtureOps []string) []string {
+	if repo == "" || len(fixtureOps) == 0 {
+		return nil
+	}
+	have := map[string]bool{}
+	for _, f := range installed {
+		have[f] = true
+	}
+	var missing []string
+	for _, f := range na.FixtureFlags(repo, nil, fixtureOps) {
+		if !have[f] {
+			missing = append(missing, f)
+		}
+	}
+	return missing
+}
+
+// fixtureFlag is the -fixture flag a setup rebuild for the run takes
+// (na.FixtureFlags: installed plus the run's), "" when there is nothing
+// to name.
+func fixtureFlag(repo string, installed, fixtureOps []string) string {
+	flags := na.FixtureFlags(repo, installed, fixtureOps)
+	if len(flags) == 0 {
+		return ""
+	}
+	return "-fixture " + strings.Join(flags, ",")
 }
 
 // baseline is the committed Core-only baseline save (#192): missing in

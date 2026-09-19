@@ -1,7 +1,7 @@
 // Command acceptance is the shared runner over the case registry (#135):
 //
 //	acceptance list [-cost [-baseline <result.json|metrics.jsonl>]] [<case>|<area>/...]...
-//	acceptance run <case>... [-root -output -game -headless -timeout -budget -stall -rimgovernor -series -no-series -evidence -fresh -rewind N -checkpoint-every d -no-doctor -repeat N -seed s]
+//	acceptance run <case>... [-root -output -game -headless -timeout -budget -stall -rimgovernor -series -no-series -evidence -fresh -rewind N -checkpoint-every d -no-doctor -no-heal -repeat N -seed s]
 //	acceptance suite (-all | -cases a,b | -suite file.json) -root -output -workers N [-baseline result.json -series metrics.jsonl]
 //	acceptance stop -root <dir> [-config -game -takeover]
 //	acceptance setup [-worktree -rimworld -harmony -gabs -fixture -production -rebuild -skip-mod -skip-binaries]
@@ -12,7 +12,9 @@
 //
 // It replaces the per-harness binaries' preamble with one loop: resolve the
 // shared configuration, run the doctor preflight (doctor.go, #277; only
-// its failing checks print and a Fail refuses the run), open the game, bring it to the case's Start, quiet
+// its failing checks print and a Fail refuses the run, except a stale or
+// fixture-less install, which the run rebuilds and reinstalls unless
+// -no-heal; heal.go, #276), open the game, bring it to the case's Start, quiet
 // the storyteller, freeze needs, run the case, write result.json with the
 // run's timing and metrics block, append the block to the metrics series
 // and flag drift (nativeaccept/metrics.go). `suite` (suite.go) runs a set
@@ -156,7 +158,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 const usage = `usage:
 ` + listUsage + `
-  acceptance run <case>... -root <dir> [-output <dir> -game <id> -headless=false -timeout <d> -budget <d> -stall <d> -rimgovernor <binary> -series <metrics.jsonl> -no-series -evidence capped|full -fresh -rewind <n> -checkpoint-every <d> -no-doctor -repeat <n> -seed <s>]
+  acceptance run <case>... -root <dir> [-output <dir> -game <id> -headless=false -timeout <d> -budget <d> -stall <d> -rimgovernor <binary> -series <metrics.jsonl> -no-series -evidence capped|full -fresh -rewind <n> -checkpoint-every <d> -no-doctor -no-heal -repeat <n> -seed <s>]
     a case whose last run in this root failed resumes from its checkpoint ring (printed on the first line);
     -fresh starts over, -rewind <n> resumes n entries earlier, -checkpoint-every 0 turns the ring off;
     -repeat <n> runs each case n times fresh and reports the pass rate and seeds (<output>/<case>.repeat.json);
@@ -195,6 +197,7 @@ func parseRun(args []string, stderr io.Writer) ([]cases.Case, cases.Options, err
 	fs.StringVar(&opts.Series, "series", "", "append-only metrics series each case's block is appended to (default <output>/../metrics.jsonl)")
 	fs.BoolVar(&opts.NoSeries, "no-series", false, "leave the metrics series alone")
 	fs.BoolVar(&opts.NoDoctor, "no-doctor", false, "skip the doctor preflight (a suite worker, or a check you have judged wrong)")
+	fs.BoolVar(&opts.NoHeal, "no-heal", false, "refuse a stale or fixture-less installed mod instead of rebuilding and reinstalling it (a landing run)")
 	fs.IntVar(&opts.Repeat, "repeat", 1, "run each case this many times fresh on the kept process and report the pass rate and per-attempt seeds")
 	fs.StringVar(&opts.Seed, "seed", "", "pin the world seed of a debug or scenario start (a result.json world.seed) to reproduce that run; implies -fresh")
 	if err := fs.Parse(flagArgs); err != nil {
@@ -256,10 +259,16 @@ func parseRun(args []string, stderr io.Writer) ([]cases.Case, cases.Options, err
 // runCases executes the cases in order on one game after the doctor
 // preflight (each Repeat times, with its repeat summary after the
 // attempts); the exit code is non-zero when any case failed, 2 when the
-// preflight refused the run.
+// preflight refused the run. A stale or fixture-less install is healed
+// by the preflight (heal.go, #276) unless -no-heal, and every case's
+// result.json says so under "healed".
 func runCases(ctx context.Context, selected []cases.Case, opts cases.Options, stdout io.Writer) int {
-	if !opts.NoDoctor && !preflight(ctx, selected, opts, stdout) {
-		return 2
+	if !opts.NoDoctor {
+		healed, ok := preflight(ctx, selected, opts, stdout)
+		if !ok {
+			return 2
+		}
+		opts.Healed = healed
 	}
 	exit := 0
 	opts.Log = stdout
