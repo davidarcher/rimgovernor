@@ -23,8 +23,9 @@ type Selection struct {
 	// AllGo means go.mod or go.sum changed: every package is affected.
 	AllGo bool
 	// Packages are the import paths to go test: the packages holding the
-	// changed Go files (or testdata) and every in-module package importing
-	// them. Empty with AllGo set means ./... .
+	// changed Go files (or testdata). Production edits also select every
+	// in-module importer; test-only edits stay local. Empty with AllGo set
+	// means ./... .
 	Packages []string
 	// Cases are the go/internal/nativeaccept/cases areas (#135) whose
 	// inputs (na.HarnessInputs) include a changed file: every case the
@@ -146,6 +147,7 @@ func Select(repo string, changed []string) (Selection, error) {
 	// the runner; a source scoped to routine families (routineFamilyScope)
 	// is kept out of sources and recorded under families instead.
 	changedPkgs := map[string][]string{}
+	productionPkgs := map[string]bool{}
 	sources := map[string][]string{}
 	families := map[string][]string{} // family -> files scoped to it
 	for dir, files := range dirs {
@@ -158,6 +160,7 @@ func Select(repo string, changed []string) (Selection, error) {
 			if strings.HasSuffix(file, "_test.go") || !strings.HasSuffix(file, ".go") {
 				continue
 			}
+			productionPkgs[pkg] = true
 			scope, err := routineFamilyScope(goDir, file)
 			if err != nil {
 				return sel, err
@@ -172,14 +175,15 @@ func Select(repo string, changed []string) (Selection, error) {
 		}
 	}
 	// A package is affected when it changed or imports (directly, or
-	// through tests) a changed package.
-	for pkg, deps := range graph.deps {
+	// through its own tests) changed production code. Another package's
+	// tests and testdata are not compiled into its importers.
+	for pkg, deps := range graph.testDeps {
 		if _, ok := changedPkgs[pkg]; ok {
 			sel.Packages = append(sel.Packages, pkg)
 			continue
 		}
 		for _, dep := range deps {
-			if _, ok := changedPkgs[dep]; ok {
+			if productionPkgs[dep] {
 				sel.Packages = append(sel.Packages, pkg)
 				break
 			}
@@ -234,7 +238,7 @@ func Select(repo string, changed []string) (Selection, error) {
 		if profile.Binary {
 			why = append(why, binaryWhy...)
 		}
-		if files, ok := changedPkgs[pkg]; ok {
+		if files, ok := sources[pkg]; ok {
 			why = append(why, "the area changed ("+strings.Join(files, ", ")+")")
 		}
 		if fixtureAreas[name] {
@@ -356,10 +360,11 @@ func goPackageDir(repo, file string) (string, bool) {
 }
 
 type graph struct {
-	module string
-	byDir  map[string]string   // absolute directory -> import path
-	deps   map[string][]string // import path -> in-module deps (transitive) plus direct test imports
-	direct map[string][]string // import path -> in-module direct imports (no tests)
+	module   string
+	byDir    map[string]string   // absolute directory -> import path
+	deps     map[string][]string // import path -> transitive in-module production deps
+	testDeps map[string][]string // production deps plus dependencies of this package's tests
+	direct   map[string][]string // import path -> in-module direct imports (no tests)
 
 	fixturesOnce sync.Once
 	fixtures     map[string][]string // case area -> fixture inputs its sources depend on
@@ -393,7 +398,7 @@ func readDependencyGraph(goDir string) (*graph, error) {
 	if err != nil {
 		return nil, err
 	}
-	g := &graph{module: strings.TrimSpace(module), byDir: map[string]string{}, deps: map[string][]string{}, direct: map[string][]string{}}
+	g := &graph{module: strings.TrimSpace(module), byDir: map[string]string{}, deps: map[string][]string{}, direct: map[string][]string{}, testDeps: map[string][]string{}}
 	out, err := goOutput(goDir, "list", "-f", `{{.ImportPath}}|{{.Dir}}|{{join .Imports " "}}|{{join .Deps " "}}|{{join .TestImports " "}} {{join .XTestImports " "}}`, "./...")
 	if err != nil {
 		return nil, err
@@ -410,6 +415,11 @@ func readDependencyGraph(goDir string) (*graph, error) {
 		g.deps[pkg] = g.inModule(strings.Fields(fields[3]))
 		tests[pkg] = g.inModule(strings.Fields(fields[4]))
 	}
+	g.addTestDependencies(tests)
+	return g, nil
+}
+
+func (g *graph) addTestDependencies(tests map[string][]string) {
 	// .Deps is transitive but the test imports are direct: close over them
 	// with each import's .Deps, so a package's own test imports never
 	// reach the packages importing it.
@@ -427,9 +437,9 @@ func readDependencyGraph(goDir string) (*graph, error) {
 				}
 			}
 		}
-		g.deps[pkg] = closed
+		sort.Strings(closed)
+		g.testDeps[pkg] = closed
 	}
-	return g, nil
 }
 
 // inModule keeps the module's own import paths.

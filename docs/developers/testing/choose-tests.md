@@ -40,7 +40,7 @@ an area hosting `rimgovernor serve` (a `Serve` spec or `Service` case, a
 input changed (the native mod's build inputs, the same list
 `RequireCurrentPackage` compares, and `go.mod`/`go.sum`). A bridge-only
 area never runs the binary, so no binary change reaches it, and a
-`_test.go` edit builds into no binary, so it names packages to test and
+`_test.go` or package `testdata` edit builds into no binary, so it names only its owning package to test and
 no area (#361). A test fixture under `scripts/fixtures` is not shared
 (#170): a `<Name>Fixture.cs` affects the areas whose Go sources name one
 of its `[Tool("test/...")]` ops (and the fixtures it mentions by class
@@ -65,8 +65,10 @@ as `//go:build` count as code), or only the clock's debug trace (an `if
 clockDebug()` block that traces and nothing else, a `clockSchedulerLog`
 call), is not a change at all and names nothing. `cmd/affected -files`
 prints, under each area, the changed file and the rule that reached it,
-so an unexpected tier is explainable. Run the named areas at the milestone, before landing, and
-name them in the commit message; an area you judged unaffected and skipped
+so an unexpected tier is explainable. Run the printed
+`acceptance suite -tier land` command at the milestone and hand its output
+to `cmd/land -results`. It covers the affected areas plus smoke; do not run
+the areas separately first. Name the suite in the commit message; an area you judged unaffected and skipped
 is "left unverified" below: land and say so in an issue. A run counts for the code it ran against: `main` moving under the
 branch afterwards, a clean rebase or a cherry-pick does not invalidate it,
 and nothing hashes or grades it. Never enter a second rerun-and-land cycle
@@ -944,11 +946,12 @@ areas (cases the baseline never timed are not counted; `acceptance list
 `go run ./cmd/test` runs the `go test` line and the probes build (the
 landing lane does not), after gofmt on the changed Go files and `go vet`
 plus staticcheck on the affected packages, the gates `task go:build`
-applies to the whole module (#334). Run the acceptance lines at the milestone and name them in the commit
-message. Run `cmd/test` once before
-landing. Go-only changes need the full Go
-suite; dashboard-only changes need typecheck, Vitest and build. Changes to shared
-Protobuf contracts need both plus generation checks. Reuse a successful run when
+applies to the whole module (#334). The individual acceptance lines from
+`cmd/affected` explain selection; use the single land-tier command printed
+by `cmd/test` for milestone validation. Run `cmd/test` once before landing;
+do not follow it with `go test ./...`. Changes touching dashboard, C# or
+shared Protobuf contracts use `task build && task test` for their project
+gates and generation checks. Reuse a successful run when
 relevant code, dependencies, inputs and environment are unchanged, even if main has
 advanced; do not repeat full suites after documentation-only follow-ups. Report
 commands, exit status, skips, artifact locations and what remains unverified. Keep

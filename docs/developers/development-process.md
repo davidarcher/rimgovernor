@@ -17,7 +17,7 @@ multiple milestones, continue to the next one instead of stopping to be re-promp
 Check Git status before editing. Use a separate task worktree and `codex/` branch
 when peers may be active. Coordinate shared interfaces and integration.
 
-Follow the [delivery and coordination rules](../../AGENTS.md#delivery-speed-and-coordination).
+Follow the [working agreement](../../AGENTS.md#the-loop).
 Default to one agent. For requested teams, establish ownership and an integration
 owner once, then work independently. Communicate actual overlaps, contract changes,
 blockers and ready handoffs; do not narrate edits or seek speculative conflict checks.
@@ -65,8 +65,10 @@ escapes inside a documented adapter with a boundary test; no blanket suppression
 
 ### What is enforced and what is policy
 
-`task build && task test` from the repository root is the gate. There is no
-hosted CI: the gate runs on the developer's machine before work lands on
+`go run ./cmd/test` from `go/` runs the affected Go checks. Use
+`task build && task test` from the repository root when the change touches
+dashboard, protobuf or C# projects. There is no
+hosted CI: checks run on the developer's machine before work lands on
 `main`, and `go:test` runs the `-race` pass alongside the plain pass whenever a
 C compiler (`gcc`, e.g. WinLibs MinGW-w64 via `winget`) is on `PATH`. The race
 runtime is several times slower on Windows than on Linux, so test deadlines
@@ -104,19 +106,19 @@ table fails the gate; everything in the second is reviewed by hand.
 ## Verify and commit
 
 Use the [testing pyramid and evidence rules](testing/choose-tests.md#testing-budget-and-evidence-reuse).
-Run `task build && task test` (or just the projects the change touches,
-`task go:test`) before landing. During iteration, run affected files and
-contract neighbors. Before handoff, run the full affected suite once. Reuse
-successful results when the relevant source and environment are unchanged.
+Run `go run ./cmd/test` from `go/` before landing. It checks affected Go
+packages and their importers; test-only edits check their owning package.
+Do not follow it with a full Go suite. Use `task build && task test` for
+changes touching dashboard, protobuf or C# projects. Reuse successful
+results when the relevant source and environment are unchanged.
 
 Test behavior at its owning boundary: pure policy with fixtures, wire formats
 with real decoders, recovery with temporary storage and fault injection, native
 writes with observed game outcomes. Test model interpretation separately from
 execution. Use configured local LM Studio models with no paid-provider fallback.
 
-Native runs use existing launchers, fresh outputs and task-specific image tags.
-Advance time with `rimgovernor.native_scenario.advance_game`; interruption tests
-pass `expected_letters=()`. Never replace installed DLLs while any game is running.
+Native runs use the registered acceptance cases and the setup and run commands
+in the [agent runbook](agent-runbook.md). Never replace installed DLLs while any game is running.
 Keep failed evidence and report unavailable platform, model or gameplay coverage.
 
 Review ownership, failure handling, compatibility and unnecessary abstractions.
@@ -128,8 +130,11 @@ commit per milestone; the loop is in [AGENTS.md](../../AGENTS.md), the
 machine setup in the [agent runbook](agent-runbook.md)); pull requests are
 disabled and the maintainer pushes `main` manually. `go run ./cmd/test`
 from `go/` is the test loop and the pre-land check (the lane runs no
-tests); run the acceptance harnesses it names at the milestone, at most
-once per milestone. `main` moving afterwards is never a reason to rerun.
+tests). When it names affected case areas, run the printed
+`acceptance suite -tier land` command once at the milestone and pass its
+output to `cmd/land -results`. That suite includes the affected areas and
+smoke set; do not run the areas separately first. `main` moving afterwards
+is never a reason to rerun.
 
 ## Keep deployment and docs maintainable
 

@@ -13,8 +13,9 @@
 //	go run ./internal/nativeaccept/cmd/acceptance run temperature/... ...
 //
 // and "nothing to test" when no Go file changed. cmd/test runs the go test
-// line; the acceptance lines are advice: run them at the milestone, before
-// landing. -baseline prices the affected case set from an earlier run's
+// line; the acceptance lines explain selection. At the milestone run the
+// single land-tier suite printed by cmd/test, not each area and then the
+// suite. -baseline prices the affected case set from an earlier run's
 // timings (#283): the total wall and boot time of the baseline's rows in
 // the affected areas, as `acceptance list -cost` shows per case. Cases the
 // baseline never timed are not in the total; `acceptance list -cost
