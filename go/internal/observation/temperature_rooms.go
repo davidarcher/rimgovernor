@@ -48,7 +48,7 @@ func (s *routineBracket) readTemperature(ctx context.Context, id *c.Identity) (*
 		return nil, err
 	}
 	observed.Paused = s.expected.Paused
-	if !sameColonyBoundary(observed, s.expected) {
+	if !cachedColonyBoundary(observed, s.expected, bridge.FactRooms) {
 		return nil, ErrChanged
 	}
 	return rooms, nil

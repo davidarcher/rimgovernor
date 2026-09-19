@@ -382,7 +382,15 @@ step miss is served from the parent when the row was read under the same
 load and generation and its family is still fresh at the anchor tick (never
 from a later tick than the anchor: a rewind is a new world), so a timer
 step under a stopped clock costs one round trip, and a step under a running
-clock keeps the facts it read a moment ago. Within the step a later native
+clock keeps the facts it read a moment ago. A row the parent serves may
+therefore sit behind the anchor by its family's tolerance, and the readers
+accept that lag: a routine read's boundary (`observation.cachedColonyBoundary`,
+#306) takes a reply within its family's tolerance behind the step's
+expected tick or within the planning tolerance ahead of it, and a pawn-order
+admission anchors on its preview tick, the inspection's one live read,
+tolerating a pawn row within the planning tolerance behind it and a target
+read (filth, haul stacks) within its family's tolerance behind the pawn
+read. Within the step a later native
 reply of the same load and generation ahead of the anchor within its
 family's tolerance joins the scope and is filed at its own tick; one past
 the tolerance discards the step's rows and re-anchors, as a new generation
@@ -461,8 +469,9 @@ running window, so the step that settles a stop reviews and admits in the
 same pass without holding for the worker; the pause-drain hold of #129/#211
 (`clockPauseDrainMax`, `clockPauseDrainTotal`, `WakeSignal.PauseDrained`)
 is retired with the pause-bound set. A dispatch the executor holds on
-`stale_facts` (its inspection ran under a generation or tick the current
-one had outrun, `workerHeldStale`, #288) is retried at once, off the
+`stale_facts` (its inspection ran under a generation the current one had
+outrun, or its preview tick fell behind the prepared or minimum tick,
+`workerHeldStale`, #288, #306) is retried at once, off the
 worker's backoff and once per hold, so the order re-inspects before the
 game's own work scanner takes its target; the clock is not held for the
 retry. A routine window arms no watches:

@@ -54,8 +54,13 @@ func TestObserveColonyValidatesFactsByTheirContext(t *testing.T) {
 		{"expected pause unknown", func(_ *colonySource, i *Identity, _ *testkit.ManualClock, _ context.CancelFunc) {
 			i.Paused = domain.Unknown[bool]()
 		}, nil},
-		{"tick advanced", func(_ *colonySource, i *Identity, _ *testkit.ManualClock, _ context.CancelFunc) {
-			i.Tick = 8
+		// The facts may come from the step's fact cache behind the expected
+		// tick by their family's tolerance, never further (#306).
+		{"facts behind within family tolerance", func(_ *colonySource, i *Identity, _ *testkit.ManualClock, _ context.CancelFunc) {
+			i.Tick = 7 + domain.Tick(bridge.FactColony.TickTolerance())
+		}, nil},
+		{"facts behind past family tolerance", func(_ *colonySource, i *Identity, _ *testkit.ManualClock, _ context.CancelFunc) {
+			i.Tick = 8 + domain.Tick(bridge.FactColony.TickTolerance())
 		}, ErrChanged},
 		{"facts within tolerance", func(s *colonySource, i *Identity, _ *testkit.ManualClock, _ context.CancelFunc) {
 			s.reply.GetObserved().Context.Tick = proto.Int64(int64(i.Tick + domain.PlanningTickTolerance))
@@ -124,6 +129,47 @@ func TestObserveColonyValidatesFactsByTheirContext(t *testing.T) {
 				}
 			} else if got.Projection.Identity.Colony != "" {
 				t.Fatal("failed read published facts")
+			}
+		})
+	}
+}
+
+func TestCachedColonyBoundaryToleratesTheFamilyLag(t *testing.T) {
+	expected := Identity{Colony: "colony", Load: "load", Map: 0, Tick: 10000, NativeGeneration: domain.Known(domain.NativeGeneration(1))}
+	at := func(tick domain.Tick) Identity {
+		i := expected
+		i.Tick = tick
+		return i
+	}
+	for _, scenario := range []struct {
+		name   string
+		actual Identity
+		family bridge.FactFamily
+		want   bool
+	}{
+		{"same tick", at(10000), bridge.FactPawns, true},
+		{"ahead within planning tolerance", at(10000 + domain.PlanningTickTolerance), bridge.FactPawns, true},
+		{"ahead past planning tolerance", at(10001 + domain.PlanningTickTolerance), bridge.FactResearch, false},
+		{"pawns behind within tolerance", at(10000 - domain.Tick(bridge.FactPawns.TickTolerance())), bridge.FactPawns, true},
+		{"pawns behind past tolerance", at(9999 - domain.Tick(bridge.FactPawns.TickTolerance())), bridge.FactPawns, false},
+		{"research behind within tolerance", at(10000 - domain.Tick(bridge.FactResearch.TickTolerance())), bridge.FactResearch, true},
+		{"emergency behind by the pawn tolerance", at(10000 - domain.Tick(bridge.FactPawns.TickTolerance())), bridge.FactEmergency, true},
+		{"rooms behind past tolerance", at(9999 - domain.Tick(bridge.FactRooms.TickTolerance())), bridge.FactRooms, false},
+	} {
+		t.Run(scenario.name, func(t *testing.T) {
+			if got := cachedColonyBoundary(scenario.actual, expected, scenario.family); got != scenario.want {
+				t.Fatalf("got %v, want %v", got, scenario.want)
+			}
+			if !scenario.want || scenario.actual.Tick >= expected.Tick {
+				return
+			}
+			if sameColonyBoundary(scenario.actual, expected) {
+				t.Fatal("the live boundary accepted a row behind the expected tick")
+			}
+			changed := scenario.actual
+			changed.NativeGeneration = domain.Known(domain.NativeGeneration(2))
+			if cachedColonyBoundary(changed, expected, scenario.family) {
+				t.Fatal("a cached row of another generation passed the boundary")
 			}
 		})
 	}

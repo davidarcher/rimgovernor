@@ -158,7 +158,7 @@ func (s *routineBracket) readEmergency(ctx context.Context, id *c.Identity) (*o.
 		return nil, err
 	}
 	identity.Paused = s.expected.Paused
-	if !sameColonyBoundary(identity, s.expected) {
+	if !cachedColonyBoundary(identity, s.expected, bridge.FactEmergency) {
 		return nil, ErrChanged
 	}
 	complete, known := s.emergency.Facts.ColonistsComplete.Value()
@@ -188,7 +188,7 @@ func (s *routineBracket) readEmergency(ctx context.Context, id *c.Identity) (*o.
 		return nil, err
 	}
 	observed.Paused = s.expected.Paused
-	if !sameColonyBoundary(observed, s.expected) {
+	if !cachedColonyBoundary(observed, s.expected, bridge.FactPawns) {
 		return nil, ErrChanged
 	}
 	return pawns, nil
@@ -205,7 +205,7 @@ func (s *routineBracket) readPopulation(ctx context.Context, id *c.Identity) err
 		return err
 	}
 	identity.Paused = s.expected.Paused
-	if !sameColonyBoundary(identity, s.expected) {
+	if !cachedColonyBoundary(identity, s.expected, bridge.FactPawns) {
 		return ErrChanged
 	}
 	return nil
@@ -294,7 +294,7 @@ func (s *routineBracket) readProjectDefinitions(ctx context.Context, id *c.Ident
 		return err
 	}
 	extra.Identity.Paused = s.expected.Paused
-	if !sameColonyBoundary(extra.Identity, s.expected) {
+	if !cachedColonyBoundary(extra.Identity, s.expected, bridge.FactColony) {
 		return ErrChanged
 	}
 	wanted := map[string]bool{}
@@ -328,7 +328,7 @@ func (s *routineBracket) readQuests(ctx context.Context, id *c.Identity) error {
 		return err
 	}
 	identity.Paused = s.expected.Paused
-	if !sameColonyBoundary(identity, s.expected) {
+	if !cachedColonyBoundary(identity, s.expected, bridge.FactColony) {
 		return ErrChanged
 	}
 	offers := make([]policy.JoinerOffer, 0, len(read.Quests))
@@ -357,7 +357,7 @@ func (s *routineBracket) readResearch(ctx context.Context, id *c.Identity) error
 		return err
 	}
 	identity.Paused = s.expected.Paused
-	if !sameColonyBoundary(identity, s.expected) {
+	if !cachedColonyBoundary(identity, s.expected, bridge.FactResearch) {
 		return ErrChanged
 	}
 	facts := policy.ResearchFacts{Current: policy.ResearchProjectID(read.CurrentProject)}
@@ -390,7 +390,7 @@ func (s *routineBracket) readTraders(ctx context.Context, id *c.Identity) error 
 		return err
 	}
 	identity.Paused = s.expected.Paused
-	if !sameColonyBoundary(identity, s.expected) {
+	if !cachedColonyBoundary(identity, s.expected, bridge.FactColony) {
 		return ErrChanged
 	}
 	rows := make([]policy.TraderFacts, 0, len(read.Traders))

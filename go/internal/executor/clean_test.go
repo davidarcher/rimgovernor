@@ -17,13 +17,21 @@ type cleanEnvironment struct {
 	uncertain, foreign              bool
 	onInspect                       func()
 	effect                          domain.Effect
+	// running makes each inspection's preview land a few ticks after the
+	// one before while the pawn row keeps its first tick: the step's fact
+	// cache serving a re-read under a running window (#306).
+	running bool
 }
 
 func (n *cleanEnvironment) cleanFacts(target Target) policy.CleanFacts {
 	clean, _ := target.Action.Clean()
 	pawn := policy.CleanPawnFacts{Pawn: clean.Pawn(), SnapshotToken: "pawn-token", Dead: domain.Known(false), Downed: domain.Known(false), Drafted: domain.Known(false), MentalState: domain.Known(false), ExistingJobDef: domain.Known("")}
 	filth := policy.CleanFilthFacts{Filth: clean.Filth(), SnapshotToken: "filth-token", Exists: domain.Known(true)}
-	return policy.CleanFacts{Snapshot: target.Snapshot, PawnTick: n.tick, PreviewTick: n.tick, NativeCanTry: domain.Known(true), Pawn: pawn, Filth: filth}
+	facts := policy.CleanFacts{Snapshot: target.Snapshot, PawnTick: n.tick, PreviewTick: n.tick, NativeCanTry: domain.Known(true), Pawn: pawn, Filth: filth}
+	if n.running {
+		facts.PreviewTick += domain.Tick(3 * n.inspected)
+	}
+	return facts
 }
 func (n *cleanEnvironment) InspectClean(_ context.Context, target Target) (CleanInspection, error) {
 	n.inspected++
@@ -95,6 +103,21 @@ func TestCleanAdmitsAndDispatches(t *testing.T) {
 	result, err = f.run()
 	if err != nil || result.Progress.View().Stage != domain.Completed || n.dispatched != 1 {
 		t.Fatal(result, err, n.dispatched)
+	}
+}
+
+// TestCleanDispatchesUnderRunningWindow is the #306 stall: the second
+// inspection's pawn row is the cached first one while its preview tick has
+// moved past the tick the first preview prepared the action at.
+func TestCleanDispatchesUnderRunningWindow(t *testing.T) {
+	f, n := cleanFixture(t)
+	n.running = true
+	result, err := f.run()
+	if err != nil || !result.Progress.View().Unresolved || n.dispatched != 1 || len(result.Refused) != 0 {
+		t.Fatal(result, err, n.dispatched)
+	}
+	if v := result.Progress.View(); v.Tick != n.tick+6 {
+		t.Fatalf("dispatched at %d, want the second preview tick %d", v.Tick, n.tick+6)
 	}
 }
 

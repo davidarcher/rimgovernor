@@ -34,9 +34,22 @@ type ColonyReading struct {
 // fresh for the expected one (domain.Tick.FreshFor). The clock need not be
 // stopped: a step under a running window reads within the tolerance (#243).
 func sameColonyBoundary(actual, expected Identity) bool {
+	return sameColonyContext(actual, expected) && actual.Tick.FreshFor(expected.Tick)
+}
+
+// cachedColonyBoundary is sameColonyBoundary for a read the step's fact
+// cache may serve: the row may also sit behind the expected tick by up to
+// its family's tolerance (bridge.FactFamily.Fresh), the same rule the cache
+// serves it under. Under a running window the step's later reads come from
+// the cache, so a row behind the anchor is not a changed context (#306).
+func cachedColonyBoundary(actual, expected Identity, family bridge.FactFamily) bool {
+	return sameColonyContext(actual, expected) && (actual.Tick.FreshFor(expected.Tick) || family.Fresh(int64(actual.Tick), int64(expected.Tick)))
+}
+
+func sameColonyContext(actual, expected Identity) bool {
 	a, ak := actual.NativeGeneration.Value()
 	b, bk := expected.NativeGeneration.Value()
-	return actual.SameContext(expected) && actual.Tick.FreshFor(expected.Tick) && ak && bk && a == b
+	return actual.SameContext(expected) && ak && bk && a == b
 }
 
 // ObserveColony requires an externally observed identity and reads the
@@ -72,7 +85,7 @@ func ObserveColony(ctx context.Context, source ColonySource, clock Clock, expect
 	// Colony facts do not carry pause state; that fact is the caller's.
 	observed := projection.Identity
 	observed.Paused = expected.Paused
-	if !sameColonyBoundary(observed, expected) {
+	if !cachedColonyBoundary(observed, expected, bridge.FactColony) {
 		return result, ErrChanged
 	}
 	result.ObservedAt = clock.Now()

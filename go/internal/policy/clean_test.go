@@ -41,6 +41,23 @@ func TestCleanAdmission(t *testing.T) {
 	}
 }
 
+// TestCleanAdmitsCachedPawnRowBehindPreparedTick is the #306 shape: the
+// executor's second inspection under a running window is served the pawn
+// row the first read (tick 12) cached, while the first preview (tick 13)
+// prepared the action and raised the minimum; the second preview (tick 15)
+// anchors the admission, so the older pawn row is fresh evidence.
+func TestCleanAdmitsCachedPawnRowBehindPreparedTick(t *testing.T) {
+	r := cleanRequest(t)
+	var err error
+	if r.Progress, err = r.Progress.Prepare(r.Current, 13); err != nil {
+		t.Fatal(err)
+	}
+	r.MinimumTick, r.Facts.PawnTick, r.Facts.PreviewTick = 13, 12, 15
+	if d := EvaluateClean(r); !d.Admitted || len(d.Refused) != 0 {
+		t.Fatal(d)
+	}
+}
+
 func TestCleanDefenseHolds(t *testing.T) {
 	cases := []struct {
 		name   string
@@ -49,9 +66,11 @@ func TestCleanDefenseHolds(t *testing.T) {
 		{"zero action", func(r *CleanRequest) { r.Action = domain.Action{} }},
 		{"zero progress", func(r *CleanRequest) { r.Progress = domain.Progress{} }},
 		{"cancelled", func(r *CleanRequest) { r.Progress, _ = r.Progress.Cancel() }},
-		{"minimum", func(r *CleanRequest) { r.MinimumTick = 13 }},
+		{"minimum", func(r *CleanRequest) { r.MinimumTick = 14 }},
 		{"negative minimum", func(r *CleanRequest) { r.MinimumTick = -1 }},
 		{"reversed interval", func(r *CleanRequest) { r.Facts.PreviewTick = 11 }},
+		{"pawn row outrun", func(r *CleanRequest) { r.Facts.PreviewTick = 12 + domain.PlanningTickTolerance + 1 }},
+		{"prepared past preview", func(r *CleanRequest) { r.Progress, _ = r.Progress.Prepare(r.Current, 14) }},
 		{"zero generation", func(r *CleanRequest) { r.Current.Native = 0 }},
 		{"native", func(r *CleanRequest) { r.Current.Native++ }},
 		{"colony", func(r *CleanRequest) { r.Current.Colony = "other" }},
