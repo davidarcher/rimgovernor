@@ -233,8 +233,10 @@ by review alone.
    `ticks_advanced` (the game ticks the case saw pass through its native
    replies) and `wall_tps`, so a slower case shows in its own report and
    the suite's `-baseline` comparison, not in evidence-file mtimes. The
-   same numbers, the wait statistics, the native round trips of every
-   flight recording under the output directory and the evidence size are
+   same numbers, the wait statistics, the native round trips and the
+   time-weighted `paused_fraction` (the share of the sampled wall time the
+   game stood still between clock windows, #266) of every flight
+   recording under the output directory and the evidence size are
    flattened into `metrics` (`na.MetricNames`, #297): the block every
    run appends, with the case, run id (the output directory's name),
    source revision, world seed and timestamp, to the append-only series

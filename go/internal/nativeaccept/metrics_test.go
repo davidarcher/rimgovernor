@@ -2,6 +2,7 @@ package nativeaccept
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -20,17 +21,34 @@ func writeRecordings(t *testing.T, output string) {
 		`{"sequence":3,"wall_time":12,"kind":"native_cache_hit","context":{},"payload":{"tool":"games_call_tool","native_tool":"x/read"}}`,
 		`{"sequence":4,"wall_time":13,"kind":"clock_step","context":{},"payload":{"reads":3,"reason":"timer"}}`,
 		`{"sequence":5,"wall_time":14,"kind":"clock_step","context":{},"payload":{"reads":1,"reason":"timer"}}`,
+		// Clock status samples: paused for 2 of the 4 s they span.
+		clockSampleRow(6, 20, true), clockSampleRow(7, 22, false), clockSampleRow(8, 24, true),
 	}, "\n") + "\n"
 	if err := os.WriteFile(FlightRecorderPath(output), []byte(first), 0644); err != nil {
 		t.Fatal(err)
 	}
-	second := `{"sequence":1,"wall_time":20,"kind":"native_response","context":{},"payload":{"request":1,"tool":"games_call_tool","native_tool":"x/read","timing":{"total_ms":5,"response_bytes":30,"native_queue_ms":6,"native_execute_ms":8}}}` + "\n"
+	// The restart's recording runs unpaused for 4 s: the block's paused
+	// fraction weighs both recordings by time, 2 of 8 s.
+	second := strings.Join([]string{
+		`{"sequence":1,"wall_time":20,"kind":"native_response","context":{},"payload":{"request":1,"tool":"games_call_tool","native_tool":"x/read","timing":{"total_ms":5,"response_bytes":30,"native_queue_ms":6,"native_execute_ms":8}}}`,
+		clockSampleRow(2, 30, false), clockSampleRow(3, 34, false),
+	}, "\n") + "\n"
 	if err := os.MkdirAll(filepath.Join(output, "service-2"), 0755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(output, "service-2", "flight.jsonl"), []byte(second), 0644); err != nil {
 		t.Fatal(err)
 	}
+}
+
+// clockSampleRow is a bundle reply carrying a clock status the phase
+// summary samples (bridge.ClockSample); it counts as an untimed native call.
+func clockSampleRow(sequence int, wall float64, paused bool) string {
+	state := "running"
+	if paused {
+		state = "stopped"
+	}
+	return fmt.Sprintf(`{"sequence":%d,"wall_time":%v,"kind":"native_response","context":{},"payload":{"request":%d,"tool":"games_call_tool","native_tool":"x/bundle","timing":{},"result":{"payload":"{\"bundle\":{\"clockStatus\":{\"actualPaused\":%v,\"%s\":{}}}}"}}}`, sequence, wall, sequence, paused, state)
 }
 
 func TestComputeMetricsFromReportAndRecordings(t *testing.T) {
@@ -45,10 +63,10 @@ func TestComputeMetricsFromReportAndRecordings(t *testing.T) {
 	want := Metrics{
 		"wall_ms": 12000, "boot_ms": 3000, "ticks_advanced": 6000, "wall_tps": 500,
 		"waits": 4, "waits_stalled": 1, "max_quiet_ms": 700,
-		"native_calls": 3, "native_errors": 1, "native_bytes": 150,
-		"reads_per_step_mean": 2, "cache_hit_ratio": 0.25,
+		"native_calls": 8, "native_errors": 1, "native_bytes": 150,
+		"reads_per_step_mean": 2, "cache_hit_ratio": 1.0 / 9,
 		"native_queue_ms_mean": 4, "native_exec_ms_mean": 6,
-		"service_launches": 2,
+		"paused_fraction": 0.25, "service_launches": 2,
 	}
 	for name, value := range want {
 		if m[name] != value {

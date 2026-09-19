@@ -15,6 +15,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/childproc"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -421,11 +422,35 @@ func (p *ServiceProcess) Stop() map[string]any {
 		p.exited = true
 		p.entry["state"] = "stopped"
 	}
+	p.recordClock()
 	if p.store != nil {
 		p.store.Close()
 		p.store = nil
 	}
 	return keep
+}
+
+// recordClock summarizes the launch's flight recording into its report
+// entry ("clock": the bridge.ClockSample plus paused_fraction, #266) once
+// the process has exited, so every serve-driven result.json shows how much
+// of the service's wall time the game stood still between windows. A
+// missing or malformed recording leaves the entry alone.
+func (p *ServiceProcess) recordClock() {
+	rows, err := bridge.ReadTimeline(p.FlightPath)
+	if err != nil {
+		return
+	}
+	clock := bridge.SummarizePhases(rows).Clock
+	if clock.ClockSamples == 0 {
+		return
+	}
+	p.entry["clock"] = map[string]any{
+		"ticks_advanced": clock.TicksAdvanced, "last_tick": clock.LastTick,
+		"wall_seconds": clock.WallSecs, "wall_tps": clock.WallTPS,
+		"paused_samples": clock.PausedSamples, "clock_samples": clock.ClockSamples,
+		"paused_seconds": clock.PausedSecs, "sampled_seconds": clock.SampledSecs,
+		"paused_fraction": clock.PausedFraction(),
+	}
 }
 
 // Exited reports, without blocking, whether the service has already exited

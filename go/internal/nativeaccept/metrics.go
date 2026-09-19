@@ -39,6 +39,7 @@ var MetricNames = []string{
 	"native_calls", "native_errors", "native_bytes",
 	"reads_per_step_mean", "cache_hit_ratio",
 	"native_queue_ms_mean", "native_exec_ms_mean",
+	"paused_fraction",
 	"service_launches", "evidence_bytes",
 }
 
@@ -73,7 +74,7 @@ func ComputeMetrics(r Report, output string) Metrics {
 	}
 	m["service_launches"] = float64(launches)
 	var calls, errs, hits, bytes, timed uint64
-	var queue, execute float64
+	var queue, execute, paused, sampled float64
 	var steps, reads uint64
 	for _, path := range flightRecordings(output) {
 		rows, err := bridge.ReadTimeline(path)
@@ -92,6 +93,8 @@ func ComputeMetrics(r Report, output string) Metrics {
 		}
 		steps += summary.Steps.Steps
 		reads += summary.Steps.Reads
+		paused += summary.Clock.PausedSecs
+		sampled += summary.Clock.SampledSecs
 	}
 	m["native_calls"] = float64(calls)
 	m["native_errors"] = float64(errs)
@@ -105,6 +108,11 @@ func ComputeMetrics(r Report, output string) Metrics {
 	if timed > 0 {
 		m["native_queue_ms_mean"] = queue / float64(timed)
 		m["native_exec_ms_mean"] = execute / float64(timed)
+	}
+	// The share of the sampled wall time the game stood still between
+	// clock windows (#266), time-weighted across every recording.
+	if sampled > 0 {
+		m["paused_fraction"] = paused / sampled
 	}
 	m["evidence_bytes"] = float64(evidenceBytes(output))
 	return m
@@ -322,6 +330,7 @@ var DriftRules = map[string]DriftRule{
 	"cache_hit_ratio":      {Ratio: 0.8, Floor: 0.05, Lower: true},
 	"native_queue_ms_mean": {Ratio: 1.5, Floor: 20},
 	"native_exec_ms_mean":  {Ratio: 1.5, Floor: 20},
+	"paused_fraction":      {Ratio: 1.5, Floor: 0.1},
 	"service_launches":     {Ratio: 1, Floor: 0.5},
 	"evidence_bytes":       {Ratio: 1.5, Floor: 1 << 20},
 }
