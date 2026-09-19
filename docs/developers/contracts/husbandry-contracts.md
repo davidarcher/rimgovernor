@@ -18,7 +18,10 @@ propose taming, gated on `MaintainAnimalFeed`'s own review: while any player
 animal is below its feed threshold, or the feed forecast is unknown, no tame is
 proposed and the shortfall is not counted as a herd deficit (the wild animal's
 own appetite is not forecast; the gate only refuses to add a mouth to a herd
-already short). A race in both maps must have minimum ≤ maximum. There is no
+already short). A candidate also needs a [handler](work-assignment.md#situational-roles)
+(`TamerFor`) at its `minimum_handling_skill`: the lowest-ID candidate the roster
+can handle is proposed, none while the roster is unknown, and a designation
+nobody could work is never placed. A race in both maps must have minimum ≤ maximum. There is no
 per-race protected-ID list, breeder-pair reserve or feed-reserve bookkeeping:
 eligibility relies on native's own `SafeToSlaughter`, `SafeToRelease` and
 `Tameable` facts.

@@ -103,8 +103,9 @@ is unknown or nobody qualifies). The defense review splits its defenders with
 opponent first, shooters a ranged opponent and the layout's firing cells
 first, as a preference over the ID order that stands when the profile is
 unknown. The custody review sends `WardenFor` to capture a downed hostile while
-that pawn is available. The husbandry and hunting reviews adopt theirs as each
-migrates (#447).
+that pawn is available. The husbandry review tames only a wild animal `TamerFor`
+finds a handler for at its minimum handling skill. The hunting review adopts
+`HunterFor` when it migrates (#447).
 
 ## Schedules
 

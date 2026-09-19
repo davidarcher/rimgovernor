@@ -41,7 +41,14 @@ func colonyWildAnimals(v *o.ColonyFactsSnapshot) domain.Fact[[]policy.UpkeepAnim
 	rows := []policy.UpkeepAnimal{}
 	for _, a := range u.WildAnimals {
 		state := a.Pawn.AnimalState
-		rows = append(rows, policy.UpkeepAnimal{ID: policy.PawnID(a.Pawn.Pawn.GetId()), Definition: policy.Resource(a.Pawn.Pawn.GetDefName()), RequiresPen: domain.Known(false), Contained: domain.Known(false), Release: domain.Known(false), Slaughter: domain.Known(false), Pen: domain.Known(""), SuitablePen: domain.Known(""), Tameable: optional(state.Tameable), Tame: optional(state.Tame)})
+		rows = append(rows, policy.UpkeepAnimal{ID: policy.PawnID(a.Pawn.Pawn.GetId()), Definition: policy.Resource(a.Pawn.Pawn.GetDefName()), RequiresPen: domain.Known(false), Contained: domain.Known(false), Release: domain.Known(false), Slaughter: domain.Known(false), Pen: domain.Known(""), SuitablePen: domain.Known(""), Tameable: optional(state.Tameable), Tame: optional(state.Tame), MinimumHandlingSkill: minimumHandling(state)})
 	}
 	return domain.Known(rows)
+}
+
+func minimumHandling(state *o.AnimalState) domain.Fact[int] {
+	if state.MinimumHandlingSkill == nil {
+		return domain.Unknown[int]()
+	}
+	return domain.Known(int(state.GetMinimumHandlingSkill()))
 }

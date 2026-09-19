@@ -27,6 +27,10 @@ type UpkeepAnimal struct {
 	// (AnimalUpkeepObservation.WildAnimals): native tame eligibility and a
 	// standing tame designation.
 	Tameable, Tame domain.Fact[bool]
+	// MinimumHandlingSkill is the Animals level taming the wild animal
+	// needs (native's TrainableUtility.MinimumHandlingSkill); TamerFor
+	// answers whether the roster has it.
+	MinimumHandlingSkill domain.Fact[int]
 	// ReachableBenches names the player work tables the animal can reach
 	// inside its allowed area (sorted); a bill there drops feed where the
 	// animal eats it.

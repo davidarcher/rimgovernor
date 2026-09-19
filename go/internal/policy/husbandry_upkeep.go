@@ -275,13 +275,16 @@ func HerdFeedShort(review AnimalUpkeepReview) domain.Fact[bool] {
 // SelectHusbandryMethod picks the lowest animal-ID, lowest-def-name available
 // untrained trainable to dispatch next, trying training first the same way
 // it always has. Only once no training candidate exists does it fall back to
-// the lowest-ID tame candidate for a race below its declared minimum -- and
-// only while the herd's feed forecast is known not short, since a new mouth
-// on a herd already short of feed deepens MaintainAnimalFeed's deficit --
-// and only after that to the lowest-ID surplus candidate for the operator's
-// chosen removal method -- so an operator who opts into tame or removal
-// never loses the pre-existing training behavior.
-func SelectHusbandryMethod(animals, wild domain.Fact[[]UpkeepAnimal], feedShort domain.Fact[bool], herd HerdPolicy) HusbandryChoice {
+// the lowest-ID tame candidate for a race below its declared minimum that
+// TamerFor finds a handler for at the animal's minimum handling skill (an
+// unknown minimum asks only for a capable handler; an unknown roster leaves
+// the choice unknown) -- and only while the herd's feed forecast is known
+// not short, since a new mouth on a herd already short of feed deepens
+// MaintainAnimalFeed's deficit -- and only after that to the lowest-ID
+// surplus candidate for the operator's chosen removal method -- so an
+// operator who opts into tame or removal never loses the pre-existing
+// training behavior.
+func SelectHusbandryMethod(animals, wild domain.Fact[[]UpkeepAnimal], feedShort domain.Fact[bool], herd HerdPolicy, handlers domain.Fact[[]PawnProfile]) HusbandryChoice {
 	rows, known := animals.Value()
 	if !known {
 		return HusbandryChoice{Reason: HusbandryUnknown}
@@ -316,11 +319,15 @@ func SelectHusbandryMethod(animals, wild domain.Fact[[]UpkeepAnimal], feedShort 
 		}
 		if len(candidates) > 0 {
 			short, fk := feedShort.Value()
-			if !fk {
+			profiles, pk := handlers.Value()
+			if !fk || !pk {
 				return HusbandryChoice{Reason: HusbandryUnknown}
 			}
-			if !short {
-				return HusbandryChoice{Animal: candidates[0].ID, Method: domain.HusbandryTame}
+			for _, a := range candidates {
+				minimum, _ := a.MinimumHandlingSkill.Value()
+				if _, ok := TamerFor(profiles, minimum); !short && ok {
+					return HusbandryChoice{Animal: a.ID, Method: domain.HusbandryTame}
+				}
 			}
 		}
 	}

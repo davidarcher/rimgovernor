@@ -108,7 +108,11 @@ func (r *RoutineHusbandryPlanner) step(call, epoch context.Context, arbiter *ste
 	if err != nil {
 		return RoutineHusbandryResult{}, err
 	}
-	choice := policy.SelectHusbandryMethod(animals, upkeep.WildAnimals, policy.HerdFeedShort(reviewed), r.reviewer.policy.Herd())
+	handlers := domain.Unknown[[]policy.PawnProfile]()
+	if pawns, known := read.Projection.WorkPawns.Value(); known {
+		handlers = domain.Known(policy.Profiles(pawns))
+	}
+	choice := policy.SelectHusbandryMethod(animals, upkeep.WildAnimals, policy.HerdFeedShort(reviewed), r.reviewer.policy.Herd(), handlers)
 	switch choice.Reason {
 	case policy.HusbandryNoDeficit:
 		return RoutineHusbandryResult{Reason: BuildingMethodUsed}, nil

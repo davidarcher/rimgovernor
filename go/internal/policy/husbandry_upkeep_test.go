@@ -19,6 +19,10 @@ func herd(allowSlaughter bool, populationMax map[Resource]int64) HerdPolicy {
 	return HerdPolicy{AllowSlaughter: allowSlaughter, PopulationMax: populationMax}
 }
 
+// anyTamer is a roster with one capable, unskilled handler: every tame
+// candidate without a minimum handling skill qualifies.
+var anyTamer = domain.Known([]PawnProfile{BuildProfile(WorkPawn{ID: "handler", Skills: domain.Known([]WorkSkill{{Name: "Animals", Level: 0}})})})
+
 func wildAnimal(id string, def Resource, tameable, designated bool) UpkeepAnimal {
 	return UpkeepAnimal{ID: PawnID(id), Definition: def, Release: domain.Known(false), Slaughter: domain.Known(false), Tameable: domain.Known(tameable), Tame: domain.Known(designated)}
 }
@@ -118,7 +122,7 @@ func TestAnimalHerdDeficitSurplusUnknownSafetyStaysUnknown(t *testing.T) {
 }
 
 func TestSelectHusbandryMethodUnknownCensus(t *testing.T) {
-	choice := SelectHusbandryMethod(domain.Unknown[[]UpkeepAnimal](), noWild, feedFine, herd(false, nil))
+	choice := SelectHusbandryMethod(domain.Unknown[[]UpkeepAnimal](), noWild, feedFine, herd(false, nil), anyTamer)
 	if choice.Reason != HusbandryUnknown {
 		t.Fatal(choice)
 	}
@@ -127,7 +131,7 @@ func TestSelectHusbandryMethodUnknownCensus(t *testing.T) {
 func TestSelectHusbandryMethodNoDeficit(t *testing.T) {
 	choice := SelectHusbandryMethod(domain.Known([]UpkeepAnimal{
 		{ID: "a", Release: domain.Known(false), Slaughter: domain.Known(false), Training: []HusbandryTrainable{trainable("Obedience", true, true)}},
-	}), noWild, feedFine, herd(false, nil))
+	}), noWild, feedFine, herd(false, nil), anyTamer)
 	if choice.Reason != HusbandryNoDeficit {
 		t.Fatal(choice)
 	}
@@ -138,7 +142,7 @@ func TestSelectHusbandryMethodPicksLowestAnimalThenTrainable(t *testing.T) {
 		{ID: "muffalo-2", Release: domain.Known(false), Slaughter: domain.Known(false), Training: []HusbandryTrainable{trainable("Release", true, false), trainable("Obedience", true, false)}},
 		{ID: "muffalo-1", Release: domain.Known(false), Slaughter: domain.Known(false), Training: []HusbandryTrainable{trainable("Obedience", true, false)}},
 	})
-	choice := SelectHusbandryMethod(animals, noWild, feedFine, herd(false, nil))
+	choice := SelectHusbandryMethod(animals, noWild, feedFine, herd(false, nil), anyTamer)
 	if choice.Reason != "" || choice.Animal != "muffalo-1" || choice.Method != domain.HusbandryTrain || choice.TrainableDef != "Obedience" {
 		t.Fatal(choice)
 	}
@@ -150,7 +154,7 @@ func TestSelectHusbandryMethodSkipsReleasedAndSlaughteredAnimals(t *testing.T) {
 		{ID: "muffalo-2", Release: domain.Known(false), Slaughter: domain.Known(true), Training: []HusbandryTrainable{trainable("Obedience", true, false)}},
 		{ID: "muffalo-3", Release: domain.Known(false), Slaughter: domain.Known(false), Training: []HusbandryTrainable{trainable("Obedience", true, false)}},
 	})
-	choice := SelectHusbandryMethod(animals, noWild, feedFine, herd(false, nil))
+	choice := SelectHusbandryMethod(animals, noWild, feedFine, herd(false, nil), anyTamer)
 	if choice.Animal != "muffalo-3" {
 		t.Fatal(choice)
 	}
@@ -162,10 +166,10 @@ func TestSelectHusbandryMethodNeverProposesSlaughterWithoutOptIn(t *testing.T) {
 		{ID: "muffalo-2", Definition: "Muffalo", Release: domain.Known(false), Slaughter: domain.Known(false), SafeToSlaughter: domain.Known(true)},
 	})
 	populationMax := map[Resource]int64{"Muffalo": 1}
-	if choice := SelectHusbandryMethod(animals, noWild, feedFine, herd(false, populationMax)); choice.Reason != HusbandryNoDeficit {
+	if choice := SelectHusbandryMethod(animals, noWild, feedFine, herd(false, populationMax), anyTamer); choice.Reason != HusbandryNoDeficit {
 		t.Fatal("AllowSlaughter=false must never propose a slaughter write", choice)
 	}
-	if choice := SelectHusbandryMethod(animals, noWild, feedFine, herd(true, nil)); choice.Reason != HusbandryNoDeficit {
+	if choice := SelectHusbandryMethod(animals, noWild, feedFine, herd(true, nil), anyTamer); choice.Reason != HusbandryNoDeficit {
 		t.Fatal("an empty HerdPopulationMax must never propose a slaughter write", choice)
 	}
 }
@@ -176,7 +180,7 @@ func TestSelectHusbandryMethodPrefersTrainingOverSlaughter(t *testing.T) {
 		{ID: "muffalo-2", Definition: "Muffalo", Release: domain.Known(false), Slaughter: domain.Known(false), SafeToSlaughter: domain.Known(true)},
 	})
 	populationMax := map[Resource]int64{"Muffalo": 1}
-	choice := SelectHusbandryMethod(animals, noWild, feedFine, herd(true, populationMax))
+	choice := SelectHusbandryMethod(animals, noWild, feedFine, herd(true, populationMax), anyTamer)
 	if choice.Method != domain.HusbandryTrain || choice.Animal != "muffalo-1" {
 		t.Fatal("a training deficit must still be preferred over a slaughter surplus", choice)
 	}
@@ -188,7 +192,7 @@ func TestSelectHusbandryMethodProposesSlaughterForSurplus(t *testing.T) {
 		{ID: "muffalo-1", Definition: "Muffalo", Release: domain.Known(false), Slaughter: domain.Known(false), SafeToSlaughter: domain.Known(true)},
 	})
 	populationMax := map[Resource]int64{"Muffalo": 1}
-	choice := SelectHusbandryMethod(animals, noWild, feedFine, herd(true, populationMax))
+	choice := SelectHusbandryMethod(animals, noWild, feedFine, herd(true, populationMax), anyTamer)
 	if choice.Method != domain.HusbandrySlaughter || choice.Animal != "muffalo-1" || choice.TrainableDef != "" {
 		t.Fatal("the lowest-ID surplus candidate must be proposed for slaughter", choice)
 	}
@@ -201,7 +205,7 @@ func TestSelectHusbandryMethodSlaughterSkipsUnsafeAndAlreadyDesignated(t *testin
 		{ID: "muffalo-3", Definition: "Muffalo", Release: domain.Known(false), Slaughter: domain.Known(false), SafeToSlaughter: domain.Known(true)},
 	})
 	populationMax := map[Resource]int64{"Muffalo": 1}
-	choice := SelectHusbandryMethod(animals, noWild, feedFine, herd(true, populationMax))
+	choice := SelectHusbandryMethod(animals, noWild, feedFine, herd(true, populationMax), anyTamer)
 	if choice.Method != domain.HusbandrySlaughter || choice.Animal != "muffalo-3" {
 		t.Fatal("an unsafe or already-designated animal must never be re-proposed", choice)
 	}
@@ -214,11 +218,11 @@ func playerAnimal(id string, def Resource, safeRelease bool) UpkeepAnimal {
 func TestSelectHusbandryMethodPrefersReleaseOverSlaughterForSurplus(t *testing.T) {
 	animals := domain.Known([]UpkeepAnimal{playerAnimal("muffalo-1", "Muffalo", true), playerAnimal("muffalo-2", "Muffalo", true)})
 	populationMax := map[Resource]int64{"Muffalo": 1}
-	choice := SelectHusbandryMethod(animals, noWild, feedFine, HerdPolicy{AllowSlaughter: true, AllowRelease: true, PopulationMax: populationMax})
+	choice := SelectHusbandryMethod(animals, noWild, feedFine, HerdPolicy{AllowSlaughter: true, AllowRelease: true, PopulationMax: populationMax}, anyTamer)
 	if choice.Method != domain.HusbandryRelease || choice.Animal != "muffalo-1" {
 		t.Fatal("release must be preferred over slaughter when both are allowed", choice)
 	}
-	choice = SelectHusbandryMethod(animals, noWild, feedFine, HerdPolicy{AllowRelease: true, PopulationMax: populationMax})
+	choice = SelectHusbandryMethod(animals, noWild, feedFine, HerdPolicy{AllowRelease: true, PopulationMax: populationMax}, anyTamer)
 	if choice.Method != domain.HusbandryRelease {
 		t.Fatal("release alone must remove a surplus", choice)
 	}
@@ -230,11 +234,11 @@ func TestSelectHusbandryMethodPrefersReleaseOverSlaughterForSurplus(t *testing.T
 func TestSelectHusbandryMethodReleaseUsesReleaseEligibilityOnly(t *testing.T) {
 	animals := domain.Known([]UpkeepAnimal{playerAnimal("muffalo-1", "Muffalo", false), playerAnimal("muffalo-2", "Muffalo", false)})
 	populationMax := map[Resource]int64{"Muffalo": 1}
-	if choice := SelectHusbandryMethod(animals, noWild, feedFine, HerdPolicy{AllowRelease: true, PopulationMax: populationMax}); choice.Reason != HusbandryNoDeficit {
+	if choice := SelectHusbandryMethod(animals, noWild, feedFine, HerdPolicy{AllowRelease: true, PopulationMax: populationMax}, anyTamer); choice.Reason != HusbandryNoDeficit {
 		t.Fatal("a release-ineligible surplus must not fall back to slaughter without AllowSlaughter", choice)
 	}
 	unknown := domain.Known([]UpkeepAnimal{playerAnimal("muffalo-1", "Muffalo", true), {ID: "muffalo-2", Definition: "Muffalo", Release: domain.Known(false), Slaughter: domain.Known(false), SafeToSlaughter: domain.Known(true)}})
-	if choice := SelectHusbandryMethod(unknown, noWild, feedFine, HerdPolicy{AllowRelease: true, PopulationMax: populationMax}); choice.Reason != HusbandryUnknown {
+	if choice := SelectHusbandryMethod(unknown, noWild, feedFine, HerdPolicy{AllowRelease: true, PopulationMax: populationMax}, anyTamer); choice.Reason != HusbandryUnknown {
 		t.Fatal("an unknown release eligibility must leave the surplus unknown", choice)
 	}
 }
@@ -248,7 +252,7 @@ func TestSelectHusbandryMethodTamesTowardMinimum(t *testing.T) {
 		wildAnimal("thrumbo-1", "Thrumbo", true, false),
 	})
 	herd := HerdPolicy{PopulationMin: map[Resource]int64{"Muffalo": 2}}
-	choice := SelectHusbandryMethod(animals, wild, feedFine, herd)
+	choice := SelectHusbandryMethod(animals, wild, feedFine, herd, anyTamer)
 	if choice.Method != domain.HusbandryTame || choice.Animal != "wild-2" || choice.TrainableDef != "" {
 		t.Fatal("the lowest-ID tameable wild animal of a tracked race below minimum must be proposed", choice)
 	}
@@ -263,11 +267,11 @@ func TestSelectHusbandryMethodTameCountsPendingDesignationsAndLeavingAnimals(t *
 	animals := domain.Known([]UpkeepAnimal{leaving, playerAnimal("muffalo-2", "Muffalo", true)})
 	wild := domain.Known([]UpkeepAnimal{wildAnimal("wild-1", "Muffalo", false, true), wildAnimal("wild-2", "Muffalo", true, false)})
 	herd := HerdPolicy{PopulationMin: map[Resource]int64{"Muffalo": 2}}
-	if choice := SelectHusbandryMethod(animals, wild, feedFine, herd); choice.Reason != HusbandryNoDeficit {
+	if choice := SelectHusbandryMethod(animals, wild, feedFine, herd, anyTamer); choice.Reason != HusbandryNoDeficit {
 		t.Fatal("a pending tame designation counts toward the minimum", choice)
 	}
 	herd.PopulationMin["Muffalo"] = 3
-	if choice := SelectHusbandryMethod(animals, wild, feedFine, herd); choice.Method != domain.HusbandryTame || choice.Animal != "wild-2" {
+	if choice := SelectHusbandryMethod(animals, wild, feedFine, herd, anyTamer); choice.Method != domain.HusbandryTame || choice.Animal != "wild-2" {
 		t.Fatal("a release-designated animal does not count toward the minimum", choice)
 	}
 }
@@ -275,13 +279,13 @@ func TestSelectHusbandryMethodTameCountsPendingDesignationsAndLeavingAnimals(t *
 func TestSelectHusbandryMethodTameUnknownWildCensus(t *testing.T) {
 	animals := domain.Known([]UpkeepAnimal{})
 	herd := HerdPolicy{PopulationMin: map[Resource]int64{"Muffalo": 1}}
-	if choice := SelectHusbandryMethod(animals, domain.Unknown[[]UpkeepAnimal](), feedFine, herd); choice.Reason != HusbandryUnknown {
+	if choice := SelectHusbandryMethod(animals, domain.Unknown[[]UpkeepAnimal](), feedFine, herd, anyTamer); choice.Reason != HusbandryUnknown {
 		t.Fatal("an unknown wild census must not be treated as no candidate", choice)
 	}
 	if _, known := AnimalHerdDeficit(animals, domain.Unknown[[]UpkeepAnimal](), feedFine, herd).Value(); known {
 		t.Fatal("an unknown wild census leaves the deficit unknown")
 	}
-	if choice := SelectHusbandryMethod(animals, domain.Unknown[[]UpkeepAnimal](), feedFine, HerdPolicy{}); choice.Reason != HusbandryNoDeficit {
+	if choice := SelectHusbandryMethod(animals, domain.Unknown[[]UpkeepAnimal](), feedFine, HerdPolicy{}, anyTamer); choice.Reason != HusbandryNoDeficit {
 		t.Fatal("without a minimum the wild census is never consulted", choice)
 	}
 }
@@ -304,14 +308,14 @@ func TestSelectHusbandryMethodTameWaitsForFeed(t *testing.T) {
 	wild := domain.Known([]UpkeepAnimal{wildAnimal("wild-1", "Muffalo", true, false)})
 	herd := HerdPolicy{PopulationMin: map[Resource]int64{"Muffalo": 2}}
 	short := domain.Known(true)
-	if choice := SelectHusbandryMethod(animals, wild, short, herd); choice.Reason != HusbandryNoDeficit {
+	if choice := SelectHusbandryMethod(animals, wild, short, herd, anyTamer); choice.Reason != HusbandryNoDeficit {
 		t.Fatal("a herd short of feed never takes on another mouth", choice)
 	}
 	if v, known := AnimalHerdDeficit(animals, wild, short, herd).Value(); !known || v {
 		t.Fatal("a feed-gated shortfall is not a herd deficit", v, known)
 	}
 	unknown := domain.Unknown[bool]()
-	if choice := SelectHusbandryMethod(animals, wild, unknown, herd); choice.Reason != HusbandryUnknown {
+	if choice := SelectHusbandryMethod(animals, wild, unknown, herd, anyTamer); choice.Reason != HusbandryUnknown {
 		t.Fatal("an unknown feed forecast never authorizes a tame", choice)
 	}
 	if _, known := AnimalHerdDeficit(animals, wild, unknown, herd).Value(); known {
@@ -320,7 +324,7 @@ func TestSelectHusbandryMethodTameWaitsForFeed(t *testing.T) {
 	// A training candidate is unaffected by the feed gate.
 	untrained := playerAnimal("muffalo-1", "Muffalo", true)
 	untrained.Training = []HusbandryTrainable{trainable("Tameness", true, false)}
-	if choice := SelectHusbandryMethod(domain.Known([]UpkeepAnimal{untrained}), wild, unknown, herd); choice.Method != domain.HusbandryTrain {
+	if choice := SelectHusbandryMethod(domain.Known([]UpkeepAnimal{untrained}), wild, unknown, herd, anyTamer); choice.Method != domain.HusbandryTrain {
 		t.Fatal("training precedes the feed-gated tame fallback", choice)
 	}
 	// The gate reads MaintainAnimalFeed's own review.
@@ -340,4 +344,24 @@ func feedReviewWith(targets []AnimalFeedTarget) AnimalUpkeepReview {
 		targets = []AnimalFeedTarget{}
 	}
 	return AnimalUpkeepReview{Feed: domain.Known(targets)}
+}
+
+func TestSelectHusbandryMethodTameNeedsAHandlerAtTheMinimum(t *testing.T) {
+	animals := domain.Known([]UpkeepAnimal{})
+	hard := wildAnimal("wild-1", "Muffalo", true, false)
+	hard.MinimumHandlingSkill = domain.Known(8)
+	easy := wildAnimal("wild-2", "Muffalo", true, false)
+	easy.MinimumHandlingSkill = domain.Known(3)
+	wild := domain.Known([]UpkeepAnimal{hard, easy})
+	herd := HerdPolicy{PopulationMin: map[Resource]int64{"Muffalo": 2}}
+	novice := domain.Known([]PawnProfile{BuildProfile(WorkPawn{ID: "novice", Skills: domain.Known([]WorkSkill{{Name: "Animals", Level: 5}})})})
+	if choice := SelectHusbandryMethod(animals, wild, feedFine, herd, novice); choice.Method != domain.HusbandryTame || choice.Animal != "wild-2" {
+		t.Fatal("the first candidate the roster can handle is proposed", choice)
+	}
+	if choice := SelectHusbandryMethod(animals, domain.Known([]UpkeepAnimal{hard}), feedFine, herd, novice); choice.Reason != HusbandryNoDeficit {
+		t.Fatal("no handler at the minimum proposes no tame", choice)
+	}
+	if choice := SelectHusbandryMethod(animals, wild, feedFine, herd, domain.Unknown[[]PawnProfile]()); choice.Reason != HusbandryUnknown {
+		t.Fatal("an unknown roster leaves the tame unknown", choice)
+	}
 }
