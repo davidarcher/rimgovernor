@@ -2,6 +2,7 @@ package cases
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -126,6 +127,12 @@ func planResume(c Case, opts Options, log io.Writer) (resumption, error) {
 		return resumption{}, os.RemoveAll(dir)
 	}
 	current, err := fingerprint(c, opts.configDir(c))
+	if errors.Is(err, os.ErrNotExist) {
+		// A root nothing has prepared yet (a suite worker a ring was
+		// carried into, -resume) still names the installed game in its
+		// base config.
+		current, err = fingerprint(c, filepath.Join(opts.Root, "config"))
+	}
 	if err != nil {
 		fmt.Fprintf(log, "discarding checkpoint ring of %s: cannot fingerprint this root (%v); starting fresh\n", c.Name, err)
 		return resumption{}, os.RemoveAll(dir)

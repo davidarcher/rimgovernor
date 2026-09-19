@@ -660,6 +660,17 @@ func (s *session) Serve(ctx context.Context, spec na.ServeSpec) (*na.ServiceProc
 	if s.Session == nil {
 		return nil, errors.New("no game open: an Owned case holds its own session")
 	}
+	// A resumed run's store already holds the earlier run's control
+	// intents under the case's prefix, with that run's identity; the same
+	// requestId with a new loadToken is a conflict (409). Suffix the prefix
+	// as RequestID does so the service's resume is its own intent.
+	if s.resumeSuffix != "" {
+		prefix := spec.Prefix
+		if prefix == "" {
+			prefix = "serve"
+		}
+		spec.Prefix = s.RequestID(prefix)
+	}
 	// The colony-naming dialog a loaded save can still hold stops the clock
 	// for good under the service; answer it before releasing the slot unless
 	// the case is there to watch the service answer it. A case that released
