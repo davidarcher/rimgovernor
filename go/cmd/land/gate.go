@@ -12,7 +12,8 @@ import (
 )
 
 // gatedRoots are the repo-relative roots whose change the lane will not
-// land without acceptance results: the native mod's build inputs (the
+// land without acceptance results (the smoke tier since #387; the nightly
+// full tier proves the affected areas): the native mod's build inputs (the
 // shared harness inputs cmd/affected treats as affecting every case) and
 // the building runtime, whose plans only a game run proves.
 func gatedRoots() []string {
@@ -50,7 +51,7 @@ func (g acceptanceGate) check(changed []string) error {
 		return nil
 	}
 	return fmt.Errorf("the diff touches %s (%d file(s) under %s) and presents no acceptance results;\n"+
-		"run `acceptance suite -tier land -root <abs root> -output <fresh dir>` from go/ and land with -results <that dir>,\n"+
+		"run `acceptance suite -tier smoke -root <abs root> -output <fresh dir>` from go/ and land with -results <that dir> (#387: the nightly full tier proves the affected areas),\n"+
 		"or -unverified and name what went unverified in the commit body",
 		touched[0], len(touched), strings.Join(gatedRoots(), ", "))
 }

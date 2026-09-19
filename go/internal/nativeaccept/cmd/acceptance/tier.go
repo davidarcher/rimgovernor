@@ -5,17 +5,18 @@ package main
 // own cadence:
 //
 //   - land: the cases cmd/affected selects for the worktree's diff against
-//     -base, plus the smoke set; the landing lane's fresh pass. An area a
+//     -base, plus the smoke set; on demand before a landing the author wants
+//     proven (#387). An area a
 //     harness change reaches through plumbing alone is sampled: one case
 //     (#348).
 //   - full: every case outside the matrix tier; the nightly loop against
-//     main, chained with -baseline for regression flagging.
+//     main on CI, chained with -baseline for regression flagging (#387).
 //   - matrix: the cases that declare Matrix (speedmatrix, tickbudget, a
 //     DLC-save case); on demand and whenever the clock scheduler or the
 //     native tick path changes.
 //   - smoke: the land tier's fixed half alone, the committed
 //     suites/smoke.json: runner-proving bridge-only cases over a kept debug
-//     game and one short serve-driven case.
+//     game and one short serve-driven case; the landing lane's pass (#387).
 //
 // `acceptance list -tier <name>` prints a tier (and prices it with
 // -cost); `acceptance suite -tier <name>` runs it and records the tier in

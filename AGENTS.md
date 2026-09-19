@@ -17,12 +17,15 @@ needs is [choose-tests](docs/developers/testing/choose-tests.md).
    not ask. Size an iteration to a coherent milestone, not the smallest
    possible edit, so slow checks run once against meaningful progress.
 4. At the milestone, if `cmd/test` named affected case areas, run the one
-   command it prints, `acceptance suite -tier land`, and hand that output
-   to `cmd/land -results`. The tier already covers the affected areas plus
-   the smoke set, fresh: do not run the areas with `acceptance run` first
-   and then the tier, which runs every case twice. (Native behaviour
-   changes need this before completion; documentation needs none.) Name
-   the run in the commit message. Add `-resume` to carry the checkpoint
+   command it prints, `acceptance suite -tier smoke` (six short cases,
+   minutes), and hand that output to `cmd/land -results`. The affected
+   areas themselves are proven by the nightly full tier over `main`
+   (#387, on CI per #363), not per landing; run `-tier land` instead only
+   when you want the change proven before it lands, and never run the
+   areas with `acceptance run` first and then a tier, which runs every
+   case twice. (Native behaviour changes need the smoke pass before
+   completion; documentation needs none.) Name the run in the commit
+   message. Add `-resume` to carry the checkpoint
    rings your failed `acceptance run`s left in `-root`: resumed rows pass,
    are listed under `resumed` and named in the landing, but prove the fix
    past the resume point only, so a change to early behaviour runs fresh.
@@ -30,8 +33,8 @@ needs is [choose-tests](docs/developers/testing/choose-tests.md).
    The lane takes the repository lock, merges `main` into the branch,
    refuses a presented suite that failed (resumed rows are recorded),
    refuses a diff under the native sources or `buildingruntime` without
-   one (`-unverified` lands it; name what went unverified in the commit
-   body, not an issue), squash-lands on the
+   one (the smoke tier since #387; `-unverified` lands it, naming what went
+   unverified in the commit body, not an issue), squash-lands on the
    `main` checkout, resets the branch to `main` and closes the branch's
    GitHub issue with the landing commit. Call it once and move on; land
    each ready milestone rather than holding a branch until the whole task

@@ -679,11 +679,11 @@ func Test(repo string, changed []string, base ...string) error {
 		fmt.Printf("cases affected: %s (cmd/affected -files says why)\n", strings.Join(sel.Cases, " "))
 	}
 	if len(sel.Sampled) > 0 {
-		fmt.Printf("  sampled, one case each in the land tier (a harness change reaching them through plumbing alone, #348): %s\n", strings.Join(sel.Sampled, " "))
+		fmt.Printf("  sampled, one case each when the land tier runs (a harness change reaching them through plumbing alone, #348): %s\n", strings.Join(sel.Sampled, " "))
 	}
 	if len(sel.Cases) > 0 || sel.AllHarnesses {
-		fmt.Println("acceptance: one run, the land tier (it covers the affected areas and the smoke set; do not run the areas separately first):")
-		fmt.Println("  go run ./internal/nativeaccept/cmd/acceptance suite -tier land -root <abs root> -output <fresh dir>")
+		fmt.Println("acceptance: one run, the smoke tier (#387; the nightly full tier proves the affected areas, or run -tier land yourself to prove them before landing):")
+		fmt.Println("  go run ./internal/nativeaccept/cmd/acceptance suite -tier smoke -root <abs root> -output <fresh dir>")
 		fmt.Println("  go run ./cmd/land -results <that dir>")
 	}
 	switch {

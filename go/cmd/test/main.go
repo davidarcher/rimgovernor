@@ -10,10 +10,10 @@
 // edit/test loop's check as well as the pre-land one; the landing lane
 // (cmd/land) does not test, so run this before landing. Affected
 // acceptance case areas are named, not run: the one acceptance run before
-// landing is the land tier it prints (`acceptance suite -tier land`, #273),
-// which covers those areas plus the smoke set; hand its output to
-// `cmd/land -results`. Running the areas first and then the tier runs
-// every case twice.
+// landing is the smoke tier it prints (`acceptance suite -tier smoke`,
+// #387); the nightly full tier proves the named areas, or `-tier land`
+// proves them before landing when the change warrants it. Hand the
+// output to `cmd/land -results`.
 package main
 
 import (

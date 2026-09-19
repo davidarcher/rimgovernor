@@ -14,7 +14,7 @@ func TestGateRefusesNativeDiffWithoutResults(t *testing.T) {
 	plain := []string{"go/internal/policy/x.go", "docs/README.md"}
 	for _, changed := range [][]string{native, runtime} {
 		err := acceptanceGate{}.check(changed)
-		if err == nil || !strings.Contains(err.Error(), "-tier land") || !strings.Contains(err.Error(), changed[0]) {
+		if err == nil || !strings.Contains(err.Error(), "-tier smoke") || !strings.Contains(err.Error(), changed[0]) {
 			t.Errorf("%v: got %v", changed, err)
 		}
 		if err := (acceptanceGate{Unverified: true}).check(changed); err != nil {

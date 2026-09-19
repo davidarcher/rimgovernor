@@ -83,13 +83,16 @@ under `cases affected`, `acceptance list -tier land` names them on stderr
 and the suite's `result.json` records them as `sampled`. A boot-path edit
 (`headless.go`, `warm.go`) therefore costs one case per area plus the
 smoke set, not the registry. Run the printed
-`acceptance suite -tier land` command at the milestone and hand its output
-to `cmd/land -results`. It covers the affected areas plus smoke; do not run
-the areas separately first. Name the suite in the commit message; an area you judged unaffected and skipped
-is "left unverified" below: land and say so in an issue. A run counts for the code it ran against: `main` moving under the
+`acceptance suite -tier smoke` command at the milestone and hand its output
+to `cmd/land -results`; the nightly full tier proves the affected areas
+(#387), and `-tier land` proves them before landing when the change warrants
+it. Do not run the areas separately first. Name the suite in the commit
+message; an area you judged unaffected and skipped is "left unverified"
+below: land and say so in the commit body. A run counts for the code it ran against: `main` moving under the
 branch afterwards, a clean rebase or a cherry-pick does not invalidate it,
 and nothing hashes or grades it. Never enter a second rerun-and-land cycle
-for one milestone; land and file an issue for anything left unverified.
+for one milestone; land and name anything left unverified in the commit
+body (the nightly full tier verifies it, #387).
 
 ## Stage the precondition, do not play into it
 
@@ -673,17 +676,20 @@ prints a tier and `-cost -baseline <result.json|metrics.jsonl>` prices it:
 
 - **land** (`suite -tier land [-base main]`): the case areas
   `cmd/affected` selects for the worktree's diff plus the smoke set, fresh,
-  in the landing lane; an area a harness edit reaches through shared
+  on demand before a landing the author wants proven (#387; the landing
+  lane itself requires the smoke tier); an area a harness edit reaches through shared
   plumbing alone contributes one case (sampled, #348, above). `cmd/test`
   prints the command; `cmd/land -results
   <output>` reads the suite's `result.json` and refuses a suite that did
   not pass or whose rows resumed from a checkpoint (#308). A diff under
   the native mod sources (`na.HarnessInputRoots`) or
-  `go/internal/buildingruntime` does not land without `-results`;
-  `-unverified` lands it anyway, and the issue names what went unverified.
+  `go/internal/buildingruntime` does not land without `-results` (the
+  smoke tier suffices); `-unverified` lands it anyway, and the commit body
+  names what went unverified.
 - **full** (`suite -tier full`): every case outside the matrix tier, the
-  nightly loop against `main`, chained with `-baseline` for regression
-  flagging.
+  nightly loop against `main` on CI (#363, #387), chained with `-baseline`
+  for regression flagging; a red row opens an issue naming it and the
+  day's landings.
 - **matrix** (`suite -tier matrix`): the cases that declare
   `Case.Matrix` — `speedmatrix/`, `tickbudget/` and any DLC-save case — on
   demand and whenever the clock scheduler or the native tick path changes.
