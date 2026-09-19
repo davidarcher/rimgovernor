@@ -527,9 +527,13 @@ census no longer lists is cancelled before the next selection; one whose animal
 wandered off follows it (#321). A dispatched pest hunt is finished natively when
 the animal is dead (completed, its corpse the output in whatever state it lies)
 or has left the map (unsuccessful, nothing to show), not when a fresh unforbidden
-corpse is observed as a food hunt is; the hunt-stall rule still cancels a pest
-hunt nobody takes, except one of a downed animal, which is bleeding out under a
-hunt nobody can hurry. Pest hunts never count toward edible stock.
+corpse is observed as a food hunt is. The hunt-stall rule never cancels a
+dispatched pest hunt (#455): the goal has no other prey to try for that animal,
+and withdrawing the designation only re-plans it. A withdrawal of a cancelled
+acquisition under a later same-world authority generation keeps the plan
+loadable: the dispatch admission agrees with the withdrawn progress on the
+world, plan and revision, not on the native generation (#455). Pest hunts never
+count toward edible stock.
 
 ## Wild-plant acquisition
 

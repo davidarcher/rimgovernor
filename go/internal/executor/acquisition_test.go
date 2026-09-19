@@ -265,3 +265,35 @@ func TestAcquisitionCancelledUndesignatedPendingIsNotWithdrawn(t *testing.T) {
 		t.Fatal("labor-finished failure of a cancelled action not settled", result, err, n)
 	}
 }
+
+// A same-world authority flip between a cancellation and its withdrawal
+// (#455) re-stamps the withdrawal attempt with the new generation; the
+// dispatch admission still agrees with it, so the plan stays loadable and
+// the withdrawn record settles instead of holding the source forever.
+func TestAcquisitionWithdrawalSurvivesSameWorldGenerationFlip(t *testing.T) {
+	f, n := acquisitionFixture(t)
+	if _, err := f.run(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.store.Cancel(context.Background(), f.plan.ID(), f.action.ID()); err != nil {
+		t.Fatal(err)
+	}
+	f.authority.Snapshot.Native++
+	if err := f.executor.UpdateAuthority(f.authority); err != nil {
+		t.Fatal(err)
+	}
+	n.effect = domain.EffectPending
+	result, err := f.run()
+	v := result.Progress.View()
+	if err != nil || n.withdrawn != 1 || v.Stage != domain.Cancelled || !v.Unresolved || v.Attempt != 2 || v.Snapshot != f.authority.Snapshot {
+		t.Fatalf("cancelled designation not withdrawn under the new generation: %+v %v %+v", v, err, n)
+	}
+	if _, err = f.store.LoadPlan(context.Background(), f.plan.ID()); err != nil {
+		t.Fatal("plan unloadable after a cross-generation withdrawal:", err)
+	}
+	n.effect = domain.EffectUnsuccessful
+	result, err = f.run()
+	if v = result.Progress.View(); err != nil || v.Unresolved || v.Stage != domain.Cancelled {
+		t.Fatalf("withdrawn designation did not settle: %+v %v", v, err)
+	}
+}

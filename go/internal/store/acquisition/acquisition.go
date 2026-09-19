@@ -74,7 +74,15 @@ func LoadAdmission(ctx context.Context, tx *sql.Tx, a domain.Action, p domain.Pr
 		return Admission{}, false, fmt.Errorf("invalid action %q admission: %w", a.ID(), err)
 	}
 	v := p.View()
-	if (v.Stage == domain.Prepared || v.Attempt > 0) && !admission.Snapshot.Matches(v.Snapshot) {
+	// A withdrawal (Progress.Withdraw) re-stamps a cancelled dispatch with
+	// the current same-world authority, so past the dispatch it was admitted
+	// under, the admission agrees with progress on the world, plan and
+	// revision rather than on the native generation (#455).
+	recorded, progressed := admission.Snapshot, v.Snapshot
+	if v.Stage == domain.Cancelled && v.Attempt > 1 {
+		recorded.Native, progressed.Native = 0, 0
+	}
+	if (v.Stage == domain.Prepared || v.Attempt > 0) && !recorded.Matches(progressed) {
 		return Admission{}, false, errors.New("admission and progress authority disagree")
 	}
 	if v.Unresolved && admission.Tick > v.Tick {

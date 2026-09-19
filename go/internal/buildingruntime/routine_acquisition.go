@@ -115,20 +115,6 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 	pests := policy.PestCensus(projection.Facts.AnimalUpkeep.WildAnimals)
 	reloadPlans := false
 	stalledSources := map[string]bool{}
-	// A pest hunt follows its animal (#321) and native settles it on the
-	// animal's death or departure, so the hunt-stall rule is not its exit:
-	// a downed pest is bleeding out under a hunt nobody can hurry, and
-	// cancelling it only re-plans the same animal.
-	dying := map[string]bool{}
-	if pest {
-		if rows, known := projection.Acquisition.Value(); known {
-			for _, row := range rows {
-				if row.Hunt && row.Downed {
-					dying[row.ID] = true
-				}
-			}
-		}
-	}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
 		if err != nil {
@@ -146,15 +132,22 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 				reloadPlans = true
 			}
 		}
-		for _, stalled := range stalledHuntActions(plan.Progress, huntSources, dying, expected.Tick, r.reviewer.policy.HuntStallTicks) {
-			// HuntingSafety.RouteSafe (native) stays authoritative and is never
-			// bypassed here -- this only stops RimGovernor's own planner from
-			// staying wedged behind an action native keeps correctly refusing
-			// to let through, freeing it to try a different prey or source.
-			if _, err = p.journal.Cancel(call, method.Plan, stalled); err != nil {
-				return RoutineAcquisitionResult{}, err
+		// A pest hunt follows its animal (#321) and native settles it on
+		// the animal's death or departure, so the hunt-stall rule is not
+		// its exit: the pest goal has no other prey to try for that animal,
+		// and cancelling the hunt withdraws the designation from under its
+		// hunter only to re-plan the same animal (#455).
+		if !pest {
+			for _, stalled := range stalledHuntActions(plan.Progress, huntSources, expected.Tick, r.reviewer.policy.HuntStallTicks) {
+				// HuntingSafety.RouteSafe (native) stays authoritative and is never
+				// bypassed here -- this only stops RimGovernor's own planner from
+				// staying wedged behind an action native keeps correctly refusing
+				// to let through, freeing it to try a different prey or source.
+				if _, err = p.journal.Cancel(call, method.Plan, stalled); err != nil {
+					return RoutineAcquisitionResult{}, err
+				}
+				reloadPlans = true
 			}
-			reloadPlans = true
 		}
 		stalled, err := stalledAcquisitionDesignations(call, p.journal, plan.Progress, huntSources, expected.Tick, r.reviewer.policy.AcquisitionStallTicks)
 		if err != nil {
@@ -418,8 +411,8 @@ func acquisitionBlockingWork(progress []domain.Progress) bool {
 // unsafe, which leaves the dispatched action's evidence unresolved -- it never
 // completes, fails, or gets re-inspected -- so it reads as open work forever
 // and blocks acquisitionBlockingWork's caller from proposing anything else.
-// graceTicks <= 0 disables this (never treats anything as stalled), and a
-// hunt of a thing in exempt is never stalled (a downed pest, #321).
+// graceTicks <= 0 disables this (never treats anything as stalled). Pest
+// hunts are not subject to it (#321, #455).
 // stalledDesignation is a dispatched, still-designated harvest nobody has
 // taken: the action and the source thing the planner must stop counting.
 type stalledDesignation struct {
@@ -459,7 +452,7 @@ func stalledAcquisitionDesignations(ctx context.Context, journal *store.Store, p
 	return stalled, nil
 }
 
-func stalledHuntActions(progress []domain.Progress, huntSources, exempt map[string]bool, now domain.Tick, graceTicks int64) []domain.ActionID {
+func stalledHuntActions(progress []domain.Progress, huntSources map[string]bool, now domain.Tick, graceTicks int64) []domain.ActionID {
 	if graceTicks <= 0 {
 		return nil
 	}
@@ -467,7 +460,7 @@ func stalledHuntActions(progress []domain.Progress, huntSources, exempt map[stri
 	for _, p := range progress {
 		acquisition, ok := p.Action().Acquisition()
 		v := p.View()
-		if ok && huntSources[acquisition.Thing()] && !exempt[acquisition.Thing()] && v.Unresolved && v.Stage != domain.Cancelled && int64(now-v.Tick) >= graceTicks {
+		if ok && huntSources[acquisition.Thing()] && v.Unresolved && v.Stage != domain.Cancelled && int64(now-v.Tick) >= graceTicks {
 			stalled = append(stalled, v.Action)
 		}
 	}

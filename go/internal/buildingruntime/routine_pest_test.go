@@ -106,15 +106,17 @@ func TestPestHuntWithdrawalReleasesTargetForReplanning(t *testing.T) {
 	if _, err = reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
+	// The stall rule does not cancel a pest hunt (#455); the cancellation
+	// comes from elsewhere (an operator, a goal review).
+	if _, err = db.Cancel(ctx, first.Plan, action.ID()); err != nil {
+		t.Fatal(err)
+	}
 	if result, err := planner.Step(ctx); err != nil || result.Reason != BuildingMethodUsed {
 		t.Fatal(result, err)
 	}
 	plan, err = db.LoadPlan(ctx, first.Plan)
 	if err != nil || plan.Progress[0].View().Stage != domain.Cancelled || !domain.GoalWorkOpen(plan.Progress) {
-		t.Fatal("stalled hunt must retain uncertainty until native withdrawal", plan, err)
-	}
-	if got := stalledHuntActions(plan.Progress, map[string]bool{target.Thing(): true}, nil, domain.Tick(facts.Context.GetTick()), reviewer.policy.HuntStallTicks); len(got) != 0 {
-		t.Fatal("cancelled hunt repeatedly cancelled instead of reconciled", got)
+		t.Fatal("cancelled hunt must retain uncertainty until native withdrawal", plan, err)
 	}
 	// Reconciliation observes the still-designated hunt, withdraws it, then
 	// observes no designation and no kill. No simulation tick is needed.
@@ -233,7 +235,7 @@ func TestPestAcquisitionPlannerAdmitsOneHuntPerPest(t *testing.T) {
 
 // A hunt follows its animal (#321): beavers wandering off their planned
 // cells leave both hunts open and nothing re-planned; a dispatched hunt of
-// a downed beaver is never stall-cancelled, the kill is its exit.
+// a dispatched hunt is never stall-cancelled, the kill is its exit.
 func TestPestAcquisitionPlannerFollowsStrayedAndDownedAnimals(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -269,8 +271,9 @@ func TestPestAcquisitionPlannerFollowsStrayedAndDownedAnimals(t *testing.T) {
 			t.Fatal("a strayed hunt must stay open", id, plan, err)
 		}
 	}
-	// The first hunt is dispatched and its beaver downed: the stall grace
-	// passes and the hunt stays dispatched.
+	// The first hunt is dispatched and its beaver still alive on the map:
+	// the hunt-stall grace passes and the hunt stays dispatched (#455), and
+	// so it does once the beaver is downed.
 	plan, err := db.LoadPlan(ctx, first.Plan)
 	if err != nil {
 		t.Fatal(err)
@@ -291,21 +294,28 @@ func TestPestAcquisitionPlannerFollowsStrayedAndDownedAnimals(t *testing.T) {
 	}
 	for _, row := range v.Acquisition {
 		if row.Source.GetId() == target.Thing() {
-			row.Designated, row.Downed = proto.Bool(true), proto.Bool(true)
+			row.Designated = proto.Bool(true)
 		}
 	}
 	v.PendingHunts = proto.Uint32(1)
-	retick(v.ProtoReflect(), int64(tick)+reviewer.policy.HuntStallTicks)
-	reviewer.census.invalidate()
-	if _, err = reviewer.Step(ctx); err != nil {
-		t.Fatal(err)
-	}
-	if result, err := planner.Step(ctx); err != nil || result.Reason != BuildingMethodUsed {
-		t.Fatal(result, err)
-	}
-	plan, err = db.LoadPlan(ctx, first.Plan)
-	if err != nil || plan.Progress[0].View().Stage != domain.AwaitingObservation {
-		t.Fatal("a hunt of a downed pest must not be stall-cancelled", plan, err)
+	for _, downed := range []bool{false, true} {
+		for _, row := range v.Acquisition {
+			if row.Source.GetId() == target.Thing() {
+				row.Downed = proto.Bool(downed)
+			}
+		}
+		retick(v.ProtoReflect(), v.Context.GetTick()+reviewer.policy.HuntStallTicks)
+		reviewer.census.invalidate()
+		if _, err = reviewer.Step(ctx); err != nil {
+			t.Fatal(err)
+		}
+		if result, err := planner.Step(ctx); err != nil || result.Reason != BuildingMethodUsed {
+			t.Fatal(result, err)
+		}
+		plan, err = db.LoadPlan(ctx, first.Plan)
+		if err != nil || plan.Progress[0].View().Stage != domain.AwaitingObservation {
+			t.Fatal("a dispatched pest hunt must not be stall-cancelled", downed, plan, err)
+		}
 	}
 }
 
