@@ -2,6 +2,8 @@ package nativeaccept
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -96,5 +98,27 @@ func TestRetiredLifecycleRefusesCases(t *testing.T) {
 	}
 	if retired, reason := g.Retired(); !retired || reason != "test" {
 		t.Fatalf("retirement reason overwritten: %v %q", retired, reason)
+	}
+}
+
+// StopRenderedGame costs a headless-only root nothing: without a launch
+// record on the windowed profile (no config, or a profile never launched
+// rendered) it opens no GABS session and reports nothing stopped (#444).
+func TestStopRenderedGameSkipsRootWithoutRenderedLaunch(t *testing.T) {
+	root := t.TempDir()
+	if stopped, err := StopRenderedGame(context.Background(), root, "rimworld"); err != nil || stopped {
+		t.Fatalf("no config: stopped=%v err=%v", stopped, err)
+	}
+	profile := filepath.Join(root, "profile")
+	if err := os.MkdirAll(filepath.Join(root, "config"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeConfig(filepath.Join(root, "config", "config.json"), map[string]any{
+		"games": map[string]any{"rimgovernor-trial": map[string]any{"args": []any{"-savedatafolder=" + profile}}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if stopped, err := StopRenderedGame(context.Background(), root, "rimworld"); err != nil || stopped {
+		t.Fatalf("unlaunched profile: stopped=%v err=%v", stopped, err)
 	}
 }

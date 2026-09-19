@@ -284,9 +284,10 @@ func awaitStopped(ctx context.Context, client *bridge.Client) {
 }
 
 // StopGame stops whatever game root owns (games_stop through the root's own
-// GABS configuration, headless first) and waits for the process to be gone;
-// a root with nothing running is not an error. It is what ends a batch of
-// harnesses that kept the game (KeepGameEnv).
+// GABS configuration, headless first, then the windowed profile's kept
+// process if one was launched, StopRenderedGame) and waits for the process
+// to be gone; a root with nothing running is not an error. It is what ends
+// a batch of harnesses that kept the game (KeepGameEnv).
 func StopGame(ctx context.Context, root, gameID string) error {
 	configDir := filepath.Join(root, "config-headless")
 	if _, err := os.Stat(configDir); err != nil {
@@ -305,7 +306,53 @@ func StopGame(ctx context.Context, root, gameID string) error {
 		return err
 	}
 	awaitStopped(ctx, client)
-	return nil
+	if filepath.Base(configDir) == "config" {
+		return nil
+	}
+	_, err = StopRenderedGame(ctx, root, gameID)
+	return err
+}
+
+// StopRenderedGame stops the process the root's windowed profile
+// (root/config, the profile PrepareRendered launches) keeps, so a headless
+// case does not boot beside it (#444): a rendered case leaves its process
+// at the main menu, and on a small box a window still drawing its menu
+// starves the next headless boot past the connect budget. Nothing is done
+// when the windowed profile carries no launch record (LaunchedModsFile:
+// the root never launched rendered), so headless-only roots pay nothing;
+// after a stop the record is removed, since the process it described is
+// gone, and the next headless case skips the check again. It returns
+// whether a process was stopped.
+func StopRenderedGame(ctx context.Context, root, gameID string) (bool, error) {
+	configDir := filepath.Join(root, "config")
+	profile, err := SaveDataFolder(configDir)
+	if err != nil {
+		return false, nil
+	}
+	record := filepath.Join(profile, LaunchedModsFile)
+	if _, err := os.Stat(record); err != nil {
+		return false, nil
+	}
+	gabs, err := GABSExecutable(root, configDir)
+	if err != nil {
+		return false, err
+	}
+	client, err := OpenBridgeSession(ctx, gabs, configDir, gameID, 60*time.Second)
+	if err != nil {
+		return false, err
+	}
+	defer client.Close()
+	stopped := false
+	if GameRunning(ctx, client) {
+		if _, err := client.GamesStop(ctx); err != nil {
+			return false, err
+		}
+		awaitStopped(ctx, client)
+		stopped = true
+	}
+	_ = os.Remove(record)
+	_ = os.Remove(filepath.Join(profile, LaunchedPackageFile))
+	return stopped, nil
 }
 
 // toMainMenu unloads whatever is loaded and waits until no game answers.

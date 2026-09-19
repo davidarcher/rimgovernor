@@ -84,3 +84,22 @@ func TestCaseOutputByAttempt(t *testing.T) {
 		t.Errorf("attempt 3 = %q", got)
 	}
 }
+
+// Under -headless a rendered case ends the kept headless process and a
+// headless case ends a kept rendered one (#444); without -headless every
+// case shares the windowed profile and nothing is stopped.
+func TestProfileToStopEndsTheOtherProfileUnderHeadless(t *testing.T) {
+	for _, tc := range []struct {
+		rendered, headless bool
+		want               string
+	}{
+		{rendered: true, headless: true, want: "headless"},
+		{rendered: false, headless: true, want: "rendered"},
+		{rendered: true, headless: false, want: ""},
+		{rendered: false, headless: false, want: ""},
+	} {
+		if got := profileToStop(Case{Rendered: tc.rendered}, tc.headless); got != tc.want {
+			t.Errorf("rendered=%v headless=%v: got %q, want %q", tc.rendered, tc.headless, got, tc.want)
+		}
+	}
+}

@@ -699,7 +699,13 @@ registry cases with the criterion each stands for; `-tier` names one of
 the three tiers below (the report records `tier`). The queue puts
 bridge-only cases first, cases that end or replace the process (`NoKeep`,
 `Rendered`) next and serve-driven ones (`Serve` or `Service`) last, so no
-bridge-only case inherits a process that hosted a service (#119); within
+bridge-only case inherits a process that hosted a service (#119). Under
+`-headless` a `Rendered` case first stops the kept headless process and a
+headless case first stops a kept rendered one (`na.StopRenderedGame`, the
+report's `stopped_rendered`; #444): a windowed process left drawing its
+menu starves the next headless boot past the connect budget on a small
+box, and the check costs nothing on a root that never launched rendered.
+Within
 each tier it runs longest-first by the `-baseline` suite's wall times
 (untimed cases first). The suite's `result.json` lists each case's
 worker, exit, `wall_ms`, `boot_ms`,

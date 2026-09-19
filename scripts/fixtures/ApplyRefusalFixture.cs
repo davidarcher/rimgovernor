@@ -17,7 +17,9 @@ namespace HomeBridge.BridgeTools
     // request so apply/refusal can execute each write with a token that was
     // valid when read and assert the named apply-time refusal.
     //
-    // prepare: a roofed, walled, empty 2x3 interior (a stockpile zone over its
+    // prepare (clutter: plant grass over every bare cell around the colonist
+    // first, so the map cannot supply an untouched interior, #441): a
+    // roofed, walled, empty 2x3 interior (a stockpile zone over its
     // first 2x2, the remaining two cells free roofed ground; one of its walls
     // is the deconstruction target), one forbidden WoodLog stack and one
     // allowed WoodLog stack (the haul target) on open ground, one colonist
@@ -32,7 +34,7 @@ namespace HomeBridge.BridgeTools
     public sealed class ApplyRefusalFixture
     {
         [Tool("test/apply_refusal_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture: stage one target per routine write kind (stockpile zone over a roofed interior, forbidden and allowed items, a colonist, a wild plant, a surface rock, a butcher spot, wild hares, a plant pot, a build cell) and report each target's exact snapshot token.")]
-        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken, bool clutter = false)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap; var player = Faction.OfPlayerSilentFail;
@@ -54,16 +56,44 @@ namespace HomeBridge.BridgeTools
                 var wallDef = DefDatabase<ThingDef>.GetNamedSilentFail("Wall");
                 if (wallDef == null || !wallDef.MadeFromStuff || !GenStuff.AllowedStuffsFor(wallDef).Contains(ThingDefOf.WoodLog))
                     return Refuse("Wall def unavailable or WoodLog is not an allowed stuff in this ruleset.");
-                var origin = GenRadial.RadialCellsAround(pawn.Position, 40, true).FirstOrDefault(c =>
-                    new CellRect(c.x, c.z, 4, 5).Cells.All(cell => cell.InBounds(map) && !cell.Fogged(map)
-                        && cell.Standable(map) && cell.GetEdifice(map) == null && cell.GetZone(map) == null
-                        && cell.GetThingList(map).Count == 0
-                        && cell.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Heavy)));
+                // Ground is any standable heavy-affordance cell without an
+                // edifice or zone; whatever wild plants, items and filth
+                // stand on it are cleared before the fixture uses it, so a
+                // grassy debug map still yields the interior (#441). With
+                // clutter, every such cell around the colonist is planted
+                // first, so the initial map cannot supply a bare interior
+                // and the clearing is what the case exercises.
+                bool Bare(IntVec3 cell) => cell.InBounds(map) && !cell.Fogged(map) && cell.Standable(map)
+                    && cell.GetEdifice(map) == null && cell.GetZone(map) == null && cell.GetFirstPawn(map) == null
+                    && cell.GetThingList(map).All(t => t is Plant || t is Filth || t.def.category == ThingCategory.Item);
+                bool Ground(IntVec3 cell) => Bare(cell) && cell.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Heavy);
+                void Clear(IntVec3 cell)
+                {
+                    foreach (var t in cell.GetThingList(map).Where(t => t is Plant || t is Filth || t.def.category == ThingCategory.Item).ToList())
+                        t.Destroy(DestroyMode.Vanish);
+                }
+                var planted = 0;
+                if (clutter)
+                {
+                    var grassDef = DefDatabase<ThingDef>.GetNamedSilentFail("Plant_Grass");
+                    if (grassDef == null) return Refuse("Plant_Grass is unavailable in this ruleset.");
+                    foreach (var c in GenRadial.RadialCellsAround(pawn.Position, 40, true).Where(c => Ground(c) && c.GetThingList(map).Count == 0 && !c.Roofed(map)).ToList())
+                    {
+                        GenSpawn.Spawn(ThingMaker.MakeThing(grassDef), c, map);
+                        planted++;
+                    }
+                }
+                // The interior is sought within 40 cells of the colonist,
+                // then anywhere on the map nearest first.
+                var rectFits = new Func<IntVec3, bool>(c => new CellRect(c.x, c.z, 4, 5).Cells.All(Ground));
+                var origin = GenRadial.RadialCellsAround(pawn.Position, 40, true).FirstOrDefault(rectFits);
+                if (origin == default) origin = map.AllCells.OrderBy(c => c.DistanceToSquared(pawn.Position)).FirstOrDefault(rectFits);
                 if (origin == default) return Refuse("No open area for the fixture interior.");
                 Building? wall = null;
                 for (var x = 0; x < 4; x++) for (var z = 0; z < 5; z++)
                 {
                     var c = new IntVec3(origin.x + x, 0, origin.z + z);
+                    Clear(c);
                     if (x == 0 || z == 0 || x == 3 || z == 4)
                     {
                         var built = (Building)ThingMaker.MakeThing(wallDef, ThingDefOf.WoodLog);
@@ -96,12 +126,10 @@ namespace HomeBridge.BridgeTools
                 var staged = new List<IntVec3>();
                 IntVec3 Open(IntVec3 near, int radius, int clearance)
                 {
-                    var found = GenRadial.RadialCellsAround(near, radius, true).FirstOrDefault(c => c.InBounds(map) && !c.Fogged(map)
-                        && c.Standable(map) && c.GetEdifice(map) == null && c.GetZone(map) == null && c.GetThingList(map).Count == 0
+                    var found = GenRadial.RadialCellsAround(near, radius, true).FirstOrDefault(c => Ground(c)
                         && !c.Roofed(map) && !map.areaManager.Home[c] && c.DistanceTo(origin) > 8
-                        && c.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Heavy)
                         && staged.All(s => s.DistanceTo(c) > clearance));
-                    if (found != default) staged.Add(found);
+                    if (found != default) { staged.Add(found); Clear(found); }
                     return found;
                 }
                 var itemCell = Open(pawn.Position, 30, 8);
@@ -135,11 +163,10 @@ namespace HomeBridge.BridgeTools
                 var rockCell = GenRadial.RadialCellsAround(pawn.Position, 30, true).FirstOrDefault(c => c.DistanceTo(origin) > 12 && staged.All(s => s.DistanceTo(c) > 8)
                     && GenRadial.RadialCellsAround(c, 7, true).All(cell => cell.InBounds(map) && !cell.Fogged(map) && !cell.Roofed(map)
                         && !map.roofCollapseBuffer.IsMarkedToCollapse(cell))
-                    && GenAdj.CellsAdjacent8Way(new TargetInfo(c, map)).Concat(new[] { c }).All(cell => cell.InBounds(map) && cell.Standable(map)
-                        && cell.GetEdifice(map) == null && cell.GetZone(map) == null && !map.areaManager.Home[cell]
-                        && cell.GetThingList(map).Count == 0));
+                    && GenAdj.CellsAdjacent8Way(new TargetInfo(c, map)).Concat(new[] { c }).All(cell => Bare(cell) && !map.areaManager.Home[cell]));
                 if (rockCell == default) return Refuse("No open unroofed cell for the fixture rock.");
                 staged.Add(rockCell);
+                foreach (var cell in GenAdj.CellsAdjacent8Way(new TargetInfo(rockCell, map)).Concat(new[] { rockCell })) Clear(cell);
                 var rock = (Mineable)ThingMaker.MakeThing(rockDef);
                 GenSpawn.Spawn(rock, rockCell, map);
                 if (!ResourceAcquisitionTools.Eligible(rock, map) || ResourceAcquisitionTools.Designated(rock))
@@ -206,7 +233,8 @@ namespace HomeBridge.BridgeTools
                 var identity = Current.Game.GetComponent<ColonyIdentity>();
                 return new {
                     success = true, colonyId = identity?.ColonyId, loadToken = identity?.LoadToken, mapId = map.uniqueID,
-                    tick = Find.TickManager.TicksGame,
+                    tick = Find.TickManager.TicksGame, clutterPlanted = planted,
+                    interiorOrigin = new { x = origin.x, z = origin.z },
                     zoneId = zone.GetUniqueLoadID(), zoneToken = NativeZoneObservationTools.Token(zone, context).Token,
                     zoneCells = zoneCells.Select(c => new { x = c.x, z = c.z }).ToList(),
                     freeCells = freeCells.Select(c => new { x = c.x, z = c.z }).ToList(),

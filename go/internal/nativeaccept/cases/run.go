@@ -138,6 +138,44 @@ func (o Options) CaseOutput(c Case) string {
 	return filepath.Join(o.Output, filepath.FromSlash(c.Name))
 }
 
+// profileToStop names the kept process a case under -headless must end
+// before it opens, or "" when it reuses whatever runs: a rendered case
+// cannot run on the headless process ("headless"), and a headless case
+// after a rendered one would boot beside the windowed process the
+// rendered case kept ("rendered", #444). Without -headless every case
+// shares the windowed profile and nothing is stopped.
+func profileToStop(c Case, headless bool) string {
+	switch {
+	case !headless:
+		return ""
+	case c.Rendered:
+		return "headless"
+	default:
+		return "rendered"
+	}
+}
+
+// stopOtherProfile ends the process profileToStop names, recording a
+// rendered stop on the report under "stopped_rendered" (na.StopRenderedGame
+// does nothing on a root that never launched rendered).
+func stopOtherProfile(ctx context.Context, c Case, opts Options, report na.Report) error {
+	switch profileToStop(c, opts.Headless) {
+	case "headless":
+		if err := na.StopGame(ctx, opts.Root, opts.GameID); err != nil {
+			return fmt.Errorf("stop kept headless game before rendered start: %w", err)
+		}
+	case "rendered":
+		stopped, err := na.StopRenderedGame(ctx, opts.Root, opts.GameID)
+		if err != nil {
+			return fmt.Errorf("stop kept rendered game before headless start: %w", err)
+		}
+		if stopped {
+			report["stopped_rendered"] = true
+		}
+	}
+	return nil
+}
+
 // Execute runs one case end to end (prepare, open, start, quiet, freeze,
 // Run, close) and writes its report; it returns the report and the process
 // exit code Report.Finalize computed. A case that fails Lint is refused
@@ -382,12 +420,8 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 		}
 		return c.Run(ctx, s)
 	}
-	if c.Rendered && opts.Headless {
-		// A rendered case cannot run on the headless process the root
-		// keeps; end it so the windowed profile launches its own.
-		if err := na.StopGame(ctx, opts.Root, opts.GameID); err != nil {
-			return fmt.Errorf("stop kept headless game before rendered start: %w", err)
-		}
+	if err := stopOtherProfile(ctx, c, opts, report); err != nil {
+		return err
 	}
 	// na.OpenSession is the shared preamble (#137): stale-package check,
 	// profile, a kept process, discovery, the start, pause, the fixture op,
@@ -495,10 +529,8 @@ func executePostmortem(ctx context.Context, c Case, opts Options, output string,
 	if log := opts.Log; log != nil {
 		fmt.Fprintf(log, "postmortem-only: %s over %s (tick %d); the ring is untouched\n", c.Name, entry.Path, entry.Tick)
 	}
-	if c.Rendered && opts.Headless {
-		if err := na.StopGame(ctx, opts.Root, opts.GameID); err != nil {
-			return fmt.Errorf("stop kept headless game before rendered start: %w", err)
-		}
+	if err := stopOtherProfile(ctx, c, opts, report); err != nil {
+		return err
 	}
 	opened, err := na.OpenSession(ctx, cfg, report, na.Save{Name: save}, c.Quiet, c.keepNeeds()...)
 	if err != nil {

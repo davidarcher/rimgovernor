@@ -29,7 +29,11 @@ func init() {
 			"removal, a write whose token was valid when read is executed after the fixture moved the world and is refused " +
 			"with the documented reason naming the moved fact; the acquisition writes are refused the same way without a " +
 			"token, as live dispatch sends them (#243).",
-		Start:  cases.Fixture{Op: "test/apply_refusal_prepare"},
+		// clutter plants every bare cell around the colonist before the
+		// fixture stages its interior, so the initial map cannot supply
+		// one untouched and the fixture's own clearing is exercised
+		// (#441); the case asserts the planting happened.
+		Start:  cases.Fixture{Op: "test/apply_refusal_prepare", Args: map[string]any{"clutter": true}},
 		Budget: 5 * time.Minute,
 		Run:    run,
 	})
@@ -64,6 +68,10 @@ func run(ctx context.Context, s cases.Session) error {
 		}
 		return cells, nil
 	}
+	if planted := na.AsNumber(prepared["clutterPlanted"]); planted <= 0 {
+		return fmt.Errorf("prepare: clutter planted nothing, the initial map supplied the interior untouched: %#v", prepared["clutterPlanted"])
+	}
+	report["clutter_planted"] = prepared["clutterPlanted"]
 	zoneCells, err := cellsOf("zoneCells")
 	if err != nil {
 		return err
@@ -232,7 +240,7 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 	if err := refused("allow", map[string]any{"designateThing": map[string]any{
 		"target": map[string]any{"entityId": tokens["itemId"], "expectedSnapshotToken": tokens["itemToken"]}, "designation": "THING_DESIGNATION_ALLOW",
-	}}, "FAILURE_CODE_INVALID_REQUEST", "Allow refused: the item is already allowed"); err != nil {
+	}}, "FAILURE_CODE_INVALID_REQUEST", "Allow refused: the item already has the desired forbid state"); err != nil {
 		return err
 	}
 
