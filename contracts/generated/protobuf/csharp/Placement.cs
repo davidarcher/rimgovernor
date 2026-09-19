@@ -72,24 +72,24 @@ namespace RimGovernor.Protocol.Placement {
             "Y2hfY2VsbHNfYWNjZXNzaWJsZRgGIAEoCEgDiAEBEjYKEWludGVyYWN0aW9u",
             "X2NlbGxzGAcgAygLMhsucmltZ292ZXJub3IuY29tbW9uLnYxLkNlbGxCCwoJ",
             "X3JvdGF0aW9uQgsKCV9hY2NlcHRlZEIJCgdfcmVhc29uQhkKF193YXRjaF9j",
-            "ZWxsc19hY2Nlc3NpYmxlIvoBChBQbGFjZW1lbnRCbG9ja2VyEhUKCGNhdGVn",
+            "ZWxsc19hY2Nlc3NpYmxlIp4CChBQbGFjZW1lbnRCbG9ja2VyEhUKCGNhdGVn",
             "b3J5GAEgASgJSACIAQESGQoMaXNfYmx1ZXByaW50GAIgASgISAGIAQESFQoI",
             "aXNfZnJhbWUYAyABKAhIAogBARIbCg53b3VsZF9iZV93aXBlZBgEIAEoCEgD",
-            "iAEBEiUKGGZyYW1lX3dvdWxkX2JlX2NhbmNlbGxlZBgFIAEoCEgEiAEBQgsK",
-            "CV9jYXRlZ29yeUIPCg1faXNfYmx1ZXByaW50QgsKCV9pc19mcmFtZUIRCg9f",
-            "d291bGRfYmVfd2lwZWRCGwoZX2ZyYW1lX3dvdWxkX2JlX2NhbmNlbGxlZCqE",
-            "AQoIUm90YXRpb24SGAoUUk9UQVRJT05fVU5TUEVDSUZJRUQQABISCg5ST1RB",
-            "VElPTl9OT1JUSBABEhEKDVJPVEFUSU9OX0VBU1QQAhISCg5ST1RBVElPTl9T",
-            "T1VUSBADEhEKDVJPVEFUSU9OX1dFU1QQBBIQCgxST1RBVElPTl9BTEwQBSqE",
-            "AQoLUGFzc2FiaWxpdHkSGwoXUEFTU0FCSUxJVFlfVU5TUEVDSUZJRUQQABIZ",
-            "ChVQQVNTQUJJTElUWV9TVEFOREFCTEUQARIhCh1QQVNTQUJJTElUWV9QQVNT",
-            "X1RIUk9VR0hfT05MWRACEhoKFlBBU1NBQklMSVRZX0lNUEFTU0FCTEUQAzJs",
-            "CglQbGFjZW1lbnQSXwoHUHJldmlldxIqLnJpbWdvdmVybm9yLnBsYWNlbWVu",
-            "dC52MS5QbGFjZW1lbnRSZXF1ZXN0GigucmltZ292ZXJub3IucGxhY2VtZW50",
-            "LnYxLlBsYWNlbWVudFJlcGx5Qm5aS2dpdGh1Yi5jb20vZGF2aWRhcmNoZXIv",
-            "UmltR292ZXJub3IvZ28vaW50ZXJuYWwvd2lyZS9wbGFjZW1lbnRwYjtwbGFj",
-            "ZW1lbnRwYqoCHlJpbUdvdmVybm9yLlByb3RvY29sLlBsYWNlbWVudGIGcHJv",
-            "dG8z"));
+            "iAEBEiUKGGZyYW1lX3dvdWxkX2JlX2NhbmNlbGxlZBgFIAEoCEgEiAEBEhUK",
+            "CGRlZl9uYW1lGAYgASgJSAWIAQFCCwoJX2NhdGVnb3J5Qg8KDV9pc19ibHVl",
+            "cHJpbnRCCwoJX2lzX2ZyYW1lQhEKD193b3VsZF9iZV93aXBlZEIbChlfZnJh",
+            "bWVfd291bGRfYmVfY2FuY2VsbGVkQgsKCV9kZWZfbmFtZSqEAQoIUm90YXRp",
+            "b24SGAoUUk9UQVRJT05fVU5TUEVDSUZJRUQQABISCg5ST1RBVElPTl9OT1JU",
+            "SBABEhEKDVJPVEFUSU9OX0VBU1QQAhISCg5ST1RBVElPTl9TT1VUSBADEhEK",
+            "DVJPVEFUSU9OX1dFU1QQBBIQCgxST1RBVElPTl9BTEwQBSqEAQoLUGFzc2Fi",
+            "aWxpdHkSGwoXUEFTU0FCSUxJVFlfVU5TUEVDSUZJRUQQABIZChVQQVNTQUJJ",
+            "TElUWV9TVEFOREFCTEUQARIhCh1QQVNTQUJJTElUWV9QQVNTX1RIUk9VR0hf",
+            "T05MWRACEhoKFlBBU1NBQklMSVRZX0lNUEFTU0FCTEUQAzJsCglQbGFjZW1l",
+            "bnQSXwoHUHJldmlldxIqLnJpbWdvdmVybm9yLnBsYWNlbWVudC52MS5QbGFj",
+            "ZW1lbnRSZXF1ZXN0GigucmltZ292ZXJub3IucGxhY2VtZW50LnYxLlBsYWNl",
+            "bWVudFJlcGx5Qm5aS2dpdGh1Yi5jb20vZGF2aWRhcmNoZXIvUmltR292ZXJu",
+            "b3IvZ28vaW50ZXJuYWwvd2lyZS9wbGFjZW1lbnRwYjtwbGFjZW1lbnRwYqoC",
+            "HlJpbUdvdmVybm9yLlByb3RvY29sLlBsYWNlbWVudGIGcHJvdG8z"));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::RimGovernor.Protocol.Common.CommonReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(new[] {typeof(global::RimGovernor.Protocol.Placement.Rotation), typeof(global::RimGovernor.Protocol.Placement.Passability), }, null, new pbr::GeneratedClrTypeInfo[] {
@@ -104,7 +104,7 @@ namespace RimGovernor.Protocol.Placement {
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Placement.MaterialRows), global::RimGovernor.Protocol.Placement.MaterialRows.Parser, new[]{ "Rows" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Placement.PlacementMaterialStock), global::RimGovernor.Protocol.Placement.PlacementMaterialStock.Parser, new[]{ "DefName", "Available" }, new[]{ "DefName", "Available" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Placement.PlacementRotation), global::RimGovernor.Protocol.Placement.PlacementRotation.Parser, new[]{ "Rotation", "Accepted", "Reason", "OccupiedCells", "BlockingThings", "WatchCellsAccessible", "InteractionCells" }, new[]{ "Rotation", "Accepted", "Reason", "WatchCellsAccessible" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Placement.PlacementBlocker), global::RimGovernor.Protocol.Placement.PlacementBlocker.Parser, new[]{ "Category", "IsBlueprint", "IsFrame", "WouldBeWiped", "FrameWouldBeCancelled" }, new[]{ "Category", "IsBlueprint", "IsFrame", "WouldBeWiped", "FrameWouldBeCancelled" }, null, null, null)
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Placement.PlacementBlocker), global::RimGovernor.Protocol.Placement.PlacementBlocker.Parser, new[]{ "Category", "IsBlueprint", "IsFrame", "WouldBeWiped", "FrameWouldBeCancelled", "DefName" }, new[]{ "Category", "IsBlueprint", "IsFrame", "WouldBeWiped", "FrameWouldBeCancelled", "DefName" }, null, null, null)
           }));
     }
     #endregion
@@ -3710,6 +3710,7 @@ namespace RimGovernor.Protocol.Placement {
       isFrame_ = other.isFrame_;
       wouldBeWiped_ = other.wouldBeWiped_;
       frameWouldBeCancelled_ = other.frameWouldBeCancelled_;
+      defName_ = other.defName_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -3853,6 +3854,32 @@ namespace RimGovernor.Protocol.Placement {
       _hasBits0 &= ~8;
     }
 
+    /// <summary>Field number for the "def_name" field.</summary>
+    public const int DefNameFieldNumber = 6;
+    private readonly static string DefNameDefaultValue = "";
+
+    private string defName_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string DefName {
+      get { return defName_ ?? DefNameDefaultValue; }
+      set {
+        defName_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+    /// <summary>Gets whether the "def_name" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasDefName {
+      get { return defName_ != null; }
+    }
+    /// <summary>Clears the value of the "def_name" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearDefName() {
+      defName_ = null;
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -3873,6 +3900,7 @@ namespace RimGovernor.Protocol.Placement {
       if (IsFrame != other.IsFrame) return false;
       if (WouldBeWiped != other.WouldBeWiped) return false;
       if (FrameWouldBeCancelled != other.FrameWouldBeCancelled) return false;
+      if (DefName != other.DefName) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -3885,6 +3913,7 @@ namespace RimGovernor.Protocol.Placement {
       if (HasIsFrame) hash ^= IsFrame.GetHashCode();
       if (HasWouldBeWiped) hash ^= WouldBeWiped.GetHashCode();
       if (HasFrameWouldBeCancelled) hash ^= FrameWouldBeCancelled.GetHashCode();
+      if (HasDefName) hash ^= DefName.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -3923,6 +3952,10 @@ namespace RimGovernor.Protocol.Placement {
         output.WriteRawTag(40);
         output.WriteBool(FrameWouldBeCancelled);
       }
+      if (HasDefName) {
+        output.WriteRawTag(50);
+        output.WriteString(DefName);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -3953,6 +3986,10 @@ namespace RimGovernor.Protocol.Placement {
         output.WriteRawTag(40);
         output.WriteBool(FrameWouldBeCancelled);
       }
+      if (HasDefName) {
+        output.WriteRawTag(50);
+        output.WriteString(DefName);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -3977,6 +4014,9 @@ namespace RimGovernor.Protocol.Placement {
       }
       if (HasFrameWouldBeCancelled) {
         size += 1 + 1;
+      }
+      if (HasDefName) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(DefName);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -4004,6 +4044,9 @@ namespace RimGovernor.Protocol.Placement {
       }
       if (other.HasFrameWouldBeCancelled) {
         FrameWouldBeCancelled = other.FrameWouldBeCancelled;
+      }
+      if (other.HasDefName) {
+        DefName = other.DefName;
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -4044,6 +4087,10 @@ namespace RimGovernor.Protocol.Placement {
             FrameWouldBeCancelled = input.ReadBool();
             break;
           }
+          case 50: {
+            DefName = input.ReadString();
+            break;
+          }
         }
       }
     #endif
@@ -4081,6 +4128,10 @@ namespace RimGovernor.Protocol.Placement {
           }
           case 40: {
             FrameWouldBeCancelled = input.ReadBool();
+            break;
+          }
+          case 50: {
+            DefName = input.ReadString();
             break;
           }
         }

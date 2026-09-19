@@ -55,11 +55,13 @@ predicted.
 
 ## Methods
 
-- `PowerConduit` (`connect`): when the consumer's network has no producer but
+- `HiddenConduit` (`connect`): when the consumer's network has no producer but
   the colony has one, one bounded route (eight cells per method) from the
   consumer toward the nearest enabled producer, over cells the site census
   reports as buildable and outside protected geometry; successive methods
-  extend the same route. Blocked routes report `no_observed_route`.
+  extend the same route. Blocked routes report `no_observed_route`. Ordinary
+  conduits are also replaced in bounded methods because roofs do not prevent
+  their random short-circuit event.
 - `generate`: one generator chosen by `RankGenerators` over
   `GeneratorDefinitions` (`SolarGenerator`, `WoodFiredGenerator`,
   `ChemfuelPoweredGenerator`), natively unavailable ones skipped, by cost
@@ -72,6 +74,9 @@ predicted.
   available.
 - `store`: one `Battery`, placed on a roofed cell within six cells of the
   draining consumer (a battery short-circuits unroofed in rain or snow).
+- `shelter_power`: a bounded enclosure around exposed vulnerable equipment,
+  with recovery requiring the observed roof. See
+  [electrical safety](../architecture/facilities.md#electrical-safety).
 
 Method identity is the target consumer plus the sorted producer ids (and,
 for `store`, the installed capacity), so a repeated deficit replays the same
@@ -83,4 +88,6 @@ completed work against `PowerFamilyDefinitions()`.
 `power/fuel`, `power/reserve` and `power/battery`
 (`go/internal/nativeaccept/cases/power`) cover the refuel hold, the
 generation shortfall on a draining reserve, and generation plus connection
-from an exhausted bank with no generator.
+from an exhausted bank with no generator. `power/rain` proves enclosure and
+conduit replacement followed by a full day of rain without short circuits,
+fires or equipment damage.

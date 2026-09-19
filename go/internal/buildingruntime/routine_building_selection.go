@@ -98,6 +98,9 @@ func (r *RoutineBuildingPlanner) selection(facts observation.ColonyProjection) (
 		if r.power.Method == policy.PowerGenerate || r.power.Method == policy.PowerStore {
 			return 1, r.power.Key, ""
 		}
+		if r.power.Method == policy.PowerShelter {
+			return int64(2*r.power.Room.Width + 2*r.power.Room.Height - 4), r.power.Key, ""
+		}
 		return 0, "", BuildingMethodUnknown
 	case policy.EnsureComfort:
 		if r.shelter {

@@ -58,6 +58,9 @@ func (r *RoutineBuildingPlanner) selectPower(facts observation.ColonyProjection)
 		// sits indoors.
 		resolved.definition, resolved.environment = proposal.Definition, policy.PlacementIndoors
 	}
+	if proposal.Method == policy.PowerShelter {
+		resolved.definition = "Wall"
+	}
 	return &resolved, "", nil
 }
 
@@ -102,13 +105,101 @@ func powerOutputAllowance(ctx context.Context, journal *store.Store, goal domain
 			return 0, err
 		}
 		allowance = max(allowance, powerNativeWorkTicks(plan, current, tick))
+		if len(plan.Spec.Actions()) > 0 {
+			walls := true
+			for _, a := range plan.Spec.Actions() {
+				b, ok := a.Building()
+				walls = walls && ok && (b.Definition() == "Wall" || b.Definition() == "Door")
+			}
+			if walls {
+				allowance = max(allowance, shelterNativeWorkTicks(plan, current, tick))
+			}
+		}
 	}
 	return allowance, nil
+}
+
+func (r *RoutineBuildingPlanner) previewPowerShelter(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, check func() error) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, error) {
+	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
+	wall, wok := animalContainmentDefinition(facts.Definitions, "Wall")
+	door, dok := animalContainmentDefinition(facts.Definitions, "Door")
+	if !wok || !dok {
+		return nil, stock, BuildingMethodUnknown, nil
+	}
+	stuff, known := animalContainmentStuff(wall, door)
+	if !known {
+		return nil, stock, BuildingMethodUnknown, nil
+	}
+	room := r.power.Room
+	entry := domain.Cell{X: room.X + room.Width/2, Z: room.Z}
+	perimeter := []domain.Cell{entry}
+	for x := room.X; x < room.X+room.Width; x++ {
+		for z := room.Z; z < room.Z+room.Height; z++ {
+			c := domain.Cell{X: x, Z: z}
+			if c != entry && (x == room.X || x == room.X+room.Width-1 || z == room.Z || z == room.Z+room.Height-1) {
+				perimeter = append(perimeter, c)
+			}
+		}
+	}
+	blocked := map[domain.Cell]bool{}
+	for _, c := range protected {
+		blocked[c] = true
+	}
+	var selected []policy.Preview
+	for i, c := range perimeter {
+		if blocked[c] {
+			return nil, stock, BuildingMethodExistingWork, nil
+		}
+		if err := check(); err != nil {
+			return nil, stock, "", err
+		}
+		name := "Wall"
+		if i == 0 {
+			name = "Door"
+		}
+		b, err := domain.NewBuilding(name, c, domain.North, stuff)
+		if err != nil {
+			return nil, stock, "", err
+		}
+		a, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", snapshot.Plan, i)), b)
+		if err != nil {
+			return nil, stock, "", err
+		}
+		p, _, err := r.native.PreviewBuilding(ctx, a, snapshot)
+		if err != nil {
+			return nil, stock, "", err
+		}
+		if err := check(); err != nil {
+			return nil, stock, "", err
+		}
+		v := p.Preview
+		if v.Action != a || !v.Snapshot.Matches(snapshot) || !v.Tick.FreshFor(facts.Identity.Tick) || !p.Stock.Snapshot.Matches(snapshot) || !p.Stock.Tick.FreshFor(facts.Identity.Tick) {
+			return nil, stock, "", ErrControl
+		}
+		footprint, fk := v.Footprint.Value()
+		can, ck := v.CanPlace.Value()
+		safe, sk := v.SafeToPlace.Value()
+		made, mk := v.MadeFromStuff.Value()
+		if !fk || !ck || !sk || !mk {
+			return nil, stock, BuildingMethodUnknown, nil
+		}
+		if len(footprint) != 1 || footprint[0] != c || !can || !safe || made != (stuff != "") {
+			return nil, stock, BuildingMethodNoSpace, nil
+		}
+		if err = mergeRoutineStock(&stock, p.Stock, i == 0); err != nil {
+			return nil, stock, "", err
+		}
+		selected = append(selected, v)
+	}
+	return selected, stock, "", nil
 }
 
 // powerDefinition reports whether a completed building belongs to the power
 // family: a conduit, any compilable generator or the battery.
 func powerDefinition(name string) bool {
+	if name == "PowerConduit" || name == "HiddenConduit" || name == "WaterproofConduit" {
+		return true
+	}
 	return slices.Contains(policy.PowerFamilyDefinitions(), name)
 }
 
@@ -155,7 +246,7 @@ func (r *RoutineBuildingPlanner) previewPowerRoute(ctx context.Context, snapshot
 		if err := check(); err != nil {
 			return nil, stock, "", err
 		}
-		building, err := domain.NewBuilding("PowerConduit", cell, domain.North, "")
+		building, err := domain.NewBuilding(string(policy.PowerConnect), cell, domain.North, "")
 		if err != nil {
 			return nil, stock, "", err
 		}

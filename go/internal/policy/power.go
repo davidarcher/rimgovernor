@@ -7,6 +7,7 @@ import (
 )
 
 type PowerBuilding struct {
+	RainVulnerable, Roofed                    domain.Fact[bool]
 	BaseW, OutputW                            domain.Fact[float64]
 	Powered, Connected, Forbidden, SwitchedOn domain.Fact[bool]
 	Network                                   domain.Fact[string]
@@ -16,6 +17,27 @@ type PowerBuilding struct {
 	OutOfFuel, BrokenDown domain.Fact[bool]
 	FuelDefinitions       []string
 	Stored, Capacity      domain.Fact[float64]
+}
+
+// PowerWeatherSafe requires actual roof coverage of rain-sensitive equipment.
+// Empty batteries still need shelter before the network charges them.
+func PowerWeatherSafe(buildings []PowerBuilding) domain.Fact[bool] {
+	known := true
+	for _, b := range buildings {
+		vulnerable, vk := b.RainVulnerable.Value()
+		if vk && !vulnerable {
+			continue
+		}
+		roofed, rk := b.Roofed.Value()
+		if vk && rk && !roofed {
+			return domain.Known(false)
+		}
+		known = known && vk && rk
+	}
+	if !known {
+		return domain.Unknown[bool]()
+	}
+	return domain.Known(true)
 }
 
 // PowerNetworkFact is one native power net's same-tick energy summary.

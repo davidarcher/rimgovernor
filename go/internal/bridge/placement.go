@@ -139,6 +139,9 @@ func validateEvaluated(request *p.PlacementCandidate, v *p.PlacementEvaluated) e
 			if block == nil || block.Category == nil || validID(block.GetCategory()) != nil || block.IsBlueprint == nil || block.IsFrame == nil || block.WouldBeWiped == nil || block.FrameWouldBeCancelled == nil {
 				return contract("blocker facts missing")
 			}
+			if block.DefName != nil && validID(block.GetDefName()) != nil {
+				return contract("invalid blocker definition")
+			}
 		}
 	}
 	return nil

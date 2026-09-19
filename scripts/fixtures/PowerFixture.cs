@@ -37,7 +37,7 @@ namespace HomeBridge.BridgeTools
                 var map = Find.CurrentMap; var player = Faction.OfPlayerSilentFail;
                 if (map == null || Current.Game == null || player == null || !Find.TickManager.Paused)
                     return Refuse("A paused disposable colony map is required.");
-                if (scenario != "fuel" && scenario != "reserve" && scenario != "battery") return Refuse("scenario must be 'fuel', 'reserve' or 'battery'.");
+                if (scenario != "fuel" && scenario != "reserve" && scenario != "battery" && scenario != "rain") return Refuse("scenario must be 'fuel', 'reserve', 'battery' or 'rain'.");
                 var builder = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed && !p.Drafted && !p.InMentalState
                     && !p.WorkTypeIsDisabled(WorkTypeDefOf.Construction) && !p.WorkTypeIsDisabled(WorkTypeDefOf.Hauling))
                     .OrderBy(p => p.thingIDNumber).FirstOrDefault();
@@ -52,7 +52,7 @@ namespace HomeBridge.BridgeTools
                     builder.workSettings.SetPriority(WorkTypeDefOf.Construction, 1);
                 Finish(DefDatabase<ResearchProjectDef>.GetNamed("Electricity"));
                 var generatorDef = DefDatabase<ThingDef>.GetNamedSilentFail("WoodFiredGenerator");
-                var conduitDef = DefDatabase<ThingDef>.GetNamedSilentFail("PowerConduit");
+                var conduitDef = DefDatabase<ThingDef>.GetNamedSilentFail(scenario == "rain" ? "PowerConduit" : "HiddenConduit");
                 var batteryDef = DefDatabase<ThingDef>.GetNamedSilentFail("Battery");
                 var lampDef = DefDatabase<ThingDef>.GetNamedSilentFail("SunLamp");
                 var stoveDef = DefDatabase<ThingDef>.GetNamedSilentFail("ElectricStove");
@@ -105,12 +105,27 @@ namespace HomeBridge.BridgeTools
 
                 // Generator (2x2) at (2,3) unless the scenario has none; conduit
                 // line along z=1 from x=1 to x=11.
-                Thing generator = scenario == "battery" ? null : Spawn(generatorDef, At(2, 3));
+                Thing generator = scenario == "battery" ? null : Spawn(generatorDef, At(scenario == "rain" ? 1 : 2, 3));
                 var fuel = generator?.TryGetComp<CompRefuelable>();
                 for (var x = 1; x <= 11; x++) Spawn(conduitDef, At(x, 1));
                 var consumers = new List<string>();
                 Thing battery = null;
-                if (scenario == "fuel")
+                if (scenario == "rain")
+                {
+                    // Construction must finish before the measured rain exposure.
+                    var dry = MakeWeather(600000);
+                    dry.weather = DefDatabase<WeatherDef>.GetNamed("Clear");
+                    map.gameConditionManager.RegisterCondition(dry);
+                    map.weatherManager.TransitionTo(dry.weather);
+                    Spawn(conduitDef, At(1, 2));
+                    Spawn(conduitDef, At(5, 2));
+                    fuel.Refuel(fuel.Props.fuelCapacity);
+                    battery = Spawn(batteryDef, At(5, 3));
+                    battery.TryGetComp<CompPowerBattery>().SetStoredEnergyPct(1f);
+                    consumers.Add(Spawn(stoveDef, At(10, 3)).GetUniqueLoadID());
+                    Stock("WoodLog", 450); Stock("Steel", 150); Stock("ComponentIndustrial", 6);
+                }
+                else if (scenario == "fuel")
                 {
                     fuel.ConsumeFuel(fuel.Fuel);
                     consumers.Add(Spawn(stoveDef, At(8, 2)).GetUniqueLoadID());
@@ -142,6 +157,16 @@ namespace HomeBridge.BridgeTools
                     Stock("Steel", 150);
                     Stock("ComponentIndustrial", 6);
                 }
+                // Reliability fixtures begin weather-safe; rain starts with only
+                // the battery exposed so the controller must build its enclosure.
+                Spawn(DefDatabase<ThingDef>.GetNamed("Column"), At(scenario == "rain" ? 11 : 5, 5));
+                foreach (var building in map.listerBuildings.allBuildingsColonist)
+                {
+                    if (scenario == "rain" && building == battery) continue;
+                    if (!(building.TryGetComp<CompPower>()?.Props.shortCircuitInRain ?? false)) continue;
+                    foreach (var cell in building.OccupiedRect().Cells) map.roofGrid.SetRoof(cell, RoofDefOf.RoofConstructed);
+                }
+                if (scenario == "rain") foreach (var cell in battery.OccupiedRect().Cells) map.roofGrid.SetRoof(cell, null);
                 map.powerNetManager.UpdatePowerNetsAndConnections_First();
                 // The game is paused and PowerNet.PowerNetTick re-enables one
                 // starved consumer only every 200 ticks, so the reserve start
@@ -184,11 +209,49 @@ namespace HomeBridge.BridgeTools
                         powerOutputW = trader?.PowerOutput,
                         fuel = refuelable?.Fuel, outOfFuel = refuelable != null ? (bool?)!refuelable.HasFuel : null,
                         storedWattDays = stored?.StoredEnergy,
+                        roofed = thing.OccupiedRect().Cells.All(c => c.Roofed(map)), hitPoints = thing.HitPoints,
                     });
                 }
                 var generators = map.listerBuildings.allBuildingsColonist.Where(b => b.def.defName == "WoodFiredGenerator").Select(b => b.GetUniqueLoadID()).ToList();
-                return new { success = true, tick = Find.TickManager.TicksGame, buildings = rows, generators };
+                var label = "LetterLabelShortCircuit".Translate().CapitalizeFirst().ToString();
+                var shortCircuits = Find.Archive.ArchivablesListForReading.OfType<Letter>()
+                    .Concat(Find.LetterStack.LettersListForReading).Where(l => l.Label.ToString() == label
+                        && l.lookTargets != null && l.lookTargets.targets.Any(t => t.Map == map))
+                    .Select(l => l.GetUniqueLoadID()).Distinct().ToList();
+                return new { success = true, tick = Find.TickManager.TicksGame, buildings = rows, generators,
+                    shortCircuits, fires = map.listerThings.ThingsOfDef(ThingDefOf.Fire).Count,
+                    eligibleConduits = ShortCircuitUtility.GetShortCircuitablePowerConduits(map).Count(),
+                    ordinaryConduits = map.listerThings.ThingsOfDef(ThingDefOf.PowerConduit).Count,
+                    rainRate = map.weatherManager.RainRate };
             }, cancellationToken).ConfigureAwait(false);
+        }
+
+        [Tool("test/power_rain", Description = "UNSAFE FOR MODEL EXECUTION. Force Rain for 70000 ticks on the disposable power fixture map; no buildings or stored energy are changed.")]
+        public async Task<object> Rain(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                if (map == null || !Find.TickManager.Paused) return Refuse("A paused disposable map is required.");
+                var rain = DefDatabase<WeatherDef>.GetNamed("Rain");
+                foreach (var previous in map.gameConditionManager.ActiveConditions.OfType<GameCondition_ForceWeather>().ToList()) previous.End();
+                var condition = MakeWeather(70000);
+                condition.weather = rain;
+                map.gameConditionManager.RegisterCondition(condition);
+                map.weatherManager.TransitionTo(rain);
+                return new { success = true, tick = Find.TickManager.TicksGame };
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
+        private static GameCondition_ForceWeather MakeWeather(int duration)
+        {
+            const string name = "RimGovernorPowerFixtureWeather";
+            var def = DefDatabase<GameConditionDef>.GetNamedSilentFail(name);
+            if (def == null)
+            {
+                def = new GameConditionDef { defName = name, label = "power fixture weather", conditionClass = typeof(GameCondition_ForceWeather) };
+                DefDatabase<GameConditionDef>.Add(def);
+            }
+            return (GameCondition_ForceWeather)GameConditionMaker.MakeCondition(def, duration);
         }
 
         private static void Finish(ResearchProjectDef project)

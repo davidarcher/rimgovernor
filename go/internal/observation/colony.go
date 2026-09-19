@@ -201,7 +201,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 			s := row.Building.Service
 			power = append(power, policy.PowerBuilding{BaseW: optional(row.BaseW), OutputW: optional(s.PowerOutputW), Powered: optional(s.PowerOn), Connected: optional(s.Connected), Network: optional(s.PowerNetId), Forbidden: optional(row.Building.Settings.Forbidden), SwitchedOn: optional(s.SwitchedOn),
 				Fuel: optional(s.Fuel), TargetFuel: optional(s.TargetFuel), OutOfFuel: optional(s.OutOfFuel), BrokenDown: optional(s.BrokenDown), FuelDefinitions: append([]string(nil), s.AllowedFuelDefs...),
-				Stored: optional(row.StoredWattDays), Capacity: optional(row.CapacityWattDays)})
+				Stored: optional(row.StoredWattDays), Capacity: optional(row.CapacityWattDays), RainVulnerable: optional(row.RainVulnerable), Roofed: optional(row.Roofed)})
 			ref := row.Building.Building
 			geometryKnown = geometryKnown && ref.DefName != nil && ref.Position != nil && len(row.Building.OccupiedCells) > 0
 			site := policy.PowerSite{ID: ref.GetId(), Definition: ref.GetDefName(), Cell: domain.Cell{X: ref.GetPosition().GetX(), Z: ref.GetPosition().GetZ()}, PowerBuilding: power[len(power)-1]}
@@ -212,6 +212,9 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 		}
 		for _, row := range development.Furniture {
 			topology.Conduits = append(topology.Conduits, domain.Cell{X: row.Building.Position.GetX(), Z: row.Building.Position.GetZ()})
+			if row.Building.GetDefName() == "PowerConduit" {
+				topology.UnsafeConduits = append(topology.UnsafeConduits, topology.Conduits[len(topology.Conduits)-1])
+			}
 		}
 		for _, row := range development.Networks {
 			topology.Networks = append(topology.Networks, policy.PowerNetworkFact{ID: row.GetId(), GenerationW: optional(row.GenerationW), ConsumptionW: optional(row.ConsumptionW), StoredWD: optional(row.StoredWattDays), CapacityWD: optional(row.CapacityWattDays)})
@@ -220,6 +223,13 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 			r.PowerPlanning = domain.Known(topology)
 		}
 		r.Facts.PowerRequired, r.Facts.PowerHeadroom, r.Facts.DisabledConsumers = policy.PowerCoverage(domain.Known(power))
+		r.Facts.PowerWeatherSafe = policy.PowerWeatherSafe(power)
+		if len(topology.UnsafeConduits) > 0 {
+			r.Facts.PowerWeatherSafe = domain.Known(false)
+		}
+		if development.ShortCircuitTick != nil {
+			r.Facts.ShortCircuitTick = domain.Known(domain.Tick(development.GetShortCircuitTick()))
+		}
 	}
 	if climate := v.FoodClimate; climate != nil && !hasIssue(v.Issues, "food_climate") {
 		r.CropClimate = policy.CropClimate{Sowing: optional(climate.SowingNow), DaysRemaining: optional(climate.GrowingDaysRemaining)}

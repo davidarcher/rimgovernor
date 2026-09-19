@@ -41,13 +41,17 @@ func TestColonyPowerRejectsPartialOrAmbiguousCensus(t *testing.T) {
 }
 
 func TestColonyPowerGeometryAndConduitCensus(t *testing.T) {
-	for _, phase := range []string{"valid", "partial", "foreign", "footprint", "duplicate-cell", "wrong-definition", "unknown-field"} {
+	for _, phase := range []string{"valid", "hidden", "waterproof", "partial", "foreign", "footprint", "duplicate-cell", "wrong-definition", "unknown-field"} {
 		t.Run(phase, func(t *testing.T) {
 			cell := &c.Cell{X: proto.Int32(2), Z: proto.Int32(2)}
 			row := &o.DevelopmentFurniture{Building: &o.EntityRef{Id: proto.String("conduit"), DefName: proto.String("PowerConduit"), MapId: proto.Int32(0), Position: cell}}
 			b := &o.BuildingState{Building: &o.EntityRef{Id: proto.String("lamp"), DefName: proto.String("StandingLamp"), MapId: proto.Int32(0), Position: cell}, OccupiedCells: []*c.Cell{cell}, Service: &o.BuildingServiceState{}, Settings: &o.BuildingSettings{}}
 			v := &o.DevelopmentFacts{Power: []*o.DevelopmentPower{{Building: b}}, Furniture: []*o.DevelopmentFurniture{row}, Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(2), Returned: proto.Uint64(2), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}}
 			switch phase {
+			case "hidden":
+				row.Building.DefName = proto.String("HiddenConduit")
+			case "waterproof":
+				row.Building.DefName = proto.String("WaterproofConduit")
 			case "partial":
 				v.Completeness.Matched = proto.Uint64(1)
 			case "foreign":
@@ -65,7 +69,7 @@ func TestColonyPowerGeometryAndConduitCensus(t *testing.T) {
 				row.Indoors = proto.Bool(false)
 			}
 			err := validateColonyPower(v, &c.Identity{MapId: proto.Int32(0)}, &o.MapSize{Width: proto.Uint32(10), Height: proto.Uint32(10)})
-			if (err == nil) != (phase == "valid") {
+			if (err == nil) != (phase == "valid" || phase == "hidden" || phase == "waterproof") {
 				t.Fatal(phase, err)
 			}
 		})

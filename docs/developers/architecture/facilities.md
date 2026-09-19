@@ -49,6 +49,28 @@ of a bench, `RoutineResearchPlanner` walks the same furnish-or-shell ladder
 under `EnsureResearch` for a `SimpleResearchBench` (`routine-laboratory-*`
 plans) and selects the rung once it stands (#254).
 
+## Electrical safety
+
+`EnsureBasicPower` uses `HiddenConduit` for new connections and replaces ordinary
+conduits in bounded eight-cell methods. Turret connections use the same safe
+definition. Native research, placement, stock and construction checks still apply;
+unknown blockers, forbidden conduits and unfinished work cannot be replaced.
+The topology census includes ordinary, hidden and waterproof conduits.
+
+Native power facts identify rain-sensitive equipment and whether its whole
+footprint is roofed. Exposed equipment and ordinary conduits keep power at
+priority 2 even in dry weather. Where a free, observed perimeter exists, the power
+planner builds a small enclosure around exposed equipment through shared Hands.
+The door precedes the walls; ordinary colonist roofing has a bounded allowance,
+and only an observed roof clears exposure. Blocked sites remain a deficit.
+New rain-sensitive equipment requires a finished roof at placement admission.
+
+These are separate hazards: roofing batteries and appliances prevents rain
+shorts; roofing ordinary conduits does not prevent the random conduit incident.
+See the wiki's [hidden conduit](https://rimworldwiki.com/wiki/Hidden_conduit) and
+[battery](https://rimworldwiki.com/wiki/Battery) mechanics, and
+[disaster recovery](../contracts/disaster-planning.md) for incident evidence.
+
 ## The matrix
 
 | Role | Status | Hosts | Furniture |

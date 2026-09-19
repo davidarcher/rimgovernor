@@ -14,6 +14,13 @@ events arrive as non-stopping letters. The existing food, production,
 sleeping, shelter, temperature, cooking, power and storage gates determine affected
 services; a complete native recovery census supplies infrastructure evidence.
 
+An observed Zzztt letter also starts recovery without a game condition.
+`DevelopmentFacts.short_circuit_tick` reports the latest matching map-local
+letter in the native active stack or archive, using the game's translated label.
+The durable episode records the processed tick so dismissed or repeatedly read
+letters do not reopen it. Damaged buildings enter history even while burning;
+the letter alone never certifies damage or repair.
+
 An episode is `disrupted` while conditions and measured deficits remain,
 `temporary_survival` while conditions remain with every service recovered,
 `recovering` after conditions end with measured deficits, and `restored` only when

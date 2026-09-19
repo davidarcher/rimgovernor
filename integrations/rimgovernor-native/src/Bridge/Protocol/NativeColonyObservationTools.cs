@@ -225,18 +225,28 @@ namespace HomeBridge.BridgeTools
                 .Where(p => p != null).OrderBy(p => p.parent.thingIDNumber).ToList();
             var batteries = map.listerBuildings.allBuildingsColonist.Select(b => b.TryGetComp<CompPowerBattery>())
                 .Where(p => p != null).OrderBy(p => p.parent.thingIDNumber).ToList();
-            var conduits = map.listerBuildings.allBuildingsColonist.Where(b => b.def.defName == "PowerConduit")
+            var conduits = map.listerBuildings.allBuildingsColonist.Where(b => b.def.defName == "PowerConduit" || b.def.defName == "HiddenConduit" || b.def.defName == "WaterproofConduit")
                 .OrderBy(b => b.thingIDNumber).ToList();
             var nets = map.powerNetManager.AllNetsListForReading.OrderBy(n => n.GetHashCode()).ToList();
             Bound(traders.Count + batteries.Count + conduits.Count + nets.Count, limit);
             var result = new Obs.DevelopmentFacts { Completeness = Complete(traders.Count + batteries.Count + conduits.Count) };
+            // Archived letters survive dismissal and saves. Use the game's own
+            // translated label rather than matching English message prose.
+            var shortLabel = "LetterLabelShortCircuit".Translate().CapitalizeFirst().ToString();
+            var incidents = Find.Archive.ArchivablesListForReading.OfType<Letter>()
+                .Concat(Find.LetterStack.LettersListForReading)
+                .Where(l => l.Label.ToString() == shortLabel && l.lookTargets != null
+                    && l.lookTargets.targets.Any(t => t.Map == map))
+                .Select(l => l.arrivalTick).ToList();
+            if (incidents.Count > 0) result.ShortCircuitTick = incidents.Max();
             foreach (var power in traders) {
                 var building = (Building)power.parent;
                 var service = new Obs.BuildingServiceState { Connected = power.PowerNet != null, PowerOn = power.PowerOn,
                     PowerOutputW = Finite(power.PowerOutput), SwitchedOn = building.TryGetComp<CompFlickable>()?.SwitchIsOn ?? true };
                 if (power.PowerNet != null) service.PowerNetId = NetId(power.PowerNet);
                 Service(building, service);
-                result.Power.Add(new Obs.DevelopmentPower { BaseW = Finite(-power.Props.PowerConsumption), Building = PowerState(map, building, service) });
+                result.Power.Add(new Obs.DevelopmentPower { BaseW = Finite(-power.Props.PowerConsumption), Building = PowerState(map, building, service),
+                    RainVulnerable = power.Props.shortCircuitInRain, Roofed = building.OccupiedRect().Cells.All(c => c.Roofed(map)) });
             }
             foreach (var battery in batteries) {
                 var building = (Building)battery.parent;
@@ -244,7 +254,7 @@ namespace HomeBridge.BridgeTools
                     PowerOutputW = 0, SwitchedOn = building.TryGetComp<CompFlickable>()?.SwitchIsOn ?? true };
                 if (battery.PowerNet != null) service.PowerNetId = NetId(battery.PowerNet);
                 Service(building, service);
-                result.Power.Add(new Obs.DevelopmentPower { BaseW = 0, Building = PowerState(map, building, service),
+                result.Power.Add(new Obs.DevelopmentPower { BaseW = 0, Building = PowerState(map, building, service), RainVulnerable = true, Roofed = building.OccupiedRect().Cells.All(c => c.Roofed(map)),
                     StoredWattDays = Finite(battery.StoredEnergy), CapacityWattDays = Finite(battery.Props.storedEnergyMax) });
             }
             foreach (var conduit in conduits)

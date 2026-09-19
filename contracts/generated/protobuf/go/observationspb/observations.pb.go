@@ -21779,6 +21779,8 @@ type DevelopmentPower struct {
 	BaseW            *float64               `protobuf:"fixed64,2,opt,name=base_w,json=baseW,proto3,oneof" json:"base_w,omitempty"`
 	StoredWattDays   *float64               `protobuf:"fixed64,3,opt,name=stored_watt_days,json=storedWattDays,proto3,oneof" json:"stored_watt_days,omitempty"`
 	CapacityWattDays *float64               `protobuf:"fixed64,4,opt,name=capacity_watt_days,json=capacityWattDays,proto3,oneof" json:"capacity_watt_days,omitempty"`
+	RainVulnerable   *bool                  `protobuf:"varint,5,opt,name=rain_vulnerable,json=rainVulnerable,proto3,oneof" json:"rain_vulnerable,omitempty"`
+	Roofed           *bool                  `protobuf:"varint,6,opt,name=roofed,proto3,oneof" json:"roofed,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -21839,6 +21841,20 @@ func (x *DevelopmentPower) GetCapacityWattDays() float64 {
 		return *x.CapacityWattDays
 	}
 	return 0
+}
+
+func (x *DevelopmentPower) GetRainVulnerable() bool {
+	if x != nil && x.RainVulnerable != nil {
+		return *x.RainVulnerable
+	}
+	return false
+}
+
+func (x *DevelopmentPower) GetRoofed() bool {
+	if x != nil && x.Roofed != nil {
+		return *x.Roofed
+	}
+	return false
 }
 
 type DevelopmentFurniture struct {
@@ -21902,14 +21918,15 @@ func (x *DevelopmentFurniture) GetSlots() uint32 {
 }
 
 type DevelopmentFacts struct {
-	state         protoimpl.MessageState  `protogen:"open.v1"`
-	Power         []*DevelopmentPower     `protobuf:"bytes,1,rep,name=power,proto3" json:"power,omitempty"`
-	Furniture     []*DevelopmentFurniture `protobuf:"bytes,2,rep,name=furniture,proto3" json:"furniture,omitempty"`
-	Research      *ResearchSnapshot       `protobuf:"bytes,3,opt,name=research,proto3" json:"research,omitempty"`
-	Completeness  *Completeness           `protobuf:"bytes,4,opt,name=completeness,proto3" json:"completeness,omitempty"`
-	Networks      []*PowerNetwork         `protobuf:"bytes,5,rep,name=networks,proto3" json:"networks,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState  `protogen:"open.v1"`
+	Power            []*DevelopmentPower     `protobuf:"bytes,1,rep,name=power,proto3" json:"power,omitempty"`
+	Furniture        []*DevelopmentFurniture `protobuf:"bytes,2,rep,name=furniture,proto3" json:"furniture,omitempty"`
+	Research         *ResearchSnapshot       `protobuf:"bytes,3,opt,name=research,proto3" json:"research,omitempty"`
+	Completeness     *Completeness           `protobuf:"bytes,4,opt,name=completeness,proto3" json:"completeness,omitempty"`
+	Networks         []*PowerNetwork         `protobuf:"bytes,5,rep,name=networks,proto3" json:"networks,omitempty"`
+	ShortCircuitTick *int64                  `protobuf:"varint,6,opt,name=short_circuit_tick,json=shortCircuitTick,proto3,oneof" json:"short_circuit_tick,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *DevelopmentFacts) Reset() {
@@ -21975,6 +21992,13 @@ func (x *DevelopmentFacts) GetNetworks() []*PowerNetwork {
 		return x.Networks
 	}
 	return nil
+}
+
+func (x *DevelopmentFacts) GetShortCircuitTick() int64 {
+	if x != nil && x.ShortCircuitTick != nil {
+		return *x.ShortCircuitTick
+	}
+	return 0
 }
 
 type EnvironmentCondition struct {
@@ -33077,28 +33101,34 @@ const file_observations_proto_rawDesc = "" +
 	"\x12storage_candidates\x18\b \x03(\v2\x1b.rimgovernor.common.v1.CellR\x11storageCandidatesB\a\n" +
 	"\x05_dietB\x0f\n" +
 	"\r_requires_penB\x12\n" +
-	"\x10_suitable_pen_id\"\x8f\x02\n" +
+	"\x10_suitable_pen_id\"\xf9\x02\n" +
 	"\x10DevelopmentPower\x12F\n" +
 	"\bbuilding\x18\x01 \x01(\v2*.rimgovernor.observations.v1.BuildingStateR\bbuilding\x12\x1a\n" +
 	"\x06base_w\x18\x02 \x01(\x01H\x00R\x05baseW\x88\x01\x01\x12-\n" +
 	"\x10stored_watt_days\x18\x03 \x01(\x01H\x01R\x0estoredWattDays\x88\x01\x01\x121\n" +
-	"\x12capacity_watt_days\x18\x04 \x01(\x01H\x02R\x10capacityWattDays\x88\x01\x01B\t\n" +
+	"\x12capacity_watt_days\x18\x04 \x01(\x01H\x02R\x10capacityWattDays\x88\x01\x01\x12,\n" +
+	"\x0frain_vulnerable\x18\x05 \x01(\bH\x03R\x0erainVulnerable\x88\x01\x01\x12\x1b\n" +
+	"\x06roofed\x18\x06 \x01(\bH\x04R\x06roofed\x88\x01\x01B\t\n" +
 	"\a_base_wB\x13\n" +
 	"\x11_stored_watt_daysB\x15\n" +
-	"\x13_capacity_watt_days\"\xaa\x01\n" +
+	"\x13_capacity_watt_daysB\x12\n" +
+	"\x10_rain_vulnerableB\t\n" +
+	"\a_roofed\"\xaa\x01\n" +
 	"\x14DevelopmentFurniture\x12B\n" +
 	"\bbuilding\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\bbuilding\x12\x1d\n" +
 	"\aindoors\x18\x02 \x01(\bH\x00R\aindoors\x88\x01\x01\x12\x19\n" +
 	"\x05slots\x18\x03 \x01(\rH\x01R\x05slots\x88\x01\x01B\n" +
 	"\n" +
 	"\b_indoorsB\b\n" +
-	"\x06_slots\"\x89\x03\n" +
+	"\x06_slots\"\xd3\x03\n" +
 	"\x10DevelopmentFacts\x12C\n" +
 	"\x05power\x18\x01 \x03(\v2-.rimgovernor.observations.v1.DevelopmentPowerR\x05power\x12O\n" +
 	"\tfurniture\x18\x02 \x03(\v21.rimgovernor.observations.v1.DevelopmentFurnitureR\tfurniture\x12I\n" +
 	"\bresearch\x18\x03 \x01(\v2-.rimgovernor.observations.v1.ResearchSnapshotR\bresearch\x12M\n" +
 	"\fcompleteness\x18\x04 \x01(\v2).rimgovernor.observations.v1.CompletenessR\fcompleteness\x12E\n" +
-	"\bnetworks\x18\x05 \x03(\v2).rimgovernor.observations.v1.PowerNetworkR\bnetworks\"\xa8\x02\n" +
+	"\bnetworks\x18\x05 \x03(\v2).rimgovernor.observations.v1.PowerNetworkR\bnetworks\x121\n" +
+	"\x12short_circuit_tick\x18\x06 \x01(\x03H\x00R\x10shortCircuitTick\x88\x01\x01B\x15\n" +
+	"\x13_short_circuit_tick\"\xa8\x02\n" +
 	"\x14EnvironmentCondition\x12\x13\n" +
 	"\x02id\x18\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12\x1e\n" +
 	"\bdef_name\x18\x02 \x01(\tH\x01R\adefName\x88\x01\x01\x12+\n" +
@@ -35791,6 +35821,7 @@ func file_observations_proto_init() {
 	file_observations_proto_msgTypes[229].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[230].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[231].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[232].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[233].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[234].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[235].OneofWrappers = []any{}

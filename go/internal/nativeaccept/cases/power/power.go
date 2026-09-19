@@ -10,6 +10,9 @@
 //	           method; the native colonists refuel it, and an independent
 //	           native read then shows the generator fuelled and the consumer
 //	           powered.
+//	rain    -- the controller encloses an exposed battery and replaces ordinary
+//	           conduits, then a full day of forced rain leaves no short circuits,
+//	           fires or equipment damage.
 //	reserve -- every consumer is powered right now, but the network drains
 //	           a partly charged battery faster than its one generator
 //	           supplies, so the reserve runway is under a day. The service
@@ -49,17 +52,18 @@ const prefix = "power-accept"
 // budgets are ~2x the measured healthy runs (403eebbb): the refuel hold
 // plays ~4 minutes, the reserve and battery generators are admitted in
 // under one and built in about two.
-var budgets = map[string]time.Duration{"fuel": 10 * time.Minute, "reserve": 5 * time.Minute, "battery": 5 * time.Minute}
+var budgets = map[string]time.Duration{"fuel": 10 * time.Minute, "reserve": 5 * time.Minute, "battery": 5 * time.Minute, "rain": 14 * time.Minute}
 
 func init() {
-	for _, scenario := range []string{"fuel", "reserve", "battery"} {
+	for _, scenario := range []string{"fuel", "reserve", "battery", "rain"} {
 		scenario := scenario
 		cases.Register(cases.Case{
 			Name: "power/" + scenario,
 			Scope: "Native EnsureBasicPower reliability vertical (" + scenario + "): an out-of-fuel generator holds the " +
 				"live Go power family until native colonists refuel it, a draining battery under a day of reserve has the " +
 				"family admit one more generator that the colonists build, or an exhausted bank with no generator has it add " +
-				"generation that powers the consumer; each confirmed by an independent native read.",
+				"generation that powers the consumer; the rain case encloses a battery and replaces unsafe wiring " +
+				"before a full day of rain. Each is confirmed by an independent native read.",
 			Start:   cases.Fixture{Op: "test/power_prepare", Args: map[string]any{"scenario": scenario}},
 			Service: true,
 			Budget:  budgets[scenario],
@@ -144,7 +148,7 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 	}
 	report["colony_power_before"] = topology
 
-	service, err := s.Launch(ctx, na.ServiceLaunch{Families: []string{"power", "work"}, Extra: na.ClockSpeedArgs()})
+	service, err := s.Launch(ctx, na.ServiceLaunch{Families: []string{"power", "work", "naming"}, Extra: na.ClockSpeedArgs()})
 	if err != nil {
 		return err
 	}
@@ -181,6 +185,52 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 	report["routine_review_first"] = json.RawMessage(reviewData)
 
 	switch scenario {
+	case "rain":
+		deadline := time.Now().Add(8 * time.Minute)
+		shelter, wiring, safe := false, false, false
+		for time.Now().Before(deadline) {
+			r, err := journal.LoadRoutineReview(ctx)
+			if err != nil {
+				return err
+			}
+			open, covered := false, false
+			for _, binding := range r.Goals {
+				if binding.Need != policy.EnsureBasicPower {
+					continue
+				}
+				g, err := journal.LoadGoal(ctx, binding.Goal)
+				if err != nil {
+					return err
+				}
+				covered = g.Goal.Need == domain.NeedRecovered
+				for _, m := range g.Methods {
+					p, err := journal.LoadPlan(ctx, m.Plan)
+					if err != nil {
+						return err
+					}
+					for _, progress := range p.Progress {
+						b, ok := progress.Action().Building()
+						if ok {
+							shelter = shelter || b.Definition() == "Wall"
+							wiring = wiring || b.Definition() == "HiddenConduit"
+						}
+						open = open || progress.View().Stage != domain.Completed
+					}
+				}
+			}
+			if shelter && wiring && !open && covered {
+				safe = true
+				break
+			}
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(time.Second):
+			}
+		}
+		if !safe {
+			return fmt.Errorf("power protection did not complete: shelter=%v wiring=%v", shelter, wiring)
+		}
 	case "fuel":
 		// Hold for a bounded window of Fast-speed simulation: the power goal
 		// may bind (the consumer is unpowered) but no method may be committed
@@ -271,7 +321,7 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 				}
 				for _, action := range plan.Spec.Actions() {
 					b, ok := action.Building()
-					if !ok || b.Definition() != "PowerConduit" {
+					if !ok || b.Definition() != "HiddenConduit" {
 						return fmt.Errorf("power family committed a non-conduit action after the generator: %#v", action)
 					}
 				}
@@ -306,6 +356,9 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 		return err
 	}
 	report["power_after"] = after
+	if scenario == "rain" {
+		return checkRain(ctx, s, h, after, observe)
+	}
 	rows = indexRows(after)
 	generators := na.AsSlice(after["generators"])
 	if scenario == "battery" {

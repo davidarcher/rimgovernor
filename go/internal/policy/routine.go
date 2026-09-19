@@ -430,6 +430,8 @@ type RoutineFacts struct {
 	// it opened by itself (#156); AnswerDialog is the goal that answers it.
 	ChoiceDialog                                                         domain.Fact[bool]
 	FoodStorage, Cooking, WorkCoverage, PowerRequired, DisabledConsumers domain.Fact[bool]
+	PowerWeatherSafe                                                     domain.Fact[bool]
+	ShortCircuitTick                                                     domain.Fact[domain.Tick]
 }
 
 type FootholdGates struct {
@@ -638,6 +640,9 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		power = domain.Unknown[bool]()
 	}
 	g.Power = allFacts(power, measured(f.DisabledConsumers, func(v bool) bool { return !v }))
+	if safe, known := f.PowerWeatherSafe.Value(); known && !safe {
+		g.Power = domain.Known(false)
+	}
 	armed := domain.Unknown[bool]()
 	if n, k := count.Value(); k {
 		armed = measured(f.Armed, func(v int64) bool { return v >= min(2, n) })
@@ -1189,7 +1194,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 			r.Goals[i].Deficit = domain.Known(pressure)
 		}
 	}
-	r.Disaster, err = ReviewDisaster(f.DisasterConditions, f.RecoveryBuildings, r.Gates, f.Disaster, f.DisasterTick)
+	r.Disaster, err = ReviewDisaster(f.DisasterConditions, f.RecoveryBuildings, r.Gates, f.Disaster, f.DisasterTick, f.ShortCircuitTick)
 	if err != nil {
 		return RoutineNeeds{}, err
 	}

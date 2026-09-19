@@ -40,7 +40,7 @@ var defenseDefinitions = policy.DefenseDefinitions{Sandbag: "Barricade", Sandbag
 // components the colony may need first.
 const (
 	defenseTurretDefinition  = "Turret_MiniTurret"
-	defenseConduitDefinition = "PowerConduit"
+	defenseConduitDefinition = "HiddenConduit"
 )
 
 var defenseExtraDefinitions = []string{defenseTurretDefinition, defenseConduitDefinition}

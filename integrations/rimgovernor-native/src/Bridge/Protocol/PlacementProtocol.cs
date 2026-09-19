@@ -75,7 +75,7 @@ namespace HomeBridge.BridgeTools
                     {
                         if (!ProtoBoundary.IsIdentifier(blocker.category)) throw new InvalidOperationException("Native blocker category unavailable.");
                         rotation.BlockingThings.Add(new Wire.PlacementBlocker {
-                            Category = blocker.category, IsBlueprint = blocker.isBlueprint, IsFrame = blocker.isFrame,
+                            Category = blocker.category, DefName = blocker.Thing.def.defName, IsBlueprint = blocker.isBlueprint, IsFrame = blocker.isFrame,
                             WouldBeWiped = blocker.wouldBeWiped, FrameWouldBeCancelled = blocker.frameWouldBeCancelled
                         });
                     }

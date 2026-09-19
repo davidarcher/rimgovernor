@@ -926,6 +926,7 @@ type PlacementBlocker struct {
 	IsFrame               *bool                  `protobuf:"varint,3,opt,name=is_frame,json=isFrame,proto3,oneof" json:"is_frame,omitempty"`
 	WouldBeWiped          *bool                  `protobuf:"varint,4,opt,name=would_be_wiped,json=wouldBeWiped,proto3,oneof" json:"would_be_wiped,omitempty"`
 	FrameWouldBeCancelled *bool                  `protobuf:"varint,5,opt,name=frame_would_be_cancelled,json=frameWouldBeCancelled,proto3,oneof" json:"frame_would_be_cancelled,omitempty"`
+	DefName               *string                `protobuf:"bytes,6,opt,name=def_name,json=defName,proto3,oneof" json:"def_name,omitempty"`
 	unknownFields         protoimpl.UnknownFields
 	sizeCache             protoimpl.SizeCache
 }
@@ -993,6 +994,13 @@ func (x *PlacementBlocker) GetFrameWouldBeCancelled() bool {
 		return *x.FrameWouldBeCancelled
 	}
 	return false
+}
+
+func (x *PlacementBlocker) GetDefName() string {
+	if x != nil && x.DefName != nil {
+		return *x.DefName
+	}
+	return ""
 }
 
 var File_placement_proto protoreflect.FileDescriptor
@@ -1073,18 +1081,20 @@ const file_placement_proto_rawDesc = "" +
 	"\t_rotationB\v\n" +
 	"\t_acceptedB\t\n" +
 	"\a_reasonB\x19\n" +
-	"\x17_watch_cells_accessible\"\xbf\x02\n" +
+	"\x17_watch_cells_accessible\"\xec\x02\n" +
 	"\x10PlacementBlocker\x12\x1f\n" +
 	"\bcategory\x18\x01 \x01(\tH\x00R\bcategory\x88\x01\x01\x12&\n" +
 	"\fis_blueprint\x18\x02 \x01(\bH\x01R\visBlueprint\x88\x01\x01\x12\x1e\n" +
 	"\bis_frame\x18\x03 \x01(\bH\x02R\aisFrame\x88\x01\x01\x12)\n" +
 	"\x0ewould_be_wiped\x18\x04 \x01(\bH\x03R\fwouldBeWiped\x88\x01\x01\x12<\n" +
-	"\x18frame_would_be_cancelled\x18\x05 \x01(\bH\x04R\x15frameWouldBeCancelled\x88\x01\x01B\v\n" +
+	"\x18frame_would_be_cancelled\x18\x05 \x01(\bH\x04R\x15frameWouldBeCancelled\x88\x01\x01\x12\x1e\n" +
+	"\bdef_name\x18\x06 \x01(\tH\x05R\adefName\x88\x01\x01B\v\n" +
 	"\t_categoryB\x0f\n" +
 	"\r_is_blueprintB\v\n" +
 	"\t_is_frameB\x11\n" +
 	"\x0f_would_be_wipedB\x1b\n" +
-	"\x19_frame_would_be_cancelled*\x84\x01\n" +
+	"\x19_frame_would_be_cancelledB\v\n" +
+	"\t_def_name*\x84\x01\n" +
 	"\bRotation\x12\x18\n" +
 	"\x14ROTATION_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0eROTATION_NORTH\x10\x01\x12\x11\n" +

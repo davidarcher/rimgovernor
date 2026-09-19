@@ -8,8 +8,11 @@ import (
 )
 
 func validateColonyPower(v *o.DevelopmentFacts, identity *c.Identity, size *o.MapSize) error {
-	if v == nil || !proto.Equal(v, &o.DevelopmentFacts{Power: v.Power, Furniture: v.Furniture, Completeness: v.Completeness, Networks: v.Networks}) {
+	if v == nil || !proto.Equal(v, &o.DevelopmentFacts{Power: v.Power, Furniture: v.Furniture, Completeness: v.Completeness, Networks: v.Networks, ShortCircuitTick: v.ShortCircuitTick}) {
 		return contract("unsupported development facts")
+	}
+	if v.ShortCircuitTick != nil && v.GetShortCircuitTick() < 0 {
+		return contract("invalid short circuit tick")
 	}
 	if err := colonyCounts(v.Completeness, len(v.Power)+len(v.Furniture), 256); err != nil {
 		return err
@@ -102,7 +105,7 @@ func validateColonyPower(v *o.DevelopmentFacts, identity *c.Identity, size *o.Ma
 		}
 		ref := row.Building
 		key := [2]int32{ref.GetPosition().GetX(), ref.GetPosition().GetZ()}
-		if ref.GetDefName() != "PowerConduit" || ref.Position == nil || seen[ref.GetId()] || conduits[key] {
+		if (ref.GetDefName() != "PowerConduit" && ref.GetDefName() != "HiddenConduit" && ref.GetDefName() != "WaterproofConduit") || ref.Position == nil || seen[ref.GetId()] || conduits[key] {
 			return contract("invalid or duplicate power conduit")
 		}
 		seen[ref.GetId()], conduits[key] = true, true

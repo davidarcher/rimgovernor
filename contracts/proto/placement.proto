@@ -101,6 +101,7 @@ message PlacementBlocker {
   optional bool is_frame = 3;
   optional bool would_be_wiped = 4;
   optional bool frame_would_be_cancelled = 5;
+  optional string def_name = 6;
 }
 service Placement {
   rpc Preview(PlacementRequest) returns (PlacementReply);

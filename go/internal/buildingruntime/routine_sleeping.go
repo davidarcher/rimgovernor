@@ -250,7 +250,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		definitions = []string{policy.ResearchBenchDefinition}
 	}
 	if r.goal == policy.EnsureBasicPower {
-		definitions = policy.PowerFamilyDefinitions()
+		definitions = append([]string{"Wall", "Door"}, policy.PowerFamilyDefinitions()...)
 	}
 	if r.goal == policy.EnsureTemperatureSafety {
 		definitions = []string{"Campfire", "PassiveCooler"}
@@ -330,6 +330,10 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		}
 		if reason != "" {
 			result := RoutineBuildingResult{Reason: reason}
+			if r.goal == policy.EnsureBasicPower && reason == BuildingMethodNoSpace {
+				result.NativeWorkTicks, err = powerOutputAllowance(call, p.journal, goal.Goal, state.Snapshot, facts.Identity.Tick)
+				return result, err
+			}
 			// A cooler completed on the tick the supervisor latched the
 			// window reads powerOn=false until the power net ticks once, so
 			// the cooling allowance also covers cooler_power_needed; a
@@ -543,7 +547,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 						return true
 					}
 				}
-				return false
+				return pendingFacility(progress, "PowerConduit") || pendingFacility(progress, "HiddenConduit") || pendingFacility(progress, "WaterproofConduit")
 			}
 			if r.goal == policy.EnsureExpansion || r.goal == policy.MaintainMedicalCare || r.goal == policy.MaintainSleeping {
 				return pendingFacility(progress, "SleepingSpot") || pendingFacility(progress, "Bed") || pendingFacility(progress, "DoubleBed") || pendingFacility(progress, "RoyalBed")
@@ -625,7 +629,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	// has an entrance; an adopted shell whose door already stands has no such
 	// gate and its walls are independent.
 	doorFirst := false
-	if r.shelter && len(selected) > 0 {
+	if (r.shelter || r.power != nil && r.power.Method == policy.PowerShelter) && len(selected) > 0 {
 		if first, ok := selected[0].Action.Building(); ok {
 			doorFirst = first.Definition() == "Door"
 		}
@@ -675,6 +679,9 @@ func stockRefusalWait(decision store.BuildingMethodDecision) uint32 {
 }
 
 func (r *RoutineBuildingPlanner) previewMethod(call context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, missing int64, check func() error) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, error) {
+	if r.power != nil && r.power.Method == policy.PowerShelter {
+		return r.previewPowerShelter(call, snapshot, facts, protected, check)
+	}
 	if r.power != nil && r.power.Method == policy.PowerConnect {
 		return r.previewPowerRoute(call, snapshot, facts, protected, check)
 	}

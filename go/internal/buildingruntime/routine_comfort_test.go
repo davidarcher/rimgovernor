@@ -50,10 +50,10 @@ func TestComfortPlacementRejectsCrampedRecreationAndPreservesUnknown(t *testing.
 
 func TestRoutineBuildingNativeUseBudgetRequiresOutcomeAndCurrentDirection(t *testing.T) {
 	t.Parallel()
-	for _, definition := range []string{"Table1x2c", "DiningChair", "HorseshoesPin", "Campfire", "WoodFiredGenerator", "PowerConduit"} {
+	for _, definition := range []string{"Table1x2c", "DiningChair", "HorseshoesPin", "Campfire", "WoodFiredGenerator", "HiddenConduit"} {
 		t.Run(definition, func(t *testing.T) {
 			budget := comfortNativeWorkTicks
-			if definition == "WoodFiredGenerator" || definition == "PowerConduit" {
+			if definition == "WoodFiredGenerator" || definition == "HiddenConduit" {
 				budget = powerNativeWorkTicks
 			}
 			building, err := domain.NewBuilding(definition, domain.Cell{X: 2, Z: 2}, domain.North, "")

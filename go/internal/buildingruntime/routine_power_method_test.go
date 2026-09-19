@@ -46,7 +46,7 @@ func powerFixture(t *testing.T, conduit bool) (*RoutineBuildingPlanner, *store.S
 	}
 	v.Development = &o.DevelopmentSection{Outcome: &o.DevelopmentSection_Observed{Observed: development}}
 	v.Planning.GetObserved().Definitions = nil
-	for _, name := range []string{"PowerConduit", "WoodFiredGenerator"} {
+	for _, name := range []string{"HiddenConduit", "WoodFiredGenerator"} {
 		v.Planning.GetObserved().Definitions = append(v.Planning.GetObserved().Definitions, &o.PlanningDefinition{Definition: &o.DefinitionRef{DefName: proto.String(name)}, Available: proto.Bool(true), ConstructionSkill: proto.Int32(4), Size: &o.MapSize{Width: proto.Uint32(1), Height: proto.Uint32(1)}})
 	}
 	v.Planning.GetObserved().Completeness = count(2)

@@ -63,7 +63,8 @@ func (caller *Client) PreviewBuilding(ctx context.Context, action domain.Action,
 	}
 	safe := true
 	for _, blocker := range orientation.BlockingThings {
-		if blocker.GetWouldBeWiped() || blocker.GetFrameWouldBeCancelled() || blocker.GetIsBlueprint() || blocker.GetIsFrame() {
+		replaceConduit := b.Definition() == "HiddenConduit" && blocker.GetDefName() == "PowerConduit" && blocker.GetCategory() == "Building" && !blocker.GetIsBlueprint() && !blocker.GetIsFrame() && !blocker.GetFrameWouldBeCancelled()
+		if blocker.GetWouldBeWiped() && !replaceConduit || blocker.GetFrameWouldBeCancelled() || blocker.GetIsBlueprint() || blocker.GetIsFrame() {
 			safe = false
 		}
 		out.NativeWorkPending = out.NativeWorkPending || blocker.GetIsBlueprint() || blocker.GetIsFrame()

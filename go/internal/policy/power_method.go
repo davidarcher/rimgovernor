@@ -19,9 +19,10 @@ type PowerSite struct {
 }
 
 type PowerTopology struct {
-	Buildings []PowerSite
-	Conduits  []domain.Cell
-	Blackout  domain.Fact[bool]
+	Buildings      []PowerSite
+	Conduits       []domain.Cell
+	UnsafeConduits []domain.Cell
+	Blackout       domain.Fact[bool]
 	// Eclipse is the native eclipse condition: solar output is zero for the
 	// rest of it, so the day's budget carries no solar energy.
 	Eclipse domain.Fact[bool]
@@ -42,9 +43,10 @@ const (
 	PowerWaitPlayer   PowerMethod = "player_disabled_power"
 	PowerRouteBlocked PowerMethod = "no_observed_route"
 	PowerNoGenerator  PowerMethod = "no_affordable_generator"
-	PowerWaitCharge   PowerMethod = "waiting_for_charge"
-	PowerConnect      PowerMethod = "PowerConduit"
+	PowerConnect      PowerMethod = "HiddenConduit"
 	PowerGenerate     PowerMethod = "generate"
+	PowerShelter      PowerMethod = "shelter_power"
+	PowerWaitCharge   PowerMethod = "waiting_for_charge"
 	PowerStore        PowerMethod = "store"
 )
 
@@ -69,7 +71,7 @@ var GeneratorDefinitions = []string{"SolarGenerator", "WoodFiredGenerator", "Che
 // PowerFamilyDefinitions lists every definition the power family compiles:
 // the conduit, each generator and the battery.
 func PowerFamilyDefinitions() []string {
-	return append(append([]string{"PowerConduit"}, GeneratorDefinitions...), BatteryDefinition)
+	return append(append([]string{string(PowerConnect)}, GeneratorDefinitions...), BatteryDefinition)
 }
 
 // DefaultGeneratorOptions pairs each generator definition with its fuel and the
@@ -183,6 +185,7 @@ type PowerProposal struct {
 	Target     string
 	Center     domain.Cell
 	Cells      []domain.Cell
+	Room       Rectangle
 	// Budget is the target network's 24 h balance behind a generate, store
 	// or charge decision; zero for the connect and hold methods.
 	Budget PowerBudget
@@ -276,6 +279,13 @@ func SelectPowerMethod(fact domain.Fact[PowerTopology], bounds Bounds, cells []S
 		}
 		existing[c] = true
 	}
+	unsafeSeen := map[domain.Cell]bool{}
+	for _, c := range v.UnsafeConduits {
+		if !existing[c] || unsafeSeen[c] {
+			return PowerProposal{}, errors.New("invalid unsafe conduit census")
+		}
+		unsafeSeen[c] = true
+	}
 	blocked := map[domain.Cell]bool{}
 	for _, c := range protected {
 		if !inside(c) {
@@ -299,6 +309,30 @@ func SelectPowerMethod(fact domain.Fact[PowerTopology], bounds Bounds, cells []S
 	}
 	if blackout {
 		return PowerProposal{Method: PowerWaitBlackout}, nil
+	}
+	// Protect equipment before energizing or expanding the network. The native
+	// census discovers vulnerable definitions; weather need not already be wet.
+	for _, b := range v.Buildings {
+		if !positive(b.RainVulnerable) || positive(b.Roofed) {
+			continue
+		}
+		if forbidden, known := b.Forbidden.Value(); !known || forbidden {
+			return PowerProposal{Method: PowerWaitPlayer}, nil
+		}
+		if _, known := b.Roofed.Value(); !known {
+			return PowerProposal{Method: PowerUnknown}, nil
+		}
+		room, ok := powerShelter(b, cells, blocked, bounds)
+		if !ok {
+			return PowerProposal{Method: PowerRouteBlocked}, nil
+		}
+		return PowerProposal{Method: PowerShelter, Target: b.ID, Center: b.Cell, Room: room, Key: powerMethodKey("shelter", b.ID+fmt.Sprint(room))}, nil
+	}
+	if len(v.UnsafeConduits) > 0 {
+		upgrade := append([]domain.Cell(nil), v.UnsafeConduits...)
+		sort.Slice(upgrade, func(i, j int) bool { return cellLess(upgrade[i], upgrade[j]) })
+		upgrade = upgrade[:min(len(upgrade), 8)]
+		return PowerProposal{Method: PowerConnect, Cells: upgrade, Key: powerMethodKey("upgrade", fmt.Sprint(upgrade))}, nil
 	}
 	var producers []PowerSite
 	for _, b := range v.Buildings {
@@ -441,6 +475,38 @@ func SelectPowerMethod(fact domain.Fact[PowerTopology], bounds Bounds, cells []S
 		return generate(p, target, producers, planning)
 	}
 	return result, nil
+}
+
+// A narrow, supported enclosure leaves an aisle around the equipment and a
+// doorway. Occupied, zoned, protected or unobserved perimeter cells fail closed.
+func powerShelter(target PowerSite, cells []SiteCell, protected map[domain.Cell]bool, bounds Bounds) (Rectangle, bool) {
+	minX, maxX, minZ, maxZ := target.Cell.X, target.Cell.X, target.Cell.Z, target.Cell.Z
+	occupied := map[domain.Cell]bool{}
+	for _, c := range target.Occupied {
+		minX, maxX, minZ, maxZ = min(minX, c.X), max(maxX, c.X), min(minZ, c.Z), max(maxZ, c.Z)
+		occupied[c] = true
+	}
+	r := Rectangle{X: minX - 2, Z: minZ - 2, Width: maxX - minX + 5, Height: maxZ - minZ + 5}
+	if r.X < 0 || r.Z < 0 || r.X+r.Width > bounds.Width || r.Z+r.Height > bounds.Height || r.Width > 10 || r.Height > 10 {
+		return Rectangle{}, false
+	}
+	observed := map[domain.Cell]SiteCell{}
+	for _, c := range cells {
+		observed[c.Cell] = c
+	}
+	for _, p := range rectCells(r) {
+		if protected[p] {
+			return Rectangle{}, false
+		}
+		if occupied[p] {
+			continue
+		}
+		c, exists := observed[p]
+		if !exists || !positive(c.Walkable) || !positive(c.SupportsLight) || !positive(measured(c.Occupied, func(v bool) bool { return !v })) || !positive(measured(c.Zone, func(v bool) bool { return !v })) {
+			return Rectangle{}, false
+		}
+	}
+	return r, true
 }
 
 // store proposes one battery for target's network when the budget is short

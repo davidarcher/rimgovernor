@@ -136,6 +136,7 @@ type DisasterEvidence struct {
 // History is observed disruption evidence. It grants neither orders nor recovery
 // from elapsed time, disappeared buildings or an expired game condition.
 type DisasterHistory struct {
+	ShortCircuitTick  *int64 `json:",omitempty"`
 	WorkKnown         bool
 	Work              []RecoveryWork
 	Started, Observed domain.Tick
@@ -253,6 +254,9 @@ func (h *DisasterHistory) Validate() error {
 	if h.Started < 0 || h.Observed < h.Started || len(h.Conditions) > 256 || len(h.Damaged) > 256 || len(h.Services) != len(disasterServices) || len(h.Affected) > len(disasterServices) {
 		return errors.New("invalid disaster history bounds")
 	}
+	if h.ShortCircuitTick != nil && (*h.ShortCircuitTick < 0 || *h.ShortCircuitTick > int64(h.Observed)) {
+		return errors.New("invalid short circuit history")
+	}
 	switch h.Phase {
 	case DisasterDisrupted, DisasterSurvival, DisasterRecovering, DisasterRestored, DisasterUnknown:
 	default:
@@ -323,12 +327,24 @@ func cloneDisaster(h *DisasterHistory) *DisasterHistory {
 
 // ReviewDisaster uses the same survival gates as routine planning. The store
 // resets history on world replacement or rewind and retains it through Manual.
-func ReviewDisaster(conditions domain.Fact[[]DisasterCondition], buildings domain.Fact[[]RecoveryBuilding], gates FootholdGates, previous *DisasterHistory, tick domain.Tick) (*DisasterHistory, error) {
+func ReviewDisaster(conditions domain.Fact[[]DisasterCondition], buildings domain.Fact[[]RecoveryBuilding], gates FootholdGates, previous *DisasterHistory, tick domain.Tick, shortCircuit ...domain.Fact[domain.Tick]) (*DisasterHistory, error) {
 	if err := previous.Validate(); err != nil {
 		return nil, err
 	}
 	if tick < 0 || previous != nil && tick < previous.Observed {
 		return nil, errors.New("stale disaster observation")
+	}
+	if len(shortCircuit) > 1 {
+		return nil, errors.New("too many short circuit observations")
+	}
+	incident, newIncident := domain.Tick(0), false
+	if len(shortCircuit) == 1 {
+		var known bool
+		incident, known = shortCircuit[0].Value()
+		if known && (incident < 0 || incident > tick) {
+			return nil, errors.New("invalid short circuit observation")
+		}
+		newIncident = known && (previous == nil || previous.ShortCircuitTick == nil || int64(incident) > *previous.ShortCircuitTick)
 	}
 	work, err := RecoveryPending(buildings)
 	if err != nil {
@@ -357,16 +373,23 @@ func ReviewDisaster(conditions domain.Fact[[]DisasterCondition], buildings domai
 		return h, nil
 	}
 	if h != nil && h.Phase == DisasterRestored {
-		if len(current) == 0 {
+		if len(current) == 0 && !newIncident {
 			return h, nil
 		}
 		h = nil
 	}
 	if h == nil {
-		if len(current) == 0 {
+		if len(current) == 0 && !newIncident {
 			return nil, nil
 		}
 		h = &DisasterHistory{Started: tick}
+	}
+	if newIncident {
+		n := int64(incident)
+		h.ShortCircuitTick = &n
+	}
+	if h.ShortCircuitTick == nil && previous != nil {
+		h.ShortCircuitTick = previous.ShortCircuitTick
 	}
 	h.Observed = tick
 	h.Conditions = slices.Clone(current)
@@ -374,6 +397,17 @@ func ReviewDisaster(conditions domain.Fact[[]DisasterCondition], buildings domai
 	tracked := map[string]bool{}
 	for _, id := range h.Damaged {
 		tracked[id] = true
+	}
+	if newIncident {
+		rows, _ := buildings.Value()
+		for _, b := range rows {
+			hp, hk := b.HitPoints.Value()
+			maximum, mk := b.MaxHitPoints.Value()
+			broken, bk := b.Broken.Value()
+			if hk && mk && hp < maximum || bk && broken {
+				tracked[b.ID] = true
+			}
+		}
 	}
 	pending, complete := work.Value()
 	h.WorkKnown, h.Work = complete, slices.Clone(pending)
