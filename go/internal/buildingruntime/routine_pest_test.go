@@ -75,6 +75,90 @@ func TestPestAcquisitionPlannerRequiresAnAcquisitionNeed(t *testing.T) {
 	}
 }
 
+func TestPestHuntWithdrawalReleasesTargetForReplanning(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	planner, reviewer, db, facts := pestFixture(t)
+	first, err := planner.Step(ctx)
+	if err != nil || first.Reason != BuildingMethodAdmitted {
+		t.Fatal(first, err)
+	}
+	plan, err := db.LoadPlan(ctx, first.Plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	action := plan.Spec.Actions()[0]
+	target, _ := action.Acquisition()
+	snapshot := reviewer.player.session.State().Snapshot
+	snapshot.Plan, snapshot.Revision = plan.Spec.ID(), plan.Spec.Revision()
+	tick := domain.Tick(facts.Context.GetTick())
+	if _, err = db.PrepareAcquisition(ctx, first.Plan, action.ID(), store.AcquisitionAdmission{Snapshot: snapshot, Tick: tick, Thing: target.Thing(), SnapshotToken: "cas"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = db.Dispatch(ctx, first.Plan, action.ID(), snapshot, tick); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = db.RecordReceipt(ctx, first.Plan, action.ID(), 1, domain.ReceiptAccepted); err != nil {
+		t.Fatal(err)
+	}
+	for _, row := range facts.Acquisition {
+		if row.Source.GetId() == target.Thing() {
+			row.Designated = proto.Bool(true)
+		}
+	}
+	facts.PendingHunts = proto.Uint32(1)
+	retick(facts.ProtoReflect(), int64(tick)+reviewer.policy.HuntStallTicks)
+	if _, err = reviewer.Step(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if result, err := planner.Step(ctx); err != nil || result.Reason != BuildingMethodUsed {
+		t.Fatal(result, err)
+	}
+	plan, err = db.LoadPlan(ctx, first.Plan)
+	if err != nil || plan.Progress[0].View().Stage != domain.Cancelled || !domain.GoalWorkOpen(plan.Progress) {
+		t.Fatal("stalled hunt must retain uncertainty until native withdrawal", plan, err)
+	}
+	if got := stalledHuntActions(plan.Progress, map[string]bool{target.Thing(): true}, domain.Tick(facts.Context.GetTick()), reviewer.policy.HuntStallTicks); len(got) != 0 {
+		t.Fatal("cancelled hunt repeatedly cancelled instead of reconciled", got)
+	}
+	// Reconciliation observes the still-designated hunt, withdraws it, then
+	// observes no designation and no kill. No simulation tick is needed.
+	observation := domain.Observation{Action: action.ID(), Attempt: 1, Snapshot: snapshot, Tick: domain.Tick(facts.Context.GetTick()), Effect: domain.EffectPending, Causality: domain.AfterDispatch}
+	if _, err = db.Observe(ctx, first.Plan, observation, snapshot); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = db.Withdraw(ctx, first.Plan, action.ID(), snapshot, observation.Tick); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = db.RecordReceipt(ctx, first.Plan, action.ID(), 2, domain.ReceiptAccepted); err != nil {
+		t.Fatal(err)
+	}
+	observation.Attempt, observation.Effect, observation.UnsuccessfulReason = 2, domain.EffectUnsuccessful, domain.OutcomeNotAchieved
+	if _, err = db.Observe(ctx, first.Plan, observation, snapshot); err != nil {
+		t.Fatal(err)
+	}
+	for _, row := range facts.Acquisition {
+		row.Designated = proto.Bool(false)
+	}
+	facts.PendingHunts = proto.Uint32(0)
+	reviewer.census.invalidate()
+	if _, err = reviewer.Step(ctx); err != nil {
+		t.Fatal(err)
+	}
+	next, err := planner.Step(ctx)
+	if err != nil || next.Reason != BuildingMethodAdmitted || next.Plan == first.Plan {
+		t.Fatal("withdrawn pest did not get a fresh method", next, err)
+	}
+	plan, err = db.LoadPlan(ctx, next.Plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshot.Plan = next.Plan
+	if work, _, err := clockSchedulerWork(plan, snapshot); err != nil || !work {
+		t.Fatal("replacement hunt left clock at no_work", work, err)
+	}
+}
+
 // pestFixture stages one wild alphabeaver in the wild-animal census and as a
 // pest hunt row, with a hunting budget of two and no colonist restrictions.
 func pestFixture(t *testing.T) (*RoutineAcquisitionPlanner, *RoutineReviewer, *store.Store, *o.ColonyFactsSnapshot) {

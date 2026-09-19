@@ -123,8 +123,8 @@ func (writer *AcquisitionControl) Acquire(ctx context.Context, pre *a.WritePreco
 	return reply, raw, err
 }
 
-// Withdraw cancels the plant-harvest designation an earlier Acquire placed
-// (#291), under the withdrawal attempt the journal opened for it. The
+// Withdraw cancels the plant-harvest or hunt designation an earlier Acquire
+// placed, under the withdrawal attempt the journal opened for it. The
 // applied evidence must show the designation gone.
 func (writer *AcquisitionControl) Withdraw(ctx context.Context, pre *a.WritePrecondition, target AcquisitionTarget) (*op.ExecuteReply, Result, error) {
 	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 {

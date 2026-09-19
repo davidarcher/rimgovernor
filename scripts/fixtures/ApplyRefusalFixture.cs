@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using RimBridgeServer.Sdk;
 using RimWorld;
 using Verse;
+using Verse.AI;
 
 namespace HomeBridge.BridgeTools
 {
@@ -230,7 +231,7 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        [Tool("test/apply_refusal_move", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture: move the world under a staged target: fill_cell (x,z), delete_zone (id), allow_item (id), draft_pawn / undraft_pawn (id), designate_plant (id), designate_rock (id), designate_hunt (id), designate_tame (id), suspend_bills (id), destroy_thing (id).")]
+        [Tool("test/apply_refusal_move", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture: move the world under a staged target: fill_cell (x,z), delete_zone (id), allow_item (id), draft_pawn / undraft_pawn (id), designate_plant (id), designate_rock (id), designate_hunt / start_hunt / inspect_hunt (id), designate_tame (id), suspend_bills (id), destroy_thing (id).")]
         public async Task<object> Move(IRimBridgeContext ctx, CancellationToken cancellationToken, string action = "", string id = "", int x = -1, int z = -1)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -278,6 +279,21 @@ namespace HomeBridge.BridgeTools
                         if (!(Locate(id) is Pawn prey)) return Refuse("No animal " + id + ".");
                         new Designator_Hunt().DesignateThing(prey);
                         return new { success = true, designated = NativeHuntAcquisition.Designated(prey) };
+                    }
+                    case "start_hunt":
+                    case "inspect_hunt": {
+                        if (!(Locate(id) is Pawn prey)) return Refuse("No animal " + id + ".");
+                        if (action == "start_hunt")
+                        {
+                            var next = GenRadial.RadialCellsAround(prey.Position, 3, false).FirstOrDefault(c => c.InBounds(map) && c.Standable(map) && !c.Fogged(map));
+                            var hunter = map.mapPawns.FreeColonistsSpawned.FirstOrDefault(p => !p.WorkTypeIsDisabled(WorkTypeDefOf.Hunting) && p.equipment?.Primary?.def.IsRangedWeapon == true);
+                            if (hunter == null || !next.IsValid) return Refuse("No hunter or moved prey cell.");
+                            prey.Position = next;
+                            hunter.jobs.TryTakeOrderedJob(JobMaker.MakeJob(JobDefOf.Hunt, prey));
+                        }
+                        return new { success = true, designated = NativeHuntAcquisition.Designated(prey),
+                            hunters = map.mapPawns.FreeColonistsSpawned.Count(p => p.CurJobDef == JobDefOf.Hunt && p.CurJob.targetA.Thing == prey),
+                            cell = new { x = prey.Position.x, z = prey.Position.z } };
                     }
                     case "designate_tame": {
                         if (!(Locate(id) is Pawn animal)) return Refuse("No animal " + id + ".");

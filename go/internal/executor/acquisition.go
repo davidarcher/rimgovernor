@@ -123,7 +123,7 @@ func (e *Executor) runAcquisition(ctx context.Context, action domain.Action, p d
 			result.Detail = evidence.PendingReason
 			if v.Stage == domain.Cancelled && evidence.Designated {
 				// The journal cancelled the action but the designation is
-				// still on the source with nobody harvesting: withdraw it
+				// still on the source: withdraw it
 				// natively so the effect can settle (#291).
 				next, err := e.journal.Observe(ctx, v.Plan, o, current)
 				if err != nil {
@@ -206,7 +206,7 @@ func (e *Executor) runAcquisition(ctx context.Context, action domain.Action, p d
 }
 
 // withdrawAcquisition is the native half of a cancelled acquisition whose
-// designation nobody took (#291): open the withdrawal attempt durably, then
+// designation remains: open the withdrawal attempt durably, then
 // ask native to remove the designation under the current authority. The
 // receipt is journaled like a dispatch's; the next run observes the attempt
 // and the record settles as unsuccessful once the designation is gone.

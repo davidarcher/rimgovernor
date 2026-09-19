@@ -19,6 +19,7 @@ namespace HomeBridge.BridgeTools
         private readonly Map map;
         private readonly IntVec3 cell;
         private readonly string source, resource;
+        private bool withdrawn;
         internal NativeHuntRecord(Pawn prey)
         { this.prey = prey; map = prey.Map; cell = prey.Position; source = prey.GetUniqueLoadID(); resource = prey.RaceProps.corpseDef.defName; }
         internal Receipts.AcquisitionEffect Evidence()
@@ -34,8 +35,32 @@ namespace HomeBridge.BridgeTools
             if (exact) result.Outputs.Add(new Receipts.AcquisitionOutput { ThingId = corpse!.GetUniqueLoadID(), Units = 1 });
             return result;
         }
+        internal bool Matches(Operations.CancelAcquisition command, Map current) => current == map
+            && command.Source.EntityId == source && command.ResourceDefName == resource
+            && command.Cell.X == cell.x && command.Cell.Z == cell.z;
+        internal void Withdraw()
+        {
+            if (prey.Spawned && prey.Map == map)
+            {
+                var designation = map.designationManager.DesignationOn(prey, DesignationDefOf.Hunt);
+                if (designation != null) map.designationManager.RemoveDesignation(designation);
+            }
+            // Removing a designation alone leaves an already-running Hunt job
+            // alive, and its unsafe route can stop every subsequent clock window.
+            foreach (var hunter in map.mapPawns.FreeColonistsSpawned.ToList())
+                if (hunter.CurJobDef == JobDefOf.Hunt && hunter.CurJob.targetA.Thing == prey)
+                    hunter.jobs.EndCurrentJob(JobCondition.InterruptForced);
+            withdrawn = true;
+        }
         public Receipts.Progress Observe(Common.AttemptKey attempt, Common.ObservationContext context)
-            => NativeAcquisitionRecord.Progress(attempt, context, Evidence());
+        {
+            var evidence = Evidence();
+            if (withdrawn && !evidence.LaborFinished && !evidence.Designated)
+                return new Receipts.Progress { Attempt = attempt.Clone(), Context = context.Clone(), CompleteInspection = true,
+                    Unsuccessful = new Receipts.UnsuccessfulEffect { Reason = Receipts.UnsuccessfulReason.OutcomeNotAchieved,
+                        Evidence = new Receipts.EffectEvidence { Acquisition = evidence }, Detail = "Owned hunt was withdrawn before an observed kill." } };
+            return NativeAcquisitionRecord.Progress(attempt, context, evidence);
+        }
     }
 
     // A corpse is acquired material. Only later ordinary butchering/cooking can
@@ -146,6 +171,47 @@ namespace HomeBridge.BridgeTools
             result.PendingFoodNutrition += map.mapPawns.AllPawnsSpawned.Where(p => Designated(p) && p.RaceProps.meatDef != null).Sum(Nutrition);
         }
         internal const string Kind = "Hunt";
+        // A withdrawal may only use this controller action's preceding hunt
+        // record. The captured admission cell stays valid after the prey moves.
+        internal static NativeHuntRecord? WithdrawalRecord(NativeOperationState state, Common.AttemptKey attempt)
+        {
+            if (attempt.AttemptId <= 1) return null;
+            var prior = attempt.Clone(); prior.AttemptId--;
+            return state.Acquisition.TryGetValue(prior, out var record) ? record as NativeHuntRecord : null;
+        }
+        internal static Operations.ExecuteReply Cancel(NativeOperationState state, Operations.ExecuteRequest request,
+            Common.ObservationContext context, NativeHuntRecord record)
+        {
+            NativeAttemptLedger.Admission? handle = null; Receipts.EffectEvidence? evidence = null;
+            var pre = request.Precondition; var command = request.Operation.CancelAcquisition;
+            try
+            {
+                if (!NativePlantAcquisition.ValidCancel(command) || !record.Matches(command, ProtoBoundary.LoadedMap(context)))
+                    return new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Cancellation requires the original hunt target.") };
+                if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
+                    return new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.AuthorityRequired, "Native authority is required.") };
+                var guard = authority.Check(pre.ExpectedGeneration);
+                context.NativeGeneration = guard.Snapshot.Generation;
+                if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
+                var admitted = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
+                if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.DecidedReply;
+                handle = admitted.AdmittedHandle;
+                state.Acquisition.Add(pre.Attempt.Clone(), record);
+                using (authority.Owned())
+                {
+                    if (!authority.Check(pre.ExpectedGeneration).Success) throw new InvalidOperationException("Authority moved before hunt cancellation.");
+                    record.Withdraw();
+                    evidence = new Receipts.EffectEvidence { Acquisition = record.Evidence() };
+                    if (evidence.Acquisition.Designated) throw new InvalidOperationException("Hunt designation survived cancellation.");
+                }
+                return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
+            }
+            catch (Exception error)
+            {
+                return handle == null ? new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.NativeFailure, "Hunt cancellation failed: " + error.GetType().Name) }
+                    : new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Uncertain(state.Ledger, handle, pre.Attempt, context, evidence, "Admitted hunt cancellation requires observation: " + error.GetType().Name) };
+            }
+        }
         // Prepare is the apply-time precondition list for hunt
         // (action-contracts.md): Eligible plus the request's cell, resource
         // and designation rules, one rule at a time.

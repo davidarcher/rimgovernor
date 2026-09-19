@@ -121,6 +121,8 @@ namespace HomeBridge.BridgeTools
         // already undesignated applies as a no-op on the same evidence.
         internal static Operations.ExecuteReply Cancel(NativeOperationState state, Operations.ExecuteRequest request, Common.ObservationContext context)
         {
+            var hunt = NativeHuntAcquisition.WithdrawalRecord(state, request.Precondition.Attempt);
+            if (hunt != null) return NativeHuntAcquisition.Cancel(state, request, context, hunt);
             NativeAttemptLedger.Admission? handle = null; Receipts.EffectEvidence? evidence = null;
             var pre = request.Precondition; var command = request.Operation.CancelAcquisition;
             try

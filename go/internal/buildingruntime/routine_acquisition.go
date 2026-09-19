@@ -426,7 +426,7 @@ func stalledHuntActions(progress []domain.Progress, huntSources map[string]bool,
 	for _, p := range progress {
 		acquisition, ok := p.Action().Acquisition()
 		v := p.View()
-		if ok && huntSources[acquisition.Thing()] && v.Unresolved && int64(now-v.Tick) >= graceTicks {
+		if ok && huntSources[acquisition.Thing()] && v.Unresolved && v.Stage != domain.Cancelled && int64(now-v.Tick) >= graceTicks {
 			stalled = append(stalled, v.Action)
 		}
 	}
