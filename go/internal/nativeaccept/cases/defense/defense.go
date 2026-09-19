@@ -784,7 +784,7 @@ func launchService(ctx context.Context, s cases.Session, name string, identity m
 	// arbitration slot (policy.RankDevelopment); it is submitted once per
 	// journal and replayed idempotently on a relaunch.
 	submission, status, err := svc.API("POST", "/api/buildings/plans", map[string]any{
-		"requestId": "defense-layout-construction-1", "expected": identity,
+		"requestId": s.RequestID("defense-layout-construction-1"), "expected": identity,
 		"building": map[string]any{"defName": "Wall", "x": siteX, "z": siteZ, "rotation": "north", "stuff": "WoodLog"},
 	}, svc.Token)
 	if err != nil {

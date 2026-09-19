@@ -623,9 +623,16 @@ is not a landing pass: `acceptance suite` runs every case fresh and fails
 a row whose `result.json` carries `resumed_from`. The bundles are
 disposable per-worktree state, never committed. Resume replays the case
 body from the top against the restored world and store, so it suits
-watch-shaped cases (a declarative `Serve` spec or an `Observe` loop);
-an imperative `Run` that re-submits deterministic request ids hits `409
-conflict` on replay and should declare `NoCheckpoint`. A case that never
+watch-shaped cases (a declarative `Serve` spec or an `Observe` loop).
+A `Run` that submits a deterministic request id (a building plan whose
+acceptance fills the arbitration slot, a work-preference override) takes
+it from `s.RequestID(base)`: the base on a fresh run, the base suffixed
+with the run id on a resumed one, since the restored store already holds
+the fresh run's submission and the replay under the resumed world's load
+identity is a different request the store answers `409 conflict` (#307).
+The id holds still within a run, so a relaunch on the same journal still
+replays idempotently. A body whose later steps assume the fresh run's
+progress has not happened should declare `NoCheckpoint`. A case that never
 pauses on its own (bridge-only, no service) only gets the `failed/`
 bundle.
 

@@ -129,6 +129,14 @@ type Session interface {
 	Identity() map[string]any
 	// Prepared is a Fixture start's reply, nil otherwise.
 	Prepared() map[string]any
+	// RequestID is base on a fresh run and base suffixed with the run's
+	// id on a resumed one (#307): the restored store already holds the
+	// fresh run's submissions, and a replay under the resumed world's
+	// identity is a different request the store answers 409 conflict.
+	// Stable within a run, so a relaunch on the same journal still
+	// replays idempotently. Use it for every deterministic requestId a
+	// Run body submits.
+	RequestID(base string) string
 	// Report is the run's report; the case adds its own fields.
 	Report() na.Report
 	// Release closes the harness's bridge session without stopping the game

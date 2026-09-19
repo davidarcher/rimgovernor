@@ -192,6 +192,9 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 		return fmt.Errorf("checkpoint ring: %w", err)
 	}
 	s := &session{c: c, report: report, binary: opts.Rimgovernor}
+	if resumed.resuming() {
+		s.resumeSuffix = opts.RunID()
+	}
 	cfg := &na.Config{Root: opts.Root, Output: output, Headless: opts.Headless && !c.Rendered, GameID: opts.GameID,
 		Spawned: func(pid int) { s.gabsPID.Store(int64(pid)) }}
 	s.config = cfg
@@ -347,8 +350,10 @@ type session struct {
 	report   na.Report
 	binary   string
 	services []*na.ServiceProcess
-	runtime  *na.ScenarioRuntime
-	gabsPID  atomic.Int64
+	// resumeSuffix is what RequestID appends on a resumed run, "" fresh.
+	resumeSuffix string
+	runtime      *na.ScenarioRuntime
+	gabsPID      atomic.Int64
 }
 
 func (s *session) Config() *na.Config { return s.config }
@@ -382,6 +387,12 @@ func (s *session) Names() []string          { return s.Session.Names }
 func (s *session) Identity() map[string]any { return s.Session.Identity }
 func (s *session) Prepared() map[string]any { return s.Session.Prepared }
 func (s *session) Report() na.Report        { return s.report }
+func (s *session) RequestID(base string) string {
+	if s.resumeSuffix == "" {
+		return base
+	}
+	return base + "-" + s.resumeSuffix
+}
 func (s *session) Release() error {
 	if s.Session == nil {
 		return errors.New("no game open: an Owned case holds its own session")

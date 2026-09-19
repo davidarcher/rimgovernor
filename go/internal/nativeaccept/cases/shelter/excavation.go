@@ -183,7 +183,7 @@ func openExcavation(ctx context.Context, s cases.Session, shape excavationShape)
 	run := &excavationRun{s: s, report: report, svc: svc, shape: shape, inBlock: inBlock, prepared: prepared}
 	// The one player-submitted plan the authority grant is bound to.
 	submission, status, err := svc.API("POST", "/api/buildings/plans", map[string]any{
-		"requestId": "excavation-player-plan-1",
+		"requestId": s.RequestID("excavation-player-plan-1"),
 		"expected":  identity,
 		"building":  map[string]any{"defName": "Wall", "x": spareX, "z": spareZ, "rotation": "north", "stuff": "WoodLog"},
 	}, svc.Token)

@@ -156,7 +156,7 @@ func run(ctx context.Context, s cases.Session) error {
 	// occupies MaintainStorage's own arbitration capacity slot as "the
 	// accepted player project" -- see policy.RankDevelopment.
 	submission, status, err := apiCall("POST", "/api/buildings/plans", map[string]any{
-		"requestId": "routine-haul-construction-1",
+		"requestId": s.RequestID("routine-haul-construction-1"),
 		"expected":  identity,
 		"building":  map[string]any{"defName": "Wall", "x": siteX, "z": siteZ, "rotation": "north", "stuff": "WoodLog"},
 	}, token)
@@ -172,7 +172,7 @@ func run(ctx context.Context, s cases.Session) error {
 	report["submission"] = submission
 
 	acquireBody := map[string]any{
-		"requestId": "routine-haul-resume-1", "expected": identity,
+		"requestId": s.RequestID("routine-haul-resume-1"), "expected": identity,
 	}
 	acquired, status, err := apiCall("POST", "/api/player/control/resume", acquireBody, token)
 	if err != nil {
@@ -307,7 +307,7 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 	baseRevision := na.AsString(preferences["revision"])
 	revokeBody := map[string]any{
-		"requestId": "routine-haul-revoke-hauling", "planId": rootPlanID, "expected": identity,
+		"requestId": s.RequestID("routine-haul-revoke-hauling"), "planId": rootPlanID, "expected": identity,
 		"expectedRevision": baseRevision,
 		"overrides":        []map[string]any{{"pawn": haulerID, "work": "Hauling", "priority": 0}},
 	}
@@ -438,7 +438,7 @@ func run(ctx context.Context, s cases.Session) error {
 	// exactly once, with no duplicate/conflicting order.
 	clearedRevision := na.AsString(revoked["revision"])
 	restoreBody := map[string]any{
-		"requestId": "routine-haul-restore-hauling", "planId": rootPlanID, "expected": identity,
+		"requestId": s.RequestID("routine-haul-restore-hauling"), "planId": rootPlanID, "expected": identity,
 		"expectedRevision": clearedRevision, "overrides": []map[string]any{},
 	}
 	restored, status, err := apiCall("POST", "/api/player/work-preferences/replace", restoreBody, token)
