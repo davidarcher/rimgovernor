@@ -133,8 +133,11 @@ switch ($Phase) {
                 $seconds = [int]($deadline - [DateTime]::UtcNow).TotalSeconds
                 if ($seconds -le 0) { throw 'Shard suite allowance exhausted' }
                 $names = @($rows | Where-Object mod_role -CEQ $job.role | ForEach-Object name) -join ','
-                & $boot.acceptance suite -cases $names -workers 1 -timeout "$($seconds)s" -root $boot.root -output $job.output -rimgovernor $boot.controller -no-series
-                if ($LASTEXITCODE) { $bad = $true }
+                Push-Location (Join-Path $Repo 'go')
+                try {
+                    & $boot.acceptance suite -cases $names -workers 1 -timeout "$($seconds)s" -root $boot.root -output $job.output -rimgovernor $boot.controller -no-series
+                    if ($LASTEXITCODE) { $bad = $true }
+                } finally { Pop-Location }
             }
         } finally {
             if (Test-Path -LiteralPath $identity) { Remove-Item -LiteralPath $identity }
