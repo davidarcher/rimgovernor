@@ -540,7 +540,8 @@ blocks the next hunt, and a second forage waits for the first.
 A bounded squad method assigns at least two capable defenders per observed opponent,
 up to four opponents and eight defenders. It supports manhunters and confirmed hunting
 predators up to native body size four, and observed humanlike opponents; ranged
-opponents require ranged defenders. Native previews decide attack legality. The clock
+opponents require ranged defenders, and the roster's [line split](work-assignment.md#situational-roles)
+orders who takes which. Native previews decide attack legality. The clock
 acknowledges only the exact inspected opponents after dispatch; new threats and severe
 injury retain their guards. Medical triage can run alongside defense. Blocked emergencies
 prevent routine waiting work from restarting time; unsupported encounters remain explicit holds.

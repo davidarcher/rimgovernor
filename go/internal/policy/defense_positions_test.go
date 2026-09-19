@@ -68,3 +68,12 @@ func TestSelectDefensivePositionsFallsBack(t *testing.T) {
 		t.Fatal("positioned against no live hostile")
 	}
 }
+
+func TestSelectDefensivePositionsSeatsShootersFirst(t *testing.T) {
+	front := defensiveDefender("a", true)
+	front.FrontLine = true
+	positions, ok := SelectDefensivePositions([]domain.Cell{{X: 1, Z: 1}}, []DefensiveThreatFacts{defensiveThreat("raider")}, []SquadDefenderFacts{front, defensiveDefender("b", true)})
+	if !ok || len(positions) != 1 || positions[0].Defender != "b" {
+		t.Fatal(positions, ok)
+	}
+}

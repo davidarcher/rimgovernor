@@ -11,6 +11,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -164,12 +165,25 @@ func (r *RoutineDefensePlanner) step(call, epoch context.Context, arbiter *stepA
 		rows[row.Pawn.GetId()] = row
 	}
 	var defenders []policy.SquadDefenderFacts
+	var profiles []policy.PawnProfile
 	for _, pawn := range emergency.Facts.Colonists {
 		row := rows[string(pawn.ID)]
 		if row == nil {
 			return RoutineDefenseResult{}, ErrControl
 		}
 		defenders = append(defenders, squadDefenderFacts(row))
+		profiles = append(profiles, policy.BuildProfile(observation.WorkPawnRow(row)))
+	}
+	// The combat read carries the biography, so the line split comes from
+	// the same rows: holders take melee opponents, shooters ranged ones
+	// and the firing cells.
+	front, _ := policy.FrontLine(profiles)
+	holds := map[domain.PawnID]bool{}
+	for _, id := range front {
+		holds[domain.PawnID(id)] = true
+	}
+	for i := range defenders {
+		defenders[i].FrontLine = holds[defenders[i].ID]
 	}
 	var threats []policy.SquadThreatFacts
 	for _, id := range hostileIDs {

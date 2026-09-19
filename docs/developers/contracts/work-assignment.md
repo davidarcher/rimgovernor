@@ -98,8 +98,12 @@ execution), `TraderFor` (Social, Abrasive only when nobody else can talk),
 `FrontLine` (Tough, Nimble, Brawler or Melee over Shooting hold the line; the
 rest shoot behind it). The trade review opens with `TraderFor` among the
 negotiators native lists as eligible (native's own first row when the roster
-is unknown or nobody qualifies); the medical, custody, husbandry, hunting and
-defense reviews adopt theirs as each migrates (#447).
+is unknown or nobody qualifies). The defense review splits its defenders with
+`FrontLine` from the combat read's biography: line holders take a melee
+opponent first, shooters a ranged opponent and the layout's firing cells
+first, as a preference over the ID order that stands when the profile is
+unknown. The custody, husbandry and hunting reviews adopt theirs as each
+migrates (#447).
 
 ## Schedules
 

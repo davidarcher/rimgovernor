@@ -38,6 +38,12 @@ type SquadDefenderFacts struct {
 	ViolenceCapable, NeedsTend                       domain.Fact[bool]
 	HealthFraction                                   domain.Fact[float64]
 	RangedEquipped, MeleeEquipped, Armed             domain.Fact[bool]
+	// FrontLine is the pawn's place in FrontLine's split of the roster: a
+	// line holder (Tough, Nimble, Brawler or Melee over Shooting) takes a
+	// melee opponent before a shooter does, and shooters take ranged
+	// opponents and firing cells first. False when the profile is unknown;
+	// it orders preference only, never eligibility.
+	FrontLine bool
 }
 
 type SquadMode uint8
@@ -153,18 +159,22 @@ func SelectSquadDefense(threats []SquadThreatFacts, defenders []SquadDefenderFac
 	}
 	sort.Slice(defenderPool, func(i, j int) bool { return defenderPool[i].ID < defenderPool[j].ID })
 
+	// A melee opponent goes to the line holders first and a ranged one to
+	// the shooters; either falls back to whoever is left.
 	used := map[domain.PawnID]bool{}
 	take := func(ranged bool) (domain.PawnID, bool) {
-		for _, d := range defenderPool {
-			if used[d.ID] {
-				continue
+		for _, preferred := range []bool{true, false} {
+			for _, d := range defenderPool {
+				if used[d.ID] || preferred && d.FrontLine == ranged {
+					continue
+				}
+				equipped, known := d.RangedEquipped.Value()
+				if ranged && (!known || !equipped) {
+					continue
+				}
+				used[d.ID] = true
+				return d.ID, true
 			}
-			equipped, known := d.RangedEquipped.Value()
-			if ranged && (!known || !equipped) {
-				continue
-			}
-			used[d.ID] = true
-			return d.ID, true
 		}
 		return "", false
 	}
@@ -260,6 +270,9 @@ func SelectTribalRaiderDefense(threat SquadThreatFacts, defenders []SquadDefende
 		jRanged, _ := pool[j].RangedEquipped.Value()
 		if iRanged != jRanged {
 			return iRanged
+		}
+		if pool[i].FrontLine != pool[j].FrontLine {
+			return pool[i].FrontLine
 		}
 		return pool[i].ID < pool[j].ID
 	})

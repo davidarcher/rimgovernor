@@ -198,3 +198,25 @@ func TestSelectTribalRaiderDefenseExcludesUnarmedUnhealthyOrRangedThreat(t *test
 		t.Fatal("selected with only one eligible defender")
 	}
 }
+
+func TestSelectSquadDefensePrefersTheLineByOpponent(t *testing.T) {
+	front := squadDefender("a", true)
+	front.FrontLine = true
+	shooter := squadDefender("b", true)
+	// A melee opponent goes to the line holder first, a ranged one to the
+	// shooter first; the tribal branch keeps ranged first, then the line.
+	melee := squadDefender("d", false)
+	melee.FrontLine = true
+	assignments, ok := SelectSquadDefense([]SquadThreatFacts{squadThreat("raider", false)}, []SquadDefenderFacts{front, shooter, squadDefender("c", false), melee})
+	if !ok || len(assignments) != 2 || assignments[0].Defender != "a" || assignments[1].Defender != "d" {
+		t.Fatal(assignments, ok)
+	}
+	assignments, ok = SelectSquadDefense([]SquadThreatFacts{squadThreat("raider", true)}, []SquadDefenderFacts{front, shooter, squadDefender("c", true)})
+	if !ok || len(assignments) != 2 || assignments[0].Defender != "b" || assignments[1].Defender != "c" {
+		t.Fatal(assignments, ok)
+	}
+	assignments, ok = SelectTribalRaiderDefense(squadThreat("raider", false), []SquadDefenderFacts{squadDefender("c", false), melee, front, shooter})
+	if !ok || len(assignments) != 3 || assignments[0].Defender != "a" || assignments[1].Defender != "b" || assignments[2].Defender != "d" {
+		t.Fatal(assignments, ok)
+	}
+}

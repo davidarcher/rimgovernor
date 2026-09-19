@@ -75,7 +75,13 @@ func SelectDefensivePositions(firing []domain.Cell, threats []DefensiveThreatFac
 	if len(pool) == 0 {
 		return nil, false
 	}
-	sort.Slice(pool, func(i, j int) bool { return pool[i].ID < pool[j].ID })
+	// Shooters take the firing cells before the line holders do.
+	sort.Slice(pool, func(i, j int) bool {
+		if pool[i].FrontLine != pool[j].FrontLine {
+			return !pool[i].FrontLine
+		}
+		return pool[i].ID < pool[j].ID
+	})
 	seen := map[domain.Cell]bool{}
 	var out []DefensivePosition
 	for _, cell := range firing {
