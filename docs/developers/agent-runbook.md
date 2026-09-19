@@ -134,6 +134,10 @@ What it produces:
   on a fresh one: `acceptance suite` and the `cmd/test` hint run fresh.
 - Report evidence from `result.json`/`report.json` and the retained logs;
   name the cases you ran in the commit message.
+- Iterating on a fixture op: `acceptance fixture <op> [k=v ...] -root
+  <root>` runs it on the baseline (or `-loaded`, the world the last call
+  left) and prints the reply and a world census; no case around it
+  (choose-tests, "Stage the precondition").
 
 ## Landing
 

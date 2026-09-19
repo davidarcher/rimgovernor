@@ -159,6 +159,25 @@ func (f Fixture) prepare(ctx context.Context, c caller, names []string, identity
 	return prepared, nil
 }
 
+// Loaded is the game already loaded in a reused process (Config.KeepLoaded
+// left it there): the start loads nothing and fails at the main menu. The
+// storyteller is left as it is.
+type Loaded struct{}
+
+func (Loaded) saves() []string      { return nil }
+func (Loaded) fixtureOps() []string { return nil }
+
+func (Loaded) load(ctx context.Context, s *Session, quiet QuietMode) (map[string]any, error) {
+	loaded, err := gameLoaded(ctx, s.Harness, "loaded-identity")
+	if err != nil {
+		return nil, err
+	}
+	if !loaded {
+		return nil, fmt.Errorf("no game is loaded in the kept process; start from a save instead")
+	}
+	return map[string]any{"kind": "loaded"}, nil
+}
+
 // Session is one bridge-only harness's hold on a loaded, paused, quiet
 // game with its needs frozen: what every harness's run preamble used to
 // build by hand. Serve-driven harnesses hand the GABP slot to the service

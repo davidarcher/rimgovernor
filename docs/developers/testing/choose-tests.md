@@ -72,6 +72,20 @@ Budget a targeted case at minutes. If the precondition is the slow part,
 build the fixture before writing the assertion, and review the generated save
 once so later runs can trust it.
 
+Develop a fixture op without a case around it: `acceptance fixture
+<op> [key=value ...] -root <root>` loads the tribal8 baseline (`-save
+<name>` for another save in the profile or a committed checkpoint) into
+the root's kept game, calls the op through the same harness the cases
+use and prints native's reply as it came (a refusal included, exit 1)
+with a census of the world after it (tick, pause, authority, owned
+drafts, the non-zero stocks with their forbidden counts: the reset
+check's sample). A value that parses as JSON is that value (`x=12`,
+`roofed=true`, `cells=[[1,2]]`), anything else a string. The world stays
+loaded and paused, so `-loaded` runs the next op on it in a few seconds
+instead of reloading; the next `acceptance run` unloads it as it does any
+leftover. Evidence lands under `<root>/acceptance/fixture/<op>-<time>`
+(`-output`), `-json` prints one object.
+
 ## Adding a case
 
 Every native acceptance is a registered `cases.Case` under

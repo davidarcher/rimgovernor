@@ -177,7 +177,7 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 	if c.Serve != nil && opts.Rimgovernor == "" {
 		return fmt.Errorf("case %s launches rimgovernor serve: run it with -rimgovernor <absolute path to a prebuilt binary>", c.Name)
 	}
-	if err := stageSaves(c.Start, opts.Root); err != nil {
+	if err := StageSaves(c.Start, opts.Root); err != nil {
 		return err
 	}
 	log := opts.Log
@@ -278,14 +278,14 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 	return runErr
 }
 
-// stageSaves copies every Save.From checkpoint the start names into
+// StageSaves copies every Save.From checkpoint the start names into
 // <root>/profile/Saves when the root lacks the .rws (every file of that
 // name, e.g. its .checkpoint.json sidecar, comes along).
-func stageSaves(start Start, root string) error {
+func StageSaves(start Start, root string) error {
 	switch v := start.(type) {
 	case Fixture:
 		if v.On != nil {
-			return stageSaves(v.On, root)
+			return StageSaves(v.On, root)
 		}
 	case Save:
 		if v.From == "" {

@@ -170,6 +170,12 @@ type Config struct {
 	// session launches (bridge.ProcessConfig.Spawned), for a harness that
 	// kills its own transport.
 	Spawned func(pid int)
+	// KeepLoaded leaves a reused process's loaded game in place instead of
+	// returning it to the main menu, on open (OpenGame) and on a kept close
+	// (Game.Close): a fixture-development session (`acceptance fixture`)
+	// works on one loaded world across several calls. The next OpenGame
+	// without it unloads as usual.
+	KeepLoaded bool
 	// RestoreJournal, when set, is a checkpoint bundle whose clock journal
 	// replaces the profile's before the game launches: OpenGame stops a
 	// kept process, since a running one holds the journal's cursor (#249).

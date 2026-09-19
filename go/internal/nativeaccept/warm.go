@@ -68,7 +68,7 @@ type Game struct {
 // OpenGame opens a session on cfg's game the way every harness does
 // (GABSExecutable, OpenBridgeSession) and, when the process was already running,
 // returns it to the main menu so the harness starts from the same state a
-// fresh launch would give it. A running process launched with a different
+// fresh launch would give it (unless cfg.KeepLoaded). A running process launched with a different
 // mod list than cfg prepared (ModsConfig.xml only applies at launch, so a
 // Core-only process cannot load a DLC save, #166) or with a package other
 // than the one now installed (a rebuilt mod's fixtures are not in the old
@@ -132,7 +132,7 @@ func OpenGame(ctx context.Context, cfg *Config) (*Game, error) {
 		_ = client.Close()
 		return nil, fmt.Errorf("connect: %w", err)
 	}
-	if g.Reused {
+	if g.Reused && !cfg.KeepLoaded {
 		if err := g.toMainMenu(ctx, "warm-open"); err != nil {
 			_ = client.Close()
 			return nil, fmt.Errorf("reused game: %w", err)
@@ -201,6 +201,13 @@ func (g *Game) Close(report Report) {
 			}
 			return
 		}
+	}
+	if g.Keep && g.cfg != nil && g.cfg.KeepLoaded {
+		if report != nil {
+			report["stop"] = "kept running with the game loaded (Config.KeepLoaded)"
+		}
+		_ = g.Client.Close()
+		return
 	}
 	if g.Keep {
 		if err := g.toMainMenu(ctx, "warm-close"); err == nil {

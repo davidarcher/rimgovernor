@@ -246,7 +246,7 @@ func (g *GameReuse) BeginCase(ctx context.Context, name, save, output string) (*
 	if _, err := h.Call(ctx, "reuse-pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return nil, g.abandon(ctx, c, fmt.Sprintf("case %q pause: %v", name, err))
 	}
-	state, identity, err := g.observe(ctx, h, "reuse-begin")
+	state, identity, err := ObserveReset(ctx, h, "reuse-begin")
 	if err != nil {
 		return nil, g.abandon(ctx, c, fmt.Sprintf("case %q observe: %v", name, err))
 	}
@@ -309,7 +309,7 @@ func (g *GameReuse) EndCase(ctx context.Context, c *ReuseCase, failed bool) erro
 		return g.retire(ctx, fmt.Sprintf("case %q end: %v", c.Name, err))
 	}
 	h.Output = c.Output
-	state, _, err := g.observe(ctx, h, "reuse-end")
+	state, _, err := ObserveReset(ctx, h, "reuse-end")
 	if err != nil {
 		return g.retire(ctx, fmt.Sprintf("case %q end observe: %v", c.Name, err))
 	}
@@ -413,8 +413,11 @@ func (g *GameReuse) load(ctx context.Context, h *Harness, save string) error {
 	return err
 }
 
-// observe reads everything ResetState needs from the loaded game.
-func (g *GameReuse) observe(ctx context.Context, h *Harness, label string) (ResetState, map[string]any, error) {
+// ObserveReset samples the loaded game's ResetState (identity, tick, pause,
+// authority, owned drafts and the resource census) and returns it with the
+// identity read; it is the reset check's sample and the world census
+// `acceptance fixture` prints after an op.
+func ObserveReset(ctx context.Context, h *Harness, label string) (ResetState, map[string]any, error) {
 	var state ResetState
 	identityReply, err := h.Wire(ctx, label+"-identity", "lifecycle_read_identity", map[string]any{})
 	if err != nil {
