@@ -288,7 +288,12 @@ namespace HomeBridge.BridgeTools
                 Prisoner=pawn.IsPrisoner, Humanlike=pawn.RaceProps.Humanlike, Animal=pawn.RaceProps.Animal, Mechanoid=pawn.RaceProps.IsMechanoid,
                 Predator=pawn.RaceProps.predator, ManhunterOnDamageChance=Finite(pawn.RaceProps.manhunterOnDamageChance) };
             if (pawn.Faction != null) row.FactionId=Identifier(pawn.Faction.GetUniqueLoadID());
-            if (pawn.MentalStateDef != null) row.MentalState=Identifier(pawn.MentalStateDef.defName);
+            var mental = pawn.MentalState;
+            if (mental != null) {
+                row.MentalState=Identifier(mental.def.defName);
+                row.MentalStateIsAggro=mental.def.IsAggro;
+                row.MentalStateTicks=mental.Age;
+            }
             // Lord evidence is the game's own group-AI class names: a raid's job
             // (assault/siege/stage-then-attack) and its current toil (the sapper
             // and breach toils are distinct classes). No lord means no field.

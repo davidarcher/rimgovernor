@@ -11,7 +11,16 @@ import (
 )
 
 type PawnID string
+
+// MentalState is an observed active native break, never an inferred mood risk.
+type MentalState struct {
+	DefName      string
+	IsAggro      bool
+	TicksInState int32
+}
+
 type EmergencyPawn struct {
+	MentalState                       domain.Fact[MentalState]
 	ID                                PawnID
 	Dead, Downed, Bleeding, NeedsTend domain.Fact[bool]
 }

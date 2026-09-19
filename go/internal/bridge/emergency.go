@@ -151,6 +151,11 @@ func emergencyPawn(row *o.PawnState) (policy.EmergencyPawn, error) {
 		return result, err
 	}
 	result = policy.EmergencyPawn{ID: policy.PawnID(row.Pawn.GetId()), Dead: emergencyBool(row.Dead), Downed: emergencyBool(row.Downed)}
+	mental, err := PawnMentalState(row)
+	if err != nil {
+		return result, err
+	}
+	result.MentalState = mental
 	if h := row.Health; h != nil {
 		if err := emergencyIssues(h.Issues, func(field string) bool {
 			switch strings.TrimPrefix(field, "health.") {

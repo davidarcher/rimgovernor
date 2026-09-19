@@ -257,6 +257,9 @@ message PawnState {
   // class names (e.g. LordJob_AssaultColony / LordToil_AssaultColonySappers,
   // LordJob_Siege). Absent when the pawn has no lord; never inferred.
   optional string lord_job_class = 37; optional string lord_toil_class = 38;
+  // Active MentalStateDef.IsAggro and MentalState.Age (native ticks, 30-tick granularity).
+  // Absent without an active state or on older producers; mental_state is its defName.
+  optional bool mental_state_is_aggro = 39; optional int32 mental_state_ticks = 40;
 }
 message NoOwnedDraftClaim {}
 // owner (rimgovernor.authority.v1.Owner) was removed: a claim is either held by

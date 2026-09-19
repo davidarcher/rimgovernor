@@ -4187,8 +4187,12 @@ type PawnState struct {
 	// LordJob_Siege). Absent when the pawn has no lord; never inferred.
 	LordJobClass  *string `protobuf:"bytes,37,opt,name=lord_job_class,json=lordJobClass,proto3,oneof" json:"lord_job_class,omitempty"`
 	LordToilClass *string `protobuf:"bytes,38,opt,name=lord_toil_class,json=lordToilClass,proto3,oneof" json:"lord_toil_class,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Active MentalStateDef.IsAggro and MentalState.Age (native ticks, 30-tick granularity).
+	// Absent without an active state or on older producers; mental_state is its defName.
+	MentalStateIsAggro *bool  `protobuf:"varint,39,opt,name=mental_state_is_aggro,json=mentalStateIsAggro,proto3,oneof" json:"mental_state_is_aggro,omitempty"`
+	MentalStateTicks   *int32 `protobuf:"varint,40,opt,name=mental_state_ticks,json=mentalStateTicks,proto3,oneof" json:"mental_state_ticks,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *PawnState) Reset() {
@@ -4485,6 +4489,20 @@ func (x *PawnState) GetLordToilClass() string {
 		return *x.LordToilClass
 	}
 	return ""
+}
+
+func (x *PawnState) GetMentalStateIsAggro() bool {
+	if x != nil && x.MentalStateIsAggro != nil {
+		return *x.MentalStateIsAggro
+	}
+	return false
+}
+
+func (x *PawnState) GetMentalStateTicks() int32 {
+	if x != nil && x.MentalStateTicks != nil {
+		return *x.MentalStateTicks
+	}
+	return 0
 }
 
 type NoOwnedDraftClaim struct {
@@ -33262,7 +33280,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x0f_follow_draftedB\x13\n" +
 	"\x11_follow_fieldworkB\v\n" +
 	"\t_obedientB\x19\n" +
-	"\x17_supports_allowed_areas\"\xc4\x11\n" +
+	"\x17_supports_allowed_areas\"\xe0\x12\n" +
 	"\tPawnState\x12:\n" +
 	"\x04pawn\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\x04pawn\x12'\n" +
 	"\rkind_def_name\x18\x02 \x01(\tH\x00R\vkindDefName\x88\x01\x01\x12\"\n" +
@@ -33306,7 +33324,9 @@ const file_observations_proto_rawDesc = "" +
 	"ownedBedId\x88\x01\x01\x12D\n" +
 	"\bsnapshot\x18$ \x01(\v2(.rimgovernor.observations.v1.SnapshotRefR\bsnapshot\x12)\n" +
 	"\x0elord_job_class\x18% \x01(\tH\x17R\flordJobClass\x88\x01\x01\x12+\n" +
-	"\x0flord_toil_class\x18& \x01(\tH\x18R\rlordToilClass\x88\x01\x01B\x10\n" +
+	"\x0flord_toil_class\x18& \x01(\tH\x18R\rlordToilClass\x88\x01\x01\x126\n" +
+	"\x15mental_state_is_aggro\x18' \x01(\bH\x19R\x12mentalStateIsAggro\x88\x01\x01\x121\n" +
+	"\x12mental_state_ticks\x18( \x01(\x05H\x1aR\x10mentalStateTicks\x88\x01\x01B\x10\n" +
 	"\x0e_kind_def_nameB\r\n" +
 	"\v_faction_idB\v\n" +
 	"\t_colonistB\x10\n" +
@@ -33336,7 +33356,9 @@ const file_observations_proto_rawDesc = "" +
 	"\x1a_nearest_colonist_distanceB\x0f\n" +
 	"\r_owned_bed_idB\x11\n" +
 	"\x0f_lord_job_classB\x12\n" +
-	"\x10_lord_toil_class\"\x13\n" +
+	"\x10_lord_toil_classB\x18\n" +
+	"\x16_mental_state_is_aggroB\x15\n" +
+	"\x13_mental_state_ticks\"\x13\n" +
 	"\x11NoOwnedDraftClaim\"\x9a\x01\n" +
 	"\x0fOwnedDraftClaim\x12\x1e\n" +
 	"\bclaim_id\x18\x01 \x01(\tH\x00R\aclaimId\x88\x01\x01\x12M\n" +

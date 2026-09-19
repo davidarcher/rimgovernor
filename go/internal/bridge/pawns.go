@@ -149,6 +149,9 @@ func pawnsSnapshotSelected(v *o.PawnSnapshot, id *c.Identity, requested map[stri
 				}
 			}
 		}
+		if _, err := PawnMentalState(row); err != nil {
+			return err
+		}
 		if !presentationText(row.HostileReason, 4096) {
 			return contract("invalid pawn hostile reason")
 		}

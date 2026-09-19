@@ -97,3 +97,15 @@ clock hold nor an emergency that suspends routine development: a break only ends
 as ticks pass, so a hold could never observe its clearance. The controller does not
 force recovery, draft the pawn or arrest it; other goals' work still opens ordinary
 windows, and the existing native hazard supervisor retains authority over time.
+
+## Active mental-state observation
+
+The colonist status and pawn list reads carry the active mental state's native
+`mental_state` defName, `mental_state_is_aggro` (`MentalStateDef.IsAggro`),
+and `mental_state_ticks` (`MentalState.Age`, at native 30-tick granularity).
+These fields describe the active state, not a prediction from mood. They are
+absent when no state is active. Go projects all three as
+`EmergencyPawn.MentalState`, a `Fact[policy.MentalState]`; missing fields,
+including replies from older native builds, leave it unknown. Existing worker
+eligibility continues to use mental-state presence. `pawn/mental-state` uses
+the test-only `test/mental_state_berserk` fixture and verifies both reads.

@@ -12,6 +12,22 @@ namespace HomeBridge.BridgeTools
     // Test-build-only setup; subsequent recovery must use ordinary native ticks.
     public sealed class MoodFixture
     {
+        [Tool("test/mental_state_berserk", Description = "UNSAFE FOR MODEL EXECUTION. Induce Berserk in one paused disposable colonist for mental-state readback.")]
+        public async Task<object> Berserk(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                if (map == null || !Find.TickManager.Paused)
+                    throw new InvalidOperationException("A paused disposable colony is required.");
+                var pawn = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber)
+                    .First(p => !p.Dead && !p.Downed && !p.InMentalState);
+                pawn.drafter.Drafted = false;
+                if (!pawn.mindState.mentalStateHandler.TryStartMentalState(MentalStateDefOf.Berserk, forced: true, forceWake: true)
+                    || pawn.MentalStateDef != MentalStateDefOf.Berserk)
+                    throw new InvalidOperationException("Berserk did not start.");
+                return new { success = true, pawn = pawn.GetUniqueLoadID() };
+            }, cancellationToken);
+        }
         [Tool("test/mood_setup", Description = "Seed deficient needs in one disposable pawn; test builds only.")]
         public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "food, rest, joy, forced, schedule, mental or environment.")] string scenario)
