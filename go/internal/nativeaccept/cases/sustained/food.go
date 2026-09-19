@@ -5,6 +5,8 @@
 // a case fails only when the harness itself could not complete (load,
 // service, authority, a starved step, the startup log), never over a poor
 // food outcome, which is exactly the evidence it exists to surface.
+// sustained/winter is the one pass/fail case here: the seasonal food
+// reserve held across the tile's first non-growing day (#251).
 package sustained
 
 import (

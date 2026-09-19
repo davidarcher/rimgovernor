@@ -240,9 +240,24 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	if err != nil {
 		clockSchedulerLog("routine.step: ReviewRoutine err=%v", err)
 	} else {
-		clockEvent(ctx, "routine", "routine_review", "routine reviewed", "revision", result.Review.Revision, "previous_revision", previous.Revision, "tick", int64(reading.Projection.Identity.Tick), "goals", len(result.Goals), "emergency", routineEmergencyNames(result.Emergency))
+		clockEvent(ctx, "routine", "routine_review", "routine reviewed", append([]any{"revision", result.Review.Revision, "previous_revision", previous.Revision, "tick", int64(reading.Projection.Identity.Tick), "goals", len(result.Goals), "emergency", routineEmergencyNames(result.Emergency)}, routineFoodAttrs(reading.Projection.Facts, r.seasonal(reading.Projection.Facts))...)...)
 	}
 	return result, err
+}
+
+// routineFoodAttrs are the review row's stored-food attrs: the food runway
+// the review read and the seasonal thresholds it held it to, with the
+// calendar they came from (#229). An unknown fact leaves its attr out, so
+// a sustained run's samples are exactly the reviews that had one.
+func routineFoodAttrs(f policy.RoutineFacts, seasonal policy.RoutinePolicy) []any {
+	attrs := []any{"food_min_days", seasonal.FoodMinDays, "food_target_days", seasonal.FoodTargetDays}
+	if days, known := f.FoodDays.Value(); known {
+		attrs = append(attrs, "food_days", days)
+	}
+	if c, known := f.Calendar.Value(); known {
+		attrs = append(attrs, "season", c.Season, "day_of_year", c.DayOfYear, "growing_days_remaining", c.GrowingDaysRemaining, "growing_days_until", c.GrowingDaysUntil)
+	}
+	return attrs
 }
 
 // Caller holds the player gate. Invalidating existing work needs no native read,

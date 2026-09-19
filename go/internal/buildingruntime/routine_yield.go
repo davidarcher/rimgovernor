@@ -17,7 +17,7 @@ import (
 func yieldDevelopment(ctx context.Context, journal *store.Store, review store.RoutineReview, need domain.GoalID) error {
 	_, err := journal.YieldRoutineDevelopment(ctx, review.Revision, need)
 	if err == nil {
-		clockEvent("routine", "development_yield", "development slot yielded", "revision", review.Revision, "goal", string(need))
+		clockEvent(ctx, "routine", "development_yield", "development slot yielded", "revision", review.Revision, "goal", string(need))
 	}
 	return err
 }
