@@ -274,7 +274,11 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 			required = mergeWorkRequirements(required, fishingWork(reading.Projection))
 		}
 		if known {
-			work, err := policy.PlanWork(pawns, required, preferences.Overrides, policy.RoutineWorkDemand(reading.Projection.Facts, len(definitions) > 0))
+			demand, err := routineDiseaseDemand(reading.Projection, len(definitions) > 0, previous, state.Snapshot)
+			if err != nil {
+				return store.RoutineReviewResult{}, err
+			}
+			work, err := policy.PlanWork(pawns, required, preferences.Overrides, demand)
 			if err == nil {
 				reading.Projection.Facts.WorkCoverage = work.Matches
 				// A timetable behind its role template is a work

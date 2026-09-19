@@ -779,11 +779,9 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	}
 	if !positive(f.MedicalCareRecovered) {
 		addGoal(MaintainMedicalCare, 2)
-		// This goal is monitoring only: its response (enabling Patient/
-		// PatientBedRest priorities for resting patients) is already the
-		// generic AssignWork default, and native AI rests/self-tends without
-		// a dispatched order. Do not reserve execution capacity awaiting a
-		// method this goal will never produce.
+		// Work assignments own disease rest priorities and restoration;
+		// native AI selects the medical bed. Monitoring recovery must not
+		// reserve execution capacity while the pawn rests.
 		r.Goals[len(r.Goals)-1].MethodUnavailable = true
 	}
 	// A table with a seat and a recreation source are provided with the

@@ -29,6 +29,21 @@ profile no pawn is on, while a pawn enabled for it idles or works for another ty
 releases its slot after a game hour of that (`labor_idle`) without closing the work;
 a pawn back on it takes the slot back. A colony asleep is no evidence either way.
 
+Disease care projects game days to lethal severity and full immunity from the
+native per-day rates. When immunity loses or leads by less than one day, the
+work planner enables Patient and bed rest at highest priority and disables
+other work for that pawn. Checkbox mode enables only those rest work types.
+The durable medical history holds rest until every triggering disease is
+observed immune or absent from a complete census; missing reads and improved
+forecasts do not release it. World replacement and tick rewind reset the hold.
+On recovery, normal roster allocation resumes, including saved player work
+preferences. The temporary rest hold does not rewrite those preferences.
+
+RimWorld selects a reachable medical bed for medical rest, falling back to the
+pawn's ordinary bed under native rules. Medical beds cannot be assigned by the
+bed-ownership operation. The hospital planner supplies medical beds, and the
+sleeping planner uses the existing bed-assignment operation for ordinary beds.
+
 ## Execute under supervision
 
 Execution uses bounded native tick windows and a renewable wall-clock

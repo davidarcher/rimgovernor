@@ -26,6 +26,7 @@ type CareCondition struct {
 // MedicalCareHistory retains unresolved patient identities across reviews and
 // restart. Missing patients and deaths do not constitute observed recovery.
 type MedicalCareHistory struct {
+	Resting           []DiseaseRest `json:",omitempty"`
 	CensusKnown       bool
 	Patients, Unknown []PawnID
 }
@@ -43,11 +44,11 @@ func (h MedicalCareHistory) Validate() error {
 			seen[id] = true
 		}
 	}
-	return nil
+	return validateDiseaseRest(h.Resting)
 }
 
 func (h MedicalCareHistory) Recovered() domain.Fact[bool] {
-	if len(h.Patients) > 0 {
+	if len(h.Patients) > 0 || len(h.Resting) > 0 {
 		return domain.Known(false)
 	}
 	if !h.CensusKnown || len(h.Unknown) > 0 {
@@ -70,7 +71,11 @@ func ReviewMedicalCare(observed domain.Fact[[]CarePawn], previous MedicalCareHis
 	if len(rows) > 256 {
 		return MedicalCareHistory{}, errors.New("medical care census exceeds bound")
 	}
-	r := MedicalCareHistory{CensusKnown: known}
+	resting, err := ReviewDiseaseRest(observed, previous.Resting)
+	if err != nil {
+		return MedicalCareHistory{}, err
+	}
+	r := MedicalCareHistory{CensusKnown: known, Resting: resting}
 	seen := map[PawnID]bool{}
 	for _, pawn := range rows {
 		if !foodID(string(pawn.ID)) || seen[pawn.ID] {

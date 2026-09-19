@@ -30,6 +30,7 @@ var routineFamilyFiles = map[string][]string{
 	"routine_animal_containment.go":   {"animal-containment"},
 	"routine_animal_feed.go":          {"animal-feed"},
 	"routine_assignments.go":          {"work"},
+	"routine_disease.go":              {"work"},
 	"routine_meals.go":                {"bill", "cooking"},
 	"routine_paste.go":                {"cooking"},
 	"routine_bill.go":                 {"bill"},

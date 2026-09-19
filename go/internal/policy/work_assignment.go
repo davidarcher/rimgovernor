@@ -103,6 +103,8 @@ type WorkDecision struct {
 // WorkDemand carries the colony census the baseline owner table scales by.
 // Zero values ask for the baseline alone.
 type WorkDemand struct {
+	// Resting temporarily replaces the roster with medical rest until immunity.
+	Resting []DiseaseRest
 	// GrowingCells is the sown/sowable field area; one grower per 150 cells
 	// beyond the first.
 	GrowingCells int64
@@ -241,11 +243,19 @@ type workWorker struct {
 // by fitness (level, passion, trait work speed, incumbency), growth
 // secondaries (a passion within five levels of the weakest owner) and, under
 // manual priorities, every capable pawn at 3 or 4, never what a trait
-// forbids. Player overrides win. This is a proposal/readback comparison,
+// forbids. Player overrides win except during a temporary disease rest hold.
+// This is a proposal/readback comparison,
 // never permission to change pawn settings.
 func PlanWork(pawns []WorkPawn, required []WorkRequirement, overrides []WorkOverride, demand WorkDemand) (WorkDecision, error) {
 	if len(pawns) > 256 || len(required) > 256 || len(overrides) > 4096 {
 		return WorkDecision{}, errors.New("work review exceeds bounds")
+	}
+	if err := validateDiseaseRest(demand.Resting); err != nil {
+		return WorkDecision{}, err
+	}
+	resting := map[PawnID]bool{}
+	for _, row := range demand.Resting {
+		resting[row.Pawn] = true
 	}
 	requirements := map[WorkType]WorkRequirement{}
 	for _, entry := range required {
@@ -379,7 +389,7 @@ func PlanWork(pawns []WorkPawn, required []WorkRequirement, overrides []WorkOver
 	}
 	ableAt := func(w *workWorker, work WorkType, floor int) bool {
 		row, exists := w.work[work]
-		if !exists || row.Disabled || denied(w.pawn.ID, work) || w.profile.Forbidden(work) || w.profile.Incapable[work] {
+		if resting[w.pawn.ID] || !exists || row.Disabled || denied(w.pawn.ID, work) || w.profile.Forbidden(work) || w.profile.Incapable[work] {
 			return false
 		}
 		if work == WorkHunting && !w.profile.Ranged {
@@ -585,6 +595,12 @@ func PlanWork(pawns []WorkPawn, required []WorkRequirement, overrides []WorkOver
 			}
 			if value, ok := custom[overrideKey{w.pawn.ID, name}]; ok {
 				priority = value
+			}
+			if resting[w.pawn.ID] {
+				priority = 0
+				if name == WorkPatient || name == WorkBedRest || name == "BedRest" {
+					priority = 1
+				}
 			}
 			assignment.Priorities = append(assignment.Priorities, WorkPriority{Work: name, Priority: priority})
 			if w.manual {
