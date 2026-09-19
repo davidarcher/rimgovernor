@@ -19,6 +19,9 @@ type clockFacts struct {
 	store   *facts.Store
 	mu      sync.Mutex
 	watched map[domain.ActionID]domain.ActionKind
+	// windowRefreshes counts the planning window's delta refreshes across
+	// steps for the resync cadence (planningWindow, #357).
+	windowRefreshes int
 }
 
 const clockFactsWatchedMax = 256

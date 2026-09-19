@@ -12,6 +12,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
+	"github.com/davidarcher/RimGovernor/go/internal/facts"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
@@ -33,6 +34,11 @@ type WorkerConfig struct {
 	// patch, a dispatch) discards the facts the planners would otherwise
 	// keep reading from before it; nil leaves the worker uncached (#66).
 	Facts *bridge.FactCache
+	// Store is the scheduler's decoded state store. A dispatch native
+	// refuses for a map-consuming kind (a placement or zone whose CAS token
+	// no longer matches) asks it to resync the planning window in full on
+	// its next refresh instead of trusting a delta (#357); nil asks nothing.
+	Store *facts.Store
 	// WindowRunning, when set, reports the scheduler's hint that its window
 	// is running; each native call the worker issues is recorded with it
 	// as a "worker_dispatch" flight row (#243), so a run can count the
@@ -106,6 +112,7 @@ type workerCandidate struct {
 	view    domain.ProgressView
 	cleanup bool
 	plan    domain.PlanID
+	kind    domain.ActionKind
 }
 
 type workerWait struct {
@@ -366,7 +373,7 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 			}
 			if cleanup || worldErr == nil && (routineObservation || workerEligible(plan, v, planScope, world)) {
 				live[v.Action] = true
-				candidates = append(candidates, workerCandidate{view: v, cleanup: cleanup, plan: plan.Spec.ID()})
+				candidates = append(candidates, workerCandidate{view: v, cleanup: cleanup, plan: plan.Spec.ID(), kind: progress.Action().Kind()})
 			}
 		}
 	}
@@ -449,6 +456,9 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 		}
 		if result.NativeCalled {
 			workerDispatchRow(run, tally, candidate.view, after, running, err)
+			if receipt, known := after.Receipt.Value(); known && receipt == domain.ReceiptRefused && workerMapConsumingKind(candidate.kind) {
+				w.config.Store.RequestResync(facts.PlanningCells)
+			}
 		}
 		delay := w.config.StepInterval
 		if workerSameView(after, v) && workerSameView(wait.view, v) && wait.scope == workerScope(scope) && wait.cleanup == candidate.cleanup {
@@ -568,6 +578,17 @@ func liveDispatchKind(kind domain.ActionKind) bool {
 	case domain.BuildingAction, domain.HaulAction, domain.SupplyAllowAction, domain.WorkAssignmentAction, domain.ZoneCreateAction,
 		domain.ProductionBillAction, domain.GrowerCropAction, domain.AcquisitionAction, domain.MineAcquisitionAction, domain.HusbandryAction,
 		domain.ExcavationAction, domain.BedAssignAction, domain.WallRemovalAction, domain.ProductionPolicyAction, domain.ResearchSelectAction, domain.HomeCoverageAction, domain.CutPlantAction:
+		return true
+	}
+	return false
+}
+
+// workerMapConsumingKind lists the kinds whose dispatch native refuses
+// when the map moved under the plan: their refusal is evidence the held
+// planning window may be wrong.
+func workerMapConsumingKind(kind domain.ActionKind) bool {
+	switch kind {
+	case domain.BuildingAction, domain.ZoneCreateAction, domain.ExcavationAction, domain.WallRemovalAction, domain.HomeCoverageAction:
 		return true
 	}
 	return false

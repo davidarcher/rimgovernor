@@ -74,6 +74,14 @@ func (s Section) TickTolerance() int64 {
 // outside the region it holds.
 func (s Section) Cells() bool { return s == PlanningCells }
 
+// Incremental reports a section whose next read can be a delta over the
+// value held (planning_cells, #357): an invalidation marks such a section
+// stale rather than dropping it, so the refresher asks the native for the
+// cells changed since the held as-of tick instead of the whole window.
+func (s Section) Incremental() bool {
+	return s == PlanningCells
+}
+
 // Rect is inclusive cell bounds. The zero Rect is "unknown", which
 // intersects everything.
 type Rect struct{ MinX, MinZ, MaxX, MaxZ int32 }
@@ -161,6 +169,9 @@ type Store struct {
 	mu    sync.RWMutex
 	scope Scope
 	rows  map[Section]row
+	// resync names the incremental sections whose next refresh must be a
+	// full read (#357).
+	resync map[Section]bool
 }
 
 // storeNow stamps rows; tests substitute it.
@@ -269,8 +280,47 @@ func (s *Store) Invalidate(sections ...Section) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for _, section := range sections {
-		delete(s.rows, section)
+		s.drop(section)
 	}
+}
+
+// drop forgets a section, or marks an incremental one wholly stale so its
+// next refresh is a delta over the value kept.
+func (s *Store) drop(section Section) {
+	if !section.Incremental() {
+		delete(s.rows, section)
+		return
+	}
+	if r, ok := s.rows[section]; ok {
+		r.stale.All = true
+		s.rows[section] = r
+	}
+}
+
+// RequestResync asks that the next refresh of an incremental section be a
+// full read rather than a delta (a planner's apply refused on a map CAS
+// token, #357); any goroutine may ask. ResyncDue reports and clears it.
+func (s *Store) RequestResync(section Section) {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.resync == nil {
+		s.resync = map[Section]bool{}
+	}
+	s.resync[section] = true
+}
+
+func (s *Store) ResyncDue(section Section) bool {
+	if s == nil {
+		return false
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	due := s.resync[section]
+	delete(s.resync, section)
+	return due
 }
 
 // InvalidateFamily drops every section of the named families, as
@@ -284,7 +334,7 @@ func (s *Store) InvalidateFamily(families ...bridge.FactFamily) {
 	for section := range s.rows {
 		for _, family := range families {
 			if section.Family() == family {
-				delete(s.rows, section)
+				s.drop(section)
 				break
 			}
 		}
@@ -390,7 +440,9 @@ func (s *Store) InvalidateAll() {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.rows = map[Section]row{}
+	for section := range s.rows {
+		s.drop(section)
+	}
 }
 
 // Status lists the held sections in Sections order.

@@ -327,7 +327,7 @@ func validateColonyPlanning(p *o.PlanningFacts, ctx *c.ObservationContext, size 
 	// observations_get_cells (ReadPlanningWindow, #356) carries no cells
 	// here; an older one still lists them.
 	if p.Cells != nil {
-		return validatePlanningCells(p.Cells, ctx, size)
+		return validatePlanningCells(p.Cells, ctx, size, 0)
 	}
 	return nil
 }

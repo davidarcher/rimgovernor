@@ -7,6 +7,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
+	"github.com/davidarcher/RimGovernor/go/internal/facts"
 )
 
 // A wake naming an attempt reconciles that action first and ignores its
@@ -173,5 +174,34 @@ func TestWorkerAdvanceStepsAgainAtOnce(t *testing.T) {
 	case a := <-ran:
 		t.Fatal("step after nothing advanced", a)
 	case <-time.After(100 * time.Millisecond):
+	}
+}
+
+// A building dispatch native refused asks the facts store for a full
+// planning-window resync (#357): the refusal is evidence the held window
+// may be wrong. A refusal the worker never sent to native asks nothing.
+func TestWorkerRefusedMapDispatchRequestsWindowResync(t *testing.T) {
+	t.Parallel()
+	w, f, db := workerFixture(t)
+	w.config.Store = facts.NewStore()
+	v := workerPending(t, w, "one", true)
+	native := true
+	f.run = func(ctx context.Context, p domain.PlanID, a domain.ActionID) (executor.Result, error) {
+		progress, err := db.RecordReceipt(ctx, p, a, v.Attempt, domain.ReceiptRefused)
+		return executor.Result{Progress: progress, NativeCalled: native}, err
+	}
+	if err := w.step(context.Background(), time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if !w.config.Store.ResyncDue(facts.PlanningCells) {
+		t.Fatal("a refused building dispatch must request a resync")
+	}
+	w.waits = map[domain.ActionID]workerWait{}
+	native = false
+	if err := w.step(context.Background(), time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if w.config.Store.ResyncDue(facts.PlanningCells) {
+		t.Fatal("a refusal that never reached native requests nothing")
 	}
 }

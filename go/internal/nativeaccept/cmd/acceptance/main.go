@@ -71,6 +71,7 @@ import (
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/bed"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/bills"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/caravan"
+	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/cells"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/clean"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/combat"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/construction"

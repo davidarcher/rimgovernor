@@ -32,11 +32,23 @@ func PlanningWindowRect(center domain.Cell, bounds policy.Bounds) policy.Rectang
 // window: the site cells inside Region, decoded as the colony facts'
 // planning.cells rows are, with the tick the reply described. Fogged cells
 // are never listed; Filtered counts them.
+//
+// A read asked with a since tick (#357) is a delta when Delta is set: the
+// native omitted every cell unchanged since that tick (Unchanged counts
+// them), so Cells and Fogged list only the cells that changed and the
+// caller merges them over the window it holds. A native without the
+// per-cell change grid ignores the ask and answers a full read (Delta
+// false, Unchanged 0).
 type PlanningWindow struct {
-	Context  *c.ObservationContext
-	Region   policy.Rectangle
-	Cells    []policy.SiteCell
-	Filtered uint64
+	Context   *c.ObservationContext
+	Region    policy.Rectangle
+	Cells     []policy.SiteCell
+	Filtered  uint64
+	Delta     bool
+	Unchanged uint64
+	// Fogged lists the fogged cells the reply named (each also counted in
+	// Filtered): in a delta, the cells a held window must drop.
+	Fogged []domain.Cell
 }
 
 // planningWindowFields is the field selection the window reads: roof,
@@ -50,12 +62,14 @@ func planningWindowFields() *o.CellFields {
 // observations_get_cells, one page per band of at most planningWindowPage
 // cells, and returns every band's rows under one region. A native that
 // does not serve the planning fields refuses the request (ErrRefused);
-// the caller then falls back to whatever window it holds.
-func (client *Client) ReadPlanningWindow(ctx context.Context, identity *c.Identity, rect policy.Rectangle) (PlanningWindow, Result, error) {
+// the caller then falls back to whatever window it holds. A positive
+// since asks for the cells changed at or after that tick (the window's
+// held as-of tick); zero asks for every cell.
+func (client *Client) ReadPlanningWindow(ctx context.Context, identity *c.Identity, rect policy.Rectangle, since int64) (PlanningWindow, Result, error) {
 	if err := authorityIdentity(identity); err != nil {
 		return PlanningWindow{}, Result{}, err
 	}
-	if rect.X < 0 || rect.Z < 0 || rect.Width < 1 || rect.Height < 1 {
+	if rect.X < 0 || rect.Z < 0 || rect.Width < 1 || rect.Height < 1 || since < 0 {
 		return PlanningWindow{}, Result{}, contract("invalid planning window rect")
 	}
 	rows := max(planningWindowPage/int(rect.Width), 1)
@@ -63,32 +77,48 @@ func (client *Client) ReadPlanningWindow(ctx context.Context, identity *c.Identi
 	var last Result
 	for z := rect.Z; z < rect.Z+rect.Height; z += int32(rows) {
 		band := policy.Rectangle{X: rect.X, Z: z, Width: rect.Width, Height: min(int32(rows), rect.Z+rect.Height-z)}
-		snapshot, raw, err := client.readPlanningBand(ctx, identity, band)
+		snapshot, raw, err := client.readPlanningBand(ctx, identity, band, since)
 		last = raw
 		if err != nil {
 			return PlanningWindow{}, raw, err
 		}
-		if out.Context != nil && !proto.Equal(out.Context, snapshot.Context) {
+		delta := since > 0 && snapshot.AsOfTick != nil
+		if out.Context != nil && (!proto.Equal(out.Context, snapshot.Context) || out.Delta != delta) {
 			return PlanningWindow{}, raw, contract("planning window bands differ in context")
 		}
-		out.Context = snapshot.Context
+		out.Context, out.Delta = snapshot.Context, delta
 		cells, filtered := PlanningCells(snapshot)
 		out.Cells = append(out.Cells, cells...)
 		out.Filtered += filtered
+		out.Unchanged += uint64(snapshot.GetUnchanged())
+		for _, row := range snapshot.Cells {
+			if row.GetFogged() {
+				out.Fogged = append(out.Fogged, domain.Cell{X: row.Cell.GetX(), Z: row.Cell.GetZ()})
+			}
+		}
 	}
-	sort.Slice(out.Cells, func(i, j int) bool {
-		a, b := out.Cells[i].Cell, out.Cells[j].Cell
+	SortSiteCells(out.Cells)
+	return out, last, nil
+}
+
+// SortSiteCells orders site cells row-major (z, then x), the order a
+// planning window lists them.
+func SortSiteCells(cells []policy.SiteCell) {
+	sort.Slice(cells, func(i, j int) bool {
+		a, b := cells[i].Cell, cells[j].Cell
 		if a.Z != b.Z {
 			return a.Z < b.Z
 		}
 		return a.X < b.X
 	})
-	return out, last, nil
 }
 
-func (client *Client) readPlanningBand(ctx context.Context, identity *c.Identity, band policy.Rectangle) (*o.CellsSnapshot, Result, error) {
+func (client *Client) readPlanningBand(ctx context.Context, identity *c.Identity, band policy.Rectangle, since int64) (*o.CellsSnapshot, Result, error) {
 	region := &o.Rectangle{Minimum: &c.Cell{X: proto.Int32(band.X), Z: proto.Int32(band.Z)}, Maximum: &c.Cell{X: proto.Int32(band.X + band.Width - 1), Z: proto.Int32(band.Z + band.Height - 1)}}
 	request := &o.GetCellsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Selection: &o.GetCellsRequest_Rectangle{Rectangle: region}, Fields: planningWindowFields(), Page: &c.PageRequest{Limit: proto.Uint32(uint32(band.Width) * uint32(band.Height))}}
+	if since > 0 {
+		request.ChangedSinceTick = proto.Int64(since)
+	}
 	reply := &o.GetCellsReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/observations_get_cells", request, reply)
 	if err != nil {
@@ -116,7 +146,7 @@ func (client *Client) readPlanningBand(ctx context.Context, identity *c.Identity
 		if !proto.Equal(snapshot.AppliedFields, planningWindowFields()) {
 			return nil, raw, contract("planning window applied fields differ")
 		}
-		if err := validatePlanningCells(snapshot, snapshot.Context, snapshot.MapSize); err != nil {
+		if err := validatePlanningCells(snapshot, snapshot.Context, snapshot.MapSize, since); err != nil {
 			return nil, raw, err
 		}
 		if ref := snapshot.MapSnapshot; ref != nil {
@@ -136,17 +166,22 @@ func (client *Client) readPlanningBand(ctx context.Context, identity *c.Identity
 // validatePlanningCells bounds one planning-cell snapshot, the colony
 // facts' planning.cells or a planning window page: a region on the map of
 // at most planningWindowPage cells, every listed cell unique and inside it,
-// listed plus filtered cells covering the region exactly, and only the
-// planning fields on each row.
-func validatePlanningCells(v *o.CellsSnapshot, ctx *c.ObservationContext, size *o.MapSize) error {
+// listed plus filtered plus unchanged cells covering the region exactly,
+// and only the planning fields on each row. Unchanged cells (#357) are
+// admitted only in a delta the read asked for (since > 0) from a native
+// that stamps as_of_tick, and that stamp is the context tick.
+func validatePlanningCells(v *o.CellsSnapshot, ctx *c.ObservationContext, size *o.MapSize, since int64) error {
 	if v == nil || !proto.Equal(v.Context, ctx) || !proto.Equal(v.MapSize, size) || v.Region == nil || !colonyCell(v.Region.Minimum, size) || !colonyCell(v.Region.Maximum, size) || v.Region.Minimum.GetX() > v.Region.Maximum.GetX() || v.Region.Minimum.GetZ() > v.Region.Maximum.GetZ() {
 		return contract("invalid planning cell scope")
 	}
 	if err := colonyCounts(v.Completeness, len(v.Cells), planningWindowPage); err != nil {
 		return err
 	}
+	if v.AsOfTick != nil && v.GetAsOfTick() != ctx.GetTick() || v.GetUnchanged() != 0 && (since <= 0 || v.AsOfTick == nil) {
+		return contract("invalid planning cell delta")
+	}
 	area := uint64(v.Region.Maximum.GetX()-v.Region.Minimum.GetX()+1) * uint64(v.Region.Maximum.GetZ()-v.Region.Minimum.GetZ()+1)
-	if area > planningWindowPage || uint64(len(v.Cells))+v.Completeness.GetFiltered() != area {
+	if area > planningWindowPage || uint64(len(v.Cells))+v.Completeness.GetFiltered()+uint64(v.GetUnchanged()) != area {
 		return contract("planning region coverage mismatch")
 	}
 	seenCells := map[[2]int32]bool{}

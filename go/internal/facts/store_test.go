@@ -89,10 +89,18 @@ func TestStoreInvalidate(t *testing.T) {
 		Put(s, scope, section, Held[string]{Value: string(section), AsOf: 10, Complete: true})
 	}
 	s.InvalidateFamily(bridge.FactColony)
-	for _, section := range []Section{Colony, PlanningCells, Zones, Buildings} {
+	for _, section := range []Section{Colony, Zones, Buildings} {
 		if _, ok := Get[string](s, section); ok {
 			t.Fatalf("%s survived its family's invalidation", section)
 		}
+	}
+	// An incremental section is kept and marked stale (#357): its next
+	// refresh is a delta over the held value, not a full read.
+	if held, ok := Get[string](s, PlanningCells); !ok || held.AsOf != 10 || s.Fresh(PlanningCells, 10) {
+		t.Fatalf("planning_cells = %+v ok=%v fresh=%v", held, ok, s.Fresh(PlanningCells, 10))
+	}
+	if status := s.Status(); len(status) != 6 || status[0].Section != PlanningCells || !status[0].Stale.All {
+		t.Fatalf("status = %+v", status)
 	}
 	for _, section := range []Section{Population, Research, Pawns, Emergency, Rooms} {
 		if _, ok := Get[string](s, section); !ok {
@@ -104,8 +112,34 @@ func TestStoreInvalidate(t *testing.T) {
 		t.Fatal("research survived Invalidate")
 	}
 	s.InvalidateAll()
-	if s.Len() != 0 || s.Scope() != scope {
+	if s.Len() != 1 || s.Scope() != scope {
 		t.Fatalf("after InvalidateAll len=%d scope=%+v", s.Len(), s.Scope())
+	}
+	// A put clears the stale mark; a scope change drops the section.
+	Put(s, scope, PlanningCells, Held[string]{Value: "w", AsOf: 20, Complete: true})
+	if !s.Fresh(PlanningCells, 20) {
+		t.Fatal("a put must clear the stale mark")
+	}
+	Put(s, Scope{Load: "b", Generation: 1}, Colony, Held[string]{})
+	if _, ok := Get[string](s, PlanningCells); ok {
+		t.Fatal("a scope change must drop an incremental section")
+	}
+}
+
+func TestStoreResyncRequest(t *testing.T) {
+	s := NewStore()
+	if s.ResyncDue(PlanningCells) {
+		t.Fatal("nothing requested")
+	}
+	s.RequestResync(PlanningCells)
+	s.RequestResync(PlanningCells)
+	if !s.ResyncDue(PlanningCells) || s.ResyncDue(PlanningCells) {
+		t.Fatal("a request is reported once")
+	}
+	var nilStore *Store
+	nilStore.RequestResync(PlanningCells)
+	if nilStore.ResyncDue(PlanningCells) {
+		t.Fatal("a nil store owes nothing")
 	}
 }
 

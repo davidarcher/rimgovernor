@@ -574,7 +574,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	// before any planning read asks it.
 	var window *planningWindow
 	if native, ok := s.native.(PlanningWindowNative); ok {
-		window = &planningWindow{native: native, store: s.facts.store}
+		window = &planningWindow{native: native, store: s.facts.store, refreshes: &s.facts.windowRefreshes}
 		call = observation.WithPlanningWindow(call, window)
 	}
 	stepBegan := time.Now()

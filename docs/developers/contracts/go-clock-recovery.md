@@ -475,6 +475,33 @@ tick, so `as_of_spread` is non-zero on steps served from the store. The
 row carries no `reachable` (`placement_preview` refuses an unreachable
 site) and never lists a fogged cell (`Completeness.filtered` counts them).
 
+A held window refreshes incrementally (#357). Every `get_cells` reply
+stamps `as_of_tick` (the context tick), and the native keeps a per-map
+last-changed tick grid (`CellTracking.cs`, created on the map's first
+cells read with every cell stamped one tick before it, bumped by the
+1.6 map events for terrain, roof, fog, path cost and thing spawn or
+despawn, and by Harmony postfixes on the zone grid and roof removal;
+indoors is compared against the last visit's shadow at read time, while
+room id is never a change on its own, rooms being renumbered on every
+region rebuild, so `SiteCell` carries none). A refresh of a held window asks `changed_since_tick = held.AsOf`
+and the native omits the cells unchanged since that tick, counting them
+in `unchanged` (a cell changed at that tick is re-sent, since the harness
+applies at the tick it reads); `len(cells) + filtered + unchanged` must
+equal the area, and `unchanged` without an ask, or without `as_of_tick`,
+is a contract fault. `planningWindow` merges the delta over the held rows
+by cell (`mergePlanningCells`: changed rows replace, fogged cells leave)
+and files the merge with the reply's tick; an older native answers in
+full and the merge is skipped. A whole-section invalidation keeps an
+incremental section too, marked `Stale.All` (`Section.Incremental`), as a
+narrowed one marks its rectangle, so the next refresh is a delta rather
+than a full read. The backstop is a full read beside the
+delta every eighth refresh (`planningWindowResyncEvery`) and on the first
+refresh after a native-refused dispatch of a map-consuming kind
+(`facts.Store.RequestResync`, from the worker): when both reads share a
+tick the rows that differ are counted and logged as
+`[facts] planning_cells resync drift=<n>` (event `planning_cells_resync`
+in the flight recorder), and the full read replaces the merge.
+
 The continuous sections follow the same pattern with a cadence each
 (#360). The reviewer attaches `observation.RoutineStore` (the store plus
 any `MaxAge` a policy sets per section) to the review's context; the

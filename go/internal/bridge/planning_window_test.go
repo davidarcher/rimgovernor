@@ -79,14 +79,14 @@ func TestReadPlanningWindowDecodesOnePageWindow(t *testing.T) {
 		calls++
 		request := decodeCellsRequest(t, arg)
 		want := &o.Rectangle{Minimum: &c.Cell{X: proto.Int32(10), Z: proto.Int32(20)}, Maximum: &c.Cell{X: proto.Int32(13), Z: proto.Int32(22)}}
-		if !proto.Equal(request.Scope.ExpectedIdentity, pbIdentity()) || !proto.Equal(request.GetRectangle(), want) || request.Page.GetLimit() != 12 || !proto.Equal(request.Fields, planningWindowFields()) {
+		if !proto.Equal(request.Scope.ExpectedIdentity, pbIdentity()) || !proto.Equal(request.GetRectangle(), want) || request.Page.GetLimit() != 12 || !proto.Equal(request.Fields, planningWindowFields()) || request.ChangedSinceTick != nil {
 			t.Fatal("query differs", request)
 		}
 		return pbResult(&o.GetCellsReply{Outcome: &o.GetCellsReply_Observed{Observed: windowSnapshot(request, func(x, z int32) bool { return x == 13 && z == 22 })}}), nil
 	}}
 	client := testClient(t, server, time.Second)
-	window, raw, err := client.ReadPlanningWindow(context.Background(), pbIdentity(), rect)
-	if err != nil || calls != 1 || len(raw.Envelope) == 0 || window.Region != rect || window.Filtered != 1 || len(window.Cells) != 11 || window.Context.GetTick() != pbContext().GetTick() {
+	window, raw, err := client.ReadPlanningWindow(context.Background(), pbIdentity(), rect, 0)
+	if err != nil || calls != 1 || len(raw.Envelope) == 0 || window.Region != rect || window.Filtered != 1 || len(window.Cells) != 11 || window.Context.GetTick() != pbContext().GetTick() || window.Delta || window.Unchanged != 0 || len(window.Fogged) != 0 {
 		t.Fatalf("%+v %v calls=%d", window, err, calls)
 	}
 	first := window.Cells[0]
@@ -118,7 +118,7 @@ func TestReadPlanningWindowBandsARectBeyondOnePage(t *testing.T) {
 	}}
 	client := testClient(t, server, time.Second)
 	rect := policy.Rectangle{X: 0, Z: 0, Width: 100, Height: 90}
-	window, _, err := client.ReadPlanningWindow(context.Background(), pbIdentity(), rect)
+	window, _, err := client.ReadPlanningWindow(context.Background(), pbIdentity(), rect, 0)
 	if err != nil || len(bands) != 3 || len(window.Cells) != 9000 || window.Region != rect {
 		t.Fatalf("%v bands=%d cells=%d", err, len(bands), len(window.Cells))
 	}
@@ -176,11 +176,90 @@ func TestReadPlanningWindowRefusalsAndContractFaults(t *testing.T) {
 				return pbResult(tc.reply(decodeCellsRequest(t, arg))), nil
 			}}
 			client := testClient(t, server, time.Second)
-			window, _, err := client.ReadPlanningWindow(context.Background(), pbIdentity(), rect)
+			window, _, err := client.ReadPlanningWindow(context.Background(), pbIdentity(), rect, 0)
 			if !errors.Is(err, tc.want) || window.Cells != nil {
 				t.Fatalf("%+v %v", window, err)
 			}
 		})
+	}
+}
+
+// deltaSnapshot answers a changed_since ask the way a native with the
+// per-cell change grid does (#357): only the rows changed at or after the
+// tick, the rest counted as unchanged, as_of_tick stamped.
+func deltaSnapshot(request *o.GetCellsRequest, changed func(x, z int32) bool, fogged func(x, z int32) bool) *o.CellsSnapshot {
+	s := windowSnapshot(request, fogged)
+	kept := s.Cells[:0]
+	unchanged := uint32(0)
+	for _, row := range s.Cells {
+		if changed(row.Cell.GetX(), row.Cell.GetZ()) {
+			kept = append(kept, row)
+		} else {
+			unchanged++
+		}
+	}
+	s.Cells = kept
+	s.Completeness.Matched, s.Completeness.Returned = proto.Uint64(uint64(len(kept))), proto.Uint64(uint64(len(kept)))
+	s.Unchanged, s.AsOfTick = proto.Uint32(unchanged), proto.Int64(pbContext().GetTick())
+	return s
+}
+
+func TestReadPlanningWindowDelta(t *testing.T) {
+	rect := policy.Rectangle{X: 10, Z: 20, Width: 4, Height: 3}
+	var request *o.GetCellsRequest
+	server := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+		request = decodeCellsRequest(t, arg)
+		s := deltaSnapshot(request, func(x, z int32) bool { return z == 21 }, nil)
+		// A cell fogged since the ask is listed as a fogged row.
+		s.Cells[3] = &o.CellState{Cell: s.Cells[3].Cell, Fogged: proto.Bool(true)}
+		return pbResult(&o.GetCellsReply{Outcome: &o.GetCellsReply_Observed{Observed: s}}), nil
+	}}
+	client := testClient(t, server, time.Second)
+	window, _, err := client.ReadPlanningWindow(context.Background(), pbIdentity(), rect, 500)
+	if err != nil || request.GetChangedSinceTick() != 500 || !window.Delta || window.Unchanged != 8 || len(window.Cells) != 3 || window.Filtered != 1 || len(window.Fogged) != 1 || window.Fogged[0] != (domain.Cell{X: 13, Z: 21}) {
+		t.Fatalf("%+v %v", window, err)
+	}
+	// A native without the grid answers the ask with a full read.
+	server.handler = func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+		return pbResult(&o.GetCellsReply{Outcome: &o.GetCellsReply_Observed{Observed: windowSnapshot(decodeCellsRequest(t, arg), nil)}}), nil
+	}
+	if window, _, err = client.ReadPlanningWindow(context.Background(), pbIdentity(), rect, 500); err != nil || window.Delta || window.Unchanged != 0 || len(window.Cells) != 12 {
+		t.Fatalf("%+v %v", window, err)
+	}
+	for name, tc := range map[string]struct {
+		since int64
+		reply func(*o.GetCellsRequest) *o.CellsSnapshot
+	}{
+		"unchanged without an ask": {0, func(r *o.GetCellsRequest) *o.CellsSnapshot {
+			return deltaSnapshot(r, func(x, z int32) bool { return z == 21 }, nil)
+		}},
+		"unchanged without as_of_tick": {500, func(r *o.GetCellsRequest) *o.CellsSnapshot {
+			s := deltaSnapshot(r, func(x, z int32) bool { return z == 21 }, nil)
+			s.AsOfTick = nil
+			return s
+		}},
+		"as_of_tick off the context": {500, func(r *o.GetCellsRequest) *o.CellsSnapshot {
+			s := deltaSnapshot(r, func(x, z int32) bool { return z == 21 }, nil)
+			s.AsOfTick = proto.Int64(pbContext().GetTick() - 1)
+			return s
+		}},
+		"coverage short": {500, func(r *o.GetCellsRequest) *o.CellsSnapshot {
+			s := deltaSnapshot(r, func(x, z int32) bool { return z == 21 }, nil)
+			s.Unchanged = proto.Uint32(7)
+			return s
+		}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			server.handler = func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+				return pbResult(&o.GetCellsReply{Outcome: &o.GetCellsReply_Observed{Observed: tc.reply(decodeCellsRequest(t, arg))}}), nil
+			}
+			if _, _, err := client.ReadPlanningWindow(context.Background(), pbIdentity(), rect, tc.since); !errors.Is(err, ErrContract) {
+				t.Fatal(err)
+			}
+		})
+	}
+	if _, _, err := client.ReadPlanningWindow(context.Background(), pbIdentity(), rect, -1); !errors.Is(err, ErrContract) {
+		t.Fatal(err)
 	}
 }
 

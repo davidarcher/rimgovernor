@@ -8946,6 +8946,8 @@ type CellsSnapshot struct {
 	Completeness  *Completeness                `protobuf:"bytes,5,opt,name=completeness,proto3" json:"completeness,omitempty"`
 	AppliedFields *CellFields                  `protobuf:"bytes,6,opt,name=applied_fields,json=appliedFields,proto3" json:"applied_fields,omitempty"`
 	MapSnapshot   *SnapshotRef                 `protobuf:"bytes,7,opt,name=map_snapshot,json=mapSnapshot,proto3" json:"map_snapshot,omitempty"`
+	Unchanged     *uint32                      `protobuf:"varint,8,opt,name=unchanged,proto3,oneof" json:"unchanged,omitempty"`
+	AsOfTick      *int64                       `protobuf:"varint,9,opt,name=as_of_tick,json=asOfTick,proto3,oneof" json:"as_of_tick,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -9029,6 +9031,20 @@ func (x *CellsSnapshot) GetMapSnapshot() *SnapshotRef {
 	return nil
 }
 
+func (x *CellsSnapshot) GetUnchanged() uint32 {
+	if x != nil && x.Unchanged != nil {
+		return *x.Unchanged
+	}
+	return 0
+}
+
+func (x *CellsSnapshot) GetAsOfTick() int64 {
+	if x != nil && x.AsOfTick != nil {
+		return *x.AsOfTick
+	}
+	return 0
+}
+
 type GetCellsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Scope *ReadScope             `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
@@ -9036,11 +9052,12 @@ type GetCellsRequest struct {
 	//
 	//	*GetCellsRequest_Rectangle
 	//	*GetCellsRequest_ExactCells
-	Selection     isGetCellsRequest_Selection `protobuf_oneof:"selection"`
-	Fields        *CellFields                 `protobuf:"bytes,4,opt,name=fields,proto3" json:"fields,omitempty"`
-	Page          *commonpb.PageRequest       `protobuf:"bytes,5,opt,name=page,proto3" json:"page,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Selection        isGetCellsRequest_Selection `protobuf_oneof:"selection"`
+	Fields           *CellFields                 `protobuf:"bytes,4,opt,name=fields,proto3" json:"fields,omitempty"`
+	Page             *commonpb.PageRequest       `protobuf:"bytes,5,opt,name=page,proto3" json:"page,omitempty"`
+	ChangedSinceTick *int64                      `protobuf:"varint,6,opt,name=changed_since_tick,json=changedSinceTick,proto3,oneof" json:"changed_since_tick,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *GetCellsRequest) Reset() {
@@ -9117,6 +9134,13 @@ func (x *GetCellsRequest) GetPage() *commonpb.PageRequest {
 		return x.Page
 	}
 	return nil
+}
+
+func (x *GetCellsRequest) GetChangedSinceTick() int64 {
+	if x != nil && x.ChangedSinceTick != nil {
+		return *x.ChangedSinceTick
+	}
+	return 0
 }
 
 type isGetCellsRequest_Selection interface {
@@ -31196,7 +31220,7 @@ const file_observations_proto_rawDesc = "" +
 	"\a_thingsB\x0f\n" +
 	"\r_designationsB\a\n" +
 	"\x05_roomB\t\n" +
-	"\a_growth\"\xff\x03\n" +
+	"\a_growth\"\xe2\x04\n" +
 	"\rCellsSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12?\n" +
 	"\bmap_size\x18\x02 \x01(\v2$.rimgovernor.observations.v1.MapSizeR\amapSize\x12>\n" +
@@ -31204,15 +31228,23 @@ const file_observations_proto_rawDesc = "" +
 	"\x05cells\x18\x04 \x03(\v2&.rimgovernor.observations.v1.CellStateR\x05cells\x12M\n" +
 	"\fcompleteness\x18\x05 \x01(\v2).rimgovernor.observations.v1.CompletenessR\fcompleteness\x12N\n" +
 	"\x0eapplied_fields\x18\x06 \x01(\v2'.rimgovernor.observations.v1.CellFieldsR\rappliedFields\x12K\n" +
-	"\fmap_snapshot\x18\a \x01(\v2(.rimgovernor.observations.v1.SnapshotRefR\vmapSnapshot\"\xec\x02\n" +
+	"\fmap_snapshot\x18\a \x01(\v2(.rimgovernor.observations.v1.SnapshotRefR\vmapSnapshot\x12!\n" +
+	"\tunchanged\x18\b \x01(\rH\x00R\tunchanged\x88\x01\x01\x12!\n" +
+	"\n" +
+	"as_of_tick\x18\t \x01(\x03H\x01R\basOfTick\x88\x01\x01B\f\n" +
+	"\n" +
+	"_unchangedB\r\n" +
+	"\v_as_of_tick\"\xb6\x03\n" +
 	"\x0fGetCellsRequest\x12<\n" +
 	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\x12F\n" +
 	"\trectangle\x18\x02 \x01(\v2&.rimgovernor.observations.v1.RectangleH\x00R\trectangle\x12M\n" +
 	"\vexact_cells\x18\x03 \x01(\v2*.rimgovernor.observations.v1.CellSelectionH\x00R\n" +
 	"exactCells\x12?\n" +
 	"\x06fields\x18\x04 \x01(\v2'.rimgovernor.observations.v1.CellFieldsR\x06fields\x126\n" +
-	"\x04page\x18\x05 \x01(\v2\".rimgovernor.common.v1.PageRequestR\x04pageB\v\n" +
-	"\tselection\"B\n" +
+	"\x04page\x18\x05 \x01(\v2\".rimgovernor.common.v1.PageRequestR\x04page\x121\n" +
+	"\x12changed_since_tick\x18\x06 \x01(\x03H\x01R\x10changedSinceTick\x88\x01\x01B\v\n" +
+	"\tselectionB\x15\n" +
+	"\x13_changed_since_tick\"B\n" +
 	"\rCellSelection\x121\n" +
 	"\x05cells\x18\x01 \x03(\v2\x1b.rimgovernor.common.v1.CellR\x05cells\"\xe8\x01\n" +
 	"\rGetCellsReply\x12H\n" +
@@ -35193,6 +35225,7 @@ func file_observations_proto_init() {
 	file_observations_proto_msgTypes[81].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[82].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[83].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[84].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[85].OneofWrappers = []any{
 		(*GetCellsRequest_Rectangle)(nil),
 		(*GetCellsRequest_ExactCells)(nil),

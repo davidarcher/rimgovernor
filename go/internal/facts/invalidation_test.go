@@ -44,14 +44,18 @@ func TestInvalidationFromWire(t *testing.T) {
 }
 
 // TestApplyWholeFamily: an invalidation with neither ids nor a rectangle
-// drops the family's sections, as InvalidateFamily does.
+// drops the family's sections, as InvalidateFamily does; the incremental
+// planning_cells is kept and marked wholly stale (#357).
 func TestApplyWholeFamily(t *testing.T) {
 	s := fullColonyStore(t)
 	s.Apply(Invalidation{Families: []bridge.FactFamily{bridge.FactColony}})
-	for _, section := range []Section{Colony, PlanningCells, Zones, Buildings} {
+	for _, section := range []Section{Colony, Zones, Buildings} {
 		if _, ok := Get[string](s, section); ok {
 			t.Fatalf("%s survived a whole-family invalidation", section)
 		}
+	}
+	if held, ok := Get[string](s, PlanningCells); !ok || !held.Stale.All || s.Fresh(PlanningCells, 10) {
+		t.Fatalf("planning_cells = %+v ok=%v", held, ok)
 	}
 	if !s.Fresh(Research, 10) {
 		t.Fatal("research dropped by the colony family")
