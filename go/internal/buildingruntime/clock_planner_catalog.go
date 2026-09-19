@@ -42,6 +42,11 @@ var (
 // breaks priority ties (plannerGroup.Wait is stable), so the order here is
 // the order Step queued them inline.
 var plannerCatalog = []plannerEntry{
+	{name: "idleDrafts", priority: plannerCritical, kinds: []domain.ActionKind{domain.OwnedDraftAction}, families: factsThreat,
+		configured: func(c *ClockSchedulerConfig) bool { return c.Routine != nil },
+		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
+			return s.config.Routine.restoreIdleDrafts(ctx, epoch, arbiter)
+		}},
 	{name: "work", priority: plannerFoothold, kinds: []domain.ActionKind{domain.WorkAssignmentAction}, families: factsPawns,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Work != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {

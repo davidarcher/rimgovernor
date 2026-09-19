@@ -12,6 +12,7 @@ var inlinePlannerSet = []struct {
 	name     string
 	priority int
 }{
+	{"idleDrafts", plannerCritical},
 	{"work", plannerFoothold}, {"fields", plannerFoothold}, {"foodStorage", plannerFoothold}, {"foodAcquisition", plannerFoothold}, {"pestAcquisition", plannerFoothold},
 	{"woodAcquisition", plannerMaintenance}, {"supplies", plannerCritical}, {"sleeping", plannerFoothold}, {"power", plannerFoothold},
 	{"temperature", plannerFoothold}, {"refrigeration", plannerMaintenance}, {"lighting", plannerMaintenance}, {"flooring", plannerMaintenance},
@@ -59,7 +60,7 @@ func TestPlannerCatalogMatchesInlineSet(t *testing.T) {
 			continue
 		}
 		name := v.Type().Field(i).Name
-		if name == "Routine" || name == "Facts" || name == "Store" {
+		if name == "Facts" || name == "Store" {
 			continue
 		}
 		field.Set(reflect.New(field.Type().Elem()))

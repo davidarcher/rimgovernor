@@ -208,11 +208,16 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	// Use the same complete catalog and cleanup predicate as the release sweep.
 	cleanup := false
 	for _, plan := range plans {
+		cleanup = cleanup || idleDraftWorkOpen(plan)
 		for _, progress := range plan.Progress {
 			cleanup = cleanup || draftOutstanding(progress)
 		}
 	}
-	reading.Projection.Facts.CleanupPawns = domain.Known(cleanup)
+	idleDrafts, err := r.idleDrafts(ctx, state, expected.Tick, reading.Emergency, plans)
+	if err != nil {
+		return store.RoutineReviewResult{}, err
+	}
+	reading.Projection.Facts.CleanupPawns = domain.Known(cleanup || len(idleDrafts) > 0)
 	reading.Projection.ApplyFieldBudget(r.seasonal(reading.Projection.Facts).FoodTargetDays)
 	// The workshop ladder's recorded research rung is the derived
 	// EnsureResearch target; it is journal evidence, not a native read, so

@@ -114,6 +114,14 @@ per-subsystem "player owns this, hands off" state and no waiting period.
 Squad, rescue, tend, repair and recovery selection prefer candidates without
 forced or queued work, but that evidence never excludes the remaining candidates.
 Active draft claims, native job legality and exact snapshot checks still apply.
+
+Auto also adopts and releases an idle, unclaimed standing draft when the complete
+squad census has no threat and no open draft plan wants that colonist. The
+RestoreWorkers method uses the ordinary draft CAS and ownership lifecycle;
+existing claims and uncertain attempts retain their normal reconciliation.
+The native cases `draft/idle` and `draft/idle-hostile` cover the peaceful and
+threatened Manual-to-Auto transitions.
+
 Colony, load and map changes and stale in-flight snapshots still invalidate
 pending work; that is ordinary concurrency safety, not a player-ownership
 rule. A pause or letter pause only suspends routine goals and their open
