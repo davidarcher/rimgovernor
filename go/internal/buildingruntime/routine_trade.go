@@ -397,7 +397,10 @@ func (r *RoutineTradePlanner) selection(call context.Context, state ControlState
 	if err != nil {
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, err
 	}
-	need, known := policy.ReviewTradeNeed(medical, medicalFacts.Resources, r.reviewer.policy.ResourceTargets, r.reviewer.policy.Trade).Value()
+	// The wealth split is unknown until #395 projects it, which leaves the
+	// wealth-driven surplus out of the live selection; construction
+	// deficits are read by the same wiring.
+	need, known := policy.ReviewTradeNeed(medical, medicalFacts.Resources, r.reviewer.policy.ResourceTargets, policy.RoutineTradeFloors(r.reviewer.policy, nil), domain.Unknown[policy.WealthFacts](), r.reviewer.policy.Trade).Value()
 	if !known {
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, ErrControl
 	}

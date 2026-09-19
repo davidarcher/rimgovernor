@@ -92,6 +92,7 @@ type serveConfig struct {
 	routineTradePlans               bool
 	routineSilverReserve            int64
 	routineComponentTarget          int64
+	routineItemWealthShare          float64
 	routineDialogPrefer             string
 	routineResearchTarget           string
 	routineResearchLadder           string
@@ -156,6 +157,7 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.StringVar(&c.routineDialogPrefer, "routine-dialog-prefer", strings.Join(policy.DefaultDialogAnswerPrefer, ","), "comma-separated option patterns AnswerDialog prefers when a force-pausing choice dialog is open: each matches an option's Keyed translation key exactly or its label as a case-insensitive substring, first match wins; the first selectable resolving option otherwise")
 	flags.Int64Var(&c.routineSilverReserve, "routine-silver-reserve", 0, "silver TradeWithCaravan never spends below when buying from a caravan")
 	flags.Int64Var(&c.routineComponentTarget, "routine-component-target", 0, "ComponentIndustrial stock TradeWithCaravan buys toward and, with the resource family, MaintainResource mines toward; 0 tracks no component target")
+	flags.Float64Var(&c.routineItemWealthShare, "routine-item-wealth-share", 0, "share (0..1) of colony wealth held as items past which TradeWithCaravan sells raw-material hoards (steel, plasteel, gold, uranium, jade) down to their economic floors; 0 disables")
 	flags.StringVar(&c.routineResearchTarget, "routine-research-target", "", "native ResearchProjectDef name EnsureResearch selects prerequisite-ordered toward once no research project is current")
 	flags.StringVar(&c.routineResearchLadder, "routine-research-ladder", strings.Join(policy.DefaultResearchLadder(), ","), "comma-separated ResearchProjectDef names EnsureResearch walks in order when no --routine-research-target is set and no workshop ladder records a need; empty disables the roadmap")
 	flags.Var(&c.routineResourceTargets, "routine-resource-target", "repeatable RESOURCE:TARGET native stock floor MaintainResource dispatches a production bill toward")
@@ -217,11 +219,14 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	if c.worldEvaluationFoodMarginDays < 0 {
 		return c, errors.New("--world-evaluation-food-margin-days must be non-negative")
 	}
-	if (c.routineSilverReserve != 0 || c.routineComponentTarget != 0) && !c.routineTradePlans {
-		return c, errors.New("--routine-silver-reserve and --routine-component-target require the trade routine family")
+	if (c.routineSilverReserve != 0 || c.routineComponentTarget != 0 || c.routineItemWealthShare != 0) && !c.routineTradePlans {
+		return c, errors.New("--routine-silver-reserve, --routine-component-target and --routine-item-wealth-share require the trade routine family")
 	}
 	if c.routineSilverReserve < 0 || c.routineComponentTarget < 0 {
 		return c, errors.New("--routine-silver-reserve and --routine-component-target must be non-negative")
+	}
+	if c.routineItemWealthShare < 0 || c.routineItemWealthShare > 1 || c.routineItemWealthShare != c.routineItemWealthShare {
+		return c, errors.New("--routine-item-wealth-share must be 0 through 1")
 	}
 	if c.routineComponentTarget > 0 && c.routineResourcePlans {
 		if _, set := c.routineResourceTargets[policy.ComponentResource]; !set {

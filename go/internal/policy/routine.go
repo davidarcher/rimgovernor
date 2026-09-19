@@ -391,6 +391,9 @@ type RoutineFacts struct {
 	// (the same colony facts rows Wood is taken from), so MaintainResource's
 	// deficit is measured at review time instead of assumed from config.
 	Resources domain.Fact[[]Amount]
+	// Wealth is the colony wealth split (#395) TradeWithCaravan's
+	// wealth-driven surplus keys on; unknown leaves that surplus out.
+	Wealth domain.Fact[WealthFacts]
 	// Research is the native research state read inside the same paused
 	// identity bracket as the other routine facts. Unknown when the source
 	// cannot read research; missing facts never recover EnsureResearch.
@@ -857,7 +860,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	// TradeWithCaravan is config-only like ProductionPolicy: it needs a
 	// negotiator's conversation, not a development slot, and recovers by
 	// itself when the caravan leaves or nothing is left worth trading.
-	tradeRecovered := TradeRecovered(f.Traders, ReviewTradeNeed(medicine, f.Resources, p.ResourceTargets, p.Trade))
+	tradeRecovered := TradeRecovered(f.Traders, ReviewTradeNeed(medicine, f.Resources, p.ResourceTargets, RoutineTradeFloors(p, nil), f.Wealth, p.Trade))
 	if !positive(tradeRecovered) {
 		addGoal(TradeWithCaravan, 3)
 		if _, known := tradeRecovered.Value(); known {

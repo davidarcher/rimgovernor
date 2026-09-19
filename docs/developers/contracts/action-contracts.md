@@ -103,8 +103,13 @@ protected exports. Unknown or truncated inventory prevents selection. A policy
 with no eligible affordable lines cancels its own session without an exchange;
 the retained policy evidence explains each target. Neither cancellation nor
 acceptance takes a trader quest. Trade is routine-only (the `trade` family,
-`--routine-silver-reserve`, `--routine-component-target`); there is no player
-trade command. A caravan reported still travelling holds the goal open and
+`--routine-silver-reserve`, `--routine-component-target`,
+`--routine-item-wealth-share`); there is no player trade command. Sales come
+from stock above a MaintainResource target and, once the item share of colony
+wealth passes `--routine-item-wealth-share`, from raw-material hoards (steel,
+plasteel, gold, uranium, jade) sold down to the highest of the target, the
+economic floor and a retained minimum (`policy.WealthSurplus`); an unknown
+wealth split sells nothing on that rule. A caravan reported still travelling holds the goal open and
 lends native ticks until it arrives.
 
 Direct orbital opening is refused. Ordinary orbital input requires the comms

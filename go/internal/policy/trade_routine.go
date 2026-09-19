@@ -52,23 +52,106 @@ type TraderFacts struct {
 // RoutineTradePolicy is the operator's routine trade configuration.
 // SilverReserve is the silver a purchase never spends below; ComponentTarget
 // (zero disables) is the component stock the trade buys toward and the
-// resource family mines toward.
-type RoutineTradePolicy struct{ SilverReserve, ComponentTarget int64 }
+// resource family mines toward. ItemWealthShare (zero disables) is the share
+// of total colony wealth held as items past which WealthSurplus sells the
+// raw-material hoards in WealthSurplusResources down to their floors;
+// RetainedMinimum is the stock each such hoard keeps regardless of floor
+// (DefaultTradeRetainedMinimum when nil).
+type RoutineTradePolicy struct {
+	SilverReserve, ComponentTarget int64
+	ItemWealthShare                float64
+	RetainedMinimum                map[Resource]int64
+}
 
 func (p RoutineTradePolicy) Validate() error {
 	if p.SilverReserve < 0 || p.ComponentTarget < 0 || p.SilverReserve > 1<<31 || p.ComponentTarget > 1<<31 {
 		return errors.New("invalid routine trade policy")
 	}
+	if !finite(p.ItemWealthShare) || p.ItemWealthShare < 0 || p.ItemWealthShare > 1 {
+		return errors.New("invalid routine trade policy: item wealth share")
+	}
+	for _, retained := range p.RetainedMinimum {
+		if retained < 0 || retained > 1<<31 {
+			return errors.New("invalid routine trade policy: retained minimum")
+		}
+	}
 	return nil
+}
+
+// WealthSurplusResources are the raw materials WealthSurplus sells down:
+// stockpiled ore and refined metal whose only use at hoard size is raid
+// points (#341). Silver is currency and components are bought, never sold,
+// so both stay out as they do for the target-driven surplus.
+var WealthSurplusResources = []Resource{"Steel", "Plasteel", "Gold", "Uranium", "Jade"}
+
+// DefaultTradeRetainedMinimum is the stock each WealthSurplusResources
+// hoard keeps when the policy names no table: enough steel and plasteel
+// for repairs and a bench, a token of each precious material.
+func DefaultTradeRetainedMinimum() map[Resource]int64 {
+	return map[Resource]int64{"Steel": 500, "Plasteel": 100, "Gold": 50, "Uranium": 50, "Jade": 50}
+}
+
+// RoutineTradeFloors is the per-definition floor set the routine trade
+// review sells against: EconomicReserves over the operator's resource
+// reserves (RoutinePolicy.ResourceReserves) and native's outstanding
+// construction deficits when the caller has read them (nil otherwise).
+func RoutineTradeFloors(p RoutinePolicy, construction map[string]int64) map[string]int64 {
+	reserves := map[string]int64{}
+	for resource, reserve := range p.ResourceReserves {
+		reserves[string(resource)] = reserve
+	}
+	floors, _ := EconomicReserves(domain.TradeEconomicPolicy{}, TradeReserveFacts{Reserves: reserves, Construction: construction})
+	return floors
+}
+
+// WealthFacts is the colony wealth split native's WealthWatcher reports
+// (#395): the market value held as items, buildings and pawns, and their
+// total. Items count in full toward storyteller wealth where buildings
+// count half, which is why the surplus rule keys on the item share.
+type WealthFacts struct{ Items, Buildings, Pawns, Total float64 }
+
+// WealthSurplus is the wealth-driven half of the trade surplus: while the
+// item share of total wealth exceeds p.ItemWealthShare, every resource in
+// WealthSurplusResources stocked above max(target, floor, retained minimum)
+// is a surplus of the difference, so a sale lands exactly on the highest
+// floor. Unknown wealth, a zero share, an unmet share or a stock at its
+// floor yields nothing; the rows come back in WealthSurplusResources order.
+func WealthSurplus(stock []Amount, targets map[Resource]int64, floors map[string]int64, wealth domain.Fact[WealthFacts], p RoutineTradePolicy) []Amount {
+	facts, known := wealth.Value()
+	if !known || p.Validate() != nil || p.ItemWealthShare <= 0 {
+		return nil
+	}
+	if !finite(facts.Items) || !finite(facts.Total) || facts.Total <= 0 || facts.Items < 0 || facts.Items/facts.Total <= p.ItemWealthShare {
+		return nil
+	}
+	retained := p.RetainedMinimum
+	if retained == nil {
+		retained = DefaultTradeRetainedMinimum()
+	}
+	counts := map[Resource]int64{}
+	for _, row := range stock {
+		counts[row.Resource] += row.Count
+	}
+	var out []Amount
+	for _, resource := range WealthSurplusResources {
+		keep := max(targets[resource], floors[string(resource)], retained[resource])
+		if surplus := counts[resource] - keep; surplus > 0 {
+			out = append(out, Amount{Resource: resource, Count: surplus})
+		}
+	}
+	return out
 }
 
 // TradeNeed is what the review measured worth trading for: the medicine
 // units MaintainMedicalReserves wants, the components short of the target,
-// and each MaintainResource target's stock above its floor.
+// each MaintainResource target's stock above its floor, and each raw-material
+// hoard WealthSurplus sells down. Retained is the stock every Surplus row
+// keeps after its sale (the target, or the wealth rule's floor).
 type TradeNeed struct {
 	MedicineReplenish  int64
 	ComponentShortfall int64
 	Surplus            []Amount
+	Retained           map[Resource]int64
 }
 
 func (n TradeNeed) Any() bool {
@@ -78,7 +161,11 @@ func (n TradeNeed) Any() bool {
 // ReviewTradeNeed measures the trade need from the same facts the other
 // reviews already produced. It is unknown while the medicine reserve or the
 // resource census is unknown: a trade opened on a guessed need is not one.
-func ReviewTradeNeed(medicine MedicalReserveReview, resources domain.Fact[[]Amount], targets map[Resource]int64, p RoutineTradePolicy) domain.Fact[TradeNeed] {
+// An unknown wealth fact only leaves the wealth-driven surplus out. Floors
+// are EconomicReserves's per-definition floors (reserves plus construction
+// deficits); target-driven surplus rows win over wealth-driven ones for the
+// same resource.
+func ReviewTradeNeed(medicine MedicalReserveReview, resources domain.Fact[[]Amount], targets map[Resource]int64, floors map[string]int64, wealth domain.Fact[WealthFacts], p RoutineTradePolicy) domain.Fact[TradeNeed] {
 	replenish, known := medicine.Replenish.Value()
 	rows, rowsKnown := resources.Value()
 	if !known || !rowsKnown || p.Validate() != nil {
@@ -104,9 +191,24 @@ func ReviewTradeNeed(medicine MedicalReserveReview, resources domain.Fact[[]Amou
 		}
 		if surplus := stock[resource] - targets[resource]; surplus > 0 {
 			need.Surplus = append(need.Surplus, Amount{Resource: resource, Count: surplus})
+			need.retain(resource, targets[resource])
 		}
 	}
+	for _, row := range WealthSurplus(rows, targets, floors, wealth, p) {
+		if _, targeted := need.Retained[row.Resource]; targeted {
+			continue
+		}
+		need.Surplus = append(need.Surplus, row)
+		need.retain(row.Resource, stock[row.Resource]-row.Count)
+	}
 	return domain.Known(need)
+}
+
+func (n *TradeNeed) retain(resource Resource, count int64) {
+	if n.Retained == nil {
+		n.Retained = map[Resource]int64{}
+	}
+	n.Retained[resource] = count
 }
 
 // TradeRecovered is TradeWithCaravan's recovered fact: known true when no
@@ -189,7 +291,7 @@ func RoutineTradeTargets(need TradeNeed, rows []TradeSheetRowFact, targets map[R
 		if seen[string(surplus.Resource)] || len(out.Targets) >= tradeRoutineMaximumTargets {
 			continue
 		}
-		out.Targets = append(out.Targets, domain.TradeTarget{Item: string(surplus.Resource), Stock: min(targets[surplus.Resource], tradeRoutineMaximumCount), MaxSell: min(surplus.Count, tradeRoutineMaximumCount), MinSellPrice: math.SmallestNonzeroFloat64})
+		out.Targets = append(out.Targets, domain.TradeTarget{Item: string(surplus.Resource), Stock: min(max(targets[surplus.Resource], need.Retained[surplus.Resource]), tradeRoutineMaximumCount), MaxSell: min(surplus.Count, tradeRoutineMaximumCount), MinSellPrice: math.SmallestNonzeroFloat64})
 	}
 	return out
 }

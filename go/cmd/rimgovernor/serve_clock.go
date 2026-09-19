@@ -815,7 +815,7 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainMedicalReserves)
 	}
 	if sc.routineTradePlans {
-		thresholds.Trade = policy.RoutineTradePolicy{SilverReserve: sc.routineSilverReserve, ComponentTarget: sc.routineComponentTarget}
+		thresholds.Trade = policy.RoutineTradePolicy{SilverReserve: sc.routineSilverReserve, ComponentTarget: sc.routineComponentTarget, ItemWealthShare: sc.routineItemWealthShare}
 		capabilities.Methods = append(capabilities.Methods, policy.TradeWithCaravan)
 	}
 	// The equip planner is EnsureBasicDefense's method: without this

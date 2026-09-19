@@ -10,16 +10,99 @@ func TestReviewTradeNeedMeasuresShortfallsAndSurplus(t *testing.T) {
 	medicine := MedicalReserveReview{Active: true, Replenish: domain.Known(int64(4))}
 	resources := domain.Known([]Amount{{Resource: "Steel", Count: 500}, {Resource: ComponentResource, Count: 2}, {Resource: "WoodLog", Count: 40}})
 	targets := map[Resource]int64{"Steel": 200, "WoodLog": 100}
-	need, known := ReviewTradeNeed(medicine, resources, targets, RoutineTradePolicy{ComponentTarget: 10}).Value()
+	need, known := ReviewTradeNeed(medicine, resources, targets, nil, domain.Unknown[WealthFacts](), RoutineTradePolicy{ComponentTarget: 10}).Value()
 	if !known || need.MedicineReplenish != 4 || need.ComponentShortfall != 8 || len(need.Surplus) != 1 || need.Surplus[0] != (Amount{Resource: "Steel", Count: 300}) {
 		t.Fatal(need, known)
 	}
-	if _, known = ReviewTradeNeed(MedicalReserveReview{}, resources, targets, RoutineTradePolicy{}).Value(); known {
+	if _, known = ReviewTradeNeed(MedicalReserveReview{}, resources, targets, nil, domain.Unknown[WealthFacts](), RoutineTradePolicy{}).Value(); known {
 		t.Fatal("unknown medicine reserve became a trade need")
 	}
-	if need, known = ReviewTradeNeed(MedicalReserveReview{Replenish: domain.Known(int64(0))}, resources, nil, RoutineTradePolicy{}).Value(); !known || need.Any() {
+	if need, known = ReviewTradeNeed(MedicalReserveReview{Replenish: domain.Known(int64(0))}, resources, nil, nil, domain.Unknown[WealthFacts](), RoutineTradePolicy{}).Value(); !known || need.Any() {
 		t.Fatal(need, known)
 	}
+}
+
+func TestWealthSurplusSellsHoardsDownToTheFloor(t *testing.T) {
+	stock := []Amount{{Resource: "Steel", Count: 2000}, {Resource: "Plasteel", Count: 100}, {Resource: "Gold", Count: 80}, {Resource: "Silver", Count: 5000}, {Resource: ComponentResource, Count: 90}}
+	heavy := domain.Known(WealthFacts{Items: 30000, Buildings: 10000, Pawns: 8000, Total: 48000})
+	p := RoutineTradePolicy{ItemWealthShare: 0.5}
+	if got := WealthSurplus(stock, nil, nil, domain.Unknown[WealthFacts](), p); got != nil {
+		t.Fatal("unknown wealth produced a surplus", got)
+	}
+	if got := WealthSurplus(stock, nil, nil, heavy, RoutineTradePolicy{}); got != nil {
+		t.Fatal("a zero share produced a surplus", got)
+	}
+	light := domain.Known(WealthFacts{Items: 10000, Buildings: 30000, Pawns: 8000, Total: 48000})
+	if got := WealthSurplus(stock, nil, nil, light, p); got != nil {
+		t.Fatal("an item share under the threshold produced a surplus", got)
+	}
+	// Above the threshold the default retained minimum is the only floor:
+	// plasteel sits exactly on it and silver and components stay out.
+	want := []Amount{{Resource: "Steel", Count: 1500}, {Resource: "Gold", Count: 30}}
+	if got := WealthSurplus(stock, nil, nil, heavy, p); !equalAmounts(got, want) {
+		t.Fatal(got, want)
+	}
+	// An economic floor above the retained minimum raises the keep; a
+	// construction deficit raises it again; a floor at stock yields nothing.
+	floors, _ := EconomicReserves(domain.TradeEconomicPolicy{}, TradeReserveFacts{Reserves: map[string]int64{"Steel": 800}})
+	if got := WealthSurplus(stock, nil, floors, heavy, p); !equalAmounts(got, []Amount{{Resource: "Steel", Count: 1200}, {Resource: "Gold", Count: 30}}) {
+		t.Fatal(got)
+	}
+	floors, _ = EconomicReserves(domain.TradeEconomicPolicy{}, TradeReserveFacts{Reserves: map[string]int64{"Steel": 800}, Construction: map[string]int64{"Steel": 400, "Gold": 80}})
+	if got := WealthSurplus(stock, nil, floors, heavy, p); !equalAmounts(got, []Amount{{Resource: "Steel", Count: 800}}) {
+		t.Fatal(got)
+	}
+	floors, _ = EconomicReserves(domain.TradeEconomicPolicy{}, TradeReserveFacts{Reserves: map[string]int64{"Steel": 2000, "Gold": 80}})
+	if got := WealthSurplus(stock, nil, floors, heavy, p); got != nil {
+		t.Fatal("stock at the floor produced a surplus", got)
+	}
+	// A MaintainResource target and the policy's own table are floors too;
+	// a named table replaces the default one entirely.
+	if got := WealthSurplus(stock, map[Resource]int64{"Steel": 1900}, nil, heavy, RoutineTradePolicy{ItemWealthShare: 0.5, RetainedMinimum: map[Resource]int64{"Gold": 70}}); !equalAmounts(got, []Amount{{Resource: "Steel", Count: 100}, {Resource: "Plasteel", Count: 100}, {Resource: "Gold", Count: 10}}) {
+		t.Fatal(got)
+	}
+	if got := WealthSurplus(stock, nil, nil, domain.Known(WealthFacts{Items: 100, Total: 0}), p); got != nil {
+		t.Fatal("zero total wealth produced a surplus", got)
+	}
+}
+
+func TestReviewTradeNeedMergesWealthSurplusBehindTargets(t *testing.T) {
+	medicine := MedicalReserveReview{Replenish: domain.Known(int64(0))}
+	resources := domain.Known([]Amount{{Resource: "Steel", Count: 2000}, {Resource: "Gold", Count: 80}})
+	heavy := domain.Known(WealthFacts{Items: 30000, Buildings: 10000, Pawns: 8000, Total: 48000})
+	p := RoutineTradePolicy{ItemWealthShare: 0.5}
+	// The steel target wins over the wealth rule's retained minimum; gold
+	// comes from the wealth rule alone, retained at its floor.
+	need, known := ReviewTradeNeed(medicine, resources, map[Resource]int64{"Steel": 1000}, nil, heavy, p).Value()
+	if !known || !equalAmounts(need.Surplus, []Amount{{Resource: "Steel", Count: 1000}, {Resource: "Gold", Count: 30}}) || need.Retained["Steel"] != 1000 || need.Retained["Gold"] != 50 {
+		t.Fatal(need, known)
+	}
+	if need, known = ReviewTradeNeed(medicine, resources, nil, nil, domain.Unknown[WealthFacts](), p).Value(); !known || need.Any() {
+		t.Fatal("unknown wealth should leave only the target-driven surplus", need, known)
+	}
+	rows := []TradeSheetRowFact{{LineID: "l1", DefName: "Gold", ColonyCount: 80, SellPrice: 30, SellPriceKnown: true}}
+	economic := RoutineTradeTargets(TradeNeed{Surplus: []Amount{{Resource: "Gold", Count: 30}}, Retained: map[Resource]int64{"Gold": 50}}, rows, nil, p)
+	if len(economic.Targets) != 1 || economic.Targets[0].Stock != 50 || economic.Targets[0].MaxSell != 30 {
+		t.Fatal("the wealth surplus sale should retain its floor as the target stock", economic.Targets)
+	}
+	if err := (RoutineTradePolicy{ItemWealthShare: 1.5}).Validate(); err == nil {
+		t.Fatal("share past 1 validated")
+	}
+	if err := (RoutineTradePolicy{RetainedMinimum: map[Resource]int64{"Steel": -1}}).Validate(); err == nil {
+		t.Fatal("negative retained minimum validated")
+	}
+}
+
+func equalAmounts(a, b []Amount) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func TestTradeRecoveredNeedsBothCaravanAndNeed(t *testing.T) {
