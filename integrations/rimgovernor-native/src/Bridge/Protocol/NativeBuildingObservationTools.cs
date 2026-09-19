@@ -18,7 +18,7 @@ namespace HomeBridge.BridgeTools
     {
         private const string ToolName = "rimgovernor/observations_list_buildings";
 
-        [Tool(ToolName, Title = "Read typed buildings", Description = "Read complete bounded building, blueprint and frame facts including walls. Exact IDs/definitions, inclusive anchor region; defaults artificial/player-only. No CAS snapshots, detailed settings, bills, inspect text or power-network enumeration yet.")]
+        [Tool(ToolName, Title = "Read typed buildings", Description = "Read complete bounded building, blueprint and frame facts including walls. Exact IDs/definitions, inclusive anchor region; defaults artificial/player-only. No CAS snapshots, detailed settings, bills, inspect text or power-network enumeration yet. changed_since_tick (reads without ids, def_names, statuses, damaged_below_fraction or region) lists the buildings whose row changed at or after that tick, counts the rest in unchanged and names the buildings removed since in removed_ids; an ask older than 2500 ticks is STALE and needs a full read. as_of_tick is always the context tick.")]
         [ToolResponse("payload", "string", "Official ProtoJSON ListBuildingsReply. Unavailable replaces oversized collections; unsupported facts are explicit.", Always = true)]
         public async Task<object> ListBuildings(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official ProtoJSON ListBuildingsRequest string in raw transport value.")] object? request = null)
@@ -37,44 +37,49 @@ namespace HomeBridge.BridgeTools
                     var source = Source(map, parsed.HasCategory && parsed.Category == "all");
                     var matched = source.Where(t => Matches(t, parsed)).OrderBy(t => t.thingIDNumber).ToList();
                     var seed = QuerySeed(parsed);
-                    var afterCursor = matched;
+                    // Entity tracking (issue #358) follows every unfiltered
+                    // read: a full one primes the shadow and sweeps the
+                    // removed, a changed_since one lists only the changed.
+                    var tracking = Unfiltered(parsed) ? EntityTracking.For(map, ToolName + parsed.PlayerOnly + (parsed.Category ?? "")) : null;
+                    if (parsed.HasChangedSinceTick && EntityTracking.Expired(parsed.ChangedSinceTick))
+                        return ProtoBoundary.Encode(new Obs.ListBuildingsReply { Unavailable = Unavailable(Common.UnavailableReason.Stale, "changed_since_tick is older than the tombstone window; read in full.") });
+                    var snapshot = new Obs.BuildingsSnapshot { Context = context, AsOfTick = context.Tick, Unchanged = 0,
+                        NetworksCompleteness = new Obs.Completeness { Page = new Common.PageInfo { Complete = false } } };
+                    var rows = new Dictionary<string, Obs.BuildingState>();
+                    var listed = matched;
+                    if (parsed.HasChangedSinceTick)
+                    {
+                        listed = new List<Thing>();
+                        foreach (var thing in matched)
+                        {
+                            var row = Row(thing, context);
+                            if (tracking!.Note(row.Building.Id, row) >= parsed.ChangedSinceTick) { rows[row.Building.Id] = row; listed.Add(thing); }
+                            else snapshot.Unchanged++;
+                        }
+                    }
+                    if (tracking != null)
+                    {
+                        tracking.Sweep(new HashSet<string>(matched.Select(t => Id(t.GetUniqueLoadID()))));
+                        if (parsed.HasChangedSinceTick) snapshot.RemovedIds.AddRange(tracking.RemovedSince(parsed.ChangedSinceTick));
+                    }
+                    var afterCursor = listed;
                     if (parsed.Page != null && parsed.Page.HasCursor && parsed.Page.Cursor.Length != 0)
                     {
                         if (!NativeObservationSnapshot.Cursor.TryDecode(context.Identity, seed, parsed.Page.Cursor, out var after))
                             return ProtoBoundary.Encode(new Obs.ListBuildingsReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, "Building cursor is stale or does not match this query.") });
-                        afterCursor = matched.Where(t => string.CompareOrdinal(Id(t.GetUniqueLoadID()), after) > 0).ToList();
+                        afterCursor = listed.Where(t => string.CompareOrdinal(Id(t.GetUniqueLoadID()), after) > 0).ToList();
                     }
                     var page = afterCursor.Take(Limit(parsed)).ToList();
                     Require(page.Count <= 256, "Matched building collection exceeds page limit; narrow filters.");
                     var truncated = afterCursor.Count > page.Count;
-                    var snapshot = new Obs.BuildingsSnapshot { Context = context,
-                        Completeness = Complete(page.Count, source.Count - matched.Count),
-                        NetworksCompleteness = new Obs.Completeness { Page = new Common.PageInfo { Complete = false } } };
+                    snapshot.Completeness = Complete(page.Count, source.Count - matched.Count);
                     snapshot.Completeness.Page.Complete = !truncated;
                     if (truncated) snapshot.Completeness.Page.NextCursor = NativeObservationSnapshot.Cursor.Encode(context.Identity, seed, Id(page[page.Count-1].GetUniqueLoadID()));
                     var cells = 0;
                     foreach (var thing in page)
                     {
-                        var row = Project(thing);
-                        row.Snapshot = row.Construction != null
-                            ? NativeObservationSnapshot.Snapshot("building", context, row.Building.Id, w => {
-                                w.Write(row.Status??""); w.Write(row.HitPoints); w.Write(row.Burning);
-                                w.Write(row.Construction.PercentComplete); w.Write(row.Construction.ResourcesComplete);
-                            })
-                            : Token(thing, context);
-                        // Only the implemented PatchBuilding fields carry a
-                        // settings row with their own dedicated CAS snapshot:
-                        // target_temperature_c (NativeBuildingTemperature), a
-                        // humanlike bed's medical flag (NativeBedMedical) and a
-                        // plant grower's crop (NativeGrowerCrop). forbidden/
-                        // power/owner remain the "settings" unsupported issue below.
-                        var tempControl = thing.TryGetComp<CompTempControl>();
-                        if (tempControl != null)
-                            row.Settings = new Obs.BuildingSettings { Snapshot = NativeBuildingTemperature.Snapshot(thing, context), TargetTemperatureC = tempControl.targetTemperature };
-                        else if (NativeBedMedical.Eligible(thing))
-                            row.Settings = NativeBedMedical.Settings((Building_Bed)thing, context);
-                        else if (NativeGrowerCrop.Eligible(thing))
-                            row.Settings = NativeGrowerCrop.Settings((Building_PlantGrower)thing, context);
+                        var id = Id(thing.GetUniqueLoadID());
+                        if (!rows.TryGetValue(id, out var row)) { row = Row(thing, context); tracking?.Note(id, row); }
                         cells = checked(cells + row.OccupiedCells.Count);
                         Require(cells <= 4096, "Complete building geometry exceeds 4096 cells.");
                         snapshot.Buildings.Add(row);
@@ -84,6 +89,33 @@ namespace HomeBridge.BridgeTools
                 catch (ReadLimit errorLimit) { return ProtoBoundary.Encode(new Obs.ListBuildingsReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, errorLimit.Message) }); }
                 catch (Exception) { return ProtoBoundary.Encode(new Obs.ListBuildingsReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Building facts could not be read completely.") }); }
             }, cancellationToken).ConfigureAwait(false);
+        }
+
+        // Row is one listed building as the read emits it: the projection
+        // with its CAS snapshot and the settings row of the patchable kinds.
+        private static Obs.BuildingState Row(Thing thing, Common.ObservationContext context)
+        {
+            var row = Project(thing);
+            row.Snapshot = row.Construction != null
+                ? NativeObservationSnapshot.Snapshot("building", context, row.Building.Id, w => {
+                    w.Write(row.Status??""); w.Write(row.HitPoints); w.Write(row.Burning);
+                    w.Write(row.Construction.PercentComplete); w.Write(row.Construction.ResourcesComplete);
+                })
+                : Token(thing, context);
+            // Only the implemented PatchBuilding fields carry a
+            // settings row with their own dedicated CAS snapshot:
+            // target_temperature_c (NativeBuildingTemperature), a
+            // humanlike bed's medical flag (NativeBedMedical) and a
+            // plant grower's crop (NativeGrowerCrop). forbidden/
+            // power/owner remain the "settings" unsupported issue below.
+            var tempControl = thing.TryGetComp<CompTempControl>();
+            if (tempControl != null)
+                row.Settings = new Obs.BuildingSettings { Snapshot = NativeBuildingTemperature.Snapshot(thing, context), TargetTemperatureC = tempControl.targetTemperature };
+            else if (NativeBedMedical.Eligible(thing))
+                row.Settings = NativeBedMedical.Settings((Building_Bed)thing, context);
+            else if (NativeGrowerCrop.Eligible(thing))
+                row.Settings = NativeGrowerCrop.Settings((Building_PlantGrower)thing, context);
+            return row;
         }
 
         internal static bool Validate(Obs.ListBuildingsRequest request, out Common.Failure failure)
@@ -104,8 +136,19 @@ namespace HomeBridge.BridgeTools
                 failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Inspect strings and bill ingredient detail are not supported by this read adapter.");
                 return false;
             }
+            if (request.HasChangedSinceTick && (request.ChangedSinceTick < 0 || !Unfiltered(request)))
+            {
+                failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "changed_since_tick needs a non-negative tick and a read without ids, def_names, statuses, damaged_below_fraction or region.");
+                return false;
+            }
             return true;
         }
+
+        // Unfiltered is a read that enumerates every building of its category
+        // and faction, the only shape whose tracker can tell a removed
+        // building from a filtered one.
+        private static bool Unfiltered(Obs.ListBuildingsRequest request) => request.Ids.Count == 0 && request.DefNames.Count == 0
+            && request.Statuses.Count == 0 && !request.HasDamagedBelowFraction && request.Region == null;
 
         // Match the existing listing's native coverage without its aggregation,
         // safe-read defaults, fuzzy name matching or detailed-row truncation.

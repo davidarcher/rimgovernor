@@ -531,6 +531,35 @@ facts, so onset lags one step) rooms get `MaxAge` 0 and are read every
 review. What a policy decides is unchanged: it sees the same decoded
 values, at most one cadence older.
 
+The entity list reads follow the same pattern per row (#358). Every
+`list_zones`, `list_buildings` and `read_bills` reply stamps `as_of_tick`
+(the context tick) and an unfiltered read (no ids, name, region, status,
+damage or `bench_id` filter) may ask `changed_since_tick`: the native
+keeps a per-map, per-query-shape shadow (`EntityTracking.cs`) of each
+row's digest (FNV-1a over the row bytes with every CAS snapshot's context
+stripped) and last-changed tick, compared at read time rather than hooked,
+so a changed row is one whose projection differs and the delta costs the
+same projection a full read does while sending only the changed rows;
+the rest are counted in `unchanged`, and the ids swept out since the ask
+come back in `removed_ids`. Tombstones live 2500 ticks
+(`bridge.EntityTombstoneWindow`); an ask older than that is refused
+`Unavailable STALE` (`bridge.ErrDeltaExpired`) and the reader falls back
+to a full read. The store holds `zones`, `buildings` and `bills` as
+incremental sections keyed by id (`buildingruntime.EntitySection`):
+`refreshEntitySections` runs in the clock step after the planning window
+and, for each section, reads in full when nothing is held or the scope
+moved, skips a fresh section, and otherwise asks a delta since
+`held.AsOf` and merges it (`bridge.MergeEntities`: listed rows replace,
+`removed_ids` delete) so an `ObservationInvalidated` for the colony
+family costs a delta, not a full read; every eighth refresh
+(`entitySectionsResyncEvery`) and after `RequestResync` a full read
+beside the merge counts the differing rows as `[facts] <section> resync
+drift=<n>` (event `<section>_resync`) and replaces the merge. Research
+stays bundle-borne (its rows are defs with continuous progress, not
+entities that come and go) and areas and designations have no list read
+to page, so neither carries the fields. `entities/changed-since` proves
+add, change, remove, tombstone, expiry and the fallback natively.
+
 ## Independent clock workers
 
 `ClockWorker` runs event polling, renewal and scheduling separately. Scheduling waits

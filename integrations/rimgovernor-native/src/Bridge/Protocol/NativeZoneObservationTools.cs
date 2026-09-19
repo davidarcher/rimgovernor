@@ -24,7 +24,7 @@ namespace HomeBridge.BridgeTools
         // one zone by exact id, well under this limit.
         private const int MaxPage = 16;
 
-        [Tool(ToolName, Title = "Read typed zones", Description = "Read exact zone identity, type, bounds and per-zone CAS snapshot tokens. Cells are included only when requested. No filter contents, stored resources, anomalies or crop-plant counts yet.")]
+        [Tool(ToolName, Title = "Read typed zones", Description = "Read exact zone identity, type, bounds and per-zone CAS snapshot tokens. Cells are included only when requested. No filter contents, stored resources, anomalies or crop-plant counts yet. changed_since_tick (unfiltered reads only) lists the zones whose row changed at or after that tick, counts the rest in unchanged and names the zones removed since in removed_ids; an ask older than 2500 ticks is STALE and needs a full read. as_of_tick is always the context tick.")]
         [ToolResponse("payload", "string", "Official ProtoJSON ListZonesReply. Unavailable replaces oversized collections; unsupported facts are explicit.", Always = true)]
         public async Task<object> ListZones(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official ProtoJSON ListZonesRequest string in raw transport value.")] object? request = null)
@@ -39,20 +39,49 @@ namespace HomeBridge.BridgeTools
                     var source = map.zoneManager.AllZones.Where(z => z != null && z.Cells.Count != 0).ToList();
                     var matched = source.Where(z => Matches(z, parsed)).OrderBy(z => z.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
                     var seed = QuerySeed(parsed);
-                    var afterCursor = matched;
+                    // Entity tracking (issue #358) follows every unfiltered
+                    // read: a full one primes the shadow and sweeps the
+                    // removed, a changed_since one lists only the changed.
+                    var tracking = Unfiltered(parsed) ? EntityTracking.For(map, ToolName + parsed.IncludeCells + parsed.IncludeContents + parsed.IncludeFilter) : null;
+                    if (parsed.HasChangedSinceTick && EntityTracking.Expired(parsed.ChangedSinceTick))
+                        return ProtoBoundary.Encode(new Obs.ListZonesReply { Unavailable = Unavailable(Common.UnavailableReason.Stale, "changed_since_tick is older than the tombstone window; read in full.") });
+                    var rows = new Dictionary<string, Obs.ZoneState>();
+                    var listed = matched;
+                    var snapshot = new Obs.ZonesSnapshot { Context = context, AsOfTick = context.Tick, Unchanged = 0 };
+                    if (parsed.HasChangedSinceTick)
+                    {
+                        listed = new List<Zone>();
+                        foreach (var zone in matched)
+                        {
+                            var row = Project(zone, map, context, parsed);
+                            if (tracking!.Note(row.Id, row) >= parsed.ChangedSinceTick) { rows[row.Id] = row; listed.Add(zone); }
+                            else snapshot.Unchanged++;
+                        }
+                    }
+                    if (tracking != null)
+                    {
+                        tracking.Sweep(new HashSet<string>(matched.Select(z => Id(z.GetUniqueLoadID()))));
+                        if (parsed.HasChangedSinceTick) snapshot.RemovedIds.AddRange(tracking.RemovedSince(parsed.ChangedSinceTick));
+                    }
+                    var afterCursor = listed;
                     if (parsed.Page != null && parsed.Page.HasCursor && parsed.Page.Cursor.Length != 0)
                     {
                         if (!NativeObservationSnapshot.Cursor.TryDecode(context.Identity, seed, parsed.Page.Cursor, out var after))
                             return ProtoBoundary.Encode(new Obs.ListZonesReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, "Zone cursor is stale or does not match this query.") });
-                        afterCursor = matched.Where(z => string.CompareOrdinal(Id(z.GetUniqueLoadID()), after) > 0).ToList();
+                        afterCursor = listed.Where(z => string.CompareOrdinal(Id(z.GetUniqueLoadID()), after) > 0).ToList();
                     }
                     var page = afterCursor.Take(Limit(parsed)).ToList();
                     Require(page.Count <= MaxPage, "Matched zone collection exceeds page limit; narrow filters.");
                     var truncated = afterCursor.Count > page.Count;
-                    var snapshot = new Obs.ZonesSnapshot { Context = context, Completeness = Complete(page.Count, source.Count - matched.Count) };
+                    snapshot.Completeness = Complete(page.Count, source.Count - matched.Count);
                     snapshot.Completeness.Page.Complete = !truncated;
                     if (truncated) snapshot.Completeness.Page.NextCursor = NativeObservationSnapshot.Cursor.Encode(context.Identity, seed, Id(page[page.Count-1].GetUniqueLoadID()));
-                    foreach (var zone in page) snapshot.Zones.Add(Project(zone, map, context, parsed));
+                    foreach (var zone in page)
+                    {
+                        var id = Id(zone.GetUniqueLoadID());
+                        if (!rows.TryGetValue(id, out var row)) { row = Project(zone, map, context, parsed); tracking?.Note(id, row); }
+                        snapshot.Zones.Add(row);
+                    }
                     return Encode(new Obs.ListZonesReply { Observed = snapshot });
                 }
                 catch (ReadLimit errorLimit) { return ProtoBoundary.Encode(new Obs.ListZonesReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, errorLimit.Message) }); }
@@ -71,8 +100,17 @@ namespace HomeBridge.BridgeTools
             if (request.HasNameContains && (request.NameContains.Length == 0 || request.NameContains.Length > 256)) return false;
             if (request.Region != null && (!CellPresent(request.Region.Minimum) || !CellPresent(request.Region.Maximum)
                 || request.Region.Minimum.X > request.Region.Maximum.X || request.Region.Minimum.Z > request.Region.Maximum.Z)) return false;
+            if (request.HasChangedSinceTick && (request.ChangedSinceTick < 0 || !Unfiltered(request)))
+            {
+                failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "changed_since_tick needs a non-negative tick and a read without ids, name_contains or region.");
+                return false;
+            }
             return true;
         }
+
+        // Unfiltered is a read that enumerates every zone on the map, the
+        // only shape whose tracker can tell a removed zone from a filtered one.
+        private static bool Unfiltered(Obs.ListZonesRequest request) => request.Ids.Count == 0 && !request.HasNameContains && request.Region == null;
 
         private static bool Matches(Zone zone, Obs.ListZonesRequest request)
         {

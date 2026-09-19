@@ -89,17 +89,17 @@ func TestStoreInvalidate(t *testing.T) {
 		Put(s, scope, section, Held[string]{Value: string(section), AsOf: 10, Complete: true})
 	}
 	s.InvalidateFamily(bridge.FactColony)
-	for _, section := range []Section{Colony, Zones, Buildings} {
-		if _, ok := Get[string](s, section); ok {
-			t.Fatalf("%s survived its family's invalidation", section)
+	if _, ok := Get[string](s, Colony); ok {
+		t.Fatal("colony survived its family's invalidation")
+	}
+	// An incremental section is kept and marked stale (#357, #358): its
+	// next refresh is a delta over the held value, not a full read.
+	for _, section := range []Section{PlanningCells, Zones, Buildings, Bills} {
+		if held, ok := Get[string](s, section); !ok || held.AsOf != 10 || s.Fresh(section, 10) || !held.Stale.All {
+			t.Fatalf("%s = %+v ok=%v fresh=%v", section, held, ok, s.Fresh(section, 10))
 		}
 	}
-	// An incremental section is kept and marked stale (#357): its next
-	// refresh is a delta over the held value, not a full read.
-	if held, ok := Get[string](s, PlanningCells); !ok || held.AsOf != 10 || s.Fresh(PlanningCells, 10) {
-		t.Fatalf("planning_cells = %+v ok=%v fresh=%v", held, ok, s.Fresh(PlanningCells, 10))
-	}
-	if status := s.Status(); len(status) != 6 || status[0].Section != PlanningCells || !status[0].Stale.All {
+	if status := s.Status(); len(status) != 9 || status[0].Section != PlanningCells || !status[0].Stale.All {
 		t.Fatalf("status = %+v", status)
 	}
 	for _, section := range []Section{Population, Research, Pawns, Emergency, Rooms} {
@@ -112,7 +112,7 @@ func TestStoreInvalidate(t *testing.T) {
 		t.Fatal("research survived Invalidate")
 	}
 	s.InvalidateAll()
-	if s.Len() != 1 || s.Scope() != scope {
+	if s.Len() != 4 || s.Scope() != scope {
 		t.Fatalf("after InvalidateAll len=%d scope=%+v", s.Len(), s.Scope())
 	}
 	// A put clears the stale mark; a scope change drops the section.

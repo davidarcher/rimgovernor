@@ -7755,6 +7755,9 @@ type BuildingsSnapshot struct {
 	PowerNetworks        []*PowerNetwork              `protobuf:"bytes,3,rep,name=power_networks,json=powerNetworks,proto3" json:"power_networks,omitempty"`
 	Completeness         *Completeness                `protobuf:"bytes,4,opt,name=completeness,proto3" json:"completeness,omitempty"`
 	NetworksCompleteness *Completeness                `protobuf:"bytes,5,opt,name=networks_completeness,json=networksCompleteness,proto3" json:"networks_completeness,omitempty"`
+	RemovedIds           []string                     `protobuf:"bytes,6,rep,name=removed_ids,json=removedIds,proto3" json:"removed_ids,omitempty"`
+	Unchanged            *uint32                      `protobuf:"varint,7,opt,name=unchanged,proto3,oneof" json:"unchanged,omitempty"`
+	AsOfTick             *int64                       `protobuf:"varint,8,opt,name=as_of_tick,json=asOfTick,proto3,oneof" json:"as_of_tick,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -7824,6 +7827,27 @@ func (x *BuildingsSnapshot) GetNetworksCompleteness() *Completeness {
 	return nil
 }
 
+func (x *BuildingsSnapshot) GetRemovedIds() []string {
+	if x != nil {
+		return x.RemovedIds
+	}
+	return nil
+}
+
+func (x *BuildingsSnapshot) GetUnchanged() uint32 {
+	if x != nil && x.Unchanged != nil {
+		return *x.Unchanged
+	}
+	return 0
+}
+
+func (x *BuildingsSnapshot) GetAsOfTick() int64 {
+	if x != nil && x.AsOfTick != nil {
+		return *x.AsOfTick
+	}
+	return 0
+}
+
 type ListBuildingsRequest struct {
 	state                protoimpl.MessageState `protogen:"open.v1"`
 	Scope                *ReadScope             `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
@@ -7837,6 +7861,7 @@ type ListBuildingsRequest struct {
 	Inspect              *bool                  `protobuf:"varint,9,opt,name=inspect,proto3,oneof" json:"inspect,omitempty"`
 	BillIngredients      *bool                  `protobuf:"varint,10,opt,name=bill_ingredients,json=billIngredients,proto3,oneof" json:"bill_ingredients,omitempty"`
 	Page                 *commonpb.PageRequest  `protobuf:"bytes,11,opt,name=page,proto3" json:"page,omitempty"`
+	ChangedSinceTick     *int64                 `protobuf:"varint,12,opt,name=changed_since_tick,json=changedSinceTick,proto3,oneof" json:"changed_since_tick,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -7946,6 +7971,13 @@ func (x *ListBuildingsRequest) GetPage() *commonpb.PageRequest {
 		return x.Page
 	}
 	return nil
+}
+
+func (x *ListBuildingsRequest) GetChangedSinceTick() int64 {
+	if x != nil && x.ChangedSinceTick != nil {
+		return *x.ChangedSinceTick
+	}
+	return 0
 }
 
 type ListBuildingsReply struct {
@@ -9077,6 +9109,9 @@ type ZonesSnapshot struct {
 	Context       *commonpb.ObservationContext `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
 	Zones         []*ZoneState                 `protobuf:"bytes,2,rep,name=zones,proto3" json:"zones,omitempty"`
 	Completeness  *Completeness                `protobuf:"bytes,3,opt,name=completeness,proto3" json:"completeness,omitempty"`
+	RemovedIds    []string                     `protobuf:"bytes,4,rep,name=removed_ids,json=removedIds,proto3" json:"removed_ids,omitempty"`
+	Unchanged     *uint32                      `protobuf:"varint,5,opt,name=unchanged,proto3,oneof" json:"unchanged,omitempty"`
+	AsOfTick      *int64                       `protobuf:"varint,6,opt,name=as_of_tick,json=asOfTick,proto3,oneof" json:"as_of_tick,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -9132,18 +9167,40 @@ func (x *ZonesSnapshot) GetCompleteness() *Completeness {
 	return nil
 }
 
+func (x *ZonesSnapshot) GetRemovedIds() []string {
+	if x != nil {
+		return x.RemovedIds
+	}
+	return nil
+}
+
+func (x *ZonesSnapshot) GetUnchanged() uint32 {
+	if x != nil && x.Unchanged != nil {
+		return *x.Unchanged
+	}
+	return 0
+}
+
+func (x *ZonesSnapshot) GetAsOfTick() int64 {
+	if x != nil && x.AsOfTick != nil {
+		return *x.AsOfTick
+	}
+	return 0
+}
+
 type ListZonesRequest struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	Scope           *ReadScope             `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
-	Ids             []string               `protobuf:"bytes,2,rep,name=ids,proto3" json:"ids,omitempty"`
-	NameContains    *string                `protobuf:"bytes,3,opt,name=name_contains,json=nameContains,proto3,oneof" json:"name_contains,omitempty"`
-	Region          *Rectangle             `protobuf:"bytes,4,opt,name=region,proto3" json:"region,omitempty"`
-	IncludeCells    *bool                  `protobuf:"varint,5,opt,name=include_cells,json=includeCells,proto3,oneof" json:"include_cells,omitempty"`
-	IncludeContents *bool                  `protobuf:"varint,6,opt,name=include_contents,json=includeContents,proto3,oneof" json:"include_contents,omitempty"`
-	IncludeFilter   *bool                  `protobuf:"varint,7,opt,name=include_filter,json=includeFilter,proto3,oneof" json:"include_filter,omitempty"`
-	Page            *commonpb.PageRequest  `protobuf:"bytes,8,opt,name=page,proto3" json:"page,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Scope            *ReadScope             `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	Ids              []string               `protobuf:"bytes,2,rep,name=ids,proto3" json:"ids,omitempty"`
+	NameContains     *string                `protobuf:"bytes,3,opt,name=name_contains,json=nameContains,proto3,oneof" json:"name_contains,omitempty"`
+	Region           *Rectangle             `protobuf:"bytes,4,opt,name=region,proto3" json:"region,omitempty"`
+	IncludeCells     *bool                  `protobuf:"varint,5,opt,name=include_cells,json=includeCells,proto3,oneof" json:"include_cells,omitempty"`
+	IncludeContents  *bool                  `protobuf:"varint,6,opt,name=include_contents,json=includeContents,proto3,oneof" json:"include_contents,omitempty"`
+	IncludeFilter    *bool                  `protobuf:"varint,7,opt,name=include_filter,json=includeFilter,proto3,oneof" json:"include_filter,omitempty"`
+	Page             *commonpb.PageRequest  `protobuf:"bytes,8,opt,name=page,proto3" json:"page,omitempty"`
+	ChangedSinceTick *int64                 `protobuf:"varint,9,opt,name=changed_since_tick,json=changedSinceTick,proto3,oneof" json:"changed_since_tick,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *ListZonesRequest) Reset() {
@@ -9230,6 +9287,13 @@ func (x *ListZonesRequest) GetPage() *commonpb.PageRequest {
 		return x.Page
 	}
 	return nil
+}
+
+func (x *ListZonesRequest) GetChangedSinceTick() int64 {
+	if x != nil && x.ChangedSinceTick != nil {
+		return *x.ChangedSinceTick
+	}
+	return 0
 }
 
 type ListZonesReply struct {
@@ -17294,6 +17358,9 @@ type BillsSnapshot struct {
 	Context       *commonpb.ObservationContext `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
 	Benches       []*BillStack                 `protobuf:"bytes,2,rep,name=benches,proto3" json:"benches,omitempty"`
 	Completeness  *Completeness                `protobuf:"bytes,3,opt,name=completeness,proto3" json:"completeness,omitempty"`
+	RemovedIds    []string                     `protobuf:"bytes,4,rep,name=removed_ids,json=removedIds,proto3" json:"removed_ids,omitempty"`
+	Unchanged     *uint32                      `protobuf:"varint,5,opt,name=unchanged,proto3,oneof" json:"unchanged,omitempty"`
+	AsOfTick      *int64                       `protobuf:"varint,6,opt,name=as_of_tick,json=asOfTick,proto3,oneof" json:"as_of_tick,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -17349,14 +17416,36 @@ func (x *BillsSnapshot) GetCompleteness() *Completeness {
 	return nil
 }
 
+func (x *BillsSnapshot) GetRemovedIds() []string {
+	if x != nil {
+		return x.RemovedIds
+	}
+	return nil
+}
+
+func (x *BillsSnapshot) GetUnchanged() uint32 {
+	if x != nil && x.Unchanged != nil {
+		return *x.Unchanged
+	}
+	return 0
+}
+
+func (x *BillsSnapshot) GetAsOfTick() int64 {
+	if x != nil && x.AsOfTick != nil {
+		return *x.AsOfTick
+	}
+	return 0
+}
+
 type BillsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scope         *ReadScope             `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
-	BenchId       *string                `protobuf:"bytes,2,opt,name=bench_id,json=benchId,proto3,oneof" json:"bench_id,omitempty"`
-	AllFactions   *bool                  `protobuf:"varint,3,opt,name=all_factions,json=allFactions,proto3,oneof" json:"all_factions,omitempty"`
-	Page          *commonpb.PageRequest  `protobuf:"bytes,4,opt,name=page,proto3" json:"page,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Scope            *ReadScope             `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	BenchId          *string                `protobuf:"bytes,2,opt,name=bench_id,json=benchId,proto3,oneof" json:"bench_id,omitempty"`
+	AllFactions      *bool                  `protobuf:"varint,3,opt,name=all_factions,json=allFactions,proto3,oneof" json:"all_factions,omitempty"`
+	Page             *commonpb.PageRequest  `protobuf:"bytes,4,opt,name=page,proto3" json:"page,omitempty"`
+	ChangedSinceTick *int64                 `protobuf:"varint,5,opt,name=changed_since_tick,json=changedSinceTick,proto3,oneof" json:"changed_since_tick,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *BillsRequest) Reset() {
@@ -17415,6 +17504,13 @@ func (x *BillsRequest) GetPage() *commonpb.PageRequest {
 		return x.Page
 	}
 	return nil
+}
+
+func (x *BillsRequest) GetChangedSinceTick() int64 {
+	if x != nil && x.ChangedSinceTick != nil {
+		return *x.ChangedSinceTick
+	}
+	return 0
 }
 
 type BillsReply struct {
@@ -33704,13 +33800,21 @@ const file_observations_proto_rawDesc = "" +
 	"\x11_stored_watt_daysB\x15\n" +
 	"\x13_capacity_watt_daysB\r\n" +
 	"\v_has_sourceB\x14\n" +
-	"\x12_has_active_source\"\xa3\x03\n" +
+	"\x12_has_active_source\"\xa7\x04\n" +
 	"\x11BuildingsSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12H\n" +
 	"\tbuildings\x18\x02 \x03(\v2*.rimgovernor.observations.v1.BuildingStateR\tbuildings\x12P\n" +
 	"\x0epower_networks\x18\x03 \x03(\v2).rimgovernor.observations.v1.PowerNetworkR\rpowerNetworks\x12M\n" +
 	"\fcompleteness\x18\x04 \x01(\v2).rimgovernor.observations.v1.CompletenessR\fcompleteness\x12^\n" +
-	"\x15networks_completeness\x18\x05 \x01(\v2).rimgovernor.observations.v1.CompletenessR\x14networksCompleteness\"\xc1\x04\n" +
+	"\x15networks_completeness\x18\x05 \x01(\v2).rimgovernor.observations.v1.CompletenessR\x14networksCompleteness\x12\x1f\n" +
+	"\vremoved_ids\x18\x06 \x03(\tR\n" +
+	"removedIds\x12!\n" +
+	"\tunchanged\x18\a \x01(\rH\x00R\tunchanged\x88\x01\x01\x12!\n" +
+	"\n" +
+	"as_of_tick\x18\b \x01(\x03H\x01R\basOfTick\x88\x01\x01B\f\n" +
+	"\n" +
+	"_unchangedB\r\n" +
+	"\v_as_of_tick\"\x8b\x05\n" +
 	"\x14ListBuildingsRequest\x12<\n" +
 	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\x12\x10\n" +
 	"\x03ids\x18\x02 \x03(\tR\x03ids\x12\x1b\n" +
@@ -33724,13 +33828,15 @@ const file_observations_proto_rawDesc = "" +
 	"\ainspect\x18\t \x01(\bH\x03R\ainspect\x88\x01\x01\x12.\n" +
 	"\x10bill_ingredients\x18\n" +
 	" \x01(\bH\x04R\x0fbillIngredients\x88\x01\x01\x126\n" +
-	"\x04page\x18\v \x01(\v2\".rimgovernor.common.v1.PageRequestR\x04pageB\v\n" +
+	"\x04page\x18\v \x01(\v2\".rimgovernor.common.v1.PageRequestR\x04page\x121\n" +
+	"\x12changed_since_tick\x18\f \x01(\x03H\x05R\x10changedSinceTick\x88\x01\x01B\v\n" +
 	"\t_categoryB\x0e\n" +
 	"\f_player_onlyB\x19\n" +
 	"\x17_damaged_below_fractionB\n" +
 	"\n" +
 	"\b_inspectB\x13\n" +
-	"\x11_bill_ingredients\"\xf1\x01\n" +
+	"\x11_bill_ingredientsB\x15\n" +
+	"\x13_changed_since_tick\"\xf1\x01\n" +
 	"\x12ListBuildingsReply\x12L\n" +
 	"\bobserved\x18\x01 \x01(\v2..rimgovernor.observations.v1.BuildingsSnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
@@ -33886,11 +33992,19 @@ const file_observations_proto_rawDesc = "" +
 	"\x0e_blocked_cellsB\x13\n" +
 	"\x11_impassable_cellsB\x1e\n" +
 	"\x1c_crop_plants_in_listed_cellsB\x1c\n" +
-	"\x1a_crop_plants_in_grid_cells\"\xe1\x01\n" +
+	"\x1a_crop_plants_in_grid_cells\"\xe5\x02\n" +
 	"\rZonesSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12<\n" +
 	"\x05zones\x18\x02 \x03(\v2&.rimgovernor.observations.v1.ZoneStateR\x05zones\x12M\n" +
-	"\fcompleteness\x18\x03 \x01(\v2).rimgovernor.observations.v1.CompletenessR\fcompleteness\"\xd6\x03\n" +
+	"\fcompleteness\x18\x03 \x01(\v2).rimgovernor.observations.v1.CompletenessR\fcompleteness\x12\x1f\n" +
+	"\vremoved_ids\x18\x04 \x03(\tR\n" +
+	"removedIds\x12!\n" +
+	"\tunchanged\x18\x05 \x01(\rH\x00R\tunchanged\x88\x01\x01\x12!\n" +
+	"\n" +
+	"as_of_tick\x18\x06 \x01(\x03H\x01R\basOfTick\x88\x01\x01B\f\n" +
+	"\n" +
+	"_unchangedB\r\n" +
+	"\v_as_of_tick\"\xa0\x04\n" +
 	"\x10ListZonesRequest\x12<\n" +
 	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\x12\x10\n" +
 	"\x03ids\x18\x02 \x03(\tR\x03ids\x12(\n" +
@@ -33899,11 +34013,13 @@ const file_observations_proto_rawDesc = "" +
 	"\rinclude_cells\x18\x05 \x01(\bH\x01R\fincludeCells\x88\x01\x01\x12.\n" +
 	"\x10include_contents\x18\x06 \x01(\bH\x02R\x0fincludeContents\x88\x01\x01\x12*\n" +
 	"\x0einclude_filter\x18\a \x01(\bH\x03R\rincludeFilter\x88\x01\x01\x126\n" +
-	"\x04page\x18\b \x01(\v2\".rimgovernor.common.v1.PageRequestR\x04pageB\x10\n" +
+	"\x04page\x18\b \x01(\v2\".rimgovernor.common.v1.PageRequestR\x04page\x121\n" +
+	"\x12changed_since_tick\x18\t \x01(\x03H\x04R\x10changedSinceTick\x88\x01\x01B\x10\n" +
 	"\x0e_name_containsB\x10\n" +
 	"\x0e_include_cellsB\x13\n" +
 	"\x11_include_contentsB\x11\n" +
-	"\x0f_include_filter\"\xe9\x01\n" +
+	"\x0f_include_filterB\x15\n" +
+	"\x13_changed_since_tick\"\xe9\x01\n" +
 	"\x0eListZonesReply\x12H\n" +
 	"\bobserved\x18\x01 \x01(\v2*.rimgovernor.observations.v1.ZonesSnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
@@ -34931,18 +35047,28 @@ const file_observations_proto_rawDesc = "" +
 	"\bobserved\x18\x01 \x01(\v25.rimgovernor.observations.v1.WorldProgressionSnapshotH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailable\x12:\n" +
 	"\afailure\x18\x03 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome\"\xe5\x01\n" +
+	"\aoutcome\"\xe9\x02\n" +
 	"\rBillsSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12@\n" +
 	"\abenches\x18\x02 \x03(\v2&.rimgovernor.observations.v1.BillStackR\abenches\x12M\n" +
-	"\fcompleteness\x18\x03 \x01(\v2).rimgovernor.observations.v1.CompletenessR\fcompleteness\"\xea\x01\n" +
+	"\fcompleteness\x18\x03 \x01(\v2).rimgovernor.observations.v1.CompletenessR\fcompleteness\x12\x1f\n" +
+	"\vremoved_ids\x18\x04 \x03(\tR\n" +
+	"removedIds\x12!\n" +
+	"\tunchanged\x18\x05 \x01(\rH\x00R\tunchanged\x88\x01\x01\x12!\n" +
+	"\n" +
+	"as_of_tick\x18\x06 \x01(\x03H\x01R\basOfTick\x88\x01\x01B\f\n" +
+	"\n" +
+	"_unchangedB\r\n" +
+	"\v_as_of_tick\"\xb4\x02\n" +
 	"\fBillsRequest\x12<\n" +
 	"\x05scope\x18\x01 \x01(\v2&.rimgovernor.observations.v1.ReadScopeR\x05scope\x12\x1e\n" +
 	"\bbench_id\x18\x02 \x01(\tH\x00R\abenchId\x88\x01\x01\x12&\n" +
 	"\fall_factions\x18\x03 \x01(\bH\x01R\vallFactions\x88\x01\x01\x126\n" +
-	"\x04page\x18\x04 \x01(\v2\".rimgovernor.common.v1.PageRequestR\x04pageB\v\n" +
+	"\x04page\x18\x04 \x01(\v2\".rimgovernor.common.v1.PageRequestR\x04page\x121\n" +
+	"\x12changed_since_tick\x18\x05 \x01(\x03H\x02R\x10changedSinceTick\x88\x01\x01B\v\n" +
 	"\t_bench_idB\x0f\n" +
-	"\r_all_factions\"\xe5\x01\n" +
+	"\r_all_factionsB\x15\n" +
+	"\x13_changed_since_tick\"\xe5\x01\n" +
 	"\n" +
 	"BillsReply\x12H\n" +
 	"\bobserved\x18\x01 \x01(\v2*.rimgovernor.observations.v1.BillsSnapshotH\x00R\bobserved\x12F\n" +
@@ -38389,6 +38515,7 @@ func file_observations_proto_init() {
 	file_observations_proto_msgTypes[72].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[73].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[74].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[75].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[76].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[77].OneofWrappers = []any{
 		(*ListBuildingsReply_Observed)(nil),
@@ -38406,6 +38533,7 @@ func file_observations_proto_init() {
 	}
 	file_observations_proto_msgTypes[85].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[86].OneofWrappers = []any{}
+	file_observations_proto_msgTypes[87].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[88].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[89].OneofWrappers = []any{
 		(*ListZonesReply_Observed)(nil),
@@ -38542,6 +38670,7 @@ func file_observations_proto_init() {
 		(*WorldProgressionReply_Unavailable)(nil),
 		(*WorldProgressionReply_Failure)(nil),
 	}
+	file_observations_proto_msgTypes[177].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[178].OneofWrappers = []any{}
 	file_observations_proto_msgTypes[179].OneofWrappers = []any{
 		(*BillsReply_Observed)(nil),

@@ -30,18 +30,19 @@ const (
 	Rooms         Section = "rooms"
 	Zones         Section = "zones"
 	Buildings     Section = "buildings"
+	Bills         Section = "bills"
 )
 
 // Sections lists every section in report order.
 func Sections() []Section {
-	return []Section{Colony, PlanningCells, Population, Research, Pawns, Emergency, Rooms, Zones, Buildings}
+	return []Section{Colony, PlanningCells, Population, Research, Pawns, Emergency, Rooms, Zones, Buildings, Bills}
 }
 
 // Family is the bridge fact family whose tick tolerance and invalidation
 // the section follows.
 func (s Section) Family() bridge.FactFamily {
 	switch s {
-	case Colony, PlanningCells, Zones, Buildings:
+	case Colony, PlanningCells, Zones, Buildings, Bills:
 		return bridge.FactColony
 	case Population, Pawns:
 		return bridge.FactPawns
@@ -75,11 +76,16 @@ func (s Section) TickTolerance() int64 {
 func (s Section) Cells() bool { return s == PlanningCells }
 
 // Incremental reports a section whose next read can be a delta over the
-// value held (planning_cells, #357): an invalidation marks such a section
-// stale rather than dropping it, so the refresher asks the native for the
-// cells changed since the held as-of tick instead of the whole window.
+// value held (planning_cells, #357; zones, buildings and bills, #358): an
+// invalidation marks such a section stale rather than dropping it, so the
+// refresher asks the native for the cells or entities changed since the
+// held as-of tick instead of the whole section.
 func (s Section) Incremental() bool {
-	return s == PlanningCells
+	switch s {
+	case PlanningCells, Zones, Buildings, Bills:
+		return true
+	}
+	return false
 }
 
 // Rect is inclusive cell bounds. The zero Rect is "unknown", which

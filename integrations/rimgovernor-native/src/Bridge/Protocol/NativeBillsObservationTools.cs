@@ -27,7 +27,7 @@ namespace HomeBridge.BridgeTools
         internal const string RecipesToolName = "rimgovernor/observations_read_recipes";
         private const int MaxRows = 256;
 
-        [Tool(BillsToolName, Title = "Read typed bill census", Description = "Complete bounded bill stacks of every spawned bench (IBillGiver building) on the current map, with the CAS snapshot token AddBill checks. Defaults to player benches; no bill changes.")]
+        [Tool(BillsToolName, Title = "Read typed bill census", Description = "Complete bounded bill stacks of every spawned bench (IBillGiver building) on the current map, with the CAS snapshot token AddBill checks. Defaults to player benches; no bill changes. changed_since_tick (reads without bench_id) lists the benches whose stack changed at or after that tick, counts the rest in unchanged and names the benches removed since in removed_ids; an ask older than 2500 ticks is STALE and needs a full read. as_of_tick is always the context tick.")]
         [ToolResponse("payload", "string", "Official ProtoJSON BillsReply.", Always = true)]
         public async Task<object> ReadBills(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official ProtoJSON BillsRequest string in raw transport value.")] object? request = null)
@@ -44,22 +44,50 @@ namespace HomeBridge.BridgeTools
                     var benches = Benches(map, parsed.AllFactions);
                     if (parsed.HasBenchId) benches = benches.Where(b => b.GetUniqueLoadID() == parsed.BenchId).ToList();
                     var seed = "bills" + parsed.AllFactions + (parsed.HasBenchId ? parsed.BenchId : "");
-                    var afterCursor = benches;
+                    // Entity tracking (issue #358) follows every read of all
+                    // benches: a full one primes the shadow and sweeps the
+                    // removed, a changed_since one lists only the changed.
+                    var tracking = parsed.HasBenchId ? null : EntityTracking.For(map, BillsToolName + parsed.AllFactions);
+                    if (parsed.HasChangedSinceTick && EntityTracking.Expired(parsed.ChangedSinceTick))
+                        return ProtoBoundary.Encode(new Obs.BillsReply { Unavailable = Unavailable(Common.UnavailableReason.Stale, "changed_since_tick is older than the tombstone window; read in full.") });
+                    var snapshot = new Obs.BillsSnapshot { Context = context, AsOfTick = context.Tick, Unchanged = 0 };
+                    var rows = new Dictionary<string, Obs.BillStack>();
+                    var listed = benches;
+                    if (parsed.HasChangedSinceTick)
+                    {
+                        listed = new List<Thing>();
+                        foreach (var bench in benches)
+                        {
+                            var row = Stack(bench, map, context);
+                            if (tracking!.Note(bench.GetUniqueLoadID(), row) >= parsed.ChangedSinceTick) { rows[bench.GetUniqueLoadID()] = row; listed.Add(bench); }
+                            else snapshot.Unchanged++;
+                        }
+                    }
+                    if (tracking != null)
+                    {
+                        tracking.Sweep(new HashSet<string>(benches.Select(b => b.GetUniqueLoadID())));
+                        if (parsed.HasChangedSinceTick) snapshot.RemovedIds.AddRange(tracking.RemovedSince(parsed.ChangedSinceTick));
+                    }
+                    var afterCursor = listed;
                     if (parsed.Page != null && parsed.Page.HasCursor && parsed.Page.Cursor.Length != 0)
                     {
                         if (!NativeObservationSnapshot.Cursor.TryDecode(context.Identity, seed, parsed.Page.Cursor, out var after))
                             return ProtoBoundary.Encode(new Obs.BillsReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, "Bills cursor is stale or does not match this query.") });
-                        afterCursor = benches.Where(b => string.CompareOrdinal(b.GetUniqueLoadID(), after) > 0).ToList();
+                        afterCursor = listed.Where(b => string.CompareOrdinal(b.GetUniqueLoadID(), after) > 0).ToList();
                     }
                     var limit = parsed.Page?.HasLimit == true ? (int)parsed.Page.Limit : MaxRows;
                     var page = afterCursor.Take(limit).ToList();
                     var truncated = afterCursor.Count > page.Count;
                     var completeness = Complete(page.Count);
-                    completeness.Matched = (ulong)benches.Count;
+                    completeness.Matched = (ulong)listed.Count;
                     completeness.Page.Complete = !truncated;
                     if (truncated) completeness.Page.NextCursor = NativeObservationSnapshot.Cursor.Encode(context.Identity, seed, page[page.Count - 1].GetUniqueLoadID());
-                    var snapshot = new Obs.BillsSnapshot { Context = context, Completeness = completeness };
-                    foreach (var bench in page) snapshot.Benches.Add(Stack(bench, map, context));
+                    snapshot.Completeness = completeness;
+                    foreach (var bench in page)
+                    {
+                        if (!rows.TryGetValue(bench.GetUniqueLoadID(), out var row)) { row = Stack(bench, map, context); tracking?.Note(bench.GetUniqueLoadID(), row); }
+                        snapshot.Benches.Add(row);
+                    }
                     return Encode(new Obs.BillsReply { Observed = snapshot });
                 }
                 catch (ReadLimit limit) { return ProtoBoundary.Encode(new Obs.BillsReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, limit.Message) }); }
@@ -115,8 +143,13 @@ namespace HomeBridge.BridgeTools
         internal static bool Validate(Obs.BillsRequest request, out Common.Failure failure)
         {
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity, optional bench id and page limit 1..256 are required.");
-            return request?.Scope?.ExpectedIdentity != null && Page(request.Page)
-                && (!request.HasBenchId || ProtoBoundary.IsIdentifier(request.BenchId));
+            if (request?.Scope?.ExpectedIdentity == null || !Page(request.Page) || request.HasBenchId && !ProtoBoundary.IsIdentifier(request.BenchId)) return false;
+            if (request.HasChangedSinceTick && (request.ChangedSinceTick < 0 || request.HasBenchId))
+            {
+                failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "changed_since_tick needs a non-negative tick and a read without bench_id.");
+                return false;
+            }
+            return true;
         }
 
         internal static bool Validate(Obs.RecipesRequest request, out Common.Failure failure)

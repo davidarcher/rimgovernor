@@ -649,6 +649,11 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	if window != nil {
 		window.scope, window.tick, window.review = factsScope(loaded.Context), loaded.Context.GetTick(), s.stepReviews(reason)
 	}
+	// The entity sections (zones, buildings, bills; #358) refresh once per
+	// full review step, delta reads over what the store holds.
+	if native, ok := s.native.(EntityNative); ok && s.stepReviews(reason) {
+		refreshEntitySections(call, native, s.facts, loaded.Context.Identity, factsScope(loaded.Context), loaded.Context.GetTick())
+	}
 	state := s.session.State()
 	world := domain.GenerationSnapshot{Colony: domain.ColonyID(loaded.Context.Identity.GetColonyId()), Load: domain.LoadID(loaded.Context.Identity.GetLoadToken()), Map: domain.MapID(loaded.Context.Identity.GetMapId())}
 	epochs, err := s.player.journal.LoadClockEpochs(call, 4096)

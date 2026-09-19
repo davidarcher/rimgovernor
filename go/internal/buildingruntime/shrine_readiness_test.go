@@ -13,7 +13,6 @@ import (
 )
 
 type shrineTestNative struct {
-	pawns    int
 	traps    []domain.Cell
 	threats  []policy.EmergencyThreat
 	regions  []bridge.CellRect

@@ -195,7 +195,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	if r.store != nil && reading.Sections.Colony.Source != "" {
 		facts.Put(r.store, facts.Scope{Load: string(expected.Load), Generation: uint64(native)}, facts.Colony, reading.Sections.Colony)
 	}
-	asOf := reading.Sections.AsOf()
+	asOf := entitySectionsAsOf(r.store, reading.Sections.AsOf())
 	asOfMin, asOfSpread := facts.Spread(asOf)
 	emergency, err := policy.NewEmergencySnapshot(state.Snapshot, expected.Tick, reading.Emergency)
 	if err != nil {
