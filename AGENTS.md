@@ -64,9 +64,11 @@ Each of these fails the same way in every session; none is a judgment call.
   breaks the whole command (`unexpected EOF while looking for matching`).
   CRLF files (docs, AGENTS.md) need newline-preserving edits.
 - `python`, not `python3`; `python3` is the Microsoft Store stub.
-- Read GitHub issues with `gh issue view <n> --comments > <scratchpad>/issue-<n>.md`
-  and Read the file; direct output truncates on long threads. Never WebFetch
-  a github.com URL.
+- Read GitHub issues with `go run ./cmd/issue <n>` (from `go/`): body and
+  comments in one call, the full text also written to `issue-<n>.md`; `-last k`
+  for the newest comments. Not `gh issue view --comments`: redirected, it
+  prints only the comments and nothing on an uncommented issue. Never
+  WebFetch a github.com URL.
 
 ## Issues
 
