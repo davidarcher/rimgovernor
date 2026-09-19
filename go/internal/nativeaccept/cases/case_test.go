@@ -109,4 +109,8 @@ func TestFixtureOpsWalksNestedStarts(t *testing.T) {
 	if got := (Case{Start: DebugStart{}}).FixtureOps(); got != nil {
 		t.Fatalf("debug start has ops: %v", got)
 	}
+	c.RequiredOps = []string{"test/open_choice_dialog"}
+	if got := strings.Join(c.FixtureOps(), ","); got != "test/inner,test/outer,test/open_choice_dialog" {
+		t.Fatalf("hook fixture missing: %s", got)
+	}
 }

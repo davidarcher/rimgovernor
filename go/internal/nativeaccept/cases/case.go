@@ -220,6 +220,8 @@ type Case struct {
 	Scope string
 	// Start is how the game reaches the case's precondition.
 	Start Start
+	// RequiredOps lists fixture operations called by Run or service hooks.
+	RequiredOps []string
 	// Quiet defaults to na.QuietRequired; a Loud (or QuietIfAvailable)
 	// case declares it and says why in Reason.
 	Quiet na.QuietMode
@@ -297,7 +299,7 @@ type Case struct {
 // FixtureOps are the test ops the case's Start calls, outermost last:
 // what the installed build must register for the case to start
 // (Config.FixtureOps; the doctor's fixture coverage and a heal's rebuild
-// read them, #276). A start without a fixture op has none.
+// read them, #276), followed by RequiredOps used by Run or service hooks.
 func (c Case) FixtureOps() []string {
 	var ops []string
 	for start := c.Start; start != nil; {
@@ -308,7 +310,7 @@ func (c Case) FixtureOps() []string {
 		ops = append([]string{f.Op}, ops...)
 		start = f.On
 	}
-	return ops
+	return append(ops, c.RequiredOps...)
 }
 
 // Validate is the shape check Register applies.

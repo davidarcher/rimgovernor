@@ -166,7 +166,30 @@ func (c *Client) ConnectWithPoll(ctx context.Context, started Result) (Result, e
 		}
 	}
 	result, err := c.ConnectGame(ctx)
+	// A fresh process can publish its launch before its listener is ready.
+	// Retry connection refusals briefly, but never take over another owner.
+	for attempt := 0; err != nil && attempt < 5; attempt++ {
+		var refusal *Refusal
+		var ownership struct {
+			ForeignOwner bool `json:"foreignOwner"`
+		}
+		if !errors.As(err, &refusal) {
+			break
+		}
+		_ = json.Unmarshal(refusal.Result.Structured, &ownership)
+		if ownership.ForeignOwner {
+			break
+		}
+		if waitErr := sleepOrDone(ctx, time.Duration(attempt+1)*300*time.Millisecond); waitErr != nil {
+			return result, waitErr
+		}
+		result, err = c.ConnectGame(ctx)
+	}
 	if err != nil {
+		var refusal *Refusal
+		if errors.As(err, &refusal) {
+			return result, fmt.Errorf("%w: %s", err, refusalDetail(refusal))
+		}
 		return result, err
 	}
 	deadline := time.Now().Add(120 * time.Second)

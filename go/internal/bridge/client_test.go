@@ -20,16 +20,17 @@ import (
 const emptySchema = `{"type":"object","properties":{},"additionalProperties":false}`
 
 type testServer struct {
-	mu            sync.Mutex
-	calls         []nativeArgument
-	handler       func(context.Context, nativeArgument) (*mcp.CallToolResult, error)
-	connectResult *mcp.CallToolResult
-	connectArgs   json.RawMessage
-	detailResult  *mcp.CallToolResult
-	schema        string
-	sessions      []*mcp.ServerSession
-	starts        int
-	details       int
+	mu             sync.Mutex
+	calls          []nativeArgument
+	handler        func(context.Context, nativeArgument) (*mcp.CallToolResult, error)
+	connectResult  *mcp.CallToolResult
+	connectHandler func() (*mcp.CallToolResult, error)
+	connectArgs    json.RawMessage
+	detailResult   *mcp.CallToolResult
+	schema         string
+	sessions       []*mcp.ServerSession
+	starts         int
+	details        int
 }
 
 func structured(raw string) *mcp.CallToolResult {
@@ -47,6 +48,9 @@ func (s *testServer) server() *mcp.Server {
 				return structured(`{"gabpConnected":true}`), nil
 			case "games_connect":
 				s.connectArgs = append(json.RawMessage(nil), request.Params.Arguments...)
+				if s.connectHandler != nil {
+					return s.connectHandler()
+				}
 				if s.connectResult != nil {
 					return s.connectResult, nil
 				}

@@ -171,6 +171,8 @@ new file in an area package (or a new area, imported for its `init()` from
 `cases.Save{Name}`, `cases.Fixture{Op, Args}` on either, `cases.Scenario`
 or, for a case that drives the process lifecycle itself, `cases.Owned`),
 a `Budget`, and a `Run(ctx, s cases.Session)` that is the assertion only.
+Declare fixture operations called inside `Run` or service hooks in
+`RequiredOps` so preflight and healing include their fixture classes.
 The runner owns the preamble every retired per-harness binary used to
 repeat: the stale-package check and profile preparation, `OpenGame` on
 the root's kept process, discovery, the start, the pause, the frozen

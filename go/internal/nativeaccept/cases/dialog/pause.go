@@ -47,7 +47,8 @@ func init() {
 			"facts dialog section, answered with the policy-preferred option through Operations.AnswerDialog under the " +
 			"AnswerDialog routine goal, its STOP_REASON_DIALOG_PAUSE hold acknowledged like a letter pause, and the " +
 			"native clock runs again afterwards; both an already-open dialog at acquire and one opening mid-window.",
-		Start: cases.Save{Name: baselineSave},
+		Start:       cases.Save{Name: baselineSave},
+		RequiredOps: []string{fixtureTool},
 		// The building families keep supervised windows running so the
 		// scheduled dialog opens mid-window.
 		Serve: &cases.ServeSpec{
