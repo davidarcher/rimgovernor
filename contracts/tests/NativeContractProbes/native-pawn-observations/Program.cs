@@ -102,7 +102,9 @@ internal static class NativePawnObservationsProbe
         var gearIssues=((IEnumerable)Get(missingEquipment,"Issues")).Cast<object>().ToArray();
         foreach(var field in new[]{"armed","equipped","primary_id","apparel","inventory_weapons","inventory_item_count","carried_thing_id"})
             Check(gearIssues.Any(i=>(string)Get(i,"Field")==field&&Get(Get(i,"Unavailable"),"Reason").ToString()=="NativeComponentMissing"),"missing tracker issue "+field);
-        var missingSettings=detailsType.GetMethod("Settings",Flags)!.Invoke(null,new[]{emptyPawn})!;
+        var missingSettings=Wire("PawnSettings","{}");
+        foreach(var projection in new[]{"CarePolicy","Work","AllowedArea","Schedule"})
+            detailsType.GetMethod(projection,Flags)!.Invoke(null,new[]{emptyPawn,missingSettings});
         Check(!(bool)Get(missingSettings,"HasSelfTend"),"missing settings tracker is not self-tend false");
         Check(((IEnumerable)Get(missingSettings,"Issues")).Cast<object>().Any(i=>(string)Get(i,"Field")=="work"),"uninitialized work tracker is not queried");
 

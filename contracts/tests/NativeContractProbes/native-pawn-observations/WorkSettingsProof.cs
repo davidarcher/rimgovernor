@@ -1,6 +1,7 @@
 #nullable enable
 using System;
 using System.Reflection;
+using System.Linq;
 
 internal static class WorkSettingsProof
 {
@@ -25,13 +26,19 @@ internal static class WorkSettingsProof
             var row=parse("Observations.WorkSetting","{\"defName\":\"Cooking\",\"priority\":"+priority+",\"disabled\":"+(disabled?"true":"false")+"}");
             var array=Array.CreateInstance(row.GetType(),1);array.SetValue(row,0);return array;
         };
-        object[] inputs={identity,"Pawn1",true,rows(1,false)};
+        var schedule=Enumerable.Repeat("Anything",24).ToArray();
+        var changedSchedule=(string[])schedule.Clone();changedSchedule[12]="Work";
+        object[] inputs={identity,"Pawn1",true,rows(1,false),"Area1",schedule};
         Func<object[],string> token=values=>(string)type.GetMethod("Token",flags)!.Invoke(null,values)!;
         var original=token(inputs);check(original==token(inputs),"stable work snapshot");
         foreach(var change in new object[][]{
-            new object[]{identity,"Pawn2",true,rows(1,false)},new object[]{identity,"Pawn1",false,rows(1,false)},
-            new object[]{identity,"Pawn1",true,rows(2,false)},new object[]{identity,"Pawn1",true,rows(1,true)},
-            new object[]{parse("Common.Identity","{\"colonyId\":\"colony\",\"loadToken\":\"other\",\"mapId\":0}"),"Pawn1",true,rows(1,false)}
-        }) check(original!=token(change),"work snapshot binds pawn, mode, priorities, capability and world");
+            new object[]{identity,"Pawn2",true,rows(1,false),"Area1",schedule},new object[]{identity,"Pawn1",false,rows(1,false),"Area1",schedule},
+            new object[]{identity,"Pawn1",true,rows(2,false),"Area1",schedule},new object[]{identity,"Pawn1",true,rows(1,true),"Area1",schedule},
+            new object[]{parse("Common.Identity","{\"colonyId\":\"colony\",\"loadToken\":\"other\",\"mapId\":0}"),"Pawn1",true,rows(1,false),"Area1",schedule},
+            new object[]{identity,"Pawn1",true,rows(1,false),"Area2",schedule},
+            new object[]{identity,"Pawn1",true,rows(1,false),"",schedule},
+            new object[]{identity,"Pawn1",true,rows(1,false),"Area1",changedSchedule},
+            new object[]{identity,"Pawn1",true,rows(1,false),"Area1",Array.Empty<string>()}
+        }) check(original!=token(change),"work snapshot binds pawn, mode, priorities, capability, world, area and schedule");
     }
 }
