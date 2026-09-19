@@ -33,8 +33,14 @@ func preflight(ctx context.Context, selected []cases.Case, opts cases.Options, s
 	o := doctor.Options{Root: opts.Root, Rimgovernor: opts.Rimgovernor, Output: opts.Output, Cases: names, GameID: opts.GameID, FixtureOps: ops}
 	checks := doctor.Run(ctx, o)
 	doctor.Write(stdout, checks, true)
+	var healed []string
+	if !opts.NoHeal {
+		if n := stopOrphans(ctx, checks, stdout); n > 0 {
+			healed = append(healed, doctor.HealOrphans)
+		}
+	}
 	if !doctor.Failed(checks) {
-		return nil, true
+		return healed, true
 	}
 	codes := healable(checks)
 	if len(codes) == 0 || opts.NoHeal {
@@ -45,7 +51,8 @@ func preflight(ctx context.Context, selected []cases.Case, opts cases.Options, s
 		}
 		return nil, false
 	}
-	healed, err := heal(ctx, codes, ops, opts, stdout)
+	rebuilt, err := heal(ctx, codes, ops, opts, stdout)
+	healed = append(healed, rebuilt...)
 	if err != nil {
 		fmt.Fprintf(stdout, "heal failed: %v\npreflight failed; fix the checks above (acceptance setup) or pass -no-doctor to run anyway\n", err)
 		return nil, false
@@ -57,6 +64,26 @@ func preflight(ctx context.Context, selected []cases.Case, opts cases.Options, s
 		return healed, false
 	}
 	return healed, true
+}
+
+// stopOrphans stops the harness processes the orphans check found
+// running from removed worktrees (#346): nobody's game, so a preflight
+// ends them without asking. It returns how many it stopped.
+func stopOrphans(ctx context.Context, checks []doctor.Check, log io.Writer) int {
+	for _, c := range checks {
+		if c.Code != doctor.HealOrphans || len(c.PIDs) == 0 {
+			continue
+		}
+		stopCtx, cancel := context.WithTimeout(ctx, time.Minute)
+		defer cancel()
+		if err := setup.StopPIDs(stopCtx, c.PIDs); err != nil {
+			fmt.Fprintf(log, "heal\torphans\t%v\n", err)
+			return 0
+		}
+		fmt.Fprintf(log, "heal\torphans\tstopped pids %v from removed worktrees\n", c.PIDs)
+		return len(c.PIDs)
+	}
+	return 0
 }
 
 // healable lists the heal codes of the failing checks, or nothing when

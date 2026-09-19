@@ -57,14 +57,17 @@ type Check struct {
 	// Code names a Fail the runner can heal on its own (#276):
 	// HealStaleMod (the installed mod's sources differ from the worktree)
 	// or HealMissingFixture (the build lacks a fixture the run's cases
-	// call); "" for every other check.
+	// call), or HealOrphans (harness processes outlive their removed
+	// worktrees, #346; PIDs names them); "" for every other check.
 	Code string
+	PIDs []int
 }
 
 // Heal codes a run's heal step (cmd/acceptance) acts on.
 const (
 	HealStaleMod       = "stale_mod"
 	HealMissingFixture = "missing_fixture"
+	HealOrphans        = "orphans"
 )
 
 // Options name what a run would use.
@@ -122,13 +125,14 @@ func Run(ctx context.Context, o Options) []Check {
 	}
 	add(baseline(o))
 	add(modsConfig(o))
-	var running []int
+	running := 0
 	if gameCopy != "" {
 		var c Check
 		running, c = process(o, gameCopy)
 		add(c)
-		add(journal(o, len(running) > 0))
+		add(journal(o, running > 0))
 	}
+	add(orphans(ctx, o))
 	add(gocache())
 	add(runBinary(ctx, o))
 	if o.Rimgovernor != "" {
@@ -433,15 +437,21 @@ func modsConfig(o Options) Check {
 	return c
 }
 
-// process lists this root's own RimWorld processes (setup.RunningGames:
-// executables under the game copy, never a peer's). One with a launch
-// record is the kept process a run reuses; two is a leak.
-func process(o Options, gameCopy string) ([]int, Check) {
+// process lists this root's own RimWorld processes
+// (setup.RunningGameProcesses: executables under the game copy, never a
+// peer's). One with a launch record is the kept process a run reuses;
+// two is a leak; one small and pegged for minutes is a boot that never
+// finished (StuckBoot, #346).
+func process(o Options, gameCopy string) (int, Check) {
 	c := Check{Name: "game"}
-	pids, err := setup.RunningGames(gameCopy)
+	procs, err := setup.RunningGameProcesses(gameCopy)
 	if err != nil {
 		c.Status, c.Detail = Warn, "could not list RimWorld processes: "+err.Error()
-		return nil, c
+		return 0, c
+	}
+	var pids []int
+	for _, p := range procs {
+		pids = append(pids, p.PID)
 	}
 	switch len(pids) {
 	case 0:
@@ -452,7 +462,11 @@ func process(o Options, gameCopy string) ([]int, Check) {
 		c.Status, c.Detail = Warn, fmt.Sprintf("%d games run from the copy (pids %v); GABS reuses one and the rest are leaks", len(pids), pids)
 		c.Fix = "stop the extras by pid (Stop-Process -Id <pid>), never by image name"
 	}
-	return pids, c
+	if note := stuckNote(procs, time.Now()); note != "" {
+		c.Status, c.Detail = Warn, c.Detail+note
+		c.Fix = "`acceptance stop -root " + o.Root + "` (or Stop-Process -Id <pid>); the next run boots fresh"
+	}
+	return len(pids), c
 }
 
 // journal is the clock journal backlog of the headless profile: a fresh

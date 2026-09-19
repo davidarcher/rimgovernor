@@ -40,6 +40,10 @@ RimWorld running.
   `availableTotal: 0`). Stop your own with `gamesstop -root <root>`; for a
   stray, select only the pid whose command line contains your worktree path
   (`Get-CimInstance Win32_Process | Where-Object CommandLine -like '*<worktree>*'`).
+  A worktree removed without `acceptance stop -root` first leaves its game
+  (and `gabs.exe`, `rimgovernor.exe`) running with nothing able to reach it
+  (#346); `acceptance doctor -root <root> -heal` sweeps every such orphan on
+  the machine by pid, and a `run`'s preflight does the same unless `-no-heal`.
 - **The landing lock** (`.git/rimgovernor-land.lock`). `cmd/land` waits on
   it; remove it by hand only when its recorded pid is gone.
 - **`main`'s checkout**. The lane commits there; never edit or integrate in
@@ -118,8 +122,12 @@ What it produces:
   baseline save, the profile's `ModsConfig.xml` against what the kept
   process launched with, your own leftover game processes, the clock
   journal backlog under a kept process, a private `GOCACHE`, the runner
-  and `rimgovernor` binaries against the worktree and `main`, and an
-  occupied output directory. It exits non-zero only on a check that would
+  and `rimgovernor` binaries against the worktree and `main`, an
+  occupied output directory, and `orphans`: game, `gabs.exe` and
+  `rimgovernor.exe` processes whose path lies under a
+  `.claude/worktrees/<name>` that `git worktree list` no longer has (#346),
+  stopped by `-heal`. The `game` line also flags a boot that never finished
+  (a working set under 250 MB with a core pegged for over five minutes). It exits non-zero only on a check that would
   certainly fail the run; `run` and `suite` run the same checks first,
   print only the failing ones and refuse on a failure (`-no-doctor` on
   `run` skips it), with one exception: a stale installed mod, or one
@@ -129,8 +137,8 @@ What it produces:
   copy -- never by image name), rebuilds the mod through `setup` with the
   installed fixture set plus the cases' own, installs it and lets the run
   launch fresh; the checks run again and `result.json` lists the heal
-  under `healed` (`stale_mod`, `missing_fixture`, `relaunched`) so a slow
-  first run is explained. It only heals a root that launches the
+  under `healed` (`stale_mod`, `missing_fixture`, `relaunched`, `orphans`)
+  so a slow first run is explained. It only heals a root that launches the
   worktree's own `.rimgovernor/native-rimworld`. `-no-heal` restores the
   refusal; `suite`, the landing gate's form, never heals.
 - Pass absolute paths (`-root`, `-output`, `-OutputRoot`): the PowerShell

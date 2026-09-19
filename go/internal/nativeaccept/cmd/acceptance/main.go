@@ -8,7 +8,7 @@
 //	acceptance why <output>/<area>/<case> [-json]
 //	acceptance warm -root <dir> [-game -headless=false -background]
 //	acceptance fixture <op> [key=value ...] -root <dir> [-save <name> | -loaded]
-//	acceptance doctor -root <dir> [-rimgovernor <bin> -output <dir> -game <id> -worktree <dir>]
+//	acceptance doctor -root <dir> [-rimgovernor <bin> -output <dir> -game <id> -worktree <dir> -heal]
 //	acceptance prune -output <dir> [-keep <n> -dry-run]
 //
 // It replaces the per-harness binaries' preamble with one loop: resolve the

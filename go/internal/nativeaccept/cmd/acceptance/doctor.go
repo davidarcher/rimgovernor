@@ -11,10 +11,12 @@ import (
 )
 
 const doctorUsage = `
-  acceptance doctor -root <dir> [-rimgovernor <binary> -output <dir> -game <id> -worktree <dir>]`
+  acceptance doctor -root <dir> [-rimgovernor <binary> -output <dir> -game <id> -worktree <dir> -heal]`
 
 // runDoctor is the preflight on its own (#277): every check with its fix,
-// exit 1 only when one would certainly fail a run.
+// exit 1 only when one would certainly fail a run. -heal stops the
+// harness processes the orphans check finds running from removed
+// worktrees (#346) and reports again.
 func runDoctor(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("doctor", flag.ContinueOnError)
 	fs.SetOutput(stderr)
@@ -24,6 +26,7 @@ func runDoctor(ctx context.Context, args []string, stdout, stderr io.Writer) int
 	fs.StringVar(&o.Output, "output", "", "the output directory a run would write under (default <root>/acceptance)")
 	fs.StringVar(&o.GameID, "game", "rimgovernor-trial", "configured game ID")
 	fs.StringVar(&o.Repo, "worktree", "", "checkout to compare the installed mod and binaries against (default: the one enclosing the working directory)")
+	heal := fs.Bool("heal", false, "stop the game, gabs and rimgovernor processes that outlive their removed worktrees")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -41,6 +44,10 @@ func runDoctor(ctx context.Context, args []string, stdout, stderr io.Writer) int
 	}
 	checks := doctor.Run(ctx, o)
 	doctor.Write(stdout, checks, false)
+	if *heal && stopOrphans(ctx, checks, stdout) > 0 {
+		checks = doctor.Run(ctx, o)
+		doctor.Write(stdout, checks, true)
+	}
 	if doctor.Failed(checks) {
 		return 1
 	}
