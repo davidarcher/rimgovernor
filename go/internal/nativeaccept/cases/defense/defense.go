@@ -576,6 +576,11 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 		// corridor entry rather than any edge the raid worker picks.
 		raidArgs["x"], raidArgs["z"] = int(layout.Entry.X), int(layout.Entry.Z)
 	}
+	// The ring stops here: a resume replays the pre-raid audits above, and
+	// a world captured after the raid has sprung traps the repair may not
+	// have replaced yet, so every resume starts from a pre-raid entry and
+	// stages the raid again (#330).
+	na.CapCheckpoints("raid staged; a resume replays the pre-raid audits, so no entry is taken after this point (#330)")
 	raid, err := fixture("raid", raidArgs)
 	if err != nil {
 		return err

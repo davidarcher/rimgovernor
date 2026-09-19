@@ -443,6 +443,43 @@ func TestCheckpointStateRidesCaptures(t *testing.T) {
 	}
 }
 
+// A capped ring takes no further entry, periodic or named, but still
+// takes the failed bundle, so a resume replays from before the cap (#330).
+func TestCapCheckpointsStopsEntries(t *testing.T) {
+	CapCheckpoints("orphan")
+	ring, _ := ringFixture(t, time.Nanosecond)
+	ring.Activate()
+	defer ring.Deactivate()
+	ctx := context.Background()
+	if _, err := ring.Capture(ctx, "before"); err != nil {
+		t.Fatal(err)
+	}
+	CapCheckpoints("raid staged")
+	CapCheckpoints("later reason")
+	if got := ring.Capped(); got != "raid staged" {
+		t.Fatalf("capped %q", got)
+	}
+	if _, err := ring.Capture(ctx, "named"); err == nil {
+		t.Fatal("named capture after the cap succeeded")
+	}
+	ring.mu.Lock()
+	ring.last = time.Time{}
+	ring.mu.Unlock()
+	if took := ring.maybe(ctx); took != 0 {
+		t.Fatalf("periodic capture ran after the cap (%s)", took)
+	}
+	if failed := ring.Fail(ctx); failed == nil {
+		t.Fatal("failed bundle not taken after the cap")
+	}
+	labels := []string{}
+	for _, e := range ring.Entries() {
+		labels = append(labels, e.Label)
+	}
+	if len(labels) != 2 || labels[0] != "before" || labels[1] != FailedCheckpoint {
+		t.Fatalf("entries %v", labels)
+	}
+}
+
 // A periodic service capture waits until the service automates with a
 // fresh game read; a state without a known tick would 503 the save (#309).
 func TestServiceCanCapture(t *testing.T) {

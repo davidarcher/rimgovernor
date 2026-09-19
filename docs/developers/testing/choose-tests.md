@@ -773,7 +773,13 @@ did with `na.SetCheckpointState(key, value)`; every later bundle's
 sidecar carries that `state`, and on a resume the body reads it back
 through `s.Resumed()` and skips the prep the save already holds instead
 of laying it again over a world that has moved on (`defense/layout`,
-#316). A body whose later steps assume the fresh run's progress has not
+#316). A body that reaches a point its later steps cannot resume after (a
+staged raid whose sprung traps would fail the pre-raid audits a resume
+replays) caps the ring there with `na.CapCheckpoints(reason)`: no entry is
+taken past it, only the `failed/` bundle, so a later failure always resumes
+from the last pre-raid entry and stages the raid again (`defense/layout`,
+#330; the reason lands on the report as `checkpoint_capped`). A body whose
+later steps assume the fresh run's progress has not
 happened and records nothing should declare `NoCheckpoint`. A case that never
 pauses on its own (bridge-only, no service) only gets the `failed/`
 bundle.

@@ -238,6 +238,9 @@ func closeRing(ring *na.CheckpointRing, resumed resumption, runErr error, report
 		rows = append(rows, map[string]any{"label": e.Label, "offset_ms": e.OffsetMs, "tick": e.Tick, "path": e.Path, "through": e.Through, "wall_ms": e.WallMs, "store": e.Store, "journal": e.Journal})
 	}
 	report["checkpoints"] = rows
+	if capped := ring.Capped(); capped != "" {
+		report["checkpoint_capped"] = capped
+	}
 	if errs := ring.Errors(); len(errs) > 0 {
 		report["checkpoint_errors"] = errs
 	}

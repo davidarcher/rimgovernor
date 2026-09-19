@@ -330,6 +330,9 @@ type CheckpointRing struct {
 	entries   []Checkpoint
 	failed    *Checkpoint
 	errs      []string
+	// capped, once set, is why no further entry is taken (CapCheckpoints):
+	// the case passed a point its body cannot resume after.
+	capped string
 }
 
 // activeRing is the ring the hooks (Harness.Call, WaitProgress, Watch)
@@ -363,6 +366,13 @@ func (r *CheckpointRing) Entries() []Checkpoint {
 		out = append(out, *r.failed)
 	}
 	return out
+}
+
+// Capped is why the ring stopped taking entries, "" while it still does.
+func (r *CheckpointRing) Capped() string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.capped
 }
 
 // Errors are the captures that failed, for the report.
@@ -458,6 +468,24 @@ func SetCheckpointState(key string, value any) {
 	r.State[key] = value
 }
 
+// CapCheckpoints stops the active ring taking any further entry, periodic
+// or named, so a resume of a later failure replays from the last entry
+// before the cap: a case calls it at a point of no return its Run body
+// cannot resume after (defense/layout at its raid, whose sprung traps fail
+// the pre-raid audit a resume replays; #330). The failed bundle is still
+// taken. reason goes on the report. Nothing happens when no ring is active.
+func CapCheckpoints(reason string) {
+	r := activeRing.Load()
+	if r == nil {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.capped == "" {
+		r.capped = reason
+	}
+}
+
 // errNotPaused is a periodic capture declined because the game runs; the
 // ring checks again shortly.
 var errNotPaused = errors.New("game is not paused")
@@ -470,7 +498,7 @@ var errNoHolder = errors.New("neither the harness nor a service holds the game")
 func (r *CheckpointRing) maybe(ctx context.Context) time.Duration {
 	r.mu.Lock()
 	now := time.Now()
-	if r.busy || now.Sub(r.last) < r.Every || now.Before(r.nextCheck) {
+	if r.capped != "" || r.busy || now.Sub(r.last) < r.Every || now.Before(r.nextCheck) {
 		r.mu.Unlock()
 		return 0
 	}
@@ -521,6 +549,10 @@ func (r *CheckpointRing) maybe(ctx context.Context) time.Duration {
 // not pruned.
 func (r *CheckpointRing) Capture(ctx context.Context, label string) (Checkpoint, error) {
 	r.mu.Lock()
+	if r.capped != "" {
+		r.mu.Unlock()
+		return Checkpoint{}, fmt.Errorf("ring capped: %s", r.capped)
+	}
 	if r.busy {
 		r.mu.Unlock()
 		return Checkpoint{}, errors.New("a capture is already in progress")
