@@ -36,11 +36,19 @@ type RefrigerationReview struct {
 // when a needed fact is unknown.
 func (s FoodStorageStock) warmAtRisk(p FoodStoragePolicy, limit float64) (bool, bool) {
 	perishable, pk := s.Stock.Perishable.Value()
-	ticks, tk := s.Stock.RotTicks.Value()
-	if !pk || !tk {
+	if !pk {
 		return false, false
 	}
-	if !perishable || ticks <= 0 {
+	// A known non-perishable stock (a survival meal, pemmican) never rots,
+	// so native reports no rot runway for it; that is not an unknown fact.
+	if !perishable {
+		return false, true
+	}
+	ticks, tk := s.Stock.RotTicks.Value()
+	if !tk {
+		return false, false
+	}
+	if ticks <= 0 {
 		return false, true
 	}
 	// Food a pawn holds (carried or in inventory) has no storage cell to

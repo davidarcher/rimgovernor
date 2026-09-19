@@ -223,3 +223,28 @@ func TestRefrigerationReviewIgnoresHeldStock(t *testing.T) {
 		t.Fatal(r)
 	}
 }
+
+func TestRefrigerationReviewIgnoresNonPerishableStockWithoutRotRunway(t *testing.T) {
+	p := DefaultFoodStoragePolicy()
+	// Native reports no rot runway for a survival meal (#446): the row is
+	// known non-perishable, so it neither counts nor blanks the review.
+	reserve := FoodStorageStock{Stock: FoodStock{ID: "meals", Nutrition: domain.Known(9.0), Perishable: domain.Known(false),
+		Roofed: domain.Known(false), TemperatureC: domain.Known(14.0), Room: domain.Known("235")}}
+	r, err := ReviewRefrigeration(FoodStorageObservation{Stocks: domain.Known([]FoodStorageStock{reserve, warmStock("meat", "b", 8, 21)})}, false, p)
+	if err != nil || !r.Active || len(r.Rooms) != 1 || r.Rooms[0] != "b" {
+		t.Fatal(r, err)
+	}
+	if n, k := r.WarmNutrition.Value(); !k || n != 8 {
+		t.Fatal(r)
+	}
+	// A perishable stock with an unknown runway still preserves the latch.
+	unknown := warmStock("veg", "a", 4, 12)
+	unknown.Stock.RotTicks = domain.Unknown[int64]()
+	r, err = ReviewRefrigeration(FoodStorageObservation{Stocks: domain.Known([]FoodStorageStock{unknown, warmStock("meat", "b", 8, 21)})}, false, p)
+	if err != nil || r.Active {
+		t.Fatal(r, err)
+	}
+	if _, k := r.WarmNutrition.Value(); k {
+		t.Fatal(r)
+	}
+}
