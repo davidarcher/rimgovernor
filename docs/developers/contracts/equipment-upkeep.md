@@ -73,11 +73,59 @@ quality, eligibility or sufficient protection.
 The review's apparel-condition census (`GearReview.WornOut`, `Uncovered`) is the
 fraction of colonists wearing any garment at or under the 50% tattered threshold
 and the fraction with a core group uncovered, derived from the same loadout read;
-it is known only when every colonist's worn apparel was observed and does not
-decide recovery, which follows the native deficit flags.
+it is known only when every colonist's worn apparel was observed. With complete
+loadout-model inputs, condition and coverage contribute to scored gaps; older
+observations retain native-deficit recovery.
 Missing research, workshops, materials or suitable definitions remain explicit
 blockers. This goal does not invent a trade or override a player outfit to obtain
 an item. Bench staging uses the equipment goal through the shared workshop ladder.
+
+## Loadout model
+
+`policy.PlanGearLoadout` consumes a complete, eligible def × stuff × quality
+catalog and worn gear. `GearPawn.LoadoutModel` is optional: until a provider
+supplies the richer census, the existing native deficit, replacement and
+single-item bill path remains active. This pure Go model neither discovers
+products nor issues orders. Catalog providers resolve native material stats,
+outfit/body/stage eligibility and available production resources before planning.
+Stats are Normal-quality values for the specific material; armor multipliers are
+0.6/0.8/1/1.15/1.3/1.45/1.8 and insulation multipliers
+0.8/0.9/1/1.1/1.2/1.5/1.8, Awful through Legendary.
+
+Targets cover skin torso, skin legs, middle torso, outer, belt, headgear and
+primary weapon. An exact bounded ensemble search rejects shared layer AND body
+group conflicts and preserves locked items. It scores armor, current ambient
+thermal needs, movement, condition, cost, coverage and taint. Coverage requires
+legs for men and legs plus chest for women; nudists prefer no body apparel.
+Taint costs 5/8/11/14 points for one/two/three/four-or-more items, except for
+Bloodlust and Inhuman. Replacements cannot assume a separate strip order.
+
+Roles use existing work priorities, skills and trait facts plus explicit child,
+slave, incapable-of-violence and drafted-squad status. Precedence is child,
+slave, non-combatant, soldier, then highest-priority work (stable role-name tie
+break). Hunters require ranged range at least 25 and favor warm outerwear;
+workers reject movement penalties, indoor workers reduce thermal weight,
+soldiers favor sharp then blunt armor with helmets gated by Smithing and
+shields restricted to melee, children select Kid/Apparel_Kid definitions, and
+slaves favor low cost. Garment stats and conflict metadata determine combinations
+such as a flak vest beneath a duster; definitions are not hard-coded.
+
+Each target purchase produces a gap with slot, exact product, source
+(loose/stored/bill) and marginal ensemble gain against the current worn slot.
+Gaps sort by descending gain then slot. Recovery means no gap above the role
+threshold: soldier 0.05, hunter 0.1, slave 0.5, others 0.2. Equal scores retain
+worn gear and minimize purchases; otherwise supply preference is loose, stored,
+then bill, with stable item IDs. `PlanColonyGear` visits pawn IDs in order and
+allocates each physical supply once. `GearProductionDemand` sums only actionable
+bill gaps by definition and stuff; quality does not split demand. These are
+product quantities, not ingredient reservations or promises of crafted quality.
+
+`ReviewGear` exposes targets and demand when every pawn has a complete model.
+The existing method planner projects those gaps into replacement or one-item
+production methods. Loose/stored targets must still occur in the native eligible
+candidate list; native gain admits the item, while model gain orders it. An
+unavailable admission stays blocked. Existing production resource checks and
+shared Hands execution remain authoritative.
 
 ## Dispatch, completion and interruption
 

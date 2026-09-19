@@ -33,6 +33,9 @@ type GearApparel struct {
 	Groups     []string
 }
 type GearPawn struct {
+	// LoadoutModel is supplied only with a complete eligible product census.
+	// Older native observations continue through the deficit-repair path.
+	LoadoutModel domain.Fact[GearLoadoutInput]
 	Pawn         PawnID
 	Loadout      string
 	Blocked      bool
@@ -50,6 +53,8 @@ type GearObservation struct{ Pawns []GearPawn }
 // core body-part group uncovered), known only when every pawn's worn
 // apparel was observed.
 type GearReview struct {
+	Loadouts  []GearLoadout
+	Demand    domain.Fact[[]GearDemand]
 	Recovered domain.Fact[bool]
 	Deficit   domain.Fact[float64]
 	WornOut   domain.Fact[float64]
@@ -116,6 +121,11 @@ func (v GearObservation) Validate() error {
 			return errors.New("invalid gear pawn or loadout")
 		}
 		seen[p.Pawn] = true
+		if model, known := p.LoadoutModel.Value(); known {
+			if err := model.Validate(); err != nil {
+				return err
+			}
+		}
 		if candidates, known := p.Candidates.Value(); known {
 			if len(candidates) > 256 {
 				return errors.New("gear candidates exceed bound")
@@ -168,9 +178,24 @@ func ReviewGear(f domain.Fact[GearObservation]) (GearReview, error) {
 		return GearReview{}, nil
 	}
 	missing, tattered, uncovered, dressed := 0, 0, 0, true
+	loadouts, demand, err := PlanColonyGear(v.Pawns)
+	if err != nil {
+		return GearReview{}, err
+	}
+	modeled := map[PawnID]GearLoadout{}
+	for _, l := range loadouts {
+		modeled[l.Pawn] = l
+	}
 	for _, p := range v.Pawns {
 		deficit, dk := p.Deficit.Value()
 		candidates, ck := p.Candidates.Value()
+		if l, ok := modeled[p.Pawn]; ok {
+			deficit, dk, ck = false, true, true
+			candidates = nil
+			for _, gap := range l.Gaps {
+				deficit = deficit || gap.Gain > GearGapThreshold(l.Role)
+			}
+		}
 		if !dk || !ck {
 			return GearReview{}, nil
 		}
@@ -189,7 +214,7 @@ func ReviewGear(f domain.Fact[GearObservation]) (GearReview, error) {
 		}
 	}
 	n := float64(len(v.Pawns))
-	review := GearReview{Recovered: domain.Known(missing == 0), Deficit: domain.Known(float64(missing) / n)}
+	review := GearReview{Loadouts: loadouts, Demand: demand, Recovered: domain.Known(missing == 0), Deficit: domain.Known(float64(missing) / n)}
 	if dressed {
 		review.WornOut = domain.Known(float64(tattered) / n)
 		review.Uncovered = domain.Known(float64(uncovered) / n)
@@ -211,6 +236,7 @@ func GearReplacementNeeds(f domain.Fact[GearObservation]) []Resource {
 		return nil
 	}
 	v, _ := f.Value()
+	v = modeledGearObservation(v, review.Loadouts)
 	seen := map[Resource]bool{}
 	var out []Resource
 	for _, p := range v.Pawns {
@@ -339,6 +365,7 @@ func SelectGearMethod(r GearPlanningRequest) (GearMethod, error) {
 		seen[id] = true
 	}
 	v, _ := r.Observation.Value()
+	v = modeledGearObservation(v, review.Loadouts)
 	if err := validateGearProduction(nil, r); err != nil {
 		return GearMethod{}, err
 	}
