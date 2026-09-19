@@ -36,35 +36,65 @@ func init() {
 		Scope:  fmt.Sprintf("--routine-stone-block-target %d walks research (%s) -> %s -> Make_StoneBlocks bill fed from map chunks; the live block count must rise above the pre-service baseline (#231).", stoneTarget, stoneProject, stoneBench),
 		Start:  cases.Fixture{Op: "test/production_stone_prepare", Args: map[string]any{}, On: cases.Save{Name: baselineSave}},
 		Serve:  &cases.ServeSpec{Families: []string{stoneFamilies}, NativeTimeout: 15 * time.Second, Prefix: "production", Extra: []string{"--routine-stone-block-target", fmt.Sprintf("%d", stoneTarget)}},
-		Budget: window + 15*time.Minute,
-		Reason: "three dependent rungs (research completion, a bench build and a bill iteration over map chunks) are one native campaign on the fixture hut; the watch ends on the first product",
+		Stages: []string{benchStage},
+		Budget: benchWindow + window + 5*time.Minute,
+		Reason: "the research rung and the table build are a cached stage (#329); the first bill iteration over map chunks after it runs on a miss and a hit alike",
 		Run: func(ctx context.Context, s cases.Session) error {
 			var baseline float64
+			if err := s.Stage(ctx, benchStage, func(ctx context.Context) error {
+				_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
+					WatchConfig: sustainedfood.WatchConfig{Watch: benchWindow, Goal: policy.MaintainResource, Until: benchBuilt, FailFast: ladderFailFast},
+					Prepare: func(ctx context.Context, h *na.Harness, report na.Report) error {
+						prepared := s.Prepared()
+						report["fixture"] = prepared
+						if finished, _ := na.AsBool(prepared["finished"]); finished {
+							return fmt.Errorf("%s is already finished; the research rung has nothing to prove", stoneProject)
+						}
+						if len(stoneRows(prepared["chunks"])) == 0 {
+							return fmt.Errorf("no stone chunks within reach of the colonists; the bill has nothing to cut")
+						}
+						before, err := h.Call(ctx, "baseline-audit", "test/production_stone_audit", map[string]any{})
+						if err != nil {
+							return err
+						}
+						baseline = stoneCount(before)
+						report["baseline_count"] = baseline
+						// The bill path reads the baseline back from the
+						// bundle (cases.RestoredState) on a hit.
+						na.SetCheckpointState(baselineKey, baseline)
+						if baseline >= stoneTarget {
+							return fmt.Errorf("save already holds %v stone blocks; the floor %d leaves no deficit to recover", baseline, stoneTarget)
+						}
+						if len(na.AsSlice(before["tables"])) != 0 {
+							return fmt.Errorf("save already holds a stonecutter's table; the bench rung has nothing to prove")
+						}
+						return nil
+					},
+					Audit: func(ctx context.Context, h *na.Harness, report na.Report) error {
+						live, err := h.Call(ctx, "bench-audit", "test/production_stone_audit", map[string]any{})
+						if err != nil {
+							return err
+						}
+						report["bench_stage"] = live
+						if finished, _ := na.AsBool(live["finished"]); !finished {
+							return fmt.Errorf("%s did not finish natively within the bench window: progress=%v current=%v", stoneProject, live["progress"], live["current"])
+						}
+						if len(na.AsSlice(live["tables"])) == 0 {
+							return fmt.Errorf("no %s stands within the bench window (%v)", stoneBench, live)
+						}
+						return nil
+					},
+				})
+				return err
+			}); err != nil {
+				return err
+			}
+			if restored := cases.RestoredState(s, baselineKey); restored != nil {
+				baseline = na.AsNumber(restored)
+				s.Report()["baseline_count"] = baseline
+			}
 			_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
 				WatchConfig: sustainedfood.WatchConfig{Watch: window, Goal: policy.MaintainResource, Until: billProduced, FailFast: ladderFailFast},
-				Prepare: func(ctx context.Context, h *na.Harness, report na.Report) error {
-					prepared := s.Prepared()
-					report["fixture"] = prepared
-					if finished, _ := na.AsBool(prepared["finished"]); finished {
-						return fmt.Errorf("%s is already finished; the research rung has nothing to prove", stoneProject)
-					}
-					if len(stoneRows(prepared["chunks"])) == 0 {
-						return fmt.Errorf("no stone chunks within reach of the colonists; the bill has nothing to cut")
-					}
-					before, err := h.Call(ctx, "baseline-audit", "test/production_stone_audit", map[string]any{})
-					if err != nil {
-						return err
-					}
-					baseline = stoneCount(before)
-					report["baseline_count"] = baseline
-					if baseline >= stoneTarget {
-						return fmt.Errorf("save already holds %v stone blocks; the floor %d leaves no deficit to recover", baseline, stoneTarget)
-					}
-					if len(na.AsSlice(before["tables"])) != 0 {
-						return fmt.Errorf("save already holds a stonecutter's table; the bench rung has nothing to prove")
-					}
-					return nil
-				},
 				Audit: func(ctx context.Context, h *na.Harness, report na.Report) error {
 					journal, err := store.Open(ctx, filepath.Join(s.Config().Output, "service.sqlite"))
 					if err != nil {

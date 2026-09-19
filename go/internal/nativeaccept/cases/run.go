@@ -436,7 +436,7 @@ func executePostmortem(ctx context.Context, c Case, opts Options, output string,
 	if reason := fp.Mismatch(entry); reason != "" {
 		return fmt.Errorf("bundle %s cannot be loaded under this tree: %s", entry.Path, reason)
 	}
-	s := &session{c: c, report: report, binary: opts.Rimgovernor, resumed: &entry, resumeSuffix: opts.RunID()}
+	s := &session{c: c, report: report, binary: opts.Rimgovernor, resumed: &entry, resumeSuffix: opts.RunID(), stagePlan: staging{hit: -1}}
 	cfg := &na.Config{Root: opts.Root, Output: output, Headless: opts.Headless && !c.Rendered, GameID: opts.GameID,
 		QuietWorld: c.QuietWorld, Spawned: func(pid int) { s.gabsPID.Store(int64(pid)) }}
 	s.config = cfg
@@ -762,6 +762,12 @@ func (s *session) Resumed() (na.Checkpoint, bool) {
 		return na.Checkpoint{}, false
 	}
 	return *s.resumed, true
+}
+func (s *session) Staged() (na.Checkpoint, bool) {
+	if !s.stagePlan.staged() {
+		return na.Checkpoint{}, false
+	}
+	return s.stagePlan.entry, true
 }
 func (s *session) Prior() map[string]any { return s.prior }
 func (s *session) RequestID(base string) string {

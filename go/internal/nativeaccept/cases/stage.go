@@ -182,6 +182,24 @@ func planStage(c Case, opts Options, resumed resumption, log io.Writer) (staging
 	return plan, nil
 }
 
+// RestoredState is the case state key as the bundle this run opened on
+// recorded it (a ring resume, else a stage hit; nil on a fresh run): what
+// a staging block wrote through na.SetCheckpointState for the code after
+// Stage, which on a hit never ran the block. The value is JSON
+// round-tripped (numbers float64, slices []any), so read it through the
+// tolerant accessors.
+func RestoredState(s Session, key string) any {
+	if entry, ok := s.Resumed(); ok {
+		if v, ok := entry.State[key]; ok {
+			return v
+		}
+	}
+	if entry, ok := s.Staged(); ok {
+		return entry.State[key]
+	}
+	return nil
+}
+
 // Stage runs fn, the staging block for the declared stage name, unless the
 // run opened on a bundle of that stage or a later one, in which case fn is
 // skipped: the code after Stage cannot tell the two apart. On a miss fn

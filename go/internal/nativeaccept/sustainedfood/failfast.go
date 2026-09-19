@@ -166,7 +166,14 @@ func (f *failFastState) noMethod(sample map[string]any) (Verdict, bool) {
 		f.idleReviews = f.idleReviews[:0]
 		return Verdict{}, false
 	}
-	if f.cfg.MethodUnavailableWaits && asString(development["reason"]) == string(policy.DevelopmentMethodUnavailable) {
+	reason := asString(development["reason"])
+	if f.cfg.MethodUnavailableWaits && reason == string(policy.DevelopmentMethodUnavailable) {
+		return Verdict{}, false
+	}
+	// An emergency (a dialog pause, an injury) holds every development row
+	// idle without handing any planner the slot; those reviews are neutral
+	// too, and a goal it suspends is the park verdict's.
+	if reason == string(policy.DevelopmentEmergency) {
 		return Verdict{}, false
 	}
 	f.idleReviews = append(f.idleReviews, revision)

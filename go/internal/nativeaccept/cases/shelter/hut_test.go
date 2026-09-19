@@ -1,6 +1,7 @@
 package shelter
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -62,5 +63,45 @@ func TestSameCorridorComparesCentreAndRows(t *testing.T) {
 	c := map[string]any{"center": map[string]any{"x": 1.0, "z": 3.0}, "rows": a["rows"]}
 	if !sameCorridor(a, b) || sameCorridor(a, c) || sameCorridor(a, nil) {
 		t.Fatal("sameCorridor should compare only centre and rows")
+	}
+}
+
+// The stage records the missing cells in cellArg form and a hit reads them
+// back; the sidecar round-trips the shell state as JSON.
+func TestParseCellsReadsCellArg(t *testing.T) {
+	cells := []domain.Cell{{X: 2, Z: 0}, {X: -1, Z: 7}}
+	got, err := parseCells(cellArg(cells))
+	if err != nil || len(got) != 2 || got[0] != cells[0] || got[1] != cells[1] {
+		t.Fatal(got, err)
+	}
+	if got, err := parseCells(""); err != nil || len(got) != 0 {
+		t.Fatal(got, err)
+	}
+	if _, err := parseCells("2;3"); err == nil {
+		t.Fatal("a malformed cell parsed")
+	}
+	data, err := json.Marshal(shellState{Plan: "routine-shell-1", Goal: "routine-1-EnsureInitialShelter", Missing: cellArg(cells)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var row map[string]any
+	if err := json.Unmarshal(data, &row); err != nil {
+		t.Fatal(err)
+	}
+	if row["plan"] != "routine-shell-1" || row["missing"] != "2,0;-1,7" {
+		t.Fatalf("round trip: %v", row)
+	}
+}
+
+// leave marks the ring staged but for the missing cells.
+func TestLeaveSplitsTheRing(t *testing.T) {
+	sh := testShell(t)
+	missing := []domain.Cell{{X: 1, Z: 0}, {X: 3, Z: 0}}
+	sh.leave(missing)
+	if len(sh.expect) != 2 || !sh.expect[missing[0]] || sh.staged[missing[0]] {
+		t.Fatal(sh.expect, sh.staged)
+	}
+	if len(sh.staged) != len(sh.footprint.Walls())-2 {
+		t.Fatal(len(sh.staged))
 	}
 }

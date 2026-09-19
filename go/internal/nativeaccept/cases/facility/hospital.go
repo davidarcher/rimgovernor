@@ -33,6 +33,13 @@ const hospitalFamilies = "sleeping,shelter,temperature,comfort,work,supply,tend,
 // reach the hospital bed under the game's own AI.
 const settle = 4 * time.Minute
 
+// shelterStage is the hospital case's one stage (#329): the startup
+// ladder's initial shelter recovered on the baseline, before the sleeping
+// family furnishes it and the hospital planner has a bed to convert. The
+// bulk of the window is the shell; the conversion after it runs on a miss
+// and a hit alike.
+const shelterStage = "shelter-served"
+
 func init() {
 	cases.Register(cases.Case{
 		Name:  "facility/hospital",
@@ -45,7 +52,9 @@ func init() {
 		// Patients rest in the bed the planner provides: Rest stays live.
 		Keep:   []string{string(na.NeedRest)},
 		Serve:  spec("hospital", hospitalFamilies),
-		Budget: 15 * time.Minute,
+		Stages: []string{shelterStage},
+		Budget: 2*window + 5*time.Minute,
+		Reason: "the startup ladder's shell is a cached stage (#329); the bed and its conversion after it run on a miss and a hit alike",
 		Run: func(ctx context.Context, s cases.Session) error {
 			prepared := s.Prepared()
 			var patients []string
@@ -55,19 +64,43 @@ func init() {
 			if len(patients) != 2 {
 				return fmt.Errorf("medical_management_setup seeded %d patients, want 2", len(patients))
 			}
+			if err := s.Stage(ctx, shelterStage, func(ctx context.Context) error {
+				_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
+					WatchConfig: sustainedfood.WatchConfig{Watch: window, Goal: policy.MaintainMedicalCare, Extra: []policy.GoalID{policy.EnsureInitialShelter}, Until: shelterRecovered},
+					Prepare: func(ctx context.Context, h *na.Harness, report na.Report) error {
+						hosted, err := hospitalBeds(ctx, h, "baseline")
+						if err != nil {
+							return err
+						}
+						report["baseline_hospital_beds"] = hosted
+						if len(hosted) > 0 {
+							return fmt.Errorf("save already holds a hosted medical bed; nothing for the hospital planner to provide")
+						}
+						return nil
+					},
+					Audit: func(ctx context.Context, h *na.Harness, report na.Report) error {
+						if !shelterRecovered(lastSample(report)) {
+							return fmt.Errorf("EnsureInitialShelter did not recover within the watch window")
+						}
+						// The stage must end before the conversion the tail
+						// proves, or a hit has nothing left to watch.
+						hosted, err := hospitalBeds(ctx, h, "shelter-stage")
+						if err != nil {
+							return err
+						}
+						report["shelter_stage_hospital_beds"] = hosted
+						if len(hosted) > 0 {
+							return fmt.Errorf("a hosted medical bed already stands at the shelter stage; the conversion ran before the bundle")
+						}
+						return nil
+					},
+				})
+				return err
+			}); err != nil {
+				return err
+			}
 			_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
 				WatchConfig: sustainedfood.WatchConfig{Watch: window, Goal: policy.MaintainMedicalCare, Until: bedConverted},
-				Prepare: func(ctx context.Context, h *na.Harness, report na.Report) error {
-					hosted, err := hospitalBeds(ctx, h, "baseline")
-					if err != nil {
-						return err
-					}
-					report["baseline_hospital_beds"] = hosted
-					if len(hosted) > 0 {
-						return fmt.Errorf("save already holds a hosted medical bed; nothing for the hospital planner to provide")
-					}
-					return nil
-				},
 				Audit: func(ctx context.Context, h *na.Harness, report na.Report) error {
 					return auditHospital(ctx, h, report, patients, settle, 5*time.Second)
 				},
@@ -75,6 +108,23 @@ func init() {
 			return err
 		},
 	})
+}
+
+// shelterRecovered reports a sample whose EnsureInitialShelter reading
+// (an Extra goal, under its id) is recovered and satisfied: the startup
+// shell stands.
+func shelterRecovered(sample map[string]any) bool {
+	shelter, _ := sample[string(policy.EnsureInitialShelter)].(map[string]any)
+	return comfortRecovered(shelter)
+}
+
+// lastSample is the newest timeline row the watch left on the report.
+func lastSample(report na.Report) map[string]any {
+	timeline, _ := report["timeline"].([]map[string]any)
+	if len(timeline) == 0 {
+		return nil
+	}
+	return timeline[len(timeline)-1]
 }
 
 // bedConverted reports a sample whose MaintainMedicalCare goal holds or held

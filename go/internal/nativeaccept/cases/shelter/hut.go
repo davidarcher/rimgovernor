@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -124,6 +125,7 @@ func init() {
 		// sleeps through a night on the ground mid-run 2, which the stall
 		// budget reads as no progress (run141e, tick 48k).
 		Serve:  spec("hut"),
+		Stages: []string{ringStage},
 		Budget: 15 * time.Minute,
 		Run: func(ctx context.Context, s cases.Session) error {
 			return hut(ctx, s, variant{terrain: "open", edit: "cancel"})
@@ -136,6 +138,7 @@ func init() {
 			"reissuing exactly one cancelled wall across a controller restart.",
 		Start:  cases.Fixture{Op: corridorFixture, Args: map[string]any{"action": "setup", "layout": "rows", "period": 6}, On: cases.Save{Name: sustained.BaselineSave}},
 		Serve:  spec("hut-corridor"),
+		Stages: []string{ringStage},
 		Budget: 15 * time.Minute,
 		// The irregular shell holds a signature up to 34s in passing runs (#353).
 		Stall: 90 * time.Second,
@@ -149,6 +152,7 @@ func init() {
 			"live controller with no second shell or order, then completes once wood is back, every wall built once.",
 		Start:  cases.Save{Name: sustained.BaselineSave},
 		Serve:  spec("hut-shortage"),
+		Stages: []string{ringStage},
 		Budget: 15 * time.Minute,
 		Run: func(ctx context.Context, s cases.Session) error {
 			return hut(ctx, s, variant{terrain: "open", edit: "shortage"})
@@ -160,6 +164,7 @@ func init() {
 			"the shelter routine sites the medium east-west oval (hut-template-2), built, roofed and furnished natively.",
 		Start:  cases.Fixture{Op: corridorFixture, Args: map[string]any{"action": "setup", "layout": "rows", "period": 11}, On: cases.Save{Name: sustained.BaselineSave}},
 		Serve:  spec("hut-oval"),
+		Stages: []string{ringStage},
 		Budget: 15 * time.Minute,
 		Run: func(ctx context.Context, s cases.Session) error {
 			return hut(ctx, s, variant{terrain: "rows", shape: "hut-template-2", maxHeight: 10, edit: "none"})
@@ -171,6 +176,7 @@ func init() {
 			"(hut-template-7, radius two across and six along) fits with its door on open ground, built, roofed and furnished natively.",
 		Start:  cases.Fixture{Op: corridorFixture, Args: map[string]any{"action": "setup", "layout": "rows", "period": 9}, On: cases.Save{Name: sustained.BaselineSave}},
 		Serve:  spec("hut-low-oval"),
+		Stages: []string{ringStage},
 		Budget: 15 * time.Minute,
 		Run: func(ctx context.Context, s cases.Session) error {
 			return hut(ctx, s, variant{terrain: "rows", shape: "hut-template-7", maxHeight: 8, edit: "none"})
@@ -182,6 +188,7 @@ func init() {
 			"sites the concave L template (concave-l-ne), a proper roofed room furnished off its aisle natively.",
 		Start:  cases.Fixture{Op: corridorFixture, Args: map[string]any{"action": "setup", "layout": "pocket-l"}, On: cases.Save{Name: sustained.BaselineSave}},
 		Serve:  spec("hut-concave"),
+		Stages: []string{ringStage},
 		Budget: 15 * time.Minute,
 		Run: func(ctx context.Context, s cases.Session) error {
 			return hut(ctx, s, variant{terrain: "pocket", shape: "concave-l-ne", edit: "none"})
@@ -193,6 +200,7 @@ func init() {
 			"two-chamber connector template (connector-ew), one proper roofed room across its one-cell passage, furnished natively.",
 		Start:  cases.Fixture{Op: corridorFixture, Args: map[string]any{"action": "setup", "layout": "pocket-connector"}, On: cases.Save{Name: sustained.BaselineSave}},
 		Serve:  spec("hut-connector"),
+		Stages: []string{ringStage},
 		Budget: 15 * time.Minute,
 		Run: func(ctx context.Context, s cases.Session) error {
 			return hut(ctx, s, variant{terrain: "pocket", shape: "connector-ew", edit: "none"})
@@ -261,94 +269,34 @@ func hut(ctx context.Context, s cases.Session, v variant) error {
 		}
 		report["corridor_terrain"] = prepared
 	}
-	if err := allowSupplies(ctx, s.Harness(), "allow-supplies", report); err != nil {
+	// The ring (#329): run 0 sites the shell, the world reloads and the
+	// fixture stages the ring nearly finished; a hit opens on that bundle
+	// and recovers the shell from the restored store and the sidecar.
+	var sh *shell
+	var missing []domain.Cell
+	if err := s.Stage(ctx, ringStage, func(ctx context.Context) error {
+		var err error
+		sh, missing, err = stageShell(ctx, s, v, w, report)
 		return err
-	}
-	// Run 0: admission.
-	service, err := start(ctx, s, nil)
-	if err != nil {
+	}); err != nil {
 		return err
 	}
 	// The verification store outlives the service handles (Stop closes a
-	// handle's own).
-	st, err := na.OpenStoreWithRetry(ctx, service.StatePath)
+	// handle's own); on a hit it is the restored bundle's.
+	st, err := na.OpenStoreWithRetry(ctx, filepath.Join(s.Config().Output, "service.sqlite"))
 	if err != nil {
-		service.Stop()
 		return err
 	}
 	defer st.Close()
-	sh, err := waitShell(ctx, st, w.wait(w.build, service))
-	if err != nil {
-		service.Stop()
-		return err
-	}
-	report["shell"] = map[string]any{
-		"plan": string(sh.planID), "goal": string(sh.goalID), "shape": sh.shape,
-		"door": sh.footprint.Door(), "entrance": string(sh.footprint.Entrance()),
-		"interior_cells": len(sh.footprint.Interior()), "wall_cells": len(sh.footprint.Walls()),
-		"roof_supported": sh.footprint.RoofSupported(), "bounds": sh.footprint.Bounds(),
-	}
-	if v.shape != "" && sh.shape != v.shape || v.shape == "" && !strings.HasPrefix(sh.shape, "hut-template-") {
-		service.Stop()
-		want := v.shape
-		if want == "" {
-			want = "a hut template"
-		}
-		return fmt.Errorf("%s terrain: the routine sited %s, want %s", v.terrain, sh.shape, want)
-	}
-	if v.maxHeight > 0 && sh.footprint.Bounds().Height > v.maxHeight {
-		service.Stop()
-		return fmt.Errorf("%s terrain: the shell's bounds %v are not confined to a strip of %d", v.terrain, sh.footprint.Bounds(), v.maxHeight)
-	}
-	if v.constrained() {
-		sh.solid = fixtureRock(report)
-	}
-	// The ring is on the journal; the world it was sited in is discarded,
-	// and the next world holds it nearly finished.
-	report["run0_keepalive"] = service.Stop()
-	sh.ignore = map[domain.PlanID]bool{sh.planID: true}
-	corridor := report["corridor_terrain"]
-	h, err := s.Reload(ctx)
-	if err != nil {
-		return err
-	}
-	if v.constrained() {
-		report["corridor_terrain"] = s.Prepared()
-		if !sameCorridor(corridor, report["corridor_terrain"]) {
-			return fmt.Errorf("the reloaded corridor terrain differs from run 0's: %v vs %v", report["corridor_terrain"], corridor)
+	if sh == nil {
+		// A hit: corridor_terrain above is the reloaded world's fixture
+		// reply, from the sidecar.
+		if sh, missing, err = recoverShell(ctx, st, v, cases.RestoredState(s, shellStateKey), report); err != nil {
+			return err
 		}
 	}
-	if err := allowSupplies(ctx, h, "allow-supplies-reloaded", report); err != nil {
-		return err
-	}
-	open, err := openGround(ctx, h)
-	if err != nil {
-		return err
-	}
-	candidates := missingCells(sh, len(sh.cells), open)
-	if len(candidates) < stagePending {
-		return fmt.Errorf("%d load-bearing ring cells on open ground to leave for the builders, want %d", len(candidates), stagePending)
-	}
-	missing := candidates[:stagePending]
-	if err := stageRing(ctx, h, sh, missing, spawnWood, report); err != nil {
-		return err
-	}
-	missing, err = unpocketedGaps(ctx, h, sh, candidates, missing, report)
-	if err != nil {
-		return err
-	}
-	sh.staged = map[domain.Cell]bool{}
-	sh.expect = map[domain.Cell]bool{}
-	for _, c := range sh.footprint.Walls() {
-		sh.staged[c] = true
-	}
-	for _, c := range missing {
-		delete(sh.staged, c)
-		sh.expect[c] = true
-	}
-	report["staged_missing_cells"] = missing
 	// Run 1: the missing cells.
-	service, err = start(ctx, s, nil)
+	service, err := start(ctx, s, nil)
 	if err != nil {
 		return err
 	}
@@ -526,11 +474,187 @@ func hut(ctx context.Context, s cases.Session, v variant) error {
 	report["bed"] = map[string]any{"plan": string(bedPlan), "cells": bedCells}
 
 	// Native verification through a fresh bridge session.
-	h, err = s.Reattach(ctx)
+	h, err := s.Reattach(ctx)
 	if err != nil {
 		return err
 	}
 	return verifyNative(ctx, h, s.Identity(), sh, bedCells, report)
+}
+
+// ringStage is the hut cases' one stage: the shell sited by run 0 standing
+// in the reloaded world but for the missing cells, with wood beside its
+// door, before run 1.
+const ringStage = "ring-staged"
+
+// shellStateKey is the checkpoint state key the stage records the sited
+// shell under (shellState) for the runs after it on a hit.
+const shellStateKey = "hut_shell"
+
+// shellState is what the stage records about the shell for a hit: run 0's
+// plan and goal, whose plan in the restored store carries the geometry,
+// and the ring cells the fixture left to the builders.
+type shellState struct {
+	Plan    string `json:"plan"`
+	Goal    string `json:"goal"`
+	Missing string `json:"missing"`
+}
+
+// stageShell is the staging block: run 0 admits the shell plan and the
+// case classifies it, the world reloads over the running game, and the
+// fixture spawns the ring finished but for the missing cells. It returns
+// with the harness holding the game, paused.
+func stageShell(ctx context.Context, s cases.Session, v variant, w waits, report na.Report) (*shell, []domain.Cell, error) {
+	if err := allowSupplies(ctx, s.Harness(), "allow-supplies", report); err != nil {
+		return nil, nil, err
+	}
+	// Run 0: admission.
+	service, err := start(ctx, s, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	st, err := na.OpenStoreWithRetry(ctx, service.StatePath)
+	if err != nil {
+		service.Stop()
+		return nil, nil, err
+	}
+	defer st.Close()
+	sh, err := waitShell(ctx, st, w.wait(w.build, service))
+	if err != nil {
+		service.Stop()
+		return nil, nil, err
+	}
+	report["shell"] = sh.describe()
+	if v.shape != "" && sh.shape != v.shape || v.shape == "" && !strings.HasPrefix(sh.shape, "hut-template-") {
+		service.Stop()
+		want := v.shape
+		if want == "" {
+			want = "a hut template"
+		}
+		return nil, nil, fmt.Errorf("%s terrain: the routine sited %s, want %s", v.terrain, sh.shape, want)
+	}
+	if v.maxHeight > 0 && sh.footprint.Bounds().Height > v.maxHeight {
+		service.Stop()
+		return nil, nil, fmt.Errorf("%s terrain: the shell's bounds %v are not confined to a strip of %d", v.terrain, sh.footprint.Bounds(), v.maxHeight)
+	}
+	if v.constrained() {
+		sh.solid = fixtureRock(report)
+	}
+	// The ring is on the journal; the world it was sited in is discarded,
+	// and the next world holds it nearly finished.
+	report["run0_keepalive"] = service.Stop()
+	sh.ignore = map[domain.PlanID]bool{sh.planID: true}
+	corridor := report["corridor_terrain"]
+	h, err := s.Reload(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	if v.constrained() {
+		report["corridor_terrain"] = s.Prepared()
+		if !sameCorridor(corridor, report["corridor_terrain"]) {
+			return nil, nil, fmt.Errorf("the reloaded corridor terrain differs from run 0's: %v vs %v", report["corridor_terrain"], corridor)
+		}
+	}
+	if err := allowSupplies(ctx, h, "allow-supplies-reloaded", report); err != nil {
+		return nil, nil, err
+	}
+	open, err := openGround(ctx, h)
+	if err != nil {
+		return nil, nil, err
+	}
+	candidates := missingCells(sh, len(sh.cells), open)
+	if len(candidates) < stagePending {
+		return nil, nil, fmt.Errorf("%d load-bearing ring cells on open ground to leave for the builders, want %d", len(candidates), stagePending)
+	}
+	missing := candidates[:stagePending]
+	if err := stageRing(ctx, h, sh, missing, spawnWood, report); err != nil {
+		return nil, nil, err
+	}
+	missing, err = unpocketedGaps(ctx, h, sh, candidates, missing, report)
+	if err != nil {
+		return nil, nil, err
+	}
+	sh.leave(missing)
+	report["staged_missing_cells"] = missing
+	na.SetCheckpointState(shellStateKey, shellState{Plan: string(sh.planID), Goal: string(sh.goalID), Missing: cellArg(missing)})
+	return sh, missing, nil
+}
+
+// recoverShell rebuilds the staged shell on a hit: run 0's plan, named by
+// the sidecar state, is read back from the restored store and classified
+// as it was in run 0; the missing cells are the state's.
+func recoverShell(ctx context.Context, st *store.Store, v variant, state any, report na.Report) (*shell, []domain.Cell, error) {
+	row, ok := na.AsMap(state)
+	if !ok {
+		return nil, nil, fmt.Errorf("the stage bundle carries no %s state; run with -restage", shellStateKey)
+	}
+	planID, goalID := domain.PlanID(na.AsString(row["plan"])), domain.GoalID(na.AsString(row["goal"]))
+	plan, err := st.LoadPlan(ctx, planID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("run 0's shell plan %s is not in the restored store: %w", planID, err)
+	}
+	sh, err := classify(plan)
+	if err != nil {
+		return nil, nil, err
+	}
+	sh.planID, sh.goalID = planID, goalID
+	sh.seen = map[domain.PlanID]bool{planID: true}
+	sh.ignore = map[domain.PlanID]bool{planID: true}
+	if v.constrained() {
+		sh.solid = fixtureRock(report)
+	}
+	missing, err := parseCells(na.AsString(row["missing"]))
+	if err != nil {
+		return nil, nil, fmt.Errorf("%s state: %w", shellStateKey, err)
+	}
+	for _, c := range missing {
+		if _, onRing := sh.cells[c]; !onRing {
+			return nil, nil, fmt.Errorf("%s state names %v, which is not on the sited ring", shellStateKey, c)
+		}
+	}
+	sh.leave(missing)
+	report["shell"] = sh.describe()
+	report["staged_missing_cells"] = missing
+	return sh, missing, nil
+}
+
+// describe is the shell's geometry for the report.
+func (sh *shell) describe() map[string]any {
+	return map[string]any{
+		"plan": string(sh.planID), "goal": string(sh.goalID), "shape": sh.shape,
+		"door": sh.footprint.Door(), "entrance": string(sh.footprint.Entrance()),
+		"interior_cells": len(sh.footprint.Interior()), "wall_cells": len(sh.footprint.Walls()),
+		"roof_supported": sh.footprint.RoofSupported(), "bounds": sh.footprint.Bounds(),
+	}
+}
+
+// leave marks every ring cell staged by the fixture but the missing ones,
+// which the controller must complete.
+func (sh *shell) leave(missing []domain.Cell) {
+	sh.staged = map[domain.Cell]bool{}
+	sh.expect = map[domain.Cell]bool{}
+	for _, c := range sh.footprint.Walls() {
+		sh.staged[c] = true
+	}
+	for _, c := range missing {
+		delete(sh.staged, c)
+		sh.expect[c] = true
+	}
+}
+
+// parseCells reads cells back from cellArg's "x,z;x,z" form.
+func parseCells(arg string) ([]domain.Cell, error) {
+	var cells []domain.Cell
+	for _, part := range strings.Split(arg, ";") {
+		if part == "" {
+			continue
+		}
+		var c domain.Cell
+		if _, err := fmt.Sscanf(part, "%d,%d", &c.X, &c.Z); err != nil {
+			return nil, fmt.Errorf("cell %q: %w", part, err)
+		}
+		cells = append(cells, c)
+	}
+	return cells, nil
 }
 
 // start launches the service (previous nil) or restarts it on the same

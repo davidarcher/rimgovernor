@@ -36,6 +36,13 @@ const (
 // bench's Crafting work type, gear reads the same bench census.
 const workshopFamilies = "sleeping,shelter,temperature,comfort,work,supply,field,food-storage,acquisition,cooking,production-policy,resource,workshop,gear"
 
+// benchStage is the workshop case's one stage (#329): the startup ladder
+// served and the CraftingSpot standing in a Workshop-hosting room, before
+// the bill path starts. The bench is proven the service's here: a hit
+// reloads the world and the review rebinds fresh goals, so the journal
+// after it cannot.
+const benchStage = "bench-built"
+
 func init() {
 	cases.Register(cases.Case{
 		Name:   "facility/workshop",
@@ -43,23 +50,51 @@ func init() {
 		Start:  cases.Save{Name: sustained.BaselineSave},
 		Keep:   []string{string(na.NeedFood)},
 		Serve:  spec("workshop", workshopFamilies, "--routine-resource-target", fmt.Sprintf("%s:%d", resource, target)),
-		Budget: 15 * time.Minute,
+		Stages: []string{benchStage},
+		Budget: 2*window + 5*time.Minute,
+		Reason: "the startup ladder and the bench are a cached stage (#329); the bill path after it runs on a miss and a hit alike",
 		Run: func(ctx context.Context, s cases.Session) error {
 			var baseline float64
+			if err := s.Stage(ctx, benchStage, func(ctx context.Context) error {
+				_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
+					WatchConfig: sustainedfood.WatchConfig{Watch: window, Goal: policy.MaintainResource, Until: workshopBenchCompleted},
+					Prepare: func(ctx context.Context, h *na.Harness, report na.Report) error {
+						count, err := itemCount(ctx, h, "baseline-colony-facts")
+						if err != nil {
+							return err
+						}
+						baseline = count
+						report["baseline_count"] = count
+						// The bill path after the stage reads the baseline
+						// back from the bundle on a hit.
+						na.SetCheckpointState(baselineKey, count)
+						if count >= target {
+							return fmt.Errorf("save already holds %v %s; the stock floor %d leaves no deficit to recover", count, resource, target)
+						}
+						return nil
+					},
+					Audit: func(ctx context.Context, h *na.Harness, report na.Report) error {
+						hosted, benches, err := hostedBenches(ctx, h, "bench-stage", report)
+						if err != nil {
+							return err
+						}
+						report["bench_stage"] = map[string]any{"hosted_benches": benches, "hosted_bills": len(hosted)}
+						if benches == 0 {
+							return fmt.Errorf("no %s stands inside a room hosting the Workshop facility after the bench plan completed", bench)
+						}
+						return nil
+					},
+				})
+				return err
+			}); err != nil {
+				return err
+			}
+			if restored := cases.RestoredState(s, baselineKey); restored != nil {
+				baseline = na.AsNumber(restored)
+				s.Report()["baseline_count"] = baseline
+			}
 			_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
 				WatchConfig: sustainedfood.WatchConfig{Watch: window, Goal: policy.MaintainResource, Until: billProduced},
-				Prepare: func(ctx context.Context, h *na.Harness, report na.Report) error {
-					count, err := itemCount(ctx, h, "baseline-colony-facts")
-					if err != nil {
-						return err
-					}
-					baseline = count
-					report["baseline_count"] = count
-					if count >= target {
-						return fmt.Errorf("save already holds %v %s; the stock floor %d leaves no deficit to recover", count, resource, target)
-					}
-					return nil
-				},
 				Audit: func(ctx context.Context, h *na.Harness, report na.Report) error {
 					journal, err := openJournal(ctx, s)
 					if err != nil {
@@ -73,6 +108,10 @@ func init() {
 		},
 	})
 }
+
+// baselineKey is the checkpoint state key the stage records the pre-service
+// item count under, for the bill path of a run that opened on the bundle.
+const baselineKey = "baseline_count"
 
 // billProduced reports a sample whose MaintainResource goal holds or held a
 // resource (production bill) plan with every action completed: native
@@ -159,16 +198,32 @@ func auditWorkshop(ctx context.Context, h *na.Harness, journal *store.Store, rep
 		return fmt.Errorf("%s count did not rise: baseline=%v final=%v", resource, baseline, count)
 	}
 
-	rooms, err := h.Call(ctx, "audit-rooms", "home/list_rooms", map[string]any{"cells": true})
+	hosted, _, err := hostedBenches(ctx, h, "audit", report)
 	if err != nil {
 		return err
 	}
+	report["hosted_bills"] = hosted
+	if len(hosted) == 0 {
+		return fmt.Errorf("no %s inside a room hosting the Workshop facility carries a %s bill", bench, recipe)
+	}
+	return nil
+}
+
+// hostedBenches lists, from the live room census and bill stacks, every
+// bench of the case's kind inside a room whose role hosts the Workshop
+// facility carrying the case's bill, and counts such benches with or
+// without it; label prefixes the evidence names.
+func hostedBenches(ctx context.Context, h *na.Harness, label string, report na.Report) ([]map[string]any, int, error) {
+	rooms, err := h.Call(ctx, label+"-rooms", "home/list_rooms", map[string]any{"cells": true})
+	if err != nil {
+		return nil, 0, err
+	}
 	if success, _ := na.AsBool(rooms["success"]); !success {
-		return fmt.Errorf("home/list_rooms refused")
+		return nil, 0, fmt.Errorf("home/list_rooms refused")
 	}
 	workshop, err := policy.Facility(policy.RoomRoleWorkshop)
 	if err != nil {
-		return err
+		return nil, 0, err
 	}
 	type cell struct{ x, z float64 }
 	workshopCells := map[cell]string{}
@@ -187,11 +242,12 @@ func auditWorkshop(ctx context.Context, h *na.Harness, journal *store.Store, rep
 	}
 	report["native_rooms"] = roleByRoom
 
-	bills, err := h.Call(ctx, "audit-bills", "home/bills", map[string]any{"action": "list"})
+	bills, err := h.Call(ctx, label+"-bills", "home/bills", map[string]any{"action": "list"})
 	if err != nil {
-		return err
+		return nil, 0, err
 	}
 	var hosted []map[string]any
+	benches := 0
 	for _, raw := range na.AsSlice(bills["benches"]) {
 		row, _ := na.AsMap(raw)
 		if na.AsString(row["defName"]) != bench {
@@ -202,6 +258,7 @@ func auditWorkshop(ctx context.Context, h *na.Harness, journal *store.Store, rep
 		if !inWorkshop {
 			continue
 		}
+		benches++
 		for _, b := range na.AsSlice(row["bills"]) {
 			billRow, _ := na.AsMap(b)
 			if na.AsString(billRow["recipe"]) == recipe {
@@ -209,9 +266,5 @@ func auditWorkshop(ctx context.Context, h *na.Harness, journal *store.Store, rep
 			}
 		}
 	}
-	report["hosted_bills"] = hosted
-	if len(hosted) == 0 {
-		return fmt.Errorf("no %s inside a room hosting the Workshop facility carries a %s bill", bench, recipe)
-	}
-	return nil
+	return hosted, benches, nil
 }

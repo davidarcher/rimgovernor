@@ -164,6 +164,12 @@ type Session interface {
 	// na.SetCheckpointState before the capture: a Run body that stages
 	// its own fixture reads it to skip the prep the save carries (#316).
 	Resumed() (entry na.Checkpoint, ok bool)
+	// Staged is the stage bundle this run opened on (#329), ok false when
+	// it opened fresh or on a ring checkpoint. Its State is what the
+	// staging run recorded through na.SetCheckpointState before the
+	// capture: a staging block's outcome the code after Stage needs (a
+	// pre-service baseline count, the cells a fixture left unbuilt).
+	Staged() (entry na.Checkpoint, ok bool)
 	// Prior is the failed run's result.json (JSON-typed: slices are []any,
 	// numbers float64) under -postmortem-only (#275), nil on any other run
 	// or when the ring did not record it: the timeline and the report

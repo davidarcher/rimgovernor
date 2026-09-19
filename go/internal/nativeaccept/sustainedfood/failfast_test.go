@@ -77,6 +77,27 @@ func TestFailFastNoMethodMethodUnavailableWaits(t *testing.T) {
 	}
 }
 
+// A review an emergency holds (a dialog pause parks every development row
+// idle at one tick, #156) hands no planner the slot: it is neutral for the
+// no-method count, without any opt-in.
+func TestFailFastNoMethodEmergencyHoldIsNeutral(t *testing.T) {
+	held := func(revision uint64) map[string]any {
+		s := idleSample(revision, true, 0)
+		s["development"] = map[string]any{"reason": string(policy.DevelopmentEmergency), "selected": false, "committed": false, "idle": true}
+		return s
+	}
+	f := newFailFast(FailFast{NoMethodReviews: 2}, policy.MaintainResource, "")
+	f.check(idleSample(1, true, 0))
+	for rev := uint64(2); rev < 8; rev++ {
+		if v, failed := f.check(held(rev)); failed {
+			t.Fatalf("revision %d: %v", rev, v)
+		}
+	}
+	if v, failed := f.check(idleSample(8, true, 0)); !failed || !strings.Contains(v.Reason, "revisions 1..8") {
+		t.Fatalf("the handed slot resumes the count: failed=%v %+v", failed, v)
+	}
+}
+
 func TestFailFastUnsuccessfulStageSkipsReplannedReasons(t *testing.T) {
 	f := newFailFast(FailFast{}, policy.MaintainResource, "")
 	sample := func(reason string) map[string]any {

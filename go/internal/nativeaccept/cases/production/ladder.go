@@ -57,10 +57,21 @@ const (
 // never MaintainResource.
 const ladderFamilies = "temperature,comfort,work,supply,defense,tend,rescue,medical,field,food-storage,acquisition,cooking,production-policy,resource,workshop,research,ingredient-storage,gear,dialog,naming"
 
-// window is how long the ladder gets to land its first product: research
-// and a bench build are waits in ticks, so the window ends early on the
-// first observed bill iteration.
-const window = 25 * time.Minute
+// benchWindow is how long the ladder gets to finish the research rung and
+// raise its bench (the "bench-built" stage, cached across runs, #329);
+// window is how long the staged colony then gets to land its first
+// product. Each watch ends early on its rung.
+const (
+	benchWindow = 12 * time.Minute
+	window      = 13 * time.Minute
+)
+
+// benchStage is the production cases' one stage: the research finished and
+// the bench standing in the fixture hut, before any bill is placed on it.
+// The bench is proven the service's at the stage boundary: a hit reloads
+// the world and the review rebinds fresh goals, so the journal after it
+// cannot (see research/ladder).
+const benchStage = "bench-built"
 
 // ladderFailFast keeps the watch's fail-fast on but lets MaintainResource
 // sit method_unavailable through the research rung: while the project the
@@ -75,34 +86,61 @@ func init() {
 		Scope:  fmt.Sprintf("MaintainResource %s:%d walks research (%s) -> smithy -> ingredient stockpile -> bill; the live item count must rise above the pre-service baseline (issue #4, M4).", resource, target, project),
 		Start:  cases.Fixture{Op: "test/production_ladder_prepare", Args: map[string]any{}, On: cases.Save{Name: baselineSave}},
 		Serve:  &cases.ServeSpec{Families: []string{ladderFamilies}, NativeTimeout: 15 * time.Second, Prefix: "production", Extra: []string{"--routine-resource-target", fmt.Sprintf("%s:%d", resource, target)}},
-		Budget: window + 15*time.Minute,
-		Reason: "four dependent rungs (research completion, a bench build, a stockpile and a bill iteration) are one native campaign on the fixture hut; the watch ends on the first product",
+		Stages: []string{benchStage},
+		Budget: benchWindow + window + 5*time.Minute,
+		Reason: "the research rung and the bench build are a cached stage (#329); the stockpile and the first bill iteration after it run on a miss and a hit alike",
 		Run: func(ctx context.Context, s cases.Session) error {
+			if err := s.Stage(ctx, benchStage, func(ctx context.Context) error {
+				_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
+					WatchConfig: sustainedfood.WatchConfig{Watch: benchWindow, Goal: policy.MaintainResource, Until: benchBuilt, FailFast: ladderFailFast},
+					Prepare: func(ctx context.Context, h *na.Harness, report na.Report) error {
+						prepared := s.Prepared()
+						report["fixture"] = prepared
+						if finished, _ := na.AsBool(prepared["finished"]); finished {
+							return fmt.Errorf("%s is already finished; the research rung has nothing to prove", project)
+						}
+						before, err := h.Call(ctx, "baseline-audit", "test/production_ladder_audit", map[string]any{})
+						if err != nil {
+							return err
+						}
+						baseline := gladiusCount(before)
+						report["baseline_count"] = baseline
+						// The bill path and the postmortem read the baseline
+						// back from the bundle (cases.RestoredState) on a hit
+						// or a -postmortem-only rerun.
+						na.SetCheckpointState(baselineKey, baseline)
+						if baseline >= target {
+							return fmt.Errorf("save already holds %v %s; the stock floor %d leaves no deficit to recover", baseline, resource, target)
+						}
+						if len(smithies(before)) != 0 {
+							return fmt.Errorf("save already holds a smithy; the bench rung has nothing to prove")
+						}
+						return nil
+					},
+					Audit: func(ctx context.Context, h *na.Harness, report na.Report) error {
+						live, err := h.Call(ctx, "bench-audit", "test/production_ladder_audit", map[string]any{})
+						if err != nil {
+							return err
+						}
+						report["bench_stage"] = live
+						if finished, _ := na.AsBool(live["finished"]); !finished {
+							return fmt.Errorf("%s did not finish natively within the bench window: progress=%v current=%v", project, live["progress"], live["current"])
+						}
+						if len(smithies(live)) == 0 {
+							return fmt.Errorf("no smithy stands within the bench window (%v)", live)
+						}
+						return nil
+					},
+				})
+				return err
+			}); err != nil {
+				return err
+			}
+			if restored := cases.RestoredState(s, baselineKey); restored != nil {
+				s.Report()["baseline_count"] = na.AsNumber(restored)
+			}
 			_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
 				WatchConfig: sustainedfood.WatchConfig{Watch: window, Goal: policy.MaintainResource, Until: billProduced, FailFast: ladderFailFast},
-				Prepare: func(ctx context.Context, h *na.Harness, report na.Report) error {
-					prepared := s.Prepared()
-					report["fixture"] = prepared
-					if finished, _ := na.AsBool(prepared["finished"]); finished {
-						return fmt.Errorf("%s is already finished; the research rung has nothing to prove", project)
-					}
-					before, err := h.Call(ctx, "baseline-audit", "test/production_ladder_audit", map[string]any{})
-					if err != nil {
-						return err
-					}
-					baseline := gladiusCount(before)
-					report["baseline_count"] = baseline
-					// The postmortem reads the baseline back from the bundle
-					// (Session.Resumed), so a -postmortem-only rerun has it.
-					na.SetCheckpointState(baselineKey, baseline)
-					if baseline >= target {
-						return fmt.Errorf("save already holds %v %s; the stock floor %d leaves no deficit to recover", baseline, resource, target)
-					}
-					if len(smithies(before)) != 0 {
-						return fmt.Errorf("save already holds a smithy; the bench rung has nothing to prove")
-					}
-					return nil
-				},
 			})
 			return err
 		},
@@ -110,10 +148,11 @@ func init() {
 			report := s.Report()
 			baseline, ok := report["baseline_count"].(float64)
 			if !ok {
-				entry, _ := s.Resumed()
-				if baseline, ok = entry.State[baselineKey].(float64); !ok {
+				restored := cases.RestoredState(s, baselineKey)
+				if restored == nil {
 					return fmt.Errorf("no %s in the report or the bundle's state: the prepare phase never ran", baselineKey)
 				}
+				baseline = na.AsNumber(restored)
 				report["baseline_count"] = baseline
 			}
 			journal, err := store.Open(ctx, filepath.Join(s.Config().Output, "service.sqlite"))
@@ -132,14 +171,23 @@ const baselineKey = "baseline_count"
 
 // billProduced reports a sample whose MaintainResource goal holds or held a
 // production bill plan with every action completed: the first product landed.
-func billProduced(sample map[string]any) bool {
+func billProduced(sample map[string]any) bool { return planCompleted(sample, "routine-resource-") }
+
+// benchBuilt reports a sample whose MaintainResource goal holds or held
+// (retired_plans: a completed method leaves the goal at the next review) a
+// workshop bench plan with every action completed: the bench stands.
+func benchBuilt(sample map[string]any) bool { return planCompleted(sample, "routine-workshop-") }
+
+// planCompleted reports a plan of the prefix, active or retired, with every
+// action completed.
+func planCompleted(sample map[string]any, prefix string) bool {
 	plans, _ := sample["plans"].([]map[string]any)
 	retired, _ := sample["retired_plans"].([]map[string]any)
 	for _, plan := range append(plans, retired...) {
 		id, _ := plan["plan"].(string)
 		actions, _ := plan["actions"].(int)
 		stages, _ := plan["stages"].(map[string]int)
-		if strings.HasPrefix(id, "routine-resource-") && actions > 0 && stages["completed"] == actions {
+		if strings.HasPrefix(id, prefix) && actions > 0 && stages["completed"] == actions {
 			return true
 		}
 	}
