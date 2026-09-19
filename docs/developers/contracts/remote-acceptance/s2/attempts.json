@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "run": {
+    "path": "run.json",
+    "sha256": "045f86463dc8f3f6274b5c78e87fcb1a6172931b58913468e50a7111527fd0df"
+  },
+  "selection": {
+    "path": "selection.json",
+    "sha256": "653ff5ff3e175a8baca59c08acbce4b7b51a43d282edcdf0674996e03bdcac0d"
+  },
+  "shard_id": "s2",
+  "runner": {
+    "os": "windows",
+    "image_version": "fixture-image",
+    "arch": "x64",
+    "cpu_count": 4,
+    "memory_bytes": 17179869184,
+    "free_disk_bytes": 15032385536,
+    "bootstrap": {
+      "path": "s2/bootstrap.json",
+      "sha256": "c826be688c5776e58e29088dd31c5fd60fcc0dcd8b5e5201770a1d104e11665c"
+    }
+  },
+  "attempts": [
+    {
+      "case": "needs/freeze",
+      "number": 1,
+      "status": "passed",
+      "classification": "none",
+      "retry_of": null,
+      "started_at": "2026-09-19T12:00:00Z",
+      "finished_at": "2026-09-19T12:01:00Z",
+      "exit": 0,
+      "error": null,
+      "evidence": {
+        "path": "s2/needs/freeze/result.json",
+        "sha256": "bbafcce2efd70ba9f4a087bdef4e54f2be702de2411a730fc02b94b21f602032"
+      }
+    },
+    {
+      "case": "presentation/roster",
+      "number": 1,
+      "status": "passed",
+      "classification": "none",
+      "retry_of": null,
+      "started_at": "2026-09-19T12:01:00Z",
+      "finished_at": "2026-09-19T12:02:00Z",
+      "exit": 0,
+      "error": null,
+      "evidence": {
+        "path": "s2/presentation/roster/result.json",
+        "sha256": "824b75c9870b3fd97150df68f8deef9339eec108537559bbf9de563a41afc06b"
+      }
+    },
+    {
+      "case": "smoke/identity",
+      "number": 1,
+      "status": "passed",
+      "classification": "none",
+      "retry_of": null,
+      "started_at": "2026-09-19T12:02:00Z",
+      "finished_at": "2026-09-19T12:03:00Z",
+      "exit": 0,
+      "error": null,
+      "evidence": {
+        "path": "s2/smoke/identity/result.json",
+        "sha256": "dde68449dc030e0ee1d051300a4edbec8ccdc0a2452f0cc93f417e8d3c496c4c"
+      }
+    }
+  ]
+}

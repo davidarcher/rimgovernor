@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "run": {
+    "path": "run.json",
+    "sha256": "045f86463dc8f3f6274b5c78e87fcb1a6172931b58913468e50a7111527fd0df"
+  },
+  "selection": {
+    "path": "selection.json",
+    "sha256": "653ff5ff3e175a8baca59c08acbce4b7b51a43d282edcdf0674996e03bdcac0d"
+  },
+  "shards": [
+    {
+      "id": "s1",
+      "status": "complete",
+      "attempts": {
+        "path": "s1/attempts.json",
+        "sha256": "dfb2939e099c945cb04a4ae654f3e330f091496a3ba38e45ee479823e1613c95"
+      }
+    },
+    {
+      "id": "s2",
+      "status": "complete",
+      "attempts": {
+        "path": "s2/attempts.json",
+        "sha256": "2dc32d99ec06af449878219aa6ff0f8e4617ef0fdaaceafa00f482480ab79ffd"
+      }
+    }
+  ],
+  "status": "passed",
+  "passed": true,
+  "cases": [
+    {
+      "name": "light/dark",
+      "shard_id": "s1",
+      "attempt_count": 1,
+      "final_attempt": 1,
+      "status": "passed"
+    },
+    {
+      "name": "needs/freeze",
+      "shard_id": "s2",
+      "attempt_count": 1,
+      "final_attempt": 1,
+      "status": "passed"
+    },
+    {
+      "name": "pawn/reads",
+      "shard_id": "s1",
+      "attempt_count": 1,
+      "final_attempt": 1,
+      "status": "passed"
+    },
+    {
+      "name": "presentation/roster",
+      "shard_id": "s2",
+      "attempt_count": 1,
+      "final_attempt": 1,
+      "status": "passed"
+    },
+    {
+      "name": "smoke/dispatch",
+      "shard_id": "s1",
+      "attempt_count": 1,
+      "final_attempt": 1,
+      "status": "passed"
+    },
+    {
+      "name": "smoke/identity",
+      "shard_id": "s2",
+      "attempt_count": 1,
+      "final_attempt": 1,
+      "status": "passed"
+    }
+  ],
+  "error": null
+}

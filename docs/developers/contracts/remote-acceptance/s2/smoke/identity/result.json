@@ -1,0 +1,7 @@
+{
+  "name": "smoke/identity",
+  "passed": true,
+  "exit": 0,
+  "acceptance": "the runner opens a quiet debug game, freezes needs and hands the case a loaded identity",
+  "fixture_only": true
+}

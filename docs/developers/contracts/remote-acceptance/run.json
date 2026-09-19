@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "run_id": "gh:davidarcher/rimgovernor:1000:1",
+  "repository": "davidarcher/rimgovernor",
+  "trigger": {
+    "event": "workflow_dispatch",
+    "actor": "davidarcher",
+    "published_ref": "refs/heads/example-maintainer-published",
+    "actions_run_id": 1000,
+    "actions_run_attempt": 1
+  },
+  "workflow_commit": "cccccccccccccccccccccccccccccccccccccccc",
+  "tested_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "base_commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "tier": "smoke",
+  "bundle": {
+    "path": "bundle.json",
+    "sha256": "69d36dcc02b5b44d6bf0641ad7d9c96a8b1a30e2412ef2931b85f4601d6614df"
+  },
+  "limits": {
+    "runner_label": "windows-2022",
+    "shards": 2,
+    "max_parallel": 2,
+    "workers_per_shard": 1,
+    "job_timeout_minutes": 60,
+    "suite_timeout_minutes": 45,
+    "max_attempts": 2,
+    "artifact_retention_days": 7,
+    "artifact_max_bytes": 1073741824,
+    "paid_usage_authorized": false
+  }
+}

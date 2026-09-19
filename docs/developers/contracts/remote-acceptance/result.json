@@ -1,0 +1,59 @@
+{
+  "tier": "smoke",
+  "passed": true,
+  "error": null,
+  "cases": [
+    {
+      "name": "light/dark",
+      "passed": true,
+      "exit": 0,
+      "acceptance": "serve-driven: the live routine reviewer admits one lamp beside a measured-dark work cell",
+      "fixture_only": true
+    },
+    {
+      "name": "needs/freeze",
+      "passed": true,
+      "exit": 0,
+      "acceptance": "test/freeze_needs, which every fixture build carries, pins every unkept need",
+      "fixture_only": true
+    },
+    {
+      "name": "pawn/reads",
+      "passed": true,
+      "exit": 0,
+      "acceptance": "typed pawn reads: filters, detail presence, bounded refusals, paused invariance",
+      "fixture_only": true
+    },
+    {
+      "name": "presentation/roster",
+      "passed": true,
+      "exit": 0,
+      "acceptance": "the read-only presentation roster over the debug colony",
+      "fixture_only": true
+    },
+    {
+      "name": "smoke/dispatch",
+      "passed": true,
+      "exit": 0,
+      "acceptance": "companion tools dispatch off the GABP reader; a read under a held long poll returns in a round trip",
+      "fixture_only": true
+    },
+    {
+      "name": "smoke/identity",
+      "passed": true,
+      "exit": 0,
+      "acceptance": "the runner opens a quiet debug game, freezes needs and hands the case a loaded identity",
+      "fixture_only": true
+    }
+  ],
+  "remote": {
+    "schema_version": 1,
+    "aggregate": {
+      "path": "aggregate.json",
+      "sha256": "368857fabcaa741394238ed650ec08eab34d7bbd57a10c2be7aced26b1e75a34"
+    },
+    "tested_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "base_commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "bundle_sha256": "69d36dcc02b5b44d6bf0641ad7d9c96a8b1a30e2412ef2931b85f4601d6614df"
+  }
+}

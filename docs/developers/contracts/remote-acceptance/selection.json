@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "run": {
+    "path": "run.json",
+    "sha256": "045f86463dc8f3f6274b5c78e87fcb1a6172931b58913468e50a7111527fd0df"
+  },
+  "planner_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "diff_mode": "ancestor-tree",
+  "changed_files": [
+    "docs/developers/contracts/remote-acceptance.md"
+  ],
+  "cases": [
+    {
+      "name": "light/dark",
+      "reasons": [
+        "smoke"
+      ]
+    },
+    {
+      "name": "needs/freeze",
+      "reasons": [
+        "smoke"
+      ]
+    },
+    {
+      "name": "pawn/reads",
+      "reasons": [
+        "smoke"
+      ]
+    },
+    {
+      "name": "presentation/roster",
+      "reasons": [
+        "smoke"
+      ]
+    },
+    {
+      "name": "smoke/dispatch",
+      "reasons": [
+        "smoke"
+      ]
+    },
+    {
+      "name": "smoke/identity",
+      "reasons": [
+        "smoke"
+      ]
+    }
+  ],
+  "sampled_areas": [],
+  "algorithm": "sorted-round-robin-v1",
+  "shards": [
+    {
+      "id": "s1",
+      "cases": [
+        "light/dark",
+        "pawn/reads",
+        "smoke/dispatch"
+      ]
+    },
+    {
+      "id": "s2",
+      "cases": [
+        "needs/freeze",
+        "presentation/roster",
+        "smoke/identity"
+      ]
+    }
+  ]
+}

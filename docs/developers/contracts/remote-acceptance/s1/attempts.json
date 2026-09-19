@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "run": {
+    "path": "run.json",
+    "sha256": "045f86463dc8f3f6274b5c78e87fcb1a6172931b58913468e50a7111527fd0df"
+  },
+  "selection": {
+    "path": "selection.json",
+    "sha256": "653ff5ff3e175a8baca59c08acbce4b7b51a43d282edcdf0674996e03bdcac0d"
+  },
+  "shard_id": "s1",
+  "runner": {
+    "os": "windows",
+    "image_version": "fixture-image",
+    "arch": "x64",
+    "cpu_count": 4,
+    "memory_bytes": 17179869184,
+    "free_disk_bytes": 15032385536,
+    "bootstrap": {
+      "path": "s1/bootstrap.json",
+      "sha256": "c826be688c5776e58e29088dd31c5fd60fcc0dcd8b5e5201770a1d104e11665c"
+    }
+  },
+  "attempts": [
+    {
+      "case": "light/dark",
+      "number": 1,
+      "status": "passed",
+      "classification": "none",
+      "retry_of": null,
+      "started_at": "2026-09-19T12:00:00Z",
+      "finished_at": "2026-09-19T12:01:00Z",
+      "exit": 0,
+      "error": null,
+      "evidence": {
+        "path": "s1/light/dark/result.json",
+        "sha256": "6b13f98df7ed0e8164ef4bf4f245fd10efd957647d78699c5aed4e3363bff251"
+      }
+    },
+    {
+      "case": "pawn/reads",
+      "number": 1,
+      "status": "passed",
+      "classification": "none",
+      "retry_of": null,
+      "started_at": "2026-09-19T12:01:00Z",
+      "finished_at": "2026-09-19T12:02:00Z",
+      "exit": 0,
+      "error": null,
+      "evidence": {
+        "path": "s1/pawn/reads/result.json",
+        "sha256": "2466a5692b1cf60f25242d6a2a84ebb71505659f2c201d0ac4f20829a75fae33"
+      }
+    },
+    {
+      "case": "smoke/dispatch",
+      "number": 1,
+      "status": "passed",
+      "classification": "none",
+      "retry_of": null,
+      "started_at": "2026-09-19T12:02:00Z",
+      "finished_at": "2026-09-19T12:03:00Z",
+      "exit": 0,
+      "error": null,
+      "evidence": {
+        "path": "s1/smoke/dispatch/result.json",
+        "sha256": "b0cdcb67efd88750b3580213338304ee553495ca57d1ba72e58378a663d92222"
+      }
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+[
+  {
+    "name": "needs/freeze",
+    "acceptance": "test/freeze_needs, which every fixture build carries, pins every unkept need"
+  },
+  {
+    "name": "presentation/roster",
+    "acceptance": "the read-only presentation roster over the debug colony"
+  },
+  {
+    "name": "smoke/identity",
+    "acceptance": "the runner opens a quiet debug game, freezes needs and hands the case a loaded identity"
+  }
+]

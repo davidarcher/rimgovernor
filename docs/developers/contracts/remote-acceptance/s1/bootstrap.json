@@ -1,0 +1,7 @@
+{
+  "passed": true,
+  "fixture_only": true,
+  "checks": [
+    "synthetic runner metadata; no game started"
+  ]
+}

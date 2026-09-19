@@ -1,0 +1,7 @@
+{
+  "name": "presentation/roster",
+  "passed": true,
+  "exit": 0,
+  "acceptance": "the read-only presentation roster over the debug colony",
+  "fixture_only": true
+}

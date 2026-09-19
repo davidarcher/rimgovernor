@@ -1,0 +1,14 @@
+[
+  {
+    "name": "light/dark",
+    "acceptance": "serve-driven: the live routine reviewer admits one lamp beside a measured-dark work cell"
+  },
+  {
+    "name": "pawn/reads",
+    "acceptance": "typed pawn reads: filters, detail presence, bounded refusals, paused invariance"
+  },
+  {
+    "name": "smoke/dispatch",
+    "acceptance": "companion tools dispatch off the GABP reader; a read under a held long poll returns in a round trip"
+  }
+]

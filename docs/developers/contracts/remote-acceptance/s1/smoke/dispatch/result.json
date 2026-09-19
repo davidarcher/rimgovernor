@@ -1,0 +1,7 @@
+{
+  "name": "smoke/dispatch",
+  "passed": true,
+  "exit": 0,
+  "acceptance": "companion tools dispatch off the GABP reader; a read under a held long poll returns in a round trip",
+  "fixture_only": true
+}

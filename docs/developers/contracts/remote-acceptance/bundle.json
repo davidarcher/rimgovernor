@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "game": {
+    "version": "fixture-only",
+    "platform": "windows-x64",
+    "core_only": true
+  },
+  "components": [
+    {
+      "name": "game",
+      "version": "fixture-only",
+      "path_prefix": "game/",
+      "sha256": "944e63b58735f04b61f73297afc22c5378e2041f40b27f6e313e7e9de38ffaf3"
+    },
+    {
+      "name": "harmony",
+      "version": "fixture-only",
+      "path_prefix": "harmony/",
+      "sha256": "1b03a0c899b1f421e388df7331216ebcfd6c20a1e30f832155ced550ab0db90c"
+    },
+    {
+      "name": "bridge",
+      "version": "fixture-only",
+      "path_prefix": "bridge/",
+      "sha256": "49879e3872fa90abff202b3758f20a8fdf5264d94f9e5b31eb79d57663bc3b21"
+    },
+    {
+      "name": "gabs",
+      "version": "fixture-only",
+      "path_prefix": "gabs/",
+      "sha256": "397dbc49be32b9110efbd2fb2e5b806c6d4c736bf6dfcab855388479232bf782"
+    },
+    {
+      "name": "starts",
+      "version": "fixture-only",
+      "path_prefix": "starts/",
+      "sha256": "2d5b983ae03cbfb151cdbe0007d6db9dcde05c24ea0e0cade7a6bfd25ce5cbd8"
+    }
+  ],
+  "origin": {
+    "repository": "example-owner/private-game-bundles",
+    "release_id": 100
+  },
+  "parts": [
+    {
+      "asset_id": 101,
+      "name": "game.7z.age",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "unpacked_bytes": 0,
+  "inventory": {
+    "path": "inventory.json",
+    "sha256": "ed07aa79019d4d3840255f4af07a1654b5f234f600d5e0fa1213f76ee5a79fbc"
+  },
+  "encryption": {
+    "format": "age-v1",
+    "key_id": "fixture-key-1"
+  }
+}

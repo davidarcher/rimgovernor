@@ -1,0 +1,7 @@
+{
+  "name": "needs/freeze",
+  "passed": true,
+  "exit": 0,
+  "acceptance": "test/freeze_needs, which every fixture build carries, pins every unkept need",
+  "fixture_only": true
+}

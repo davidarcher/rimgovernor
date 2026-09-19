@@ -4,6 +4,7 @@
 
 Current rules, payloads and completion criteria. Open the topic that owns your change.
 
+- [Remote acceptance manifests and landing handoff](remote-acceptance.md)
 - [Action completion contracts](action-contracts.md)
 - [Controller and colony contracts](controller-contracts.md)
 - [Equipment and apparel upkeep](equipment-upkeep.md)

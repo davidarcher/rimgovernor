@@ -1,0 +1,7 @@
+{
+  "name": "pawn/reads",
+  "passed": true,
+  "exit": 0,
+  "acceptance": "typed pawn reads: filters, detail presence, bounded refusals, paused invariance",
+  "fixture_only": true
+}

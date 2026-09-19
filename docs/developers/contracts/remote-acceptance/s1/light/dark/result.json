@@ -1,0 +1,7 @@
+{
+  "name": "light/dark",
+  "passed": true,
+  "exit": 0,
+  "acceptance": "serve-driven: the live routine reviewer admits one lamp beside a measured-dark work cell",
+  "fixture_only": true
+}
