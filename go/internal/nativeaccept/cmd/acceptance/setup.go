@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
@@ -68,6 +69,8 @@ func parseSetup(args []string, stderr io.Writer) (setupOptions, error) {
 			return o, fmt.Errorf("no checkout encloses %s; pass -worktree", cwd)
 		}
 		o.repo = repo
+	} else if _, err := os.Stat(filepath.Join(o.repo, ".git")); err != nil {
+		return o, fmt.Errorf("-worktree %s is not a checkout (no .git): %v", o.repo, err)
 	}
 	o.overrides.Repo = o.repo
 	return o, nil

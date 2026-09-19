@@ -158,21 +158,29 @@ func TestListPrintsRegistry(t *testing.T) {
 }
 
 func TestParseSetup(t *testing.T) {
+	// -worktree must be a checkout root: a path that only looks like one
+	// (a go/ subdirectory, a Git Bash path the shell did not convert)
+	// would otherwise search the wrong place for peers (#352).
+	repo := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(repo, ".git"), 0755); err != nil {
+		t.Fatal(err)
+	}
 	var stderr bytes.Buffer
-	o, err := parseSetup([]string{"-worktree", absRoot(), "-fixture", "UpkeepFixture, ShutdownFixture", "-rebuild"}, &stderr)
+	o, err := parseSetup([]string{"-worktree", repo, "-fixture", "UpkeepFixture, ShutdownFixture", "-rebuild"}, &stderr)
 	if err != nil {
 		t.Fatalf("parseSetup: %v (%s)", err, stderr.String())
 	}
-	if o.repo != absRoot() || o.overrides.Repo != absRoot() || !o.run.Rebuild {
+	if o.repo != repo || o.overrides.Repo != repo || !o.run.Rebuild {
 		t.Fatalf("options = %+v", o)
 	}
 	if strings.Join(o.run.Fixtures, ",") != "UpkeepFixture,ShutdownFixture" {
 		t.Fatalf("fixtures = %v", o.run.Fixtures)
 	}
 	for name, args := range map[string][]string{
-		"fixture and production": {"-worktree", absRoot(), "-fixture", "UpkeepFixture", "-production"},
-		"positional":             {"-worktree", absRoot(), "smoke/identity"},
-		"unknown flag":           {"-worktree", absRoot(), "-bogus"},
+		"fixture and production":  {"-worktree", repo, "-fixture", "UpkeepFixture", "-production"},
+		"positional":              {"-worktree", repo, "smoke/identity"},
+		"unknown flag":            {"-worktree", repo, "-bogus"},
+		"worktree not a checkout": {"-worktree", filepath.Join(repo, "go")},
 	} {
 		if _, err := parseSetup(args, &stderr); err == nil {
 			t.Errorf("%s: parseSetup(%v) = nil", name, args)

@@ -210,3 +210,46 @@ func findRepo(t *testing.T) (string, bool) {
 		dir = parent
 	}
 }
+
+func TestFindPeerGABSPrefersOwnBridgeAndGlobsReleases(t *testing.T) {
+	main := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(main, ".git", "worktrees", "a"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	wt := filepath.Join(main, ".claude", "worktrees", "a")
+	if err := os.MkdirAll(wt, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(wt, ".git"), []byte("gitdir: "+filepath.Join(main, ".git", "worktrees", "a")+"\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	install := func(root, release string) string {
+		exe := filepath.Join(root, ".rimgovernor", "bridge", "gabs", release, "gabs.exe")
+		if err := os.MkdirAll(filepath.Dir(exe), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(exe, []byte("MZ"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		return absClean(exe)
+	}
+	if got, _, searched := findPeerGABS(wt); got != "" || len(searched) != 2 {
+		t.Fatalf("empty layout: found %q, searched %v", got, searched)
+	}
+	// The main checkout's is found through the worktree.
+	mainExe := install(main, "gabs-v1.1.1-windows-amd64")
+	if got, source, _ := findPeerGABS(wt); got != mainExe || source != "peer checkout "+absClean(main) {
+		t.Fatalf("main's gabs.exe: got %q (%s)", got, source)
+	}
+	// The worktree's own comes first, under whatever release directory it
+	// was installed with (#352).
+	ownExe := install(wt, "gabs-v1.2.0-windows-amd64")
+	if got, source, _ := findPeerGABS(wt); got != ownExe || source != "peer checkout "+absClean(wt) {
+		t.Fatalf("own gabs.exe: got %q (%s)", got, source)
+	}
+	// The conventional path wins over other releases in the same root.
+	ownConventional := install(wt, "gabs-v1.1.1-windows-amd64")
+	if got, _, _ := findPeerGABS(wt); got != ownConventional {
+		t.Fatalf("conventional gabs.exe: got %q", got)
+	}
+}

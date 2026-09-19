@@ -49,7 +49,9 @@ RimWorld running.
 
 `acceptance setup` (from `go/`: `go run ./internal/nativeaccept/cmd/acceptance
 setup`) makes all of this and is idempotent: it discovers the Steam
-RimWorld install, the workshop Harmony and a peer worktree's `gabs.exe`
+RimWorld install, the workshop Harmony and an installed `gabs.exe`
+(`.rimgovernor/bridge/gabs/*/gabs.exe` in this worktree, its main
+checkout, then its sibling worktrees)
 (`-rimworld`, `-harmony`, `-gabs` or `RIMGOVERNOR_RIMWORLD_DIR`,
 `RIMGOVERNOR_HARMONY_DLL`, `RIMGOVERNOR_GABS_EXE` override discovery),
 skips the mod build when the installed manifest already matches the

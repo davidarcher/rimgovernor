@@ -131,11 +131,12 @@ func Discover(o Overrides) (*Inputs, error) {
 	if gabs == "" {
 		gabs, source = os.Getenv(GABSEnv), GABSEnv
 	}
+	var searched []string
 	if gabs == "" {
-		gabs, source = findPeerGABS(o.Repo)
+		gabs, source, searched = findPeerGABS(o.Repo)
 	}
 	if gabs == "" {
-		return nil, fmt.Errorf("no gabs.exe in this worktree, its main checkout or a sibling worktree; set %s or pass -gabs", GABSEnv)
+		return nil, fmt.Errorf("no bridge/gabs/*/gabs.exe under .rimgovernor in this worktree, its main checkout or a sibling worktree (searched %s); set %s or pass -gabs", strings.Join(searched, ", "), GABSEnv)
 	}
 	gabs = absClean(gabs)
 	if !isFile(gabs) {
@@ -166,18 +167,37 @@ func harmonyCandidates(rimworld string, libraries []string) []string {
 const GABSRelative = "gabs/gabs-v1.1.1-windows-amd64/gabs.exe"
 
 // findPeerGABS looks for an installed gabs.exe under repo's own bridge
-// root, its main checkout's, then every sibling worktree's.
-func findPeerGABS(repo string) (string, string) {
+// root, its main checkout's, then every sibling worktree's: the
+// GABSRelative path first, then any other bridge/gabs/*/gabs.exe (a
+// release the bridge root was installed with by hand). It also returns
+// the checkouts it searched, for the error when none holds one.
+func findPeerGABS(repo string) (path, source string, searched []string) {
 	if repo == "" {
-		return "", ""
+		return "", "", nil
 	}
 	for _, root := range PeerCheckouts(repo) {
-		candidate := filepath.Join(root, ".rimgovernor", "bridge", filepath.FromSlash(GABSRelative))
-		if isFile(candidate) {
-			return candidate, "peer checkout " + root
+		searched = append(searched, root)
+		if found := installedGABS(filepath.Join(root, ".rimgovernor", "bridge")); found != "" {
+			return found, "peer checkout " + root, searched
 		}
 	}
-	return "", ""
+	return "", "", searched
+}
+
+// installedGABS is the gabs.exe a bridge root holds: GABSRelative when
+// present, else the newest-named bridge/gabs/*/gabs.exe, else "".
+func installedGABS(bridge string) string {
+	if candidate := filepath.Join(bridge, filepath.FromSlash(GABSRelative)); isFile(candidate) {
+		return candidate
+	}
+	matches, _ := filepath.Glob(filepath.Join(bridge, "gabs", "*", "gabs.exe"))
+	sort.Sort(sort.Reverse(sort.StringSlice(matches)))
+	for _, m := range matches {
+		if isFile(m) {
+			return m
+		}
+	}
+	return ""
 }
 
 // PeerCheckouts lists repo, then the main checkout it is a worktree of,
