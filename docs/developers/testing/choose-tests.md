@@ -622,12 +622,19 @@ through five consecutive reviews that handed its planner the slot (the
 development row's `Idle` flag -- a goal the review never selects, such as
 `EnsureComfort` under `startup_survival`, is waiting, not refused); or the
 service's latest `scheduler_step` line carrying the same native refusal in
-`planner_failures` for six consecutive samples (#219's shape). The verdict
+`planner_failures` for six consecutive samples (#219's shape); or the
+watched goal `suspended` while the review's development rows hold goals
+back for an `emergency` and the live tick has not moved for twelve
+consecutive samples (#319's park: a downed colonist no kept family can
+tend, the clock refusing every window as `no_work`). The verdict
 is the case's error and `result.json`'s `fail_fast` row, quoting the
 journal text; the failed checkpoint bundle is still taken. A case where
 one of these is an expected transient sets `FailFast{Disabled: true}`
 (the `sustained/colony` diagnostics) or raises `NoMethodReviews` /
-`RefusalSamples`.
+`RefusalSamples` / `ParkSamples`. A baseline-save case whose kept needs
+can down a colonist keeps `tend` and `rescue` beside its families
+(`supply/starting`, #201's startup cases) so an emergency is served
+rather than parked on.
 
 Process reuse carries the same static-state caveat as an `Owned` case's
 `GameReuse` (next paragraph), and process-wide `Prefs` too: the

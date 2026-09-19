@@ -110,3 +110,38 @@ func TestFailFastRepeatedRefusalReadsTheLatestStep(t *testing.T) {
 		t.Fatal("disabled fail-fast must not fire")
 	}
 }
+
+func TestFailFastEmergencyParkNeedsAnUnmovingTick(t *testing.T) {
+	f := newFailFast(FailFast{ParkSamples: 3}, policy.AllowStartingSupplies, "")
+	parked := func(tick uint64, status string, emergency ...string) map[string]any {
+		return map[string]any{"review_revision": uint64(42), "status": status, "need": "deficit", "tick": tick, "emergency": emergency}
+	}
+	// A suspended goal under an emergency with the tick moving is being served.
+	for _, tick := range []uint64{100, 160, 220} {
+		if v, failed := f.check(parked(tick, "suspended", "EnsureComfort")); failed {
+			t.Fatalf("a moving tick is not a park: %v", v)
+		}
+	}
+	// Two parked samples, then the emergency clears: the count resets.
+	f.check(parked(220, "suspended", "EnsureComfort"))
+	if v, failed := f.check(parked(220, "active")); failed {
+		t.Fatalf("no emergency is not a park: %v", v)
+	}
+	if v, failed := f.check(parked(220, "suspended", "EnsureComfort")); failed {
+		t.Fatalf("first parked sample after a reset: %v", v)
+	}
+	if v, failed := f.check(parked(220, "suspended", "EnsureComfort")); failed {
+		t.Fatalf("second parked sample: %v", v)
+	}
+	v, failed := f.check(parked(220, "suspended", "EnsureComfort"))
+	if !failed || v.Shape != "emergency_park" || !strings.Contains(v.Reason, "[EnsureComfort]") || !strings.Contains(v.Reason, "parked at 220 for 3 samples") {
+		t.Fatalf("third consecutive parked sample must fail: failed=%v %+v", failed, v)
+	}
+	// A sample without a live tick never counts.
+	g := newFailFast(FailFast{ParkSamples: 1}, policy.AllowStartingSupplies, "")
+	noTick := parked(0, "suspended", "EnsureComfort")
+	delete(noTick, "tick")
+	if _, failed := g.check(noTick); failed {
+		t.Fatal("a sample without a live tick is not a park")
+	}
+}

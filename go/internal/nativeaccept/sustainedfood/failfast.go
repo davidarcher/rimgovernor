@@ -14,7 +14,7 @@ import (
 // with the defaults below; a case where one of these shapes is an expected
 // transient sets Disabled or raises the threshold.
 //
-// Three shapes abort, each with the journal's own text as the failure:
+// Four shapes abort, each with the journal's own text as the failure:
 //   - no method: the routine review handed the watched goal a development
 //     slot and its planner committed nothing (the row's Idle flag) for
 //     NoMethodReviews consecutive reviews while the goal stayed
@@ -26,7 +26,14 @@ import (
 //   - refusal: the service's latest scheduler step still carries the same
 //     isolated planner failure on a native refusal after RefusalSamples
 //     consecutive samples (issue #219's shape: the same read refused every
-//     step while the world under it cannot move).
+//     step while the world under it cannot move);
+//   - emergency park: the review's development rows report an emergency
+//     holding goals back, the watched goal is suspended, and the live tick
+//     has not moved for ParkSamples
+//     consecutive samples (#319's shape: a downed colonist with no
+//     tend/rescue family to serve the emergency, the clock refusing every
+//     window as no_work, and the suspended goal waiting for a world that
+//     never moves again).
 type FailFast struct {
 	Disabled bool
 	// NoMethodReviews is how many consecutive reviews may leave the goal
@@ -39,11 +46,18 @@ type FailFast struct {
 	// usual 5 s poll). The step event logs once per change of outcome, so
 	// an unchanged latest line means the refusal repeated every step since.
 	RefusalSamples int
+	// ParkSamples is how many consecutive samples the watched goal may sit
+	// suspended under an emergency with the live tick unchanged before the
+	// watch fails (default 12: a minute at the usual 5 s poll, past the
+	// stop between windows and a checkpoint capture). A sample without a
+	// live tick does not count.
+	ParkSamples int
 }
 
 const (
 	defaultNoMethodReviews = 5
 	defaultRefusalSamples  = 6
+	defaultParkSamples     = 12
 )
 
 // Verdict is the report's record of a fail-fast abort (report["fail_fast"]).
@@ -69,6 +83,9 @@ type failFastState struct {
 
 	lastStepLine string
 	stepSamples  int
+
+	parkTick    uint64
+	parkSamples int
 }
 
 func newFailFast(cfg FailFast, goal policy.GoalID, stderrPath string) *failFastState {
@@ -77,6 +94,9 @@ func newFailFast(cfg FailFast, goal policy.GoalID, stderrPath string) *failFastS
 	}
 	if cfg.RefusalSamples <= 0 {
 		cfg.RefusalSamples = defaultRefusalSamples
+	}
+	if cfg.ParkSamples <= 0 {
+		cfg.ParkSamples = defaultParkSamples
 	}
 	return &failFastState{cfg: cfg, goal: goal, stderr: stderrPath}
 }
@@ -91,6 +111,9 @@ func (f *failFastState) check(sample map[string]any) (Verdict, bool) {
 		return v, true
 	}
 	if v, ok := f.noMethod(sample); ok {
+		return v, true
+	}
+	if v, ok := f.emergencyPark(sample); ok {
 		return v, true
 	}
 	if f.stderr != "" {
@@ -162,5 +185,32 @@ func (f *failFastState) refusal(step na.SchedulerStep) (Verdict, bool) {
 		Shape:    "refusal",
 		Reason:   fmt.Sprintf("the latest scheduler step has repeated the same native refusal for %d samples: %s", f.stepSamples, step.PlannerFailures),
 		Evidence: step.Line,
+	}, true
+}
+
+// emergencyPark counts consecutive samples in which the watched goal is
+// suspended, the review's development rows hold goals back for an
+// emergency (sample["emergency"] lists them), and the live tick is where the
+// previous sample left it. Any of the three changing resets the count: a
+// moving tick means something is serving the emergency, and a goal back
+// to active or a review with no emergency means it was served.
+func (f *failFastState) emergencyPark(sample map[string]any) (Verdict, bool) {
+	tick, hasTick := sample["tick"].(uint64)
+	emergency, _ := sample["emergency"].([]string)
+	suspended := asString(sample["status"]) == string(domain.GoalSuspended)
+	if !hasTick || !suspended || len(emergency) == 0 || tick != f.parkTick {
+		f.parkTick, f.parkSamples = tick, 0
+		if !hasTick || !suspended || len(emergency) == 0 {
+			return Verdict{}, false
+		}
+	}
+	f.parkSamples++
+	if f.parkSamples < f.cfg.ParkSamples {
+		return Verdict{}, false
+	}
+	return Verdict{
+		Shape:    "emergency_park",
+		Reason:   fmt.Sprintf("goal %s stayed suspended while an emergency held back %v with the live tick parked at %d for %d samples: nothing serves the emergency and the clock admits no work", f.goal, emergency, tick, f.parkSamples),
+		Evidence: map[string]any{"tick": tick, "emergency": emergency, "review_revision": sample["review_revision"], "development": sample["development"]},
 	}, true
 }

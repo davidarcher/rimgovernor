@@ -316,6 +316,15 @@ func SampleGoal(ctx context.Context, s *store.Store, need policy.GoalID) (map[st
 	sample["review_revision"] = review.Revision
 	sample["review_tick"] = uint64(review.Tick)
 	sample["latch_food"] = review.Latches.Food
+	// The persisted review does not name the emergency need; its
+	// development rows say which priority>=2 goals it held back.
+	emergency := []string{}
+	for _, row := range review.Development.Rows {
+		if row.Reason == policy.DevelopmentEmergency {
+			emergency = append(emergency, string(row.Goal))
+		}
+	}
+	sample["emergency"] = emergency
 	var goalID domain.GoalID
 	for _, binding := range review.Goals {
 		if binding.Need == need {

@@ -36,8 +36,12 @@ import (
 // families: the supply family alone allows every stack at the paused load
 // tick and then never advances the clock, so no later review re-reads the
 // census; the shelter (and its sleeping spots) keeps windows running the
-// way run 24 did, with the shell built over the drop site.
-const families = "supply,shelter,sleeping"
+// way run 24 did, with the shell built over the drop site. The baseline
+// colonists start hungry with Food the one live need, and a colonist who
+// goes down parks the clock behind a CriticalMedical emergency nothing
+// else could serve (#319), so tend and rescue run beside them as in #201's
+// startup cases.
+const families = "supply,shelter,sleeping,tend,rescue"
 
 // window: the tribal8 cohort is 23 stacks, three eight-action plans landed
 // one after another with a review between them; at the bridge's live
