@@ -298,6 +298,9 @@ func Select(repo string, changed []string, base ...string) (Selection, error) {
 			}
 		}
 	}
+	if files, ok := sources[binary]; ok {
+		binaryWhy = append(binaryWhy, "the rimgovernor binary changed ("+strings.Join(files, ", ")+")")
+	}
 	for _, dep := range graph.deps[binary] {
 		if files, ok := sources[dep]; ok {
 			binaryWhy = append(binaryWhy, "the rimgovernor binary imports "+dep+" ("+strings.Join(files, ", ")+")")
