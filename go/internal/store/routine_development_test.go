@@ -546,3 +546,53 @@ func TestRoutineDevelopmentGrantedSelectionIsNotJudgedIdle(t *testing.T) {
 		t.Fatalf("yielder should be idle: %+v", row)
 	}
 }
+
+// An Equip of a weapon the colony already owns is no development project
+// (#411): with both slots held by MaintainWood and MaintainMedicalReserves,
+// EnsureBasicDefense's equip method is admitted anyway, and the open equip
+// plan holds no slot of its own, while a building method of the same goal
+// still needs the slot.
+func TestRoutineDevelopmentEquipHoldsNoSlot(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	s := open(t, memoryPath(t))
+	r := routineRequest()
+	r.Policy.MaxDevelopmentProjects = 1
+	out := reviewRoutine(t, s, &r)
+	wood := routineGoal(t, out, policy.MaintainWood)
+	if !developmentRow(t, out.Review, policy.MaintainWood).Selected {
+		t.Fatal(out.Review.Development)
+	}
+	if _, err := s.CommitGoalMethod(ctx, wood.Goal.ID, wood.Revision, "wood", plan(t, "wood", "wood-action")); err != nil {
+		t.Fatal(err)
+	}
+	// The defense deficit appears while the wood method holds the only slot.
+	r.Facts.Colonists = domain.Known(int64(3))
+	r.Facts.Armed = domain.Known(int64(0))
+	out = reviewRoutine(t, s, &r)
+	row := developmentRow(t, out.Review, policy.EnsureBasicDefense)
+	if row.Selected || row.Reason != policy.DevelopmentCapacity || len(out.Review.Development.Committed) != 1 {
+		t.Fatal(out.Review.Development)
+	}
+	defense := routineGoal(t, out, policy.EnsureBasicDefense)
+	if _, err := s.CommitGoalMethod(ctx, defense.Goal.ID, defense.Revision, "sandbags", plan(t, "sandbags", "sandbags-action")); !errors.Is(err, ErrNotAdmitted) {
+		t.Fatal("unselected defense building method admitted", err)
+	}
+	equip, _ := domain.NewEquip("unarmed", "Thing_Bow_Short5164", "Bow_Short", domain.Cell{X: 108, Z: 121})
+	equipAction, err := domain.NewEquipAction("equip-action", equip)
+	if err != nil {
+		t.Fatal(err)
+	}
+	equipPlan, err := domain.NewPlan("equip", 1, []domain.Action{equipAction})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.CommitGoalMethod(ctx, defense.Goal.ID, defense.Revision, "equip", equipPlan); err != nil {
+		t.Fatal("equip refused for a development slot", err)
+	}
+	out = reviewRoutine(t, s, &r)
+	row = developmentRow(t, out.Review, policy.EnsureBasicDefense)
+	if row.Committed || row.Reason != policy.DevelopmentCapacity || len(out.Review.Development.Committed) != 1 || out.Review.Development.Committed[0] != policy.MaintainWood {
+		t.Fatal("open equip plan counted as a commitment", out.Review.Development)
+	}
+}

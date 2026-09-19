@@ -28,7 +28,7 @@ func routineCommitments(ctx context.Context, tx *sql.Tx, current domain.Generati
 				break
 			}
 		}
-		if open.View().Stage == "" {
+		if open.View().Stage == "" || developmentExemptMethod(plan.Spec) {
 			continue
 		}
 		var goalID domain.GoalID
@@ -140,11 +140,16 @@ func rankRoutineDevelopment(ctx context.Context, tx *sql.Tx, r RoutineReviewRequ
 	return policy.RankDevelopment(policy.DevelopmentRequest{Snapshot: r.Current, Tick: r.Tick, Workers: r.Facts.Workers, Labor: r.Facts.Labor, Limit: r.Policy.MaxDevelopmentProjects, Goals: goals, Commitments: commitments, Previous: previous, Partial: r.PartialPlanners})
 }
 
-// developmentExemptMethod reports a method whose every action is a
-// QuestAccept or a joiner-letter answer: accepting an offer is one native write with
-// no pawn work behind it (the quest's own parts walk the joiner in), so
-// MaintainPopulation answers it without holding a development slot, the
-// way ProductionPolicy's configuration pushes are exempt by need.
+// developmentExemptMethod reports a method that is no development project:
+// every action is a QuestAccept or a joiner-letter answer (one native write
+// with no pawn work behind it; the quest's own parts walk the joiner in, so
+// MaintainPopulation answers it without a slot, the way ProductionPolicy's
+// configuration pushes are exempt by need), or an Equip of a weapon the
+// colony already owns (one pawn walks to a loose bow and picks it up, a
+// minute of forced work that builds nothing; #411: EnsureBasicDefense
+// waited three days behind a wood haul and a herbal bill for a slot while
+// five bows lay on the ground). An exempt method is admitted without a
+// slot and, while open, holds none (routineCommitments).
 func developmentExemptMethod(plan domain.PlanSpec) bool {
 	actions := plan.Actions()
 	if len(actions) == 0 {
@@ -152,7 +157,7 @@ func developmentExemptMethod(plan domain.PlanSpec) bool {
 	}
 	for _, action := range actions {
 		letter, isDialog := action.DialogAnswer()
-		if action.Kind() != domain.QuestAcceptAction && !(isDialog && letter.LetterToken() != "") {
+		if action.Kind() != domain.QuestAcceptAction && action.Kind() != domain.EquipAction && !(isDialog && letter.LetterToken() != "") {
 			return false
 		}
 	}
