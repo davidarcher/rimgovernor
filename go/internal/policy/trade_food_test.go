@@ -92,6 +92,17 @@ func TestTradeFoodTargetsPreferDurableThenMealsThenRaw(t *testing.T) {
 	}
 }
 
+func TestTradeFoodPrefersPemmicanDespiteItsRotClock(t *testing.T) {
+	rows := []TradeSheetRowFact{
+		foodTradeRow("MealSimple", 0, 100, TradeFoodGood{Nutrition: 0.9, Class: IngredientAny, Prepared: true}),
+		foodTradeRow("Pemmican", 0, 100, TradeFoodGood{Nutrition: 0.05, Class: IngredientAny, Prepared: true}),
+	}
+	targets := tradeFoodTargets(TradeFoodNeed{Nutrition: 1}, rows)
+	if len(targets) != 1 || targets[0].Item != "Pemmican" || targets[0].MaxBuy != 20 {
+		t.Fatal(targets)
+	}
+}
+
 func TestTradeFoodMissingProteinAndCropFloors(t *testing.T) {
 	r := tradeFoodContext()
 	r.RunwayDays = domain.Known(9.0)

@@ -121,8 +121,10 @@ func tradeFoodTargets(need TradeFoodNeed, rows []TradeSheetRowFact) []domain.Tra
 		}
 		candidates = append(candidates, row)
 	}
-	rank := func(g TradeFoodGood) int {
-		if g.NonPerishable {
+	rank := func(row TradeSheetRowFact, g TradeFoodGood) int {
+		// Pemmican has a long native rot clock; reserve policy still prefers
+		// it over short-lived meals without claiming that it cannot rot.
+		if g.NonPerishable || ReserveFoodDefinition(Resource(row.DefName)) {
 			return 0
 		}
 		if g.Prepared {
@@ -134,8 +136,8 @@ func tradeFoodTargets(need TradeFoodNeed, rows []TradeSheetRowFact) []domain.Tra
 		a, b := candidates[i], candidates[j]
 		ga, _ := a.Food.Value()
 		gb, _ := b.Food.Value()
-		if rank(ga) != rank(gb) {
-			return rank(ga) < rank(gb)
+		if rank(a, ga) != rank(b, gb) {
+			return rank(a, ga) < rank(b, gb)
 		}
 		if a.BuyPrice/ga.Nutrition != b.BuyPrice/gb.Nutrition {
 			return a.BuyPrice/ga.Nutrition < b.BuyPrice/gb.Nutrition

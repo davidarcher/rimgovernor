@@ -153,8 +153,10 @@ purchase has been selected. Unknown protection flags still refuse export;
 retained targets and economic floors take their maximum. No purchase budget
 means no protected crop sale.
 
-These are opt-in policy contracts. Runtime callers must provide the shared
-review and native trade-row classification, and native acceptance must enforce
-the same crop exception before it is enabled. Calls without food context retain
+These are opt-in policy contracts. Native trade sheets provide validated definition nutrition and ingredient
+classification; drugs, corpses, kibble and human meat are excluded. Typed native
+acceptance independently requires a raw protein purchase and positive retained
+floor for crop exports. Runtime callers must still supply the shared food review
+and crop-surplus floors to enable these decisions. Calls without food context retain
 the ordinary medicine/component behavior; these helpers alone do not establish
 live food purchases or authorize native food exports.

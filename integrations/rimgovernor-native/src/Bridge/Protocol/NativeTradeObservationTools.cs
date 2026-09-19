@@ -115,6 +115,7 @@ namespace HomeBridge.BridgeTools
                 // The same classification AcceptTrade's economic floors refuse
                 // to export, so selection never stages what acceptance rejects.
                 ProtectedExport = def == null || def.IsWeapon || def.IsApparel || def.IsMedicine || def.IsNutritionGivingIngestible || pawn,
+                Food = pawn ? null : NativeTradeFoodFacts.Read(def),
             };
             if (pawn) line.PawnDescription = SafeText(() => t.Label);
             return line;

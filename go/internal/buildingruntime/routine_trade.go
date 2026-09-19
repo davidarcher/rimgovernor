@@ -461,10 +461,31 @@ func (r *RoutineTradePlanner) commit(call, epoch context.Context, state ControlS
 	return RoutineTradeResult{Reason: BuildingMethodAdmitted, Plan: id, Trader: trader, Phase: kind}, nil
 }
 
+func tradeFoodFact(food *o.TradeFoodFacts) domain.Fact[policy.TradeFoodGood] {
+	if food == nil {
+		return domain.Unknown[policy.TradeFoodGood]()
+	}
+	var class policy.FoodIngredientClass
+	switch food.IngredientClass {
+	case o.FoodIngredientClass_FOOD_INGREDIENT_CLASS_MEAT:
+		class = policy.IngredientMeat
+	case o.FoodIngredientClass_FOOD_INGREDIENT_CLASS_VEGETABLE:
+		class = policy.IngredientVegetable
+	case o.FoodIngredientClass_FOOD_INGREDIENT_CLASS_ANIMAL_PRODUCT:
+		class = policy.IngredientAnimalProduct
+	case o.FoodIngredientClass_FOOD_INGREDIENT_CLASS_ANY:
+		class = policy.IngredientAny
+	default:
+		return domain.Unknown[policy.TradeFoodGood]()
+	}
+	return domain.Known(policy.TradeFoodGood{Nutrition: food.Nutrition, Class: class, Prepared: food.Prepared, NonPerishable: food.NonPerishable, Crop: food.Crop})
+}
+
 func tradeSheetRowFacts(rows []bridge.TradeSheetRow) []policy.TradeSheetRowFact {
 	out := make([]policy.TradeSheetRowFact, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, policy.TradeSheetRowFact{
+			Food:   tradeFoodFact(row.Food),
 			LineID: row.LineID, DefName: row.DefName, ColonyCount: row.ColonyCount, TraderCount: row.TraderCount,
 			BuyPrice: row.BuyPrice, BuyPriceKnown: row.BuyPriceKnown, SellPrice: row.SellPrice, SellPriceKnown: row.SellPriceKnown,
 			TraderWillTrade: row.TraderWillTrade, TraderWillTradeKnown: row.TraderWillTradeKnown,

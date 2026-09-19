@@ -2,6 +2,7 @@ package bridge
 
 import (
 	"context"
+	"math"
 
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -27,6 +28,7 @@ const (
 // isCurrency/protectedExport), with each optional proto field's presence
 // carried explicitly so an absent field is never read as a zero.
 type TradeSheetRow struct {
+	Food         *o.TradeFoodFacts
 	LineID       string
 	DefName      string
 	Stuff        string
@@ -212,7 +214,17 @@ func tradeSheetRow(v *o.TradeLine) (TradeSheetRow, error) {
 	if v.GetColonyCount() < 0 || v.GetTraderCount() < 0 {
 		return TradeSheetRow{}, contract("trade sheet line count negative")
 	}
+	var food *o.TradeFoodFacts
+	if f := v.Food; f != nil {
+		if math.IsNaN(f.Nutrition) || math.IsInf(f.Nutrition, 0) || f.Nutrition <= 0 ||
+			f.IngredientClass < o.FoodIngredientClass_FOOD_INGREDIENT_CLASS_MEAT || f.IngredientClass > o.FoodIngredientClass_FOOD_INGREDIENT_CLASS_ANY ||
+			f.Crop && (f.Prepared || f.IngredientClass != o.FoodIngredientClass_FOOD_INGREDIENT_CLASS_VEGETABLE) || v.GetPawn() || v.GetCurrency() {
+			return TradeSheetRow{}, contract("invalid trade food classification")
+		}
+		food = proto.CloneOf(f)
+	}
 	return TradeSheetRow{
+		Food:   food,
 		LineID: v.GetLineId(), DefName: v.Definition.GetDefName(), Stuff: v.GetStuff(),
 		ColonyCount: v.GetColonyCount(), TraderCount: v.GetTraderCount(),
 		BuyPrice: v.GetBuyPrice(), SellPrice: v.GetSellPrice(), MarketValue: v.GetMarketValue(),
