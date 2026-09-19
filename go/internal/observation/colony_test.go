@@ -70,6 +70,11 @@ func TestColonyProjectionKeepsRawFoodAndUnknownGeometryOutOfPolicy(t *testing.T)
 	}
 	r.GetObserved().Context.Tick = proto.Int64(8)
 	r.GetObserved().Planning.GetObserved().Cells.Context.Tick = proto.Int64(8)
+	if _, err = DecodeColony(r, expected); err != nil {
+		t.Fatal("facts within the planning tolerance refused", err)
+	}
+	r.GetObserved().Context.Tick = proto.Int64(int64(expected.Tick + domain.PlanningTickTolerance + 1))
+	r.GetObserved().Planning.GetObserved().Cells.Context.Tick = proto.Int64(int64(expected.Tick + domain.PlanningTickTolerance + 1))
 	if _, err = DecodeColony(r, expected); err == nil {
 		t.Fatal("mixed review tick accepted")
 	}

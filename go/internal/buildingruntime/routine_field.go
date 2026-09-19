@@ -283,7 +283,7 @@ func (r *RoutineFieldPlanner) enact(call, epoch context.Context, state ControlSt
 				return RoutineFieldResult{}, false, err
 			}
 			v := preview.Preview
-			if v.Action != action || !v.Snapshot.Matches(snapshot) || v.Tick != projection.Identity.Tick {
+			if v.Action != action || !v.Snapshot.Matches(snapshot) || !v.Tick.FreshFor(projection.Identity.Tick) {
 				return RoutineFieldResult{}, false, ErrControl
 			}
 			legal, lk := v.CanPlace.Value()

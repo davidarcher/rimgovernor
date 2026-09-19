@@ -41,7 +41,7 @@ func TestRoutineDefenseRequiresConsistentCompletePawnDetails(t *testing.T) {
 			case "conflicting-downed":
 				row.Downed = proto.Bool(true)
 			case "stale-tick":
-				snapshot.Context.Tick = proto.Int64(snapshot.Context.GetTick() + 1)
+				snapshot.Context.Tick = proto.Int64(snapshot.Context.GetTick() + int64(domain.PlanningTickTolerance) + 1)
 			case "stale-native":
 				snapshot.Context.NativeGeneration = proto.Uint64(snapshot.Context.GetNativeGeneration() + 1)
 			}

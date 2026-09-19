@@ -26,16 +26,16 @@ type RoutineExcavationSource interface {
 }
 
 const (
-	excavationPlanPrefix   = "routine-excavation"
-	excavationStagePrefix  = "excavation-stage-"
-	excavationDoorMethod   = domain.MethodID("excavation-door")
-	excavationStageLimit   = 8
-	excavationStageBound   = 64
+	excavationPlanPrefix  = "routine-excavation"
+	excavationStagePrefix = "excavation-stage-"
+	excavationDoorMethod  = domain.MethodID("excavation-door")
+	excavationStageLimit  = 8
+	excavationStageBound  = 64
 	// excavationStallTicks bounds how long a stage action may stay held
 	// (unsupported, changed geometry, no way in) before the planner cancels
 	// it so the project can be reviewed against the geometry that changed
 	// under it; an in-flight stage otherwise reads as open work forever.
-	excavationStallTicks = 2500
+	excavationStallTicks   = 2500
 	excavationCandidates   = 4
 	excavationInteriorSize = 7
 	// excavationRoundRadius sizes the round room a neolithic colony digs:
@@ -509,7 +509,7 @@ func (r *RoutineBuildingPlanner) admitExcavationDoor(call, epoch context.Context
 		return RoutineBuildingResult{}, err
 	}
 	v := preview.Preview
-	if v.Action != action || !v.Snapshot.Matches(snapshot) || v.Tick != s.facts.Identity.Tick || !preview.Stock.Snapshot.Matches(snapshot) || preview.Stock.Tick != s.facts.Identity.Tick {
+	if v.Action != action || !v.Snapshot.Matches(snapshot) || !v.Tick.FreshFor(s.facts.Identity.Tick) || !preview.Stock.Snapshot.Matches(snapshot) || !preview.Stock.Tick.FreshFor(s.facts.Identity.Tick) {
 		return RoutineBuildingResult{}, ErrControl
 	}
 	stuff, known := v.MadeFromStuff.Value()

@@ -458,9 +458,29 @@ since the last admission the worker reported tried
 (`WakeSignal.PauseProgressed`, #211) and by `clockPauseDrainTotal` (2 min)
 in all, so a backlog of pause-bound actions lands in one stop; a window
 admitted before that would watch the settled attempt again, which the native
-clock never re-latches, and run out its whole budget (issue #162). The converse is a watched-kind attempt dispatched after a window was armed: a step that sees the epoch running and such an attempt outside its watch list (and the list under the native bound) pauses the epoch through the cleanup path and reports `Cleaned` with `Rearmed`, so the step loop steps again at once and re-admits with the attempt watched (#207).
+clock never re-latches, and run out its whole budget (issue #162). The
+converse is a watched-kind attempt dispatched after a window was armed
+(the worker released a hold mid-window). The watch list is fixed at Start,
+so the epoch cannot watch it. For a kind the worker dispatches live
+(`liveDispatchKind`: the kinds whose native operation validates its
+preconditions at apply time, #242) the step counts it as unwatched
+(`ClockSchedulerResult.Unwatched`, the `clock_step` row's `unwatched`) and
+leaves the window running; the event poll carries its outcome. For any
+other watched kind the step pauses the epoch through the cleanup path and
+reports `Cleaned` with `Rearmed`, so the step loop steps again at once and
+re-admits with the attempt watched (#207); every watched kind today is
+dispatched live, so the rearm is dormant.
 
-`StepReason.Cause` is `timer`, `wake`, `settled` or `full`. The planners the
+A step that finds its own window running plans under it (#243): the
+planners read the bundle's snapshot (one main-thread hop, so its sections
+describe one tick) and commit plans the worker dispatches live; nothing is
+admitted, since the window already runs and the stop that ends it reviews
+and admits as before. The step reports the `live` cause; a `timer` step
+plans live only when `FullStepEvery` is due, a `wake` or `full` step at
+once, so a running window costs one planner wave per `FullStepEvery`
+rather than one per step.
+
+`StepReason.Cause` is `timer`, `wake`, `settled`, `full` or `live`. The planners the
 scheduler queues are the `plannerCatalog` entries `plannerSelection` picks:
 every configured entry for `full`, `settled` and a `timer` whose tick moved;
 none for a `timer` at the same tick (the admission tail alone, promoted to

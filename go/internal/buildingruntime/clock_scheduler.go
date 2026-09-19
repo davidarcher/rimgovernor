@@ -167,9 +167,14 @@ type ClockSchedulerResult struct {
 	Dialog                           *RoutineDialogResult
 	Running, Reconciled, Cleaned     bool
 	// Rearmed is set with Cleaned when the step paused its own running
-	// window because work of a watched kind had been dispatched after the
-	// window was armed (#207); the next step admits a window that watches it.
+	// window because work of a watched kind that is not dispatched live had
+	// been dispatched after the window was armed (#207); the next step
+	// admits a window that watches it.
 	Rearmed bool
+	// Unwatched counts the live-dispatched attempts of a watched kind the
+	// running window does not watch (#243): they are left to run and the
+	// event poll carries their outcome; no pause is spent re-arming.
+	Unwatched int
 	// Deferred is set when the step admitted nothing because the Worker
 	// has yet to reconcile an attempt whose terminal outcome the clock
 	// latched; the step loop steps again at once (issue #162).
@@ -524,6 +529,9 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		if out.Window.Ticks != 0 {
 			extra["window_ticks"], extra["window_target_s"], extra["window_tps"] = out.Window.Ticks, out.Window.TargetSeconds, out.Window.TicksPerSecond
 		}
+		if out.Unwatched != 0 {
+			extra["unwatched"] = out.Unwatched
+		}
 		// The stop-to-readmit pause this step closed: the wall time from
 		// the stop of a window this scheduler owed to the admission it
 		// dispatched (issue #162). Absent when the step admitted nothing or
@@ -660,10 +668,11 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 			return out, executor.ErrHeld
 		}
 		if status.GetRunning() != nil {
-			unwatched, err := s.unwatchedWork(call, state.Snapshot, actual)
+			unwatched, live, err := s.unwatchedWork(call, state.Snapshot, actual)
 			if err != nil {
 				return out, err
 			}
+			out.Unwatched = live
 			if len(unwatched) > 0 {
 				// Work of a watched kind was dispatched after this window
 				// started (the Worker released a hold mid-window), so the
@@ -679,7 +688,29 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		}
 		out.Running = true
 		s.running.Store(status.GetRunning() != nil)
-		clockSchedulerLog("clock already running under our own epoch -> skip planners this tick")
+		if status.GetStopping() != nil || !s.livePlanningDue(reason) {
+			clockSchedulerLog("clock already running under our own epoch -> no planners this step")
+			return out, nil
+		}
+		// The window runs on; plan against the bundle's snapshot (one
+		// main-thread hop, so its sections describe one tick) and let the
+		// Worker dispatch live. Nothing is admitted: the window is already
+		// running, and the stop that ends it reviews and admits as before.
+		if err = s.player.current(call, epoch); err != nil {
+			clockSchedulerLog("step exit: player epoch replaced before the live review: %v", err)
+			return out, err
+		}
+		_, pick := plannerSelection(reason, s.facts.kindOf)
+		reason.Cause = StepLive
+		out.Reason = reason
+		clockSchedulerLog("step reason: %s", reason)
+		if out.Planners, err = s.runPlanners(call, epoch, &out, pick); err != nil {
+			return out, err
+		}
+		s.plannedTick, s.plannedTickKnown = status.Context.GetTick(), true
+		if pick == nil {
+			s.lastFull = s.clock.Now()
+		}
 		return out, nil
 	}
 	if obligations {
@@ -725,20 +756,8 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	planners, pick := plannerSelection(reason, s.facts.kindOf)
 	clockSchedulerLog("step reason: %s planners=%v", reason, planners)
 	if planners {
-		arbiter := newStepArbiter()
-		g := newPlannerGroup(call, plannerWidth)
-		if out.Planners, err = s.stepPlanners(call, epoch, &out, g, arbiter, pick); err != nil {
+		if out.Planners, err = s.runPlanners(call, epoch, &out, pick); err != nil {
 			return out, err
-		}
-		if err = g.Wait(); err != nil {
-			return out, err
-		}
-		// A failed planner is reported, not fatal: the step still evaluates the
-		// clock window on what the other planners committed, and the failed
-		// planner retries next step (#62).
-		out.PlannerFailures = g.Failures()
-		for _, failure := range out.PlannerFailures {
-			clockSchedulerLog("planner failed (isolated): %v", failure)
 		}
 		factsTick = domain.Known(domain.Tick(status.Context.GetTick()))
 		s.plannedTick, s.plannedTickKnown = status.Context.GetTick(), true
@@ -958,6 +977,43 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	return out, err
 }
 
+// runPlanners runs the routine reviewer and the selected planner wave
+// (stepPlanners) and waits for it, reporting the isolated failures on out.
+func (s *ClockScheduler) runPlanners(call, epoch context.Context, out *ClockSchedulerResult, pick func(plannerEntry) bool) ([]string, error) {
+	arbiter := newStepArbiter()
+	g := newPlannerGroup(call, plannerWidth)
+	planners, err := s.stepPlanners(call, epoch, out, g, arbiter, pick)
+	if err != nil {
+		return nil, err
+	}
+	if err = g.Wait(); err != nil {
+		return nil, err
+	}
+	// A failed planner is reported, not fatal: the step still evaluates the
+	// clock window on what the other planners committed, and the failed
+	// planner retries next step (#62).
+	out.PlannerFailures = g.Failures()
+	for _, failure := range out.PlannerFailures {
+		clockSchedulerLog("planner failed (isolated): %v", failure)
+	}
+	return planners, nil
+}
+
+// livePlanningDue reports whether a step that found its own window running
+// plans under it (#243): a wake or full step at once, a timer step when
+// the full-step safety net is due, so a running window costs one planner
+// wave per FullStepEvery rather than one per step.
+func (s *ClockScheduler) livePlanningDue(reason StepReason) bool {
+	if s.config.Routine == nil {
+		return false
+	}
+	if reason.Cause == StepTimer {
+		return s.fullStepDue()
+	}
+	planners, _ := plannerSelection(reason, s.facts.kindOf)
+	return planners
+}
+
 // bundleRequest is the step's first bundle: the clock status and the
 // emergency census always, plus the routine census's families (colony
 // facts, population, research, the colonists' pawn detail) when the step
@@ -965,10 +1021,10 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 // expectation is the planner selection the step will make once the status
 // is read: a timer step reviews only when the full-step safety net is due
 // (a tick that moved under a stopped clock, or a stop the timer catches
-// before the poll, is the exception, read natively as before), any other
-// cause reviews unless the window the last status read reported still runs
-// and the wake did not carry its stop. A wrong guess costs a heavier bundle
-// or the dedicated reads, never a wrong fact.
+// before the poll, is the exception, read natively as before); any other
+// cause reviews, under a stopped clock or live under a running window
+// (livePlanningDue). A wrong guess costs a heavier bundle or the dedicated
+// reads, never a wrong fact.
 func (s *ClockScheduler) bundleRequest(reason StepReason) *o.BundleRequest {
 	request := &o.BundleRequest{ClockStatus: proto.Bool(true), Emergency: proto.Bool(true)}
 	if s.config.Routine == nil {
@@ -976,8 +1032,8 @@ func (s *ClockScheduler) bundleRequest(reason StepReason) *o.BundleRequest {
 	}
 	review := false
 	if reason.Cause == StepTimer {
-		review = !s.running.Load() && s.fullStepDue()
-	} else if reason.Stopped || !s.running.Load() {
+		review = s.fullStepDue()
+	} else {
 		review, _ = plannerSelection(reason, s.facts.kindOf)
 	}
 	if review {
@@ -1092,37 +1148,47 @@ func clockSchedulerWatches(items []clockWorkItem, namespace string) []*c.Attempt
 
 // unwatchedWork names the current plan's dispatched attempts of a watched
 // kind that the running epoch does not watch: work the Worker dispatched
-// after the window was armed. It is empty when the epoch's watch list is
-// already at the native bound (more attempts than that go unwatched by
-// design) or when the plan no longer matches the admitted snapshot (the
-// admission tail reports that as evidence on its own).
-func (s *ClockScheduler) unwatchedWork(call context.Context, snapshot domain.GenerationSnapshot, epoch *k.Epoch) ([]domain.ActionID, error) {
+// after the window was armed. Attempts of a kind the Worker dispatches
+// live (liveDispatchKind) are counted, not named: the window runs on and
+// the event poll carries their outcome (#243); the named ones are the
+// kinds a stopped window must be re-armed for (#207). Both are empty when
+// the epoch's watch list is already at the native bound (more attempts
+// than that go unwatched by design) or when the plan no longer matches the
+// admitted snapshot (the admission tail reports that as evidence on its
+// own).
+func (s *ClockScheduler) unwatchedWork(call context.Context, snapshot domain.GenerationSnapshot, epoch *k.Epoch) ([]domain.ActionID, int, error) {
 	watched := epoch.GetPolicy().GetWatchedAttempts()
 	if len(watched) >= bridge.ClockWatchedAttemptsMax {
-		return nil, nil
+		return nil, 0, nil
 	}
 	plan, err := s.player.journal.LoadPlan(call, snapshot.Plan)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	_, items, err := clockSchedulerWork(plan, snapshot)
 	if err != nil {
-		return nil, nil
+		return nil, 0, nil
 	}
 	armed := map[string]bool{}
 	for _, key := range watched {
 		armed[fmt.Sprintf("%s/%d", key.GetActionId(), key.GetAttemptId())] = true
 	}
 	var missing []domain.ActionID
+	live := 0
 	for _, item := range items {
 		if !clockWatchedKind(item.Kind) || item.Attempt == 0 || item.Stage != domain.Dispatched && item.Stage != domain.AwaitingObservation {
 			continue
 		}
-		if !armed[fmt.Sprintf("%s/%d", item.Action, item.Attempt)] {
-			missing = append(missing, item.Action)
+		if armed[fmt.Sprintf("%s/%d", item.Action, item.Attempt)] {
+			continue
 		}
+		if liveDispatchKind(item.Kind) {
+			live++
+			continue
+		}
+		missing = append(missing, item.Action)
 	}
-	return missing, nil
+	return missing, live, nil
 }
 
 // clockWatchedKind reports whether the native clock keeps an operation

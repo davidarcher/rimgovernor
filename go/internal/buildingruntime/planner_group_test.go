@@ -57,9 +57,15 @@ func TestClockSchedulerIsolatesFailingPlanner(t *testing.T) {
 	if got.Sleeping != nil || len(got.PlannerFailures) != 1 || !errors.Is(got.PlannerFailures[0], refused) || !strings.HasPrefix(got.PlannerFailures[0].Error(), "sleeping: ") {
 		t.Fatal(got.Sleeping, got.PlannerFailures)
 	}
-	second, err := s.Step(context.Background())
+	second, err := s.StepWithReason(context.Background(), StepReason{Cause: StepTimer})
 	if err != nil || !second.Running || len(second.PlannerFailures) != 0 {
 		t.Fatal(second, err)
+	}
+	// A live review under the running window isolates the failure the same
+	// way and leaves the window running (#243).
+	live, err := s.Step(context.Background())
+	if err != nil || !live.Running || live.Reason.Cause != StepLive || len(live.PlannerFailures) != 1 || !errors.Is(live.PlannerFailures[0], refused) {
+		t.Fatal(live, err)
 	}
 }
 

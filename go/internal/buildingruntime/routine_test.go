@@ -248,7 +248,7 @@ type routineMedicalNative struct {
 func (n *routineMedicalNative) ReadEmergency(ctx context.Context, id *c.Identity) (bridge.EmergencyObservation, bridge.Result, error) {
 	v, receipt, err := n.routineNative.ReadEmergency(ctx, id)
 	if n.stale {
-		v.Context.Tick = proto.Int64(v.Context.GetTick() + 1)
+		v.Context.Tick = proto.Int64(v.Context.GetTick() + int64(domain.PlanningTickTolerance) + 1)
 	}
 	pawn := policy.EmergencyPawn{ID: "patient", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(true)}
 	if n.unknown {

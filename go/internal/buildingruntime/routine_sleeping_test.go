@@ -132,7 +132,7 @@ func TestRoutineSleepingRejectsIncompleteAndChangedEvidence(t *testing.T) {
 						session.state.Snapshot.Native++
 						session.mu.Unlock()
 					case "tick":
-						n.reply.GetObserved().Context.Tick = proto.Int64(8)
+						n.reply.GetObserved().Context.Tick = proto.Int64(n.reply.GetObserved().Context.GetTick() + int64(domain.PlanningTickTolerance) + 1)
 					case "age":
 						r.reviewer.clock.(*testkit.ManualClock).Advance(time.Second)
 					}

@@ -106,7 +106,7 @@ func (r *RoutineBuildingPlanner) previewFlooring(ctx context.Context, snapshot d
 			return nil, stock, "", err
 		}
 		p := preview.Preview
-		if p.Action != action || !p.Snapshot.Matches(snapshot) || p.Tick != facts.Identity.Tick || !preview.Stock.Snapshot.Matches(snapshot) || preview.Stock.Tick != facts.Identity.Tick {
+		if p.Action != action || !p.Snapshot.Matches(snapshot) || !p.Tick.FreshFor(facts.Identity.Tick) || !preview.Stock.Snapshot.Matches(snapshot) || !preview.Stock.Tick.FreshFor(facts.Identity.Tick) {
 			return nil, stock, "", ErrControl
 		}
 		footprint, fk := p.Footprint.Value()

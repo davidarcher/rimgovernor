@@ -26,9 +26,12 @@ guarantee, and waiting age alone overtakes any deficit gap within a fixed tick b
 
 ## Execute under supervision
 
-Reviews pause the game. Execution uses bounded native tick windows and a renewable
-wall-clock lease. Danger, injury and player input can stop a window early; lease
-expiry also stops a controller that becomes unresponsive.
+Execution uses bounded native tick windows and a renewable wall-clock
+lease. Danger, injury and player input can stop a window early; lease
+expiry also stops a controller that becomes unresponsive. Reviews run at
+the stop between windows and under a running window alike (#243): the
+planners read one tick-consistent bundle and bind their facts to its tick;
+admission happens only at the stop.
 
 The scheduler runs independently of dashboard refreshes. Only one review or
 execution task runs at a time. Hands yields at its operation budget and requests
@@ -57,12 +60,14 @@ wall does not play out the rest of its tick budget before the controller
 notices. The scheduler arms the dispatched construction and haul attempts of
 the window (the families whose native operation records observe their own
 terminal outcome, at most 16); immediate designations have nothing to
-watch. The watch list is fixed at Start, so a step that finds the window
-running while the plan shows a dispatched construction or haul attempt the
-epoch does not watch (the worker released a hold mid-window) pauses the epoch
-(`ClockSchedulerResult.Rearmed`); the next step settles it, reviews and admits
-a window that watches the attempt instead of letting the old one run out its
-whole budget (#207). Authority changes observed while no epoch is running are journaled as
+watch. The watch list is fixed at Start, so a construction or haul attempt
+the worker dispatches under the running window (a hold released
+mid-window) goes unwatched: the step records it (`unwatched` on the
+`clock_step` row) and lets the window run, and the event poll carries the
+outcome (#243). A watched kind the worker does not dispatch live would
+instead pause the epoch (`ClockSchedulerResult.Rearmed`) so the next step
+re-admits a window that watches it (#207); none exists today. Authority
+changes observed while no epoch is running are journaled as
 owner-less `AuthorityChanged` rows so a waiting poll learns of them at once.
 
 Each scheduler step carries the reason it ran, and the reason selects the
@@ -70,7 +75,9 @@ planners: a step after a settled window, a tick advance or the 30 s safety
 net plans everything; a timer step at the same paused tick runs no planner
 and only re-evaluates admission from the journal; a wake runs the planners
 that dispatch the latched outcomes' action kinds and the readers of any
-invalidated fact family (an authority change plans everything). Planner
+invalidated fact family (an authority change plans everything); a step
+that finds its own window running plans `live` (a full or wake step at
+once, a timer step when the safety net is due) and admits nothing. Planner
 facts are bound to the tick they observed, so admission holds with
 `stale_planning` when they predate the admitted tick by more than the
 planning tolerance (`bridge.PlanningTickTolerance`, the tightest fact

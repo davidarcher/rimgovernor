@@ -4,6 +4,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
@@ -50,8 +51,8 @@ const (
 	FactTickToleranceResearch  int64 = 60000
 	FactTickToleranceColony    int64 = 2500
 	FactTickToleranceRooms     int64 = 2500
-	FactTickTolerancePawns     int64 = 250
-	FactTickToleranceEmergency int64 = 250
+	FactTickTolerancePawns     int64 = int64(domain.PlanningTickTolerance)
+	FactTickToleranceEmergency int64 = int64(domain.PlanningTickTolerance)
 )
 
 // PlanningTickTolerance is how far a planning step's facts may predate the

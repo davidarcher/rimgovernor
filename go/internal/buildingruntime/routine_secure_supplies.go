@@ -621,7 +621,7 @@ func (r *RoutineSecureSuppliesPlanner) previewSupplyRoomShell(ctx context.Contex
 			return nil, nil, policy.StockObservation{}, "", err
 		}
 		v := preview.Preview
-		if v.Action != action || !v.Snapshot.Matches(snapshot) || v.Tick != facts.Identity.Tick || !preview.Stock.Snapshot.Matches(snapshot) || preview.Stock.Tick != facts.Identity.Tick {
+		if v.Action != action || !v.Snapshot.Matches(snapshot) || !v.Tick.FreshFor(facts.Identity.Tick) || !preview.Stock.Snapshot.Matches(snapshot) || !preview.Stock.Tick.FreshFor(facts.Identity.Tick) {
 			return nil, nil, policy.StockObservation{}, "", ErrControl
 		}
 		made, madeKnown := v.MadeFromStuff.Value()

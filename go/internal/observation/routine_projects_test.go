@@ -74,8 +74,8 @@ func TestRoutineProjectDefinitionsStayInsideObservationBracket(t *testing.T) {
 			case "default-only":
 				names = []string{"Wall"}
 			case "changed-tick":
-				s.extra.GetObserved().Context.Tick = proto.Int64(int64(expected.Tick + 1))
-				s.extra.GetObserved().Planning.GetObserved().Cells.Context.Tick = proto.Int64(int64(expected.Tick + 1))
+				s.extra.GetObserved().Context.Tick = proto.Int64(int64(expected.Tick + domain.PlanningTickTolerance + 1))
+				s.extra.GetObserved().Planning.GetObserved().Cells.Context.Tick = proto.Int64(int64(expected.Tick + domain.PlanningTickTolerance + 1))
 			case "expired":
 				s.onExtra = func() { clock.Advance(2 * time.Second) }
 			case "cancelled":

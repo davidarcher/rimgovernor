@@ -181,7 +181,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 	if err != nil {
 		return ColonyProjection{}, err
 	}
-	if identity.Tick != expected.Tick {
+	if !identity.Tick.FreshFor(expected.Tick) {
 		return ColonyProjection{}, ErrChanged
 	}
 	if generation, known := expected.NativeGeneration.Value(); known {

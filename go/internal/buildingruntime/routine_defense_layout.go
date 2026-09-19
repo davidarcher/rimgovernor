@@ -885,7 +885,7 @@ func (r *RoutineDefenseLayoutPlanner) preview(ctx context.Context, action domain
 		return bridge.BuildingPreview{}, false, err
 	}
 	v := preview.Preview
-	if v.Action != action || !v.Snapshot.Matches(snapshot) || v.Tick != tick || !preview.Stock.Snapshot.Matches(snapshot) || preview.Stock.Tick != tick {
+	if v.Action != action || !v.Snapshot.Matches(snapshot) || !v.Tick.FreshFor(tick) || !preview.Stock.Snapshot.Matches(snapshot) || !preview.Stock.Tick.FreshFor(tick) {
 		return bridge.BuildingPreview{}, false, defenseControlErr(400)
 	}
 	footprint, fk := v.Footprint.Value()

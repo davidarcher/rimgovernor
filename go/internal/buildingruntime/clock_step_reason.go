@@ -27,6 +27,12 @@ const (
 	// StepFull runs every planner regardless of evidence; it is also the
 	// FullStepEvery safety net a timer step is promoted to.
 	StepFull StepCause = "full"
+	// StepLive is a step that planned while its own window was running
+	// (#243): the planners read the bundle's tick-consistent snapshot and
+	// commit plans the Worker dispatches live; nothing is admitted. A timer
+	// step is promoted to it when FullStepEvery has passed, a wake or a
+	// full step at once; the selection is the underlying cause's.
+	StepLive StepCause = "live"
 )
 
 // DefaultFullStepEvery bounds how long timer steps may skip the planners
@@ -89,7 +95,7 @@ func plannerSelection(reason StepReason, kindOf func(domain.ActionID) (domain.Ac
 		return true, nil
 	case StepTimer:
 		return reason.TickAdvanced, nil
-	case StepWake:
+	case StepWake, StepLive:
 	default:
 		return true, nil
 	}

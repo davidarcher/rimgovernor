@@ -139,7 +139,7 @@ func (s PlacementSearch) Select(definition, stuff string, previews []Preview) (P
 	best := len(s.sites)
 	for _, p := range previews {
 		b, building := p.Action.Building()
-		if !building || b.Definition() != definition || b.Stuff() != stuff || seen[p.Action.ID()] || !p.Snapshot.Matches(s.snapshot) || p.Tick != s.tick {
+		if !building || b.Definition() != definition || b.Stuff() != stuff || seen[p.Action.ID()] || !p.Snapshot.Matches(s.snapshot) || !p.Tick.FreshFor(s.tick) {
 			return Preview{}, false, errors.New("placement preview differs from search")
 		}
 		seen[p.Action.ID()] = true

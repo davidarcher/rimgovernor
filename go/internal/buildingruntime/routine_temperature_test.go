@@ -223,7 +223,7 @@ func TestTemperatureUnknownExistingFacilityAndRecoveredRoom(t *testing.T) {
 			case "recovered":
 				room.TemperatureC = proto.Float64(18)
 			case "stale":
-				n.rooms.GetObserved().Context.Tick = proto.Int64(n.rooms.GetObserved().Context.GetTick() + 1)
+				n.rooms.GetObserved().Context.Tick = proto.Int64(n.rooms.GetObserved().Context.GetTick() + int64(domain.PlanningTickTolerance) + 1)
 			case "skill":
 				n.pawnReply.GetObserved().Pawns[0].Biography.Skills[0].Level = proto.Int32(3)
 			case "spill":

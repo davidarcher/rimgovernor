@@ -86,14 +86,14 @@ func (s *routineCensusStore) lookup(source, reviewerSource any, expected observa
 	return census.reading, true
 }
 
-// sameObservedIdentity matches the census identity (from colony facts, which
-// carry no pause state) against the planner's expected identity, which its
-// own identity read observed paused.
+// sameObservedIdentity matches the census identity (from colony facts)
+// against the planner's expected identity: the same load, map and
+// generation, at the same tick. A census is one step's read; a later step
+// at another tick reads its own.
 func sameObservedIdentity(census, expected observation.Identity) bool {
 	a, ak := census.NativeGeneration.Value()
 	b, bk := expected.NativeGeneration.Value()
-	paused, known := expected.Paused.Value()
-	return census.SameContext(expected) && census.Tick == expected.Tick && ak && bk && a == b && known && paused
+	return census.SameContext(expected) && census.Tick == expected.Tick && ak && bk && a == b
 }
 
 // sameNativeSource reports whether two planner sources are one native

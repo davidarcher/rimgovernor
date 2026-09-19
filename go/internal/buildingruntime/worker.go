@@ -489,6 +489,21 @@ func workerBackoffCap(config WorkerConfig, v domain.ProgressView) time.Duration 
 	return config.MaxBackoff
 }
 
+// liveDispatchKind reports a kind whose native operation validates its own
+// preconditions at apply time and refuses with a named reason (#242,
+// action-contracts.md "Apply-time preconditions"), so the Worker dispatches
+// it under a running window as readily as between windows (#243): a world
+// that moved under the order is a refusal the Worker reconciles, not a
+// wrong effect. Every other kind still needs the stop between windows.
+func liveDispatchKind(kind domain.ActionKind) bool {
+	switch kind {
+	case domain.BuildingAction, domain.HaulAction, domain.SupplyAllowAction, domain.WorkAssignmentAction, domain.ZoneCreateAction,
+		domain.ProductionBillAction, domain.GrowerCropAction, domain.AcquisitionAction, domain.MineAcquisitionAction, domain.HusbandryAction:
+		return true
+	}
+	return false
+}
+
 // workerPauseBound reports an admission the native side refuses while the
 // game runs: these kinds inspect and dispatch against a paused map only
 // (their native tools check TimeSpeed.Paused), so between windows is the

@@ -774,7 +774,7 @@ func (r *RoutineBuildingPlanner) previewMethod(call context.Context, snapshot do
 			if err = check(); err != nil {
 				return nil, policy.StockObservation{}, "", err
 			}
-			if preview.Preview.Action != a || !preview.Stock.Snapshot.Matches(snapshot) || preview.Stock.Tick != facts.Identity.Tick {
+			if preview.Preview.Action != a || !preview.Stock.Snapshot.Matches(snapshot) || !preview.Stock.Tick.FreshFor(facts.Identity.Tick) {
 				return nil, policy.StockObservation{}, "", ErrControl
 			}
 			made, known := preview.Preview.MadeFromStuff.Value()
@@ -843,9 +843,8 @@ func (r *RoutineBuildingPlanner) previewMethod(call context.Context, snapshot do
 }
 
 func routineBuildingBoundary(actual observation.Identity, expected domain.GenerationSnapshot, tick domain.Tick) bool {
-	paused, known := actual.Paused.Value()
 	generation, generationKnown := actual.NativeGeneration.Value()
-	return actual.Colony == expected.Colony && actual.Load == expected.Load && actual.Map == expected.Map && actual.Tick == tick && known && paused && generationKnown && generation == expected.Native
+	return actual.Colony == expected.Colony && actual.Load == expected.Load && actual.Map == expected.Map && actual.Tick.FreshFor(tick) && generationKnown && generation == expected.Native
 }
 
 // initialShelterOwed reports whether the review binds an active

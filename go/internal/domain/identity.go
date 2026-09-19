@@ -19,6 +19,22 @@ type PlanRevision uint64
 type NativeGeneration uint64
 type Tick int64
 
+// PlanningTickTolerance is how far the game may have ticked past the tick
+// a planning step's facts describe before a later observation (a preview,
+// a census, a dependency's readback) no longer belongs to the same plan.
+// It is the tightest fact family's tolerance (pawns and the emergency
+// census; bridge.FactFamily): a stopped clock never moves, and a running
+// one at Fast (180 ticks/s) crosses it in under two seconds.
+const PlanningTickTolerance Tick = 250
+
+// FreshFor reports whether an observation at t still describes anchor, the
+// tick a step's facts are bound to: never earlier than the anchor (a tick
+// rewind is another world) and past it by no more than
+// PlanningTickTolerance.
+func (t Tick) FreshFor(anchor Tick) bool {
+	return t >= anchor && t-anchor <= PlanningTickTolerance
+}
+
 // Fact's zero value is unknown, including for boolean and numeric observations.
 type Fact[T any] struct {
 	value T

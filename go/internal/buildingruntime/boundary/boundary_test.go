@@ -27,7 +27,7 @@ func TestBoundaryInspectionNativeContextAndCompleteHolds(t *testing.T) {
 	if !policy.EvaluateEmergency(out.Emergency, out.Current, out.Tick).Clear || f.Emergencies != 1 {
 		t.Fatal("newer native emergency tick did not bind to preview")
 	}
-	for _, change := range []func(*Fixture){func(f *Fixture) { f.Bounds.Context.Identity.LoadToken = proto.String("other") }, func(f *Fixture) { f.Bounds.Context.NativeGeneration = nil }, func(f *Fixture) { f.Bounds.Context.Tick = proto.Int64(12) }, func(f *Fixture) { f.Preview.Stock.Tick = 12 }, func(f *Fixture) { f.HoldErr = errors.New("incomplete catalog") }} {
+	for _, change := range []func(*Fixture){func(f *Fixture) { f.Bounds.Context.Identity.LoadToken = proto.String("other") }, func(f *Fixture) { f.Bounds.Context.NativeGeneration = nil }, func(f *Fixture) { f.Bounds.Context.Tick = proto.Int64(12) }, func(f *Fixture) { f.Preview.Stock.Tick = 11 + domain.PlanningTickTolerance + 1 }, func(f *Fixture) { f.Preview.Stock.Tick = 10 }, func(f *Fixture) { f.HoldErr = errors.New("incomplete catalog") }} {
 		b, f := NewFixture(t)
 		change(f)
 		if out, err := b.Inspect(context.Background(), executor.Target{Action: f.Placement.Action, Snapshot: f.Placement.Snapshot}); err == nil || out.ExternalHoldsComplete {

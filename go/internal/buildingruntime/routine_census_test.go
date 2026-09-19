@@ -68,7 +68,7 @@ func TestRoutineCensusLookupConditions(t *testing.T) {
 			return i
 		}(), false, claims, nil, false},
 		{"other load", source, func() observation.Identity { i := identity; i.Load = "x"; return i }(), false, claims, nil, false},
-		{"not paused", source, func() observation.Identity { i := identity; i.Paused = domain.Unknown[bool](); return i }(), false, claims, nil, false},
+		{"not paused", source, func() observation.Identity { i := identity; i.Paused = domain.Unknown[bool](); return i }(), false, claims, nil, true},
 	}
 	for _, tc := range cases {
 		if _, ok := store.lookup(tc.source, source, tc.identity, tc.rooms, tc.claims, tc.definitions); ok != tc.want {

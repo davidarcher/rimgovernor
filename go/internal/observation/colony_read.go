@@ -19,26 +19,31 @@ type ColonySource interface {
 	ReadColonyFacts(context.Context, *c.Identity, bool, []string) (*o.ColonyFactsReply, bridge.Result, error)
 }
 
-// ColonyReading is a paused, same-tick observation. It conveys facts, not
-// authority; callers must still check their player direction before committing.
+// ColonyReading is an observation bound to the caller's expected tick: read
+// at it, or under a running clock within domain.PlanningTickTolerance past
+// it. It conveys facts, not authority; callers must still check their
+// player direction before committing.
 type ColonyReading struct {
 	Projection            ColonyProjection
 	StartedAt, ObservedAt time.Time
 	Receipt               bridge.Result
 }
 
+// sameColonyBoundary is the freshness rule every routine read applies to a
+// reply's context: the expected load, map and native generation, at a tick
+// fresh for the expected one (domain.Tick.FreshFor). The clock need not be
+// stopped: a step under a running window reads within the tolerance (#243).
 func sameColonyBoundary(actual, expected Identity) bool {
 	a, ak := actual.NativeGeneration.Value()
 	b, bk := expected.NativeGeneration.Value()
-	paused, known := actual.Paused.Value()
-	return actual.SameContext(expected) && actual.Tick == expected.Tick && ak && bk && a == b && known && paused
+	return actual.SameContext(expected) && actual.Tick.FreshFor(expected.Tick) && ak && bk && a == b
 }
 
-// ObserveColony requires an externally observed paused identity and reads
-// the facts under it. Every reply carries an ObservationContext, so the
-// facts themselves prove they were read at the expected load, map, tick and
-// generation; no identity read brackets them. Missing generations cannot
-// confirm the boundary, and the pause state is the caller's observation.
+// ObserveColony requires an externally observed identity and reads the
+// facts under it. Every reply carries an ObservationContext, so the facts
+// themselves prove they were read at the expected load, map and generation
+// and within the tolerance of the expected tick; no identity read brackets
+// them. Missing generations cannot confirm the boundary.
 func ObserveColony(ctx context.Context, source ColonySource, clock Clock, expected Identity, maxAge time.Duration, planning bool, definitions []string) (ColonyReading, error) {
 	var result ColonyReading
 	if source == nil || clock == nil || maxAge <= 0 || expected.Validate() != nil {

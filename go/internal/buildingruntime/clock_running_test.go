@@ -350,12 +350,13 @@ func TestClockWorkerPollsFasterUnderARunningWindow(t *testing.T) {
 }
 
 // Work of a watched kind dispatched after a window was armed cannot stop
-// that window: the native watch list is fixed at Start. A running step that
-// finds such an attempt in the plan pauses its own epoch, so the next step
-// settles it and admits a window that watches the attempt, instead of
-// letting the window run out its whole budget with the routine review
-// frozen at its admission tick (#207).
-func TestClockSchedulerPausesARunningWindowToWatchWorkDispatchedSinceItStarted(t *testing.T) {
+// that window: the native watch list is fixed at Start. Since #243 the
+// routine review runs under the window and every watched kind is
+// dispatched live, so a running step that finds such an attempt in the plan
+// records it as unwatched and leaves the window running; the event poll
+// carries the attempt's outcome. The pause-and-rearm cycle of #207 stays
+// for a watched kind that is not dispatched live (none today).
+func TestClockSchedulerLeavesARunningWindowUnderLiveDispatchedWork(t *testing.T) {
 	t.Parallel()
 	s, f := schedulerFixture(t)
 	ctx := context.Background()
@@ -381,21 +382,10 @@ func TestClockSchedulerPausesARunningWindowToWatchWorkDispatchedSinceItStarted(t
 		t.Fatal(err)
 	}
 	got, err = s.Step(ctx)
-	if err != nil || !got.Cleaned || !got.Rearmed || got.Running || s.WindowRunning() || f.pauses != 1 {
+	if err != nil || got.Cleaned || got.Rearmed || !got.Running || got.Unwatched != 1 || !s.WindowRunning() || f.pauses != 0 {
 		t.Fatal(got, err, s.WindowRunning(), f.pauses)
 	}
-	epochs, err := s.player.journal.LoadClockEpochs(ctx, 16)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, owned := range epochs {
-		if !clockCoordinatorTerminal(owned.Stage) {
-			t.Fatal("epoch still owed", owned)
-		}
-	}
-	// The settled step reviews and reaches admission (the fixture's paused
-	// status facts refuse the window itself) without another pause.
-	if got, err = s.StepWithReason(ctx, StepReason{Cause: StepSettled}); !errors.Is(err, executor.ErrHeld) || got.Cleaned || got.Rearmed || f.pauses != 1 {
-		t.Fatal(got, err, f.pauses)
+	if !liveDispatchKind(domain.BuildingAction) || !liveDispatchKind(domain.HaulAction) || liveDispatchKind(domain.ExcavationAction) {
+		t.Fatal("live dispatch kinds")
 	}
 }

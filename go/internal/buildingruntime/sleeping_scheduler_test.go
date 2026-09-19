@@ -35,7 +35,10 @@ func schedulerSleeping(t *testing.T, s *ClockScheduler, f *schedulerNative) *sle
 	return source
 }
 
-func TestSchedulerCompilesSleepingOnlyAtPausedReviewBoundary(t *testing.T) {
+// The scheduler compiles the sleeping method at the review and never
+// executes it; a timer step under the window it started reads nothing until
+// the full step is due (#243).
+func TestSchedulerCompilesSleepingAtTheReview(t *testing.T) {
 	t.Parallel()
 	s, f := schedulerFixture(t)
 	n := schedulerSleeping(t, s, f)
@@ -53,7 +56,7 @@ func TestSchedulerCompilesSleepingOnlyAtPausedReviewBoundary(t *testing.T) {
 		}
 	}
 	reads, previews := n.reads, n.previews
-	next, err := s.Step(context.Background())
+	next, err := s.StepWithReason(context.Background(), StepReason{Cause: StepTimer})
 	if err != nil || !next.Running || next.Sleeping != nil || n.reads != reads || n.previews != previews {
 		t.Fatal(next, err)
 	}
@@ -124,7 +127,7 @@ func TestSchedulerCompilesCookingAtPausedBoundary(t *testing.T) {
 		t.Fatal("wrong cooking method")
 	}
 	reads, previews := n.reads, n.previews
-	next, err := s.Step(context.Background())
+	next, err := s.StepWithReason(context.Background(), StepReason{Cause: StepTimer})
 	if err != nil || !next.Running || next.Cooking != nil || reads != n.reads || previews != n.previews {
 		t.Fatal(next, err)
 	}

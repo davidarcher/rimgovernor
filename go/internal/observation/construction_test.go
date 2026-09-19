@@ -69,7 +69,7 @@ func TestConstructionReadsStayInsidePausedRoutineBracket(t *testing.T) {
 			case "empty-claims":
 				claims = domain.Known([]policy.ConstructionClaim{})
 			case "changed-tick":
-				snapshot.Context.Tick = proto.Int64(int64(expected.Tick + 1))
+				snapshot.Context.Tick = proto.Int64(int64(expected.Tick + domain.PlanningTickTolerance + 1))
 			case "changed-generation":
 				snapshot.Context.NativeGeneration = proto.Uint64(snapshot.Context.GetNativeGeneration() + 1)
 			case "expired":

@@ -173,7 +173,7 @@ func (r *RoutineBuildingPlanner) previewShellCell(ctx context.Context, snapshot 
 		return bridge.BuildingPreview{}, false, "", err
 	}
 	v := preview.Preview
-	if v.Action != action || !v.Snapshot.Matches(snapshot) || v.Tick != facts.Identity.Tick || !preview.Stock.Snapshot.Matches(snapshot) || preview.Stock.Tick != facts.Identity.Tick {
+	if v.Action != action || !v.Snapshot.Matches(snapshot) || !v.Tick.FreshFor(facts.Identity.Tick) || !preview.Stock.Snapshot.Matches(snapshot) || !preview.Stock.Tick.FreshFor(facts.Identity.Tick) {
 		return bridge.BuildingPreview{}, false, "", ErrControl
 	}
 	stuff, known := v.MadeFromStuff.Value()
@@ -242,7 +242,7 @@ func (r *RoutineBuildingPlanner) adoptShell(ctx context.Context, snapshot domain
 	if err := check(); err != nil {
 		return nil, policy.StockObservation{}, "", false, err
 	}
-	if census.Tick != facts.Identity.Tick || census.Generation != uint64(snapshot.Native) {
+	if !census.Tick.FreshFor(facts.Identity.Tick) || census.Generation != uint64(snapshot.Native) {
 		return nil, policy.StockObservation{}, "", false, ErrControl
 	}
 	standing := make(map[domain.Cell]string, len(census.Structures))

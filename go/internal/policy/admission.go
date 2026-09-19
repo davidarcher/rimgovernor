@@ -383,7 +383,7 @@ func Admit(input Input) Decision {
 		return candidates[i].Action.ID() < candidates[j].Action.ID()
 	})
 	bounds, boundsKnown := r.Bounds.Value()
-	stockFresh := r.Stock.Snapshot.Matches(r.Current) && r.Stock.Tick == r.CurrentTick
+	stockFresh := r.Stock.Snapshot.Matches(r.Current) && r.Stock.Tick.FreshFor(r.CurrentTick)
 	stock := map[Resource]domain.Fact[int64]{}
 	for _, s := range r.Stock.Values {
 		stock[s.Resource] = s.Available
@@ -509,7 +509,7 @@ func assess(c Candidate, r Request, bounds Bounds, boundsKnown, stockFresh bool,
 		return heldProblem, ""
 	}
 	p := c.Preview
-	if !p.Snapshot.Matches(r.Current) || p.Tick != r.CurrentTick || !stockFresh {
+	if !p.Snapshot.Matches(r.Current) || !p.Tick.FreshFor(r.CurrentTick) || !stockFresh {
 		return StaleFacts, ""
 	}
 	if p.Action != c.Action {
@@ -517,7 +517,7 @@ func assess(c Candidate, r Request, bounds Bounds, boundsKnown, stockFresh bool,
 	}
 	for _, dep := range c.Dependencies {
 		complete, known := dep.Completed.Value()
-		if !known || !complete || !dep.Snapshot.Matches(r.Current) || dep.Tick != r.CurrentTick {
+		if !known || !complete || !dep.Snapshot.Matches(r.Current) || !dep.Tick.FreshFor(r.CurrentTick) {
 			return DependencyBlocked, ""
 		}
 	}

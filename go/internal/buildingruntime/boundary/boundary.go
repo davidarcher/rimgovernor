@@ -91,7 +91,7 @@ func (b *Boundary) Inspect(ctx context.Context, target executor.Target) (executo
 	if err != nil {
 		return out, err
 	}
-	if !preview.Preview.Snapshot.Matches(current) || !preview.Stock.Snapshot.Matches(current) || preview.Preview.Action != target.Action || preview.Preview.Tick < domain.Tick(bounds.Context.GetTick()) || preview.Stock.Tick != preview.Preview.Tick {
+	if !preview.Preview.Snapshot.Matches(current) || !preview.Stock.Snapshot.Matches(current) || preview.Preview.Action != target.Action || preview.Preview.Tick < domain.Tick(bounds.Context.GetTick()) || !preview.Stock.Tick.FreshFor(preview.Preview.Tick) {
 		return out, executor.ErrEvidence
 	}
 	emergency, _, err := b.Native.ReadEmergency(ctx, Identity(current))

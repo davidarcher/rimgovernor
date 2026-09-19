@@ -46,14 +46,24 @@ func TestObserveColonyValidatesFactsByTheirContext(t *testing.T) {
 		want   error
 	}{
 		{"stable", nil, nil},
+		// A running clock is no longer a hold (#243): the facts bind to the
+		// expected tick and may trail it within the planning tolerance.
 		{"expected running", func(_ *colonySource, i *Identity, _ *testkit.ManualClock, _ context.CancelFunc) {
 			i.Paused = domain.Known(false)
-		}, ErrChanged},
+		}, nil},
 		{"expected pause unknown", func(_ *colonySource, i *Identity, _ *testkit.ManualClock, _ context.CancelFunc) {
 			i.Paused = domain.Unknown[bool]()
-		}, ErrChanged},
+		}, nil},
 		{"tick advanced", func(_ *colonySource, i *Identity, _ *testkit.ManualClock, _ context.CancelFunc) {
 			i.Tick = 8
+		}, ErrChanged},
+		{"facts within tolerance", func(s *colonySource, i *Identity, _ *testkit.ManualClock, _ context.CancelFunc) {
+			s.reply.GetObserved().Context.Tick = proto.Int64(int64(i.Tick + domain.PlanningTickTolerance))
+			s.reply.GetObserved().Planning.GetObserved().Cells.Context.Tick = proto.Int64(int64(i.Tick + domain.PlanningTickTolerance))
+		}, nil},
+		{"facts past tolerance", func(s *colonySource, i *Identity, _ *testkit.ManualClock, _ context.CancelFunc) {
+			s.reply.GetObserved().Context.Tick = proto.Int64(int64(i.Tick + domain.PlanningTickTolerance + 1))
+			s.reply.GetObserved().Planning.GetObserved().Cells.Context.Tick = proto.Int64(int64(i.Tick + domain.PlanningTickTolerance + 1))
 		}, ErrChanged},
 		{"load changed", func(s *colonySource, _ *Identity, _ *testkit.ManualClock, _ context.CancelFunc) {
 			s.reply.GetObserved().Context.Identity.LoadToken = proto.String("new")

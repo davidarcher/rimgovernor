@@ -123,7 +123,7 @@ func TestRoutineShelterNeverCommitsPartialOrUnknownShell(t *testing.T) {
 				case "stock-unknown":
 					v.Stock.Values[0].Available = domain.Unknown[int64]()
 				case "stale":
-					v.Preview.Tick++
+					v.Preview.Tick += domain.PlanningTickTolerance + 1
 				case "direction":
 					session := r.reviewer.player.session.(*playerFakeSession)
 					session.mu.Lock()
