@@ -56,8 +56,12 @@ func TestGearPlannerAdmitsReplaceMethod(t *testing.T) {
 	loadout := func(id string, deficit bool, candidates ...*o.GearCandidate) *o.GearLoadout {
 		return &o.GearLoadout{Snapshot: &o.SnapshotRef{Context: observedContext(), EntityId: proto.String(id), Token: proto.String("loadout-" + id)}, Pawn: &o.EntityRef{Id: proto.String(id), MapId: proto.Int32(v.Context.Identity.GetMapId())}, Equipment: &o.PawnEquipment{Armed: proto.Bool(!deficit)}, Candidates: candidates, Deficit: proto.Bool(deficit), Completeness: complete(len(candidates))}
 	}
-	bow := &o.GearCandidate{Item: &o.GearItem{Thing: &o.EntityRef{Id: proto.String("bow"), DefName: proto.String("Bow_Short"), MapId: proto.Int32(v.Context.Identity.GetMapId()), Position: &c.Cell{X: proto.Int32(5), Z: proto.Int32(5)}}, Weapon: proto.Bool(true), Apparel: proto.Bool(false), Ranged: proto.Bool(true)}, Gain: proto.Float64(1)}
-	v.Planning.GetObserved().Gear = &o.GearSnapshot{Context: observedContext(), Pawns: []*o.GearLoadout{loadout("a", true, bow), loadout("b", false)}, Completeness: complete(2)}
+	// The census lists a weapon beside the parka: only the parka is a wear
+	// candidate; the weapon's eligibility belongs to the equip family and
+	// the wear operation refuses it as absent (#339).
+	bow := &o.GearCandidate{Item: &o.GearItem{Thing: &o.EntityRef{Id: proto.String("bow"), DefName: proto.String("Bow_Short"), MapId: proto.Int32(v.Context.Identity.GetMapId()), Position: &c.Cell{X: proto.Int32(5), Z: proto.Int32(5)}}, Weapon: proto.Bool(true), Apparel: proto.Bool(false), Ranged: proto.Bool(true)}, Gain: proto.Float64(9)}
+	parka := &o.GearCandidate{Item: &o.GearItem{Thing: &o.EntityRef{Id: proto.String("parka"), DefName: proto.String("Apparel_Parka"), MapId: proto.Int32(v.Context.Identity.GetMapId()), Position: &c.Cell{X: proto.Int32(6), Z: proto.Int32(5)}}, Weapon: proto.Bool(false), Apparel: proto.Bool(true)}, Gain: proto.Float64(1)}
+	v.Planning.GetObserved().Gear = &o.GearSnapshot{Context: observedContext(), Pawns: []*o.GearLoadout{loadout("a", true, bow, parka), loadout("b", false)}, Completeness: complete(2)}
 	n := &gearTestNative{equipTestNative: &equipTestNative{routineNative: native, ids: []string{"a", "b"}}}
 	reviewer.native = n
 	reviewer.methods = domain.Known([]policy.GoalID{policy.MaintainEquipment})
@@ -98,11 +102,51 @@ func TestGearPlannerAdmitsReplaceMethod(t *testing.T) {
 		t.Fatal(plan, err)
 	}
 	replace, ok := plan.Spec.Actions()[0].GearReplace()
-	if !ok || replace.Pawn() != "a" || replace.Thing() != "bow" || replace.Definition() != "Bow_Short" {
-		t.Fatal("expected pawn a to wear the bow", replace)
+	if !ok || replace.Pawn() != "a" || replace.Thing() != "parka" || replace.Definition() != "Apparel_Parka" {
+		t.Fatal("expected pawn a to wear the parka", replace)
 	}
 	// A second step sees the open plan and admits nothing more.
 	if result, err = planner.Step(ctx); err != nil || result.Reason != BuildingMethodExistingWork {
 		t.Fatal(result, err)
+	}
+}
+
+// A census whose only candidates are weapons proposes no wear order: the
+// wear operation cannot target a weapon, so the planner falls through to the
+// bench census instead of committing a plan that is refused on every attempt
+// and holds a development slot for the run (#339).
+func TestGearPlannerSkipsWeaponCandidates(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	reviewer, _, _, _, native := routineFixture(t)
+	v := native.reply.GetObserved()
+	v.ColonistCount = proto.Uint32(2)
+	v.WorkerCount = proto.Uint32(2)
+	v.Issues = append(v.Issues, &o.ReadIssue{Field: proto.String("naming"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}})
+	complete := func(n int) *o.Completeness {
+		return &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(uint64(n)), Returned: proto.Uint64(uint64(n)), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}
+	}
+	observedContext := func() *c.ObservationContext { return proto.Clone(v.Context).(*c.ObservationContext) }
+	loadout := func(id string, deficit bool, candidates ...*o.GearCandidate) *o.GearLoadout {
+		return &o.GearLoadout{Snapshot: &o.SnapshotRef{Context: observedContext(), EntityId: proto.String(id), Token: proto.String("loadout-" + id)}, Pawn: &o.EntityRef{Id: proto.String(id), MapId: proto.Int32(v.Context.Identity.GetMapId())}, Equipment: &o.PawnEquipment{Armed: proto.Bool(!deficit)}, Candidates: candidates, Deficit: proto.Bool(deficit), Completeness: complete(len(candidates))}
+	}
+	log := &o.GearCandidate{Item: &o.GearItem{Thing: &o.EntityRef{Id: proto.String("log"), DefName: proto.String("WoodLog"), MapId: proto.Int32(v.Context.Identity.GetMapId()), Position: &c.Cell{X: proto.Int32(5), Z: proto.Int32(5)}}, Weapon: proto.Bool(true), Apparel: proto.Bool(false), Melee: proto.Bool(true)}, Gain: proto.Float64(1)}
+	v.Planning.GetObserved().Gear = &o.GearSnapshot{Context: observedContext(), Pawns: []*o.GearLoadout{loadout("a", true, log), loadout("b", false)}, Completeness: complete(2)}
+	n := &gearTestNative{equipTestNative: &equipTestNative{routineNative: native, ids: []string{"a", "b"}}}
+	reviewer.native = n
+	reviewer.methods = domain.Known([]policy.GoalID{policy.MaintainEquipment})
+	if _, err := reviewer.Step(ctx); err != nil {
+		t.Fatal(err)
+	}
+	planner, err := NewRoutineGearPlanner(reviewer, n)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := planner.Step(ctx)
+	if err != nil || result.Reason == BuildingMethodAdmitted {
+		t.Fatal("weapon candidate admitted as a wear order", result, err)
+	}
+	if n.benchReads != 1 {
+		t.Fatal("bench census not consulted once the weapon was skipped", n.benchReads)
 	}
 }

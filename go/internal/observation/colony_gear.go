@@ -14,20 +14,34 @@ func colonyGear(v *o.ColonyFactsSnapshot) domain.Fact[policy.GearObservation] {
 	result := policy.GearObservation{Pawns: []policy.GearPawn{}}
 	for _, p := range gear.Pawns {
 		row := policy.GearPawn{Pawn: policy.PawnID(p.Pawn.GetId()), Loadout: p.Snapshot.GetToken(), Blocked: p.Blocker != nil, Deficit: optional(p.Deficit)}
-		candidates := []policy.GearCandidate{}
-		for _, c := range p.Candidates {
-			candidates = append(candidates, policy.GearCandidate{Target: c.Item.Thing.GetId(), Gain: c.GetGain(), Definition: policy.Resource(c.Item.Thing.GetDefName())})
-		}
 		needs := []policy.GearReplacement{}
 		for _, n := range p.ReplacementNeeds {
 			needs = append(needs, policy.GearReplacement{Definition: policy.Resource(n.GetDefName()), Stuff: policy.Resource(n.GetStuff()), Reason: n.GetReason()})
 		}
-		row.Candidates = domain.Known(candidates)
+		row.Candidates = domain.Known(GearCandidateFacts(p))
 		row.Replacements = domain.Known(needs)
 		row.Apparel = GearApparelFacts(p.Equipment)
 		result.Pawns = append(result.Pawns, row)
 	}
 	return domain.Known(result)
+}
+
+// GearCandidateFacts decodes one loadout's loose replacement candidates:
+// the apparel a wear order (gear_replace, native ImproveGear) can target.
+// A weapon the census still lists (its eligibility is the equip family's)
+// is skipped: the wear operation looks its target up among loose apparel
+// only, so a plan proposing one was refused on every attempt and held its
+// development slot for the run (#339).
+func GearCandidateFacts(p *o.GearLoadout) []policy.GearCandidate {
+	candidates := []policy.GearCandidate{}
+	for _, c := range p.GetCandidates() {
+		item := c.GetItem()
+		if !item.GetApparel() {
+			continue
+		}
+		candidates = append(candidates, policy.GearCandidate{Target: item.GetThing().GetId(), Gain: c.GetGain(), Definition: policy.Resource(item.GetThing().GetDefName())})
+	}
+	return candidates
 }
 
 // GearApparelFacts decodes one pawn's worn apparel from the loadout's

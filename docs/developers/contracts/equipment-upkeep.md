@@ -26,6 +26,11 @@ best by gain then thing id; the eligible items past that bound count as
 `filtered` in the loadout's completeness, so the routine colony facts do not
 grow with pawns x loose items (issue #320). MaintainEquipment only wears the
 best funded candidate, and the wear order's own census applies the same bound.
+The census candidates are apparel only; loose weapons are the equip family's
+(issue #339). A `gear_replace` whose candidate the fresh census no longer offers
+as apparel, or whose wear preview refuses `NOT_FOUND`, is cancelled rather than
+held, so the plan closes and the goal's development slot frees at the next
+review, as haul and supply do for a thing that left its cell.
 
 Weapon upkeep preserves existing player assignments. It can arm an available
 capable unarmed pawn and replace an upkeep-owned weapon at or below 50% condition

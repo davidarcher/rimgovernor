@@ -2,6 +2,7 @@ package bridge
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -19,6 +20,13 @@ type GearReplaceRead struct {
 	Definition   string
 	LoadoutToken string
 }
+
+// ErrGearCandidateAbsent reports a fresh gear census that lists the pawn
+// with a loadout token but no longer offers the exact candidate as apparel:
+// it was worn, hauled away, forbidden, outscored by better finds, or it is a
+// weapon the wear operation cannot target (#339). The proposal can never
+// succeed, so the executor cancels it instead of holding the plan.
+var ErrGearCandidateAbsent = errors.New("gear candidate absent")
 
 // ReadGearReplacement reuses the generic colony census (the same read
 // PreviewBill and ReadBillTarget drive) to find one already-selected pawn's
@@ -53,7 +61,7 @@ func (client *Client) ReadGearReplacement(ctx context.Context, identity *c.Ident
 		loadoutToken = row.GetSnapshot().GetToken()
 		for _, candidate := range row.GetCandidates() {
 			item := candidate.GetItem()
-			if item.GetThing().GetId() != thing {
+			if item.GetThing().GetId() != thing || !item.GetApparel() {
 				continue
 			}
 			if thingToken != "" {
@@ -70,7 +78,7 @@ func (client *Client) ReadGearReplacement(ctx context.Context, identity *c.Ident
 		return GearReplaceRead{}, raw, fmt.Errorf("%w: pawn %s has no loadout token (blocker %q)", ErrUnavailable, pawn, blocker)
 	}
 	if validID(thingToken) != nil || validID(definition) != nil {
-		return GearReplaceRead{}, raw, fmt.Errorf("%w: candidate %s not offered for pawn %s (blocker %q, %d candidates)", ErrUnavailable, thing, pawn, blocker, candidates)
+		return GearReplaceRead{}, raw, fmt.Errorf("%w: %w: candidate %s not offered for pawn %s (blocker %q, %d candidates)", ErrUnavailable, ErrGearCandidateAbsent, thing, pawn, blocker, candidates)
 	}
 	return GearReplaceRead{Context: proto.Clone(observed.GetContext()).(*c.ObservationContext), PawnToken: pawnToken, ThingToken: thingToken, Definition: definition, LoadoutToken: loadoutToken}, raw, nil
 }

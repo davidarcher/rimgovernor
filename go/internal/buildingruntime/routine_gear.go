@@ -69,15 +69,11 @@ func gearObservationFacts(gear *o.GearSnapshot) policy.GearObservation {
 	result := policy.GearObservation{Pawns: []policy.GearPawn{}}
 	for _, p := range gear.GetPawns() {
 		row := policy.GearPawn{Pawn: policy.PawnID(p.GetPawn().GetId()), Loadout: p.GetSnapshot().GetToken(), Blocked: p.Blocker != nil, Deficit: optionalBool(p.Deficit)}
-		candidates := []policy.GearCandidate{}
-		for _, candidate := range p.GetCandidates() {
-			candidates = append(candidates, policy.GearCandidate{Target: candidate.GetItem().GetThing().GetId(), Gain: candidate.GetGain(), Definition: policy.Resource(candidate.GetItem().GetThing().GetDefName())})
-		}
 		needs := []policy.GearReplacement{}
 		for _, need := range p.GetReplacementNeeds() {
 			needs = append(needs, policy.GearReplacement{Definition: policy.Resource(need.GetDefName()), Stuff: policy.Resource(need.GetStuff()), Reason: need.GetReason()})
 		}
-		row.Candidates = domain.Known(candidates)
+		row.Candidates = domain.Known(observation.GearCandidateFacts(p))
 		row.Replacements = domain.Known(needs)
 		row.Apparel = observation.GearApparelFacts(p.GetEquipment())
 		result.Pawns = append(result.Pawns, row)

@@ -45,15 +45,18 @@ namespace HomeBridge.BridgeTools
                     // the routine colony facts at the 1 MiB envelope (issue
                     // #320). Only the CandidateBound best by gain are carried;
                     // the rest count as filtered, never as unmatched.
+                    // Candidates are apparel only: they feed the wear order
+                    // (NativeGearOperations, JobDefOf.Wear), which looks its
+                    // target up among loose apparel. Loose weapons are the
+                    // equip family's (PAWN_ORDER_KIND_EQUIP); listing them
+                    // here had a WoodLog admitted as apparel wear and refused
+                    // on every attempt (issue #339).
                     var candidates = new List<KeyValuePair<Thing, float>>();
                     foreach (var apparel in map.listerThings.ThingsInGroup(ThingRequestGroup.Apparel).OfType<Apparel>()) {
                         if (GearUpkeepTools.Eligible(pawn, apparel) != null) continue;
                         var gain = GearUpkeepTools.Gain(pawn, apparel);
                         if (gain >= .05f) candidates.Add(new KeyValuePair<Thing, float>(apparel, gain));
                     }
-                    foreach (var weapon in map.listerThings.ThingsInGroup(ThingRequestGroup.Weapon).OfType<ThingWithComps>())
-                        if (GearUpkeepTools.WeaponEligible(pawn, weapon) == null)
-                            candidates.Add(new KeyValuePair<Thing, float>(weapon, GearUpkeepTools.WeaponGain(pawn, weapon)));
                     var bound = Math.Min(CandidateBound, limit);
                     omitted = Math.Max(0, candidates.Count - bound);
                     foreach (var candidate in candidates.OrderByDescending(c => c.Value).ThenBy(c => c.Key.thingIDNumber).Take(bound))

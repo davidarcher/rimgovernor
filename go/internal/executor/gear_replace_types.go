@@ -15,6 +15,14 @@ type GearReplaceJournal interface {
 	PrepareGearReplace(context.Context, domain.PlanID, domain.ActionID, store.GearReplaceAdmission) (domain.Progress, error)
 }
 
+// ErrGearReplaceAbsent reports a fresh gear census or native wear preview
+// that no longer holds the exact loose apparel a GearReplace targets: it was
+// worn, hauled away, forbidden or outscored, or the candidate was a weapon
+// the wear operation cannot target (#339). The proposal can never succeed,
+// so the executor cancels it instead of holding the plan, as haul and
+// supply do for a thing that left its cell.
+var ErrGearReplaceAbsent = errors.New("gear replace target absent")
+
 type GearReplaceInspection struct {
 	StartedAt, ObservedAt time.Time
 	Facts                 policy.GearReplaceFacts

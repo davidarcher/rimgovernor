@@ -81,6 +81,9 @@ func (b *GearReplaceBoundary) InspectGearReplace(ctx context.Context, target exe
 		return out, err
 	}
 	gear, _, err := b.native.ReadGearReplacement(ctx, boundary.Identity(current), string(replace.Pawn()), replace.Thing())
+	if errors.Is(err, bridge.ErrGearCandidateAbsent) {
+		return out, executor.ErrGearReplaceAbsent
+	}
 	if err != nil {
 		return out, err
 	}
@@ -102,6 +105,13 @@ func (b *GearReplaceBoundary) InspectGearReplace(ctx context.Context, target exe
 		return out, executor.ErrHeld
 	}
 	preview, _, err := b.native.PreviewGearReplace(ctx, boundary.Identity(current), string(replace.Pawn()), pawnToken, replace.Thing(), gear.ThingToken, gear.LoadoutToken)
+	// NOT_FOUND is the wear operation's own "exact loose apparel is
+	// unavailable": the census still listed the thing (a weapon, or one
+	// picked up since the read) but the order can never target it (#339).
+	var refused *bridge.NativeFailure
+	if errors.As(err, &refused) && refused.Value != nil && refused.Value.GetCode() == c.FailureCode_FAILURE_CODE_NOT_FOUND {
+		return out, executor.ErrGearReplaceAbsent
+	}
 	if err != nil {
 		return out, err
 	}

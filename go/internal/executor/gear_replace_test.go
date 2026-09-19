@@ -15,6 +15,7 @@ type gearReplaceEnvironment struct {
 	*environment
 	inspected, dispatched, observed int
 	uncertain, ineligible, foreign  bool
+	absent                          bool
 	effect                          domain.Effect
 }
 
@@ -25,6 +26,9 @@ func (n *gearReplaceEnvironment) gearReplaceFacts(target Target) policy.GearRepl
 }
 func (n *gearReplaceEnvironment) InspectGearReplace(_ context.Context, target Target) (GearReplaceInspection, error) {
 	n.inspected++
+	if n.absent {
+		return GearReplaceInspection{}, ErrGearReplaceAbsent
+	}
 	now := n.clock.Now()
 	return GearReplaceInspection{StartedAt: now, ObservedAt: now, Facts: n.gearReplaceFacts(target)}, nil
 }
@@ -136,6 +140,22 @@ func TestGearReplaceNativeIneligibleBlocksDispatch(t *testing.T) {
 	held, ok := result.Progress.View().FreshHeldReason()
 	if !ok || len(held) != 1 || held[0] != domain.HeldNativeIneligible {
 		t.Fatal("ordinary refusal was not persisted as a held reason", held)
+	}
+}
+
+// A candidate the census no longer offers as apparel (worn, hauled, or a
+// weapon the wear operation cannot target) settles the action instead of
+// holding the plan's development slot for the run (#339).
+func TestGearReplaceAbsentTargetCancelsAction(t *testing.T) {
+	f, n := gearReplaceFixture(t)
+	n.absent = true
+	result, err := f.run()
+	if !errors.Is(err, ErrHeld) || result.Progress.View().Stage != domain.Cancelled || n.dispatched != 0 {
+		t.Fatal(result, err, n.dispatched)
+	}
+	state, err := f.store.LoadPlan(context.Background(), f.plan.ID())
+	if err != nil || domain.GoalWorkOpen(state.Progress) {
+		t.Fatal("cancelled wear left the plan open", state, err)
 	}
 }
 

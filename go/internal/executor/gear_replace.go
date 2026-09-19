@@ -3,6 +3,7 @@ package executor
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -41,6 +42,17 @@ func (e *Executor) runGearReplace(ctx context.Context, action domain.Action, p d
 		}
 		var err error
 		inspection, err = e.gearReplace.InspectGearReplace(ctx, Target{action, expected})
+		if errors.Is(err, ErrGearReplaceAbsent) {
+			// Settle the proposal so the plan closes and its development
+			// slot frees at the next review; the planner re-proposes from
+			// the current census (#339).
+			next, err := e.journal.Cancel(ctx, v.Plan, v.Action)
+			if err != nil {
+				return result, err
+			}
+			result.Progress = next
+			return result, fmt.Errorf("%w: gear replace target absent, action cancelled", ErrHeld)
+		}
 		if err != nil {
 			return result, err
 		}
