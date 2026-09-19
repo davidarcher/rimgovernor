@@ -7,6 +7,9 @@ needs is [choose-tests](docs/developers/testing/choose-tests.md).
 
 ## The loop
 
+Take the shortest valid path. Run only the required checks, stop exploring
+once acceptance passes, and land immediately.
+
 1. Work on a task branch in your own worktree; `git merge main` once at
    session start.
 2. Edit; `go run ./cmd/test` from `go/` is the test loop. It tests the
