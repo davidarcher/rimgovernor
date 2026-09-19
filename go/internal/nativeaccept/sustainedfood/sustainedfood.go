@@ -68,8 +68,10 @@ type WatchConfig struct {
 // authority and keeps it granted, confirms the scheduler reaches automate
 // with a persisted routine review, then samples the goal's durable state
 // every Poll for Watch (or until Until) with the step-stall check from the
-// service's spec. It records timeline, events and timeline_samples on
-// report and returns the samples; the caller stops the service.
+// service's spec. Every sample also carries the service's live colony
+// census (sampleColony) so starvation is visible in the timeline itself
+// (#261). It records timeline, events and timeline_samples on report and
+// returns the samples; the caller stops the service.
 func Watch(ctx context.Context, naCfg *na.Config, service *na.ServiceProcess, cfg WatchConfig, report na.Report) (timeline []map[string]any, err error) {
 	apiCall := service.API
 	token := service.Token
@@ -182,6 +184,7 @@ func Watch(ctx context.Context, naCfg *na.Config, service *na.ServiceProcess, cf
 			sample["tick"] = tick
 			window.observe(tick)
 		}
+		sample["colony"] = sampleColony(apiCall)
 		timeline = append(timeline, sample)
 		methodCount, _ := sample["method_count"].(int)
 		need, _ := sample["need"].(string)
@@ -456,6 +459,7 @@ func Observe(ctx context.Context, s Observed, o Observation) ([]map[string]any, 
 	defer stopService()
 	timeline, err := Watch(ctx, s.Config(), service, o.WatchConfig, report)
 	report["metrics"] = DeriveMetrics(timeline)
+	report["colony_outcome"] = DeriveColonyOutcome(timeline)
 	if err != nil {
 		return timeline, err
 	}

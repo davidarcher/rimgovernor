@@ -21,7 +21,11 @@ func (client *Client) ReadHomeColonists(ctx context.Context, identity *c.Identit
 	request := &o.ListPawnsRequest{
 		Scope:   &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)},
 		Filter:  &o.PawnFilter{Colonist: proto.Bool(true), IncludeDead: proto.Bool(false)},
-		Details: &o.PawnDetails{Work: proto.Bool(true), Needs: proto.Bool(true)},
+		// Native defaults every unset detail family to requested, and
+		// homeColonistsSelected refuses any family beyond work and needs, so
+		// the rest are declined explicitly (the same shape pawnDetailsRequest
+		// sends).
+		Details: &o.PawnDetails{Work: proto.Bool(true), Needs: proto.Bool(true), Health: proto.Bool(false), Equipment: proto.Bool(false), Biography: proto.Bool(false), Settings: proto.Bool(false), Social: proto.Bool(false), Animals: proto.Bool(false), Schedule: proto.Bool(false)},
 		Page:    &c.PageRequest{Limit: proto.Uint32(256)},
 	}
 	reply := &o.ListPawnsReply{}

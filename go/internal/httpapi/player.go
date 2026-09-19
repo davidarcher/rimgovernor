@@ -177,7 +177,7 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request) bool {
 		return false
 	}
 	path := r.URL.Path
-	read := path == "/api/player/session" || path == "/api/player/control" || path == "/api/buildings/submission" || path == "/api/player/clock" || path == "/api/player/world-evaluation" || path == "/api/player/work-preferences" || path == "/api/research-selects/submission" || path == "/api/player/population-policy" || path == "/api/player/population-policy/submission" || path == "/api/player/expedition-policy" || path == "/api/player/expedition-policy/submission" || path == "/api/player/population-decision" || path == "/api/player/population-decision/submission" || path == "/api/player/resource-policy" || path == "/api/player/resource-policy/submission" || path == "/api/player/goals" || path == "/api/player/goals/submission"
+	read := path == "/api/player/session" || path == "/api/player/control" || path == "/api/buildings/submission" || path == "/api/player/clock" || path == "/api/player/world-evaluation" || path == "/api/player/colony" || path == "/api/player/work-preferences" || path == "/api/research-selects/submission" || path == "/api/player/population-policy" || path == "/api/player/population-policy/submission" || path == "/api/player/expedition-policy" || path == "/api/player/expedition-policy/submission" || path == "/api/player/population-decision" || path == "/api/player/population-decision/submission" || path == "/api/player/resource-policy" || path == "/api/player/resource-policy/submission" || path == "/api/player/goals" || path == "/api/player/goals/submission"
 	write := path == "/api/chat" || path == "/api/buildings/plans" || path == "/api/player/control/resume" || path == "/api/player/control/pause" || path == "/api/player/clock/acknowledge" || path == "/api/player/work-preferences/replace" || path == "/api/research-selects/plans" || path == "/api/player/population-policy/replace" || path == "/api/player/expedition-policy/update" || path == "/api/player/population-decision/replace" || path == "/api/player/resource-policy/update" || path == "/api/player/goals/activate" || path == "/api/player/goals/cancel"
 	if !read && !write {
 		return false
@@ -258,6 +258,14 @@ func (s *Server) handlePlayer(w http.ResponseWriter, r *http.Request) bool {
 			s.failure(w, r, 400, "invalid_request", "World evaluation accepts no query")
 		} else {
 			s.handleWorldEvaluation(ctx, w, r)
+		}
+		return true
+	}
+	if path == "/api/player/colony" {
+		if len(query) != 0 || r.URL.ForceQuery {
+			s.failure(w, r, 400, "invalid_request", "Colony status accepts no query")
+		} else {
+			s.handleColonyStatus(ctx, w, r)
 		}
 		return true
 	}

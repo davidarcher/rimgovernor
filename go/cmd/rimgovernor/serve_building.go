@@ -842,11 +842,19 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 			return err
 		}
 	}
+	// The live colony census route is a plain read every serve exposes when
+	// the native client carries the typed reads it composes (#261).
+	var colonyStatus httpapi.ColonyStatus
+	if colonyNative, ok := client.native.(buildingruntime.ColonyStatusNative); ok {
+		if colonyStatus, err = buildingruntime.NewColonyStatus(player, colonyNative); err != nil {
+			return err
+		}
+	}
 	var attention httpapi.AttentionAcknowledger
 	if raw, ok := client.reads.(*bridge.Client); ok {
 		attention = attentionAcknowledger{raw}
 	}
-	server, err := httpapi.NewWithPlayer(httpapi.Config{ClockReview: clockReview, Routines: routines, WorldEvaluation: worldEvaluation, Notifications: notifications, Presentation: presentation, PresentationMedia: client.presentationMedia, VideoFrames: videoshm.Open, Lifecycle: client.lifecycle, Attention: attention, AssetsDir: config.assets, Pprof: config.pprof, ReadTimeout: 35 * time.Second, ShutdownTimeout: 5 * time.Second, MaxResponseBytes: 1 << 20}, buildingSnapshots{reads, player}, database, player, database)
+	server, err := httpapi.NewWithPlayer(httpapi.Config{ClockReview: clockReview, Routines: routines, WorldEvaluation: worldEvaluation, ColonyStatus: colonyStatus, Notifications: notifications, Presentation: presentation, PresentationMedia: client.presentationMedia, VideoFrames: videoshm.Open, Lifecycle: client.lifecycle, Attention: attention, AssetsDir: config.assets, Pprof: config.pprof, ReadTimeout: 35 * time.Second, ShutdownTimeout: 5 * time.Second, MaxResponseBytes: 1 << 20}, buildingSnapshots{reads, player}, database, player, database)
 	if err != nil {
 		return err
 	}

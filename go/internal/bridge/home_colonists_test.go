@@ -39,8 +39,16 @@ func TestReadHomeColonistsAcceptsValidObservation(t *testing.T) {
 		if err := protojson.Unmarshal([]byte(outer.Request), q); err != nil {
 			t.Fatal(err)
 		}
-		if !q.Filter.GetColonist() || q.Filter.GetIncludeDead() || !q.Details.GetWork() || len(q.Filter.Ids) != 0 {
+		if !q.Filter.GetColonist() || q.Filter.GetIncludeDead() || !q.Details.GetWork() || !q.Details.GetNeeds() || len(q.Filter.Ids) != 0 {
 			t.Fatal(q)
+		}
+		// Native treats an unset detail family as requested and the read
+		// refuses a reply carrying one, so every other family is declined
+		// explicitly (#261 found every live read failing on this).
+		for name, field := range map[string]*bool{"health": q.Details.Health, "equipment": q.Details.Equipment, "biography": q.Details.Biography, "settings": q.Details.Settings, "social": q.Details.Social, "animals": q.Details.Animals, "schedule": q.Details.Schedule} {
+			if field == nil || *field {
+				t.Fatal(name, q.Details)
+			}
 		}
 		return pbResult(&o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: snapshot}}), nil
 	}}, time.Second)

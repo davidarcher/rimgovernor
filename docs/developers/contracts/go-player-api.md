@@ -31,6 +31,7 @@ control uses these routes.
 | GET/POST | `/api/player/work-preferences`, `…/replace` | Work preferences |
 | GET/POST | `/api/player/clock`, `/api/player/clock/acknowledge` | Clock review |
 | GET | `/api/player/world-evaluation` | Read-only caravan/quest evaluation |
+| GET | `/api/player/colony` | Live colony census: food nutrition and runway, colonists, workers, downed, mood mean, the living home roster (unknown facts are null) |
 
 Mutations require JSON and the process token in `X-RimGovernor-Player`. The
 read-only service exposes none of these player routes. Old building control

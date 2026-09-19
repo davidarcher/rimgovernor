@@ -47,6 +47,7 @@ type Config struct {
 	ClockReview                  ClockReview
 	Routines                     RoutineProvider
 	WorldEvaluation              WorldEvaluation
+	ColonyStatus                 ColonyStatus
 	Lifecycle                    LifecycleWriter
 	// Attention, when set, lets a lifecycle mutation clear one blocking GABS
 	// attention item (raised for a game-side log line GABS treats as

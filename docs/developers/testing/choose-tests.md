@@ -605,7 +605,14 @@ regression gate, the wall-clock ceiling (`RIMGOVERNOR_ACCEPT_WINDOW`, a Go
 duration, default 8m) only ends a game that stops advancing, and
 `sustained/food` watches the whole wall-clock window as the diagnostic
 timeline. Each case's `result.json` records the observed window under
-`window` and the ceiling under `window_ms`.
+`window` and the ceiling under `window_ms`. Every timeline sample also
+carries a `colony` block read from the service's `/api/player/colony`
+census (food nutrition and runway days, colonists, downed, mood mean, the
+roster), and `result.json` summarizes them under `colony_outcome` (minimum
+food runway and the tick it was seen at, first and final colonist counts,
+`colonists_lost`, worst downed count and mood mean), so a sustained run
+that starved its colonists is judged from the result rather than
+reconstructed from the flight recorder (#261).
 
 The watch also fails fast on the journal instead of running out that
 ceiling (#268, `sustainedfood.FailFast`, on by default): an action of the
