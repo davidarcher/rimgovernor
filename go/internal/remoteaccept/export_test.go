@@ -56,6 +56,38 @@ func TestRenderedPNGExportAndImport(t *testing.T) {
 	}
 }
 
+func TestExportExecutableIdentityWithoutCopyingBinary(t *testing.T) {
+	f := fixtureRun(t)
+	wantDigest := strings.Repeat("a", 64)
+	f.native(t, 0, 0, func(m map[string]json.RawMessage) {
+		identity, err := json.Marshal(map[string]string{
+			"executable": `C:\private\bin\rimgovernor.exe`, "sha256": wantDigest,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		m["rimgovernor_binary"] = identity
+	})
+	f.save(t)
+	job := exportFixture(t, f, 0)
+	if err := ExportShard(f.root, "s1", []ExportJob{job}, nil); err != nil {
+		t.Fatal(err)
+	}
+	var report struct {
+		Binary struct {
+			Executable string `json:"executable"`
+			SHA256     string `json:"sha256"`
+		} `json:"rimgovernor_binary"`
+	}
+	readTest(t, f.root, "s1/fixture/"+f.attempts[0].Attempts[0].Case+"/result.json", &report)
+	if report.Binary.Executable != "[runner-path]" || report.Binary.SHA256 != wantDigest {
+		t.Fatalf("binary identity was not retained and sanitized: %+v", report.Binary)
+	}
+	if _, err := os.Stat(filepath.Join(f.root, "s1", "attempts.json")); err != nil {
+		t.Fatalf("complete attempts manifest missing: %v", err)
+	}
+}
+
 func exportFixture(t *testing.T, f *fixture, index int) ExportJob {
 	t.Helper()
 	output := t.TempDir()

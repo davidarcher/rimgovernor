@@ -153,7 +153,9 @@ func run(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	if sum, err := sha256File(service.Spec.Binary); err == nil {
-		report["rimgovernor_binary"] = map[string]string{"path": service.Spec.Binary, "sha256": sum}
+		// Executable identity is metadata, not a diagnostic file reference:
+		// remote evidence reserves {path, sha256} for files it must export.
+		report["rimgovernor_binary"] = map[string]string{"executable": service.Spec.Binary, "sha256": sum}
 	} else {
 		return fmt.Errorf("hash rimgovernor binary: %w", err)
 	}
