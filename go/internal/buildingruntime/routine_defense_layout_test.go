@@ -105,8 +105,8 @@ func TestDefenseTierStateLivesInRecord(t *testing.T) {
 	if record.Tiers[0].Name != policy.TierFiringLine || !record.Tiers[0].Built || record.Tiers[1].Attempts != 1 || record.Tiers[1].Built || len(record.Tiers) != 2 {
 		t.Fatalf("%+v", record.Tiers)
 	}
-	if defenseTierMethodID(policy.TierFunnel, record.Tiers[1].Attempts) != "defense-funnel-1" {
-		t.Fatal(defenseTierMethodID(policy.TierFunnel, 1))
+	if defenseTierMethodID(record.Tiers[1]) != "defense-funnel-1" {
+		t.Fatal(defenseTierMethodID(record.Tiers[1]))
 	}
 }
 
@@ -131,12 +131,23 @@ func TestDefenseTierCensusReopensLostBuildings(t *testing.T) {
 	if !record.Tiers[0].Built || record.Tiers[0].Attempts != 1 || record.Tiers[1].Built || record.Tiers[1].Attempts != 0 || record.Tiers[2].Built || !record.Complete {
 		t.Fatalf("%+v", record.Tiers)
 	}
+	// The repair is the tier's first re-opening: its method, and so its
+	// plan id, differs from every method that built the tier the first
+	// time (defense-trap_corridor-0/-1), else the repair plan collides on
+	// plans.id and the window refuses no_work at every step (#331).
+	if record.Tiers[1].Reopened != 1 || defenseTierMethodID(record.Tiers[1]) != "defense-trap_corridor-r1-0" {
+		t.Fatalf("%+v %s", record.Tiers[1], defenseTierMethodID(record.Tiers[1]))
+	}
 	// A rebuilt trap is standing again; a wall replaced by another edifice
 	// (a raider's own sandbag, a blueprint's parent) does not count.
 	if !defenseTierCensus(&record, &defenseCensus{edifice: map[domain.Cell]string{wall: "Sandbags", trap: "TrapSpike"}}) {
 		t.Fatal("rebuilt trap not observed")
 	}
-	if record.Tiers[0].Built || record.Tiers[0].Attempts != 0 || !record.Tiers[1].Built {
+	if record.Tiers[0].Built || record.Tiers[0].Attempts != 0 || record.Tiers[0].Reopened != 1 || !record.Tiers[1].Built || record.Tiers[1].Reopened != 1 {
+		t.Fatalf("%+v", record.Tiers)
+	}
+	// A second loss of the same trap is a second repair with its own ids.
+	if !defenseTierCensus(&record, &defenseCensus{edifice: map[domain.Cell]string{wall: "Sandbags"}}) || record.Tiers[1].Reopened != 2 || defenseTierMethodID(record.Tiers[1]) != "defense-trap_corridor-r2-0" {
 		t.Fatalf("%+v", record.Tiers)
 	}
 }

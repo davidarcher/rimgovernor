@@ -1198,6 +1198,15 @@ func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSch
 		if err != nil {
 			return nil, fmt.Errorf("routine: %w", err)
 		}
+		if !review.Review.Enabled {
+			// Authority lapsed between this step's state read and the
+			// review (a poll hold, a resume in flight): the reviewer
+			// recorded a disabled review that ranks nothing. Admitting a
+			// window on it refuses no_work at every step until something
+			// else re-reviews (#331); fail the step instead, so the next
+			// step reviews with authority or exits on its absence.
+			return nil, fmt.Errorf("routine: %w", executor.ErrAuthority)
+		}
 		out.Routine = &review
 		// A mental break is not a hold: it only ends with ticks, so refusing
 		// every window while one is observed stopped the clock for good in

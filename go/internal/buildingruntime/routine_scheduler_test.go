@@ -2,11 +2,13 @@ package buildingruntime
 
 import (
 	"context"
+	"errors"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	factsstore "github.com/davidarcher/RimGovernor/go/internal/facts"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -202,5 +204,61 @@ func TestClockSchedulerFilesReviewSectionsInTheStore(t *testing.T) {
 	}
 	if _, spread := factsstore.Spread(s.facts.store.AsOf()); spread != 0 {
 		t.Fatalf("spread %d from one bundle", spread)
+	}
+}
+
+// TestClockSchedulerDisabledReviewFailsTheStep: authority that lapses
+// between the step's state read and the routine review (a poll hold, a
+// resume in flight) leaves a disabled review that ranks nothing. The step
+// must not evaluate a window on it -- that refuses no_work at every step
+// until something else re-reviews (#331) -- and the first step with
+// authority back reviews again.
+func TestClockSchedulerDisabledReviewFailsTheStep(t *testing.T) {
+	t.Parallel()
+	s, f := schedulerFixture(t)
+	n := schedulerRoutine(t, s, f)
+	ctx := context.Background()
+	first, err := s.Step(ctx)
+	if err != nil || first.Routine == nil || !first.Routine.Review.Enabled || first.Attempt == nil {
+		t.Fatal(first, err)
+	}
+	writes := f.writes
+	// Authority lapses after the scheduler's own state check: the reviewer
+	// records the disabled review and the planner wave must not go on.
+	if err = s.session.Disable(); err != nil {
+		t.Fatal(err)
+	}
+	call, epoch, done, err := s.player.enter(ctx, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out ClockSchedulerResult
+	planners, err := s.runPlanners(call, epoch, &out, nil)
+	done()
+	if !errors.Is(err, executor.ErrAuthority) || planners != nil || out.Routine != nil || f.writes != writes {
+		t.Fatal(planners, err, f.writes, writes)
+	}
+	review, err := s.player.journal.LoadRoutineReview(ctx)
+	if err != nil || review.Enabled || review.Revision != first.Routine.Review.Revision+1 {
+		t.Fatal(review, err)
+	}
+	if cleanup, err := s.Step(ctx); err != nil || !cleanup.Cleaned {
+		t.Fatal(cleanup, err)
+	}
+	if err = s.session.Manual(ctx); err != nil {
+		t.Fatal(err)
+	}
+	next := s.session.State().Snapshot
+	next.Native++
+	granted, err := s.session.Acquire(ctx, next)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.status.Context.NativeGeneration = proto.Uint64(uint64(granted.Native))
+	n.reply.GetObserved().Context.NativeGeneration = proto.Uint64(uint64(granted.Native))
+	n.reply.GetObserved().Planning.GetObserved().Cells.Context.NativeGeneration = proto.Uint64(uint64(granted.Native))
+	again, err := s.StepWithReason(ctx, StepReason{Cause: StepFull})
+	if err != nil && !errors.Is(err, executor.ErrHeld) || again.Routine == nil || !again.Routine.Review.Enabled || again.Routine.Review.Revision != review.Revision+1 {
+		t.Fatal(again, err)
 	}
 }

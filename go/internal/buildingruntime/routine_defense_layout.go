@@ -95,15 +95,21 @@ func (r *RoutineDefenseLayoutPlanner) Step(ctx context.Context) (RoutineDefenseL
 	return r.step(call, epoch, newStepArbiter())
 }
 
-// A tier's method is keyed by tier and attempt: a plan cancelled by an
-// authority discontinuity (a letter pause) or refused natively is retried
-// with a fresh method rather than counted as built, up to a small bound.
+// A tier's method is keyed by tier, repair and attempt: a plan cancelled by
+// an authority discontinuity (a letter pause) or refused natively is retried
+// with a fresh method rather than counted as built, up to a small bound per
+// repair. A tier the census re-opened after it stood (a sprung trap, a
+// breached wall) restarts its attempts under the next repair number, so
+// the repair's plan id never collides with the plan that built it (#331).
 const maxDefenseTierAttempts = 4
 
 func defenseTierPrefix(tier policy.DefenseTierName) string { return "defense-" + string(tier) + "-" }
 
-func defenseTierMethodID(tier policy.DefenseTierName, attempt int) domain.MethodID {
-	return domain.MethodID(fmt.Sprintf("%s%d", defenseTierPrefix(tier), attempt))
+func defenseTierMethodID(tier store.DefenseTierRecord) domain.MethodID {
+	if tier.Reopened == 0 {
+		return domain.MethodID(fmt.Sprintf("%s%d", defenseTierPrefix(tier.Name), tier.Attempts))
+	}
+	return domain.MethodID(fmt.Sprintf("%sr%d-%d", defenseTierPrefix(tier.Name), tier.Reopened, tier.Attempts))
 }
 
 // defenseLayoutGoal finds the goal the planner serves: the review binding
@@ -298,7 +304,7 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context, arbiter 
 			// (fogged); nothing can be admitted until it can.
 			return RoutineDefenseLayoutResult{Reason: BuildingMethodUnknown, Tier: name}, nil
 		}
-		return r.admit(call, epoch, goal, state, read, record, tier, buildings, defenseTierMethodID(name, tier.Attempts))
+		return r.admit(call, epoch, goal, state, read, record, tier, buildings, defenseTierMethodID(tier))
 	}
 	record.Complete, record.VerifiedTick, record.VerifiedCombat = true, tick, combat
 	// Every tier stands, so combat holds the proven line; a standing turret
@@ -702,7 +708,7 @@ func defenseTierCensus(record *store.DefenseLayoutRecord, census *defenseCensus)
 		}
 		tier.Built = standing
 		if !standing {
-			tier.Attempts = 0
+			tier.Attempts, tier.Reopened = 0, tier.Reopened+1
 		}
 		record.SetTier(tier)
 		changed = true

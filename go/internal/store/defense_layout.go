@@ -31,6 +31,11 @@ type DefenseTierRecord struct {
 	// in the latest census; a building lost since (a raider's wall breach, a
 	// sprung spike trap) clears it so the planner re-admits the tier.
 	Built bool
+	// Reopened counts the times the census cleared Built after the tier
+	// stood. Each repair restarts Attempts, and the tier's methods (and so
+	// its plan ids) are keyed by both, so a repair never reuses the id of
+	// the plan that built the tier the first time (#331).
+	Reopened int
 }
 
 // DefenseLayoutRecord is the one layout the colony committed to for one
@@ -96,7 +101,7 @@ func (r DefenseLayoutRecord) Validate() error {
 	}
 	seen := map[policy.DefenseTierName]bool{}
 	for _, tier := range r.Tiers {
-		if tier.Name == "" || seen[tier.Name] || len(tier.Buildings) > 512 || len(tier.Reserved) > 512 || tier.Attempts < 0 || tier.Attempts > 64 {
+		if tier.Name == "" || seen[tier.Name] || len(tier.Buildings) > 512 || len(tier.Reserved) > 512 || tier.Attempts < 0 || tier.Attempts > 64 || tier.Reopened < 0 || tier.Reopened > 4096 {
 			return errors.New("defense layout tier invalid")
 		}
 		seen[tier.Name] = true

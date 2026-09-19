@@ -312,6 +312,14 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 		worldErr = world.Validate()
 	}
 	if worldErr != nil {
+		// A read that ran out of the step's budget (a scheduler step held
+		// the gate for most of it) or failed in transport says nothing
+		// about the world: the step fails and the next one reads again
+		// (#342). Only a world that reads back unavailable or different
+		// is evidence against the authority.
+		if call.Err() != nil || errors.Is(worldErr, context.DeadlineExceeded) || errors.Is(worldErr, context.Canceled) || errors.Is(worldErr, bridge.ErrTransport) {
+			return worldErr
+		}
 		if err = w.session.Disable(); err != nil {
 			return errors.Join(worldErr, err)
 		}

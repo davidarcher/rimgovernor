@@ -3,9 +3,11 @@ package buildingruntime
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
@@ -252,6 +254,31 @@ func TestWorkerFailedWorldReadStillAttemptsIndependentCleanup(t *testing.T) {
 				if cleanup.Stage != domain.DraftSuperseded {
 					t.Fatal(cleanup)
 				}
+			}
+		})
+	}
+}
+
+// A world read that times out or fails in transport is not evidence against
+// the authority (#342): the step fails, nothing is disabled or cleaned up,
+// and the next step reads the world again.
+func TestWorkerWorldReadTimeoutKeepsAuthority(t *testing.T) {
+	t.Parallel()
+	for name, worldErr := range map[string]error{"deadline": context.DeadlineExceeded, "cancelled": context.Canceled, "transport": fmt.Errorf("%w: games_call_tool: context canceled", bridge.ErrTransport)} {
+		t.Run(name, func(t *testing.T) {
+			w, f, db := workerFixture(t)
+			v := workerDraft(t, db, "draft", domain.Dispatched, false)
+			f.state = ControlState{Enabled: true, ObservationKnown: true, Snapshot: v.Snapshot}
+			w.player.worlds = &playerWorldSource{world: store.World{Colony: "colony", Load: "load", Map: 0}, err: worldErr}
+			err := w.step(context.Background(), time.Now())
+			if !errors.Is(err, worldErr) {
+				t.Fatal(err)
+			}
+			if !f.State().Enabled {
+				t.Fatal("authority disabled on a transport failure")
+			}
+			if f.cleanups.Load() != 0 || f.runs.Load() != 0 || f.observes.Load() != 0 {
+				t.Fatal("work attempted without a world")
 			}
 		})
 	}
