@@ -111,7 +111,7 @@ baseline never ran, so an agent choosing among the cases a change owes
 can see that one costs 4 minutes and another 18, #283), and
 `acceptance run <area>/<case>... -root <abs root> [-output <dir>]
 [-rimgovernor <abs rimgovernor.exe>] [-budget <d> -stall <d> -timeout <d>]
-[-fresh] [-rewind N] [-checkpoint-every <d>] [-evidence capped|full]
+[-fresh] [-rewind N] [-checkpoint-every <d>] [-restage] [-evidence capped|full]
 [-repeat N] [-seed <s>] [-postmortem-only [-from <label|dir>]]`
 runs cases on one kept process, writing each case's `result.json` under
 `<output>/<area>/<case>` beside one evidence file per native call
@@ -809,6 +809,43 @@ bundle.
 A `sustainedfood.WatchConfig` may also name phase-boundary checkpoints
 (`Checkpoints`, each a tick and save name): the watch saves the game
 there through the service and captures the same bundle into the ring.
+
+### Staging a slow Run body
+
+The ring resumes a failed attempt; a stage bundle caches deterministic
+setup (#329). A case whose minutes are spent in its Run body before the
+assertion (a shell sited and roofed, research and a bench built, rooms
+on the baseline) declares the stages in order (`Stages: []string{...}`)
+and wraps each staging block in `s.Stage(ctx, name, fn)`. `fn` returns
+with every service it launched stopped (a released slot with no service
+is reattached) and the runner pauses the game and captures the same
+bundle as the ring (save, `service.sqlite`, clock journal, sidecar) into
+`<root>/stages/<area>/<case>/<name>/`, replacing that stage's earlier
+bundle. The next `acceptance run` opens on the newest stage whose native
+package, `Start`, expansions and `stage_key` still match (printed as
+`opening <case> on stage <name> (captured ...); -restage stages again`),
+the way a resume does: the save replaces the `Start`, the store and
+journal are restored, `Prepared` comes from the sidecar and
+`s.RequestID` and the request ids of every service `s.Serve` launches
+are suffixed (#307); `Stage` then skips `fn` for that stage
+and every earlier one, so the code after it cannot tell a hit from a
+miss. Later stages run and capture as on a miss. `stage_key` is a hash
+of the case's area package sources (`cases/<area>/*.go`) plus the
+stage names: a change to the staging code invalidates the bundle, a
+change to shared helpers does not (`-restage`), and neither the git
+revision nor the `rimgovernor` binary is in it. A pending ring resume
+wins over a stage (its bundles record the last stage completed under
+`state.stage_completed`, so the replayed body skips those blocks too); a
+stage hit starts the ring at the staging run's offset, and neither
+clears the other. `-fresh` keeps the stages
+(they are setup, not the failed attempt), `-restage` discards them and
+`RIMGOVERNOR_ACCEPT_STAGES=0` turns the cache off for a harness whose
+staging is itself under test. `result.json` carries `staged_from`,
+`stages[]` (each stage's name, `hit`/`captured`/`uncached`/`failed`,
+bundle path and wall time) and `stage_key`. A staged pass is not a
+landing pass either: `acceptance suite` runs every row `-restage` and
+fails one whose `result.json` carries `staged_from`, and `cmd/land
+-results` refuses such a suite.
 
 A case whose late scenario depends on minutes of earlier play (the
 defense layout build before its raid) checkpoints the precondition as a

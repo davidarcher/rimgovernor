@@ -151,25 +151,16 @@ func planResume(c Case, opts Options, log io.Writer) (resumption, error) {
 	return resumption{entry: entry, previous: previous}, nil
 }
 
-// newRing is the ring the run captures into, nil when c never checkpoints
-// (report["checkpointing"] says why). s is consulted at every capture for
-// whichever side holds the game.
-func newRing(c Case, opts Options, s *session, cfg *na.Config, output string, resumed resumption, report na.Report) *na.CheckpointRing {
-	if opts.CheckpointEvery <= 0 {
-		report["checkpointing"] = "off"
-		return nil
-	}
-	if reason := ringExcluded(c); reason != "" {
-		report["checkpointing"] = reason
-		return nil
-	}
+// baseRing is a ring over the run's game for c: the sides that may hold
+// the GABP slot (s is consulted at every capture), the store, the
+// fingerprint. newRing and newStages set its directory and cadence.
+func baseRing(c Case, opts Options, s *session, cfg *na.Config, output string) (*na.CheckpointRing, error) {
 	fp, err := fingerprint(c, cfg.Configuration)
 	if err != nil {
-		report["checkpointing"] = "cannot fingerprint: " + err.Error()
-		return nil
+		return nil, err
 	}
 	ring := &na.CheckpointRing{
-		Dir: opts.RingDir(c), Case: c.Name, Every: opts.CheckpointEvery, Keep: na.CheckpointKeep,
+		Case: c.Name, Keep: na.CheckpointKeep,
 		Config: cfg, StorePath: filepath.Join(output, "service.sqlite"), Output: output,
 		Fingerprint: fp, SourceRevision: na.SourceRevision(),
 		Bridge: func() *na.Harness {
@@ -195,25 +186,85 @@ func newRing(c Case, opts Options, s *session, cfg *na.Config, output string, re
 	if c.Serve != nil {
 		ring.Serve = map[string]any{"families": c.Serve.Families, "extra": c.Serve.Extra, "resume": c.Serve.Resume}
 	}
-	if resumed.resuming() {
+	if s.Session != nil {
+		ring.Prepared = s.Session.Prepared
+	}
+	return ring, nil
+}
+
+// newRing is the ring the run captures into, nil when c never checkpoints
+// (report["checkpointing"] says why). A run that opened on a stage bundle
+// (staged) starts at the staging run's offset so labels stay monotonic.
+func newRing(c Case, opts Options, s *session, cfg *na.Config, output string, resumed resumption, staged staging, report na.Report) *na.CheckpointRing {
+	if opts.CheckpointEvery <= 0 {
+		report["checkpointing"] = "off"
+		return nil
+	}
+	if reason := ringExcluded(c); reason != "" {
+		report["checkpointing"] = reason
+		return nil
+	}
+	ring, err := baseRing(c, opts, s, cfg, output)
+	if err != nil {
+		report["checkpointing"] = "cannot fingerprint: " + err.Error()
+		return nil
+	}
+	ring.Dir, ring.Every = opts.RingDir(c), opts.CheckpointEvery
+	switch {
+	case resumed.resuming():
 		ring.Base = time.Duration(resumed.entry.OffsetMs) * time.Millisecond
 		ring.Prepared = resumed.entry.Prepared
-		for k, v := range resumed.entry.State {
-			if ring.State == nil {
-				ring.State = map[string]any{}
-			}
-			ring.State[k] = v
-		}
+		ring.State = copyState(resumed.entry.State)
 		for _, e := range resumed.previous.Entries {
 			if e.OffsetMs <= resumed.entry.OffsetMs {
 				ring.Prior = append(ring.Prior, e)
 			}
 		}
-	} else if s.Session != nil {
-		ring.Prepared = s.Session.Prepared
+	case staged.staged():
+		ring.Base = time.Duration(staged.entry.OffsetMs) * time.Millisecond
+		ring.Prepared = staged.entry.Prepared
+		ring.State = copyState(staged.entry.State)
 	}
 	report["checkpointing"] = fmt.Sprintf("every %s into %s", opts.CheckpointEvery, ring.Dir)
 	return ring
+}
+
+// newStages is the ring stage bundles are captured into (#329): never
+// activated (no periodic captures, no failed bundle), keyed on the run's
+// stage key; nil when the run stages nothing or staging is off
+// (report["staging"] says why).
+func newStages(c Case, opts Options, s *session, cfg *na.Config, output string, plan staging, report na.Report) *na.CheckpointRing {
+	if len(c.Stages) == 0 {
+		return nil
+	}
+	if plan.off != "" {
+		report["staging"] = "off: " + plan.off
+		return nil
+	}
+	ring, err := baseRing(c, opts, s, cfg, output)
+	if err != nil {
+		report["staging"] = "off: cannot fingerprint: " + err.Error()
+		return nil
+	}
+	ring.Dir, ring.StageKey = opts.StagesDir(c), plan.key
+	if plan.staged() {
+		ring.Prepared = plan.entry.Prepared
+	}
+	report["staging"] = "into " + ring.Dir
+	report["stage_key"] = plan.key
+	return ring
+}
+
+// copyState is a sidecar's case state as a fresh map, nil when empty.
+func copyState(state map[string]any) map[string]any {
+	if len(state) == 0 {
+		return nil
+	}
+	out := make(map[string]any, len(state))
+	for k, v := range state {
+		out[k] = v
+	}
+	return out
 }
 
 // closeRing records the run's bundles on the report and leaves the ring

@@ -94,6 +94,7 @@ func readSuiteResults(dir string) (string, error) {
 		Cases  []struct {
 			Name           string `json:"name"`
 			ResumedFrom    any    `json:"resumed_from"`
+			StagedFrom     any    `json:"staged_from"`
 			PostmortemOnly bool   `json:"postmortem_only"`
 		} `json:"cases"`
 	}
@@ -103,14 +104,20 @@ func readSuiteResults(dir string) (string, error) {
 	if report.Cases == nil {
 		return "", fmt.Errorf("-results: %s has no cases: give an `acceptance suite` output directory", path)
 	}
-	var only []string
+	var only, staged []string
 	for _, row := range report.Cases {
 		if row.PostmortemOnly {
 			only = append(only, row.Name)
 		}
+		if row.StagedFrom != nil {
+			staged = append(staged, row.Name)
+		}
 	}
 	if len(only) > 0 {
 		return "", fmt.Errorf("-results: %s ran postmortem-only (%s); a landing pass runs the scenario", path, strings.Join(only, ", "))
+	}
+	if len(staged) > 0 {
+		return "", fmt.Errorf("-results: %s opened on a cached stage bundle (%s); a landing pass stages from scratch (acceptance suite runs every row -restage)", path, strings.Join(staged, ", "))
 	}
 	if !report.Passed {
 		reason := report.Error

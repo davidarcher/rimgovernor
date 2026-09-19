@@ -54,6 +54,11 @@ func TestGateReadsTheSuiteReport(t *testing.T) {
 		t.Errorf("postmortem-only row: got %v", err)
 	}
 
+	write(t, filepath.Join(dir, "result.json"), `{"passed": true, "cases": [{"name": "shelter/hut", "passed": true, "staged_from": {"stage": "ring"}}]}`)
+	if err := gate.check(nil); err == nil || !strings.Contains(err.Error(), "opened on a cached stage bundle (shelter/hut)") {
+		t.Errorf("staged row: got %v", err)
+	}
+
 	write(t, filepath.Join(dir, "result.json"), `{"passed": false, "error": "1 of 2 cases failed: light/dark", "cases": [{"name": "light/dark"}]}`)
 	if err := gate.check(nil); err == nil || !strings.Contains(err.Error(), "1 of 2 cases failed: light/dark") {
 		t.Errorf("failed suite: got %v", err)

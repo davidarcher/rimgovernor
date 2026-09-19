@@ -159,6 +159,10 @@ What it produces:
   in the same root (first output line says so); pass `-fresh` to start
   over, `-rewind N` to step back. Report a resumed pass as such and land
   on a fresh one: `acceptance suite` and the `cmd/test` hint run fresh.
+- A case that declares `Stages` opens on its newest cached stage bundle
+  in the root (first output line says so; #329) and skips the staging
+  blocks it covers; `-restage` stages again, and a landing suite always
+  does. Say `staged_from` in a report the same way as `resumed_from`.
 - Iterating on a case's asserts, not its scenario: `acceptance run
   <case> -postmortem-only [-from t+7m] -output <empty dir>` reloads the
   failed bundle on the kept process and runs only the case's

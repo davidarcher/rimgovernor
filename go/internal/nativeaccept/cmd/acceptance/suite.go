@@ -544,7 +544,7 @@ func entryCommand(e entry, opts suiteOptions, self, workerRoot string) (argv []s
 	// process check would only see its siblings.
 	argv = []string{self, "run", e.Name, "-root", workerRoot, "-output", opts.Output, "-game", opts.GameID}
 	if !opts.Resume {
-		argv = append(argv, "-fresh", "-checkpoint-every", "0")
+		argv = append(argv, "-fresh", "-checkpoint-every", "0", "-restage")
 	}
 	argv = append(argv, "-no-doctor")
 	if opts.NoSeries {
@@ -632,6 +632,10 @@ func runEntry(ctx context.Context, e entry, opts suiteOptions, self, workerRoot 
 			if only, _ := result["postmortem_only"].(bool); only {
 				row["passed"], row["postmortem_only"] = false, true
 				row["error"] = "postmortem-only: a landing run must pass from scratch"
+			}
+			if staged, ok := result["staged_from"]; ok {
+				row["passed"], row["staged_from"] = false, staged
+				row["error"] = "opened on a cached stage bundle: a landing run must stage from scratch"
 			}
 			row["game_reuse"] = result["game_reuse"]
 			if ms, ok := result["boot_ms"].(float64); ok {

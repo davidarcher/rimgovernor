@@ -195,14 +195,14 @@ func TestParseSuiteResolvesRegistry(t *testing.T) {
 	}
 	self, worker := filepath.Join(root, "acceptance.exe"), filepath.Join(root, "out", "workers", "1")
 	argv, output := entryCommand(list[0], opts, self, worker)
-	if want := []string{self, "run", "smoke/identity", "-root", worker, "-output", opts.Output, "-game", "rimgovernor-trial", "-fresh", "-checkpoint-every", "0", "-no-doctor", "-series", opts.Series, "-budget", "4m0s"}; strings.Join(argv, " ") != strings.Join(want, " ") {
+	if want := []string{self, "run", "smoke/identity", "-root", worker, "-output", opts.Output, "-game", "rimgovernor-trial", "-fresh", "-checkpoint-every", "0", "-restage", "-no-doctor", "-series", opts.Series, "-budget", "4m0s"}; strings.Join(argv, " ") != strings.Join(want, " ") {
 		t.Errorf("bridge argv = %v", argv)
 	}
 	if output != filepath.Join(opts.Output, "smoke", "identity") {
 		t.Errorf("bridge output = %q", output)
 	}
 	argv, output = entryCommand(list[1], opts, self, worker)
-	if want := []string{self, "run", "light/dark", "-root", worker, "-output", opts.Output, "-game", "rimgovernor-trial", "-fresh", "-checkpoint-every", "0", "-no-doctor", "-series", opts.Series, "-rimgovernor", "rg.exe", "-budget", "4m0s"}; strings.Join(argv, " ") != strings.Join(want, " ") {
+	if want := []string{self, "run", "light/dark", "-root", worker, "-output", opts.Output, "-game", "rimgovernor-trial", "-fresh", "-checkpoint-every", "0", "-restage", "-no-doctor", "-series", opts.Series, "-rimgovernor", "rg.exe", "-budget", "4m0s"}; strings.Join(argv, " ") != strings.Join(want, " ") {
 		t.Errorf("service argv = %v", argv)
 	}
 	// -no-series passes through instead of a path; an explicit -series is

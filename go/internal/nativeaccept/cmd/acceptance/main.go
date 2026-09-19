@@ -1,7 +1,7 @@
 // Command acceptance is the shared runner over the case registry (#135):
 //
 //	acceptance list [-cost [-baseline <result.json|metrics.jsonl>]] [-tier land|full|matrix|smoke] [<case>|<area>/...]...
-//	acceptance run <case>... [-root -output -game -headless -timeout -budget -stall -rimgovernor -series -no-series -evidence -fresh -rewind N -checkpoint-every d -no-doctor -no-heal -repeat N -seed s -postmortem-only [-from bundle]]
+//	acceptance run <case>... [-root -output -game -headless -timeout -budget -stall -rimgovernor -series -no-series -evidence -fresh -rewind N -checkpoint-every d -restage -no-doctor -no-heal -repeat N -seed s -postmortem-only [-from bundle]]
 //	acceptance suite (-all | -cases a,b | -suite file.json | -tier land|full|matrix|smoke) -root -output -workers N [-baseline result.json -series metrics.jsonl]
 //	acceptance stop -root <dir> [-config -game -takeover]
 //	acceptance setup [-worktree -rimworld -harmony -gabs -fixture -production -rebuild -skip-mod -skip-binaries]
@@ -23,10 +23,12 @@
 // on-demand matrix set. A run
 // checkpoints its case into the root's ring and resumes a case whose last
 // run there failed (#249; -fresh starts over, -rewind steps back,
-// -checkpoint-every 0 turns it off); suite runs fresh unless -resume.
-// -postmortem-only (#275) reloads the case's failed bundle (or -from) on
-// the kept process and runs only its Postmortem phase, leaving the ring as
-// it was. Every
+// -checkpoint-every 0 turns it off); suite runs fresh unless -resume. A
+// case that declares Stages opens on its newest cached stage bundle in
+// the root (#329; -restage stages again, RIMGOVERNOR_ACCEPT_STAGES=0
+// turns the cache off); a fresh suite restages. -postmortem-only (#275)
+// reloads the case's failed bundle (or -from) on the kept process and
+// runs only its Postmortem phase, leaving the ring as it was. Every
 // result.json carries a world block (na.RecordWorld, #281: the seed, the
 // loaded save and its hash, the fixture op and its arguments' hash);
 // -repeat N runs a case N times fresh on the kept process and writes
@@ -163,9 +165,11 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 const usage = `usage:
 ` + listUsage + `
-  acceptance run <case>... -root <dir> [-output <dir> -game <id> -headless=false -timeout <d> -budget <d> -stall <d> -rimgovernor <binary> -series <metrics.jsonl> -no-series -evidence capped|full -fresh -rewind <n> -checkpoint-every <d> -no-doctor -no-heal -repeat <n> -seed <s> -postmortem-only [-from <bundle>]]
+  acceptance run <case>... -root <dir> [-output <dir> -game <id> -headless=false -timeout <d> -budget <d> -stall <d> -rimgovernor <binary> -series <metrics.jsonl> -no-series -evidence capped|full -fresh -rewind <n> -checkpoint-every <d> -restage -no-doctor -no-heal -repeat <n> -seed <s> -postmortem-only [-from <bundle>]]
     a case whose last run in this root failed resumes from its checkpoint ring (printed on the first line);
     -fresh starts over, -rewind <n> resumes n entries earlier, -checkpoint-every 0 turns the ring off;
+    a case that declares Stages opens on its newest cached stage bundle (printed on the first line);
+    -restage discards the bundles and stages again, RIMGOVERNOR_ACCEPT_STAGES=0 turns the cache off;
     -postmortem-only reloads the failed bundle (or -from <label|dir>) and runs only the case's Postmortem phase, ring untouched;
     -repeat <n> runs each case n times fresh and reports the pass rate and seeds (<output>/<case>.repeat.json);
     -seed <s> pins a debug or scenario start's world seed (result.json "world".seed) to reproduce a run
@@ -199,6 +203,7 @@ func parseRun(args []string, stderr io.Writer) ([]cases.Case, cases.Options, err
 	fs.StringVar(&opts.Rimgovernor, "rimgovernor", "", "absolute path to a prebuilt rimgovernor binary (go build ./go/cmd/rimgovernor) for cases that launch a service")
 	fs.BoolVar(&opts.Fresh, "fresh", false, "discard the case's checkpoint ring in this root and start from scratch (a suite does unless -resume)")
 	fs.IntVar(&opts.Rewind, "rewind", 0, "resume this many checkpoint entries earlier than the ring's next")
+	fs.BoolVar(&opts.Restage, "restage", false, "discard the case's cached stage bundles in this root and stage again (landing runs always do)")
 	fs.DurationVar(&opts.CheckpointEvery, "checkpoint-every", na.DefaultCheckpointEvery, "checkpoint the run phase this often at a natural pause into <root>/checkpoints/<case>/ (0 turns the ring and resuming off)")
 	fs.StringVar(&opts.Series, "series", "", "append-only metrics series each case's block is appended to (default <output>/../metrics.jsonl)")
 	fs.BoolVar(&opts.NoSeries, "no-series", false, "leave the metrics series alone")

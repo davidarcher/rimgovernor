@@ -47,10 +47,19 @@ const (
 // furnishes the fixture hut.
 const ladderFamilies = "temperature,work,supply,defense,tend,rescue,medical,field,food-storage,acquisition,cooking,research,dialog,naming"
 
-// ladderWindow is how long the roadmap gets to build the bench, finish the
-// seeded rung and select the next: the watch ends early on the second
-// completed selection.
-const ladderWindow = 10 * time.Minute
+// benchWindow is how long the roadmap gets to build the bench (the
+// "bench-built" stage, cached across runs, #329); ladderWindow is how long
+// the staged colony then gets to finish the seeded rung and select the
+// next (a restarted service re-ranks development for ~15k ticks before
+// the first selection). Each watch ends early on its rung.
+const (
+	benchWindow  = 6 * time.Minute
+	ladderWindow = 10 * time.Minute
+)
+
+// benchStage is the case's one stage: the research bench standing in the
+// fixture hut, before any rung is selected on it.
+const benchStage = "bench-built"
 
 func init() {
 	cases.Register(cases.Case{
@@ -58,24 +67,55 @@ func init() {
 		Scope:  fmt.Sprintf("With no research target and no research bench, EnsureResearch stages a simple research bench in the fixture hut, selects %s from the default ladder, keeps the clock moving until it finishes natively, then selects %s; all proven by the live research state (issues #230, #254).", firstRung, secondRung),
 		Start:  cases.Fixture{Op: "test/research_ladder_prepare", Args: map[string]any{"project": firstRung}, On: cases.Save{Name: baselineSave}},
 		Serve:  &cases.ServeSpec{Families: []string{ladderFamilies}, NativeTimeout: 15 * time.Second, Prefix: "research"},
-		Budget: ladderWindow + 3*time.Minute,
+		Stages: []string{benchStage},
+		Budget: benchWindow + ladderWindow + 3*time.Minute,
+		Reason: "the bench build is a cached stage (#329) and the watch after it pays a fresh development ranking before the second selection; a hit runs only the second watch",
 		Run: func(ctx context.Context, s cases.Session) error {
+			// The bench: the service runs until the research goal has
+			// completed a laboratory plan, then stops; the stage bundle
+			// holds the colony there. This is where the bench is proven
+			// the service's: a hit reloads the world and the review
+			// rebinds fresh goals, so the journal after it cannot.
+			if err := s.Stage(ctx, benchStage, func(ctx context.Context) error {
+				_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
+					WatchConfig: sustainedfood.WatchConfig{Watch: benchWindow, Goal: policy.EnsureResearch, Until: benchPlanCompleted},
+					Prepare: func(ctx context.Context, h *na.Harness, report na.Report) error {
+						prepared := s.Prepared()
+						report["fixture"] = prepared
+						if finished, _ := na.AsBool(prepared["finished"]); finished {
+							return fmt.Errorf("%s is already finished; the first rung has nothing to prove", firstRung)
+						}
+						if current := na.AsString(prepared["current"]); current != "" {
+							return fmt.Errorf("the save already researches %s; the roadmap must select on an idle tab", current)
+						}
+						if benches := na.AsNumber(prepared["researchBenches"]); benches != 0 {
+							return fmt.Errorf("the save already holds %v research benches; nothing for the ladder to build", benches)
+						}
+						return nil
+					},
+					Audit: func(ctx context.Context, h *na.Harness, report na.Report) error {
+						live, err := h.Call(ctx, "bench-audit", "test/research_ladder_audit", map[string]any{"project": firstRung})
+						if err != nil {
+							return err
+						}
+						report["bench_stage"] = live
+						if benches := na.AsNumber(live["researchBenches"]); benches <= 0 {
+							return fmt.Errorf("no research bench stands after the bench plan completed (%v)", live)
+						}
+						if !benchBuilt(report, nil) {
+							return fmt.Errorf("no routine-laboratory bench plan completed; the bench was not the service's")
+						}
+						return nil
+					},
+				})
+				return err
+			}); err != nil {
+				return err
+			}
+			// The rungs, over the staged colony (a hit and a miss continue
+			// from the same paused, bench-built world).
 			_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
 				WatchConfig: sustainedfood.WatchConfig{Watch: ladderWindow, Goal: policy.EnsureResearch, Until: secondSelection},
-				Prepare: func(ctx context.Context, h *na.Harness, report na.Report) error {
-					prepared := s.Prepared()
-					report["fixture"] = prepared
-					if finished, _ := na.AsBool(prepared["finished"]); finished {
-						return fmt.Errorf("%s is already finished; the first rung has nothing to prove", firstRung)
-					}
-					if current := na.AsString(prepared["current"]); current != "" {
-						return fmt.Errorf("the save already researches %s; the roadmap must select on an idle tab", current)
-					}
-					if benches := na.AsNumber(prepared["researchBenches"]); benches != 0 {
-						return fmt.Errorf("the save already holds %v research benches; nothing for the ladder to build", benches)
-					}
-					return nil
-				},
 			})
 			return err
 		},
@@ -110,6 +150,13 @@ func completedSelections(sample map[string]any) int {
 // secondSelection reports a sample where the roadmap has selected twice:
 // the seeded rung and, once the game finished it, the next.
 func secondSelection(sample map[string]any) bool { return completedSelections(sample) >= 2 }
+
+// benchPlanCompleted reports a sample whose research goal holds or held
+// (retired_plans: a completed method leaves the goal at the next review)
+// a research bench plan with every action completed: the bench stands.
+func benchPlanCompleted(sample map[string]any) bool {
+	return benchBuilt(na.Report{"timeline": []map[string]any{sample}}, nil)
+}
 
 // benchBuilt reports whether any watch sample held a completed research
 // bench plan under the research goal: the timeline keeps only the latest
@@ -188,9 +235,6 @@ func audit(ctx context.Context, h *na.Harness, journal *store.Store, report na.R
 	report["live"] = live
 	if benches := na.AsNumber(live["researchBenches"]); benches <= 0 {
 		return fmt.Errorf("no research bench stands: the ladder never built one (%v)", live)
-	}
-	if !benchBuilt(report, prior) {
-		return fmt.Errorf("no routine-laboratory bench plan completed; the bench was not the service's")
 	}
 	if finished, _ := na.AsBool(live["finished"]); !finished {
 		return fmt.Errorf("%s did not finish natively: progress=%v current=%v", firstRung, live["progress"], live["current"])

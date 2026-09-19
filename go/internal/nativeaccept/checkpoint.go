@@ -81,6 +81,11 @@ type Checkpoint struct {
 	// Start hashes the case's Start (its kind, save, fixture op and args).
 	Start      string   `json:"start"`
 	Expansions []string `json:"expansions"`
+	// Stage and StageKey mark a staged run-phase bundle (#329): the stage
+	// the case declared and the hash of the staging code it was taken
+	// under (a change to the case's area package invalidates it).
+	Stage    string `json:"stage,omitempty"`
+	StageKey string `json:"stage_key,omitempty"`
 	// Through says which path took the save: "bridge" (lifecycle_save on
 	// the harness session) or "service" (/api/lifecycle/save).
 	Through string `json:"through"`
@@ -333,6 +338,9 @@ type CheckpointRing struct {
 	// (SetCheckpointState adds to it; a resumed run starts from the
 	// entry's).
 	State map[string]any
+	// StageKey, when set, marks every capture a stage bundle (#329) of the
+	// stage its label names, under this staging-code hash.
+	StageKey string
 	// Prior are the entries of the timeline this run resumed into (the
 	// previous ring's up to the resume point); the provisional index a
 	// capture writes lists them before this run's own.
@@ -629,9 +637,12 @@ func (r *CheckpointRing) capture(ctx context.Context, label string, force bool) 
 	}
 	entry := Checkpoint{
 		Case: r.Case, Label: label, OffsetMs: r.Offset().Milliseconds(), Save: CheckpointSaveName(r.Case),
-		Prepared: r.Prepared, State: r.stateSnapshot(), Serve: r.Serve, ServiceProfile: r.Config.ServiceProfileDir(), SourceRevision: r.SourceRevision,
+		Prepared: r.Prepared, State: r.StateSnapshot(), Serve: r.Serve, ServiceProfile: r.Config.ServiceProfileDir(), SourceRevision: r.SourceRevision,
 		Package: r.Fingerprint.Package, Start: r.Fingerprint.Start, Expansions: r.Fingerprint.Expansions,
 		At: began.UTC().Format(time.RFC3339), Path: dir,
+	}
+	if r.StageKey != "" {
+		entry.Stage, entry.StageKey = label, r.StageKey
 	}
 	var saved string
 	var err error
@@ -685,9 +696,10 @@ func (r *CheckpointRing) capture(ctx context.Context, label string, force bool) 
 	return entry, nil
 }
 
-// stateSnapshot copies the case state for a sidecar; the case may keep
-// adding to it while the capture writes.
-func (r *CheckpointRing) stateSnapshot() map[string]any {
+// StateSnapshot copies the case state (for a sidecar, or for a stage
+// bundle taken beside the ring); the case may keep adding to it while the
+// capture writes.
+func (r *CheckpointRing) StateSnapshot() map[string]any {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if len(r.State) == 0 {

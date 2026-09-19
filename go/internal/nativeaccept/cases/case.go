@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -143,6 +144,14 @@ type Session interface {
 	// replays idempotently. Use it for every deterministic requestId a
 	// Run body submits.
 	RequestID(base string) string
+	// Stage runs fn, the staging block of the declared stage name (#329),
+	// unless the run opened on a bundle of that stage or a later one, in
+	// which case fn is skipped and the code after Stage cannot tell the
+	// two apart. fn returns with every service it launched stopped (a
+	// released slot with no service is reattached); the game is paused
+	// for the capture, the state a hit continues from. Stages run in
+	// declared order; an undeclared or out-of-order name fails the run.
+	Stage(ctx context.Context, name string, fn func(ctx context.Context) error) error
 	// Resumed is the checkpoint entry this run resumed from (#249), ok
 	// false on a fresh run. Its State is what the case recorded through
 	// na.SetCheckpointState before the capture: a Run body that stages
@@ -235,6 +244,11 @@ type Case struct {
 	// advance a strict window over exactly these letters
 	// (na.WithExpectedLetters).
 	Letters [][2]string
+	// Stages names, in order, the staging blocks the Run body wraps in
+	// Session.Stage (#329): the runner caches a bundle after each and the
+	// next run opens on the newest one that still matches. Every name is
+	// unique and non-empty; an Owned case declares none.
+	Stages []string
 	// Run is the assertion, or its scenario when Postmortem is set.
 	Run func(ctx context.Context, s Session) error
 	// Postmortem, when set, is the case's read-and-assert phase (#275): the
@@ -296,6 +310,16 @@ func (c Case) Validate() error {
 	}
 	if _, owned := c.Start.(Owned); owned && !c.NoKeep {
 		return fmt.Errorf("case %s owns its process lifecycle (Owned) and must declare NoKeep", c.Name)
+	}
+	if _, owned := c.Start.(Owned); owned && len(c.Stages) > 0 {
+		return fmt.Errorf("case %s owns its process lifecycle (Owned) and cannot declare Stages", c.Name)
+	}
+	seen := map[string]bool{}
+	for _, name := range c.Stages {
+		if name == "" || strings.ContainsAny(name, "/\\") || seen[name] {
+			return fmt.Errorf("case %s: stage %q must be a unique, non-empty name without path separators", c.Name, name)
+		}
+		seen[name] = true
 	}
 	return nil
 }

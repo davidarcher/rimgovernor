@@ -50,6 +50,10 @@ type Options struct {
 	// Rewind resumes that many entries earlier than the ring's next.
 	Fresh  bool
 	Rewind int
+	// Restage discards the case's stage bundles in this root (#329) and
+	// stages again; Fresh leaves them, since a stage is deterministic
+	// setup, not the failed attempt.
+	Restage bool
 	// PostmortemOnly runs only the case's Postmortem phase over a staged
 	// bundle (#275): From names the bundle (a ring label such as "t+7m" or
 	// "failed", or a bundle directory), the ring's failed bundle when
@@ -236,9 +240,16 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 	if err != nil {
 		return fmt.Errorf("checkpoint ring: %w", err)
 	}
-	s := &session{c: c, report: report, binary: opts.Rimgovernor, seed: opts.Seed}
-	if resumed.resuming() {
+	staged, err := planStage(c, opts, resumed, log)
+	if err != nil {
+		return fmt.Errorf("stage bundles: %w", err)
+	}
+	s := &session{c: c, report: report, binary: opts.Rimgovernor, seed: opts.Seed, stagePlan: staged, stagesDir: opts.StagesDir(c)}
+	if resumed.resuming() || staged.staged() {
+		// The restored store holds the earlier run's submissions (#307).
 		s.resumeSuffix = opts.RunID()
+	}
+	if resumed.resuming() {
 		s.resumed = &resumed.entry
 	}
 	cfg := &na.Config{Root: opts.Root, Output: output, Headless: opts.Headless && !c.Rendered, GameID: opts.GameID,
@@ -266,6 +277,22 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 			cfg.ServiceProfile = entry.ServiceProfile
 		}
 		report["resumed_from"] = map[string]any{"path": entry.Path, "label": entry.Label, "offset_ms": entry.OffsetMs, "tick": entry.Tick, "source_revision": resumed.previous.SourceRevision, "save": save}
+	} else if staged.staged() {
+		// A stage bundle opens the way a resume does (#329): its save
+		// replaces the Start, its store and journal are restored.
+		entry := staged.entry
+		save, err := na.StageCheckpoint(opts.Root, entry, filepath.Join(output, "service.sqlite"))
+		if err != nil {
+			return fmt.Errorf("stage bundle: %w", err)
+		}
+		start = na.Save{Name: save}
+		if entry.Journal {
+			cfg.RestoreJournal = entry.Path
+		}
+		if entry.Store && entry.ServiceProfile != "" {
+			cfg.ServiceProfile = entry.ServiceProfile
+		}
+		report["staged_from"] = map[string]any{"path": entry.Path, "stage": entry.Stage, "offset_ms": entry.OffsetMs, "tick": entry.Tick, "source_revision": entry.SourceRevision, "captured_at": entry.At, "save": save}
 	}
 	if owned, ok := c.Start.(Owned); ok {
 		// The case launches, drives and stops the process itself on this
@@ -313,12 +340,19 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 	if resumed.resuming() && resumed.entry.Prepared != nil {
 		opened.Prepared = resumed.entry.Prepared
 		report["prepared"] = resumed.entry.Prepared
+	} else if staged.staged() && staged.entry.Prepared != nil {
+		opened.Prepared = staged.entry.Prepared
+		report["prepared"] = staged.entry.Prepared
 	}
-	ring := newRing(c, opts, s, cfg, output, resumed, report)
+	ring := newRing(c, opts, s, cfg, output, resumed, staged, report)
 	if ring != nil {
 		ring.Activate()
 	}
+	s.ring, s.stages, s.runStarted = ring, newStages(c, opts, s, cfg, output, staged, report), time.Now()
 	runErr := c.Run(ctx, s)
+	if len(c.Stages) > 0 {
+		report["stages"] = s.stageRows
+	}
 	if runErr == nil && c.Postmortem != nil {
 		runErr = s.postmortem(ctx)
 	}
@@ -571,6 +605,20 @@ type session struct {
 	seed string
 	// resumed is the checkpoint entry the run resumed from, nil fresh.
 	resumed *na.Checkpoint
+	// ring is the run's checkpoint ring, nil when it never checkpoints;
+	// stages is the ring stage bundles are captured into (#329), nil when
+	// staging is off; runStarted is when Run began, for a stage bundle's
+	// offset without a ring.
+	ring       *na.CheckpointRing
+	stages     *na.CheckpointRing
+	runStarted time.Time
+	// stagePlan is what planStage decided, stagesDir where the case's
+	// stage bundles live, stageNext the index of the next declared stage
+	// Stage expects and stageRows the report's per-stage rows.
+	stagePlan staging
+	stagesDir string
+	stageNext int
+	stageRows []map[string]any
 	// prior is the failed run's result.json under -postmortem-only.
 	prior   map[string]any
 	runtime *na.ScenarioRuntime
@@ -681,6 +729,13 @@ func (s *session) Serve(ctx context.Context, spec na.ServeSpec) (*na.ServiceProc
 			return nil, err
 		}
 	}
+	// The handle's own request ids (resume, acknowledge, the watch's
+	// commands) carry the run suffix like the case's (#307): a resumed or
+	// staged run's restored store already holds the earlier run's.
+	if spec.Prefix == "" {
+		spec.Prefix = "serve"
+	}
+	spec.Prefix = s.RequestID(spec.Prefix)
 	service, err := na.Serve(ctx, s.config, s.Session.Game, s.Session.Identity, spec, s.report)
 	if err != nil {
 		return nil, err
