@@ -35,9 +35,12 @@ func init() {
 		Name: "reactivewatch/construction",
 		Scope: "Watched construction attempt latches a clock stop at completion; long-polled event " +
 			"delivery; owner-less authority change outside an epoch.",
-		Start:  cases.Fixture{Op: "test/guarded_construction_prepare", Args: map[string]any{"siteCount": 2}},
-		Budget: 5 * time.Minute,
-		Run:    run,
+		Start: cases.Fixture{Op: "test/guarded_construction_prepare", Args: map[string]any{"siteCount": 2}, On: cases.FlatDebugStart()},
+		// The watched attempt is a staged wall inside the home area; the wild
+		// map is unobserved (#333).
+		QuietWorld: true,
+		Budget:     5 * time.Minute,
+		Run:        run,
 	})
 }
 

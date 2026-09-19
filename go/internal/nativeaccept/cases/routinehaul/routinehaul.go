@@ -61,9 +61,12 @@ func init() {
 			"outcome is confirmed by an independent native read, a renewed deficit is picked up without a " +
 			"duplicate order, and a player-revoked Hauling priority interrupts dispatch without the planner " +
 			"overriding player intent or double-issuing.",
-		Start:   cases.Fixture{Op: "test/storage_haul_prepare", Args: map[string]any{"itemCount": 2}},
-		Service: true,
-		Budget:  cases.MaxBudget,
+		Start: cases.Fixture{Op: "test/storage_haul_prepare", Args: map[string]any{"itemCount": 2}, On: cases.FlatDebugStart()},
+		// The haul runs between staged items and a stockpile inside the home
+		// area; the wild map is unobserved (#333).
+		QuietWorld: true,
+		Service:    true,
+		Budget:     cases.MaxBudget,
 		// The run's assertions follow one MaintainStorage goal and count its
 		// methods; routine goals are keyed to the load token, so the reload a
 		// resume performs replaces the goal and cancels its restored plan under

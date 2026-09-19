@@ -37,6 +37,13 @@ type DebugStart struct {
 	Size na.DebugStart
 }
 
+// FlatDebugStart is the flat default-size debug start (na.DebugStart.Flat,
+// #272): nothing to path around or bridge. A construction, haul or storage
+// case whose assertion never watches the wild map or the terrain declares
+// it beside QuietWorld (#333); farm, husbandry, hunting and terrain cases
+// stay on the plain start.
+func FlatDebugStart() DebugStart { return DebugStart{Size: na.DebugStart{Flat: true}} }
+
 // Save loads profile/Saves/<Name>.rws. The runner activates the save's
 // expansions (Config.UseSaveExpansions).
 type Save struct {

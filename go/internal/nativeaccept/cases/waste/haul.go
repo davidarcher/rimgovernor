@@ -50,9 +50,12 @@ func init() {
 			"CAS/stale-identity refusal, forbidden-item protection refusal, preview non-mutation, real position " +
 			"change observed via native ticks and independent cell re-reads (not just a receipt), and replay " +
 			"idempotency.",
-		Start:  cases.Fixture{Op: "test/waste_fixture", Args: map[string]any{"burial": false}},
-		Budget: 5 * time.Minute,
-		Run:    run,
+		Start: cases.Fixture{Op: "test/waste_fixture", Args: map[string]any{"burial": false}, On: cases.FlatDebugStart()},
+		// Every item and the stockpile are staged by the fixture; the wild map
+		// is unobserved (#333).
+		QuietWorld: true,
+		Budget:     5 * time.Minute,
+		Run:        run,
 	})
 }
 
