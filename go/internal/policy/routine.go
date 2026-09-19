@@ -308,25 +308,26 @@ func ValidateResourceTargets(targets map[Resource]int64) error {
 // FoodDays is the accessible diet/rot-aware stock runway. FieldCoverage is the
 // separate native crop-capacity forecast; it never increases FoodDays.
 type RoutineFacts struct {
-	FoodPlan            domain.Fact[FoodPlan]
-	RecoverySafety      domain.Fact[RecoverySafety]
-	RecoveryWorkers     domain.Fact[[]RecoveryWorker]
-	DisasterConditions  domain.Fact[[]DisasterCondition]
-	RecoveryBuildings   domain.Fact[[]RecoveryBuilding]
-	Disaster            *DisasterHistory
-	DisasterTick        domain.Tick
-	MoodPawns           domain.Fact[[]MoodPawn]
-	Mood                MoodHistory
-	HomeCoverage        domain.Fact[HomeCoverageObservation]
-	StoneStructures     domain.Fact[[]StoneStructure]
-	OwnedStockpiles     domain.Fact[[]OwnedStockpile]
-	ConstructionClaims  domain.Fact[[]ConstructionClaim]
-	CurrentConstruction domain.Fact[CurrentConstruction]
-	Sleeping            domain.Fact[SleepingObservation]
-	SleepingRecovered   domain.Fact[bool]
-	AnimalUpkeep        AnimalUpkeepObservation
-	FoodStorageUpkeep   FoodStorageObservation
-	MedicalReserve      MedicalReserveObservation
+	FoodPlan             domain.Fact[FoodPlan]
+	TradeMealIngredients domain.Fact[[]FoodIngredientSlot]
+	RecoverySafety       domain.Fact[RecoverySafety]
+	RecoveryWorkers      domain.Fact[[]RecoveryWorker]
+	DisasterConditions   domain.Fact[[]DisasterCondition]
+	RecoveryBuildings    domain.Fact[[]RecoveryBuilding]
+	Disaster             *DisasterHistory
+	DisasterTick         domain.Tick
+	MoodPawns            domain.Fact[[]MoodPawn]
+	Mood                 MoodHistory
+	HomeCoverage         domain.Fact[HomeCoverageObservation]
+	StoneStructures      domain.Fact[[]StoneStructure]
+	OwnedStockpiles      domain.Fact[[]OwnedStockpile]
+	ConstructionClaims   domain.Fact[[]ConstructionClaim]
+	CurrentConstruction  domain.Fact[CurrentConstruction]
+	Sleeping             domain.Fact[SleepingObservation]
+	SleepingRecovered    domain.Fact[bool]
+	AnimalUpkeep         AnimalUpkeepObservation
+	FoodStorageUpkeep    FoodStorageObservation
+	MedicalReserve       MedicalReserveObservation
 	// Prisoners carries Population-*'s recruit/maintain census: unlike
 	// AnimalUpkeep, this has no generic per-tick colony read to piggyback on
 	// (recruitable/current-interaction facts live only on the dedicated
@@ -894,7 +895,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	// TradeWithCaravan is config-only like ProductionPolicy: it needs a
 	// negotiator's conversation, not a development slot, and recovers by
 	// itself when the caravan leaves or nothing is left worth trading.
-	tradeRecovered := TradeRecovered(f.Traders, ReviewTradeNeed(medicine, f.Resources, p.ResourceTargets, RoutineTradeFloors(p, nil), f.Wealth, p.Trade))
+	tradeRecovered := TradeRecovered(f.Traders, ReviewTradeNeed(medicine, f.Resources, p.ResourceTargets, RoutineTradeFloors(p, nil), f.Wealth, p.Trade, RoutineTradeFood(f, p)))
 	if !positive(tradeRecovered) {
 		addGoal(TradeWithCaravan, 3)
 		if _, known := tradeRecovered.Value(); known {

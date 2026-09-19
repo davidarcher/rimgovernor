@@ -153,13 +153,18 @@ purchase has been selected. Unknown protection flags still refuse export;
 retained targets and economic floors take their maximum. No purchase budget
 means no protected crop sale.
 
-These are opt-in policy contracts. Native trade sheets provide validated definition nutrition and ingredient
+Routine goal review and fresh trade selection both use the shared per-tick food
+plan with seasonal runway thresholds. Active fine or lavish meal bills supply
+the desired ingredient slots; existing raw protein stock reduces the purchase
+quantity. Crop exports retain the maximum of the resource target and economic
+floor, and require a selected raw protein purchase.
+
+Native trade sheets provide validated definition nutrition and ingredient
 classification; drugs, corpses, kibble and human meat are excluded. Typed native
 acceptance independently requires a raw protein purchase and positive retained
-floor for crop exports. Runtime callers must still supply the shared food review
-and crop-surplus floors to enable these decisions. Calls without food context retain
-the ordinary medicine/component behavior; these helpers alone do not establish
-live food purchases or authorize native food exports.
+floor for crop exports. The registered `trade/routine-food-bridge` and
+`trade/routine-food-surplus` cases assert native inventory changes for emergency
+pemmican purchases and above-target crop exchanges; the nightly suite runs them.
 
 ## Fishing policy
 

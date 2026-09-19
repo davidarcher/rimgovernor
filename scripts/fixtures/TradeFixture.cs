@@ -16,7 +16,7 @@ namespace HomeBridge.BridgeTools
     {
         [Tool("test/trade_fixture", Description = "Disposable trade acceptance setup/readback; excluded from production builds and model execution.")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            string action = "snapshot", string traderId = null, string pawnId = null, int silver = 600, int medicine = 30)
+            string action = "snapshot", string traderId = null, string pawnId = null, int silver = 600, int medicine = 30, string foodMode = "")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
@@ -49,6 +49,7 @@ namespace HomeBridge.BridgeTools
                 // teleported, and the negotiator is native's to walk.
                 if (action == "routine_setup")
                 {
+                    if (foodMode != "" && foodMode != "bridge" && foodMode != "surplus") throw new ArgumentException("Unknown food mode.");
                     foreach (var stack in map.listerThings.AllThings.Where(t => t.def.IsMedicine).ToList()) stack.Destroy();
                     foreach (var colonist in map.mapPawns.FreeColonistsSpawned)
                         foreach (var held in colonist.inventory.innerContainer.Where(t => t.def.IsMedicine).ToList()) held.Destroy();
@@ -68,12 +69,57 @@ namespace HomeBridge.BridgeTools
                         silverStacks.Add(silverStack);
                     }
                     var silverStack0 = silverStacks[0];
+                    var foodUnits = 0;
+                    var dailyNutrition = map.mapPawns.FreeColonistsSpawned.Sum(p => (double)p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true) * 60000);
+                    if (foodMode != "")
+                    {
+                        // FoodChannelFixture has already removed every competing
+                        // channel. Seed a one-day emergency or a measured rice surplus.
+                        var foodDef = DefDatabase<ThingDef>.GetNamed(foodMode == "bridge" ? "MealSimple" : "RawRice");
+                        foodUnits = foodMode == "bridge" ? (int)Math.Ceiling(dailyNutrition / foodDef.GetStatValueAbstract(StatDefOf.Nutrition)) : 6000;
+                        for (var left = foodUnits; left > 0; left -= foodDef.stackLimit)
+                        {
+                            var food = ThingMaker.MakeThing(foodDef); food.stackCount = Math.Min(left, foodDef.stackLimit);
+                            if (!GenPlace.TryPlaceThing(food, silverCell, map, ThingPlaceMode.Near)) throw new InvalidOperationException("Food placement failed.");
+                            food.SetForbidden(false, false); map.areaManager.Home[food.Position] = true;
+                        }
+                        if (foodMode == "surplus")
+                        {
+                            var stoveDef = DefDatabase<ThingDef>.GetNamed("FueledStove");
+                            var stoveCell = GenRadial.RadialCellsAround(anchor, 15, true).First(c => GenAdj.OccupiedRect(c, Rot4.North, stoveDef.size).Cells.All(x => x.InBounds(map) && x.Standable(map) && !x.Fogged(map) && x.GetEdifice(map) == null && x.GetFirstItem(map) == null));
+                            var stove = (Building_WorkTable)GenSpawn.Spawn(ThingMaker.MakeThing(stoveDef), stoveCell, map);
+                            stove.SetFaction(Faction.OfPlayer); stove.TryGetComp<CompRefuelable>().Refuel(50);
+                            var bill = (Bill_Production)DefDatabase<RecipeDef>.GetNamed("CookMealFine").MakeNewBill();
+                            bill.repeatMode = BillRepeatModeDefOf.TargetCount; bill.targetCount = 30; stove.BillStack.AddBill(bill);
+                            // Preserve inventory for the trade assertion; the active
+                            // fine bill supplies intent, this case does not cook it.
+                            foreach (var cook in map.mapPawns.FreeColonistsSpawned) cook.workSettings.SetPriority(DefDatabase<WorkTypeDef>.GetNamed("Cooking"), 0);
+                        }
+                    }
                     var arrival = incident(true, "Caravan_Neolithic_BulkGoods");
                     var traderPawns = map.mapPawns.AllPawnsSpawned.Where(p => p.trader != null && p.trader.traderKind != null
                         && p.Faction != null && !p.Faction.IsPlayer).ToList();
                     var stocked = new System.Collections.Generic.List<object>();
                     foreach (var traderPawn in traderPawns)
                     {
+                        if (foodMode != "")
+                        {
+                            foreach (var old in traderPawn.trader.Goods.Where(t => t.def.IsNutritionGivingIngestible || t.def.IsMedicine || t.def.defName == "ComponentIndustrial").ToList()) old.Destroy();
+                            var food = ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed(foodMode == "bridge" ? "Pemmican" : "Meat_Muffalo"));
+                            food.stackCount = foodMode == "bridge" ? 2000 : 300;
+                            var foodCarrier = traderPawn.GetLord()?.ownedPawns.FirstOrDefault(p => p.GetTraderCaravanRole() == TraderCaravanRole.Carrier) ?? traderPawn;
+                            if (!foodCarrier.inventory.innerContainer.TryAdd(food)) throw new InvalidOperationException("Trader food could not be stocked.");
+                            var listedFood = traderPawn.trader.Goods.Any(t => t.def == food.def && traderPawn.trader.traderKind.WillTrade(t.def));
+                            if (!listedFood) throw new InvalidOperationException("Trader does not list the requested food.");
+                            stocked.Add(new { traderId = traderPawn.GetUniqueLoadID(), listed = true, count = food.stackCount });
+                            // Admit without a long caravan walk. Native trading,
+                            // negotiation and settlement remain ordinary operations.
+                            foreach (var caravanPawn in traderPawn.GetLord().ownedPawns)
+                            {
+                                caravanPawn.Position = CellFinder.StandableCellNear(anchor, map, 6); caravanPawn.Notify_Teleported();
+                            }
+                            continue;
+                        }
                         if (traderPawn.trader.Goods.Any(t => t.def.IsMedicine)) continue;
                         var stack = ThingMaker.MakeThing(ThingDefOf.MedicineHerbal);
                         stack.stackCount = medicine;
@@ -85,7 +131,7 @@ namespace HomeBridge.BridgeTools
                     }
                     return new { success = traderPawns.Count > 0, arrival, silver = silverStacks.Sum(t => t.stackCount), silverId = silverStack0.ThingID,
                         x = silverCell.x, z = silverCell.z, stocked, colonists = map.mapPawns.FreeColonistsSpawnedCount,
-                        colonyMedicine = map.listerThings.AllThings.Count(t => t.def.IsMedicine) };
+                        colonyMedicine = map.listerThings.AllThings.Count(t => t.def.IsMedicine), foodMode, foodUnits, dailyNutrition };
                 }
                 if (action == "teleport_adjacent")
                 {

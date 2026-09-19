@@ -16,6 +16,37 @@ func foodTradeNeed(r TradeFoodContext) TradeNeed {
 	return n
 }
 
+func TestRoutineTradeGoalConsumesSharedFoodPlan(t *testing.T) {
+	f := stableRoutine()
+	r := tradeFoodContext()
+	f.FoodPlan = r.Plan
+	f.FoodDays = r.RunwayDays
+	f.Resources = domain.Known([]Amount{})
+	f.Traders = domain.Known([]TraderFacts{{ID: "trader", CanTrade: true}})
+	if got := needs(t, f, RoutineLatches{}); !hasNeed(got, TradeWithCaravan) {
+		t.Fatal("food-only shortage did not activate trade", got)
+	}
+	p, _ := f.FoodPlan.Value()
+	p.Portfolio[0].Channel.Kind = FoodHunt
+	p.Portfolio[0].Channel.LeadDays = domain.Known(0.0)
+	f.FoodPlan = domain.Known(p)
+	if got := needs(t, f, RoutineLatches{}); hasNeed(got, TradeWithCaravan) {
+		t.Fatal("immediate hunt did not suppress food trade", got)
+	}
+}
+
+func TestTradeUsesObservedMealTierAndSubtractsProteinStock(t *testing.T) {
+	slots := []FoodIngredientSlot{{Alternatives: []FoodIngredientClass{IngredientMeat, IngredientAnimalProduct}}, {Alternatives: []FoodIngredientClass{IngredientVegetable}}}
+	benches := domain.Known([]ProductionBench{{ID: "stove", Usable: domain.Known(true), Bills: []ExistingProductionBill{{Recipe: "fine"}}, Recipes: []ProductionRecipe{{Name: "fine", Mood: domain.Known(5.0), IngredientClasses: domain.Known(slots)}}}})
+	if got, known := TradeMealIngredients(benches).Value(); !known || len(got) != 2 {
+		t.Fatal(got, known)
+	}
+	rows := []TradeSheetRowFact{foodTradeRow("meat", 4, 100, TradeFoodGood{Nutrition: 0.5, Class: IngredientMeat})}
+	if targets := tradeFoodTargets(TradeFoodNeed{Missing: slots[:1], IngredientNutrition: 2}, rows); len(targets) != 0 {
+		t.Fatal("stock already covers protein need", targets)
+	}
+}
+
 func TestTradeFoodBridgeWaitsForExhaustion(t *testing.T) {
 	for _, tc := range []struct {
 		name   string

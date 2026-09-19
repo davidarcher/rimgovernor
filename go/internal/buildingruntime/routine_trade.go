@@ -10,6 +10,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -438,16 +439,22 @@ func (r *RoutineTradePlanner) selection(call context.Context, state ControlState
 	if err != nil {
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, err
 	}
-	// The wealth split is unknown until #395 projects it, which leaves the
-	// wealth-driven surplus out of the live selection; construction
-	// deficits are read by the same wiring.
-	need, known := policy.ReviewTradeNeed(medical, medicalFacts.Resources, r.reviewer.policy.ResourceTargets, policy.RoutineTradeFloors(r.reviewer.policy, nil), domain.Unknown[policy.WealthFacts](), r.reviewer.policy.Trade).Value()
+	// Refresh through the same projection and per-tick plan owner used by
+	// goal review; a staged trade never relies on a previous tick's need.
+	projection, err := observation.DecodeColony(reply, observation.Identity{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snapshot.Map, Tick: domain.Tick(observed.Context.GetTick())})
+	if err != nil {
+		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, err
+	}
+	projection.Facts.FoodPlan = r.reviewer.planFood(projection)
+	seasonal := r.reviewer.seasonal(projection.Facts)
+	floors := policy.RoutineTradeFloors(seasonal, nil)
+	need, known := policy.ReviewTradeNeed(medical, medicalFacts.Resources, seasonal.ResourceTargets, floors, projection.Facts.Wealth, seasonal.Trade, policy.RoutineTradeFood(projection.Facts, seasonal)).Value()
 	if !known {
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, ErrControl
 	}
 	rows := tradeSheetRowFacts(sheet.Rows)
 	economic := policy.RoutineTradeTargets(need, rows, r.reviewer.policy.ResourceTargets, r.reviewer.policy.Trade)
-	facts := policy.TradeSelectionFacts{Complete: true, Rows: rows}
+	facts := policy.TradeSelectionFacts{Complete: true, Rows: rows, Floors: floors, CropSurplusFloors: policy.CropSurplusFloors(need)}
 	facts.ColonySilver, facts.TraderSilver, facts.SilverKnown = tradeSheetSilver(sheet.Rows)
 	facts.MaxSilverSpend = max(0, facts.ColonySilver)
 	return economic, facts, nil
@@ -587,6 +594,11 @@ func tradeAcceptFloors(p domain.TradeEconomicPolicy, selection policy.TradeSelec
 	stock := map[string]int64{}
 	for _, target := range p.Targets {
 		stock[target.Item] = target.Stock
+	}
+	for _, evidence := range selection.Evidence {
+		if evidence.Matched {
+			stock[evidence.Item] = max(stock[evidence.Item], evidence.RetainedTarget)
+		}
 	}
 	out := make([]domain.TradeEconomicFloor, 0, len(selection.Selected)+1)
 	for _, line := range selection.Selected {

@@ -34,6 +34,55 @@ type TradeFoodGood struct {
 	Prepared, NonPerishable, Crop bool
 }
 
+// RoutineTradeFood uses the shared tick plan and the observed active meal
+// recipe. One day's ingredient buffer bridges a missing source without
+// pretending a proposed channel is already producing stock.
+func RoutineTradeFood(f RoutineFacts, p RoutinePolicy) TradeFoodContext {
+	r := TradeFoodContext{Plan: f.FoodPlan, RunwayDays: f.FoodDays, MinDays: p.FoodMinDays, TargetDays: p.FoodTargetDays, DesiredIngredients: f.TradeMealIngredients}
+	if plan, known := f.FoodPlan.Value(); known {
+		if _, known := plan.Forecast.RunwayDays.Value(); known {
+			r.RunwayDays = plan.Forecast.RunwayDays
+		}
+		if slots, known := r.DesiredIngredients.Value(); known && len(slots) > 0 {
+			r.IngredientNutrition = plan.DemandPerDay / float64(len(slots))
+		}
+	}
+	return r
+}
+
+// TradeMealIngredients reads the active fine/lavish recipe's native slots.
+// Observed bills express the intended tier even when a protein shortage makes
+// that recipe temporarily unavailable; trade does not promote the meal tier.
+func TradeMealIngredients(benches domain.Fact[[]ProductionBench]) domain.Fact[[]FoodIngredientSlot] {
+	rows, known := benches.Value()
+	if !known {
+		return domain.Unknown[[]FoodIngredientSlot]()
+	}
+	var chosen []FoodIngredientSlot
+	best, name := 0.0, ""
+	for _, bench := range rows {
+		if bench.Butcher || !positive(bench.Usable) {
+			continue
+		}
+		for _, bill := range bench.Bills {
+			for _, recipe := range bench.Recipes {
+				if bill.Recipe != recipe.Name {
+					continue
+				}
+				mood, mk := recipe.Mood.Value()
+				slots, sk := recipe.IngredientClasses.Value()
+				if !mk || !finite(mood) || mood < 5 || !sk || !mealSlotsSupported(slots, map[FoodIngredientClass]bool{IngredientMeat: true, IngredientAnimalProduct: true, IngredientVegetable: true}) {
+					continue
+				}
+				if mood > best || mood == best && recipe.Name < name {
+					best, name, chosen = mood, recipe.Name, slots
+				}
+			}
+		}
+	}
+	return domain.Known(chosen)
+}
+
 func reviewTradeFood(r TradeFoodContext) TradeFoodNeed {
 	plan, pk := r.Plan.Value()
 	runway, rk := r.RunwayDays.Value()
@@ -172,7 +221,14 @@ func tradeFoodTargets(need TradeFoodNeed, rows []TradeSheetRowFact) []domain.Tra
 	}
 	buy(need.Nutrition, nil)
 	for i := range need.Missing {
-		buy(need.IngredientNutrition, &need.Missing[i])
+		remaining := need.IngredientNutrition
+		for _, row := range rows {
+			g, known := row.Food.Value()
+			if known && validTradeFood(g) && !g.Prepared && row.ColonyCount > 0 && counts[row.DefName] == 1 && mealSlotsSupported([]FoodIngredientSlot{need.Missing[i]}, map[FoodIngredientClass]bool{g.Class: true}) {
+				remaining -= float64(row.ColonyCount) * g.Nutrition
+			}
+		}
+		buy(remaining, &need.Missing[i])
 	}
 	for _, row := range candidates {
 		if count := used[row.DefName]; count > 0 && len(out) < tradeRoutineMaximumTargets {

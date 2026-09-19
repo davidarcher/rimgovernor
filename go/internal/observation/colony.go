@@ -251,6 +251,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 	colonyAcquisition(v, &r)
 	colonyProduction(v, &r.Facts)
 	r.ProductionBenches = colonyProductionBenches(v)
+	r.Facts.TradeMealIngredients = policy.TradeMealIngredients(r.ProductionBenches)
 	if !hasIssue(v.Issues, "butchering") {
 		benches := []CookingBench{}
 		for _, b := range v.Butchering {
