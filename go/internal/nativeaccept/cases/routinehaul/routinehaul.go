@@ -61,7 +61,12 @@ func init() {
 		Start:   cases.Fixture{Op: "test/storage_haul_prepare", Args: map[string]any{"itemCount": 2}},
 		Service: true,
 		Budget:  cases.MaxBudget,
-		Run:     run,
+		// The run's assertions follow one MaintainStorage goal and count its
+		// methods; routine goals are keyed to the load token, so the reload a
+		// resume performs replaces the goal and cancels its restored plan under
+		// the new root, which the run reads as a failed haul (#313).
+		NoCheckpoint: true,
+		Run:          run,
 	})
 }
 
