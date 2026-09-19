@@ -388,6 +388,9 @@ func runFeeds(ctx context.Context, s cases.Session) error {
 		if active, _ := na.AsBool(state["active"]); !active || na.AsString(state["sourceId"]) == "" {
 			return nil, fmt.Errorf("%s: not active: %v", label, state)
 		}
+		if err := assertLeasePacing(state); err != nil {
+			return nil, fmt.Errorf("%s: %w", label, err)
+		}
 		return state, nil
 	}
 
@@ -678,6 +681,19 @@ func runFeeds(ctx context.Context, s cases.Session) error {
 	report["case_competing_viewers"] = map[string]any{"shared_source": shared, "sequence_after_a_stopped": before.Sequence}
 
 	return cases.CheckStartupLog(s)
+}
+
+// Display refresh is diagnostic only: a virtual display may report 1 Hz.
+// The native publisher uses a 60 Hz render clock and per-source intervals.
+func assertLeasePacing(state map[string]any) error {
+	vsync := 0.0 // ProtoJSON may omit a scalar's zero value.
+	if value, present := state["vsyncCount"]; present {
+		vsync = na.AsNumber(value)
+	}
+	if na.AsNumber(state["targetFrameRate"]) != 60 || vsync != 0 {
+		return fmt.Errorf("video lease must use targetFrameRate=60, vsyncCount=0 independent of refreshRate: %v", state)
+	}
+	return nil
 }
 
 // feed is one leased source of the matrix case.

@@ -170,8 +170,8 @@ Unity captures the full framebuffer after rendering, at most 60 times per second
 and up to 3840×2160. Private Xvfb workers capture their process-owned presented
 window; optional `RIMGOVERNOR_VIDEO_READBACK=async` or `sync` selects GPU readback
 or ReadPixels for comparison. The capture ceiling is not a delivered-fps
-guarantee. Private display frame pacing uses 60 fps without virtual-display vsync
-while capture is leased, then restores the previous settings. Native lease cleanup
+guarantee. Active video leases use a 60 fps render clock without display vsync;
+the last lease ending restores the previous settings. Native lease cleanup
 unlinks the Linux buffer; an open reader sees no further sequence and closes
 its mapping independently.
 

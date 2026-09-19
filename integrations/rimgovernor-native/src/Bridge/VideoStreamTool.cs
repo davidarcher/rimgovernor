@@ -386,10 +386,9 @@ namespace HomeBridge.BridgeTools
             var source = sources.Values.FirstOrDefault(s => s.Spec.Equals(spec) && ReferenceEquals(s.Map, map));
             if (source == null)
             {
-                if (sources.Count == 0 && Environment.GetEnvironmentVariable("RIMGOVERNOR_PRIVATE_DISPLAY") == "1" && savedVsync == null)
+                if (sources.Count == 0 && savedVsync == null)
                 {
                     savedVsync = QualitySettings.vSyncCount; savedFrameRate = Application.targetFrameRate;
-                    QualitySettings.vSyncCount = 0; Application.targetFrameRate = 60;
                 }
                 if (spec.Rendered) InstallFeedPatches();
                 source = new VideoSource(spec, map);
@@ -398,6 +397,7 @@ namespace HomeBridge.BridgeTools
             }
             source.Holds[viewer] = Time.realtimeSinceStartup + seconds;
             source.Until = source.Holds.Values.Max();
+            ApplyDisplayPacing();
             RenderDemandDriver.Lease(seconds);
             return source;
         }
@@ -418,6 +418,22 @@ namespace HomeBridge.BridgeTools
                 sources.Remove(name);
             }
             if (sources.Count == 0) RestoreDisplay();
+        }
+
+        // Feed intervals select the requested cadence on a 60 Hz render clock.
+        // Display refresh (including a 1 Hz virtual display) must not throttle
+        // capture. Reapply after game preference/focus updates while leased.
+        void LateUpdate()
+        {
+            Expire();
+            ApplyDisplayPacing();
+        }
+
+        void ApplyDisplayPacing()
+        {
+            if (sources.Count == 0) return;
+            QualitySettings.vSyncCount = 0;
+            Application.targetFrameRate = 60;
         }
 
         void RestoreDisplay()
