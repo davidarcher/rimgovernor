@@ -101,7 +101,16 @@ try {
     & $taskExecutables['go'] run ./cmd/remotebundle bootstrap -repo $Repo -out $taskJob -cache $Cache `
         -manifest $Manifest -sha256 $ManifestSHA256 -trust $Trust -identity $Identity -role $Role `
         -7z $taskExecutables['7z'] -age $taskExecutables['age']
-    if ($LASTEXITCODE) { throw "Bootstrap failed ($LASTEXITCODE)" }
+    if ($LASTEXITCODE) {
+        # Disposable runners must retain the compiler failure in Actions logs.
+        $taskBuildRoot = Join-Path $taskJob 'layout/native-builds'
+        if (Test-Path -LiteralPath $taskBuildRoot) {
+            foreach ($taskBuildLog in Get-ChildItem -LiteralPath $taskBuildRoot -Filter build.log -File -Recurse) {
+                Get-Content -LiteralPath $taskBuildLog.FullName | Write-Output
+            }
+        }
+        throw 'Bootstrap failed; compiler diagnostics are above'
+    }
     $taskReport = Get-Content -LiteralPath $taskReportPath -Raw | ConvertFrom-Json
     $taskReport | Add-Member -NotePropertyName provision_ms -NotePropertyValue $taskProvisionMS
     $taskReport | Add-Member -NotePropertyName memory_bytes -NotePropertyValue ([long]$taskHardware.TotalVisibleMemorySize * 1024)
