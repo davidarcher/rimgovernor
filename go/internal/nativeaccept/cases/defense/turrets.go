@@ -388,12 +388,10 @@ func runTurretRearm(ctx context.Context, closeClient func() error, reopenHarness
 		return err
 	}
 	defer svc.stop()
-	// A freshly launched service has no observed tick rate, so its first
-	// colony window is sized at the nominal Ultrafast rate (60000 ticks);
-	// under peer load that window runs for minutes with no planner step,
-	// and the layout's re-verification (which reads the barrel) only comes
-	// with the step after it. The journal is quiet meanwhile, so this wait
-	// tolerates two stall budgets (#239).
+	// The rearm is game time: a colonist carries steel to the turret under
+	// the routine window's one-day budget, and under peer load the game
+	// runs a few hundred ticks a second. The journal is quiet meanwhile,
+	// so this wait tolerates two stall budgets.
 	wait := svc.wait(repairTimeout)
 	wait.Stall *= 2
 	rearmed, err := waitTurretRearmed(ctx, svc.store, world, na.AsString(emptied["id"]), emptiedTick, wait)
