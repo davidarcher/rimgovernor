@@ -96,6 +96,8 @@
     <Compile Include="../../../../scripts/fixtures/RoutesFixture.cs" Condition="'$(RoutesFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ShutdownFixture.cs" Condition="'$(ShutdownFixture)' == 'true'" />
     <ProjectReference Include="../Runtime/RimGovernor.Runtime.csproj"><Private>false</Private></ProjectReference>
+    <!-- Keep locked restore identical with and without an installed targeting pack. -->
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net472" Version="1.0.3" PrivateAssets="all" />
     <Reference Include="RimBridgeServer.Sdk"><HintPath>$(RimBridgeSdkDir)/RimBridgeServer.Sdk.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Newtonsoft.Json"><HintPath>$(RimBridgeSdkDir)/Newtonsoft.Json.dll</HintPath><Private>false</Private></Reference>
