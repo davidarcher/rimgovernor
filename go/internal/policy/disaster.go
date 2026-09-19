@@ -60,7 +60,28 @@ const (
 	ConditionSolarFlare     = "SolarFlare"
 	ConditionVolcanicWinter = "VolcanicWinter"
 	ConditionColdSnap       = "ColdSnap"
+	ConditionHeatWave       = "HeatWave"
 )
+
+// RoomTemperatureUrgent reports whether room temperature is an emergency
+// input right now: a cold snap, heat wave or volcanic winter is active.
+// The temperature planner then needs the room census fresher than its
+// cadence (#360): the routine review asks the facts store for rooms at the
+// step's own tick instead of serving a held census. Unknown conditions
+// are not urgent; the cadence stands until the census says otherwise.
+func RoomTemperatureUrgent(conditions domain.Fact[[]DisasterCondition]) bool {
+	rows, known := conditions.Value()
+	if !known {
+		return false
+	}
+	for _, row := range rows {
+		switch row.Definition {
+		case ConditionColdSnap, ConditionHeatWave, ConditionVolcanicWinter:
+			return true
+		}
+	}
+	return false
+}
 
 // ConditionRemainingTicks is the longest observed remaining duration of any
 // listed condition definition that is active with a native TicksLeft read:

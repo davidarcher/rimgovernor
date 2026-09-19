@@ -1118,14 +1118,31 @@ func (s *ClockScheduler) livePlanningDue(reason StepReason) bool {
 // (a tick that moved under a stopped clock, or a stop the timer catches
 // before the poll, is the exception, read natively as before); any other
 // cause reviews, under a stopped clock or live under a running window
-// (livePlanningDue). A wrong guess costs a heavier bundle or the dedicated
+// (livePlanningDue). A continuous family the facts store still holds fresh
+// under its cadence (bundleFamilies, #360) is left out: the review serves
+// it from the store. A wrong guess costs a heavier bundle or the dedicated
 // reads, never a wrong fact.
 func (s *ClockScheduler) bundleRequest(reason StepReason) *o.BundleRequest {
 	request := &o.BundleRequest{ClockStatus: proto.Bool(true), Emergency: proto.Bool(true)}
 	if s.stepReviews(reason) {
-		request.ColonyFacts, request.Population, request.Research, request.ColonistPawns = proto.Bool(true), proto.Bool(true), proto.Bool(true), proto.Bool(true)
+		request.ColonyFacts = proto.Bool(true)
+		population, research, pawns := bundleFamilies(s.facts.store, s.lastTick+int64(domain.LiveDrift()), s.lastTickKnown)
+		request.Population, request.Research, request.ColonistPawns = proto.Bool(population), proto.Bool(research), proto.Bool(pawns)
 	}
 	return request
+}
+
+// bundleFamilies decides which continuous families ride a review step's
+// bundle: a family whose section the store holds fresh at tick, the tick
+// the step is expected to observe (the previous status tick plus the
+// running window's drift, so the guess errs on the later side), is served
+// by the review from the store and stays out; every family rides when the
+// tick is unknown (the first step) or the section is stale or absent.
+func bundleFamilies(store *facts.Store, tick int64, known bool) (population, research, pawns bool) {
+	if !known {
+		return true, true, true
+	}
+	return !store.Fresh(facts.Population, tick), !store.Fresh(facts.Research, tick), !store.Fresh(facts.Pawns, tick)
 }
 
 // stepReviews is whether a step taken for reason is expected to run the

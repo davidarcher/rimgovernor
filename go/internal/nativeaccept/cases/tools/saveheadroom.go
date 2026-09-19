@@ -21,7 +21,7 @@ func init() {
 		cases.Register(cases.Case{
 			Name: "tools/saveheadroom-" + strings.TrimPrefix(save, "RimGovernor-"),
 			Scope: "Lint: the committed " + save + " save's planning colony facts read under the committed-save headroom (768 KiB of the 1 MiB envelope), " +
-				"so a case that starts from it cannot tip the routine review into LIMIT_EXCEEDED (issue #320).",
+				"so a case that starts from it cannot tip the routine review into LIMIT_EXCEEDED (issue #320); reports the review bundle's bytes per family (#360).",
 			Start:  cases.Save{Name: save, From: cases.CommittedSaves()},
 			Budget: 3 * time.Minute,
 			Run: func(ctx context.Context, s cases.Session) error {

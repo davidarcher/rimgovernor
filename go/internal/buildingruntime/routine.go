@@ -40,6 +40,20 @@ func (r *RoutineReviewer) seasonal(facts policy.RoutineFacts) policy.RoutinePoli
 	return r.policy.Seasonal(facts.Calendar, facts.DisasterConditions)
 }
 
+// routineStore is the review's section refresher (#360): the reviewer's
+// facts store, with the section ages the policies bound tighter than the
+// cadence. Only room temperature has one: while a temperature condition is
+// active (policy.RoomTemperatureUrgent over the colony facts the last
+// review held), the temperature planner plans against the step's own
+// room census, so rooms are read every review until it ends.
+func (r *RoutineReviewer) routineStore() observation.RoutineStore {
+	out := observation.RoutineStore{Store: r.store}
+	if colony, ok := facts.Get[observation.ColonyProjection](r.store, facts.Colony); ok && policy.RoomTemperatureUrgent(colony.Value.Facts.DisasterConditions) {
+		out.MaxAge = map[facts.Section]int64{facts.Rooms: 0}
+	}
+	return out
+}
+
 // RoutineCapabilities is the runtime's complete configured method set. Omitting
 // it leaves availability unspecified for callers that compose methods themselves.
 //
@@ -158,7 +172,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	if r.roomsEnabled() {
 		observe = observation.ObserveRoutineRooms
 	}
-	reading, err := observe(ctx, r.native, r.clock, expected, r.maxAge, claims, definitions...)
+	reading, err := observe(observation.WithRoutineStore(ctx, r.routineStore()), r.native, r.clock, expected, r.maxAge, claims, definitions...)
 	if err != nil {
 		clockSchedulerLog("routine.step: observe err=%v", err)
 		return store.RoutineReviewResult{}, err

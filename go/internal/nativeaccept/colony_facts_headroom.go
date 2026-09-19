@@ -78,15 +78,81 @@ func sectionSizes(prefix string, m map[string]any) []SectionSize {
 	return out
 }
 
+// BundleSize is one review step's bundle read (every census family a
+// review step asks for, no clock status): the reply's ProtoJSON byte count
+// and each family section's bytes, largest first, so the cost of a step's
+// one native read is measurable per family (#360).
+type BundleSize struct {
+	Bytes    int
+	Sections []SectionSize
+}
+
+// BundlePayloadSize reads the loaded game's review bundle exactly as a
+// review step does (emergency, colony facts, population, research and the
+// colonists' pawn detail; no clock status, which needs an owned clock) and
+// returns its size. A family the native omitted (unreadable, or over the
+// envelope) is reported at zero bytes.
+func BundlePayloadSize(ctx context.Context, h *Harness, label string) (BundleSize, error) {
+	identity, err := ReadIdentity(ctx, h, label+"-identity")
+	if err != nil {
+		return BundleSize{}, err
+	}
+	reply, n, err := h.WireBytes(ctx, label, "observations_read_bundle", map[string]any{
+		"scope": map[string]any{"expectedIdentity": identity}, "emergency": true, "colonyFacts": true, "population": true, "research": true, "colonistPawns": true,
+	})
+	if err != nil {
+		return BundleSize{}, err
+	}
+	_, observed, err := Outcome(reply, "observed")
+	if err != nil {
+		return BundleSize{}, fmt.Errorf("%s: %w", label, err)
+	}
+	size := BundleSize{Bytes: n}
+	for _, name := range []string{"emergency", "colonyFacts", "population", "research", "colonistPawns"} {
+		bytes := 0
+		if value, ok := observed[name]; ok {
+			if encoded, err := json.Marshal(value); err == nil {
+				bytes = len(encoded)
+			}
+		}
+		size.Sections = append(size.Sections, SectionSize{Name: name, Bytes: bytes})
+	}
+	// The colonists' pawn detail, summed per detail block over the pawns,
+	// so the per-block cost of the routine detail flags is visible.
+	if pawns, _ := AsMap(observed["colonistPawns"]); pawns != nil {
+		blocks := map[string]int{}
+		rows, _ := pawns["pawns"].([]any)
+		for _, row := range rows {
+			state, _ := AsMap(row)
+			for name, value := range state {
+				if encoded, err := json.Marshal(value); err == nil {
+					blocks[name] += len(encoded)
+				}
+			}
+		}
+		for name, bytes := range blocks {
+			size.Sections = append(size.Sections, SectionSize{Name: "colonistPawns." + name, Bytes: bytes})
+		}
+	}
+	sort.SliceStable(size.Sections, func(i, j int) bool { return size.Sections[i].Bytes > size.Sections[j].Bytes })
+	return size, nil
+}
+
 // CheckCommittedSaveHeadroom refuses to commit a save whose planning colony
 // facts read past CommittedSaveHeadroomBytes and records the measured size
-// under report["colony_facts"] either way.
+// under report["colony_facts"] either way, with the whole review bundle's
+// per-family bytes under report["bundle"].
 func CheckCommittedSaveHeadroom(ctx context.Context, h *Harness, report Report) error {
 	size, err := ColonyFactsPayloadSize(ctx, h, "checkpoint-colony-facts")
 	if err != nil {
 		return fmt.Errorf("checkpoint colony facts: %w", err)
 	}
 	report["colony_facts"] = size
+	bundle, err := BundlePayloadSize(ctx, h, "checkpoint-bundle")
+	if err != nil {
+		return fmt.Errorf("checkpoint bundle: %w", err)
+	}
+	report["bundle"] = bundle
 	if size.Bytes > CommittedSaveHeadroomBytes {
 		return fmt.Errorf("checkpoint colony facts read %d bytes, over the %d-byte committed-save headroom (envelope %d); largest sections %v", size.Bytes, CommittedSaveHeadroomBytes, ColonyFactsEnvelopeBytes, size.Sections)
 	}

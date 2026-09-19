@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 )
 
@@ -52,6 +53,20 @@ func (s Section) Family() bridge.FactFamily {
 		return bridge.FactRooms
 	}
 	return ""
+}
+
+// TickTolerance is the section's refresh cadence (#360): the greatest tick
+// advance a held section serves a review step across before the step reads
+// it again. The continuous families do not follow their invalidation
+// family's memo tolerance where that is tighter than their consumers need:
+// the population census moves on the colony's scale (a prisoner's
+// resistance, a guest's stay), not the pawn census's. Every other section
+// keeps its family's tolerance.
+func (s Section) TickTolerance() int64 {
+	if s == Population {
+		return bridge.FactTickToleranceColony
+	}
+	return s.Family().TickTolerance()
 }
 
 // Cells reports whether the section's rows are cells, so an invalidation
@@ -190,16 +205,40 @@ func Get[T any](s *Store, section Section) (Held[T], bool) {
 }
 
 // Fresh reports whether the held section still serves a step at scopeTick
-// under its family's tolerance (bridge.FactFamily.Fresh); an absent or
+// under the section's cadence (TickTolerance, widened by the running
+// window's drift as bridge.FactFamily.Fresh is); an absent or
 // stale-marked section is never fresh.
 func (s *Store) Fresh(section Section, scopeTick int64) bool {
+	return s.FreshWithin(section, scopeTick, bridge.FactTickUnbounded)
+}
+
+// FreshWithin is Fresh under the tighter of the section's cadence and
+// maxAge, a policy's own bound in ticks (#360): a consumer that needs a
+// continuous value fresher than the cadence asks with it, and a section
+// older than that is read again. FactTickUnbounded leaves the cadence
+// alone; zero serves the step's own tick only.
+func (s *Store) FreshWithin(section Section, scopeTick, maxAge int64) bool {
 	if s == nil {
 		return false
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	r, ok := s.rows[section]
-	return ok && !r.stale.Any() && section.Family().Fresh(r.asOf, scopeTick)
+	return ok && !r.stale.Any() && sectionFresh(section, r.asOf, scopeTick, maxAge)
+}
+
+// sectionFresh is bridge.FactFamily.Fresh with the section's cadence,
+// bounded by maxAge when that is tighter.
+func sectionFresh(section Section, rowTick, scopeTick, maxAge int64) bool {
+	advance := scopeTick - rowTick
+	if advance < 0 {
+		return false
+	}
+	tolerance := section.TickTolerance()
+	if maxAge != bridge.FactTickUnbounded && (tolerance == bridge.FactTickUnbounded || maxAge < tolerance) {
+		tolerance = maxAge
+	}
+	return tolerance == bridge.FactTickUnbounded || advance <= tolerance+int64(domain.LiveDrift())
 }
 
 // Scope is the scope the held rows belong to.

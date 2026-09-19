@@ -8,8 +8,10 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	factsstore "github.com/davidarcher/RimGovernor/go/internal/facts"
+	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -260,5 +262,73 @@ func TestClockSchedulerDisabledReviewFailsTheStep(t *testing.T) {
 	again, err := s.StepWithReason(ctx, StepReason{Cause: StepFull})
 	if err != nil && !errors.Is(err, executor.ErrHeld) || again.Routine == nil || !again.Routine.Review.Enabled || again.Routine.Review.Revision != review.Revision+1 {
 		t.Fatal(again, err)
+	}
+}
+
+// TestClockSchedulerBundleLeavesFreshSectionsOut (#360): a review step's
+// bundle carries a continuous family only while the store does not hold
+// its section fresh at the tick the step expects; without a known tick
+// every family rides.
+func TestClockSchedulerBundleLeavesFreshSectionsOut(t *testing.T) {
+	t.Parallel()
+	s, f := schedulerFixture(t)
+	schedulerRoutine(t, s, f)
+	scope := factsstore.Scope{Load: "load", Generation: 1}
+	store := s.facts.store
+	// Wrong scope, unknown tick, or an empty store: everything rides.
+	if p, r, pw := bundleFamilies(store, 1000, false); !p || !r || !pw {
+		t.Fatal("unknown tick", p, r, pw)
+	}
+	if p, r, pw := bundleFamilies(store, 1000, true); !p || !r || !pw {
+		t.Fatal("empty store", p, r, pw)
+	}
+	factsstore.Put(store, scope, factsstore.Research, factsstore.Held[policy.ResearchFacts]{AsOf: 1000, Complete: true})
+	factsstore.Put(store, scope, factsstore.Population, factsstore.Held[bridge.PrisonerCensus]{AsOf: 1000, Complete: true})
+	factsstore.Put(store, scope, factsstore.Pawns, factsstore.Held[observation.RoutinePawns]{AsOf: 1000, Complete: true})
+	for _, c := range []struct {
+		name                       string
+		tick                       int64
+		population, research, pawn bool
+	}{
+		{"all fresh", 1000, false, false, false},
+		{"pawns past the planning cadence", 1000 + bridge.FactTickTolerancePawns + int64(domain.LiveDrift()) + 1, false, false, true},
+		{"population past the colony cadence", 1000 + bridge.FactTickToleranceColony + int64(domain.LiveDrift()) + 1, true, false, true},
+		{"research past its cadence", 1000 + bridge.FactTickToleranceResearch + int64(domain.LiveDrift()) + 1, true, true, true},
+		{"held ahead of the step", 999, true, true, true},
+	} {
+		if p, r, pw := bundleFamilies(store, c.tick, true); p != c.population || r != c.research || pw != c.pawn {
+			t.Fatalf("%s: population=%v research=%v pawns=%v", c.name, p, r, pw)
+		}
+	}
+	s.lastTick, s.lastTickKnown = 1000, true
+	r := s.bundleRequest(StepReason{Cause: StepFull})
+	if !r.GetColonyFacts() || !r.GetEmergency() || r.GetPopulation() || r.GetResearch() || r.GetColonistPawns() {
+		t.Fatal("review with every section fresh", r)
+	}
+}
+
+// TestRoutineReviewerRoomsMaxAgeUnderATemperatureCondition (#360): the
+// reviewer's routine store bounds the rooms section to the step's tick
+// while a temperature condition the colony facts name is active, and leaves
+// the cadence alone otherwise.
+func TestRoutineReviewerRoomsMaxAgeUnderATemperatureCondition(t *testing.T) {
+	t.Parallel()
+	s, f := schedulerFixture(t)
+	schedulerRoutine(t, s, f)
+	r := s.config.Routine
+	scope := factsstore.Scope{Load: "load", Generation: 1}
+	if rs := r.routineStore(); rs.Store != s.facts.store || rs.MaxAge != nil {
+		t.Fatal("max age without colony facts", rs.MaxAge)
+	}
+	colony := observation.ColonyProjection{}
+	colony.Facts.DisasterConditions = domain.Known([]policy.DisasterCondition{{ID: "1", Definition: "Flashstorm"}})
+	factsstore.Put(s.facts.store, scope, factsstore.Colony, factsstore.Held[observation.ColonyProjection]{Value: colony, AsOf: 1, Complete: true})
+	if rs := r.routineStore(); rs.MaxAge != nil {
+		t.Fatal("max age under a flashstorm", rs.MaxAge)
+	}
+	colony.Facts.DisasterConditions = domain.Known([]policy.DisasterCondition{{ID: "2", Definition: policy.ConditionColdSnap}})
+	factsstore.Put(s.facts.store, scope, factsstore.Colony, factsstore.Held[observation.ColonyProjection]{Value: colony, AsOf: 1, Complete: true})
+	if rs := r.routineStore(); rs.MaxAge[factsstore.Rooms] != 0 || len(rs.MaxAge) != 1 {
+		t.Fatal("max age under a cold snap", rs.MaxAge)
 	}
 }

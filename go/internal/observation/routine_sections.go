@@ -21,6 +21,10 @@ type RoutineSections struct {
 	Pawns         facts.Held[RoutinePawns]
 	Emergency     facts.Held[policy.EmergencyFacts]
 	Rooms         facts.Held[policy.RoomObservation]
+	// Served names the sections the reading took from the store instead
+	// of reading (#360): they carry the held value and its as-of tick, and
+	// File leaves them as they are.
+	Served map[facts.Section]bool
 }
 
 // PlanningCells is the colony facts' planning window: the observed region
@@ -40,22 +44,23 @@ type RoutinePawns struct {
 	Armed   int64
 }
 
-// File puts every read section into store under scope.
+// File puts every section the reading read into store under scope; a
+// served section is already there.
 func (r RoutineSections) File(store *facts.Store, scope facts.Scope) {
 	if store == nil {
 		return
 	}
-	file(store, scope, facts.Colony, r.Colony)
-	file(store, scope, facts.PlanningCells, r.PlanningCells)
-	file(store, scope, facts.Population, r.Population)
-	file(store, scope, facts.Research, r.Research)
-	file(store, scope, facts.Pawns, r.Pawns)
-	file(store, scope, facts.Emergency, r.Emergency)
-	file(store, scope, facts.Rooms, r.Rooms)
+	file(store, scope, facts.Colony, r.Colony, r.Served)
+	file(store, scope, facts.PlanningCells, r.PlanningCells, r.Served)
+	file(store, scope, facts.Population, r.Population, r.Served)
+	file(store, scope, facts.Research, r.Research, r.Served)
+	file(store, scope, facts.Pawns, r.Pawns, r.Served)
+	file(store, scope, facts.Emergency, r.Emergency, r.Served)
+	file(store, scope, facts.Rooms, r.Rooms, r.Served)
 }
 
-func file[T any](store *facts.Store, scope facts.Scope, section facts.Section, held facts.Held[T]) {
-	if held.Source == "" {
+func file[T any](store *facts.Store, scope facts.Scope, section facts.Section, held facts.Held[T], served map[facts.Section]bool) {
+	if held.Source == "" || served[section] {
 		return
 	}
 	facts.Put(store, scope, section, held)
@@ -68,6 +73,7 @@ func (s *routineBracket) sections(projection ColonyProjection) RoutineSections {
 	out := RoutineSections{
 		Colony:        facts.Held[ColonyProjection]{Value: projection, AsOf: tick, Complete: true, Source: "rimgovernor/observations_read_colony_facts"},
 		PlanningCells: projection.Window,
+		Served:        s.served,
 	}
 	if out.PlanningCells.Source == "" && projection.Cells != nil {
 		out.PlanningCells = facts.Held[PlanningCells]{Value: PlanningCells{Region: projection.Region, Cells: projection.Cells}, AsOf: tick, Complete: true, Source: "rimgovernor/observations_read_colony_facts"}
@@ -82,7 +88,7 @@ func (s *routineBracket) sections(projection ColonyProjection) RoutineSections {
 		armed, _ := s.armed.Value()
 		out.Pawns = facts.Held[RoutinePawns]{Value: RoutinePawns{Work: work, Medical: medical, Mood: mood, Armed: armed}, AsOf: s.pawnsTick, Complete: true, Source: "rimgovernor/observations_list_pawns"}
 	}
-	if s.population.Context != nil {
+	if s.population.Context != nil || s.served[facts.Population] {
 		_, prisoners := s.population.Prisoners.Value()
 		_, custody := s.population.Custody.Value()
 		out.Population = facts.Held[bridge.PrisonerCensus]{Value: s.population, AsOf: s.populationTick, Complete: prisoners && custody, Source: "rimgovernor/observations_read_population"}

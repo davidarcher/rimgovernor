@@ -7,6 +7,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/facts"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -88,6 +89,20 @@ type routineBracket struct {
 	// The tick each section's reply described, set on its own wave lane;
 	// zero where the source offered no read.
 	emergencyTick, pawnsTick, populationTick, researchTick, roomsTick int64
+	// store is the reading's section refresher (RoutineStoreFrom) and
+	// served the sections it served from the store instead of reading,
+	// with the held value the section keeps.
+	store  RoutineStore
+	served map[facts.Section]bool
+}
+
+// serve records that section was served from the store as held: its
+// value stands for this reading and its provenance is kept.
+func (s *routineBracket) serve(section facts.Section) {
+	if s.served == nil {
+		s.served = map[facts.Section]bool{}
+	}
+	s.served[section] = true
 }
 
 // ReadColonyFacts fans the routine census out inside ObserveColony's
@@ -181,6 +196,15 @@ func (s *routineBracket) readEmergency(ctx context.Context, id *c.Identity) (*o.
 	if len(ids) == 0 {
 		return nil, nil
 	}
+	// The held pawn detail serves while it is fresh under the pawn cadence
+	// and projects the same roster the census just named; a changed roster
+	// is a new census whatever the age.
+	if held, ok := heldSection[RoutinePawns](s.store, facts.Pawns, int64(s.expected.Tick)); ok && len(held.Value.Work) == len(ids) {
+		s.work, s.medical, s.mood, s.armed = domain.Known(held.Value.Work), domain.Known(held.Value.Medical), domain.Known(held.Value.Mood), domain.Known(held.Value.Armed)
+		s.pawnsTick = held.AsOf
+		s.serve(facts.Pawns)
+		return nil, nil
+	}
 	pawns, pawnReceipt, err := s.ReadRoutinePawns(ctx, id, ids)
 	s.pawnReceipt = pawnReceipt
 	if err != nil {
@@ -204,6 +228,11 @@ func (s *routineBracket) readEmergency(ctx context.Context, id *c.Identity) (*o.
 }
 
 func (s *routineBracket) readPopulation(ctx context.Context, id *c.Identity) error {
+	if held, ok := heldSection[bridge.PrisonerCensus](s.store, facts.Population, int64(s.expected.Tick)); ok {
+		s.population, s.populationTick = held.Value, held.AsOf
+		s.serve(facts.Population)
+		return nil
+	}
 	var err error
 	s.population, s.populationReceipt, err = s.ReadRoutinePopulation(ctx, id)
 	if err != nil {
@@ -240,7 +269,7 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 	if source == nil {
 		return RoutineReading{}, ErrContract
 	}
-	bracket := &routineBracket{roomsEnabled: rooms, claims: claims, RoutineSource: source, expected: expected, definitions: append([]string(nil), definitions...)}
+	bracket := &routineBracket{roomsEnabled: rooms, claims: claims, RoutineSource: source, expected: expected, definitions: append([]string(nil), definitions...), store: RoutineStoreFrom(ctx)}
 	reading, err := ObserveColony(ctx, bracket, clock, expected, maxAge, true, nil)
 	if err != nil {
 		return RoutineReading{}, err
@@ -353,6 +382,11 @@ func (s *routineBracket) readQuests(ctx context.Context, id *c.Identity) error {
 // research read leaves the fact unknown, and a research snapshot from a
 // different colony boundary invalidates the whole reading.
 func (s *routineBracket) readResearch(ctx context.Context, id *c.Identity) error {
+	if held, ok := heldSection[policy.ResearchFacts](s.store, facts.Research, int64(s.expected.Tick)); ok {
+		s.research, s.researchTick = domain.Known(held.Value), held.AsOf
+		s.serve(facts.Research)
+		return nil
+	}
 	source, ok := s.RoutineSource.(RoutineResearchSource)
 	if !ok {
 		return nil

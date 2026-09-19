@@ -6,6 +6,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/facts"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -22,6 +23,11 @@ type TemperatureSource interface {
 // reports it unavailable: the fact stays unknown.
 func (s *routineBracket) readTemperature(ctx context.Context, id *c.Identity) (*o.RoomsSnapshot, error) {
 	if !s.roomsEnabled {
+		return nil, nil
+	}
+	if held, ok := heldSection[policy.RoomObservation](s.store, facts.Rooms, int64(s.expected.Tick)); ok {
+		s.temperature, s.roomsTick = domain.Known(held.Value), held.AsOf
+		s.serve(facts.Rooms)
 		return nil, nil
 	}
 	source, ok := s.RoutineSource.(TemperatureSource)

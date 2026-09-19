@@ -465,6 +465,28 @@ tick, so `as_of_spread` is non-zero on steps served from the store. The
 row carries no `reachable` (`placement_preview` refuses an unreachable
 site) and never lists a fogged cell (`Completeness.filtered` counts them).
 
+The continuous sections follow the same pattern with a cadence each
+(#360). The reviewer attaches `observation.RoutineStore` (the store plus
+any `MaxAge` a policy sets per section) to the review's context; the
+routine bracket serves `research`, `population`, `rooms` and `pawns` from
+the store when the held row is still fresh at the reading's tick under
+the section's cadence (`facts.Section.TickTolerance`: pawns and emergency
+at `PlanningTickTolerance`, rooms and population at
+`FactTickToleranceColony`, research at `FactTickToleranceResearch`, each
+widened by `LiveDrift`) and reads natively otherwise; the colony facts and
+the emergency census are always read. A served section keeps its own
+`AsOf` and is not refiled (`RoutineSections.Served`), so `as_of_spread`
+shows what the review planned against. The step's bundle request leaves
+out a family the store holds fresh at the tick the step expects (the last
+status tick plus `LiveDrift`; `bundleFamilies`), so research and
+population ride nearly no bundle and pawns ride only when the clock has
+moved. The one policy that needs a fresher read than its cadence is
+temperature: while a `ColdSnap`, `HeatWave` or `VolcanicWinter` condition
+is active (`policy.RoomTemperatureUrgent`, judged from the held colony
+facts, so onset lags one step) rooms get `MaxAge` 0 and are read every
+review. What a policy decides is unchanged: it sees the same decoded
+values, at most one cadence older.
+
 ## Independent clock workers
 
 `ClockWorker` runs event polling, renewal and scheduling separately. Scheduling waits

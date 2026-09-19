@@ -36,6 +36,36 @@ func TestStorePutGetFresh(t *testing.T) {
 	}
 }
 
+// The refresh cadence table (#360): the population census follows the
+// colony's tolerance rather than its invalidation family's, every other
+// section its family's; a policy's max age only ever tightens it.
+func TestSectionCadence(t *testing.T) {
+	for section, want := range map[Section]int64{
+		Colony: bridge.FactTickToleranceColony, PlanningCells: bridge.FactTickToleranceColony, Zones: bridge.FactTickToleranceColony, Buildings: bridge.FactTickToleranceColony,
+		Population: bridge.FactTickToleranceColony, Pawns: bridge.FactTickTolerancePawns, Emergency: bridge.FactTickToleranceEmergency,
+		Rooms: bridge.FactTickToleranceRooms, Research: bridge.FactTickToleranceResearch,
+	} {
+		if got := section.TickTolerance(); got != want {
+			t.Errorf("%s cadence = %d, want %d", section, got, want)
+		}
+	}
+	s := NewStore()
+	Put(s, Scope{Load: "load-1", Generation: 1}, Population, Held[int]{Value: 1, AsOf: 1000, Complete: true, Source: "x"})
+	Put(s, Scope{Load: "load-1", Generation: 1}, Rooms, Held[int]{Value: 1, AsOf: 1000, Complete: true, Source: "x"})
+	if !s.Fresh(Population, 1000+bridge.FactTickToleranceColony) || s.Fresh(Population, 1000+bridge.FactTickToleranceColony+1_000_000) {
+		t.Fatal("population freshness follows the colony cadence")
+	}
+	if !s.FreshWithin(Rooms, 1000, 0) || s.FreshWithin(Rooms, 1001+int64(bridge.FactTickTolerancePawns)+1_000_000, 0) || !s.FreshWithin(Rooms, 1100, 100) || s.FreshWithin(Rooms, 1101+1_000_000, 100) {
+		t.Fatal("a max age tightens the cadence")
+	}
+	if !s.FreshWithin(Rooms, 1000+bridge.FactTickToleranceRooms, 1_000_000) {
+		t.Fatal("a max age wider than the cadence leaves it alone")
+	}
+	if s.FreshWithin(Rooms, 999, bridge.FactTickUnbounded) {
+		t.Fatal("a scope behind the row is never fresh")
+	}
+}
+
 func TestStoreScopeResets(t *testing.T) {
 	s := NewStore()
 	Put(s, Scope{Load: "a", Generation: 1}, Colony, Held[string]{Value: "x", AsOf: 5, Complete: true})
