@@ -573,3 +573,44 @@ func TestAdvanceGameCombatHealthStopInterruptsWhenColonistDowned(t *testing.T) {
 		t.Fatalf("expected a downed-colonist interruption, got %v", err)
 	}
 }
+
+// A fresh profile (neverStarted) can still hold retained events, as a
+// journal restored from a checkpoint bundle does: a stop diagnosis reads
+// from just before the start receipt's own started event, never across
+// that history (an authority shutdown in it has no canonical owner).
+func TestAdvanceGameFreshEpochDiagnosesFromStartReceipt(t *testing.T) {
+	attempt := map[string]any{"controllerSessionId": "owner-1", "actionId": "typed-clock-1", "attemptId": "1"}
+	receipt := controlReceiptReply("owner-1", 11, 0, 0, 60, attempt)
+	receipt["receipt"].(map[string]any)["applied"].(map[string]any)["status"].(map[string]any)["newestCursor"] = float64(11)
+	fw := &fakeWire{replies: map[string][]map[string]any{
+		"clock_read_status": {
+			{"status": map[string]any{"context": scenarioContext(0), "neverStarted": map[string]any{}}},
+			{"status": stoppedStatus("owner-1", 11, 0, 20, 60, 12, "STOP_REASON_LETTER_PAUSE", true)},
+			// The failure's cleanup re-reads the (already stopped) clock.
+			{"status": stoppedStatus("owner-1", 11, 0, 20, 60, 12, "STOP_REASON_LETTER_PAUSE", true)},
+		},
+		"clock_start":       {receipt},
+		"clock_read_events": {{"page": eventPage(scenarioIdentity(), 12, []map[string]any{
+			{"cursor": float64(11), "context": scenarioContext(0), "owner": map[string]any{"controllerSessionId": "owner-1", "epoch": float64(11)}, "started": map[string]any{}},
+			letterPauseEvent(12, 11, "owner-1", "letter-1"),
+		})}, {"page": eventPage(scenarioIdentity(), 12, nil)}},
+	}}
+	fq := &fakeQuery{byTool: map[string][]map[string]any{
+		"home/colony_identity": {identityToolReply(), identityToolReply(), identityToolReply(), identityToolReply()},
+		"home/status":          {{}},
+	}}
+	clock := &ScenarioClock{
+		Wire: fw.wire, Identity: scenarioIdentity(), Owner: "owner-1", Report: Report{},
+		Grant: map[string]any{"context": map[string]any{"nativeGeneration": float64(1)}, "authority": map[string]any{"mode": "MODE_AUTO"}},
+	}
+	rt := &ScenarioRuntime{Query: fq.query, Clock: clock, Report: Report{}}
+	_, err := AdvanceGame(context.Background(), rt, 60)
+	// The diagnosis attributes the letter and moves on to the colony.
+	if err == nil || !strings.Contains(err.Error(), "Safety observation incomplete") {
+		t.Fatalf("expected the diagnosis to reach the letter, got %v", err)
+	}
+	reads := fw.sent["clock_read_events"]
+	if len(reads) != 2 || reads[0]["afterCursor"] != "10" || reads[1]["afterCursor"] != "12" {
+		t.Fatalf("expected the event reads to start after cursor 10, got %#v", reads)
+	}
+}

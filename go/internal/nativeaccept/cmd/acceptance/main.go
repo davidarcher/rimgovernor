@@ -1,7 +1,8 @@
 // Command acceptance is the shared runner over the case registry (#135):
 //
 //	acceptance list [-cost [-baseline <result.json|metrics.jsonl>]] [-tier land|full|matrix|smoke] [<case>|<area>/...]...
-//	acceptance run <case>... [-root -output -game -headless -timeout -budget -stall -rimgovernor -series -no-series -evidence -fresh -rewind N -checkpoint-every d -restage -no-doctor -no-heal -repeat N -seed s -postmortem-only [-from bundle]]
+//	acceptance run <case>... [-root -output -game -headless -timeout -budget -stall -rimgovernor -series -no-series -evidence -fresh -rewind N -checkpoint-every d -restage -no-doctor -no-heal -repeat N -seed s -postmortem-only [-from bundle] -break stage=<name>|tick=<n>|minute=<m>]
+//	acceptance resume [<case>...] -root <dir> [run flags]
 //	acceptance suite (-all | -cases a,b | -suite file.json | -tier land|full|matrix|smoke) -root -output -workers N [-baseline result.json -series metrics.jsonl]
 //	acceptance stop -root <dir> [-config -game -takeover]
 //	acceptance setup [-worktree -rimworld -harmony -gabs -fixture -production -rebuild -skip-mod -skip-binaries]
@@ -46,7 +47,11 @@
 // for the next call (#284). dev (dev.go, #274) is the edit loop: build
 // rimgovernor, reload a checkpoint bundle on the kept process, run the
 // case's Run and Postmortem from there, wait for Enter or a source
-// change, repeat.
+// change, repeat. -break (#280) cuts a run at a declared stage, a game
+// tick or a run-phase minute, bundles it into the ring as "break" and
+// leaves the game loaded and paused on the kept process (visible with
+// -headless=false); resume (resume.go) continues the paused case from
+// that bundle and stop discards it.
 package main
 
 import (
@@ -156,6 +161,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 			return 2
 		}
 		return runSuite(context.Background(), list, opts, stderr)
+	case "resume":
+		return resume(context.Background(), args[1:], stdout, stderr)
 	case "stop":
 		return stop(args[1:], stdout, stderr)
 	case "setup":
@@ -181,16 +188,19 @@ func run(args []string, stdout, stderr io.Writer) int {
 const usage = `usage:
   acceptance plan -evidence <root> -run <relative run.json> [-fetch]
 ` + listUsage + `
-  acceptance run <case>... -root <dir> [-output <dir> -game <id> -headless=false -timeout <d> -budget <d> -stall <d> -rimgovernor <binary> -series <metrics.jsonl> -no-series -evidence capped|full -fresh -rewind <n> -checkpoint-every <d> -restage -no-doctor -no-heal -repeat <n> -seed <s> -postmortem-only [-from <bundle>]]
+  acceptance run <case>... -root <dir> [-output <dir> -game <id> -headless=false -timeout <d> -budget <d> -stall <d> -rimgovernor <binary> -series <metrics.jsonl> -no-series -evidence capped|full -fresh -rewind <n> -checkpoint-every <d> -restage -no-doctor -no-heal -repeat <n> -seed <s> -postmortem-only [-from <bundle>] -break stage=<name>|tick=<n>|minute=<m>]
     a case whose last run in this root failed resumes from its checkpoint ring (printed on the first line);
     -fresh starts over, -rewind <n> resumes n entries earlier, -checkpoint-every 0 turns the ring off;
     a case that declares Stages opens on its newest cached stage bundle (printed on the first line);
     -restage discards the bundles and stages again, RIMGOVERNOR_ACCEPT_STAGES=0 turns the cache off;
     -postmortem-only reloads the failed bundle (or -from <label|dir>) and runs only the case's Postmortem phase, ring untouched;
     -repeat <n> runs each case n times fresh and reports the pass rate and seeds (<output>/<case>.repeat.json);
-    -seed <s> pins a debug or scenario start's world seed (result.json "world".seed) to reproduce a run
+    -seed <s> pins a debug or scenario start's world seed (result.json "world".seed) to reproduce a run;
+    -break stops the run after a declared stage, at a game tick or at a run-phase minute, bundles it into the ring
+    and leaves the game loaded and paused on the kept process (BREAK, exit 3); acceptance resume continues it
   acceptance stop -root <dir> [-config <dir> -game <id> -takeover]
-` + setupUsage + suiteUsage + whyUsage + warmUsage + fixtureUsage + doctorUsage + pruneUsage + devUsage
+    ends the game the root keeps and discards any breakpoint paused there
+` + resumeUsage + setupUsage + suiteUsage + whyUsage + warmUsage + fixtureUsage + doctorUsage + pruneUsage + devUsage
 
 // parseRun resolves the run subcommand's flags and case names. Flags may
 // follow the case names (flag.FlagSet stops at the first non-flag, so the
@@ -229,8 +239,23 @@ func parseRun(args []string, stderr io.Writer) ([]cases.Case, cases.Options, err
 	fs.StringVar(&opts.Seed, "seed", "", "pin the world seed of a debug or scenario start (a result.json world.seed) to reproduce that run; implies -fresh")
 	fs.BoolVar(&opts.PostmortemOnly, "postmortem-only", false, "reload the case's failed bundle on the kept process and run only its Postmortem phase; the ring is left as it was")
 	fs.StringVar(&opts.From, "from", "", "with -postmortem-only: the bundle to load, a ring label (t+7m, failed) or a bundle directory (default: the ring's failed bundle)")
+	var breakSpec string
+	fs.StringVar(&breakSpec, "break", "", "pause the run at a breakpoint for inspection: stage=<name> (a declared stage), tick=<n> or minute=<m> (run phase); acceptance resume continues it")
 	if err := fs.Parse(flagArgs); err != nil {
 		return nil, opts, err
+	}
+	if breakSpec != "" {
+		b, err := na.ParseBreakpoint(breakSpec)
+		if err != nil {
+			return nil, opts, err
+		}
+		if opts.PostmortemOnly || opts.Repeat > 1 {
+			return nil, opts, errors.New("-break takes a plain run: none of -postmortem-only, -repeat")
+		}
+		if opts.CheckpointEvery <= 0 {
+			return nil, opts, errors.New("-break needs the checkpoint ring: drop -checkpoint-every 0")
+		}
+		opts.Break = b
 	}
 	if opts.From != "" && !opts.PostmortemOnly {
 		return nil, opts, errors.New("-from names the bundle of a -postmortem-only run")
@@ -294,7 +319,8 @@ func parseRun(args []string, stderr io.Writer) ([]cases.Case, cases.Options, err
 // runCases executes the cases in order on one game after the doctor
 // preflight (each Repeat times, with its repeat summary after the
 // attempts); the exit code is non-zero when any case failed, 2 when the
-// preflight refused the run. A stale or fixture-less install is healed
+// preflight refused the run, na.ExitBreak when a case paused at its
+// breakpoint (the cases after it do not run). A stale or fixture-less install is healed
 // by the preflight (heal.go, #276) unless -no-heal, and every case's
 // result.json says so under "healed".
 func runCases(ctx context.Context, selected []cases.Case, opts cases.Options, stdout io.Writer) int {
@@ -313,11 +339,18 @@ func runCases(ctx context.Context, selected []cases.Case, opts cases.Options, st
 			opts.Attempt = attempt
 			started := time.Now()
 			report, code := cases.Execute(ctx, c, opts)
-			if code != 0 {
+			switch {
+			case code == na.ExitBreak && exit == 0:
+				exit = na.ExitBreak
+			case code != 0 && code != na.ExitBreak:
 				exit = 1
 			}
 			printCase(stdout, c, opts, report, code, time.Since(started))
 			attempts = append(attempts, newAttempt(attempt, opts.CaseOutput(c), report, code, time.Since(started)))
+			if code == na.ExitBreak {
+				// The game is paused for inspection; nothing else runs on it.
+				return exit
+			}
 		}
 		if opts.Repeat > 1 {
 			opts.Attempt = 1
@@ -336,12 +369,19 @@ func runCases(ctx context.Context, selected []cases.Case, opts cases.Options, st
 // and drift flags.
 func printCase(stdout io.Writer, c cases.Case, opts cases.Options, report na.Report, code int, wall time.Duration) {
 	status := "PASS"
-	if code != 0 {
+	switch code {
+	case na.ExitBreak:
+		status = "BREAK"
+	case 0:
+	default:
 		status = "FAIL"
 	}
 	fmt.Fprintf(stdout, "%s\t%s\t%s\t%s\n", status, c.Name, wall.Round(time.Millisecond), filepath.Join(opts.CaseOutput(c), "result.json"))
 	if err, _ := report["error"].(string); err != "" {
 		fmt.Fprintf(stdout, "\t%s\n", err)
+	}
+	if note, _ := report["checkpoint_note"].(string); note != "" && code == na.ExitBreak {
+		fmt.Fprintf(stdout, "\t%s\n", note)
 	}
 	if digest, ok := report["diagnosis"].(postmortem.Digest); ok {
 		// The digest is the first thing anyone reads after a failure;
@@ -357,7 +397,9 @@ func printCase(stdout io.Writer, c cases.Case, opts cases.Options, report na.Rep
 
 // stop is the former gamesstop tool: games_stop through the root's own
 // GABS configuration (config-headless first), with -takeover taking the
-// attachment from a stalled controller of that same root first.
+// attachment from a stalled controller of that same root first. A
+// breakpoint the root holds paused (#280) is discarded first, whether or
+// not the game is still up.
 func stop(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("stop", flag.ContinueOnError)
 	fs.SetOutput(stderr)
@@ -371,6 +413,9 @@ func stop(args []string, stdout, stderr io.Writer) int {
 	if *root == "" {
 		fmt.Fprintln(stderr, "-root is required")
 		return 2
+	}
+	if err := discardBreaks(*root, stdout); err != nil {
+		fmt.Fprintln(stderr, err)
 	}
 	if *configDir == "" {
 		*configDir = filepath.Join(*root, "config-headless")

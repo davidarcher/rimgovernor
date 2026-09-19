@@ -187,7 +187,8 @@ can see that one costs 4 minutes and another 18, #283), and
 `acceptance run <area>/<case>... -root <abs root> [-output <dir>]
 [-rimgovernor <abs rimgovernor.exe>] [-budget <d> -stall <d> -timeout <d>]
 [-fresh] [-rewind N] [-checkpoint-every <d>] [-restage] [-evidence capped|full]
-[-repeat N] [-seed <s>] [-postmortem-only [-from <label|dir>]]`
+[-repeat N] [-seed <s>] [-postmortem-only [-from <label|dir>]]
+[-break stage=<name>|tick=<n>|minute=<m>]`
 (and `acceptance dev <area>/<case> -root <abs root> [-from <label|dir>]
 [-watch]`, the edit loop over a checkpoint bundle, #274)
 runs cases on one kept process, writing each case's `result.json` under
@@ -892,6 +893,28 @@ state or `Session.Stage`). Iteration `n` writes `<output>/dev/<n>/<case>`;
 and never written, no stage bundle is captured and no series row is
 appended; the request ids carry `dev<n>`. A `dev` pass proves the code
 past the bundle only and is never a landing pass.
+Looking at the colony instead of reading about it is `-break` (#280):
+`acceptance run <case> -root <root> -break stage=<name>|tick=<n>|minute=<m>
+[-headless=false]` cuts the run once the named stage is done (a declared
+`Stages` name, whether its block ran or a bundle covered it), at the first
+natural pause after the game tick reaches `n`, or once the run-phase
+offset reaches `m` minutes (the ring's `t+` clock, so a resumed run counts
+from its original start). The case's services are stopped, a `break/`
+bundle is taken into the ring (pausing the game), the ring's next entry
+names it, and the game is left loaded and paused on the kept process
+(windowed with `-headless=false`, so the map is there to inspect). The
+run prints `BREAK` with the ring note and exits 3; `result.json` carries
+`break` (spec, reason, tick, bundle path) and no `passed`, and no series
+row is appended. `acceptance resume -root <root> [<case>] [run flags]`
+continues the paused case (the one case paused there, or the one named)
+from the bundle as any ring resume does, relaunching the game on the
+restored journal; a plain `acceptance run` of the case does the same,
+and `-break` again on either stops at a later point. `acceptance stop
+-root <root>` discards the breakpoint (its ring) as it ends the kept game,
+so the next run starts fresh. `-postmortem-only` over a paused case reads
+the break bundle by default. A breakpoint needs the ring (never
+`-checkpoint-every 0`, a `NoCheckpoint` case or an `Owned` one) and a
+plain run (none of `-repeat`, `-postmortem-only`, `dev`).
 A `Run` that submits a deterministic request id (a building plan whose
 acceptance fills the arbitration slot, a work-preference override) takes
 it from `s.RequestID(base)`: the base on a fresh run, the base suffixed

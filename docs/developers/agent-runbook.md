@@ -207,6 +207,15 @@ What it produces:
   iteration writes `<output>/dev/<n>/<case>`; the ring, the stage cache
   and the metrics series are untouched, and a `dev` pass is never a
   landing pass.
+- Looking at the colony instead of diagnosing it from text (why is
+  nobody building, where did the meal go): `acceptance run <case> -root
+  <root> -break stage=<name>|tick=<n>|minute=<m> -headless=false` stops
+  the run there, bundles it into the ring and leaves the game loaded,
+  paused and visible on the kept process (`BREAK`, exit 3; #280).
+  `acceptance resume -root <root>` continues it from the bundle,
+  `acceptance stop -root <root>` discards it. Stage names are the case's
+  declared `Stages`; tick and minute (run phase) work for any case that
+  checkpoints.
 - Flake or regression: `result.json` `world` names the seed, save hash
   and fixture hash the run had, and `flake` its recent failure share.
   `acceptance run <case> -repeat N` measures the pass rate under one

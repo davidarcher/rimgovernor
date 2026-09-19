@@ -226,6 +226,7 @@ func (s *session) Stage(ctx context.Context, name string, fn func(ctx context.Co
 	s.stageRows = append(s.stageRows, row)
 	if index <= s.stagePlan.hit {
 		row["outcome"], row["path"], row["wall_ms"] = "hit", filepath.Join(s.stagesDir, name), int64(0)
+		s.tripStage(name)
 		return nil
 	}
 	if err := fn(ctx); err != nil {
@@ -251,6 +252,7 @@ func (s *session) Stage(ctx context.Context, name string, fn func(ctx context.Co
 	// The ring's later bundles record the stage as done, so a resume from
 	// one (which replays the body from the top) skips it as a hit would.
 	na.SetCheckpointState(StageStateKey, name)
+	defer s.tripStage(name)
 	if s.stages == nil {
 		row["outcome"], row["wall_ms"] = "uncached", time.Since(began).Milliseconds()
 		return nil
@@ -268,4 +270,12 @@ func (s *session) Stage(ctx context.Context, name string, fn func(ctx context.Co
 	}
 	row["outcome"], row["path"], row["wall_ms"], row["capture_ms"] = "captured", entry.Path, time.Since(began).Milliseconds(), entry.WallMs
 	return nil
+}
+
+// tripStage fires the run's stage breakpoint (#280) once the named stage
+// is done, whether its block ran or a bundle covered it.
+func (s *session) tripStage(name string) {
+	if s.ring != nil && s.ring.Break.Stage == name {
+		s.ring.Trip("stage " + name + " done")
+	}
 }

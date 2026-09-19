@@ -39,7 +39,8 @@ const (
 	// CheckpointRingFile is the ring's index (Ring), beside its bundles.
 	CheckpointRingFile = "ring.json"
 	// FailedCheckpoint is the label of the bundle taken as a failed run
-	// ends, after the periodic ring.
+	// ends, after the periodic ring; BreakCheckpoint (breakpoint.go) is
+	// its counterpart for a run paused at a breakpoint.
 	FailedCheckpoint = "failed"
 )
 
@@ -189,6 +190,10 @@ type Ring struct {
 	// FailedOutput is the failed run's output directory (its result.json
 	// holds the timeline a postmortem-only rerun reads back, #275).
 	FailedOutput string `json:"failed_output,omitempty"`
+	// Break is set when the last run paused at a breakpoint (#280): Next
+	// then names its BreakCheckpoint bundle, which `acceptance resume`
+	// continues from and `acceptance stop` discards.
+	Break *BreakRecord `json:"break,omitempty"`
 }
 
 // ReadCheckpoint reads the sidecar of the bundle at dir, with Path set.
@@ -349,6 +354,10 @@ type CheckpointRing struct {
 	// leaves the game saved as name and returns the save's path, tick and
 	// identity (tests only).
 	Saver func(ctx context.Context, name, label string, force bool) (path string, tick uint64, identity map[string]any, err error)
+	// Break is the run's breakpoint (#280), zero when none; OnBreak runs
+	// once when it trips (Trip), with the reason.
+	Break   Breakpoint
+	OnBreak func(reason string)
 
 	mu        sync.Mutex
 	started   time.Time
@@ -361,6 +370,11 @@ type CheckpointRing struct {
 	// capped, once set, is why no further entry is taken (CapCheckpoints):
 	// the case passed a point its body cannot resume after.
 	capped string
+	// tripped is why the breakpoint fired; nextBreakTick throttles a tick
+	// breakpoint's reads under a service.
+	tripped       string
+	nextBreakTick time.Time
+	breakReading  bool
 }
 
 // activeRing is the ring the hooks (Harness.Call, WaitProgress, Watch)
@@ -524,6 +538,8 @@ var errNotPaused = errors.New("game is not paused")
 var errNoHolder = errors.New("neither the harness nor a service holds the game")
 
 func (r *CheckpointRing) maybe(ctx context.Context) time.Duration {
+	// A breakpoint is checked at every natural pause, on its own clock.
+	r.checkBreak(ctx)
 	r.mu.Lock()
 	now := time.Now()
 	if r.capped != "" || r.busy || now.Sub(r.last) < r.Every || now.Before(r.nextCheck) {

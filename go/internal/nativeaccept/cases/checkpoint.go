@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -147,7 +148,11 @@ func planResume(c Case, opts Options, log io.Writer) (resumption, error) {
 	} else if len(rev) > 8 {
 		rev = rev[:8]
 	}
-	fmt.Fprintf(log, "resuming %s from %s (rev %s, failed at %s); -fresh starts over\n", c.Name, label, rev, na.OffsetLabel(time.Duration(previous.FailedOffsetMs)*time.Millisecond))
+	if previous.Break != nil && label == na.BreakCheckpoint {
+		fmt.Fprintf(log, "resuming %s from its breakpoint %s (rev %s, tick %d); -fresh starts over\n", c.Name, previous.Break.Spec, rev, entry.Tick)
+	} else {
+		fmt.Fprintf(log, "resuming %s from %s (rev %s, failed at %s); -fresh starts over\n", c.Name, label, rev, na.OffsetLabel(time.Duration(previous.FailedOffsetMs)*time.Millisecond))
+	}
 	return resumption{entry: entry, previous: previous}, nil
 }
 
@@ -312,12 +317,28 @@ func closeRing(ring *na.CheckpointRing, resumed resumption, runErr error, report
 	if failed != nil {
 		next.FailedTick = failed.Tick
 	}
-	// The previous ring's entries up to the resume point are still this
-	// timeline's past; those after it belong to the attempt that failed.
+	next.Entries = mergeEntries(entries, resumed)
+	next.Plan(resumed.previous, resumed.entry.Label, next.FailedTick)
+	if err := next.Write(ring.Dir); err != nil {
+		report["checkpoint_errors"] = append(ring.Errors(), "write ring: "+err.Error())
+		return
+	}
+	report["checkpoint_next"] = next.Next
+	if next.Note != "" {
+		report["checkpoint_note"] = next.Note
+	}
+}
+
+// mergeEntries is the ring the run that just ended leaves behind, minus
+// its final bundle: this run's periodic entries plus the previous ring's up
+// to the resume point, which are still this timeline's past; those after
+// it belong to the attempt that ended, and the oldest past CheckpointKeep
+// are removed.
+func mergeEntries(entries []na.Checkpoint, resumed resumption) []na.Checkpoint {
 	kept := map[string]bool{}
 	var merged []na.Checkpoint
 	for _, e := range entries {
-		if e.Label == na.FailedCheckpoint {
+		if e.Label == na.FailedCheckpoint || e.Label == na.BreakCheckpoint {
 			continue
 		}
 		merged = append(merged, e)
@@ -327,6 +348,9 @@ func closeRing(ring *na.CheckpointRing, resumed resumption, runErr error, report
 		for _, e := range resumed.previous.Entries {
 			switch {
 			case kept[e.Label]:
+			case e.Label == na.BreakCheckpoint:
+				// The breakpoint this run continued from is consumed.
+				_ = os.RemoveAll(e.Path)
 			case resumed.resuming() && e.OffsetMs > resumed.entry.OffsetMs:
 				_ = os.RemoveAll(e.Path)
 			case !resumed.resuming():
@@ -342,16 +366,107 @@ func closeRing(ring *na.CheckpointRing, resumed resumption, runErr error, report
 		_ = os.RemoveAll(merged[0].Path)
 		merged = merged[1:]
 	}
-	next.Entries = merged
-	next.Plan(resumed.previous, resumed.entry.Label, next.FailedTick)
+	return merged
+}
+
+// checkBreak validates opts.Break against c before the game opens (#280):
+// the case must checkpoint, the ring must be on, and a stage breakpoint
+// must name a declared stage.
+func checkBreak(c Case, opts *Options) error {
+	b := opts.Break
+	if b.IsZero() {
+		return nil
+	}
+	if opts.PostmortemOnly || opts.Dev || opts.Repeat > 1 {
+		return errors.New("-break takes a plain run: none of -postmortem-only, -repeat, or dev")
+	}
+	if reason := ringExcluded(c); reason != "" {
+		return fmt.Errorf("-break %s: case %s never checkpoints (%s), so nothing could resume from the breakpoint", b, c.Name, reason)
+	}
+	if b.Stage != "" && !slices.Contains(c.Stages, b.Stage) {
+		if len(c.Stages) == 0 {
+			return fmt.Errorf("-break %s: case %s declares no Stages; break at tick=<n> or minute=<m> instead", b, c.Name)
+		}
+		return fmt.Errorf("-break %s: case %s declares the stages %v", b, c.Name, c.Stages)
+	}
+	if opts.CheckpointEvery <= 0 {
+		// The breakpoint's bundle is a ring entry.
+		opts.CheckpointEvery = na.DefaultCheckpointEvery
+	}
+	return nil
+}
+
+// breakRun ends a run its breakpoint cut (#280): the case's services are
+// stopped, the harness takes the game back, the break bundle is taken
+// (which pauses the game) and the ring is written with the bundle as its
+// next entry (breakRing), and the game is left loaded and paused on the
+// kept process (Config.KeepLoaded). The report's "break" block says where
+// and how to go on; the run returns errBroke.
+func breakRun(c Case, opts Options, s *session, ring *na.CheckpointRing, resumed resumption, broke *na.BreakError, report na.Report) error {
+	ring.Deactivate()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+	s.stopServices()
+	if _, err := s.Session.Reattach(ctx); err != nil {
+		report["break"] = map[string]any{"spec": opts.Break.String(), "reason": broke.Reason, "error": "reattach the harness: " + err.Error()}
+		return fmt.Errorf("%w (%s): reattach the harness for the break bundle: %v", errBroke, broke.Reason, err)
+	}
+	if err := breakRing(ctx, c, opts, ring, resumed, broke, report); err != nil {
+		return fmt.Errorf("%w (%s): %v", errBroke, broke.Reason, err)
+	}
+	// The bundle's capture paused the game; Close keeps it loaded when the
+	// process is kept at all.
+	block := report["break"].(map[string]any)
+	if keep, _ := report["keep"].(bool); keep {
+		s.config.KeepLoaded = true
+		block["game"] = "paused and loaded on the kept process"
+	} else {
+		block["game"] = "not kept (" + na.KeepGameEnv + " or NoKeep); resume relaunches it from the bundle"
+	}
+	return fmt.Errorf("%w: %s", errBroke, broke.Reason)
+}
+
+// breakRing takes the break bundle on ring (pausing the game) and writes
+// the ring the paused run leaves: this run's periodic entries and the
+// timeline it resumed into, the break bundle last, Next naming it and
+// Break recording why. The report gets "break", "checkpoints" and the
+// ring note.
+func breakRing(ctx context.Context, c Case, opts Options, ring *na.CheckpointRing, resumed resumption, broke *na.BreakError, report na.Report) error {
+	block := map[string]any{"spec": opts.Break.String(), "reason": broke.Reason, "offset_ms": ring.Offset().Milliseconds(), "resume": "acceptance resume -root " + opts.Root}
+	report["break"] = block
+	// The previous ring is settled before the bundle lands, since a
+	// breakpoint it held shares the new bundle's directory.
+	merged := mergeEntries(ring.Entries(), resumed)
+	entry := ring.BreakBundle(ctx)
+	entries := ring.Entries()
+	if entry != nil {
+		entries = append(entries, *entry)
+	}
+	rows := make([]map[string]any, 0, len(entries))
+	for _, e := range entries {
+		rows = append(rows, map[string]any{"label": e.Label, "offset_ms": e.OffsetMs, "tick": e.Tick, "path": e.Path, "through": e.Through, "wall_ms": e.WallMs, "store": e.Store, "journal": e.Journal})
+	}
+	report["checkpoints"] = rows
+	if errs := ring.Errors(); len(errs) > 0 {
+		report["checkpoint_errors"] = errs
+	}
+	if entry == nil {
+		block["error"] = "the break bundle could not be taken"
+		return fmt.Errorf("the break bundle could not be taken: %v", ring.Errors())
+	}
+	block["label"], block["path"], block["tick"] = entry.Label, entry.Path, entry.Tick
+	next := &na.Ring{Case: ring.Case, SourceRevision: ring.SourceRevision, FailedOffsetMs: entry.OffsetMs, FailedOutput: ring.Output, ResumedFrom: resumed.entry.Label,
+		Break: &na.BreakRecord{Spec: opts.Break.String(), Reason: broke.Reason, Tick: entry.Tick, Output: ring.Output, At: entry.At}}
+	next.Entries = append(merged, *entry)
+	next.Next = entry.Label
+	next.Note = fmt.Sprintf("%s is paused at its breakpoint %s (%s, tick %d); `acceptance resume -root %s` continues it, `acceptance stop -root %s` discards it", c.Name, opts.Break, broke.Reason, entry.Tick, opts.Root, opts.Root)
 	if err := next.Write(ring.Dir); err != nil {
-		report["checkpoint_errors"] = append(ring.Errors(), "write ring: "+err.Error())
-		return
+		block["error"] = "write ring: " + err.Error()
+		return fmt.Errorf("write ring: %w", err)
 	}
 	report["checkpoint_next"] = next.Next
-	if next.Note != "" {
-		report["checkpoint_note"] = next.Note
-	}
+	report["checkpoint_note"] = next.Note
+	return nil
 }
 
 // rewindRing is closeRing for a resumed run whose game never opened on the

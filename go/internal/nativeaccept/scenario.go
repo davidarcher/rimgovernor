@@ -533,6 +533,15 @@ func (s *ScenarioClock) Change(ctx context.Context, speed string, maxTicks uint6
 			return nil, err
 		}
 	}
+	if n, _ := status["newestCursor"].(uint64); freshEpoch && n > 0 {
+		// A fresh profile can still hold retained events: a journal restored
+		// from a checkpoint bundle replays the epochs of earlier runs, and an
+		// authority shutdown among them has no canonical owner. The receipt's
+		// newestCursor is this window's own started event, so a stop
+		// diagnosis (letter_pause) reads from just before it, never across
+		// that history.
+		watermark = n - 1
+	}
 	status["newestCursor"] = watermark
 	// freshEpoch marks a window whose pre-start status reported neverStarted
 	// (durableEvents=false is a legitimate, native-acknowledged state in that

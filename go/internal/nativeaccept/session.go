@@ -99,7 +99,8 @@ func NewReport(scope string, headless bool) Report {
 // Finalize fills the timing fields and applies the budget (a passing run
 // over its budget fails), computes the artifact hash manifest for output
 // (Artifacts: capped evidence and the files the report names) and the metrics block (metrics.go), writes result.json, and returns the
-// process exit code (0 when report["passed"] is true).
+// process exit code (0 when report["passed"] is true, ExitBreak when the
+// run paused at a breakpoint, 1 otherwise).
 func (r Report) Finalize(output string) int {
 	r.finalizeTiming(time.Now())
 	if hashes, err := Artifacts(output, r); err == nil {
@@ -116,8 +117,15 @@ func (r Report) Finalize(output string) int {
 	if passed, _ := r["passed"].(bool); passed {
 		return 0
 	}
+	if _, broke := r["break"]; broke {
+		return ExitBreak
+	}
 	return 1
 }
+
+// ExitBreak is the exit code of a run paused at a breakpoint (#280): the
+// report carries "break", neither "passed" nor "error".
+const ExitBreak = 3
 
 // Write writes the report as output/result.json; Finalize calls it, and a
 // runner that adds bookkeeping after Finalize (the series' drift flags)

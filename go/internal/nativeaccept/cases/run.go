@@ -106,6 +106,13 @@ type Options struct {
 	// the report carries it under "healed" so a slow first run is
 	// explained.
 	Healed []string
+	// Break stops the run at a breakpoint (#280): after a declared stage,
+	// at a game tick or at a run-phase minute. The case is cut there, a
+	// "break" bundle is taken into its ring and the game is left loaded
+	// and paused on the kept process; the ring's Next names the bundle
+	// for `acceptance resume`. Needs the ring (CheckpointEvery > 0); the
+	// run appends no series row.
+	Break na.Breakpoint
 }
 
 // SeriesPath is where the run's series lives: Series, or the default
@@ -144,8 +151,9 @@ func (o Options) CaseOutput(c Case) string {
 // (na.Drift); neither changes the verdict.
 func Execute(ctx context.Context, c Case, opts Options) (na.Report, int) {
 	output := opts.CaseOutput(c)
-	if opts.Dev {
-		// An iteration over a pinned bundle is not a measurement of the case.
+	if opts.Dev || !opts.Break.IsZero() {
+		// An iteration over a pinned bundle, or a run cut at a breakpoint,
+		// is not a measurement of the case.
 		opts.NoSeries = true
 	}
 	headless := opts.Headless && !c.Rendered
@@ -219,14 +227,22 @@ func Execute(ctx context.Context, c Case, opts Options) (na.Report, int) {
 	runCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	err := execute(runCtx, c, opts, output, report)
-	if err != nil {
+	switch {
+	case errors.Is(err, errBroke):
+		// Paused at the breakpoint: neither passed nor failed; the report's
+		// "break" block says where (Finalize exits na.ExitBreak).
+		delete(report, "passed")
+	case err != nil:
 		report["error"] = err.Error()
 		diagnose(ctx, output, report)
-	} else {
+	default:
 		report["passed"] = true
 	}
 	return report, code()
 }
+
+// errBroke is what execute returns for a run paused at its breakpoint.
+var errBroke = errors.New("paused at breakpoint")
 
 // diagnose writes the postmortem digest of a failed case (#278) onto the
 // report ("diagnosis", which Finalize emits first) and to
@@ -245,6 +261,9 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 	}
 	if c.Serve != nil && opts.Rimgovernor == "" {
 		return fmt.Errorf("case %s launches rimgovernor serve: run it with -rimgovernor <absolute path to a prebuilt binary>", c.Name)
+	}
+	if err := checkBreak(c, &opts); err != nil {
+		return err
 	}
 	if err := StageSaves(c.Start, opts.Root); err != nil {
 		return err
@@ -390,13 +409,22 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 		report["prepared"] = staged.entry.Prepared
 	}
 	ring := newRing(c, opts, s, cfg, output, resumed, staged, report)
+	// A tripped breakpoint cuts the Run body through its context, with
+	// the BreakError as the cause (na.Broke reads it back).
+	runCtx, cutRun := context.WithCancelCause(ctx)
+	defer cutRun(nil)
 	if ring != nil {
+		ring.Break = opts.Break
+		ring.OnBreak = func(reason string) { cutRun(&na.BreakError{Reason: reason}) }
 		ring.Activate()
 	}
 	s.ring, s.stages, s.runStarted = ring, newStages(c, opts, s, cfg, output, staged, report), time.Now()
-	runErr := c.Run(ctx, s)
+	runErr := c.Run(runCtx, s)
 	if len(c.Stages) > 0 {
 		report["stages"] = s.stageRows
+	}
+	if broke := na.Broke(runCtx); broke != nil && ctx.Err() == nil {
+		return breakRun(c, opts, s, ring, resumed, broke, report)
 	}
 	if runErr == nil && c.Postmortem != nil {
 		runErr = s.postmortem(ctx)
@@ -529,10 +557,16 @@ func planDev(c Case, opts Options, log io.Writer) (resumption, error) {
 // ring index comes along when the bundle is one of its entries.
 func postmortemBundle(c Case, opts Options) (na.Checkpoint, *na.Ring, error) {
 	return namedBundle(c, opts, func(ring *na.Ring) (string, error) {
-		if ring == nil || ring.Failed == nil {
-			return "", fmt.Errorf("no failed bundle of %s in %s: a plain run that fails leaves one, or name a bundle with -from", c.Name, opts.RingDir(c))
+		switch {
+		case ring != nil && ring.Failed != nil:
+			return ring.Failed.Path, nil
+		case ring != nil && ring.Break != nil:
+			// A run paused at a breakpoint (#280) left its state instead.
+			if e, ok := ring.Entry(na.BreakCheckpoint); ok {
+				return e.Path, nil
+			}
 		}
-		return ring.Failed.Path, nil
+		return "", fmt.Errorf("no failed bundle of %s in %s: a plain run that fails leaves one, or name a bundle with -from", c.Name, opts.RingDir(c))
 	})
 }
 
