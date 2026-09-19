@@ -12,6 +12,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
@@ -91,6 +92,10 @@ type Worker struct {
 	paused     bool
 	stopSeq    uint64
 	pauseFocus map[domain.ActionID]bool
+	// staleRetried names the dispatches this stop has already retried
+	// after a stale_facts hold (#288), so a hold that survives its retry
+	// releases the clock instead of holding it for another round.
+	staleRetried map[domain.ActionID]bool
 }
 
 // workerBurstMax bounds the steps one wake or advance runs back to back.
@@ -113,6 +118,9 @@ type workerWait struct {
 	// outcome next changes so a reader can see how long the hold lasted.
 	outcome string
 	repeats int
+	// stale records that the run was held on stale facts (workerHeldStale):
+	// the next stop is a new observation, so it is retried there at once.
+	stale bool
 }
 
 // workerOutcome keys one action run by what a reader of the log needs to
@@ -244,6 +252,7 @@ const workerFocusMax = 64
 func (w *Worker) takeWake() {
 	if stop, stopped := w.config.Wake.TakeStop(); stopped {
 		w.paused, w.stopSeq = true, stop
+		w.staleRetried = nil
 	}
 	woken, _ := w.config.Wake.Take()
 	if len(woken) == 0 {
@@ -348,7 +357,16 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 				// can be made in the second or so between windows and at no
 				// other time, so a stop retries every one of them at once
 				// instead of on a backoff that lands mid-window (#129).
-				if w.paused && !cleanup && workerPauseBound(progress.Action().Kind(), v) {
+				// A dispatch held on stale facts is retried at the next stop
+				// the same way: the stop is the observation it waits for
+				// (#288).
+				if w.paused && !cleanup && (workerPauseBound(progress.Action().Kind(), v) || w.waits[v.Action].stale) {
+					if w.waits[v.Action].stale {
+						if w.staleRetried == nil {
+							w.staleRetried = map[domain.ActionID]bool{}
+						}
+						w.staleRetried[v.Action] = true
+					}
 					if w.focus == nil {
 						w.focus = map[domain.ActionID]WakeOutcome{}
 					}
@@ -445,6 +463,27 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 		if w.advanced && w.config.Advanced != nil {
 			w.config.Advanced()
 		}
+		// A dispatch held on stale facts between windows (the authority
+		// moved under its inspection) clears on the next observation, so
+		// it is retried at once and the clock is held for that retry: a
+		// window admitted first lets the game's own work scanner take the
+		// order's target before the retry dispatches it (#288). One retry
+		// per stop; a hold that survives it releases the clock.
+		stale := !candidate.cleanup && workerHeldStale(after, result, err)
+		if stale && !running && !w.staleRetried[v.Action] {
+			if w.staleRetried == nil {
+				w.staleRetried = map[domain.ActionID]bool{}
+			}
+			w.staleRetried[v.Action] = true
+			if w.focus == nil {
+				w.focus = map[domain.ActionID]WakeOutcome{}
+			}
+			if w.pauseFocus == nil {
+				w.pauseFocus = map[domain.ActionID]bool{}
+			}
+			w.focus[v.Action] = WakeOutcome{Action: v.Action, Attempt: after.Attempt}
+			w.pauseFocus[v.Action] = true
+		}
 		// One line per change of outcome, in either log: a refusal that
 		// repeats verbatim on every retry (a CAS token that never matches, a
 		// native read refused for the same reason) would otherwise dominate
@@ -461,7 +500,7 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 		} else {
 			repeats++
 		}
-		w.waits[v.Action] = workerWait{cleanup: candidate.cleanup, view: after, scope: workerScope(w.session.State()), delay: delay, until: now.Add(delay), outcome: outcome, repeats: repeats}
+		w.waits[v.Action] = workerWait{cleanup: candidate.cleanup, view: after, scope: workerScope(w.session.State()), delay: delay, until: now.Add(delay), outcome: outcome, repeats: repeats, stale: stale}
 		return errors.Join(worldErr, err)
 	}
 	return worldErr
@@ -552,6 +591,35 @@ func workerPauseBound(kind domain.ActionKind, v domain.ProgressView) bool {
 		return false
 	}
 	return !v.Unresolved && (v.Stage == domain.Pending || v.Stage == domain.Prepared)
+}
+
+// workerHeldStale reports a run held before dispatch on facts from a
+// generation or tick the current one has outrun: the executor's stale_facts
+// refusal, or an emergency hold recorded for the same reason. Such a hold is
+// expected to clear on the next observation, unlike a refusal that names a
+// world condition (stock, geometry, an unavailable pawn).
+func workerHeldStale(after domain.ProgressView, result executor.Result, err error) bool {
+	if !errors.Is(err, executor.ErrHeld) || after.Unresolved || after.Stage != domain.Pending && after.Stage != domain.Prepared {
+		return false
+	}
+	for _, refusal := range result.Refused {
+		if refusal.Reason == policy.StaleFacts {
+			return true
+		}
+	}
+	if len(result.Refused) > 0 {
+		return false
+	}
+	held, known := after.HeldReason.Value()
+	if !known {
+		return false
+	}
+	for _, reason := range held.Reasons() {
+		if reason == domain.HeldStaleFacts {
+			return true
+		}
+	}
+	return false
 }
 
 func workerEligible(plan store.PlanState, v domain.ProgressView, scope ControlState, world store.World) bool {

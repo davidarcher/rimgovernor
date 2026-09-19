@@ -458,6 +458,14 @@ coverage, the kinds whose native tools still need a paused map; every other
 kind, the apply-time-validated acquisition and husbandry kinds included,
 dispatches under the running window, #243) for that stop tried
 (`WakeSignal.PauseDrained`, #129), bounded by `clockPauseDrainMax` (5 s)
+since the last admission the worker reported tried. A dispatch of any kind
+the executor held on `stale_facts` between windows (its inspection ran
+under a generation or tick the current one had outrun) counts as that
+pause work too (`workerHeldStale`, #288): the worker retries it at once,
+off its backoff, once per stop, and again at each later stop while the
+hold lasts, so the order re-inspects and dispatches at the tick it was
+planned on instead of a window running first and the game's own work
+scanner taking its target. The wait is bounded by `clockPauseDrainMax` (5 s)
 since the last admission the worker reported tried
 (`WakeSignal.PauseProgressed`, #211) and by `clockPauseDrainTotal` (2 min)
 in all, so a backlog of pause-bound actions lands in one stop; a window

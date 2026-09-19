@@ -1,9 +1,14 @@
 package buildingruntime
 
 import (
+	"context"
+	"errors"
 	"testing"
+	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/executor"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	"google.golang.org/protobuf/proto"
 )
@@ -176,5 +181,113 @@ func TestWakeSignalPauseProgress(t *testing.T) {
 	w.ReportPauseWork(stop, 0)
 	if progressed(ch) || !progressed(w.PauseDrained()) {
 		t.Fatal("the last report drains rather than progresses")
+	}
+}
+
+// A dispatch held on stale_facts between windows is retried at once and
+// counted as pause work until then, so the stop holds the next window for
+// the retry rather than letting the game's own work scanner take the
+// order's target first (#288); one retry per stop, so a hold that survives
+// it releases the clock, and a hold under a running window is left to its
+// backoff.
+func TestWorkerStaleHoldHoldsClockForOneRetry(t *testing.T) {
+	t.Parallel()
+	w, f, db := workerFixture(t)
+	v := workerPending(t, w, "stale", false)
+	f.mu.Lock()
+	f.state = ControlState{Snapshot: v.Snapshot, ObservationKnown: true, Enabled: true}
+	f.mu.Unlock()
+	wake := NewWakeSignal()
+	w.config.Wake = wake
+	defer wake.AttachWorker()()
+	running := false
+	w.config.WindowRunning = func() bool { return running }
+	held := true
+	f.run = func(ctx context.Context, p domain.PlanID, a domain.ActionID) (executor.Result, error) {
+		plan, err := db.LoadPlan(ctx, p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		result := executor.Result{Progress: plan.Progress[0]}
+		if held {
+			result.Refused = []policy.Refusal{{Action: a, Reason: policy.StaleFacts}}
+			return result, executor.ErrHeld
+		}
+		return result, nil
+	}
+	wake.NotifyStopped(nil, nil, false, true)
+	now := time.Now()
+	step := func() {
+		t.Helper()
+		if err := w.step(context.Background(), now); err != nil && !errors.Is(err, executor.ErrHeld) {
+			t.Fatal(err)
+		}
+		wake.ReportPauseWork(w.stopSeq, len(w.pauseFocus))
+	}
+	drained := func() bool {
+		select {
+		case <-wake.PauseDrained():
+			return true
+		default:
+			return false
+		}
+	}
+	step()
+	if f.runs.Load() != 1 || drained() || len(w.focus) != 1 || !w.pauseFocus[v.Action] {
+		t.Fatal("a stale hold at the stop is pause work with the retry focused", f.runs.Load(), drained(), w.focus, w.pauseFocus)
+	}
+	step()
+	if f.runs.Load() != 2 || !drained() || len(w.pauseFocus) != 0 {
+		t.Fatal("the retry ran at once and a surviving hold released the clock", f.runs.Load(), drained(), w.pauseFocus)
+	}
+	step()
+	if f.runs.Load() != 2 {
+		t.Fatal("a surviving hold is back on its backoff, not retried again this stop")
+	}
+	// The next stop is a new observation: the held dispatch is retried
+	// there at once, off its backoff, and once only.
+	wake.NotifyStopped(nil, nil, false, true)
+	step()
+	if f.runs.Load() != 3 || !drained() || len(w.pauseFocus) != 0 {
+		t.Fatal("a new stop retries the held dispatch once", f.runs.Load(), drained(), w.pauseFocus)
+	}
+	step()
+	if f.runs.Load() != 3 {
+		t.Fatal("retried once per stop")
+	}
+	held = false
+	wake.NotifyStopped(nil, nil, false, true)
+	step()
+	if f.runs.Load() != 4 || !drained() {
+		t.Fatal("the retry dispatched and drained the stop", f.runs.Load(), drained())
+	}
+	// Under a running window the hold is ordinary backoff work.
+	held, running = true, true
+	wake.NotifyStopped(nil, nil, false, true)
+	w.waits = map[domain.ActionID]workerWait{}
+	step()
+	if f.runs.Load() != 5 || !drained() || len(w.pauseFocus) != 0 {
+		t.Fatal("a hold under a running window is not pause work", f.runs.Load(), drained(), w.pauseFocus)
+	}
+}
+
+func TestWorkerHeldStale(t *testing.T) {
+	t.Parallel()
+	pending := domain.ProgressView{Stage: domain.Pending}
+	stale := executor.Result{Refused: []policy.Refusal{{Reason: policy.StaleFacts}}}
+	if !workerHeldStale(pending, stale, executor.ErrHeld) {
+		t.Fatal("stale_facts refusal held")
+	}
+	if workerHeldStale(pending, stale, nil) || workerHeldStale(pending, stale, executor.ErrEvidence) {
+		t.Fatal("only a hold counts")
+	}
+	if workerHeldStale(pending, executor.Result{Refused: []policy.Refusal{{Reason: policy.InsufficientStock}}}, executor.ErrHeld) {
+		t.Fatal("a world-condition refusal is not stale facts")
+	}
+	if workerHeldStale(domain.ProgressView{Stage: domain.AwaitingObservation, Unresolved: true}, stale, executor.ErrHeld) {
+		t.Fatal("a dispatched attempt is reconciliation, not a held dispatch")
+	}
+	if workerHeldStale(pending, executor.Result{}, executor.ErrHeld) {
+		t.Fatal("a bare hold names no reason")
 	}
 }
