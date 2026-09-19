@@ -16,10 +16,31 @@ namespace HomeBridge.BridgeTools
         private static Thing rice;
 
         [Tool("test/routine_temperature_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Prepare sleeping spots and native construction/fuel materials in a disposable roofed room. Initialize the room at actual outdoor temperature once; never create thermal facilities or force pawn construction/refueling jobs.")]
-        public async Task<object> RoutineTemperature(IRimBridgeContext ctx, CancellationToken cancellationToken, int x, int z, bool hot = false)
+        public async Task<object> RoutineTemperature(IRimBridgeContext ctx, CancellationToken cancellationToken, int x, int z, bool hot = false,
+            [ToolParameter(Description = "When the outdoor temperature is too warm for the cold method, register ordinary ColdSnap conditions (ramp already complete) sized on the day's peak so the whole run stays under the cold threshold; no direct temperature edit.", DefaultValue = false)] bool coldSnap = false)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
+                var coldSnaps = 0;
+                if (coldSnap && !hot && map != null && map.mapTemperature.OutdoorTemp >= 12) {
+                    var snapDef = DefDatabase<GameConditionDef>.GetNamedSilentFail("ColdSnap");
+                    if (snapDef == null) throw new InvalidOperationException("ColdSnap unavailable in this ruleset.");
+                    // The sun cycle swings +-7C, so size the snaps on the day's
+                    // peak (as FarmEnvironmentFixture does): each snap is -20C.
+                    var peak = map.mapTemperature.OutdoorTemp - GenTemperature.OffsetFromSunCycle(Find.TickManager.TicksAbs, map.Tile) + 7f;
+                    var snaps = System.Math.Max(1, System.Math.Min(3, (int)System.Math.Ceiling((peak - 4f) / 20f)));
+                    for (var i = 0; i < snaps; i++) {
+                        var snap = GameConditionMaker.MakeCondition(snapDef, 4 * 60000 + 12000);
+                        map.gameConditionManager.RegisterCondition(snap);
+                        // RegisterCondition clamps startTick up to now; move it
+                        // back afterwards so the ramp-in is already complete.
+                        snap.startTick = Find.TickManager.TicksGame - 12000;
+                        coldSnaps++;
+                    }
+                    // The tile temperature cache is keyed on the game tick and
+                    // the game is paused: drop it so OutdoorTemp carries the snaps.
+                    Find.World.tileTemperatures.ClearCaches();
+                }
                 if (map == null || !Find.TickManager.Paused) throw new InvalidOperationException("Paused disposable map required.");
                 var center = new IntVec3(x, 0, z);
                 var room = center.GetRoom(map);
@@ -70,7 +91,7 @@ namespace HomeBridge.BridgeTools
                 // normal simulation determine every subsequent room temperature.
                 room.Temperature = outdoor;
                 return new { success = true, hot, definition = definition.defName, beds = beds.ToArray(),
-                    outdoorTemperature = outdoor, roomTemperature = room.Temperature, requiredConstruction = definition.constructionSkillPrerequisite,
+                    outdoorTemperature = outdoor, coldSnaps, roomTemperature = room.Temperature, requiredConstruction = definition.constructionSkillPrerequisite,
                     cells = cells.Select(c => new { x = c.x, z = c.z }).ToArray(), setupOnly = true };
             }, cancellationToken);
         }

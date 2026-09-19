@@ -45,11 +45,16 @@
 //	                   must place a heat source and recover on the measured
 //	                   sleeping temperature. Fails fast when the rolled map is
 //	                   too warm for the fixture (rerun as a fresh process).
+//	campaign        -- issue #99: kitchen (test/cleanliness_prepare), feed,
+//	                   medicine and cold chained on one colony and one
+//	                   journal with a service restart between them; every
+//	                   goal recovered earlier must stay closed (campaign.go).
 //
 // Every case opens on the tribal8 baseline save (the fixture stages its
 // deficit on the loaded map) so a kept process serves the whole family.
 // Needs the native mod built with -Fixture
-// UpkeepFixture,ForecastFixture,RoutineSleepingFixture.
+// UpkeepFixture,ForecastFixture,RoutineSleepingFixture (the campaign adds
+// CleanlinessFixture).
 package upkeep
 
 import (
@@ -1261,25 +1266,36 @@ func verifySleeping(ctx context.Context, h *na.Harness, identity, prepared map[s
 // ---- cold ----------------------------------------------------------------
 
 func prepareCold(ctx context.Context, h *na.Harness, identity map[string]any, report na.Report) (map[string]any, error) {
-	room, err := callFixture(ctx, h, identity, "test/routine_sleeping_prepare", map[string]any{"outdoorSite": false})
-	if err != nil {
-		return nil, err
-	}
-	report["room"] = room
-	center, _ := na.AsMap(room["center"])
-	prepared, err := h.Call(ctx, "prepare-temperature", "test/routine_temperature_prepare", map[string]any{
-		"x": int(na.AsNumber(center["x"])), "z": int(na.AsNumber(center["z"])), "hot": false,
-	})
-	if err != nil {
-		if strings.Contains(err.Error(), "outdoor temperature") {
-			return nil, fmt.Errorf("rolled map is not cold enough for the campfire fixture; rerun as a fresh process: %w", err)
+	return prepareColdWith(false)(ctx, h, identity, report)
+}
+
+// prepareColdWith stages the cold room; coldSnap lets the fixture register
+// ordinary ColdSnap conditions when the map has warmed past the campfire
+// threshold (a colony that has already played for days, as in the campaign)
+// instead of failing fast.
+func prepareColdWith(coldSnap bool) func(ctx context.Context, h *na.Harness, identity map[string]any, report na.Report) (map[string]any, error) {
+	return func(ctx context.Context, h *na.Harness, identity map[string]any, report na.Report) (map[string]any, error) {
+		room, err := callFixture(ctx, h, identity, "test/routine_sleeping_prepare", map[string]any{"outdoorSite": false})
+		if err != nil {
+			return nil, err
 		}
-		return nil, err
+		report["room"] = room
+		center, _ := na.AsMap(room["center"])
+		prepared, err := h.Call(ctx, "prepare-temperature", "test/routine_temperature_prepare", map[string]any{
+			"x": int(na.AsNumber(center["x"])), "z": int(na.AsNumber(center["z"])), "hot": false, "coldSnap": coldSnap,
+		})
+		if err != nil {
+			if strings.Contains(err.Error(), "outdoor temperature") {
+				return nil, fmt.Errorf("rolled map is not cold enough for the campfire fixture; rerun as a fresh process: %w", err)
+			}
+			return nil, err
+		}
+		if success, _ := na.AsBool(prepared["success"]); !success {
+			return nil, fmt.Errorf("routine_temperature_prepare refused: %#v", prepared)
+		}
+		report["cold_snaps"] = prepared["coldSnaps"]
+		return prepared, nil
 	}
-	if success, _ := na.AsBool(prepared["success"]); !success {
-		return nil, fmt.Errorf("routine_temperature_prepare refused: %#v", prepared)
-	}
-	return prepared, nil
 }
 
 func watchCold(ctx context.Context, journal *store.Store, prepared map[string]any, report na.Report) error {
