@@ -64,8 +64,11 @@ func TestWorkflowSuiteWorkingDirectory(t *testing.T) {
 	}
 	write(filepath.Join(workspace, "package", na.PackageManifestName), string(manifest))
 	wrapper := filepath.Join(workspace, "suite.ps1")
-	write(wrapper, `& $env:RG_CWD_TEST_EXE '-test.run=^TestWorkflowCWDProbe$' '-test.v'
-if ($LASTEXITCODE) { throw 'cwd probe failed' }
+	write(wrapper, `if ((Get-Location).Path -cne (Join-Path $env:RG_CWD_WORKSPACE 'tested' 'go')) { throw 'incorrect suite cwd' }
+if ($env:RG_CWD_OUTCOME -eq '0') {
+    & $env:RG_CWD_TEST_EXE '-test.run=^TestWorkflowCWDProbe$' '-test.v'
+    if ($LASTEXITCODE) { throw 'cwd probe failed' }
+}
 if ($env:RG_CWD_OUTCOME -eq 'throw') { throw 'synthetic suite exception' }
 $global:LASTEXITCODE = [int]$env:RG_CWD_OUTCOME
 `)
@@ -86,6 +89,8 @@ $launch = [scriptblock]::Create($body.Substring(1, $body.Length - 2))
 $job = @{bootstrap=(Join-Path $Workspace 'bootstrap.json');role='fixture';output=$Workspace}
 $rows = @(@{mod_role='fixture';name='synthetic/probe'})
 $deadline = [DateTime]::UtcNow.AddMinutes(1)
+foreach ($outcome in @('0', '7', 'throw')) {
+$env:RG_CWD_OUTCOME = $outcome
 $bad = $false
 $before = (Get-Location).Path
 $caught = $false
@@ -96,16 +101,15 @@ try { . $launch } catch {
 if ((Get-Location).Path -cne $before) { throw 'suite cwd was not restored' }
 if ($caught -ne ($env:RG_CWD_OUTCOME -eq 'throw')) { throw 'incorrect exception result' }
 if ($bad -ne ($env:RG_CWD_OUTCOME -eq '7')) { throw 'incorrect suite exit handling' }
+}
 `)
-	for _, outcome := range []string{"0", "7", "throw"} {
-		t.Run(outcome, func(t *testing.T) {
-			cmd := exec.Command(pwsh, "-NoProfile", "-File", harness, script, repo, workspace)
-			cmd.Dir = workspace
-			cmd.Env = append(os.Environ(), "RG_CWD_TEST_EXE="+exe, "RG_CWD_WORKSPACE="+workspace, "RG_CWD_OUTCOME="+outcome, "GOWORK=off", na.AllowStaleModEnv+"=")
-			if out, err := cmd.CombinedOutput(); err != nil {
-				t.Fatalf("hosted suite launch: %v\n%s", err, out)
-			}
-		})
+	// One PowerShell host covers all exit paths; the native input and helper
+	// build probes only need to run once in the suite's working directory.
+	cmd := exec.Command(pwsh, "-NoProfile", "-File", harness, script, repo, workspace)
+	cmd.Dir = workspace
+	cmd.Env = append(os.Environ(), "RG_CWD_TEST_EXE="+exe, "RG_CWD_WORKSPACE="+workspace, "GOWORK=off", na.AllowStaleModEnv+"=")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("hosted suite launch: %v\n%s", err, out)
 	}
 }
 

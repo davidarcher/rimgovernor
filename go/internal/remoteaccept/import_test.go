@@ -124,45 +124,85 @@ func zipTree(t *testing.T, root string) []byte {
 	}
 	return b.Bytes()
 }
-func importFixture(t *testing.T) (recordedAPI, Provenance, string, *fixture) {
+func importFixture(t *testing.T) (recordedAPI, Provenance, string, Run) {
 	t.Helper()
 	repo, base, head := sourceRepo(t)
-	f := fixtureRun(t)
-	f.run.BaseCommit = base
-	f.run.TestedCommit = head
-	f.selection.Planner = head
-	f.selection.Changed = []string{"task.txt"}
-	for i := range f.attempts {
-		for j := range f.attempts[i].Attempts {
-			f.native(t, i, j, func(m map[string]json.RawMessage) { delete(m, "fixture_only") })
+	// Assemble the authenticated archive in memory. Download exercises the real
+	// disk path; copying, rewriting and evaluating a staging tree first doubles
+	// fixture IO without adding import coverage. Keep all six cases/two shards.
+	source := filepath.Join("..", "..", "..", "docs", "developers", "contracts", "remote-acceptance")
+	var archiveBytes bytes.Buffer
+	z := zip.NewWriter(&archiveBytes)
+	add := func(path string, data []byte) Ref {
+		t.Helper()
+		w, err := z.Create(path)
+		if err != nil {
+			t.Fatal(err)
 		}
+		if _, err := w.Write(data); err != nil {
+			t.Fatal(err)
+		}
+		return Ref{Path: path, SHA256: hash(data)}
 	}
-	e, err := f.evaluate(t)
+	var run Run
+	readTest(t, source, "run.json", &run)
+	bundle, err := os.ReadFile(filepath.Join(source, run.Bundle.Path))
 	if err != nil {
 		t.Fatal(err)
 	}
-	writeTest(t, f.root, "aggregate.json", e.Aggregate)
-	p := Provenance{Trust: Trust{Repository: f.run.Repository, Workflow: ".github/workflows/acceptance.yml", WorkflowCommit: f.run.WorkflowCommit, BundleSHA256: f.run.Bundle.SHA256}, ArtifactID: 10, RunID: f.run.Trigger.RunID, Attempt: f.run.Trigger.Attempt}
-	archive := zipTree(t, f.root)
+	add(run.Bundle.Path, bundle)
+	run.BaseCommit, run.TestedCommit = base, head
+	r := add("run.json", jsonBytes(t, run))
+	var selection Selection
+	readTest(t, source, "selection.json", &selection)
+	selection.Run, selection.Planner = r, head
+	selection.Changed = []string{"task.txt"}
+	s := add("selection.json", jsonBytes(t, selection))
+	var aggregate Aggregate
+	readTest(t, source, "aggregate.json", &aggregate)
+	aggregate.Run, aggregate.Selection = r, s
+	for i := range aggregate.Shards {
+		shard := &aggregate.Shards[i]
+		var attempts Attempts
+		readTest(t, source, shard.Attempts.Path, &attempts)
+		attempts.Run, attempts.Selection = r, s
+		bootstrap, err := os.ReadFile(filepath.Join(source, attempts.Runner.Bootstrap.Path))
+		if err != nil {
+			t.Fatal(err)
+		}
+		attempts.Runner.Bootstrap = add(attempts.Runner.Bootstrap.Path, bootstrap)
+		for j := range attempts.Attempts {
+			a := &attempts.Attempts[j]
+			var row map[string]json.RawMessage
+			readTest(t, source, a.Evidence.Path, &row)
+			delete(row, "fixture_only")
+			a.Evidence = add(a.Evidence.Path, jsonBytes(t, row))
+		}
+		ref := add(shard.Attempts.Path, jsonBytes(t, attempts))
+		shard.Attempts = &ref
+	}
+	add("aggregate.json", jsonBytes(t, aggregate))
+	if err := z.Close(); err != nil {
+		t.Fatal(err)
+	}
+	p := Provenance{Trust: Trust{Repository: run.Repository, Workflow: ".github/workflows/acceptance.yml", WorkflowCommit: run.WorkflowCommit, BundleSHA256: run.Bundle.SHA256}, ArtifactID: 10, RunID: run.Trigger.RunID, Attempt: run.Trigger.Attempt}
+	archive := archiveBytes.Bytes()
 	api := recordedAPI{}
 	api["repos/"+p.Trust.Repository+"/actions/runs/1000/attempts/1"] = jsonBytes(t, map[string]any{"id": 1000, "run_attempt": 1, "head_sha": p.Trust.WorkflowCommit, "path": p.Trust.Workflow, "event": "workflow_dispatch", "status": "completed", "conclusion": "success", "repository": map[string]string{"full_name": p.Trust.Repository}, "head_repository": map[string]string{"full_name": p.Trust.Repository}})
 	api["repos/"+p.Trust.Repository+"/actions/artifacts/10"] = jsonBytes(t, map[string]any{"id": 10, "expired": false, "digest": "sha256:" + hash(archive), "size_in_bytes": len(archive), "workflow_run": map[string]any{"id": 1000, "head_sha": p.Trust.WorkflowCommit}})
 	api["repos/"+p.Trust.Repository+"/actions/artifacts/10/zip"] = archive
-	return api, p, repo, f
+	return api, p, repo, run
 }
 func TestCompleteImportAndNormalMainMerge(t *testing.T) {
-	api, p, repo, f := importFixture(t)
+	api, p, repo, run := importFixture(t)
 	out := filepath.Join(t.TempDir(), "import")
 	if err := Download(api, p, out, repo); err != nil {
 		t.Fatal(err)
 	}
 	root := filepath.Join(out, "evidence")
-	if _, err := VerifyImported(root, repo, p.Trust, api); err != nil {
-		t.Fatal(err)
-	}
 	// A peer moves main. Evidence is associated before the lane merges it.
 	testGit(t, repo, "update-ref", "refs/heads/main", "peer")
-	if err := VerifySource(repo, f.run); err != nil {
+	if _, err := VerifyImported(root, repo, p.Trust, api); err != nil {
 		t.Fatal(err)
 	}
 	testGit(t, repo, "merge", "--no-edit", "main")
@@ -172,11 +212,11 @@ func TestCompleteImportAndNormalMainMerge(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(repo, "task.txt"), []byte("uncovered"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := VerifySource(repo, f.run); err == nil {
+	if err := VerifySource(repo, run); err == nil {
 		t.Fatal("dirty task accepted")
 	}
 	testGit(t, repo, "commit", "-qam", "uncovered change")
-	if err := VerifySource(repo, f.run); err == nil {
+	if err := VerifySource(repo, run); err == nil {
 		t.Fatal("wrong source accepted")
 	}
 }
