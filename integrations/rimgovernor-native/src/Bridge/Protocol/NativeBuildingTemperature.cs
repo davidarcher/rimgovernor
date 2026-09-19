@@ -32,7 +32,7 @@ namespace HomeBridge.BridgeTools
             && NativeDraftProtocol.ValidEntity(command.Building) && command.HasTargetTemperature
             && !float.IsNaN(command.TargetTemperature) && !float.IsInfinity(command.TargetTemperature)
             && command.TargetTemperature >= MinCelsius && command.TargetTemperature <= MaxCelsius
-            && !command.HasForbidden && !command.HasPower && !command.HasMedical && !command.HasPlantDef
+            && !command.HasForbidden && !command.HasPower && !command.HasMedical && !command.HasPlantDef && !command.HasClaim
             && command.Owner == null && !command.HasForPrisoners;
 
         internal static bool Eligible(Thing thing) => thing != null && !thing.Destroyed

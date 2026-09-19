@@ -7,28 +7,35 @@ import (
 	"sort"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
 
 // RoutineShrineSource is the shrine census plus the readiness reads (#457)
-// the breach goal judges from.
+// the breach goal judges from, and the claim target read (#459) that
+// gives each empty casket its CAS token.
 type RoutineShrineSource interface {
 	observation.ColonySource
 	observation.ShrineSource
 	shrineReadinessNative
+	ReadClaimBuildingTarget(context.Context, *c.Identity, string) (bridge.ClaimBuildingTarget, bridge.Result, error)
 }
 
-// RoutineShrinePlanner composes the ClearAncientShrine goal's one method
-// (#458): when readiness reads Ready for a sealed shrine touching Home it
-// drafts the squad to standing cells behind the trap line and designates
-// the chosen wall for an in-place deconstruction. The wall falling is the
-// method's end: the plan has no open work, the worker releases the owned
-// drafts and ActiveCombat answers the guards. Ranged breaching is not
-// composed; it needs an attack-building order.
+// RoutineShrinePlanner composes the ClearAncientShrine goal's methods:
+// the breach (#458), when readiness reads Ready for a sealed shrine
+// touching Home it drafts the squad to standing cells behind the trap
+// line and designates the chosen wall for an in-place deconstruction (the
+// wall falling is the method's end: the plan has no open work, the worker
+// releases the owned drafts and ActiveCombat answers the guards); and the
+// claim (#459), once the shrine is open and guard-free every empty casket
+// the player does not own is claimed in one method. Filled caskets are
+// left sealed. Ranged breaching is not composed; it needs an
+// attack-building order.
 type RoutineShrinePlanner struct {
 	reviewer *RoutineReviewer
 	native   RoutineShrineSource
@@ -144,6 +151,12 @@ func (r *RoutineShrinePlanner) step(call, epoch context.Context, arbiter *stepAr
 		return RoutineShrineResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	sort.Slice(candidates, func(i, j int) bool { return candidates[i].ID < candidates[j].ID })
+	claims := policy.ShrineClaimTargets(candidates)
+	for _, shrine := range candidates {
+		if caskets := claims[shrine.ID]; len(caskets) > 0 {
+			return r.claim(call, epoch, state, goal, shrine, caskets, started)
+		}
+	}
 	reports, err := shrineReadiness(call, r.native, boundary.Identity(state.Snapshot), candidates, nil, colony.Projection.Threat.RaidPoints, colony.Projection.Center, colony.Projection.Bounds)
 	if err != nil {
 		return RoutineShrineResult{}, err
@@ -161,6 +174,61 @@ func (r *RoutineShrinePlanner) step(call, epoch context.Context, arbiter *stepAr
 		return r.breach(call, epoch, state, goal, shrine, report, colony.Projection, started, arbiter)
 	}
 	return held, nil
+}
+
+// claim commits one open, guard-free shrine's casket method: a
+// ClaimBuilding for every empty casket the player does not own, each under
+// the CAS token a fresh target read gives it. A casket the read already
+// shows as the player's (a census a tick behind) is skipped; a claim
+// refused natively surfaces as the action's own unsuccessful outcome.
+func (r *RoutineShrinePlanner) claim(call, epoch context.Context, state ControlState, goal store.GoalState, shrine policy.AncientShrine, caskets []policy.ShrineCasket, started time.Time) (RoutineShrineResult, error) {
+	p := r.reviewer.player
+	prefix := fmt.Sprintf("claim-%s-", shrine.ID)
+	attempt := medicalAttemptCount(goal.Methods, goal.Goal.Epoch, prefix)
+	if attempt >= maxMedicalAttemptsPerPatient {
+		return RoutineShrineResult{Reason: BuildingMethodExhausted, Shrine: shrine.ID}, nil
+	}
+	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
+	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
+	id := domain.PlanID(fmt.Sprintf("routine-shrine-%x", digest[:16]))
+	identity := boundary.Identity(state.Snapshot)
+	var actions []domain.Action
+	for _, casket := range caskets {
+		target, _, err := r.native.ReadClaimBuildingTarget(call, identity, casket.EntityID)
+		if err != nil {
+			return RoutineShrineResult{}, err
+		}
+		if target.PlayerOwned {
+			continue
+		}
+		value, err := domain.NewClaimBuilding(casket.EntityID, target.Token)
+		if err != nil {
+			return RoutineShrineResult{}, err
+		}
+		action, err := domain.NewClaimBuildingAction(domain.ActionID(fmt.Sprintf("%s-claim-%s", id, casket.EntityID)), value)
+		if err != nil {
+			return RoutineShrineResult{}, err
+		}
+		actions = append(actions, action)
+	}
+	if len(actions) == 0 {
+		return RoutineShrineResult{Reason: BuildingMethodNoDeficit, Shrine: shrine.ID}, nil
+	}
+	plan, err := domain.NewPlan(id, 1, actions)
+	if err != nil {
+		return RoutineShrineResult{}, err
+	}
+	if err = p.current(call, epoch); err != nil {
+		return RoutineShrineResult{}, err
+	}
+	elapsed := r.reviewer.clock.Now().Sub(started)
+	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
+		return RoutineShrineResult{}, ErrControl
+	}
+	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+		return RoutineShrineResult{}, err
+	}
+	return RoutineShrineResult{Reason: BuildingMethodAdmitted, Plan: id, Shrine: shrine.ID}, nil
 }
 
 // breach commits one sealed shrine's method: an owned draft and a move to a

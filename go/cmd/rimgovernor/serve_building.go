@@ -19,6 +19,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/buildingtemperature"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/capture"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/claimbuilding"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/cutplant"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/draft"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/equip"
@@ -146,6 +147,7 @@ type buildingServiceBridge struct {
 	buildingTemperature *buildingtemperature.Capabilities
 	bedMedical          *bedmedical.Capabilities
 	growerCrop          *growercrop.Capabilities
+	claimBuilding       *claimbuilding.Capabilities
 	bedAssign           *bedassign.Capabilities
 	homeCoverage        *buildingruntime.HomeCoverageCapabilities
 	wallRemoval         *buildingruntime.WallRemovalCapabilities
@@ -303,6 +305,10 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
+	claimBuildingControl, err := bridge.NewClaimBuildingControl(client)
+	if err != nil {
+		return buildingServiceBridge{}, errors.Join(err, client.Close())
+	}
 	bedAssignWriter, err := bridge.NewBedAssignWriter(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
@@ -364,6 +370,7 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		buildingTemperature: &buildingtemperature.Capabilities{Native: client, Writer: buildingTemperatureControl},
 		bedMedical:          &bedmedical.Capabilities{Native: client, Writer: bedMedicalControl},
 		growerCrop:          &growercrop.Capabilities{Native: client, Writer: growerCropControl},
+		claimBuilding:       &claimbuilding.Capabilities{Native: client, Writer: claimBuildingControl},
 		bedAssign:           &bedassign.Capabilities{Native: client, Writer: bedAssignWriter},
 		homeCoverage:        &buildingruntime.HomeCoverageCapabilities{Native: client, Writer: homeCoverageWriter},
 		wallRemoval:         &buildingruntime.WallRemovalCapabilities{Native: client, Writer: wallRemovalWriter},
@@ -747,6 +754,14 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		growerCropCapabilities = client.growerCrop
 	}
+	// The shrine family claims empty caskets through the shared executor.
+	var claimBuildingCapabilities *claimbuilding.Capabilities
+	if config.routineShrinePlans {
+		if client.claimBuilding == nil {
+			return errors.New("shrine plans require typed capabilities")
+		}
+		claimBuildingCapabilities = client.claimBuilding
+	}
 	// The sleeping family transfers bed ownership through the shared executor.
 	var bedAssignCapabilities *bedassign.Capabilities
 	if config.routineSleepingPlans {
@@ -815,6 +830,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		BuildingTemperature: buildingTemperatureCapabilities,
 		BedMedical:          bedMedicalCapabilities,
 		GrowerCrop:          growerCropCapabilities,
+		ClaimBuilding:       claimBuildingCapabilities,
 		BedAssign:           bedAssignCapabilities,
 		HomeCoverage:        homeCoverageCapabilities,
 		WallRemoval:         wallRemovalCapabilities,

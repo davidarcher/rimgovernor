@@ -70,3 +70,29 @@ func TestShrineBreachPositionsStandBehindTheTrapLine(t *testing.T) {
 		t.Fatal(got)
 	}
 }
+
+func TestCasketDecisionAndClaimTargets(t *testing.T) {
+	t.Parallel()
+	empty := ShrineCasket{EntityID: "b-empty"}
+	filled := ShrineCasket{EntityID: "a-filled", HasContents: true}
+	mine := ShrineCasket{EntityID: "c-mine", PlayerClaimed: true}
+	sealed := AncientShrine{ID: "sealed", InHome: true, Sealed: true, Caskets: []ShrineCasket{empty}}
+	guarded := AncientShrine{ID: "guarded", InHome: true, GuardsKnown: true, Guards: []ShrineGuard{{EntityID: "g"}}, Caskets: []ShrineCasket{empty}}
+	open := AncientShrine{ID: "open", InHome: true, GuardsKnown: true, Guards: []ShrineGuard{{EntityID: "g", Dead: true}}, Caskets: []ShrineCasket{mine, filled, empty, {EntityID: "a-empty"}}}
+	away := AncientShrine{ID: "away", GuardsKnown: true, Caskets: []ShrineCasket{empty}}
+	if CasketDecision(empty, sealed) != CasketHoldSealed || CasketDecision(empty, guarded) != ShrineHoldGuardsAlive || CasketDecision(filled, open) != CasketLeaveSealed || CasketDecision(mine, open) != CasketClaimed || CasketDecision(empty, open) != CasketClaim {
+		t.Fatal("casket decisions")
+	}
+	claims := ShrineClaimTargets([]AncientShrine{sealed, guarded, open, away})
+	if len(claims) != 1 || len(claims["open"]) != 2 || claims["open"][0].EntityID != "a-empty" || claims["open"][1].EntityID != "b-empty" {
+		t.Fatal(claims)
+	}
+	if got := ShrineClearanceTargets([]AncientShrine{sealed, guarded, open, away}); len(got) != 3 || got[0] != "guarded" || got[1] != "open" || got[2] != "sealed" {
+		t.Fatal(got)
+	}
+	done := open
+	done.Caskets = []ShrineCasket{mine, filled}
+	if got := ShrineClearanceTargets([]AncientShrine{done}); len(got) != 0 {
+		t.Fatal(got)
+	}
+}

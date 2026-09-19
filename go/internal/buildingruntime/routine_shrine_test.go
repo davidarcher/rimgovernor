@@ -19,6 +19,13 @@ type routineShrineNative struct {
 	*routineBlightNative
 	shrines []*o.AncientShrine
 	traps   []domain.Cell
+	owned   map[string]bool
+	reads   []string
+}
+
+func (n *routineShrineNative) ReadClaimBuildingTarget(_ context.Context, _ *c.Identity, thing string) (bridge.ClaimBuildingTarget, bridge.Result, error) {
+	n.reads = append(n.reads, thing)
+	return bridge.ClaimBuildingTarget{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Thing: thing, Token: "claim-" + thing, PlayerOwned: n.owned[thing]}, bridge.Result{}, nil
 }
 
 func (n *routineShrineNative) ReadAncientShrines(_ context.Context, _ *c.Identity) (*o.AncientShrinesReply, bridge.Result, error) {
@@ -153,8 +160,55 @@ func TestRoutineShrineDraftsBehindTrapsAndBreachesTheWall(t *testing.T) {
 	if holds := review.Review.ShrineHolds; len(holds) != 1 || holds[0].Reason != policy.ShrineHoldGuardsAlive {
 		t.Fatal(review.Review.ShrineHolds)
 	}
-	// Guard down: no target left, the deficit recovers.
+	// The breach plan closes (here: cancelled) before the claim is owed.
+	for _, action := range plan.Spec.Actions() {
+		if _, err := db.Cancel(ctx, plan.Spec.ID(), action.ID()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Guard down, caskets inside: the filled one is left sealed and the
+	// empty ones are claimed in one method under fresh CAS tokens; a casket
+	// the target read already shows as the player's is skipped.
 	opened.Guards[0].Dead = proto.Bool(true)
+	casket := func(id string, x int32, contents, claimed bool) *o.ShrineCasket {
+		return &o.ShrineCasket{EntityId: proto.String(id), Cell: &c.Cell{X: proto.Int32(x), Z: proto.Int32(35)}, HitPoints: proto.Uint32(250), MaxHitPoints: proto.Uint32(250), HasContents: proto.Bool(contents), PlayerClaimed: proto.Bool(claimed)}
+	}
+	opened.Caskets = []*o.ShrineCasket{casket("filled", 33, true, false), casket("empty-b", 34, false, false), casket("empty-a", 35, false, false), casket("stale", 36, false, false), casket("mine", 37, false, true)}
+	source.owned = map[string]bool{"stale": true}
+	if review, err = reviewer.Step(ctx); err != nil {
+		t.Fatal(err)
+	}
+	holds := review.Review.ShrineHolds
+	if len(holds) != 6 || holds[0].Reason != policy.ShrineHoldNotSealed || holds[1] != (policy.ShrineHold{Shrine: "shrine", Reason: policy.CasketLeaveSealed, Casket: "filled"}) || holds[2].Reason != policy.CasketClaim || holds[5] != (policy.ShrineHold{Shrine: "shrine", Reason: policy.CasketClaimed, Casket: "mine"}) {
+		t.Fatal(holds)
+	}
+	result, err = planner.Step(ctx)
+	if err != nil || result.Reason != BuildingMethodAdmitted || result.Shrine != "shrine" {
+		t.Fatal(result, err, review.Review.Development.Rows)
+	}
+	if plan, err = db.LoadPlan(ctx, result.Plan); err != nil || len(plan.Progress) != 2 {
+		t.Fatal(plan, err)
+	}
+	actions = plan.Spec.Actions()
+	first, ok := actions[0].ClaimBuilding()
+	second, ok2 := actions[1].ClaimBuilding()
+	if !ok || !ok2 || first.Thing() != "empty-a" || first.BeforeToken() != "claim-empty-a" || second.Thing() != "empty-b" {
+		t.Fatal(actions)
+	}
+	if len(source.reads) != 3 || source.reads[2] != "stale" {
+		t.Fatal(source.reads)
+	}
+	scope = root
+	scope.Plan, scope.Revision = plan.Spec.ID(), plan.Spec.Revision()
+	if err = db.AuthorizeRoutinePlan(ctx, root, scope); err != nil {
+		t.Fatal(err)
+	}
+	if next, err := planner.Step(ctx); err != nil || next.Reason != BuildingMethodExistingWork {
+		t.Fatal(next, err)
+	}
+
+	// Everything claimed or filled: no target left, the deficit recovers.
+	opened.Caskets = []*o.ShrineCasket{casket("filled", 33, true, false), casket("mine", 37, false, true)}
 	if review, err = reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}

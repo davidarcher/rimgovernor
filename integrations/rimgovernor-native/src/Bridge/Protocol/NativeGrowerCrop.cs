@@ -25,7 +25,7 @@ namespace HomeBridge.BridgeTools
     {
         internal static bool Valid(Operations.PatchBuilding? command) => command != null
             && NativeDraftProtocol.ValidEntity(command.Building) && command.HasPlantDef && !string.IsNullOrEmpty(command.PlantDef)
-            && !command.HasMedical && !command.HasTargetTemperature && !command.HasForbidden && !command.HasPower
+            && !command.HasMedical && !command.HasTargetTemperature && !command.HasClaim && !command.HasForbidden && !command.HasPower
             && command.Owner == null && !command.HasForPrisoners;
 
         internal static bool Eligible(Thing thing) => thing is Building_PlantGrower grower && !grower.Destroyed && grower.Spawned

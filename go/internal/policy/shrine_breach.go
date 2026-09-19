@@ -12,17 +12,68 @@ import (
 // chosen wall in place and lets ActiveCombat fight what pops.
 const ClearAncientShrine GoalID = "ClearAncientShrine"
 
-// ShrineHold is one shrine's breach judgement as the review journals it:
-// Reason is a ShrineHold* constant, ShrineHoldGuardsAlive after the breach,
-// or ShrineReady; Wall names the chosen breach wall when one was chosen.
+// ShrineHold is one shrine's judgement as the review journals it: Reason
+// is a ShrineHold* constant, ShrineHoldGuardsAlive after the breach, or
+// ShrineReady; Wall names the chosen breach wall when one was chosen. A
+// row with a Casket is that casket's CasketDecision (#459) instead.
 type ShrineHold struct {
 	Shrine, Reason, Wall string
+	Casket               string `json:",omitempty"`
 }
 
 const (
 	ShrineReady           = "ready"
 	ShrineHoldGuardsAlive = "guards_alive"
+
+	// Casket decisions (#459): the default policy never opens a casket.
+	CasketClaim       = "claim"
+	CasketLeaveSealed = "leave_sealed"
+	CasketClaimed     = "claimed"
+	CasketHoldSealed  = "shrine_sealed"
 )
+
+// CasketDecision is the default casket policy: an empty casket the player
+// does not own yet is claimed; a filled one is left sealed (the hostile
+// ancients inside are a risk with no upside the colony needs); a casket
+// already the player's is done. Both hold shrine_sealed while the room is
+// sealed and guards_alive while a guard stands.
+func CasketDecision(casket ShrineCasket, shrine AncientShrine) string {
+	switch {
+	case shrine.Sealed:
+		return CasketHoldSealed
+	case shrine.GuardsAlive():
+		return ShrineHoldGuardsAlive
+	case casket.HasContents:
+		return CasketLeaveSealed
+	case casket.PlayerClaimed:
+		return CasketClaimed
+	}
+	return CasketClaim
+}
+
+// ShrineClaimTargets are the empty caskets the breach goal owes a claim on
+// (#459): those of an open, guard-free shrine touching Home, in casket
+// identity order per shrine.
+func ShrineClaimTargets(rows []AncientShrine) map[string][]ShrineCasket {
+	out := map[string][]ShrineCasket{}
+	for _, row := range rows {
+		if !row.InHome || row.Sealed || !row.GuardsKnown || row.GuardsAlive() {
+			continue
+		}
+		var caskets []ShrineCasket
+		for _, casket := range row.Caskets {
+			if CasketDecision(casket, row) == CasketClaim {
+				caskets = append(caskets, casket)
+			}
+		}
+		if len(caskets) == 0 {
+			continue
+		}
+		sort.Slice(caskets, func(i, j int) bool { return caskets[i].EntityID < caskets[j].EntityID })
+		out[row.ID] = caskets
+	}
+	return out
+}
 
 // Squad geometry behind the breach: defenders stand shrineStandDistance
 // cells straight out from the wall's outside cell, never nearer than
@@ -34,17 +85,19 @@ const (
 )
 
 // ShrineClearanceTargets are the shrines the breach goal owes work on:
-// those touching Home that are still sealed, or open with a guard seen
-// standing. A shrine open but fogged (nobody has looked in) is not a
+// those touching Home that are still sealed, open with a guard seen
+// standing, or open and guard-free with an empty casket still to claim
+// (#459). A shrine open but fogged (nobody has looked in) is not a
 // target: exploring is not this goal's, and ActiveCombat answers a guard
 // the moment it is seen. Stable by identity.
 func ShrineClearanceTargets(rows []AncientShrine) []string {
 	var out []string
+	claims := ShrineClaimTargets(rows)
 	for _, row := range rows {
 		if !row.InHome {
 			continue
 		}
-		if row.Sealed || row.GuardsKnown && row.GuardsAlive() {
+		if row.Sealed || row.GuardsKnown && row.GuardsAlive() || len(claims[row.ID]) > 0 {
 			out = append(out, row.ID)
 		}
 	}

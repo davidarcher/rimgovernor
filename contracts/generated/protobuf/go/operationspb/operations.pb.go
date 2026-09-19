@@ -3632,7 +3632,10 @@ type PatchBuilding struct {
 	// plant_def re-crops one exact Building_PlantGrower (SetPlantDefToGrow);
 	// the crop must carry the grower's sow tag and its sow research must be
 	// finished, the game's own gizmo rules.
-	PlantDef      *string `protobuf:"bytes,8,opt,name=plant_def,json=plantDef,proto3,oneof" json:"plant_def,omitempty"`
+	PlantDef *string `protobuf:"bytes,8,opt,name=plant_def,json=plantDef,proto3,oneof" json:"plant_def,omitempty"`
+	// claim takes one exact claimable building (Building.ClaimableBy(player),
+	// then SetFaction(player)) for the player; only true is meaningful (#459).
+	Claim         *bool `protobuf:"varint,9,opt,name=claim,proto3,oneof" json:"claim,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3721,6 +3724,13 @@ func (x *PatchBuilding) GetPlantDef() string {
 		return *x.PlantDef
 	}
 	return ""
+}
+
+func (x *PatchBuilding) GetClaim() bool {
+	if x != nil && x.Claim != nil {
+		return *x.Claim
+	}
+	return false
 }
 
 type WorkPriority struct {
@@ -8466,7 +8476,7 @@ const file_operations_proto_rawDesc = "" +
 	"\x0eDesignateThing\x12E\n" +
 	"\x06target\x18\x01 \x01(\v2-.rimgovernor.operations.v1.EntityPreconditionR\x06target\x12R\n" +
 	"\vdesignation\x18\x02 \x01(\x0e2+.rimgovernor.operations.v1.ThingDesignationH\x00R\vdesignation\x88\x01\x01B\x0e\n" +
-	"\f_designation\"\xf8\x03\n" +
+	"\f_designation\"\x9d\x04\n" +
 	"\rPatchBuilding\x12I\n" +
 	"\bbuilding\x18\x01 \x01(\v2-.rimgovernor.operations.v1.EntityPreconditionR\bbuilding\x12!\n" +
 	"\tforbidden\x18\x02 \x01(\bH\x00R\tforbidden\x88\x01\x01\x12B\n" +
@@ -8475,7 +8485,8 @@ const file_operations_proto_rawDesc = "" +
 	"\amedical\x18\x05 \x01(\bH\x03R\amedical\x88\x01\x01\x12;\n" +
 	"\x05owner\x18\x06 \x01(\v2%.rimgovernor.operations.v1.AssignmentR\x05owner\x12(\n" +
 	"\rfor_prisoners\x18\a \x01(\bH\x04R\fforPrisoners\x88\x01\x01\x12 \n" +
-	"\tplant_def\x18\b \x01(\tH\x05R\bplantDef\x88\x01\x01B\f\n" +
+	"\tplant_def\x18\b \x01(\tH\x05R\bplantDef\x88\x01\x01\x12\x19\n" +
+	"\x05claim\x18\t \x01(\bH\x06R\x05claim\x88\x01\x01B\f\n" +
 	"\n" +
 	"_forbiddenB\b\n" +
 	"\x06_powerB\x15\n" +
@@ -8484,7 +8495,8 @@ const file_operations_proto_rawDesc = "" +
 	"\b_medicalB\x10\n" +
 	"\x0e_for_prisonersB\f\n" +
 	"\n" +
-	"_plant_def\"w\n" +
+	"_plant_defB\b\n" +
+	"\x06_claim\"w\n" +
 	"\fWorkPriority\x12'\n" +
 	"\rwork_type_def\x18\x01 \x01(\tH\x00R\vworkTypeDef\x88\x01\x01\x12\x1f\n" +
 	"\bpriority\x18\x02 \x01(\x05H\x01R\bpriority\x88\x01\x01B\x10\n" +

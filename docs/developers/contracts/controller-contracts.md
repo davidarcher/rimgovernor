@@ -681,7 +681,25 @@ has no open work, the worker releases the owned drafts and `ActiveCombat`
 answers the guards, which the goal then holds `guards_alive` until they are
 dead or downed. Eight attempts per wall and goal epoch; Stop and Manual
 release the drafts and controller-owned designations as for any owned
-draft. Ranged breaching and casket handling (#459, #460) are not composed.
+draft. Ranged breaching and deliberate casket opening (#460) are not
+composed.
+
+Caskets follow the default never-open policy (#459). `policy.CasketDecision`
+names each casket's row in `ShrineHolds`: `shrine_sealed` and
+`guards_alive` while the breach is owed, `leave_sealed` for a casket that
+holds anything (the ancients inside are a risk with no upside), `claimed`
+for one already the player's, and `claim` for an empty unowned casket. An
+open, guard-free shrine touching Home with a `claim` casket is still the
+goal's target: before any readiness read the planner reads each such
+casket's claim token and admits one method of `claim_building` actions
+(PatchBuilding claim, one per casket; a casket the fresh read already shows
+as the player's is skipped). The claim is a one-shot CAS write like a bed's
+medical flag: no pawn, no simulation window, refused natively as the
+action's own unsuccessful outcome. Filled caskets keep the clearance
+census's `casket` hold; `ClearAncientShrine` never designates a casket,
+and a casket under 20% hit points explodes, so the census's hit points are
+a safety reading only. The deficit recovers once every casket is filled or
+the player's.
 
 ## Autonomous supply safety
 

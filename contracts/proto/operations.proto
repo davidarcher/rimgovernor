@@ -152,6 +152,9 @@ message PatchBuilding {
   // the crop must carry the grower's sow tag and its sow research must be
   // finished, the game's own gizmo rules.
   optional string plant_def = 8;
+  // claim takes one exact claimable building (Building.ClaimableBy(player),
+  // then SetFaction(player)) for the player; only true is meaningful (#459).
+  optional bool claim = 9;
 }
 enum MedicalCare {
   MEDICAL_CARE_UNSPECIFIED = 0; MEDICAL_CARE_NO_CARE = 1; MEDICAL_CARE_NO_MEDICINE = 2;

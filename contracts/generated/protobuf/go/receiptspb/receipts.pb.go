@@ -159,6 +159,7 @@ const (
 	SettingsField_SETTINGS_FIELD_SLAUGHTER        SettingsField = 17
 	SettingsField_SETTINGS_FIELD_RELEASE          SettingsField = 18
 	SettingsField_SETTINGS_FIELD_GROWER_CROP      SettingsField = 19
+	SettingsField_SETTINGS_FIELD_CLAIM            SettingsField = 20
 )
 
 // Enum value maps for SettingsField.
@@ -184,6 +185,7 @@ var (
 		17: "SETTINGS_FIELD_SLAUGHTER",
 		18: "SETTINGS_FIELD_RELEASE",
 		19: "SETTINGS_FIELD_GROWER_CROP",
+		20: "SETTINGS_FIELD_CLAIM",
 	}
 	SettingsField_value = map[string]int32{
 		"SETTINGS_FIELD_UNSPECIFIED":      0,
@@ -206,6 +208,7 @@ var (
 		"SETTINGS_FIELD_SLAUGHTER":        17,
 		"SETTINGS_FIELD_RELEASE":          18,
 		"SETTINGS_FIELD_GROWER_CROP":      19,
+		"SETTINGS_FIELD_CLAIM":            20,
 	}
 )
 
@@ -5300,7 +5303,7 @@ const file_receipts_proto_rawDesc = "" +
 	"\x1cINSTALLATION_STAGE_PLACEABLE\x10\x02\x12\x1d\n" +
 	"\x19INSTALLATION_STAGE_QUEUED\x10\x03\x12 \n" +
 	"\x1cINSTALLATION_STAGE_INSTALLED\x10\x04\x12!\n" +
-	"\x1dINSTALLATION_STAGE_UNVERIFIED\x10\x05*\xf0\x04\n" +
+	"\x1dINSTALLATION_STAGE_UNVERIFIED\x10\x05*\x8a\x05\n" +
 	"\rSettingsField\x12\x1e\n" +
 	"\x1aSETTINGS_FIELD_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18SETTINGS_FIELD_FORBIDDEN\x10\x01\x12\x18\n" +
@@ -5322,7 +5325,8 @@ const file_receipts_proto_rawDesc = "" +
 	"\x17SETTINGS_FIELD_TRAINING\x10\x10\x12\x1c\n" +
 	"\x18SETTINGS_FIELD_SLAUGHTER\x10\x11\x12\x1a\n" +
 	"\x16SETTINGS_FIELD_RELEASE\x10\x12\x12\x1e\n" +
-	"\x1aSETTINGS_FIELD_GROWER_CROP\x10\x13*\x9b\x01\n" +
+	"\x1aSETTINGS_FIELD_GROWER_CROP\x10\x13\x12\x18\n" +
+	"\x14SETTINGS_FIELD_CLAIM\x10\x14*\x9b\x01\n" +
 	"\fFieldOutcome\x12\x1d\n" +
 	"\x19FIELD_OUTCOME_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17FIELD_OUTCOME_UNCHANGED\x10\x01\x12\x19\n" +

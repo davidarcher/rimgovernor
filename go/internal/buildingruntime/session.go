@@ -13,6 +13,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/buildingtemperature"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/capture"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/claimbuilding"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/cutplant"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/draft"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/equip"
@@ -71,6 +72,9 @@ type SessionConfig struct {
 	// GrowerCrop backs the field family's basin re-crop, the same one-shot
 	// CAS write shape as BedMedical.
 	GrowerCrop *growercrop.Capabilities
+	// ClaimBuilding backs the shrine family's casket claim (#459), the same
+	// one-shot CAS write shape as GrowerCrop.
+	ClaimBuilding *claimbuilding.Capabilities
 	// BedAssign backs the sleeping family's bed ownership transfer, the
 	// same one-shot CAS write shape as BedMedical.
 	BedAssign           *bedassign.Capabilities
@@ -371,6 +375,9 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.GrowerCrop != nil && (config.GrowerCrop.Native == nil || config.GrowerCrop.Writer == nil) {
 		return cleanup(ErrControl)
 	}
+	if config.ClaimBuilding != nil && (config.ClaimBuilding.Native == nil || config.ClaimBuilding.Writer == nil) {
+		return cleanup(ErrControl)
+	}
 	if config.BedAssign != nil && (config.BedAssign.Native == nil || config.BedAssign.Writer == nil) {
 		return cleanup(ErrControl)
 	}
@@ -469,6 +476,11 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	}
 	if config.GrowerCrop != nil {
 		if err := worker.EnableGrowerCrop(growercrop.NewBoundary(place, *config.GrowerCrop)); err != nil {
+			return cleanup(err)
+		}
+	}
+	if config.ClaimBuilding != nil {
+		if err := worker.EnableClaimBuilding(claimbuilding.NewBoundary(place, *config.ClaimBuilding)); err != nil {
 			return cleanup(err)
 		}
 	}

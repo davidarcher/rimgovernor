@@ -137,8 +137,10 @@ func shrineReadiness(ctx context.Context, native shrineReadinessNative, identity
 
 // routineShrineHolds judges every shrine the review's census lists for the
 // journal (#458): the readiness reason, guards_alive after a breach, or
-// ready with the chosen wall. A native without the readiness reads leaves
-// every row readiness_unknown; an unknown census leaves no rows.
+// ready with the chosen wall, then one row per casket naming its
+// CasketDecision (#459) so a skipped filled casket is not silence. A native
+// without the readiness reads leaves every shrine row readiness_unknown;
+// an unknown census leaves no rows.
 func routineShrineHolds(ctx context.Context, native any, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection) ([]policy.ShrineHold, error) {
 	shrines, known := projection.Facts.Upkeep.Shrines.Value()
 	if !known || len(shrines) == 0 {
@@ -149,6 +151,7 @@ func routineShrineHolds(ctx context.Context, native any, snapshot domain.Generat
 		out := make([]policy.ShrineHold, 0, len(shrines))
 		for _, shrine := range shrines {
 			out = append(out, policy.ShrineHold{Shrine: shrine.ID, Reason: ShrineHoldReadinessUnknown})
+			out = append(out, casketHolds(shrine)...)
 		}
 		return out, nil
 	}
@@ -159,8 +162,16 @@ func routineShrineHolds(ctx context.Context, native any, snapshot domain.Generat
 	out := make([]policy.ShrineHold, 0, len(reports))
 	for i, report := range reports {
 		out = append(out, policy.ShrineHold{Shrine: shrines[i].ID, Reason: policy.ShrineHoldReason(shrines[i], report.Readiness), Wall: report.Readiness.Wall.EntityID})
+		out = append(out, casketHolds(shrines[i])...)
 	}
 	return out, nil
+}
+func casketHolds(shrine policy.AncientShrine) []policy.ShrineHold {
+	out := make([]policy.ShrineHold, 0, len(shrine.Caskets))
+	for _, casket := range shrine.Caskets {
+		out = append(out, policy.ShrineHold{Shrine: shrine.ID, Reason: policy.CasketDecision(casket, shrine), Casket: casket.EntityID})
+	}
+	return out
 }
 
 // ShrineHoldReadinessUnknown is the journal's reason under a native that

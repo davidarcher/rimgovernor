@@ -6719,7 +6719,9 @@ type BuildingSettings struct {
 	RoomCanBePrisonCell  *bool                  `protobuf:"varint,16,opt,name=room_can_be_prison_cell,json=roomCanBePrisonCell,proto3,oneof" json:"room_can_be_prison_cell,omitempty"`
 	Issues               []*ReadIssue           `protobuf:"bytes,17,rep,name=issues,proto3" json:"issues,omitempty"`
 	// crop_def_name is a plant grower's current crop beside its own CAS snapshot (PatchBuilding.plant_def).
-	CropDefName   *string `protobuf:"bytes,18,opt,name=crop_def_name,json=cropDefName,proto3,oneof" json:"crop_def_name,omitempty"`
+	CropDefName *string `protobuf:"bytes,18,opt,name=crop_def_name,json=cropDefName,proto3,oneof" json:"crop_def_name,omitempty"`
+	// player_owned is a claimable building's faction reading beside its own CAS snapshot (PatchBuilding.claim, #459).
+	PlayerOwned   *bool `protobuf:"varint,19,opt,name=player_owned,json=playerOwned,proto3,oneof" json:"player_owned,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -6878,6 +6880,13 @@ func (x *BuildingSettings) GetCropDefName() string {
 		return *x.CropDefName
 	}
 	return ""
+}
+
+func (x *BuildingSettings) GetPlayerOwned() bool {
+	if x != nil && x.PlayerOwned != nil {
+		return *x.PlayerOwned
+	}
+	return false
 }
 
 type MaterialDeficit struct {
@@ -33596,7 +33605,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x12FoodIngredientSlot\x12T\n" +
 	"\falternatives\x18\x01 \x03(\x0e20.rimgovernor.observations.v1.FoodIngredientClassR\falternatives\"`\n" +
 	"\x17RecipeIngredientClasses\x12E\n" +
-	"\x05slots\x18\x01 \x03(\v2/.rimgovernor.observations.v1.FoodIngredientSlotR\x05slots\"\xf6\b\n" +
+	"\x05slots\x18\x01 \x03(\v2/.rimgovernor.observations.v1.FoodIngredientSlotR\x05slots\"\xaf\t\n" +
 	"\x10BuildingSettings\x12D\n" +
 	"\bsnapshot\x18\x01 \x01(\v2(.rimgovernor.observations.v1.SnapshotRefR\bsnapshot\x12!\n" +
 	"\tforbidden\x18\x02 \x01(\bH\x00R\tforbidden\x88\x01\x01\x12!\n" +
@@ -33617,7 +33626,8 @@ const file_observations_proto_rawDesc = "" +
 	"\x14assigning_candidates\x18\x0f \x03(\v2&.rimgovernor.observations.v1.EntityRefR\x13assigningCandidates\x129\n" +
 	"\x17room_can_be_prison_cell\x18\x10 \x01(\bH\fR\x13roomCanBePrisonCell\x88\x01\x01\x12>\n" +
 	"\x06issues\x18\x11 \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issues\x12'\n" +
-	"\rcrop_def_name\x18\x12 \x01(\tH\rR\vcropDefName\x88\x01\x01B\f\n" +
+	"\rcrop_def_name\x18\x12 \x01(\tH\rR\vcropDefName\x88\x01\x01\x12&\n" +
+	"\fplayer_owned\x18\x13 \x01(\bH\x0eR\vplayerOwned\x88\x01\x01B\f\n" +
 	"\n" +
 	"_forbiddenB\f\n" +
 	"\n" +
@@ -33637,7 +33647,8 @@ const file_observations_proto_rawDesc = "" +
 	"\x0f_bed_owner_typeB\x19\n" +
 	"\x17_maximum_assigned_pawnsB\x1a\n" +
 	"\x18_room_can_be_prison_cellB\x10\n" +
-	"\x0e_crop_def_name\"\xbb\x01\n" +
+	"\x0e_crop_def_nameB\x0f\n" +
+	"\r_player_owned\"\xbb\x01\n" +
 	"\x0fMaterialDeficit\x12\x1e\n" +
 	"\bdef_name\x18\x01 \x01(\tH\x00R\adefName\x88\x01\x01\x12\x17\n" +
 	"\x04need\x18\x02 \x01(\x03H\x01R\x04need\x88\x01\x01\x12\x17\n" +

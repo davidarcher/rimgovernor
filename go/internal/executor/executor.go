@@ -149,6 +149,8 @@ type Executor struct {
 	bedMedicalJournal          BedMedicalJournal
 	growerCrop                 GrowerCropBoundary
 	growerCropJournal          GrowerCropJournal
+	claimBuilding              ClaimBuildingBoundary
+	claimBuildingJournal       ClaimBuildingJournal
 	bedAssign                  BedAssignBoundary
 	bedAssignJournal           BedAssignJournal
 	researchSelect             ResearchSelectBoundary
@@ -417,6 +419,9 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.GrowerCropAction && e.growerCrop != nil {
 		return e.runGrowerCrop(ctx, action, progress, authority, generation)
+	}
+	if action.Kind() == domain.ClaimBuildingAction && e.claimBuilding != nil {
+		return e.runClaimBuilding(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.BedAssignAction && e.bedAssign != nil {
 		return e.runBedAssign(ctx, action, progress, authority, generation)
