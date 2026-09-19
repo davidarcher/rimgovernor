@@ -1,12 +1,60 @@
 package remoteaccept
 
 import (
+	"bytes"
 	"encoding/json"
+	"image"
+	"image/png"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func TestRenderedPNGExportAndImport(t *testing.T) {
+	f := fixtureRun(t)
+	job := exportFixture(t, f, 0)
+	rel := f.attempts[0].Attempts[0].Case + "/frame.png"
+	var encoded bytes.Buffer
+	if err := png.Encode(&encoded, image.NewRGBA(image.Rect(0, 0, 2, 2))); err != nil {
+		t.Fatal(err)
+	}
+	withTrailer := append(append([]byte{}, encoded.Bytes()...), []byte("private trailing payload")...)
+	if err := os.WriteFile(filepath.Join(job.Output, rel), withTrailer, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := ExportShard(f.root, "s1", []ExportJob{job}, nil); err != nil {
+		t.Fatal(err)
+	}
+	public := filepath.Join(f.root, "s1", "fixture", rel)
+	data, err := os.ReadFile(public)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(data, encoded.Bytes()) {
+		t.Fatal("PNG was not preserved as a canonical frame")
+	}
+	archive := filepath.Join(t.TempDir(), "evidence.zip")
+	if err := os.WriteFile(archive, zipTree(t, f.root), 0600); err != nil {
+		t.Fatal(err)
+	}
+	out := t.TempDir()
+	if err := extract(archive, out); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(out, "s1", "fixture", rel)); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(public, []byte("not a PNG"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(archive, zipTree(t, f.root), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := extract(archive, t.TempDir()); err == nil {
+		t.Fatal("disguised binary accepted as a rendered frame")
+	}
+}
 
 func exportFixture(t *testing.T, f *fixture, index int) ExportJob {
 	t.Helper()

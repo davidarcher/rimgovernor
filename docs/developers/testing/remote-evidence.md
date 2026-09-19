@@ -50,7 +50,7 @@ current production policy, `native-read-v1-empty` (#381): no production retry
 is authorized yet. Enabling a classifier requires coordinated executor and
 importer policy support; a manifest classification is not authorization.
 
-Upload only the sanitized diagnostic tree. The importer accepts regular JSON,
+Upload only the sanitized diagnostic tree. The importer accepts generated PNG frame captures (decoded and dimension-bounded) and regular JSON,
 JSONL, log, text and Markdown files, rejects links, Windows path aliases,
 case collisions and path escapes, and bounds the compressed and expanded
 artifact to 1 GiB each. This extension allowlist is not a content sanitizer:

@@ -226,7 +226,7 @@ func extract(archive, root string) error {
 		}
 		ext := strings.ToLower(filepath.Ext(p))
 		switch ext {
-		case ".json", ".jsonl", ".log", ".txt", ".md":
+		case ".json", ".jsonl", ".log", ".txt", ".md", ".png":
 		default:
 			return fmt.Errorf("non-diagnostic archive entry %s", p)
 		}
@@ -248,6 +248,15 @@ func extract(archive, root string) error {
 		}
 		if err = extractFile(f, p); err != nil {
 			return err
+		}
+		if strings.EqualFold(filepath.Ext(p), ".png") {
+			b, err := os.ReadFile(p)
+			if err != nil {
+				return err
+			}
+			if err := publicDiagnostic(p, b); err != nil {
+				return err
+			}
 		}
 	}
 	_, err = openTree(root)

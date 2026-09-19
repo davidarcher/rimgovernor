@@ -157,13 +157,8 @@ func TestRemotePlanUsesAffectedEntryPointAndHarnessRules(t *testing.T) {
 	}
 }
 
-func TestRemotePlanRejectsUnsupportedSelectionAndBudgets(t *testing.T) {
+func TestRemotePlanRejectsBudgets(t *testing.T) {
 	r := examplePlanRun(t)
-	r.Tier = "land"
-	r.Limits.Shards = 32
-	if _, err := buildSelection(r, planReference{}, nil, affected.Selection{AllHarnesses: true}); err == nil {
-		t.Fatal("native-wide selection silently fit unsupported runner")
-	}
 	r.Tier = "smoke"
 	r.Limits.Shards = 1
 	r.Limits.SuiteMinutes = 1
@@ -172,7 +167,7 @@ func TestRemotePlanRejectsUnsupportedSelectionAndBudgets(t *testing.T) {
 	}
 }
 
-func TestNightlyFullNeverDropsUnsupportedCases(t *testing.T) {
+func TestNightlyFullIncludesRenderedCases(t *testing.T) {
 	r := examplePlanRun(t)
 	r.Tier, r.Trigger.Event, r.Trigger.Ref = "full", "schedule", "refs/heads/main"
 	r.Base = r.Head
@@ -180,14 +175,44 @@ func TestNightlyFullNeverDropsUnsupportedCases(t *testing.T) {
 	if err := r.validate(); err != nil {
 		t.Fatal(err)
 	}
-	// Full includes the rendered video family. V1 must reject the whole plan,
-	// never relabel a headless subset as a successful nightly full run.
-	if _, err := buildSelection(r, planReference{}, nil, affected.Selection{}); err == nil || !strings.Contains(err.Error(), "unsupported rendered") {
+	p, err := buildSelection(r, planReference{}, nil, affected.Selection{})
+	if err != nil && !strings.Contains(err.Error(), "known case budgets") {
 		t.Fatal(err)
+	}
+	if err != nil {
+		t.Log(err)
+	}
+	full, err := tierCases("full", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(p.Cases) != len(full.Cases) {
+		t.Fatal("full selection dropped cases")
+	}
+	for _, c := range full.Cases {
+		idx := slices.IndexFunc(p.Cases, func(pc plannedCase) bool { return pc.Name == c.Name })
+		if idx < 0 || p.Cases[idx].Rendered != c.Rendered {
+			t.Fatalf("lost rendering requirement for %s", c.Name)
+		}
 	}
 	r.Trigger.Ref = "refs/heads/topic"
 	if err := r.validate(); err == nil {
 		t.Fatal("scheduled topic branch accepted")
+	}
+}
+
+func TestRemoteRenderedAreaPlansNormally(t *testing.T) {
+	r := examplePlanRun(t)
+	r.Tier, r.Limits.Shards, r.Limits.Attempts = "land", 4, 1
+	p, err := buildSelection(r, planReference{}, nil, affected.Selection{Cases: []string{"video"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"video/stream", "video/feeds", "video/matrix", "video/source-spike"} {
+		i := slices.IndexFunc(p.Cases, func(c plannedCase) bool { return c.Name == name })
+		if i < 0 || !p.Cases[i].Rendered {
+			t.Fatalf("rendered case missing: %s", name)
+		}
 	}
 }
 

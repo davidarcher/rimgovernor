@@ -63,6 +63,7 @@ type plannedCase struct {
 	FixtureOps []string `json:"fixture_ops"`
 	Roles      []string `json:"roles"`
 	ModRole    string   `json:"mod_role"`
+	Rendered   bool     `json:"rendered"`
 }
 type plannedShard struct {
 	ID    string   `json:"id"`
@@ -298,10 +299,10 @@ func buildSelection(r planRun, ref planReference, files []string, sel affected.S
 	}
 	budgets := make([]time.Duration, count)
 	for i, c := range selected {
-		if c.Rendered || c.Matrix {
-			return p, fmt.Errorf("%s requires unsupported rendered or matrix capability; selection cannot be truncated", c.Name)
+		if c.Matrix {
+			return p, fmt.Errorf("%s requires a separate matrix selection; selection cannot be truncated", c.Name)
 		}
-		row := plannedCase{Name: c.Name, Reasons: []string{}, FixtureOps: append([]string{}, c.FixtureOps()...), Roles: []string{"bridge"}, ModRole: "fixture"}
+		row := plannedCase{Name: c.Name, Reasons: []string{}, FixtureOps: append([]string{}, c.FixtureOps()...), Roles: []string{"bridge"}, ModRole: "fixture", Rendered: c.Rendered}
 		if c.Production {
 			row.ModRole = "production"
 		}

@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"image/png"
 	"io"
 	"io/fs"
 	"os"
@@ -50,6 +51,14 @@ func (e *exporter) clean(s string) string {
 
 func publicDiagnostic(p string, b []byte) error {
 	ext := strings.ToLower(filepath.Ext(p))
+	if ext == ".png" {
+		config, err := png.DecodeConfig(bytes.NewReader(b))
+		if err != nil || config.Width < 1 || config.Height < 1 || config.Width > 4096 || config.Height > 4096 {
+			return fmt.Errorf("invalid or oversized rendered PNG %s", p)
+		}
+		_, err = png.Decode(bytes.NewReader(b))
+		return err
+	}
 	if ext != ".json" && ext != ".jsonl" && ext != ".log" && ext != ".txt" && ext != ".md" {
 		return fmt.Errorf("non-diagnostic file %s", p)
 	}
@@ -186,6 +195,17 @@ func (e *exporter) copy(p string) (Ref, error) {
 			}
 		}
 		b = out.Bytes()
+	} else if strings.EqualFold(filepath.Ext(p), ".png") {
+		// Re-encode generated frames to strip metadata and trailing payloads.
+		frame, err := png.Decode(bytes.NewReader(b))
+		if err != nil {
+			return Ref{}, err
+		}
+		var out bytes.Buffer
+		if err := png.Encode(&out, frame); err != nil {
+			return Ref{}, err
+		}
+		b = out.Bytes()
 	} else {
 		b = []byte(e.clean(string(b)))
 	}
@@ -284,7 +304,7 @@ func ExportShard(root, shard string, jobs []ExportJob, secrets []string) error {
 				return fmt.Errorf("nonregular diagnostic")
 			}
 			ext := strings.ToLower(filepath.Ext(rel))
-			if ext == ".json" || ext == ".jsonl" || ext == ".log" || ext == ".txt" || ext == ".md" {
+			if ext == ".json" || ext == ".jsonl" || ext == ".log" || ext == ".txt" || ext == ".md" || ext == ".png" {
 				if _, ok := e.files[strings.ToLower(rel)]; ok {
 					return fmt.Errorf("case-colliding diagnostic")
 				}

@@ -121,8 +121,12 @@ case bodies; `fixture_ops` alone is not a complete build allowlist. Production
 rows require a fixture-free build. An executor must support switching private
 layouts for these roles or reject the complete plan before running it.
 
-V1 supports headless, non-matrix cases only. A selected rendered case rejects
-the entire plan; unsupported capabilities never cause a skipped green subset.
+V1 includes both headless and rendered non-matrix cases. The planner records
+`rendered` metadata; the native runner stops a kept headless process and launches
+rendered cases through its ordinary windowed profile. Graphics/display support on
+the hosted image is established by real frame assertions, not presumed absent or
+present from its runner label. A graphics initialization or capture failure is a
+failed case; never omit it from coverage. No paid GPU runner fallback is authorized.
 Each shard's sum of declared case budgets times `max_attempts` must fit its
 suite allowance. This is a necessary bound, not a prediction that boot and
 cleanup will fit; executors enforce the actual deadline. No historical timings
@@ -164,7 +168,7 @@ The bootstrap still gates trust before cache restore or identity access: public
 ciphertext does not authorize unreviewed code to decrypt licensed inputs.
 
 Public Actions logs and artifacts are public-facing outputs. #380 uploads an
-allowlisted, sanitized evidence tree (reports, metrics, flight/log diagnostics),
+allowlisted, sanitized evidence tree (reports, metrics, flight/log diagnostics and generated PNG frame captures),
 never entire game/profile/work directories, credentials or licensed bytes. Raw
 restricted diagnostics stay out of public uploads; if required, #377/#380 use
 separately age-encrypted assets with a digest-bound reference and trusted retrieval.

@@ -58,11 +58,14 @@ is the one to [import](remote-evidence.md#import-an-authenticated-actions-artifa
 Pin workflow path `.github/workflows/remote-acceptance.yml` and its reviewed
 published revision when configuring the importer.
 
-The trusted exporter copies JSON/JSONL/log/text/Markdown from suite output only,
-excludes worker/profile/checkpoint trees and binary/save files, rejects links,
+The trusted exporter copies JSON/JSONL/log/text/Markdown and generated PNG frames
+from suite output only,
+excludes worker/profile/checkpoint trees and game binary/save files, rejects links,
 unsafe paths, duplicate JSON keys and recognized private-key/save/binary content,
 redacts supplied token values and private runner paths, and rehashes references
-after normalization. This is a boundary for **reviewed diagnostic producers**,
+after normalization. PNG frames are decoded, limited to 4096 pixels per dimension
+and re-encoded to strip metadata/trailing payloads; raw game textures remain
+prohibited. This is a boundary for **reviewed diagnostic producers**,
 not a way to make hostile tested code safe. Never add a diagnostic containing
 licensed file contents or secrets. A role bootstrap report is projected to public
 runner measurements; dependencies, tools and profiles are never uploaded.
@@ -87,10 +90,15 @@ That release lacks GitHub's newer `concurrency.queue` property; its exact
 allowed exclusion. GitHub documents the field in its
 [concurrency guide](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency).
 
-The full tier currently includes rendered video cases. Remote v1 supports only
-headless cases, so the nightly planner deliberately rejects that selection
-instead of running a subset under a full label. Track capability/budget resolution
-in [#387](https://github.com/davidarcher/rimgovernor/issues/387).
+The full tier includes rendered video cases. They run through the existing
+windowed profile without batch/no-graphics flags and must produce real frames.
+Hosted display/graphics support is unverified until those cases run; it is not a
+planner exclusion. Standard Windows runners do not promise a dedicated GPU.
+Unity supports a software Direct3D WARP option, but its suitability for this
+RimWorld build and image needs measurement before changing launch flags. There
+is no automatic paid GPU fallback. Known case budgets must still fit the bounded
+shards; [#387](https://github.com/davidarcher/rimgovernor/issues/387) owns the
+nightly rollout and its measured resource requirements.
 
 Before claiming hosted operation, retain cold and warm smoke runs, a native
 failure with accessible diagnostics, cancelled/missing-shard evidence, and a
