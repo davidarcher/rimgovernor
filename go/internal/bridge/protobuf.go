@@ -12,6 +12,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -338,9 +339,6 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 	if len(inner) > maxProtoBytes {
 		return Result{}, contract("oversized request")
 	}
-	args := encode(struct {
-		Request string `json:"request"`
-	}{string(inner)})
 	invoked := false
 	var recordCtx map[string]any
 	var requestRow uint64
@@ -354,6 +352,14 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 		if caller.recorder != nil {
 			recordCtx = caller.snapshotRecordingContext(ctx)
 		}
+		// The trace the call runs under (the caller's step or dispatch,
+		// else the operation's own) rides beside the request; the
+		// companion echoes it in its timing object, so its main-thread
+		// phases join the same trace as the bridge's own (#298).
+		args := encode(struct {
+			Request string `json:"request"`
+			Trace   string `json:"trace,omitempty"`
+		}{string(inner), telemetry.TraceFrom(ctx).Wire()})
 		result, err := caller.core(ctx, live, "games_call_tool", encode(nativeArgument{caller.gameID, name, args}))
 		if timing := callTimingFrom(ctx); timing != nil {
 			requestRow = timing.request

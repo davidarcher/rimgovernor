@@ -38,6 +38,8 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 		return fail(ctx.Err())
 	}
 	defer func() { <-s.pollGate }()
+	// One trace per poll: its read and the events it publishes (#298).
+	ctx, _ = telemetry.EnsureTrace(ctx)
 	call, cancel := context.WithTimeout(ctx, s.session.control.config.CallTimeout)
 	defer cancel()
 	invalidate := func() error { out.Interrupted = true; return s.session.Disable() }
@@ -130,7 +132,7 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 	}
 	if out.Captured {
 		telemetry.ObserveTick(page.Context.GetTick())
-		clockPollEvents(page)
+		clockPollEvents(call, page)
 		if clockPollStopped(page) {
 			s.running.Store(false)
 		}
@@ -195,15 +197,15 @@ func clockPollEventKinds(page *k.EventsPage) string {
 // native stop stamp), "authority_change" for each AuthorityChanged event,
 // and "alert_row" for each game alert (#256). Every other event kind is the
 // step reason's business and stays in the debug trace.
-func clockPollEvents(page *k.EventsPage) {
+func clockPollEvents(ctx context.Context, page *k.EventsPage) {
 	for _, event := range page.GetEvents() {
 		switch v := event.Event.(type) {
 		case *k.Event_Stopped:
-			clockEvent("clock-scheduler", "scheduler_stop", "window stopped", "reason", v.Stopped.GetReason().String(), "evidence", clockStopEvidence(v.Stopped), "cursor", event.GetCursor(), "observed_at_unix_ms", event.GetObservedAtUnixMs(), "benign", clock.BenignStop(v.Stopped.GetReason()))
+			clockEvent(ctx, "clock-scheduler", "scheduler_stop", "window stopped", "reason", v.Stopped.GetReason().String(), "evidence", clockStopEvidence(v.Stopped), "cursor", event.GetCursor(), "observed_at_unix_ms", event.GetObservedAtUnixMs(), "benign", clock.BenignStop(v.Stopped.GetReason()))
 		case *k.Event_AuthorityChanged:
-			clockEvent("clock-scheduler", "authority_change", "authority changed", "reason", v.AuthorityChanged.GetReason(), "active", v.AuthorityChanged.GetActive(), "generation", v.AuthorityChanged.GetGeneration(), "previous_generation", v.AuthorityChanged.GetPreviousGeneration(), "cursor", event.GetCursor())
+			clockEvent(ctx, "clock-scheduler", "authority_change", "authority changed", "reason", v.AuthorityChanged.GetReason(), "active", v.AuthorityChanged.GetActive(), "generation", v.AuthorityChanged.GetGeneration(), "previous_generation", v.AuthorityChanged.GetPreviousGeneration(), "cursor", event.GetCursor())
 		case *k.Event_Alert:
-			clockEvent("clock-scheduler", "alert_row", "game alert", "key", v.Alert.GetKey(), "label", v.Alert.GetLabel(), "priority", v.Alert.GetPriority(), "cursor", event.GetCursor())
+			clockEvent(ctx, "clock-scheduler", "alert_row", "game alert", "key", v.Alert.GetKey(), "label", v.Alert.GetLabel(), "priority", v.Alert.GetPriority(), "cursor", event.GetCursor())
 		}
 	}
 }

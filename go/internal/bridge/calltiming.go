@@ -35,27 +35,37 @@ func callTimingFrom(ctx context.Context) *callTiming {
 
 func millis(d time.Duration) float64 { return float64(d) / float64(time.Millisecond) }
 
-// nativeTiming reads the companion's own phase report out of a ProtoBoundary
-// reply wrapper: {"payload": "...", "timing": {"queueMs": <wait for the
-// main thread>, "executeMs": <tool body>}}. Companions that predate the
-// field report nothing, so a consumer can tell absent from zero.
-func nativeTiming(structured json.RawMessage) (queueMs, executeMs float64, ok bool) {
+// nativeTimingReport is the companion's own phase report from a
+// ProtoBoundary reply wrapper: {"payload": "...", "timing": {"queueMs":
+// <wait for the main thread>, "executeMs": <tool body>, "trace": <the
+// trace argument the call sent, echoed>}}. trace is empty when the call
+// sent none or the companion predates the echo.
+type nativeTimingReport struct {
+	queueMs, executeMs float64
+	trace              string
+}
+
+// nativeTiming reads the companion's phase report out of a reply wrapper.
+// Companions that predate the field report nothing, so a consumer can tell
+// absent from zero.
+func nativeTiming(structured json.RawMessage) (nativeTimingReport, bool) {
 	if len(structured) == 0 {
-		return 0, 0, false
+		return nativeTimingReport{}, false
 	}
 	var wrapper struct {
 		Timing *struct {
 			QueueMs   *float64 `json:"queueMs"`
 			ExecuteMs *float64 `json:"executeMs"`
+			Trace     string   `json:"trace"`
 		} `json:"timing"`
 	}
 	if json.Unmarshal(structured, &wrapper) != nil || wrapper.Timing == nil || wrapper.Timing.QueueMs == nil || wrapper.Timing.ExecuteMs == nil {
-		return 0, 0, false
+		return nativeTimingReport{}, false
 	}
 	if *wrapper.Timing.QueueMs < 0 || *wrapper.Timing.ExecuteMs < 0 {
-		return 0, 0, false
+		return nativeTimingReport{}, false
 	}
-	return *wrapper.Timing.QueueMs, *wrapper.Timing.ExecuteMs, true
+	return nativeTimingReport{queueMs: *wrapper.Timing.QueueMs, executeMs: *wrapper.Timing.ExecuteMs, trace: wrapper.Timing.Trace}, true
 }
 
 // nativeToolOf names the inner native tool for the GABS wrappers that carry

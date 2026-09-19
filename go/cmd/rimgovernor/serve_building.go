@@ -42,6 +42,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 	"github.com/davidarcher/RimGovernor/go/internal/videoshm"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 )
@@ -761,16 +762,17 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	// from it and the worker's writes discard what they make stale.
 	facts := bridge.NewFactCache()
 	var advanced, windowRunning = func() {}, func() bool { return false }
+	var stepTrace func() telemetry.Trace
 	if config.clockControl {
 		clockWorker, err := startServiceClock(lifetime, player, session, client.clockReads, database, config, serviceClockTimeouts(callTimeout), wake, facts)
 		if err != nil {
 			return err
 		}
-		advanced, windowRunning = clockWorker.Nudge, clockWorker.WindowRunning
+		advanced, windowRunning, stepTrace = clockWorker.Nudge, clockWorker.WindowRunning, clockWorker.Trace
 	}
 	worker, err := buildingruntime.NewWorker(lifetime, buildingruntime.WorkerConfig{RoutineMethods: config.routineMethods,
 		StepInterval: time.Second, MaxBackoff: 10 * time.Second, StepTimeout: min(config.bridge.Timeout, 8*time.Second),
-		RenewInterval: 5 * time.Second, RenewTimeout: 5 * time.Second, Wake: wake, Advanced: advanced, Facts: facts, WindowRunning: windowRunning,
+		RenewInterval: 5 * time.Second, RenewTimeout: 5 * time.Second, Wake: wake, Advanced: advanced, Facts: facts, WindowRunning: windowRunning, Trace: stepTrace,
 	}, player, session)
 	if err != nil {
 		return err

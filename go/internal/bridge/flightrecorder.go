@@ -15,6 +15,8 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 )
 
 const (
@@ -97,7 +99,11 @@ func NewFlightRecorder(path string, opts ...FlightRecorderOption) (*FlightRecord
 // caller can be certain the record survives a crash; the natural use is a
 // durable "request" row bracketing a non-durable "response" row that becomes
 // durable only at the next durable record or segment rotation. context and
-// payload are marshaled as JSON objects; a nil map encodes as {}.
+// payload are marshaled as JSON objects; a nil map encodes as {}. Every
+// row carries a trace_id: the one its context names (a scheduler step, a
+// Worker dispatch), else a fresh single-row trace, so `rimgovernor trace`
+// can address any row and a consumer never has to special-case the rows
+// written outside a traced unit of work (#298).
 func (r *FlightRecorder) Event(kind string, context map[string]any, durable bool, payload map[string]any) (uint64, error) {
 	if r == nil {
 		return 0, errors.New("flightrecorder: recorder required")
@@ -133,8 +139,13 @@ func (r *FlightRecorder) Event(kind string, context map[string]any, durable bool
 	}
 	r.sequence++
 	sequence := r.sequence
-	if context == nil {
-		context = map[string]any{}
+	if _, traced := context[telemetry.TraceIDKey]; !traced {
+		stamped := make(map[string]any, len(context)+2)
+		for k, v := range context {
+			stamped[k] = v
+		}
+		telemetry.NewTrace().Stamp(stamped)
+		context = stamped
 	}
 	row := struct {
 		Version  int             `json:"version"`

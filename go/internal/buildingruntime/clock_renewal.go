@@ -8,6 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -24,6 +25,7 @@ func (s *ClockScheduler) renewalHold(cause error) error {
 // RenewEpoch uses its own gate so a long player action cannot starve the native
 // epoch lease. It never extends the retained tick deadline or acquires authority.
 func (s *ClockScheduler) RenewEpoch(ctx context.Context) (ClockRenewResult, error) {
+	ctx, _ = telemetry.EnsureTrace(ctx)
 	var out ClockRenewResult
 	call, cancel := context.WithTimeout(ctx, s.session.control.config.CallTimeout)
 	defer cancel()

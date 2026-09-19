@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -407,6 +408,10 @@ func (c *Client) operation(ctx context.Context, run func(context.Context, *liveS
 	}
 	stop := context.AfterFunc(live.ctx, cancel)
 	defer stop()
+	// A call outside any traced unit of work (startup, a dashboard read)
+	// is a trace of its own, so its request, reply and decode rows share
+	// one id instead of each minting a single-row trace (#298).
+	ctx, _ = telemetry.EnsureTrace(ctx)
 	timing := &callTiming{began: time.Now()}
 	select {
 	case c.gate <- struct{}{}:
@@ -423,7 +428,8 @@ func (c *Client) operation(ctx context.Context, run func(context.Context, *liveS
 
 // snapshotRecordingContext reads the installed recording-context callback (if
 // any) once per call and merges in any action/goal correlation the caller
-// attached to ctx via WithFlightAction.
+// attached to ctx via WithFlightAction and the trace the caller's step or
+// dispatch attached via telemetry.WithTrace (#298).
 func (c *Client) snapshotRecordingContext(ctx context.Context) map[string]any {
 	c.mu.Lock()
 	callback := c.recordingContext
@@ -437,6 +443,7 @@ func (c *Client) snapshotRecordingContext(ctx context.Context) map[string]any {
 	for k, v := range flightActionFrom(ctx) {
 		merged[k] = v
 	}
+	telemetry.TraceFrom(ctx).Stamp(merged)
 	return merged
 }
 
@@ -551,9 +558,12 @@ func (c *Client) callOnce(ctx context.Context, live *liveSession, name string, a
 			c.recorder.Event("native_error", recordCtx, true, row)
 		} else {
 			timing := phases(decodeElapsed, len(raw))
-			if queueMs, executeMs, ok := nativeTiming(decoded.Structured); ok {
-				timing["native_queue_ms"] = queueMs
-				timing["native_execute_ms"] = executeMs
+			if native, ok := nativeTiming(decoded.Structured); ok {
+				timing["native_queue_ms"] = native.queueMs
+				timing["native_execute_ms"] = native.executeMs
+				if native.trace != "" {
+					timing["native_trace"] = native.trace
+				}
 			}
 			c.recorder.Event("native_response", recordCtx, false, map[string]any{"request": request, "tool": name, "native_tool": nativeTool, "result": decoded.Structured, "timing": timing})
 		}

@@ -17,6 +17,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/store/storetest"
+	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 )
 
 type workerFake struct {
@@ -627,6 +628,38 @@ func TestWorkerStepCarriesChildOfSharedFactCache(t *testing.T) {
 	seen.Invalidate()
 	if facts.Stats().Invalidations != before+1 {
 		t.Fatal("worker step cache is not a child of the shared fact cache")
+	}
+}
+
+// A dispatch runs under a span of its own beneath the worker step's span,
+// which nests under the scheduler's latest step (WorkerConfig.Trace), so
+// the rows it leaves join that step's trace; without a scheduler trace the
+// step is a root of its own (#298).
+func TestWorkerDispatchNestsUnderTheSchedulerTrace(t *testing.T) {
+	t.Parallel()
+	w, f, db := workerFixture(t)
+	workerPending(t, w, "trace", true)
+	var seen telemetry.Trace
+	f.run = func(ctx context.Context, p domain.PlanID, a domain.ActionID) (executor.Result, error) {
+		seen = telemetry.TraceFrom(ctx)
+		plan, err := db.LoadPlan(ctx, p)
+		return executor.Result{Progress: plan.Progress[0]}, err
+	}
+	if err := w.step(context.Background(), time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	// The step is the root; the dispatch is its direct child.
+	if f.runs.Load() != 1 || seen.Empty() || seen.ParentID != seen.TraceID || seen.SpanID == seen.TraceID {
+		t.Fatalf("dispatch without a scheduler is not a span under its own step: %+v", seen)
+	}
+	step := telemetry.NewTrace()
+	w.config.Trace = func() telemetry.Trace { return step }
+	w.waits = map[domain.ActionID]workerWait{}
+	if err := w.step(context.Background(), time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if seen.TraceID != step.TraceID || seen.ParentID == "" || seen.ParentID == step.SpanID || seen.SpanID == seen.ParentID {
+		t.Fatalf("dispatch %+v is not a span two levels under step %+v", seen, step)
 	}
 }
 

@@ -31,6 +31,9 @@ func runContext(ctx context.Context, args []string, out, errors io.Writer) int {
 	if args[0] == "phases" {
 		return phases(args[1:], out, errors)
 	}
+	if args[0] == "trace" {
+		return trace(args[1:], out, errors)
+	}
 	if args[0] == "replay" {
 		if len(args) != 3 {
 			fmt.Fprintln(errors, "usage: rimgovernor replay <expected.json> <actual.json>")

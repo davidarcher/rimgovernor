@@ -38,6 +38,12 @@ type WorkerConfig struct {
 	// as a "worker_dispatch" flight row (#243), so a run can count the
 	// dispatches made live and the fraction native refused.
 	WindowRunning func() bool
+	// Trace, when set, is the trace of the scheduler's latest step
+	// (ClockWorker.Trace). Each worker step is a span under it and each
+	// dispatch a span under the step, so every row a dispatch leaves joins
+	// the trace of the step that admitted the window it ran in (#298).
+	// Nil starts a trace per worker step.
+	Trace func() telemetry.Trace
 }
 
 // routineExecutableKind lists every action kind the worker (and, for a
@@ -277,6 +283,12 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 	w.takeWake()
 	call, cancel := context.WithTimeout(ctx, w.config.StepTimeout)
 	defer cancel()
+	var parent telemetry.Trace
+	if w.config.Trace != nil {
+		parent = w.config.Trace()
+	}
+	stepTrace := parent.Child()
+	call = telemetry.WithTrace(call, stepTrace)
 	if w.config.Facts != nil {
 		call = bridge.WithStepReadCache(call, bridge.NewChildReadCache(w.config.Facts))
 	}
@@ -389,7 +401,7 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 		}
 		var result executor.Result
 		running := w.config.WindowRunning != nil && w.config.WindowRunning()
-		run, tally := bridge.WithReadTally(call)
+		run, tally := bridge.WithReadTally(telemetry.WithTrace(call, stepTrace.Child()))
 		if err == nil {
 			if candidate.cleanup {
 				result, err = w.session.CleanupDraft(run, v.Plan, v.Action)
@@ -432,7 +444,7 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 		outcome := workerOutcome(after, result, err)
 		repeats := wait.repeats
 		if outcome != wait.outcome {
-			workerOutcomeEvent(v, after, outcome, err, repeats)
+			workerOutcomeEvent(run, v, after, outcome, err, repeats)
 			repeats = 0
 		} else {
 			repeats++
@@ -469,12 +481,12 @@ func workerSameReceipt(a, b domain.ProgressView) bool {
 // workerOutcomeEvent publishes one "worker_outcome" event when an action's
 // reconciliation outcome changes: the action, its stage before and after
 // the run, the outcome text, and the error, at Warn when the run failed.
-func workerOutcomeEvent(before, after domain.ProgressView, outcome string, err error, repeats int) {
+func workerOutcomeEvent(ctx context.Context, before, after domain.ProgressView, outcome string, err error, repeats int) {
 	level := slog.LevelInfo
 	if err != nil {
 		level = slog.LevelWarn
 	}
-	slog.Default().Log(context.Background(), level, "worker outcome", telemetry.ComponentKey, "worker", telemetry.KindKey, "worker_outcome", "action", string(before.Action), "attempt", int64(after.Attempt), "stage", string(before.Stage), "stage_after", string(after.Stage), "outcome", outcome, "err", err, "repeated", repeats)
+	slog.Default().Log(ctx, level, "worker outcome", telemetry.ComponentKey, "worker", telemetry.KindKey, "worker_outcome", "action", string(before.Action), "attempt", int64(after.Attempt), "stage", string(before.Stage), "stage_after", string(after.Stage), "outcome", outcome, "err", err, "repeated", repeats)
 }
 
 // workerRepeats renders how many unlogged runs restated the previous outcome.

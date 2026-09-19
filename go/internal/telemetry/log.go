@@ -119,9 +119,11 @@ func (h *Handler) qualify(attrs []slog.Attr) []slog.Attr {
 //
 // The message is written verbatim (a multi-line message keeps its lines)
 // so the existing stderr parsers see the text they always saw after the
-// stamp. The row's context carries tick, level and component; its payload
-// is the message plus the remaining attributes.
-func (h *Handler) Handle(_ context.Context, r slog.Record) error {
+// stamp. A kinded record logged under a traced ctx (WithTrace) renders
+// trace=<id> last on the line and carries the trace in its row context
+// beside tick, level and component; the payload is the message plus the
+// remaining attributes.
+func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
 	attrs := make([]slog.Attr, 0, len(h.attrs)+r.NumAttrs())
 	attrs = append(attrs, h.attrs...)
 	r.Attrs(func(a slog.Attr) bool {
@@ -141,6 +143,7 @@ func (h *Handler) Handle(_ context.Context, r slog.Record) error {
 		}
 	}
 	tick, known := Tick()
+	trace := TraceFrom(ctx)
 	at := r.Time
 	if at.IsZero() {
 		at = time.Now()
@@ -168,6 +171,10 @@ func (h *Handler) Handle(_ context.Context, r slog.Record) error {
 		b.WriteByte('=')
 		b.WriteString(quote(render(a.Value)))
 	}
+	if kind != "" && !trace.Empty() {
+		b.WriteString(" trace=")
+		b.WriteString(trace.TraceID)
+	}
 	b.WriteByte('\n')
 	h.mu.Lock()
 	_, err := io.WriteString(h.out, b.String())
@@ -180,6 +187,7 @@ func (h *Handler) Handle(_ context.Context, r slog.Record) error {
 		if component != "" {
 			rowContext[ComponentKey] = component
 		}
+		trace.Stamp(rowContext)
 		payload := map[string]any{"msg": r.Message}
 		for _, a := range rest {
 			payload[a.Key] = jsonValue(a.Value)

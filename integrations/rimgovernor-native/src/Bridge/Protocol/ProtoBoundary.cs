@@ -34,7 +34,7 @@ namespace HomeBridge.BridgeTools
             }
             foreach (var key in arguments.Keys)
             {
-                if (key != "request" && key != "_rimBridgeTimeoutMs")
+                if (key != "request" && key != TraceArgument && key != "_rimBridgeTimeoutMs")
                 {
                     failure = Fail(Common.FailureCode.InvalidRequest, "The sole caller argument must be request.");
                     return false;
@@ -128,32 +128,48 @@ namespace HomeBridge.BridgeTools
         // wait between requesting the main thread and the body starting,
         // executeMs is the body itself including ProtoJSON formatting. It
         // covers every tool whose single main-thread hop goes through
-        // OnMainThread; multi-hop media captures stay unreported.
+        // OnMainThread; multi-hop media captures stay unreported. The
+        // caller's trace argument ("<trace_id>/<span_id>", the controller's
+        // scheduler step or worker dispatch) is echoed as timing.trace so
+        // the phases join the controller's trace.
         internal const string TimingField = "timing";
+        internal const string TraceArgument = "trace";
 
         internal static Task<object> OnMainThread(IRimBridgeContext ctx, Func<object> body, CancellationToken cancellationToken)
         {
             var queued = Stopwatch.GetTimestamp();
+            var trace = TraceOf(ctx);
             return ctx.MainThread.InvokeAsync<object>(() =>
             {
                 var started = Stopwatch.GetTimestamp();
                 var reply = body();
-                return WithTiming(reply, queued, started, Stopwatch.GetTimestamp());
+                return WithTiming(reply, queued, started, Stopwatch.GetTimestamp(), trace);
             }, cancellationToken);
+        }
+
+        // The caller's trace argument, or null when it sent none or the raw
+        // arguments are unreadable; a missing echo is never a failure.
+        internal static string? TraceOf(IRimBridgeContext ctx)
+        {
+            var arguments = BridgeCommon.RawArguments(ctx, out _);
+            if (arguments == null || !arguments.TryGetValue(TraceArgument, out var raw) || !TryString(raw, out var trace)) return null;
+            return trace.Length > 0 && trace.Length <= 64 ? trace : null;
         }
 
         internal static Task<object> OnMainThreadEncoded(IRimBridgeContext ctx, Func<IMessage> body, CancellationToken cancellationToken)
             => OnMainThread(ctx, () => Encode(body()), cancellationToken);
 
-        internal static object WithTiming(object reply, long queued, long started, long finished)
+        internal static object WithTiming(object reply, long queued, long started, long finished, string? trace = null)
         {
             var envelope = reply as Dictionary<string, object?>;
             if (envelope == null || !envelope.ContainsKey("payload") || envelope.ContainsKey(TimingField)) return reply;
-            envelope[TimingField] = new Dictionary<string, object?>(StringComparer.Ordinal)
+            var timing = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 ["queueMs"] = Millis(started - queued),
                 ["executeMs"] = Millis(finished - started),
             };
+            if (trace != null) timing[TraceArgument] = trace;
+            envelope[TimingField] = timing;
             return envelope;
         }
 

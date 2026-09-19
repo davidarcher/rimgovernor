@@ -63,6 +63,47 @@ the context; `rimgovernor phases` ignores them. The kinds:
 - `routine_review`: one per committed routine review: revision, tick,
   goal count and the needs that declared an emergency.
 
+## Traces
+
+Every row's context carries a `trace_id` and a `span_id` (#298). A
+scheduler step is a trace root: the bundle, the census and planner reads,
+the admission, its `clock_step` tally and its `scheduler_step` event all
+share its id, and the stderr line for a kinded record ends in
+`trace=<id>`. The Worker's step is a span under the latest scheduler step
+(`parent_id`) and each dispatch a span under that, so the rows a dispatch
+leaves (`worker_dispatch`, `worker_outcome`, its native calls) join the
+trace of the step that admitted the window it ran in. A poll and a
+renewal are traces of their own; a row written outside any traced unit of
+work (the coverage row, a dashboard read) gets a single-row trace, so no
+row is unaddressable. Typed bridge calls send `trace` (`<trace_id>/<span_id>`)
+beside `request`, and the companion echoes it as `timing.trace`, recorded
+as `native_trace` in the response row's timing, so `queueMs`/`executeMs`
+belong to the same trace as the service's own phases.
+
+```bash
+go run ./cmd/rimgovernor trace C:\path\to\run\flight-recorder.jsonl
+go run ./cmd/rimgovernor trace [--json] C:\path\to\run\flight-recorder.jsonl <trace_id>
+```
+
+Without an id the command lists the traces (offset, span, row count,
+tick, and the step or outcome message that names it), which is where to
+find the step that took 4 s. With an id it renders that trace as a
+waterfall: one line per row in sequence with its offset from the trace's
+first row, the span it ran under (indented by nesting), and for a native
+call its duration and phases (`gate`, `call`, `decode`, the companion's
+`native queue`/`exec`) with the reply folded into the request line; a
+kinded event shows its message and attributes.
+
+```
+trace 5c0e1f2a9b3d4e6f: 14 rows over 412.7ms, tick 12000, sequence 1032..1045
+    at ms   dur ms  span      row
+      0.0     11.9  5c0e1f2a  native rimgovernor/observations_read_bundle  gate 0.0 call 11.5 decode 0.2 native queue 0.4 exec 9.1
+     12.5        -  5c0e1f2a  cache hit rimgovernor/observations_list_pawns
+    230.1      5.0  90faecc0      native rimgovernor/operations_execute  gate 0.0 call 4.9 decode 0.0
+    235.2        -  90faecc0      worker_dispatch action=... receipt=accepted running=true
+    412.7        -  5c0e1f2a  scheduler_step "step done" admitted=true running=true window_ticks=150
+```
+
 ## Report
 
 ```bash

@@ -226,6 +226,9 @@ type ClockScheduler struct {
 	// latched holds the attempts whose terminal outcome a committed page
 	// reported and the Worker has yet to reconcile; see clockLatched.
 	latched *clockLatched
+	// trace is the trace of the latest step (telemetry.Trace); the Worker
+	// nests its dispatches under it (#298).
+	trace atomic.Value
 	// readmitOwed is set by a step that settled its own stopped window and
 	// then deferred, so the step that finally admits reports the whole
 	// stop-to-readmit pause; touched only under the player gate.
@@ -479,9 +482,17 @@ func clockSchedulerLog(format string, args ...any) {
 
 // clockEvent logs one typed service event: an Info record that the
 // telemetry handler mirrors into the flight recorder as a row of kind,
-// stamped with the last observed tick, with attrs as its payload.
-func clockEvent(component, kind, message string, attrs ...any) {
-	slog.Default().Info(message, append([]any{telemetry.ComponentKey, component, telemetry.KindKey, kind}, attrs...)...)
+// stamped with the last observed tick and the trace ctx carries, with
+// attrs as its payload.
+func clockEvent(ctx context.Context, component, kind, message string, attrs ...any) {
+	slog.Default().InfoContext(ctx, message, append([]any{telemetry.ComponentKey, component, telemetry.KindKey, kind}, attrs...)...)
+}
+
+// Trace is the trace of the latest step, empty before the first. The
+// Worker's dispatches are spans under it (WorkerConfig.Trace).
+func (s *ClockScheduler) Trace() telemetry.Trace {
+	t, _ := s.trace.Load().(telemetry.Trace)
+	return t
 }
 
 // clockReasonNames renders a decision's refusal reasons for an event attr.
@@ -503,6 +514,10 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	var paused time.Duration
 	var readmit bool
 	entered := time.Now()
+	// The step is a trace root (or runs under the caller's): every flight
+	// row it leaves, native or kinded, carries its trace_id (#298).
+	ctx, trace := telemetry.EnsureTrace(ctx)
+	s.trace.Store(trace)
 	// The poll records latched outcomes as it commits them; the reason
 	// repeats them for a step driven without the poll loop.
 	s.latched.remember(reason.Events)
@@ -930,7 +945,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	out.Decision = policy.EvaluateClockWindow(facts, policy.ClockWindowLimits{Now: s.clock.Now(), MaxAge: s.config.MaxAge, MaxTicks: start.MaxTicks, CombatMaxTicks: combatMaxTicks})
 	clockSchedulerLog("EvaluateClockWindow: work=%v combatPlan=%v admitted=%v mode=%s hostiles=%v refused=%v", work, combatPlan, out.Decision.Admitted, out.Decision.Mode, out.Decision.Hostiles, out.Decision.Refused)
 	if !out.Decision.Admitted {
-		clockEvent("clock-scheduler", "admission_refused", "window not admitted", "refused", clockReasonNames(out.Decision.Refused), "mode", string(out.Decision.Mode), "work", work, "combat_plan", combatPlan, "hostiles", len(out.Decision.Hostiles), "clock_state", string(clockState), "window_ticks", out.Window.Ticks)
+		clockEvent(call, "clock-scheduler", "admission_refused", "window not admitted", "refused", clockReasonNames(out.Decision.Refused), "mode", string(out.Decision.Mode), "work", work, "combat_plan", combatPlan, "hostiles", len(out.Decision.Hostiles), "clock_state", string(clockState), "window_ticks", out.Window.Ticks)
 		return out, executor.ErrHeld
 	}
 	start.Policy = proto.Clone(start.Policy).(*k.WatchPolicy)

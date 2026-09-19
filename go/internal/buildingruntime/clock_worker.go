@@ -29,6 +29,7 @@ type ClockWorker struct {
 	// held reports whether the next poll may hold its native read for
 	// config.PollWait; nil holds whenever PollWait is set.
 	held       func() bool
+	trace      func() telemetry.Trace
 	renew      func(context.Context) (ClockRenewResult, error)
 	step       func(context.Context, StepReason) (ClockSchedulerResult, error)
 	stopParent func() bool
@@ -69,7 +70,7 @@ func NewClockWorker(ctx context.Context, scheduler *ClockScheduler, nativeEvents
 		return nil, ErrControl
 	}
 	lifetime, cancel := context.WithCancel(ctx)
-	w := &ClockWorker{ctx: lifetime, cancel: cancel, config: config, done: make(chan struct{}), ready: make(chan struct{}), stopGate: make(chan struct{}, 1), disable: scheduler.session.disableClockWorker, cleanup: scheduler.session.CleanupClock, step: scheduler.StepWithReason, renew: scheduler.RenewEpoch, held: scheduler.WindowRunning, wake: NewWakeSignal(), pollWake: make(chan struct{}, 1)}
+	w := &ClockWorker{ctx: lifetime, cancel: cancel, config: config, done: make(chan struct{}), ready: make(chan struct{}), stopGate: make(chan struct{}, 1), disable: scheduler.session.disableClockWorker, cleanup: scheduler.session.CleanupClock, step: scheduler.StepWithReason, renew: scheduler.RenewEpoch, held: scheduler.WindowRunning, trace: scheduler.Trace, wake: NewWakeSignal(), pollWake: make(chan struct{}, 1)}
 	w.poll = func(ctx context.Context, wait time.Duration) (ClockPollResult, error) {
 		return scheduler.PollEvents(ctx, nativeEvents, config.PageLimit, wait)
 	}
@@ -145,6 +146,9 @@ func (w *ClockWorker) Nudge() {
 // WindowRunning is the scheduler's hint that a window it admitted was still
 // running at its last evidence (ClockScheduler.WindowRunning).
 func (w *ClockWorker) WindowRunning() bool { return w.held != nil && w.held() }
+
+// Trace is the trace of the scheduler's latest step (ClockScheduler.Trace).
+func (w *ClockWorker) Trace() telemetry.Trace { return w.trace() }
 
 // waitOrWake sleeps for delay unless the wake signal fires first. It reports
 // whether the wake fired and whether the worker is still alive.
@@ -271,7 +275,7 @@ func clockWorkerKey(result ClockSchedulerResult, err error) clockStepKey {
 // error (Warn, as "step failed") or its outcome flags (Info, "step done"),
 // the planner failures the step isolated, and how many unlogged steps
 // restated the previous outcome.
-func clockWorkerStepEvent(result ClockSchedulerResult, err error, repeats int) {
+func clockWorkerStepEvent(ctx context.Context, result ClockSchedulerResult, err error, repeats int) {
 	level, message := slog.LevelInfo, "step done"
 	if err != nil {
 		level, message = slog.LevelWarn, "step failed: "+err.Error()
@@ -280,7 +284,7 @@ func clockWorkerStepEvent(result ClockSchedulerResult, err error, repeats int) {
 	for _, failure := range result.PlannerFailures {
 		failures = append(failures, failure.Error())
 	}
-	slog.Default().Log(context.Background(), level, message, telemetry.ComponentKey, "clock-worker", telemetry.KindKey, "scheduler_step",
+	slog.Default().Log(ctx, level, message, telemetry.ComponentKey, "clock-worker", telemetry.KindKey, "scheduler_step",
 		"err", err, "planner_failures", failures, "cause", string(result.Reason.Cause), "admitted", result.Decision.Admitted, "running", result.Running,
 		"reconciled", result.Reconciled, "cleaned", result.Cleaned, "deferred", result.Deferred, "combat", result.Combat, "window_ticks", result.Window.Ticks, "repeated", repeats)
 }
@@ -300,7 +304,9 @@ func (w *ClockWorker) stepLoop() {
 	// ended the wait before it: the timer, a wake, or a settled epoch.
 	reason := StepReason{Cause: StepFull}
 	for w.ctx.Err() == nil {
-		call, cancel := context.WithTimeout(w.ctx, w.config.StepTimeout)
+		// The loop mints the step's trace so the scheduler_step event below
+		// shares it with every row the step wrote (#298).
+		call, cancel := context.WithTimeout(telemetry.WithTrace(w.ctx, telemetry.NewTrace()), w.config.StepTimeout)
 		result, err := w.step(call, reason)
 		cancel()
 		w.wakePoll()
@@ -313,7 +319,7 @@ func (w *ClockWorker) stepLoop() {
 		// (clock_scheduler.go), so the failure is diagnosable from this
 		// line alone; the stall diagnosis reads it (issues #45, #100).
 		if changed {
-			clockWorkerStepEvent(result, err, repeats)
+			clockWorkerStepEvent(call, result, err, repeats)
 			repeats = 0
 		} else {
 			repeats++
