@@ -38,6 +38,10 @@ func (n *stoneShellNative) ReadWallUpgradeSites(ctx context.Context, _ *c.Identi
 // granite replacement site with no backups so the bundle is demolish +
 // replace.
 func stoneShellFixture(t *testing.T) (*RoutineStoneShellPlanner, *store.Store, *stoneShellNative) {
+	return stoneShellFixtureHistory(t, true)
+}
+
+func stoneShellFixtureHistory(t *testing.T, history bool) (*RoutineStoneShellPlanner, *store.Store, *stoneShellNative) {
 	t.Helper()
 	ctx := context.Background()
 	base, db, shelter := shelterFixture(t)
@@ -54,49 +58,52 @@ func stoneShellFixture(t *testing.T) (*RoutineStoneShellPlanner, *store.Store, *
 		}
 	}
 	current := base.reviewer.player.session.State().Snapshot
-	goal, err := domain.NewGoal("stone-owner", domain.AutopilotGoal, 4, current, 7)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err = db.CreateGoal(ctx, goal); err != nil {
-		t.Fatal(err)
-	}
-	g, err := db.LoadGoal(ctx, goal.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if g, err = db.ReviewGoal(ctx, goal.ID, g.Revision, current, 7, domain.NeedDeficit, false); err != nil {
-		t.Fatal(err)
-	}
-	wall, err := domain.NewBuilding("Wall", domain.Cell{X: 4, Z: 4}, domain.North, "WoodLog")
-	if err != nil {
-		t.Fatal(err)
-	}
-	a, err := domain.NewBuildingAction("owned-wall", wall)
-	if err != nil {
-		t.Fatal(err)
-	}
-	spec, err := domain.NewPlan("stone-owner-plan", 1, []domain.Action{a})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err = db.CommitGoalMethod(ctx, goal.ID, g.Revision, "owner-Wall", spec); err != nil {
-		t.Fatal(err)
-	}
-	scope := current
-	scope.Plan, scope.Revision = spec.ID(), spec.Revision()
-	if _, err = db.ReserveAndPrepare(ctx, spec.ID(), a.ID(), store.Admission{Snapshot: scope, Tick: 7, Costs: []store.MaterialCost{}, Footprint: []domain.Cell{wall.Cell()}}); err != nil {
-		t.Fatal(err)
-	}
-	if _, err = db.Dispatch(ctx, spec.ID(), a.ID(), scope, 7); err != nil {
-		t.Fatal(err)
-	}
-	if _, err = db.Observe(ctx, spec.ID(), domain.Observation{Action: a.ID(), Attempt: 1, Snapshot: scope, Tick: 7, Effect: domain.EffectCompleted, Causality: domain.AfterDispatch, Construction: &domain.ConstructionIdentity{Origin: "blueprint", Current: "wall-1"}}, scope); err != nil {
-		t.Fatal(err)
+	var err error
+	if history {
+		goal, err := domain.NewGoal("stone-owner", domain.AutopilotGoal, 4, current, 7)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err = db.CreateGoal(ctx, goal); err != nil {
+			t.Fatal(err)
+		}
+		g, err := db.LoadGoal(ctx, goal.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if g, err = db.ReviewGoal(ctx, goal.ID, g.Revision, current, 7, domain.NeedDeficit, false); err != nil {
+			t.Fatal(err)
+		}
+		wall, err := domain.NewBuilding("Wall", domain.Cell{X: 4, Z: 4}, domain.North, "WoodLog")
+		if err != nil {
+			t.Fatal(err)
+		}
+		a, err := domain.NewBuildingAction("owned-wall", wall)
+		if err != nil {
+			t.Fatal(err)
+		}
+		spec, err := domain.NewPlan("stone-owner-plan", 1, []domain.Action{a})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err = db.CommitGoalMethod(ctx, goal.ID, g.Revision, "owner-Wall", spec); err != nil {
+			t.Fatal(err)
+		}
+		scope := current
+		scope.Plan, scope.Revision = spec.ID(), spec.Revision()
+		if _, err = db.ReserveAndPrepare(ctx, spec.ID(), a.ID(), store.Admission{Snapshot: scope, Tick: 7, Costs: []store.MaterialCost{}, Footprint: []domain.Cell{wall.Cell()}}); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = db.Dispatch(ctx, spec.ID(), a.ID(), scope, 7); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = db.Observe(ctx, spec.ID(), domain.Observation{Action: a.ID(), Attempt: 1, Snapshot: scope, Tick: 7, Effect: domain.EffectCompleted, Causality: domain.AfterDispatch, Construction: &domain.ConstructionIdentity{Origin: "blueprint", Current: "wall-1"}}, scope); err != nil {
+			t.Fatal(err)
+		}
 	}
 	cell := &c.Cell{X: proto.Int32(4), Z: proto.Int32(4)}
 	entity := &o.EntityRef{Id: proto.String("wall-1"), DefName: proto.String("Wall"), MapId: proto.Int32(0), Position: cell}
-	n.buildings = &o.ListBuildingsReply{Outcome: &o.ListBuildingsReply_Observed{Observed: &o.BuildingsSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Completeness: count(1), Buildings: []*o.BuildingState{{Building: entity, Status: proto.String("built"), Rotation: proto.String("North"), Stuff: proto.String("WoodLog")}}}}}
+	n.buildings = &o.ListBuildingsReply{Outcome: &o.ListBuildingsReply_Observed{Observed: &o.BuildingsSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Completeness: count(1), Buildings: []*o.BuildingState{{Building: entity, OccupiedCells: []*c.Cell{cell}, Status: proto.String("built"), Rotation: proto.String("North"), Stuff: proto.String("WoodLog")}}}}}
 	v.Upkeep = &o.UpkeepSection{Outcome: &o.UpkeepSection_Observed{Observed: &o.UpkeepFacts{
 		Structures:   []*o.UpkeepStructure{{Building: &o.BuildingState{Building: entity}, Flammability: proto.Float64(1)}},
 		Completeness: count(1),
@@ -248,5 +255,44 @@ func TestRoutineStoneShellRefusesZeroStockObservationAsStaleFacts(t *testing.T) 
 	request.Stock = fresh
 	if decision, err = db.AdmitBuildingMethod(ctx, request); err != nil || !decision.Admitted || len(decision.Refused) != 0 {
 		t.Fatal(decision, err)
+	}
+}
+
+func TestRoutineStoneShellAdmitsPlayerBuiltWall(t *testing.T) {
+	p, db, _ := stoneShellFixtureHistory(t, false)
+	claims, err := db.ConstructionClaims(context.Background(), p.reviewer.player.session.State().Snapshot, 7)
+	rows, known := claims.Value()
+	if err != nil || !known || len(rows) != 0 {
+		t.Fatal("fixture has construction history", rows, known, err)
+	}
+	result, err := p.Step(context.Background())
+	if err != nil || result.Reason != BuildingMethodAdmitted {
+		t.Fatal(result, err)
+	}
+}
+
+func TestRoutineHomeCoverageAdmitsPlayerBuiltFacility(t *testing.T) {
+	stone, db, native := stoneShellFixtureHistory(t, false)
+	v := native.reply.GetObserved()
+	v.Upkeep.GetObserved().HomeCoverage = &o.HomeCoverageSection{Outcome: &o.HomeCoverageSection_Observed{Observed: &o.HomeCoverageFacts{
+		Revision:     proto.Int64(1),
+		Targets:      []*o.HomeCoverageTarget{{Id: proto.String("wall-1"), ShapeToken: proto.String("shape"), MissingCells: proto.Uint32(1), ExcludedCells: proto.Uint32(0), Cells: []*c.Cell{{X: proto.Int32(4), Z: proto.Int32(4)}}}},
+		Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(1), Returned: proto.Uint64(1), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)},
+	}}}
+	stone.reviewer.methods = domain.Known([]policy.GoalID{policy.MaintainHomeCoverage})
+	if _, err := stone.reviewer.Step(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	planner, err := NewRoutineHomeCoveragePlanner(stone.reviewer, native)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := planner.Step(context.Background())
+	if err != nil || result.Reason != BuildingMethodAdmitted {
+		t.Fatal(result, err)
+	}
+	plan, err := db.LoadPlan(context.Background(), result.Plan)
+	if err != nil || len(plan.Spec.Actions()) != 1 || plan.Spec.Actions()[0].Kind() != domain.HomeCoverageAction {
+		t.Fatal(plan, err)
 	}
 }

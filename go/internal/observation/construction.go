@@ -2,7 +2,6 @@ package observation
 
 import (
 	"context"
-	"sort"
 	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -17,26 +16,11 @@ type ConstructionSource interface {
 }
 
 func (s *routineBracket) readConstruction(ctx context.Context, id *c.Identity) error {
-	claims, known := s.claims.Value()
-	if !known {
-		return nil
-	}
-	if len(claims) > 256 {
-		return ErrContract
-	}
-	if len(claims) == 0 {
-		s.construction = domain.Known(policy.CurrentConstruction{Requested: []string{}, Buildings: []policy.CurrentBuilding{}})
-		return nil
-	}
 	source, available := s.RoutineSource.(ConstructionSource)
 	if !available {
 		return nil
 	}
-	ids := []string{}
-	for _, claim := range claims {
-		ids = append(ids, claim.Identity.Current)
-	}
-	sort.Strings(ids)
+	var ids []string
 	reply, _, err := source.ReadConstructionBuildings(ctx, id, ids)
 	if reply != nil && reply.GetUnavailable() != nil {
 		return nil
@@ -59,13 +43,15 @@ func (s *routineBracket) readConstruction(ctx context.Context, id *c.Identity) e
 	if !cachedColonyBoundary(observed, s.expected, bridge.FactColony) {
 		return ErrChanged
 	}
-	s.construction, err = constructionBuildings(snapshot, ids)
+	s.construction, err = ConstructionBuildings(snapshot, ids)
 	return err
 }
 
-func constructionBuildings(v *o.BuildingsSnapshot, ids []string) (domain.Fact[policy.CurrentConstruction], error) {
+// ConstructionBuildings projects a validated player-only building read. Empty IDs
+// identifies a complete colony census, independent of controller action history.
+func ConstructionBuildings(v *o.BuildingsSnapshot, ids []string) (domain.Fact[policy.CurrentConstruction], error) {
 	unknown := domain.Unknown[policy.CurrentConstruction]()
-	r := policy.CurrentConstruction{Requested: append([]string{}, ids...), Buildings: []policy.CurrentBuilding{}}
+	r := policy.CurrentConstruction{Colony: len(ids) == 0, Requested: append([]string{}, ids...), Buildings: []policy.CurrentBuilding{}}
 	for _, row := range v.Buildings {
 		stuff := row.GetStuff()
 		if row.Stuff == nil {
@@ -81,7 +67,14 @@ func constructionBuildings(v *o.BuildingsSnapshot, ids []string) (domain.Fact[po
 		if err != nil {
 			return unknown, err
 		}
-		r.Buildings = append(r.Buildings, policy.CurrentBuilding{ID: row.Building.GetId(), Building: b})
+		cells := make([]domain.Cell, 0, len(row.OccupiedCells))
+		for _, cell := range row.OccupiedCells {
+			if cell == nil || cell.X == nil || cell.Z == nil {
+				return unknown, ErrContract
+			}
+			cells = append(cells, domain.Cell{X: cell.GetX(), Z: cell.GetZ()})
+		}
+		r.Buildings = append(r.Buildings, policy.CurrentBuilding{ID: row.Building.GetId(), Building: b, Cells: cells})
 	}
 	return domain.Known(r), nil
 }

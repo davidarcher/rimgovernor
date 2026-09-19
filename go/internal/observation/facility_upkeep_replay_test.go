@@ -61,7 +61,7 @@ func TestNativeFacilityUpkeepReplay(t *testing.T) {
 	if !proto.Equal(buildings.GetObserved().Context, colony.GetObserved().Context) {
 		t.Fatal("ownership query outside colony context")
 	}
-	current, err := constructionBuildings(buildings.GetObserved(), fixture.IDs)
+	current, err := ConstructionBuildings(buildings.GetObserved(), fixture.IDs)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -3,21 +3,19 @@ package buildingruntime
 import (
 	"context"
 	"fmt"
-	"sort"
-	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
-// RoutineHomeCoverageSource reads current buildings by exact claimed identity
-// (to re-derive ownership fresh, the same evidence OwnedConstructions
-// requires) and the general colony census carrying the Home coverage/upkeep
+// RoutineHomeCoverageSource reads the complete current player-building census
+// and the general colony census carrying the Home coverage/upkeep
 // section. No dedicated Home-coverage read exists; ReadColonyFacts's Upkeep
 // facts are unconditional, unlike Planning, so planning is left false here.
 type RoutineHomeCoverageSource interface {
@@ -127,40 +125,21 @@ func (r *RoutineHomeCoveragePlanner) step(call, epoch context.Context, arbiter *
 	if err != nil {
 		return RoutineHomeCoverageResult{}, err
 	}
-	wanted, known := claims.Value()
-	if !known {
+
+	buildingReply, _, err := r.native.ReadConstructionBuildings(call, identity, nil)
+	if err != nil {
+		return RoutineHomeCoverageResult{}, err
+	}
+	buildings := buildingReply.GetObserved()
+	if err = bridge.ValidateConstructionBuildings(buildings, identity, nil); err != nil {
+		return RoutineHomeCoverageResult{}, err
+	}
+	if _, err = boundary.Context(buildings.Context, state.Snapshot); err != nil || buildings.Context.GetTick() < int64(review.Tick) {
 		return RoutineHomeCoverageResult{}, ErrControl
 	}
-	construction := domain.Known(policy.CurrentConstruction{Requested: []string{}, Buildings: []policy.CurrentBuilding{}})
-	if len(wanted) > 0 {
-		ids := make([]string, 0, len(wanted))
-		for _, claim := range wanted {
-			ids = append(ids, claim.Identity.Current)
-		}
-		sort.Strings(ids)
-		reply, _, err := r.native.ReadConstructionBuildings(call, identity, ids)
-		if err != nil {
-			return RoutineHomeCoverageResult{}, err
-		}
-		observed := reply.GetObserved()
-		if observed == nil {
-			return RoutineHomeCoverageResult{}, ErrControl
-		}
-		if err = bridge.ValidateConstructionBuildings(observed, identity, ids); err != nil {
-			return RoutineHomeCoverageResult{}, err
-		}
-		if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil {
-			return RoutineHomeCoverageResult{}, ErrControl
-		}
-		result := policy.CurrentConstruction{Requested: append([]string{}, ids...), Buildings: []policy.CurrentBuilding{}}
-		for _, row := range observed.Buildings {
-			building, err := domain.NewBuilding(row.Building.GetDefName(), domain.Cell{X: row.Building.Position.GetX(), Z: row.Building.Position.GetZ()}, domain.Rotation(strings.ToLower(row.GetRotation())), row.GetStuff())
-			if err != nil {
-				return RoutineHomeCoverageResult{}, err
-			}
-			result.Buildings = append(result.Buildings, policy.CurrentBuilding{ID: row.Building.GetId(), Building: building})
-		}
-		construction = domain.Known(result)
+	construction, err := observation.ConstructionBuildings(buildings, nil)
+	if err != nil {
+		return RoutineHomeCoverageResult{}, err
 	}
 	owned, err := policy.OwnedConstructions(claims, construction)
 	if err != nil {
@@ -178,7 +157,7 @@ func (r *RoutineHomeCoveragePlanner) step(call, epoch context.Context, arbiter *
 	if observed == nil {
 		return RoutineHomeCoverageResult{}, ErrControl
 	}
-	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil || observed.Context.GetTick() < int64(review.Tick) {
+	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil || observed.Context.GetTick() != buildings.Context.GetTick() {
 		return RoutineHomeCoverageResult{}, ErrControl
 	}
 	census, ok := homeCoverageObservationFacts(observed)

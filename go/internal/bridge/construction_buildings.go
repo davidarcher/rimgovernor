@@ -9,14 +9,15 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// ReadConstructionBuildings requests current player buildings by exact identity.
-// It supplies no lineage or ownership claim; the journal provides those proofs.
+// ReadConstructionBuildings requests built artificial player-faction buildings.
+// Empty IDs requests the complete bounded colony census; nonempty IDs refresh
+// exact targets. Native faction filtering supplies planning ownership, not lineage.
 func (client *Client) ReadConstructionBuildings(ctx context.Context, identity *c.Identity, ids []string) (*o.ListBuildingsReply, Result, error) {
 	if err := ValidateIdentity(identity); err != nil {
 		return nil, Result{}, err
 	}
-	if len(ids) < 1 || len(ids) > 256 {
-		return nil, Result{}, contract("building IDs outside 1..256")
+	if len(ids) > 256 {
+		return nil, Result{}, contract("building IDs exceed 256")
 	}
 	seen := map[string]bool{}
 	for _, id := range ids {
@@ -25,7 +26,11 @@ func (client *Client) ReadConstructionBuildings(ctx context.Context, identity *c
 		}
 		seen[id] = true
 	}
-	request := &o.ListBuildingsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Ids: append([]string{}, ids...), Statuses: []string{"built"}, PlayerOnly: proto.Bool(true), Category: proto.String("artificial"), Page: &c.PageRequest{Limit: proto.Uint32(uint32(len(ids)))}}
+	limit := len(ids)
+	if limit == 0 {
+		limit = 256
+	}
+	request := &o.ListBuildingsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Ids: append([]string{}, ids...), Statuses: []string{"built"}, PlayerOnly: proto.Bool(true), Category: proto.String("artificial"), Page: &c.PageRequest{Limit: proto.Uint32(uint32(limit))}}
 	reply := &o.ListBuildingsReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/observations_list_buildings", request, reply)
 	if err != nil {
@@ -50,7 +55,7 @@ func (client *Client) ReadConstructionBuildings(ctx context.Context, identity *c
 // Only exact identity, status and geometry fields are consumed for ownership.
 // Other typed building details do not supply upkeep authority.
 func ValidateConstructionBuildings(v *o.BuildingsSnapshot, identity *c.Identity, ids []string) error {
-	if v == nil || ValidateContext(v.Context) != nil || !sameIdentity(v.Context.Identity, identity) || len(ids) < 1 || len(ids) > 256 {
+	if v == nil || ValidateContext(v.Context) != nil || !sameIdentity(v.Context.Identity, identity) || len(ids) > 256 {
 		return contract("invalid building query context")
 	}
 	requested := map[string]bool{}
@@ -61,12 +66,12 @@ func ValidateConstructionBuildings(v *o.BuildingsSnapshot, identity *c.Identity,
 		requested[id] = true
 	}
 	counts := v.Completeness
-	if len(v.Buildings) > len(ids) || counts == nil || counts.Page == nil || counts.Page.Complete == nil || !counts.Page.GetComplete() || counts.Page.GetNextCursor() != "" || counts.Matched == nil || counts.Returned == nil || counts.Filtered == nil || counts.Unreadable == nil || counts.GetMatched() != uint64(len(v.Buildings)) || counts.GetReturned() != uint64(len(v.Buildings)) || counts.GetUnreadable() != 0 || counts.GetFiltered() > math.MaxUint64-counts.GetReturned() {
+	if (len(ids) > 0 && len(v.Buildings) > len(ids)) || len(v.Buildings) > 256 || counts == nil || counts.Page == nil || counts.Page.Complete == nil || !counts.Page.GetComplete() || counts.Page.GetNextCursor() != "" || counts.Matched == nil || counts.Returned == nil || counts.Filtered == nil || counts.Unreadable == nil || counts.GetMatched() != uint64(len(v.Buildings)) || counts.GetReturned() != uint64(len(v.Buildings)) || counts.GetUnreadable() != 0 || counts.GetFiltered() > math.MaxUint64-counts.GetReturned() {
 		return contract("incomplete building query")
 	}
 	seen := map[string]bool{}
 	for _, row := range v.Buildings {
-		if row == nil || row.Building == nil || !requested[row.Building.GetId()] || seen[row.Building.GetId()] {
+		if row == nil || row.Building == nil || (len(ids) > 0 && !requested[row.Building.GetId()]) || seen[row.Building.GetId()] {
 			return contract("unexpected building")
 		}
 		seen[row.Building.GetId()] = true

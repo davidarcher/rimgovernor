@@ -65,7 +65,6 @@ type routineBracket struct {
 	roomsEnabled       bool
 	temperature        domain.Fact[policy.RoomObservation]
 	temperatureReceipt bridge.Result
-	claims             domain.Fact[[]policy.ConstructionClaim]
 	construction       domain.Fact[policy.CurrentConstruction]
 	RoutineSource
 	expected          Identity
@@ -274,7 +273,7 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 	if source == nil {
 		return RoutineReading{}, ErrContract
 	}
-	bracket := &routineBracket{roomsEnabled: rooms, claims: claims, RoutineSource: source, expected: expected, definitions: append([]string(nil), definitions...), store: RoutineStoreFrom(ctx)}
+	bracket := &routineBracket{roomsEnabled: rooms, RoutineSource: source, expected: expected, definitions: append([]string(nil), definitions...), store: RoutineStoreFrom(ctx)}
 	reading, err := ObserveColony(ctx, bracket, clock, expected, maxAge, true, nil)
 	if err != nil {
 		return RoutineReading{}, err

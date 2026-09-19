@@ -7,23 +7,29 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// Claims are derived from completed autonomous journal actions. Callers of
-// routine review cannot supply them or turn a player placement into ownership.
+// Journal claims retain completed autonomous construction provenance. Planning
+// ownership may also come from the current player-faction census; those rows
+// carry Identity.Current, Building and Cells, without invented action provenance.
 type ConstructionClaim struct {
 	Plan     domain.PlanID
 	Action   domain.ActionID
 	Goal     domain.GoalID
 	Identity domain.ConstructionIdentity
 	Building domain.Building
+	Cells    []domain.Cell
 }
 type CurrentBuilding struct {
 	ID       string
 	Building domain.Building
+	Cells    []domain.Cell
 }
 
-// A completed causal identity must still be present with its original geometry.
-// Missing/replaced/moved buildings are not rebound by location or definition.
+// CurrentConstruction distinguishes a colony census from an exact refresh.
+// Exact refreshes retain causal identity only with the original geometry.
 type CurrentConstruction struct {
+	// Colony marks a complete built/artificial/player-only census. Requested
+	// otherwise scopes an exact-ID refresh of journal claims.
+	Colony    bool
 	Requested []string
 	Buildings []CurrentBuilding
 }
@@ -31,6 +37,13 @@ type CurrentConstruction struct {
 func OwnedConstructions(claims domain.Fact[[]ConstructionClaim], observed domain.Fact[CurrentConstruction]) (domain.Fact[[]ConstructionClaim], error) {
 	unknown := domain.Unknown[[]ConstructionClaim]()
 	invalid := errors.New("invalid construction ownership evidence")
+	census, observedKnown := observed.Value()
+	if !observedKnown {
+		return unknown, nil
+	}
+	if census.Colony {
+		return observedConstructions(claims, census)
+	}
 	wanted, known := claims.Value()
 	if !known {
 		return unknown, nil
@@ -53,10 +66,6 @@ func OwnedConstructions(claims domain.Fact[[]ConstructionClaim], observed domain
 	}
 	if len(wanted) == 0 {
 		return domain.Known([]ConstructionClaim{}), nil
-	}
-	census, known := observed.Value()
-	if !known {
-		return unknown, nil
 	}
 	if len(census.Requested) > 256 || len(census.Buildings) > 256 {
 		return unknown, invalid
@@ -91,6 +100,50 @@ func OwnedConstructions(claims domain.Fact[[]ConstructionClaim], observed domain
 		if building, ok := current[claim.Identity.Current]; ok && building == claim.Building {
 			result = append(result, claim)
 		}
+	}
+	sort.Slice(result, func(i, j int) bool { return result[i].Identity.Current < result[j].Identity.Current })
+	return domain.Known(result), nil
+}
+
+// observedConstructions is the common current geometry/ownership view for
+// facility planning and colony extent. History annotates an exact match only;
+// it neither excludes player-built facilities nor transfers causal provenance.
+func observedConstructions(claims domain.Fact[[]ConstructionClaim], census CurrentConstruction) (domain.Fact[[]ConstructionClaim], error) {
+	unknown := domain.Unknown[[]ConstructionClaim]()
+	if len(census.Buildings) > 256 || len(census.Requested) != 0 {
+		return unknown, errors.New("invalid colony construction census")
+	}
+	history, _ := claims.Value()
+	result := make([]ConstructionClaim, 0, len(census.Buildings))
+	seen := map[string]bool{}
+	for _, row := range census.Buildings {
+		if !foodID(row.ID) || seen[row.ID] {
+			return unknown, errors.New("invalid colony building identity")
+		}
+		b := row.Building
+		if _, err := domain.NewBuilding(b.Definition(), b.Cell(), b.Rotation(), b.Stuff()); err != nil {
+			return unknown, err
+		}
+		if !facilityCells(row.Cells) {
+			return unknown, errors.New("invalid colony building footprint")
+		}
+		anchor := false
+		for _, cell := range row.Cells {
+			anchor = anchor || cell == b.Cell()
+		}
+		if !anchor {
+			return unknown, errors.New("building anchor outside footprint")
+		}
+		seen[row.ID] = true
+		owned := ConstructionClaim{Identity: domain.ConstructionIdentity{Current: row.ID}, Building: b}
+		for _, claim := range history {
+			if claim.Identity.Current == row.ID && claim.Building == b && claim.Identity.Validate() == nil && foodID(string(claim.Plan)) && foodID(string(claim.Action)) && foodID(string(claim.Goal)) {
+				owned = claim
+				break
+			}
+		}
+		owned.Cells = append([]domain.Cell{}, row.Cells...)
+		result = append(result, owned)
 	}
 	sort.Slice(result, func(i, j int) bool { return result[i].Identity.Current < result[j].Identity.Current })
 	return domain.Known(result), nil

@@ -24,8 +24,9 @@ Non-damageable markers such as sleeping spots cannot become repair targets.
 
 ## Maintained jobs
 
-`MaintainHomeCoverage` joins native construction lineage and owned stockpiles
-to observed facility geometry. Targets use the native unique load id: a
+`MaintainHomeCoverage` joins the complete current player-faction building census
+and owned stockpiles to observed facility geometry. Buildings placed in Manual
+are eligible when Auto resumes; action history is optional provenance. Targets use the native unique load id: a
 building's, or the `zone_id` returned by the owned `CreateZone` receipt.
 A building anchors its occupied cells and connected visible, enclosed,
 fully roofed rooms. Traversal crosses usable colony doors only when both
@@ -70,11 +71,14 @@ alone cannot transfer ownership. Records persist with the game and report missin
 or ambiguous identities explicitly. Missing identities after load are not rebound
 by coordinates. The bounded ledger retains at most 4,096 origins.
 
-`construction_ownership.owned_buildings` additionally requires a confirmed
-autonomous plan placement and native completed building with matching definition, material, rotation
-and location. Reused player blueprints, player goals, cancelled goals and uncertain
-receipts confer no autonomous ownership. Lineage is evidence, not authorization to
-deconstruct a structure or an assurance that removing it is safe.
+Planning ownership uses `policy.CurrentConstruction`: a complete bounded census
+of built artificial player-faction buildings, with native identity, definition,
+material, rotation, anchor and occupied cells. Home coverage and stone-shell
+planning share this view; colony extent consumers must use the same contract.
+Unknown or incomplete observations do not establish eligibility. A matching
+completed action annotates provenance; missing history does not exclude a
+player-built facility, and replacement geometry never inherits causal history.
+Lineage does not authorize demolition or establish safe removal.
 
 The roof-support preview checks connected existing roof cells within the installed
 native support radius while excluding the specified wall as a holder. It changes
@@ -83,7 +87,7 @@ cells refuse the certificate. Planned supports earn no credit. Replacement must
 also preserve enclosure and escape access and repeat safety checks at execution.
 
 `MaintainStoneShell` admits one wall upgrade after urgent needs. Only
-confirmed autonomous construction can supply a demolition target. A complete
+currently observed colony walls can supply a demolition target. A complete
 straight-wall bundle reserves three stone backup walls, guarded removal of the
 original wall, one permanent stone wall, and guarded cleanup of each backup. The exterior cells
 must be empty, side walls unchanged and the original interior enclosed and roofed.

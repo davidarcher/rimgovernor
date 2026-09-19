@@ -110,7 +110,7 @@ func TestRefrigerationReviewLatchesAndBuildsCoolerOnVentedWall(t *testing.T) {
 	if b.Definition() != "Cooler" || b.Cell() != (domain.Cell{X: 1, Z: 3}) || b.Rotation() != domain.North {
 		t.Fatal(b)
 	}
-	if n.previews != 1 || n.buildingReads != 0 {
+	if n.previews != 1 || n.buildingReads != 1 {
 		t.Fatal(n.previews, n.buildingReads)
 	}
 	if next, err := p.Step(context.Background()); err != nil || next.Reason != BuildingMethodExistingWork {
@@ -122,7 +122,7 @@ func TestRefrigerationPatchesExistingCoolerTargetThenWaits(t *testing.T) {
 	t.Parallel()
 	p, db, n, _ := refrigerationFixture(t, true)
 	result, err := p.Step(context.Background())
-	if err != nil || result.Reason != BuildingMethodAdmitted || n.buildingReads != 1 || n.previews != 0 {
+	if err != nil || result.Reason != BuildingMethodAdmitted || n.buildingReads != 2 || n.previews != 0 {
 		t.Fatal(result, err, n.buildingReads, n.previews)
 	}
 	goal, err := db.LoadGoal(context.Background(), result.Decision.Goal.Goal.ID)

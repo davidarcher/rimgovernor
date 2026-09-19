@@ -92,3 +92,30 @@ func TestConstructionBuildingsPreservesTypedRefusal(t *testing.T) {
 		t.Fatal(reply, err)
 	}
 }
+
+func TestConstructionBuildingsColonyQueryFiltersPlayerBuilt(t *testing.T) {
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+		var outer struct {
+			Request string `json:"request"`
+		}
+		if err := json.Unmarshal(arg.Arguments, &outer); err != nil {
+			t.Fatal(err)
+		}
+		q := &o.ListBuildingsRequest{}
+		if err := protojson.Unmarshal([]byte(outer.Request), q); err != nil {
+			t.Fatal(err)
+		}
+		if len(q.Ids) != 0 || !q.GetPlayerOnly() || q.GetCategory() != "artificial" || len(q.Statuses) != 1 || q.Statuses[0] != "built" || q.Page.GetLimit() != 256 {
+			t.Fatal(q)
+		}
+		return pbResult(&o.ListBuildingsReply{Outcome: &o.ListBuildingsReply_Observed{Observed: constructionTestSnapshot()}}), nil
+	}}, time.Second)
+	if _, _, err := client.ReadConstructionBuildings(context.Background(), pbIdentity(), nil); err != nil {
+		t.Fatal(err)
+	}
+	snapshot := constructionTestSnapshot()
+	snapshot.Completeness.Page.Complete = proto.Bool(false)
+	if err := ValidateConstructionBuildings(snapshot, pbIdentity(), nil); err == nil {
+		t.Fatal("incomplete colony accepted")
+	}
+}
