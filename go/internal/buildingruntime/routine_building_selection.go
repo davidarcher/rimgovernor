@@ -41,9 +41,12 @@ func (r *RoutineBuildingPlanner) selection(facts observation.ColonyProjection) (
 		if r.definition != "ButcherSpot" {
 			return 0, "", BuildingMethodUnknown
 		}
+		// The spot is free and instant, and the butcher bill is the hunt
+		// row's precondition (#260): it is owed on the food runway alone,
+		// not on anyone being armed yet. Whether a colonist can hunt is
+		// native's rule on the hunt row, after the equip family arms them.
 		days, dk := facts.Facts.FoodDays.Value()
-		armed, ak := facts.Facts.Armed.Value()
-		if !dk || !ak || armed <= 0 || days >= r.reviewer.seasonal(facts.Facts).FoodTargetDays {
+		if !dk || days >= r.reviewer.seasonal(facts.Facts).FoodTargetDays {
 			return 0, "", BuildingMethodNoDeficit
 		}
 		benches, bk := facts.ButcheringBenches.Value()

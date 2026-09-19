@@ -107,12 +107,19 @@ namespace HomeBridge.BridgeTools
         // to answer, not a reason to leave the trees to them.
         internal static bool Pest(Pawn prey) => prey.Faction == null && prey.RaceProps.Animal && !prey.InMentalState
             && prey.RaceProps.corpseDef != null && PestDefinitions.Contains(prey.def.defName);
+        // Meleeable prey (#260): safe prey no bigger than the hunter, which
+        // flees rather than fights back, so a colonist with a melee weapon
+        // or bare hands can run it down. This is the wiki's day-one interim
+        // food; it never covers a pest or anything the safe-prey rule rejects.
+        internal static bool Meleeable(Pawn prey) => SafePrey(prey) && prey.BodySize <= 1.0f;
+        private static bool MeleeArmed(Pawn p, Pawn prey) => Meleeable(prey) && (p.equipment?.Primary == null || p.equipment.Primary.def.IsMeleeWeapon);
         // Hunter is the colonist rule: hunting enabled, an ordinary bullet
-        // weapon, within 100 cells over a safe route. A pest is hunted
-        // wherever it is on the map (the pack arrives at the edge and
-        // works inward); the route still has to be safe.
+        // weapon (or a melee weapon or bare hands against meleeable prey),
+        // within 100 cells over a safe route. A pest is hunted wherever it
+        // is on the map (the pack arrives at the edge and works inward);
+        // the route still has to be safe.
         private static bool Hunter(Pawn p, Pawn prey) => !p.Downed && !p.Drafted && !p.InMentalState
-            && p.workSettings?.WorkIsActive(WorkTypeDefOf.Hunting) == true && OrdinaryWeapon(p)
+            && p.workSettings?.WorkIsActive(WorkTypeDefOf.Hunting) == true && (OrdinaryWeapon(p) || MeleeArmed(p, prey))
             && (Pest(prey) || p.Position.DistanceToSquared(prey.Position) <= 10000) && HuntingSafety.RouteSafe(p, prey);
         // Ineligible names the first hunt rule the prey (or every colonist
         // against it) fails, null when the census would offer it: what the
@@ -133,7 +140,7 @@ namespace HomeBridge.BridgeTools
             var reasons = colonists.Select(p =>
                 p.Downed ? "downed" : p.Drafted ? "drafted" : p.InMentalState ? "mental state"
                 : p.workSettings?.WorkIsActive(WorkTypeDefOf.Hunting) != true ? "hunting inactive"
-                : !OrdinaryWeapon(p) ? "no ordinary ranged weapon (" + (p.equipment?.Primary?.def.defName ?? "unarmed") + ")"
+                : !OrdinaryWeapon(p) && !MeleeArmed(p, prey) ? "no ordinary ranged weapon (" + (p.equipment?.Primary?.def.defName ?? "unarmed") + ")" + (Meleeable(prey) ? "" : " and the prey is not meleeable")
                 : !(Pest(prey) || p.Position.DistanceToSquared(prey.Position) <= 10000) ? "too far"
                 : !HuntingSafety.RouteSafe(p, prey) ? "no safe route" : (string?)null).ToList();
             if (reasons.Any(r => r == null)) return null;
@@ -153,11 +160,12 @@ namespace HomeBridge.BridgeTools
         internal static void Read(Obs.ColonyFactsSnapshot result, Map map, IntVec3 center, int limit)
         {
             result.PendingHunts = (uint)Pending(map);
-            // Food prey within 50 cells of the colony, then every pest on
+            // Food prey within 100 cells of the colony (the hunter rule's own
+            // reach; tribal8's game grazes 60-100 cells out, #260), then every pest on
             // the map: a pest row is a hunt of one unit of nothing edible
             // (food false, no nutrition), so the food and wood selections
             // pass it over and only the pest goal takes it.
-            var candidates = map.mapPawns.AllPawnsSpawned.Where(p => !Pest(p) && p.Position.DistanceTo(center) <= 50 && Eligible(p))
+            var candidates = map.mapPawns.AllPawnsSpawned.Where(p => !Pest(p) && p.Position.DistanceTo(center) <= 100 && Eligible(p))
                 .OrderByDescending(p => p.BodySize / (1 + p.Position.DistanceTo(center) / 25)).ThenBy(p => p.thingIDNumber)
                 .Concat(map.mapPawns.AllPawnsSpawned.Where(p => Pest(p) && Eligible(p)).OrderBy(p => p.Position.DistanceToSquared(center)).ThenBy(p => p.thingIDNumber))
                 .Take(Math.Max(0, limit - result.Acquisition.Count));
@@ -233,7 +241,7 @@ namespace HomeBridge.BridgeTools
                 .Require(() => !Designated(found!), "the animal is already designated for hunting")
                 .Require(() => new Designator_Hunt().CanDesignateThing(found!).Accepted, "the native hunt designator refuses the animal")
                 .Require(() => Pest(found!) || ButcherReady(found!), "no usable butcher bill with an assigned cook accepts the corpse")
-                .Require(() => map.mapPawns.FreeColonistsSpawned.Any(p => Hunter(p, found!)), "no free colonist with hunting enabled and an ordinary ranged weapon has a safe route to the animal")
+                .Require(() => map.mapPawns.FreeColonistsSpawned.Any(p => Hunter(p, found!)), "no free colonist with hunting enabled and an ordinary ranged weapon (or a melee weapon or bare hands against meleeable prey) has a safe route to the animal")
                 .Token(NativeDraftProtocol.TokenSent(command.Source), () => Snapshot(found!, context).Token == command.Source.ExpectedSnapshotToken, "the animal snapshot changed since it was read");
             if (!rules.Holds) { failure = rules.Failure(); return false; }
             prey = found;

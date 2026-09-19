@@ -501,8 +501,12 @@ func fieldAffordable(spent map[policy.Resource]int64, v policy.Preview, stock po
 func fieldBlockingWork(progress []domain.Progress) bool {
 	for _, p := range progress {
 		_, zone := p.Action().ZoneCreate()
-		_, building := p.Action().Building()
-		if (zone || building) && domain.GoalWorkOpen([]domain.Progress{p}) {
+		building, isBuilding := p.Action().Building()
+		// The butcher spot shares the goal but not the field (#260).
+		if isBuilding && building.Definition() == "ButcherSpot" {
+			continue
+		}
+		if (zone || isBuilding) && domain.GoalWorkOpen([]domain.Progress{p}) {
 			return true
 		}
 	}

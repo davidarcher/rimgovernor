@@ -123,6 +123,8 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 		}
 	}
 	pest := r.need == policy.ClearPests
+	food := r.need == policy.EnsureFoodSupply
+	huntOnly := false
 	pests := policy.PestCensus(projection.Facts.AnimalUpkeep.WildAnimals)
 	reloadPlans := false
 	// Every strayed hunt seen this step, across the goal's plans: the
@@ -191,8 +193,16 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 		// two outstanding hunts (slots), but does not stop the next
 		// animal being planned. One hunt awaiting its kill blocked the
 		// other beaver for a day (run 9 of #247).
+		// EnsureFoodSupply's hunts are the exception (#260): a forage
+		// batch harvests one bush at a time for days while the hunt rows
+		// the butcher spot and bill were placed for wait behind it, so
+		// open plant harvests leave the hunt slots plannable and the
+		// hunt-only plan is admitted over them.
 		if !pest && acquisitionBlockingWork(plan.Progress) {
-			return RoutineAcquisitionResult{Reason: BuildingMethodExistingWork}, nil
+			if !food || !acquisitionHuntOnlyOpen(plan.Progress, huntSources) {
+				return RoutineAcquisitionResult{Reason: BuildingMethodExistingWork}, nil
+			}
+			huntOnly = true
 		}
 	}
 	for action := range r.strayed {
@@ -207,7 +217,6 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 	}
 	pending := projection.PendingWoodUnits
 	deficit := domain.Unknown[float64]()
-	food := r.need == policy.EnsureFoodSupply
 	if food {
 		pending = projection.PendingFoodNutrition
 	}
@@ -266,7 +275,20 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 	if pest {
 		selected, err = policy.SelectPestAcquisition(projection.Acquisition, pests, held, slots)
 	} else {
-		selected, err = policy.SelectAcquisition(projection.Acquisition, deficit, pending, food, held, slots)
+		sources := projection.Acquisition
+		if huntOnly {
+			sources = huntRows(sources)
+		}
+		selected, err = policy.SelectAcquisition(sources, deficit, pending, food, held, slots)
+	}
+	if rows, known := projection.Acquisition.Value(); known && !pest {
+		hunts := 0
+		for _, row := range rows {
+			if row.Hunt {
+				hunts++
+			}
+		}
+		clockSchedulerLog("%s: acquisition select rows=%d hunts=%d deficit=%v pending=%v slots=%v held=%d selected=%d err=%v", goal.Goal.ID, len(rows), hunts, deficit, pending, slots, len(held), len(selected), err)
 	}
 	if err != nil {
 		return RoutineAcquisitionResult{Reason: BuildingMethodUnknown}, nil
@@ -363,6 +385,38 @@ func movedPestHunts(progress []domain.Progress, sources domain.Fact[[]policy.Acq
 }
 
 // A queued production bill may be waiting for ingredients acquired by this method.
+// acquisitionHuntOnlyOpen reports open acquisition work made only of
+// non-hunt harvests: nothing else of the plan is open and no hunt is.
+func acquisitionHuntOnlyOpen(progress []domain.Progress, huntSources map[string]bool) bool {
+	open := false
+	for _, p := range progress {
+		if !domain.GoalWorkOpen([]domain.Progress{p}) {
+			continue
+		}
+		acquisition, ok := p.Action().Acquisition()
+		if !ok || huntSources[acquisition.Thing()] {
+			return false
+		}
+		open = true
+	}
+	return open
+}
+
+// huntRows keeps the census's hunt rows.
+func huntRows(sources domain.Fact[[]policy.AcquisitionSource]) domain.Fact[[]policy.AcquisitionSource] {
+	rows, known := sources.Value()
+	if !known {
+		return sources
+	}
+	var hunts []policy.AcquisitionSource
+	for _, row := range rows {
+		if row.Hunt {
+			hunts = append(hunts, row)
+		}
+	}
+	return domain.Known(hunts)
+}
+
 func acquisitionBlockingWork(progress []domain.Progress) bool {
 	for _, p := range progress {
 		if p.Action().Kind() != domain.ProductionBillAction && domain.GoalWorkOpen([]domain.Progress{p}) {

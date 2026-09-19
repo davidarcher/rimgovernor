@@ -21,6 +21,12 @@ namespace HomeBridge.BridgeTools
         internal readonly IntVec3 Cell;
         internal readonly Map Map;
         internal readonly Dictionary<Thing, int> Outputs = new Dictionary<Thing, int>();
+        // Placed holds the outputs that landed spawned, unforbidden and unfogged
+        // on this map at harvest: the acquisition happened through them even
+        // when a colonist eats or hauls the stack before the next observation
+        // (#260 saw a berry harvest stay unknown for days because the starving
+        // colony ate the berries at once, which blocked every later hunt).
+        internal readonly HashSet<Thing> Placed = new HashSet<Thing>();
         internal bool Finished, Unreadable;
         internal NativeAcquisitionRecord(Plant source)
         { Source = source; SourceId = source.GetUniqueLoadID(); Resource = source.def.plant.harvestedThingDef.defName; Cell = source.Position; Map = source.Map; }
@@ -41,8 +47,11 @@ namespace HomeBridge.BridgeTools
             {
                 var thing = pair.Key;
                 result.Outputs.Add(new Receipts.AcquisitionOutput { ThingId = thing.GetUniqueLoadID(), Units = pair.Value });
-                if (thing.Destroyed || !thing.Spawned || thing.Map != Map || thing.def.defName != Resource || thing.stackCount < pair.Value
+                if (thing.def.defName != Resource) { result.OutputObserved = false; continue; }
+                if (Placed.Contains(thing)) continue;
+                if (thing.Destroyed || !thing.Spawned || thing.Map != Map || thing.stackCount < pair.Value
                     || thing.IsForbidden(Faction.OfPlayer) || thing.Position.Fogged(Map)) result.OutputObserved = false;
+                else Placed.Add(thing);
             }
             return result;
         }
@@ -181,7 +190,12 @@ namespace HomeBridge.BridgeTools
                 if (count <= 0 || record.Outputs.Count >= 256 && !record.Outputs.ContainsKey(thing) || thing.def.defName != record.Resource) { record.Unreadable = true; return; }
                 record.Outputs.TryGetValue(thing, out var old);
                 try { record.Outputs[thing] = checked(old + count); }
-                catch (OverflowException) { record.Unreadable = true; }
+                catch (OverflowException) { record.Unreadable = true; return; }
+                try
+                {
+                    if (!thing.Destroyed && thing.Spawned && thing.Map == record.Map && !thing.IsForbidden(Faction.OfPlayer) && !thing.Position.Fogged(record.Map)) record.Placed.Add(thing);
+                }
+                catch (Exception) { }
             };
         }
         private static void Collected(Plant __instance)

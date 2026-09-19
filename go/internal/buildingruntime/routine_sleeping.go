@@ -209,6 +209,17 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		if err != nil {
 			return RoutineBuildingResult{}, err
 		}
+		if r.goal == policy.EnsureFoodSupply {
+			// Fields, foraging, hunts and bills share the goal and stay
+			// open for days; only a pending spot of this definition is
+			// the butcher planner's own work (#260).
+			for _, progress := range plan.Progress {
+				if pendingFacility(progress, r.definition) {
+					return RoutineBuildingResult{Reason: BuildingMethodExistingWork}, nil
+				}
+			}
+			continue
+		}
 		if domain.GoalWorkOpen(plan.Progress) {
 			return RoutineBuildingResult{Reason: BuildingMethodExistingWork}, nil
 		}

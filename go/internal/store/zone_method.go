@@ -39,7 +39,7 @@ func fieldOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal GoalState, plan d
 		}
 		for _, progress := range p.Progress {
 			kind := progress.Action().Kind()
-			if kind != domain.AcquisitionAction && kind != domain.ProductionBillAction && domain.GoalWorkOpen([]domain.Progress{progress}) {
+			if kind != domain.AcquisitionAction && kind != domain.ProductionBillAction && !butcherSpotBuilding(progress.Action()) && domain.GoalWorkOpen([]domain.Progress{progress}) {
 				return false, nil
 			}
 		}

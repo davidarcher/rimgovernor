@@ -264,7 +264,11 @@ outdoors, in other rooms, and in
 inherently dirty rooms (barns, rooms holding a butcher bench) is ordinary
 colonist work. Butcher placements never enter a cooking bench's room and cooking
 placements never enter a butcher bench's room; a colony whose every butcher bench
-shares a cooking room is admitted one more `ButcherSpot` outside; the butcher
+shares a cooking room is admitted one more `ButcherSpot` outside. The spot and its
+`ButcherCorpseFlesh` bill are foothold work owed whenever the food runway is under
+`FoodTargetDays`, whether or not anyone is armed yet (#260): native offers no hunt
+row until a usable bench carries the bill, so the bill precedes the first hunt rather
+than waiting on the equip family. The butcher
 bill waits until that `butcher-spot-separated` method has been tried (admitted,
 completed or failed) and then prefers the separated bench, so a forever bill on
 the shared bench never holds the food-supply goal open. Methods preserve forbidden items, player work

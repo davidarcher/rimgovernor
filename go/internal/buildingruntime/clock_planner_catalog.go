@@ -84,6 +84,7 @@ var plannerCatalog = []plannerEntry{
 			if err != nil {
 				return err
 			}
+			clockSchedulerLog("FoodAcquisition.step result: reason=%v plan=%s", method.Reason, method.Plan)
 			out.FoodAcquisition = &method
 			return nil
 		}},
@@ -206,13 +207,14 @@ var plannerCatalog = []plannerEntry{
 			out.Cooking = &method
 			return nil
 		}},
-	{name: "butcher", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.BuildingAction}, families: factsBuilding,
+	{name: "butcher", priority: plannerFoothold, kinds: []domain.ActionKind{domain.BuildingAction}, families: factsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Butcher != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.Butcher.step(ctx, epoch, arbiter)
 			if err != nil {
 				return err
 			}
+			clockSchedulerLog("Butcher.step result: reason=%v admitted=%v refused=%v", method.Reason, method.Decision.Admitted, method.Decision.Refused)
 			out.Butcher = &method
 			return nil
 		}},
@@ -236,7 +238,7 @@ var plannerCatalog = []plannerEntry{
 			out.PreservationBills = &method
 			return nil
 		}},
-	{name: "butcherBills", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.ProductionBillAction}, families: factsColony,
+	{name: "butcherBills", priority: plannerFoothold, kinds: []domain.ActionKind{domain.ProductionBillAction}, families: factsColony,
 		configured: func(c *ClockSchedulerConfig) bool { return c.ButcherBills != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.ButcherBills.step(ctx, epoch, arbiter)

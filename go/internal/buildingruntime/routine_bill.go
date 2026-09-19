@@ -91,6 +91,16 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		if err != nil {
 			return RoutineBillResult{}, err
 		}
+		if r.need == policy.EnsureFoodSupply {
+			// Fields, foraging and hunts share the goal and stay open for
+			// days; only an open bill is this planner's own work (#260).
+			for _, progress := range plan.Progress {
+				if progress.Action().Kind() == domain.ProductionBillAction && domain.GoalWorkOpen([]domain.Progress{progress}) {
+					return RoutineBillResult{Reason: BuildingMethodExistingWork}, nil
+				}
+			}
+			continue
+		}
 		if domain.GoalWorkOpen(plan.Progress) {
 			return RoutineBillResult{Reason: BuildingMethodExistingWork}, nil
 		}
@@ -125,9 +135,11 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	}
 	projection := read.Projection
 	if r.purpose == policy.ButcherFood {
+		// Owed on the food runway alone (#260): native offers no hunt row
+		// until a usable bench carries this bill, so waiting for an armed
+		// colonist would serialise spot, bill and hunt behind the equip family.
 		days, dk := projection.Facts.FoodDays.Value()
-		armed, ak := projection.Facts.Armed.Value()
-		if !dk || !ak || armed <= 0 || days >= r.reviewer.seasonal(projection.Facts).FoodTargetDays {
+		if !dk || days >= r.reviewer.seasonal(projection.Facts).FoodTargetDays {
 			return RoutineBillResult{Reason: BuildingMethodUnknown}, nil
 		}
 		// A butcher bench that shares a cooking room feeds the colony but keeps

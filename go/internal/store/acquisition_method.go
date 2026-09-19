@@ -25,18 +25,40 @@ func acquisitionOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal GoalState, 
 		}
 	}
 	pest := pestGoal(goal)
+	// EnsureFoodSupply's hunt-only plan passes the goal's open plant
+	// harvests (#260): a forage batch runs for days and the hunt rows
+	// the butcher spot and bill were placed for would otherwise wait
+	// behind it. A hunt still open blocks the next hunt plan.
+	hunts := foodGoal(goal)
+	for _, action := range plan.Actions() {
+		hunts = hunts && huntAcquisition(action)
+	}
 	for _, m := range goal.Methods {
 		p, err := load(ctx, tx, m.Plan)
 		if err != nil {
 			return false, err
 		}
 		for _, progress := range p.Progress {
-			if !acquisitionIndependentWork(progress.Action()) && !(pest && progress.Action().Kind() == domain.AcquisitionAction) && domain.GoalWorkOpen([]domain.Progress{progress}) {
+			action := progress.Action()
+			if acquisitionIndependentWork(action) || pest && action.Kind() == domain.AcquisitionAction {
+				continue
+			}
+			if hunts && action.Kind() == domain.AcquisitionAction && !huntAcquisition(action) {
+				continue
+			}
+			if domain.GoalWorkOpen([]domain.Progress{progress}) {
 				return false, nil
 			}
 		}
 	}
 	return true, nil
+}
+
+// huntAcquisition reports an acquisition whose output is a corpse: the
+// native hunt census names its resource by the prey's corpse definition.
+func huntAcquisition(action domain.Action) bool {
+	acquisition, ok := action.Acquisition()
+	return ok && strings.HasPrefix(acquisition.Definition(), "Corpse_")
 }
 
 // pestGoal reports the routine ClearPests goal (#247), whose hunts are
@@ -47,9 +69,10 @@ func pestGoal(goal GoalState) bool {
 }
 
 // acquisitionIndependentWork reports the action kinds whose open progress does
-// not block a fresh acquisition method for the same goal.
+// not block a fresh acquisition method for the same goal: a bill, a growing
+// zone, or the butcher spot being built for the hunt's corpse (#260).
 func acquisitionIndependentWork(action domain.Action) bool {
-	if action.Kind() == domain.ProductionBillAction {
+	if action.Kind() == domain.ProductionBillAction || butcherSpotBuilding(action) {
 		return true
 	}
 	zone, ok := action.ZoneCreate()

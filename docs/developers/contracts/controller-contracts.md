@@ -242,10 +242,12 @@ by net nutrition per needed cell, so a fertility-tolerant crop wins on poor soil
 remaining season under 2.5 grow cycles excludes a crop, an unknown remaining season while
 sowing is possible is treated as short, and a stored-food runway under 2.5 cycles of the
 fastest crop is urgent — both prefer the fastest crop that can plant. Existing zones are
-never re-cropped. Open hunting or foraging under EnsureFoodSupply does not block a field
-batch and a sown field does not block acquisition (the store exempts each from the
+never re-cropped. Open hunting, foraging or a butcher-spot build under EnsureFoodSupply does
+not block a field batch and a sown field does not block acquisition (the store exempts each from the
 other's open work, mirroring the acquisition-over-bill exemption); a second field batch
-still waits for the first to resolve. Each batch previews at most six patches inside the
+still waits for the first to resolve. The butcher spot and the goal's bills are exempt the
+same way (#260): a spot waits only for a pending spot, a bill only for an open bill, and
+neither blocks the fields, foraging or hunts beside it. Each batch previews at most six patches inside the
 shared step budget. The field planner also requests `SunLamp`, `HydroponicsBasin` and
 `Heater` definitions, plans sites over the planning window (`ColonyProjection.Cells`,
 read on demand through `observations_get_cells`; see the state store in
@@ -437,7 +439,7 @@ normal hold behavior.
 ## Hunting admission and dispatch
 
 Autonomous hunting screens current wild-animal observations before compiling a
-designation. Harmless, undesignated prey must be within 50 cells of the colony anchor
+designation. Harmless, undesignated prey must be within 100 cells of the colony anchor
 and more than 25 cells from live wild predators, using square-grid distance. Unknown
 predator flags or positions prevent selection. The food goal retains candidate IDs and
 predator rejection evidence. Compiled hunting methods retain the exact prey identity,
@@ -445,8 +447,10 @@ anchor and action signature. Immediately before writing, the shared runtime rech
 wildlife, the planned cell, outstanding hunt count and paused native tick under its
 writer lock. It then verifies the selected animal's hunt designation. Missing legacy
 target metadata and changed observations block without a write; unconfirmed writes
-remain uncertain. Native evidence requires an enabled, ranged hunter with a
-Danger.None path avoiding predators by 25 cells and an ordinary prey death action.
+remain uncertain. Native evidence requires an enabled hunter with an ordinary ranged
+weapon, or a melee weapon or bare hands against meleeable prey (safe prey of body size
+at most 1.0, which flees rather than retaliates; #260), a Danger.None path avoiding
+predators by 25 cells and an ordinary prey death action.
 Supervised play pauses when an active hunt loses that route. Future prey movement
 and shooting positions remain uncertain; native external inputs are not atomic
 with controller checks.
@@ -463,7 +467,7 @@ recovers when it counts none; an unknown census neither opens nor recovers it. T
 hunt census offers every eligible pest on the map as a hunt row after the food
 prey (nearest the colony first): a hunt of one unit of the pest's corpse, `food`
 false and no nutrition, which the food and wood selections pass over. Native waives
-the 50-cell prey distance, the safe-prey rule and the butcher-bill rule for a pest;
+the 100-cell prey distance, the safe-prey rule and the butcher-bill rule for a pest;
 the hunter must still have Hunting active, an ordinary ranged weapon and a safe
 route, the two-outstanding-hunts bound still applies, and a pest in a mental state
 (manhunter) is not offered, the defense family answers it instead. The pest planner
@@ -493,6 +497,11 @@ before designation. A fresh regrowth observation can renew a confirmed completed
 designation under the same maintained goal; its prior action and receipt remain in
 history. Pending, uncertain and cancelled acquisition orders prevent renewal at
 their location. A new designation still does not certify harvesting or stored food.
+A harvest completes once its output landed spawned, unforbidden and unfogged on the
+map; a stack a colonist then eats or hauls away stays proven (#260), so a starving
+colony's forage never blocks the hunt that follows it. A hunt-only food plan is
+planned and admitted while the goal's plant harvests stay open; an open hunt still
+blocks the next hunt, and a second forage waits for the first.
 
 ## Bounded combat response
 

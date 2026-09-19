@@ -51,8 +51,9 @@ func init() {
 		"Diagnostic: every routine family on the "+BaselineSave+" save under a quiet storyteller for "+
 			"ColonyWindowTicks game ticks, sampling the foothold and first maintenance goals together. "+
 			"Evidence for #99's sustained coverage: which goal stalls, thrashes or starves the others once "+
-			"all families share one step budget. Not a pass/fail acceptance gate: it fails only when the harness "+
-			"itself cannot complete."))
+			"all families share one step budget. Two gates only: keep-alive resumes cost one native generation each "+
+			"(#259) and no colonist ends the window past Malnutrition 0.3 (#260); otherwise it fails only when the "+
+			"harness itself cannot complete."))
 	cases.Register(colony("sustained/colony-loud", na.Loud,
 		"Diagnostic: sustained/colony with the save's own storyteller, so raids, weather and events land on the "+
 			"colony while every family runs. Not a pass/fail acceptance gate."))
@@ -82,11 +83,56 @@ func colony(name string, quiet na.QuietMode, scope string) cases.Case {
 					// long window records, never a reason to cut it short.
 					FailFast: sustainedfood.FailFast{Disabled: true},
 				},
-				Audit: auditReacquisitions,
+				Audit: func(ctx context.Context, h *na.Harness, report na.Report) error {
+					if err := auditReacquisitions(ctx, h, report); err != nil {
+						return err
+					}
+					return auditNutrition(ctx, h, report)
+				},
 			})
 			return err
 		},
 	}
+}
+
+// colonyMalnutritionLimit is the worst Malnutrition severity the window may
+// leave on any colonist (#260): 0.3 is "hungry" on the health tab, short of
+// the malnourished tier where work slows and death approaches.
+const colonyMalnutritionLimit = 0.3
+
+// auditNutrition is the food gate the diagnostic keeps (#260): the tribal8
+// baseline holds under two days of pemmican, so a window that ends with a
+// colonist past hungry means the foothold food methods (butcher spot, bill,
+// hunting, fields) did not stack in time. The report keeps every
+// colonist's worst nutrition hediff either way.
+func auditNutrition(ctx context.Context, h *na.Harness, report na.Report) error {
+	listed, err := h.Call(ctx, "audit-nutrition", "home/list_pawns", map[string]any{"colonistsOnly": true, "health": true})
+	if err != nil {
+		return err
+	}
+	var rows []map[string]any
+	var over []string
+	for _, raw := range na.AsSlice(listed["pawns"]) {
+		row, _ := na.AsMap(raw)
+		health, _ := na.AsMap(row["health"])
+		worst := 0.0
+		for _, entry := range na.AsSlice(health["hediffs"]) {
+			hediff, _ := na.AsMap(entry)
+			if na.AsString(hediff["defName"]) == "Malnutrition" {
+				worst = max(worst, na.AsNumber(hediff["severity"]))
+			}
+		}
+		id := na.AsString(row["thingId"])
+		rows = append(rows, map[string]any{"pawn": id, "malnutrition": worst})
+		if worst > colonyMalnutritionLimit {
+			over = append(over, fmt.Sprintf("%s %.2f", id, worst))
+		}
+	}
+	report["colonist_nutrition"] = map[string]any{"colonists": len(rows), "limit": colonyMalnutritionLimit, "rows": rows}
+	if len(over) > 0 {
+		return fmt.Errorf("%d colonist(s) ended the window past Malnutrition %.1f: %v", len(over), colonyMalnutritionLimit, over)
+	}
+	return nil
 }
 
 // auditReacquisitions is the one gate the colony diagnostic keeps: every
