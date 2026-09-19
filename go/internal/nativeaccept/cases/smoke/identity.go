@@ -51,6 +51,15 @@ func init() {
 			s.Report()["identity_again"] = again
 			// Exercise the typed read against the live game, including the
 			// complete-empty result on a fresh map. This does not admit removal.
+			// The census scopes the scan to Home (#414): a hilly debug map
+			// carries more natural-rock buildings map-wide than the old 8192
+			// bound, and the read must still answer; the fixture census in
+			// the report says whether this map exercised that.
+			census, err := s.Harness().Call(ctx, "map-census", "test/debug_map_census", map[string]any{})
+			if err != nil {
+				return err
+			}
+			s.Report()["map_census"] = census
 			clearance, err := s.Harness().Wire(ctx, "clearance", "observations_get_clearance_targets", map[string]any{"scope": map[string]any{"expectedIdentity": identity}})
 			if err != nil {
 				return err

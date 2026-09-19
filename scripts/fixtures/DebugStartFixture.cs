@@ -150,5 +150,19 @@ namespace HomeBridge.BridgeTools
                 return new { success = true, armed = true, mapSize, planetCoverage, biomes, seed, flat };
             }, cancellationToken).ConfigureAwait(false);
         }
+
+        [Tool("test/debug_map_census", Description = "Disposable read: how many spawned non-player buildings (natural rock included) the current map carries map-wide and within Home. Lets a case record that a read scoped to Home ran past the old map-wide 8192 bound (#414).")]
+        public async Task<object> Census(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap ?? throw new InvalidOperationException("No current map.");
+                var player = Faction.OfPlayerSilentFail;
+                var home = map.areaManager.Home;
+                var mapWide = map.listerThings.AllThings.OfType<Building>().Count(b => b.Spawned && b.Faction != player);
+                var inHome = home.ActiveCells.SelectMany(c => c.GetThingList(map)).OfType<Building>()
+                    .Where(b => b.Spawned && b.Faction != player).Select(b => b.thingIDNumber).Distinct().Count();
+                return new { success = true, mapCells = map.cellIndices.NumGridCells, nonPlayerBuildings = mapWide, homeCells = home.TrueCount, homeNonPlayerBuildings = inHome };
+            }, cancellationToken).ConfigureAwait(false);
+        }
     }
 }

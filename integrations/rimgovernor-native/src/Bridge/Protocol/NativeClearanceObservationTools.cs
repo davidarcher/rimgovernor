@@ -31,14 +31,21 @@ namespace HomeBridge.BridgeTools
                     var player = Faction.OfPlayerSilentFail;
                     if (player == null || map.areaManager?.Home == null || map.listerThings == null || map.designationManager == null || map.roofGrid == null || map.roofCollapseBuffer == null)
                         return Missing(Common.UnavailableReason.NativeComponentMissing, "Player, Home, building or roof trackers unavailable.");
-                    Require(map.cellIndices.NumGridCells <= 262144 && map.listerThings.AllThings.Count <= 65536, "Map census exceeds the bounded scan.");
-                    var buildings = map.listerThings.AllThings.OfType<Building>().Where(b => b.Spawned && b.Faction != player).ToList();
-                    Require(buildings.Count <= 8192, "Non-player building scan exceeds 8192 buildings.");
+                    Require(map.cellIndices.NumGridCells <= 262144, "Map census exceeds the bounded scan.");
+                    // Scoped to Home: a hilly map carries tens of thousands of
+                    // natural-rock buildings map-wide (#414), so the census walks
+                    // the Home cells (bounded by the grid) and collects the
+                    // non-player buildings standing in them.
+                    var home = map.areaManager.Home;
+                    var buildings = new Dictionary<int, Building>();
+                    foreach (var cell in home.ActiveCells)
+                        foreach (var thing in cell.GetThingList(map))
+                            if (thing is Building b && b.Spawned && b.Faction != player) buildings[b.thingIDNumber] = b;
+                    Require(buildings.Count <= 8192, "Non-player buildings touching Home exceed 8192.");
                     var snapshot = new Obs.ClearanceTargetsSnapshot { Context = context };
-                    foreach (var building in buildings.OrderBy(b => b.thingIDNumber)) {
+                    foreach (var building in buildings.Values.OrderBy(b => b.thingIDNumber)) {
                         var rect = building.OccupiedRect();
                         Require(rect.Area > 0 && rect.Area <= 4096, "Building footprint exceeds 4096 cells.");
-                        if (!rect.Any(c => c.InBounds(map) && map.areaManager.Home[c])) continue;
                         if (rect.Any(c => !c.InBounds(map) || c.Fogged(map))) continue;
                         // OfPlayerSilentFail was checked above: the native method
                         // cannot reach its missing-player Log.Error/pause branch.
@@ -48,7 +55,7 @@ namespace HomeBridge.BridgeTools
                         var row = new Obs.ClearanceTarget {
                             EntityId = Id(building.GetUniqueLoadID()), DefName = Id(building.def.defName),
                             Occupied = new Obs.Rectangle { Minimum = Cell(rect.minX, rect.minZ), Maximum = Cell(rect.maxX, rect.maxZ) },
-                            Deconstructible = true, Class = Classify(building), InHome = rect.All(c => map.areaManager.Home[c]),
+                            Deconstructible = true, Class = Classify(building), InHome = rect.All(c => home[c]),
                             AncientDanger = AncientDanger(map, building, player), Designated = designated,
                             ControllerOwned = designated && WallUpgradeSafety.Pending(building) != null
                         };

@@ -261,8 +261,10 @@ neighborhoods of those cells. Non-holders cannot remove support. Fog, unknown
 map-edge geometry or a pending collapse blocks the removal. The pure geometry
 probe runs under `task probes:test` with a hand-built multi-cell rectangle.
 
-The complete census is bounded to 256 rows and 1 MiB; overflow or an unreadable
-scan is unavailable, never sampled. The Go observation treats an explicit
+The scan walks the Home cells rather than the map's building list, so the
+natural rock of a hilly map never counts against it; only non-player buildings
+standing in Home are bounded (8192). The complete census is bounded to 256 rows
+and 1 MiB; overflow or an unreadable scan is unavailable, never sampled. The Go observation treats an explicit
 unavailable native stub as an unknown fact, distinct from a complete empty
 census. Required safety booleans cannot be omitted. The observation context
 must match the expected load, map, generation and fresh tick. No clearance
