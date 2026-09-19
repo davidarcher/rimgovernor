@@ -157,7 +157,10 @@ func runProvision(ctx context.Context, s cases.Session) error {
 
 	// Ordinary native ticks, no relief dispatched: the SleptOutside memory
 	// ages out and the pawn recreates at the fixture's horseshoes pin on its
-	// own, so the NeedJoy stage lifts.
+	// own, so the NeedJoy stage lifts. The wait also carries the joy need
+	// past the review's retained-cause limit (.5): the stage lifts well
+	// below it, and a probe landing in between reads a still-open joy cause
+	// on a pawn that is mid-recreation, not a review fault.
 	var after policy.MoodPawn
 	elapsed, err := na.RunUntil(ctx, h, "clear", na.TicksPerDay+na.TicksPerDay/4, na.Wait{Stall: na.StallBudget()}, func(ctx context.Context) (string, bool, error) {
 		row, err := provisionRow(ctx, h, identity, "clear-probe", pawnID)
@@ -167,7 +170,9 @@ func runProvision(ctx context.Context, s cases.Session) error {
 		after = provisionPawn(row, pawnID)
 		_, slept := provisionThought(after, "SleptOutside")
 		_, joy := provisionThought(after, "NeedJoy")
-		return na.Signature(slept, joy), !slept && !joy, nil
+		level, known := after.Joy.Value()
+		recreated := known && level >= .5
+		return na.Signature(slept, joy, recreated), !slept && !joy && recreated, nil
 	})
 	report["clear_ticks"] = elapsed
 	if err != nil {
@@ -179,15 +184,23 @@ func runProvision(ctx context.Context, s cases.Session) error {
 	if err != nil {
 		return err
 	}
-	if len(history.States) != 1 || len(history.States[0].Provision) != 0 {
-		return fmt.Errorf("clear: cleared pressure still provisions: %+v", history.States)
+	// The fixture's pressure is what must be gone; a pressure the fixture
+	// does not stage (a cold snap's EnvironmentCold, owned by
+	// EnsureTemperatureSafety) may still provision on its own.
+	if len(history.States) != 1 {
+		return fmt.Errorf("clear: expected the fixture pawn's state alone, got %+v", history.States)
+	}
+	for _, p := range history.States[0].Provision {
+		if owners[p.Goal] {
+			return fmt.Errorf("clear: cleared pressure still provisions %v: %+v", p.Goal, history.States)
+		}
 	}
 	proposal, err = policy.SelectMoodMethod(history.States[0], nil)
 	if err != nil {
 		return err
 	}
 	report["proposal_after"] = proposal
-	if proposal.Reason == policy.MoodRelief || proposal.Reason == policy.MoodProvisioned {
+	if proposal.Reason == policy.MoodRelief || proposal.Reason == policy.MoodProvisioned && owners[proposal.Goal] {
 		return fmt.Errorf("clear: pressure cleared but the review still proposes %+v", proposal)
 	}
 

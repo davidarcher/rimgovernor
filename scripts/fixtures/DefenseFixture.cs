@@ -199,6 +199,24 @@ namespace HomeBridge.BridgeTools
             return floor;
         }
 
+        // A strategy with a required pawn kind (sappers need canBeSapper) must
+        // draw a combat group maker that carries one; the tribal faction's
+        // ranged-only maker (commonality 60 of 225) has none, and the raid
+        // then generates no pawns and refuses (#347). The seed pins the
+        // maker draw to one the strategy can use.
+        private static int? RequiredKindGroupMakerSeed(IncidentParms parms)
+        {
+            if (!(parms.raidStrategy.Worker is RaidStrategyWorker_WithRequiredPawnKinds worker)) return null;
+            var probe = IncidentParmsUtility.GetDefaultPawnGroupMakerParms(PawnGroupKindDefOf.Combat, parms);
+            probe.points = IncidentWorker_Raid.AdjustedRaidPoints(parms.points, parms.raidArrivalMode, parms.raidStrategy, parms.faction, PawnGroupKindDefOf.Combat, parms.target);
+            for (var seed = 0; seed < 64; seed++)
+            {
+                probe.seed = seed;
+                if (PawnGroupMakerUtility.TryGetRandomPawnGroupMaker(probe, out var maker) && worker.CanUseWithGroupMaker(maker)) return seed;
+            }
+            return null;
+        }
+
         // Raid stages the game's own raid incident. With a `near` cell the
         // edge arrival starts at the standable map-edge cell closest to it
         // that reaches it (the raid's own worker otherwise picks any edge,
@@ -226,12 +244,13 @@ namespace HomeBridge.BridgeTools
             parms.points = Math.Max(points, StrategyPointFloor(def, parms.raidStrategy, faction));
             parms.raidArrivalMode = DefDatabase<PawnsArrivalModeDef>.GetNamed(arrival);
             parms.forced = true;
+            parms.pawnGroupMakerSeed = RequiredKindGroupMakerSeed(parms);
             var before = new HashSet<string>(map.mapPawns.AllPawnsSpawned.Select(p => p.GetUniqueLoadID()));
             var applied = def.Worker.TryExecute(parms);
             var added = map.mapPawns.AllPawnsSpawned.Where(p => !before.Contains(p.GetUniqueLoadID()))
                 .Select(p => new { id = p.GetUniqueLoadID(), kind = p.kindDef.defName, hostile = p.HostileTo(Faction.OfPlayer), x = p.Position.x, z = p.Position.z,
                     lordJob = p.GetLord()?.LordJob?.GetType().Name, lordToil = p.GetLord()?.CurLordToil?.GetType().Name }).ToList();
-            return new { success = applied && added.Count > 0, applied, faction = faction.def.defName, points = parms.points, strategy, arrival, added, tick = Find.TickManager.TicksGame };
+            return new { success = applied && added.Count > 0, applied, faction = faction.def.defName, points = parms.points, strategy, arrival, groupMakerSeed = parms.pawnGroupMakerSeed, added, tick = Find.TickManager.TicksGame };
         }
 
         // Predator stages the #157 precondition directly: a wild predator of
