@@ -426,6 +426,9 @@ func (g *graph) scanAreaFixtureInputs(repo string) (map[string][]string, error) 
 	prefix := g.module + "/internal/nativeaccept/cases/"
 	runner := g.module + "/internal/nativeaccept/cmd/acceptance"
 	inputsByArea := map[string][]string{}
+	// The runner's closure is most of every area's closure: read each
+	// package directory once and union the refs per area (#434).
+	refsByDir := map[string]na.FixtureRefs{}
 	for pkg := range g.deps {
 		name := strings.TrimPrefix(pkg, prefix)
 		if !strings.HasPrefix(pkg, prefix) || strings.Contains(name, "/") {
@@ -439,9 +442,19 @@ func (g *graph) scanAreaFixtureInputs(repo string) (map[string][]string, error) 
 				dirs = append(dirs, dir)
 			}
 		}
-		refs, err := na.ScanFixtureRefs(na.WithoutOtherAreas(goDir, name, dirs))
-		if err != nil {
-			return nil, err
+		refs := na.FixtureRefs{}
+		for _, dir := range na.WithoutOtherAreas(goDir, name, dirs) {
+			dirRefs, ok := refsByDir[dir]
+			if !ok {
+				var err error
+				if dirRefs, err = na.ScanFixtureRefs([]string{dir}); err != nil {
+					return nil, err
+				}
+				refsByDir[dir] = dirRefs
+			}
+			for ref := range dirRefs {
+				refs[ref] = true
+			}
 		}
 		inputs, err := na.FixtureInputs(repo, refs)
 		if err != nil {
@@ -510,12 +523,11 @@ func dependencyGraph(goDir string) (*graph, error) {
 }
 
 func readDependencyGraph(goDir string) (*graph, error) {
-	module, err := goOutput(goDir, "list", "-m", "-f", "{{.Path}}")
-	if err != nil {
-		return nil, err
-	}
-	g := &graph{module: strings.TrimSpace(module), byDir: map[string]string{}, deps: map[string][]string{}, direct: map[string][]string{}, testDeps: map[string][]string{}}
-	// -e retains embed patterns when the last matching file was removed.
+	g := &graph{byDir: map[string]string{}, deps: map[string][]string{}, direct: map[string][]string{}, testDeps: map[string][]string{}}
+	// One go list call: every package under ./... names the module it
+	// belongs to, so a separate go list -m would only add a second
+	// toolchain start (#434). -e retains embed patterns when the last
+	// matching file was removed.
 	out, err := goOutput(goDir, "list", "-e", "-test", "-json", "./...")
 	if err != nil {
 		return nil, err
@@ -542,6 +554,9 @@ func readDependencyGraph(goDir string) (*graph, error) {
 			if !missingEmbed(err.Err) {
 				return nil, fmt.Errorf("go list %s: %s", p.ImportPath, err.Err)
 			}
+		}
+		if g.module == "" && p.Module != nil {
+			g.module = p.Module.Path
 		}
 		dir := filepath.Clean(p.Dir)
 		g.byDir[dir] = p.ImportPath

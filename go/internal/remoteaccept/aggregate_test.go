@@ -150,6 +150,10 @@ func TestAggregationRejectsBadEvidence(t *testing.T) {
 	}
 	for name, edit := range tests {
 		t.Run(name, func(t *testing.T) {
+			// Each edit copies the contract fixture into its own directory;
+			// the copies are independent, and serial file creation under a
+			// loaded Windows suite ran this test past its ceiling (#434).
+			t.Parallel()
 			f := fixtureRun(t)
 			edit(t, f)
 			e, err := f.evaluate(t)

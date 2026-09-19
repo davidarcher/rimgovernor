@@ -1,6 +1,7 @@
 package affected
 
 import (
+	"flag"
 	"os"
 	"path/filepath"
 	"slices"
@@ -8,6 +9,27 @@ import (
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 )
+
+// TestMain reads the checkout's dependency graph and harness types before
+// any test runs. Both are per-process state the repo(t) tests share, and
+// the go list calls building them cost about a second alone but over ten
+// under a full go test ./... (#434), so charging them to whichever test
+// happened to run first failed the per-test timing gate.
+func TestMain(m *testing.M) {
+	flag.Parse()
+	if !testing.Short() {
+		if wd, err := os.Getwd(); err == nil {
+			if repo, ok := na.FindRepo(wd); ok {
+				// Errors surface in the tests that need what failed.
+				goDir := filepath.Join(repo, "go")
+				if g, err := dependencyGraph(goDir); err == nil {
+					loadHarnessTypes(goDir, g)
+				}
+			}
+		}
+	}
+	os.Exit(m.Run())
+}
 
 func repo(t *testing.T) string {
 	t.Helper()

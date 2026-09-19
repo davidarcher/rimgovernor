@@ -16,6 +16,7 @@ type packageMetadata struct {
 	TestEmbedFiles, TestEmbedPatterns, XTestEmbedFiles, XTestEmbedPatterns []string
 	Error                                                                  *packageError
 	DepsErrors                                                             []packageError
+	Module                                                                 *struct{ Path string }
 }
 
 type packageError struct{ Err string }
