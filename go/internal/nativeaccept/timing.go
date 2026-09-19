@@ -1,7 +1,9 @@
 package nativeaccept
 
 import (
+	"encoding/json"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 )
@@ -121,41 +123,59 @@ func TicksAdvanced() uint64 {
 	return tickStats.advanced
 }
 
-// observeReplyTick feeds observeTick from the tools whose replies carry the
-// game tick, and re-baselines after a load or start.
-func observeReplyTick(tool string, payload map[string]any) {
+// observeReplyTick feeds observeTick with the tick a reply carried
+// (replyTick) and re-baselines after a load or start.
+func observeReplyTick(tool string, tick *uint64) {
 	switch tool {
 	case "rimworld/load_game_ready", "rimworld/start_debug_game_ready", "rimgovernor/lifecycle_load":
 		resetTickBaseline()
+		return
+	}
+	if tick != nil {
+		observeTick(*tick)
+	}
+}
+
+// replyTick is the game tick a decoded reply carries, when it does:
+// home/status, home/colony_facts, the supervised clock, and any
+// rimgovernor/* ProtoJSON reply whose payload is a lifecycle "loaded"
+// context (an identity read, a load, an authority acquisition).
+func replyTick(tool string, payload map[string]any) (uint64, bool) {
+	switch tool {
 	case "home/status":
 		if t, ok := AsMap(payload["time"]); ok {
-			observeNumericTick(t["ticksGame"])
+			return asUint64(t["ticksGame"])
 		}
 	case "home/colony_facts":
-		observeNumericTick(payload["tick"])
+		return asUint64(payload["tick"])
 	case "home/supervised_play":
 		if _, has := payload["lastTick"]; has {
-			observeNumericTick(payload["lastTick"])
-		} else {
-			observeNumericTick(payload["tick"])
+			return asUint64(payload["lastTick"])
 		}
+		return asUint64(payload["tick"])
 	}
+	if !strings.HasPrefix(tool, "rimgovernor/") {
+		return 0, false
+	}
+	encoded, ok := payload["payload"].(string)
+	if !ok {
+		return 0, false
+	}
+	var message map[string]any
+	if err := json.Unmarshal([]byte(encoded), &message); err != nil {
+		return 0, false
+	}
+	return wireTick(message)
 }
 
-// observeWireTick feeds observeTick from a decoded lifecycle reply's
-// loaded.context.tick.
-func observeWireTick(message map[string]any) {
+// wireTick is a decoded lifecycle reply's loaded.context.tick.
+func wireTick(message map[string]any) (uint64, bool) {
 	if loaded, ok := AsMap(message["loaded"]); ok {
 		if context, ok := AsMap(loaded["context"]); ok {
-			observeNumericTick(context["tick"])
+			return asUint64(context["tick"])
 		}
 	}
-}
-
-func observeNumericTick(value any) {
-	if tick, ok := asUint64(value); ok {
-		observeTick(tick)
-	}
+	return 0, false
 }
 
 // asUint64 reads a non-negative integer as Go, JSON or ProtoJSON (string)

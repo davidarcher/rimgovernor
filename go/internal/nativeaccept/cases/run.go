@@ -65,21 +65,30 @@ func (o Options) CaseOutput(c Case) string {
 // exit code Report.Finalize computed. A case that fails Lint is refused
 // before the game opens; Finalize fails the run when it took longer than
 // the budget (budget_ms) and stamps its timing and metrics block; the
-// report records under wait_stats how many of its waits stalled. The
-// block is appended to the run's series (Options.SeriesPath) and the
-// report lists under "drift" the metrics past their rule against the
-// series' trailing median (na.Drift); neither changes the verdict.
+// report records under wait_stats how many of its waits stalled and under
+// game_log the slice of the game's own log the case wrote, copied to
+// <output>/game.log (na.GameLogCapture). The block is appended to the
+// run's series (Options.SeriesPath) and the report lists under "drift"
+// the metrics past their rule against the series' trailing median
+// (na.Drift); neither changes the verdict.
 func Execute(ctx context.Context, c Case, opts Options) (na.Report, int) {
 	output := opts.CaseOutput(c)
-	report := na.NewReport(c.Scope, opts.Headless && !c.Rendered)
+	headless := opts.Headless && !c.Rendered
+	report := na.NewReport(c.Scope, headless)
 	report["case"] = c.Name
 	na.ResetWaitStats()
 	na.ResetTickStats()
+	gameLog := na.OpenGameLog((&na.Config{Root: opts.Root, Headless: headless}).StartupLogPath())
+	// The log copy lands only in an output directory this run owns.
+	opened := false
 	code := func() int {
 		stats := na.WaitStats()
 		report["wait_stats"] = stats
 		if stalled, _ := stats["stalled"].(int); stalled > 0 {
 			report["stalled_waits"] = stalled
+		}
+		if opened {
+			gameLog.Close(output, report)
 		}
 		exit := report.Finalize(output)
 		if !opts.NoSeries {
@@ -96,6 +105,7 @@ func Execute(ctx context.Context, c Case, opts Options) (na.Report, int) {
 		report["error"] = fmt.Sprintf("%s is not empty: every run needs a fresh output directory", output)
 		return report, code()
 	}
+	opened = true
 	if err := c.Lint(); err != nil {
 		report["error"] = err.Error()
 		return report, code()

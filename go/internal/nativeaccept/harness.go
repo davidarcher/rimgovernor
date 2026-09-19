@@ -16,13 +16,12 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 )
 
-// Harness owns Evidence recording and generic native calls for the acceptance
-// binaries. It records evidence: every native
-// call/reply pair is written to <output>/NNNN-<label>.json for post-mortem review.
+// Harness owns evidence recording and generic native calls for the acceptance
+// binaries: every native call/reply pair is written to <output>/NNNN-<label>.json
+// for post-mortem review (evidence.go).
 type Harness struct {
-	Client   *bridge.Client
-	Output   string
-	sequence int
+	Client *bridge.Client
+	Output string
 }
 
 func NewHarness(client *bridge.Client, output string) *Harness {
@@ -40,37 +39,31 @@ func (h *Harness) Call(ctx context.Context, label, tool string, arguments any) (
 	if arguments == nil {
 		args = []byte("{}")
 	}
-	h.sequence++
-	evidencePath := filepath.Join(h.Output, fmt.Sprintf("%04d-%s.json", h.sequence, label))
-	row := map[string]any{"request": map[string]any{"tool": tool, "arguments": json.RawMessage(args)}}
+	sequence := nextEvidenceSequence(h.Output)
+	sent := time.Now()
 	result, callErr := h.Client.NativeCall(ctx, tool, args)
+	elapsed := time.Since(sent)
 	if callErr != nil {
-		row["error"] = callErr.Error()
-		if len(result.Envelope) > 0 {
-			row["result"] = json.RawMessage(result.Envelope)
-		}
-		writeEvidence(evidencePath, row)
+		writeEvidence(evidencePath(h.Output, sequence, label), evidenceRow(sequence, tool, args, sent, elapsed, result.Envelope, callErr, nil))
 		return nil, callErr
 	}
-	row["result"] = json.RawMessage(result.Envelope)
-	writeEvidence(evidencePath, row)
 	var payload map[string]any
-	if len(result.Structured) == 0 {
+	if len(result.Structured) > 0 {
+		if err := json.Unmarshal(result.Structured, &payload); err != nil {
+			writeEvidence(evidencePath(h.Output, sequence, label), evidenceRow(sequence, tool, args, sent, elapsed, result.Envelope, nil, nil))
+			return nil, fmt.Errorf("%s: structuredContent must be an object: %w", tool, err)
+		}
+	}
+	var tick *uint64
+	if observed, ok := replyTick(tool, payload); ok {
+		tick = &observed
+	}
+	writeEvidence(evidencePath(h.Output, sequence, label), evidenceRow(sequence, tool, args, sent, elapsed, result.Envelope, nil, tick))
+	observeReplyTick(tool, tick)
+	if payload == nil {
 		return map[string]any{}, nil
 	}
-	if err := json.Unmarshal(result.Structured, &payload); err != nil {
-		return nil, fmt.Errorf("%s: structuredContent must be an object: %w", tool, err)
-	}
-	observeReplyTick(tool, payload)
 	return payload, nil
-}
-
-func writeEvidence(path string, row map[string]any) {
-	data, err := json.MarshalIndent(row, "", "  ")
-	if err != nil {
-		return
-	}
-	_ = os.WriteFile(path, data, 0644)
 }
 
 // Wire calls a rimgovernor/* Protobuf-JSON tool: it wraps request as {"request":
@@ -94,7 +87,6 @@ func (h *Harness) Wire(ctx context.Context, label, method string, request any) (
 	if err := json.Unmarshal([]byte(payloadString), &message); err != nil {
 		return nil, fmt.Errorf("%s: invalid ProtoJSON reply: %w", method, err)
 	}
-	observeWireTick(message)
 	return message, nil
 }
 

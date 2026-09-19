@@ -165,6 +165,16 @@ by review alone.
    median of the case's last ten earlier passes; `cache_hit_ratio`,
    `wall_tps` and `ticks_advanced` flag a drop) is listed under `drift`,
    never failing the run.
+   Every native call a case makes is one evidence row,
+   `<output>/<area>/<case>/NNNN-<label>.json`, stamped with `sequence`
+   (one stream per case output directory, continued across a reattach
+   after a service), `observed_at`, `elapsed_ms` and `tick` when the
+   reply carried the game tick. The slice of the game's own log
+   (`HeadlessPlayer.log`/`Player.log` under the root, shared by every
+   case on a kept process) the case wrote is copied to the case's
+   `game.log`, and `result.json` records it under `game_log` (`path`,
+   `bytes`, `exceptions`: lines naming an `Exception`, counted, not
+   judged).
 7. **Advance by ticks, at speed.** A wait for something the game itself
    must do (a haul, a surgery, a pen, a capture) is bounded in ticks, not
    wall clock: `na.RunUntil` runs at `na.RunSpeed` with `na.RunBoost`

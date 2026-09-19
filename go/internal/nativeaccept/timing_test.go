@@ -11,8 +11,8 @@ import (
 
 func TestFinalizeRecordsTiming(t *testing.T) {
 	ResetTickStats()
-	observeReplyTick("home/colony_facts", map[string]any{"tick": 1000.0})
-	observeWireTick(map[string]any{"loaded": map[string]any{"context": map[string]any{"tick": "1600"}}})
+	observeReply(t, "home/colony_facts", map[string]any{"tick": 1000.0})
+	observeReply(t, "rimgovernor/lifecycle_read_identity", wireReply(`{"loaded":{"context":{"tick":"1600"}}}`))
 	output := t.TempDir()
 	report := NewReport("timing", true)
 	report[StartedAtKey] = time.Now().Add(-2 * time.Second).UTC().Format(time.RFC3339Nano)
@@ -96,21 +96,50 @@ func TestFinalizeWithoutABudgetPasses(t *testing.T) {
 
 func TestTickObservationCountsForwardProgressOnly(t *testing.T) {
 	ResetTickStats()
-	observeReplyTick("home/status", map[string]any{"time": map[string]any{"ticksGame": 500.0}})
-	observeReplyTick("home/supervised_play", map[string]any{"lastTick": 800.0})
+	observeReply(t, "home/status", map[string]any{"time": map[string]any{"ticksGame": 500.0}})
+	observeReply(t, "home/supervised_play", map[string]any{"lastTick": 800.0})
 	// A rewind (an older save loaded without a load tool passing through
 	// the harness) re-baselines without counting.
-	observeReplyTick("home/colony_facts", map[string]any{"tick": 100.0})
-	observeReplyTick("home/colony_facts", map[string]any{"tick": 150.0})
+	observeReply(t, "home/colony_facts", map[string]any{"tick": 100.0})
+	observeReply(t, "home/colony_facts", map[string]any{"tick": 150.0})
 	// A load re-baselines: the loaded save's tick is not progress.
-	observeReplyTick("rimworld/load_game_ready", map[string]any{})
-	observeWireTick(map[string]any{"loaded": map[string]any{"context": map[string]any{"tick": "90000"}}})
-	observeWireTick(map[string]any{"loaded": map[string]any{"context": map[string]any{"tick": "90010"}}})
+	observeReplyTick("rimworld/load_game_ready", nil)
+	observeReply(t, "rimgovernor/lifecycle_read_identity", wireReply(`{"loaded":{"context":{"tick":"90000"}}}`))
+	observeReply(t, "rimgovernor/lifecycle_read_identity", wireReply(`{"loaded":{"context":{"tick":"90010"}}}`))
 	if got := TicksAdvanced(); got != 300+50+10 {
 		t.Errorf("ticks advanced = %d, want 360", got)
 	}
 	ResetTickStats()
 	if TicksAdvanced() != 0 {
 		t.Errorf("reset kept ticks")
+	}
+}
+
+// observeReply feeds a decoded reply through replyTick and observeReplyTick
+// as Harness.Call does, failing when the reply carries no tick.
+func observeReply(t *testing.T, tool string, payload map[string]any) {
+	t.Helper()
+	tick, ok := replyTick(tool, payload)
+	if !ok {
+		t.Fatalf("%s reply %v carries no tick", tool, payload)
+	}
+	observeReplyTick(tool, &tick)
+}
+
+// wireReply is a rimgovernor/* reply's structured content: the ProtoJSON
+// message as the "payload" string.
+func wireReply(message string) map[string]any { return map[string]any{"payload": message} }
+
+func TestReplyTickIgnoresRepliesWithoutOne(t *testing.T) {
+	for tool, payload := range map[string]map[string]any{
+		"home/status":                           {"time": map[string]any{}},
+		"rimworld/set_time_speed":               {"success": true},
+		"rimgovernor/authority_read_status":     wireReply(`{"status":{"owner":"controller"}}`),
+		"rimgovernor/lifecycle_read_identity":   {"payload": 7},
+		"rimgovernor/lifecycle_read_identity_2": wireReply(`not json`),
+	} {
+		if tick, ok := replyTick(tool, payload); ok {
+			t.Errorf("%s: unexpected tick %d from %v", tool, tick, payload)
+		}
 	}
 }
