@@ -520,8 +520,16 @@ message UpkeepPerson { PawnState pawn = 1; optional string owned_bed_id = 2; opt
 message FeedDefinition { optional string def_name = 1; optional double nutrition_per_item = 2; repeated string eater_ids = 3; }
 // reachable_bench_ids lists the player work tables whose position the animal
 // can reach inside its allowed area: a bill there drops its product where the
-// animal can eat it.
-message AnimalFeed { PawnState pawn = 1; optional string diet = 2; optional bool requires_pen = 3; optional string suitable_pen_id = 4; repeated FoodStock reachable_stored_feed = 5; repeated string reachable_bench_ids = 6; }
+// animal can eat it. reachable_storage lists the stockpile zones holding a
+// cell the animal can reach inside its allowed area, each with the
+// nutrition-giving definitions its filter accepts among those the animal's
+// race can ever eat (accepts): feed produced elsewhere and hauled there is
+// feed the animal eats. storage_candidates is a bounded, connected footprint
+// of free roofed cells inside the allowed area (standable, unzoned, unbuilt,
+// reachable by the animal and a hauler) near the animal on which such a
+// zone could be made; empty when no hauler exists or no cell qualifies.
+message AnimalFeedStorage { optional string zone_id = 1; repeated string accepts = 2; }
+message AnimalFeed { PawnState pawn = 1; optional string diet = 2; optional bool requires_pen = 3; optional string suitable_pen_id = 4; repeated FoodStock reachable_stored_feed = 5; repeated string reachable_bench_ids = 6; repeated AnimalFeedStorage reachable_storage = 7; repeated rimgovernor.common.v1.Cell storage_candidates = 8; }
 message DevelopmentPower { BuildingState building = 1; optional double base_w = 2; optional double stored_watt_days = 3; optional double capacity_watt_days = 4; }
 message DevelopmentFurniture { EntityRef building = 1; optional bool indoors = 2; optional uint32 slots = 3; }
 message DevelopmentFacts { repeated DevelopmentPower power = 1; repeated DevelopmentFurniture furniture = 2; ResearchSnapshot research = 3; Completeness completeness = 4; repeated PowerNetwork networks = 5; }

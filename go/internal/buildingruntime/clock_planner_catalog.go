@@ -587,7 +587,7 @@ var plannerCatalog = []plannerEntry{
 			out.Resource = &method
 			return nil
 		}},
-	{name: "animalFeed", priority: plannerMaintenance, families: factsColony,
+	{name: "animalFeed", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.MineAcquisitionAction, domain.ProductionBillAction, domain.ZoneCreateAction}, families: factsColony,
 		configured: func(c *ClockSchedulerConfig) bool { return c.AnimalFeed != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.AnimalFeed.step(ctx, epoch, arbiter)

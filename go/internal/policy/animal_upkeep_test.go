@@ -131,3 +131,22 @@ func TestAnimalFeedTargetCarriesReachableBenches(t *testing.T) {
 		t.Fatal("blank bench id accepted")
 	}
 }
+
+func TestAnimalFeedTargetCarriesReachableStorage(t *testing.T) {
+	v := animalFixture(1)
+	animals, _ := v.Animals.Value()
+	storage := []AnimalFeedStorage{{Zone: "Zone_2", Accepts: []string{"Kibble"}}}
+	cells := []domain.Cell{{X: 3, Z: 4}}
+	animals[0].ReachableStorage, animals[0].StorageCandidates = storage, cells
+	v.Animals = domain.Known(animals)
+	r, err := ReviewAnimalUpkeep(v, AnimalUpkeepHistory{}, DefaultAnimalUpkeepPolicy())
+	rows, known := r.Feed.Value()
+	if err != nil || !known || len(rows) != 1 || !reflect.DeepEqual(rows[0].ReachableStorage, storage) || !reflect.DeepEqual(rows[0].StorageCandidates, cells) {
+		t.Fatal(r, err)
+	}
+	animals[0].ReachableStorage = []AnimalFeedStorage{{Zone: "Zone_2", Accepts: []string{""}}}
+	v.Animals = domain.Known(animals)
+	if _, err = ReviewAnimalUpkeep(v, AnimalUpkeepHistory{}, DefaultAnimalUpkeepPolicy()); err == nil {
+		t.Fatal("blank accepted definition accepted")
+	}
+}

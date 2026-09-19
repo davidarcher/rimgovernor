@@ -162,9 +162,33 @@ func (r *RoutineAnimalFeedPlanner) step(call, epoch context.Context, arbiter *st
 	default:
 		return RoutineResourceResult{Reason: BuildingMethodRefused}, nil
 	}
-	// Feed is only feed where the animal can eat it, so the bill may only
-	// land on a bench inside every covered animal's reachable area (#237).
-	result, err := r.core.dispatchResourceGoal(call, epoch, state, goal, review.Tick, identity, choice.Resource, choice.Target, stock, choice.Benches, started)
+	// Feed is only feed where the animal can eat it: the bill lands on a
+	// bench inside every covered animal's reachable area (#237) or, with no
+	// such bench, on any bench once a stockpile accepting the feed sits
+	// inside their area for haulers to deliver into -- a zone this planner
+	// makes first on the animals' shared free footprint when none exists
+	// (#311). With neither bench, zone nor footprint the production path
+	// is refused for a window rather than piling feed up out of reach.
+	benches := choice.Benches
+	if len(benches) == 0 {
+		switch {
+		case choice.Delivered:
+			benches = nil
+		case len(choice.StorageCells) > 0:
+			clockSchedulerLog("%s: no reachable bench for %s; zoning %d feed storage cells inside the animals' area", goal.Goal.ID, choice.Resource, len(choice.StorageCells))
+			result, err := r.core.admitStorageZone(call, epoch, state, goal, review.Tick, choice.Resource, choice.StorageCells, started, "feed-storage", "routine-feed-zone")
+			if err == nil && (result.Reason == BuildingMethodRefused || result.Reason == BuildingMethodNoSpace) {
+				// The footprint native offered was refused at preview (the
+				// roof or the ground changed): lend the same window the
+				// no-bench refusal does rather than parking on no_work.
+				result.NativeWorkTicks = stockWaitTicks
+			}
+			return result, err
+		default:
+			benches = []string{}
+		}
+	}
+	result, err := r.core.dispatchResourceGoal(call, epoch, state, goal, review.Tick, identity, choice.Resource, choice.Target, stock, benches, started)
 	if err != nil {
 		return result, err
 	}

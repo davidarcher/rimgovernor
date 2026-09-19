@@ -22,7 +22,14 @@ namespace HomeBridge.BridgeTools
             }).ToList();
             foreach (var thing in shared)
             {
+                // Kibble is animal feed: a humanlike pawn only eats it when nothing
+                // better is reachable, so it is no planned colonist food (the held
+                // and colony-stock reads exclude it the same way) and counting
+                // colonists as its eaters diluted a pet's share seventeen-fold
+                // under a delivered feed stockpile (#311).
+                var kibble = thing.def.ingestible != null && (thing.def.ingestible.foodType & FoodTypeFlags.Kibble) != 0;
                 var eaters = people.Where(p => p.needs?.food != null && !p.Downed && !p.InMentalState
+                    && !(kibble && p.RaceProps.Humanlike)
                     && p.WillEat(thing) && PolicyAllows(p, thing) && !thing.IsForbidden(p)
                     && p.CanReach(thing, PathEndMode.Touch, Danger.None)
                     && (p.playerSettings?.AreaRestrictionInPawnCurrentMap == null

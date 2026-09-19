@@ -4,6 +4,8 @@ import (
 	"errors"
 	"math"
 	"sort"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 // AnimalFeedReason names MaintainAnimalFeed's resource-selection outcome.
@@ -31,6 +33,15 @@ type AnimalFeedMethod struct {
 	// confined animal cannot walk to a bench elsewhere. Empty when no
 	// bench is shared by the covered animals.
 	Benches []string
+	// Delivered reports a stockpile zone accepting Resource that every
+	// covered animal can reach: feed produced on any bench is hauled where
+	// they eat it, so the bill need not sit inside their area.
+	Delivered bool
+	// StorageCells is the connected footprint, shared by every covered
+	// animal, on which a Resource-only stockpile zone would make delivery
+	// possible when neither a reachable bench nor a delivering zone exists;
+	// empty when the covered animals share no free cell.
+	StorageCells []domain.Cell
 }
 
 const maxAnimalFeedTarget = 10000
@@ -74,9 +85,11 @@ func SelectAnimalFeedMethod(targets []AnimalFeedTarget, stocks []FoodStock, have
 	group := map[PawnID]bool{}
 	var missing float64
 	var benches []string
+	var cells []domain.Cell
+	var storage [][]AnimalFeedStorage
 	first := true
 	for _, t := range targets {
-		if !foodID(string(t.ID)) || !validResource(t.Definition) || !foodNumber(t.Nutrition) || len(t.ReachableBenches) > 256 {
+		if !foodID(string(t.ID)) || !validResource(t.Definition) || !foodNumber(t.Nutrition) || len(t.ReachableBenches) > 256 || !validAnimalFeedStorage(t.ReachableStorage, t.StorageCandidates) {
 			return AnimalFeedMethod{}, errors.New("invalid animal feed target")
 		}
 		for _, bench := range t.ReachableBenches {
@@ -89,10 +102,12 @@ func SelectAnimalFeedMethod(targets []AnimalFeedTarget, stocks []FoodStock, have
 		}
 		group[t.ID] = true
 		missing += t.Nutrition
+		storage = append(storage, t.ReachableStorage)
 		if first {
-			benches, first = append([]string{}, t.ReachableBenches...), false
+			benches, cells, first = append([]string{}, t.ReachableBenches...), append([]domain.Cell{}, t.StorageCandidates...), false
 		} else {
 			benches = intersectIDs(benches, t.ReachableBenches)
+			cells = intersectCells(cells, t.StorageCandidates)
 		}
 	}
 	sort.Strings(benches)
@@ -150,7 +165,101 @@ func SelectAnimalFeedMethod(targets []AnimalFeedTarget, stocks []FoodStock, have
 	if target <= 0 || target > maxAnimalFeedTarget {
 		return AnimalFeedMethod{Reason: AnimalFeedExceedsBound}, nil
 	}
-	return AnimalFeedMethod{Reason: AnimalFeedSelected, Resource: bestResource, Target: target, Benches: benches}, nil
+	return AnimalFeedMethod{Reason: AnimalFeedSelected, Resource: bestResource, Target: target, Benches: benches, Delivered: storageDelivers(storage, bestResource), StorageCells: connectedCells(cells)}, nil
+}
+
+// validAnimalFeedStorage bounds and checks one animal's reachable storage
+// rows and candidate footprint.
+func validAnimalFeedStorage(storage []AnimalFeedStorage, candidates []domain.Cell) bool {
+	if len(storage) > 256 || len(candidates) > 256 {
+		return false
+	}
+	for _, row := range storage {
+		if !foodID(row.Zone) || len(row.Accepts) > 256 {
+			return false
+		}
+		for _, def := range row.Accepts {
+			if !validResource(Resource(def)) {
+				return false
+			}
+		}
+	}
+	for _, cell := range candidates {
+		if cell.X < 0 || cell.Z < 0 {
+			return false
+		}
+	}
+	return true
+}
+
+// storageDelivers reports whether every covered animal (one storage list
+// each) can reach a stockpile zone whose filter accepts resource.
+func storageDelivers(storage [][]AnimalFeedStorage, resource Resource) bool {
+	if len(storage) == 0 {
+		return false
+	}
+	for _, rows := range storage {
+		accepted := false
+		for _, row := range rows {
+			for _, def := range row.Accepts {
+				if Resource(def) == resource {
+					accepted = true
+				}
+			}
+		}
+		if !accepted {
+			return false
+		}
+	}
+	return true
+}
+
+// intersectCells keeps the cells of a that b also holds, in a's order.
+func intersectCells(a, b []domain.Cell) []domain.Cell {
+	keep := map[domain.Cell]bool{}
+	for _, cell := range b {
+		keep[cell] = true
+	}
+	out := []domain.Cell{}
+	for _, cell := range a {
+		if keep[cell] {
+			out = append(out, cell)
+		}
+	}
+	return out
+}
+
+// connectedCells keeps the cardinally connected component of cells that
+// holds the first cell (the one nearest the first covered animal), so an
+// intersection of several animals' footprints still names one zone.
+func connectedCells(cells []domain.Cell) []domain.Cell {
+	if len(cells) == 0 {
+		return nil
+	}
+	member := map[domain.Cell]bool{}
+	for _, cell := range cells {
+		member[cell] = true
+	}
+	reached := map[domain.Cell]bool{cells[0]: true}
+	queue := []domain.Cell{cells[0]}
+	for len(queue) > 0 {
+		cell := queue[0]
+		queue = queue[1:]
+		for _, delta := range []domain.Cell{{X: 1}, {X: -1}, {Z: 1}, {Z: -1}} {
+			next := domain.Cell{X: cell.X + delta.X, Z: cell.Z + delta.Z}
+			if member[next] && !reached[next] {
+				reached[next] = true
+				queue = append(queue, next)
+			}
+		}
+	}
+	out := []domain.Cell{}
+	for _, cell := range cells {
+		if reached[cell] {
+			out = append(out, cell)
+		}
+	}
+	return out
 }
 
 // intersectIDs keeps the entries of a that b also holds, in a's order.

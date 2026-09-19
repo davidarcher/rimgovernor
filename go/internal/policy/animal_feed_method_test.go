@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -150,5 +151,50 @@ func TestAnimalFeedCarriesBenchesEveryCoveredAnimalReaches(t *testing.T) {
 	bad := []AnimalFeedTarget{{ID: "husky1", Definition: "Husky", Nutrition: 2, ReachableBenches: []string{""}}}
 	if _, err = SelectAnimalFeedMethod(bad, nil, nil, nil); err == nil {
 		t.Fatal("blank bench id accepted")
+	}
+}
+
+// With no shared bench, feed made anywhere still feeds the covered animals
+// once a stockpile accepting it sits inside every one's area (Delivered);
+// failing that the method names the connected free footprint they share on
+// which such a zone would go, never a cell only one of them reaches (#311).
+func TestAnimalFeedDeliveryFallsBackToReachableStorage(t *testing.T) {
+	kibble := []AnimalFeedStorage{{Zone: "Zone_3", Accepts: []string{"Hay", "Kibble"}}}
+	hayOnly := []AnimalFeedStorage{{Zone: "Zone_4", Accepts: []string{"Hay"}}}
+	cells := []domain.Cell{{X: 5, Z: 5}, {X: 6, Z: 5}, {X: 6, Z: 6}, {X: 9, Z: 9}}
+	targets := []AnimalFeedTarget{
+		{ID: "husky1", Definition: "Husky", Nutrition: 2, ReachableStorage: kibble, StorageCandidates: cells},
+		{ID: "husky2", Definition: "Husky", Nutrition: 2, ReachableStorage: kibble, StorageCandidates: cells[1:]},
+	}
+	choice, err := SelectAnimalFeedMethod(targets, nil, nil, nil)
+	if err != nil || choice.Reason != AnimalFeedSelected || choice.Resource != AnimalFeedFallbackResource || !choice.Delivered || len(choice.Benches) != 0 {
+		t.Fatalf("%+v %v", choice, err)
+	}
+	if !reflect.DeepEqual(choice.StorageCells, []domain.Cell{{X: 6, Z: 5}, {X: 6, Z: 6}}) {
+		t.Fatalf("cells = %v", choice.StorageCells)
+	}
+	targets[1].ReachableStorage = hayOnly
+	choice, err = SelectAnimalFeedMethod(targets, nil, nil, nil)
+	if err != nil || choice.Reason != AnimalFeedSelected || choice.Delivered {
+		t.Fatalf("%+v %v", choice, err)
+	}
+	targets[1].StorageCandidates = nil
+	choice, err = SelectAnimalFeedMethod(targets, nil, nil, nil)
+	if err != nil || choice.Reason != AnimalFeedSelected || choice.Delivered || len(choice.StorageCells) != 0 {
+		t.Fatalf("%+v %v", choice, err)
+	}
+	// Another race's storage never delivers for the covered one.
+	targets = append(targets[:1], AnimalFeedTarget{ID: "muffalo1", Definition: "Muffalo", Nutrition: 2, ReachableStorage: hayOnly})
+	choice, err = SelectAnimalFeedMethod(targets, nil, nil, nil)
+	if err != nil || !choice.Delivered || !reflect.DeepEqual(choice.StorageCells, []domain.Cell{{X: 5, Z: 5}, {X: 6, Z: 5}, {X: 6, Z: 6}}) {
+		t.Fatalf("%+v %v", choice, err)
+	}
+	bad := []AnimalFeedTarget{{ID: "husky1", Definition: "Husky", Nutrition: 2, ReachableStorage: []AnimalFeedStorage{{Zone: ""}}}}
+	if _, err = SelectAnimalFeedMethod(bad, nil, nil, nil); err == nil {
+		t.Fatal("blank zone id accepted")
+	}
+	bad = []AnimalFeedTarget{{ID: "husky1", Definition: "Husky", Nutrition: 2, StorageCandidates: []domain.Cell{{X: -1, Z: 0}}}}
+	if _, err = SelectAnimalFeedMethod(bad, nil, nil, nil); err == nil {
+		t.Fatal("negative candidate cell accepted")
 	}
 }

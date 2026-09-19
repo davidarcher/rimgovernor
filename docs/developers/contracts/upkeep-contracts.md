@@ -360,10 +360,19 @@ resources are considered through the shared source/bill method. When no
 covering feed is reachable the method falls back to the kibble bill. A bill drops
 its product at its bench, so the census names, per animal, the player work
 tables it can reach inside its allowed area (`reachable_bench_ids`) and the
-bill may only land on a bench every covered animal reaches; with no such bench
-the production path is refused for a bounded window rather than piling feed
-up out of reach (a bench inside the area, or a widened area, is seen at the
-next step). A recipe
+bill lands on a bench every covered animal reaches when one exists. With no
+such bench, feed made elsewhere still counts once hauled where the animals
+eat: the census also names, per animal, the stockpile zones it can reach with
+the edible definitions each accepts (`reachable_storage`) and a connected free
+roofed footprint inside its area where a zone could go (`storage_candidates`;
+the zone operation only takes covered ground, so an unroofed area offers
+none). When a
+zone accepting the feed is reachable by every covered animal the bill may land
+on any bench; otherwise the method first zones a feed-only, important-priority
+stockpile on the footprint the covered animals share and bills on the next
+step. With neither bench, zone nor footprint the production path is refused
+for a bounded window rather than piling feed up out of reach (a bench, zone or
+widened area is seen at the next step). A recipe
 slot that accepts several ingredient definitions is funded by the cheapest
 alternative in stock. Existing adequate
 bills are reused, player resource restrictions remain authoritative, and required

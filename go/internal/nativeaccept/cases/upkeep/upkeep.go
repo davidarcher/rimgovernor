@@ -32,12 +32,16 @@
 //	                   wild healroot nearby. MaintainMedicalReserves must
 //	                   replenish through ordinary plant cutting until the
 //	                   recovery reserve is observed in stock.
-//	feed            -- test/feed_setup: a hungry pet confined to a small area
-//	                   holding one butcher spot, an earlier butcher spot and
+//	feed            -- test/feed_setup: a hungry pet confined to a small roofed
+//	                   area holding one butcher spot, an earlier butcher spot and
 //	                   meat/hay stock outside its reach. MaintainAnimalFeed must
 //	                   produce reachable feed (a kibble bill on the bench inside
 //	                   the area, never the lower-id one outside it, #237) rather
 //	                   than counting stock the animal cannot eat.
+//	feed-delivered  -- test/feed_setup benchInside=false: the same pet with no
+//	                   bench inside its area. MaintainAnimalFeed must zone a
+//	                   kibble stockpile on cells inside the area, then bill the
+//	                   outside bench and recover once haulers deliver (#311).
 //	sleeping        -- test/sleeping_setup: a warm roofed room holding one bed
 //	                   fewer than colonists, wood and bed research.
 //	                   MaintainSleeping must build the missing bed, ownership
@@ -166,6 +170,14 @@ func scenarios() map[string]*scenario {
 		watch:  watchFeed,
 		verify: verifyFeed,
 	}
+	s["feed-delivered"] = &scenario{name: "feed-delivered", fixture: "test/feed_setup",
+		families: []string{"animal-feed", "resource", "bill", "work"},
+		prepare: func(ctx context.Context, h *na.Harness, identity map[string]any, report na.Report) (map[string]any, error) {
+			return callFixture(ctx, h, identity, "test/feed_setup", map[string]any{"benchInside": false})
+		},
+		watch:  watchFeedDelivered,
+		verify: verifyFeed,
+	}
 	s["sleeping"] = &scenario{name: "sleeping", fixture: "test/sleeping_setup",
 		families: []string{"sleeping", "work"},
 		prepare: func(ctx context.Context, h *na.Harness, identity map[string]any, report na.Report) (map[string]any, error) {
@@ -193,7 +205,7 @@ func scenarios() map[string]*scenario {
 
 // scenarioOrder is the family in its cheapest-deficit-first order; the
 // case names follow it as upkeep/<scenario>.
-var scenarioOrder = []string{"scattered", "storage-missing", "blocked", "fire", "medicine", "feed", "sleeping", "cold"}
+var scenarioOrder = []string{"scattered", "storage-missing", "blocked", "fire", "medicine", "feed", "feed-delivered", "sleeping", "cold"}
 
 func init() {
 	all := scenarios()
@@ -1207,6 +1219,66 @@ func watchFeed(ctx context.Context, journal *store.Store, prepared map[string]an
 				return fmt.Errorf("kibble bill placed on %s outside the pet's area, not %s", bill.Bench(), reachableBench)
 			}
 			report["feed_bill_bench"] = reachableBench
+			return nil
+		}
+		return fmt.Errorf("unexpected %s action", a.Kind())
+	}, report); err != nil {
+		return err
+	}
+	recoverCtx, recoverCancel := context.WithTimeout(ctx, 12*time.Minute)
+	defer recoverCancel()
+	goal, err := waitNeed(recoverCtx, journal, policy.MaintainAnimalFeed, domain.NeedRecovered)
+	if err != nil {
+		return err
+	}
+	report["feed_recovered_tick"] = int64(goal.Goal.Tick)
+	return nil
+}
+
+// watchFeedDelivered follows the two methods the no-bench variant needs in
+// order: a kibble-only stockpile zone whose every cell lies inside the pet's
+// area, then a kibble bill on the only bench, the one outside it (#311).
+func watchFeedDelivered(ctx context.Context, journal *store.Store, prepared map[string]any, report na.Report) error {
+	deficitCtx, deficitCancel := context.WithTimeout(ctx, 4*time.Minute)
+	defer deficitCancel()
+	if _, err := waitNeed(deficitCtx, journal, policy.MaintainAnimalFeed, domain.NeedDeficit); err != nil {
+		return err
+	}
+	area := map[domain.Cell]bool{}
+	for _, raw := range na.AsSlice(prepared["areaCells"]) {
+		cell, _ := na.AsMap(raw)
+		area[domain.Cell{X: int32(na.AsNumber(cell["x"])), Z: int32(na.AsNumber(cell["z"]))}] = true
+	}
+	outsideBench := na.AsString(prepared["outsideBench"])
+	seen := map[domain.PlanID]bool{}
+	if _, err := followMethodsExcluding(ctx, journal, policy.MaintainAnimalFeed, "feed_zone", seen, func(a domain.Action) error {
+		if a.Kind() != domain.ZoneCreateAction {
+			return fmt.Errorf("expected a feed stockpile zone before any %s action", a.Kind())
+		}
+		zone, _ := a.ZoneCreate()
+		cells := zone.Cells()
+		for _, cell := range cells {
+			if !area[cell] {
+				return fmt.Errorf("feed zone cell %v lies outside the pet's area", cell)
+			}
+		}
+		if allow := zone.Allow(); len(allow) != 1 || allow[0] != string(policy.AnimalFeedFallbackResource) {
+			return fmt.Errorf("feed zone allows %v, not kibble only", allow)
+		}
+		report["feed_zone_cells"] = len(cells)
+		return nil
+	}, report); err != nil {
+		return err
+	}
+	if _, err := followMethodsExcluding(ctx, journal, policy.MaintainAnimalFeed, "feed", seen, func(a domain.Action) error {
+		switch a.Kind() {
+		case domain.AcquisitionAction, domain.MineAcquisitionAction:
+			return nil
+		case domain.ProductionBillAction:
+			if bill, ok := a.ProductionBill(); ok && bill.Bench() != outsideBench {
+				return fmt.Errorf("kibble bill placed on %s, not the only bench %s", bill.Bench(), outsideBench)
+			}
+			report["feed_bill_bench"] = outsideBench
 			return nil
 		}
 		return fmt.Errorf("unexpected %s action", a.Kind())

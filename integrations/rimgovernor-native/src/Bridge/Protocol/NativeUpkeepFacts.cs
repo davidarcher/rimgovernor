@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
 using Verse;
@@ -375,6 +376,12 @@ namespace HomeBridge.BridgeTools
                     && t.def.IsNutritionGivingIngestible && !t.def.IsDrug && t.IngestibleNow).ToList();
                 var benches = things.OfType<Building_WorkTable>().Where(b => b.Faction == Faction.OfPlayerSilentFail)
                     .OrderBy(b => b.thingIDNumber).ToList();
+                var stockpiles = map.zoneManager.AllZones.OfType<Zone_Stockpile>().OrderBy(z => z.ID).ToList();
+                var feedDefs = DefDatabase<ThingDef>.AllDefsListForReading
+                    .Where(d => d.category == ThingCategory.Item && d.IsNutritionGivingIngestible && !d.IsDrug && !d.IsCorpse)
+                    .OrderBy(d => d.defName, StringComparer.Ordinal).ToList();
+                var haulers = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Downed && !p.Drafted && !p.InMentalState
+                    && !p.WorkTypeIsDisabled(WorkTypeDefOf.Hauling)).ToList();
                 var values = animals.Select(p => {
                     var requiresPen = AnimalPenUtility.NeedsToBeManagedByRope(p);
                     var pen = requiresPen ? AnimalPenUtility.GetCurrentPenOf(p, false) : null;
@@ -412,6 +419,22 @@ namespace HomeBridge.BridgeTools
                             || p.playerSettings.AreaRestrictionInPawnCurrentMap[b.Position])).ToList();
                     Require(reachableBenches.Count, 256);
                     value.ReachableBenchIds.AddRange(reachableBenches.Select(b => Id(b.GetUniqueLoadID())));
+                    // Feed made elsewhere still feeds the animal once hauled
+                    // into a stockpile it can reach: name those zones with
+                    // the edible definitions each accepts, and a free
+                    // connected footprint in the area where one could go.
+                    var area = p.playerSettings?.AreaRestrictionInPawnCurrentMap;
+                    bool Allowed(IntVec3 c) => area == null || area[c];
+                    bool AnimalReach(IntVec3 c) => Allowed(c) && p.CanReach(c, PathEndMode.OnCell, Danger.None);
+                    foreach (var zone in stockpiles) {
+                        if (!zone.Cells.Any(AnimalReach)) continue;
+                        var storage = new Obs.AnimalFeedStorage { ZoneId = Id(zone.GetUniqueLoadID()) };
+                        storage.Accepts.AddRange(feedDefs.Where(d => p.RaceProps.CanEverEat(d) && zone.settings.filter.Allows(d)).Select(d => Id(d.defName)));
+                        Require(storage.Accepts.Count, 256);
+                        value.ReachableStorage.Add(storage);
+                    }
+                    Require(value.ReachableStorage.Count, 256);
+                    value.StorageCandidates.AddRange(FeedStorageCandidates(map, p, haulers, Allowed).Select(Cell));
                     return value;
                 }).ToList();
                 result.Animals.AddRange(values);
@@ -432,6 +455,42 @@ namespace HomeBridge.BridgeTools
                     Diet = Id(p.RaceProps.foodType.ToString()), RequiresPen = false
                 }));
             });
+        }
+
+        // FeedStorageCandidates floods outward from the animal over the free
+        // cells of its allowed area (roofed and not marked to collapse, as the
+        // stockpile zone operation requires, standable, unzoned, no building,
+        // blueprint, frame or item, reachable by the animal and by an eligible
+        // hauler) and returns the first connected footprint of up to
+        // feedStorageCandidateCells cells, or nothing when no hauler exists or
+        // no cell qualifies. The flood is bounded so a wide area costs a
+        // bounded number of reachability checks.
+        private const int feedStorageCandidateCells = 8;
+        private const int feedStorageFloodBound = 256;
+        private static List<IntVec3> FeedStorageCandidates(Map map, Pawn animal, List<Pawn> haulers, Func<IntVec3, bool> allowed)
+        {
+            var result = new List<IntVec3>();
+            if (haulers.Count == 0) return result;
+            bool Free(IntVec3 c) => c.InBounds(map) && allowed(c) && !c.Fogged(map) && c.Standable(map)
+                && c.Roofed(map) && !map.roofCollapseBuffer.IsMarkedToCollapse(c)
+                && map.zoneManager.ZoneAt(c) == null && c.GetEdifice(map) == null
+                && !c.GetThingList(map).Any(t => t is Building || t is Blueprint || t is Frame || t.def.category == ThingCategory.Item);
+            bool Reachable(IntVec3 c) => animal.CanReach(c, PathEndMode.OnCell, Danger.None)
+                && haulers.Any(h => !c.IsForbidden(h) && h.CanReach(c, PathEndMode.OnCell, Danger.None));
+            var seed = GenRadial.RadialCellsAround(animal.Position, 12, true).Where(c => Free(c) && Reachable(c)).Cast<IntVec3?>().FirstOrDefault();
+            if (seed == null) return result;
+            var seen = new HashSet<IntVec3> { seed.Value };
+            var queue = new Queue<IntVec3>();
+            queue.Enqueue(seed.Value);
+            while (queue.Count > 0 && result.Count < feedStorageCandidateCells && seen.Count < feedStorageFloodBound) {
+                var cell = queue.Dequeue();
+                result.Add(cell);
+                foreach (var next in GenAdj.CardinalDirections.Select(d => cell + d)) {
+                    if (!seen.Add(next) || !Free(next) || !Reachable(next)) continue;
+                    queue.Enqueue(next);
+                }
+            }
+            return result;
         }
 
         private static Obs.EntityRef Ref(Thing thing) => new Obs.EntityRef {

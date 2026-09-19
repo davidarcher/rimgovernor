@@ -18,6 +18,7 @@ const (
 	WorkCleaning     WorkType = "Cleaning"
 	WorkBasic        WorkType = "BasicWorker"
 	WorkHandling     WorkType = "Handling"
+	WorkCooking      WorkType = "Cooking"
 	WorkFirefighter  WorkType = "Firefighter"
 	WorkTailoring    WorkType = "Tailoring"
 	WorkSmithing     WorkType = "Smithing"
@@ -52,8 +53,14 @@ func GoalLabor(id GoalID) LaborProfile {
 		// worker not incapable of Cleaning can carry, and it exists for the
 		// case where nobody has Cleaning at priority > 0.
 		return LaborProfile{WorkCleaning, WorkBasic}
-	case MaintainHerd, MaintainAnimalFeed:
+	case MaintainHerd:
 		return LaborProfile{WorkHandling}
+	case MaintainAnimalFeed:
+		// Feed is a kibble bill (the butcher spot's Cooking work) hauled
+		// into the animals' area (#311); handlers never carry it, and the
+		// tribal baseline has none, which left the delivered bill
+		// labor_unavailable behind its completed zone.
+		return LaborProfile{WorkCooking, WorkHauling}
 	case MaintainFireSafety:
 		return LaborProfile{WorkFirefighter}
 	}

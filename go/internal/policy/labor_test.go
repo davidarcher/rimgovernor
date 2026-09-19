@@ -26,6 +26,10 @@ func TestRoutineLaborCountsEnabledWorkTypes(t *testing.T) {
 	if GoalLabor(EnsureComfort)[0] != WorkConstruction || GoalLabor(EnsureResearch)[0] != WorkResearch || GoalLabor(ActiveCombat) != nil || GoalLabor(ProductionPolicy) != nil {
 		t.Fatal("unexpected goal labor profiles")
 	}
+	// Feed is cooked and hauled, never handled (#311).
+	if feed := GoalLabor(MaintainAnimalFeed); len(feed) != 2 || feed[0] != WorkCooking || feed[1] != WorkHauling || GoalLabor(MaintainHerd)[0] != WorkHandling {
+		t.Fatal("unexpected animal labor profiles", feed)
+	}
 }
 
 // One builder cannot serve two construction goals; a researcher's slot is

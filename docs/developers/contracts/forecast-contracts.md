@@ -14,7 +14,9 @@ implementation serves deterministic facts and player fact inspection.
 | Power | Per-network observed watts and stored watt-days | Reserve duration at current deficit; no assumed future generation or grid connectivity. Failed readings remain unavailable. |
 
 Food stock is apportioned only among eaters permitted by native diet, policy and
-safe access. Held food belongs to its observed holder. Earliest-expiry allocation
+safe access; kibble is apportioned among animals only, since a colonist eats it
+only when nothing better is reachable (#311). Held food belongs to its observed
+holder. Earliest-expiry allocation
 uses native rot deadlines at the current temperature. The food gate uses the
 lowest colonist runway after reserving competing animal shares; unknown combined
 demand cannot certify a safe runway. Future harvesting, changing temperature,

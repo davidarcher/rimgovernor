@@ -132,6 +132,40 @@ func TestCommitStockpileZoneMethodBindsToResourceTargetGoal(t *testing.T) {
 	}
 }
 
+// MaintainAnimalFeed's delivery fallback (routine_animal_feed.go) commits one
+// kibble-only stockpile inside the animals' area when no bench is reachable
+// there; the live run refused it here with "plan or action identity already
+// exists" until the goal was bound (#311).
+func TestCommitStockpileZoneMethodBindsToAnimalFeedGoal(t *testing.T) {
+	ctx := context.Background()
+	s := open(t, memoryPath(t))
+	r := routineRequest()
+	r.Facts.AnimalUpkeep = policy.AnimalUpkeepObservation{
+		Animals: domain.Known([]policy.UpkeepAnimal{{ID: "animal", Definition: "Husky", RequiresPen: domain.Known(false), Contained: domain.Known(true), Release: domain.Known(false), Slaughter: domain.Known(false)}}),
+		Food:    domain.Known(policy.FoodSupply{Complete: domain.Known(true), Consumers: []policy.FoodConsumer{{ID: "animal", NutritionPerDay: domain.Known(1.0)}}}),
+	}
+	out := reviewRoutine(t, s, &r)
+	g := routineGoal(t, out, policy.MaintainAnimalFeed)
+	if g.Goal.Need != domain.NeedDeficit {
+		t.Fatal(g)
+	}
+	zone, err := domain.NewAllowListStockpileZone(domain.ImportantPriority, []string{"Kibble"}, []domain.Cell{{X: 4, Z: 6}, {X: 5, Z: 6}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	action, err := domain.NewZoneCreateAction("feed-zone-a", zone)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, err := domain.NewPlan("feed-zone", 1, []domain.Action{action})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "feed-storage-0", plan); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // A stockpile zone is created once per colony in this slice: a plan proposing
 // more than one stockpile action for the bound goal must be refused, unlike
 // growing-field plans which may batch many patches per method.

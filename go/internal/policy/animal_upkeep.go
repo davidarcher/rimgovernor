@@ -31,6 +31,22 @@ type UpkeepAnimal struct {
 	// inside its allowed area (sorted); a bill there drops feed where the
 	// animal eats it.
 	ReachableBenches []string
+	// ReachableStorage lists the stockpile zones holding a cell the animal
+	// can reach inside its allowed area, each with the edible definitions
+	// its filter accepts: feed hauled there is feed the animal eats.
+	// StorageCandidates is a connected footprint of free cells inside the
+	// area (native's own hauler-reachable scan) where such a zone could be
+	// made; empty when none qualifies.
+	ReachableStorage  []AnimalFeedStorage
+	StorageCandidates []domain.Cell
+}
+
+// AnimalFeedStorage is one stockpile zone an animal can reach and the
+// nutrition-giving definitions its filter accepts among those the animal's
+// race can eat.
+type AnimalFeedStorage struct {
+	Zone    string
+	Accepts []string
 }
 
 // HusbandryTrainable is one trainable definition's recursive-training
@@ -75,6 +91,8 @@ type AnimalFeedTarget struct {
 	Definition                        Resource
 	RunwayDays, Nutrition, TargetDays float64
 	ReachableBenches                  []string
+	ReachableStorage                  []AnimalFeedStorage
+	StorageCandidates                 []domain.Cell
 }
 type AnimalUpkeepReview struct {
 	History     AnimalUpkeepHistory
@@ -114,9 +132,11 @@ func ReviewAnimalUpkeep(v AnimalUpkeepObservation, previous AnimalUpkeepHistory,
 	eligible := []PawnID{}
 	definitions := map[PawnID]Resource{}
 	benches := map[PawnID][]string{}
+	storage := map[PawnID][]AnimalFeedStorage{}
+	candidates := map[PawnID][]domain.Cell{}
 	containmentKnown, feedKnown := true, true
 	for _, animal := range animals {
-		if !foodID(string(animal.ID)) || seen[animal.ID] || !validResource(animal.Definition) || len(animal.ReachableBenches) > 256 {
+		if !foodID(string(animal.ID)) || seen[animal.ID] || !validResource(animal.Definition) || len(animal.ReachableBenches) > 256 || !validAnimalFeedStorage(animal.ReachableStorage, animal.StorageCandidates) {
 			return r, invalid
 		}
 		for _, bench := range animal.ReachableBenches {
@@ -127,6 +147,8 @@ func ReviewAnimalUpkeep(v AnimalUpkeepObservation, previous AnimalUpkeepHistory,
 		seen[animal.ID] = true
 		definitions[animal.ID] = animal.Definition
 		benches[animal.ID] = animal.ReachableBenches
+		storage[animal.ID] = animal.ReachableStorage
+		candidates[animal.ID] = animal.StorageCandidates
 		pen, pk := animal.RequiresPen.Value()
 		contained, ck := animal.Contained.Value()
 		release, rk := animal.Release.Value()
@@ -183,7 +205,7 @@ func ReviewAnimalUpkeep(v AnimalUpkeepObservation, previous AnimalUpkeepHistory,
 			if !foodNumber(missing) {
 				return r, invalid
 			}
-			targets = append(targets, AnimalFeedTarget{id, definitions[id], row.RunwayDays, missing, p.FeedTargetDays, benches[id]})
+			targets = append(targets, AnimalFeedTarget{id, definitions[id], row.RunwayDays, missing, p.FeedTargetDays, benches[id], storage[id], candidates[id]})
 			next = append(next, id)
 		}
 	}

@@ -18,7 +18,15 @@ func colonyAnimals(v *o.ColonyFactsSnapshot) domain.Fact[[]policy.UpkeepAnimal] 
 		for _, entry := range state.GetTraining() {
 			training = append(training, policy.HusbandryTrainable{Def: entry.GetDefName(), Available: optional(entry.Available), Learned: optional(entry.Learned)})
 		}
-		rows = append(rows, policy.UpkeepAnimal{ID: policy.PawnID(a.Pawn.Pawn.GetId()), Definition: policy.Resource(a.Pawn.Pawn.GetDefName()), RequiresPen: optional(a.RequiresPen), Contained: optional(state.Contained), Release: optional(state.Release), Slaughter: optional(state.Slaughter), Pen: domain.Known(state.GetPenId()), SuitablePen: domain.Known(a.GetSuitablePenId()), SafeToSlaughter: optional(state.SafeToSlaughter), SafeToRelease: optional(state.SafeToRelease), Training: training, ReachableBenches: append([]string{}, a.ReachableBenchIds...)})
+		storage := make([]policy.AnimalFeedStorage, 0, len(a.ReachableStorage))
+		for _, zone := range a.ReachableStorage {
+			storage = append(storage, policy.AnimalFeedStorage{Zone: zone.GetZoneId(), Accepts: append([]string{}, zone.Accepts...)})
+		}
+		candidates := make([]domain.Cell, 0, len(a.StorageCandidates))
+		for _, cell := range a.StorageCandidates {
+			candidates = append(candidates, domain.Cell{X: cell.GetX(), Z: cell.GetZ()})
+		}
+		rows = append(rows, policy.UpkeepAnimal{ID: policy.PawnID(a.Pawn.Pawn.GetId()), Definition: policy.Resource(a.Pawn.Pawn.GetDefName()), RequiresPen: optional(a.RequiresPen), Contained: optional(state.Contained), Release: optional(state.Release), Slaughter: optional(state.Slaughter), Pen: domain.Known(state.GetPenId()), SuitablePen: domain.Known(a.GetSuitablePenId()), SafeToSlaughter: optional(state.SafeToSlaughter), SafeToRelease: optional(state.SafeToRelease), Training: training, ReachableBenches: append([]string{}, a.ReachableBenchIds...), ReachableStorage: storage, StorageCandidates: candidates})
 	}
 	return domain.Known(rows)
 }

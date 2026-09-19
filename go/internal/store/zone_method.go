@@ -69,12 +69,15 @@ func admitZoneMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan domai
 	// places its covered-storage fallback (routine_secure_supplies.go);
 	// MaintainResource places the production ladder's ingredient stockpile
 	// beside the bench (routine_ingredient_storage.go, #155: the rung was
-	// refused here on every live run before it was bound).
+	// refused here on every live run before it was bound); MaintainAnimalFeed
+	// places the feed stockpile inside the animals' area when no bench is
+	// reachable there (routine_animal_feed.go, #311: refused here the same
+	// way until bound).
 	limit := 32
 	needs := []policy.GoalID{policy.EnsureFoodSupply}
 	if stockpile {
 		limit = 1
-		needs = []policy.GoalID{policy.EnsureFoodStorage, policy.SecureSupplies, policy.MaintainResource}
+		needs = []policy.GoalID{policy.EnsureFoodStorage, policy.SecureSupplies, policy.MaintainResource, policy.MaintainAnimalFeed}
 	}
 	if !review.Enabled || review.Snapshot != goal.Goal.Snapshot || goal.Goal.Source != domain.AutopilotGoal || len(plan.Actions()) > limit {
 		return ErrConflict

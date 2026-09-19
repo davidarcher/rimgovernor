@@ -96,12 +96,22 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 	}
 	seen = map[string]bool{}
 	for _, row := range v.Animals {
-		if row == nil || row.Pawn == nil || !entity(row.Pawn.Pawn, seen) || row.Pawn.AnimalState == nil || row.Diet != nil && validID(row.GetDiet()) != nil || row.SuitablePenId != nil && validID(row.GetSuitablePenId()) != nil || len(row.ReachableStoredFeed) > 256 || !ids(row.ReachableBenchIds) {
+		if row == nil || row.Pawn == nil || !entity(row.Pawn.Pawn, seen) || row.Pawn.AnimalState == nil || row.Diet != nil && validID(row.GetDiet()) != nil || row.SuitablePenId != nil && validID(row.GetSuitablePenId()) != nil || len(row.ReachableStoredFeed) > 256 || !ids(row.ReachableBenchIds) || len(row.ReachableStorage) > 256 || len(row.StorageCandidates) > 256 {
 			return contract("invalid upkeep animal")
+		}
+		for _, zone := range row.ReachableStorage {
+			if zone == nil || zone.ZoneId == nil || validID(zone.GetZoneId()) != nil || !ids(zone.Accepts) || !proto.Equal(zone, &o.AnimalFeedStorage{ZoneId: zone.ZoneId, Accepts: zone.Accepts}) {
+				return contract("invalid upkeep animal storage")
+			}
+		}
+		for _, cell := range row.StorageCandidates {
+			if cell == nil || cell.GetX() < 0 || cell.GetZ() < 0 {
+				return contract("invalid upkeep animal storage candidate")
+			}
 		}
 		p := row.Pawn
 		a := p.AnimalState
-		if !proto.Equal(p, &o.PawnState{Pawn: p.Pawn, AnimalState: a}) || !proto.Equal(a, &o.AnimalState{Contained: a.Contained, PenId: a.PenId, Release: a.Release, Slaughter: a.Slaughter, SafeToRelease: a.SafeToRelease}) || a.PenId != nil && (validID(a.GetPenId()) != nil || a.Contained != nil && !a.GetContained()) || row.RequiresPen != nil && !row.GetRequiresPen() && (a.Contained != nil || a.PenId != nil || row.SuitablePenId != nil) || !proto.Equal(row, &o.AnimalFeed{Pawn: p, Diet: row.Diet, RequiresPen: row.RequiresPen, SuitablePenId: row.SuitablePenId, ReachableStoredFeed: row.ReachableStoredFeed, ReachableBenchIds: row.ReachableBenchIds}) {
+		if !proto.Equal(p, &o.PawnState{Pawn: p.Pawn, AnimalState: a}) || !proto.Equal(a, &o.AnimalState{Contained: a.Contained, PenId: a.PenId, Release: a.Release, Slaughter: a.Slaughter, SafeToRelease: a.SafeToRelease}) || a.PenId != nil && (validID(a.GetPenId()) != nil || a.Contained != nil && !a.GetContained()) || row.RequiresPen != nil && !row.GetRequiresPen() && (a.Contained != nil || a.PenId != nil || row.SuitablePenId != nil) || !proto.Equal(row, &o.AnimalFeed{Pawn: p, Diet: row.Diet, RequiresPen: row.RequiresPen, SuitablePenId: row.SuitablePenId, ReachableStoredFeed: row.ReachableStoredFeed, ReachableBenchIds: row.ReachableBenchIds, ReachableStorage: row.ReachableStorage, StorageCandidates: row.StorageCandidates}) {
 			return contract("conflicting upkeep animal fields")
 		}
 		stocks := map[string]bool{}

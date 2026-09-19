@@ -434,6 +434,16 @@ func billExecutorRequired(config serveConfig) bool {
 	return config.routineBillPlans || config.resourceTargetsConfigured() || config.routineGearPlans
 }
 
+// zoneExecutorRequired reports whether the composition dispatches zone-create
+// actions: field and food-storage plans, SecureSupplies' covered-storage
+// fallback (routine_secure_supplies.go), MaintainResource's material-storage
+// fallback (routine_resource.go) and MaintainAnimalFeed's feed-storage
+// fallback (routine_animal_feed.go, #311: the feed zone sat pending as an
+// unsupported action until the family carried the executor).
+func zoneExecutorRequired(config serveConfig) bool {
+	return config.routineFieldPlans || config.routineFoodStoragePlans || config.routineSecureSuppliesPlans || config.routineResourcePlans || config.routineAnimalFeedPlans
+}
+
 func serveBuildingControl(ctx context.Context, config serveConfig, out io.Writer) error {
 	return serveBuildingWithBridge(ctx, config, out, openBuildingService)
 }
@@ -495,11 +505,9 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		billCapabilities = client.bills
 	}
 	var zoneCapabilities *zone.ZoneCapabilities
-	// SecureSupplies' covered-storage fallback places a stockpile zone too
-	// (routine_secure_supplies.go), so its family needs the zone executor.
-	if config.routineFieldPlans || config.routineFoodStoragePlans || config.routineSecureSuppliesPlans {
+	if zoneExecutorRequired(config) {
 		if client.zones == nil {
-			return errors.New("field, food storage and secure-supplies plans require typed capabilities")
+			return errors.New("field, food storage, secure-supplies, resource and animal feed plans require typed capabilities")
 		}
 		zoneCapabilities = client.zones
 	}

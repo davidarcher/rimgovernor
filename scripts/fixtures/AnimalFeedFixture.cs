@@ -10,8 +10,9 @@ namespace HomeBridge.BridgeTools
 {
     public sealed class AnimalFeedFixture
     {
-        [Tool("test/feed_setup", Description = "Prepare disposable pet, a butcher spot inside its restricted feeding area, an earlier butcher spot outside it, and ingredients outside it. No feed or production bill is created.")]
-        public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        [Tool("test/feed_setup", Description = "Prepare disposable pet, a butcher spot inside its restricted roofed feeding area, an earlier butcher spot outside it, and ingredients outside it. No feed or production bill is created.")]
+        public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken,
+            [ToolParameter(Description = "Spawn the butcher spot inside the pet's area; false leaves only the one outside it (#311).", DefaultValue = true)] bool benchInside = true)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
@@ -30,11 +31,19 @@ namespace HomeBridge.BridgeTools
                 var outside = ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed("ButcherSpot"));
                 outside.SetFaction(Faction.OfPlayerSilentFail);
                 GenSpawn.Spawn(outside, outsideCell, map);
-                var bench = ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed("ButcherSpot"));
-                bench.SetFaction(Faction.OfPlayerSilentFail);
-                GenSpawn.Spawn(bench, center, map);
+                Thing bench = null;
+                if (benchInside) {
+                    bench = ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed("ButcherSpot"));
+                    bench.SetFaction(Faction.OfPlayerSilentFail);
+                    GenSpawn.Spawn(bench, center, map);
+                }
                 if (!map.areaManager.TryMakeNewAllowed(out var area)) throw new System.InvalidOperationException("No fixture allowed-area slot");
-                foreach (var c in CellRect.CenteredOn(center, 3)) area[c] = true;
+                // The area is roofed off one corner wall so a feed stockpile
+                // (which needs covered ground) can be zoned inside it (#311).
+                var post = (Building)ThingMaker.MakeThing(ThingDefOf.Wall, ThingDefOf.WoodLog);
+                post.SetFaction(Faction.OfPlayerSilentFail);
+                GenSpawn.Spawn(post, center + new IntVec3(3, 0, 3), map);
+                foreach (var c in CellRect.CenteredOn(center, 3)) { area[c] = true; map.roofGrid.SetRoof(c, RoofDefOf.RoofConstructed); }
                 var pet = PawnGenerator.GeneratePawn(DefDatabase<PawnKindDef>.GetNamed("Husky"), Faction.OfPlayerSilentFail);
                 GenSpawn.Spawn(pet, center, map);
                 pet.playerSettings.AreaRestrictionInPawnCurrentMap = area;
@@ -58,8 +67,9 @@ namespace HomeBridge.BridgeTools
                     }
                     p.jobs.EndCurrentJob(JobCondition.InterruptForced);
                 }
-                return new { success = true, pet = pet.GetUniqueLoadID(), bench = bench.GetUniqueLoadID(),
-                    outsideBench = outside.GetUniqueLoadID(), food = pet.needs.food.CurLevelPercentage, area = area.ID };
+                return new { success = true, pet = pet.GetUniqueLoadID(), bench = bench?.GetUniqueLoadID() ?? "",
+                    outsideBench = outside.GetUniqueLoadID(), food = pet.needs.food.CurLevelPercentage, area = area.ID,
+                    areaCells = CellRect.CenteredOn(center, 3).Cells.Select(c => new { x = c.x, z = c.z }).ToList() };
             }, cancellationToken).ConfigureAwait(false);
         }
     }
