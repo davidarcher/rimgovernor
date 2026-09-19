@@ -27,8 +27,8 @@ namespace HomeBridge.BridgeTools
     //    walls; target is the first remaining backup in backup-cell order so
     //    successive reads name each backup in turn.
     // player_owned marks a deconstruct designation the native removal ledger
-    // did not place (a player order in flight), which the controller must
-    // not take over. Workers, stock, cell geometry and the roof-support
+    // does not claim. It remains untouched until an explicit RemoveWall
+    // operation adopts it with a receipt. Workers, stock, geometry and the roof-support
     // snapshot are not projected: builders are checked at admission, stock
     // through ListSupplies and cells through GetCells.
     public sealed class NativeWallUpgradeObservationTools

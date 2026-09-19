@@ -10,7 +10,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// DeconstructionAttempt identifies an admitted non-colony target. Native repeats
+// DeconstructionAttempt identifies an admitted exact building target. Native repeats
 // occupant, eligibility and roof support checks; no snapshot token is sent.
 type DeconstructionAttempt struct {
 	Identity   *c.Identity

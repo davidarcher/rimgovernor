@@ -190,23 +190,24 @@ can remove deconstruction salvage: native diagonal access to a wall does not gra
 the same access to loose items. The enclosed interior and its construction approach
 remain available; stonecutter placement preserves that approach.
 
-`Deconstruct { target: EntityPrecondition }` clears one exact non-colony building
+`Deconstruct { target: EntityPrecondition }` clears one exact building
 through native `Designator_Deconstruct`. The entity carries no CAS token. Preview
 and apply require player deconstructibility, visible geometry and safe remaining
-roof support; apply resolves the exact occupant again. Colony buildings are
-protected. This operation does not require a replacement wall or enclosure;
-`RemoveWall` retains those wall-upgrade guards.
+roof support; apply resolves the exact occupant again. Enclosing colony walls
+require guarded `RemoveWall`; generic deconstruction cannot bypass its enclosure
+and replacement checks.
 
-An existing designation is never adopted. The receipt names the target and the
-controller designation; replacing that designation relinquishes ownership.
+An explicit operation may adopt a foreign designation. The receipt names the
+target and controller designation; replacing it relinquishes ownership.
 `DeconstructEffect` carries `target_id`, `designation_id`, `worker_ids`,
 `demolition_observed` and `site`. Workers are recorded when native demolition
 finishes. Only the native deconstruct job establishes completion; disappearance
 without that callback is unsuccessful. Receipt and designation ownership are
 scoped to the loaded game, like the operation ledger; loaded designations without
-a current receipt are not adopted. Manual releases owned pending designations.
+a current receipt remain untouched until explicitly adopted. Manual releases
+owned pending designations.
 `ReleaseDeconstructions` retires pending work on stop and removes only the exact
-controller-created designations, returning a separate `released_count` effect.
+controller-admitted designations, returning a separate `released_count` effect.
 Player replacements survive release. The Go bridge rejects unknown evidence
 fields and completion without observed demolition.
 

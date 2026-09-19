@@ -28,7 +28,7 @@ type Amount struct {
 // this step is about to clear) and whether native still lists the site as a
 // legal, unblocked wall-upgrade candidate. Native excludes geometrically
 // invalid sites from the listing entirely (unsupported roof, no interior,
-// bounds); a returned row that still carries a blocker or player ownership
+// bounds); a returned row that still carries a blocker
 // is present for status but is not eligible for dispatch. BackupCells,
 // LeftSupport/RightSupport and ReplacementMaterials are only consumed by
 // RoutineStoneShellPlanner when proposing a fresh bundle, not by
@@ -46,7 +46,7 @@ type WallUpgradeSite struct {
 }
 
 func (s WallUpgradeSite) Eligible() bool {
-	return s.TargetID != "" && s.TargetPresent && !s.PlayerOwned && s.Blocker == ""
+	return s.TargetID != "" && s.TargetPresent && s.Blocker == ""
 }
 
 // WallUpgradeSites is one fresh census of candidate sites plus the

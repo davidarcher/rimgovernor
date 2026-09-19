@@ -11,7 +11,7 @@ import (
 )
 
 func init() {
-	cases.Register(cases.Case{Name: "wall/deconstruct", Scope: "Generic Deconstruct refuses colony and player-designated targets, preserves replacement ownership, releases only owned work, rejects disappearance as completion, and observes a native pawn demolition with replay and lookup.",
+	cases.Register(cases.Case{Name: "wall/deconstruct", Scope: "Generic Deconstruct admits colony targets and explicitly adopts player designations, preserves unadopted and replacement orders, releases only owned work, and observes native pawn demolition with replay and lookup.",
 		Start: cases.Fixture{Op: "test/deconstruct_prepare", On: cases.Save{Name: baselineSave}}, Budget: 3 * time.Minute, Run: runDeconstruct})
 }
 
@@ -49,17 +49,8 @@ func runDeconstruct(ctx context.Context, s cases.Session) error {
 	mutate := func(label string, i int, action string) (map[string]any, error) {
 		return h.Call(ctx, label, "test/deconstruct_target", map[string]any{"target": ids[i], "action": action})
 	}
-	for _, i := range []int{0, 1} {
-		_, reply, err := execute(fmt.Sprintf("refuse-%d", i), operation(i))
-		if err != nil {
-			return err
-		}
-		if _, _, err = na.Outcome(reply, "failure"); err != nil {
-			return fmt.Errorf("protected target accepted: %w", err)
-		}
-	}
 	requests := make(map[int]map[string]any)
-	for _, i := range []int{2, 3, 4} {
+	for _, i := range []int{0, 2, 3, 4} {
 		request, reply, err := execute(fmt.Sprintf("designate-%d", i), operation(i))
 		if err != nil {
 			return err
@@ -95,21 +86,27 @@ func runDeconstruct(ctx context.Context, s cases.Session) error {
 	applied, _ := na.AsMap(receipt["applied"])
 	observed, _ := na.AsMap(applied["observed"])
 	released, _ := na.AsMap(observed["releaseDeconstructions"])
-	if na.AsNumber(released["releasedCount"]) != 1 {
+	if na.AsNumber(released["releasedCount"]) != 2 {
 		return fmt.Errorf("release must remove only owned designation: %#v", reply)
 	}
-	for _, i := range []int{1, 2, 3} {
+	for _, i := range []int{0, 1, 2, 3} {
 		row, err := mutate(fmt.Sprintf("after-release-%d", i), i, "inspect")
 		if err != nil {
 			return err
 		}
 		designated, _ := na.AsBool(row["designated"])
 		present, _ := na.AsBool(row["present"])
-		if !present || designated != (i != 3) {
+		if !present || designated != (i == 1 || i == 2) {
 			return fmt.Errorf("release altered player work or missed own designation: %#v", row)
 		}
 	}
-	request, reply, err := execute("finish", operation(5))
+	if _, err := mutate("colony-target", 5, "colony"); err != nil {
+		return err
+	}
+	if _, err := mutate("player-designation-to-adopt", 5, "replace"); err != nil {
+		return err
+	}
+	request, reply, err := execute("adopt-and-finish", operation(5))
 	if err != nil {
 		return err
 	}

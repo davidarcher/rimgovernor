@@ -26,7 +26,7 @@ namespace HomeBridge.BridgeTools
         internal NativeDeconstructionRecord(Building target, Common.ObservationContext context)
         { Target = target; Map = target.Map; Cell = target.Position; Rotation = target.Rotation; Before = NativeBuildingObservationTools.Token(target, context).Token; }
 
-        // Never adopt another designation, including a player replacement on
+        // After explicit admission, never adopt a replacement designation on
         // the same target. Reference identity is scoped to the loaded game.
         internal bool Owns => !Complete && !Released && Designation != null &&
             ReferenceEquals(Map.designationManager.DesignationOn(Target, DesignationDefOf.Deconstruct), Designation);
@@ -114,10 +114,17 @@ namespace HomeBridge.BridgeTools
 
         internal static string? Safety(Building target)
         {
-            if (!target.Spawned || target.Faction == Faction.OfPlayer || !target.DeconstructibleBy(Faction.OfPlayer))
-                return "Target must be a spawned non-colony building deconstructible by the player.";
+            if (!target.Spawned || !target.DeconstructibleBy(Faction.OfPlayer))
+                return "Target must be a spawned building deconstructible by the player.";
             if (target.OccupiedRect().Cells.Any(c => !c.InBounds(target.Map) || c.Fogged(target.Map))) return "Unknown target geometry.";
             if (target.IsForbidden(Faction.OfPlayer) || target.IsBurning()) return "Target is forbidden or burning.";
+            // Colony enclosure demolition must use RemoveWall's replacement
+            // guards; generic deconstruction cannot bypass them.
+            if (target.Faction == Faction.OfPlayer && target.def == ThingDefOf.Wall &&
+                GenAdj.CardinalDirections.Select(d => target.Position + d).Any(c =>
+                    c.InBounds(target.Map) && c.GetRoom(target.Map) is Room room &&
+                    room.ProperRoom && !room.TouchesMapEdge))
+                return "Enclosing colony walls require guarded RemoveWall.";
             if (!target.def.holdsRoof) return null;
             var cells = target.OccupiedRect().Cells.ToList();
             if (cells.Any(c => !RoofSupportSafety.GeometryKnown(target.Map, c))) return "Unknown roof support geometry.";
@@ -133,9 +140,9 @@ namespace HomeBridge.BridgeTools
             if (target == null) { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact deconstruction target is absent."); return false; }
             var blocker = Safety(target);
             if (blocker != null) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, blocker); return false; }
-            if (map!.designationManager.DesignationOn(target, DesignationDefOf.Deconstruct) != null)
+            if (Claim(target) != null || WallUpgradeSafety.Pending(target) != null)
             { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Existing designation is preserved; observe its original receipt if controller-owned."); return false; }
-            if (!new Designator_Deconstruct().CanDesignateThing(target).Accepted)
+            if (map!.designationManager.DesignationOn(target, DesignationDefOf.Deconstruct) == null && !new Designator_Deconstruct().CanDesignateThing(target).Accepted)
             { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Native deconstruction designator refused the target."); return false; }
             return true;
         }
@@ -166,7 +173,8 @@ namespace HomeBridge.BridgeTools
                 {
                     if (!authority.Check(pre.ExpectedGeneration).Success || !Prepare(request.Operation.Deconstruct, context, out var current, out _) || !ReferenceEquals(current, target))
                         throw new InvalidOperationException("Deconstruction occupant or safety changed before apply.");
-                    new Designator_Deconstruct().DesignateThing(target);
+                    if (record.Map.designationManager.DesignationOn(target, DesignationDefOf.Deconstruct) == null)
+                        new Designator_Deconstruct().DesignateThing(target);
                     record.Designation = record.Map.designationManager.DesignationOn(target, DesignationDefOf.Deconstruct);
                     if (record.Designation == null) throw new InvalidOperationException("Native designation was not created.");
                     evidence = record.Evidence(context);
