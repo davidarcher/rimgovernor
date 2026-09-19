@@ -89,9 +89,9 @@ func NewReport(scope string, headless bool) Report {
 }
 
 // Finalize fills the timing fields and applies the budget (a passing run
-// over its budget fails), computes the artifact hash manifest for output,
-// writes result.json, and returns the process exit code (0 when
-// report["passed"] is true).
+// over its budget fails), computes the artifact hash manifest for output
+// and the metrics block (metrics.go), writes result.json, and returns the
+// process exit code (0 when report["passed"] is true).
 func (r Report) Finalize(output string) int {
 	r.finalizeTiming(time.Now())
 	if hashes, err := ArtifactHashes(output); err == nil {
@@ -103,14 +103,22 @@ func (r Report) Finalize(output string) int {
 	if _, has := r["installed_package"]; !has && installedPackage != nil {
 		r["installed_package"] = installedPackage
 	}
-	data, err := json.MarshalIndent(r, "", "  ")
-	if err == nil {
-		_ = os.WriteFile(filepath.Join(output, "result.json"), data, 0644)
-	}
+	r[MetricsKey] = ComputeMetrics(r, output)
+	r.Write(output)
 	if passed, _ := r["passed"].(bool); passed {
 		return 0
 	}
 	return 1
+}
+
+// Write writes the report as output/result.json; Finalize calls it, and a
+// runner that adds bookkeeping after Finalize (the series' drift flags)
+// calls it again.
+func (r Report) Write(output string) {
+	data, err := json.MarshalIndent(r, "", "  ")
+	if err == nil {
+		_ = os.WriteFile(filepath.Join(output, "result.json"), data, 0644)
+	}
 }
 
 // Config holds the resolved acceptance-run configuration common to all four binaries.

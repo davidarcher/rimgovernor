@@ -36,7 +36,24 @@ type Options struct {
 	// Rimgovernor is the prebuilt rimgovernor binary (absolute path) a case
 	// that launches `rimgovernor serve` runs; a bridge-only case ignores it.
 	Rimgovernor string
+	// Series is the append-only metrics series every case's block is
+	// appended to (na.SeriesPath(Output) by default); NoSeries leaves the
+	// series alone.
+	Series   string
+	NoSeries bool
 }
+
+// SeriesPath is where the run's series lives: Series, or the default
+// beside Output.
+func (o Options) SeriesPath() string {
+	if o.Series != "" {
+		return o.Series
+	}
+	return na.SeriesPath(o.Output)
+}
+
+// RunID names the run in the series: its output directory's base name.
+func (o Options) RunID() string { return filepath.Base(o.Output) }
 
 // CaseOutput is where a case's evidence and result.json go.
 func (o Options) CaseOutput(c Case) string {
@@ -47,8 +64,11 @@ func (o Options) CaseOutput(c Case) string {
 // Run, close) and writes its report; it returns the report and the process
 // exit code Report.Finalize computed. A case that fails Lint is refused
 // before the game opens; Finalize fails the run when it took longer than
-// the budget (budget_ms) and stamps its timing; the report records under
-// wait_stats how many of its waits stalled.
+// the budget (budget_ms) and stamps its timing and metrics block; the
+// report records under wait_stats how many of its waits stalled. The
+// block is appended to the run's series (Options.SeriesPath) and the
+// report lists under "drift" the metrics past their rule against the
+// series' trailing median (na.Drift); neither changes the verdict.
 func Execute(ctx context.Context, c Case, opts Options) (na.Report, int) {
 	output := opts.CaseOutput(c)
 	report := na.NewReport(c.Scope, opts.Headless && !c.Rendered)
@@ -61,7 +81,12 @@ func Execute(ctx context.Context, c Case, opts Options) (na.Report, int) {
 		if stalled, _ := stats["stalled"].(int); stalled > 0 {
 			report["stalled_waits"] = stalled
 		}
-		return report.Finalize(output)
+		exit := report.Finalize(output)
+		if !opts.NoSeries {
+			na.RecordSeries(opts.SeriesPath(), c.Name, opts.RunID(), report)
+			report.Write(output)
+		}
+		return exit
 	}
 	if err := os.MkdirAll(output, 0755); err != nil {
 		report["error"] = err.Error()

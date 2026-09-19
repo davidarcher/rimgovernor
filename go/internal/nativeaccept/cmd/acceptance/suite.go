@@ -31,6 +31,12 @@ package main
 // is listed under "regressions" (the list never fails the suite on its
 // own) and the report carries the sum of case wall times beside the
 // baseline's.
+//
+// Every row's metrics block (result.json "metrics", #297) is appended by
+// the run to the series at -series (default <output>/../metrics.jsonl,
+// shared by successive suites beside each other), and the metrics past
+// their rule against the series' trailing median (na.Drift) are listed on
+// the row under "drift" and, over all rows, under the suite's "drift".
 
 import (
 	"context"
@@ -80,14 +86,17 @@ func (e entry) serveDriven() bool {
 // suiteOptions is the suite subcommand's resolved configuration.
 type suiteOptions struct {
 	Root, Output, Rimgovernor, Baseline, GameID string
-	Workers                                     int
-	Timeout                                     time.Duration
+	// Series is the metrics series the rows append to; NoSeries skips it.
+	Series   string
+	NoSeries bool
+	Workers  int
+	Timeout  time.Duration
 	// CaseTimeout, Budget and Stall pass through to `acceptance run`;
 	// zero leaves the runner's defaults.
 	CaseTimeout, Budget, Stall time.Duration
 }
 
-const suiteUsage = `  acceptance suite (-all | -cases a,b,... | -suite file.json) -root <dir> -output <dir> [-workers N -baseline <result.json> -rimgovernor <bin> -game <id> -timeout <d> -case-timeout <d> -budget <d> -stall <d>]`
+const suiteUsage = `  acceptance suite (-all | -cases a,b,... | -suite file.json) -root <dir> -output <dir> [-workers N -baseline <result.json> -series <metrics.jsonl> -no-series -rimgovernor <bin> -game <id> -timeout <d> -case-timeout <d> -budget <d> -stall <d>]`
 
 // parseSuite resolves the suite subcommand's flags into the list of rows
 // (in file order, before scheduling) and the options.
@@ -104,6 +113,8 @@ func parseSuite(args []string, stderr io.Writer) ([]entry, suiteOptions, error) 
 	fs.StringVar(&opts.Output, "output", "", "fresh output directory")
 	fs.StringVar(&opts.Rimgovernor, "rimgovernor", "", "prebuilt rimgovernor binary (absolute path) passed to the cases that host a service")
 	fs.StringVar(&opts.Baseline, "baseline", "", "earlier suite result.json: orders the queue longest-first and flags regressions")
+	fs.StringVar(&opts.Series, "series", "", "append-only metrics series every row's block is appended to (default <output>/../metrics.jsonl)")
+	fs.BoolVar(&opts.NoSeries, "no-series", false, "leave the metrics series alone")
 	fs.StringVar(&opts.GameID, "game", "rimgovernor-trial", "configured game ID")
 	fs.IntVar(&opts.Workers, "workers", 2, "private game copies to run at once")
 	fs.DurationVar(&opts.Timeout, "timeout", 2*time.Hour, "overall suite timeout")
@@ -135,6 +146,10 @@ func parseSuite(args []string, stderr io.Writer) ([]entry, suiteOptions, error) 
 		return nil, opts, errors.New("-workers must be at least 1")
 	}
 	opts.Output = mustAbs(opts.Output)
+	if opts.Series == "" {
+		opts.Series = na.SeriesPath(opts.Output)
+	}
+	opts.Series = mustAbs(opts.Series)
 	var list []entry
 	switch {
 	case all:
@@ -287,6 +302,27 @@ func regressions(rows []map[string]any, b *baseline) (list []regression, baselin
 	return list, baselineTotal
 }
 
+// driftFlags collects the rows' drift flags (each row's result.json
+// "drift", as the run computed them) in queue order.
+func driftFlags(rows []map[string]any) []na.DriftFlag {
+	flags := []na.DriftFlag{}
+	for _, row := range rows {
+		list, _ := row["drift"].([]any)
+		for _, item := range list {
+			m, ok := item.(map[string]any)
+			if !ok {
+				continue
+			}
+			flags = append(flags, na.DriftFlag{
+				Case: na.AsString(m["case"]), Metric: na.AsString(m["metric"]),
+				Value: na.AsNumber(m["value"]), Median: na.AsNumber(m["median"]),
+				Ratio: na.AsNumber(m["ratio"]), Samples: int(na.AsNumber(m["samples"])),
+			})
+		}
+	}
+	return flags
+}
+
 // runSuite executes the rows across the workers and writes the suite's
 // result.json under opts.Output; it returns the process exit code.
 func runSuite(ctx context.Context, list []entry, opts suiteOptions, stderr io.Writer) int {
@@ -394,6 +430,17 @@ func runSuite(ctx context.Context, list []entry, opts suiteOptions, stderr io.Wr
 			fmt.Fprintf(stderr, "regressions (>%.0f%% and >%ds over baseline, net of boot): %s\n", (RegressionRatio-1)*100, RegressionFloorMs/1000, strings.Join(names, ", "))
 		}
 	}
+	if !opts.NoSeries {
+		report["series"] = opts.Series
+		flags := driftFlags(rows)
+		report["drift"] = flags
+		if len(flags) > 0 {
+			fmt.Fprintf(stderr, "drift (past the metric's rule against the trailing median of %s):\n", opts.Series)
+			for _, f := range flags {
+				fmt.Fprintf(stderr, "  %s\n", f)
+			}
+		}
+	}
 	if len(failed) > 0 {
 		report["failed"] = failed
 		report["error"] = fmt.Sprintf("%d of %d cases failed: %s", len(failed), len(rows), strings.Join(failed, ", "))
@@ -407,6 +454,11 @@ func runSuite(ctx context.Context, list []entry, opts suiteOptions, stderr io.Wr
 // on this executable) and where the row's result.json lands.
 func entryCommand(e entry, opts suiteOptions, self, workerRoot string) (argv []string, output string) {
 	argv = []string{self, "run", e.Name, "-root", workerRoot, "-output", opts.Output, "-game", opts.GameID}
+	if opts.NoSeries {
+		argv = append(argv, "-no-series")
+	} else if opts.Series != "" {
+		argv = append(argv, "-series", opts.Series)
+	}
 	if opts.Rimgovernor != "" && e.serveDriven() {
 		argv = append(argv, "-rimgovernor", opts.Rimgovernor)
 	}
@@ -472,6 +524,12 @@ func runEntry(ctx context.Context, e entry, opts suiteOptions, self, workerRoot 
 			row["game_reuse"] = result["game_reuse"]
 			if ms, ok := result["boot_ms"].(float64); ok {
 				row["boot_ms"] = int64(ms)
+			}
+			if m, ok := na.MetricsOf(result); ok {
+				row["metrics"] = m
+			}
+			if flags, ok := result["drift"].([]any); ok && len(flags) > 0 {
+				row["drift"] = flags
 			}
 		}
 	} else if row["error"] == nil {

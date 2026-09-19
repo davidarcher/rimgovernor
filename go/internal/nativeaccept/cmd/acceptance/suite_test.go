@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 )
 
@@ -112,6 +113,60 @@ func TestRegressionsFlagOverRatioAndFloorNetOfBoot(t *testing.T) {
 	}
 }
 
+// The suite's drift list is every row's result.json drift (as the run
+// decoded it from JSON), in queue order, typed back for the report.
+func TestDriftFlagsCollectRowsInOrder(t *testing.T) {
+	rows := []map[string]any{
+		{"name": "a"},
+		{"name": "b", "drift": []any{
+			map[string]any{"case": "b", "metric": "wall_ms", "value": 16000.0, "median": 10000.0, "ratio": 1.6, "samples": 5.0},
+			map[string]any{"case": "b", "metric": "native_errors", "value": 3.0, "median": 1.0, "ratio": 3.0, "samples": 5.0},
+		}},
+		{"name": "c", "drift": []any{map[string]any{"case": "c", "metric": "waits_stalled", "value": 1.0, "median": 0.0, "ratio": 0.0, "samples": 2.0}, "junk"}},
+	}
+	flags := driftFlags(rows)
+	if len(flags) != 3 || flags[0].Case != "b" || flags[0].Metric != "wall_ms" || flags[0].Samples != 5 || flags[1].Metric != "native_errors" || flags[2].Case != "c" {
+		t.Errorf("flags = %+v", flags)
+	}
+	if got := flags[0].String(); !strings.Contains(got, "b wall_ms 16000 vs median 10000 (1.60x over 5)") {
+		t.Errorf("String = %q", got)
+	}
+	if flags = driftFlags([]map[string]any{{"name": "a"}}); flags == nil || len(flags) != 0 {
+		t.Errorf("empty = %#v", flags)
+	}
+}
+
+// The drift a suite reports is what na.Drift computes for each row's block
+// against the series the earlier suites appended to: the flagging the
+// runner does per case, end to end from a series file.
+func TestSuiteDriftFromSeries(t *testing.T) {
+	series := filepath.Join(t.TempDir(), "metrics.jsonl")
+	for _, wall := range []float64{10000, 10000, 10000} {
+		if err := na.AppendSeries(series, na.SeriesRow{Case: "smoke/identity", RunID: "earlier", Passed: true, Metrics: na.Metrics{"wall_ms": wall, "native_calls": 100}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	report := na.Report{"passed": true, na.MetricsKey: na.Metrics{"wall_ms": 20000, "native_calls": 100}}
+	flags := na.RecordSeries(series, "smoke/identity", "this-run", report)
+	if len(flags) != 1 || flags[0].Metric != "wall_ms" || flags[0].Ratio != 2 {
+		t.Fatalf("flags = %+v", flags)
+	}
+	// A second case of the same run reads the series with its own row
+	// there and still only judges the earlier runs.
+	if flags = na.Drift("smoke/identity", "this-run", na.Metrics{"wall_ms": 10000}, mustReadSeries(t, series)); len(flags) != 0 {
+		t.Errorf("own run counted: %+v", flags)
+	}
+}
+
+func mustReadSeries(t *testing.T, path string) []na.SeriesRow {
+	t.Helper()
+	rows, err := na.ReadSeries(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return rows
+}
+
 func TestParseSuiteResolvesRegistry(t *testing.T) {
 	root := absRoot()
 	suite := filepath.Join(t.TempDir(), "suite.json")
@@ -126,7 +181,7 @@ func TestParseSuiteResolvesRegistry(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parseSuite: %v (%s)", err, stderr.String())
 	}
-	if opts.Workers != 3 || opts.Budget != 4*time.Minute {
+	if opts.Workers != 3 || opts.Budget != 4*time.Minute || opts.Series != filepath.Join(root, "metrics.jsonl") {
 		t.Fatalf("opts = %+v", opts)
 	}
 	if list[0].registered == nil || list[0].registered.Name != "smoke/identity" || list[0].serveDriven() || list[0].Acceptance != "runner smoke" {
@@ -137,15 +192,28 @@ func TestParseSuiteResolvesRegistry(t *testing.T) {
 	}
 	self, worker := filepath.Join(root, "acceptance.exe"), filepath.Join(root, "out", "workers", "1")
 	argv, output := entryCommand(list[0], opts, self, worker)
-	if want := []string{self, "run", "smoke/identity", "-root", worker, "-output", opts.Output, "-game", "rimgovernor-trial", "-budget", "4m0s"}; strings.Join(argv, " ") != strings.Join(want, " ") {
+	if want := []string{self, "run", "smoke/identity", "-root", worker, "-output", opts.Output, "-game", "rimgovernor-trial", "-series", opts.Series, "-budget", "4m0s"}; strings.Join(argv, " ") != strings.Join(want, " ") {
 		t.Errorf("bridge argv = %v", argv)
 	}
 	if output != filepath.Join(opts.Output, "smoke", "identity") {
 		t.Errorf("bridge output = %q", output)
 	}
 	argv, output = entryCommand(list[1], opts, self, worker)
-	if want := []string{self, "run", "light/dark", "-root", worker, "-output", opts.Output, "-game", "rimgovernor-trial", "-rimgovernor", "rg.exe", "-budget", "4m0s"}; strings.Join(argv, " ") != strings.Join(want, " ") {
+	if want := []string{self, "run", "light/dark", "-root", worker, "-output", opts.Output, "-game", "rimgovernor-trial", "-series", opts.Series, "-rimgovernor", "rg.exe", "-budget", "4m0s"}; strings.Join(argv, " ") != strings.Join(want, " ") {
 		t.Errorf("service argv = %v", argv)
+	}
+	// -no-series passes through instead of a path; an explicit -series is
+	// made absolute.
+	_, noSeries, err := parseSuite([]string{"-cases", "smoke/identity", "-root", root, "-output", filepath.Join(root, "out"), "-no-series"}, &stderr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if argv, _ = entryCommand(list[0], noSeries, self, worker); !slices.Contains(argv, "-no-series") || slices.Contains(argv, "-series") {
+		t.Errorf("-no-series argv = %v", argv)
+	}
+	_, explicit, err := parseSuite([]string{"-cases", "smoke/identity", "-root", root, "-output", filepath.Join(root, "out"), "-series", "series.jsonl"}, &stderr)
+	if err != nil || !filepath.IsAbs(explicit.Series) || filepath.Base(explicit.Series) != "series.jsonl" {
+		t.Errorf("-series = %q, %v", explicit.Series, err)
 	}
 	if output != filepath.Join(opts.Output, "light", "dark") {
 		t.Errorf("service output = %q", output)

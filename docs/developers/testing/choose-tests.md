@@ -153,7 +153,18 @@ by review alone.
    records `started_at`, `finished_at`, `wall_ms`, `budget_ms`, `boot_ms`,
    `ticks_advanced` (the game ticks the case saw pass through its native
    replies) and `wall_tps`, so a slower case shows in its own report and
-   the suite's `-baseline` comparison, not in evidence-file mtimes.
+   the suite's `-baseline` comparison, not in evidence-file mtimes. The
+   same numbers, the wait statistics, the native round trips of every
+   flight recording under the output directory and the evidence size are
+   flattened into `metrics` (`na.MetricNames`, #297): the block every
+   run appends, with the case, run id (the output directory's name),
+   source revision and timestamp, to the append-only series at `-series`
+   (default `<output>/../metrics.jsonl`, shared by the runs beside each
+   other; `-no-series` skips it). A metric past its rule
+   (`na.DriftRules`: a ratio and an absolute floor over the trailing
+   median of the case's last ten earlier passes; `cache_hit_ratio`,
+   `wall_tps` and `ticks_advanced` flag a drop) is listed under `drift`,
+   never failing the run.
 7. **Advance by ticks, at speed.** A wait for something the game itself
    must do (a haul, a surgery, a pen, a capture) is bounded in ticks, not
    wall clock: `na.RunUntil` runs at `na.RunSpeed` with `na.RunBoost`
@@ -465,7 +476,8 @@ colony.
 ### Running cases in parallel
 
 `acceptance suite (-all | -cases a,b | -suite file.json) -root <root>
--output <out> -workers N [-baseline <result.json> -rimgovernor <bin>]`
+-output <out> -workers N [-baseline <result.json> -series <metrics.jsonl>
+-rimgovernor <bin>]`
 (`go/internal/nativeaccept/cmd/acceptance`) clones the root into N
 worker roots (`na.IsolatedRoot`: own GABS state, config and profile, same
 game installation), gives each worker a queue of cases chained on one kept
@@ -482,7 +494,10 @@ worker, exit, `wall_ms`, `boot_ms`,
 beside the baseline's, and `regressions`: every case whose run time
 (`wall_ms` net of `boot_ms`, so which worker paid the game boot does not
 count) is both 25% and 5s over its baseline row's (flagged, never failing
-on its own; #176). The suite passes only when every case did.
+on its own; #176). Every row also carries its `metrics` block and
+`drift` flags, and the suite report lists all flags under `drift` (the
+rows append to the same series, `-series`, passed through to each run).
+The suite passes only when every case did.
 `cmd/acceptance/suites/issue-6-matrix.json` is issue #6's cross-slice
 acceptance matrix: one row per criterion in the issue text (dark and
 partially lit benches, protected fungus rooms, lighting repair after a
