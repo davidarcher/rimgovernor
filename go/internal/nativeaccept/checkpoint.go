@@ -706,9 +706,11 @@ func (r *CheckpointRing) serviceSave(ctx context.Context, p *ServiceProcess, nam
 		return "", 0, nil, exitErr
 	}
 	// A service that is not automating yet (its first resume still in
-	// flight) or that a case holds in manual cannot be paused for a save;
-	// a periodic capture waits for the next cadence, a forced one tries.
-	if st, status, err := p.API("GET", "/api/state", nil, ""); !force && (err != nil || status != 200 || AsString(st["mode"]) != "automate") {
+	// flight), that a case holds in manual, or that has not observed a
+	// tick yet (its save would 503 "Controller data is unavailable", #309)
+	// cannot be paused for a save; a periodic capture waits for the next
+	// cadence, a forced one tries.
+	if st, status, err := p.API("GET", "/api/state", nil, ""); !force && (err != nil || status != 200 || !serviceCanCapture(st)) {
 		return "", 0, nil, errNotPaused
 	}
 	prefix := p.Label() + "-checkpoint-" + label
@@ -720,6 +722,22 @@ func (r *CheckpointRing) serviceSave(ctx context.Context, p *ServiceProcess, nam
 		tick = t
 	}
 	return path, tick, p.Identity, nil
+}
+
+// serviceCanCapture says whether a service's /api/state body admits a
+// periodic capture: automating, with a fresh (non-stale) game read, since
+// /api/lifecycle/save refuses until the service knows the game's tick and
+// identity.
+func serviceCanCapture(state map[string]any) bool {
+	if AsString(state["mode"]) != "automate" {
+		return false
+	}
+	game, _ := state["game"].(map[string]any)
+	if stale, _ := game["stale"].(bool); stale {
+		return false
+	}
+	_, ok := game["tick"].(float64)
+	return ok
 }
 
 // serviceTick reads the live game tick from the service's /api/state.

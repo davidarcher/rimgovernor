@@ -442,3 +442,26 @@ func TestCheckpointStateRidesCaptures(t *testing.T) {
 		t.Fatalf("sidecar state %v", sidecar.State)
 	}
 }
+
+// A periodic service capture waits until the service automates with a
+// fresh game read; a state without a known tick would 503 the save (#309).
+func TestServiceCanCapture(t *testing.T) {
+	t.Parallel()
+	game := func(stale bool, tick any) map[string]any {
+		return map[string]any{"stale": stale, "tick": tick}
+	}
+	for name, tc := range map[string]struct {
+		state map[string]any
+		want  bool
+	}{
+		"automating with a tick": {map[string]any{"mode": "automate", "game": game(false, 120.0)}, true},
+		"manual":                 {map[string]any{"mode": "manual", "game": game(false, 120.0)}, false},
+		"stale read":             {map[string]any{"mode": "automate", "game": game(true, 120.0)}, false},
+		"no tick yet":            {map[string]any{"mode": "automate", "game": game(false, nil)}, false},
+		"no game":                {map[string]any{"mode": "automate"}, false},
+	} {
+		if got := serviceCanCapture(tc.state); got != tc.want {
+			t.Errorf("%s: serviceCanCapture=%v want %v", name, got, tc.want)
+		}
+	}
+}

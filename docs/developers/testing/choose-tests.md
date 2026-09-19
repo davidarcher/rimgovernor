@@ -658,8 +658,10 @@ case that opens on them.
 ## Checkpointing a slow precondition
 
 Every run keeps a checkpoint ring of its own (#249): once a minute of run
-phase, at the next natural pause (a bridge call, a poll interval, a
-serve-driven inter-window stop), the runner bundles the save, the
+phase, at the next natural pause (a bridge call, a poll interval; a
+serve-driven run pauses its automating service to manual control, saves
+through `/api/lifecycle/save` and resumes, about a second, once the
+service has observed a tick, #309), the runner bundles the save, the
 service's `service.sqlite` (an online-backup copy), the native clock
 journal and a `checkpoint.json` sidecar (identity, tick, offset, serve
 spec, source revision, native package hash, Start) into
