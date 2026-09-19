@@ -138,7 +138,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if !known {
 		return RoutineWorkResult{Reason: BuildingMethodUnknown}, nil
 	}
-	targets, err := r.reviewer.resourceTargets(call, state.Snapshot)
+	targets, err := r.reviewer.resourceTargets(call, state.Snapshot, read.Projection.Facts.Resources)
 	if err != nil {
 		return RoutineWorkResult{}, err
 	}

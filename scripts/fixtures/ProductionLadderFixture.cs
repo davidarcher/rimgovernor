@@ -58,6 +58,71 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
+        // #231: the stonecutting variant. Prepare seeds the research bench,
+        // Stonecutting at 97% and the steel a stonecutter's table costs (the
+        // tribal save holds none); the blocks must come from the chunks the
+        // map already holds, so it also reports the stone chunks in reach.
+        [Tool("test/production_stone_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Disposable fixture: spawn a simple research bench near the colonists, drop the steel a stonecutter's table costs, advance Stonecutting research to 97% of its base cost, and count the unforbidden stone chunks within 40 cells of the colonists by definition.")]
+        public async Task<object> PrepareStone(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                if (map == null || !Find.TickManager.Paused) throw new InvalidOperationException("Paused disposable colony required.");
+                var pawn = map.mapPawns.FreeColonistsSpawned.First();
+                var benchDef = ThingDef.Named("SimpleResearchBench");
+                var benchCell = GenRadial.RadialCellsAround(pawn.Position, 20, true).FirstOrDefault(c => c.InBounds(map) && !c.Fogged(map)
+                    && GenConstruct.CanPlaceBlueprintAt(benchDef, c, Rot4.North, map).Accepted
+                    && GenAdj.OccupiedRect(c, Rot4.North, benchDef.size).Cells.All(cell => cell.Standable(map) && cell.GetFirstBuilding(map) == null));
+                if (!benchCell.IsValid) throw new InvalidOperationException("No research bench site.");
+                var bench = ThingMaker.MakeThing(benchDef, GenStuff.DefaultStuffFor(benchDef));
+                bench.SetFaction(Faction.OfPlayer);
+                GenSpawn.Spawn(bench, benchCell, map, Rot4.North);
+                var steel = 0;
+                while (steel < 60) {
+                    var thing = ThingMaker.MakeThing(ThingDefOf.Steel); thing.stackCount = 60 - steel;
+                    if (!GenPlace.TryPlaceThing(thing, pawn.Position, map, ThingPlaceMode.Near)) throw new InvalidOperationException("No drop site for Steel");
+                    steel += thing.stackCount;
+                }
+                var project = DefDatabase<ResearchProjectDef>.GetNamed(StoneProject);
+                var manager = Find.ResearchManager;
+                var progress = typeof(ResearchManager).GetField("progress", BindingFlags.Instance | BindingFlags.NonPublic)?.GetValue(manager) as Dictionary<ResearchProjectDef, float>;
+                if (progress == null) throw new InvalidOperationException("ResearchManager.progress unavailable.");
+                progress[project] = project.baseCost * 0.97f;
+                return new { success = true, researchBench = bench.GetUniqueLoadID(), steel, project = StoneProject,
+                    progress = project.ProgressPercent, finished = project.IsFinished, chunks = StoneChunks(map, pawn.Position), tick = Find.TickManager.TicksGame };
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
+        [Tool("test/production_stone_audit", Description = "Private read-only fixture: Stonecutting state, stonecutter's tables with their room role and bills, live stone block counts by definition, and the stone chunks within 40 cells of the colonists.")]
+        public async Task<object> AuditStone(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                if (map == null) throw new InvalidOperationException("No current map.");
+                var project = DefDatabase<ResearchProjectDef>.GetNamed(StoneProject);
+                string RoleAt(IntVec3 cell) => cell.GetRoom(map)?.Role?.defName;
+                var tables = map.listerBuildings.allBuildingsColonist.OfType<Building_WorkTable>()
+                    .Where(b => b.def.defName == "TableStonecutter")
+                    .Select(b => new { thingId = b.GetUniqueLoadID(), x = b.Position.x, z = b.Position.z, roomRole = RoleAt(b.Position),
+                        bills = b.BillStack.Bills.Select(bill => bill.recipe.defName).ToArray() }).ToArray();
+                var blocks = DefDatabase<ThingDef>.AllDefsListForReading.Where(d => d.IsStuff && d.stuffProps?.categories != null && d.stuffProps.categories.Contains(StuffCategoryDefOf.Stony) && d.defName.StartsWith("Blocks"))
+                    .Select(d => new { defName = d.defName, count = map.listerThings.ThingsOfDef(d).Where(t => t.Spawned).Sum(t => t.stackCount) })
+                    .Where(row => row.count > 0).OrderBy(row => row.defName, StringComparer.Ordinal).ToArray();
+                var pawn = map.mapPawns.FreeColonistsSpawned.FirstOrDefault();
+                return new { success = true, project = StoneProject, finished = project.IsFinished, progress = project.ProgressPercent,
+                    current = Find.ResearchManager.GetProject()?.defName, tables, blocks,
+                    chunks = pawn == null ? new object[0] : StoneChunks(map, pawn.Position), tick = Find.TickManager.TicksGame };
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
+        const string StoneProject = "Stonecutting";
+
+        static object[] StoneChunks(Map map, IntVec3 center) => map.listerThings.AllThings
+            .Where(t => t.Spawned && !t.IsForbidden(Faction.OfPlayer) && !t.Position.Fogged(map) && t.def.thingCategories != null
+                && t.def.thingCategories.Contains(ThingCategoryDefOf.StoneChunks) && t.Position.InHorDistOf(center, 40f))
+            .GroupBy(t => t.def.defName).OrderBy(g => g.Key, StringComparer.Ordinal)
+            .Select(g => (object)new { defName = g.Key, count = g.Sum(t => t.stackCount) }).ToArray();
+
         [Tool("test/production_ladder_audit", Description = "Private read-only fixture: Smithing state, smithies with their room role and bills, stockpile zones with their room role and steel allowance, and the live gladius count.")]
         public async Task<object> Audit(IRimBridgeContext ctx, CancellationToken cancellationToken)
         {

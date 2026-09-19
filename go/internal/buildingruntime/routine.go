@@ -190,7 +190,10 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter)
 		clockSchedulerLog("routine.step: LoadDefenseLayout err=%v", err)
 		return store.RoutineReviewResult{}, err
 	}
-	resourceTargets := policy.ResourceGoalTargets(r.policy.ResourceTargets, reading.Projection.Facts.ResourceNeeds)
+	resourceTargets, err := r.policy.EffectiveResourceTargets(reading.Projection.Facts.Resources, reading.Projection.Facts.ResourceNeeds)
+	if err != nil {
+		return store.RoutineReviewResult{}, err
+	}
 	if pawns, known := reading.Projection.WorkPawns.Value(); known {
 		reading.Projection.Facts.Workers = policy.RoutineWorkers(pawns)
 		reading.Projection.Facts.Labor = policy.RoutineLabor(pawns)

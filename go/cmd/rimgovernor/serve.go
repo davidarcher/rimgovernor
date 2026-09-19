@@ -90,6 +90,7 @@ type serveConfig struct {
 	routineResearchLadder           string
 	routineResourcePlans            bool
 	routineResourceTargets          resourceTargetFlags
+	routineStoneBlockTarget         int64
 	routineAnimalFeedPlans          bool
 	routineProductionPolicyPlans    bool
 	routineResourceReserves         resourceReserveFlags
@@ -146,6 +147,7 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.StringVar(&c.routineResearchTarget, "routine-research-target", "", "native ResearchProjectDef name EnsureResearch selects prerequisite-ordered toward once no research project is current")
 	flags.StringVar(&c.routineResearchLadder, "routine-research-ladder", strings.Join(policy.DefaultResearchLadder(), ","), "comma-separated ResearchProjectDef names EnsureResearch walks in order when no --routine-research-target is set and no workshop ladder records a need; empty disables the roadmap")
 	flags.Var(&c.routineResourceTargets, "routine-resource-target", "repeatable RESOURCE:TARGET native stock floor MaintainResource dispatches a production bill toward")
+	flags.Int64Var(&c.routineStoneBlockTarget, "routine-stone-block-target", 0, "native stock floor MaintainResource keeps for stone blocks of the stone whose chunks the map counts most, staging a stonecutter's table and a do-until bill fed from those chunks; 0 disables")
 	flags.Var(&c.routineResourceReserves, "routine-resource-reserve", "repeatable RESOURCE:FLOOR native stock floor ProductionPolicy replaces into the current native production policy")
 	flags.Var(&c.routineStoppedResources, "routine-resource-stop", "repeatable RESOURCE name ProductionPolicy keeps stopped in the current native production policy")
 	flags.BoolVar(&c.routineAllowSlaughter, "routine-allow-slaughter", false, "let MaintainHerd propose a slaughter write for a surplus animal once --routine-herd-population-max is declared; slaughter is irreversible and stays off unless explicitly set")
@@ -206,8 +208,11 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	if c.worldEvaluationFoodMarginDays < 0 {
 		return c, errors.New("--world-evaluation-food-margin-days must be non-negative")
 	}
-	if len(c.routineResourceTargets) > 0 && !c.routineResourcePlans {
-		return c, errors.New("--routine-resource-target requires the resource routine family")
+	if c.routineStoneBlockTarget < 0 || c.routineStoneBlockTarget > 10000 {
+		return c, errors.New("--routine-stone-block-target must be within 0..10000")
+	}
+	if c.resourceTargetsConfigured() && !c.routineResourcePlans {
+		return c, errors.New("--routine-resource-target and --routine-stone-block-target require the resource routine family")
 	}
 	if (len(c.routineResourceReserves) > 0 || len(c.routineStoppedResources) > 0) && !c.routineProductionPolicyPlans {
 		return c, errors.New("--routine-resource-reserve and --routine-resource-stop require the production-policy routine family")
@@ -349,7 +354,13 @@ func routineFamilies(c *serveConfig) []routineFamily {
 // ladder records for a MaintainResource bench (issue #4 M4) and otherwise
 // the research ladder (#230).
 func (c serveConfig) researchPlans() bool {
-	return c.routineResearchTarget != "" || c.routineResearchPlans && (len(c.routineResourceTargets) > 0 || len(c.researchLadder()) > 0)
+	return c.routineResearchTarget != "" || c.routineResearchPlans && (c.resourceTargetsConfigured() || len(c.researchLadder()) > 0)
+}
+
+// resourceTargetsConfigured reports whether MaintainResource has a floor to
+// keep: an operator resource target or the derived stone-block target.
+func (c serveConfig) resourceTargetsConfigured() bool {
+	return len(c.routineResourceTargets) > 0 || c.routineStoneBlockTarget > 0
 }
 
 // researchLadder is --routine-research-ladder split, blanks dropped.

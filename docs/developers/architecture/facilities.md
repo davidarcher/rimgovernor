@@ -69,3 +69,11 @@ workshop checkpoint save, seeds steel, a simple research bench and Smithing at
 evidence for every rung: Smithing finished, a smithy in a Workshop-hosting
 room carrying the gladius bill, an allow-list stockpile for steel in that room,
 and the gladius count above the pre-service baseline.
+
+The `production/stone` case (`acceptance run production/stone`) runs the
+same checkpoint with only `--routine-stone-block-target 40`: the fixture
+seeds a research bench, the table's steel and Stonecutting at 97% through
+`test/production_stone_prepare`, and the audit requires Stonecutting
+finished, a stonecutter's table in a Workshop-hosting room carrying the
+derived stone's `Make_StoneBlocks` bill, and the live block count above the
+pre-service baseline — the chunks are the map's own (#231).

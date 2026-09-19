@@ -113,6 +113,14 @@ type RoutinePolicy struct {
 	// policy.SelectResourceTarget's own single-goal dynamic-target selection
 	// across these targets and issues no SetProductionPolicy push at all.
 	ResourceTargets map[Resource]int64
+	// StoneBlockTarget is an operator-declared native stock floor for stone
+	// blocks of whichever Core stone the map's chunk census counts most
+	// (StoneBlockTarget): it joins ResourceTargets through
+	// EffectiveResourceTargets each review and planner step, so the
+	// MaintainResource ladder stages a stonecutter's table and keeps a
+	// do-until bill fed from map chunks without the operator naming the
+	// stone. Zero disables it.
+	StoneBlockTarget int64
 	// ResourceReserves and StoppedResources are operator-declared inputs to
 	// ProductionFloors: the per-resource reserve/spending-stopped
 	// configuration. Unlike
@@ -218,6 +226,9 @@ func (p RoutinePolicy) Validate() error {
 	}
 	if err := ValidateResourceTargets(p.ResourceTargets); err != nil {
 		return err
+	}
+	if p.StoneBlockTarget < 0 || p.StoneBlockTarget > 10000 {
+		return errors.New("invalid stone block target")
 	}
 	if _, _, err := ProductionFloors(p.ResourceReserves, p.StoppedResources); err != nil {
 		return err
@@ -775,7 +786,11 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		r.Goals[len(r.Goals)-1].Deficit = researchDeficit
 	}
 	addAssessment(EnsureResearch, 4, researchRecovered)
-	resourceRecovered, resourceDeficit := ResourceTargetNeed(ResourceGoalTargets(p.ResourceTargets, f.ResourceNeeds), f.Resources)
+	resourceTargets, err := p.EffectiveResourceTargets(f.Resources, f.ResourceNeeds)
+	if err != nil {
+		return RoutineNeeds{}, err
+	}
+	resourceRecovered, resourceDeficit := ResourceTargetNeed(resourceTargets, f.Resources)
 	if !positive(resourceRecovered) {
 		addGoal(MaintainResource, 4)
 		r.Goals[len(r.Goals)-1].Deficit = resourceDeficit

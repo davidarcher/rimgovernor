@@ -63,7 +63,7 @@ func (r *RoutineIngredientStoragePlanner) Step(ctx context.Context) (RoutineIngr
 func (r *RoutineIngredientStoragePlanner) step(call, epoch context.Context) (RoutineIngredientStorageResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
-	if !state.Enabled || len(r.reviewer.policy.ResourceTargets) == 0 {
+	if !state.Enabled || !r.reviewer.policy.ResourceGoalConfigured() {
 		return RoutineIngredientStorageResult{Reason: BuildingMethodDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
@@ -110,7 +110,12 @@ func (r *RoutineIngredientStoragePlanner) step(call, epoch context.Context) (Rou
 	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil || observed.Context.GetTick() < int64(review.Tick) {
 		return RoutineIngredientStorageResult{}, ErrControl
 	}
-	resource, _, ok, err := policy.SelectResourceTarget(r.reviewer.policy.ResourceTargets, resourceStockFacts(observed))
+	stock := resourceStockFacts(observed)
+	targets, err := r.reviewer.resourceTargets(call, state.Snapshot, stock)
+	if err != nil {
+		return RoutineIngredientStorageResult{}, err
+	}
+	resource, _, ok, err := policy.SelectResourceTarget(targets, stock)
 	if err != nil {
 		return RoutineIngredientStorageResult{}, err
 	}

@@ -61,7 +61,7 @@ namespace HomeBridge.BridgeTools
                     {
                         var entriesForDefinition = group.ToList();
                         var row = Project(entriesForDefinition, reserved, IncludeHeld(filter));
-                        for (var index = 0; index < entriesForDefinition.Count; index++)
+                        for (var index = 0; index < row.Items.Count; index++)
                         {
                             var entry = entriesForDefinition[index];
                             row.Items[index].Snapshot = entry.Holder == null
@@ -212,9 +212,16 @@ namespace HomeBridge.BridgeTools
         internal static bool IsOurs(bool fogged, bool held, bool playerFaction, bool otherFaction, bool deadHolder)
             => !fogged && (held ? playerFaction && !deadHolder : !otherFaction);
 
+        // ItemBound caps the per-definition item, holder and corpse collections a
+        // stock row lists. The counts (units, ours_unforbidden, ...) always cover
+        // every entry: a map strewn with several hundred stone chunks still
+        // answers a MaintainResource census (#231); only the listed entities are
+        // a prefix, and items_completeness says so (page.complete=false,
+        // matched=total, returned=listed) for the readers that need each one.
+        internal const int ItemBound = 256;
+
         internal static Obs.ResourceStock Project(List<StockEntry> entries, HashSet<Thing> reserved, bool includeHeld)
         {
-            Require(entries.Count <= 256, "Complete stock item collection exceeds 256 rows.");
             var first = entries[0].Thing.def;
             var row = new Obs.ResourceStock { Definition = new Obs.DefinitionRef { DefName = Id(first.defName), Label = PlacementPreviewOperation.Diagnostic(first.LabelCap) },
                 Units = 0, Stacks = entries.Count, Spawned = 0, Ours = 0, OursUnforbidden = 0, Forbidden = 0,
@@ -242,6 +249,7 @@ namespace HomeBridge.BridgeTools
                     if (entry.InStockpile) row.InStockpile += units;
                     if (entry.Ours && reserved.Contains(entry.Thing)) row.Reserved += units;
                 }
+                if (row.Items.Count >= ItemBound) continue;
                 row.Items.Add(Entity(entry.Thing, entry.Position));
                 if (entry.Holder != null) row.Holders.Add(new Obs.HeldStock { Holder = Entity(entry.Holder, entry.Position), HolderKind = entry.HolderKind!, Units = units });
                 if (entry.Thing is Corpse corpse)
@@ -255,9 +263,14 @@ namespace HomeBridge.BridgeTools
                     row.Corpses.Add(detail);
                 }
             }
+            var listed = row.Items.Count == entries.Count;
             row.ItemsCompleteness = Complete(row.Items.Count);
+            row.ItemsCompleteness.Matched = (ulong)entries.Count;
+            row.ItemsCompleteness.Page.Complete = listed;
             row.HoldersCompleteness = includeHeld ? Complete(row.Holders.Count) : new Obs.Completeness { Page = new Common.PageInfo { Complete = false } };
+            if (includeHeld) row.HoldersCompleteness.Page.Complete = listed;
             row.CorpsesCompleteness = Complete(row.Corpses.Count);
+            row.CorpsesCompleteness.Page.Complete = listed;
             row.Issues.Add(Issue("items.snapshot", Common.UnavailableReason.Unsupported, "One or more items lack an Allow snapshot; only eligible loose supplies support Allow."));
             return row;
         }

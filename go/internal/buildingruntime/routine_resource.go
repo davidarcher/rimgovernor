@@ -126,11 +126,13 @@ func (r *RoutineResourcePlanner) step(call, epoch context.Context, arbiter *step
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineResourceResult{}, ErrControl
 	}
-	targets, err := r.reviewer.resourceTargets(call, state.Snapshot)
+	// The stone-block floor only names its block once the census is read
+	// below; a configured floor keeps the step alive until then.
+	targets, err := r.reviewer.resourceTargets(call, state.Snapshot, domain.Unknown[[]policy.Amount]())
 	if err != nil {
 		return RoutineResourceResult{}, err
 	}
-	if len(targets) == 0 {
+	if len(targets) == 0 && !r.reviewer.policy.ResourceGoalConfigured() {
 		return RoutineResourceResult{Reason: BuildingMethodDisabled}, nil
 	}
 	review, err := p.journal.LoadRoutineReview(call)
@@ -181,6 +183,9 @@ func (r *RoutineResourcePlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineResourceResult{}, ErrControl
 	}
 	stock := resourceStockFacts(observed)
+	if targets, err = r.reviewer.resourceTargets(call, state.Snapshot, stock); err != nil {
+		return RoutineResourceResult{}, err
+	}
 	resource, target, ok, err := policy.SelectResourceTarget(targets, stock)
 	if err != nil {
 		return RoutineResourceResult{}, err

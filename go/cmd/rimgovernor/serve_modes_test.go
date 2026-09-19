@@ -117,7 +117,7 @@ func TestServeRoutineFamiliesSelection(t *testing.T) {
 	}
 	// Family-scoped tuning flags need their family composed.
 	withRoutineFamilies(t, "sleeping", true)
-	for _, extra := range [][]string{{"--routine-resource-target", "Steel:100"}, {"--routine-resource-reserve", "Steel:100"}, {"--routine-allow-slaughter"}} {
+	for _, extra := range [][]string{{"--routine-resource-target", "Steel:100"}, {"--routine-stone-block-target", "60"}, {"--routine-resource-reserve", "Steel:100"}, {"--routine-allow-slaughter"}} {
 		if _, err := parseServe(append(append(serveBase(dir), "--profile", dir), extra...), io.Discard); err == nil {
 			t.Fatalf("accepted %v without its family", extra)
 		}
@@ -126,6 +126,13 @@ func TestServeRoutineFamiliesSelection(t *testing.T) {
 	c, err = parseServe(append(serveBase(dir), "--profile", dir, "--routine-resource-target", "Steel:100"), io.Discard)
 	if err != nil || len(c.routineResourceTargets) != 1 {
 		t.Fatal(c, err)
+	}
+	c, err = parseServe(append(serveBase(dir), "--profile", dir, "--routine-stone-block-target", "60"), io.Discard)
+	if err != nil || c.routineStoneBlockTarget != 60 || !c.resourceTargetsConfigured() {
+		t.Fatal(c, err)
+	}
+	if _, err := parseServe(append(serveBase(dir), "--profile", dir, "--routine-stone-block-target", "10001"), io.Discard); err == nil {
+		t.Fatal("stone block target past the bill bound accepted")
 	}
 }
 

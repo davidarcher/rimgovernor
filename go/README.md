@@ -681,7 +681,8 @@ observation bracket, honoring saved player work preferences; furniture with no
 native construction skill requirement (a crafting spot) needs only one
 available pawn with Construction enabled. The `workshop`
 family (issue #4 M2) applies the same ladder to production: when a
-`--routine-resource-target` deficit has no reachable bench hosting an available
+`--routine-resource-target` (or `--routine-stone-block-target`, a floor for
+the blocks of the stone whose chunks the map counts most) deficit has no reachable bench hosting an available
 recipe, it reads the native recipe catalog for the product, previews the first
 research-available, unpowered, unskilled bench definition (`CraftingSpot` on the
 tribal baseline; `TableStonecutter` once stonecutting is researched) inside a

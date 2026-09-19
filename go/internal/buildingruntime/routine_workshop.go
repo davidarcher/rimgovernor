@@ -69,7 +69,7 @@ func NewRoutineWorkshopPlanner(reviewer *RoutineReviewer, native RoutineBuilding
 // can describe exactly the candidate bench definitions. A non-empty reason
 // ends the step.
 func (r *RoutineBuildingPlanner) prepareWorkshop(call context.Context, state ControlState, review store.RoutineReview) (*workshopSelection, RoutineBuildingReason, error) {
-	if len(r.reviewer.policy.ResourceTargets) == 0 {
+	if !r.reviewer.policy.ResourceGoalConfigured() {
 		return nil, BuildingMethodDisabled, nil
 	}
 	source, ok := r.native.(RoutineWorkshopSource)
@@ -88,7 +88,12 @@ func (r *RoutineBuildingPlanner) prepareWorkshop(call context.Context, state Con
 	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil || observed.Context.GetTick() < int64(review.Tick) {
 		return nil, "", ErrControl
 	}
-	resource, _, ok, err := policy.SelectResourceTarget(r.reviewer.policy.ResourceTargets, resourceStockFacts(observed))
+	stock := resourceStockFacts(observed)
+	targets, err := r.reviewer.resourceTargets(call, state.Snapshot, stock)
+	if err != nil {
+		return nil, "", err
+	}
+	resource, _, ok, err := policy.SelectResourceTarget(targets, stock)
 	if err != nil {
 		return nil, "", err
 	}

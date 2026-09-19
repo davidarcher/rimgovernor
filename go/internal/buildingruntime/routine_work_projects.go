@@ -246,7 +246,7 @@ func routineResearchNeeds(ctx context.Context, journal *store.Store, p policy.Ro
 	if err != nil {
 		return nil, err
 	}
-	if !ok || p.ResourceTargets[ladder.Resource] <= 0 {
+	if !ok || !p.TracksResource(ladder.Resource) {
 		return nil, nil
 	}
 	return ladder.Research, nil

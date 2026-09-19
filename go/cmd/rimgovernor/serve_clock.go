@@ -183,8 +183,8 @@ type serviceClockTimeoutConfig struct{ Poll, Renew, Step, PollWait, RunningPoll 
 func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, journal *store.Store, sc serveConfig, timeouts serviceClockTimeoutConfig, wake *buildingruntime.WakeSignal, facts *bridge.FactCache) (*buildingruntime.ClockWorker, error) {
 	profile, clockSpeed, routine := sc.profile, sc.clockSpeed, sc.routineReviews
 	sleeping, cooking, shelter, comfort, expansion, power, temperature := sc.routineSleepingPlans, sc.routineCookingPlans, sc.routineShelterPlans, sc.routineComfortPlans, sc.routineExpansionPlans, sc.routinePowerPlans, sc.routineTemperaturePlans
-	workshop := sc.routineWorkshopPlans && len(sc.routineResourceTargets.Map()) > 0
-	ingredientStorage := sc.routineIngredientStoragePlans && len(sc.routineResourceTargets.Map()) > 0
+	workshop := sc.routineWorkshopPlans && sc.resourceTargetsConfigured()
+	ingredientStorage := sc.routineIngredientStoragePlans && sc.resourceTargetsConfigured()
 	research := sc.researchPlans()
 	hospital := sc.routineHospitalPlans
 	supplies, work, acquisition, defense, tend, rescue, equip := sc.routineSupplyPlans, sc.routineWorkPlans, sc.routineAcquisitionPlans, sc.routineDefensePlans, sc.routineTendPlans, sc.routineRescuePlans, sc.routineEquipPlans
@@ -195,7 +195,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	flooring := sc.routineFlooringPlans
 	routes := sc.routineRoutesPlans
 	animalContainment, recovery, husbandry, homeCoverage := sc.routineAnimalContainmentPlans, sc.routineRecoveryPlans, sc.routineHusbandryPlans, sc.routineHomeCoveragePlans
-	caravanJourneyTracking, researchTarget, resourceTargets := sc.caravanJourneyTracking, sc.routineResearchTarget, sc.routineResourceTargets.Map()
+	caravanJourneyTracking, researchTarget, resourceTargets := sc.caravanJourneyTracking, sc.routineResearchTarget, sc.resourceTargetsConfigured()
 	animalFeedPlans, productionPolicyPlans := sc.routineAnimalFeedPlans, sc.routineProductionPolicyPlans
 	fields, bills, foodStorage := sc.routineFieldPlans, sc.routineBillPlans, sc.routineFoodStoragePlans
 	prisonerInteraction, populationCustody, stoneShell, defensiveLayout := sc.routinePrisonerInteractionPlans, sc.routinePopulationCustodyPlans, sc.routineStoneShellPlans, sc.routineDefensiveLayoutPlans
@@ -215,7 +215,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 		}
 		config.CaravanJourney = tracker
 	}
-	if (bills || fields || foodStorage || acquisition || work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || secureSupplies || repair || fireSafety || clean || haul || waste || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || homeCoverage || stoneShell || defensiveLayout || naming || dialog || researchTarget != "" || len(resourceTargets) > 0 || animalFeedPlans || productionPolicyPlans) && !routine {
+	if (bills || fields || foodStorage || acquisition || work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || secureSupplies || repair || fireSafety || clean || haul || waste || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || homeCoverage || stoneShell || defensiveLayout || naming || dialog || researchTarget != "" || resourceTargets || animalFeedPlans || productionPolicyPlans) && !routine {
 		return nil, errors.New("building plans require routine reviews")
 	}
 	if routine {
@@ -529,7 +529,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				return nil, err
 			}
 		}
-		if len(resourceTargets) > 0 {
+		if resourceTargets {
 			resourceNative, ok := reads.(buildingruntime.RoutineResourceSource)
 			if !ok {
 				return nil, errors.New("resource plans require typed colony observations")
@@ -790,8 +790,9 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 		thresholds.ResearchLadder = sc.researchLadder()
 		capabilities.Methods = append(capabilities.Methods, policy.EnsureResearch)
 	}
-	if len(sc.routineResourceTargets.Map()) > 0 {
+	if sc.resourceTargetsConfigured() {
 		thresholds.ResourceTargets = sc.routineResourceTargets.Map()
+		thresholds.StoneBlockTarget = sc.routineStoneBlockTarget
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainResource)
 	}
 	if sc.routineAnimalFeedPlans {

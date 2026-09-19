@@ -25,4 +25,9 @@ func TestBillExecutorRequiredByResourceTargets(t *testing.T) {
 	if !billExecutorRequired(targets) {
 		t.Fatal("resource target does not require the bill executor")
 	}
+	var stone serveConfig
+	stone.routineResourcePlans, stone.routineStoneBlockTarget = true, 60
+	if !billExecutorRequired(stone) {
+		t.Fatal("stone block target does not require the bill executor")
+	}
 }

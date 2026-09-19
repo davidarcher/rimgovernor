@@ -77,6 +77,22 @@ worker coverage for the bench's own work type, and native readback of the
 rising item count carry the deficit to recovery. The full ladder and the
 per-role matrix are in [facilities](facilities.md).
 
+Stone blocks ride the same ladder without the operator naming the stone:
+`--routine-stone-block-target N` is a floor for the block definition of
+whichever Core stone the reachable chunk census counts most
+(`policy.StoneBlockTarget`), merged into the operator's resource targets each
+review and planner step (`RoutinePolicy.EffectiveResourceTargets`). The
+ladder then researches Stonecutting, stages a stonecutter's table in the
+Workshop room and keeps a do-until bill on it fed from the map's chunks —
+the block supply `MaintainStoneShell` and the stone flooring and defense
+tiers spend. A map without stone chunks derives no target; the ladder does
+not mine rock for chunks. The chunk census that funds the bill counts every
+stack: a `list_supplies` stock row's units and ownership buckets cover all
+the definition's things even when the map strews more than 256 of them,
+and only the listed `items` (with `holders` and `corpses`) are then a
+256-entry prefix, flagged by `items_completeness` (`page.complete=false`,
+`matched` the true count) for the per-cell readers that need each entity.
+
 The hospital row is a hosted function rather than a room of its own: the game
 scores a room as Hospital only when every bed in it is medical, so a colony's
 first medical bed stands in a Bedroom, Barracks or generic Room, and the

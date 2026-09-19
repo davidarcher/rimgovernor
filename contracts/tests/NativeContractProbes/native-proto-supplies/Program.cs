@@ -293,16 +293,22 @@ internal static class NativeProtoSuppliesProbe
             && (string)Get(Get(nestedHolders[1]!, "Holder"), "DefName") == "Modded_InnerCrate" && (string)Get(nestedHolders[1]!, "HolderKind") == "container",
             "Container-in-container multi-level nesting walked and each level's holder identity preserved");
 
-        // ---- Item 4: overflow past the 256-rows-per-definition bound (Project()'s own cap) ----
+        // ---- Item 4: past the 256-items-per-definition bound the counts stay complete; the listed items are a prefix (#231) ----
         var overflowEntries = new List<object>();
-        for (var i = 0; i < 257; i++)
+        for (var i = 0; i < 300; i++)
         {
-            var t = MakeThing("Modded_OverflowStack", 1, 900 + i);
+            var t = MakeThing("Modded_OverflowStack", 2, 900 + i);
             PlaceOnMap(t);
             overflowEntries.Add(MakeEntry(t, null, null, true, false, false, true, false, true, false, false));
         }
-        try { RunProject(overflowEntries, true); Check(false, "257 rows for one definition must hit the 256-row bound"); }
-        catch (TargetInvocationException error) { Check(error.InnerException!.GetType().Name == "ReadLimit" && error.InnerException.Message.Contains("256 rows"), "Complete stock item collection exceeds 256 rows bound enforced"); }
+        var overflowRow = RunProject(overflowEntries, true);
+        var overflowItems = (IList)Get(overflowRow, "Items");
+        var overflowCompleteness = Get(overflowRow, "ItemsCompleteness");
+        Check((long)Get(overflowRow, "Units") == 600 && (long)Get(overflowRow, "Stacks") == 300 && (long)Get(overflowRow, "OursUnforbidden") == 600,
+            "300 stacks of one definition: units and ownership counts cover every entry");
+        Check(overflowItems.Count == 256 && !(bool)Get(Get(overflowCompleteness, "Page"), "Complete")
+            && (ulong)Get(overflowCompleteness, "Matched") == 300 && (ulong)Get(overflowCompleteness, "Returned") == 256,
+            "300 stacks of one definition: items list a 256-entry prefix and items_completeness reports matched=300 returned=256 incomplete");
 
         Console.WriteLine(checks + " compiled supplies boundary assertions passed + fixtures; no gameplay assertions.");
         return 0;

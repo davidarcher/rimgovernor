@@ -404,7 +404,7 @@ func drainBuilding(owner buildingCloser) error {
 // target (routine_resource.go). Without the bill executor an admitted bill
 // action fails "missing or unsupported building action" on every worker pass.
 func billExecutorRequired(config serveConfig) bool {
-	return config.routineBillPlans || len(config.routineResourceTargets) > 0
+	return config.routineBillPlans || config.resourceTargetsConfigured()
 }
 
 func serveBuildingControl(ctx context.Context, config serveConfig, out io.Writer) error {

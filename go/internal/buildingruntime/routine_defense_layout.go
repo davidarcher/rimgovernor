@@ -766,14 +766,16 @@ func routineDefensiveLayoutStanding(ctx context.Context, journal *store.Store, p
 	return domain.Known(record.Standing()), needs, nil
 }
 
-// resourceTargets is the operator's MaintainResource floors merged with the
-// journal's derived needs, the targets every resource planner dispatches on.
-func (r *RoutineReviewer) resourceTargets(ctx context.Context, snapshot domain.GenerationSnapshot) (map[policy.Resource]int64, error) {
+// resourceTargets is the operator's MaintainResource floors, the stone-block
+// floor the stock census derives (#231) and the journal's derived needs
+// merged, the targets every resource planner dispatches on. An unknown
+// census leaves the stone floor out.
+func (r *RoutineReviewer) resourceTargets(ctx context.Context, snapshot domain.GenerationSnapshot, stock domain.Fact[[]policy.Amount]) (map[policy.Resource]int64, error) {
 	_, needs, err := routineDefensiveLayoutStanding(ctx, r.player.journal, r.policy, snapshot)
 	if err != nil {
 		return nil, err
 	}
-	return policy.ResourceGoalTargets(r.policy.ResourceTargets, needs), nil
+	return r.policy.EffectiveResourceTargets(stock, needs)
 }
 
 // defenseMissingBuildings keeps the tier's buildings the census does not
