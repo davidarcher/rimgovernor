@@ -83,6 +83,7 @@ import (
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/facility"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/farm"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/floor"
+	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/food"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/husbandry"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/letter"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/lifecycle"

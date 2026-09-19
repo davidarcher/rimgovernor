@@ -150,6 +150,24 @@ instead of reloading; the next `acceptance run` unloads it as it does any
 leftover. Evidence lands under `<root>/acceptance/fixture/<op>-<time>`
 (`-output`), `-json` prints one object.
 
+## Isolated food channels
+
+The `food/` area owns nutrition-channel acceptance. `food/empty-channels`
+checks the shared `food.EmptyChannels(foodDef, units)` start on the Core-only
+tribal8 baseline. The runner quiets the storyteller and freezes needs; a
+channel case opts into live needs with `Keep` and adds its source after the
+start, before launching the service.
+
+`test/food_channels_prepare` removes growing zones, edible-yield plants
+map-wide (including the anchor window), animals, corpses, growers, paste
+dispensers and all food stock, including inventory and container contents.
+It then spawns exactly the named stock units. `test/food_channels_observe`
+audits remaining channels and stock; the case separately reads native
+`foodNutrition` and requires equality with the declared stock, then repeats
+with zero stock. Preparation must take less than a minute. This stages the
+initial state only: ordinary plant regrowth and animal arrivals still apply
+when a channel case advances the simulation.
+
 ## Adding a case
 
 Every native acceptance is a registered `cases.Case` under
