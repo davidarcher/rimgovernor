@@ -698,7 +698,10 @@ func (s *Session) Acquire(ctx context.Context, requested domain.GenerationSnapsh
 	return s.control.Acquire(ctx, requested)
 }
 func (s *Session) State() ControlState { return s.control.State() }
-func (s *Session) Disable() error      { return s.control.Disable() }
+func (s *Session) HoldsGrant(scope domain.GenerationSnapshot) bool {
+	return s.control.HoldsGrant(scope)
+}
+func (s *Session) Disable() error { return s.control.Disable() }
 
 // ObserveTarget attaches only read reconciliation to a durable plan. It cannot
 // obtain a lease, even if native status reports an active owner for this namespace.
@@ -712,7 +715,7 @@ func (s *Session) ObserveTarget(ctx context.Context, requested domain.Generation
 	}
 	return s.control.ObserveTarget(ctx, requested)
 }
-func (s *Session) Refresh(ctx context.Context) error { return s.control.Refresh(ctx) }
+func (s *Session) Refresh(ctx context.Context) error   { return s.control.Refresh(ctx) }
 func (s *Session) TargetsWorld(world store.World) bool { return s.control.TargetsWorld(world) }
 func (s *Session) Manual(ctx context.Context) error {
 	return s.control.Manual(ctx)

@@ -73,8 +73,13 @@ type Control struct {
 	snapshot         domain.GenerationSnapshot
 	haveTarget       bool
 	observationKnown bool
-	active           bool
-	closing, closed  bool
+	// granted: snapshot.Native is a grant this process accepted and has not
+	// since observed revoked. A Disable keeps it (the grant still stands
+	// natively); an observed Inactive, a replaced target or a fresh
+	// acquisition clears it.
+	granted         bool
+	active          bool
+	closing, closed bool
 }
 
 func NewControl(ctx context.Context, config ControlConfig, identity SessionIdentity, native NativeAuthority, sink AuthoritySink) (*Control, error) {
@@ -132,22 +137,31 @@ func (control *Control) Acquire(ctx context.Context, requested domain.Generation
 		// is what a killed controller leaves behind. This process owns the
 		// profile lock, so it is the only author: reclaim by revoking at the
 		// observed generation and acquiring fresh, rather than staying
-		// unresumable until a local player interrupts the game (#67). Once this
-		// process has targeted the world, an unexpected Active is its own
-		// uncertain grant, which only Manual reconciles.
+		// unresumable until a local player interrupts the game (#67). Its own
+		// grant, disabled locally on a clock hold and still Auto at the
+		// generation it accepted, is re-acquired in place: one SetMode, one
+		// generation, no Manual round trip (#259). Once this process has
+		// targeted the world, any other Active is its own uncertain grant,
+		// which only Manual reconciles.
 		active := status.GetStatus().GetActive()
-		if everTargeted || active == nil || active.GetMode() != a.Mode_MODE_AUTO {
+		if active == nil || active.GetMode() != a.Mode_MODE_AUTO {
 			return domain.GenerationSnapshot{}, ErrControl
 		}
-		result, _, err := control.native.Revoke(call, &a.Revoke{Identity: controlIdentity(requested), ExpectedGeneration: proto.Uint64(generation), Reason: a.RevocationReason_REVOCATION_REASON_MANUAL.Enum()})
-		if err != nil {
-			return domain.GenerationSnapshot{}, control.failedObservation(epoch, err)
+		if everTargeted {
+			if !control.holdsGrant(requested, generation) {
+				return domain.GenerationSnapshot{}, ErrControl
+			}
+		} else {
+			result, _, err := control.native.Revoke(call, &a.Revoke{Identity: controlIdentity(requested), ExpectedGeneration: proto.Uint64(generation), Reason: a.RevocationReason_REVOCATION_REASON_MANUAL.Enum()})
+			if err != nil {
+				return domain.GenerationSnapshot{}, control.failedObservation(epoch, err)
+			}
+			revoked := result.GetRevoked()
+			if revoked == nil || bridge.ValidateContext(revoked.Context) != nil || !proto.Equal(revoked.Context.Identity, controlIdentity(requested)) || revoked.Context.NativeGeneration == nil || revoked.Context.GetNativeGeneration() != generation+1 || generation+1 == ^uint64(0) {
+				return domain.GenerationSnapshot{}, ErrControl
+			}
+			generation = revoked.Context.GetNativeGeneration()
 		}
-		revoked := result.GetRevoked()
-		if revoked == nil || bridge.ValidateContext(revoked.Context) != nil || !proto.Equal(revoked.Context.Identity, controlIdentity(requested)) || revoked.Context.NativeGeneration == nil || revoked.Context.GetNativeGeneration() != generation+1 || generation+1 == ^uint64(0) {
-			return domain.GenerationSnapshot{}, ErrControl
-		}
-		generation = revoked.Context.GetNativeGeneration()
 	}
 	requested.Native = domain.NativeGeneration(generation)
 	control.mu.Lock()
@@ -155,7 +169,7 @@ func (control *Control) Acquire(ctx context.Context, requested domain.Generation
 		control.mu.Unlock()
 		return domain.GenerationSnapshot{}, ErrControl
 	}
-	control.snapshot, control.haveTarget = requested, true
+	control.snapshot, control.haveTarget, control.granted = requested, true, false
 	control.mu.Unlock()
 	reply, _, err := control.native.SetMode(call, &a.SetMode{Identity: controlIdentity(requested), ExpectedGeneration: proto.Uint64(generation), Mode: a.Mode_MODE_AUTO.Enum()})
 	if err != nil {
@@ -166,6 +180,30 @@ func (control *Control) Acquire(ctx context.Context, requested domain.Generation
 		return domain.GenerationSnapshot{}, err
 	}
 	return requested, nil
+}
+
+// holdsGrant reports whether an Active observed at generation in the
+// requested world is the grant this process accepted and merely disabled
+// locally. The grant is world-scoped: the plan it is re-acquired under may
+// differ from the one it was granted under.
+func (control *Control) holdsGrant(requested domain.GenerationSnapshot, generation uint64) bool {
+	control.mu.Lock()
+	defer control.mu.Unlock()
+	return control.granted && control.haveTarget && control.snapshot.SameWorld(requested) && uint64(control.snapshot.Native) == generation
+}
+
+// HoldsGrant reports whether the control's last accepted grant is in scope's
+// world and still stands as far as it has observed: authority may be
+// disabled locally (a clock hold) but no read or revoke has shown the native
+// side off since. A player resume in that state re-acquires directly
+// instead of revoking first (#259).
+func (control *Control) HoldsGrant(scope domain.GenerationSnapshot) bool {
+	if control == nil {
+		return false
+	}
+	control.mu.Lock()
+	defer control.mu.Unlock()
+	return !control.closing && !control.closed && control.granted && control.haveTarget && control.snapshot.SameWorld(scope)
 }
 
 // acquireObservationRetries bounds how often observeForAcquire starts over
@@ -421,6 +459,7 @@ func (control *Control) acceptGrant(call, epoch context.Context, reply *a.Contro
 	}
 	control.snapshot = snapshot
 	control.active = true
+	control.granted = true
 	control.observationKnown = true
 	if err := control.sink.UpdateAuthority(executor.Authority{Snapshot: snapshot, Enabled: true}); err != nil {
 		control.invalidateLocked()
@@ -476,6 +515,7 @@ func (control *Control) publishDisabled(ctx context.Context, expected domain.Gen
 	}
 	control.snapshot.Native = domain.NativeGeneration(generation)
 	control.active = false
+	control.granted = false
 	control.observationKnown = true
 	return control.sink.UpdateAuthority(executor.Authority{Snapshot: control.snapshot})
 }
@@ -524,7 +564,11 @@ func (control *Control) ObserveTarget(ctx context.Context, requested domain.Gene
 		return control.failedObservationLocked(err)
 	}
 	requested.Native = domain.NativeGeneration(reply.GetStatus().Context.GetNativeGeneration())
-	control.snapshot, control.haveTarget = requested, true
+	// The target plan is only a read scope; the grant this process holds is
+	// world-scoped and still stands while native reports it Auto at the
+	// generation it accepted (the worker retargets reads under a hold, #259).
+	still := control.granted && control.haveTarget && control.snapshot.SameWorld(requested) && control.snapshot.Native == requested.Native && reply.GetStatus().GetActive() != nil
+	control.snapshot, control.haveTarget, control.granted = requested, true, still
 	control.observationKnown = true
 	return control.sink.UpdateAuthority(executor.Authority{Snapshot: control.snapshot})
 }
@@ -565,6 +609,7 @@ func (control *Control) Refresh(ctx context.Context) error {
 	if status.Context.GetNativeGeneration() != uint64(snapshot.Native) || active == nil || active.GetMode() != a.Mode_MODE_AUTO {
 		err = control.invalidateLocked()
 		control.snapshot.Native = domain.NativeGeneration(status.Context.GetNativeGeneration())
+		control.granted = false
 		control.observationKnown = true
 		return errors.Join(err, control.sink.UpdateAuthority(executor.Authority{Snapshot: control.snapshot}))
 	}

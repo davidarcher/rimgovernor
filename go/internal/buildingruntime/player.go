@@ -20,6 +20,7 @@ type playerSession interface {
 	ResourceRules() []policy.ResourceRule
 	Acquire(context.Context, domain.GenerationSnapshot) (domain.GenerationSnapshot, error)
 	Manual(context.Context) error
+	HoldsGrant(domain.GenerationSnapshot) bool
 	TargetsWorld(store.World) bool
 	Disable() error
 	State() ControlState
@@ -226,12 +227,20 @@ func (p *Player) Resume(ctx context.Context, request store.ControlRequest) (stor
 	if err = p.current(call, epoch); err != nil {
 		return p.uncertain(record, err)
 	}
-	// Manual revokes this process's own grant for the world when its
-	// observation is known, and also when a failed status read left the
-	// observation unknown while the grant still stands natively -- Acquire
-	// refuses an Active it once targeted, so without the revoke every later
-	// request would end uncertain (#328).
-	if p.session.TargetsWorld(request.World) {
+	root, err := p.journal.EnsureRootPlan(call, request.World)
+	if err != nil {
+		return p.uncertain(record, err)
+	}
+	snapshot := domain.GenerationSnapshot{Colony: request.World.Colony, Load: request.World.Load, Map: request.World.Map, Plan: root.Spec.ID(), Revision: root.Spec.Revision()}
+	// A grant this process still holds for that scope as far as it has
+	// observed (disabled locally on a clock hold, or live) is re-acquired in
+	// place by Acquire: one native generation per resume, not the Manual->Auto
+	// pair that rebinds every prepared action (#259). Manual first stays for
+	// a genuine switch: an observed revocation or an uncertain grant.
+	// Manual also revokes a grant left standing by a failed status read
+	// (observation unknown, #328); the held-grant check answers that case
+	// by re-acquiring it in place instead.
+	if p.session.TargetsWorld(request.World) && !p.session.HoldsGrant(snapshot) {
 		if err = p.session.Manual(call); err != nil {
 			return p.uncertain(record, err)
 		}
@@ -243,11 +252,6 @@ func (p *Player) Resume(ctx context.Context, request store.ControlRequest) (stor
 	if err = p.current(call, epoch); err != nil {
 		return p.uncertain(record, err)
 	}
-	root, err := p.journal.EnsureRootPlan(call, request.World)
-	if err != nil {
-		return p.uncertain(record, err)
-	}
-	snapshot := domain.GenerationSnapshot{Colony: request.World.Colony, Load: request.World.Load, Map: request.World.Map, Plan: root.Spec.ID(), Revision: root.Spec.Revision()}
 	granted, err := p.session.Acquire(call, snapshot)
 	if err != nil {
 		return p.uncertain(record, err)

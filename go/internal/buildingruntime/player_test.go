@@ -42,6 +42,7 @@ type playerFakeSession struct {
 	rules                               []policy.ResourceRule
 	mu                                  sync.Mutex
 	state                               ControlState
+	granted                             bool
 	acquires, manuals, disables, closes atomic.Int32
 	acquire                             func(context.Context, domain.GenerationSnapshot) (domain.GenerationSnapshot, error)
 	close                               func(context.Context) error
@@ -66,11 +67,23 @@ func (s *playerFakeSession) Acquire(ctx context.Context, requested domain.Genera
 	if err == nil {
 		s.mu.Lock()
 		s.state = ControlState{Snapshot: requested, ObservationKnown: true, Enabled: true}
+		s.granted = true
 		s.mu.Unlock()
 	}
 	return requested, err
 }
-func (s *playerFakeSession) Manual(context.Context) error { s.manuals.Add(1); return s.Disable() }
+func (s *playerFakeSession) Manual(context.Context) error {
+	s.manuals.Add(1)
+	s.mu.Lock()
+	s.granted = false
+	s.mu.Unlock()
+	return s.Disable()
+}
+func (s *playerFakeSession) HoldsGrant(scope domain.GenerationSnapshot) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.granted && s.state.Snapshot.SameWorld(scope)
+}
 func (s *playerFakeSession) TargetsWorld(world store.World) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -402,11 +415,13 @@ func TestPlayerActualSessionCleansPriorOwnedLeaseAndRejectsForeignOwner(t *testi
 	if err != nil {
 		t.Fatal(err)
 	}
+	// A second resume under the same root plan re-grants in place: the
+	// grant this process holds is not revoked first (#259).
 	second := q
 	second.RequestID = "second"
 	got, err := p.Resume(ctx, second)
-	if err != nil || got.Phase != store.RunningControl || authority.acquires.Load() != 2 || authority.revokes.Load() != 1 || !p.State().Enabled {
-		t.Fatal(got, err)
+	if err != nil || got.Phase != store.RunningControl || authority.acquires.Load() != 2 || authority.revokes.Load() != 0 || !p.State().Enabled {
+		t.Fatal(got, err, authority.acquires.Load(), authority.revokes.Load())
 	}
 	// Simulate the native side reporting Auto authority whose generation counter
 	// is exhausted: the bot must refuse to touch it rather than revoke or adopt it.
@@ -417,8 +432,8 @@ func TestPlayerActualSessionCleansPriorOwnedLeaseAndRejectsForeignOwner(t *testi
 	third := q
 	third.RequestID = "third"
 	got, err = p.Resume(ctx, third)
-	if err == nil || got.Phase != store.UncertainControl || authority.revokes.Load() != 1 || authority.acquires.Load() != 2 || p.State().Enabled {
-		t.Fatal(got, err)
+	if err == nil || got.Phase != store.UncertainControl || authority.revokes.Load() != 0 || authority.acquires.Load() != 2 || p.State().Enabled {
+		t.Fatal(got, err, authority.revokes.Load(), authority.acquires.Load())
 	}
 	if err := p.Close(ctx); err == nil {
 		t.Fatal("foreign authority was treated as confirmed shutdown")
@@ -432,7 +447,7 @@ func TestPlayerActualSessionCleansPriorOwnedLeaseAndRejectsForeignOwner(t *testi
 	if err := p.Close(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if authority.revokes.Load() != 1 || authority.acquires.Load() != 2 {
+	if authority.revokes.Load() != 0 || authority.acquires.Load() != 2 {
 		t.Fatal("shutdown changed foreign authority")
 	}
 }
@@ -505,12 +520,39 @@ func TestPlayerCompletionJournalFailureDisablesGrantedLease(t *testing.T) {
 	}
 }
 
+// A resume while the session still holds its grant (disabled locally on a
+// clock hold, or live) re-acquires directly; only an observed revocation or
+// an uncertain grant makes it revoke first (#259).
+func TestPlayerResumeWithHeldGrantSkipsManual(t *testing.T) {
+	t.Parallel()
+	p, _, session, _ := playerFixture(t)
+	acquire := playerAcquire(t, p)
+	if _, err := p.Resume(context.Background(), acquire); err != nil || session.manuals.Load() != 0 || session.acquires.Load() != 1 {
+		t.Fatal("first resume", err, session.manuals.Load(), session.acquires.Load())
+	}
+	// A clock hold disables locally; the native grant stands.
+	if err := session.Disable(); err != nil {
+		t.Fatal(err)
+	}
+	held := store.ControlRequest{RequestID: "acquire-held", Kind: store.ResumeControl, World: acquire.World}
+	if record, err := p.Resume(context.Background(), held); err != nil || record.Phase != store.RunningControl || session.manuals.Load() != 0 || session.acquires.Load() != 2 {
+		t.Fatal("resume from hold revoked first", err, session.manuals.Load(), session.acquires.Load())
+	}
+	// An observed revocation (Pause) is a mode switch: Manual first again.
+	if _, err := p.Pause(context.Background(), store.ControlRequest{RequestID: "pause", Kind: store.PauseControl, World: acquire.World}); err != nil || session.manuals.Load() != 1 {
+		t.Fatal("pause", err, session.manuals.Load())
+	}
+	if _, err := p.Resume(context.Background(), store.ControlRequest{RequestID: "acquire-again", Kind: store.ResumeControl, World: acquire.World}); err != nil || session.manuals.Load() != 2 || session.acquires.Load() != 3 {
+		t.Fatal("resume after pause skipped Manual", err, session.manuals.Load(), session.acquires.Load())
+	}
+}
+
 // TestPlayerResumeRevokesOwnGrantAfterFailedObservation: a status read that
 // fails mid-Resume (a cancelled call under a slow bridge) leaves observation
 // unknown while this process's own Auto grant still stands natively. The next
-// Resume must revoke that grant through the kept target and acquire again,
-// rather than reporting every attempt uncertain because Acquire refuses an
-// Active it once targeted (#328).
+// Resume must re-acquire that grant (in place, since it is this process's
+// own held grant, #259) rather than reporting every attempt uncertain
+// because Acquire refuses an Active it once targeted (#328).
 func TestPlayerResumeRevokesOwnGrantAfterFailedObservation(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -551,7 +593,7 @@ func TestPlayerResumeRevokesOwnGrantAfterFailedObservation(t *testing.T) {
 	third.RequestID = "third"
 	got, err = p.Resume(ctx, third)
 	state = p.State()
-	if err != nil || got.Phase != store.RunningControl || !state.Enabled || !state.ObservationKnown || authority.revokes.Load() != 1 || authority.acquires.Load() != 2 {
+	if err != nil || got.Phase != store.RunningControl || !state.Enabled || !state.ObservationKnown || authority.revokes.Load() != 0 || authority.acquires.Load() != 2 {
 		t.Fatal(got, err, state, authority.revokes.Load(), authority.acquires.Load())
 	}
 }

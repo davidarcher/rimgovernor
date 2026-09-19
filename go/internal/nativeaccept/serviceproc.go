@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -202,7 +203,14 @@ type AuthorityKeepAlive struct {
 	reacquired        int
 	acknowledged      int
 	acknowledgeFailed int
-	lastError         string
+	// generationAdvance sums, over reacquisitions, the native generations
+	// each resume cost: the grant's generation less the one the service
+	// reported before it. A resume from a plain clock hold costs one;
+	// generationsOverOne counts those that cost more (a revoke first, the
+	// Manual->Auto pair #259 removed, or a native revocation in between).
+	generationAdvance  uint64
+	generationsOverOne int
+	lastError          string
 }
 
 // Start runs the keep-alive loop until ctx is cancelled.
@@ -225,6 +233,7 @@ func (k *AuthorityKeepAlive) Snapshot() map[string]any {
 	out := map[string]any{
 		"attempts": k.attempts, "reacquired": k.reacquired,
 		"acknowledged": k.acknowledged, "acknowledge_failed": k.acknowledgeFailed,
+		"generation_advance": k.generationAdvance, "generations_over_one": k.generationsOverOne,
 	}
 	if k.lastError != "" {
 		out["last_error"] = k.lastError
@@ -263,6 +272,7 @@ func (k *AuthorityKeepAlive) run(ctx context.Context) {
 		if AsString(state["mode"]) == "automate" {
 			continue
 		}
+		before, beforeKnown := keepAliveGeneration(state["generation"])
 		if clk, clkStatus, clkErr := k.Service.API("GET", "/api/player/clock", nil, ""); clkErr == nil && clkStatus == 200 {
 			if holds := AsSlice(clk["holds"]); len(holds) > 0 {
 				ackBody := map[string]any{
@@ -310,8 +320,25 @@ func (k *AuthorityKeepAlive) run(ctx context.Context) {
 		k.mu.Lock()
 		k.reacquired++
 		k.lastError = ""
+		if after, err := strconv.ParseUint(AsString(record["nativeGeneration"]), 10, 64); err == nil && beforeKnown && after > before {
+			k.generationAdvance += after - before
+			if after-before > 1 {
+				k.generationsOverOne++
+			}
+		}
 		k.mu.Unlock()
 	}
+}
+
+// keepAliveGeneration reads the native generation out of /api/state's
+// generation object, if it carries one.
+func keepAliveGeneration(v any) (uint64, bool) {
+	generation, ok := AsMap(v)
+	if !ok {
+		return 0, false
+	}
+	native, err := strconv.ParseUint(AsString(generation["native"]), 10, 64)
+	return native, err == nil
 }
 
 // OpenStoreWithRetry opens the service's SQLite journal read-side, retrying

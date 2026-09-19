@@ -542,3 +542,48 @@ func TestControlAcquireRestartsObservationAfterConcurrentDisable(t *testing.T) {
 	}
 	n.onRead = nil
 }
+
+// A grant this process accepted and disabled locally (a clock hold) is
+// re-acquired in place: one SetMode at the held generation, no revoke, one
+// generation advanced (#259). An observed revocation clears the held grant.
+func TestControlAcquireReacquiresOwnHeldGrantInOneGeneration(t *testing.T) {
+	t.Parallel()
+	control, n, sink, _ := controlFixture(t, nil)
+	granted, err := control.Acquire(context.Background(), controlScope())
+	if err != nil || granted.Native != 2 || !control.HoldsGrant(controlScope()) {
+		t.Fatal("first acquire", err, granted)
+	}
+	if err := control.Disable(); err != nil {
+		t.Fatal(err)
+	}
+	other := controlScope()
+	other.Load = "other-load"
+	if sink.enabled() || !control.HoldsGrant(controlScope()) || control.HoldsGrant(other) {
+		t.Fatal("disable dropped the held grant, or another world matched it")
+	}
+	// The worker retargets reads under a hold: observing another plan in
+	// the same world at the held generation keeps the grant.
+	retarget := controlScope()
+	retarget.Plan, retarget.Revision = "routine-plan", 3
+	if err := control.ObserveTarget(context.Background(), retarget); err != nil || !control.HoldsGrant(controlScope()) {
+		t.Fatal("observing another plan dropped the held grant", err)
+	}
+	again, err := control.Acquire(context.Background(), controlScope())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if again.Native != 3 || n.revokes.Load() != 0 || n.acquires.Load() != 2 || !sink.enabled() {
+		t.Fatal("held grant not re-acquired in place", again, n.revokes.Load(), n.acquires.Load())
+	}
+	if err := control.Manual(context.Background()); err != nil || n.revokes.Load() != 1 || control.HoldsGrant(controlScope()) {
+		t.Fatal("manual kept the grant", err, n.revokes.Load())
+	}
+	// Native Active at a generation this process never accepted is not its grant.
+	n.mu.Lock()
+	n.generation++
+	n.active = true
+	n.mu.Unlock()
+	if _, err := control.Acquire(context.Background(), controlScope()); !errors.Is(err, ErrControl) || n.acquires.Load() != 2 {
+		t.Fatal("foreign generation re-acquired", err, n.acquires.Load())
+	}
+}

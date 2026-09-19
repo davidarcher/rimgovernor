@@ -99,6 +99,10 @@ func (s GenerationSnapshot) Validate() error {
 	return nil
 }
 func (s GenerationSnapshot) Matches(other GenerationSnapshot) bool { return s == other }
+
+// SameWorld reports whether both snapshots name one loaded map, whatever
+// plan, revision or native generation each carries.
+func (s GenerationSnapshot) SameWorld(other GenerationSnapshot) bool { return s.sameWorld(other) }
 func (s GenerationSnapshot) sameWorld(other GenerationSnapshot) bool {
 	return s.Colony == other.Colony && s.Map == other.Map && s.Load == other.Load
 }

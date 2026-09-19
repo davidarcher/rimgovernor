@@ -2,6 +2,7 @@ package sustained
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strconv"
 	"time"
@@ -81,8 +82,24 @@ func colony(name string, quiet na.QuietMode, scope string) cases.Case {
 					// long window records, never a reason to cut it short.
 					FailFast: sustainedfood.FailFast{Disabled: true},
 				},
+				Audit: auditReacquisitions,
 			})
 			return err
 		},
 	}
+}
+
+// auditReacquisitions is the one gate the colony diagnostic keeps: every
+// keep-alive resume from an acknowledged hold re-acquires in place, one
+// native generation each, not the Manual->Auto pair that rebound every
+// prepared action to a new generation (#259).
+func auditReacquisitions(_ context.Context, _ *na.Harness, report na.Report) error {
+	keep, ok := na.AsMap(report["authority_reacquisitions"])
+	if !ok {
+		return nil
+	}
+	if over := na.AsNumber(keep["generations_over_one"]); over > 0 {
+		return fmt.Errorf("%v of %v keep-alive resumes cost more than one native generation (advance %v over %v attempts, %v holds acknowledged)", over, keep["reacquired"], keep["generation_advance"], keep["attempts"], keep["acknowledged"])
+	}
+	return nil
 }
