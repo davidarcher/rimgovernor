@@ -255,8 +255,10 @@ Sources: [saved map state](../integrations/rimgovernor-native/src/Runtime/Persis
 Native Home remains game-owned. Autonomous `ExtendHome` adds missing cells
 within the observed batch of an owned facility's connected enclosed rooms
 or an exact owned stockpile, subject to the observed shape and Home revision.
-Set, Clear and Invert advance that revision. Removing Home is new maintenance
-work, not a persistent exclusion. Legacy `rimgovernorHomeInitialized` and
+Set, Clear and Invert advance that revision. Removing Home during Manual
+becomes restoration work after Auto resumes, under the
+[Manual control contract](../docs/developers/architecture/control-loop.md#manual-control).
+Legacy `rimgovernorHomeInitialized` and
 `rimgovernorHomeExcluded` save fields are no longer read or written; old saves
 therefore resume autonomous restoration. The compatibility wire field
 `excluded_cells` is emitted as zero.
