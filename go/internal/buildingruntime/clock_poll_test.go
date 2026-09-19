@@ -89,7 +89,7 @@ func clockPollPage(f *schedulerNative, after int64, kind string) *k.EventsPage {
 	}
 	event := &k.Event{Cursor: proto.Int64(after + 1), Owner: &k.EpochOwner{ControllerSessionId: proto.String("session"), Epoch: proto.Int64(1)}, Context: proto.Clone(f.status.Context).(*c.ObservationContext), ObservedAtUnixMs: proto.Int64(100), Event: &k.Event_SpeedChanged{SpeedChanged: &k.SpeedChanged{Speed: k.Speed_SPEED_NORMAL.Enum()}}}
 	if kind == "alert" {
-		event.Event = &k.Event_Notification{Notification: &k.Notification{Source: &k.Notification_Letter{Letter: &k.Letter{Id: proto.String("danger"), Label: proto.String("danger")}}}}
+		event.Event = &k.Event_ForcePauseWaiting{ForcePauseWaiting: &k.ForcePauseWaiting{Pause: &k.PauseEvidence{Letter: &k.Letter{Id: proto.String("danger"), Label: proto.String("danger")}}}}
 	}
 	page.Events = []*k.Event{event}
 	return page

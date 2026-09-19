@@ -122,11 +122,18 @@ func BenignStopEvent(stop *k.StopEvent) bool {
 // coupled order and player input, #244), and so is an injury observation:
 // the native supervisor coalesces sub-threshold combat damage into that
 // row precisely so it never stops play for it, and a threshold crossing
-// arrives as its own COLONIST_HEALTH stop (#318). It is shared with the
-// poll loop so both classifications cannot drift.
+// arrives as its own COLONIST_HEALTH stop (#318). A notification is the
+// same tier: native publishes one only for the letter and message classes
+// it never stops play for (SupervisedPlayTool.NonStoppingLetterDefs and
+// NonStoppingMessageTypes: a neutral, positive or negative announcement, a
+// known wound worsening, a situation resolved), so holding on it disabled
+// the session under an admitted combat plan and re-planned the squad for
+// an announcement that carried no threat (#325); a letter class that
+// stops arrives as its own LETTER_PAUSE or NOTIFICATION_BATCH stop. It is
+// shared with the poll loop so both classifications cannot drift.
 func EventInterrupts(event *k.Event) bool {
 	switch e := event.Event.(type) {
-	case *k.Event_Started, *k.Event_SpeedChanged, *k.Event_HostilesCleared, *k.Event_ForcePauseCleared, *k.Event_OperationOutcome, *k.Event_AuthorityChanged, *k.Event_ObservationInvalidated, *k.Event_Alert, *k.Event_InjuryObserved:
+	case *k.Event_Started, *k.Event_SpeedChanged, *k.Event_HostilesCleared, *k.Event_ForcePauseCleared, *k.Event_OperationOutcome, *k.Event_AuthorityChanged, *k.Event_ObservationInvalidated, *k.Event_Alert, *k.Event_InjuryObserved, *k.Event_Notification:
 		return false
 	case *k.Event_Stopped:
 		return !BenignStopEvent(e.Stopped)

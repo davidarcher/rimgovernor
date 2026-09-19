@@ -16,7 +16,7 @@ import (
 func reviewAppend(t *testing.T, s *Store, profile string, after int64, lost uint64) {
 	t.Helper()
 	r, p := inboxPage(after, 1, lost)
-	p.Events[0].Event = &k.Event_Notification{Notification: &k.Notification{Source: &k.Notification_Letter{Letter: &k.Letter{Id: proto.String("letter"), Label: proto.String("warning")}}}}
+	p.Events[0].Event = &k.Event_ForcePauseWaiting{ForcePauseWaiting: &k.ForcePauseWaiting{Pause: &k.PauseEvidence{Letter: &k.Letter{Id: proto.String("letter"), Label: proto.String("warning")}}}}
 	if _, _, err := s.AppendClockEvents(context.Background(), profile, r, p); err != nil {
 		t.Fatal(err)
 	}
@@ -112,7 +112,7 @@ func TestClockReviewEventClassification(t *testing.T) {
 			t.Fatal(reason)
 		}
 	}
-	for _, event := range []*k.Event{{Event: &k.Event_Notification{}}, {Event: &k.Event_PauseFailed{}}, {Event: &k.Event_ForcePauseWaiting{}}} {
+	for _, event := range []*k.Event{{Event: &k.Event_PauseFailed{}}, {Event: &k.Event_ForcePauseWaiting{}}} {
 		if !clock.EventInterrupts(event) {
 			t.Fatal(event)
 		}
@@ -121,6 +121,14 @@ func TestClockReviewEventClassification(t *testing.T) {
 	// not a hold: the native supervisor never stops play for one (#244).
 	if clock.EventInterrupts(&k.Event{Event: &k.Event_Alert{}}) {
 		t.Fatal("alert interrupts")
+	}
+	// And a notification: native publishes one only for the letter and
+	// message classes it never stops play for; holding on it tore down an
+	// admitted combat plan for a wound-worsening message (#325).
+	for _, source := range []*k.Notification{{Source: &k.Notification_Letter{Letter: &k.Letter{Id: proto.String("letter"), Label: proto.String("warning"), DefName: proto.String("NegativeEvent"), Negative: proto.Bool(true)}}}, {Source: &k.Notification_Message{Message: &k.TransientMessage{Id: proto.String("message"), TypeDef: proto.String("NegativeHealthEvent"), Text: proto.String("known wound worsening"), Negative: proto.Bool(true)}}}} {
+		if clock.EventInterrupts(&k.Event{Event: &k.Event_Notification{Notification: source}}) {
+			t.Fatal("notification interrupts")
+		}
 	}
 	// So is an injury observation: sub-threshold combat damage the native
 	// supervisor coalesces without stopping; a threshold crossing is its

@@ -212,9 +212,13 @@ and derives interruption and gap holds from that evidence. Ordinary epoch starts
 speed changes, hostiles-cleared, force-pause-cleared, operation outcomes,
 authority changes, game alerts (`Event_Alert`: planning evidence and an
 `alert_row` telemetry event, never a hold, since the native supervisor never
-stops play for one, #244) and the benign stops (`store/clock.BenignStop`:
-tick budget, requested pause, watch latched) do not create interruption
-holds; notification, injury, failure and other stop events remain
+stops play for one, #244), injury observations (`Event_InjuryObserved`:
+sub-threshold damage native coalesces so it never stops play, #318),
+notifications (`Event_Notification`: only the letter and message classes
+native never stops play for arrive as one, #325) and the benign stops
+(`store/clock.BenignStop`: tick budget, requested pause, watch latched, and
+a letter pause for an informational letter) do not create interruption
+holds; pause failures, force-pause waits and other stop events remain
 conservative holds.
 Cleared conditions cannot erase an earlier unacknowledged event.
 
