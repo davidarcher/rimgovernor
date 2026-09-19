@@ -589,7 +589,7 @@ func TestAdvanceGameFreshEpochDiagnosesFromStartReceipt(t *testing.T) {
 			// The failure's cleanup re-reads the (already stopped) clock.
 			{"status": stoppedStatus("owner-1", 11, 0, 20, 60, 12, "STOP_REASON_LETTER_PAUSE", true)},
 		},
-		"clock_start":       {receipt},
+		"clock_start": {receipt},
 		"clock_read_events": {{"page": eventPage(scenarioIdentity(), 12, []map[string]any{
 			{"cursor": float64(11), "context": scenarioContext(0), "owner": map[string]any{"controllerSessionId": "owner-1", "epoch": float64(11)}, "started": map[string]any{}},
 			letterPauseEvent(12, 11, "owner-1", "letter-1"),
