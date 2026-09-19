@@ -148,6 +148,12 @@ func TestSituationalRoles(t *testing.T) {
 	if _, ok := HunterFor([]PawnProfile{medic, abrasive}); ok {
 		t.Fatal("unarmed or brawler hunter")
 	}
+	if id, ok := TraderFor(Among(all, []PawnID{"psycho", "abrasive"})); !ok || id != "psycho" {
+		t.Fatal("among ignored native eligibility", id, ok)
+	}
+	if got := Among(all, nil); got != nil {
+		t.Fatal("among nobody", got)
+	}
 	front, rear := FrontLine(all)
 	if !reflect.DeepEqual(front, []PawnID{"medic", "kind", "abrasive"}) || !reflect.DeepEqual(rear, []PawnID{"psycho"}) {
 		t.Fatal(front, rear)

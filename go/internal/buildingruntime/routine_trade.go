@@ -259,6 +259,10 @@ func (r *RoutineTradePlanner) step(call, epoch context.Context, arbiter *stepArb
 	if len(census.Negotiators) == 0 {
 		return RoutineTradeResult{Reason: BuildingMethodUnknown}, nil
 	}
+	negotiator, err := r.negotiator(call, state, review, census.Negotiators)
+	if err != nil {
+		return RoutineTradeResult{}, err
+	}
 	open, err := r.phase(call, goal, domain.TradeOpen, trader.ID)
 	if err != nil {
 		return RoutineTradeResult{}, err
@@ -267,7 +271,44 @@ func (r *RoutineTradePlanner) step(call, epoch context.Context, arbiter *stepArb
 	if open.found {
 		attempt = open.attempt + 1
 	}
-	return r.open(call, epoch, state, goal, trader.ID, census.Negotiators[0], attempt, arbiter, started)
+	return r.open(call, epoch, state, goal, trader.ID, negotiator, attempt, arbiter, started)
+}
+
+// negotiator picks the colonist to open with: policy.TraderFor over the
+// roster profiles, restricted to the pawns native listed as eligible
+// (alive, undrafted, able to talk). Native's own first row (best trade
+// price improvement) stands when the roster is unknown or no profile
+// qualifies -- native has already vetted every listed row.
+func (r *RoutineTradePlanner) negotiator(call context.Context, state ControlState, review store.RoutineReview, eligible []bridge.NegotiatorRead) (bridge.NegotiatorRead, error) {
+	expected, err := stepScope(call, r.reviewer.native)
+	if err != nil {
+		return bridge.NegotiatorRead{}, err
+	}
+	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
+		return bridge.NegotiatorRead{}, ErrControl
+	}
+	read, err := r.reviewer.observeOwned(call, r.reviewer.native, expected, domain.Unknown[[]policy.ConstructionClaim]())
+	if err != nil {
+		return bridge.NegotiatorRead{}, err
+	}
+	pawns, known := read.Projection.WorkPawns.Value()
+	if !known {
+		return eligible[0], nil
+	}
+	ids := make([]policy.PawnID, 0, len(eligible))
+	for _, row := range eligible {
+		ids = append(ids, policy.PawnID(row.ID))
+	}
+	chosen, ok := policy.TraderFor(policy.Among(policy.Profiles(pawns), ids))
+	if !ok {
+		return eligible[0], nil
+	}
+	for _, row := range eligible {
+		if policy.PawnID(row.ID) == chosen {
+			return row, nil
+		}
+	}
+	return eligible[0], nil
 }
 
 // open commits the Open phase: the census already vetted the negotiator's

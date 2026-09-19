@@ -96,8 +96,10 @@ execution), `TraderFor` (Social, Abrasive only when nobody else can talk),
 `TamerFor(minimum)` (Animals at the animal's `minimum_handling_skill`),
 `HunterFor` (Shooting, ranged, never a Brawler, fast walkers preferred) and
 `FrontLine` (Tough, Nimble, Brawler or Melee over Shooting hold the line; the
-rest shoot behind it). The medical, custody, trade, husbandry and defense
-reviews adopt them as each migrates (#417).
+rest shoot behind it). The trade review opens with `TraderFor` among the
+negotiators native lists as eligible (native's own first row when the roster
+is unknown or nobody qualifies); the medical, custody, husbandry, hunting and
+defense reviews adopt theirs as each migrates (#447).
 
 ## Schedules
 

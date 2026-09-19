@@ -26,6 +26,23 @@ func bestRole(candidates []roleCandidate) (PawnID, bool) {
 	return candidates[0].id, true
 }
 
+// Among restricts profiles to the pawns native already found eligible for a
+// role (a trade census's negotiators, a squad's defenders), so a role picks
+// only among them. An empty id list admits nobody.
+func Among(profiles []PawnProfile, ids []PawnID) []PawnProfile {
+	allowed := make(map[PawnID]bool, len(ids))
+	for _, id := range ids {
+		allowed[id] = true
+	}
+	var out []PawnProfile
+	for _, p := range profiles {
+		if allowed[p.ID] {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
 // SurgeonFor picks the surgeon for an operation needing Medicine at least
 // minimum (never under 4): the highest Medicine, a Psychopath preferred for
 // a harvest since the operation costs them no mood.
