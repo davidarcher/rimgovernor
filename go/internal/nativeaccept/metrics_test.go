@@ -201,3 +201,49 @@ func TestRecordSeriesAppendsAndFlags(t *testing.T) {
 		t.Errorf("rows = %d", len(rows))
 	}
 }
+
+func TestFlakeOfSpansTheTrailingWindowAndRecordSeriesStampsIt(t *testing.T) {
+	var series []SeriesRow
+	for i := 0; i < FlakeWindow+2; i++ {
+		// The two oldest rows fail and fall outside the window.
+		series = append(series, SeriesRow{Case: "x/y", RunID: "prior", Passed: i >= 2})
+	}
+	series = append(series, SeriesRow{Case: "x/y", RunID: "prior", Passed: false}, SeriesRow{Case: "x/y", RunID: "own", Passed: false}, SeriesRow{Case: "other", RunID: "prior", Passed: false})
+	f := FlakeOf("x/y", "own", series)
+	if f.Samples != FlakeWindow || f.Failures != 1 || f.Rate != 0.1 {
+		t.Errorf("flake = %+v", f)
+	}
+	if f.String() != "1 of 10 recent runs failed (10%)" {
+		t.Errorf("flake string = %q", f)
+	}
+	if got := FlakeOf("new", "own", series); got != (Flake{}) {
+		t.Errorf("unknown case flake = %+v", got)
+	}
+
+	path := filepath.Join(t.TempDir(), "metrics.jsonl")
+	r := Report{"passed": true, "world": WorldRecord{Seed: "first"}, MetricsKey: Metrics{"wall_ms": 1000}}
+	RecordSeries(path, "x/y", "run-1", r)
+	if _, has := r["flake"]; has {
+		t.Errorf("first run has a flake record: %v", r["flake"])
+	}
+	r = Report{"passed": false, "world": WorldRecord{Seed: "second"}, MetricsKey: Metrics{"wall_ms": 1000}}
+	RecordSeries(path, "x/y", "run-2", r)
+	if got, _ := r["flake"].(Flake); got != (Flake{Rate: 0, Failures: 0, Samples: 1}) {
+		t.Errorf("second run flake = %+v", got)
+	}
+	r = Report{"passed": true, MetricsKey: Metrics{"wall_ms": 1000}}
+	RecordSeries(path, "x/y", "run-3", r)
+	if got, _ := r["flake"].(Flake); got != (Flake{Rate: 0.5, Failures: 1, Samples: 2}) {
+		t.Errorf("third run flake = %+v", got)
+	}
+	rows, _ := ReadSeries(path)
+	if len(rows) != 3 || rows[0].Seed != "first" || rows[1].Seed != "second" || rows[2].Seed != "" {
+		t.Errorf("seeds = %+v", rows)
+	}
+	data, _ := json.Marshal(Report{"flake": Flake{Rate: 0.5, Failures: 1, Samples: 2}})
+	var decoded map[string]any
+	_ = json.Unmarshal(data, &decoded)
+	if got, ok := FlakeOfReport(decoded); !ok || got != (Flake{Rate: 0.5, Failures: 1, Samples: 2}) {
+		t.Errorf("FlakeOfReport = %+v, %v", got, ok)
+	}
+}

@@ -32,12 +32,24 @@ type Start interface {
 	// load leaves the game loaded (not necessarily paused) and returns the
 	// report row for "start".
 	load(ctx context.Context, s *Session, quiet QuietMode) (map[string]any, error)
+	// world, after load, is what the start contributes to the report's
+	// world block (RecordWorld).
+	world() worldSource
 }
 
 // The debug quick start on the small map; the zero value is
 // DefaultDebugStart (the environment's size and coverage).
 func (d DebugStart) saves() []string      { return nil }
 func (d DebugStart) fixtureOps() []string { return nil }
+func (d DebugStart) world() worldSource {
+	src := worldSource{seed: startCache.seed, pinned: d.Seed != ""}
+	if name := cachedStartName(d.withDefaults()); CachedStart() && startCache.root != "" {
+		if _, have := cachedStartPath(name); have {
+			src.save = name
+		}
+	}
+	return src
+}
 
 func (d DebugStart) load(ctx context.Context, s *Session, quiet QuietMode) (map[string]any, error) {
 	d = d.withDefaults()
@@ -64,6 +76,7 @@ type Save struct {
 
 func (v Save) saves() []string      { return []string{v.Name} }
 func (v Save) fixtureOps() []string { return nil }
+func (v Save) world() worldSource   { return worldSource{save: v.Name} }
 
 func (v Save) load(ctx context.Context, s *Session, quiet QuietMode) (map[string]any, error) {
 	if v.Name == "" {
@@ -124,6 +137,7 @@ func (f Fixture) base() Start {
 func (f Fixture) saves() []string { return f.base().saves() }
 
 func (f Fixture) fixtureOps() []string { return append(f.base().fixtureOps(), f.Op) }
+func (f Fixture) world() worldSource   { return f.base().world() }
 
 func (f Fixture) load(ctx context.Context, s *Session, quiet QuietMode) (map[string]any, error) {
 	row, err := f.base().load(ctx, s, quiet)
@@ -166,6 +180,7 @@ type Loaded struct{}
 
 func (Loaded) saves() []string      { return nil }
 func (Loaded) fixtureOps() []string { return nil }
+func (Loaded) world() worldSource   { return worldSource{} }
 
 func (Loaded) load(ctx context.Context, s *Session, quiet QuietMode) (map[string]any, error) {
 	loaded, err := gameLoaded(ctx, s.Harness, "loaded-identity")
@@ -205,7 +220,8 @@ type Session struct {
 // start, a save load and, for a Fixture, its op), pause, the frozen needs
 // except keep (LiveNeeds skips the freeze), and the initial identity. It
 // records package_files,
-// discovery, start, quiet, prepared, frozen_needs and boot_ms on report;
+// discovery, start, world (RecordWorld, #281), quiet, prepared,
+// frozen_needs and boot_ms on report;
 // Close adds game_reuse. A failure after the game opened closes it before
 // returning.
 func OpenSession(ctx context.Context, cfg *Config, report Report, start Start, quiet QuietMode, keep ...NeedDef) (*Session, error) {
@@ -268,6 +284,7 @@ func (s *Session) open(ctx context.Context, start Start, quiet QuietMode, keep [
 		return err
 	}
 	s.Report["start"] = row
+	s.Report["world"] = RecordWorld(s.Config, start)
 	if err := s.Pause(ctx); err != nil {
 		return err
 	}
@@ -397,6 +414,7 @@ type ScenarioStart struct {
 
 func (ScenarioStart) saves() []string      { return nil }
 func (ScenarioStart) fixtureOps() []string { return nil }
+func (v ScenarioStart) world() worldSource { return worldSource{seed: v.Seed, pinned: true} }
 
 func (v ScenarioStart) load(ctx context.Context, s *Session, quiet QuietMode) (map[string]any, error) {
 	if !Contains(s.Names, ScenarioStartTool) {

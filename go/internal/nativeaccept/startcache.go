@@ -20,6 +20,9 @@ import (
 // storyteller is applied after either path, as before. Delete the save to
 // regenerate; a harness that must see a never-before-seen world (world
 // generation itself under test) runs with RIMGOVERNOR_ACCEPT_CACHED_START=0.
+// A start with a pinned seed (#281) caches as its own
+// RimGovernor-debug-...-seed-<seed> save, so it never takes the plain
+// roll's world and a repeat under the seed loads instead of generating.
 const CachedStartEnv = "RIMGOVERNOR_ACCEPT_CACHED_START"
 
 // startCache is what PrepareConfig knows and StartDebugGame needs to find
@@ -29,6 +32,9 @@ var startCache struct {
 	root       string
 	headless   bool
 	expansions []string
+	// seed is the seed the last StartDebugGameSized armed a generation
+	// with, "" when it loaded the cached save or had no DebugStartTool.
+	seed string
 }
 
 // CachedStart reports whether the saved start is used: true unless
@@ -44,6 +50,9 @@ func cachedStartName(start DebugStart) string {
 	// to a food-bearing biome must not load a plain roll's save (#172).
 	if start.Biomes != "" {
 		name += "-" + strings.ToLower(strings.ReplaceAll(strings.ReplaceAll(start.Biomes, " ", ""), ",", "-"))
+	}
+	if start.Seed != "" {
+		name += "-seed-" + seedToken(start.Seed)
 	}
 	return strings.ReplaceAll(name, ".", "_")
 }

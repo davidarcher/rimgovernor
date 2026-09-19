@@ -83,6 +83,9 @@ func (d DebugStart) Describe() map[string]any {
 	if d.Size.Biomes != "" {
 		row["biomes"] = d.Size.Biomes
 	}
+	if d.Size.Seed != "" {
+		row["seed"] = d.Size.Seed
+	}
 	return row
 }
 func (s Save) Describe() map[string]any { return map[string]any{"kind": "save", "name": s.Name} }

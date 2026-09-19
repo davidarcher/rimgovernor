@@ -46,3 +46,41 @@ func TestRequestIDResumeSuffix(t *testing.T) {
 		t.Fatalf("suffixed id %q is not a valid submission id: %v", got, err)
 	}
 }
+
+func TestSeededStartPinsDebugAndScenarioStartsOnly(t *testing.T) {
+	if s, err := seededStart(DebugStart{}, ""); err != nil || s.(na.DebugStart).Seed != "" {
+		t.Errorf("unseeded = %+v, %v", s, err)
+	}
+	if s, err := seededStart(DebugStart{Size: na.DebugStart{Biomes: "Tundra"}}, "abc"); err != nil || s != (na.DebugStart{Biomes: "Tundra", Seed: "abc"}) {
+		t.Errorf("debug = %+v, %v", s, err)
+	}
+	if s, err := seededStart(Scenario{Spec: na.ScenarioStart{Scenario: "LostTribe"}}, "abc"); err != nil || s.(na.ScenarioStart).Seed != "abc" {
+		t.Errorf("scenario = %+v, %v", s, err)
+	}
+	s, err := seededStart(Fixture{Op: "test/x"}, "abc")
+	if f, ok := s.(na.Fixture); err != nil || !ok || f.Op != "test/x" || f.On != (na.DebugStart{Seed: "abc"}) {
+		t.Errorf("fixture = %+v, %v", s, err)
+	}
+	if _, err := seededStart(Save{Name: "baseline"}, "abc"); err == nil {
+		t.Error("a save start took a seed")
+	}
+	if _, err := seededStart(Fixture{Op: "test/x", On: Save{Name: "baseline"}}, "abc"); err == nil {
+		t.Error("a fixture on a save took a seed")
+	}
+}
+
+func TestCaseOutputByAttempt(t *testing.T) {
+	c := Case{Name: "a/b"}
+	out := Options{Output: filepath.Join("out")}
+	if got := out.CaseOutput(c); got != filepath.Join("out", "a", "b") {
+		t.Errorf("attempt 0 = %q", got)
+	}
+	out.Attempt = 1
+	if got := out.CaseOutput(c); got != filepath.Join("out", "a", "b") {
+		t.Errorf("attempt 1 = %q", got)
+	}
+	out.Attempt = 3
+	if got := out.CaseOutput(c); got != filepath.Join("out", "repeat", "3", "a", "b") {
+		t.Errorf("attempt 3 = %q", got)
+	}
+}

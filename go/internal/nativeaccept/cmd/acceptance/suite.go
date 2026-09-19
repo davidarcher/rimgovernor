@@ -40,6 +40,13 @@ package main
 // shared by successive suites beside each other), and the metrics past
 // their rule against the series' trailing median (na.Drift) are listed on
 // the row under "drift" and, over all rows, under the suite's "drift".
+//
+// Every row also carries the run's world block ("world": seed, save and
+// fixture hashes, #281) and its flake record ("flake": the share of the
+// case's recent series runs that failed, na.FlakeOf). A suite used as
+// -baseline hands that record on: a regression row shows its baseline's
+// flake beside the ratio, and a failed row prints with its own, so a
+// known flake reads as one.
 
 import (
 	"context"
@@ -207,11 +214,12 @@ func resolveEntries(list []entry) error {
 }
 
 // baseline is what an earlier suite's result.json contributes: wall and
-// boot times by case name.
+// boot times and the flake record by case name.
 type baseline struct {
-	path string
-	wall map[string]float64
-	boot map[string]float64
+	path  string
+	wall  map[string]float64
+	boot  map[string]float64
+	flake map[string]na.Flake
 }
 
 func loadBaseline(path string) (*baseline, error) {
@@ -220,9 +228,10 @@ func loadBaseline(path string) (*baseline, error) {
 		return nil, fmt.Errorf("-baseline: %w", err)
 	}
 	type row struct {
-		Name   string  `json:"name"`
-		WallMs float64 `json:"wall_ms"`
-		BootMs float64 `json:"boot_ms"`
+		Name   string    `json:"name"`
+		WallMs float64   `json:"wall_ms"`
+		BootMs float64   `json:"boot_ms"`
+		Flake  *na.Flake `json:"flake"`
 	}
 	var prior struct {
 		Cases []row `json:"cases"`
@@ -230,10 +239,13 @@ func loadBaseline(path string) (*baseline, error) {
 	if err := json.Unmarshal(data, &prior); err != nil {
 		return nil, fmt.Errorf("-baseline: %s is not a suite result.json: %w", path, err)
 	}
-	b := &baseline{path: path, wall: map[string]float64{}, boot: map[string]float64{}}
+	b := &baseline{path: path, wall: map[string]float64{}, boot: map[string]float64{}, flake: map[string]na.Flake{}}
 	for _, r := range prior.Cases {
 		b.wall[r.Name] = r.WallMs
 		b.boot[r.Name] = r.BootMs
+		if r.Flake != nil {
+			b.flake[r.Name] = *r.Flake
+		}
 	}
 	return b, nil
 }
@@ -285,6 +297,17 @@ type regression struct {
 	RunMs         int64   `json:"run_ms"`
 	BaselineRunMs int64   `json:"baseline_run_ms"`
 	Ratio         float64 `json:"ratio"`
+	// BaselineFlake is the case's flake record as the baseline suite
+	// carried it, absent when it carried none.
+	BaselineFlake *na.Flake `json:"baseline_flake,omitempty"`
+}
+
+func (r regression) String() string {
+	s := fmt.Sprintf("%s %.2fx", r.Name, r.Ratio)
+	if r.BaselineFlake != nil && r.BaselineFlake.Failures > 0 {
+		s += fmt.Sprintf(" (baseline flake %.0f%%)", r.BaselineFlake.Rate*100)
+	}
+	return s
 }
 
 // regressions lists the rows over their baseline, in queue order, and the
@@ -303,7 +326,11 @@ func regressions(rows []map[string]any, b *baseline) (list []regression, baselin
 		boot, _ := row["boot_ms"].(int64)
 		run := float64(wall - boot)
 		if baseRun > 0 && run > baseRun*RegressionRatio && run-baseRun > RegressionFloorMs {
-			list = append(list, regression{Name: name, WallMs: wall, BaselineMs: int64(base), RunMs: int64(run), BaselineRunMs: int64(baseRun), Ratio: run / baseRun})
+			r := regression{Name: name, WallMs: wall, BaselineMs: int64(base), RunMs: int64(run), BaselineRunMs: int64(baseRun), Ratio: run / baseRun}
+			if flake, ok := b.flake[name]; ok {
+				r.BaselineFlake = &flake
+			}
+			list = append(list, r)
 		}
 	}
 	return list, baselineTotal
@@ -425,6 +452,9 @@ func runSuite(ctx context.Context, list []entry, opts suiteOptions, stderr io.Wr
 			passed++
 		} else {
 			failed = append(failed, na.AsString(row["name"]))
+			if flake, ok := row["flake"].(na.Flake); ok && flake.Failures > 0 {
+				fmt.Fprintf(stderr, "%s failed and is a known flake: %s before this run\n", row["name"], flake)
+			}
 		}
 	}
 	report["cases_passed"] = passed
@@ -436,7 +466,7 @@ func runSuite(ctx context.Context, list []entry, opts suiteOptions, stderr io.Wr
 		if len(list) > 0 {
 			names := make([]string, 0, len(list))
 			for _, r := range list {
-				names = append(names, fmt.Sprintf("%s %.2fx", r.Name, r.Ratio))
+				names = append(names, r.String())
 			}
 			fmt.Fprintf(stderr, "regressions (>%.0f%% and >%ds over baseline, net of boot): %s\n", (RegressionRatio-1)*100, RegressionFloorMs/1000, strings.Join(names, ", "))
 		}
@@ -547,6 +577,12 @@ func runEntry(ctx context.Context, e entry, opts suiteOptions, self, workerRoot 
 			}
 			if m, ok := na.MetricsOf(result); ok {
 				row["metrics"] = m
+			}
+			if world, ok := na.WorldOf(result); ok {
+				row["world"] = world
+			}
+			if flake, ok := na.FlakeOfReport(result); ok {
+				row["flake"] = flake
 			}
 			if flags, ok := result["drift"].([]any); ok && len(flags) > 0 {
 				row["drift"] = flags

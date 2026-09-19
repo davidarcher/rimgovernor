@@ -102,8 +102,11 @@ func TestRegressionsFlagOverRatioAndFloorNetOfBoot(t *testing.T) {
 	if len(list) != 1 || list[0].Name != "a" || list[0].BaselineMs != 10000 || list[0].WallMs != 15001 || list[0].RunMs != 15001 || list[0].BaselineRunMs != 10000 {
 		t.Errorf("regressions = %+v", list)
 	}
-	if data, _ := json.Marshal(list); !strings.Contains(string(data), `"ratio":1.5001`) {
+	if data, _ := json.Marshal(list); !strings.Contains(string(data), `"ratio":1.5001`) || strings.Contains(string(data), "baseline_flake") {
 		t.Errorf("ratio json = %s", data)
+	}
+	if list[0].String() != "a 1.50x" {
+		t.Errorf("regression line = %q", list[0])
 	}
 	// A run that attached is compared to a baseline that booted.
 	rows = []map[string]any{{"name": "e", "wall_ms": int64(15200), "boot_ms": int64(100)}}
@@ -296,5 +299,26 @@ func TestIssue6MatrixCoversEveryCriterion(t *testing.T) {
 	argv, _ := entryCommand(resolved[0], suiteOptions{Output: absRoot(), Rimgovernor: "rg.exe", GameID: "rimgovernor-trial"}, "acceptance.exe", "w1")
 	if !slices.Contains(argv, "-rimgovernor") {
 		t.Errorf("service case argv lacks -rimgovernor: %v", argv)
+	}
+}
+
+// A baseline row's flake record (#281) rides on the regression it flags.
+func TestRegressionsCarryTheBaselineFlake(t *testing.T) {
+	b, err := loadBaseline(writeBaseline(t, `{"cases":[
+		{"name":"a","wall_ms":10000,"flake":{"rate":0.3,"failures":3,"samples":10}},
+		{"name":"b","wall_ms":10000,"flake":{"rate":0,"failures":0,"samples":4}}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	list, _ := regressions([]map[string]any{{"name": "a", "wall_ms": int64(20000)}, {"name": "b", "wall_ms": int64(20000)}}, b)
+	if len(list) != 2 || list[0].BaselineFlake == nil || list[0].BaselineFlake.Failures != 3 || list[1].BaselineFlake == nil || list[1].BaselineFlake.Samples != 4 {
+		t.Fatalf("regressions = %+v", list)
+	}
+	if list[0].String() != "a 2.00x (baseline flake 30%)" || list[1].String() != "b 2.00x" {
+		t.Errorf("lines = %q, %q", list[0], list[1])
+	}
+	data, _ := json.Marshal(list[0])
+	if !strings.Contains(string(data), `"baseline_flake":{"rate":0.3,"failures":3,"samples":10}`) {
+		t.Errorf("json = %s", data)
 	}
 }

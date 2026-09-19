@@ -146,6 +146,11 @@ What it produces:
   in the same root (first output line says so); pass `-fresh` to start
   over, `-rewind N` to step back. Report a resumed pass as such and land
   on a fresh one: `acceptance suite` and the `cmd/test` hint run fresh.
+- Flake or regression: `result.json` `world` names the seed, save hash
+  and fixture hash the run had, and `flake` its recent failure share.
+  `acceptance run <case> -repeat N` measures the pass rate under one
+  build; `-seed <s>` reruns a debug or scenario start on a recorded
+  seed (#281). Say which in the issue instead of "reroll the world".
 - Report evidence from `result.json`/`report.json` and the retained logs;
   name the cases you ran in the commit message.
 - Iterating on a fixture op: `acceptance fixture <op> [k=v ...] -root

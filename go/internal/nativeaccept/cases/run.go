@@ -48,6 +48,20 @@ type Options struct {
 	// Rewind resumes that many entries earlier than the ring's next.
 	Fresh  bool
 	Rewind int
+	// Seed pins the world seed of a debug or scenario start (#281): the
+	// seed a result.json's world block recorded reproduces that run's
+	// world. A case that starts from a save has no seed to pin and is
+	// refused. Implies Fresh.
+	Seed string
+	// Repeat runs each case this many times on the kept process (#281)
+	// and reports the pass rate and per-attempt seeds (cmd/acceptance
+	// runRepeat); 0 or 1 is one run. Every attempt is fresh with the
+	// checkpoint ring off, since a resumed attempt measures nothing.
+	Repeat int
+	// Attempt numbers the run under Repeat: 1 (or 0) writes the case's
+	// usual output directory, later attempts write under
+	// Output/repeat/<n>/<case> so each keeps its own evidence.
+	Attempt int
 	// Log receives the run's progress lines (the resume decision); nil
 	// discards them.
 	Log io.Writer
@@ -75,6 +89,9 @@ func (o Options) RunID() string { return filepath.Base(o.Output) }
 
 // CaseOutput is where a case's evidence and result.json go.
 func (o Options) CaseOutput(c Case) string {
+	if o.Attempt > 1 {
+		return filepath.Join(o.Output, "repeat", fmt.Sprint(o.Attempt), filepath.FromSlash(c.Name))
+	}
 	return filepath.Join(o.Output, filepath.FromSlash(c.Name))
 }
 
@@ -187,11 +204,16 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 	if log == nil {
 		log = io.Discard
 	}
+	if opts.Seed != "" {
+		// A reproduction runs the recorded world from scratch; a resumed
+		// checkpoint would be some other run's world.
+		opts.Fresh = true
+	}
 	resumed, err := planResume(c, opts, log)
 	if err != nil {
 		return fmt.Errorf("checkpoint ring: %w", err)
 	}
-	s := &session{c: c, report: report, binary: opts.Rimgovernor}
+	s := &session{c: c, report: report, binary: opts.Rimgovernor, seed: opts.Seed}
 	if resumed.resuming() {
 		s.resumeSuffix = opts.RunID()
 	}
@@ -199,7 +221,10 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 		Spawned: func(pid int) { s.gabsPID.Store(int64(pid)) }}
 	s.config = cfg
 	report["keep"] = !c.NoKeep && na.KeepGame()
-	start := nativeStart(c.Start)
+	start, err := seededStart(c.Start, opts.Seed)
+	if err != nil {
+		return err
+	}
 	if resumed.resuming() {
 		// The bundle's save replaces the case's Start (the fixture op
 		// already ran before the capture), its store lands where the
@@ -321,6 +346,33 @@ func StageSaves(start Start, root string) error {
 	return nil
 }
 
+// seededStart is the case's Start as the lifecycle library's with seed
+// pinned on it (#281); "" leaves the start as declared. Only a debug or
+// scenario start (bare or under a Fixture) generates a world to pin.
+func seededStart(start Start, seed string) (na.Start, error) {
+	if seed == "" {
+		return nativeStart(start), nil
+	}
+	switch s := start.(type) {
+	case DebugStart:
+		s.Size.Seed = seed
+		return nativeStart(s), nil
+	case Scenario:
+		s.Spec.Seed = seed
+		return nativeStart(s), nil
+	case Fixture:
+		if s.On == nil {
+			s.On = DebugStart{}
+		}
+		on, err := seededStart(s.On, seed)
+		if err != nil {
+			return nil, err
+		}
+		return na.Fixture{Op: s.Op, Args: s.Args, On: on}, nil
+	}
+	return nil, fmt.Errorf("-seed %s: the case starts from %v, which carries its own world; only a debug or scenario start takes a seed", seed, start.Describe())
+}
+
 // nativeStart is the case's Start as the lifecycle library's.
 func nativeStart(start Start) na.Start {
 	switch start := start.(type) {
@@ -352,6 +404,8 @@ type session struct {
 	services []*na.ServiceProcess
 	// resumeSuffix is what RequestID appends on a resumed run, "" fresh.
 	resumeSuffix string
+	// seed is the run's pinned world seed, "" when none.
+	seed string
 	runtime      *na.ScenarioRuntime
 	gabsPID      atomic.Int64
 }
@@ -365,7 +419,11 @@ func (s *session) Reload(ctx context.Context) (*na.Harness, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := s.Session.Reopen(ctx, nativeStart(s.c.Start), s.c.Quiet, s.c.keepNeeds()...); err != nil {
+	start, err := seededStart(s.c.Start, s.seed)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.Session.Reopen(ctx, start, s.c.Quiet, s.c.keepNeeds()...); err != nil {
 		return nil, err
 	}
 	return h, nil

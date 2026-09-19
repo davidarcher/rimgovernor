@@ -98,7 +98,8 @@ baseline never ran, so an agent choosing among the cases a change owes
 can see that one costs 4 minutes and another 18, #283), and
 `acceptance run <area>/<case>... -root <abs root> [-output <dir>]
 [-rimgovernor <abs rimgovernor.exe>] [-budget <d> -stall <d> -timeout <d>]
-[-fresh] [-rewind N] [-checkpoint-every <d>] [-evidence capped|full]`
+[-fresh] [-rewind N] [-checkpoint-every <d>] [-evidence capped|full]
+[-repeat N] [-seed <s>]`
 runs cases on one kept process, writing each case's `result.json` under
 `<output>/<area>/<case>` beside one evidence file per native call
 (`NNNN-<label>.json`) and per service request (`service*/http-NNNN.json`).
@@ -122,9 +123,25 @@ The runner owns the preamble every retired per-harness binary used to
 repeat: the stale-package check and profile preparation, `OpenGame` on
 the root's kept process, discovery, the start, the pause, the frozen
 needs, the identity, the fixture reply (`s.Prepared()`), the report
-(`s.Report()`: `package_files`, `discovery`, `start`, `quiet`,
+(`s.Report()`: `package_files`, `discovery`, `start`, `world`, `quiet`,
 `prepared`, `frozen_needs`, `boot_ms`), the close and the startup-log
-check. A serve-driven case declares `Serve: &cases.ServeSpec{...}` and
+check. `world` (#281) is what decided the world the case ran on: the
+`seed` (drawn by the runner for a debug start, the scenario's, or the
+loaded save's own), the `save` loaded (a cached debug start, a `Save`
+start, a resumed checkpoint) with its `save_sha256`, and the fixture op
+with `fixture_hash` over its arguments; the native build's hashes stay
+under `package_files`. A failure that depends on the roll (#185) is read
+against it instead of rerun by hand: `-repeat N` runs each case N times
+fresh on the kept process (the checkpoint ring off; attempts after the
+first write under `<output>/repeat/<n>/`) and writes
+`<output>/<area>/<case>.repeat.json` with the pass rate and each
+attempt's world, printing `REPEAT <case> pass=k/N seeds=[...]`, so a
+flake shows as a rate under one build; `-seed <s>` pins a debug or
+scenario start to a recorded `world.seed` (the tile and the starting
+pawns follow the seed natively, and the map follows the world and tile),
+which reproduces that run's world fresh. A `Save` start carries its own
+world and refuses `-seed`. A pinned debug start caches as its own
+`RimGovernor-debug-...-seed-<s>` save, so a repeat under it loads. A serve-driven case declares `Serve: &cases.ServeSpec{...}` and
 calls `s.Serve(ctx, s.Spec())` when its in-game setup is done (the
 `dialog/pause`, `surgery/queue` and `light/*` cases are the reference
 shapes); `s.Reattach(ctx)` takes the slot back for the postmortem reads.
@@ -196,13 +213,16 @@ by review alone.
    flight recording under the output directory and the evidence size are
    flattened into `metrics` (`na.MetricNames`, #297): the block every
    run appends, with the case, run id (the output directory's name),
-   source revision and timestamp, to the append-only series at `-series`
-   (default `<output>/../metrics.jsonl`, shared by the runs beside each
-   other; `-no-series` skips it). A metric past its rule
+   source revision, world seed and timestamp, to the append-only series
+   at `-series` (default `<output>/../metrics.jsonl`, shared by the runs
+   beside each other; `-no-series` skips it). A metric past its rule
    (`na.DriftRules`: a ratio and an absolute floor over the trailing
    median of the case's last ten earlier passes; `cache_hit_ratio`,
    `wall_tps` and `ticks_advanced` flag a drop) is listed under `drift`,
-   never failing the run.
+   never failing the run. The run's `flake` block (`na.FlakeOf`, #281) is
+   the share of the case's last ten series runs that failed, whatever
+   the reason: a rate strictly between 0 and 1 is a case that passes and
+   fails on the same code.
    Every native call a case makes is one evidence row,
    `<output>/<area>/<case>/NNNN-<label>.json`, stamped with `sequence`
    (one stream per case output directory, continued across a reattach
@@ -550,8 +570,13 @@ beside the baseline's, and `regressions`: every case whose run time
 count) is both 25% and 5s over its baseline row's (flagged, never failing
 on its own; #176). Every row also carries its `metrics` block and
 `drift` flags, and the suite report lists all flags under `drift` (the
-rows append to the same series, `-series`, passed through to each run).
-The suite passes only when every case did.
+rows append to the same series, `-series`, passed through to each run),
+its `world` block and its `flake` record (#281). A suite used as
+`-baseline` hands the flake record on: a regression row carries
+`baseline_flake` and prints it beside the ratio (`a 1.50x (baseline
+flake 30%)`), and a failed row whose record has failures prints as a
+known flake, so neither is read as a regression without a look at the
+seed. The suite passes only when every case did.
 `cmd/acceptance/suites/issue-6-matrix.json` is issue #6's cross-slice
 acceptance matrix: one row per criterion in the issue text (dark and
 partially lit benches, protected fungus rooms, lighting repair after a

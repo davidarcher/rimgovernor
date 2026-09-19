@@ -177,15 +177,72 @@ func MetricsOf(r map[string]any) (Metrics, bool) {
 }
 
 // SeriesRow is one line of the append-only series: which case, which run
-// (RunID names the run's output directory), what source it ran from, when,
-// whether it passed and its block.
+// (RunID names the run's output directory), what source it ran from, on
+// which world seed (the report's world block, #281), when, whether it
+// passed and its block.
 type SeriesRow struct {
 	Case           string    `json:"case"`
 	RunID          string    `json:"run_id"`
 	SourceRevision string    `json:"source_revision,omitempty"`
+	Seed           string    `json:"seed,omitempty"`
 	Timestamp      time.Time `json:"timestamp"`
 	Passed         bool      `json:"passed"`
 	Metrics        Metrics   `json:"metrics"`
+}
+
+// FlakeWindow is how many prior rows of a case its flake rate spans.
+const FlakeWindow = 10
+
+// Flake is a case's recent pass record over the series (#281): the share
+// of its last FlakeWindow runs that failed, whatever the reason. A rate
+// strictly between 0 and 1 is a case that passes and fails on the same
+// code; the suite prints it beside a failed or flagged row so a known
+// flake is not read as a regression.
+type Flake struct {
+	Rate     float64 `json:"rate"`
+	Failures int     `json:"failures"`
+	Samples  int     `json:"samples"`
+}
+
+func (f Flake) String() string {
+	return fmt.Sprintf("%d of %d recent runs failed (%.0f%%)", f.Failures, f.Samples, f.Rate*100)
+}
+
+// FlakeOf is the flake record of case name over the last FlakeWindow rows
+// of the series that are not the run's own (runID); Samples is zero when
+// the series has none.
+func FlakeOf(name, runID string, series []SeriesRow) Flake {
+	var prior []SeriesRow
+	for _, row := range series {
+		if row.Case == name && row.RunID != runID {
+			prior = append(prior, row)
+		}
+	}
+	if len(prior) > FlakeWindow {
+		prior = prior[len(prior)-FlakeWindow:]
+	}
+	f := Flake{Samples: len(prior)}
+	for _, row := range prior {
+		if !row.Passed {
+			f.Failures++
+		}
+	}
+	if f.Samples > 0 {
+		f.Rate = float64(f.Failures) / float64(f.Samples)
+	}
+	return f
+}
+
+// FlakeOfReport reads a report's "flake" block (a report decoded from
+// JSON holds it as map[string]any).
+func FlakeOfReport(r map[string]any) (Flake, bool) {
+	switch block := r["flake"].(type) {
+	case Flake:
+		return block, true
+	case map[string]any:
+		return Flake{Rate: AsNumber(block["rate"]), Failures: int(AsNumber(block["failures"])), Samples: int(AsNumber(block["samples"]))}, true
+	}
+	return Flake{}, false
 }
 
 // SeriesPath is where a run rooted at output keeps its series: metrics.jsonl
@@ -345,10 +402,11 @@ func medianOf(values []float64) float64 {
 }
 
 // RecordSeries appends the finalized report's block for case name to the
-// series at path under runID, stamped with SourceRevision, and returns the
-// drift flags against the rows already there. The report gains
-// "series" (the path) and, when any, "drift". Errors are reported, not
-// fatal: the run's verdict does not depend on its bookkeeping.
+// series at path under runID, stamped with SourceRevision and the run's
+// world seed, and returns the drift flags against the rows already there.
+// The report gains "series" (the path), "flake" (FlakeOf over the prior
+// rows, when there are any) and, when any, "drift". Errors are reported,
+// not fatal: the run's verdict does not depend on its bookkeeping.
 func RecordSeries(path, name, runID string, r Report) []DriftFlag {
 	m, ok := MetricsOf(r)
 	if !ok {
@@ -363,8 +421,12 @@ func RecordSeries(path, name, runID string, r Report) []DriftFlag {
 	if len(flags) > 0 {
 		r["drift"] = flags
 	}
+	if flake := FlakeOf(name, runID, prior); flake.Samples > 0 {
+		r["flake"] = flake
+	}
 	passed, _ := r["passed"].(bool)
-	row := SeriesRow{Case: name, RunID: runID, SourceRevision: SourceRevision(), Timestamp: time.Now().UTC(), Passed: passed, Metrics: m}
+	world, _ := WorldOf(r)
+	row := SeriesRow{Case: name, RunID: runID, SourceRevision: SourceRevision(), Seed: world.Seed, Timestamp: time.Now().UTC(), Passed: passed, Metrics: m}
 	if err := AppendSeries(path, row); err != nil {
 		r["series_error"] = err.Error()
 	}

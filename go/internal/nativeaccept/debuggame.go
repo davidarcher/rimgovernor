@@ -33,11 +33,15 @@ const (
 // settlement tile of the first one the generated planet offers (issue #172:
 // a case whose assertion needs a food-bearing map cannot leave the biome to
 // the roll, least of all under the cached start, which pins one roll per
-// root). Biomes needs DebugStartTool, so a fixture build.
+// root). Biomes needs DebugStartTool, so a fixture build. Seed pins the
+// world seed (#281: `acceptance run -seed` reproduces a recorded run; the
+// tile and starting pawns follow it natively); empty draws one, which the
+// report's world block records. A pinned seed caches under its own save.
 type DebugStart struct {
 	MapSize        int
 	PlanetCoverage float64
 	Biomes         string
+	Seed           string
 }
 
 // withDefaults fills a zero size and coverage from DefaultDebugStart,
@@ -149,6 +153,7 @@ func StartDebugGameSized(ctx context.Context, h *Harness, names []string, mode Q
 	}
 	cached := CachedStart() && startCache.root != ""
 	name := cachedStartName(start)
+	startCache.seed = ""
 	if _, have := cachedStartPath(name); cached && have {
 		if err := loadCachedStart(ctx, h, name); err != nil {
 			return nil, err
@@ -158,11 +163,21 @@ func StartDebugGameSized(ctx context.Context, h *Harness, names []string, mode Q
 	if !Contains(names, DebugStartTool) && start.Biomes != "" {
 		return nil, fmt.Errorf("%s not in discovery but the start asks for biome %s: rebuild the native mod with any -Fixture flag (every fixture build includes DebugStartFixture)", DebugStartTool, start.Biomes)
 	}
+	if !Contains(names, DebugStartTool) && start.Seed != "" {
+		return nil, fmt.Errorf("%s not in discovery but the start pins seed %s: rebuild the native mod with any -Fixture flag (every fixture build includes DebugStartFixture)", DebugStartTool, start.Seed)
+	}
 	if Contains(names, DebugStartTool) {
 		if err := start.Validate(); err != nil {
 			return nil, err
 		}
-		args := map[string]any{"mapSize": start.MapSize, "planetCoverage": start.PlanetCoverage}
+		// The seed is drawn here, not natively, so the record knows it
+		// even when no save is written (the cached start off).
+		seed := start.Seed
+		if seed == "" {
+			seed = RandomSeed()
+		}
+		startCache.seed = seed
+		args := map[string]any{"mapSize": start.MapSize, "planetCoverage": start.PlanetCoverage, "seed": seed}
 		if start.Biomes != "" {
 			args["biomes"] = start.Biomes
 		}

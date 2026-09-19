@@ -1,7 +1,7 @@
 // Command acceptance is the shared runner over the case registry (#135):
 //
 //	acceptance list [-cost [-baseline <result.json|metrics.jsonl>]] [<case>|<area>/...]...
-//	acceptance run <case>... [-root -output -game -headless -timeout -budget -stall -rimgovernor -series -no-series -evidence -fresh -rewind N -checkpoint-every d -no-doctor]
+//	acceptance run <case>... [-root -output -game -headless -timeout -budget -stall -rimgovernor -series -no-series -evidence -fresh -rewind N -checkpoint-every d -no-doctor -repeat N -seed s]
 //	acceptance suite (-all | -cases a,b | -suite file.json) -root -output -workers N [-baseline result.json -series metrics.jsonl]
 //	acceptance stop -root <dir> [-config -game -takeover]
 //	acceptance setup [-worktree -rimworld -harmony -gabs -fixture -production -rebuild -skip-mod -skip-binaries]
@@ -19,7 +19,13 @@
 // across N private game copies with regression and drift flagging. A run
 // checkpoints its case into the root's ring and resumes a case whose last
 // run there failed (#249; -fresh starts over, -rewind steps back,
-// -checkpoint-every 0 turns it off); suite always runs fresh. Cases
+// -checkpoint-every 0 turns it off); suite always runs fresh. Every
+// result.json carries a world block (na.RecordWorld, #281: the seed, the
+// loaded save and its hash, the fixture op and its arguments' hash);
+// -repeat N runs a case N times fresh on the kept process and writes
+// <output>/<case>.repeat.json with the pass rate and each attempt's seed,
+// and -seed <s> pins a debug or scenario start's world to reproduce a
+// recorded run. Cases
 // register from the area packages imported below. stop ends the game a
 // root keeps between runs (na.KeepGameEnv) through GABS games_stop: the
 // PID-owned launch recorded by that root's own GABS configuration, never
@@ -150,9 +156,11 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 const usage = `usage:
 ` + listUsage + `
-  acceptance run <case>... -root <dir> [-output <dir> -game <id> -headless=false -timeout <d> -budget <d> -stall <d> -rimgovernor <binary> -series <metrics.jsonl> -no-series -evidence capped|full -fresh -rewind <n> -checkpoint-every <d> -no-doctor]
+  acceptance run <case>... -root <dir> [-output <dir> -game <id> -headless=false -timeout <d> -budget <d> -stall <d> -rimgovernor <binary> -series <metrics.jsonl> -no-series -evidence capped|full -fresh -rewind <n> -checkpoint-every <d> -no-doctor -repeat <n> -seed <s>]
     a case whose last run in this root failed resumes from its checkpoint ring (printed on the first line);
-    -fresh starts over, -rewind <n> resumes n entries earlier, -checkpoint-every 0 turns the ring off
+    -fresh starts over, -rewind <n> resumes n entries earlier, -checkpoint-every 0 turns the ring off;
+    -repeat <n> runs each case n times fresh and reports the pass rate and seeds (<output>/<case>.repeat.json);
+    -seed <s> pins a debug or scenario start's world seed (result.json "world".seed) to reproduce a run
   acceptance stop -root <dir> [-config <dir> -game <id> -takeover]
 ` + setupUsage + suiteUsage + whyUsage + warmUsage + fixtureUsage + doctorUsage
 
@@ -187,8 +195,20 @@ func parseRun(args []string, stderr io.Writer) ([]cases.Case, cases.Options, err
 	fs.StringVar(&opts.Series, "series", "", "append-only metrics series each case's block is appended to (default <output>/../metrics.jsonl)")
 	fs.BoolVar(&opts.NoSeries, "no-series", false, "leave the metrics series alone")
 	fs.BoolVar(&opts.NoDoctor, "no-doctor", false, "skip the doctor preflight (a suite worker, or a check you have judged wrong)")
+	fs.IntVar(&opts.Repeat, "repeat", 1, "run each case this many times fresh on the kept process and report the pass rate and per-attempt seeds")
+	fs.StringVar(&opts.Seed, "seed", "", "pin the world seed of a debug or scenario start (a result.json world.seed) to reproduce that run; implies -fresh")
 	if err := fs.Parse(flagArgs); err != nil {
 		return nil, opts, err
+	}
+	if opts.Repeat < 1 {
+		return nil, opts, fmt.Errorf("-repeat must be at least 1: %d", opts.Repeat)
+	}
+	if opts.Repeat > 1 {
+		// A resumed attempt measures nothing: every attempt starts over.
+		opts.Fresh, opts.CheckpointEvery = true, 0
+	}
+	if opts.Seed != "" {
+		opts.Fresh = true
 	}
 	opts.Evidence = na.EvidenceMode(evidence)
 	if err := na.SetEvidenceMode(opts.Evidence); err != nil {
@@ -234,7 +254,8 @@ func parseRun(args []string, stderr io.Writer) ([]cases.Case, cases.Options, err
 }
 
 // runCases executes the cases in order on one game after the doctor
-// preflight; the exit code is non-zero when any case failed, 2 when the
+// preflight (each Repeat times, with its repeat summary after the
+// attempts); the exit code is non-zero when any case failed, 2 when the
 // preflight refused the run.
 func runCases(ctx context.Context, selected []cases.Case, opts cases.Options, stdout io.Writer) int {
 	if !opts.NoDoctor && !preflight(ctx, selected, opts, stdout) {
@@ -243,29 +264,51 @@ func runCases(ctx context.Context, selected []cases.Case, opts cases.Options, st
 	exit := 0
 	opts.Log = stdout
 	for _, c := range selected {
-		started := time.Now()
-		report, code := cases.Execute(ctx, c, opts)
-		status := "PASS"
-		if code != 0 {
-			exit = 1
-			status = "FAIL"
-		}
-		fmt.Fprintf(stdout, "%s\t%s\t%s\t%s\n", status, c.Name, time.Since(started).Round(time.Millisecond), filepath.Join(opts.CaseOutput(c), "result.json"))
-		if err, _ := report["error"].(string); err != "" {
-			fmt.Fprintf(stdout, "\t%s\n", err)
-		}
-		if digest, ok := report["diagnosis"].(postmortem.Digest); ok {
-			// The digest is the first thing anyone reads after a failure;
-			// under suite it lands in the case log.
-			_ = digest.Write(stdout)
-		}
-		if flags, _ := report["drift"].([]na.DriftFlag); len(flags) > 0 {
-			for _, f := range flags {
-				fmt.Fprintf(stdout, "\tdrift: %s\n", f)
+		var attempts []repeatAttempt
+		for attempt := 1; attempt <= max(opts.Repeat, 1); attempt++ {
+			opts.Attempt = attempt
+			started := time.Now()
+			report, code := cases.Execute(ctx, c, opts)
+			if code != 0 {
+				exit = 1
 			}
+			printCase(stdout, c, opts, report, code, time.Since(started))
+			attempts = append(attempts, newAttempt(attempt, opts.CaseOutput(c), report, code, time.Since(started)))
+		}
+		if opts.Repeat > 1 {
+			opts.Attempt = 1
+			summary := summarizeRepeat(c.Name, attempts)
+			path := opts.CaseOutput(c) + ".repeat.json"
+			if err := summary.write(path); err != nil {
+				fmt.Fprintf(stdout, "\trepeat summary: %v\n", err)
+			}
+			fmt.Fprintf(stdout, "REPEAT\t%s\t%s\t%s\n", c.Name, summary, path)
 		}
 	}
 	return exit
+}
+
+// printCase prints one attempt's verdict line, error, postmortem digest
+// and drift flags.
+func printCase(stdout io.Writer, c cases.Case, opts cases.Options, report na.Report, code int, wall time.Duration) {
+	status := "PASS"
+	if code != 0 {
+		status = "FAIL"
+	}
+	fmt.Fprintf(stdout, "%s\t%s\t%s\t%s\n", status, c.Name, wall.Round(time.Millisecond), filepath.Join(opts.CaseOutput(c), "result.json"))
+	if err, _ := report["error"].(string); err != "" {
+		fmt.Fprintf(stdout, "\t%s\n", err)
+	}
+	if digest, ok := report["diagnosis"].(postmortem.Digest); ok {
+		// The digest is the first thing anyone reads after a failure;
+		// under suite it lands in the case log.
+		_ = digest.Write(stdout)
+	}
+	if flags, _ := report["drift"].([]na.DriftFlag); len(flags) > 0 {
+		for _, f := range flags {
+			fmt.Fprintf(stdout, "\tdrift: %s\n", f)
+		}
+	}
 }
 
 // stop is the former gamesstop tool: games_stop through the root's own
