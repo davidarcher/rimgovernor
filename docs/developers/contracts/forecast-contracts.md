@@ -160,3 +160,20 @@ floor for crop exports. Runtime callers must still supply the shared food review
 and crop-surplus floors to enable these decisions. Calls without food context retain
 the ordinary medicine/component behavior; these helpers alone do not establish
 live food purchases or authorize native food exports.
+
+## Fishing policy
+
+`FishingChannels` budgets one row per water body, independently of zone area.
+The daily draw is at most 2.5% of maximum fish population, limited by current
+population. Native nutrition per fish converts fish counts to raw nutrition;
+observed batch yield and work determine labor. Cooking gains remain a separate
+ledger contribution. Frozen or unreachable water contributes nothing and carries
+an explanation term; missing facts stay unknown, and invalid known values fail.
+Absent Odyssey regions create no fishing channels.
+
+Unfinished Fishing research adds the supplied research lead. Only an admitted
+Open channel requests Fishing through `FishingResearchRequest`; a deferred
+source cannot redirect research. These are policy adapters only. Runtime wiring
+must provide native rates and availability, enforce the selected draw through
+ordinary fishing controls, and verify catch and population outcomes. Zone cell
+count does not constrain catch rate in RimWorld.
