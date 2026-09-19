@@ -19,7 +19,8 @@ its contracts and run the relevant checks.
   [agent runbook](developers/agent-runbook.md) (shared machine, private game copy, running harnesses)
 - [Subsystem contracts](developers/contracts/README.md) and
   [wire contracts](../contracts/README.md)
-- [Remote acceptance contract](developers/contracts/remote-acceptance.md) and example manifests
+- [Remote acceptance contract](developers/contracts/remote-acceptance.md), example manifests and
+  [evidence aggregation/import](developers/testing/remote-evidence.md)
 - [Generated wire contracts](../contracts/schema-generation.md)
 - [Choose tests](developers/testing/choose-tests.md) and
   [measure throughput](developers/testing/measure-throughput.md) (flight recorder, `rimgovernor phases`, `rimgovernor trace`, speed matrix, the case timeline page)

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/inputs"
+	"github.com/davidarcher/RimGovernor/go/internal/remoteaccept"
 )
 
 // gatedRoots are the repo-relative roots whose change the lane will not
@@ -27,7 +28,54 @@ type acceptanceGate struct {
 	Results string
 	// Unverified lands a gated diff without results; the caller names what
 	// is unverified in the commit body.
-	Unverified bool
+	Unverified     bool
+	remoteVerified bool
+	remoteReport   *remoteaccept.Report
+}
+
+// prepare binds remote evidence to the branch before the lane's normal merge.
+// That clean merge does not invalidate the association or trigger another run.
+func (g *acceptanceGate) prepare(repo string) error {
+	root, remote, err := remoteResults(g.Results)
+	if err != nil || !remote {
+		return err
+	}
+	trust, err := remoteaccept.LocalTrust(repo)
+	if err != nil {
+		return err
+	}
+	e, err := remoteaccept.VerifyImported(root, repo, trust, remoteaccept.GitHub{})
+	if err != nil {
+		return fmt.Errorf("-results: %w", err)
+	}
+	g.remoteVerified = true
+	g.remoteReport = &e.Report
+	return nil
+}
+
+func remoteResults(results string) (string, bool, error) {
+	if results == "" {
+		return "", false, nil
+	}
+	p := results
+	if info, err := os.Stat(p); err == nil && info.IsDir() {
+		p = filepath.Join(p, "result.json")
+	}
+	b, err := os.ReadFile(p)
+	if err != nil {
+		return "", false, err
+	}
+	var fields map[string]json.RawMessage
+	if err := remoteaccept.Decode(b, &fields); err != nil {
+		return "", false, err
+	}
+	remote := false
+	for key := range fields {
+		if strings.EqualFold(key, "remote") {
+			remote = true
+		}
+	}
+	return filepath.Dir(p), remote, nil
 }
 
 // check refuses the landing when the presented suite did not pass, or when
@@ -35,6 +83,26 @@ type acceptanceGate struct {
 // not refused.
 func (g acceptanceGate) check(changed []string) error {
 	if g.Results != "" {
+		root, remote, err := remoteResults(g.Results)
+		if err != nil {
+			return err
+		}
+		if remote && !g.remoteVerified {
+			return fmt.Errorf("-results: remote evidence has not been authenticated against the pre-merge task source")
+		}
+		if remote {
+			b, err := os.ReadFile(filepath.Join(root, "result.json"))
+			if err != nil {
+				return err
+			}
+			var current remoteaccept.Report
+			if err := remoteaccept.Decode(b, &current); err != nil {
+				return err
+			}
+			if g.remoteReport == nil || !remoteaccept.ReportsEqual(current, *g.remoteReport) {
+				return fmt.Errorf("-results: remote report changed after pre-merge verification")
+			}
+		}
 		summary, err := readSuiteResults(g.Results)
 		if err != nil {
 			return err

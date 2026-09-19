@@ -29,6 +29,36 @@ func TestGateRefusesNativeDiffWithoutResults(t *testing.T) {
 	}
 }
 
+func TestGateCannotTreatRemoteReportAsLocalSuite(t *testing.T) {
+	for _, remote := range []string{`"remote":null`, `"remote":{"schema_version":1}`, `"Remote":{"schema_version":1}`} {
+		dir := t.TempDir()
+		write(t, filepath.Join(dir, "result.json"), `{"passed":true,"tier":"land","cases":[{"name":"smoke/identity","passed":true}],`+remote+`}`)
+		if err := (acceptanceGate{Results: dir}).check(nil); err == nil || !strings.Contains(err.Error(), "authenticated") {
+			t.Fatalf("remote report bypassed authentication: %v", err)
+		}
+	}
+}
+
+func TestRemoteRejectionPrecedesMainMerge(t *testing.T) {
+	root, wt := newRepo(t)
+	write(t, filepath.Join(wt, "b.txt"), "task\n")
+	mustGit(t, wt, "add", ".")
+	mustGit(t, wt, "commit", "-qm", "task")
+	head := mustGit(t, wt, "rev-parse", "HEAD")
+	write(t, filepath.Join(root, "c.txt"), "peer\n")
+	mustGit(t, root, "add", ".")
+	mustGit(t, root, "commit", "-qm", "peer")
+	dir := t.TempDir()
+	write(t, filepath.Join(dir, "result.json"), `{"passed":true,"tier":"land","cases":[],"remote":{}}`)
+	t.Chdir(wt)
+	if err := run("", "", "", time.Second, false, acceptanceGate{Results: dir}, nil); err == nil {
+		t.Fatal("unauthenticated remote evidence landed")
+	}
+	if got := mustGit(t, wt, "rev-parse", "HEAD"); got != head {
+		t.Fatal("main merged before evidence/source validation")
+	}
+}
+
 func TestGateReadsTheSuiteReport(t *testing.T) {
 	dir := t.TempDir()
 	write(t, filepath.Join(dir, "result.json"), `{"passed": true, "tier": "land", "cases": [{"name": "smoke/identity", "passed": true}, {"name": "light/dark", "passed": true}]}`)

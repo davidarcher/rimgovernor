@@ -123,6 +123,9 @@ func run(branch, message, messageFile string, lockTimeout time.Duration, runTest
 	if err := requireClean(mainCheckout, "main checkout"); err != nil {
 		return err
 	}
+	if err := gate.prepare(worktree); err != nil {
+		return err
+	}
 	if _, err := git(worktree, "merge", "--no-edit", "main"); err != nil {
 		_, _ = git(worktree, "merge", "--abort")
 		return fmt.Errorf("merging main into %s: %w\nresolve the conflict on the branch (git merge main), commit, and run land again", branch, err)

@@ -267,10 +267,11 @@ aggregates have an explanatory error and nonzero aggregator exit status.
 
 #380 downloads into a new local evidence directory, validates provenance,
 digests, exact case/shard coverage and native reports, and emits the existing
-suite-shaped `result.json` beside the untouched remote manifests. Its import
-interface is implemented in #380; there is no import command yet. Only then
-use `go run ./cmd/land -results <import-directory>` from the task's `go/`.
-Smoke evidence never substitutes for required affected land coverage. Match the
+suite-shaped `result.json` beside the untouched remote manifests. Use the
+[aggregation and import commands](../testing/remote-evidence.md), then
+`go run ./cmd/land -results <import-directory>/evidence` from the task's `go/`.
+Smoke evidence satisfies the landing gate (#387); the nightly full tier owns
+broader affected-area validation. Match the
 tested task changes and inputs before the lane's normal main merge. Record that
 association, then preserve it through the clean lane merge: unrelated main
 movement, squash/rebase or a clean cherry-pick alone does not invalidate evidence.
@@ -278,9 +279,9 @@ Unmatched changes or changed relevant inputs require evidence covering them.
 
 The current [gate](../../../go/cmd/land/gate.go) reads `passed`, `tier`, `cases`,
 and the resume/stage/postmortem markers. It rejects failed, staged and
-postmortem-only reports, but allows and names resumed rows. It does not yet
-authenticate remote source or enforce shard completeness: #380 owns that
-validation and its gate integration. V1 remote runs are fresh/restaged; resumed
+postmortem-only reports, but allows and names local resumed rows. Remote imports
+also require authenticated artifact provenance, complete shard evidence and a
+source match before the lane merges main. V1 remote runs are fresh/restaged; resumed
 evidence must not be presented as a fresh remote pass. Do not merely rename
 `aggregate.json` to `result.json` or trust its top-level boolean.
 
