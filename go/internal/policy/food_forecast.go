@@ -18,6 +18,8 @@ type FoodConsumer struct {
 }
 type FoodStock struct {
 	ID string
+	// Reserve is forbidden pemmican or survival meals; eligibility is after release.
+	Reserve bool
 	// Known empty holder means shared stock. Unknown ownership is not shared.
 	Holder     domain.Fact[PawnID]
 	Nutrition  domain.Fact[float64]
@@ -137,7 +139,9 @@ func ForecastFood(supply FoodSupply, selected []PawnID) (FoodForecast, error) {
 		if !foodNumber(entry.eligibleDemand) {
 			return fail()
 		}
-		stocks = append(stocks, entry)
+		if !input.Reserve {
+			stocks = append(stocks, entry)
+		}
 	}
 	sort.Slice(stocks, func(i, j int) bool {
 		if stocks[i].expiry != stocks[j].expiry {

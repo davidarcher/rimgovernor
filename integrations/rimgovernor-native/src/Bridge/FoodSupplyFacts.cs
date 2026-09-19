@@ -30,7 +30,7 @@ namespace HomeBridge.BridgeTools
                 var kibble = thing.def.ingestible != null && (thing.def.ingestible.foodType & FoodTypeFlags.Kibble) != 0;
                 var eaters = people.Where(p => p.needs?.food != null && !p.Downed && !p.InMentalState
                     && !(kibble && p.RaceProps.Humanlike)
-                    && p.WillEat(thing) && PolicyAllows(p, thing) && !thing.IsForbidden(p)
+                    && p.WillEat(thing) && PolicyAllows(p, thing) && (IsReserve(thing) || !thing.IsForbidden(p))
                     && p.CanReach(thing, PathEndMode.Touch, Danger.None)
                     && (p.playerSettings?.AreaRestrictionInPawnCurrentMap == null
                         || p.playerSettings.AreaRestrictionInPawnCurrentMap[thing.Position])).ToList();
@@ -57,6 +57,9 @@ namespace HomeBridge.BridgeTools
                     "Consumption uses native fed demand and minimum native nutrition per eater, not a definition-name table." } };
         }
 
+        internal static bool IsReserve(Thing thing) => thing.Spawned && thing.IsForbidden(Faction.OfPlayer)
+            && (thing.def.defName == "MealSurvivalPack" || thing.def.defName == "Pemmican");
+
         private static bool PolicyAllows(Pawn pawn, Thing food)
         {
             return pawn.foodRestriction?.GetCurrentRespectedRestriction(pawn)?.filter.Allows(food) != false;
@@ -67,7 +70,7 @@ namespace HomeBridge.BridgeTools
             var rot = thing.TryGetComp<CompRottable>();
             var perishable = rot != null && rot.Active;
             return new StockFacts { id = thing.GetUniqueLoadID(), defName = thing.def.defName, count = thing.stackCount,
-                holder = holder, nutrition = thing.stackCount * eaters.Min(p => FoodUtility.NutritionForEater(p, thing)),
+                holder = holder, reserve = IsReserve(thing), nutrition = thing.stackCount * eaters.Min(p => FoodUtility.NutritionForEater(p, thing)),
                 eaters = eaters.Select(p => p.GetUniqueLoadID()).ToList(),
                 perishable = perishable, rotTicks = rot != null && perishable ? (int?)Math.Max(0, rot.TicksUntilRotAtCurrentTemp) : null,
                 temperature = thing.AmbientTemperature,
@@ -93,6 +96,7 @@ namespace HomeBridge.BridgeTools
             public string? holder { get; set; }
             public float nutrition { get; set; }
             public List<string>? eaters { get; set; }
+            public bool reserve { get; set; }
             public bool perishable { get; set; }
             public int? rotTicks { get; set; }
             public float temperature { get; set; }

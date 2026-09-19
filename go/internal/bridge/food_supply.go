@@ -30,6 +30,9 @@ func ValidateFoodSupply(v *o.FoodSupplyFacts) error {
 			return contract("invalid food stock")
 		}
 		stocks[row.Item.GetId()] = true
+		if row.GetReserve() && (row.HolderId != nil || row.Item.GetDefName() != "Pemmican" && row.Item.GetDefName() != "MealSurvivalPack") {
+			return contract("reserve must be shared pemmican or survival meals")
+		}
 		if row.Item.Label != nil || row.Item.MapId != nil || row.Item.Position != nil || row.Item.Snapshot != nil {
 			return contract("food stock references are identity-only")
 		}

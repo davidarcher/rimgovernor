@@ -589,7 +589,7 @@ namespace HomeBridge.BridgeTools
                 result.Consumers.Add(new Obs.FoodConsumer { PawnId = consumer.id, NutritionPerDay = Finite(consumer.nutritionPerDay) });
             foreach (var stock in source.stocks) {
                 var row = new Obs.FoodStock { Item = new Obs.EntityRef { Id = stock.id, DefName = stock.defName },
-                    Count = stock.count, Nutrition = Finite(stock.nutrition), Perishable = stock.perishable,
+                    Count = stock.count, Nutrition = Finite(stock.nutrition), Perishable = stock.perishable, Reserve = stock.reserve,
                     TemperatureC = Finite(stock.temperature) };
                 row.EaterIds.Add(stock.eaters);
                 if (stock.holder != null) row.HolderId = stock.holder;

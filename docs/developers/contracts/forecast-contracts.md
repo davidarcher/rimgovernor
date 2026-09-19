@@ -34,3 +34,30 @@ recovery requires readable current networks.
 
 See native forecast acceptance for the bounded
 Docker probe and the distinction between forecast validation and pawn outcomes.
+## Food reserve components
+
+`FoodStock.reserve` identifies forbidden shared pemmican or packaged survival
+meals. Native eligibility describes who could eat the stack after release;
+`ForecastFood` validates it but excludes it from runway and usable nutrition.
+Other forbidden food remains outside the food census.
+
+`ReviewFoodReserve` budgets `reserveDays × observed daily demand` (the default
+is `policy.DefaultFoodReserveDays`, five days). It proposes whole-stack holds
+only after roofed storage is observed, up to the target rounded by the final
+stack. Release requires runway below the supplied food minimum and a complete
+channel read with no delivery before exhaustion. Unknown delivery facts cannot
+authorize release. Prospective reserve foods are excluded from this decision
+so released stock is not immediately forbidden again.
+
+`SelectReserveBill`, used by `PreserveFood`, prefers available survival-meal
+recipes, then pemmican. It subtracts observed reserve stock rather than promised
+bill output. Native target counts include existing units of the selected
+product; other reserve products reduce that target. Existing recipe bills keep
+their settings. The policy review proposes IDs only; the shared goal and Hands
+integration owns holds, releases, replenishment timing and policy configuration.
+
+`SelectCaravanFood` accepts observed transfer groups eligible for the entire
+crew, per-unit nutrition and unrefrigerated remaining shelf life. It packs
+reserve groups first, then the longest-lived food, and returns no selection
+when the journey cannot be covered. The departure adapter owns obtaining these
+facts, respecting home stock floors and admitting the resulting cargo.

@@ -20111,6 +20111,7 @@ type FoodStock struct {
 	TemperatureC  *float64               `protobuf:"fixed64,8,opt,name=temperature_c,json=temperatureC,proto3,oneof" json:"temperature_c,omitempty"`
 	Roofed        *bool                  `protobuf:"varint,9,opt,name=roofed,proto3,oneof" json:"roofed,omitempty"`
 	RoomId        *string                `protobuf:"bytes,10,opt,name=room_id,json=roomId,proto3,oneof" json:"room_id,omitempty"`
+	Reserve       *bool                  `protobuf:"varint,11,opt,name=reserve,proto3,oneof" json:"reserve,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -20213,6 +20214,13 @@ func (x *FoodStock) GetRoomId() string {
 		return *x.RoomId
 	}
 	return ""
+}
+
+func (x *FoodStock) GetReserve() bool {
+	if x != nil && x.Reserve != nil {
+		return *x.Reserve
+	}
+	return false
 }
 
 type FoodSupplyFacts struct {
@@ -33513,7 +33521,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x11nutrition_per_day\x18\x02 \x01(\x01H\x01R\x0fnutritionPerDay\x88\x01\x01B\n" +
 	"\n" +
 	"\b_pawn_idB\x14\n" +
-	"\x12_nutrition_per_day\"\xdc\x03\n" +
+	"\x12_nutrition_per_day\"\x87\x04\n" +
 	"\tFoodStock\x12:\n" +
 	"\x04item\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\x04item\x12\x19\n" +
 	"\x05count\x18\x02 \x01(\x03H\x00R\x05count\x88\x01\x01\x12 \n" +
@@ -33527,7 +33535,8 @@ const file_observations_proto_rawDesc = "" +
 	"\rtemperature_c\x18\b \x01(\x01H\x05R\ftemperatureC\x88\x01\x01\x12\x1b\n" +
 	"\x06roofed\x18\t \x01(\bH\x06R\x06roofed\x88\x01\x01\x12\x1c\n" +
 	"\aroom_id\x18\n" +
-	" \x01(\tH\aR\x06roomId\x88\x01\x01B\b\n" +
+	" \x01(\tH\aR\x06roomId\x88\x01\x01\x12\x1d\n" +
+	"\areserve\x18\v \x01(\bH\bR\areserve\x88\x01\x01B\b\n" +
 	"\x06_countB\f\n" +
 	"\n" +
 	"_holder_idB\f\n" +
@@ -33539,7 +33548,9 @@ const file_observations_proto_rawDesc = "" +
 	"\x0e_temperature_cB\t\n" +
 	"\a_roofedB\n" +
 	"\n" +
-	"\b_room_id\"\xe9\x01\n" +
+	"\b_room_idB\n" +
+	"\n" +
+	"\b_reserve\"\xe9\x01\n" +
 	"\x0fFoodSupplyFacts\x12G\n" +
 	"\tconsumers\x18\x01 \x03(\v2).rimgovernor.observations.v1.FoodConsumerR\tconsumers\x12>\n" +
 	"\x06stocks\x18\x02 \x03(\v2&.rimgovernor.observations.v1.FoodStockR\x06stocks\x12M\n" +

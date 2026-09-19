@@ -62,7 +62,7 @@ type BillSelection struct {
 // the one exception: it adds the meals the at-risk stock needs beyond every
 // existing bill's reserved target, so a bench already cooking to a smaller
 // target gets a second, larger bill for the outage.
-func SelectProductionBill(purpose BillPurpose, benches domain.Fact[[]ProductionBench], colonists domain.Fact[int64], runway, atRisk domain.Fact[float64], targetDays float64) (BillSelection, bool) {
+func SelectProductionBill(purpose BillPurpose, benches domain.Fact[[]ProductionBench], colonists domain.Fact[int64], runway, atRisk domain.Fact[float64], targetDays float64, reserve ...FoodReserveReview) (BillSelection, bool) {
 	rows, known := benches.Value()
 	count, ck := colonists.Value()
 	if !known || !ck || count <= 0 || count > 256 || len(rows) > 256 || !fieldPositive(targetDays) || targetDays > 60 {
@@ -72,11 +72,10 @@ func SelectProductionBill(purpose BillPurpose, benches domain.Fact[[]ProductionB
 		return BillSelection{}, false
 	}
 	if purpose == PreserveFood {
-		days, dk := runway.Value()
-		risk, rk := atRisk.Value()
-		if !dk || !rk || !foodNumber(days) || !fieldPositive(risk) || days >= targetDays {
+		if len(reserve) != 1 {
 			return BillSelection{}, false
 		}
+		return SelectReserveBill(benches, reserve[0])
 	}
 	reserved, ok := ReservedFoodNutrition(rows)
 	if !ok {
@@ -138,23 +137,6 @@ func SelectProductionBill(purpose BillPurpose, benches domain.Fact[[]ProductionB
 				nutrition, nk := product.Nutrition.Value()
 				if !ek || !edible || !nk || !fieldPositive(nutrition) {
 					continue
-				}
-				if purpose == PreserveFood {
-					perish, pk := product.Perishable.Value()
-					shelf, sk := product.RotDays.Value()
-					demand, dk := product.Demand.Value()
-					if !pk || perish && (!sk || !fieldPositive(shelf) || shelf <= targetDays) || !dk || !fieldPositive(demand) {
-						continue
-					}
-					needed := demand*targetDays - reserved
-					if needed <= 0 {
-						continue
-					}
-					target := math.Ceil(needed / nutrition)
-					if target < 1 || target > 10000 {
-						continue
-					}
-					selection.Target = int32(target)
 				}
 				if purpose == CookAheadFood {
 					target := math.Ceil(ahead / nutrition)

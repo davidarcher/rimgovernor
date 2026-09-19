@@ -181,7 +181,19 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 			return RoutineBillResult{}, err
 		}
 	}
-	selected, known := policy.SelectProductionBill(r.purpose, benches, projection.Facts.Colonists, projection.Facts.FoodDays, atRisk, r.reviewer.seasonal(projection.Facts).FoodTargetDays)
+	var reserve []policy.FoodReserveReview
+	if r.purpose == policy.PreserveFood {
+		supply, known := projection.FoodSupply.Value()
+		if !known {
+			return RoutineBillResult{Reason: BuildingMethodUnknown}, nil
+		}
+		value, err := policy.ReviewFoodReserve(supply, nil, policy.DefaultFoodReserveDays, r.reviewer.seasonal(projection.Facts).FoodMinDays, domain.Unknown[[]float64]())
+		if err != nil {
+			return RoutineBillResult{Reason: BuildingMethodUnknown}, nil
+		}
+		reserve = append(reserve, value)
+	}
+	selected, known := policy.SelectProductionBill(r.purpose, benches, projection.Facts.Colonists, projection.Facts.FoodDays, atRisk, r.reviewer.seasonal(projection.Facts).FoodTargetDays, reserve...)
 	if !known {
 		return RoutineBillResult{Reason: BuildingMethodUnknown}, nil
 	}

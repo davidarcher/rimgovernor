@@ -41,3 +41,29 @@ func TestFoodSupplyProjectionPreservesHolderAndUnknownDeadline(t *testing.T) {
 		t.Fatal("shared private inventory accepted")
 	}
 }
+
+func TestFoodReserveWireProjectionAndValidation(t *testing.T) {
+	data, err := os.ReadFile("../../../contracts/fixtures/food-supply.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	wire := &o.FoodSupplyFacts{}
+	if err = protojson.Unmarshal(data, wire); err != nil {
+		t.Fatal(err)
+	}
+	wire.Stocks[0].Item.DefName = proto.String("Pemmican")
+	wire.Stocks[0].Reserve = proto.Bool(true)
+	supply, err := DecodeFoodSupply(wire)
+	if err != nil || !supply.Stocks[0].Reserve {
+		t.Fatal(supply, err)
+	}
+	wire.Stocks[0].Item.DefName = proto.String("Rice")
+	if _, err = DecodeFoodSupply(wire); err == nil {
+		t.Fatal("ordinary food accepted as reserve")
+	}
+	wire.Stocks[0].Item.DefName = proto.String("Pemmican")
+	wire.Stocks[0].HolderId = proto.String(wire.Stocks[0].EaterIds[0])
+	if _, err = DecodeFoodSupply(wire); err == nil {
+		t.Fatal("held inventory accepted as reserve")
+	}
+}
