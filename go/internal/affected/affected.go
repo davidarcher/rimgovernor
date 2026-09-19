@@ -408,10 +408,10 @@ func output(dir, name string, args ...string) (string, error) {
 // Test runs go test for what the changed files affect (Select) and the
 // native contract probes build when the change touches its inputs,
 // streaming the output to stdout/stderr, and names the affected case
-// areas first so the caller knows which acceptance runs the change may
-// still owe; the hint passes -fresh, since a landing pass never resumes
-// from a checkpoint (#249), and names the land tier whose results the
-// landing lane takes (#273).
+// areas first so the caller knows what the change still owes. The one
+// command it prints is the land tier, which already covers those areas
+// plus the smoke set and runs fresh (#249, #273); running the areas on
+// their own first and then the tier would run every case twice.
 func Test(repo string, changed []string) error {
 	goDir := filepath.Join(repo, "go")
 	sel, err := Select(repo, changed)
@@ -427,11 +427,13 @@ func Test(repo string, changed []string) error {
 	if sel.AllHarnesses {
 		fmt.Println("cases affected: all (a shared acceptance input changed: native sources or go.mod)")
 	}
-	for _, area := range sel.Cases {
-		fmt.Printf("case: go run ./internal/nativeaccept/cmd/acceptance run %s/... -root <abs root> -output <fresh dir> -fresh\n", area)
-	}
 	if len(sel.Cases) > 0 {
-		fmt.Println("landing: go run ./internal/nativeaccept/cmd/acceptance suite -tier land -root <abs root> -output <fresh dir>, then go run ./cmd/land -results <that dir>")
+		fmt.Printf("cases affected: %s\n", strings.Join(sel.Cases, " "))
+	}
+	if len(sel.Cases) > 0 || sel.AllHarnesses {
+		fmt.Println("acceptance: one run, the land tier (it covers the affected areas and the smoke set; do not run the areas separately first):")
+		fmt.Println("  go run ./internal/nativeaccept/cmd/acceptance suite -tier land -root <abs root> -output <fresh dir>")
+		fmt.Println("  go run ./cmd/land -results <that dir>")
 	}
 	switch {
 	case sel.AllGo:

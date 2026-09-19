@@ -16,11 +16,13 @@ needs is [choose-tests](docs/developers/testing/choose-tests.md).
 3. Commit each completed iteration. Checkpoint commits are authorized; do
    not ask. Size an iteration to a coherent milestone, not the smallest
    possible edit, so slow checks run once against meaningful progress.
-4. At the milestone, run the harnesses `cmd/test` named (native behaviour
-   changes need game-level acceptance before completion; documentation
-   needs none) and name them in the commit message. The landing form is
-   the land tier it prints: `acceptance suite -tier land` (the affected
-   areas plus the smoke set, fresh). Add `-resume` to carry the checkpoint
+4. At the milestone, if `cmd/test` named affected case areas, run the one
+   command it prints, `acceptance suite -tier land`, and hand that output
+   to `cmd/land -results`. The tier already covers the affected areas plus
+   the smoke set, fresh: do not run the areas with `acceptance run` first
+   and then the tier, which runs every case twice. (Native behaviour
+   changes need this before completion; documentation needs none.) Name
+   the run in the commit message. Add `-resume` to carry the checkpoint
    rings your failed `acceptance run`s left in `-root`: resumed rows pass,
    are listed under `resumed` and named in the landing, but prove the fix
    past the resume point only, so a change to early behaviour runs fresh.
