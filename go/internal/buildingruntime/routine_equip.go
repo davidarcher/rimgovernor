@@ -145,7 +145,7 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArb
 	}
 	var candidates []policy.EquipCandidateWeapon
 	for _, w := range weapons.Targets {
-		candidates = append(candidates, policy.EquipCandidateWeapon{Thing: w.Thing, Definition: w.Definition, Cell: w.Cell, Ranged: domain.Known(policy.ClassifyWeapon(w.Definition) == policy.WeaponRanged)})
+		candidates = append(candidates, policy.EquipCandidateWeapon{Thing: w.Thing, Definition: w.Definition, Cell: w.Cell, Class: policy.ClassifyWeapon(w.ByTrade, w.Ranged, w.Melee)})
 	}
 	// SelectEquip always names the lowest-ID eligible pawn, so a pawn
 	// another planner claims every step, or one that has used up its

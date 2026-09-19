@@ -225,7 +225,8 @@ namespace HomeBridge.BridgeTools
             var first = entries[0].Thing.def;
             var row = new Obs.ResourceStock { Definition = new Obs.DefinitionRef { DefName = Id(first.defName), Label = PlacementPreviewOperation.Diagnostic(first.LabelCap) },
                 Units = 0, Stacks = entries.Count, Spawned = 0, Ours = 0, OursUnforbidden = 0, Forbidden = 0,
-                PlayerFaction = 0, OtherFaction = 0, Fogged = 0, Reserved = 0, InStockpile = 0, InHomeArea = 0 };
+                PlayerFaction = 0, OtherFaction = 0, Fogged = 0, Reserved = 0, InStockpile = 0, InHomeArea = 0,
+                WeaponByTrade = first.IsWithinCategory(ThingCategoryDefOf.Weapons), Ranged = first.IsRangedWeapon, Melee = first.IsMeleeWeapon };
             if (includeHeld) { row.Carried = 0; row.InContainer = 0; row.TraderStock = 0; }
             else foreach (var field in new[] { "carried", "in_container", "trader_stock" })
                 row.Issues.Add(Issue(field, Common.UnavailableReason.NotRequested, "Held stock was excluded from this census scope."));

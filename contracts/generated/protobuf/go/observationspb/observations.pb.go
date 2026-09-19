@@ -4169,8 +4169,13 @@ type ResourceStock struct {
 	CorpsesCompleteness *Completeness          `protobuf:"bytes,22,opt,name=corpses_completeness,json=corpsesCompleteness,proto3" json:"corpses_completeness,omitempty"`
 	Issues              []*ReadIssue           `protobuf:"bytes,23,rep,name=issues,proto3" json:"issues,omitempty"`
 	Snapshot            *SnapshotRef           `protobuf:"bytes,24,opt,name=snapshot,proto3" json:"snapshot,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// Weapon class of the row's definition: ranged/melee are ThingDef.IsRangedWeapon/IsMeleeWeapon, which cover every equippable
+	// (a wood log and a beer are melee weapons); weapon_by_trade is membership in the Weapons thing category (what a stockpile calls a weapon).
+	WeaponByTrade *bool `protobuf:"varint,25,opt,name=weapon_by_trade,json=weaponByTrade,proto3,oneof" json:"weapon_by_trade,omitempty"`
+	Ranged        *bool `protobuf:"varint,26,opt,name=ranged,proto3,oneof" json:"ranged,omitempty"`
+	Melee         *bool `protobuf:"varint,27,opt,name=melee,proto3,oneof" json:"melee,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ResourceStock) Reset() {
@@ -4369,6 +4374,27 @@ func (x *ResourceStock) GetSnapshot() *SnapshotRef {
 		return x.Snapshot
 	}
 	return nil
+}
+
+func (x *ResourceStock) GetWeaponByTrade() bool {
+	if x != nil && x.WeaponByTrade != nil {
+		return *x.WeaponByTrade
+	}
+	return false
+}
+
+func (x *ResourceStock) GetRanged() bool {
+	if x != nil && x.Ranged != nil {
+		return *x.Ranged
+	}
+	return false
+}
+
+func (x *ResourceStock) GetMelee() bool {
+	if x != nil && x.Melee != nil {
+		return *x.Melee
+	}
+	return false
 }
 
 type StockFilter struct {
@@ -29363,7 +29389,7 @@ const file_observations_proto_rawDesc = "" +
 	"_humanlikeB\x0f\n" +
 	"\r_was_colonistB\f\n" +
 	"\n" +
-	"_rot_stage\"\xaa\v\n" +
+	"_rot_stage\"\xb8\f\n" +
 	"\rResourceStock\x12J\n" +
 	"\n" +
 	"definition\x18\x01 \x01(\v2*.rimgovernor.observations.v1.DefinitionRefR\n" +
@@ -29393,7 +29419,10 @@ const file_observations_proto_rawDesc = "" +
 	"\x14holders_completeness\x18\x15 \x01(\v2).rimgovernor.observations.v1.CompletenessR\x13holdersCompleteness\x12\\\n" +
 	"\x14corpses_completeness\x18\x16 \x01(\v2).rimgovernor.observations.v1.CompletenessR\x13corpsesCompleteness\x12>\n" +
 	"\x06issues\x18\x17 \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issues\x12D\n" +
-	"\bsnapshot\x18\x18 \x01(\v2(.rimgovernor.observations.v1.SnapshotRefR\bsnapshotB\b\n" +
+	"\bsnapshot\x18\x18 \x01(\v2(.rimgovernor.observations.v1.SnapshotRefR\bsnapshot\x12+\n" +
+	"\x0fweapon_by_trade\x18\x19 \x01(\bH\x0fR\rweaponByTrade\x88\x01\x01\x12\x1b\n" +
+	"\x06ranged\x18\x1a \x01(\bH\x10R\x06ranged\x88\x01\x01\x12\x19\n" +
+	"\x05melee\x18\x1b \x01(\bH\x11R\x05melee\x88\x01\x01B\b\n" +
 	"\x06_unitsB\t\n" +
 	"\a_stacksB\n" +
 	"\n" +
@@ -29411,7 +29440,10 @@ const file_observations_proto_rawDesc = "" +
 	"\a_foggedB\v\n" +
 	"\t_reservedB\x0f\n" +
 	"\r_in_stockpileB\x0f\n" +
-	"\r_in_home_area\"\xab\x03\n" +
+	"\r_in_home_areaB\x12\n" +
+	"\x10_weapon_by_tradeB\t\n" +
+	"\a_rangedB\b\n" +
+	"\x06_melee\"\xab\x03\n" +
 	"\vStockFilter\x12\x1b\n" +
 	"\tdef_names\x18\x01 \x03(\tR\bdefNames\x12\x1f\n" +
 	"\bcategory\x18\x02 \x01(\tH\x00R\bcategory\x88\x01\x01\x12!\n" +

@@ -13,6 +13,10 @@ type EquipCandidate struct {
 	Thing, Definition string
 	Cell              domain.Cell
 	Token             string
+	// ByTrade is the definition's membership in the Weapons thing category,
+	// Ranged/Melee its IsRangedWeapon/IsMeleeWeapon (#287): a wood log or a
+	// beer is a melee weapon by the def flags but not a weapon by trade.
+	ByTrade, Ranged, Melee bool
 }
 type EquipRead struct {
 	Context *c.ObservationContext
@@ -57,6 +61,9 @@ func decodeEquipWeapons(reply *o.ListSuppliesReply, identity *c.Identity, minimu
 		if stock == nil || stock.Units == nil || stock.GetUnits() < 0 || len(stock.Items) > 256 {
 			return EquipRead{}, contract("invalid equip stock")
 		}
+		if stock.WeaponByTrade == nil || stock.Ranged == nil || stock.Melee == nil || (stock.GetRanged() && stock.GetMelee()) {
+			return EquipRead{}, contract("equip stock lacks weapon class")
+		}
 		complete, err = emergencyCompleteness(stock.ItemsCompleteness, len(stock.Items))
 		if yes, known := complete.Value(); err != nil || !known || !yes {
 			return EquipRead{}, contract("incomplete equip items")
@@ -77,7 +84,7 @@ func decodeEquipWeapons(reply *o.ListSuppliesReply, identity *c.Identity, minimu
 				return EquipRead{}, contract("equip CAS scope mismatch")
 			}
 			cell := domain.Cell{X: item.Position.GetX(), Z: item.Position.GetZ()}
-			out.Targets = append(out.Targets, EquipCandidate{Thing: item.GetId(), Definition: item.GetDefName(), Cell: cell, Token: item.Snapshot.GetToken()})
+			out.Targets = append(out.Targets, EquipCandidate{Thing: item.GetId(), Definition: item.GetDefName(), Cell: cell, Token: item.Snapshot.GetToken(), ByTrade: stock.GetWeaponByTrade(), Ranged: stock.GetRanged(), Melee: stock.GetMelee()})
 			if len(out.Targets) > 256 {
 				return EquipRead{}, contract("equip targets exceed bound")
 			}

@@ -28,31 +28,33 @@ type EquipCandidatePawn struct {
 type EquipCandidateWeapon struct {
 	Thing, Definition string
 	Cell              domain.Cell
-	Ranged            domain.Fact[bool]
+	Class             WeaponClass
 }
 
 // WeaponClass ranks a loose equippable by what it is for. The native
 // "weapons" census is ThingDef.IsWeapon, which includes anything a pawn can
-// swing (a wood log, a beer), so the class comes from the Core def naming
-// until the census says ranged/melee itself: colony-6 handed a colonist the
-// wood log at its feet with two short bows a few cells away.
+// swing (a wood log, a beer): colony-6 handed a colonist the wood log at its
+// feet with two short bows a few cells away. The class is the definition's
+// observed flags (#287), never its name: IsMeleeWeapon is true of every
+// equippable that is not ranged, so a melee weapon by trade is one the
+// Weapons thing category lists.
 type WeaponClass int
 
 const (
 	// WeaponMakeshift: equippable but not a weapon by trade (WoodLog, Beer).
 	WeaponMakeshift WeaponClass = iota
-	// WeaponMelee: a MeleeWeapon_* def.
+	// WeaponMelee: IsMeleeWeapon and in the Weapons category.
 	WeaponMelee
-	// WeaponRanged: a Bow_*, Gun_* or Pila def; what hunting needs.
+	// WeaponRanged: IsRangedWeapon; what hunting needs.
 	WeaponRanged
 )
 
-// ClassifyWeapon reads the Core def naming convention.
-func ClassifyWeapon(definition string) WeaponClass {
+// ClassifyWeapon maps the observed definition flags onto a class.
+func ClassifyWeapon(byTrade, ranged, melee bool) WeaponClass {
 	switch {
-	case strings.HasPrefix(definition, "Bow_"), strings.HasPrefix(definition, "Gun_"), definition == "Pila":
+	case ranged:
 		return WeaponRanged
-	case strings.HasPrefix(definition, "MeleeWeapon_"):
+	case melee && byTrade:
 		return WeaponMelee
 	}
 	return WeaponMakeshift
@@ -88,18 +90,13 @@ func SelectEquip(pawns []EquipCandidatePawn, weapons []EquipCandidateWeapon) (do
 	sort.Slice(pool, func(i, j int) bool { return pool[i].Pawn < pool[j].Pawn })
 	chosen := pool[0]
 	nearer := func(a, b EquipCandidateWeapon) bool {
-		if ca, cb := ClassifyWeapon(a.Definition), ClassifyWeapon(b.Definition); ca != cb {
-			return ca > cb
+		if a.Class != b.Class {
+			return a.Class > b.Class
 		}
 		da := distanceSquared(chosen.Position, a.Cell)
 		db := distanceSquared(chosen.Position, b.Cell)
 		if da != db {
 			return da < db
-		}
-		ranged, rk := a.Ranged.Value()
-		otherRanged, rok := b.Ranged.Value()
-		if rk && rok && ranged != otherRanged {
-			return ranged
 		}
 		return a.Thing < b.Thing
 	}

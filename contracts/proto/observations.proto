@@ -190,6 +190,9 @@ message ResourceStock {
   repeated HeldStock holders = 18; repeated CorpseState corpses = 19; Completeness items_completeness = 20;
   Completeness holders_completeness = 21; Completeness corpses_completeness = 22; repeated ReadIssue issues = 23;
   SnapshotRef snapshot = 24;
+  // Weapon class of the row's definition: ranged/melee are ThingDef.IsRangedWeapon/IsMeleeWeapon, which cover every equippable
+  // (a wood log and a beer are melee weapons); weapon_by_trade is membership in the Weapons thing category (what a stockpile calls a weapon).
+  optional bool weapon_by_trade = 25; optional bool ranged = 26; optional bool melee = 27;
 }
 message StockFilter { repeated string def_names = 1; optional string category = 2; optional string ownership = 3; optional bool include_held = 4; optional bool forbidden_only = 5; optional bool exclude_chunks = 6; optional bool corpses = 7; Rectangle region = 8; }
 message SuppliesSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated ResourceStock stocks = 2; Completeness completeness = 3; }

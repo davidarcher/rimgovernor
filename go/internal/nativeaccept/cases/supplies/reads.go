@@ -157,6 +157,10 @@ func run(ctx context.Context, s cases.Session) error {
 		}
 	}
 
+	if err := checkWeaponClasses(ctx, h, identity, report); err != nil {
+		return err
+	}
+
 	invalidCases := []struct {
 		label   string
 		request map[string]any
@@ -339,6 +343,63 @@ func checkStock(row, legacy map[string]any, identity map[string]any, includeHeld
 		}
 	}
 	return na.CheckCompleteness(row["corpsesCompleteness"], len(na.AsSlice(row["corpses"])))
+}
+
+// checkWeaponClasses proves the "weapons" census carries each definition's
+// Weapons-category membership and IsRangedWeapon/IsMeleeWeapon (#287): the
+// category is IsWeapon, so a wood log lists as a melee equippable that is no
+// weapon by trade, and the Core def naming (Bow_/Gun_/Pila ranged,
+// MeleeWeapon_ melee) that the planner used to infer from is here only the
+// oracle for what the flags must say.
+func checkWeaponClasses(ctx context.Context, h *na.Harness, identity map[string]any, report map[string]any) error {
+	request := map[string]any{
+		"scope":  map[string]any{"expectedIdentity": identity},
+		"filter": map[string]any{"category": "weapons", "ownership": "all", "includeHeld": true},
+		"page":   map[string]any{"limit": 256},
+	}
+	reply, err := h.Wire(ctx, "weapons-census", "observations_list_supplies", request)
+	if err != nil {
+		return err
+	}
+	_, observed, err := na.Outcome(reply, "observed")
+	if err != nil {
+		return err
+	}
+	classes := map[string]string{}
+	for _, raw := range na.AsSlice(observed["stocks"]) {
+		row, _ := na.AsMap(raw)
+		definition, _ := na.AsMap(row["definition"])
+		name := na.AsString(definition["defName"])
+		byTrade, tok := na.AsBool(row["weaponByTrade"])
+		ranged, rok := na.AsBool(row["ranged"])
+		melee, mok := na.AsBool(row["melee"])
+		if !tok || !rok || !mok || ranged == melee {
+			return fmt.Errorf("weapons census row %s lacks a consistent weapon class: weaponByTrade=%v ranged=%v melee=%v", name, row["weaponByTrade"], row["ranged"], row["melee"])
+		}
+		class := "makeshift"
+		switch {
+		case ranged && byTrade:
+			class = "ranged"
+		case melee && byTrade:
+			class = "melee"
+		}
+		want := "makeshift"
+		switch {
+		case len(name) > 4 && (name[:4] == "Bow_" || name[:4] == "Gun_"), name == "Pila":
+			want = "ranged"
+		case len(name) > 12 && name[:12] == "MeleeWeapon_":
+			want = "melee"
+		}
+		if class != want {
+			return fmt.Errorf("weapons census row %s reports class %s, Core naming says %s", name, class, want)
+		}
+		classes[name] = class
+	}
+	if classes["WoodLog"] != "makeshift" {
+		return fmt.Errorf("WoodLog missing from the weapons census as a makeshift equippable: %v", classes)
+	}
+	report["weapon_classes"] = classes
+	return nil
 }
 
 // count asserts value is a canonical ProtoJSON int64 quantity string -- ASCII decimal

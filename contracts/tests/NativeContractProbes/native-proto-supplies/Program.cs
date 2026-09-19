@@ -87,12 +87,23 @@ internal static class NativeProtoSuppliesProbe
         Check(Get(progress(original), "EffectCase").ToString() == "Completed", "Exact later allowed observation completes");
         var forbiddenAgain = parse("Receipts.DesignationEffect", "{" + effectFields + ",\"present\":false}");
         Check(Get(progress(forbiddenAgain), "EffectCase").ToString() == "Unsuccessful", "Re-forbidden supply cannot certify recovery");
-        foreach (var unknown in new object?[] { null, parse("Receipts.DesignationEffect", "{" + effectFields + "}"),
+        // Missing or foreign later evidence against an original that recorded
+        // the item allowed completes on that record (#114: the item leaving the
+        // loose census is the ordinary consequence of a successful Allow);
+        // without such a record, absence proves nothing.
+        var missing = new object?[] { null, parse("Receipts.DesignationEffect", "{" + effectFields + "}"),
             parse("Receipts.DesignationEffect", "{\"thingId\":\"other\",\"resourceDef\":\"Meal\",\"designationDef\":\"Allow\",\"present\":true}"),
-            parse("Receipts.DesignationEffect", "{\"thingId\":\"Thing_Supply1\",\"resourceDef\":\"WoodLog\",\"designationDef\":\"Allow\",\"present\":true}") }) {
+            parse("Receipts.DesignationEffect", "{\"thingId\":\"Thing_Supply1\",\"resourceDef\":\"WoodLog\",\"designationDef\":\"Allow\",\"present\":true}") };
+        foreach (var unknown in missing) {
             var result = progress(unknown);
-            Check(Get(result, "EffectCase").ToString() == "Unknown" && !(bool)Get(result, "CompleteInspection"), "Missing/foreign evidence cannot complete");
+            Check(Get(result, "EffectCase").ToString() == "Completed" && (bool)Get(result, "CompleteInspection"), "Missing/foreign evidence completes on the allowed record");
         }
+        foreach (var unrecorded in new[] { forbiddenAgain, parse("Receipts.DesignationEffect", "{" + effectFields + "}"),
+            parse("Receipts.DesignationEffect", "{\"thingId\":\"Thing_Supply1\",\"resourceDef\":\"Meal\",\"designationDef\":\"Forbid\",\"present\":true}") })
+            foreach (var unknown in missing) {
+                var result = allow.GetMethod("ObservedProgress", Flags)!.Invoke(null, new[] { attempt, context, unrecorded, unknown })!;
+                Check(Get(result, "EffectCase").ToString() == "Unknown" && !(bool)Get(result, "CompleteInspection"), "Missing/foreign evidence cannot complete without an allowed record");
+            }
         Func<string, string> request = fields => "{" + scope + (fields.Length == 0 ? "" : "," + fields) + "}";
         Check(Valid(request("")), "Default census accepted");
         foreach (var category in new[] { "haulable", "food", "weapons", "all", "buildings" })
