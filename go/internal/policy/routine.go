@@ -392,11 +392,12 @@ type RoutineFacts struct {
 	// outranks the upkeep goals (repairs, power) that keep it working.
 	DefensiveLayoutStanding    domain.Fact[bool]
 	Hostiles, CriticalPatients domain.Fact[int64]
-	// UrgentPatients counts the critical patients who are downed or bleeding
-	// (policy.UrgentPatients). CriticalMedicine is an emergency, suspending
-	// every other goal, only while one exists or the count is unknown; a
-	// colonist who merely needs tending keeps the goal active at priority 2
-	// so the colony's other work and the clock go on around the tend.
+	// UrgentPatients counts the critical patients who are bleeding or downed
+	// with a tend outstanding (policy.UrgentPatients). CriticalMedicine is an
+	// emergency, suspending every other goal, only while one exists or the
+	// count is unknown; a colonist who merely needs tending, or is downed
+	// with nothing to tend, keeps the goal active at priority 2 so the
+	// colony's other work and the clock go on around the tend or rescue.
 	UrgentPatients                                                    domain.Fact[int64]
 	AllPatientsResting, ColonyNaming, CleanupPawns, ForbiddenSupplies domain.Fact[bool]
 	// ChoiceDialog is true while the game is force-paused by a choice dialog
@@ -1183,11 +1184,12 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 }
 
 // criticalMedicinePriority is 1 (an emergency that suspends every other goal)
-// while any critical patient is downed or bleeding or the urgent count is
-// unknown, and 2 while every patient is stable: resting under care, or only
-// needing a tend. A stable patient is treated by the same tend method; what
-// the lower priority drops is the suspension that otherwise parked the colony
-// and its clock behind a chronic condition nobody could clear.
+// while any critical patient is urgent (policy.UrgentPatients) or the urgent
+// count is unknown, and 2 while every patient is stable: resting under care,
+// only needing a tend, or downed with nothing to tend. A stable patient is
+// served by the same tend and rescue methods; what the lower priority drops
+// is the suspension that otherwise parked the colony and its clock behind a
+// condition nobody could clear (#66, #304).
 func criticalMedicinePriority(f RoutineFacts) int {
 	patients, pk := f.CriticalPatients.Value()
 	if !pk || patients == 0 {

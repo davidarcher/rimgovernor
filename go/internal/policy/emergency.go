@@ -164,21 +164,20 @@ func EvaluateEmergency(snapshot EmergencySnapshot, current domain.GenerationSnap
 		if !known {
 			hold(EmergencyUnknownFacts, pawn.ID)
 		}
-		// Downed or bleeding is the emergency. A colonist who only needs
+		// Bleeding, or downed with a tend outstanding, is the emergency:
+		// medical work the colony must do now. A colonist who only needs
 		// tending (a chronic condition, a scratch a doctor or the pawn
 		// tends natively while ticks pass) is the tend planner's patient,
 		// not a reason to hold every dispatch until nobody can clear it
-		// (#66); the fact still has to be known.
-		for _, health := range []domain.Fact[bool]{pawn.Downed, pawn.Bleeding} {
-			bad, known := health.Value()
-			if !known {
-				hold(EmergencyUnknownFacts, pawn.ID)
-			} else if bad {
-				hold(EmergencyCriticalMedical, pawn.ID)
-			}
-		}
-		if _, known := pawn.NeedsTend.Value(); !known {
+		// (#66). A colonist downed with nothing to tend (malnutrition,
+		// exhaustion, a tended wound) is the rescue planner's patient: a
+		// bed and ticks are the only care, and holding every other order
+		// parked the colony until the watch expired (#304). Every health
+		// fact still has to be known.
+		if !allKnown(pawn.Downed, pawn.Bleeding, pawn.NeedsTend) {
 			hold(EmergencyUnknownFacts, pawn.ID)
+		} else if urgentPatient(pawn) {
+			hold(EmergencyCriticalMedical, pawn.ID)
 		}
 	}
 	for _, threat := range snapshot.facts.Threats {
@@ -210,4 +209,23 @@ func EvaluateEmergency(snapshot EmergencySnapshot, current domain.GenerationSnap
 		return a.Pawn < b.Pawn
 	})
 	return result
+}
+
+func allKnown(facts ...domain.Fact[bool]) bool {
+	for _, f := range facts {
+		if _, known := f.Value(); !known {
+			return false
+		}
+	}
+	return true
+}
+
+// urgentPatient reports a living colonist whose care cannot wait for
+// ordinary work: bleeding, or downed with a tend outstanding. Callers have
+// established that every health fact is known.
+func urgentPatient(pawn EmergencyPawn) bool {
+	downed, _ := pawn.Downed.Value()
+	bleeding, _ := pawn.Bleeding.Value()
+	needsTend, _ := pawn.NeedsTend.Value()
+	return bleeding || downed && needsTend
 }

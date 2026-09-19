@@ -75,9 +75,10 @@ func TestEmergencyKnownAndMedicalFacts(t *testing.T) {
 				}
 				continue
 			}
-			if field == "tend" && known {
-				// Needing tending alone is the tend planner's patient, not
-				// a hold on every dispatch (#66).
+			if (field == "tend" || field == "downed") && known {
+				// Needing tending alone is the tend planner's patient
+				// (#66), and downed with nothing to tend is the rescue
+				// planner's (#304): neither holds every dispatch.
 				if !d.Clear {
 					t.Fatal(field, d)
 				}
@@ -96,6 +97,14 @@ func TestEmergencyKnownAndMedicalFacts(t *testing.T) {
 	f.Colonists = []EmergencyPawn{{ID: "dead", Dead: domain.Known(true)}}
 	if !evaluateEmergency(t, f).Clear {
 		t.Fatal("dead pawn required health")
+	}
+	// Downed with a tend outstanding is medical work the colony must do now.
+	p := healthyPawn("p")
+	p.Downed, p.NeedsTend = domain.Known(true), domain.Known(true)
+	f = completeEmergency()
+	f.Colonists = []EmergencyPawn{p}
+	if !hasEmergencyHold(evaluateEmergency(t, f), EmergencyCriticalMedical, "p") {
+		t.Fatal("downed untended pawn cleared")
 	}
 }
 func TestEmergencyThreatCategoriesAndContradictions(t *testing.T) {

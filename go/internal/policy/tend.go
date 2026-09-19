@@ -202,7 +202,7 @@ func EvaluateTend(r TendRequest) DraftDecision {
 	if !known {
 		return refuse(UnknownFacts)
 	}
-	// EmergencyCriticalMedical fires for any bleeding/downed/untended colonist,
+	// EmergencyCriticalMedical fires for any bleeding or downed-untended colonist,
 	// including the patient this action exists to treat, so it is deliberately
 	// excluded here. Combat safety (EmergencyUnsafeThreat) gates an undrafted
 	// doctor's dispatch: ordinary triage only proceeds once threats_cleared.

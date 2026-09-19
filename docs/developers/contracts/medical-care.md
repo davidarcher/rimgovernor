@@ -36,15 +36,19 @@ results and changed native player orders do not authorize retries.
 ## Go planning
 
 The Go routine reviewer keeps `CriticalMedicine` a priority-1 emergency, suspending
-every other goal, only while a critical patient is downed or bleeding or that count
-is unknown (`policy.UrgentPatients`). A living colonist who merely needs tending, a
-chronic condition among them, keeps the goal active at priority 2: the same tend
-method treats them, but the colony's other work and its clock go on around it
-rather than parking behind a condition nobody can clear. The executor's
-emergency gate (`policy.EvaluateEmergency`) holds dispatch as `critical_medical`
-on the same terms: a downed or bleeding colonist, or an unknown health fact,
-holds every action; a colonist who only needs tending is the tend planner's
-patient and holds nothing (#66).
+every other goal, only while a critical patient is bleeding or downed with a tend
+outstanding, or that count is unknown (`policy.UrgentPatients`). A living colonist
+who merely needs tending, a chronic condition among them, or who is downed with
+nothing to tend (malnutrition, exhaustion, a tended wound) keeps the goal active
+at priority 2: the same tend and rescue methods serve them, but the colony's other
+work and its clock go on around it rather than parking behind a condition only a
+bed and ticks can clear (#66, #304). The executor's emergency gate
+(`policy.EvaluateEmergency`) holds dispatch as `critical_medical` on the same
+terms: a bleeding or downed-untended colonist, or an unknown health fact, holds
+every action; a colonist who only needs tending is the tend planner's patient,
+one downed with nothing to tend is the rescue planner's, and neither holds
+anything. The clock window acknowledges every colonist known downed so the
+native watcher lets their rescue and recovery take ticks (#213).
 The reviewer also projects ongoing care into a separate priority-2
 maintained need. Its same-tick native census distinguishes chronic conditions from
 urgent tending. Tracked patient identities persist through Manual and restart;

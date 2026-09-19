@@ -52,18 +52,21 @@ func TestEmergencyNeedsCountPatientsAndThreatsWithoutDoubleCounting(t *testing.T
 	}
 }
 
-func TestUrgentPatientsCountsDownedOrBleedingOnly(t *testing.T) {
+// A downed colonist with nothing to tend (malnutrition, #304) is a patient
+// (rescue serves them) but not an urgent one; downed with a tend outstanding
+// or bleeding is.
+func TestUrgentPatientsCountsBleedingOrDownedUntendedOnly(t *testing.T) {
 	current := domain.GenerationSnapshot{Colony: "colony", Load: "load", Plan: "plan"}
 	pawn := func(id PawnID, downed, bleeding, needsTend bool) EmergencyPawn {
 		return EmergencyPawn{ID: id, Dead: domain.Known(false), Downed: domain.Known(downed), Bleeding: domain.Known(bleeding), NeedsTend: domain.Known(needsTend)}
 	}
 	facts := EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true),
-		Colonists: []EmergencyPawn{pawn("chronic", false, false, true), pawn("downed", true, false, false), pawn("bleeding", false, true, true), pawn("well", false, false, false)}}
+		Colonists: []EmergencyPawn{pawn("chronic", false, false, true), pawn("starved", true, false, false), pawn("downed", true, false, true), pawn("bleeding", false, true, true), pawn("well", false, false, false)}}
 	snapshot, err := NewEmergencySnapshot(current, 7, facts)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, patients := EmergencyNeeds(snapshot, current, 7); patients != domain.Known(int64(3)) {
+	if _, patients := EmergencyNeeds(snapshot, current, 7); patients != domain.Known(int64(4)) {
 		t.Fatal(patients)
 	}
 	if urgent := UrgentPatients(snapshot, current, 7); urgent != domain.Known(int64(2)) {
@@ -72,7 +75,7 @@ func TestUrgentPatientsCountsDownedOrBleedingOnly(t *testing.T) {
 	// A dead colonist is nobody's patient; uncertainty stays unknown.
 	dead := facts
 	dead.Colonists = append([]EmergencyPawn(nil), facts.Colonists...)
-	dead.Colonists[1].Dead = domain.Known(true)
+	dead.Colonists[2].Dead = domain.Known(true)
 	if s, err := NewEmergencySnapshot(current, 7, dead); err != nil {
 		t.Fatal(err)
 	} else if urgent := UrgentPatients(s, current, 7); urgent != domain.Known(int64(1)) {
