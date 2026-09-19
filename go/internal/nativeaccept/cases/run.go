@@ -216,6 +216,7 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 	s := &session{c: c, report: report, binary: opts.Rimgovernor, seed: opts.Seed}
 	if resumed.resuming() {
 		s.resumeSuffix = opts.RunID()
+		s.resumed = &resumed.entry
 	}
 	cfg := &na.Config{Root: opts.Root, Output: output, Headless: opts.Headless && !c.Rendered, GameID: opts.GameID,
 		Spawned: func(pid int) { s.gabsPID.Store(int64(pid)) }}
@@ -406,8 +407,10 @@ type session struct {
 	resumeSuffix string
 	// seed is the run's pinned world seed, "" when none.
 	seed string
-	runtime      *na.ScenarioRuntime
-	gabsPID      atomic.Int64
+	// resumed is the checkpoint entry the run resumed from, nil fresh.
+	resumed *na.Checkpoint
+	runtime *na.ScenarioRuntime
+	gabsPID atomic.Int64
 }
 
 func (s *session) Config() *na.Config { return s.config }
@@ -445,6 +448,12 @@ func (s *session) Names() []string          { return s.Session.Names }
 func (s *session) Identity() map[string]any { return s.Session.Identity }
 func (s *session) Prepared() map[string]any { return s.Session.Prepared }
 func (s *session) Report() na.Report        { return s.report }
+func (s *session) Resumed() (na.Checkpoint, bool) {
+	if s.resumed == nil {
+		return na.Checkpoint{}, false
+	}
+	return *s.resumed, true
+}
 func (s *session) RequestID(base string) string {
 	if s.resumeSuffix == "" {
 		return base

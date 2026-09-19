@@ -315,61 +315,100 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 			return err
 		}
 	} else {
-		terrain, err := fixture("terrain", map[string]any{"op": "terrain"})
-		if err != nil {
-			return err
+		// The band, the stock, the rifles and the construction site are
+		// staged here, in the run body, so a resume from the ring (#249)
+		// finds them in the save already: the resumed entry's state names
+		// the site the fresh run chose, and the prep is skipped rather than
+		// laid again on the colonists' shifted centre (#316).
+		var staged bool
+		if entry, ok := s.Resumed(); ok {
+			if state, ok := na.AsMap(entry.State["fixture"]); ok {
+				siteX, siteZ = int(na.AsNumber(state["siteX"])), int(na.AsNumber(state["siteZ"]))
+				staged = true
+				report["fixture_resumed"] = state
+			}
 		}
-		report["terrain"] = terrain
-		if _, err = fixture("stock", map[string]any{"op": "stock"}); err != nil {
-			return err
+		if !staged {
+			terrain, err := fixture("terrain", map[string]any{"op": "terrain"})
+			if err != nil {
+				return err
+			}
+			report["terrain"] = terrain
+			if _, err = fixture("stock", map[string]any{"op": "stock"}); err != nil {
+				return err
+			}
+			ranged, err := fixture("ranged", map[string]any{"op": "ranged", "rifles": 3})
+			if err != nil {
+				return err
+			}
+			report["ranged"] = ranged
+			construction, err := h.Call(ctx, "prepare-construction", "test/guarded_construction_prepare", map[string]any{"siteCount": 1})
+			if err != nil {
+				return err
+			}
+			if success, _ := na.AsBool(construction["success"]); !success || !na.MatchesIdentity(construction, identity) {
+				return fmt.Errorf("guarded_construction_prepare refused or identity mismatch: %#v", construction)
+			}
+			sites := na.AsSlice(construction["sites"])
+			if len(sites) != 1 {
+				return fmt.Errorf("guarded_construction_prepare: expected exactly one site, got %#v", construction)
+			}
+			site0, _ := na.AsMap(sites[0])
+			siteX, siteZ = int(na.AsNumber(site0["x"])), int(na.AsNumber(site0["z"]))
+			before, err := fixture("inspect-before", map[string]any{"op": "inspect"})
+			if err != nil {
+				return err
+			}
+			report["inspect_before"] = before
+			if int(na.AsNumber(before["traps"])) != 0 {
+				return fmt.Errorf("fresh colony already has traps: %#v", before)
+			}
+			na.SetCheckpointState("fixture", map[string]any{"siteX": siteX, "siteZ": siteZ})
 		}
-		ranged, err := fixture("ranged", map[string]any{"op": "ranged", "rifles": 3})
-		if err != nil {
-			return err
+		// A resumed store may already hold the finished layout (the run
+		// failed past it): then the layout service has nothing to build.
+		if staged {
+			stored, err := store.Open(ctx, statePath)
+			if err != nil {
+				return fmt.Errorf("open resumed store: %w", err)
+			}
+			r, ok, err := stored.LoadDefenseLayout(ctx, world)
+			if closeErr := stored.Close(); err == nil {
+				err = closeErr
+			}
+			if err != nil {
+				return fmt.Errorf("resumed layout: %w", err)
+			}
+			if ok && r.Complete {
+				layout = r
+				data, _ := json.Marshal(layout)
+				report["layout_record"] = json.RawMessage(data)
+			}
 		}
-		report["ranged"] = ranged
-		construction, err := h.Call(ctx, "prepare-construction", "test/guarded_construction_prepare", map[string]any{"siteCount": 1})
-		if err != nil {
-			return err
-		}
-		if success, _ := na.AsBool(construction["success"]); !success || !na.MatchesIdentity(construction, identity) {
-			return fmt.Errorf("guarded_construction_prepare refused or identity mismatch: %#v", construction)
-		}
-		sites := na.AsSlice(construction["sites"])
-		if len(sites) != 1 {
-			return fmt.Errorf("guarded_construction_prepare: expected exactly one site, got %#v", construction)
-		}
-		site0, _ := na.AsMap(sites[0])
-		siteX, siteZ = int(na.AsNumber(site0["x"])), int(na.AsNumber(site0["z"]))
-		before, err := fixture("inspect-before", map[string]any{"op": "inspect"})
-		if err != nil {
-			return err
-		}
-		report["inspect_before"] = before
-		if int(na.AsNumber(before["traps"])) != 0 {
-			return fmt.Errorf("fresh colony already has traps: %#v", before)
-		}
-		if err := closeClient(); err != nil {
-			return fmt.Errorf("close fixture-prep bridge session: %w", err)
-		}
+		if !layout.Complete {
+			var err error
+			if err = closeClient(); err != nil {
+				return fmt.Errorf("close fixture-prep bridge session: %w", err)
+			}
 
-		// Scenario 1: the layout is planned on the constrained site and every
-		// tier is built natively under the live routine reviewer/planner.
-		svc, err = launch("layout")
-		if err != nil {
-			return err
-		}
-		defer svc.stop()
-		layout, err = waitLayoutComplete(ctx, svc.store, world, svc.wait(layoutTimeout), report)
-		if err != nil {
-			return fmt.Errorf("layout: %w", err)
-		}
-		svc.stop()
-		report["layout_authority"] = svc.keepAlive.snapshot()
+			// Scenario 1: the layout is planned on the constrained site and every
+			// tier is built natively under the live routine reviewer/planner.
+			svc, err = launch("layout")
+			if err != nil {
+				return err
+			}
+			defer svc.stop()
+			layout, err = waitLayoutComplete(ctx, svc.store, world, svc.wait(layoutTimeout), report)
+			if err != nil {
+				return fmt.Errorf("layout: %w", err)
+			}
+			svc.stop()
+			report["layout_authority"] = svc.keepAlive.snapshot()
 
-		h, err = reopenHarness()
-		if err != nil {
-			return err
+			h, err = reopenHarness()
+			if err != nil {
+				return err
+			}
 		}
 	}
 	// The audits below run on a resumed checkpoint too: they are cheap

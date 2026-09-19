@@ -685,8 +685,14 @@ with the run id on a resumed one, since the restored store already holds
 the fresh run's submission and the replay under the resumed world's load
 identity is a different request the store answers `409 conflict` (#307).
 The id holds still within a run, so a relaunch on the same journal still
-replays idempotently. A body whose later steps assume the fresh run's
-progress has not happened should declare `NoCheckpoint`. A case that never
+replays idempotently. A body that stages its own fixture before the watched phase (a
+band of rock, a construction site, a chosen coordinate) records what it
+did with `na.SetCheckpointState(key, value)`; every later bundle's
+sidecar carries that `state`, and on a resume the body reads it back
+through `s.Resumed()` and skips the prep the save already holds instead
+of laying it again over a world that has moved on (`defense/layout`,
+#316). A body whose later steps assume the fresh run's progress has not
+happened and records nothing should declare `NoCheckpoint`. A case that never
 pauses on its own (bridge-only, no service) only gets the `failed/`
 bundle.
 

@@ -64,6 +64,11 @@ type Checkpoint struct {
 	// Prepared is the fixture op's reply the resumed session reports as
 	// its own, since the op does not run again over the restored world.
 	Prepared map[string]any `json:"prepared,omitempty"`
+	// State is what the case itself recorded about its progress up to the
+	// capture (SetCheckpointState): the fixture prep it ran in its Run
+	// body, the coordinates it chose. A resumed run reads it back through
+	// Session.Resumed and skips the work the save already carries (#316).
+	State map[string]any `json:"state,omitempty"`
 	// Serve is the case's declared serve spec at capture, for the record.
 	Serve map[string]any `json:"serve,omitempty"`
 	// ServiceProfile is the service profile directory the store is bound
@@ -304,6 +309,10 @@ type CheckpointRing struct {
 	Serve          map[string]any
 	Prepared       map[string]any
 	SourceRevision string
+	// State is the case's own progress record, carried into every capture
+	// (SetCheckpointState adds to it; a resumed run starts from the
+	// entry's).
+	State map[string]any
 	// Prior are the entries of the timeline this run resumed into (the
 	// previous ring's up to the resume point); the provisional index a
 	// capture writes lists them before this run's own.
@@ -428,6 +437,27 @@ func CaptureCheckpoint(ctx context.Context, label string) (c Checkpoint, ok bool
 	return c, true, err
 }
 
+// SetCheckpointState records key on the active ring's case state, carried
+// by every later capture (a phase the Run body completed, the fixture
+// coordinates it chose); a nil value deletes the key. Nothing happens
+// when no ring is active.
+func SetCheckpointState(key string, value any) {
+	r := activeRing.Load()
+	if r == nil {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.State == nil {
+		r.State = map[string]any{}
+	}
+	if value == nil {
+		delete(r.State, key)
+		return
+	}
+	r.State[key] = value
+}
+
 // errNotPaused is a periodic capture declined because the game runs; the
 // ring checks again shortly.
 var errNotPaused = errors.New("game is not paused")
@@ -547,7 +577,7 @@ func (r *CheckpointRing) capture(ctx context.Context, label string, force bool) 
 	}
 	entry := Checkpoint{
 		Case: r.Case, Label: label, OffsetMs: r.Offset().Milliseconds(), Save: CheckpointSaveName(r.Case),
-		Prepared: r.Prepared, Serve: r.Serve, ServiceProfile: r.Config.ServiceProfileDir(), SourceRevision: r.SourceRevision,
+		Prepared: r.Prepared, State: r.stateSnapshot(), Serve: r.Serve, ServiceProfile: r.Config.ServiceProfileDir(), SourceRevision: r.SourceRevision,
 		Package: r.Fingerprint.Package, Start: r.Fingerprint.Start, Expansions: r.Fingerprint.Expansions,
 		At: began.UTC().Format(time.RFC3339), Path: dir,
 	}
@@ -601,6 +631,21 @@ func (r *CheckpointRing) capture(ctx context.Context, label string, force bool) 
 		return Checkpoint{}, err
 	}
 	return entry, nil
+}
+
+// stateSnapshot copies the case state for a sidecar; the case may keep
+// adding to it while the capture writes.
+func (r *CheckpointRing) stateSnapshot() map[string]any {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if len(r.State) == 0 {
+		return nil
+	}
+	out := make(map[string]any, len(r.State))
+	for k, v := range r.State {
+		out[k] = v
+	}
+	return out
 }
 
 // bridgeSave saves through lifecycle_save on the harness session: the game

@@ -405,3 +405,40 @@ func TestServiceSaveResumesAfterFailedSave(t *testing.T) {
 		t.Fatal(mode, calls)
 	}
 }
+
+// The case's own progress record (SetCheckpointState) rides every later
+// capture's sidecar, so a resumed run can skip the prep the save carries
+// (#316); it is a no-op with no ring active.
+func TestCheckpointStateRidesCaptures(t *testing.T) {
+	SetCheckpointState("orphan", 1)
+	ring, _ := ringFixture(t, time.Hour)
+	ring.Activate()
+	defer ring.Deactivate()
+	ctx := context.Background()
+	first, err := ring.Capture(ctx, "before")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.State != nil {
+		t.Fatalf("state before any record: %v", first.State)
+	}
+	SetCheckpointState("fixture", map[string]any{"siteX": 7})
+	SetCheckpointState("gone", true)
+	SetCheckpointState("gone", nil)
+	second, err := ring.Capture(ctx, "after")
+	if err != nil {
+		t.Fatal(err)
+	}
+	site, _ := second.State["fixture"].(map[string]any)
+	if _, gone := second.State["gone"]; gone || site["siteX"] != 7 {
+		t.Fatalf("state %v", second.State)
+	}
+	var sidecar Checkpoint
+	data, _ := os.ReadFile(filepath.Join(second.Path, CheckpointSidecar))
+	if err := json.Unmarshal(data, &sidecar); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := sidecar.State["fixture"].(map[string]any); got["siteX"] != float64(7) {
+		t.Fatalf("sidecar state %v", sidecar.State)
+	}
+}

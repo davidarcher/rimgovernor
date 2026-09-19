@@ -124,6 +124,10 @@ namespace HomeBridge.BridgeTools
                     // Player pawns keep their cell open; wild or ruin pawns (dormant
                     // mechanoids, insects) are removed with the rest of the cell.
                     if (cell.GetThingList(map).Any(t => t is Pawn p && p.Faction == Faction.OfPlayer)) { open.Add(new { x = cell.x, z = cell.z, edifice = "pawn" }); continue; }
+                    // A non-destroyable feature (a steam geyser) cannot be
+                    // cleared; destroying it only logs an error RimBridge
+                    // raises as a blocking attention (#316). Its cell stays.
+                    if (cell.GetThingList(map).Any(t => !t.def.destroyable)) { skipped++; continue; }
                     foreach (var thing in cell.GetThingList(map).Where(t => t.def.category != ThingCategory.Filth).ToList()) thing.Destroy();
                     GenSpawn.Spawn(ThingMaker.MakeThing(granite), cell, map);
                     placed.Add(new { x = cell.x, z = cell.z });

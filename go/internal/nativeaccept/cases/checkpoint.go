@@ -191,6 +191,12 @@ func newRing(c Case, opts Options, s *session, cfg *na.Config, output string, re
 	if resumed.resuming() {
 		ring.Base = time.Duration(resumed.entry.OffsetMs) * time.Millisecond
 		ring.Prepared = resumed.entry.Prepared
+		for k, v := range resumed.entry.State {
+			if ring.State == nil {
+				ring.State = map[string]any{}
+			}
+			ring.State[k] = v
+		}
 		for _, e := range resumed.previous.Entries {
 			if e.OffsetMs <= resumed.entry.OffsetMs {
 				ring.Prior = append(ring.Prior, e)

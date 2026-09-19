@@ -140,6 +140,11 @@ type Session interface {
 	// replays idempotently. Use it for every deterministic requestId a
 	// Run body submits.
 	RequestID(base string) string
+	// Resumed is the checkpoint entry this run resumed from (#249), ok
+	// false on a fresh run. Its State is what the case recorded through
+	// na.SetCheckpointState before the capture: a Run body that stages
+	// its own fixture reads it to skip the prep the save carries (#316).
+	Resumed() (entry na.Checkpoint, ok bool)
 	// Report is the run's report; the case adds its own fields.
 	Report() na.Report
 	// Release closes the harness's bridge session without stopping the game
