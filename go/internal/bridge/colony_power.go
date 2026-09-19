@@ -8,7 +8,7 @@ import (
 )
 
 func validateColonyPower(v *o.DevelopmentFacts, identity *c.Identity, size *o.MapSize) error {
-	if v == nil || !proto.Equal(v, &o.DevelopmentFacts{Power: v.Power, Furniture: v.Furniture, Completeness: v.Completeness, Networks: v.Networks, ShortCircuitTick: v.ShortCircuitTick}) {
+	if v == nil || !proto.Equal(v, &o.DevelopmentFacts{Power: v.Power, Furniture: v.Furniture, Completeness: v.Completeness, Networks: v.Networks, ShortCircuitTick: v.ShortCircuitTick, Geysers: v.Geysers}) {
 		return contract("unsupported development facts")
 	}
 	if v.ShortCircuitTick != nil && v.GetShortCircuitTick() < 0 {
@@ -17,7 +17,7 @@ func validateColonyPower(v *o.DevelopmentFacts, identity *c.Identity, size *o.Ma
 	if err := colonyCounts(v.Completeness, len(v.Power)+len(v.Furniture), 256); err != nil {
 		return err
 	}
-	if len(v.Networks) > 256 {
+	if len(v.Networks) > 256 || len(v.Geysers) > 256 {
 		return contract("power network census exceeds bound")
 	}
 	seen := map[string]bool{}
@@ -96,6 +96,28 @@ func validateColonyPower(v *o.DevelopmentFacts, identity *c.Identity, size *o.Ma
 		}
 		if c := net.Completeness; c != nil && (c.Page == nil || !c.Page.GetComplete() || c.GetUnreadable() != 0 || c.GetMatched() != c.GetReturned()) {
 			return contract("incomplete power network census")
+		}
+	}
+	geysers := map[string]bool{}
+	for _, row := range v.Geysers {
+		ref := row.GetGeyser()
+		if row == nil || !proto.Equal(row, &o.SteamGeyser{Geyser: row.Geyser, Cells: row.Cells, Occupied: row.Occupied}) || !powerEntity(ref, identity, size) || ref.Position == nil || row.Occupied == nil || geysers[ref.GetId()] {
+			return contract("invalid steam geyser")
+		}
+		geysers[ref.GetId()] = true
+		if len(row.Cells) < 1 || len(row.Cells) > 64 {
+			return contract("invalid steam geyser footprint")
+		}
+		cells := map[[2]int32]bool{}
+		for _, cell := range row.Cells {
+			key := [2]int32{cell.GetX(), cell.GetZ()}
+			if !colonyCell(cell, size) || cells[key] {
+				return contract("invalid steam geyser footprint")
+			}
+			cells[key] = true
+		}
+		if !cells[[2]int32{ref.Position.GetX(), ref.Position.GetZ()}] {
+			return contract("steam geyser footprint misses anchor")
 		}
 	}
 	conduits := map[[2]int32]bool{}

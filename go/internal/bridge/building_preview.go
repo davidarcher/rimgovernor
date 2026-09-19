@@ -61,6 +61,9 @@ func (caller *Client) PreviewBuilding(ctx context.Context, action domain.Action,
 	if orientation.WatchCellsAccessible != nil {
 		out.Preview.WatchCellsAccessible = domain.Known(orientation.GetWatchCellsAccessible())
 	}
+	if orientation.WindBlockedCells != nil {
+		out.Preview.WindBlockedCells = domain.Known(int32(min(orientation.GetWindBlockedCells(), 4096)))
+	}
 	safe := true
 	for _, blocker := range orientation.BlockingThings {
 		replaceConduit := b.Definition() == "HiddenConduit" && blocker.GetDefName() == "PowerConduit" && blocker.GetCategory() == "Building" && !blocker.GetIsBlueprint() && !blocker.GetIsFrame() && !blocker.GetFrameWouldBeCancelled()

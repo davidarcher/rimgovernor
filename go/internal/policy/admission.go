@@ -60,8 +60,12 @@ type Preview struct {
 	Tick                                 domain.Tick
 	CanPlace, SafeToPlace, MadeFromStuff domain.Fact[bool]
 	WatchCellsAccessible                 domain.Fact[bool]
-	Footprint                            domain.Fact[[]domain.Cell]
-	Costs                                domain.Fact[[]Amount]
+	// WindBlockedCells is, for a wind turbine, how many cells of its native
+	// catch zone are obstructed (roofed, off the map or holding a
+	// wind-blocking thing); unknown for every other definition.
+	WindBlockedCells domain.Fact[int32]
+	Footprint        domain.Fact[[]domain.Cell]
+	Costs            domain.Fact[[]Amount]
 	// Blockers lists what native reports the placement would disturb, so a
 	// method that replaces a building on purpose (a door cut into a wall,
 	// issue #6 slice 5) can tell that deliberate replacement from an

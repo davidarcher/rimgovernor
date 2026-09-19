@@ -29,6 +29,18 @@ type PowerTopology struct {
 	// Networks is the per-net energy summary; an empty census means the native
 	// read predates network facts and reserve runway stays unknown.
 	Networks []PowerNetworkFact
+	// Geysers is the native steam-geyser census: every geyser on the map with
+	// its footprint and whether a harvester or another building already
+	// stands on it. A free geyser in reach hosts a geothermal generator.
+	Geysers []PowerGeyser
+}
+
+// PowerGeyser is one steam geyser as the census reports it.
+type PowerGeyser struct {
+	ID       string
+	Cell     domain.Cell
+	Cells    []domain.Cell
+	Occupied bool
 }
 
 type PowerMethod string
@@ -63,15 +75,32 @@ type GeneratorOption struct {
 	MinimumFuel int64
 }
 
-// GeneratorDefinitions lists every generator definition the power family may
-// compile, in the order SelectGenerator prefers them. Planners request these
-// planning definitions and Hands correlate completed work against them.
-var GeneratorDefinitions = []string{"SolarGenerator", "WoodFiredGenerator", "ChemfuelPoweredGenerator"}
+// GeneratorDefinitions lists every generator definition RankGenerators may
+// choose, in the order it prefers them within a tier. Planners request these
+// planning definitions and Hands correlate completed work against them. The
+// wind turbine follows the solar generator: both are fuel-free, but a turbine
+// needs an unobstructed catch zone the placement preview reports, so a site
+// that has none falls back to the next ranked definition.
+var GeneratorDefinitions = []string{"SolarGenerator", WindTurbineDefinition, "WoodFiredGenerator", "ChemfuelPoweredGenerator"}
+
+// WindTurbineDefinition is the ranked generator whose placement preview
+// must report a clear catch zone.
+const WindTurbineDefinition = "WindTurbine"
+
+// GeothermalDefinition is the generator a free steam geyser hosts. It is not
+// ranked: SelectPowerMethod proposes it ahead of every other generator when a
+// free geyser is in reach of the draining consumer.
+const GeothermalDefinition = "GeothermalGenerator"
+
+// GeothermalReachCells bounds the conduit route from a draining consumer to a
+// geyser the family will build on: longer routes are left to a nearer
+// generator.
+const GeothermalReachCells = 48
 
 // PowerFamilyDefinitions lists every definition the power family compiles:
-// the conduit, each generator and the battery.
+// the conduit, each generator, the geothermal generator and the battery.
 func PowerFamilyDefinitions() []string {
-	return append(append([]string{string(PowerConnect)}, GeneratorDefinitions...), BatteryDefinition)
+	return append(append([]string{string(PowerConnect)}, GeneratorDefinitions...), GeothermalDefinition, BatteryDefinition)
 }
 
 // DefaultGeneratorOptions pairs each generator definition with its fuel and the
@@ -98,10 +127,15 @@ func DefaultGeneratorOptions(available func(string) domain.Fact[bool], stock fun
 // before the budget is consulted even though every consumer is currently
 // powered, and the margin the storage target carries over the night deficit.
 type PowerPlanning struct {
-	Generators       []GeneratorOption
-	BatteryAvailable domain.Fact[bool]
-	ReserveMinDays   float64
-	StorageMargin    float64
+	Generators          []GeneratorOption
+	BatteryAvailable    domain.Fact[bool]
+	GeothermalAvailable domain.Fact[bool]
+	ReserveMinDays      float64
+	StorageMargin       float64
+	// PendingDemandW is the wattage of consumers other goals' admitted plans
+	// are about to build, counted in the budget's demand so generation and
+	// storage are sized for the colony being built, not only the one standing.
+	PendingDemandW float64
 }
 
 func DefaultPowerPlanning() PowerPlanning {
@@ -186,9 +220,20 @@ type PowerProposal struct {
 	Center     domain.Cell
 	Cells      []domain.Cell
 	Room       Rectangle
+	// Alternatives lists the generators ranked after Definition for a
+	// generate method, so a definition no site accepts (a wind turbine with
+	// every catch zone obstructed) yields to the next one under the same key.
+	Alternatives []string
 	// Budget is the target network's 24 h balance behind a generate, store
 	// or charge decision; zero for the connect and hold methods.
 	Budget PowerBudget
+}
+
+// FixedSite reports whether the proposal names its exact placement: a
+// geothermal generator is anchored on its geyser (Center) rather than
+// searched for near the consumer.
+func (p PowerProposal) FixedSite() bool {
+	return p.Method == PowerGenerate && p.Definition == GeothermalDefinition
 }
 
 // SelectPowerMethod ports the network-local capacity and bounded route choices.
@@ -205,10 +250,10 @@ func SelectPowerMethod(fact domain.Fact[PowerTopology], bounds Bounds, cells []S
 	if !known {
 		return PowerProposal{Method: PowerUnknown}, nil
 	}
-	if !foodNumber(planning.ReserveMinDays) || !foodNumber(planning.StorageMargin) || planning.StorageMargin > 10 || len(planning.Generators) > 64 {
+	if !foodNumber(planning.ReserveMinDays) || !foodNumber(planning.StorageMargin) || !foodNumber(planning.PendingDemandW) || planning.StorageMargin > 10 || planning.PendingDemandW > 1e12 || len(planning.Generators) > 64 {
 		return PowerProposal{}, errors.New("invalid power planning")
 	}
-	if len(v.Networks) > 4096 {
+	if len(v.Networks) > 4096 || len(v.Geysers) > 256 {
 		return PowerProposal{}, errors.New("invalid power network census")
 	}
 	networks := map[string]PowerNetworkFact{}
@@ -293,6 +338,23 @@ func SelectPowerMethod(fact domain.Fact[PowerTopology], bounds Bounds, cells []S
 		}
 		blocked[c] = true
 	}
+	geyserSeen := map[string]bool{}
+	for _, g := range v.Geysers {
+		if !foodID(g.ID) || geyserSeen[g.ID] || !inside(g.Cell) || len(g.Cells) < 1 || len(g.Cells) > 64 {
+			return PowerProposal{}, errors.New("invalid steam geyser census")
+		}
+		geyserSeen[g.ID] = true
+		anchored := false
+		for _, c := range g.Cells {
+			if !inside(c) {
+				return PowerProposal{}, errors.New("invalid steam geyser footprint")
+			}
+			anchored = anchored || c == g.Cell
+		}
+		if !anchored {
+			return PowerProposal{}, errors.New("steam geyser anchor outside footprint")
+		}
+	}
 	route := map[domain.Cell]bool{}
 	seenCells := map[domain.Cell]bool{}
 	for _, c := range cells {
@@ -371,8 +433,8 @@ func SelectPowerMethod(fact domain.Fact[PowerTopology], bounds Bounds, cells []S
 			w, _ := b.BaseW.Value()
 			actual, _ := b.OutputW.Value()
 			output += actual
-			if stored, ok := b.Capacity.Value(); ok {
-				budget.CapacityWD += stored
+			if capacity, ok := b.Capacity.Value(); ok {
+				budget.CapacityWD += capacity
 			}
 			if w < 0 {
 				demand -= w
@@ -390,13 +452,21 @@ func SelectPowerMethod(fact domain.Fact[PowerTopology], bounds Bounds, cells []S
 				brokenProducer = brokenProducer || broken
 			}
 		}
-		// Reserve runway only matters while the network is powered by stored
-		// energy: a draining battery keeps consumers on until it does not.
+		budget.DemandW = demand + planning.PendingDemandW
+		// Reserve runway only matters while the network is powered: a
+		// draining battery keeps consumers on until it does not, and a
+		// network whose producers cannot carry the coming night (solar by
+		// day, no bank) is short of reserve before the sun goes down.
 		reserveShort := false
 		if connected && powered {
 			if net, ok := networks[network]; ok {
 				if days, known := net.ReserveDays().Value(); known && days < planning.ReserveMinDays {
 					reserveShort = true
+				}
+				if stored, known := net.StoredWD.Value(); known {
+					if night := ComputePowerBudget(budget).NightDeficitWD; night > 0 && stored < night {
+						reserveShort = true
+					}
 				}
 			}
 		}
@@ -414,19 +484,24 @@ func SelectPowerMethod(fact domain.Fact[PowerTopology], bounds Bounds, cells []S
 				p.Method = PowerWaitRepair
 			case unfueledProducer:
 				p.Method = PowerWaitFuel
-			case reserveShort && output < 0:
+			case !powered || reserveShort:
 				// Installed capacity covers demand on paper but the network is
-				// still draining its reserve (night-time solar, part-time
-				// generation): size it by the day's budget.
-				budget.DemandW = demand
+				// draining its reserve or has already lost the consumer
+				// (night-time solar, part-time generation): size it by the
+				// budget of a day. A network the budget covers waits for its
+				// bank to charge, or for native output to reach a consumer
+				// still off.
 				p.Budget = ComputePowerBudget(budget)
 				switch {
 				case p.Budget.GenerationShortfallW > 0:
-					return generate(p, target, producers, planning)
+					return generate(p, target, producers, planning, v.Geysers, route)
 				case p.Budget.StorageShortfallWD > 0:
-					return store(p, target, producers, planning)
+					return store(p, target, producers, planning, v.Geysers, route)
 				}
 				p.Method = PowerWaitCharge
+				if !powered {
+					p.Method = PowerWaitOutput
+				}
 			default:
 				p.Method = PowerWaitOutput
 			}
@@ -470,9 +545,8 @@ func SelectPowerMethod(fact domain.Fact[PowerTopology], bounds Bounds, cells []S
 			p.Key = powerMethodKey("connect", fmt.Sprint(p.Cells))
 			return p, nil
 		}
-		budget.DemandW = demand
 		p.Budget = ComputePowerBudget(budget)
-		return generate(p, target, producers, planning)
+		return generate(p, target, producers, planning, v.Geysers, route)
 	}
 	return result, nil
 }
@@ -513,9 +587,9 @@ func powerShelter(target PowerSite, cells []SiteCell, protected map[domain.Cell]
 // of storage but not generation. A battery is never the answer to a
 // generation shortfall; without a compilable battery the generation path
 // adds a generator instead, which the observed reserve still justifies.
-func store(p PowerProposal, target PowerSite, producers []PowerSite, planning PowerPlanning) (PowerProposal, error) {
+func store(p PowerProposal, target PowerSite, producers []PowerSite, planning PowerPlanning, geysers []PowerGeyser, route map[domain.Cell]bool) (PowerProposal, error) {
 	if available, ok := planning.BatteryAvailable.Value(); !ok || !available {
-		return generate(p, target, producers, planning)
+		return generate(p, target, producers, planning, geysers, route)
 	}
 	ids := make([]string, 0, len(producers))
 	for _, b := range producers {
@@ -527,31 +601,85 @@ func store(p PowerProposal, target PowerSite, producers []PowerSite, planning Po
 	return p, nil
 }
 
-// generate proposes one more generator for target's network. Native producer
-// identity, rather than fluctuating output, distinguishes an additional
-// capacity proposal from replay of the same deficit.
-func generate(p PowerProposal, target PowerSite, producers []PowerSite, planning PowerPlanning) (PowerProposal, error) {
-	// A shortfall the day already covers is night-only: no solar answers it.
-	ranking := GeneratorRanking{BatteryAvailable: planning.BatteryAvailable, NightOnly: p.Budget.GenerationShortfallW > 0 && p.Budget.DaySurplusWD > 0}
-	definition := SelectGenerator(planning.Generators, ranking)
-	if definition == "" {
-		p.Method = PowerNoGenerator
-		return p, nil
-	}
+// generate proposes one more generator for the network of target. Native
+// producer identity, rather than fluctuating output, distinguishes an
+// additional capacity proposal from replay of the same deficit. A free steam
+// geyser within GeothermalReachCells of the consumer over routeable cells
+// hosts a geothermal generator ahead of every ranked option: it runs around
+// the clock on no fuel.
+func generate(p PowerProposal, target PowerSite, producers []PowerSite, planning PowerPlanning, geysers []PowerGeyser, route map[domain.Cell]bool) (PowerProposal, error) {
 	ids := make([]string, 0, len(producers))
 	for _, b := range producers {
 		ids = append(ids, b.ID)
 	}
 	sort.Strings(ids)
-	p.Method, p.Definition = PowerGenerate, definition
 	p.Key = powerMethodKey("generate", target.ID+"/"+strings.Join(ids, "/"))
+	if geyser, ok := reachableGeyser(target.Cell, geysers, planning, route); ok {
+		p.Method, p.Definition = PowerGenerate, GeothermalDefinition
+		p.Center, p.Cells = geyser.Cell, append([]domain.Cell(nil), geyser.Cells...)
+		return p, nil
+	}
+	// A shortfall the day already covers is night-only: no solar answers it.
+	ranking := GeneratorRanking{BatteryAvailable: planning.BatteryAvailable, NightOnly: p.Budget.GenerationShortfallW > 0 && p.Budget.DaySurplusWD > 0}
+	if len(planning.Generators) == 0 {
+		p.Method, p.Definition = PowerGenerate, SelectGenerator(nil, ranking)
+		return p, nil
+	}
+	ranked := RankGenerators(planning.Generators, ranking)
+	if len(ranked) == 0 {
+		p.Method = PowerNoGenerator
+		return p, nil
+	}
+	p.Method, p.Definition, p.Alternatives = PowerGenerate, ranked[0], ranked[1:]
 	return p, nil
+}
+
+// reachableGeyser is the nearest free geyser a conduit route of at most
+// GeothermalReachCells can reach from start, when the geothermal generator
+// is natively available.
+func reachableGeyser(start domain.Cell, geysers []PowerGeyser, planning PowerPlanning, route map[domain.Cell]bool) (PowerGeyser, bool) {
+	if available, ok := planning.GeothermalAvailable.Value(); !ok || !available {
+		return PowerGeyser{}, false
+	}
+	destinations := map[domain.Cell]PowerGeyser{}
+	allowed := map[domain.Cell]bool{}
+	for c, ok := range route {
+		allowed[c] = ok
+	}
+	for _, g := range geysers {
+		if g.Occupied {
+			continue
+		}
+		for _, c := range g.Cells {
+			destinations[c] = g
+			allowed[c] = true
+		}
+	}
+	if len(destinations) == 0 {
+		return PowerGeyser{}, false
+	}
+	targets := map[domain.Cell]bool{}
+	for c := range destinations {
+		targets[c] = true
+	}
+	// The consumer stands on its own footprint, which the census reports
+	// occupied: the search starts from it regardless.
+	allowed[start] = true
+	path := powerRoute(start, targets, allowed)
+	if len(path) == 0 || len(path)-1 > GeothermalReachCells {
+		return PowerGeyser{}, false
+	}
+	return destinations[path[0]], true
 }
 
 func powerMethodKey(prefix, identity string) domain.MethodID {
 	digest := sha256.Sum256([]byte(identity))
 	return domain.MethodID(fmt.Sprintf("%s-%x", prefix, digest[:12]))
 }
+
+// powerRouteBound caps the cells one route search visits: enough to reach a
+// geyser GeothermalReachCells away across open ground.
+const powerRouteBound = 16384
 
 // The generator-to-consumer order allows successive eight-cell methods to
 // extend one route. Unknown terrain and protected cells never become routes.
@@ -573,7 +701,7 @@ func powerRoute(start domain.Cell, destinations, allowed map[domain.Cell]bool) [
 		}
 		for _, next := range []domain.Cell{{X: c.X + 1, Z: c.Z}, {X: c.X - 1, Z: c.Z}, {X: c.X, Z: c.Z + 1}, {X: c.X, Z: c.Z - 1}} {
 			if _, found := previous[next]; allowed[next] && !found {
-				if len(previous) >= 2048 {
+				if len(previous) >= powerRouteBound {
 					return nil
 				}
 				previous[next] = c

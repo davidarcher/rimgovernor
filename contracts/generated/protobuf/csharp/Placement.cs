@@ -63,33 +63,35 @@ namespace RimGovernor.Protocol.Placement {
             "CzIwLnJpbWdvdmVybm9yLnBsYWNlbWVudC52MS5QbGFjZW1lbnRNYXRlcmlh",
             "bFN0b2NrImIKFlBsYWNlbWVudE1hdGVyaWFsU3RvY2sSFQoIZGVmX25hbWUY",
             "ASABKAlIAIgBARIWCglhdmFpbGFibGUYAiABKAVIAYgBAUILCglfZGVmX25h",
-            "bWVCDAoKX2F2YWlsYWJsZSKRAwoRUGxhY2VtZW50Um90YXRpb24SOQoIcm90",
+            "bWVCDAoKX2F2YWlsYWJsZSLJAwoRUGxhY2VtZW50Um90YXRpb24SOQoIcm90",
             "YXRpb24YASABKA4yIi5yaW1nb3Zlcm5vci5wbGFjZW1lbnQudjEuUm90YXRp",
             "b25IAIgBARIVCghhY2NlcHRlZBgCIAEoCEgBiAEBEhMKBnJlYXNvbhgDIAEo",
             "CUgCiAEBEjMKDm9jY3VwaWVkX2NlbGxzGAQgAygLMhsucmltZ292ZXJub3Iu",
             "Y29tbW9uLnYxLkNlbGwSQwoPYmxvY2tpbmdfdGhpbmdzGAUgAygLMioucmlt",
             "Z292ZXJub3IucGxhY2VtZW50LnYxLlBsYWNlbWVudEJsb2NrZXISIwoWd2F0",
             "Y2hfY2VsbHNfYWNjZXNzaWJsZRgGIAEoCEgDiAEBEjYKEWludGVyYWN0aW9u",
-            "X2NlbGxzGAcgAygLMhsucmltZ292ZXJub3IuY29tbW9uLnYxLkNlbGxCCwoJ",
-            "X3JvdGF0aW9uQgsKCV9hY2NlcHRlZEIJCgdfcmVhc29uQhkKF193YXRjaF9j",
-            "ZWxsc19hY2Nlc3NpYmxlIp4CChBQbGFjZW1lbnRCbG9ja2VyEhUKCGNhdGVn",
-            "b3J5GAEgASgJSACIAQESGQoMaXNfYmx1ZXByaW50GAIgASgISAGIAQESFQoI",
-            "aXNfZnJhbWUYAyABKAhIAogBARIbCg53b3VsZF9iZV93aXBlZBgEIAEoCEgD",
-            "iAEBEiUKGGZyYW1lX3dvdWxkX2JlX2NhbmNlbGxlZBgFIAEoCEgEiAEBEhUK",
-            "CGRlZl9uYW1lGAYgASgJSAWIAQFCCwoJX2NhdGVnb3J5Qg8KDV9pc19ibHVl",
-            "cHJpbnRCCwoJX2lzX2ZyYW1lQhEKD193b3VsZF9iZV93aXBlZEIbChlfZnJh",
-            "bWVfd291bGRfYmVfY2FuY2VsbGVkQgsKCV9kZWZfbmFtZSqEAQoIUm90YXRp",
-            "b24SGAoUUk9UQVRJT05fVU5TUEVDSUZJRUQQABISCg5ST1RBVElPTl9OT1JU",
-            "SBABEhEKDVJPVEFUSU9OX0VBU1QQAhISCg5ST1RBVElPTl9TT1VUSBADEhEK",
-            "DVJPVEFUSU9OX1dFU1QQBBIQCgxST1RBVElPTl9BTEwQBSqEAQoLUGFzc2Fi",
-            "aWxpdHkSGwoXUEFTU0FCSUxJVFlfVU5TUEVDSUZJRUQQABIZChVQQVNTQUJJ",
-            "TElUWV9TVEFOREFCTEUQARIhCh1QQVNTQUJJTElUWV9QQVNTX1RIUk9VR0hf",
-            "T05MWRACEhoKFlBBU1NBQklMSVRZX0lNUEFTU0FCTEUQAzJsCglQbGFjZW1l",
-            "bnQSXwoHUHJldmlldxIqLnJpbWdvdmVybm9yLnBsYWNlbWVudC52MS5QbGFj",
-            "ZW1lbnRSZXF1ZXN0GigucmltZ292ZXJub3IucGxhY2VtZW50LnYxLlBsYWNl",
-            "bWVudFJlcGx5Qm5aS2dpdGh1Yi5jb20vZGF2aWRhcmNoZXIvUmltR292ZXJu",
-            "b3IvZ28vaW50ZXJuYWwvd2lyZS9wbGFjZW1lbnRwYjtwbGFjZW1lbnRwYqoC",
-            "HlJpbUdvdmVybm9yLlByb3RvY29sLlBsYWNlbWVudGIGcHJvdG8z"));
+            "X2NlbGxzGAcgAygLMhsucmltZ292ZXJub3IuY29tbW9uLnYxLkNlbGwSHwoS",
+            "d2luZF9ibG9ja2VkX2NlbGxzGAggASgNSASIAQFCCwoJX3JvdGF0aW9uQgsK",
+            "CV9hY2NlcHRlZEIJCgdfcmVhc29uQhkKF193YXRjaF9jZWxsc19hY2Nlc3Np",
+            "YmxlQhUKE193aW5kX2Jsb2NrZWRfY2VsbHMingIKEFBsYWNlbWVudEJsb2Nr",
+            "ZXISFQoIY2F0ZWdvcnkYASABKAlIAIgBARIZCgxpc19ibHVlcHJpbnQYAiAB",
+            "KAhIAYgBARIVCghpc19mcmFtZRgDIAEoCEgCiAEBEhsKDndvdWxkX2JlX3dp",
+            "cGVkGAQgASgISAOIAQESJQoYZnJhbWVfd291bGRfYmVfY2FuY2VsbGVkGAUg",
+            "ASgISASIAQESFQoIZGVmX25hbWUYBiABKAlIBYgBAUILCglfY2F0ZWdvcnlC",
+            "DwoNX2lzX2JsdWVwcmludEILCglfaXNfZnJhbWVCEQoPX3dvdWxkX2JlX3dp",
+            "cGVkQhsKGV9mcmFtZV93b3VsZF9iZV9jYW5jZWxsZWRCCwoJX2RlZl9uYW1l",
+            "KoQBCghSb3RhdGlvbhIYChRST1RBVElPTl9VTlNQRUNJRklFRBAAEhIKDlJP",
+            "VEFUSU9OX05PUlRIEAESEQoNUk9UQVRJT05fRUFTVBACEhIKDlJPVEFUSU9O",
+            "X1NPVVRIEAMSEQoNUk9UQVRJT05fV0VTVBAEEhAKDFJPVEFUSU9OX0FMTBAF",
+            "KoQBCgtQYXNzYWJpbGl0eRIbChdQQVNTQUJJTElUWV9VTlNQRUNJRklFRBAA",
+            "EhkKFVBBU1NBQklMSVRZX1NUQU5EQUJMRRABEiEKHVBBU1NBQklMSVRZX1BB",
+            "U1NfVEhST1VHSF9PTkxZEAISGgoWUEFTU0FCSUxJVFlfSU1QQVNTQUJMRRAD",
+            "MmwKCVBsYWNlbWVudBJfCgdQcmV2aWV3EioucmltZ292ZXJub3IucGxhY2Vt",
+            "ZW50LnYxLlBsYWNlbWVudFJlcXVlc3QaKC5yaW1nb3Zlcm5vci5wbGFjZW1l",
+            "bnQudjEuUGxhY2VtZW50UmVwbHlCblpLZ2l0aHViLmNvbS9kYXZpZGFyY2hl",
+            "ci9SaW1Hb3Zlcm5vci9nby9pbnRlcm5hbC93aXJlL3BsYWNlbWVudHBiO3Bs",
+            "YWNlbWVudHBiqgIeUmltR292ZXJub3IuUHJvdG9jb2wuUGxhY2VtZW50YgZw",
+            "cm90bzM="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::RimGovernor.Protocol.Common.CommonReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(new[] {typeof(global::RimGovernor.Protocol.Placement.Rotation), typeof(global::RimGovernor.Protocol.Placement.Passability), }, null, new pbr::GeneratedClrTypeInfo[] {
@@ -103,7 +105,7 @@ namespace RimGovernor.Protocol.Placement {
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Placement.PlacementMaterials), global::RimGovernor.Protocol.Placement.PlacementMaterials.Parser, new[]{ "Known", "Unavailable" }, new[]{ "Availability" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Placement.MaterialRows), global::RimGovernor.Protocol.Placement.MaterialRows.Parser, new[]{ "Rows" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Placement.PlacementMaterialStock), global::RimGovernor.Protocol.Placement.PlacementMaterialStock.Parser, new[]{ "DefName", "Available" }, new[]{ "DefName", "Available" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Placement.PlacementRotation), global::RimGovernor.Protocol.Placement.PlacementRotation.Parser, new[]{ "Rotation", "Accepted", "Reason", "OccupiedCells", "BlockingThings", "WatchCellsAccessible", "InteractionCells" }, new[]{ "Rotation", "Accepted", "Reason", "WatchCellsAccessible" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Placement.PlacementRotation), global::RimGovernor.Protocol.Placement.PlacementRotation.Parser, new[]{ "Rotation", "Accepted", "Reason", "OccupiedCells", "BlockingThings", "WatchCellsAccessible", "InteractionCells", "WindBlockedCells" }, new[]{ "Rotation", "Accepted", "Reason", "WatchCellsAccessible", "WindBlockedCells" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Placement.PlacementBlocker), global::RimGovernor.Protocol.Placement.PlacementBlocker.Parser, new[]{ "Category", "IsBlueprint", "IsFrame", "WouldBeWiped", "FrameWouldBeCancelled", "DefName" }, new[]{ "Category", "IsBlueprint", "IsFrame", "WouldBeWiped", "FrameWouldBeCancelled", "DefName" }, null, null, null)
           }));
     }
@@ -3251,6 +3253,7 @@ namespace RimGovernor.Protocol.Placement {
       blockingThings_ = other.blockingThings_.Clone();
       watchCellsAccessible_ = other.watchCellsAccessible_;
       interactionCells_ = other.interactionCells_.Clone();
+      windBlockedCells_ = other.windBlockedCells_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -3413,6 +3416,39 @@ namespace RimGovernor.Protocol.Placement {
       get { return interactionCells_; }
     }
 
+    /// <summary>Field number for the "wind_blocked_cells" field.</summary>
+    public const int WindBlockedCellsFieldNumber = 8;
+    private readonly static uint WindBlockedCellsDefaultValue = 0;
+
+    private uint windBlockedCells_;
+    /// <summary>
+    /// Wind turbines only: the cells of the native wind catch zone
+    /// (WindTurbineUtility.CalculateWindCells, 7x16 around the footprint) that
+    /// are roofed, off the map or hold a wind-blocking thing. Absent for every
+    /// other definition.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public uint WindBlockedCells {
+      get { if ((_hasBits0 & 8) != 0) { return windBlockedCells_; } else { return WindBlockedCellsDefaultValue; } }
+      set {
+        _hasBits0 |= 8;
+        windBlockedCells_ = value;
+      }
+    }
+    /// <summary>Gets whether the "wind_blocked_cells" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasWindBlockedCells {
+      get { return (_hasBits0 & 8) != 0; }
+    }
+    /// <summary>Clears the value of the "wind_blocked_cells" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearWindBlockedCells() {
+      _hasBits0 &= ~8;
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -3435,6 +3471,7 @@ namespace RimGovernor.Protocol.Placement {
       if(!blockingThings_.Equals(other.blockingThings_)) return false;
       if (WatchCellsAccessible != other.WatchCellsAccessible) return false;
       if(!interactionCells_.Equals(other.interactionCells_)) return false;
+      if (WindBlockedCells != other.WindBlockedCells) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -3449,6 +3486,7 @@ namespace RimGovernor.Protocol.Placement {
       hash ^= blockingThings_.GetHashCode();
       if (HasWatchCellsAccessible) hash ^= WatchCellsAccessible.GetHashCode();
       hash ^= interactionCells_.GetHashCode();
+      if (HasWindBlockedCells) hash ^= WindBlockedCells.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -3486,6 +3524,10 @@ namespace RimGovernor.Protocol.Placement {
         output.WriteBool(WatchCellsAccessible);
       }
       interactionCells_.WriteTo(output, _repeated_interactionCells_codec);
+      if (HasWindBlockedCells) {
+        output.WriteRawTag(64);
+        output.WriteUInt32(WindBlockedCells);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -3515,6 +3557,10 @@ namespace RimGovernor.Protocol.Placement {
         output.WriteBool(WatchCellsAccessible);
       }
       interactionCells_.WriteTo(ref output, _repeated_interactionCells_codec);
+      if (HasWindBlockedCells) {
+        output.WriteRawTag(64);
+        output.WriteUInt32(WindBlockedCells);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -3540,6 +3586,9 @@ namespace RimGovernor.Protocol.Placement {
         size += 1 + 1;
       }
       size += interactionCells_.CalculateSize(_repeated_interactionCells_codec);
+      if (HasWindBlockedCells) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(WindBlockedCells);
+      }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
       }
@@ -3567,6 +3616,9 @@ namespace RimGovernor.Protocol.Placement {
         WatchCellsAccessible = other.WatchCellsAccessible;
       }
       interactionCells_.Add(other.interactionCells_);
+      if (other.HasWindBlockedCells) {
+        WindBlockedCells = other.WindBlockedCells;
+      }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
 
@@ -3614,6 +3666,10 @@ namespace RimGovernor.Protocol.Placement {
             interactionCells_.AddEntriesFrom(input, _repeated_interactionCells_codec);
             break;
           }
+          case 64: {
+            WindBlockedCells = input.ReadUInt32();
+            break;
+          }
         }
       }
     #endif
@@ -3659,6 +3715,10 @@ namespace RimGovernor.Protocol.Placement {
           }
           case 58: {
             interactionCells_.AddEntriesFrom(ref input, _repeated_interactionCells_codec);
+            break;
+          }
+          case 64: {
+            WindBlockedCells = input.ReadUInt32();
             break;
           }
         }

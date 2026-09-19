@@ -260,8 +260,16 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	if r.goal == policy.EnsureResearch && !r.shelter {
 		definitions = []string{policy.ResearchBenchDefinition}
 	}
+	var pendingConsumers []string
 	if r.goal == policy.EnsureBasicPower {
-		definitions = append([]string{"Wall", "Door"}, policy.PowerFamilyDefinitions()...)
+		// The consumers other goals' admitted plans are about to build join
+		// the census request so the budget can price their draw.
+		held, err := p.journal.BuildingReservations(call, state.Snapshot)
+		if err != nil {
+			return RoutineBuildingResult{}, err
+		}
+		pendingConsumers = pendingBuildingDefinitions(held)
+		definitions = append(append([]string{"Wall", "Door"}, policy.PowerFamilyDefinitions()...), pendingConsumers...)
 	}
 	if r.goal == policy.EnsureTemperatureSafety {
 		definitions = []string{"Campfire", "PassiveCooler"}
@@ -316,7 +324,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 			}
 			resolved, reason, err = r.selectRefrigeration(call, facts, review.Latches, exhausted)
 		} else if r.goal == policy.EnsureBasicPower {
-			resolved, reason, err = r.selectPower(facts)
+			resolved, reason, err = r.selectPower(facts, pendingConsumers)
 		} else if r.goal == policy.MaintainLighting {
 			resolved, reason, err = r.selectLighting(facts, review.Latches)
 		} else if r.goal == policy.MaintainFlooring {
@@ -344,6 +352,14 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 			if r.goal == policy.EnsureBasicPower && reason == BuildingMethodNoSpace {
 				result.NativeWorkTicks, err = powerOutputAllowance(call, p.journal, goal.Goal, state.Snapshot, facts.Identity.Tick)
 				return result, err
+			}
+			if r.goal == policy.EnsureBasicPower && reason == RoutineBuildingReason(policy.PowerWaitFuel) {
+				// An empty generator is refuelled by a native haul the
+				// census cannot see coming; like a stock refusal, the
+				// hold lends the window that haul needs rather than
+				// parking the clock on no_work.
+				result.NativeWorkTicks = stockWaitTicks
+				return result, nil
 			}
 			// A cooler completed on the tick the supervisor latched the
 			// window reads powerOn=false until the power net ticks once, so
@@ -441,6 +457,17 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 			return RoutineBuildingResult{}, ErrControl
 		}
 		available = comfortBuilderAvailable(facts, r.definition, preferences.Overrides)
+		if r.power != nil && r.power.Method == policy.PowerGenerate {
+			// A generator no site accepts yields to the next ranked one a
+			// builder here can raise.
+			var alternatives []string
+			for _, name := range r.power.Alternatives {
+				if comfortBuilderAvailable(facts, name, preferences.Overrides) {
+					alternatives = append(alternatives, name)
+				}
+			}
+			r.power.Alternatives = alternatives
+		}
 	}
 	if !available {
 		if clockDebug() {
@@ -696,6 +723,27 @@ func (r *RoutineBuildingPlanner) previewMethod(call context.Context, snapshot do
 	if r.power != nil && r.power.Method == policy.PowerConnect {
 		return r.previewPowerRoute(call, snapshot, facts, protected, check)
 	}
+	if r.power != nil && r.power.FixedSite() {
+		return r.previewPowerSite(call, snapshot, facts, protected, check)
+	}
+	selected, stock, reason, err := r.previewSearch(call, snapshot, facts, protected, missing, check)
+	if r.power != nil && r.power.Method == policy.PowerGenerate {
+		// A generator with no acceptable site near the consumer (a wind
+		// turbine whose every catch zone is obstructed) yields to the next
+		// ranked definition under the same method.
+		for _, name := range r.power.Alternatives {
+			if err != nil || reason != BuildingMethodNoSpace {
+				break
+			}
+			next := *r
+			next.definition = name
+			selected, stock, reason, err = next.previewSearch(call, snapshot, facts, protected, missing, check)
+		}
+	}
+	return selected, stock, reason, err
+}
+
+func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, missing int64, check func() error) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, error) {
 	if r.refrigeration != nil {
 		return r.previewRefrigeration(call, snapshot, facts, protected, check)
 	}
@@ -773,6 +821,11 @@ func (r *RoutineBuildingPlanner) previewMethod(call context.Context, snapshot do
 	searchRequest := policy.PlacementSearchRequest{Snapshot: snapshot, Tick: facts.Identity.Tick, Bounds: facts.Bounds, Center: facts.Center, Cells: cells, Protected: append(append([]domain.Cell(nil), protected...), policy.DoorwayAisles(facts.Bounds, facts.Cells)...), Environment: policy.PlacementIndoors, Radius: 22, Limit: 64}
 	if r.power != nil {
 		searchRequest.Center, searchRequest.Radius = r.power.Center, 6
+		if r.definition == policy.WindTurbineDefinition {
+			// A turbine wants open ground its 7x16 catch zone can lie on,
+			// which the cells right beside a consumer rarely offer.
+			searchRequest.Radius = 12
+		}
 	}
 	if r.environment != "" {
 		searchRequest.Environment = r.environment
@@ -833,6 +886,13 @@ func (r *RoutineBuildingPlanner) previewMethod(call context.Context, snapshot do
 			}
 			if !known || made != (r.stuff != "") {
 				return nil, policy.StockObservation{}, BuildingMethodUnknown, nil
+			}
+			if r.definition == policy.WindTurbineDefinition {
+				// Only a site whose native catch zone is clear makes the
+				// turbine's nominal output; an obstructed one is no site.
+				if blocked, known := preview.Preview.WindBlockedCells.Value(); !known || blocked > 0 {
+					continue
+				}
 			}
 			choice, ok, err = search.Select(r.definition, r.stuff, []policy.Preview{preview.Preview})
 			if err != nil {

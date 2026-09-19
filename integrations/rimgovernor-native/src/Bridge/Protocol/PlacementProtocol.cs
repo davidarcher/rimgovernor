@@ -71,6 +71,7 @@ namespace HomeBridge.BridgeTools
                     foreach (var cell in row.interactionCells)
                         rotation.InteractionCells.Add(new Cell { X = cell.x, Z = cell.z });
                     if (row.watchCellsAccessible.HasValue) rotation.WatchCellsAccessible = row.watchCellsAccessible.Value;
+                    if (row.windBlockedCells.HasValue) rotation.WindBlockedCells = (uint)row.windBlockedCells.Value;
                     foreach (var blocker in row.blockingThings)
                     {
                         if (!ProtoBoundary.IsIdentifier(blocker.category)) throw new InvalidOperationException("Native blocker category unavailable.");

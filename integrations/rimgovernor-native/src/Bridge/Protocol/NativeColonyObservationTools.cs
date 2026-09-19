@@ -21,7 +21,7 @@ namespace HomeBridge.BridgeTools
         private const string ToolName = "rimgovernor/observations_read_colony_facts";
         private static readonly string[] StarterDefinitions = {
             "Wall", "Door", "Bed", "SleepingSpot", "Campfire", "ButcherSpot", "FueledStove", "Heater",
-            "PassiveCooler", "Cooler", "WoodFiredGenerator", "SolarGenerator", "ChemfuelPoweredGenerator", "Battery", "PowerConduit", "Sandbags", "Barricade",
+            "PassiveCooler", "Cooler", "WoodFiredGenerator", "SolarGenerator", "WindTurbine", "ChemfuelPoweredGenerator", "GeothermalGenerator", "Battery", "PowerConduit", "Sandbags", "Barricade",
             "StandingLamp", "SimpleResearchBench", "Table1x2c", "DiningChair", "HorseshoesPin",
             "Plant_Rice", "Plant_Potato", "Plant_Corn", "TableStonecutter", "Fence", "FenceGate", "PenMarker"
         };
@@ -228,7 +228,8 @@ namespace HomeBridge.BridgeTools
             var conduits = map.listerBuildings.allBuildingsColonist.Where(b => b.def.defName == "PowerConduit" || b.def.defName == "HiddenConduit" || b.def.defName == "WaterproofConduit")
                 .OrderBy(b => b.thingIDNumber).ToList();
             var nets = map.powerNetManager.AllNetsListForReading.OrderBy(n => n.GetHashCode()).ToList();
-            Bound(traders.Count + batteries.Count + conduits.Count + nets.Count, limit);
+            var geysers = map.listerThings.ThingsOfDef(ThingDefOf.SteamGeyser).OfType<Building_SteamGeyser>().OrderBy(g => g.thingIDNumber).ToList();
+            Bound(traders.Count + batteries.Count + conduits.Count + nets.Count + geysers.Count, limit);
             var result = new Obs.DevelopmentFacts { Completeness = Complete(traders.Count + batteries.Count + conduits.Count) };
             // Archived letters survive dismissal and saves. Use the game's own
             // translated label rather than matching English message prose.
@@ -273,6 +274,15 @@ namespace HomeBridge.BridgeTools
                     HasSource = net.powerComps.Any(p => p.Props.PowerConsumption < 0),
                     HasActiveSource = net.powerComps.Any(p => p.PowerOn && p.PowerOutput > 0),
                     Completeness = Complete(net.powerComps.Count + net.batteryComps.Count) });
+            }
+            foreach (var geyser in geysers) {
+                // A geyser is free for a geothermal generator only while no
+                // harvester, blueprint, frame or other building stands on it.
+                var cells = geyser.OccupiedRect().Cells.ToList();
+                var occupied = geyser.harvester != null || cells.Any(c => c.GetThingList(map).Any(t => t != geyser && (t.def.category == ThingCategory.Building || t.def.IsBlueprint || t.def.IsFrame)));
+                var row = new Obs.SteamGeyser { Geyser = new Obs.EntityRef { Id = geyser.GetUniqueLoadID(), MapId = map.uniqueID, DefName = geyser.def.defName, Position = Cell(geyser.Position) }, Occupied = occupied };
+                foreach (var cell in cells) row.Cells.Add(Cell(cell));
+                result.Geysers.Add(row);
             }
             return result;
         }

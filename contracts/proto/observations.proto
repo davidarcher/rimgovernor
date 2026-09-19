@@ -566,7 +566,12 @@ message AnimalFeedStorage { optional string zone_id = 1; repeated string accepts
 message AnimalFeed { PawnState pawn = 1; optional string diet = 2; optional bool requires_pen = 3; optional string suitable_pen_id = 4; repeated FoodStock reachable_stored_feed = 5; repeated string reachable_bench_ids = 6; repeated AnimalFeedStorage reachable_storage = 7; repeated rimgovernor.common.v1.Cell storage_candidates = 8; }
 message DevelopmentPower { BuildingState building = 1; optional double base_w = 2; optional double stored_watt_days = 3; optional double capacity_watt_days = 4; optional bool rain_vulnerable = 5; optional bool roofed = 6; }
 message DevelopmentFurniture { EntityRef building = 1; optional bool indoors = 2; optional uint32 slots = 3; }
-message DevelopmentFacts { repeated DevelopmentPower power = 1; repeated DevelopmentFurniture furniture = 2; ResearchSnapshot research = 3; Completeness completeness = 4; repeated PowerNetwork networks = 5; optional int64 short_circuit_tick = 6; }
+// One steam geyser on the map: geyser is the Building_SteamGeyser with its
+// anchor position, cells its 2x2 footprint, and occupied whether a harvester
+// (a geothermal generator, built or under construction) or any other
+// building already stands on it.
+message SteamGeyser { EntityRef geyser = 1; repeated rimgovernor.common.v1.Cell cells = 2; optional bool occupied = 3; }
+message DevelopmentFacts { repeated DevelopmentPower power = 1; repeated DevelopmentFurniture furniture = 2; ResearchSnapshot research = 3; Completeness completeness = 4; repeated PowerNetwork networks = 5; optional int64 short_circuit_tick = 6; repeated SteamGeyser geysers = 7; }
 message EnvironmentCondition { optional string id = 1; optional string def_name = 2; optional string implementation = 3; optional string label = 4; optional bool permanent = 5; optional int64 ticks_left = 6; }
 // FoodClimate is the map tile's calendar for food planning: growing_days is
 // the tile's growing period per 60-day year, growing_days_remaining the days

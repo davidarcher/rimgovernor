@@ -21,10 +21,15 @@ func NewRoutinePowerPlanner(reviewer *RoutineReviewer, native RoutineBuildingSou
 	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, goal: policy.EnsureBasicPower}, nil
 }
 
-func (r *RoutineBuildingPlanner) selectPower(facts observation.ColonyProjection) (*RoutineBuildingPlanner, RoutineBuildingReason, error) {
+// selectPower maps the policy outcome onto the planner. pendingConsumers
+// names, with multiplicity, the buildings other goals' admitted plans are
+// about to build; their declared draw joins the budget's demand.
+func (r *RoutineBuildingPlanner) selectPower(facts observation.ColonyProjection, pendingConsumers []string) (*RoutineBuildingPlanner, RoutineBuildingReason, error) {
 	planning := policy.DefaultPowerPlanning()
 	planning.Generators = facts.GeneratorOptions()
 	planning.BatteryAvailable = facts.DefinitionAvailable(policy.BatteryDefinition)
+	planning.GeothermalAvailable = facts.DefinitionAvailable(policy.GeothermalDefinition)
+	planning.PendingDemandW = pendingDemand(facts, pendingConsumers)
 	proposal, err := policy.SelectPowerMethod(facts.PowerPlanning, facts.Bounds, facts.Cells, nil, planning)
 	if err != nil {
 		return nil, "", err
@@ -52,6 +57,8 @@ func (r *RoutineBuildingPlanner) selectPower(facts observation.ColonyProjection)
 	resolved.definition, resolved.environment = string(proposal.Method), policy.PlacementAnywhere
 	switch proposal.Method {
 	case policy.PowerGenerate:
+		// A geothermal generator is anchored on its geyser (FixedSite);
+		// every other generator is searched for beside the consumer.
 		resolved.definition = proposal.Definition
 	case policy.PowerStore:
 		// A battery short-circuits unroofed in rain or snow, so the bank
@@ -62,6 +69,40 @@ func (r *RoutineBuildingPlanner) selectPower(facts observation.ColonyProjection)
 		resolved.definition = "Wall"
 	}
 	return &resolved, "", nil
+}
+
+// pendingBuildingDefinitions lists, with multiplicity, the definitions of
+// building actions still open across every held reservation: what other
+// goals are about to build.
+func pendingBuildingDefinitions(held []policy.Reservation) []string {
+	var out []string
+	for _, h := range held {
+		b, ok := h.Progress.Action().Building()
+		if !ok || !domain.GoalWorkOpen([]domain.Progress{h.Progress}) || slices.Contains(policy.PowerFamilyDefinitions(), b.Definition()) {
+			continue
+		}
+		if len(out) == 64 {
+			break
+		}
+		out = append(out, b.Definition())
+	}
+	return out
+}
+
+// pendingDemand sums the declared draw of the pending consumers the census
+// describes (PlanningDefinition.PowerW, positive for a consumer).
+func pendingDemand(facts observation.ColonyProjection, pending []string) float64 {
+	draw := map[string]float64{}
+	for _, d := range facts.Definitions {
+		if w, known := d.PowerW.Value(); known && w > 0 {
+			draw[d.Name] = w
+		}
+	}
+	total := 0.0
+	for _, name := range pending {
+		total += draw[name]
+	}
+	return total
 }
 
 // generatorResearch lists, in policy.GeneratorDefinitions order, the native
@@ -225,6 +266,63 @@ func powerNativeWorkTicks(plan store.PlanState, current domain.GenerationSnapsho
 		return 0
 	}
 	return min(uint32(120), uint32(10000-(tick-completed)))
+}
+
+// previewPowerSite previews the one placement a fixed-site proposal names: a
+// geothermal generator centred on its geyser. The geyser itself stands on
+// the footprint, so the site census (which reports it occupied) is not
+// consulted; the native preview's legality and safety are.
+func (r *RoutineBuildingPlanner) previewPowerSite(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, check func() error) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, error) {
+	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
+	if r.power == nil || !r.power.FixedSite() {
+		return nil, stock, "", ErrControl
+	}
+	if err := check(); err != nil {
+		return nil, stock, "", err
+	}
+	building, err := domain.NewBuilding(r.definition, r.power.Center, domain.North, "")
+	if err != nil {
+		return nil, stock, "", err
+	}
+	action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-0", snapshot.Plan)), building)
+	if err != nil {
+		return nil, stock, "", err
+	}
+	preview, _, err := r.native.PreviewBuilding(ctx, action, snapshot)
+	if err != nil {
+		return nil, stock, "", err
+	}
+	if err = check(); err != nil {
+		return nil, stock, "", err
+	}
+	p := preview.Preview
+	if p.Action != action || !p.Snapshot.Matches(snapshot) || !p.Tick.FreshFor(facts.Identity.Tick) || !preview.Stock.Snapshot.Matches(snapshot) || !preview.Stock.Tick.FreshFor(facts.Identity.Tick) {
+		return nil, stock, "", ErrControl
+	}
+	footprint, fk := p.Footprint.Value()
+	made, mk := p.MadeFromStuff.Value()
+	legal, lk := p.CanPlace.Value()
+	safe, sk := p.SafeToPlace.Value()
+	if !fk || !mk || !lk || !sk {
+		return nil, stock, BuildingMethodUnknown, nil
+	}
+	blocked := map[domain.Cell]bool{}
+	for _, c := range protected {
+		blocked[c] = true
+	}
+	for _, c := range footprint {
+		if blocked[c] {
+			return nil, stock, BuildingMethodExistingWork, nil
+		}
+	}
+	if made || len(footprint) == 0 || !legal || !safe {
+		clockSchedulerLog("%s: no site for %s on geyser %v: legal=%v safe=%v blockers=%v", r.goal, r.definition, r.power.Center, legal, safe, p.Blockers)
+		return nil, stock, BuildingMethodNoSpace, nil
+	}
+	if err = mergeRoutineStock(&stock, preview.Stock, true); err != nil {
+		return nil, stock, "", err
+	}
+	return []policy.Preview{p}, stock, "", nil
 }
 
 // Conduits may legally underlay occupied cells. Validate the exact observed

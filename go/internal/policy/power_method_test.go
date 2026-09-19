@@ -267,9 +267,10 @@ func TestRankGeneratorsByStorageStockAndShortfallShape(t *testing.T) {
 		want    []string
 	}{
 		// Wood is under its floor, so chemfuel leads the fuel tier.
-		{"battery", GeneratorRanking{BatteryAvailable: battery}, []string{"SolarGenerator", "ChemfuelPoweredGenerator", "WoodFiredGenerator"}},
-		{"no-battery", GeneratorRanking{}, []string{"ChemfuelPoweredGenerator", "WoodFiredGenerator", "SolarGenerator"}},
-		{"night-only", GeneratorRanking{BatteryAvailable: battery, NightOnly: true}, []string{"ChemfuelPoweredGenerator", "WoodFiredGenerator", "SolarGenerator"}},
+		{"battery", GeneratorRanking{BatteryAvailable: battery}, []string{"SolarGenerator", "WindTurbine", "ChemfuelPoweredGenerator", "WoodFiredGenerator"}},
+		{"no-battery", GeneratorRanking{}, []string{"ChemfuelPoweredGenerator", "WoodFiredGenerator", "SolarGenerator", "WindTurbine"}},
+		// A turbine still turns at night, so only the solar panel is last.
+		{"night-only", GeneratorRanking{BatteryAvailable: battery, NightOnly: true}, []string{"WindTurbine", "ChemfuelPoweredGenerator", "WoodFiredGenerator", "SolarGenerator"}},
 	} {
 		if got := RankGenerators(options, tc.ranking); !reflect.DeepEqual(got, tc.want) {
 			t.Fatal(tc.name, got)
@@ -284,7 +285,105 @@ func TestRankGeneratorsByStorageStockAndShortfallShape(t *testing.T) {
 	v.Buildings[0].Powered, v.Buildings[1].Definition, v.Buildings[1].Powered = domain.Known(true), "SolarGenerator", domain.Known(true)
 	planning := PowerPlanning{ReserveMinDays: 1, StorageMargin: 0.25, BatteryAvailable: battery, Generators: options}
 	p, err := SelectPowerMethod(domain.Known(v), Bounds{Width: 20, Height: 20}, nil, nil, planning)
-	if err != nil || p.Method != PowerGenerate || p.Definition != "ChemfuelPoweredGenerator" || p.Budget.GenerationShortfallW <= 0 || p.Budget.DaySurplusWD <= 0 {
+	if err != nil || p.Method != PowerGenerate || p.Definition != "WindTurbine" || !reflect.DeepEqual(p.Alternatives, []string{"ChemfuelPoweredGenerator", "WoodFiredGenerator", "SolarGenerator"}) || p.Budget.GenerationShortfallW <= 0 || p.Budget.DaySurplusWD <= 0 {
 		t.Fatal(p, err)
+	}
+}
+
+func TestPowerMethodSizesTheComingNightAndPendingDemand(t *testing.T) {
+	// A solar-only net by day: every consumer is powered and nothing drains,
+	// but no bank carries the night, so storage is short now.
+	solar := func() PowerTopology {
+		v := PowerTopology{Buildings: []PowerSite{powerSite("lamp", 2, -30, -30, "a"), powerSite("panel", 5, 1700, 1700, "a")}, Blackout: domain.Known(false), Networks: []PowerNetworkFact{{ID: "a", GenerationW: domain.Known(1700.0), ConsumptionW: domain.Known(30.0), StoredWD: domain.Known(0.0), CapacityWD: domain.Known(0.0)}}}
+		v.Buildings[1].Definition = "SolarGenerator"
+		return v
+	}
+	planning := DefaultPowerPlanning()
+	planning.BatteryAvailable = domain.Known(true)
+	planning.Generators = DefaultGeneratorOptions(func(string) domain.Fact[bool] { return domain.Known(true) }, func(Resource) domain.Fact[int64] { return domain.Known(int64(100)) })
+	p, err := SelectPowerMethod(domain.Known(solar()), Bounds{Width: 20, Height: 20}, nil, nil, planning)
+	if err != nil || p.Method != PowerStore || p.Budget.NightDeficitWD <= 0 || p.Budget.StorageShortfallWD <= 0 {
+		t.Fatal(p, err)
+	}
+	// The same net at night with the lamp already off is sized the same way
+	// rather than waiting on native output.
+	night := solar()
+	night.Buildings[0].OutputW, night.Buildings[0].Powered = domain.Known(0.0), domain.Known(false)
+	night.Buildings[1].OutputW = domain.Known(0.0)
+	night.Networks[0].GenerationW = domain.Known(0.0)
+	if p, err = SelectPowerMethod(domain.Known(night), Bounds{Width: 20, Height: 20}, nil, nil, planning); err != nil || p.Method != PowerStore {
+		t.Fatal(p, err)
+	}
+	// A bank that carries the night is no deficit.
+	banked := solar()
+	banked.Buildings = append(banked.Buildings, powerSite("battery", 7, 0, 0, "a"))
+	banked.Buildings[2].Definition, banked.Buildings[2].Powered = BatteryDefinition, domain.Known(true)
+	banked.Buildings[2].Stored, banked.Buildings[2].Capacity = domain.Known(300.0), domain.Known(600.0)
+	banked.Networks[0].StoredWD, banked.Networks[0].CapacityWD = domain.Known(300.0), domain.Known(600.0)
+	if p, err = SelectPowerMethod(domain.Known(banked), Bounds{Width: 20, Height: 20}, nil, nil, planning); err != nil || p.Method != PowerNoMethod {
+		t.Fatal(p, err)
+	}
+	// Consumers other goals are about to build count in the demand: 2000 W
+	// pending against one panel turns the storage question into generation.
+	pending := planning
+	pending.PendingDemandW = 2000
+	if p, err = SelectPowerMethod(domain.Known(banked), Bounds{Width: 20, Height: 20}, nil, nil, pending); err != nil || p.Method != PowerGenerate || p.Budget.DemandWD != 2030 || p.Budget.GenerationShortfallW <= 0 {
+		t.Fatal(p, err)
+	}
+}
+
+func TestPowerMethodProposesGeothermalOnAReachableFreeGeyser(t *testing.T) {
+	var cells []SiteCell
+	for x := int32(0); x < 40; x++ {
+		for z := int32(0); z < 10; z++ {
+			cells = append(cells, SiteCell{Cell: domain.Cell{X: x, Z: z}, SupportsLight: domain.Known(true)})
+		}
+	}
+	geyser := PowerGeyser{ID: "geyser", Cell: domain.Cell{X: 20, Z: 5}, Cells: []domain.Cell{{X: 20, Z: 5}, {X: 21, Z: 5}, {X: 20, Z: 6}, {X: 21, Z: 6}}}
+	topology := func() PowerTopology {
+		return PowerTopology{Buildings: []PowerSite{powerSite("lamp", 2, -30, 0, "a")}, Blackout: domain.Known(false), Geysers: []PowerGeyser{geyser}}
+	}
+	planning := DefaultPowerPlanning()
+	planning.GeothermalAvailable = domain.Known(true)
+	planning.Generators = DefaultGeneratorOptions(func(string) domain.Fact[bool] { return domain.Known(true) }, func(Resource) domain.Fact[int64] { return domain.Known(int64(100)) })
+	p, err := SelectPowerMethod(domain.Known(topology()), Bounds{Width: 40, Height: 10}, cells, nil, planning)
+	if err != nil || p.Method != PowerGenerate || p.Definition != GeothermalDefinition || !p.FixedSite() || p.Center != geyser.Cell || len(p.Cells) != 4 || len(p.Alternatives) != 0 {
+		t.Fatal(p, err)
+	}
+	// An occupied geyser, an unavailable definition, or one out of reach
+	// leaves the ranked generators in charge.
+	for _, name := range []string{"occupied", "unavailable", "far"} {
+		v, plan := topology(), planning
+		switch name {
+		case "occupied":
+			v.Geysers[0].Occupied = true
+		case "unavailable":
+			plan.GeothermalAvailable = domain.Known(false)
+		case "far":
+			v.Buildings[0].Cell, v.Buildings[0].Occupied = domain.Cell{X: 0, Z: 0}, []domain.Cell{{X: 0, Z: 0}}
+			v.Geysers[0] = PowerGeyser{ID: "geyser", Cell: domain.Cell{X: 39, Z: 9}, Cells: []domain.Cell{{X: 39, Z: 9}}}
+		}
+		if name == "far" {
+			// 39+9 = 48 cells of route is in reach; two staggered walls make
+			// the only way round 66 cells.
+			for i := range cells {
+				c := cells[i].Cell
+				if c.X == 20 && c.Z < 9 || c.X == 30 && c.Z > 0 {
+					cells[i].SupportsLight = domain.Known(false)
+				}
+			}
+		}
+		p, err := SelectPowerMethod(domain.Known(v), Bounds{Width: 40, Height: 10}, cells, nil, plan)
+		if err != nil || p.Method != PowerGenerate || p.Definition == GeothermalDefinition || p.FixedSite() {
+			t.Fatal(name, p, err)
+		}
+	}
+	bad := topology()
+	bad.Geysers[0].Cells = []domain.Cell{{X: 1, Z: 1}}
+	if _, err := SelectPowerMethod(domain.Known(bad), Bounds{Width: 40, Height: 10}, cells, nil, planning); err == nil {
+		t.Fatal("geyser anchor outside its footprint accepted")
+	}
+	if !reflect.DeepEqual(PowerFamilyDefinitions(), []string{string(PowerConnect), "SolarGenerator", "WindTurbine", "WoodFiredGenerator", "ChemfuelPoweredGenerator", GeothermalDefinition, BatteryDefinition}) {
+		t.Fatal(PowerFamilyDefinitions())
 	}
 }

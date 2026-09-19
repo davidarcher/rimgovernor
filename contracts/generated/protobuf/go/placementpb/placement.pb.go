@@ -836,6 +836,11 @@ type PlacementRotation struct {
 	// none): the cell a worker must stand on, outside occupied_cells, which a
 	// later placement there would block.
 	InteractionCells []*commonpb.Cell `protobuf:"bytes,7,rep,name=interaction_cells,json=interactionCells,proto3" json:"interaction_cells,omitempty"`
+	// Wind turbines only: the cells of the native wind catch zone
+	// (WindTurbineUtility.CalculateWindCells, 7x16 around the footprint) that
+	// are roofed, off the map or hold a wind-blocking thing. Absent for every
+	// other definition.
+	WindBlockedCells *uint32 `protobuf:"varint,8,opt,name=wind_blocked_cells,json=windBlockedCells,proto3,oneof" json:"wind_blocked_cells,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -917,6 +922,13 @@ func (x *PlacementRotation) GetInteractionCells() []*commonpb.Cell {
 		return x.InteractionCells
 	}
 	return nil
+}
+
+func (x *PlacementRotation) GetWindBlockedCells() uint32 {
+	if x != nil && x.WindBlockedCells != nil {
+		return *x.WindBlockedCells
+	}
+	return 0
 }
 
 type PlacementBlocker struct {
@@ -1069,7 +1081,7 @@ const file_placement_proto_rawDesc = "" +
 	"\tavailable\x18\x02 \x01(\x05H\x01R\tavailable\x88\x01\x01B\v\n" +
 	"\t_def_nameB\f\n" +
 	"\n" +
-	"_available\"\xf4\x03\n" +
+	"_available\"\xbe\x04\n" +
 	"\x11PlacementRotation\x12C\n" +
 	"\brotation\x18\x01 \x01(\x0e2\".rimgovernor.placement.v1.RotationH\x00R\brotation\x88\x01\x01\x12\x1f\n" +
 	"\baccepted\x18\x02 \x01(\bH\x01R\baccepted\x88\x01\x01\x12\x1b\n" +
@@ -1077,11 +1089,13 @@ const file_placement_proto_rawDesc = "" +
 	"\x0eoccupied_cells\x18\x04 \x03(\v2\x1b.rimgovernor.common.v1.CellR\roccupiedCells\x12S\n" +
 	"\x0fblocking_things\x18\x05 \x03(\v2*.rimgovernor.placement.v1.PlacementBlockerR\x0eblockingThings\x129\n" +
 	"\x16watch_cells_accessible\x18\x06 \x01(\bH\x03R\x14watchCellsAccessible\x88\x01\x01\x12H\n" +
-	"\x11interaction_cells\x18\a \x03(\v2\x1b.rimgovernor.common.v1.CellR\x10interactionCellsB\v\n" +
+	"\x11interaction_cells\x18\a \x03(\v2\x1b.rimgovernor.common.v1.CellR\x10interactionCells\x121\n" +
+	"\x12wind_blocked_cells\x18\b \x01(\rH\x04R\x10windBlockedCells\x88\x01\x01B\v\n" +
 	"\t_rotationB\v\n" +
 	"\t_acceptedB\t\n" +
 	"\a_reasonB\x19\n" +
-	"\x17_watch_cells_accessible\"\xec\x02\n" +
+	"\x17_watch_cells_accessibleB\x15\n" +
+	"\x13_wind_blocked_cells\"\xec\x02\n" +
 	"\x10PlacementBlocker\x12\x1f\n" +
 	"\bcategory\x18\x01 \x01(\tH\x00R\bcategory\x88\x01\x01\x12&\n" +
 	"\fis_blueprint\x18\x02 \x01(\bH\x01R\visBlueprint\x88\x01\x01\x12\x1e\n" +

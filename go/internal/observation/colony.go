@@ -219,6 +219,14 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 		for _, row := range development.Networks {
 			topology.Networks = append(topology.Networks, policy.PowerNetworkFact{ID: row.GetId(), GenerationW: optional(row.GenerationW), ConsumptionW: optional(row.ConsumptionW), StoredWD: optional(row.StoredWattDays), CapacityWD: optional(row.CapacityWattDays)})
 		}
+		for _, row := range development.Geysers {
+			ref := row.GetGeyser()
+			geyser := policy.PowerGeyser{ID: ref.GetId(), Cell: domain.Cell{X: ref.GetPosition().GetX(), Z: ref.GetPosition().GetZ()}, Occupied: row.GetOccupied()}
+			for _, c := range row.Cells {
+				geyser.Cells = append(geyser.Cells, domain.Cell{X: c.GetX(), Z: c.GetZ()})
+			}
+			topology.Geysers = append(topology.Geysers, geyser)
+		}
 		if geometryKnown {
 			r.PowerPlanning = domain.Known(topology)
 		}

@@ -94,6 +94,11 @@ message PlacementRotation {
   // none): the cell a worker must stand on, outside occupied_cells, which a
   // later placement there would block.
   repeated rimgovernor.common.v1.Cell interaction_cells = 7;
+  // Wind turbines only: the cells of the native wind catch zone
+  // (WindTurbineUtility.CalculateWindCells, 7x16 around the footprint) that
+  // are roofed, off the map or hold a wind-blocking thing. Absent for every
+  // other definition.
+  optional uint32 wind_blocked_cells = 8;
 }
 message PlacementBlocker {
   optional string category = 1;
