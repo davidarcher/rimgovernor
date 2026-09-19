@@ -434,6 +434,11 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 				}
 				g = GoalState{Goal: goal}
 			}
+			if n.Need == domain.NeedRecovered {
+				if err = cancelUndispatchedGoalMethods(ctx, tx, g); err != nil {
+					return RoutineReviewResult{}, err
+				}
+			}
 			open, err := goalOpenWork(ctx, tx, g)
 			if err != nil {
 				return RoutineReviewResult{}, err

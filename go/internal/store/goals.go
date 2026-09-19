@@ -381,6 +381,46 @@ func cancelGoalState(ctx context.Context, tx *sql.Tx, state GoalState, revision 
 	return saveGoal(ctx, tx, state, g)
 }
 
+// cancelUndispatchedGoalMethods cancels every open method of the goal that
+// no step ever dispatched: each action is still Pending or Prepared on its
+// first attempt. A review that observes the goal recovered runs it before
+// counting open work, so a plan admitted for a deficit the colonists (or the
+// player) cleared on their own settles here instead of holding the goal
+// Active and never authorized: the worker refuses a recovered goal's fresh
+// write on every step, and nothing else ever retires the plan (#290). Work
+// already dispatched keeps its own settlement path.
+func cancelUndispatchedGoalMethods(ctx context.Context, tx *sql.Tx, state GoalState) error {
+	for _, m := range state.Methods {
+		p, err := load(ctx, tx, m.Plan)
+		if err != nil {
+			return err
+		}
+		if p.Retired || !domain.GoalWorkOpen(p.Progress) {
+			continue
+		}
+		undispatched := true
+		for _, progress := range p.Progress {
+			v := progress.View()
+			if v.Attempt != 0 || v.Stage != domain.Pending && v.Stage != domain.Prepared && v.Stage != domain.Cancelled {
+				undispatched = false
+			}
+		}
+		if !undispatched {
+			continue
+		}
+		for _, progress := range p.Progress {
+			v := progress.View()
+			if v.Stage == domain.Cancelled {
+				continue
+			}
+			if _, err = advanceInTransaction(ctx, tx, m.Plan, v.Action, transition{Kind: "cancel"}); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func cancelGoalMethods(ctx context.Context, tx *sql.Tx, state GoalState) error {
 	for _, m := range state.Methods {
 		p, err := load(ctx, tx, m.Plan)

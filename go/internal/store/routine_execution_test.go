@@ -302,3 +302,62 @@ func TestRoutineExecutionAuthorizesNamingConfirmationPlan(t *testing.T) {
 		t.Fatal("naming confirmation plan was not authorized", err)
 	}
 }
+
+// A method admitted for a deficit that clears before any step dispatches it
+// (vanilla hauled the stack, the player mended the wall) is settled by the
+// review that observes the recovery: its never-dispatched actions cancel and
+// the goal satisfies instead of staying Active behind a plan the worker
+// refuses on every step (#290).
+func TestRoutineReviewRecoverySettlesUndispatchedMethod(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	s := open(t, memoryPath(t))
+	r := routineRequest()
+	r.Current.Native = 2
+	r.Facts.Cooking = domain.Known(false)
+	tick := r.Tick
+	g := routineGoal(t, reviewRoutine(t, s, &r), policy.EnsureCooking)
+	bill, err := domain.NewProductionBill("bench", "recipe", "bench-cas", domain.FoodTarget, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, err := domain.NewProductionBillAction("bill", bill)
+	if err != nil {
+		t.Fatal(err)
+	}
+	billPlan, err := domain.NewPlan("bill-plan", 1, []domain.Action{a})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "cook", billPlan); err != nil {
+		t.Fatal(err)
+	}
+	target := r.Current
+	target.Plan, target.Revision = "bill-plan", 1
+	if _, err = s.PrepareBill(ctx, "bill-plan", "bill", BillAdmission{Snapshot: target, Tick: tick, Bench: "bench", SnapshotToken: "bench-cas"}); err != nil {
+		t.Fatal(err)
+	}
+	if p, err := s.LoadPlan(ctx, "bill-plan"); err != nil || p.Progress[0].View().Stage != domain.Prepared {
+		t.Fatal(p, err)
+	}
+	r.Facts.Cooking = domain.Known(true)
+	g = routineGoal(t, reviewRoutine(t, s, &r), policy.EnsureCooking)
+	if g.Goal.Need != domain.NeedRecovered || g.Goal.Status != domain.GoalSatisfied {
+		t.Fatal("recovered goal kept its undispatched method open", g.Goal)
+	}
+	p, err := s.LoadPlan(ctx, "bill-plan")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v := p.Progress[0].View(); v.Stage != domain.Cancelled || v.Attempt != 0 {
+		t.Fatal("undispatched method was not cancelled", v)
+	}
+	if err = s.AuthorizeRoutinePlan(ctx, r.Current, target); err == nil {
+		t.Fatal("cancelled method authorized")
+	}
+	// The next review retires the settled plan.
+	reviewRoutine(t, s, &r)
+	if p, err = s.LoadPlan(ctx, "bill-plan"); err != nil || !p.Retired {
+		t.Fatal("settled plan not retired", p.Retired, err)
+	}
+}
