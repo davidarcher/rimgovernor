@@ -62,7 +62,7 @@ func presentationFixture(t *testing.T) (*Server, *presentationFake, *Snapshot) {
 	observed := &c.ObservationContext{Identity: identity, Tick: proto.Int64(5), NativeGeneration: proto.Uint64(math.MaxUint64)}
 	f := &presentationFake{camera: &p.CameraReply{Outcome: &p.CameraReply_Camera{Camera: &p.CameraState{Context: observed, ZoomExtensionEnabled: proto.Bool(false)}}}, selection: &p.SelectionReply{Outcome: &p.SelectionReply_Selection{Selection: &p.SelectionSnapshot{Context: observed}}}, roster: &p.ColonistRosterReply{Outcome: &p.ColonistRosterReply_Roster{Roster: &p.ColonistRoster{Context: observed}}}, renderState: &p.RenderReply{Outcome: &p.RenderReply_Status{Status: &p.RenderStatus{Context: observed, Supported: proto.Bool(true)}}}}
 	snapshot := &Snapshot{Connected: true, Identity: domain.Known(observation.Identity{Colony: "colony", Load: "load", Map: 0, Tick: 4})}
-	server, err := New(Config{Presentation: f, ReadTimeout: 20 * time.Millisecond, ShutdownTimeout: time.Second, MaxResponseBytes: 1 << 20}, snapshotFunc(func(context.Context) (Snapshot, error) { return *snapshot, nil }), planFunc(unavailablePlan))
+	server, err := New(Config{Presentation: f, ReadTimeout: 5 * time.Second, ShutdownTimeout: time.Second, MaxResponseBytes: 1 << 20}, snapshotFunc(func(context.Context) (Snapshot, error) { return *snapshot, nil }), planFunc(unavailablePlan))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -199,6 +199,7 @@ func TestPresentationRejectsSourceAndWorldChanges(t *testing.T) {
 }
 func TestPresentationCancellationAndResponseBound(t *testing.T) {
 	s, f, _ := presentationFixture(t)
+	s.config.ReadTimeout = 20 * time.Millisecond
 	f.hook = func(ctx context.Context) error { <-ctx.Done(); return ctx.Err() }
 	if out := presentationRequest(t, s, "/api/presentation/camera"); out.Code != 504 {
 		t.Fatal(out.Code, out.Body.String())
