@@ -314,29 +314,17 @@ func runDeparture(ctx context.Context, s cases.Session) error {
 			return err
 		}
 	} else {
-		if _, err := h.Call(ctx, "unpause-for-formation", "rimworld/set_time_speed", map[string]any{"speed": "Superfast", "ultraSpeedBoost": false}); err != nil {
-			return err
-		}
-		deadline := time.Now().Add(180 * time.Second)
-		for {
+		// The crew walks to the exit tile in game time, so the wait is a
+		// tick budget (RunUntil runs and re-pauses the clock), not seconds.
+		if _, err := na.RunUntil(ctx, h, "observe-formation", na.TicksPerDay, na.Wait{Stall: na.StallBudget()}, func(ctx context.Context) (string, bool, error) {
 			progress, err = observeOnce("observe")
 			if err != nil {
-				return err
+				return "", false, err
 			}
-			if complete, _ := na.AsBool(progress["completeInspection"]); complete {
-				break
-			}
-			if time.Now().After(deadline) {
-				return fmt.Errorf("observe: caravan formation did not complete within 60s, got %#v", progress)
-			}
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-time.After(500 * time.Millisecond):
-			}
-		}
-		if _, err := h.Call(ctx, "pause-after-formation", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
-			return err
+			complete, _ := na.AsBool(progress["completeInspection"])
+			return na.Signature(progress), complete, nil
+		}); err != nil {
+			return fmt.Errorf("observe: caravan formation did not complete: %w (last %#v)", err, progress)
 		}
 	}
 	if complete, _ := na.AsBool(progress["completeInspection"]); !complete {

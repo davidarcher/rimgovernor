@@ -3,8 +3,9 @@
 // supply/starting, medical/stable-patient; issue #1's sustained-matrix
 // acceptance first): on a session the runner opened, launch the live Go
 // player service with the routine families under test, acquire player
-// authority, and poll a goal's durable state over a wall-clock window
-// (Observe), then stop the service and audit against live native facts.
+// authority, and sample a goal's durable state over a tick-measured window
+// (Watch: a tick cadence, woken early by the service's own journal), then
+// stop the service and audit against live native facts.
 package sustainedfood
 
 import (
@@ -44,7 +45,21 @@ type WatchConfig struct {
 	// 60000 one day.
 	Watch  time.Duration
 	Window uint64
-	Poll   time.Duration
+	// PollTicks is the sample cadence in game ticks: the next sample is
+	// taken as soon as the live tick has advanced PollTicks past the
+	// previous one (probed every na.RunInterval), so the cadence follows
+	// the game's speed instead of the wall clock (#267; default
+	// DefaultPollTicks). Poll is the wall-clock ceiling between samples
+	// (default DefaultPoll): a paused or starved game is still sampled,
+	// so its stall is visible in the timeline.
+	PollTicks uint64
+	Poll      time.Duration
+	// Wake, when a service journal row satisfies it, takes a sample at
+	// once instead of waiting for the cadence: the service's flight
+	// recorder is tailed between samples (na.FlightTail). Default
+	// na.WorkerOutcome, the row an action's outcome changes on. Until,
+	// FailFast and the checkpoints all see the woken sample.
+	Wake func(na.FlightRow) bool
 	// Goal is the maintained goal the timeline samples (default
 	// EnsureFoodSupply).
 	Goal policy.GoalID
@@ -67,8 +82,8 @@ type WatchConfig struct {
 // na.Serve has just launched (not yet acquired): it acquires player
 // authority and keeps it granted, confirms the scheduler reaches automate
 // with a persisted routine review, then samples the goal's durable state
-// every Poll for Watch (or until Until) with the step-stall check from the
-// service's spec. Every sample also carries the service's live colony
+// at the cadence WatchConfig sets (PollTicks, Poll, Wake) for Watch (or
+// until Until) with the step-stall check from the service's spec. Every sample also carries the service's live colony
 // census (sampleColony) so starvation is visible in the timeline itself
 // (#261). It records timeline, events and timeline_samples on report and
 // returns the samples; the caller stops the service.
@@ -81,7 +96,13 @@ func Watch(ctx context.Context, naCfg *na.Config, service *na.ServiceProcess, cf
 		prefix = "serve"
 	}
 	if cfg.Poll <= 0 {
-		cfg.Poll = 5 * time.Second
+		cfg.Poll = DefaultPoll
+	}
+	if cfg.PollTicks == 0 {
+		cfg.PollTicks = DefaultPollTicks
+	}
+	if cfg.Wake == nil {
+		cfg.Wake = na.WorkerOutcome
 	}
 
 	// Resume needs no anchor plan: authority is the world's own root plan,
@@ -124,7 +145,7 @@ func Watch(ctx context.Context, naCfg *na.Config, service *na.ServiceProcess, cf
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
-		case <-time.After(2 * time.Second):
+		case <-time.After(na.RunInterval):
 		}
 	}
 	if !sawAutomate {
@@ -157,6 +178,9 @@ func Watch(ctx context.Context, naCfg *na.Config, service *na.ServiceProcess, cf
 	var taken []map[string]any
 	stepped := false
 	failFast := newFailFast(cfg.FailFast, goalID, service.StderrPath())
+	tail := na.NewFlightTail(service.FlightPath)
+	cadence := map[string]any{"poll_ticks": cfg.PollTicks, "poll_ms": cfg.Poll.Milliseconds(), "wakes": 0, "tick_polls": 0, "wall_polls": 0}
+	report["cadence"] = cadence
 	defer func() {
 		report["timeline"] = timeline
 		report["events"] = events
@@ -239,15 +263,62 @@ func Watch(ctx context.Context, naCfg *na.Config, service *na.ServiceProcess, cf
 		if took := na.CheckpointPause(ctx); took > 0 {
 			watchDeadline = watchDeadline.Add(took)
 		}
-		select {
-		case <-ctx.Done():
-			return timeline, ctx.Err()
-		case <-time.After(cfg.Poll):
+		sampledTick, _ := sample["tick"].(uint64)
+		reason, err := waitNextSample(ctx, apiCall, tail, cfg, sampledTick, watchDeadline)
+		if err != nil {
+			return timeline, err
 		}
+		cadence[reason] = cadence[reason].(int) + 1
 	}
 	window.WatchWall = time.Since(watchStarted).Round(time.Second).String()
 	window.Reached = window.reached()
 	return timeline, nil
+}
+
+// DefaultPollTicks and DefaultPoll are WatchConfig's sample cadence when
+// unset: 600 ticks (a quarter of an in-game hour; ~1.7 s at Superfast,
+// ~0.7 s at Ultrafast, the probe interval once boosted) and a 5 s
+// wall-clock ceiling.
+const (
+	DefaultPollTicks uint64 = 600
+	DefaultPoll             = 5 * time.Second
+)
+
+// waitNextSample pauses between two samples until one of the cadence's
+// conditions holds and names it for the report: a journal row satisfying
+// Wake ("wakes"), PollTicks of game time past the previous sample's tick
+// ("tick_polls"), or the Poll wall-clock ceiling ("wall_polls"). The live
+// tick and the journal are probed every na.RunInterval. The watch
+// deadline ends the pause early so the loop's own check sees it.
+func waitNextSample(ctx context.Context, apiCall func(string, string, map[string]any, string) (map[string]any, int, error), tail *na.FlightTail, cfg WatchConfig, sampledTick uint64, watchDeadline time.Time) (string, error) {
+	started := time.Now()
+	for {
+		wait := na.RunInterval
+		if remaining := time.Until(watchDeadline); remaining < wait {
+			wait = remaining
+		}
+		if wait <= 0 {
+			return "wall_polls", nil
+		}
+		select {
+		case <-ctx.Done():
+			return "", ctx.Err()
+		case <-time.After(wait):
+		}
+		if rows, err := tail.Next(); err == nil {
+			for _, row := range rows {
+				if cfg.Wake(row) {
+					return "wakes", nil
+				}
+			}
+		}
+		if time.Since(started) >= cfg.Poll {
+			return "wall_polls", nil
+		}
+		if tick, ok := liveTick(apiCall); ok && sampledTick > 0 && tick >= sampledTick+cfg.PollTicks {
+			return "tick_polls", nil
+		}
+	}
 }
 
 // TickWindow is the report's record of the tick-measured watch window

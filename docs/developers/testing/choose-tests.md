@@ -631,6 +631,18 @@ food runway and the tick it was seen at, first and final colonist counts,
 that starved its colonists is judged from the result rather than
 reconstructed from the flight recorder (#261).
 
+Samples follow the game, not the wall clock (#267): the next one is taken
+once the live tick has advanced `PollTicks` (default 600, a quarter of an
+in-game hour) past the previous sample, at once when the service's flight
+recorder appends a row `Wake` accepts (default a `worker_outcome` row, the
+moment an action's stage changed), and no later than the `Poll` wall-clock
+ceiling (default 5 s) so a paused game still shows in the timeline. The
+tick and the journal are probed every `na.RunInterval` (250 ms), and
+`result.json` counts what ended each pause under `cadence` (`wakes`,
+`tick_polls`, `wall_polls`). The same rule holds outside the watch: a wait
+on the game is a tick budget through `na.RunUntil`, never a sleep; a
+wall-clock duration is only ever a ceiling.
+
 The watch also fails fast on the journal instead of running out that
 ceiling (#268, `sustainedfood.FailFast`, on by default): an action of the
 watched goal's committed method ending `unsuccessful` for any reason but

@@ -68,7 +68,7 @@ func init() {
 		Budget: 15 * time.Minute,
 		Run: func(ctx context.Context, s cases.Session) error {
 			_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
-				WatchConfig: sustainedfood.WatchConfig{Watch: window, Poll: 5 * time.Second, Goal: policy.EnsureComfort, Until: comfortRecovered},
+				WatchConfig: sustainedfood.WatchConfig{Watch: window, Goal: policy.EnsureComfort, Until: comfortRecovered},
 				Audit: func(ctx context.Context, h *na.Harness, report na.Report) error {
 					journal, err := openJournal(ctx, s)
 					if err != nil {

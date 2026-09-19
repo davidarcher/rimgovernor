@@ -46,7 +46,7 @@ func init() {
 		Run: func(ctx context.Context, s cases.Session) error {
 			var subject string
 			_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
-				WatchConfig: sustainedfood.WatchConfig{Watch: apparelWindow, Poll: 5 * time.Second, Goal: policy.MaintainEquipment, Until: apparelWorn},
+				WatchConfig: sustainedfood.WatchConfig{Watch: apparelWindow, Goal: policy.MaintainEquipment, Until: apparelWorn},
 				Prepare: func(ctx context.Context, h *na.Harness, report na.Report) error {
 					setup, err := h.Call(ctx, "gear-setup", "test/gear_fixture", map[string]any{"mode": "setup"})
 					if err != nil {

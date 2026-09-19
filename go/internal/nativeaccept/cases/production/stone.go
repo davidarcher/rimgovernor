@@ -41,7 +41,7 @@ func init() {
 		Run: func(ctx context.Context, s cases.Session) error {
 			var baseline float64
 			_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
-				WatchConfig: sustainedfood.WatchConfig{Watch: window, Poll: 5 * time.Second, Goal: policy.MaintainResource, Until: billProduced},
+				WatchConfig: sustainedfood.WatchConfig{Watch: window, Goal: policy.MaintainResource, Until: billProduced},
 				Prepare: func(ctx context.Context, h *na.Harness, report na.Report) error {
 					prepared := s.Prepared()
 					report["fixture"] = prepared

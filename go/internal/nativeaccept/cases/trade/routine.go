@@ -61,7 +61,7 @@ func init() {
 			deficit := false
 			_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
 				WatchConfig: sustainedfood.WatchConfig{
-					Watch: routineWindow, Poll: 5 * time.Second, Goal: policy.TradeWithCaravan,
+					Watch: routineWindow, Goal: policy.TradeWithCaravan,
 					// The goal recovering after a deficit is the trade
 					// settling (an accept, or the need gone); the census
 					// audit below says which.

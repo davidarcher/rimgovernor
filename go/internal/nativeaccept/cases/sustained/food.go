@@ -82,7 +82,7 @@ func food(name, save, prefix string, ticks uint64) cases.Case {
 		Budget: Window() + 7*time.Minute,
 		Run: func(ctx context.Context, s cases.Session) error {
 			_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
-				WatchConfig: sustainedfood.WatchConfig{Watch: Window(), Window: ticks, Poll: 5 * time.Second},
+				WatchConfig: sustainedfood.WatchConfig{Watch: Window(), Window: ticks},
 			})
 			return err
 		},

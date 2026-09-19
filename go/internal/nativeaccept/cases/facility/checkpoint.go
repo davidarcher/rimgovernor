@@ -48,7 +48,7 @@ func init() {
 			}
 			_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
 				WatchConfig: sustainedfood.WatchConfig{
-					Watch: 55 * time.Minute, Poll: 5 * time.Second, Goal: policy.EnsureComfort,
+					Watch: 55 * time.Minute, Goal: policy.EnsureComfort,
 					Extra:      []policy.GoalID{policy.EnsureInitialShelter, policy.EnsureCooking, policy.EnsureFoodStorage, policy.EnsureFoodSupply},
 					Until:      checkpointed,
 					Checkpoint: &sustainedfood.Checkpoint{Name: StartupCheckpoint, When: comfortAdmitted},

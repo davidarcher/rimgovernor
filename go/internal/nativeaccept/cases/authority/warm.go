@@ -35,8 +35,10 @@ import (
 
 const (
 	warmController = "authority-warm"
-	// warmHold is how long phase 2's grant must stay active.
-	warmHold = 15 * time.Second
+	// warmHoldTicks is how long phase 2's grant must stay active, in game
+	// time: an in-game hour the game actually runs (RunUntil), so the hold
+	// costs seconds at Ultrafast and the same ticks at any speed (#267).
+	warmHoldTicks = na.TicksPerHour
 )
 
 func init() {
@@ -179,30 +181,30 @@ func warmPhase2(ctx context.Context, cfg *na.Config, output, previousLoadToken s
 	}
 	generation := na.GrantGeneration(granted)
 	phase2["identity"], phase2["generation"] = identity, generation
-	// The grant must hold for the whole window: every read Active(Auto) at
-	// the granted generation. The first loss is the finding.
-	deadline := time.Now().Add(warmHold)
+	// The grant must hold for the whole window, with the game running:
+	// every read Active(Auto) at the granted generation. The first loss is
+	// the finding.
 	reads := 0
-	for time.Now().Before(deadline) {
+	held := time.Now()
+	elapsed, err := na.RunUntil(ctx, h, "p2-hold", warmHoldTicks, na.Wait{Stall: na.StallBudget()}, func(ctx context.Context) (string, bool, error) {
 		status, observed, err := na.AuthorityStatus(ctx, h.WireFunc(), fmt.Sprintf("p2-hold-%03d", reads), identity)
 		if err != nil {
-			return err
+			return "", false, err
 		}
 		reads++
 		active, isActive := na.AsMap(status["active"])
 		if !isActive || na.AsString(active["mode"]) != "MODE_AUTO" || observed != generation {
 			clock, _ := h.Wire(ctx, "p2-clock-at-loss", "clock_read_status", map[string]any{"identity": identity})
-			phase2["loss"] = map[string]any{"after_reads": reads, "elapsed_ms": (warmHold - time.Until(deadline)).Milliseconds(),
+			phase2["loss"] = map[string]any{"after_reads": reads, "elapsed_ms": time.Since(held).Milliseconds(),
 				"authority": status, "generation": observed, "clock": clock}
-			return fmt.Errorf("phase 2 lost the Auto grant at generation %d after %d reads: %v", generation, reads, status)
+			return "", false, fmt.Errorf("phase 2 lost the Auto grant at generation %d after %d reads: %v", generation, reads, status)
 		}
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(250 * time.Millisecond):
-		}
+		return "", false, nil
+	})
+	if err != nil {
+		return err
 	}
-	phase2["held_reads"] = reads
+	phase2["held_reads"], phase2["held_ticks"] = reads, elapsed
 	if _, err := na.RevokeManual(ctx, h.WireFunc(), "p2-release", identity, granted); err != nil {
 		return err
 	}

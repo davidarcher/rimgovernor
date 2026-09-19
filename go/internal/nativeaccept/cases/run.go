@@ -386,9 +386,12 @@ func seededStart(start Start, seed string) (na.Start, error) {
 	return nil, fmt.Errorf("-seed %s: the case starts from %v, which carries its own world; only a debug or scenario start takes a seed", seed, start.Describe())
 }
 
-// nativeStart is the case's Start as the lifecycle library's.
+// nativeStart is the case's Start as the lifecycle library's; nil for an
+// Owned case, which opens its own game.
 func nativeStart(start Start) na.Start {
 	switch start := start.(type) {
+	case Owned:
+		return nil
 	case DebugStart:
 		return start.Size
 	case Save:

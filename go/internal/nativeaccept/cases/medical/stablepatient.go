@@ -57,7 +57,7 @@ func init() {
 				return fmt.Errorf("medical_management_setup: missing withdrawalPatient identifier: %#v", medicalPrepared)
 			}
 			_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
-				WatchConfig: sustainedfood.WatchConfig{Watch: window, Poll: 5 * time.Second, Goal: policy.CriticalMedicine, Extra: []policy.GoalID{policy.EnsureFoodSupply}},
+				WatchConfig: sustainedfood.WatchConfig{Watch: window, Goal: policy.CriticalMedicine, Extra: []policy.GoalID{policy.EnsureFoodSupply}},
 				Prepare: func(ctx context.Context, h *na.Harness, report na.Report) error {
 					productionPrepared, err := h.Call(ctx, "production-setup", "test/routine_production_prepare", map[string]any{})
 					if err != nil {

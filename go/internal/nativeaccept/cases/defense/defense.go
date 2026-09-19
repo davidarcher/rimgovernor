@@ -1906,7 +1906,7 @@ func (k *authorityKeepAlive) start() error {
 	for attempt := 1; attempt <= 5; attempt++ {
 		if attempt > 1 {
 			k.acknowledgeHolds()
-			time.Sleep(time.Second)
+			time.Sleep(na.KeepAliveInterval)
 		}
 		resumed, status, err := k.resume(fmt.Sprintf("resume-%d", attempt))
 		if err != nil {
@@ -1963,7 +1963,7 @@ func (k *authorityKeepAlive) run(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
-		case <-time.After(2 * time.Second):
+		case <-time.After(na.KeepAliveInterval):
 		}
 		state, status, err := k.apiCall("GET", "/api/state", nil, "")
 		if err != nil || status != 200 || na.AsString(state["mode"]) == "automate" {

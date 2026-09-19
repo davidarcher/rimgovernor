@@ -239,12 +239,17 @@ func (k *AuthorityKeepAlive) fail(message string) {
 	k.mu.Unlock()
 }
 
+// KeepAliveInterval is how often a keep-alive checks the service is still
+// in automate mode: a lapse costs the colony that many ticks of no
+// governor, so the check is cheap (/api/state) and frequent (#267).
+const KeepAliveInterval = 500 * time.Millisecond
+
 func (k *AuthorityKeepAlive) run(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-time.After(2 * time.Second):
+		case <-time.After(KeepAliveInterval):
 		}
 		if k.hold.Load() {
 			continue

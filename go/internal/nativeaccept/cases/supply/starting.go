@@ -65,7 +65,7 @@ func init() {
 		Run: func(ctx context.Context, s cases.Session) error {
 			var baseline []map[string]any
 			_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
-				WatchConfig: sustainedfood.WatchConfig{Watch: window, Poll: 5 * time.Second, Goal: policy.AllowStartingSupplies, Until: recovered},
+				WatchConfig: sustainedfood.WatchConfig{Watch: window, Goal: policy.AllowStartingSupplies, Until: recovered},
 				Prepare: func(ctx context.Context, h *na.Harness, report na.Report) error {
 					rows, err := forbiddenSupplies(ctx, h, "baseline-colony-facts")
 					if err != nil {

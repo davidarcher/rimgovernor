@@ -68,8 +68,12 @@ type Wait struct {
 	Tick func(ctx context.Context) (uint64, error)
 }
 
-// TicksPerDay is RimWorld's game day, for tick budgets stated in days.
-const TicksPerDay = 60000
+// TicksPerDay is RimWorld's game day, for tick budgets stated in days;
+// TicksPerHour its in-game hour.
+const (
+	TicksPerDay  = 60000
+	TicksPerHour = 2500
+)
 
 // Probe reports the wait's current progress signature and whether it is
 // done. The signature is whatever the wait counts as progress: a plan

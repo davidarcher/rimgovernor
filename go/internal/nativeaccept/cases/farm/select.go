@@ -104,7 +104,7 @@ func (sel selection) register(name string) cases.Case {
 					return fmt.Errorf("outdoor peak temperature %.1f C reopens the growing season during the watch: %#v", t, fixture)
 				}
 			}
-			observation := sustainedfood.Observation{WatchConfig: sustainedfood.WatchConfig{Watch: window, Poll: 5 * time.Second}}
+			observation := sustainedfood.Observation{WatchConfig: sustainedfood.WatchConfig{Watch: window}}
 			if sel.environment != "" {
 				observation.Audit = func(ctx context.Context, h *na.Harness, report na.Report) error {
 					interior, _ := na.AsMap(fixture["interior"])

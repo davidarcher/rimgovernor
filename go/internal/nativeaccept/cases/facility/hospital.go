@@ -56,7 +56,7 @@ func init() {
 				return fmt.Errorf("medical_management_setup seeded %d patients, want 2", len(patients))
 			}
 			_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
-				WatchConfig: sustainedfood.WatchConfig{Watch: window, Poll: 5 * time.Second, Goal: policy.MaintainMedicalCare, Until: bedConverted},
+				WatchConfig: sustainedfood.WatchConfig{Watch: window, Goal: policy.MaintainMedicalCare, Until: bedConverted},
 				Prepare: func(ctx context.Context, h *na.Harness, report na.Report) error {
 					hosted, err := hospitalBeds(ctx, h, "baseline")
 					if err != nil {

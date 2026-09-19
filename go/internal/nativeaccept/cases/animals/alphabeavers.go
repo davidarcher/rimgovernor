@@ -55,7 +55,7 @@ func init() {
 		Run: func(ctx context.Context, s cases.Session) error {
 			var staged []string
 			_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
-				WatchConfig: sustainedfood.WatchConfig{Watch: alphabeaverWindow, Poll: 5 * time.Second, Goal: policy.ClearPests,
+				WatchConfig: sustainedfood.WatchConfig{Watch: alphabeaverWindow, Goal: policy.ClearPests,
 					Extra: []policy.GoalID{policy.EnsureFoodSupply},
 					Until: pestsCleared},
 				Prepare: func(ctx context.Context, h *na.Harness, report na.Report) error {

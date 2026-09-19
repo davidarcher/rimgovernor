@@ -61,7 +61,7 @@ func init() {
 		Budget: ladderWindow + 3*time.Minute,
 		Run: func(ctx context.Context, s cases.Session) error {
 			_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
-				WatchConfig: sustainedfood.WatchConfig{Watch: ladderWindow, Poll: 5 * time.Second, Goal: policy.EnsureResearch, Until: secondSelection},
+				WatchConfig: sustainedfood.WatchConfig{Watch: ladderWindow, Goal: policy.EnsureResearch, Until: secondSelection},
 				Prepare: func(ctx context.Context, h *na.Harness, report na.Report) error {
 					prepared := s.Prepared()
 					report["fixture"] = prepared

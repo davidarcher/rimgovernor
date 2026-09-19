@@ -79,6 +79,9 @@ type ServiceProcess struct {
 	Launch int
 	// Spec is what the service was launched with.
 	Spec ServeSpec
+	// FlightPath is the service's flight recorder (--flight-recorder), the
+	// journal FlightTail follows.
+	FlightPath string
 
 	cfg    *Config
 	game   *Game
@@ -290,7 +293,7 @@ func launchServe(ctx context.Context, cfg *Config, gabs string, spec ServeSpec, 
 		return nil, fmt.Errorf("start rimgovernor serve: %w", err)
 	}
 	p := &ServiceProcess{
-		PID: cmd.Process.Pid, StatePath: statePath, Launch: launch, Spec: spec,
+		PID: cmd.Process.Pid, StatePath: statePath, Launch: launch, Spec: spec, FlightPath: flightPath,
 		cfg: cfg, report: report, entry: entry,
 		cmd: cmd, done: make(chan error, 1), dir: serviceDir,
 		client: &http.Client{Timeout: 20 * time.Second}, ctx: ctx,

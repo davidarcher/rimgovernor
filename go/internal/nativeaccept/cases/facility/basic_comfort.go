@@ -50,7 +50,7 @@ func init() {
 		Run: func(ctx context.Context, s cases.Session) error {
 			var people []string
 			_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
-				WatchConfig: sustainedfood.WatchConfig{Watch: basicComfortWindow, Poll: 5 * time.Second, Goal: policy.EnsureBasicComfort,
+				WatchConfig: sustainedfood.WatchConfig{Watch: basicComfortWindow, Goal: policy.EnsureBasicComfort,
 					Extra: []policy.GoalID{policy.EnsureInitialShelter},
 					Until: comfortRecovered},
 				Prepare: func(ctx context.Context, h *na.Harness, report na.Report) error {
