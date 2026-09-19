@@ -196,6 +196,9 @@ func (b *WorkBoundary) ObserveWork(ctx context.Context, p executor.Placement, cu
 			matches = matches && current != nil && settings.GetAllowedAreaId() == wanted.Work.Area()
 		}
 	}
+	if wanted.Work.HasSchedule() {
+		matches = matches && boundary.ScheduleMatches(settings.Schedule, wanted.Work.Schedule())
+	}
 	var evidence *r.EffectEvidence
 	if completed := v.GetCompleted(); completed != nil && matches {
 		out.Observation.Effect = domain.EffectCompleted

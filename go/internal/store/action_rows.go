@@ -42,7 +42,7 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 	} else if m, ok := a.MeleeAttack(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target,draft_action) VALUES(?,?,?,'melee_attack',?,?,?)", a.ID(), plan, ordinal, m.Pawn(), m.Target(), m.DraftAction())
 	} else if work, ok := a.WorkAssignment(); ok {
-		data, encodeErr := json.Marshal(workPayload{work.Manual(), work.Settings(), work.HasArea(), work.AreaClear(), work.Area()})
+		data, encodeErr := json.Marshal(workPayload{work.Manual(), work.Settings(), work.HasArea(), work.AreaClear(), work.Area(), work.Schedule()})
 		if encodeErr != nil {
 			return encodeErr
 		}
@@ -238,6 +238,8 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 				return domain.Action{}, 0, errors.New("mixed work/area payload not supported")
 			}
 			w, err = domain.NewAreaAssignment(domain.PawnID(pawn.String), target.String, payload.AreaClear, payload.Area)
+		} else if len(payload.Schedule) != 0 {
+			w, err = domain.NewScheduleAssignment(domain.PawnID(pawn.String), target.String, payload.Manual, payload.Settings, payload.Schedule)
 		} else {
 			w, err = domain.NewWorkAssignment(domain.PawnID(pawn.String), target.String, payload.Manual, payload.Settings)
 		}
@@ -652,6 +654,10 @@ type workPayload struct {
 	HasArea   bool   `json:",omitempty"`
 	AreaClear bool   `json:",omitempty"`
 	Area      string `json:",omitempty"`
+	// Schedule is the 24-hour timetable a schedule write carries (#417);
+	// omitted for work-only and area-only rows so older payloads stay
+	// canonical.
+	Schedule []string `json:",omitempty"`
 }
 
 type zonePayload struct {

@@ -248,6 +248,15 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 			work, err := policy.PlanWork(pawns, required, preferences.Overrides, policy.RoutineWorkDemand(reading.Projection.Facts, len(definitions) > 0))
 			if err == nil {
 				reading.Projection.Facts.WorkCoverage = work.Matches
+				// A timetable behind its role template is a work
+				// deficit the same review corrects (#417).
+				if matches, ok := work.Matches.Value(); ok && matches {
+					for _, row := range policy.PlanSchedules(pawns).Schedules {
+						if !row.Matches {
+							reading.Projection.Facts.WorkCoverage = domain.Known(false)
+						}
+					}
+				}
 				if _, ok := work.Capacity.Value(); ok {
 					reading.Projection.Facts.WorkRoster = domain.Known(work.Coverage)
 				}

@@ -35,6 +35,22 @@ func routineWork(colony *o.ColonyFactsSnapshot, emergency policy.EmergencyFacts,
 			}
 			w.Applies = optional(s.WorkApplies)
 			w.Manual = optional(s.ManualWorkPriorities)
+			if !hasIssue(s.Issues, "schedule") && len(s.Schedule) == 24 {
+				slots := make([]string, 24)
+				known := true
+				seen := make([]bool, 24)
+				for _, slot := range s.Schedule {
+					if slot.Hour == nil || slot.AssignmentDefName == nil || slot.GetHour() >= 24 || seen[slot.GetHour()] || slot.GetAssignmentDefName() == "" {
+						known = false
+						break
+					}
+					seen[slot.GetHour()] = true
+					slots[slot.GetHour()] = slot.GetAssignmentDefName()
+				}
+				if known {
+					w.Schedule = domain.Known(slots)
+				}
+			}
 			if !hasIssue(s.Issues, "work") {
 				work := []policy.WorkPriority{}
 				known := true

@@ -43,6 +43,9 @@ func workOperation(w domain.WorkAssignment) *op.Operation {
 			patch.AllowedArea = &op.Assignment{Value: &op.Assignment_EntityId{EntityId: w.Area()}}
 		}
 	}
+	if w.HasSchedule() {
+		patch.Schedule = &op.Schedule{AssignmentDefs: append([]string(nil), w.Schedule()...)}
+	}
 	return &op.Operation{Command: &op.Operation_PatchPawn{PatchPawn: patch}}
 }
 func (client *Client) PreviewWorkAssignment(ctx context.Context, identity *c.Identity, target domain.WorkAssignment) (*op.PreviewReply, Result, error) {
@@ -105,6 +108,9 @@ func workEffect(v *r.EffectEvidence, work domain.WorkAssignment, matches bool) e
 	if work.HasArea() {
 		expectedFields++
 	}
+	if work.HasSchedule() {
+		expectedFields++
+	}
 	if effect == nil || effect.Snapshot == nil || effect.Snapshot.GetEntityId() != string(work.Pawn()) || effect.Snapshot.GetBeforeToken() != work.BeforeToken() || validID(effect.Snapshot.GetAfterToken()) != nil || len(effect.Fields) != expectedFields {
 		return contract("work effect mismatch")
 	}
@@ -113,6 +119,7 @@ func workEffect(v *r.EffectEvidence, work domain.WorkAssignment, matches bool) e
 		seen[setting.Definition] = true
 	}
 	areaSeen := !work.HasArea()
+	scheduleSeen := !work.HasSchedule()
 	want := r.FieldOutcome_FIELD_OUTCOME_APPLIED
 	if !matches {
 		want = r.FieldOutcome_FIELD_OUTCOME_REFUSED
@@ -132,11 +139,16 @@ func workEffect(v *r.EffectEvidence, work domain.WorkAssignment, matches bool) e
 				return contract("work field mismatch")
 			}
 			areaSeen = true
+		case r.SettingsField_SETTINGS_FIELD_SCHEDULE:
+			if scheduleSeen {
+				return contract("work field mismatch")
+			}
+			scheduleSeen = true
 		default:
 			return contract("work field mismatch")
 		}
 	}
-	if len(seen) != 0 || !areaSeen {
+	if len(seen) != 0 || !areaSeen || !scheduleSeen {
 		return contract("work field mismatch")
 	}
 	return nil

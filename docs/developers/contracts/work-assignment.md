@@ -101,10 +101,23 @@ reviews adopt them as each migrates (#417).
 
 ## Schedules
 
-`PatchPawn` validates timetable slots but the native dispatch admits no
-schedule field yet; role-based timetables (NightOwl night shift, a Joy block
-before the recreation trough, QuickSleeper's shorter Sleep) are the next slice
-of #417 and land with that native write.
+`policy.PlanSchedules` (`pawn_schedule.go`) gives each available pawn a
+role-based timetable from the same profile: the native day (Sleep 22h-5h)
+with a two-hour Joy block at 18h-19h; a NightOwl works 23h-6h, plays 21h-22h
+and sleeps 10h-17h; a QuickSleeper's Sleep block shrinks to six hours. A
+timetable that is neither the native default nor one the planner writes is the
+player's and is listed in `ScheduleDecision.Player`, never overwritten; an
+unknown timetable (issue `schedule`) is skipped.
+
+The work review sends a mismatching timetable in the pawn's `PatchPawn`
+(`domain.NewScheduleAssignment`, `Schedule.assignment_defs` all 24 hours,
+`SettingsField.Schedule` in the receipt) under the same snapshot token as the
+priorities, so a player timetable edit between read and write refuses the whole
+pawn. Native (`NativeWorkSettings`) hashes the current 24 def names into the
+token, requires every `TimeAssignmentDef` and a 24-slot tracker, writes through
+`Pawn_TimetableTracker.SetAssignment`, and reads the timetable back into
+`Matches`. `RoutineFacts.WorkCoverage` is false while any planned timetable
+differs from the readback.
 
 ## Acceptance
 

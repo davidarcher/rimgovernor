@@ -15,29 +15,34 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // A work-only settings token never authorizes schedules, care or pawn
-    // orders. AllowedArea (Assignment: a named area or an explicit clear) is
-    // the one exception admitted alongside -- or instead of -- work
-    // priorities through this same PatchPawn dispatch: the wire shape
-    // already carries both fields together, and the CAS/admission/receipt
-    // mechanics required are identical, so the combined snapshot token below
-    // now covers whichever of the two fields a given command actually
-    // touches. A pure work-priority write is consequently also sensitive to
-    // an unrelated area change (and vice versa); that is the same
-    // single-token-per-write-surface discipline PatchBuilding's settings
-    // fields already share.
+    // A work-only settings token never authorizes care or pawn orders.
+    // AllowedArea (Assignment: a named area or an explicit clear) and
+    // Schedule (the full 24-slot timetable, #417) are admitted alongside --
+    // or instead of -- work priorities through this same PatchPawn dispatch:
+    // the wire shape already carries the fields together, and the
+    // CAS/admission/receipt mechanics required are identical, so the
+    // combined snapshot token below covers whichever of the fields a given
+    // command actually touches. A pure work-priority write is consequently
+    // also sensitive to an unrelated area or timetable change (and vice
+    // versa); that is the same single-token-per-write-surface discipline
+    // PatchBuilding's settings fields already share.
     internal static class NativeWorkSettings
     {
         private static bool ValidArea(Operations.Assignment? area) => area == null
             || area.ValueCase == Operations.Assignment.ValueOneofCase.Clear
             || (area.ValueCase == Operations.Assignment.ValueOneofCase.EntityId && ProtoBoundary.IsIdentifier(area.EntityId));
 
+        private static bool ValidSchedule(Operations.Schedule? schedule) => schedule == null
+            || (schedule.AssignmentDefs.Count == ScheduleHours && schedule.AssignmentDefs.All(ProtoBoundary.IsIdentifier));
+
+        internal const int ScheduleHours = 24;
+
         internal static bool Valid(Operations.PatchPawn? command) => command != null
             && NativeDraftProtocol.ValidEntity(command.Pawn) && command.Work.Count <= 256
-            && (command.Work.Count > 0 || command.AllowedArea != null)
+            && (command.Work.Count > 0 || command.AllowedArea != null || command.Schedule != null)
             && command.Work.All(w => w.HasWorkTypeDef && ProtoBoundary.IsIdentifier(w.WorkTypeDef) && w.HasPriority && w.Priority >= 0 && w.Priority <= 4)
             && command.Work.Select(w => w.WorkTypeDef).Distinct(StringComparer.Ordinal).Count() == command.Work.Count
-            && command.Schedule == null && !command.HasMedicalCare && !command.HasHostilityResponse && !command.HasSelfTend
+            && ValidSchedule(command.Schedule) && !command.HasMedicalCare && !command.HasHostilityResponse && !command.HasSelfTend
             && !command.HasFollowDrafted && !command.HasFollowFieldwork && ValidArea(command.AllowedArea) && command.Master == null
             && command.Training.Count == 0 && !command.HasSlaughter && !command.HasReleaseToWild;
 
@@ -51,7 +56,11 @@ namespace HomeBridge.BridgeTools
         // (NativePawnDetails' allowed_area_id) -- never the caller-supplied
         // request identifier, so a request naming an area by a different
         // (but equivalent) identifier scheme cannot desync the token.
-        internal static string Token(Common.Identity identity, string pawn, bool manual, Obs.WorkSetting[] work, string area)
+        // schedule is the pawn's current timetable def names hour 0 first
+        // (empty when the pawn has no timetable tracker), so a timetable edit
+        // by the player invalidates a pending work write the same way an
+        // area change does.
+        internal static string Token(Common.Identity identity, string pawn, bool manual, Obs.WorkSetting[] work, string area, string[] schedule)
         {
             using (var bytes = new MemoryStream())
             {
@@ -61,6 +70,8 @@ namespace HomeBridge.BridgeTools
                     writer.Write(pawn); writer.Write(manual); writer.Write(area);
                     foreach (var row in work.OrderBy(w => w.DefName, StringComparer.Ordinal))
                     { writer.Write(row.DefName); writer.Write(row.Priority); writer.Write(row.Disabled); }
+                    writer.Write(schedule.Length);
+                    foreach (var slot in schedule) writer.Write(slot);
                 }
                 using (var hash = SHA256.Create())
                     return "work-" + BitConverter.ToString(hash.ComputeHash(bytes.ToArray())).Replace("-", "").ToLowerInvariant();
@@ -68,6 +79,8 @@ namespace HomeBridge.BridgeTools
         }
 
         private static string CurrentAreaId(Pawn pawn) => pawn.playerSettings?.AreaRestrictionInPawnCurrentMap?.GetUniqueLoadID() ?? "";
+
+        private static string[] CurrentSchedule(Pawn pawn) => pawn.timetable?.times?.Select(t => t?.defName ?? "").ToArray() ?? new string[0];
 
         internal static Obs.SnapshotRef? Snapshot(Pawn pawn, Common.ObservationContext context)
         {
@@ -77,7 +90,7 @@ namespace HomeBridge.BridgeTools
             if (!manual.HasValue || defs.Count == 0 || defs.Count > 256) return null;
             var rows = defs.Select(d => new Obs.WorkSetting { DefName = d.defName, Priority = pawn.workSettings.GetPriority(d), Disabled = pawn.WorkTypeIsDisabled(d) }).ToArray();
             return new Obs.SnapshotRef { Context = context.Clone(), EntityId = pawn.GetUniqueLoadID(),
-                Token = Token(context.Identity, pawn.GetUniqueLoadID(), manual.Value, rows, CurrentAreaId(pawn)) };
+                Token = Token(context.Identity, pawn.GetUniqueLoadID(), manual.Value, rows, CurrentAreaId(pawn), CurrentSchedule(pawn)) };
         }
 
         // Resolves a requested area identifier tolerantly against either the
@@ -98,14 +111,21 @@ namespace HomeBridge.BridgeTools
             return area != null;
         }
 
+        private static bool ScheduleDefined(Operations.PatchPawn command) => command.Schedule == null
+            || command.Schedule.AssignmentDefs.All(name => DefDatabase<TimeAssignmentDef>.GetNamedSilentFail(name) != null);
+
+        private static bool ScheduleWritable(Operations.PatchPawn command, Pawn pawn) => command.Schedule == null
+            || pawn.timetable?.times != null && pawn.timetable.times.Count == ScheduleHours;
+
         internal const string Kind = "Work settings";
-        // Prepare is the apply-time precondition list for work priorities and
-        // the allowed-area assignment (action-contracts.md): Eligible plus
-        // the request's own rows, one rule at a time.
+        // Prepare is the apply-time precondition list for work priorities,
+        // the allowed-area assignment and the timetable
+        // (action-contracts.md): Eligible plus the request's own rows, one
+        // rule at a time.
         private static bool Prepare(Operations.PatchPawn command, Common.ObservationContext context, out Pawn? pawn, out Common.Failure failure)
         {
             pawn = null;
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Work settings require an exact current work/area snapshot and only work priorities or an allowed-area assignment.");
+            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Work settings require an exact current work/area/schedule snapshot and only work priorities, an allowed-area assignment or a 24-slot timetable.");
             if (!Valid(command)) return false;
             var found = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Pawn.EntityId);
             var manual = PawnSettingsRead.ManualPriorities();
@@ -121,7 +141,9 @@ namespace HomeBridge.BridgeTools
                 .Require(() => command.Work.All(row => row.Priority == 0 || !found!.WorkTypeIsDisabled(DefDatabase<WorkTypeDef>.GetNamed(row.WorkTypeDef))), "a requested work type is disabled for the pawn")
                 .Require(() => manual.GetValueOrDefault() || command.Work.All(row => row.Priority == 0 || row.Priority == 3), "manual priorities are off, so only 0 or 3 can be set")
                 .Require(() => PrepareArea(command, found!, out _, out _, out _), "the requested allowed area is not on the pawn's map")
-                .Token(() => Snapshot(found!, context)?.Token == command.Pawn.ExpectedSnapshotToken, "the pawn's work/area snapshot changed since it was read");
+                .Require(() => ScheduleDefined(command), "a requested timetable assignment is not defined")
+                .Require(() => ScheduleWritable(command, found!), "the pawn has no 24-hour timetable")
+                .Token(() => Snapshot(found!, context)?.Token == command.Pawn.ExpectedSnapshotToken, "the pawn's work/area/schedule snapshot changed since it was read");
             if (!rules.Holds) { failure = rules.Failure(); return false; }
             pawn = found;
             return true;
@@ -134,6 +156,8 @@ namespace HomeBridge.BridgeTools
             foreach (var row in command.Work) effect.Fields.Add(new Receipts.FieldResult { Field = Receipts.SettingsField.Work,
                 WorkTypeDef = row.WorkTypeDef, Outcome = matches ? Receipts.FieldOutcome.Applied : Receipts.FieldOutcome.Refused });
             if (command.AllowedArea != null) effect.Fields.Add(new Receipts.FieldResult { Field = Receipts.SettingsField.AllowedArea,
+                Outcome = matches ? Receipts.FieldOutcome.Applied : Receipts.FieldOutcome.Refused });
+            if (command.Schedule != null) effect.Fields.Add(new Receipts.FieldResult { Field = Receipts.SettingsField.Schedule,
                 Outcome = matches ? Receipts.FieldOutcome.Applied : Receipts.FieldOutcome.Refused });
             return new Receipts.EffectEvidence { Settings = effect };
         }
@@ -175,6 +199,13 @@ namespace HomeBridge.BridgeTools
                     if (!PrepareArea(command, pawn!, out var requested, out var clear, out var area))
                         throw new InvalidOperationException("Requested allowed area is no longer resolvable.");
                     if (requested) pawn!.playerSettings.AreaRestrictionInPawnCurrentMap = clear ? null : area;
+                    if (command.Schedule != null)
+                    {
+                        if (!ScheduleWritable(command, pawn!) || !ScheduleDefined(command))
+                            throw new InvalidOperationException("Requested timetable is no longer writable.");
+                        for (var hour = 0; hour < ScheduleHours; hour++)
+                            pawn!.timetable.SetAssignment(hour, DefDatabase<TimeAssignmentDef>.GetNamed(command.Schedule.AssignmentDefs[hour]));
+                    }
                     var snapshot = Snapshot(pawn!, context);
                     if (snapshot == null || !Matches(pawn!, command)) throw new InvalidOperationException("Native work settings require readback.");
                     evidence = Evidence(command, snapshot.Token, true);
@@ -194,6 +225,7 @@ namespace HomeBridge.BridgeTools
                 var def = DefDatabase<WorkTypeDef>.GetNamedSilentFail(row.WorkTypeDef);
                 return def != null && pawn.workSettings.GetPriority(def) == row.Priority;
             })) return false;
+            if (command.Schedule != null && !CurrentSchedule(pawn).SequenceEqual(command.Schedule.AssignmentDefs, StringComparer.Ordinal)) return false;
             if (command.AllowedArea == null) return true;
             var current = pawn.playerSettings?.AreaRestrictionInPawnCurrentMap;
             if (command.AllowedArea.ValueCase == Operations.Assignment.ValueOneofCase.Clear) return current == null;

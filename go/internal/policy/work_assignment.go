@@ -34,6 +34,9 @@ type WorkPawn struct {
 	Traits    domain.Fact[[]PawnTrait]
 	Incapable domain.Fact[[]WorkType]
 	Age       domain.Fact[float64]
+	// Schedule is the current timetable, one TimeAssignmentDef per hour
+	// (hour 0 first); unknown when the read carried no complete timetable.
+	Schedule domain.Fact[[]string]
 }
 type WorkRequirement struct {
 	Work    WorkType

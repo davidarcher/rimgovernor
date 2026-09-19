@@ -180,6 +180,15 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	for _, pawn := range pawns {
 		byID[pawn.ID] = pawn
 	}
+	// The schedule planner rides the same PatchPawn write: a pawn whose
+	// timetable differs from its role template gets the timetable in the
+	// same assignment as its priorities (or alone), under the same token.
+	schedules := map[policy.PawnID][]string{}
+	for _, row := range policy.PlanSchedules(pawns).Schedules {
+		if !row.Matches {
+			schedules[row.Pawn] = row.Slots
+		}
+	}
 	var work []domain.WorkAssignment
 	for _, assignment := range decision.Assignments {
 		pawn := byID[assignment.Pawn]
@@ -211,10 +220,16 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 				changed = append(changed, domain.WorkSetting{Definition: string(setting.Work), Priority: int32(want)})
 			}
 		}
-		if len(changed) == 0 {
+		schedule := schedules[assignment.Pawn]
+		if len(changed) == 0 && len(schedule) == 0 {
 			continue
 		}
-		w, err := domain.NewWorkAssignment(domain.PawnID(assignment.Pawn), token, manual, changed)
+		var w domain.WorkAssignment
+		if len(schedule) == 0 {
+			w, err = domain.NewWorkAssignment(domain.PawnID(assignment.Pawn), token, manual, changed)
+		} else {
+			w, err = domain.NewScheduleAssignment(domain.PawnID(assignment.Pawn), token, manual, changed, schedule)
+		}
 		if err != nil {
 			return RoutineWorkResult{}, err
 		}
