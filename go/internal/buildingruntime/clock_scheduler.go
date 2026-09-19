@@ -222,6 +222,12 @@ type ClockScheduler struct {
 	lastTick, plannedTick           int64
 	lastTickKnown, plannedTickKnown bool
 	lastFull                        time.Time
+	// paceTick and paceAt are the previous step's status tick and the wall
+	// time it was read at, the basis of the running window's pace
+	// (livePace); touched only under the player gate.
+	paceTick  int64
+	paceAt    time.Time
+	paceKnown bool
 	// running is the scheduler's belief that a colony window it admitted
 	// is still running: set by the step that dispatched or observed it,
 	// cleared by the step or poll that saw it stopped. The poll loop holds
@@ -675,6 +681,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	s.running.Store(false)
 	reason.TickAdvanced = !s.lastTickKnown || status.Context.GetTick() != s.lastTick
 	s.lastTick, s.lastTickKnown = status.Context.GetTick(), true
+	s.livePace(status, started)
 	telemetry.ObserveTick(status.Context.GetTick())
 	if reason.Cause == StepTimer && !reason.TickAdvanced && s.fullStepDue() {
 		reason.Cause = StepFull
@@ -1061,6 +1068,27 @@ func (s *ClockScheduler) runPlanners(call, epoch context.Context, out *ClockSche
 		clockSchedulerLog("planner failed (isolated): %v", failure)
 	}
 	return planners, nil
+}
+
+// livePace measures the running window's pace from the previous step's
+// status tick and sets domain.SetLiveDrift to the ticks that pace covers
+// in MaxAge, the wall time a step's reads already have (#345): a live
+// step and the Worker's dispatches under it then read one plan however
+// fast the game runs. A stopped, stopping or never-started clock, or a
+// pace not yet measured, clears the drift so a paused step keeps the
+// tick-exact bound.
+func (s *ClockScheduler) livePace(status *k.Status, readAt time.Time) {
+	tick := status.Context.GetTick()
+	drift := domain.Tick(0)
+	if status.GetRunning() != nil && s.paceKnown && tick > s.paceTick && readAt.After(s.paceAt) {
+		perSecond := float64(tick-s.paceTick) / readAt.Sub(s.paceAt).Seconds()
+		drift = domain.Tick(perSecond * s.config.MaxAge.Seconds())
+	}
+	if drift != domain.LiveDrift() {
+		clockSchedulerLog("live drift %d -> %d ticks (tick %d, %d ticks since the previous step)", domain.LiveDrift(), drift, tick, tick-s.paceTick)
+	}
+	domain.SetLiveDrift(drift)
+	s.paceTick, s.paceAt, s.paceKnown = tick, readAt, true
 }
 
 // livePlanningDue reports whether a step that found its own window running

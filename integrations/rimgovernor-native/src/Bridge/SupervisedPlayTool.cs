@@ -180,7 +180,7 @@ namespace HomeBridge.BridgeTools
                 var target = AccessTools.Method(typeof(TickManager), "TickManagerUpdate");
                 if (target == null) throw new MissingMethodException("TickManager.TickManagerUpdate");
                 new Harmony("homebridge.supervised-play").Patch(target,
-                    postfix: new HarmonyMethod(typeof(Supervisor), nameof(OnUpdate)));
+                    postfix: new HarmonyMethod(typeof(Supervisor), nameof(OnFrame)));
                 var info = Harmony.GetPatchInfo(target);
                 if (info == null || !info.Owners.Contains("homebridge.supervised-play"))
                     throw new InvalidOperationException("Harmony did not report the supervised-play patch after installation.");
@@ -382,6 +382,15 @@ namespace HomeBridge.BridgeTools
             {
                 var s = _state;
                 if (s == null || !s.Active || !s.TickDeadline.HasValue) return;
+                var began = System.Diagnostics.Stopwatch.GetTimestamp();
+                try { TickBody(s); }
+                finally { s.Timing.HookTicks++; s.Timing.FrameTicks++; s.Timing.HookElapsed += System.Diagnostics.Stopwatch.GetTimestamp() - began; }
+            }
+        }
+        private static void TickBody(State s)
+        {
+            {
+                var deadline = s.TickDeadline!.Value;
                 // The frame can contain many accelerated ticks. Check ownership,
                 // lease and tick-bounded hazards before admitting another tick.
                 if (s.TestAcceleration) OnUpdate();
@@ -395,15 +404,36 @@ namespace HomeBridge.BridgeTools
                 s.LastTick = tm.TicksGame;
                 CaptureTypedContext(s);
                 if (StopInvalidTypedAuthority(s)) return;
-                if (CheckWatches(s)) return;
+                var watchBegan = System.Diagnostics.Stopwatch.GetTimestamp();
+                var latched = CheckWatches(s);
+                s.Timing.WatchElapsed += System.Diagnostics.Stopwatch.GetTimestamp() - watchBegan;
+                if (latched) return;
                 // Preserve player and letter attribution if the final tick also
                 // changed the clock. The frame watcher handles those stops.
                 if (tm.CurTimeSpeed != s.RequestedSpeed) return;
-                if (tm.TicksGame >= s.TickDeadline.Value)
+                if (tm.TicksGame >= deadline)
                     Stop(s, "tick_budget", "Native execution tick budget reached.", true,
                         new Dictionary<string, object?> { { "startTick", s.StartTick },
-                            { "tickDeadline", s.TickDeadline.Value }, { "tick", tm.TicksGame } });
+                            { "tickDeadline", deadline }, { "tick", tm.TicksGame } });
             }
+        }
+
+        // The TickManagerUpdate postfix: one call per frame. Frame counts feed
+        // the epoch timing summary; the monitoring itself is OnUpdate.
+        internal static void OnFrame()
+        {
+            lock (Gate)
+            {
+                MarkFrame();
+                var s = _state;
+                if (s != null && s.Active)
+                {
+                    s.Timing.Frames++;
+                    if (s.Timing.FrameTicks > s.Timing.MaxFrameTicks) s.Timing.MaxFrameTicks = s.Timing.FrameTicks;
+                    s.Timing.FrameTicks = 0;
+                }
+            }
+            OnUpdate();
         }
 
         internal static void OnUpdate()
@@ -449,8 +479,10 @@ namespace HomeBridge.BridgeTools
                     s.LastProbeTick = tm.TicksGame;
                     s.ProbeCount++;
                     s.LastProbeMs = NowMs();
+                    var probeBegan = System.Diagnostics.Stopwatch.GetTimestamp();
                     PublishFactChanges(s);
                     var hit = Probe(s);
+                    s.Timing.ProbeElapsed += System.Diagnostics.Stopwatch.GetTimestamp() - probeBegan;
                     if (hit != null) Stop(s, hit.Kind, hit.Detail, true, hit.Payload);
                 }
                 catch (Exception ex) { Stop(s, "watcher_error", ex.GetType().Name + ": " + ex.Message, true, null); }
@@ -1029,6 +1061,7 @@ namespace HomeBridge.BridgeTools
             RestoreBoost(s);
             s.StopAtMs = NowMs();
             s.Active = false; s.StopReason = kind; s.StopDetail = detail; Add(kind, detail, s, payload);
+            LogTiming(s, kind);
             if (kind == "lease_expired") RevokeDisconnected(s);
         }
         private static void RestoreBoost(State s)
@@ -1150,6 +1183,29 @@ namespace HomeBridge.BridgeTools
         private static float ClampFloat(float x, float lo, float hi) { return Math.Max(lo, Math.Min(hi, x)); }
         private static long NowMs() { return (DateTime.UtcNow.Ticks - 621355968000000000L) / TimeSpan.TicksPerMillisecond; }
 
+        // Where an epoch's wall time went, per epoch, for the acceptance
+        // speed work (#265): game ticks and frames, the tick-boundary hook,
+        // the watch checks inside it and the periodic probe. Logged once per
+        // stop, only under the acceptance test-acceleration launch flag.
+        private sealed class EpochTiming
+        {
+            public long HookTicks, HookElapsed, WatchElapsed, ProbeElapsed;
+            public int Frames, FrameTicks, MaxFrameTicks;
+            public long StartedAt = System.Diagnostics.Stopwatch.GetTimestamp();
+        }
+        private static double Ms(long stopwatchTicks) { return stopwatchTicks * 1000.0 / System.Diagnostics.Stopwatch.Frequency; }
+        private static void LogTiming(State s, string kind)
+        {
+            if (!TestAccelerationLaunch) return;
+            var t = s.Timing;
+            var wall = Ms(System.Diagnostics.Stopwatch.GetTimestamp() - t.StartedAt);
+            var ticks = s.LastTick - s.StartTick;
+            Log.Message(string.Format(CultureInfo.InvariantCulture,
+                "RimGovernor clock epoch {0} timing: stop={1} speed={2} boost={3} ticks={4} wallMs={5:F0} tps={6:F0} frames={7} maxTicksPerFrame={8} hookTicks={9} hookMs={10:F1} watchMs={11:F1} probes={12} probeMs={13:F1} maxProbeTickGap={14}",
+                s.Epoch, kind, s.RequestedSpeed, s.TestAcceleration, ticks, wall, wall > 0 ? ticks * 1000.0 / wall : 0,
+                t.Frames, t.MaxFrameTicks, t.HookTicks, Ms(t.HookElapsed), Ms(t.WatchElapsed), s.ProbeCount, Ms(t.ProbeElapsed), s.MaxProbeTickGap));
+        }
+
         private sealed class Hit
         {
             public readonly string Kind; public readonly string Detail;
@@ -1190,6 +1246,7 @@ namespace HomeBridge.BridgeTools
             public int StartTick; public long? TickDeadline;
             public bool TestAcceleration; public bool PriorBoost; public bool BoostOwned;
             public int LastProbeTick; public int MaxProbeTickGap; public int ProbeCount;
+            public readonly EpochTiming Timing = new EpochTiming();
             public long? StopAtMs;
             public bool? PauseVerified; public bool PauseFailureReported;
             public string? StopReason; public string? StopDetail;

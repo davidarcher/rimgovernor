@@ -66,11 +66,15 @@ func TestServeArgsFixesTheSharedFlags(t *testing.T) {
 		t.Errorf("NativeTimeout not applied: %q", got)
 	}
 	// RIMGOVERNOR_ACCEPT_CLOCK_SPEED is the only knob (#128): without it the
-	// shared Superfast default applies, and exactly one --clock-speed is
-	// emitted either way.
+	// shared Ultrafast default applies, and exactly one --clock-speed is
+	// emitted either way. A harness naming its own speed in Extra gets no
+	// shared pair at all, so the boost never rides beside a slower speed.
 	t.Setenv(ClockSpeedEnv, "")
-	if got := strings.Join(ServeArgs(cfg, "g", "p", "s", "f", ServeSpec{}), " "); !strings.Contains(got, "--clock-speed Superfast") || strings.Count(got, "--clock-speed") != 1 {
+	if got := strings.Join(ServeArgs(cfg, "g", "p", "s", "f", ServeSpec{}), " "); !strings.Contains(got, "--clock-speed Ultrafast --clock-test-acceleration") || strings.Count(got, "--clock-speed") != 1 {
 		t.Errorf("default speed: %q", got)
+	}
+	if got := strings.Join(ServeArgs(cfg, "g", "p", "s", "f", ServeSpec{Extra: []string{"--clock-speed", "Normal"}}), " "); !strings.Contains(got, "--clock-speed Normal") || strings.Count(got, "--clock-speed") != 1 || strings.Contains(got, "--clock-test-acceleration") {
+		t.Errorf("harness speed: %q", got)
 	}
 	t.Setenv(PprofEnv, "0")
 	if got := strings.Join(ServeArgs(cfg, "g", "p", "s", "f", ServeSpec{}), " "); strings.Contains(got, "--pprof") {

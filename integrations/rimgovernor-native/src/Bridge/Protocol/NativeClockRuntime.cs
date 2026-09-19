@@ -57,7 +57,7 @@ namespace HomeBridge.BridgeTools
             if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null)
             { Stop(s, "unavailable", "Authorizing native authority is unavailable.", true, null); return true; }
             var result = authority.Check(pre.ExpectedGeneration);
-            if (result.Success && TypedHooksReady()) return false;
+            if (result.Success && TypedHooksReadyThisFrame()) return false;
             var reason = result.Snapshot.Reason;
             var kind = reason == NativeControlRevocationReason.IdentityChanged ? "session_changed"
                 : reason == NativeControlRevocationReason.HooksUnavailable || reason == NativeControlRevocationReason.GenerationExhausted
@@ -435,9 +435,22 @@ namespace HomeBridge.BridgeTools
         private static TimeSpeed NativeSpeed(Clock.Speed speed) => speed == Clock.Speed.Normal ? TimeSpeed.Normal : speed == Clock.Speed.Fast ? TimeSpeed.Fast : speed == Clock.Speed.Superfast ? TimeSpeed.Superfast : speed == Clock.Speed.Ultrafast ? TimeSpeed.Ultrafast : throw new ArgumentOutOfRangeException(nameof(speed));
         private static Clock.Speed WireSpeed(TimeSpeed speed) => speed == TimeSpeed.Normal ? Clock.Speed.Normal : speed == TimeSpeed.Fast ? Clock.Speed.Fast : speed == TimeSpeed.Superfast ? Clock.Speed.Superfast : speed == TimeSpeed.Ultrafast ? Clock.Speed.Ultrafast : throw new InvalidOperationException("Nonordinary owned epoch");
         internal static Clock.ObservedSpeed ObservedSpeed(TimeSpeed speed) => speed == TimeSpeed.Paused ? Clock.ObservedSpeed.Paused : speed == TimeSpeed.Normal ? Clock.ObservedSpeed.Normal : speed == TimeSpeed.Fast ? Clock.ObservedSpeed.Fast : speed == TimeSpeed.Superfast ? Clock.ObservedSpeed.Superfast : speed == TimeSpeed.Ultrafast ? Clock.ObservedSpeed.Ultrafast : throw new InvalidOperationException("Unknown native speed");
+        // The tick-boundary hook runs StopInvalidTypedAuthority on every
+        // tick, and TypedHooksReady is reflection plus a Harmony patch-info
+        // lookup (~1 ms; #265). The hooks cannot come and go within a frame,
+        // so the hook path checks them once per frame; the bridge calls keep
+        // the exact check.
+        private static long frameSerial, hooksCheckedSerial = -1;
+        private static bool hooksReadyThisFrame;
+        internal static void MarkFrame() => frameSerial++;
+        private static bool TypedHooksReadyThisFrame()
+        {
+            if (frameSerial == 0 || hooksCheckedSerial != frameSerial) { hooksReadyThisFrame = TypedHooksReady(); hooksCheckedSerial = frameSerial; }
+            return hooksReadyThisFrame;
+        }
         internal static bool TypedHooksReady()
         {
-            return new[] { Tuple.Create("TickManagerUpdate", nameof(OnUpdate)), Tuple.Create("DoSingleTick", nameof(OnTick)) }.All(pair =>
+            return new[] { Tuple.Create("TickManagerUpdate", nameof(OnFrame)), Tuple.Create("DoSingleTick", nameof(OnTick)) }.All(pair =>
             {
                 var target = AccessTools.Method(typeof(TickManager), pair.Item1);
                 var patch = AccessTools.Method(typeof(Supervisor), pair.Item2);

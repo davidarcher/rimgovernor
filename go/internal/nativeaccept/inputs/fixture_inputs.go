@@ -28,7 +28,30 @@ var (
 	goStringLiteral = regexp.MustCompile(`"([^"\\\n]*)"`)
 	// fixtureToolAttribute is a fixture op's registration in C#.
 	fixtureToolAttribute = regexp.MustCompile(`\[Tool\(\s*"([^"]+)"`)
+	// fixtureCompileItem is a fixture source's Compile item in the native
+	// project, conditioned on the build flag that admits it.
+	fixtureCompileItem = regexp.MustCompile(`scripts/fixtures/([A-Za-z0-9_]+)\.cs"\s+Condition="'\$\(([A-Za-z0-9_]+)\)'\s*==\s*'true'"`)
 )
+
+// NativeProject is the native mod's project, repo-relative: the fixture
+// sources it compiles are each conditioned on a build flag, and several
+// sources share one flag (ComfortFixture.cs under UpkeepFixture).
+const NativeProject = "integrations/rimgovernor-native/src/Bridge/RimGovernor.Bridge.csproj"
+
+// fixtureBuildFlags maps each fixture source (file base) NativeProject
+// compiles to the build flag admitting it; a missing project maps nothing,
+// and a source the project does not list is taken as its own flag.
+func fixtureBuildFlags(repo string) map[string]string {
+	flags := map[string]string{}
+	src, err := os.ReadFile(filepath.Join(repo, filepath.FromSlash(NativeProject)))
+	if err != nil {
+		return flags
+	}
+	for _, m := range fixtureCompileItem.FindAllSubmatch(src, -1) {
+		flags[string(m[1])] = string(m[2])
+	}
+	return flags
+}
 
 // FixtureRefs are the names a set of Go sources mention as string
 // literals; FixtureInputs matches them against the fixture ops and saves.
@@ -163,11 +186,13 @@ func FixtureFile(file string) bool {
 	return strings.HasPrefix(file, FixtureRoot+"/")
 }
 
-// FixtureClasses lists, sorted, the fixture classes (file bases under
-// FixtureRoot, the names build_native_mod.ps1 -Fixture takes) that
-// register any of ops as a [Tool("test/...")]: what a build must include
-// for a case whose Start calls those ops. An op no fixture registers is
-// left out; a missing FixtureRoot is an error.
+// FixtureClasses lists, sorted, the fixture build flags (the names
+// build_native_mod.ps1 -Fixture takes and a package manifest records)
+// admitting the sources under FixtureRoot that register any of ops as a
+// [Tool("test/...")]: what a build must include for a case whose Start
+// calls those ops. A source is its own flag unless NativeProject
+// conditions it on another one. An op no fixture registers is left out; a
+// missing FixtureRoot is an error.
 func FixtureClasses(repo string, ops []string) ([]string, error) {
 	if len(ops) == 0 {
 		return nil, nil
@@ -181,6 +206,8 @@ func FixtureClasses(repo string, ops []string) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("fixture sources %s: %w", FixtureRoot, err)
 	}
+	flags := fixtureBuildFlags(repo)
+	seen := map[string]bool{}
 	var classes []string
 	for _, entry := range entries {
 		name := entry.Name()
@@ -192,10 +219,18 @@ func FixtureClasses(repo string, ops []string) ([]string, error) {
 			return nil, err
 		}
 		for _, m := range fixtureToolAttribute.FindAllSubmatch(src, -1) {
-			if wanted[string(m[1])] {
-				classes = append(classes, strings.TrimSuffix(name, ".cs"))
-				break
+			if !wanted[string(m[1])] {
+				continue
 			}
+			class := strings.TrimSuffix(name, ".cs")
+			if flag, ok := flags[class]; ok {
+				class = flag
+			}
+			if !seen[class] {
+				seen[class] = true
+				classes = append(classes, class)
+			}
+			break
 		}
 	}
 	sort.Strings(classes)

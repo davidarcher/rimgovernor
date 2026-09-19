@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -234,7 +235,13 @@ func ServeArgs(cfg *Config, gabs, profileDir, statePath, flightPath string, spec
 		"--timeout", timeout.String(),
 		"--flight-recorder", flightPath,
 	}
-	argv = append(argv, ClockSpeedArgs()...)
+	// A harness that names its own --clock-speed in Extra (speedmatrix's
+	// rows) owns the pair: the shared Ultrafast default would otherwise
+	// leave its --clock-test-acceleration beside a slower speed, which
+	// serve refuses.
+	if !slices.Contains(spec.Extra, "--clock-speed") {
+		argv = append(argv, ClockSpeedArgs()...)
+	}
 	if ProfileServices() {
 		argv = append(argv, "--pprof")
 	}

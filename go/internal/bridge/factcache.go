@@ -92,14 +92,15 @@ func (f FactFamily) TickTolerance() int64 {
 
 // Fresh reports whether a row of the family read at rowTick still serves a
 // scope at scopeTick: the scope is never behind the row (a tick rewind is a
-// new world) and not ahead of it by more than the tolerance.
+// new world) and not ahead of it by more than the tolerance, widened by
+// the running window's domain.LiveDrift (#345).
 func (f FactFamily) Fresh(rowTick, scopeTick int64) bool {
 	advance := scopeTick - rowTick
 	if advance < 0 {
 		return false
 	}
 	tolerance := f.TickTolerance()
-	return tolerance == FactTickUnbounded || advance <= tolerance
+	return tolerance == FactTickUnbounded || advance <= tolerance+int64(domain.LiveDrift())
 }
 
 // FactFamilyOf names the family of a cacheable read (cacheableRead) and

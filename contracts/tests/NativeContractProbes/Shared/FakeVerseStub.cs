@@ -178,6 +178,7 @@ namespace HomeBridge.BridgeTools
         internal static void FixtureLegacyEvent() { Journal.Append(new Dictionary<string, object> { ["cursor"] = _cursor + 1 }); _cursor = Journal.Newest; }
         internal static void FixtureLegacyEpoch() { _state.Typed = null; }
         internal static void OnTick() => OnUpdate();
+        internal static void OnFrame() => OnUpdate();
         internal static void OnUpdate()
         {
             var s = _state; if (s == null || !s.Active) return;

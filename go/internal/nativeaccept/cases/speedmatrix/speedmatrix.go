@@ -57,8 +57,12 @@ const (
 	stageSave   = "RimGovernor-speedmatrix-stage"
 
 	// ticks is the game-tick budget each speed runs after resume (the
-	// serve-side tick must advance by this much).
-	ticks = 6000
+	// serve-side tick must advance by this much) unless the stage runs out
+	// of work first, which every speed does: the controller's cadence is
+	// wall-bound (a step and a dispatch each cost about a second of round
+	// trips), so the ticks the stage's work takes grow with the pace, from
+	// ~2,300 at Normal to ~20,000 at boosted Ultrafast (#265).
+	ticks = 30000
 	// items and segments size the stage: Steel stacks spawned and wall
 	// segments laid out.
 	items    = 4

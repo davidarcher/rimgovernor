@@ -122,19 +122,22 @@ func ObserveCompleted(ctx context.Context, h *Harness, label string, ticks uint6
 }
 
 // ClockSpeedEnv overrides the clock speed a serve-driven harness passes to
-// rimgovernor serve (--clock-speed); the default is Superfast (#128;
-// Ultrafast once #122 lands). The clock wire admits Normal, Fast, Superfast
-// and Ultrafast. Ultrafast also asks for test
-// acceleration (the native dev tick boost), which only a headless.Prepare
-// launch admits: under a rendered profile native refuses the window.
+// rimgovernor serve (--clock-speed); the default is Ultrafast (#265). The
+// clock wire admits Normal, Fast, Superfast and Ultrafast. Ultrafast also
+// asks for test acceleration (the native dev tick boost), which only a
+// headless.Prepare launch admits: under a rendered profile native refuses
+// the window. Live steps keep dispatching at that pace because the
+// scheduler widens the planning tolerance by the running window's
+// measured pace (domain.LiveDrift, #345). A case that wants the game held
+// to a slower pace opts out through this variable.
 const ClockSpeedEnv = "RIMGOVERNOR_ACCEPT_CLOCK_SPEED"
 
-// ClockSpeed is ClockSpeedEnv or Superfast.
+// ClockSpeed is ClockSpeedEnv or Ultrafast.
 func ClockSpeed() string {
 	if v := os.Getenv(ClockSpeedEnv); v != "" {
 		return v
 	}
-	return "Superfast"
+	return "Ultrafast"
 }
 
 // ClockSpeedArgs is the serve flag set for ClockSpeed: --clock-speed, plus

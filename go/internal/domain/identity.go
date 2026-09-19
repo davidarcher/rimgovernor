@@ -4,6 +4,7 @@ package domain
 import (
 	"errors"
 	"strings"
+	"sync/atomic"
 	"unicode/utf8"
 )
 
@@ -27,12 +28,34 @@ type Tick int64
 // one at Fast (180 ticks/s) crosses it in under two seconds.
 const PlanningTickTolerance Tick = 250
 
+// liveDrift widens the tolerance while an owned clock window runs (#345):
+// the ticks the window's observed pace covers in the wall time a step's
+// reads already have (the scheduler's MaxAge). A step under a running
+// window reads at several ticks by construction, and at boosted Ultrafast
+// one bridge round trip alone advances the game past
+// PlanningTickTolerance; the drift keeps such a step's reads one plan
+// without a per-speed tolerance at every site. It is zero while the clock
+// is stopped, so a paused step keeps the tick-exact bound.
+var liveDrift atomic.Int64
+
+// SetLiveDrift sets the widening the scheduler measured for the running
+// window; zero (a stopped clock, an unknown pace) restores the bound.
+func SetLiveDrift(ticks Tick) {
+	if ticks < 0 {
+		ticks = 0
+	}
+	liveDrift.Store(int64(ticks))
+}
+
+// LiveDrift is the widening in force.
+func LiveDrift() Tick { return Tick(liveDrift.Load()) }
+
 // FreshFor reports whether an observation at t still describes anchor, the
 // tick a step's facts are bound to: never earlier than the anchor (a tick
 // rewind is another world) and past it by no more than
-// PlanningTickTolerance.
+// PlanningTickTolerance plus the LiveDrift of a running window.
 func (t Tick) FreshFor(anchor Tick) bool {
-	return t >= anchor && t-anchor <= PlanningTickTolerance
+	return t >= anchor && t-anchor <= PlanningTickTolerance+LiveDrift()
 }
 
 // Covers reports whether an observation at t describes anchor: at or after

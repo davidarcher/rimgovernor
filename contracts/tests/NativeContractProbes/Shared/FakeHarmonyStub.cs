@@ -23,7 +23,7 @@ namespace HarmonyLib
         public static Patches GetPatchInfo(MethodInfo method) => new Patches
         {
             Postfixes = Healthy && Installed
-                ? new List<Patch> { new Patch { PatchMethod = AccessTools.Method(typeof(HomeBridge.BridgeTools.Supervisor), method.Name == "DoSingleTick" ? "OnTick" : "OnUpdate") } }
+                ? new List<Patch> { new Patch { PatchMethod = AccessTools.Method(typeof(HomeBridge.BridgeTools.Supervisor), method.Name == "DoSingleTick" ? "OnTick" : "OnFrame") } }
                 : new List<Patch>()
         };
     }

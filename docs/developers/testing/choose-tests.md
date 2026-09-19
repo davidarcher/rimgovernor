@@ -275,7 +275,7 @@ by review alone.
    tick budget means the same at every speed and on every machine; the
    stall budget still catches a game that stops ticking (a pausing letter)
    and the wall ceiling a run that never finishes. *Enforced:* `s.Serve`
-   always passes `na.ClockSpeedArgs` (`--clock-speed Superfast` by default,
+   always passes `na.ClockSpeedArgs` (`--clock-speed Ultrafast --clock-test-acceleration` by default since #265,
    override with
    `RIMGOVERNOR_ACCEPT_CLOCK_SPEED`; the clock wire admits Normal, Fast,
    Superfast and Ultrafast, and at Ultrafast the runner also passes
