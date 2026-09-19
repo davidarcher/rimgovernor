@@ -442,7 +442,9 @@ launch snapshots the installed package's file hashes to
 `RimGovernorLaunchedPackage.json`: a process serves the DLLs it loaded,
 so a rebuilt `Mods/RimGovernor` installed under a kept process (new
 fixtures, say) relaunches as `"package"` instead of failing discovery
-against the old catalog (#209). Stop a kept
+against the old catalog (#209). `acceptance warm -root <root>`
+(`-background` to detach) boots that kept process ahead of the first
+run, recording the same snapshots, so the run attaches (#285). Stop a kept
 game with `acceptance stop -root <root>` when you are done with the root
 (a case that must not hand its process on declares `NoKeep` and the
 runner stops it itself); a case that fails still leaves the process at

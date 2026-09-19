@@ -6,6 +6,7 @@
 //	acceptance stop -root <dir> [-config -game -takeover]
 //	acceptance setup [-worktree -rimworld -harmony -gabs -fixture -production -rebuild -skip-mod -skip-binaries]
 //	acceptance why <output>/<area>/<case> [-json]
+//	acceptance warm -root <dir> [-game -headless=false -background]
 //
 // It replaces the per-harness binaries' preamble with one loop: resolve the
 // shared configuration, open the game, bring it to the case's Start, quiet
@@ -16,7 +17,11 @@
 // checkpoints its case into the root's ring and resumes a case whose last
 // run there failed (#249; -fresh starts over, -rewind steps back,
 // -checkpoint-every 0 turns it off); suite always runs fresh. Cases
-// register from the area packages imported
+// register from the area packages imported below. stop ends the game a
+// root keeps between runs (na.KeepGameEnv) through GABS games_stop: the
+// PID-owned launch recorded by that root's own GABS configuration, never
+// a process matched by image name; warm (warm.go) boots that kept process
+// ahead of the first run (#285).
 package main
 
 import (
@@ -129,6 +134,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runSetup(context.Background(), args[1:], stdout, stderr)
 	case "why":
 		return why(args[1:], stdout, stderr)
+	case "warm":
+		return warm(context.Background(), args[1:], stdout, stderr)
 	default:
 		fmt.Fprintf(stderr, "unknown command %q\n%s\n", args[0], usage)
 		return 2
@@ -141,7 +148,7 @@ const usage = `usage:
     a case whose last run in this root failed resumes from its checkpoint ring (printed on the first line);
     -fresh starts over, -rewind <n> resumes n entries earlier, -checkpoint-every 0 turns the ring off
   acceptance stop -root <dir> [-config <dir> -game <id> -takeover]
-` + setupUsage + suiteUsage + whyUsage
+` + setupUsage + suiteUsage + whyUsage + warmUsage
 
 // parseRun resolves the run subcommand's flags and case names. Flags may
 // follow the case names (flag.FlagSet stops at the first non-flag, so the

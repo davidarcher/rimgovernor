@@ -198,3 +198,16 @@ func TestWhyPrintsDigestForCaseDirectory(t *testing.T) {
 		t.Fatalf("why without a directory: exit %d", code)
 	}
 }
+
+func TestWarmRejectsBadRoots(t *testing.T) {
+	for name, args := range map[string][]string{
+		"missing root":  {},
+		"relative root": {"-root", "bridge"},
+		"unknown flag":  {"-root", absRoot(), "-bogus"},
+	} {
+		var stdout, stderr bytes.Buffer
+		if code := warm(context.Background(), args, &stdout, &stderr); code != 2 {
+			t.Errorf("%s: warm(%v) = %d, want 2 (%s)", name, args, code, stderr.String())
+		}
+	}
+}

@@ -105,6 +105,13 @@ What it produces:
   `ModsConfig`: a save that needs DLC fails `save.missing_mods` on a
   Core-only kept process; `gamesstop` first. A production (fixture-less)
   build cannot be kept and always pays a fresh boot.
+- `acceptance warm -root <root>` prepares the profile and boots the game
+  to the menu ahead of the first run so it attaches (~0.3s) instead of
+  launching (~11s headless); `-background` detaches the boot (log under
+  `<root>/acceptance/warm/warm.log`) so a post-build step can fire it
+  right after the mod is installed. It refuses a stale package like a
+  run does and a mod rebuilt afterwards relaunches on the package check
+  (#285).
 - Before copying a rebuilt mod in, look for your own leftover
   `RimWorldWin64.exe` from an earlier kept run (command-line filter on the
   worktree path) and stop it by pid.

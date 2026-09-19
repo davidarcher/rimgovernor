@@ -340,3 +340,47 @@ func gameLoaded(ctx context.Context, h *Harness, label string) (bool, error) {
 	_, ok := AsMap(reply["loaded"])
 	return ok, nil
 }
+
+// Warmed is what WarmGame did to root's process.
+type Warmed struct {
+	// Reused is true when a process already at the menu was kept as is.
+	Reused bool
+	// Relaunched is why a running process was replaced (Game.Relaunched).
+	Relaunched string
+	// Open is how long the prepare and boot took.
+	Open time.Duration
+	// Configuration is the profile directory the process was launched with.
+	Configuration string
+}
+
+// WarmGame prepares cfg's profile and boots its game to the main menu,
+// leaving the process running for the next OpenGame under the same root
+// to attach (#285). It is the launch a first run would pay, moved to a
+// moment nobody is waiting for it (a post-build hook): the launch records
+// the same mods and package snapshots (prepareFreshLaunch), so a mod
+// rebuilt after the warm relaunches on the same "package" check as any
+// kept process (#209) and a stale package is refused before the boot. A
+// process already running and matching the profile is left alone. cfg
+// needs Root, GameID and Headless; Output defaults to <Root>/acceptance/warm.
+func WarmGame(ctx context.Context, cfg *Config) (Warmed, error) {
+	started := time.Now()
+	if cfg.Output == "" {
+		cfg.Output = filepath.Join(cfg.Root, "acceptance", "warm")
+	}
+	if cfg.Configuration == "" {
+		if err := cfg.PrepareConfig(); err != nil {
+			return Warmed{}, fmt.Errorf("prepare profile: %w", err)
+		}
+	}
+	game, err := OpenGame(ctx, cfg)
+	if err != nil {
+		return Warmed{}, err
+	}
+	game.Keep = true
+	report := Report{}
+	game.Close(report)
+	if stopErr, _ := report["stop_error"].(string); stopErr != "" {
+		return Warmed{}, fmt.Errorf("keep warmed game: %s", stopErr)
+	}
+	return Warmed{Reused: game.Reused, Relaunched: game.Relaunched, Open: time.Since(started), Configuration: cfg.Configuration}, nil
+}
