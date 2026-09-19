@@ -130,6 +130,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 	switch args[0] {
+	case "plan":
+		return plan(args[1:], stdout, stderr)
 	case "list":
 		return list(args[1:], stdout, stderr)
 	case "run":
@@ -167,6 +169,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 }
 
 const usage = `usage:
+  acceptance plan -evidence <root> -run <relative run.json> [-fetch]
 ` + listUsage + `
   acceptance run <case>... -root <dir> [-output <dir> -game <id> -headless=false -timeout <d> -budget <d> -stall <d> -rimgovernor <binary> -series <metrics.jsonl> -no-series -evidence capped|full -fresh -rewind <n> -checkpoint-every <d> -restage -no-doctor -no-heal -repeat <n> -seed <s> -postmortem-only [-from <bundle>]]
     a case whose last run in this root failed resumes from its checkpoint ring (printed on the first line);

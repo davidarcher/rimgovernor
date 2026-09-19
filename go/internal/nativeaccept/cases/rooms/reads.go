@@ -17,13 +17,14 @@ import (
 
 func init() {
 	cases.Register(cases.Case{
-		Name:   "rooms/reads",
-		Scope:  "Naturally generated rooms; read-only geometry, native stats and contents, no fixture spawning or construction orders.",
-		Start:  cases.DebugStart{},
-		Quiet:  na.QuietIfAvailable,
-		Reason: "asserts a production discovery (no test/ tools), so the quiet fixture cannot be present",
-		Budget: 5 * time.Minute,
-		Run:    run,
+		Name:       "rooms/reads",
+		Production: true,
+		Scope:      "Naturally generated rooms; read-only geometry, native stats and contents, no fixture spawning or construction orders.",
+		Start:      cases.DebugStart{},
+		Quiet:      na.QuietIfAvailable,
+		Reason:     "asserts a production discovery (no test/ tools), so the quiet fixture cannot be present",
+		Budget:     5 * time.Minute,
+		Run:        run,
 	})
 }
 

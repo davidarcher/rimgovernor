@@ -204,6 +204,9 @@ type Session interface {
 
 // Case is one registered acceptance case.
 type Case struct {
+	// Production requires a fixture-free native package. Remote executors
+	// must switch private package layouts between production and fixture rows.
+	Production bool
 	// Name is "<area>/<case>", unique across the registry.
 	Name string
 	// Scope is the report's one-line description of what passing proves.

@@ -91,6 +91,43 @@ retained. No cost estimate influences this version's assignment. Future cost
 balancing must name a new algorithm and pin its cost input. Reject empty,
 unknown, duplicated or omitted cases before starting runners.
 
+## Planning command
+
+From `go/` in a clean, detached checkout of `run.tested_commit`, run:
+
+```text
+go run ./internal/nativeaccept/cmd/acceptance plan -evidence <root> -run run.json -fetch
+```
+
+Capture stdout as `selection.json` only when the command exits zero. Diagnostics
+use stderr; a rejected plan emits no partial selection. Keep the evidence root
+outside tracked source. `-fetch` obtains the exact base/head objects from
+`run.repository` and unshallows history; omit it only when complete comparison
+history is already available. The dispatcher supplies the explicit event
+identities in `run.json`: dispatch inputs, or push `before`/`after`. Planning
+never substitutes a moving ref. Invoke the tested checkout's source as above;
+a runner binary compiled from another revision is not a valid planner.
+
+The command verifies provenance, duplicate JSON keys, limits, detached HEAD,
+tracked and untracked cleanliness, both commit objects and base ancestry. It includes both
+paths of renames and shares `landCases` and `affected.Select` with local tiers.
+The #366 entry-point dependency is included in those affected rules.
+
+Planner output adds optional case metadata: `fixture_ops` names declared Start
+fixture operations, `roles` lists `bridge` and, where needed, `controller`, and
+`mod_role` is `fixture` or `production`. Fixture rows require the complete default
+fixture build, including common quiet/needs tools and fixtures called inside
+case bodies; `fixture_ops` alone is not a complete build allowlist. Production
+rows require a fixture-free build. An executor must support switching private
+layouts for these roles or reject the complete plan before running it.
+
+V1 supports headless, non-matrix cases only. A selected rendered case rejects
+the entire plan; unsupported capabilities never cause a skipped green subset.
+Each shard's sum of declared case budgets times `max_attempts` must fit its
+suite allowance. This is a necessary bound, not a prediction that boot and
+cleanup will fit; executors enforce the actual deadline. No historical timings
+are consulted, so untimed cases are assigned identically on every machine.
+
 ## Runner, storage and resource boundary
 
 Initial target: public source repository, standard GitHub-hosted Windows x64,

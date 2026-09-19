@@ -16,13 +16,14 @@ import (
 
 func init() {
 	cases.Register(cases.Case{
-		Name:   "supplies/reads",
-		Scope:  "Fresh production typed supply census against existing native stock reads; no stock spawning, fixture mutation or gameplay orders.",
-		Start:  cases.DebugStart{},
-		Quiet:  na.QuietIfAvailable,
-		Reason: "asserts a production discovery (no test/ tools), so the quiet fixture cannot be present",
-		Budget: 5 * time.Minute,
-		Run:    run,
+		Name:       "supplies/reads",
+		Production: true,
+		Scope:      "Fresh production typed supply census against existing native stock reads; no stock spawning, fixture mutation or gameplay orders.",
+		Start:      cases.DebugStart{},
+		Quiet:      na.QuietIfAvailable,
+		Reason:     "asserts a production discovery (no test/ tools), so the quiet fixture cannot be present",
+		Budget:     5 * time.Minute,
+		Run:        run,
 	})
 }
 
