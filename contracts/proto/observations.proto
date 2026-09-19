@@ -835,6 +835,20 @@ message PenGrazing { optional string pen_id = 1; optional double demand_per_day 
 message FoodSlaughterAnimal { optional string pawn_id = 1; optional string race = 2; optional double meat_nutrition = 3; optional double feed_per_day = 4; optional double reproduction_days = 5; }
 message FoodChannelsFacts { FishableWater fishable_water = 1; repeated GatherableAnimal gatherable = 2; repeated EggLayerAnimal egg_layer = 3; repeated PasteDispenser paste_dispenser = 4; optional uint32 polluted_cells = 5; repeated ForagePlant forage = 6; Completeness completeness = 7; repeated PenGrazing grazing = 8; repeated FoodSlaughterAnimal slaughter = 9; }
 message FoodChannelsSection { oneof outcome { FoodChannelsFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
+// Discovered DeepResourceGrid cells only, merged into eight-connected components
+// of the same definition. Centre is the member nearest the component centroid
+// (ties by x,z); touching discoveries merge and depleted cells leave the lump.
+message DeepResourceLump { optional string def_name = 1; optional int64 count = 2; rimgovernor.common.v1.Cell centre = 3; optional uint32 cell_count = 4; }
+// Built player scanners only (empty list means none built). Working means usable
+// and used within the last 30 ticks. Ticks-to-next-find estimates remaining work
+// to the guaranteed threshold at the last user's speed, excluding idle time and
+// the <=59 tick discovery check interval; random finds may happen sooner.
+// Timing is absent when native progress/speed or a guaranteed threshold is absent.
+message MineralScannerState { optional string building_id = 1; optional string def_name = 2; rimgovernor.common.v1.Cell position = 3; optional bool built = 4; optional bool powered = 5; optional bool working = 6; optional int64 ticks_to_next_find = 7; optional string target_resource = 8; }
+// At most 256 lumps and 256 scanners total; excess/read failure makes the section
+// unavailable, never a silently truncated census. Absent section means unknown.
+message DeepResourcesFacts { repeated DeepResourceLump lumps = 1; repeated MineralScannerState ground_scanners = 2; repeated MineralScannerState long_range_scanners = 3; }
+message DeepResourcesSection { oneof outcome { DeepResourcesFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 message ColonyFactsSnapshot {
   rimgovernor.common.v1.ObservationContext context = 1; ColonyNaming naming = 2;
   optional uint32 colonist_count = 3; optional uint32 worker_count = 4; rimgovernor.common.v1.Cell center = 5; MapSize map_size = 6;
@@ -861,6 +875,7 @@ message ColonyFactsSnapshot {
   LootSection event_loot = 43;
   repeated JoinerLetter joiner_letters = 44;
   FoodChannelsSection food_channels = 45;
+  DeepResourcesSection deep_resources = 46;
 }
 // Current-map WandererJoins offers; the token binds letter, quest, pawn and expiry.
 message JoinerLetter { optional int32 letter_id = 1; optional string snapshot_token = 2; optional string pawn_id = 3; optional int64 expires_tick = 4; optional string accept_label = 5; optional bool can_accept = 6; }

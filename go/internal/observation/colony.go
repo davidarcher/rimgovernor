@@ -37,6 +37,7 @@ type PlanningDefinition struct {
 	PathCost                          domain.Fact[int32]
 }
 type ColonyProjection struct {
+	DeepResources       domain.Fact[DeepResources]
 	FoodFields          domain.Fact[[]policy.FoodField]
 	FoodChannels        domain.Fact[FoodChannels]
 	ProductionBenches   domain.Fact[[]policy.ProductionBench]
@@ -197,6 +198,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 	r.PlayerTechLevel = optional(v.PlayerTechLevel)
 	r.Threat = bridge.ProjectColonyThreat(v)
 	r.FoodChannels = colonyFoodChannels(v.FoodChannels)
+	r.DeepResources = colonyDeepResources(v.DeepResources)
 	r.Facts = policy.RoutineFacts{Colonists: countFact(v.ColonistCount), BedCapacity: countFact(v.BedCapacity), IndoorCapacity: countFact(v.IndoorSleepingCapacity), SleepingMin: optional(v.SleepingTemperatureMinC), SleepingMax: optional(v.SleepingTemperatureMaxC), OutdoorTemperature: optional(v.OutdoorTemperatureC)}
 	r.Facts.RaidPoints = bridge.ProjectColonyThreat(v).RaidPoints
 	threat := bridge.ProjectColonyThreat(v)

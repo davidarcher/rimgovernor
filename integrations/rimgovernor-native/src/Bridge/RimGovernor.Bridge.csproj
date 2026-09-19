@@ -89,6 +89,7 @@
     <Compile Include="../../../../scripts/fixtures/PowerFixture.cs" Condition="'$(PowerFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/HuntSelectionFixture.cs" Condition="'$(HuntSelectionFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/FoodChannelFixture.cs" Condition="'$(FoodChannelFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/DeepResourcesFixture.cs" Condition="'$(DeepResourcesFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/FishingFixture.cs" Condition="'$(FishingFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/FarmEnvironmentFixture.cs" Condition="'$(FarmEnvironmentFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ProductionLadderFixture.cs" Condition="'$(ProductionLadderFixture)' == 'true'" />

@@ -42,6 +42,25 @@ by the requested page limit, at most 256; no per-cell fishing payload is emitted
 `tools/foodchannels` checks Core-only baseline forage and a cow's milk fullness;
 `tools/saveheadroom-*` checks the envelope budget.
 
+## Deep resources and mineral scanners
+
+`ColonyFactsSnapshot.deep_resources` reads discovered `DeepResourceGrid` entries,
+aggregated into eight-connected lumps of the same definition. Each row reports
+total remaining units, cell count and the member nearest its centroid (ties x,z).
+Depleted cells disappear; touching discoveries of the same definition merge.
+The census is capped at 256 lumps and 256 built player scanners total. Oversize
+or failed reads return section-unavailable, never partial known-empty facts.
+
+Ground and long-range scanner rows carry built, powered and recent-working state;
+long-range rows also expose the selected output mineral when readable. Remaining
+ticks estimate work to the guaranteed-find threshold at the last user's speed,
+excluding idle time and the native discovery-check interval of up to 59 ticks.
+Random discovery may occur sooner. Missing timing stays unknown. Go preserves an
+absent/unavailable section as `ColonyProjection.DeepResources` unknown, while an
+observed empty section establishes no discovered lumps or built scanners.
+`tools/deepresources` checks seeded aggregation and both scanner kinds;
+`tools/saveheadroom-*` checks the committed-save envelope budget.
+
 ## Required semantic validation
 
 - Every reply selects exactly one observed, unavailable, or request failure case.
