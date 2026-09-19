@@ -1,6 +1,7 @@
 package buildingruntime
 
 import (
+	"fmt"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -47,6 +48,9 @@ func reviewFoodPlan(p observation.ColonyProjection, thresholds policy.RoutinePol
 		return domain.Unknown[policy.FoodPlan]()
 	}
 	channels := append(policy.ForageChannels(sources), policy.HuntChannels(sources)...)
+	if animals, known := p.FoodChannels.Value(); known {
+		channels = append(channels, policy.AnimalProductChannels(animals.AnimalProducts())...)
+	}
 	channels = append(channels, policy.StockIngredientChannels(supply)...)
 	if fields, known := p.FoodFields.Value(); known {
 		channels = append(channels, policy.CropChannels(fields)...)
@@ -72,6 +76,30 @@ func reviewFoodPlan(p observation.ColonyProjection, thresholds policy.RoutinePol
 		Channels: domain.Known(channels), Labor: domain.Known(float64(workers) * 20000)})
 	if err != nil {
 		return domain.Unknown[policy.FoodPlan]()
+	}
+	// A food slaughter offer is opt-in and protects productive animals selected
+	// by the non-destructive portfolio before adding a single removal method.
+	if animals, known := p.FoodChannels.Value(); known && thresholds.AllowSlaughter && plan.GapPerDay > 0 {
+		herd := policy.FoodHerdPolicy(thresholds.Herd(), domain.Known(plan))
+		offers := policy.SlaughterFoodChannels(animals.Slaughter, p.Facts.AnimalUpkeep.Animals, herd)
+		if len(offers) > 0 {
+			channels = append(channels, offers...)
+			plan, err = policy.PlanFood(policy.FoodPlanRequest{Demand: forecast, MinDays: seasonal.FoodMinDays, TargetDays: seasonal.FoodTargetDays, Channels: domain.Known(channels), Labor: domain.Known(float64(workers) * 20000)})
+			if err != nil {
+				return domain.Unknown[policy.FoodPlan]()
+			}
+		}
+	}
+	herd := policy.FoodHerdPolicy(thresholds.Herd(), domain.Known(plan))
+	derived := policy.FoodHerdPolicy(policy.HerdPolicy{PopulationMax: thresholds.HerdPopulationMax}, domain.Known(plan))
+	for i := range plan.Portfolio {
+		e := &plan.Portfolio[i]
+		if e.Channel.Kind == policy.FoodAnimalProduct {
+			floor := herd.PopulationMin[policy.Resource(e.Channel.ID)]
+			derivedFloor := derived.PopulationMin[policy.Resource(e.Channel.ID)]
+			e.Terms = append(e.Terms, policy.FoodPlanTerm{Name: "derived_herd_floor", Value: float64(derivedFloor)}, policy.FoodPlanTerm{Name: "effective_herd_floor", Value: float64(floor)})
+			e.Reason += fmt.Sprintf("; MaintainHerd-%s derived floor %d, effective floor %d", e.Channel.ID, derivedFloor, floor)
+		}
 	}
 	return domain.Known(plan)
 }

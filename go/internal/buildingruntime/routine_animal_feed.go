@@ -110,11 +110,14 @@ func (r *RoutineAnimalFeedPlanner) step(call, epoch context.Context, arbiter *st
 		return RoutineResourceResult{}, ErrControl
 	}
 	started := r.reviewer.clock.Now()
-	read, err := r.reviewer.observeOwned(call, r.reviewer.native, expected, domain.Unknown[[]policy.ConstructionClaim]())
+	read, err := r.reviewer.observeOwned(call, r.reviewer.native, expected, domain.Unknown[[]policy.ConstructionClaim](), "Plant_Haygrass")
 	if err != nil {
 		return RoutineResourceResult{}, err
 	}
 	upkeep := read.Projection.Facts.AnimalUpkeep
+	if result, tried, err := r.planHay(call, epoch, state, goal, read); tried || err != nil {
+		return result, err
+	}
 	if plan, known := read.Projection.Facts.FoodPlan.Value(); known {
 		upkeep.Forecast = domain.Known(plan.Forecast)
 	}

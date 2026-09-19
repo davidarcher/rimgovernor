@@ -57,11 +57,8 @@ func GoalLabor(id GoalID) LaborProfile {
 	case MaintainHerd:
 		return LaborProfile{WorkHandling}
 	case MaintainAnimalFeed:
-		// Feed is a kibble bill (the butcher spot's Cooking work) hauled
-		// into the animals' area (#311); handlers never carry it, and the
-		// tribal baseline has none, which left the delivered bill
-		// labor_unavailable behind its completed zone.
-		return LaborProfile{WorkCooking, WorkHauling}
+		// Feed uses cooking/hauling for bills and growing for hay fields.
+		return LaborProfile{WorkCooking, WorkHauling, WorkGrowing}
 	case MaintainFireSafety:
 		return LaborProfile{WorkFirefighter}
 	}

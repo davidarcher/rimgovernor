@@ -20,8 +20,14 @@ outcomes for failed or oversized reads. It does not select food policy.
 optional values as `domain.Fact` after bridge validation.
 
 Every tame animal has gatherable and egg rows; missing components leave production
-values unknown. Multiple gatherable components produce one row per resource.
+values unknown and mark activity false. Unreadable activity stays unknown. Multiple
+gatherable components produce one row per resource.
 Handler reachability requires an available colonist with Handling enabled.
+Milk and egg rows retain native activity, nutrition/day and remaining lead time;
+milk also reports gathering work/day. Inactive comps contribute no food. Pen
+rows carry demand, worst-quadrum pasture production and stored nutrition, once
+per enclosed pen. Slaughter rows carry native meat nutrition, grazing demand
+and reproduction interval; policy owns the removal opt-in and safety selection.
 Paste dispensers report power, eligible hopper nutrition and the interaction
 cell's room. Pollution counts the map-clipped center +/-22 planning window.
 Forage lists biome wild plants with human-edible harvest products and native

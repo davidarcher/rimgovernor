@@ -13,7 +13,7 @@ operator's herd policy (`RoutinePolicy`, set by `rimgovernor serve` flags):
 | `AllowRelease` | `--routine-allow-release` | Remove surplus by release-to-wild (`release`); preferred when both opt-ins are set. |
 | `AllowSlaughter` | `--routine-allow-slaughter` | Remove surplus by slaughter (`slaughter`). |
 
-All default off. A ceiling alone never removes an animal; a floor alone does
+Operator removal defaults off. A ceiling alone never removes an animal; a floor alone does
 propose taming, gated on `MaintainAnimalFeed`'s own review: while any player
 animal is below its feed threshold, or the feed forecast is unknown, no tame is
 proposed and the shortfall is not counted as a herd deficit (the wild animal's
@@ -121,3 +121,40 @@ does not establish indefinite herd sustainability.
 
 See husbandry acceptance for the native fixture
 and the distinction between setup, orders and pawn outcomes.
+
+## Food channel planning
+
+The tick food plan aggregates native milk and egg production by race. Rates use
+native resource nutrition, comp intervals and body-resource growth speed;
+inactive producers contribute nothing, and missing rate or reachability facts
+remain unknown with an explanation. Milk costs 400 native gather work units per
+cycle; eggs need no handler gathering. These costs share the food-plan labor
+budget. Full production comps have zero lead time. Projected products never
+increase stored-food runway before normal native jobs produce them.
+
+An admitted productive race that beats the marginal crop's nutrition per work
+gets a derived population floor. The effective minimum is at least the operator
+minimum; an explicit maximum bounds only the derived addition. The portfolio
+explains `MaintainHerd-<race>` and its floor. Both herd review and dispatch use
+that policy, including the existing feed gate before taming.
+
+`MaintainAnimalFeed` compares the seasonal harvest gap with each enclosed pen's
+native worst-quadrum pasture rate and stored feed. A negative balance can add a
+`Plant_Haygrass` field through the existing soil planner, zone preview and Hands
+admission. Existing hay-field capacity offsets new planting; a short season or
+unknown capacity refuses that method. Hay stays human-inedible and out of human
+food channels and human runway. Growing joins the feed goal's labor profile.
+
+Only `--routine-allow-slaughter` enables a food-slaughter offer. With a remaining
+food gap, eligible surplus above the effective population floor ranks by native
+meat nutrition per daily grazing demand, then shorter native reproduction
+interval, then animal ID. Missing cost facts exclude the candidate. The ledger
+budgets one offered animal as a hunt-kind channel with a `slaughter:` ID and
+180 native slaughter ticks; `MaintainHerd` dispatches through its normal guarded
+husbandry action. Ordinary butchering and hauling must still produce edible food.
+The opt-in is checked again at method selection. Operator ceiling removal keeps
+its existing release preference.
+
+`food/milk-eggs` starts from `EmptyChannels`, adds a ready cow and four hens,
+and verifies native products and positive runway without fields, plus the live
+plan's derived cow-floor explanation. It is part of the nightly full tier.

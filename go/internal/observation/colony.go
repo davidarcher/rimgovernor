@@ -118,7 +118,10 @@ func (r ColonyProjection) GeneratorOptions() []policy.GeneratorOption {
 	}, r.ResourceStock)
 }
 
-type FarmZoneFact struct{ ID, Crop string }
+type FarmZoneFact struct {
+	ID, Crop    string
+	UsableCells domain.Fact[uint32]
+}
 
 type CookingBench struct {
 	ID, Definition string
@@ -190,6 +193,9 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 	r.PlayerTechLevel = optional(v.PlayerTechLevel)
 	r.FoodChannels = colonyFoodChannels(v.FoodChannels)
 	r.Facts = policy.RoutineFacts{Colonists: countFact(v.ColonistCount), BedCapacity: countFact(v.BedCapacity), IndoorCapacity: countFact(v.IndoorSleepingCapacity), SleepingMin: optional(v.SleepingTemperatureMinC), SleepingMax: optional(v.SleepingTemperatureMaxC), OutdoorTemperature: optional(v.OutdoorTemperatureC), FoodStorage: optional(v.FoodStorage)}
+	if channels, known := r.FoodChannels.Value(); known {
+		r.Facts.PenGrazing = domain.Known(channels.Grazing)
+	}
 	if development := v.GetDevelopment().GetObserved(); development != nil {
 		power := make([]policy.PowerBuilding, 0, len(development.Power))
 		topology := policy.PowerTopology{}
@@ -398,7 +404,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 	if !hasIssue(v.Issues, "farms") {
 		for _, farm := range v.Farms {
 			if farm.ZoneId != nil && farm.Crop != nil {
-				r.Farms = append(r.Farms, FarmZoneFact{ID: farm.GetZoneId(), Crop: farm.GetCrop()})
+				r.Farms = append(r.Farms, FarmZoneFact{ID: farm.GetZoneId(), Crop: farm.GetCrop(), UsableCells: optional(farm.UsableCells)})
 			}
 		}
 	}

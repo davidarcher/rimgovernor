@@ -12,6 +12,33 @@ namespace HomeBridge.BridgeTools
     // Disposable prerequisites only. All asserted outcomes happen afterward through normal ticks.
     public sealed class HusbandryFixture
     {
+        [Tool("test/milk_eggs_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Disposable one-cow, four-hen product fixture with one ordinary handler, no fields or food stock, and ready production comps. Products must be laid and gathered by normal jobs afterwards.")]
+        public async Task<object> MilkEggsPrepare(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            await Setup(ctx, cancellationToken);
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                var cow = map.mapPawns.AllPawnsSpawned.Single(p => p.def.defName == "Cow");
+                foreach (var animal in map.mapPawns.AllPawnsSpawned.Where(p => p.RaceProps.Animal && p != cow).ToList())
+                    animal.Destroy(DestroyMode.Vanish);
+                foreach (var food in map.listerThings.AllThings.Where(t => t.def.category == ThingCategory.Item && t.def.IsNutritionGivingIngestible).ToList())
+                    food.Destroy(DestroyMode.Vanish);
+                foreach (var zone in map.zoneManager.AllZones.OfType<Zone_Growing>().ToList()) zone.Delete();
+                foreach (var plant in map.listerThings.AllThings.OfType<Plant>().Where(p => p.def.plant?.harvestedThingDef?.IsNutritionGivingIngestible == true).ToList()) plant.Destroy(DestroyMode.Vanish);
+                var hens = Enumerable.Range(0, 4).Select(i => {
+                    var hen = PawnGenerator.GeneratePawn(new PawnGenerationRequest(PawnKindDef.Named("Chicken"), Faction.OfPlayer, fixedGender: Gender.Female, fixedBiologicalAge: 1));
+                    GenSpawn.Spawn(hen, cow.Position + new IntVec3(i % 2, 0, 1 + i / 2), map);
+                    AccessTools.Field(typeof(CompEggLayer), "eggProgress").SetValue(hen.GetComp<CompEggLayer>(), 1f);
+                    hen.needs.food.CurLevelPercentage = 1;
+                    return hen.GetUniqueLoadID();
+                }).ToArray();
+                cow.needs.food.CurLevelPercentage = 1;
+                var handler = map.mapPawns.FreeColonistsSpawned.Single();
+                for (var hour = 0; hour < 24; hour++) handler.timetable.SetAssignment(hour, TimeAssignmentDefOf.Work);
+                return new { success = true, cow = cow.GetUniqueLoadID(), hens, handler = handler.GetUniqueLoadID() };
+            }, cancellationToken);
+        }
+
         // Per map, not per process: a kept game hosts one debug start after
         // another, and each new map may seed the fixture once.
         private static readonly System.WeakReference<Map> createdOn = new System.WeakReference<Map>(null);

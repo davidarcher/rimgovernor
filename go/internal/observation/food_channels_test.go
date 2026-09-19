@@ -32,12 +32,22 @@ func TestFoodChannelsPresenceThroughColonyDecode(t *testing.T) {
 		t.Fatal("missing section became known")
 	}
 	f := &o.FoodChannelsFacts{Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(1), Returned: proto.Uint64(1), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)},
-		Gatherable:     []*o.GatherableAnimal{{PawnId: proto.String("cow"), Race: proto.String("Cow"), Fullness: proto.Float64(0), Resource: proto.String("Milk"), HandlerReachable: proto.Bool(false)}, {PawnId: proto.String("dog"), Race: proto.String("LabradorRetriever")}},
+		Grazing:        []*o.PenGrazing{{PenId: proto.String("pen"), DemandPerDay: proto.Float64(2), PasturePerDay: proto.Float64(0), StoredNutrition: proto.Float64(0)}},
+		Gatherable:     []*o.GatherableAnimal{{PawnId: proto.String("cow"), Race: proto.String("Cow"), Fullness: proto.Float64(0), Resource: proto.String("Milk"), HandlerReachable: proto.Bool(false), NutritionPerDay: proto.Float64(.9), WorkPerDay: proto.Float64(400), LeadDays: proto.Float64(1), Active: proto.Bool(true)}, {PawnId: proto.String("dog"), Race: proto.String("LabradorRetriever")}},
 		EggLayer:       []*o.EggLayerAnimal{{PawnId: proto.String("hen"), Race: proto.String("Chicken"), CanLayNow: proto.Bool(false), Progress: proto.Float64(0)}, {PawnId: proto.String("cow"), Race: proto.String("Cow")}},
 		PasteDispenser: []*o.PasteDispenser{{BuildingId: proto.String("paste"), Powered: proto.Bool(false), HopperNutrition: proto.Float64(0), AdjacentRoomId: proto.String("12")}},
 		PollutedCells:  proto.Uint32(0), Forage: []*o.ForagePlant{{DefName: proto.String("Plant_Berry"), GrowingTwelfths: []int32{3, 4}, GrowingNow: proto.Bool(false)}}}
 	reply.GetObserved().FoodChannels = &o.FoodChannelsSection{Outcome: &o.FoodChannelsSection_Observed{Observed: f}}
 	p, known := decode().FoodChannels.Value()
+	if pens, k := decode().Facts.PenGrazing.Value(); !k || len(pens) != 1 {
+		t.Fatal("grazing facts lost during colony projection", pens)
+	}
+	if n, k := p.Gatherable[0].NutritionPerDay.Value(); !k || n != .9 {
+		t.Fatal("milk rate lost")
+	}
+	if _, k := p.Gatherable[1].NutritionPerDay.Value(); k {
+		t.Fatal("missing comp became known production")
+	}
 	if !known {
 		t.Fatal("observed census unknown")
 	}

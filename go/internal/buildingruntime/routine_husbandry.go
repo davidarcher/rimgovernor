@@ -16,10 +16,9 @@ import (
 // SelectHusbandryMethod already recognize and pick from the same generic
 // animal census MaintainAnimalContainment reads (AnimalState already
 // carries training, tame and removal eligibility facts, so no dedicated
-// per-cycle husbandry read is needed to detect or select). Tame and removal
-// are only ever proposed once the operator-declared RoutinePolicy herd
-// opt-ins are set — see policy.MaintainHerd's doc comment for the disclosed
-// narrowing this still carries (no protected-id/breeding-reserve richness).
+// per-cycle husbandry read is needed to detect or select). Taming uses the
+// effective operator/food floor. Removal always needs its operator opt-in;
+// food slaughter additionally requires an admitted portfolio offer.
 type RoutineHusbandryPlanner struct {
 	reviewer *RoutineReviewer
 }
@@ -112,7 +111,11 @@ func (r *RoutineHusbandryPlanner) step(call, epoch context.Context, arbiter *ste
 	if pawns, known := read.Projection.WorkPawns.Value(); known {
 		handlers = domain.Known(policy.Profiles(pawns))
 	}
-	choice := policy.SelectHusbandryMethod(animals, upkeep.WildAnimals, policy.HerdFeedShort(reviewed), r.reviewer.policy.Herd(), handlers)
+	herd := policy.FoodHerdPolicy(r.reviewer.policy.Herd(), read.Projection.Facts.FoodPlan)
+	choice := policy.SelectHusbandryMethod(animals, upkeep.WildAnimals, policy.HerdFeedShort(reviewed), herd, handlers)
+	if choice.Reason == policy.HusbandryNoDeficit {
+		choice = policy.FoodSlaughterChoice(read.Projection.Facts.FoodPlan, animals, herd)
+	}
 	switch choice.Reason {
 	case policy.HusbandryNoDeficit:
 		return RoutineHusbandryResult{Reason: BuildingMethodUsed}, nil

@@ -27,7 +27,7 @@ func TestRoutineLaborCountsEnabledWorkTypes(t *testing.T) {
 		t.Fatal("unexpected goal labor profiles")
 	}
 	// Feed is cooked and hauled, never handled (#311).
-	if feed := GoalLabor(MaintainAnimalFeed); len(feed) != 2 || feed[0] != WorkCooking || feed[1] != WorkHauling || GoalLabor(MaintainHerd)[0] != WorkHandling {
+	if feed := GoalLabor(MaintainAnimalFeed); len(feed) != 3 || feed[0] != WorkCooking || feed[1] != WorkHauling || feed[2] != WorkGrowing || GoalLabor(MaintainHerd)[0] != WorkHandling {
 		t.Fatal("unexpected animal labor profiles", feed)
 	}
 }

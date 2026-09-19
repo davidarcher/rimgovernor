@@ -8,7 +8,7 @@ import (
 
 // MaintainHerd names MaintainHerd-*'s deficit: any observed,
 // non-release/slaughter-flagged animal with an available-but-untrained
-// trainable; any race below an operator-declared HerdPopulationMin with a
+// trainable; any race below its operator or food-derived population floor with a
 // tameable wild animal on the map while the existing herd's feed forecast
 // (MaintainAnimalFeed's review) reports no shortfall; and -- only once an operator has opted in
 // via AllowRelease or AllowSlaughter and declared a HerdPopulationMax -- any
@@ -18,14 +18,15 @@ import (
 // native's own SafeToSlaughter/SafeToRelease facts (which already exclude
 // bonded/master animals per RimWorld's own rules). Slaughter is
 // irreversible, so AllowSlaughter defaults to false; release is non-lethal
-// but still loses the animal, so AllowRelease defaults to false too. An
-// operator who never sets any of these gets exactly the training-only
-// behavior this need always had. Native eligibility is still re-validated by
+// but still loses the animal, so AllowRelease defaults to false too. A
+// food-derived floor can add tame work without a removal opt-in. Food slaughter
+// additionally requires an admitted FoodPlan offer and AllowSlaughter.
+// Native eligibility is still re-validated by
 // EvaluateHusbandry immediately before dispatch; this only decides which
 // already-observed candidate to try.
 const MaintainHerd GoalID = "MaintainHerd"
 
-// HerdPolicy is the operator-declared slice of RoutinePolicy MaintainHerd
+// HerdPolicy is the effective slice of RoutinePolicy MaintainHerd
 // plans from. PopulationMin drives tame designations on wild animals;
 // PopulationMax drives surplus removal, by release when AllowRelease is set
 // (preferred, non-lethal) and otherwise by slaughter when AllowSlaughter is.

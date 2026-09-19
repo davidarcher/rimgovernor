@@ -152,11 +152,9 @@ type RoutinePolicy struct {
 	// HerdPopulationMax is an operator-declared map of native animal
 	// definition name (the same Resource-typed def name ResourceTargets
 	// uses) to the population maximum MaintainHerd should keep that race at
-	// or under; an empty map (the default) tracks no race at all, so
-	// AllowSlaughter alone is not enough to dispatch a slaughter write --
-	// both must be set. Only the maximum half of a per-race target is
-	// supported (no minimum, protected-id set or breeding-reserve count),
-	// narrowed the same way ResearchTarget's doc comment discloses its own gap.
+	// or under. An empty map disables ceiling-driven removal. An explicit
+	// AllowSlaughter can separately admit food slaughter above the effective
+	// minimum through FoodPlan. Native safety eligibility applies to both.
 	HerdPopulationMax map[Resource]int64
 	// Trade is TradeWithCaravan's configuration (policy/trade_routine.go).
 	Trade RoutineTradePolicy
@@ -169,8 +167,8 @@ type RoutinePolicy struct {
 	// HerdPopulationMin is an operator-declared map of native animal
 	// definition name to the population minimum MaintainHerd should keep
 	// that race at or above by designating tameable wild animals of that
-	// race for taming. Taming is otherwise never proposed. A race declared
-	// in both maps must have minimum <= maximum.
+	// race for taming. A food-derived floor may raise this value. A race
+	// declared in both operator maps must have minimum <= maximum.
 	HerdPopulationMin map[Resource]int64
 	// PrisonerReleaseAfterDays is the operator opt-in for MaintainPopulation
 	// to release a prisoner the colony cannot turn (recruit resistance
@@ -310,6 +308,7 @@ func ValidateResourceTargets(targets map[Resource]int64) error {
 type RoutineFacts struct {
 	FoodPlan             domain.Fact[FoodPlan]
 	TradeMealIngredients domain.Fact[[]FoodIngredientSlot]
+	PenGrazing           domain.Fact[[]PenGrazing]
 	RecoverySafety       domain.Fact[RecoverySafety]
 	RecoveryWorkers      domain.Fact[[]RecoveryWorker]
 	DisasterConditions   domain.Fact[[]DisasterCondition]
@@ -1110,9 +1109,15 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if targets, known := animals.Feed.Value(); known {
 		animalFeed = domain.Known(len(targets) == 0)
 	}
+	if need, known := HayNutritionNeed(f.PenGrazing, HarvestGapDays(f.Calendar, f.DisasterConditions)).Value(); known && need > 0 {
+		animalFeed = domain.Known(false)
+	}
 	herdRecovered := domain.Unknown[bool]()
-	if deficit, known := AnimalHerdDeficit(f.AnimalUpkeep.Animals, f.AnimalUpkeep.WildAnimals, HerdFeedShort(animals), p.Herd()).Value(); known {
+	if deficit, known := AnimalHerdDeficit(f.AnimalUpkeep.Animals, f.AnimalUpkeep.WildAnimals, HerdFeedShort(animals), FoodHerdPolicy(p.Herd(), f.FoodPlan)).Value(); known {
 		herdRecovered = domain.Known(!deficit)
+	}
+	if choice := FoodSlaughterChoice(f.FoodPlan, f.AnimalUpkeep.Animals, FoodHerdPolicy(p.Herd(), f.FoodPlan)); choice.Method == domain.HusbandrySlaughter {
+		herdRecovered = domain.Known(false)
 	}
 	addAssessment(MaintainHerd, 3, herdRecovered)
 	if !positive(herdRecovered) {

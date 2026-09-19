@@ -2,6 +2,7 @@ package observation
 
 import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
@@ -14,6 +15,8 @@ type FoodChannels struct {
 	PasteDispenser []PasteDispenser
 	PollutedCells  domain.Fact[uint32]
 	Forage         []ForagePlant
+	Grazing        []policy.PenGrazing
+	Slaughter      []policy.SlaughterFoodAnimal
 }
 type FishableWater struct {
 	Regions           []FishableRegion
@@ -26,15 +29,19 @@ type FishableRegion struct {
 	CellCount                 domain.Fact[uint32]
 }
 type GatherableAnimal struct {
-	PawnID, Race     string
-	Fullness         domain.Fact[float64]
-	Resource         domain.Fact[string]
-	HandlerReachable domain.Fact[bool]
+	PawnID, Race                          string
+	Fullness                              domain.Fact[float64]
+	Resource                              domain.Fact[string]
+	HandlerReachable                      domain.Fact[bool]
+	NutritionPerDay, WorkPerDay, LeadDays domain.Fact[float64]
+	Active                                domain.Fact[bool]
 }
 type EggLayerAnimal struct {
-	PawnID, Race string
-	CanLayNow    domain.Fact[bool]
-	Progress     domain.Fact[float64]
+	PawnID, Race              string
+	CanLayNow                 domain.Fact[bool]
+	Progress                  domain.Fact[float64]
+	NutritionPerDay, LeadDays domain.Fact[float64]
+	Active                    domain.Fact[bool]
 }
 type PasteDispenser struct {
 	BuildingID      string
@@ -55,6 +62,12 @@ func colonyFoodChannels(section *o.FoodChannelsSection) domain.Fact[FoodChannels
 		return domain.Unknown[FoodChannels]()
 	}
 	r := FoodChannels{PollutedCells: optional(v.PollutedCells)}
+	for _, row := range v.Grazing {
+		r.Grazing = append(r.Grazing, policy.PenGrazing{ID: row.GetPenId(), DemandPerDay: optional(row.DemandPerDay), PasturePerDay: optional(row.PasturePerDay), StoredNutrition: optional(row.StoredNutrition)})
+	}
+	for _, row := range v.Slaughter {
+		r.Slaughter = append(r.Slaughter, policy.SlaughterFoodAnimal{ID: policy.PawnID(row.GetPawnId()), Race: policy.Resource(row.GetRace()), MeatNutrition: optional(row.MeatNutrition), FeedPerDay: optional(row.FeedPerDay), ReproductionDays: optional(row.ReproductionDays)})
+	}
 	if water := v.FishableWater; water != nil {
 		w := FishableWater{FishingResearched: optional(water.FishingResearched)}
 		for _, row := range water.Regions {
@@ -63,10 +76,10 @@ func colonyFoodChannels(section *o.FoodChannelsSection) domain.Fact[FoodChannels
 		r.FishableWater = domain.Known(w)
 	}
 	for _, row := range v.Gatherable {
-		r.Gatherable = append(r.Gatherable, GatherableAnimal{PawnID: row.GetPawnId(), Race: row.GetRace(), Fullness: optional(row.Fullness), Resource: optional(row.Resource), HandlerReachable: optional(row.HandlerReachable)})
+		r.Gatherable = append(r.Gatherable, GatherableAnimal{PawnID: row.GetPawnId(), Race: row.GetRace(), Fullness: optional(row.Fullness), Resource: optional(row.Resource), HandlerReachable: optional(row.HandlerReachable), NutritionPerDay: optional(row.NutritionPerDay), WorkPerDay: optional(row.WorkPerDay), LeadDays: optional(row.LeadDays), Active: optional(row.Active)})
 	}
 	for _, row := range v.EggLayer {
-		r.EggLayer = append(r.EggLayer, EggLayerAnimal{PawnID: row.GetPawnId(), Race: row.GetRace(), CanLayNow: optional(row.CanLayNow), Progress: optional(row.Progress)})
+		r.EggLayer = append(r.EggLayer, EggLayerAnimal{PawnID: row.GetPawnId(), Race: row.GetRace(), CanLayNow: optional(row.CanLayNow), Progress: optional(row.Progress), NutritionPerDay: optional(row.NutritionPerDay), LeadDays: optional(row.LeadDays), Active: optional(row.Active)})
 	}
 	for _, row := range v.PasteDispenser {
 		r.PasteDispenser = append(r.PasteDispenser, PasteDispenser{BuildingID: row.GetBuildingId(), Powered: optional(row.Powered), HopperNutrition: optional(row.HopperNutrition), AdjacentRoomID: optional(row.AdjacentRoomId)})
@@ -75,4 +88,17 @@ func colonyFoodChannels(section *o.FoodChannelsSection) domain.Fact[FoodChannels
 		r.Forage = append(r.Forage, ForagePlant{DefName: row.GetDefName(), GrowingTwelfths: append([]int32{}, row.GrowingTwelfths...), GrowingNow: optional(row.GrowingNow)})
 	}
 	return domain.Known(r)
+}
+
+// AnimalProducts keeps native unknown rates unknown. Non-food comps and inactive
+// animals have no nutrition to contribute; eggs require no handler gathering.
+func (f FoodChannels) AnimalProducts() []policy.AnimalProduct {
+	var rows []policy.AnimalProduct
+	for _, a := range f.Gatherable {
+		rows = append(rows, policy.AnimalProduct{Pawn: a.PawnID, Race: a.Race, Active: a.Active, Reachable: a.HandlerReachable, NutritionPerDay: a.NutritionPerDay, WorkPerDay: a.WorkPerDay, LeadDays: a.LeadDays})
+	}
+	for _, a := range f.EggLayer {
+		rows = append(rows, policy.AnimalProduct{Pawn: a.PawnID, Race: a.Race, Active: a.Active, Reachable: domain.Known(true), NutritionPerDay: a.NutritionPerDay, WorkPerDay: domain.Known(0.0), LeadDays: a.LeadDays})
+	}
+	return rows
 }

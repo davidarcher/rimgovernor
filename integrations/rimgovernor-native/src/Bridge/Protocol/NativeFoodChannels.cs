@@ -15,33 +15,87 @@ namespace HomeBridge.BridgeTools
     {
         private static readonly FieldInfo? EggProgress = BridgeCommon.PrivateInstanceField(typeof(CompEggLayer), "eggProgress");
         private static readonly PropertyInfo? Resource = typeof(CompHasGatherableBodyResource).GetProperty("ResourceDef", BindingFlags.Instance | BindingFlags.NonPublic);
+        private static readonly PropertyInfo? GatherActive = typeof(CompHasGatherableBodyResource).GetProperty("Active", BindingFlags.Instance | BindingFlags.NonPublic);
+        private static readonly PropertyInfo? EggActive = typeof(CompEggLayer).GetProperty("Active", BindingFlags.Instance | BindingFlags.NonPublic);
+        private static readonly PropertyInfo? EggStopped = typeof(CompEggLayer).GetProperty("ProgressStoppedBecauseUnfertilized", BindingFlags.Instance | BindingFlags.NonPublic);
 
         internal static Obs.FoodChannelsSection Read(Map map, IntVec3 center, List<Pawn> workers, Func<ThingDef, bool> humanFood, int limit)
         {
             try
             {
                 var result = new Obs.FoodChannelsFacts();
+                var pens = new HashSet<CompAnimalPenMarker>();
                 var handlers = workers.Where(p => p.workSettings != null && p.workSettings.WorkIsActive(WorkTypeDefOf.Handling)).ToList();
                 foreach (var animal in map.mapPawns.AllPawnsSpawned.Where(p => p.RaceProps.Animal && p.Faction == Faction.OfPlayerSilentFail && !p.Dead).OrderBy(p => p.thingIDNumber))
                 {
                     var reachable = handlers.Any(p => (p.playerSettings?.AreaRestrictionInPawnCurrentMap == null || p.playerSettings.AreaRestrictionInPawnCurrentMap[animal.Position])
                         && !animal.IsForbidden(p) && p.CanReach(animal, PathEndMode.Touch, Danger.None));
                     var comps = animal.AllComps.OfType<CompHasGatherableBodyResource>().ToList();
-                    if (comps.Count == 0) result.Gatherable.Add(new Obs.GatherableAnimal { PawnId = animal.GetUniqueLoadID(), Race = animal.def.defName, HandlerReachable = reachable });
+                    var pen = AnimalPenUtility.GetCurrentPenOf(animal, false);
+                    if (pen != null) pens.Add(pen);
+                    var slaughter = new Obs.FoodSlaughterAnimal { PawnId = animal.GetUniqueLoadID(), Race = animal.def.defName };
+                    if (animal.RaceProps.meatDef != null && humanFood(animal.RaceProps.meatDef))
+                    {
+                        slaughter.MeatNutrition = Finite(animal.GetStatValue(StatDefOf.MeatAmount) * animal.RaceProps.meatDef.GetStatValueAbstract(StatDefOf.Nutrition));
+                        if (animal.RaceProps.Eats(FoodTypeFlags.Plant))
+                            slaughter.FeedPerDay = Finite(SimplifiedPastureNutritionSimulator.NutritionConsumedPerDay(animal.def, animal.ageTracker.CurLifeStage));
+                        var reproduction = animal.RaceProps.gestationPeriodDays;
+                        var eggProps = animal.GetComp<CompEggLayer>()?.Props;
+                        if (eggProps != null) reproduction = eggProps.eggLayIntervalDays;
+                        if (reproduction > 0) slaughter.ReproductionDays = Finite(reproduction);
+                    }
+                    result.Slaughter.Add(slaughter);
+                    if (comps.Count == 0) result.Gatherable.Add(new Obs.GatherableAnimal { PawnId = animal.GetUniqueLoadID(), Race = animal.def.defName, HandlerReachable = reachable, Active = false });
                     foreach (var comp in comps)
                     {
                         var row = new Obs.GatherableAnimal { PawnId = animal.GetUniqueLoadID(), Race = animal.def.defName, HandlerReachable = reachable, Fullness = Finite(comp.Fullness) };
                         if (Resource?.GetValue(comp) is ThingDef resource) row.Resource = resource.defName;
+                        if (!(comp is CompMilkable)) row.Active = false;
+                        if (comp is CompMilkable milk && GatherActive?.GetValue(comp) is bool active)
+                        {
+                            row.Active = active && humanFood(milk.Props.milkDef);
+                            var speed = PawnUtility.BodyResourceGrowthSpeed(animal);
+                            if (milk.Props.milkIntervalDays > 0 && speed > 0)
+                            {
+                                var days = milk.Props.milkIntervalDays / (double)speed;
+                                row.NutritionPerDay = row.Active ? Finite(milk.Props.milkAmount * milk.Props.milkDef.GetStatValueAbstract(StatDefOf.Nutrition) / days) : 0;
+                                // JobDriver_Milk.WorkTotal, in native work units. Travel is not included.
+                                row.WorkPerDay = row.Active ? 400 / days : 0;
+                                row.LeadDays = Finite((1 - comp.Fullness) * days);
+                            }
+                        }
                         result.Gatherable.Add(row);
                     }
                     var egg = animal.GetComp<CompEggLayer>();
                     var eggRow = new Obs.EggLayerAnimal { PawnId = animal.GetUniqueLoadID(), Race = animal.def.defName };
+                    if (egg == null) eggRow.Active = false;
                     if (egg != null)
                     {
                         eggRow.CanLayNow = egg.CanLayNow;
                         if (EggProgress?.GetValue(egg) is float progress) eggRow.Progress = Finite(progress);
+                        if (EggActive?.GetValue(egg) is bool active && EggStopped?.GetValue(egg) is bool stopped)
+                        {
+                            var resource = egg.NextEggType();
+                            eggRow.Active = active && !stopped && resource != null && humanFood(resource);
+                            var speed = PawnUtility.BodyResourceGrowthSpeed(animal);
+                            if (egg.Props.eggLayIntervalDays > 0 && speed > 0 && resource != null)
+                            {
+                                var days = egg.Props.eggLayIntervalDays / (double)speed;
+                                eggRow.NutritionPerDay = eggRow.Active ? Finite((egg.Props.eggCountRange.min + egg.Props.eggCountRange.max) * 0.5 * resource.GetStatValueAbstract(StatDefOf.Nutrition) / days) : 0;
+                                if (eggRow.HasProgress) eggRow.LeadDays = Finite((1 - eggRow.Progress) * days);
+                            }
+                        }
                     }
                     result.EggLayer.Add(eggRow);
+                }
+                foreach (var pen in pens.OrderBy(p => p.parent.thingIDNumber))
+                {
+                    // A private calculator avoids modifying the marker's cached UI state.
+                    var food = new PenFoodCalculator();
+                    food.ResetAndProcessPen(pen);
+                    var pasture = Enumerable.Range(0, 4).Min(q => food.nutritionPerDayPerQuadrum.ForQuadrum((Quadrum)q));
+                    result.Grazing.Add(new Obs.PenGrazing { PenId = pen.parent.GetUniqueLoadID(), DemandPerDay = Finite(food.SumNutritionConsumptionPerDay),
+                        PasturePerDay = Finite(pasture), StoredNutrition = Finite(food.sumStockpiledNutritionAvailableNow) });
                 }
                 foreach (var dispenser in map.listerThings.AllThings.OfType<Building_NutrientPasteDispenser>().Where(b => b.Spawned && b.Faction == Faction.OfPlayerSilentFail).OrderBy(b => b.thingIDNumber))
                 {
@@ -89,7 +143,7 @@ namespace HomeBridge.BridgeTools
                     Bound(water.Regions.Count, limit);
                     result.FishableWater = water;
                 }
-                foreach (var count in new[] { result.Gatherable.Count, result.EggLayer.Count, result.PasteDispenser.Count, result.Forage.Count }) Bound(count, limit);
+                foreach (var count in new[] { result.Gatherable.Count, result.EggLayer.Count, result.PasteDispenser.Count, result.Forage.Count, result.Grazing.Count, result.Slaughter.Count }) Bound(count, limit);
                 result.Completeness = new Obs.Completeness { Page = new Common.PageInfo { Complete = true }, Matched = 1, Returned = 1, Filtered = 0, Unreadable = 0 };
                 return new Obs.FoodChannelsSection { Observed = result };
             }

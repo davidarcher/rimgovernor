@@ -737,13 +737,15 @@ message LootSection { oneof outcome { LootCensus observed = 1; rimgovernor.commo
 // is absent without Odyssey. Pollution uses the clipped center +/-22 window.
 message FishableRegion { rimgovernor.common.v1.Cell root = 1; optional double population = 2; optional double max_population = 3; optional bool zoned = 4; optional uint32 cell_count = 5; optional bool reachable = 6; }
 message FishableWater { repeated FishableRegion regions = 1; optional bool fishing_researched = 2; }
-message GatherableAnimal { optional string pawn_id = 1; optional string race = 2; optional double fullness = 3; optional string resource = 4; optional bool handler_reachable = 5; }
-message EggLayerAnimal { optional string pawn_id = 1; optional string race = 2; optional bool can_lay_now = 3; optional double progress = 4; }
+message GatherableAnimal { optional string pawn_id = 1; optional string race = 2; optional double fullness = 3; optional string resource = 4; optional bool handler_reachable = 5; optional double nutrition_per_day = 6; optional double work_per_day = 7; optional double lead_days = 8; optional bool active = 9; }
+message EggLayerAnimal { optional string pawn_id = 1; optional string race = 2; optional bool can_lay_now = 3; optional double progress = 4; optional double nutrition_per_day = 5; optional double lead_days = 6; optional bool active = 7; }
 message PasteDispenser { optional string building_id = 1; optional bool powered = 2; optional double hopper_nutrition = 3; optional string adjacent_room_id = 4; }
 // Native twelfths (0..11) whose average tile temperature permits growth.
 // The window is climate potential, not a promise of harvestable instances.
 message ForagePlant { optional string def_name = 1; repeated int32 growing_twelfths = 2; optional bool growing_now = 3; }
-message FoodChannelsFacts { FishableWater fishable_water = 1; repeated GatherableAnimal gatherable = 2; repeated EggLayerAnimal egg_layer = 3; repeated PasteDispenser paste_dispenser = 4; optional uint32 polluted_cells = 5; repeated ForagePlant forage = 6; Completeness completeness = 7; }
+message PenGrazing { optional string pen_id = 1; optional double demand_per_day = 2; optional double pasture_per_day = 3; optional double stored_nutrition = 4; }
+message FoodSlaughterAnimal { optional string pawn_id = 1; optional string race = 2; optional double meat_nutrition = 3; optional double feed_per_day = 4; optional double reproduction_days = 5; }
+message FoodChannelsFacts { FishableWater fishable_water = 1; repeated GatherableAnimal gatherable = 2; repeated EggLayerAnimal egg_layer = 3; repeated PasteDispenser paste_dispenser = 4; optional uint32 polluted_cells = 5; repeated ForagePlant forage = 6; Completeness completeness = 7; repeated PenGrazing grazing = 8; repeated FoodSlaughterAnimal slaughter = 9; }
 message FoodChannelsSection { oneof outcome { FoodChannelsFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 message ColonyFactsSnapshot {
   rimgovernor.common.v1.ObservationContext context = 1; ColonyNaming naming = 2;
