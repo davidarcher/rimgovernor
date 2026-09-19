@@ -100,7 +100,16 @@ namespace HomeBridge.BridgeTools
                     item.PartIndex=index;item.PartDefName=Id(h.Part.def.defName);item.PartLabel=Text(h.Part.LabelCap);
                 }
                 var immune=h.TryGetComp<HediffComp_Immunizable>(); item.Immunizable=immune!=null;
-                if(immune!=null) {item.Immunity=Number(immune.Immunity);item.FullyImmune=immune.FullyImmune;}
+                if(immune!=null) {
+                    item.Immunity=Number(immune.Immunity);item.FullyImmune=immune.FullyImmune;
+                    // Include tending's severity modifier, as well as the disease's
+                    // randomized native progression. Read only: never create immunity records.
+                    item.SeverityPerDay=Number(((HediffWithComps)h).comps
+                        .OfType<HediffComp_SeverityModifierBase>().Sum(comp=>comp.SeverityChangePerDay()));
+                    var record=pawn.health.immunity.GetImmunityRecord(h.def);
+                    if(record!=null && !pawn.Dead)
+                        item.ImmunityPerDay=Number(record.ImmunityChangePerTick(pawn,true,h)*60000f);
+                }
                 var tend=h.TryGetComp<HediffComp_TendDuration>();
                 if(tend!=null) {
                     if(item.Tended) item.TendQuality=Number(tend.tendQuality);

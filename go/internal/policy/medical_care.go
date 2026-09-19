@@ -10,7 +10,17 @@ import (
 // CarePawn is a fresh native health assessment, independent of urgent tending.
 type CarePawn struct {
 	ID                                        PawnID
+	Conditions                                domain.Fact[[]CareCondition]
 	Dead, NeedsRest, NeedsTend, BadConditions domain.Fact[bool]
+}
+
+// CareCondition retains native disease evidence without estimating missing values.
+// Rates are instantaneous per game day, and may be negative during recovery.
+type CareCondition struct {
+	DefName                                            domain.Fact[string]
+	Severity, SeverityPerDay, Immunity, ImmunityPerDay domain.Fact[float64]
+	Tended                                             domain.Fact[bool]
+	TendQuality                                        domain.Fact[float64]
 }
 
 // MedicalCareHistory retains unresolved patient identities across reviews and

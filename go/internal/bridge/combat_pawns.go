@@ -107,7 +107,7 @@ func combatDetails(row *o.PawnState, ctx *c.ObservationContext) error {
 			if v.PartDefName != nil && validID(v.GetPartDefName()) != nil || !presentationText(v.PartLabel, 16384) || !presentationText(v.SeverityLabel, 16384) || v.PartIndex != nil && v.GetPartIndex() < 0 || v.TendExpiresInTicks != nil && v.GetTendExpiresInTicks() < 0 || v.NextTendInTicks != nil && v.GetNextTendInTicks() < 0 {
 				return contract("invalid hediff fields")
 			}
-			for _, n := range []*float64{v.Severity, v.TendQuality, v.Immunity} {
+			for _, n := range []*float64{v.Severity, v.TendQuality, v.Immunity, v.SeverityPerDay, v.ImmunityPerDay} {
 				if !combatNumber(n, false) {
 					return contract("nonfinite hediff")
 				}

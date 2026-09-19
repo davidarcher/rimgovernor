@@ -50,8 +50,10 @@ func TestCombatPawnsFixedDetailsAndUnknown(t *testing.T) {
 }
 func TestCombatPawnsMalformedDetails(t *testing.T) {
 	edits := map[string]func(*o.PawnSnapshot){
-		"health nan":      func(s *o.PawnSnapshot) { s.Pawns[0].Health.SummaryFraction = proto.Float64(math.NaN()) },
-		"health fraction": func(s *o.PawnSnapshot) { s.Pawns[0].Health.SummaryFraction = proto.Float64(2) },
+		"severity rate nan":      func(s *o.PawnSnapshot) { s.Pawns[0].Health.Hediffs[0].SeverityPerDay = proto.Float64(math.NaN()) },
+		"immunity rate infinity": func(s *o.PawnSnapshot) { s.Pawns[0].Health.Hediffs[0].ImmunityPerDay = proto.Float64(math.Inf(1)) },
+		"health nan":             func(s *o.PawnSnapshot) { s.Pawns[0].Health.SummaryFraction = proto.Float64(math.NaN()) },
+		"health fraction":        func(s *o.PawnSnapshot) { s.Pawns[0].Health.SummaryFraction = proto.Float64(2) },
 		"equipment infinity": func(s *o.PawnSnapshot) {
 			s.Pawns[0].Equipment.Equipped[0].ConditionFraction = proto.Float64(math.Inf(1))
 		},

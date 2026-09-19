@@ -71,3 +71,54 @@ func TestRoutineMedicalRequiresCompleteMatchingHealth(t *testing.T) {
 		})
 	}
 }
+
+func TestRoutineMedicalConditionFacts(t *testing.T) {
+	for _, present := range []bool{false, true} {
+		h := &o.Hediff{Definition: &o.DefinitionRef{DefName: proto.String("Plague")}, Bad: proto.Bool(true)}
+		if present {
+			h.Severity = proto.Float64(.2)
+			h.SeverityPerDay = proto.Float64(-.3)
+			h.Immunity = proto.Float64(0)
+			h.ImmunityPerDay = proto.Float64(.5)
+			h.Tended = proto.Bool(false)
+			h.TendQuality = proto.Float64(0)
+		}
+		health := &o.PawnHealth{Hediffs: []*o.Hediff{h}, HiddenHediffs: proto.Uint32(0),
+			HediffCompleteness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(1), Returned: proto.Uint64(1), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}}
+		colony := &o.ColonyFactsSnapshot{ColonistCount: proto.Uint32(1)}
+		emergency := policy.EmergencyFacts{ColonistsComplete: domain.Known(true), Colonists: []policy.EmergencyPawn{{ID: "p", Dead: domain.Known(false), Downed: domain.Known(false)}}}
+		snapshot := &o.PawnSnapshot{Pawns: []*o.PawnState{{Pawn: &o.EntityRef{Id: proto.String("p")}, Colonist: proto.Bool(true), Dead: proto.Bool(false), Downed: proto.Bool(false), Health: health}}}
+		rows, ok := routineMedical(colony, emergency, snapshot).Value()
+		if !ok {
+			t.Fatal("missing census")
+		}
+		conditions, ok := rows[0].Conditions.Value()
+		if !ok || len(conditions) != 1 {
+			t.Fatal("missing conditions")
+		}
+		got := conditions[0]
+		if got.DefName != domain.Known("Plague") {
+			t.Fatal(got)
+		}
+		for _, pair := range []struct {
+			fact domain.Fact[float64]
+			want float64
+		}{
+			{got.Severity, .2}, {got.SeverityPerDay, -.3}, {got.Immunity, 0}, {got.ImmunityPerDay, .5}, {got.TendQuality, 0},
+		} {
+			value, known := pair.fact.Value()
+			if known != present || present && value != pair.want {
+				t.Fatal(got)
+			}
+		}
+		tended, known := got.Tended.Value()
+		if known != present || tended {
+			t.Fatal(got)
+		}
+		health.HediffCompleteness = nil
+		rows, _ = routineMedical(colony, emergency, snapshot).Value()
+		if _, known := rows[0].Conditions.Value(); known {
+			t.Fatal("incomplete condition list claimed complete")
+		}
+	}
+}

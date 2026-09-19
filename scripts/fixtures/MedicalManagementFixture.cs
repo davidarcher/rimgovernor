@@ -11,6 +11,30 @@ namespace HomeBridge.BridgeTools
     public sealed class MedicalManagementFixture
     {
         private static int surgicalId;
+
+        [Tool("test/medical_plague_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Add Plague to two disposable colonists, one untended and one tended, for native disease readback.")]
+        public async Task<object> Plague(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                if (Find.CurrentMap == null || !Find.TickManager.Paused)
+                    throw new InvalidOperationException("Paused disposable colony required");
+                var people = Find.CurrentMap.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).Take(2).ToArray();
+                if (people.Length != 2) throw new InvalidOperationException("Two colonists required");
+                var def = HediffDef.Named("Plague");
+                foreach (var pawn in people) {
+                    foreach (var old in pawn.health.hediffSet.hediffs.Where(h => h.def == def).ToArray())
+                        pawn.health.RemoveHediff(old);
+                    var plague = HediffMaker.MakeHediff(def, pawn);
+                    plague.Severity = .2f;
+                    pawn.health.AddHediff(plague);
+                    // Seed the precondition normally created on the first immunity tick.
+                    pawn.health.immunity.TryAddImmunityRecord(def, def);
+                    pawn.health.immunity.GetImmunityRecord(def).immunity = .1f;
+                    if (pawn == people[1]) plague.Tended(.75f, .75f);
+                }
+                return new { success = true, patients = people.Select(p => p.GetUniqueLoadID()).ToArray() };
+            }, cancellationToken).ConfigureAwait(false);
+        }
         [Tool("test/medical_management_setup", Description = "Disposable B23 initial disease, injury, beds and supplies. Never performs treatment or surgery.")]
         public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Include two initial flu patients.", DefaultValue = true)] bool disease = true,

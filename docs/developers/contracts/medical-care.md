@@ -23,7 +23,11 @@ retend timing, care policy and medical-rest state. It enables ordinary Patient a
 PatientBedRest work when available and not disabled by a player override. Native jobs choose
 beds. Missing observations, unavailable work or player restrictions produce explicit
 blockers. Chronic conditions remain visible without automatically choosing elective
-operations. An absent tracked patient cannot certify recovery. These observations
+operations. An absent tracked patient cannot certify recovery. Per-condition Go Facts preserve severity, immunity, tended state and tend quality,
+plus instantaneous severity/day and immunity/day (60000 game ticks). Severity/day
+includes native immunizable and tending modifiers; immunity/day uses the native
+immunity record. Missing fields remain unknown, including rates for conditions
+without an immunizable component or a missing immunity record. These observations
 are current facts, not disease-prognosis estimates. Stable chronic monitoring does
 not time out completed work settings; pending work still has the normal watchdog.
 

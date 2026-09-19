@@ -34,6 +34,24 @@ func routineMedical(colony *o.ColonyFactsSnapshot, emergency policy.EmergencyFac
 			// A visible-only or incomplete list cannot prove that bad conditions
 			// have resolved. Other health details remain independent evidence.
 			if c != nil && c.Page != nil && c.Page.Complete != nil && c.Page.GetComplete() && c.Matched != nil && c.Returned != nil && c.Filtered != nil && c.Unreadable != nil && c.GetMatched() == uint64(len(h.Hediffs)) && c.GetReturned() == uint64(len(h.Hediffs)) && c.GetFiltered() == 0 && c.GetUnreadable() == 0 && h.HiddenHediffs != nil && h.GetHiddenHediffs() == 0 && !hasIssue(h.Issues, "hediffs") {
+				conditions := make([]policy.CareCondition, 0, len(h.Hediffs))
+				for _, condition := range h.Hediffs {
+					if condition == nil {
+						continue
+					}
+					detail := policy.CareCondition{
+						Severity: optional(condition.Severity), SeverityPerDay: optional(condition.SeverityPerDay),
+						Immunity: optional(condition.Immunity), ImmunityPerDay: optional(condition.ImmunityPerDay),
+						Tended: optional(condition.Tended), TendQuality: optional(condition.TendQuality),
+					}
+					if condition.Definition != nil {
+						detail.DefName = optional(condition.Definition.DefName)
+					}
+					conditions = append(conditions, detail)
+				}
+				if len(conditions) == len(h.Hediffs) {
+					p.Conditions = domain.Known(conditions)
+				}
 				bad, known := false, true
 				for _, condition := range h.Hediffs {
 					if condition == nil || condition.Bad == nil {

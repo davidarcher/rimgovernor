@@ -176,6 +176,8 @@ message Hediff {
   optional bool permanent = 9; optional bool life_threatening = 10; optional bool tendable_now = 11;
   optional bool tended = 12; optional double tend_quality = 13; optional int64 tend_expires_in_ticks = 14;
   optional int64 next_tend_in_ticks = 15; optional bool immunizable = 16; optional double immunity = 17; optional bool fully_immune = 18;
+  // Instantaneous native rates per 60000 game ticks; absent when unavailable.
+  optional double severity_per_day = 19; optional double immunity_per_day = 20;
 }
 message Capacity { optional string def_name = 1; optional double level = 2; rimgovernor.common.v1.Unavailable unavailable = 3; }
 message SurgeryBill { optional string id = 1; optional string recipe = 2; optional int32 part_index = 3; optional bool suspended = 4; }

@@ -2275,8 +2275,11 @@ type Hediff struct {
 	Immunizable        *bool                  `protobuf:"varint,16,opt,name=immunizable,proto3,oneof" json:"immunizable,omitempty"`
 	Immunity           *float64               `protobuf:"fixed64,17,opt,name=immunity,proto3,oneof" json:"immunity,omitempty"`
 	FullyImmune        *bool                  `protobuf:"varint,18,opt,name=fully_immune,json=fullyImmune,proto3,oneof" json:"fully_immune,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// Instantaneous native rates per 60000 game ticks; absent when unavailable.
+	SeverityPerDay *float64 `protobuf:"fixed64,19,opt,name=severity_per_day,json=severityPerDay,proto3,oneof" json:"severity_per_day,omitempty"`
+	ImmunityPerDay *float64 `protobuf:"fixed64,20,opt,name=immunity_per_day,json=immunityPerDay,proto3,oneof" json:"immunity_per_day,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *Hediff) Reset() {
@@ -2433,6 +2436,20 @@ func (x *Hediff) GetFullyImmune() bool {
 		return *x.FullyImmune
 	}
 	return false
+}
+
+func (x *Hediff) GetSeverityPerDay() float64 {
+	if x != nil && x.SeverityPerDay != nil {
+		return *x.SeverityPerDay
+	}
+	return 0
+}
+
+func (x *Hediff) GetImmunityPerDay() float64 {
+	if x != nil && x.ImmunityPerDay != nil {
+		return *x.ImmunityPerDay
+	}
+	return 0
 }
 
 type Capacity struct {
@@ -32902,7 +32919,7 @@ const file_observations_proto_rawDesc = "" +
 	"\v_break_riskB\x18\n" +
 	"\x16_break_threshold_minorB\x18\n" +
 	"\x16_break_threshold_majorB\x1a\n" +
-	"\x18_break_threshold_extreme\"\xf5\a\n" +
+	"\x18_break_threshold_extreme\"\xfd\b\n" +
 	"\x06Hediff\x12J\n" +
 	"\n" +
 	"definition\x18\x01 \x01(\v2*.rimgovernor.observations.v1.DefinitionRefR\n" +
@@ -32927,7 +32944,9 @@ const file_observations_proto_rawDesc = "" +
 	"\x12next_tend_in_ticks\x18\x0f \x01(\x03H\rR\x0fnextTendInTicks\x88\x01\x01\x12%\n" +
 	"\vimmunizable\x18\x10 \x01(\bH\x0eR\vimmunizable\x88\x01\x01\x12\x1f\n" +
 	"\bimmunity\x18\x11 \x01(\x01H\x0fR\bimmunity\x88\x01\x01\x12&\n" +
-	"\ffully_immune\x18\x12 \x01(\bH\x10R\vfullyImmune\x88\x01\x01B\x10\n" +
+	"\ffully_immune\x18\x12 \x01(\bH\x10R\vfullyImmune\x88\x01\x01\x12-\n" +
+	"\x10severity_per_day\x18\x13 \x01(\x01H\x11R\x0eseverityPerDay\x88\x01\x01\x12-\n" +
+	"\x10immunity_per_day\x18\x14 \x01(\x01H\x12R\x0eimmunityPerDay\x88\x01\x01B\x10\n" +
 	"\x0e_part_def_nameB\r\n" +
 	"\v_part_labelB\r\n" +
 	"\v_part_indexB\v\n" +
@@ -32946,7 +32965,9 @@ const file_observations_proto_rawDesc = "" +
 	"\x13_next_tend_in_ticksB\x0e\n" +
 	"\f_immunizableB\v\n" +
 	"\t_immunityB\x0f\n" +
-	"\r_fully_immune\"\xa2\x01\n" +
+	"\r_fully_immuneB\x13\n" +
+	"\x11_severity_per_dayB\x13\n" +
+	"\x11_immunity_per_day\"\xa2\x01\n" +
 	"\bCapacity\x12\x1e\n" +
 	"\bdef_name\x18\x01 \x01(\tH\x00R\adefName\x88\x01\x01\x12\x19\n" +
 	"\x05level\x18\x02 \x01(\x01H\x01R\x05level\x88\x01\x01\x12D\n" +
