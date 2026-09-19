@@ -78,6 +78,17 @@ func WorkPawnRow(row *o.PawnState) policy.WorkPawn {
 			}
 		}
 	}
+	if j := row.Job; j != nil && !hasIssue(row.Issues, "job") {
+		// JobRow: a pawn with no job carries the current_job issue and no
+		// def; a job always carries its def and, when a work giver issued
+		// it, that giver's work type.
+		switch {
+		case hasIssue(j.Issues, "current_job") && j.DefName == nil:
+			w.Job = domain.Known(policy.PawnJob{})
+		case !hasIssue(j.Issues, "current_job") && j.DefName != nil:
+			w.Job = domain.Known(policy.PawnJob{Def: j.GetDefName(), Work: policy.WorkType(j.GetWorkTypeDefName())})
+		}
+	}
 	if b := row.Biography; b != nil {
 		if !hasIssue(b.Issues, "skills") {
 			skills := []policy.WorkSkill{}

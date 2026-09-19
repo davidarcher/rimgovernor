@@ -96,3 +96,28 @@ func TestNativeRoutineWorkParity(t *testing.T) {
 	}
 	t.Logf("Native work parity: %d assignments, capacity=%v matches=%v", len(actual), capacity, matches)
 }
+
+// WorkPawnRow lifts JobRow's evidence: no job (the current_job issue) is a
+// known empty job, a job carries its def and its work giver's type when a
+// giver issued it, and a missing or issued job block stays unknown.
+func TestWorkPawnRowJob(t *testing.T) {
+	row := func(job *o.JobEvidence, issues ...*o.ReadIssue) *o.PawnState {
+		return &o.PawnState{Pawn: &o.EntityRef{Id: proto.String("p")}, Job: job, Issues: issues}
+	}
+	cases := []struct {
+		row  *o.PawnState
+		want domain.Fact[policy.PawnJob]
+	}{
+		{row(&o.JobEvidence{Issues: []*o.ReadIssue{{Field: proto.String("current_job")}}}), domain.Known(policy.PawnJob{})},
+		{row(&o.JobEvidence{DefName: proto.String("CutPlant"), WorkTypeDefName: proto.String("PlantCutting")}), domain.Known(policy.PawnJob{Def: "CutPlant", Work: policy.WorkPlantCutting})},
+		{row(&o.JobEvidence{DefName: proto.String("LayDown")}), domain.Known(policy.PawnJob{Def: "LayDown"})},
+		{row(nil), domain.Unknown[policy.PawnJob]()},
+		{row(&o.JobEvidence{DefName: proto.String("CutPlant")}, &o.ReadIssue{Field: proto.String("job")}), domain.Unknown[policy.PawnJob]()},
+		{row(&o.JobEvidence{}), domain.Unknown[policy.PawnJob]()},
+	}
+	for i, c := range cases {
+		if got := WorkPawnRow(c.row).Job; !reflect.DeepEqual(got, c.want) {
+			t.Fatal(i, got, c.want)
+		}
+	}
+}

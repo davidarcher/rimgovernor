@@ -91,6 +91,14 @@ type Commitment struct {
 // two days on a wild healroot harvest nobody picked up.
 const DevelopmentStallTicks domain.Tick = 60000
 
+// DevelopmentIdleTicks: one game hour. A commitment whose labor has idled
+// (laborIdle) across reviews spanning this long releases its slot; the
+// bound outlasts a pawn's walk between two designated trees or the haul
+// after a finished frame, not a project nobody picks up (#445: tribal8
+// held both slots for days on a wood cut and a herbal bill while the
+// colonists built and hauled).
+const DevelopmentIdleTicks domain.Tick = 2500
+
 // Stalled reports a dispatched commitment whose effect has stayed pending
 // past DevelopmentStallTicks at tick now.
 func (c Commitment) Stalled(now domain.Tick) bool {
@@ -102,12 +110,16 @@ func (c Commitment) Stalled(now domain.Tick) bool {
 type DevelopmentReason string
 
 const (
-	DevelopmentCancelled         DevelopmentReason = "cancelled"
-	DevelopmentAdviser           DevelopmentReason = "adviser"
-	DevelopmentEmergency         DevelopmentReason = "emergency"
-	DevelopmentStartup           DevelopmentReason = "startup_survival"
-	DevelopmentBlocked           DevelopmentReason = "blocked"
-	DevelopmentCommitted         DevelopmentReason = "existing_commitment"
+	DevelopmentCancelled DevelopmentReason = "cancelled"
+	DevelopmentAdviser   DevelopmentReason = "adviser"
+	DevelopmentEmergency DevelopmentReason = "emergency"
+	DevelopmentStartup   DevelopmentReason = "startup_survival"
+	DevelopmentBlocked   DevelopmentReason = "blocked"
+	DevelopmentCommitted DevelopmentReason = "existing_commitment"
+	// DevelopmentLaborIdle: the goal's open work holds no slot because the
+	// labor its profile names has idled past DevelopmentIdleTicks; the work
+	// stays open and takes a slot back when a pawn picks it up.
+	DevelopmentLaborIdle         DevelopmentReason = "labor_idle"
 	DevelopmentWorkersUnknown    DevelopmentReason = "workers_unknown"
 	DevelopmentNoWorkers         DevelopmentReason = "no_workers"
 	DevelopmentUnknown           DevelopmentReason = "deficit_unknown"
@@ -144,6 +156,10 @@ type DevelopmentRow struct {
 	// review's ranking (YieldDevelopment). Its planner may not have run under
 	// the selection, so the next review does not judge it idle.
 	Granted bool
+	// LaborIdleSince is the first review tick at which the goal's open
+	// work found its labor idle (laborIdle), carried while it stays idle;
+	// unknown while the work is picked up or the goal holds no open work.
+	LaborIdleSince domain.Fact[domain.Tick]
 }
 
 // DevelopmentState is a value snapshot owned by the review caller. Context and
@@ -169,6 +185,9 @@ type DevelopmentRequest struct {
 	Tick     domain.Tick
 	Workers  domain.Fact[int]
 	Labor    domain.Fact[map[WorkType]int]
+	// LaborUse is what the counted pawns are doing (RoutineLaborUse);
+	// unknown releases no commitment.
+	LaborUse domain.Fact[LaborUse]
 	// Weights zero value uses DefaultDevelopmentWeights.
 	Weights     DevelopmentWeights
 	Limit       int
@@ -226,6 +245,8 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 		}
 	}
 	committed := map[GoalID]bool{}
+	released := map[GoalID]bool{}
+	idleSince := map[GoalID]domain.Tick{}
 	seenActions := map[domain.ActionID]bool{}
 	for _, c := range r.Commitments {
 		v := c.Progress.View()
@@ -242,11 +263,29 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 			continue
 		}
 		if v.Unresolved || v.Stage == domain.Pending || v.Stage == domain.Prepared || v.Stage == domain.Dispatched || v.Stage == domain.AwaitingObservation {
+			// Labor idle across reviews for DevelopmentIdleTicks releases
+			// the slot without closing the work: nobody is picking the
+			// work up, so the goal's row reads labor_idle until they do.
+			if laborIdle(r.LaborUse, c.Labor) {
+				if _, seen := idleSince[c.Goal]; !seen {
+					idleSince[c.Goal] = r.Tick
+					if since, known := old[c.Goal].LaborIdleSince.Value(); known && since <= r.Tick {
+						idleSince[c.Goal] = since
+					}
+				}
+				if r.Tick-idleSince[c.Goal] >= DevelopmentIdleTicks {
+					released[c.Goal] = true
+					continue
+				}
+			}
 			if !committed[c.Goal] {
 				ledger.take(c.Labor)
 			}
 			committed[c.Goal] = true
 		}
+	}
+	for id := range committed {
+		delete(released, id)
 	}
 	for id := range committed {
 		result.Committed = append(result.Committed, id)
@@ -294,6 +333,9 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 			score -= weights.Risk * risk
 		}
 		row := DevelopmentRow{Goal: g.ID, Score: score, Deficit: g.Deficit, WaitingSince: since, Committed: committed[g.ID], Risk: g.Risk, Idle: idle}
+		if since, seen := idleSince[g.ID]; seen && (committed[g.ID] || released[g.ID]) {
+			row.LaborIdleSince = domain.Known(since)
+		}
 		switch {
 		case g.Cancelled:
 			row.Reason = DevelopmentCancelled
@@ -307,6 +349,8 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 			row.Reason = DevelopmentBlocked
 		case row.Committed:
 			row.Reason = DevelopmentCommitted
+		case released[g.ID]:
+			row.Reason = DevelopmentLaborIdle
 		case g.MethodUnavailable:
 			row.Reason = DevelopmentMethodUnavailable
 		case riskKnown && risk >= 1:
@@ -318,7 +362,7 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 		case !known:
 			row.Reason = DevelopmentUnknown
 		}
-		if row.Committed {
+		if row.Committed || released[g.ID] {
 			row.WaitingSince = r.Tick
 		}
 		result.Rows = append(result.Rows, row)

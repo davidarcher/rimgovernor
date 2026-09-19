@@ -27,6 +27,7 @@ type RoutineDevelopmentRow struct {
 	Risk                *float64        `json:",omitempty"`
 	Idle                bool            `json:",omitempty"`
 	Granted             bool            `json:",omitempty"`
+	LaborIdleSince      *domain.Tick    `json:",omitempty"`
 }
 
 func developmentRecord(s policy.DevelopmentState) RoutineDevelopment {
@@ -47,6 +48,9 @@ func developmentRecord(s policy.DevelopmentState) RoutineDevelopment {
 		}
 		if risk, k := row.Risk.Value(); k {
 			v.Risk = &risk
+		}
+		if since, k := row.LaborIdleSince.Value(); k {
+			v.LaborIdleSince = &since
 		}
 		r.Rows = append(r.Rows, v)
 	}
@@ -73,6 +77,9 @@ func (r RoutineDevelopment) State() policy.DevelopmentState {
 		}
 		if row.Risk != nil {
 			v.Risk = domain.Known(*row.Risk)
+		}
+		if row.LaborIdleSince != nil {
+			v.LaborIdleSince = domain.Known(*row.LaborIdleSince)
 		}
 		s.Rows = append(s.Rows, v)
 	}

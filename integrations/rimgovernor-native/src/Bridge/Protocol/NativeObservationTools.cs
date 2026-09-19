@@ -271,6 +271,11 @@ namespace HomeBridge.BridgeTools
             if (job != null) {
                 row.DefName = Identifier(job.def.defName);
                 row.LoadId = job.loadID.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                // The work giver's WorkTypeDef names the labor the job spends
+                // (a cut designation, a bill, a frame); a job no giver issued
+                // (a forced order, rest, a meal, wandering) carries none.
+                var workType = job.workGiverDef?.workType?.defName;
+                if (workType != null) row.WorkTypeDefName = Identifier(workType);
             } else row.Issues.Add(Issue("current_job", Common.UnavailableReason.NotApplicable, "Pawn has no current job."));
             return row;
         }

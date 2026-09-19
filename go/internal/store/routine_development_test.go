@@ -596,3 +596,64 @@ func TestRoutineDevelopmentEquipHoldsNoSlot(t *testing.T) {
 		t.Fatal("open equip plan counted as a commitment", out.Review.Development)
 	}
 }
+
+// A wood method whose plant cutters idle across reviews for
+// DevelopmentIdleTicks releases its slot to the waiting defense goal, whose
+// method then admits; the released row persists its idle age and reads
+// labor_idle until a cutter is on the work again (#445).
+func TestRoutineDevelopmentIdleLaborReleasesSlot(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	s := open(t, memoryPath(t))
+	defer s.Close()
+	r := routineRequest()
+	r.Policy.MaxDevelopmentProjects = 1
+	out := reviewRoutine(t, s, &r)
+	wood := routineGoal(t, out, policy.MaintainWood)
+	if !developmentRow(t, out.Review, policy.MaintainWood).Selected {
+		t.Fatal(out.Review.Development)
+	}
+	if _, err := s.CommitGoalMethod(ctx, wood.Goal.ID, wood.Revision, "wood", plan(t, "wood", "wood-action")); err != nil {
+		t.Fatal(err)
+	}
+	r.Facts.Colonists = domain.Known(int64(3))
+	r.Facts.Armed = domain.Known(int64(0))
+	r.Facts.LaborUse = domain.Known(policy.LaborUse{Busy: map[policy.WorkType]int{policy.WorkConstruction: 1}, Idle: map[policy.WorkType]int{policy.WorkPlantCutting: 2}})
+	r.Tick += 10
+	since := r.Tick
+	out = reviewRoutine(t, s, &r)
+	row := developmentRow(t, out.Review, policy.MaintainWood)
+	if !row.Committed || row.LaborIdleSince == nil || *row.LaborIdleSince != since || developmentRow(t, out.Review, policy.EnsureBasicDefense).Reason != policy.DevelopmentCapacity {
+		t.Fatal("first idle review keeps the slot", out.Review.Development)
+	}
+	defense := routineGoal(t, out, policy.EnsureBasicDefense)
+	if _, err := s.CommitGoalMethod(ctx, defense.Goal.ID, defense.Revision, "sandbags", plan(t, "sandbags", "sandbags-action")); !errors.Is(err, ErrNotAdmitted) {
+		t.Fatal("defense admitted against a held slot", err)
+	}
+	r.Tick = since + policy.DevelopmentIdleTicks
+	out = reviewRoutine(t, s, &r)
+	row = developmentRow(t, out.Review, policy.MaintainWood)
+	if row.Committed || row.Selected || row.Reason != policy.DevelopmentLaborIdle || row.LaborIdleSince == nil || *row.LaborIdleSince != since || len(out.Review.Development.Committed) != 0 {
+		t.Fatal("idle past the bound should release the slot", out.Review.Development)
+	}
+	if !developmentRow(t, out.Review, policy.EnsureBasicDefense).Selected {
+		t.Fatal(out.Review.Development)
+	}
+	loaded, err := s.LoadRoutineReview(ctx)
+	if err != nil || !reflect.DeepEqual(loaded, out.Review) {
+		t.Fatal(loaded, err)
+	}
+	defense = routineGoal(t, out, policy.EnsureBasicDefense)
+	if _, err := s.CommitGoalMethod(ctx, defense.Goal.ID, defense.Revision, "sandbags", plan(t, "sandbags", "sandbags-action")); err != nil {
+		t.Fatal("released slot refused the waiting goal", err)
+	}
+	// A cutter back on the work takes the slot back beside the defense
+	// commitment; the idle age clears.
+	r.Facts.LaborUse = domain.Known(policy.LaborUse{Busy: map[policy.WorkType]int{policy.WorkPlantCutting: 1}, Idle: map[policy.WorkType]int{}})
+	r.Tick += 10
+	out = reviewRoutine(t, s, &r)
+	row = developmentRow(t, out.Review, policy.MaintainWood)
+	if !row.Committed || row.LaborIdleSince != nil || len(out.Review.Development.Committed) != 2 {
+		t.Fatal("resumed work should commit again", out.Review.Development)
+	}
+}

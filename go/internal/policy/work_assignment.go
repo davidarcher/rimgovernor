@@ -37,6 +37,18 @@ type WorkPawn struct {
 	// Schedule is the current timetable, one TimeAssignmentDef per hour
 	// (hour 0 first); unknown when the read carried no complete timetable.
 	Schedule domain.Fact[[]string]
+	// Job is the pawn's current job; unknown when the read carried no job
+	// block.
+	Job domain.Fact[PawnJob]
+}
+
+// PawnJob is one pawn's current job as the census saw it. Def is the
+// JobDef name, empty for a pawn with no job; Work is the WorkTypeDef of
+// the work giver that issued it, empty for a job no giver issued (a forced
+// order, rest, a meal, wandering).
+type PawnJob struct {
+	Def  string
+	Work WorkType
 }
 type WorkRequirement struct {
 	Work    WorkType

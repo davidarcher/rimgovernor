@@ -23,6 +23,11 @@ those types. Accepted work keeps its identity as capacity changes; unavailable m
 yield to other candidates. Work displays the reason for deferral, including the
 bottleneck work type. Worker capacity is a scheduling bound, not a completion-time
 guarantee, and waiting age alone overtakes any deficit gap within a fixed tick bound.
+Accepted work holds its slot only while it is worked: the review reads each pawn's
+current job and the work type of the giver that issued it, and a commitment whose
+profile no pawn is on, while a pawn enabled for it idles or works for another type,
+releases its slot after a game hour of that (`labor_idle`) without closing the work;
+a pawn back on it takes the slot back. A colony asleep is no evidence either way.
 
 ## Execute under supervision
 

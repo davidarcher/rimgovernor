@@ -1329,6 +1329,9 @@ type JobEvidence struct {
 	Interruptible   *bool                  `protobuf:"varint,8,opt,name=interruptible,proto3,oneof" json:"interruptible,omitempty"`
 	NativePriority  *float64               `protobuf:"fixed64,9,opt,name=native_priority,json=nativePriority,proto3,oneof" json:"native_priority,omitempty"`
 	Issues          []*ReadIssue           `protobuf:"bytes,10,rep,name=issues,proto3" json:"issues,omitempty"`
+	// work_type_def_name: the WorkTypeDef of the job's work giver, absent for
+	// a job no work giver issued (a forced order, rest, a meal, wandering).
+	WorkTypeDefName *string `protobuf:"bytes,11,opt,name=work_type_def_name,json=workTypeDefName,proto3,oneof" json:"work_type_def_name,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -1431,6 +1434,13 @@ func (x *JobEvidence) GetIssues() []*ReadIssue {
 		return x.Issues
 	}
 	return nil
+}
+
+func (x *JobEvidence) GetWorkTypeDefName() string {
+	if x != nil && x.WorkTypeDefName != nil {
+		return *x.WorkTypeDefName
+	}
+	return ""
 }
 
 type PawnNeeds struct {
@@ -31773,7 +31783,7 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"\b_minimumB\n" +
 	"\n" +
-	"\b_maximum\"\xc5\x04\n" +
+	"\b_maximum\"\x8e\x05\n" +
 	"\vJobEvidence\x12\x1e\n" +
 	"\bdef_name\x18\x01 \x01(\tH\x00R\adefName\x88\x01\x01\x12\x1c\n" +
 	"\aload_id\x18\x02 \x01(\tH\x01R\x06loadId\x88\x01\x01\x12(\n" +
@@ -31786,7 +31796,8 @@ const file_observations_proto_rawDesc = "" +
 	"\rinterruptible\x18\b \x01(\bH\x06R\rinterruptible\x88\x01\x01\x12,\n" +
 	"\x0fnative_priority\x18\t \x01(\x01H\aR\x0enativePriority\x88\x01\x01\x12>\n" +
 	"\x06issues\x18\n" +
-	" \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issuesB\v\n" +
+	" \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issues\x120\n" +
+	"\x12work_type_def_name\x18\v \x01(\tH\bR\x0fworkTypeDefName\x88\x01\x01B\v\n" +
 	"\t_def_nameB\n" +
 	"\n" +
 	"\b_load_idB\x10\n" +
@@ -31795,7 +31806,8 @@ const file_observations_proto_rawDesc = "" +
 	"\x11_order_generationB\x0e\n" +
 	"\f_queued_jobsB\x10\n" +
 	"\x0e_interruptibleB\x12\n" +
-	"\x10_native_priority\"\xc4\x04\n" +
+	"\x10_native_priorityB\x15\n" +
+	"\x13_work_type_def_name\"\xc4\x04\n" +
 	"\tPawnNeeds\x12\x17\n" +
 	"\x04food\x18\x01 \x01(\x01H\x00R\x04food\x88\x01\x01\x12\x17\n" +
 	"\x04rest\x18\x02 \x01(\x01H\x01R\x04rest\x88\x01\x01\x12\x17\n" +

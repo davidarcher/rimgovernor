@@ -241,6 +241,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	if pawns, known := reading.Projection.WorkPawns.Value(); known {
 		reading.Projection.Facts.Workers = policy.RoutineWorkers(pawns)
 		reading.Projection.Facts.Labor = policy.RoutineLabor(pawns)
+		reading.Projection.Facts.LaborUse = policy.RoutineLaborUse(pawns)
 		reading.Projection.Facts.WorkProfiles = domain.Known(policy.Profiles(pawns))
 		required, known := routineProjectWork(definitions, reading.Projection.Definitions).Value()
 		if known {

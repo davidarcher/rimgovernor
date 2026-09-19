@@ -137,7 +137,7 @@ func rankRoutineDevelopment(ctx context.Context, tx *sql.Tx, r RoutineReviewRequ
 			}
 		}
 	}
-	return policy.RankDevelopment(policy.DevelopmentRequest{Snapshot: r.Current, Tick: r.Tick, Workers: r.Facts.Workers, Labor: r.Facts.Labor, Limit: r.Policy.MaxDevelopmentProjects, Goals: goals, Commitments: commitments, Previous: previous, Partial: r.PartialPlanners})
+	return policy.RankDevelopment(policy.DevelopmentRequest{Snapshot: r.Current, Tick: r.Tick, Workers: r.Facts.Workers, Labor: r.Facts.Labor, LaborUse: r.Facts.LaborUse, Limit: r.Policy.MaxDevelopmentProjects, Goals: goals, Commitments: commitments, Previous: previous, Partial: r.PartialPlanners})
 }
 
 // developmentExemptMethod reports a method that is no development project:
@@ -205,9 +205,18 @@ func admitRoutineDevelopment(ctx context.Context, tx *sql.Tx, g domain.Goal, pla
 	if err != nil {
 		return err
 	}
+	// The same commitments the review's ranking freed hold no slot here
+	// either: a stalled one, and one whose labor idled (its row reads
+	// labor_idle), or the freed slot could never be taken.
+	released := map[domain.GoalID]bool{}
+	for _, row := range review.Development.Rows {
+		if row.Reason == policy.DevelopmentLaborIdle {
+			released[row.Goal] = true
+		}
+	}
 	ids := map[domain.GoalID]bool{}
 	for _, c := range commitments {
-		if c.Source != domain.AdviserGoal && (c.Source == domain.PlayerGoal || c.Priority >= 3) {
+		if c.Source != domain.AdviserGoal && (c.Source == domain.PlayerGoal || c.Priority >= 3) && !c.Stalled(review.Tick) && !released[c.Goal] {
 			ids[c.Goal] = true
 		}
 	}

@@ -254,7 +254,11 @@ required, a hostile one left to the defense family) and recovers when none remai
 
 `RankDevelopment` preserves accepted shared-action commitments while ranking new
 projects by deficit, player preference, native-tick age and selection hysteresis.
-Unavailable methods can yield their slot within the same review. `StarterLayouts`
+Unavailable methods can yield their slot within the same review. A commitment
+whose labor idles (`RoutineLaborUse`: no pawn on any of its profile's work types
+while one enabled for them idles or works for another type) across reviews spanning
+`DevelopmentIdleTicks` releases its slot and reads `labor_idle` until the work is
+picked up again (#445). `StarterLayouts`
 proposes bounded shelter and disjoint crop patches while respecting observed
 geometry and player exclusions; proposals still require native preflight.
 The service supplies its configured method set to each review. Disabled optional

@@ -1,6 +1,6 @@
 // Read-only view of /api/routines: the composed routine runtime and the
 // development ranking its last review recorded. Nulls are unknown facts.
-export const developmentReasons = ['', 'cancelled', 'adviser', 'emergency', 'startup_survival', 'blocked', 'existing_commitment', 'workers_unknown', 'no_workers', 'deficit_unknown', 'capacity_committed', 'method_unavailable', 'labor_unavailable', 'risk_deferred', 'control_disabled'] as const;
+export const developmentReasons = ['', 'cancelled', 'adviser', 'emergency', 'startup_survival', 'blocked', 'existing_commitment', 'labor_idle', 'workers_unknown', 'no_workers', 'deficit_unknown', 'capacity_committed', 'method_unavailable', 'labor_unavailable', 'risk_deferred', 'control_disabled'] as const;
 export type DevelopmentReason = typeof developmentReasons[number];
 export type DevelopmentRow = {goal: string; score: number; deficit: number | null; risk: number | null; waitingSince: number; selected: boolean; committed: boolean; reason: DevelopmentReason; bottleneck: string};
 export type LaborRow = {work: string; free: number};

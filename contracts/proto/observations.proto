@@ -86,6 +86,9 @@ message JobEvidence {
   optional bool interruptible = 8;
   optional double native_priority = 9;
   repeated ReadIssue issues = 10;
+  // work_type_def_name: the WorkTypeDef of the job's work giver, absent for
+  // a job no work giver issued (a forced order, rest, a meal, wandering).
+  optional string work_type_def_name = 11;
 }
 message PawnNeeds {
   optional double food = 1; optional double rest = 2; optional double mood = 3; optional double joy = 4;

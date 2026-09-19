@@ -61,6 +61,10 @@ func GoalLabor(id GoalID) LaborProfile {
 		return LaborProfile{WorkCooking, WorkHauling, WorkGrowing}
 	case MaintainFireSafety:
 		return LaborProfile{WorkFirefighter}
+	case MaintainMedicalReserves:
+		// A medicine bill at a crafting bench, or a wild healroot harvest
+		// (#445: the herbal bill held a slot for days unworked).
+		return LaborProfile{WorkCrafting, WorkPlantCutting}
 	}
 	return nil
 }
@@ -90,6 +94,75 @@ func RoutineLabor(pawns []WorkPawn) domain.Fact[map[WorkType]int] {
 		}
 	}
 	return domain.Known(labor)
+}
+
+// LaborUse is the census of what the pawns RoutineLabor counts are doing
+// this review. Busy counts, per work type, the pawns whose current job a
+// work giver of that type issued (any pawn, drafted or not). Idle counts,
+// per work type, the pawns RoutineLabor counts for that type who are not on
+// its work: a pawn with no job or wandering, or one a giver of another type
+// holds. Rest, meals, recreation, medical care and forced orders are
+// neither, so a colony asleep is no evidence about any commitment.
+type LaborUse struct {
+	Busy, Idle map[WorkType]int
+}
+
+// idleJob reports a job that is no work at all: the job tracker found
+// nothing for the pawn to do.
+func idleJob(job PawnJob) bool {
+	switch job.Def {
+	case "", "Wait", "Wait_Wander", "GotoWander", "Wait_MaintainPosture":
+		return true
+	}
+	return false
+}
+
+// RoutineLaborUse builds LaborUse from the same pawns RoutineLabor counts.
+// Any counted pawn with an unknown job, or with unknown or empty work
+// settings, makes the census unknown, as RoutineLabor's is: partial
+// evidence must not release a commitment's slot.
+func RoutineLaborUse(pawns []WorkPawn) domain.Fact[LaborUse] {
+	use := LaborUse{Busy: map[WorkType]int{}, Idle: map[WorkType]int{}}
+	for _, p := range pawns {
+		job, jobKnown := p.Job.Value()
+		if jobKnown && job.Work != "" {
+			use.Busy[job.Work]++
+		}
+		available, known := p.Available.Value()
+		applies, appliesKnown := p.Applies.Value()
+		if known && !available || appliesKnown && !applies {
+			continue
+		}
+		work, workKnown := p.Work.Value()
+		if !known || !appliesKnown || !workKnown || len(work) == 0 || !jobKnown {
+			return domain.Unknown[LaborUse]()
+		}
+		for _, w := range work {
+			if w.Priority > 0 && !w.Disabled && w.Work != job.Work && (idleJob(job) || job.Work != "") {
+				use.Idle[w.Work]++
+			}
+		}
+	}
+	return domain.Known(use)
+}
+
+// laborIdle reports a labor profile with no pawn on any of its work types
+// while at least one pawn enabled for one of them idles or works for
+// another type: the work the profile's commitment issued is not being
+// picked up. An empty profile or an unknown census is never idle.
+func laborIdle(use domain.Fact[LaborUse], profile LaborProfile) bool {
+	v, known := use.Value()
+	if !known || len(profile) == 0 {
+		return false
+	}
+	idle := 0
+	for _, w := range profile {
+		if v.Busy[w] > 0 {
+			return false
+		}
+		idle += v.Idle[w]
+	}
+	return idle > 0
 }
 
 // laborLedger tracks free labor per work type during one ranking pass.

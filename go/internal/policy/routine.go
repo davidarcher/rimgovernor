@@ -383,6 +383,9 @@ type RoutineFacts struct {
 	// Labor is the per-work-type census of the same pawns Workers counts
 	// (RoutineLabor); unknown labor leaves only the coarse worker bound.
 	Labor domain.Fact[map[WorkType]int]
+	// LaborUse is what those pawns are doing (RoutineLaborUse): the evidence
+	// RankDevelopment releases an idle commitment's slot on.
+	LaborUse domain.Fact[LaborUse]
 	// WorkRoster is the planner's per-work-type coverage (PlanWork): the
 	// owners each type wanted and found and the pawns capable of it, so a
 	// goal can name a missing capability instead of stalling.
