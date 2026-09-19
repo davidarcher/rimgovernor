@@ -1,6 +1,8 @@
 package observation
 
 import (
+	"sort"
+
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -45,7 +47,43 @@ func routineMood(colony *o.ColonyFactsSnapshot, emergency policy.EmergencyFacts,
 		if f := forecasts[string(pawn.ID)]; f != nil && !hasIssue(f.Issues, "mood_target") {
 			p.Target = optional(f.MoodTarget)
 		}
+		p.Thoughts = MoodThoughts(r)
 		rows = append(rows, p)
 	}
 	return domain.Known(rows)
+}
+
+// MoodThoughts lifts a pawn row's grouped native thought rows (memories and
+// the situational cache) into the negative pressure the mood census keeps:
+// one row per def with its total offset, most negative first. A skipped or
+// unreadable social block, or a missing memories/situational list, leaves
+// the pressure unknown rather than empty.
+func MoodThoughts(r *o.PawnState) domain.Fact[[]policy.MoodThought] {
+	unknown := domain.Unknown[[]policy.MoodThought]()
+	social := r.GetSocial()
+	if social == nil || hasIssue(r.Issues, "social") || hasIssue(social.Issues, "memories") || hasIssue(social.Issues, "situational") {
+		return unknown
+	}
+	byDef := map[string]float64{}
+	for _, rows := range [][]*o.Thought{social.Memories, social.Situational} {
+		for _, t := range rows {
+			if t == nil || t.MoodOffsetTotal == nil {
+				return unknown
+			}
+			byDef[t.GetDefName()] += t.GetMoodOffsetTotal()
+		}
+	}
+	result := []policy.MoodThought{}
+	for def, offset := range byDef {
+		if offset < 0 {
+			result = append(result, policy.MoodThought{Def: def, Offset: offset})
+		}
+	}
+	sort.Slice(result, func(i, j int) bool {
+		if result[i].Offset != result[j].Offset {
+			return result[i].Offset < result[j].Offset
+		}
+		return result[i].Def < result[j].Def
+	})
+	return domain.Known(result)
 }

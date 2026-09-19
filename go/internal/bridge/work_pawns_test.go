@@ -40,7 +40,7 @@ func TestRoutinePawnsOwnWorkSelectionAndValidatePriorities(t *testing.T) {
 				if err := protojson.Unmarshal([]byte(outer.Request), q); err != nil {
 					t.Fatal(err)
 				}
-				if !q.Details.GetWork() || !q.Details.GetNeeds() || !q.Details.GetSchedule() || q.Details.GetSettings() || !q.Details.GetBiography() || !q.Details.GetEquipment() {
+				if !q.Details.GetWork() || !q.Details.GetNeeds() || !q.Details.GetSchedule() || !q.Details.GetSocial() || q.Details.GetSettings() || !q.Details.GetBiography() || !q.Details.GetEquipment() {
 					t.Fatal(q)
 				}
 				return pbResult(&o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: s}}), nil

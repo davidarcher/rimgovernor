@@ -22,6 +22,27 @@ from a 0.5 recovery target. Entry is below 0.3. Each correction uses one pawn an
 existing native resources; future mood benefit and labor duration remain unknown.
 Native cached thoughts, cache validity, traits and other needs remain evidence.
 Food, shelter and temperature provisioning use the existing shared colony goals.
+
+## Facility provisioning
+
+The routine pawn read carries each colonist's grouped thought rows (memories and
+the situational cache, the `social` block). The review keeps the rows that pull
+mood down and maps the removable environment thoughts to the upkeep goal whose
+facility removes them: `AteWithoutTable` and `NeedJoy` to `EnsureComfort`,
+`SleptOutside`/`SleptOnGround` to `EnsureInitialShelter`, `EnvironmentDark` to
+`MaintainLighting`, `EnvironmentCold`/`EnvironmentHot` to
+`EnsureTemperatureSafety`, `NeedBeauty` to `MaintainCleanFacilities` and
+`NeedRoomSize` to `EnsureExpansion`. When those thoughts carry at least half of
+the pawn's negative thought offset, the pawn's mood state records the owners
+(most negative first) and the method proposal is `facility_provision` naming the
+first owner instead of a relief job: `DetectRoutine` raises each owner's
+development deficit to at least the fraction of reviewed pawns under it, and the
+owner's own census still decides whether it is active and what it builds. A
+recovered owner is never re-raised; when no owner goal is active with a deficit
+the relief planner falls back to the measured need method. An unreadable social
+block keeps the previous provisioning; a readable one with no such pressure
+clears it. Thoughts no goal owns (a barracks, apparel, social memories) stay
+native relief and recovery evidence. Schedules are never written.
 Social recreation, tolerated recreation kinds and environmental eligibility remain
 native job-giver choices. Thoughts without a measured eligible corrective method
 produce an explicit blocker, including relationship and ideology choices requiring

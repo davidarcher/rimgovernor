@@ -1056,6 +1056,20 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 			r.Goals[len(r.Goals)-1].MethodUnavailable = true
 		}
 	}
+	// Dominant environment thought pressure raises the owning upkeep goal's
+	// deficit to at least the fraction of pawns under it (#255): the goal's
+	// own census still decides whether it is active and what it builds, so a
+	// recovered owner is not re-raised, and the pawn's EnsureMood-* goal
+	// defers to it (MoodProvision) instead of dispatching need relief.
+	for i := range r.Goals {
+		pressure, ok := MoodProvisionDeficits(f.Mood)[r.Goals[i].ID]
+		if !ok {
+			continue
+		}
+		if current, known := r.Goals[i].Deficit.Value(); !known || current < pressure {
+			r.Goals[i].Deficit = domain.Known(pressure)
+		}
+	}
 	r.Disaster, err = ReviewDisaster(f.DisasterConditions, f.RecoveryBuildings, r.Gates, f.Disaster, f.DisasterTick)
 	if err != nil {
 		return RoutineNeeds{}, err

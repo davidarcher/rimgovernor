@@ -14,7 +14,7 @@ namespace HomeBridge.BridgeTools
     {
         [Tool("test/mood_setup", Description = "Seed deficient needs in one disposable pawn; test builds only.")]
         public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "food, rest, joy, forced, schedule or mental.")] string scenario)
+            [ToolParameter(Description = "food, rest, joy, forced, schedule, mental or environment.")] string scenario)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
@@ -26,9 +26,22 @@ namespace HomeBridge.BridgeTools
                 p.needs.rest.CurLevelPercentage = scenario == "rest" ? 0.1f : 0.9f;
                 p.needs.joy.CurLevelPercentage = scenario == "rest" || scenario == "food" ? 0.9f : 0.1f;
                 p.needs.mood.CurLevelPercentage = p.mindState.mentalBreaker.BreakThresholdMinor - 0.01f;
-                var wait = JobMaker.MakeJob(JobDefOf.Wait, 25000);
+                // The environment scenario leaves the pawn free to recover on
+                // its own (a long Wait would keep it from playing); the others
+                // pin a known current job for the relief fencing.
+                var wait = JobMaker.MakeJob(JobDefOf.Wait, scenario == "environment" ? 60 : 25000);
                 wait.playerForced = scenario == "forced";
                 p.jobs.StartJob(wait, JobCondition.InterruptForced);
+                if (scenario == "environment")
+                {
+                    // Removable environment pressure (#255): a SleptOutside
+                    // memory plus the NeedJoy situational thought the joy
+                    // level above triggers, recalculated now so the first
+                    // social read already carries it.
+                    p.needs.mood.thoughts.memories.TryGainMemory(ThoughtDefOf.SleptOutside);
+                    p.needs.mood.thoughts.situational.Notify_SituationalThoughtsDirty();
+                    p.needs.mood.thoughts.TotalMoodOffset();
+                }
                 if (scenario == "food")
                 {
                     var meal = ThingMaker.MakeThing(ThingDefOf.MealSimple);

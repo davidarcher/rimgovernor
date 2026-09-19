@@ -203,7 +203,7 @@ func (client *Client) seedBundle(ctx context.Context, v *o.BundleSnapshot, emerg
 		seed("rimgovernor/observations_read_research", researchRequest(identity), &o.ResearchReply{Outcome: &o.ResearchReply_Observed{Observed: v.Research}})
 	}
 	if ids := routinePawnIDs(emergency); v.ColonistPawns != nil && len(ids) > 0 {
-		seed("rimgovernor/observations_list_pawns", pawnDetailsRequest(identity, ids, true, true, false, true), &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: v.ColonistPawns}})
+		seed("rimgovernor/observations_list_pawns", pawnDetailsRequest(identity, ids, true, true, false, true, true), &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: v.ColonistPawns}})
 	}
 }
 

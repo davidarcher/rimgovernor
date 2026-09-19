@@ -543,7 +543,13 @@ Player-forced work, draft and medical availability
 remain guards; relief action execution is not enabled. The isolated `--mood-review
 food|forced|mental` variants compare native inputs with durable Go needs.
 Replay with `RIMGOVERNOR_NATIVE_MOOD_CAPTURE=<capture-directory> go test
-./internal/observation -run TestNativeRoutineMoodReplay`.
+./internal/observation -run TestNativeRoutineMoodReplay`. The same read
+carries each colonist's grouped thought rows; when removable environment
+thoughts dominate a pawn's pressure the review records the upkeep goals whose
+facilities remove them, raises those goals' development deficits and proposes
+`facility_provision` instead of relief
+([mood-control](../docs/developers/contracts/mood-control.md#facility-provisioning)).
+Targeted acceptance is `acceptance run mood/provision` (`MoodFixture`).
 
 Routine disaster history joins native environmental conditions and exact building
 service needs to the shared survival gates. It retains damaged identities, records

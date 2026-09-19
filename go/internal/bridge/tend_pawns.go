@@ -11,5 +11,5 @@ import (
 // Medicine skill), work settings (Doctor work-type enablement) and care policy
 // (medical_care, self_tend) for exact doctor/patient IDs.
 func (client *Client) ReadTendPawns(ctx context.Context, identity *c.Identity, ids []string) (*o.ListPawnsReply, Result, error) {
-	return client.readPawnDetails(ctx, identity, ids, true, true, true, false)
+	return client.readPawnDetails(ctx, identity, ids, true, true, true, false, false)
 }

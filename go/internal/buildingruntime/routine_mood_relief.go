@@ -63,7 +63,7 @@ func moodReliefValue[T any](v *T) domain.Fact[T] {
 func moodReliefPolicyState(s store.RoutineMoodState) policy.MoodState {
 	p := s.Pawn
 	row := policy.MoodPawn{ID: p.ID, Mood: moodReliefValue(p.Mood), Threshold: moodReliefValue(p.Threshold), Target: moodReliefValue(p.Target), Food: moodReliefValue(p.Food), Rest: moodReliefValue(p.Rest), Joy: moodReliefValue(p.Joy), Mental: moodReliefValue(p.Mental), Dead: moodReliefValue(p.Dead), Downed: moodReliefValue(p.Downed), Drafted: moodReliefValue(p.Drafted), PlayerForced: moodReliefValue(p.PlayerForced)}
-	state := policy.MoodState{Pawn: row, Active: s.Active, Missing: s.Missing, MentalRisk: s.MentalRisk}
+	state := policy.MoodState{Pawn: row, Active: s.Active, Missing: s.Missing, MentalRisk: s.MentalRisk, Provision: append([]policy.MoodProvision(nil), s.Provision...)}
 	for _, cause := range s.Causes {
 		state.Causes = append(state.Causes, policy.MoodCause{Need: cause.Need, Level: moodReliefValue(cause.Level)})
 	}
@@ -130,6 +130,19 @@ func (r *RoutineMoodReliefPlanner) step(call, epoch context.Context, arbiter *st
 	for _, s := range review.Mood.States {
 		statesByGoal[policy.MoodGoal(s.Pawn.ID)] = s
 	}
+	// Owner goals a provisioning proposal can defer to: bound by this review
+	// and still active with a deficit.
+	activeOwner := map[domain.GoalID]bool{}
+	for _, binding := range review.Goals {
+		if !policy.MoodProvisionGoal(binding.Need) {
+			continue
+		}
+		goal, err := p.journal.LoadGoal(call, binding.Goal)
+		if err != nil {
+			return RoutineMoodReliefResult{}, err
+		}
+		activeOwner[binding.Need] = goal.Goal.Status == domain.GoalActive && goal.Goal.Need == domain.NeedDeficit
+	}
 	started := r.reviewer.clock.Now()
 	identity := boundary.Identity(sessionState.Snapshot)
 	for _, binding := range review.Goals {
@@ -163,6 +176,15 @@ func (r *RoutineMoodReliefPlanner) step(call, epoch context.Context, arbiter *st
 		proposal, err := policy.SelectMoodMethod(policyState, used)
 		if err != nil {
 			return RoutineMoodReliefResult{}, err
+		}
+		if proposal.Reason == policy.MoodProvisioned && !activeOwner[proposal.Goal] {
+			// No active upkeep goal owns the facility the pressure names
+			// (its own census reports it recovered or unknown), so nothing
+			// is being provisioned: fall back to measured need relief.
+			proposal, err = policy.SelectMoodMethod(policyState.WithoutProvision(), used)
+			if err != nil {
+				return RoutineMoodReliefResult{}, err
+			}
 		}
 		if proposal.Reason != policy.MoodRelief {
 			continue

@@ -83,3 +83,50 @@ func TestRoutineScheduleDetailValidation(t *testing.T) {
 		})
 	}
 }
+
+// TestRoutineSocialDetailValidation covers the social block the routine
+// census reads for thought pressure (#255): the routine selection accepts a
+// bounded PawnSocial and refuses malformed thought rows, while selections
+// that never requested it keep refusing it as unrequested.
+func TestRoutineSocialDetailValidation(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		change  func(*o.PawnSocial)
+		routine bool
+	}{
+		{"grouped rows", nil, true},
+		{"repeated def across social memories", func(s *o.PawnSocial) {
+			s.Memories = append(s.Memories, &o.Thought{DefName: proto.String("Insulted"), MoodOffsetTotal: proto.Float64(-5)})
+		}, true},
+		{"blank def", func(s *o.PawnSocial) {
+			s.Memories[0].DefName = proto.String(" ")
+		}, false},
+		{"nonfinite offset", func(s *o.PawnSocial) {
+			s.Situational[0].MoodOffsetTotal = proto.Float64(math.NaN())
+		}, false},
+		{"duplicate issue", func(s *o.PawnSocial) {
+			s.Issues = []*o.ReadIssue{{Field: proto.String("memories")}, {Field: proto.String("memories")}}
+		}, false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			s := combatPawnsFixture()
+			social := &o.PawnSocial{
+				Memories:    []*o.Thought{{DefName: proto.String("Insulted"), Label: proto.String("Insulted"), Count: proto.Uint32(1), MoodOffsetEach: proto.Float64(-5), MoodOffsetTotal: proto.Float64(-5)}},
+				Situational: []*o.Thought{{DefName: proto.String("NeedJoy"), MoodOffsetTotal: proto.Float64(-20)}},
+			}
+			if test.change != nil {
+				test.change(social)
+			}
+			s.Pawns[0].Social = social
+			if err := ValidateRoutinePawnSnapshot(s, pbIdentity(), []string{"pawn-1"}); (err == nil) != test.routine {
+				t.Fatal("routine", err)
+			}
+			if ValidateCombatPawnSnapshot(s, pbIdentity(), []string{"pawn-1"}) == nil {
+				t.Fatal("combat-only selection accepted social")
+			}
+			if ValidateTendPawnSnapshot(s, pbIdentity(), []string{"pawn-1"}) == nil {
+				t.Fatal("tend-only selection accepted social")
+			}
+		})
+	}
+}

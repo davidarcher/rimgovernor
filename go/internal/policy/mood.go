@@ -25,6 +25,9 @@ type MoodPawn struct {
 	Mood, Threshold, Target                     domain.Fact[float64]
 	Food, Rest, Joy                             domain.Fact[float64]
 	Mental, Dead, Downed, Drafted, PlayerForced domain.Fact[bool]
+	// Thoughts are the pawn's observed negative thought rows; unknown when
+	// the native social block was unreadable.
+	Thoughts domain.Fact[[]MoodThought]
 }
 
 type MoodCause struct {
@@ -36,6 +39,10 @@ type MoodState struct {
 	Pawn                        MoodPawn
 	Active, Missing, MentalRisk bool
 	Causes                      []MoodCause
+	// Provision names the upkeep goals whose facilities would remove the
+	// pawn's dominant environment thought pressure (moodProvisioning); empty
+	// when need relief is the only measured response.
+	Provision []MoodProvision
 }
 
 type MoodHistory struct{ States []MoodState }
@@ -76,7 +83,7 @@ func (p MoodPawn) Validate() error {
 			return errors.New("nonfinite mood evidence")
 		}
 	}
-	return nil
+	return validateMoodThoughts(p.Thoughts)
 }
 
 func (h MoodHistory) Validate() error {
@@ -90,6 +97,9 @@ func (h MoodHistory) Validate() error {
 		}
 		if seen[s.Pawn.ID] || len(s.Causes) > 3 {
 			return errors.New("invalid mood history")
+		}
+		if err := validateMoodProvision(s.Provision); err != nil {
+			return err
 		}
 		seen[s.Pawn.ID] = true
 		m, mk := s.Pawn.Mood.Value()
@@ -195,6 +205,10 @@ func ReviewMood(observed domain.Fact[[]MoodPawn], previous MoodHistory) (MoodHis
 				return s.Causes[i].Need < s.Causes[j].Need
 			})
 			s.Active = s.Active || prior.Active && len(s.Causes) > 0
+			s.Provision = moodProvisioning(p.Thoughts)
+			if _, k := p.Thoughts.Value(); !k {
+				s.Provision = append([]MoodProvision(nil), prior.Provision...)
+			}
 			// Death or unreadable availability cannot certify an active need recovered.
 			if dead, k := p.Dead.Value(); prior.Active && (!k || dead) {
 				s.Active = true
@@ -208,6 +222,7 @@ func ReviewMood(observed domain.Fact[[]MoodPawn], previous MoodHistory) (MoodHis
 		if !seen[prior.Pawn.ID] && prior.Active {
 			prior.Missing = true
 			prior.Causes = append([]MoodCause(nil), prior.Causes...)
+			prior.Provision = append([]MoodProvision(nil), prior.Provision...)
 			result.States = append(result.States, prior)
 		}
 	}
@@ -255,19 +270,26 @@ const (
 	MoodNoCause     MoodMethodReason = "no_measured_correctable_need"
 	MoodExhausted   MoodMethodReason = "bounded_methods_exhausted"
 	MoodRelief      MoodMethodReason = "native_need_relief"
+	// MoodProvisioned defers to the upkeep goal named in the proposal: the
+	// pawn's pressure is dominated by environment thoughts that goal's
+	// facility removes, so a native relief job would not clear it.
+	MoodProvisioned MoodMethodReason = "facility_provision"
 )
 
 type MoodProposal struct {
 	Pawn        PawnID
 	Need        MoodNeed
 	Reason      MoodMethodReason
+	Goal        GoalID
 	Target      float64
 	NeedBenefit domain.Fact[float64]
 	MoodBenefit domain.Fact[float64]
 }
 
-// SelectMoodMethod proposes one bounded native need method. The action family
-// must still obtain current job/schedule admission and observe actual recovery.
+// SelectMoodMethod proposes one bounded native need method, or defers to the
+// upkeep goal that owns the pawn's dominant environment pressure. The action
+// family must still obtain current job/schedule admission and observe actual
+// recovery.
 func SelectMoodMethod(s MoodState, used []MoodNeed) (MoodProposal, error) {
 	r := MoodProposal{Pawn: s.Pawn.ID}
 	if err := (MoodHistory{States: []MoodState{s}}).Validate(); err != nil {
@@ -297,6 +319,11 @@ func SelectMoodMethod(s MoodState, used []MoodNeed) (MoodProposal, error) {
 			r.Reason = MoodPlayerWork
 			return r, nil
 		}
+	}
+	if len(s.Provision) > 0 {
+		r.Reason = MoodProvisioned
+		r.Goal = s.Provision[0].Goal
+		return r, nil
 	}
 	r.Reason = MoodNoCause
 	if len(s.Causes) > 0 {

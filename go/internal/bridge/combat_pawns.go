@@ -15,14 +15,14 @@ func (client *Client) ReadCombatPawns(ctx context.Context, identity *c.Identity,
 
 // ValidateCombatPawnSnapshot shares exact-ID validation with ReadCombatPawns.
 func ValidateCombatPawnSnapshot(snapshot *o.PawnSnapshot, identity *c.Identity, ids []string) error {
-	return validateDetailedPawnSnapshot(snapshot, identity, ids, false, false, false)
+	return validateDetailedPawnSnapshot(snapshot, identity, ids, false, false, false, false)
 }
 
 // ValidateTendPawnSnapshot shares exact-ID validation with ReadTendPawns.
 func ValidateTendPawnSnapshot(snapshot *o.PawnSnapshot, identity *c.Identity, ids []string) error {
-	return validateDetailedPawnSnapshot(snapshot, identity, ids, true, true, false)
+	return validateDetailedPawnSnapshot(snapshot, identity, ids, true, true, false, false)
 }
-func validateDetailedPawnSnapshot(snapshot *o.PawnSnapshot, identity *c.Identity, ids []string, work, care, schedule bool) error {
+func validateDetailedPawnSnapshot(snapshot *o.PawnSnapshot, identity *c.Identity, ids []string, work, care, schedule, social bool) error {
 	if err := ValidateIdentity(identity); err != nil {
 		return err
 	}
@@ -39,7 +39,7 @@ func validateDetailedPawnSnapshot(snapshot *o.PawnSnapshot, identity *c.Identity
 	if err := buildingUnknown(snapshot); err != nil {
 		return err
 	}
-	return pawnsSnapshotSelected(snapshot, identity, requested, true, work, care, schedule)
+	return pawnsSnapshotSelected(snapshot, identity, requested, true, work, care, schedule, social)
 }
 func combatNumber(v *float64, nonnegative bool) bool {
 	return v == nil || !math.IsNaN(*v) && !math.IsInf(*v, 0) && (!nonnegative || *v >= 0)

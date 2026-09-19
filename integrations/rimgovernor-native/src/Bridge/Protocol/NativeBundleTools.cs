@@ -145,7 +145,7 @@ namespace HomeBridge.BridgeTools
                 var pawns = new Obs.ListPawnsRequest {
                     Scope = Scope(),
                     Filter = new Obs.PawnFilter { IncludeDead = true },
-                    Details = new Obs.PawnDetails { Needs = true, Health = true, Equipment = true, Biography = true, Settings = false, Social = false, Animals = true, Work = true, Schedule = true },
+                    Details = new Obs.PawnDetails { Needs = true, Health = true, Equipment = true, Biography = true, Settings = false, Social = true, Animals = true, Work = true, Schedule = true },
                     Page = new Common.PageRequest { Limit = (uint)observed.Emergency.Colonists.Pawns.Count },
                 };
                 foreach (var row in observed.Emergency.Colonists.Pawns) pawns.Filter.Ids.Add(row.Pawn.Id);

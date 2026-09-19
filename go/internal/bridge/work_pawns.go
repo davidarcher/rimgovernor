@@ -14,11 +14,15 @@ import (
 // (boundary.ExpectedScheduleDef) to fence its native writes. Requesting it
 // here, once, for the whole shared census matches how Needs is already
 // requested unconditionally for the same reason rather than per-consumer.
+// Social (the grouped thought rows) rides the same read: the mood census
+// takes each colonist's negative thought pressure from it so MaintainMood
+// can defer to the upkeep goal whose facility removes it (#255). A native
+// build that skips the block leaves thoughts unknown, never the read failed.
 func (client *Client) ReadRoutinePawns(ctx context.Context, id *c.Identity, ids []string) (*o.ListPawnsReply, Result, error) {
-	return client.readPawnDetails(ctx, id, ids, true, true, false, true)
+	return client.readPawnDetails(ctx, id, ids, true, true, false, true, true)
 }
 func ValidateRoutinePawnSnapshot(snapshot *o.PawnSnapshot, id *c.Identity, ids []string) error {
-	return validateDetailedPawnSnapshot(snapshot, id, ids, true, false, true)
+	return validateDetailedPawnSnapshot(snapshot, id, ids, true, false, true, true)
 }
 
 // validateSettings enforces that PawnSettings carries only the fields the

@@ -16,9 +16,9 @@ func (client *Client) ReadPawns(ctx context.Context, identity *c.Identity, ids [
 	return client.readPawns(ctx, identity, ids, false)
 }
 func (client *Client) readPawns(ctx context.Context, identity *c.Identity, ids []string, combat bool) (*o.ListPawnsReply, Result, error) {
-	return client.readPawnDetails(ctx, identity, ids, combat, false, false, false)
+	return client.readPawnDetails(ctx, identity, ids, combat, false, false, false, false)
 }
-func (client *Client) readPawnDetails(ctx context.Context, identity *c.Identity, ids []string, combat, work, care, schedule bool) (*o.ListPawnsReply, Result, error) {
+func (client *Client) readPawnDetails(ctx context.Context, identity *c.Identity, ids []string, combat, work, care, schedule, social bool) (*o.ListPawnsReply, Result, error) {
 	if err := ValidateIdentity(identity); err != nil {
 		return nil, Result{}, err
 	}
@@ -43,7 +43,7 @@ func (client *Client) readPawnDetails(ctx context.Context, identity *c.Identity,
 	// the caller never asked for, which validateSettings correctly refuses as
 	// unrequested detail, permanently failing every routine review (confirmed
 	// live: routinehaulaccept/issue #42).
-	request := pawnDetailsRequest(identity, copied, combat, work, care, schedule)
+	request := pawnDetailsRequest(identity, copied, combat, work, care, schedule, social)
 	reply := &o.ListPawnsReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/observations_list_pawns", request, reply)
 	if err != nil {
@@ -58,7 +58,7 @@ func (client *Client) readPawnDetails(ctx context.Context, identity *c.Identity,
 	case *o.ListPawnsReply_Unavailable:
 		err = unavailable(v.Unavailable, raw)
 	case *o.ListPawnsReply_Observed:
-		err = pawnsSnapshotSelected(v.Observed, request.Scope.ExpectedIdentity, requested, combat, work, care, schedule)
+		err = pawnsSnapshotSelected(v.Observed, request.Scope.ExpectedIdentity, requested, combat, work, care, schedule, social)
 	default:
 		err = contract("pawn read outcome missing")
 	}
@@ -68,8 +68,8 @@ func (client *Client) readPawnDetails(ctx context.Context, identity *c.Identity,
 // pawnDetailsRequest is the exact request readPawnDetails issues for ids
 // (validated, in the caller's order); the bundle seeds its colonist_pawns
 // section under the routine form of it (ReadRoutinePawns).
-func pawnDetailsRequest(identity *c.Identity, ids []string, combat, work, care, schedule bool) *o.ListPawnsRequest {
-	request := &o.ListPawnsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Filter: &o.PawnFilter{Ids: append([]string(nil), ids...), IncludeDead: proto.Bool(true)}, Details: &o.PawnDetails{Needs: proto.Bool(false), Health: proto.Bool(combat), Equipment: proto.Bool(combat), Biography: proto.Bool(combat), Settings: proto.Bool(care), Social: proto.Bool(false), Animals: proto.Bool(combat)}, Page: &c.PageRequest{Limit: proto.Uint32(uint32(len(ids)))}}
+func pawnDetailsRequest(identity *c.Identity, ids []string, combat, work, care, schedule, social bool) *o.ListPawnsRequest {
+	request := &o.ListPawnsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Filter: &o.PawnFilter{Ids: append([]string(nil), ids...), IncludeDead: proto.Bool(true)}, Details: &o.PawnDetails{Needs: proto.Bool(false), Health: proto.Bool(combat), Equipment: proto.Bool(combat), Biography: proto.Bool(combat), Settings: proto.Bool(care), Social: proto.Bool(social), Animals: proto.Bool(combat)}, Page: &c.PageRequest{Limit: proto.Uint32(uint32(len(ids)))}}
 	if work {
 		request.Details.Work = proto.Bool(true)
 		request.Details.Needs = proto.Bool(true)
@@ -84,9 +84,9 @@ func pawnsSnapshot(v *o.PawnSnapshot, id *c.Identity, requested map[string]bool)
 	return pawnsSnapshotDetails(v, id, requested, false)
 }
 func pawnsSnapshotDetails(v *o.PawnSnapshot, id *c.Identity, requested map[string]bool, combat bool) error {
-	return pawnsSnapshotSelected(v, id, requested, combat, false, false, false)
+	return pawnsSnapshotSelected(v, id, requested, combat, false, false, false, false)
 }
-func pawnsSnapshotSelected(v *o.PawnSnapshot, id *c.Identity, requested map[string]bool, combat, work, care, schedule bool) error {
+func pawnsSnapshotSelected(v *o.PawnSnapshot, id *c.Identity, requested map[string]bool, combat, work, care, schedule, social bool) error {
 	if v == nil {
 		return contract("pawn snapshot missing")
 	}
@@ -116,8 +116,13 @@ func pawnsSnapshotSelected(v *o.PawnSnapshot, id *c.Identity, requested map[stri
 		if err := pawnsEntity(row.Pawn, v.Context); err != nil {
 			return err
 		}
-		if !work && row.Needs != nil || !combat && (row.Health != nil || row.Equipment != nil || row.Biography != nil || row.AnimalState != nil) || !work && !care && !schedule && row.Settings != nil || row.Social != nil {
+		if !work && row.Needs != nil || !combat && (row.Health != nil || row.Equipment != nil || row.Biography != nil || row.AnimalState != nil) || !work && !care && !schedule && row.Settings != nil || !social && row.Social != nil {
 			return contract("unrequested pawn detail")
+		}
+		if row.Social != nil {
+			if err := pawnsSocial(row.Social); err != nil {
+				return err
+			}
 		}
 		if combat {
 			if err := combatDetails(row, v.Context); err != nil {
@@ -237,6 +242,32 @@ func pawnsRef(v *o.SnapshotRef, id string, ctx *c.ObservationContext) error {
 	}
 	return validID(v.GetToken())
 }
+// pawnsSocial bounds the thought rows the routine mood census reads: each
+// grouped row names a def with finite offsets (one def can appear on several
+// rows, since native groups social memories by the other pawn too);
+// relations are only bounded here.
+func pawnsSocial(v *o.PawnSocial) error {
+	if len(v.Relations) > 256 {
+		return contract("pawn relations exceed bound")
+	}
+	for _, rows := range [][]*o.Thought{v.Memories, v.Situational} {
+		if len(rows) > 256 {
+			return contract("pawn thoughts exceed bound")
+		}
+		for _, t := range rows {
+			if t == nil || validID(t.GetDefName()) != nil || !presentationText(t.Label, 4096) {
+				return contract("invalid pawn thought")
+			}
+			for _, value := range []*float64{t.MoodOffsetEach, t.MoodOffsetTotal} {
+				if value != nil && (math.IsNaN(*value) || math.IsInf(*value, 0)) {
+					return contract("invalid thought offset")
+				}
+			}
+		}
+	}
+	return pawnsIssues(v.Issues, v.ProtoReflect())
+}
+
 func pawnsIssues(issues []*o.ReadIssue, message protoreflect.Message) error {
 	if len(issues) > 256 {
 		return contract("too many pawn issues")
