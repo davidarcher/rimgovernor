@@ -100,16 +100,16 @@ func (r planRun) validate() error {
 	if r.Version != 1 || !planOID.MatchString(r.Head) || !planOID.MatchString(r.Base) || !planOID.MatchString(r.Workflow) || r.Base == strings.Repeat("0", 40) || r.Head == strings.Repeat("0", 40) || r.Workflow == strings.Repeat("0", 40) {
 		return fmt.Errorf("run requires schema_version 1 and nonzero full commit identities")
 	}
-	if r.Tier != "land" && r.Tier != "smoke" {
+	if r.Tier != "land" && r.Tier != "smoke" && r.Tier != "full" {
 		return fmt.Errorf("unsupported remote tier %q", r.Tier)
 	}
 	if r.Tier == "land" && r.Base == r.Head {
 		return fmt.Errorf("land requires distinct base and tested commits")
 	}
-	if r.Trigger.Event != "workflow_dispatch" && r.Trigger.Event != "push" {
+	if r.Trigger.Event != "workflow_dispatch" && r.Trigger.Event != "push" && r.Trigger.Event != "schedule" {
 		return fmt.Errorf("unsupported trigger %q", r.Trigger.Event)
 	}
-	if r.Trigger.Event == "push" && r.Trigger.Ref != "refs/heads/main" {
+	if (r.Trigger.Event == "push" || r.Trigger.Event == "schedule") && r.Trigger.Ref != "refs/heads/main" {
 		return fmt.Errorf("push planning requires refs/heads/main")
 	}
 	if !planRepository.MatchString(r.Repository) || r.Trigger.Actor == "" || r.Trigger.Ref == "" || r.Trigger.ID < 1 || r.Trigger.Attempt < 1 || r.ID != fmt.Sprintf("gh:%s:%d:%d", r.Repository, r.Trigger.ID, r.Trigger.Attempt) {
@@ -271,6 +271,13 @@ func buildSelection(r planRun, ref planReference, files []string, sel affected.S
 		return p, err
 	}
 	selected := smoke
+	if r.Tier == "full" {
+		full, e := tierCases("full", "", "")
+		if e != nil {
+			return p, e
+		}
+		selected = full.Cases
+	}
 	if r.Tier == "land" {
 		selected, err = landCases(all, sel)
 		if err != nil {
@@ -307,6 +314,9 @@ func buildSelection(r planRun, ref planReference, files []string, sel affected.S
 			}
 		}
 		area, _, _ := strings.Cut(c.Name, "/")
+		if r.Tier == "full" {
+			row.Reasons = append(row.Reasons, "full")
+		}
 		if r.Tier == "land" {
 			if slices.Contains(sel.Sampled, area) && !sel.AllHarnesses {
 				row.Reasons = append(row.Reasons, "sampled:"+area)

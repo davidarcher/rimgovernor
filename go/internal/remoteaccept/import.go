@@ -77,7 +77,7 @@ func Authenticate(api API, p Provenance) (string, error) {
 	if err := apiJSON(api, fmt.Sprintf("repos/%s/actions/runs/%d/attempts/%d", t.Repository, p.RunID, p.Attempt), &run); err != nil {
 		return "", err
 	}
-	if run.ID != p.RunID || run.Attempt != p.Attempt || run.Head != t.WorkflowCommit || run.Path != t.Workflow || run.Repository.FullName != t.Repository || run.HeadRepository.FullName != t.Repository || (run.Event != "push" && run.Event != "workflow_dispatch") || run.Status != "completed" {
+	if run.ID != p.RunID || run.Attempt != p.Attempt || run.Head != t.WorkflowCommit || run.Path != t.Workflow || run.Repository.FullName != t.Repository || run.HeadRepository.FullName != t.Repository || (run.Event != "push" && run.Event != "workflow_dispatch" && run.Event != "schedule") || run.Status != "completed" {
 		return "", fmt.Errorf("actions run is not the pinned completed same-repository workflow")
 	}
 	if run.Conclusion != "success" && run.Conclusion != "failure" {

@@ -24,7 +24,7 @@ may default an unknown verdict to success. #376 owns this shared vocabulary;
 | #377 bundle publisher, `bundle.json` | `schema_version`; `game` (exact `version`, `platform`, `core_only`); `components` (`name`, `version`, `path_prefix`, `sha256` of each packaged component's inventory); `origin` (`repository`, numeric `release_id`); `parts` (`asset_id`, `name`, integer `bytes`, `sha256`, in extraction order); `unpacked_bytes`; `inventory` reference; `encryption` (`format`, nonsecret `key_id`). Includes Core game, Harmony, bridge SDK/GABS and cached starts; no production mod/controller binaries from another revision. |
 | #377 bundle publisher, `inventory.json` | `schema_version`, `files`: exhaustive, path-sorted `{path, bytes, sha256}` of extracted regular files. Component inventory digest hashes the UTF-8 LF-terminated lines `path\tbytes\tsha256\n` for its files. Components have disjoint `path_prefix` roots covering the inventory. |
 | #382 dispatcher, `run.json` | `schema_version`, `run_id`, `repository`, `trigger`, `workflow_commit`, `tested_commit`, `base_commit`, `tier`, `bundle`, `limits`. `trigger` has `event`, `actor`, `published_ref`, integer `actions_run_id`, integer `actions_run_attempt`. The ref is provenance, never a checkout identity. |
-| #379 planner, `selection.json` | `schema_version`, `run` reference, `planner_commit` (equals tested commit), `diff_mode`, sorted unique `changed_files`, `cases` (`name`, nonempty `reasons` array), `sampled_areas`, `algorithm`, `shards` (`id`, ordered `cases` list). Reasons are `smoke`, `affected:<area>` or `sampled:<area>`. |
+| #379 planner, `selection.json` | `schema_version`, `run` reference, `planner_commit` (equals tested commit), `diff_mode`, sorted unique `changed_files`, `cases` (`name`, nonempty `reasons` array), `sampled_areas`, `algorithm`, `shards` (`id`, ordered `cases` list). Reasons are `smoke`, `affected:<area>`, `sampled:<area>` or `full` for the nightly full tier. |
 | #381 executor with #378 bootstrap, `attempts.json` | `schema_version`, `run` and `selection` references, `shard_id`, `runner`, `attempts`. `runner` records `os`, `image_version`, `arch`, `cpu_count`, `memory_bytes`, `free_disk_bytes`, `bootstrap` report reference. Each attempt has `case`, one-based `number`, `status`, `classification`, `retry_of` (null or previous number), UTC RFC3339 `started_at`/`finished_at`, `exit` (integer or null if never started), `error` (string or null), `evidence` reference. |
 | #380 aggregator/importer, `aggregate.json` | `schema_version`, `run` and `selection` references, `shards` (`id`, `status`, `attempts` reference or null), `status`, `passed`, `cases` (`name`, `shard_id`, `attempt_count`, `final_attempt`, `status`), `error` (string or null). |
 | #380 local importer, `result.json` | Existing suite envelope: `tier`, `passed`, `error`, `cases`; each row retains native suite fields, including `name`, `passed`, `exit`, metrics and provenance. Add `remote` containing `schema_version`, `aggregate` reference, `tested_commit`, `base_commit`, `bundle_sha256`. Preserve `resumed_from`, `staged_from`, `postmortem_only` when present; never erase them to pass the gate. |
@@ -55,7 +55,7 @@ keep their existing native formats.
 Agents commit locally and do not push or open PRs. The maintainer publishes the
 requested commit to a same-repository ref, then dispatches from the trusted
 default-branch workflow with explicit `tested_commit`, `base_commit`, `tier`
-(`smoke` or `land` initially), and pinned bundle reference. A maintainer may
+(`smoke`, `land` or `full`), and pinned bundle reference. A maintainer may
 explicitly authorize an agent to dispatch an already published commit; the issue
 alone does not authorize publication. The source repository is public (maintainer
 confirmation, 2026-09-19). Source upload, R2 and spot/self-hosted runners remain
@@ -70,7 +70,7 @@ Resolve and fetch these once; never replace them with the branch's current tip.
 Deletion, zero/missing base, unavailable history and non-ancestor force-push
 bases fail planning with an explicit reason. A maintainer can dispatch again
 with a valid ancestor; there is no silent smoke fallback. Reject equal base/head
-for land. Smoke may compare equal commits because it is explicitly smoke.
+for land. Smoke and scheduled full may compare equal commits because neither selects by the diff. Schedule runs pin the default-branch event SHA as both base and head; full selects every non-matrix registry case and refuses unsupported capabilities without reducing coverage.
 
 #379 selects from the clean detached tested checkout using the explicit ancestor
 base (`diff_mode: "ancestor-tree"`), including additions, deletions and both

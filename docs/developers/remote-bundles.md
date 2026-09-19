@@ -100,9 +100,9 @@ never return to the shared encrypted dependency cache.
 The workflow owner supplies `scripts/bootstrap_remote.ps1` and its authorization
 and tool lock from the **trusted workflow revision**, before running selected
 source. Authorization is a JSON object with `repository`, `tested_commit`,
-`workflow_commit` (full 40-hex revisions) and `event` (`workflow_dispatch` or
+`workflow_commit` (full 40-hex revisions) and `event` (`workflow_dispatch`, `schedule` or
 `push`). Manual dispatch means the maintainer reviewed the exact tested commit;
-push requires protected `refs/heads/main`. The script and Go bootstrap verify
+push and schedule require protected `refs/heads/main`. The script and Go bootstrap verify
 these against the checkout and GitHub environment before cache access. This
 check is a guard, not a substitute for trusted workflow placement or review.
 

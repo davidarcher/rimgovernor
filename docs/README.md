@@ -21,6 +21,7 @@ its contracts and run the relevant checks.
   [wire contracts](../contracts/README.md)
 - [Remote acceptance contract](developers/contracts/remote-acceptance.md), example manifests and
   [evidence aggregation/import](developers/testing/remote-evidence.md)
+- [Remote Windows workflow](developers/testing/remote-workflow.md), activation and artifact diagnostics
 - [Encrypted bundles and Windows bootstrap](developers/remote-bundles.md)
 - [Generated wire contracts](../contracts/schema-generation.md)
 - [Choose tests](developers/testing/choose-tests.md) and

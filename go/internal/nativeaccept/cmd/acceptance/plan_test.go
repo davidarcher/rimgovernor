@@ -172,6 +172,25 @@ func TestRemotePlanRejectsUnsupportedSelectionAndBudgets(t *testing.T) {
 	}
 }
 
+func TestNightlyFullNeverDropsUnsupportedCases(t *testing.T) {
+	r := examplePlanRun(t)
+	r.Tier, r.Trigger.Event, r.Trigger.Ref = "full", "schedule", "refs/heads/main"
+	r.Base = r.Head
+	r.Limits.Shards, r.Limits.Attempts = 32, 1
+	if err := r.validate(); err != nil {
+		t.Fatal(err)
+	}
+	// Full includes the rendered video family. V1 must reject the whole plan,
+	// never relabel a headless subset as a successful nightly full run.
+	if _, err := buildSelection(r, planReference{}, nil, affected.Selection{}); err == nil || !strings.Contains(err.Error(), "unsupported rendered") {
+		t.Fatal(err)
+	}
+	r.Trigger.Ref = "refs/heads/topic"
+	if err := r.validate(); err == nil {
+		t.Fatal("scheduled topic branch accepted")
+	}
+}
+
 func TestRemotePlanRejectsMalformedRun(t *testing.T) {
 	r := examplePlanRun(t)
 	for _, mutate := range []func(*planRun){

@@ -1,0 +1,244 @@
+name: Remote acceptance
+
+on:
+  workflow_dispatch:
+    inputs:
+      tested_commit:
+        description: Full same-repository commit reviewed by the maintainer
+        required: true
+        type: string
+      base_commit:
+        description: Full ancestor commit used for selection
+        required: true
+        type: string
+      tier:
+        type: choice
+        options: [smoke, land, full]
+        default: smoke
+      shards:
+        description: Nonempty shards, 1 through 32 (at most four active)
+        type: number
+        default: 2
+      reviewed_commit:
+        description: I reviewed and trust the exact tested commit to access licensed game inputs
+        required: true
+        type: boolean
+        default: false
+  push:
+    branches: [main]
+  schedule:
+    - cron: '23 7 * * *'
+
+permissions:
+  contents: read
+
+# Keep active landing evidence and queue pending runs instead of replacing it.
+concurrency:
+  group: remote-acceptance
+  cancel-in-progress: false
+  queue: max
+
+defaults:
+  run:
+    shell: pwsh
+
+env:
+  REMOTE_ACCEPTANCE_ENABLED: ${{ vars.REMOTE_ACCEPTANCE_ENABLED }}
+  REMOTE_ACCEPTANCE_MAINTAINERS: ${{ vars.REMOTE_ACCEPTANCE_MAINTAINERS }}
+  REMOTE_BUNDLE_ASSET: ${{ vars.REMOTE_BUNDLE_ASSET }}
+  REMOTE_INVENTORY_ASSET: ${{ vars.REMOTE_INVENTORY_ASSET }}
+  REMOTE_BUNDLE_SHA256: ${{ vars.REMOTE_BUNDLE_SHA256 }}
+  GOTOOLCHAIN: local
+  GOWORK: 'off'
+  CGO_ENABLED: '0'
+
+jobs:
+  plan:
+    if: github.repository == 'davidarcher/rimgovernor' && github.ref == 'refs/heads/main'
+    runs-on: windows-2022
+    timeout-minutes: 10
+    environment: remote-acceptance
+    outputs:
+      head: ${{ steps.gate.outputs.head }}
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: trusted
+          persist-credentials: false
+      - name: Authorize before selected code, bundle cache or identity access
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./trusted/scripts/remote_workflow.ps1 -Phase gate
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ steps.gate.outputs.head }}
+          path: tested
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version-file: trusted/go/.go-version
+          cache: false
+      - name: Plan complete selection from detached tested source
+        id: plan
+        run: ./trusted/scripts/remote_workflow.ps1 -Phase plan
+      - name: Upload immutable plan inputs
+        if: always() && steps.gate.outcome == 'success'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: acceptance-${{ github.run_id }}-${{ github.run_attempt }}-plan
+          path: C:\rg\evidence
+          if-no-files-found: error
+          retention-days: 7
+
+  shard:
+    needs: plan
+    name: acceptance-${{ matrix.shard }}
+    runs-on: windows-2022
+    timeout-minutes: 60
+    environment: remote-acceptance
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: trusted
+          persist-credentials: false
+      - name: Recheck authorization before cache and secrets
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./trusted/scripts/remote_workflow.ps1 -Phase authorize
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: acceptance-${{ github.run_id }}-${{ github.run_attempt }}-plan
+          path: C:\rg\evidence
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ needs.plan.outputs.head }}
+          path: tested
+          persist-credentials: false
+      - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version-file: trusted/go/.go-version
+          cache: false
+      - name: Compile trusted public-evidence exporter
+        working-directory: trusted/go
+        run: |
+          go build -o C:\rg\remoteaccept.exe ./cmd/remoteaccept
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        id: cache
+        with:
+          path: C:\rg\ciphertext\rimgovernor-bundle-v1-windows-x64-${{ vars.REMOTE_BUNDLE_SHA256 }}
+          key: rimgovernor-bundle-v1-windows-x64-${{ vars.REMOTE_BUNDLE_SHA256 }}
+      - name: Bootstrap private layouts and run exact shard cases
+        id: run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REMOTE_BUNDLE_IDENTITY: ${{ secrets.REMOTE_BUNDLE_IDENTITY }}
+          SHARD: ${{ matrix.shard }}
+        run: ./trusted/scripts/remote_workflow.ps1 -Phase execute -Shard $env:SHARD
+      - uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        if: success() && steps.cache.outputs.cache-hit != 'true'
+        with:
+          path: C:\rg\ciphertext\rimgovernor-bundle-v1-windows-x64-${{ vars.REMOTE_BUNDLE_SHA256 }}
+          key: rimgovernor-bundle-v1-windows-x64-${{ vars.REMOTE_BUNDLE_SHA256 }}
+      - name: Stop this job's processes and remove identity
+        if: always() && steps.gate.outcome == 'success'
+        run: |
+          foreach ($role in @('fixture','production')) {
+            ./trusted/scripts/cleanup_remote.ps1 -Work "C:\rg\$role"
+          }
+          if (Test-Path C:\rg\identity.txt) { Remove-Item -LiteralPath C:\rg\identity.txt }
+      - name: Export allowlisted diagnostics even after native failure
+        if: always() && steps.gate.outcome == 'success'
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: |
+          New-Item -ItemType Directory -Force "C:\rg\evidence\$env:SHARD" | Out-Null
+          $code = 1
+          try {
+            if (Test-Path C:\rg\export-jobs.json) {
+              & C:\rg\remoteaccept.exe export -root C:\rg\evidence -shard $env:SHARD -jobs C:\rg\export-jobs.json
+              $code = $LASTEXITCODE
+            }
+          } finally {
+            if ($code) { '{"passed":false,"error":"Shard export incomplete; inspect Actions job logs"}' | Set-Content "C:\rg\evidence\$env:SHARD\incomplete.json" }
+            New-Item -ItemType Directory -Force C:\rg\public | Out-Null
+            Copy-Item -LiteralPath "C:\rg\evidence\$env:SHARD" -Destination "C:\rg\public\$env:SHARD" -Recurse
+          }
+          exit $code
+      - name: Upload shard diagnostics
+        id: upload
+        if: always() && steps.gate.outcome == 'success'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: acceptance-${{ github.run_id }}-${{ github.run_attempt }}-shard-${{ matrix.shard }}
+          path: C:\rg\public
+          if-no-files-found: error
+          retention-days: 7
+      - name: Link shard evidence
+        if: always()
+        env:
+          ARTIFACT_URL: ${{ steps.upload.outputs.artifact-url }}
+        run: '"Shard diagnostics: $env:ARTIFACT_URL" >> $env:GITHUB_STEP_SUMMARY'
+
+  verdict:
+    needs: [plan, shard]
+    if: always() && needs.plan.outputs.head != ''
+    runs-on: windows-2022
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: trusted
+          persist-credentials: false
+      - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version-file: trusted/go/.go-version
+          cache: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: acceptance-${{ github.run_id }}-${{ github.run_attempt }}-*
+          path: C:\rg\evidence
+          merge-multiple: true
+      - name: Authenticate conclusions and collect all planned shards
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./trusted/scripts/remote_workflow.ps1 -Phase collect
+      - name: Compute complete native verdict
+        id: aggregate
+        working-directory: trusted/go
+        run: |
+          go run ./cmd/remoteaccept aggregate -root C:\rg\evidence -shards shards.json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Upload complete verdict and diagnostics
+        id: upload
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: acceptance-${{ github.run_id }}-${{ github.run_attempt }}-verdict
+          path: C:\rg\evidence
+          if-no-files-found: error
+          retention-days: 7
+      - name: Summarize verdict and source identity
+        if: always()
+        env:
+          ARTIFACT_URL: ${{ steps.upload.outputs.artifact-url }}
+          VERDICT: ${{ steps.aggregate.outcome }}
+          TESTED_COMMIT: ${{ needs.plan.outputs.head }}
+        run: |
+          "Remote acceptance: $env:VERDICT" >> $env:GITHUB_STEP_SUMMARY
+          "Tested commit: $env:TESTED_COMMIT" >> $env:GITHUB_STEP_SUMMARY
+          "[Verdict and all available diagnostics]($env:ARTIFACT_URL)" >> $env:GITHUB_STEP_SUMMARY

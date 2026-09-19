@@ -29,6 +29,8 @@ func run(args []string) error {
 	id := f.Int64("artifact", 0, "GitHub artifact ID")
 	runID := f.Int64("run", 0, "GitHub Actions run ID")
 	attempt := f.Int("attempt", 1, "GitHub Actions run attempt")
+	shard := f.String("shard", "", "planned shard ID for export")
+	jobsFile := f.String("jobs", "", "JSON array of role/output/bootstrap paths for export")
 	if err := f.Parse(args[1:]); err != nil {
 		return err
 	}
@@ -36,6 +38,16 @@ func run(args []string) error {
 		return fmt.Errorf("unexpected arguments")
 	}
 	switch args[0] {
+	case "export":
+		b, err := os.ReadFile(*jobsFile)
+		if err != nil {
+			return err
+		}
+		var jobs []remoteaccept.ExportJob
+		if err = remoteaccept.Decode(b, &jobs); err != nil {
+			return err
+		}
+		return remoteaccept.ExportShard(*root, *shard, jobs, []string{os.Getenv("GH_TOKEN"), os.Getenv("GITHUB_TOKEN")})
 	case "aggregate":
 		if *root == "" {
 			return fmt.Errorf("-root is required")

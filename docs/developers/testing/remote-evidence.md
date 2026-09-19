@@ -73,7 +73,7 @@ go run ./cmd/remoteaccept import -repo .. -run <actions-run-id> -attempt 1 -arti
 go run ./cmd/land -results <new-directory>/evidence
 ```
 
-The workflow path is a placeholder until #382 installs it. GitHub CLI must be
+Use workflow path `.github/workflows/remote-acceptance.yml`; see [activation and diagnostics](remote-workflow.md). GitHub CLI must be
 authenticated and the tested/base Git objects must already exist locally.
 The importer verifies same-repository Actions metadata, exact workflow revision,
 run attempt, artifact identity and the GitHub artifact digest before extraction.

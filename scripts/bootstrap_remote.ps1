@@ -30,9 +30,9 @@ if ($LASTEXITCODE -or $taskTrust.repository -cne $env:GITHUB_REPOSITORY -or
     $taskTrust.tested_commit -cne $taskHead -or
     $taskTrust.workflow_commit -cne $env:GITHUB_WORKFLOW_SHA -or
     $taskTrust.event -cne $env:GITHUB_EVENT_NAME -or
-    $taskTrust.event -notin @('push', 'workflow_dispatch') -or
+    $taskTrust.event -notin @('push', 'workflow_dispatch', 'schedule') -or
     $taskHead -cnotmatch '^[0-9a-f]{40}$') { throw 'Runner trust/provenance mismatch' }
-if ($taskTrust.event -eq 'push' -and
+if ($taskTrust.event -in @('push', 'schedule') -and
     ($env:GITHUB_REF -cne 'refs/heads/main' -or $env:GITHUB_REF_PROTECTED -cne 'true')) {
     throw 'Only protected main pushes may bootstrap'
 }

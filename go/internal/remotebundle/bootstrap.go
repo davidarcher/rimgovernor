@@ -24,7 +24,7 @@ type Trust struct {
 
 func (t Trust) Validate(repository, head, event, workflow string) error {
 	sha := regexp.MustCompile(`^[0-9a-f]{40}$`)
-	if !repositoryPattern.MatchString(t.Repository) || !sha.MatchString(t.TestedCommit) || !sha.MatchString(t.WorkflowCommit) || t.Repository != repository || t.TestedCommit != head || t.WorkflowCommit != workflow || t.Event != event || (event != "workflow_dispatch" && event != "push") {
+	if !repositoryPattern.MatchString(t.Repository) || !sha.MatchString(t.TestedCommit) || !sha.MatchString(t.WorkflowCommit) || t.Repository != repository || t.TestedCommit != head || t.WorkflowCommit != workflow || t.Event != event || (event != "workflow_dispatch" && event != "push" && event != "schedule") {
 		return fmt.Errorf("bootstrap trust mismatch: require same repository, reviewed exact commit, trusted workflow commit and push/dispatch event")
 	}
 	return nil
@@ -39,7 +39,7 @@ func CheckTrust(ctx context.Context, repo string, t Trust) error {
 	if err := t.Validate(os.Getenv("GITHUB_REPOSITORY"), strings.TrimSpace(string(b)), os.Getenv("GITHUB_EVENT_NAME"), os.Getenv("GITHUB_WORKFLOW_SHA")); err != nil {
 		return err
 	}
-	if t.Event == "push" && (os.Getenv("GITHUB_REF") != "refs/heads/main" || os.Getenv("GITHUB_REF_PROTECTED") != "true") {
+	if (t.Event == "push" || t.Event == "schedule") && (os.Getenv("GITHUB_REF") != "refs/heads/main" || os.Getenv("GITHUB_REF_PROTECTED") != "true") {
 		return fmt.Errorf("push bootstrap requires protected main")
 	}
 	c = exec.CommandContext(ctx, "git", "-C", repo, "status", "--porcelain", "--untracked-files=no")
