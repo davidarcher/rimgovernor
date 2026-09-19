@@ -15,7 +15,7 @@ func stableRoutine() RoutineFacts {
 	return RoutineFacts{
 		ConstructionClaims: domain.Known([]ConstructionClaim{}), OwnedStockpiles: domain.Known([]OwnedStockpile{}),
 		SleepingRecovered:    domain.Known(true),
-		AnimalUpkeep:         AnimalUpkeepObservation{Animals: domain.Known([]UpkeepAnimal{})},
+		AnimalUpkeep:         AnimalUpkeepObservation{Animals: domain.Known([]UpkeepAnimal{}), WildAnimals: domain.Known([]UpkeepAnimal{})},
 		Prisoners:            domain.Known([]PrisonerFacts{}),
 		Waste:                domain.Known([]WasteItem{}),
 		Blight:               domain.Known([]BlightedPlant{}),

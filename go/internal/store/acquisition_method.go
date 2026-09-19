@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"strings"
 )
 
 // acquisitionOpenWorkExempt lets a purely-acquisition method be committed
@@ -23,18 +24,26 @@ func acquisitionOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal GoalState, 
 			return false, nil
 		}
 	}
+	pest := pestGoal(goal)
 	for _, m := range goal.Methods {
 		p, err := load(ctx, tx, m.Plan)
 		if err != nil {
 			return false, err
 		}
 		for _, progress := range p.Progress {
-			if !acquisitionIndependentWork(progress.Action()) && domain.GoalWorkOpen([]domain.Progress{progress}) {
+			if !acquisitionIndependentWork(progress.Action()) && !(pest && progress.Action().Kind() == domain.AcquisitionAction) && domain.GoalWorkOpen([]domain.Progress{progress}) {
 				return false, nil
 			}
 		}
 	}
 	return true, nil
+}
+
+// pestGoal reports the routine ClearPests goal (#247), whose hunts are
+// planned animal by animal: a hunt still awaiting its kill never blocks
+// the next animal's method. The routine goal id ends in its need.
+func pestGoal(goal GoalState) bool {
+	return goal.Goal.Source == domain.AutopilotGoal && strings.HasSuffix(string(goal.Goal.ID), "-"+string(policy.ClearPests))
 }
 
 // acquisitionIndependentWork reports the action kinds whose open progress does
@@ -64,7 +73,7 @@ func admitAcquisitionMethod(ctx context.Context, tx *sql.Tx, goal GoalState, pla
 	}
 	bound := false
 	for _, binding := range review.Goals {
-		bound = bound || (binding.Need == policy.MaintainWood || binding.Need == policy.EnsureFoodSupply || binding.Need == policy.MaintainMedicalReserves) && binding.Goal == goal.Goal.ID
+		bound = bound || (binding.Need == policy.MaintainWood || binding.Need == policy.EnsureFoodSupply || binding.Need == policy.MaintainMedicalReserves || binding.Need == policy.ClearPests) && binding.Goal == goal.Goal.ID
 	}
 	if !bound {
 		return ErrConflict

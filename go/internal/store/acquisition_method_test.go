@@ -120,3 +120,36 @@ func TestCommitAcquisitionMethodNotExemptFromNonBillOpenWork(t *testing.T) {
 		t.Fatal("open non-bill work did not block a second acquisition method")
 	}
 }
+
+// ClearPests is served through the same acquisition method as the food and
+// wood goals (#247): the store admits its hunt plans; every other autopilot
+// goal is still refused one.
+func TestCommitAcquisitionMethodAdmitsClearPests(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	s := open(t, memoryPath(t))
+	r := routineRequest()
+	r.Current.Native = 2
+	r.Facts.AnimalUpkeep.WildAnimals = domain.Known([]policy.UpkeepAnimal{{ID: "beaver", Definition: "Alphabeaver"}})
+	out := reviewRoutine(t, s, &r)
+	g := routineGoal(t, out, policy.ClearPests)
+	if g.Goal.Need != domain.NeedDeficit {
+		t.Fatal(g)
+	}
+	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "pest-hunt-1", acquisitionPlan(t, "routine-pest-hunt-1", "Corpse_Alphabeaver")); err != nil {
+		t.Fatal(err)
+	}
+	other := routineGoal(t, out, policy.EnsureInitialShelter)
+	if _, err := s.CommitGoalMethod(ctx, other.Goal.ID, other.Revision, "shelter-hunt", acquisitionPlan(t, "routine-shelter-hunt", "Corpse_Alphabeaver")); err == nil {
+		t.Fatal("a shelter goal admitted an acquisition method")
+	}
+	// The first hunt is open (pending) and the pack has another animal:
+	// its hunt is admitted beside the first, not behind it.
+	g, err := s.LoadGoal(ctx, g.Goal.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "pest-hunt-2", acquisitionPlan(t, "routine-pest-hunt-2", "Corpse_Alphabeaver")); err != nil {
+		t.Fatal(err)
+	}
+}

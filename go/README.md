@@ -245,6 +245,12 @@ Hunting follows plant food, allows at most two outstanding designations, and
 requires a native safe hunter route, an ordinary non-explosive ranged weapon and
 a usable butchering bill. Exact fresh corpses complete material acquisition;
 expected meat, pending hunts and fresh carcasses never become edible stock.
+The same family serves `ClearPests` (foothold priority 2, #247): a recognised pest
+(`policy.PestDefinition`, today `Alphabeaver`; native's `PestDefinitions` names the
+same) counted anywhere by the wild-animal census opens the goal, which hunts each
+pest through the hunt method (methods `pest-hunt-*`, plans `routine-pest-hunt-*`,
+one hunt per pest within the two-hunt budget, no butcher bill or prey distance
+required, a hostile one left to the defense family) and recovers when none remain.
 
 `RankDevelopment` preserves accepted shared-action commitments while ranking new
 projects by deficit, player preference, native-tick age and selection hysteresis.

@@ -29,6 +29,7 @@ const (
 	MaintainRefrigeration   GoalID = "MaintainRefrigeration"
 	EnsureComfort           GoalID = "EnsureComfort"
 	EnsureBasicComfort      GoalID = "EnsureBasicComfort"
+	ClearPests              GoalID = "ClearPests"
 	EnsureExpansion         GoalID = "EnsureExpansion"
 	MaintainEquipment       GoalID = "MaintainEquipment"
 	EnsureResearch          GoalID = "EnsureResearch"
@@ -741,6 +742,19 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		r.Goals[len(r.Goals)-1].Deficit = basicComfort.Deficit()
 		r.Goals[len(r.Goals)-1].MethodUnavailable = !positive(g.Shelter) || !positive(g.Sleeping)
 	}
+	// A recognised pest on the map (an alphabeaver pack eating the trees,
+	// #247) is a foothold deficit answered by hunting, priority 2: it is
+	// not an emergency (the census never holds the clock for a docile
+	// animal) but it outranks every ranked project while it lasts. Only a
+	// known census with a pest opens the goal: an unknown wild census
+	// (beyond the native bound) has nothing to hunt and must not hold the
+	// startup ladder for good.
+	pests := PestCensus(f.AnimalUpkeep.WildAnimals)
+	pestsClear := measured(pests, func(n int) bool { return n == 0 })
+	if n, known := pests.Value(); known && n > 0 {
+		addGoal(ClearPests, 2)
+		r.Goals[len(r.Goals)-1].Deficit = domain.Known(1.0)
+	}
 	if !positive(f.ComfortRecovered) {
 		addGoal(EnsureComfort, 4)
 		r.Goals[len(r.Goals)-1].Comfort = true
@@ -791,6 +805,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	addAssessment(MaintainWood, 3, latchRecovered(l.Wood, wood))
 	addAssessment(MaintainMedicalCare, 2, f.MedicalCareRecovered)
 	addAssessment(EnsureBasicComfort, 2, basicComfort.Recovered())
+	addAssessment(ClearPests, 2, pestsClear)
 	addAssessment(EnsureComfort, 4, f.ComfortRecovered)
 	addAssessment(EnsureExpansion, 4, expansion)
 	addAssessment(MaintainEquipment, 3, gear.Recovered)

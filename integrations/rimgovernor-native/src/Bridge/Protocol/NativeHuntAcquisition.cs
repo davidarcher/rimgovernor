@@ -69,15 +69,55 @@ namespace HomeBridge.BridgeTools
         private static bool SafePrey(Pawn prey) => prey.Faction == null && prey.RaceProps.Animal
             && !prey.RaceProps.predator && prey.RaceProps.manhunterOnDamageChance == 0 && !prey.InMentalState
             && prey.RaceProps.meatDef?.IsNutritionGivingIngestible == true && prey.RaceProps.corpseDef != null;
+        // PestDefinitions are the wild animals hunted for what they destroy,
+        // not for meat (#247): an alphabeaver pack defoliates the map and
+        // no census otherwise answers it (wild, factionless, not hostile,
+        // not a predator). Go recognises the same names in the wild-animal
+        // census (policy.PestDefinition), so the two lists move together.
+        internal static readonly HashSet<string> PestDefinitions = new HashSet<string>(StringComparer.Ordinal) { "Alphabeaver" };
+        // Pest is the pest rule: a wild, living, undowned animal of a pest
+        // definition. It waives the docility (manhunterOnDamageChance) and
+        // butcher-bill rules of SafePrey: the point is the kill, and the
+        // pack turning manhunter on a hit is the emergency census's threat
+        // to answer, not a reason to leave the trees to them.
+        internal static bool Pest(Pawn prey) => prey.Faction == null && prey.RaceProps.Animal && !prey.InMentalState
+            && prey.RaceProps.corpseDef != null && PestDefinitions.Contains(prey.def.defName);
         // Hunter is the colonist rule: hunting enabled, an ordinary bullet
-        // weapon, within 100 cells over a safe route.
+        // weapon, within 100 cells over a safe route. A pest is hunted
+        // wherever it is on the map (the pack arrives at the edge and
+        // works inward); the route still has to be safe.
         private static bool Hunter(Pawn p, Pawn prey) => !p.Downed && !p.Drafted && !p.InMentalState
             && p.workSettings?.WorkIsActive(WorkTypeDefOf.Hunting) == true && OrdinaryWeapon(p)
-            && p.Position.DistanceToSquared(prey.Position) <= 10000 && HuntingSafety.RouteSafe(p, prey);
+            && (Pest(prey) || p.Position.DistanceToSquared(prey.Position) <= 10000) && HuntingSafety.RouteSafe(p, prey);
+        // Ineligible names the first hunt rule the prey (or every colonist
+        // against it) fails, null when the census would offer it: what the
+        // test fixtures report when a staged animal never becomes a row.
+        internal static string? Ineligible(Pawn prey)
+        {
+            if (!prey.Spawned) return "not spawned";
+            if (prey.Dead) return "dead";
+            if (prey.Downed) return "downed";
+            if (prey.Position.Fogged(prey.Map)) return "fogged";
+            if (!Pest(prey))
+            {
+                if (!SafePrey(prey)) return "not safe prey";
+                if (!ButcherReady(prey)) return "no butcher bill";
+            }
+            var colonists = prey.Map.mapPawns.FreeColonistsSpawned.ToList();
+            if (colonists.Count == 0) return "no colonist";
+            var reasons = colonists.Select(p =>
+                p.Downed ? "downed" : p.Drafted ? "drafted" : p.InMentalState ? "mental state"
+                : p.workSettings?.WorkIsActive(WorkTypeDefOf.Hunting) != true ? "hunting inactive"
+                : !OrdinaryWeapon(p) ? "no ordinary ranged weapon (" + (p.equipment?.Primary?.def.defName ?? "unarmed") + ")"
+                : !(Pest(prey) || p.Position.DistanceToSquared(prey.Position) <= 10000) ? "too far"
+                : !HuntingSafety.RouteSafe(p, prey) ? "no safe route" : (string?)null).ToList();
+            if (reasons.Any(r => r == null)) return null;
+            return "no hunter: " + string.Join("; ", colonists.Zip(reasons, (p, r) => p.GetUniqueLoadID() + " " + r));
+        }
         private static bool Eligible(Pawn prey)
         {
-            if (!prey.Spawned || prey.Dead || prey.Downed || !SafePrey(prey)
-                || prey.Position.Fogged(prey.Map) || !ButcherReady(prey)) return false;
+            if (!prey.Spawned || prey.Dead || prey.Downed || prey.Position.Fogged(prey.Map)) return false;
+            if (!Pest(prey) && (!SafePrey(prey) || !ButcherReady(prey))) return false;
             return prey.Map.mapPawns.FreeColonistsSpawned.Any(p => Hunter(p, prey));
         }
         private static double Nutrition(Pawn prey) => Math.Max(0, prey.GetStatValue(StatDefOf.MeatAmount)) * prey.RaceProps.meatDef.GetStatValueAbstract(StatDefOf.Nutrition);
@@ -88,14 +128,19 @@ namespace HomeBridge.BridgeTools
         internal static void Read(Obs.ColonyFactsSnapshot result, Map map, IntVec3 center, int limit)
         {
             result.PendingHunts = (uint)Pending(map);
-            var candidates = map.mapPawns.AllPawnsSpawned.Where(p => p.Position.DistanceTo(center) <= 50 && Eligible(p))
+            // Food prey within 50 cells of the colony, then every pest on
+            // the map: a pest row is a hunt of one unit of nothing edible
+            // (food false, no nutrition), so the food and wood selections
+            // pass it over and only the pest goal takes it.
+            var candidates = map.mapPawns.AllPawnsSpawned.Where(p => !Pest(p) && p.Position.DistanceTo(center) <= 50 && Eligible(p))
                 .OrderByDescending(p => p.BodySize / (1 + p.Position.DistanceTo(center) / 25)).ThenBy(p => p.thingIDNumber)
+                .Concat(map.mapPawns.AllPawnsSpawned.Where(p => Pest(p) && Eligible(p)).OrderBy(p => p.Position.DistanceToSquared(center)).ThenBy(p => p.thingIDNumber))
                 .Take(Math.Max(0, limit - result.Acquisition.Count));
             foreach (var prey in candidates) result.Acquisition.Add(new Obs.AcquisitionFacts {
                 Source = new Obs.EntityRef { Id = prey.GetUniqueLoadID(), DefName = prey.def.defName, MapId = map.uniqueID,
                     Position = new Common.Cell { X = prey.Position.x, Z = prey.Position.z }, Snapshot = Snapshot(prey, result.Context) },
-                Resource = prey.RaceProps.corpseDef.defName, Tree = false, Food = true, Hunt = true,
-                Yield = 1, NutritionYield = Nutrition(prey), Designated = Designated(prey) });
+                Resource = prey.RaceProps.corpseDef.defName, Tree = false, Food = !Pest(prey), Hunt = true,
+                Yield = 1, NutritionYield = Pest(prey) ? 0 : Nutrition(prey), Designated = Designated(prey) });
             result.PendingFoodNutrition += map.listerThings.AllThings.OfType<Corpse>().Where(c => c.GetRotStage() == RotStage.Fresh
                 && c.InnerPawn.RaceProps.Animal && c.InnerPawn.RaceProps.meatDef?.IsNutritionGivingIngestible == true).Sum(c => Nutrition(c.InnerPawn));
             result.PendingFoodNutrition += map.mapPawns.AllPawnsSpawned.Where(p => Designated(p) && p.RaceProps.meatDef != null).Sum(Nutrition);
@@ -106,7 +151,7 @@ namespace HomeBridge.BridgeTools
         // and designation rules, one rule at a time.
         private static bool Prepare(Operations.AcquireResource command, Common.ObservationContext context, out Pawn? prey, out Common.Failure failure)
         {
-            prey = null; failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Hunting requires an exact safe prey snapshot, enabled hunter, butcher bill and fewer than two outstanding hunts.");
+            prey = null; failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Hunting requires an exact safe prey (or pest) snapshot, enabled hunter, butcher bill (food prey) and fewer than two outstanding hunts.");
             if (!NativePlantAcquisition.Valid(command)) return false;
             var map = ProtoBoundary.LoadedMap(context);
             var found = map.mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Source.EntityId);
@@ -115,13 +160,13 @@ namespace HomeBridge.BridgeTools
                 .Require(() => !map.AllCells.Any(c => map.roofCollapseBuffer.IsMarkedToCollapse(c)), "a roof collapse is pending on this map")
                 .Present(() => found != null && found.Spawned, "the exact animal is no longer spawned on this map")
                 .Require(() => !found!.Dead && !found.Downed, "the animal is dead or downed")
-                .Require(() => SafePrey(found!), "the animal is not safe wild prey")
+                .Require(() => Pest(found!) || SafePrey(found!), "the animal is neither safe wild prey nor a recognised pest")
                 .Require(() => found!.Position.x == command.Cell.X && found.Position.z == command.Cell.Z, "the animal is not at the expected cell")
                 .Require(() => found!.RaceProps.corpseDef.defName == command.ResourceDefName, "the animal's corpse is not the expected resource")
                 .Require(() => !found!.Position.Fogged(map), "the animal's cell is fogged")
                 .Require(() => !Designated(found!), "the animal is already designated for hunting")
                 .Require(() => new Designator_Hunt().CanDesignateThing(found!).Accepted, "the native hunt designator refuses the animal")
-                .Require(() => ButcherReady(found!), "no usable butcher bill with an assigned cook accepts the corpse")
+                .Require(() => Pest(found!) || ButcherReady(found!), "no usable butcher bill with an assigned cook accepts the corpse")
                 .Require(() => map.mapPawns.FreeColonistsSpawned.Any(p => Hunter(p, found!)), "no free colonist with hunting enabled and an ordinary ranged weapon has a safe route to the animal")
                 .Token(NativeDraftProtocol.TokenSent(command.Source), () => Snapshot(found!, context).Token == command.Source.ExpectedSnapshotToken, "the animal snapshot changed since it was read");
             if (!rules.Holds) { failure = rules.Failure(); return false; }

@@ -59,6 +59,7 @@ type ClockSchedulerConfig struct {
 	// Routine is reviewed only after owned clock obligations have drained.
 	Routine                          *RoutineReviewer
 	FoodAcquisition, WoodAcquisition *RoutineAcquisitionPlanner
+	PestAcquisition                  *RoutineAcquisitionPlanner
 	Work                             *RoutineWorkPlanner
 	Supplies                         *RoutineSupplyPlanner
 	Blight                           *RoutineBlightPlanner
@@ -121,6 +122,7 @@ type ClockSchedulerResult struct {
 	Window                           ClockWindowSize
 	Routine                          *store.RoutineReviewResult
 	FoodAcquisition, WoodAcquisition *RoutineAcquisitionResult
+	PestAcquisition                  *RoutineAcquisitionResult
 	Work                             *RoutineWorkResult
 	Supplies                         *RoutineSupplyResult
 	Blight                           *RoutineBlightResult
@@ -276,7 +278,7 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	if config.FoodStorage != nil && (config.Routine == nil || config.FoodStorage.reviewer != config.Routine) {
 		return nil, ErrControl
 	}
-	for _, planner := range []*RoutineAcquisitionPlanner{config.FoodAcquisition, config.WoodAcquisition} {
+	for _, planner := range []*RoutineAcquisitionPlanner{config.FoodAcquisition, config.WoodAcquisition, config.PestAcquisition} {
 		if planner != nil && (config.Routine == nil || planner.reviewer != config.Routine) {
 			return nil, ErrControl
 		}

@@ -8,8 +8,12 @@ import (
 )
 
 // AcquisitionSource is an observed native-approved source, not inventory.
+// Definition is the source's own native definition name (the plant or the
+// animal, not the harvested resource); a hunt row of a recognised pest
+// definition (PestDefinition) is a pest hunt: food false, no nutrition.
 type AcquisitionSource struct {
 	ID, Resource, Token          string
+	Definition                   string
 	Cell                         domain.Cell
 	Tree, Food, Designated, Hunt bool
 	Yield, NutritionYield        float64
@@ -61,7 +65,7 @@ func selectAcquisition(sources domain.Fact[[]AcquisitionSource], deficit, pendin
 	}
 	seen := map[string]bool{}
 	for _, row := range rows {
-		if !foodID(row.ID) || !foodID(row.Resource) || !foodID(row.Token) || seen[row.ID] || row.Cell.X < 0 || row.Cell.Z < 0 || !foodNumber(row.Yield) || row.Yield <= 0 || !foodNumber(row.NutritionYield) || !row.Food && row.NutritionYield != 0 || row.Hunt && (row.Tree || !row.Food || row.Yield != 1) {
+		if !foodID(row.ID) || !foodID(row.Resource) || !foodID(row.Token) || seen[row.ID] || row.Cell.X < 0 || row.Cell.Z < 0 || !foodNumber(row.Yield) || row.Yield <= 0 || !foodNumber(row.NutritionYield) || !row.Food && row.NutritionYield != 0 || row.Hunt && (row.Tree || row.Yield != 1 || !row.Food && !PestDefinition(Resource(row.Definition))) {
 			return nil, errors.New("invalid acquisition source")
 		}
 		seen[row.ID] = true

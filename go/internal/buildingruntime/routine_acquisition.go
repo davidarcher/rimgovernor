@@ -13,17 +13,35 @@ import (
 type RoutineAcquisitionPlanner struct {
 	reviewer *RoutineReviewer
 	need     policy.GoalID
+	// strayed is the tick each unissued pest hunt was first seen planned at
+	// a cell its animal had left (ClearPests only): the hunt is cancelled
+	// once it has strayed for pestStrayGraceTicks. In memory only: a
+	// restart starts the grace again.
+	strayed map[domain.ActionID]domain.Tick
 }
+
+// pestStrayGraceTicks is how long an unissued pest hunt may sit planned at
+// a cell its animal wandered off before it is cancelled and re-planned
+// where the pack is now. A beaver stops to chew a tree for a good while, so
+// the exact-cell dispatch usually catches it within the hour; cancelling on
+// the first move re-planned every step and never caught one (run 6 of
+// #247).
+const pestStrayGraceTicks = 2500
+
 type RoutineAcquisitionResult struct {
 	Reason RoutineBuildingReason
 	Plan   domain.PlanID
 }
 
+// NewRoutineAcquisitionPlanner plans one acquisition goal: EnsureFoodSupply
+// and MaintainWood harvest and hunt toward a stock target; ClearPests
+// (#247) hunts every recognised pest the wild-animal census reports, one
+// hunt method per admission, until none remain.
 func NewRoutineAcquisitionPlanner(reviewer *RoutineReviewer, need policy.GoalID) (*RoutineAcquisitionPlanner, error) {
-	if reviewer == nil || (need != policy.MaintainWood && need != policy.EnsureFoodSupply) {
+	if reviewer == nil || (need != policy.MaintainWood && need != policy.EnsureFoodSupply && need != policy.ClearPests) {
 		return nil, ErrControl
 	}
-	return &RoutineAcquisitionPlanner{reviewer, need}, nil
+	return &RoutineAcquisitionPlanner{reviewer: reviewer, need: need, strayed: map[domain.ActionID]domain.Tick{}}, nil
 }
 func (r *RoutineAcquisitionPlanner) Step(ctx context.Context) (RoutineAcquisitionResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
@@ -104,12 +122,43 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 			}
 		}
 	}
+	pest := r.need == policy.ClearPests
+	pests := policy.PestCensus(projection.Facts.AnimalUpkeep.WildAnimals)
 	reloadPlans := false
+	// Every strayed hunt seen this step, across the goal's plans: the
+	// grace clock of any other is stale and forgotten below.
+	stale := map[domain.ActionID]bool{}
 	stalledSources := map[string]bool{}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
 		if err != nil {
 			return RoutineAcquisitionResult{}, err
+		}
+		if pest {
+			// A pest hunt planned at one cell is inspected against the
+			// census at that cell before dispatch; an animal that died to
+			// the defense or left the map leaves the action held forever
+			// and the goal behind it, so it is cancelled at once. One that
+			// merely wandered off is given pestStrayGraceTicks to stop
+			// again at its planned cell before the hunt is re-planned
+			// where the pack is now.
+			gone, strayed := movedPestHunts(plan.Progress, projection.Acquisition, projection.Facts.AnimalUpkeep.WildAnimals)
+			for _, action := range strayed {
+				stale[action] = true
+				first, seen := r.strayed[action]
+				if !seen {
+					r.strayed[action] = expected.Tick
+				} else if expected.Tick-first >= pestStrayGraceTicks {
+					gone = append(gone, action)
+				}
+			}
+			for _, action := range gone {
+				if _, err = p.journal.Cancel(call, method.Plan, action); err != nil {
+					return RoutineAcquisitionResult{}, err
+				}
+				delete(r.strayed, action)
+				reloadPlans = true
+			}
 		}
 		for _, stalled := range stalledHuntActions(plan.Progress, huntSources, expected.Tick, r.reviewer.policy.HuntStallTicks) {
 			// HuntingSafety.RouteSafe (native) stays authoritative and is never
@@ -136,8 +185,19 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 		if err != nil {
 			return RoutineAcquisitionResult{}, err
 		}
-		if acquisitionBlockingWork(plan.Progress) {
+		// A stock goal works one plan at a time. ClearPests hunts every
+		// animal of the pack: a hunt already dispatched holds its own
+		// animal (held, below) and its designation counts against the
+		// two outstanding hunts (slots), but does not stop the next
+		// animal being planned. One hunt awaiting its kill blocked the
+		// other beaver for a day (run 9 of #247).
+		if !pest && acquisitionBlockingWork(plan.Progress) {
 			return RoutineAcquisitionResult{Reason: BuildingMethodExistingWork}, nil
+		}
+	}
+	for action := range r.strayed {
+		if !stale[action] {
+			delete(r.strayed, action)
 		}
 	}
 	if reloadPlans {
@@ -202,7 +262,12 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 	if n, known := projection.PendingHunts.Value(); known {
 		slots = domain.Known(max(0, 2-n))
 	}
-	selected, err := policy.SelectAcquisition(projection.Acquisition, deficit, pending, food, held, slots)
+	var selected []policy.AcquisitionSource
+	if pest {
+		selected, err = policy.SelectPestAcquisition(projection.Acquisition, pests, held, slots)
+	} else {
+		selected, err = policy.SelectAcquisition(projection.Acquisition, deficit, pending, food, held, slots)
+	}
 	if err != nil {
 		return RoutineAcquisitionResult{Reason: BuildingMethodUnknown}, nil
 	}
@@ -213,14 +278,23 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 	for _, row := range selected {
 		fmt.Fprintf(hash, "%s/%s/%s/%d/%d\n", row.ID, row.Resource, row.Token, row.Cell.X, row.Cell.Z)
 	}
-	method := domain.MethodID(fmt.Sprintf("acquire-%x", hash.Sum(nil)[:16]))
+	prefix, planPrefix := "acquire", "routine-acquire"
+	if pest {
+		// Every admission the goal ever made salts the pest method: a
+		// cancelled hunt of an animal that came back to the same cell in
+		// the same state rehashes to a fresh method instead of reading as
+		// already used (#214).
+		fmt.Fprintf(hash, "#%d\n", goal.Admitted)
+		prefix, planPrefix = "pest-hunt", "routine-pest-hunt"
+	}
+	method := domain.MethodID(fmt.Sprintf("%s-%x", prefix, hash.Sum(nil)[:16]))
 	if _, err = p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
 		return RoutineAcquisitionResult{Reason: BuildingMethodUsed}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineAcquisitionResult{}, err
 	}
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
-	id := domain.PlanID(fmt.Sprintf("routine-acquire-%x", digest[:16]))
+	id := domain.PlanID(fmt.Sprintf("%s-%x", planPrefix, digest[:16]))
 	var actions []domain.Action
 	for i, row := range selected {
 		value, err := domain.NewAcquisition(row.ID, row.Resource, row.Cell)
@@ -247,6 +321,45 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 		return RoutineAcquisitionResult{}, err
 	}
 	return RoutineAcquisitionResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+}
+
+// movedPestHunts sorts the unissued (pending or prepared) hunt actions of
+// a pest plan into gone, whose animal the wild-animal census no longer
+// lists (dead or off the map), and strayed, whose animal the acquisition
+// census now reports at another cell. Both censuses have to be known: an
+// unknown census is not evidence the pack moved. A pest that is merely
+// ineligible this step (no free hunter, downed) keeps its row absent from
+// the acquisition census but present in the wild census, and is neither.
+func movedPestHunts(progress []domain.Progress, sources domain.Fact[[]policy.AcquisitionSource], wild domain.Fact[[]policy.UpkeepAnimal]) (gone, strayed []domain.ActionID) {
+	rows, sk := sources.Value()
+	animals, wk := wild.Value()
+	if !sk || !wk {
+		return nil, nil
+	}
+	cells := map[string]domain.Cell{}
+	for _, row := range rows {
+		if row.Hunt {
+			cells[row.ID] = row.Cell
+		}
+	}
+	alive := map[string]bool{}
+	for _, animal := range animals {
+		alive[string(animal.ID)] = true
+	}
+	for _, p := range progress {
+		acquisition, ok := p.Action().Acquisition()
+		v := p.View()
+		if !ok || v.Stage != domain.Pending && v.Stage != domain.Prepared {
+			continue
+		}
+		cell, listed := cells[acquisition.Thing()]
+		if !alive[acquisition.Thing()] {
+			gone = append(gone, v.Action)
+		} else if listed && cell != acquisition.Cell() {
+			strayed = append(strayed, v.Action)
+		}
+	}
+	return gone, strayed
 }
 
 // A queued production bill may be waiting for ingredients acquired by this method.

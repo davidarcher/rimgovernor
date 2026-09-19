@@ -225,7 +225,7 @@ var routineNeeds = []string{
 	"ConfirmColonyNames", "AnswerDialog", "ActiveCombat", "CriticalMedical", "RestoreWorkers", "AllowStartingSupplies",
 	"EnsureWorkAssignments", "EnsureFoodSupply", "EnsureInitialShelter", "EnsureTemperatureSafety",
 	"EnsureCooking", "EnsureBasicPower", "EnsureFoodStorage", "EnsureBasicDefense", "MaintainWood",
-	"MaintainMedicalCare", "EnsureBasicComfort", "EnsureComfort", "EnsureExpansion", "MaintainEquipment",
+	"MaintainMedicalCare", "EnsureBasicComfort", "ClearPests", "EnsureComfort", "EnsureExpansion", "MaintainEquipment",
 	"MaintainFireSafety", "SecureSupplies", "MaintainEssentialRepairs", "MaintainCleanFacilities",
 	"MaintainMedicalReserves", "MaintainAnimalContainment", "MaintainAnimalFeed", "MaintainSleeping",
 	"MaintainHomeCoverage", "MaintainStoneShell",

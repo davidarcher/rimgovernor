@@ -87,6 +87,17 @@ var plannerCatalog = []plannerEntry{
 			out.FoodAcquisition = &method
 			return nil
 		}},
+	{name: "pestAcquisition", priority: plannerFoothold, kinds: []domain.ActionKind{domain.AcquisitionAction}, families: factsColony,
+		configured: func(c *ClockSchedulerConfig) bool { return c.PestAcquisition != nil },
+		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
+			method, err := s.config.PestAcquisition.step(ctx, epoch, arbiter)
+			if err != nil {
+				return err
+			}
+			clockSchedulerLog("PestAcquisition.step result: reason=%v plan=%s", method.Reason, method.Plan)
+			out.PestAcquisition = &method
+			return nil
+		}},
 	{name: "woodAcquisition", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.AcquisitionAction}, families: factsColony,
 		configured: func(c *ClockSchedulerConfig) bool { return c.WoodAcquisition != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {

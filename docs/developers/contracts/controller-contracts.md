@@ -439,6 +439,36 @@ Supervised play pauses when an active hunt loses that route. Future prey movemen
 and shooting positions remain uncertain; native external inputs are not atomic
 with controller checks.
 
+## Pest clearance
+
+A recognised pest (#247) is a wild animal hunted for what it destroys rather than
+for meat: the native pest list (`NativeHuntAcquisition.PestDefinitions`) and the
+controller's (`policy.PestDefinition`) name the same definitions, today only
+`Alphabeaver`. Alphabeavers arrive factionless and never hostile, so no emergency
+census answers them. `ClearPests` opens at foothold priority (2) with a deficit of
+one whenever the wild-animal census (known) counts a pest anywhere on the map, and
+recovers when it counts none; an unknown census neither opens nor recovers it. The
+hunt census offers every eligible pest on the map as a hunt row after the food
+prey (nearest the colony first): a hunt of one unit of the pest's corpse, `food`
+false and no nutrition, which the food and wood selections pass over. Native waives
+the 50-cell prey distance, the safe-prey rule and the butcher-bill rule for a pest;
+the hunter must still have Hunting active, an ordinary ranged weapon and a safe
+route, the two-outstanding-hunts bound still applies, and a pest in a mental state
+(manhunter) is not offered, the defense family answers it instead. The pest planner
+admits one hunt per pest up to the hunting budget and the census count, under
+methods `pest-hunt-*` and plans `routine-pest-hunt-*`; the method id is salted
+with the goal's admission count so a re-plan of the same animal at the same cell
+is a fresh method. Unlike the stock goals, `ClearPests` plans animal by animal:
+a hunt already dispatched holds its own animal and counts against the two
+outstanding hunts, but neither the planner nor the store's open-work rule holds
+the next animal's method behind it. A pending or prepared pest hunt whose animal the wild-animal
+census no longer lists is cancelled before the next selection; one whose animal
+the acquisition census reports at another cell is given 2500 ticks to stop at
+its planned cell again (the exact-cell dispatch catches a beaver chewing a tree)
+before it is cancelled and re-planned where the pack is; a dispatched hunt is
+left to native and the hunt-stall rule. Pest hunts never count toward edible
+stock.
+
 ## Wild-plant acquisition
 
 Wild-plant acquisition limits new orders by the remaining per-colonist nutrition target
