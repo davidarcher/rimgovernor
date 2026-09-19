@@ -83,9 +83,10 @@ func F() int { return 1 }
 const S = "text"
 `, false},
 	}
+	// Each row replaces the whole working file against the same committed base.
+	repo := scratchRepo(t, "p.go", baseSource)
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			repo := scratchRepo(t, "p.go", baseSource)
 			write(t, repo, "p.go", tc.src)
 			if got := acceptanceOnly(repo, "HEAD", "p.go"); got != tc.want {
 				t.Errorf("acceptanceOnly = %v, want %v", got, tc.want)

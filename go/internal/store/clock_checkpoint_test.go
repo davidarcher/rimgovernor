@@ -28,17 +28,20 @@ func appendReviewedBenign(t *testing.T, s *Store, profile string) ClockReviewSta
 }
 
 // TestClockCompactionRepeatedWindowsAndAcknowledgementReplay exercises the
-// review-log wraparound at capacity, so it shrinks clock.ReviewCapacity to
-// keep the boundary coverage without paying for 4096 real transactions (64
-// still wraps; 256 ran past the per-test budget under CPU contention).
+// repeated review-log compaction with a short capacity and history tail.
+// It retains a real database so closing and reopening proves persistence.
 // It must not run in parallel with any other test in this package: it
 // mutates shared package state for its duration and restores it on cleanup.
 func TestClockCompactionRepeatedWindowsAndAcknowledgementReplay(t *testing.T) {
-	const capacity = 64
-	const window = capacity / 64
+	const capacity = 16
 	original := clock.ReviewCapacity
+	originalTail := clock.HistoryTail
 	clock.ReviewCapacity = capacity
-	t.Cleanup(func() { clock.ReviewCapacity = original })
+	clock.HistoryTail = capacity
+	t.Cleanup(func() {
+		clock.ReviewCapacity = original
+		clock.HistoryTail = originalTail
+	})
 
 	ctx := context.Background()
 	s, path, profile := boundInbox(t)
@@ -52,13 +55,19 @@ func TestClockCompactionRepeatedWindowsAndAcknowledgementReplay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	compactions := 0
 	for i := range clock.ReviewCapacity + 16 {
 		review = appendReviewedBenign(t, s, profile)
-		if i%window == window-1 {
-			if _, err = s.CompactClockHistory(ctx, profile); err != nil {
-				t.Fatal(i, err)
-			}
+		result, err := s.CompactClockHistory(ctx, profile)
+		if err != nil {
+			t.Fatal(i, err)
 		}
+		if result.RemovedPages > 0 {
+			compactions++
+		}
+	}
+	if compactions < 2 {
+		t.Fatalf("only %d compactions; want repeated windows", compactions)
 	}
 	s.Close()
 	s = open(t, path)

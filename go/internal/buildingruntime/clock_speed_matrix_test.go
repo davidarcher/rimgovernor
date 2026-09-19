@@ -411,7 +411,7 @@ type speedDecision struct {
 
 // TestClockSpeedMatrixDecidesPerTickAndWakesWithinStepInterval drives the
 // scheduler and worker against speedNative at tick multipliers 1, 3, 6, 15
-// and 150 (one tick every 4ms down to every 27µs). The clock decisions
+// and 150 (one tick every 1ms down to every 7µs). The clock decisions
 // (each window admitted, each budget stop settled) must be the same
 // sequence per game tick at every multiplier: the decisions follow the
 // game's ticks, not the wall clock. And every step a budget stop woke must
@@ -434,7 +434,7 @@ func TestClockSpeedMatrixDecidesPerTickAndWakesWithinStepInterval(t *testing.T) 
 	var expected []speedDecision
 	for _, multiplier := range []int{1, 3, 6, 15, 150} {
 		t.Run(fmt.Sprintf("x%d", multiplier), func(t *testing.T) {
-			native := newSpeedNative(snapshot, 4*time.Millisecond/time.Duration(multiplier))
+			native := newSpeedNative(snapshot, time.Millisecond/time.Duration(multiplier))
 			var mu sync.Mutex
 			var steps []speedStep
 			var polls []speedSpan

@@ -97,7 +97,7 @@ func TestClockMaintenanceFailureDisablesAndRollsBack(t *testing.T) {
 // shared package state for its duration and restores it on cleanup, which
 // is only safe while the parallel tests are still paused.
 func TestClockPollCompactsReviewedEventsAndFailsClosed(t *testing.T) {
-	const tail = 16
+	const tail = 12
 	original := clock.HistoryTail
 	clock.HistoryTail = tail
 	t.Cleanup(func() { clock.HistoryTail = original })
