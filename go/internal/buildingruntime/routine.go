@@ -151,6 +151,10 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 		return store.RoutineReviewResult{}, err
 	}
 	definitions := routineProjectDefinitions(plans, state.Snapshot, playerPlans)
+	readDefinitions := definitions
+	if r.methodEnabled(policy.EnsureCooking) {
+		readDefinitions = append(append([]string(nil), definitions...), "NutrientPasteDispenser", "Hopper")
+	}
 	preferences, err := p.journal.LoadWorkPreferences(ctx, state.Snapshot.Plan)
 	if errors.Is(err, store.ErrNotFound) {
 		// Directly created plans have no player submission or saved overrides.
@@ -172,12 +176,13 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	if r.roomsEnabled() {
 		observe = observation.ObserveRoutineRooms
 	}
-	reading, err := observe(observation.WithRoutineStore(ctx, r.routineStore()), r.native, r.clock, expected, r.maxAge, claims, definitions...)
+	reading, err := observe(observation.WithRoutineStore(ctx, r.routineStore()), r.native, r.clock, expected, r.maxAge, claims, readDefinitions...)
 	if err != nil {
 		clockSchedulerLog("routine.step: observe err=%v", err)
 		return store.RoutineReviewResult{}, err
 	}
 	reading.Projection.Facts.FoodPlan = r.planFood(reading.Projection)
+	r.reviewMeals(&reading.Projection)
 	if plan, known := reading.Projection.Facts.FoodPlan.Value(); known {
 		reading.Projection.Facts.AnimalUpkeep.Forecast = domain.Known(plan.Forecast)
 	}

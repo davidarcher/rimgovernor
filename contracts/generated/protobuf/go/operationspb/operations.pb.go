@@ -4461,12 +4461,13 @@ func (x *BillSettings) GetIngredients() *FilterPatch {
 }
 
 type AddBill struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Bench         *EntityPrecondition    `protobuf:"bytes,1,opt,name=bench,proto3" json:"bench,omitempty"`
-	RecipeDef     *string                `protobuf:"bytes,2,opt,name=recipe_def,json=recipeDef,proto3,oneof" json:"recipe_def,omitempty"`
-	Settings      *BillSettings          `protobuf:"bytes,3,opt,name=settings,proto3" json:"settings,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	Bench              *EntityPrecondition    `protobuf:"bytes,1,opt,name=bench,proto3" json:"bench,omitempty"`
+	RecipeDef          *string                `protobuf:"bytes,2,opt,name=recipe_def,json=recipeDef,proto3,oneof" json:"recipe_def,omitempty"`
+	Settings           *BillSettings          `protobuf:"bytes,3,opt,name=settings,proto3" json:"settings,omitempty"`
+	ReplaceOwnedBillId *string                `protobuf:"bytes,4,opt,name=replace_owned_bill_id,json=replaceOwnedBillId,proto3,oneof" json:"replace_owned_bill_id,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *AddBill) Reset() {
@@ -4518,6 +4519,13 @@ func (x *AddBill) GetSettings() *BillSettings {
 		return x.Settings
 	}
 	return nil
+}
+
+func (x *AddBill) GetReplaceOwnedBillId() string {
+	if x != nil && x.ReplaceOwnedBillId != nil {
+		return *x.ReplaceOwnedBillId
+	}
+	return ""
 }
 
 type BillPrecondition struct {
@@ -8502,13 +8510,15 @@ const file_operations_proto_rawDesc = "" +
 	"\n" +
 	"_skill_minB\f\n" +
 	"\n" +
-	"_skill_max\"\xc6\x01\n" +
+	"_skill_max\"\x98\x02\n" +
 	"\aAddBill\x12C\n" +
 	"\x05bench\x18\x01 \x01(\v2-.rimgovernor.operations.v1.EntityPreconditionR\x05bench\x12\"\n" +
 	"\n" +
 	"recipe_def\x18\x02 \x01(\tH\x00R\trecipeDef\x88\x01\x01\x12C\n" +
-	"\bsettings\x18\x03 \x01(\v2'.rimgovernor.operations.v1.BillSettingsR\bsettingsB\r\n" +
-	"\v_recipe_def\"\x81\x01\n" +
+	"\bsettings\x18\x03 \x01(\v2'.rimgovernor.operations.v1.BillSettingsR\bsettings\x126\n" +
+	"\x15replace_owned_bill_id\x18\x04 \x01(\tH\x01R\x12replaceOwnedBillId\x88\x01\x01B\r\n" +
+	"\v_recipe_defB\x18\n" +
+	"\x16_replace_owned_bill_id\"\x81\x01\n" +
 	"\x10BillPrecondition\x12C\n" +
 	"\x05bench\x18\x01 \x01(\v2-.rimgovernor.operations.v1.EntityPreconditionR\x05bench\x12\x1c\n" +
 	"\abill_id\x18\x02 \x01(\tH\x00R\x06billId\x88\x01\x01B\n" +

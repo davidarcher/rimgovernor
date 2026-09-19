@@ -119,6 +119,7 @@ func (r *RoutineReviewer) observeOwned(ctx context.Context, source observation.R
 	reading, err := observation.ObserveRoutineOwned(ctx, source, r.clock, expected, r.maxAge, claims, definitions...)
 	if err == nil {
 		reading.Projection.Facts.FoodPlan = r.planFood(reading.Projection)
+		r.reviewMeals(&reading.Projection)
 	}
 	return reading, err
 }
@@ -132,6 +133,7 @@ func (r *RoutineReviewer) observeRooms(ctx context.Context, source observation.R
 	reading, err := observation.ObserveRoutineRooms(ctx, source, r.clock, expected, r.maxAge, claims, definitions...)
 	if err == nil {
 		reading.Projection.Facts.FoodPlan = r.planFood(reading.Projection)
+		r.reviewMeals(&reading.Projection)
 	}
 	return reading, err
 }
@@ -146,6 +148,7 @@ func (r *RoutineReviewer) observeColony(ctx context.Context, source observation.
 	reading, err := observation.ObserveColony(ctx, source, r.clock, expected, r.maxAge, true, definitions)
 	if err == nil {
 		reading.Projection.Facts.FoodPlan = r.planFood(reading.Projection)
+		r.reviewMeals(&reading.Projection)
 	}
 	return reading, err
 }

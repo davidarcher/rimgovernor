@@ -206,7 +206,7 @@ message BillSettings {
   BillStore store = 11;
   FilterPatch ingredients = 12;
 }
-message AddBill { EntityPrecondition bench = 1; optional string recipe_def = 2; BillSettings settings = 3; }
+message AddBill { EntityPrecondition bench = 1; optional string recipe_def = 2; BillSettings settings = 3; optional string replace_owned_bill_id = 4; }
 message BillPrecondition { EntityPrecondition bench = 1; optional string bill_id = 2; }
 message PatchBill { BillPrecondition bill = 1; BillSettings settings = 2; }
 message DeleteBill { BillPrecondition bill = 1; }

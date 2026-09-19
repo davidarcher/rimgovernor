@@ -47,6 +47,7 @@ func reviewFoodPlan(p observation.ColonyProjection, thresholds policy.RoutinePol
 		return domain.Unknown[policy.FoodPlan]()
 	}
 	channels := append(policy.ForageChannels(sources), policy.HuntChannels(sources)...)
+	channels = append(channels, policy.StockIngredientChannels(supply)...)
 	if fields, known := p.FoodFields.Value(); known {
 		channels = append(channels, policy.CropChannels(fields)...)
 	}

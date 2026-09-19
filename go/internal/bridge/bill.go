@@ -83,10 +83,16 @@ func BillOperation(bill domain.ProductionBill) *op.Operation {
 		settings.UnpauseThreshold = proto.Int32(max(1, bill.Target()/2))
 		settings.PauseWhenSatisfied = proto.Bool(true)
 	}
-	return &op.Operation{Command: &op.Operation_AddBill{AddBill: &op.AddBill{Bench: &op.EntityPrecondition{EntityId: proto.String(bill.Bench()), ExpectedSnapshotToken: proto.String(bill.BeforeToken())}, RecipeDef: proto.String(bill.Recipe()), Settings: settings}}}
+	return &op.Operation{Command: &op.Operation_AddBill{AddBill: &op.AddBill{Bench: &op.EntityPrecondition{EntityId: proto.String(bill.Bench()), ExpectedSnapshotToken: proto.String(bill.BeforeToken())}, RecipeDef: proto.String(bill.Recipe()), Settings: settings, ReplaceOwnedBillId: optionalReplacement(bill)}}}
+}
+func optionalReplacement(b domain.ProductionBill) *string {
+	if b.Replaces() == "" {
+		return nil
+	}
+	return proto.String(b.Replaces())
 }
 func validBill(bill domain.ProductionBill) error {
-	_, err := domain.NewProductionBill(bill.Bench(), bill.Recipe(), bill.BeforeToken(), bill.Mode(), bill.Target(), bill.Ingredients()...)
+	_, err := domain.NewProductionBillAction("validate", bill)
 	return err
 }
 func (client *Client) PreviewBill(ctx context.Context, identity *c.Identity, target domain.ProductionBill) (*op.PreviewReply, Result, error) {

@@ -76,6 +76,40 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken);
         }
 
+        [Tool("test/meal_tiers_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Add a skilled assigned cook, cow, fueled stove and raw rice/milk surplus to the empty-channel fixture.")]
+        public async Task<object> Meals(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                if (map == null || !Find.TickManager.Paused) throw new InvalidOperationException("Paused map required");
+                var people = map.mapPawns.FreeColonistsSpawned.ToList();
+                var pawn = people.First();
+                var cells = GenRadial.RadialCellsAround(pawn.Position, 15, true).Where(c => c.InBounds(map) && !c.Fogged(map) && c.Standable(map) && c.GetEdifice(map)==null).ToList();
+                var center = cells.First(c => GenAdj.OccupiedRect(c, Rot4.North, new IntVec2(3,3)).Cells.All(x=>x.InBounds(map)&&x.Standable(map)&&x.GetEdifice(map)==null));
+                foreach(var p in people) { p.jobs.StopAll(); p.workSettings.EnableAndInitialize(); p.workSettings.SetPriority(DefDatabase<WorkTypeDef>.GetNamed("Cooking"), 1); p.skills.GetSkill(SkillDefOf.Cooking).Level=8; }
+                var stove=(Building_WorkTable)ThingMaker.MakeThing(ThingDef.Named("FueledStove"));stove.SetFaction(Faction.OfPlayer);GenSpawn.Spawn(stove,center,map);stove.TryGetComp<CompRefuelable>().Refuel(50);
+                var cow=PawnGenerator.GeneratePawn(PawnKindDef.Named("Cow"),Faction.OfPlayer);GenSpawn.Spawn(cow,cells.Last(),map);
+                int index=0;
+                foreach(var name in new[]{"RawRice","Milk"}) {
+                    var def=ThingDef.Named(name);int remaining=name=="RawRice"?10000:1000;
+                    while(remaining>0){var cell=cells[index++];if(cell.GetEdifice(map)!=null)continue;var food=ThingMaker.MakeThing(def);food.stackCount=Math.Min(def.stackLimit,remaining);remaining-=food.stackCount;GenSpawn.Spawn(food,cell,map);food.SetForbidden(false,false);}
+                }
+                return new {success=true,bench=stove.GetUniqueLoadID(),spareCell=new{x=cells.Last().x,z=cells.Last().z}};
+            },cancellationToken);
+        }
+
+        [Tool("test/meal_tiers_probe", Description = "UNSAFE FOR MODEL EXECUTION when drain is true. Read native bill IDs; optionally reduce raw rice and milk to a small fallback stock without changing bills.")]
+        public async Task<object> MealProbe(IRimBridgeContext ctx,CancellationToken cancellationToken,bool drain=false)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(()=>{
+                var map=Find.CurrentMap ?? throw new InvalidOperationException("Map required");
+                if(drain){if(!Find.TickManager.Paused)throw new InvalidOperationException("Pause before drain");foreach(var p in map.mapPawns.FreeColonistsSpawned)p.jobs.StopAll();
+                    foreach(var name in new[]{"RawRice","Milk"}){var rows=AllThings(map).Where(t=>!t.Destroyed&&t.def.defName==name).ToList();foreach(var t in rows)t.Destroy(DestroyMode.Vanish);var food=ThingMaker.MakeThing(ThingDef.Named(name));food.stackCount=20;GenSpawn.Spawn(food,map.mapPawns.FreeColonistsSpawned.First().Position,map);}
+                }
+                return new {success=true,bills=map.listerThings.AllThings.OfType<Building_WorkTable>().SelectMany(b=>b.BillStack.Bills).Select(b=>new{id=b.GetUniqueLoadID(),recipe=b.recipe.defName}).ToList()};
+            },cancellationToken);
+        }
+
         private static bool FoodPlant(Plant p) => p.def.plant?.harvestedThingDef?.IsNutritionGivingIngestible == true;
         private static bool Producer(Thing t) => t is Building_PlantGrower || t is Building_NutrientPasteDispenser;
         private static bool Remove(Thing t) => t is Corpse || t is Pawn p && p.RaceProps.Animal

@@ -56,7 +56,7 @@ namespace HomeBridge.BridgeTools {
         }
         private static bool Finite(double n) => !double.IsNaN(n) && !double.IsInfinity(n);
         private static bool Positive(double n) => Finite(n) && n > 0;
-        private static bool InCategory(ThingDef def, string name) {
+        internal static bool InCategory(ThingDef def, string name) {
             var category = DefDatabase<ThingCategoryDef>.GetNamedSilentFail(name);
             return category != null && def.IsWithinCategory(category);
         }

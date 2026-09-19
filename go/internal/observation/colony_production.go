@@ -13,6 +13,13 @@ func billForever(mode *string) domain.Fact[bool] {
 	return domain.Known(*mode == "Forever")
 }
 
+func billActive(suspended *bool) domain.Fact[bool] {
+	if suspended == nil {
+		return domain.Unknown[bool]()
+	}
+	return domain.Known(!*suspended)
+}
+
 // colonyFoodFields preserves the native optimistic harvest ETA. A planted
 // field is future capacity, not an observed delivery of edible stock.
 func colonyFoodFields(v *o.ColonyFactsSnapshot, definitions []PlanningDefinition) domain.Fact[[]policy.FoodField] {
@@ -154,7 +161,7 @@ func colonyProductionBenches(v *o.ColonyFactsSnapshot) domain.Fact[[]policy.Prod
 			row.Recipes = append(row.Recipes, recipe)
 		}
 		for _, b := range bills {
-			row.Bills = append(row.Bills, policy.ExistingProductionBill{Recipe: b.Recipe.GetDefName(), TargetCount: optional(b.TargetCount), Forever: billForever(b.RepeatMode)})
+			row.Bills = append(row.Bills, policy.ExistingProductionBill{ID: b.GetId(), Managed: optional(b.ManagedUnchanged), Active: billActive(b.Suspended), Recipe: b.Recipe.GetDefName(), TargetCount: optional(b.TargetCount), Forever: billForever(b.RepeatMode)})
 		}
 		rows = append(rows, row)
 	}

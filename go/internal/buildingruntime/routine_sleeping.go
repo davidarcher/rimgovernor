@@ -73,6 +73,7 @@ type RoutineBuildingResult struct {
 // existing reviewed player direction. It creates shared pending work, never
 // acquires a lease, dispatches an action or advances the game.
 type RoutineBuildingPlanner struct {
+	paste         []policy.SiteBuilding
 	reviewer      *RoutineReviewer
 	native        RoutineBuildingSource
 	goal          policy.GoalID
@@ -245,6 +246,9 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		r = &prepared
 	}
 	definitions := []string{r.definition}
+	if r.goal == policy.EnsureCooking {
+		definitions = []string{"Campfire", "NutrientPasteDispenser", "Hopper"}
+	}
 	if r.goal == policy.EnsureComfort && !r.shelter || r.goal == policy.EnsureBasicComfort {
 		definitions = []string{"Table1x2c", "DiningChair", "HorseshoesPin"}
 	}
@@ -309,6 +313,13 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineBuildingResult{}, err
 	}
 	facts := reading.Projection
+	if r.goal == policy.EnsureCooking {
+		resolved, reason := r.selectPaste(facts)
+		if reason != "" {
+			return RoutineBuildingResult{Reason: reason}, nil
+		}
+		r = resolved
+	}
 	var coolingAllowance uint32
 	var coolingLent bool
 	if r.facilityLadder() && !r.shelter || r.goal == policy.EnsureBasicComfort || r.goal == policy.EnsureBasicPower || r.goal == policy.EnsureTemperatureSafety || r.goal == policy.MaintainRefrigeration || r.goal == policy.MaintainLighting || r.goal == policy.MaintainFlooring || r.goal == policy.MaintainRoutes {
@@ -447,7 +458,19 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 			// the same room) or the open-site shell.
 		}
 	}
+	if r.goal == policy.EnsureCooking {
+		definitions = []string{r.definition}
+		if len(r.paste) > 0 {
+			definitions = append(definitions, "Hopper")
+		}
+	}
 	available := routineDefinitionsAvailable(facts, definitions, r.shelter)
+	if len(r.paste) > 0 {
+		available = true
+		for _, name := range definitions {
+			available = available && comfortBuilderAvailable(facts, name, nil)
+		}
+	}
 	if r.facilityLadder() && !r.shelter || r.goal == policy.EnsureBasicComfort || r.goal == policy.EnsureBasicPower || r.goal == policy.EnsureTemperatureSafety || r.goal == policy.MaintainRefrigeration || r.goal == policy.MaintainLighting || r.goal == policy.MaintainFlooring || r.goal == policy.MaintainRoutes {
 		preferences, loadErr := p.journal.LoadWorkPreferences(call, state.Snapshot.Plan)
 		if loadErr != nil && !errors.Is(loadErr, store.ErrNotFound) {
@@ -744,6 +767,9 @@ func (r *RoutineBuildingPlanner) previewMethod(call context.Context, snapshot do
 }
 
 func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, missing int64, check func() error) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, error) {
+	if len(r.paste) > 0 {
+		return r.previewPaste(call, snapshot, facts, protected, check)
+	}
 	if r.refrigeration != nil {
 		return r.previewRefrigeration(call, snapshot, facts, protected, check)
 	}

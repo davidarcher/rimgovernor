@@ -614,6 +614,7 @@ namespace HomeBridge.BridgeTools
                 if (stock.roofed.HasValue) row.Roofed = stock.roofed.Value;
                 if (stock.roomId != null) row.RoomId = stock.roomId;
                 row.Corpse = stock.corpse;
+                row.RawClass = (Obs.FoodIngredientClass)stock.rawClass;
                 if (stock.forbidden.HasValue) row.Forbidden = stock.forbidden.Value;
                 if (stock.meatAmount.HasValue) row.MeatAmount = Finite(stock.meatAmount.Value);
                 if (stock.bodySize.HasValue) row.BodySize = Finite(stock.bodySize.Value);

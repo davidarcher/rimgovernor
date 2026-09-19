@@ -39,7 +39,7 @@ namespace HomeBridge.BridgeTools {
   internal static bool Recipe(Thing bench,RecipeDef recipe)=>recipe.AvailableNow&&recipe.AvailableOnNow(bench)&&bench.def.AllRecipes.Contains(recipe)&&(recipe.defName=="ButcherCorpseFlesh"||recipe.products.Count>0&&recipe.products.All(p=>Product(p.thingDef)));
   internal static bool Product(ThingDef d)=>d!=null&&d.category==ThingCategory.Item&&!d.IsCorpse;
   internal static Obs.BillState BillRow(Bill bill,int index){
-   var row=new Obs.BillState{Id=bill.GetUniqueLoadID(),Index=(uint)index,Recipe=new Obs.DefinitionRef{DefName=bill.recipe.defName},Suspended=bill.suspended};
+   var row=new Obs.BillState{Id=bill.GetUniqueLoadID(),Index=(uint)index,Recipe=new Obs.DefinitionRef{DefName=bill.recipe.defName},Suspended=bill.suspended,ManagedUnchanged=NativeProductionTracking.ManagedUnchanged(bill)};
    if(bill is Bill_Production p){row.RepeatMode=p.repeatMode.defName;row.RepeatCount=p.repeatCount;row.TargetCount=p.targetCount;row.UnpauseBelow=p.unpauseWhenYouHave;row.PauseWhenSatisfied=p.pauseWhenSatisfied;row.Paused=p.paused;row.Finished=BillCommon.IsFinished(p);}
    return row;
   }
@@ -56,11 +56,13 @@ namespace HomeBridge.BridgeTools {
    bench=ProtoBoundary.LoadedMap(context).listerThings.AllThings.FirstOrDefault(t=>t.GetUniqueLoadID()==command.Bench.EntityId);giver=bench as IBillGiver;
    if(bench==null||giver==null){failure=Refuse("bench "+command.Bench.EntityId+" is not a loaded bill giver");return false;}
    if(!UsableForNewBill(bench)){failure=Refuse("bench is not usable for bills");return false;}
-   if(giver.BillStack.Count>=15){failure=Refuse("bill stack is full");return false;}
+   if(command.HasReplaceOwnedBillId && NativeProductionTracking.ManagedRecord(command.ReplaceOwnedBillId,bench.Map)==null){failure=Refuse("replacement is not an unchanged owned meal bill");return false;}
+   if(giver.BillStack.Count>=15 && (!command.HasReplaceOwnedBillId || NativeProductionTracking.ManagedRecord(command.ReplaceOwnedBillId,bench.Map)?.Giver!=giver)){failure=Refuse("bill stack is full");return false;}
    if(giver.BillStack.Bills.Any(b=>b.recipe.defName==command.RecipeDef)){failure=Refuse("bench already carries a "+command.RecipeDef+" bill");return false;}
    recipe=DefDatabase<RecipeDef>.GetNamedSilentFail(command.RecipeDef);
    if(recipe==null||!Recipe(bench,recipe)){failure=Refuse("recipe "+command.RecipeDef+" is not available on the bench");return false;}
    if(command.RecipeDef!="ButcherCorpseFlesh"&&(recipe.WorkerCounter.GetType()!=typeof(RecipeWorkerCounter)||recipe.specialProducts!=null||recipe.products.Count!=1)){failure=Refuse("recipe "+command.RecipeDef+" is not ordinary single-product work");return false;}
+   if(command.HasReplaceOwnedBillId && (recipe.products.Count!=1 || recipe.products[0].thingDef.ingestible==null || recipe.products[0].thingDef.ingestible.preferability<FoodPreferability.MealSimple || recipe.products[0].thingDef.ingestible.preferability>FoodPreferability.MealLavish)){failure=Refuse("replacement requires an ordinary meal recipe");return false;}
    var ingredientRecipe=recipe;
    if(command.Settings.Ingredients!=null){
     var definitions=command.Settings.Ingredients.Replace.Selectors.Select(s=>DefDatabase<ThingDef>.GetNamedSilentFail(s.ThingDef)).ToArray();
@@ -99,7 +101,8 @@ namespace HomeBridge.BridgeTools {
       foreach(var selector in s.Ingredients.Replace.Selectors)bill.ingredientFilter.SetAllow(DefDatabase<ThingDef>.GetNamed(selector.ThingDef),true);
      }
      var record=new NativeProductionRecord(bench!,giver!,bill,command.Bench.ExpectedSnapshotToken);
-     state.Bills.Add(pre.Attempt.Clone(),record);if(!NativeProductionTracking.Track(record))throw new InvalidOperationException("Production tracking unavailable");giver!.BillStack.AddBill(bill);record.Capture();
+     state.Bills.Add(pre.Attempt.Clone(),record);if(!NativeProductionTracking.Track(record))throw new InvalidOperationException("Production tracking unavailable");if(command.HasReplaceOwnedBillId){var old=NativeProductionTracking.ManagedRecord(command.ReplaceOwnedBillId,bench!.Map) ?? throw new InvalidOperationException("Owned replacement lost");NativeProductionTracking.Retire(old.Bill);old.Giver.BillStack.Delete(old.Bill);}
+     giver!.BillStack.AddBill(bill);record.Capture();
      evidence=new Receipts.EffectEvidence{Bill=record.Evidence(context)};
     }
     return new Operations.ExecuteReply{Receipt=NativeOperationEnvelope.Applied(state.Ledger,handle,pre.Attempt,context,evidence)};

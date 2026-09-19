@@ -234,7 +234,7 @@ func PlanFood(r FoodPlanRequest) (FoodPlan, error) {
 	sort.SliceStable(openOrder, func(i, j int) bool { return cost(candidates[openOrder[i]]) > cost(candidates[openOrder[j]]) })
 	for _, i := range openOrder {
 		c := &candidates[i]
-		if p.DeliveredPerDay-target > c.nutrition {
+		if c.nutrition > 0 && p.DeliveredPerDay-target > c.nutrition {
 			c.entry.Decision, c.entry.Reason = FoodPlanClose, "surplus"
 			c.entry.DeliveredPerDay = 0
 			p.DeliveredPerDay -= c.nutrition

@@ -21,12 +21,14 @@ const (
 	StockTarget BillMode = "stock_target"
 )
 
-// ProductionBill adds one native bill without editing or replacing existing bills.
+// ProductionBill adds a native bill, optionally superseding an unchanged owned
+// meal bill. Native ownership and the current stack guard replacement.
 type ProductionBill struct {
 	bench, recipe, token string
 	mode                 BillMode
 	target               int32
 	ingredients          string
+	replace              string
 }
 
 func NewProductionBill(bench, recipe, token string, mode BillMode, target int32, ingredients ...string) (ProductionBill, error) {
@@ -48,10 +50,18 @@ func NewProductionBill(bench, recipe, token string, mode BillMode, target int32,
 		data, _ := json.Marshal(rows)
 		filter = string(data)
 	}
-	return ProductionBill{bench, recipe, token, mode, target, filter}, nil
+	return ProductionBill{bench, recipe, token, mode, target, filter, ""}, nil
 }
 
 // Ingredients is the exact allowed definition set; empty preserves recipe defaults.
+func (b ProductionBill) ReplaceOwnedBill(id string) (ProductionBill, error) {
+	if !validID(id) || b.mode != FoodTarget {
+		return ProductionBill{}, errors.New("invalid meal replacement")
+	}
+	b.replace = id
+	return b, nil
+}
+func (b ProductionBill) Replaces() string { return b.replace }
 func (b ProductionBill) Ingredients() []string {
 	var rows []string
 	if b.ingredients != "" {
@@ -66,6 +76,9 @@ func (b ProductionBill) Mode() BillMode      { return b.mode }
 func (b ProductionBill) Target() int32       { return b.target }
 func NewProductionBillAction(id ActionID, b ProductionBill) (Action, error) {
 	canonical, err := NewProductionBill(b.bench, b.recipe, b.token, b.mode, b.target, b.Ingredients()...)
+	if err == nil && b.replace != "" {
+		canonical, err = canonical.ReplaceOwnedBill(b.replace)
+	}
 	if !validID(string(id)) || err != nil || canonical != b {
 		return Action{}, errors.New("invalid production bill action")
 	}

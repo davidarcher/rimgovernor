@@ -107,6 +107,7 @@ func siteConstructionCharge(w SiteTypeWeights, unit float64, infra Infrastructur
 const siteBasinCells = 4
 
 type SiteTypeRequest struct {
+	Paste       *PasteSiteRequest
 	Field       FieldRequest
 	Environment domain.Fact[ControlledEnvironment]
 	Lamp, Basin domain.Fact[Infrastructure]
@@ -178,6 +179,9 @@ func (p SiteTypePlan) Explain() string {
 // as an excluded candidate with its reason. Unknown environment facts yield
 // only the outdoor candidates.
 func PlanSiteType(r SiteTypeRequest) (SiteTypePlan, bool) {
+	if r.Paste != nil {
+		return planPasteSite(r)
+	}
 	w := r.Weights
 	if w == (SiteTypeWeights{}) {
 		w = DefaultSiteTypeWeights()

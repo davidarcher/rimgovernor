@@ -17,7 +17,8 @@ type FoodConsumer struct {
 	NutritionPerDay domain.Fact[float64]
 }
 type FoodStock struct {
-	ID string
+	RawClass domain.Fact[FoodIngredientClass]
+	ID       string
 	// Reserve is forbidden pemmican or survival meals; eligibility is after release.
 	Reserve bool
 	// Known empty holder means shared stock. Unknown ownership is not shared.

@@ -137,7 +137,7 @@ message PawnBiography {
 }
 message Thought { optional string def_name = 1; optional string label = 2; optional uint32 count = 3; optional double mood_offset_each = 4; optional double mood_offset_total = 5; }
 message Relation { EntityRef other = 1; optional string relation_def_name = 2; optional int32 opinion = 3; optional bool opinion_reconstructed = 4; }
-message PawnSocial { repeated Thought memories = 1; repeated Thought situational = 2; repeated Relation relations = 3; optional bool situational_cache_stale = 4; repeated ReadIssue issues = 5; }
+message PawnSocial { optional bool high_expectations = 6; repeated Thought memories = 1; repeated Thought situational = 2; repeated Relation relations = 3; optional bool situational_cache_stale = 4; repeated ReadIssue issues = 5; }
 message PawnSettings {
   SnapshotRef snapshot = 1; optional string medical_care = 2; optional bool self_tend = 3; optional string hostility_response = 4;
   optional string allowed_area_id = 5; optional string master_id = 6; optional bool follow_drafted = 7; optional bool follow_fieldwork = 8;
@@ -240,6 +240,7 @@ message StockpileFilter {
   optional bool allow_fresh = 7; optional bool allow_rotten = 8; Completeness completeness = 9;
 }
 message BillState {
+  optional bool managed_unchanged = 24; // Current-load controller bill with unchanged player settings.
   optional string id = 1; optional uint32 index = 2; DefinitionRef recipe = 3; optional string bill_class = 4;
   optional string repeat_mode = 5; optional int32 repeat_count = 6; optional int32 target_count = 7; optional int32 unpause_below = 8;
   optional bool pause_when_satisfied = 9; optional bool paused = 10; optional bool suspended = 11; optional bool finished = 12;
@@ -550,7 +551,7 @@ message CaravanCatalogRequest { ReadScope scope = 1; optional int32 destination 
 message CaravanCatalogReply { oneof outcome { CaravanCatalog observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 
 message FoodConsumer { optional string pawn_id = 1; optional double nutrition_per_day = 2; }
-message FoodStock { EntityRef item = 1; optional int64 count = 2; optional string holder_id = 3; optional double nutrition = 4; repeated string eater_ids = 5; optional bool perishable = 6; optional int64 rot_ticks = 7; optional double temperature_c = 8; optional bool roofed = 9; optional string room_id = 10; optional bool reserve = 11; optional bool corpse = 12; optional bool forbidden = 13; optional double meat_amount = 14; optional double body_size = 15; optional int64 tile_footprint = 16; }
+message FoodStock { EntityRef item = 1; optional int64 count = 2; optional string holder_id = 3; optional double nutrition = 4; repeated string eater_ids = 5; optional bool perishable = 6; optional int64 rot_ticks = 7; optional double temperature_c = 8; optional bool roofed = 9; optional string room_id = 10; optional bool reserve = 11; optional bool corpse = 12; optional bool forbidden = 13; optional double meat_amount = 14; optional double body_size = 15; optional int64 tile_footprint = 16; optional FoodIngredientClass raw_class = 17; }
 message CorpseHandling { string stock_id = 1; rimgovernor.common.v1.Cell cell = 2; optional string hauler_id = 3; bool frozen_destination = 4; }
 message FoodLarderFacts { double raw_meat_nutrition = 1; double cook_demand_nutrition = 2; repeated CorpseHandling corpses = 3; repeated rimgovernor.common.v1.Cell cold_sites = 4; }
 message FoodSupplyFacts { repeated FoodConsumer consumers = 1; repeated FoodStock stocks = 2; Completeness completeness = 3; FoodLarderFacts larder = 4; }

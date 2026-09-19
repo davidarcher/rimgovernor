@@ -15,6 +15,7 @@ namespace HomeBridge.BridgeTools {
   internal readonly Dictionary<Thing,int> Outputs=new Dictionary<Thing,int>();
   // Outputs seen spawned and player-accessible on some observe; later consumption or hauling does not unobserve them.
   internal readonly HashSet<Thing> Seen=new HashSet<Thing>();
+  internal bool Retired;
   internal string Config="";internal int Index=-1;internal uint Iterations;internal long Generated;internal bool Unreadable;
   internal NativeProductionRecord(Thing bench,IBillGiver giver,Bill_Production bill,string before){Bench=bench;Giver=giver;Bill=bill;Before=before;Map=bench.Map;}
   internal void Capture(){Config=NativeProductionBills.Configuration(Bill);Index=Giver.BillStack.IndexOf(Bill);}
@@ -27,7 +28,8 @@ namespace HomeBridge.BridgeTools {
    return result;
   }
   internal Receipts.Progress Observe(Common.AttemptKey attempt,Common.ObservationContext context){var result=new Receipts.Progress{Attempt=attempt.Clone(),Context=context.Clone(),CompleteInspection=true};var value=Evidence(context);var evidence=new Receipts.EffectEvidence{Bill=value};
-   if(!value.Present){result.CompleteInspection=false;result.Unknown=new Receipts.UnknownEffect{Reason="Original bill unavailable."};}
+   if(!value.Present && Retired)result.Unsuccessful=new Receipts.UnsuccessfulEffect{Reason=Receipts.UnsuccessfulReason.OutcomeNotAchieved,Evidence=evidence,Detail="Owned meal bill superseded."};
+   else if(!value.Present){result.CompleteInspection=false;result.Unknown=new Receipts.UnknownEffect{Reason="Original bill unavailable."};}
    else if(!value.ConfigurationMatches)result.Unsuccessful=new Receipts.UnsuccessfulEffect{Reason=Receipts.UnsuccessfulReason.OutcomeNotAchieved,Evidence=evidence,Detail="Original bill configuration changed."};
    else if(value.Iterations>0&&value.OutputComplete&&value.OutputObserved)result.Completed=new Receipts.CompletedEffect{Evidence=evidence};
    else if(value.Iterations>0&&value.OutputComplete&&value.Outputs.Count==0)result.Unsuccessful=new Receipts.UnsuccessfulEffect{Reason=Receipts.UnsuccessfulReason.OutcomeNotAchieved,Evidence=evidence,Detail="Ordinary bill iteration produced no item."};
@@ -48,6 +50,9 @@ namespace HomeBridge.BridgeTools {
   }catch(Exception e){Log.Error("[RimGovernor] Production observation unavailable: "+e);}}
   private static void Patch(Harmony harmony,MethodBase? target,string? prefix,string? postfix){if(target==null)throw new MissingMethodException("Production hook missing");harmony.Patch(target,prefix==null?null:new HarmonyMethod(typeof(NativeProductionTracking),prefix),postfix==null?null:new HarmonyMethod(typeof(NativeProductionTracking),postfix));Targets.Add(target);}
   internal static bool Ready=>Targets.Count==4&&Targets.All(t=>{var p=Harmony.GetPatchInfo(t);return p!=null&&p.Prefixes.Concat(p.Postfixes).Any(h=>h.owner==Owner);});
+  internal static bool ManagedUnchanged(Bill bill)=>Current.Game!=null&&States.TryGetValue(Current.Game,out var state)&&state.Bills.TryGetValue(bill,out var r)&&!r.Retired&&bill.recipe.products.Count==1&&bill.recipe.products[0].thingDef.ingestible!=null&&bill.recipe.products[0].thingDef.ingestible.preferability>=FoodPreferability.MealSimple&&bill.recipe.products[0].thingDef.ingestible.preferability<=FoodPreferability.MealLavish&&r.Giver.BillStack.Bills.Contains(bill)&&r.Index==r.Giver.BillStack.IndexOf(bill)&&r.Config==NativeProductionBills.Configuration(bill);
+  internal static NativeProductionRecord? ManagedRecord(string id,Map map)=>Current.Game!=null&&States.TryGetValue(Current.Game,out var state)?state.Bills.Values.FirstOrDefault(r=>r.Map==map&&r.Bill.GetUniqueLoadID()==id&&ManagedUnchanged(r.Bill)):null;
+  internal static void Retire(Bill bill){if(Current.Game!=null&&States.TryGetValue(Current.Game,out var state)&&state.Bills.TryGetValue(bill,out var r))r.Retired=true;}
   internal static bool Track(NativeProductionRecord record){if(!Ready||Current.Game==null)return false;var state=States.GetOrCreateValue(Current.Game);if(state.Bills.Count>=4096||state.Bills.ContainsKey(record.Bill))return false;state.Bills.Add(record.Bill,record);return true;}
   private static void Products(Pawn __1,ref IEnumerable<Thing> __result){if(Current.Game==null||!States.TryGetValue(Current.Game,out var state)||__1.CurJob?.bill==null||!state.Bills.TryGetValue(__1.CurJob.bill,out var record)||record.Iterations>0)return;__result=ObserveProducts(__result,state,record);}
   private static IEnumerable<Thing> ObserveProducts(IEnumerable<Thing> products,State state,NativeProductionRecord record){

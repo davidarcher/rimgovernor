@@ -48,6 +48,9 @@ func routineMood(colony *o.ColonyFactsSnapshot, emergency policy.EmergencyFacts,
 			p.Target = optional(f.MoodTarget)
 		}
 		p.Thoughts = MoodThoughts(r)
+		if r.Social != nil && !hasIssue(r.Issues, "social") {
+			p.HighExpectations = optional(r.Social.HighExpectations)
+		}
 		rows = append(rows, p)
 	}
 	return domain.Known(rows)

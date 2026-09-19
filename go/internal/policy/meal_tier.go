@@ -197,7 +197,7 @@ func mealIngredientSources(p FoodPlan) (map[FoodIngredientClass]bool, bool, bool
 			return nil, false, false
 		}
 		seen[key] = true
-		if e.Decision == FoodPlanClose || !positive(c.Open) || e.DeliveredPerDay <= 0 {
+		if e.Decision == FoodPlanClose || !positive(c.Open) || e.DeliveredPerDay <= 0 && !mealStockAvailable(c) {
 			continue
 		}
 		switch c.Kind {
@@ -344,6 +344,13 @@ func selectMealBill(benches domain.Fact[[]ProductionBench], colonists domain.Fac
 		bench := byBench[choice.Bench]
 		bench.Recipes = []ProductionRecipe{recipes[key{choice.Bench, choice.Recipe}]}
 		if selected, ok := SelectProductionBill(CookFood, domain.Known([]ProductionBench{bench}), colonists, request.RawRunwayDays, domain.Unknown[float64](), request.TargetDays); ok {
+			for _, existingBench := range rows {
+				for _, old := range existingBench.Bills {
+					if positive(old.Managed) && old.ID != "" && old.Recipe != selected.Recipe && (selected.Replace == "" || old.ID < selected.Replace) {
+						selected.Replace = old.ID
+					}
+				}
+			}
 			return selected, true
 		}
 	}

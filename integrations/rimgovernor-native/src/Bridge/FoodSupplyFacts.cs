@@ -128,6 +128,7 @@ namespace HomeBridge.BridgeTools
             var rot = thing.TryGetComp<CompRottable>();
             var perishable = rot != null && rot.Active;
             return new StockFacts { id = thing.GetUniqueLoadID(), defName = thing.def.defName, count = thing.stackCount,
+                rawClass = NativeMealRecipeFacts.InCategory(thing.def, "MeatRaw") ? 1 : NativeMealRecipeFacts.InCategory(thing.def, "PlantFoodRaw") ? 2 : NativeMealRecipeFacts.InCategory(thing.def, "AnimalProductRaw") ? 3 : 0,
                 holder = holder, reserve = IsReserve(thing), nutrition = thing is Corpse ? 0 : thing.stackCount * eaters.Min(p => FoodUtility.NutritionForEater(p, thing)),
                 eaters = eaters.Select(p => p.GetUniqueLoadID()).ToList(),
                 perishable = perishable, rotTicks = rot != null && perishable ? (int?)Math.Max(0, rot.TicksUntilRotAtCurrentTemp) : null,
@@ -155,6 +156,7 @@ namespace HomeBridge.BridgeTools
             public string? holder { get; set; }
             public float nutrition { get; set; }
             public List<string>? eaters { get; set; }
+            public int rawClass { get; set; }
             public bool reserve { get; set; }
             public bool perishable { get; set; }
             public int? rotTicks { get; set; }

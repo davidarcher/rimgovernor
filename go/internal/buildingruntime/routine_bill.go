@@ -107,7 +107,7 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 			}
 			continue
 		}
-		if domain.GoalWorkOpen(plan.Progress) {
+		if r.purpose != policy.CookFood && domain.GoalWorkOpen(plan.Progress) {
 			return RoutineBillResult{Reason: BuildingMethodExistingWork}, nil
 		}
 	}
@@ -120,6 +120,9 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return RoutineBillResult{}, err
 	}
 	definitions := routineProjectDefinitions(plans, state.Snapshot, playerPlans)
+	if r.purpose == policy.CookFood {
+		definitions = append(definitions, "NutrientPasteDispenser", "Hopper")
+	}
 	identity, _, err := r.reviewer.native.Identity(call)
 	if err != nil {
 		return RoutineBillResult{}, err
@@ -185,6 +188,11 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		}
 	}
 	var billContext []policy.ProductionBillContext
+	if r.purpose == policy.CookFood {
+		seasonal := r.reviewer.seasonal(projection.Facts)
+		meals := projection.MealRequest(seasonal.FoodMinDays, seasonal.FoodTargetDays)
+		billContext = append(billContext, policy.ProductionBillContext{Meals: &meals})
+	}
 	if r.purpose == policy.PreserveFood {
 		supply, known := projection.FoodSupply.Value()
 		if !known {
@@ -204,7 +212,7 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if err != nil {
 		return RoutineBillResult{}, err
 	}
-	if claimed {
+	if claimed && selected.Replace == "" {
 		return RoutineBillResult{Reason: BuildingMethodUsed}, nil
 	}
 	// The bill planners of one step run concurrently and read the same
@@ -215,6 +223,9 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	}
 	hash := sha256.New()
 	fmt.Fprintf(hash, "%s/%s/%s/%d", selected.Bench, selected.Recipe, selected.Mode, selected.Target)
+	if selected.Replace != "" {
+		fmt.Fprint(hash, "/", selected.Replace, "/", selected.Token)
+	}
 	method := domain.MethodID(fmt.Sprintf("bill-%x", hash.Sum(nil)[:16]))
 	if _, err = p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
 		return RoutineBillResult{Reason: BuildingMethodUsed}, nil
@@ -226,6 +237,12 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	value, err := domain.NewProductionBill(selected.Bench, selected.Recipe, selected.Token, selected.Mode, selected.Target)
 	if err != nil {
 		return RoutineBillResult{}, err
+	}
+	if selected.Replace != "" {
+		value, err = value.ReplaceOwnedBill(selected.Replace)
+		if err != nil {
+			return RoutineBillResult{}, err
+		}
 	}
 	action, err := domain.NewProductionBillAction(domain.ActionID(string(id)+"-0"), value)
 	if err != nil {

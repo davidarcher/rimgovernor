@@ -69,7 +69,7 @@ func validateColonyProduction(v *o.ColonyFactsSnapshot) error {
 		}
 		ids := map[string]bool{}
 		for i, bill := range bench.Bills {
-			if bill == nil || bill.Recipe == nil || validID(bill.Recipe.GetDefName()) != nil || !proto.Equal(bill, &o.BillState{Id: bill.Id, Index: bill.Index, Recipe: bill.Recipe, Suspended: bill.Suspended, RepeatMode: bill.RepeatMode, RepeatCount: bill.RepeatCount, TargetCount: bill.TargetCount, UnpauseBelow: bill.UnpauseBelow, PauseWhenSatisfied: bill.PauseWhenSatisfied, Paused: bill.Paused, Finished: bill.Finished}) {
+			if bill == nil || bill.Recipe == nil || validID(bill.Recipe.GetDefName()) != nil || !proto.Equal(bill, &o.BillState{ManagedUnchanged: bill.ManagedUnchanged, Id: bill.Id, Index: bill.Index, Recipe: bill.Recipe, Suspended: bill.Suspended, RepeatMode: bill.RepeatMode, RepeatCount: bill.RepeatCount, TargetCount: bill.TargetCount, UnpauseBelow: bill.UnpauseBelow, PauseWhenSatisfied: bill.PauseWhenSatisfied, Paused: bill.Paused, Finished: bill.Finished}) {
 				return contract("invalid production bill")
 			}
 			if bill.Id != nil {

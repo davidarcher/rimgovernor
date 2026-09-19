@@ -31,6 +31,7 @@ func DecodeFoodSupply(v *o.FoodSupplyFacts) (policy.FoodSupply, error) {
 			stock.Count = domain.Known(int64(row.GetCount()))
 		}
 		stock.Corpse = row.GetCorpse()
+		stock.RawClass = rawFoodClass(row.RawClass)
 		stock.Forbidden = optional(row.Forbidden)
 		stock.MeatAmount = optional(row.MeatAmount)
 		stock.BodySize = optional(row.BodySize)

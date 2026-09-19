@@ -23,7 +23,7 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 	}
 	var err error
 	if b, ok := a.ProductionBill(); ok {
-		data, err := json.Marshal(billPayload{b.Bench(), b.Recipe(), b.BeforeToken(), b.Mode(), b.Target(), b.Ingredients()})
+		data, err := json.Marshal(billPayload{b.Bench(), b.Recipe(), b.BeforeToken(), b.Mode(), b.Target(), b.Ingredients(), b.Replaces()})
 		if err != nil {
 			return err
 		}
@@ -182,6 +182,12 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		value, err := domain.NewProductionBill(payload.Bench, payload.Recipe, payload.Token, payload.Mode, payload.Target, payload.Ingredients...)
 		if err != nil {
 			return domain.Action{}, 0, err
+		}
+		if payload.Replace != "" {
+			value, err = value.ReplaceOwnedBill(payload.Replace)
+			if err != nil {
+				return domain.Action{}, 0, err
+			}
 		}
 		action, err := domain.NewProductionBillAction(id, value)
 		return action, ordinal, err
@@ -674,6 +680,7 @@ type billPayload struct {
 	Mode                 domain.BillMode
 	Target               int32
 	Ingredients          []string `json:",omitempty"`
+	Replace              string   `json:",omitempty"`
 }
 
 type wallRemovalPayload struct {

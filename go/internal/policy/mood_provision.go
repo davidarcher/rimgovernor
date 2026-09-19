@@ -31,15 +31,19 @@ type MoodProvision struct {
 // each active one is raised. Everything else (ugly apparel, social
 // memories) is left to native relief and the pawn's own recovery.
 var moodProvisionOwners = map[string][]GoalID{
-	"AteWithoutTable": {EnsureBasicComfort, EnsureComfort},
-	"NeedJoy":         {EnsureBasicComfort, EnsureComfort},
-	"SleptOutside":    {EnsureInitialShelter},
-	"SleptOnGround":   {EnsureInitialShelter},
-	"EnvironmentDark": {MaintainLighting},
-	"EnvironmentCold": {EnsureTemperatureSafety},
-	"EnvironmentHot":  {EnsureTemperatureSafety},
-	"NeedBeauty":      {MaintainCleanFacilities},
-	"NeedRoomSize":    {EnsureExpansion},
+	"HighExpectations":    {EnsureCooking},
+	"SkyHighExpectations": {EnsureCooking},
+	"AteRawFood":          {EnsureCooking},
+	"AteAwfulMeal":        {EnsureCooking},
+	"AteWithoutTable":     {EnsureBasicComfort, EnsureComfort},
+	"NeedJoy":             {EnsureBasicComfort, EnsureComfort},
+	"SleptOutside":        {EnsureInitialShelter},
+	"SleptOnGround":       {EnsureInitialShelter},
+	"EnvironmentDark":     {MaintainLighting},
+	"EnvironmentCold":     {EnsureTemperatureSafety},
+	"EnvironmentHot":      {EnsureTemperatureSafety},
+	"NeedBeauty":          {MaintainCleanFacilities},
+	"NeedRoomSize":        {EnsureExpansion},
 }
 
 // moodUnownedThoughts are the removable environment thoughts no goal owns
@@ -73,6 +77,30 @@ func MoodProvisionGoal(goal GoalID) bool {
 		}
 	}
 	return false
+}
+
+// Better meals can offset high-expectation mood pressure; they do not remove
+// the expectation itself. Only an observed deficit requests this lever.
+func mealMoodProvision(p MoodPawn, rows []MoodProvision) []MoodProvision {
+	high, hk := p.HighExpectations.Value()
+	mood, mk := p.Mood.Value()
+	target, tk := p.Target.Value()
+	if !hk || !high || !mk || !tk || mood >= target {
+		return rows
+	}
+	for _, row := range rows {
+		if row.Goal == EnsureCooking {
+			return rows
+		}
+	}
+	rows = append(rows, MoodProvision{Goal: EnsureCooking, Offset: -math.Max(1, (target-mood)*100)})
+	sort.Slice(rows, func(i, j int) bool {
+		if rows[i].Offset != rows[j].Offset {
+			return rows[i].Offset < rows[j].Offset
+		}
+		return rows[i].Goal < rows[j].Goal
+	})
+	return rows
 }
 
 func validateMoodThoughts(f domain.Fact[[]MoodThought]) error {

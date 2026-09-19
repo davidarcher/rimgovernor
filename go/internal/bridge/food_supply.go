@@ -29,6 +29,9 @@ func ValidateFoodSupply(v *o.FoodSupplyFacts) error {
 		if row == nil || row.Item == nil || validID(row.Item.GetId()) != nil || validID(row.Item.GetDefName()) != nil || stocks[row.Item.GetId()] || row.Count != nil && row.GetCount() < 0 || !combatNumber(row.Nutrition, true) || !combatNumber(row.TemperatureC, false) || row.RotTicks != nil && row.GetRotTicks() < 0 {
 			return contract("invalid food stock")
 		}
+		if row.RawClass != nil && (row.GetRawClass() < 0 || row.GetRawClass() > 3) {
+			return contract("invalid raw class")
+		}
 		stocks[row.Item.GetId()] = true
 		if row.GetReserve() && (row.HolderId != nil || row.Item.GetDefName() != "Pemmican" && row.Item.GetDefName() != "MealSurvivalPack") {
 			return contract("reserve must be shared pemmican or survival meals")

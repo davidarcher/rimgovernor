@@ -21,6 +21,7 @@ const (
 )
 
 type MoodPawn struct {
+	HighExpectations                            domain.Fact[bool]
 	ID                                          PawnID
 	Mood, Threshold, Target                     domain.Fact[float64]
 	Food, Rest, Joy                             domain.Fact[float64]
@@ -250,7 +251,7 @@ func ReviewMood(observed domain.Fact[[]MoodPawn], previous MoodHistory) (MoodHis
 				return s.Causes[i].Need < s.Causes[j].Need
 			})
 			s.Active = s.Active || prior.Active && len(s.Causes) > 0
-			s.Provision = moodProvisioning(p.Thoughts)
+			s.Provision = mealMoodProvision(p, moodProvisioning(p.Thoughts))
 			if len(s.Provision) == 0 {
 				s.Unowned = moodUnowned(p.Thoughts)
 			}

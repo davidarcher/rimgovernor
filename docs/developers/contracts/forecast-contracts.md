@@ -105,11 +105,25 @@ The recommendation identifies the network; it does not prove placement, physical
 connection, hopper availability or pawn feeding. Returning from paste requires
 recovery above the minimum margin and available cooking capacity.
 
-The review includes existing recipes for reconciliation, but the bill selector
-preserves matching player bills and performs no retirement. The goal/Hands owner
-must prove ownership before replacing a bill, obtain construction placement for
-paste, and verify native outcomes. These policy decisions alone are not gameplay
-acceptance.
+The cooking goal supplies the context each tick. Native raw-stock categories
+exclude prepared meals and reserves from its forecast, and only available pawns
+with an observed cooking priority contribute skill. Stock ingredient support
+rows carry accessible nutrition with zero production rate, preventing double
+counting. Only unsuspended observed bills establish the previous tier.
+
+Hands replaces a superseded owned meal bill through the ordinary durable bill
+action. Native checks its current-load ownership, unchanged settings and stack
+position before deleting it and adding the successor. Player-created, edited,
+reordered or ownership-unknown bills are preserved. The replacement ID survives
+controller restart; the old action receives a superseded outcome.
+
+High native expectations plus a measured mood deficit raise EnsureCooking through
+MoodProvision. Paste is a PlanSiteType construction method: one firm network,
+connector reach, native definition sizes and a clear apron select a dispenser
+and adjacent hopper. Both placements and combined costs pass ordinary building
+admission. Cooking is recovered only from a powered dispenser with hopper food,
+not its blueprint or placement receipt. The registered food/meal-tiers case
+checks native fine-to-simple replacement across a controller restart.
 
 ## Shared food portfolio
 
@@ -130,7 +144,7 @@ keeps the existing-work barrier.
 GET /api/player/colony exposes foodPlan and foodPlanTick from the retained review,
 including portfolio/unknown rows, decisions, rates and explanation terms. Missing
 or stale reviews are null; this read never runs a new food review. Reserve-days
-configuration, reserve dispatch and meal-tier context remain separate integrations.
+configuration and reserve dispatch remain separate integrations.
 
 ## Trade food policy
 

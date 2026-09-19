@@ -41,6 +41,9 @@ type ProductionRecipe struct {
 // configured target, not how much of it is already produced: a TargetCount
 // bill reserves that nutrition toward its buffer even while still filling it.
 type ExistingProductionBill struct {
+	ID          string
+	Managed     domain.Fact[bool]
+	Active      domain.Fact[bool]
 	Recipe      string
 	TargetCount domain.Fact[int32]
 	Forever     domain.Fact[bool]
@@ -57,6 +60,7 @@ type ProductionBench struct {
 }
 type BillSelection struct {
 	Bench, Recipe, Token string
+	Replace              string
 	Mode                 domain.BillMode
 	Target               int32
 }

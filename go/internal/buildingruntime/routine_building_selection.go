@@ -165,6 +165,9 @@ func (r *RoutineBuildingPlanner) selection(facts observation.ColonyProjection) (
 		}
 		return missing, domain.MethodID(fmt.Sprintf("indoor-sleeping-%d-%d", count, missing)), ""
 	case policy.EnsureCooking:
+		if len(r.paste) > 0 {
+			return int64(len(r.paste)), "nutrient-paste", ""
+		}
 		if !foodPlanSupport(facts.Facts.FoodPlan, policy.FoodCook, "cooking-capacity") {
 			return 0, "", BuildingMethodUnknown
 		}
