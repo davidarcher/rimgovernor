@@ -24,8 +24,8 @@ type acceptanceGate struct {
 	// Results is an `acceptance suite` output directory whose result.json
 	// the landing presents; empty presents none.
 	Results string
-	// Unverified lands a gated diff without results; the caller files the
-	// issue naming what is unverified.
+	// Unverified lands a gated diff without results; the caller names what
+	// is unverified in the commit body.
 	Unverified bool
 }
 
@@ -46,12 +46,12 @@ func (g acceptanceGate) check(changed []string) error {
 		return nil
 	}
 	if g.Unverified {
-		fmt.Printf("acceptance: none presented for %d gated file(s) (%s...); landing -unverified, file the issue\n", len(touched), touched[0])
+		fmt.Printf("acceptance: none presented for %d gated file(s) (%s...); landing -unverified; name it in the commit body\n", len(touched), touched[0])
 		return nil
 	}
 	return fmt.Errorf("the diff touches %s (%d file(s) under %s) and presents no acceptance results;\n"+
 		"run `acceptance suite -tier land -root <abs root> -output <fresh dir>` from go/ and land with -results <that dir>,\n"+
-		"or -unverified and file an issue naming what went unverified",
+		"or -unverified and name what went unverified in the commit body",
 		touched[0], len(touched), strings.Join(gatedRoots(), ", "))
 }
 

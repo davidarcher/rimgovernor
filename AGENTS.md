@@ -30,7 +30,8 @@ needs is [choose-tests](docs/developers/testing/choose-tests.md).
    The lane takes the repository lock, merges `main` into the branch,
    refuses a presented suite that failed (resumed rows are recorded),
    refuses a diff under the native sources or `buildingruntime` without
-   one (`-unverified` lands it and you file the issue), squash-lands on the
+   one (`-unverified` lands it; name what went unverified in the commit
+   body, not an issue), squash-lands on the
    `main` checkout, resets the branch to `main` and closes the branch's
    GitHub issue with the landing commit. Call it once and move on; land
    each ready milestone rather than holding a branch until the whole task
@@ -41,8 +42,10 @@ needs is [choose-tests](docs/developers/testing/choose-tests.md).
 `main` moves constantly and that is never a reason to redo anything: a test
 or harness that passed on the branch's code stays passed, the lane's merge
 does not invalidate it, and a second rerun-and-land cycle for one milestone
-is forbidden. If something is left unverified, land and file an issue
-saying what.
+is forbidden. If something is left unverified, land with `-unverified` and
+say what in the commit body; do not open an issue for it. The next
+full-suite pass (#363, acceptance on CI) verifies every unverified landing
+at once; per-landing issues only pile up until then.
 
 ## Never
 
@@ -84,7 +87,8 @@ Each of these fails the same way in every session; none is a judgment call.
 
 Open a GitHub issue (`gh issue create`) for anything you would otherwise
 leave as "follow-up" or ask about in a summary: bugs found in passing,
-deferred scope, unverified assumptions, decisions needed. One issue per
+deferred scope, decisions needed. Not for an unverified landing (see step 5
+above). One issue per
 item, terse title, concrete evidence (file, commit, log line), what would
 resolve it, labeled `priority:P0`/`P1`/`P2` or `area:G01`/`N01`/`tooling`.
 Check open issues first and comment on a match instead of duplicating.

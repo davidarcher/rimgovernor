@@ -20,7 +20,7 @@
 //     the resume point only (#249, #308); without it, refuses a diff that
 //     touches the native mod sources or go/internal/buildingruntime (#273: nothing cheaper than a
 //     game run proves those) unless -unverified says the landing goes
-//     without, to be named in an issue;
+//     without, to be named in the commit body;
 //  4. squash-merges the branch into the main checkout, which must be clean,
 //     with a message built from the branch's commits (-m or -F overrides
 //     the subject and body) carrying the branch's Co-Authored-By
@@ -60,7 +60,7 @@ func main() {
 	issue := flag.Int("issue", 0, "GitHub issue to close with the landing commit (default: the number in the branch name)")
 	noClose := flag.Bool("no-close", false, "do not close a GitHub issue")
 	results := flag.String("results", "", "acceptance suite output directory (its result.json) the landing presents as its pass")
-	unverified := flag.Bool("unverified", false, "land a native or buildingruntime change without -results; file an issue naming what is unverified")
+	unverified := flag.Bool("unverified", false, "land a native or buildingruntime change without -results; name what is unverified in the commit body")
 	flag.Parse()
 	if flag.NArg() > 1 {
 		fmt.Fprintln(os.Stderr, "usage: land [-m msg | -F file] [-lock-timeout d] [-test] [-results dir | -unverified] [-issue N | -no-close] [<branch>]")
