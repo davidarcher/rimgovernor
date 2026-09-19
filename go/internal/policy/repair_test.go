@@ -112,7 +112,6 @@ func TestSelectRepairExcludesIneligiblePawns(t *testing.T) {
 		func(p *RepairCandidateFacts) { p.Downed = knownTrue() },
 		func(p *RepairCandidateFacts) { p.Drafted = knownTrue() },
 		func(p *RepairCandidateFacts) { p.MentalState = knownTrue() },
-		func(p *RepairCandidateFacts) { p.PlayerForced = knownTrue() },
 		func(p *RepairCandidateFacts) { p.NeedsTend = knownTrue() },
 		func(p *RepairCandidateFacts) { p.Bleeding = knownTrue() },
 		func(p *RepairCandidateFacts) { p.ConstructionEnabled = knownFalse() },
@@ -149,5 +148,17 @@ func TestRepairAdmitsCachedPawnRowBehindPreparedTick(t *testing.T) {
 	r.MinimumTick, r.Facts.PawnTick, r.Facts.PreviewTick = 13, 12, 15
 	if d := EvaluateRepair(r); !d.Admitted || len(d.Refused) != 0 {
 		t.Fatal(d)
+	}
+}
+
+func TestSelectRepairUsesForcedPawnAsFallback(t *testing.T) {
+	forced, idle := eligibleRepairer("a"), eligibleRepairer("z")
+	forced.PlayerForced = domain.Known(true)
+	structures := []UpkeepStructure{{ID: "wall"}}
+	if _, pawn, ok := SelectRepair(structures, []RepairCandidateFacts{forced, idle}); !ok || pawn != idle.Pawn {
+		t.Fatal(pawn, ok)
+	}
+	if _, pawn, ok := SelectRepair(structures, []RepairCandidateFacts{forced}); !ok || pawn != forced.Pawn {
+		t.Fatal(pawn, ok)
 	}
 }

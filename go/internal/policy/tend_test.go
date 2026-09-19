@@ -230,3 +230,19 @@ func TestTendAdmitsCachedPawnRowBehindPreparedTick(t *testing.T) {
 		t.Fatal(d)
 	}
 }
+
+func TestSelectTendUsesForcedAndQueuedDoctorAsFallback(t *testing.T) {
+	forced, idle := tendDoctor("a", 12), tendDoctor("z", 8)
+	forced.PlayerForced, forced.QueuedJobs = domain.Known(true), domain.Known(uint32(2))
+	patients := []TendPatientFacts{tendPatient("patient", 2)}
+	if pawn, _, ok := SelectTend([]TendDoctorFacts{forced, idle}, patients); !ok || pawn != idle.Pawn {
+		t.Fatal(pawn, ok)
+	}
+	if pawn, _, ok := SelectTend([]TendDoctorFacts{forced}, patients); !ok || pawn != forced.Pawn {
+		t.Fatal(pawn, ok)
+	}
+	forced.Drafted = domain.Known(true)
+	if pawn, _, ok := SelectTend([]TendDoctorFacts{forced}, patients); !ok || pawn != forced.Pawn {
+		t.Fatal("drafted forced doctor excluded", pawn, ok)
+	}
+}

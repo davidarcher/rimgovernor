@@ -40,13 +40,11 @@ func SelectRescue(rescuers []RescuerFacts, patients []RescuePatientFacts) (domai
 		downed, wk := r.Downed.Value()
 		drafted, tk := r.Drafted.Value()
 		mental, mk := r.MentalState.Value()
-		forced, fk := r.PlayerForced.Value()
-		queued, qk := r.QueuedJobs.Value()
 		existing, ek := r.ExistingJobDef.Value()
-		if !dk || !wk || !tk || !mk || !fk || !qk || !ek {
+		if !dk || !wk || !tk || !mk || !ek {
 			return false
 		}
-		return !dead && !downed && !drafted && !mental && !forced && queued == 0 && existing != "Rescue"
+		return !dead && !downed && !drafted && !mental && existing != "Rescue"
 	}
 	eligiblePatient := func(p RescuePatientFacts) bool {
 		dead, dk := p.Dead.Value()
@@ -73,7 +71,13 @@ func SelectRescue(rescuers []RescuerFacts, patients []RescuePatientFacts) (domai
 	if len(rescuerPool) == 0 || len(patientPool) == 0 {
 		return "", "", false
 	}
-	sort.Slice(rescuerPool, func(i, j int) bool { return rescuerPool[i].Pawn < rescuerPool[j].Pawn })
+	sort.Slice(rescuerPool, func(i, j int) bool {
+		a, b := orderedWorkCost(rescuerPool[i].PlayerForced, rescuerPool[i].QueuedJobs), orderedWorkCost(rescuerPool[j].PlayerForced, rescuerPool[j].QueuedJobs)
+		if a != b {
+			return a < b
+		}
+		return rescuerPool[i].Pawn < rescuerPool[j].Pawn
+	})
 	sort.Slice(patientPool, func(i, j int) bool { return patientPool[i].Pawn < patientPool[j].Pawn })
 	return rescuerPool[0].Pawn, patientPool[0].Pawn, true
 }

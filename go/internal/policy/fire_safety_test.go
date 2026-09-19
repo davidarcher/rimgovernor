@@ -48,7 +48,6 @@ func TestEvaluateFireSafetyBlockedWithoutEligibleWorker(t *testing.T) {
 		func(p *FireSafetyPawnFacts) { p.Downed = knownTrue() },
 		func(p *FireSafetyPawnFacts) { p.Drafted = knownTrue() },
 		func(p *FireSafetyPawnFacts) { p.MentalState = knownTrue() },
-		func(p *FireSafetyPawnFacts) { p.PlayerForced = knownTrue() },
 		func(p *FireSafetyPawnFacts) { p.NeedsTend = knownTrue() },
 		func(p *FireSafetyPawnFacts) { p.Bleeding = knownTrue() },
 		func(p *FireSafetyPawnFacts) { p.FirefightingEnabled = knownFalse() },
@@ -58,6 +57,16 @@ func TestEvaluateFireSafetyBlockedWithoutEligibleWorker(t *testing.T) {
 		mutate(&p)
 		if got := EvaluateFireSafety(true, true, false, []FireSafetyPawnFacts{p}); got != FireSafetyBlocked {
 			t.Fatal("ineligible firefighter treated as eligible", p, got)
+		}
+	}
+}
+
+func TestFireSafetyAllowsForcedWork(t *testing.T) {
+	pawn := eligibleFirefighter("a")
+	for _, forced := range []domain.Fact[bool]{domain.Known(true), domain.Unknown[bool]()} {
+		pawn.PlayerForced = forced
+		if got := EvaluateFireSafety(true, true, false, []FireSafetyPawnFacts{pawn}); got != FireSafetyWaitingForNative {
+			t.Fatal(got)
 		}
 	}
 }

@@ -111,6 +111,9 @@ during combat), the controller does nothing. Once it reads Auto again the
 controller may act on anything on the map immediately, including something
 the player just drafted, forced, restricted or placed: there is no
 per-subsystem "player owns this, hands off" state and no waiting period.
+Squad, rescue, tend, repair and recovery selection prefer candidates without
+forced or queued work, but that evidence never excludes the remaining candidates.
+Active draft claims, native job legality and exact snapshot checks still apply.
 Colony, load and map changes and stale in-flight snapshots still invalidate
 pending work; that is ordinary concurrency safety, not a player-ownership
 rule. A pause or letter pause only suspends routine goals and their open

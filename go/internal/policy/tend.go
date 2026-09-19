@@ -46,7 +46,7 @@ type TendPatientFacts struct {
 }
 
 // SelectTend ports medical_triage.treatment_pairs: rank eligible doctors by
-// descending Medicine skill (tie-break by ID), eligible patients by ascending
+// interruption cost, then descending Medicine skill (tie-break by ID), and patients by ascending
 // bleed-out urgency, then life-threatening, then downed, then ID, and pair the
 // first available doctor with the first available patient. This is a proposal
 // only; EvaluateTend re-validates the chosen pair against fresh facts.
@@ -59,17 +59,15 @@ func SelectTend(doctors []TendDoctorFacts, patients []TendPatientFacts) (domain.
 		downed, wk := d.Downed.Value()
 		drafted, tk := d.Drafted.Value()
 		mental, mk := d.MentalState.Value()
-		forced, fk := d.PlayerForced.Value()
-		queued, qk := d.QueuedJobs.Value()
 		existing, ek := d.ExistingJobDef.Value()
 		skill, sk := d.MedicineSkill.Value()
 		skillDisabled, sdk := d.MedicineSkillDisabled.Value()
 		enabled, wek := d.DoctorWorkEnabled.Value()
 		overrideDisabled, odk := d.DoctorWorkOverrideDisabled.Value()
-		if !dk || !wk || !tk || !mk || !fk || !qk || !ek || !sk || !sdk || !wek || !odk {
+		if !dk || !wk || !tk || !mk || !ek || !sk || !sdk || !wek || !odk {
 			return false
 		}
-		return !dead && !downed && (allowDrafted || !drafted) && !mental && !forced && queued == 0 && existing != "TendPatient" && enabled && !overrideDisabled && !skillDisabled && skill >= 0
+		return !dead && !downed && (allowDrafted || !drafted) && !mental && existing != "TendPatient" && enabled && !overrideDisabled && !skillDisabled && skill >= 0
 	}
 	eligiblePatient := func(p TendPatientFacts) bool {
 		dead, dk := p.Dead.Value()
@@ -115,6 +113,10 @@ func SelectTend(doctors []TendDoctorFacts, patients []TendPatientFacts) (domain.
 		return "", "", false
 	}
 	sort.SliceStable(doctorPool, func(i, j int) bool {
+		a, b := orderedWorkCost(doctorPool[i].PlayerForced, doctorPool[i].QueuedJobs), orderedWorkCost(doctorPool[j].PlayerForced, doctorPool[j].QueuedJobs)
+		if a != b {
+			return a < b
+		}
 		si, _ := doctorPool[i].MedicineSkill.Value()
 		sj, _ := doctorPool[j].MedicineSkill.Value()
 		if si != sj {

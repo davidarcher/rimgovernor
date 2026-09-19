@@ -206,7 +206,7 @@ func SelectRecoveryMethods(p RecoveryPlanning, h *DisasterHistory, used []domain
 	unknownWorker := false
 	for _, w := range workers {
 		blocked, known := false, true
-		for _, f := range []domain.Fact[bool]{w.Dead, w.Downed, w.Drafted, w.Mental, w.PlayerForced} {
+		for _, f := range []domain.Fact[bool]{w.Dead, w.Downed, w.Drafted, w.Mental} {
 			v, k := f.Value()
 			blocked = blocked || k && v
 			known = known && k
@@ -218,7 +218,13 @@ func SelectRecoveryMethods(p RecoveryPlanning, h *DisasterHistory, used []domain
 			available = append(available, w)
 		}
 	}
-	sort.Slice(available, func(i, j int) bool { return available[i].Pawn < available[j].Pawn })
+	sort.Slice(available, func(i, j int) bool {
+		a, b := orderedWorkCost(available[i].PlayerForced), orderedWorkCost(available[j].PlayerForced)
+		if a != b {
+			return a < b
+		}
+		return available[i].Pawn < available[j].Pawn
+	})
 	if len(available) == 0 {
 		if !unknownWorker {
 			out.Reason = RecoveryNoWorker

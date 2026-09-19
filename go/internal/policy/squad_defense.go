@@ -86,9 +86,8 @@ const (
 // dispatch, and downed/dead opponents drop out at that point without being
 // re-selected here.
 // squadDraftBusy is whether the pawn's draft is spoken for: drafted under an
-// owned claim, or drafted with the claim unknown. PlayerForced is the
-// in-flight ordered job (this controller's own orders set it too, through
-// TryTakeOrderedJob), a dispatch-collision guard rather than provenance.
+// owned claim, or drafted with the claim unknown. Forced and queued jobs
+// affect candidate preference, never draft ownership.
 func squadDraftBusy(d SquadDefenderFacts) (busy, known bool) {
 	drafted, tk := d.Drafted.Value()
 	if !tk {
@@ -101,23 +100,21 @@ func squadDraftBusy(d SquadDefenderFacts) (busy, known bool) {
 	return !ok || owned, true
 }
 
-// squadDefenderEligible is the shared combat_health_hold gate: every fact
-// known, idle, not drafted under another claim, violence-capable, not
+// squadDefenderEligible is the shared combat_health_hold gate: known health,
+// not drafted under another claim, violence-capable, not
 // needing tending and above the native combat-health threshold.
 func squadDefenderEligible(d SquadDefenderFacts) bool {
 	dead, dk := d.Dead.Value()
 	downed, wk := d.Downed.Value()
 	busy, tk := squadDraftBusy(d)
 	mental, mk := d.MentalState.Value()
-	forced, fk := d.PlayerForced.Value()
-	queued, qk := d.QueuedJobs.Value()
 	violent, vk := d.ViolenceCapable.Value()
 	needsTend, nk := d.NeedsTend.Value()
 	health, hk := d.HealthFraction.Value()
-	if !dk || !wk || !tk || !mk || !fk || !qk || !vk || !nk || !hk {
+	if !dk || !wk || !tk || !mk || !vk || !nk || !hk {
 		return false
 	}
-	if dead || downed || busy || mental || forced || queued != 0 || !violent || needsTend {
+	if dead || downed || busy || mental || !violent || needsTend {
 		return false
 	}
 	return health > float64(float32(0.5005))
@@ -180,7 +177,13 @@ func SelectSquadDefense(threats []SquadThreatFacts, defenders []SquadDefenderFac
 			defenderPool = append(defenderPool, d)
 		}
 	}
-	sort.Slice(defenderPool, func(i, j int) bool { return defenderPool[i].ID < defenderPool[j].ID })
+	sort.Slice(defenderPool, func(i, j int) bool {
+		a, b := orderedWorkCost(defenderPool[i].PlayerForced, defenderPool[i].QueuedJobs), orderedWorkCost(defenderPool[j].PlayerForced, defenderPool[j].QueuedJobs)
+		if a != b {
+			return a < b
+		}
+		return defenderPool[i].ID < defenderPool[j].ID
+	})
 
 	// A melee opponent goes to the line holders first and a ranged one to
 	// the shooters; either falls back to whoever is left.
@@ -283,16 +286,14 @@ func SelectTribalRaiderDefense(threat SquadThreatFacts, defenders []SquadDefende
 		downed, wk := d.Downed.Value()
 		drafted, tk := squadDraftBusy(d)
 		mental, mk := d.MentalState.Value()
-		forced, fk := d.PlayerForced.Value()
-		queued, qk := d.QueuedJobs.Value()
 		violent, vk := d.ViolenceCapable.Value()
 		needsTend, nk := d.NeedsTend.Value()
 		health, hk2 := d.HealthFraction.Value()
 		armed, ak := d.Armed.Value()
-		if !dk || !wk || !tk || !mk || !fk || !qk || !vk || !nk || !hk2 || !ak {
+		if !dk || !wk || !tk || !mk || !vk || !nk || !hk2 || !ak {
 			return false
 		}
-		if dead || downed || drafted || mental || forced || queued != 0 || !violent || needsTend || !armed {
+		if dead || downed || drafted || mental || !violent || needsTend || !armed {
 			return false
 		}
 		return health >= 0.85
@@ -304,6 +305,10 @@ func SelectTribalRaiderDefense(threat SquadThreatFacts, defenders []SquadDefende
 		}
 	}
 	sort.Slice(pool, func(i, j int) bool {
+		a, b := orderedWorkCost(pool[i].PlayerForced, pool[i].QueuedJobs), orderedWorkCost(pool[j].PlayerForced, pool[j].QueuedJobs)
+		if a != b {
+			return a < b
+		}
 		iRanged, _ := pool[i].RangedEquipped.Value()
 		jRanged, _ := pool[j].RangedEquipped.Value()
 		if iRanged != jRanged {

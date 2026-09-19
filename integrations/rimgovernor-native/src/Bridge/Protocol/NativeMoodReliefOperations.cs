@@ -107,11 +107,9 @@ namespace HomeBridge.BridgeTools
             if (pawn.Dead || pawn.Downed || pawn.Drafted || pawn.InMentalState || !pawn.IsColonistPlayerControlled)
             { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn unavailable, drafted or in an active mental break."); return false; }
             var expectedJob = command.ExpectedJob.StateCase == Operations.ExpectedJob.StateOneofCase.JobId ? (int?)command.ExpectedJob.JobId : null;
-            // playerForced marks any ordered job in flight, this adapter's own
-            // (TryTakeOrderedJob sets it) as much as the player's: a
-            // dispatch-collision guard, not a provenance veto (#461).
-            if (pawn.CurJob?.loadID != expectedJob || pawn.CurJob?.playerForced == true || pawn.jobs.jobQueue.Count != 0)
-            { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Current job changed or an ordered job is in flight."); return false; }
+            // Fresh job identity guards interruption; ordered work is eligible in Auto.
+            if (pawn.CurJob?.loadID != expectedJob)
+            { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Current job changed since the read."); return false; }
             if (pawn.timetable?.CurrentAssignment?.defName != command.ExpectedScheduleDef)
             { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Timetable changed since the read."); return false; }
             if (HealthAIUtility.ShouldSeekMedicalRest(pawn))

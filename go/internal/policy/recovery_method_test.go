@@ -82,8 +82,8 @@ func TestRecoverySelectionCurrentRoofRestrictionAllowsBoundedWork(t *testing.T) 
 		t.Fatal("changed native state reused method", s)
 	}
 }
-func TestRecoverySelectionUnknownsAndPlayerGuards(t *testing.T) {
-	for _, name := range []string{"no_refuge", "unknown_hazard", "missing_worker", "unknown_area", "dead", "downed", "drafted", "mental", "forced", "unknown_job"} {
+func TestRecoverySelectionUnknownsAndUnavailableWorkers(t *testing.T) {
+	for _, name := range []string{"no_refuge", "unknown_hazard", "missing_worker", "unknown_area", "dead", "downed", "drafted", "mental"} {
 		t.Run(name, func(t *testing.T) {
 			p, h := recoveryPlanning(t, true)
 			safe, _ := p.Safety.Value()
@@ -112,15 +112,9 @@ func TestRecoverySelectionUnknownsAndPlayerGuards(t *testing.T) {
 						workers[i].Drafted = domain.Known(true)
 					case "mental":
 						workers[i].Mental = domain.Known(true)
-					case "forced":
-						workers[i].PlayerForced = domain.Known(true)
-					case "unknown_job":
-						workers[i].PlayerForced = domain.Unknown[bool]()
 					}
 				}
-				if name != "unknown_job" {
-					want = RecoveryNoWorker
-				}
+				want = RecoveryNoWorker
 			}
 			p.Safety = domain.Known(safe)
 			p.Workers = domain.Known(workers)
@@ -187,5 +181,23 @@ func TestRecoveryRoofHazardMaintainsNeedWithoutDamagedBuildings(t *testing.T) {
 	p.Safety = domain.Unknown[RecoverySafety]()
 	if RecoveryNeed(h, p.Safety) != domain.NeedUnknown {
 		t.Fatal("unknown safety recovered")
+	}
+}
+
+func TestRecoveryUsesForcedWorkerAsFallback(t *testing.T) {
+	p, h := recoveryPlanning(t, false)
+	workers, _ := p.Workers.Value()
+	workers[1].PlayerForced = domain.Known(true) // a sorts after ordinary worker b.
+	p.Workers = domain.Known(workers)
+	s := recoverySelect(t, p, h)
+	if len(s.Candidates) != 2 || s.Candidates[0].Pawn != "b" || s.Candidates[1].Pawn != "a" {
+		t.Fatal(s)
+	}
+	for i := range workers {
+		workers[i].PlayerForced = domain.Known(true)
+	}
+	p.Workers = domain.Known(workers)
+	if s := recoverySelect(t, p, h); len(s.Candidates) != 2 {
+		t.Fatal(s)
 	}
 }

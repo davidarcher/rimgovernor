@@ -5,7 +5,7 @@ import "github.com/davidarcher/RimGovernor/go/internal/domain"
 // FireSafetyPawnFacts mirrors SecureSuppliesHaulerFacts' eligibility shape
 // applied to the Firefighting work type: the
 // candidate filter for the firefight action (dead/downed/drafted/mental
-// state, player-forced job, needs-tend/bleeding, and an enabled non-zero-
+// state, needs-tend/bleeding, and an enabled non-zero-
 // priority work setting).
 type FireSafetyPawnFacts struct {
 	Pawn                               domain.PawnID
@@ -62,12 +62,11 @@ func fireSafetyEligible(p FireSafetyPawnFacts) bool {
 	downed, wk := p.Downed.Value()
 	drafted, tk := p.Drafted.Value()
 	mental, mk := p.MentalState.Value()
-	forced, fk := p.PlayerForced.Value()
 	needsTend, nk := p.NeedsTend.Value()
 	bleeding, bk := p.Bleeding.Value()
 	firefighting, hk := p.FirefightingEnabled.Value()
-	if !dk || !wk || !tk || !mk || !fk || !nk || !bk || !hk {
+	if !dk || !wk || !tk || !mk || !nk || !bk || !hk {
 		return false
 	}
-	return !dead && !downed && !drafted && !mental && !forced && !needsTend && !bleeding && firefighting
+	return !dead && !downed && !drafted && !mental && !needsTend && !bleeding && firefighting
 }

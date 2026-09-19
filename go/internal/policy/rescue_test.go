@@ -159,3 +159,19 @@ func TestRescueAdmitsCachedPawnRowBehindPreparedTick(t *testing.T) {
 		t.Fatal(d)
 	}
 }
+
+func TestSelectRescueUsesForcedAndQueuedPawnAsFallback(t *testing.T) {
+	forced, idle := rescuerCandidate("a"), rescuerCandidate("z")
+	forced.PlayerForced, forced.QueuedJobs = domain.Known(true), domain.Known(uint32(2))
+	patients := []RescuePatientFacts{rescuePatientCandidate("patient", true, false)}
+	if pawn, _, ok := SelectRescue([]RescuerFacts{forced, idle}, patients); !ok || pawn != idle.Pawn {
+		t.Fatal(pawn, ok)
+	}
+	if pawn, _, ok := SelectRescue([]RescuerFacts{forced}, patients); !ok || pawn != forced.Pawn {
+		t.Fatal(pawn, ok)
+	}
+	forced.PlayerForced, forced.QueuedJobs = domain.Unknown[bool](), domain.Unknown[uint32]()
+	if _, _, ok := SelectRescue([]RescuerFacts{forced}, patients); !ok {
+		t.Fatal("provenance blocked rescue")
+	}
+}

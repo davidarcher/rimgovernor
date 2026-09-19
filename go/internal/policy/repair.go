@@ -156,14 +156,13 @@ func SelectRepair(structures []UpkeepStructure, pawns []RepairCandidateFacts) (U
 		downed, wk := p.Downed.Value()
 		drafted, tk := p.Drafted.Value()
 		mental, mk := p.MentalState.Value()
-		forced, fk := p.PlayerForced.Value()
 		needsTend, nk := p.NeedsTend.Value()
 		bleeding, bk := p.Bleeding.Value()
 		construction, ck := p.ConstructionEnabled.Value()
-		if !dk || !wk || !tk || !mk || !fk || !nk || !bk || !ck {
+		if !dk || !wk || !tk || !mk || !nk || !bk || !ck {
 			return false
 		}
-		return !dead && !downed && !drafted && !mental && !forced && !needsTend && !bleeding && construction
+		return !dead && !downed && !drafted && !mental && !needsTend && !bleeding && construction
 	}
 	var pool []RepairCandidateFacts
 	for _, p := range pawns {
@@ -174,6 +173,12 @@ func SelectRepair(structures []UpkeepStructure, pawns []RepairCandidateFacts) (U
 	if len(pool) == 0 || len(structures) == 0 {
 		return UpkeepStructure{}, "", false
 	}
-	sort.Slice(pool, func(i, j int) bool { return pool[i].Pawn < pool[j].Pawn })
+	sort.Slice(pool, func(i, j int) bool {
+		a, b := orderedWorkCost(pool[i].PlayerForced), orderedWorkCost(pool[j].PlayerForced)
+		if a != b {
+			return a < b
+		}
+		return pool[i].Pawn < pool[j].Pawn
+	})
 	return structures[0], pool[0].Pawn, true
 }

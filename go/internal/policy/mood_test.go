@@ -106,7 +106,7 @@ func TestMoodMissingDeathAndMentalBreak(t *testing.T) {
 	}
 }
 
-func TestMoodMethodOrderingAndPlayerGuards(t *testing.T) {
+func TestMoodMethodOrderingAndAvailability(t *testing.T) {
 	p := moodPawn()
 	p.Rest = domain.Known(.1)
 	p.Joy = domain.Known(.05)
@@ -125,10 +125,10 @@ func TestMoodMethodOrderingAndPlayerGuards(t *testing.T) {
 		{"first", nil, nil, MoodRelief, MoodJoy},
 		{"used", nil, []MoodNeed{MoodJoy}, MoodRelief, MoodFood},
 		{"exhausted", nil, []MoodNeed{MoodJoy, MoodFood, MoodRest}, MoodExhausted, ""},
-		{"forced", func(s *MoodState) { s.Pawn.PlayerForced = domain.Known(true) }, nil, MoodPlayerWork, ""},
+		{"forced", func(s *MoodState) { s.Pawn.PlayerForced = domain.Known(true) }, nil, MoodRelief, MoodJoy},
 		{"drafted", func(s *MoodState) { s.Pawn.Drafted = domain.Known(true) }, nil, MoodPlayerWork, ""},
 		{"downed", func(s *MoodState) { s.Pawn.Downed = domain.Known(true) }, nil, MoodPlayerWork, ""},
-		{"unknown job", func(s *MoodState) { s.Pawn.PlayerForced = domain.Unknown[bool]() }, nil, MoodPlayerWork, ""},
+		{"unknown job", func(s *MoodState) { s.Pawn.PlayerForced = domain.Unknown[bool]() }, nil, MoodRelief, MoodJoy},
 		{"mental", func(s *MoodState) { s.Pawn.Mental = domain.Known(true) }, nil, MoodMentalBreak, ""},
 		{"missing", func(s *MoodState) { s.Missing = true }, nil, MoodUnavailable, ""},
 	} {

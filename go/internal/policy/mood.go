@@ -371,7 +371,7 @@ func SelectMoodMethod(s MoodState, used []MoodNeed) (MoodProposal, error) {
 		r.Reason = MoodRecovered
 		return r, nil
 	}
-	for _, f := range []domain.Fact[bool]{s.Pawn.Dead, s.Pawn.Downed, s.Pawn.Drafted, s.Pawn.PlayerForced} {
+	for _, f := range []domain.Fact[bool]{s.Pawn.Dead, s.Pawn.Downed, s.Pawn.Drafted} {
 		if value, k := f.Value(); !k || value {
 			r.Reason = MoodPlayerWork
 			return r, nil

@@ -84,7 +84,7 @@ func TestRoutineRecoveryUnknownWorkerDoesNotBecomeAvailableAfterRestart(t *testi
 	s := open(t, path)
 	r := recoveryRequest()
 	workers, _ := r.Facts.RecoveryWorkers.Value()
-	workers[0].PlayerForced = domain.Unknown[bool]()
+	workers[0].Dead = domain.Unknown[bool]()
 	r.Facts.RecoveryWorkers = domain.Known(workers)
 	out := reviewRoutine(t, s, &r)
 	if out.Review.Recovery.Selection.Reason != policy.RecoveryFactsUnknown {
@@ -94,7 +94,7 @@ func TestRoutineRecoveryUnknownWorkerDoesNotBecomeAvailableAfterRestart(t *testi
 	s = open(t, path)
 	defer s.Close()
 	loaded, err := s.LoadRoutineReview(ctx)
-	if err != nil || loaded.Recovery.Selection.Reason != policy.RecoveryFactsUnknown || (*loaded.Recovery.Workers)[0].PlayerForced != nil {
+	if err != nil || loaded.Recovery.Selection.Reason != policy.RecoveryFactsUnknown || (*loaded.Recovery.Workers)[0].Dead != nil {
 		t.Fatal(loaded, err)
 	}
 }
@@ -112,7 +112,7 @@ func TestRoutineRecoveryRejectsCorruptProposalInputs(t *testing.T) {
 				v.Recovery.Selection.Candidates[0].Area = "outside"
 			case "worker":
 				value := true
-				(*v.Recovery.Workers)[0].PlayerForced = &value
+				(*v.Recovery.Workers)[0].Dead = &value
 			case "restriction":
 				value := "another"
 				v.Recovery.Safety.Restrictions[0].Area = &value
@@ -174,5 +174,36 @@ func TestRoutineRecoveryEmergencySuspendsCandidatesUntilObservedClearance(t *tes
 	out = reviewRoutine(t, s, &r)
 	if out.Review.Recovery == nil || out.Review.Recovery.Selection.Reason != policy.RecoveryAdmissionRequired {
 		t.Fatal("observed clearance did not restore planning")
+	}
+}
+
+func TestRoutineRecoveryForcedEvidenceSurvivesRestart(t *testing.T) {
+	t.Parallel()
+	for _, forced := range []domain.Fact[bool]{domain.Known(true), domain.Unknown[bool]()} {
+		path := memoryPath(t)
+		s := open(t, path)
+		r := recoveryRequest()
+		workers, _ := r.Facts.RecoveryWorkers.Value()
+		workers[0].PlayerForced = forced
+		r.Facts.RecoveryWorkers = domain.Known(workers)
+		out := reviewRoutine(t, s, &r)
+		if out.Review.Recovery.Selection.Reason != policy.RecoveryAdmissionRequired {
+			t.Fatal("forced evidence blocked recovery")
+		}
+		s.Close()
+		s = open(t, path)
+		loaded, err := s.LoadRoutineReview(context.Background())
+		s.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if loaded.Recovery.Selection.Reason != policy.RecoveryAdmissionRequired {
+			t.Fatal("restart blocked recovery")
+		}
+		got := (*loaded.Recovery.Workers)[0].PlayerForced
+		value, known := forced.Value()
+		if (got != nil) != known || got != nil && *got != value {
+			t.Fatal("lost forced-job evidence", got)
+		}
 	}
 }

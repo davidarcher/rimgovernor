@@ -239,3 +239,26 @@ func TestSquadDefenderEligibleDistinguishesOwnedDrafts(t *testing.T) {
 		t.Fatal(assignments, ok)
 	}
 }
+
+func TestSquadAdoptsDraftWithForcedQueuedWork(t *testing.T) {
+	a, b, c := squadDefender("a", false), squadDefender("b", false), squadDefender("c", false)
+	a.Drafted, a.DraftOwned = domain.Known(true), domain.Known(false)
+	a.PlayerForced, a.QueuedJobs = domain.Known(true), domain.Known(uint32(2))
+	threat := squadThreat("raider", false)
+	got, ok := SelectSquadDefense([]SquadThreatFacts{threat}, []SquadDefenderFacts{a, b, c})
+	if !ok || len(got) != 2 || got[0].Defender != "b" || got[1].Defender != "c" {
+		t.Fatal(got, ok)
+	}
+	got, ok = SelectSquadDefense([]SquadThreatFacts{threat}, []SquadDefenderFacts{a, b})
+	if !ok || len(got) != 2 || got[1].Defender != "a" {
+		t.Fatal(got, ok)
+	}
+	got, ok = SelectTribalRaiderDefense(threat, []SquadDefenderFacts{a, b, c})
+	if !ok || len(got) != 3 || got[2].Defender != "a" {
+		t.Fatal(got, ok)
+	}
+	a.DraftOwned = domain.Known(true)
+	if _, ok := SelectSquadDefense([]SquadThreatFacts{threat}, []SquadDefenderFacts{a, b}); ok {
+		t.Fatal("stole active draft claim")
+	}
+}
