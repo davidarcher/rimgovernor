@@ -132,3 +132,4 @@ Use [shared rules](README.md) and the family coverage documents for exact valida
 | `rimgovernor/receipts_lookup` | `rimgovernor.receipts.v1.Attempts/Lookup` | `rimgovernor.receipts.v1.LookupRequest` | `rimgovernor.receipts.v1.LookupReply` |
 | `rimgovernor/receipts_observe_progress` | `rimgovernor.receipts.v1.Attempts/ObserveProgress` | `rimgovernor.receipts.v1.ProgressRequest` | `rimgovernor.receipts.v1.ProgressReply` |
 | `rimgovernor/observations_get_clearance_targets` | `rimgovernor.observations.v1.Observations/GetClearanceTargets` | `rimgovernor.observations.v1.ClearanceTargetsRequest` | `rimgovernor.observations.v1.ClearanceTargetsReply` |
+| `rimgovernor/observations_get_ancient_shrines` | `rimgovernor.observations.v1.Observations/GetAncientShrines` | `rimgovernor.observations.v1.AncientShrinesRequest` | `rimgovernor.observations.v1.AncientShrinesReply` |

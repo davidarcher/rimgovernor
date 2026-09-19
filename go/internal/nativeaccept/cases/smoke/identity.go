@@ -88,6 +88,25 @@ func init() {
 				return err
 			}
 			s.Report()["clearance"] = observed
+			shrines, err := s.Harness().Wire(ctx, "shrines", "observations_get_ancient_shrines", map[string]any{"scope": map[string]any{"expectedIdentity": identity}})
+			if err != nil {
+				return err
+			}
+			_, observed, err = na.Outcome(shrines, "observed")
+			if err != nil {
+				return err
+			}
+			if encoded, err = json.Marshal(observed); err != nil {
+				return err
+			}
+			shrineCensus := &o.AncientShrinesSnapshot{}
+			if err := protojson.Unmarshal(encoded, shrineCensus); err != nil {
+				return err
+			}
+			if err := bridge.ValidateAncientShrines(shrineCensus, expected); err != nil {
+				return err
+			}
+			s.Report()["shrines"] = observed
 			return nil
 		},
 	})

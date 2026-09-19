@@ -279,6 +279,27 @@ must match the expected load, map, generation and fresh tick. The read admits
 nothing itself; `ClearHomeObstructions` consumes it
 ([upkeep contracts](upkeep-contracts.md)).
 
+## Ancient shrine observations
+
+`Observations.GetAncientShrines` is a read-only census of ancient-danger
+rooms, one row per shrine rather than one per flagged wall (the clearance
+census above still marks the individual walls `ancient_danger`). A row
+carries the room rectangle, `sealed` (interior fogged, no open roof, not on
+the map edge), whether any room cell is in Home, every cryptosleep casket
+with its hit points, `has_contents` and player claim, the hostile pawns and
+hives inside the room once the interior is unfogged (`guards_known`; a
+sealed shrine never reports guards), and the perimeter walls the player may
+deconstruct without a roof-support blocker, each with the adjacent cell
+outside the room.
+
+The occupant of a filled casket is unknown until it opens; a casket under
+20% hit points explodes, so hit points are a safety reading. The census is
+bounded to 64 shrines, 32 caskets, 256 guards and 64 breach walls per
+shrine and 1 MiB; overflow or an unreadable scan is unavailable, never
+sampled, and the Go observation treats the unavailable stub as unknown.
+Nothing in this read admits a breach, a casket order or a claim: readiness
+(#457), the breach goal (#458) and casket handling (#459) decide.
+
 ## Related reading
 
 Read [space and resources](../architecture/space-and-resources.md) for why planned

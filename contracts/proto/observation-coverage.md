@@ -340,3 +340,5 @@ New producer obligations are explicit:
   work backed by actual native facts, not claimed existing wire behavior.
 
 Clearance: `GetClearanceTargets` reads visible, deconstructible non-player buildings touching Home. It retains partial Home overlap, sealed ancient-danger membership, counterfactual roof blockers, faction and designation ownership. The same read lists the chunk stacks standing in Home (`chunks`: forbidden, stored, hauling destination) and, while an allowed unstored chunk has no destination, a free outdoor Home footprint for a dumping stockpile (`dump_sites`). `ClearHomeObstructions` consumes both.
+
+Shrines: `GetAncientShrines` reads each ancient-danger room as one unit: sealed state, Home overlap, caskets with hit points and contents, guards once the interior is unfogged, and the perimeter walls that can be deconstructed without a roof-support blocker. No readiness judgement, breach or casket order consumes this census yet (#456).

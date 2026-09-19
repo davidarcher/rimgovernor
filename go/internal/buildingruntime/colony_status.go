@@ -54,6 +54,9 @@ type ColonyStatusReport struct {
 	// Threat is the census's wealth split and raid points (#395); unknown
 	// under a native build that does not report the section.
 	Threat bridge.ColonyThreat
+	// Shrines is the ancient shrine census (#456); unknown under a native
+	// build that does not serve it.
+	Shrines domain.Fact[[]policy.AncientShrine]
 	// Pawns is the living home colonist roster, sorted as native listed it.
 	Pawns []ColonyStatusPawn
 }
@@ -128,7 +131,13 @@ func (s *ColonyStatus) Read(ctx context.Context) (ColonyStatusReport, error) {
 		PendingFoodNutrition: optionalFact(observed.PendingFoodNutrition),
 		FoodCorpses:          len(observed.FoodCorpses),
 		Threat:               bridge.ProjectColonyThreat(observed),
+		Shrines:              domain.Unknown[[]policy.AncientShrine](),
 		Pawns:                []ColonyStatusPawn{},
+	}
+	if source, ok := s.native.(observation.ShrineSource); ok {
+		if report.Shrines, err = observation.ObserveShrines(call, source, decoded); err != nil {
+			return ColonyStatusReport{}, err
+		}
 	}
 	if held, ok := facts.Get[observation.ColonyProjection](s.food, facts.Colony); ok {
 		id := held.Value.Identity

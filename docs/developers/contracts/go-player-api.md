@@ -31,7 +31,7 @@ control uses these routes.
 | GET/POST | `/api/player/work-preferences`, `…/replace` | Work preferences |
 | GET/POST | `/api/player/clock`, `/api/player/clock/acknowledge` | Clock review |
 | GET | `/api/player/world-evaluation` | Read-only caravan/quest evaluation |
-| GET | `/api/player/colony` | Live colony census: food nutrition and runway, colonists, workers, downed, mood mean, the living home roster, raid points and the wealth split (`raidPoints`, `wealthTotal`, `wealthItems`, `wealthBuildings`, `wealthPawns`; #395) (unknown facts are null) |
+| GET | `/api/player/colony` | Live colony census: food nutrition and runway, colonists, workers, downed, mood mean, the living home roster, raid points and the wealth split (`raidPoints`, `wealthTotal`, `wealthItems`, `wealthBuildings`, `wealthPawns`; #395) and the ancient shrine census (`shrines`: id, `sealed`, `inHome`, `caskets`, `filledCaskets`, `guardsKnown`, `guardsAlive`, `breachWalls`; #456) (unknown facts are null) |
 
 Mutations require JSON and the process token in `X-RimGovernor-Player`. The
 read-only service exposes none of these player routes. Old building control

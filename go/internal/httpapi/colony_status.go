@@ -39,9 +39,23 @@ type colonyStatusDTO struct {
 	WealthItems          *float64              `json:"wealthItems"`
 	WealthBuildings      *float64              `json:"wealthBuildings"`
 	WealthPawns          *float64              `json:"wealthPawns"`
+	Shrines              []colonyShrineDTO     `json:"shrines"`
 	Downed               int                   `json:"downed"`
 	MoodMean             *float64              `json:"moodMean"`
 	Pawns                []colonyStatusPawnDTO `json:"pawns"`
+}
+
+// colonyShrineDTO is one ancient shrine (#456): the casket group, whether
+// its room is still sealed and, once seen inside, whether guards survive.
+type colonyShrineDTO struct {
+	ID            string `json:"id"`
+	Sealed        bool   `json:"sealed"`
+	InHome        bool   `json:"inHome"`
+	Caskets       int    `json:"caskets"`
+	FilledCaskets int    `json:"filledCaskets"`
+	GuardsKnown   bool   `json:"guardsKnown"`
+	GuardsAlive   bool   `json:"guardsAlive"`
+	BreachWalls   int    `json:"breachWalls"`
 }
 type colonyStatusPawnDTO struct {
 	ID     domain.PawnID `json:"id"`
@@ -69,6 +83,12 @@ func projectColonyStatus(v buildingruntime.ColonyStatusReport) colonyStatusDTO {
 		Pawns: []colonyStatusPawnDTO{},
 	}
 	out.FoodPlanTick = factPointer(v.FoodPlanTick)
+	if shrines, known := v.Shrines.Value(); known {
+		out.Shrines = []colonyShrineDTO{}
+		for _, shrine := range shrines {
+			out.Shrines = append(out.Shrines, colonyShrineDTO{ID: shrine.ID, Sealed: shrine.Sealed, InHome: shrine.InHome, Caskets: len(shrine.Caskets), FilledCaskets: shrine.FilledCaskets(), GuardsKnown: shrine.GuardsKnown, GuardsAlive: shrine.GuardsAlive(), BreachWalls: len(shrine.BreachWalls)})
+		}
+	}
 	if plan, known := v.FoodPlan.Value(); known {
 		out.FoodPlan = projectFoodPlan(plan)
 	}

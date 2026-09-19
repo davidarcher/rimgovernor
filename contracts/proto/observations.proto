@@ -78,6 +78,62 @@ message ClearanceTargetsReply { oneof outcome {
   rimgovernor.common.v1.Unavailable unavailable = 2;
   rimgovernor.common.v1.Failure failure = 3;
 } }
+
+// Ancient shrines (#456): each sealed or opened ancient-danger room as one
+// unit. Caskets report native hit points and HasAnyContents; the occupant
+// stays unknown until opened. Guards are the hostile pawns and hives inside
+// the room rectangle and are complete only once the interior is unfogged.
+// Breach walls are the perimeter walls the player may deconstruct without
+// a roof-support blocker, each with the adjacent cell outside the room.
+enum ShrineGuardKind {
+  SHRINE_GUARD_KIND_UNSPECIFIED = 0;
+  SHRINE_GUARD_KIND_MECHANOID = 1;
+  SHRINE_GUARD_KIND_INSECTOID = 2;
+  SHRINE_GUARD_KIND_FLESHBEAST = 3;
+  SHRINE_GUARD_KIND_HUMAN = 4;
+  SHRINE_GUARD_KIND_HIVE = 5;
+  SHRINE_GUARD_KIND_OTHER = 6;
+}
+message ShrineCasket {
+  optional string entity_id = 1;
+  rimgovernor.common.v1.Cell cell = 2;
+  optional uint32 hit_points = 3;
+  optional uint32 max_hit_points = 4;
+  optional bool has_contents = 5;
+  optional bool player_claimed = 6;
+}
+message ShrineGuard {
+  optional string entity_id = 1;
+  ShrineGuardKind kind = 2;
+  optional bool downed = 3;
+  optional bool dead = 4;
+}
+message ShrineBreachWall {
+  optional string entity_id = 1;
+  rimgovernor.common.v1.Cell cell = 2;
+  rimgovernor.common.v1.Cell outside = 3; // Adjacent cell outside the room.
+}
+message AncientShrine {
+  optional string shrine_id = 1;
+  Rectangle room = 2;
+  optional bool sealed = 3; // Interior fogged, no open roof, no map edge.
+  optional bool in_home = 4; // Any room cell in Home.
+  optional bool guards_known = 5; // False while the interior is fogged.
+  repeated ShrineCasket caskets = 6;
+  repeated ShrineGuard guards = 7;
+  repeated ShrineBreachWall breach_walls = 8;
+}
+message AncientShrinesRequest { ReadScope scope = 1; }
+message AncientShrinesSnapshot {
+  rimgovernor.common.v1.ObservationContext context = 1;
+  repeated AncientShrine shrines = 2;
+  Completeness completeness = 3;
+}
+message AncientShrinesReply { oneof outcome {
+  AncientShrinesSnapshot observed = 1;
+  rimgovernor.common.v1.Unavailable unavailable = 2;
+  rimgovernor.common.v1.Failure failure = 3;
+} }
 message MapSize { optional uint32 width = 1; optional uint32 height = 2; }
 message DefinitionRef { optional string def_name = 1; optional string label = 2; }
 message EntityRef {
@@ -922,6 +978,7 @@ message ArchitectDesignatorsReply { oneof outcome { ArchitectDesignatorsSnapshot
 
 service Observations {
   rpc GetClearanceTargets(ClearanceTargetsRequest) returns (ClearanceTargetsReply);
+  rpc GetAncientShrines(AncientShrinesRequest) returns (AncientShrinesReply);
   rpc ReadProductionPolicy(ProductionPolicyRequest) returns (ProductionPolicyReply);
   rpc ListArchitectCategories(ArchitectCategoriesRequest) returns (ArchitectCategoriesReply);
   rpc ListArchitectDesignators(ArchitectDesignatorsRequest) returns (ArchitectDesignatorsReply);
