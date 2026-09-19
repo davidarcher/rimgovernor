@@ -130,7 +130,12 @@ namespace HomeBridge.BridgeTools
                 blocker = RoofSupportSafety.Blocker(wall, out _);
                 if (blocker == null && !WallUpgradeSafety.CornerAccess(map, origin, normal)) blocker = "Corner salvage and construction access is unavailable";
             }
-            else if (backups != null) blocker = RoofSupportSafety.Blocker(wall, out _);
+            // A straight site's demolition waits for its backups, so a fresh
+            // candidate is judged with them standing: a wall whose removal
+            // would still drop a roof (a fixture-laid or distant-held roof
+            // within support range) is not a site, and no backups are ever
+            // committed to it (#293).
+            else blocker = RoofSupportSafety.Blocker(wall, backups == null ? cells : null, out _);
             var row = Site(map, wall, wall, normal, cells, context, backups);
             if (blocker != null) row.Blocker = blocker;
             row.ReplacementMaterials.AddRange(materials);

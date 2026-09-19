@@ -361,3 +361,43 @@ func TestRoutineReviewRecoverySettlesUndispatchedMethod(t *testing.T) {
 		t.Fatal("settled plan not retired", p.Retired, err)
 	}
 }
+
+// A stone-shell bundle (#293) carries WallRemovalActions beside its Wall
+// builds; the routine allowlist must authorize the whole bundle, or the
+// Worker never dispatches the demolition its replacement depends on.
+func TestRoutineExecutionAuthorizesWallRemovalBundle(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	s := open(t, memoryPath(t))
+	r := routineRequest()
+	r.Current.Native = 2
+	g := routineGoal(t, reviewRoutine(t, s, &r), policy.MaintainWood)
+	removal, err := domain.NewWallRemoval("original-wall", "", 0, 1, 1, 0, false, false, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	demolish, err := domain.NewWallRemovalAction("demolish", removal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	building, err := domain.NewBuilding("Wall", domain.Cell{X: 0, Z: 1}, domain.North, "BlocksGranite")
+	if err != nil {
+		t.Fatal(err)
+	}
+	replace, err := domain.NewBuildingAction("replace", building)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bundle, err := domain.NewPlan("shell-plan", 1, []domain.Action{demolish, replace}, domain.ActionDependency{Action: "replace", Requires: "demolish"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "shell", bundle); err != nil {
+		t.Fatal(err)
+	}
+	target := r.Current
+	target.Plan, target.Revision = "shell-plan", 1
+	if err = s.AuthorizeRoutinePlan(ctx, r.Current, target); err != nil {
+		t.Fatal("a bundle carrying a wall removal was not authorized", err)
+	}
+}

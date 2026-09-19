@@ -1,5 +1,6 @@
 #nullable enable
 
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,7 +17,12 @@ namespace HomeBridge.BridgeTools
                 .All(c => c.InBounds(map) && !c.Fogged(map));
         // Counterfactual version of the installed RoofCollapseUtility's connected
         // roof/radius rule. The map is never edited to preview removal.
-        internal static string? Blocker(Building building, out int checkedRoofs)
+        internal static string? Blocker(Building building, out int checkedRoofs) => Blocker(building, null, out checkedRoofs);
+
+        // assumedHolders are open cells counted as roof holders the removal
+        // would find standing: the stone-shell census lists a fresh candidate
+        // only when its backups, once built, keep every roof up (#293).
+        internal static string? Blocker(Building building, ICollection<IntVec3>? assumedHolders, out int checkedRoofs)
         {
             checkedRoofs = 0;
             if (building?.Map == null || !building.Spawned) return "Observed building is unavailable";
@@ -30,7 +36,7 @@ namespace HomeBridge.BridgeTools
                 c => GenAdj.CardinalDirectionsAndInside.Select(offset => c + offset),
                 (near, root) => near.InHorDistOf(root, radius),
                 c => c.InBounds(map), c => c.Fogged(map), c => c.Roofed(map),
-                c => c.GetEdifice(map)?.def.holdsRoof == true,
+                c => c.GetEdifice(map)?.def.holdsRoof == true || assumedHolders?.Contains(c) == true,
                 c => map.roofCollapseBuffer.IsMarkedToCollapse(c), out checkedRoofs);
         }
     }

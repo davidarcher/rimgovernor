@@ -109,6 +109,9 @@ func stoneShellFixture(t *testing.T) (*RoutineStoneShellPlanner, *store.Store, *
 	n.onPreview = func(_ context.Context, p *bridge.BuildingPreview) {
 		b, _ := p.Preview.Action.Building()
 		p.Preview.Footprint = domain.Known([]domain.Cell{b.Cell()})
+		// Native reports every Wall as made from stuff; a planner that
+		// mistook that for a refusal never admitted a bundle (#293).
+		p.Preview.MadeFromStuff = domain.Known(true)
 		p.Preview.Costs = domain.Known([]policy.Amount{{Resource: "BlocksGranite", Count: 5}})
 		p.Stock.Values = []policy.Stock{{Resource: "BlocksGranite", Available: domain.Known(int64(100))}}
 	}
@@ -171,6 +174,13 @@ func TestRoutineStoneShellAdmitsReplacementBundleWithFreshStock(t *testing.T) {
 	if again, err := p.Step(ctx); err != nil || again.Reason != BuildingMethodExistingWork {
 		t.Fatal(again, err)
 	}
+	// The pending demolition is clock work like the wall build after it: a
+	// window that held on the WallRemovalAction never ran the bundle (#293).
+	target := p.reviewer.player.session.State().Snapshot
+	target.Plan, target.Revision = plan.Spec.ID(), plan.Spec.Revision()
+	if work, _, err := clockSchedulerWork(plan, target); err != nil || !work {
+		t.Fatal("stone shell bundle cannot advance", work, err)
+	}
 }
 
 // A stock observation without the current snapshot and tick is exactly what
@@ -183,6 +193,7 @@ func TestRoutineStoneShellRefusesZeroStockObservationAsStaleFacts(t *testing.T) 
 	n.onPreview = func(_ context.Context, v *bridge.BuildingPreview) {
 		b, _ := v.Preview.Action.Building()
 		v.Preview.Footprint = domain.Known([]domain.Cell{b.Cell()})
+		v.Preview.MadeFromStuff = domain.Known(true)
 		v.Preview.Costs = domain.Known([]policy.Amount{{Resource: "BlocksGranite", Count: 5}})
 		v.Stock.Values = []policy.Stock{{Resource: "BlocksGranite", Available: domain.Known(int64(100))}}
 	}

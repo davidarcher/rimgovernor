@@ -227,7 +227,11 @@ namespace HomeBridge.BridgeTools
                 // roof laid over every building that shorts in rain (the battery
                 // room and the open fields need neither); rain starts with only
                 // the battery exposed so the controller must build its enclosure.
-                if (!open && scenario != "battery") Spawn(DefDatabase<ThingDef>.GetNamed("Column"), At(scenario == "rain" ? 11 : 5, 5));
+                // The rain column stands against the stove's roofed row so
+                // the roof is held through a roofed path, as a built roof
+                // is; two cells away it floats, and the stone-shell census
+                // then refuses every shelter wall within support range.
+                if (!open && scenario != "battery") Spawn(DefDatabase<ThingDef>.GetNamed("Column"), At(scenario == "rain" ? 11 : 5, scenario == "rain" ? 4 : 5));
                 foreach (var building in map.listerBuildings.allBuildingsColonist)
                 {
                     if (scenario == "rain" && building == battery) continue;

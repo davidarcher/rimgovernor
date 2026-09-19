@@ -148,6 +148,7 @@ type buildingServiceBridge struct {
 	growerCrop          *growercrop.Capabilities
 	bedAssign           *bedassign.Capabilities
 	homeCoverage        *buildingruntime.HomeCoverageCapabilities
+	wallRemoval         *buildingruntime.WallRemovalCapabilities
 	presentationMedia   *bridge.PresentationMedia
 	lifecycle           lifecycleCapability
 }
@@ -310,6 +311,10 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
+	wallRemovalWriter, err := bridge.NewWallRemovalWriter(client)
+	if err != nil {
+		return buildingServiceBridge{}, errors.Join(err, client.Close())
+	}
 	presentationMedia, err := bridge.NewPresentationMedia(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
@@ -361,6 +366,7 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		growerCrop:          &growercrop.Capabilities{Native: client, Writer: growerCropControl},
 		bedAssign:           &bedassign.Capabilities{Native: client, Writer: bedAssignWriter},
 		homeCoverage:        &buildingruntime.HomeCoverageCapabilities{Native: client, Writer: homeCoverageWriter},
+		wallRemoval:         &buildingruntime.WallRemovalCapabilities{Native: client, Writer: wallRemovalWriter},
 		presentationMedia:   presentationMedia,
 		lifecycle:           lifecycleCapability{lifecycleSave, lifecycleLoad}}, nil
 }
@@ -759,6 +765,16 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		homeCoverageCapabilities = client.homeCoverage
 	}
+	// The stone-shell family demolishes the flammable wall each bundle
+	// replaces through the shared executor (typed RemoveWall, #293); without
+	// the capability the bundle's demolition step never leaves pending.
+	var wallRemovalCapabilities *buildingruntime.WallRemovalCapabilities
+	if config.routineStoneShellPlans {
+		if client.wallRemoval == nil {
+			return errors.New("stone shell plans require typed capabilities")
+		}
+		wallRemovalCapabilities = client.wallRemoval
+	}
 	session, err := buildingruntime.NewSession(lifetime, buildingruntime.SessionConfig{RoutineMethods: config.routineMethods,
 		Rules:               config.resourceRules,
 		Control:             buildingruntime.ControlConfig{ProfileDirectory: config.profile, CallTimeout: callTimeout, Worlds: buildingWorldSource{client.reads}},
@@ -801,6 +817,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		GrowerCrop:          growerCropCapabilities,
 		BedAssign:           bedAssignCapabilities,
 		HomeCoverage:        homeCoverageCapabilities,
+		WallRemoval:         wallRemovalCapabilities,
 	}, database, client.native, client.authority, client.writes, wallClock{})
 	if err != nil {
 		return err

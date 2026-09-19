@@ -80,6 +80,7 @@ type SessionConfig struct {
 	Trade               *TradeCapabilities
 	Husbandry           *HusbandryCapabilities
 	HomeCoverage        *HomeCoverageCapabilities
+	WallRemoval         *WallRemovalCapabilities
 	PrisonerInteraction *PrisonerInteractionCapabilities
 	QuestAccept         *QuestAcceptCapabilities
 	MineAcquisition     *mineacquisition.MineAcquisitionCapabilities
@@ -391,6 +392,9 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.HomeCoverage != nil && (config.HomeCoverage.Native == nil || config.HomeCoverage.Writer == nil) {
 		return cleanup(ErrControl)
 	}
+	if config.WallRemoval != nil && (config.WallRemoval.Native == nil || config.WallRemoval.Writer == nil) {
+		return cleanup(ErrControl)
+	}
 	if config.PrisonerInteraction != nil && (config.PrisonerInteraction.Native == nil || config.PrisonerInteraction.Writer == nil) {
 		return cleanup(ErrControl)
 	}
@@ -647,6 +651,19 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 			return cleanup(err)
 		}
 		if err := worker.EnableHomeCoverage(homeCoverageBoundary); err != nil {
+			return cleanup(err)
+		}
+	}
+	if config.WallRemoval != nil {
+		// The stone-shell family's demolitions (#293): the planner bundles
+		// each wall's backups, demolition and replacement in one plan, and
+		// the Worker dispatches the WallRemovalAction steps through the
+		// typed RemoveWall boundary.
+		wallRemovalBoundary, err := NewWallRemovalBoundary(config.WallRemoval.Native, config.WallRemoval.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
+		if err != nil {
+			return cleanup(err)
+		}
+		if err := worker.EnableWallRemoval(wallRemovalBoundary); err != nil {
 			return cleanup(err)
 		}
 	}

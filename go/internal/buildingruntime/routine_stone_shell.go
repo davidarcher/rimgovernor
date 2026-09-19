@@ -347,7 +347,9 @@ func (r *RoutineStoneShellPlanner) previewWall(ctx context.Context, action domai
 	if !fk || !mk || !lk || !sk {
 		return bridge.BuildingPreview{}, false, nil
 	}
-	if made || len(footprint) != 1 || footprint[0] != cell || !legal || !safe {
+	// A Wall is a stuffed building: the preview of one that is not made
+	// from stuff is a contract mismatch, not a placeable site (#293).
+	if !made || len(footprint) != 1 || footprint[0] != cell || !legal || !safe {
 		return bridge.BuildingPreview{}, false, nil
 	}
 	return preview, true, nil
