@@ -22,6 +22,22 @@ namespace HomeBridge.BridgeTools
             }).ToList();
             foreach (var thing in shared)
             {
+                if (thing is Corpse corpse)
+                {
+                    if (!FreshAnimalCorpse(corpse)) continue;
+                    var meat = corpse.InnerPawn.RaceProps.meatDef;
+                    var meatEaters = people.Where(p => p.needs?.food != null && !p.Downed && !p.InMentalState
+                        && CanUseMeat(p, meat)
+                        && p.CanReach(corpse, PathEndMode.Touch, Danger.None)
+                        && (p.playerSettings?.AreaRestrictionInPawnCurrentMap == null
+                            || p.playerSettings.AreaRestrictionInPawnCurrentMap[corpse.Position])).ToList();
+                    if (seen.Add(corpse.thingIDNumber))
+                    {
+                        var row = CorpseStock(corpse, meatEaters);
+                        if (row.meatAmount > 0) stocks.Add(row);
+                    }
+                    continue;
+                }
                 // Kibble is animal feed: a humanlike pawn only eats it when nothing
                 // better is reachable, so it is no planned colonist food (the held
                 // and colony-stock reads exclude it the same way) and counting
@@ -43,6 +59,16 @@ namespace HomeBridge.BridgeTools
                 if (pawn.carryTracker?.CarriedThing != null) carried.Add(pawn.carryTracker.CarriedThing);
                 foreach (var thing in carried)
                 {
+                    // A butcher carrying a released corpse still funds the
+                    // shared cooking window; it is not a private meal.
+                    if (thing is Corpse carriedCorpse && FreshAnimalCorpse(carriedCorpse) && seen.Add(thing.thingIDNumber))
+                    {
+                        var row = CorpseStock(carriedCorpse, people.Where(p => p.needs?.food != null
+                            && !p.Downed && !p.InMentalState && CanUseMeat(p, carriedCorpse.InnerPawn.RaceProps.meatDef)
+                            && p.CanReach(pawn, PathEndMode.Touch, Danger.None)).ToList());
+                        if (row.meatAmount > 0) stocks.Add(row);
+                        continue;
+                    }
                     var def = thing.def;
                     if (!thing.Spawned && def.IsNutritionGivingIngestible && !def.IsDrug && def.ingestible != null
                         && (def.ingestible.foodType & (FoodTypeFlags.Corpse | FoodTypeFlags.Kibble)) == 0
@@ -50,7 +76,7 @@ namespace HomeBridge.BridgeTools
                         stocks.Add(Stock(thing, new List<Pawn> { pawn }, pawn.GetUniqueLoadID()));
                 }
             }
-            return new Snapshot { readable = true, consumers = consumers, stocks = stocks,
+            return new Snapshot { readable = true, consumers = consumers, stocks = stocks, larder = FoodLarderFacts.Read(people, shared, stocks),
                 assumptions = new[] {
                     "Stock is apportioned only among observed eligible eaters by fed demand. Downed consumers need assistance; held food feeds only its holder.",
                     "Rot deadlines assume the current native ambient temperature; frozen food can thaw. Future harvest, animal feed and future access are not guaranteed.",
@@ -65,12 +91,44 @@ namespace HomeBridge.BridgeTools
             return pawn.foodRestriction?.GetCurrentRespectedRestriction(pawn)?.filter.Allows(food) != false;
         }
 
+        private static bool CanUseMeat(Pawn pawn, ThingDef meat)
+        {
+            bool Allowed(ThingDef food) => pawn.WillEat(food)
+                && pawn.foodRestriction?.GetCurrentRespectedRestriction(pawn)?.filter.Allows(food) != false;
+            if (Allowed(meat)) return true;
+            return pawn.Map.listerThings.AllThings.OfType<Building_WorkTable>().Where(b => b.Faction == Faction.OfPlayer)
+                .SelectMany(b => b.BillStack.Bills).OfType<Bill_Production>().Any(b => !b.suspended
+                    && b.ingredientFilter.Allows(meat) && b.recipe.ingredients.Any(i => i.filter.Allows(meat))
+                    && b.recipe.products.Any(p => p.thingDef.IsNutritionGivingIngestible && Allowed(p.thingDef)));
+        }
+
+        internal static bool FreshAnimalCorpse(Thing thing) => thing is Corpse corpse
+            && corpse.InnerPawn?.RaceProps.Animal == true && corpse.GetRotStage() == RotStage.Fresh
+            && corpse.InnerPawn.RaceProps.meatDef?.IsNutritionGivingIngestible == true;
+
+        private static StockFacts CorpseStock(Corpse corpse, List<Pawn> eaters)
+        {
+            var row = Stock(corpse, eaters, null);
+            row.corpse = true;
+            row.forbidden = corpse.IsForbidden(Faction.OfPlayer);
+            row.meatAmount = Math.Max(0, corpse.InnerPawn.GetStatValue(StatDefOf.MeatAmount));
+            row.bodySize = corpse.InnerPawn.BodySize;
+            row.tileFootprint = 1;
+            row.nutrition = row.meatAmount.Value * corpse.InnerPawn.RaceProps.meatDef.GetStatValueAbstract(StatDefOf.Nutrition);
+            return row;
+        }
+
+        internal static bool SharedFood(Thing thing) => FreshAnimalCorpse(thing)
+            || (!(thing is Corpse) && thing.def.category == ThingCategory.Item
+                && thing.def.IsNutritionGivingIngestible && !thing.def.IsDrug && thing.IngestibleNow
+                && (thing.Faction == null || thing.Faction.IsPlayer));
+
         private static StockFacts Stock(Thing thing, List<Pawn> eaters, string? holder)
         {
             var rot = thing.TryGetComp<CompRottable>();
             var perishable = rot != null && rot.Active;
             return new StockFacts { id = thing.GetUniqueLoadID(), defName = thing.def.defName, count = thing.stackCount,
-                holder = holder, reserve = IsReserve(thing), nutrition = thing.stackCount * eaters.Min(p => FoodUtility.NutritionForEater(p, thing)),
+                holder = holder, reserve = IsReserve(thing), nutrition = thing is Corpse ? 0 : thing.stackCount * eaters.Min(p => FoodUtility.NutritionForEater(p, thing)),
                 eaters = eaters.Select(p => p.GetUniqueLoadID()).ToList(),
                 perishable = perishable, rotTicks = rot != null && perishable ? (int?)Math.Max(0, rot.TicksUntilRotAtCurrentTemp) : null,
                 temperature = thing.AmbientTemperature,
@@ -80,6 +138,7 @@ namespace HomeBridge.BridgeTools
 
         // Shared typed source for the compatibility JSON and protobuf projections.
         internal sealed class Snapshot {
+            internal FoodLarderFacts.Snapshot? larder;
             public bool readable { get; set; }
             public List<ConsumerFacts> consumers { get; set; } = new List<ConsumerFacts>();
             public List<StockFacts> stocks { get; set; } = new List<StockFacts>();
@@ -102,6 +161,11 @@ namespace HomeBridge.BridgeTools
             public float temperature { get; set; }
             public bool? roofed { get; set; }
             public string? roomId { get; set; }
+            public bool corpse { get; set; }
+            public bool? forbidden { get; set; }
+            public float? meatAmount { get; set; }
+            public float? bodySize { get; set; }
+            public int? tileFootprint { get; set; }
         }
     }
 }

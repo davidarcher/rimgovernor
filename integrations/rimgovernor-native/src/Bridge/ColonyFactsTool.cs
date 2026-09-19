@@ -188,9 +188,7 @@ namespace HomeBridge.BridgeTools
                 ["mapSize"] = new { width = map.Size.x, height = map.Size.z }, ["biome"] = map.Biome.defName,
                 ["foodNutrition"] = nutrition, ["nutritionPerDay"] = demand,
                 ["foodRunwayDays"] = demand > 0 ? (object)(nutrition / demand) : null,
-                ["foodSupply"] = FoodSupplyFacts.Read(people, things.Where(t => t.def.category == ThingCategory.Item
-                    && t.def.IsNutritionGivingIngestible && !t.def.IsDrug && t.IngestibleNow
-                    && (t.Faction == null || t.Faction.IsPlayer)).ToList()),
+                ["foodSupply"] = FoodSupplyFacts.Read(people, things.Where(FoodSupplyFacts.SharedFood).ToList()),
                 ["nativeForecastInputs"] = ForecastFacts.Read(map, people, things),
                 ["gearUpkeep"] = planning ? GearUpkeepTools.Run(null, null, null, true) : null,
                 ["upkeep"] = UpkeepFacts.Read(map, people, things),

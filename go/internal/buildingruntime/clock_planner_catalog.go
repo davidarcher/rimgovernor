@@ -476,7 +476,7 @@ var plannerCatalog = []plannerEntry{
 			out.Medical = &method
 			return nil
 		}},
-	{name: "foodStorageUpkeep", priority: plannerFoothold, kinds: []domain.ActionKind{domain.HaulAction, domain.ProductionBillAction}, families: factsColony,
+	{name: "foodStorageUpkeep", priority: plannerFoothold, kinds: []domain.ActionKind{domain.HaulAction, domain.ProductionBillAction, domain.SupplyAllowAction, domain.SupplyForbidAction, domain.ZoneCreateAction}, families: factsColony,
 		configured: func(c *ClockSchedulerConfig) bool { return c.FoodStorageUpkeep != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.FoodStorageUpkeep.step(ctx, epoch, arbiter)

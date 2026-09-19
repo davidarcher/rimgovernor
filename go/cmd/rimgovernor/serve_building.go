@@ -450,7 +450,15 @@ func billExecutorRequired(config serveConfig) bool {
 // fallback (routine_animal_feed.go, #311: the feed zone sat pending as an
 // unsupported action until the family carried the executor).
 func zoneExecutorRequired(config serveConfig) bool {
-	return config.routineFieldPlans || config.routineFoodStoragePlans || config.routineSecureSuppliesPlans || config.routineResourcePlans || config.routineAnimalFeedPlans
+	return config.routineFieldPlans || config.routineFoodStoragePlans || config.routineSecureSuppliesPlans || config.routineResourcePlans || config.routineAnimalFeedPlans || config.routineFoodStorageUpkeepPlans
+}
+
+func supplyExecutorRequired(config serveConfig) bool {
+	return config.routineSupplyPlans || config.routineFoodStorageUpkeepPlans
+}
+
+func haulExecutorRequired(config serveConfig) bool {
+	return config.routineSecureSuppliesPlans || config.routineHaulPlans || config.routineFoodStorageUpkeepPlans
 }
 
 func serveBuildingControl(ctx context.Context, config serveConfig, out io.Writer) error {
@@ -500,7 +508,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		clockCapabilities = client.clock
 	}
 	var supplyCapabilities *supply.SupplyCapabilities
-	if config.routineSupplyPlans {
+	if supplyExecutorRequired(config) {
 		if client.supplies == nil {
 			return errors.New("supply plans require typed supply capabilities")
 		}
@@ -586,7 +594,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		equipCapabilities = client.equip
 	}
 	var haulCapabilities *haul.HaulCapabilities
-	if config.routineSecureSuppliesPlans || config.routineHaulPlans {
+	if haulExecutorRequired(config) {
 		if client.haul == nil {
 			return errors.New("secure supplies/haul plans require typed haul capabilities")
 		}

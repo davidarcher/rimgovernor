@@ -22,6 +22,12 @@ func TestFoodSupplyContractRejectsIncompleteAndContradictoryInputs(t *testing.T)
 		t.Fatal(err)
 	}
 	for _, change := range []func(*o.FoodSupplyFacts){
+		func(v *o.FoodSupplyFacts) { v.Stocks[0].Corpse = proto.Bool(true) },
+		func(v *o.FoodSupplyFacts) { v.Stocks[0].MeatAmount = proto.Float64(300) },
+		func(v *o.FoodSupplyFacts) { v.Larder = &o.FoodLarderFacts{RawMeatNutrition: math.NaN()} },
+		func(v *o.FoodSupplyFacts) {
+			v.Larder = &o.FoodLarderFacts{Corpses: []*o.CorpseHandling{{StockId: "missing"}}}
+		},
 		func(v *o.FoodSupplyFacts) { v.Completeness.Returned = proto.Uint64(3) },
 		func(v *o.FoodSupplyFacts) { v.Completeness.Filtered = proto.Uint64(1) },
 		func(v *o.FoodSupplyFacts) { v.Consumers[1].PawnId = v.Consumers[0].PawnId },

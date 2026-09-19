@@ -25,7 +25,7 @@ func FoodStorageStocks(supply FoodSupply) FoodStorageObservation {
 	for _, stock := range supply.Stocks {
 		rows = append(rows, FoodStorageStock{Stock: stock})
 	}
-	return FoodStorageObservation{Stocks: domain.Known(rows)}
+	return FoodStorageObservation{Stocks: domain.Known(rows), Larder: supply.Larder}
 }
 
 // stored reports whether a perishable stock sits in adequate storage: roofed,
@@ -72,6 +72,7 @@ func FoodStorageUnstored(s FoodStorageStock, p FoodStoragePolicy) bool {
 // MedicalReserveObservation's Items/Resources facts take in ReviewMedicalReserve.
 type FoodStorageObservation struct {
 	Stocks domain.Fact[[]FoodStorageStock]
+	Larder domain.Fact[FoodLarder]
 }
 
 // FoodStoragePolicy names the hysteresis band ReviewFoodStorage applies to the
@@ -213,6 +214,11 @@ func ReviewFoodStorage(v FoodStorageObservation, active bool, p FoodStoragePolic
 		deficit = math.Min(unstored, math.Max(0, threshold-stored))
 	}
 	r.Deficit = domain.Known(deficit)
+	larder, err := SelectCorpseLarder(v)
+	if err != nil {
+		return r, err
+	}
+	r.Active = r.Active || larder.Kind != ""
 	return r, nil
 }
 

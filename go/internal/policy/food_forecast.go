@@ -37,11 +37,19 @@ type FoodStock struct {
 	Roofed       domain.Fact[bool]
 	TemperatureC domain.Fact[float64]
 	Room         domain.Fact[string]
+	// Corpse nutrition is its native meat yield. Forbidden corpses remain
+	// observable reserves but do not extend the food runway.
+	Corpse        bool
+	Forbidden     domain.Fact[bool]
+	MeatAmount    domain.Fact[float64]
+	BodySize      domain.Fact[float64]
+	TileFootprint domain.Fact[int64]
 }
 type FoodSupply struct {
 	Complete  domain.Fact[bool]
 	Consumers []FoodConsumer
 	Stocks    []FoodStock
+	Larder    domain.Fact[FoodLarder]
 }
 type ConsumerFoodForecast struct {
 	ID                                                               PawnID
@@ -108,7 +116,7 @@ func ForecastFood(supply FoodSupply, selected []PawnID) (FoodForecast, error) {
 		amount, ak := input.Nutrition.Value()
 		holder, hk := input.Holder.Value()
 		perishable, pk := input.Perishable.Value()
-		if !foodID(input.ID) || seen[input.ID] || !ak || !foodNumber(amount) || !hk || !pk || len(input.Eaters) == 0 || len(input.Eaters) > len(ids) {
+		if !foodID(input.ID) || seen[input.ID] || !ak || !foodNumber(amount) || !hk || !pk || len(input.Eaters) == 0 && !input.Corpse || len(input.Eaters) > len(ids) {
 			return fail()
 		}
 		seen[input.ID] = true
@@ -138,6 +146,15 @@ func ForecastFood(supply FoodSupply, selected []PawnID) (FoodForecast, error) {
 		}
 		if !foodNumber(entry.eligibleDemand) {
 			return fail()
+		}
+		if input.Corpse {
+			forbidden, known := input.Forbidden.Value()
+			if !known {
+				return fail()
+			}
+			if forbidden {
+				continue
+			}
 		}
 		if !input.Reserve {
 			stocks = append(stocks, entry)

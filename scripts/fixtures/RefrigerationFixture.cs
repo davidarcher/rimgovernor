@@ -43,7 +43,7 @@ namespace HomeBridge.BridgeTools
     public sealed class RefrigerationFixture
     {
         [Tool("test/refrigeration_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture: build one enclosed roofed stockpile room with warm raw meat, a fuelled generator and wall-ring conduits, finish Cooler research, force a hot room and a heat wave; optionally an existing warm-setpoint Cooler, optionally disconnected from the generator; one meat stack starts part-way to rotting; season ramps the heat waves in from now instead of arriving fully ramped; coolerTargetC is the existing cooler's setpoint; heater adds a powered Heater inside the room that one Cooler cannot beat; foodDef is the stocked raw food and rotStacks how many of its three stacks start part-way to rotting; roomWidth x roomHeight (at least 6x4) sizes the room including its walls.")]
-        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken, bool existingCooler = false, bool disconnected = false, float roomTemperatureC = 30f, float rotProgressFraction = 0.25f, bool season = false, float coolerTargetC = 21f, bool heater = false, string foodDef = "Meat_Muffalo", int rotStacks = 1, int roomWidth = 6, int roomHeight = 4)
+        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken, bool existingCooler = false, bool disconnected = false, float roomTemperatureC = 30f, float rotProgressFraction = 0.25f, bool season = false, float coolerTargetC = 21f, bool heater = false, string foodDef = "Meat_Muffalo", int rotStacks = 1, int roomWidth = 6, int roomHeight = 4, bool corpseLarder = false)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap; var player = Faction.OfPlayerSilentFail;
@@ -144,6 +144,14 @@ namespace HomeBridge.BridgeTools
                     var control = cooler.TryGetComp<CompTempControl>();
                     if (control == null) return Refuse("Fixture cooler unexpectedly has no CompTempControl.");
                     control.targetTemperature = coolerTargetC;
+                    if (corpseLarder)
+                    {
+                        var secondCell = At(roomWidth - 1, 4);
+                        secondCell.GetEdifice(map)?.Destroy();
+                        map.roofGrid.SetRoof(secondCell, RoofDefOf.RoofConstructed);
+                        var second = Spawn(coolerDef, secondCell, Rot4.East);
+                        second.TryGetComp<CompTempControl>().targetTemperature = coolerTargetC;
+                    }
                 }
                 // The heater sits on the interior cell farthest from the cooler's
                 // cold side and the meat, off the stockpile, wall conduits one
@@ -235,7 +243,7 @@ namespace HomeBridge.BridgeTools
                 // costs them efficiency, and two must still beat the heater.
                 var heat = DefDatabase<GameConditionDef>.GetNamedSilentFail("HeatWave");
                 var heatWaves = 0;
-                if (heat != null)
+                if (heat != null && !corpseLarder)
                 {
                     var outdoors = map.mapTemperature.OutdoorTemp;
                     heatWaves = System.Math.Max(heater ? 0 : 1, System.Math.Min(3, (int)System.Math.Ceiling((16f - outdoors) / 17f)));
@@ -252,6 +260,35 @@ namespace HomeBridge.BridgeTools
                 if (inside == null || inside.OpenRoofCount > 0 || inside.TouchesMapEdge || inside.PsychologicallyOutdoors)
                     return Refuse("Fixture room is not enclosed after construction.");
                 inside.Temperature = roomTemperatureC;
+                if (corpseLarder)
+                {
+                    foreach (var item in map.listerThings.AllThings.Where(t => t.def.IsMeat).ToList()) item.Destroy();
+                    var raw = ThingMaker.MakeThing(meatDef); raw.stackCount = 60;
+                    GenSpawn.Spawn(raw, interior.Cells.First(), map); raw.SetForbidden(false, false);
+                    zone.settings.filter.SetAllow(ThingCategoryDefOf.CorpsesAnimal, true);
+                    zone.settings.filter.SetAllow(DefDatabase<SpecialThingFilterDef>.GetNamed("AllowRotten"), false);
+                    foreach (var cell in interior.Cells.Skip(1).Take(3))
+                    {
+                        var animal = PawnGenerator.GeneratePawn(PawnKindDefOf.Muffalo);
+                        GenSpawn.Spawn(animal, cell, map); animal.Kill(null);
+                        animal.Corpse.SetForbidden(true, false);
+                    }
+                    var butcher = (Building_WorkTable)Spawn(DefDatabase<ThingDef>.GetNamed("ButcherSpot"), At(roomWidth + 1, 0), Rot4.North);
+                    var butcherBill = (Bill_Production)DefDatabase<RecipeDef>.GetNamed("ButcherCorpseFlesh").MakeNewBill();
+                    butcherBill.repeatMode = BillRepeatModeDefOf.Forever; butcher.BillStack.AddBill(butcherBill);
+                    var stove = (Building_WorkTable)Spawn(DefDatabase<ThingDef>.GetNamed("Campfire"), At(roomWidth + 3, 0), Rot4.North);
+                    stove.TryGetComp<CompRefuelable>().Refuel(50);
+                    var cookBill = (Bill_Production)DefDatabase<RecipeDef>.GetNamed("CookMealSimple").MakeNewBill();
+                    cookBill.repeatMode = BillRepeatModeDefOf.TargetCount; cookBill.targetCount = 1; cookBill.suspended = true;
+                    stove.BillStack.AddBill(cookBill);
+                    var cooking = DefDatabase<WorkTypeDef>.GetNamed("Cooking");
+                    // The debug start can be lightly clothed: even -5 C then
+                    // has native Danger.Some, outside this planner's safe route.
+                    foreach (var pawn in map.mapPawns.FreeColonistsSpawned)
+                        pawn.apparel.Wear((Apparel)ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed("Apparel_Parka"), ThingDefOf.Cloth), false);
+                    foreach (var pawn in map.mapPawns.FreeColonistsSpawned.Where(p => !p.WorkTypeIsDisabled(cooking)))
+                    { pawn.workSettings.SetPriority(cooking, 1); pawn.skills.GetSkill(SkillDefOf.Cooking).Level = 10; }
+                }
                 var identity = Current.Game.GetComponent<ColonyIdentity>();
                 return new {
                     success = true, colonyId = identity?.ColonyId, loadToken = identity?.LoadToken, mapId = map.uniqueID,
@@ -295,6 +332,36 @@ namespace HomeBridge.BridgeTools
             if (project.IsFinished) return;
             if (project.prerequisites != null) foreach (var p in project.prerequisites) Finish(p);
             Find.ResearchManager.FinishProject(project, false);
+        }
+
+        [Tool("test/corpse_larder_probe", Description = "UNSAFE FOR MODEL EXECUTION when drain=true. Disposable larder probe; optionally remove raw meat and enable the cook bill, then report exact native corpses and butcher-bill state.")]
+        public async Task<object> CorpseLarderProbe(IRimBridgeContext ctx, CancellationToken cancellationToken, bool drain = false)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                if (map == null) return Refuse("No map.");
+                if (drain) {
+                    if (!Find.TickManager.Paused) return Refuse("Drain requires paused disposable map.");
+                    foreach (var item in map.listerThings.AllThings.Where(t => t.def.IsMeat).ToList()) item.Destroy();
+                    foreach (var bench in map.listerThings.AllThings.OfType<Building_WorkTable>())
+                    foreach (var bill in bench.BillStack.Bills.OfType<Bill_Production>().Where(b => b.recipe.defName == "CookMealSimple")) bill.suspended = false;
+                }
+                var corpses = map.listerThings.AllThings.OfType<Corpse>().Where(c => c.InnerPawn.def.defName == "Muffalo").ToList();
+                var butcherBills = map.listerThings.AllThings.OfType<Building_WorkTable>().SelectMany(b => b.BillStack.Bills).OfType<Bill_Production>().Where(b => b.recipe.defName == "ButcherCorpseFlesh").ToList();
+                return new { success = true, tick = Find.TickManager.TicksGame,
+                    rawMeat = map.listerThings.AllThings.Where(t => t.def.IsMeat).Sum(t => t.stackCount),
+                    corpses = corpses.Select(c => new { id = c.GetUniqueLoadID(), forbidden = c.IsForbidden(Faction.OfPlayer),
+                        meat = c.InnerPawn.GetStatValue(StatDefOf.MeatAmount), temperature = c.AmbientTemperature,
+                        rot = c.GetRotStage().ToString(), safe = EventLootFacts.Safe(c),
+                        access = map.mapPawns.FreeColonistsSpawned.Select(p => new { pawn = p.GetUniqueLoadID(),
+                            reachable = p.CanReach(c, Verse.AI.PathEndMode.Touch, Danger.None),
+                            danger = c.Position.GetDangerFor(p, map).ToString(),
+                            meatAllowed = p.WillEat(c.InnerPawn.RaceProps.meatDef),
+                            mealAllowed = p.WillEat(ThingDefOf.MealSimple) }).ToArray() }).ToArray(),
+                    corpseTiles = corpses.Count,
+                    butcheredTiles = corpses.Sum(c => (int)System.Math.Ceiling(c.InnerPawn.GetStatValue(StatDefOf.MeatAmount) / 75f)),
+                    foreverButcher = butcherBills.Count == 1 && butcherBills[0].repeatMode == BillRepeatModeDefOf.Forever && !butcherBills[0].suspended && !butcherBills[0].paused };
+            }, cancellationToken).ConfigureAwait(false);
         }
 
         private static object Refuse(string reason) => new { success = false, reason };

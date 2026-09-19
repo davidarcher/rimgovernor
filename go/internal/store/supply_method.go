@@ -101,6 +101,9 @@ func admitSupplyMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan dom
 			case policy.ManageSupplySafety:
 				bound = true
 				cohort = review.EventLoot.Pending
+			case policy.MaintainFoodStorage:
+				bound = true
+				cohort = review.LarderSupplies
 			}
 		}
 	}

@@ -104,8 +104,7 @@ namespace HomeBridge.BridgeTools
                 FoodNutrition = Finite(nutrition), NutritionPerDay = Finite(demand), OutdoorTemperatureC = Finite(map.mapTemperature.OutdoorTemp),
                 Completeness = Complete(1),
                 FoodSupply = new Obs.FoodSupplySection { Observed = Food(FoodSupplyFacts.Read(people,
-                    things.Where(t => t.def.category == ThingCategory.Item && t.def.IsNutritionGivingIngestible
-                        && !t.def.IsDrug && t.IngestibleNow && (t.Faction == null || t.Faction.IsPlayer)).ToList())) },
+                    things.Where(FoodSupplyFacts.SharedFood).ToList())) },
                 Forecast = new Obs.ForecastSection { Observed = Forecast(ForecastFacts.Read(map, people, things)) },
                 Upkeep = ReadComfort(map),
                 Threat = ReadThreat(map, people.Count),
@@ -585,6 +584,15 @@ namespace HomeBridge.BridgeTools
         {
             Bound(source.consumers.Count, 256); Bound(source.stocks.Count, 4096);
             var result = new Obs.FoodSupplyFacts { Completeness = Complete(source.consumers.Count + source.stocks.Count) };
+            if (source.larder != null) {
+                result.Larder = new Obs.FoodLarderFacts { RawMeatNutrition = Finite(source.larder.RawMeatNutrition), CookDemandNutrition = Finite(source.larder.CookDemandNutrition) };
+                foreach (var corpse in source.larder.Corpses) {
+                    var row = new Obs.CorpseHandling { StockId = corpse.ID, Cell = Cell(corpse.Cell), FrozenDestination = corpse.FrozenDestination };
+                    if (corpse.Hauler != null) row.HaulerId = corpse.Hauler;
+                    result.Larder.Corpses.Add(row);
+                }
+                foreach (var cell in source.larder.ColdSites) result.Larder.ColdSites.Add(Cell(cell));
+            }
             foreach (var consumer in source.consumers)
                 result.Consumers.Add(new Obs.FoodConsumer { PawnId = consumer.id, NutritionPerDay = Finite(consumer.nutritionPerDay) });
             foreach (var stock in source.stocks) {
@@ -596,6 +604,11 @@ namespace HomeBridge.BridgeTools
                 if (stock.rotTicks.HasValue) row.RotTicks = stock.rotTicks.Value;
                 if (stock.roofed.HasValue) row.Roofed = stock.roofed.Value;
                 if (stock.roomId != null) row.RoomId = stock.roomId;
+                row.Corpse = stock.corpse;
+                if (stock.forbidden.HasValue) row.Forbidden = stock.forbidden.Value;
+                if (stock.meatAmount.HasValue) row.MeatAmount = Finite(stock.meatAmount.Value);
+                if (stock.bodySize.HasValue) row.BodySize = Finite(stock.bodySize.Value);
+                if (stock.tileFootprint.HasValue) row.TileFootprint = stock.tileFootprint.Value;
                 result.Stocks.Add(row);
             }
             return result;

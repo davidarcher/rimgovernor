@@ -1003,6 +1003,12 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	foodStorageActive := foodStorage.Active || f.UpkeepIssued[MaintainFoodStorage]
 	foodStorageRecovered := domain.Unknown[bool]()
 	foodStoragePriority := foodStorageUpkeepPriority
+	larder, _ := SelectCorpseLarder(f.FoodStorageUpkeep)
+	// Releasing cooking inputs and preserving fresh corpses must not wait
+	// behind development projects, just as refrigeration must not.
+	if larder.Kind != "" {
+		foodStoragePriority = 2
+	}
 	if _, known := foodStorage.StoredNutrition.Value(); known {
 		foodStorageRecovered = domain.Known(!foodStorageActive)
 	} else if !foodStorageActive {
@@ -1011,7 +1017,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	addAssessment(MaintainFoodStorage, foodStoragePriority, foodStorageRecovered)
 	if !positive(foodStorageRecovered) {
 		addGoal(MaintainFoodStorage, foodStoragePriority)
-		r.Goals[len(r.Goals)-1].MethodUnavailable = true
+		r.Goals[len(r.Goals)-1].MethodUnavailable = larder.Kind == ""
 	}
 	// Refrigeration answers the same at-risk perishable nutrition as
 	// MaintainFoodStorage by cooling the room the food already sits in. It

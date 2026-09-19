@@ -15,9 +15,7 @@ namespace HomeBridge.BridgeTools
         {
             var animals = map.mapPawns.AllPawnsSpawned.Where(p => !p.Dead && p.RaceProps.Animal
                 && p.Faction == Faction.OfPlayerSilentFail && p.needs?.food != null).ToList();
-            var food = things.Where(t => t.def.category == ThingCategory.Item
-                && t.def.IsNutritionGivingIngestible && !t.def.IsDrug && t.IngestibleNow
-                && (t.Faction == null || t.Faction.IsPlayer)).ToList();
+            var food = things.Where(FoodSupplyFacts.SharedFood).ToList();
             var crops = new List<Crop>();
             foreach (var zone in map.zoneManager.AllZones.OfType<Zone_Growing>())
             {

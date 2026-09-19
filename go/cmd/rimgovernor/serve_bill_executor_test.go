@@ -53,16 +53,27 @@ func TestZoneExecutorRequiredByStorageFallbacks(t *testing.T) {
 		t.Fatal("zone executor required with nothing composed")
 	}
 	for name, set := range map[string]func(*serveConfig){
-		"field":           func(c *serveConfig) { c.routineFieldPlans = true },
-		"food-storage":    func(c *serveConfig) { c.routineFoodStoragePlans = true },
-		"secure-supplies": func(c *serveConfig) { c.routineSecureSuppliesPlans = true },
-		"resource":        func(c *serveConfig) { c.routineResourcePlans = true },
-		"animal-feed":     func(c *serveConfig) { c.routineAnimalFeedPlans = true },
+		"field":               func(c *serveConfig) { c.routineFieldPlans = true },
+		"food-storage":        func(c *serveConfig) { c.routineFoodStoragePlans = true },
+		"secure-supplies":     func(c *serveConfig) { c.routineSecureSuppliesPlans = true },
+		"resource":            func(c *serveConfig) { c.routineResourcePlans = true },
+		"animal-feed":         func(c *serveConfig) { c.routineAnimalFeedPlans = true },
+		"food-storage-upkeep": func(c *serveConfig) { c.routineFoodStorageUpkeepPlans = true },
 	} {
 		var c serveConfig
 		set(&c)
 		if !zoneExecutorRequired(c) {
 			t.Fatalf("%s family does not require the zone executor", name)
 		}
+	}
+}
+
+func TestLarderComposesSupplyAndHaulExecutors(t *testing.T) {
+	config := serveConfig{routineFoodStorageUpkeepPlans: true}
+	if !supplyExecutorRequired(config) || !haulExecutorRequired(config) {
+		t.Fatal("larder methods require supply and haul executors")
+	}
+	if supplyExecutorRequired(serveConfig{}) || haulExecutorRequired(serveConfig{}) {
+		t.Fatal("uncomposed methods must not require capabilities")
 	}
 }

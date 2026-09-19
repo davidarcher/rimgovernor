@@ -77,12 +77,13 @@ func admitZoneMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan domai
 	needs := []policy.GoalID{policy.EnsureFoodSupply}
 	if stockpile {
 		limit = 1
-		needs = []policy.GoalID{policy.EnsureFoodStorage, policy.SecureSupplies, policy.MaintainResource, policy.MaintainAnimalFeed}
+		needs = []policy.GoalID{policy.EnsureFoodStorage, policy.SecureSupplies, policy.MaintainResource, policy.MaintainAnimalFeed, policy.MaintainFoodStorage}
 	}
 	if !review.Enabled || review.Snapshot != goal.Goal.Snapshot || goal.Goal.Source != domain.AutopilotGoal || len(plan.Actions()) > limit {
 		return ErrConflict
 	}
 	bound := false
+	larder := false
 	for _, binding := range review.Goals {
 		if binding.Goal != goal.Goal.ID {
 			continue
@@ -90,6 +91,7 @@ func admitZoneMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan domai
 		for _, need := range needs {
 			bound = bound || binding.Need == need
 		}
+		larder = binding.Need == policy.MaintainFoodStorage
 	}
 	if !bound {
 		return ErrConflict
@@ -98,6 +100,9 @@ func admitZoneMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan domai
 	for _, action := range plan.Actions() {
 		zone, ok := action.ZoneCreate()
 		if !ok || stockpile != (zone.Kind() == domain.StockpileZone) {
+			return ErrConflict
+		}
+		if larder && zone.Preset() != domain.CorpseLarderPreset {
 			return ErrConflict
 		}
 		for _, cell := range zone.Cells() {

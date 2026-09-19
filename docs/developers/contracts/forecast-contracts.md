@@ -23,6 +23,13 @@ demand cannot certify a safe runway. Future harvesting, changing temperature,
 feeding jobs and food sharing are not guaranteed. Harvest ETA is an optimistic
 lower bound, and crop work does not reserve future production.
 
+Fresh animal corpses carry their native meat amount times meat nutrition,
+body size, forbid state and a one-tile footprint. Unforbidden corpses count
+as pending-butcher stock for eaters eligible for their meat; forbidden
+corpses remain observable but contribute no runway. Corpse stock replaces
+the separate pending-hunt corpse credit; live designated prey remains pending.
+The [corpse larder](upkeep-contracts.md#corpse-larder) owns reserve release.
+
 Cooking recipes expose their product's base taste mood offset, nutrition output
 per nutrition input and native work per output nutrition (batch counts included).
 Ingredient slots are conjunctive; each slot's classes are alternatives, so a fine

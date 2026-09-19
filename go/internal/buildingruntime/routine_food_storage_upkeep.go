@@ -175,6 +175,13 @@ func (r *RoutineFoodStorageUpkeepPlanner) step(call, epoch context.Context, arbi
 		return RoutineFoodStorageUpkeepResult{}, ErrControl
 	}
 	facts := foodStorageObservationFacts(observed)
+	larder, err := policy.SelectCorpseLarder(facts)
+	if err != nil {
+		return RoutineFoodStorageUpkeepResult{}, err
+	}
+	if larder.Kind != "" {
+		return r.admitCorpseLarder(call, epoch, arbiter, goal, observed, larder)
+	}
 	foodReview, err := policy.ReviewFoodStorage(facts, review.Latches.FoodStorage, r.reviewer.policy.FoodStorage)
 	if err != nil {
 		return RoutineFoodStorageUpkeepResult{}, err

@@ -16,7 +16,8 @@ namespace HomeBridge.BridgeTools
     {
         internal static Obs.LootSection Read(Map map, List<Thing> things, Func<Thing, bool> reachable)
         {
-            var items = things.Where(NativeSupplyAllow.Eligible).OrderBy(t => t.thingIDNumber).Take(4097).ToList();
+            // Fresh animal corpses have a separate storage/forbid owner.
+            var items = things.Where(t => NativeSupplyAllow.Eligible(t) && !FoodSupplyFacts.FreshAnimalCorpse(t)).OrderBy(t => t.thingIDNumber).Take(4097).ToList();
             if (items.Count > 4096)
                 return new Obs.LootSection { Unavailable = new Common.Unavailable {
                     Reason = Common.UnavailableReason.LimitExceeded, Detail = "Hauling safety census exceeds 4096 items." } };

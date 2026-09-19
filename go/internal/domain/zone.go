@@ -22,7 +22,8 @@ const (
 type StockpilePreset string
 
 const (
-	FoodPreset StockpilePreset = "food"
+	FoodPreset         StockpilePreset = "food"
+	CorpseLarderPreset StockpilePreset = "corpse_larder"
 	// NothingPreset is the allow-list-only filter SecureSupplies' covered
 	// storage/supply storeroom fallback uses when no ordinary haul
 	// destination exists: everything is disallowed except the explicit
@@ -112,7 +113,7 @@ func NewZoneCreate(kind ZoneKind, crop string, cells []Cell) (ZoneCreate, error)
 }
 
 func NewStockpileZone(preset StockpilePreset, priority StockpilePriority, cells []Cell) (ZoneCreate, error) {
-	if preset != FoodPreset || priority != ImportantPriority {
+	if (preset != FoodPreset && preset != CorpseLarderPreset) || priority != ImportantPriority {
 		return ZoneCreate{}, errors.New("invalid stockpile zone configuration")
 	}
 	data, err := canonicalConnectedCells(cells)
@@ -151,7 +152,7 @@ func ReconstructZone(z ZoneCreate) (ZoneCreate, error) {
 		return NewZoneCreate(z.kind, z.crop, z.Cells())
 	case StockpileZone:
 		switch z.preset {
-		case FoodPreset:
+		case FoodPreset, CorpseLarderPreset:
 			return NewStockpileZone(z.preset, z.priority, z.Cells())
 		case NothingPreset:
 			return NewAllowListStockpileZone(z.priority, z.Allow(), z.Cells())
@@ -179,6 +180,8 @@ func (z ZoneCreate) Allow() []string {
 }
 func (z ZoneCreate) Label() string {
 	switch {
+	case z.kind == StockpileZone && z.preset == CorpseLarderPreset:
+		return "RimGovernor corpse larder"
 	case z.kind == StockpileZone && z.preset == NothingPreset:
 		return "RimGovernor supplies storage"
 	case z.kind == StockpileZone:

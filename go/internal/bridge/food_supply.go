@@ -33,10 +33,17 @@ func ValidateFoodSupply(v *o.FoodSupplyFacts) error {
 		if row.GetReserve() && (row.HolderId != nil || row.Item.GetDefName() != "Pemmican" && row.Item.GetDefName() != "MealSurvivalPack") {
 			return contract("reserve must be shared pemmican or survival meals")
 		}
+		if row.GetCorpse() {
+			if row.Forbidden == nil || row.MeatAmount == nil || !combatNumber(row.MeatAmount, true) || row.GetMeatAmount() <= 0 || row.BodySize == nil || !combatNumber(row.BodySize, true) || row.GetBodySize() <= 0 || row.TileFootprint == nil || row.GetTileFootprint() != 1 || row.Count == nil || row.GetCount() != 1 {
+				return contract("invalid corpse stock")
+			}
+		} else if row.MeatAmount != nil || row.BodySize != nil {
+			return contract("corpse yield on ordinary food")
+		}
 		if row.Item.Label != nil || row.Item.MapId != nil || row.Item.Position != nil || row.Item.Snapshot != nil {
 			return contract("food stock references are identity-only")
 		}
-		if len(row.EaterIds) == 0 || len(row.EaterIds) > len(consumers) {
+		if len(row.EaterIds) == 0 && !row.GetCorpse() || len(row.EaterIds) > len(consumers) {
 			return contract("missing food eligibility")
 		}
 		eaters := map[string]bool{}
@@ -51,6 +58,29 @@ func ValidateFoodSupply(v *o.FoodSupplyFacts) error {
 		}
 		if row.Perishable != nil && !row.GetPerishable() && row.RotTicks != nil {
 			return contract("durable food has a rot deadline")
+		}
+	}
+	if larder := v.Larder; larder != nil {
+		if !combatNumber(&larder.RawMeatNutrition, true) || !combatNumber(&larder.CookDemandNutrition, true) || len(larder.Corpses) > 4096 || len(larder.ColdSites) > 256 {
+			return contract("invalid food larder")
+		}
+		seen := map[string]bool{}
+		corpseIDs := map[string]bool{}
+		for _, row := range v.Stocks {
+			if row.GetCorpse() {
+				corpseIDs[row.Item.GetId()] = true
+			}
+		}
+		for _, row := range larder.Corpses {
+			if row == nil || !corpseIDs[row.StockId] || seen[row.StockId] || row.Cell == nil || row.Cell.X == nil || row.Cell.Z == nil || row.Cell.GetX() < 0 || row.Cell.GetZ() < 0 || row.HaulerId != nil && validID(row.GetHaulerId()) != nil || row.FrozenDestination && row.GetHaulerId() == "" {
+				return contract("invalid corpse handling")
+			}
+			seen[row.StockId] = true
+		}
+		for _, cell := range larder.ColdSites {
+			if cell == nil || cell.X == nil || cell.Z == nil || cell.GetX() < 0 || cell.GetZ() < 0 {
+				return contract("invalid cold site")
+			}
 		}
 	}
 	return nil

@@ -77,10 +77,16 @@ func stockpileSettings(zone domain.ZoneCreate) *op.StockpileSettings {
 	switch zone.Preset() {
 	case domain.FoodPreset:
 		preset = op.FilterPreset_FILTER_PRESET_FOOD
-	case domain.NothingPreset:
+	case domain.NothingPreset, domain.CorpseLarderPreset:
 		preset = op.FilterPreset_FILTER_PRESET_NOTHING
 	}
 	settings := &op.StockpileSettings{Priority: priority.Enum(), Preset: preset.Enum()}
+	if zone.Preset() == domain.CorpseLarderPreset {
+		settings.Filter = &op.FilterPatch{
+			Allow:    []*op.FilterSelector{{Definition: &op.FilterSelector_CategoryDef{CategoryDef: "CorpsesAnimal"}}, {Definition: &op.FilterSelector_SpecialFilterDef{SpecialFilterDef: "AllowFresh"}}},
+			Disallow: []*op.FilterSelector{{Definition: &op.FilterSelector_SpecialFilterDef{SpecialFilterDef: "AllowRotten"}}},
+		}
+	}
 	if zone.Preset() == domain.NothingPreset {
 		var allow []*op.FilterSelector
 		for _, name := range zone.Allow() {

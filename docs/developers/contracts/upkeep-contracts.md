@@ -657,3 +657,27 @@ save into one running game between them instead of relaunching RimWorld).
 clock a bounded native-work window while `EvaluateFireSafety` finds a bounded
 home fire with an eligible firefighter. Wall replacement and the sustained
 multi-season campaigns are tracked separately.
+
+## Corpse larder
+
+`MaintainFoodStorage` also reviews fresh animal corpses when ordinary storage
+has no deficit. Active larder handling runs at priority 2; the journal admits
+only the corpse and forbid/allow direction selected by the review. It releases
+forbidden corpses outside refrigeration, then
+hauls eligible loose corpses into native-selected frozen storage. If no such
+storage exists, it can admit an animal-corpse-only stockpile on observed free
+cells in a frozen room; rotten corpses are excluded.
+
+Only after a roofed corpse is observed at or below zero Celsius does it hold
+animals yielding more than 225 meat, or body size at most 0.75 with more than
+75 meat. The forever butcher bill stays active. The nearest rot deadline
+(identity breaks ties) releases first when available raw meat falls below
+one native ingredient batch per active cooking bill, or within 15000 ticks
+of rot. Released corpses fund that same window while awaiting butchering,
+preventing successive reviews from emptying the reserve. Unknown facts do
+not authorize a hold. General event-loot handling excludes these corpses;
+the larder uses the native safe-hauling census and the shared Hands actions.
+
+`food/corpse-larder` verifies frozen reserves, live controller release, actual
+native meat production and tile density. A corpse butchered before the first
+hold is observed is an accepted loss of density, with its meat still available.

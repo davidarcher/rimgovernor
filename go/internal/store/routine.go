@@ -22,6 +22,7 @@ type RoutineGoal struct {
 // RoutineReview is the durable review cursor and hysteresis history. Goal
 // bindings retain semantic needs while old executable plans keep their identity.
 type RoutineReview struct {
+	LarderSupplies         []policy.StartingSupply `json:",omitempty"`
 	ClearanceHolds         []policy.ClearanceHold  `json:",omitempty"`
 	Recovery               *RoutineRecovery        `json:",omitempty"`
 	Disaster               *policy.DisasterHistory `json:",omitempty"`
@@ -125,6 +126,14 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 	}
 	if err := r.StartingSupplies.Validate(); err != nil {
 		return RoutineReview{}, err
+	}
+	if len(r.LarderSupplies) > 1 || !r.Enabled && len(r.LarderSupplies) != 0 {
+		return RoutineReview{}, errors.New("invalid larder method history")
+	}
+	for _, row := range r.LarderSupplies {
+		if err := row.Validate(); err != nil {
+			return RoutineReview{}, err
+		}
 	}
 	if err := r.Latches.Animals.Validate(); err != nil {
 		return RoutineReview{}, err
@@ -398,6 +407,15 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	r.MedicalCare = medical
 	r.StartingSupplies = supplies
 	r.EventLoot = loot
+	if request.Enabled {
+		choice, choiceErr := policy.SelectCorpseLarder(request.Facts.FoodStorageUpkeep)
+		if choiceErr != nil {
+			return RoutineReviewResult{}, choiceErr
+		}
+		if choice.Kind == "allow" || choice.Kind == "forbid" {
+			r.LarderSupplies = []policy.StartingSupply{{Thing: choice.Stock.ID, Definition: string(choice.Stock.DefName), Cell: choice.Handling.Cell, Forbid: choice.Kind == "forbid"}}
+		}
+	}
 	if request.Enabled && len(request.AsOf) > 0 {
 		r.AsOf = request.AsOf
 	}

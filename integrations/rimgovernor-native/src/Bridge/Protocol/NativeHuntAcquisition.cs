@@ -180,8 +180,6 @@ namespace HomeBridge.BridgeTools
                 WeaponRange = map.mapPawns.FreeColonistsSpawned.Where(p => Hunter(p, prey) && OrdinaryWeapon(p))
                     .SelectMany(p => p.equipment.Primary.def.Verbs).Where(v => !v.IsMeleeAttack && v.ai_IsWeapon)
                     .Select(v => (double)v.range).DefaultIfEmpty(0).Max() });
-            result.PendingFoodNutrition += map.listerThings.AllThings.OfType<Corpse>().Where(c => c.GetRotStage() == RotStage.Fresh
-                && c.InnerPawn.RaceProps.Animal && c.InnerPawn.RaceProps.meatDef?.IsNutritionGivingIngestible == true).Sum(c => Nutrition(c.InnerPawn));
             result.PendingFoodNutrition += map.mapPawns.AllPawnsSpawned.Where(p => Designated(p) && p.RaceProps.meatDef != null).Sum(Nutrition);
         }
         internal const string Kind = "Hunt";

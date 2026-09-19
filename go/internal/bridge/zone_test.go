@@ -40,6 +40,20 @@ func TestZoneExactConfigurationEvidence(t *testing.T) {
 	}
 }
 
+func TestCorpseLarderZoneExcludesRottenAndNonAnimalStock(t *testing.T) {
+	zone, err := domain.NewStockpileZone(domain.CorpseLarderPreset, domain.ImportantPriority, []domain.Cell{{X: 1, Z: 2}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	settings := ZoneConfiguration(zone).Stockpile
+	if settings.GetPreset() != op.FilterPreset_FILTER_PRESET_NOTHING || len(settings.Filter.Allow) != 2 || settings.Filter.Allow[0].GetCategoryDef() != "CorpsesAnimal" || settings.Filter.Allow[1].GetSpecialFilterDef() != "AllowFresh" || len(settings.Filter.Disallow) != 1 || settings.Filter.Disallow[0].GetSpecialFilterDef() != "AllowRotten" {
+		t.Fatal(settings)
+	}
+	if restored, err := domain.ReconstructZone(zone); err != nil || restored != zone {
+		t.Fatal(restored, err)
+	}
+}
+
 func TestZoneConfigurationBranchesOnKind(t *testing.T) {
 	cells := []domain.Cell{{X: 0, Z: 0}, {X: 1, Z: 0}}
 	growing, _ := domain.NewZoneCreate(domain.GrowingZone, "Plant_Rice", cells)
