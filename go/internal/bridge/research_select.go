@@ -31,15 +31,26 @@ func validResearchSelect(project, token string) error {
 	}
 	return nil
 }
-func researchSelectOperation(project, token string) *op.Operation {
-	return &op.Operation{Command: &op.Operation_SelectResearch{SelectResearch: &op.SelectResearch{ProjectDef: proto.String(project), ExpectedSnapshotToken: proto.String(token)}}}
+
+// researchSelectOperation is the wire operation for project. A preview
+// carries the research snapshot token the read observed; an execute omits
+// it (#244): the kind is dispatched under a running clock, where the token
+// (every project's progress) moves every tick a project is current, and the
+// native apply-time rules (project known, unfinished, startable) are the
+// check that refuses a project the world no longer admits.
+func researchSelectOperation(project, token string, withToken bool) *op.Operation {
+	command := &op.SelectResearch{ProjectDef: proto.String(project)}
+	if withToken {
+		command.ExpectedSnapshotToken = proto.String(token)
+	}
+	return &op.Operation{Command: &op.Operation_SelectResearch{SelectResearch: command}}
 }
 func (client *Client) PreviewResearchSelect(ctx context.Context, identity *c.Identity, project, token string) (*op.PreviewReply, Result, error) {
 	if ValidateIdentity(identity) != nil || validResearchSelect(project, token) != nil {
 		return nil, Result{}, contract("invalid research select preview")
 	}
 	reply := &op.PreviewReply{}
-	raw, err := client.protoRead(ctx, "rimgovernor/operations_preview", &op.PreviewRequest{Identity: proto.Clone(identity).(*c.Identity), Operation: researchSelectOperation(project, token)}, reply)
+	raw, err := client.protoRead(ctx, "rimgovernor/operations_preview", &op.PreviewRequest{Identity: proto.Clone(identity).(*c.Identity), Operation: researchSelectOperation(project, token, true)}, reply)
 	if err != nil {
 		return nil, raw, err
 	}
@@ -60,7 +71,7 @@ func (writer *ResearchSelectControl) SelectResearch(ctx context.Context, pre *a.
 		return nil, Result{}, contract("invalid research select execution")
 	}
 	reply := &op.ExecuteReply{}
-	raw, err := writer.client.protoCall(ctx, "rimgovernor/operations_execute", &op.ExecuteRequest{Precondition: proto.Clone(pre).(*a.WritePrecondition), Operation: researchSelectOperation(project, token)}, reply)
+	raw, err := writer.client.protoCall(ctx, "rimgovernor/operations_execute", &op.ExecuteRequest{Precondition: proto.Clone(pre).(*a.WritePrecondition), Operation: researchSelectOperation(project, token, false)}, reply)
 	if err != nil {
 		return nil, raw, err
 	}

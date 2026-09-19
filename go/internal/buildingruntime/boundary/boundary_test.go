@@ -36,6 +36,24 @@ func TestBoundaryInspectionNativeContextAndCompleteHolds(t *testing.T) {
 	}
 }
 
+// Under a running window the preview runs ticks after the bounds read
+// that opened the inspection, and the emergency read comes from the fact
+// cache up to the planning tolerance behind that first read (#244): the
+// inspection accepts it and binds the facts to the preview tick.
+func TestBoundaryAcceptsACachedEmergencyReadBehindTheBoundsRead(t *testing.T) {
+	t.Parallel()
+	b, f := NewFixture(t)
+	bounds := f.Bounds.Context.GetTick() + 1000
+	f.Bounds.Context.Tick = proto.Int64(bounds)
+	f.Preview.Preview.Tick = domain.Tick(bounds + 2*int64(domain.PlanningTickTolerance))
+	f.Preview.Stock.Tick = f.Preview.Preview.Tick
+	f.Emergency.Context.Tick = proto.Int64(bounds - int64(domain.PlanningTickTolerance))
+	out, err := b.Inspect(context.Background(), executor.Target{Action: f.Placement.Action, Snapshot: f.Placement.Snapshot})
+	if err != nil || !out.ExternalHoldsComplete || out.Tick != f.Preview.Preview.Tick {
+		t.Fatal(err, out.Tick)
+	}
+}
+
 func TestBoundaryEmergencyContextRefusals(t *testing.T) {
 	t.Parallel()
 	for name, change := range map[string]func(*Fixture){
@@ -45,7 +63,9 @@ func TestBoundaryEmergencyContextRefusals(t *testing.T) {
 		"missing generation": func(f *Fixture) { f.Emergency.Context.NativeGeneration = nil },
 		"changed generation": func(f *Fixture) { f.Emergency.Context.NativeGeneration = proto.Uint64(2) },
 		"missing tick":       func(f *Fixture) { f.Emergency.Context.Tick = nil },
-		"regressed tick":     func(f *Fixture) { f.Emergency.Context.Tick = proto.Int64(10) },
+		"regressed tick": func(f *Fixture) {
+			f.Emergency.Context.Tick = proto.Int64(f.Emergency.Context.GetTick() - int64(domain.PlanningTickTolerance) - 1)
+		},
 		"missing context":    func(f *Fixture) { f.Emergency.Context = nil },
 		"unavailable":        func(f *Fixture) { f.EmergencyErr = bridge.ErrUnavailable },
 		"malformed facts":    func(f *Fixture) { f.Emergency.Facts.Colonists[0].ID = "" },

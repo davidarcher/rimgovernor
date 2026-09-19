@@ -301,6 +301,22 @@ preparation. A busy writer cannot defer a known player hold or danger event unti
 an old order has been sent. External holds are recorded as clock holds independently of
 routine observation and review revisions; there is no player-direction counter.
 
+### Coupled orders
+
+Every routine order dispatches under the running clock window (#243, #244); the
+count of orders in a step is never a reason to stop the clock, and batching
+independent orders at speed is expected. A planner marks a plan dependency
+coupled (`domain.ActionDependency.Coupled`) exactly when the later order is
+written against the result of the earlier one in the same plan: an id the
+earlier write produced (create a zone, then set its settings), a position it
+reached (draft, then move). An ordering-only dependency, where the later order
+merely waits for the earlier one to complete, is not coupled, and no routine
+planner emits a coupled dependency today. Only a coupled order requests a
+stop: when its prerequisite completes under a running window the scheduler
+stops the window at that completion (`ClockSchedulerResult.Coupled`), the
+worker prepares the order against the stopped map, and the next step admits a
+window again.
+
 ## Native execution
 
 New growing zones validate crop identity and pollution compatibility before

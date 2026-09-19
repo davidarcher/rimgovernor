@@ -31,9 +31,19 @@ func NewExcavationControl(client *Client) (*ExcavationControl, error) {
 	}
 	return &ExcavationControl{client}, nil
 }
-func excavationOperation(target ExcavationTarget) *op.Operation {
+
+// excavationOperation is the wire operation for target. A preview carries
+// the snapshot token the site read observed; an execute omits it (#244):
+// the kind is dispatched under a running clock, where the token (the
+// rock's hit points) moves once a miner works it, and the native apply-time
+// rules are the check that refuses a moved world.
+func excavationOperation(target ExcavationTarget, withToken bool) *op.Operation {
 	cell := target.Excavation.Cell()
-	return &op.Operation{Command: &op.Operation_ExcavateCell{ExcavateCell: &op.ExcavateCell{Cell: &c.Cell{X: proto.Int32(cell.X), Z: proto.Int32(cell.Z)}, ExpectedMineableDefName: proto.String(target.Excavation.Definition()), ExpectedSnapshotToken: proto.String(target.Token)}}}
+	command := &op.ExcavateCell{Cell: &c.Cell{X: proto.Int32(cell.X), Z: proto.Int32(cell.Z)}, ExpectedMineableDefName: proto.String(target.Excavation.Definition())}
+	if withToken {
+		command.ExpectedSnapshotToken = proto.String(target.Token)
+	}
+	return &op.Operation{Command: &op.Operation_ExcavateCell{ExcavateCell: command}}
 }
 func validExcavation(target ExcavationTarget) error {
 	if _, err := domain.NewExcavation(target.Excavation.Cell(), target.Excavation.Definition()); err != nil {
@@ -46,7 +56,7 @@ func (client *Client) PreviewExcavation(ctx context.Context, identity *c.Identit
 		return nil, Result{}, contract("invalid excavation preview")
 	}
 	reply := &op.PreviewReply{}
-	raw, err := client.protoRead(ctx, "rimgovernor/operations_preview", &op.PreviewRequest{Identity: proto.Clone(identity).(*c.Identity), Operation: excavationOperation(target)}, reply)
+	raw, err := client.protoRead(ctx, "rimgovernor/operations_preview", &op.PreviewRequest{Identity: proto.Clone(identity).(*c.Identity), Operation: excavationOperation(target, true)}, reply)
 	if err != nil {
 		return nil, raw, err
 	}
@@ -67,7 +77,7 @@ func (writer *ExcavationControl) Excavate(ctx context.Context, pre *a.WritePreco
 		return nil, Result{}, contract("invalid excavation execution")
 	}
 	reply := &op.ExecuteReply{}
-	raw, err := writer.client.protoCall(ctx, "rimgovernor/operations_execute", &op.ExecuteRequest{Precondition: proto.Clone(pre).(*a.WritePrecondition), Operation: excavationOperation(target)}, reply)
+	raw, err := writer.client.protoCall(ctx, "rimgovernor/operations_execute", &op.ExecuteRequest{Precondition: proto.Clone(pre).(*a.WritePrecondition), Operation: excavationOperation(target, false)}, reply)
 	if err != nil {
 		return nil, raw, err
 	}

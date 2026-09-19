@@ -66,7 +66,7 @@ namespace HomeBridge.BridgeTools
     internal static class NativeBedAssignOperations
     {
         internal static bool Valid(Operations.AssignBed? command) => command != null
-            && NativeDraftProtocol.ValidEntity(command.Pawn) && NativeDraftProtocol.ValidEntity(command.Bed)
+            && NativeDraftProtocol.ValidEntityTokenOptional(command.Pawn) && NativeDraftProtocol.ValidEntityTokenOptional(command.Bed)
             && command.Pawn.EntityId != command.Bed.EntityId
             && command.ExpectedPreviousBed != null
             && command.ExpectedPreviousBed.ValueCase != Operations.Assignment.ValueOneofCase.None
@@ -77,7 +77,11 @@ namespace HomeBridge.BridgeTools
 
         // requireTokens is false for Preview's unconstrained-establish-baseline
         // role (mirrors NativeRecoveryOperations.Prepare's own split); Execute
-        // always requires both tokens.
+        // compares each token the request sent. An execute dispatched under a
+        // running clock omits both (#244): the pawn token moves with the pawn
+        // every tick, and the rules here (pawn free and undrafted, previous
+        // bed unchanged, bed assignable) are the check that refuses a moved
+        // world.
         /// <summary>Why bed cannot be assigned to pawn right now, or null when it can; each gate names itself so a harness can tell them apart.</summary>
         private static string? BedRefusal(Building_Bed bed, Pawn pawn, Map map)
         {
@@ -106,13 +110,13 @@ namespace HomeBridge.BridgeTools
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Bed assignment requires an exact pawn, exact empty bed and observed previous bed.");
             if (!Valid(command)) return false;
             var map = ProtoBoundary.ResolveMap(context);
-            if (map == null || Find.TickManager.CurTimeSpeed != TimeSpeed.Paused)
-            { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Paused current map required."); return false; }
+            if (map == null)
+            { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Current map required."); return false; }
             pawn = map.mapPawns.FreeColonistsSpawned.SingleOrDefault(x => x.GetUniqueLoadID() == command.Pawn.EntityId);
             if (pawn == null || pawn.Dead || pawn.Downed || pawn.Drafted || pawn.InMentalState || pawn.ownership == null
                 || pawn.CurJob?.playerForced == true || pawn.health.HasHediffsNeedingTend())
             { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Pawn unavailable or player work protected."); pawn = null; return false; }
-            if (requireTokens)
+            if (requireTokens && NativeDraftProtocol.TokenSent(command.Pawn))
             {
                 var pawnRow = NativePawnObservationTools.Core(pawn, Colonists(map), context);
                 var pawnToken = NativePawnObservationTools.PawnSnapshotToken(pawn, pawnRow, context);
@@ -127,7 +131,7 @@ namespace HomeBridge.BridgeTools
             var refusal = bed == null ? "Bed unavailable: not found on the map." : BedRefusal(bed, pawn, map);
             if (refusal != null || bed == null)
             { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, refusal ?? "Bed unavailable."); pawn = null; bed = null; return false; }
-            if (requireTokens)
+            if (requireTokens && NativeDraftProtocol.TokenSent(command.Bed))
             {
                 var bedToken = NativeBuildingObservationTools.Token(bed, context);
                 if (bedToken.Token != command.Bed.ExpectedSnapshotToken)

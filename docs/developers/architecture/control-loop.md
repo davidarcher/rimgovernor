@@ -27,11 +27,13 @@ guarantee, and waiting age alone overtakes any deficit gap within a fixed tick b
 ## Execute under supervision
 
 Execution uses bounded native tick windows and a renewable wall-clock
-lease. Danger, injury and player input can stop a window early; lease
-expiry also stops a controller that becomes unresponsive. Reviews run at
-the stop between windows and under a running window alike (#243): the
-planners read one tick-consistent bundle and bind their facts to its tick;
-admission happens only at the stop.
+lease. Danger, injury, a coupled order and player input can stop a window
+early (the stop tier, #240); lease expiry also stops a controller that
+becomes unresponsive. Reviews and routine orders happen at the stop between
+windows and under a running window alike (#243, #244): the planners read
+one tick-consistent bundle and bind their facts to its tick, and the worker
+dispatches every routine kind live; only the window itself is admitted at
+the stop.
 
 The scheduler runs independently of dashboard refreshes. Only one review or
 execution task runs at a time. Hands yields at its operation budget and requests
@@ -55,18 +57,20 @@ while any named action is still unreconciled the worker steps again at once
 instead of waiting out its step interval. A
 window can be armed with watched attempts: the native supervisor stops it at the
 tick boundary on which any of them reaches a terminal outcome
-(`STOP_REASON_WATCH_LATCHED`, a benign stop like the tick budget), so a completed
-wall does not play out the rest of its tick budget before the controller
-notices. The scheduler arms the dispatched construction and haul attempts of
-the window (the families whose native operation records observe their own
-terminal outcome, at most 16); immediate designations have nothing to
-watch. The watch list is fixed at Start, so a construction or haul attempt
-the worker dispatches under the running window (a hold released
-mid-window) goes unwatched: the step records it (`unwatched` on the
-`clock_step` row) and lets the window run, and the event poll carries the
-outcome (#243). A watched kind the worker does not dispatch live would
-instead pause the epoch (`ClockSchedulerResult.Rearmed`) so the next step
-re-admits a window that watches it (#207); none exists today. Authority
+(`STOP_REASON_WATCH_LATCHED`, a benign stop like the tick budget). The
+scheduler arms them for a combat window only, the dispatched construction
+and haul attempts of the window (the families whose native operation
+records observe their own terminal outcome, at most 16), so the fight's
+next step starts at the outcome tick. A routine window watches nothing
+(#244): a completed order is not a reason to stop the clock, the
+`OperationOutcome` row the poll carries wakes the worker under the running
+window, and the step records the dispatched attempts the window does not
+watch (`unwatched` on the `clock_step` row) as evidence. The one routine
+stop is a coupled order, a plan action written against what an earlier
+action in the same plan produced (`ActionDependency.Coupled`): the step
+pauses the epoch when the prerequisite completes so the order is prepared
+against a frozen read of the result, and the next step admits again.
+Authority
 changes observed while no epoch is running are journaled as
 owner-less `AuthorityChanged` rows so a waiting poll learns of them at once.
 
@@ -82,16 +86,17 @@ facts are bound to the tick they observed, so admission holds with
 `stale_planning` when they predate the admitted tick by more than the
 planning tolerance (`bridge.PlanningTickTolerance`, the tightest fact
 family's: 250 ticks) or a window has since outrun them; the scheduler's
-`MaxAge` bounds only the admission reads. A colony window runs at least 2500
-ticks (`--clock-window-ticks`) and is sized by wall time at the configured
-speed: the ticks `--clock-speed` runs in `--clock-window-seconds` (default
-2) or in the pause the scheduler has observed between windows, whichever is
-longer, at most one game day (#126); each step's flight-recorder
-`clock_step` row carries the window it sized, the reason the step acted on
-and, for a step a clock stop woke, the latency from the native stop stamp to
-the step (`stop_latency_ms`, #112), which `rimgovernor phases` reports as
-steps by reason and stop-to-step latency. Combat windows stay at 300; a
-native work allowance (a growing field, a home fire) still clamps it.
+`MaxAge` bounds only the admission reads. A routine window runs
+`--clock-window-ticks` (default and maximum one game day, 60000 ticks, the
+#126 bound) unless danger, a coupled order or player input stops it
+earlier: there is no wall-time budget and no `--clock-window-seconds` any
+more (#244), since reviews and routine orders happen under the running
+window. Each step's flight-recorder `clock_step` row carries the window it
+admitted, the reason the step acted on and, for a step a clock stop woke,
+the latency from the native stop stamp to the step (`stop_latency_ms`,
+#112), which `rimgovernor phases` reports as steps by reason and
+stop-to-step latency. Combat windows stay at 300 ticks; a native work
+allowance (a growing field, a home fire) still clamps either.
 
 ## Manual control
 

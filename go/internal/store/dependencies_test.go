@@ -15,7 +15,7 @@ func TestDependencyPersistenceAndGuardedExecution(t *testing.T) {
 	path := memoryPath(t)
 	s := open(t, path)
 	base := plan(t, "p", "a", "b")
-	p, e := domain.NewPlan(base.ID(), base.Revision(), base.Actions(), domain.ActionDependency{Action: "b", Requires: "a"})
+	p, e := domain.NewPlan(base.ID(), base.Revision(), base.Actions(), domain.ActionDependency{Action: "b", Requires: "a", Coupled: true})
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -64,7 +64,7 @@ func TestDependencyDispatchRechecksAfterPreparation(t *testing.T) {
 	prepare(t, s, "b")
 	// Inject a legal prerequisite edge after preparation to exercise dispatch's
 	// independent guard; production plan intent is immutable.
-	if _, e := s.db.ExecContext(ctx, "INSERT INTO action_dependencies VALUES('p','b','a')"); e != nil {
+	if _, e := s.db.ExecContext(ctx, "INSERT INTO action_dependencies(plan_id,action_id,requires_id) VALUES('p','b','a')"); e != nil {
 		t.Fatal(e)
 	}
 	if _, e := s.Dispatch(ctx, "p", "b", scope(), 10); !errors.Is(e, domain.ErrDependency) {
@@ -82,7 +82,7 @@ func TestDependencyCorruptCrossPlanRefusedOnLoad(t *testing.T) {
 	if e := s.CreatePlan(ctx, plan(t, "other", "outside")); e != nil {
 		t.Fatal(e)
 	}
-	if _, e := s.db.ExecContext(ctx, "INSERT INTO action_dependencies VALUES('p','b','outside')"); e != nil {
+	if _, e := s.db.ExecContext(ctx, "INSERT INTO action_dependencies(plan_id,action_id,requires_id) VALUES('p','b','outside')"); e != nil {
 		t.Fatal(e)
 	}
 	if _, e := s.LoadPlan(ctx, "p"); e == nil {

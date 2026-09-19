@@ -112,7 +112,10 @@ func (b *productionPolicyBoundary) InspectProductionPolicy(ctx context.Context, 
 	if _, err = boundary.Context(v.Context, current); err != nil {
 		return out, err
 	}
-	if read.Context.GetTick() != v.Context.GetTick() {
+	// The read and the preview may straddle ticks under a running clock
+	// (#244): the read anchors the admission and the preview must be fresh
+	// for it.
+	if !domain.Tick(v.Context.GetTick()).FreshFor(domain.Tick(read.Context.GetTick())) {
 		return out, executor.ErrHeld
 	}
 	out.Facts = policy.ProductionPolicyFacts{Snapshot: current, Tick: domain.Tick(v.Context.GetTick()), Floors: domain.Known(read.Floors), Stopped: domain.Known(read.Stopped), Token: read.SnapshotToken}

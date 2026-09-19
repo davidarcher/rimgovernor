@@ -203,9 +203,12 @@ reviewed history before ingesting another page.
 Captured and reviewed cursors are distinct. Review consumes only committed pages
 and derives interruption and gap holds from that evidence. Ordinary epoch starts,
 speed changes, hostiles-cleared, force-pause-cleared, operation outcomes,
-authority changes and the benign stops (`store/clock.BenignStop`: tick budget,
-requested pause, watch latched) do not create interruption holds; notification,
-injury, failure and other stop events remain conservative holds.
+authority changes, game alerts (`Event_Alert`: planning evidence and an
+`alert_row` telemetry event, never a hold, since the native supervisor never
+stops play for one, #244) and the benign stops (`store/clock.BenignStop`:
+tick budget, requested pause, watch latched) do not create interruption
+holds; notification, injury, failure and other stop events remain
+conservative holds.
 Cleared conditions cannot erase an earlier unacknowledged event.
 
 Acknowledgements require an exact review revision and reviewed cursor. An exact
@@ -450,38 +453,31 @@ that one to latch; likewise while a watched successor is queued but not yet
 dispatched): the
 step loop leaves the player gate to the worker and steps again when a worker
 step advances any action (`WorkerConfig.Advanced` nudges it) or a
-`StepInterval` later, without backoff. Since the step that settles a stop
-reviews and admits in the same pass, the step loop first waits for the
-worker to report its pause-bound admissions (`workerPauseBound`: excavation,
-bed assignment, wall removal, production policy, research selection, home
-coverage, the kinds whose native tools still need a paused map; every other
-kind, the apply-time-validated acquisition and husbandry kinds included,
-dispatches under the running window, #243) for that stop tried
-(`WakeSignal.PauseDrained`, #129), bounded by `clockPauseDrainMax` (5 s)
-since the last admission the worker reported tried. A dispatch of any kind
-the executor held on `stale_facts` between windows (its inspection ran
-under a generation or tick the current one had outrun) counts as that
-pause work too (`workerHeldStale`, #288): the worker retries it at once,
-off its backoff, once per stop, and again at each later stop while the
-hold lasts, so the order re-inspects and dispatches at the tick it was
-planned on instead of a window running first and the game's own work
-scanner taking its target. The wait is bounded by `clockPauseDrainMax` (5 s)
-since the last admission the worker reported tried
-(`WakeSignal.PauseProgressed`, #211) and by `clockPauseDrainTotal` (2 min)
-in all, so a backlog of pause-bound actions lands in one stop; a window
-admitted before that would watch the settled attempt again, which the native
-clock never re-latches, and run out its whole budget (issue #162). The
-converse is a watched-kind attempt dispatched after a window was armed
-(the worker released a hold mid-window). The watch list is fixed at Start,
-so the epoch cannot watch it. For a kind the worker dispatches live
-(`liveDispatchKind`: the kinds whose native operation validates its
-preconditions at apply time, #242) the step counts it as unwatched
-(`ClockSchedulerResult.Unwatched`, the `clock_step` row's `unwatched`) and
-leaves the window running; the event poll carries its outcome. For any
-other watched kind the step pauses the epoch through the cleanup path and
-reports `Cleaned` with `Rearmed`, so the step loop steps again at once and
-re-admits with the attempt watched (#207); every watched kind today is
-dispatched live, so the rearm is dormant.
+`StepInterval` later, without backoff. No admission waits for the stop
+between windows (#244): every routine kind the worker dispatches validates
+its preconditions natively at apply time (`liveDispatchKind`, #242,
+action-contracts.md "Apply-time preconditions") and dispatches under the
+running window, so the step that settles a stop reviews and admits in the
+same pass without holding for the worker; the pause-drain hold of #129/#211
+(`clockPauseDrainMax`, `clockPauseDrainTotal`, `WakeSignal.PauseDrained`)
+is retired with the pause-bound set. A dispatch the executor holds on
+`stale_facts` (its inspection ran under a generation or tick the current
+one had outrun, `workerHeldStale`, #288) is retried at once, off the
+worker's backoff and once per hold, so the order re-inspects before the
+game's own work scanner takes its target; the clock is not held for the
+retry. A routine window arms no watches:
+a completed order is not a reason to stop the clock, and the
+`OperationOutcome` row the event poll carries wakes the worker under the
+running window. The step counts the dispatched construction and haul
+attempts a running window does not watch (`ClockSchedulerResult.Unwatched`,
+the `clock_step` row's `unwatched`), evidence only; the pause-and-rearm
+cycle of #207 is gone with the routine watches. The one routine reason a
+running window stops is a coupled order (`domain.ActionDependency.Coupled`,
+controller-contracts.md "Coupled orders"): when its prerequisite has
+completed at the epoch's current tick and the order is still undispatched
+(`PlanSpec.CoupledPending`), the step pauses the epoch through the cleanup
+path and reports `Cleaned` with `Coupled`, the worker wakes on the stop and
+prepares the order against the stopped map, and the next step admits again.
 
 A step that finds its own window running plans under it (#243): the
 planners read the bundle's snapshot (one main-thread hop, so its sections
@@ -505,12 +501,15 @@ wave; its retained census is retired by any typed-event invalidation
 (`routineCensusStore` generation) so a same-tick reuse never serves facts an
 event made stale.
 
-The scheduler arms `WatchPolicy.watched_attempts` with the dispatched or
-awaiting-observation building-action attempts of the planned wave (first 16,
-zone and allow designations are never armed). The policy is part of the window
-key, so a changed watch set is a new logical window. A verified
-`STOP_REASON_WATCH_LATCHED` stop is a finished window like a tick-budget stop
-except that its last tick may precede the deadline.
+The scheduler arms `WatchPolicy.watched_attempts` for a combat window only,
+with the dispatched or awaiting-observation building and haul attempts of
+the planned wave (first 16, zone and allow designations are never armed), so
+the fight's next step starts at the outcome tick; a routine window's list is
+empty (#244). The policy is part of the window key, so a changed watch set
+is a new logical window. A verified `STOP_REASON_WATCH_LATCHED` stop is a
+finished window like a tick-budget stop except that its last tick may
+precede the deadline; the native clock still emits it for any armed window,
+which the reactivewatch case drives directly.
 
 A fresh worker over reopened state remains disabled while recovering original
 attempts and pausing retained ownership; it does not acquire authority or issue a

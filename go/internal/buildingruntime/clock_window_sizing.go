@@ -1,164 +1,38 @@
 package buildingruntime
 
 import (
-	"math"
 	"time"
 
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 )
 
-// ClockWindowSizing sizes each admitted colony window by wall time instead
-// of a fixed tick count (issue #126). A fixed budget shrinks in wall time
-// as the clock speeds up -- at Ultrafast with the test boost 2500 ticks is
-// well under a second of game between reviews that take seconds -- so the
-// clock spends most of its wall time paused. The scheduler instead asks
-// for the ticks the configured speed runs in a target wall time: the
-// larger of Seconds and the pause it has been observing between windows
-// (the span from one window's native stop to the next admission, which
-// includes the poll delay and the review itself), so a window outlasts the
-// review that admits it. Watched outcomes, danger and player input still
-// stop a window early, so a wider window costs review latency only while
-// nothing happens.
-type ClockWindowSizing struct {
-	// Seconds is the least wall time a colony window should run; zero
-	// disables the sizing and keeps ClockSchedulerConfig.Start.MaxTicks.
-	Seconds float64
-	// TicksPerSecond is the configured speed's nominal tick rate; zero
-	// disables the sizing.
-	TicksPerSecond float64
-	// MaxTicks caps the sized window; Start.MaxTicks is its floor. Zero
-	// disables the sizing.
-	MaxTicks uint32
-}
-
-func (w ClockWindowSizing) enabled(floor uint32) bool {
-	return w.Seconds > 0 && w.TicksPerSecond > 0 && w.MaxTicks > floor
-}
-
 // ClockWindowSize is the colony window one step admitted, published as the
-// clock_step row's window_ticks, window_target_s and window_tps.
+// clock_step row's window_ticks. A routine window runs the whole budget
+// (ClockSchedulerConfig.Start.MaxTicks, one game day by default) unless a
+// native work allowance or the combat bound narrows it (#244): the planners
+// review and the Worker dispatches under the running window, so nothing
+// routine waits for a stop, and the stop tier (danger, coupled orders,
+// player input) ends a window early.
 type ClockWindowSize struct {
-	Ticks          uint32
-	TargetSeconds  float64
-	TicksPerSecond float64
+	Ticks uint32
 }
 
-// clockWindowPauseAlpha weights the newest observed pause between windows
-// against the running estimate.
-const clockWindowPauseAlpha = 0.5
+// clockStopSpanLimit discards stop spans that cannot be one review's wait:
+// a clock the service left stopped for a long time, or skew between the
+// native wall clock and the scheduler's.
+const clockStopSpanLimit = 10 * time.Minute
 
-// clockWindowQuantum rounds a sized window up so a slightly different pause
-// estimate does not re-key an otherwise identical admission.
-const clockWindowQuantum = 100
-
-// clockWindowPauseLimit discards pause spans that cannot be one review's
-// wait: a clock the service left stopped for a long time, or skew between
-// the native wall clock and the scheduler's.
-const clockWindowPauseLimit = 10 * time.Minute
-
-// clockWindowPause is the scheduler's running estimate of the paused wall
-// time between windows. A stop is folded in once, by its native stop time;
-// a later step that still sees the same stop (an earlier admission was
-// refused) replaces that contribution with the longer span it now sees.
-type clockWindowPause struct {
-	known, beforeKnown bool
-	seconds, before    float64
-	stoppedAt          int64
-}
-
-// observe folds the span since status's native stop into the estimate and
-// returns that span, or zero when status carries no usable stop.
-func (p *clockWindowPause) observe(status *k.Status, now time.Time) time.Duration {
+// clockStopSpan is the wall time since status's native stop, zero when
+// status carries no usable stop; the admitting step publishes it as the
+// stop-to-readmit pause (stop_pause_s, #162).
+func clockStopSpan(status *k.Status, now time.Time) time.Duration {
 	stopped := status.GetStopped()
 	if stopped == nil || stopped.StoppedAtUnixMs == nil {
 		return 0
 	}
-	at := stopped.GetStoppedAtUnixMs()
-	span := now.Sub(time.UnixMilli(at))
-	if span <= 0 || span > clockWindowPauseLimit {
+	span := now.Sub(time.UnixMilli(stopped.GetStoppedAtUnixMs()))
+	if span <= 0 || span > clockStopSpanLimit {
 		return 0
 	}
-	if at == p.stoppedAt && p.known {
-		p.seconds, p.known = p.before, p.beforeKnown
-	} else {
-		p.before, p.beforeKnown, p.stoppedAt = p.seconds, p.known, at
-	}
-	sample := span.Seconds()
-	if !p.known {
-		p.known, p.seconds = true, sample
-		return span
-	}
-	p.seconds = clockWindowPauseAlpha*sample + (1-clockWindowPauseAlpha)*p.seconds
 	return span
-}
-
-// clockWindowRateAlpha weights the newest observed tick rate against the
-// running estimate; clockWindowRateMinSpan is the least wall time between
-// two running statuses for their tick delta to be a rate sample.
-const (
-	clockWindowRateAlpha   = 0.5
-	clockWindowRateMinSpan = 500 * time.Millisecond
-)
-
-// clockWindowRate is the scheduler's running estimate of the tick rate the
-// game actually runs at, from the ticks between consecutive running
-// statuses. The nominal rate (ClockWindowSizing.TicksPerSecond) assumes an
-// unloaded game thread; under peer load an Ultrafast test-boost epoch that
-// nominally runs 7000 ticks/s ran 250 (#193, fourteen concurrent games), so
-// a window sized by the nominal rate outlasts its target thirty times over
-// and work that became admissible waits on a stop that nothing else
-// causes. The observed rate only ever narrows a window: the nominal rate
-// caps it.
-type clockWindowRate struct {
-	known          bool
-	ticksPerSecond float64
-	prevRunning    bool
-	prevTick       int64
-	prevAt         time.Time
-}
-
-// observe folds the rate since the previous running status into the
-// estimate when both statuses are running and enough wall time separates
-// them; a stop breaks the chain, since the ticks a stopped clock did not
-// run say nothing about the rate it runs at.
-func (r *clockWindowRate) observe(status *k.Status, now time.Time) {
-	running := status.GetRunning() != nil
-	tick := status.Context.GetTick()
-	if r.prevRunning && running {
-		span := now.Sub(r.prevAt)
-		if delta := tick - r.prevTick; delta > 0 && span >= clockWindowRateMinSpan {
-			sample := float64(delta) / span.Seconds()
-			if r.known {
-				r.ticksPerSecond = clockWindowRateAlpha*sample + (1-clockWindowRateAlpha)*r.ticksPerSecond
-			} else {
-				r.known, r.ticksPerSecond = true, sample
-			}
-		}
-	}
-	r.prevRunning, r.prevTick, r.prevAt = running, tick, now
-}
-
-// colonyWindow sizes the next colony window from the configured sizing,
-// the floor (the fixed budget), the observed pause and the observed tick
-// rate.
-func (w ClockWindowSizing) colonyWindow(floor uint32, pause clockWindowPause, rate clockWindowRate) ClockWindowSize {
-	size := ClockWindowSize{Ticks: floor}
-	if !w.enabled(floor) {
-		return size
-	}
-	size.TargetSeconds, size.TicksPerSecond = w.Seconds, w.TicksPerSecond
-	if pause.known && pause.seconds > size.TargetSeconds {
-		size.TargetSeconds = pause.seconds
-	}
-	if rate.known && rate.ticksPerSecond > 0 && rate.ticksPerSecond < size.TicksPerSecond {
-		size.TicksPerSecond = rate.ticksPerSecond
-	}
-	ticks := math.Ceil(size.TargetSeconds*size.TicksPerSecond/clockWindowQuantum) * clockWindowQuantum
-	switch {
-	case ticks >= float64(w.MaxTicks):
-		size.Ticks = w.MaxTicks
-	case ticks > float64(floor):
-		size.Ticks = uint32(ticks)
-	}
-	return size
 }

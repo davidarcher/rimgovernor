@@ -149,14 +149,20 @@ namespace HomeBridge.BridgeTools
     {
         internal static bool Valid(Operations.ExcavateCell? command) => command != null && command.Cell != null && command.Cell.HasX && command.Cell.HasZ
             && command.Cell.X >= 0 && command.Cell.Z >= 0 && command.HasExpectedMineableDefName && ProtoBoundary.IsIdentifier(command.ExpectedMineableDefName)
-            && command.HasExpectedSnapshotToken && command.ExpectedSnapshotToken.Length > 0;
+            && (!command.HasExpectedSnapshotToken || command.ExpectedSnapshotToken.Length > 0);
+
+        // An execute dispatched under a running clock omits the snapshot token
+        // (#244): the token hashes the rock's hit points, which move every
+        // tick once a miner works it, and the rules below are the check that
+        // refuses a moved world. A preview still sends it.
+        private static bool TokenSent(Operations.ExcavateCell command) => command.HasExpectedSnapshotToken && command.ExpectedSnapshotToken.Length > 0;
 
         private static bool Prepare(Operations.ExcavateCell command, Common.ObservationContext context, out Mineable? rock, out bool cleared, out Common.Failure failure)
         {
             rock = null; cleared = false; failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Excavation requires an exact visible rock cell snapshot, supported roof geometry and an eligible miner.");
             if (!Valid(command)) return false;
             var map = ProtoBoundary.ResolveMap(context);
-            if (map == null || Find.TickManager.CurTimeSpeed != TimeSpeed.Paused) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Paused current map required."); return false; }
+            if (map == null) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Current map required."); return false; }
             if (map.roofCollapseBuffer.CellsMarkedToCollapse.Count > 0) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Roof collapse is pending on this map."); return false; }
             var cell = new IntVec3(command.Cell.X, 0, command.Cell.Z);
             rock = ExcavationTools.RockAt(cell, map);
@@ -164,14 +170,14 @@ namespace HomeBridge.BridgeTools
             {
                 // Adopt a cell the pawns already cleared: the snapshot must
                 // still describe open ground, and nothing is designated.
-                if (NativeExcavationSite.Token(context.Identity, cell, "", 0, ExcavationTools.Designated(cell, map)) != command.ExpectedSnapshotToken)
+                if (TokenSent(command) && NativeExcavationSite.Token(context.Identity, cell, "", 0, ExcavationTools.Designated(cell, map)) != command.ExpectedSnapshotToken)
                 { failure = ProtoBoundary.Fail(Common.FailureCode.StaleIdentity, "Cell snapshot changed; observe before new admission."); return false; }
                 cleared = true;
                 return true;
             }
             if (rock == null || cell.Fogged(map) || rock.def.defName != command.ExpectedMineableDefName) { rock = null; failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Expected rock is not visible at the cell."); return false; }
             var designated = ExcavationTools.Designated(cell, map);
-            if (NativeExcavationSite.Token(context.Identity, cell, rock.def.defName, rock.HitPoints, designated) != command.ExpectedSnapshotToken)
+            if (TokenSent(command) && NativeExcavationSite.Token(context.Identity, cell, rock.def.defName, rock.HitPoints, designated) != command.ExpectedSnapshotToken)
             { rock = null; failure = ProtoBoundary.Fail(Common.FailureCode.StaleIdentity, "Rock snapshot changed; observe before new admission."); return false; }
             var blocker = ExcavationTools.CellBlocker(cell, map);
             if (blocker == null && ExcavationSafety.Check(map, new[] { cell }, out _, out var support) != ExcavationSafety.Support.Supported) blocker = support;

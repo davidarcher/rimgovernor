@@ -349,13 +349,11 @@ func TestClockWorkerPollsFasterUnderARunningWindow(t *testing.T) {
 	}
 }
 
-// Work of a watched kind dispatched after a window was armed cannot stop
-// that window: the native watch list is fixed at Start. Since #243 the
-// routine review runs under the window and every watched kind is
-// dispatched live, so a running step that finds such an attempt in the plan
-// records it as unwatched and leaves the window running; the event poll
-// carries the attempt's outcome. The pause-and-rearm cycle of #207 stays
-// for a watched kind that is not dispatched live (none today).
+// A routine window watches nothing (#244) and work dispatched under it
+// cannot stop it: a running step that finds a dispatched attempt in the
+// plan records it as unwatched and leaves the window running; the event
+// poll carries the attempt's outcome to the Worker (#243). The
+// pause-and-rearm cycle of #207 is gone with the routine watches.
 func TestClockSchedulerLeavesARunningWindowUnderLiveDispatchedWork(t *testing.T) {
 	t.Parallel()
 	s, f := schedulerFixture(t)
@@ -364,7 +362,7 @@ func TestClockSchedulerLeavesARunningWindowUnderLiveDispatchedWork(t *testing.T)
 	if err != nil || got.Attempt == nil || got.Attempt.Phase != store.ClockApplied || got.Watched != 0 {
 		t.Fatal(got, err)
 	}
-	if got, err = s.Step(ctx); err != nil || !got.Running || got.Rearmed || f.pauses != 0 {
+	if got, err = s.Step(ctx); err != nil || !got.Running || f.pauses != 0 {
 		t.Fatal(got, err, f.pauses)
 	}
 	// The Worker dispatches the plan's building action mid-window.
@@ -382,10 +380,67 @@ func TestClockSchedulerLeavesARunningWindowUnderLiveDispatchedWork(t *testing.T)
 		t.Fatal(err)
 	}
 	got, err = s.Step(ctx)
-	if err != nil || got.Cleaned || got.Rearmed || !got.Running || got.Unwatched != 1 || !s.WindowRunning() || f.pauses != 0 {
+	if err != nil || got.Cleaned || !got.Running || got.Unwatched != 1 || !s.WindowRunning() || f.pauses != 0 {
 		t.Fatal(got, err, s.WindowRunning(), f.pauses)
 	}
-	if !liveDispatchKind(domain.BuildingAction) || !liveDispatchKind(domain.HaulAction) || liveDispatchKind(domain.ExcavationAction) {
+	if !liveDispatchKind(domain.BuildingAction) || !liveDispatchKind(domain.HaulAction) || liveDispatchKind(domain.MeleeAttackAction) {
 		t.Fatal("live dispatch kinds")
+	}
+}
+
+// A coupled order (domain.ActionDependency.Coupled) is the one routine
+// reason a running window stops: once its prerequisite completes under the
+// window, the step pauses the epoch so the order is prepared against a
+// frozen read of the result (#244). An ordering-only dependency leaves the
+// window running.
+func TestClockSchedulerStopsARunningWindowForACoupledOrder(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	for _, coupled := range []bool{false, true} {
+		wall, err := domain.NewBuilding("Wall", domain.Cell{X: 9, Z: 9}, domain.North, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		second, err := domain.NewBuildingAction("second", wall)
+		if err != nil {
+			t.Fatal(err)
+		}
+		s, f := schedulerFixturePlan(t, []domain.Action{second}, domain.ActionDependency{Action: "second", Requires: "action", Coupled: coupled})
+		if got, err := s.Step(ctx); err != nil || got.Attempt == nil || got.Attempt.Phase != store.ClockApplied {
+			t.Fatal(got, err)
+		}
+		if got, err := s.Step(ctx); err != nil || !got.Running || got.Coupled || f.pauses != 0 {
+			t.Fatal(got, err, f.pauses)
+		}
+		// The prerequisite completes under the window.
+		snapshot := s.session.State().Snapshot
+		state, err := s.player.journal.LoadPlan(ctx, snapshot.Plan)
+		if err != nil {
+			t.Fatal(err)
+		}
+		action := state.Progress[0].Action()
+		building, _ := action.Building()
+		if _, err = s.player.journal.ReserveAndPrepare(ctx, snapshot.Plan, action.ID(), store.Admission{Snapshot: snapshot, Tick: 1, Costs: []store.MaterialCost{}, Footprint: []domain.Cell{building.Cell()}}); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = s.player.journal.Dispatch(ctx, snapshot.Plan, action.ID(), snapshot, 1); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = s.player.journal.RecordReceipt(ctx, snapshot.Plan, action.ID(), 1, domain.ReceiptAccepted); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = s.player.journal.Observe(ctx, snapshot.Plan, domain.Observation{Action: action.ID(), Attempt: 1, Snapshot: snapshot, Tick: 2, Effect: domain.EffectCompleted, Causality: domain.AfterDispatch}, snapshot); err != nil {
+			t.Fatal(err)
+		}
+		got, err := s.Step(ctx)
+		if err != nil {
+			t.Fatal(coupled, got, err)
+		}
+		if coupled && (!got.Cleaned || !got.Coupled || got.Running || f.pauses != 1) {
+			t.Fatal("coupled order did not stop the window", got, f.pauses)
+		}
+		if !coupled && (got.Cleaned || got.Coupled || !got.Running || f.pauses != 0) {
+			t.Fatal("ordered dependency stopped the window", got, f.pauses)
+		}
 	}
 }

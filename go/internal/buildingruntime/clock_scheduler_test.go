@@ -36,8 +36,15 @@ func (f *schedulerNative) ReadEmergency(ctx context.Context, id *c.Identity) (br
 }
 func schedulerFixture(t *testing.T) (*ClockScheduler, *schedulerNative) {
 	t.Helper()
+	return schedulerFixturePlan(t, nil)
+}
+
+// schedulerFixturePlan is schedulerFixture over a plan with extra actions
+// and dependencies after the fixture placement.
+func schedulerFixturePlan(t *testing.T, extra []domain.Action, dependencies ...domain.ActionDependency) (*ClockScheduler, *schedulerNative) {
+	t.Helper()
 	_, db, f, intent := clockCoreFixture(t)
-	s, _, profile := newClockSessionTest(t, db, f)
+	s, _, profile := newClockSessionTestPlan(t, db, f, extra, dependencies...)
 	p, err := NewPlayer(context.Background(), PlayerConfig{CallTimeout: 10 * time.Second, JournalTimeout: 10 * time.Second}, db, s, playerWorldFunc(func(context.Context) (store.World, error) { return playerWorld(intent.Snapshot), nil }))
 	if err != nil {
 		t.Fatal(err)

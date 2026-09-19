@@ -91,8 +91,10 @@ func (b *Boundary) InspectGrowerCrop(ctx context.Context, t executor.Target) (ex
 	// before-token already binds the write to the settings the read listed,
 	// so a tick that advanced between them is a running clock, not stale
 	// evidence. Demanding one tick held every dispatch until the game
-	// paused (#195); bills, zones and supplies accept the same order.
-	if v.Context.GetTick() < int64(tick) || emergency.Context.GetTick() < v.Context.GetTick() {
+	// paused (#195); bills, zones and supplies accept the same order. The
+	// emergency read may come from the fact cache a bounded advance behind
+	// the crop read, the step's first (domain.Tick.Covers, #244).
+	if v.Context.GetTick() < int64(tick) || !domain.Tick(emergency.Context.GetTick()).Covers(tick) {
 		return out, executor.ErrHeld
 	}
 	tick = domain.Tick(v.Context.GetTick())

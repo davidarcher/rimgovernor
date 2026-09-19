@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
-	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime"
 	commonpb "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	lifecyclepb "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
 	observationspb "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -393,14 +392,15 @@ func TestServePresentationUsesOptionalAttachedClient(t *testing.T) {
 	}
 }
 
-// --clock-window-ticks sizes the colony window (default 2500) within
-// 1..maxClockWindowTicks; the combat window never exceeds it.
+// --clock-window-ticks is the routine window budget (default one game day,
+// maxClockWindowTicks) within 1..maxClockWindowTicks; the combat window
+// never exceeds it, and the retired --clock-window-seconds is refused (#244).
 func TestServeClockWindowTicksFlag(t *testing.T) {
 	dir := t.TempDir()
 	withRoutineFamilies(t, "", false)
 	base := append(serveBase(dir), "--profile", dir)
 	c, err := parseServe(base, io.Discard)
-	if err != nil || c.clockWindowTicks != defaultClockWindowTicks {
+	if err != nil || c.clockWindowTicks != defaultClockWindowTicks || defaultClockWindowTicks != maxClockWindowTicks {
 		t.Fatal(c.clockWindowTicks, err)
 	}
 	c, err = parseServe(append(append([]string(nil), base...), "--clock-window-ticks", "15000"), io.Discard)
@@ -412,47 +412,17 @@ func TestServeClockWindowTicksFlag(t *testing.T) {
 			t.Fatal("accepted --clock-window-ticks", bad)
 		}
 	}
-	config := serviceClockConfig(dir, parseClockSpeed("Normal"), false, 200, 0)
+	if _, err := parseServe(append(append([]string(nil), base...), "--clock-window-seconds", "2"), io.Discard); err == nil {
+		t.Fatal("accepted the retired --clock-window-seconds")
+	}
+	config := serviceClockConfig(dir, parseClockSpeed("Normal"), false, 200)
 	if config.Start.MaxTicks != 200 || config.CombatMaxTicks != 200 {
 		t.Fatal(config.Start.MaxTicks, config.CombatMaxTicks)
 	}
-	config = serviceClockConfig(dir, parseClockSpeed("Normal"), false, defaultClockWindowTicks, defaultClockWindowSeconds)
-	if config.Start.MaxTicks != defaultClockWindowTicks || config.CombatMaxTicks != combatClockWindowTicks {
-		t.Fatal(config.Start.MaxTicks, config.CombatMaxTicks)
-	}
-}
-
-// --clock-window-seconds (default 2) sizes the colony window by wall time
-// at the configured speed (issue #126): the scheduler config carries the
-// target, the speed's nominal tick rate (the boosted rate under test
-// acceleration) and the cap; the combat bound stays fixed. 0 disables the
-// sizing; negative values are refused.
-func TestServeClockWindowSecondsFlag(t *testing.T) {
-	dir := t.TempDir()
-	withRoutineFamilies(t, "", false)
-	base := append(serveBase(dir), "--profile", dir)
-	c, err := parseServe(base, io.Discard)
-	if err != nil || c.clockWindowSeconds != defaultClockWindowSeconds {
-		t.Fatal(c.clockWindowSeconds, err)
-	}
-	c, err = parseServe(append(append([]string(nil), base...), "--clock-window-seconds", "0"), io.Discard)
-	if err != nil || c.clockWindowSeconds != 0 {
-		t.Fatal(c.clockWindowSeconds, err)
-	}
-	for _, bad := range []string{"-1", "NaN", "+Inf", "x"} {
-		if _, err := parseServe(append(append([]string(nil), base...), "--clock-window-seconds", bad), io.Discard); err == nil {
-			t.Fatal("accepted --clock-window-seconds", bad)
-		}
-	}
-	for _, tc := range []struct {
-		speed string
-		boost bool
-		tps   float64
-	}{{"Normal", false, 60}, {"Fast", false, 180}, {"Superfast", false, 360}, {"Ultrafast", false, 900}, {"Ultrafast", true, acceleratedClockTicksPerSecond}} {
-		config := serviceClockConfig(dir, parseClockSpeed(tc.speed), tc.boost, defaultClockWindowTicks, 3)
-		want := buildingruntime.ClockWindowSizing{Seconds: 3, TicksPerSecond: tc.tps, MaxTicks: maxClockWindowTicks}
-		if config.Window != want || config.Start.MaxTicks != defaultClockWindowTicks || config.CombatMaxTicks != combatClockWindowTicks {
-			t.Fatal(tc, config.Window, config.Start.MaxTicks, config.CombatMaxTicks)
+	for _, boost := range []bool{false, true} {
+		config = serviceClockConfig(dir, parseClockSpeed("Ultrafast"), boost, defaultClockWindowTicks)
+		if config.Start.MaxTicks != defaultClockWindowTicks || config.CombatMaxTicks != combatClockWindowTicks {
+			t.Fatal(boost, config.Start.MaxTicks, config.CombatMaxTicks)
 		}
 	}
 }

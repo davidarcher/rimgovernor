@@ -223,7 +223,8 @@ Needs a `ThroughputFixture` build; both profiles admit the uncapped case
 (every wall plan completed, no storage deficit pending; the clock admits no
 window after that, #210); each speed runs `serve` with the
 flight recorder and the case reduces the recording with `SummarizePhases`
-and `SummarizeStops`. `report.json` carries, per speed under `metrics`:
+and `SummarizeStops`. `result.json` carries, per speed under `speed_metrics`
+(`metrics` is the flat cost block every result carries, #297):
 
 | Key | Meaning |
 | --- | --- |

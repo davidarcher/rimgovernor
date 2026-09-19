@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"math"
 	"os"
 	"sync/atomic"
 	"time"
@@ -51,9 +50,6 @@ type ClockSchedulerConfig struct {
 	// holds an admitted plan and hostiles are alive; zero keeps Start.MaxTicks.
 	// Short windows let the raid be re-planned between them.
 	CombatMaxTicks uint32
-	// Window sizes each colony window by wall time from Start.MaxTicks up
-	// to Window.MaxTicks; the zero value keeps Start.MaxTicks fixed.
-	Window ClockWindowSizing
 	// FullStepEvery bounds how long timer steps without a tick advance may
 	// skip the planners; zero means DefaultFullStepEvery.
 	FullStepEvery time.Duration
@@ -174,14 +170,16 @@ type ClockSchedulerResult struct {
 	Dialog                           *RoutineDialogResult
 	Trade                            *RoutineTradeResult
 	Running, Reconciled, Cleaned     bool
-	// Rearmed is set with Cleaned when the step paused its own running
-	// window because work of a watched kind that is not dispatched live had
-	// been dispatched after the window was armed (#207); the next step
-	// admits a window that watches it.
-	Rearmed bool
-	// Unwatched counts the live-dispatched attempts of a watched kind the
-	// running window does not watch (#243): they are left to run and the
-	// event poll carries their outcome; no pause is spent re-arming.
+	// Coupled is set with Cleaned when the step stopped its own running
+	// window because a coupled order's prerequisite completed under it
+	// (domain.ActionDependency.Coupled, #244): the Worker prepares the
+	// order against the stopped map and the next step admits again.
+	Coupled bool
+	// Unwatched counts the dispatched attempts of a watched kind the
+	// running window does not watch: every one under a routine window,
+	// which arms no watches (#244), and those dispatched after a combat
+	// window was armed (#243). They are left to run and the event poll
+	// carries their outcome; no stop is spent on them.
 	Unwatched int
 	// Deferred is set when the step admitted nothing because the Worker
 	// has yet to reconcile an attempt whose terminal outcome the clock
@@ -194,7 +192,9 @@ type ClockSchedulerResult struct {
 	// wrapped with the planner's name. A failed planner does not abort the
 	// step: its peers still run and the clock window is still evaluated (#62).
 	PlannerFailures []error
-	// Watched counts the attempts the admitted window watches natively.
+	// Watched counts the attempts the admitted window watches natively:
+	// zero for a routine window, whose native work allowances already
+	// bound it, so a completed order never stops the clock (#244).
 	Watched int
 	// Planners names the catalog planners this step queued, in catalog order.
 	Planners []string
@@ -218,12 +218,6 @@ type ClockScheduler struct {
 	lastTick, plannedTick           int64
 	lastTickKnown, plannedTickKnown bool
 	lastFull                        time.Time
-	// pause is the observed wall time between windows that sizes the next
-	// one (ClockWindowSizing); touched only under the player gate.
-	pause clockWindowPause
-	// rate is the observed tick rate that narrows the next window under
-	// peer load (clockWindowRate); touched only under the player gate.
-	rate clockWindowRate
 	// running is the scheduler's belief that a colony window it admitted
 	// is still running: set by the step that dispatched or observed it,
 	// cleared by the step or poll that saw it stopped. The poll loop holds
@@ -436,9 +430,6 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	if config.CombatMaxTicks > config.Start.MaxTicks {
 		return nil, ErrControl
 	}
-	if w := config.Window; w.Seconds < 0 || w.TicksPerSecond < 0 || math.IsNaN(w.Seconds) || math.IsNaN(w.TicksPerSecond) || math.IsInf(w.Seconds, 0) || math.IsInf(w.TicksPerSecond, 0) || w.MaxTicks != 0 && w.MaxTicks < config.Start.MaxTicks {
-		return nil, ErrControl
-	}
 	// Validate command arguments through the canonical bridge validator; these
 	// fixed validation identities carry no runtime permission.
 	err := bridge.ValidateClockExpectation(bridge.ClockExpectation{Identity: &c.Identity{ColonyId: proto.String("validation"), LoadToken: proto.String("validation"), MapId: proto.Int32(0)}, Attempt: &c.AttemptKey{ControllerSessionId: proto.String("validation"), ActionId: proto.String("validation"), AttemptId: proto.Uint64(1)}, NativeGeneration: 1, Command: bridge.ClockCommand{Start: &config.Start}})
@@ -562,7 +553,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 			}
 		}
 		if out.Window.Ticks != 0 {
-			extra["window_ticks"], extra["window_target_s"], extra["window_tps"] = out.Window.Ticks, out.Window.TargetSeconds, out.Window.TicksPerSecond
+			extra["window_ticks"] = out.Window.Ticks
 		}
 		if out.Unwatched != 0 {
 			extra["unwatched"] = out.Unwatched
@@ -651,7 +642,6 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		return out, errors.Join(executor.ErrEvidence, s.session.Disable())
 	}
 	s.running.Store(false)
-	s.rate.observe(status, s.clock.Now())
 	reason.TickAdvanced = !s.lastTickKnown || status.Context.GetTick() != s.lastTick
 	s.lastTick, s.lastTickKnown = status.Context.GetTick(), true
 	telemetry.ObserveTick(status.Context.GetTick())
@@ -704,21 +694,18 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 			return out, executor.ErrHeld
 		}
 		if status.GetRunning() != nil {
-			unwatched, live, err := s.unwatchedWork(call, state.Snapshot, actual)
-			if err != nil {
+			var coupled []domain.ActionID
+			if out.Unwatched, coupled, err = s.runningWork(call, state.Snapshot, status, actual); err != nil {
 				return out, err
 			}
-			out.Unwatched = live
-			if len(unwatched) > 0 {
-				// Work of a watched kind was dispatched after this window
-				// started (the Worker released a hold mid-window), so the
-				// window cannot stop on its outcome and would run out its
-				// whole tick budget with the routine review frozen at its
-				// admission tick (#207). Pause the epoch; the next step
-				// settles it, reviews and admits a window that watches it.
-				clockSchedulerLog("window watches none of %v dispatched since it started -> pausing to re-arm", unwatched)
+			if len(coupled) > 0 {
+				// A coupled order is written against what its prerequisite
+				// produced, so it is prepared against a frozen read of that
+				// result: stop the window at the completion (#244). The
+				// Worker wakes on the stop and the next step admits again.
+				clockSchedulerLog("coupled orders %v ready under the running window -> stopping", coupled)
 				out.Cleaned = true
-				out.Rearmed = true
+				out.Coupled = true
 				return out, s.session.CleanupClockObserved(call, status)
 			}
 		}
@@ -879,12 +866,11 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	}
 	clockState := policy.ClockWindowState("")
 	start := s.config.Start
-	// The colony window is sized by wall time at the configured speed
-	// (issue #126) before a native-work or combat bound narrows it.
-	paused = s.pause.observe(status, s.clock.Now())
-	out.Window = s.config.Window.colonyWindow(start.MaxTicks, s.pause, s.rate)
-	start.MaxTicks = out.Window.Ticks
-	clockSchedulerLog("colony window: %d ticks (target %.1fs at %.0f ticks/s, pause estimate known=%v %.1fs, observed rate known=%v %.0f ticks/s)", out.Window.Ticks, out.Window.TargetSeconds, out.Window.TicksPerSecond, s.pause.known, s.pause.seconds, s.rate.known, s.rate.ticksPerSecond)
+	// A routine window runs the whole budget (#244); a native-work or
+	// combat bound may narrow it below.
+	paused = clockStopSpan(status, s.clock.Now())
+	out.Window = ClockWindowSize{Ticks: start.MaxTicks}
+	clockSchedulerLog("colony window: %d ticks", out.Window.Ticks)
 	var nativeWorkTicks uint32
 	if out.Fields != nil {
 		nativeWorkTicks = out.Fields.NativeWorkTicks
@@ -942,7 +928,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	}
 	combatMaxTicks := min(s.config.CombatMaxTicks, start.MaxTicks)
 	out.Decision = policy.EvaluateClockWindow(facts, policy.ClockWindowLimits{Now: s.clock.Now(), MaxAge: s.config.MaxAge, MaxTicks: start.MaxTicks, CombatMaxTicks: combatMaxTicks})
-	clockSchedulerLog("EvaluateClockWindow: work=%v combatPlan=%v admitted=%v mode=%s hostiles=%v refused=%v watched=%d", work, combatPlan, out.Decision.Admitted, out.Decision.Mode, out.Decision.Hostiles, out.Decision.Refused, len(clockSchedulerWatches(fingerprint, "")))
+	clockSchedulerLog("EvaluateClockWindow: work=%v combatPlan=%v admitted=%v mode=%s hostiles=%v refused=%v", work, combatPlan, out.Decision.Admitted, out.Decision.Mode, out.Decision.Hostiles, out.Decision.Refused)
 	if !out.Decision.Admitted {
 		clockEvent("clock-scheduler", "admission_refused", "window not admitted", "refused", clockReasonNames(out.Decision.Refused), "mode", string(out.Decision.Mode), "work", work, "combat_plan", combatPlan, "hostiles", len(out.Decision.Hostiles), "clock_state", string(clockState), "window_ticks", out.Window.Ticks)
 		return out, executor.ErrHeld
@@ -952,8 +938,12 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	if err != nil {
 		return out, err
 	}
-	start.Policy.WatchedAttempts = clockSchedulerWatches(fingerprint, string(namespace))
-	out.Watched = len(start.Policy.WatchedAttempts)
+	// A routine window watches nothing: a completed order is not a reason
+	// to stop the clock, the event poll carries its outcome to the Worker
+	// under the running window, and the routine review runs there too
+	// (#243, #244). A combat window watches its dispatched orders so the
+	// fight's next step starts at the outcome tick (#207).
+	start.Policy.WatchedAttempts = nil
 	s.facts.remember(fingerprint)
 	// A colonist already known downed is acknowledged in either mode: the
 	// native watcher otherwise stops every window at zero ticks on the same
@@ -968,6 +958,8 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		// hostiles the policy admitted and runs under the combat budget.
 		out.Combat = true
 		start.Policy.Mode = k.WatchMode_WATCH_MODE_COMBAT.Enum()
+		start.Policy.WatchedAttempts = clockSchedulerWatches(fingerprint, string(namespace))
+		out.Watched = len(start.Policy.WatchedAttempts)
 		start.Policy.AcknowledgedHostileIds = make([]string, 0, len(out.Decision.Hostiles))
 		for _, id := range out.Decision.Hostiles {
 			start.Policy.AcknowledgedHostileIds = append(start.Policy.AcknowledgedHostileIds, string(id))
@@ -1168,11 +1160,12 @@ type clockWorkItem struct {
 }
 
 // clockSchedulerWatches names the dispatched attempts the native clock
-// watches for this window, in catalog order and bounded. A latched terminal
-// outcome stops the window at once instead of running out the tick budget.
-// Only families with a native operation record the clock can observe are
-// armed: construction and haul (#108). Immediate designations (allow, zones,
-// work settings) settle within their own write and have nothing to watch.
+// watches for a combat window, in catalog order and bounded. A latched
+// terminal outcome stops the window at once instead of running out the tick
+// budget. Only families with a native operation record the clock can
+// observe are armed: construction and haul (#108). Immediate designations
+// (allow, zones, work settings) settle within their own write and have
+// nothing to watch. Routine windows arm none (#244).
 func clockSchedulerWatches(items []clockWorkItem, namespace string) []*c.AttemptKey {
 	var watched []*c.AttemptKey
 	for _, item := range items {
@@ -1187,49 +1180,46 @@ func clockSchedulerWatches(items []clockWorkItem, namespace string) []*c.Attempt
 	return watched
 }
 
-// unwatchedWork names the current plan's dispatched attempts of a watched
-// kind that the running epoch does not watch: work the Worker dispatched
-// after the window was armed. Attempts of a kind the Worker dispatches
-// live (liveDispatchKind) are counted, not named: the window runs on and
-// the event poll carries their outcome (#243); the named ones are the
-// kinds a stopped window must be re-armed for (#207). Both are empty when
-// the epoch's watch list is already at the native bound (more attempts
-// than that go unwatched by design) or when the plan no longer matches the
-// admitted snapshot (the admission tail reports that as evidence on its
-// own).
-func (s *ClockScheduler) unwatchedWork(call context.Context, snapshot domain.GenerationSnapshot, epoch *k.Epoch) ([]domain.ActionID, int, error) {
-	watched := epoch.GetPolicy().GetWatchedAttempts()
-	if len(watched) >= bridge.ClockWatchedAttemptsMax {
-		return nil, 0, nil
-	}
+// runningWork reads the current plan under a running epoch and reports two
+// things about it. The count is the dispatched attempts of a watched kind
+// the epoch does not watch: every one under a routine window (#244) and the
+// work the Worker dispatched after a combat window was armed; the window
+// runs on and the event poll carries their outcome (#243), so the count is
+// step evidence only, and it skips the plan when the watch list is already
+// at the native bound (more attempts than that go unwatched by design). The
+// names are the coupled orders whose prerequisite has completed at the
+// epoch's current tick (domain.PlanSpec.CoupledPending), the one routine
+// reason a running window stops. Both are empty when the plan no longer
+// matches the admitted snapshot (the admission tail reports that as
+// evidence on its own).
+func (s *ClockScheduler) runningWork(call context.Context, snapshot domain.GenerationSnapshot, status *k.Status, epoch *k.Epoch) (int, []domain.ActionID, error) {
 	plan, err := s.player.journal.LoadPlan(call, snapshot.Plan)
 	if err != nil {
-		return nil, 0, err
+		return 0, nil, err
 	}
 	_, items, err := clockSchedulerWork(plan, snapshot)
 	if err != nil {
-		return nil, 0, nil
+		return 0, nil, nil
+	}
+	coupled := plan.Spec.CoupledPending(plan.Progress, snapshot, domain.Tick(status.GetContext().GetTick()))
+	watched := epoch.GetPolicy().GetWatchedAttempts()
+	if len(watched) >= bridge.ClockWatchedAttemptsMax {
+		return 0, coupled, nil
 	}
 	armed := map[string]bool{}
 	for _, key := range watched {
 		armed[fmt.Sprintf("%s/%d", key.GetActionId(), key.GetAttemptId())] = true
 	}
-	var missing []domain.ActionID
 	live := 0
 	for _, item := range items {
 		if !clockWatchedKind(item.Kind) || item.Attempt == 0 || item.Stage != domain.Dispatched && item.Stage != domain.AwaitingObservation {
 			continue
 		}
-		if armed[fmt.Sprintf("%s/%d", item.Action, item.Attempt)] {
-			continue
-		}
-		if liveDispatchKind(item.Kind) {
+		if !armed[fmt.Sprintf("%s/%d", item.Action, item.Attempt)] {
 			live++
-			continue
 		}
-		missing = append(missing, item.Action)
 	}
-	return missing, live, nil
+	return live, coupled, nil
 }
 
 // clockWatchedKind reports whether the native clock keeps an operation

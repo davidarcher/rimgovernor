@@ -173,7 +173,18 @@ type PlanSpec struct {
 // ActionDependency requires observed completion of another action in this plan.
 // It orders work; current native legality and colony invariants are still checked
 // at dispatch. It does not assert that an old completed object still exists.
-type ActionDependency struct{ Action, Requires ActionID }
+//
+// Coupled marks a dependency whose order is written against the result of
+// the required one: an id the earlier write produced, a position it
+// reached. Ordering alone is not coupling, and the count of orders in a
+// step never is: an ordered-only dependent dispatches live once its
+// prerequisite's outcome arrives, while a coupled one has the clock stopped
+// at the prerequisite's completion so it is prepared against a frozen read
+// of that result (#244, controller-contracts.md "Coupled orders").
+type ActionDependency struct {
+	Action, Requires ActionID
+	Coupled          bool
+}
 
 func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ...ActionDependency) (PlanSpec, error) {
 	if !validID(string(id)) {
@@ -329,7 +340,7 @@ func validateDependencies(actions map[ActionID]Action, dependencies []ActionDepe
 	for i, d := range deps {
 		_, hasAction := actions[d.Action]
 		_, hasRequired := actions[d.Requires]
-		if !hasAction || !hasRequired || d.Action == d.Requires || i > 0 && d == deps[i-1] {
+		if !hasAction || !hasRequired || d.Action == d.Requires || i > 0 && d.Action == deps[i-1].Action && d.Requires == deps[i-1].Requires {
 			return nil, errors.New("invalid or duplicate dependency")
 		}
 		graph[d.Action] = append(graph[d.Action], d.Requires)
@@ -379,6 +390,32 @@ func validateDependencies(actions map[ActionID]Action, dependencies []ActionDepe
 }
 
 var ErrDependency = errors.New("action prerequisite has not completed in the current world")
+
+// CoupledPending names the actions of this plan's coupled dependencies that
+// are ready to dispatch: every prerequisite has completed in the current
+// world and the action itself has not been dispatched. They are the orders a
+// running clock window stops for (#244); a plan without coupled
+// dependencies never has any.
+func (p PlanSpec) CoupledPending(progress []Progress, current GenerationSnapshot, tick Tick) []ActionID {
+	var ready []ActionID
+	seen := map[ActionID]bool{}
+	for _, d := range p.dependencies {
+		if !d.Coupled || seen[d.Action] {
+			continue
+		}
+		seen[d.Action] = true
+		for _, v := range progress {
+			s := v.View()
+			if s.Action != d.Action || s.Unresolved || s.Stage != Pending && s.Stage != Prepared {
+				continue
+			}
+			if p.CheckDependencies(d.Action, progress, current, tick) == nil {
+				ready = append(ready, d.Action)
+			}
+		}
+	}
+	return ready
+}
 
 func (p PlanSpec) CheckDependencies(action ActionID, progress []Progress, current GenerationSnapshot, tick Tick) error {
 	if current.Validate() != nil || current.Plan != p.id || current.Revision != p.revision || tick < 0 {

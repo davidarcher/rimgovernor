@@ -102,7 +102,7 @@ func (f *joinedClockNative) ReadClockEvents(ctx context.Context, request *k.Even
 	f.source.status.NewestCursor = proto.Int64(newest)
 	page := &k.EventsPage{Context: proto.Clone(f.source.status.Context).(*c.ObservationContext), NewestCursor: proto.Int64(newest), NextCursor: proto.Int64(newest), Gap: proto.Bool(false), LostCount: proto.Uint64(0)}
 	if f.alert && request.GetAfterCursor() == 0 {
-		page.Events = []*k.Event{{Cursor: proto.Int64(1), Owner: proto.Clone(clockCoordinatorEpoch(f.source.status).Owner).(*k.EpochOwner), Context: proto.Clone(f.source.status.Context).(*c.ObservationContext), ObservedAtUnixMs: proto.Int64(100), Event: &k.Event_Alert{Alert: &k.Alert{Key: proto.String("danger"), Label: proto.String("danger"), Priority: proto.String("High")}}}}
+		page.Events = []*k.Event{{Cursor: proto.Int64(1), Owner: proto.Clone(clockCoordinatorEpoch(f.source.status).Owner).(*k.EpochOwner), Context: proto.Clone(f.source.status.Context).(*c.ObservationContext), ObservedAtUnixMs: proto.Int64(100), Event: &k.Event_Notification{Notification: &k.Notification{Source: &k.Notification_Letter{Letter: &k.Letter{Id: proto.String("danger"), Label: proto.String("danger")}}}}}}
 	}
 	if request.GetAfterCursor() == 1 {
 		f.captureOnce.Do(func() { close(f.captured) })

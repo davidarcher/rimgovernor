@@ -86,17 +86,6 @@ type Worker struct {
 	// advanced reports that the last step moved an action to another
 	// stage, so a successor may have become dispatchable.
 	advanced bool
-	// paused is set by a clock stop until the step has focused the
-	// admissions that need the paused map; stopSeq names that stop and
-	// pauseFocus the focused admissions that need it, reported to the
-	// step loop so it holds the clock until they have been tried.
-	paused     bool
-	stopSeq    uint64
-	pauseFocus map[domain.ActionID]bool
-	// staleRetried names the dispatches this stop has already retried
-	// after a stale_facts hold (#288), so a hold that survives its retry
-	// releases the clock instead of holding it for another round.
-	staleRetried map[domain.ActionID]bool
 }
 
 // workerBurstMax bounds the steps one wake or advance runs back to back.
@@ -206,7 +195,6 @@ func (w *Worker) Close(ctx context.Context) error {
 }
 func (w *Worker) steps() {
 	ticker := time.NewTicker(w.config.StepInterval)
-	defer w.config.Wake.AttachWorker()()
 	defer ticker.Stop()
 	// The per-action outcome line already names the failing action; the
 	// step-level error only adds information when it changes.
@@ -218,7 +206,6 @@ func (w *Worker) steps() {
 		}
 		err := w.step(w.ctx, time.Now())
 		burst++
-		w.config.Wake.ReportPauseWork(w.stopSeq, len(w.pauseFocus))
 		message := ""
 		if err != nil {
 			message = err.Error()
@@ -251,10 +238,6 @@ func (w *Worker) steps() {
 const workerFocusMax = 64
 
 func (w *Worker) takeWake() {
-	if stop, stopped := w.config.Wake.TakeStop(); stopped {
-		w.paused, w.stopSeq = true, stop
-		w.staleRetried = nil
-	}
 	woken, _ := w.config.Wake.Take()
 	if len(woken) == 0 {
 		return
@@ -354,38 +337,9 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 			if cleanup || worldErr == nil && (routineObservation || workerEligible(plan, v, planScope, world)) {
 				live[v.Action] = true
 				candidates = append(candidates, workerCandidate{view: v, cleanup: cleanup})
-				// An admission the native side accepts only on a paused map
-				// can be made in the second or so between windows and at no
-				// other time, so a stop retries every one of them at once
-				// instead of on a backoff that lands mid-window (#129).
-				// A dispatch held on stale facts is retried at the next stop
-				// the same way: the stop is the observation it waits for
-				// (#288).
-				if w.paused && !cleanup && (workerPauseBound(progress.Action().Kind(), v) || w.waits[v.Action].stale) {
-					if w.waits[v.Action].stale {
-						if w.staleRetried == nil {
-							w.staleRetried = map[domain.ActionID]bool{}
-						}
-						w.staleRetried[v.Action] = true
-					}
-					if w.focus == nil {
-						w.focus = map[domain.ActionID]WakeOutcome{}
-					}
-					if _, focused := w.focus[v.Action]; !focused && len(w.focus) < workerFocusMax {
-						w.focus[v.Action] = WakeOutcome{Action: v.Action, Attempt: v.Attempt}
-						delete(w.waits, v.Action)
-					}
-					if w.pauseFocus == nil {
-						w.pauseFocus = map[domain.ActionID]bool{}
-					}
-					if w.focusNamed(v.Action) {
-						w.pauseFocus[v.Action] = true
-					}
-				}
 			}
 		}
 	}
-	w.paused = false
 	for id := range w.waits {
 		if !live[id] {
 			delete(w.waits, id)
@@ -394,11 +348,6 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 	for id := range w.focus {
 		if !live[id] {
 			delete(w.focus, id)
-		}
-	}
-	for id := range w.pauseFocus {
-		if !live[id] {
-			delete(w.pauseFocus, id)
 		}
 	}
 	// Catalog order is stable; rotate by the last selected action, including on
@@ -428,7 +377,6 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 			continue
 		}
 		delete(w.focus, v.Action)
-		delete(w.pauseFocus, v.Action)
 		w.cursor = v.Action
 		if err = w.player.current(call, epoch); err != nil {
 			return err
@@ -464,26 +412,18 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 		if w.advanced && w.config.Advanced != nil {
 			w.config.Advanced()
 		}
-		// A dispatch held on stale facts between windows (the authority
-		// moved under its inspection) clears on the next observation, so
-		// it is retried at once and the clock is held for that retry: a
-		// window admitted first lets the game's own work scanner take the
-		// order's target before the retry dispatches it (#288). One retry
-		// per stop; a hold that survives it releases the clock.
+		// A dispatch held on stale facts (the authority or tick moved under
+		// its inspection) clears on the next observation, so it is retried
+		// at once, off its backoff, before the game's own work scanner takes
+		// the order's target (#288); the clock is not held for it, since
+		// every routine kind dispatches under the running window (#244). One
+		// retry per hold: a hold that survives it backs off as usual.
 		stale := !candidate.cleanup && workerHeldStale(after, result, err)
-		if stale && !running && !w.staleRetried[v.Action] {
-			if w.staleRetried == nil {
-				w.staleRetried = map[domain.ActionID]bool{}
-			}
-			w.staleRetried[v.Action] = true
+		if stale && !wait.stale {
 			if w.focus == nil {
 				w.focus = map[domain.ActionID]WakeOutcome{}
 			}
-			if w.pauseFocus == nil {
-				w.pauseFocus = map[domain.ActionID]bool{}
-			}
 			w.focus[v.Action] = WakeOutcome{Action: v.Action, Attempt: after.Attempt}
-			w.pauseFocus[v.Action] = true
 		}
 		// One line per change of outcome, in either log: a refusal that
 		// repeats verbatim on every retry (a CAS token that never matches, a
@@ -574,31 +514,17 @@ func workerBackoffCap(config WorkerConfig, v domain.ProgressView) time.Duration 
 // action-contracts.md "Apply-time preconditions"), so the Worker dispatches
 // it under a running window as readily as between windows (#243): a world
 // that moved under the order is a refusal the Worker reconciles, not a
-// wrong effect. Every other kind still needs the stop between windows.
+// wrong effect. Every routine kind the Worker dispatches is one (#244):
+// nothing native gates an admission on a paused map any more, so no
+// admission waits for the stop between windows.
 func liveDispatchKind(kind domain.ActionKind) bool {
 	switch kind {
 	case domain.BuildingAction, domain.HaulAction, domain.SupplyAllowAction, domain.WorkAssignmentAction, domain.ZoneCreateAction,
-		domain.ProductionBillAction, domain.GrowerCropAction, domain.AcquisitionAction, domain.MineAcquisitionAction, domain.HusbandryAction, domain.CutPlantAction:
+		domain.ProductionBillAction, domain.GrowerCropAction, domain.AcquisitionAction, domain.MineAcquisitionAction, domain.HusbandryAction,
+		domain.ExcavationAction, domain.BedAssignAction, domain.WallRemovalAction, domain.ProductionPolicyAction, domain.ResearchSelectAction, domain.HomeCoverageAction, domain.CutPlantAction:
 		return true
 	}
 	return false
-}
-
-// workerPauseBound reports an admission the native side refuses while the
-// game runs: these kinds inspect and dispatch against a paused map only
-// (their native tools check TimeSpeed.Paused), so between windows is the
-// only time they can be made (#150). Bills and zones left the set once
-// their boundaries accepted ordered reads, and the acquisition and
-// husbandry kinds once their operations validated at apply time (#242,
-// #243; liveDispatchKind): nothing native gates them on a paused map, so
-// they dispatch mid-window like buildings and supplies.
-func workerPauseBound(kind domain.ActionKind, v domain.ProgressView) bool {
-	switch kind {
-	case domain.ExcavationAction, domain.BedAssignAction, domain.WallRemovalAction, domain.ProductionPolicyAction, domain.ResearchSelectAction, domain.HomeCoverageAction, domain.TradeAction:
-	default:
-		return false
-	}
-	return !v.Unresolved && (v.Stage == domain.Pending || v.Stage == domain.Prepared)
 }
 
 // workerHeldStale reports a run held before dispatch on facts from a

@@ -142,7 +142,7 @@ namespace HomeBridge.BridgeTools
             candidate = null; failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "RemoveWall requires one exact colonist wall identity.");
             if (!Valid(command)) return false;
             var map = ProtoBoundary.ResolveMap(context);
-            if (map == null || Find.TickManager.CurTimeSpeed != TimeSpeed.Paused) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Paused loaded map required."); return false; }
+            if (map == null) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Loaded map required."); return false; }
             var wall = NativeWallUpgradeObservationTools.ColonistWallById(map, command.Wall.EntityId);
             if (wall == null) { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "No spawned colonist wall with that id is on the current map."); return false; }
             if (command.Wall.HasExpectedSnapshotToken && NativeBuildingObservationTools.Token(wall, context).Token != command.Wall.ExpectedSnapshotToken)

@@ -81,7 +81,7 @@ func (b *ZoneBoundary) InspectZone(ctx context.Context, target executor.Target) 
 	// evidence. Demanding one tick held every dispatch until the game
 	// paused, starving the Worker under 2500-tick windows (#150); supply
 	// and the building family accept the same monotonic order.
-	if v.Context.GetTick() < read.Context.GetTick() || emergency.Context.GetTick() < v.Context.GetTick() {
+	if v.Context.GetTick() < read.Context.GetTick() || !domain.Tick(emergency.Context.GetTick()).Covers(domain.Tick(read.Context.GetTick())) {
 		return out, executor.ErrHeld
 	}
 	out.Current, out.Tick, out.Zone, out.SnapshotToken, out.Accepted = current, domain.Tick(v.Context.GetTick()), zone, selected.Token, true

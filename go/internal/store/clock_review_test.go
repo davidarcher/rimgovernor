@@ -16,7 +16,7 @@ import (
 func reviewAppend(t *testing.T, s *Store, profile string, after int64, lost uint64) {
 	t.Helper()
 	r, p := inboxPage(after, 1, lost)
-	p.Events[0].Event = &k.Event_Alert{Alert: &k.Alert{Key: proto.String("alert"), Label: proto.String("warning"), Priority: proto.String("High")}}
+	p.Events[0].Event = &k.Event_Notification{Notification: &k.Notification{Source: &k.Notification_Letter{Letter: &k.Letter{Id: proto.String("letter"), Label: proto.String("warning")}}}}
 	if _, _, err := s.AppendClockEvents(context.Background(), profile, r, p); err != nil {
 		t.Fatal(err)
 	}
@@ -112,10 +112,15 @@ func TestClockReviewEventClassification(t *testing.T) {
 			t.Fatal(reason)
 		}
 	}
-	for _, event := range []*k.Event{{Event: &k.Event_Notification{}}, {Event: &k.Event_Alert{}}, {Event: &k.Event_InjuryObserved{}}, {Event: &k.Event_PauseFailed{}}, {Event: &k.Event_ForcePauseWaiting{}}} {
+	for _, event := range []*k.Event{{Event: &k.Event_Notification{}}, {Event: &k.Event_InjuryObserved{}}, {Event: &k.Event_PauseFailed{}}, {Event: &k.Event_ForcePauseWaiting{}}} {
 		if !clock.EventInterrupts(event) {
 			t.Fatal(event)
 		}
+	}
+	// A game alert is a fact row for the planners and the flight recorder,
+	// not a hold: the native supervisor never stops play for one (#244).
+	if clock.EventInterrupts(&k.Event{Event: &k.Event_Alert{}}) {
+		t.Fatal("alert interrupts")
 	}
 }
 func TestClockReviewRollbackAndCorruptProvenance(t *testing.T) {

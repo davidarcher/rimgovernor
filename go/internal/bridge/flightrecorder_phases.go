@@ -77,7 +77,6 @@ type StepSample struct {
 	Windows        uint64            `json:"windows"`
 	WindowTicks    uint64            `json:"window_ticks"`
 	MaxWindowTicks uint64            `json:"max_window_ticks"`
-	MaxWindowSecs  float64           `json:"max_window_target_secs"`
 	Pauses         uint64            `json:"pauses"`
 	PauseSecs      float64           `json:"pause_seconds"`
 	MaxPauseSecs   float64           `json:"max_pause_seconds"`
@@ -130,6 +129,11 @@ type StopSample struct {
 type ClockSample struct {
 	TickSamples   uint64  `json:"tick_samples"`
 	TicksAdvanced int64   `json:"ticks_advanced"`
+	// LastTick is the tick of the newest sample, the game time the service
+	// last observed; a harness waiting out a game-time budget under a
+	// running window reads it, since the routine review's tick only moves
+	// once per full step (#244).
+	LastTick int64 `json:"last_tick"`
 	WallSecs      float64 `json:"wall_seconds"`
 	WallTPS       float64 `json:"wall_tps"`
 	Resets        uint64  `json:"resets"`
@@ -232,6 +236,7 @@ func SummarizePhases(records []TimelineRecord) PhaseSummary {
 				}
 			}
 			lastTick, tickWall, haveTick = tick, row.WallTime, true
+			summary.Clock.LastTick = tick
 		case "native_cache_hit":
 			_, entry := phaseEntry(tools, row)
 			entry.CacheHits++
@@ -247,7 +252,6 @@ func SummarizePhases(records []TimelineRecord) PhaseSummary {
 				steps.Windows++
 				steps.WindowTicks += ticks
 				steps.MaxWindowTicks = max(steps.MaxWindowTicks, ticks)
-				steps.MaxWindowSecs = math.Max(steps.MaxWindowSecs, field(row.Payload, "window_target_s"))
 			}
 			if pause := field(row.Payload, "stop_pause_s"); pause > 0 {
 				steps.Pauses++
@@ -458,7 +462,7 @@ func WritePhaseReport(w io.Writer, summary PhaseSummary) {
 	if steps := summary.Steps; steps.Steps > 0 {
 		fmt.Fprintf(w, "steps: %d, reads/step mean %.1f max %d, cache hits/step %.1f, parent hits/step %.1f", steps.Steps, float64(steps.Reads)/float64(steps.Steps), steps.MaxReads, float64(steps.CacheHits)/float64(steps.Steps), float64(steps.ParentHits)/float64(steps.Steps))
 		if steps.Windows > 0 {
-			fmt.Fprintf(w, ", window ticks mean %.0f max %d (target up to %.1fs) over %d sized steps", float64(steps.WindowTicks)/float64(steps.Windows), steps.MaxWindowTicks, steps.MaxWindowSecs, steps.Windows)
+			fmt.Fprintf(w, ", window ticks mean %.0f max %d over %d sized steps", float64(steps.WindowTicks)/float64(steps.Windows), steps.MaxWindowTicks, steps.Windows)
 		}
 		if steps.Pauses > 0 {
 			fmt.Fprintf(w, ", stop-to-readmit pause mean %.2fs max %.2fs over %d admissions", steps.PauseSecs/float64(steps.Pauses), steps.MaxPauseSecs, steps.Pauses)

@@ -44,9 +44,19 @@ type BedAssignAttempt struct {
 	Previous   BedAssignPreviousBed
 }
 
-func bedAssignOperation(pawn, pawnToken, bed, bedToken string, previous BedAssignPreviousBed) *o.Operation {
+// bedAssignOperation is the wire operation for the pair. A preview carries
+// the pawn and bed snapshot tokens the inspection read; an execute omits
+// them (#244): the kind is dispatched under a running clock, where the pawn
+// token moves with the pawn every tick, and the native apply-time rules
+// (pawn free, previous bed unchanged, bed assignable) are the check that
+// refuses a moved world. The tokens stay the admission's evidence.
+func bedAssignOperation(pawn, pawnToken, bed, bedToken string, previous BedAssignPreviousBed, withTokens bool) *o.Operation {
+	pawnEntity, bedEntity := &o.EntityPrecondition{EntityId: proto.String(pawn)}, &o.EntityPrecondition{EntityId: proto.String(bed)}
+	if withTokens {
+		pawnEntity, bedEntity = gearEntity(pawn, pawnToken), gearEntity(bed, bedToken)
+	}
 	return &o.Operation{Command: &o.Operation_AssignBed{AssignBed: &o.AssignBed{
-		Pawn: gearEntity(pawn, pawnToken), Bed: gearEntity(bed, bedToken), ExpectedPreviousBed: previous.wire(),
+		Pawn: pawnEntity, Bed: bedEntity, ExpectedPreviousBed: previous.wire(),
 	}}}
 }
 
@@ -71,7 +81,7 @@ func (client *Client) PreviewBedAssign(ctx context.Context, identity *c.Identity
 	}
 	identity = proto.Clone(identity).(*c.Identity)
 	reply := &o.PreviewReply{}
-	raw, err := client.protoRead(ctx, "rimgovernor/operations_preview", &o.PreviewRequest{Identity: identity, Operation: bedAssignOperation(pawn, pawnToken, bed, bedToken, previous)}, reply)
+	raw, err := client.protoRead(ctx, "rimgovernor/operations_preview", &o.PreviewRequest{Identity: identity, Operation: bedAssignOperation(pawn, pawnToken, bed, bedToken, previous, true)}, reply)
 	if err != nil {
 		return nil, raw, err
 	}
@@ -202,7 +212,7 @@ func (writer *BedAssignWriter) ApplyBedAssign(ctx context.Context, pre *a.WriteP
 	}
 	pre = proto.Clone(pre).(*a.WritePrecondition)
 	reply := &o.ExecuteReply{}
-	raw, err := writer.client.protoCall(ctx, "rimgovernor/operations_execute", &o.ExecuteRequest{Precondition: pre, Operation: bedAssignOperation(pawn, pawnToken, bed, bedToken, previous)}, reply)
+	raw, err := writer.client.protoCall(ctx, "rimgovernor/operations_execute", &o.ExecuteRequest{Precondition: pre, Operation: bedAssignOperation(pawn, pawnToken, bed, bedToken, previous, false)}, reply)
 	if err != nil {
 		return nil, raw, err
 	}

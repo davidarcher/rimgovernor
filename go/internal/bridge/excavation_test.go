@@ -29,7 +29,7 @@ func TestExcavationFixedWriteAndExactAdmission(t *testing.T) {
 		if arg.Tool != "rimgovernor/operations_execute" {
 			t.Fatal(arg.Tool)
 		}
-		draftTestRequest(t, arg, &op.ExecuteRequest{Precondition: buildingPre(), Operation: excavationOperation(excavationTestTarget())})
+		draftTestRequest(t, arg, &op.ExecuteRequest{Precondition: buildingPre(), Operation: excavationOperation(excavationTestTarget(), false)})
 		return pbResult(&op.ExecuteReply{Outcome: &op.ExecuteReply_Receipt{Receipt: receipt}}), nil
 	}}, time.Second)
 	writer, _ := NewExcavationControl(client)

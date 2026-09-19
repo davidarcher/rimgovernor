@@ -93,7 +93,7 @@ func (b *SupplyBoundary) InspectSupply(ctx context.Context, target executor.Targ
 	// evidence. Demanding one tick held every Allow until the game paused,
 	// and a stack the executor only reached mid-window was never allowed
 	// (#120); the building family accepts the same monotonic order.
-	if v.Context.GetTick() < read.Context.GetTick() || emergency.Context.GetTick() < v.Context.GetTick() {
+	if v.Context.GetTick() < read.Context.GetTick() || !domain.Tick(emergency.Context.GetTick()).Covers(domain.Tick(read.Context.GetTick())) {
 		return out, executor.ErrHeld
 	}
 	out.Current, out.Tick, out.Supply, out.SnapshotToken, out.Accepted = current, domain.Tick(v.Context.GetTick()), supply, selected.Token, true

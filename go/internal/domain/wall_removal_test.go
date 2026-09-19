@@ -76,7 +76,7 @@ func backupWallBundle(t *testing.T, deps ...ActionDependency) (PlanSpec, []Actio
 }
 
 func TestWallRemovalBundleAdmitsFullStagedTopology(t *testing.T) {
-	deps := []ActionDependency{{"permanent", "demolition"}}
+	deps := []ActionDependency{{Action: "permanent", Requires: "demolition"}}
 	p, _ := backupWallBundle(t, deps...)
 	if len(p.Actions()) != 4 {
 		t.Fatal("bundle lost an action")

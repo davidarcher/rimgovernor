@@ -196,7 +196,7 @@ func TestSummarizePhasesHandlesLegacyRowsGapsAndResets(t *testing.T) {
 		t.Fatalf("read phases: %+v", read)
 	}
 	clock := summary.Clock
-	if clock.TickSamples != 3 || clock.TicksAdvanced != 600 || clock.WallSecs != 1 || clock.WallTPS != 600 || clock.Resets != 1 {
+	if clock.TickSamples != 3 || clock.TicksAdvanced != 600 || clock.WallSecs != 1 || clock.WallTPS != 600 || clock.Resets != 1 || clock.LastTick != 200 {
 		t.Fatalf("clock: %+v", clock)
 	}
 	for _, tool := range summary.Tools {

@@ -98,7 +98,10 @@ func (b *ExcavationBoundary) InspectExcavation(ctx context.Context, target execu
 		if _, err = boundary.Context(v.Context, current); err != nil {
 			return out, err
 		}
-		if v.Context.GetTick() != site.Context.GetTick() {
+		// The reads may straddle ticks under a running clock (#244): the
+		// site read anchors the admission and the preview must be fresh
+		// for it.
+		if !domain.Tick(v.Context.GetTick()).FreshFor(out.Tick) {
 			return out, executor.ErrHeld
 		}
 		out.SnapshotToken = token
@@ -110,7 +113,7 @@ func (b *ExcavationBoundary) InspectExcavation(ctx context.Context, target execu
 	if _, err = boundary.Context(emergency.Context, current); err != nil {
 		return out, err
 	}
-	if emergency.Context.GetTick() != site.Context.GetTick() {
+	if !domain.Tick(emergency.Context.GetTick()).Covers(out.Tick) {
 		return out, executor.ErrHeld
 	}
 	out.Emergency, err = policy.NewEmergencySnapshot(current, out.Tick, emergency.Facts)

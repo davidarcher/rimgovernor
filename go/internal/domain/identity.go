@@ -35,6 +35,16 @@ func (t Tick) FreshFor(anchor Tick) bool {
 	return t >= anchor && t-anchor <= PlanningTickTolerance
 }
 
+// Covers reports whether an observation at t describes anchor: at or after
+// it, or before it by no more than PlanningTickTolerance. The fact cache
+// serves an emergency or pawn row under a step scope that far ahead of it
+// (the scope is the step's first native read), so under a running window
+// a dispatch's cached emergency read may lawfully predate the inspection's
+// first read by that much (#244).
+func (t Tick) Covers(anchor Tick) bool {
+	return t >= anchor || anchor.FreshFor(t)
+}
+
 // Fact's zero value is unknown, including for boolean and numeric observations.
 type Fact[T any] struct {
 	value T

@@ -69,7 +69,7 @@ func TestServeClockTestAccelerationRequiresUltrafast(t *testing.T) {
 	if err != nil || !c.clockTestAcceleration {
 		t.Fatalf("ultrafast acceleration: %+v %v", c, err)
 	}
-	config := serviceClockConfig(dir, parseClockSpeed(c.clockSpeed), c.clockTestAcceleration, uint32(c.clockWindowTicks), c.clockWindowSeconds)
+	config := serviceClockConfig(dir, parseClockSpeed(c.clockSpeed), c.clockTestAcceleration, uint32(c.clockWindowTicks))
 	if config.Start.Speed != k.Speed_SPEED_ULTRAFAST || !config.Start.TestAcceleration {
 		t.Fatalf("window start: %+v", config.Start)
 	}

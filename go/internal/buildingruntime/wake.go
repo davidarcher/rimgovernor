@@ -27,38 +27,20 @@ type WakeSignal struct {
 	pending   map[domain.ActionID]WakeOutcome
 	families  map[bridge.FactFamily]bool
 	authority bool
-	// stopped records that a committed page carried a Stopped event: the
-	// game is paused between windows, the only moment an admission that
-	// needs a paused map (excavation, bed assignment) can be made.
-	stopped bool
 	// stopAt is the native stamp of the earliest stop still pending for
 	// the step loop, zero when the page carried none; the step that acts
 	// on it publishes the stop-to-step latency (issue #112).
 	stopAt time.Time
-	// stops counts committed stops; a Worker's pause-work report names the
-	// stop it answers so a report from a step begun before the stop
-	// cannot pass for the stop's own.
-	stops uint64
-	// stopsTaken is the stop count the step loop last drained.
-	stopsTaken uint64
-	// workers counts attached Workers: with none, no stop ever waits for
-	// pause-bound work.
-	workers int
-	// pauseWork is how many pause-bound admissions the attached Worker
-	// still has to try on the current stop, -1 until it has reported;
-	// pauseIdle is closed while that count is zero.
-	pauseWork int
-	pauseIdle chan struct{}
-	// pauseProgress is closed and replaced each time a report lowers the
-	// count for the same stop: the Worker made an admission, so the stop
-	// is worth holding a little longer (#211).
-	pauseProgress chan struct{}
+	// stops counts committed stops; stopsTaken is the count the step loop
+	// last drained, so a step reason reports whether a stop is pending.
+	// No admission waits for a stop: every kind the Worker dispatches is
+	// validated natively at apply time and dispatches under a running
+	// window as readily as between windows (#244).
+	stops, stopsTaken uint64
 }
 
 func NewWakeSignal() *WakeSignal {
-	idle := make(chan struct{})
-	close(idle)
-	return &WakeSignal{ch: make(chan struct{}, 1), pending: map[domain.ActionID]WakeOutcome{}, families: map[bridge.FactFamily]bool{}, pauseIdle: idle, pauseProgress: make(chan struct{})}
+	return &WakeSignal{ch: make(chan struct{}, 1), pending: map[domain.ActionID]WakeOutcome{}, families: map[bridge.FactFamily]bool{}}
 }
 
 // Notify merges outcomes into the pending set and signals without blocking.
@@ -93,14 +75,9 @@ func (w *WakeSignal) NotifyStopAt(outcomes []WakeOutcome, families []bridge.Fact
 	}
 	w.authority = w.authority || authority
 	if stopped {
-		w.stopped = true
 		w.stops++
 		if w.stopAt.IsZero() || !stopAt.IsZero() && stopAt.Before(w.stopAt) {
 			w.stopAt = stopAt
-		}
-		if w.workers > 0 && w.pauseWork == 0 {
-			w.pauseWork = -1
-			w.pauseIdle = make(chan struct{})
 		}
 	}
 	w.mu.Unlock()
@@ -133,108 +110,8 @@ func (w *WakeSignal) Take() (map[domain.ActionID]WakeOutcome, bool) {
 	return outcomes, authority
 }
 
-// TakeStopped drains the stopped flag.
-func (w *WakeSignal) TakeStopped() bool {
-	_, stopped := w.TakeStop()
-	return stopped
-}
-
-// TakeStop is TakeStopped that also names the latest committed stop, the
-// one a pause-work report answers.
-func (w *WakeSignal) TakeStop() (stop uint64, stopped bool) {
-	if w == nil {
-		return 0, false
-	}
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	stopped = w.stopped
-	w.stopped = false
-	return w.stops, stopped
-}
-
-// AttachWorker registers a Worker that will report its pause-bound work on
-// every stop; the returned func detaches it and releases any wait.
-func (w *WakeSignal) AttachWorker() func() {
-	if w == nil {
-		return func() {}
-	}
-	w.mu.Lock()
-	w.workers++
-	w.mu.Unlock()
-	return func() {
-		w.mu.Lock()
-		defer w.mu.Unlock()
-		w.workers--
-		if w.workers == 0 {
-			w.setPauseWorkLocked(0)
-		}
-	}
-}
-
-// ReportPauseWork records how many pause-bound admissions the Worker still
-// has to try for the named stop. A report for an earlier stop is stale: the
-// step it summarises began before the game paused.
-func (w *WakeSignal) ReportPauseWork(stop uint64, remaining int) {
-	if w == nil {
-		return
-	}
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	if stop != w.stops {
-		return
-	}
-	w.setPauseWorkLocked(remaining)
-}
-
-func (w *WakeSignal) setPauseWorkLocked(remaining int) {
-	if remaining < 0 {
-		remaining = 0
-	}
-	if remaining == 0 && w.pauseWork != 0 {
-		close(w.pauseIdle)
-	} else if remaining > 0 && w.pauseWork == 0 {
-		w.pauseIdle = make(chan struct{})
-	}
-	if remaining > 0 && remaining < w.pauseWork {
-		close(w.pauseProgress)
-		w.pauseProgress = make(chan struct{})
-	}
-	w.pauseWork = remaining
-}
-
-// PauseProgressed is closed when the attached Worker's next report lowers
-// its outstanding pause-bound work without draining it; a nil signal never
-// progresses.
-func (w *WakeSignal) PauseProgressed() <-chan struct{} {
-	if w == nil {
-		return nil
-	}
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	return w.pauseProgress
-}
-
-// PauseDrained is closed while no attached Worker has pause-bound work
-// outstanding for the latest stop; a nil signal is always drained.
-func (w *WakeSignal) PauseDrained() <-chan struct{} {
-	if w == nil {
-		return closedChan
-	}
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	return w.pauseIdle
-}
-
-var closedChan = func() chan struct{} {
-	ch := make(chan struct{})
-	close(ch)
-	return ch
-}()
-
 // TakeInvalidated drains the pending outcomes, invalidated families, the
-// authority flag and the pending stop into one step reason. The stopped
-// flag itself is left for TakeStop: the Worker's pause-bound admissions
-// answer it, not the step loop.
+// authority flag and the pending stop into one step reason.
 func (w *WakeSignal) TakeInvalidated() StepReason {
 	reason := StepReason{Cause: StepWake}
 	if w == nil {

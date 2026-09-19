@@ -94,9 +94,15 @@ func (b *WorkBoundary) InspectWork(ctx context.Context, t executor.Target) (exec
 	if _, err = boundary.Context(emergency.Context, t.Snapshot); err != nil {
 		return out, err
 	}
-	if domain.Tick(v.Context.GetTick()) != tick || domain.Tick(emergency.Context.GetTick()) != tick {
+	// The reads need only be ordered within the planning tolerance, not
+	// simultaneous: the before-token binds the write to the settings the
+	// read listed, and the emergency read may come from the fact cache a
+	// bounded advance behind the work read, the step's first
+	// (domain.Tick.Covers, #244).
+	if !domain.Tick(v.Context.GetTick()).FreshFor(tick) || !domain.Tick(emergency.Context.GetTick()).Covers(tick) {
 		return out, executor.ErrHeld
 	}
+	tick = domain.Tick(v.Context.GetTick())
 	out.Current, out.Tick, out.Work, out.SnapshotToken, out.Accepted = t.Snapshot, tick, w, w.BeforeToken(), true
 	out.Emergency, err = policy.NewEmergencySnapshot(t.Snapshot, tick, emergency.Facts)
 	out.ObservedAt = b.Clock.Now()
@@ -167,7 +173,7 @@ func (b *WorkBoundary) ObserveWork(ctx context.Context, p executor.Placement, cu
 	if err != nil {
 		return out, err
 	}
-	if tick != domain.Tick(v.Context.GetTick()) || !v.GetCompleteInspection() {
+	if !tick.Covers(domain.Tick(v.Context.GetTick())) || !v.GetCompleteInspection() {
 		return out, executor.ErrEvidence
 	}
 	values := map[string]int32{}

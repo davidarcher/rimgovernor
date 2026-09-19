@@ -14,8 +14,15 @@ import (
 
 func newClockSessionTest(t *testing.T, db *store.Store, fake *clockCoreFake) (*Session, *controlNative, string) {
 	t.Helper()
+	return newClockSessionTestPlan(t, db, fake, nil)
+}
+
+// newClockSessionTestPlan is newClockSessionTest with extra actions and
+// dependencies after the fixture placement in the plan.
+func newClockSessionTestPlan(t *testing.T, db *store.Store, fake *clockCoreFake, extra []domain.Action, dependencies ...domain.ActionDependency) (*Session, *controlNative, string) {
+	t.Helper()
 	_, fixture := boundary.NewFixture(t)
-	plan, err := domain.NewPlan("plan", 1, []domain.Action{fixture.Placement.Action})
+	plan, err := domain.NewPlan("plan", 1, append([]domain.Action{fixture.Placement.Action}, extra...), dependencies...)
 	if err != nil {
 		t.Fatal(err)
 	}

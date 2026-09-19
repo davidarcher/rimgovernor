@@ -136,7 +136,7 @@ func run(ctx context.Context, s cases.Session) error {
 			return fmt.Errorf("%s: nothing was hauled or built within the tick budget; raise ticks or check the stage", o.Case)
 		}
 	}
-	rows, _ := m.report["metrics"].([]map[string]any)
+	rows, _ := m.report["speed_metrics"].([]map[string]any)
 	if problems := na.CheckSpeedMetrics(na.SpeedMetricsFromRows(rows), maxPausedFraction, minUltrafastTPSRatio); len(problems) > 0 {
 		m.report["metric_problems"] = problems
 		return fmt.Errorf("clock throughput short of the thresholds: %s", strings.Join(problems, "; "))
@@ -300,13 +300,16 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 	if _, _, err := service.WaitRoutineReview(ctx, journal, 90*time.Second); err != nil {
 		return outcome, err
 	}
-	// The budget is game time: the wait ends once the service's own review
-	// tick has advanced by -ticks past the reload tick, or earlier once the
+	// The budget is game time: the wait ends once the tick the service
+	// last observed (its flight recorder's newest clock sample; the routine
+	// review's tick only moves once per full step under a day-long window,
+	// #244) has advanced by -ticks past the reload tick, or earlier once the
 	// stage has no work left for the clock to admit. The signature is the
 	// tick itself, so a clock that stops advancing with work pending stalls
 	// the wait.
 	var lastTick uint64
 	var workDone bool
+	flight := na.FlightRecorderPath(output)
 	waitErr := na.WaitProgress(ctx, na.Wait{Stall: na.StallBudget(), Interval: 2 * time.Second, Terminal: service.Exited},
 		func(ctx context.Context) (string, bool, error) {
 			review, err := journal.LoadRoutineReview(ctx)
@@ -314,6 +317,11 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 				return "", false, err
 			}
 			lastTick = uint64(review.Tick)
+			if rows, err := bridge.ReadTimeline(flight); err == nil {
+				if observed := bridge.SummarizePhases(rows).Clock.LastTick; observed > int64(lastTick) {
+					lastTick = uint64(observed)
+				}
+			}
 			if lastTick >= startTick+uint64(ticks) {
 				return na.Signature(lastTick), true, nil
 			}
@@ -568,7 +576,7 @@ func caseMetrics(c na.SpeedCase, phases bridge.PhaseSummary, stops na.StopSummar
 		"ticks_advanced": lastTick - startTick, "wall_seconds": wallSeconds, "budget_wall_tps": budgetTPS,
 		"wall_tps": phases.Clock.WallTPS, "paused_fraction": pausedFraction, "paused_samples": phases.Clock.PausedSamples, "clock_samples": phases.Clock.ClockSamples, "paused_sampled_seconds": phases.Clock.SampledSecs,
 		"steps": phases.Steps.Steps, "reads_per_step": readsPerStep, "parent_hits": phases.Steps.ParentHits,
-		"window_ticks_mean": windowMean, "window_ticks_max": phases.Steps.MaxWindowTicks, "window_target_secs_max": phases.Steps.MaxWindowSecs,
+		"window_ticks_mean": windowMean, "window_ticks_max": phases.Steps.MaxWindowTicks,
 		"cache_hits": phases.Steps.CacheHits, "stops": stops.Stops, "budget_stops": stops.BudgetStops, "budget_stops_per_6000_ticks": budgetStopsPer6000,
 		"reactive_stops": stops.ReactiveStops, "stop_reasons": stops.Reasons,
 		"stop_latency_mean_ms": stops.MeanLatencyMs, "stop_latency_max_ms": stops.MaxLatencyMs,
@@ -582,8 +590,8 @@ func caseMetrics(c na.SpeedCase, phases bridge.PhaseSummary, stops na.StopSummar
 }
 
 func appendMetrics(report na.Report, row map[string]any) {
-	rows, _ := report["metrics"].([]map[string]any)
-	report["metrics"] = append(rows, row)
+	rows, _ := report["speed_metrics"].([]map[string]any)
+	report["speed_metrics"] = append(rows, row)
 }
 
 // cellList renders fixture cell objects as the "x:z,x:z" list

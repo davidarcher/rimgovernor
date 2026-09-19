@@ -25,18 +25,22 @@ namespace HomeBridge.BridgeTools
     // attempt/lease/ledger admission every rimgovernor/operations_execute
     // command requires. The outcome is achieved while the project stays
     // current or once it finishes; anomaly knowledge slots are not selected here.
+    // An execute dispatched under a running clock omits the token (#244): the
+    // token hashes every project's progress, which moves every tick while a
+    // project is current, and Refusal is the check that refuses a project the
+    // world no longer admits. A preview still sends it.
     internal static class NativeResearchSelectOperations
     {
         private static bool Prepare(Operations.SelectResearch? command, Common.ObservationContext context, Map? map,
             out ResearchProjectDef project, out string token, out Common.Failure failure)
         {
             project = null!; token = "";
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Research selection requires a known project and the current research snapshot token.");
-            if (command == null || map == null || !command.HasProjectDef || !command.HasExpectedSnapshotToken) return false;
+            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Research selection requires a known project and, when sent, a non-blank research snapshot token.");
+            if (command == null || map == null || !command.HasProjectDef || (command.HasExpectedSnapshotToken && command.ExpectedSnapshotToken.Length == 0)) return false;
             var def = DefDatabase<ResearchProjectDef>.GetNamedSilentFail(command.ProjectDef);
             if (def == null) return false;
             token = NativeResearchObservationTools.CurrentToken(context, map);
-            if (token != command.ExpectedSnapshotToken)
+            if (command.HasExpectedSnapshotToken && token != command.ExpectedSnapshotToken)
             { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Research state changed since it was read; inspect again."); return false; }
             project = def;
             return true;

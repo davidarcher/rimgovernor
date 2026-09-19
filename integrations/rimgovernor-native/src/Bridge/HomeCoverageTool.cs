@@ -99,7 +99,7 @@ namespace HomeBridge.BridgeTools
         {
             var map = Find.CurrentMap;
             object Refuse(string error) => new { success = dryRun, accepted = false, error };
-            if (map == null || Find.TickManager.CurTimeSpeed != TimeSpeed.Paused) return Refuse("Paused current map required");
+            if (map == null) return Refuse("Current map required");
             var state = State(map); var cells = Scope(map, target);
             if (state.Revision != revision || cells == null || Shape(target, cells) != shape)
                 return Refuse("Home area or native facility geometry changed");

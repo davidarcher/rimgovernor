@@ -102,12 +102,17 @@ func (b *Boundary) Inspect(ctx context.Context, target executor.Target) (executo
 	if err != nil {
 		return out, err
 	}
-	if emergency.Context.GetTick() < int64(preview.Preview.Tick) {
+	// Independent live reads may advance ticks, and the emergency read may
+	// come from the step's fact cache, which serves it up to the planning
+	// tolerance behind the step's first read, the bounds read here (#244):
+	// it must cover that read, and the facts bind to the preview tick the
+	// admission anchors on.
+	if !domain.Tick(emergency.Context.GetTick()).Covers(domain.Tick(bounds.Context.GetTick())) {
 		return out, executor.ErrEvidence
 	}
-	// Independent live reads may advance ticks. Bind native facts to captured
-	// controller authority only after validating their actual world/generation.
-	out.Emergency, err = policy.NewEmergencySnapshot(emergencyCurrent, domain.Tick(emergency.Context.GetTick()), emergency.Facts)
+	// Bind native facts to captured controller authority only after
+	// validating their actual world/generation.
+	out.Emergency, err = policy.NewEmergencySnapshot(emergencyCurrent, preview.Preview.Tick, emergency.Facts)
 	if err != nil {
 		return out, err
 	}

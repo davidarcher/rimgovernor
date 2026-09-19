@@ -204,7 +204,7 @@ func TestClockWindowInterveningEventAndManualPreventDispatch(t *testing.T) {
 				} else {
 					ctx := proto.Clone(f.status.Context).(*c.ObservationContext)
 					r := &k.EventsRequest{Identity: ctx.Identity, AfterCursor: proto.Int64(0), Limit: proto.Uint32(1)}
-					page := &k.EventsPage{Context: ctx, NewestCursor: proto.Int64(1), NextCursor: proto.Int64(1), Gap: proto.Bool(false), LostCount: proto.Uint64(0), Events: []*k.Event{{Cursor: proto.Int64(1), Owner: &k.EpochOwner{ControllerSessionId: proto.String("session"), Epoch: proto.Int64(1)}, Context: ctx, ObservedAtUnixMs: proto.Int64(100), Event: &k.Event_Alert{Alert: &k.Alert{Key: proto.String("alert"), Label: proto.String("danger"), Priority: proto.String("High")}}}}}
+					page := &k.EventsPage{Context: ctx, NewestCursor: proto.Int64(1), NextCursor: proto.Int64(1), Gap: proto.Bool(false), LostCount: proto.Uint64(0), Events: []*k.Event{{Cursor: proto.Int64(1), Owner: &k.EpochOwner{ControllerSessionId: proto.String("session"), Epoch: proto.Int64(1)}, Context: ctx, ObservedAtUnixMs: proto.Int64(100), Event: &k.Event_Notification{Notification: &k.Notification{Source: &k.Notification_Letter{Letter: &k.Letter{Id: proto.String("danger"), Label: proto.String("danger")}}}}}}}
 					if _, _, err := db.AppendClockEvents(context.Background(), request.Intent.Window.Profile, r, page); err != nil {
 						t.Fatal(err)
 					}
