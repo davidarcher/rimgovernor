@@ -23,7 +23,9 @@ type Harness struct {
 	Output string
 	// Tools is the discovered tool catalog (Session sets it); RunUntil
 	// consults it for DismissLetterTool.
-	Tools []string
+	Tools  []string
+	quiet  bool
+	report Report
 }
 
 func NewHarness(client *bridge.Client, output string) *Harness {

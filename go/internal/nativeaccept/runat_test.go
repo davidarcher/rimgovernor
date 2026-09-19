@@ -28,30 +28,66 @@ func TestClassifyPause(t *testing.T) {
 	dialog := map[string]any{"type": "Dialog_NodeTree", "title": "Trade request", "forcePause": true}
 
 	// Running again: a transient the wait continues past.
-	if cause, dismiss := classifyPause(map[string]any{"time": map[string]any{"paused": false}}, tools, "observe", 5); cause != nil || dismiss != nil {
+	if cause, dismiss := classifyPause(map[string]any{"time": map[string]any{"paused": false}}, tools, "observe", 5, false); cause != nil || dismiss != nil {
 		t.Fatalf("running game: cause=%v dismiss=%v", cause, dismiss)
 	}
 	// Benign letters only, with the fixture: dismissed.
-	if cause, dismiss := classifyPause(pausedStatus([]map[string]any{benign}, nil, false), tools, "observe", 5); cause != nil || len(dismiss) != 1 || dismiss[0]["id"] != "l1" {
+	if cause, dismiss := classifyPause(pausedStatus([]map[string]any{benign}, nil, false), tools, "observe", 5, false); cause != nil || len(dismiss) != 1 || dismiss[0]["id"] != "l1" {
 		t.Fatalf("benign letter: cause=%v dismiss=%v", cause, dismiss)
 	}
 	// The same letter without the fixture fails, naming it.
-	cause, dismiss := classifyPause(pausedStatus([]map[string]any{benign}, nil, false), nil, "observe", 5)
+	cause, dismiss := classifyPause(pausedStatus([]map[string]any{benign}, nil, false), nil, "observe", 5, false)
 	if cause == nil || dismiss != nil || !strings.Contains(cause.Error(), `letter "Wanderer joins" (AcceptJoiner)`) {
 		t.Fatalf("benign letter without dismiss tool: cause=%v dismiss=%v", cause, dismiss)
 	}
 	// A threat letter beside a benign one fails.
-	if cause, dismiss := classifyPause(pausedStatus([]map[string]any{benign, threat}, nil, false), tools, "observe", 5); cause == nil || dismiss != nil || len(cause.Letters) != 2 {
+	if cause, dismiss := classifyPause(pausedStatus([]map[string]any{benign, threat}, nil, false), tools, "observe", 5, false); cause == nil || dismiss != nil || len(cause.Letters) != 2 {
 		t.Fatalf("threat letter: cause=%v dismiss=%v", cause, dismiss)
 	}
 	// A force-pausing window fails even with only benign letters.
-	cause, dismiss = classifyPause(pausedStatus([]map[string]any{benign}, []map[string]any{dialog}, true), tools, "observe", 1705)
+	cause, dismiss = classifyPause(pausedStatus([]map[string]any{benign}, []map[string]any{dialog}, true), tools, "observe", 1705, false)
 	if cause == nil || dismiss != nil || !cause.ForcePaused || !strings.Contains(cause.Error(), `window Dialog_NodeTree "Trade request"`) || !strings.Contains(cause.Error(), "tick 1705") {
 		t.Fatalf("dialog: cause=%v dismiss=%v", cause, dismiss)
 	}
 	// Paused with nothing visible still fails at once.
-	cause, _ = classifyPause(pausedStatus(nil, nil, false), tools, "observe", 5)
+	cause, _ = classifyPause(pausedStatus(nil, nil, false), tools, "observe", 5, false)
 	if cause == nil || !strings.Contains(cause.Error(), "no letter or force-pausing window") {
 		t.Fatalf("silent pause: %v", cause)
+	}
+}
+
+func TestClassifyPauseDiscovery(t *testing.T) {
+	ancient := map[string]any{"id": "ancient", "label": "Ancient danger", "letterDef": "ThreatBig"}
+	raid := map[string]any{"id": "raid", "label": "Raid", "letterDef": "ThreatBig"}
+	for _, tc := range []struct {
+		name               string
+		quiet, force, tool bool
+		letters            []map[string]any
+		windows            []map[string]any
+		wantDismiss        bool
+	}{
+		{name: "quiet discovery", quiet: true, tool: true, letters: []map[string]any{ancient}, wantDismiss: true},
+		{name: "force paused discovery", quiet: true, force: true, tool: true, letters: []map[string]any{ancient}, wantDismiss: true},
+		{name: "loud discovery", tool: true, letters: []map[string]any{ancient}},
+		{name: "no dismissal tool", quiet: true, letters: []map[string]any{ancient}},
+		{name: "mixed raid", quiet: true, tool: true, letters: []map[string]any{ancient, raid}},
+		{name: "unknown threat", quiet: true, tool: true, letters: []map[string]any{{"label": "Unknown discovery", "letterDef": "ThreatBig"}}},
+		{name: "wrong def", quiet: true, tool: true, letters: []map[string]any{{"label": "Ancient danger", "letterDef": "ThreatSmall"}}},
+		{name: "dialog", quiet: true, tool: true, letters: []map[string]any{ancient}, windows: []map[string]any{{"forcePause": true}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var tools []string
+			if tc.tool {
+				tools = []string{DismissLetterTool}
+			}
+			cause, dismiss := classifyPause(pausedStatus(tc.letters, tc.windows, tc.force), tools, "season-warm", 3242, tc.quiet)
+			if tc.wantDismiss {
+				if cause != nil || len(dismiss) != 1 || dismiss[0]["id"] != "ancient" {
+					t.Fatalf("cause=%v dismiss=%v", cause, dismiss)
+				}
+			} else if cause == nil || dismiss != nil {
+				t.Fatalf("cause=%v dismiss=%v", cause, dismiss)
+			}
+		})
 	}
 }

@@ -239,6 +239,7 @@ func ApplyQuietWorld(ctx context.Context, h *Harness) (map[string]any, error) {
 
 // applyQuiet applies the quiet storyteller when the mode asked for it.
 func applyQuiet(ctx context.Context, h *Harness, apply bool) (map[string]any, error) {
+	h.quiet = false
 	if !apply {
 		return nil, nil
 	}
@@ -249,5 +250,6 @@ func applyQuiet(ctx context.Context, h *Harness, apply bool) (map[string]any, er
 	if ok, _ := AsBool(quiet["success"]); !ok {
 		return nil, fmt.Errorf("%s refused: %#v", QuietStorytellerTool, quiet)
 	}
+	h.quiet = true
 	return quiet, nil
 }

@@ -76,7 +76,7 @@ func (h *Harness) resolvePause(ctx context.Context, label string, tick uint64) e
 	if err != nil {
 		return err
 	}
-	cause, dismiss := classifyPause(status, h.Tools, label, tick)
+	cause, dismiss := classifyPause(status, h.Tools, label, tick, h.quiet)
 	if cause != nil {
 		return cause
 	}
@@ -87,6 +87,11 @@ func (h *Harness) resolvePause(ctx context.Context, label string, tick uint64) e
 		}
 		if removed, _ := AsBool(reply["removed"]); !removed {
 			return fmt.Errorf("%s: letter %v was not on the stack: %#v", label, letter["id"], reply)
+		}
+		if h.report != nil {
+			h.report["dismissed_letters"] = append(AsSlice(h.report["dismissed_letters"]), map[string]any{
+				"phase": label, "tick": tick, "id": letter["id"], "label": letter["label"], "letterDef": letter["letterDef"],
+			})
 		}
 	}
 	if len(dismiss) == 0 {
@@ -101,9 +106,11 @@ func (h *Harness) resolvePause(ctx context.Context, label string, tick uint64) e
 // nil). A stack of letters that are all in AcknowledgedLetterDefs is
 // returned to dismiss (DismissLetterTool, when tools carries it), as the
 // service acknowledges them, since a bridge-only case has no routine layer
-// to do it. A force-pausing window, any other letter, or a pause with no
+// to do it. Quiet starts also dismiss the ancient-shrine discovery warning:
+// it is map discovery, not an incident the quiet storyteller can suppress.
+// A force-pausing window, any other letter, or a pause with no
 // visible cause is the *PauseCause that fails the wait.
-func classifyPause(status map[string]any, tools []string, label string, tick uint64) (cause *PauseCause, dismiss []map[string]any) {
+func classifyPause(status map[string]any, tools []string, label string, tick uint64, quiet bool) (cause *PauseCause, dismiss []map[string]any) {
 	timeStatus, _ := AsMap(status["time"])
 	if paused, _ := AsBool(timeStatus["paused"]); !paused {
 		return nil, nil
@@ -127,7 +134,8 @@ func classifyPause(status map[string]any, tools []string, label string, tick uin
 		return cause, nil
 	}
 	for _, letter := range cause.Letters {
-		if !AcknowledgedLetterDefs[AsString(letter["letterDef"])] {
+		discovery := quiet && AsString(letter["label"]) == "Ancient danger" && AsString(letter["letterDef"]) == "ThreatBig"
+		if !AcknowledgedLetterDefs[AsString(letter["letterDef"])] && !discovery {
 			return cause, nil
 		}
 	}

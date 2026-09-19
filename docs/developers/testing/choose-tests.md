@@ -523,9 +523,12 @@ that legitimately needs the game to do more than a minute of work is
 bounded in ticks (`Wait.Ticks`, `RunUntil`), not by a longer stall.
 `RunUntil` also reads `paused` with every tick probe: a game that stopped
 under a running speed is resolved through `home/status` at once, letters
-in `AcknowledgedLetterDefs` dismissed and the run resumed, anything else
+in `AcknowledgedLetterDefs` dismissed and the run resumed. Quiet starts also
+dismiss the exact `Ancient danger` / `ThreatBig` shrine discovery warning,
+which bypasses the storyteller. Successful dismissals are recorded under
+`dismissed_letters` (phase, tick, id, label, def) in the case report. Anything else
 (a force-pausing window, another letter, a pause with no visible cause)
-failing the wait with a `*na.PauseCause` that names it. Every
+fails the wait with a `*na.PauseCause` that names it. Every
 `result.json` carries `wait_stats` (`waits`, `stalled`, `max_quiet_ms`
 with the signature that held longest, `stall_budget_ms`); a passing run
 whose `max_quiet_ms` approaches the budget is the evidence for a

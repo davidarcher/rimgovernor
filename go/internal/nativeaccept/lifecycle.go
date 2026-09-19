@@ -266,6 +266,7 @@ func OpenSession(ctx context.Context, cfg *Config, report Report, start Start, q
 		return nil, err
 	}
 	s := &Session{Config: cfg, Game: held, Harness: NewHarness(held.Client, cfg.Output), GABS: gabs, Report: report}
+	s.Harness.report = report
 	if err := s.open(ctx, start, quiet, keep); err != nil {
 		held.Close(report)
 		return nil, err
@@ -399,7 +400,9 @@ func (s *Session) Reattach(ctx context.Context) (*Harness, error) {
 	if err != nil {
 		return nil, err
 	}
+	quiet := s.Harness.quiet
 	s.Harness = NewHarness(client, s.Config.Output)
+	s.Harness.quiet, s.Harness.report = quiet, s.Report
 	s.Harness.Tools = s.Names
 	return s.Harness, nil
 }
