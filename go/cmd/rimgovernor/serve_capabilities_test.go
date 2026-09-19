@@ -31,6 +31,7 @@ func TestRoutineCapabilitiesDeclareSelectedGoals(t *testing.T) {
 		{"home-coverage", policy.MaintainHomeCoverage},
 		{"stone-shell", policy.MaintainStoneShell},
 		{"equip", policy.EnsureBasicDefense},
+		{"gear", policy.MaintainEquipment},
 	}
 	for _, tc := range cases {
 		var c serveConfig
