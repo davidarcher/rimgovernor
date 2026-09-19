@@ -127,11 +127,16 @@ type CleanlinessReview struct {
 // ReviewCleanliness latches workspaces dirty by measured room cleanliness
 // and targets their filth only once ordinary work coverage has had its
 // chance: after GraceTicks with cleaners available (an unknown cleaner
-// count is treated as coverage present), or at once with none. Filth
-// outside a target room -- other rooms, outdoors, inherently dirty rooms --
-// is never a target. A known empty filth census is a known empty target
-// set whatever the room census says; a known non-empty one needs the room
-// census to decide.
+// count is treated as coverage present), or at once with none. A target
+// room's filth is the set its Cleanliness stat sums: the filth the census
+// places in the room plus home-area filth on a cell touching one of the
+// room's cells (8-way), which is how RimWorld registers a doorway's filth
+// in the regions on both sides of it. Without that a room whose only
+// remaining filth sits in its doorway would stay latched with nothing to
+// target (#324). Other filth -- other rooms, outdoors, inherently dirty
+// rooms -- is never a target. A known empty filth census is a known empty
+// target set whatever the room census says; a known non-empty one needs
+// the room census to decide.
 func ReviewCleanliness(rooms domain.Fact[RoomObservation], filth domain.Fact[[]UpkeepFilth], cleaners domain.Fact[int], previous []DirtyRoom, tick domain.Tick, p CleanlinessPolicy) (CleanlinessReview, error) {
 	if !p.valid() {
 		return CleanlinessReview{}, errors.New("invalid cleanliness policy")
@@ -224,19 +229,37 @@ func ReviewCleanliness(rooms domain.Fact[RoomObservation], filth domain.Fact[[]U
 			targetRooms[key] = true
 		}
 	}
+	// cellKey maps every target room cell to its latch key so a filth
+	// touching the room from outside (a doorway) attributes to it.
+	cellKey := map[domain.Cell]string{}
+	for _, room := range census.Rooms {
+		if key := keyOf[room.ID]; targetRooms[key] {
+			for _, c := range room.Cells {
+				cellKey[c] = key
+			}
+		}
+	}
 	selected := []UpkeepFilth{}
+	attributed := map[string]string{}
 	for _, row := range rows {
-		id, known := row.RoomID.Value()
-		if !known || !row.Home || !targetRooms[keyOf[id]] {
+		if !row.Home {
+			continue
+		}
+		key := ""
+		if id, known := row.RoomID.Value(); known && targetRooms[keyOf[id]] {
+			key = keyOf[id]
+		} else if len(cellKey) > 0 {
+			key = touchingKey(cellKey, row.Cell)
+		}
+		if key == "" {
 			continue
 		}
 		selected = append(selected, row)
+		attributed[row.ID] = key
 	}
 	sort.Slice(selected, func(i, j int) bool {
 		a, b := selected[i], selected[j]
-		ra, _ := a.RoomID.Value()
-		rb, _ := b.RoomID.Value()
-		ka, kb := keyOf[ra], keyOf[rb]
+		ka, kb := attributed[a.ID], attributed[b.ID]
 		if ka != kb {
 			// Dirtiest room first, then stable room order.
 			if cleanliness[ka] != cleanliness[kb] {
@@ -255,6 +278,21 @@ func ReviewCleanliness(rooms domain.Fact[RoomObservation], filth domain.Fact[[]U
 	}
 	r.Targets, r.Metric = domain.Known(selected), domain.Known(total)
 	return r, nil
+}
+
+// touchingKey returns the latch key of a room whose cell is at or 8-way
+// adjacent to cell, the lowest key when several touch, or "" for none.
+func touchingKey(cellKey map[domain.Cell]string, cell domain.Cell) string {
+	best := ""
+	for dx := int32(-1); dx <= 1; dx++ {
+		for dz := int32(-1); dz <= 1; dz++ {
+			key, ok := cellKey[domain.Cell{X: cell.X + dx, Z: cell.Z + dz}]
+			if ok && (best == "" || key < best) {
+				best = key
+			}
+		}
+	}
+	return best
 }
 
 // SeparationRoom is one room holding both a cooking bench and a butcher

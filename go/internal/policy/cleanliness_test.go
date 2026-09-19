@@ -124,6 +124,33 @@ func TestCleanlinessOrderAndBound(t *testing.T) {
 	}
 }
 
+// A latched room whose census filth is gone but whose stat stays below the
+// exit threshold because of doorway filth targets that filth (#324); filth
+// two cells away, in another room or outside the home area does not count.
+func TestCleanlinessTargetsFilthTouchingTheRoom(t *testing.T) {
+	p := DefaultCleanlinessPolicy()
+	rooms := domain.Known(RoomObservation{Rooms: []Room{
+		{ID: "k", Cells: []domain.Cell{{X: 5, Z: 5}, {X: 6, Z: 5}}, Role: domain.Known(RoomRoleKitchen), Enclosed: domain.Known(true), Cleanliness: domain.Known(-0.625)},
+		{ID: "d", Cells: []domain.Cell{{X: 7, Z: 5}}, Role: domain.Known(RoomRoleNone), Enclosed: domain.Known(false), Cleanliness: domain.Known(-0.625)},
+	}})
+	filth := domain.Known([]UpkeepFilth{
+		{ID: "door", Home: true, Cell: domain.Cell{X: 7, Z: 5}, RoomID: domain.Known("d"), Thickness: 1},
+		{ID: "corner", Home: true, Cell: domain.Cell{X: 4, Z: 4}, Thickness: 1},
+		{ID: "far", Home: true, Cell: domain.Cell{X: 8, Z: 5}, RoomID: domain.Known("d"), Thickness: 1},
+		{ID: "out", Home: false, Cell: domain.Cell{X: 7, Z: 6}, Thickness: 1},
+	})
+	prior := []DirtyRoom{{Key: "5,5", Since: 0}}
+	r, err := ReviewCleanliness(rooms, filth, domain.Known(0), prior, p.GraceTicks, p)
+	if err != nil || !reflect.DeepEqual(r.DirtyRooms, prior) || !reflect.DeepEqual(targetIDs(t, r), []string{"corner", "door"}) {
+		t.Fatalf("touching filth: %+v %v", r, err)
+	}
+	// An unlatched room attributes nothing.
+	r, err = ReviewCleanliness(rooms, filth, domain.Known(0), nil, 0, p)
+	if err != nil || len(r.DirtyRooms) != 0 || len(targetIDs(t, r)) != 0 {
+		t.Fatalf("unlatched: %+v %v", r, err)
+	}
+}
+
 func TestKitchenSeparation(t *testing.T) {
 	rooms := domain.Known(RoomObservation{Rooms: []Room{
 		{ID: "k", Cells: []domain.Cell{{X: 1, Z: 1}}, Contents: domain.Known([]Amount{{Resource: "ElectricStove", Count: 1}, {Resource: "ButcherSpot", Count: 1}})},

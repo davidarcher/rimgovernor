@@ -205,7 +205,10 @@ colonist present or at once with none. A clean order is player-forced: any
 colonist not incapable of Cleaning carries it whatever their Work-tab priority
 says, and the native worker cleans the ordered filth plus whatever the
 installed WorkGiver queues beside it. The typed filth census covers the home
-area only (at most 256 rows), the only filth an upkeep order may target. Filth
+area only (at most 256 rows), the only filth an upkeep order may target. A
+latched room's filth is what its Cleanliness stat sums: the filth the census
+places in the room plus home-area filth on a cell touching the room (8-way,
+its doorway), which the game registers on both sides of the door. Other filth
 outdoors, in other rooms, and in
 inherently dirty rooms (barns, rooms holding a butcher bench) is ordinary
 colonist work. Butcher placements never enter a cooking bench's room and cooking
