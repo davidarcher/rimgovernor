@@ -131,3 +131,26 @@ func TestMovementAdmitsCachedPawnRowBehindPreparedTick(t *testing.T) {
 		t.Fatal(d)
 	}
 }
+
+// A draft the plan still holds across an authority hold and a same-world
+// resume (#318, #228) carries the generation it was claimed under; the move
+// it enables admits under the resumed generation as long as the world and
+// plan are the same.
+func TestMovementAdmitsDraftFromEarlierGeneration(t *testing.T) {
+	r := movementRequest(t)
+	r.Current.Native++
+	r.Facts.Snapshot = r.Current
+	e, err := NewEmergencySnapshot(r.Current, 13, r.Facts.Emergency.facts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.Facts.Emergency = e
+	if d := EvaluateMovement(r); !d.Admitted || len(d.Refused) != 0 {
+		t.Fatal(d)
+	}
+	r.Current.Load = "other"
+	r.Facts.Snapshot = r.Current
+	if d := EvaluateMovement(r); d.Admitted {
+		t.Fatal("admitted a draft from another world")
+	}
+}

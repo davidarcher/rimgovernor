@@ -78,7 +78,7 @@ func (e *Executor) runMelee(ctx context.Context, action domain.Action, progress 
 		}
 		cleanup, known := prerequisite.View().DraftCleanup.Value()
 		claim, claimed := cleanup.Claim.Value()
-		if !known || !claimed || prerequisite.View().Stage != domain.Completed || prerequisite.View().Unresolved || cleanup.Stage != domain.DraftCleanupRequired || claim.Action != m.DraftAction() || claim.Pawn != m.Pawn() || claim.Origin != expected || prerequisite.View().Snapshot != expected {
+		if !known || !claimed || prerequisite.View().Stage != domain.Completed || prerequisite.View().Unresolved || cleanup.Stage != domain.DraftCleanupRequired || claim.Action != m.DraftAction() || claim.Pawn != m.Pawn() || !claim.Origin.SameWorld(expected) || !prerequisite.View().Snapshot.SameWorld(expected) {
 			return result, ErrHeld
 		}
 		minimum = max(minimum, latest.View().Tick, prerequisite.View().Tick)

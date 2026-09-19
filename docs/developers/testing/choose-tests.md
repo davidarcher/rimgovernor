@@ -437,10 +437,13 @@ cases want (`Letters`). Only letters whose def pauses under the profile's
 `automaticPauseMode` (MajorThreat in the headless profile: ThreatBig only)
 ever reach the loop; the `letter/pause` case covers both modes through
 `test/letter_pause_mode` and `test/deliver_letter`. Under the serve process
-a letter pause drops authority but only suspends routine goals (#65): the
-next enabled review reactivates the same goal with its plans still open, so
-a case following a routine plan sees the same plan resume, not a
-successor.
+a threat letter's pause drops authority but only suspends routine goals
+(#65): the next enabled review reactivates the same goal with its plans
+still open and their held drafts still owned, so a case following a
+routine plan sees the same plan resume, not a successor. An informational
+letter's pause holds nothing there: the next step admits again (#228).
+`test/quiet_storyteller` also stops the pawns' inspiration rolls, the one
+letter source outside the storyteller.
 
 Starts are small by default. `test/configure_debug_start` (in every fixture
 build) arms the next quick start with a map size and planet coverage, and

@@ -969,31 +969,46 @@ func waitCombatMethod(ctx context.Context, s *store.Store, w na.Wait, report na.
 
 // waitHoldDispatched waits until every draft in the hold plan is completed
 // and every move to a firing cell has been attempted natively: the furthest
-// the plan can get before the first combat window lets ticks pass.
+// the plan can get before the first combat window lets ticks pass. A raid
+// the first defender (or the turret tier) ends before the others reach
+// their cells retires the plan with the rest cancelled; that settlement
+// counts as dispatched when a defender reached its cell or fired and no
+// stage failed: the third defender never drafted is the turrets' doing.
 func waitHoldDispatched(ctx context.Context, s *store.Store, id domain.PlanID, w na.Wait) (map[string]any, error) {
 	var out map[string]any
 	_, err := na.WaitPlan(ctx, s, w, id, func(state store.PlanState) (string, bool, error) {
 		st := stages(state.Progress)
-		drafts, moves, attacks, ready := 0, 0, 0, true
+		drafts, moves, attacks, moved, fired, ready, failed := 0, 0, 0, 0, 0, true, false
 		for _, p := range state.Progress {
 			v := p.View()
+			// An attack whose target the turrets killed first is the raid
+			// ending, not the plan failing.
+			if reason, _ := v.UnsuccessfulReason.Value(); v.Stage == domain.Unsuccessful && reason != domain.TargetDead {
+				failed = true
+			}
 			switch p.Action().Kind() {
 			case domain.OwnedDraftAction:
 				drafts++
 				ready = ready && v.Stage == domain.Completed
 			case domain.MovementAction:
 				moves++
+				if v.Stage == domain.Completed {
+					moved++
+				}
 				ready = ready && (v.Attempt > 0 || v.Stage == domain.Completed)
 			case domain.RangedAttackAction:
 				attacks++
+				if v.Stage == domain.Completed {
+					fired++
+				}
 			}
 		}
 		out = map[string]any{"stages": st}
 		if drafts == 0 || moves == 0 || attacks == 0 {
 			return "", false, fmt.Errorf("hold plan has %d drafts, %d moves and %d attacks: %v", drafts, moves, attacks, st)
 		}
-		if ready {
-			out = map[string]any{"stages": st, "drafts": drafts, "moves": moves, "attacks": attacks}
+		if ready || (!domain.GoalWorkOpen(state.Progress) && (fired > 0 || moved > 0) && !failed) {
+			out = map[string]any{"stages": st, "drafts": drafts, "moves": moves, "attacks": attacks, "moved": moved, "fired": fired}
 			return "", true, nil
 		}
 		if !domain.GoalWorkOpen(state.Progress) {

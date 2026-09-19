@@ -96,19 +96,40 @@ func BenignStop(reason k.StopReason) bool {
 	return false
 }
 
+// InformationalLetterDefs are the letter definitions the native supervisor
+// itself never stops play for (SupervisedPlayTool.NonStoppingLetterDefs):
+// an announcement, not a threat, a death or a decision. The game may still
+// pause on one under the player's automatic-pause preference; that pause
+// stops the window like any other, but it is the game's own, not a reason
+// to hand control back (#228: an inspiration letter mid-raid released the
+// hold plan's drafts). Every other letter class still holds.
+var InformationalLetterDefs = map[string]bool{"NeutralEvent": true, "PositiveEvent": true, "NegativeEvent": true}
+
+// BenignStopEvent is BenignStop with the stop's evidence: a letter pause
+// for an informational letter is benign too.
+func BenignStopEvent(stop *k.StopEvent) bool {
+	if BenignStop(stop.GetReason()) {
+		return true
+	}
+	return stop.GetReason() == k.StopReason_STOP_REASON_LETTER_PAUSE && InformationalLetterDefs[stop.GetPause().GetLetter().GetDefName()]
+}
+
 // EventInterrupts classifies one journal event. Operation outcomes,
 // authority changes and observation invalidations are typed facts the
 // controller reacts to, not holds; so is a game alert (a High-priority
 // alert such as "Need colonist beds" is routine planning evidence, and the
 // native supervisor never stops play for one; the stop tier is danger, a
-// coupled order and player input, #244). It
-// is shared with the poll loop so both classifications cannot drift.
+// coupled order and player input, #244), and so is an injury observation:
+// the native supervisor coalesces sub-threshold combat damage into that
+// row precisely so it never stops play for it, and a threshold crossing
+// arrives as its own COLONIST_HEALTH stop (#318). It is shared with the
+// poll loop so both classifications cannot drift.
 func EventInterrupts(event *k.Event) bool {
 	switch e := event.Event.(type) {
-	case *k.Event_Started, *k.Event_SpeedChanged, *k.Event_HostilesCleared, *k.Event_ForcePauseCleared, *k.Event_OperationOutcome, *k.Event_AuthorityChanged, *k.Event_ObservationInvalidated, *k.Event_Alert:
+	case *k.Event_Started, *k.Event_SpeedChanged, *k.Event_HostilesCleared, *k.Event_ForcePauseCleared, *k.Event_OperationOutcome, *k.Event_AuthorityChanged, *k.Event_ObservationInvalidated, *k.Event_Alert, *k.Event_InjuryObserved:
 		return false
 	case *k.Event_Stopped:
-		return !BenignStop(e.Stopped.GetReason())
+		return !BenignStopEvent(e.Stopped)
 	default:
 		return true
 	}

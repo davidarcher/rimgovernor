@@ -96,7 +96,8 @@ namespace HomeBridge.BridgeTools
                     NativePawnControlState.Observe(identity,pawn,out var snapshot)!=NativePawnControlResult.Ready || snapshot==null)
                     throw new InvalidOperationException("Original attacker context cannot be inspected.");
                 if(!order.HasValue)Capture(snapshot);
-                bool unchanged=context.NativeGeneration==admitted.NativeGeneration && snapshot.Eligible && snapshot.Drafted
+                // The authority generation is not compared (see NativeMovementRecord.Observe).
+                bool unchanged=snapshot.Eligible && snapshot.Drafted
                     && snapshot.Claim?.ClaimId==before.Claim!.ClaimId
                     && snapshot.Facts.OrderRevision==order;
                 bool damageObserved=damage.ObservedDamage && damage.ObservedTick>=admitted.Tick;

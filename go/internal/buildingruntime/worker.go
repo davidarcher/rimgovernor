@@ -704,6 +704,16 @@ func workerCleanupEligible(plan store.PlanState, v domain.ProgressView, scope Co
 	if !draft {
 		return false
 	}
+	// A draft the plan still holds in this world is kept through an
+	// authority hold and the generation a resume grants: a pause or letter
+	// pause suspends routine work until control resumes in the same world,
+	// and the drafted defenders of a combat hold plan are that work
+	// (#228, #318, #342). The claim readback at the next order catches a
+	// pawn the player undrafted meanwhile. An explicit Manual still
+	// releases every draft (Control.Manual).
+	if playerWorld(v.Snapshot) == world && workerPlanHoldsDraft(plan, v) {
+		return false
+	}
 	if !scope.Enabled || !scope.ObservationKnown || playerWorld(scope.Snapshot) != world || scope.Snapshot != v.Snapshot {
 		return true
 	}
@@ -713,18 +723,62 @@ func workerCleanupEligible(plan store.PlanState, v domain.ProgressView, scope Co
 	if v.Stage != domain.Completed {
 		return false
 	}
-	unfinished := false
+	return !workerPlanHoldsDraft(plan, v)
+}
+
+// workerPlanHoldsDraft reports whether plan still holds the draft v, either
+// completed or still in flight (dispatched, receipt accepted, awaiting the
+// observation a hold interrupted): no other action of the plan has failed
+// or been cancelled, and at least one is still unfinished. An order riding
+// on another draft (a move, a ranged or melee attack naming a different
+// draft action) says nothing about this one: a timed-out move for one
+// defender must not undraft the others mid-order. An order riding on this
+// draft that native is still executing holds it outright: a recovered goal
+// cancels the plan's unissued orders (settleUnissuedWork) and leaves the
+// dispatched ones to close on their own, which they cannot once the pawn
+// is undrafted under them.
+func workerPlanHoldsDraft(plan store.PlanState, v domain.ProgressView) bool {
+	switch v.Stage {
+	case domain.Completed, domain.Dispatched, domain.AwaitingObservation:
+	default:
+		return false
+	}
+	unfinished, settled := false, false
 	for _, p := range plan.Progress {
 		other := p.View()
 		if other.Action == v.Action {
 			continue
 		}
+		rides := workerOrderDraft(p.Action())
+		if rides != "" && rides != v.Action {
+			continue
+		}
 		switch other.Stage {
 		case domain.Cancelled, domain.Unsuccessful:
-			return true
-		case domain.Pending, domain.Prepared, domain.Dispatched, domain.AwaitingObservation:
+			settled = true
+		case domain.Dispatched, domain.AwaitingObservation:
+			if rides == v.Action {
+				return true
+			}
+			unfinished = true
+		case domain.Pending, domain.Prepared:
 			unfinished = true
 		}
 	}
-	return !unfinished
+	return unfinished && !settled
+}
+
+// workerOrderDraft names the owned draft an order rides on, or "" for an
+// action that is not a drafted order.
+func workerOrderDraft(action domain.Action) domain.ActionID {
+	if m, ok := action.Movement(); ok {
+		return m.DraftAction()
+	}
+	if r, ok := action.RangedAttack(); ok {
+		return r.DraftAction()
+	}
+	if m, ok := action.MeleeAttack(); ok {
+		return m.DraftAction()
+	}
+	return ""
 }

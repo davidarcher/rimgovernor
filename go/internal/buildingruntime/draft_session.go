@@ -39,7 +39,11 @@ func draftOutstanding(p domain.Progress) bool {
 
 // run visits every obligation fairly. One evidence-only claim binding may be
 // followed by one release; uncertain writes always return to the caller.
-func (s *draftSweep) run(ctx context.Context) error {
+// With retainHeld the drafts a plan still holds (workerPlanHoldsDraft) are
+// left alone: a resume in the same world keeps the suspended plan's owned
+// drafts, so a combat hold plan survives the pause that interrupted it
+// (#228, #318); the worker releases them once the plan settles.
+func (s *draftSweep) run(ctx context.Context, retainHeld bool) error {
 	ctx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
 	select {
@@ -55,7 +59,7 @@ func (s *draftSweep) run(ctx context.Context) error {
 	var pending []domain.Progress
 	for _, plan := range plans {
 		for _, p := range plan.Progress {
-			if draftOutstanding(p) {
+			if draftOutstanding(p) && !(retainHeld && workerPlanHoldsDraft(plan, p.View())) {
 				pending = append(pending, p)
 			}
 		}

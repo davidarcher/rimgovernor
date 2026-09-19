@@ -267,7 +267,7 @@ func clockPollEvents(ctx context.Context, page *k.EventsPage) {
 	for _, event := range page.GetEvents() {
 		switch v := event.Event.(type) {
 		case *k.Event_Stopped:
-			clockEvent(ctx, "clock-scheduler", "scheduler_stop", "window stopped", "reason", v.Stopped.GetReason().String(), "evidence", clockStopEvidence(v.Stopped), "cursor", event.GetCursor(), "observed_at_unix_ms", event.GetObservedAtUnixMs(), "benign", clock.BenignStop(v.Stopped.GetReason()))
+			clockEvent(ctx, "clock-scheduler", "scheduler_stop", "window stopped", "reason", v.Stopped.GetReason().String(), "evidence", clockStopEvidence(v.Stopped), "cursor", event.GetCursor(), "observed_at_unix_ms", event.GetObservedAtUnixMs(), "benign", clock.BenignStopEvent(v.Stopped))
 		case *k.Event_AuthorityChanged:
 			clockEvent(ctx, "clock-scheduler", "authority_change", "authority changed", "reason", v.AuthorityChanged.GetReason(), "active", v.AuthorityChanged.GetActive(), "generation", v.AuthorityChanged.GetGeneration(), "previous_generation", v.AuthorityChanged.GetPreviousGeneration(), "cursor", event.GetCursor())
 		case *k.Event_Alert:

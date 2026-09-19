@@ -48,6 +48,10 @@ type ControlConfig struct {
 	// CleanupWrites joins invalidated commands and drains owned effects under
 	// the control gate. It must not call back into Control or acquire a lease.
 	CleanupWrites func(context.Context) error
+	// ResumeWrites is CleanupWrites before an acquisition: it keeps the
+	// owned drafts a suspended plan still holds, since a resume in the same
+	// world continues that plan (#228). Nil falls back to CleanupWrites.
+	ResumeWrites func(context.Context) error
 	// BeforeRevoke releases owned pending designations while native authority
 	// still permits the release. Local dispatch is already disabled.
 	BeforeRevoke func(context.Context, *c.Identity, uint64) error
@@ -236,7 +240,9 @@ func (control *Control) observeForAcquire(ctx context.Context, requested domain.
 			return nil, nil, nil, false, nil, err
 		}
 		call, done, err = control.enter(ctx, epoch)
-		if err == nil && control.config.CleanupWrites != nil {
+		if drain := control.config.ResumeWrites; err == nil && drain != nil {
+			err = drain(call)
+		} else if err == nil && control.config.CleanupWrites != nil {
 			err = control.config.CleanupWrites(call)
 		}
 		if err == nil {

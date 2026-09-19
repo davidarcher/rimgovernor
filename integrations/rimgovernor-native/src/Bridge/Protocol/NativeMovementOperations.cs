@@ -77,7 +77,9 @@ namespace HomeBridge.BridgeTools
                 if(!order.HasValue)Capture(snapshot,before);
                 bool current=Current(),queued=Queued();
                 var changed=new List<string>();
-                if(context.NativeGeneration!=admitted.NativeGeneration)changed.Add("authority generation");
+                // The authority generation is not compared: a hold and a same-world resume
+                // bump it while the pawn keeps its draft, claim and order (#342, #318, #228).
+                // Claim identity and the native order revision are the continuity evidence.
                 if(!snapshot.Eligible)changed.Add("eligibility");
                 if(!snapshot.Drafted)changed.Add("draft");
                 if(snapshot.Claim?.ClaimId!=claim.ClaimId)changed.Add("claim");

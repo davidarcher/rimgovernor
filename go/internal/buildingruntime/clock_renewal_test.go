@@ -29,7 +29,10 @@ func TestClockRenewalSafetyReviewMustCatchUp(t *testing.T) {
 func TestClockRenewalDefersCompletedBudgetToScheduler(t *testing.T) {
 	t.Parallel()
 	for _, reason := range []k.StopReason{k.StopReason_STOP_REASON_TICK_BUDGET, k.StopReason_STOP_REASON_WATCH_LATCHED, k.StopReason_STOP_REASON_EXTERNAL_PAUSE} {
-		unsafe := reason == k.StopReason_STOP_REASON_EXTERNAL_PAUSE
+		// A stop the renewal cannot recognize as the window's own end is
+		// the poller's to classify: renewal waits for it rather than
+		// disabling on a stop the review may hold nothing for (#228).
+		waits := reason == k.StopReason_STOP_REASON_EXTERNAL_PAUSE
 		t.Run(reason.String(), func(t *testing.T) {
 			s, n, w, start := renewalFixture(t)
 			epoch := proto.Clone(start.Reply.GetReceipt().GetApplied().GetStatus().GetRunning().Epoch).(*k.Epoch)
@@ -44,7 +47,50 @@ func TestClockRenewalDefersCompletedBudgetToScheduler(t *testing.T) {
 			n.status.Context.Tick = proto.Int64(epoch.GetLastTick())
 			n.status.NewestCursor = proto.Int64(1) // The poller has not captured the stop yet.
 			r, err := s.RenewEpoch(context.Background())
-			if w.renews != 0 || r.Renewed || (err != nil) != unsafe || s.session.State().Enabled == unsafe {
+			if w.renews != 0 || r.Renewed || (err != nil) != waits || !errors.Is(err, executor.ErrHeld) && waits || !s.session.State().Enabled {
+				t.Fatal(r, err, w.renews, s.session.State())
+			}
+		})
+	}
+}
+
+// Once the poller has read a stop row the renewal cannot recognize, the
+// review decides: a stop it holds nothing for (an informational letter's
+// pause, #228) leaves the epoch to the scheduler step with authority
+// standing; an interruption it holds disables.
+func TestClockRenewalStoppedEpochFollowsReview(t *testing.T) {
+	t.Parallel()
+	for _, def := range []string{"PositiveEvent", "ThreatBig"} {
+		t.Run(def, func(t *testing.T) {
+			s, n, w, start := renewalFixture(t)
+			epoch := proto.Clone(start.Reply.GetReceipt().GetApplied().GetStatus().GetRunning().Epoch).(*k.Epoch)
+			epoch.LastTick = proto.Int64(epoch.GetTickDeadline() - 1)
+			epoch.LeaseRemainingMs = proto.Uint32(0)
+			n.status.State = &k.Status_Stopped{Stopped: &k.Stopped{Epoch: epoch, Reason: k.StopReason_STOP_REASON_LETTER_PAUSE.Enum(), StoppedAtUnixMs: proto.Int64(100), ActualPaused: proto.Bool(true), PauseRequested: proto.Bool(false), PauseVerified: proto.Bool(true)}}
+			n.status.ActualPaused = proto.Bool(true)
+			n.status.Context.Tick = proto.Int64(epoch.GetLastTick())
+			n.status.NewestCursor = proto.Int64(1)
+			ctx := proto.Clone(n.status.Context).(*c.ObservationContext)
+			request := &k.EventsRequest{Identity: ctx.Identity, AfterCursor: proto.Int64(0), Limit: proto.Uint32(1)}
+			stop := &k.StopEvent{Reason: k.StopReason_STOP_REASON_LETTER_PAUSE.Enum(), Evidence: &k.StopEvent_Pause{Pause: &k.PauseEvidence{ActualPaused: proto.Bool(true), PauseRequested: proto.Bool(false), PauseVerified: proto.Bool(true), Letter: &k.Letter{Id: proto.String("Letter_1"), Label: proto.String("letter"), DefName: proto.String(def)}}}}
+			page := &k.EventsPage{Context: ctx, NewestCursor: proto.Int64(1), NextCursor: proto.Int64(1), Gap: proto.Bool(false), LostCount: proto.Uint64(0), Events: []*k.Event{{Cursor: proto.Int64(1), Owner: proto.Clone(epoch.Owner).(*k.EpochOwner), Context: ctx, ObservedAtUnixMs: proto.Int64(100), Event: &k.Event_Stopped{Stopped: stop}}}}
+			profile := s.config.Profile
+			if _, _, err := s.player.journal.AppendClockEvents(context.Background(), profile, request, page); err != nil {
+				t.Fatal(err)
+			}
+			review, err := s.player.journal.ReadClockReview(context.Background(), profile)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if review, err = s.player.journal.ReviewClockEvents(context.Background(), profile, review.Revision); err != nil {
+				t.Fatal(err)
+			}
+			holds := def == "ThreatBig"
+			if (len(review.Holds) > 0) != holds {
+				t.Fatal(def, review.Holds)
+			}
+			r, err := s.RenewEpoch(context.Background())
+			if w.renews != 0 || r.Renewed || (err != nil) != holds || s.session.State().Enabled == holds {
 				t.Fatal(r, err, w.renews, s.session.State())
 			}
 		})

@@ -407,11 +407,13 @@ namespace HomeBridge.BridgeTools
         // letter meanwhile pauses the game and cancels the layout plans. The
         // comps are rebuilt from the storyteller def on every load, so a run
         // resumed from a checkpoint save calls this op again.
+        // The quiet marker (QuietStoryteller) is re-applied rather than the
+        // comps merely cleared: it is what keeps the storyteller tick and the
+        // pawns' inspiration rolls off in this process after a reload (#228).
         private static object Quiet()
         {
-            Find.Storyteller.storytellerComps.Clear();
-            Find.Storyteller.incidentQueue.Clear();
-            return new { success = true };
+            QuietStoryteller.ApplyDifficulty(Find.Storyteller);
+            return new { success = true, quiet = QuietStoryteller.IsQuiet(Find.Storyteller) };
         }
 
         // Power stages the turret tier's observed gates (#61) without placing

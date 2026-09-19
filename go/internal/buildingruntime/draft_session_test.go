@@ -166,7 +166,7 @@ func TestDraftSessionConcurrentSweepsDoNotRepeatRelease(t *testing.T) {
 	errorsCh := make(chan error, 2)
 	for range 2 {
 		joined.Add(1)
-		go func() { defer joined.Done(); errorsCh <- session.drafts.run(context.Background()) }()
+		go func() { defer joined.Done(); errorsCh <- session.drafts.run(context.Background(), false) }()
 	}
 	joined.Wait()
 	close(errorsCh)

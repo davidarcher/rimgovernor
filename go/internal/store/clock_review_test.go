@@ -112,7 +112,7 @@ func TestClockReviewEventClassification(t *testing.T) {
 			t.Fatal(reason)
 		}
 	}
-	for _, event := range []*k.Event{{Event: &k.Event_Notification{}}, {Event: &k.Event_InjuryObserved{}}, {Event: &k.Event_PauseFailed{}}, {Event: &k.Event_ForcePauseWaiting{}}} {
+	for _, event := range []*k.Event{{Event: &k.Event_Notification{}}, {Event: &k.Event_PauseFailed{}}, {Event: &k.Event_ForcePauseWaiting{}}} {
 		if !clock.EventInterrupts(event) {
 			t.Fatal(event)
 		}
@@ -121,6 +121,30 @@ func TestClockReviewEventClassification(t *testing.T) {
 	// not a hold: the native supervisor never stops play for one (#244).
 	if clock.EventInterrupts(&k.Event{Event: &k.Event_Alert{}}) {
 		t.Fatal("alert interrupts")
+	}
+	// So is an injury observation: sub-threshold combat damage the native
+	// supervisor coalesces without stopping; a threshold crossing is its
+	// own COLONIST_HEALTH stop (#318).
+	if clock.EventInterrupts(&k.Event{Event: &k.Event_InjuryObserved{}}) {
+		t.Fatal("injury observation interrupts")
+	}
+	// A letter pause is the game's own pause; for an informational letter
+	// (the classes the supervisor never stops for) it holds nothing (#228).
+	// A threat letter, or a pause with no letter attributed, still holds.
+	letterPause := func(def string) *k.Event {
+		stop := &k.StopEvent{Reason: k.StopReason_STOP_REASON_LETTER_PAUSE.Enum()}
+		if def != "" {
+			stop.Evidence = &k.StopEvent_Pause{Pause: &k.PauseEvidence{Letter: &k.Letter{Id: proto.String("Letter_1"), DefName: proto.String(def)}}}
+		}
+		return &k.Event{Event: &k.Event_Stopped{Stopped: stop}}
+	}
+	for def, interrupts := range map[string]bool{"PositiveEvent": false, "NeutralEvent": false, "NegativeEvent": false, "ThreatBig": true, "ThreatSmall": true, "Death": true, "": true} {
+		if clock.EventInterrupts(letterPause(def)) != interrupts {
+			t.Fatalf("letter pause %q interrupts=%v", def, !interrupts)
+		}
+	}
+	if !clock.BenignStopEvent(letterPause("PositiveEvent").GetStopped()) || clock.BenignStopEvent(letterPause("ThreatBig").GetStopped()) {
+		t.Fatal("BenignStopEvent disagrees with EventInterrupts")
 	}
 }
 func TestClockReviewRollbackAndCorruptProvenance(t *testing.T) {

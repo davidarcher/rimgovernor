@@ -149,7 +149,7 @@ func (s *sessionSink) stop(ctx context.Context) error {
 		err = clock.Cleanup(ctx)
 	}
 	if drafts != nil {
-		err = errors.Join(err, drafts.run(ctx))
+		err = errors.Join(err, drafts.run(ctx, false))
 	}
 	return err
 }
@@ -265,6 +265,7 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	}
 	config.Control.StopWrites = sink.stop
 	config.Control.CleanupWrites = sink.cleanup
+	config.Control.ResumeWrites = sink.resume
 	if config.Control.Worlds == nil && config.Clock != nil {
 		config.Control.Worlds = clockWorldSource{config.Clock.Native}
 	}

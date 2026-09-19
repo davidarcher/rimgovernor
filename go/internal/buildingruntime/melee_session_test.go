@@ -105,6 +105,99 @@ func TestMeleeSessionCompositionAndWorkerDraftRetention(t *testing.T) {
 	}
 }
 
+// A draft the plan still holds survives an authority hold and the resume
+// after it: neither the worker's cleanup rotation while disabled nor the
+// resume's drain releases it, and the pending order stays eligible once
+// authority is back. An explicit Manual still releases it (#228, #318).
+func TestMeleeSessionHeldDraftSurvivesHoldAndResume(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	dir := t.TempDir()
+	journal, err := store.Open(ctx, storetest.Path(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer journal.Close()
+	_, f, dispatch := melee.NewFixture(t)
+	native := meleeSessionNative{f}
+	id, err := journal.Identity(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Receipt.Attempt.ControllerSessionId = proto.String(string(id))
+	f.Progress.Attempt.ControllerSessionId = proto.String(string(id))
+	pawnDraft, _ := domain.NewOwnedDraft("pawn")
+	d, _ := domain.NewOwnedDraftAction("action", pawnDraft)
+	plan, err := domain.NewPlan("plan", 1, []domain.Action{d, dispatch.Attempt.Action})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = journal.CreatePlan(ctx, plan); err != nil {
+		t.Fatal(err)
+	}
+	_, building := boundary.NewFixture(t)
+	config := SessionConfig{Control: ControlConfig{ProfileDirectory: dir, CallTimeout: 5 * time.Second}, Executor: executor.Limits{MaxAge: time.Second, RunTimeout: 5 * time.Second, JournalTimeout: 5 * time.Second}, Draft: &draft.DraftCapabilities{Native: f.Fixture, Writer: f.Fixture, Cleanup: f.Fixture}, Melee: &melee.MeleeCapabilities{Native: native, Writer: native}}
+	s, err := NewSession(ctx, config, journal, sessionNative{building}, &controlNative{generation: 1}, sessionNative{building}, boundary.FixedClock{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close(ctx)
+	snapshot, err := s.Acquire(ctx, dispatch.Attempt.Snapshot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = journal.PrepareDraft(ctx, plan.ID(), d.ID(), store.DraftAdmission{Snapshot: snapshot, Tick: 10, Pawn: "pawn", PawnSnapshotToken: "cas"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = journal.Dispatch(ctx, plan.ID(), d.ID(), snapshot, 10); err != nil {
+		t.Fatal(err)
+	}
+	claim := dispatch.Admission.DraftClaim
+	claim.Session = domain.ControllerSessionID(id)
+	if _, err = journal.ObserveDraft(ctx, plan.ID(), domain.Observation{Action: d.ID(), Attempt: 1, Snapshot: snapshot, Tick: 10, Causality: domain.AfterDispatch, Effect: domain.EffectCompleted}, snapshot, domain.Known(claim)); err != nil {
+		t.Fatal(err)
+	}
+	world := playerWorld(snapshot)
+	state, err := journal.LoadPlan(ctx, plan.ID())
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A hold: authority disabled locally, the world unchanged.
+	if err = s.Disable(); err != nil {
+		t.Fatal(err)
+	}
+	if held := s.State(); held.Enabled || workerCleanupEligible(state, state.Progress[0].View(), held, world) {
+		t.Fatal("hold released the held draft", held)
+	}
+	// The resume's drain keeps it too, and the pending order is eligible
+	// again under the new scope.
+	resumed, err := s.Acquire(ctx, dispatch.Attempt.Snapshot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if f.Releases != 0 {
+		t.Fatal("resume released the held draft", f.Releases)
+	}
+	scope := s.State()
+	scope.Snapshot = resumed
+	if workerCleanupEligible(state, state.Progress[0].View(), scope, world) || !workerEligible(state, state.Progress[1].View(), scope, world) {
+		t.Fatal("resumed scope does not carry the held draft", scope)
+	}
+	// Only a plan that still holds it: a cancelled sibling makes it cleanup.
+	if _, err = journal.Cancel(ctx, plan.ID(), dispatch.Attempt.Action.ID()); err != nil {
+		t.Fatal(err)
+	}
+	if cancelled, err := journal.LoadPlan(ctx, plan.ID()); err != nil || !workerCleanupEligible(cancelled, cancelled.Progress[0].View(), scope, world) {
+		t.Fatal("cancelled plan retained draft", err)
+	}
+	if err = s.Manual(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if f.Releases != 1 || s.State().Enabled {
+		t.Fatal("manual did not release the draft", f.Releases)
+	}
+}
+
 func TestMeleeSessionRejectsIncompleteCapabilitiesBeforeOwnership(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()

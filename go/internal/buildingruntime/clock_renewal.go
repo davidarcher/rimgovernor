@@ -108,6 +108,24 @@ func (s *ClockScheduler) RenewEpoch(ctx context.Context) (ClockRenewResult, erro
 	if clockWindowFinished(status, original) && status.Context.GetTick() >= current.GetTick() {
 		return out, nil
 	}
+	if status.GetStopped() != nil {
+		// Any other stop is the poller's to classify: an interruption
+		// disables through the review's hold, a benign stop (the game's
+		// own pause on an informational letter, #228) holds nothing and
+		// the next scheduler step retires the epoch. Until the poller has
+		// read the stop row, renewal only waits; once it has and the
+		// review holds nothing, there is nothing to renew or invalidate.
+		review, e := s.player.journal.ReadClockReview(call, s.config.Profile)
+		if e != nil {
+			return out, s.renewalHold(e)
+		}
+		if status.NewestCursor == nil || status.GetNewestCursor() > review.InboxCursor || review.ReviewedCursor < review.InboxCursor {
+			return out, executor.ErrHeld
+		}
+		if len(review.Holds) == 0 && clockCoordinatorSameEpoch(original, status.GetStopped().GetEpoch()) {
+			return out, nil
+		}
+	}
 	actual := status.GetRunning().GetEpoch()
 	if actual == nil || !clockCoordinatorSameEpoch(original, actual) || actual.GetRequestedSpeed() != original.GetRequestedSpeed() || actual.GetLastTick() < original.GetLastTick() || status.Context.GetTick() < current.GetTick() {
 		return out, s.renewalHold(executor.ErrHeld)

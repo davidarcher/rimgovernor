@@ -110,7 +110,15 @@ Colony, load and map changes and stale in-flight snapshots still invalidate
 pending work; that is ordinary concurrency safety, not a player-ownership
 rule. A pause or letter pause only suspends routine goals and their open
 work until control resumes in the same world (see the
-[overview](overview.md)).
+[overview](overview.md)): the owned drafts a suspended plan still holds
+(a completed draft with unfinished, unfailed work behind it, such as a
+combat hold plan's defenders) stay owned through the hold and the resume,
+and the next order's claim readback catches a pawn the player undrafted
+meanwhile. An explicit Pause releases every owned draft. The game's own
+pause on an informational letter (NeutralEvent, PositiveEvent,
+NegativeEvent, the classes the native supervisor never stops play for)
+stops the window but holds nothing: the next step admits again without a
+resume (#228).
 
 ## Verify progress
 

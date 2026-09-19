@@ -50,7 +50,7 @@ func EvaluateMeleeDefense(r MeleeDefenseRequest) DraftDecision {
 	cleanup, known := d.DraftCleanup.Value()
 	claim, claimed := cleanup.Claim.Value()
 	owner, owned := f.Pawn.Owner.Value()
-	if !known || cleanup.Stage != domain.DraftCleanupRequired || !claimed || !owned || claim.Action != d.Action || claim.Attempt != d.Attempt || claim.Pawn != m.Pawn() || !claim.Origin.Matches(r.Current) || owner.Claim != claim.Claim || owner.Session != claim.Session {
+	if !known || cleanup.Stage != domain.DraftCleanupRequired || !claimed || !owned || claim.Action != d.Action || claim.Attempt != d.Attempt || claim.Pawn != m.Pawn() || !claim.Origin.SameWorld(r.Current) || owner.Claim != claim.Claim || owner.Session != claim.Session {
 		return refuse(DraftOwnership)
 	}
 	if f.PreviewTick < d.Tick {

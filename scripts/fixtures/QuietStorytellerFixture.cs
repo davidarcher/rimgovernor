@@ -81,9 +81,13 @@ namespace HomeBridge.BridgeTools
         public static void EnsurePatched()
         {
             if (patched) return;
-            new Harmony("rimgovernor.test.quiet-storyteller").Patch(
+            var harmony = new Harmony("rimgovernor.test.quiet-storyteller");
+            harmony.Patch(
                 AccessTools.Method(typeof(Storyteller), nameof(Storyteller.StorytellerTick)),
                 prefix: new HarmonyMethod(typeof(QuietStoryteller), nameof(SkipTick)));
+            harmony.Patch(
+                AccessTools.Method(typeof(InspirationHandler), nameof(InspirationHandler.InspirationHandlerTickInterval)),
+                prefix: new HarmonyMethod(typeof(QuietStoryteller), nameof(SkipInspiration)));
             patched = true;
         }
 
@@ -91,6 +95,11 @@ namespace HomeBridge.BridgeTools
         // on load never get to fire, and nothing queued is delivered. Fixture
         // ops that execute an incident directly are unaffected.
         private static bool SkipTick(Storyteller __instance) => !IsQuiet(__instance);
+
+        // No inspiration rolls either: an inspiration comes from the pawn's
+        // own handler, not the storyteller, and its PositiveEvent letter was
+        // the one event a quiet colony still delivered mid-raid (#228).
+        private static bool SkipInspiration() => !IsQuiet(Find.Storyteller);
     }
 
     // Disposable test setup only (#272). Sets the loaded game's QuietWorld
