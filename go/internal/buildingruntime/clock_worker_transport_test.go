@@ -4,10 +4,12 @@ import (
 	"context"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/store/storetest"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	"google.golang.org/protobuf/proto"
 )
@@ -102,108 +104,115 @@ func clockTransportFixture(t *testing.T, blockStart bool) (*ClockScheduler, *blo
 	return s, native, worker
 }
 func TestClockWorkerTransportBlockedWriteRetainsOwner(t *testing.T) {
-	// Not t.Parallel(): the fixture's worker runs on real timers and the
-	// "manual"/"stop" cases race a short-lived caller against the blocked
-	// write, so this stays off the package's parallel pool.
+	// Initialize storetest's process-wide template outside any bubble: its
+	// database/sql opener deliberately lives until the test binary exits.
+	_ = storetest.Path(t)
+	// Virtual time advances only after the worker and journal goroutines block,
+	// so host contention cannot expire a call during dispatch or event capture.
 	for _, kind := range []string{"start", "renew"} {
 		for _, stop := range []string{"manual", "interruption", "stop"} {
 			t.Run(kind+"/"+stop, func(t *testing.T) {
-				s, native, worker := clockTransportFixture(t, kind == "start")
-				clockTransportWait(t, native.entered, "dispatched native "+kind)
-				attempts, err := s.player.journal.LoadClockAttempts(context.Background(), 4096)
-				if err != nil {
-					t.Fatal(err)
-				}
-				var blocked store.ClockAttempt
-				for _, v := range attempts {
-					if (kind == "start" && v.Intent.Command.Start != nil) || (kind == "renew" && v.Intent.Command.Renew != nil) {
-						blocked = v
+				synctest.Test(t, func(t *testing.T) {
+					s, native, worker := clockTransportFixture(t, kind == "start")
+					clockTransportWait(t, native.entered, "dispatched native "+kind)
+					attempts, err := s.player.journal.LoadClockAttempts(context.Background(), 4096)
+					if err != nil {
+						t.Fatal(err)
 					}
-				}
-				if blocked.Phase != store.ClockDispatched {
-					t.Fatal("not durably dispatched", blocked.Phase)
-				}
-				stopped := make(chan error, 1)
-				switch stop {
-				case "interruption":
-					native.mu.Lock()
-					native.alert = true
-					native.source.status.NewestCursor = proto.Int64(1)
-					native.mu.Unlock()
-				case "manual", "stop":
-					go func() {
-						ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
-						defer cancel()
-						if stop == "manual" {
-							stopped <- s.session.Manual(ctx)
-						} else {
-							stopped <- worker.Stop(ctx)
+					var blocked store.ClockAttempt
+					for _, v := range attempts {
+						if (kind == "start" && v.Intent.Command.Start != nil) || (kind == "renew" && v.Intent.Command.Renew != nil) {
+							blocked = v
 						}
-					}()
-				}
-				clockTransportWait(t, native.cancelled, "local invalidation reaches blocked write")
-				if stop != "interruption" {
-					if err := <-stopped; err == nil {
-						t.Fatal("blocked write unexpectedly joined")
 					}
-					// Manual/Stop invalidate synchronously, under the same lock
-					// State() reads, before the blocked write can unblock.
-					if s.session.State().Enabled {
-						t.Fatal("authority remained enabled")
+					if blocked.Phase != store.ClockDispatched {
+						t.Fatal("not durably dispatched", blocked.Phase)
 					}
-				} else {
-					// The interruption is discovered by the independent poll loop;
-					// the write's own per-call deadline can unblock it first.
-					clockTransportWaitDisabled(t, s, "authority disabled after interruption")
-				}
-				closeCtx, cancel := context.WithTimeout(context.Background(), 30*time.Millisecond)
-				err = s.session.Close(closeCtx)
-				cancel()
-				if err == nil {
-					t.Fatal("Close released an in-flight transport")
-				}
-				if owner, err := AcquireProfile(context.Background(), s.config.Profile); err == nil {
+					stopped := make(chan error, 1)
+					interruptedAt := time.Now()
+					switch stop {
+					case "interruption":
+						native.mu.Lock()
+						native.alert = true
+						native.source.status.NewestCursor = proto.Int64(1)
+						native.mu.Unlock()
+					case "manual", "stop":
+						go func() {
+							ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+							defer cancel()
+							if stop == "manual" {
+								stopped <- s.session.Manual(ctx)
+							} else {
+								stopped <- worker.Stop(ctx)
+							}
+						}()
+					}
+					clockTransportWait(t, native.cancelled, "local invalidation reaches blocked write")
+					if stop != "interruption" {
+						if err := <-stopped; err == nil {
+							t.Fatal("blocked write unexpectedly joined")
+						}
+						// Manual/Stop invalidate synchronously, under the same lock
+						// State() reads, before the blocked write can unblock.
+						if s.session.State().Enabled {
+							t.Fatal("authority remained enabled")
+						}
+					} else {
+						// Prove the poll invalidated authority before the write's
+						// timeout could cancel it independently.
+						clockTransportWaitDisabled(t, s, "authority disabled after interruption")
+						if elapsed := time.Since(interruptedAt); elapsed >= worker.config.PollInterval*2 {
+							t.Fatal("interruption did not cancel write on the next poll", elapsed)
+						}
+					}
+					closeCtx, cancel := context.WithTimeout(context.Background(), 30*time.Millisecond)
+					err = s.session.Close(closeCtx)
+					cancel()
+					if err == nil {
+						t.Fatal("Close released an in-flight transport")
+					}
+					if owner, err := AcquireProfile(context.Background(), s.config.Profile); err == nil {
+						_ = owner.Close()
+						t.Fatal("profile released while write blocked")
+					}
+					native.releaseOnce.Do(func() { close(native.release) })
+					ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+					defer cancel()
+					if err = s.session.Close(ctx); err != nil {
+						t.Fatal("Close retry", err)
+					}
+					clockTransportWait(t, worker.done, "joined worker")
+					saved, err := s.player.journal.LookupClockAttempt(context.Background(), blocked.Intent.RequestID)
+					if err != nil || saved.Phase != store.ClockApplied || saved.Reply.GetReceipt() == nil {
+						t.Fatal("late receipt not retained", saved.Phase, err)
+					}
+					epochs, err := s.player.journal.LoadClockEpochs(context.Background(), 4096)
+					if err != nil || len(epochs) != 1 || epochs[0].Stage != store.ClockEpochPaused {
+						t.Fatal("owned epoch not paused", epochs, err)
+					}
+					native.mu.Lock()
+					pauses := native.source.pauses
+					writes := native.source.writes
+					native.mu.Unlock()
+					expectedWrites := 1
+					if kind == "renew" {
+						expectedWrites = 2
+					}
+					if pauses != 1 || writes != expectedWrites {
+						t.Fatal("unexpected native effects", pauses, writes)
+					}
+					owner, err := AcquireProfile(context.Background(), s.config.Profile)
+					if err != nil {
+						t.Fatal("joined Close retained profile", err)
+					}
 					_ = owner.Close()
-					t.Fatal("profile released while write blocked")
-				}
-				native.releaseOnce.Do(func() { close(native.release) })
-				ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-				defer cancel()
-				if err = s.session.Close(ctx); err != nil {
-					t.Fatal("Close retry", err)
-				}
-				clockTransportWait(t, worker.done, "joined worker")
-				saved, err := s.player.journal.LookupClockAttempt(context.Background(), blocked.Intent.RequestID)
-				if err != nil || saved.Phase != store.ClockApplied || saved.Reply.GetReceipt() == nil {
-					t.Fatal("late receipt not retained", saved.Phase, err)
-				}
-				epochs, err := s.player.journal.LoadClockEpochs(context.Background(), 4096)
-				if err != nil || len(epochs) != 1 || epochs[0].Stage != store.ClockEpochPaused {
-					t.Fatal("owned epoch not paused", epochs, err)
-				}
-				native.mu.Lock()
-				pauses := native.source.pauses
-				writes := native.source.writes
-				native.mu.Unlock()
-				expectedWrites := 1
-				if kind == "renew" {
-					expectedWrites = 2
-				}
-				if pauses != 1 || writes != expectedWrites {
-					t.Fatal("unexpected native effects", pauses, writes)
-				}
-				owner, err := AcquireProfile(context.Background(), s.config.Profile)
-				if err != nil {
-					t.Fatal("joined Close retained profile", err)
-				}
-				_ = owner.Close()
+				})
 			})
 		}
 	}
 }
 func TestClockWorkerTransportRenewalBypassesPlayerGate(t *testing.T) {
-	// Not t.Parallel(): same real-timer contention risk as
-	// TestClockWorkerTransportBlockedWriteRetainsOwner above.
+	// Keep this real-timer fixture off the package's parallel pool.
 	s, native, _ := clockTransportFixture(t, false)
 	clockTransportWait(t, native.started, "start")
 	select {

@@ -2,9 +2,9 @@ package buildingruntime
 
 import (
 	"context"
-	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -17,60 +17,60 @@ import (
 // timer steps say so.
 func TestClockWorkerWakesStepOnCapturedEvents(t *testing.T) {
 	t.Parallel()
-	w := clockLoopFixture(t)
-	w.config.StepInterval = 20 * time.Millisecond
-	w.config.MaxBackoff = 2 * time.Second
-	w.config.Wake = NewWakeSignal()
-	var steps atomic.Int32
-	var mu sync.Mutex
-	var reasons []StepReason
-	w.step = func(_ context.Context, reason StepReason) (ClockSchedulerResult, error) {
-		mu.Lock()
-		reasons = append(reasons, reason)
-		mu.Unlock()
-		steps.Add(1)
-		return ClockSchedulerResult{}, nil
-	}
-	polled := make(chan struct{})
-	var polls atomic.Int32
-	w.poll = func(context.Context, time.Duration) (ClockPollResult, error) {
-		if polls.Add(1) != 2 {
-			return ClockPollResult{}, nil
+	synctest.Test(t, func(t *testing.T) {
+		w := clockLoopFixture(t)
+		w.config.StepInterval = 20 * time.Millisecond
+		w.config.MaxBackoff = 2 * time.Second
+		w.config.PollTimeout = time.Second
+		w.config.Wake = NewWakeSignal()
+		var reasons []StepReason
+		w.step = func(_ context.Context, reason StepReason) (ClockSchedulerResult, error) {
+			reasons = append(reasons, reason)
+			return ClockSchedulerResult{}, nil
 		}
-		<-polled
-		return ClockPollResult{Captured: true, Wake: []WakeOutcome{{Action: "wall", Attempt: 1, Terminal: true}}, Invalidated: []bridge.FactFamily{bridge.FactRooms}}, nil
-	}
-	w.start()
-	// Two unchanged steps push the backoff to 80ms; wait until the loop is
-	// inside that longer sleep.
-	deadline := time.Now().Add(time.Second)
-	for steps.Load() < 3 && time.Now().Before(deadline) {
-		time.Sleep(5 * time.Millisecond)
-	}
-	before := steps.Load()
-	closed := time.Now()
-	close(polled)
-	for steps.Load() == before && time.Since(closed) < 200*time.Millisecond {
-		time.Sleep(time.Millisecond)
-	}
-	if steps.Load() == before || time.Since(closed) > 40*time.Millisecond {
-		t.Fatal("wake did not step at once", before, steps.Load(), time.Since(closed))
-	}
-	mu.Lock()
-	defer mu.Unlock()
-	if reasons[0].Cause != StepFull || reasons[1].Cause != StepTimer {
-		t.Fatal(reasons)
-	}
-	woken := reasons[before]
-	if woken.Cause != StepWake || len(woken.Events) != 1 || woken.Events[0].Action != "wall" || len(woken.Families) != 1 || woken.Families[0] != bridge.FactRooms || woken.Authority {
-		t.Fatal(woken)
-	}
-	if outcomes, _ := w.config.Wake.Take(); outcomes["wall"].Attempt != 1 {
-		t.Fatal("shared signal missed the wake", outcomes)
-	}
-	if drained := w.wake.TakeInvalidated(); len(drained.Events) != 0 || len(drained.Families) != 0 {
-		t.Fatal("step wake not drained", drained)
-	}
+		polled := make(chan struct{})
+		defer close(polled)
+		var polls atomic.Int32
+		w.poll = func(context.Context, time.Duration) (ClockPollResult, error) {
+			if polls.Add(1) != 2 {
+				return ClockPollResult{}, nil
+			}
+			<-polled
+			return ClockPollResult{Captured: true, Wake: []WakeOutcome{{Action: "wall", Attempt: 1, Terminal: true}}, Invalidated: []bridge.FactFamily{bridge.FactRooms}}, nil
+		}
+		w.start()
+		// Run the full step and two timer steps, then park every loop. The
+		// unchanged results leave the step loop in its 80ms backoff.
+		synctest.Wait()
+		time.Sleep(20 * time.Millisecond)
+		synctest.Wait()
+		time.Sleep(40 * time.Millisecond)
+		synctest.Wait()
+		if len(reasons) != 3 {
+			t.Fatal("expected full step and two timer steps", reasons)
+		}
+		before := len(reasons)
+		now := time.Now()
+		polled <- struct{}{}
+		synctest.Wait()
+		// No virtual time passed: only the captured event can end this sleep.
+		if len(reasons) != before+1 || !time.Now().Equal(now) {
+			t.Fatal("capture did not wake the backed-off step", reasons, time.Since(now))
+		}
+		if reasons[0].Cause != StepFull || reasons[1].Cause != StepTimer || reasons[2].Cause != StepTimer {
+			t.Fatal(reasons)
+		}
+		woken := reasons[before]
+		if woken.Cause != StepWake || len(woken.Events) != 1 || woken.Events[0].Action != "wall" || len(woken.Families) != 1 || woken.Families[0] != bridge.FactRooms || woken.Authority {
+			t.Fatal(woken)
+		}
+		if outcomes, _ := w.config.Wake.Take(); outcomes["wall"].Attempt != 1 {
+			t.Fatal("shared signal missed the wake", outcomes)
+		}
+		if drained := w.wake.TakeInvalidated(); len(drained.Events) != 0 || len(drained.Families) != 0 {
+			t.Fatal("step wake not drained", drained)
+		}
+	})
 }
 
 // A native build that ignores wait_ms returns at once: the loop keeps the
