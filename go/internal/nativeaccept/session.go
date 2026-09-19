@@ -115,10 +115,39 @@ func (r Report) Finalize(output string) int {
 // runner that adds bookkeeping after Finalize (the series' drift flags)
 // calls it again.
 func (r Report) Write(output string) {
-	data, err := json.MarshalIndent(r, "", "  ")
+	data, err := marshalReport(r)
 	if err == nil {
 		_ = os.WriteFile(filepath.Join(output, "result.json"), data, 0644)
 	}
+}
+
+// marshalReport encodes the report with "diagnosis" (the failure digest,
+// #278) as the first member so it is the first thing read; the remaining
+// fields follow in key order as encoding/json writes a map.
+func marshalReport(r Report) ([]byte, error) {
+	diagnosis, has := r["diagnosis"]
+	if !has {
+		return json.MarshalIndent(r, "", "  ")
+	}
+	rest := make(Report, len(r))
+	for k, v := range r {
+		if k != "diagnosis" {
+			rest[k] = v
+		}
+	}
+	head, err := json.MarshalIndent(diagnosis, "  ", "  ")
+	if err != nil {
+		return nil, err
+	}
+	tail, err := json.MarshalIndent(rest, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	if len(rest) == 0 {
+		return []byte("{\n  \"diagnosis\": " + string(head) + "\n}"), nil
+	}
+	// tail opens with "{\n  ": the diagnosis member goes in front of its first.
+	return append([]byte("{\n  \"diagnosis\": "+string(head)+","), tail[1:]...), nil
 }
 
 // Config holds the resolved acceptance-run configuration common to all four binaries.

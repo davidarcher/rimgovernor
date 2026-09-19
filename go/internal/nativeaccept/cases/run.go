@@ -10,6 +10,7 @@ import (
 	"time"
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
+	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/postmortem"
 )
 
 // DefaultTimeout is the per-case safety net when Options names none.
@@ -135,10 +136,22 @@ func Execute(ctx context.Context, c Case, opts Options) (na.Report, int) {
 	err := execute(runCtx, c, opts, output, report)
 	if err != nil {
 		report["error"] = err.Error()
+		diagnose(ctx, output, report)
 	} else {
 		report["passed"] = true
 	}
 	return report, code()
+}
+
+// diagnose writes the postmortem digest of a failed case (#278) onto the
+// report ("diagnosis", which Finalize emits first) and to
+// output/diagnosis.txt, read from the evidence the run left behind. The
+// digest is collected under the caller's context, not the run's, which a
+// timeout may already have cut.
+func diagnose(ctx context.Context, output string, report na.Report) {
+	digest := postmortem.Collect(ctx, output, report)
+	report["diagnosis"] = digest
+	_ = os.WriteFile(filepath.Join(output, "diagnosis.txt"), []byte(digest.Text()), 0644)
 }
 
 func execute(ctx context.Context, c Case, opts Options, output string, report na.Report) error {

@@ -3,7 +3,9 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -12,6 +14,7 @@ import (
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
+	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/postmortem"
 )
 
 func absRoot() string {
@@ -165,5 +168,33 @@ func TestParseSetup(t *testing.T) {
 		if _, err := parseSetup(args, &stderr); err == nil {
 			t.Errorf("%s: parseSetup(%v) = nil", name, args)
 		}
+	}
+}
+
+func TestWhyPrintsDigestForCaseDirectory(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "result.json"), []byte(`{"case":"a/b","error":"it broke","passed":false}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{"why", dir}, &stdout, &stderr); code != 0 {
+		t.Fatalf("why exit %d: %s", code, stderr.String())
+	}
+	if out := stdout.String(); !strings.HasPrefix(out, "case: a/b\nerror: it broke\n## revision\n") || !strings.Contains(out, "## pooled-job mismatches\n") {
+		t.Fatalf("why output:\n%s", out)
+	}
+	stdout.Reset()
+	if code := run([]string{"why", dir, "-json"}, &stdout, &stderr); code != 0 {
+		t.Fatalf("why -json exit %d: %s", code, stderr.String())
+	}
+	var digest postmortem.Digest
+	if err := json.Unmarshal(stdout.Bytes(), &digest); err != nil || digest.Case != "a/b" || len(digest.Sections) != 7 {
+		t.Fatalf("why -json: %v %+v", err, digest)
+	}
+	if code := run([]string{"why", filepath.Join(dir, "missing")}, &stdout, &stderr); code != 1 || !strings.Contains(stderr.String(), "no result.json") {
+		t.Fatalf("why on a missing directory: exit %d %s", code, stderr.String())
+	}
+	if code := run([]string{"why"}, &stdout, &stderr); code != 2 {
+		t.Fatalf("why without a directory: exit %d", code)
 	}
 }

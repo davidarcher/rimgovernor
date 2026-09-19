@@ -108,6 +108,14 @@ What it produces:
 - Before copying a rebuilt mod in, look for your own leftover
   `RimWorldWin64.exe` from an earlier kept run (command-line filter on the
   worktree path) and stop it by pid.
+- Read the digest first: a failed case writes `diagnosis` at the top of
+  its `result.json` and `diagnosis.txt` beside it (`acceptance why
+  <output>/<area>/<case>` reprints it, `-json` for the structure): the run
+  binary's revision against `main`, the last native refusals, the routine
+  review's refused development rows and selected goals with no method,
+  unsuccessful stages, native job failures, authority generation flips
+  and pooled-job mismatches, each line naming its file and row (#278).
+  It reads `service.sqlite` raw, so an old schema does not stop it.
 - Diagnosis before latency: a harness that stalls with policies refusing
   `not_ready`/`StaleFacts` usually has an action prepared under an older
   native generation (`transitions` in `service.sqlite`, read-only), not a

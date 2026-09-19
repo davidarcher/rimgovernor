@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/postmortem"
 )
 
 func noop(context.Context, Session) error { return nil }
@@ -72,5 +74,29 @@ func TestExecuteRefusesLintFailureBeforeOpening(t *testing.T) {
 	}
 	if stats, ok := report["wait_stats"].(map[string]any); !ok || stats["stalled"] != 0 {
 		t.Fatalf("wait_stats = %#v", report["wait_stats"])
+	}
+}
+
+func TestExecuteFailureWritesDiagnosis(t *testing.T) {
+	output := t.TempDir()
+	// A serve case without a binary fails inside execute, before any game
+	// opens, which is enough for the failure path to collect its digest.
+	c := Case{Name: "digest/noserve", Scope: "digest", Start: Save{Name: "missing"}, Budget: time.Minute, Serve: &ServeSpec{}, Run: noop}
+	report, code := Execute(context.Background(), c, Options{Root: output, Output: output, Timeout: time.Second})
+	if code == 0 {
+		t.Fatalf("Execute passed a serve case without a binary")
+	}
+	digest, ok := report["diagnosis"].(postmortem.Digest)
+	if !ok || digest.Error == "" || len(digest.Sections) == 0 {
+		t.Fatalf("diagnosis = %#v", report["diagnosis"])
+	}
+	caseDir := filepath.Join(output, "digest", "noserve")
+	text, err := os.ReadFile(filepath.Join(caseDir, "diagnosis.txt"))
+	if err != nil || !strings.HasPrefix(string(text), "case: digest/noserve\nerror: ") {
+		t.Fatalf("diagnosis.txt: %v\n%s", err, text)
+	}
+	result, err := os.ReadFile(filepath.Join(caseDir, "result.json"))
+	if err != nil || !strings.HasPrefix(string(result), "{\n  \"diagnosis\": {") {
+		t.Fatalf("result.json: %v\n%.80s", err, result)
 	}
 }

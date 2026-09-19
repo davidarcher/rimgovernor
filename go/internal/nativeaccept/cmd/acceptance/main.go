@@ -5,6 +5,7 @@
 //	acceptance suite (-all | -cases a,b | -suite file.json) -root -output -workers N [-baseline result.json -series metrics.jsonl]
 //	acceptance stop -root <dir> [-config -game -takeover]
 //	acceptance setup [-worktree -rimworld -harmony -gabs -fixture -production -rebuild -skip-mod -skip-binaries]
+//	acceptance why <output>/<area>/<case> [-json]
 //
 // It replaces the per-harness binaries' preamble with one loop: resolve the
 // shared configuration, open the game, bring it to the case's Start, quiet
@@ -30,11 +31,12 @@ import (
 
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
+	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/postmortem"
 
 	// Registered case areas.
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/animals"
-	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/authority"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/apply"
+	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/authority"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/bed"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/bills"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/caravan"
@@ -124,6 +126,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return stop(args[1:], stdout, stderr)
 	case "setup":
 		return runSetup(context.Background(), args[1:], stdout, stderr)
+	case "why":
+		return why(args[1:], stdout, stderr)
 	default:
 		fmt.Fprintf(stderr, "unknown command %q\n%s\n", args[0], usage)
 		return 2
@@ -134,7 +138,7 @@ const usage = `usage:
   acceptance list
   acceptance run <case>... -root <dir> [-output <dir> -game <id> -headless=false -timeout <d> -budget <d> -stall <d> -rimgovernor <binary> -series <metrics.jsonl> -no-series]
   acceptance stop -root <dir> [-config <dir> -game <id> -takeover]
-` + setupUsage + suiteUsage
+` + setupUsage + suiteUsage + whyUsage
 
 // parseRun resolves the run subcommand's flags and case names. Flags may
 // follow the case names (flag.FlagSet stops at the first non-flag, so the
@@ -215,6 +219,11 @@ func runCases(ctx context.Context, selected []cases.Case, opts cases.Options, st
 		fmt.Fprintf(stdout, "%s\t%s\t%s\t%s\n", status, c.Name, time.Since(started).Round(time.Millisecond), filepath.Join(opts.CaseOutput(c), "result.json"))
 		if err, _ := report["error"].(string); err != "" {
 			fmt.Fprintf(stdout, "\t%s\n", err)
+		}
+		if digest, ok := report["diagnosis"].(postmortem.Digest); ok {
+			// The digest is the first thing anyone reads after a failure;
+			// under suite it lands in the case log.
+			_ = digest.Write(stdout)
 		}
 		if flags, _ := report["drift"].([]na.DriftFlag); len(flags) > 0 {
 			for _, f := range flags {

@@ -175,6 +175,10 @@ by review alone.
    `game.log`, and `result.json` records it under `game_log` (`path`,
    `bytes`, `exceptions`: lines naming an `Exception`, counted, not
    judged).
+   A failed run also writes its postmortem digest (`diagnosis`, first in
+   `result.json`, and `diagnosis.txt`; `acceptance why <case dir>`
+   reprints it) so the diagnosis starts from the evidence, not from five
+   open files (#278).
 7. **Advance by ticks, at speed.** A wait for something the game itself
    must do (a haul, a surgery, a pen, a capture) is bounded in ticks, not
    wall clock: `na.RunUntil` runs at `na.RunSpeed` with `na.RunBoost`

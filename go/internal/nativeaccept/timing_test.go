@@ -115,6 +115,30 @@ func TestTickObservationCountsForwardProgressOnly(t *testing.T) {
 	}
 }
 
+func TestFinalizeWritesDiagnosisFirst(t *testing.T) {
+	output := t.TempDir()
+	report := NewReport("digest", true)
+	report["error"] = "boom"
+	report["diagnosis"] = map[string]any{"sections": []any{}}
+	if code := report.Finalize(output); code != 1 {
+		t.Fatalf("exit %d", code)
+	}
+	data, err := os.ReadFile(filepath.Join(output, "result.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(string(data), "{\n  \"diagnosis\": {") {
+		t.Fatalf("diagnosis is not the first member:\n%s", data)
+	}
+	var written map[string]any
+	if err := json.Unmarshal(data, &written); err != nil {
+		t.Fatalf("result.json is not valid JSON: %v\n%s", err, data)
+	}
+	if written["error"] != "boom" || written["diagnosis"] == nil || written["scope"] != "digest" {
+		t.Fatalf("result.json = %v", written)
+	}
+}
+
 // observeReply feeds a decoded reply through replyTick and observeReplyTick
 // as Harness.Call does, failing when the reply carries no tick.
 func observeReply(t *testing.T, tool string, payload map[string]any) {
