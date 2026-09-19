@@ -14,7 +14,8 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-// startupCheckpoint is the committed save the comfort case resumes from: the
+// StartupCheckpoint is the committed save the comfort and research ladder
+// cases resume from: the
 // tribal8 baseline played under comfortFamilies until RankDevelopment first
 // admits EnsureComfort, so every startup-survival goal that ranks ahead of
 // it (shelter, campfire, storage, fields, work assignments) is served or
@@ -22,12 +23,12 @@ import (
 // 12-minute watch). tools/facility-checkpoint writes it under
 // cases.CommittedSavesDir; regenerate it after fixture, ladder or
 // save-format changes.
-const startupCheckpoint = "RimGovernor-facility-startup"
+const StartupCheckpoint = "RimGovernor-facility-startup"
 
 func init() {
 	cases.Register(cases.Case{
 		Name:  "tools/facility-checkpoint",
-		Scope: "Checkpoint generation: the tribal8 baseline runs the comfort case's families until EnsureComfort is first admitted past the startup ladder, then the game is saved as the committed " + startupCheckpoint + " checkpoint facility/comfort resumes from (issue #201).",
+		Scope: "Checkpoint generation: the tribal8 baseline runs the comfort case's families until EnsureComfort is first admitted past the startup ladder, then the game is saved as the committed " + StartupCheckpoint + " checkpoint facility/comfort resumes from (issue #201).",
 		Start: cases.Save{Name: sustained.BaselineSave},
 		// Food is frozen here, unlike the comfort case: the baseline holds no
 		// food and its colonists start near starving, so with Food live one
@@ -50,7 +51,7 @@ func init() {
 					Watch: 55 * time.Minute, Poll: 5 * time.Second, Goal: policy.EnsureComfort,
 					Extra:      []policy.GoalID{policy.EnsureInitialShelter, policy.EnsureCooking, policy.EnsureFoodStorage, policy.EnsureFoodSupply},
 					Until:      checkpointed,
-					Checkpoint: &sustainedfood.Checkpoint{Name: startupCheckpoint, When: comfortAdmitted},
+					Checkpoint: &sustainedfood.Checkpoint{Name: StartupCheckpoint, When: comfortAdmitted},
 				},
 				Audit: func(ctx context.Context, h *na.Harness, report na.Report) error {
 					if !checkpointed(nil) {
@@ -96,14 +97,14 @@ func comfortAdmitted(sample map[string]any) bool {
 // commitCheckpoint copies the checkpoint save the watch staged under
 // root/profile/Saves into the committed directory.
 func commitCheckpoint(root, committed string, report na.Report) error {
-	staged := filepath.Join(root, "profile", "Saves", startupCheckpoint+".rws")
+	staged := filepath.Join(root, "profile", "Saves", StartupCheckpoint+".rws")
 	if info, err := os.Stat(staged); err != nil || info.Size() == 0 {
 		return fmt.Errorf("checkpoint save %s is missing or empty", staged)
 	}
 	if err := os.MkdirAll(committed, 0755); err != nil {
 		return err
 	}
-	target := filepath.Join(committed, startupCheckpoint+".rws")
+	target := filepath.Join(committed, StartupCheckpoint+".rws")
 	if err := na.CopyFile(staged, target); err != nil {
 		return err
 	}

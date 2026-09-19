@@ -63,13 +63,14 @@ func TestPlannerSelectionByReason(t *testing.T) {
 			t.Errorf("%s: planners=%v %v, want %v %v", tc.name, planners, got, tc.planners, tc.want)
 		}
 	}
-	// A building wake selects every construction planner and no pawn-only one.
+	// A building wake selects every construction planner (research stages
+	// its bench through one, #254) and no pawn-only one.
 	_, building := selectedPlanners(StepReason{Cause: StepWake, Events: []WakeOutcome{{Action: "wall-1", Attempt: 1, Terminal: true}}}, kindOf)
 	set := map[string]bool{}
 	for _, name := range building {
 		set[name] = true
 	}
-	if !set["sleeping"] || !set["defenseLayout"] || set["haul"] || set["tend"] || set["research"] {
+	if !set["sleeping"] || !set["defenseLayout"] || !set["research"] || set["haul"] || set["tend"] {
 		t.Fatal(building)
 	}
 }

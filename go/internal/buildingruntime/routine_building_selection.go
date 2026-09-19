@@ -116,6 +116,11 @@ func (r *RoutineBuildingPlanner) selection(facts observation.ColonyProjection) (
 			return 32, "hospital-shell", ""
 		}
 		return 1, domain.MethodID("hospital-" + r.definition), ""
+	case policy.EnsureResearch:
+		if r.shelter {
+			return 32, "laboratory-shell", ""
+		}
+		return 1, domain.MethodID("laboratory-" + r.definition), ""
 	case policy.MaintainSleeping:
 		if r.shelter {
 			return 32, "sleeping-shell", ""

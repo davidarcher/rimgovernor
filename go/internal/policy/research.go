@@ -37,6 +37,38 @@ type ResearchProjectFacts struct {
 	KnowledgeCategory   string
 	Prerequisites       domain.Fact[[]ResearchProjectID]
 	HiddenPrerequisites domain.Fact[[]ResearchProjectID]
+	// RequiredBuilding is the native requiredResearchBuilding defName, empty
+	// when the project names none; LockReasons are the native census's
+	// CanStartNow predicates the project fails (prerequisite:<name>,
+	// techprints, ResearchLockBench, ...), empty when it can start now.
+	RequiredBuilding string
+	LockReasons      []string
+}
+
+// ResearchLockBench is the native lock reason for a project whose required
+// research bench (or a facility on it) the colony does not have; native
+// SelectResearch refuses the project while it holds.
+const ResearchLockBench = "research_building_or_facilities"
+
+// ResearchBenchDefinition is the bench EnsureResearch stages when a rung is
+// selectable but for the bench: the Core simple research bench, which every
+// tribal-tier rung accepts and which needs no power.
+const ResearchBenchDefinition = "SimpleResearchBench"
+
+// ResearchBenchNeeded reports whether the bench lock is the only thing
+// keeping the project from starting: its prerequisites are done and no
+// other native requirement holds, so building the bench is what unlocks the
+// selection (#254). A project locked for any other reason is not a bench
+// need; the queue owes it a prerequisite first.
+func ResearchBenchNeeded(project ResearchProjectFacts) bool {
+	needed := false
+	for _, reason := range project.LockReasons {
+		if reason != ResearchLockBench {
+			return false
+		}
+		needed = true
+	}
+	return needed
 }
 
 // ResearchPrerequisiteQueue topologically orders the native prerequisites of

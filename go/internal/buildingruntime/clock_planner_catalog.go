@@ -524,7 +524,7 @@ var plannerCatalog = []plannerEntry{
 			out.PopulationJoiner = &method
 			return nil
 		}},
-	{name: "research", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.ResearchSelectAction}, families: []bridge.FactFamily{bridge.FactResearch},
+	{name: "research", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.ResearchSelectAction, domain.BuildingAction}, families: []bridge.FactFamily{bridge.FactResearch, bridge.FactColony, bridge.FactRooms},
 		configured: func(c *ClockSchedulerConfig) bool { return c.Research != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.Research.step(ctx, epoch, arbiter)

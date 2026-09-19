@@ -106,6 +106,10 @@ type ResearchFacts struct {
 	Current  ResearchProjectID
 	Finished []ResearchProjectID
 	Projects []ResearchProjectID
+	// CurrentBenchMissing: the current project's only native lock is the
+	// research bench nobody has built, so it does not progress and the
+	// goal stays in deficit for the bench (#254).
+	CurrentBenchMissing bool
 }
 
 // ResearchGoalTarget is the project EnsureResearch pursues: the configured
@@ -217,7 +221,7 @@ func ResearchTargetNeed(target string, derived bool, facts domain.Fact[ResearchF
 			return domain.Known(true), domain.Known(0.0)
 		}
 	}
-	if f.Current != "" && !derived {
+	if f.Current != "" && !derived && !f.CurrentBenchMissing {
 		return domain.Known(true), domain.Known(0.0)
 	}
 	return domain.Known(false), domain.Known(1.0)

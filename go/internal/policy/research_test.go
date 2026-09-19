@@ -200,3 +200,26 @@ func TestEligibleResearchersStableSortedOrder(t *testing.T) {
 		t.Fatalf("got %v", got)
 	}
 }
+
+func TestResearchBenchNeededIsTheOnlyLock(t *testing.T) {
+	if ResearchBenchNeeded(ResearchProjectFacts{}) {
+		t.Fatal("a project that can start needs no bench")
+	}
+	if !ResearchBenchNeeded(ResearchProjectFacts{RequiredBuilding: "SimpleResearchBench", LockReasons: []string{ResearchLockBench}}) {
+		t.Fatal("the bench lock alone is a bench need")
+	}
+	if ResearchBenchNeeded(ResearchProjectFacts{LockReasons: []string{"prerequisite:Electricity", ResearchLockBench}}) {
+		t.Fatal("a prerequisite lock is owed first")
+	}
+}
+
+func TestResearchTargetNeedStaysInDeficitWhileTheCurrentProjectLacksABench(t *testing.T) {
+	facts := ResearchFacts{Current: "Stonecutting", Projects: []ResearchProjectID{"Stonecutting"}}
+	if recovered, _ := ResearchTargetNeed("Stonecutting", false, domain.Known(facts)); recovered != domain.Known(true) {
+		t.Fatal("a current target without a bench lock recovers", recovered)
+	}
+	facts.CurrentBenchMissing = true
+	if recovered, deficit := ResearchTargetNeed("Stonecutting", false, domain.Known(facts)); recovered != domain.Known(false) || deficit != domain.Known(1.0) {
+		t.Fatal("a current target nobody can research stays in deficit", recovered, deficit)
+	}
+}

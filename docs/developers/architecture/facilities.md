@@ -44,7 +44,10 @@ Each rung is a separate deficit under an existing maintained goal, ranked by
 Each rung reports an explicit reason when it cannot proceed
 (`workshop_research_needed`, `workshop_bench_unavailable`, `no_space`,
 `unknown`) rather than staging something else. A research bench itself is the
-Laboratory row, still pending: the research rung uses whatever bench stands.
+Laboratory row: when the research ladder's next rung is locked only for lack
+of a bench, `RoutineResearchPlanner` walks the same furnish-or-shell ladder
+under `EnsureResearch` for a `SimpleResearchBench` (`routine-laboratory-*`
+plans) and selects the rung once it stands (#254).
 
 ## The matrix
 
@@ -54,7 +57,8 @@ Laboratory row, still pending: the research rung uses whatever bench stands.
 | RecRoom | implemented | DiningRoom, Room | HorseshoesPin |
 | Hospital | implemented (hosted bed) | Bedroom, Barracks, Room | medical bed / sleeping spot |
 | Workshop | implemented | Barracks, Room | the bench the recipe catalog names for the deficit |
-| Bedroom, Barracks, PrisonCell, PrisonBarracks, Laboratory, Storeroom, Kitchen, Tomb, Barn | pending | | |
+| Laboratory | implemented | Workshop, Barracks, Room | SimpleResearchBench |
+| Bedroom, Barracks, PrisonCell, PrisonBarracks, Storeroom, Kitchen, Tomb, Barn | pending | | |
 | ThroneRoom (Royalty), WorshipRoom (Ideology), Nursery, Playroom, Classroom, DeathrestChamber (Biotech), ContainmentCell, CeremonialChamber (Anomaly) | pending, content-gated | | |
 
 Content-gated rows are pursued only when their definitions exist in the

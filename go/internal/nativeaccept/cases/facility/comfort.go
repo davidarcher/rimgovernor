@@ -60,7 +60,7 @@ func init() {
 		// the watch covers comfort's own planning and use. Until
 		// tools/facility-checkpoint has committed the save (#217) the
 		// runner refuses to stage it, which is the case's failure.
-		Start: cases.Save{Name: startupCheckpoint, From: cases.CommittedSaves()},
+		Start: cases.Save{Name: StartupCheckpoint, From: cases.CommittedSaves()},
 		// The use proofs need colonists to eat at the table and play: Food
 		// and Joy stay live.
 		Keep:   []string{string(na.NeedFood), string(na.NeedJoy)},

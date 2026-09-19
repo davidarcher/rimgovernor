@@ -361,6 +361,9 @@ func (s *routineBracket) readResearch(ctx context.Context, id *c.Identity) error
 		return ErrChanged
 	}
 	facts := policy.ResearchFacts{Current: policy.ResearchProjectID(read.CurrentProject)}
+	if read.CurrentProject != "" {
+		facts.CurrentBenchMissing = policy.ResearchBenchNeeded(read.Projects[read.CurrentProject])
+	}
 	for name := range read.Projects {
 		facts.Projects = append(facts.Projects, policy.ResearchProjectID(name))
 	}

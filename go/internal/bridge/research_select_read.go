@@ -96,6 +96,13 @@ func readResearchSnapshot(v *o.ResearchSnapshot, identity *c.Identity) (Research
 		// unread.
 		facts.Prerequisites = domain.Known(toProjectIDs(row.GetPrerequisites()))
 		facts.HiddenPrerequisites = domain.Known(toProjectIDs(row.GetHiddenPrerequisites()))
+		// The census computes lock_reasons from the same predicates as the
+		// native CanStartNow; an absent list is a project that can start.
+		if len(row.GetLockReasons()) > 256 {
+			return ResearchRead{}, contract("research lock reasons exceed bound")
+		}
+		facts.RequiredBuilding = row.GetRequiredBuilding()
+		facts.LockReasons = append([]string(nil), row.GetLockReasons()...)
 		out.Projects[name] = facts
 		if row.GetFinished() {
 			out.Finished = append(out.Finished, name)

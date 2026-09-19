@@ -45,10 +45,16 @@ player overrides and disabled-work checks. A usable laboratory must be powered (
 need no power), match the project's native required bench, and have every required
 facility active on that same bench. Missing capacity, staff, techprints or other
 native conditions produce a blocker with the laboratory requirements. Laboratory
-construction and power provision use the shared development methods. When no bench
-exists and the project accepts a simple laboratory, research stages ordinary indoor
-bench construction through native placement and material admission. Advanced bench,
-facility and power requirements retain explicit blockers until their methods provide them.
+construction and power provision use the shared development methods. When the next
+rung's only native lock is the research bench (`lock_reasons` holds just
+`research_building_or_facilities`), EnsureResearch walks the facility ladder instead
+of selecting: it stages a `SimpleResearchBench` in a room whose native role hosts the
+Laboratory facility (a Workshop, Barracks or plain room; the starter shell), else a
+starter shell first, through native placement and material admission; the selection
+follows once the bench stands (#254). Without a placement-capable source the hold is
+reported as `research_bench_needed`; a bench definition the census lists unbuildable
+as `research_bench_unavailable`. Advanced bench, facility and power requirements
+retain explicit blockers until their methods provide them.
 Dependent construction still uses normal native material and placement preflight;
 production still uses native recipe availability and persistent resource budgets.
 
@@ -61,11 +67,9 @@ capability cannot certify the requested unlock.
 
 Research acceptance: `production/ladder` proves a derived need (Smithing
 finished natively and the gated bench built) and `research/ladder`
-(`acceptance run research/ladder`) proves the default ladder on the Core tribal
-baseline with no target: `test/research_ladder_prepare` seeds a simple research
-bench and Stonecutting at 97%, and the live research state must show
-Stonecutting finished and Electricity current. Native research from zero points
-with a bench the service builds itself is tracked in
-[issue #38](https://github.com/davidarcher/rimgovernor/issues/38). Laboratory
-construction, advanced facility installation, all research projects and sustained
-colony development remain separately uncertified either way.
+(`acceptance run research/ladder`) proves the default ladder and its bench on the
+Core tribal baseline with no target: `test/research_ladder_prepare` seeds
+Stonecutting at 97%, a roofed starter hut with sleeping spots, wood and steel beside its door and no bench, and the live research state must show a research
+bench the service built, Stonecutting finished and Electricity current. Advanced
+facility installation, all research projects and sustained colony development
+remain separately uncertified either way.

@@ -1,13 +1,20 @@
-// The research/ladder case proves the default research roadmap (#230): on
-// the Core tribal baseline, with no --routine-research-target and no
-// workshop need, the service selects the ladder's first unfinished rung on
-// its own, lends the clock ticks until the game finishes it, and then
-// selects the next. The fixture seeds what the ladder does not build: a
-// simple research bench, and Stonecutting a few points short of done so
-// Electricity is reached within a minute-scale watch.
+// The research/ladder case proves the default research roadmap (#230) and
+// the bench it stands on (#254): on the Core tribal baseline, with no
+// --routine-research-target, no workshop need and no research bench, the
+// service stages a simple research bench in the fixture's starter hut,
+// selects the ladder's first unfinished rung once the bench stands, lends
+// the clock ticks until the game finishes it, and then selects the next.
+// The fixture stages the hut (a roofed ring with a sleeping spot per
+// colonist, as the basic comfort case does) because the bench rung waits
+// behind the initial shelter and raising the shell from the baseline takes
+// the whole window; the facility startup checkpoint would serve the same
+// but its colony facts sit at the 1 MiB read limit (#320). The fixture
+// seeds only Stonecutting a few points short of done so Electricity is
+// reached within a minute-scale watch.
 //
-// Passing needs live native evidence: Stonecutting finished natively and
-// Electricity the current native project, never the journal alone.
+// Passing needs live native evidence: a research bench the service built,
+// Stonecutting finished natively and Electricity the current native project,
+// never the journal alone.
 package research
 
 import (
@@ -32,22 +39,26 @@ const (
 
 // ladderFamilies is the research family with the survival responders a
 // serve-driven baseline run needs (see production/ladder): the work family
-// assigns the researcher, the emergency families keep an injury or a
-// predator from holding the development ranking, and the dialog family
-// answers a choice dialog the save may open by itself.
+// assigns the researcher, supply keeps wood for the bench, the emergency
+// families keep an injury or a predator from holding the development
+// ranking, and the dialog family answers a choice dialog the save may open
+// by itself. The research family carries its own building ladder for the
+// bench; the sleeping and shelter families stay out so nothing else
+// furnishes the fixture hut.
 const ladderFamilies = "temperature,work,supply,defense,tend,rescue,medical,field,food-storage,acquisition,cooking,research,dialog,naming"
 
-// ladderWindow is how long the roadmap gets to finish the seeded rung and
-// select the next: the watch ends early on the second completed selection.
+// ladderWindow is how long the roadmap gets to build the bench, finish the
+// seeded rung and select the next: the watch ends early on the second
+// completed selection.
 const ladderWindow = 10 * time.Minute
 
 func init() {
 	cases.Register(cases.Case{
 		Name:   "research/ladder",
-		Scope:  fmt.Sprintf("With no research target, EnsureResearch selects %s from the default ladder, keeps the clock moving until it finishes natively, then selects %s; both proven by the live research state (issue #230).", firstRung, secondRung),
+		Scope:  fmt.Sprintf("With no research target and no research bench, EnsureResearch stages a simple research bench in the fixture hut, selects %s from the default ladder, keeps the clock moving until it finishes natively, then selects %s; all proven by the live research state (issues #230, #254).", firstRung, secondRung),
 		Start:  cases.Fixture{Op: "test/research_ladder_prepare", Args: map[string]any{"project": firstRung}, On: cases.Save{Name: baselineSave}},
 		Serve:  &cases.ServeSpec{Families: []string{ladderFamilies}, NativeTimeout: 15 * time.Second, Prefix: "research"},
-		Budget: ladderWindow + 5*time.Minute,
+		Budget: ladderWindow + 3*time.Minute,
 		Run: func(ctx context.Context, s cases.Session) error {
 			_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
 				WatchConfig: sustainedfood.WatchConfig{Watch: ladderWindow, Poll: 5 * time.Second, Goal: policy.EnsureResearch, Until: secondSelection},
@@ -59,6 +70,9 @@ func init() {
 					}
 					if current := na.AsString(prepared["current"]); current != "" {
 						return fmt.Errorf("the save already researches %s; the roadmap must select on an idle tab", current)
+					}
+					if benches := na.AsNumber(prepared["researchBenches"]); benches != 0 {
+						return fmt.Errorf("the save already holds %v research benches; nothing for the ladder to build", benches)
 					}
 					return nil
 				},
@@ -97,6 +111,27 @@ func completedSelections(sample map[string]any) int {
 // the seeded rung and, once the game finished it, the next.
 func secondSelection(sample map[string]any) bool { return completedSelections(sample) >= 2 }
 
+// benchBuilt reports whether any watch sample held a completed research
+// bench plan under the research goal: the timeline keeps only the latest
+// retired plan per sample, so the bench plan leaves the last sample once the
+// selections that follow it retire.
+func benchBuilt(report na.Report) bool {
+	timeline, _ := report["timeline"].([]map[string]any)
+	for _, sample := range timeline {
+		plans, _ := sample["plans"].([]map[string]any)
+		retired, _ := sample["retired_plans"].([]map[string]any)
+		for _, plan := range append(plans, retired...) {
+			id, _ := plan["plan"].(string)
+			actions, _ := plan["actions"].(int)
+			stages, _ := plan["stages"].(map[string]int)
+			if strings.HasPrefix(id, "routine-laboratory-") && actions > 0 && stages["completed"] == actions {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // audit compares the journal's research goal with the live research state
 // after the service has stopped.
 func audit(ctx context.Context, h *na.Harness, journal *store.Store, report na.Report) error {
@@ -124,6 +159,12 @@ func audit(ctx context.Context, h *na.Harness, journal *store.Store, report na.R
 		return err
 	}
 	report["live"] = live
+	if benches := na.AsNumber(live["researchBenches"]); benches <= 0 {
+		return fmt.Errorf("no research bench stands: the ladder never built one (%v)", live)
+	}
+	if !benchBuilt(report) {
+		return fmt.Errorf("no routine-laboratory bench plan completed; the bench was not the service's")
+	}
 	if finished, _ := na.AsBool(live["finished"]); !finished {
 		return fmt.Errorf("%s did not finish natively: progress=%v current=%v", firstRung, live["progress"], live["current"])
 	}

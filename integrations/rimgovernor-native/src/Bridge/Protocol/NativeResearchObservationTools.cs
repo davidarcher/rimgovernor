@@ -195,18 +195,20 @@ namespace HomeBridge.BridgeTools
             if (applied < 0 || needed < 0) throw new InvalidOperationException();
             row.TechprintsApplied = (uint)applied; row.TechprintsNeeded = (uint)needed;
             if (applied < needed) row.LockReasons.Add("techprints");
-            if (def.requiredResearchBuilding != null)
-            {
-                row.RequiredBuilding = Id(def.requiredResearchBuilding.defName);
-                if (!def.PlayerHasAnyAppropriateResearchBench) row.LockReasons.Add("research_building_or_facilities");
-            }
+            if (def.requiredResearchBuilding != null) row.RequiredBuilding = Id(def.requiredResearchBuilding.defName);
+            // Native CanStartNow only demands a bench for a project that names
+            // one, yet no project progresses without a bench the researcher can
+            // work at: the lock is reported whenever none stands (#254).
+            if (!def.PlayerHasAnyAppropriateResearchBench) row.LockReasons.Add("research_building_or_facilities");
             foreach (var facility in def.requiredResearchFacilities ?? new List<ThingDef>()) row.RequiredFacilities.Add(Id(facility.defName));
             Bound(row.RequiredFacilities.Count);
             if (!def.PlayerMechanitorRequirementMet) row.LockReasons.Add("mechanitor");
             if (!def.AnalyzedThingsRequirementsMet) row.LockReasons.Add("analysis");
             if (!def.InspectionRequirementsMet) row.LockReasons.Add("inspection");
             if (finished) row.LockReasons.Add("finished");
-            // Same predicates as native CanStartNow, with dictionary-only progress reads.
+            // Native CanStartNow's predicates with dictionary-only progress reads,
+            // plus the bench: a selectable project nobody can research is not
+            // available to the controller.
             row.CanStart = row.LockReasons.Count == 0; row.Available = row.CanStart;
             Bound(row.LockReasons.Count);
             return row;

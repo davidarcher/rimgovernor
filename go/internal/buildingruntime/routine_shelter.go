@@ -345,10 +345,14 @@ func (r *RoutineBuildingPlanner) adoptShell(ctx context.Context, snapshot domain
 
 // facilityLadder reports whether the planner walks a facility ladder whose
 // last rung stages a room for the furniture (comfort, workshop, hospital,
-// sleeping), as opposed to the initial shelter and expansion, whose shell is
-// the deficit itself.
+// sleeping, laboratory), as opposed to the initial shelter and expansion,
+// whose shell is the deficit itself.
 func (r *RoutineBuildingPlanner) facilityLadder() bool {
-	return r.goal == policy.EnsureComfort || r.goal == policy.MaintainResource || r.goal == policy.MaintainMedicalCare || r.goal == policy.MaintainSleeping
+	switch r.goal {
+	case policy.EnsureComfort, policy.MaintainResource, policy.MaintainMedicalCare, policy.MaintainSleeping, policy.EnsureResearch:
+		return true
+	}
+	return false
 }
 
 // shellEncloses reports whether a standing ring is a finished room: some
