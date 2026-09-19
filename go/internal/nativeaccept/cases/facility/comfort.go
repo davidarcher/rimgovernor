@@ -10,6 +10,7 @@ package facility
 import (
 	"context"
 	"fmt"
+	"math"
 	"path/filepath"
 	"time"
 
@@ -55,7 +56,7 @@ func openJournal(ctx context.Context, s cases.Session) (*store.Store, error) {
 func init() {
 	cases.Register(cases.Case{
 		Name:  "facility/comfort",
-		Scope: "EnsureComfort recovers through a native DiningRoom/RecRoom-hosted facility that colonists actually use; a facility outside a hosting room never counts (issue #4, M1).",
+		Scope: "EnsureComfort recovers through a native DiningRoom/RecRoom-hosted facility that colonists actually use; a facility outside a hosting room never counts (issue #4, M1); a review that provisions comfort from mood pressure ranks it at least that deep (#286).",
 		// The startup ladder is already served in the checkpoint (#201);
 		// the watch covers comfort's own planning and use. Until
 		// tools/facility-checkpoint has committed the save (#217) the
@@ -75,12 +76,58 @@ func init() {
 						return err
 					}
 					defer journal.Close()
-					return auditComfort(ctx, h, journal, report)
+					if err := auditComfort(ctx, h, journal, report); err != nil {
+						return err
+					}
+					return auditProvision(report)
 				},
 			})
 			return err
 		},
 	})
+}
+
+// auditProvision checks the mood provisioning vertical on the served ladder
+// (#286): every sample whose mood review provisioned EnsureComfort (a
+// fraction of colonists under dominant AteWithoutTable/NeedJoy pressure)
+// must rank comfort with a deficit at least that fraction, and the report
+// counts the samples where the ranked deficit is provably the raise (a
+// fractional pressure above comfort's own .5 census deficit with one
+// facility kind recovered), which is when it changes the ranking. The
+// checkpoint colonists eat and sleep on the ground of a starter shell, so
+// the pressure itself is not asserted: a run where nobody was provisioned
+// records provisioned_samples 0 and passes on the facility proofs alone.
+func auditProvision(report na.Report) error {
+	timeline, _ := report["timeline"].([]map[string]any)
+	provisioned, raised := 0, 0
+	var maxPressure float64
+	for _, sample := range timeline {
+		pressure, ok := sample["mood_provision"].(float64)
+		if !ok {
+			continue
+		}
+		provisioned++
+		maxPressure = max(maxPressure, pressure)
+		development, _ := sample["development"].(map[string]any)
+		deficit, known := development["deficit"].(float64)
+		if !known {
+			if development == nil {
+				// Comfort recovered this review: no ranked row.
+				continue
+			}
+			return fmt.Errorf("review %v provisioned EnsureComfort at %.2f but ranked it with no deficit: %v", sample["review_revision"], pressure, development)
+		}
+		if deficit+1e-9 < pressure {
+			return fmt.Errorf("review %v provisioned EnsureComfort at %.2f but ranked it at %.2f", sample["review_revision"], pressure, deficit)
+		}
+		// Comfort's own census ranks 0, .5 or 1; a ranked deficit equal to
+		// a fractional pressure above .5 can only be the raise.
+		if pressure > .5 && pressure < 1 && math.Abs(deficit-pressure) < 1e-9 {
+			raised++
+		}
+	}
+	report["mood_provision"] = map[string]any{"provisioned_samples": provisioned, "raised_samples": raised, "max_pressure": maxPressure}
+	return nil
 }
 
 func comfortRecovered(sample map[string]any) bool {

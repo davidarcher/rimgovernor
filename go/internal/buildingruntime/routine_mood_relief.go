@@ -63,7 +63,7 @@ func moodReliefValue[T any](v *T) domain.Fact[T] {
 func moodReliefPolicyState(s store.RoutineMoodState) policy.MoodState {
 	p := s.Pawn
 	row := policy.MoodPawn{ID: p.ID, Mood: moodReliefValue(p.Mood), Threshold: moodReliefValue(p.Threshold), Target: moodReliefValue(p.Target), Food: moodReliefValue(p.Food), Rest: moodReliefValue(p.Rest), Joy: moodReliefValue(p.Joy), Mental: moodReliefValue(p.Mental), Dead: moodReliefValue(p.Dead), Downed: moodReliefValue(p.Downed), Drafted: moodReliefValue(p.Drafted), PlayerForced: moodReliefValue(p.PlayerForced)}
-	state := policy.MoodState{Pawn: row, Active: s.Active, Missing: s.Missing, MentalRisk: s.MentalRisk, Provision: append([]policy.MoodProvision(nil), s.Provision...)}
+	state := policy.MoodState{Pawn: row, Active: s.Active, Missing: s.Missing, MentalRisk: s.MentalRisk, Provision: append([]policy.MoodProvision(nil), s.Provision...), Unowned: append([]policy.MoodThought(nil), s.Unowned...)}
 	for _, cause := range s.Causes {
 		state.Causes = append(state.Causes, policy.MoodCause{Need: cause.Need, Level: moodReliefValue(cause.Level)})
 	}

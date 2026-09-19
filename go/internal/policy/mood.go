@@ -43,6 +43,11 @@ type MoodState struct {
 	// pawn's dominant environment thought pressure (moodProvisioning); empty
 	// when need relief is the only measured response.
 	Provision []MoodProvision
+	// Unowned names the removable environment thoughts no goal owns
+	// (moodUnowned) when they dominate the pawn's pressure instead; the
+	// method proposal is then the explicit MoodUnowned blocker once no
+	// measured relief remains.
+	Unowned []MoodThought
 }
 
 type MoodHistory struct{ States []MoodState }
@@ -100,6 +105,12 @@ func (h MoodHistory) Validate() error {
 		}
 		if err := validateMoodProvision(s.Provision); err != nil {
 			return err
+		}
+		if err := validateMoodUnowned(s.Unowned); err != nil {
+			return err
+		}
+		if len(s.Provision) > 0 && len(s.Unowned) > 0 {
+			return errors.New("mood state both provisioned and unowned")
 		}
 		seen[s.Pawn.ID] = true
 		m, mk := s.Pawn.Mood.Value()
@@ -240,8 +251,12 @@ func ReviewMood(observed domain.Fact[[]MoodPawn], previous MoodHistory) (MoodHis
 			})
 			s.Active = s.Active || prior.Active && len(s.Causes) > 0
 			s.Provision = moodProvisioning(p.Thoughts)
+			if len(s.Provision) == 0 {
+				s.Unowned = moodUnowned(p.Thoughts)
+			}
 			if _, k := p.Thoughts.Value(); !k {
 				s.Provision = append([]MoodProvision(nil), prior.Provision...)
+				s.Unowned = append([]MoodThought(nil), prior.Unowned...)
 			}
 			// Death or unreadable availability cannot certify an active need recovered.
 			if dead, k := p.Dead.Value(); prior.Active && (!k || dead) {
@@ -257,6 +272,7 @@ func ReviewMood(observed domain.Fact[[]MoodPawn], previous MoodHistory) (MoodHis
 			prior.Missing = true
 			prior.Causes = append([]MoodCause(nil), prior.Causes...)
 			prior.Provision = append([]MoodProvision(nil), prior.Provision...)
+			prior.Unowned = append([]MoodThought(nil), prior.Unowned...)
 			result.States = append(result.States, prior)
 		}
 	}
@@ -308,6 +324,11 @@ const (
 	// pawn's pressure is dominated by environment thoughts that goal's
 	// facility removes, so a native relief job would not clear it.
 	MoodProvisioned MoodMethodReason = "facility_provision"
+	// MoodUnowned is the explicit blocker for pressure dominated by a
+	// removable environment thought no goal owns (SleptInBarracks): no
+	// measured need relief remains and no facility goal can be raised, so
+	// the goal names the thought (Thought) and waits on native recovery.
+	MoodUnowned MoodMethodReason = "unowned_thought_pressure"
 )
 
 type MoodProposal struct {
@@ -315,6 +336,7 @@ type MoodProposal struct {
 	Need        MoodNeed
 	Reason      MoodMethodReason
 	Goal        GoalID
+	Thought     string
 	Target      float64
 	NeedBenefit domain.Fact[float64]
 	MoodBenefit domain.Fact[float64]
@@ -362,6 +384,10 @@ func SelectMoodMethod(s MoodState, used []MoodNeed) (MoodProposal, error) {
 	r.Reason = MoodNoCause
 	if len(s.Causes) > 0 {
 		r.Reason = MoodExhausted
+	}
+	if len(s.Unowned) > 0 {
+		r.Reason = MoodUnowned
+		r.Thought = s.Unowned[0].Def
 	}
 	for _, cause := range s.Causes {
 		level, k := cause.Level.Value()

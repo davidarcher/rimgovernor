@@ -52,8 +52,16 @@ owner's own census still decides whether it is active and what it builds. A
 recovered owner is never re-raised; when no owner goal is active with a deficit
 the relief planner falls back to the measured need method. An unreadable social
 block keeps the previous provisioning; a readable one with no such pressure
-clears it. Thoughts no goal owns (a barracks, apparel, social memories) stay
-native relief and recovery evidence. Schedules are never written.
+clears it. `SleptInBarracks` is removable environment pressure no goal owns
+(nothing builds private bedrooms): when it dominates a pawn's negative offset the
+mood state records it instead (`Unowned`) and, once no measured need method
+remains, the proposal is the explicit `unowned_thought_pressure` blocker naming
+the thought rather than `no_measured_correctable_need`; measured relief still
+runs first. Apparel and social memories stay native relief and recovery
+evidence. The served comfort ladder (`facility/comfort`) audits the raise: every
+review that provisions `EnsureComfort` must rank it with a deficit at least the
+provisioned fraction, and the report counts the reviews where that fraction is
+the ranked deficit. Schedules are never written.
 Social recreation, tolerated recreation kinds and environmental eligibility remain
 native job-giver choices. Thoughts without a measured eligible corrective method
 produce an explicit blocker, including relationship and ideology choices requiring

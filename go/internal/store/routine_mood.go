@@ -13,6 +13,7 @@ type RoutineMoodState struct {
 	Active, Missing, MentalRisk bool
 	Causes                      []RoutineMoodCause
 	Provision                   []policy.MoodProvision `json:",omitempty"`
+	Unowned                     []policy.MoodThought   `json:",omitempty"`
 }
 type RoutineMoodPawn struct {
 	ID                                          policy.PawnID
@@ -28,6 +29,7 @@ type RoutineMoodMethod struct {
 	Need                     policy.MoodNeed
 	Reason                   policy.MoodMethodReason
 	Goal                     policy.GoalID `json:",omitempty"`
+	Thought                  string        `json:",omitempty"`
 	Target                   float64
 	NeedBenefit, MoodBenefit *float64
 }
@@ -45,6 +47,10 @@ func moodFact[T any](v *T) domain.Fact[T] {
 	}
 	return domain.Known(*v)
 }
+
+// MoodHistory lifts the persisted mood review back into policy terms.
+func (r RoutineReview) MoodHistory() policy.MoodHistory { return r.moodHistory() }
+
 func (r RoutineReview) moodHistory() policy.MoodHistory {
 	h := policy.MoodHistory{}
 	if r.Mood == nil {
@@ -52,7 +58,7 @@ func (r RoutineReview) moodHistory() policy.MoodHistory {
 	}
 	for _, s := range r.Mood.States {
 		p := s.Pawn
-		row := policy.MoodState{Pawn: policy.MoodPawn{ID: p.ID, Mood: moodFact(p.Mood), Threshold: moodFact(p.Threshold), Target: moodFact(p.Target), Food: moodFact(p.Food), Rest: moodFact(p.Rest), Joy: moodFact(p.Joy), Mental: moodFact(p.Mental), Dead: moodFact(p.Dead), Downed: moodFact(p.Downed), Drafted: moodFact(p.Drafted), PlayerForced: moodFact(p.PlayerForced)}, Active: s.Active, Missing: s.Missing, MentalRisk: s.MentalRisk, Provision: append([]policy.MoodProvision(nil), s.Provision...)}
+		row := policy.MoodState{Pawn: policy.MoodPawn{ID: p.ID, Mood: moodFact(p.Mood), Threshold: moodFact(p.Threshold), Target: moodFact(p.Target), Food: moodFact(p.Food), Rest: moodFact(p.Rest), Joy: moodFact(p.Joy), Mental: moodFact(p.Mental), Dead: moodFact(p.Dead), Downed: moodFact(p.Downed), Drafted: moodFact(p.Drafted), PlayerForced: moodFact(p.PlayerForced)}, Active: s.Active, Missing: s.Missing, MentalRisk: s.MentalRisk, Provision: append([]policy.MoodProvision(nil), s.Provision...), Unowned: append([]policy.MoodThought(nil), s.Unowned...)}
 		for _, c := range s.Causes {
 			row.Causes = append(row.Causes, policy.MoodCause{Need: c.Need, Level: moodFact(c.Level)})
 		}
@@ -67,7 +73,7 @@ func moodRecord(h policy.MoodHistory) *RoutineMood {
 	r := &RoutineMood{}
 	for _, s := range h.States {
 		p := s.Pawn
-		row := RoutineMoodState{Pawn: RoutineMoodPawn{ID: p.ID, Mood: moodValue(p.Mood), Threshold: moodValue(p.Threshold), Target: moodValue(p.Target), Food: moodValue(p.Food), Rest: moodValue(p.Rest), Joy: moodValue(p.Joy), Mental: moodValue(p.Mental), Dead: moodValue(p.Dead), Downed: moodValue(p.Downed), Drafted: moodValue(p.Drafted), PlayerForced: moodValue(p.PlayerForced)}, Active: s.Active, Missing: s.Missing, MentalRisk: s.MentalRisk, Provision: append([]policy.MoodProvision(nil), s.Provision...)}
+		row := RoutineMoodState{Pawn: RoutineMoodPawn{ID: p.ID, Mood: moodValue(p.Mood), Threshold: moodValue(p.Threshold), Target: moodValue(p.Target), Food: moodValue(p.Food), Rest: moodValue(p.Rest), Joy: moodValue(p.Joy), Mental: moodValue(p.Mental), Dead: moodValue(p.Dead), Downed: moodValue(p.Downed), Drafted: moodValue(p.Drafted), PlayerForced: moodValue(p.PlayerForced)}, Active: s.Active, Missing: s.Missing, MentalRisk: s.MentalRisk, Provision: append([]policy.MoodProvision(nil), s.Provision...), Unowned: append([]policy.MoodThought(nil), s.Unowned...)}
 		for _, c := range s.Causes {
 			row.Causes = append(row.Causes, RoutineMoodCause{Need: c.Need, Level: moodValue(c.Level)})
 		}
@@ -82,7 +88,7 @@ func moodProposals(h policy.MoodHistory) ([]RoutineMoodMethod, error) {
 		if err != nil {
 			return nil, err
 		}
-		result = append(result, RoutineMoodMethod{Pawn: p.Pawn, Need: p.Need, Reason: p.Reason, Goal: p.Goal, Target: p.Target, NeedBenefit: moodValue(p.NeedBenefit), MoodBenefit: moodValue(p.MoodBenefit)})
+		result = append(result, RoutineMoodMethod{Pawn: p.Pawn, Need: p.Need, Reason: p.Reason, Goal: p.Goal, Thought: p.Thought, Target: p.Target, NeedBenefit: moodValue(p.NeedBenefit), MoodBenefit: moodValue(p.MoodBenefit)})
 	}
 	return result, nil
 }

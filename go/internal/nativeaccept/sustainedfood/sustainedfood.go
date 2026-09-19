@@ -412,8 +412,18 @@ func SampleGoal(ctx context.Context, s *store.Store, need policy.GoalID) (map[st
 	// or is not selected this review (startup_survival, capacity_committed...).
 	for _, row := range review.Development.Rows {
 		if row.Goal == need {
-			sample["development"] = map[string]any{"reason": string(row.Reason), "selected": row.Selected, "committed": row.Committed, "idle": row.Idle}
+			development := map[string]any{"reason": string(row.Reason), "selected": row.Selected, "committed": row.Committed, "idle": row.Idle}
+			if row.Deficit != nil {
+				development["deficit"] = *row.Deficit
+			}
+			sample["development"] = development
 		}
+	}
+	// The mood review's provisioning of this goal (#255): the fraction of
+	// reviewed pawns whose dominant thought pressure its facility removes,
+	// which DetectRoutine raises the ranked deficit to at least.
+	if pressure, ok := policy.MoodProvisionDeficits(review.MoodHistory())[need]; ok {
+		sample["mood_provision"] = pressure
 	}
 	goal, err := s.LoadGoal(ctx, goalID)
 	if err != nil {
