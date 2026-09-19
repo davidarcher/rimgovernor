@@ -90,7 +90,11 @@ type CaravanJourney struct {
 // reward item contents or trade destination; nothing here picks a quest or a
 // reward, it only proves facts about one already-selected quest and option.
 type QuestOffer struct {
-	ID               string
+	ID string
+	// ScriptDef is the root QuestScriptDef defName (Quest.root), "" for a
+	// quest built without one; policy.IsJoinerOffer tells a joiner offer
+	// from every other quest by it.
+	ScriptDef        string
 	State            string
 	RequiresAccepter bool
 	CanAccept        bool
@@ -340,7 +344,7 @@ func worldProgressionSelected(v *o.WorldProgressionSnapshot, identity *c.Identit
 			pawnIDs[j] = pawn.GetId()
 		}
 		quest := QuestOffer{
-			ID: row.GetId(), State: row.GetState(), RequiresAccepter: row.GetRequiresAccepter(), CanAccept: row.GetCanAccept(),
+			ID: row.GetId(), ScriptDef: row.GetScriptDef(), State: row.GetState(), RequiresAccepter: row.GetRequiresAccepter(), CanAccept: row.GetCanAccept(),
 			ChoiceCount: int32(len(choices)), HasTradeRequest: len(row.TradeRequests) > 0, EligiblePawnIDs: pawnIDs, SnapshotToken: row.Snapshot.GetToken(),
 		}
 		if len(row.TradeRequests) == 1 && row.TradeRequests[0] != nil && row.TradeRequests[0].Destination != nil {

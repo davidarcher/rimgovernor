@@ -276,7 +276,7 @@ func commitGoalMethod(ctx context.Context, tx *sql.Tx, id domain.GoalID, revisio
 	if g.Status != domain.GoalActive || g.Need != domain.NeedDeficit || g.Source == domain.AdviserGoal {
 		return GoalState{}, errors.New("goal does not admit a method")
 	}
-	if err = admitRoutineDevelopment(ctx, tx, g); err != nil {
+	if err = admitRoutineDevelopment(ctx, tx, g, plan); err != nil {
 		return GoalState{}, err
 	}
 	open, err := goalOpenWork(ctx, tx, state)

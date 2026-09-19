@@ -186,7 +186,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 		}
 		config.CaravanJourney = tracker
 	}
-	if (bills || fields || foodStorage || acquisition || work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || secureSupplies || repair || fireSafety || clean || haul || waste || blight || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || homeCoverage || stoneShell || defensiveLayout || naming || dialog || trade || researchTarget != "" || resourceTargets || animalFeedPlans || productionPolicyPlans) && !routine {
+	if (bills || fields || foodStorage || acquisition || work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || secureSupplies || repair || fireSafety || clean || haul || waste || blight || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || sc.routinePopulationJoinerPlans || homeCoverage || stoneShell || defensiveLayout || naming || dialog || trade || researchTarget != "" || resourceTargets || animalFeedPlans || productionPolicyPlans) && !routine {
 		return nil, errors.New("building plans require routine reviews")
 	}
 	if routine {
@@ -440,6 +440,12 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 		}
 		if prisonerInteraction {
 			config.PrisonerInteraction, err = buildingruntime.NewRoutinePrisonerInteractionPlanner(reviewer)
+			if err != nil {
+				return nil, err
+			}
+		}
+		if sc.routinePopulationJoinerPlans {
+			config.PopulationJoiner, err = buildingruntime.NewRoutinePopulationJoinerPlanner(reviewer)
 			if err != nil {
 				return nil, err
 			}
@@ -771,7 +777,7 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 		thresholds.HerdPopulationMin = sc.routineHerdPopulationMin.Map()
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainHerd)
 	}
-	if sc.routinePrisonerInteractionPlans || sc.routinePopulationCustodyPlans {
+	if sc.routinePrisonerInteractionPlans || sc.routinePopulationCustodyPlans || sc.routinePopulationJoinerPlans {
 		thresholds.PrisonerReleaseAfterDays = sc.routinePrisonerReleaseAfterDays
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainPopulation)
 	}

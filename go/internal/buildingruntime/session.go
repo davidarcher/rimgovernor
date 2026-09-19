@@ -80,6 +80,7 @@ type SessionConfig struct {
 	Husbandry           *HusbandryCapabilities
 	HomeCoverage        *HomeCoverageCapabilities
 	PrisonerInteraction *PrisonerInteractionCapabilities
+	QuestAccept         *QuestAcceptCapabilities
 	MineAcquisition     *mineacquisition.MineAcquisitionCapabilities
 	Excavation          *excavation.ExcavationCapabilities
 	ProductionPolicy    *ProductionPolicyCapabilities
@@ -385,6 +386,9 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.PrisonerInteraction != nil && (config.PrisonerInteraction.Native == nil || config.PrisonerInteraction.Writer == nil) {
 		return cleanup(ErrControl)
 	}
+	if config.QuestAccept != nil && (config.QuestAccept.Native == nil || config.QuestAccept.Writer == nil) {
+		return cleanup(ErrControl)
+	}
 	if config.MineAcquisition != nil && (config.MineAcquisition.Native == nil || config.MineAcquisition.Writer == nil) {
 		return cleanup(ErrControl)
 	}
@@ -635,6 +639,15 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 			return cleanup(err)
 		}
 		if err := worker.EnablePrisonerInteraction(prisonerInteractionBoundary); err != nil {
+			return cleanup(err)
+		}
+	}
+	if config.QuestAccept != nil {
+		questAcceptBoundary, err := NewQuestAcceptBoundary(config.QuestAccept.Native, config.QuestAccept.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
+		if err != nil {
+			return cleanup(err)
+		}
+		if err := worker.EnableQuestAccept(questAcceptBoundary); err != nil {
 			return cleanup(err)
 		}
 	}

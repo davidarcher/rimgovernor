@@ -186,6 +186,13 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 		return store.RoutineReviewResult{}, err
 	}
 	reading.Projection.Facts.ResearchNeeds = needs
+	// The player's population policy is the capacity a joiner offer is
+	// admitted against; journal evidence too, unset until the player declares one.
+	reading.Projection.Facts.PopulationCapacity, err = routinePopulationCapacity(ctx, p.journal, state.Snapshot)
+	if err != nil {
+		clockSchedulerLog("routine.step: CurrentPopulationPolicy err=%v", err)
+		return store.RoutineReviewResult{}, err
+	}
 	reading.Projection.Facts.DefensiveLayoutStanding, reading.Projection.Facts.ResourceNeeds, err = routineDefensiveLayoutStanding(ctx, p.journal, r.policy, state.Snapshot)
 	if err != nil {
 		clockSchedulerLog("routine.step: LoadDefenseLayout err=%v", err)

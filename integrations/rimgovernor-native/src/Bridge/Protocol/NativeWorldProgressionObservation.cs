@@ -191,7 +191,7 @@ namespace HomeBridge.BridgeTools
                 {
                     Id = q.GetUniqueLoadID(), Label = q.name ?? "", Description = q.description.ToString() ?? "",
                     State = q.State.ToString(), AcceptedTick = q.acceptanceTick, ExpiresInTicks = q.TicksUntilExpiry,
-                    RequiresAccepter = q.RequiresAccepter,
+                    RequiresAccepter = q.RequiresAccepter, ScriptDef = q.root?.defName ?? "",
                     CanAccept = q.State == QuestState.NotYetAccepted && QuestUtility.CanAcceptQuest(q).Accepted,
                     // NativeQuestOperations.Execute (AcceptQuest) re-checks this exact
                     // token as its acceptance CAS; a stale read cannot admit a stale write.

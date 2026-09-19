@@ -35,6 +35,19 @@ release. Release takes precedence over recruit for the same prisoner. Every othe
 mode is an explicit order. Native faction admission, resistance and recruitment
 probability are never written.
 
+The `population-joiner` routine family (on in the autonomous default; selected by
+`RIMGOVERNOR_ROUTINE_FAMILIES` like every other family) lets the same
+goal answer joiner quests from population capacity. The routine review reads the
+visible quest census and accepts a not-yet-accepted `ThreatReward_*_Joiner` offer
+(a refugee chased by a threat; the native `CanAcceptQuest` verdict is re-read at
+dispatch) through `AcceptQuest` only when the player has set a population policy
+and living admitted colonists plus guests and prisoners are below its maximum, the
+food runway is at or above its reserve days and an unowned humanlike, non-medical,
+non-prisoner bed reads back. Without a policy, or without room, the offer is left
+to expire; nothing is ever rejected natively, and a reward-choice offer takes the
+game's first option. The wanderer-joins offer is a hidden auto-accepted quest
+answered from its letter, not the census, and stays a player choice.
+
 Progress observation of a prisoner order reads the pawn's actual custody state, not
 only the setting: `PrisonerEffect.outcome` is `held`, `recruited`, `enslaved`,
 `converted`, `released`, `escaped` or `died`. While held, the order is complete as

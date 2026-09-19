@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"errors"
 	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -292,4 +293,18 @@ func routineResearchWork(p policy.RoutinePolicy, needs []string, research domain
 		}
 	}
 	return []policy.WorkRequirement{{Work: policy.WorkResearch, Skill: "Intellectual"}}
+}
+
+// routinePopulationCapacity reads the player's PopulationPolicy for the
+// review's world: the zero (unset) policy when none has been declared, so
+// policy.JoinerCapacity answers no joiner offer until the player sets one.
+func routinePopulationCapacity(ctx context.Context, journal *store.Store, snapshot domain.GenerationSnapshot) (domain.Fact[domain.PopulationPolicy], error) {
+	policy, err := journal.CurrentPopulationPolicy(ctx, store.World{Colony: snapshot.Colony, Load: snapshot.Load, Map: snapshot.Map})
+	if errors.Is(err, store.ErrNotFound) {
+		return domain.Known(domain.PopulationPolicy{}), nil
+	}
+	if err != nil {
+		return domain.Unknown[domain.PopulationPolicy](), err
+	}
+	return domain.Known(policy), nil
 }

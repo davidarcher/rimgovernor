@@ -15325,6 +15325,7 @@ type QuestState struct {
 	Rewards          []*QuestReward         `protobuf:"bytes,11,rep,name=rewards,proto3" json:"rewards,omitempty"`
 	Issues           []*ReadIssue           `protobuf:"bytes,12,rep,name=issues,proto3" json:"issues,omitempty"`
 	Snapshot         *SnapshotRef           `protobuf:"bytes,13,opt,name=snapshot,proto3" json:"snapshot,omitempty"`
+	ScriptDef        *string                `protobuf:"bytes,14,opt,name=script_def,json=scriptDef,proto3,oneof" json:"script_def,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -15448,6 +15449,13 @@ func (x *QuestState) GetSnapshot() *SnapshotRef {
 		return x.Snapshot
 	}
 	return nil
+}
+
+func (x *QuestState) GetScriptDef() string {
+	if x != nil && x.ScriptDef != nil {
+		return *x.ScriptDef
+	}
+	return ""
 }
 
 type FactionState struct {
@@ -30942,7 +30950,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x05items\x18\x04 \x03(\v2%.rimgovernor.observations.v1.QuantityR\x05itemsB\x0f\n" +
 	"\r_choice_indexB\a\n" +
 	"\x05_kindB\b\n" +
-	"\x06_label\"\x94\x06\n" +
+	"\x06_label\"\xc7\x06\n" +
 	"\n" +
 	"QuestState\x12\x13\n" +
 	"\x02id\x18\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12\x19\n" +
@@ -30959,7 +30967,9 @@ const file_observations_proto_rawDesc = "" +
 	" \x03(\v2..rimgovernor.observations.v1.QuestTradeRequestR\rtradeRequests\x12B\n" +
 	"\arewards\x18\v \x03(\v2(.rimgovernor.observations.v1.QuestRewardR\arewards\x12>\n" +
 	"\x06issues\x18\f \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issues\x12D\n" +
-	"\bsnapshot\x18\r \x01(\v2(.rimgovernor.observations.v1.SnapshotRefR\bsnapshotB\x05\n" +
+	"\bsnapshot\x18\r \x01(\v2(.rimgovernor.observations.v1.SnapshotRefR\bsnapshot\x12\"\n" +
+	"\n" +
+	"script_def\x18\x0e \x01(\tH\bR\tscriptDef\x88\x01\x01B\x05\n" +
 	"\x03_idB\b\n" +
 	"\x06_labelB\x0e\n" +
 	"\f_descriptionB\b\n" +
@@ -30967,7 +30977,8 @@ const file_observations_proto_rawDesc = "" +
 	"\x0e_accepted_tickB\x13\n" +
 	"\x11_expires_in_ticksB\x14\n" +
 	"\x12_requires_accepterB\r\n" +
-	"\v_can_accept\"\xc4\x02\n" +
+	"\v_can_acceptB\r\n" +
+	"\v_script_def\"\xc4\x02\n" +
 	"\fFactionState\x12\x13\n" +
 	"\x02id\x18\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12\x19\n" +
 	"\x05label\x18\x02 \x01(\tH\x01R\x05label\x88\x01\x01\x12\x1b\n" +

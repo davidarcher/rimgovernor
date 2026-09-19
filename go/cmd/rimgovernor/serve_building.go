@@ -135,6 +135,7 @@ type buildingServiceBridge struct {
 	recoveryService     *buildingruntime.RecoveryServiceCapabilities
 	husbandry           *buildingruntime.HusbandryCapabilities
 	prisonerInteraction *buildingruntime.PrisonerInteractionCapabilities
+	questAccept         *buildingruntime.QuestAcceptCapabilities
 	research            *buildingruntime.ResearchSelectCapabilities
 	naming              *buildingruntime.ConfirmColonyNamesCapabilities
 	dialog              *buildingruntime.DialogAnswerCapabilities
@@ -259,6 +260,10 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
+	questAcceptWriter, err := bridge.NewQuestAcceptWriter(client)
+	if err != nil {
+		return buildingServiceBridge{}, errors.Join(err, client.Close())
+	}
 	researchSelect, err := bridge.NewResearchSelectControl(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
@@ -338,6 +343,7 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		recoveryService:     &buildingruntime.RecoveryServiceCapabilities{Native: client, Writer: recoveryService},
 		husbandry:           &buildingruntime.HusbandryCapabilities{Native: client, Writer: husbandryWriter},
 		prisonerInteraction: &buildingruntime.PrisonerInteractionCapabilities{Native: client, Writer: prisonerInteractionWriter},
+		questAccept:         &buildingruntime.QuestAcceptCapabilities{Native: client, Writer: questAcceptWriter},
 		research:            &buildingruntime.ResearchSelectCapabilities{Native: client, Writer: researchSelect},
 		naming:              &buildingruntime.ConfirmColonyNamesCapabilities{Native: client, Writer: namingControl},
 		dialog:              &buildingruntime.DialogAnswerCapabilities{Native: client, Writer: dialogControl},
@@ -636,6 +642,13 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		prisonerInteractionCapabilities = client.prisonerInteraction
 	}
+	var questAcceptCapabilities *buildingruntime.QuestAcceptCapabilities
+	if config.routinePopulationJoinerPlans {
+		if client.questAccept == nil {
+			return errors.New("population joiner plans require typed capabilities")
+		}
+		questAcceptCapabilities = client.questAccept
+	}
 	var researchSelectCapabilities *buildingruntime.ResearchSelectCapabilities
 	if config.researchPlans() {
 		if client.research == nil {
@@ -744,6 +757,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		RecoveryService:     recoveryServiceCapabilities,
 		Husbandry:           husbandryCapabilities,
 		PrisonerInteraction: prisonerInteractionCapabilities,
+		QuestAccept:         questAcceptCapabilities,
 		ResearchSelect:      researchSelectCapabilities,
 		ConfirmColonyNames:  namingCapabilities,
 		DialogAnswer:        dialogCapabilities,

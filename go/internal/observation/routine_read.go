@@ -27,6 +27,14 @@ type RoutineResearchSource interface {
 	ReadResearch(context.Context, *c.Identity) (bridge.ResearchRead, bridge.Result, error)
 }
 
+// RoutineQuestSource is the optional visible-quest read a RoutineSource may
+// offer, read inside the same bracket for MaintainPopulation's joiner
+// census (policy.RoutineFacts.QuestOffers); without it the census stays
+// unknown and no offer is answered.
+type RoutineQuestSource interface {
+	ReadWorldProgression(context.Context, *c.Identity, bool) (bridge.WorldProgressionRead, bridge.Result, error)
+}
+
 // RoutineTraderSource is the optional trader census a RoutineSource may
 // offer (bridge.ListTraders). Read inside the same paused bracket, it is
 // what TradeWithCaravan measures its caravan from; without it the fact
@@ -45,6 +53,7 @@ type RoutineReading struct {
 	DefinitionReceipt  bridge.Result
 	TemperatureReceipt bridge.Result
 	PopulationReceipt  bridge.Result
+	QuestReceipt       bridge.Result
 }
 
 type routineBracket struct {
@@ -62,6 +71,8 @@ type routineBracket struct {
 	populationReceipt bridge.Result
 	research          domain.Fact[policy.ResearchFacts]
 	researchReceipt   bridge.Result
+	quests            domain.Fact[[]policy.JoinerOffer]
+	questReceipt      bridge.Result
 	traders           domain.Fact[[]policy.TraderFacts]
 	tradersReceipt    bridge.Result
 	armed             domain.Fact[int64]
@@ -108,6 +119,7 @@ func (s *routineBracket) ReadColonyFacts(ctx context.Context, id *c.Identity, pl
 	})
 	wave.Go(func(ctx context.Context) error { return s.readPopulation(ctx, id) })
 	wave.Go(func(ctx context.Context) error { return s.readResearch(ctx, id) })
+	wave.Go(func(ctx context.Context) error { return s.readQuests(ctx, id) })
 	wave.Go(func(ctx context.Context) error { return s.readTraders(ctx, id) })
 	wave.Go(func(ctx context.Context) error {
 		var err error
@@ -234,13 +246,14 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 	reading.Projection.Facts.Traders = bracket.traders
 	reading.Projection.Facts.Prisoners = bracket.population.Prisoners
 	reading.Projection.Facts.Custody = bracket.population.Custody
+	reading.Projection.Facts.QuestOffers = bracket.quests
 	reading.Projection.Definitions = append(reading.Projection.Definitions, bracket.extraDefinitions...)
 	if rooms {
 		reading.Projection.Rooms = bracket.temperature
 		reading.Projection.Facts.SleepingMin, reading.Projection.Facts.SleepingMax = policy.TemperatureRange(bracket.temperature)
 		reading.Projection.Facts.Comfort = hostedComfort(reading.Projection.Facts.Comfort, bracket.temperature)
 	}
-	return RoutineReading{ColonyReading: reading, Emergency: bracket.emergency.Facts, EmergencyReceipt: bracket.receipt, PawnReceipt: bracket.pawnReceipt, DefinitionReceipt: bracket.definitionReceipt, TemperatureReceipt: bracket.temperatureReceipt, PopulationReceipt: bracket.populationReceipt, ResearchReceipt: bracket.researchReceipt, TradersReceipt: bracket.tradersReceipt}, nil
+	return RoutineReading{ColonyReading: reading, Emergency: bracket.emergency.Facts, EmergencyReceipt: bracket.receipt, PawnReceipt: bracket.pawnReceipt, DefinitionReceipt: bracket.definitionReceipt, TemperatureReceipt: bracket.temperatureReceipt, PopulationReceipt: bracket.populationReceipt, ResearchReceipt: bracket.researchReceipt, QuestReceipt: bracket.questReceipt, TradersReceipt: bracket.tradersReceipt}, nil
 }
 
 // Request only project definitions absent from the default planning census. Both
@@ -294,6 +307,35 @@ func (s *routineBracket) readProjectDefinitions(ctx context.Context, id *c.Ident
 		}
 		s.extraDefinitions = append(s.extraDefinitions, d)
 	}
+	return nil
+}
+
+// readQuests mirrors readResearch for the visible quest census: a source
+// without the read leaves the census unknown, and a snapshot from a
+// different colony boundary invalidates the whole reading.
+func (s *routineBracket) readQuests(ctx context.Context, id *c.Identity) error {
+	source, ok := s.RoutineSource.(RoutineQuestSource)
+	if !ok {
+		return nil
+	}
+	read, receipt, err := source.ReadWorldProgression(ctx, id, false)
+	s.questReceipt = receipt
+	if err != nil {
+		return err
+	}
+	identity, err := contextIdentity(read.Context)
+	if err != nil {
+		return err
+	}
+	identity.Paused = s.expected.Paused
+	if !sameColonyBoundary(identity, s.expected) {
+		return ErrChanged
+	}
+	offers := make([]policy.JoinerOffer, 0, len(read.Quests))
+	for _, quest := range read.Quests {
+		offers = append(offers, policy.JoinerOffer{Quest: domain.QuestID(quest.ID), ScriptDef: quest.ScriptDef, State: quest.State, CanAccept: quest.CanAccept, RequiresAccepter: quest.RequiresAccepter, ChoiceCount: quest.ChoiceCount})
+	}
+	s.quests = domain.Known(offers)
 	return nil
 }
 

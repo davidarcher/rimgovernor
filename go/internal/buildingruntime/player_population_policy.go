@@ -45,3 +45,10 @@ func (p *Player) SubmitPopulationPolicy(ctx context.Context, request store.Popul
 func (p *Player) PopulationPolicy(ctx context.Context, world store.World) (domain.PopulationPolicy, error) {
 	return p.journal.CurrentPopulationPolicy(ctx, world)
 }
+
+// LookupPopulationPolicySubmission returns one stored population policy
+// request by request ID; with it the Player satisfies the HTTP API's
+// population-policy routes (which were 404 without it).
+func (p *Player) LookupPopulationPolicySubmission(ctx context.Context, requestID string) (store.PopulationPolicySubmission, error) {
+	return p.journal.LookupPopulationPolicySubmission(ctx, requestID)
+}

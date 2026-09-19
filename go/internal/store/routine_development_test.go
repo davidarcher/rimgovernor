@@ -236,6 +236,21 @@ func TestRoutineDevelopmentConfiguredTargetsAndExemptPush(t *testing.T) {
 	if err != nil || d.Admitted || len(d.Refused) != 1 || d.Refused[0].Reason != policy.NoDevelopmentSlot {
 		t.Fatal("unselected resource goal building admission", d, err)
 	}
+	// A method that is only a quest acceptance (#250) is a settings write
+	// with no pawn work: it is admitted without the slot the same goal's
+	// pawn-work methods still need.
+	accept, _ := domain.NewQuestAccept("quest-1", "", -1)
+	questAction, err := domain.NewQuestAcceptAction("accept-action", accept)
+	if err != nil {
+		t.Fatal(err)
+	}
+	questPlan, err := domain.NewPlan("accept", 1, []domain.Action{questAction})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.CommitGoalMethod(ctx, g.Goal.ID, g.Revision, "accept", questPlan); err != nil {
+		t.Fatal("quest acceptance refused for a development slot", err)
+	}
 	// Recovered facts retire the goals; missing facts leave them unknown.
 	r.Facts.Research = domain.Known(policy.ResearchFacts{Current: "Stonecutting", Projects: []policy.ResearchProjectID{"Stonecutting"}})
 	r.Facts.Resources = domain.Known([]policy.Amount{{Resource: "Steel", Count: 120}})

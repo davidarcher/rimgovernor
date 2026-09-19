@@ -140,10 +140,30 @@ func rankRoutineDevelopment(ctx context.Context, tx *sql.Tx, r RoutineReviewRequ
 	return policy.RankDevelopment(policy.DevelopmentRequest{Snapshot: r.Current, Tick: r.Tick, Workers: r.Facts.Workers, Labor: r.Facts.Labor, Limit: r.Policy.MaxDevelopmentProjects, Goals: goals, Commitments: commitments, Previous: previous, Partial: r.PartialPlanners})
 }
 
+// developmentExemptMethod reports a method whose every action is a
+// QuestAccept: accepting a joiner offer is one native settings write with
+// no pawn work behind it (the quest's own parts walk the joiner in), so
+// MaintainPopulation answers it without holding a development slot, the
+// way ProductionPolicy's configuration pushes are exempt by need.
+func developmentExemptMethod(plan domain.PlanSpec) bool {
+	actions := plan.Actions()
+	if len(actions) == 0 {
+		return false
+	}
+	for _, action := range actions {
+		if action.Kind() != domain.QuestAcceptAction {
+			return false
+		}
+	}
+	return true
+}
+
 // Recheck current commitments inside method admission: a player project accepted
-// since the review may already have consumed its last optional slot.
-func admitRoutineDevelopment(ctx context.Context, tx *sql.Tx, g domain.Goal) error {
-	if g.Source != domain.AutopilotGoal || g.Priority < 3 || !strings.HasPrefix(string(g.ID), "routine-") {
+// since the review may already have consumed its last optional slot. A
+// method that is a pure settings write (developmentExemptMethod) is
+// admitted without a slot, like a DevelopmentExempt need.
+func admitRoutineDevelopment(ctx context.Context, tx *sql.Tx, g domain.Goal, plan domain.PlanSpec) error {
+	if g.Source != domain.AutopilotGoal || g.Priority < 3 || !strings.HasPrefix(string(g.ID), "routine-") || developmentExemptMethod(plan) {
 		return nil
 	}
 	review, err := loadRoutine(ctx, tx)

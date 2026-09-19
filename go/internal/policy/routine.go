@@ -337,6 +337,15 @@ type RoutineFacts struct {
 	// uses, broadened past prisoners alone so RoutinePopulationCustodyPlanner
 	// can detect and select a downed hostile or unadmitted guest to dispatch.
 	Custody domain.Fact[[]CustodyFacts]
+	// QuestOffers carries MaintainPopulation's joiner census: every visible
+	// quest row (rimgovernor/observations_read_world_progression), read per
+	// cycle by a RoutineSource offering RoutineQuestSource, for JoinerDeficit
+	// to detect and SelectJoinerMethod to answer a joiner offer from.
+	QuestOffers domain.Fact[[]JoinerOffer]
+	// PopulationCapacity is the player's declared PopulationPolicy (journal
+	// evidence, not a native read): the maximum and food reserve a joiner
+	// offer is admitted against. Unknown, or unset, answers no offer.
+	PopulationCapacity domain.Fact[domain.PopulationPolicy]
 	// Waste carries MaintainWaste's exposed/eligible native item census (the
 	// same WasteReply the generic per-tick colony read already carries), for
 	// pendingWaste/WasteDeficit to detect and, eventually, SelectWasteMethod
@@ -1065,16 +1074,20 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	// unknown custody status is not held against recovery, matching every
 	// other optional sub-step fact in this function -- only a known deficit,
 	// in either prisoner recruitment or custody, blocks recovery.
+	// joinerDeficit likewise needs the quest census (RoutinePopulationJoinerPlanner).
 	populationRecovered := domain.Unknown[bool]()
 	prisonerDeficit, prisonerDeficitKnown := PrisonerRecruitDeficit(f.Prisoners, f.FoodDays, p.Prisoners()).Value()
 	custodyDeficit, custodyDeficitKnown := CustodyDeficit(f.Custody).Value()
+	joinerDeficit, joinerDeficitKnown := JoinerDeficit(f.QuestOffers, JoinerCapacity(f.JoinerCapacity())).Value()
 	switch {
-	case prisonerDeficitKnown && prisonerDeficit, custodyDeficitKnown && custodyDeficit:
+	case prisonerDeficitKnown && prisonerDeficit, custodyDeficitKnown && custodyDeficit, joinerDeficitKnown && joinerDeficit:
 		populationRecovered = domain.Known(false)
 	case prisonerDeficitKnown:
 		populationRecovered = domain.Known(!prisonerDeficit)
 	case custodyDeficitKnown:
 		populationRecovered = domain.Known(!custodyDeficit)
+	case joinerDeficitKnown:
+		populationRecovered = domain.Known(!joinerDeficit)
 	}
 	addAssessment(MaintainPopulation, 3, populationRecovered)
 	if !positive(populationRecovered) {

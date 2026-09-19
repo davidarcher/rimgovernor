@@ -514,6 +514,16 @@ var plannerCatalog = []plannerEntry{
 			out.PopulationCustody = &method
 			return nil
 		}},
+	{name: "populationJoiner", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.QuestAcceptAction}, families: factsPawns,
+		configured: func(c *ClockSchedulerConfig) bool { return c.PopulationJoiner != nil },
+		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
+			method, err := s.config.PopulationJoiner.step(ctx, epoch, arbiter)
+			if err != nil {
+				return err
+			}
+			out.PopulationJoiner = &method
+			return nil
+		}},
 	{name: "research", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.ResearchSelectAction}, families: []bridge.FactFamily{bridge.FactResearch},
 		configured: func(c *ClockSchedulerConfig) bool { return c.Research != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
