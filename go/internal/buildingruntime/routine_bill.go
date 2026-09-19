@@ -140,6 +140,9 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return RoutineBillResult{}, err
 	}
 	projection := read.Projection
+	if r.purpose == policy.CookFood && !foodPlanSupport(projection.Facts.FoodPlan, policy.FoodCook, "cooking-capacity") {
+		return RoutineBillResult{Reason: BuildingMethodUnknown}, nil
+	}
 	if r.purpose == policy.ButcherFood {
 		// Owed on the food runway alone (#260): native offers no hunt row
 		// until a usable bench carries this bill, so waiting for an armed

@@ -100,6 +100,7 @@ func TestSchedulerCompilesCookingAtPausedBoundary(t *testing.T) {
 	s, f := schedulerFixture(t)
 	n := schedulerSleeping(t, s, f)
 	v := n.reply.GetObserved()
+	foodPlanFixture(v)
 	issues := v.Issues[:0]
 	for _, issue := range v.Issues {
 		if issue.GetField() != "cooking" {

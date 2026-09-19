@@ -84,23 +84,15 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 			return RoutineFieldResult{Reason: BuildingMethodRefused}, nil
 		}
 	}
-	// Only open field work blocks another field batch. Hunting and
-	// foraging plans under the same goal share no cells or resources
-	// with a growing zone and would otherwise starve crops indefinitely.
-	// A batch of basins stays open until its last basin stands, so a
-	// grower that finished under it is re-cropped below without waiting
-	// for the batch; without one, the step ends here without observing.
-	blocked, grown := false, false
+	// Open field work is budgeted against the food plan below. Infrastructure
+	// with unknown output keeps its barrier; completed growers may be recropped.
+	blocked := false
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
 		if err != nil {
 			return RoutineFieldResult{}, err
 		}
 		blocked = blocked || fieldBlockingWork(plan.Progress)
-		grown = grown || fieldGrowerBuilt(plan.Progress)
-	}
-	if blocked && !grown {
-		return RoutineFieldResult{Reason: BuildingMethodExistingWork}, nil
 	}
 	plans, err := p.journal.LoadPlans(call, 256)
 	if err != nil {
@@ -132,6 +124,20 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 		return RoutineFieldResult{}, err
 	}
 	projection := read.Projection
+	if !foodPlanSupport(projection.Facts.FoodPlan, policy.FoodCrop, "field-capacity") {
+		return RoutineFieldResult{Reason: BuildingMethodUnknown}, nil
+	}
+	if blocked {
+		openPlans := []store.PlanState{}
+		for _, method := range goal.Methods {
+			plan, err := p.journal.LoadPlan(call, method.Plan)
+			if err != nil {
+				return RoutineFieldResult{}, err
+			}
+			openPlans = append(openPlans, plan)
+		}
+		blocked = !foodPlanAdditionalField(projection, openPlans)
+	}
 	wait, managed, err := r.fieldAllowance(call, goal.Goal, state.Snapshot, projection)
 	if err != nil {
 		return RoutineFieldResult{}, err
@@ -508,18 +514,6 @@ func fieldBlockingWork(progress []domain.Progress) bool {
 			continue
 		}
 		if (zone || isBuilding) && domain.GoalWorkOpen([]domain.Progress{p}) {
-			return true
-		}
-	}
-	return false
-}
-
-// fieldGrowerBuilt reports a completed plant-grower construction in the
-// plan: the built grower sows its definition's default crop until re-cropped.
-func fieldGrowerBuilt(progress []domain.Progress) bool {
-	for _, p := range progress {
-		b, ok := p.Action().Building()
-		if ok && b.Definition() == "HydroponicsBasin" && p.View().Stage == domain.Completed {
 			return true
 		}
 	}

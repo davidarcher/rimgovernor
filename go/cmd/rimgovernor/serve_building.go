@@ -883,7 +883,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	// the native client carries the typed reads it composes (#261).
 	var colonyStatus httpapi.ColonyStatus
 	if colonyNative, ok := client.native.(buildingruntime.ColonyStatusNative); ok {
-		if colonyStatus, err = buildingruntime.NewColonyStatus(player, colonyNative); err != nil {
+		if colonyStatus, err = buildingruntime.NewColonyStatus(player, colonyNative, sections); err != nil {
 			return err
 		}
 	}

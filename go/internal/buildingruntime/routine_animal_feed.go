@@ -115,6 +115,12 @@ func (r *RoutineAnimalFeedPlanner) step(call, epoch context.Context, arbiter *st
 		return RoutineResourceResult{}, err
 	}
 	upkeep := read.Projection.Facts.AnimalUpkeep
+	if plan, known := read.Projection.Facts.FoodPlan.Value(); known {
+		upkeep.Forecast = domain.Known(plan.Forecast)
+	}
+	if !foodPlanSupport(read.Projection.Facts.FoodPlan, policy.FoodReserve, "stock-protection") {
+		return RoutineResourceResult{Reason: BuildingMethodUnknown}, nil
+	}
 	reviewed, err := policy.ReviewAnimalUpkeep(upkeep, review.Latches.Animals, r.reviewer.policy.AnimalUpkeep)
 	if err != nil {
 		return RoutineResourceResult{}, err

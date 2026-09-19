@@ -34,6 +34,7 @@ func TestFieldPlannerReservationsCASAndManual(t *testing.T) {
 	reviewer := base.reviewer
 	reviewer.methods = domain.Known([]policy.GoalID{policy.EnsureFoodSupply})
 	v := n.reply.GetObserved()
+	foodPlanFixture(v)
 	v.Farms = nil
 	v.FoodClimate = &o.FoodClimate{GrowingDays: proto.Float64(60), GrowingDaysRemaining: proto.Float64(60), GrowingDaysUntil: proto.Float64(0), NonGrowingDays: proto.Float64(0), SowingNow: proto.Bool(true)}
 	issues := v.Issues[:0]
@@ -253,6 +254,18 @@ func TestFieldBlockingWorkIgnoresAcquisition(t *testing.T) {
 	}
 	if !fieldBlockingWork([]domain.Progress{hunt, p}) {
 		t.Fatal("pending zone did not block fields")
+	}
+	projection := observation.ColonyProjection{Definitions: []observation.PlanningDefinition{{Name: "Plant_Rice", HarvestNutrition: domain.Known(1.0), GrowDays: domain.Known(2.0)}}}
+	plans := []store.PlanState{{Progress: []domain.Progress{hunt, p}}}
+	for _, gap := range []float64{0, 1, 2} {
+		projection.Facts.FoodPlan = domain.Known(policy.FoodPlan{GapPerDay: gap})
+		if got := foodPlanAdditionalField(projection, plans); got != (gap > 1) {
+			t.Fatalf("gap %v: additional field = %v", gap, got)
+		}
+	}
+	projection.Definitions[0].GrowDays = domain.Unknown[float64]()
+	if foodPlanAdditionalField(projection, plans) {
+		t.Fatal("unknown pending yield admitted another field")
 	}
 	if p, err = p.Cancel(); err != nil {
 		t.Fatal(err)

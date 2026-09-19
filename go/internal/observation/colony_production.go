@@ -13,6 +13,37 @@ func billForever(mode *string) domain.Fact[bool] {
 	return domain.Known(*mode == "Forever")
 }
 
+// colonyFoodFields preserves the native optimistic harvest ETA. A planted
+// field is future capacity, not an observed delivery of edible stock.
+func colonyFoodFields(v *o.ColonyFactsSnapshot, definitions []PlanningDefinition) domain.Fact[[]policy.FoodField] {
+	if hasIssue(v.Issues, "farms") {
+		return domain.Unknown[[]policy.FoodField]()
+	}
+	rows := []policy.FoodField{}
+	for _, farm := range v.Farms {
+		if farm.ZoneId == nil || farm.GrowingCells == nil {
+			return domain.Unknown[[]policy.FoodField]()
+		}
+		crop := policy.CropChoice{Name: farm.GetCrop(), Edible: optional(farm.EdibleCrop)}
+		work := domain.Unknown[float64]()
+		for _, d := range definitions {
+			if d.Name != farm.GetCrop() {
+				continue
+			}
+			crop.GrowDays, crop.HarvestNutrition = d.GrowDays, d.HarvestNutrition
+			if days, dk := d.GrowDays.Value(); dk && days > 0 {
+				if harvest, hk := d.HarvestWork.Value(); hk {
+					work = domain.Known(harvest * float64(farm.GetGrowingCells()) / days)
+				}
+			}
+		}
+		rows = append(rows, policy.FoodField{ID: farm.GetZoneId(),
+			Plan:              policy.FieldPlan{Crop: crop, Sites: policy.FarmSitePlan{Cells: int(farm.GetGrowingCells())}},
+			RemainingGrowDays: optional(farm.HarvestLowerBoundDays), WorkPerDay: work, Open: domain.Known(false)})
+	}
+	return domain.Known(rows)
+}
+
 func colonyFieldCrops(v *o.ColonyFactsSnapshot, definitions []PlanningDefinition, usable ...bool) domain.Fact[[]policy.FieldCrop] {
 	if hasIssue(v.Issues, "farms") {
 		return domain.Unknown[[]policy.FieldCrop]()

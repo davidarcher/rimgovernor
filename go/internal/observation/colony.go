@@ -37,6 +37,7 @@ type PlanningDefinition struct {
 	PathCost                          domain.Fact[int32]
 }
 type ColonyProjection struct {
+	FoodFields          domain.Fact[[]policy.FoodField]
 	FoodChannels        domain.Fact[FoodChannels]
 	ProductionBenches   domain.Fact[[]policy.ProductionBench]
 	ButcheringBenches   domain.Fact[[]CookingBench]
@@ -401,6 +402,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 		}
 	}
 	r.FieldCrops = colonyFieldCrops(v, r.Definitions)
+	r.FoodFields = colonyFoodFields(v, r.Definitions)
 	r.FieldCapacityCrops = colonyFieldCrops(v, r.Definitions, true)
 	r.Facts.Gear = colonyGear(v)
 	return r, nil

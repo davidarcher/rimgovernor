@@ -5,7 +5,9 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/facts"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -31,11 +33,14 @@ type ColonyStatusNative interface {
 type ColonyStatus struct {
 	player *Player
 	native ColonyStatusNative
+	food   *facts.Store
 }
 
 // ColonyStatusReport is one ColonyStatus read. Unknown facts are unknown,
 // never zero: a native census that omits the field says so.
 type ColonyStatusReport struct {
+	FoodPlan     domain.Fact[policy.FoodPlan]
+	FoodPlanTick domain.Fact[domain.Tick]
 	// Tick is the colony census's tick; RosterTick the roster read's, equal
 	// under a stopped clock and a few ticks later under a running window.
 	Tick, RosterTick     domain.Tick
@@ -63,11 +68,18 @@ type ColonyStatusPawn struct {
 
 // NewColonyStatus builds a ColonyStatus boundary. player and native must be
 // non-nil.
-func NewColonyStatus(player *Player, native ColonyStatusNative) (*ColonyStatus, error) {
+func NewColonyStatus(player *Player, native ColonyStatusNative, food ...*facts.Store) (*ColonyStatus, error) {
 	if player == nil || native == nil {
 		return nil, ErrControl
 	}
-	return &ColonyStatus{player: player, native: native}, nil
+	if len(food) > 1 {
+		return nil, ErrControl
+	}
+	s := &ColonyStatus{player: player, native: native}
+	if len(food) == 1 {
+		s.food = food[0]
+	}
+	return s, nil
 }
 
 // Read reports the current colony census. It does not require player
@@ -117,6 +129,19 @@ func (s *ColonyStatus) Read(ctx context.Context) (ColonyStatusReport, error) {
 		FoodCorpses:          len(observed.FoodCorpses),
 		Threat:               bridge.ProjectColonyThreat(observed),
 		Pawns:                []ColonyStatusPawn{},
+	}
+	if held, ok := facts.Get[observation.ColonyProjection](s.food, facts.Colony); ok {
+		id := held.Value.Identity
+		if id.SameContext(decoded) && id.Tick <= decoded.Tick && bridge.FactColony.Fresh(int64(id.Tick), int64(decoded.Tick)) {
+			a, ak := id.NativeGeneration.Value()
+			b, bk := decoded.NativeGeneration.Value()
+			if ak && bk && a == b {
+				report.FoodPlan = held.Value.Facts.FoodPlan
+				if _, known := report.FoodPlan.Value(); known {
+					report.FoodPlanTick = domain.Known(id.Tick)
+				}
+			}
+		}
 	}
 	for _, row := range pawns.Pawns {
 		if row == nil || row.Pawn == nil || row.Pawn.GetId() == "" {

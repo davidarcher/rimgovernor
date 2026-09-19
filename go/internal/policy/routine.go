@@ -308,6 +308,7 @@ func ValidateResourceTargets(targets map[Resource]int64) error {
 // FoodDays is the accessible diet/rot-aware stock runway. FieldCoverage is the
 // separate native crop-capacity forecast; it never increases FoodDays.
 type RoutineFacts struct {
+	FoodPlan            domain.Fact[FoodPlan]
 	RecoverySafety      domain.Fact[RecoverySafety]
 	RecoveryWorkers     domain.Fact[[]RecoveryWorker]
 	DisasterConditions  domain.Fact[[]DisasterCondition]
@@ -803,6 +804,9 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		addGoal(EnsureExpansion, 4)
 		r.Goals[len(r.Goals)-1].Deficit = RoutineDevelopmentDeficit(EnsureExpansion, f, p)
 		r.Goals[len(r.Goals)-1].Blocked = !positive(g.Shelter) || !positive(g.Sleeping)
+		if plan, known := f.FoodPlan.Value(); known && plan.GapPerDay > 0 {
+			r.Goals[len(r.Goals)-1].Blocked = true
+		}
 	}
 	if !positive(gear.Recovered) {
 		addGoal(MaintainEquipment, 3)

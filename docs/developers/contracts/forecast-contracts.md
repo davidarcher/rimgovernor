@@ -110,6 +110,28 @@ preserves matching player bills and performs no retirement. The goal/Hands owner
 must prove ownership before replacing a bill, obtain construction placement for
 paste, and verify native outcomes. These policy decisions alone are not gameplay
 acceptance.
+
+## Shared food portfolio
+
+The routine reviewer retains one complete FoodPlan per observed tick and fact
+invalidation generation. It budgets combined human and animal demand, seasonal
+thresholds, native forage/hunt sources and field estimates. Unknown inputs do not
+certify surplus. Field harvest ETA remains an optimistic native bound; projected
+delivery never increases stored-food runway. Animal feed reuses the ledger's
+consumer allocation when available.
+
+Acquisition admits Open sources. Field and cooking capacity and stock protection
+are zero-contribution Hold rows: their own observed preconditions and existing
+resource/labor admission still apply. Extra housing waits while GapPerDay is
+positive. A second pending field is admitted only when the gap remains positive
+after its predecessor's known projected output; unknown infrastructure output
+keeps the existing-work barrier.
+
+GET /api/player/colony exposes foodPlan and foodPlanTick from the retained review,
+including portfolio/unknown rows, decisions, rates and explanation terms. Missing
+or stale reviews are null; this read never runs a new food review. Reserve-days
+configuration, reserve dispatch and meal-tier context remain separate integrations.
+
 ## Trade food policy
 
 `ReviewTradeNeed` accepts an optional `TradeFoodContext` from the shared food

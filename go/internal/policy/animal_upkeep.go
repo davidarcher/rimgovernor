@@ -56,7 +56,8 @@ type HusbandryTrainable struct {
 	Available, Learned domain.Fact[bool]
 }
 type AnimalUpkeepObservation struct {
-	Animals domain.Fact[[]UpkeepAnimal]
+	Forecast domain.Fact[FoodForecast]
+	Animals  domain.Fact[[]UpkeepAnimal]
 	// WildAnimals is the factionless census MaintainHerd tames from; it
 	// carries no feed or pen facts.
 	WildAnimals   domain.Fact[[]UpkeepAnimal]
@@ -181,9 +182,13 @@ func ReviewAnimalUpkeep(v AnimalUpkeepObservation, previous AnimalUpkeepHistory,
 	if !known {
 		return r, nil
 	}
-	forecast, err := ForecastFood(supply, eligible)
-	if err != nil {
-		return r, nil
+	forecast, reviewed := v.Forecast.Value()
+	if !reviewed {
+		var err error
+		forecast, err = ForecastFood(supply, eligible)
+		if err != nil {
+			return r, nil
+		}
 	}
 	rows := map[PawnID]ConsumerFoodForecast{}
 	for _, row := range forecast.Consumers {

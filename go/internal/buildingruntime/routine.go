@@ -177,8 +177,17 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 		clockSchedulerLog("routine.step: observe err=%v", err)
 		return store.RoutineReviewResult{}, err
 	}
+	reading.Projection.Facts.FoodPlan = r.planFood(reading.Projection)
+	if plan, known := reading.Projection.Facts.FoodPlan.Value(); known {
+		reading.Projection.Facts.AnimalUpkeep.Forecast = domain.Known(plan.Forecast)
+	}
+	reading.Sections.Colony.Value.Facts.FoodPlan = reading.Projection.Facts.FoodPlan
 	r.census.retain(reading, r.roomsEnabled(), claims)
 	reading.Sections.File(r.store, facts.Scope{Load: string(expected.Load), Generation: uint64(native)})
+	// A served native section may have gained a fresh derived food review.
+	if r.store != nil && reading.Sections.Colony.Source != "" {
+		facts.Put(r.store, facts.Scope{Load: string(expected.Load), Generation: uint64(native)}, facts.Colony, reading.Sections.Colony)
+	}
 	asOf := reading.Sections.AsOf()
 	asOfMin, asOfSpread := facts.Spread(asOf)
 	emergency, err := policy.NewEmergencySnapshot(state.Snapshot, expected.Tick, reading.Emergency)
@@ -314,6 +323,9 @@ func routineAsOf(asOf map[facts.Section]int64) map[string]int64 {
 // a sustained run's samples are exactly the reviews that had one.
 func routineFoodAttrs(f policy.RoutineFacts, seasonal policy.RoutinePolicy) []any {
 	attrs := []any{"food_min_days", seasonal.FoodMinDays, "food_target_days", seasonal.FoodTargetDays}
+	if plan, known := f.FoodPlan.Value(); known {
+		attrs = append(attrs, "food_plan", plan.Explain(), "food_gap_per_day", plan.GapPerDay)
+	}
 	if days, known := f.FoodDays.Value(); known {
 		attrs = append(attrs, "food_days", days)
 	}

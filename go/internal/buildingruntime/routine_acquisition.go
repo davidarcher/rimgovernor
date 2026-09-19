@@ -239,23 +239,12 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 		}
 	}
 	if food {
-		supply, known := projection.CombinedFoodSupply.Value()
-		humans, hk := projection.FoodSupply.Value()
-		if known && hk {
-			ids := []policy.PawnID{}
-			for _, human := range humans.Consumers {
-				ids = append(ids, human.ID)
-			}
-			forecast, err := policy.ForecastFood(supply, ids)
-			if err != nil {
-				return RoutineAcquisitionResult{}, err
-			}
-			need := 0.0
-			for _, consumer := range forecast.Consumers {
-				need += max(0, r.reviewer.seasonal(projection.Facts).FoodTargetDays*consumer.NutritionPerDay-consumer.UsableNutrition)
-			}
-			deficit = domain.Known(need)
+		plan, known := projection.Facts.FoodPlan.Value()
+		if !known {
+			return RoutineAcquisitionResult{Reason: BuildingMethodUnknown}, nil
 		}
+		projection.Acquisition, deficit = foodPlanAcquisition(plan, projection.Acquisition)
+		clockSchedulerLog("Food acquisition: %s", plan.Explain())
 	} else if wood, known := projection.Facts.Wood.Value(); known {
 		deficit = domain.Known(max(0, float64(r.reviewer.seasonal(projection.Facts).WoodTarget)-float64(wood)))
 	}
@@ -343,6 +332,29 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 		return RoutineAcquisitionResult{}, err
 	}
 	return RoutineAcquisitionResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+}
+
+// Only admitted sources can start new work. Pending designations retain their
+// native credit in SelectAcquisition; the ledger never calls them delivered.
+func foodPlanAcquisition(plan policy.FoodPlan, sources domain.Fact[[]policy.AcquisitionSource]) (domain.Fact[[]policy.AcquisitionSource], domain.Fact[float64]) {
+	rows, known := sources.Value()
+	if !known {
+		return domain.Unknown[[]policy.AcquisitionSource](), domain.Unknown[float64]()
+	}
+	open := map[string]bool{}
+	for _, entry := range plan.Portfolio {
+		if (entry.Channel.Kind == policy.FoodForage || entry.Channel.Kind == policy.FoodHunt) && entry.Decision == policy.FoodPlanOpen {
+			open[entry.Channel.ID] = true
+		}
+	}
+	selected, nutrition := []policy.AcquisitionSource{}, 0.0
+	for _, row := range rows {
+		if open[row.ID] {
+			selected = append(selected, row)
+			nutrition += row.NutritionYield
+		}
+	}
+	return domain.Known(selected), domain.Known(nutrition)
 }
 
 // movedPestHunts sorts the unissued (pending or prepared) hunt actions of

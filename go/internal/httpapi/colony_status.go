@@ -6,6 +6,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
 // ColonyStatus is the read-only live colony census this route fronts
@@ -22,6 +23,8 @@ type ColonyStatus interface {
 // mood was readable, null when none was). raidPoints and the wealth split
 // are the census's threat section (#395).
 type colonyStatusDTO struct {
+	FoodPlan             *foodPlanDTO          `json:"foodPlan"`
+	FoodPlanTick         *domain.Tick          `json:"foodPlanTick"`
 	Tick                 domain.Tick           `json:"tick"`
 	RosterTick           domain.Tick           `json:"rosterTick"`
 	Colonists            *int64                `json:"colonists"`
@@ -65,6 +68,10 @@ func projectColonyStatus(v buildingruntime.ColonyStatusReport) colonyStatusDTO {
 		WealthItems: factPointer(v.Threat.WealthItems), WealthBuildings: factPointer(v.Threat.WealthBuildings), WealthPawns: factPointer(v.Threat.WealthPawns),
 		Pawns: []colonyStatusPawnDTO{},
 	}
+	out.FoodPlanTick = factPointer(v.FoodPlanTick)
+	if plan, known := v.FoodPlan.Value(); known {
+		out.FoodPlan = projectFoodPlan(plan)
+	}
 	moodSum, moodCount := 0.0, 0
 	for _, pawn := range v.Pawns {
 		row := colonyStatusPawnDTO{ID: pawn.ID, Label: pawn.Label, Downed: factPointer(pawn.Downed), Mood: factPointer(pawn.Mood), Food: factPointer(pawn.Food)}
@@ -82,6 +89,42 @@ func projectColonyStatus(v buildingruntime.ColonyStatusReport) colonyStatusDTO {
 		out.MoodMean = &mean
 	}
 	return out
+}
+
+type foodPlanDTO struct {
+	Portfolio       []foodPlanEntryDTO `json:"portfolio"`
+	Unknown         []foodPlanEntryDTO `json:"unknown"`
+	DeliveredPerDay float64            `json:"deliveredPerDay"`
+	DemandPerDay    float64            `json:"demandPerDay"`
+	GapPerDay       float64            `json:"gapPerDay"`
+	Explain         string             `json:"explain"`
+}
+
+type foodPlanEntryDTO struct {
+	Kind            policy.FoodChannelKind  `json:"kind"`
+	ID              string                  `json:"id"`
+	Decision        policy.FoodPlanDecision `json:"decision"`
+	Reason          string                  `json:"reason"`
+	NutritionPerDay *float64                `json:"nutritionPerDay"`
+	WorkPerDay      *float64                `json:"workPerDay"`
+	LeadDays        *float64                `json:"leadDays"`
+	Open            *bool                   `json:"open"`
+	DeliveredPerDay float64                 `json:"deliveredPerDay"`
+	Terms           []policy.FoodPlanTerm   `json:"terms"`
+}
+
+func projectFoodPlan(p policy.FoodPlan) *foodPlanDTO {
+	project := func(rows []policy.FoodPlanEntry) []foodPlanEntryDTO {
+		out := make([]foodPlanEntryDTO, 0, len(rows))
+		for _, row := range rows {
+			c := row.Channel
+			out = append(out, foodPlanEntryDTO{Kind: c.Kind, ID: c.ID, Decision: row.Decision, Reason: row.Reason,
+				NutritionPerDay: factPointer(c.NutritionPerDay), WorkPerDay: factPointer(c.WorkPerDay), LeadDays: factPointer(c.LeadDays),
+				Open: factPointer(c.Open), DeliveredPerDay: row.DeliveredPerDay, Terms: row.Terms})
+		}
+		return out
+	}
+	return &foodPlanDTO{Portfolio: project(p.Portfolio), Unknown: project(p.Unknown), DeliveredPerDay: p.DeliveredPerDay, DemandPerDay: p.DemandPerDay, GapPerDay: p.GapPerDay, Explain: p.Explain()}
 }
 
 func (s *Server) handleColonyStatus(ctx context.Context, w http.ResponseWriter, r *http.Request) {

@@ -16,6 +16,7 @@ import (
 func cookingFixture(t *testing.T) (*RoutineBuildingPlanner, *store.Store, *sleepingNative) {
 	sleeping, db, _, _, native := sleepingFixture(t)
 	v := native.reply.GetObserved()
+	foodPlanFixture(v)
 	issues := v.Issues[:0]
 	for _, issue := range v.Issues {
 		if issue.GetField() != "cooking" {

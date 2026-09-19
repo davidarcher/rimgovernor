@@ -175,6 +175,15 @@ func (r *RoutineFoodStorageUpkeepPlanner) step(call, epoch context.Context, arbi
 		return RoutineFoodStorageUpkeepResult{}, ErrControl
 	}
 	facts := foodStorageObservationFacts(observed)
+	expected := observation.Identity{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snapshot.Map,
+		Tick: domain.Tick(observed.Context.GetTick()), NativeGeneration: domain.Known(state.Snapshot.Native)}
+	reading, err := r.reviewer.observeOwned(call, r.reviewer.native, expected, domain.Unknown[[]policy.ConstructionClaim]())
+	if err != nil {
+		return RoutineFoodStorageUpkeepResult{}, err
+	}
+	if !foodPlanSupport(reading.Projection.Facts.FoodPlan, policy.FoodReserve, "stock-protection") {
+		return RoutineFoodStorageUpkeepResult{Reason: BuildingMethodUnknown}, nil
+	}
 	larder, err := policy.SelectCorpseLarder(facts)
 	if err != nil {
 		return RoutineFoodStorageUpkeepResult{}, err

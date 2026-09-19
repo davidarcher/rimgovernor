@@ -80,6 +80,8 @@ type FoodPlanEntry struct {
 }
 
 type FoodPlan struct {
+	// Forecast is the shared allocation behind this portfolio, including animals.
+	Forecast                                 FoodForecast
 	Portfolio, Unknown                       []FoodPlanEntry
 	DeliveredPerDay, DemandPerDay, GapPerDay float64
 }
@@ -105,7 +107,7 @@ func PlanFood(r FoodPlanRequest) (FoodPlan, error) {
 		len(rows) > 4096 || len(r.Demand.Consumers) == 0 || len(r.Demand.Consumers) > 256 {
 		return fail()
 	}
-	p := FoodPlan{}
+	p := FoodPlan{Forecast: r.Demand}
 	consumers := map[PawnID]bool{}
 	for _, c := range r.Demand.Consumers {
 		if !foodID(string(c.ID)) || consumers[c.ID] || !foodNumber(c.NutritionPerDay) || !foodNumber(c.RunwayDays) || !foodNumber(c.UsableNutrition) || !foodNumber(c.AllocatedNutrition) {

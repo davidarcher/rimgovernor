@@ -30,9 +30,13 @@ type routineCensus struct {
 // invalidations since the census was retained; a census from an older
 // generation is not served even at the same tick.
 type routineCensusStore struct {
-	mu         sync.Mutex
-	latest     *routineCensus
-	generation uint64
+	mu                  sync.Mutex
+	latest              *routineCensus
+	generation          uint64
+	foodIdentity        observation.Identity
+	foodPlan            domain.Fact[policy.FoodPlan]
+	foodGeneration      uint64
+	foodMin, foodTarget float64
 }
 
 func (s *routineCensusStore) retain(reading observation.RoutineReading, rooms bool, claims domain.Fact[[]policy.ConstructionClaim]) {
@@ -112,7 +116,11 @@ func (r *RoutineReviewer) observeOwned(ctx context.Context, source observation.R
 	if reading, ok := r.census.lookup(source, r.native, expected, false, claims, definitions); ok {
 		return reading, nil
 	}
-	return observation.ObserveRoutineOwned(ctx, source, r.clock, expected, r.maxAge, claims, definitions...)
+	reading, err := observation.ObserveRoutineOwned(ctx, source, r.clock, expected, r.maxAge, claims, definitions...)
+	if err == nil {
+		reading.Projection.Facts.FoodPlan = r.planFood(reading.Projection)
+	}
+	return reading, err
 }
 
 // observeRooms is ObserveRoutineRooms served from the census when it read
@@ -121,7 +129,11 @@ func (r *RoutineReviewer) observeRooms(ctx context.Context, source observation.R
 	if reading, ok := r.census.lookup(source, r.native, expected, true, claims, definitions); ok {
 		return reading, nil
 	}
-	return observation.ObserveRoutineRooms(ctx, source, r.clock, expected, r.maxAge, claims, definitions...)
+	reading, err := observation.ObserveRoutineRooms(ctx, source, r.clock, expected, r.maxAge, claims, definitions...)
+	if err == nil {
+		reading.Projection.Facts.FoodPlan = r.planFood(reading.Projection)
+	}
+	return reading, err
 }
 
 // observeColony is the planning ObserveColony served from the census (its
@@ -131,5 +143,9 @@ func (r *RoutineReviewer) observeColony(ctx context.Context, source observation.
 	if reading, ok := r.census.lookup(source, r.native, expected, false, domain.Unknown[[]policy.ConstructionClaim](), definitions); ok {
 		return reading.ColonyReading, nil
 	}
-	return observation.ObserveColony(ctx, source, r.clock, expected, r.maxAge, true, definitions)
+	reading, err := observation.ObserveColony(ctx, source, r.clock, expected, r.maxAge, true, definitions)
+	if err == nil {
+		reading.Projection.Facts.FoodPlan = r.planFood(reading.Projection)
+	}
+	return reading, err
 }

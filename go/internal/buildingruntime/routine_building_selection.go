@@ -143,6 +143,9 @@ func (r *RoutineBuildingPlanner) selection(facts observation.ColonyProjection) (
 			return 0, "", BuildingMethodUnknown
 		}
 		if r.goal == policy.EnsureExpansion {
+			if plan, known := facts.Facts.FoodPlan.Value(); known && plan.GapPerDay > 0 {
+				return 0, "", BuildingMethodRefused
+			}
 			if count >= 1<<63-1 {
 				return 0, "", BuildingMethodUnknown
 			}
@@ -162,6 +165,9 @@ func (r *RoutineBuildingPlanner) selection(facts observation.ColonyProjection) (
 		}
 		return missing, domain.MethodID(fmt.Sprintf("indoor-sleeping-%d-%d", count, missing)), ""
 	case policy.EnsureCooking:
+		if !foodPlanSupport(facts.Facts.FoodPlan, policy.FoodCook, "cooking-capacity") {
+			return 0, "", BuildingMethodUnknown
+		}
 		ready, known := facts.Facts.Cooking.Value()
 		if !known {
 			return 0, "", BuildingMethodUnknown
