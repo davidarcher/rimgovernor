@@ -33,8 +33,9 @@ import (
 //     metrics — boot, waits, launches — stay 0) plus tick, tps, authority
 //     and last_step_ms.
 //
-// Neither route follows the tail: each read parses the retained segments
-// afresh, so a client polls at its own cadence.
+// Neither route follows the tail: a client polls at its own cadence. Both
+// routes share one bridge.TimelineReader, so a poll decodes the rows
+// appended since the last one rather than the retained ring (#375).
 
 const (
 	telemetryEventsPath   = "/api/telemetry/events"
@@ -118,7 +119,7 @@ func (s *Server) handleTelemetry(w http.ResponseWriter, r *http.Request) bool {
 			s.failure(w, r, 400, "invalid_query", err)
 			return true
 		}
-		rows, readErr := bridge.ReadTimeline(s.config.FlightRecorder)
+		rows, readErr := s.telemetry.Read()
 		if readErr != nil {
 			s.readFailure(w, r, readErr)
 			return true
@@ -129,7 +130,7 @@ func (s *Server) handleTelemetry(w http.ResponseWriter, r *http.Request) bool {
 			s.failure(w, r, 400, "invalid_query", "This route accepts no query parameters")
 			return true
 		}
-		rows, readErr := bridge.ReadTimeline(s.config.FlightRecorder)
+		rows, readErr := s.telemetry.Read()
 		if readErr != nil {
 			s.readFailure(w, r, readErr)
 			return true

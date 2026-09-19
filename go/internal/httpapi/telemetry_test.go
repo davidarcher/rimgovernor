@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -44,6 +45,56 @@ func telemetryGet(t *testing.T, server *httptest.Server, path string, into any) 
 		}
 	}
 	return response.StatusCode
+}
+
+// Polls follow the ring as it grows (#375): rows appended after a page
+// was served appear on the next, and a rotation drops the oldest.
+func TestTelemetryPollsFollowTheRing(t *testing.T) {
+	ring := filepath.Join(t.TempDir(), "flight", "flight.jsonl")
+	recorder, err := bridge.NewFlightRecorder(ring, bridge.FlightRunID("run-a"), bridge.FlightSegmentBytes(1024), bridge.FlightSegments(2), bridge.FlightPayloadBytes(128))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer recorder.Close()
+	server := telemetryServer(t, ring)
+	var page TelemetryEvents
+	if code := telemetryGet(t, server, "/api/telemetry/events", &page); code != 200 || page.LastSequence != 1 {
+		t.Fatalf("first poll: %d %+v", code, page)
+	}
+	last := page.LastSequence
+	for poll := 0; poll < 6; poll++ {
+		for i := 0; i < 4; i++ {
+			if _, err := recorder.Event("scheduler_step", nil, false, map[string]any{"pad": strings.Repeat("y", 60)}); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if code := telemetryGet(t, server, "/api/telemetry/events?since="+strconv.FormatUint(last, 10), &page); code != 200 {
+			t.Fatalf("poll %d: %d", poll, code)
+		}
+		if page.LastSequence != last+4 || page.NextSince != last+4 {
+			t.Fatalf("poll %d after %d: %+v", poll, last, page)
+		}
+		var kinds int
+		for _, event := range page.Events {
+			if event.Kind == "scheduler_step" {
+				kinds++
+			}
+		}
+		if kinds != 4 {
+			t.Fatalf("poll %d: expected the four new rows, got %+v", poll, page.Events)
+		}
+		last = page.LastSequence
+	}
+	if recorder.FlightRecorderStats().Rotations < 2 {
+		t.Fatalf("fixture rotated %d times", recorder.FlightRecorderStats().Rotations)
+	}
+	if code := telemetryGet(t, server, "/api/telemetry/events", &page); code != 200 || page.Events[0].Kind != "recording_gap" || page.Events[0].Reason == "" {
+		t.Fatalf("whole ring after rotation should open with the retention gap: %d %+v", code, page.Events[:1])
+	}
+	var metrics TelemetryMetrics
+	if code := telemetryGet(t, server, "/api/telemetry/metrics", &metrics); code != 200 || metrics.Run != "run-a" {
+		t.Fatalf("metrics: %d %+v", code, metrics)
+	}
 }
 
 // The events route pages the ring by sequence and kind; the metrics route

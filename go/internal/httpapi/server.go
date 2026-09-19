@@ -16,6 +16,7 @@ import (
 	"sync"
 	"unicode/utf8"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/interpreter"
@@ -30,6 +31,7 @@ type Server struct {
 	snapshots    SnapshotProvider
 	plans        PlanReader
 	assets       *os.Root
+	telemetry    *bridge.TimelineReader // the profile's ring, decoded once per byte (#375)
 	closeOnce    sync.Once
 	closeErr     error
 	videoTickets sync.Map // hex ticket -> videoTicket; single-use, short-lived
@@ -54,7 +56,11 @@ func New(config Config, snapshots SnapshotProvider, plans PlanReader) (*Server, 
 	if err != nil {
 		return nil, err
 	}
-	return &Server{config: config, snapshots: snapshots, plans: plans, assets: assets}, nil
+	server := &Server{config: config, snapshots: snapshots, plans: plans, assets: assets}
+	if config.FlightRecorder != "" {
+		server.telemetry = bridge.NewTimelineReader(config.FlightRecorder)
+	}
+	return server, nil
 }
 
 // Close releases owned asset directory handles; provider/store ownership remains

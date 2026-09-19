@@ -96,8 +96,11 @@ that seems to be doing nothing has evidence beyond stderr:
   `tps`, `authority` (the live generation, or null) and `last_step_ms`.
 
 Both are read-only and unauthenticated like `/api/state`, and answer 404
-without a recorder. Neither follows the tail: every read parses the ring
-afresh (`go/internal/httpapi/telemetry.go`). See [measure
+without a recorder. Neither follows the tail; both share one
+`bridge.TimelineReader`, which keeps rotated segments by content identity
+and decodes only the bytes appended to the active file since the last
+read, so a poll costs the new rows rather than the retained ring (#375;
+`go/internal/httpapi/telemetry.go`). See [measure
 throughput](../testing/measure-throughput.md) for what the rows carry.
 
 The Governor view (`dashboard/src/features/governor`, #300) is the
