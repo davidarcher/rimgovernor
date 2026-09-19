@@ -59,6 +59,7 @@ func (s serviceRoutineDiagnostics) RoutineStatus(ctx context.Context) (httpapi.R
 		development := review.Development.State()
 		status.Development = &development
 		status.Roster = review.Roster
+		status.ResourceRunways = review.ResourceRunwayState()
 	}
 	return status, nil
 }

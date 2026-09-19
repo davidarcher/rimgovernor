@@ -36,6 +36,30 @@ construction actions have been archived. The projection uses completed native
 definitions, so an unfamiliar wall is still an obstruction. It does not predict
 future danger or certify that a pawn will perform the work.
 
+## Material runway
+
+`MaintainResource` reviews Steel and ComponentIndustrial over the last 15 game
+days of journal history (at least one day). Placed construction counts its
+admitted material cost once; completed bills count observed iterations against
+native recipe quantities. Ambiguous ingredients and older bills without this
+evidence leave that material's rate unknown. This estimates controller-recorded
+consumption, not every material transfer in the colony.
+
+Usable stock is stock above the larger configured acquisition/reserve floor.
+`stockDays` divides usable stock by daily consumption; `daysLeft` also includes
+the mining census's safe open-surface ore. Unknown ore is not zero, and a zero
+consumption rate has no finite days-left value. Below five days, the review
+raises a maintenance deficit and an ordinary `MaintainResource` target covering
+five days plus the existing floor (bounded by the target limit of 10,000).
+Existing resource methods consume that target; the forecast issues no orders.
+
+The durable review retains both materials' stock, ore, rate, window, reserve,
+target and deficit. `/api/routines` exposes them as `resourceRunways`, with
+unknown values represented as null. The API is independent of dashboard
+refreshes; React presentation is a separate change. History is scoped to the
+colony, load and map, includes retired/player plans, ignores future events,
+and counts each placement or completed bill only once.
+
 ## Development uses observed room functions
 
 Shelter, food services and later capacity share the same maintained goals. A

@@ -804,6 +804,13 @@ func (r *RoutineReviewer) resourceTargets(ctx context.Context, snapshot domain.G
 	if err != nil {
 		return nil, err
 	}
+	review, err := r.player.journal.LoadRoutineReview(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if review.Enabled && review.Snapshot == snapshot {
+		needs = policy.ResourceGoalTargets(needs, policy.ResourceRunwayTargets(review.ResourceRunwayState()))
+	}
 	return r.policy.EffectiveResourceTargets(stock, needs)
 }
 

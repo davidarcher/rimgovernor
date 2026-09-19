@@ -29,6 +29,7 @@ type ReserveSupply struct {
 // RoutineReview is the durable review cursor and hysteresis history. Goal
 // bindings retain semantic needs while old executable plans keep their identity.
 type RoutineReview struct {
+	ResourceRunways        []ResourceRunwayRecord  `json:",omitempty"`
 	ReserveSupplies        []ReserveSupply         `json:",omitempty"`
 	LarderSupplies         []policy.StartingSupply `json:",omitempty"`
 	ClearanceHolds         []policy.ClearanceHold  `json:",omitempty"`
@@ -327,6 +328,11 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	needs := policy.RoutineNeeds{}
 	// Stopping routine work must not depend on a successful native observation.
 	if request.Enabled {
+		request.Facts.ResourceRunways, err = resourceRunways(ctx, tx, request)
+		if err != nil {
+			return RoutineReviewResult{}, err
+		}
+		request.Facts.ResourceNeeds = policy.ResourceGoalTargets(request.Facts.ResourceNeeds, policy.ResourceRunwayTargets(request.Facts.ResourceRunways))
 		request.Facts.OwnedStockpiles, err = stockpileClaims(ctx, tx, request.Current, request.Tick)
 		if err != nil {
 			return RoutineReviewResult{}, err
@@ -467,6 +473,10 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	r.Sleeping = sleeping
 	r.Mood = moodRecord(mood)
 	r.Roster = routineRoster(request, previous, reset)
+	r.ResourceRunways = resourceRunwayRecords(request.Facts.ResourceRunways)
+	if !request.Enabled && !reset {
+		r.ResourceRunways = previous.ResourceRunways
+	}
 	r.Disaster = disaster
 	if request.Enabled {
 		r.MoodMethods, err = moodProposals(mood)

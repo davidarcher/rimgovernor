@@ -208,6 +208,9 @@ func (v ConstructionIdentity) Validate() error {
 // censuses name the zone by, which is how a completed stockpile method owns
 // its zone for MaintainHomeCoverage (#315).
 type Observation struct {
+	// BillConsumption is derived from observed completed iterations and native
+	// recipe quantities. Nil quantities mean unknown, including old history.
+	BillConsumption      *BillConsumption      `json:",omitempty"`
 	Construction         *ConstructionIdentity `json:",omitempty"`
 	Zone                 string                `json:",omitempty"`
 	Action               ActionID
@@ -450,6 +453,11 @@ func (p Progress) Observe(observation Observation, current GenerationSnapshot) (
 	return p.observe(observation, current)
 }
 func (p Progress) observe(observation Observation, current GenerationSnapshot) (Progress, error) {
+	if use := observation.BillConsumption; use != nil {
+		if p.action.Kind() != ProductionBillAction || observation.Effect != EffectCompleted || use.Steel != nil && *use.Steel < 0 || use.Components != nil && *use.Components < 0 {
+			return p, errors.New("invalid bill consumption evidence")
+		}
+	}
 	if observation.Construction != nil && (p.action.Kind() != BuildingAction || observation.Effect != EffectCompleted || observation.Causality != AfterDispatch || observation.Construction.Validate() != nil) {
 		return p, errors.New("construction identity requires correlated completed building evidence")
 	}

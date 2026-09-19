@@ -18,6 +18,8 @@ import (
 )
 
 type billBoundaryFixture struct {
+	consumption                                           *domain.BillConsumption
+	consumptionErr                                        error
 	read                                                  bridge.BillRead
 	readErr                                               error
 	preview                                               *op.PreviewReply
@@ -32,6 +34,10 @@ type billBoundaryFixture struct {
 	addErr                                                error
 	reads, previews, emergencies, lookups, observes, adds int
 	lastPre                                               *a.WritePrecondition
+}
+
+func (f *billBoundaryFixture) ReadBillConsumption(context.Context, *c.Identity, domain.ProductionBill, uint32) (*domain.BillConsumption, error) {
+	return f.consumption, f.consumptionErr
 }
 
 func (f *billBoundaryFixture) ReadBillTarget(context.Context, *c.Identity, string) (bridge.BillRead, bridge.Result, error) {
@@ -172,6 +178,16 @@ func TestObserveBillCompletedUnsuccessfulAndAbsent(t *testing.T) {
 	out, err := bb.ObserveBill(context.Background(), placement, placement.Snapshot)
 	if err != nil || out.Observation.Effect != domain.EffectCompleted || !out.Complete || out.Iterations != 1 || out.OutputCount != 1 {
 		t.Fatal(err, out)
+	}
+	f.consumption = &domain.BillConsumption{Steel: proto.Int64(50)}
+	out, err = bb.ObserveBill(context.Background(), placement, placement.Snapshot)
+	if err != nil || out.Observation.BillConsumption.Steel == nil || *out.Observation.BillConsumption.Steel != 50 || out.Observation.BillConsumption.Components != nil {
+		t.Fatal(out, err)
+	}
+	f.consumptionErr = errors.New("recipe unavailable")
+	out, err = bb.ObserveBill(context.Background(), placement, placement.Snapshot)
+	if err != nil || out.Observation.Effect != domain.EffectCompleted || out.Observation.BillConsumption.Steel != nil {
+		t.Fatal(out, err)
 	}
 	unsuccessful := proto.Clone(billEffectEvidence(bill)).(*r.EffectEvidence)
 	unsuccessful.GetBill().Present = proto.Bool(false)

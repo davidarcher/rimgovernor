@@ -182,6 +182,19 @@ func (b *BillBoundary) ObserveBill(ctx context.Context, p executor.Placement, cu
 		out.OutputComplete = d.GetOutputComplete()
 		out.OutputObserved = d.GetOutputObserved()
 		out.OutputCount = len(d.Outputs)
+		if out.Observation.Effect == domain.EffectCompleted {
+			// Forecast evidence is read-only and must not prevent completion if
+			// the recipe census is unavailable. Unknown stays in the journal.
+			use := &domain.BillConsumption{}
+			if reader, ok := b.bill.Native.(interface {
+				ReadBillConsumption(context.Context, *c.Identity, domain.ProductionBill, uint32) (*domain.BillConsumption, error)
+			}); ok {
+				if read, err := reader.ReadBillConsumption(ctx, w.Identity, w.Bill, d.GetIterations()); err == nil && read != nil {
+					use = read
+				}
+			}
+			out.Observation.BillConsumption = use
+		}
 
 	}
 	out.ObservedAt = b.Clock.Now()

@@ -417,7 +417,9 @@ type RoutineFacts struct {
 	// Resources is the generic reachable, unforbidden player item census
 	// (the same colony facts rows Wood is taken from), so MaintainResource's
 	// deficit is measured at review time instead of assumed from config.
-	Resources domain.Fact[[]Amount]
+	Resources          domain.Fact[[]Amount]
+	ResourceSurfaceOre map[Resource]domain.Fact[int64]
+	ResourceRunways    []ResourceRunway
 	// Wealth is the colony wealth split (#395) TradeWithCaravan's
 	// wealth-driven surplus keys on; unknown leaves that surplus out.
 	Wealth domain.Fact[WealthFacts]
@@ -882,6 +884,19 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		return RoutineNeeds{}, err
 	}
 	resourceRecovered, resourceDeficit := ResourceTargetNeed(resourceTargets, f.Resources)
+	for _, runway := range f.ResourceRunways {
+		if _, known := runway.Deficit.Value(); !known && runway.WindowDays >= 1 && positive(resourceRecovered) {
+			resourceRecovered = domain.Unknown[bool]()
+			resourceDeficit = domain.Unknown[float64]()
+		}
+		if deficit, known := runway.Deficit.Value(); known && deficit {
+			resourceRecovered = domain.Known(false)
+			if days, known := runway.DaysLeft.Value(); known {
+				old, _ := resourceDeficit.Value()
+				resourceDeficit = domain.Known(max(old, 1-days/ResourceRunwayDays))
+			}
+		}
+	}
 	if !positive(resourceRecovered) {
 		addGoal(MaintainResource, 4)
 		r.Goals[len(r.Goals)-1].Deficit = resourceDeficit
