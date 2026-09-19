@@ -1,6 +1,8 @@
-// Flight recorder: an opt-in bounded native timeline. Requests reach durable
+// Flight recorder: a bounded native timeline. Requests reach durable
 // storage before dispatch. Construction is always explicit; there is no hidden
-// global recorder.
+// global recorder. serve opens one under the profile by default (#299), so a
+// path may already hold an earlier launch's rows: the sequence continues
+// from them and the run id tells the launches apart.
 package bridge
 
 import (
@@ -85,6 +87,11 @@ func NewFlightRecorder(path string, opts ...FlightRecorderOption) (*FlightRecord
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return nil, fmt.Errorf("flightrecorder: %w", err)
 	}
+	last, err := lastFlightSequence(path, r.segmentPath(1))
+	if err != nil {
+		return nil, err
+	}
+	r.sequence = last
 	if _, err := r.Event("coverage", nil, true, map[string]any{
 		"coverage": "All bridge.Client native requests, responses and exceptions, including background reads. " +
 			"Requests/errors are fsynced; response rows become durable at the next durable record or rotation. " +
@@ -255,6 +262,35 @@ func (r *FlightRecorder) rotateLocked() error {
 }
 
 func (r *FlightRecorder) segmentPath(index int) string { return fmt.Sprintf("%s.%d", r.path, index) }
+
+// lastFlightSequence is the sequence of the last well-formed row already
+// under the active path, else under its newest rotated segment (a crash
+// between rotation and the next write leaves the active file absent), else
+// 0. A new recorder continues from it so ReadTimeline sees one unbroken
+// sequence across launches and a consumer paging by sequence never rewinds.
+func lastFlightSequence(paths ...string) (uint64, error) {
+	for _, path := range paths {
+		lines, err := readFlightLines(path)
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return 0, err
+		}
+		for i := len(lines) - 1; i >= 0; i-- {
+			var row struct {
+				Sequence *uint64 `json:"sequence"`
+			}
+			if json.Unmarshal([]byte(lines[i]), &row) == nil && row.Sequence != nil {
+				return *row.Sequence, nil
+			}
+		}
+		if len(lines) > 0 {
+			return 0, nil
+		}
+	}
+	return 0, nil
+}
 
 // Close finishes the current segment durably. Later events reopen it.
 func (r *FlightRecorder) Close() error {

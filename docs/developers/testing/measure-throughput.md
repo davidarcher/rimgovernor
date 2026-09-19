@@ -9,9 +9,16 @@ never touch the game or its authority.
 
 ## Record
 
-`serve` takes `--flight-recorder <absolute path>` and appends one JSON line
-per native request, response, error and internal sample (opt-in; off by
-default). Segments rotate beside the path; the reader picks them all up.
+`serve` appends one JSON line per native request, response, error and
+internal sample to a flight recorder: `<profile>/flight/flight.jsonl` by
+default (#299; the ring outlives each launch, the sequence continues
+across launches and each row's `run` names the launch that wrote it),
+`--flight-recorder <absolute path>` to record elsewhere (the acceptance
+runner's per-case path), `--no-flight-recorder` to run without one.
+Segments rotate beside the path (8 x 8 MiB); the reader picks them all
+up. A running service also serves the ring over `GET
+/api/telemetry/events` and `GET /api/telemetry/metrics` (see [the
+dashboard](../architecture/dashboard.md#telemetry)).
 
 ```bash
 go run ./cmd/rimgovernor serve --flight-recorder C:\path\to\run\flight-recorder.jsonl ...

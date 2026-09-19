@@ -165,3 +165,48 @@ func TestRejectsBoundsBelowMinimums(t *testing.T) {
 		t.Fatal("expected error for undersized payload bytes")
 	}
 }
+
+// A recorder opened on a path that already holds rows continues their
+// sequence (#299: the ring under a profile outlives each launch), so the
+// timeline reads without a gap and the run id alone separates launches.
+func TestSequenceContinuesAcrossLaunches(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "flight.jsonl")
+	first, err := NewFlightRecorder(path, FlightRunID("first"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := first.Event("native_request", nil, true, nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := first.Close(); err != nil {
+		t.Fatal(err)
+	}
+	second, err := NewFlightRecorder(path, FlightRunID("second"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sequence, err := second.Event("native_request", nil, true, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sequence != 4 {
+		t.Fatalf("second launch's first request sequence %d, want 4", sequence)
+	}
+	if err := second.Close(); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := ReadTimeline(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var runs []string
+	for _, row := range rows {
+		if row.Kind == "recording_gap" {
+			t.Fatalf("gap between launches: %+v", row)
+		}
+		runs = append(runs, row.Run)
+	}
+	if len(rows) != 4 || runs[1] != "first" || runs[2] != "second" || rows[3].Sequence != 4 {
+		t.Fatalf("rows %+v", rows)
+	}
+}

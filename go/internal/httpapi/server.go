@@ -142,6 +142,9 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 	if s.handlePprof(w, r) {
 		return
 	}
+	if s.handleTelemetry(w, r) {
+		return
+	}
 	if s.handleNotifications(w, r) {
 		return
 	}

@@ -31,6 +31,7 @@ func (wallClock) Now() time.Time { return time.Now() }
 type serveConfig struct {
 	bridge                          bridge.ProcessConfig
 	flightRecorder                  string
+	noFlightRecorder                bool
 	state, listen, assets           string
 	profile                         string
 	playerControl                   bool
@@ -147,7 +148,8 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.BoolVar(&c.clockTestAcceleration, "clock-test-acceleration", false, "acceptance only: ask native for its dev tick boost under each Ultrafast window; the game refuses it unless launched with -rimgovernor-test-acceleration (headless acceptance profiles)")
 	flags.UintVar(&c.clockWindowTicks, "clock-window-ticks", defaultClockWindowTicks, fmt.Sprintf("game ticks one supervised routine window may run before it pauses (1..%d, default one game day); reviews and routine orders happen under the running window, and danger, a coupled order or player input still stops it earlier; combat windows stay at %d", maxClockWindowTicks, combatClockWindowTicks))
 	flags.BoolVar(&c.pprof, "pprof", false, "serve net/http/pprof under /debug/pprof/ on the listener (CPU profile, heap, trace); off by default")
-	flags.StringVar(&c.flightRecorder, "flight-recorder", "", "absolute path recording every native request/response/error (optional; opt-in diagnostics)")
+	flags.StringVar(&c.flightRecorder, "flight-recorder", "", "absolute path of the flight-recorder ring (every native request/response/error and service event; read back by /api/telemetry); default <profile>/flight/flight.jsonl, none under --observe")
+	flags.BoolVar(&c.noFlightRecorder, "no-flight-recorder", false, "run without a flight recorder; /api/telemetry answers 404")
 	flags.IntVar(&c.routineProjectLimit, "routine-project-limit", 2, "maximum concurrent optional projects, also bounded by observed workers (1..8)")
 	flags.StringVar(&c.routineDialogPrefer, "routine-dialog-prefer", strings.Join(policy.DefaultDialogAnswerPrefer, ","), "comma-separated option patterns AnswerDialog prefers when a force-pausing choice dialog is open: each matches an option's Keyed translation key exactly or its label as a case-insensitive substring, first match wins; the first selectable resolving option otherwise")
 	flags.Int64Var(&c.routineSilverReserve, "routine-silver-reserve", 0, "silver TradeWithCaravan never spends below when buying from a caravan")
@@ -266,6 +268,15 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	}
 	if c.flightRecorder != "" && !filepath.IsAbs(c.flightRecorder) {
 		return c, errors.New("--flight-recorder requires an absolute path")
+	}
+	if c.noFlightRecorder && c.flightRecorder != "" {
+		return c, errors.New("--no-flight-recorder and --flight-recorder are exclusive")
+	}
+	// The recorder is on by default under the profile (#299): a player
+	// launch keeps the same evidence the acceptance runner reads, in a ring
+	// the profile owns. Acceptance names its per-case path explicitly.
+	if c.flightRecorder == "" && !c.noFlightRecorder && c.profile != "" {
+		c.flightRecorder = filepath.Join(c.profile, "flight", "flight.jsonl")
 	}
 	if !c.chat && (explicit["chat-base-url"] || explicit["chat-context-tokens"] || explicit["chat-max-output-tokens"]) {
 		return c, errors.New("--chat-base-url, --chat-context-tokens and --chat-max-output-tokens require --chat-model")
@@ -523,7 +534,7 @@ func serveWithBridge(ctx context.Context, config serveConfig, out io.Writer, ope
 	_ = snapshots.Refresh(ctx)
 	presentation, _ := client.(httpapi.PresentationReader)
 	notifications, _ := client.(httpapi.NotificationReader)
-	server, err := httpapi.New(httpapi.Config{Notifications: notifications, Presentation: presentation, AssetsDir: config.assets, Pprof: config.pprof, ReadTimeout: 5 * time.Second, ShutdownTimeout: 5 * time.Second, MaxResponseBytes: 1 << 20}, snapshots, database)
+	server, err := httpapi.New(httpapi.Config{Notifications: notifications, Presentation: presentation, AssetsDir: config.assets, Pprof: config.pprof, FlightRecorder: config.flightRecorder, ReadTimeout: 5 * time.Second, ShutdownTimeout: 5 * time.Second, MaxResponseBytes: 1 << 20}, snapshots, database)
 	if err != nil {
 		return err
 	}

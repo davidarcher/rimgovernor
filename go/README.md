@@ -68,7 +68,7 @@ the controller.
 | `--resource-rule`, `--world-evaluation-food-margin-days` | Resource reservation rules for building admission; caravan food margin. |
 | `--resume` | Run the bot for the observed world at startup and after every native load, without a dashboard Resume. |
 | `--chat-model`, `--chat-base-url`, `--chat-context-tokens`, `--chat-max-output-tokens` | Local model chat; the last three require `--chat-model`. |
-| `--flight-recorder <path>` | Record every native request/response/error (see [Native request diagnostics](#native-request-diagnostics)). |
+| `--flight-recorder <path>`, `--no-flight-recorder` | Where the flight recorder ring lives (default `<profile>/flight/flight.jsonl`; none under `--observe`), or none at all (see [Native request diagnostics](#native-request-diagnostics)). |
 
 **Configuration sources and precedence.** `serve` reads exactly two sources,
 in this order: command-line flags, then process environment. There is no
@@ -867,9 +867,17 @@ old results. Native notification production still requires game-level acceptance
 
 ### Native request diagnostics
 
-`serve --flight-recorder <absolute-path>` opt-in-records every native
-request/response/error, including background reads. It is off by default; a service
-started without the flag records nothing. Requests and errors are fsynced
+`serve` records every native request/response/error, including background
+reads, and every kinded service event, to a flight recorder ring under the
+profile (`<profile>/flight/flight.jsonl`) by default; `--flight-recorder
+<absolute-path>` names another ring (the acceptance runner's per-case path),
+`--no-flight-recorder` records nothing, and `--observe` has no profile and so
+no default ring. The ring outlives each launch: a new launch continues the
+sequence and stamps its rows with its own `run` id. A running service serves
+the ring back over `GET /api/telemetry/events` (paged by sequence) and `GET
+/api/telemetry/metrics` (the acceptance metrics block computed live, with
+`tick`, `tps`, `authority` and `last_step_ms`); both answer 404 without a
+recorder. Requests and errors are fsynced
 before the call returns; a response row is written unsynced and becomes
 durable only at the next durable record or segment rotation, so a crash can
 leave an explicit unmatched request but never a silently lost one. The

@@ -50,6 +50,35 @@ func TestServeRejectsRelativeFlightRecorderPath(t *testing.T) {
 	}
 }
 
+// A plain serve records under the profile; --observe has no profile and
+// so no recorder; --no-flight-recorder turns it off; --flight-recorder
+// keeps naming the acceptance runner's per-case path.
+func TestServeFlightRecorderDefaultsUnderTheProfile(t *testing.T) {
+	dir := t.TempDir()
+	withRoutineFamilies(t, "", false)
+	base := append(serveBase(dir), "--profile", dir)
+	config, err := parseServe(base, io.Discard)
+	if err != nil || config.flightRecorder != filepath.Join(dir, "flight", "flight.jsonl") {
+		t.Fatalf("default ring: %q %v", config.flightRecorder, err)
+	}
+	config, err = parseServe(append(append([]string{}, base...), "--no-flight-recorder"), io.Discard)
+	if err != nil || config.flightRecorder != "" {
+		t.Fatalf("--no-flight-recorder: %q %v", config.flightRecorder, err)
+	}
+	explicit := filepath.Join(dir, "case", "flight.jsonl")
+	config, err = parseServe(append(append([]string{}, base...), "--flight-recorder", explicit), io.Discard)
+	if err != nil || config.flightRecorder != explicit {
+		t.Fatalf("explicit ring: %q %v", config.flightRecorder, err)
+	}
+	if _, err := parseServe(append(append([]string{}, base...), "--flight-recorder", explicit, "--no-flight-recorder"), io.Discard); err == nil {
+		t.Fatal("accepted --flight-recorder with --no-flight-recorder")
+	}
+	observe := []string{"--observe", "--gabs", filepath.Join(dir, "gabs"), "--config", dir, "--game", "trial", "--state", filepath.Join(dir, "state.db")}
+	if config, err = parseServe(observe, io.Discard); err != nil || config.flightRecorder != "" {
+		t.Fatalf("--observe recorder: %q %v", config.flightRecorder, err)
+	}
+}
+
 func TestServePprofIsOffUnlessAsked(t *testing.T) {
 	dir := t.TempDir()
 	base := []string{"--observe", "--gabs", filepath.Join(dir, "gabs"), "--config", dir, "--game", "trial", "--state", filepath.Join(dir, "state.db")}
@@ -174,7 +203,13 @@ func TestServeAssetsAndCancellationJoinsNativePoll(t *testing.T) {
 		t.Fatal(err)
 	}
 	fake := &serviceFake{entered: make(chan struct{}, 1)}
-	cfg := serveConfig{state: filepath.Join(dir, "state.db"), listen: "127.0.0.1:0", assets: dir, refresh: 10 * time.Millisecond, bridge: bridge.ProcessConfig{Timeout: time.Second}}
+	ring := filepath.Join(dir, "flight", "flight.jsonl")
+	recorder, err := bridge.NewFlightRecorder(ring)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer recorder.Close()
+	cfg := serveConfig{state: filepath.Join(dir, "state.db"), listen: "127.0.0.1:0", assets: dir, refresh: 10 * time.Millisecond, flightRecorder: ring, bridge: bridge.ProcessConfig{Timeout: time.Second, Recorder: recorder}}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	addresses := make(addressWriter, 1)
@@ -194,7 +229,7 @@ func TestServeAssetsAndCancellationJoinsNativePoll(t *testing.T) {
 	for _, check := range []struct {
 		path, contains string
 		code           int
-	}{{"/", "Observation mode", 200}, {"/api/health", `"backend":"go"`, 200}, {"/api/state", `"tick":123`, 200}, {"/api/automate", "unsupported", 501}} {
+	}{{"/", "Observation mode", 200}, {"/api/health", `"backend":"go"`, 200}, {"/api/state", `"tick":123`, 200}, {"/api/telemetry/events?kind=coverage", `"kind":"coverage"`, 200}, {"/api/telemetry/metrics", `"tick":123`, 200}, {"/api/automate", "unsupported", 501}} {
 		method := "GET"
 		if check.code == 501 {
 			method = "POST"

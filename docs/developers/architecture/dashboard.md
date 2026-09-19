@@ -76,6 +76,28 @@ confirms the controller is up. Server-side handlers live under
 [interface contracts](../contracts/interface-contracts.md) for lease, capture
 and transport details.
 
+## Telemetry
+
+`serve` keeps a flight recorder under the profile by default
+(`<profile>/flight/flight.jsonl`, an 8 x 8 MiB ring; `--flight-recorder
+<path>` moves it, `--no-flight-recorder` turns it off, `--observe` has no
+profile and so none), and the same listener reads it back, so a live game
+that seems to be doing nothing has evidence beyond stderr:
+
+- `GET /api/telemetry/events?since=<seq>&kind=<k,...>&limit=<n>` pages the
+  retained rows by sequence (`next_since` is the value for the following
+  page, `more` says one is waiting); a `recording_gap` row stands in for a
+  corrupt line or a sequence the ring rotated away. The sequence continues
+  across launches; each row's `run` names the launch that wrote it.
+- `GET /api/telemetry/metrics` is the acceptance runner's metrics block
+  (#297) computed live over the current launch's rows, beside `tick`,
+  `tps`, `authority` (the live generation, or null) and `last_step_ms`.
+
+Both are read-only and unauthenticated like `/api/state`, and answer 404
+without a recorder. Neither follows the tail: every read parses the ring
+afresh (`go/internal/httpapi/telemetry.go`). See [measure
+throughput](../testing/measure-throughput.md) for what the rows carry.
+
 ## Chat
 
 `PlayerControls` shows an adviser chat panel when `POST /api/chat` is enabled

@@ -18,6 +18,11 @@ type TimelineRecord struct {
 	Kind     string
 	Sequence uint64
 	HasSeq   bool
+	// Run is the recorder run the row belongs to. A ring kept under a
+	// profile outlives the process that wrote it (#299), so the rows of
+	// successive launches share one file; the sequence continues across
+	// them and Run tells them apart.
+	Run string
 	// WallTime is the row's Unix time in seconds, as the recorder wrote it.
 	WallTime float64
 	Context  map[string]any
@@ -81,6 +86,7 @@ func ReadTimeline(path string) ([]TimelineRecord, error) {
 				continue
 			}
 			var raw struct {
+				Run      string         `json:"run"`
 				Sequence *uint64        `json:"sequence"`
 				WallTime float64        `json:"wall_time"`
 				Kind     *string        `json:"kind"`
@@ -96,7 +102,7 @@ func ReadTimeline(path string) ([]TimelineRecord, error) {
 				records = append(records, TimelineRecord{Kind: "recording_gap", Reason: "Retention or sequence discontinuity", Before: sequence, After: previous})
 			}
 			previous, havePrevious = sequence, true
-			records = append(records, TimelineRecord{Kind: *raw.Kind, Sequence: sequence, HasSeq: true, WallTime: raw.WallTime, Context: raw.Context, Payload: raw.Payload})
+			records = append(records, TimelineRecord{Kind: *raw.Kind, Sequence: sequence, HasSeq: true, Run: raw.Run, WallTime: raw.WallTime, Context: raw.Context, Payload: raw.Payload})
 		}
 	}
 	return records, nil

@@ -67,6 +67,10 @@ type Config struct {
 	// Pprof mounts net/http/pprof under /debug/pprof/ (see pprof.go); off,
 	// the routes answer 404.
 	Pprof bool
+	// FlightRecorder is the absolute path of the flight-recorder ring the
+	// /api/telemetry routes read (see telemetry.go); empty, the routes
+	// answer 404.
+	FlightRecorder string
 }
 type State struct {
 	SessionID    string         `json:"sessionId"`
