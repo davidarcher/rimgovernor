@@ -584,10 +584,13 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		gearReplaceCapabilities = client.gearReplace
 	}
+	// The defensive layout rearms an empty turret barrel with the same
+	// forced refuel order the recovery family issues (#205), so its plans
+	// need the recovery-service executor too.
 	var recoveryServiceCapabilities *buildingruntime.RecoveryServiceCapabilities
-	if config.routineRecoveryPlans {
+	if config.routineRecoveryPlans || config.routineDefensiveLayoutPlans {
 		if client.recoveryService == nil {
-			return errors.New("recovery plans require typed capabilities")
+			return errors.New("recovery and defensive-layout plans require typed capabilities")
 		}
 		recoveryServiceCapabilities = client.recoveryService
 	}

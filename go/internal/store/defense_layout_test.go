@@ -49,11 +49,26 @@ func TestDefenseLayoutRoundTripPerWorld(t *testing.T) {
 	}
 	got.Complete = true
 	got.Tiers[0].Built = true
+	got.FuelShortage = []policy.Amount{{Resource: "Steel", Count: 60}}
 	if err = db.SaveDefenseLayout(context.Background(), got); err != nil {
 		t.Fatal(err)
 	}
-	if got, _, _ = db.LoadDefenseLayout(context.Background(), world); !got.Complete {
-		t.Fatal("completion not persisted")
+	if got, _, _ = db.LoadDefenseLayout(context.Background(), world); !got.Complete || len(got.FuelShortage) != 1 || got.FuelShortage[0] != (policy.Amount{Resource: "Steel", Count: 60}) {
+		t.Fatalf("completion or fuel shortage not persisted: %+v", got)
+	}
+	// A shortage row without a positive count is not a record the planner
+	// wrote; clearing the shortage persists as absent.
+	short := got
+	short.FuelShortage = []policy.Amount{{Resource: "Steel"}}
+	if err = db.SaveDefenseLayout(context.Background(), short); err == nil {
+		t.Fatal("saved a fuel shortage without a count")
+	}
+	got.FuelShortage = nil
+	if err = db.SaveDefenseLayout(context.Background(), got); err != nil {
+		t.Fatal(err)
+	}
+	if got, _, _ = db.LoadDefenseLayout(context.Background(), world); len(got.FuelShortage) != 0 {
+		t.Fatalf("fuel shortage not cleared: %+v", got.FuelShortage)
 	}
 	// Standing needs completion and every placed tier still built.
 	if !got.Standing() {

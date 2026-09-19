@@ -129,12 +129,18 @@ func TestDefenseCensusStandsConduitsAndPower(t *testing.T) {
 		{Name: policy.TierTurrets, Built: true, Attempts: 1, Buildings: []store.DefenseBuilding{{Definition: defenseTurretDefinition, Cell: turret, Rotation: domain.North}, {Definition: defenseConduitDefinition, Cell: conduit, Rotation: domain.North}}},
 	}}
 	// Conduits are not edifices: the conduit census stands them.
-	census := &defenseCensus{edifice: map[domain.Cell]string{wall: "Wall", turret: defenseTurretDefinition}, conduits: map[domain.Cell]bool{conduit: true}, powered: map[domain.Cell]domain.Fact[bool]{turret: domain.Known(true)}}
+	site := policy.PowerSite{ID: "Turret_MiniTurret1", Definition: defenseTurretDefinition, Cell: turret, PowerBuilding: policy.PowerBuilding{Powered: domain.Known(true), OutOfFuel: domain.Known(false), Fuel: domain.Known(60.0), TargetFuel: domain.Known(60.0), FuelDefinitions: []string{"Steel"}}}
+	census := &defenseCensus{edifice: map[domain.Cell]string{wall: "Wall", turret: defenseTurretDefinition}, conduits: map[domain.Cell]bool{conduit: true}, consumers: map[domain.Cell]policy.PowerSite{turret: site}}
 	if defenseTierCensus(&record, census) || !record.Tiers[1].Built {
 		t.Fatal("standing tier changed")
 	}
-	if dark := defenseUnpoweredTurrets(record, census); len(dark) != 0 {
-		t.Fatal(dark)
+	hauler := policy.WorkPawn{ID: "h", Available: domain.Known(true), Applies: domain.Known(true), Work: domain.Known([]policy.WorkPriority{{Work: policy.WorkHauling, Priority: 3}})}
+	stock := domain.Known(map[policy.Resource]int64{"Steel": 100})
+	upkeep := func() policy.DefenseTurretUpkeep {
+		return policy.DefenseRearmTurrets(defenseTurretFacts(record, census), []policy.WorkPawn{hauler}, stock)
+	}
+	if u := upkeep(); len(u.Unpowered) != 0 || len(u.Empty) != 0 || len(u.Rearm) != 0 {
+		t.Fatalf("%+v", u)
 	}
 	// A lost conduit re-opens the tier by that conduit alone.
 	census.conduits = map[domain.Cell]bool{}
@@ -148,20 +154,34 @@ func TestDefenseCensusStandsConduitsAndPower(t *testing.T) {
 	// A standing turret without power is a deficit, not a missing
 	// building; an unknown power state is neither.
 	census.conduits[conduit] = true
-	census.powered[turret] = domain.Known(false)
+	site.Powered = domain.Known(false)
+	census.consumers[turret] = site
 	defenseTierCensus(&record, census)
 	if !record.Tiers[1].Built {
 		t.Fatal("unpowered turret counted as lost")
 	}
-	if dark := defenseUnpoweredTurrets(record, census); !reflect.DeepEqual(dark, []domain.Cell{turret}) {
-		t.Fatal(dark)
+	if u := upkeep(); !reflect.DeepEqual(u.Unpowered, []domain.Cell{turret}) || len(u.Empty) != 0 {
+		t.Fatalf("%+v", u)
 	}
-	census.powered = nil
-	if dark := defenseUnpoweredTurrets(record, census); len(dark) != 0 {
+	// An empty barrel is a deficit with a rearm order on the turret's
+	// census identity (#205); the facts carry the census fuel definitions.
+	site.Powered, site.OutOfFuel, site.Fuel = domain.Known(true), domain.Known(true), domain.Known(0.0)
+	census.consumers[turret] = site
+	facts := defenseTurretFacts(record, census)
+	if len(facts) != 1 || facts[0].ID != site.ID || !reflect.DeepEqual(facts[0].FuelDefinitions, []policy.Resource{"Steel"}) {
+		t.Fatalf("%+v", facts)
+	}
+	if u := upkeep(); !reflect.DeepEqual(u.Empty, []domain.Cell{turret}) || !reflect.DeepEqual(u.Rearm, []policy.DefenseRearm{{Turret: site.ID, Cell: turret, Pawn: "h", Fuel: "Steel"}}) {
+		t.Fatalf("%+v", u)
+	}
+	// A turret cell the power census does not carry has unknown facts and
+	// no deficit; so does a layout without any census.
+	census.consumers = map[domain.Cell]policy.PowerSite{}
+	if u := upkeep(); len(u.Unpowered) != 0 || len(u.Empty) != 0 {
 		t.Fatal("unknown power state became a deficit")
 	}
-	if dark := defenseUnpoweredTurrets(record, nil); len(dark) != 0 {
-		t.Fatal(dark)
+	if facts := defenseTurretFacts(record, nil); facts != nil {
+		t.Fatal(facts)
 	}
 }
 
@@ -209,5 +229,27 @@ func TestDefenseRecordGeometryAndTurretTier(t *testing.T) {
 	record.Tiers = record.Tiers[:1]
 	if !defenseTurretsDue(record, 100+defenseReverifyTicks) {
 		t.Fatal("absent tier not due")
+	}
+}
+
+func TestDefenseRearmAttemptsCountTheTurretWithinTheWindow(t *testing.T) {
+	t.Parallel()
+	history := []domain.GoalMethod{
+		{Method: domain.MethodID(defenseRearmPrefix("T1") + "1000")},
+		{Method: domain.MethodID(defenseRearmPrefix("T1") + "2000")},
+		{Method: domain.MethodID(defenseRearmPrefix("T2") + "2000")},
+		{Method: domain.MethodID(defenseRearmPrefix("T1") + "x")},
+		{Method: "defense-turrets-0"},
+	}
+	if got := defenseRearmAttempts(history, "T1", 3000); got != 2 {
+		t.Fatal(got)
+	}
+	// An order older than the window no longer counts; another turret's
+	// never does.
+	if got := defenseRearmAttempts(history, "T1", 1000+defenseRearmWindowTicks); got != 1 {
+		t.Fatal(got)
+	}
+	if got := defenseRearmAttempts(history, "T3", 3000); got != 0 {
+		t.Fatal(got)
 	}
 }

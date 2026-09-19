@@ -141,3 +141,24 @@ func TestResourceGoalYieldsItsSlotToRecordedResearch(t *testing.T) {
 		t.Fatal(rows[EnsureResearch], rows[MaintainResource])
 	}
 }
+
+// A derived resource need (the defensive layout's turret fuel the census
+// found no stock of, #205) opens MaintainResource without an operator
+// target, and stock at the derived floor recovers it.
+func TestDerivedResourceNeedOpensMaintainResource(t *testing.T) {
+	p := DefaultRoutinePolicy()
+	f := stableRoutine()
+	f.ResourceNeeds = map[Resource]int64{"Steel": 60}
+	f.Resources = domain.Known([]Amount{{Resource: "WoodLog", Count: 400}})
+	r, err := DetectRoutine(f, RoutineLatches{}, p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasNeed(r, MaintainResource) {
+		t.Fatal("derived need did not open MaintainResource")
+	}
+	f.Resources = domain.Known([]Amount{{Resource: "Steel", Count: 60}})
+	if r, err = DetectRoutine(f, RoutineLatches{}, p); err != nil || hasNeed(r, MaintainResource) {
+		t.Fatal("stocked derived need still a deficit", err)
+	}
+}

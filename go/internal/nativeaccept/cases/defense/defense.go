@@ -122,7 +122,7 @@ func init() {
 			// mends the damaged turret and the power family may route the
 			// lost connection before the layout re-places its conduit.
 			serve = &cases.ServeSpec{Families: append(append([]string{}, spec.Families...), "repair", "power"), Env: spec.Env, Prefix: spec.Prefix}
-			reason = "turret build, raid answer and routine restoration of a depowered, damaged turret are one native campaign on the committed layout"
+			reason = "turret build, raid answer, routine restoration of a depowered, damaged turret and the rearm of an emptied barrel are one native campaign on the committed layout"
 		}
 		cases.Register(cases.Case{
 			Name: name, Scope: scope, Start: start, Serve: serve, Budget: budget, Reason: reason,
@@ -149,8 +149,8 @@ func init() {
 	turrets.turrets = true
 	register("defense/turrets", "Powered turret tier (#61) on the committed layout checkpoint: with turret research, a fuelled network and steel observed, "+
 		"the planner adds turrets behind the firing line with their own conduit chain and builds them natively; a powered turret is observed firing on an edge raid "+
-		"entering the kill zone, and afterwards a depowered, damaged turret is restored through routine upkeep.",
-		checkpoint, 45*time.Minute, turrets)
+		"entering the kill zone, and afterwards a depowered, damaged turret is restored through routine upkeep and an emptied barrel with the game's auto-refuel off is rearmed by the layout's own refuel order (#205).",
+		checkpoint, 50*time.Minute, turrets)
 	predator := fromCheckpoint
 	predator.threat = "predator"
 	register("defense/predator", "A wild predator hunting a colonist during supervised play (#157) is answered with squad defense from the committed layout checkpoint: "+
@@ -456,6 +456,29 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 			return err
 		}
 		report["inspect_after_turrets"] = built
+		// The clock's watch latches on the last tier build completing, so
+		// the service stops the game on the tick the turret joined the net,
+		// before PowerNetTick has switched it on; a turret that reads
+		// unpowered is given a few seconds of game time and read again
+		// before it is judged (the power case does the same for a fresh
+		// refuel).
+		for attempt := 1; attempt <= 3 && assertTurretsPowered(built, layout) != nil; attempt++ {
+			if _, err := h.Call(ctx, fmt.Sprintf("resume-after-turrets-%d", attempt), "rimworld/set_time_speed", map[string]any{"speed": "Normal", "ultraSpeedBoost": false}); err != nil {
+				return err
+			}
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(5 * time.Second):
+			}
+			if _, err := h.Call(ctx, fmt.Sprintf("pause-after-turrets-%d", attempt), "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
+				return err
+			}
+			if built, err = fixture(fmt.Sprintf("inspect-after-turrets-%d", attempt), map[string]any{"op": "inspect"}); err != nil {
+				return err
+			}
+			report["inspect_after_turrets"] = built
+		}
 		if err := assertTurretsPowered(built, layout); err != nil {
 			return fmt.Errorf("after the turret tier: %w", err)
 		}

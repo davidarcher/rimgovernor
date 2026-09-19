@@ -357,6 +357,11 @@ type RoutineFacts struct {
 	// first unfinished one is EnsureResearch's target when none is
 	// configured.
 	ResearchNeeds []string
+	// ResourceNeeds are derived stock floors other goals' recorded evidence
+	// asks for (the defensive layout's turret fuel the census found no
+	// stock of, #205); ResourceGoalTargets merges them into the operator's
+	// MaintainResource targets, never lowering a configured floor.
+	ResourceNeeds map[Resource]int64
 	// DefensiveLayoutStanding is journal evidence for EnsureDefensiveLayout:
 	// known true while the stored layout was verified complete and every
 	// tier still stood at the last census, so a standing layout no longer
@@ -770,7 +775,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		r.Goals[len(r.Goals)-1].Deficit = researchDeficit
 	}
 	addAssessment(EnsureResearch, 4, researchRecovered)
-	resourceRecovered, resourceDeficit := ResourceTargetNeed(p.ResourceTargets, f.Resources)
+	resourceRecovered, resourceDeficit := ResourceTargetNeed(ResourceGoalTargets(p.ResourceTargets, f.ResourceNeeds), f.Resources)
 	if !positive(resourceRecovered) {
 		addGoal(MaintainResource, 4)
 		r.Goals[len(r.Goals)-1].Deficit = resourceDeficit

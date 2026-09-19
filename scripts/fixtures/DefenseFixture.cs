@@ -23,7 +23,9 @@ namespace HomeBridge.BridgeTools
     // attack tick, conduits, generators), power (#61: turret and electricity
     // research finished, a fuelled wood generator with a conduit stub near
     // x,z, steel and components in stock), depower (one conduit at x,z
-    // vanishes with the game's auto-rebuild off). No completed-work
+    // vanishes with the game's auto-rebuild off), empty (#205: the turret at
+    // x,z has its barrel emptied and its auto-refuel switched off, so any
+    // later fuel in it came from a rearm order). No completed-work
     // injection: construction, movement and combat stay native.
     public sealed class DefenseFixture
     {
@@ -43,7 +45,7 @@ namespace HomeBridge.BridgeTools
             return fixturePredator;
         }
 
-        [Tool("test/defense_setup", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable defensive-layout fixture: op=terrain|stock|ranged|raid|predator|damage|breach|heal|inspect|quiet|power|depower|muster.")]
+        [Tool("test/defense_setup", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable defensive-layout fixture: op=terrain|stock|ranged|raid|predator|damage|breach|heal|inspect|quiet|power|depower|muster|empty.")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken, string op, string strategy = "ImmediateAttack", string arrival = "EdgeWalkIn", int points = 0, string wall = "", int rifles = 3, string kind = "Cougar", int x = -1, int z = -1, string cells = "")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -68,7 +70,8 @@ namespace HomeBridge.BridgeTools
                     case "power": return Power(map, new IntVec3(x, 0, z));
                     case "depower": return Depower(map, new IntVec3(x, 0, z));
                     case "muster": return Muster(map, colonists, cells);
-                    default: return Refuse("Use terrain, stock, ranged, raid, predator, damage, breach, heal, inspect, quiet, power, depower or muster.");
+                    case "empty": return Empty(map, new IntVec3(x, 0, z));
+                    default: return Refuse("Use terrain, stock, ranged, raid, predator, damage, breach, heal, inspect, quiet, power, depower, muster or empty.");
                 }
             }, cancellationToken).ConfigureAwait(false);
         }
@@ -423,20 +426,41 @@ namespace HomeBridge.BridgeTools
             return new { success = true, x = cell.x, z = cell.z, turrets = Turrets(map), autoRebuild = Find.PlaySettings.autoRebuild, tick = Find.TickManager.TicksGame };
         }
 
+        // Empty stages the rearm precondition (#205): the turret's barrel is
+        // consumed to nothing and the game's own auto-refuel is switched off
+        // for it, so the only way fuel returns is a forced refuel order, the
+        // controller's rearm.
+        private static object Empty(Map map, IntVec3 cell)
+        {
+            var turret = cell.InBounds(map) ? cell.GetThingList(map).OfType<Building_TurretGun>().FirstOrDefault(t => t.Faction == Faction.OfPlayer) : null;
+            if (turret == null) return Refuse("No player turret on the requested cell.");
+            var fuel = turret.TryGetComp<CompRefuelable>();
+            if (fuel == null) return Refuse("Turret has no refuelable barrel.");
+            var before = fuel.Fuel;
+            fuel.ConsumeFuel(fuel.Fuel);
+            fuel.allowAutoRefuel = false;
+            if (fuel.HasFuel) return Refuse("Barrel still has fuel after consumption.");
+            return new { success = true, id = turret.GetUniqueLoadID(), x = cell.x, z = cell.z, fuelBefore = before, fuel = fuel.Fuel, targetFuel = fuel.TargetFuelLevel,
+                autoRefuel = fuel.allowAutoRefuel, fuelDefs = fuel.Props.fuelFilter.AllowedThingDefs.Select(d => d.defName).ToList(), tick = Find.TickManager.TicksGame };
+        }
+
         // Turrets reads every player turret gun with the evidence the #61
         // acceptance needs: power, hit points, the tick the turret last took
         // aim and its ranged-fire entries in the battle log (each burst the
-        // turret starts is logged with the turret as the initiator).
+        // turret starts is logged with the turret as the initiator), and
+        // the barrel's fuel and auto-refuel setting (#205).
         private static List<object> Turrets(Map map)
         {
             var shots = Find.BattleLog?.Battles?.SelectMany(b => b.Entries).OfType<BattleLogEntry_RangedFire>().ToList() ?? new List<BattleLogEntry_RangedFire>();
             return map.listerBuildings.allBuildingsColonist.OfType<Building_TurretGun>().OrderBy(t => t.thingIDNumber).Select(t => {
                 var power = t.TryGetComp<CompPowerTrader>();
                 var net = power?.PowerNet;
+                var fuel = t.TryGetComp<CompRefuelable>();
                 var fired = shots.Where(s => s.Concerns(t)).Select(s => s.Tick).ToList();
                 return (object)new {
                     id = t.GetUniqueLoadID(), def = t.def.defName, x = t.Position.x, z = t.Position.z, hp = t.HitPoints, max = t.MaxHitPoints,
                     powered = power?.PowerOn ?? false, connected = net != null,
+                    fuel = fuel?.Fuel ?? -1f, targetFuel = fuel?.TargetFuelLevel ?? -1f, hasFuel = fuel?.HasFuel ?? true, autoRefuel = fuel?.allowAutoRefuel ?? false,
                     parent = power?.connectParent == null ? null : new { x = power.connectParent.parent.Position.x, z = power.connectParent.parent.Position.z, def = power.connectParent.parent.def.defName },
                     netGain = net?.CurrentEnergyGainRate() ?? 0f, netStored = net?.CurrentStoredEnergy() ?? 0f,
                     netTransmitters = net?.transmitters.Count ?? 0, netConnectors = net?.connectors.Count ?? 0,

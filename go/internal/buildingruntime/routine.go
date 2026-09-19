@@ -185,11 +185,12 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter)
 		return store.RoutineReviewResult{}, err
 	}
 	reading.Projection.Facts.ResearchNeeds = needs
-	reading.Projection.Facts.DefensiveLayoutStanding, err = routineDefensiveLayoutStanding(ctx, p.journal, r.policy, state.Snapshot)
+	reading.Projection.Facts.DefensiveLayoutStanding, reading.Projection.Facts.ResourceNeeds, err = routineDefensiveLayoutStanding(ctx, p.journal, r.policy, state.Snapshot)
 	if err != nil {
 		clockSchedulerLog("routine.step: LoadDefenseLayout err=%v", err)
 		return store.RoutineReviewResult{}, err
 	}
+	resourceTargets := policy.ResourceGoalTargets(r.policy.ResourceTargets, reading.Projection.Facts.ResourceNeeds)
 	if pawns, known := reading.Projection.WorkPawns.Value(); known {
 		reading.Projection.Facts.Workers = policy.RoutineWorkers(pawns)
 		reading.Projection.Facts.Labor = policy.RoutineLabor(pawns)
@@ -199,9 +200,9 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter)
 			// toward coverage here so the work goal assesses a deficit the
 			// planner then covers; a failed census leaves coverage unknown.
 			benches, _ := r.native.(RoutineWorkBenchSource)
-			recovered, _ := policy.ResourceTargetNeed(r.policy.ResourceTargets, reading.Projection.Facts.Resources)
+			recovered, _ := policy.ResourceTargetNeed(resourceTargets, reading.Projection.Facts.Resources)
 			deficit, deficitKnown := recovered.Value()
-			benchWork, err := routineBenchWork(ctx, benches, state.Snapshot, plans, playerPlans, r.policy.ResourceTargets, deficitKnown && !deficit)
+			benchWork, err := routineBenchWork(ctx, benches, state.Snapshot, plans, playerPlans, resourceTargets, deficitKnown && !deficit)
 			if err != nil {
 				clockSchedulerLog("routine.step: bench work err=%v", err)
 			}

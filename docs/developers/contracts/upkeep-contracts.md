@@ -114,10 +114,27 @@ re-placed like any missing building. Damage is `MaintainEssentialRepairs`'
 (turrets are home-area structures with repair priority 2). While every tier
 stands, the goal reports a known zero deficit to development arbitration so
 those upkeep goals take the free slot first; the periodic re-verification
-still runs whenever a slot is free. The mini turret's barrel (a refuelable
-comp fed with steel) is left to the game's auto-refuel with steel in stock;
-counting an empty or mandatory-fuel barrel as a deficit and rearming it is
-#205. Made-from-stuff definitions the planning read cannot build from wood
+still runs whenever a slot is free. The barrel (the mini turret's refuelable
+comp, fed with steel) is read from the same power census as the turret's
+power, since turrets are consumers: a turret observed out of fuel is a tier
+deficit like an unpowered one (`unfuelled` in the scheduler log; the game's
+own auto-refuel at half a barrel with steel in stock normally forestalls
+it). While a barrel is empty and one of its fuel definitions is in stock,
+the goal issues one forced refuel order per step (a `recovery_service`
+action on the turret's census identity, carried by an available colonist
+whose Hauling work is not disabled, the highest-priority enabled hauler
+first; up to four attempts per turret and goal epoch), the same native
+work-giver job a float-menu click issues, so a switched-off auto-refuel or
+an idle hauling roster does not leave the line unarmed. When no fuel
+definition is in stock the record carries the barrels' fuel gap as a
+`FuelShortage` and the routine review raises it as a derived
+`MaintainResource` floor (`RoutineFacts.ResourceNeeds`, merged by
+`ResourceGoalTargets` without lowering an operator's floor), so the resource
+policy sources steel (bench recipe, then native mineable sources) until the
+census sees it; the gap is counted in fuel units, an estimate of the steel
+(the native per-item multiplier is not observed). An unknown fuel state, or
+a turret cell the power census does not carry, is neither a deficit nor an
+order. Made-from-stuff definitions the planning read cannot build from wood
 (the turret is metallic) are observed with the game's default material, so
 their costs and stuff are known.
 

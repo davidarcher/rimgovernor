@@ -99,7 +99,14 @@ namespace HomeBridge.BridgeTools
 
         // Mirrors RecoveryTools.Order's "observed service no longer needs this
         // method" refusal: repair only while under max HP, breakdown only while
-        // broken, refuel only while under target fuel level.
+        // broken, refuel only while under a quarter of the target fuel level,
+        // the controller's own refuel threshold (policy.RecoveryWork orders a
+        // refuel below 25%, the defensive layout's rearm on an empty barrel).
+        // One refuel job carries at most a pawn's load (75 steel fills a mini
+        // turret barrel to 56 of 60, #205), so a full-barrel criterion would
+        // read a successful order as interrupted and never re-issue it.
+        internal const float RefuelSatisfiedFraction = 0.25f;
+
         internal static bool Satisfied(Building building, Operations.ServiceMethod method)
         {
             switch (method)
@@ -110,12 +117,15 @@ namespace HomeBridge.BridgeTools
                     return building.TryGetComp<CompBreakdownable>()?.BrokenDown != true;
                 case Operations.ServiceMethod.Refuel:
                     var fuel = building.TryGetComp<CompRefuelable>();
-                    return fuel == null || fuel.Fuel >= fuel.TargetFuelLevel;
+                    return fuel == null || fuel.Fuel >= fuel.TargetFuelLevel || fuel.Fuel >= RefuelSatisfiedFraction * fuel.TargetFuelLevel;
                 default:
                     return true;
             }
         }
 
+        // The giver is matched by class assignability: Core rearms a turret
+        // barrel through WorkGiver_Refuel_Turret, a WorkGiver_Refuel subclass
+        // on the RearmTurrets def, while the base class skips turrets (#205).
         private static Type? WorkGiverType(Operations.ServiceMethod method) => method switch
         {
             Operations.ServiceMethod.Repair => typeof(WorkGiver_Repair),
@@ -193,7 +203,7 @@ namespace HomeBridge.BridgeTools
                 context.NativeGeneration = guard.Snapshot.Generation;
                 if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
                 var giverType = WorkGiverType(command.Method);
-                var result = WorkGiverDispatch.TryJob(pawn!, building!, def => def.giverClass == giverType, out _);
+                var result = WorkGiverDispatch.TryJob(pawn!, building!, def => giverType != null && giverType.IsAssignableFrom(def.giverClass), out _);
                 if (result == null) return Refuse(Common.FailureCode.NativeFailure, "No native service job is available for this pawn and target.");
                 guard = authority.Check(pre.ExpectedGeneration);
                 if (!guard.Success) return new Operations.ExecuteReply { Failure = NativeAuthorityControlTools.Refusal(guard.Error, context) };
@@ -245,7 +255,7 @@ namespace HomeBridge.BridgeTools
                 if (!Prepare(command, context, requireExpected, out _, out var pawn, out var building, out var snapshot, out var token, out var failure))
                     return new Operations.PreviewReply { Failure = failure };
                 var giverType = WorkGiverType(command.Method);
-                var result = WorkGiverDispatch.TryJob(pawn!, building!, def => def.giverClass == giverType, out _);
+                var result = WorkGiverDispatch.TryJob(pawn!, building!, def => giverType != null && giverType.IsAssignableFrom(def.giverClass), out _);
                 var accepted = result != null;
                 var jobDef = accepted ? (result!.Job.def?.defName ?? "") : "";
                 return NativeOperationEnvelope.Preview(new Operations.PreviewReply

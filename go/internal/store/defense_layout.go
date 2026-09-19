@@ -65,6 +65,11 @@ type DefenseLayoutRecord struct {
 	// against the stored geometry while it had nothing to place; the
 	// planner re-probes once per reverify interval, not every step.
 	TurretsProbedTick domain.Tick `json:",omitempty"`
+	// FuelShortage is the fuel the tier's empty barrels need and the last
+	// census found no stock of (#205), per definition; the routine review
+	// raises it as a derived MaintainResource floor until a barrel is
+	// rearmed or the stock returns.
+	FuelShortage []policy.Amount `json:",omitempty"`
 }
 
 const maxDefenseLayoutBytes = 256 * 1024
@@ -80,6 +85,14 @@ func (r DefenseLayoutRecord) Validate() error {
 	}
 	if r.VerifiedTick < 0 || r.TurretsProbedTick < 0 || len(r.VerifiedCombat) > 512 {
 		return errors.New("defense layout verification invalid")
+	}
+	if len(r.FuelShortage) > 16 {
+		return errors.New("defense layout fuel shortage out of bounds")
+	}
+	for _, a := range r.FuelShortage {
+		if a.Resource == "" || len(a.Resource) > 256 || a.Count <= 0 || a.Count > 10000 {
+			return errors.New("defense layout fuel shortage invalid")
+		}
 	}
 	seen := map[policy.DefenseTierName]bool{}
 	for _, tier := range r.Tiers {

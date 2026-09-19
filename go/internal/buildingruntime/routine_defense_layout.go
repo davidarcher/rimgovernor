@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strconv"
+	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
@@ -88,7 +90,7 @@ func (r *RoutineDefenseLayoutPlanner) Step(ctx context.Context) (RoutineDefenseL
 		return RoutineDefenseLayoutResult{}, err
 	}
 	defer done()
-	return r.step(call, epoch)
+	return r.step(call, epoch, newStepArbiter())
 }
 
 // A tier's method is keyed by tier and attempt: a plan cancelled by an
@@ -124,7 +126,7 @@ func defenseLayoutGoal(ctx context.Context, p *Player, review store.RoutineRevie
 	return goal, err == nil, err
 }
 
-func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context) (RoutineDefenseLayoutResult, error) {
+func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineDefenseLayoutResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
@@ -294,18 +296,132 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context) (Routine
 		return r.admit(call, epoch, goal, state, read, record, tier, buildings, defenseTierMethodID(name, tier.Attempts))
 	}
 	record.Complete, record.VerifiedTick, record.VerifiedCombat = true, tick, combat
+	// Every tier stands, so combat holds the proven line; a standing turret
+	// without power or with an empty barrel is still a deficit the layout
+	// waits on (the network's fuel or generation is EnsureBasicPower's, a
+	// lost conduit is re-placed above once the census misses it; an empty
+	// barrel is rearmed below, or its fuel raised as a resource need).
+	workers, _ := read.Projection.WorkPawns.Value()
+	upkeep := policy.DefenseRearmTurrets(defenseTurretFacts(record, census), workers, read.Projection.Resources)
+	record.FuelShortage = upkeep.Shortage
 	if err = p.journal.SaveDefenseLayout(call, record); err != nil {
 		return RoutineDefenseLayoutResult{}, err
 	}
-	// Every tier stands, so combat holds the proven line; a standing turret
-	// without power is still a deficit the layout waits on (the network's
-	// fuel or generation is EnsureBasicPower's, a lost conduit is re-placed
-	// above once the census misses it).
-	if dark := defenseUnpoweredTurrets(record, census); len(dark) > 0 {
-		clockSchedulerLog("defense-layout: turrets unpowered at %v", dark)
+	if len(upkeep.Rearm) > 0 {
+		return r.rearm(call, epoch, goal, state, read, upkeep.Rearm[0], arbiter)
+	}
+	if len(upkeep.Unpowered) > 0 || len(upkeep.Empty) > 0 {
+		clockSchedulerLog("defense-layout: turrets unpowered at %v, unfuelled at %v (fuel shortage %v)", upkeep.Unpowered, upkeep.Empty, upkeep.Shortage)
 		return RoutineDefenseLayoutResult{Reason: BuildingMethodUnknown, Tier: policy.TierTurrets}, nil
 	}
 	return RoutineDefenseLayoutResult{Reason: BuildingMethodNoDeficit}, nil
+}
+
+// A rearm method is keyed by turret and the tick it was ordered at: the
+// layout goal keeps one epoch for as long as the operator opts in and a
+// settled order retires out of goal.Methods, so an attempt counter would
+// collide with the epoch's history the next time the same barrel empties.
+// maxDefenseRearmAttempts bounds the orders per turret within
+// defenseRearmWindowTicks (one game day); a refused or interrupted order is
+// retried at a later tick until the bound.
+const (
+	maxDefenseRearmAttempts = 4
+	defenseRearmWindowTicks = 60000
+)
+
+func defenseRearmPrefix(turret string) string { return "defense-rearm-" + turret + "-" }
+
+// defenseRearmAttempts counts the epoch's rearm methods for the turret
+// ordered within the window before tick.
+func defenseRearmAttempts(history []domain.GoalMethod, turret string, tick domain.Tick) int {
+	prefix := defenseRearmPrefix(turret)
+	count := 0
+	for _, m := range history {
+		if !strings.HasPrefix(string(m.Method), prefix) {
+			continue
+		}
+		at, err := strconv.ParseInt(strings.TrimPrefix(string(m.Method), prefix), 10, 64)
+		if err == nil && tick-domain.Tick(at) < defenseRearmWindowTicks {
+			count++
+		}
+	}
+	return count
+}
+
+// rearm admits one forced refuel order for an empty tier barrel as a
+// recovery_service action under the layout goal: the same native work-giver
+// job a player's float-menu click issues, whose CAS token and pawn
+// eligibility Hands re-check at dispatch.
+func (r *RoutineDefenseLayoutPlanner) rearm(call, epoch context.Context, goal store.GoalState, state ControlState, read observation.RoutineReading, order policy.DefenseRearm, arbiter *stepArbiter) (RoutineDefenseLayoutResult, error) {
+	p := r.reviewer.player
+	tick := read.Projection.Identity.Tick
+	history, err := p.journal.LoadGoalMethods(call, goal.Goal.ID, goal.Goal.Epoch)
+	if err != nil {
+		return RoutineDefenseLayoutResult{}, err
+	}
+	if defenseRearmAttempts(history, order.Turret, tick) >= maxDefenseRearmAttempts {
+		clockSchedulerLog("defense-layout: rearm of %s at %v exhausted", order.Turret, order.Cell)
+		return RoutineDefenseLayoutResult{Reason: BuildingMethodExhausted, Tier: policy.TierTurrets}, nil
+	}
+	if arbiter == nil || !arbiter.tryClaim([]domain.PawnID{domain.PawnID(order.Pawn)}, "defense-rearm:"+order.Turret) {
+		return RoutineDefenseLayoutResult{Reason: BuildingMethodUsed, Tier: policy.TierTurrets}, nil
+	}
+	method := domain.MethodID(fmt.Sprintf("%s%d", defenseRearmPrefix(order.Turret), tick))
+	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
+	id := domain.PlanID(fmt.Sprintf("routine-defense-rearm-%x", digest[:16]))
+	service, err := domain.NewRecoveryService(domain.PawnID(order.Pawn), order.Turret, domain.RecoveryServiceRefuel)
+	if err != nil {
+		return RoutineDefenseLayoutResult{}, err
+	}
+	action, err := domain.NewRecoveryServiceAction(domain.ActionID(fmt.Sprintf("%s-0", id)), service)
+	if err != nil {
+		return RoutineDefenseLayoutResult{}, err
+	}
+	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
+	if err != nil {
+		return RoutineDefenseLayoutResult{}, err
+	}
+	if err = p.current(call, epoch); err != nil {
+		return RoutineDefenseLayoutResult{}, err
+	}
+	now := r.reviewer.clock.Now()
+	if p.session.State() != state || now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge {
+		return RoutineDefenseLayoutResult{}, defenseControlErr(360)
+	}
+	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+		return RoutineDefenseLayoutResult{}, err
+	}
+	clockSchedulerLog("defense-layout: rearm %s at %v by %s with %s (%s)", order.Turret, order.Cell, order.Pawn, order.Fuel, method)
+	return RoutineDefenseLayoutResult{Reason: BuildingMethodAdmitted, Plan: id, Tier: policy.TierTurrets}, nil
+}
+
+// defenseTurretFacts is the record's turret cells with the census's
+// consumer facts on each: identity and service state from the power census,
+// unknown where the census has no consumer on the cell.
+func defenseTurretFacts(record store.DefenseLayoutRecord, census *defenseCensus) []policy.DefenseTurretFacts {
+	if census == nil {
+		return nil
+	}
+	var out []policy.DefenseTurretFacts
+	for _, tier := range record.Tiers {
+		if tier.Name != policy.TierTurrets {
+			continue
+		}
+		for _, b := range tier.Buildings {
+			if b.Definition == defenseConduitDefinition {
+				continue
+			}
+			facts := policy.DefenseTurretFacts{Cell: b.Cell}
+			if site, ok := census.consumers[b.Cell]; ok {
+				facts.ID, facts.Powered, facts.OutOfFuel, facts.Fuel, facts.TargetFuel = site.ID, site.Powered, site.OutOfFuel, site.Fuel, site.TargetFuel
+				for _, d := range site.FuelDefinitions {
+					facts.FuelDefinitions = append(facts.FuelDefinitions, policy.Resource(d))
+				}
+			}
+			out = append(out, facts)
+		}
+	}
+	return out
 }
 
 // defenseTurretsDue reports whether a stored layout without a placed turret
@@ -317,12 +433,12 @@ func defenseTurretsDue(record store.DefenseLayoutRecord, tick domain.Tick) bool 
 
 // defenseCensus is one same-tick observation of the layout's cells: the
 // edifice standing on each visible cell, the conduit cells (conduits are not
-// edifices, so the power census carries them) and each power consumer's
-// powered state by cell.
+// edifices, so the power census carries them) and each power consumer by
+// cell with its powered and refuelable service state.
 type defenseCensus struct {
-	edifice  map[domain.Cell]string
-	conduits map[domain.Cell]bool
-	powered  map[domain.Cell]domain.Fact[bool]
+	edifice   map[domain.Cell]string
+	conduits  map[domain.Cell]bool
+	consumers map[domain.Cell]policy.PowerSite
 }
 
 // standing reports whether the building's cell carries it: a conduit by the
@@ -332,30 +448,6 @@ func (c *defenseCensus) standing(definition string, cell domain.Cell) bool {
 		return c.conduits[cell]
 	}
 	return c.edifice[cell] == definition
-}
-
-// defenseUnpoweredTurrets lists the record's turret cells whose consumer is
-// observed unpowered. An unknown state is not a deficit: a census without
-// power facts must not hold the layout's completion, and combat, forever.
-func defenseUnpoweredTurrets(record store.DefenseLayoutRecord, census *defenseCensus) []domain.Cell {
-	if census == nil {
-		return nil
-	}
-	var dark []domain.Cell
-	for _, tier := range record.Tiers {
-		if tier.Name != policy.TierTurrets {
-			continue
-		}
-		for _, b := range tier.Buildings {
-			if b.Definition == defenseConduitDefinition {
-				continue
-			}
-			if on, known := census.powered[b.Cell].Value(); known && !on {
-				dark = append(dark, b.Cell)
-			}
-		}
-	}
-	return dark
 }
 
 // defenseTurretRequest is the turret tier's observed gates from the shared
@@ -624,7 +716,7 @@ func (r *RoutineDefenseLayoutPlanner) observeTiers(call context.Context, state C
 	if err = r.sameTick(site.Context, state, projection.Identity.Tick); err != nil {
 		return nil, err
 	}
-	census := &defenseCensus{edifice: map[domain.Cell]string{}, conduits: map[domain.Cell]bool{}, powered: map[domain.Cell]domain.Fact[bool]{}}
+	census := &defenseCensus{edifice: map[domain.Cell]string{}, conduits: map[domain.Cell]bool{}, consumers: map[domain.Cell]policy.PowerSite{}}
 	for _, cell := range site.Cells {
 		if !cell.Fogged {
 			census.edifice[cell.Cell] = cell.EdificeDefName
@@ -635,7 +727,7 @@ func (r *RoutineDefenseLayoutPlanner) observeTiers(call context.Context, state C
 			census.conduits[c] = true
 		}
 		for _, b := range topology.Buildings {
-			census.powered[b.Cell] = b.Powered
+			census.consumers[b.Cell] = b
 		}
 	}
 	if !defenseTierCensus(record, census) {
@@ -647,20 +739,41 @@ func (r *RoutineDefenseLayoutPlanner) observeTiers(call context.Context, state C
 // routineDefensiveLayoutStanding is the journal's view of the layout for
 // development arbitration: known only while the goal is opted in and a
 // record for this colony is stored; a record from another load is a reload
-// whose tiers are re-observed before it counts.
-func routineDefensiveLayoutStanding(ctx context.Context, journal *store.Store, p policy.RoutinePolicy, snapshot domain.GenerationSnapshot) (domain.Fact[bool], error) {
+// whose tiers are re-observed before it counts. It also returns the
+// record's turret fuel shortage as derived MaintainResource floors (#205).
+func routineDefensiveLayoutStanding(ctx context.Context, journal *store.Store, p policy.RoutinePolicy, snapshot domain.GenerationSnapshot) (domain.Fact[bool], map[policy.Resource]int64, error) {
 	if !p.DefensiveLayout {
-		return domain.Unknown[bool](), nil
+		return domain.Unknown[bool](), nil, nil
 	}
 	world := store.World{Colony: snapshot.Colony, Load: snapshot.Load, Map: snapshot.Map}
 	record, stored, err := journal.LoadDefenseLayout(ctx, world)
 	if err != nil {
-		return domain.Unknown[bool](), err
+		return domain.Unknown[bool](), nil, err
 	}
 	if !stored {
-		return domain.Known(false), nil
+		return domain.Known(false), nil, nil
 	}
-	return domain.Known(record.World == world && record.Standing()), nil
+	if record.World != world {
+		return domain.Known(false), nil, nil
+	}
+	var needs map[policy.Resource]int64
+	for _, a := range record.FuelShortage {
+		if needs == nil {
+			needs = map[policy.Resource]int64{}
+		}
+		needs[a.Resource] += a.Count
+	}
+	return domain.Known(record.Standing()), needs, nil
+}
+
+// resourceTargets is the operator's MaintainResource floors merged with the
+// journal's derived needs, the targets every resource planner dispatches on.
+func (r *RoutineReviewer) resourceTargets(ctx context.Context, snapshot domain.GenerationSnapshot) (map[policy.Resource]int64, error) {
+	_, needs, err := routineDefensiveLayoutStanding(ctx, r.player.journal, r.policy, snapshot)
+	if err != nil {
+		return nil, err
+	}
+	return policy.ResourceGoalTargets(r.policy.ResourceTargets, needs), nil
 }
 
 // defenseMissingBuildings keeps the tier's buildings the census does not

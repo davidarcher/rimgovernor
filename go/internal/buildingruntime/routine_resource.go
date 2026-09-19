@@ -123,11 +123,15 @@ func (r *RoutineResourcePlanner) step(call, epoch context.Context, arbiter *step
 	if !state.Enabled {
 		return RoutineResourceResult{Reason: BuildingMethodDisabled}, nil
 	}
-	if len(r.reviewer.policy.ResourceTargets) == 0 {
-		return RoutineResourceResult{Reason: BuildingMethodDisabled}, nil
-	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineResourceResult{}, ErrControl
+	}
+	targets, err := r.reviewer.resourceTargets(call, state.Snapshot)
+	if err != nil {
+		return RoutineResourceResult{}, err
+	}
+	if len(targets) == 0 {
+		return RoutineResourceResult{Reason: BuildingMethodDisabled}, nil
 	}
 	review, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
@@ -177,7 +181,7 @@ func (r *RoutineResourcePlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineResourceResult{}, ErrControl
 	}
 	stock := resourceStockFacts(observed)
-	resource, target, ok, err := policy.SelectResourceTarget(r.reviewer.policy.ResourceTargets, stock)
+	resource, target, ok, err := policy.SelectResourceTarget(targets, stock)
 	if err != nil {
 		return RoutineResourceResult{}, err
 	}

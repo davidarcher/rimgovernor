@@ -40,13 +40,24 @@ func (m RecoveryServiceMethod) wire() o.ServiceMethod {
 	}
 }
 
-// recoveryServiceJobDef maps each method to the native job the corresponding
-// WorkGiver issues; unverified against native source, an open native
-// acceptance item for G01.12 like gearReplaceJobDef.
-var recoveryServiceJobDef = map[RecoveryServiceMethod]string{
-	RecoveryServiceRepair:    "Repair",
-	RecoveryServiceBreakdown: "FixBrokenDownBuilding",
-	RecoveryServiceRefuel:    "Refuel",
+// recoveryServiceJobDef maps each method to the native jobs the
+// corresponding WorkGiver issues. Refuel covers WorkGiver_Refuel and its
+// turret subclass (Core's RearmTurrets giver, the only one that rearms a
+// Building_Turret barrel, #205), each with an atomic variant for a comp
+// that takes its whole fuel load at once.
+var recoveryServiceJobDef = map[RecoveryServiceMethod][]string{
+	RecoveryServiceRepair:    {"Repair"},
+	RecoveryServiceBreakdown: {"FixBrokenDownBuilding"},
+	RecoveryServiceRefuel:    {"Refuel", "RefuelAtomic", "RearmTurret", "RearmTurretAtomic"},
+}
+
+func recoveryServiceJobDefAllowed(method RecoveryServiceMethod, def string) bool {
+	for _, allowed := range recoveryServiceJobDef[method] {
+		if def == allowed {
+			return true
+		}
+	}
+	return false
 }
 
 type RecoveryServiceAttempt struct {
@@ -191,7 +202,13 @@ func (client *Client) PreviewRecoveryService(ctx context.Context, identity *c.Id
 			err = contract("recovery service preview facts missing")
 			break
 		}
-		expected := &r.JobEffect{PawnId: proto.String(pawn), JobDef: proto.String(recoveryServiceJobDef[method]), TargetA: &r.JobTarget{Target: &r.JobTarget_ThingId{ThingId: thing}}, CanTry: proto.Bool(value.GetAccepted()), Issued: proto.Bool(false), Verified: proto.Bool(false), TargetSnapshotToken: proto.String(thingToken)}
+		// A refused preview projects no job definition; an accepted one
+		// projects one of the method's.
+		if value.GetAccepted() && !recoveryServiceJobDefAllowed(method, job.GetJobDef()) || !value.GetAccepted() && job.GetJobDef() != "" {
+			err = contract("recovery service preview projection mismatch")
+			break
+		}
+		expected := &r.JobEffect{PawnId: proto.String(pawn), JobDef: proto.String(job.GetJobDef()), TargetA: &r.JobTarget{Target: &r.JobTarget_ThingId{ThingId: thing}}, CanTry: proto.Bool(value.GetAccepted()), Issued: proto.Bool(false), Verified: proto.Bool(false), TargetSnapshotToken: proto.String(thingToken)}
 		if !proto.Equal(job, expected) {
 			err = contract("recovery service preview projection mismatch")
 		}
@@ -224,8 +241,11 @@ func recoveryServiceEvidence(evidence *r.EffectEvidence, expected RecoveryServic
 	if job == nil || job.PawnId == nil || job.GetPawnId() != expected.Pawn || job.TargetA == nil || job.TargetA.GetThingId() != expected.Thing {
 		return nil, contract("recovery service pawn or target mismatch")
 	}
-	allowed := &r.JobEffect{PawnId: job.PawnId, JobId: job.JobId, JobDef: job.JobDef, TargetA: job.TargetA, CanTry: job.CanTry, Issued: job.Issued, Verified: job.Verified, VerifiedReason: job.VerifiedReason}
-	if !proto.Equal(job, allowed) || job.JobDef == nil || job.GetJobDef() != recoveryServiceJobDef[expected.Method] {
+	// The native service record's evidence carries the pawn-order fields
+	// every issued job's does (drafted state and the resulting pawn
+	// snapshot token) besides the job itself.
+	allowed := &r.JobEffect{PawnId: job.PawnId, JobId: job.JobId, JobDef: job.JobDef, TargetA: job.TargetA, CanTry: job.CanTry, Drafted: job.Drafted, Issued: job.Issued, Verified: job.Verified, VerifiedReason: job.VerifiedReason, ResultingSnapshotToken: job.ResultingSnapshotToken}
+	if !proto.Equal(job, allowed) || job.JobDef == nil || !recoveryServiceJobDefAllowed(expected.Method, job.GetJobDef()) {
 		return nil, contract("recovery service effect fields missing or unsupported")
 	}
 	if job.VerifiedReason != nil && !diagnostic(job.VerifiedReason) {
