@@ -15,7 +15,7 @@ func defenseFixture() DefenseRequest {
 		Region:      Rectangle{X: 0, Z: 0, Width: 20, Height: 30},
 		Home:        domain.Cell{X: 9, Z: 27},
 		Entrances:   []domain.Cell{{X: 9, Z: 26}},
-		Definitions: DefenseDefinitions{Sandbag: "Sandbags", Wall: "Wall", WallStuff: "BlocksGranite", Fence: "Fence", FenceStuff: "WoodLog", Trap: "TrapSpike", TrapStuff: "WoodLog"},
+		Definitions: DefenseDefinitions{Sandbag: "Sandbags", Wall: "Wall", WallStuff: "BlocksGranite", Fence: "Fence", FenceStuff: "WoodLog", Trap: "TrapSpike", TrapStuff: "WoodLog", Floor: "WoodPlankFloor"},
 		MinRange:    domain.Known(25.9),
 		Defenders:   3,
 		UnitCosts: map[string][]Amount{
@@ -99,8 +99,20 @@ func TestDefenseLayoutCorridorAtNarrowestChokepoint(t *testing.T) {
 		t.Fatal(choke)
 	}
 	firing, _ := layout.Tier(TierFiringLine)
-	if len(layout.Firing) != 3 || len(firing.Buildings) != 3 || layout.LinesVerified {
+	if len(layout.Firing) != 3 || len(firing.Buildings) != 6 || layout.LinesVerified {
 		t.Fatalf("%+v", layout.Firing)
+	}
+	// Each shooter cell is floored so nothing grows onto the position (#224).
+	got = placed(t, firing)
+	want = map[domain.Cell]string{}
+	for _, c := range cells(9, 22, 8, 22, 10, 22) {
+		want[c] = "Sandbags"
+	}
+	for _, c := range cells(9, 23, 8, 23, 10, 23) {
+		want[c] = "WoodPlankFloor"
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("firing line %v", got)
 	}
 	wantFiring := []FiringPosition{
 		{Cell: domain.Cell{X: 9, Z: 23}, Cover: domain.Cell{X: 9, Z: 22}, Retreat: domain.Cell{X: 9, Z: 24}},

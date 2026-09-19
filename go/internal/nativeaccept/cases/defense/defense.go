@@ -373,12 +373,13 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 	}
 	// Independent audit: with every wall and barricade of the layout
 	// blocked (traps and fences stay walkable for colonists, as natively:
-	// the fence lane is the safe lane) every colonist still reaches the
-	// entry and every colony door, and nobody lost a cell.
+	// the fence lane is the safe lane, and the shooter floors are terrain)
+	// every colonist still reaches the entry and every colony door, and
+	// nobody lost a cell.
 	var impassable []domain.Cell
 	for _, tier := range layout.Tiers {
 		for _, b := range tier.Buildings {
-			if b.Definition != "TrapSpike" && b.Definition != "Fence" {
+			if b.Definition != "TrapSpike" && b.Definition != "Fence" && b.Definition != "WoodPlankFloor" {
 				impassable = append(impassable, b.Cell)
 			}
 		}

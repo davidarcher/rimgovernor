@@ -80,7 +80,12 @@ still repeats the full support check against current native roofs and buildings.
 
 `EnsureDefensiveLayout` (opt-in) commits one stored corridor layout per colony
 and builds it tier by tier; a tier is `Built` only while every one of its
-buildings is observed standing in the defense-site census. A `Complete`
+buildings is observed standing in the defense-site census. The firing line
+floors each shooter cell beside its barricade (#224): a floor is terrain,
+so the census reads it from the cell's terrain rather than its edifice,
+the access audit leaves it walkable, and nothing grows onto the position
+the hold plan moves to; a shooter floor the native preview refuses is
+dropped from the tier, leaving that position unfloored. A `Complete`
 record is re-verified after each ActiveCombat epoch and once per game hour of
 simulation: a tier that lost a building (a breached wall, a sprung spike trap,
 which is destroyed on springing) re-opens with a fresh retry budget and is

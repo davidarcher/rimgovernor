@@ -26,9 +26,12 @@ type DefenseLine struct {
 }
 
 // DefenseDefinitions names the native buildings each tier places. Stuff
-// empty requests the native default material.
+// empty requests the native default material. Floor is the constructed
+// terrain the firing line lays on each shooter cell: nothing grows on a
+// built floor, and a blueprint over a plant has the constructor cut it, so
+// the firing position stays standable for the hold plan's move (#224).
 type DefenseDefinitions struct {
-	Sandbag, SandbagStuff, Wall, WallStuff, Fence, FenceStuff, Trap, TrapStuff string
+	Sandbag, SandbagStuff, Wall, WallStuff, Fence, FenceStuff, Trap, TrapStuff, Floor string
 }
 
 type DefenseRequest struct {
@@ -169,7 +172,7 @@ func newDefenseSite(r DefenseRequest) (defenseSite, error) {
 		return defenseSite{}, errors.New("invalid minimum range")
 	}
 	d := r.Definitions
-	for _, name := range []string{d.Sandbag, d.Wall, d.Fence, d.Trap} {
+	for _, name := range []string{d.Sandbag, d.Wall, d.Fence, d.Trap, d.Floor} {
 		if name == "" {
 			return defenseSite{}, errors.New("missing defense definition")
 		}
@@ -394,16 +397,17 @@ func DefenseLayouts(r DefenseRequest) (DefenseLayout, error) {
 			corridor = append(corridor, b)
 		}
 	}
-	// Firing line: sandbags two rows past the corridor exit, shooters behind
-	// them, a free retreat cell behind each shooter, all within MinRange of
-	// the entry. Cells are centred on the corridor and spread outward.
+	// Firing line: sandbags two rows past the corridor exit, floored shooter
+	// cells behind them, a free retreat cell behind each shooter, all within
+	// MinRange of the entry. Cells are centred on the corridor and spread
+	// outward.
 	exit := addCell(layout.TrapLane[defenseCorridorLength-1], d)
 	coverRow := addCell(exit, scale(d, 2))
 	lines := map[[2]domain.Cell]domain.Fact[bool]{}
 	for _, l := range r.Lines {
 		lines[[2]domain.Cell{l.From, l.To}] = l.LineOfSight
 	}
-	var sandbags []domain.Building
+	var line []domain.Building
 	var firingReserved []domain.Cell
 	minRange, rangeKnown := r.MinRange.Value()
 	if rangeKnown && r.Defenders > 0 {
@@ -429,7 +433,11 @@ func DefenseLayouts(r DefenseRequest) (DefenseLayout, error) {
 			if err != nil {
 				return DefenseLayout{}, err
 			}
-			sandbags = append(sandbags, b)
+			floor, err := domain.NewBuilding(r.Definitions.Floor, shooter, domain.North, "")
+			if err != nil {
+				return DefenseLayout{}, err
+			}
+			line = append(line, b, floor)
 			firingReserved = append(firingReserved, cover, shooter, retreat)
 			layout.Firing = append(layout.Firing, FiringPosition{Cell: shooter, Cover: cover, Retreat: retreat, Verified: known})
 		}
@@ -448,7 +456,7 @@ func DefenseLayouts(r DefenseRequest) (DefenseLayout, error) {
 	reservedLanes := append(append([]domain.Cell{}, layout.TrapLane...), layout.SafeLane...)
 	layout.Tiers = []DefenseTier{
 		{Name: TierChokepoint, Reserved: reservedLanes, Costs: domain.Known([]Amount{})},
-		{Name: TierFiringLine, Buildings: sandbags, Reserved: firingReserved, Costs: tierCosts(r.UnitCosts, sandbags)},
+		{Name: TierFiringLine, Buildings: line, Reserved: firingReserved, Costs: tierCosts(r.UnitCosts, line)},
 		{Name: TierFunnel, Buildings: funnel, Reserved: funnelReserved, Costs: tierCosts(r.UnitCosts, funnel)},
 		{Name: TierTrapCorridor, Buildings: corridor, Reserved: reservedLanes, Costs: tierCosts(r.UnitCosts, corridor)},
 	}

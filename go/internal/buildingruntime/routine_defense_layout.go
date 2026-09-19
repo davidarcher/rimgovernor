@@ -28,7 +28,9 @@ const defenseSiteHalfExtent = 22
 // the first layout affordable (native Sandbags need fabric or leather, which
 // a young colony rarely holds; a wooden Barricade gives the same 0.55 cover);
 // MaintainStoneShell upgrades flammable walls afterwards through its own goal.
-var defenseDefinitions = policy.DefenseDefinitions{Sandbag: "Barricade", SandbagStuff: "WoodLog", Wall: "Wall", WallStuff: "WoodLog", Fence: "Fence", FenceStuff: "WoodLog", Trap: "TrapSpike", TrapStuff: "WoodLog"}
+// The wood floor under each shooter needs no research and keeps the firing
+// cell free of the trees that grew onto it before (#224).
+var defenseDefinitions = policy.DefenseDefinitions{Sandbag: "Barricade", SandbagStuff: "WoodLog", Wall: "Wall", WallStuff: "WoodLog", Fence: "Fence", FenceStuff: "WoodLog", Trap: "TrapSpike", TrapStuff: "WoodLog", Floor: "WoodPlankFloor"}
 
 // The powered turret tier (#61): the mini turret needs no rearming, and a
 // conduit chain connects it to the network. Both are planning definitions
@@ -438,20 +440,25 @@ func defenseTurretsDue(record store.DefenseLayoutRecord, tick domain.Tick) bool 
 }
 
 // defenseCensus is one same-tick observation of the layout's cells: the
-// edifice standing on each visible cell, the conduit cells (conduits are not
-// edifices, so the power census carries them) and each power consumer by
-// cell with its powered and refuelable service state.
+// edifice standing on and the terrain under each visible cell, the conduit
+// cells (conduits are not edifices, so the power census carries them) and
+// each power consumer by cell with its powered and refuelable service state.
 type defenseCensus struct {
 	edifice   map[domain.Cell]string
+	terrain   map[domain.Cell]string
 	conduits  map[domain.Cell]bool
 	consumers map[domain.Cell]policy.PowerSite
 }
 
 // standing reports whether the building's cell carries it: a conduit by the
-// conduit census, anything else by its edifice.
+// conduit census, the firing-line floor by the cell's terrain, anything
+// else by its edifice.
 func (c *defenseCensus) standing(definition string, cell domain.Cell) bool {
 	if definition == defenseConduitDefinition {
 		return c.conduits[cell]
+	}
+	if definition == defenseDefinitions.Floor {
+		return c.terrain[cell] == definition
 	}
 	return c.edifice[cell] == definition
 }
@@ -722,10 +729,10 @@ func (r *RoutineDefenseLayoutPlanner) observeTiers(call context.Context, state C
 	if err = r.sameTick(site.Context, state, projection.Identity.Tick); err != nil {
 		return nil, err
 	}
-	census := &defenseCensus{edifice: map[domain.Cell]string{}, conduits: map[domain.Cell]bool{}, consumers: map[domain.Cell]policy.PowerSite{}}
+	census := &defenseCensus{edifice: map[domain.Cell]string{}, terrain: map[domain.Cell]string{}, conduits: map[domain.Cell]bool{}, consumers: map[domain.Cell]policy.PowerSite{}}
 	for _, cell := range site.Cells {
 		if !cell.Fogged {
-			census.edifice[cell.Cell] = cell.EdificeDefName
+			census.edifice[cell.Cell], census.terrain[cell.Cell] = cell.EdificeDefName, cell.Terrain
 		}
 	}
 	if topology, known := projection.PowerPlanning.Value(); known {
@@ -891,8 +898,12 @@ func (r *RoutineDefenseLayoutPlanner) admit(call, epoch context.Context, goal st
 	var actions []domain.Action
 	var previews []policy.Preview
 	stock := policy.StockObservation{Snapshot: snapshot, Tick: projection.Identity.Tick}
-	for i, building := range buildings {
-		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", id, i)), building)
+	// A shooter floor the native preview refuses outright (terrain without
+	// the floor affordance, say) is dropped from the tier instead of holding
+	// it: the position keeps its cover and stays a firing cell, unfloored.
+	unfloorable := map[domain.Cell]bool{}
+	for _, building := range buildings {
+		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("%s-%d", id, len(actions))), building)
 		if err != nil {
 			return RoutineDefenseLayoutResult{}, err
 		}
@@ -903,26 +914,41 @@ func (r *RoutineDefenseLayoutPlanner) admit(call, epoch context.Context, goal st
 		if !ok && preview.NativeWorkPending {
 			return RoutineDefenseLayoutResult{Reason: BuildingMethodUnknown, Tier: tier.Name, NativeWorkTicks: defenseNativeWorkTicks}, nil
 		}
+		if !ok && tier.Name == policy.TierFiringLine && building.Definition() == defenseDefinitions.Floor {
+			unfloorable[building.Cell()] = true
+			continue
+		}
 		if !ok {
 			return RoutineDefenseLayoutResult{Reason: BuildingMethodUnknown, Tier: tier.Name}, nil
 		}
 		actions = append(actions, action)
 		previews = append(previews, preview.Preview)
-		if err = mergeRoutineStock(&stock, preview.Stock, i == 0); err != nil {
+		if err = mergeRoutineStock(&stock, preview.Stock, len(actions) == 1); err != nil {
 			return RoutineDefenseLayoutResult{}, err
 		}
 	}
+	if len(unfloorable) > 0 {
+		tier.Buildings = defenseWithoutFloors(tier.Buildings, unfloorable)
+		record.SetTier(tier)
+		clockSchedulerLog("defense-layout.admit: tier=%s floor refused natively on %v; those firing cells stay unfloored", tier.Name, unfloorable)
+		if err := p.journal.SaveDefenseLayout(call, record); err != nil {
+			return RoutineDefenseLayoutResult{}, err
+		}
+		if len(actions) == 0 {
+			return RoutineDefenseLayoutResult{Reason: BuildingMethodUnknown, Tier: tier.Name}, nil
+		}
+	}
 	// The audit blocks every impassable placement of the whole layout (walls,
-	// fences and turrets), not the traps or conduits: a spike trap stays
-	// walkable and colonists cross their own with a negligible spring
+	// fences and turrets), not the traps, conduits or floors: a spike trap
+	// stays walkable and colonists cross their own with a negligible spring
 	// chance, while the fenced safe lane leaves no trap-free route by
-	// design, and a conduit lies under the floor. Trap cells are kept off
-	// the colonists' resting positions separately.
+	// design, and a conduit or a floor lies under the pawn. Trap cells are
+	// kept off the colonists' resting positions separately.
 	blocked := map[domain.Cell]bool{}
 	var blockedCells []domain.Cell
 	for _, t := range record.Tiers {
 		for _, b := range t.Buildings {
-			if b.Definition == defenseDefinitions.Trap || b.Definition == defenseConduitDefinition {
+			if b.Definition == defenseDefinitions.Trap || b.Definition == defenseConduitDefinition || b.Definition == defenseDefinitions.Floor {
 				continue
 			}
 			if !blocked[b.Cell] {
@@ -984,6 +1010,18 @@ func (r *RoutineDefenseLayoutPlanner) admit(call, epoch context.Context, goal st
 		clockSchedulerLog("defense-layout.admit: tier=%s refused=%+v", tier.Name, decision.Refused)
 	}
 	return RoutineDefenseLayoutResult{Reason: reason, Plan: id, Tier: tier.Name}, nil
+}
+
+// defenseWithoutFloors is the tier's buildings less the shooter floors on
+// the given cells.
+func defenseWithoutFloors(buildings []store.DefenseBuilding, cells map[domain.Cell]bool) []store.DefenseBuilding {
+	kept := make([]store.DefenseBuilding, 0, len(buildings))
+	for _, b := range buildings {
+		if b.Definition != defenseDefinitions.Floor || !cells[b.Cell] {
+			kept = append(kept, b)
+		}
+	}
+	return kept
 }
 
 // defenseControlErr tags a control refusal with its source line so a sustained

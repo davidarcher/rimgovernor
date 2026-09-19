@@ -141,6 +141,36 @@ func TestDefenseTierCensusReopensLostBuildings(t *testing.T) {
 	}
 }
 
+func TestDefenseCensusFloorStandsByTerrain(t *testing.T) {
+	t.Parallel()
+	// The firing line floors each shooter cell so nothing grows onto the
+	// position (#224). A floor is terrain, not an edifice: the tier stands
+	// by the cell's terrain, and a tree that took an unfloored cell is the
+	// same lost building a breached wall is.
+	cover, shooter := domain.Cell{X: 113, Z: 126}, domain.Cell{X: 113, Z: 127}
+	record := store.DefenseLayoutRecord{Complete: true, Tiers: []store.DefenseTierRecord{
+		{Name: policy.TierFiringLine, Built: true, Attempts: 1, Buildings: []store.DefenseBuilding{{Definition: "Barricade", Cell: cover, Rotation: domain.North, Stuff: "WoodLog"}, {Definition: "WoodPlankFloor", Cell: shooter, Rotation: domain.North}}},
+	}}
+	if defenseTierCensus(&record, &defenseCensus{edifice: map[domain.Cell]string{cover: "Barricade"}, terrain: map[domain.Cell]string{cover: "Soil", shooter: "WoodPlankFloor"}}) {
+		t.Fatal("standing floor reported a change")
+	}
+	if !defenseTierCensus(&record, &defenseCensus{edifice: map[domain.Cell]string{cover: "Barricade", shooter: "WoodPlankFloor"}, terrain: map[domain.Cell]string{cover: "Soil", shooter: "Soil"}}) || record.Tiers[0].Built {
+		t.Fatal("a floor never stands as an edifice")
+	}
+	_, buildings, _ := record.Tier(policy.TierFiringLine)
+	got := defenseMissingBuildings(buildings, &defenseCensus{edifice: map[domain.Cell]string{cover: "Barricade"}, terrain: map[domain.Cell]string{shooter: "Soil"}})
+	if len(got) != 1 || got[0].Cell() != shooter || got[0].Definition() != "WoodPlankFloor" {
+		t.Fatalf("%+v", got)
+	}
+	// A floor the native preview refused is dropped from the tier alone;
+	// the cover and the other positions' floors stay.
+	other := domain.Cell{X: 114, Z: 127}
+	kept := defenseWithoutFloors([]store.DefenseBuilding{{Definition: "Barricade", Cell: cover}, {Definition: "WoodPlankFloor", Cell: shooter}, {Definition: "WoodPlankFloor", Cell: other}, {Definition: "Barricade", Cell: shooter}}, map[domain.Cell]bool{shooter: true})
+	if len(kept) != 3 || kept[0].Cell != cover || kept[1].Cell != other || kept[2].Definition != "Barricade" {
+		t.Fatalf("%+v", kept)
+	}
+}
+
 func TestDefenseMissingBuildingsSkipsStanding(t *testing.T) {
 	t.Parallel()
 	// A re-opened tier is repaired by the buildings the census lost, not
