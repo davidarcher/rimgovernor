@@ -218,12 +218,13 @@ message DefinitionList { repeated string defs = 1; }
 message DrillPolicies { repeated DrillPolicy rows = 1; }
 // All four replacement messages are required. Present-empty explicitly clears.
 message SetProductionPolicy { optional string expected_snapshot_token = 1; DefCounts floors = 2; DefCounts commitments = 3; DefinitionList stopped_defs = 4; DrillPolicies drills = 5; }
-enum ZoneType { ZONE_TYPE_UNSPECIFIED = 0; ZONE_TYPE_STOCKPILE = 1; ZONE_TYPE_DUMPING = 2; ZONE_TYPE_GROWING = 3; }
+enum ZoneType { ZONE_TYPE_UNSPECIFIED = 0; ZONE_TYPE_STOCKPILE = 1; ZONE_TYPE_DUMPING = 2; ZONE_TYPE_GROWING = 3; ZONE_TYPE_FISHING = 4; }
 enum StoragePriority { STORAGE_PRIORITY_UNSPECIFIED = 0; STORAGE_PRIORITY_LOW = 1; STORAGE_PRIORITY_NORMAL = 2; STORAGE_PRIORITY_PREFERRED = 3; STORAGE_PRIORITY_IMPORTANT = 4; STORAGE_PRIORITY_CRITICAL = 5; }
 enum FilterPreset { FILTER_PRESET_UNSPECIFIED = 0; FILTER_PRESET_EVERYTHING = 1; FILTER_PRESET_NOTHING = 2; FILTER_PRESET_FOOD = 3; FILTER_PRESET_PERISHABLES = 4; FILTER_PRESET_NONPERISHABLES = 5; FILTER_PRESET_OUTDOOR_SAFE = 6; }
 message StockpileSettings { optional StoragePriority priority = 1; optional FilterPreset preset = 2; FilterPatch filter = 3; }
 message GrowingSettings { optional string plant_def = 1; optional bool allow_sow = 2; optional bool allow_cut = 3; }
-message CreateZone { optional string expected_map_snapshot_token = 1; optional ZoneType type = 2; optional string label = 3; Cells cells = 4; StockpileSettings stockpile = 5; GrowingSettings growing = 6; optional bool require_covered_empty = 7; }
+message FishingSettings { optional double population_floor = 1; }
+message CreateZone { optional string expected_map_snapshot_token = 1; optional ZoneType type = 2; optional string label = 3; Cells cells = 4; StockpileSettings stockpile = 5; GrowingSettings growing = 6; optional bool require_covered_empty = 7; FishingSettings fishing = 8; optional string extend_zone_id = 9; }
 message DeleteZone { EntityPrecondition zone = 1; }
 enum CellEdit { CELL_EDIT_UNSPECIFIED = 0; CELL_EDIT_ADD = 1; CELL_EDIT_REMOVE = 2; }
 message EditZoneCells { EntityPrecondition zone = 1; optional CellEdit edit = 2; Cells cells = 3; optional bool allow_split = 4; optional bool require_covered_empty = 5; }

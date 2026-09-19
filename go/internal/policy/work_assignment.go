@@ -103,12 +103,13 @@ type WorkDemand struct {
 
 // Work types in native natural-priority order (WorkTypeDefs.naturalPriority),
 // the order the planner fills owners in so the scarcest roles pick first.
-var workOrder = []WorkType{WorkDoctor, WorkWarden, WorkHandling, WorkCooking, WorkHunting, WorkConstruction, WorkGrowing, WorkMining, WorkPlantCutting, WorkSmithing, WorkTailoring, WorkArt, WorkCrafting, WorkResearch}
+var workOrder = []WorkType{WorkDoctor, WorkWarden, WorkHandling, WorkCooking, WorkHunting, WorkFishing, WorkConstruction, WorkGrowing, WorkMining, WorkPlantCutting, WorkSmithing, WorkTailoring, WorkArt, WorkCrafting, WorkResearch}
 
 const (
 	WorkDoctor  WorkType = "Doctor"
 	WorkWarden  WorkType = "Warden"
 	WorkHunting WorkType = "Hunting"
+	WorkFishing WorkType = "Fishing"
 	WorkGrowing WorkType = "Growing"
 	WorkArt     WorkType = "Art"
 	WorkPatient WorkType = "Patient"
@@ -124,7 +125,7 @@ func WorkSkillName(work WorkType) string {
 		return "Medicine"
 	case WorkWarden:
 		return "Social"
-	case WorkHandling:
+	case WorkHandling, WorkFishing:
 		return "Animals"
 	case WorkCooking:
 		return "Cooking"

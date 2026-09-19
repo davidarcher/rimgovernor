@@ -13,6 +13,7 @@ type ZoneKind string
 const (
 	GrowingZone   ZoneKind = "growing"
 	StockpileZone ZoneKind = "stockpile"
+	FishingZone   ZoneKind = "fishing"
 )
 
 // StockpilePreset and StockpilePriority are closed to the food-storage and
@@ -45,6 +46,7 @@ type ZoneCreate struct {
 	priority StockpilePriority
 	cells    string
 	allow    string
+	extendID string
 }
 
 func canonicalConnectedCells(cells []Cell) (string, error) {
@@ -112,6 +114,31 @@ func NewZoneCreate(kind ZoneKind, crop string, cells []Cell) (ZoneCreate, error)
 	return ZoneCreate{kind: kind, crop: crop, cells: data}, nil
 }
 
+// NewFishingZone uses ordinary native fishing with a conservative population
+// floor. Its footprint provides access; it is not a daily catch quota.
+func NewFishingZone(cells []Cell) (ZoneCreate, error) {
+	data, err := canonicalConnectedCells(cells)
+	if err != nil {
+		return ZoneCreate{}, err
+	}
+	return ZoneCreate{kind: FishingZone, cells: data}, nil
+}
+
+const FishingPopulationFloor = 0.6
+
+// NewFishingZoneExtension names the exact existing zone and the complete final
+// footprint. Native admission requires a strict superset in the same body.
+func NewFishingZoneExtension(zoneID string, cells []Cell) (ZoneCreate, error) {
+	if !validID(zoneID) {
+		return ZoneCreate{}, errors.New("invalid fishing zone identity")
+	}
+	z, err := NewFishingZone(cells)
+	z.extendID = zoneID
+	return z, err
+}
+
+func (z ZoneCreate) ExtendZoneID() string { return z.extendID }
+
 func NewStockpileZone(preset StockpilePreset, priority StockpilePriority, cells []Cell) (ZoneCreate, error) {
 	if (preset != FoodPreset && preset != CorpseLarderPreset) || priority != ImportantPriority {
 		return ZoneCreate{}, errors.New("invalid stockpile zone configuration")
@@ -148,6 +175,11 @@ func NewAllowListStockpileZone(priority StockpilePriority, allow []string, cells
 // variant's canonical-equality check.
 func ReconstructZone(z ZoneCreate) (ZoneCreate, error) {
 	switch z.kind {
+	case FishingZone:
+		if z.extendID != "" {
+			return NewFishingZoneExtension(z.extendID, z.Cells())
+		}
+		return NewFishingZone(z.Cells())
 	case GrowingZone:
 		return NewZoneCreate(z.kind, z.crop, z.Cells())
 	case StockpileZone:
@@ -180,6 +212,8 @@ func (z ZoneCreate) Allow() []string {
 }
 func (z ZoneCreate) Label() string {
 	switch {
+	case z.kind == FishingZone:
+		return "RimGovernor fishing"
 	case z.kind == StockpileZone && z.preset == CorpseLarderPreset:
 		return "RimGovernor corpse larder"
 	case z.kind == StockpileZone && z.preset == NothingPreset:

@@ -182,17 +182,31 @@ pemmican purchases and above-target crop exchanges; the nightly suite runs them.
 
 ## Fishing policy
 
-`FishingChannels` budgets one row per water body, independently of zone area.
-The daily draw is at most 2.5% of maximum fish population, limited by current
-population. Native nutrition per fish converts fish counts to raw nutrition;
-observed batch yield and work determine labor. Cooking gains remain a separate
-ledger contribution. Frozen or unreachable water contributes nothing and carries
-an explanation term; missing facts stay unknown, and invalid known values fail.
-Absent Odyssey regions create no fishing channels.
+`FishingChannels` budgets one row per Odyssey water body. Its raw nutrition/day
+is `min(0.025 * maxPopulation * nutritionPerFish, pawnFishWorkCapacity)`.
+Native fish yield and fishing speed determine work and capacity (eight working
+hours per available fisher per day). Cooking gains remain a separate ledger
+contribution. Frozen or unreachable water contributes nothing and carries an
+explanation term; missing facts stay unknown and invalid known values fail.
+On Core, Odyssey water and its fishing channels are absent.
 
-Unfinished Fishing research adds the supplied research lead. Only an admitted
-Open channel requests Fishing through `FishingResearchRequest`; a deferred
-source cannot redirect research. These are policy adapters only. Runtime wiring
-must provide native rates and availability, enforce the selected draw through
-ordinary fishing controls, and verify catch and population outcomes. Zone cell
-count does not constrain catch rate in RimWorld.
+The shared tick food plan includes these rows. An admitted Open channel requests
+Fishing through EnsureResearch when needed; research lead is estimated from
+remaining native research work. The field family creates the selected fishing
+zone through the shared goal, admission and zone Hands path. Work allocation
+uses the native `Fishing` type and Animals skill. The proposed connected footprint
+has one safely reachable cell per available concurrent fisher; area never
+multiplies yield. Existing player zones are not reconfigured by the planner.
+
+Typed fishing zone creation and extension use the zone-map CAS token. Extension
+names the exact existing zone and supplies its complete final footprint, a strict
+superset in the same water body. Both set ordinary `DoForever` fishing with
+`targetPopulationPct = 0.6`. Native fishing pauses below the floor and resumes
+as population regrows; bursts above daily regeneration are allowed. Receipt
+verification checks actual cells and settings, separately from catch outcomes.
+
+`food/fishing` starts a two-pawn no-soil coast with Odyssey declared in the case
+profile (including `knownExpansions`). It checks the live Open portfolio rate,
+the controller-created zone's body, cells and population floor, then native
+feeding over 15 days. It does not require population to end at 90% of its start.
+The nightly full tier runs this case; the smoke tier covers landing regressions.

@@ -220,6 +220,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 		clockSchedulerLog("routine.step: LoadProductionLadder err=%v", err)
 		return store.RoutineReviewResult{}, err
 	}
+	needs = r.fishingResearchNeeds(needs)
 	reading.Projection.Facts.ResearchNeeds = needs
 	// The player's population policy is the capacity a joiner offer is
 	// admitted against; journal evidence too, unset until the player declares one.
@@ -258,6 +259,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 			rows, known = benchWork.Value()
 			required = mergeWorkRequirements(required, rows)
 			required = mergeWorkRequirements(required, routineResearchWork(r.policy, needs, reading.Projection.Facts.Research))
+			required = mergeWorkRequirements(required, fishingWork(reading.Projection))
 		}
 		if known {
 			work, err := policy.PlanWork(pawns, required, preferences.Overrides, policy.RoutineWorkDemand(reading.Projection.Facts, len(definitions) > 0))

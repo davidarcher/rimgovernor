@@ -30,7 +30,7 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,bill_payload) VALUES(?,?,?,'production_bill',?)", a.ID(), plan, ordinal, data)
 		return conflict(err)
 	} else if z, ok := a.ZoneCreate(); ok {
-		data, encodeErr := json.Marshal(zonePayload{z.Kind(), z.Crop(), z.Preset(), z.Priority(), z.Cells(), z.Allow()})
+		data, encodeErr := json.Marshal(zonePayload{z.Kind(), z.Crop(), z.Preset(), z.Priority(), z.Cells(), z.Allow(), z.ExtendZoneID()})
 		if encodeErr != nil {
 			return encodeErr
 		}
@@ -206,9 +206,17 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		}
 		var value domain.ZoneCreate
 		var valueErr error
+		if payload.Kind != domain.FishingZone && payload.ExtendZoneID != "" || payload.Kind == domain.FishingZone && (payload.Crop != "" || payload.Preset != "" || payload.Priority != "" || len(payload.Allow) != 0) {
+			return domain.Action{}, 0, errors.New("mixed fishing zone payload")
+		}
 		switch payload.Kind {
 		case domain.GrowingZone:
 			value, valueErr = domain.NewZoneCreate(payload.Kind, payload.Crop, payload.Cells)
+		case domain.FishingZone:
+			value, valueErr = domain.NewFishingZone(payload.Cells)
+			if payload.ExtendZoneID != "" {
+				value, valueErr = domain.NewFishingZoneExtension(payload.ExtendZoneID, payload.Cells)
+			}
 		case domain.StockpileZone:
 			switch payload.Preset {
 			case domain.NothingPreset:
@@ -667,12 +675,13 @@ type workPayload struct {
 }
 
 type zonePayload struct {
-	Kind     domain.ZoneKind
-	Crop     string
-	Preset   domain.StockpilePreset
-	Priority domain.StockpilePriority
-	Cells    []domain.Cell
-	Allow    []string `json:",omitempty"`
+	Kind         domain.ZoneKind
+	Crop         string
+	Preset       domain.StockpilePreset
+	Priority     domain.StockpilePriority
+	Cells        []domain.Cell
+	Allow        []string `json:",omitempty"`
+	ExtendZoneID string   `json:",omitempty"`
 }
 
 type billPayload struct {

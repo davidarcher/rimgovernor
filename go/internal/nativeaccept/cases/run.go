@@ -315,6 +315,12 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 	cfg := &na.Config{Root: opts.Root, Output: output, Headless: opts.Headless && !c.Rendered, GameID: opts.GameID,
 		QuietWorld: c.QuietWorld, Spawned: func(pid int) { s.gabsPID.Store(int64(pid)) }}
 	s.config = cfg
+	if len(c.Expansions) > 0 {
+		cfg.Expansions = append([]string(nil), c.Expansions...)
+		if err := na.StopGame(ctx, opts.Root, opts.GameID); err != nil {
+			return fmt.Errorf("stop kept game before DLC fixture: %w", err)
+		}
+	}
 	report["keep"] = !c.NoKeep && na.KeepGame()
 	start, err := seededStart(c.Start, opts.Seed)
 	if err != nil {
@@ -470,6 +476,9 @@ func executePostmortem(ctx context.Context, c Case, opts Options, output string,
 	s.config = cfg
 	report["keep"] = !c.NoKeep && na.KeepGame()
 	report["checkpointing"] = "off (postmortem-only)"
+	if len(c.Expansions) > 0 {
+		cfg.Expansions = append([]string(nil), c.Expansions...)
+	}
 	save, err := na.StageCheckpoint(opts.Root, entry, filepath.Join(output, "service.sqlite"))
 	if err != nil {
 		return fmt.Errorf("stage bundle: %w", err)

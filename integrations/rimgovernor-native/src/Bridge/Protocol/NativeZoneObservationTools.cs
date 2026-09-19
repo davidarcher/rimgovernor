@@ -94,6 +94,11 @@ namespace HomeBridge.BridgeTools
                 w.Write(cells.Length);
                 foreach (var cell in cells) { w.Write(cell.x); w.Write(cell.z); }
                 w.Write(zone.label ?? "");
+                if (zone is Zone_Fishing fishing)
+                {
+                    w.Write(fishing.Allowed); w.Write((int)fishing.repeatMode); w.Write(fishing.targetPopulationPct);
+                    w.Write(fishing.targetCount); w.Write(fishing.repeatCount); w.Write(fishing.pauseWhenSatisfied); w.Write(fishing.unpauseAtCount);
+                }
                 if (zone is Zone_Growing growing)
                 {
                     var crop = (BridgeCommon.PrivateInstanceField(typeof(Zone_Growing), "plantDefToGrow") ?? throw new InvalidOperationException("Zone_Growing.plantDefToGrow is unavailable.")).GetValue(growing) as ThingDef;

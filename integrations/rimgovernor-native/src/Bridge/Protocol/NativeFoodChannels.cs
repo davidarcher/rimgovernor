@@ -130,15 +130,61 @@ namespace HomeBridge.BridgeTools
                 {
                     var water = new Obs.FishableWater();
                     var research = DefDatabase<ResearchProjectDef>.GetNamedSilentFail("Fishing");
-                    if (research != null) water.FishingResearched = research.IsFinished;
+                    if (research != null)
+                    {
+                        water.FishingResearched = research.IsFinished;
+                        if (research.IsFinished) water.ResearchLeadDays = 0;
+                        else
+                        {
+                            var speed = workers.Where(p => !p.WorkTypeIsDisabled(WorkTypeDefOf.Research))
+                                .Select(p => p.GetStatValue(StatDefOf.ResearchSpeed)).DefaultIfEmpty(0).Max();
+                            if (speed > 0) water.ResearchLeadDays = Finite(Math.Max(0, research.baseCost - Find.ResearchManager.GetProgress(research))
+                                * research.CostFactor(Faction.OfPlayer.def.techLevel) / (speed * 0.00825 * 20000 * Find.Storyteller.difficulty.researchSpeedFactor));
+                        }
+                    }
+                    var fishers = workers.Where(p => !p.WorkTypeIsDisabled(WorkTypeDefOf.Fishing) && p.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)).ToList();
                     foreach (var body in map.waterBodyTracker.Bodies.Where(b => b.HasFish).OrderBy(b => b.rootCell.x).ThenBy(b => b.rootCell.z))
                     {
                         var cells = body.cells.Where(c => !c.Fogged(map) && c.GetTerrain(map).passability != Traversability.Impassable).ToList();
                         if (cells.Count == 0) continue;
-                        water.Regions.Add(new Obs.FishableRegion { Root = new Common.Cell { X = body.rootCell.x, Z = body.rootCell.z },
+                        var zones = map.zoneManager.AllZones.OfType<Zone_Fishing>().Where(z => z.Cells.Any(c => body.cells.Contains(c))).ToList();
+                        var row = new Obs.FishableRegion { Root = new Common.Cell { X = body.rootCell.x, Z = body.rootCell.z },
                             Population = Finite(body.Population), MaxPopulation = Finite(body.MaxPopulation), CellCount = (uint)cells.Count,
-                            Zoned = cells.Any(c => map.zoneManager.ZoneAt(c) is Zone_Fishing),
-                            Reachable = cells.Any(c => map.reachability.CanReach(center, c, PathEndMode.OnCell, TraverseParms.For(TraverseMode.PassDoors, Danger.None))) });
+                            Zoned = zones.Count > 0, Frozen = cells.All(c => c.GetTerrain(map) == TerrainDefOf.ThinIce),
+                            Delivering = zones.Any(z => z.Allowed && z.repeatMode == FishRepeatMode.DoForever && z.HasAnyFishableCells),
+                            Reachable = fishers.Any(p => cells.Any(c => !c.IsForbidden(p) && p.CanReach(c, PathEndMode.Touch, Danger.None))) };
+                        var fish = body.CommonFishIncludingExtras.Concat(body.UncommonFish).Distinct().ToList();
+                        if (fish.Count > 0 && fish.All(humanFood)) row.NutritionPerFish = Finite(fish.Min(d => d.GetStatValueAbstract(StatDefOf.Nutrition)));
+                        Bound(fishers.Count, 256);
+                        row.ConcurrentFishers = (uint)fishers.Count;
+                        if (fishers.Count > 0)
+                        {
+                            row.FishPerBatch = Math.Max(1, Math.Round(FishingUtility.PopulationToFishYieldCurve.Evaluate(body.Population) * fishers.Min(p => p.GetStatValue(StatDefOf.FishingYield))));
+                            var speed = fishers.Min(p => p.GetStatValue(StatDefOf.FishingSpeed));
+                            if (speed > 0) row.WorkTicksPerBatch = Finite(7500 / speed);
+                        }
+                        if (row.HasNutritionPerFish)
+                            row.PawnFishWorkCapacity = Finite(fishers.Sum(p => 20000.0 * Math.Max(1, Math.Round(FishingUtility.PopulationToFishYieldCurve.Evaluate(body.Population)
+                                * p.GetStatValue(StatDefOf.FishingYield))) * row.NutritionPerFish * p.GetStatValue(StatDefOf.FishingSpeed) / 7500));
+                        // A connected spot per available fisher is access capacity,
+                        // never a population or sustainable-yield multiplier.
+                        var free = cells.Where(c => NativeZoneCreation.FishableCell(c, map, body)
+                            && fishers.Any(p => !c.IsForbidden(p) && p.CanReach(c, PathEndMode.Touch, Danger.None)))
+                            .OrderBy(c => c.DistanceToSquared(center)).ThenBy(c => c.x).ThenBy(c => c.z).ToList();
+                        if (free.Count > 0)
+                        {
+                            var first = free[0];
+                            var available = new HashSet<IntVec3>(free);
+                            var pending = new Queue<IntVec3>(); pending.Enqueue(first); available.Remove(first);
+                            while (pending.Count > 0 && row.ProposedCells.Count < fishers.Count)
+                            {
+                                var c = pending.Dequeue();
+                                row.ProposedCells.Add(new Common.Cell { X = c.x, Z = c.z });
+                                foreach (var delta in GenAdj.CardinalDirections) if (available.Remove(c + delta)) pending.Enqueue(c + delta);
+                            }
+                        }
+                        if (zones.Count == 0 && row.ProposedCells.Count < fishers.Count) row.Reachable = false;
+                        water.Regions.Add(row);
                     }
                     Bound(water.Regions.Count, limit);
                     result.FishableWater = water;

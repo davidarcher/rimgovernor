@@ -12,13 +12,14 @@ func fishingRequest() FishingRequest {
 	return FishingRequest{Researched: domain.Known(true), Regions: []FishingRegion{{
 		ID: "coast", Population: domain.Known(300.0), MaxPopulation: domain.Known(300.0),
 		NutritionPerFish: domain.Known(0.25), FishPerBatch: domain.Known(6.0), WorkTicksPerBatch: domain.Known(7500.0),
-		Reachable: domain.Known(true), Frozen: domain.Known(false), Open: domain.Known(false),
+		PawnFishWorkCapacity: domain.Known(8.0),
+		Reachable:            domain.Known(true), Frozen: domain.Known(false), Open: domain.Known(false),
 	}}}
 }
 
 func TestFishingDraw(t *testing.T) {
 	for _, tc := range []struct{ maximum, population, nutrition, work float64 }{
-		{300, 300, 1.875, 9375}, {100, 100, 0.625, 3125}, {300, 2, 0.5, 2500}, {0, 0, 0, 0},
+		{300, 300, 1.875, 9375}, {100, 100, 0.625, 3125}, {300, 2, 1.875, 9375}, {0, 0, 0, 0},
 	} {
 		r := fishingRequest()
 		r.Regions[0].Population, r.Regions[0].MaxPopulation = domain.Known(tc.population), domain.Known(tc.maximum)
@@ -53,6 +54,7 @@ func TestFishingAvailability(t *testing.T) {
 		{"freeze unknown", func(r *FishingRequest) { r.Regions[0].Frozen = domain.Unknown[bool]() }, true, ""},
 		{"research unknown", func(r *FishingRequest) { r.Researched = domain.Unknown[bool]() }, true, ""},
 		{"research lead unknown", func(r *FishingRequest) { r.Researched = domain.Known(false) }, true, ""},
+		{"capacity unknown", func(r *FishingRequest) { r.Regions[0].PawnFishWorkCapacity = domain.Unknown[float64]() }, true, ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			r := fishingRequest()
@@ -73,6 +75,21 @@ func TestFishingAvailability(t *testing.T) {
 				t.Fatalf("missing availability reason: %s", plan.Explain())
 			}
 		})
+	}
+}
+
+func TestFishingRateLimitedByPawnCapacity(t *testing.T) {
+	for _, capacity := range []float64{0, 0.5, 2, 100} {
+		r := fishingRequest()
+		r.Regions[0].PawnFishWorkCapacity = domain.Known(capacity)
+		rows, err := FishingChannels(r)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := math.Min(1.875, capacity)
+		if rows[0].NutritionPerDay != domain.Known(want) || rows[0].WorkPerDay != domain.Known(want*5000) {
+			t.Fatal(rows)
+		}
 	}
 }
 

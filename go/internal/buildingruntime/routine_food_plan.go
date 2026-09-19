@@ -48,6 +48,20 @@ func reviewFoodPlan(p observation.ColonyProjection, thresholds policy.RoutinePol
 		return domain.Unknown[policy.FoodPlan]()
 	}
 	channels := append(policy.ForageChannels(sources), policy.HuntChannels(sources)...)
+	if census, known := p.FoodChannels.Value(); known {
+		if water, known := census.FishableWater.Value(); known {
+			request := policy.FishingRequest{Researched: water.FishingResearched, ResearchLeadDays: water.ResearchLeadDays}
+			for _, region := range water.Regions {
+				request.Regions = append(request.Regions, policy.FishingRegion{ID: policy.FishingRegionID(region.Root), Population: region.Population, MaxPopulation: region.MaxPopulation,
+					NutritionPerFish: region.NutritionPerFish, FishPerBatch: region.FishPerBatch, WorkTicksPerBatch: region.WorkTicksPerBatch, PawnFishWorkCapacity: region.PawnFishWorkCapacity, Reachable: region.Reachable, Frozen: region.Frozen, Open: region.Delivering})
+			}
+			fishing, err := policy.FishingChannels(request)
+			if err != nil {
+				return domain.Unknown[policy.FoodPlan]()
+			}
+			channels = append(channels, fishing...)
+		}
+	}
 	if animals, known := p.FoodChannels.Value(); known {
 		channels = append(channels, policy.AnimalProductChannels(animals.AnimalProducts())...)
 	}

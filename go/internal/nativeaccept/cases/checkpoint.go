@@ -68,6 +68,9 @@ func fingerprint(c Case, configDir string) (na.Fingerprint, error) {
 	if err != nil {
 		return na.Fingerprint{}, err
 	}
+	if len(c.Expansions) > 0 {
+		expansions = append([]string(nil), c.Expansions...)
+	}
 	return na.Fingerprint{Package: na.PackageHash(game), Start: na.StartHash(c.Start.Describe()), Expansions: expansions}, nil
 }
 

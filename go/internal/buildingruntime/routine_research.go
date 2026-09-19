@@ -156,6 +156,7 @@ func (r *RoutineResearchPlanner) step(call, epoch context.Context, arbiter *step
 	if err != nil {
 		return RoutineResearchResult{}, err
 	}
+	needs = r.reviewer.fishingResearchNeeds(needs)
 	roadmap := r.reviewer.policy.ResearchTarget == "" && (len(needs) > 0 || len(r.reviewer.policy.ResearchLadder) > 0)
 	if r.reviewer.policy.ResearchTarget == "" && !roadmap {
 		return RoutineResearchResult{Reason: BuildingMethodDisabled}, nil

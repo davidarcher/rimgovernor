@@ -39,6 +39,12 @@ namespace HomeBridge.BridgeTools
                     Type = Operations.ZoneType.Growing, Label = Zone.label, Cells = new Operations.Cells { ExplicitCells = new Operations.CellList() },
                     Growing = new Operations.GrowingSettings { PlantDef = crop.defName, AllowSow = growing.allowSow, AllowCut = growing.allowCut } }, cells);
             }
+            else if (Zone is Zone_Fishing fishing)
+            {
+                if (Zone.label == Desired.Label && fishing.Allowed && fishing.repeatMode == FishRepeatMode.DoForever
+                    && Math.Abs(fishing.targetPopulationPct - Desired.Fishing.PopulationFloor) < 0.000001)
+                    result.Snapshot.AfterToken = NativeZoneCreation.ConfigurationToken(Desired, cells);
+            }
             else if (Zone is Zone_Stockpile stockpile)
             {
                 // The after-token is the admitted configuration only while the
@@ -80,6 +86,7 @@ namespace HomeBridge.BridgeTools
                     if (map.zoneManager.AllZones.Count > 256 || map.zoneManager.AllZones.Sum(z => (long)z.Cells.Count) > 65536) throw new InvalidOperationException("Zone census exceeds bound.");
                     foreach (var zone in map.zoneManager.AllZones.OrderBy(z => z.GetUniqueLoadID(), StringComparer.Ordinal)) {
                         writer.Write(zone.GetUniqueLoadID()); writer.Write(zone.Cells.Count);
+                        if (zone is Zone_Fishing fishing) { writer.Write(fishing.label); writer.Write(fishing.Allowed); writer.Write((int)fishing.repeatMode); writer.Write(fishing.targetPopulationPct); }
                         foreach (var cell in zone.Cells.OrderBy(c => c.x).ThenBy(c => c.z)) { writer.Write(cell.x); writer.Write(cell.z); }
                     }
                 }
@@ -114,6 +121,11 @@ namespace HomeBridge.BridgeTools
                 || command.Cells?.ExplicitCells == null || command.Cells.ExplicitCells.Cells.Count == 0 || command.Cells.ExplicitCells.Cells.Count > 256) return false;
             var cells = command.Cells.ExplicitCells.Cells;
             if (!cells.All(c => c.HasX && c.HasZ && c.X >= 0 && c.Z >= 0) || cells.Select(c => Tuple.Create(c.X, c.Z)).Distinct().Count() != cells.Count) return false;
+            if (command.Type == Operations.ZoneType.Fishing)
+                return command.Label == "RimGovernor fishing" && command.Stockpile == null && command.Growing == null && !command.RequireCoveredEmpty
+                    && command.Fishing != null && command.Fishing.HasPopulationFloor && command.Fishing.PopulationFloor == 0.6
+                    && (!command.HasExtendZoneId || ProtoBoundary.IsIdentifier(command.ExtendZoneId));
+            if (command.Fishing != null || command.HasExtendZoneId) return false;
             if (command.Type == Operations.ZoneType.Growing)
                 return command.Label == "RimGovernor crops" && command.Stockpile == null && !command.RequireCoveredEmpty
                     && command.Growing != null && command.Growing.HasPlantDef && ProtoBoundary.IsIdentifier(command.Growing.PlantDef)
@@ -148,7 +160,23 @@ namespace HomeBridge.BridgeTools
             while (queue.Count > 0) { var c = queue.Dequeue(); foreach (var offset in GenAdj.CardinalDirections) { var next = c + offset; if (selected.Contains(next) && reached.Add(next)) queue.Enqueue(next); } }
             if (reached.Count != selected.Count) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Zone creation requires cardinally connected cells."); return false; }
             var rules = new ApplyPreconditions(Kind);
-            if (command.Type == Operations.ZoneType.Growing)
+            if (command.Type == Operations.ZoneType.Fishing)
+            {
+                if (!ModsConfig.OdysseyActive || DefDatabase<ResearchProjectDef>.GetNamedSilentFail("Fishing")?.IsFinished != true)
+                { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Fishing requires Odyssey and completed Fishing research."); return false; }
+                var body = cells[0].InBounds(map) ? cells[0].GetWaterBody(map) : null;
+                var existing = command.HasExtendZoneId ? map.zoneManager.AllZones.OfType<Zone_Fishing>().FirstOrDefault(z => z.GetUniqueLoadID() == command.ExtendZoneId) : null;
+                if (command.HasExtendZoneId && (existing == null || existing.label != command.Label || !existing.Allowed || existing.Cells.Count >= cells.Length
+                    || existing.Cells.Any(c => !selected.Contains(c) || map.zoneManager.ZoneAt(c) != existing || c.GetWaterBody(map) != body)))
+                { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Fishing extension requires the exact zone and a larger complete footprint in the same body."); return false; }
+                ground = true;
+                foreach (var cell in cells)
+                {
+                    var c = cell;
+                    rules.Require(() => existing != null && existing.Cells.Contains(c) || FishableCell(c, map, body), "cell " + At(c) + " is not free shallow fish-bearing water in this body");
+                }
+            }
+            else if (command.Type == Operations.ZoneType.Growing)
             {
                 crop = DefDatabase<ThingDef>.GetNamedSilentFail(command.Growing.PlantDef);
                 if (crop?.plant == null || !crop.plant.Sowable || crop.plant.harvestedThingDef?.IsNutritionGivingIngestible != true
@@ -208,6 +236,14 @@ namespace HomeBridge.BridgeTools
         {
             return !c.GetThingList(map).Any(t => t is Plant || t is Building || t is Blueprint || t is Frame || t.def.category == ThingCategory.Item);
         }
+
+        internal static bool FishableCell(IntVec3 c, Map map, WaterBody? body)
+        {
+            return ModsConfig.OdysseyActive && body != null && body.HasFish && c.InBounds(map) && !c.Fogged(map)
+                && c.GetWaterBody(map) == body && c.GetTerrain(map).IsWater && c.Standable(map)
+                && Designator_ZoneAdd.IsZoneableCell(c, map).Accepted && map.zoneManager.ZoneAt(c) == null
+                && !map.zoneManager.AllZones.Any(z => z.Cells.Contains(c));
+        }
         // A refused site is an evaluation with Accepted false, as placement
         // previews report one, so a site search previews per candidate and
         // moves on; only an unevaluable request is a failure.
@@ -232,7 +268,14 @@ namespace HomeBridge.BridgeTools
                     if (!authority.Check(pre.ExpectedGeneration).Success || !Prepare(command, context, out crop, out failure, out _)) throw new InvalidOperationException("Zone scope changed before creation.");
                     var map = ProtoBoundary.LoadedMap(context);
                     NativeZoneRecord record;
-                    if (command.Type == Operations.ZoneType.Growing) {
+                    if (command.Type == Operations.ZoneType.Fishing) {
+                        var fishing = command.HasExtendZoneId ? map.zoneManager.AllZones.OfType<Zone_Fishing>().Single(z => z.GetUniqueLoadID() == command.ExtendZoneId) : new Zone_Fishing(map.zoneManager);
+                        record = new NativeZoneRecord(fishing, map, command);
+                        state.Zones.Add(pre.Attempt.Clone(), record);
+                        if (!command.HasExtendZoneId) map.zoneManager.RegisterZone(fishing);
+                        fishing.label = command.Label; fishing.repeatMode = FishRepeatMode.DoForever; fishing.targetPopulationPct = (float)command.Fishing.PopulationFloor;
+                        foreach (var c in command.Cells.ExplicitCells.Cells) { var cell = new IntVec3(c.X, 0, c.Z); if (!fishing.Cells.Contains(cell)) fishing.AddCell(cell); }
+                    } else if (command.Type == Operations.ZoneType.Growing) {
                         var growing = new Zone_Growing(map.zoneManager);
                         record = new NativeZoneRecord(growing, map, command);
                         state.Zones.Add(pre.Attempt.Clone(), record);

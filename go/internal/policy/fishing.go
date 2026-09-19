@@ -18,6 +18,7 @@ type FishingRegion struct {
 	ID                                                string
 	Population, MaxPopulation                         domain.Fact[float64]
 	NutritionPerFish, FishPerBatch, WorkTicksPerBatch domain.Fact[float64]
+	PawnFishWorkCapacity                              domain.Fact[float64] // raw nutrition/day
 	Reachable, Frozen, Open                           domain.Fact[bool]
 }
 
@@ -45,7 +46,7 @@ func FishingChannels(r FishingRequest) ([]FoodChannel, error) {
 			return nil, ErrFoodPlanFacts
 		}
 		seen[region.ID] = true
-		for _, f := range []domain.Fact[float64]{region.Population, region.MaxPopulation, region.NutritionPerFish, region.FishPerBatch, region.WorkTicksPerBatch} {
+		for _, f := range []domain.Fact[float64]{region.Population, region.MaxPopulation, region.NutritionPerFish, region.FishPerBatch, region.WorkTicksPerBatch, region.PawnFishWorkCapacity} {
 			if v, known := f.Value(); known && !foodNumber(v) {
 				return nil, ErrFoodPlanFacts
 			}
@@ -55,6 +56,7 @@ func FishingChannels(r FishingRequest) ([]FoodChannel, error) {
 		nutrition, nk := region.NutritionPerFish.Value()
 		batch, bk := region.FishPerBatch.Value()
 		work, wk := region.WorkTicksPerBatch.Value()
+		capacity, capKnown := region.PawnFishWorkCapacity.Value()
 		if pk && mk && population > maximum || nk && nutrition == 0 || bk && batch == 0 || wk && work == 0 {
 			return nil, ErrFoodPlanFacts
 		}
@@ -82,11 +84,16 @@ func FishingChannels(r FishingRequest) ([]FoodChannel, error) {
 			if fk && frozen {
 				channel.Terms = append(channel.Terms, FoodPlanTerm{Name: "fishing_frozen", Value: 1})
 			}
-		} else if pk && mk && nk && bk && wk && rk && fk {
-			// Low populations cannot supply more fish in the next day than
-			// are present, even when the steady-state regeneration is higher.
-			draw := math.Min(population, maximum*FishingRegenerationPerDay)
-			dailyNutrition, dailyWork := draw*nutrition, draw/batch*work
+		} else if pk && mk && nk && bk && wk && rk && fk && capKnown {
+			// This is the sustainable average, not today's catch quota. Native
+			// population-floor control permits bursts and subsequent recovery.
+			regen := maximum * FishingRegenerationPerDay * nutrition
+			if !foodNumber(regen) {
+				return nil, ErrFoodPlanFacts
+			}
+			dailyNutrition := math.Min(regen, capacity)
+			draw := dailyNutrition / nutrition
+			dailyWork := draw / batch * work
 			if !foodNumber(dailyNutrition) || !foodNumber(dailyWork) {
 				return nil, ErrFoodPlanFacts
 			}

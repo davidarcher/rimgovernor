@@ -124,6 +124,9 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 		return RoutineFieldResult{}, err
 	}
 	projection := read.Projection
+	if result, handled, err := r.fishing(call, epoch, state, goal, read); err != nil || handled {
+		return result, err
+	}
 	if !foodPlanSupport(projection.Facts.FoodPlan, policy.FoodCrop, "field-capacity") {
 		return RoutineFieldResult{Reason: BuildingMethodUnknown}, nil
 	}

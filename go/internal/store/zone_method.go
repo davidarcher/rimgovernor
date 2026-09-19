@@ -27,7 +27,7 @@ func fieldOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal GoalState, plan d
 	for _, action := range plan.Actions() {
 		zone, isZone := action.ZoneCreate()
 		building, isBuilding := action.Building()
-		if isZone && zone.Kind() == domain.GrowingZone || isBuilding && fieldInfrastructure[building.Definition()] {
+		if isZone && (zone.Kind() == domain.GrowingZone || zone.Kind() == domain.FishingZone) || isBuilding && fieldInfrastructure[building.Definition()] {
 			continue
 		}
 		return false, nil

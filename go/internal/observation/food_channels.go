@@ -21,12 +21,18 @@ type FoodChannels struct {
 type FishableWater struct {
 	Regions           []FishableRegion
 	FishingResearched domain.Fact[bool]
+	ResearchLeadDays  domain.Fact[float64]
 }
 type FishableRegion struct {
-	Root                      domain.Cell
-	Population, MaxPopulation domain.Fact[float64]
-	Zoned, Reachable          domain.Fact[bool]
-	CellCount                 domain.Fact[uint32]
+	Root                                              domain.Cell
+	Population, MaxPopulation                         domain.Fact[float64]
+	Zoned, Reachable                                  domain.Fact[bool]
+	CellCount                                         domain.Fact[uint32]
+	Frozen, Delivering                                domain.Fact[bool]
+	NutritionPerFish, FishPerBatch, WorkTicksPerBatch domain.Fact[float64]
+	ProposedCells                                     []domain.Cell
+	PawnFishWorkCapacity                              domain.Fact[float64]
+	ConcurrentFishers                                 domain.Fact[uint32]
 }
 type GatherableAnimal struct {
 	PawnID, Race                          string
@@ -69,9 +75,16 @@ func colonyFoodChannels(section *o.FoodChannelsSection) domain.Fact[FoodChannels
 		r.Slaughter = append(r.Slaughter, policy.SlaughterFoodAnimal{ID: policy.PawnID(row.GetPawnId()), Race: policy.Resource(row.GetRace()), MeatNutrition: optional(row.MeatNutrition), FeedPerDay: optional(row.FeedPerDay), ReproductionDays: optional(row.ReproductionDays)})
 	}
 	if water := v.FishableWater; water != nil {
-		w := FishableWater{FishingResearched: optional(water.FishingResearched)}
+		w := FishableWater{FishingResearched: optional(water.FishingResearched), ResearchLeadDays: optional(water.ResearchLeadDays)}
 		for _, row := range water.Regions {
 			w.Regions = append(w.Regions, FishableRegion{Root: domain.Cell{X: row.Root.GetX(), Z: row.Root.GetZ()}, Population: optional(row.Population), MaxPopulation: optional(row.MaxPopulation), Zoned: optional(row.Zoned), Reachable: optional(row.Reachable), CellCount: optional(row.CellCount)})
+			last := &w.Regions[len(w.Regions)-1]
+			last.Frozen, last.Delivering = optional(row.Frozen), optional(row.Delivering)
+			last.PawnFishWorkCapacity, last.ConcurrentFishers = optional(row.PawnFishWorkCapacity), optional(row.ConcurrentFishers)
+			last.NutritionPerFish, last.FishPerBatch, last.WorkTicksPerBatch = optional(row.NutritionPerFish), optional(row.FishPerBatch), optional(row.WorkTicksPerBatch)
+			for _, cell := range row.ProposedCells {
+				last.ProposedCells = append(last.ProposedCells, domain.Cell{X: cell.GetX(), Z: cell.GetZ()})
+			}
 		}
 		r.FishableWater = domain.Known(w)
 	}

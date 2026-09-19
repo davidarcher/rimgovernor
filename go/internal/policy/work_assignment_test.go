@@ -9,6 +9,19 @@ import (
 
 var testWorkTypes = []WorkType{WorkConstruction, WorkGrowing, WorkCooking, WorkDoctor, WorkPlantCutting, WorkHunting, WorkMining, WorkSmithing, WorkResearch, WorkWarden, WorkHandling, WorkHauling, WorkCleaning, WorkFirefighter}
 
+func TestFishingAllocationUsesAnimalsWithoutRangedWeapon(t *testing.T) {
+	pawn := testWorkPawn("fisher", true, false, []WorkSkill{{Name: "Animals", Level: 12}})
+	work, _ := pawn.Work.Value()
+	pawn.Work = domain.Known(append(work, WorkPriority{Work: WorkFishing}))
+	decision, err := AssignWork([]WorkPawn{pawn}, []WorkRequirement{{Work: WorkFishing, Skill: "Animals"}}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if WorkSkillName(WorkFishing) != "Animals" || coverageOf(t, decision, WorkFishing).Owners != 1 || workValue(t, decision, "fisher", WorkFishing) == 0 {
+		t.Fatal(decision)
+	}
+}
+
 func testWorkPawn(id PawnID, manual, ranged bool, skills []WorkSkill, traits ...PawnTrait) WorkPawn {
 	work := make([]WorkPriority, 0, len(testWorkTypes))
 	for _, w := range testWorkTypes {

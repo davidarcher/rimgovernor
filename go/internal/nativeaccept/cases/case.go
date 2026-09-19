@@ -217,6 +217,9 @@ type Session interface {
 
 // Case is one registered acceptance case.
 type Case struct {
+	// Expansions explicitly selects a DLC profile for a programmatic fixture.
+	// Such a case owns a fresh process; the profile writer adds knownExpansions.
+	Expansions []string
 	// Production requires a fixture-free native package. Remote executors
 	// must switch private package layouts between production and fixture rows.
 	Production bool
@@ -321,6 +324,14 @@ func (c Case) FixtureOps() []string {
 
 // Validate is the shape check Register applies.
 func (c Case) Validate() error {
+	if len(c.Expansions) > 0 && !c.NoKeep {
+		return fmt.Errorf("case %s with expansions must set NoKeep", c.Name)
+	}
+	for _, expansion := range c.Expansions {
+		if _, err := na.ExpansionPackage(expansion); err != nil {
+			return err
+		}
+	}
 	if c.Name == "" {
 		return fmt.Errorf("case has no name")
 	}

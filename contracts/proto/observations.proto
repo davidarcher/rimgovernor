@@ -735,8 +735,8 @@ message LootSection { oneof outcome { LootCensus observed = 1; rimgovernor.commo
 // absent. Water rows aggregate fishable cells by native water body; population
 // is shared by that body, not multiplied by its shallow cells. FishableWater
 // is absent without Odyssey. Pollution uses the clipped center +/-22 window.
-message FishableRegion { rimgovernor.common.v1.Cell root = 1; optional double population = 2; optional double max_population = 3; optional bool zoned = 4; optional uint32 cell_count = 5; optional bool reachable = 6; }
-message FishableWater { repeated FishableRegion regions = 1; optional bool fishing_researched = 2; }
+message FishableRegion { rimgovernor.common.v1.Cell root = 1; optional double population = 2; optional double max_population = 3; optional bool zoned = 4; optional uint32 cell_count = 5; optional bool reachable = 6; optional bool frozen = 7; optional double nutrition_per_fish = 8; optional double fish_per_batch = 9; optional double work_ticks_per_batch = 10; repeated rimgovernor.common.v1.Cell proposed_cells = 11; optional bool delivering = 12; optional double pawn_fish_work_capacity = 13; optional uint32 concurrent_fishers = 14; }
+message FishableWater { repeated FishableRegion regions = 1; optional bool fishing_researched = 2; optional double research_lead_days = 3; }
 message GatherableAnimal { optional string pawn_id = 1; optional string race = 2; optional double fullness = 3; optional string resource = 4; optional bool handler_reachable = 5; optional double nutrition_per_day = 6; optional double work_per_day = 7; optional double lead_days = 8; optional bool active = 9; }
 message EggLayerAnimal { optional string pawn_id = 1; optional string race = 2; optional bool can_lay_now = 3; optional double progress = 4; optional double nutrition_per_day = 5; optional double lead_days = 6; optional bool active = 7; }
 message PasteDispenser { optional string building_id = 1; optional bool powered = 2; optional double hopper_nutrition = 3; optional string adjacent_room_id = 4; }

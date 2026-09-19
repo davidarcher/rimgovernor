@@ -40,6 +40,25 @@ func TestZoneExactConfigurationEvidence(t *testing.T) {
 	}
 }
 
+func TestFishingZoneExtensionBindsIdentityAndFloor(t *testing.T) {
+	z, err := domain.NewFishingZoneExtension("Zone_7", []domain.Cell{{X: 1, Z: 2}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	op := ZoneConfiguration(z)
+	if op.GetType() != 4 || op.GetExtendZoneId() != "Zone_7" || op.GetFishing().GetPopulationFloor() != .6 || op.Growing != nil || op.Stockpile != nil {
+		t.Fatal(op)
+	}
+	v := &r.EffectEvidence{Effect: &r.EffectEvidence_Zone{Zone: &r.ZoneEffect{ZoneId: proto.String("Zone_7"), Present: proto.Bool(true), ListedCellCount: proto.Int32(1), GridCellCount: proto.Int32(1), PhantomCellCount: proto.Int32(0), ChangedCells: proto.Int32(1), Snapshot: &r.SnapshotEvidence{EntityId: proto.String("Zone_7"), BeforeToken: proto.String("map-token"), AfterToken: proto.String(ZoneConfigurationToken(z))}, Cells: []*r.CellResult{{Cell: &c.Cell{X: proto.Int32(1), Z: proto.Int32(2)}, Accepted: proto.Bool(true)}}}}}
+	if matches, err := ZoneMatches(v, z, "map-token"); err != nil || !matches {
+		t.Fatal(matches, err)
+	}
+	v.GetZone().ZoneId, v.GetZone().Snapshot.EntityId = proto.String("Zone_8"), proto.String("Zone_8")
+	if matches, _ := ZoneMatches(v, z, "map-token"); matches {
+		t.Fatal("extension accepted different zone identity")
+	}
+}
+
 func TestCorpseLarderZoneExcludesRottenAndNonAnimalStock(t *testing.T) {
 	zone, err := domain.NewStockpileZone(domain.CorpseLarderPreset, domain.ImportantPriority, []domain.Cell{{X: 1, Z: 2}})
 	if err != nil {

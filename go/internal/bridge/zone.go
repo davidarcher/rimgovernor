@@ -58,6 +58,12 @@ func ZoneConfiguration(zone domain.ZoneCreate) *op.CreateZone {
 	}
 	command := &op.CreateZone{Label: proto.String(zone.Label()), Cells: &op.Cells{Selection: &op.Cells_ExplicitCells{ExplicitCells: cells}}}
 	switch zone.Kind() {
+	case domain.FishingZone:
+		command.Type = op.ZoneType_ZONE_TYPE_FISHING.Enum()
+		command.Fishing = &op.FishingSettings{PopulationFloor: proto.Float64(domain.FishingPopulationFloor)}
+		if zone.ExtendZoneID() != "" {
+			command.ExtendZoneId = proto.String(zone.ExtendZoneID())
+		}
 	case domain.StockpileZone:
 		command.Type = op.ZoneType_ZONE_TYPE_STOCKPILE.Enum()
 		command.Stockpile = stockpileSettings(zone)
@@ -184,6 +190,7 @@ func ZoneMatches(v *r.EffectEvidence, zone domain.ZoneCreate, token string) (boo
 		accepted = accepted && row.GetAccepted()
 	}
 	matches := d.GetPresent() && accepted && d.GetPhantomCellCount() == 0 && d.GetGridCellCount() == d.GetListedCellCount() && len(d.Cells) == len(zone.Cells()) && d.Snapshot.GetAfterToken() == ZoneConfigurationToken(zone)
+	matches = matches && (zone.ExtendZoneID() == "" || d.GetZoneId() == zone.ExtendZoneID())
 	for _, cell := range zone.Cells() {
 		matches = matches && seen[cell]
 	}

@@ -84,6 +84,9 @@ func validateFoodChannels(v *o.ColonyFactsSnapshot) error {
 			}
 		}
 		if water := f.FishableWater; water != nil {
+			if !combatNumber(water.ResearchLeadDays, true) {
+				return contract("invalid fishing research lead")
+			}
 			if len(water.Regions) > 256 {
 				return contract("fishable regions exceed bound")
 			}
@@ -93,6 +96,20 @@ func validateFoodChannels(v *o.ColonyFactsSnapshot) error {
 					return contract("invalid fishable region")
 				}
 				root := [2]int32{row.Root.GetX(), row.Root.GetZ()}
+				if !combatNumber(row.NutritionPerFish, false) || !combatNumber(row.FishPerBatch, false) || !combatNumber(row.WorkTicksPerBatch, false) || !combatNumber(row.PawnFishWorkCapacity, true) || row.GetConcurrentFishers() > 256 || len(row.ProposedCells) > 256 {
+					return contract("invalid fishing rates or footprint")
+				}
+				seenCells := map[[2]int32]bool{}
+				for _, cell := range row.ProposedCells {
+					if !colonyCell(cell, v.MapSize) {
+						return contract("invalid fishing cell")
+					}
+					key := [2]int32{cell.GetX(), cell.GetZ()}
+					if seenCells[key] {
+						return contract("duplicate fishing cell")
+					}
+					seenCells[key] = true
+				}
 				if roots[root] {
 					return contract("duplicate fishable region")
 				}

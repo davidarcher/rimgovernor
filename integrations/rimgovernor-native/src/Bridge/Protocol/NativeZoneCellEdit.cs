@@ -112,6 +112,8 @@ namespace HomeBridge.BridgeTools
                     var c = cell;
                     rules.Require(() => !candidate!.Cells.Contains(c), "cell " + At(c) + " is already in the zone")
                         .Require(() => IsFreeGround(c, map), "cell " + At(c) + " is not free zoneable ground")
+                        .Require(() => !(candidate is Zone_Fishing) || NativeZoneCreation.FishableCell(c, map, candidate.Cells[0].GetWaterBody(map)),
+                            "cell " + At(c) + " is not fishable water in the zone's water body")
                         .Require(() => !command.RequireCoveredEmpty || c.Roofed(map) && c.GetEdifice(map) == null && c.GetThingList(map).Count == 0 && !map.roofCollapseBuffer.IsMarkedToCollapse(c),
                             "cell " + At(c) + " is not roofed, empty and clear")
                         .Require(() => slotGroup == null || map.haulDestinationManager?.SlotGroupAt(c) == null, "cell " + At(c) + " already belongs to a storage group");
