@@ -57,6 +57,9 @@ type ColonyStatusReport struct {
 	// Shrines is the ancient shrine census (#456); unknown under a native
 	// build that does not serve it.
 	Shrines domain.Fact[[]policy.AncientShrine]
+	// ShrineReadiness is each shrine's breach judgement (#457), one per
+	// Shrines row; empty while the census or its inputs are unknown.
+	ShrineReadiness []ShrineReadinessReport
 	// Pawns is the living home colonist roster, sorted as native listed it.
 	Pawns []ColonyStatusPawn
 }
@@ -165,6 +168,19 @@ func (s *ColonyStatus) Read(ctx context.Context) (ColonyStatusReport, error) {
 			pawn.Food = optionalFact(needs.Food)
 		}
 		report.Pawns = append(report.Pawns, pawn)
+	}
+	if shrines, known := report.Shrines.Value(); known && len(shrines) > 0 {
+		if native, ok := s.native.(shrineReadinessNative); ok {
+			colonists := make([]string, 0, len(report.Pawns))
+			for _, pawn := range report.Pawns {
+				colonists = append(colonists, string(pawn.ID))
+			}
+			bounds := policy.Bounds{Width: int32(observed.MapSize.GetWidth()), Height: int32(observed.MapSize.GetHeight())}
+			center := domain.Cell{X: observed.Center.GetX(), Z: observed.Center.GetZ()}
+			if report.ShrineReadiness, err = shrineReadiness(call, native, identity, shrines, colonists, report.Threat.RaidPoints, center, bounds); err != nil {
+				return ColonyStatusReport{}, err
+			}
+		}
 	}
 	return report, nil
 }

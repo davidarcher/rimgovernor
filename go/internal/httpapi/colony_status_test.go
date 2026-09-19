@@ -37,8 +37,9 @@ func TestColonyStatusReadSuccess(t *testing.T) {
 	s.config.ColonyStatus = &colonyStatusFixture{report: buildingruntime.ColonyStatusReport{
 		Tick: 1200, Colonists: domain.Known[int64](3), Workers: domain.Known[int64](2),
 		FoodNutrition: domain.Known(12.5), FoodRunwayDays: domain.Known(2.25), FoodCorpses: 1,
-		Threat:  bridge.ColonyThreat{RaidPoints: domain.Known(120.5), WealthTotal: domain.Known(7400.0), WealthItems: domain.Known(1200.0)},
-		Shrines: domain.Known([]policy.AncientShrine{{ID: "AncientShrineGroup_1", Sealed: true, Caskets: []policy.ShrineCasket{{EntityID: "c1", HasContents: true}, {EntityID: "c2"}}, BreachWalls: []policy.ShrineBreachWall{{EntityID: "w1"}}}}),
+		Threat:          bridge.ColonyThreat{RaidPoints: domain.Known(120.5), WealthTotal: domain.Known(7400.0), WealthItems: domain.Known(1200.0)},
+		Shrines:         domain.Known([]policy.AncientShrine{{ID: "AncientShrineGroup_1", Sealed: true, Caskets: []policy.ShrineCasket{{EntityID: "c1", HasContents: true}, {EntityID: "c2"}}, BreachWalls: []policy.ShrineBreachWall{{EntityID: "w1"}}}}),
+		ShrineReadiness: []buildingruntime.ShrineReadinessReport{{Shrine: "AncientShrineGroup_1", Readiness: policy.ShrineReadiness{Reason: policy.ShrineHoldNoTraps, Wall: policy.ShrineBreachWall{EntityID: "w1"}, Squad: []domain.PawnID{"p1", "p2"}, Traps: 1}}},
 		Pawns: []buildingruntime.ColonyStatusPawn{
 			{ID: "p1", Label: "Ann", Downed: domain.Known(true), Mood: domain.Known(0.2), Food: domain.Known(0.1)},
 			{ID: "p2", Label: "Bob", Downed: domain.Known(false), Mood: domain.Known(0.6)},
@@ -49,7 +50,7 @@ func TestColonyStatusReadSuccess(t *testing.T) {
 	w := httptest.NewRecorder()
 	s.Handler().ServeHTTP(w, r)
 	body := w.Body.String()
-	for _, want := range []string{`"tick":1200`, `"colonists":3`, `"foodRunwayDays":2.25`, `"pendingFoodNutrition":null`, `"foodCorpses":1`, `"raidPoints":120.5`, `"wealthTotal":7400`, `"wealthItems":1200`, `"wealthBuildings":null`, `"wealthPawns":null`, `"shrines":[{"id":"AncientShrineGroup_1","sealed":true,"inHome":false,"caskets":2,"filledCaskets":1,"guardsKnown":false,"guardsAlive":true,"breachWalls":1}]`, `"downed":1`, `"moodMean":0.4`, `"id":"p3","label":"Cy","downed":null,"mood":null,"food":null`} {
+	for _, want := range []string{`"tick":1200`, `"colonists":3`, `"foodRunwayDays":2.25`, `"pendingFoodNutrition":null`, `"foodCorpses":1`, `"raidPoints":120.5`, `"wealthTotal":7400`, `"wealthItems":1200`, `"wealthBuildings":null`, `"wealthPawns":null`, `"shrines":[{"id":"AncientShrineGroup_1","sealed":true,"inHome":false,"caskets":2,"filledCaskets":1,"guardsKnown":false,"guardsAlive":true,"breachWalls":1,"ready":false,"reason":"no_traps","wall":"w1","squad":2,"traps":1}]`, `"downed":1`, `"moodMean":0.4`, `"id":"p3","label":"Cy","downed":null,"mood":null,"food":null`} {
 		if w.Code != 200 || !strings.Contains(body, want) {
 			t.Fatal(w.Code, want, body)
 		}

@@ -634,6 +634,27 @@ Research assignment weighs native Intellectual skill and, in checkbox mode, remo
 routine hauling/cleaning from the selected researcher so those earlier jobs cannot
 starve research indefinitely. Explicit work overrides retain authority.
 
+### Shrine breach readiness
+
+Breaching a sealed ancient shrine releases its guards at once, so
+`policy.ShrineBreachReadiness` judges the gate before any wall goes (#457).
+It is a decision, never an order: `ColonyStatus` reads it for
+`/api/player/colony` and the dashboard, and the breach goal (#458) will
+re-read the facts before drafting anyone. Every hold is a reason, in this
+order: `not_sealed`, `no_breach_wall`, `emergency_active`,
+`squad_too_small` (fewer than two eligible armed colonists, one under
+Peaceful), `no_ranged` (no ranged weapon of 20 cells or more),
+`no_traps` (fewer than three built spike traps within 12 cells of the
+chosen wall's outside cell; none under Peaceful), `threat_unknown` and
+`threat_too_high` (raid points over 300 for a squad of two, 500 for
+three, 800 for four or more; Peaceful ignores raid points). The chosen
+wall is the deconstructible perimeter wall nearest the colony centre;
+the squad lists every eligible defender, shooters first. Squad eligibility
+is `SelectSquadDefense`'s plus being armed. The storyteller is not
+observed yet, so the Peaceful softening stays off. The colony status read
+fetches combat pawns, the emergency census and a 27x27 defense-site
+window around the wall only while a sealed shrine shows a breach wall.
+
 ## Autonomous supply safety
 
 `ManageSupplySafety` owns both directions of the forbid flag for visible,

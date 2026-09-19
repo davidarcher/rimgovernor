@@ -80,6 +80,9 @@ type ColonyProjection struct {
 	// Resources is the accessible colony stock census by definition; a
 	// definition absent from a known census is known zero.
 	Resources domain.Fact[map[policy.Resource]int64]
+	// Threat is the census's wealth split and raid points (#395); every
+	// reading is unknown under a native build without the section.
+	Threat bridge.ColonyThreat
 }
 
 // ResourceStock reports the accessible stock of one definition, unknown when
@@ -191,6 +194,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 	}
 	r := ColonyProjection{Identity: identity, Bounds: policy.Bounds{Width: int32(v.MapSize.GetWidth()), Height: int32(v.MapSize.GetHeight())}, Center: domain.Cell{X: v.Center.GetX(), Z: v.Center.GetZ()}}
 	r.PlayerTechLevel = optional(v.PlayerTechLevel)
+	r.Threat = bridge.ProjectColonyThreat(v)
 	r.FoodChannels = colonyFoodChannels(v.FoodChannels)
 	r.Facts = policy.RoutineFacts{Colonists: countFact(v.ColonistCount), BedCapacity: countFact(v.BedCapacity), IndoorCapacity: countFact(v.IndoorSleepingCapacity), SleepingMin: optional(v.SleepingTemperatureMinC), SleepingMax: optional(v.SleepingTemperatureMaxC), OutdoorTemperature: optional(v.OutdoorTemperatureC), FoodStorage: optional(v.FoodStorage)}
 	if channels, known := r.FoodChannels.Value(); known {

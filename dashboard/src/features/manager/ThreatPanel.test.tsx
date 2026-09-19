@@ -5,7 +5,7 @@ import ThreatPanel from './ThreatPanel';
 import {readThreatStatus} from './threatData';
 const reply = (body: unknown, status = 200) => Promise.resolve(new Response(JSON.stringify(body), {status, headers: {'content-type': 'application/json'}}));
 const census = {tick: 4200, rosterTick: 4200, colonists: 3, workers: 3, foodNutrition: 12, nutritionPerDay: 4.8, foodRunwayDays: 2.5, pendingFoodNutrition: null, foodCorpses: 0,
-  raidPoints: 120.4, wealthTotal: 7400.2, wealthItems: 1200, wealthBuildings: null, wealthPawns: 5400, shrines: [{id: 'AncientShrineGroup_1', sealed: true, inHome: false, caskets: 4, filledCaskets: 3, guardsKnown: false, guardsAlive: true, breachWalls: 6}], downed: 0, moodMean: 0.5, pawns: []};
+  raidPoints: 120.4, wealthTotal: 7400.2, wealthItems: 1200, wealthBuildings: null, wealthPawns: 5400, shrines: [{id: 'AncientShrineGroup_1', sealed: true, inHome: false, caskets: 4, filledCaskets: 3, guardsKnown: false, guardsAlive: true, breachWalls: 6, ready: false, reason: 'no_traps', squad: 2, traps: 1}], downed: 0, moodMean: 0.5, pawns: []};
 afterEach(() => {cleanup(); vi.unstubAllGlobals();});
 it('renders raid points and the wealth split, unknown figures as dashes', async () => {
   vi.stubGlobal('fetch', vi.fn(() => reply(census)));

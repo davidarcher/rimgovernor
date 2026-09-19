@@ -30,7 +30,7 @@ export default function ThreatPanel({active}: {active: boolean}) {
       <div><dt>Pawns</dt><dd>{silver(v.wealthPawns)}</dd></div>
     </dl>}
     {v && v.shrines && v.shrines.length > 0 && <dl className="observation-identity" aria-label="Ancient shrines">
-      {v.shrines.map(shrine => <div key={shrine.id}><dt>Shrine {shrine.id}</dt><dd>{shrine.sealed ? 'sealed' : shrine.guardsAlive ? 'breached, guards alive' : 'cleared'}, {shrine.filledCaskets}/{shrine.caskets} caskets filled{shrine.inHome ? ', in Home' : ''}</dd></div>)}
+      {v.shrines.map(shrine => <div key={shrine.id}><dt>Shrine {shrine.id}</dt><dd>{shrine.sealed ? 'sealed' : shrine.guardsAlive ? 'breached, guards alive' : 'cleared'}, {shrine.filledCaskets}/{shrine.caskets} caskets filled{shrine.inHome ? ', in Home' : ''}{shrine.ready === null ? '' : shrine.ready ? ` — breach ready (${shrine.squad} armed, ${shrine.traps} traps)` : ` — hold: ${shrine.reason}`}</dd></div>)}
     </dl>}
     <p className="observation-note">Points a default threat incident would draw at tick {v ? v.tick.toLocaleString() : 'â€”'}, as the game computes them from colony wealth, colonists, adaptation and difficulty.</p>
   </section>;

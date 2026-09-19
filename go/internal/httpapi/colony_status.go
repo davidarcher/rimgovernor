@@ -56,6 +56,13 @@ type colonyShrineDTO struct {
 	GuardsKnown   bool   `json:"guardsKnown"`
 	GuardsAlive   bool   `json:"guardsAlive"`
 	BreachWalls   int    `json:"breachWalls"`
+	// Ready and Reason are the breach judgement (#457); Reason is empty when
+	// ready and null when the judgement was not made.
+	Ready  *bool   `json:"ready"`
+	Reason *string `json:"reason"`
+	Wall   *string `json:"wall"`
+	Squad  int     `json:"squad"`
+	Traps  int     `json:"traps"`
 }
 type colonyStatusPawnDTO struct {
 	ID     domain.PawnID `json:"id"`
@@ -86,7 +93,18 @@ func projectColonyStatus(v buildingruntime.ColonyStatusReport) colonyStatusDTO {
 	if shrines, known := v.Shrines.Value(); known {
 		out.Shrines = []colonyShrineDTO{}
 		for _, shrine := range shrines {
-			out.Shrines = append(out.Shrines, colonyShrineDTO{ID: shrine.ID, Sealed: shrine.Sealed, InHome: shrine.InHome, Caskets: len(shrine.Caskets), FilledCaskets: shrine.FilledCaskets(), GuardsKnown: shrine.GuardsKnown, GuardsAlive: shrine.GuardsAlive(), BreachWalls: len(shrine.BreachWalls)})
+			row := colonyShrineDTO{ID: shrine.ID, Sealed: shrine.Sealed, InHome: shrine.InHome, Caskets: len(shrine.Caskets), FilledCaskets: shrine.FilledCaskets(), GuardsKnown: shrine.GuardsKnown, GuardsAlive: shrine.GuardsAlive(), BreachWalls: len(shrine.BreachWalls)}
+			for _, judged := range v.ShrineReadiness {
+				if judged.Shrine != shrine.ID {
+					continue
+				}
+				ready, reason, wall := judged.Readiness.Ready, judged.Readiness.Reason, judged.Readiness.Wall.EntityID
+				row.Ready, row.Reason, row.Squad, row.Traps = &ready, &reason, len(judged.Readiness.Squad), judged.Readiness.Traps
+				if wall != "" {
+					row.Wall = &wall
+				}
+			}
+			out.Shrines = append(out.Shrines, row)
 		}
 	}
 	if plan, known := v.FoodPlan.Value(); known {

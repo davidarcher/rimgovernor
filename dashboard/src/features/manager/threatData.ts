@@ -4,7 +4,9 @@
 export type ThreatStatus = {tick: number; raidPoints: number | null; wealthTotal: number | null; wealthItems: number | null; wealthBuildings: number | null; wealthPawns: number | null; shrines: ShrineStatus[] | null};
 // One ancient shrine (#456): a casket group, sealed until breached; guards
 // are unknown while sealed and count as alive until seen dead.
-export type ShrineStatus = {id: string; sealed: boolean; inHome: boolean; caskets: number; filledCaskets: number; guardsKnown: boolean; guardsAlive: boolean; breachWalls: number};
+// ready/reason are the breach judgement (#457): null until judged, reason
+// empty when ready, otherwise the hold (squad_too_small, no_traps, ...).
+export type ShrineStatus = {id: string; sealed: boolean; inHome: boolean; caskets: number; filledCaskets: number; guardsKnown: boolean; guardsAlive: boolean; breachWalls: number; ready: boolean | null; reason: string | null; squad: number; traps: number};
 
 export class ThreatHTTPError extends Error {constructor(public status: number, message: string) {super(message);}}
 
@@ -29,7 +31,8 @@ function readShrines(raw: unknown): ShrineStatus[] | null {
     const v = row as Record<string, unknown>;
     if (typeof v.id !== 'string' || v.id === '') throw Error('Invalid colony status shrines');
     return {id: v.id, sealed: flag(v.sealed, 'sealed'), inHome: flag(v.inHome, 'inHome'), caskets: count(v.caskets, 'caskets'), filledCaskets: count(v.filledCaskets, 'filledCaskets'),
-      guardsKnown: flag(v.guardsKnown, 'guardsKnown'), guardsAlive: flag(v.guardsAlive, 'guardsAlive'), breachWalls: count(v.breachWalls, 'breachWalls')};
+      guardsKnown: flag(v.guardsKnown, 'guardsKnown'), guardsAlive: flag(v.guardsAlive, 'guardsAlive'), breachWalls: count(v.breachWalls, 'breachWalls'),
+      ready: v.ready === null || v.ready === undefined ? null : flag(v.ready, 'ready'), reason: typeof v.reason === 'string' ? v.reason : null, squad: count(v.squad ?? 0, 'squad'), traps: count(v.traps ?? 0, 'traps')};
   });
 }
 export function readThreatStatus(raw: unknown): ThreatStatus {
