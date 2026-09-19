@@ -39,7 +39,7 @@ func (r *RoutineBuildingPlanner) lightingDefinitions() []string {
 // definition and its candidate cells, everything else is a reason.
 func (r *RoutineBuildingPlanner) selectLighting(facts observation.ColonyProjection, latches policy.RoutineLatches) (*RoutineBuildingPlanner, RoutineBuildingReason, error) {
 	p := r.reviewer.policy.Lighting
-	review, err := policy.ReviewLighting(facts.Facts.Upkeep.Lighting, latches.Lighting, p)
+	review, err := policy.ReviewLighting(facts.Facts.Upkeep.Lighting, latches.Lighting, p, policy.EclipseHold(facts.Facts.DisasterConditions))
 	if err != nil {
 		return nil, "", err
 	}

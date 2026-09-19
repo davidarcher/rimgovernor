@@ -209,3 +209,17 @@ func TestRefrigerationMethodReportsEnclosureAndUnknowns(t *testing.T) {
 		t.Fatal("invalid rotation accepted")
 	}
 }
+
+func TestRefrigerationReviewIgnoresHeldStock(t *testing.T) {
+	p := DefaultFoodStoragePolicy()
+	held := FoodStorageStock{Stock: FoodStock{ID: "carried", Holder: domain.Known(PawnID("cook")), Nutrition: domain.Known(8.0),
+		Perishable: domain.Known(true), RotTicks: domain.Known(int64(2 * ticksPerDay))}}
+	// A carried stack has no roof or room; it neither counts nor blanks the review.
+	r, err := ReviewRefrigeration(FoodStorageObservation{Stocks: domain.Known([]FoodStorageStock{warmStock("meat", "b", 8, 20), held})}, false, p)
+	if err != nil || !r.Active || len(r.Rooms) != 1 || r.Rooms[0] != "b" {
+		t.Fatal(r, err)
+	}
+	if n, k := r.WarmNutrition.Value(); !k || n != 8 {
+		t.Fatal(r)
+	}
+}

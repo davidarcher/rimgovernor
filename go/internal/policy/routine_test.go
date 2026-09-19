@@ -230,16 +230,18 @@ func TestRoutineSolarFlareSuspendsPowerAndRefrigerationMethods(t *testing.T) {
 			t.Fatal(id, open, unavailable)
 		}
 	}
-	// A flare with a remaining-duration read suspends both methods; the
-	// goals stay open (not cancelled) and the latch keeps its state.
+	// A flare with a remaining-duration read suspends the power method;
+	// refrigeration keeps one (the cook-ahead bill, #408). The goals stay
+	// open (not cancelled) and the latch keeps its state.
 	flare := int64(12000)
 	f.DisasterConditions = domain.Known([]DisasterCondition{{ID: "f", Definition: ConditionSolarFlare, TicksLeft: &flare}})
 	f.RecoveryBuildings = domain.Known([]RecoveryBuilding{})
 	r = needs(t, f, r.Latches)
-	for _, id := range []GoalID{EnsureBasicPower, MaintainRefrigeration} {
-		if open, unavailable := method(r, id); !open || !unavailable {
-			t.Fatal(id, open, unavailable)
-		}
+	if open, unavailable := method(r, EnsureBasicPower); !open || !unavailable {
+		t.Fatal(EnsureBasicPower, open, unavailable)
+	}
+	if open, unavailable := method(r, MaintainRefrigeration); !open || unavailable {
+		t.Fatal(MaintainRefrigeration, open, unavailable)
 	}
 	if !r.Latches.Refrigeration {
 		t.Fatal("the flare released the refrigeration latch")

@@ -137,7 +137,7 @@ func TestDefenseCensusStandsConduitsAndPower(t *testing.T) {
 	hauler := policy.WorkPawn{ID: "h", Available: domain.Known(true), Applies: domain.Known(true), Work: domain.Known([]policy.WorkPriority{{Work: policy.WorkHauling, Priority: 3}})}
 	stock := domain.Known(map[policy.Resource]int64{"Steel": 100})
 	upkeep := func() policy.DefenseTurretUpkeep {
-		return policy.DefenseRearmTurrets(defenseTurretFacts(record, census), []policy.WorkPawn{hauler}, stock)
+		return policy.DefenseRearmTurrets(defenseTurretFacts(record, census), []policy.WorkPawn{hauler}, stock, false)
 	}
 	if u := upkeep(); len(u.Unpowered) != 0 || len(u.Empty) != 0 || len(u.Rearm) != 0 {
 		t.Fatalf("%+v", u)

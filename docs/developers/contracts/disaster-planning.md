@@ -13,6 +13,11 @@ invalidates the `colony` fact family (see the clock contract), because such
 events arrive as non-stopping letters. The existing food, production,
 sleeping, shelter, temperature, cooking, power and storage gates determine affected
 services; a complete native recovery census supplies infrastructure evidence.
+Named conditions also shape ordinary reviews: a solar flare suspends power
+building, cooks the warm stock ahead and treats turrets as absent, an eclipse
+zeroes solar output and lights outdoor work cells, and a psychic drone widens
+mood entry for the pawns it affects ([upkeep contracts](upkeep-contracts.md),
+[power contracts](power-contracts.md), [mood relief](mood-control.md); #408).
 
 An observed Zzztt letter also starts recovery without a game condition.
 `DevelopmentFacts.short_circuit_tick` reports the latest matching map-local

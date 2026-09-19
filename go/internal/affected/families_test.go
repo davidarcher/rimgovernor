@@ -158,7 +158,7 @@ func TestSelectScopesRoutineFamilies(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Equal(sel.Cases, []string{"lifecycle", "light"}) {
+	if !slices.Equal(sel.Cases, []string{"condition", "lifecycle", "light"}) {
 		t.Errorf("lighting change selected %v", sel.Cases)
 	}
 	if why := sel.Why["light"]; len(why) != 1 || !strings.Contains(why[0], "routine family lighting changed (go/internal/buildingruntime/routine_lighting.go) and the area composes it") {

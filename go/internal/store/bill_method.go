@@ -25,12 +25,13 @@ func admitBillMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan domai
 	}
 	// Bills serve the cooking/food goals, the resource-target goals whose
 	// production path (RoutineResourcePlanner.dispatchResourceGoal) stages a
-	// bench and then a StockTarget bill on it, and the equipment goal whose
+	// bench and then a StockTarget bill on it, the equipment goal whose
 	// replacement (RoutineGearPlanner, GearProduce) is a StockTarget bill on
-	// a standing bench (#233).
+	// a standing bench (#233), and the refrigeration goal whose solar-flare
+	// answer is a cook-ahead bill (#408).
 	bound := false
 	for _, b := range review.Goals {
-		bound = bound || b.Goal == goal.Goal.ID && (b.Need == policy.EnsureCooking || b.Need == policy.EnsureFoodSupply || b.Need == policy.MaintainResource || b.Need == policy.MaintainAnimalFeed || b.Need == policy.MaintainEquipment)
+		bound = bound || b.Goal == goal.Goal.ID && (b.Need == policy.EnsureCooking || b.Need == policy.EnsureFoodSupply || b.Need == policy.MaintainResource || b.Need == policy.MaintainAnimalFeed || b.Need == policy.MaintainEquipment || b.Need == policy.MaintainRefrigeration)
 	}
 	if !bound {
 		return fmt.Errorf("%w: goal %s does not admit production bills", ErrConflict, goal.Goal.ID)
@@ -60,4 +61,33 @@ func (s *Store) BillClaimed(ctx context.Context, current domain.GenerationSnapsh
 	var count int
 	err := s.db.QueryRowContext(ctx, "SELECT count(*) FROM bill_claims WHERE colony=? AND load_token=? AND map_id=? AND bench=? AND recipe=?", current.Colony, current.Load, current.Map, bench, recipe).Scan(&count)
 	return count != 0, err
+}
+
+// BillPending reports whether an unretired plan still carries an unfinished
+// bill for the bench and recipe. A claim is only recorded once a write is
+// receipted, so two planners of one step could otherwise both pick the same
+// bench from the same before-token, and the second dispatch would hold on
+// the stale token forever (#408, the cook-ahead bill beside EnsureCooking's).
+func (s *Store) BillPending(ctx context.Context, bench, recipe string) (bool, error) {
+	if submissionID(bench) != nil || submissionID(recipe) != nil {
+		return false, ErrConflict
+	}
+	plans, err := s.LoadPlans(ctx, 256)
+	if err != nil {
+		return false, err
+	}
+	for _, plan := range plans {
+		for i, a := range plan.Spec.Actions() {
+			b, ok := a.ProductionBill()
+			if !ok || b.Bench() != bench || b.Recipe() != recipe || i >= len(plan.Progress) {
+				continue
+			}
+			switch plan.Progress[i].View().Stage {
+			case domain.Completed, domain.Cancelled, domain.Unsuccessful:
+			default:
+				return true, nil
+			}
+		}
+	}
+	return false, nil
 }

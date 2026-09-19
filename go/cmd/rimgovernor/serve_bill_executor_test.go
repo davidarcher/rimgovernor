@@ -30,6 +30,11 @@ func TestBillExecutorRequiredByResourceTargets(t *testing.T) {
 	if !billExecutorRequired(gear) {
 		t.Fatal("gear family does not require the bill executor")
 	}
+	var refrigeration serveConfig
+	refrigeration.routineRefrigerationPlans = true
+	if !billExecutorRequired(refrigeration) {
+		t.Fatal("refrigeration family does not require the bill executor for its cook-ahead bill")
+	}
 	var stone serveConfig
 	stone.routineResourcePlans, stone.routineStoneBlockTarget = true, 60
 	if !billExecutorRequired(stone) {

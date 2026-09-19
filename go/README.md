@@ -498,6 +498,18 @@ protected and never latches. The latch releases on the next measured census,
 never on the receipt. Targeted acceptance is `acceptance run
 light/dark|outage|partial|fungus` against `LightingFixture`.
 
+Map conditions (#408) bend three of these responses while they last:
+under a solar flare `MaintainRefrigeration` keeps a method, a `cook_ahead`
+`CookMealSimple` bill on a fuelled wood bench sized to the warm at-risk
+nutrition beyond the meals already reserved, and the defense layout treats
+unpowered turrets as absent rather than rearming them; under an eclipse
+`MaintainLighting` measures unroofed work cells too; under a psychic drone
+`EnsureMood` enters up to .15 above the break threshold for the pawns that
+bear the `PsychicDrone` thought. Targeted acceptance is `acceptance run
+condition/response` against `ConditionFixture`: all three conditions at once
+on the tribal baseline, then their end and the controller's recovery on a
+restart.
+
 `MaintainFlooring` (`flooring` family, issue #6 slice 4) lays role-driven
 floors from the measured terrain under each room cell: `UpkeepFacts.flooring`
 lists every proper indoor home room with the terrain name under each cell and

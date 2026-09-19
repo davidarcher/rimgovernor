@@ -12,6 +12,14 @@ const (
 	CookFood     BillPurpose = "cook"
 	PreserveFood BillPurpose = "preserve"
 	ButcherFood  BillPurpose = "butcher"
+	// CookAheadFood is MaintainRefrigeration's answer to a solar flare
+	// (#408): the warm perishable stock the dark coolers cannot save is
+	// cooked into meals on whichever bench still works (a fuelled stove;
+	// native's usable flag already excludes the unpowered electric one),
+	// so the colony eats it before it rots instead of waiting out the
+	// outage. The target is the at-risk nutrition beyond what existing
+	// bills already reserve, in meals; the caller gates it on the flare.
+	CookAheadFood BillPurpose = "cook_ahead"
 )
 
 type ProductionProduct struct {
@@ -50,14 +58,17 @@ type BillSelection struct {
 }
 
 // Existing recipe bills belong to their player settings; no duplicate is a substitute
-// for changing a suspended, filtered or smaller bill.
+// for changing a suspended, filtered or smaller bill. A cook-ahead bill is
+// the one exception: it adds the meals the at-risk stock needs beyond every
+// existing bill's reserved target, so a bench already cooking to a smaller
+// target gets a second, larger bill for the outage.
 func SelectProductionBill(purpose BillPurpose, benches domain.Fact[[]ProductionBench], colonists domain.Fact[int64], runway, atRisk domain.Fact[float64], targetDays float64) (BillSelection, bool) {
 	rows, known := benches.Value()
 	count, ck := colonists.Value()
 	if !known || !ck || count <= 0 || count > 256 || len(rows) > 256 || !fieldPositive(targetDays) || targetDays > 60 {
 		return BillSelection{}, false
 	}
-	if purpose != CookFood && purpose != PreserveFood && purpose != ButcherFood {
+	if purpose != CookFood && purpose != PreserveFood && purpose != ButcherFood && purpose != CookAheadFood {
 		return BillSelection{}, false
 	}
 	if purpose == PreserveFood {
@@ -70,6 +81,17 @@ func SelectProductionBill(purpose BillPurpose, benches domain.Fact[[]ProductionB
 	reserved, ok := ReservedFoodNutrition(rows)
 	if !ok {
 		reserved = 0
+	}
+	ahead := 0.0
+	if purpose == CookAheadFood {
+		risk, rk := atRisk.Value()
+		if !rk || !fieldPositive(risk) || risk > 1e6 {
+			return BillSelection{}, false
+		}
+		ahead = risk - reserved
+		if ahead <= 0 {
+			return BillSelection{}, false
+		}
 	}
 	var options []BillSelection
 	seen := map[string]bool{}
@@ -97,7 +119,7 @@ func SelectProductionBill(purpose BillPurpose, benches domain.Fact[[]ProductionB
 			for _, bill := range bench.Bills {
 				exists = exists || bill.Recipe == recipe.Name
 			}
-			if exists {
+			if exists && purpose != CookAheadFood {
 				continue
 			}
 			selection := BillSelection{Bench: bench.ID, Recipe: recipe.Name, Token: token, Mode: domain.FoodTarget, Target: int32(count * 3)}
@@ -134,6 +156,13 @@ func SelectProductionBill(purpose BillPurpose, benches domain.Fact[[]ProductionB
 					}
 					selection.Target = int32(target)
 				}
+				if purpose == CookAheadFood {
+					target := math.Ceil(ahead / nutrition)
+					if target < 1 || target > 10000 {
+						continue
+					}
+					selection.Target = int32(target)
+				}
 			}
 			options = append(options, selection)
 		}
@@ -149,7 +178,7 @@ func SelectProductionBill(purpose BillPurpose, benches domain.Fact[[]ProductionB
 	}
 	sort.Slice(options, func(i, j int) bool {
 		a, b := options[i], options[j]
-		if purpose == CookFood && (a.Recipe == "CookMealSimple") != (b.Recipe == "CookMealSimple") {
+		if (purpose == CookFood || purpose == CookAheadFood) && (a.Recipe == "CookMealSimple") != (b.Recipe == "CookMealSimple") {
 			return a.Recipe == "CookMealSimple"
 		}
 		if separated[a.Bench] != separated[b.Bench] {

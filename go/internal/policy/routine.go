@@ -578,7 +578,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if err != nil {
 		return RoutineNeeds{}, err
 	}
-	lighting, err := ReviewLighting(f.Upkeep.Lighting, previous.Lighting, p.Lighting)
+	lighting, err := ReviewLighting(f.Upkeep.Lighting, previous.Lighting, p.Lighting, EclipseHold(f.DisasterConditions))
 	if err != nil {
 		return RoutineNeeds{}, err
 	}
@@ -1015,10 +1015,9 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	addAssessment(MaintainRefrigeration, refrigerationPriority, refrigerationRecovered)
 	if !positive(refrigerationRecovered) {
 		addGoal(MaintainRefrigeration, refrigerationPriority)
-		// A cooler cannot run under a solar flare either; the warm stock is
-		// watched, not answered, until it ends (the planner reports
-		// solar_flare for the same reason).
-		r.Goals[len(r.Goals)-1].MethodUnavailable = flare
+		// A cooler cannot run under a solar flare either (the cooler
+		// planner reports solar_flare), but the goal keeps a method: the
+		// warm stock is cooked ahead on a bench that still works (#408).
 		if nutrition, known := refrigeration.WarmNutrition.Value(); known && p.FoodStorage.AtRiskNutritionThreshold > 0 {
 			r.Goals[len(r.Goals)-1].Deficit = domain.Known(min(1, nutrition/p.FoodStorage.AtRiskNutritionThreshold))
 		}

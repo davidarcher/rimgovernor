@@ -36,13 +36,13 @@ type ClockWindowNative interface {
 	ReadClockStatus(context.Context, *c.Identity) (*k.StatusReply, bridge.Result, error)
 }
 type ClockSchedulerConfig struct {
-	CookingBills, PreservationBills, ButcherBills *RoutineBillPlanner
-	Butcher                                       *RoutineBuildingPlanner
-	Fields                                        *RoutineFieldPlanner
-	FoodStorage                                   *RoutineFoodStoragePlanner
-	Profile                                       string
-	Start                                         bridge.ClockStart
-	MaxAge                                        time.Duration
+	CookingBills, PreservationBills, ButcherBills, CookAheadBills *RoutineBillPlanner
+	Butcher                                                       *RoutineBuildingPlanner
+	Fields                                                        *RoutineFieldPlanner
+	FoodStorage                                                   *RoutineFoodStoragePlanner
+	Profile                                                       string
+	Start                                                         bridge.ClockStart
+	MaxAge                                                        time.Duration
 	// Worker is set when a routine Worker reconciles and dispatches beside
 	// this scheduler: a review then defers admission while the Worker owes
 	// a latched outcome's reconcile or a successor's dispatch (issue #162).
@@ -120,12 +120,12 @@ type ClockSchedulerConfig struct {
 	RoutineMethods                   bool
 }
 type ClockSchedulerResult struct {
-	CookingBills, PreservationBills, ButcherBills *RoutineBillResult
-	Butcher                                       *RoutineBuildingResult
-	Fields                                        *RoutineFieldResult
-	FoodStorage                                   *RoutineFoodStorageResult
-	Attempt                                       *store.ClockAttempt
-	Decision                                      policy.ClockWindowDecision
+	CookingBills, PreservationBills, ButcherBills, CookAheadBills *RoutineBillResult
+	Butcher                                                       *RoutineBuildingResult
+	Fields                                                        *RoutineFieldResult
+	FoodStorage                                                   *RoutineFoodStorageResult
+	Attempt                                                       *store.ClockAttempt
+	Decision                                                      policy.ClockWindowDecision
 	// Window is the colony window the admission tail sized (before any
 	// native-work or combat bound), zero when the tail did not run.
 	Window                           ClockWindowSize
@@ -276,7 +276,7 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	if config.CaravanJourney != nil && config.CaravanJourney.player != player {
 		return nil, ErrControl
 	}
-	for _, planner := range []*RoutineBillPlanner{config.CookingBills, config.PreservationBills, config.ButcherBills} {
+	for _, planner := range []*RoutineBillPlanner{config.CookingBills, config.PreservationBills, config.ButcherBills, config.CookAheadBills} {
 		if planner != nil && (config.Routine == nil || planner.reviewer != config.Routine) {
 			return nil, ErrControl
 		}

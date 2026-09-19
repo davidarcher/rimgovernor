@@ -193,3 +193,42 @@ func TestAllButchersColocated(t *testing.T) {
 		}
 	}
 }
+
+// cookAheadBenches is a fuelled stove already cooking simple meals to a
+// small target beside an unusable (unpowered under the flare) electric
+// stove; both offer CookMealSimple at 0.9 nutrition a meal.
+func cookAheadBenches(existingTarget int32) domain.Fact[[]ProductionBench] {
+	meal := ProductionRecipe{Name: "CookMealSimple", Available: domain.Known(true),
+		Products: []ProductionProduct{{Name: "MealSimple", Nutrition: domain.Known(0.9), Edible: domain.Known(true), Perishable: domain.Known(true), RotDays: domain.Known(4.0), Demand: domain.Known(2.0)}}}
+	fuelled := ProductionBench{ID: "bench-fuelled", Usable: domain.Known(true), Token: domain.Known("tok-fuelled"), Recipes: []ProductionRecipe{meal}}
+	if existingTarget > 0 {
+		fuelled.Bills = []ExistingProductionBill{{Recipe: "CookMealSimple", TargetCount: domain.Known(existingTarget), Forever: domain.Known(false)}}
+	}
+	electric := ProductionBench{ID: "bench-electric", Usable: domain.Known(false), Token: domain.Known("tok-electric"), Recipes: []ProductionRecipe{meal}}
+	return domain.Known([]ProductionBench{electric, fuelled})
+}
+
+func TestSelectProductionBillCookAheadCooksAtRiskStockBeyondReservedBills(t *testing.T) {
+	// 18 nutrition at risk, nothing reserved: 20 meals on the usable bench.
+	selection, ok := SelectProductionBill(CookAheadFood, cookAheadBenches(0), domain.Known(int64(3)), domain.Unknown[float64](), domain.Known(18.0), 7)
+	if !ok || selection.Bench != "bench-fuelled" || selection.Recipe != "CookMealSimple" || selection.Mode != domain.FoodTarget || selection.Target != 20 {
+		t.Fatal(selection, ok)
+	}
+	// An existing 9-meal bill reserves 8.1: the second bill on the same
+	// bench and recipe covers the remaining 9.9 (11 meals).
+	selection, ok = SelectProductionBill(CookAheadFood, cookAheadBenches(9), domain.Known(int64(3)), domain.Unknown[float64](), domain.Known(18.0), 7)
+	if !ok || selection.Bench != "bench-fuelled" || selection.Target != 11 {
+		t.Fatal(selection, ok)
+	}
+	// Reserved beyond the risk, or no known risk: no bill.
+	if _, ok = SelectProductionBill(CookAheadFood, cookAheadBenches(30), domain.Known(int64(3)), domain.Unknown[float64](), domain.Known(18.0), 7); ok {
+		t.Fatal("reserved bills already cover the at-risk stock")
+	}
+	if _, ok = SelectProductionBill(CookAheadFood, cookAheadBenches(0), domain.Known(int64(3)), domain.Unknown[float64](), domain.Unknown[float64](), 7); ok {
+		t.Fatal("unknown at-risk nutrition raised a bill")
+	}
+	// The ordinary cook purpose still refuses to double an existing bill.
+	if _, ok = SelectProductionBill(CookFood, cookAheadBenches(9), domain.Known(int64(3)), domain.Unknown[float64](), domain.Unknown[float64](), 7); ok {
+		t.Fatal("cook duplicated the bench's existing bill")
+	}
+}

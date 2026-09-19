@@ -223,3 +223,33 @@ func TestBillAdmissionAcceptsResourceTargetGoal(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// An admitted bill that has not yet been written holds the bench and recipe
+// for a sibling planner of the same step, and lets go once it is terminal.
+func TestBillPendingUntilTerminal(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	s, _, v := billStoreFixture(t)
+	pending, err := s.BillPending(ctx, "bench", "recipe")
+	if err != nil || !pending {
+		t.Fatal(pending, err)
+	}
+	if pending, err = s.BillPending(ctx, "bench", "other"); err != nil || pending {
+		t.Fatal(pending, err)
+	}
+	if _, err := s.PrepareBill(ctx, "plan", "bill", v); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Dispatch(ctx, "plan", "bill", v.Snapshot, v.Tick); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.RecordReceipt(ctx, "plan", "bill", 1, domain.ReceiptRefused); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Cancel(ctx, "plan", "bill"); err != nil {
+		t.Fatal(err)
+	}
+	if pending, err = s.BillPending(ctx, "bench", "recipe"); err != nil || pending {
+		t.Fatal(pending, err)
+	}
+}

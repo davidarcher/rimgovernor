@@ -123,8 +123,38 @@ func (h MoodHistory) Validate() error {
 	return nil
 }
 
+// PsychicDroneThought is the native situational thought a psychic drone
+// puts on every pawn of the gender it targets; the census keeps it only
+// while it pulls the mood down (the same def's soothe stage is positive
+// and dropped), so its presence is the drone's own word that this pawn is
+// affected for the condition's remaining ticks.
+const PsychicDroneThought = "PsychicDrone"
+
+// psychicDroneEntryMargin bounds the early entry a drone thought opens:
+// the drone's own offset (12 to 30 mood points across its levels) as a
+// mood fraction, at most this far above the break threshold.
+const psychicDroneEntryMargin = .15
+
+// psychicDroneMargin is the entry margin a pawn under a psychic drone
+// gets (#408): relief starts while the drone's offset would still leave
+// the pawn above the minor-break threshold, instead of once the drone has
+// pushed them across it. Zero without the thought.
+func psychicDroneMargin(thoughts domain.Fact[[]MoodThought]) float64 {
+	rows, known := thoughts.Value()
+	if !known {
+		return 0
+	}
+	for _, t := range rows {
+		if t.Def == PsychicDroneThought {
+			return min(psychicDroneEntryMargin, -t.Offset/100)
+		}
+	}
+	return 0
+}
+
 // ReviewMood ports native-threshold and need hysteresis. Thought pressure is a
-// present observation, never a prediction of a break or future mood benefit.
+// present observation, never a prediction of a break or future mood benefit;
+// a psychic drone thought widens the entry margin for its bearer alone.
 func ReviewMood(observed domain.Fact[[]MoodPawn], previous MoodHistory) (MoodHistory, error) {
 	if err := previous.Validate(); err != nil {
 		return MoodHistory{}, err
@@ -158,11 +188,13 @@ func ReviewMood(observed domain.Fact[[]MoodPawn], previous MoodHistory) (MoodHis
 				s.MentalRisk = mental
 			}
 			s.Active = prior.Active
+			drone := psychicDroneMargin(p.Thoughts)
 			if mk && tk {
 				margin := 0.0
 				if prior.Active {
 					margin = .05
 				}
+				margin = max(margin, drone)
 				if mentalKnown {
 					s.Active = mental || m <= threshold+margin
 				} else if m <= threshold+margin {
@@ -184,8 +216,10 @@ func ReviewMood(observed domain.Fact[[]MoodPawn], previous MoodHistory) (MoodHis
 				for _, c := range prior.Causes {
 					retained = retained || c.Need == need.name
 				}
+				// Under a drone every need short of the relief target is a
+				// cause, so the early entry has a method to act on.
 				limit := .3
-				if retained {
+				if retained || drone > 0 {
 					limit = .5
 				}
 				level, k := need.level.Value()

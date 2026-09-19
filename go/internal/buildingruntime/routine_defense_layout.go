@@ -311,9 +311,11 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context, arbiter 
 	// without power or with an empty barrel is still a deficit the layout
 	// waits on (the network's fuel or generation is EnsureBasicPower's, a
 	// lost conduit is re-placed above once the census misses it; an empty
-	// barrel is rearmed below, or its fuel raised as a resource need).
+	// barrel is rearmed below, or its fuel raised as a resource need). A
+	// solar flare darkens every turret for the outage: the tier is absent
+	// for its duration, not a deficit (#408).
 	workers, _ := read.Projection.WorkPawns.Value()
-	upkeep := policy.DefenseRearmTurrets(defenseTurretFacts(record, census), workers, read.Projection.Resources)
+	upkeep := policy.DefenseRearmTurrets(defenseTurretFacts(record, census), workers, read.Projection.Resources, policy.SolarFlareHold(read.Projection.Facts.DisasterConditions))
 	record.FuelShortage = upkeep.Shortage
 	if err = p.journal.SaveDefenseLayout(call, record); err != nil {
 		return RoutineDefenseLayoutResult{}, err

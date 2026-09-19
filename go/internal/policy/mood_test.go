@@ -171,3 +171,39 @@ func TestMoodValidationAndBoundedIdentity(t *testing.T) {
 		t.Fatal("duplicate cause accepted")
 	}
 }
+
+func TestMoodPsychicDroneEntersEarlyForItsBearerOnly(t *testing.T) {
+	// Threshold .3: an unaffected pawn at .42 is calm; the same pawn under
+	// a moderate drone (-22 points, capped at the .15 margin) is already in
+	// deficit, and a need short of the relief target is its cause.
+	p := moodPawn()
+	p.Mood, p.Food, p.Joy = domain.Known(.42), domain.Known(.8), domain.Known(.45)
+	p.Thoughts = domain.Known([]MoodThought{})
+	if h := moodReview(t, p, MoodHistory{}); len(h.States) != 0 {
+		t.Fatal("calm pawn entered without a drone", h)
+	}
+	p.Thoughts = domain.Known([]MoodThought{{Def: PsychicDroneThought, Offset: -22}})
+	h := moodReview(t, p, MoodHistory{})
+	if len(h.States) != 1 || h.States[0].Need() != domain.NeedDeficit {
+		t.Fatal("drone bearer did not enter early", h)
+	}
+	if len(h.States[0].Causes) != 1 || h.States[0].Causes[0].Need != MoodJoy {
+		t.Fatal("drone entry has no relief cause", h.States[0].Causes)
+	}
+	proposal, err := SelectMoodMethod(h.States[0], nil)
+	if err != nil || proposal.Reason != MoodRelief || proposal.Need != MoodJoy {
+		t.Fatal(proposal, err)
+	}
+	// A low drone (-12) opens only its own .12: .42 is still calm at .3+.12.
+	p.Thoughts = domain.Known([]MoodThought{{Def: PsychicDroneThought, Offset: -12}})
+	p.Mood = domain.Known(.421)
+	if h := moodReview(t, p, MoodHistory{}); len(h.States) != 0 {
+		t.Fatal("low drone margin exceeded its offset", h)
+	}
+	// Any other negative thought opens no margin.
+	p.Thoughts = domain.Known([]MoodThought{{Def: "SleptOutside", Offset: -30}})
+	p.Mood = domain.Known(.31)
+	if h := moodReview(t, p, MoodHistory{}); len(h.States) != 0 {
+		t.Fatal("non-drone thought widened entry", h)
+	}
+}

@@ -43,6 +43,12 @@ func (s FoodStorageStock) warmAtRisk(p FoodStoragePolicy, limit float64) (bool, 
 	if !perishable || ticks <= 0 {
 		return false, true
 	}
+	// Food a pawn holds (carried or in inventory) has no storage cell to
+	// cool: it is not at risk here, and its unknown roof/room facts must not
+	// blank the review while a cook or hauler walks a stack across the map.
+	if holder, hk := s.Stock.Holder.Value(); hk && holder != "" {
+		return false, true
+	}
 	roofed, rk := s.Stock.Roofed.Value()
 	if !rk {
 		return false, false

@@ -30,13 +30,19 @@ type BillPlannerNative interface {
 	PreviewBill(context.Context, *c.Identity, domain.ProductionBill) (*op.PreviewReply, bridge.Result, error)
 }
 
+// NewRoutineBillPlanner composes one bill purpose: cooking serves
+// EnsureCooking, preservation and butchery EnsureFoodSupply, and the
+// cook-ahead bill MaintainRefrigeration under a solar flare (#408).
 func NewRoutineBillPlanner(reviewer *RoutineReviewer, native BillPlannerNative, purpose policy.BillPurpose) (*RoutineBillPlanner, error) {
-	if reviewer == nil || native == nil || (purpose != policy.CookFood && purpose != policy.PreserveFood && purpose != policy.ButcherFood) {
+	if reviewer == nil || native == nil || (purpose != policy.CookFood && purpose != policy.PreserveFood && purpose != policy.ButcherFood && purpose != policy.CookAheadFood) {
 		return nil, ErrControl
 	}
 	need := policy.EnsureFoodSupply
-	if purpose == policy.CookFood {
+	switch purpose {
+	case policy.CookFood:
 		need = policy.EnsureCooking
+	case policy.CookAheadFood:
+		need = policy.MaintainRefrigeration
 	}
 	return &RoutineBillPlanner{reviewer: reviewer, native: native, purpose: purpose, need: need}, nil
 }
@@ -156,7 +162,26 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 			}
 		}
 	}
-	selected, known := policy.SelectProductionBill(r.purpose, projection.ProductionBenches, projection.Facts.Colonists, projection.Facts.FoodDays, projection.FoodAtRiskNutrition, r.reviewer.seasonal(projection.Facts).FoodTargetDays)
+	benches, atRisk := projection.ProductionBenches, projection.FoodAtRiskNutrition
+	if r.purpose == policy.CookAheadFood {
+		// Only under a solar flare with a known remaining duration: the
+		// coolers are dark for the outage, so the warm at-risk stock the
+		// refrigeration review latched on is cooked instead. A bench whose
+		// meal recipe this load already claimed (the ordinary cooking bill)
+		// is dropped from the census: one claim per bench and recipe.
+		if !policy.SolarFlareHold(projection.Facts.DisasterConditions) {
+			return RoutineBillResult{Reason: BuildingMethodNoDeficit}, nil
+		}
+		refrigeration, err := policy.ReviewRefrigeration(projection.Facts.FoodStorageUpkeep, review.Latches.Refrigeration, r.reviewer.policy.FoodStorage)
+		if err != nil {
+			return RoutineBillResult{}, err
+		}
+		atRisk = refrigeration.WarmNutrition
+		if benches, err = r.unclaimedBenches(call, state.Snapshot, benches); err != nil {
+			return RoutineBillResult{}, err
+		}
+	}
+	selected, known := policy.SelectProductionBill(r.purpose, benches, projection.Facts.Colonists, projection.Facts.FoodDays, atRisk, r.reviewer.seasonal(projection.Facts).FoodTargetDays)
 	if !known {
 		return RoutineBillResult{Reason: BuildingMethodUnknown}, nil
 	}
@@ -165,6 +190,12 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return RoutineBillResult{}, err
 	}
 	if claimed {
+		return RoutineBillResult{Reason: BuildingMethodUsed}, nil
+	}
+	// The bill planners of one step run concurrently and read the same
+	// bench token; the second bill on a bench would hold forever on the
+	// first's write (#408). One bill per bench per step.
+	if arbiter != nil && !arbiter.tryClaim(nil, "bench:"+selected.Bench) {
 		return RoutineBillResult{Reason: BuildingMethodUsed}, nil
 	}
 	hash := sha256.New()
@@ -222,4 +253,37 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return RoutineBillResult{}, err
 	}
 	return RoutineBillResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+}
+
+// unclaimedBenches copies the bench census with every recipe this load has
+// already claimed, or admitted and not yet written, on its bench marked
+// unavailable, so the selection lands
+// on a bench and recipe the bill claim table still admits.
+func (r *RoutineBillPlanner) unclaimedBenches(ctx context.Context, snapshot domain.GenerationSnapshot, benches domain.Fact[[]policy.ProductionBench]) (domain.Fact[[]policy.ProductionBench], error) {
+	rows, known := benches.Value()
+	if !known {
+		return benches, nil
+	}
+	out := make([]policy.ProductionBench, 0, len(rows))
+	for _, bench := range rows {
+		bench.Recipes = append([]policy.ProductionRecipe(nil), bench.Recipes...)
+		for i, recipe := range bench.Recipes {
+			claimed, err := r.reviewer.player.journal.BillClaimed(ctx, snapshot, bench.ID, recipe.Name)
+			if err != nil {
+				return benches, err
+			}
+			if !claimed {
+				// An admitted bill not yet written: the sibling planner of
+				// this step chose the bench from the same before-token.
+				if claimed, err = r.reviewer.player.journal.BillPending(ctx, bench.ID, recipe.Name); err != nil {
+					return benches, err
+				}
+			}
+			if claimed {
+				bench.Recipes[i].Available = domain.Known(false)
+			}
+		}
+		out = append(out, bench)
+	}
+	return domain.Known(out), nil
 }

@@ -51,14 +51,17 @@ type DefenseTurretUpkeep struct {
 // setting and threshold do not gate it. The shortage per fuel definition is
 // the barrels' fuel gap in fuel units, an estimate: the native units-per-
 // item multiplier is not observed, and the resource policy's floor only
-// needs to be above zero to start sourcing.
-func DefenseRearmTurrets(turrets []DefenseTurretFacts, workers []WorkPawn, stock domain.Fact[map[Resource]int64]) DefenseTurretUpkeep {
+// needs to be above zero to start sourcing. Under a solar flare (blackout)
+// every turret is dark for the outage and none is a power deficit: the
+// tier is absent, not unserviced (#408); an empty barrel is still rearmed
+// so the line is whole when the flare ends.
+func DefenseRearmTurrets(turrets []DefenseTurretFacts, workers []WorkPawn, stock domain.Fact[map[Resource]int64], blackout bool) DefenseTurretUpkeep {
 	var out DefenseTurretUpkeep
 	stocked, stockKnown := stock.Value()
 	shortage := map[Resource]int64{}
 	pawn, pawnOK := defenseRearmPawn(workers)
 	for _, t := range turrets {
-		if on, known := t.Powered.Value(); known && !on {
+		if on, known := t.Powered.Value(); known && !on && !blackout {
 			out.Unpowered = append(out.Unpowered, t.Cell)
 		}
 		empty, known := t.OutOfFuel.Value()

@@ -20,6 +20,15 @@ with unresolved risk remain unknown, while departed recovered goals retire.
 The controller ranks measured food, rest and recreation deficits by their distance
 from a 0.5 recovery target. Entry is below 0.3. Each correction uses one pawn and
 existing native resources; future mood benefit and labor duration remain unknown.
+
+A psychic drone pushes one gender's mood down for days. A pawn whose observed
+thought rows carry the drone's own `PsychicDrone` thought (the census keeps it
+only while it pulls the mood down; the same def's soothe stage is dropped)
+enters early (#408): the entry margin above the minor-break threshold is the
+drone's offset as a mood fraction, at most 0.15, and every need short of the
+0.5 relief target is a cause while the thought lasts, so relief is proposed
+before the drone alone crosses the threshold. Pawns without the thought keep
+the ordinary entry, whatever the condition census says.
 Native cached thoughts, cache validity, traits and other needs remain evidence.
 Food, shelter and temperature provisioning use the existing shared colony goals.
 

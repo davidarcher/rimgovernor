@@ -633,6 +633,17 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				if err != nil {
 					return nil, err
 				}
+				// The solar-flare cook-ahead bill is the refrigeration
+				// goal's own method (#408), wired with its family rather than
+				// the cooking bills so a refrigeration-only service serves it.
+				nativeBills, ok := reads.(buildingruntime.BillPlannerNative)
+				if !ok {
+					return nil, errors.New("cook-ahead bills require typed preview")
+				}
+				config.CookAheadBills, err = buildingruntime.NewRoutineBillPlanner(reviewer, nativeBills, policy.CookAheadFood)
+				if err != nil {
+					return nil, err
+				}
 			}
 			if lighting {
 				config.Lighting, err = buildingruntime.NewRoutineLightingPlanner(reviewer, source)

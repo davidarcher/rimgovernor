@@ -58,6 +58,8 @@ func (c DisasterCondition) RemainingTicks() domain.Fact[int64] {
 // Native game condition definitions the routine reviews consult by name.
 const (
 	ConditionSolarFlare     = "SolarFlare"
+	ConditionEclipse        = "Eclipse"
+	ConditionPsychicDrone   = "PsychicDrone"
 	ConditionVolcanicWinter = "VolcanicWinter"
 	ConditionColdSnap       = "ColdSnap"
 	ConditionHeatWave       = "HeatWave"
@@ -113,6 +115,15 @@ func ConditionRemainingTicks(conditions domain.Fact[[]DisasterCondition], defini
 // measured in hours.
 func SolarFlareHold(conditions domain.Fact[[]DisasterCondition]) bool {
 	ticks, known := ConditionRemainingTicks(conditions, ConditionSolarFlare).Value()
+	return known && ticks > 0
+}
+
+// EclipseHold reports an active eclipse with a known remaining duration:
+// the sky gives no light by day for as long as it lasts, so an unroofed
+// work cell measured dark is a lighting deficit a torch answers (#408)
+// rather than the nightly flap the roofed-only census avoids.
+func EclipseHold(conditions domain.Fact[[]DisasterCondition]) bool {
+	ticks, known := ConditionRemainingTicks(conditions, ConditionEclipse).Value()
 	return known && ticks > 0
 }
 

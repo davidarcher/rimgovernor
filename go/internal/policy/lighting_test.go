@@ -29,25 +29,25 @@ func lightingSite() LightingFacts {
 
 func TestReviewLightingMeasuresRoofedWorkCells(t *testing.T) {
 	p := DefaultLightingPolicy()
-	r, err := ReviewLighting(domain.Known(lightingCensus()), nil, p)
+	r, err := ReviewLighting(domain.Known(lightingCensus()), nil, p, false)
 	if err != nil || !r.Known || !r.Active || len(r.Dark) != 1 || r.Dark[0] != "stove" {
 		t.Fatal(r, err)
 	}
 	// An unknown census keeps the previous latch instead of asserting light.
-	r, err = ReviewLighting(domain.Unknown[LightingObservation](), r.Dark, p)
+	r, err = ReviewLighting(domain.Unknown[LightingObservation](), r.Dark, p, false)
 	if err != nil || r.Known || !r.Active || len(r.Dark) != 1 {
 		t.Fatal(r, err)
 	}
 	lit := lightingCensus()
 	lit.WorkCells[0].Glow = 0.6
-	r, err = ReviewLighting(domain.Known(lit), r.Dark, p)
+	r, err = ReviewLighting(domain.Known(lit), r.Dark, p, false)
 	if err != nil || !r.Known || r.Active || len(r.Dark) != 0 {
 		t.Fatal(r, err)
 	}
 	// A protected fungus room is never dark: lighting it kills the crop.
 	fungus := lightingCensus()
 	fungus.WorkCells[0].LightSensitive = true
-	r, err = ReviewLighting(domain.Known(fungus), []string{"stove"}, p)
+	r, err = ReviewLighting(domain.Known(fungus), []string{"stove"}, p, false)
 	if err != nil || !r.Known || r.Active || len(r.Dark) != 0 {
 		t.Fatal(r, err)
 	}
@@ -56,7 +56,7 @@ func TestReviewLightingMeasuresRoofedWorkCells(t *testing.T) {
 func TestSelectLightingBuildsAffordableLampBesideDarkCell(t *testing.T) {
 	p := DefaultLightingPolicy()
 	census := domain.Known(lightingCensus())
-	review, _ := ReviewLighting(census, nil, p)
+	review, _ := ReviewLighting(census, nil, p, false)
 	site := lightingSite()
 	proposal, err := SelectLightingMethod(review, census, site, p)
 	if err != nil || proposal.Method != LightingBuild || proposal.Definition != "TorchLamp" || proposal.Bench != "stove" || proposal.Key == "" {
@@ -125,7 +125,7 @@ func TestSelectLightingDefersToUnservicedLampInRange(t *testing.T) {
 		v := lightingCensus()
 		v.Lamps = []Lamp{tc.lamp}
 		census := domain.Known(v)
-		review, _ := ReviewLighting(census, nil, p)
+		review, _ := ReviewLighting(census, nil, p, false)
 		proposal, err := SelectLightingMethod(review, census, site, p)
 		if err != nil || proposal.Method != tc.want {
 			t.Fatal(tc.lamp, proposal, err)
@@ -175,5 +175,38 @@ func TestDetectRoutineRanksLightingFromMeasuredCensus(t *testing.T) {
 	r = needs(t, f, r.Latches)
 	if hasNeed(r, MaintainLighting) || len(r.Latches.Lighting) != 0 || assessment(t, r, MaintainLighting) != domain.NeedRecovered {
 		t.Fatal(r.Latches, r.Assessments)
+	}
+}
+
+func TestReviewLightingMeasuresUnroofedWorkCellsUnderEclipse(t *testing.T) {
+	// The unroofed stonecutter reads dark (0.0) in every census; only an
+	// eclipse makes that a deficit, and the method then places a torch
+	// beside it like any roofed bench.
+	p := DefaultLightingPolicy()
+	census := domain.Known(lightingCensus())
+	r, err := ReviewLighting(census, nil, p, true)
+	if err != nil || !r.Eclipse || len(r.Dark) != 2 || r.Dark[0] != "bench" || r.Dark[1] != "stove" {
+		t.Fatal(r, err)
+	}
+	site := lightingSite()
+	for z := int32(28); z <= 32; z++ {
+		for x := int32(28); x <= 32; x++ {
+			site.Cells = append(site.Cells, SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false)})
+		}
+	}
+	proposal, err := SelectLightingMethod(r, census, site, p)
+	if err != nil || proposal.Method != LightingBuild || proposal.Bench != "bench" || proposal.Definition != "TorchLamp" || len(proposal.Cells) == 0 {
+		t.Fatal(proposal, err)
+	}
+	// The eclipse ending drops the outdoor bench from the latch on the
+	// next review; a stale outdoor entry in the latch is skipped by the
+	// method rather than served.
+	after, err := ReviewLighting(census, r.Dark, p, false)
+	if err != nil || after.Eclipse || len(after.Dark) != 1 || after.Dark[0] != "stove" {
+		t.Fatal(after, err)
+	}
+	stale := LightingReview{Active: true, Dark: []string{"bench"}, Known: true}
+	if proposal, err = SelectLightingMethod(stale, census, site, p); err != nil || proposal.Method != LightingNoMethod {
+		t.Fatal(proposal, err)
 	}
 }

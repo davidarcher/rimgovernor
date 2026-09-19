@@ -248,6 +248,16 @@ var plannerCatalog = []plannerEntry{
 			out.ButcherBills = &method
 			return nil
 		}},
+	{name: "cookAheadBills", priority: plannerFoothold, kinds: []domain.ActionKind{domain.ProductionBillAction}, families: factsColony,
+		configured: func(c *ClockSchedulerConfig) bool { return c.CookAheadBills != nil },
+		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
+			method, err := s.config.CookAheadBills.step(ctx, epoch, arbiter)
+			if err != nil {
+				return err
+			}
+			out.CookAheadBills = &method
+			return nil
+		}},
 	{name: "basicComfort", priority: plannerFoothold, kinds: []domain.ActionKind{domain.BuildingAction}, families: factsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.BasicComfort != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {

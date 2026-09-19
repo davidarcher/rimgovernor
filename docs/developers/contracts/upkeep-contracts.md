@@ -464,12 +464,29 @@ ordinary pawn work) and sizes a draining network by its daily energy budget
 A solar flare switches every powered building off for hours, so neither goal
 answers it with a build: while a `SolarFlare` condition with a native
 remaining-duration read is observed (`policy.SolarFlareHold`) the review keeps
-both goals open with `method_unavailable` (suspended, never cancelled, and not
-extending the startup hold), and both planners report `solar_flare` from the
-power topology's blackout read (`PowerWaitBlackout`, `RefrigerationWaitBlackout`)
-with no cooling or power allowance lent. The deficit and the refrigeration
-latch keep their measured state until the flare ends and the next review can
-tell an outage from a shortfall.
+`EnsureBasicPower` open with `method_unavailable` (suspended, never cancelled,
+and not extending the startup hold), and both planners report `solar_flare`
+from the power topology's blackout read (`PowerWaitBlackout`,
+`RefrigerationWaitBlackout`) with no cooling or power allowance lent. The
+deficit and the refrigeration latch keep their measured state until the flare
+ends and the next review can tell an outage from a shortfall.
+
+`MaintainRefrigeration` keeps a method under the flare (#408): the warm
+at-risk stock the dark coolers cannot save is eaten first. The cook-ahead bill
+planner (`policy.CookAheadFood`, bound to the refrigeration goal, configured
+with the refrigeration family and bill plans) raises one `CookMealSimple`-first
+target bill on a bench native still reports usable -- a fuelled stove; the
+unpowered electric one is excluded by the same usable flag -- for the latched
+warm nutrition beyond what every existing target bill already reserves
+(`ReservedFoodNutrition`), in meals. It is the one purpose allowed to add a
+second bill of a recipe the bench already carries; a bench and recipe this load
+already claimed is skipped (one claim per bench and recipe). Without the flare
+hold or with the reserved targets covering the stock it proposes nothing.
+
+While the flare holds, the defensive layout treats its turret tier as absent
+rather than unserviced: `DefenseRearmTurrets` reports no `unpowered` cell for
+the outage (an empty barrel is still counted and rearmed so the line is whole
+when the flare ends), and the layout does not wait on the dark turrets.
 
 `MaintainLighting` (issue #6 slice 3) reasons from illumination at the cell a
 pawn stands on, not from fixture counts. Native reports every colonist work
@@ -477,8 +494,12 @@ table and research bench's interaction cell with its measured ground glow
 (`UpkeepFacts.lighting`), plus every glowing fixture with its radius, native
 lit flag and service state. A roofed work cell measuring under 0.3 (RimWorld's
 own lit threshold) latches its bench; unroofed cells are ignored because sky
-glow would flap the latch with the day, and an unknown census preserves the
-previous latch. A cell whose room grows a plant native says dies to light
+glow would flap the latch with the day, except under an eclipse (an `Eclipse`
+condition with a remaining-duration read, `policy.EclipseHold`, #408), when
+the day is as dark as the night and every work cell is measured so a dark
+outdoor bench gets a torch of its own; the eclipse ending drops such benches
+from the latch on the next review. An unknown census preserves the previous
+latch. A cell whose room grows a plant native says dies to light
 (cave fungus, `WorkLightCell.light_sensitive`: any such plant standing in the
 room, or a growing zone set to one) is protected and never latches, however
 dark it measures -- lighting it would kill the crop. The goal ranks as an
