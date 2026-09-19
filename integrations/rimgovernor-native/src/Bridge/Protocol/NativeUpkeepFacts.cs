@@ -367,6 +367,8 @@ namespace HomeBridge.BridgeTools
                 var food = things.Where(t => t.def.category == ThingCategory.Item
                     && (t.Faction == null || t.Faction == Faction.OfPlayerSilentFail)
                     && t.def.IsNutritionGivingIngestible && !t.def.IsDrug && t.IngestibleNow).ToList();
+                var benches = things.OfType<Building_WorkTable>().Where(b => b.Faction == Faction.OfPlayerSilentFail)
+                    .OrderBy(b => b.thingIDNumber).ToList();
                 var values = animals.Select(p => {
                     var requiresPen = AnimalPenUtility.NeedsToBeManagedByRope(p);
                     var pen = requiresPen ? AnimalPenUtility.GetCurrentPenOf(p, false) : null;
@@ -397,6 +399,13 @@ namespace HomeBridge.BridgeTools
                         if (rot != null && rot.Active) stock.RotTicks = Math.Max(0, rot.TicksUntilRotAtCurrentTemp);
                         value.ReachableStoredFeed.Add(stock);
                     }
+                    // A bill drops its product at the bench, so only a bench
+                    // the animal can walk to inside its allowed area feeds it.
+                    var reachableBenches = benches.Where(b => p.CanReach(b, PathEndMode.Touch, Danger.None)
+                        && (p.playerSettings?.AreaRestrictionInPawnCurrentMap == null
+                            || p.playerSettings.AreaRestrictionInPawnCurrentMap[b.Position])).ToList();
+                    Require(reachableBenches.Count, 256);
+                    value.ReachableBenchIds.AddRange(reachableBenches.Select(b => Id(b.GetUniqueLoadID())));
                     return value;
                 }).ToList();
                 result.Animals.AddRange(values);

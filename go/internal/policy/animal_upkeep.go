@@ -27,6 +27,10 @@ type UpkeepAnimal struct {
 	// (AnimalUpkeepObservation.WildAnimals): native tame eligibility and a
 	// standing tame designation.
 	Tameable, Tame domain.Fact[bool]
+	// ReachableBenches names the player work tables the animal can reach
+	// inside its allowed area (sorted); a bill there drops feed where the
+	// animal eats it.
+	ReachableBenches []string
 }
 
 // HusbandryTrainable is one trainable definition's recursive-training
@@ -70,6 +74,7 @@ type AnimalFeedTarget struct {
 	ID                                PawnID
 	Definition                        Resource
 	RunwayDays, Nutrition, TargetDays float64
+	ReachableBenches                  []string
 }
 type AnimalUpkeepReview struct {
 	History     AnimalUpkeepHistory
@@ -108,13 +113,20 @@ func ReviewAnimalUpkeep(v AnimalUpkeepObservation, previous AnimalUpkeepHistory,
 	containment := []PawnID{}
 	eligible := []PawnID{}
 	definitions := map[PawnID]Resource{}
+	benches := map[PawnID][]string{}
 	containmentKnown, feedKnown := true, true
 	for _, animal := range animals {
-		if !foodID(string(animal.ID)) || seen[animal.ID] || !validResource(animal.Definition) {
+		if !foodID(string(animal.ID)) || seen[animal.ID] || !validResource(animal.Definition) || len(animal.ReachableBenches) > 256 {
 			return r, invalid
+		}
+		for _, bench := range animal.ReachableBenches {
+			if !foodID(bench) {
+				return r, invalid
+			}
 		}
 		seen[animal.ID] = true
 		definitions[animal.ID] = animal.Definition
+		benches[animal.ID] = animal.ReachableBenches
 		pen, pk := animal.RequiresPen.Value()
 		contained, ck := animal.Contained.Value()
 		release, rk := animal.Release.Value()
@@ -171,7 +183,7 @@ func ReviewAnimalUpkeep(v AnimalUpkeepObservation, previous AnimalUpkeepHistory,
 			if !foodNumber(missing) {
 				return r, invalid
 			}
-			targets = append(targets, AnimalFeedTarget{id, definitions[id], row.RunwayDays, missing, p.FeedTargetDays})
+			targets = append(targets, AnimalFeedTarget{id, definitions[id], row.RunwayDays, missing, p.FeedTargetDays, benches[id]})
 			next = append(next, id)
 		}
 	}

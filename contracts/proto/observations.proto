@@ -514,7 +514,10 @@ message FilthState { EntityRef filth = 1; optional bool home = 2; optional uint3
 message ProtectedCell { rimgovernor.common.v1.Cell cell = 1; optional bool home = 2; optional bool roofed = 3; }
 message UpkeepPerson { PawnState pawn = 1; optional string owned_bed_id = 2; optional double comfortable_min_c = 3; optional double comfortable_max_c = 4; optional double temperature_c = 5; }
 message FeedDefinition { optional string def_name = 1; optional double nutrition_per_item = 2; repeated string eater_ids = 3; }
-message AnimalFeed { PawnState pawn = 1; optional string diet = 2; optional bool requires_pen = 3; optional string suitable_pen_id = 4; repeated FoodStock reachable_stored_feed = 5; }
+// reachable_bench_ids lists the player work tables whose position the animal
+// can reach inside its allowed area: a bill there drops its product where the
+// animal can eat it.
+message AnimalFeed { PawnState pawn = 1; optional string diet = 2; optional bool requires_pen = 3; optional string suitable_pen_id = 4; repeated FoodStock reachable_stored_feed = 5; repeated string reachable_bench_ids = 6; }
 message DevelopmentPower { BuildingState building = 1; optional double base_w = 2; optional double stored_watt_days = 3; optional double capacity_watt_days = 4; }
 message DevelopmentFurniture { EntityRef building = 1; optional bool indoors = 2; optional uint32 slots = 3; }
 message DevelopmentFacts { repeated DevelopmentPower power = 1; repeated DevelopmentFurniture furniture = 2; ResearchSnapshot research = 3; Completeness completeness = 4; repeated PowerNetwork networks = 5; }

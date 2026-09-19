@@ -114,3 +114,20 @@ func TestAnimalPlayerDirectionsAndInvalidInputs(t *testing.T) {
 		t.Fatal("NaN accepted")
 	}
 }
+
+func TestAnimalFeedTargetCarriesReachableBenches(t *testing.T) {
+	v := animalFixture(1)
+	animals, _ := v.Animals.Value()
+	animals[0].ReachableBenches = []string{"Thing_ButcherSpot7"}
+	v.Animals = domain.Known(animals)
+	r, err := ReviewAnimalUpkeep(v, AnimalUpkeepHistory{}, DefaultAnimalUpkeepPolicy())
+	rows, known := r.Feed.Value()
+	if err != nil || !known || len(rows) != 1 || !reflect.DeepEqual(rows[0].ReachableBenches, []string{"Thing_ButcherSpot7"}) {
+		t.Fatal(r, err)
+	}
+	animals[0].ReachableBenches = []string{""}
+	v.Animals = domain.Known(animals)
+	if _, err = ReviewAnimalUpkeep(v, AnimalUpkeepHistory{}, DefaultAnimalUpkeepPolicy()); err == nil {
+		t.Fatal("blank bench id accepted")
+	}
+}

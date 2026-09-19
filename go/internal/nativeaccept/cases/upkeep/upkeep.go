@@ -29,10 +29,12 @@
 //	                   wild healroot nearby. MaintainMedicalReserves must
 //	                   replenish through ordinary plant cutting until the
 //	                   recovery reserve is observed in stock.
-//	feed            -- test/feed_setup: a hungry pet confined to a small area,
-//	                   a butcher spot and meat/hay stock outside its reach.
-//	                   MaintainAnimalFeed must produce reachable feed (a kibble
-//	                   bill) rather than counting stock the animal cannot eat.
+//	feed            -- test/feed_setup: a hungry pet confined to a small area
+//	                   holding one butcher spot, an earlier butcher spot and
+//	                   meat/hay stock outside its reach. MaintainAnimalFeed must
+//	                   produce reachable feed (a kibble bill on the bench inside
+//	                   the area, never the lower-id one outside it, #237) rather
+//	                   than counting stock the animal cannot eat.
 //	sleeping        -- test/sleeping_setup: a warm roofed room holding one bed
 //	                   fewer than colonists, wood and bed research.
 //	                   MaintainSleeping must build the missing bed, ownership
@@ -1127,9 +1129,18 @@ func watchFeed(ctx context.Context, journal *store.Store, prepared map[string]an
 	if _, err := waitNeed(deficitCtx, journal, policy.MaintainAnimalFeed, domain.NeedDeficit); err != nil {
 		return err
 	}
+	reachableBench := na.AsString(prepared["bench"])
 	if _, err := followMethods(ctx, journal, policy.MaintainAnimalFeed, "feed", func(a domain.Action) error {
 		switch a.Kind() {
-		case domain.AcquisitionAction, domain.ProductionBillAction, domain.MineAcquisitionAction:
+		case domain.AcquisitionAction, domain.MineAcquisitionAction:
+			return nil
+		case domain.ProductionBillAction:
+			// The product drops at the bench, so the bill belongs on the
+			// one inside the pet's area, not the earlier one outside it.
+			if bill, ok := a.ProductionBill(); ok && bill.Bench() != reachableBench {
+				return fmt.Errorf("kibble bill placed on %s outside the pet's area, not %s", bill.Bench(), reachableBench)
+			}
+			report["feed_bill_bench"] = reachableBench
 			return nil
 		}
 		return fmt.Errorf("unexpected %s action", a.Kind())

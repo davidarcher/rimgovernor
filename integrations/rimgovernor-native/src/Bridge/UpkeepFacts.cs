@@ -140,7 +140,13 @@ namespace HomeBridge.BridgeTools
                             && (p.playerSettings?.AreaRestrictionInPawnCurrentMap == null
                                 || p.playerSettings.AreaRestrictionInPawnCurrentMap[t.Position]))
                             .Select(t => new { id = t.GetUniqueLoadID(), count = t.stackCount,
-                                nutrition = FoodUtility.NutritionForEater(p, t) * t.stackCount }).ToList()
+                                nutrition = FoodUtility.NutritionForEater(p, t) * t.stackCount }).ToList(),
+                        reachableBenchIds = map.listerThings.AllThings.OfType<Building_WorkTable>()
+                            .Where(b => b.Faction == Faction.OfPlayerSilentFail
+                                && p.CanReach(b, PathEndMode.Touch, Danger.None)
+                                && (p.playerSettings?.AreaRestrictionInPawnCurrentMap == null
+                                    || p.playerSettings.AreaRestrictionInPawnCurrentMap[b.Position]))
+                            .OrderBy(b => b.thingIDNumber).Select(b => b.GetUniqueLoadID()).ToList()
                     }; }).ToList()),
                 errors
             };

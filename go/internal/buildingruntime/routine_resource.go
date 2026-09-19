@@ -193,7 +193,7 @@ func (r *RoutineResourcePlanner) step(call, epoch context.Context, arbiter *step
 	if !ok {
 		return RoutineResourceResult{Reason: BuildingMethodUsed}, nil
 	}
-	return r.dispatchResourceGoal(call, epoch, state, goal, review.Tick, identity, resource, target, stock, started)
+	return r.dispatchResourceGoal(call, epoch, state, goal, review.Tick, identity, resource, target, stock, nil, started)
 }
 
 // dispatchResourceGoal is the shared MaintainResource/MaintainAnimalFeed
@@ -202,8 +202,11 @@ func (r *RoutineResourcePlanner) step(call, epoch context.Context, arbiter *step
 // (policy.SelectResourceMethod) first, falling back to native mine/harvest
 // sources (policy.SelectResourceSources) and, if hauling them needs new
 // storage, a covered stockpile zone -- see RoutineAnimalFeedPlanner for the
-// MaintainAnimalFeed caller.
-func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Context, state ControlState, goal store.GoalState, reviewTick domain.Tick, identity *c.Identity, resource policy.Resource, target int64, stock domain.Fact[[]policy.Amount], started time.Time) (RoutineResourceResult, error) {
+// MaintainAnimalFeed caller. A non-nil benches set restricts the bench/recipe
+// path to those bench IDs (the caller's delivery constraint: a bill's product
+// drops at its bench); an empty set refuses the production path outright
+// rather than producing where the product cannot be used.
+func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Context, state ControlState, goal store.GoalState, reviewTick domain.Tick, identity *c.Identity, resource policy.Resource, target int64, stock domain.Fact[[]policy.Amount], benchFilter []string, started time.Time) (RoutineResourceResult, error) {
 	p := r.reviewer.player
 	seen := make([]domain.MethodID, 0, len(goal.Methods))
 	for _, method := range goal.Methods {
@@ -216,11 +219,25 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 	if len(census) > 256 {
 		return RoutineResourceResult{}, ErrControl
 	}
+	allowed := map[string]bool{}
+	for _, id := range benchFilter {
+		allowed[id] = true
+	}
 	benches := make([]policy.GearBench, 0, len(census))
 	tokens := map[string]string{}
 	for _, row := range census {
+		if benchFilter != nil && !allowed[row.Bench.ID] {
+			continue
+		}
 		benches = append(benches, row.Bench)
 		tokens[row.Bench.ID] = row.Token
+	}
+	if benchFilter != nil && len(benches) == 0 {
+		// No bench where the product would be usable: producing elsewhere
+		// only piles it up out of reach (#237). Lend a window so a bench
+		// built or an area widened meanwhile is seen next step.
+		clockSchedulerLog("%s: no reachable bench for %s among %d benches", goal.Goal.ID, resource, len(census))
+		return RoutineResourceResult{Reason: BuildingMethodRefused, NativeWorkTicks: stockWaitTicks}, nil
 	}
 	names := recipeIngredientNames(census, resource)
 	var supply []policy.Stock

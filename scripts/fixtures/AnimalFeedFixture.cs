@@ -10,7 +10,7 @@ namespace HomeBridge.BridgeTools
 {
     public sealed class AnimalFeedFixture
     {
-        [Tool("test/feed_setup", Description = "Prepare disposable pet, butcher spot, ingredients and a restricted feeding area. No feed or production bill is created.")]
+        [Tool("test/feed_setup", Description = "Prepare disposable pet, a butcher spot inside its restricted feeding area, an earlier butcher spot outside it, and ingredients outside it. No feed or production bill is created.")]
         public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -22,6 +22,14 @@ namespace HomeBridge.BridgeTools
                         && v.Standable(map) && v.GetEdifice(map) == null && map.zoneManager.ZoneAt(v) == null));
                 foreach (var c in CellRect.CenteredOn(center, 4))
                     foreach (var t in c.GetThingList(map).Where(t => t is Plant || t.def.category == ThingCategory.Item).ToList()) t.Destroy();
+                // The decoy spawns first so it carries the lower thing id: a
+                // bench choice by id alone lands the kibble bill outside the
+                // pet's area (#237).
+                var outsideCell = GenRadial.RadialCellsAround(center, 12, false).First(c => c.DistanceTo(center) >= 8
+                    && c.InBounds(map) && !c.Fogged(map) && c.Standable(map) && c.GetEdifice(map) == null && map.zoneManager.ZoneAt(c) == null);
+                var outside = ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed("ButcherSpot"));
+                outside.SetFaction(Faction.OfPlayerSilentFail);
+                GenSpawn.Spawn(outside, outsideCell, map);
                 var bench = ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed("ButcherSpot"));
                 bench.SetFaction(Faction.OfPlayerSilentFail);
                 GenSpawn.Spawn(bench, center, map);
@@ -51,7 +59,7 @@ namespace HomeBridge.BridgeTools
                     p.jobs.EndCurrentJob(JobCondition.InterruptForced);
                 }
                 return new { success = true, pet = pet.GetUniqueLoadID(), bench = bench.GetUniqueLoadID(),
-                    food = pet.needs.food.CurLevelPercentage, area = area.ID };
+                    outsideBench = outside.GetUniqueLoadID(), food = pet.needs.food.CurLevelPercentage, area = area.ID };
             }, cancellationToken).ConfigureAwait(false);
         }
     }

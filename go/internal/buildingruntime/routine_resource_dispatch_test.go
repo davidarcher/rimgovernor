@@ -6,8 +6,10 @@ import (
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
@@ -123,5 +125,80 @@ func TestResourceDispatchCommitsWorkshopBillThroughTheJournal(t *testing.T) {
 	again, err := planner.Step(context.Background())
 	if err != nil || again.Reason != BuildingMethodExistingWork || len(native.previews) != 1 {
 		t.Fatal(again, err, native.previews)
+	}
+}
+
+// MaintainAnimalFeed's delivery constraint on the shared tail: a bench set
+// that excludes every standing bench refuses the bill without a preview
+// (producing where the animal cannot eat only piles feed up, #237), and one
+// that names the bench lets the same step commit the bill there.
+func TestResourceDispatchHonoursTheBenchFilter(t *testing.T) {
+	t.Parallel()
+	base, _, _, _, sleeping := sleepingFixture(t)
+	base.reviewer.policy.ResourceTargets = map[policy.Resource]int64{"MeleeWeapon_Club": 3}
+	sleeping.reply.GetObserved().Resources = []*o.Quantity{{DefName: proto.String("MeleeWeapon_Club"), Units: proto.Int64(0)}}
+	club := policy.GearRecipe{
+		Definition: "Make_MeleeWeapon_Club", Products: []policy.Resource{"MeleeWeapon_Club"},
+		Available: domain.Known(true), AvailableOn: domain.Known(true),
+		Ingredients:  domain.Known([][]policy.Amount{{{Resource: "WoodLog", Count: 40}}}),
+		RequiredWork: domain.Known([]policy.WorkRequirement{{Work: "Crafting", Skill: "Crafting"}}),
+	}
+	native := &resourceNative{
+		workshopNative: &workshopNative{sleepingNative: sleeping, benches: []bridge.GearBenchRead{{Token: "bench-cas", Bench: policy.GearBench{ID: "Thing_CraftingSpot1", Bills: domain.Known([]policy.GearBill{}), Recipes: domain.Known([]policy.GearRecipe{club})}}}},
+		stock:          []policy.Stock{{Resource: "WoodLog", Available: domain.Known(int64(200))}},
+	}
+	v := sleeping.reply.GetObserved()
+	v.ColonistCount = proto.Uint32(2)
+	v.WorkerCount = proto.Uint32(2)
+	missing := func(field string) *o.ReadIssue {
+		return &o.ReadIssue{Field: proto.String(field), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}
+	}
+	worker := func(id string) *o.PawnState {
+		return &o.PawnState{Pawn: &o.EntityRef{Id: proto.String(id), MapId: proto.Int32(v.Context.Identity.GetMapId())}, Colonist: proto.Bool(true), Dead: proto.Bool(false), Downed: proto.Bool(false), Drafted: proto.Bool(false), Equipment: &o.PawnEquipment{Armed: proto.Bool(true)}, Biography: &o.PawnBiography{}, Settings: &o.PawnSettings{WorkApplies: proto.Bool(true), ManualWorkPriorities: proto.Bool(true)}, Issues: []*o.ReadIssue{missing("pawn.snapshot"), missing("mental_state")}}
+	}
+	sleeping.pawnReply = &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Pawns: []*o.PawnState{worker("crafter"), worker("builder")}, Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(2), Returned: proto.Uint64(2), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}}}}
+	base.reviewer.native = native
+	if _, err := base.reviewer.Step(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	planner, err := NewRoutineResourcePlanner(base.reviewer, native)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := base.reviewer.player
+	ctx, epoch, done, err := p.enter(context.Background(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer done()
+	state := p.session.State()
+	review, err := p.journal.LoadRoutineReview(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var goal store.GoalState
+	for _, binding := range review.Goals {
+		if binding.Need == policy.MaintainResource {
+			if goal, err = p.journal.LoadGoal(ctx, binding.Goal); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	if goal.Goal.Status != domain.GoalActive {
+		t.Fatal(goal)
+	}
+	identity := boundary.Identity(state.Snapshot)
+	stock := resourceStockFacts(v)
+	result, err := planner.dispatchResourceGoal(ctx, epoch, state, goal, review.Tick, identity, "MeleeWeapon_Club", 3, stock, []string{}, base.reviewer.clock.Now())
+	if err != nil || result.Reason != BuildingMethodRefused || result.NativeWorkTicks != stockWaitTicks || len(native.previews) != 0 {
+		t.Fatal(result, err, native.previews)
+	}
+	result, err = planner.dispatchResourceGoal(ctx, epoch, state, goal, review.Tick, identity, "MeleeWeapon_Club", 3, stock, []string{"Thing_ButcherSpot9"}, base.reviewer.clock.Now())
+	if err != nil || result.Reason != BuildingMethodRefused || len(native.previews) != 0 {
+		t.Fatal(result, err, native.previews)
+	}
+	result, err = planner.dispatchResourceGoal(ctx, epoch, state, goal, review.Tick, identity, "MeleeWeapon_Club", 3, stock, []string{"Thing_CraftingSpot1"}, base.reviewer.clock.Now())
+	if err != nil || result.Reason != BuildingMethodAdmitted || len(native.previews) != 1 || native.previews[0].Bench() != "Thing_CraftingSpot1" {
+		t.Fatal(result, err, native.previews)
 	}
 }

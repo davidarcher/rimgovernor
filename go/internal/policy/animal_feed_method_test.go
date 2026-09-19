@@ -125,3 +125,30 @@ func TestAnimalFeedInvalidInputsRejected(t *testing.T) {
 		t.Fatal("empty stopped resource accepted")
 	}
 }
+
+// The bill may only land on a bench every covered animal can reach, so the
+// method carries the sorted intersection of the deficit race's reachable
+// benches; another race's benches never widen it (#237).
+func TestAnimalFeedCarriesBenchesEveryCoveredAnimalReaches(t *testing.T) {
+	targets := []AnimalFeedTarget{
+		{ID: "husky1", Definition: "Husky", Nutrition: 2, ReachableBenches: []string{"Thing_ButcherSpot2", "Thing_ButcherSpot1", "Thing_ButcherSpot3"}},
+		{ID: "husky2", Definition: "Husky", Nutrition: 2, ReachableBenches: []string{"Thing_ButcherSpot3", "Thing_ButcherSpot1"}},
+		{ID: "muffalo1", Definition: "Muffalo", Nutrition: 2, ReachableBenches: []string{"Thing_ButcherSpot9"}},
+	}
+	choice, err := SelectAnimalFeedMethod(targets, nil, nil, nil)
+	if err != nil || choice.Reason != AnimalFeedSelected {
+		t.Fatalf("%+v %v", choice, err)
+	}
+	if len(choice.Benches) != 2 || choice.Benches[0] != "Thing_ButcherSpot1" || choice.Benches[1] != "Thing_ButcherSpot3" {
+		t.Fatalf("benches = %v", choice.Benches)
+	}
+	confined := []AnimalFeedTarget{{ID: "husky1", Definition: "Husky", Nutrition: 2, ReachableBenches: []string{}}}
+	choice, err = SelectAnimalFeedMethod(confined, nil, nil, nil)
+	if err != nil || choice.Reason != AnimalFeedSelected || choice.Benches == nil || len(choice.Benches) != 0 {
+		t.Fatalf("%+v %v", choice, err)
+	}
+	bad := []AnimalFeedTarget{{ID: "husky1", Definition: "Husky", Nutrition: 2, ReachableBenches: []string{""}}}
+	if _, err = SelectAnimalFeedMethod(bad, nil, nil, nil); err == nil {
+		t.Fatal("blank bench id accepted")
+	}
+}

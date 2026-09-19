@@ -21161,6 +21161,9 @@ func (x *FeedDefinition) GetEaterIds() []string {
 	return nil
 }
 
+// reachable_bench_ids lists the player work tables whose position the animal
+// can reach inside its allowed area: a bill there drops its product where the
+// animal can eat it.
 type AnimalFeed struct {
 	state               protoimpl.MessageState `protogen:"open.v1"`
 	Pawn                *PawnState             `protobuf:"bytes,1,opt,name=pawn,proto3" json:"pawn,omitempty"`
@@ -21168,6 +21171,7 @@ type AnimalFeed struct {
 	RequiresPen         *bool                  `protobuf:"varint,3,opt,name=requires_pen,json=requiresPen,proto3,oneof" json:"requires_pen,omitempty"`
 	SuitablePenId       *string                `protobuf:"bytes,4,opt,name=suitable_pen_id,json=suitablePenId,proto3,oneof" json:"suitable_pen_id,omitempty"`
 	ReachableStoredFeed []*FoodStock           `protobuf:"bytes,5,rep,name=reachable_stored_feed,json=reachableStoredFeed,proto3" json:"reachable_stored_feed,omitempty"`
+	ReachableBenchIds   []string               `protobuf:"bytes,6,rep,name=reachable_bench_ids,json=reachableBenchIds,proto3" json:"reachable_bench_ids,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -21233,6 +21237,13 @@ func (x *AnimalFeed) GetSuitablePenId() string {
 func (x *AnimalFeed) GetReachableStoredFeed() []*FoodStock {
 	if x != nil {
 		return x.ReachableStoredFeed
+	}
+	return nil
+}
+
+func (x *AnimalFeed) GetReachableBenchIds() []string {
+	if x != nil {
+		return x.ReachableBenchIds
 	}
 	return nil
 }
@@ -31610,14 +31621,15 @@ const file_observations_proto_rawDesc = "" +
 	"\x12nutrition_per_item\x18\x02 \x01(\x01H\x01R\x10nutritionPerItem\x88\x01\x01\x12\x1b\n" +
 	"\teater_ids\x18\x03 \x03(\tR\beaterIdsB\v\n" +
 	"\t_def_nameB\x15\n" +
-	"\x13_nutrition_per_item\"\xc0\x02\n" +
+	"\x13_nutrition_per_item\"\xf0\x02\n" +
 	"\n" +
 	"AnimalFeed\x12:\n" +
 	"\x04pawn\x18\x01 \x01(\v2&.rimgovernor.observations.v1.PawnStateR\x04pawn\x12\x17\n" +
 	"\x04diet\x18\x02 \x01(\tH\x00R\x04diet\x88\x01\x01\x12&\n" +
 	"\frequires_pen\x18\x03 \x01(\bH\x01R\vrequiresPen\x88\x01\x01\x12+\n" +
 	"\x0fsuitable_pen_id\x18\x04 \x01(\tH\x02R\rsuitablePenId\x88\x01\x01\x12Z\n" +
-	"\x15reachable_stored_feed\x18\x05 \x03(\v2&.rimgovernor.observations.v1.FoodStockR\x13reachableStoredFeedB\a\n" +
+	"\x15reachable_stored_feed\x18\x05 \x03(\v2&.rimgovernor.observations.v1.FoodStockR\x13reachableStoredFeed\x12.\n" +
+	"\x13reachable_bench_ids\x18\x06 \x03(\tR\x11reachableBenchIdsB\a\n" +
 	"\x05_dietB\x0f\n" +
 	"\r_requires_penB\x12\n" +
 	"\x10_suitable_pen_id\"\x8f\x02\n" +

@@ -325,7 +325,13 @@ Native feed definitions include non-human food and the installed kibble food-typ
 flag, excluding drugs and corpses. Definition nutrition sizes bounded acquisition;
 actual reachable stock and demand determine recovery. At most eight eligible
 resources are considered through the shared source/bill method. When no
-covering feed is reachable the method falls back to the kibble bill. A recipe
+covering feed is reachable the method falls back to the kibble bill. A bill drops
+its product at its bench, so the census names, per animal, the player work
+tables it can reach inside its allowed area (`reachable_bench_ids`) and the
+bill may only land on a bench every covered animal reaches; with no such bench
+the production path is refused for a bounded window rather than piling feed
+up out of reach (a bench inside the area, or a widened area, is seen at the
+next step). A recipe
 slot that accepts several ingredient definitions is funded by the cheapest
 alternative in stock. Existing adequate
 bills are reused, player resource restrictions remain authoritative, and required

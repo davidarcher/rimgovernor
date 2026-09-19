@@ -3,6 +3,7 @@ package policy
 import (
 	"errors"
 	"math"
+	"sort"
 )
 
 // AnimalFeedReason names MaintainAnimalFeed's resource-selection outcome.
@@ -24,6 +25,12 @@ type AnimalFeedMethod struct {
 	Reason   AnimalFeedReason
 	Resource Resource
 	Target   int64
+	// Benches names the work tables every covered animal can reach inside
+	// its allowed area (sorted): the only benches a production bill may
+	// land on, since a bill drops its product where it is made and a
+	// confined animal cannot walk to a bench elsewhere. Empty when no
+	// bench is shared by the covered animals.
+	Benches []string
 }
 
 const maxAnimalFeedTarget = 10000
@@ -66,16 +73,29 @@ func SelectAnimalFeedMethod(targets []AnimalFeedTarget, stocks []FoodStock, have
 	race := targets[0].Definition
 	group := map[PawnID]bool{}
 	var missing float64
+	var benches []string
+	first := true
 	for _, t := range targets {
-		if !foodID(string(t.ID)) || !validResource(t.Definition) || !foodNumber(t.Nutrition) {
+		if !foodID(string(t.ID)) || !validResource(t.Definition) || !foodNumber(t.Nutrition) || len(t.ReachableBenches) > 256 {
 			return AnimalFeedMethod{}, errors.New("invalid animal feed target")
+		}
+		for _, bench := range t.ReachableBenches {
+			if !foodID(bench) {
+				return AnimalFeedMethod{}, errors.New("invalid animal feed target")
+			}
 		}
 		if t.Definition != race {
 			continue
 		}
 		group[t.ID] = true
 		missing += t.Nutrition
+		if first {
+			benches, first = append([]string{}, t.ReachableBenches...), false
+		} else {
+			benches = intersectIDs(benches, t.ReachableBenches)
+		}
 	}
+	sort.Strings(benches)
 	if !foodNumber(missing) || missing <= 0 {
 		return AnimalFeedMethod{Reason: AnimalFeedNoDeficit}, nil
 	}
@@ -130,5 +150,20 @@ func SelectAnimalFeedMethod(targets []AnimalFeedTarget, stocks []FoodStock, have
 	if target <= 0 || target > maxAnimalFeedTarget {
 		return AnimalFeedMethod{Reason: AnimalFeedExceedsBound}, nil
 	}
-	return AnimalFeedMethod{Reason: AnimalFeedSelected, Resource: bestResource, Target: target}, nil
+	return AnimalFeedMethod{Reason: AnimalFeedSelected, Resource: bestResource, Target: target, Benches: benches}, nil
+}
+
+// intersectIDs keeps the entries of a that b also holds, in a's order.
+func intersectIDs(a, b []string) []string {
+	keep := map[string]bool{}
+	for _, id := range b {
+		keep[id] = true
+	}
+	out := []string{}
+	for _, id := range a {
+		if keep[id] {
+			out = append(out, id)
+		}
+	}
+	return out
 }

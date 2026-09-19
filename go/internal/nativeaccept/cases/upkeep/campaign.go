@@ -31,12 +31,12 @@ import (
 // the goal must be recovered again within reopenTicks and before the stage
 // ends; a goal that is rebound, cancelled or invalidated fails at once.
 //
-//	feed     -- test/feed_setup: a hungry confined pet, MaintainAnimalFeed.
-//	            First: the kitchen fixture's butchery bench would take the
-//	            kibble bill and nothing delivers kibble to the pet (#237).
 //	kitchen  -- test/cleanliness_prepare (filthy): blood in an enclosed
 //	            kitchen, every colonist's Cleaning at 0, so only
 //	            MaintainCleanFacilities' forced orders clean it.
+//	feed     -- test/feed_setup: a hungry confined pet, MaintainAnimalFeed.
+//	            After the kitchen so its enclosed butchery bench stands as
+//	            a lower-id decoy the kibble bill must not land on (#237).
 //	medicine -- test/medicine_setup: no medicine, MaintainMedicalReserves.
 //	cold     -- routine_sleeping_prepare + routine_temperature_prepare
 //	            (coldSnap: days have passed, so ordinary cold snaps bring
@@ -78,10 +78,10 @@ func campaignStages() []stage {
 			prepare: sc.prepare, watch: sc.watch, verify: sc.verify}
 	}
 	stages := []stage{
-		fromScenario(all["feed"], policy.MaintainAnimalFeed),
 		{name: "kitchen", fixture: "test/cleanliness_prepare", families: []string{"clean"},
 			needs:   []policy.GoalID{policy.MaintainCleanFacilities},
 			prepare: prepareKitchen, watch: watchKitchen, verify: verifyKitchen},
+		fromScenario(all["feed"], policy.MaintainAnimalFeed),
 		fromScenario(all["medicine"], policy.MaintainMedicalReserves),
 		fromScenario(all["cold"], policy.EnsureTemperatureSafety),
 	}

@@ -162,7 +162,9 @@ func (r *RoutineAnimalFeedPlanner) step(call, epoch context.Context, arbiter *st
 	default:
 		return RoutineResourceResult{Reason: BuildingMethodRefused}, nil
 	}
-	result, err := r.core.dispatchResourceGoal(call, epoch, state, goal, review.Tick, identity, choice.Resource, choice.Target, stock, started)
+	// Feed is only feed where the animal can eat it, so the bill may only
+	// land on a bench inside every covered animal's reachable area (#237).
+	result, err := r.core.dispatchResourceGoal(call, epoch, state, goal, review.Tick, identity, choice.Resource, choice.Target, stock, choice.Benches, started)
 	if err != nil {
 		return result, err
 	}
