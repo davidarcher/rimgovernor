@@ -65,7 +65,7 @@ func ValidateAncientShrines(v *o.AncientShrinesSnapshot, identity *c.Identity) e
 		if err := validRectangle(row.Room, shrineRoomMaxWidth); err != nil {
 			return contract("invalid shrine room")
 		}
-		if len(row.Caskets) > shrineCasketLimit || len(row.Guards) > shrineGuardLimit || len(row.BreachWalls) > shrineBreachLimit {
+		if len(row.Caskets) > shrineCasketLimit || len(row.Guards) > shrineGuardLimit || len(row.BreachWalls) > shrineBreachLimit || len(row.Occupants) > shrineGuardLimit {
 			return contract("shrine rows exceed the bound")
 		}
 		if !row.GetGuardsKnown() && len(row.Guards) != 0 {
@@ -73,7 +73,7 @@ func ValidateAncientShrines(v *o.AncientShrinesSnapshot, identity *c.Identity) e
 		}
 		entities := map[string]bool{}
 		for _, casket := range row.Caskets {
-			if casket == nil || validID(casket.GetEntityId()) != nil || entities[casket.GetEntityId()] || validCell(casket.Cell) != nil || casket.HitPoints == nil || casket.MaxHitPoints == nil || casket.GetMaxHitPoints() == 0 || casket.GetHitPoints() > casket.GetMaxHitPoints() || casket.HasContents == nil || casket.PlayerClaimed == nil {
+			if casket == nil || validID(casket.GetEntityId()) != nil || entities[casket.GetEntityId()] || validCell(casket.Cell) != nil || validCell(casket.InteractionCell) != nil || casket.HitPoints == nil || casket.MaxHitPoints == nil || casket.GetMaxHitPoints() == 0 || casket.GetHitPoints() > casket.GetMaxHitPoints() || casket.HasContents == nil || casket.PlayerClaimed == nil {
 				return contract("invalid shrine casket")
 			}
 			entities[casket.GetEntityId()] = true
@@ -89,6 +89,18 @@ func ValidateAncientShrines(v *o.AncientShrinesSnapshot, identity *c.Identity) e
 				return contract("invalid shrine breach wall")
 			}
 			entities[wall.GetEntityId()] = true
+		}
+		// A hostile occupant is also listed as a guard, so occupants keep
+		// their own identity set.
+		occupants := map[string]bool{}
+		for _, occupant := range row.Occupants {
+			if occupant == nil || validID(occupant.GetEntityId()) != nil || occupants[occupant.GetEntityId()] || occupant.Hostile == nil || occupant.Downed == nil || occupant.Dead == nil || occupant.Prisoner == nil || occupant.Faction == nil {
+				return contract("invalid shrine occupant")
+			}
+			occupants[occupant.GetEntityId()] = true
+		}
+		if !row.GetGuardsKnown() && len(row.Occupants) != 0 {
+			return contract("occupants reported while unknown")
 		}
 	}
 	return nil

@@ -70,6 +70,7 @@ type RoutinePolicy struct {
 	Lighting                                      LightingPolicy
 	Flooring                                      FlooringPolicy
 	Routes                                        RoutesPolicy
+	Shrine                                        ShrinePolicy
 	MaxDevelopmentProjects                        int
 	FoodMinDays, FoodTargetDays, FootholdFoodDays float64
 	FoodReserveDays                               float64

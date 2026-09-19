@@ -75,6 +75,9 @@ type SessionConfig struct {
 	// ClaimBuilding backs the shrine family's casket claim (#459), the same
 	// one-shot CAS write shape as GrowerCrop.
 	ClaimBuilding *claimbuilding.Capabilities
+	// OpenCasket backs the shrine family casket opening (#460), a Repair-shaped
+	// pawn order whose opener the melee lock drafts first.
+	OpenCasket *OpenCasketCapabilities
 	// BedAssign backs the sleeping family's bed ownership transfer, the
 	// same one-shot CAS write shape as BedMedical.
 	BedAssign           *bedassign.Capabilities
@@ -378,6 +381,9 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.ClaimBuilding != nil && (config.ClaimBuilding.Native == nil || config.ClaimBuilding.Writer == nil) {
 		return cleanup(ErrControl)
 	}
+	if config.OpenCasket != nil && (config.OpenCasket.Native == nil || config.OpenCasket.Writer == nil) {
+		return cleanup(ErrControl)
+	}
 	if config.BedAssign != nil && (config.BedAssign.Native == nil || config.BedAssign.Writer == nil) {
 		return cleanup(ErrControl)
 	}
@@ -604,6 +610,15 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 			return cleanup(err)
 		}
 		if err := worker.EnableRepair(repairBoundary); err != nil {
+			return cleanup(err)
+		}
+	}
+	if config.OpenCasket != nil {
+		openCasketBoundary, err := NewOpenCasketBoundary(config.OpenCasket.Native, config.OpenCasket.Writer, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace))
+		if err != nil {
+			return cleanup(err)
+		}
+		if err := worker.EnableOpenCasket(openCasketBoundary); err != nil {
 			return cleanup(err)
 		}
 	}

@@ -15,7 +15,7 @@ func cell(x, z int32) *c.Cell { return &c.Cell{X: proto.Int32(x), Z: proto.Int32
 
 func shrineSnapshot() *o.AncientShrinesSnapshot {
 	shrine := &o.AncientShrine{ShrineId: proto.String("ancientTempleApproached-1"), Room: &o.Rectangle{Minimum: cell(10, 10), Maximum: cell(20, 18)}, Sealed: proto.Bool(true), InHome: proto.Bool(false), GuardsKnown: proto.Bool(false),
-		Caskets:     []*o.ShrineCasket{{EntityId: proto.String("AncientCryptosleepCasket1"), Cell: cell(12, 12), HitPoints: proto.Uint32(250), MaxHitPoints: proto.Uint32(250), HasContents: proto.Bool(true), PlayerClaimed: proto.Bool(false)}},
+		Caskets:     []*o.ShrineCasket{{EntityId: proto.String("AncientCryptosleepCasket1"), Cell: cell(12, 12), InteractionCell: cell(13, 12), HitPoints: proto.Uint32(250), MaxHitPoints: proto.Uint32(250), HasContents: proto.Bool(true), PlayerClaimed: proto.Bool(false)}},
 		BreachWalls: []*o.ShrineBreachWall{{EntityId: proto.String("Wall7"), Cell: cell(10, 14), Outside: cell(9, 14)}}}
 	return &o.AncientShrinesSnapshot{Context: pbContext(), Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(1), Returned: proto.Uint64(1), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}, Shrines: []*o.AncientShrine{shrine}}
 }

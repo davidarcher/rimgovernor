@@ -135,6 +135,7 @@ type Executor struct {
 	gearReplaceJournal         GearReplaceJournal
 	repair                     RepairBoundary
 	repairJournal              RepairJournal
+	openCasket                 OpenCasketBoundary
 	clean                      CleanBoundary
 	cleanJournal               CleanJournal
 	waste                      WasteBoundary
@@ -398,6 +399,9 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.RepairAction && e.repair != nil {
 		return e.runRepair(ctx, action, progress, authority, generation)
+	}
+	if action.Kind() == domain.OpenCasketAction && e.openCasket != nil {
+		return e.runOpenCasket(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.CleanAction && e.clean != nil {
 		return e.runClean(ctx, action, progress, authority, generation)

@@ -803,6 +803,7 @@ const (
 	PawnOrderKind_PAWN_ORDER_KIND_WORK        PawnOrderKind = 6
 	PawnOrderKind_PAWN_ORDER_KIND_REPAIR      PawnOrderKind = 7
 	PawnOrderKind_PAWN_ORDER_KIND_CLEAN       PawnOrderKind = 8
+	PawnOrderKind_PAWN_ORDER_KIND_OPEN_CASKET PawnOrderKind = 9
 )
 
 // Enum value maps for PawnOrderKind.
@@ -817,6 +818,7 @@ var (
 		6: "PAWN_ORDER_KIND_WORK",
 		7: "PAWN_ORDER_KIND_REPAIR",
 		8: "PAWN_ORDER_KIND_CLEAN",
+		9: "PAWN_ORDER_KIND_OPEN_CASKET",
 	}
 	PawnOrderKind_value = map[string]int32{
 		"PAWN_ORDER_KIND_UNSPECIFIED": 0,
@@ -828,6 +830,7 @@ var (
 		"PAWN_ORDER_KIND_WORK":        6,
 		"PAWN_ORDER_KIND_REPAIR":      7,
 		"PAWN_ORDER_KIND_CLEAN":       8,
+		"PAWN_ORDER_KIND_OPEN_CASKET": 9,
 	}
 )
 
@@ -9021,7 +9024,7 @@ const file_operations_proto_rawDesc = "" +
 	"\x17ATTACK_MODE_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10ATTACK_MODE_AUTO\x10\x01\x12\x15\n" +
 	"\x11ATTACK_MODE_MELEE\x10\x02\x12\x16\n" +
-	"\x12ATTACK_MODE_RANGED\x10\x03*\x89\x02\n" +
+	"\x12ATTACK_MODE_RANGED\x10\x03*\xaa\x02\n" +
 	"\rPawnOrderKind\x12\x1f\n" +
 	"\x1bPAWN_ORDER_KIND_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15PAWN_ORDER_KIND_EQUIP\x10\x01\x12\x1a\n" +
@@ -9031,7 +9034,8 @@ const file_operations_proto_rawDesc = "" +
 	"\x14PAWN_ORDER_KIND_HAUL\x10\x05\x12\x18\n" +
 	"\x14PAWN_ORDER_KIND_WORK\x10\x06\x12\x1a\n" +
 	"\x16PAWN_ORDER_KIND_REPAIR\x10\a\x12\x19\n" +
-	"\x15PAWN_ORDER_KIND_CLEAN\x10\b*j\n" +
+	"\x15PAWN_ORDER_KIND_CLEAN\x10\b\x12\x1f\n" +
+	"\x1bPAWN_ORDER_KIND_OPEN_CASKET\x10\t*j\n" +
 	"\fEndTradeKind\x12\x1e\n" +
 	"\x1aEND_TRADE_KIND_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15END_TRADE_KIND_CANCEL\x10\x01\x12\x1f\n" +

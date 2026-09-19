@@ -101,12 +101,23 @@ message ShrineCasket {
   optional uint32 max_hit_points = 4;
   optional bool has_contents = 5;
   optional bool player_claimed = 6;
+  rimgovernor.common.v1.Cell interaction_cell = 7; // Where a pawn stands to open it; ejected contents drop near it.
 }
 message ShrineGuard {
   optional string entity_id = 1;
   ShrineGuardKind kind = 2;
   optional bool downed = 3;
   optional bool dead = 4;
+}
+// ShrineOccupant is a humanlike the caskets released, or a corpse of one: any
+// non-player humanlike pawn or corpse inside the room (#460).
+message ShrineOccupant {
+  optional string entity_id = 1;
+  optional bool hostile = 2;
+  optional bool downed = 3;
+  optional bool dead = 4;
+  optional bool prisoner = 5; // Already the colony's prisoner.
+  optional string faction = 6; // Faction def name; empty when factionless.
 }
 message ShrineBreachWall {
   optional string entity_id = 1;
@@ -123,6 +134,7 @@ message AncientShrine {
   repeated ShrineCasket caskets = 6;
   repeated ShrineGuard guards = 7;
   repeated ShrineBreachWall breach_walls = 8;
+  repeated ShrineOccupant occupants = 9;
 }
 message AncientShrinesRequest { ReadScope scope = 1; }
 message AncientShrinesSnapshot {

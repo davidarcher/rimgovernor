@@ -31,8 +31,9 @@ func NewPawnOrderControl(client *Client) (*PawnOrderControl, error) {
 // search may produce either a cell or container destination job; equip is a
 // single fixed job available to a drafted or undrafted pawn
 // (FloatMenuOptionProvider_Equip applies no draft gate); repair is
-// WorkGiver_Repair's single fixed job (issue #2). Explosives and
-// drafted combat stay on the AttackTarget contract.
+// WorkGiver_Repair's single fixed job (issue #2); open casket is
+// JobDriver_Open's single Open job, ordered to a drafted or undrafted pawn
+// (#460). Explosives and drafted combat stay on the AttackTarget contract.
 func pawnOrderJobDefs(kind o.PawnOrderKind) []string {
 	switch kind {
 	case o.PawnOrderKind_PAWN_ORDER_KIND_TEND:
@@ -49,6 +50,8 @@ func pawnOrderJobDefs(kind o.PawnOrderKind) []string {
 		return []string{"Clean"}
 	case o.PawnOrderKind_PAWN_ORDER_KIND_REPAIR:
 		return []string{"Repair"}
+	case o.PawnOrderKind_PAWN_ORDER_KIND_OPEN_CASKET:
+		return []string{"Open"}
 	default:
 		return nil
 	}

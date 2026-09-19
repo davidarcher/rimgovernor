@@ -122,6 +122,7 @@ const (
 	HeldWallRemovalTargetChanged       HeldReason = "wall_removal_target_changed"
 	HeldExcavationUnsupported          HeldReason = "excavation_unsupported"
 	HeldExcavationGeometryChanged      HeldReason = "excavation_geometry_changed"
+	HeldOpenerUnavailable              HeldReason = "opener_unavailable"
 )
 
 // orderedHeldReasons lists every reason in the fixed, deterministic order
@@ -142,6 +143,7 @@ var orderedHeldReasons = []HeldReason{
 	HeldStructureIneligible, HeldUnsuitableEquipment,
 	HeldUnsupportedThreat, HeldWallRemovalGeometryChanged, HeldWallRemovalTargetChanged,
 	HeldExcavationUnsupported, HeldExcavationGeometryChanged,
+	HeldOpenerUnavailable,
 }
 
 func (r HeldReason) valid() bool {

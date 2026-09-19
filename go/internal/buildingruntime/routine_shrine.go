@@ -33,9 +33,13 @@ type RoutineShrineSource interface {
 // wall falling is the method's end: the plan has no open work, the worker
 // releases the owned drafts and ActiveCombat answers the guards); and the
 // claim (#459), once the shrine is open and guard-free every empty casket
-// the player does not own is claimed in one method. Filled caskets are
-// left sealed. Ranged breaching is not composed; it needs an
-// attack-building order.
+// the player does not own is claimed in one method; and the opening
+// (#460), under a policy that opens caskets, the melee lock: one
+// violence-capable melee colonist drafted at each filled casket and one
+// OpenCasket order, held lock_understaffed while the squad cannot cover
+// every casket. Off policy, filled caskets stay sealed. Ranged breaching
+// and the heat opening are not composed; they need an attack-building
+// order and an ignition the controller lacks.
 type RoutineShrinePlanner struct {
 	reviewer *RoutineReviewer
 	native   RoutineShrineSource
@@ -138,7 +142,7 @@ func (r *RoutineShrinePlanner) step(call, epoch context.Context, arbiter *stepAr
 		return RoutineShrineResult{Reason: BuildingMethodUnknown}, nil
 	}
 	targets := map[string]bool{}
-	for _, id := range policy.ShrineClearanceTargets(shrines) {
+	for _, id := range policy.ShrineClearanceTargets(shrines, r.reviewer.policy.Shrine) {
 		targets[id] = true
 	}
 	var candidates []policy.AncientShrine
@@ -157,11 +161,32 @@ func (r *RoutineShrinePlanner) step(call, epoch context.Context, arbiter *stepAr
 			return r.claim(call, epoch, state, goal, shrine, caskets, started)
 		}
 	}
+	held := RoutineShrineResult{Reason: BuildingMethodHeld}
+	opens := policy.ShrineOpenTargets(candidates, r.reviewer.policy.Shrine)
+	if len(opens) > 0 {
+		squad, err := shrineSquad(call, r.native, boundary.Identity(state.Snapshot), nil)
+		if err != nil {
+			return RoutineShrineResult{}, err
+		}
+		for _, shrine := range candidates {
+			caskets := opens[shrine.ID]
+			if len(caskets) == 0 {
+				continue
+			}
+			lock := policy.ShrineMeleeLock(caskets, squad)
+			if lock.Reason != "" {
+				if held.Hold == "" {
+					held.Hold, held.Shrine = lock.Reason, shrine.ID
+				}
+				continue
+			}
+			return r.open(call, epoch, state, goal, shrine, caskets, lock, started, arbiter)
+		}
+	}
 	reports, err := shrineReadiness(call, r.native, boundary.Identity(state.Snapshot), candidates, nil, colony.Projection.Threat.RaidPoints, colony.Projection.Center, colony.Projection.Bounds)
 	if err != nil {
 		return RoutineShrineResult{}, err
 	}
-	held := RoutineShrineResult{Reason: BuildingMethodHeld}
 	for i, report := range reports {
 		shrine := candidates[i]
 		reason := policy.ShrineHoldReason(shrine, report.Readiness)
@@ -301,6 +326,91 @@ func (r *RoutineShrinePlanner) breach(call, epoch context.Context, state Control
 	var dependencies []domain.ActionDependency
 	for _, action := range actions[:len(actions)-1] {
 		dependencies = append(dependencies, domain.ActionDependency{Action: breachID, Requires: action.ID()})
+	}
+	plan, err := domain.NewPlan(id, 1, actions, dependencies...)
+	if err != nil {
+		return RoutineShrineResult{}, err
+	}
+	if err = p.current(call, epoch); err != nil {
+		return RoutineShrineResult{}, err
+	}
+	elapsed := r.reviewer.clock.Now().Sub(started)
+	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
+		return RoutineShrineResult{}, ErrControl
+	}
+	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+		return RoutineShrineResult{}, err
+	}
+	return RoutineShrineResult{Reason: BuildingMethodAdmitted, Plan: id, Shrine: shrine.ID}, nil
+}
+
+// open commits one open, guard-free shrine's melee lock (#460): an owned
+// draft and a move to the casket's interaction cell for each locker, then
+// one OpenCasket by the opener on the lowest casket, which ejects every
+// casket of the group. The lockers stand where the ancients drop and their
+// drafted auto-attack answers a waking hostile; the plan has no further
+// work, so the worker keeps the drafts until the opening resolves and
+// ActiveCombat and the custody planner take the occupants from there.
+func (r *RoutineShrinePlanner) open(call, epoch context.Context, state ControlState, goal store.GoalState, shrine policy.AncientShrine, caskets []policy.ShrineCasket, lock policy.ShrineLock, started time.Time, arbiter *stepArbiter) (RoutineShrineResult, error) {
+	p := r.reviewer.player
+	lockers := make([]domain.PawnID, 0, len(lock.Lockers))
+	for _, casket := range caskets {
+		lockers = append(lockers, lock.Lockers[casket.EntityID])
+	}
+	if !arbiter.tryClaim(lockers) {
+		return RoutineShrineResult{Reason: BuildingMethodUsed}, nil
+	}
+	prefix := fmt.Sprintf("open-%s-", shrine.ID)
+	attempt := medicalAttemptCount(goal.Methods, goal.Goal.Epoch, prefix)
+	if attempt >= maxMedicalAttemptsPerPatient {
+		return RoutineShrineResult{Reason: BuildingMethodExhausted, Shrine: shrine.ID}, nil
+	}
+	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
+	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
+	id := domain.PlanID(fmt.Sprintf("routine-shrine-%x", digest[:16]))
+	var actions []domain.Action
+	var target policy.ShrineCasket
+	for _, casket := range caskets {
+		if casket.EntityID == lock.Casket {
+			target = casket
+		}
+		locker := lock.Lockers[casket.EntityID]
+		draftID := domain.ActionID(fmt.Sprintf("%s-draft-%s", id, locker))
+		draft, err := domain.NewOwnedDraft(locker)
+		if err != nil {
+			return RoutineShrineResult{}, err
+		}
+		draftAction, err := domain.NewOwnedDraftAction(draftID, draft)
+		if err != nil {
+			return RoutineShrineResult{}, err
+		}
+		movement, err := domain.NewMovement(locker, casket.InteractionCell, draftID)
+		if err != nil {
+			return RoutineShrineResult{}, err
+		}
+		moveAction, err := domain.NewMovementAction(domain.ActionID(fmt.Sprintf("%s-move-%s", id, locker)), movement)
+		if err != nil {
+			return RoutineShrineResult{}, err
+		}
+		actions = append(actions, draftAction, moveAction)
+	}
+	if target.EntityID == "" {
+		return RoutineShrineResult{}, ErrControl
+	}
+	value, err := domain.NewOpenCasket(lock.Opener, target.EntityID, target.Cell)
+	if err != nil {
+		return RoutineShrineResult{}, err
+	}
+	openID := domain.ActionID(fmt.Sprintf("%s-open", id))
+	openAction, err := domain.NewOpenCasketAction(openID, value)
+	if err != nil {
+		return RoutineShrineResult{}, err
+	}
+	actions = append(actions, openAction)
+	// The casket opens only once every locker stands at a casket.
+	var dependencies []domain.ActionDependency
+	for _, action := range actions[:len(actions)-1] {
+		dependencies = append(dependencies, domain.ActionDependency{Action: openID, Requires: action.ID()})
 	}
 	plan, err := domain.NewPlan(id, 1, actions, dependencies...)
 	if err != nil {

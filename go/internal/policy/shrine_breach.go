@@ -19,6 +19,9 @@ const ClearAncientShrine GoalID = "ClearAncientShrine"
 type ShrineHold struct {
 	Shrine, Reason, Wall string
 	Casket               string `json:",omitempty"`
+	// Occupant rows (#460) name a released humanlike and the colony decision
+	// on it (OccupantDecision).
+	Occupant string `json:",omitempty"`
 }
 
 const (
@@ -38,11 +41,20 @@ const (
 // already the player's is done. Both hold shrine_sealed while the room is
 // sealed and guards_alive while a guard stands.
 func CasketDecision(casket ShrineCasket, shrine AncientShrine) string {
+	return CasketDecisionUnder(casket, shrine, ShrinePolicy{})
+}
+
+// CasketDecisionUnder is CasketDecision under an operator policy: with
+// OpenCaskets on, a filled casket of an open, guard-free shrine is opened
+// (#460) instead of left sealed.
+func CasketDecisionUnder(casket ShrineCasket, shrine AncientShrine, policy ShrinePolicy) string {
 	switch {
 	case shrine.Sealed:
 		return CasketHoldSealed
 	case shrine.GuardsAlive():
 		return ShrineHoldGuardsAlive
+	case casket.HasContents && policy.OpenCaskets:
+		return CasketOpen
 	case casket.HasContents:
 		return CasketLeaveSealed
 	case casket.PlayerClaimed:
@@ -86,18 +98,20 @@ const (
 
 // ShrineClearanceTargets are the shrines the breach goal owes work on:
 // those touching Home that are still sealed, open with a guard seen
-// standing, or open and guard-free with an empty casket still to claim
-// (#459). A shrine open but fogged (nobody has looked in) is not a
-// target: exploring is not this goal's, and ActiveCombat answers a guard
-// the moment it is seen. Stable by identity.
-func ShrineClearanceTargets(rows []AncientShrine) []string {
+// standing, open and guard-free with an empty casket still to claim
+// (#459), or with a filled casket the policy opens (#460). A shrine open
+// but fogged (nobody has looked in) is not a target: exploring is not
+// this goal's, and ActiveCombat answers a guard the moment it is seen.
+// Stable by identity.
+func ShrineClearanceTargets(rows []AncientShrine, policy ShrinePolicy) []string {
 	var out []string
 	claims := ShrineClaimTargets(rows)
+	opens := ShrineOpenTargets(rows, policy)
 	for _, row := range rows {
 		if !row.InHome {
 			continue
 		}
-		if row.Sealed || row.GuardsKnown && row.GuardsAlive() || len(claims[row.ID]) > 0 {
+		if row.Sealed || row.GuardsKnown && row.GuardsAlive() || len(claims[row.ID]) > 0 || len(opens[row.ID]) > 0 {
 			out = append(out, row.ID)
 		}
 	}

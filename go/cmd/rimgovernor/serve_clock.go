@@ -813,6 +813,7 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 	}
 	if sc.routineShrinePlans {
 		capabilities.Methods = append(capabilities.Methods, policy.ClearAncientShrine)
+		thresholds.Shrine.OpenCaskets = sc.routineShrineOpenCaskets
 	}
 	if sc.routineBlightPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.RemoveBlight)

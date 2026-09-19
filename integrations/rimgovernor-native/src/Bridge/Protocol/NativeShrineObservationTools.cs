@@ -72,7 +72,8 @@ namespace HomeBridge.BridgeTools
                             row.Caskets.Add(new Obs.ShrineCasket {
                                 EntityId = Id(casket.GetUniqueLoadID()), Cell = Cell(casket.Position.x, casket.Position.z),
                                 HitPoints = (uint)Math.Max(0, casket.HitPoints), MaxHitPoints = (uint)Math.Max(1, casket.MaxHitPoints),
-                                HasContents = casket.HasAnyContents, PlayerClaimed = casket.Faction == player
+                                HasContents = casket.HasAnyContents, PlayerClaimed = casket.Faction == player,
+                                InteractionCell = Cell(casket.InteractionCell.x, casket.InteractionCell.z)
                             });
                         }
                         if (!fogged) {
@@ -84,6 +85,12 @@ namespace HomeBridge.BridgeTools
                                 if (guard == null) continue;
                                 Require(row.Guards.Count < GuardLimit, "Shrine guards exceed " + GuardLimit + ".");
                                 row.Guards.Add(guard);
+                            }
+                            foreach (var thing in things) {
+                                var occupant = Occupant(thing, player);
+                                if (occupant == null || row.Occupants.Any(o => o.EntityId == occupant.EntityId)) continue;
+                                Require(row.Occupants.Count < GuardLimit, "Shrine occupants exceed " + GuardLimit + ".");
+                                row.Occupants.Add(occupant);
                             }
                         }
                         foreach (var room in rooms.OrderBy(r => r.ID)) {
@@ -114,6 +121,21 @@ namespace HomeBridge.BridgeTools
                 catch (ReadLimit limit) { return Missing(Common.UnavailableReason.LimitExceeded, limit.Message); }
                 catch (Exception) { return Missing(Common.UnavailableReason.ReadFailed, "Shrine facts could not be read completely."); }
             }, cancellationToken).ConfigureAwait(false);
+        }
+
+        // Occupant (#460) is any non-player humanlike in the room or its
+        // corpse: what the caskets released, read after the opening. Guards
+        // stay the hostile-threat census; a woken hostile ancient is both.
+        private static Obs.ShrineOccupant? Occupant(Thing thing, Faction player)
+        {
+            switch (thing) {
+                case Pawn pawn when pawn.RaceProps != null && pawn.RaceProps.Humanlike && pawn.Faction != player:
+                    return new Obs.ShrineOccupant { EntityId = Id(pawn.GetUniqueLoadID()), Hostile = pawn.Faction != null && pawn.Faction.HostileTo(player), Downed = pawn.Downed, Dead = pawn.Dead, Prisoner = pawn.IsPrisonerOfColony, Faction = pawn.Faction?.def?.defName ?? "" };
+                case Corpse corpse when corpse.InnerPawn?.RaceProps != null && corpse.InnerPawn.RaceProps.Humanlike && corpse.InnerPawn.Faction != player:
+                    return new Obs.ShrineOccupant { EntityId = Id(corpse.InnerPawn.GetUniqueLoadID()), Hostile = corpse.InnerPawn.Faction != null && corpse.InnerPawn.Faction.HostileTo(player), Downed = false, Dead = true, Prisoner = false, Faction = corpse.InnerPawn.Faction?.def?.defName ?? "" };
+                default:
+                    return null;
+            }
         }
 
         private static Obs.ShrineGuard? Guard(Thing thing, Faction player)

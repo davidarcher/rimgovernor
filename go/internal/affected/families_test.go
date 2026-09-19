@@ -21,7 +21,7 @@ func TestRoutineFamilyFilesCoverFamilies(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	shared := map[string]bool{"routine_food_plan.go": true, "routine_census.go": true, "routine_yield.go": true, "routine_work_projects.go": true, "routine_sleeping.go": true}
+	shared := map[string]bool{"routine_food_plan.go": true, "routine_census.go": true, "routine_yield.go": true, "routine_work_projects.go": true, "routine_sleeping.go": true, "routine_idle_draft.go": true}
 	for _, entry := range entries {
 		name := entry.Name()
 		if !strings.HasPrefix(name, "routine_") || strings.HasSuffix(name, "_test.go") || !strings.HasSuffix(name, ".go") {

@@ -69,13 +69,16 @@ func ObserveShrines(ctx context.Context, source ShrineSource, expected Identity)
 	for _, row := range v.Shrines {
 		shrine := AncientShrine{ID: row.GetShrineId(), Minimum: cell(row.Room.Minimum), Maximum: cell(row.Room.Maximum), Sealed: row.GetSealed(), InHome: row.GetInHome(), GuardsKnown: row.GetGuardsKnown()}
 		for _, casket := range row.Caskets {
-			shrine.Caskets = append(shrine.Caskets, policy.ShrineCasket{EntityID: casket.GetEntityId(), Cell: cell(casket.Cell), HitPoints: casket.GetHitPoints(), MaxHitPoints: casket.GetMaxHitPoints(), HasContents: casket.GetHasContents(), PlayerClaimed: casket.GetPlayerClaimed()})
+			shrine.Caskets = append(shrine.Caskets, policy.ShrineCasket{EntityID: casket.GetEntityId(), Cell: cell(casket.Cell), InteractionCell: cell(casket.InteractionCell), HitPoints: casket.GetHitPoints(), MaxHitPoints: casket.GetMaxHitPoints(), HasContents: casket.GetHasContents(), PlayerClaimed: casket.GetPlayerClaimed()})
 		}
 		for _, guard := range row.Guards {
 			shrine.Guards = append(shrine.Guards, policy.ShrineGuard{EntityID: guard.GetEntityId(), Kind: kinds[guard.Kind], Downed: guard.GetDowned(), Dead: guard.GetDead()})
 		}
 		for _, wall := range row.BreachWalls {
 			shrine.BreachWalls = append(shrine.BreachWalls, policy.ShrineBreachWall{EntityID: wall.GetEntityId(), DefName: wall.GetDefName(), Cell: cell(wall.Cell), Outside: cell(wall.Outside)})
+		}
+		for _, occupant := range row.Occupants {
+			shrine.Occupants = append(shrine.Occupants, policy.ShrineOccupant{EntityID: occupant.GetEntityId(), Hostile: occupant.GetHostile(), Downed: occupant.GetDowned(), Dead: occupant.GetDead(), Prisoner: occupant.GetPrisoner(), Faction: occupant.GetFaction()})
 		}
 		rows = append(rows, shrine)
 	}

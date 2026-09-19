@@ -148,6 +148,7 @@ type buildingServiceBridge struct {
 	bedMedical          *bedmedical.Capabilities
 	growerCrop          *growercrop.Capabilities
 	claimBuilding       *claimbuilding.Capabilities
+	openCasket          *buildingruntime.OpenCasketCapabilities
 	bedAssign           *bedassign.Capabilities
 	homeCoverage        *buildingruntime.HomeCoverageCapabilities
 	wallRemoval         *buildingruntime.WallRemovalCapabilities
@@ -371,6 +372,7 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		bedMedical:          &bedmedical.Capabilities{Native: client, Writer: bedMedicalControl},
 		growerCrop:          &growercrop.Capabilities{Native: client, Writer: growerCropControl},
 		claimBuilding:       &claimbuilding.Capabilities{Native: client, Writer: claimBuildingControl},
+		openCasket:          &buildingruntime.OpenCasketCapabilities{Native: client, Writer: pawnOrder},
 		bedAssign:           &bedassign.Capabilities{Native: client, Writer: bedAssignWriter},
 		homeCoverage:        &buildingruntime.HomeCoverageCapabilities{Native: client, Writer: homeCoverageWriter},
 		wallRemoval:         &buildingruntime.WallRemovalCapabilities{Native: client, Writer: wallRemovalWriter},
@@ -762,6 +764,14 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		claimBuildingCapabilities = client.claimBuilding
 	}
+	// The shrine family opens filled caskets through the shared executor (#460).
+	var openCasketCapabilities *buildingruntime.OpenCasketCapabilities
+	if config.routineShrinePlans {
+		if client.openCasket == nil {
+			return errors.New("shrine plans require typed open casket capabilities")
+		}
+		openCasketCapabilities = client.openCasket
+	}
 	// The sleeping family transfers bed ownership through the shared executor.
 	var bedAssignCapabilities *bedassign.Capabilities
 	if config.routineSleepingPlans {
@@ -831,6 +841,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		BedMedical:          bedMedicalCapabilities,
 		GrowerCrop:          growerCropCapabilities,
 		ClaimBuilding:       claimBuildingCapabilities,
+		OpenCasket:          openCasketCapabilities,
 		BedAssign:           bedAssignCapabilities,
 		HomeCoverage:        homeCoverageCapabilities,
 		WallRemoval:         wallRemovalCapabilities,

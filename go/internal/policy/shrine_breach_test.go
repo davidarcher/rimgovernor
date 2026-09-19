@@ -15,7 +15,7 @@ func TestShrineClearanceTargetsAndHoldReasons(t *testing.T) {
 		{ID: "guarded", InHome: true, GuardsKnown: true, Guards: []ShrineGuard{{EntityID: "g", Kind: ShrineGuardMechanoid}}},
 		{ID: "cleared", InHome: true, GuardsKnown: true, Guards: []ShrineGuard{{EntityID: "g", Kind: ShrineGuardMechanoid, Dead: true}}},
 	}
-	got := ShrineClearanceTargets(rows)
+	got := ShrineClearanceTargets(rows, ShrinePolicy{})
 	if len(got) != 2 || got[0] != "guarded" || got[1] != "z-sealed" {
 		t.Fatal(got)
 	}
@@ -87,12 +87,28 @@ func TestCasketDecisionAndClaimTargets(t *testing.T) {
 	if len(claims) != 1 || len(claims["open"]) != 2 || claims["open"][0].EntityID != "a-empty" || claims["open"][1].EntityID != "b-empty" {
 		t.Fatal(claims)
 	}
-	if got := ShrineClearanceTargets([]AncientShrine{sealed, guarded, open, away}); len(got) != 3 || got[0] != "guarded" || got[1] != "open" || got[2] != "sealed" {
+	if got := ShrineClearanceTargets([]AncientShrine{sealed, guarded, open, away}, ShrinePolicy{}); len(got) != 3 || got[0] != "guarded" || got[1] != "open" || got[2] != "sealed" {
 		t.Fatal(got)
 	}
 	done := open
 	done.Caskets = []ShrineCasket{mine, filled}
-	if got := ShrineClearanceTargets([]AncientShrine{done}); len(got) != 0 {
+	if got := ShrineClearanceTargets([]AncientShrine{done}, ShrinePolicy{}); len(got) != 0 {
 		t.Fatal(got)
+	}
+	// Under the opening policy (#460) the filled casket keeps the shrine a
+	// target and is decided open; the other decisions do not move.
+	opening := ShrinePolicy{OpenCaskets: true}
+	if got := ShrineClearanceTargets([]AncientShrine{done}, opening); len(got) != 1 || got[0] != "open" {
+		t.Fatal(got)
+	}
+	if CasketDecisionUnder(filled, open, opening) != CasketOpen || CasketDecisionUnder(filled, guarded, opening) != ShrineHoldGuardsAlive || CasketDecisionUnder(empty, open, opening) != CasketClaim {
+		t.Fatal("casket decisions under opening")
+	}
+	opens := ShrineOpenTargets([]AncientShrine{sealed, guarded, open, away}, opening)
+	if len(opens) != 1 || len(opens["open"]) != 1 || opens["open"][0].EntityID != "a-filled" {
+		t.Fatal(opens)
+	}
+	if len(ShrineOpenTargets([]AncientShrine{open}, ShrinePolicy{})) != 0 {
+		t.Fatal("default policy opens nothing")
 	}
 }

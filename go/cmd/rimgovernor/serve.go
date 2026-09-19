@@ -80,6 +80,7 @@ type serveConfig struct {
 	routineHusbandryPlans           bool
 	routineAllowSlaughter           bool
 	routineAllowRelease             bool
+	routineShrineOpenCaskets        bool
 	routineHerdPopulationMax        herdPopulationMaxFlags
 	routineHerdPopulationMin        herdPopulationMaxFlags
 	routinePrisonerInteractionPlans bool
@@ -170,6 +171,7 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.Var(&c.routineStoppedResources, "routine-resource-stop", "repeatable RESOURCE name ProductionPolicy keeps stopped in the current native production policy")
 	flags.BoolVar(&c.routineAllowSlaughter, "routine-allow-slaughter", false, "let MaintainHerd propose a slaughter write for a surplus animal once --routine-herd-population-max is declared; slaughter is irreversible and stays off unless explicitly set")
 	flags.BoolVar(&c.routineAllowRelease, "routine-allow-release", false, "let MaintainHerd propose a release-to-wild write for a surplus animal once --routine-herd-population-max is declared; preferred over slaughter when both are set")
+	flags.BoolVar(&c.routineShrineOpenCaskets, "routine-shrine-open-caskets", false, "let ClearAncientShrine open filled ancient cryptosleep caskets under a melee lock (one violence-capable melee colonist drafted at each casket) once the shrine is breached and guard-free; off, filled caskets stay sealed. Turn on once the colony can hold prisoners: the ancients wake hostile and a downed one is worth capturing")
 	flags.Var(&c.routineHerdPopulationMax, "routine-herd-population-max", "repeatable RACE:MAX native animal definition population ceiling MaintainHerd removes surplus toward, only once --routine-allow-release or --routine-allow-slaughter is also set")
 	flags.Var(&c.routineHerdPopulationMin, "routine-herd-population-min", "repeatable RACE:MIN native animal definition population floor MaintainHerd designates tameable wild animals toward")
 	flags.Float64Var(&c.routinePrisonerReleaseAfterDays, "routine-prisoner-release-after-days", 0, "days in custody after which MaintainPopulation proposes releasing a prisoner whose recruit resistance is unbroken (or who was never recruitable) while the colony food runway is below its routine target; 0 (the default) never releases")
@@ -253,6 +255,9 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	}
 	if (c.routineAllowSlaughter || c.routineAllowRelease || len(c.routineHerdPopulationMax) > 0 || len(c.routineHerdPopulationMin) > 0) && !c.routineHusbandryPlans {
 		return c, errors.New("--routine-allow-slaughter, --routine-allow-release, --routine-herd-population-max and --routine-herd-population-min require the husbandry routine family")
+	}
+	if c.routineShrineOpenCaskets && !c.routineShrinePlans {
+		return c, errors.New("--routine-shrine-open-caskets requires the shrine routine family")
 	}
 	if c.routinePrisonerReleaseAfterDays != 0 && !c.routinePrisonerInteractionPlans {
 		return c, errors.New("--routine-prisoner-release-after-days requires the prisoner-interaction routine family")

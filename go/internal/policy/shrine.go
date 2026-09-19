@@ -17,9 +17,11 @@ const (
 // ShrineCasket is one ancient cryptosleep casket. HasContents is the native
 // fact; who is inside stays unknown until the casket opens. A casket under
 // 20% hit points explodes, so HitPoints is a safety reading, not trivia.
+// InteractionCell is where a pawn stands to open it and where the ejected
+// occupant lands (#460).
 type ShrineCasket struct {
 	EntityID                string
-	Cell                    domain.Cell
+	Cell, InteractionCell   domain.Cell
 	HitPoints, MaxHitPoints uint32
 	HasContents             bool
 	PlayerClaimed           bool
@@ -50,6 +52,9 @@ type AncientShrine struct {
 	Caskets          []ShrineCasket
 	Guards           []ShrineGuard
 	BreachWalls      []ShrineBreachWall
+	// Occupants are the humanlikes the caskets released (#460), hostile or
+	// not, and their corpses; empty while the caskets are sealed.
+	Occupants []ShrineOccupant
 }
 
 // GuardsAlive reports whether any observed guard still stands or lies downed.

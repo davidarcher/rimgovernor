@@ -681,13 +681,14 @@ has no open work, the worker releases the owned drafts and `ActiveCombat`
 answers the guards, which the goal then holds `guards_alive` until they are
 dead or downed. Eight attempts per wall and goal epoch; Stop and Manual
 release the drafts and controller-owned designations as for any owned
-draft. Ranged breaching and deliberate casket opening (#460) are not
-composed.
+draft. Ranged breaching is not composed.
 
-Caskets follow the default never-open policy (#459). `policy.CasketDecision`
+Caskets follow the default never-open policy (#459) unless
+`--routine-shrine-open-caskets` is set (#460). `policy.CasketDecisionUnder`
 names each casket's row in `ShrineHolds`: `shrine_sealed` and
 `guards_alive` while the breach is owed, `leave_sealed` for a casket that
-holds anything (the ancients inside are a risk with no upside), `claimed`
+holds anything under the default policy (the ancients inside are a risk
+with no upside), `open` for one the opening policy will open, `claimed`
 for one already the player's, and `claim` for an empty unowned casket. An
 open, guard-free shrine touching Home with a `claim` casket is still the
 goal's target: before any readiness read the planner reads each such
@@ -700,6 +701,28 @@ census's `casket` hold; `ClearAncientShrine` never designates a casket,
 and a casket under 20% hit points explodes, so the census's hit points are
 a safety reading only. The deficit recovers once every casket is filled or
 the player's.
+
+Under the opening policy (#460) an open, guard-free shrine touching Home
+with a filled casket is the goal's target after any claims: the planner
+reads the squad and `policy.ShrineMeleeLock` staffs one violence-capable
+colonist whose primary is not a ranged weapon per filled casket,
+healthiest first, or holds `lock_understaffed`. The method is an owned
+draft and a move to the casket's interaction cell per locker, then one
+`open_casket` by the opener (the locker of the lowest casket) depending on
+every draft and move; opening one casket ejects the whole group at the
+lockers' feet, where a drafted colonist's auto-attack answers a waking
+hostile. The plan has no further work: the worker releases the drafts once
+the opening resolves and `ActiveCombat` and the custody planner take the
+released ancients from there, the goal holding `guards_alive` while a
+hostile stands. The census then lists each released humanlike or corpse as
+an occupant and `policy.OccupantDecision` names its `ShrineHolds` row:
+`bury` for a corpse (MaintainWaste), `fight` for a standing hostile
+(ActiveCombat), `capture` for a downed hostile or a standing neutral while
+`JoinerCapacity` has room (MaintainPopulation's custody method), `release`
+otherwise and `captured` once a prisoner. The flag belongs on once the
+colony can hold prisoners. The heat opening (door, fuel, ignite over 200 °C)
+and arresting a standing neutral are not composed: they need an ignition
+and an arrest job the controller lacks.
 
 ## Autonomous supply safety
 

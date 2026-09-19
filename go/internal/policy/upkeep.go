@@ -32,11 +32,15 @@ type UpkeepObservation struct {
 	Chunks domain.Fact[[]ClearanceChunk]
 	// Shrines is the ancient shrine census (#456) ClearAncientShrine
 	// measures (#458); unknown under a native without the read.
-	Shrines    domain.Fact[[]AncientShrine]
-	Items      domain.Fact[[]UpkeepItem]
-	Structures domain.Fact[[]UpkeepStructure]
-	Fires      domain.Fact[[]UpkeepFire]
-	Filth      domain.Fact[[]UpkeepFilth]
+	Shrines domain.Fact[[]AncientShrine]
+	// ShrinePolicy is the operator's casket stance (#460), filled by the
+	// review from RoutinePolicy the way CleaningContext fills the cleaning
+	// inputs, so every ReviewUpkeep caller measures the same targets.
+	ShrinePolicy ShrinePolicy
+	Items        domain.Fact[[]UpkeepItem]
+	Structures   domain.Fact[[]UpkeepStructure]
+	Fires        domain.Fact[[]UpkeepFire]
+	Filth        domain.Fact[[]UpkeepFilth]
 	// Rooms, CleaningWorkers and Tick feed the bounded cleaning response
 	// (ReviewCleanliness): the measured room census, the count of workers
 	// with Cleaning enabled, and the review tick the dirty-room latch is
@@ -337,7 +341,7 @@ func ReviewUpkeepWith(v UpkeepObservation, previous UpkeepHistory, issued map[Go
 				return r, errors.New("invalid shrine")
 			}
 		}
-		shrineTargets = domain.Known(ShrineClearanceTargets(rows))
+		shrineTargets = domain.Known(ShrineClearanceTargets(rows, v.ShrinePolicy))
 	}
 	r.History.Shrine = add(ClearAncientShrine, 3, previous.Shrine, shrineTargets, domain.Unknown[float64](), false)
 	return r, nil

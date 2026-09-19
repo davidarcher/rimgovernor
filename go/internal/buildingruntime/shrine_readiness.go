@@ -79,19 +79,8 @@ func shrineReadiness(ctx context.Context, native shrineReadinessNative, identity
 				colonists = append(colonists, string(pawn.ID))
 			}
 		}
-		pawns, _, err := native.ReadCombatPawns(ctx, identity, colonists)
-		if err != nil {
+		if squad, err = shrineSquad(ctx, native, identity, colonists); err != nil {
 			return nil, err
-		}
-		for _, row := range pawns.GetObserved().GetPawns() {
-			if row == nil || row.Pawn == nil {
-				continue
-			}
-			facts := policy.ShrineDefenderFacts{SquadDefenderFacts: squadDefenderFacts(row)}
-			if reach := primaryRange(row.Equipment); reach > 0 {
-				facts.WeaponRange = domain.Known(reach)
-			}
-			squad = append(squad, facts)
 		}
 	}
 	for _, shrine := range shrines {
@@ -138,20 +127,22 @@ func shrineReadiness(ctx context.Context, native shrineReadinessNative, identity
 // routineShrineHolds judges every shrine the review's census lists for the
 // journal (#458): the readiness reason, guards_alive after a breach, or
 // ready with the chosen wall, then one row per casket naming its
-// CasketDecision (#459) so a skipped filled casket is not silence. A native
+// CasketDecisionUnder (#459, #460) so a skipped filled casket is not silence,
+// and one per released occupant naming its OccupantDecision (#460). A native
 // without the readiness reads leaves every shrine row readiness_unknown;
 // an unknown census leaves no rows.
-func routineShrineHolds(ctx context.Context, native any, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection) ([]policy.ShrineHold, error) {
+func routineShrineHolds(ctx context.Context, native any, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection, shrinePolicy policy.ShrinePolicy) ([]policy.ShrineHold, error) {
 	shrines, known := projection.Facts.Upkeep.Shrines.Value()
 	if !known || len(shrines) == 0 {
 		return nil, nil
 	}
+	custody := policy.JoinerCapacity(projection.Facts.JoinerCapacity())
 	reads, ok := native.(shrineReadinessNative)
 	if !ok {
 		out := make([]policy.ShrineHold, 0, len(shrines))
 		for _, shrine := range shrines {
 			out = append(out, policy.ShrineHold{Shrine: shrine.ID, Reason: ShrineHoldReadinessUnknown})
-			out = append(out, casketHolds(shrine)...)
+			out = append(out, casketHolds(shrine, shrinePolicy, custody)...)
 		}
 		return out, nil
 	}
@@ -162,14 +153,22 @@ func routineShrineHolds(ctx context.Context, native any, snapshot domain.Generat
 	out := make([]policy.ShrineHold, 0, len(reports))
 	for i, report := range reports {
 		out = append(out, policy.ShrineHold{Shrine: shrines[i].ID, Reason: policy.ShrineHoldReason(shrines[i], report.Readiness), Wall: report.Readiness.Wall.EntityID})
-		out = append(out, casketHolds(shrines[i])...)
+		out = append(out, casketHolds(shrines[i], shrinePolicy, custody)...)
 	}
 	return out, nil
 }
-func casketHolds(shrine policy.AncientShrine) []policy.ShrineHold {
-	out := make([]policy.ShrineHold, 0, len(shrine.Caskets))
+
+// casketHolds names each casket decision under the opening policy and,
+// after an opening, each released occupant decision (#460); custody is
+// JoinerCapacity: an unknown reading captures nobody.
+func casketHolds(shrine policy.AncientShrine, shrinePolicy policy.ShrinePolicy, custody domain.Fact[bool]) []policy.ShrineHold {
+	out := make([]policy.ShrineHold, 0, len(shrine.Caskets)+len(shrine.Occupants))
 	for _, casket := range shrine.Caskets {
-		out = append(out, policy.ShrineHold{Shrine: shrine.ID, Reason: policy.CasketDecision(casket, shrine), Casket: casket.EntityID})
+		out = append(out, policy.ShrineHold{Shrine: shrine.ID, Reason: policy.CasketDecisionUnder(casket, shrine, shrinePolicy), Casket: casket.EntityID})
+	}
+	room, _ := custody.Value()
+	for _, occupant := range shrine.Occupants {
+		out = append(out, policy.ShrineHold{Shrine: shrine.ID, Reason: policy.OccupantDecision(occupant, room), Occupant: occupant.EntityID})
 	}
 	return out
 }
@@ -177,3 +176,34 @@ func casketHolds(shrine policy.AncientShrine) []policy.ShrineHold {
 // ShrineHoldReadinessUnknown is the journal's reason under a native that
 // cannot read combat pawns, the defense site or the emergency census.
 const ShrineHoldReadinessUnknown = "readiness_unknown"
+
+// shrineSquad reads the combat facts of the named colonists (every colonist
+// of the emergency census when nil) as shrine defenders: the breach squad
+// and the melee lock (#460) staff from it.
+func shrineSquad(ctx context.Context, native shrineReadinessNative, identity *c.Identity, colonists []string) ([]policy.ShrineDefenderFacts, error) {
+	if colonists == nil {
+		observed, _, err := native.ReadEmergency(ctx, identity)
+		if err != nil {
+			return nil, err
+		}
+		for _, pawn := range observed.Facts.Colonists {
+			colonists = append(colonists, string(pawn.ID))
+		}
+	}
+	pawns, _, err := native.ReadCombatPawns(ctx, identity, colonists)
+	if err != nil {
+		return nil, err
+	}
+	var squad []policy.ShrineDefenderFacts
+	for _, row := range pawns.GetObserved().GetPawns() {
+		if row == nil || row.Pawn == nil {
+			continue
+		}
+		facts := policy.ShrineDefenderFacts{SquadDefenderFacts: squadDefenderFacts(row)}
+		if reach := primaryRange(row.Equipment); reach > 0 {
+			facts.WeaponRange = domain.Known(reach)
+		}
+		squad = append(squad, facts)
+	}
+	return squad, nil
+}

@@ -38,11 +38,24 @@ func ValidateAdmission(a domain.Action, p domain.Progress, admission Admission) 
 	if admission.Snapshot.Plan != v.Plan || admission.Snapshot.Revision != v.Revision || admission.Snapshot.Native == 0 || admission.Tick < 0 {
 		return errors.New("admission plan or tick mismatch")
 	}
-	r, ok := a.Repair()
-	if !ok || r.Pawn() != admission.Pawn || r.Structure() != admission.Structure || r.Cell() != admission.Cell || idShaped(admission.PawnSnapshotToken) != nil || idShaped(admission.StructureSnapshotToken) != nil {
+	// An OpenCasket (#460) records the same pawn/thing/cell CAS evidence a
+	// repair does, so it shares this admission the way a claim shares the
+	// building-patch admission.
+	pawn, structure, cell, ok := admissionTarget(a)
+	if !ok || pawn != admission.Pawn || structure != admission.Structure || cell != admission.Cell || idShaped(admission.PawnSnapshotToken) != nil || idShaped(admission.StructureSnapshotToken) != nil {
 		return errors.New("invalid repair admission")
 	}
 	return nil
+}
+
+func admissionTarget(a domain.Action) (domain.PawnID, string, domain.Cell, bool) {
+	if r, ok := a.Repair(); ok {
+		return r.Pawn(), r.Structure(), r.Cell(), true
+	}
+	if o, ok := a.OpenCasket(); ok {
+		return o.Pawn(), o.Casket(), o.Cell(), true
+	}
+	return "", "", domain.Cell{}, false
 }
 
 func LoadAdmission(ctx context.Context, tx *sql.Tx, a domain.Action, p domain.Progress) (Admission, bool, error) {
