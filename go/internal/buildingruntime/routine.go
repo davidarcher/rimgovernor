@@ -33,7 +33,7 @@ type RoutineReviewer struct {
 // same targets DetectRoutine measures the latches against, so a planner's
 // deficit, field budget and butcher gate agree with the review.
 func (r *RoutineReviewer) seasonal(facts policy.RoutineFacts) policy.RoutinePolicy {
-	return r.policy.Seasonal(facts.Calendar)
+	return r.policy.Seasonal(facts.Calendar, facts.DisasterConditions)
 }
 
 // RoutineCapabilities is the runtime's complete configured method set. Omitting

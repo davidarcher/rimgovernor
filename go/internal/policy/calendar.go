@@ -43,21 +43,32 @@ func (c Calendar) Valid() bool {
 // one grow cycle of the fastest starter crop is added, because a harvest
 // lags the first growing day, and the whole is capped at one year. Unknown
 // while the calendar is unknown or invalid.
-func HarvestGapDays(calendar domain.Fact[Calendar]) domain.Fact[float64] {
+//
+// An observed growth pause (GrowthPauseDays: a volcanic winter or cold snap
+// with a remaining-duration read) extends the gap. While crops grow it is
+// added outright, since the next harvest waits for the pause to lift; while
+// they do not, the pause plus the first harvest cycle stands in for a
+// shorter seasonal wait. A pause on an unknown calendar is the whole gap.
+func HarvestGapDays(calendar domain.Fact[Calendar], conditions domain.Fact[[]DisasterCondition]) domain.Fact[float64] {
+	pause := GrowthPauseDays(conditions)
 	c, known := calendar.Value()
 	if !known || !c.Valid() {
-		return domain.Unknown[float64]()
+		if pause <= 0 {
+			return domain.Unknown[float64]()
+		}
+		return domain.Known(math.Min(YearDays, pause+firstHarvestDays))
 	}
 	if c.GrowingDaysUntil > 0 {
-		return domain.Known(math.Min(YearDays, c.GrowingDaysUntil+firstHarvestDays))
+		return domain.Known(math.Min(YearDays, math.Max(c.GrowingDaysUntil, pause)+firstHarvestDays))
 	}
 	winter := YearDays - c.GrowingDays
-	if winter <= 0 {
-		return domain.Known(0.0)
+	var gap float64
+	if winter > 0 {
+		gap = math.Min(YearDays, winter+firstHarvestDays)
+		lead := gap + fieldCycles*firstHarvestDays
+		gap *= math.Max(0, math.Min(1, 1-c.GrowingDaysRemaining/lead))
 	}
-	gap := math.Min(YearDays, winter+firstHarvestDays)
-	lead := gap + fieldCycles*firstHarvestDays
-	return domain.Known(gap * math.Max(0, math.Min(1, 1-c.GrowingDaysRemaining/lead)))
+	return domain.Known(math.Min(YearDays, gap+pause))
 }
 
 // firstHarvestDays is the grow cycle the harvest gap adds past the first
@@ -75,10 +86,10 @@ const (
 // by the target's factor, so a colony fills its fields, larder and woodpile
 // against the coming winter instead of holding the flat summer thresholds
 // into the first frost. FootholdFoodDays and every other field are
-// unchanged, an unknown calendar leaves the policy as configured, and the
-// result still satisfies Validate.
-func (p RoutinePolicy) Seasonal(calendar domain.Fact[Calendar]) RoutinePolicy {
-	gap, known := HarvestGapDays(calendar).Value()
+// unchanged, an unknown calendar with no observed growth pause leaves the
+// policy as configured, and the result still satisfies Validate.
+func (p RoutinePolicy) Seasonal(calendar domain.Fact[Calendar], conditions domain.Fact[[]DisasterCondition]) RoutinePolicy {
+	gap, known := HarvestGapDays(calendar, conditions).Value()
 	if !known || gap <= 0 || p.FoodTargetDays <= 0 {
 		return p
 	}

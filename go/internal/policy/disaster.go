@@ -55,6 +55,58 @@ func (c DisasterCondition) RemainingTicks() domain.Fact[int64] {
 	return domain.Known(*c.TicksLeft)
 }
 
+// Native game condition definitions the routine reviews consult by name.
+const (
+	ConditionSolarFlare     = "SolarFlare"
+	ConditionVolcanicWinter = "VolcanicWinter"
+	ConditionColdSnap       = "ColdSnap"
+)
+
+// ConditionRemainingTicks is the longest observed remaining duration of any
+// listed condition definition that is active with a native TicksLeft read:
+// zero when the census is known and no listed condition carries one, unknown
+// while the condition census itself is unknown. A listed condition without a
+// remaining-duration read contributes nothing: the reviews that consult this
+// plan against a duration, never against the bare presence of a condition.
+func ConditionRemainingTicks(conditions domain.Fact[[]DisasterCondition], definitions ...string) domain.Fact[int64] {
+	rows, known := conditions.Value()
+	if !known {
+		return domain.Unknown[int64]()
+	}
+	var longest int64
+	for _, c := range rows {
+		if !slices.Contains(definitions, c.Definition) {
+			continue
+		}
+		if ticks, k := c.RemainingTicks().Value(); k {
+			longest = max(longest, ticks)
+		}
+	}
+	return domain.Known(longest)
+}
+
+// SolarFlareHold reports an active solar flare with a known remaining
+// duration: every powered building is off until it ends, so power and
+// refrigeration development is suspended (the goals stay open with no
+// method) rather than answered with generators or coolers for an outage
+// measured in hours.
+func SolarFlareHold(conditions domain.Fact[[]DisasterCondition]) bool {
+	ticks, known := ConditionRemainingTicks(conditions, ConditionSolarFlare).Value()
+	return known && ticks > 0
+}
+
+// GrowthPauseDays is the observed remaining duration, in game days, of the
+// conditions that stop the fields producing regardless of the seasonal
+// calendar: a volcanic winter or cold snap with a native remaining-duration
+// read. Zero when none is active or the census is unknown.
+func GrowthPauseDays(conditions domain.Fact[[]DisasterCondition]) float64 {
+	ticks, known := ConditionRemainingTicks(conditions, ConditionVolcanicWinter, ConditionColdSnap).Value()
+	if !known || ticks <= 0 {
+		return 0
+	}
+	return float64(ticks) / ticksPerDay
+}
+
 type DisasterEvidence struct {
 	Service DisasterService
 	Need    domain.NeedState

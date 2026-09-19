@@ -83,7 +83,10 @@ func RefrigerationFacts(projection ColonyProjection, coolers domain.Fact[[]polic
 	if !tk || !ck {
 		return domain.Unknown[policy.RefrigerationObservation]()
 	}
-	result := policy.RefrigerationObservation{Rooms: temperature.Rooms, Coolers: rows, Cells: projection.Cells, CoolerAvailable: domain.Unknown[bool]()}
+	result := policy.RefrigerationObservation{Rooms: temperature.Rooms, Coolers: rows, Cells: projection.Cells, CoolerAvailable: domain.Unknown[bool](), Blackout: domain.Unknown[bool]()}
+	if topology, known := projection.PowerPlanning.Value(); known {
+		result.Blackout = topology.Blackout
+	}
 	for _, d := range projection.Definitions {
 		if d.Name == "Cooler" {
 			result.CoolerAvailable = d.Available

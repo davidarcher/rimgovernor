@@ -110,8 +110,8 @@ func runCalendar(ctx context.Context, s cases.Session) error {
 	report["biome"] = world["biomeDefName"]
 	report["growing_period_label"] = world["growingPeriodLabel"]
 
-	gap, _ := policy.HarvestGapDays(domain.Known(calendar)).Value()
-	seasonal := policy.DefaultRoutinePolicy().Seasonal(domain.Known(calendar))
+	gap, _ := policy.HarvestGapDays(domain.Known(calendar), domain.Unknown[[]policy.DisasterCondition]()).Value()
+	seasonal := policy.DefaultRoutinePolicy().Seasonal(domain.Known(calendar), domain.Unknown[[]policy.DisasterCondition]())
 	report["harvest_gap_days"] = math.Round(gap*100) / 100
 	report["seasonal_thresholds"] = map[string]any{
 		"food_min_days": seasonal.FoodMinDays, "food_target_days": seasonal.FoodTargetDays,

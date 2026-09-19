@@ -7,6 +7,13 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
+// noConditions is a known, empty condition census: no growth pause.
+var noConditions = domain.Known([]DisasterCondition{})
+
+func timedCondition(definition string, ticks int64) DisasterCondition {
+	return DisasterCondition{ID: definition, Definition: definition, TicksLeft: &ticks}
+}
+
 func TestHarvestGapDaysBridgesTheNonGrowingYear(t *testing.T) {
 	cases := []struct {
 		name     string
@@ -22,20 +29,20 @@ func TestHarvestGapDaysBridgesTheNonGrowingYear(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, known := HarvestGapDays(domain.Known(tc.calendar)).Value()
+			got, known := HarvestGapDays(domain.Known(tc.calendar), noConditions).Value()
 			if !known || math.Abs(got-tc.want) > 1e-9 {
 				t.Fatalf("gap=%v known=%v want %v", got, known, tc.want)
 			}
 		})
 	}
-	if _, known := HarvestGapDays(domain.Unknown[Calendar]()).Value(); known {
+	if _, known := HarvestGapDays(domain.Unknown[Calendar](), noConditions).Value(); known {
 		t.Fatal("unknown calendar produced a gap")
 	}
 	for _, bad := range []Calendar{{GrowingDays: 61}, {GrowingDaysUntil: -1}, {GrowingDaysRemaining: math.NaN()}, {DayOfYear: 60}} {
 		if bad.Valid() {
 			t.Fatal("invalid calendar accepted", bad)
 		}
-		if _, known := HarvestGapDays(domain.Known(bad)).Value(); known {
+		if _, known := HarvestGapDays(domain.Known(bad), noConditions).Value(); known {
 			t.Fatal("invalid calendar produced a gap", bad)
 		}
 	}
@@ -44,7 +51,7 @@ func TestHarvestGapDaysBridgesTheNonGrowingYear(t *testing.T) {
 func TestSeasonalPolicyWidensFoodAndWoodTargetsTogether(t *testing.T) {
 	base := DefaultRoutinePolicy()
 	winter := domain.Known(Calendar{Season: "Winter", GrowingDays: 40, GrowingDaysUntil: 12})
-	p := base.Seasonal(winter)
+	p := base.Seasonal(winter, noConditions)
 	if p.FoodTargetDays != base.FoodTargetDays+15 || p.FoodMinDays != base.FoodMinDays+15 || p.FootholdFoodDays != base.FootholdFoodDays {
 		t.Fatal(p)
 	}
@@ -55,13 +62,13 @@ func TestSeasonalPolicyWidensFoodAndWoodTargetsTogether(t *testing.T) {
 	if err := p.Validate(); err != nil {
 		t.Fatal(err)
 	}
-	if got := base.Seasonal(domain.Unknown[Calendar]()); got.FoodTargetDays != base.FoodTargetDays || got.WoodTarget != base.WoodTarget {
+	if got := base.Seasonal(domain.Unknown[Calendar](), noConditions); got.FoodTargetDays != base.FoodTargetDays || got.WoodTarget != base.WoodTarget {
 		t.Fatal("unknown calendar changed the targets", got)
 	}
-	if got := base.Seasonal(domain.Known(Calendar{GrowingDays: 60, GrowingDaysRemaining: 60, Sowing: true})); got.FoodTargetDays != base.FoodTargetDays || got.WoodTarget != base.WoodTarget || got.WoodMax != base.WoodMax {
+	if got := base.Seasonal(domain.Known(Calendar{GrowingDays: 60, GrowingDaysRemaining: 60, Sowing: true}), noConditions); got.FoodTargetDays != base.FoodTargetDays || got.WoodTarget != base.WoodTarget || got.WoodMax != base.WoodMax {
 		t.Fatal("a year-round tile changed the targets")
 	}
-	capped := base.Seasonal(domain.Known(Calendar{GrowingDaysUntil: 60}))
+	capped := base.Seasonal(domain.Known(Calendar{GrowingDaysUntil: 60}), noConditions)
 	if capped.FoodTargetDays != YearDays || capped.FoodMinDays != YearDays-(base.FoodTargetDays-base.FoodMinDays) {
 		t.Fatal("food thresholds exceed one year", capped)
 	}
@@ -104,5 +111,51 @@ func TestRoutineFoodAndWoodLatchesHoldThroughTheHarvestGap(t *testing.T) {
 	f.Calendar = domain.Known(Calendar{GrowingDays: 61})
 	if _, err := DetectRoutine(f, r.Latches, DefaultRoutinePolicy()); err == nil {
 		t.Fatal("invalid calendar accepted")
+	}
+}
+
+func TestHarvestGapDaysExtendsByAnObservedGrowthPause(t *testing.T) {
+	summer := domain.Known(Calendar{Season: "Summer", GrowingDays: 40, GrowingDaysRemaining: 35, Sowing: true})
+	winter := domain.Known(Calendar{Season: "Winter", GrowingDays: 40, GrowingDaysUntil: 12})
+	cases := []struct {
+		name       string
+		calendar   domain.Fact[Calendar]
+		conditions domain.Fact[[]DisasterCondition]
+		want       float64
+	}{
+		{"a cold snap in summer delays the next harvest by its remaining days", summer, domain.Known([]DisasterCondition{timedCondition(ConditionColdSnap, 6*60000)}), 6},
+		{"a volcanic winter in summer does the same", summer, domain.Known([]DisasterCondition{timedCondition(ConditionVolcanicWinter, 20*60000)}), 20},
+		{"the longest pause counts once, not the sum", summer, domain.Known([]DisasterCondition{timedCondition(ConditionColdSnap, 6*60000), timedCondition(ConditionVolcanicWinter, 20*60000)}), 20},
+		{"a pause shorter than the seasonal wait changes nothing", winter, domain.Known([]DisasterCondition{timedCondition(ConditionColdSnap, 5*60000)}), 15},
+		{"a pause outlasting the seasonal wait replaces it", winter, domain.Known([]DisasterCondition{timedCondition(ConditionVolcanicWinter, 30*60000)}), 33},
+		{"a pause on an unknown calendar is the whole gap", domain.Unknown[Calendar](), domain.Known([]DisasterCondition{timedCondition(ConditionVolcanicWinter, 20*60000)}), 23},
+		{"a condition without a remaining-duration read contributes nothing", summer, domain.Known([]DisasterCondition{{ID: "cold", Definition: ConditionColdSnap}}), 0},
+		{"a solar flare is not a growth pause", summer, domain.Known([]DisasterCondition{timedCondition(ConditionSolarFlare, 6*60000)}), 0},
+		{"an unknown condition census is no pause", summer, domain.Unknown[[]DisasterCondition](), 0},
+		{"the whole is capped at one year", winter, domain.Known([]DisasterCondition{timedCondition(ConditionVolcanicWinter, 90*60000)}), 60},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, known := HarvestGapDays(tc.calendar, tc.conditions).Value()
+			if !known || math.Abs(got-tc.want) > 1e-9 {
+				t.Fatalf("gap=%v known=%v want %v", got, known, tc.want)
+			}
+		})
+	}
+	if _, known := HarvestGapDays(domain.Unknown[Calendar](), domain.Unknown[[]DisasterCondition]()).Value(); known {
+		t.Fatal("no calendar and no census produced a gap")
+	}
+	if _, known := HarvestGapDays(domain.Unknown[Calendar](), domain.Known([]DisasterCondition{{ID: "cold", Definition: ConditionColdSnap}})).Value(); known {
+		t.Fatal("an untimed condition on an unknown calendar produced a gap")
+	}
+	// The seasonal policy widens both thresholds by the pause, so a stocked
+	// summer larder reads as a deficit while a volcanic winter is observed.
+	base := DefaultRoutinePolicy()
+	p := base.Seasonal(summer, domain.Known([]DisasterCondition{timedCondition(ConditionVolcanicWinter, 20*60000)}))
+	if p.FoodTargetDays != base.FoodTargetDays+20 || p.FoodMinDays != base.FoodMinDays+20 || p.WoodTarget <= base.WoodTarget {
+		t.Fatal(p)
+	}
+	if err := p.Validate(); err != nil {
+		t.Fatal(err)
 	}
 }

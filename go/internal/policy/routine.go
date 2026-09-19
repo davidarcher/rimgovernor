@@ -485,7 +485,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if c, known := f.Calendar.Value(); known && !c.Valid() {
 		return RoutineNeeds{}, errors.New("invalid calendar fact")
 	}
-	p = p.Seasonal(f.Calendar)
+	p = p.Seasonal(f.Calendar, f.DisasterConditions)
 	owned, err := OwnedConstructions(f.ConstructionClaims, f.CurrentConstruction)
 	if err != nil {
 		return RoutineNeeds{}, err
@@ -656,8 +656,15 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if !positive(g.Cooking) {
 		addGoal(EnsureCooking, 2)
 	}
+	// A solar flare with a known remaining duration switches every powered
+	// building off for hours: the power deficit it measures is real but
+	// answering it with a generator is not, so the goal stays open with no
+	// method (it neither extends the startup hold nor is cancelled) until
+	// the flare ends and the planner can tell an outage from a shortfall.
+	flare := SolarFlareHold(f.DisasterConditions)
 	if !positive(g.Power) {
 		addGoal(EnsureBasicPower, 2)
+		r.Goals[len(r.Goals)-1].MethodUnavailable = flare
 	}
 	if !positive(g.Storage) {
 		addGoal(EnsureFoodStorage, 2)
@@ -910,6 +917,10 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	addAssessment(MaintainRefrigeration, refrigerationPriority, refrigerationRecovered)
 	if !positive(refrigerationRecovered) {
 		addGoal(MaintainRefrigeration, refrigerationPriority)
+		// A cooler cannot run under a solar flare either; the warm stock is
+		// watched, not answered, until it ends (the planner reports
+		// solar_flare for the same reason).
+		r.Goals[len(r.Goals)-1].MethodUnavailable = flare
 		if nutrition, known := refrigeration.WarmNutrition.Value(); known && p.FoodStorage.AtRiskNutritionThreshold > 0 {
 			r.Goals[len(r.Goals)-1].Deficit = domain.Known(min(1, nutrition/p.FoodStorage.AtRiskNutritionThreshold))
 		}

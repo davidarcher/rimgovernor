@@ -157,6 +157,10 @@ type RefrigerationObservation struct {
 	// (research AirConditioning); unknown when the definition was not read.
 	CoolerAvailable domain.Fact[bool]
 	Cells           []SiteCell
+	// Blackout is the power topology's solar-flare read: every cooler is off
+	// while it is true, so no cooler method is proposed. Unknown when the
+	// environment census was not read; the method then proceeds as before.
+	Blackout domain.Fact[bool]
 }
 
 type RefrigerationMethod string
@@ -171,6 +175,7 @@ const (
 	RefrigerationNoWall               RefrigerationMethod = "no_vented_wall_cell"
 	RefrigerationSetTarget            RefrigerationMethod = "set_cooler_target"
 	RefrigerationWait                 RefrigerationMethod = "waiting_for_native_cooling"
+	RefrigerationWaitBlackout         RefrigerationMethod = "solar_flare"
 	RefrigerationBuild                RefrigerationMethod = "Cooler"
 )
 
@@ -213,7 +218,8 @@ func (v RefrigerationObservation) Validate() error {
 }
 
 // SelectRefrigerationMethod serves the lowest-sorted candidate room first.
-// Deterministic order per room: enclosure, then an existing cooler serving
+// A known solar flare defers every room. Deterministic order per room:
+// enclosure, then an existing cooler serving
 // the room (power, heat rejection, target, wait), then one new cooler on a
 // wall cell whose outside is not indoors. A second cooler is proposed only
 // when allowance is true: the caller's bounded native cooling allowance for
@@ -228,6 +234,12 @@ func SelectRefrigerationMethod(review RefrigerationReview, fact domain.Fact[Refr
 	}
 	if err := v.Validate(); err != nil {
 		return RefrigerationProposal{}, err
+	}
+	// Under a solar flare no cooler runs and none is built for an outage
+	// measured in hours; the room keeps its deficit and waits for the
+	// power to return (same outcome as PowerWaitBlackout).
+	if blackout, known := v.Blackout.Value(); known && blackout {
+		return RefrigerationProposal{Method: RefrigerationWaitBlackout}, nil
 	}
 	rooms := map[string]Room{}
 	cellRoom := map[domain.Cell]string{}

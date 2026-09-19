@@ -113,6 +113,18 @@ func TestRefrigerationMethodBuildsOnVentedWallThenServesExistingCooler(t *testin
 		t.Fatal("proposal without method key")
 	}
 
+	// A known solar flare defers every room: no cooler runs and none is
+	// built for the outage; an unknown blackout read changes nothing.
+	blackout := base
+	blackout.Blackout = domain.Known(true)
+	if got, err = SelectRefrigerationMethod(review, domain.Known(blackout), p, true); err != nil || got.Method != RefrigerationWaitBlackout {
+		t.Fatal(got, err)
+	}
+	blackout.Blackout = domain.Known(false)
+	if got, err = SelectRefrigerationMethod(review, domain.Known(blackout), p, false); err != nil || got.Method != RefrigerationBuild {
+		t.Fatal(got, err)
+	}
+
 	// Cooler research missing.
 	noResearch := base
 	noResearch.CoolerAvailable = domain.Known(false)

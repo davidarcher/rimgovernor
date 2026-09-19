@@ -334,7 +334,12 @@ the native sowing flag, season and day of year), and each review widens the conf
 policy by its harvest gap (`RoutinePolicy.Seasonal`). The gap is the wait until growth
 resumes plus one rice cycle while nothing grows, and the coming non-growing part of the
 year, phased in over the gap plus one field cycle before the frost, while crops grow;
-a year-round tile has none and an unknown calendar keeps the flat thresholds. Food
+a year-round tile has none and an unknown calendar keeps the flat thresholds. An
+observed growth pause extends the gap: a `VolcanicWinter` or `ColdSnap` condition
+with a native remaining-duration read (`RoutineFacts.DisasterConditions`,
+`policy.GrowthPauseDays`) adds its remaining days while crops grow, stands in for a
+shorter seasonal wait while they do not, and is the whole gap on an unknown
+calendar; a condition without that read contributes nothing. Food
 minimum and target both grow by the gap (capped at one year) and the wood minimum,
 target and maximum by the target's factor, so a runway is measured to the next
 possible harvest rather than to stock exhaustion and fields, larder and woodpile fill

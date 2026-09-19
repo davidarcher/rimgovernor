@@ -360,6 +360,16 @@ ordinary pawn work) and treats a powered network draining its batteries in
 under a day as a deficit, sizing the next generator to connected load and
 choosing its definition from native availability and fuel stock.
 
+A solar flare switches every powered building off for hours, so neither goal
+answers it with a build: while a `SolarFlare` condition with a native
+remaining-duration read is observed (`policy.SolarFlareHold`) the review keeps
+both goals open with `method_unavailable` (suspended, never cancelled, and not
+extending the startup hold), and both planners report `solar_flare` from the
+power topology's blackout read (`PowerWaitBlackout`, `RefrigerationWaitBlackout`)
+with no cooling or power allowance lent. The deficit and the refrigeration
+latch keep their measured state until the flare ends and the next review can
+tell an outage from a shortfall.
+
 `MaintainLighting` (issue #6 slice 3) reasons from illumination at the cell a
 pawn stands on, not from fixture counts. Native reports every colonist work
 table and research bench's interaction cell with its measured ground glow

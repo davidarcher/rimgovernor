@@ -210,3 +210,45 @@ func TestRoutineRepairAndCleanDeficitsStayMethodAvailable(t *testing.T) {
 		}
 	}
 }
+
+func TestRoutineSolarFlareSuspendsPowerAndRefrigerationMethods(t *testing.T) {
+	f := stableRoutine()
+	f.PowerRequired, f.PowerHeadroom = domain.Known(true), domain.Known(-100.0)
+	f.FoodStorageUpkeep = FoodStorageObservation{Stocks: domain.Known([]FoodStorageStock{warmStock("meat", "b", 20, 20)})}
+	method := func(r RoutineNeeds, id GoalID) (open, unavailable bool) {
+		for _, g := range r.Goals {
+			if g.ID == id {
+				return true, g.MethodUnavailable
+			}
+		}
+		return false, false
+	}
+	r := needs(t, f, RoutineLatches{})
+	for _, id := range []GoalID{EnsureBasicPower, MaintainRefrigeration} {
+		if open, unavailable := method(r, id); !open || unavailable {
+			t.Fatal(id, open, unavailable)
+		}
+	}
+	// A flare with a remaining-duration read suspends both methods; the
+	// goals stay open (not cancelled) and the latch keeps its state.
+	flare := int64(12000)
+	f.DisasterConditions = domain.Known([]DisasterCondition{{ID: "f", Definition: ConditionSolarFlare, TicksLeft: &flare}})
+	f.RecoveryBuildings = domain.Known([]RecoveryBuilding{})
+	r = needs(t, f, r.Latches)
+	for _, id := range []GoalID{EnsureBasicPower, MaintainRefrigeration} {
+		if open, unavailable := method(r, id); !open || !unavailable {
+			t.Fatal(id, open, unavailable)
+		}
+	}
+	if !r.Latches.Refrigeration {
+		t.Fatal("the flare released the refrigeration latch")
+	}
+	// A flare without a remaining-duration read is not planned against.
+	f.DisasterConditions = domain.Known([]DisasterCondition{{ID: "f", Definition: ConditionSolarFlare}})
+	r = needs(t, f, r.Latches)
+	for _, id := range []GoalID{EnsureBasicPower, MaintainRefrigeration} {
+		if open, unavailable := method(r, id); !open || unavailable {
+			t.Fatal(id, open, unavailable)
+		}
+	}
+}
