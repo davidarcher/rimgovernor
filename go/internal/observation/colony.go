@@ -361,8 +361,12 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 		}
 		applied := planning.Cells.GetAppliedFields()
 		for _, row := range planning.Cells.Cells {
-			// Missing visibility is not evidence that a cell is safe to plan on.
-			if row.Fogged == nil || row.GetFogged() {
+			// A fogged row, or one whose visibility the reply never read, is
+			// not evidence that a cell is safe to plan on. The planning window
+			// declares visibility applied and omits the field on the rows it
+			// emits, since fogged cells are filtered into the completeness
+			// count rather than listed (#335).
+			if row.GetFogged() || row.Fogged == nil && !applied.GetVisibility() {
 				continue
 			}
 			r.Cells = append(r.Cells, policy.SiteCell{Cell: domain.Cell{X: row.Cell.GetX(), Z: row.Cell.GetZ()}, Walkable: optional(row.Walkable), Occupied: optional(row.Occupied), Zone: appliedPresence(row.ZoneId, row.Issues, "zone_id", applied.GetZone()), Roofed: appliedPresence(row.Roof, row.Issues, "roof", applied.GetRoof()), Roof: optional(row.Roof), Indoors: optional(row.Indoors), SupportsLight: optional(row.SupportsLight), Doorway: optional(row.Doorway), Reachable: optional(row.Reachable), Fertility: optional(row.Fertility), StorageEmpty: optional(row.StorageEmpty), ZoneID: optional(row.ZoneId)})
