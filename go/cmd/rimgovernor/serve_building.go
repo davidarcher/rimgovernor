@@ -858,7 +858,21 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		result = errors.Join(result, drainBuilding(owner))
 	}()
-	player, err := buildingruntime.NewPlayer(lifetime, buildingruntime.PlayerConfig{CallTimeout: 30 * time.Second, JournalTimeout: 3 * time.Second}, database, session, buildingWorldSource{client.reads})
+	var productionFloors []domain.ResourceFloor
+	for name, floor := range config.routineResourceReserves.Map() {
+		if floor > 0 {
+			productionFloors = append(productionFloors, domain.ResourceFloor{Resource: string(name), Floor: floor})
+		}
+	}
+	var productionStops []string
+	for _, name := range config.routineStoppedResources.Slice() {
+		productionStops = append(productionStops, string(name))
+	}
+	productionDefaults, err := domain.NewProductionPolicy(productionFloors, productionStops)
+	if err != nil {
+		return err
+	}
+	player, err := buildingruntime.NewPlayer(lifetime, buildingruntime.PlayerConfig{CallTimeout: 30 * time.Second, JournalTimeout: 3 * time.Second, ProductionDefaults: productionDefaults}, database, session, buildingWorldSource{client.reads})
 	if err != nil {
 		return err
 	}

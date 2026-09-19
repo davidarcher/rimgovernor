@@ -17,9 +17,9 @@ import (
 // Like zone creation this is player-command-driven: it never runs through the
 // routine planner or the autopilot-goal-bound admission gate, only this direct
 // submission, which commits its own one-action plan. The autopilot's own
-// production-policy writer (RoutineProductionPolicyPlanner) is untouched and
-// keeps committing through CommitGoalMethod; both converge on the same
-// unchanged executor/bridge dispatch. Submission neither acquires authority nor
+// production-policy writer (RoutineProductionPolicyPlanner) commits through
+// CommitGoalMethod; both resolve explicit directives over controller defaults
+// and converge on the same executor/bridge dispatch. Submission neither acquires authority nor
 // issues a native command.
 func (p *Player) SubmitResourcePolicy(ctx context.Context, request store.ResourcePolicySubmissionRequest) (store.ResourcePolicySubmission, bool, error) {
 	call, epoch, done, err := p.enter(ctx, false)
@@ -43,7 +43,7 @@ func (p *Player) SubmitResourcePolicy(ctx context.Context, request store.Resourc
 	if err = p.current(call, epoch); err != nil {
 		return store.ResourcePolicySubmission{}, false, err
 	}
-	return p.journal.SubmitResourcePolicy(call, request)
+	return p.journal.SubmitResourcePolicyWithDefaults(call, request, p.config.ProductionDefaults)
 }
 
 // ResourcePolicies reports every per-resource directive the player has declared

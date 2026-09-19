@@ -186,3 +186,39 @@ func ResourceProductionPolicy(directives []ResourceDirective) (ProductionPolicy,
 	sort.Strings(stopped)
 	return NewProductionPolicy(floors, stopped)
 }
+
+// ResolveProductionPolicy overlays whole explicit per-resource directives on
+// controller defaults. An explicit zero/normal removes a configured floor/stop.
+// Observed native restrictions are evidence to reconcile, never desired intent.
+func ResolveProductionPolicy(defaults ProductionPolicy, directives []ResourceDirective) (ProductionPolicy, error) {
+	if _, err := ResourceProductionPolicy(directives); err != nil {
+		return ProductionPolicy{}, err
+	}
+	floors := make(map[string]int64)
+	stops := make(map[string]bool)
+	for _, row := range defaults.Floors() {
+		floors[row.Resource] = row.Floor
+	}
+	for _, name := range defaults.Stopped() {
+		stops[name] = true
+	}
+	for _, d := range directives {
+		delete(floors, d.Resource())
+		delete(stops, d.Resource())
+		if d.Reserve() > 0 {
+			floors[d.Resource()] = d.Reserve()
+		}
+		if d.Restricted() {
+			stops[d.Resource()] = true
+		}
+	}
+	var rows []ResourceFloor
+	var stopped []string
+	for name, floor := range floors {
+		rows = append(rows, ResourceFloor{Resource: name, Floor: floor})
+	}
+	for name := range stops {
+		stopped = append(stopped, name)
+	}
+	return NewProductionPolicy(rows, stopped)
+}

@@ -40,6 +40,12 @@ func TestRoutineAssessmentsDoNotInferRecoveryFromAbsentWork(t *testing.T) {
 	}
 	r = needs(t, stableRoutine(), RoutineLatches{})
 	for _, n := range r.Assessments {
+		if n.ID == ProductionPolicy {
+			if n.Need != domain.NeedDeficit {
+				t.Fatal("empty policy must reconcile native drift", n)
+			}
+			continue
+		}
 		if n.Need != domain.NeedRecovered {
 			t.Fatal("stable evidence not recovered", n)
 		}

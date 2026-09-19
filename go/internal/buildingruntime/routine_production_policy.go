@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
-	"errors"
 	"fmt"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -18,9 +17,9 @@ import (
 // RoutineProductionPolicySource is the fresh native production-policy read
 // RoutineProductionPolicyPlanner performs immediately before proposing a
 // method: only ReadProductionPolicy is needed, since the desired
-// floors/stopped replacement is entirely operator-config-derived
-// (policy.ProductionFloors over RoutinePolicy.ResourceReserves/
-// StoppedResources), not something requiring the wider colony census. The
+// floors/stopped replacement combines controller defaults and explicit directives
+// (explicit directives override each resource in ResourceReserves/
+// StoppedResources), without importing native restrictions as intent. The
 // native SetProductionPolicy preview, run later by
 // productionPolicyBoundary.InspectProductionPolicy at dispatch-inspection
 // time, remains the authoritative admission gate -- the same line
@@ -91,9 +90,6 @@ func (r *RoutineProductionPolicyPlanner) step(call, epoch context.Context, arbit
 	if !state.Enabled {
 		return RoutineProductionPolicyResult{Reason: BuildingMethodDisabled}, nil
 	}
-	if len(r.reviewer.policy.ResourceReserves) == 0 && len(r.reviewer.policy.StoppedResources) == 0 {
-		return RoutineProductionPolicyResult{Reason: BuildingMethodDisabled}, nil
-	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
 		return RoutineProductionPolicyResult{}, ErrControl
 	}
@@ -152,6 +148,14 @@ func (r *RoutineProductionPolicyPlanner) step(call, epoch context.Context, arbit
 	if err != nil {
 		return RoutineProductionPolicyResult{}, err
 	}
+	directives, err := p.journal.ResourcePolicies(call, store.World{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snapshot.Map})
+	if err != nil {
+		return RoutineProductionPolicyResult{}, err
+	}
+	value, err = domain.ResolveProductionPolicy(value, directives)
+	if err != nil {
+		return RoutineProductionPolicyResult{}, err
+	}
 	if productionPolicyMatches(read, value) {
 		return RoutineProductionPolicyResult{Reason: BuildingMethodUsed}, nil
 	}
@@ -163,12 +167,10 @@ func (r *RoutineProductionPolicyPlanner) step(call, epoch context.Context, arbit
 		return RoutineProductionPolicyResult{}, err
 	}
 	digest := sha256.Sum256(digestInput)
-	methodID := domain.MethodID(fmt.Sprintf("production-policy-%x", digest[:16]))
-	if _, err = p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, methodID); err == nil {
-		return RoutineProductionPolicyResult{Reason: BuildingMethodUsed}, nil
-	} else if !errors.Is(err, store.ErrNotFound) {
-		return RoutineProductionPolicyResult{}, err
-	}
+	// A settled write does not own native state forever. Open work above
+	// prevents duplicates; the durable method count permits each later repair,
+	// including identical drift at the same paused tick/snapshot token.
+	methodID := domain.MethodID(fmt.Sprintf("production-policy-%x-%d", digest[:16], goal.Admitted))
 	planDigest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, methodID)))
 	id := domain.PlanID(fmt.Sprintf("routine-production-policy-%x", planDigest[:16]))
 	action, err := domain.NewProductionPolicyAction(domain.ActionID(fmt.Sprintf("%s-0", id)), value)

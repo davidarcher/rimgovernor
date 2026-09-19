@@ -27,8 +27,8 @@ import (
 // and never passes through CommitGoalMethod, so the autopilot-goal-bound
 // admission gates (goals.go's admitZoneMethod and friends) are bypassed rather
 // than widened. The autopilot's own production-policy writer,
-// RoutineProductionPolicyPlanner, keeps committing through that gate untouched;
-// both paths then converge on the same unchanged domain/bridge/executor
+// RoutineProductionPolicyPlanner, commits through that gate;
+// both paths resolve directives over controller defaults and share domain/bridge/executor
 // dispatch for domain.ProductionPolicyAction, and the native
 // SetProductionPolicy preview run at dispatch inspection remains the
 // authoritative admission for either.
@@ -113,7 +113,7 @@ func (q ResourcePolicySubmissionRequest) validate() error {
 // map-scoped production policy in one call, so the full merged set is what must
 // be dispatched even though the player only changed one resource -- exactly the
 // full-replacement shape ZoneCreate's cells already have.
-func resourcePolicyDispatch(current []domain.ResourceDirective, applied domain.ResourceDirective) (domain.ProductionPolicy, error) {
+func resourcePolicyDispatch(current []domain.ResourceDirective, applied domain.ResourceDirective, defaults domain.ProductionPolicy) (domain.ProductionPolicy, error) {
 	merged := make([]domain.ResourceDirective, 0, len(current)+1)
 	replaced := false
 	for _, d := range current {
@@ -126,7 +126,7 @@ func resourcePolicyDispatch(current []domain.ResourceDirective, applied domain.R
 	if !replaced {
 		merged = append(merged, applied)
 	}
-	return domain.ResourceProductionPolicy(merged)
+	return domain.ResolveProductionPolicy(defaults, merged)
 }
 
 // SubmitResourcePolicy atomically records one explicit player request, merges
@@ -139,6 +139,12 @@ func resourcePolicyDispatch(current []domain.ResourceDirective, applied domain.R
 // admits and dispatches the committed action through the same unchanged
 // executor/bridge path the autopilot's own production-policy writer uses.
 func (s *Store) SubmitResourcePolicy(ctx context.Context, q ResourcePolicySubmissionRequest) (ResourcePolicySubmission, bool, error) {
+	return s.SubmitResourcePolicyWithDefaults(ctx, q, domain.ProductionPolicy{})
+}
+
+// SubmitResourcePolicyWithDefaults uses the same precedence as routine
+// reconciliation, retaining configuration for resources without directives.
+func (s *Store) SubmitResourcePolicyWithDefaults(ctx context.Context, q ResourcePolicySubmissionRequest, defaults domain.ProductionPolicy) (ResourcePolicySubmission, bool, error) {
 	if err := q.validate(); err != nil {
 		return ResourcePolicySubmission{}, false, err
 	}
@@ -175,7 +181,7 @@ func (s *Store) SubmitResourcePolicy(ctx context.Context, q ResourcePolicySubmis
 	if err != nil {
 		return ResourcePolicySubmission{}, false, err
 	}
-	value, err := resourcePolicyDispatch(directives, applied)
+	value, err := resourcePolicyDispatch(directives, applied, defaults)
 	if err != nil {
 		return ResourcePolicySubmission{}, false, err
 	}

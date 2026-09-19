@@ -2,6 +2,36 @@ package domain
 
 import "testing"
 
+func TestResolveProductionPolicyPrecedence(t *testing.T) {
+	defaults, err := NewProductionPolicy([]ResourceFloor{{Resource: "Steel", Floor: 100}, {Resource: "WoodLog", Floor: 50}}, []string{"Steel"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, spending := range []ResourceSpending{ResourceSpendingNormal, ResourceSpendingStop, ResourceSpendingDefenseOnly} {
+		directive, err := NewResourceDirective("Steel", 0, spending)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, base := range []ProductionPolicy{defaults, {}} {
+			got, err := ResolveProductionPolicy(base, []ResourceDirective{directive})
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, row := range got.Floors() {
+				if row.Resource == "Steel" {
+					t.Fatal("explicit zero retained default reserve", got)
+				}
+			}
+			if (len(got.Stopped()) != 0) != directive.Restricted() {
+				t.Fatal("explicit spending lost", got)
+			}
+			if base == defaults && (len(got.Floors()) != 1 || got.Floors()[0].Resource != "WoodLog") {
+				t.Fatal("unrelated default lost", got)
+			}
+		}
+	}
+}
+
 func TestResourceDirectiveBounds(t *testing.T) {
 	d, err := NewResourceDirective("Steel", 250, ResourceSpendingDefenseOnly)
 	if err != nil || !d.Set() || d.Resource() != "Steel" || d.Reserve() != 250 || d.Spending() != ResourceSpendingDefenseOnly {

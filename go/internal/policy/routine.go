@@ -136,9 +136,9 @@ type RoutinePolicy struct {
 	// ProductionFloors: the per-resource reserve/spending-stopped
 	// configuration. Unlike
 	// ResourceTargets (which drives MaintainResource's own goal/method
-	// selection), these drive the ProductionPolicy goal's config-only
-	// posture: RoutineProductionPolicyPlanner dispatches ProductionFloors's
-	// computed floors/stopped rows through the native SetProductionPolicy
+	// selection), these supply defaults for ProductionPolicy. Explicit
+	// per-resource directives override them; the routine planner dispatches
+	// the merged floors/stopped rows through native SetProductionPolicy
 	// write whenever they diverge from a fresh ReadProductionPolicy. The push
 	// is not development work and holds no development slot (DevelopmentExempt).
 	ResourceReserves map[Resource]int64
@@ -893,10 +893,10 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	addAssessment(MaintainResource, 4, resourceRecovered)
 	// ProductionPolicy is a configuration push, not development work: it needs
 	// no pawn labor and holds no optional capacity slot, so it is assessed (and
-	// admitted) outside the development ranking. Its recovered state is
-	// config-only: RoutineProductionPolicyPlanner performs its own fresh
-	// ReadProductionPolicy comparison before proposing a method.
-	productionPolicyRecovered := domain.Known(len(p.ResourceReserves) == 0 && len(p.StoppedResources) == 0)
+	// admitted) outside the development ranking. Reconciliation stays
+	// active, including empty desired policy: the planner performs a fresh
+	// ReadProductionPolicy comparison before proposing each repair.
+	productionPolicyRecovered := domain.Known(false)
 	addAssessment(ProductionPolicy, 4, productionPolicyRecovered)
 	// EnsureDefensiveLayout is config-only like EnsureResearch above: opt-in
 	// activates the goal at priority 3 (after the storage gate) and the

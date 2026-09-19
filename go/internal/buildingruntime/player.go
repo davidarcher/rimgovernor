@@ -14,7 +14,10 @@ import (
 type WorldSource interface {
 	ReadWorld(context.Context) (store.World, error)
 }
-type PlayerConfig struct{ CallTimeout, JournalTimeout time.Duration }
+type PlayerConfig struct {
+	CallTimeout, JournalTimeout time.Duration
+	ProductionDefaults          domain.ProductionPolicy
+}
 
 type playerSession interface {
 	ResourceRules() []policy.ResourceRule
