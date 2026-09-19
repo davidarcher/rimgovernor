@@ -103,6 +103,8 @@ nightly rollout and its measured resource requirements.
 Before claiming hosted operation, retain cold and warm smoke runs, a native
 failure with accessible diagnostics, cancelled/missing-shard evidence, and a
 verified import. [#382](https://github.com/davidarcher/rimgovernor/issues/382)
-stays open for those proofs; [#383](https://github.com/davidarcher/rimgovernor/issues/383)
-owns rollout measurements and the maintainer-to-agent handoff. Agents do not push,
-publish bundles or dispatch runs without separate maintainer authorization.
+records the completed smoke/failure/import proofs; hosted cancellation remains
+distinct from synthetic cancellation coverage. [#383](https://github.com/davidarcher/rimgovernor/issues/383)
+owns land-tier rollout measurements. Follow the [maintainer-to-agent handoff](remote-handoff.md)
+for publication, dispatch, retrieval and cancellation. Agents need separate
+maintainer authorization to publish source/bundles or dispatch runs.

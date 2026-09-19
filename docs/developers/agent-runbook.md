@@ -8,6 +8,8 @@ the commands that keep them apart. Several agent sessions run on this one
 Windows machine at once, each in its own worktree, several with a headless
 RimWorld running.
 
+For remote runs, follow the [maintainer-to-agent handoff](testing/remote-handoff.md)
+for publication, dispatch, diagnostics, import, cancellation and bundle rotation.
 Clean remote Windows runners use [encrypted bundles and bootstrap](remote-bundles.md).
 Their explicit setup uses job-local dependencies and never discovers Steam, peer
 worktrees or player preferences. Local sessions follow the steps below.

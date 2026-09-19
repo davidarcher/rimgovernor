@@ -29,6 +29,13 @@ edit loop before a 15-minute case does (#282). The transcripts under
 `go/internal/nativeaccept/testdata/transcripts/` are the harness's own
 unit fixtures; the game stays the oracle for anything native.
 
+## Remote checks
+
+Use the [maintainer-to-agent handoff](remote-handoff.md) to prepare a complete
+remote selection, request source publication/dispatch and import its verdict.
+The same smoke/land/full selection rules apply; remote execution does not
+authorize agent pushes or omitted cases. Check planner budgets before dispatch.
+
 ## Which cases a change owes
 
 `go run ./cmd/test` (and `cmd/affected`, which only prints) names the
