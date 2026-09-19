@@ -247,7 +247,9 @@ batch and a sown field does not block acquisition (the store exempts each from t
 other's open work, mirroring the acquisition-over-bill exemption); a second field batch
 still waits for the first to resolve. Each batch previews at most six patches inside the
 shared step budget. The field planner also requests `SunLamp`, `HydroponicsBasin` and
-`Heater` definitions and decodes `PlanningFacts.environment` into
+`Heater` definitions, plans sites over the planning window (`ColonyProjection.Cells`,
+read on demand through `observations_get_cells`; see the state store in
+[go-clock-recovery](go-clock-recovery.md)) and decodes `PlanningFacts.environment` into
 `ColonyProjection.Environment` (`policy.ControlledEnvironment`: lamps with native growth
 cells, growers with sow tags, indoor rooms, per-network headroom with
 `NightHeadroomW`/`CalmNightHeadroomW`); it is observed only and unknown when the native

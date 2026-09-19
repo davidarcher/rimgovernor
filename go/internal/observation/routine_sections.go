@@ -11,8 +11,8 @@ import (
 // section's reply described and the method that produced it. A section
 // the source did not offer, or whose read left the fact unknown, has an
 // empty Source and File skips it. planning_cells is filed apart from
-// colony even though both come from the same colony reply today, so its
-// source can change without touching consumers (#354).
+// colony: an older native lists it in the colony reply, a current one
+// serves it through observations_get_cells with its own tick (#354, #356).
 type RoutineSections struct {
 	Colony        facts.Held[ColonyProjection]
 	PlanningCells facts.Held[PlanningCells]
@@ -67,7 +67,10 @@ func (s *routineBracket) sections(projection ColonyProjection) RoutineSections {
 	tick := int64(projection.Identity.Tick)
 	out := RoutineSections{
 		Colony:        facts.Held[ColonyProjection]{Value: projection, AsOf: tick, Complete: true, Source: "rimgovernor/observations_read_colony_facts"},
-		PlanningCells: facts.Held[PlanningCells]{Value: PlanningCells{Region: projection.Region, Cells: projection.Cells}, AsOf: tick, Complete: true, Source: "rimgovernor/observations_read_colony_facts"},
+		PlanningCells: projection.Window,
+	}
+	if out.PlanningCells.Source == "" && projection.Cells != nil {
+		out.PlanningCells = facts.Held[PlanningCells]{Value: PlanningCells{Region: projection.Region, Cells: projection.Cells}, AsOf: tick, Complete: true, Source: "rimgovernor/observations_read_colony_facts"}
 	}
 	if s.emergency.Context != nil {
 		complete, known := s.emergency.Facts.ColonistsComplete.Value()

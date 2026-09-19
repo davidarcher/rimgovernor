@@ -432,6 +432,24 @@ line, and `/api/routines` lists the held sections (`sections`). The spread
 is zero while every section comes from one bundle; it is the drift
 indicator for the incremental reads that follow.
 
+`planning_cells` is the first section with its own read (#356). A current
+native's colony facts carry no `planning.cells`; the window (the site
+cells at the colony centre +/- 22, `bridge.PlanningWindowRect`) is read
+through `observations_get_cells` by `bridge.ReadPlanningWindow` (roof,
+visibility, traversal, zone, room, growth; one page up to 4096 cells,
+row bands beyond) and decoded by `bridge.PlanningCells`, the decoder an
+older native's reply-carried cells also go through. The step attaches a
+refresher to its context (`observation.WithPlanningWindow`); a planning
+colony read whose reply lists no cells asks it, and the refresher reads
+natively when nothing held covers the region or when a full review step
+finds the held section stale under `FactTickToleranceColony`, and serves
+the held window on every timer or event step. The step's read cache makes
+a second ask in the step free; a failed read serves the held window when
+one covers the region. The section files with the window reply's own
+tick, so `as_of_spread` is non-zero on steps served from the store. The
+row carries no `reachable` (`placement_preview` refuses an unreachable
+site) and never lists a fogged cell (`Completeness.filtered` counts them).
+
 ## Independent clock workers
 
 `ClockWorker` runs event polling, renewal and scheduling separately. Scheduling waits

@@ -2,12 +2,14 @@ package observation
 
 import (
 	"context"
+	"errors"
 	"os"
 	"reflect"
 	"testing"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/facts"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/testkit"
@@ -90,4 +92,70 @@ func TestRoutineReadingSections(t *testing.T) {
 		t.Fatal("research freshness follows its own as-of, not the bundle's")
 	}
 	sections.File(nil, scope)
+}
+
+type windowSource struct {
+	asks   []policy.Rectangle
+	window facts.Held[PlanningCells]
+	err    error
+}
+
+func (s *windowSource) PlanningWindow(_ context.Context, _ *c.Identity, region policy.Rectangle) (facts.Held[PlanningCells], error) {
+	s.asks = append(s.asks, region)
+	return s.window, s.err
+}
+
+// TestRoutineReadingFillsPlanningWindowFromSource: a colony reply that
+// observed planning facts without listing the cells (a native that serves
+// the window through observations_get_cells, #356) takes its window from
+// the source the context carries, asked for the centre +/- 22 rect clipped
+// to the map, and files the section with the source's own tick and
+// method; without a source the window stays empty.
+func TestRoutineReadingFillsPlanningWindowFromSource(t *testing.T) {
+	data, err := os.ReadFile("../../../contracts/fixtures/colony-core.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := &o.ColonyFactsReply{}
+	if err := protojson.Unmarshal(data, base); err != nil {
+		t.Fatal(err)
+	}
+	base.GetObserved().Planning.GetObserved().Cells = nil
+	expected, err := DecodeIdentity(&l.IdentityReply{Outcome: &l.IdentityReply_Loaded{Loaded: &l.LoadedIdentity{Context: proto.Clone(base.GetObserved().Context).(*c.ObservationContext), Paused: proto.Bool(true)}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tick := base.GetObserved().Context.GetTick()
+	cells := []policy.SiteCell{{Cell: domain.Cell{X: 1, Z: 2}, Walkable: domain.Known(true)}}
+	source := &windowSource{window: facts.Held[PlanningCells]{Value: PlanningCells{Region: policy.Rectangle{X: 0, Z: 0, Width: 23, Height: 23}, Cells: cells}, AsOf: tick - 5, Complete: true, Source: "rimgovernor/observations_get_cells"}}
+	ctx := WithPlanningWindow(context.Background(), source)
+	out, err := ObserveRoutine(ctx, &projectSource{colonySource: &colonySource{reply: base}}, testkit.NewManualClock(time.Now()), expected, time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(source.asks) != 1 || source.asks[0] != (policy.Rectangle{X: 0, Z: 0, Width: 23, Height: 23}) {
+		t.Fatalf("asks = %v", source.asks)
+	}
+	if !reflect.DeepEqual(out.Projection.Cells, cells) || out.Projection.Region != source.window.Value.Region {
+		t.Fatalf("projection window = %+v", out.Projection.Cells)
+	}
+	if got := out.Sections.PlanningCells; got.AsOf != tick-5 || got.Source != "rimgovernor/observations_get_cells" || !reflect.DeepEqual(got.Value.Cells, cells) {
+		t.Fatalf("planning cells section = %+v", got)
+	}
+	if _, spread := facts.Spread(out.Sections.AsOf()); spread != 5 {
+		t.Fatalf("spread = %d", spread)
+	}
+	// A source that fails the read fails the observation.
+	source.err = bridge.ErrUnavailable
+	if _, err := ObserveRoutine(ctx, &projectSource{colonySource: &colonySource{reply: base}}, testkit.NewManualClock(time.Now()), expected, time.Second); !errors.Is(err, bridge.ErrUnavailable) {
+		t.Fatal(err)
+	}
+	// Without a source the window is empty and the section unfiled.
+	out, err = ObserveRoutine(context.Background(), &projectSource{colonySource: &colonySource{reply: base}}, testkit.NewManualClock(time.Now()), expected, time.Second)
+	if err != nil || out.Projection.Cells != nil || out.Sections.PlanningCells.Source != "" {
+		t.Fatalf("%+v %v", out.Sections.PlanningCells, err)
+	}
+	if _, held := out.Sections.AsOf()[facts.PlanningCells]; held {
+		t.Fatal("empty window filed")
+	}
 }

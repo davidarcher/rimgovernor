@@ -1,4 +1,4 @@
-package observation
+package bridge
 
 import (
 	"testing"
@@ -12,7 +12,7 @@ import (
 // missing value as a known absence without a per-cell issue row; a reply that
 // did not apply the field, or that reports it unavailable for another reason,
 // leaves it unknown; a "not applicable" issue row still decodes as absent.
-func TestAppliedPresenceDecodesAbsentAppliedFieldsAsKnown(t *testing.T) {
+func TestCellPresenceDecodesAbsentAppliedFieldsAsKnown(t *testing.T) {
 	notApplicable := []*o.ReadIssue{{Field: proto.String("roof"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}}
 	failed := []*o.ReadIssue{{Field: proto.String("roof"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_READ_FAILED.Enum()}}}
 	cases := []struct {
@@ -30,7 +30,7 @@ func TestAppliedPresenceDecodesAbsentAppliedFieldsAsKnown(t *testing.T) {
 		{"issue read failed under applied", nil, failed, true, false, false},
 	}
 	for _, tc := range cases {
-		got := appliedPresence(tc.value, tc.issues, "roof", tc.applied)
+		got := CellPresence(tc.value, tc.issues, "roof", tc.applied)
 		v, known := got.Value()
 		if known != tc.known || known && v != tc.present {
 			t.Fatalf("%s: got (%v, known=%v), want (%v, known=%v)", tc.name, v, known, tc.present, tc.known)

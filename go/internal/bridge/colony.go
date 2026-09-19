@@ -319,38 +319,11 @@ func validateColonyPlanning(p *o.PlanningFacts, ctx *c.ObservationContext, size 
 			return err
 		}
 	}
-	v := p.Cells
-	if v == nil || !proto.Equal(v.Context, ctx) || !proto.Equal(v.MapSize, size) || v.Region == nil || !colonyCell(v.Region.Minimum, size) || !colonyCell(v.Region.Maximum, size) || v.Region.Minimum.GetX() > v.Region.Maximum.GetX() || v.Region.Minimum.GetZ() > v.Region.Maximum.GetZ() {
-		return contract("invalid planning cell scope")
-	}
-	if err := colonyCounts(v.Completeness, len(v.Cells), 4096); err != nil {
-		return err
-	}
-	area := uint64(v.Region.Maximum.GetX()-v.Region.Minimum.GetX()+1) * uint64(v.Region.Maximum.GetZ()-v.Region.Minimum.GetZ()+1)
-	if area > 4096 || uint64(len(v.Cells))+v.Completeness.GetFiltered() != area {
-		return contract("planning region coverage mismatch")
-	}
-	seenCells := map[[2]int32]bool{}
-	for _, row := range v.Cells {
-		if row == nil || !colonyCell(row.Cell, size) {
-			return contract("invalid planning cell")
-		}
-		key := [2]int32{row.Cell.GetX(), row.Cell.GetZ()}
-		if seenCells[key] || key[0] < v.Region.Minimum.GetX() || key[0] > v.Region.Maximum.GetX() || key[1] < v.Region.Minimum.GetZ() || key[1] > v.Region.Maximum.GetZ() {
-			return contract("duplicate or unselected planning cell")
-		}
-		seenCells[key] = true
-		if err := pawnsIssues(row.Issues, row.ProtoReflect()); err != nil {
-			return err
-		}
-		if !combatNumber(row.Fertility, true) || !combatNumber(row.TemperatureC, false) || len(row.Things) != 0 || len(row.AreaIds) != 0 || len(row.Designations) != 0 {
-			return contract("invalid planning cell details")
-		}
-		for _, name := range []*string{row.Terrain, row.Roof, row.ZoneId, row.RoomId} {
-			if name != nil && validID(*name) != nil {
-				return contract("invalid planning cell identifier")
-			}
-		}
+	// A native that serves the planning window through
+	// observations_get_cells (ReadPlanningWindow, #356) carries no cells
+	// here; an older one still lists them.
+	if p.Cells != nil {
+		return validatePlanningCells(p.Cells, ctx, size)
 	}
 	return nil
 }

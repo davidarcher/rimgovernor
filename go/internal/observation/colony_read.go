@@ -82,6 +82,11 @@ func ObserveColony(ctx context.Context, source ColonySource, clock Clock, expect
 	if err != nil {
 		return result, err
 	}
+	if planning {
+		if err := fillPlanningWindow(ctx, reply, id, &projection); err != nil {
+			return result, err
+		}
+	}
 	// Colony facts do not carry pause state; that fact is the caller's.
 	observed := projection.Identity
 	observed.Paused = expected.Paused

@@ -388,45 +388,14 @@ namespace HomeBridge.BridgeTools
                     }
                 }
             }
-            var workers = people.Where(p => !p.Downed && !p.InMentalState && !p.Drafted).ToList();
+            // The planning window itself (the site cells around the centre)
+            // is no longer carried here: the controller reads it on demand
+            // through observations_get_cells (issue #356), so a routine
+            // colony facts read costs the definitions, gear and environment
+            // census only. The window's rect still bounds the environment
+            // census below.
             var min = new IntVec3(Math.Max(0, center.x - 22), 0, Math.Max(0, center.z - 22));
             var max = new IntVec3(Math.Min(map.Size.x - 1, center.x + 22), 0, Math.Min(map.Size.z - 1, center.z + 22));
-            var cells = new Obs.CellsSnapshot { Context = context, MapSize = Size(map), Region = new Obs.Rectangle { Minimum = Cell(min), Maximum = Cell(max) },
-                AppliedFields = new Obs.CellFields { Roof = true, Visibility = true, Traversal = true, Zone = true, Growth = true } };
-            int fogged = 0;
-            for (int z = min.z; z <= max.z; z++) for (int x = min.x; x <= max.x; x++) {
-                var c = new IntVec3(x, 0, z);
-                if (c.Fogged(map)) { fogged++; continue; }
-                var terrain = c.GetTerrain(map); var room = c.GetRoom(map); var zone = map.zoneManager.ZoneAt(c); var roof = c.GetRoof(map);
-                var row = new Obs.CellState { Cell = Cell(c), Walkable = c.Walkable(map),
-                    SupportsLight = terrain.affordances.Contains(TerrainAffordanceDefOf.Light),
-                    Occupied = c.GetEdifice(map) != null || c.GetThingList(map).Any(t => t is Blueprint || t is Frame),
-                    Doorway = c.GetDoor(map) != null || c.GetThingList(map).Any(t => (t is Blueprint || t is Frame)
-                        && t.def.entityDefToBuild is ThingDef built && typeof(Building_Door).IsAssignableFrom(built.thingClass)),
-                    Indoors = room != null && room.ProperRoom && !room.PsychologicallyOutdoors,
-                    Reachable = workers.Any(p => p.CanReach(c, PathEndMode.OnCell, Danger.None)),
-                    StorageEmpty = NativeZoneCreation.StorageEmpty(c, map) };
-                // Absent roof/zone are expressed by the applied field being set
-                // with no value: AppliedFields declares Roof/Zone were read, so
-                // a missing value is a known absence, not an unread field.
-                // Per-cell "not applicable" issue rows said the same thing at
-                // ~290 JSON bytes per cell, which put a 45x45 planning window
-                // alone at the 1 MiB envelope bound on ordinary maps (issue #2).
-                // The row carries only what the planning review reads: no
-                // terrain, passability, room or temperature (rooms and their
-                // temperature come from home/list_rooms and the environment
-                // census), no fogged flag (fogged cells are filtered above, and
-                // Visibility applied says so), and fertility only where the
-                // ground has any, since the field was ~500 KB of every routine
-                // colony facts read (issue #335).
-                var fertility = map.fertilityGrid.FertilityAt(c);
-                if (fertility > 0f) row.Fertility = Finite(fertility);
-                if (roof != null) row.Roof = roof.defName;
-                if (zone != null) row.ZoneId = zone.ID.ToString(System.Globalization.CultureInfo.InvariantCulture);
-                cells.Cells.Add(row);
-            }
-            cells.Completeness = Complete(cells.Cells.Count, fogged);
-            result.Cells = cells;
             try { result.Environment = Environment(map, min, max, limit); }
             catch (ReadLimit) { throw; }
             catch (Exception) { result.Issues.Add(Issue("environment", Common.UnavailableReason.ReadFailed, "Controlled-environment growing facts are unavailable.")); }

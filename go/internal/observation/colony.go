@@ -3,6 +3,7 @@ package observation
 import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/facts"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -62,6 +63,9 @@ type ColonyProjection struct {
 	// fogged, cells outside it were never read.
 	Region policy.Rectangle
 	Cells  []policy.SiteCell
+	// Window is the window's provenance when a PlanningWindowSource served
+	// it (Source set); empty when the reply listed the cells itself.
+	Window facts.Held[PlanningCells]
 	// Farms lists observed growing zones by native id and current crop.
 	Farms []FarmZoneFact
 	// Environment is the controlled-growing census inside the planning region.
@@ -130,31 +134,7 @@ func hasIssue(issues []*o.ReadIssue, field string) bool {
 	return false
 }
 func nativePresence(value *string, issues []*o.ReadIssue, field string) domain.Fact[bool] {
-	return appliedPresence(value, issues, field, false)
-}
-
-// appliedPresence is nativePresence for a field the reply declares it read
-// (CellsSnapshot.applied_fields): a missing value with no issue row is then a
-// known absence. The native planning window stopped emitting a
-// "not applicable" issue per absent roof/zone/room because those rows alone
-// pushed a 45x45 window to the 1 MiB envelope bound (issue #2); an issue row
-// still wins when present so older replies decode the same way.
-func appliedPresence(value *string, issues []*o.ReadIssue, field string, applied bool) domain.Fact[bool] {
-	if value != nil {
-		return domain.Known(true)
-	}
-	for _, issue := range issues {
-		if issue.GetField() == field {
-			if issue.GetUnavailable().GetReason() == c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE {
-				return domain.Known(false)
-			}
-			return domain.Unknown[bool]()
-		}
-	}
-	if applied {
-		return domain.Known(false)
-	}
-	return domain.Unknown[bool]()
+	return bridge.CellPresence(value, issues, field, false)
 }
 
 // DecodeColony projects only same-tick validated facts. Native raw food runway
@@ -356,20 +336,12 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 			}
 			r.Definitions = append(r.Definitions, d)
 		}
+		// An older native lists the planning window here; a current one
+		// serves it through observations_get_cells and the routine bracket
+		// fills Region and Cells from the store (#356).
 		if region := planning.Cells.GetRegion(); region != nil && region.Minimum != nil && region.Maximum != nil {
 			r.Region = policy.Rectangle{X: region.Minimum.GetX(), Z: region.Minimum.GetZ(), Width: region.Maximum.GetX() - region.Minimum.GetX() + 1, Height: region.Maximum.GetZ() - region.Minimum.GetZ() + 1}
-		}
-		applied := planning.Cells.GetAppliedFields()
-		for _, row := range planning.Cells.Cells {
-			// A fogged row, or one whose visibility the reply never read, is
-			// not evidence that a cell is safe to plan on. The planning window
-			// declares visibility applied and omits the field on the rows it
-			// emits, since fogged cells are filtered into the completeness
-			// count rather than listed (#335).
-			if row.GetFogged() || row.Fogged == nil && !applied.GetVisibility() {
-				continue
-			}
-			r.Cells = append(r.Cells, policy.SiteCell{Cell: domain.Cell{X: row.Cell.GetX(), Z: row.Cell.GetZ()}, Walkable: optional(row.Walkable), Occupied: optional(row.Occupied), Zone: appliedPresence(row.ZoneId, row.Issues, "zone_id", applied.GetZone()), Roofed: appliedPresence(row.Roof, row.Issues, "roof", applied.GetRoof()), Roof: optional(row.Roof), Indoors: optional(row.Indoors), SupportsLight: optional(row.SupportsLight), Doorway: optional(row.Doorway), Reachable: optional(row.Reachable), Fertility: optional(row.Fertility), StorageEmpty: optional(row.StorageEmpty), ZoneID: optional(row.ZoneId)})
+			r.Cells, _ = bridge.PlanningCells(planning.Cells)
 		}
 	}
 	if planning := v.GetPlanning().GetObserved(); planning != nil && planning.Environment != nil && !hasIssue(planning.Issues, "environment") {

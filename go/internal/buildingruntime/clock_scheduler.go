@@ -17,6 +17,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/facts"
+	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
@@ -568,6 +569,14 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	// hit/miss counts, and as a clock_step row in the flight recorder,
 	// which `rimgovernor phases` reports as reads/step.
 	call, reads := bridge.WithReadTally(call)
+	// The planning window's refresher (#356): its step scope, tick and
+	// whether this step reviews are fixed once the bundle below is read,
+	// before any planning read asks it.
+	var window *planningWindow
+	if native, ok := s.native.(PlanningWindowNative); ok {
+		window = &planningWindow{native: native, store: s.facts.store}
+		call = observation.WithPlanningWindow(call, window)
+	}
 	stepBegan := time.Now()
 	defer func() {
 		elapsed := time.Since(stepBegan)
@@ -631,6 +640,9 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	}
 	if err = bridge.ValidateContext(loaded.Context); err != nil {
 		return out, errors.Join(err, s.session.Disable())
+	}
+	if window != nil {
+		window.scope, window.tick, window.review = factsScope(loaded.Context), loaded.Context.GetTick(), s.stepReviews(reason)
 	}
 	state := s.session.State()
 	world := domain.GenerationSnapshot{Colony: domain.ColonyID(loaded.Context.Identity.GetColonyId()), Load: domain.LoadID(loaded.Context.Identity.GetLoadToken()), Map: domain.MapID(loaded.Context.Identity.GetMapId())}
@@ -1110,19 +1122,25 @@ func (s *ClockScheduler) livePlanningDue(reason StepReason) bool {
 // reads, never a wrong fact.
 func (s *ClockScheduler) bundleRequest(reason StepReason) *o.BundleRequest {
 	request := &o.BundleRequest{ClockStatus: proto.Bool(true), Emergency: proto.Bool(true)}
-	if s.config.Routine == nil {
-		return request
-	}
-	review := false
-	if reason.Cause == StepTimer {
-		review = s.fullStepDue()
-	} else {
-		review, _ = plannerSelection(reason, s.facts.kindOf)
-	}
-	if review {
+	if s.stepReviews(reason) {
 		request.ColonyFacts, request.Population, request.Research, request.ColonistPawns = proto.Bool(true), proto.Bool(true), proto.Bool(true), proto.Bool(true)
 	}
 	return request
+}
+
+// stepReviews is whether a step taken for reason is expected to run the
+// routine review: never without a reviewer, on a timer step only when the
+// full-step safety net is due, and for any other cause as plannerSelection
+// decides.
+func (s *ClockScheduler) stepReviews(reason StepReason) bool {
+	if s.config.Routine == nil {
+		return false
+	}
+	if reason.Cause == StepTimer {
+		return s.fullStepDue()
+	}
+	review, _ := plannerSelection(reason, s.facts.kindOf)
+	return review
 }
 
 // factsScope is the store scope an observation context establishes: the

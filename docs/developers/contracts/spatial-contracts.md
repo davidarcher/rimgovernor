@@ -172,9 +172,10 @@ lie within the native roof-support radius of a cell left untouched, so the rock 
 standing holds the roof. The planner tries its shapes at each face in a preference
 order that follows the shelter style (a neolithic colony digs the round room first,
 everyone else the rectangle) and proposes the first legal shape at the shortest legal
-corridor; faces then rank by distance as before. Indoor furnishing, here and everywhere, skips cells the planning window reports no
-colonist can reach: a pocket sealed off behind walls is a room to nobody. Every
-target cell must be visible rock
+corridor; faces then rank by distance as before. The planning window carries no
+reachability (it is a function of which colonists are undrafted, not of the map);
+a site no colonist can reach is refused at `placement_preview`, and the planner
+moves on. Every target cell must be visible rock
 under a natural rock roof or fogged (unknown) inside the observed planning window;
 any known open, indoor or protected cell inside or beside the room rejects it, and
 nothing outside the observed window is planned. A verified site within the planning

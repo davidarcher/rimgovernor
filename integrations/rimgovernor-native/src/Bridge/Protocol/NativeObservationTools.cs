@@ -36,7 +36,7 @@ namespace HomeBridge.BridgeTools
         }
 
         [Tool("rimgovernor/observations_get_cells", Title = "Read bounded map cells",
-            Description = "Official GetCellsRequest ProtoJSON. Exact cells or inclusive rectangle,1..256 cells. Returns native map dimensions. Absent fields select terrain/roof/visibility/traversal; explicit false skips. Other field families are unavailable until migrated.")]
+            Description = "Official GetCellsRequest ProtoJSON. Exact cells (1..256) or inclusive rectangle (1..4096 cells). Returns native map dimensions. Absent fields select terrain/roof/visibility/traversal; explicit false skips. Traversal adds occupied/doorway/supports_light, zone adds zone_id/storage_empty, room adds room_id/indoors, growth adds fertility where the ground has any; a fogged cell under visibility carries only fogged, and an absent roof/zone/room is the applied field with no value. Areas and designations are unavailable until migrated.")]
         [ToolResponse("payload", "string", "Official observations GetCellsReply ProtoJSON.", Always = true)]
         public async Task<object> GetCells(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw value must be a GetCellsRequest ProtoJSON string.")] object? request = null)
@@ -57,14 +57,40 @@ namespace HomeBridge.BridgeTools
                         AppliedFields = fields, Completeness = Complete(cells.Count) };
                     foreach (var cell in cells) {
                         var row = new Obs.CellState { Cell = Cell(cell.x, cell.z) };
+                        // A fogged cell reveals nothing but its fog: the row
+                        // carries no other fact, as the planning window it
+                        // now serves (issue #356) never listed fogged cells.
+                        // Visibility applied and the row listed means visible;
+                        // only a fogged row says so.
+                        if (fields.Visibility && cell.Fogged(map)) { row.Fogged = true; snapshot.Cells.Add(row); continue; }
                         if (fields.Terrain) row.Terrain = Identifier(cell.GetTerrain(map)?.defName);
-                        if (fields.Roof) {
-                            var roof = cell.GetRoof(map);
-                            if (roof == null) row.Issues.Add(Issue("roof", Common.UnavailableReason.NotApplicable, "No roof at this cell."));
-                            else row.Roof = Identifier(roof.defName);
+                        // An absent roof, zone or room is the applied field
+                        // set with no value (a declared field without a value
+                        // decodes as a known absence): a per-cell issue row
+                        // costs ~110 bytes and put a 45x45 window past 700 KB.
+                        if (fields.Roof) { var roof = cell.GetRoof(map); if (roof != null) row.Roof = Identifier(roof.defName); }
+                        if (fields.Traversal) {
+                            row.Walkable = cell.Walkable(map); row.Passable = !cell.Impassable(map);
+                            row.Occupied = cell.GetEdifice(map) != null || cell.GetThingList(map).Any(t => t is Blueprint || t is Frame);
+                            row.Doorway = cell.GetDoor(map) != null || cell.GetThingList(map).Any(t => (t is Blueprint || t is Frame)
+                                && t.def.entityDefToBuild is ThingDef built && typeof(Building_Door).IsAssignableFrom(built.thingClass));
+                            row.SupportsLight = cell.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Light);
                         }
-                        if (fields.Visibility) row.Fogged = cell.Fogged(map);
-                        if (fields.Traversal) { row.Walkable = cell.Walkable(map); row.Passable = !cell.Impassable(map); }
+                        if (fields.Zone) {
+                            var zone = map.zoneManager.ZoneAt(cell);
+                            if (zone != null) row.ZoneId = zone.ID.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                            row.StorageEmpty = NativeZoneCreation.StorageEmpty(cell, map);
+                        }
+                        if (fields.Room) {
+                            var room = cell.GetRoom(map);
+                            if (room != null) row.RoomId = room.ID.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                            row.Indoors = room != null && room.ProperRoom && !room.PsychologicallyOutdoors;
+                        }
+                        if (fields.Growth) {
+                            // Fertility only where the ground has any (issue #335).
+                            var fertility = map.fertilityGrid.FertilityAt(cell);
+                            if (fertility > 0f) row.Fertility = Finite(fertility);
+                        }
                         if (fields.Things) {
                             var here = cell.GetThingList(map);
                             RequireCount(here.Count, 256);
@@ -105,22 +131,26 @@ namespace HomeBridge.BridgeTools
         internal static bool ValidateCells(Obs.GetCellsRequest request, out Common.Failure failure)
         {
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Valid identity, bounded unique exact cells or inclusive rectangle required.");
-            if (request == null || request.Scope?.ExpectedIdentity == null || !PageValid(request.Page)) return false;
+            if (request == null || request.Scope?.ExpectedIdentity == null || !PageValid(request.Page, CellsPageLimit)) return false;
             var fields = request.Fields;
-            if (fields != null && (fields.Zone || fields.Areas || fields.Designations || fields.Room || fields.Growth)) {
-                failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Only terrain, roof, visibility, traversal and things cell fields are implemented."); return false;
+            if (fields != null && (fields.Areas || fields.Designations)) {
+                failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Only terrain, roof, visibility, traversal, zone, room, growth and things cell fields are implemented."); return false;
             }
             try { Selection(request); return true; } catch (Exception) { return false; }
         }
-        private static bool PageValid(Common.PageRequest? page) => page == null
-            || (!page.HasLimit || page.Limit >= 1 && page.Limit <= 256) && (!page.HasCursor || page.Cursor.Length == 0);
+        // A rectangle page holds a whole 45x45 planning window (2,025 cells,
+        // ~345 KB after issue #335's row trim) in one hop; exact cells stay
+        // at 256 (Selection).
+        internal const int CellsPageLimit = 4096;
+        private static bool PageValid(Common.PageRequest? page, int limit = 256) => page == null
+            || (!page.HasLimit || page.Limit >= 1 && page.Limit <= limit) && (!page.HasCursor || page.Cursor.Length == 0);
         private static int Limit(Common.PageRequest? page) => page?.HasLimit == true ? (int)page.Limit : 256;
         private static bool HasCell(Common.Cell? cell) => cell != null && cell.HasX && cell.HasZ;
         internal static List<IntVec3> Selection(Obs.GetCellsRequest request)
         {
             var result = new List<IntVec3>(); var limit = Limit(request.Page);
             if (request.SelectionCase == Obs.GetCellsRequest.SelectionOneofCase.ExactCells) {
-                if (request.ExactCells.Cells.Count < 1 || request.ExactCells.Cells.Count > limit) throw new ReadLimit("Exact cell count exceeds page limit.");
+                if (request.ExactCells.Cells.Count < 1 || request.ExactCells.Cells.Count > Math.Min(limit, 256)) throw new ReadLimit("Exact cell count exceeds page limit.");
                 foreach (var cell in request.ExactCells.Cells) {
                     if (!HasCell(cell)) throw new ArgumentException("Coordinate presence required.");
                     result.Add(new IntVec3(cell.X, 0, cell.Z));
@@ -142,7 +172,8 @@ namespace HomeBridge.BridgeTools
             // terrain/roof/visibility/traversal's absence-selects-true default:
             // a bounded per-cell thing scan is not something every caller wants.
             Things = source != null && source.HasThings && source.Things,
-            Zone = false, Areas = false, Designations = false, Room = false, Growth = false };
+            Zone = source != null && source.HasZone && source.Zone, Room = source != null && source.HasRoom && source.Room,
+            Growth = source != null && source.HasGrowth && source.Growth, Areas = false, Designations = false };
 
         // The status read as a bundle section: the same facts ReadStatus
         // answers, with its limit and read failures as unavailable.
