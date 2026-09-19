@@ -33,6 +33,13 @@ instructions, not just a spinner.
 There is no multi-instance local colony directory (`--colonies`) or `/colonies`
 route; see [issue #47](https://github.com/davidarcher/rimgovernor/issues/47).
 
+Colony also shows the food portfolio from `GET /api/player/colony`:
+channel bars use the plan's admitted nutrition/day, with Open/Hold/Close
+labels, a shared consumer-demand marker, hatched Reserve rows and unknown
+channels with their recorded reasons. Totals, gap and decisions come from
+the server; the dashboard does not recalculate the ledger. Failed refreshes
+retain the last plan with a stale notice; a null plan clears it.
+
 Colony shows `GET /api/presentation/colonists`: each spawned free colonist's
 id, name, map and position plus a dossier, the observation `PawnState` the
 roster requests with `include_dossier` (needs, health and visible hediffs,

@@ -1,0 +1,13 @@
+.food-summary strong {color:#e9e6d9;font-size:1.2em}
+.food-legend,.food-row-label {display:flex;gap:16px;flex-wrap:wrap;align-items:baseline}
+.food-legend {font-size:13px}
+.food-Open {color:#9fc78b}.food-Hold {color:#ddb975}.food-Close {color:#cf9690}
+.food-channels {list-style:none;padding:0;margin:20px 0}
+.food-channels li {margin:0 0 18px}
+.food-row-label {margin-bottom:6px;font-size:14px}.food-row-label strong {font-size:16px}.food-row-label span:last-child {margin-left:auto;font-variant-numeric:tabular-nums}
+.food-track {position:relative;height:20px;background:#141712;border-radius:3px}
+.food-bar {display:block;height:100%;border-radius:3px}.food-bar-Open {background:#8caa75}.food-bar-Hold {background:#b8985f}.food-bar-Close {background:#a46d67}
+.food-reserve {background-image:repeating-linear-gradient(135deg,transparent,transparent 5px,#16191580 5px,#16191580 9px)}
+.food-demand {position:absolute;top:-4px;bottom:-4px;border-left:2px solid #e9e6d9}
+.food-reason {font-size:12px;margin:6px 0 0;overflow-wrap:anywhere}
+.food-unknown,.food-explain {overflow-wrap:anywhere}.food-explain {white-space:pre-wrap;font-size:13px}.food-plan summary {cursor:pointer}
