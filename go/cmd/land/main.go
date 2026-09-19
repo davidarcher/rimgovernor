@@ -138,7 +138,7 @@ func run(branch, message, messageFile string, lockTimeout time.Duration, runTest
 		return err
 	}
 	if runTests {
-		if err := affected.Test(worktree, changed); err != nil {
+		if err := affected.Test(worktree, changed, "main"); err != nil {
 			return err
 		}
 	} else {

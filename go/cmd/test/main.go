@@ -47,5 +47,5 @@ func run(base string) error {
 	if err != nil {
 		return err
 	}
-	return affected.Test(repo, changed)
+	return affected.Test(repo, changed, base)
 }

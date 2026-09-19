@@ -87,16 +87,15 @@ const S = "text"
 		t.Run(tc.name, func(t *testing.T) {
 			repo := scratchRepo(t, "p.go", baseSource)
 			write(t, repo, "p.go", tc.src)
-			if got := commentOnly(repo, "HEAD", "p.go"); got != tc.want {
-				t.Errorf("commentOnly = %v, want %v", got, tc.want)
+			if got := acceptanceOnly(repo, "HEAD", "p.go"); got != tc.want {
+				t.Errorf("acceptanceOnly = %v, want %v", got, tc.want)
 			}
 		})
 	}
 }
 
-// ChangedFiles drops a comment-only Go edit, keeps a code edit and never
-// looks inside a non-Go file.
-func TestChangedFilesDropsCommentOnlyEdits(t *testing.T) {
+// ChangedFiles keeps every edit, including comments and new files.
+func TestChangedFilesKeepsAllEdits(t *testing.T) {
 	repo := scratchRepo(t, "p.go", baseSource)
 	write(t, repo, "q.go", "package p\n\nfunc G() {}\n")
 	write(t, repo, "README.md", "# base\n")
@@ -113,7 +112,7 @@ func TestChangedFilesDropsCommentOnlyEdits(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := []string{"README.md", "new.go", "q.go"}; !slices.Equal(got, want) {
+	if want := []string{"README.md", "new.go", "p.go", "q.go"}; !slices.Equal(got, want) {
 		t.Errorf("ChangedFiles = %v, want %v", got, want)
 	}
 }

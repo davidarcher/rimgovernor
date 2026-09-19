@@ -936,7 +936,12 @@ the area hosts it, or a changed routine family is one the area composes;
 every area when the native sources, fixtures or `go.mod` changed). It diffs
 the working tree, including uncommitted and untracked files, against the
 merge base with `main` (`-base` for another revision); pass paths to ask
-about a hypothetical change; `-files` lists the files considered and, under
+about a hypothetical change. Every changed Go file stays in compilation and
+static checks. Only acceptance selection may ignore ordinary comments or
+literal-only clock log calls; control flow and expressions with unknown
+effects keep their acceptance coverage. The land tier uses the full changed
+file list and may conservatively include these diagnostic inputs as well.
+`-files` lists the files considered and, under
 each area, why it was selected; and a `task probes:build` line when the change touches the native
 contract probes build (a source under `integrations/rimgovernor-native/src`,
 `contracts/tests` or the generated C# protocol classes): the probes compile

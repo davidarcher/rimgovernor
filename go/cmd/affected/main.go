@@ -59,7 +59,11 @@ func main() {
 			fmt.Println("#", file)
 		}
 	}
-	sel, err := affected.Select(repo, changed)
+	var bases []string
+	if flag.NArg() == 0 {
+		bases = []string{*base}
+	}
+	sel, err := affected.Select(repo, changed, bases...)
 	if err != nil {
 		fail(err)
 	}

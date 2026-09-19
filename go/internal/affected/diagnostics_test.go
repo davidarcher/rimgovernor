@@ -1,7 +1,10 @@
 package affected
 
 import (
-	"os/exec"
+	"os"
+	"path/filepath"
+	"slices"
+	"strings"
 	"testing"
 )
 
@@ -52,7 +55,7 @@ func F(n int) int {
 	}
 	return 1
 }
-`, true},
+`, false},
 		{"trace with locals and a loop added", `package p
 
 var clockSchedulerDebug = false
@@ -76,7 +79,7 @@ func F(n int) int {
 	clockSchedulerLog("F: done")
 	return 1
 }
-`, true},
+`, false},
 		{"gated block assigns outward", `package p
 
 var clockSchedulerDebug = false
@@ -148,38 +151,87 @@ func F(n int) int {
 	}
 }
 
-// #303 regated the trace in twelve buildingruntime files; the routine
-// files changed nothing else and drop out of the changed set, while
-// clock_scheduler.go (the gate itself moved) stays in.
-func TestDiagnosticOnlyOn303(t *testing.T) {
-	r := repo(t)
-	const landing = "36443e7e"
-	if err := exec.Command("git", "-C", r, "cat-file", "-e", landing+"^{commit}").Run(); err != nil {
-		t.Skip("landing commit of #303 not in this checkout")
+func TestDiagnosticEffectsRemainSignificant(t *testing.T) {
+	for _, statement := range []string{
+		`clockSchedulerLog("%v", missingIdentifier)`,
+		`clockSchedulerLog("%v", mutateState())`,
+		`if clockDebug() { x := mutateState(); clockSchedulerLog("%v", x) }`,
+		`if clockDebug() { var x = mutateState(); clockSchedulerLog("%v", x) }`,
+		`if clockDebug() { x := state; x.Field = 1 }`,
+		`if clockDebug() { x := state; x[0]++ }`,
+		`if clockDebug() && mutateState() { clockSchedulerLog("ok") }`,
+		`clockSchedulerLog("%v", <-events)`,
+	} {
+		t.Run(statement, func(t *testing.T) {
+			after := strings.Replace(tracedSource, `clockSchedulerLog("F: done")`, statement, 1)
+			if diagnosticOnly([]byte(tracedSource), []byte(after)) {
+				t.Fatal("effectful edit filtered")
+			}
+		})
 	}
-	show := func(rev, file string) []byte {
-		t.Helper()
-		out, err := exec.Command("git", "-C", r, "show", rev+":go/internal/buildingruntime/"+file).Output()
-		if err != nil {
+	after := strings.Replace(tracedSource, `clockSchedulerLog("F: done")`, `clockSchedulerLog("finished")`, 1)
+	if !diagnosticOnly([]byte(tracedSource), []byte(after)) {
+		t.Fatal("literal trace edit should be acceptance-only")
+	}
+}
+
+// The discovery -> selection -> compiler path must retain diagnostics even when
+// acceptance can skip a literal-only trace edit.
+func TestDiagnosticEditsKeepFastChecks(t *testing.T) {
+	r := scratchRepo(t, "README.md", "fixture")
+	for _, dir := range []string{"go/internal/buildingruntime", "go/internal/nativeaccept/cases/sample"} {
+		if err := os.MkdirAll(filepath.Join(r, dir), 0o755); err != nil {
 			t.Fatal(err)
 		}
-		return out
 	}
-	for file, want := range map[string]bool{
-		"routine_flooring.go":        true,
-		"routine_lighting.go":        true,
-		"routine_refrigeration.go":   true,
-		"routine_comfort.go":         true,
-		"routine_hospital.go":        true,
-		"routine_routes.go":          true,
-		"routine_sleeping.go":        true,
-		"routine_sleeping_upkeep.go": true,
-		"clock_poll.go":              true,
-		"worker.go":                  true,
-		"clock_scheduler.go":         false,
+	const file = "go/internal/buildingruntime/trace.go"
+	const source = `package buildingruntime
+func clockSchedulerLog(format string, args ...any) {}
+func F() { clockSchedulerLog("before") }
+`
+	write(t, r, "go/go.mod", "module example.test/checks\ngo 1.23\n")
+	write(t, r, file, source)
+	write(t, r, "go/internal/nativeaccept/cases/sample/sample.go", `package sample
+import "example.test/checks/internal/buildingruntime"
+func Run() { buildingruntime.F() }
+`)
+	gitRun(t, r, "add", ".")
+	gitRun(t, r, "commit", "-qm", "fixture")
+	gitRun(t, r, "branch", "base")
+	for _, tc := range []struct {
+		name, replacement string
+		cases             bool
+	}{
+		{"literal", `clockSchedulerLog("after")`, false},
+		{"undefined", `clockSchedulerLog("%v", missingIdentifier)`, true},
 	} {
-		if got := diagnosticOnly(show(landing+"^", file), show(landing, file)); got != want {
-			t.Errorf("%s: diagnosticOnly = %v, want %v", file, got, want)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			write(t, r, file, strings.Replace(source, `clockSchedulerLog("before")`, tc.replacement, 1))
+			changed, err := ChangedFiles(r, "base")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !slices.Equal(changed, []string{file}) {
+				t.Fatalf("changed = %v", changed)
+			}
+			sel, err := Select(r, changed, "base")
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, pkg := range []string{"example.test/checks/internal/buildingruntime", "example.test/checks/internal/nativeaccept/cases/sample"} {
+				if !slices.Contains(sel.Packages, pkg) {
+					t.Errorf("fast checks missing %s: %+v", pkg, sel)
+				}
+			}
+			if slices.Contains(sel.Cases, "sample") != tc.cases {
+				t.Errorf("acceptance = %v", sel.Cases)
+			}
+			if tc.name == "undefined" {
+				_, err := goOutput(filepath.Join(r, "go"), append([]string{"test"}, sel.Packages...)...)
+				if err == nil || !strings.Contains(err.Error(), "undefined: missingIdentifier") {
+					t.Fatalf("compiler did not reject undefined log argument: %v", err)
+				}
+			}
+		})
 	}
 }

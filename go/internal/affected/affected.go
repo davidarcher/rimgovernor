@@ -56,10 +56,8 @@ var probeInputs = []string{"integrations/rimgovernor-native/src", "contracts/tes
 
 // ChangedFiles lists the repo-relative files the working tree changed
 // since it diverged from base (the merge base, so what base gained
-// meanwhile does not count), including uncommitted and untracked ones. A
-// Go file whose edit is comment-only (commentOnly) is left out: it changes
-// no behaviour, so it should not name the packages importing it or the
-// harnesses they drive.
+// meanwhile does not count), including uncommitted and untracked ones.
+// Discovery never excludes executable edits from fast checks.
 func ChangedFiles(repo, base string) ([]string, error) {
 	mergeBase, err := gitLines(repo, "merge-base", base, "HEAD")
 	if err != nil {
@@ -80,17 +78,23 @@ func ChangedFiles(repo, base string) ([]string, error) {
 			continue
 		}
 		seen[file] = true
-		if commentOnly(repo, mergeBase[0], file) {
-			continue
-		}
 		files = append(files, file)
 	}
 	sort.Strings(files)
 	return files, nil
 }
 
-// Select computes what the changed repo-relative files affect.
-func Select(repo string, changed []string) (Selection, error) {
+// Select computes what changed files affect. An optional base enables
+// acceptance-only filtering; fast checks always include every changed file.
+func Select(repo string, changed []string, base ...string) (Selection, error) {
+	var revision string
+	if len(base) > 0 {
+		refs, err := gitLines(repo, "merge-base", base[0], "HEAD")
+		if err != nil {
+			return Selection{}, err
+		}
+		revision = refs[0]
+	}
 	sel := Selection{Why: map[string][]string{}}
 	goDir := filepath.Join(repo, "go")
 	dirs := map[string][]string{} // absolute package dir -> changed files in it
@@ -161,6 +165,9 @@ func Select(repo string, changed []string) (Selection, error) {
 				continue
 			}
 			productionPkgs[pkg] = true
+			if revision != "" && acceptanceOnly(repo, revision, file) {
+				continue
+			}
 			scope, err := routineFamilyScope(goDir, file)
 			if err != nil {
 				return sel, err
@@ -525,9 +532,9 @@ func output(dir, name string, args ...string) (string, error) {
 // command it prints is the land tier, which already covers those areas
 // plus the smoke set and runs fresh (#249, #273); running the areas on
 // their own first and then the tier would run every case twice.
-func Test(repo string, changed []string) error {
+func Test(repo string, changed []string, base ...string) error {
 	goDir := filepath.Join(repo, "go")
-	sel, err := Select(repo, changed)
+	sel, err := Select(repo, changed, base...)
 	if err != nil {
 		return err
 	}

@@ -12,15 +12,17 @@ import (
 	"strings"
 )
 
-// commentOnly reports whether a Go file's edit since base changed nothing
+// acceptanceOnly reports whether a Go file's edit since base changed nothing
 // a case can observe: the token streams of the two versions match once
 // ordinary comments are dropped, or they match once the debug trace is
-// dropped as well (diagnosticOnly, #361). Compiler directives (//go:build,
+// dropped as well (literal-only clock logs in buildingruntime). This is
+// acceptance classification only, never permission to skip Go checks.
+// Compiler directives (//go:build,
 // //go:embed, //go:noinline, //line, //export, // +build) and a cgo
 // preamble are comments the toolchain reads, so a file touching them never
 // counts as comment-only, nor does a file that fails to scan, is new, or is
 // deleted.
-func commentOnly(repo, base, file string) bool {
+func acceptanceOnly(repo, base, file string) bool {
 	if !strings.HasSuffix(file, ".go") {
 		return false
 	}
@@ -47,7 +49,7 @@ func commentOnly(repo, base, file string) bool {
 	if sameTokens(a, b) {
 		return true
 	}
-	return diagnosticOnly([]byte(before), afterBytes)
+	return strings.HasPrefix(file, "go/internal/buildingruntime/") && diagnosticOnly([]byte(before), afterBytes)
 }
 
 func sameTokens(a, b []lexeme) bool {
@@ -97,14 +99,8 @@ func directive(comment string) bool {
 	return false
 }
 
-// diagnosticGates are the identifiers of the clock's debug trace
-// (internal/buildingruntime/clock_scheduler.go): an `if` whose condition
-// names one, and a statement calling one, run nothing a case observes.
-var diagnosticGates = map[string]bool{"clockDebug": true, "clockSchedulerDebug": true, "clockSchedulerLog": true}
-
 // diagnosticOnly reports whether two versions of a Go file agree once the
-// statements under the debug trace are removed from both: the trace-gated
-// blocks and trace calls stripped (stripDiagnostics), the rest printed
+// literal-only trace calls are removed from both (stripDiagnostics), then printed
 // without comments and compared token by token. The directive comments
 // must agree as well.
 func diagnosticOnly(before, after []byte) bool {
@@ -148,8 +144,7 @@ func diagnosticFreeTokens(src []byte) ([]lexeme, bool) {
 	return append(out, tokens...), true
 }
 
-// stripDiagnostics removes every statement the debug trace gates from the
-// file's statement lists and else branches.
+// stripDiagnostics removes literal-only log statements from statement lists.
 func stripDiagnostics(file *ast.File) {
 	ast.Inspect(file, func(n ast.Node) bool {
 		switch n := n.(type) {
@@ -159,10 +154,6 @@ func stripDiagnostics(file *ast.File) {
 			n.Body = withoutDiagnostics(n.Body)
 		case *ast.CommClause:
 			n.Body = withoutDiagnostics(n.Body)
-		case *ast.IfStmt:
-			if n.Else != nil && diagnostic(n.Else) {
-				n.Else = nil
-			}
 		}
 		return true
 	})
@@ -178,115 +169,25 @@ func withoutDiagnostics(list []ast.Stmt) []ast.Stmt {
 	return kept
 }
 
-// diagnostic reports whether a statement is a trace call or an `if` on a
-// trace gate with no other branch whose body only traces (traceOnly): a
-// gated block that assigns outside itself or returns runs under `serve
-// --debug`, which every acceptance launch passes, so it stays significant.
+// diagnostic admits only direct logger calls with literal arguments. Unknown
+// calls, receives, alias writes, initializers and control flow stay significant.
 func diagnostic(stmt ast.Stmt) bool {
-	switch stmt := stmt.(type) {
-	case *ast.ExprStmt:
-		call, ok := stmt.X.(*ast.CallExpr)
-		return ok && gate(call.Fun)
-	case *ast.IfStmt:
-		if stmt.Else != nil || stmt.Init != nil {
-			return false
-		}
-		gated := false
-		ast.Inspect(stmt.Cond, func(n ast.Node) bool {
-			if gate(n) {
-				gated = true
-			}
-			return !gated
-		})
-		return gated && traceOnly(stmt.Body.List, map[string]bool{})
+	expr, ok := stmt.(*ast.ExprStmt)
+	if !ok {
+		return false
 	}
-	return false
-}
-
-// traceOnly reports whether statements only trace: trace calls, locals
-// declared for them (:=, var) and assigned within the block, and loops or
-// branches over the same. locals collects the block's own names.
-func traceOnly(list []ast.Stmt, locals map[string]bool) bool {
-	for _, stmt := range list {
-		switch stmt := stmt.(type) {
-		case *ast.ExprStmt:
-			call, ok := stmt.X.(*ast.CallExpr)
-			if !ok || !gate(call.Fun) {
-				return false
-			}
-		case *ast.AssignStmt:
-			for _, lhs := range stmt.Lhs {
-				if stmt.Tok == token.DEFINE {
-					if ident, ok := lhs.(*ast.Ident); ok {
-						locals[ident.Name] = true
-					}
-				} else if !local(lhs, locals) {
-					return false
-				}
-			}
-		case *ast.IncDecStmt:
-			if !local(stmt.X, locals) {
-				return false
-			}
-		case *ast.DeclStmt:
-			if decl, ok := stmt.Decl.(*ast.GenDecl); ok {
-				for _, spec := range decl.Specs {
-					if spec, ok := spec.(*ast.ValueSpec); ok {
-						for _, name := range spec.Names {
-							locals[name.Name] = true
-						}
-					}
-				}
-			}
-		case *ast.IfStmt:
-			if stmt.Init != nil && !traceOnly([]ast.Stmt{stmt.Init}, locals) || !traceOnly(stmt.Body.List, locals) || stmt.Else != nil && !traceOnly([]ast.Stmt{stmt.Else}, locals) {
-				return false
-			}
-		case *ast.BlockStmt:
-			if !traceOnly(stmt.List, locals) {
-				return false
-			}
-		case *ast.RangeStmt:
-			if stmt.Tok == token.DEFINE {
-				for _, expr := range []ast.Expr{stmt.Key, stmt.Value} {
-					if ident, ok := expr.(*ast.Ident); ok {
-						locals[ident.Name] = true
-					}
-				}
-			} else if stmt.Key != nil && !local(stmt.Key, locals) || stmt.Value != nil && !local(stmt.Value, locals) {
-				return false
-			}
-			if !traceOnly(stmt.Body.List, locals) {
-				return false
-			}
-		case *ast.ForStmt:
-			if stmt.Init != nil && !traceOnly([]ast.Stmt{stmt.Init}, locals) || stmt.Post != nil && !traceOnly([]ast.Stmt{stmt.Post}, locals) || !traceOnly(stmt.Body.List, locals) {
-				return false
-			}
-		default:
+	call, ok := expr.X.(*ast.CallExpr)
+	if !ok || call.Ellipsis.IsValid() {
+		return false
+	}
+	name, ok := call.Fun.(*ast.Ident)
+	if !ok || name.Name != "clockSchedulerLog" || name.Obj != nil && name.Obj.Kind != ast.Fun {
+		return false
+	}
+	for _, arg := range call.Args {
+		if _, ok := arg.(*ast.BasicLit); !ok {
 			return false
 		}
 	}
 	return true
-}
-
-// local reports whether an assignment target is one of the block's own
-// names (or an element or field of one).
-func local(expr ast.Expr, locals map[string]bool) bool {
-	switch expr := expr.(type) {
-	case *ast.Ident:
-		return expr.Name == "_" || locals[expr.Name]
-	case *ast.IndexExpr:
-		return local(expr.X, locals)
-	case *ast.SelectorExpr:
-		return local(expr.X, locals)
-	case *ast.ParenExpr:
-		return local(expr.X, locals)
-	}
-	return false
-}
-
-func gate(n ast.Node) bool {
-	ident, ok := n.(*ast.Ident)
-	return ok && diagnosticGates[ident.Name]
 }
