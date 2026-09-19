@@ -99,6 +99,13 @@ jobs:
   # inputs, so it runs alone on the nightly schedule against public source
   # with no environment or secrets. Linux because the race runtime is
   # several times faster there and gcc is preinstalled.
+  # The same job owns the Protobuf generation drift check (contracts/proto
+  # against the committed C#/Go bindings) and the proof helper module under
+  # tools/protobuf/go, which is its own Go module so `./...` from go/ never
+  # sees it. Neither is in the landing loop (cmd/test and cmd/land do not
+  # run task protobuf:*), so without this nothing runs them. The C#/Go/C#
+  # exchange proof (task protobuf:test) stays manual: it proves the pinned
+  # runtime, which only changes with the pins, and needs Mono here.
   race:
     if: github.repository == 'davidarcher/rimgovernor' && github.event_name == 'schedule'
     runs-on: ubuntu-24.04
@@ -118,6 +125,23 @@ jobs:
           CGO_ENABLED: '1'
           GORACE: atexit_sleep_ms=0
         run: go test -race -parallel 8 ./...
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          dotnet-version: 8.0.x
+      - name: Protobuf generation drift
+        working-directory: go
+        shell: bash
+        run: |
+          go run ./internal/protobufgen/cmd/generatecsharp --check \
+            --output ../.rimgovernor/task/protobuf/csharp-check
+          go run ./internal/protobufgen/cmd/generatego --check \
+            --protoc "$HOME/.nuget/packages/grpc.tools/2.72.0/tools/linux_x64/protoc" \
+            --output ../.rimgovernor/task/protobuf/go-check \
+            --modcache ../.rimgovernor/task/protobuf/gomodcache
+      - name: Protobuf proof module tests
+        working-directory: tools/protobuf/go
+        shell: bash
+        run: go test -mod=readonly ./...
 
   shard:
     needs: plan
