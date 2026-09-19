@@ -61,12 +61,19 @@ type BillSelection struct {
 	Target               int32
 }
 
+// ProductionBillContext carries purpose-specific reviewed inputs. Meal context
+// is supplied by the food-plan owner; its absence preserves ordinary cooking.
+type ProductionBillContext struct {
+	Reserve *FoodReserveReview
+	Meals   *MealTierRequest
+}
+
 // Existing recipe bills belong to their player settings; no duplicate is a substitute
 // for changing a suspended, filtered or smaller bill. A cook-ahead bill is
 // the one exception: it adds the meals the at-risk stock needs beyond every
 // existing bill's reserved target, so a bench already cooking to a smaller
 // target gets a second, larger bill for the outage.
-func SelectProductionBill(purpose BillPurpose, benches domain.Fact[[]ProductionBench], colonists domain.Fact[int64], runway, atRisk domain.Fact[float64], targetDays float64, reserve ...FoodReserveReview) (BillSelection, bool) {
+func SelectProductionBill(purpose BillPurpose, benches domain.Fact[[]ProductionBench], colonists domain.Fact[int64], runway, atRisk domain.Fact[float64], targetDays float64, context ...ProductionBillContext) (BillSelection, bool) {
 	rows, known := benches.Value()
 	count, ck := colonists.Value()
 	if !known || !ck || count <= 0 || count > 256 || len(rows) > 256 || !fieldPositive(targetDays) || targetDays > 60 {
@@ -75,11 +82,23 @@ func SelectProductionBill(purpose BillPurpose, benches domain.Fact[[]ProductionB
 	if purpose != CookFood && purpose != PreserveFood && purpose != ButcherFood && purpose != CookAheadFood {
 		return BillSelection{}, false
 	}
-	if purpose == PreserveFood {
-		if len(reserve) != 1 {
+	if len(context) > 1 {
+		return BillSelection{}, false
+	}
+	if len(context) == 1 && (context[0].Meals != nil && purpose != CookFood || context[0].Reserve != nil && purpose != PreserveFood) {
+		return BillSelection{}, false
+	}
+	if purpose == CookFood && len(context) == 1 && context[0].Meals != nil {
+		if context[0].Meals.TargetDays != targetDays {
 			return BillSelection{}, false
 		}
-		return SelectReserveBill(benches, reserve[0])
+		return selectMealBill(benches, colonists, *context[0].Meals)
+	}
+	if purpose == PreserveFood {
+		if len(context) != 1 || context[0].Reserve == nil {
+			return BillSelection{}, false
+		}
+		return SelectReserveBill(benches, *context[0].Reserve)
 	}
 	reserved, ok := ReservedFoodNutrition(rows)
 	if !ok {

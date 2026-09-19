@@ -71,3 +71,35 @@ crew, per-unit nutrition and unrefrigerated remaining shelf life. It packs
 reserve groups first, then the longest-lived food, and returns no selection
 when the journey cannot be covered. The departure adapter owns obtaining these
 facts, respecting home stock floors and admitting the resulting cargo.
+
+## Meal tier policy
+
+`ReviewMealTier` consumes a reviewed `FoodPlan`, raw-food runway excluding meals
+and reserves, allocated cooks, expectations pressure, the previous tier and
+native recipe facts. `SelectProductionBill(CookFood)` accepts this input through
+`ProductionBillContext.Meals`; without it, ordinary cooking selection is unchanged.
+The food-plan owner supplies the context. Previous tier means the last observed
+active tier; a recommendation alone must not advance that latch.
+
+Upgrades require runway at least half a day above the seasonal target (half the
+minimum/target gap when narrower). Fine persists down to the target; lavish needs
+strict surplus and observed high-expectations pressure. Falling below the target,
+losing the qualified cook or losing a required ingredient source lowers the tier.
+Every ingredient slot must have an alternative supplied by an observed-open,
+retained ledger channel. A proposed Open channel is not yet ingredients; Hold on
+an already-open channel is usable. Unknown and Close rows provide no ingredients.
+Recipe skill floors are native facts. Within a tier, selection prefers nutrient
+efficiency, then less work per nutrition, with stable name/bench ties.
+
+Raw runway below minimum or constrained cooking labor recommends paste only when
+the dispenser definition is available and one active network has enough calm-night
+headroom for its native power draw. Separate networks are not added together.
+The recommendation identifies the network; it does not prove placement, physical
+connection, hopper availability or pawn feeding. Returning from paste requires
+recovery above the minimum margin and available cooking capacity.
+
+The review includes existing recipes for reconciliation, but the bill selector
+preserves matching player bills and performs no retirement. The goal/Hands owner
+must prove ownership before replacing a bill, obtain construction placement for
+paste, and verify native outcomes. These policy decisions alone are not gameplay
+acceptance.

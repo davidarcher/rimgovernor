@@ -181,7 +181,7 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 			return RoutineBillResult{}, err
 		}
 	}
-	var reserve []policy.FoodReserveReview
+	var billContext []policy.ProductionBillContext
 	if r.purpose == policy.PreserveFood {
 		supply, known := projection.FoodSupply.Value()
 		if !known {
@@ -191,9 +191,9 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		if err != nil {
 			return RoutineBillResult{Reason: BuildingMethodUnknown}, nil
 		}
-		reserve = append(reserve, value)
+		billContext = append(billContext, policy.ProductionBillContext{Reserve: &value})
 	}
-	selected, known := policy.SelectProductionBill(r.purpose, benches, projection.Facts.Colonists, projection.Facts.FoodDays, atRisk, r.reviewer.seasonal(projection.Facts).FoodTargetDays, reserve...)
+	selected, known := policy.SelectProductionBill(r.purpose, benches, projection.Facts.Colonists, projection.Facts.FoodDays, atRisk, r.reviewer.seasonal(projection.Facts).FoodTargetDays, billContext...)
 	if !known {
 		return RoutineBillResult{Reason: BuildingMethodUnknown}, nil
 	}
