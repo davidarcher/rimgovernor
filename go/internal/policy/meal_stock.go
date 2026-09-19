@@ -10,7 +10,9 @@ func StockIngredientChannels(s FoodSupply) []FoodChannel {
 		class, ck := stock.RawClass.Value()
 		amount, ak := stock.Nutrition.Value()
 		holder, hk := stock.Holder.Value()
-		if !ck || !ak || !hk || holder != "" || stock.Reserve || stock.Corpse || amount <= 0 {
+		// Human stock belongs to its gated routing row; it cannot certify
+		// protein availability for an unrestricted shared meal bill.
+		if !ck || !ak || !hk || holder != "" || stock.Reserve || stock.Corpse || stock.IsHumanMeat || amount <= 0 {
 			continue
 		}
 		var kind FoodChannelKind

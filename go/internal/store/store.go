@@ -1151,7 +1151,7 @@ func advanceInTransaction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, a
 			snapshot := current.View().Snapshot
 			// A reopened retry (e.g. an uncertain write later observed absent) claims the
 			// same bench+recipe again; that is not a real conflict.
-			if _, err := tx.ExecContext(ctx, "INSERT INTO bill_claims(colony,load_token,map_id,bench,recipe) VALUES(?,?,?,?,?) ON CONFLICT(colony,load_token,map_id,bench,recipe) DO NOTHING", snapshot.Colony, snapshot.Load, snapshot.Map, bill.Bench(), bill.Recipe()); err != nil {
+			if _, err := tx.ExecContext(ctx, "INSERT INTO bill_claims(colony,load_token,map_id,bench,recipe) VALUES(?,?,?,?,?) ON CONFLICT(colony,load_token,map_id,bench,recipe) DO NOTHING", snapshot.Colony, snapshot.Load, snapshot.Map, bill.Bench(), bill.ClaimRecipe()); err != nil {
 				return domain.Progress{}, conflict(err)
 			}
 		}

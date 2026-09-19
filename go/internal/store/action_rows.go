@@ -23,7 +23,7 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 	}
 	var err error
 	if b, ok := a.ProductionBill(); ok {
-		data, err := json.Marshal(billPayload{b.Bench(), b.Recipe(), b.BeforeToken(), b.Mode(), b.Target(), b.Ingredients(), b.Replaces()})
+		data, err := json.Marshal(billPayload{b.Bench(), b.Recipe(), b.BeforeToken(), b.Mode(), b.Target(), b.Ingredients(), b.Worker(), b.Replaces()})
 		if err != nil {
 			return err
 		}
@@ -180,6 +180,12 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 			return domain.Action{}, 0, errors.New("noncanonical bill payload")
 		}
 		value, err := domain.NewProductionBill(payload.Bench, payload.Recipe, payload.Token, payload.Mode, payload.Target, payload.Ingredients...)
+		if payload.Mode == domain.HumanButcherForever && payload.Recipe == "ButcherCorpseFlesh" && payload.Target == 0 && len(payload.Ingredients) == 0 {
+			value, err = domain.NewHumanButcherBill(payload.Bench, payload.Token, payload.Worker)
+		}
+		if payload.Mode != domain.HumanButcherForever && payload.Worker != "" {
+			return domain.Action{}, 0, errors.New("worker on ordinary bill")
+		}
 		if err != nil {
 			return domain.Action{}, 0, err
 		}
@@ -689,6 +695,7 @@ type billPayload struct {
 	Mode                 domain.BillMode
 	Target               int32
 	Ingredients          []string `json:",omitempty"`
+	Worker               string   `json:",omitempty"`
 	Replace              string   `json:",omitempty"`
 }
 

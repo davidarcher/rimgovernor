@@ -238,7 +238,7 @@ var plannerCatalog = []plannerEntry{
 			out.PreservationBills = &method
 			return nil
 		}},
-	{name: "butcherBills", priority: plannerFoothold, kinds: []domain.ActionKind{domain.ProductionBillAction}, families: factsColony,
+	{name: "butcherBills", priority: plannerFoothold, kinds: []domain.ActionKind{domain.ProductionBillAction, domain.ZoneCreateAction}, families: factsColony,
 		configured: func(c *ClockSchedulerConfig) bool { return c.ButcherBills != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.ButcherBills.step(ctx, epoch, arbiter)

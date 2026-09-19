@@ -75,7 +75,10 @@ func BillOperation(bill domain.ProductionBill) *op.Operation {
 		}
 		settings.Ingredients = &op.FilterPatch{Replace: &op.SelectorList{Selectors: selectors}}
 	}
-	if bill.Mode() == domain.ButcherForever {
+	if bill.Mode() == domain.HumanButcherForever {
+		settings.Worker = &op.Assignment{Value: &op.Assignment_EntityId{EntityId: bill.Worker()}}
+	}
+	if bill.Mode() == domain.ButcherForever || bill.Mode() == domain.HumanButcherForever {
 		settings.RepeatMode = op.RepeatMode_REPEAT_MODE_FOREVER.Enum()
 	} else {
 		settings.RepeatMode = op.RepeatMode_REPEAT_MODE_TARGET.Enum()
@@ -92,7 +95,7 @@ func optionalReplacement(b domain.ProductionBill) *string {
 	return proto.String(b.Replaces())
 }
 func validBill(bill domain.ProductionBill) error {
-	_, err := domain.NewProductionBillAction("validate", bill)
+	_, err := domain.NewProductionBillAction("validate-bill", bill)
 	return err
 }
 func (client *Client) PreviewBill(ctx context.Context, identity *c.Identity, target domain.ProductionBill) (*op.PreviewReply, Result, error) {

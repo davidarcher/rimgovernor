@@ -729,7 +729,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if !positive(g.Work) {
 		addGoal(EnsureWorkAssignments, 2)
 	}
-	if l.Food || !positive(g.Food) || !positive(g.Production) || !positive(measured(f.FieldCoverage, func(v float64) bool { return v >= 1-1e-9 })) {
+	if HumanFoodPending(f.FoodPlan) || l.Food || !positive(g.Food) || !positive(g.Production) || !positive(measured(f.FieldCoverage, func(v float64) bool { return v >= 1-1e-9 })) {
 		addGoal(EnsureFoodSupply, 2)
 	}
 	if !positive(g.Shelter) || !positive(g.Sleeping) {
@@ -844,7 +844,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	addAssessment(AllowStartingSupplies, 2, not(f.ForbiddenSupplies))
 	addAssessment(ManageSupplySafety, supplySafetyPriority(f), not(f.EventLootPending))
 	addAssessment(EnsureWorkAssignments, 2, g.Work)
-	addAssessment(EnsureFoodSupply, 2, allFacts(g.Food, g.Production, measured(f.FieldCoverage, func(v float64) bool { return v >= 1-1e-9 }), latchRecovered(l.Food, f.FoodDays)))
+	addAssessment(EnsureFoodSupply, 2, allFacts(domain.Known(!HumanFoodPending(f.FoodPlan)), g.Food, g.Production, measured(f.FieldCoverage, func(v float64) bool { return v >= 1-1e-9 }), latchRecovered(l.Food, f.FoodDays)))
 	addAssessment(EnsureInitialShelter, 2, allFacts(g.Shelter, g.Sleeping))
 	addAssessment(EnsureTemperatureSafety, 2, allFacts(g.Temperature, latchRecovered(l.Cold, fallback(f.SleepingMin, f.OutdoorTemperature)), latchRecovered(l.Hot, fallback(f.SleepingMax, f.OutdoorTemperature))))
 	addAssessment(EnsureCooking, 2, g.Cooking)

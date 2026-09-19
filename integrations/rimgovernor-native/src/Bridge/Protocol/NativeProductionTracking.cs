@@ -15,6 +15,7 @@ namespace HomeBridge.BridgeTools {
   internal readonly Dictionary<Thing,int> Outputs=new Dictionary<Thing,int>();
   // Outputs seen spawned and player-accessible on some observe; later consumption or hauling does not unobserve them.
   internal readonly HashSet<Thing> Seen=new HashSet<Thing>();
+  internal bool TradeHumanFood=>Bill.recipe.products.Any(p=>p.thingDef.defName=="MealSurvivalPack")&&Bill.ingredientFilter.AllowedThingDefs.Any(HumanFoodFacts.IsHumanMeat);
   internal bool Retired;
   internal string Config="";internal int Index=-1;internal uint Iterations;internal long Generated;internal bool Unreadable;
   internal NativeProductionRecord(Thing bench,IBillGiver giver,Bill_Production bill,string before){Bench=bench;Giver=giver;Bill=bill;Before=before;Map=bench.Map;}
@@ -24,7 +25,7 @@ namespace HomeBridge.BridgeTools {
    var result=new Receipts.BillEffect{Stack=new Receipts.SnapshotEvidence{EntityId=Bench.GetUniqueLoadID(),BeforeToken=Before},BillId=Bill.GetUniqueLoadID(),RecipeDef=Bill.recipe.defName,Present=present,Index=present?Giver.BillStack.IndexOf(Bill):-1,ConfigurationMatches=present&&Index>=0&&Giver.BillStack.IndexOf(Bill)==Index&&NativeProductionBills.Configuration(Bill)==Config,Iterations=Iterations,OutputComplete=NativeProductionTracking.Ready&&!Unreadable&&total==Generated,OutputObserved=NativeProductionTracking.Ready&&!Unreadable&&total==Generated&&Outputs.Count>0};
    if(present)result.Stack.AfterToken=NativeProductionBills.Snapshot(Bench,Giver,context).Token;
    foreach(var bill in Giver.BillStack.Bills)result.OrderedBillIds.Add(bill.GetUniqueLoadID());
-   foreach(var pair in Outputs.OrderBy(p=>p.Key.GetUniqueLoadID(),StringComparer.Ordinal)){var thing=pair.Key;result.Outputs.Add(new Receipts.ProductionOutput{ThingId=thing.GetUniqueLoadID(),DefName=thing.def.defName,Units=pair.Value});if(!thing.Destroyed&&thing.Spawned&&thing.Map==Map&&thing.stackCount>=pair.Value&&!thing.IsForbidden(Faction.OfPlayer)&&!thing.Position.Fogged(Map))Seen.Add(thing);if(!Seen.Contains(thing))result.OutputObserved=false;}
+   foreach(var pair in Outputs.OrderBy(p=>p.Key.GetUniqueLoadID(),StringComparer.Ordinal)){var thing=pair.Key;result.Outputs.Add(new Receipts.ProductionOutput{ThingId=thing.GetUniqueLoadID(),DefName=thing.def.defName,Units=pair.Value});if(!thing.Destroyed&&thing.Spawned&&thing.Map==Map&&thing.stackCount>=pair.Value&&(!thing.IsForbidden(Faction.OfPlayer)||TradeHumanFood)&&!thing.Position.Fogged(Map))Seen.Add(thing);if(!Seen.Contains(thing))result.OutputObserved=false;}
    return result;
   }
   internal Receipts.Progress Observe(Common.AttemptKey attempt,Common.ObservationContext context){var result=new Receipts.Progress{Attempt=attempt.Clone(),Context=context.Clone(),CompleteInspection=true};var value=Evidence(context);var evidence=new Receipts.EffectEvidence{Bill=value};
@@ -54,7 +55,8 @@ namespace HomeBridge.BridgeTools {
   internal static NativeProductionRecord? ManagedRecord(string id,Map map)=>Current.Game!=null&&States.TryGetValue(Current.Game,out var state)?state.Bills.Values.FirstOrDefault(r=>r.Map==map&&r.Bill.GetUniqueLoadID()==id&&ManagedUnchanged(r.Bill)):null;
   internal static void Retire(Bill bill){if(Current.Game!=null&&States.TryGetValue(Current.Game,out var state)&&state.Bills.TryGetValue(bill,out var r))r.Retired=true;}
   internal static bool Track(NativeProductionRecord record){if(!Ready||Current.Game==null)return false;var state=States.GetOrCreateValue(Current.Game);if(state.Bills.Count>=4096||state.Bills.ContainsKey(record.Bill))return false;state.Bills.Add(record.Bill,record);return true;}
-  private static void Products(Pawn __1,ref IEnumerable<Thing> __result){if(Current.Game==null||!States.TryGetValue(Current.Game,out var state)||__1.CurJob?.bill==null||!state.Bills.TryGetValue(__1.CurJob.bill,out var record)||record.Iterations>0)return;__result=ObserveProducts(__result,state,record);}
+  private static void Products(Pawn __1,ref IEnumerable<Thing> __result){if(Current.Game==null||!States.TryGetValue(Current.Game,out var state)||__1.CurJob?.bill==null||!state.Bills.TryGetValue(__1.CurJob.bill,out var record) )return;if(record.TradeHumanFood)__result=ProtectTradeProducts(__result);if(record.Iterations==0)__result=ObserveProducts(__result,state,record);}
+  private static IEnumerable<Thing> ProtectTradeProducts(IEnumerable<Thing> products){foreach(var thing in products){if(HumanFoodFacts.ContainsHumanMeat(thing))thing.SetForbidden(true,false);yield return thing;}}
   private static IEnumerable<Thing> ObserveProducts(IEnumerable<Thing> products,State state,NativeProductionRecord record){
    using(var iterator=products.GetEnumerator()){while(true){Thing current;try{if(!iterator.MoveNext())break;current=iterator.Current;if(NativeProductionBills.Product(current.def)){if(state.Products.Count>=4096||current.stackCount<=0)record.Unreadable=true;else{state.Products[current]=record;record.Generated=checked(record.Generated+current.stackCount);}}}catch{record.Unreadable=true;throw;}yield return current;}}
   }

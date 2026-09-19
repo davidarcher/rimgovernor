@@ -59,7 +59,7 @@ func SelectCorpseLarder(v FoodStorageObservation) (CorpseLarderMethod, error) {
 	available := larder.RawMeatNutrition
 	for _, row := range stocks {
 		s := row.Stock
-		if !s.Corpse {
+		if !s.Corpse || s.IsHumanlike {
 			continue
 		}
 		forbidden, fk := s.Forbidden.Value()

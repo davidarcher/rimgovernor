@@ -197,7 +197,13 @@ func (r *RoutineAnimalFeedPlanner) step(call, epoch context.Context, arbiter *st
 			benches = []string{}
 		}
 	}
-	result, err := r.core.dispatchResourceGoal(call, epoch, state, goal, review.Tick, identity, choice.Resource, choice.Target, stock, benches, started)
+	var ingredients []string
+	if choice.Resource == policy.AnimalFeedFallbackResource {
+		if combined, ok := read.Projection.CombinedFoodSupply.Value(); ok {
+			ingredients = policy.HumanCookingIngredients(combined, nil, read.Projection.Facts.FoodPlan, policy.HumanMeatFeed)
+		}
+	}
+	result, err := r.core.dispatchResourceGoal(call, epoch, state, goal, review.Tick, identity, choice.Resource, choice.Target, stock, benches, started, ingredients...)
 	if err != nil {
 		return result, err
 	}

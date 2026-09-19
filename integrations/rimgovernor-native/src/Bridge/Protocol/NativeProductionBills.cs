@@ -40,6 +40,11 @@ namespace HomeBridge.BridgeTools {
   internal static bool Product(ThingDef d)=>d!=null&&d.category==ThingCategory.Item&&!d.IsCorpse;
   internal static Obs.BillState BillRow(Bill bill,int index){
    var row=new Obs.BillState{Id=bill.GetUniqueLoadID(),Index=(uint)index,Recipe=new Obs.DefinitionRef{DefName=bill.recipe.defName},Suspended=bill.suspended,ManagedUnchanged=NativeProductionTracking.ManagedUnchanged(bill)};
+   if(bill.recipe.defName=="ButcherCorpseFlesh"){
+    row.WorkerId=bill.PawnRestriction?.GetUniqueLoadID()??"";
+    row.IngredientFilter=new Obs.StockpileFilter();
+    row.IngredientFilter.AllowedDefNames.Add(bill.ingredientFilter.AllowedThingDefs.Where(d=>d.IsCorpse&&d.ingestible?.sourceDef?.race?.Humanlike==true).Select(d=>d.defName).OrderBy(id=>id,StringComparer.Ordinal));
+   }
    if(bill is Bill_Production p){row.RepeatMode=p.repeatMode.defName;row.RepeatCount=p.repeatCount;row.TargetCount=p.targetCount;row.UnpauseBelow=p.unpauseWhenYouHave;row.PauseWhenSatisfied=p.pauseWhenSatisfied;row.Paused=p.paused;row.Finished=BillCommon.IsFinished(p);}
    return row;
   }
@@ -58,7 +63,8 @@ namespace HomeBridge.BridgeTools {
    if(!UsableForNewBill(bench)){failure=Refuse("bench is not usable for bills");return false;}
    if(command.HasReplaceOwnedBillId && NativeProductionTracking.ManagedRecord(command.ReplaceOwnedBillId,bench.Map)==null){failure=Refuse("replacement is not an unchanged owned meal bill");return false;}
    if(giver.BillStack.Count>=15 && (!command.HasReplaceOwnedBillId || NativeProductionTracking.ManagedRecord(command.ReplaceOwnedBillId,bench.Map)?.Giver!=giver)){failure=Refuse("bill stack is full");return false;}
-   if(giver.BillStack.Bills.Any(b=>b.recipe.defName==command.RecipeDef)){failure=Refuse("bench already carries a "+command.RecipeDef+" bill");return false;}
+   var humanButcher=command.RecipeDef=="ButcherCorpseFlesh"&&command.Settings.Worker!=null;
+   if(giver.BillStack.Bills.Any(b=>b.recipe.defName==command.RecipeDef && (command.RecipeDef!="ButcherCorpseFlesh" || b.ingredientFilter.AllowedThingDefs.Any(d=>d.IsCorpse && (d.ingestible?.sourceDef?.race?.Humanlike==true)==humanButcher)))){failure=Refuse("bench already carries a matching "+command.RecipeDef+" bill");return false;}
    recipe=DefDatabase<RecipeDef>.GetNamedSilentFail(command.RecipeDef);
    if(recipe==null||!Recipe(bench,recipe)){failure=Refuse("recipe "+command.RecipeDef+" is not available on the bench");return false;}
    if(command.RecipeDef!="ButcherCorpseFlesh"&&(recipe.WorkerCounter.GetType()!=typeof(RecipeWorkerCounter)||recipe.specialProducts!=null||recipe.products.Count!=1)){failure=Refuse("recipe "+command.RecipeDef+" is not ordinary single-product work");return false;}
@@ -71,6 +77,7 @@ namespace HomeBridge.BridgeTools {
    var target=bench;var wanted=recipe;var work=NativeBillsObservationTools.WorkType(bench.def,recipe);
    if(work==null){failure=Refuse("recipe "+command.RecipeDef+" has no work type on "+bench.def.defName);return false;}
    var colonists=ProtoBoundary.LoadedMap(context).mapPawns.FreeColonistsSpawned.Where(p=>!p.Dead&&!p.Downed&&!p.Drafted&&!p.InMentalState&&p.workSettings?.Initialized==true).ToList();
+   if(humanButcher)colonists=colonists.Where(p=>p.GetUniqueLoadID()==command.Settings.Worker!.EntityId && HumanFoodFacts.AcceptsButchery(p)).ToList();
    if(colonists.Any(p=>p.workSettings.GetPriority(work)>0&&!p.WorkTypeIsDisabled(work)&&!target.IsForbidden(p)&&p.Position.DistanceTo(target.Position)<=40&&p.CanReach(target,PathEndMode.InteractionCell,Danger.None)&&(wanted.skillRequirements==null||wanted.skillRequirements.All(s=>p.skills?.GetSkill(s.skill)!=null&&!p.skills.GetSkill(s.skill).TotallyDisabled&&p.skills.GetSkill(s.skill).Level>=s.minLevel)))){
     // The bench token closes the list (#242): a moved world names the rule that moved before the hash.
     if(Snapshot(bench,giver,context).Token!=command.Bench.ExpectedSnapshotToken){failure=Refuse("bench bill stack changed since it was read");return false;}
@@ -99,6 +106,19 @@ namespace HomeBridge.BridgeTools {
      if(s.Ingredients!=null){
       bill.ingredientFilter.SetDisallowAll();
       foreach(var selector in s.Ingredients.Replace.Selectors)bill.ingredientFilter.SetAllow(DefDatabase<ThingDef>.GetNamed(selector.ThingDef),true);
+     }
+     if(command.RecipeDef=="ButcherCorpseFlesh"){
+      bool human=s.Worker!=null;
+      foreach(var def in DefDatabase<ThingDef>.AllDefsListForReading.Where(d=>d.IsCorpse))
+       bill.ingredientFilter.SetAllow(def,(def.ingestible?.sourceDef?.race?.Humanlike==true)==human && recipe!.ingredients.Any(i=>i.filter.Allows(def)));
+      if(human)bill.SetPawnRestriction(ProtoBoundary.LoadedMap(context).mapPawns.FreeColonistsSpawned.Single(p=>p.GetUniqueLoadID()==s.Worker!.EntityId));
+     }else{
+      // Shared colonist cooking never creates human-meat meals. Dedicated
+      // destination bills must supply their own explicit routing contract.
+      bool trade=s.Ingredients!=null&&recipe!.products.All(p=>p.thingDef.defName=="MealSurvivalPack");
+      bool eligible=s.Ingredients!=null&&ProtoBoundary.LoadedMap(context).mapPawns.FreeColonistsSpawned.All(HumanFoodFacts.AcceptsMeat);
+      bool feed=recipe!.products.All(p=>p.thingDef.ingestible!=null && (p.thingDef.ingestible.foodType&FoodTypeFlags.Kibble)!=0);
+      foreach(var def in DefDatabase<ThingDef>.AllDefsListForReading.Where(HumanFoodFacts.IsHumanMeat))bill.ingredientFilter.SetAllow(def,(feed || (trade || eligible) && s.Ingredients!.Replace.Selectors.Any(x=>x.ThingDef==def.defName)) && recipe.ingredients.Any(i=>i.filter.Allows(def)));
      }
      var record=new NativeProductionRecord(bench!,giver!,bill,command.Bench.ExpectedSnapshotToken);
      state.Bills.Add(pre.Attempt.Clone(),record);if(!NativeProductionTracking.Track(record))throw new InvalidOperationException("Production tracking unavailable");if(command.HasReplaceOwnedBillId){var old=NativeProductionTracking.ManagedRecord(command.ReplaceOwnedBillId,bench!.Map) ?? throw new InvalidOperationException("Owned replacement lost");NativeProductionTracking.Retire(old.Bill);old.Giver.BillStack.Delete(old.Bill);}

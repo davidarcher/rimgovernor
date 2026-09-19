@@ -206,7 +206,7 @@ func (r *RoutineResourcePlanner) step(call, epoch context.Context, arbiter *step
 // path to those bench IDs (the caller's delivery constraint: a bill's product
 // drops at its bench); an empty set refuses the production path outright
 // rather than producing where the product cannot be used.
-func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Context, state ControlState, goal store.GoalState, reviewTick domain.Tick, identity *c.Identity, resource policy.Resource, target int64, stock domain.Fact[[]policy.Amount], benchFilter []string, started time.Time) (RoutineResourceResult, error) {
+func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Context, state ControlState, goal store.GoalState, reviewTick domain.Tick, identity *c.Identity, resource policy.Resource, target int64, stock domain.Fact[[]policy.Amount], benchFilter []string, started time.Time, ingredients ...string) (RoutineResourceResult, error) {
 	p := r.reviewer.player
 	seen := make([]domain.MethodID, 0, len(goal.Methods))
 	for _, method := range goal.Methods {
@@ -284,7 +284,7 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 	if int64(targetCount) != choice.Target {
 		return RoutineResourceResult{}, ErrControl
 	}
-	bill, err := domain.NewProductionBill(choice.Bench, choice.Recipe, token, domain.StockTarget, targetCount)
+	bill, err := domain.NewProductionBill(choice.Bench, choice.Recipe, token, domain.StockTarget, targetCount, ingredients...)
 	if err != nil {
 		return RoutineResourceResult{}, err
 	}

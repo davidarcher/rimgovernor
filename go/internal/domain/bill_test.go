@@ -5,6 +5,26 @@ import (
 	"testing"
 )
 
+func TestHumanButcherRequiresPinnedWorker(t *testing.T) {
+	if _, err := NewHumanButcherBill("bench", "token", ""); err == nil {
+		t.Fatal("unassigned human bill accepted")
+	}
+	b, err := NewHumanButcherBill("bench", "token", "cook")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = NewProductionBillAction("action", b); err != nil {
+		t.Fatal(err)
+	}
+	if b.Worker() != "cook" || b.ClaimRecipe() == b.Recipe() {
+		t.Fatal("lost distinct pinned bill", b)
+	}
+	b.target = 1
+	if _, err = NewProductionBillAction("action", b); err == nil {
+		t.Fatal("mutated bill accepted")
+	}
+}
+
 func TestProductionBillIngredientsAreCanonicalAndImmutable(t *testing.T) {
 	input := []string{"Steel", "Cloth"}
 	bill, err := NewProductionBill("bench", "recipe", "token", StockTarget, 1, input...)

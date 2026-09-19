@@ -9,7 +9,7 @@ import (
 )
 
 func foodFixture() FoodSupply {
-	return FoodSupply{Complete: domain.Known(true), Consumers: []FoodConsumer{{"a", domain.Known(2.)}, {"b", domain.Known(1.)}}, Stocks: []FoodStock{{ID: "rice", Holder: domain.Known(PawnID("")), Nutrition: domain.Known(9.), Eaters: []PawnID{"a", "b"}, Perishable: domain.Known(true), RotTicks: domain.Known(int64(60000))}}}
+	return FoodSupply{Complete: domain.Known(true), Consumers: []FoodConsumer{{ID: "a", NutritionPerDay: domain.Known(2.)}, {ID: "b", NutritionPerDay: domain.Known(1.)}}, Stocks: []FoodStock{{ID: "rice", Holder: domain.Known(PawnID("")), Nutrition: domain.Known(9.), Eaters: []PawnID{"a", "b"}, Perishable: domain.Known(true), RotTicks: domain.Known(int64(60000))}}}
 }
 func durableFood(id string, amount float64, holder PawnID, eaters ...PawnID) FoodStock {
 	return FoodStock{ID: id, Holder: domain.Known(holder), Nutrition: domain.Known(amount), Eaters: eaters, Perishable: domain.Known(false)}

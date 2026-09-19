@@ -78,7 +78,7 @@ func admitZoneMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan domai
 	needs := []policy.GoalID{policy.EnsureFoodSupply}
 	if stockpile {
 		limit = 1
-		needs = []policy.GoalID{policy.EnsureFoodStorage, policy.SecureSupplies, policy.MaintainResource, policy.MaintainAnimalFeed, policy.MaintainFoodStorage, policy.ClearHomeObstructions}
+		needs = []policy.GoalID{policy.EnsureFoodSupply, policy.EnsureFoodStorage, policy.SecureSupplies, policy.MaintainResource, policy.MaintainAnimalFeed, policy.MaintainFoodStorage, policy.ClearHomeObstructions}
 	}
 	if !review.Enabled || review.Snapshot != goal.Goal.Snapshot || goal.Goal.Source != domain.AutopilotGoal || len(plan.Actions()) > limit {
 		return ErrConflict

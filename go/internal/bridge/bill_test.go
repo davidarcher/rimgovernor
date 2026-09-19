@@ -52,6 +52,14 @@ func billAttempt(t *testing.T) BillAttempt {
 }
 
 func TestBillOperationSettingsByMode(t *testing.T) {
+	human, err := domain.NewHumanButcherBill("bench", "token", "cook")
+	if err != nil {
+		t.Fatal(err)
+	}
+	hs := BillOperation(human).GetAddBill().GetSettings()
+	if hs.GetWorker().GetEntityId() != "cook" || hs.GetRepeatMode() != op.RepeatMode_REPEAT_MODE_FOREVER {
+		t.Fatal("human worker lost", hs)
+	}
 	target, err := domain.NewProductionBill("stove", "CookMealSimple", "before-token", domain.FoodTarget, 10)
 	if err != nil {
 		t.Fatal(err)

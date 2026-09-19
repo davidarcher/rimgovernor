@@ -11,8 +11,9 @@ const ProductionBillAction ActionKind = "production_bill"
 type BillMode string
 
 const (
-	FoodTarget     BillMode = "food_target"
-	ButcherForever BillMode = "butcher_forever"
+	FoodTarget          BillMode = "food_target"
+	ButcherForever      BillMode = "butcher_forever"
+	HumanButcherForever BillMode = "human_butcher_forever"
 	// StockTarget is the generic "keep at least Target units of this recipe's
 	// output in stock" bill, the same pause-when-satisfied/unpause-below-half
 	// shape FoodTarget uses, reused as-is by GearProduce, MaintainResource-*
@@ -28,6 +29,7 @@ type ProductionBill struct {
 	mode                 BillMode
 	target               int32
 	ingredients          string
+	worker               string
 	replace              string
 }
 
@@ -50,7 +52,28 @@ func NewProductionBill(bench, recipe, token string, mode BillMode, target int32,
 		data, _ := json.Marshal(rows)
 		filter = string(data)
 	}
-	return ProductionBill{bench, recipe, token, mode, target, filter, ""}, nil
+	return ProductionBill{bench: bench, recipe: recipe, token: token, mode: mode, target: target, ingredients: filter}, nil
+}
+
+// A humanlike butcher bill is always pinned and never accepts animal corpses.
+func NewHumanButcherBill(bench, token, worker string) (ProductionBill, error) {
+	b, err := NewProductionBill(bench, "ButcherCorpseFlesh", token, ButcherForever, 0)
+	if err != nil || !validID(worker) {
+		return ProductionBill{}, errors.New("invalid human butcher bill")
+	}
+	b.mode, b.worker = HumanButcherForever, worker
+	return b, nil
+}
+
+func (b ProductionBill) Worker() string { return b.worker }
+
+// ClaimRecipe distinguishes the two mutually exclusive corpse filters while
+// preserving claim keys for existing bills.
+func (b ProductionBill) ClaimRecipe() string {
+	if b.mode == HumanButcherForever {
+		return b.recipe + "/humanlike"
+	}
+	return b.recipe
 }
 
 // Ingredients is the exact allowed definition set; empty preserves recipe defaults.
@@ -76,6 +99,9 @@ func (b ProductionBill) Mode() BillMode      { return b.mode }
 func (b ProductionBill) Target() int32       { return b.target }
 func NewProductionBillAction(id ActionID, b ProductionBill) (Action, error) {
 	canonical, err := NewProductionBill(b.bench, b.recipe, b.token, b.mode, b.target, b.Ingredients()...)
+	if b.mode == HumanButcherForever {
+		canonical, err = NewHumanButcherBill(b.bench, b.token, b.worker)
+	}
 	if err == nil && b.replace != "" {
 		canonical, err = canonical.ReplaceOwnedBill(b.replace)
 	}

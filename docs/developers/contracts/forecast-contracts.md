@@ -30,6 +30,24 @@ corpses remain observable but contribute no runway. Corpse stock replaces
 the separate pending-hunt corpse credit; live designated prey remains pending.
 The [corpse larder](upkeep-contracts.md#corpse-larder) owns reserve release.
 
+Humanlike corpses carry `is_humanlike`; raw meat and meals containing it carry
+`is_human_meat`. Each consumer exposes native trait/precept eating disposition.
+Unknown or unacceptable disposition excludes that stock from its forecast,
+including private inventory. The ordinary corpse larder never releases human
+corpses. A pure gate selects an assigned, reachable Psychopath, Bloodlust or
+Cannibal butcher, or a pawn whose active Ideology precepts permit butchery.
+Native admission rechecks the exact worker and pins a separate humanlike-only
+`ButcherCorpseFlesh` bill. A roofed corpse stockpile outside colonists' current
+sight lines precedes the bill. Other colonists retain normal butchery memories.
+
+The shared FoodPlan records finite human nutrition without adding a recurring
+production rate. Allocation prioritizes a short herd, then survival-meal or raw
+trade surplus, then eligible diners' reserved demand. Feed and eligible shared
+meal bills use explicit ingredients; shared meals require all diners to accept
+human meat. Human survival-meal output is forbidden sale stock, excluded from
+ordinary reserve release. `food/human-butchery` verifies this channel on the
+EmptyChannels fixture in the nightly suite.
+
 Cooking recipes expose their product's base taste mood offset, nutrition output
 per nutrition input and native work per output nutrition (batch counts included).
 Ingredient slots are conjunctive; each slot's classes are alternatives, so a fine

@@ -41,6 +41,7 @@ type ProductionRecipe struct {
 // configured target, not how much of it is already produced: a TargetCount
 // bill reserves that nutrition toward its buffer even while still filling it.
 type ExistingProductionBill struct {
+	Humanlike   bool
 	ID          string
 	Managed     domain.Fact[bool]
 	Active      domain.Fact[bool]
@@ -49,16 +50,23 @@ type ExistingProductionBill struct {
 	Forever     domain.Fact[bool]
 }
 type ProductionBench struct {
-	ID, Definition string
-	Token          domain.Fact[string]
-	Usable         domain.Fact[bool]
-	Butcher        bool
+	HumanButchers        []HumanButcherCandidate
+	HumanCorpseNutrition domain.Fact[float64]
+	HumanStorageCells    []domain.Cell
+	HumanStorageReady    domain.Fact[bool]
+	HumanCorpseDef       string
+	ID, Definition       string
+	Token                domain.Fact[string]
+	Usable               domain.Fact[bool]
+	Butcher              bool
 	// Room is the native room census identity the bench stands in.
 	Room    domain.Fact[string]
 	Recipes []ProductionRecipe
 	Bills   []ExistingProductionBill
 }
 type BillSelection struct {
+	Ingredients          []string
+	Worker               string
 	Bench, Recipe, Token string
 	Replace              string
 	Mode                 domain.BillMode
@@ -143,7 +151,7 @@ func SelectProductionBill(purpose BillPurpose, benches domain.Fact[[]ProductionB
 			}
 			exists := false
 			for _, bill := range bench.Bills {
-				exists = exists || bill.Recipe == recipe.Name
+				exists = exists || bill.Recipe == recipe.Name && !bill.Humanlike
 			}
 			if exists && purpose != CookAheadFood {
 				continue

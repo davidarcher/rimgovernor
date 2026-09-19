@@ -41,6 +41,29 @@ func validateColonyProduction(v *o.ColonyFactsSnapshot) error {
 		if b == nil {
 			return contract("nil butcher bench")
 		}
+		if len(b.HumanButchers) > 256 || len(b.HumanStorageCells) > 6 || !combatNumber(b.HumanCorpseNutrition, true) {
+			return contract("invalid human butchery census")
+		}
+		workers := map[string]bool{}
+		for _, worker := range b.HumanButchers {
+			if worker == nil || validID(worker.PawnId) != nil || workers[worker.PawnId] || len(worker.Traits) > 256 {
+				return contract("invalid human butcher")
+			}
+			workers[worker.PawnId] = true
+			for _, trait := range worker.Traits {
+				if validID(trait) != nil {
+					return contract("invalid butcher trait")
+				}
+			}
+		}
+		for _, cell := range b.HumanStorageCells {
+			if !colonyCell(cell, v.MapSize) {
+				return contract("invalid human corpse storage")
+			}
+		}
+		if b.HumanCorpseDef != nil && validID(b.GetHumanCorpseDef()) != nil {
+			return contract("invalid human corpse definition")
+		}
 		rows = append(rows, &o.CookingFacts{Bench: b.Bench, Usable: b.Usable, Bills: b.Bills, Recipes: b.Recipes})
 	}
 	benches := map[string]bool{}
@@ -69,8 +92,23 @@ func validateColonyProduction(v *o.ColonyFactsSnapshot) error {
 		}
 		ids := map[string]bool{}
 		for i, bill := range bench.Bills {
-			if bill == nil || bill.Recipe == nil || validID(bill.Recipe.GetDefName()) != nil || !proto.Equal(bill, &o.BillState{ManagedUnchanged: bill.ManagedUnchanged, Id: bill.Id, Index: bill.Index, Recipe: bill.Recipe, Suspended: bill.Suspended, RepeatMode: bill.RepeatMode, RepeatCount: bill.RepeatCount, TargetCount: bill.TargetCount, UnpauseBelow: bill.UnpauseBelow, PauseWhenSatisfied: bill.PauseWhenSatisfied, Paused: bill.Paused, Finished: bill.Finished}) {
+			if bill == nil || bill.Recipe == nil || validID(bill.Recipe.GetDefName()) != nil || !proto.Equal(bill, &o.BillState{ManagedUnchanged: bill.ManagedUnchanged, Id: bill.Id, Index: bill.Index, Recipe: bill.Recipe, Suspended: bill.Suspended, RepeatMode: bill.RepeatMode, RepeatCount: bill.RepeatCount, TargetCount: bill.TargetCount, UnpauseBelow: bill.UnpauseBelow, PauseWhenSatisfied: bill.PauseWhenSatisfied, Paused: bill.Paused, Finished: bill.Finished, WorkerId: bill.WorkerId, IngredientFilter: bill.IngredientFilter}) {
 				return contract("invalid production bill")
+			}
+			if bill.WorkerId != nil && bill.GetWorkerId() != "" && validID(bill.GetWorkerId()) != nil {
+				return contract("invalid bill worker")
+			}
+			if filter := bill.IngredientFilter; filter != nil {
+				if bill.Recipe.GetDefName() != "ButcherCorpseFlesh" || len(filter.AllowedDefNames) > 256 || !proto.Equal(filter, &o.StockpileFilter{AllowedDefNames: filter.AllowedDefNames}) {
+					return contract("invalid butcher filter")
+				}
+				seen := map[string]bool{}
+				for _, id := range filter.AllowedDefNames {
+					if validID(id) != nil || seen[id] {
+						return contract("invalid butcher filter definition")
+					}
+					seen[id] = true
+				}
 			}
 			if bill.Id != nil {
 				if validID(bill.GetId()) != nil || ids[bill.GetId()] || bill.Index == nil || int(bill.GetIndex()) != i {

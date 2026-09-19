@@ -364,6 +364,7 @@ namespace HomeBridge.BridgeTools
             foreach(var bench in things.Where(t=>t.Faction==Faction.OfPlayer&&t is IBillGiver&&reachable(t)&&t.def.AllRecipes.Any(r=>r.defName=="ButcherCorpseFlesh")).OrderBy(t=>t.thingIDNumber)){
                 if(result.Butchering.Count>=limit)throw new ReadLimit("Butcher census bound.");var giver=(IBillGiver)bench;
                 var row=new Obs.ButcheringFacts{Bench=new Obs.EntityRef{Id=bench.GetUniqueLoadID(),DefName=bench.def.defName,MapId=map.uniqueID,Position=Cell(bench.Position),Snapshot=NativeProductionBills.Snapshot(bench,giver,result.Context)},Usable=NativeProductionBills.Usable(bench)};
+                HumanFoodFacts.Fill(row,bench);
                 foreach(var recipe in bench.def.AllRecipes.Where(r=>r.defName=="ButcherCorpseFlesh"))row.Recipes.Add(NativeProductionBills.RecipeRow(bench,recipe));
                 for(var index=0;index<giver.BillStack.Count;index++)row.Bills.Add(NativeProductionBills.BillRow(giver.BillStack.Bills[index],index));
                 var butcherRoom = bench.GetRoom();
@@ -603,11 +604,11 @@ namespace HomeBridge.BridgeTools
                 foreach (var cell in source.larder.ColdSites) result.Larder.ColdSites.Add(Cell(cell));
             }
             foreach (var consumer in source.consumers)
-                result.Consumers.Add(new Obs.FoodConsumer { PawnId = consumer.id, NutritionPerDay = Finite(consumer.nutritionPerDay) });
+                result.Consumers.Add(new Obs.FoodConsumer { PawnId = consumer.id, NutritionPerDay = Finite(consumer.nutritionPerDay), HumanMeatAcceptable = consumer.humanMeatAcceptable });
             foreach (var stock in source.stocks) {
                 var row = new Obs.FoodStock { Item = new Obs.EntityRef { Id = stock.id, DefName = stock.defName },
-                    Count = stock.count, Nutrition = Finite(stock.nutrition), Perishable = stock.perishable, Reserve = stock.reserve,
-                    TemperatureC = Finite(stock.temperature) };
+                    Count = stock.count, Nutrition = Finite(stock.nutrition), Perishable = stock.perishable, Reserve = stock.reserve, IsHumanMeat = stock.isHumanMeat, RawMeat = stock.rawMeat,
+                    TemperatureC = Finite(stock.temperature), IsHumanlike=stock.isHumanlike, Vegetable=stock.vegetable };
                 row.EaterIds.Add(stock.eaters);
                 if (stock.holder != null) row.HolderId = stock.holder;
                 if (stock.rotTicks.HasValue) row.RotTicks = stock.rotTicks.Value;

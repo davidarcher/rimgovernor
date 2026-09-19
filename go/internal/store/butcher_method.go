@@ -43,6 +43,12 @@ func foodFacilityOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal GoalState,
 			spot = true
 		case action.Kind() == domain.ProductionBillAction:
 			bill = true
+		case action.Kind() == domain.ZoneCreateAction:
+			z, _ := action.ZoneCreate()
+			if z.Kind() != domain.StockpileZone || z.Preset() != domain.NothingPreset {
+				return false, nil
+			}
+			bill = true
 		default:
 			return false, nil
 		}
@@ -57,6 +63,16 @@ func foodFacilityOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal GoalState,
 		}
 		for _, progress := range p.Progress {
 			own := spot && butcherSpotBuilding(progress.Action()) || bill && progress.Action().Kind() == domain.ProductionBillAction
+			if existing, ok := progress.Action().ProductionBill(); ok && existing.Mode() == domain.ButcherForever {
+				for _, action := range plan.Actions() {
+					if proposed, ok := action.ProductionBill(); ok && proposed.Mode() == domain.HumanButcherForever {
+						own = false
+					}
+					if _, ok := action.ZoneCreate(); ok {
+						own = false
+					}
+				}
+			}
 			if own && domain.GoalWorkOpen([]domain.Progress{progress}) {
 				return false, nil
 			}

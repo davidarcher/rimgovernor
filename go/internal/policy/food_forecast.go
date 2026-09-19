@@ -15,10 +15,17 @@ var ErrFoodFacts = errors.New("food forecast inputs unavailable or invalid")
 type FoodConsumer struct {
 	ID              PawnID
 	NutritionPerDay domain.Fact[float64]
+	// Includes animals whose native diet accepts it. Unknown is not consent.
+	HumanMeatAcceptable domain.Fact[bool]
 }
 type FoodStock struct {
-	RawClass domain.Fact[FoodIngredientClass]
-	ID       string
+	ID string
+	// Includes meals containing humanlike meat, not just raw meat.
+	IsHumanMeat bool
+	RawMeat     bool
+	IsHumanlike bool
+	Vegetable   bool
+	RawClass    domain.Fact[FoodIngredientClass]
 	// Reserve is forbidden pemmican or survival meals; eligibility is after release.
 	Reserve bool
 	// Known empty holder means shared stock. Unknown ownership is not shared.
@@ -78,6 +85,7 @@ func ForecastFood(supply FoodSupply, selected []PawnID) (FoodForecast, error) {
 		return fail()
 	}
 	demand := map[PawnID]float64{}
+	humanMeat := map[PawnID]bool{}
 	ids := make([]PawnID, 0, len(supply.Consumers))
 	for _, consumer := range supply.Consumers {
 		rate, known := consumer.NutritionPerDay.Value()
@@ -85,6 +93,7 @@ func ForecastFood(supply FoodSupply, selected []PawnID) (FoodForecast, error) {
 			return fail()
 		}
 		demand[consumer.ID] = rate
+		humanMeat[consumer.ID], _ = consumer.HumanMeatAcceptable.Value()
 		ids = append(ids, consumer.ID)
 	}
 	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
@@ -117,7 +126,7 @@ func ForecastFood(supply FoodSupply, selected []PawnID) (FoodForecast, error) {
 		amount, ak := input.Nutrition.Value()
 		holder, hk := input.Holder.Value()
 		perishable, pk := input.Perishable.Value()
-		if !foodID(input.ID) || seen[input.ID] || !ak || !foodNumber(amount) || !hk || !pk || len(input.Eaters) == 0 && !input.Corpse || len(input.Eaters) > len(ids) {
+		if !foodID(input.ID) || seen[input.ID] || !ak || !foodNumber(amount) || !hk || !pk || len(input.Eaters) == 0 && !input.Corpse && !input.IsHumanMeat || len(input.Eaters) > len(ids) {
 			return fail()
 		}
 		seen[input.ID] = true
@@ -141,6 +150,9 @@ func ForecastFood(supply FoodSupply, selected []PawnID) (FoodForecast, error) {
 			entry.eaters[id] = true
 		}
 		for _, id := range ids {
+			if (input.IsHumanMeat || input.IsHumanlike) && !humanMeat[id] {
+				delete(entry.eaters, id)
+			}
 			if entry.eaters[id] {
 				entry.eligibleDemand += demand[id]
 			}
@@ -169,7 +181,7 @@ func ForecastFood(supply FoodSupply, selected []PawnID) (FoodForecast, error) {
 	})
 	result := FoodForecast{}
 	for _, entry := range stocks {
-		if entry.holder != "" && wanted[entry.holder] {
+		if entry.holder != "" && wanted[entry.holder] && entry.eaters[entry.holder] {
 			result.InventoryNutrition += entry.amount
 		}
 	}

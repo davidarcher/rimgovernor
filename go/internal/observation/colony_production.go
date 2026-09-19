@@ -161,7 +161,7 @@ func colonyProductionBenches(v *o.ColonyFactsSnapshot) domain.Fact[[]policy.Prod
 			row.Recipes = append(row.Recipes, recipe)
 		}
 		for _, b := range bills {
-			row.Bills = append(row.Bills, policy.ExistingProductionBill{ID: b.GetId(), Managed: optional(b.ManagedUnchanged), Active: billActive(b.Suspended), Recipe: b.Recipe.GetDefName(), TargetCount: optional(b.TargetCount), Forever: billForever(b.RepeatMode)})
+			row.Bills = append(row.Bills, policy.ExistingProductionBill{ID: b.GetId(), Managed: optional(b.ManagedUnchanged), Active: billActive(b.Suspended), Recipe: b.Recipe.GetDefName(), TargetCount: optional(b.TargetCount), Forever: billForever(b.RepeatMode), Humanlike: len(b.GetIngredientFilter().GetAllowedDefNames()) > 0})
 		}
 		rows = append(rows, row)
 	}
@@ -170,6 +170,20 @@ func colonyProductionBenches(v *o.ColonyFactsSnapshot) domain.Fact[[]policy.Prod
 	}
 	for _, b := range v.Butchering {
 		add(b.Bench, b.Usable, b.Recipes, b.Bills, nil, true, b.RoomId)
+		row := &rows[len(rows)-1]
+		row.HumanCorpseNutrition = optional(b.HumanCorpseNutrition)
+		row.HumanStorageReady = optional(b.HumanStorageReady)
+		row.HumanCorpseDef = b.GetHumanCorpseDef()
+		for _, cell := range b.HumanStorageCells {
+			row.HumanStorageCells = append(row.HumanStorageCells, domain.Cell{X: cell.GetX(), Z: cell.GetZ()})
+		}
+		for _, candidate := range b.HumanButchers {
+			var traits []policy.PawnTrait
+			for _, name := range candidate.Traits {
+				traits = append(traits, policy.PawnTrait{Name: name})
+			}
+			row.HumanButchers = append(row.HumanButchers, policy.HumanButcherCandidate{ID: policy.PawnID(candidate.PawnId), Traits: domain.Known(traits), PreceptAcceptable: optional(candidate.PreceptAcceptable), CanWork: optional(candidate.CanWork)})
+		}
 	}
 	return domain.Known(rows)
 }

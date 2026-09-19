@@ -9,7 +9,7 @@ namespace HomeBridge.BridgeTools {
    if(!ValidIngredients(s?.Ingredients))return false;
    if(command?.Bench==null||!command.Bench.HasEntityId||!ProtoBoundary.IsIdentifier(command.Bench.EntityId)||!command.Bench.HasExpectedSnapshotToken||!ProtoBoundary.IsIdentifier(command.Bench.ExpectedSnapshotToken)||!command.HasRecipeDef||!ProtoBoundary.IsIdentifier(command.RecipeDef)||s==null)return false;
    var expected=new Operations.BillSettings{RepeatMode=s.RepeatMode,TargetCount=s.TargetCount,UnpauseThreshold=s.UnpauseThreshold,PauseWhenSatisfied=s.PauseWhenSatisfied,Suspended=false,IngredientSearchRadius=40,Store=new Operations.BillStore{Mode=Operations.StoreMode.DropOnFloor},Ingredients=s.Ingredients?.Clone()};
-   if(command.RecipeDef=="ButcherCorpseFlesh")return s.Equals(new Operations.BillSettings{RepeatMode=Operations.RepeatMode.Forever,Suspended=false,IngredientSearchRadius=40,Store=new Operations.BillStore{Mode=Operations.StoreMode.DropOnFloor}});
+   if(command.RecipeDef=="ButcherCorpseFlesh")return (s.Worker==null || s.Worker.ValueCase==Operations.Assignment.ValueOneofCase.EntityId && ProtoBoundary.IsIdentifier(s.Worker.EntityId)) && s.Equals(new Operations.BillSettings{RepeatMode=Operations.RepeatMode.Forever,Suspended=false,IngredientSearchRadius=40,Store=new Operations.BillStore{Mode=Operations.StoreMode.DropOnFloor},Worker=s.Worker?.Clone()});
    return s.Equals(expected)&&s.RepeatMode==Operations.RepeatMode.Target&&s.HasTargetCount&&s.TargetCount>=1&&s.TargetCount<=10000&&s.HasUnpauseThreshold&&s.UnpauseThreshold==Math.Max(1,s.TargetCount/2)&&s.HasPauseWhenSatisfied&&s.PauseWhenSatisfied;
   }
   internal static bool ValidIngredients(Operations.FilterPatch? filter){

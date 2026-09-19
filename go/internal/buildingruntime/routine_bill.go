@@ -102,6 +102,9 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 			// days; only an open bill is this planner's own work (#260).
 			for _, progress := range plan.Progress {
 				if progress.Action().Kind() == domain.ProductionBillAction && domain.GoalWorkOpen([]domain.Progress{progress}) {
+					if b, ok := progress.Action().ProductionBill(); ok && r.purpose == policy.ButcherFood && b.Mode() == domain.ButcherForever {
+						continue
+					}
 					return RoutineBillResult{Reason: BuildingMethodExistingWork}, nil
 				}
 			}
@@ -151,7 +154,7 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		// until a usable bench carries this bill, so waiting for an armed
 		// colonist would serialise spot, bill and hunt behind the equip family.
 		days, dk := projection.Facts.FoodDays.Value()
-		if !dk || days >= r.reviewer.seasonal(projection.Facts).FoodTargetDays {
+		if (!dk || days >= r.reviewer.seasonal(projection.Facts).FoodTargetDays) && !policy.HumanFoodPending(projection.Facts.FoodPlan) {
 			return RoutineBillResult{Reason: BuildingMethodUnknown}, nil
 		}
 		// A butcher bench that shares a cooking room feeds the colony but keeps
@@ -205,10 +208,51 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		billContext = append(billContext, policy.ProductionBillContext{Reserve: &value})
 	}
 	selected, known := policy.SelectProductionBill(r.purpose, benches, projection.Facts.Colonists, projection.Facts.FoodDays, atRisk, r.reviewer.seasonal(projection.Facts).FoodTargetDays, billContext...)
+	if r.purpose == policy.CookFood && known {
+		if supply, ok := projection.CombinedFoodSupply.Value(); ok {
+			if humans, ok := projection.FoodSupply.Value(); ok {
+				selected.Ingredients = policy.HumanCookingIngredients(supply, humans.Consumers, projection.Facts.FoodPlan, policy.HumanMeatMeals)
+			}
+		}
+	}
+	if r.purpose == policy.PreserveFood {
+		if supply, ok := projection.CombinedFoodSupply.Value(); ok {
+			if sale, ok := policy.SelectHumanSurvivalBill(benches, supply, projection.Facts.FoodPlan); ok {
+				selected, known = sale, true
+			}
+		}
+	}
+	if r.purpose == policy.ButcherFood {
+		if human, ok := policy.SelectHumanButcher(benches); ok {
+			if !foodPlanSupport(projection.Facts.FoodPlan, policy.FoodCorpse, "human-butchery") {
+				return RoutineBillResult{Reason: BuildingMethodUnknown}, nil
+			}
+			rows, _ := benches.Value()
+			for _, bench := range rows {
+				if bench.ID == human.Bench {
+					ready, _ := bench.HumanStorageReady.Value()
+					if !ready {
+						native, ok := r.native.(RoutineResourceSource)
+						if !ok || len(bench.HumanStorageCells) == 0 {
+							return RoutineBillResult{Reason: BuildingMethodNoSpace}, nil
+						}
+						core := RoutineResourcePlanner{reviewer: r.reviewer, native: native}
+						out, e := core.admitStorageZone(call, epoch, state, goal, review.Tick, policy.Resource(bench.HumanCorpseDef), bench.HumanStorageCells, r.reviewer.clock.Now(), "human-corpse-storage", "routine-human-corpse-zone")
+						return RoutineBillResult{Reason: out.Reason, Plan: out.Plan}, e
+					}
+				}
+			}
+			selected, known = human, true
+		}
+	}
 	if !known {
 		return RoutineBillResult{Reason: BuildingMethodUnknown}, nil
 	}
-	claimed, err := p.journal.BillClaimed(call, state.Snapshot, selected.Bench, selected.Recipe)
+	claimRecipe := selected.Recipe
+	if selected.Mode == domain.HumanButcherForever {
+		claimRecipe += "/humanlike"
+	}
+	claimed, err := p.journal.BillClaimed(call, state.Snapshot, selected.Bench, claimRecipe)
 	if err != nil {
 		return RoutineBillResult{}, err
 	}
@@ -223,6 +267,9 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	}
 	hash := sha256.New()
 	fmt.Fprintf(hash, "%s/%s/%s/%d", selected.Bench, selected.Recipe, selected.Mode, selected.Target)
+	if selected.Worker != "" {
+		fmt.Fprintf(hash, "/%s", selected.Worker)
+	}
 	if selected.Replace != "" {
 		fmt.Fprint(hash, "/", selected.Replace, "/", selected.Token)
 	}
@@ -234,7 +281,10 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	}
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
 	id := domain.PlanID(fmt.Sprintf("routine-bill-%x", digest[:16]))
-	value, err := domain.NewProductionBill(selected.Bench, selected.Recipe, selected.Token, selected.Mode, selected.Target)
+	value, err := domain.NewProductionBill(selected.Bench, selected.Recipe, selected.Token, selected.Mode, selected.Target, selected.Ingredients...)
+	if selected.Mode == domain.HumanButcherForever {
+		value, err = domain.NewHumanButcherBill(selected.Bench, selected.Token, selected.Worker)
+	}
 	if err != nil {
 		return RoutineBillResult{}, err
 	}

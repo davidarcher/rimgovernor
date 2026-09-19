@@ -30,10 +30,10 @@ namespace HomeBridge.BridgeTools
             var map = people.FirstOrDefault()?.Map;
             if (map == null) return null;
             var result = new Snapshot();
-            var ids = new HashSet<string>(stocks.Where(s => s.corpse).Select(s => s.id!));
+            var ids = new HashSet<string>(stocks.Where(s => s.corpse && !s.isHumanlike).Select(s => s.id!));
             if (ids.Count == 0) return result;
             var meatDefs = DefDatabase<ThingDef>.AllDefsListForReading.Where(d => d.IsMeat && d.IsNutritionGivingIngestible).ToList();
-            result.RawMeatNutrition = shared.Where(t => !(t is Corpse) && t.def.IsMeat && !t.IsForbidden(Faction.OfPlayer))
+            result.RawMeatNutrition = shared.Where(t => !(t is Corpse) && t.def.IsMeat && !HumanFoodFacts.IsHumanMeat(t.def) && !t.IsForbidden(Faction.OfPlayer))
                 .Sum(t => (double)t.stackCount * t.def.GetStatValueAbstract(StatDefOf.Nutrition));
             foreach (var bench in map.listerThings.AllThings.OfType<Building_WorkTable>().Where(b => b.Faction == Faction.OfPlayer))
             foreach (var bill in bench.BillStack.Bills.OfType<Bill_Production>())

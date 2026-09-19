@@ -40,6 +40,14 @@ internal static class NativeProductionBillSettingsProbe
             Suspended = false, IngredientSearchRadius = 40,
             Store = new Operations.BillStore { Mode = Operations.StoreMode.DropOnFloor } };
         Check(NativeProductionBillSettings.Valid(butcher), "unfiltered butcher bill rejected");
+        butcher.Settings.Worker = new Operations.Assignment { EntityId = "Pawn_Cook" };
+        Check(NativeProductionBillSettings.Valid(butcher), "pinned human butcher rejected");
+        var invalidWorker = butcher.Clone();
+        invalidWorker.Settings.Worker.EntityId = "";
+        Check(!NativeProductionBillSettings.Valid(invalidWorker), "empty worker accepted");
+        invalidWorker = bill.Clone();
+        invalidWorker.Settings.Worker = butcher.Settings.Worker.Clone();
+        Check(!NativeProductionBillSettings.Valid(invalidWorker), "worker accepted outside human butchery");
         butcher.Settings.Ingredients = filter;
         Check(!NativeProductionBillSettings.Valid(butcher), "butcher ingredient override accepted");
         Console.WriteLine("Native production bill settings checks passed.");

@@ -69,7 +69,7 @@ func ReviewFoodReserve(supply FoodSupply, selected []PawnID, reserveDays, minimu
 		return a.ID < b.ID
 	})
 	for _, stock := range supply.Stocks {
-		if !ReserveFoodDefinition(stock.DefName) {
+		if !ReserveFoodDefinition(stock.DefName) || stock.IsHumanMeat {
 			continue
 		}
 		holder, hk := stock.Holder.Value()

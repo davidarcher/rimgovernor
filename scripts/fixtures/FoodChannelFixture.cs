@@ -8,6 +8,7 @@ using RimBridgeServer.Sdk;
 using RimWorld;
 using Verse;
 using Verse.AI;
+using HarmonyLib;
 
 namespace HomeBridge.BridgeTools
 {
@@ -15,6 +16,76 @@ namespace HomeBridge.BridgeTools
     // reset; nothing here advances time or suppresses ordinary simulation.
     public sealed class FoodChannelFixture
     {
+        private static Game humanGame;
+        private static string humanCook;
+        private static readonly HashSet<string> fedHerd = new HashSet<string>();
+        private static bool ingestPatched;
+        private static void HumanIngested(Thing __instance, Pawn ingester, float __result)
+        {
+            if (ReferenceEquals(humanGame, Current.Game) && __result > 0 && ingester.RaceProps.Animal && __instance.def.defName == "Kibble")
+                fedHerd.Add(ingester.GetUniqueLoadID());
+        }
+
+        [Tool("test/human_butchery_prepare", Description="UNSAFE FOR MODEL EXECUTION. Add six raider corpses, one psychopath cook, two hungry huskies, vegetable stock, a stove and butcher spot, and an empty screened corpse room to EmptyChannels. No human butcher or meal bill is preinstalled.")]
+        public async Task<object> HumanPrepare(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(()=>{
+                var map=Find.CurrentMap??throw new InvalidOperationException("Loaded map required");
+                if(!Find.TickManager.Paused)throw new InvalidOperationException("Paused fixture required");
+                var people=map.mapPawns.FreeColonistsSpawned.ToList();
+                var cooking=DefDatabase<WorkTypeDef>.GetNamed("Cooking");
+                var cook=people.First(p=>!p.WorkTypeIsDisabled(cooking)&&!p.Downed);
+                var anchor=GenRadial.RadialCellsAround(cook.Position,25,true).First(c=>CellRect.CenteredOn(c,25,15).Cells.All(x=>x.InBounds(map)&&!x.Fogged(map)&&x.GetTerrain(map).passability!=Traversability.Impassable));
+                foreach(var cell in CellRect.CenteredOn(anchor,25,15).Cells) {
+                    foreach(var thing in cell.GetThingList(map).ToList())if(!(thing is Pawn))thing.Destroy(DestroyMode.Vanish);
+                    map.terrainGrid.SetTerrain(cell,TerrainDefOf.Concrete);
+                }
+                foreach(var pawn in people) {
+                    pawn.jobs.StopAll();pawn.drafter.Drafted=false;
+                    foreach(var trait in pawn.story.traits.allTraits.Where(t=>t.def.defName=="Psychopath"||t.def.defName=="Bloodlust"||t.def.defName=="Cannibal").ToList())pawn.story.traits.RemoveTrait(trait);
+                    foreach(var work in DefDatabase<WorkTypeDef>.AllDefsListForReading)if(!pawn.WorkTypeIsDisabled(work))pawn.workSettings.SetPriority(work,0);
+                    if(!pawn.WorkTypeIsDisabled(WorkTypeDefOf.Hauling))pawn.workSettings.SetPriority(WorkTypeDefOf.Hauling,2);
+                    pawn.Position=anchor+new IntVec3(-5,0,0);
+                    for(var hour=0;hour<24;hour++)pawn.timetable.SetAssignment(hour,TimeAssignmentDefOf.Work);
+                }
+                cook.story.traits.GainTrait(new Trait(TraitDefOf.Psychopath));cook.skills.GetSkill(SkillDefOf.Cooking).Level=20;cook.workSettings.SetPriority(cooking,1);
+                Thing Spawn(string name,IntVec3 cell) {var def=ThingDef.Named(name);var thing=ThingMaker.MakeThing(def,def.MadeFromStuff?ThingDefOf.WoodLog:null);if(def.CanHaveFaction)thing.SetFaction(Faction.OfPlayer);GenSpawn.Spawn(thing,cell,map);thing.SetForbidden(false,false);return thing;}
+                var bench=(Building_WorkTable)Spawn("ButcherSpot",anchor);
+                var animalBill=(Bill_Production)DefDatabase<RecipeDef>.GetNamed("ButcherCorpseFlesh").MakeNewBill();animalBill.repeatMode=BillRepeatModeDefOf.Forever;
+                foreach(var def in DefDatabase<ThingDef>.AllDefsListForReading.Where(d=>d.IsCorpse&&d.ingestible?.sourceDef?.race?.Humanlike==true))animalBill.ingredientFilter.SetAllow(def,false);
+                bench.BillStack.AddBill(animalBill);
+                var stove=(Building_WorkTable)Spawn("FueledStove",anchor+new IntVec3(4,0,0));stove.TryGetComp<CompRefuelable>().Refuel(100);
+                foreach(var recipe in stove.def.AllRecipes)if(recipe.products.Any(p=>p.thingDef.defName=="MealSurvivalPack")){if(recipe.researchPrerequisite!=null)Find.ResearchManager.FinishProject(recipe.researchPrerequisite,false);foreach(var research in recipe.researchPrerequisites??new List<ResearchProjectDef>())Find.ResearchManager.FinishProject(research,false);}
+                var room=new CellRect(anchor.x+7,anchor.z-2,5,5);
+                foreach(var cell in room.Cells) {map.roofGrid.SetRoof(cell,RoofDefOf.RoofConstructed);if(cell.x==room.minX||cell.x==room.maxX||cell.z==room.minZ||cell.z==room.maxZ)Spawn(cell==new IntVec3(room.minX,0,room.minZ+2)?"Door":"Wall",cell);}
+                for(var i=0;i<6;i++) {var raider=PawnGenerator.GeneratePawn(PawnKindDefOf.SpaceRefugee,Faction.OfAncientsHostile);GenSpawn.Spawn(raider,anchor+new IntVec3(i,0,-3),map);raider.Kill(null);raider.Corpse.SetForbidden(false,false);}
+                for(var i=0;i<7;i++){var rice=Spawn("RawRice",anchor+new IntVec3(i,0,3));rice.stackCount=75;}
+                var feedBench=Spawn("ButcherSpot",anchor+new IntVec3(0,0,6));
+                if(!map.areaManager.TryMakeNewAllowed(out var feedArea))throw new InvalidOperationException("No feed area");foreach(var cell in CellRect.CenteredOn(feedBench.Position,5,3).Cells)feedArea[cell]=true;
+                var herd=new List<Pawn>();for(var i=0;i<2;i++){var animal=PawnGenerator.GeneratePawn(PawnKindDef.Named("Husky"),Faction.OfPlayer);GenSpawn.Spawn(animal,anchor+new IntVec3(0,0,5+i),map);animal.playerSettings.AreaRestrictionInPawnCurrentMap=feedArea;animal.needs.food.CurLevelPercentage=0.15f;herd.Add(animal);}
+                humanGame=Current.Game;humanCook=cook.GetUniqueLoadID();fedHerd.Clear();
+                if(!ingestPatched){new Harmony("rimgovernor.fixture.humanfood").Patch(AccessTools.Method(typeof(Thing),"Ingested"),postfix:new HarmonyMethod(typeof(FoodChannelFixture),nameof(HumanIngested)));ingestPatched=true;}
+                return new {success=true,cook=humanCook,bench=bench.GetUniqueLoadID(),stove=stove.GetUniqueLoadID(),feedBench=feedBench.GetUniqueLoadID(),herd=herd.Select(p=>p.GetUniqueLoadID()).ToArray(),corpses=6};
+            },cancellationToken);
+        }
+
+        [Tool("test/human_butchery_observe", Description="Read pinned human bills, actual herd kibble ingestion, protected human survival-meal stock and personal butchery thoughts. No mutations.")]
+        public async Task<object> HumanObserve(IRimBridgeContext ctx,CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(()=>{
+                var map=Find.CurrentMap??throw new InvalidOperationException("Loaded map required");
+                var bills=map.listerThings.AllThings.OfType<Building_WorkTable>().SelectMany(b=>b.BillStack.Bills).OfType<Bill_Production>().ToList();
+                bool Human(ThingDef d)=>FoodUtility.GetMeatSourceCategory(d)==MeatSourceCategory.Humanlike;
+                bool HumanCorpse(ThingDef d)=>d.IsCorpse&&d.ingestible?.sourceDef?.race?.Humanlike==true;
+                var human=bills.Where(b=>b.recipe.defName=="ButcherCorpseFlesh"&&b.ingredientFilter.AllowedThingDefs.Any(HumanCorpse)).ToList();
+                var cook=map.mapPawns.FreeColonistsSpawned.Single(p=>p.GetUniqueLoadID()==humanCook);
+                return new {success=true,corpses=map.listerThings.AllThings.OfType<Corpse>().Count(c=>c.InnerPawn.RaceProps.Humanlike),
+                    pinned=human.Count==1&&human[0].PawnRestriction==cook,animalBill=bills.Any(b=>b.recipe.defName=="ButcherCorpseFlesh"&&!b.ingredientFilter.AllowedThingDefs.Any(HumanCorpse)),
+                    unsafeMealBill=bills.Any(b=>b.recipe.products.Any(p=>p.thingDef.IsNutritionGivingIngestible&&p.thingDef.defName!="Kibble"&&p.thingDef.defName!="MealSurvivalPack")&&b.ingredientFilter.AllowedThingDefs.Any(Human)),
+                    fedHerd=fedHerd.ToArray(),personalPenalty=cook.needs.mood.thoughts.memories.Memories.Any(m=>m.def.defName=="ButcheredHumanlikeCorpse"&&m.MoodOffset()<0),
+                    tradeMeals=map.listerThings.AllThings.Where(t=>t.def.defName=="MealSurvivalPack"&&t.IsForbidden(Faction.OfPlayer)&&t.TryGetComp<CompIngredients>()?.ingredients.Any(Human)==true).Sum(t=>t.stackCount)};
+            },cancellationToken);
+        }
         [Tool("test/food_channels_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Strip food stocks (including held food), crops, growing zones, animals, corpses and food-producing buildings from a paused disposable Core map. Seed exactly stockUnits of foodDef. Channel cases add only the source they prove afterwards.")]
         public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken,
             int stockUnits = 0, string foodDef = "MealSurvivalPack")

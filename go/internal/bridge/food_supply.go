@@ -33,6 +33,9 @@ func ValidateFoodSupply(v *o.FoodSupplyFacts) error {
 			return contract("invalid raw class")
 		}
 		stocks[row.Item.GetId()] = true
+		if row.GetIsHumanlike() && !row.GetCorpse() {
+			return contract("humanlike flag requires corpse")
+		}
 		if row.GetReserve() && (row.HolderId != nil || row.Item.GetDefName() != "Pemmican" && row.Item.GetDefName() != "MealSurvivalPack") {
 			return contract("reserve must be shared pemmican or survival meals")
 		}
@@ -46,7 +49,7 @@ func ValidateFoodSupply(v *o.FoodSupplyFacts) error {
 		if row.Item.Label != nil || row.Item.MapId != nil || row.Item.Position != nil || row.Item.Snapshot != nil {
 			return contract("food stock references are identity-only")
 		}
-		if len(row.EaterIds) == 0 && !row.GetCorpse() || len(row.EaterIds) > len(consumers) {
+		if len(row.EaterIds) == 0 && !row.GetCorpse() && !row.GetIsHumanMeat() || len(row.EaterIds) > len(consumers) {
 			return contract("missing food eligibility")
 		}
 		eaters := map[string]bool{}
