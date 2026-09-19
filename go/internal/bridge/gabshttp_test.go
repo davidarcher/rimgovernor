@@ -45,7 +45,7 @@ func TestGABSHTTPHeldCallDoesNotSerializeOthers(t *testing.T) {
 	}
 	httpServer := httptest.NewServer(fake)
 	defer httpServer.Close()
-	client, err := open(context.Background(), "fixture-game", 5*time.Second, nil, endpointFactory(httpServer.URL))
+	client, err := open(context.Background(), "fixture-game", 5*time.Second, nil, nil, endpointFactory(httpServer.URL))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +82,7 @@ func TestGABSHTTPUnreachableEndpointEndsSession(t *testing.T) {
 		t.Fatal(err)
 	}
 	httpServer := httptest.NewServer(fake)
-	client, err := open(context.Background(), "fixture-game", time.Second, nil, endpointFactory(httpServer.URL))
+	client, err := open(context.Background(), "fixture-game", time.Second, nil, nil, endpointFactory(httpServer.URL))
 	if err != nil {
 		t.Fatal(err)
 	}

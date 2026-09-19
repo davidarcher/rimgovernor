@@ -43,6 +43,9 @@ type ProcessConfig struct {
 	// starts (Open and every Reconnect/Reattach). Acceptance harnesses use it
 	// to end exactly their own GABS and prove recovery; it grants nothing.
 	Spawned func(pid int)
+	// Transcript, when set, records every tools/call and its raw receipt
+	// so a Replay can serve the session back without a game (#282).
+	Transcript *Transcript
 }
 
 // Result retains the complete MCP receipt at the transport boundary. Structured
@@ -150,6 +153,7 @@ type Client struct {
 
 	recorder         *FlightRecorder
 	recordingContext func() map[string]any
+	transcript       *Transcript
 }
 
 // SetRecordingContext installs a callback read once per recorded call and
@@ -173,12 +177,12 @@ func Open(ctx context.Context, config ProcessConfig) (*Client, error) {
 	default:
 		return nil, fmt.Errorf("%w: invalid log level", ErrContract)
 	}
-	return open(ctx, config.GameID, config.Timeout, config.Recorder, func() mcp.Transport {
+	return open(ctx, config.GameID, config.Timeout, config.Recorder, config.Transcript, func() mcp.Transport {
 		return &gabsHTTPTransport{executable: config.Executable, configDir: config.ConfigDir, logLevel: config.LogLevel, stderr: config.Stderr, spawned: config.Spawned}
 	})
 }
 
-func open(ctx context.Context, gameID string, timeout time.Duration, recorder *FlightRecorder, factory transportFactory) (*Client, error) {
+func open(ctx context.Context, gameID string, timeout time.Duration, recorder *FlightRecorder, transcript *Transcript, factory transportFactory) (*Client, error) {
 	if gameID == "" || len(gameID) > 256 {
 		return nil, fmt.Errorf("%w: invalid game ID", ErrContract)
 	}
@@ -188,7 +192,7 @@ func open(ctx context.Context, gameID string, timeout time.Duration, recorder *F
 	if timeout < time.Millisecond || timeout > 120*time.Second {
 		return nil, fmt.Errorf("%w: timeout outside 1ms..120s", ErrContract)
 	}
-	c := &Client{factory: factory, gameID: gameID, timeout: timeout, gate: make(chan struct{}, MaxConcurrentCalls), lifecycle: make(chan struct{}, 1), recorder: recorder}
+	c := &Client{factory: factory, gameID: gameID, timeout: timeout, gate: make(chan struct{}, MaxConcurrentCalls), lifecycle: make(chan struct{}, 1), recorder: recorder, transcript: transcript}
 	if err := c.Reconnect(ctx); err != nil {
 		return nil, err
 	}
@@ -263,6 +267,7 @@ func (c *Client) Reconnect(ctx context.Context) error {
 		_ = session.Close()
 		return err
 	}
+	c.transcript.session(c.gameID, discovery)
 	liveCtx, liveCancel := context.WithCancel(context.Background())
 	c.mu.Lock()
 	if c.closed {
@@ -530,6 +535,13 @@ func (c *Client) callOnce(ctx context.Context, live *liveSession, name string, a
 		// No response ever reached Read for this request (write failure,
 		// cancellation before reply, ...); fall through on the CallTool
 		// error below, exactly as when a receipt legitimately never arrives.
+	}
+	if c.transcript != nil {
+		transportErr := receiptErr
+		if transportErr == nil {
+			transportErr = err
+		}
+		c.transcript.call(ctx, name, arguments, raw, transportErr, callElapsed)
 	}
 	if receiptErr != nil {
 		if recording {

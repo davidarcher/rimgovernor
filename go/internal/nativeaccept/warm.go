@@ -82,7 +82,11 @@ func OpenGame(ctx context.Context, cfg *Config) (*Game, error) {
 	if err != nil {
 		return nil, err
 	}
-	client, err := bridge.Open(ctx, bridge.ProcessConfig{Executable: gabsExecutable, ConfigDir: cfg.Configuration, GameID: cfg.GameID, Timeout: 60 * time.Second, Spawned: cfg.Spawned})
+	config, err := WithRecording(bridge.ProcessConfig{Executable: gabsExecutable, ConfigDir: cfg.Configuration, GameID: cfg.GameID, Timeout: 60 * time.Second, Spawned: cfg.Spawned})
+	if err != nil {
+		return nil, err
+	}
+	client, err := bridge.Open(ctx, config)
 	if err != nil {
 		return nil, fmt.Errorf("open GABS session: %w", err)
 	}

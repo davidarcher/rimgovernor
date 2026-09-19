@@ -251,7 +251,7 @@ func TestStepReadCacheHitsReachThePhaseReport(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { rec.Close() })
-	client, err := open(context.Background(), "fixture-game", time.Second, rec, (&testServer{schema: protoSchema, handler: server.handle}).factory(t))
+	client, err := open(context.Background(), "fixture-game", time.Second, rec, nil, (&testServer{schema: protoSchema, handler: server.handle}).factory(t))
 	if err != nil {
 		t.Fatal(err)
 	}

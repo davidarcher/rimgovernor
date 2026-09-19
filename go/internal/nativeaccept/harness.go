@@ -43,7 +43,8 @@ func (h *Harness) Call(ctx context.Context, label, tool string, arguments any) (
 	}
 	sequence := nextEvidenceSequence(h.Output)
 	sent := time.Now()
-	result, callErr := h.Client.NativeCall(ctx, tool, args)
+	// The evidence label is the call's phase in a recorded transcript.
+	result, callErr := h.Client.NativeCall(bridge.WithTranscriptPhase(ctx, label), tool, args)
 	elapsed := time.Since(sent)
 	if callErr != nil {
 		writeEvidence(evidencePath(h.Output, sequence, label), evidenceRow(sequence, tool, args, sent, elapsed, result.Envelope, callErr, nil))

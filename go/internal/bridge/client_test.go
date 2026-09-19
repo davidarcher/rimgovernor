@@ -98,7 +98,7 @@ func (s *testServer) factory(t *testing.T) transportFactory {
 }
 func testClient(t *testing.T, s *testServer, timeout time.Duration) *Client {
 	t.Helper()
-	client, err := open(context.Background(), "fixture-game", timeout, nil, s.factory(t))
+	client, err := open(context.Background(), "fixture-game", timeout, nil, nil, s.factory(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -218,7 +218,7 @@ func TestOwnedSubprocessAndFailedConnections(t *testing.T) {
 		t.Fatalf("missing executable: %v", err)
 	}
 	start := time.Now()
-	_, err = open(context.Background(), "fixture", 300*time.Millisecond, nil, func() mcp.Transport {
+	_, err = open(context.Background(), "fixture", 300*time.Millisecond, nil, nil, func() mcp.Transport {
 		return &gabsHTTPTransport{executable: executable, configDir: filepath.Join(t.TempDir(), "unresponsive"), logLevel: "error"}
 	})
 	if !errors.Is(err, ErrTransport) || !errors.Is(err, context.DeadlineExceeded) {
@@ -285,7 +285,7 @@ func TestLostConnectionAndMissingCapabilities(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer session.Close()
-	_, err = open(context.Background(), "fixture", time.Second, nil, func() mcp.Transport { return clientTransport })
+	_, err = open(context.Background(), "fixture", time.Second, nil, nil, func() mcp.Transport { return clientTransport })
 	if !errors.Is(err, ErrContract) {
 		t.Fatalf("missing capabilities accepted: %v", err)
 	}
@@ -331,7 +331,7 @@ func TestConcurrentReconnectHonorsContextAndClose(t *testing.T) {
 	factory := s.factory(t)
 	entered := make(chan struct{})
 	count := 0
-	client, err := open(context.Background(), "fixture", time.Second, nil, func() mcp.Transport {
+	client, err := open(context.Background(), "fixture", time.Second, nil, nil, func() mcp.Transport {
 		count++
 		if count == 1 {
 			return factory()
@@ -380,7 +380,7 @@ func TestFlightRecorderCapturesRequestResponseAndError(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { rec.Close() })
-	client, err := open(context.Background(), "fixture-game", time.Second, rec, s.factory(t))
+	client, err := open(context.Background(), "fixture-game", time.Second, rec, nil, s.factory(t))
 	if err != nil {
 		t.Fatal(err)
 	}

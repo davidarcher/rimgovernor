@@ -165,10 +165,14 @@ func runSoak(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	defer stderrFile.Close()
-	client, err := bridge.Open(ctx, bridge.ProcessConfig{
+	bridgeConfig, err := na.WithRecording(bridge.ProcessConfig{
 		Executable: gabsExecutable, ConfigDir: naCfg.Configuration, GameID: naCfg.GameID,
 		Timeout: 60 * time.Second, LogLevel: cfg.gabsLog, Stderr: stderrFile,
 	})
+	if err != nil {
+		return err
+	}
+	client, err := bridge.Open(ctx, bridgeConfig)
 	if err != nil {
 		return fmt.Errorf("open GABS session: %w", err)
 	}

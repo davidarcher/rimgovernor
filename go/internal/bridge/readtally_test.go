@@ -25,7 +25,7 @@ func TestReadTallyCountsPerStepAndSummarizes(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { rec.Close() })
-	client, err := open(context.Background(), "fixture-game", time.Second, rec, s.factory(t))
+	client, err := open(context.Background(), "fixture-game", time.Second, rec, nil, s.factory(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -92,7 +92,7 @@ func TestReadTallyCountsSchemaFetchesApart(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { rec.Close() })
-	client, err := open(context.Background(), "fixture-game", time.Second, rec, s.factory(t))
+	client, err := open(context.Background(), "fixture-game", time.Second, rec, nil, s.factory(t))
 	if err != nil {
 		t.Fatal(err)
 	}

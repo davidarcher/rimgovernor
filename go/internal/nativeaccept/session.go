@@ -24,6 +24,10 @@ func OpenBridgeSession(ctx context.Context, gabsExecutable, configDir, gameID st
 // OpenBridgeSessionWith is OpenBridgeSession for a caller that needs the full
 // bridge.ProcessConfig (a flight recorder, or the Spawned PID hook).
 func OpenBridgeSessionWith(ctx context.Context, config bridge.ProcessConfig) (*bridge.Client, error) {
+	config, err := WithRecording(config)
+	if err != nil {
+		return nil, err
+	}
 	client, err := bridge.Open(ctx, config)
 	if err != nil {
 		return nil, fmt.Errorf("open GABS session: %w", err)
@@ -65,9 +69,13 @@ func prepareFreshLaunch(configDir string) error {
 // root still owns the game. Only for stopping a game whose controller stalled;
 // the caller owns both sessions.
 func OpenBridgeSessionWithTakeover(ctx context.Context, gabsExecutable, configDir, gameID string, timeout time.Duration) (*bridge.Client, error) {
-	client, err := bridge.Open(ctx, bridge.ProcessConfig{
+	config, err := WithRecording(bridge.ProcessConfig{
 		Executable: gabsExecutable, ConfigDir: configDir, GameID: gameID, Timeout: timeout,
 	})
+	if err != nil {
+		return nil, err
+	}
+	client, err := bridge.Open(ctx, config)
 	if err != nil {
 		return nil, fmt.Errorf("open GABS session: %w", err)
 	}

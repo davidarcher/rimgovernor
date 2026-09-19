@@ -7,3 +7,4 @@ contracts/generated/** text eol=lf
 *.sh text eol=lf
 containers/Dockerfile text eol=lf
 *.rws text eol=lf -diff
+*.jsonl text eol=lf
