@@ -120,6 +120,19 @@ again; the planner asks for a clock window so native construction finishes
 it. Defenders are undrafted by ordinary draft cleanup once the recovered
 ActiveCombat goal stops authorizing the hold plan.
 
+Combat holds the line only against an ordinary edge assault still in front
+of it: every live raider carries a walk-in assault lord and stands short of
+the firing line's cover row (its cell projected on the corridor direction,
+`policy.BehindFiringLine`). A siege, a sapper or breach toil, a drop
+arrival, a raider already within engaged distance or one already past the
+cover row is answered with squad defense at the threat instead. A standing
+hold is re-examined at every planner step against the same evidence (#118):
+a live raider seen at or behind the cover row, or a raid whose lord evidence
+turned into a breach or sapper toil, makes the planner cancel the hold's
+in-flight orders (`hold_fallback`); the worker releases drafts a plan no
+longer holds, and the next step admits squad defense on the intruders.
+Unknown position or lord evidence never abandons a standing hold.
+
 The `turrets` tier (#61) is added to a layout, fresh or already stored, only
 when every gate is observed: the turret planning definition is available
 (its research prerequisites finished in the research census, never an

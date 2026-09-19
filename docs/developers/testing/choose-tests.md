@@ -994,7 +994,7 @@ game once the layout is built and audited, writing
 `RimGovernor-defense-layout.rws` and `.checkpoint.json` (the layout record and site the
 raid assertions need) to `root/profile/Saves` and to the committed
 [scripts/fixtures/saves](../../../scripts/fixtures/saves/). The
-`defense/raid`, `defense/raid-bypass`, `defense/predator`, `defense/hive`, `defense/shippart` and `defense/turrets` cases declare
+`defense/raid`, `defense/raid-bypass`, `defense/raid-breach`, `defense/siege`, `defense/drop`, `defense/predator`, `defense/hive`, `defense/shippart` and `defense/turrets` cases declare
 `cases.Save{From: ...}` and the runner stages those files into the root
 when it lacks them, loads the save, re-runs the cheap layout audits and goes
 straight to the raid; the checkpoint is fixture-mod state, so rebuild it

@@ -31,9 +31,12 @@ namespace HomeBridge.BridgeTools
     // colonist under its native hostile faction, its pawn and child-hive
     // spawning switched off so the building itself is the only threat),
     // wealth (#395: the wealth watcher recounted now, so stock just placed
-    // counts, then the same wealth split and raid points inspect reads). No
-    // completed-work injection: construction, movement and combat stay
-    // native.
+    // counts, then the same wealth split and raid points inspect reads),
+    // intrude (#118: arms DefenseBreachFixture, which teleports one live
+    // raider to the cell near x,z once a colonist has stood drafted for
+    // grace ticks -- the breach of a held line staged without a second
+    // bridge session). No completed-work injection: construction, movement
+    // and combat stay native.
     public sealed class DefenseFixture
     {
         private const int Half = 22;
@@ -62,8 +65,8 @@ namespace HomeBridge.BridgeTools
             return fixtureHostile;
         }
 
-        [Tool("test/defense_setup", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable defensive-layout fixture: op=terrain|stock|ranged|raid|predator|damage|breach|heal|inspect|quiet|power|depower|muster|empty|hostile|wealth.")]
-        public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken, string op, string strategy = "ImmediateAttack", string arrival = "EdgeWalkIn", int points = 0, string wall = "", int rifles = 3, string kind = "Cougar", int x = -1, int z = -1, string cells = "")
+        [Tool("test/defense_setup", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable defensive-layout fixture: op=terrain|stock|ranged|raid|predator|damage|breach|heal|inspect|quiet|power|depower|muster|empty|hostile|wealth|intrude.")]
+        public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken, string op, string strategy = "ImmediateAttack", string arrival = "EdgeWalkIn", int points = 0, string wall = "", int rifles = 3, string kind = "Cougar", int x = -1, int z = -1, string cells = "", int grace = 600)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap; var player = Faction.OfPlayerSilentFail;
@@ -90,6 +93,7 @@ namespace HomeBridge.BridgeTools
                     case "empty": return Empty(map, new IntVec3(x, 0, z));
                     case "hostile": return Hostile(map, colonists, kind);
                     case "wealth": map.wealthWatcher.ForceRecount(); return new { success = true, threat = Threat(map), tick = Find.TickManager.TicksGame };
+                    case "intrude": return Intrude(map, new IntVec3(x, 0, z), grace);
                     default: return Refuse("Use terrain, stock, ranged, raid, predator, damage, breach, heal, inspect, quiet, power, depower, muster or empty.");
                 }
             }, cancellationToken).ConfigureAwait(false);
@@ -217,40 +221,83 @@ namespace HomeBridge.BridgeTools
             return null;
         }
 
-        // Raid stages the game's own raid incident. With a `near` cell the
-        // edge arrival starts at the standable map-edge cell closest to it
+        // Raid stages the game's own raid incident. With a `near` cell a
+        // walk-in arrival starts at the standable map-edge cell closest to it
         // that reaches it (the raid's own worker otherwise picks any edge,
         // and a raid that walks in behind the colony never meets the
-        // corridor the #61 turrets cover).
+        // corridor the #61 turrets cover); a drop arrival lands its pods on
+        // the near cell itself (#118). The faction is the lowest-tech
+        // hostile humanlike faction the chosen strategy and arrival accept
+        // natively (a siege needs canSiege, a centre drop an industrial
+        // faction: pirates, not the tribe), at the strategy's point floor.
+        // Pod pawns are not spawned until the pods open, so a drop arrival
+        // reports the pawns inside the incoming pods as added.
         private static object Raid(Map map, string strategy, string arrival, int points, IntVec3 near)
         {
             var def = DefDatabase<IncidentDef>.GetNamed("RaidEnemy");
             var parms = StorytellerUtility.DefaultParmsNow(def.category, map);
+            parms.raidStrategy = DefDatabase<RaidStrategyDef>.GetNamed(strategy);
+            parms.raidArrivalMode = DefDatabase<PawnsArrivalModeDef>.GetNamed(arrival);
+            var drop = parms.raidArrivalMode.defName.Contains("Drop");
             if (near.IsValid)
             {
                 if (!near.InBounds(map)) return Refuse("near cell is off the map.");
-                var edge = CellRect.WholeMap(map).EdgeCells.Where(c => c.Standable(map) && !c.Fogged(map)
-                        && map.reachability.CanReach(c, near, Verse.AI.PathEndMode.OnCell, TraverseMode.PassDoors, Danger.Deadly))
-                    .OrderBy(c => c.DistanceToSquared(near)).FirstOrDefault();
-                if (!edge.IsValid) return Refuse("No standable map-edge cell reaches the near cell.");
-                parms.spawnCenter = edge;
+                if (drop) parms.spawnCenter = near;
+                else
+                {
+                    var edge = CellRect.WholeMap(map).EdgeCells.Where(c => c.Standable(map) && !c.Fogged(map)
+                            && map.reachability.CanReach(c, near, Verse.AI.PathEndMode.OnCell, TraverseMode.PassDoors, Danger.Deadly))
+                        .OrderBy(c => c.DistanceToSquared(near)).FirstOrDefault();
+                    if (!edge.IsValid) return Refuse("No standable map-edge cell reaches the near cell.");
+                    parms.spawnCenter = edge;
+                }
             }
-            var faction = Find.FactionManager.AllFactionsVisible.Where(f => f.HostileTo(Faction.OfPlayer) && !f.def.hidden && f.def.humanlikeFaction
+            var candidates = Find.FactionManager.AllFactionsVisible.Where(f => f.HostileTo(Faction.OfPlayer) && !f.def.hidden && f.def.humanlikeFaction
                     && ((IncidentWorker_RaidEnemy)def.Worker).FactionCanBeGroupSource(f, parms))
-                .OrderBy(f => f.def.techLevel).ThenBy(f => f.def.MinPointsToGeneratePawnGroup(PawnGroupKindDefOf.Combat)).FirstOrDefault();
-            if (faction == null) return Refuse("No currently eligible hostile humanlike faction.");
-            parms.faction = faction;
-            parms.raidStrategy = DefDatabase<RaidStrategyDef>.GetNamed(strategy);
-            parms.points = Math.Max(points, StrategyPointFloor(def, parms.raidStrategy, faction));
-            parms.raidArrivalMode = DefDatabase<PawnsArrivalModeDef>.GetNamed(arrival);
+                .OrderBy(f => f.def.techLevel).ThenBy(f => f.def.MinPointsToGeneratePawnGroup(PawnGroupKindDefOf.Combat)).ToList();
+            var refused = new List<object>();
+            Faction faction = null;
+            foreach (var candidate in candidates)
+            {
+                parms.faction = candidate;
+                parms.points = Math.Max(points, StrategyPointFloor(def, parms.raidStrategy, candidate));
+                var strategyOk = parms.raidStrategy.Worker.CanUseWith(parms, PawnGroupKindDefOf.Combat);
+                var arrivalOk = parms.raidArrivalMode.Worker.CanUseWith(parms);
+                if (strategyOk && arrivalOk) { faction = candidate; break; }
+                refused.Add(new { faction = candidate.def.defName, points = parms.points, strategyOk, arrivalOk });
+            }
+            if (faction == null) return new { success = false, reason = "No currently eligible hostile humanlike faction for " + strategy + "/" + arrival + ".", refused };
             parms.forced = true;
             parms.pawnGroupMakerSeed = RequiredKindGroupMakerSeed(parms);
             var before = new HashSet<string>(map.mapPawns.AllPawnsSpawned.Select(p => p.GetUniqueLoadID()));
+            var podsBefore = new HashSet<int>(map.listerThings.AllThings.OfType<DropPodIncoming>().Select(t => t.thingIDNumber));
             var applied = def.Worker.TryExecute(parms);
-            var added = map.mapPawns.AllPawnsSpawned.Where(p => !before.Contains(p.GetUniqueLoadID()))
-                .Select(p => new { id = p.GetUniqueLoadID(), kind = p.kindDef.defName, hostile = p.HostileTo(Faction.OfPlayer), x = p.Position.x, z = p.Position.z,
-                    lordJob = p.GetLord()?.LordJob?.GetType().Name, lordToil = p.GetLord()?.CurLordToil?.GetType().Name }).ToList();
-            return new { success = applied && added.Count > 0, applied, faction = faction.def.defName, points = parms.points, strategy, arrival, groupMakerSeed = parms.pawnGroupMakerSeed, added, tick = Find.TickManager.TicksGame };
+            var arrived = map.mapPawns.AllPawnsSpawned.Where(p => !before.Contains(p.GetUniqueLoadID())).Select(p => new { pawn = p, inPod = false }).ToList();
+            var pods = map.listerThings.AllThings.OfType<DropPodIncoming>().Where(t => !podsBefore.Contains(t.thingIDNumber)).ToList();
+            foreach (var pod in pods)
+                foreach (var pawn in pod.Contents.innerContainer.OfType<Pawn>()) arrived.Add(new { pawn, inPod = true });
+            var added = arrived.Select(a => new { id = a.pawn.GetUniqueLoadID(), kind = a.pawn.kindDef.defName, hostile = a.pawn.HostileTo(Faction.OfPlayer), x = a.pawn.Position.x, z = a.pawn.Position.z,
+                    lordJob = a.pawn.GetLord()?.LordJob?.GetType().Name, lordToil = a.pawn.GetLord()?.CurLordToil?.GetType().Name, a.inPod }).ToList();
+            return new { success = applied && added.Count > 0, applied, faction = faction.def.defName, points = parms.points, strategy, arrival, groupMakerSeed = parms.pawnGroupMakerSeed,
+                spawnCenter = new { x = parms.spawnCenter.x, z = parms.spawnCenter.z }, pods = pods.Select(p => new { x = p.Position.x, z = p.Position.z, openDelay = p.Contents.openDelay }).ToList(),
+                added, tick = Find.TickManager.TicksGame };
+        }
+
+        // Intrude arms the breach observer (#118): once any colonist has
+        // stood drafted for grace ticks -- the hold plan is dispatched and
+        // the line is held -- one live raider is teleported to a standable
+        // cell near x,z, behind the firing line. The observer is a map
+        // component so it acts while the service, not the fixture, holds
+        // the bridge; inspect reports what it did.
+        private static object Intrude(Map map, IntVec3 near, int grace)
+        {
+            if (!near.InBounds(map)) return Refuse("intrude needs x,z on the map.");
+            var cell = GenRadial.RadialCellsAround(near, 4.9f, true).FirstOrDefault(c => c.InBounds(map) && c.Standable(map) && !c.Fogged(map));
+            if (!cell.IsValid) return Refuse("No standable cell within 5 of " + near + ".");
+            var fixture = map.GetComponent<DefenseBreachFixture>();
+            if (fixture == null) { fixture = new DefenseBreachFixture(map); map.components.Add(fixture); }
+            fixture.Arm(cell, Math.Max(0, grace));
+            return new { success = true, x = cell.x, z = cell.z, grace = fixture.Grace, tick = Find.TickManager.TicksGame };
         }
 
         // Predator stages the #157 precondition directly: a wild predator of
@@ -664,8 +711,9 @@ namespace HomeBridge.BridgeTools
             var generators = map.listerBuildings.allBuildingsColonist.Where(b => b.TryGetComp<CompPowerPlant>() != null).OrderBy(b => b.thingIDNumber)
                 .Select(b => new { id = b.GetUniqueLoadID(), def = b.def.defName, x = b.Position.x, z = b.Position.z, output = b.TryGetComp<CompPowerPlant>().PowerOutput,
                     fuel = b.TryGetComp<CompRefuelable>()?.Fuel ?? -1f }).ToList();
+            var breach = map.GetComponent<DefenseBreachFixture>()?.Report();
             return new { success = true, traps = traps.Count, trapIds, trapCells = cells, sprung, colonistsOnTraps, colonists, hostiles, predator, hostileBuilding, walls,
-                turrets = Turrets(map), conduits, generators, threat = Threat(map), tick = Find.TickManager.TicksGame, paused = Find.TickManager.Paused };
+                turrets = Turrets(map), conduits, generators, threat = Threat(map), breach, tick = Find.TickManager.TicksGame, paused = Find.TickManager.Paused };
         }
 
         // The wealth split and raid points the game itself computes (#395),
@@ -689,5 +737,46 @@ namespace HomeBridge.BridgeTools
         }
 
         private static object Refuse(string reason) => new { success = false, reason };
+    }
+
+    // Test-only breach stimulus (#118): armed by the intrude op, it waits
+    // for a colonist to have stood drafted for Grace ticks and then moves
+    // one live hostile humanlike pawn (the highest id, so the hold plan's
+    // first target keeps walking the corridor) onto Target. The raider
+    // keeps its lord and its assault toil; nothing else is ordered.
+    public sealed class DefenseBreachFixture : MapComponent
+    {
+        public bool Armed { get; private set; }
+        public IntVec3 Target { get; private set; }
+        public int Grace { get; private set; }
+        public int FirstDraftTick { get; private set; }
+        public int MovedTick { get; private set; }
+        public string Moved { get; private set; }
+        public DefenseBreachFixture(Map map) : base(map) { }
+        public void Arm(IntVec3 target, int grace)
+        {
+            Armed = true; Target = target; Grace = grace; FirstDraftTick = 0; MovedTick = 0; Moved = null;
+        }
+        public object Report() => new { armed = Armed, targetX = Target.x, targetZ = Target.z, grace = Grace, firstDraftTick = FirstDraftTick, moved = Moved, movedTick = MovedTick };
+        public override void MapComponentTick()
+        {
+            if (!Armed) return;
+            var now = Find.TickManager.TicksGame;
+            if (FirstDraftTick == 0)
+            {
+                if (map.mapPawns.FreeColonistsSpawned.Any(p => p.Drafted)) FirstDraftTick = now;
+                return;
+            }
+            if (now - FirstDraftTick < Grace) return;
+            var raider = map.mapPawns.AllPawnsSpawned.Where(p => p.HostileTo(Faction.OfPlayer) && p.RaceProps.Humanlike && !p.Dead && !p.Downed)
+                .OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).LastOrDefault();
+            if (raider == null) { Armed = false; return; }
+            var cell = Target.Standable(map) ? Target : GenRadial.RadialCellsAround(Target, 4.9f, true).FirstOrDefault(c => c.InBounds(map) && c.Standable(map));
+            if (!cell.IsValid) { Armed = false; return; }
+            raider.jobs?.StopAll();
+            raider.Position = cell;
+            raider.Notify_Teleported(true, true);
+            Moved = raider.GetUniqueLoadID(); MovedTick = now; Armed = false;
+        }
     }
 }

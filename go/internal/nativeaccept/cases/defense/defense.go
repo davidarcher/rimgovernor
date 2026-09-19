@@ -111,6 +111,14 @@ type variant struct {
 	// turrets adds the powered turret tier (#61) before the raid and
 	// replaces the trap breach with a conduit loss and turret damage.
 	turrets bool
+	// breach arms the fixture's breach observer before the edge raid: one
+	// raider is teleported behind the held line once the hold is dispatched,
+	// and the run asserts the hold falls back to squad defense (#118).
+	breach bool
+	// squad marks a raid the layout cannot hold (siege, centre drop): the
+	// run expects squad defense from the start and plays it to the native
+	// outcome without the repair phase (#118).
+	squad bool
 }
 
 func init() {
@@ -166,6 +174,21 @@ func init() {
 		"the planner adds turrets behind the firing line with their own conduit chain and builds them natively; a powered turret is observed firing on an edge raid "+
 		"entering the kill zone, and afterwards a depowered, damaged turret is restored through routine upkeep and an emptied barrel with the game's auto-refuel off is rearmed by the layout's own refuel order (#205).",
 		checkpoint, 50*time.Minute, turrets)
+	breach := fromCheckpoint
+	breach.breach = true
+	register("defense/raid-breach", "Breach fallback (#118) from the committed layout checkpoint: an edge assault is held from the firing line, "+
+		"one raider is then staged behind the line, the planner cancels the hold and answers with squad defense at the threat, the raid resolves and the drafts are released.",
+		checkpoint, 20*time.Minute, breach)
+	siege := fromCheckpoint
+	siege.strategy, siege.squad = "Siege", true
+	register("defense/siege", "Siege fallback (#118) from the committed layout checkpoint: a real Siege raid that never enters the corridor is answered with a squad sortie on the besiegers, "+
+		"never a line position; the attacks reach native dispatch and the fight resolves or costs the besiegers a pawn within the budget.",
+		checkpoint, 20*time.Minute, siege)
+	drop := fromCheckpoint
+	drop.arrival, drop.squad = "CenterDrop", true
+	register("defense/drop", "Drop-pod fallback (#118) from the committed layout checkpoint: a real centre-drop assault lands beside the colony, the layout is irrelevant, "+
+		"squad defense engages at the threat with no defender routed to a firing cell, the raid resolves and the drafts are released.",
+		checkpoint, 15*time.Minute, drop)
 	predator := fromCheckpoint
 	predator.threat = "predator"
 	register("defense/predator", "A wild predator hunting a colonist during supervised play (#157) is answered with squad defense from the committed layout checkpoint: "+
@@ -555,7 +578,7 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 		}
 	}
 	// Scenario 2/3: a real raid.
-	if v.fromCheckpoint && !v.bypass {
+	if v.fromCheckpoint && !v.bypass && !v.squad {
 		// The checkpoint was saved with the colonists parked inside the
 		// corridor they had been building. A hold plan drafts and moves
 		// them one action per window, so a raider reaching the corridor
@@ -574,6 +597,12 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 		report["muster"] = mustered
 	}
 	raidArgs := map[string]any{"op": "raid", "strategy": v.strategy, "arrival": v.arrival}
+	if v.squad && strings.Contains(v.arrival, "Drop") {
+		// The pods land beside the colony, inside the band the corridor
+		// guards.
+		cell := dropCell(layout, siteX, siteZ)
+		raidArgs["x"], raidArgs["z"] = int(cell.X), int(cell.Z)
+	}
 	if v.turrets {
 		// The turret scenario needs the raid to come through the corridor
 		// the turrets cover: it walks in from the map edge nearest the
@@ -585,11 +614,24 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 	// have replaced yet, so every resume starts from a pre-raid entry and
 	// stages the raid again (#330).
 	na.CapCheckpoints("raid staged; a resume replays the pre-raid audits, so no entry is taken after this point (#330)")
+	if v.breach {
+		// Armed after the ring is capped so no checkpoint save carries the
+		// observer; it fires while the service holds the game.
+		cell := breachCell(layout)
+		armed, err := fixture("intrude", map[string]any{"op": "intrude", "x": int(cell.X), "z": int(cell.Z), "grace": breachGraceTicks})
+		if err != nil {
+			return err
+		}
+		report["breach_armed"] = armed
+	}
 	raid, err := fixture("raid", raidArgs)
 	if err != nil {
 		return err
 	}
 	report["raid_incident"] = raid
+	if v.squad {
+		return runSquadRaid(ctx, closeClient, reopenFixture, fixture, launch, layout, v, raid, report)
+	}
 	if err := closeClient(); err != nil {
 		return err
 	}
@@ -630,6 +672,9 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 		report["hold_plan_dispatch"] = dispatched
 		if err != nil {
 			return fmt.Errorf("hold dispatch: %w", err)
+		}
+		if v.breach {
+			return runBreach(ctx, svc, reopenFixture, fixture, method.Plan, raid, report)
 		}
 		resolved, err := waitRaidResolved(ctx, svc.store, method.Plan, svc.wait(raidTimeout))
 		report["raid_resolution"] = resolved
@@ -1832,12 +1877,17 @@ func assertHoldPlan(spec domain.PlanSpec, layout store.DefenseLayoutRecord) erro
 }
 
 // assertNoLinePosition checks a bypass response is not a hold-the-line plan.
+// assertNoLinePosition fails when a squad plan routes a defender to a
+// firing cell: squad defense engages at the threat, and only the hold plan
+// positions the line (a squad plan may still fire ranged attacks).
 func assertNoLinePosition(spec domain.PlanSpec, layout store.DefenseLayoutRecord) error {
-	if strings.HasPrefix(string(spec.ID()), "routine-defense-") && !strings.Contains(string(spec.ID()), "bypass") {
-		for _, a := range spec.Actions() {
-			if a.Kind() == domain.RangedAttackAction {
-				return fmt.Errorf("bypass raid response used the hold-the-line plan %s", spec.ID())
-			}
+	firing := map[domain.Cell]bool{}
+	for _, cell := range layout.Firing {
+		firing[cell] = true
+	}
+	for _, a := range spec.Actions() {
+		if m, ok := a.Movement(); ok && firing[m.Destination()] {
+			return fmt.Errorf("squad response %s moves %s to firing cell %v", spec.ID(), m.Pawn(), m.Destination())
 		}
 	}
 	return nil

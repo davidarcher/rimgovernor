@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"hash"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -89,6 +90,10 @@ func (r *RoutineDefensePlanner) step(call, epoch context.Context, arbiter *stepA
 	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit {
 		return RoutineDefenseResult{Reason: BuildingMethodNoDeficit}, nil
 	}
+	// Open hold methods are re-examined against the live raid below (#118):
+	// a hold whose line the raid has crossed is cancelled so squad defense
+	// takes over. Any other open work waits.
+	var openHolds []store.PlanState
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
 		if err != nil {
@@ -107,9 +112,13 @@ func (r *RoutineDefensePlanner) step(call, epoch context.Context, arbiter *stepA
 		if plan, err = p.journal.LoadPlan(call, method.Plan); err != nil {
 			return RoutineDefenseResult{}, err
 		}
-		if domain.GoalWorkOpen(plan.Progress) {
+		if !domain.GoalWorkOpen(plan.Progress) {
+			continue
+		}
+		if !strings.HasPrefix(string(method.Method), "hold-") {
 			return RoutineDefenseResult{Reason: BuildingMethodExistingWork}, nil
 		}
+		openHolds = append(openHolds, plan)
 	}
 	started := r.reviewer.clock.Now()
 	identity := boundary.Identity(state.Snapshot)
@@ -204,6 +213,34 @@ func (r *RoutineDefensePlanner) step(call, epoch context.Context, arbiter *stepA
 		for _, building := range buildings {
 			threats = append(threats, policy.SquadThreatFacts{ID: building.ID, Dead: building.Dead, Building: true, LinesOfFire: lines[building.ID]})
 		}
+	}
+	if len(openHolds) > 0 {
+		// Breach fallback (#118): the line is held only while every live
+		// raider is still in front of it. A raider past the cover row, or a
+		// raid that switched to a breach or sapper toil, has made the firing
+		// cells the wrong place to stand; the hold's drafts, moves and
+		// attacks are cancelled (the released defenders are eligible again)
+		// and the next step answers the intruders with squad defense at the
+		// threat. Without that proof the hold stands.
+		compromised, err := r.holdCompromised(call, state, hostileIDs, rows)
+		if err != nil {
+			return RoutineDefenseResult{}, err
+		}
+		if !compromised {
+			return RoutineDefenseResult{Reason: BuildingMethodExistingWork}, nil
+		}
+		for _, plan := range openHolds {
+			for _, progress := range plan.Progress {
+				v := progress.View()
+				if v.Stage == domain.Completed || v.Stage == domain.Unsuccessful || v.Stage == domain.Cancelled {
+					continue
+				}
+				if _, err = p.journal.Cancel(call, plan.Spec.ID(), v.Action); err != nil {
+					return RoutineDefenseResult{}, err
+				}
+			}
+		}
+		return RoutineDefenseResult{Reason: BuildingMethodHoldFallback}, nil
 	}
 	// A complete defensive layout against an ordinary edge assault sends the
 	// ranged line to its firing cells first; anything else is squad defense.
@@ -402,7 +439,7 @@ func (r *RoutineDefensePlanner) holdTheLine(call, epoch context.Context, goal st
 	for _, id := range hostileIDs {
 		threats = append(threats, defensiveThreatFacts(rows[id]))
 	}
-	positions, ok := policy.SelectDefensivePositions(layout.Firing, threats, defenders)
+	positions, ok := policy.SelectDefensivePositions(layout.Firing, layout.Toward, threats, defenders)
 	if !ok {
 		return RoutineDefenseResult{}, nil
 	}
@@ -470,7 +507,23 @@ func (r *RoutineDefensePlanner) holdTheLine(call, epoch context.Context, goal st
 	return RoutineDefenseResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
 }
 
-// defensiveThreatFacts reads the lord and distance evidence a hostile row
+// holdCompromised reads the stored layout and asks the policy whether the
+// live hostiles have crossed its line. A record that is gone or no longer
+// complete cannot say where the line is, so the hold stands on the
+// geometry it was admitted against.
+func (r *RoutineDefensePlanner) holdCompromised(call context.Context, state ControlState, hostileIDs []string, rows map[string]*n.PawnState) (bool, error) {
+	layout, ok, err := r.reviewer.player.journal.LoadDefenseLayout(call, store.World{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snapshot.Map})
+	if err != nil || !ok || !layout.Complete {
+		return false, err
+	}
+	threats := make([]policy.DefensiveThreatFacts, 0, len(hostileIDs))
+	for _, id := range hostileIDs {
+		threats = append(threats, defensiveThreatFacts(rows[id]))
+	}
+	return policy.HoldCompromised(layout.Firing, layout.Toward, threats), nil
+}
+
+// defensiveThreatFacts reads the lord, distance and position evidence a hostile row
 // carries; a missing field stays unknown so positions are never taken on a
 // guess about how the raid arrives.
 func defensiveThreatFacts(row *n.PawnState) policy.DefensiveThreatFacts {
@@ -486,6 +539,9 @@ func defensiveThreatFacts(row *n.PawnState) policy.DefensiveThreatFacts {
 	}
 	if row.NearestColonistDistance != nil && !boundary.IssueField(row.Issues, "nearest_colonist_distance") {
 		facts.NearestColonistDistance = domain.Known(row.GetNearestColonistDistance())
+	}
+	if position := row.Pawn.GetPosition(); position != nil && position.X != nil && position.Z != nil {
+		facts.Position = domain.Known(domain.Cell{X: position.GetX(), Z: position.GetZ()})
 	}
 	return facts
 }

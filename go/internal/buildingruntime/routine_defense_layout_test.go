@@ -71,6 +71,13 @@ func TestDefensiveThreatFactsKeepMissingLordUnknown(t *testing.T) {
 	if job, _ := facts.LordJobClass.Value(); job != "LordJob_AssaultColony" {
 		t.Fatalf("%+v", facts)
 	}
+	if _, known := facts.Position.Value(); known {
+		t.Fatal("position known without a cell")
+	}
+	row.Pawn.Position = &c.Cell{X: proto.Int32(4), Z: proto.Int32(9)}
+	if position, known := defensiveThreatFacts(row).Position.Value(); !known || position != (domain.Cell{X: 4, Z: 9}) {
+		t.Fatal(position, known)
+	}
 	if d, known := facts.NearestColonistDistance.Value(); !known || d != 40 {
 		t.Fatal(d, known)
 	}
@@ -83,7 +90,7 @@ func TestDefensiveThreatFactsKeepMissingLordUnknown(t *testing.T) {
 	if _, known := facts.NearestColonistDistance.Value(); known {
 		t.Fatal("issued distance became known")
 	}
-	if _, ok := policy.SelectDefensivePositions([]domain.Cell{{X: 1, Z: 1}}, []policy.DefensiveThreatFacts{facts}, nil); ok {
+	if _, ok := policy.SelectDefensivePositions([]domain.Cell{{X: 1, Z: 1}}, domain.North, []policy.DefensiveThreatFacts{facts}, nil); ok {
 		t.Fatal("positioned on unknown lord evidence")
 	}
 }
