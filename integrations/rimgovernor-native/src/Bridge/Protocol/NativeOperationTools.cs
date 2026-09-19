@@ -44,6 +44,7 @@ namespace HomeBridge.BridgeTools
         internal readonly Dictionary<Common.AttemptKey, NativeWasteRecord> Waste = new Dictionary<Common.AttemptKey, NativeWasteRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeEquipRecord> Equips = new Dictionary<Common.AttemptKey, NativeEquipRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeCleanRecord> Cleans = new Dictionary<Common.AttemptKey, NativeCleanRecord>();
+        internal readonly Dictionary<Common.AttemptKey, NativeTendRecord> Tends = new Dictionary<Common.AttemptKey, NativeTendRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeRepairRecord> Repairs = new Dictionary<Common.AttemptKey, NativeRepairRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeTradeRecord> Trade = new Dictionary<Common.AttemptKey, NativeTradeRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeCaravanRecord> Caravans = new Dictionary<Common.AttemptKey, NativeCaravanRecord>();
@@ -132,7 +133,8 @@ namespace HomeBridge.BridgeTools
                     case Operations.PawnOrderKind.Rescue: return NativeCustodyOperations.Execute(state, request, context);
                     case Operations.PawnOrderKind.Clean: return NativeCleanOperations.Execute(state, request, context);
                     case Operations.PawnOrderKind.Repair: return NativeRepairOperations.Execute(state, request, context);
-                    default: return Refuse(Common.FailureCode.Unsupported, "This native adapter implements Equip, Haul, Capture, Rescue, Clean and Repair pawn-target orders.");
+                    case Operations.PawnOrderKind.Tend: return NativeTendOperations.Execute(state, request, context);
+                    default: return Refuse(Common.FailureCode.Unsupported, "This native adapter implements Equip, Haul, Capture, Rescue, Clean, Repair and Tend pawn-target orders.");
                 }
             }
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.RecoverService)
@@ -273,7 +275,8 @@ namespace HomeBridge.BridgeTools
                         case Operations.PawnOrderKind.Rescue: return ProtoBoundary.Encode(NativeCustodyOperations.Preview(parsed.Operation.PawnTargetOrder, context));
                         case Operations.PawnOrderKind.Clean: return ProtoBoundary.Encode(NativeCleanOperations.Preview(parsed.Operation.PawnTargetOrder, context));
                         case Operations.PawnOrderKind.Repair: return ProtoBoundary.Encode(NativeRepairOperations.Preview(parsed.Operation.PawnTargetOrder, context));
-                        default: return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Preview implements Equip, Haul, Capture, Rescue, Clean and Repair pawn-target orders.") });
+                        case Operations.PawnOrderKind.Tend: return ProtoBoundary.Encode(NativeTendOperations.Preview(parsed.Operation.PawnTargetOrder, context));
+                        default: return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Preview implements Equip, Haul, Capture, Rescue, Clean, Repair and Tend pawn-target orders.") });
                     }
                 }
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.RecoverService)
@@ -430,6 +433,9 @@ namespace HomeBridge.BridgeTools
                     NativeRepairRecord repair;
                     if (state.Repairs.TryGetValue(parsed.Attempt, out repair))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = repair.Observe(parsed.Attempt, context) }));
+                    NativeTendRecord tend;
+                    if (state.Tends.TryGetValue(parsed.Attempt, out tend))
+                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = tend.Observe(parsed.Attempt, context) }));
                     NativeTradeRecord trade;
                     if (state.Trade.TryGetValue(parsed.Attempt, out trade))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = trade.Observe(parsed.Attempt, context) }));

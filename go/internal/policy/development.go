@@ -227,7 +227,12 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 		// A mental break's mood goal is priority 1 but not an emergency: it
 		// ends only as ticks pass, so it must not freeze development.
 		emergency = emergency || g.Priority < 2 && !IsMoodGoal(g.ID)
-		startup = startup || g.Priority < 3 && !g.Served && !g.MethodUnavailable && !g.Cancelled
+		// MaintainRefrigeration sits at priority 2 only to bypass the ranked
+		// queue (a cooler queued behind the project limit arrives after the
+		// food is gone); it is upkeep, not a startup need, and a tribal
+		// colony with no way to cool a room would otherwise hold comfort
+		// back for as long as any berry is near spoiling (#217).
+		startup = startup || g.Priority < 3 && !g.Served && !g.MethodUnavailable && !g.Cancelled && g.ID != MaintainRefrigeration
 	}
 	for _, g := range r.Goals {
 		if g.Priority < 3 {

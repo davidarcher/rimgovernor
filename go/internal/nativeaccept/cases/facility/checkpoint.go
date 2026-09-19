@@ -26,13 +26,19 @@ const startupCheckpoint = "RimGovernor-facility-startup"
 
 func init() {
 	cases.Register(cases.Case{
-		Name:   "tools/facility-checkpoint",
-		Scope:  "Checkpoint generation: the tribal8 baseline runs the comfort case's families until EnsureComfort is first admitted past the startup ladder, then the game is saved as the committed " + startupCheckpoint + " checkpoint facility/comfort resumes from (issue #201).",
-		Start:  cases.Save{Name: sustained.BaselineSave},
-		Keep:   []string{string(na.NeedFood), string(na.NeedJoy)},
+		Name:  "tools/facility-checkpoint",
+		Scope: "Checkpoint generation: the tribal8 baseline runs the comfort case's families until EnsureComfort is first admitted past the startup ladder, then the game is saved as the committed " + startupCheckpoint + " checkpoint facility/comfort resumes from (issue #201).",
+		Start: cases.Save{Name: sustained.BaselineSave},
+		// Food is frozen here, unlike the comfort case: the baseline holds no
+		// food and its colonists start near starving, so with Food live one
+		// went down from malnutrition at ~26 minutes, the injury emergency
+		// suspended every routine goal and the ladder never reached comfort
+		// (#217). The checkpoint saves them fed; comfort's own fixture keeps
+		// Food live from there.
+		Keep:   []string{string(na.NeedJoy)},
 		Serve:  debugSpec("facility-checkpoint", comfortFamilies),
-		Budget: 40 * time.Minute,
-		Reason: "the startup ladder from the raw baseline takes over 15 minutes on a shared box; this run replaces it with a save so facility/comfort stays within budget",
+		Budget: 60 * time.Minute,
+		Reason: "the startup ladder from the raw baseline takes over 30 minutes on a shared box (the shell alone is ~40 walls for one builder); this run replaces it with a save so facility/comfort stays within budget",
 		Run: func(ctx context.Context, s cases.Session) error {
 			report := s.Report()
 			checkpointed := func(map[string]any) bool {
@@ -41,7 +47,7 @@ func init() {
 			}
 			_, err := sustainedfood.Observe(ctx, s, sustainedfood.Observation{
 				WatchConfig: sustainedfood.WatchConfig{
-					Watch: 36 * time.Minute, Poll: 5 * time.Second, Goal: policy.EnsureComfort,
+					Watch: 55 * time.Minute, Poll: 5 * time.Second, Goal: policy.EnsureComfort,
 					Extra:      []policy.GoalID{policy.EnsureInitialShelter, policy.EnsureCooking, policy.EnsureFoodStorage, policy.EnsureFoodSupply},
 					Until:      checkpointed,
 					Checkpoint: &sustainedfood.Checkpoint{Name: startupCheckpoint, When: comfortAdmitted},

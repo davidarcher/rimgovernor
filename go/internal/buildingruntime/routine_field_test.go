@@ -84,6 +84,17 @@ func TestFieldPlannerReservationsCASAndManual(t *testing.T) {
 	if err != nil || len(stored.ZoneAdmissions) != 1 || stored.ZoneAdmissions[0].Admission.SnapshotToken != "fresh-map" {
 		t.Fatal(stored, err)
 	}
+	// Native authority that moved since the method admission re-prepares
+	// the zone under the current generation; the footprint record written
+	// at admission still accounts for it (#217).
+	moved := snapshot
+	moved.Native++
+	if _, err := db.PrepareZone(ctx, result.Plan, a.ID(), store.ZoneAdmission{Snapshot: moved, Tick: tick, SnapshotToken: "fresh-map"}); err != nil {
+		t.Fatal("zone stranded after a native generation change:", err)
+	}
+	if _, err := db.PrepareZone(ctx, result.Plan, a.ID(), store.ZoneAdmission{Snapshot: snapshot, Tick: tick, SnapshotToken: "fresh-map"}); err != nil {
+		t.Fatal(err)
+	}
 
 	// The shared reservation cannot bypass typed map preparation.
 	if _, err := db.ReserveAndPrepare(ctx, result.Plan, a.ID(), plan.Admissions[0].Admission); err == nil {

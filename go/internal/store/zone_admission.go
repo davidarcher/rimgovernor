@@ -52,10 +52,17 @@ func (s *Store) PrepareZone(ctx context.Context, plan domain.PlanID, action doma
 	if err = zone.ValidateAdmission(a, p, admission); err != nil {
 		return domain.Progress{}, err
 	}
+	// The shared footprint record is the plan's accounting under this
+	// world, written once at method admission; native authority that moved
+	// since (a letter pause, a re-grant) re-prepares the zone under the
+	// current generation like a building action, instead of stranding it
+	// with a record it can never match again (#217).
+	var footprint Admission
 	accounted := false
 	for _, record := range state.Admissions {
-		if record.Action == action && record.Admission.Snapshot == admission.Snapshot && record.Admission.Tick <= admission.Tick {
-			accounted = true
+		scope := record.Admission.Snapshot
+		if record.Action == action && scope.Colony == admission.Snapshot.Colony && scope.Map == admission.Snapshot.Map && scope.Load == admission.Snapshot.Load && scope.Plan == admission.Snapshot.Plan && scope.Revision == admission.Snapshot.Revision && record.Admission.Tick <= admission.Tick {
+			footprint, accounted = record.Admission, true
 		}
 	}
 	if !accounted {
@@ -88,6 +95,19 @@ func (s *Store) PrepareZone(ctx context.Context, plan domain.PlanID, action doma
 	}
 	if err = zone.Insert(ctx, tx, action, admission); err != nil {
 		return domain.Progress{}, err
+	}
+	// The footprint record follows the prepared progress to the current
+	// generation, as ReserveAndPrepare rewrites a building's; its costs,
+	// footprint and observation tick are unchanged.
+	if !footprint.Snapshot.Matches(admission.Snapshot) {
+		footprint.Snapshot = admission.Snapshot
+		data, err := json.Marshal(footprint)
+		if err != nil {
+			return domain.Progress{}, err
+		}
+		if _, err = tx.ExecContext(ctx, "INSERT INTO admissions(action_id,payload) VALUES(?,?) ON CONFLICT(action_id) DO UPDATE SET payload=excluded.payload", action, data); err != nil {
+			return domain.Progress{}, err
+		}
 	}
 	if prepare {
 		event, err := json.Marshal(transition{Kind: "prepare", Snapshot: admission.Snapshot, Tick: admission.Tick})

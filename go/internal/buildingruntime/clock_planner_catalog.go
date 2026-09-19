@@ -191,6 +191,7 @@ var plannerCatalog = []plannerEntry{
 			if err != nil {
 				return err
 			}
+			clockSchedulerLog("Cooking.step result: reason=%v admitted=%v refused=%v", method.Reason, method.Decision.Admitted, method.Decision.Refused)
 			out.Cooking = &method
 			return nil
 		}},

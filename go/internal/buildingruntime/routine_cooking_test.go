@@ -143,3 +143,29 @@ func TestRoutineCookingWaitsForOtherCommittedCampfire(t *testing.T) {
 		t.Fatal(result, err)
 	}
 }
+
+// A campfire the pawns let burn out leaves the census without a cooking
+// bench in the same goal epoch; the completed method yields to a numbered
+// successor instead of holding the goal at method_already_used (#217).
+func TestRoutineCookingRestagesBurntOutCampfire(t *testing.T) {
+	t.Parallel()
+	p, db, native := cookingFixture(t)
+	ctx := context.Background()
+	result, err := p.Step(ctx)
+	if err != nil || result.Reason != BuildingMethodAdmitted {
+		t.Fatal(result, err)
+	}
+	completeRoutineBuildingMethod(t, db, result)
+	// The census still reports no cooking bench: the campfire burnt out.
+	again, err := p.Step(ctx)
+	if err != nil || again.Reason != BuildingMethodAdmitted || native.previews != 2 {
+		t.Fatal(again, err, native.previews)
+	}
+	methods := again.Decision.Goal.Methods
+	if len(methods) != 2 || methods[0].Method != "campfire" || methods[1].Method != "campfire-1" {
+		t.Fatal(methods)
+	}
+	if next, err := p.Step(ctx); err != nil || next.Reason != BuildingMethodExistingWork {
+		t.Fatal(next, err)
+	}
+}

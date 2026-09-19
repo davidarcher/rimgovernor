@@ -128,6 +128,10 @@ func TestDevelopmentComfortWaitsForUnservedStartupGoalsOnly(t *testing.T) {
 	}
 	r.Goals[3].Served = true
 	requireSelected(t, rank(t, r), "storage")
+	// The refrigeration latch is priority 2 to bypass the ranked queue,
+	// not a startup need: unserved, it does not hold comfort (#217).
+	r.Goals = append(r.Goals, DevelopmentGoal{ID: MaintainRefrigeration, Source: AutopilotGoal, Priority: 2})
+	requireSelected(t, rank(t, r), "storage")
 }
 
 // A mental break's mood goal is priority 1 yet not an emergency: it ends

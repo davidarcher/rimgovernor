@@ -455,7 +455,10 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		}
 		method = repaired
 	} else {
-		if r.goal == policy.MaintainSleeping {
+		// A campfire the pawns let burn out leaves the cooking census empty
+		// again in the same epoch; the completed method yields to a numbered
+		// successor the same way a staged bed's does (#217).
+		if r.goal == policy.MaintainSleeping || r.goal == policy.EnsureCooking {
 			if method, err = r.nextSleepingBedMethod(call, goal, method); err != nil {
 				return RoutineBuildingResult{}, err
 			}
@@ -880,16 +883,17 @@ func initialShelterOwed(ctx context.Context, p *Player, review store.RoutineRevi
 	return false, nil
 }
 
-// sleepingBedsPerEpoch bounds the beds one MaintainSleeping epoch may stage
-// for the same owed count.
+// sleepingBedsPerEpoch bounds the builds one epoch may stage under the same
+// selection: beds for one owed count, campfires after burn-outs.
 const sleepingBedsPerEpoch = 8
 
-// nextSleepingBedMethod returns the method the next bed build takes. The
+// nextSleepingBedMethod returns the method the next build takes. The
 // selection names a method by the beds still owed, but that count need not
 // fall after a staged bed is assigned (the colonist it went to may have been
 // counted as housed, or another colonist's bed may have turned unsuitable),
 // so a completed bed's method yields to a numbered successor; a method whose
 // plan is still open, or ended without a bed, stays the one reported used.
+// A cooking campfire that burnt out is re-staged the same way.
 func (r *RoutineBuildingPlanner) nextSleepingBedMethod(call context.Context, goal store.GoalState, method domain.MethodID) (domain.MethodID, error) {
 	p := r.reviewer.player
 	base := method

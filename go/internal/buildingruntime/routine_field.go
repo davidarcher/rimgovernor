@@ -149,6 +149,25 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 	for _, h := range held {
 		protected = append(protected, h.Footprint...)
 	}
+	var shells []store.PlanState
+	for _, binding := range review.Goals {
+		if binding.Need != policy.EnsureInitialShelter {
+			continue
+		}
+		shelter, err := p.journal.LoadGoal(call, binding.Goal)
+		if err != nil {
+			return RoutineFieldResult{}, err
+		}
+		for _, method := range shelter.Methods {
+			plan, err := p.journal.LoadPlan(call, method.Plan)
+			if err != nil {
+				return RoutineFieldResult{}, err
+			}
+			shells = append(shells, plan)
+		}
+	}
+	claimed, _ := claims.Value()
+	protected = append(protected, shellInteriors(shells, claimed)...)
 	var choices []policy.CropChoice
 	for _, d := range projection.Definitions {
 		// Only plant definitions are crops; buildings in the same census
@@ -330,14 +349,15 @@ func (r *RoutineFieldPlanner) enact(call, epoch context.Context, state ControlSt
 			if err != nil {
 				return RoutineFieldResult{}, false, err
 			}
-			reply, _, err := r.native.PreviewZone(call, boundary.Identity(snapshot), bridge.ZoneTarget{Zone: value, Token: token})
+			reply, refused, err := previewZone(call, r.native, boundary.Identity(snapshot), bridge.ZoneTarget{Zone: value, Token: token})
 			if err != nil {
 				return RoutineFieldResult{}, false, err
 			}
-			v := reply.GetEvaluated()
-			if v == nil || !v.GetAccepted() {
+			if refused != "" {
+				clockSchedulerLog("Fields: %s patch %+v refused: %s", crop.Name, patch, refused)
 				return RoutineFieldResult{Reason: BuildingMethodRefused, NativeWorkTicks: wait}, false, nil
 			}
+			v := reply.GetEvaluated()
 			if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) != projection.Identity.Tick {
 				return RoutineFieldResult{}, false, ErrControl
 			}
