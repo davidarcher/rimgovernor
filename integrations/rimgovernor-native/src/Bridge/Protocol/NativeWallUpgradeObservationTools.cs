@@ -183,6 +183,8 @@ namespace HomeBridge.BridgeTools
             var pending = WallUpgradeSafety.Pending(target);
             row.Designated = designation != null;
             if (pending != null) row.RemovalId = pending.Id;
+            // A designation no record of ours claims: evidence of an old order,
+            // adopted by admission rather than preserved (#461).
             row.PlayerOwned = designation != null && pending == null;
             row.Snapshot = NativeObservationSnapshot.Snapshot("wall-site", context, target.GetUniqueLoadID(), w => {
                 w.Write(original.GetUniqueLoadID()); w.Write(normal.x); w.Write(normal.z); w.Write(target.HitPoints);

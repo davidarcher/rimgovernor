@@ -220,3 +220,22 @@ func TestSelectSquadDefensePrefersTheLineByOpponent(t *testing.T) {
 		t.Fatal(assignments, ok)
 	}
 }
+
+// A drafted pawn is busy only under an owned claim; a standing draft nobody
+// claims (the player's, made under Manual) is a candidate, and a draft whose
+// claim cannot be read is not (#461).
+func TestSquadDefenderEligibleDistinguishesOwnedDrafts(t *testing.T) {
+	owned := squadDefender("a", false)
+	owned.Drafted, owned.DraftOwned = domain.Known(true), domain.Known(true)
+	unowned := squadDefender("b", false)
+	unowned.Drafted, unowned.DraftOwned = domain.Known(true), domain.Known(false)
+	unknown := squadDefender("c", false)
+	unknown.Drafted = domain.Known(true)
+	if squadDefenderEligible(owned) || !squadDefenderEligible(unowned) || squadDefenderEligible(unknown) {
+		t.Fatal(squadDefenderEligible(owned), squadDefenderEligible(unowned), squadDefenderEligible(unknown))
+	}
+	assignments, ok := SelectSquadDefense([]SquadThreatFacts{squadThreat("raider", false)}, []SquadDefenderFacts{owned, unowned, unknown, squadDefender("d", false)})
+	if !ok || len(assignments) != 2 || assignments[0].Defender != "b" || assignments[1].Defender != "d" {
+		t.Fatal(assignments, ok)
+	}
+}

@@ -1,9 +1,11 @@
 package policy
 
 import (
-	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"math"
 	"sort"
+	"strings"
+
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
 type BillPurpose string
@@ -80,11 +82,42 @@ type ProductionBillContext struct {
 	Meals   *MealTierRequest
 }
 
-// Existing recipe bills belong to their player settings; no duplicate is a substitute
-// for changing a suspended, filtered or smaller bill. A cook-ahead bill is
-// the one exception: it adds the meals the at-risk stock needs beyond every
-// existing bill's reserved target, so a bench already cooking to a smaller
-// target gets a second, larger bill for the outage.
+// billAdequate is whether an existing bill of the selected recipe already
+// does the selected work: active, and repeating forever or to at least the
+// selected target. A bill whose state cannot be read counts as adequate, so
+// an unreadable bill is left alone rather than replaced blind.
+func billAdequate(bill ExistingProductionBill, selection BillSelection) bool {
+	active, ak := bill.Active.Value()
+	forever, fk := bill.Forever.Value()
+	target, tk := bill.TargetCount.Value()
+	if !ak || !fk {
+		return true
+	}
+	if !active {
+		return false
+	}
+	if selection.Mode == domain.ButcherForever || forever {
+		return true
+	}
+	return !tk || target >= selection.Target
+}
+
+// OrdinaryMealRecipe is a bill recipe native lets a meal bill replace: the
+// game's CookMeal* recipes short of the survival pack, the tier family the
+// meal review chooses among. Reserve (pemmican) and butcher bills are never
+// replaced through this path.
+func OrdinaryMealRecipe(name string) bool {
+	return strings.HasPrefix(name, "CookMeal") && name != "CookMealSurvival"
+}
+
+// An existing bill of the selected recipe stands when it already does the
+// work; a suspended or undersized one is corrected by replacement (#461:
+// whoever configured it, Auto plans it fresh), which native admits for
+// ordinary meal recipes only, so a butcher bill in that state is left as it
+// is. A cook-ahead bill is the one addition: it adds the meals the at-risk
+// stock needs beyond every existing bill's reserved target, so a bench
+// already cooking to a smaller target gets a second, larger bill for the
+// outage.
 func SelectProductionBill(purpose BillPurpose, benches domain.Fact[[]ProductionBench], colonists domain.Fact[int64], runway, atRisk domain.Fact[float64], targetDays float64, context ...ProductionBillContext) (BillSelection, bool) {
 	rows, known := benches.Value()
 	count, ck := colonists.Value()
@@ -149,13 +182,6 @@ func SelectProductionBill(purpose BillPurpose, benches domain.Fact[[]ProductionB
 			if !ak || !available {
 				continue
 			}
-			exists := false
-			for _, bill := range bench.Bills {
-				exists = exists || bill.Recipe == recipe.Name && !bill.Humanlike
-			}
-			if exists && purpose != CookAheadFood {
-				continue
-			}
 			selection := BillSelection{Bench: bench.ID, Recipe: recipe.Name, Token: token, Mode: domain.FoodTarget, Target: int32(count * 3)}
 			if purpose == ButcherFood {
 				if recipe.Name != "ButcherCorpseFlesh" {
@@ -163,7 +189,23 @@ func SelectProductionBill(purpose BillPurpose, benches domain.Fact[[]ProductionB
 				}
 				selection.Mode = domain.ButcherForever
 				selection.Target = 0
-			} else {
+			}
+			if purpose != CookAheadFood {
+				exists := false
+				for _, bill := range bench.Bills {
+					if bill.Recipe != recipe.Name || bill.Humanlike {
+						continue
+					}
+					exists = true
+					if !billAdequate(bill, selection) && bill.ID != "" && OrdinaryMealRecipe(recipe.Name) && (selection.Replace == "" || bill.ID < selection.Replace) {
+						selection.Replace = bill.ID
+					}
+				}
+				if exists && selection.Replace == "" {
+					continue
+				}
+			}
+			if purpose != ButcherFood {
 				if len(recipe.Products) != 1 {
 					continue
 				}

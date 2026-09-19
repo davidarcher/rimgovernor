@@ -113,6 +113,30 @@ namespace HomeBridge.BridgeTools
             snapshot = Observe(facts);
             return NativePawnControlResult.Ready;
         }
+        // Adoption takes over a draft nobody claims (one the player made under
+        // Manual, #461): no setter is issued, so the claim binds to the current
+        // DraftRevision and the facts must not have moved between prepare and
+        // complete. Provenance is evidence of an old order, not authority over
+        // the pawn; under Auto the bot may claim it like any undrafted colonist.
+        internal NativePawnControlResult PrepareAdopt(NativePawnSnapshot current, string token, out NativeDraftClaimTicket? ticket)
+        {
+            ticket = null;
+            if (current.Token != token) return NativePawnControlResult.StaleSnapshot;
+            if (!current.Drafted || !current.Eligible || current.Claim != null) return NativePawnControlResult.Ineligible;
+            ticket = new NativeDraftClaimTicket(this, current);
+            return NativePawnControlResult.Ready;
+        }
+        internal NativePawnControlResult CompleteAdopt(NativeDraftClaimTicket ticket, NativePawnFacts facts, out NativePawnSnapshot snapshot)
+        {
+            snapshot = Observe(facts);
+            if (ticket.Used || ticket.Record != this || Claim != null) return NativePawnControlResult.ClaimMismatch;
+            ticket.Used = true;
+            if (!facts.Same(ticket.Before.Facts) || !facts.Eligible || !facts.Drafted) return NativePawnControlResult.Uncertain;
+            Claim = new NativeDraftClaim(Guid.NewGuid().ToString("N")); ClaimRevision = facts.DraftRevision;
+            Release = null;
+            snapshot = Observe(facts);
+            return NativePawnControlResult.Ready;
+        }
         internal NativePawnControlResult PrepareRelease(NativePawnSnapshot current, string token, string claimId, out NativeDraftReleaseTicket? ticket)
         {
             ticket = null;
@@ -274,6 +298,21 @@ namespace HomeBridge.BridgeTools
             if (result != NativePawnControlResult.Ready) return result;
             if (record != ticket.Record) return NativePawnControlResult.ClaimMismatch;
             return record!.CompleteClaim(ticket,snapshot!.Facts,out snapshot);
+        }
+        internal static NativePawnControlResult PrepareAdopt(NativeControlIdentity identity, Pawn pawn, string expectedToken,
+            out NativeDraftClaimTicket? ticket, out NativePawnSnapshot? snapshot)
+        {
+            ticket = null; var result = Read(identity,pawn,out var record,out snapshot);
+            if (result != NativePawnControlResult.Ready) return result;
+            if (!Active(identity.Game)) return NativePawnControlResult.AuthorityRequired;
+            return record!.PrepareAdopt(snapshot!,expectedToken,out ticket);
+        }
+        internal static NativePawnControlResult CompleteAdopt(NativeDraftClaimTicket ticket, out NativePawnSnapshot? snapshot)
+        {
+            var result = Read(ticket.Before.Facts.Identity,ticket.Before.Facts.Pawn,out var record,out snapshot);
+            if (result != NativePawnControlResult.Ready) return result;
+            if (record != ticket.Record) return NativePawnControlResult.ClaimMismatch;
+            return record!.CompleteAdopt(ticket,snapshot!.Facts,out snapshot);
         }
         internal static NativePawnControlResult PrepareRelease(NativeControlIdentity identity, Pawn pawn, string expectedToken,string claimId,
             out NativeDraftReleaseTicket? ticket,out NativePawnSnapshot? snapshot)

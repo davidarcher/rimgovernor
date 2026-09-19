@@ -26,7 +26,6 @@ internal static class NativePawnControlStateProbe
         var facts=New("NativePawnFacts");
         Set(facts,"Identity",identity); Set(facts,"Pawn",pawn); Set(facts,"PawnId","Thing_Human42"); Set(facts,"Drafter",drafter);
         Set(facts,"Drafted",drafted); Set(facts,"DraftRevision",revision); Set(facts,"Spawned",true); Set(facts,"PlayerControlled",true);
-        Set(facts,"Job",New("NativePawnJobFacts",new object?[]{null}));
         return facts;
     }
     private static object Observe(object record,object facts)=>Call(record,"Observe",facts);
@@ -73,7 +72,7 @@ internal static class NativePawnControlStateProbe
         Check(Get(claim,"ClaimId")!=null,"canonical claim exposed");
         Check(claim.GetType().GetProperty("Owner",Flags)==null,"claim carries no owner token after #52");
         Check(Get(Get(Observe(record,Facts(true,1)),"Claim")!,"ClaimId")!.Equals(Get(claim,"ClaimId")),"re-observation preserves the canonical claim ID");
-        var progress=Facts(true,1);Set(progress,"Job",New("NativePawnJobFacts",FormatterServices.GetUninitializedObject(game.GetType("Verse.AI.Job",true)!)));
+        var progress=Facts(true,1);
         Check(Get(Observe(record,progress),"Claim")!=null,"ordinary simulation job changes preserve claim");
         Call(record,"Ordered",true); var ordered=Facts(true,1);Set(ordered,"OrderRevision",1UL);
         Check(Get(Observe(record,ordered),"Claim")!=null,"causally owned admitted order preserves claim");
@@ -132,7 +131,7 @@ internal static class NativePawnControlStateProbe
             var verifiedClaim=Get(complete[2]!,"Claim")!;
             bool causal=(bool)causalMethod.Invoke(null,new[]{nativeGame})!;
             Check(causal,"generation continuity inside Owned() attributes the claim");
-            var externalOrder=Call(authority,"RevokeExternal",Enum.Parse(revokeReason,"ExternalOrder"));
+            var externalOrder=Call(authority,"RevokeExternal",Enum.Parse(revokeReason,"ExternalOrder"),null);
             Check((bool)Get(externalOrder,"Active")! && (ulong)Get(externalOrder,"Generation")! == 2UL,"external order inside the causal owned scope does not revoke");
             Call(record,"Ordered",causal);
             var moved=Facts(true,1);Set(moved,"OrderRevision",1UL);var movedSnapshot=Observe(record,moved);

@@ -1,7 +1,7 @@
 // The draft/order case proves the full disposable-
 // worker lifecycle plus paused real native draft CAS, owned claims, replay/no-op,
-// Manual cleanup, player override refusal, and real ordinary-ledger exhaustion with
-// owned-cleanup-beyond-exhaustion. Capacity refusal's own boundary remains covered by
+// Manual cleanup, player override, adoption of the player's own standing draft (#461),
+// and real ordinary-ledger exhaustion with owned-cleanup-beyond-exhaustion. Capacity refusal's own boundary remains covered by
 // compiled ledger tests (contracts/tests/native-attempt-ledger), not injected native
 // outcomes; this only proves cleanup remains possible after real exhaustion.
 //
@@ -91,8 +91,8 @@ func deepCopyMap(m map[string]any) map[string]any {
 func init() {
 	cases.Register(cases.Case{
 		Name: "draft/order",
-		Scope: "Paused real native draft CAS, owned claims, replay/no-op, Manual cleanup and player " +
-			"override refusal, plus real ordinary-ledger exhaustion and owned-cleanup-beyond-exhaustion. Capacity " +
+		Scope: "Paused real native draft CAS, owned claims, replay/no-op, Manual cleanup, player override and " +
+			"adoption of a player draft under Auto (#461), plus real ordinary-ledger exhaustion and owned-cleanup-beyond-exhaustion. Capacity " +
 			"refusal's own boundary remains covered by compiled ledger tests, not injected native outcomes.",
 		Start:  cases.DebugStart{},
 		Budget: 5 * time.Minute,
@@ -452,7 +452,9 @@ func runOrder(ctx context.Context, s cases.Session) error {
 	// section above.
 
 	// Player-order override: an owned draft must be dropped when the (simulated)
-	// player issues a direct order, and the stale owned cleanup for it must be refused.
+	// player issues a direct order, and the stale owned cleanup for it must be
+	// refused. The player's own standing draft is then adopted under Auto: a
+	// fresh claim without a setter, the pawn still drafted (#461).
 	grant, err = grantAuto("override-grant")
 	if err != nil {
 		return err
@@ -534,17 +536,42 @@ func runOrder(ctx context.Context, s cases.Session) error {
 	if err != nil {
 		return err
 	}
-	if code, err := failureCode(ctx, h, "refuse-adoption", na.ExecuteRequest(identity, grant, player, 5)); err != nil {
-		return err
-	} else if code != "FAILURE_CODE_OWNER_CONFLICT" {
-		return fmt.Errorf("refuse-adoption: expected FAILURE_CODE_OWNER_CONFLICT, got %q", code)
-	}
-	unownedPreserved, err := read("unowned-preserved", pawnID)
+	adoptReply, err := h.Wire(ctx, "adopt-draft", "operations_execute", na.ExecuteRequest(identity, grant, player, 5))
 	if err != nil {
 		return err
 	}
-	if err := na.SameControl(player, unownedPreserved); err != nil {
-		return fmt.Errorf("unowned-preserved: %w", err)
+	_, adopted, err := na.Outcome(adoptReply, "receipt")
+	if err != nil {
+		return fmt.Errorf("adopt-draft: %w", err)
+	}
+	adoptedRow, err := read("adopted", pawnID)
+	if err != nil {
+		return err
+	}
+	if err := na.OwnedEffect(adopted, adoptedRow, "applied", false); err != nil {
+		return fmt.Errorf("adopt-draft: %w", err)
+	}
+	if drafted, _ := adoptedRow["drafted"].(bool); !drafted {
+		return fmt.Errorf("adopt-draft: the adopted pawn is no longer drafted")
+	}
+	// A cleanup keyed by the adopted claim is the ordinary exact release.
+	adoptedCleanup, err := na.ReleaseRequest(identity, adoptedRow)
+	if err != nil {
+		return err
+	}
+	adoptedReleaseReply, err := h.Wire(ctx, "release-adopted", "operations_release_owned_draft", adoptedCleanup)
+	if err != nil {
+		return err
+	}
+	if _, _, err := na.Outcome(adoptedReleaseReply, "released"); err != nil {
+		return fmt.Errorf("release-adopted: %w", err)
+	}
+	releasedRow, err := read("adopted-released", pawnID)
+	if err != nil {
+		return err
+	}
+	if drafted, _ := releasedRow["drafted"].(bool); drafted || !na.DeepEqual(releasedRow["draftClaim"], map[string]any{"unowned": map[string]any{}}) {
+		return fmt.Errorf("release-adopted: pawn still drafted or claimed: %#v", releasedRow)
 	}
 
 	// Ordinary ledger exhaustion. Capacity refusal itself is proven by compiled

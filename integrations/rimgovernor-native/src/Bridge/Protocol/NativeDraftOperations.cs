@@ -93,6 +93,20 @@ namespace HomeBridge.BridgeTools
             NativePawnSnapshot? after=null;Exception? effectError=null;bool issued=false;bool verified=false;
             try {
                 using(authority.Owned()) {
+                    if(command.Drafted && before.Drafted && before.Claim==null) {
+                        // Adoption: the draft stands, so no setter runs; the claim
+                        // binds to the current revision once the facts prove unmoved.
+                        var adoptPrepared=NativePawnControlState.PrepareAdopt(identity,pawn,command.Pawn.ExpectedSnapshotToken,out var adopt,out after);
+                        if(adoptPrepared!=NativePawnControlResult.Ready) throw new InvalidOperationException("Draft adoption changed after admission: "+adoptPrepared);
+                        var current=authority.Check(pre.ExpectedGeneration);
+                        if(!current.Success || !NativePawnControlState.IsReady) throw new InvalidOperationException("Draft authority or hook health changed before adoption.");
+                        var adoptCompleted=NativePawnControlState.CompleteAdopt(adopt!,out after);
+                        verified=adoptCompleted==NativePawnControlResult.Ready && after!=null && after.Drafted && after.Claim!=null;
+                        if(verified) record.Confirm(after!);
+                        var adopted=after==null?null:new Receipts.EffectEvidence {Job=NativeDraftProtocol.Effect(after.PawnId,after.Drafted,after.Token,false,verified,after.Claim?.ClaimId)};
+                        if(!verified) return Uncertain(state,admission,pre.Attempt,context,adopted,"Admitted draft adoption requires observation: "+adoptCompleted);
+                        return new Operations.ExecuteReply {Receipt=NativeOperationEnvelope.Applied(state.Ledger,admission,pre.Attempt,context,adopted!)};
+                    }
                     if(command.Drafted && before.Drafted) {
                         var unchanged=NativePawnControlState.Check(identity,pawn,command.Pawn.ExpectedSnapshotToken,out after);
                         if(unchanged!=NativePawnControlResult.Ready || after==null || !Eligible(command,after,out _))
@@ -143,7 +157,7 @@ namespace HomeBridge.BridgeTools
             if(!NativeDraftProtocol.Validate(command,out var failure)) return new Operations.PreviewReply {Failure=failure};
             try {
                 if(!Resolve(command.Pawn,context,out _,out _,out var snapshot,out failure)) return new Operations.PreviewReply {Failure=failure};
-                bool accepted=command.Drafted ? snapshot!.Eligible && (!snapshot.Drafted || snapshot.Claim!=null) : snapshot!.Drafted && snapshot.Claim!=null;
+                bool accepted=command.Drafted ? snapshot!.Eligible : snapshot!.Drafted && snapshot.Claim!=null;
                 // ExpectedDraftOwner's post-refactor semantics are not documented on the wire;
                 // treated here as an expected claim ID, the only remaining ownership token a
                 // claim carries once Authority.Owner was removed (mirrors ExpectedClaimId on
@@ -238,14 +252,17 @@ namespace HomeBridge.BridgeTools
         // bot actor, any live NativeDraftClaim on the pawn was created by this
         // adapter under NativeControlAuthority's Owned() scope, so there is no
         // separate owner token left to compare (mirrors NativeMovementOperations.Owns()).
+        // A draft nobody claims (the player's, made under Manual) is not a
+        // veto: drafting it adopts it under a fresh claim without a setter
+        // (#461). Only the undraft stays claim-exact, since it is the cleanup
+        // of this adapter's own admitted draft.
         internal static bool Eligible(Operations.SetDrafted command,NativePawnSnapshot snapshot,out Common.Failure failure)
         {
             failure=ProtoBoundary.Fail(Common.FailureCode.OwnerConflict,"Draft claim does not match the exact current admitted claim.");
             if(command.HasExpectedDraftOwner && snapshot.Claim?.ClaimId!=command.ExpectedDraftOwner) return false;
-            if(snapshot.Drafted && snapshot.Claim==null) return false;
             if(!command.Drafted) return snapshot.Drafted && snapshot.Claim!=null;
             if(!snapshot.Eligible) {failure=ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,"Pawn is not currently eligible for ordinary native drafting.");return false;}
-            return !snapshot.Drafted || snapshot.Claim!=null;
+            return true;
         }
         private static Operations.ExecuteReply Refuse(Common.FailureCode code,string detail)=>new Operations.ExecuteReply {Failure=ProtoBoundary.Fail(code,detail)};
         private static Operations.ExecuteReply Uncertain(NativeOperationState state,NativeAttemptLedger.Admission admission,Common.AttemptKey attempt,

@@ -68,6 +68,12 @@ func manhunterFact(state *string, issues []*n.ReadIssue) domain.Fact[bool] {
 
 func squadDefenderFacts(row *n.PawnState) policy.SquadDefenderFacts {
 	facts := policy.SquadDefenderFacts{ID: domain.PawnID(row.Pawn.GetId()), Dead: boundary.FactBool(row.Dead), Downed: boundary.FactBool(row.Downed), Drafted: boundary.FactBool(row.Drafted), MentalState: boundary.FactPresence(row.MentalState, row.Issues, "mental_state")}
+	switch row.GetDraftClaim().GetState().(type) {
+	case *n.DraftClaimObservation_Owned:
+		facts.DraftOwned = domain.Known(true)
+	case *n.DraftClaimObservation_Unowned:
+		facts.DraftOwned = domain.Known(false)
+	}
 	if row.Job != nil && !boundary.IssueField(row.Job.Issues, "player_forced") && !boundary.IssueField(row.Job.Issues, "queued_jobs") {
 		facts.PlayerForced, facts.QueuedJobs = boundary.FactBool(row.Job.PlayerForced), boundary.FactUint(row.Job.QueuedJobs)
 	}

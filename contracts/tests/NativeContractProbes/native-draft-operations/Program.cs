@@ -60,7 +60,7 @@ internal static class NativeDraftOperationsProbe
         // expectedDraftOwner now names the expected claim ID rather than a controller session.
         Func<object,string,bool> eligible=(snapshot,json)=>(bool)Call(operations,"Eligible",Wire("Operations.SetDrafted",json),snapshot,null);
         Check(eligible(Snapshot(false),Draft(true)),"eligible undrafted pawn can receive new claim");
-        Check(!eligible(Snapshot(true),Draft(true)),"existing player draft cannot be adopted");
+        Check(eligible(Snapshot(true),Draft(true)),"existing unclaimed draft is adopted under a fresh claim (#461)");
         Check(!eligible(Snapshot(true),Draft(false)),"existing unclaimed player draft cannot be cleared");
         Check(eligible(Snapshot(true,true),Draft(true)),"existing native claim is observed as no change");
         Check(eligible(Snapshot(true,true),Draft(false)),"held claim can be released through ordinary operation");

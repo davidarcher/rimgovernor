@@ -137,11 +137,16 @@ with an observed cooking priority contribute skill. Stock ingredient support
 rows carry accessible nutrition with zero production rate, preventing double
 counting. Only unsuspended observed bills establish the previous tier.
 
-Hands replaces a superseded owned meal bill through the ordinary durable bill
-action. Native checks its current-load ownership, unchanged settings and stack
-position before deleting it and adding the successor. Player-created, edited,
-reordered or ownership-unknown bills are preserved. The replacement ID survives
-controller restart; the old action receives a superseded outcome.
+Hands replaces a superseded meal bill through the ordinary durable bill action,
+whoever wrote it (#461): an older-tier bill on any cooking bench, or a bill of
+the chosen recipe that is suspended or repeats to a smaller target than the
+colony needs. A bill of the chosen recipe that is active and repeats forever or
+to at least that target ends the review. Native admits the replacement for any
+ordinary meal bill it finds by id (`CookMeal*` short of the survival pack in
+Go; `MealSimple`..`MealLavish` preferability natively), deletes it and adds the
+successor; reserve and butcher bills never go through this path. The replacement
+ID survives controller restart; a tracked old action receives a superseded
+outcome.
 
 High native expectations plus a measured mood deficit raise EnsureCooking through
 MoodProvision. Paste is a PlanSiteType construction method: one firm network,

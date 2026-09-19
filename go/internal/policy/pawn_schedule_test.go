@@ -52,14 +52,16 @@ func TestPlanSchedules(t *testing.T) {
 	away.Available = domain.Known(false)
 	away.Schedule = domain.Known(nativeDefaultSchedule())
 	d := PlanSchedules([]WorkPawn{plain, owl, edited, unknown, away})
-	if len(d.Schedules) != 2 || d.Schedules[0].Pawn != "owl" || d.Schedules[0].Matches || !sameSchedule(d.Schedules[0].Slots, scheduleTemplate(TraitEffects{NightShift: true})) {
+	if len(d.Schedules) != 3 || d.Schedules[1].Pawn != "owl" || d.Schedules[1].Matches || !sameSchedule(d.Schedules[1].Slots, scheduleTemplate(TraitEffects{NightShift: true})) {
 		t.Fatal(d)
 	}
-	if d.Schedules[1].Pawn != "plain" || !d.Schedules[1].Matches {
+	if d.Schedules[2].Pawn != "plain" || !d.Schedules[2].Matches {
 		t.Fatal(d)
 	}
-	if len(d.Player) != 1 || d.Player[0] != "edited" {
-		t.Fatal(d.Player)
+	// A timetable edited by hand (under Manual) is replanned like any other
+	// (#461): provenance is not authority over fresh planning.
+	if d.Schedules[0].Pawn != "edited" || d.Schedules[0].Matches || !sameSchedule(d.Schedules[0].Slots, scheduleTemplate(TraitEffects{})) {
+		t.Fatal(d.Schedules[0])
 	}
 	// A planner-written timetable is rewritten when the profile changes
 	// (the owl read back its own night shift, then loses the trait).

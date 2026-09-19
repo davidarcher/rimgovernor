@@ -333,26 +333,42 @@ func selectMealBill(benches domain.Fact[[]ProductionBench], colonists domain.Fac
 			existing[key{bench.ID, bill.Recipe}] = true
 		}
 	}
-	// Preserve a matching player's bill, including suspended or filtered bills.
-	// Reconciliation must prove ownership before retiring an older-tier bill.
+	// A standing bill of a chosen recipe that already does the work ends the
+	// review; a suspended or undersized one is replaced (#461). Whoever wrote
+	// the bill, Auto plans the tier fresh: an older-tier meal bill on any
+	// cooking bench is retired by the same replacement, ownership or not.
+	count, ck := colonists.Value()
+	if !ck {
+		return BillSelection{}, false
+	}
+	wanted := BillSelection{Mode: domain.FoodTarget, Target: int32(count * 3)}
 	for _, choice := range review.Recipes {
-		if existing[key{choice.Bench, choice.Recipe}] {
-			return BillSelection{}, false
+		for _, bill := range byBench[choice.Bench].Bills {
+			if bill.Recipe == choice.Recipe && !bill.Humanlike && billAdequate(bill, wanted) {
+				return BillSelection{}, false
+			}
 		}
 	}
 	for _, choice := range review.Recipes {
 		bench := byBench[choice.Bench]
 		bench.Recipes = []ProductionRecipe{recipes[key{choice.Bench, choice.Recipe}]}
-		if selected, ok := SelectProductionBill(CookFood, domain.Known([]ProductionBench{bench}), colonists, request.RawRunwayDays, domain.Unknown[float64](), request.TargetDays); ok {
+		selected, ok := SelectProductionBill(CookFood, domain.Known([]ProductionBench{bench}), colonists, request.RawRunwayDays, domain.Unknown[float64](), request.TargetDays)
+		if !ok {
+			if existing[key{choice.Bench, choice.Recipe}] {
+				return BillSelection{}, false
+			}
+			continue
+		}
+		if selected.Replace == "" {
 			for _, existingBench := range rows {
 				for _, old := range existingBench.Bills {
-					if positive(old.Managed) && old.ID != "" && old.Recipe != selected.Recipe && (selected.Replace == "" || old.ID < selected.Replace) {
+					if old.ID != "" && old.Recipe != selected.Recipe && OrdinaryMealRecipe(old.Recipe) && (selected.Replace == "" || old.ID < selected.Replace) {
 						selected.Replace = old.ID
 					}
 				}
 			}
-			return selected, true
 		}
+		return selected, true
 	}
 	return BillSelection{}, false
 }

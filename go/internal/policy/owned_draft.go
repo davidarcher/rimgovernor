@@ -103,10 +103,12 @@ func EvaluateOwnedDraft(request DraftRequest) DraftDecision {
 			return refuse(UnknownFacts)
 		}
 	}
-	drafted, _ := request.Pawn.Drafted.Value()
 	unowned, _ := request.Pawn.Unowned.Value()
 	eligible, _ := request.Pawn.NativeCanTry.Value()
-	if drafted || !unowned {
+	// A draft another owned action still claims is refused; a standing draft
+	// nobody claims (the player's, made under Manual) is admitted and native
+	// adopts it under a fresh claim (#461). Drafted alone is no veto.
+	if !unowned {
 		return refuse(DraftOwnership)
 	}
 	if !eligible {

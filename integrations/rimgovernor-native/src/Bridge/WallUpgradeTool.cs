@@ -207,11 +207,15 @@ namespace HomeBridge.BridgeTools
             if (map == null || Ledger().Records.Count >= 512) return "Native removal ledger unavailable";
             var wall = Wall(map, r.Target);
             if (wall == null) return "Exact native wall is unavailable";
-            if (map.designationManager.DesignationOn(wall, DesignationDefOf.Deconstruct) != null)
-                return "Existing demolition designation is preserved; observe its original receipt";
             var blocker = Check(r, requireDesignation: false);
             if (blocker != null) return blocker;
-            if (!new Designator_Deconstruct().CanDesignateThing(wall).Accepted) return "Native deconstruction designator refused";
+            // A demolition designation no record of this ledger claims (the
+            // player's, placed under Manual) is adopted rather than preserved
+            // (#461): the game already accepted it, so the designator is
+            // consulted only while the wall is still undesignated. A record
+            // of this ledger on the wall is the caller's replay, refused upstream.
+            if (map.designationManager.DesignationOn(wall, DesignationDefOf.Deconstruct) == null
+                && !new Designator_Deconstruct().CanDesignateThing(wall).Accepted) return "Native deconstruction designator refused";
             workers = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Downed && !p.Drafted && !p.InMentalState
                 && !p.WorkTypeIsDisabled(WorkTypeDefOf.Construction) && !p.health.HasHediffsNeedingTend()
                 && p.health.hediffSet.BleedRateTotal <= 0
@@ -224,7 +228,8 @@ namespace HomeBridge.BridgeTools
             var map = Find.CurrentMap ?? throw new InvalidOperationException("No current map to commit a wall removal on.");
             var wall = Wall(map, r.Target) ?? throw new InvalidOperationException("Exact native wall is unavailable.");
             Ledger().Records.Add(r);
-            try { new Designator_Deconstruct().DesignateThing(wall); }
+            // An adopted standing designation is not placed twice.
+            try { if (map.designationManager.DesignationOn(wall, DesignationDefOf.Deconstruct) == null) new Designator_Deconstruct().DesignateThing(wall); }
             catch { r.Blocker = "Native designation outcome is uncertain"; throw; }
             return map.designationManager.DesignationOn(wall, DesignationDefOf.Deconstruct) == null
                 ? "Native demolition designation was not observed" : null;

@@ -34,7 +34,10 @@ func TestMealMoodLeverNeedsObservedExpectationsPressure(t *testing.T) {
 	}
 }
 
-func TestMealReplacementPreservesPlayerBills(t *testing.T) {
+// An older-tier meal bill is retired by the replacement whoever wrote it
+// (#461): a bill edited under Manual is evidence of an old order, not
+// authority over the tier Auto plans.
+func TestMealReplacementRetiresOlderTierBills(t *testing.T) {
 	r := tierRequest()
 	r.RawRunwayDays = domain.Known(1.0)
 	r.Paste = domain.Unknown[Infrastructure]()
@@ -42,8 +45,46 @@ func TestMealReplacementPreservesPlayerBills(t *testing.T) {
 		benches, _ := tierBenches().Value()
 		benches[0].Bills = []ExistingProductionBill{{ID: "fine-owned", Recipe: "CookMealFine", Managed: domain.Known(managed)}}
 		selected, ok := SelectProductionBill(CookFood, domain.Known(benches), domain.Known(int64(2)), r.RawRunwayDays, domain.Unknown[float64](), r.TargetDays, ProductionBillContext{Meals: &r})
-		if !ok || selected.Recipe != "CookMealSimple" || (selected.Replace != "") != managed {
+		if !ok || selected.Recipe != "CookMealSimple" || selected.Replace != "fine-owned" {
 			t.Fatal(managed, selected, ok)
+		}
+	}
+	// A pemmican reserve bill is not a meal-tier bill and is never retired here.
+	benches, _ := tierBenches().Value()
+	benches[0].Bills = []ExistingProductionBill{{ID: "reserve", Recipe: "MakePemmican"}}
+	if selected, ok := SelectProductionBill(CookFood, domain.Known(benches), domain.Known(int64(2)), r.RawRunwayDays, domain.Unknown[float64](), r.TargetDays, ProductionBillContext{Meals: &r}); !ok || selected.Replace != "" {
+		t.Fatal(selected, ok)
+	}
+}
+
+// A standing bill of the chosen recipe ends the review when it does the
+// work; suspended or undersized, it is replaced with the planned bill (#461).
+func TestMealBillOfChosenRecipeIsCorrectedNotDuplicated(t *testing.T) {
+	r := tierRequest()
+	r.RawRunwayDays = domain.Known(1.0)
+	r.Paste = domain.Unknown[Infrastructure]()
+	select_ := func(bill ExistingProductionBill) (BillSelection, bool) {
+		benches, _ := tierBenches().Value()
+		benches[0].Bills = []ExistingProductionBill{bill}
+		return SelectProductionBill(CookFood, domain.Known(benches), domain.Known(int64(2)), r.RawRunwayDays, domain.Unknown[float64](), r.TargetDays, ProductionBillContext{Meals: &r})
+	}
+	adequate := []ExistingProductionBill{
+		{ID: "b", Recipe: "CookMealSimple"},
+		{ID: "b", Recipe: "CookMealSimple", Active: domain.Known(true), Forever: domain.Known(true)},
+		{ID: "b", Recipe: "CookMealSimple", Active: domain.Known(true), Forever: domain.Known(false), TargetCount: domain.Known(int32(6))},
+	}
+	for _, bill := range adequate {
+		if selected, ok := select_(bill); ok {
+			t.Fatal("adequate bill duplicated or replaced", bill, selected)
+		}
+	}
+	inadequate := []ExistingProductionBill{
+		{ID: "b", Recipe: "CookMealSimple", Active: domain.Known(false), Forever: domain.Known(true)},
+		{ID: "b", Recipe: "CookMealSimple", Active: domain.Known(true), Forever: domain.Known(false), TargetCount: domain.Known(int32(2))},
+	}
+	for _, bill := range inadequate {
+		if selected, ok := select_(bill); !ok || selected.Recipe != "CookMealSimple" || selected.Replace != "b" || selected.Target != 6 {
+			t.Fatal(bill, selected, ok)
 		}
 	}
 }

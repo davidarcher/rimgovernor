@@ -36,10 +36,15 @@ type SquadThreatFacts struct {
 type SquadDefenderFacts struct {
 	ID                                               domain.PawnID
 	Dead, Downed, Drafted, MentalState, PlayerForced domain.Fact[bool]
-	QueuedJobs                                       domain.Fact[uint32]
-	ViolenceCapable, NeedsTend                       domain.Fact[bool]
-	HealthFraction                                   domain.Fact[float64]
-	RangedEquipped, MeleeEquipped, Armed             domain.Fact[bool]
+	// DraftOwned is whether an owned action's claim holds the pawn's
+	// current draft. A drafted pawn with such a claim is busy elsewhere; a
+	// drafted pawn nobody claims (the player's, made under Manual) is a
+	// candidate like any undrafted colonist and the draft adopts it (#461).
+	DraftOwned                           domain.Fact[bool]
+	QueuedJobs                           domain.Fact[uint32]
+	ViolenceCapable, NeedsTend           domain.Fact[bool]
+	HealthFraction                       domain.Fact[float64]
+	RangedEquipped, MeleeEquipped, Armed domain.Fact[bool]
 	// FrontLine is the pawn's place in FrontLine's split of the roster: a
 	// line holder (Tough, Nimble, Brawler or Melee over Shooting) takes a
 	// melee opponent before a shooter does, and shooters take ranged
@@ -80,13 +85,29 @@ const (
 // re-validate each chosen (defender, target) pair against fresh facts before
 // dispatch, and downed/dead opponents drop out at that point without being
 // re-selected here.
+// squadDraftBusy is whether the pawn's draft is spoken for: drafted under an
+// owned claim, or drafted with the claim unknown. PlayerForced is the
+// in-flight ordered job (this controller's own orders set it too, through
+// TryTakeOrderedJob), a dispatch-collision guard rather than provenance.
+func squadDraftBusy(d SquadDefenderFacts) (busy, known bool) {
+	drafted, tk := d.Drafted.Value()
+	if !tk {
+		return false, false
+	}
+	if !drafted {
+		return false, true
+	}
+	owned, ok := d.DraftOwned.Value()
+	return !ok || owned, true
+}
+
 // squadDefenderEligible is the shared combat_health_hold gate: every fact
-// known, idle, undrafted, violence-capable, not needing tending and above
-// the native combat-health threshold.
+// known, idle, not drafted under another claim, violence-capable, not
+// needing tending and above the native combat-health threshold.
 func squadDefenderEligible(d SquadDefenderFacts) bool {
 	dead, dk := d.Dead.Value()
 	downed, wk := d.Downed.Value()
-	drafted, tk := d.Drafted.Value()
+	busy, tk := squadDraftBusy(d)
 	mental, mk := d.MentalState.Value()
 	forced, fk := d.PlayerForced.Value()
 	queued, qk := d.QueuedJobs.Value()
@@ -96,7 +117,7 @@ func squadDefenderEligible(d SquadDefenderFacts) bool {
 	if !dk || !wk || !tk || !mk || !fk || !qk || !vk || !nk || !hk {
 		return false
 	}
-	if dead || downed || drafted || mental || forced || queued != 0 || !violent || needsTend {
+	if dead || downed || busy || mental || forced || queued != 0 || !violent || needsTend {
 		return false
 	}
 	return health > float64(float32(0.5005))
@@ -260,7 +281,7 @@ func SelectTribalRaiderDefense(threat SquadThreatFacts, defenders []SquadDefende
 	eligible := func(d SquadDefenderFacts) bool {
 		dead, dk := d.Dead.Value()
 		downed, wk := d.Downed.Value()
-		drafted, tk := d.Drafted.Value()
+		drafted, tk := squadDraftBusy(d)
 		mental, mk := d.MentalState.Value()
 		forced, fk := d.PlayerForced.Value()
 		queued, qk := d.QueuedJobs.Value()

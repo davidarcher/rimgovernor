@@ -107,10 +107,13 @@ namespace HomeBridge.BridgeTools
             if (pawn.Dead || pawn.Downed || pawn.Drafted || pawn.InMentalState || !pawn.IsColonistPlayerControlled)
             { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn unavailable, drafted or in an active mental break."); return false; }
             var expectedJob = command.ExpectedJob.StateCase == Operations.ExpectedJob.StateOneofCase.JobId ? (int?)command.ExpectedJob.JobId : null;
+            // playerForced marks any ordered job in flight, this adapter's own
+            // (TryTakeOrderedJob sets it) as much as the player's: a
+            // dispatch-collision guard, not a provenance veto (#461).
             if (pawn.CurJob?.loadID != expectedJob || pawn.CurJob?.playerForced == true || pawn.jobs.jobQueue.Count != 0)
-            { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Current job changed or player work is protected."); return false; }
+            { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Current job changed or an ordered job is in flight."); return false; }
             if (pawn.timetable?.CurrentAssignment?.defName != command.ExpectedScheduleDef)
-            { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Player timetable changed."); return false; }
+            { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Timetable changed since the read."); return false; }
             if (HealthAIUtility.ShouldSeekMedicalRest(pawn))
             { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Medical rest takes precedence."); return false; }
             if (!pawn.jobs.IsCurrentJobPlayerInterruptible() || pawn.carryTracker?.CarriedThing != null || pawn.IsBurning())

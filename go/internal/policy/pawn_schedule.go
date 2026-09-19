@@ -18,12 +18,12 @@ type PawnSchedule struct {
 	Matches bool
 }
 
-// ScheduleDecision is the schedule planner's output: a row per pawn the
-// planner owns (a native-default or planner-written timetable); pawns whose
-// timetable the player edited are listed in Player and left alone.
+// ScheduleDecision is the schedule planner's output: a row per available
+// pawn with a known timetable. Whoever wrote the current timetable, Auto
+// plans it fresh (control-loop.md, Manual control): a timetable edited
+// under Manual is evidence of an old order, not authority over planning.
 type ScheduleDecision struct {
 	Schedules []PawnSchedule
-	Player    []PawnID
 }
 
 // nativeDefaultSchedule is Pawn_TimetableTracker's constructor: Sleep 22h-5h,
@@ -75,19 +75,6 @@ func scheduleTemplate(effects TraitEffects) []string {
 	return slots
 }
 
-// plannerSchedules are every timetable the planner can have written; a
-// current timetable outside this set and the native default is the
-// player's.
-func plannerSchedules() [][]string {
-	return [][]string{
-		nativeDefaultSchedule(),
-		scheduleTemplate(TraitEffects{}),
-		scheduleTemplate(TraitEffects{QuickSleeper: true}),
-		scheduleTemplate(TraitEffects{NightShift: true}),
-		scheduleTemplate(TraitEffects{NightShift: true, QuickSleeper: true}),
-	}
-}
-
 func sameSchedule(a, b []string) bool {
 	if len(a) != len(b) {
 		return false
@@ -100,12 +87,10 @@ func sameSchedule(a, b []string) bool {
 	return true
 }
 
-// PlanSchedules chooses a timetable per available pawn from its profile.
-// A pawn whose current timetable is neither the native default nor one the
-// planner writes keeps the player's edit; an unknown timetable is skipped.
+// PlanSchedules chooses a timetable per available pawn from its profile;
+// a pawn whose timetable is unknown is skipped.
 func PlanSchedules(pawns []WorkPawn) ScheduleDecision {
 	var decision ScheduleDecision
-	templates := plannerSchedules()
 	for _, pawn := range pawns {
 		available, ak := pawn.Available.Value()
 		applies, pk := pawn.Applies.Value()
@@ -113,21 +98,9 @@ func PlanSchedules(pawns []WorkPawn) ScheduleDecision {
 		if !ak || !pk || !ck || !available || !applies {
 			continue
 		}
-		owned := false
-		for _, t := range templates {
-			if sameSchedule(current, t) {
-				owned = true
-				break
-			}
-		}
-		if !owned {
-			decision.Player = append(decision.Player, pawn.ID)
-			continue
-		}
 		want := scheduleTemplate(BuildProfile(pawn).Effects)
 		decision.Schedules = append(decision.Schedules, PawnSchedule{Pawn: pawn.ID, Slots: want, Matches: sameSchedule(current, want)})
 	}
 	sort.Slice(decision.Schedules, func(i, j int) bool { return decision.Schedules[i].Pawn < decision.Schedules[j].Pawn })
-	sort.Slice(decision.Player, func(i, j int) bool { return decision.Player[i] < decision.Player[j] })
 	return decision
 }

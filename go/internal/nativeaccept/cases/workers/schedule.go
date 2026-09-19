@@ -15,7 +15,8 @@ func init() {
 		Name: "workers/nightowl",
 		Scope: "Schedule planner (#417): a NightOwl on the native default timetable is written a night shift and a " +
 			"QuickSleeper a six-hour sleep through the first native PatchPawn schedule write, beside the work rows " +
-			"under the same snapshot token; a colonist whose timetable the player edited keeps it.",
+			"under the same snapshot token; a colonist whose timetable was edited by hand is replanned and rewritten too " +
+			"(#461: provenance is not authority over fresh planning).",
 		Start:       cases.DebugStart{},
 		RequiredOps: []string{"test/workers_setup"},
 		Budget:      4 * time.Minute,
@@ -62,18 +63,18 @@ func runNightOwl(ctx context.Context, s cases.Session) error {
 	}
 	planned := policy.PlanSchedules(pawns)
 	report["schedules_before"] = planned
-	if len(planned.Player) != 1 || planned.Player[0] != edited {
-		return fmt.Errorf("before: expected the edited pawn alone as the player's, got %v", planned.Player)
-	}
 	wanted := map[policy.PawnID][]string{}
 	for _, row := range planned.Schedules {
 		if row.Matches {
-			return fmt.Errorf("before: %s on the native default already matches its template", row.Pawn)
+			return fmt.Errorf("before: %s already matches its template", row.Pawn)
 		}
 		wanted[row.Pawn] = row.Slots
 	}
-	if len(wanted) != 2 || wanted[owl] == nil || wanted[quick] == nil {
-		return fmt.Errorf("before: expected the owl and the quick sleeper planned, got %v", planned.Schedules)
+	if len(wanted) != 3 || wanted[owl] == nil || wanted[quick] == nil || wanted[edited] == nil {
+		return fmt.Errorf("before: expected the owl, the quick sleeper and the edited pawn planned, got %v", planned.Schedules)
+	}
+	if wanted[edited][12] != policy.ScheduleAnything {
+		return fmt.Errorf("before: the edited pawn's template keeps the hand-written Joy hour: %v", wanted[edited])
 	}
 	if count(wanted[owl], policy.ScheduleWork) != 8 || wanted[owl][0] != policy.ScheduleWork || wanted[owl][12] != policy.ScheduleSleep {
 		return fmt.Errorf("before: night owl template is not a night shift: %v", wanted[owl])
@@ -83,8 +84,7 @@ func runNightOwl(ctx context.Context, s cases.Session) error {
 	}
 
 	// The timetable rides the same PatchPawn as the work rows the flat
-	// sheet needs, so the write below carries both fields for the owl and
-	// the quick sleeper and work rows alone for the edited pawn.
+	// sheet needs, so the write below carries both fields for all three.
 	decision, err := policy.PlanWork(pawns, nil, nil, policy.WorkDemand{})
 	if err != nil {
 		return err
@@ -110,18 +110,15 @@ func runNightOwl(ctx context.Context, s cases.Session) error {
 			}
 		}
 	}
-	if got := schedule(after, edited); got[12] != policy.ScheduleJoy {
-		return fmt.Errorf("after: the player-edited timetable was overwritten: %v", got)
-	}
 	replan := policy.PlanSchedules(after)
 	report["schedules_after"] = replan
+	if len(replan.Schedules) != 3 {
+		return fmt.Errorf("after: expected all three pawns planned, got %v", replan.Schedules)
+	}
 	for _, row := range replan.Schedules {
 		if !row.Matches {
 			return fmt.Errorf("after: %s still differs from its template", row.Pawn)
 		}
-	}
-	if len(replan.Player) != 1 || replan.Player[0] != edited {
-		return fmt.Errorf("after: expected the edited pawn alone as the player's, got %v", replan.Player)
 	}
 	work, err := policy.PlanWork(after, nil, nil, policy.WorkDemand{})
 	if err != nil {

@@ -81,7 +81,9 @@ namespace HomeBridge.BridgeTools
         private static Candidate? Try(WallRemovalRecord record, Obs.WallUpgradeSite? site, Func<Obs.WallUpgradeSite?> reread)
         {
             if (site == null) return null;
-            if (site.HasBlocker || site.PlayerOwned) { lastBlocker = site.HasBlocker ? site.Blocker : "A player-owned demolition designation is preserved"; return null; }
+            // A foreign demolition designation (site.PlayerOwned) is no veto:
+            // admission adopts it under this ledger's record (#461).
+            if (site.HasBlocker) { lastBlocker = site.Blocker; return null; }
             var candidate = new Candidate { Record = record, Site = site, Reread = reread };
             var blocker = WallUpgradeSafety.Prepare(record, out candidate.Workers);
             if (blocker != null) lastBlocker = blocker;

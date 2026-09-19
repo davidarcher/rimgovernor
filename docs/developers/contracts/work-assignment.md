@@ -114,15 +114,15 @@ so `SurgeonFor` waits for one.
 `policy.PlanSchedules` (`pawn_schedule.go`) gives each available pawn a
 role-based timetable from the same profile: the native day (Sleep 22h-5h)
 with a two-hour Joy block at 18h-19h; a NightOwl works 23h-6h, plays 21h-22h
-and sleeps 10h-17h; a QuickSleeper's Sleep block shrinks to six hours. A
-timetable that is neither the native default nor one the planner writes is the
-player's and is listed in `ScheduleDecision.Player`, never overwritten; an
-unknown timetable (issue `schedule`) is skipped.
+and sleeps 10h-17h; a QuickSleeper's Sleep block shrinks to six hours. Every
+known timetable is planned, whoever wrote it: a timetable edited under Manual
+is replanned like any other once Auto holds (control-loop.md, Manual
+control; #461); an unknown timetable (issue `schedule`) is skipped.
 
 The work review sends a mismatching timetable in the pawn's `PatchPawn`
 (`domain.NewScheduleAssignment`, `Schedule.assignment_defs` all 24 hours,
 `SettingsField.Schedule` in the receipt) under the same snapshot token as the
-priorities, so a player timetable edit between read and write refuses the whole
+priorities, so a timetable edit between read and write refuses the whole
 pawn. Native (`NativeWorkSettings`) hashes the current 24 def names into the
 token, requires every `TimeAssignmentDef` and a 24-slot tracker, writes through
 `Pawn_TimetableTracker.SetAssignment`, and reads the timetable back into
@@ -144,6 +144,6 @@ warden; Industrious wins a tied Construction sheet), `workers/coverage` (every
 core role owned once, Capacity true, the written matrix matches on readback
 and replans unchanged) and `workers/nightowl` (the first native schedule
 write: a NightOwl's night shift and a QuickSleeper's six-hour sleep beside the
-work rows, a player-edited timetable left alone). Each writes through the real
+work rows, a hand-edited timetable replanned and rewritten). Each writes through the real
 `PatchPawn` execute under the work snapshot token and reads the sheet back
 through the routine census's pawn observation.

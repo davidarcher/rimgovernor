@@ -113,9 +113,11 @@ namespace HomeBridge.BridgeTools
             if (map == null)
             { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Current map required."); return false; }
             pawn = map.mapPawns.FreeColonistsSpawned.SingleOrDefault(x => x.GetUniqueLoadID() == command.Pawn.EntityId);
+            // Assigning a bed interrupts no job, so the pawn's current order,
+            // whoever gave it, is no reason to refuse (#461).
             if (pawn == null || pawn.Dead || pawn.Downed || pawn.Drafted || pawn.InMentalState || pawn.ownership == null
-                || pawn.CurJob?.playerForced == true || pawn.health.HasHediffsNeedingTend())
-            { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Pawn unavailable or player work protected."); pawn = null; return false; }
+                || pawn.health.HasHediffsNeedingTend())
+            { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Pawn unavailable for bed assignment."); pawn = null; return false; }
             if (requireTokens && NativeDraftProtocol.TokenSent(command.Pawn))
             {
                 var pawnRow = NativePawnObservationTools.Core(pawn, Colonists(map), context);

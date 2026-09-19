@@ -68,8 +68,8 @@ produce an explicit blocker, including relationship and ideology choices requiri
 player direction. A facility placement is never a mood or need postcondition.
 
 `home/relieve_need` offers one ordinary food, rest or recreation job. It checks an
-exact pawn and current job identity, current timetable assignment, player-forced
-jobs, queued work, draft/mental/medical state, carried cargo, fire, native priority,
+exact pawn and current job identity, current timetable assignment, ordered jobs in
+flight (`playerForced`, which this adapter's own orders set too), queued work, draft/mental/medical state, carried cargo, fire, native priority,
 target restrictions, safe reachability and reservations. It uses the installed
 native job givers and never changes schedules, policies, traits, ideology or needs.
 Recreation excludes ingestible joy; food relief requires an ordinary ingestion job

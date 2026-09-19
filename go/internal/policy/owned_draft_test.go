@@ -67,6 +67,16 @@ func TestOwnedDraftAdmitsOnlyHealthySelectedEmergencyPawn(t *testing.T) {
 		t.Fatal("mutated input")
 	}
 }
+
+// A standing draft nobody claims (the player's, made under Manual) is
+// admitted: native adopts it under a fresh claim (#461).
+func TestOwnedDraftAdoptsUnclaimedStandingDraft(t *testing.T) {
+	r := draftPolicyRequest(t)
+	r.Pawn.Drafted = domain.Known(true)
+	if !EvaluateOwnedDraft(r).Admitted {
+		t.Fatal("unclaimed standing draft refused")
+	}
+}
 func TestOwnedDraftRefusesUnknownUnsafeOrStaleFacts(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -76,7 +86,6 @@ func TestOwnedDraftRefusesUnknownUnsafeOrStaleFacts(t *testing.T) {
 		{"draft unknown", UnknownFacts, func(r *DraftRequest) { r.Pawn.Drafted = domain.Unknown[bool]() }},
 		{"ownership unknown", UnknownFacts, func(r *DraftRequest) { r.Pawn.Unowned = domain.Unknown[bool]() }},
 		{"eligibility unknown", UnknownFacts, func(r *DraftRequest) { r.Pawn.NativeCanTry = domain.Unknown[bool]() }},
-		{"player drafted", DraftOwnership, func(r *DraftRequest) { r.Pawn.Drafted = domain.Known(true) }},
 		{"owned elsewhere", DraftOwnership, func(r *DraftRequest) { r.Pawn.Unowned = domain.Known(false) }},
 		{"native refusal", NativeIneligible, func(r *DraftRequest) { r.Pawn.NativeCanTry = domain.Known(false) }},
 		{"wrong pawn evidence", UnknownFacts, func(r *DraftRequest) { r.Pawn.Pawn = "other" }},
