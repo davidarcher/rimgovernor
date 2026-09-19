@@ -91,6 +91,7 @@ func admitSupplyMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan dom
 		return ErrConflict
 	}
 	bound := false
+	reserve := map[string]ReserveSupply{}
 	var cohort []policy.StartingSupply
 	for _, binding := range review.Goals {
 		if binding.Goal == goal.Goal.ID {
@@ -104,6 +105,9 @@ func admitSupplyMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan dom
 			case policy.MaintainFoodStorage:
 				bound = true
 				cohort = review.LarderSupplies
+				for _, row := range review.ReserveSupplies {
+					reserve[row.Thing] = row
+				}
 			}
 		}
 	}
@@ -120,9 +124,52 @@ func admitSupplyMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan dom
 			return ErrConflict
 		}
 		row, listed := pending[supply.Thing()]
+		if entry, selected := reserve[supply.Thing()]; selected && entry.Definition == supply.Definition() && entry.Forbid == supply.Forbidden() {
+			continue
+		}
 		if !listed || row.Definition != supply.Definition() || row.Cell != supply.Cell() || row.Forbid != supply.Forbidden() {
 			return ErrConflict
 		}
 	}
 	return nil
+}
+
+// A standing refill bill must not delay access to food in an emergency.
+func reserveAccessOpenWorkExempt(ctx context.Context, tx *sql.Tx, goal GoalState, plan domain.PlanSpec) (bool, error) {
+	review, err := loadRoutine(ctx, tx)
+	if err != nil {
+		return false, err
+	}
+	bound := false
+	for _, binding := range review.Goals {
+		bound = bound || binding.Goal == goal.Goal.ID && binding.Need == policy.MaintainFoodStorage
+	}
+	if !bound || len(review.ReserveSupplies) == 0 || len(plan.Actions()) == 0 {
+		return false, nil
+	}
+	for _, action := range plan.Actions() {
+		supply, ok := action.SupplyAllow()
+		if !ok {
+			return false, nil
+		}
+		selected := false
+		for _, row := range review.ReserveSupplies {
+			selected = selected || row.Thing == supply.Thing() && row.Definition == supply.Definition() && row.Forbid == supply.Forbidden()
+		}
+		if !selected {
+			return false, nil
+		}
+	}
+	for _, method := range goal.Methods {
+		existing, err := load(ctx, tx, method.Plan)
+		if err != nil {
+			return false, err
+		}
+		for _, progress := range existing.Progress {
+			if progress.Action().Kind() != domain.ProductionBillAction && domain.GoalWorkOpen([]domain.Progress{progress}) {
+				return false, nil
+			}
+		}
+	}
+	return true, nil
 }

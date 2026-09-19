@@ -31,7 +31,7 @@ type BillPlannerNative interface {
 }
 
 // NewRoutineBillPlanner composes one bill purpose: cooking serves
-// EnsureCooking, preservation and butchery EnsureFoodSupply, and the
+// EnsureCooking, preservation MaintainFoodStorage, butchery EnsureFoodSupply, and the
 // cook-ahead bill MaintainRefrigeration under a solar flare (#408).
 func NewRoutineBillPlanner(reviewer *RoutineReviewer, native BillPlannerNative, purpose policy.BillPurpose) (*RoutineBillPlanner, error) {
 	if reviewer == nil || native == nil || (purpose != policy.CookFood && purpose != policy.PreserveFood && purpose != policy.ButcherFood && purpose != policy.CookAheadFood) {
@@ -41,6 +41,8 @@ func NewRoutineBillPlanner(reviewer *RoutineReviewer, native BillPlannerNative, 
 	switch purpose {
 	case policy.CookFood:
 		need = policy.EnsureCooking
+	case policy.PreserveFood:
+		need = policy.MaintainFoodStorage
 	case policy.CookAheadFood:
 		need = policy.MaintainRefrigeration
 	}
@@ -197,12 +199,11 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		billContext = append(billContext, policy.ProductionBillContext{Meals: &meals})
 	}
 	if r.purpose == policy.PreserveFood {
-		supply, known := projection.FoodSupply.Value()
-		if !known {
+		if !foodPlanSupport(projection.Facts.FoodPlan, policy.FoodReserve, "stock-protection") {
 			return RoutineBillResult{Reason: BuildingMethodUnknown}, nil
 		}
-		value, err := policy.ReviewFoodReserve(supply, nil, policy.DefaultFoodReserveDays, r.reviewer.seasonal(projection.Facts).FoodMinDays, domain.Unknown[[]float64]())
-		if err != nil {
+		value, known := projection.Facts.FoodReserve.Value()
+		if !known {
 			return RoutineBillResult{Reason: BuildingMethodUnknown}, nil
 		}
 		billContext = append(billContext, policy.ProductionBillContext{Reserve: &value})

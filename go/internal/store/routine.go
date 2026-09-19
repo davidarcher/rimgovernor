@@ -19,9 +19,17 @@ type RoutineGoal struct {
 	Goal domain.GoalID
 }
 
+// ReserveSupply binds identity and access direction. Its current position is
+// resolved by the supply census and checked by Hands before a write.
+type ReserveSupply struct {
+	Thing, Definition string
+	Forbid            bool
+}
+
 // RoutineReview is the durable review cursor and hysteresis history. Goal
 // bindings retain semantic needs while old executable plans keep their identity.
 type RoutineReview struct {
+	ReserveSupplies        []ReserveSupply         `json:",omitempty"`
 	LarderSupplies         []policy.StartingSupply `json:",omitempty"`
 	ClearanceHolds         []policy.ClearanceHold  `json:",omitempty"`
 	Recovery               *RoutineRecovery        `json:",omitempty"`
@@ -130,6 +138,19 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 	}
 	if err := r.StartingSupplies.Validate(); err != nil {
 		return RoutineReview{}, err
+	}
+	if len(r.ReserveSupplies) > 4096 || !r.Enabled && len(r.ReserveSupplies) != 0 {
+		return RoutineReview{}, errors.New("invalid reserve method history")
+	}
+	reserveIDs := map[string]bool{}
+	for _, row := range r.ReserveSupplies {
+		if !policy.ReserveFoodDefinition(policy.Resource(row.Definition)) || reserveIDs[row.Thing] {
+			return RoutineReview{}, errors.New("invalid reserve supply")
+		}
+		if err := (policy.StartingSupply{Thing: row.Thing, Definition: row.Definition}).Validate(); err != nil {
+			return RoutineReview{}, err
+		}
+		reserveIDs[row.Thing] = true
 	}
 	if len(r.LarderSupplies) > 1 || !r.Enabled && len(r.LarderSupplies) != 0 {
 		return RoutineReview{}, errors.New("invalid larder method history")
@@ -415,6 +436,21 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	r.StartingSupplies = supplies
 	r.EventLoot = loot
 	if request.Enabled {
+		if reserve, known := request.Facts.FoodReserve.Value(); known {
+			wanted := map[string]bool{}
+			for _, id := range reserve.Hold {
+				wanted[id] = true
+			}
+			for _, id := range reserve.Release {
+				wanted[id] = false
+			}
+			stocks, _ := request.Facts.FoodStorageUpkeep.Stocks.Value()
+			for _, row := range stocks {
+				if forbid, selected := wanted[row.Stock.ID]; selected && policy.ReserveFoodDefinition(row.Stock.DefName) {
+					r.ReserveSupplies = append(r.ReserveSupplies, ReserveSupply{Thing: row.Stock.ID, Definition: string(row.Stock.DefName), Forbid: forbid})
+				}
+			}
+		}
 		choice, choiceErr := policy.SelectCorpseLarder(request.Facts.FoodStorageUpkeep)
 		if choiceErr != nil {
 			return RoutineReviewResult{}, choiceErr

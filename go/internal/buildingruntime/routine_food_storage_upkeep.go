@@ -154,7 +154,13 @@ func (r *RoutineFoodStorageUpkeepPlanner) step(call, epoch context.Context, arbi
 		if err != nil {
 			return RoutineFoodStorageUpkeepResult{}, err
 		}
-		if domain.GoalWorkOpen(plan.Progress) {
+		var pending []domain.Progress
+		for _, progress := range plan.Progress {
+			if progress.Action().Kind() != domain.ProductionBillAction {
+				pending = append(pending, progress)
+			}
+		}
+		if domain.GoalWorkOpen(pending) {
 			return RoutineFoodStorageUpkeepResult{Reason: BuildingMethodExistingWork}, nil
 		}
 	}
@@ -183,6 +189,12 @@ func (r *RoutineFoodStorageUpkeepPlanner) step(call, epoch context.Context, arbi
 	}
 	if !foodPlanSupport(reading.Projection.Facts.FoodPlan, policy.FoodReserve, "stock-protection") {
 		return RoutineFoodStorageUpkeepResult{Reason: BuildingMethodUnknown}, nil
+	}
+	if reserve, known := reading.Projection.Facts.FoodReserve.Value(); known && (len(reserve.Hold) > 0 || len(reserve.Release) > 0) {
+		if reading.Projection.Identity.Tick != domain.Tick(observed.Context.GetTick()) {
+			return RoutineFoodStorageUpkeepResult{Reason: BuildingMethodUnknown}, nil
+		}
+		return r.admitReserve(call, epoch, goal, observed, reserve)
 	}
 	larder, err := policy.SelectCorpseLarder(facts)
 	if err != nil {

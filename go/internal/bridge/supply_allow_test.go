@@ -33,6 +33,31 @@ func supplyTestRead() *o.ListSuppliesReply {
 	item := &o.EntityRef{Id: proto.String("steel"), DefName: proto.String("Steel"), MapId: pbIdentity().MapId, Position: &c.Cell{X: proto.Int32(1), Z: proto.Int32(2)}, Snapshot: &o.SnapshotRef{Context: proto.Clone(ctx).(*c.ObservationContext), EntityId: proto.String("steel"), Token: proto.String("snapshot")}}
 	return &o.ListSuppliesReply{Outcome: &o.ListSuppliesReply_Observed{Observed: &o.SuppliesSnapshot{Context: ctx, Completeness: emergencyCounts(1), Stocks: []*o.ResourceStock{{Definition: &o.DefinitionRef{DefName: proto.String("Steel")}, Units: proto.Int64(20), Forbidden: proto.Int64(20), Items: []*o.EntityRef{item}, ItemsCompleteness: emergencyCounts(1)}}}}}
 }
+
+func TestReserveSupplyCensusLocatesFoodAndRetainsScopeChecks(t *testing.T) {
+	for _, forbid := range []bool{false, true} {
+		v := supplyTestRead()
+		stock := v.GetObserved().Stocks[0]
+		stock.Definition.DefName = proto.String("Pemmican")
+		stock.Items[0].DefName = proto.String("Pemmican")
+		stock.Items[0].Position.X = proto.Int32(17)
+		client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+			if arg.Tool != "rimgovernor/observations_list_supplies" {
+				t.Fatal(arg.Tool)
+			}
+			draftTestRequest(t, arg, &o.ListSuppliesRequest{Scope: &o.ReadScope{ExpectedIdentity: pbIdentity()}, Filter: &o.StockFilter{DefNames: []string{"Pemmican", "MealSurvivalPack"}, Ownership: proto.String("ours"), IncludeHeld: proto.Bool(false), ForbiddenOnly: proto.Bool(!forbid)}, Page: &c.PageRequest{Limit: proto.Uint32(256)}})
+			return pbResult(v), nil
+		}}, time.Second)
+		read, _, err := client.ReadFoodReserveSupplies(context.Background(), pbIdentity(), forbid)
+		if err != nil || len(read.Targets) != 1 || read.Targets[0].Supply.Cell().X != 17 || read.Targets[0].Supply.Forbidden() != forbid {
+			t.Fatal(read, err)
+		}
+		v.GetObserved().Stocks[0].Items[0].MapId = proto.Int32(pbIdentity().GetMapId() + 1)
+		if _, err := decodeSupplyAccessAt(v, pbIdentity(), nil, forbid); err == nil {
+			t.Fatal("foreign reserve accepted")
+		}
+	}
+}
 func TestSupplyCensusRequiresCompleteExactScopedItems(t *testing.T) {
 	for name, edit := range map[string]func(*o.SuppliesSnapshot){
 		"page":       func(v *o.SuppliesSnapshot) { v.Completeness.Page.Complete = proto.Bool(false) },

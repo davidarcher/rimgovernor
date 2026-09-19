@@ -39,6 +39,28 @@ func (client *Client) ReadAllowSupplies(ctx context.Context, identity *c.Identit
 func (client *Client) ReadForbidSupplies(ctx context.Context, identity *c.Identity, cell domain.Cell) (SupplyRead, Result, error) {
 	return client.readSupplyAccess(ctx, identity, cell, true)
 }
+
+// ReadFoodReserveSupplies locates durable shared food through the existing
+// supply census; the food forecast intentionally carries no item positions.
+func (client *Client) ReadFoodReserveSupplies(ctx context.Context, identity *c.Identity, forbid bool) (SupplyRead, Result, error) {
+	if err := ValidateIdentity(identity); err != nil {
+		return SupplyRead{}, Result{}, err
+	}
+	request := &o.ListSuppliesRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)},
+		Filter: &o.StockFilter{DefNames: []string{"Pemmican", "MealSurvivalPack"}, Ownership: proto.String("ours"), IncludeHeld: proto.Bool(false), ForbiddenOnly: proto.Bool(!forbid)}, Page: &c.PageRequest{Limit: proto.Uint32(256)}}
+	reply := &o.ListSuppliesReply{}
+	raw, err := client.protoRead(ctx, "rimgovernor/observations_list_supplies", request, reply)
+	if err != nil {
+		return SupplyRead{}, raw, err
+	}
+	result, err := decodeSupplyAccessAt(reply, identity, nil, forbid)
+	for _, target := range result.Targets {
+		if def := target.Supply.Definition(); def != "Pemmican" && def != "MealSurvivalPack" {
+			return SupplyRead{}, raw, contract("unexpected reserve definition")
+		}
+	}
+	return result, raw, err
+}
 func (client *Client) readSupplyAccess(ctx context.Context, identity *c.Identity, cell domain.Cell, forbid bool) (SupplyRead, Result, error) {
 	if ValidateIdentity(identity) != nil || cell.X < 0 || cell.Z < 0 {
 		return SupplyRead{}, Result{}, contract("invalid supply scope")
@@ -60,6 +82,9 @@ func decodeAllowSupplies(reply *o.ListSuppliesReply, identity *c.Identity, cell 
 	return decodeSupplyAccess(reply, identity, cell, false)
 }
 func decodeSupplyAccess(reply *o.ListSuppliesReply, identity *c.Identity, cell domain.Cell, forbid bool) (SupplyRead, error) {
+	return decodeSupplyAccessAt(reply, identity, &cell, forbid)
+}
+func decodeSupplyAccessAt(reply *o.ListSuppliesReply, identity *c.Identity, at *domain.Cell, forbid bool) (SupplyRead, error) {
 	if reply == nil || buildingUnknown(reply) != nil {
 		return SupplyRead{}, contract("invalid supply reply")
 	}
@@ -82,8 +107,12 @@ func decodeSupplyAccess(reply *o.ListSuppliesReply, identity *c.Identity, cell d
 			return SupplyRead{}, contract("incomplete supply items")
 		}
 		for _, item := range stock.Items {
-			if item == nil || validID(item.GetId()) != nil || seen[item.GetId()] || item.MapId == nil || item.GetMapId() != identity.GetMapId() || item.Position == nil || item.Position.X == nil || item.Position.Z == nil || item.Position.GetX() != cell.X || item.Position.GetZ() != cell.Z || item.GetDefName() != stock.GetDefinition().GetDefName() {
+			if item == nil || validID(item.GetId()) != nil || seen[item.GetId()] || item.MapId == nil || item.GetMapId() != identity.GetMapId() || item.Position == nil || item.Position.X == nil || item.Position.Z == nil || item.Position.GetX() < 0 || item.Position.GetZ() < 0 || item.GetDefName() != stock.GetDefinition().GetDefName() {
 				return SupplyRead{}, contract("supply entity mismatch")
+			}
+			cell := domain.Cell{X: item.Position.GetX(), Z: item.Position.GetZ()}
+			if at != nil && cell != *at {
+				return SupplyRead{}, contract("supply cell mismatch")
 			}
 			seen[item.GetId()] = true
 			if len(seen) > 256 {

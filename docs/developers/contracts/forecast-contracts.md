@@ -91,6 +91,14 @@ product; other reserve products reduce that target. Existing recipe bills keep
 their settings. The policy review proposes IDs only; the shared goal and Hands
 integration owns holds, releases, replenishment timing and policy configuration.
 
+RoutinePolicy.FoodReserveDays (serve: --routine-food-reserve-days, default 5,
+0 disables) sizes the reserve. MaintainFoodStorage schedules refill independently
+of ordinary food deficit and commits bounded supply actions for holds/releases.
+Release uses the shared portfolio delivery leads; unknown channels cannot prove
+an emergency. Reserve access has foothold priority and does not wait for a
+standing preservation bill. Forbidden stock is already excluded from the forecast,
+so the portfolio does not subtract the reserve a second time.
+
 `SelectCaravanFood` accepts observed transfer groups eligible for the entire
 crew, per-unit nutrition and unrefrigerated remaining shelf life. It packs
 reserve groups first, then the longest-lived food, and returns no selection
@@ -161,8 +169,7 @@ keeps the existing-work barrier.
 
 GET /api/player/colony exposes foodPlan and foodPlanTick from the retained review,
 including portfolio/unknown rows, decisions, rates and explanation terms. Missing
-or stale reviews are null; this read never runs a new food review. Reserve-days
-configuration and reserve dispatch remain separate integrations.
+or stale reviews are null; this read never runs a new food review.
 
 ## Trade food policy
 

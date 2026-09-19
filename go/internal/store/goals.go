@@ -304,6 +304,12 @@ func commitGoalMethod(ctx context.Context, tx *sql.Tx, id domain.GoalID, revisio
 			}
 		}
 		if !exempt {
+			exempt, err = reserveAccessOpenWorkExempt(ctx, tx, state, plan)
+			if err != nil {
+				return GoalState{}, err
+			}
+		}
+		if !exempt {
 			return GoalState{}, errors.New("existing method requires observation")
 		}
 	}

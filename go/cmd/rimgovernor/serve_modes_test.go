@@ -25,6 +25,25 @@ func serveBase(dir string) []string {
 	return []string{"--gabs", filepath.Join(dir, "gabs"), "--config", dir, "--game", "game", "--state", filepath.Join(dir, "state.db")}
 }
 
+func TestServeFoodReserveDays(t *testing.T) {
+	dir := t.TempDir()
+	for _, value := range []string{"0", "2.5", "60"} {
+		c, err := parseServe(append(serveBase(dir), "--profile", dir, "--routine-food-reserve-days", value), io.Discard)
+		if err != nil {
+			t.Fatal(err)
+		}
+		policy, _ := routineCapabilities(c)
+		if policy.FoodReserveDays != c.routineFoodReserveDays {
+			t.Fatal(policy.FoodReserveDays)
+		}
+	}
+	for _, value := range []string{"-1", "61", "NaN", "+Inf"} {
+		if _, err := parseServe(append(serveBase(dir), "--profile", dir, "--routine-food-reserve-days", value), io.Discard); err == nil {
+			t.Fatal(value)
+		}
+	}
+}
+
 // serve with no mode flag is the autonomous composition: player control,
 // supervised clock, routine reviews and methods, every planner family, world
 // evaluation and caravan tracking.

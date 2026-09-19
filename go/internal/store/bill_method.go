@@ -31,7 +31,7 @@ func admitBillMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan domai
 	// answer is a cook-ahead bill (#408).
 	bound := false
 	for _, b := range review.Goals {
-		bound = bound || b.Goal == goal.Goal.ID && (b.Need == policy.EnsureCooking || b.Need == policy.EnsureFoodSupply || b.Need == policy.MaintainResource || b.Need == policy.MaintainAnimalFeed || b.Need == policy.MaintainEquipment || b.Need == policy.MaintainRefrigeration)
+		bound = bound || b.Goal == goal.Goal.ID && (b.Need == policy.EnsureCooking || b.Need == policy.EnsureFoodSupply || b.Need == policy.MaintainFoodStorage || b.Need == policy.MaintainResource || b.Need == policy.MaintainAnimalFeed || b.Need == policy.MaintainEquipment || b.Need == policy.MaintainRefrigeration)
 	}
 	if !bound {
 		return fmt.Errorf("%w: goal %s does not admit production bills", ErrConflict, goal.Goal.ID)

@@ -72,6 +72,7 @@ type RoutinePolicy struct {
 	Routes                                        RoutesPolicy
 	MaxDevelopmentProjects                        int
 	FoodMinDays, FoodTargetDays, FootholdFoodDays float64
+	FoodReserveDays                               float64
 	ColdEnter, ColdExit, HotExit, HotEnter        float64
 	WoodMin, WoodTarget, WoodMax                  int64
 	// HuntStallTicks bounds how long a dispatched Hunt-kind acquisition action
@@ -186,7 +187,7 @@ type RoutinePolicy struct {
 }
 
 func DefaultRoutinePolicy() RoutinePolicy {
-	return RoutinePolicy{AnimalUpkeep: DefaultAnimalUpkeepPolicy(), MedicalReserve: DefaultMedicalReservePolicy(), FoodStorage: DefaultFoodStoragePolicy(), Cleanliness: DefaultCleanlinessPolicy(), Lighting: DefaultLightingPolicy(), Flooring: DefaultFlooringPolicy(), Routes: DefaultRoutesPolicy(), MaxDevelopmentProjects: 2, FoodMinDays: 3, FoodTargetDays: 7, FootholdFoodDays: 3,
+	return RoutinePolicy{AnimalUpkeep: DefaultAnimalUpkeepPolicy(), MedicalReserve: DefaultMedicalReservePolicy(), FoodStorage: DefaultFoodStoragePolicy(), Cleanliness: DefaultCleanlinessPolicy(), Lighting: DefaultLightingPolicy(), Flooring: DefaultFlooringPolicy(), Routes: DefaultRoutesPolicy(), MaxDevelopmentProjects: 2, FoodMinDays: 3, FoodTargetDays: 7, FootholdFoodDays: 3, FoodReserveDays: DefaultFoodReserveDays,
 		ColdEnter: 12, ColdExit: 16, HotExit: 28, HotEnter: 32, WoodMin: 120, WoodTarget: 350, WoodMax: 500, HuntStallTicks: 6000, HaulStallTicks: 2500, AcquisitionStallTicks: 60000, ResearchLadder: DefaultResearchLadder()}
 }
 
@@ -206,12 +207,12 @@ func (p RoutinePolicy) Validate() error {
 	if p.MaxDevelopmentProjects < 1 || p.MaxDevelopmentProjects > 8 {
 		return errors.New("invalid development project limit")
 	}
-	for _, n := range []float64{p.FoodMinDays, p.FoodTargetDays, p.FootholdFoodDays, p.ColdEnter, p.ColdExit, p.HotExit, p.HotEnter, p.PrisonerReleaseAfterDays} {
+	for _, n := range []float64{p.FoodMinDays, p.FoodTargetDays, p.FootholdFoodDays, p.FoodReserveDays, p.ColdEnter, p.ColdExit, p.HotExit, p.HotEnter, p.PrisonerReleaseAfterDays} {
 		if math.IsNaN(n) || math.IsInf(n, 0) {
 			return errors.New("nonfinite routine threshold")
 		}
 	}
-	if p.FoodMinDays <= 0 || p.FoodTargetDays <= p.FoodMinDays || p.FootholdFoodDays <= 0 ||
+	if p.FoodReserveDays < 0 || p.FoodReserveDays > 60 || p.FoodMinDays <= 0 || p.FoodTargetDays <= p.FoodMinDays || p.FootholdFoodDays <= 0 ||
 		p.ColdEnter >= p.ColdExit || p.ColdExit >= p.HotExit || p.HotExit >= p.HotEnter ||
 		p.WoodMin < 0 || p.WoodTarget <= p.WoodMin || p.WoodMax < p.WoodTarget {
 		return errors.New("unordered routine thresholds")
@@ -307,6 +308,7 @@ func ValidateResourceTargets(targets map[Resource]int64) error {
 // separate native crop-capacity forecast; it never increases FoodDays.
 type RoutineFacts struct {
 	FoodPlan             domain.Fact[FoodPlan]
+	FoodReserve          domain.Fact[FoodReserveReview]
 	TradeMealIngredients domain.Fact[[]FoodIngredientSlot]
 	PenGrazing           domain.Fact[[]PenGrazing]
 	RecoverySafety       domain.Fact[RecoverySafety]
@@ -1013,13 +1015,16 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if !positive(medicalReserveRecovered) {
 		addGoal(MaintainMedicalReserves, medicalReservePriority)
 	}
-	foodStorageActive := foodStorage.Active || f.UpkeepIssued[MaintainFoodStorage]
+	reserve, reserveKnown := f.FoodReserve.Value()
+	reserveAccess := reserveKnown && (len(reserve.Hold) > 0 || len(reserve.Release) > 0)
+	reserveRefill := reserveKnown && !reserve.Emergency && reserve.DeficitNutrition > 0
+	foodStorageActive := foodStorage.Active || f.UpkeepIssued[MaintainFoodStorage] || reserveAccess || reserveRefill
 	foodStorageRecovered := domain.Unknown[bool]()
 	foodStoragePriority := foodStorageUpkeepPriority
 	larder, _ := SelectCorpseLarder(f.FoodStorageUpkeep)
 	// Releasing cooking inputs and preserving fresh corpses must not wait
 	// behind development projects, just as refrigeration must not.
-	if larder.Kind != "" {
+	if larder.Kind != "" || reserveAccess {
 		foodStoragePriority = 2
 	}
 	if _, known := foodStorage.StoredNutrition.Value(); known {
@@ -1027,10 +1032,13 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	} else if !foodStorageActive {
 		foodStoragePriority = 4
 	}
+	if reserveAccess || reserveRefill {
+		foodStorageRecovered = domain.Known(false)
+	}
 	addAssessment(MaintainFoodStorage, foodStoragePriority, foodStorageRecovered)
 	if !positive(foodStorageRecovered) {
 		addGoal(MaintainFoodStorage, foodStoragePriority)
-		r.Goals[len(r.Goals)-1].MethodUnavailable = larder.Kind == ""
+		r.Goals[len(r.Goals)-1].MethodUnavailable = larder.Kind == "" && !reserveAccess && !reserveRefill
 	}
 	// Refrigeration answers the same at-risk perishable nutrition as
 	// MaintainFoodStorage by cooling the room the food already sits in. It

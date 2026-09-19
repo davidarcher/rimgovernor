@@ -100,6 +100,7 @@ type serveConfig struct {
 	routineResourcePlans            bool
 	routineResourceTargets          resourceTargetFlags
 	routineStoneBlockTarget         int64
+	routineFoodReserveDays          float64
 	routineAnimalFeedPlans          bool
 	routineProductionPolicyPlans    bool
 	routineResourceReserves         resourceReserveFlags
@@ -162,6 +163,7 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.StringVar(&c.routineResearchTarget, "routine-research-target", "", "native ResearchProjectDef name EnsureResearch selects prerequisite-ordered toward once no research project is current")
 	flags.StringVar(&c.routineResearchLadder, "routine-research-ladder", strings.Join(policy.DefaultResearchLadder(), ","), "comma-separated ResearchProjectDef names EnsureResearch walks in order when no --routine-research-target is set and no workshop ladder records a need; empty disables the roadmap")
 	flags.Var(&c.routineResourceTargets, "routine-resource-target", "repeatable RESOURCE:TARGET native stock floor MaintainResource dispatches a production bill toward")
+	flags.Float64Var(&c.routineFoodReserveDays, "routine-food-reserve-days", policy.DefaultFoodReserveDays, "days of forbidden durable food kept outside ordinary runway; 0 disables reserve management")
 	flags.Int64Var(&c.routineStoneBlockTarget, "routine-stone-block-target", 0, "native stock floor MaintainResource keeps for stone blocks of the stone whose chunks the map counts most, staging a stonecutter's table and a do-until bill fed from those chunks; 0 disables")
 	flags.Var(&c.routineResourceReserves, "routine-resource-reserve", "repeatable RESOURCE:FLOOR native stock floor ProductionPolicy replaces into the current native production policy")
 	flags.Var(&c.routineStoppedResources, "routine-resource-stop", "repeatable RESOURCE name ProductionPolicy keeps stopped in the current native production policy")
@@ -235,6 +237,9 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 				return c, err
 			}
 		}
+	}
+	if !(c.routineFoodReserveDays >= 0 && c.routineFoodReserveDays <= 60) {
+		return c, errors.New("--routine-food-reserve-days must be within 0..60")
 	}
 	if c.routineStoneBlockTarget < 0 || c.routineStoneBlockTarget > 10000 {
 		return c, errors.New("--routine-stone-block-target must be within 0..10000")
