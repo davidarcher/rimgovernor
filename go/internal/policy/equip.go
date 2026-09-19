@@ -1,7 +1,6 @@
 package policy
 
 import (
-	"sort"
 	"strings"
 	"unicode/utf8"
 
@@ -12,16 +11,22 @@ import (
 // is occupied, mid a conflicting player order, or already equipping.
 const EquipPawnUnavailable Reason = "equip_pawn_unavailable"
 
-// EquipCandidatePawn describes one already-observed colonist eligible to be
-// armed: capable of violence and currently without a primary weapon. Selection
-// is a proposal only; the caller still owns the exact eligibility rules for
-// its goal (EnsureBasicDefense caps this at two pawns; single-raider defense
-// arms exactly one).
+// EquipCandidatePawn describes an observed colonist and optional combat facts.
+// Selection is a proposal; native admission rechecks the exact pair.
 type EquipCandidatePawn struct {
 	Pawn                               domain.PawnID
 	Dead, Downed, Drafted, MentalState domain.Fact[bool]
 	IncapableOfViolence, Armed         domain.Fact[bool]
 	Position                           domain.Cell
+	Profile                            PawnProfile
+	ShootingDisabled                   bool
+	Role                               WeaponRole
+	// LoneFighter must be explicitly known before assigning area-fire weapons.
+	LoneFighter bool
+	RaidArmor   domain.Fact[float64]
+	// Current is scored only when automation owns the exact equipped identity.
+	Current         *EquipCandidateWeapon
+	AutomationOwned bool
 }
 
 // EquipCandidateWeapon describes one already-observed loose weapon.
@@ -29,6 +34,7 @@ type EquipCandidateWeapon struct {
 	Thing, Definition string
 	Cell              domain.Cell
 	Class             WeaponClass
+	BiocodedTo        domain.PawnID
 }
 
 // WeaponClass ranks a loose equippable by what it is for. The native
@@ -60,53 +66,14 @@ func ClassifyWeapon(byTrade, ranged, melee bool) WeaponClass {
 	return WeaponMakeshift
 }
 
-// SelectEquip pairs the first eligible unarmed, violence-capable pawn with the
-// best accessible weapon: ranged before melee before makeshift, then nearest,
-// then by thing ID for a stable, deterministic choice. This is a proposal
-// only; EvaluateEquip re-validates the chosen pair immediately before
-// dispatch.
+// SelectEquip returns the first pair from the colony-wide assignment.
+// Call AssignEquip to dispatch the whole wave. Admission remains native.
 func SelectEquip(pawns []EquipCandidatePawn, weapons []EquipCandidateWeapon) (domain.PawnID, EquipCandidateWeapon, bool) {
-	eligible := func(p EquipCandidatePawn) bool {
-		dead, dk := p.Dead.Value()
-		downed, wk := p.Downed.Value()
-		drafted, tk := p.Drafted.Value()
-		mental, mk := p.MentalState.Value()
-		incapable, ik := p.IncapableOfViolence.Value()
-		armed, ak := p.Armed.Value()
-		if !dk || !wk || !tk || !mk || !ik || !ak {
-			return false
-		}
-		return !dead && !downed && !drafted && !mental && !incapable && !armed
-	}
-	var pool []EquipCandidatePawn
-	for _, p := range pawns {
-		if eligible(p) {
-			pool = append(pool, p)
-		}
-	}
-	if len(pool) == 0 || len(weapons) == 0 {
+	pairs := AssignEquip(pawns, weapons)
+	if len(pairs) == 0 {
 		return "", EquipCandidateWeapon{}, false
 	}
-	sort.Slice(pool, func(i, j int) bool { return pool[i].Pawn < pool[j].Pawn })
-	chosen := pool[0]
-	nearer := func(a, b EquipCandidateWeapon) bool {
-		if a.Class != b.Class {
-			return a.Class > b.Class
-		}
-		da := distanceSquared(chosen.Position, a.Cell)
-		db := distanceSquared(chosen.Position, b.Cell)
-		if da != db {
-			return da < db
-		}
-		return a.Thing < b.Thing
-	}
-	pick := weapons[0]
-	for _, w := range weapons[1:] {
-		if nearer(w, pick) {
-			pick = w
-		}
-	}
-	return chosen.Pawn, pick, true
+	return pairs[0].Pawn, pairs[0].Weapon, true
 }
 
 func distanceSquared(a, b domain.Cell) int64 {

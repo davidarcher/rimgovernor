@@ -15,7 +15,8 @@ import (
 // equipTestNative is a colony of unarmed colonists beside one loose bow.
 type equipTestNative struct {
 	*routineNative
-	ids []string
+	ids     []string
+	weapons []bridge.EquipCandidate
 }
 
 func (n *equipTestNative) pawn(id string) *o.PawnState {
@@ -54,7 +55,56 @@ func (n *equipTestNative) ReadMapBounds(ctx context.Context, _ *c.Identity, _ do
 	return bridge.MapBounds{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Bounds: policy.Bounds{Width: 250, Height: 250}}, bridge.Result{}, ctx.Err()
 }
 func (n *equipTestNative) ReadEquipWeapons(ctx context.Context, _ *c.Identity, _, _ domain.Cell) (bridge.EquipRead, bridge.Result, error) {
+	if n.weapons != nil {
+		return bridge.EquipRead{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Targets: n.weapons}, bridge.Result{}, ctx.Err()
+	}
 	return bridge.EquipRead{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Targets: []bridge.EquipCandidate{{Thing: "bow", Definition: "Bow_Short", Cell: domain.Cell{X: 5, Z: 5}, Token: "bow-token"}}}, bridge.Result{}, ctx.Err()
+}
+
+func TestEquipPlannerOneWave(t *testing.T) {
+	ctx := context.Background()
+	reviewer, db, _, _, native := routineFixture(t)
+	v := native.reply.GetObserved()
+	v.ColonistCount = proto.Uint32(3)
+	v.WorkerCount = proto.Uint32(3)
+	v.Issues = append(v.Issues, &o.ReadIssue{Field: proto.String("naming"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}})
+	n := &equipTestNative{routineNative: native, ids: []string{"a", "b", "c"}, weapons: []bridge.EquipCandidate{
+		{Thing: "bow1", Definition: "Bow_Short", Ranged: true, ByTrade: true},
+		{Thing: "bow2", Definition: "Bow_Short", Ranged: true, ByTrade: true},
+		{Thing: "bow3", Definition: "Bow_Short", Ranged: true, ByTrade: true},
+	}}
+	reviewer.native = n
+	reviewer.methods = domain.Known([]policy.GoalID{policy.EnsureBasicDefense})
+	if _, err := reviewer.Step(ctx); err != nil {
+		t.Fatal(err)
+	}
+	planner, err := NewRoutineEquipPlanner(reviewer, n)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := planner.Step(ctx)
+	if err != nil || result.Reason != BuildingMethodAdmitted {
+		t.Fatal(result, err)
+	}
+	plan, err := db.LoadPlan(ctx, result.Plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(plan.Spec.Actions()) != 3 || len(plan.Spec.Dependencies()) != 0 {
+		t.Fatal("expected three independent orders", plan.Spec)
+	}
+	pawns, weapons := map[domain.PawnID]bool{}, map[string]bool{}
+	for _, action := range plan.Spec.Actions() {
+		equip, ok := action.Equip()
+		if !ok || pawns[equip.Pawn()] || weapons[equip.Thing()] {
+			t.Fatal(action)
+		}
+		pawns[equip.Pawn()] = true
+		weapons[equip.Thing()] = true
+	}
+	if next, err := planner.Step(ctx); err != nil || next.Reason != BuildingMethodExistingWork {
+		t.Fatal("duplicated open wave", next, err)
+	}
 }
 
 // A pawn another planner already claimed this step must not starve the

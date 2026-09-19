@@ -34,13 +34,27 @@ as apparel, or whose wear preview refuses `NOT_FOUND`, is cancelled rather than
 held, so the plan closes and the goal's development slot frees at the next
 review, as haul and supply do for a thing that left its cell.
 
-Weapon upkeep preserves existing player assignments. It can arm an available
-capable unarmed pawn and replace an upkeep-owned weapon at or below 50% condition
-with the same native definition, at least 80% condition and no lower quality.
-The native save retains the exact upkeep-owned weapon identity. A different
-equipped weapon is a player assignment. Initial selection ranks eligible weapons
-by pawn melee/shooting skill, native quality and condition with stable identity
-tie breaking; it does not claim optimal combat damage across weapon definitions.
+Weapon planning scores the colony's pawn/weapon pairs before assigning any
+weapon. Skill, optional combat role, nominal weapon throughput/range and known
+raid armor shape the score. Precision rifles favor accurate shooters; short
+burst weapons favor novices. Brawlers and Shooting-disabled pawns receive melee;
+Violent-disabled pawns receive nothing. Area-fire weapons require an explicit
+lone-fighter input. Unknown roles and armor are neutral. The Core definition
+table uses planning estimates, with conservative class defaults for other defs.
+
+Pairs are assigned highest score first, then pawn identity, distance and weapon
+identity; each pawn and weapon appears once. A known biocode restricts the weapon
+to its pawn. An existing weapon is preserved unless automation owns its exact
+identity, and a swap requires over 20% score improvement. Biocoded primaries stay
+pinned. The routine equip planner admits the entire assignment as independent
+actions in one plan, retaining per-pawn retry limits and native postconditions.
+Native preview still decides current equip eligibility, including biocoding.
+
+`WeaponProductionDemand` supplies definition/count demand to the bill batch
+(#469), net of assigned loose weapons and limited to discovered available
+recipes. Optional roles are supplied by the loadout model (#466). The current
+combat/loose-weapon read has no biocode or raid-armor census; those policy inputs
+remain absent until the observation contract supplies them.
 
 ## Production and resource protection
 
