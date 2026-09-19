@@ -194,31 +194,12 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		pawn := byID[assignment.Pawn]
 		token, tk := pawn.SnapshotToken.Value()
 		manual, mk := pawn.Manual.Value()
-		current, ck := pawn.Work.Value()
-		if !tk || !mk || !ck {
+		if _, ck := pawn.Work.Value(); !tk || !mk || !ck {
 			continue
 		}
-		values := map[policy.WorkType]int{}
-		for _, row := range current {
-			values[row.Work] = row.Priority
-		}
-		var changed []domain.WorkSetting
-		for _, setting := range assignment.Priorities {
-			old, ok := values[setting.Work]
-			if !ok {
-				return RoutineWorkResult{}, ErrControl
-			}
-			// Checkbox mode (manual priorities off) only knows enabled (3)
-			// or disabled (0): the numbered ranks the policy chooses collapse
-			// to that pair, matching how policy.AssignWork judges Matches and
-			// what domain.NewWorkAssignment admits for a non-manual pawn.
-			want := setting.Priority
-			if !manual && want > 0 {
-				want = 3
-			}
-			if old != want {
-				changed = append(changed, domain.WorkSetting{Definition: string(setting.Work), Priority: int32(want)})
-			}
+		changed, ok := policy.WorkChanges(pawn, assignment)
+		if !ok {
+			return RoutineWorkResult{}, ErrControl
 		}
 		schedule := schedules[assignment.Pawn]
 		if len(changed) == 0 && len(schedule) == 0 {

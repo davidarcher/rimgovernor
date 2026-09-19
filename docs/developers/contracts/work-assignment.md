@@ -121,8 +121,19 @@ differs from the readback.
 
 ## Acceptance
 
-Planner behaviour is table-driven in `work_assignment_test.go` and
-`pawn_profile_test.go` (trait table, floors, growth secondaries, forbidden
-roles, decay, twelve-pawn coverage and three-review stability). The
-`workers/*` native cases (#417) seed traits on a fixture and read the matrix
-back.
+Planner behaviour is table-driven in `work_assignment_test.go`,
+`pawn_profile_test.go` and `pawn_schedule_test.go` (trait table, floors,
+growth secondaries, forbidden roles, decay, twelve-pawn coverage, three-review
+stability, timetable templates). The `workers/*` native cases
+(`nativeaccept/cases/workers`, `WorkersFixture`'s `test/workers_setup`) seed
+the three debug-start colonists with a flat sheet, no traits, manual
+priorities and the native timetable, then one scenario each: `workers/passion`
+(a major passion owns a tied kitchen, the other backs it at 2),
+`workers/traits` (Pyromaniac/Brawler/Abrasive never fight fires, hunt or
+warden; Industrious wins a tied Construction sheet), `workers/coverage` (every
+core role owned once, Capacity true, the written matrix matches on readback
+and replans unchanged) and `workers/nightowl` (the first native schedule
+write: a NightOwl's night shift and a QuickSleeper's six-hour sleep beside the
+work rows, a player-edited timetable left alone). Each writes through the real
+`PatchPawn` execute under the work snapshot token and reads the sheet back
+through the routine census's pawn observation.

@@ -598,3 +598,35 @@ func RoutineWorkDemand(facts RoutineFacts, building bool) WorkDemand {
 	}
 	return demand
 }
+
+// WorkChanges is the PatchPawn work rows an assignment needs on a pawn:
+// the priorities the readback does not already hold. Checkbox mode
+// (manual priorities off) only knows enabled (3) or disabled (0), so the
+// numbered ranks collapse to that pair, matching how PlanWork judges
+// Matches and what domain.NewWorkAssignment admits for a non-manual
+// pawn. ok is false when the pawn's readback lacks a planned work type.
+func WorkChanges(pawn WorkPawn, assignment PawnWorkAssignment) (changed []domain.WorkSetting, ok bool) {
+	manual, mk := pawn.Manual.Value()
+	current, ck := pawn.Work.Value()
+	if !mk || !ck {
+		return nil, false
+	}
+	values := map[WorkType]int{}
+	for _, row := range current {
+		values[row.Work] = row.Priority
+	}
+	for _, setting := range assignment.Priorities {
+		old, known := values[setting.Work]
+		if !known {
+			return nil, false
+		}
+		want := setting.Priority
+		if !manual && want > 0 {
+			want = 3
+		}
+		if old != want {
+			changed = append(changed, domain.WorkSetting{Definition: string(setting.Work), Priority: int32(want)})
+		}
+	}
+	return changed, true
+}
