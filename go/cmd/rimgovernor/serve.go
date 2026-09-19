@@ -395,7 +395,11 @@ func routineFamilies(c *serveConfig) []routineFamily {
 // ladder records for a MaintainResource bench (issue #4 M4) and otherwise
 // the research ladder (#230).
 func (c serveConfig) researchPlans() bool {
-	return c.routineResearchTarget != "" || c.routineResearchPlans && (c.resourceTargetsConfigured() || len(c.researchLadder()) > 0)
+	return c.routineResearchTarget != "" || c.routineResearchPlans && (c.resourceTargetsConfigured() || c.routineWorkshopPlans && c.routineGearPlans || len(c.researchLadder()) > 0)
+}
+
+func (c serveConfig) workshopPlans() bool {
+	return c.routineWorkshopPlans && (c.resourceTargetsConfigured() || c.routineGearPlans)
 }
 
 // resourceTargetsConfigured reports whether MaintainResource has a floor to

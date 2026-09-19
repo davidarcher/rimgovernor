@@ -158,7 +158,7 @@ type serviceClockTimeoutConfig struct{ Poll, Renew, Step, PollWait, RunningPoll 
 func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, journal *store.Store, sc serveConfig, timeouts serviceClockTimeoutConfig, wake *buildingruntime.WakeSignal, cache *bridge.FactCache, sections *facts.Store) (*buildingruntime.ClockWorker, error) {
 	profile, clockSpeed, routine := sc.profile, sc.clockSpeed, sc.routineReviews
 	sleeping, cooking, shelter, comfort, expansion, power, temperature := sc.routineSleepingPlans, sc.routineCookingPlans, sc.routineShelterPlans, sc.routineComfortPlans, sc.routineExpansionPlans, sc.routinePowerPlans, sc.routineTemperaturePlans
-	workshop := sc.routineWorkshopPlans && sc.resourceTargetsConfigured()
+	workshop := sc.workshopPlans()
 	ingredientStorage := sc.routineIngredientStoragePlans && sc.resourceTargetsConfigured()
 	research := sc.researchPlans()
 	hospital := sc.routineHospitalPlans

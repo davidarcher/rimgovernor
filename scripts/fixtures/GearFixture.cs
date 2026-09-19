@@ -41,14 +41,24 @@ namespace HomeBridge.BridgeTools
                     }
                     return new { success = true, pawn = subject.GetUniqueLoadID(), target = weapon.GetUniqueLoadID() };
                 }
-                if (mode == "production_setup") {
+                if (mode == "production_setup" || mode == "production_unstaged") {
                     var map = subject.Map;
                     foreach (var item in map.listerThings.ThingsInGroup(ThingRequestGroup.Apparel).ToList()) item.Destroy();
-                    var bench = ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed("HandTailoringBench"), ThingDefOf.WoodLog);
-                    bench.SetFaction(Faction.OfPlayer);
-                    var cell = GenRadial.RadialCellsAround(subject.Position, 15, false).First(c => c.InBounds(map)
-                        && CellRect.CenteredOn(c, 3).Cells.All(v => v.InBounds(map) && v.Standable(map) && v.GetEdifice(map) == null));
-                    GenSpawn.Spawn(bench, cell, map);
+                    Thing bench = null;
+                    if (mode == "production_unstaged") {
+                        foreach (var existing in map.listerBuildings.allBuildingsColonist
+                            .Where(b => b.def.AllRecipes != null && b.def.AllRecipes.Any(r => r.products.Any(p => p.thingDef.defName == "Apparel_BasicShirt"))).ToList())
+                            existing.Destroy();
+                        var hut = FixtureHut.Build(map, 11);
+                        FixtureHut.DropOutside(map, hut, ThingDefOf.WoodLog, 150);
+                        FixtureHut.DropOutside(map, hut, ThingDefOf.Steel, 150);
+                    } else {
+                        bench = ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed("HandTailoringBench"), ThingDefOf.WoodLog);
+                        bench.SetFaction(Faction.OfPlayer);
+                        var cell = GenRadial.RadialCellsAround(subject.Position, 15, false).First(c => c.InBounds(map)
+                            && CellRect.CenteredOn(c, 3).Cells.All(v => v.InBounds(map) && v.Standable(map) && v.GetEdifice(map) == null));
+                        GenSpawn.Spawn(bench, cell, map);
+                    }
                     var cloth = ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed(material));
                     cloth.stackCount = 75;
                     GenPlace.TryPlaceThing(cloth, subject.Position, map, ThingPlaceMode.Near);
@@ -64,7 +74,7 @@ namespace HomeBridge.BridgeTools
                     // within an in-game hour or two; hold it off so the controller's wear order is what dresses
                     // the pawn and the case proves the whole produce-then-equip path (issue #233).
                     subject.mindState.nextApparelOptimizeTick = Find.TickManager.TicksGame + 600000;
-                    return new { success = true, pawn = subject.GetUniqueLoadID(), bench = bench.GetUniqueLoadID(), cloth = cloth.GetUniqueLoadID(), material = cloth.def.defName,
+                    return new { success = true, pawn = subject.GetUniqueLoadID(), bench = bench?.GetUniqueLoadID(), cloth = cloth.GetUniqueLoadID(), material = cloth.def.defName,
                         worn = subject.apparel.WornApparel.Select(a => new { thingId = a.GetUniqueLoadID(), defName = a.def.defName, stuff = a.Stuff?.defName, hitPoints = a.HitPoints, maxHitPoints = a.MaxHitPoints }).ToList() };
                 }
                 if (mode == "production_research") {

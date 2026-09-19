@@ -44,13 +44,7 @@ namespace HomeBridge.BridgeTools {
    return row;
   }
   internal static Obs.RecipeState RecipeRow(Thing bench,RecipeDef recipe){var row=new Obs.RecipeState{Recipe=new Obs.DefinitionRef{DefName=recipe.defName},AvailableNow=recipe.AvailableNow,AvailableOnBench=recipe.AvailableOnNow(bench)};return row;}
-  internal static bool Valid(Operations.AddBill? command){
-   var s=command?.Settings;
-   if(command?.Bench==null||!command.Bench.HasEntityId||!ProtoBoundary.IsIdentifier(command.Bench.EntityId)||!command.Bench.HasExpectedSnapshotToken||!ProtoBoundary.IsIdentifier(command.Bench.ExpectedSnapshotToken)||!command.HasRecipeDef||!ProtoBoundary.IsIdentifier(command.RecipeDef)||s==null)return false;
-   var expected=new Operations.BillSettings{RepeatMode=s.RepeatMode,TargetCount=s.TargetCount,UnpauseThreshold=s.UnpauseThreshold,PauseWhenSatisfied=s.PauseWhenSatisfied,Suspended=false,IngredientSearchRadius=40,Store=new Operations.BillStore{Mode=Operations.StoreMode.DropOnFloor}};
-   if(command.RecipeDef=="ButcherCorpseFlesh")return s.Equals(new Operations.BillSettings{RepeatMode=Operations.RepeatMode.Forever,Suspended=false,IngredientSearchRadius=40,Store=new Operations.BillStore{Mode=Operations.StoreMode.DropOnFloor}});
-   return s.Equals(expected)&&s.RepeatMode==Operations.RepeatMode.Target&&s.HasTargetCount&&s.TargetCount>=1&&s.TargetCount<=10000&&s.HasUnpauseThreshold&&s.UnpauseThreshold==Math.Max(1,s.TargetCount/2)&&s.HasPauseWhenSatisfied&&s.PauseWhenSatisfied;
-  }
+  internal static bool Valid(Operations.AddBill? command)=>NativeProductionBillSettings.Valid(command);
   // The refusal names the condition that failed: the production ladder's
   // bill rung reads only this message back (#155 M4 run 9 stalled on the
   // one-line summary), and each check below is a different repair.
@@ -67,6 +61,11 @@ namespace HomeBridge.BridgeTools {
    recipe=DefDatabase<RecipeDef>.GetNamedSilentFail(command.RecipeDef);
    if(recipe==null||!Recipe(bench,recipe)){failure=Refuse("recipe "+command.RecipeDef+" is not available on the bench");return false;}
    if(command.RecipeDef!="ButcherCorpseFlesh"&&(recipe.WorkerCounter.GetType()!=typeof(RecipeWorkerCounter)||recipe.specialProducts!=null||recipe.products.Count!=1)){failure=Refuse("recipe "+command.RecipeDef+" is not ordinary single-product work");return false;}
+   var ingredientRecipe=recipe;
+   if(command.Settings.Ingredients!=null){
+    var definitions=command.Settings.Ingredients.Replace.Selectors.Select(s=>DefDatabase<ThingDef>.GetNamedSilentFail(s.ThingDef)).ToArray();
+    if(definitions.Any(d=>d==null||ingredientRecipe.fixedIngredientFilter!=null&&!ingredientRecipe.fixedIngredientFilter.Allows(d)||!ingredientRecipe.ingredients.Any(i=>i.filter.Allows(d)))||ingredientRecipe.ingredients.Any(i=>!definitions.Any(d=>i.filter.Allows(d)))){failure=Refuse("ingredient filter does not fund the recipe's ingredient slots");return false;}
+   }
    var target=bench;var wanted=recipe;var work=NativeBillsObservationTools.WorkType(bench.def,recipe);
    if(work==null){failure=Refuse("recipe "+command.RecipeDef+" has no work type on "+bench.def.defName);return false;}
    var colonists=ProtoBoundary.LoadedMap(context).mapPawns.FreeColonistsSpawned.Where(p=>!p.Dead&&!p.Downed&&!p.Drafted&&!p.InMentalState&&p.workSettings?.Initialized==true).ToList();
@@ -95,6 +94,10 @@ namespace HomeBridge.BridgeTools {
      var s=command.Settings;bill.repeatMode=s.RepeatMode==Operations.RepeatMode.Forever?BillRepeatModeDefOf.Forever:BillRepeatModeDefOf.TargetCount;
      if(s.RepeatMode==Operations.RepeatMode.Target){bill.targetCount=s.TargetCount;bill.unpauseWhenYouHave=s.UnpauseThreshold;bill.pauseWhenSatisfied=true;}
      bill.suspended=false;bill.ingredientSearchRadius=40;bill.SetStoreMode(BillStoreModeDefOf.DropOnFloor,null);
+     if(s.Ingredients!=null){
+      bill.ingredientFilter.SetDisallowAll();
+      foreach(var selector in s.Ingredients.Replace.Selectors)bill.ingredientFilter.SetAllow(DefDatabase<ThingDef>.GetNamed(selector.ThingDef),true);
+     }
      var record=new NativeProductionRecord(bench!,giver!,bill,command.Bench.ExpectedSnapshotToken);
      state.Bills.Add(pre.Attempt.Clone(),record);if(!NativeProductionTracking.Track(record))throw new InvalidOperationException("Production tracking unavailable");giver!.BillStack.AddBill(bill);record.Capture();
      evidence=new Receipts.EffectEvidence{Bill=record.Evidence(context)};

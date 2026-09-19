@@ -68,6 +68,13 @@ func (client *Client) ReadBillTarget(ctx context.Context, identity *c.Identity, 
 }
 func BillOperation(bill domain.ProductionBill) *op.Operation {
 	settings := &op.BillSettings{Suspended: proto.Bool(false), IngredientSearchRadius: proto.Float32(40), Store: &op.BillStore{Destination: &op.BillStore_Mode{Mode: op.StoreMode_STORE_MODE_DROP_ON_FLOOR}}}
+	if ingredients := bill.Ingredients(); len(ingredients) > 0 {
+		selectors := make([]*op.FilterSelector, 0, len(ingredients))
+		for _, name := range ingredients {
+			selectors = append(selectors, &op.FilterSelector{Definition: &op.FilterSelector_ThingDef{ThingDef: name}})
+		}
+		settings.Ingredients = &op.FilterPatch{Replace: &op.SelectorList{Selectors: selectors}}
+	}
 	if bill.Mode() == domain.ButcherForever {
 		settings.RepeatMode = op.RepeatMode_REPEAT_MODE_FOREVER.Enum()
 	} else {
@@ -79,7 +86,7 @@ func BillOperation(bill domain.ProductionBill) *op.Operation {
 	return &op.Operation{Command: &op.Operation_AddBill{AddBill: &op.AddBill{Bench: &op.EntityPrecondition{EntityId: proto.String(bill.Bench()), ExpectedSnapshotToken: proto.String(bill.BeforeToken())}, RecipeDef: proto.String(bill.Recipe()), Settings: settings}}}
 }
 func validBill(bill domain.ProductionBill) error {
-	_, err := domain.NewProductionBill(bill.Bench(), bill.Recipe(), bill.BeforeToken(), bill.Mode(), bill.Target())
+	_, err := domain.NewProductionBill(bill.Bench(), bill.Recipe(), bill.BeforeToken(), bill.Mode(), bill.Target(), bill.Ingredients()...)
 	return err
 }
 func (client *Client) PreviewBill(ctx context.Context, identity *c.Identity, target domain.ProductionBill) (*op.PreviewReply, Result, error) {

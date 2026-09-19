@@ -270,7 +270,7 @@ var plannerCatalog = []plannerEntry{
 	{name: "workshop", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.BuildingAction}, families: factsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Workshop != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
-			method, err := s.config.Workshop.step(ctx, epoch, arbiter)
+			method, err := s.config.Workshop.stepWorkshops(ctx, epoch, arbiter)
 			if err != nil {
 				return err
 			}

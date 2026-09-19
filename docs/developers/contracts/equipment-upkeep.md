@@ -6,7 +6,7 @@
 Emergencies suspend it. Hands issues its actions; neither the native read nor an
 adviser independently starts work. Missing observations remain unknown. The goal
 ranks for an optional development slot like any other priority-3 need (labor
-profile Tailoring, Smithing or Crafting) and its methods are admitted only while
+profile Construction, Tailoring, Smithing or Crafting) and its methods are admitted only while
 it holds one.
 
 ## Native observations and selection
@@ -43,13 +43,17 @@ tie breaking; it does not claim optimal combat damage across weapon definitions.
 ## Production and resource protection
 
 Available eligible replacements precede production. A missing replacement can
-select a discovered recipe on an existing workshop and add one `RepeatCount` bill.
+select a discovered recipe and maintain a one-item stock bill. When its workshop
+is missing, the shared workshop ladder stages the bench in a suitable room (or
+stages the room first) and raises research prerequisites under `EnsureResearch`.
 Existing active production is preserved. Ingredient alternatives use native costs
 and respect player reserves, stopped spending and shared plan commitments. The
 inspected stuff is a preference: a worn-out cloth shirt is replaced from cloth
 when cloth is funded and otherwise from any funded material the recipe accepts
 (leather from hunting is the usual interim before a cotton field). Native
-ingredient admission and consumption retain the existing production-policy
+bills replace their ingredient membership with the funded material set, retained
+through preview, admission, persistence and execution. Native ingredient
+admission and consumption retain the existing production-policy
 guards. Required work types feed the shared work-allocation method: while the
 goal is in deficit, every standing bench recipe that produces a reported
 replacement need contributes its work type to `EnsureWorkAssignments` before
@@ -71,7 +75,7 @@ it is known only when every colonist's worn apparel was observed and does not
 decide recovery, which follows the native deficit flags.
 Missing research, workshops, materials or suitable definitions remain explicit
 blockers. This goal does not invent a trade or override a player outfit to obtain
-an item. Workshop construction and economic decisions retain their own goals.
+an item. Bench staging uses the equipment goal through the shared workshop ladder.
 
 ## Dispatch, completion and interruption
 
@@ -113,7 +117,7 @@ not trigger unlimited replacement bills under the same loadout prerequisite.
 ## Acceptance
 
 `acceptance run production/apparel` (issue #233): a colonist in a tattered cloth
-shirt, a hand tailoring bench and only plain leather in stock; the service must
-raise the shirt bill from the leather and dress the colonist in the product. Fixture
+shirt, no tailoring bench and only plain leather for fabric; the service must
+build the bench, raise the shirt bill from the leather and dress the colonist in the product. Fixture
 checks, native scripted pawn outcomes and sustained seasonal campaigns are
 different evidence levels.

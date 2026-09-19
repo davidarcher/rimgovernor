@@ -3,16 +3,103 @@ package buildingruntime
 import (
 	"context"
 	"errors"
+	"reflect"
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	op "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	"google.golang.org/protobuf/proto"
 )
+
+type gearProductionNative struct {
+	*gearTestNative
+	previews []domain.ProductionBill
+	refuse   bool
+}
+
+func (n *gearProductionNative) ReadGearBenches(context.Context, *c.Identity) ([]bridge.GearBenchRead, bridge.Result, error) {
+	recipe := policy.GearRecipe{Definition: "Make_Apparel_BasicShirt", Products: []policy.Resource{"Apparel_BasicShirt"}, Available: domain.Known(true), AvailableOn: domain.Known(true), Ingredients: domain.Known([][]policy.Amount{{{Resource: "Cloth", Count: 40}, {Resource: "Leather_Plain", Count: 40}}}), RequiredWork: domain.Known([]policy.WorkRequirement{{Work: "Tailoring", Skill: "Crafting"}})}
+	return []bridge.GearBenchRead{{Token: "bench-cas", Bench: policy.GearBench{ID: "tailor", Bills: domain.Known([]policy.GearBill{}), Recipes: domain.Known([]policy.GearRecipe{recipe})}}}, bridge.Result{}, nil
+}
+func (n *gearProductionNative) ReadSupplyStock(context.Context, *c.Identity, []string) ([]policy.Stock, bridge.Result, error) {
+	return []policy.Stock{{Resource: "Cloth", Available: domain.Known(int64(100))}, {Resource: "Leather_Plain", Available: domain.Known(int64(100))}}, bridge.Result{}, nil
+}
+func (n *gearProductionNative) PreviewBill(_ context.Context, _ *c.Identity, bill domain.ProductionBill) (*op.PreviewReply, bridge.Result, error) {
+	n.previews = append(n.previews, bill)
+	return &op.PreviewReply{Outcome: &op.PreviewReply_Evaluated{Evaluated: &op.PreviewEvaluation{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Accepted: proto.Bool(!n.refuse)}}}, bridge.Result{}, nil
+}
+
+func setGearProductionNeed(v *o.ColonyFactsSnapshot) {
+	v.ColonistCount = proto.Uint32(2)
+	v.WorkerCount = proto.Uint32(2)
+	v.Issues = append(v.Issues, &o.ReadIssue{Field: proto.String("naming"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}})
+	complete := func(n uint64) *o.Completeness {
+		return &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(n), Returned: proto.Uint64(n), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}
+	}
+	gear := &o.GearSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Completeness: complete(2)}
+	for _, id := range []string{"a", "b"} {
+		pawn := &o.GearLoadout{Snapshot: &o.SnapshotRef{Context: proto.Clone(v.Context).(*c.ObservationContext), EntityId: proto.String(id), Token: proto.String("loadout-" + id)}, Pawn: &o.EntityRef{Id: proto.String(id), MapId: proto.Int32(v.Context.Identity.GetMapId())}, Equipment: &o.PawnEquipment{Armed: proto.Bool(true)}, Deficit: proto.Bool(id == "a"), Completeness: complete(0)}
+		gear.Pawns = append(gear.Pawns, pawn)
+	}
+	gear.Pawns[0].ReplacementNeeds = []*o.GearReplacementNeed{{DefName: proto.String("Apparel_BasicShirt"), Stuff: proto.String("Cloth"), Reason: proto.String("wear")}}
+	v.Planning.GetObserved().Gear = gear
+}
+
+func TestGearProductionPreviewsAndPersistsOnlyFundedMaterials(t *testing.T) {
+	t.Parallel()
+	for _, refuse := range []bool{false, true} {
+		reviewer, db, session, _, native := routineFixture(t)
+		setGearProductionNeed(native.reply.GetObserved())
+		n := &gearProductionNative{gearTestNative: &gearTestNative{equipTestNative: &equipTestNative{routineNative: native, ids: []string{"a", "b"}}}, refuse: refuse}
+		reviewer.native = n
+		reviewer.methods = domain.Known([]policy.GoalID{policy.MaintainEquipment})
+		reviewer.rules = []policy.ResourceRule{{Resource: "Cloth", Spending: policy.Stop}}
+		if _, err := reviewer.Step(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+		snapshot := session.State().Snapshot
+		ladder := store.ProductionLadderRecord{World: store.World{Colony: snapshot.Colony, Load: snapshot.Load, Map: snapshot.Map}, Resource: "Apparel_BasicShirt", Goal: policy.MaintainEquipment, Research: []string{"ComplexClothing"}}
+		if err := db.SaveProductionLadder(context.Background(), ladder); err != nil {
+			t.Fatal(err)
+		}
+		if needs, err := routineResearchNeeds(context.Background(), db, policy.RoutinePolicy{}, snapshot); err != nil || !reflect.DeepEqual(needs, ladder.Research) {
+			t.Fatal("equipment research lost without a resource target", needs, err)
+		}
+		planner, err := NewRoutineGearPlanner(reviewer, n)
+		if err != nil {
+			t.Fatal(err)
+		}
+		result, err := planner.Step(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(n.previews) != 1 || !reflect.DeepEqual(n.previews[0].Ingredients(), []string{"Leather_Plain"}) {
+			t.Fatal("protected cloth reached preview", n.previews)
+		}
+		if refuse {
+			if result.Reason != BuildingMethodRefused || result.Plan != "" {
+				t.Fatal(result)
+			}
+			continue
+		}
+		if result.Reason != BuildingMethodAdmitted {
+			t.Fatal(result)
+		}
+		plan, err := db.LoadPlan(context.Background(), result.Plan)
+		if err != nil {
+			t.Fatal(err)
+		}
+		bill, ok := plan.Spec.Actions()[0].ProductionBill()
+		if !ok || bill != n.previews[0] {
+			t.Fatal("persisted bill differs from preview", bill, n.previews)
+		}
+	}
+}
 
 // gearTestNative is the equip colony with a gear census attached: pawn a has
 // an unworn replacement candidate on the map, pawn b is fully equipped. The

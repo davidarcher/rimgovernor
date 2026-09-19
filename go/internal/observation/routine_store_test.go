@@ -3,6 +3,7 @@ package observation
 import (
 	"context"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -17,6 +18,28 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
+
+func TestRoutineBracketRecordsConcurrentServedSections(t *testing.T) {
+	t.Parallel()
+	bracket := &routineBracket{}
+	sections := []facts.Section{facts.Pawns, facts.Population, facts.Research, facts.Rooms}
+	var wave sync.WaitGroup
+	for _, section := range sections {
+		wave.Add(1)
+		go func() {
+			defer wave.Done()
+			for i := 0; i < 100; i++ {
+				bracket.serve(section)
+			}
+		}()
+	}
+	wave.Wait()
+	for _, section := range sections {
+		if !bracket.served[section] {
+			t.Fatal("lost held section", section)
+		}
+	}
+}
 
 // countingSource counts the research and population reads behind the
 // research fake, so a served section is one the source never saw.

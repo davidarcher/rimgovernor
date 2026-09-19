@@ -36,6 +36,7 @@
   <ItemGroup>
     <Compile Include="NativeContractProbes/Program.cs" />
     <Compile Include="NativeContractProbes/native-roof-support/Program.cs" />
+    <Compile Include="NativeContractProbes/native-production-bill-settings/Program.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/RoofSupportGeometry.cs" Link="Production/RoofSupportGeometry.cs" />
   </ItemGroup>
 
@@ -72,6 +73,7 @@
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeAttemptLedger.cs" Link="Production/NativeAttemptLedger.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeClockEventProjection.cs" Link="Production/NativeClockEventProjection.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeClockRuntime.cs" Link="Production/NativeClockRuntime.cs" />
+    <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeProductionBillSettings.cs" Link="Production/NativeProductionBillSettings.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeClockTools.cs" Link="Production/NativeClockTools.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeClockWaiters.cs" Link="Production/NativeClockWaiters.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeClockWatch.cs" Link="Production/NativeClockWatch.cs" />

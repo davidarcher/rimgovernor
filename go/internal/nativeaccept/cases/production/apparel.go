@@ -17,9 +17,10 @@ import (
 )
 
 // The apparel case (issue #233): one colonist wears a cloth shirt at 30%
-// condition, no loose apparel exists, a hand tailoring bench stands with
-// ComplexClothing finished, and the only fabric in stock is plain leather.
-// MaintainEquipment must raise a shirt bill on that bench from the leather
+// condition, no loose apparel or tailoring bench exists, ComplexClothing
+// is finished, and the only fabric in stock is plain leather. A furnished
+// shelter and construction materials let the workshop ladder build the bench.
+// MaintainEquipment must build a bench and raise a shirt bill from the leather
 // (the inspected cloth is a preference, not a requirement) and, once the
 // shirt lands, dress the colonist in it through the gear-replace admission.
 // The watch ends when the wear order completes; the audit needs live
@@ -32,13 +33,13 @@ const (
 )
 
 // apparelFamilies: gear plans the bill and the wear order; work covers the
-// bench's Tailoring work type.
-const apparelFamilies = "work,gear"
+// bench's Tailoring work type; workshop stages the missing bench.
+const apparelFamilies = "work,workshop,gear"
 
 func init() {
 	cases.Register(cases.Case{
 		Name:   "production/apparel",
-		Scope:  fmt.Sprintf("MaintainEquipment replaces a tattered cloth %s from %s in stock: a bill on a %s produces it and the colonist is dressed in it (issue #233).", apparelDefinition, apparelMaterial, apparelBench),
+		Scope:  fmt.Sprintf("MaintainEquipment replaces a tattered cloth %s from %s in stock: builds a missing %s, produces the shirt and dresses the colonist in it (#262, #264).", apparelDefinition, apparelMaterial, apparelBench),
 		Start:  cases.Save{Name: sustained.BaselineSave},
 		Keep:   []string{string(na.NeedFood)},
 		Serve:  &cases.ServeSpec{Families: []string{apparelFamilies}, NativeTimeout: 15 * time.Second, Prefix: "apparel"},
@@ -52,7 +53,7 @@ func init() {
 					if err != nil {
 						return err
 					}
-					production, err := h.Call(ctx, "gear-production-setup", "test/gear_fixture", map[string]any{"mode": "production_setup", "material": apparelMaterial})
+					production, err := h.Call(ctx, "gear-production-setup", "test/gear_fixture", map[string]any{"mode": "production_unstaged", "material": apparelMaterial})
 					if err != nil {
 						return err
 					}
@@ -68,6 +69,9 @@ func init() {
 					}
 					if na.AsString(production["material"]) != apparelMaterial {
 						return fmt.Errorf("fixture placed %v, not %s", production["material"], apparelMaterial)
+					}
+					if na.AsString(production["bench"]) != "" {
+						return fmt.Errorf("fixture unexpectedly supplied a tailoring bench")
 					}
 					subject = na.AsString(setup["pawn"])
 					worn, row, err := wornShirt(ctx, h, "baseline-gear", subject)
@@ -192,6 +196,9 @@ func auditApparel(ctx context.Context, h *na.Harness, journal *store.Store, repo
 	worn, row, wornErr := wornShirt(ctx, h, "final-gear", subject)
 	report["final_gear"] = row
 	report["final_worn"] = worn
+	if kinds[domain.BuildingAction] == 0 {
+		return fmt.Errorf("no completed workshop construction under MaintainEquipment: %v", kinds)
+	}
 	if kinds[domain.ProductionBillAction] == 0 {
 		return fmt.Errorf("no completed %s under MaintainEquipment: %v", domain.ProductionBillAction, kinds)
 	}

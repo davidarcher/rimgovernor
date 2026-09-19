@@ -349,7 +349,7 @@ func (r *RoutineBuildingPlanner) adoptShell(ctx context.Context, snapshot domain
 // whose shell is the deficit itself.
 func (r *RoutineBuildingPlanner) facilityLadder() bool {
 	switch r.goal {
-	case policy.EnsureComfort, policy.MaintainResource, policy.MaintainMedicalCare, policy.MaintainSleeping, policy.EnsureResearch:
+	case policy.EnsureComfort, policy.MaintainResource, policy.MaintainEquipment, policy.MaintainMedicalCare, policy.MaintainSleeping, policy.EnsureResearch:
 		return true
 	}
 	return false

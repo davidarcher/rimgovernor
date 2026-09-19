@@ -88,3 +88,10 @@ func TestDevelopmentLaborBottleneck(t *testing.T) {
 		t.Fatal("invalid labor census accepted")
 	}
 }
+
+func TestEquipmentDevelopmentCanUseBuilderBeforeTailoringExists(t *testing.T) {
+	r := developmentFixture()
+	r.Labor = domain.Known(map[WorkType]int{WorkConstruction: 1})
+	r.Goals = []DevelopmentGoal{{ID: MaintainEquipment, Source: AutopilotGoal, Priority: 3, Deficit: domain.Known(1.0), Labor: GoalLabor(MaintainEquipment)}}
+	requireSelected(t, rank(t, r), MaintainEquipment)
+}

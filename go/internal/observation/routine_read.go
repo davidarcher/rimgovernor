@@ -3,6 +3,7 @@ package observation
 import (
 	"context"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -92,13 +93,17 @@ type routineBracket struct {
 	// store is the reading's section refresher (RoutineStoreFrom) and
 	// served the sections it served from the store instead of reading,
 	// with the held value the section keeps.
-	store  RoutineStore
-	served map[facts.Section]bool
+	store    RoutineStore
+	served   map[facts.Section]bool
+	servedMu sync.Mutex
 }
 
 // serve records that section was served from the store as held: its
-// value stands for this reading and its provenance is kept.
+// value stands for this reading and its provenance is kept. Wave lanes write
+// concurrently; section assembly reads only after wave.Wait has joined them.
 func (s *routineBracket) serve(section facts.Section) {
+	s.servedMu.Lock()
+	defer s.servedMu.Unlock()
 	if s.served == nil {
 		s.served = map[facts.Section]bool{}
 	}

@@ -44,8 +44,9 @@ func GoalLabor(id GoalID) LaborProfile {
 		return LaborProfile{WorkMining, WorkPlantCutting, WorkCrafting}
 	case MaintainEquipment:
 		// A wear order is a forced job any pawn carries; the replacement
-		// bill needs the bench's work type (tailoring, smithing or crafting).
-		return LaborProfile{WorkTailoring, WorkSmithing, WorkCrafting}
+		// bill needs the bench's work type. Construction keeps the workshop
+		// rung available before a bench exists to request its crafting work.
+		return LaborProfile{WorkConstruction, WorkTailoring, WorkSmithing, WorkCrafting}
 	case SecureSupplies, MaintainStorage, MaintainWaste:
 		return LaborProfile{WorkHauling}
 	case MaintainCleanFacilities:

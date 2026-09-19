@@ -44,6 +44,62 @@ func (n *workshopNative) ReadRecipeCatalog(_ context.Context, _ *c.Identity, pro
 
 var clubRecipe = policy.RecipeHost{Definition: "Make_MeleeWeapon_Club", Products: []policy.Resource{"MeleeWeapon_Club"}, Available: true, Benches: []string{"CraftingSpot"}}
 
+func TestEquipmentWorkshopDiscoversReplacementBenchWithoutResourceTargets(t *testing.T) {
+	t.Parallel()
+	planner, session, native := workshopFixture(t)
+	planner.goal = policy.MaintainEquipment
+	planner.reviewer.policy.ResourceTargets = nil
+	setGearProductionNeed(native.reply.GetObserved())
+	native.hosts = []policy.RecipeHost{{Definition: "Make_Apparel_BasicShirt", Products: []policy.Resource{"Apparel_BasicShirt"}, Available: true, Benches: []string{"HandTailoringBench"}}}
+	ctx := context.Background()
+	selection, reason, err := planner.prepareWorkshop(ctx, session.State(), store.RoutineReview{})
+	if err != nil || reason != "" || selection == nil || selection.resource != "Apparel_BasicShirt" || selection.candidates[0] != "HandTailoringBench" {
+		t.Fatal(selection, reason, err)
+	}
+	planner.workshop = selection
+	facts := observation.ColonyProjection{Definitions: []observation.PlanningDefinition{{Name: "HandTailoringBench", Available: domain.Known(true), NeedsPower: domain.Known(false), ConstructionSkill: domain.Known(int32(0)), Stuff: domain.Known("WoodLog")}}}
+	bench, reason, err := planner.selectWorkshop(ctx, session.State(), store.RoutineReview{}, facts)
+	if err != nil || reason != "" || bench == nil || bench.goal != policy.MaintainEquipment || bench.definition != "HandTailoringBench" || !bench.facilityLadder() {
+		t.Fatal(bench, reason, err)
+	}
+	bench.shelter = false
+	facts.Facts.Colonists = domain.Known(int64(2))
+	if count, _, reason := bench.selection(facts); count != 1 || reason != "" {
+		t.Fatal(count, reason)
+	}
+	facts.Definitions[0].Available = domain.Known(false)
+	facts.Definitions[0].Research = []string{"ComplexClothing"}
+	if _, reason, err := planner.selectWorkshop(ctx, session.State(), store.RoutineReview{}, facts); err != nil || reason != BuildingWorkshopResearch {
+		t.Fatal(reason, err)
+	}
+	w := session.State().Snapshot
+	ladder, ok, err := planner.reviewer.player.journal.LoadProductionLadder(ctx, store.World{Colony: w.Colony, Load: w.Load, Map: w.Map})
+	if err != nil || !ok || ladder.Goal != policy.MaintainEquipment || len(ladder.Research) != 1 || ladder.Research[0] != "ComplexClothing" {
+		t.Fatal(ladder, ok, err)
+	}
+	native.benches = []bridge.GearBenchRead{{Token: "bench", Bench: policy.GearBench{ID: "tailor", Bills: domain.Known([]policy.GearBill{}), Recipes: domain.Known([]policy.GearRecipe{{Definition: "Make_Apparel_BasicShirt", Products: []policy.Resource{"Apparel_BasicShirt"}, Available: domain.Known(true), AvailableOn: domain.Known(true)}})}}}
+	if _, reason, err := planner.prepareWorkshop(ctx, session.State(), store.RoutineReview{}); err != nil || reason != BuildingExistingFacility {
+		t.Fatal(reason, err)
+	}
+	// A missing layer may suggest advanced armor before the worn shirt in
+	// lexical order; it must not prevent staging the available tailoring bench.
+	native.benches = nil
+	native.reply.GetObserved().Planning.GetObserved().Gear.Pawns[0].ReplacementNeeds = append(native.reply.GetObserved().Planning.GetObserved().Gear.Pawns[0].ReplacementNeeds, &o.GearReplacementNeed{DefName: proto.String("Apparel_ArmorRecon"), Reason: proto.String("missing")})
+	native.hosts = append(native.hosts, policy.RecipeHost{Definition: "Make_Armor", Products: []policy.Resource{"Apparel_ArmorRecon"}, Available: false, Research: []string{"ReconArmor"}, Benches: []string{"FabricationBench"}})
+	selection, reason, err = planner.prepareWorkshop(ctx, session.State(), store.RoutineReview{})
+	if err != nil || reason != "" || selection == nil || len(selection.alternatives) != 1 {
+		t.Fatal(selection, reason, err)
+	}
+	planner.workshop = selection
+	facts.Definitions[0].Available = domain.Known(true)
+	facts.Definitions[0].Research = nil
+	facts.Definitions = append(facts.Definitions, observation.PlanningDefinition{Name: "FabricationBench", Available: domain.Known(false), NeedsPower: domain.Known(true), ConstructionSkill: domain.Known(int32(6)), Research: []string{"Fabrication"}})
+	bench, reason, err = planner.selectWorkshop(ctx, session.State(), store.RoutineReview{}, facts)
+	if err != nil || reason != "" || bench == nil || bench.definition != "HandTailoringBench" || bench.workshop.resource != "Apparel_BasicShirt" {
+		t.Fatal(bench, reason, err)
+	}
+}
+
 func workshopFixture(t *testing.T) (*RoutineBuildingPlanner, *playerFakeSession, *workshopNative) {
 	t.Helper()
 	base, _, session, _, native := sleepingFixture(t)

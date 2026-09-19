@@ -217,7 +217,7 @@ func (r *RoutineGearPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		}
 		benchesFact = domain.Known(benches)
 	}
-	choice, err := policy.SelectGearMethod(policy.GearPlanningRequest{Observation: domain.Known(observation), Seen: seen, Benches: benchesFact, Stock: stock})
+	choice, err := policy.SelectGearMethod(policy.GearPlanningRequest{Observation: domain.Known(observation), Seen: seen, Benches: benchesFact, Stock: stock, Rules: r.reviewer.rules})
 	if err != nil {
 		return RoutineGearResult{}, err
 	}
@@ -246,11 +246,13 @@ func (r *RoutineGearPlanner) step(call, epoch context.Context, arbiter *stepArbi
 			return RoutineGearResult{}, ErrControl
 		}
 		// Target 1: pause-when-satisfied maintains a standing buffer of the
-		// needed replacement rather than crafting a single unit once. Native
-		// ingredient-filter/material-preference selection is left at its
-		// default (no FilterPatch override) — SelectGearMethod's Filter
-		// output goes unused here, an open, disclosed narrowing.
-		bill, err := domain.NewProductionBill(choice.Bench, choice.Recipe, token, domain.StockTarget, 1)
+		// needed replacement rather than crafting a single unit once. Restrict
+		// native consumption to the material set funded by the selector.
+		ingredients := make([]string, len(choice.Filter))
+		for i, resource := range choice.Filter {
+			ingredients[i] = string(resource)
+		}
+		bill, err := domain.NewProductionBill(choice.Bench, choice.Recipe, token, domain.StockTarget, 1, ingredients...)
 		if err != nil {
 			return RoutineGearResult{}, err
 		}

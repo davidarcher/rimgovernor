@@ -23,7 +23,7 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 	}
 	var err error
 	if b, ok := a.ProductionBill(); ok {
-		data, err := json.Marshal(billPayload{b.Bench(), b.Recipe(), b.BeforeToken(), b.Mode(), b.Target()})
+		data, err := json.Marshal(billPayload{b.Bench(), b.Recipe(), b.BeforeToken(), b.Mode(), b.Target(), b.Ingredients()})
 		if err != nil {
 			return err
 		}
@@ -179,7 +179,7 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		if !bytes.Equal(canonical, bill) {
 			return domain.Action{}, 0, errors.New("noncanonical bill payload")
 		}
-		value, err := domain.NewProductionBill(payload.Bench, payload.Recipe, payload.Token, payload.Mode, payload.Target)
+		value, err := domain.NewProductionBill(payload.Bench, payload.Recipe, payload.Token, payload.Mode, payload.Target, payload.Ingredients...)
 		if err != nil {
 			return domain.Action{}, 0, err
 		}
@@ -655,6 +655,7 @@ type billPayload struct {
 	Bench, Recipe, Token string
 	Mode                 domain.BillMode
 	Target               int32
+	Ingredients          []string `json:",omitempty"`
 }
 
 type wallRemovalPayload struct {

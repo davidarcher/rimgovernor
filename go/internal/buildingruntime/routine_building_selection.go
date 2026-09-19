@@ -106,7 +106,7 @@ func (r *RoutineBuildingPlanner) selection(facts observation.ColonyProjection) (
 		return 1, domain.MethodID("comfort-" + r.definition), ""
 	case policy.EnsureBasicComfort:
 		return 1, domain.MethodID("basic-comfort-" + r.definition), ""
-	case policy.MaintainResource:
+	case policy.MaintainResource, policy.MaintainEquipment:
 		if r.shelter {
 			return 32, "workshop-shell", ""
 		}

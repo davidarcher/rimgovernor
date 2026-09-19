@@ -91,6 +91,20 @@ func TestBillOperationSettingsByMode(t *testing.T) {
 	}
 }
 
+func TestBillOperationReplacesIngredientMembership(t *testing.T) {
+	bill, err := domain.NewProductionBill("tailor", "MakeParka", "token", domain.StockTarget, 1, "Leather_Plain")
+	if err != nil {
+		t.Fatal(err)
+	}
+	filter := BillOperation(bill).GetAddBill().GetSettings().GetIngredients()
+	if filter.GetReplace() == nil || len(filter.GetReplace().GetSelectors()) != 1 || filter.GetReplace().GetSelectors()[0].GetThingDef() != "Leather_Plain" || len(filter.GetAllow()) != 0 {
+		t.Fatal("filter must replace the recipe defaults", filter)
+	}
+	if BillOperation(billFoodTarget(t)).GetAddBill().GetSettings().Ingredients != nil {
+		t.Fatal("unfiltered bills must preserve recipe defaults")
+	}
+}
+
 func TestPreviewBillAcceptedAndRejections(t *testing.T) {
 	target := billFoodTarget(t)
 	valid := &op.PreviewReply{Outcome: &op.PreviewReply_Evaluated{Evaluated: &op.PreviewEvaluation{Context: pbContext(), Accepted: proto.Bool(true)}}}

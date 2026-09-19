@@ -13,7 +13,7 @@ import (
 )
 
 // ProductionLadderRecord is the workshop planner's last observed rung for a
-// MaintainResource deficit: which bench and recipe it settled on and the
+// resource or equipment deficit: which bench and recipe it settled on and the
 // research projects still gating them. The routine review reads it back as
 // the derived EnsureResearch target, so a research-gated bench raises its
 // own deficit without a native read per review. Research empty means the
@@ -25,6 +25,7 @@ type ProductionLadderRecord struct {
 	Bench    string
 	Recipe   string
 	Research []string
+	Goal     policy.GoalID `json:",omitempty"`
 }
 
 const maxProductionLadderBytes = 64 * 1024
@@ -32,6 +33,9 @@ const maxProductionLadderBytes = 64 * 1024
 func (r ProductionLadderRecord) Validate() error {
 	if err := r.World.Validate(); err != nil {
 		return err
+	}
+	if r.Goal != "" && r.Goal != policy.MaintainEquipment && r.Goal != policy.MaintainResource {
+		return errors.New("invalid production ladder goal")
 	}
 	if r.Tick < 0 || !validIdentity(string(r.Resource)) || r.Bench != "" && !validIdentity(r.Bench) || r.Recipe != "" && !validIdentity(r.Recipe) || len(r.Research) > 256 {
 		return errors.New("invalid production ladder record")

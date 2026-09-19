@@ -188,7 +188,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 			return RoutineBuildingResult{Reason: BuildingShelterPending}, nil
 		}
 	}
-	if r.goal == policy.EnsureComfort || r.goal == policy.EnsureExpansion || r.goal == policy.MaintainLighting || r.goal == policy.MaintainFlooring || r.goal == policy.MaintainRoutes || r.goal == policy.MaintainResource || r.goal == policy.MaintainSleeping {
+	if r.goal == policy.EnsureComfort || r.goal == policy.EnsureExpansion || r.goal == policy.MaintainLighting || r.goal == policy.MaintainFlooring || r.goal == policy.MaintainRoutes || (r.goal == policy.MaintainResource || r.goal == policy.MaintainEquipment) || r.goal == policy.MaintainSleeping {
 		selected := false
 		for _, row := range review.Development.Rows {
 			selected = selected || row.Goal == r.goal && row.Selected
@@ -224,7 +224,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
 		return RoutineBuildingResult{}, ErrControl
 	}
-	if r.goal == policy.MaintainResource {
+	if r.goal == policy.MaintainResource || r.goal == policy.MaintainEquipment {
 		selection, reason, err := r.prepareWorkshop(call, state, review)
 		if err != nil || reason != "" {
 			return RoutineBuildingResult{Reason: reason}, err
@@ -237,7 +237,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	if r.goal == policy.EnsureComfort && !r.shelter || r.goal == policy.EnsureBasicComfort {
 		definitions = []string{"Table1x2c", "DiningChair", "HorseshoesPin"}
 	}
-	if r.goal == policy.MaintainResource && !r.shelter {
+	if (r.goal == policy.MaintainResource || r.goal == policy.MaintainEquipment) && !r.shelter {
 		definitions = r.workshop.candidates
 	}
 	if r.goal == policy.MaintainMedicalCare && !r.shelter {
@@ -312,7 +312,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 			resolved, reason, err = r.selectFlooring(facts, review.Latches)
 		} else if r.goal == policy.MaintainRoutes {
 			resolved, reason, err = r.selectRoutes(facts, review.Latches)
-		} else if r.goal == policy.MaintainResource {
+		} else if r.goal == policy.MaintainResource || r.goal == policy.MaintainEquipment {
 			resolved, reason, err = r.selectWorkshop(call, state, review, facts)
 		} else if r.goal == policy.MaintainMedicalCare {
 			resolved, reason, err = r.selectHospital(facts)
@@ -506,7 +506,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	if r.goal == policy.MaintainRoutes {
 		prefix = "routine-routes"
 	}
-	if r.goal == policy.MaintainResource {
+	if r.goal == policy.MaintainResource || r.goal == policy.MaintainEquipment {
 		prefix = "routine-workshop"
 	}
 	if r.goal == policy.MaintainMedicalCare {
