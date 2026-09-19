@@ -13,8 +13,10 @@ The controller counts living free player colonists as admitted population. Guest
 prisoners and accepted candidates consume reserved capacity but remain distinct from
 admitted colonists. Shared food and shelter methods can provision future capacity.
 Custody orders require the policy food reserve, spare colonist beds and available
-assigned doctors and wardens. Native capture/rescue previews separately require an
-eligible worker, reachable target and suitable available custody bed.
+assigned doctors and wardens. A capture goes to the roster's
+[warden](work-assignment.md#situational-roles) while it is available, otherwise
+the first available colonist by ID. Native capture/rescue previews separately
+require an eligible worker, reachable target and suitable available custody bed.
 
 `rimgovernor/observations_read_population` reads human pawn custody, recruitment
 eligibility, current exclusive interaction, resistance, time held as a prisoner

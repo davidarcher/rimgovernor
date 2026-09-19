@@ -102,7 +102,8 @@ is unknown or nobody qualifies). The defense review splits its defenders with
 `FrontLine` from the combat read's biography: line holders take a melee
 opponent first, shooters a ranged opponent and the layout's firing cells
 first, as a preference over the ID order that stands when the profile is
-unknown. The custody, husbandry and hunting reviews adopt theirs as each
+unknown. The custody review sends `WardenFor` to capture a downed hostile while
+that pawn is available. The husbandry and hunting reviews adopt theirs as each
 migrates (#447).
 
 ## Schedules

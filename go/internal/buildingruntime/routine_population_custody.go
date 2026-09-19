@@ -147,6 +147,7 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 		return RoutinePopulationCustodyResult{}, ErrControl
 	}
 	var performers []policy.RescuerFacts
+	var profiles []policy.PawnProfile
 	var patient *n.PawnState
 	seen := map[string]bool{}
 	for _, row := range observed.Pawns {
@@ -160,6 +161,7 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 			continue
 		}
 		performers = append(performers, rescue.NewRescuerFacts(pawn, row, ""))
+		profiles = append(profiles, policy.BuildProfile(observation.WorkPawnRow(row)))
 	}
 	if patient == nil {
 		return RoutinePopulationCustodyResult{}, ErrControl
@@ -195,7 +197,10 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 		return r.commit(call, epoch, p, state, started, goal, method, id, action)
 	case policy.CustodyCapture:
 		patients := []policy.CapturePatientFacts{capture.NewCapturePatientFacts(choice.Pawn, patient, "")}
-		performer, target, ok := policy.SelectCapture(performers, patients)
+		// The warden carries the prisoner in: the combat read's biography
+		// answers WardenFor, and an unavailable warden yields the ID order.
+		warden, _ := policy.WardenFor(profiles, false)
+		performer, target, ok := policy.SelectCapture(performers, patients, domain.PawnID(warden))
 		if ok && !arbiter.tryClaim([]domain.PawnID{performer, target}) {
 			ok = false
 		}

@@ -120,15 +120,22 @@ func TestSelectCaptureExcludesIneligibleCandidates(t *testing.T) {
 	alreadyPrisoner := capturePatientCandidate("prisoner", true, true)
 	downed := capturePatientCandidate("downed", true, false)
 
-	capturer, patient, ok := SelectCapture([]RescuerFacts{busy, drafted, fine}, []CapturePatientFacts{standing, alreadyPrisoner, downed})
+	capturer, patient, ok := SelectCapture([]RescuerFacts{busy, drafted, fine}, []CapturePatientFacts{standing, alreadyPrisoner, downed}, "")
 	if !ok || capturer != "fine" || patient != "downed" {
 		t.Fatal(capturer, patient, ok)
 	}
-	if _, _, ok := SelectCapture([]RescuerFacts{busy, drafted}, []CapturePatientFacts{downed}); ok {
+	if _, _, ok := SelectCapture([]RescuerFacts{busy, drafted}, []CapturePatientFacts{downed}, "drafted"); ok {
 		t.Fatal("selected an ineligible capturer")
 	}
-	if _, _, ok := SelectCapture([]RescuerFacts{fine}, []CapturePatientFacts{standing, alreadyPrisoner}); ok {
+	if _, _, ok := SelectCapture([]RescuerFacts{fine}, []CapturePatientFacts{standing, alreadyPrisoner}, ""); ok {
 		t.Fatal("selected an ineligible patient")
+	}
+	// The warden goes first while eligible; a drafted warden yields the ID order.
+	if capturer, _, ok := SelectCapture([]RescuerFacts{capturerCandidate("a"), fine}, []CapturePatientFacts{downed}, "fine"); !ok || capturer != "fine" {
+		t.Fatal(capturer, ok)
+	}
+	if capturer, _, ok := SelectCapture([]RescuerFacts{drafted, fine, capturerCandidate("a")}, []CapturePatientFacts{downed}, "drafted"); !ok || capturer != "a" {
+		t.Fatal(capturer, ok)
 	}
 }
 

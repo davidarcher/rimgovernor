@@ -8,11 +8,13 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 )
 
-// SelectCapture pairs the first available undrafted capturer with the first
-// downed, not-yet-captured patient (by ID for a stable, deterministic
-// choice), mirroring SelectRescue exactly. This is a proposal only;
-// EvaluateCapture re-validates the chosen pair.
-func SelectCapture(capturers []RescuerFacts, patients []CapturePatientFacts) (domain.PawnID, domain.PawnID, bool) {
+// SelectCapture pairs the warden (WardenFor over the roster, "" when none
+// qualifies) when it is an available undrafted capturer, otherwise the
+// first such capturer by ID, with the first downed, not-yet-captured
+// patient (by ID for a stable, deterministic choice), mirroring
+// SelectRescue. This is a proposal only; EvaluateCapture re-validates the
+// chosen pair.
+func SelectCapture(capturers []RescuerFacts, patients []CapturePatientFacts, warden domain.PawnID) (domain.PawnID, domain.PawnID, bool) {
 	eligibleCapturer := func(r RescuerFacts) bool {
 		dead, dk := r.Dead.Value()
 		downed, wk := r.Downed.Value()
@@ -51,7 +53,12 @@ func SelectCapture(capturers []RescuerFacts, patients []CapturePatientFacts) (do
 	if len(capturerPool) == 0 || len(patientPool) == 0 {
 		return "", "", false
 	}
-	sort.Slice(capturerPool, func(i, j int) bool { return capturerPool[i].Pawn < capturerPool[j].Pawn })
+	sort.Slice(capturerPool, func(i, j int) bool {
+		if a, b := capturerPool[i].Pawn == warden, capturerPool[j].Pawn == warden; a != b {
+			return a
+		}
+		return capturerPool[i].Pawn < capturerPool[j].Pawn
+	})
 	sort.Slice(patientPool, func(i, j int) bool { return patientPool[i].Pawn < patientPool[j].Pawn })
 	return capturerPool[0].Pawn, patientPool[0].Pawn, true
 }
