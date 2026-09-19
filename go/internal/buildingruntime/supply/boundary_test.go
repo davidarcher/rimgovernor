@@ -115,7 +115,7 @@ func TestSupplyBoundaryAcceptsAdvancingTicksAcrossItsReads(t *testing.T) {
 	f.Emergency.Context.Tick = proto.Int64(previewTick + 999)
 	f.Receipt.AdmittedContext.Tick = proto.Int64(previewTick + 1000)
 	f.read.Context.Tick = proto.Int64(previewTick + 1000)
-	if inspection, err := b.InspectSupply(context.Background(), target); err != nil || !inspection.Accepted || inspection.Tick != domain.Tick(previewTick + 1000) {
+	if inspection, err := b.InspectSupply(context.Background(), target); err != nil || !inspection.Accepted || inspection.Tick != domain.Tick(previewTick+1000) {
 		t.Fatal(inspection, err)
 	}
 	f.Emergency.Context.Tick = proto.Int64(previewTick + 1000 - int64(domain.PlanningTickTolerance) - 1)

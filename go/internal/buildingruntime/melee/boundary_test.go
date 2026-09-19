@@ -31,6 +31,7 @@ func TestMeleeBoundaryInspectAndExactDispatch(t *testing.T) {
 		t.Fatal(receipt, err, f.Command)
 	}
 }
+
 // A hostile building target (#246): the pawn read returns the attacker
 // alone, the target's token and standing come from the census row, the
 // preview and dispatch carry that token, and a building the census no

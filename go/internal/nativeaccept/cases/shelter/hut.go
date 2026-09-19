@@ -128,7 +128,9 @@ func init() {
 		// budget reads as no progress (run141e, tick 48k).
 		Serve:  spec("hut"),
 		Budget: 15 * time.Minute,
-		Run:    func(ctx context.Context, s cases.Session) error { return hut(ctx, s, variant{terrain: "open", edit: "cancel"}) },
+		Run: func(ctx context.Context, s cases.Session) error {
+			return hut(ctx, s, variant{terrain: "open", edit: "cancel"})
+		},
 	})
 	cases.Register(cases.Case{
 		Name: "shelter/hut-corridor",
@@ -149,7 +151,9 @@ func init() {
 		Start:  cases.Save{Name: sustained.BaselineSave},
 		Serve:  spec("hut-shortage"),
 		Budget: 15 * time.Minute,
-		Run:    func(ctx context.Context, s cases.Session) error { return hut(ctx, s, variant{terrain: "open", edit: "shortage"}) },
+		Run: func(ctx context.Context, s cases.Session) error {
+			return hut(ctx, s, variant{terrain: "open", edit: "shortage"})
+		},
 	})
 	cases.Register(cases.Case{
 		Name: "shelter/hut-oval",

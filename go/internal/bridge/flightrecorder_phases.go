@@ -127,13 +127,13 @@ type StopSample struct {
 // (PausedSecs / SampledSecs) is the share of the sampled wall time the
 // clock was paused. Wall TPS includes paused time by construction.
 type ClockSample struct {
-	TickSamples   uint64  `json:"tick_samples"`
-	TicksAdvanced int64   `json:"ticks_advanced"`
+	TickSamples   uint64 `json:"tick_samples"`
+	TicksAdvanced int64  `json:"ticks_advanced"`
 	// LastTick is the tick of the newest sample, the game time the service
 	// last observed; a harness waiting out a game-time budget under a
 	// running window reads it, since the routine review's tick only moves
 	// once per full step (#244).
-	LastTick int64 `json:"last_tick"`
+	LastTick      int64   `json:"last_tick"`
 	WallSecs      float64 `json:"wall_seconds"`
 	WallTPS       float64 `json:"wall_tps"`
 	Resets        uint64  `json:"resets"`

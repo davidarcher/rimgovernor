@@ -15,12 +15,14 @@ The interface polls compact state while preserving the last good data. A slow
 or failed refresh should not replace a useful view with an empty one — errors
 are shown alongside the last successful reading, not in place of it.
 
-The main navigation is Watch, Work, Colony and Help. Watch combines the live
-game view with the explicit player-control panel (session token, building and
-temporary-draft submission, control acquire/manual, clock review). Work is a
-read-only feed of the active plan's actions and their progress; there is no
-control here to cancel a step in place. Colony shows the current-map colonist
-roster and portraits. These are different views of the same controller state.
+The main navigation is Watch, Work, Colony, Governor and Help. Watch combines
+the live game view with the explicit player-control panel (session token,
+building and temporary-draft submission, control acquire/manual, clock
+review). Work is a read-only feed of the active plan's actions and their
+progress; there is no control here to cancel a step in place. Colony shows
+the current-map colonist roster and portraits. Governor is the developer's
+view of what the controller is doing and whether it is healthy (below).
+These are different views of the same controller state.
 
 Help renders the [player Markdown files](../../players/README.md) bundled at
 build time. Update those files to change both repository and in-app guidance.
@@ -97,6 +99,30 @@ Both are read-only and unauthenticated like `/api/state`, and answer 404
 without a recorder. Neither follows the tail: every read parses the ring
 afresh (`go/internal/httpapi/telemetry.go`). See [measure
 throughput](../testing/measure-throughput.md) for what the rows carry.
+
+The Governor view (`dashboard/src/features/governor`, #300) is the
+read-only panel over both routes:
+
+- a health strip from `/api/telemetry/metrics` polled every 2 s — tick and
+  TPS, last step latency, native errors over calls, reads per step and the
+  authority generation, each with a sparkline over the session's samples;
+- an event feed from `/api/telemetry/events`, newest first: the first read
+  probes the ring's newest sequence and pages from a bounded backfill
+  behind it, then follows by `since`; rows are filtered by kind (decode
+  rows hidden by default) and by a substring over the row's context and
+  payload (a goal, plan, action or trace id);
+- a trace view: picking any row's trace renders the rows sharing its
+  `trace_id` (#298) as a waterfall, the browser twin of `rimgovernor
+  trace` — each native call one line with its gate wait, the companion's
+  queue/execute split and decoding, worker dispatches nested under the
+  step by `parent_id`; the pick is named in the hash
+  (`#governor/<trace_id>`) so a link reloads or shares it.
+
+A serve without a recorder (404) shows why instead of the panel. The
+offline [case timeline](../testing/measure-throughput.md#case-timeline) reads the same
+row kinds from a case output directory; the Governor view reads a live
+serve. `RIMGOVERNOR_API` points the Vite dev proxy at another serve, such
+as an acceptance run's `--listen 127.0.0.1:0` port.
 
 ## Chat
 

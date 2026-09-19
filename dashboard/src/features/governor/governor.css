@@ -1,0 +1,53 @@
+.governor-health-heading {display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.governor-stale {color:#ddb975;margin:0 0 12px}
+.governor-readings {display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px}
+.governor-reading {border:1px solid #3c3d34;border-radius:4px;background:#161915;padding:12px 14px;min-width:0}
+.governor-reading h3 {margin:0;font-size:12px;font-weight:400;text-transform:uppercase;letter-spacing:.12em;color:#a8a697}
+.observation-shell .governor-reading-value {font-size:22px;color:#e9e6d9;margin:6px 0 4px;overflow-wrap:anywhere}
+.observation-shell .governor-reading-value small {font-size:12px;color:#a8a697}
+.observation-shell .governor-authority {font-size:15px}
+.observation-shell .governor-reading-note {font-size:12px;margin:4px 0 0}
+.governor-spark {display:block;color:#8caa75}
+.governor-feed-heading {display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.observation-shell .governor-feed-status {font-size:13px;margin:0 0 12px}
+.governor-filters {display:flex;flex-direction:column;gap:10px;margin-bottom:12px}
+.governor-search {display:flex;align-items:center;gap:8px;color:#a8a697;font-size:13px}
+.governor-search input {flex:1;min-width:0;background:#161915;border:1px solid #77745c;border-radius:4px;padding:7px 9px;color:#e9e6d9;font:inherit}
+.governor-search input:focus-visible,.governor-kinds input:focus-visible,.governor-trace-button:focus-visible {outline:2px solid #ddb975;outline-offset:2px}
+.governor-kinds {border:1px solid #3c3d34;border-radius:4px;padding:6px 10px;margin:0;display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;color:#a8a697}
+.governor-kinds legend {padding:0 4px;font-size:12px}
+.governor-kinds label {white-space:nowrap}
+.governor-kinds small {color:#77745c}
+.governor-table {width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed}
+.governor-table th,.governor-table td {text-align:left;padding:5px 8px;border-top:1px solid #3c3d34;font-weight:400;vertical-align:top;overflow-wrap:anywhere}
+.governor-table thead th {color:#a8a697;font-size:12px;border-top:0}
+.governor-table code {font-size:12px}
+.governor-feed .governor-table th:nth-child(1),.governor-feed .governor-table td:nth-child(1) {width:56px}
+.governor-feed .governor-table th:nth-child(2),.governor-feed .governor-table td:nth-child(2) {width:60px;color:#a8a697}
+.governor-feed .governor-table th:nth-child(3),.governor-feed .governor-table td:nth-child(3) {width:60px}
+.governor-feed .governor-table th:nth-child(4),.governor-feed .governor-table td:nth-child(4) {width:120px}
+.governor-feed .governor-table th:nth-child(6),.governor-feed .governor-table td:nth-child(6) {width:84px}
+.governor-summary {color:#e9e6d9}
+.governor-error td {color:#e0a08a}
+.governor-selected td {background:#2a3126}
+.governor-trace-button {background:transparent;color:#ddb975;border:1px solid #77745c;border-radius:4px;padding:2px 6px;font:inherit;font-size:12px;cursor:pointer}
+.governor-trace-button[aria-pressed=true] {background:#343d2d;border-color:#8caa75}
+.observation-shell .governor-trace-summary {overflow-wrap:anywhere;color:#e9e6d9}
+.observation-shell .governor-legend {font-size:12px;display:flex;gap:6px 10px;flex-wrap:wrap;align-items:center}
+.governor-legend span {display:inline-block;width:14px;height:10px;border-radius:2px}
+.governor-waterfall th:nth-child(1),.governor-waterfall td:nth-child(1),.governor-waterfall th:nth-child(2),.governor-waterfall td:nth-child(2) {width:64px;text-align:right}
+.governor-waterfall th:nth-child(3),.governor-waterfall td:nth-child(3) {width:80px}
+.governor-bar-column {width:40%}
+.governor-row-text {color:#e9e6d9}
+.governor-row-text small {display:block;color:#a8a697;font-size:11px;overflow-wrap:anywhere}
+.governor-row-error {color:#e0a08a!important}
+.governor-bar-track {position:relative;height:14px;background:#161915;border-radius:2px;overflow:hidden}
+.governor-bar {position:absolute;top:0;height:100%;display:flex;background:#77745c;border-radius:2px;overflow:hidden}
+.governor-bar-error {outline:1px solid #e0a08a}
+.governor-mark {position:absolute;top:2px;width:2px;height:10px;background:#ddb975}
+.governor-phase {display:block;height:100%}
+.governor-phase-gate {background:#ddb975}
+.governor-phase-queue {background:#c98a5a}
+.governor-phase-exec {background:#8caa75}
+.governor-phase-call {background:#5f7f8f}
+.governor-phase-decode {background:#a8a697}

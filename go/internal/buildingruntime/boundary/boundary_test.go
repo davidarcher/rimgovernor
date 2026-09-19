@@ -66,9 +66,9 @@ func TestBoundaryEmergencyContextRefusals(t *testing.T) {
 		"regressed tick": func(f *Fixture) {
 			f.Emergency.Context.Tick = proto.Int64(f.Emergency.Context.GetTick() - int64(domain.PlanningTickTolerance) - 1)
 		},
-		"missing context":    func(f *Fixture) { f.Emergency.Context = nil },
-		"unavailable":        func(f *Fixture) { f.EmergencyErr = bridge.ErrUnavailable },
-		"malformed facts":    func(f *Fixture) { f.Emergency.Facts.Colonists[0].ID = "" },
+		"missing context": func(f *Fixture) { f.Emergency.Context = nil },
+		"unavailable":     func(f *Fixture) { f.EmergencyErr = bridge.ErrUnavailable },
+		"malformed facts": func(f *Fixture) { f.Emergency.Facts.Colonists[0].ID = "" },
 	} {
 		t.Run(name, func(t *testing.T) {
 			b, f := NewFixture(t)

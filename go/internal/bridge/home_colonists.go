@@ -19,8 +19,8 @@ func (client *Client) ReadHomeColonists(ctx context.Context, identity *c.Identit
 		return nil, Result{}, err
 	}
 	request := &o.ListPawnsRequest{
-		Scope:   &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)},
-		Filter:  &o.PawnFilter{Colonist: proto.Bool(true), IncludeDead: proto.Bool(false)},
+		Scope:  &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)},
+		Filter: &o.PawnFilter{Colonist: proto.Bool(true), IncludeDead: proto.Bool(false)},
 		// Native defaults every unset detail family to requested, and
 		// homeColonistsSelected refuses any family beyond work and needs, so
 		// the rest are declined explicitly (the same shape pawnDetailsRequest

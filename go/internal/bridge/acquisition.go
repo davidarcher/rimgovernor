@@ -69,6 +69,7 @@ func acquisitionOperation(target AcquisitionTarget, withToken bool) *op.Operatio
 	}
 	return &op.Operation{Command: &op.Operation_AcquireResource{AcquireResource: &op.AcquireResource{Source: source, ResourceDefName: proto.String(target.Acquisition.Definition()), Cell: &c.Cell{X: proto.Int32(target.Acquisition.Cell().X), Z: proto.Int32(target.Acquisition.Cell().Z)}}}}
 }
+
 // cancelAcquisitionOperation withdraws the designation acquisitionOperation
 // placed; it carries no token (the designation, not the plant, is the
 // precondition).
@@ -175,6 +176,7 @@ func ValidateAcquisitionEffect(v *r.EffectEvidence, acquisition domain.Acquisiti
 	}
 	return nil
 }
+
 // acquisitionEffect validates admission evidence; designated, when set,
 // is the designation state the write must have left (true after Acquire,
 // false after Withdraw). A lookup passes nil: the ledger entry may be

@@ -242,6 +242,7 @@ func pawnsRef(v *o.SnapshotRef, id string, ctx *c.ObservationContext) error {
 	}
 	return validID(v.GetToken())
 }
+
 // pawnsSocial bounds the thought rows the routine mood census reads: each
 // grouped row names a def with finite offsets (one def can appear on several
 // rows, since native groups social memories by the other pawn too);

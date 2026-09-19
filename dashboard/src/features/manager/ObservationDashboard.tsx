@@ -10,17 +10,19 @@ import DevelopmentPanel from './DevelopmentPanel';
 import GameVideoGo, {MapOverviewGo, PawnFeedGo} from './GameVideoGo';
 import PawnPortraitGo from './PawnPortraitGo';
 import PlayerGuide from './PlayerGuide';
+import GovernorPanel from '../governor/GovernorPanel';
 
 const stageLabels: Record<BuildingAction['progress']['stage'], string> = {pending: 'Pending', prepared: 'Prepared', dispatched: 'Order sent', awaiting_observation: 'Awaiting observation', completed: 'Completed', cancelled: 'Cancelled', unsuccessful: 'Unsuccessful'};
 const cleanupLabels = {awaiting_claim: 'Ownership not yet known', not_acquired: 'No owned draft acquired', required: 'Release required', dispatched: 'Release sent', uncertain: 'Release outcome unknown', released: 'Release observed', superseded: 'Original ownership no longer applies'};
 const reasonLabels: Record<UnsuccessfulReason, string> = {native_failure: 'Native operation failed', cancelled: 'Operation cancelled', interrupted: 'Operation interrupted', expired: 'Operation expired', target_dead: 'Target died', outcome_not_achieved: 'Expected outcome not achieved'};
 
-type View = 'watch' | 'work' | 'colony' | 'help';
+type View = 'watch' | 'work' | 'colony' | 'governor' | 'help';
 function currentView(): View {
   const hash = location.hash.replace(/^#/, '');
   if (hash.startsWith('help')) return 'help';
   if (hash === 'work') return 'work';
   if (hash === 'colony') return 'colony';
+  if (hash.startsWith('governor')) return 'governor';
   return 'watch';
 }
 
@@ -139,6 +141,7 @@ export default function ObservationDashboard() {
       <a href="#watch" aria-current={view === 'watch' ? 'page' : undefined}>Watch</a>
       <a href="#work" aria-current={view === 'work' ? 'page' : undefined}>Work</a>
       <a href="#colony" aria-current={view === 'colony' ? 'page' : undefined}>Colony</a>
+      <a href="#governor" aria-current={view === 'governor' ? 'page' : undefined}>Governor</a>
       <a href="#help" aria-current={view === 'help' ? 'page' : undefined}>Help</a>
     </nav>
     {view === 'help' ? <PlayerGuide/> : <>
@@ -172,6 +175,7 @@ export default function ObservationDashboard() {
         <PresentationPanel observation={state} observationFresh={observationFresh}/>
         <ColonyPortraits token={token} active/>
       </>}
+      {view === 'governor' && <GovernorPanel active/>}
     </>}
   </main>;
 }

@@ -131,11 +131,11 @@ func TestInspectBillRejections(t *testing.T) {
 		"projected present": func(f *billBoundaryFixture) {
 			f.preview.GetEvaluated().Projected = &r.EffectEvidence{}
 		},
-		"read after preview":       func(f *billBoundaryFixture) { f.read.Context.Tick = proto.Int64(12) },
+		"read after preview": func(f *billBoundaryFixture) { f.read.Context.Tick = proto.Int64(12) },
 		"emergency stale for preview": func(f *billBoundaryFixture) {
 			f.emergency.Context.Tick = proto.Int64(11 - int64(domain.PlanningTickTolerance) - 1)
 		},
-		"foreign world":            func(f *billBoundaryFixture) { f.read.Context.Identity.LoadToken = proto.String("other") },
+		"foreign world": func(f *billBoundaryFixture) { f.read.Context.Identity.LoadToken = proto.String("other") },
 	} {
 		t.Run(name, func(t *testing.T) {
 			bb, f, target, _, _ := newBillBoundaryFixture(t)
