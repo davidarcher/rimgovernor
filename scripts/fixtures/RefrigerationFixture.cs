@@ -242,8 +242,10 @@ namespace HomeBridge.BridgeTools
                     for (var i = 0; i < heatWaves; i++)
                     {
                         var wave = GameConditionMaker.MakeCondition(heat, 4 * 60000 + 12000);
-                        wave.startTick = Find.TickManager.TicksGame - (season ? 0 : 12000);
+                        // RegisterCondition clamps startTick to now, so the wave is
+                        // backdated after registration (#437).
                         map.gameConditionManager.RegisterCondition(wave);
+                        wave.startTick = Find.TickManager.TicksGame - (season ? 0 : 12000);
                     }
                 }
                 var inside = At(1, 3).GetRoom(map);
