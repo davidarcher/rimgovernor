@@ -308,3 +308,5 @@ New producer obligations are explicit:
   group IDs attached to exact native rows. IDs cannot be derived from labels or
   definition names. Entity and map snapshot production is likewise new adapter
   work backed by actual native facts, not claimed existing wire behavior.
+
+Clearance: `GetClearanceTargets` reads visible, deconstructible non-player buildings touching Home. It retains partial Home overlap, sealed ancient-danger membership, counterfactual roof blockers, faction and designation ownership. No policy or demolition admission consumes this census yet.

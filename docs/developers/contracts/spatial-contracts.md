@@ -237,6 +237,27 @@ Legacy geometry/facing expectations are recovered only from a unique durable
 action owning the exact project targets. Unassociated records retain their earlier
 contracts; current map state cannot invent missing historical settings.
 
+## Clearance observations
+
+`Observations.GetClearanceTargets` is a read-only census of spawned,
+visible, deconstructible non-player buildings whose occupied rectangle touches
+Home. Each row records the complete occupied rectangle, nullable faction,
+classification, whether every occupied cell is in Home, sealed ancient-danger
+membership, and the current deconstruct designation with controller ownership.
+Haulable rock chunks and slag are items and do not appear.
+
+A missing roof blocker means removing this building alone preserves roof
+support; blocked or unknown geometry carries a reason. It does not authorize
+removal, prove access, or establish safety for removing several holders together.
+Ancient-danger rows remain visible as blocked candidates for future policy.
+
+The complete census is bounded to 256 rows and 1 MiB; overflow or an unreadable
+scan is unavailable, never sampled. The Go observation treats an explicit
+unavailable native stub as an unknown fact, distinct from a complete empty
+census. Required safety booleans cannot be omitted. The observation context
+must match the expected load, map, generation and fresh tick. No clearance
+policy or new game orders are enabled by this read.
+
 ## Related reading
 
 Read [space and resources](../architecture/space-and-resources.md) for why planned

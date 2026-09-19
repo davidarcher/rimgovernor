@@ -27,6 +27,40 @@ message Completeness {
 }
 message ReadIssue { optional string field = 1; rimgovernor.common.v1.Unavailable unavailable = 2; }
 message Rectangle { rimgovernor.common.v1.Cell minimum = 1; rimgovernor.common.v1.Cell maximum = 2; }
+
+// Complete census of visible, deconstructible non-player buildings touching Home.
+// Absence of faction means no faction; absence of roof_blocker means safe removal.
+enum ClearanceClass {
+  CLEARANCE_CLASS_UNSPECIFIED = 0;
+  CLEARANCE_CLASS_ANCIENT_WALL_DOOR = 1;
+  CLEARANCE_CLASS_SHIP_CHUNK = 2;
+  CLEARANCE_CLASS_ANCIENT_CASKET = 3;
+  CLEARANCE_CLASS_OTHER = 4;
+}
+message ClearanceTarget {
+  optional string entity_id = 1;
+  optional string def_name = 2;
+  Rectangle occupied = 3;
+  optional string faction = 4;
+  optional bool deconstructible = 5;
+  ClearanceClass class = 6;
+  optional bool in_home = 7; // Every occupied cell, not just the origin.
+  optional string roof_blocker = 8;
+  optional bool ancient_danger = 9;
+  optional bool designated = 10;
+  optional bool controller_owned = 11;
+}
+message ClearanceTargetsRequest { ReadScope scope = 1; }
+message ClearanceTargetsSnapshot {
+  rimgovernor.common.v1.ObservationContext context = 1;
+  repeated ClearanceTarget targets = 2;
+  Completeness completeness = 3;
+}
+message ClearanceTargetsReply { oneof outcome {
+  ClearanceTargetsSnapshot observed = 1;
+  rimgovernor.common.v1.Unavailable unavailable = 2;
+  rimgovernor.common.v1.Failure failure = 3;
+} }
 message MapSize { optional uint32 width = 1; optional uint32 height = 2; }
 message DefinitionRef { optional string def_name = 1; optional string label = 2; }
 message EntityRef {
@@ -768,6 +802,7 @@ message ArchitectDesignatorsRequest { ReadScope scope = 1; optional string categ
 message ArchitectDesignatorsReply { oneof outcome { ArchitectDesignatorsSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 
 service Observations {
+  rpc GetClearanceTargets(ClearanceTargetsRequest) returns (ClearanceTargetsReply);
   rpc ReadProductionPolicy(ProductionPolicyRequest) returns (ProductionPolicyReply);
   rpc ListArchitectCategories(ArchitectCategoriesRequest) returns (ArchitectCategoriesReply);
   rpc ListArchitectDesignators(ArchitectDesignatorsRequest) returns (ArchitectDesignatorsReply);
