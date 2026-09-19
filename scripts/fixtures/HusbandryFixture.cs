@@ -12,6 +12,28 @@ namespace HomeBridge.BridgeTools
     // Disposable prerequisites only. All asserted outcomes happen afterward through normal ticks.
     public sealed class HusbandryFixture
     {
+        [Tool("test/herd_removal", Description = "UNSAFE FOR MODEL EXECUTION. Set or read standing Manual removal flags on the husbandry fixture; disable handler labor while testing cancellation.")]
+        public async Task<object> HerdRemoval(IRimBridgeContext ctx, CancellationToken cancellationToken, bool apply = false)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                var animals = map.mapPawns.AllPawnsSpawned.Where(p => p.Faction == Faction.OfPlayer && p.RaceProps.Animal).ToList();
+                var dog = animals.Single(p => p.def.defName == "Husky" && p.gender == Gender.Female);
+                var cow = animals.Single(p => p.def.defName == "Cow");
+                if (apply)
+                {
+                    foreach (var handler in map.mapPawns.FreeColonistsSpawned)
+                        handler.workSettings.SetPriority(WorkTypeDefOf.Handling, 0);
+                    map.designationManager.AddDesignation(new Designation(dog, DesignationDefOf.Slaughter));
+                    map.designationManager.AddDesignation(new Designation(cow, DesignationDefOf.ReleaseAnimalToWild));
+                }
+                return new { success = true, dog = dog.GetUniqueLoadID(), cow = cow.GetUniqueLoadID(),
+                    slaughter = map.designationManager.DesignationOn(dog, DesignationDefOf.Slaughter) != null,
+                    release = map.designationManager.DesignationOn(cow, DesignationDefOf.ReleaseAnimalToWild) != null,
+                    training = dog.training.GetWanted(TrainableDefOf.Obedience) };
+            }, cancellationToken);
+        }
+
         [Tool("test/milk_eggs_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Disposable one-cow, four-hen product fixture with one ordinary handler, no fields or food stock, and ready production comps. Products must be laid and gathered by normal jobs afterwards.")]
         public async Task<object> MilkEggsPrepare(IRimBridgeContext ctx, CancellationToken cancellationToken)
         {

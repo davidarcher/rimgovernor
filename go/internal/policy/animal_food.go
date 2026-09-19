@@ -71,6 +71,18 @@ func SlaughterFoodChannels(rows []SlaughterFoodAnimal, animals domain.Fact[[]Upk
 		return nil
 	}
 	floors := map[Resource]int64{}
+	pending := map[PawnID]bool{}
+	// Re-price existing orders too. These copies are planning offers only;
+	// fresh destructive admission still requires native SafeToSlaughter.
+	observed = append([]UpkeepAnimal(nil), observed...)
+	for i := range observed {
+		a := &observed[i]
+		if slaughter, known := a.Slaughter.Value(); known && slaughter {
+			pending[a.ID] = true
+			a.Slaughter = domain.Known(false)
+			a.SafeToSlaughter = domain.Known(true)
+		}
+	}
 	for _, row := range observed {
 		floors[row.Definition] = herd.PopulationMin[row.Definition]
 	}
@@ -81,6 +93,17 @@ func SlaughterFoodChannels(rows []SlaughterFoodAnimal, animals domain.Fact[[]Upk
 	safe := map[PawnID]bool{}
 	for _, a := range candidates {
 		safe[a.ID] = true
+	}
+	counts := map[Resource]int64{}
+	for _, a := range observed {
+		if release, known := a.Release.Value(); known && !release {
+			counts[a.Definition]++
+		}
+	}
+	for _, a := range observed {
+		if release, known := a.Release.Value(); pending[a.ID] && known && !release && counts[a.Definition] > floors[a.Definition] {
+			safe[a.ID] = true
+		}
 	}
 	type scored struct {
 		animal                              SlaughterFoodAnimal
@@ -98,6 +121,9 @@ func SlaughterFoodChannels(rows []SlaughterFoodAnimal, animals domain.Fact[[]Upk
 	}
 	sort.Slice(choices, func(i, j int) bool {
 		a, b := choices[i], choices[j]
+		if pending[a.animal.ID] != pending[b.animal.ID] {
+			return pending[a.animal.ID]
+		}
 		if a.efficiency != b.efficiency {
 			return a.efficiency > b.efficiency
 		}

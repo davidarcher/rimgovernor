@@ -30,6 +30,7 @@ namespace HomeBridge.BridgeTools
 
     internal sealed class NativeHusbandryRecord
     {
+        internal readonly bool Cancel;
         internal readonly string AnimalId;
         internal readonly HusbandryKind Kind;
         internal readonly string? TrainableDef;
@@ -37,8 +38,8 @@ namespace HomeBridge.BridgeTools
         // requested flag values, null when that flag was not in the order.
         internal readonly string? Target;
         internal readonly bool? FollowDrafted, FollowFieldwork;
-        internal NativeHusbandryRecord(string animalId, HusbandryKind kind, string? trainableDef, string? target = null, bool? followDrafted = null, bool? followFieldwork = null)
-        { AnimalId = animalId; Kind = kind; TrainableDef = trainableDef; Target = target; FollowDrafted = followDrafted; FollowFieldwork = followFieldwork; }
+        internal NativeHusbandryRecord(string animalId, HusbandryKind kind, string? trainableDef, string? target = null, bool? followDrafted = null, bool? followFieldwork = null, bool cancel = false)
+        { Cancel = cancel; AnimalId = animalId; Kind = kind; TrainableDef = trainableDef; Target = target; FollowDrafted = followDrafted; FollowFieldwork = followFieldwork; }
     }
 
     internal static class NativeHusbandryOperations
@@ -198,6 +199,10 @@ namespace HomeBridge.BridgeTools
             }
         }
 
+        private static bool Cancels(Operations.Operation operation, HusbandryKind kind) =>
+            kind == HusbandryKind.Slaughter && operation.SlaughterAnimal.Cancel
+            || kind == HusbandryKind.Release && operation.ReleaseAnimal.Cancel;
+
         private static DesignationDef DesignationFor(HusbandryKind kind)
         {
             switch (kind)
@@ -236,7 +241,7 @@ namespace HomeBridge.BridgeTools
                     { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Native training is unavailable or the animal is designated for removal."); return false; }
                     break;
                 case HusbandryKind.Slaughter:
-                    if (!SafeToSlaughter(animal)) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Animal is protected or native slaughter eligibility refused it."); return false; }
+                    if (!Cancels(operation, kind) && !SafeToSlaughter(animal)) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Animal is protected or native slaughter eligibility refused it."); return false; }
                     break;
                 case HusbandryKind.Tame:
                     if (!Tameable(animal)) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Native tame eligibility refused the animal or it is already designated."); return false; }
@@ -255,9 +260,11 @@ namespace HomeBridge.BridgeTools
                     if (!Obedient(animal) || animal.playerSettings == null) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Following requires learned Obedience."); return false; }
                     break;
                 default:
-                    if (!SafeToRelease(animal)) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Animal is protected or native release eligibility refused it."); return false; }
+                    if (!Cancels(operation, kind) && !SafeToRelease(animal)) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Animal is protected or native release eligibility refused it."); return false; }
                     break;
             }
+            if (Cancels(operation, kind) && !Designated(animal, DesignationFor(kind)))
+            { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Removal designation is no longer present."); return false; }
             if (Settings(animal) != entity.ExpectedSnapshotToken || Census(animal) != CensusToken(operation, kind))
             { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Animal settings or census changed; observe before new admission."); return false; }
             return true;
@@ -293,7 +300,7 @@ namespace HomeBridge.BridgeTools
         {
             var entity = Entity(operation, kind);
             var trainable = kind == HusbandryKind.Train ? operation.SetAnimalTraining.TrainableDef : null;
-            return Evidence(entity.EntityId, entity.ExpectedSnapshotToken, Settings(animal), CensusToken(operation, kind), kind, trainable, true, animal, Record(operation, kind, animal));
+            return Evidence(entity.EntityId, entity.ExpectedSnapshotToken, Settings(animal), CensusToken(operation, kind), kind, trainable, !Cancels(operation, kind), animal, Record(operation, kind, animal));
         }
 
         private static NativeHusbandryRecord Record(Operations.Operation operation, HusbandryKind kind, Pawn animal)
@@ -307,7 +314,7 @@ namespace HomeBridge.BridgeTools
                     var follow = operation.SetAnimalFollowing;
                     return new NativeHusbandryRecord(animal.GetUniqueLoadID(), kind, null, null,
                         follow.HasFollowDrafted ? follow.FollowDrafted : (bool?)null, follow.HasFollowFieldwork ? follow.FollowFieldwork : (bool?)null);
-                default: return new NativeHusbandryRecord(animal.GetUniqueLoadID(), kind, null);
+                default: return new NativeHusbandryRecord(animal.GetUniqueLoadID(), kind, null, cancel: Cancels(operation, kind));
             }
         }
 
@@ -327,7 +334,7 @@ namespace HomeBridge.BridgeTools
                     return animal.playerSettings != null
                         && (record.FollowDrafted == null || animal.playerSettings.followDrafted == record.FollowDrafted)
                         && (record.FollowFieldwork == null || animal.playerSettings.followFieldwork == record.FollowFieldwork);
-                default: return Designated(animal, DesignationFor(record.Kind));
+                default: return Designated(animal, DesignationFor(record.Kind)) != record.Cancel;
             }
         }
 
@@ -379,7 +386,10 @@ namespace HomeBridge.BridgeTools
                             if (record.FollowFieldwork != null) animal.playerSettings!.followFieldwork = record.FollowFieldwork.Value;
                             break;
                         default:
-                            if (!Designated(animal, DesignationFor(kind)))
+                            if (record.Cancel)
+                                ProtoBoundary.LoadedMap(context).designationManager.RemoveDesignation(
+                                    ProtoBoundary.LoadedMap(context).designationManager.DesignationOn(animal, DesignationFor(kind)));
+                            else if (!Designated(animal, DesignationFor(kind)))
                                 ProtoBoundary.LoadedMap(context).designationManager.AddDesignation(new Designation(animal, DesignationFor(kind)));
                             break;
                     }
@@ -420,7 +430,7 @@ namespace HomeBridge.BridgeTools
                 }
                 result.CompleteInspection = true;
                 bool present = Holds(animal, record);
-                var evidence = Evidence(record.AnimalId, null, Settings(animal), Census(animal), record.Kind, record.TrainableDef, present, animal, record);
+                var evidence = Evidence(record.AnimalId, null, Settings(animal), Census(animal), record.Kind, record.TrainableDef, record.Cancel ? !present : present, animal, record);
                 if (present) result.Completed = new Receipts.CompletedEffect { Evidence = evidence };
                 else result.Unsuccessful = new Receipts.UnsuccessfulEffect { Reason = Receipts.UnsuccessfulReason.OutcomeNotAchieved, Evidence = evidence,
                     Detail = record.Kind == HusbandryKind.Train

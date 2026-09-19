@@ -1143,6 +1143,11 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if choice := FoodSlaughterChoice(f.FoodPlan, f.AnimalUpkeep.Animals, FoodHerdPolicy(p.Herd(), f.FoodPlan)); choice.Method == domain.HusbandrySlaughter {
 		herdRecovered = domain.Known(false)
 	}
+	if choice := ReconcileHerdRemoval(f.AnimalUpkeep.Animals, FoodHerdPolicy(p.Herd(), f.FoodPlan), f.FoodPlan); choice.Method != "" {
+		herdRecovered = domain.Known(false)
+	} else if choice.Reason == HusbandryUnknown {
+		herdRecovered = domain.Unknown[bool]()
+	}
 	addAssessment(MaintainHerd, 3, herdRecovered)
 	if !positive(herdRecovered) {
 		addGoal(MaintainHerd, 3)

@@ -18,6 +18,10 @@ import (
 
 func husbandryMethodWire(method domain.HusbandryMethod) bridge.HusbandryMethod {
 	switch method {
+	case domain.HusbandryCancelSlaughter:
+		return bridge.HusbandryMethodCancelSlaughter
+	case domain.HusbandryCancelRelease:
+		return bridge.HusbandryMethodCancelRelease
 	case domain.HusbandryTrain:
 		return bridge.HusbandryMethodTrain
 	case domain.HusbandrySlaughter:

@@ -10,12 +10,14 @@ import (
 
 func TestHusbandryOperationPerMethod(t *testing.T) {
 	cases := map[HusbandryMethod]func(*o.Operation) *o.EntityPrecondition{
-		HusbandryMethodTrain:       func(op *o.Operation) *o.EntityPrecondition { return op.GetSetAnimalTraining().GetAnimal() },
-		HusbandryMethodSlaughter:   func(op *o.Operation) *o.EntityPrecondition { return op.GetSlaughterAnimal().GetAnimal() },
-		HusbandryMethodTame:        func(op *o.Operation) *o.EntityPrecondition { return op.GetTameAnimal().GetAnimal() },
-		HusbandryMethodRelease:     func(op *o.Operation) *o.EntityPrecondition { return op.GetReleaseAnimal().GetAnimal() },
-		HusbandryMethodAllowedArea: func(op *o.Operation) *o.EntityPrecondition { return op.GetSetAnimalArea().GetAnimal() },
-		HusbandryMethodMaster:      func(op *o.Operation) *o.EntityPrecondition { return op.GetSetAnimalMaster().GetAnimal() },
+		HusbandryMethodCancelSlaughter: func(op *o.Operation) *o.EntityPrecondition { return op.GetSlaughterAnimal().GetAnimal() },
+		HusbandryMethodCancelRelease:   func(op *o.Operation) *o.EntityPrecondition { return op.GetReleaseAnimal().GetAnimal() },
+		HusbandryMethodTrain:           func(op *o.Operation) *o.EntityPrecondition { return op.GetSetAnimalTraining().GetAnimal() },
+		HusbandryMethodSlaughter:       func(op *o.Operation) *o.EntityPrecondition { return op.GetSlaughterAnimal().GetAnimal() },
+		HusbandryMethodTame:            func(op *o.Operation) *o.EntityPrecondition { return op.GetTameAnimal().GetAnimal() },
+		HusbandryMethodRelease:         func(op *o.Operation) *o.EntityPrecondition { return op.GetReleaseAnimal().GetAnimal() },
+		HusbandryMethodAllowedArea:     func(op *o.Operation) *o.EntityPrecondition { return op.GetSetAnimalArea().GetAnimal() },
+		HusbandryMethodMaster:          func(op *o.Operation) *o.EntityPrecondition { return op.GetSetAnimalMaster().GetAnimal() },
 		HusbandryMethodFollowDrafted: func(op *o.Operation) *o.EntityPrecondition {
 			return op.GetSetAnimalFollowing().GetAnimal()
 		},
@@ -30,6 +32,9 @@ func TestHusbandryOperationPerMethod(t *testing.T) {
 			t.Fatal(method, err)
 		}
 		op := husbandryOperation("animal", "animal-cas", "census-cas", trainable, method)
+		if op.GetSlaughterAnimal().GetCancel() != (method == HusbandryMethodCancelSlaughter) || op.GetReleaseAnimal().GetCancel() != (method == HusbandryMethodCancelRelease) {
+			t.Fatal("cancellation changed at wire boundary", op)
+		}
 		if e := entity(op); e.GetEntityId() != "animal" || e.GetExpectedSnapshotToken() != "animal-cas" {
 			t.Fatal(method, op)
 		}

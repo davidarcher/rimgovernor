@@ -832,6 +832,59 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 	report["following_dispatched"] = true
 
+	// Standing removals are reversible settings. Exercise the cancellation
+	// commands with fresh tokens, then read native state and operation progress.
+	for _, removal := range []struct{ id, command, field string }{
+		{cowID, "slaughterAnimal", "slaughter"},
+		{fatherID, "releaseAnimal", "release"},
+	} {
+		row, err := herdRow("before-cancel-"+removal.field, removal.id)
+		if err != nil {
+			return err
+		}
+		settings, census, err := tokens(row)
+		if err != nil {
+			return err
+		}
+		operation := settingsOperation(removal.command, removal.id, settings, census, map[string]any{"cancel": true})
+		for _, stale := range []struct{ name, settings, census string }{
+			{"settings", "stale-settings", census}, {"census", settings, "stale-census"},
+		} {
+			request := buildRequest("cancel-"+removal.field+"-stale-"+stale.name,
+				settingsOperation(removal.command, removal.id, stale.settings, stale.census, map[string]any{"cancel": true}))
+			if code, err := failureCode("cancel-stale-"+removal.field+stale.name, request); err != nil || code != "FAILURE_CODE_INVALID_REQUEST" {
+				return fmt.Errorf("cancel %s stale %s: %s %v", removal.field, stale.name, code, err)
+			}
+		}
+		request, effect, err := executeSettings("cancel-"+removal.field, "husbandry-cancel-"+removal.field, operation)
+		if err != nil {
+			return err
+		}
+		if designated, known := na.AsBool(effect[removal.field+"Designated"]); !known || designated {
+			return fmt.Errorf("cancellation effect: %#v", effect)
+		}
+		row, err = herdRow("after-cancel-"+removal.field, removal.id)
+		if err != nil {
+			return err
+		}
+		animal, _ := na.AsMap(row["animal"])
+		if designated, known := na.AsBool(animal[removal.field]); !known || designated {
+			return fmt.Errorf("cancellation native readback: %#v", animal)
+		}
+		progress, err := h.Wire(ctx, "cancel-progress-"+removal.field, "receipts_observe_progress", attemptRef(request))
+		if err != nil {
+			return err
+		}
+		_, observed, err := na.Outcome(progress, "progress")
+		if err != nil {
+			return err
+		}
+		if _, ok := na.AsMap(observed["completed"]); !ok {
+			return fmt.Errorf("cancel progress: %#v", observed)
+		}
+		report["cancel_"+removal.field] = animal
+	}
+
 	logData, err := os.ReadFile(s.Config().StartupLogPath())
 	if err != nil {
 		return fmt.Errorf("read startup log: %w", err)

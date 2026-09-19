@@ -12,6 +12,8 @@ import "errors"
 type HusbandryMethod string
 
 const (
+	HusbandryCancelSlaughter HusbandryMethod = "cancel_slaughter"
+	HusbandryCancelRelease   HusbandryMethod = "cancel_release"
 	HusbandryTrain           HusbandryMethod = "train"
 	HusbandrySlaughter       HusbandryMethod = "slaughter"
 	HusbandryTame            HusbandryMethod = "tame"
@@ -45,7 +47,7 @@ func NewHusbandry(animal PawnID, method HusbandryMethod, argument string) (Husba
 		if !validID(argument) {
 			return Husbandry{}, errors.New("husbandry training requires a valid trainable definition")
 		}
-	case HusbandrySlaughter, HusbandryTame, HusbandryRelease:
+	case HusbandrySlaughter, HusbandryTame, HusbandryRelease, HusbandryCancelSlaughter, HusbandryCancelRelease:
 		if argument != "" {
 			return Husbandry{}, errors.New("husbandry designation does not take an argument")
 		}

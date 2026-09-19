@@ -33,9 +33,11 @@ const (
 	HusbandryMethodMaster
 	HusbandryMethodFollowDrafted
 	HusbandryMethodFollowFieldwork
+	HusbandryMethodCancelSlaughter
+	HusbandryMethodCancelRelease
 )
 
-var husbandryMethodValid = map[HusbandryMethod]bool{HusbandryMethodTrain: true, HusbandryMethodSlaughter: true, HusbandryMethodTame: true, HusbandryMethodRelease: true,
+var husbandryMethodValid = map[HusbandryMethod]bool{HusbandryMethodCancelSlaughter: true, HusbandryMethodCancelRelease: true, HusbandryMethodTrain: true, HusbandryMethodSlaughter: true, HusbandryMethodTame: true, HusbandryMethodRelease: true,
 	HusbandryMethodAllowedArea: true, HusbandryMethodMaster: true, HusbandryMethodFollowDrafted: true, HusbandryMethodFollowFieldwork: true}
 
 // husbandryAssignment is the Assignment an allowed_area/master argument
@@ -64,16 +66,16 @@ func husbandryOperation(animal, animalToken, census, argument string, method Hus
 		return &o.Operation{Command: &o.Operation_SetAnimalTraining{SetAnimalTraining: &o.SetAnimalTraining{
 			Animal: entity, ExpectedCensusToken: proto.String(census), TrainableDef: proto.String(argument),
 		}}}
-	case HusbandryMethodSlaughter:
-		return &o.Operation{Command: &o.Operation_SlaughterAnimal{SlaughterAnimal: &o.SlaughterAnimal{
+	case HusbandryMethodSlaughter, HusbandryMethodCancelSlaughter:
+		return &o.Operation{Command: &o.Operation_SlaughterAnimal{SlaughterAnimal: &o.SlaughterAnimal{Cancel: proto.Bool(method == HusbandryMethodCancelSlaughter),
 			Animal: entity, ExpectedCensusToken: proto.String(census),
 		}}}
 	case HusbandryMethodTame:
 		return &o.Operation{Command: &o.Operation_TameAnimal{TameAnimal: &o.TameAnimal{
 			Animal: entity, ExpectedCensusToken: proto.String(census),
 		}}}
-	case HusbandryMethodRelease:
-		return &o.Operation{Command: &o.Operation_ReleaseAnimal{ReleaseAnimal: &o.ReleaseAnimal{
+	case HusbandryMethodRelease, HusbandryMethodCancelRelease:
+		return &o.Operation{Command: &o.Operation_ReleaseAnimal{ReleaseAnimal: &o.ReleaseAnimal{Cancel: proto.Bool(method == HusbandryMethodCancelRelease),
 			Animal: entity, ExpectedCensusToken: proto.String(census),
 		}}}
 	case HusbandryMethodAllowedArea:
@@ -109,7 +111,7 @@ func husbandryCommand(animal, animalToken, census string, method HusbandryMethod
 		if validID(argument) != nil {
 			return contract("invalid husbandry trainable def")
 		}
-	case HusbandryMethodSlaughter, HusbandryMethodTame, HusbandryMethodRelease:
+	case HusbandryMethodSlaughter, HusbandryMethodTame, HusbandryMethodRelease, HusbandryMethodCancelSlaughter, HusbandryMethodCancelRelease:
 		if argument != "" {
 			return contract("animal designation does not take an argument")
 		}
@@ -198,7 +200,7 @@ func husbandryEvidence(effect *r.AnimalEffect, expected HusbandryAttempt) (*r.An
 		"area": effect.AllowedAreaId != nil, "master": effect.MasterId != nil,
 		"followDrafted": effect.FollowDrafted != nil, "followFieldwork": effect.FollowFieldwork != nil,
 	}
-	own := map[HusbandryMethod]string{
+	own := map[HusbandryMethod]string{HusbandryMethodCancelSlaughter: "slaughter", HusbandryMethodCancelRelease: "release",
 		HusbandryMethodTrain: "trainable", HusbandryMethodSlaughter: "slaughter", HusbandryMethodTame: "tame", HusbandryMethodRelease: "release",
 		HusbandryMethodAllowedArea: "area", HusbandryMethodMaster: "master", HusbandryMethodFollowDrafted: "followDrafted", HusbandryMethodFollowFieldwork: "followFieldwork",
 	}[expected.Method]

@@ -257,9 +257,9 @@ message RelieveNeed { EntityPrecondition pawn = 1; optional Need need = 2; Expec
 message ImproveGear { EntityPrecondition pawn = 1; EntityPrecondition target = 2; optional string expected_loadout_token = 3; }
 message QueueSurgery { EntityPrecondition patient = 1; optional string recipe_def = 2; optional int32 part_index = 3; optional string expected_health_token = 4; optional MedicalCare expected_care = 5; }
 message SetAnimalTraining { EntityPrecondition animal = 1; optional string expected_census_token = 2; optional string trainable_def = 3; }
-message SlaughterAnimal { EntityPrecondition animal = 1; optional string expected_census_token = 2; }
+message SlaughterAnimal { EntityPrecondition animal = 1; optional string expected_census_token = 2; optional bool cancel = 3; }
 message TameAnimal { EntityPrecondition animal = 1; optional string expected_census_token = 2; }
-message ReleaseAnimal { EntityPrecondition animal = 1; optional string expected_census_token = 2; }
+message ReleaseAnimal { EntityPrecondition animal = 1; optional string expected_census_token = 2; optional bool cancel = 3; }
 // Player-animal settings writes on the same settings/census tokens: an
 // allowed-area or master assignment (Clear unassigns), and the obedience
 // follow flags (at least one must be present). Master and following require

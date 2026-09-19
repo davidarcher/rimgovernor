@@ -84,6 +84,8 @@ func EvaluateHusbandry(r HusbandryRequest) DraftDecision {
 		return refuse(HusbandryAnimalUnavailable)
 	}
 	switch husbandry.Method() {
+	case domain.HusbandryCancelSlaughter, domain.HusbandryCancelRelease:
+		// The native preview checks exact standing designation and CAS tokens.
 	case domain.HusbandryTrain:
 		canTrain, known := f.Animal.CanTrain.Value()
 		if !known {

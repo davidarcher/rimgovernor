@@ -40,6 +40,39 @@ func TestHusbandryAdmission(t *testing.T) {
 	}
 }
 
+func TestHusbandryCancellationAdmission(t *testing.T) {
+	for _, method := range []domain.HusbandryMethod{domain.HusbandryCancelRelease, domain.HusbandryCancelSlaughter} {
+		r := husbandryRequest(t)
+		h, err := domain.NewHusbandry("animal", method, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		r.Action, err = domain.NewHusbandryAction(r.Action.ID(), h)
+		if err != nil {
+			t.Fatal(err)
+		}
+		plan, err := domain.NewPlan(r.Current.Plan, r.Current.Revision, []domain.Action{r.Action})
+		if err != nil {
+			t.Fatal(err)
+		}
+		r.Progress, _ = domain.NewProgress(plan, r.Action.ID())
+		r.Facts.Animal.SafeToSlaughter = domain.Known(false)
+		r.Facts.Animal.SafeToRelease = domain.Known(false)
+		if got := EvaluateHusbandry(r); !got.Admitted {
+			t.Fatal(got)
+		}
+		r.Facts.NativeCanTry = domain.Known(false)
+		if got := EvaluateHusbandry(r); got.Admitted {
+			t.Fatal("ignored native refusal")
+		}
+		r.Facts.NativeCanTry = domain.Known(true)
+		r.Facts.Snapshot.Load = "old-load"
+		if got := EvaluateHusbandry(r); got.Admitted {
+			t.Fatal("ignored save/load boundary")
+		}
+	}
+}
+
 func TestHusbandrySlaughterAdmission(t *testing.T) {
 	slaughter, _ := domain.NewHusbandry("animal", domain.HusbandrySlaughter, "")
 	a, _ := domain.NewHusbandryAction("husbandry-1", slaughter)

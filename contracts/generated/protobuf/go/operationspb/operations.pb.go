@@ -6454,6 +6454,7 @@ type SlaughterAnimal struct {
 	state               protoimpl.MessageState `protogen:"open.v1"`
 	Animal              *EntityPrecondition    `protobuf:"bytes,1,opt,name=animal,proto3" json:"animal,omitempty"`
 	ExpectedCensusToken *string                `protobuf:"bytes,2,opt,name=expected_census_token,json=expectedCensusToken,proto3,oneof" json:"expected_census_token,omitempty"`
+	Cancel              *bool                  `protobuf:"varint,3,opt,name=cancel,proto3,oneof" json:"cancel,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -6500,6 +6501,13 @@ func (x *SlaughterAnimal) GetExpectedCensusToken() string {
 		return *x.ExpectedCensusToken
 	}
 	return ""
+}
+
+func (x *SlaughterAnimal) GetCancel() bool {
+	if x != nil && x.Cancel != nil {
+		return *x.Cancel
+	}
+	return false
 }
 
 type TameAnimal struct {
@@ -6558,6 +6566,7 @@ type ReleaseAnimal struct {
 	state               protoimpl.MessageState `protogen:"open.v1"`
 	Animal              *EntityPrecondition    `protobuf:"bytes,1,opt,name=animal,proto3" json:"animal,omitempty"`
 	ExpectedCensusToken *string                `protobuf:"bytes,2,opt,name=expected_census_token,json=expectedCensusToken,proto3,oneof" json:"expected_census_token,omitempty"`
+	Cancel              *bool                  `protobuf:"varint,3,opt,name=cancel,proto3,oneof" json:"cancel,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -6604,6 +6613,13 @@ func (x *ReleaseAnimal) GetExpectedCensusToken() string {
 		return *x.ExpectedCensusToken
 	}
 	return ""
+}
+
+func (x *ReleaseAnimal) GetCancel() bool {
+	if x != nil && x.Cancel != nil {
+		return *x.Cancel
+	}
+	return false
 }
 
 // Player-animal settings writes on the same settings/census tokens: an
@@ -8767,20 +8783,24 @@ const file_operations_proto_rawDesc = "" +
 	"\x15expected_census_token\x18\x02 \x01(\tH\x00R\x13expectedCensusToken\x88\x01\x01\x12(\n" +
 	"\rtrainable_def\x18\x03 \x01(\tH\x01R\ftrainableDef\x88\x01\x01B\x18\n" +
 	"\x16_expected_census_tokenB\x10\n" +
-	"\x0e_trainable_def\"\xab\x01\n" +
+	"\x0e_trainable_def\"\xd3\x01\n" +
 	"\x0fSlaughterAnimal\x12E\n" +
 	"\x06animal\x18\x01 \x01(\v2-.rimgovernor.operations.v1.EntityPreconditionR\x06animal\x127\n" +
-	"\x15expected_census_token\x18\x02 \x01(\tH\x00R\x13expectedCensusToken\x88\x01\x01B\x18\n" +
-	"\x16_expected_census_token\"\xa6\x01\n" +
+	"\x15expected_census_token\x18\x02 \x01(\tH\x00R\x13expectedCensusToken\x88\x01\x01\x12\x1b\n" +
+	"\x06cancel\x18\x03 \x01(\bH\x01R\x06cancel\x88\x01\x01B\x18\n" +
+	"\x16_expected_census_tokenB\t\n" +
+	"\a_cancel\"\xa6\x01\n" +
 	"\n" +
 	"TameAnimal\x12E\n" +
 	"\x06animal\x18\x01 \x01(\v2-.rimgovernor.operations.v1.EntityPreconditionR\x06animal\x127\n" +
 	"\x15expected_census_token\x18\x02 \x01(\tH\x00R\x13expectedCensusToken\x88\x01\x01B\x18\n" +
-	"\x16_expected_census_token\"\xa9\x01\n" +
+	"\x16_expected_census_token\"\xd1\x01\n" +
 	"\rReleaseAnimal\x12E\n" +
 	"\x06animal\x18\x01 \x01(\v2-.rimgovernor.operations.v1.EntityPreconditionR\x06animal\x127\n" +
-	"\x15expected_census_token\x18\x02 \x01(\tH\x00R\x13expectedCensusToken\x88\x01\x01B\x18\n" +
-	"\x16_expected_census_token\"\xe4\x01\n" +
+	"\x15expected_census_token\x18\x02 \x01(\tH\x00R\x13expectedCensusToken\x88\x01\x01\x12\x1b\n" +
+	"\x06cancel\x18\x03 \x01(\bH\x01R\x06cancel\x88\x01\x01B\x18\n" +
+	"\x16_expected_census_tokenB\t\n" +
+	"\a_cancel\"\xe4\x01\n" +
 	"\rSetAnimalArea\x12E\n" +
 	"\x06animal\x18\x01 \x01(\v2-.rimgovernor.operations.v1.EntityPreconditionR\x06animal\x127\n" +
 	"\x15expected_census_token\x18\x02 \x01(\tH\x00R\x13expectedCensusToken\x88\x01\x01\x129\n" +
