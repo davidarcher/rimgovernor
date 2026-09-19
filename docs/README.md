@@ -17,6 +17,7 @@ its contracts and run the relevant checks.
 - [Architecture](developers/architecture/overview.md) and [source map](developers/source-map.md)
 - [Development workflow](developers/development-process.md) and the
   [agent runbook](developers/agent-runbook.md) (shared machine, private game copy, running harnesses)
+- [Durable policy and Auto control](developers/contracts/durable-policy.md)
 - [Subsystem contracts](developers/contracts/README.md) and
   [wire contracts](../contracts/README.md)
 - [Remote acceptance contract](developers/contracts/remote-acceptance.md), example manifests and
