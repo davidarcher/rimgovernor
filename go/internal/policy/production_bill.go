@@ -43,13 +43,18 @@ type ProductionRecipe struct {
 // configured target, not how much of it is already produced: a TargetCount
 // bill reserves that nutrition toward its buffer even while still filling it.
 type ExistingProductionBill struct {
-	Humanlike   bool
-	ID          string
-	Managed     domain.Fact[bool]
-	Active      domain.Fact[bool]
-	Recipe      string
-	TargetCount domain.Fact[int32]
-	Forever     domain.Fact[bool]
+	DefaultIngredients domain.Fact[bool]
+	Ingredients        domain.Fact[[]string]
+	UnrestrictedWorker domain.Fact[bool]
+	Worker             domain.Fact[string]
+	RepeatMode         domain.Fact[string]
+	Humanlike          bool
+	ID                 string
+	Managed            domain.Fact[bool]
+	Active             domain.Fact[bool]
+	Recipe             string
+	TargetCount        domain.Fact[int32]
+	Forever            domain.Fact[bool]
 }
 type ProductionBench struct {
 	HumanButchers        []HumanButcherCandidate
@@ -78,25 +83,52 @@ type BillSelection struct {
 // ProductionBillContext carries purpose-specific reviewed inputs. Meal context
 // is supplied by the food-plan owner; its absence preserves ordinary cooking.
 type ProductionBillContext struct {
-	Reserve *FoodReserveReview
-	Meals   *MealTierRequest
+	Ingredients []string
+	Reserve     *FoodReserveReview
+	Meals       *MealTierRequest
 }
 
-// billAdequate is whether an existing bill of the selected recipe already
-// does the selected work: active, and repeating forever or to at least the
-// selected target. A bill whose state cannot be read counts as adequate, so
-// an unreadable bill is left alone rather than replaced blind.
+// billAdequate preserves unknown fields, but any observed drift is enough
+// to correct a matching bill. Target bills must cover the planned minimum;
+// finite repeat counts cannot maintain stock. Forever remains adequate.
 func billAdequate(bill ExistingProductionBill, selection BillSelection) bool {
 	active, ak := bill.Active.Value()
 	forever, fk := bill.Forever.Value()
 	target, tk := bill.TargetCount.Value()
-	if !ak || !fk {
-		return true
-	}
-	if !active {
+	if ak && !active {
 		return false
 	}
-	if selection.Mode == domain.ButcherForever || forever {
+	if unrestricted, known := bill.UnrestrictedWorker.Value(); known && !unrestricted {
+		return false
+	}
+	if worker, known := bill.Worker.Value(); known && worker != selection.Worker {
+		return false
+	}
+	if len(selection.Ingredients) == 0 {
+		if defaults, known := bill.DefaultIngredients.Value(); known && !defaults {
+			return false
+		}
+	} else if ingredients, known := bill.Ingredients.Value(); known {
+		if len(ingredients) != len(selection.Ingredients) {
+			return false
+		}
+		allowed := make(map[string]bool, len(ingredients))
+		for _, name := range ingredients {
+			allowed[name] = true
+		}
+		for _, name := range selection.Ingredients {
+			if !allowed[name] {
+				return false
+			}
+		}
+	}
+	if mode, known := bill.RepeatMode.Value(); known && mode != "TargetCount" && mode != "Forever" {
+		return false
+	}
+	if selection.Mode == domain.ButcherForever || selection.Mode == domain.HumanButcherForever {
+		return !fk || forever
+	}
+	if fk && forever {
 		return true
 	}
 	return !tk || target >= selection.Target
@@ -111,10 +143,9 @@ func OrdinaryMealRecipe(name string) bool {
 }
 
 // An existing bill of the selected recipe stands when it already does the
-// work; a suspended or undersized one is corrected by replacement (#461:
-// whoever configured it, Auto plans it fresh), which native admits for
-// ordinary meal recipes only, so a butcher bill in that state is left as it
-// is. A cook-ahead bill is the one addition: it adds the meals the at-risk
+// work; drift in suspension, quantity, ingredients or workers is corrected
+// by guarded replacement regardless of ownership. A cook-ahead bill adds
+// the meals the at-risk
 // stock needs beyond every existing bill's reserved target, so a bench
 // already cooking to a smaller target gets a second, larger bill for the
 // outage.
@@ -137,7 +168,7 @@ func SelectProductionBill(purpose BillPurpose, benches domain.Fact[[]ProductionB
 		if context[0].Meals.TargetDays != targetDays {
 			return BillSelection{}, false
 		}
-		return selectMealBill(benches, colonists, *context[0].Meals)
+		return selectMealBill(benches, colonists, *context[0].Meals, context[0].Ingredients)
 	}
 	if purpose == PreserveFood {
 		if len(context) != 1 || context[0].Reserve == nil {
@@ -169,7 +200,7 @@ func SelectProductionBill(purpose BillPurpose, benches domain.Fact[[]ProductionB
 		seen[bench.ID] = true
 		usable, uk := bench.Usable.Value()
 		token, tk := bench.Token.Value()
-		if !uk || !usable || !tk || !foodID(token) || len(bench.Bills) >= 15 || bench.Butcher != (purpose == ButcherFood) {
+		if !uk || !usable || !tk || !foodID(token) || bench.Butcher != (purpose == ButcherFood) {
 			continue
 		}
 		recipes := map[string]bool{}
@@ -183,6 +214,9 @@ func SelectProductionBill(purpose BillPurpose, benches domain.Fact[[]ProductionB
 				continue
 			}
 			selection := BillSelection{Bench: bench.ID, Recipe: recipe.Name, Token: token, Mode: domain.FoodTarget, Target: int32(count * 3)}
+			if len(context) == 1 {
+				selection.Ingredients = context[0].Ingredients
+			}
 			if purpose == ButcherFood {
 				if recipe.Name != "ButcherCorpseFlesh" {
 					continue
@@ -197,7 +231,7 @@ func SelectProductionBill(purpose BillPurpose, benches domain.Fact[[]ProductionB
 						continue
 					}
 					exists = true
-					if !billAdequate(bill, selection) && bill.ID != "" && OrdinaryMealRecipe(recipe.Name) && (selection.Replace == "" || bill.ID < selection.Replace) {
+					if !billAdequate(bill, selection) && bill.ID != "" && (selection.Replace == "" || bill.ID < selection.Replace) {
 						selection.Replace = bill.ID
 					}
 				}
@@ -222,6 +256,9 @@ func SelectProductionBill(purpose BillPurpose, benches domain.Fact[[]ProductionB
 					}
 					selection.Target = int32(target)
 				}
+			}
+			if len(bench.Bills) >= 15 && selection.Replace == "" {
+				continue
 			}
 			options = append(options, selection)
 		}

@@ -6121,7 +6121,9 @@ func (x *StockpileFilter) GetCompleteness() *Completeness {
 
 type BillState struct {
 	state              protoimpl.MessageState   `protogen:"open.v1"`
-	ManagedUnchanged   *bool                    `protobuf:"varint,24,opt,name=managed_unchanged,json=managedUnchanged,proto3,oneof" json:"managed_unchanged,omitempty"` // Current-load controller bill with unchanged player settings.
+	DefaultIngredients *bool                    `protobuf:"varint,25,opt,name=default_ingredients,json=defaultIngredients,proto3,oneof" json:"default_ingredients,omitempty"` // Filter matches a new Auto bill, including food routing and special filters.
+	UnrestrictedWorker *bool                    `protobuf:"varint,26,opt,name=unrestricted_worker,json=unrestrictedWorker,proto3,oneof" json:"unrestricted_worker,omitempty"` // No skill or worker-category restriction; worker_id separately records a pinned pawn.
+	ManagedUnchanged   *bool                    `protobuf:"varint,24,opt,name=managed_unchanged,json=managedUnchanged,proto3,oneof" json:"managed_unchanged,omitempty"`       // Current-load controller bill with unchanged player settings.
 	Id                 *string                  `protobuf:"bytes,1,opt,name=id,proto3,oneof" json:"id,omitempty"`
 	Index              *uint32                  `protobuf:"varint,2,opt,name=index,proto3,oneof" json:"index,omitempty"`
 	Recipe             *DefinitionRef           `protobuf:"bytes,3,opt,name=recipe,proto3" json:"recipe,omitempty"`
@@ -6177,6 +6179,20 @@ func (x *BillState) ProtoReflect() protoreflect.Message {
 // Deprecated: Use BillState.ProtoReflect.Descriptor instead.
 func (*BillState) Descriptor() ([]byte, []int) {
 	return file_observations_proto_rawDescGZIP(), []int{62}
+}
+
+func (x *BillState) GetDefaultIngredients() bool {
+	if x != nil && x.DefaultIngredients != nil {
+		return *x.DefaultIngredients
+	}
+	return false
+}
+
+func (x *BillState) GetUnrestrictedWorker() bool {
+	if x != nil && x.UnrestrictedWorker != nil {
+		return *x.UnrestrictedWorker
+	}
+	return false
 }
 
 func (x *BillState) GetManagedUnchanged() bool {
@@ -33527,38 +33543,41 @@ const file_observations_proto_rawDesc = "" +
 	"\f_quality_minB\x0e\n" +
 	"\f_quality_maxB\x0e\n" +
 	"\f_allow_freshB\x0f\n" +
-	"\r_allow_rotten\"\xce\n" +
-	"\n" +
-	"\tBillState\x120\n" +
-	"\x11managed_unchanged\x18\x18 \x01(\bH\x00R\x10managedUnchanged\x88\x01\x01\x12\x13\n" +
-	"\x02id\x18\x01 \x01(\tH\x01R\x02id\x88\x01\x01\x12\x19\n" +
-	"\x05index\x18\x02 \x01(\rH\x02R\x05index\x88\x01\x01\x12B\n" +
+	"\r_allow_rotten\"\xea\v\n" +
+	"\tBillState\x124\n" +
+	"\x13default_ingredients\x18\x19 \x01(\bH\x00R\x12defaultIngredients\x88\x01\x01\x124\n" +
+	"\x13unrestricted_worker\x18\x1a \x01(\bH\x01R\x12unrestrictedWorker\x88\x01\x01\x120\n" +
+	"\x11managed_unchanged\x18\x18 \x01(\bH\x02R\x10managedUnchanged\x88\x01\x01\x12\x13\n" +
+	"\x02id\x18\x01 \x01(\tH\x03R\x02id\x88\x01\x01\x12\x19\n" +
+	"\x05index\x18\x02 \x01(\rH\x04R\x05index\x88\x01\x01\x12B\n" +
 	"\x06recipe\x18\x03 \x01(\v2*.rimgovernor.observations.v1.DefinitionRefR\x06recipe\x12\"\n" +
 	"\n" +
-	"bill_class\x18\x04 \x01(\tH\x03R\tbillClass\x88\x01\x01\x12$\n" +
-	"\vrepeat_mode\x18\x05 \x01(\tH\x04R\n" +
+	"bill_class\x18\x04 \x01(\tH\x05R\tbillClass\x88\x01\x01\x12$\n" +
+	"\vrepeat_mode\x18\x05 \x01(\tH\x06R\n" +
 	"repeatMode\x88\x01\x01\x12&\n" +
-	"\frepeat_count\x18\x06 \x01(\x05H\x05R\vrepeatCount\x88\x01\x01\x12&\n" +
-	"\ftarget_count\x18\a \x01(\x05H\x06R\vtargetCount\x88\x01\x01\x12(\n" +
-	"\runpause_below\x18\b \x01(\x05H\aR\funpauseBelow\x88\x01\x01\x125\n" +
-	"\x14pause_when_satisfied\x18\t \x01(\bH\bR\x12pauseWhenSatisfied\x88\x01\x01\x12\x1b\n" +
+	"\frepeat_count\x18\x06 \x01(\x05H\aR\vrepeatCount\x88\x01\x01\x12&\n" +
+	"\ftarget_count\x18\a \x01(\x05H\bR\vtargetCount\x88\x01\x01\x12(\n" +
+	"\runpause_below\x18\b \x01(\x05H\tR\funpauseBelow\x88\x01\x01\x125\n" +
+	"\x14pause_when_satisfied\x18\t \x01(\bH\n" +
+	"R\x12pauseWhenSatisfied\x88\x01\x01\x12\x1b\n" +
 	"\x06paused\x18\n" +
-	" \x01(\bH\tR\x06paused\x88\x01\x01\x12!\n" +
-	"\tsuspended\x18\v \x01(\bH\n" +
-	"R\tsuspended\x88\x01\x01\x12\x1f\n" +
-	"\bfinished\x18\f \x01(\bH\vR\bfinished\x88\x01\x01\x12 \n" +
-	"\tworker_id\x18\r \x01(\tH\fR\bworkerId\x88\x01\x01\x12 \n" +
-	"\tskill_min\x18\x0e \x01(\x05H\rR\bskillMin\x88\x01\x01\x12 \n" +
-	"\tskill_max\x18\x0f \x01(\x05H\x0eR\bskillMax\x88\x01\x01\x120\n" +
-	"\x11ingredient_radius\x18\x10 \x01(\x01H\x0fR\x10ingredientRadius\x88\x01\x01\x12Y\n" +
+	" \x01(\bH\vR\x06paused\x88\x01\x01\x12!\n" +
+	"\tsuspended\x18\v \x01(\bH\fR\tsuspended\x88\x01\x01\x12\x1f\n" +
+	"\bfinished\x18\f \x01(\bH\rR\bfinished\x88\x01\x01\x12 \n" +
+	"\tworker_id\x18\r \x01(\tH\x0eR\bworkerId\x88\x01\x01\x12 \n" +
+	"\tskill_min\x18\x0e \x01(\x05H\x0fR\bskillMin\x88\x01\x01\x12 \n" +
+	"\tskill_max\x18\x0f \x01(\x05H\x10R\bskillMax\x88\x01\x01\x120\n" +
+	"\x11ingredient_radius\x18\x10 \x01(\x01H\x11R\x10ingredientRadius\x88\x01\x01\x12Y\n" +
 	"\x11ingredient_filter\x18\x11 \x01(\v2,.rimgovernor.observations.v1.StockpileFilterR\x10ingredientFilter\x12\"\n" +
 	"\n" +
-	"store_mode\x18\x12 \x01(\tH\x10R\tstoreMode\x88\x01\x01\x12'\n" +
-	"\rstore_zone_id\x18\x13 \x01(\tH\x11R\vstoreZoneId\x88\x01\x01\x12#\n" +
-	"\vcan_run_now\x18\x14 \x01(\bH\x12R\tcanRunNow\x88\x01\x01\x12\x1a\n" +
+	"store_mode\x18\x12 \x01(\tH\x12R\tstoreMode\x88\x01\x01\x12'\n" +
+	"\rstore_zone_id\x18\x13 \x01(\tH\x13R\vstoreZoneId\x88\x01\x01\x12#\n" +
+	"\vcan_run_now\x18\x14 \x01(\bH\x14R\tcanRunNow\x88\x01\x01\x12\x1a\n" +
 	"\bblockers\x18\x15 \x03(\tR\bblockers\x12T\n" +
 	"\vingredients\x18\x16 \x03(\v22.rimgovernor.observations.v1.IngredientRequirementR\vingredients\x12>\n" +
-	"\x06issues\x18\x17 \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issuesB\x14\n" +
+	"\x06issues\x18\x17 \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issuesB\x16\n" +
+	"\x14_default_ingredientsB\x16\n" +
+	"\x14_unrestricted_workerB\x14\n" +
 	"\x12_managed_unchangedB\x05\n" +
 	"\x03_idB\b\n" +
 	"\x06_indexB\r\n" +

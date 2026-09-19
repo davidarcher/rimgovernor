@@ -22,8 +22,8 @@ const (
 	StockTarget BillMode = "stock_target"
 )
 
-// ProductionBill adds a native bill, optionally superseding an unchanged owned
-// meal bill. Native ownership and the current stack guard replacement.
+// ProductionBill adds a native bill, optionally replacing the same recipe on
+// its bench or an ordinary meal tier. The current stack guards replacement.
 type ProductionBill struct {
 	bench, recipe, token string
 	mode                 BillMode
@@ -76,15 +76,17 @@ func (b ProductionBill) ClaimRecipe() string {
 	return b.recipe
 }
 
-// Ingredients is the exact allowed definition set; empty preserves recipe defaults.
+// ReplaceOwnedBill retains the wire name; replacement does not require ownership.
 func (b ProductionBill) ReplaceOwnedBill(id string) (ProductionBill, error) {
-	if !validID(id) || b.mode != FoodTarget {
-		return ProductionBill{}, errors.New("invalid meal replacement")
+	if !validID(id) || (b.mode != FoodTarget && b.mode != ButcherForever && b.mode != StockTarget && b.mode != HumanButcherForever) {
+		return ProductionBill{}, errors.New("invalid bill replacement")
 	}
 	b.replace = id
 	return b, nil
 }
 func (b ProductionBill) Replaces() string { return b.replace }
+
+// Ingredients is the exact allowed definition set; empty uses Auto recipe defaults.
 func (b ProductionBill) Ingredients() []string {
 	var rows []string
 	if b.ingredients != "" {

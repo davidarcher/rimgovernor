@@ -208,14 +208,14 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		}
 		billContext = append(billContext, policy.ProductionBillContext{Reserve: &value})
 	}
-	selected, known := policy.SelectProductionBill(r.purpose, benches, projection.Facts.Colonists, projection.Facts.FoodDays, atRisk, r.reviewer.seasonal(projection.Facts).FoodTargetDays, billContext...)
-	if r.purpose == policy.CookFood && known {
+	if r.purpose == policy.CookFood {
 		if supply, ok := projection.CombinedFoodSupply.Value(); ok {
 			if humans, ok := projection.FoodSupply.Value(); ok {
-				selected.Ingredients = policy.HumanCookingIngredients(supply, humans.Consumers, projection.Facts.FoodPlan, policy.HumanMeatMeals)
+				billContext[0].Ingredients = policy.HumanCookingIngredients(supply, humans.Consumers, projection.Facts.FoodPlan, policy.HumanMeatMeals)
 			}
 		}
 	}
+	selected, known := policy.SelectProductionBill(r.purpose, benches, projection.Facts.Colonists, projection.Facts.FoodDays, atRisk, r.reviewer.seasonal(projection.Facts).FoodTargetDays, billContext...)
 	if r.purpose == policy.PreserveFood {
 		if supply, ok := projection.CombinedFoodSupply.Value(); ok {
 			if sale, ok := policy.SelectHumanSurvivalBill(benches, supply, projection.Facts.FoodPlan); ok {

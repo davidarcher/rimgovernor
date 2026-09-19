@@ -39,7 +39,9 @@ internal static class NativeProductionBillSettingsProbe
         butcher.Settings = new Operations.BillSettings { RepeatMode = Operations.RepeatMode.Forever,
             Suspended = false, IngredientSearchRadius = 40,
             Store = new Operations.BillStore { Mode = Operations.StoreMode.DropOnFloor } };
-        Check(NativeProductionBillSettings.Valid(butcher), "unfiltered butcher bill rejected");
+        Check(NativeProductionBillSettings.Valid(butcher), "unfiltered butcher bill rejected" );
+        butcher.ReplaceOwnedBillId = "foreign-bill";
+        Check(NativeProductionBillSettings.Valid(butcher), "butcher takeover rejected" );
         butcher.Settings.Worker = new Operations.Assignment { EntityId = "Pawn_Cook" };
         Check(NativeProductionBillSettings.Valid(butcher), "pinned human butcher rejected");
         var invalidWorker = butcher.Clone();

@@ -317,6 +317,8 @@ message StockpileFilter {
   optional bool allow_fresh = 7; optional bool allow_rotten = 8; Completeness completeness = 9;
 }
 message BillState {
+  optional bool default_ingredients = 25; // Filter matches a new Auto bill, including food routing and special filters.
+  optional bool unrestricted_worker = 26; // No skill or worker-category restriction; worker_id separately records a pinned pawn.
   optional bool managed_unchanged = 24; // Current-load controller bill with unchanged player settings.
   optional string id = 1; optional uint32 index = 2; DefinitionRef recipe = 3; optional string bill_class = 4;
   optional string repeat_mode = 5; optional int32 repeat_count = 6; optional int32 target_count = 7; optional int32 unpause_below = 8;

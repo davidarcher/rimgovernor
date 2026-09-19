@@ -92,20 +92,20 @@ func validateColonyProduction(v *o.ColonyFactsSnapshot) error {
 		}
 		ids := map[string]bool{}
 		for i, bill := range bench.Bills {
-			if bill == nil || bill.Recipe == nil || validID(bill.Recipe.GetDefName()) != nil || !proto.Equal(bill, &o.BillState{ManagedUnchanged: bill.ManagedUnchanged, Id: bill.Id, Index: bill.Index, Recipe: bill.Recipe, Suspended: bill.Suspended, RepeatMode: bill.RepeatMode, RepeatCount: bill.RepeatCount, TargetCount: bill.TargetCount, UnpauseBelow: bill.UnpauseBelow, PauseWhenSatisfied: bill.PauseWhenSatisfied, Paused: bill.Paused, Finished: bill.Finished, WorkerId: bill.WorkerId, IngredientFilter: bill.IngredientFilter}) {
+			if bill == nil || bill.Recipe == nil || validID(bill.Recipe.GetDefName()) != nil || !proto.Equal(bill, &o.BillState{DefaultIngredients: bill.DefaultIngredients, UnrestrictedWorker: bill.UnrestrictedWorker, ManagedUnchanged: bill.ManagedUnchanged, Id: bill.Id, Index: bill.Index, Recipe: bill.Recipe, Suspended: bill.Suspended, RepeatMode: bill.RepeatMode, RepeatCount: bill.RepeatCount, TargetCount: bill.TargetCount, UnpauseBelow: bill.UnpauseBelow, PauseWhenSatisfied: bill.PauseWhenSatisfied, Paused: bill.Paused, Finished: bill.Finished, WorkerId: bill.WorkerId, IngredientFilter: bill.IngredientFilter}) {
 				return contract("invalid production bill")
 			}
 			if bill.WorkerId != nil && bill.GetWorkerId() != "" && validID(bill.GetWorkerId()) != nil {
 				return contract("invalid bill worker")
 			}
 			if filter := bill.IngredientFilter; filter != nil {
-				if bill.Recipe.GetDefName() != "ButcherCorpseFlesh" || len(filter.AllowedDefNames) > 256 || !proto.Equal(filter, &o.StockpileFilter{AllowedDefNames: filter.AllowedDefNames}) {
-					return contract("invalid butcher filter")
+				if len(filter.AllowedDefNames) > 65536 || !proto.Equal(filter, &o.StockpileFilter{AllowedDefNames: filter.AllowedDefNames}) {
+					return contract("invalid bill filter")
 				}
 				seen := map[string]bool{}
 				for _, id := range filter.AllowedDefNames {
 					if validID(id) != nil || seen[id] {
-						return contract("invalid butcher filter definition")
+						return contract("invalid bill filter definition")
 					}
 					seen[id] = true
 				}

@@ -311,7 +311,7 @@ func (r MealTierReview) Explain() string {
 	return s
 }
 
-func selectMealBill(benches domain.Fact[[]ProductionBench], colonists domain.Fact[int64], request MealTierRequest) (BillSelection, bool) {
+func selectMealBill(benches domain.Fact[[]ProductionBench], colonists domain.Fact[int64], request MealTierRequest, ingredients []string) (BillSelection, bool) {
 	review, err := ReviewMealTier(request, benches)
 	if err != nil || review.Tier == MealPaste || len(review.Recipes) == 0 {
 		return BillSelection{}, false
@@ -341,7 +341,16 @@ func selectMealBill(benches domain.Fact[[]ProductionBench], colonists domain.Fac
 	if !ck {
 		return BillSelection{}, false
 	}
-	wanted := BillSelection{Mode: domain.FoodTarget, Target: int32(count * 3)}
+	wanted := BillSelection{Ingredients: ingredients, Mode: domain.FoodTarget, Target: int32(count * 3)}
+	// Correct drift even when another matching bill already covers the target.
+	for _, choice := range review.Recipes {
+		bench := byBench[choice.Bench]
+		bench.Recipes = []ProductionRecipe{recipes[key{choice.Bench, choice.Recipe}]}
+		selected, ok := SelectProductionBill(CookFood, domain.Known([]ProductionBench{bench}), colonists, request.RawRunwayDays, domain.Unknown[float64](), request.TargetDays, ProductionBillContext{Ingredients: ingredients})
+		if ok && selected.Replace != "" {
+			return selected, true
+		}
+	}
 	for _, choice := range review.Recipes {
 		for _, bill := range byBench[choice.Bench].Bills {
 			if bill.Recipe == choice.Recipe && !bill.Humanlike && billAdequate(bill, wanted) {
@@ -352,7 +361,7 @@ func selectMealBill(benches domain.Fact[[]ProductionBench], colonists domain.Fac
 	for _, choice := range review.Recipes {
 		bench := byBench[choice.Bench]
 		bench.Recipes = []ProductionRecipe{recipes[key{choice.Bench, choice.Recipe}]}
-		selected, ok := SelectProductionBill(CookFood, domain.Known([]ProductionBench{bench}), colonists, request.RawRunwayDays, domain.Unknown[float64](), request.TargetDays)
+		selected, ok := SelectProductionBill(CookFood, domain.Known([]ProductionBench{bench}), colonists, request.RawRunwayDays, domain.Unknown[float64](), request.TargetDays, ProductionBillContext{Ingredients: ingredients})
 		if !ok {
 			if existing[key{choice.Bench, choice.Recipe}] {
 				return BillSelection{}, false

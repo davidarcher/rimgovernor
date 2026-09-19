@@ -6,6 +6,13 @@ import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
+func billIngredients(b *o.BillState) domain.Fact[[]string] {
+	if b.IngredientFilter == nil || b.Recipe.GetDefName() == "ButcherCorpseFlesh" {
+		return domain.Unknown[[]string]()
+	}
+	return domain.Known(append([]string(nil), b.IngredientFilter.AllowedDefNames...))
+}
+
 func billForever(mode *string) domain.Fact[bool] {
 	if mode == nil {
 		return domain.Unknown[bool]()
@@ -140,7 +147,7 @@ func colonyProductionBenches(v *o.ColonyFactsSnapshot) domain.Fact[[]policy.Prod
 			row.Recipes = append(row.Recipes, recipe)
 		}
 		for _, b := range bills {
-			row.Bills = append(row.Bills, policy.ExistingProductionBill{ID: b.GetId(), Managed: optional(b.ManagedUnchanged), Active: billActive(b.Suspended), Recipe: b.Recipe.GetDefName(), TargetCount: optional(b.TargetCount), Forever: billForever(b.RepeatMode), Humanlike: len(b.GetIngredientFilter().GetAllowedDefNames()) > 0})
+			row.Bills = append(row.Bills, policy.ExistingProductionBill{DefaultIngredients: optional(b.DefaultIngredients), UnrestrictedWorker: optional(b.UnrestrictedWorker), Worker: optional(b.WorkerId), RepeatMode: optional(b.RepeatMode), Ingredients: billIngredients(b), ID: b.GetId(), Managed: optional(b.ManagedUnchanged), Active: billActive(b.Suspended), Recipe: b.Recipe.GetDefName(), TargetCount: optional(b.TargetCount), Forever: billForever(b.RepeatMode), Humanlike: butcher && len(b.GetIngredientFilter().GetAllowedDefNames()) > 0})
 		}
 		rows = append(rows, row)
 	}

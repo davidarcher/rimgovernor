@@ -138,3 +138,18 @@ the plan.
 See [spatial contracts](spatial-contracts.md), [sessions and
 recovery](../architecture/sessions-and-recovery.md), and [plans and
 Hands](../architecture/plans-and-hands.md).
+
+### Auto production bill takeover
+
+Auto reviews matching cooking, reserve and animal-butchery bills regardless of
+ownership. Known suspension, finite repeat mode, insufficient targets, narrowed
+ingredient filters and worker restrictions trigger a guarded replacement through
+the existing production action. Unknown fields remain unknown. Adequate bills and
+unrelated recipes remain; ordinary meal-tier replacement follows the meal review.
+Same-recipe replacement stays on its original bench and works on a full stack.
+The stack token protects the edit; completion still requires observed production.
+
+The bill census reports whether ingredient definitions, ranges and special rules
+match Auto defaults, along with worker-category/skill restrictions and the pinned
+pawn. Ordinary cooking also reports its allowed definitions for explicit diets.
+Butchery retains its separate human-corpse census and routing.

@@ -125,7 +125,7 @@ func ReviewFoodReserve(supply FoodSupply, selected []PawnID, reserveDays, minimu
 // SelectReserveBill selects a standing native target-count bill. Its target
 // includes existing stock of the selected product because native counts that
 // stock toward satisfaction; only other reserve products reduce the target.
-// Existing bills retain their player settings and are never duplicated.
+// Matching bills are corrected under Auto; unrelated recipes are retained.
 func SelectReserveBill(benches domain.Fact[[]ProductionBench], reserve FoodReserveReview) (BillSelection, bool) {
 	rows, known := benches.Value()
 	if !known || len(rows) > 256 || reserve.Emergency || !fieldPositive(reserve.DeficitNutrition) || !fieldPositive(reserve.TargetNutrition) {
@@ -136,7 +136,7 @@ func SelectReserveBill(benches domain.Fact[[]ProductionBench], reserve FoodReser
 	for _, bench := range rows {
 		usable, uk := bench.Usable.Value()
 		token, tk := bench.Token.Value()
-		if !uk || !usable || !tk || !foodID(token) || !foodID(bench.ID) || bench.Butcher || len(bench.Bills) >= 15 || len(bench.Recipes) > 256 {
+		if !uk || !usable || !tk || !foodID(token) || !foodID(bench.ID) || bench.Butcher || len(bench.Bills) > 15 || len(bench.Recipes) > 256 {
 			continue
 		}
 		for _, recipe := range bench.Recipes {
@@ -151,20 +151,28 @@ func SelectReserveBill(benches domain.Fact[[]ProductionBench], reserve FoodReser
 			if !ReserveFoodDefinition(def) || !nk || !fieldPositive(nutrition) || !ek || !edible {
 				continue
 			}
-			exists := false
-			for _, other := range rows {
-				for _, bill := range other.Bills {
-					exists = exists || bill.Recipe == recipe.Name
-				}
-			}
-			if exists {
-				continue
-			}
+
 			target := math.Ceil((reserve.TargetNutrition - reserve.StockNutrition + reserve.ByDefinition[def]) / nutrition)
 			if !fieldPositive(target) || target > 10000 {
 				continue
 			}
-			options = append(options, BillSelection{Bench: bench.ID, Recipe: recipe.Name, Token: token, Mode: domain.FoodTarget, Target: int32(target)})
+			selected := BillSelection{Bench: bench.ID, Recipe: recipe.Name, Token: token, Mode: domain.FoodTarget, Target: int32(target)}
+			exists := false
+			for _, other := range rows {
+				for _, bill := range other.Bills {
+					if bill.Recipe != recipe.Name {
+						continue
+					}
+					exists = true
+					if other.ID == bench.ID && !billAdequate(bill, selected) && foodID(bill.ID) && (selected.Replace == "" || bill.ID < selected.Replace) {
+						selected.Replace = bill.ID
+					}
+				}
+			}
+			if exists && selected.Replace == "" || len(bench.Bills) == 15 && selected.Replace == "" {
+				continue
+			}
+			options = append(options, selected)
 			products[recipe.Name] = def
 		}
 	}
