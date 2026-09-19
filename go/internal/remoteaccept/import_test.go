@@ -33,7 +33,7 @@ func jsonBytes(t *testing.T, v any) []byte {
 }
 func testGit(t *testing.T, repo string, args ...string) string {
 	t.Helper()
-	c := exec.Command("git", args...)
+	c := exec.Command("git", append([]string{"-c", "user.email=test@example.com", "-c", "user.name=Test"}, args...)...)
 	c.Dir = repo
 	b, err := c.CombinedOutput()
 	if err != nil {
@@ -45,21 +45,50 @@ func sourceRepo(t *testing.T) (string, string, string) {
 	t.Helper()
 	repo := t.TempDir()
 	testGit(t, repo, "init", "-q", "-b", "main")
-	testGit(t, repo, "config", "user.email", "test@example.com")
-	testGit(t, repo, "config", "user.name", "Test")
-	if err := os.WriteFile(filepath.Join(repo, "base.txt"), []byte("base"), 0o644); err != nil {
-		t.Fatal(err)
+	// Import the small, diverging histories in one process. Repeated add,
+	// commit and checkout processes dominate fixture cost on Windows.
+	// main stays at base until the merge test advances it to peer.
+	c := exec.Command("git", "fast-import", "--quiet")
+	c.Dir = repo
+	c.Stdin = strings.NewReader(`commit refs/heads/main
+mark :1
+committer Test <test@example.com> 1700000000 +0000
+data 4
+base
+M 100644 inline base.txt
+data 4
+base
+
+commit refs/heads/task
+mark :2
+committer Test <test@example.com> 1700000001 +0000
+data 4
+task
+from :1
+M 100644 inline task.txt
+data 4
+task
+
+commit refs/heads/peer
+committer Test <test@example.com> 1700000002 +0000
+data 4
+peer
+from :1
+M 100644 inline peer.txt
+data 4
+peer
+
+done
+`)
+	if b, err := c.CombinedOutput(); err != nil {
+		t.Fatalf("git fast-import: %v: %s", err, b)
 	}
-	testGit(t, repo, "add", ".")
-	testGit(t, repo, "commit", "-qm", "base")
-	base := testGit(t, repo, "rev-parse", "HEAD")
-	testGit(t, repo, "checkout", "-qb", "task")
-	if err := os.WriteFile(filepath.Join(repo, "task.txt"), []byte("task"), 0o644); err != nil {
-		t.Fatal(err)
+	testGit(t, repo, "checkout", "-q", "task")
+	commits := strings.Fields(testGit(t, repo, "rev-parse", "main", "task"))
+	if len(commits) != 2 {
+		t.Fatalf("expected base and task commits, got %v", commits)
 	}
-	testGit(t, repo, "add", ".")
-	testGit(t, repo, "commit", "-qm", "task")
-	return repo, base, testGit(t, repo, "rev-parse", "HEAD")
+	return repo, commits[0], commits[1]
 }
 func zipTree(t *testing.T, root string) []byte {
 	t.Helper()
@@ -132,13 +161,7 @@ func TestCompleteImportAndNormalMainMerge(t *testing.T) {
 		t.Fatal(err)
 	}
 	// A peer moves main. Evidence is associated before the lane merges it.
-	testGit(t, repo, "checkout", "-q", "main")
-	if err := os.WriteFile(filepath.Join(repo, "peer.txt"), []byte("peer"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	testGit(t, repo, "add", ".")
-	testGit(t, repo, "commit", "-qm", "peer")
-	testGit(t, repo, "checkout", "-q", "task")
+	testGit(t, repo, "update-ref", "refs/heads/main", "peer")
 	if err := VerifySource(repo, f.run); err != nil {
 		t.Fatal(err)
 	}
