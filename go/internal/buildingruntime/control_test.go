@@ -455,6 +455,46 @@ func TestControlAcquireReclaimsStaleAutoFromDeadProcess(t *testing.T) {
 // under. Nothing has been written yet, so the read starts over under the next
 // epoch instead of reporting an uncertain outcome (#206); a caller's own
 // cancellation still ends it.
+// The clock poll ingests the AuthorityChanged event Manual's own revoke
+// raises and calls Disable on it; Disable replaces the control epoch.
+// Manual's owned cleanup must still run under a live call (#322).
+func TestControlManualSurvivesConcurrentDisable(t *testing.T) {
+	t.Parallel()
+	control, n, sink, _ := controlFixture(t, nil)
+	if _, err := control.Acquire(context.Background(), controlScope()); err != nil {
+		t.Fatal(err)
+	}
+	n.onRevoke = func() {
+		if err := control.Disable(); err != nil {
+			t.Error(err)
+		}
+	}
+	var cleanups atomic.Int32
+	var cleanupErr error
+	control.config.CleanupWrites = func(ctx context.Context) error {
+		cleanups.Add(1)
+		// The epoch's cancellation reaches an epoch-bound call through
+		// AfterFunc; give it time to land before judging the call live.
+		select {
+		case <-ctx.Done():
+		case <-time.After(200 * time.Millisecond):
+		}
+		cleanupErr = ctx.Err()
+		return cleanupErr
+	}
+	if err := control.Manual(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if cleanups.Load() != 1 || cleanupErr != nil || sink.enabled() || n.revokes.Load() != 1 {
+		t.Fatal("cleanup did not run under a live call", cleanups.Load(), cleanupErr, n.revokes.Load())
+	}
+	state := control.State()
+	if state.Enabled || !state.ObservationKnown || state.Snapshot.Native != 3 {
+		t.Fatal("revoked generation not published", state)
+	}
+	n.onRevoke, control.config.CleanupWrites = nil, nil
+}
+
 func TestControlAcquireRestartsObservationAfterConcurrentDisable(t *testing.T) {
 	t.Parallel()
 	control, n, sink, _ := controlFixture(t, nil)

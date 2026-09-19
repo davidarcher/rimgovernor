@@ -141,7 +141,7 @@ func TestLifecycleSave(t *testing.T) {
 	if err := json.Unmarshal(out.Body.Bytes(), &dto); err != nil || dto.RequestID != "save-1" || dto.SaveName != "checkpoint" || !dto.Paused || dto.Identity.ColonyID != "colony" || dto.Tick != 42 || dto.ByteLength != 1024 {
 		t.Fatal(out.Body.String(), err)
 	}
-	if f.seenSave.GetPlayer().GetIdentity().GetColonyId() != "colony" || f.seenSave.GetPlayer().GetPlayerDirection() != 1 || f.seenSave.GetPlayer().GetRequestId() != "save-1" || f.seenSave.GetSaveName() != "checkpoint" || f.seenSave.GetExpectedTick() != 42 {
+	if f.seenSave.GetPlayer().GetIdentity().GetColonyId() != "colony" || f.seenSave.GetPlayer().GetPlayerDirection() != 1 || f.seenSave.GetPlayer().GetRequestId() != "save-1" || f.seenSave.GetSaveName() != "checkpoint" || f.seenSave.ExpectedTick != nil {
 		t.Fatal(f.seenSave)
 	}
 }

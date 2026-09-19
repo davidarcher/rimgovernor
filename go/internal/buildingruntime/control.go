@@ -234,6 +234,14 @@ func (control *Control) Lease(snapshot domain.GenerationSnapshot) (string, error
 
 // Manual disables local authority before waiting for any native call. Inspection
 // reconciles an uncertain SetMode call, but never adopts a grant from it.
+//
+// Its native revoke and owned cleanup run under the gate but not under the
+// control epoch: the revoke itself is the AuthorityChanged event the clock
+// poll ingests, and the poll's Disable on that fresh evidence replaces the
+// epoch (#206). Authority is already off when Manual starts, so a concurrent
+// Disable has nothing to protect here; tying the call to the epoch cancelled
+// the cleanup's clock read mid-flight and reported every player pause
+// uncertain under a held poll (#322).
 func (control *Control) Manual(ctx context.Context) error {
 	control.mu.Lock()
 	if control.closing {
@@ -241,9 +249,8 @@ func (control *Control) Manual(ctx context.Context) error {
 		return ErrControl
 	}
 	err := control.invalidateLocked()
-	epoch := control.epoch
 	control.mu.Unlock()
-	call, done, enterErr := control.enter(ctx, epoch)
+	call, done, enterErr := control.enterGate(ctx)
 	if enterErr != nil {
 		return errors.Join(err, enterErr)
 	}
@@ -382,6 +389,25 @@ func (control *Control) enter(ctx, epoch context.Context) (context.Context, func
 		return nil, nil, ErrControl
 	}
 	return call, func() { <-control.gate; cleanup() }, nil
+}
+
+// enterGate takes the gate under the caller's context and the call timeout
+// alone, for work that turns authority off (Manual) and must outlive a
+// concurrent Disable's epoch replacement.
+func (control *Control) enterGate(ctx context.Context) (context.Context, func(), error) {
+	call, cancel := context.WithTimeout(ctx, control.config.CallTimeout)
+	select {
+	case control.gate <- struct{}{}:
+	case <-call.Done():
+		cancel()
+		return nil, nil, call.Err()
+	}
+	if err := call.Err(); err != nil {
+		<-control.gate
+		cancel()
+		return nil, nil, err
+	}
+	return call, func() { <-control.gate; cancel() }, nil
 }
 func (control *Control) acceptGrant(call, epoch context.Context, reply *a.ControlReply, snapshot domain.GenerationSnapshot) error {
 	grant := reply.GetGranted()

@@ -233,6 +233,15 @@ type ClockScheduler struct {
 	// trace is the trace of the latest step (telemetry.Trace); the Worker
 	// nests its dispatches under it (#298).
 	trace atomic.Value
+	// grant is the latest AuthorityChanged grant a committed page carried
+	// (generation, cursor): a hold or stop before it was answered by that
+	// grant and does not disable the authority it holds (#322). Touched
+	// only under the poll gate.
+	grant clockGrant
+	// history is the event cursor watermark the first poll read; events at
+	// or before it precede any authority this process holds (#322).
+	// Touched only under the poll gate.
+	history clockHistory
 	// readmitOwed is set by a step that settled its own stopped window and
 	// then deferred, so the step that finally admits reports the whole
 	// stop-to-readmit pause; touched only under the player gate.

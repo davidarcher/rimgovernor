@@ -51,11 +51,9 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 	if err != nil {
 		return fail(err)
 	}
-	if len(review.Holds) > 0 {
-		if err = invalidate(); err != nil {
-			return fail(err)
-		}
-	}
+	// A standing hold disables authority granted under it, unless the page
+	// read below shows the grant came after the hold (see answered).
+	standing := len(review.Holds) > 0
 	if err = s.maintainClockAttempts(call); err != nil {
 		return fail(err)
 	}
@@ -100,6 +98,19 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 		return fail(err)
 	}
 	fresh = page.GetGap() || len(page.Events) > 0
+	// The first page fixes the history watermark: native's newest cursor
+	// when this process first read events. While nothing is enabled, a page
+	// at or before it is not fresh evidence: a kept game's backlog of stops
+	// from before this process started interrupts no authority it holds,
+	// and disabling for it page by page cancelled the first resume's
+	// acquisition in flight (#322). The events are still captured and
+	// their holds still stand until acknowledged.
+	if !s.history.known {
+		s.history = clockHistory{cursor: page.GetNewestCursor(), known: true}
+	}
+	if !state.Enabled && clockPollLastCursor(page) <= s.history.cursor {
+		fresh = false
+	}
 	if page.Context.GetTick() < current.GetTick() || current.NativeGeneration != nil && (page.Context.NativeGeneration == nil || page.Context.GetNativeGeneration() < current.GetNativeGeneration()) {
 		return fail(executor.ErrEvidence)
 	}
@@ -120,7 +131,25 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 			out.Interrupted = true
 		}
 	}
-	if page.GetGap() || clockPollInterrupts(page) {
+	// An interruption the page carries before the grant of the generation
+	// authority holds now was answered by that grant: the service's own
+	// pause revoked, stopped the clock and re-acquired (a checkpoint), and
+	// disabling on the stop would revoke the new grant again (#322). The
+	// hold it leaves still keeps a window from opening until acknowledged,
+	// and the poll reports it held without disabling. The grant is
+	// remembered, so a hold that stands from an earlier page (the stop
+	// and the grant read by different polls) is answered too.
+	if generation, cursor, ok := clockPollGrant(page); ok {
+		s.grant = clockGrant{generation: generation, cursor: cursor, known: true}
+	}
+	granted := s.grant.cursorFor(latest)
+	answered := !page.GetGap() && !clockPollInterruptsAfter(page, granted)
+	if standing && !s.grant.answers(latest, review.Holds, granted) {
+		if err = invalidate(); err != nil {
+			return fail(err)
+		}
+	}
+	if page.GetGap() || clockPollInterruptsAfter(page, granted) {
 		if clockSchedulerDebug {
 			clockSchedulerLog("poll: interrupting gap=%v events=%s", page.GetGap(), clockPollEventKinds(page))
 		}
@@ -161,7 +190,22 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 	if err != nil {
 		return fail(err)
 	}
+	if len(out.Review.Holds) > 0 && answered && !out.Interrupted && s.grant.answers(latest, out.Review.Holds, granted) {
+		// Holds the grant answers are acknowledged here: the player's own
+		// resume granted this generation after every interruption they cover,
+		// and nothing else would clear them while authority stands (#322).
+		ack := store.ClockAcknowledgement{RequestID: fmt.Sprintf("clock-ack-%d-%d", out.Review.Revision, out.Review.ReviewedCursor), ExpectedRevision: out.Review.Revision, ThroughCursor: out.Review.ReviewedCursor}
+		if out.Review, err = s.player.journal.AcknowledgeClockEvents(call, s.config.Profile, ack); err != nil {
+			return fail(err)
+		}
+	}
 	if len(out.Review.Holds) > 0 || out.Review.ReviewedCursor != out.Review.InboxCursor || out.Review.ReviewedCursor != page.GetNewestCursor() {
+		if answered && !out.Interrupted && s.grant.answers(latest, out.Review.Holds, granted) {
+			s.running.Store(false)
+			cleanup, cancel := context.WithTimeout(context.Background(), s.session.control.config.CallTimeout)
+			defer cancel()
+			return out, errors.Join(executor.ErrHeld, s.session.CleanupClock(cleanup))
+		}
 		return fail(executor.ErrHeld)
 	}
 	if err = call.Err(); err != nil {
@@ -253,10 +297,77 @@ func clockPollStopped(page *k.EventsPage) bool {
 	return false
 }
 func clockPollInterrupts(page *k.EventsPage) bool {
+	return clockPollInterruptsAfter(page, -1)
+}
+
+// clockPollInterruptsAfter reports whether the page carries an interruption
+// past the cursor granted (-1 for none).
+func clockPollInterruptsAfter(page *k.EventsPage, granted int64) bool {
 	for _, event := range page.Events {
-		if clock.EventInterrupts(event) {
+		if event.GetCursor() > granted && clock.EventInterrupts(event) {
 			return true
 		}
 	}
 	return false
+}
+
+// clockPollLastCursor is the cursor of the page's last event, -1 for none.
+func clockPollLastCursor(page *k.EventsPage) int64 {
+	if len(page.Events) == 0 {
+		return -1
+	}
+	return page.Events[len(page.Events)-1].GetCursor()
+}
+
+// clockPollGrant is the page's last AuthorityChanged grant (generation and
+// cursor), if it carries one.
+func clockPollGrant(page *k.EventsPage) (generation uint64, cursor int64, ok bool) {
+	for _, event := range page.Events {
+		if v, isChange := event.Event.(*k.Event_AuthorityChanged); isChange && v.AuthorityChanged.GetActive() && v.AuthorityChanged.Generation != nil {
+			generation, cursor, ok = v.AuthorityChanged.GetGeneration(), event.GetCursor(), true
+		}
+	}
+	return generation, cursor, ok
+}
+
+// clockHistory is native's newest event cursor when this process first read
+// events: the watermark below which events are history, not interruptions.
+type clockHistory struct {
+	cursor int64
+	known  bool
+}
+
+// clockGrant is the latest grant a committed page carried.
+type clockGrant struct {
+	generation uint64
+	cursor     int64
+	known      bool
+}
+
+// cursorFor is the cursor at which the generation state holds enabled was
+// granted, or -1 when authority is off or the grant was not seen.
+func (g clockGrant) cursorFor(state ControlState) int64 {
+	if !g.known || !state.Enabled || !state.ObservationKnown || uint64(state.Snapshot.Native) != g.generation {
+		return -1
+	}
+	return g.cursor
+}
+
+// answers reports whether every hold precedes the grant of the generation
+// state holds: evidence that grant already answered, which the scheduler
+// does not disable for again. granted is that cursor when the caller has
+// it, -1 to derive it from state.
+func (g clockGrant) answers(state ControlState, holds []clock.Hold, granted int64) bool {
+	if granted < 0 {
+		granted = g.cursorFor(state)
+	}
+	if granted < 0 {
+		return false
+	}
+	for _, hold := range holds {
+		if hold.ThroughCursor > granted {
+			return false
+		}
+	}
+	return true
 }

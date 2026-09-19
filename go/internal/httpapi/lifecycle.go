@@ -230,20 +230,14 @@ func (s *Server) handleLifecycleSave(w http.ResponseWriter, r *http.Request, ctx
 		s.failure(w, r, 409, "conflict", "Save requires manual control")
 		return
 	}
-	snapshot, err := s.snapshots.Snapshot(ctx)
-	if err != nil {
-		s.readFailure(w, r, err)
-		return
-	}
-	tick, knownTick := snapshot.Tick.Value()
-	if !knownTick {
-		s.readFailure(w, r, errNoLifecycleIdentity)
-		return
-	}
+	// No expected tick: the snapshot's tick is a cached observation up to a
+	// refresh interval old, so a save posted right after a pause carried the
+	// pre-pause tick and native refused it as moved (#322). The completed
+	// reply must report the game paused and the identity above unchanged;
+	// its tick is the checkpoint's.
 	request := &l.SaveRequest{
-		Player:       &l.PlayerLifecycleContext{Identity: wire, PlayerDirection: proto.Uint64(bridgepkg.LifecycleDirection), RequestId: proto.String(body.RequestID)},
-		SaveName:     proto.String(body.SaveName),
-		ExpectedTick: proto.Int64(int64(tick)),
+		Player:   &l.PlayerLifecycleContext{Identity: wire, PlayerDirection: proto.Uint64(bridgepkg.LifecycleDirection), RequestId: proto.String(body.RequestID)},
+		SaveName: proto.String(body.SaveName),
 	}
 	reply, _, err := s.config.Lifecycle.Save(ctx, request)
 	if err == nil {

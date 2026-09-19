@@ -3,10 +3,12 @@ package buildingruntime
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	"google.golang.org/protobuf/proto"
+	"sort"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -123,6 +125,51 @@ func TestWorkerDisabledFairScanAndPausedBackoff(t *testing.T) {
 		t.Fatal("missing fair next step")
 	}
 }
+
+// A selected action that leaves the candidate set (here: observed complete
+// after its run) must not send the rotation back to the catalog's head;
+// the next step continues past its position (#322).
+func TestWorkerRotationResumesPastADepartedCursor(t *testing.T) {
+	t.Parallel()
+	w, f, db := workerFixture(t)
+	// Catalog order is by plan id (a digest), so sort the three to know it.
+	views := []domain.ProgressView{workerPending(t, w, "one", true), workerPending(t, w, "two", true), workerPending(t, w, "three", true)}
+	sort.Slice(views, func(i, j int) bool { return views[i].Plan < views[j].Plan })
+	first, second, third := views[0], views[1], views[2]
+	var order []domain.ActionID
+	f.run = func(ctx context.Context, p domain.PlanID, a domain.ActionID) (executor.Result, error) {
+		order = append(order, a)
+		plan, err := db.LoadPlan(ctx, p)
+		return executor.Result{Progress: plan.Progress[0]}, err
+	}
+	now := time.Now()
+	if err := w.step(context.Background(), now); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.step(context.Background(), now); err != nil {
+		t.Fatal(err)
+	}
+	if len(order) != 2 || order[0] != first.Action || order[1] != second.Action {
+		t.Fatal("catalog rotation", order)
+	}
+	// The second completes and leaves the candidate set, and a wake has
+	// dropped every backoff (takeWake): the next step must still reach the
+	// third rather than restart at the first.
+	w.waits = map[domain.ActionID]workerWait{}
+	if _, err := db.RecordReceipt(context.Background(), second.Plan, second.Action, 1, domain.ReceiptAccepted); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Observe(context.Background(), second.Plan, domain.Observation{Action: second.Action, Attempt: 1, Snapshot: second.Snapshot, Tick: 2, Effect: domain.EffectCompleted}, second.Snapshot); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.step(context.Background(), now); err != nil {
+		t.Fatal(err)
+	}
+	if len(order) != 3 || order[2] != third.Action {
+		t.Fatal("rotation restarted at the catalog head", order)
+	}
+}
+
 func TestWorkerActualPermissionAndWrongWorld(t *testing.T) {
 	t.Parallel()
 	w, f, _ := workerFixture(t)
@@ -682,4 +729,70 @@ func TestWorkerStepReadsWorldNativelyWithoutASeededIdentity(t *testing.T) {
 			t.Fatal("step without a seeded identity row did not read the world natively", facts == nil, worlds.calls-before)
 		}
 	}
+}
+
+// The rotation is by plan: a long plan sorted first takes one step per
+// round, so a short plan behind it (the work assignments behind a
+// forty-action shell) has its turn every round rather than after the long
+// plan's last action (#322).
+func TestWorkerRotationAlternatesPlans(t *testing.T) {
+	t.Parallel()
+	w, f, db := workerFixture(t)
+	short := workerPending(t, w, "short", true)
+	// "0-long" sorts before the short plan's digest id.
+	var actions []domain.Action
+	for i := 0; i < 3; i++ {
+		b, err := domain.NewBuilding("Wall", domain.Cell{X: int32(10 + i), Z: 2}, domain.North, "WoodLog")
+		if err != nil {
+			t.Fatal(err)
+		}
+		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("0-long-%d", i)), b)
+		if err != nil {
+			t.Fatal(err)
+		}
+		actions = append(actions, action)
+	}
+	long, err := domain.NewPlan("0-long", 1, actions)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = db.CreatePlan(context.Background(), long); err != nil {
+		t.Fatal(err)
+	}
+	snapshot := short.Snapshot
+	snapshot.Plan = long.ID()
+	for _, action := range actions {
+		if _, err = db.ReserveAndPrepare(context.Background(), long.ID(), action.ID(), store.Admission{Snapshot: snapshot, Tick: 1, Costs: []store.MaterialCost{}, Footprint: []domain.Cell{workerActionCell(action)}}); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = db.Dispatch(context.Background(), long.ID(), action.ID(), snapshot, 1); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var order []domain.ActionID
+	f.run = func(ctx context.Context, p domain.PlanID, a domain.ActionID) (executor.Result, error) {
+		order = append(order, a)
+		plan, err := db.LoadPlan(ctx, p)
+		for _, progress := range plan.Progress {
+			if progress.View().Action == a {
+				return executor.Result{Progress: progress}, err
+			}
+		}
+		return executor.Result{}, err
+	}
+	now := time.Now()
+	for i := 0; i < 4; i++ {
+		if err := w.step(context.Background(), now); err != nil {
+			t.Fatal(err)
+		}
+	}
+	want := []domain.ActionID{"0-long-0", short.Action, "0-long-1", "0-long-2"}
+	if fmt.Sprint(order) != fmt.Sprint(want) {
+		t.Fatal(order, want)
+	}
+}
+
+func workerActionCell(action domain.Action) domain.Cell {
+	b, _ := action.Building()
+	return b.Cell()
 }

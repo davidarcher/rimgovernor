@@ -85,8 +85,13 @@ type Worker struct {
 	done        chan struct{}
 	stopContext func() bool
 	// Only the step loop accesses scheduling state. The catalog bounds this map.
-	waits  map[domain.ActionID]workerWait
-	cursor domain.ActionID
+	waits map[domain.ActionID]workerWait
+	// cursor is the plan of the last rotation-selected action: the next
+	// step starts at the first candidate of the plan after it in the
+	// catalog, even once that plan has left the catalog (retired), so
+	// neither the catalog's head nor one long plan can monopolise steps.
+	cursor      domain.PlanID
+	cursorKnown bool
 	// focus holds woken actions not yet reconciled since the wake.
 	focus map[domain.ActionID]WakeOutcome
 	// advanced reports that the last step moved an action to another
@@ -100,6 +105,7 @@ const workerBurstMax = 16
 type workerCandidate struct {
 	view    domain.ProgressView
 	cleanup bool
+	plan    domain.PlanID
 }
 
 type workerWait struct {
@@ -352,7 +358,7 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 			}
 			if cleanup || worldErr == nil && (routineObservation || workerEligible(plan, v, planScope, world)) {
 				live[v.Action] = true
-				candidates = append(candidates, workerCandidate{view: v, cleanup: cleanup})
+				candidates = append(candidates, workerCandidate{view: v, cleanup: cleanup, plan: plan.Spec.ID()})
 			}
 		}
 	}
@@ -366,15 +372,29 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 			delete(w.focus, id)
 		}
 	}
-	// Catalog order is stable; rotate by the last selected action, including on
-	// failed reads, so an unavailable attempt cannot monopolize reconciliation.
+	// Catalog order is stable; rotate by plan, including on failed reads,
+	// so an unavailable attempt cannot monopolize reconciliation. The
+	// rotation resumes at the first candidate of the plan after the last
+	// selection's, whether or not that plan still lists one: rotating by
+	// action gave a forty-action shell plan every step until its last
+	// action and restarted at the catalog's head whenever the selected
+	// action completed, so the work-assignment plan sorted after the shell
+	// never had a turn (#322). Within a plan the first candidate is its
+	// earliest action, so a sequential plan still progresses in order.
 	// Woken actions come first: the native clock latched their outcome, so
-	// reconciling them is the reason this step runs.
+	// reconciling them is the reason this step runs; they leave the
+	// rotation where it was.
 	start := 0
-	for i, v := range candidates {
-		if v.view.Action == w.cursor {
-			start = (i + 1) % len(candidates)
-			break
+	if w.cursorKnown {
+		start = len(candidates)
+		for i, v := range candidates {
+			if v.plan > w.cursor {
+				start = i
+				break
+			}
+		}
+		if len(candidates) > 0 {
+			start %= len(candidates)
 		}
 	}
 	ordered := make([]workerCandidate, 0, len(candidates))
@@ -393,7 +413,9 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 			continue
 		}
 		delete(w.focus, v.Action)
-		w.cursor = v.Action
+		if !focused {
+			w.cursor, w.cursorKnown = candidate.plan, true
+		}
 		if err = w.player.current(call, epoch); err != nil {
 			return err
 		}
