@@ -364,8 +364,18 @@ sides: the native omits one it cannot read, and all of them when they push
 the reply past the envelope; an omitted family's read then goes natively,
 exactly as before, and a bundle that carries a family the request did not
 ask for, or one whose context differs from the bundle's, is a contract
-failure. A steady planning step is thus the bundle, the admission bundle
-and the window start. The routine
+failure. Each continuous family rides with a field mask (#360:
+`colonist_pawn_fields`, `population_fields`, `research_fields`, the
+CellFields pattern; `bundleMasks`): an absent mask keeps the family
+whole, a present one keeps only the sub-blocks it includes, and the
+scheduler sends each mask empty on every review step, the same whatever
+planners the step selects, because the review decodes every block
+regardless. The native clears the excluded blocks (gear detail,
+inventory, capacities, surgery bills, backstory, traits, relations; owned
+beds, nutrition, supported interactions; research unlocks, costs,
+facilities) from the bundle's copy only; the dedicated reads stay whole,
+and an older native answers whole. A steady planning step is thus the
+bundle, the admission bundle and the window start. The routine
 reviewer, its acquisition and containment planners and the caravan tracker
 take their scope through `lifecycle_read_tick` when the source offers it
 (`stepScope`), so the review after a stop crosses the bridge for no identity

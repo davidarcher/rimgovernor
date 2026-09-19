@@ -384,7 +384,8 @@ adds buildings and loot to it (#320). The checkpoint generators
 (`tools/facility-checkpoint`, `tools/defense-checkpoint`) refuse to commit
 past it, and `tools/saveheadroom-<save>` lints each committed save in ten
 seconds, reporting the largest sections (`colony_facts` in result.json) and
-the whole review bundle's bytes per family (`bundle`).
+the whole review bundle's bytes per family (`bundle`, the families whole;
+`bundle_masked` under the review's field masks, #360).
 
 Fixture games are also quiet by default: `test/configure_start` applies
 `test/quiet_storyteller` once the colony exists (pass `quiet=false` to keep

@@ -1128,8 +1128,23 @@ func (s *ClockScheduler) bundleRequest(reason StepReason) *o.BundleRequest {
 		request.ColonyFacts = proto.Bool(true)
 		population, research, pawns := bundleFamilies(s.facts.store, s.lastTick+int64(domain.LiveDrift()), s.lastTickKnown)
 		request.Population, request.Research, request.ColonistPawns = proto.Bool(population), proto.Bool(research), proto.Bool(pawns)
+		request.ColonistPawnFields, request.PopulationFields, request.ResearchFields = bundleMasks()
 	}
 	return request
+}
+
+// bundleMasks is the review bundle's field mask per continuous family
+// (#360): the sub-blocks the routine review decodes. The mask is the same whatever
+// planners the step selects, because the review's DetectRoutine consumes
+// every decoded block on every review; a planner subset never narrows
+// what is read. Each mask is an empty message: present, so native drops
+// the blocks the controller never reads (gear detail, inventory,
+// capacities, surgery bills, backstory, traits, relations; owned beds,
+// nutrition, supported interactions; research unlocks, costs, facilities),
+// with no include flag set. A native that predates the masks returns the
+// whole family; the decoders read the same fields either way.
+func bundleMasks() (*o.PawnFields, *o.PopulationFields, *o.ResearchFields) {
+	return &o.PawnFields{}, &o.PopulationFields{}, &o.ResearchFields{}
 }
 
 // bundleFamilies decides which continuous families ride a review step's

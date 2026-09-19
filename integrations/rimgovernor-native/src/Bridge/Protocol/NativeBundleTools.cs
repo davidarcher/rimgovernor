@@ -28,7 +28,10 @@ namespace HomeBridge.BridgeTools
     /// are best effort: a family that fails to read is omitted, and when the
     /// families push the reply past the envelope they are all omitted, so the
     /// dedicated reads then serve them as before and the bundle itself never
-    /// fails on their account.
+    /// fails on their account. A family's field mask (issue #360:
+    /// colonist_pawn_fields, population_fields, research_fields) drops the
+    /// sub-blocks it does not include from the bundle's copy of the family
+    /// (NativeBundleMasks); an absent mask keeps the family whole.
     /// </summary>
     public sealed class NativeBundleTools
     {
@@ -135,10 +138,10 @@ namespace HomeBridge.BridgeTools
             { observed.ColonyFacts = colony; added = true; }
             if (request.HasPopulation && request.Population
                 && NativePopulationObservation.TryRead(map, new Obs.PopulationRequest { Scope = Scope() }, context, out var population))
-            { observed.Population = population; added = true; }
+            { observed.Population = NativeBundleMasks.Apply(population, request.PopulationFields); added = true; }
             if (request.HasResearch && request.Research
                 && NativeResearchObservationTools.TryRead(map, new Obs.ResearchRequest { Scope = Scope(), IncludeLocked = true, IncludeFinished = true, Page = new Common.PageRequest { Limit = 256 } }, context, out var research))
-            { observed.Research = research; added = true; }
+            { observed.Research = NativeBundleMasks.Apply(research, request.ResearchFields); added = true; }
             if (request.HasColonistPawns && request.ColonistPawns && observed.Emergency?.Colonists != null
                 && observed.Emergency.Colonists.Completeness?.Page?.Complete == true && observed.Emergency.Colonists.Pawns.Count > 0)
             {
@@ -149,7 +152,7 @@ namespace HomeBridge.BridgeTools
                     Page = new Common.PageRequest { Limit = (uint)observed.Emergency.Colonists.Pawns.Count },
                 };
                 foreach (var row in observed.Emergency.Colonists.Pawns) pawns.Filter.Ids.Add(row.Pawn.Id);
-                if (NativePawnObservationTools.TryRead(map, pawns, context, out var detail)) { observed.ColonistPawns = detail; added = true; }
+                if (NativePawnObservationTools.TryRead(map, pawns, context, out var detail)) { observed.ColonistPawns = NativeBundleMasks.Apply(detail, request.ColonistPawnFields); added = true; }
             }
             return added;
         }

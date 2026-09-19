@@ -307,6 +307,35 @@ func TestClockSchedulerBundleLeavesFreshSectionsOut(t *testing.T) {
 	}
 }
 
+// TestClockSchedulerBundleMasksAreConstantPerReview (#360): every review
+// step's bundle carries the same field mask per family, whatever planners
+// the step selects (the review consumes every decoded block regardless),
+// each mask present with no include flag; a step that does not review
+// carries none.
+func TestClockSchedulerBundleMasksAreConstantPerReview(t *testing.T) {
+	t.Parallel()
+	s, f := schedulerFixture(t)
+	schedulerRoutine(t, s, f)
+	empty := func(r *o.BundleRequest) bool {
+		return r.ColonistPawnFields != nil && r.PopulationFields != nil && r.ResearchFields != nil &&
+			proto.Equal(r.ColonistPawnFields, &o.PawnFields{}) && proto.Equal(r.PopulationFields, &o.PopulationFields{}) && proto.Equal(r.ResearchFields, &o.ResearchFields{})
+	}
+	for _, reason := range []StepReason{
+		{Cause: StepFull},
+		{Cause: StepWake, Authority: true},
+		{Cause: StepWake, Families: []bridge.FactFamily{bridge.FactPawns}},
+		{Cause: StepWake, Families: []bridge.FactFamily{bridge.FactResearch}},
+	} {
+		if r := s.bundleRequest(reason); !empty(r) {
+			t.Fatalf("%+v: masks %v %v %v", reason, r.ColonistPawnFields, r.PopulationFields, r.ResearchFields)
+		}
+	}
+	s.lastFull = s.clock.Now()
+	if r := s.bundleRequest(StepReason{Cause: StepTimer}); r.ColonistPawnFields != nil || r.PopulationFields != nil || r.ResearchFields != nil {
+		t.Fatal("masks on a timer step between full steps", r)
+	}
+}
+
 // TestRoutineReviewerRoomsMaxAgeUnderATemperatureCondition (#360): the
 // reviewer's routine store bounds the rooms section to the step's tick
 // while a temperature condition the colony facts name is active, and leaves

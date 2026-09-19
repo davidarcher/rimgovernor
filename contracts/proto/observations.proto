@@ -756,6 +756,33 @@ message StatusReply { oneof outcome { StatusSnapshot observed = 1; rimgovernor.c
 // would push the reply over the envelope, is omitted rather than failing
 // the bundle, and the caller reads it on its own.
 message BundleEventsRequest { optional int64 after_cursor = 1; optional uint32 limit = 2; optional uint32 wait_ms = 3; }
+// Field masks for the bundle's continuous families (#360, the CellFields
+// pattern): an absent mask keeps the family whole, as the dedicated read
+// returns it; a present mask keeps only the sub-blocks it includes, and
+// every other sub-block is left unset with no issue row. Each flag names a
+// block the controller's routine review does not decode, so the bundle's
+// copy can drop it while ListPawns, ReadPopulation and ReadResearch stay
+// whole. A native that predates a flag returns the whole family; the
+// controller tolerates either shape.
+message PawnFields {
+  optional bool include_gear_detail = 1; // GearItem stuff, quality, hit points, layers, armor, insulation
+  optional bool include_inventory = 2; // PawnEquipment inventory_weapons, carried_thing_id, inventory_item_count
+  optional bool include_capacities = 3; // PawnHealth capacities
+  optional bool include_surgery_bills = 4; // PawnHealth surgery_bills
+  optional bool include_backstory = 5; // PawnBiography childhood, adulthood, title, title_source, ages
+  optional bool include_traits = 6; // PawnBiography traits
+  optional bool include_relations = 7; // PawnSocial relations
+}
+message PopulationFields {
+  optional bool include_owned_bed = 1; // PopulationPerson owned_bed
+  optional bool include_nutrition = 2; // PopulationPerson nutrition_per_day
+  optional bool include_supported_interactions = 3; // PopulationSnapshot supported_interactions
+}
+message ResearchFields {
+  optional bool include_unlocks = 1; // ResearchProject unlocks
+  optional bool include_costs = 2; // ResearchProject base_cost, apparent_cost, cost_factor, progress, progress_fraction, techprints_*
+  optional bool include_facilities = 3; // ResearchProject required_facilities
+}
 message BundleRequest {
   ReadScope scope = 1;
   optional bool clock_status = 2;
@@ -765,6 +792,9 @@ message BundleRequest {
   optional bool population = 6;
   optional bool research = 7;
   optional bool colonist_pawns = 8;
+  PawnFields colonist_pawn_fields = 9;
+  PopulationFields population_fields = 10;
+  ResearchFields research_fields = 11;
 }
 message BundleSnapshot {
   rimgovernor.common.v1.ObservationContext context = 1;

@@ -439,3 +439,43 @@ func TestBundleReadValidatesTheCensusFamilies(t *testing.T) {
 		}
 	}
 }
+
+// TestBundleReadAcceptsMaskedFamilies (#360): a bundle answered under the
+// review's field masks, the native having dropped the sub-blocks the
+// masks leave out, seeds the same census reads as a whole one; the masks
+// ride the request the native sees.
+func TestBundleReadAcceptsMaskedFamilies(t *testing.T) {
+	server := newBundleFamilyServer(t)
+	for _, row := range server.snapshot.ColonistPawns.Pawns {
+		row.Health.Capacities, row.Health.SurgeryBills = nil, nil
+		row.Biography.Childhood, row.Biography.Adulthood, row.Biography.Traits, row.Biography.BiologicalAgeYears = nil, nil, nil, nil
+		if row.Equipment != nil {
+			row.Equipment.InventoryWeapons, row.Equipment.InventoryItemCount, row.Equipment.CarriedThingId = nil, nil, nil
+			for _, list := range [][]*o.GearItem{row.Equipment.Equipped, row.Equipment.Apparel} {
+				for _, g := range list {
+					g.Stuff, g.Quality, g.HitPoints, g.MaxHitPoints, g.ApparelLayers, g.ArmorSharp, g.ArmorBlunt, g.InsulationCold, g.InsulationHeat = nil, nil, nil, nil, nil, nil, nil, nil, nil
+				}
+			}
+		}
+		if row.Social != nil {
+			row.Social.Relations = nil
+		}
+	}
+	for _, person := range server.snapshot.Population.Persons {
+		person.OwnedBed, person.NutritionPerDay = nil, nil
+	}
+	server.snapshot.Population.SupportedInteractions = nil
+	client := testClient(t, &testServer{schema: protoSchema, handler: server.handle}, time.Second)
+	ctx := WithStepReadCache(context.Background(), NewStepReadCache())
+	request := bundleFamilyRequest()
+	request.ColonistPawnFields, request.PopulationFields, request.ResearchFields = &o.PawnFields{}, &o.PopulationFields{}, &o.ResearchFields{}
+	if _, _, err := client.ReadBundle(ctx, request); err != nil {
+		t.Fatal(err)
+	}
+	if seen := server.request; seen.ColonistPawnFields == nil || seen.PopulationFields == nil || seen.ResearchFields == nil {
+		t.Fatal("masks did not reach the native", seen)
+	}
+	if n := server.familyReads(t, ctx, client); n != 0 {
+		t.Fatal("masked families crossed the bridge", n)
+	}
+}

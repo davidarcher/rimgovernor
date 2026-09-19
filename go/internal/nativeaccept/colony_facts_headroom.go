@@ -91,15 +91,23 @@ type BundleSize struct {
 // review step does (emergency, colony facts, population, research and the
 // colonists' pawn detail; no clock status, which needs an owned clock) and
 // returns its size. A family the native omitted (unreadable, or over the
-// envelope) is reported at zero bytes.
-func BundlePayloadSize(ctx context.Context, h *Harness, label string) (BundleSize, error) {
+// envelope) is reported at zero bytes. With masked, the request carries
+// the review's field masks (#360: each family's mask present with no
+// include flag, what the scheduler sends), so the size is the bundle a
+// current native answers a review with; without, the families come whole,
+// as the dedicated reads return them.
+func BundlePayloadSize(ctx context.Context, h *Harness, label string, masked bool) (BundleSize, error) {
 	identity, err := ReadIdentity(ctx, h, label+"-identity")
 	if err != nil {
 		return BundleSize{}, err
 	}
-	reply, n, err := h.WireBytes(ctx, label, "observations_read_bundle", map[string]any{
+	request := map[string]any{
 		"scope": map[string]any{"expectedIdentity": identity}, "emergency": true, "colonyFacts": true, "population": true, "research": true, "colonistPawns": true,
-	})
+	}
+	if masked {
+		request["colonistPawnFields"], request["populationFields"], request["researchFields"] = map[string]any{}, map[string]any{}, map[string]any{}
+	}
+	reply, n, err := h.WireBytes(ctx, label, "observations_read_bundle", request)
 	if err != nil {
 		return BundleSize{}, err
 	}
@@ -141,18 +149,24 @@ func BundlePayloadSize(ctx context.Context, h *Harness, label string) (BundleSiz
 // CheckCommittedSaveHeadroom refuses to commit a save whose planning colony
 // facts read past CommittedSaveHeadroomBytes and records the measured size
 // under report["colony_facts"] either way, with the whole review bundle's
-// per-family bytes under report["bundle"].
+// per-family bytes under report["bundle"] (the families whole) and
+// report["bundle_masked"] (under the review's field masks, #360).
 func CheckCommittedSaveHeadroom(ctx context.Context, h *Harness, report Report) error {
 	size, err := ColonyFactsPayloadSize(ctx, h, "checkpoint-colony-facts")
 	if err != nil {
 		return fmt.Errorf("checkpoint colony facts: %w", err)
 	}
 	report["colony_facts"] = size
-	bundle, err := BundlePayloadSize(ctx, h, "checkpoint-bundle")
+	bundle, err := BundlePayloadSize(ctx, h, "checkpoint-bundle", false)
 	if err != nil {
 		return fmt.Errorf("checkpoint bundle: %w", err)
 	}
 	report["bundle"] = bundle
+	masked, err := BundlePayloadSize(ctx, h, "checkpoint-bundle-masked", true)
+	if err != nil {
+		return fmt.Errorf("checkpoint masked bundle: %w", err)
+	}
+	report["bundle_masked"] = masked
 	if size.Bytes > CommittedSaveHeadroomBytes {
 		return fmt.Errorf("checkpoint colony facts read %d bytes, over the %d-byte committed-save headroom (envelope %d); largest sections %v", size.Bytes, CommittedSaveHeadroomBytes, ColonyFactsEnvelopeBytes, size.Sections)
 	}
