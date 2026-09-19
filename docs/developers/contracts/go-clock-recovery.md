@@ -153,14 +153,13 @@ and keeps at most four waiters so waiting readers never starve other tools.
 `ClockWorkerConfig.PollWait` must leave one second of the poll call budget for
 the two main-thread hops and is applied only while the scheduler reports a
 window it admitted running (`ClockScheduler.WindowRunning`); otherwise the
-read is not held, because the game host runs tools one at a time and a held
-read would queue ahead of the review's own reads. `serve` sets it to zero:
-under a running window the routine worker's dispatch calls and the lease
-renew queue behind the poll too, and a 2 s hold timed the dispatch out and
-let the renew lapse (issue #162). It polls unheld instead at
-`RunningPollInterval` (250 ms) while the window runs and at `PollInterval`
-(1 s) between windows. A poll that returns early with nothing (a native
-build ignoring `wait_ms`) falls back to the cadence instead of spinning.
+read is not held, because a held read would queue ahead of the review's own
+reads. `serve` holds for 4 s (less when a short call timeout leaves no room):
+the companion dispatches its tools off the GABP reader (issue #227), so the
+routine worker's dispatch calls and the lease renew no longer queue behind
+the held poll (the issue #162 stall). Between windows it polls unheld at
+`PollInterval` (1 s). A poll that returns early with nothing (a native build
+ignoring `wait_ms`) falls back to that cadence instead of spinning.
 
 `Event.owner` is required for every event except an `AuthorityChanged` observed
 outside an epoch, which the native supervisor publishes from the authority

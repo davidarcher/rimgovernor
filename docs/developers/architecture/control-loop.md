@@ -40,9 +40,11 @@ Delivery from the native clock is a poll on the event journal, not a push:
 the transport is request/response only, so the poll's `observations_read_bundle`
 (the scope and the events page in one call, like `clock_read_events`) can hold an
 empty read for up to `wait_ms` (at most 5 s) and answer as soon as a row lands.
-The service does not hold reads yet: the game transport answers one call at a
-time, so a held read stalls every planner and worker call behind it, and the
-service polls once a second instead. Every
+The service holds the read while a window it admitted is running (4 s, the
+`serve` bound), so a stop is seen as soon as its row lands; between windows,
+where a held read would queue ahead of the planners' reads, it polls unheld
+once a second, the cadence a held read that returns empty early also falls
+back to. Every
 captured page wakes the scheduler step and the routine worker through their
 wake signals, which also reset the step backoff; a page whose events carry
 attempt outcomes names those actions so the worker reconciles them first, and

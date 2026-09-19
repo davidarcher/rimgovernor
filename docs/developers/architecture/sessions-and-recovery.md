@@ -43,14 +43,14 @@ server answers one message at a time and a held `clock_read_events` long poll
 would stall every planner read behind it (issue #115). Closing the client kills
 its GABS, and on Windows a job object kills GABS however the controller ends;
 the game GABS launched keeps running either way, as it does when GABS exits
-on its own. The game side still answers companion-mod tools one at a time:
-RimBridgeServer runs each on the GABP connection's reader thread, so the
-service never holds its journal read (`wait_ms` 0): under a running window the
-routine worker dispatches the successor order and the lease is renewed, and a
-held read made each of those calls wait its full length. Instead the poll
-repeats every 250 ms while a colony window the service admitted is running,
-so a stop is seen within that plus one short read, and keeps its 1 s cadence
-between windows, while the planners read (issue #162).
+on its own. On the game side RimBridgeServer would run each companion-mod
+tool on the GABP connection's reader thread; the companion re-registers its
+tools off that thread (`ExtensionDispatchPatch`, issue #227), so a held
+journal read no longer makes the routine worker's dispatch of the successor
+order or the lease renew wait its full length (issue #162). The service
+therefore holds its journal read (`wait_ms`, 4 s) while a colony window it
+admitted is running, so a stop is seen as soon as its row lands, and keeps
+an unheld 1 s cadence between windows, while the planners read.
 
 A GABS session lost while the service runs (the GABS process exiting, its
 endpoint gone) is recovered in-process: the bridge client drops the session as

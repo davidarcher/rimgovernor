@@ -51,7 +51,7 @@ type ClockWorkerConfig struct {
 	// RunningPollInterval, when set, is the cadence of the unheld poll
 	// while the scheduler believes its window is running; zero keeps
 	// PollInterval. A short cadence bounds how long a stop waits to be
-	// seen where a held read cannot be afforded (issue #162).
+	// seen where a held read cannot be afforded.
 	RunningPollInterval time.Duration
 	// Wake receives committed poll evidence and shortcuts the step loop's
 	// backoff; nil keeps the timer cadence.

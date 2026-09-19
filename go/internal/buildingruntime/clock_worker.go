@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -35,6 +36,12 @@ type ClockWorker struct {
 	// config.Wake alike, so the Worker and the step loop each drain their
 	// own pending evidence instead of racing for one channel token.
 	wake *WakeSignal
+	// pollWake ends the poll loop's cadence sleep when a step leaves a
+	// window running, so the held read starts with the window instead of
+	// up to a PollInterval later; pollHeld records whether the last read
+	// was already held, in which case the loop re-polls on its own.
+	pollWake chan struct{}
+	pollHeld atomic.Bool
 }
 
 func NewClockWorker(ctx context.Context, scheduler *ClockScheduler, nativeEvents ClockEventNative, config ClockWorkerConfig) (*ClockWorker, error) {
@@ -62,7 +69,7 @@ func NewClockWorker(ctx context.Context, scheduler *ClockScheduler, nativeEvents
 		return nil, ErrControl
 	}
 	lifetime, cancel := context.WithCancel(ctx)
-	w := &ClockWorker{ctx: lifetime, cancel: cancel, config: config, done: make(chan struct{}), ready: make(chan struct{}), stopGate: make(chan struct{}, 1), disable: scheduler.session.disableClockWorker, cleanup: scheduler.session.CleanupClock, step: scheduler.StepWithReason, renew: scheduler.RenewEpoch, held: scheduler.WindowRunning, wake: NewWakeSignal()}
+	w := &ClockWorker{ctx: lifetime, cancel: cancel, config: config, done: make(chan struct{}), ready: make(chan struct{}), stopGate: make(chan struct{}, 1), disable: scheduler.session.disableClockWorker, cleanup: scheduler.session.CleanupClock, step: scheduler.StepWithReason, renew: scheduler.RenewEpoch, held: scheduler.WindowRunning, wake: NewWakeSignal(), pollWake: make(chan struct{}, 1)}
 	w.poll = func(ctx context.Context, wait time.Duration) (ClockPollResult, error) {
 		return scheduler.PollEvents(ctx, nativeEvents, config.PageLimit, wait)
 	}
@@ -155,13 +162,12 @@ func (w *ClockWorker) waitOrWake(delay time.Duration, wake <-chan struct{}) (wok
 // soon as its event lands instead of at the next PollInterval, or, with
 // PollWait zero, an unheld read at the RunningPollInterval cadence;
 // otherwise the read returns at once and the loop keeps the PollInterval
-// cadence. A held read blocks every call queued behind it on the game host
-// (issue #115), so it is never used under a review, and serve does not
-// use it at all: the routine Worker dispatches and the renew loop renews
-// under a running window too (issue #162). A call that waited (it returned
-// no sooner than half of its wait) or that captured evidence is followed
-// by the next poll at once; a call that returned early against a native
-// build that ignores wait_ms falls back to the cadence.
+// cadence, which a step that leaves a window running cuts short (pollWake)
+// so the held read begins with the window. The read is never held under a
+// review, where it would queue ahead of the planners' reads. A call that
+// waited (it returned no sooner than half of its wait) or that captured
+// evidence is followed by the next poll at once; a call that returned early
+// against a native build that ignores wait_ms falls back to the cadence.
 func (w *ClockWorker) pollLoop() {
 	ready := false
 	for w.ctx.Err() == nil {
@@ -170,6 +176,7 @@ func (w *ClockWorker) pollLoop() {
 		if w.config.PollWait > 0 && running {
 			wait = w.config.PollWait
 		}
+		w.pollHeld.Store(wait > 0)
 		interval := w.config.PollInterval
 		if running && w.config.RunningPollInterval > 0 {
 			interval = w.config.RunningPollInterval
@@ -197,11 +204,27 @@ func (w *ClockWorker) pollLoop() {
 			}
 			continue
 		}
-		if !w.wait(interval) {
+		if _, alive := w.waitOrWake(interval, w.pollWake); !alive {
 			return
 		}
 	}
 }
+
+// wakePoll ends the poll loop's current cadence sleep once a window is
+// running, so its next read is held from the window's start. A loop whose
+// last read was already held is left to its own cadence: it re-polls at
+// once after a wait, and a build that ignores wait_ms must not be spun by
+// every step.
+func (w *ClockWorker) wakePoll() {
+	if w.config.PollWait <= 0 || w.pollHeld.Load() || (w.held != nil && !w.held()) {
+		return
+	}
+	select {
+	case w.pollWake <- struct{}{}:
+	default:
+	}
+}
+
 func (w *ClockWorker) renewLoop() {
 	for w.wait(w.config.RenewInterval) {
 		call, cancel := context.WithTimeout(w.ctx, w.config.RenewTimeout)
@@ -296,6 +319,7 @@ func (w *ClockWorker) stepLoop() {
 		call, cancel := context.WithTimeout(w.ctx, w.config.StepTimeout)
 		result, err := w.step(call, reason)
 		cancel()
+		w.wakePoll()
 		key := clockWorkerKey(result, err)
 		changed := !havePrevious || key != previous
 		if changed {

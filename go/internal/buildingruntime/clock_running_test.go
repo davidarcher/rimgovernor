@@ -126,6 +126,54 @@ func TestClockWorkerHoldsThePollOnlyUnderARunningWindow(t *testing.T) {
 	}
 }
 
+// A step that leaves a window running ends the poll loop's cadence sleep,
+// so the held read begins with the window instead of up to a PollInterval
+// later; without a hold configured the cadence stands.
+func TestClockWorkerStepWakesTheHeldPollWithTheWindow(t *testing.T) {
+	t.Parallel()
+	for _, hold := range []time.Duration{10 * time.Millisecond, 0} {
+		w := clockLoopFixture(t)
+		w.config.PollInterval = 300 * time.Millisecond
+		w.config.StepInterval = time.Second
+		w.config.PollWait = hold
+		var mu sync.Mutex
+		var running bool
+		var polls []time.Time
+		var waits []time.Duration
+		w.held = func() bool { mu.Lock(); defer mu.Unlock(); return running }
+		w.poll = func(ctx context.Context, wait time.Duration) (ClockPollResult, error) {
+			mu.Lock()
+			polls, waits = append(polls, time.Now()), append(waits, wait)
+			mu.Unlock()
+			return ClockPollResult{}, nil
+		}
+		w.step = func(context.Context, StepReason) (ClockSchedulerResult, error) {
+			mu.Lock()
+			running = true
+			mu.Unlock()
+			return ClockSchedulerResult{Running: true}, nil
+		}
+		w.start()
+		time.Sleep(150 * time.Millisecond)
+		mu.Lock()
+		count, gap := len(polls), time.Duration(0)
+		if count >= 2 {
+			gap = polls[1].Sub(polls[0])
+		}
+		second := time.Duration(-1)
+		if count >= 2 {
+			second = waits[1]
+		}
+		mu.Unlock()
+		if hold > 0 && (count < 2 || gap > 100*time.Millisecond || second != hold) {
+			t.Fatalf("hold %v: polls %d gap %v second wait %v; want the held read at once", hold, count, gap, second)
+		}
+		if hold == 0 && count != 1 {
+			t.Fatalf("hold %v: polls %d; want the cadence kept", hold, count)
+		}
+	}
+}
+
 // A wake's terminal outcome for an attempt the journal still shows
 // dispatched defers admission: the Worker owes that reconcile and the
 // successor it unblocks, and a window admitted first would watch the

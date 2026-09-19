@@ -76,6 +76,31 @@ func (f *clockServiceFake) ReadBundle(context.Context, *o.BundleRequest) (*o.Bun
 	return nil, bridge.Result{}, errors.New("event source unavailable")
 }
 
+// The serve clock holds its journal read under a running window and leaves
+// the read its second of the lease-bound poll budget; a call timeout too
+// short for any hold polls unheld, and a worker accepts every sizing.
+func TestServiceClockTimeoutsHoldTheRunningPoll(t *testing.T) {
+	for _, tc := range []struct {
+		call, wait, poll time.Duration
+	}{
+		{call: 10 * time.Second, wait: serviceClockPollWait, poll: 7 * time.Second},
+		{call: 7 * time.Second, wait: serviceClockPollWait, poll: 7 * time.Second},
+		{call: 3 * time.Second, wait: 2 * time.Second, poll: 3 * time.Second},
+		{call: time.Second, wait: 0, poll: time.Second},
+	} {
+		got := serviceClockTimeouts(tc.call)
+		if got.PollWait != tc.wait || got.Poll != tc.poll || got.RunningPoll != 0 {
+			t.Fatalf("serviceClockTimeouts(%v) = %+v, want PollWait %v Poll %v RunningPoll 0", tc.call, got, tc.wait, tc.poll)
+		}
+		if got.PollWait > 0 && got.PollWait+time.Second > got.Poll {
+			t.Fatalf("serviceClockTimeouts(%v): hold %v leaves the read under a second of %v", tc.call, got.PollWait, got.Poll)
+		}
+		if got.PollWait > bridge.ClockEventsMaxWaitMs*time.Millisecond {
+			t.Fatalf("serviceClockTimeouts(%v): hold %v exceeds the native bound", tc.call, got.PollWait)
+		}
+	}
+}
+
 func TestClockServiceDisabledStartupPollsAndJoins(t *testing.T) {
 	dir := t.TempDir()
 	reads := &buildingReadFake{serviceFake: serviceFake{entered: make(chan struct{}, 2)}}

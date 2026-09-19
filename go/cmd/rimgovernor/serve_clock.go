@@ -151,34 +151,30 @@ const serviceClockStepTimeout = 30 * time.Second
 // enough to let the native epoch lapse. The step has no lease constraint.
 func serviceClockTimeouts(callTimeout time.Duration) serviceClockTimeoutConfig {
 	lease := min(callTimeout, 7*time.Second)
-	// A held journal read (wait_ms) stalls every call queued behind it: the
-	// GABS session runs over its HTTP server (bridge/gabshttp.go), but
-	// RimBridgeServer registers companion-mod tools through
-	// LegacyToolExecution, which blocks Lib.GAB's per-connection reader
-	// until the tool returns, so no later message on the game connection is
-	// even parsed while a read is held (issue #115; verified by speaking
-	// GABP to the mod directly). Under a running window those calls are
-	// the routine Worker's dispatch of the successor order (a preview and
-	// an execute per action) and the epoch renew, and a 2s hold made each
-	// of them wait its full length: the renew lapsed and the dispatch
-	// timed out (issue #162). So the read is never held; while a window
-	// runs the poll instead repeats every serviceClockRunningPoll, which
-	// bounds how long a stop waits to be seen at one short read per
-	// cadence, and between windows it keeps the PollInterval cadence, off
-	// the planners' reads.
-	//
-	// Since #227 the companion re-registers its tools off the reader
-	// (ExtensionDispatchPatch; smoke/dispatch measures a read under a held
-	// poll), so a held read no longer stalls the calls behind it. Turning
-	// PollWait back on is the follow-up, gated on the serve-driven cases
-	// under that build.
-	return serviceClockTimeoutConfig{Poll: lease, Renew: lease, Step: serviceClockStepTimeout, PollWait: 0, RunningPoll: serviceClockRunningPoll}
+	// Under a running window the journal read is held (wait_ms): the poll
+	// returns as soon as a row lands, so a stop is seen near-push instead
+	// of at the next cadence. The companion dispatches its tools off the
+	// GABP reader (ExtensionDispatchPatch, issue #227; smoke/dispatch
+	// measures a read under a held poll), so the routine Worker's dispatch
+	// of the successor order and the epoch renew no longer queue behind
+	// the held read (the #115 stall that kept PollWait at zero, issue
+	// #162). The hold leaves the read its second of the poll budget
+	// (NewClockWorker's bound); a call timeout too short for any hold
+	// polls unheld at the cadence. A held read that returns empty before
+	// its deadline (a native build that ignores wait_ms) falls back to the
+	// PollInterval cadence, one read a second.
+	wait := min(serviceClockPollWait, lease-time.Second)
+	if wait < 0 {
+		wait = 0
+	}
+	return serviceClockTimeoutConfig{Poll: lease, Renew: lease, Step: serviceClockStepTimeout, PollWait: wait, RunningPoll: 0}
 }
 
-// serviceClockRunningPoll is the unheld poll cadence under a running window:
-// a stop is seen within it plus one bundle read, and the host stays free
-// for the Worker's calls between reads.
-const serviceClockRunningPoll = 250 * time.Millisecond
+// serviceClockPollWait bounds the held journal read under a running window.
+// It stays under bridge.ClockEventsMaxWaitMs and under the lease-bound poll
+// budget less the read's own second, so the poll loop can never be late
+// enough to let the native epoch lapse.
+const serviceClockPollWait = 4 * time.Second
 
 type serviceClockTimeoutConfig struct{ Poll, Renew, Step, PollWait, RunningPoll time.Duration }
 
