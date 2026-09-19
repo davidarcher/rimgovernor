@@ -16,6 +16,7 @@ func finite(v float64) bool { return !math.IsNaN(v) && !math.IsInf(v, 0) }
 // mirrors bridge.TradeSheetRow without this package depending on the bridge
 // package, the same discipline every other policy fact type here follows.
 type TradeSheetRowFact struct {
+	Food        domain.Fact[TradeFoodGood]
 	LineID      string
 	DefName     string
 	ColonyCount int64
@@ -48,14 +49,15 @@ type TradeSheetRowFact struct {
 // omittedByRowCap/omittedByFilter: an incomplete inventory view is not a
 // best-effort approximation of an economic decision, it is unusable for one.
 type TradeSelectionFacts struct {
-	Complete       bool
-	Rows           []TradeSheetRowFact
-	ColonySilver   int64
-	TraderSilver   int64
-	SilverKnown    bool
-	Floors         map[string]int64
-	Stopped        []string
-	MaxSilverSpend int64
+	CropSurplusFloors map[string]int64
+	Complete          bool
+	Rows              []TradeSheetRowFact
+	ColonySilver      int64
+	TraderSilver      int64
+	SilverKnown       bool
+	Floors            map[string]int64
+	Stopped           []string
+	MaxSilverSpend    int64
 }
 
 // TradeSelectionLine is one selected row adjustment: the native line id
@@ -168,6 +170,12 @@ func SelectTrade(p domain.TradeEconomicPolicy, facts TradeSelectionFacts) TradeS
 		}
 		stock, supply := row.ColonyCount, row.TraderCount
 		floor := max(target.Stock, facts.Floors[target.Item])
+		cropFloor, cropAuthorized := facts.CropSurplusFloors[target.Item]
+		food, foodKnown := row.Food.Value()
+		cropAuthorized = cropAuthorized && cropFloor > 0 && foodKnown && validTradeFood(food) && food.Crop
+		if cropAuthorized {
+			floor = max(floor, cropFloor)
+		}
 		count := int64(0)
 		switch {
 		case stock < floor && target.MaxBuy > 0:
@@ -183,7 +191,10 @@ func SelectTrade(p domain.TradeEconomicPolicy, facts TradeSelectionFacts) TradeS
 				budget -= float64(count) * price
 			}
 		case stock > floor && target.MaxSell > 0 && !stopped[target.Item]:
-			if !row.ProtectedExportKnown || row.ProtectedExport {
+			if cropAuthorized && row.ProtectedExport {
+				cropAuthorized = selectedProteinPurchase(out.Selected, facts.Rows)
+			}
+			if !row.ProtectedExportKnown || row.ProtectedExport && !cropAuthorized {
 				out.Evidence = append(out.Evidence, TradeSelectionEvidence{Item: target.Item, Blocker: tradeBlockerProtected})
 				continue
 			}

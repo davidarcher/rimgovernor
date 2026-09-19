@@ -110,3 +110,29 @@ preserves matching player bills and performs no retirement. The goal/Hands owner
 must prove ownership before replacing a bill, obtain construction placement for
 paste, and verify native outcomes. These policy decisions alone are not gameplay
 acceptance.
+## Trade food policy
+
+`ReviewTradeNeed` accepts an optional `TradeFoodContext` from the shared food
+review. Below the seasonal minimum, a known plan with positive gap buys a bridge
+only when every retained production channel arrives after exhaustion. Nutrition
+is gap times earliest lead; no producer uses one target window. Unknown channel
+facts cannot authorize a bridge. A zero-lead hunt suppresses the purchase.
+
+Desired recipe ingredient slots use the meal policy's alternatives. Above the
+food target, missing meat/animal-product slots create ingredient purchases.
+`TradeFoodGood` supplies native nutrition, ingredient class, preparation,
+perishability and crop classification to trade selection. Purchases rank durable
+food, then prepared meals, then raw food, sharing a nutrition budget across
+available definitions. Existing silver and price limits still apply.
+
+`CropSurplusFloors` supplies explicit retained targets to `SelectTrade`. Only a
+known raw vegetable crop may use this exception, and only after a protein
+purchase has been selected. Unknown protection flags still refuse export;
+retained targets and economic floors take their maximum. No purchase budget
+means no protected crop sale.
+
+These are opt-in policy contracts. Runtime callers must provide the shared
+review and native trade-row classification, and native acceptance must enforce
+the same crop exception before it is enabled. Calls without food context retain
+the ordinary medicine/component behavior; these helpers alone do not establish
+live food purchases or authorize native food exports.

@@ -148,6 +148,7 @@ func WealthSurplus(stock []Amount, targets map[Resource]int64, floors map[string
 // hoard WealthSurplus sells down. Retained is the stock every Surplus row
 // keeps after its sale (the target, or the wealth rule's floor).
 type TradeNeed struct {
+	Food               TradeFoodNeed
 	MedicineReplenish  int64
 	ComponentShortfall int64
 	Surplus            []Amount
@@ -155,7 +156,7 @@ type TradeNeed struct {
 }
 
 func (n TradeNeed) Any() bool {
-	return n.MedicineReplenish > 0 || n.ComponentShortfall > 0 || len(n.Surplus) > 0
+	return n.MedicineReplenish > 0 || n.ComponentShortfall > 0 || len(n.Surplus) > 0 || n.Food.Nutrition > 0 || len(n.Food.Missing) > 0
 }
 
 // ReviewTradeNeed measures the trade need from the same facts the other
@@ -165,7 +166,9 @@ func (n TradeNeed) Any() bool {
 // are EconomicReserves's per-definition floors (reserves plus construction
 // deficits); target-driven surplus rows win over wealth-driven ones for the
 // same resource.
-func ReviewTradeNeed(medicine MedicalReserveReview, resources domain.Fact[[]Amount], targets map[Resource]int64, floors map[string]int64, wealth domain.Fact[WealthFacts], p RoutineTradePolicy) domain.Fact[TradeNeed] {
+// A single optional food context adds the shared ledger's food needs; omitting
+// it leaves food purchases and protected crop exports disabled.
+func ReviewTradeNeed(medicine MedicalReserveReview, resources domain.Fact[[]Amount], targets map[Resource]int64, floors map[string]int64, wealth domain.Fact[WealthFacts], p RoutineTradePolicy, food ...TradeFoodContext) domain.Fact[TradeNeed] {
 	replenish, known := medicine.Replenish.Value()
 	rows, rowsKnown := resources.Value()
 	if !known || !rowsKnown || p.Validate() != nil {
@@ -176,6 +179,9 @@ func ReviewTradeNeed(medicine MedicalReserveReview, resources domain.Fact[[]Amou
 		stock[row.Resource] += row.Count
 	}
 	need := TradeNeed{MedicineReplenish: max(0, replenish)}
+	if len(food) == 1 {
+		need.Food = reviewTradeFood(food[0])
+	}
 	if p.ComponentTarget > 0 {
 		need.ComponentShortfall = max(0, p.ComponentTarget-stock[ComponentResource])
 	}
@@ -189,9 +195,10 @@ func ReviewTradeNeed(medicine MedicalReserveReview, resources domain.Fact[[]Amou
 		if resource == ComponentResource || resource == "Silver" {
 			continue
 		}
-		if surplus := stock[resource] - targets[resource]; surplus > 0 {
+		keep := max(targets[resource], floors[name])
+		if surplus := stock[resource] - keep; surplus > 0 {
 			need.Surplus = append(need.Surplus, Amount{Resource: resource, Count: surplus})
-			need.retain(resource, targets[resource])
+			need.retain(resource, keep)
 		}
 	}
 	for _, row := range WealthSurplus(rows, targets, floors, wealth, p) {
@@ -255,12 +262,18 @@ func SelectTrader(traders []TraderFacts, settled map[string]bool) (TraderFacts, 
 }
 
 // RoutineTradeTargets turns the measured need into SelectTrade's ordered
-// targets against one live sheet: medicine first (the cheapest definition
+// targets against one live sheet: food first, medicine (the cheapest definition
 // the trader carries), then components, then each surplus sale. Purchases
 // are capped at tradeBuyPriceCeiling per unit; sales take any positive
 // price, since the alternative is the surplus sitting unsold.
 func RoutineTradeTargets(need TradeNeed, rows []TradeSheetRowFact, targets map[Resource]int64, p RoutineTradePolicy) domain.TradeEconomicPolicy {
 	out := domain.TradeEconomicPolicy{SilverReserve: p.SilverReserve}
+	// Leave room for medicine and components while prioritizing the food bridge.
+	foodTargets := tradeFoodTargets(need.Food, rows)
+	if len(foodTargets) > tradeRoutineMaximumTargets-2 {
+		foodTargets = foodTargets[:tradeRoutineMaximumTargets-2]
+	}
+	out.Targets = append(out.Targets, foodTargets...)
 	if need.MedicineReplenish > 0 {
 		var pick *TradeSheetRowFact
 		for i := range rows {
