@@ -554,6 +554,13 @@ ladder (#201). Regenerate it when the startup ladder's goals, the
 `comfortFamilies` composition or the save format change; until the
 ladder can complete on the baseline (#217) the save is not committed and
 `facility/comfort` fails at staging.
+`facility/basic-comfort` needs no such save: its fixture (`UpkeepFixture` build
+flag) stands a roofed wood hut with no furniture, seeds an AteWithoutTable
+memory and, once the table and seat stand, re-seeds hunger one colonist at a
+time (one seat). The watch ends at recovery; with no work left the served
+families stop advancing the clock, so the audit drives the meals itself with
+`Advance` and then asserts every colonist ate at the table and gained no
+AteWithoutTable memory after it stood (#232). About 90 s on a quiet host.
 
 ## Available checks
 

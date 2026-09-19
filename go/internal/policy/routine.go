@@ -28,6 +28,7 @@ const (
 	MaintainFoodStorage     GoalID = "MaintainFoodStorage"
 	MaintainRefrigeration   GoalID = "MaintainRefrigeration"
 	EnsureComfort           GoalID = "EnsureComfort"
+	EnsureBasicComfort      GoalID = "EnsureBasicComfort"
 	EnsureExpansion         GoalID = "EnsureExpansion"
 	MaintainEquipment       GoalID = "MaintainEquipment"
 	EnsureResearch          GoalID = "EnsureResearch"
@@ -315,11 +316,16 @@ type RoutineFacts struct {
 	// to dispatch containment/burial candidates from.
 	Waste domain.Fact[[]WasteItem]
 	// AvailableMethods is supplied by the configured runtime, never native facts.
-	AvailableMethods     domain.Fact[[]GoalID]
-	Upkeep               UpkeepObservation
-	UpkeepIssued         map[GoalID]bool
-	Gear                 domain.Fact[GearObservation]
-	Comfort              domain.Fact[ComfortObservation]
+	AvailableMethods domain.Fact[[]GoalID]
+	Upkeep           UpkeepObservation
+	UpkeepIssued     map[GoalID]bool
+	Gear             domain.Fact[GearObservation]
+	Comfort          domain.Fact[ComfortObservation]
+	// BasicComfort is the same census before the hosting-room filter: every
+	// indoor seat at an eating surface and every recreation source, whatever
+	// room (or none) hosts it. EnsureBasicComfort measures it; Comfort keeps
+	// only facilities in rooms whose native role the facility catalog hosts.
+	BasicComfort         domain.Fact[ComfortObservation]
 	ComfortRecovered     domain.Fact[bool]
 	ComfortDeficit       domain.Fact[float64]
 	StartingSupplies     domain.Fact[[]StartingSupply]
@@ -530,6 +536,10 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if err != nil {
 		return RoutineNeeds{}, err
 	}
+	basicComfort, err := ReviewBasicComfort(f.BasicComfort)
+	if err != nil {
+		return RoutineNeeds{}, err
+	}
 	if v, known := f.ComfortDeficit.Value(); known && (math.IsNaN(v) || math.IsInf(v, 0) || v < 0 || v > 1) {
 		return RoutineNeeds{}, errors.New("invalid comfort deficit")
 	}
@@ -675,6 +685,16 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		// method this goal will never produce.
 		r.Goals[len(r.Goals)-1].MethodUnavailable = true
 	}
+	// A table with a seat and a recreation source are provided with the
+	// starter hut, at foothold priority: the two cheapest mood debuffs to
+	// remove should not wait for the ranked comfort project (#232). While the
+	// initial shelter is still owed there is no room to furnish, so the goal
+	// holds no method and neither extends the startup hold nor competes.
+	if !positive(basicComfort.Recovered()) {
+		addGoal(EnsureBasicComfort, 2)
+		r.Goals[len(r.Goals)-1].Deficit = basicComfort.Deficit()
+		r.Goals[len(r.Goals)-1].MethodUnavailable = !positive(g.Shelter) || !positive(g.Sleeping)
+	}
 	if !positive(f.ComfortRecovered) {
 		addGoal(EnsureComfort, 4)
 		r.Goals[len(r.Goals)-1].Comfort = true
@@ -727,6 +747,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	addAssessment(EnsureBasicDefense, 3, g.Defense)
 	addAssessment(MaintainWood, 3, latchRecovered(l.Wood, wood))
 	addAssessment(MaintainMedicalCare, 2, f.MedicalCareRecovered)
+	addAssessment(EnsureBasicComfort, 2, basicComfort.Recovered())
 	addAssessment(EnsureComfort, 4, f.ComfortRecovered)
 	addAssessment(EnsureExpansion, 4, expansion)
 	addAssessment(MaintainEquipment, 3, gear.Recovered)
@@ -1067,7 +1088,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		// but its method capability is declared at composition time, before
 		// any facts are read; it must validate against empty facts too.
 		recognized[RecoverDisasterServices] = true
-		if len(methods) > 32 {
+		if len(methods) > 48 {
 			return RoutineNeeds{}, errors.New("too many routine method capabilities")
 		}
 		for _, id := range methods {

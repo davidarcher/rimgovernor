@@ -66,6 +66,7 @@ type ClockSchedulerConfig struct {
 	Sleeping                         *RoutineBuildingPlanner
 	Cooking                          *RoutineBuildingPlanner
 	Comfort                          *RoutineBuildingPlanner
+	BasicComfort                     *RoutineBuildingPlanner
 	Workshop                         *RoutineBuildingPlanner
 	Hospital                         *RoutineHospitalPlanner
 	SleepingUpkeep                   *RoutineSleepingUpkeepPlanner
@@ -125,6 +126,7 @@ type ClockSchedulerResult struct {
 	Sleeping                         *RoutineBuildingResult
 	Cooking                          *RoutineBuildingResult
 	Comfort                          *RoutineBuildingResult
+	BasicComfort                     *RoutineBuildingResult
 	Workshop                         *RoutineBuildingResult
 	Hospital                         *RoutineBuildingResult
 	SleepingUpkeep                   *RoutineBuildingResult
@@ -289,6 +291,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, ErrControl
 	}
 	if config.Comfort != nil && (config.Routine == nil || config.Comfort.reviewer != config.Routine || config.Comfort.goal != policy.EnsureComfort) {
+		return nil, ErrControl
+	}
+	if config.BasicComfort != nil && (config.Routine == nil || config.BasicComfort.reviewer != config.Routine || config.BasicComfort.goal != policy.EnsureBasicComfort) {
 		return nil, ErrControl
 	}
 	if config.Workshop != nil && (config.Routine == nil || config.Workshop.reviewer != config.Routine || config.Workshop.goal != policy.MaintainResource) {
@@ -853,7 +858,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	if out.Fields != nil {
 		nativeWorkTicks = out.Fields.NativeWorkTicks
 	}
-	for _, result := range []*RoutineBuildingResult{out.Sleeping, out.Cooking, out.Butcher, out.Comfort, out.Workshop, out.Hospital, out.SleepingUpkeep, out.Expansion, out.Power, out.Temperature, out.Refrigeration, out.Lighting, out.Flooring, out.Routes} {
+	for _, result := range []*RoutineBuildingResult{out.Sleeping, out.Cooking, out.Butcher, out.Comfort, out.BasicComfort, out.Workshop, out.Hospital, out.SleepingUpkeep, out.Expansion, out.Power, out.Temperature, out.Refrigeration, out.Lighting, out.Flooring, out.Routes} {
 		if result != nil {
 			nativeWorkTicks = max(nativeWorkTicks, result.NativeWorkTicks)
 		}

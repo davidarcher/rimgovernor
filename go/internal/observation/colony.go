@@ -243,6 +243,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 	}
 	colonyDisaster(v, &r.Facts)
 	r.Facts.Comfort = colonyComfort(v)
+	r.Facts.BasicComfort = r.Facts.Comfort
 	r.Facts.HomeCoverage = colonyHomeCoverage(v)
 	r.Facts.StoneStructures = colonyStoneStructures(v)
 	r.Facts.Sleeping = colonySleeping(v)

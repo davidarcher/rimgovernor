@@ -653,7 +653,10 @@ It remains available after furnishing until native indoor capacity recovers or
 the budget expires: roofed spot footprints alone do not prove a fully roofed room.
 Furnishing still requires observed roofed indoor space. Unfinished or cancelled
 shells grant no roofing budget. The `cooking` family independently
-compiles campfires at the same boundary. The `comfort` family enables
+compiles campfires at the same boundary. The `comfort` family also composes the foothold planner for `EnsureBasicComfort`
+(one table, one adjacent chair and one horseshoes pin from the unfiltered census,
+any room role, once shelter is no longer owed; methods `basic-comfort-*`, plans
+`routine-basic-comfort-*`; #232). The same family enables
 table, adjacent dining chair and recreation furniture compilation after startup
 needs recover and development ranking selects comfort. Dining and recreation are
 native-role facilities (issue #4): a table, chair or horseshoes pin counts only

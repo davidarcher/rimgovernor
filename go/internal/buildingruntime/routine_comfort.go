@@ -222,3 +222,62 @@ func builderCensus(pawns []policy.WorkPawn) string {
 	}
 	return strings.Join(out, "; ")
 }
+
+// NewRoutineBasicComfortPlanner furnishes the starter hut at foothold
+// priority: one table with a seat in any proper indoor room and one
+// recreation source wherever colonists can reach it. It never stages a
+// shell; while the initial shelter is owed it waits for that room.
+func NewRoutineBasicComfortPlanner(reviewer *RoutineReviewer, native RoutineBuildingSource) (*RoutineBuildingPlanner, error) {
+	if reviewer == nil || native == nil {
+		return nil, ErrControl
+	}
+	if _, ok := native.(observation.RoutineSource); !ok {
+		return nil, ErrControl
+	}
+	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, goal: policy.EnsureBasicComfort}, nil
+}
+
+// selectBasicComfort resolves the next foothold facility from the unfiltered
+// census. The table and seat go under a roof (any proper room, the starter
+// hut included); the recreation source may stand outdoors, as a horseshoes
+// pin ordinarily does, so placement is unrestricted and the native watch-cell
+// preview decides reach.
+func (r *RoutineBuildingPlanner) selectBasicComfort(facts observation.ColonyProjection) (*RoutineBuildingPlanner, RoutineBuildingReason, error) {
+	v, known := facts.Facts.BasicComfort.Value()
+	if !known {
+		return nil, BuildingMethodUnknown, nil
+	}
+	review, err := policy.ReviewBasicComfort(facts.Facts.BasicComfort)
+	if err != nil {
+		return nil, "", err
+	}
+	method, err := policy.SelectBasicComfortMethod(v, review)
+	if err != nil {
+		return nil, "", err
+	}
+	switch method {
+	case policy.ComfortNoMethod:
+		return nil, BuildingMethodNoDeficit, nil
+	case policy.ComfortAccessBlocked:
+		return nil, BuildingExistingFacility, nil
+	}
+	resolved := *r
+	resolved.definition = string(method)
+	resolved.environment = policy.PlacementIndoors
+	if method == policy.ComfortBuildRecreation {
+		resolved.environment = policy.PlacementAnywhere
+	}
+	if method == policy.ComfortBuildChair {
+		for _, s := range v.Surfaces {
+			resolved.adjacent = append(resolved.adjacent, s.Adjacent...)
+		}
+	}
+	for _, d := range facts.Definitions {
+		if d.Name == resolved.definition {
+			if stuff, known := d.Stuff.Value(); known {
+				resolved.stuff = stuff
+			}
+		}
+	}
+	return &resolved, "", nil
+}

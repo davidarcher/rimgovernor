@@ -470,6 +470,18 @@ with no breach at all is reported (`route_no_breach`) so the deficit stays
 visible; an unavailable door defers (`route_door_unavailable`). A build
 receipt never clears the deficit.
 
+`EnsureBasicComfort` is the foothold-tier comfort goal (priority 2, #232): once
+the initial shelter's roof and sleeping gates hold it wants one eating surface,
+one adjacent seat and one recreation source that every colonist can reach, read
+from the same native census before the hosting-room filter, so the starter hut
+counts whatever room role it scores. Capacity alone recovers it; observed use is
+`EnsureComfort`'s concern. While shelter is still owed the goal is
+`method_unavailable` and its planner reports `initial_shelter_pending`, so it
+never extends the startup hold nor competes with the shell. The table and chair
+preview indoors, the horseshoes pin anywhere with accessible watch cells; an
+existing facility nobody can reach stays a blocker rather than a duplicate.
+Methods are `basic-comfort-<definition>` under plans `routine-basic-comfort-*`.
+
 `EnsureComfort` maintains dining and recreation once every startup survival goal
 has a method on record or is monitoring-only.
 Its deficit remains visible during emergencies; admission waits rather than

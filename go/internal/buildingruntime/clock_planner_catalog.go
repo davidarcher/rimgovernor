@@ -234,6 +234,17 @@ var plannerCatalog = []plannerEntry{
 			out.ButcherBills = &method
 			return nil
 		}},
+	{name: "basicComfort", priority: plannerFoothold, kinds: []domain.ActionKind{domain.BuildingAction}, families: factsBuilding,
+		configured: func(c *ClockSchedulerConfig) bool { return c.BasicComfort != nil },
+		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
+			method, err := s.config.BasicComfort.step(ctx, epoch, arbiter)
+			if err != nil {
+				return err
+			}
+			clockSchedulerLog("BasicComfort.step result: reason=%v admitted=%v refused=%v", method.Reason, method.Decision.Admitted, method.Decision.Refused)
+			out.BasicComfort = &method
+			return nil
+		}},
 	{name: "comfort", priority: plannerComfort, kinds: []domain.ActionKind{domain.BuildingAction}, families: factsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Comfort != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {

@@ -651,6 +651,10 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				if err != nil {
 					return nil, err
 				}
+				config.BasicComfort, err = buildingruntime.NewRoutineBasicComfortPlanner(reviewer, source)
+				if err != nil {
+					return nil, err
+				}
 			}
 			if workshop {
 				config.Workshop, err = buildingruntime.NewRoutineWorkshopPlanner(reviewer, source)
@@ -727,7 +731,7 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainRoutes)
 	}
 	if sc.routineComfortPlans {
-		capabilities.Methods = append(capabilities.Methods, policy.EnsureComfort)
+		capabilities.Methods = append(capabilities.Methods, policy.EnsureComfort, policy.EnsureBasicComfort)
 	}
 	if sc.routineSleepingPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainSleeping)

@@ -36,6 +36,9 @@ const (
 	// already encloses a room sites afresh instead (#218).
 	BuildingShellBlocked    RoutineBuildingReason = "earlier_shell_blocked"
 	BuildingMethodExhausted RoutineBuildingReason = "retry_bound_exhausted"
+	// BuildingShelterPending: the foothold comfort goal has no room to
+	// furnish until the initial shelter stands; the next review re-reads it.
+	BuildingShelterPending RoutineBuildingReason = "initial_shelter_pending"
 	// BuildingExcavationBlocked: the goal's excavation project cannot be
 	// finished as planned (its roof no longer held, its way in closed); the
 	// same step re-plans the shelter from the geometry the pawns opened.
@@ -176,6 +179,15 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 			return RoutineBuildingResult{Reason: BuildingShellBlocked}, nil
 		}
 	}
+	if r.goal == policy.EnsureBasicComfort {
+		owed, err := initialShelterOwed(call, p, review)
+		if err != nil {
+			return RoutineBuildingResult{}, err
+		}
+		if owed {
+			return RoutineBuildingResult{Reason: BuildingShelterPending}, nil
+		}
+	}
 	if r.goal == policy.EnsureComfort || r.goal == policy.EnsureExpansion || r.goal == policy.MaintainLighting || r.goal == policy.MaintainFlooring || r.goal == policy.MaintainRoutes || r.goal == policy.MaintainResource || r.goal == policy.MaintainSleeping {
 		selected := false
 		for _, row := range review.Development.Rows {
@@ -222,7 +234,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		r = &prepared
 	}
 	definitions := []string{r.definition}
-	if r.goal == policy.EnsureComfort && !r.shelter {
+	if r.goal == policy.EnsureComfort && !r.shelter || r.goal == policy.EnsureBasicComfort {
 		definitions = []string{"Table1x2c", "DiningChair", "HorseshoesPin"}
 	}
 	if r.goal == policy.MaintainResource && !r.shelter {
@@ -265,7 +277,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		// rooms (issue #6 slice 2); without a census nothing is protected.
 		full, readErr := r.reviewer.observeRooms(call, r.native.(observation.RoutineSource), expected, domain.Unknown[[]policy.ConstructionClaim](), definitions...)
 		reading, err = full.ColonyReading, readErr
-	} else if r.goal == policy.EnsureBasicPower {
+	} else if r.goal == policy.EnsureBasicPower || r.goal == policy.EnsureBasicComfort {
 		full, readErr := r.reviewer.observeOwned(call, r.native.(observation.RoutineSource), expected, domain.Unknown[[]policy.ConstructionClaim](), definitions...)
 		reading, err = full.ColonyReading, readErr
 	} else {
@@ -277,7 +289,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	facts := reading.Projection
 	var coolingAllowance uint32
 	var coolingLent bool
-	if (r.goal == policy.EnsureComfort || r.goal == policy.MaintainResource || r.goal == policy.MaintainMedicalCare || r.goal == policy.MaintainSleeping) && !r.shelter || r.goal == policy.EnsureBasicPower || r.goal == policy.EnsureTemperatureSafety || r.goal == policy.MaintainRefrigeration || r.goal == policy.MaintainLighting || r.goal == policy.MaintainFlooring || r.goal == policy.MaintainRoutes {
+	if (r.goal == policy.EnsureComfort || r.goal == policy.MaintainResource || r.goal == policy.MaintainMedicalCare || r.goal == policy.MaintainSleeping) && !r.shelter || r.goal == policy.EnsureBasicComfort || r.goal == policy.EnsureBasicPower || r.goal == policy.EnsureTemperatureSafety || r.goal == policy.MaintainRefrigeration || r.goal == policy.MaintainLighting || r.goal == policy.MaintainFlooring || r.goal == policy.MaintainRoutes {
 		var resolved *RoutineBuildingPlanner
 		var reason RoutineBuildingReason
 		if r.goal == policy.EnsureTemperatureSafety {
@@ -303,6 +315,8 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 			resolved, reason, err = r.selectHospital(facts)
 		} else if r.goal == policy.MaintainSleeping {
 			resolved, reason, err = r.selectSleeping(facts, review)
+		} else if r.goal == policy.EnsureBasicComfort {
+			resolved, reason, err = r.selectBasicComfort(facts)
 		} else {
 			resolved, reason, err = r.selectComfort(facts, review.Comfort)
 		}
@@ -398,7 +412,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		}
 	}
 	available := routineDefinitionsAvailable(facts, definitions, r.shelter)
-	if (r.goal == policy.EnsureComfort || r.goal == policy.MaintainResource || r.goal == policy.MaintainMedicalCare || r.goal == policy.MaintainSleeping) && !r.shelter || r.goal == policy.EnsureBasicPower || r.goal == policy.EnsureTemperatureSafety || r.goal == policy.MaintainRefrigeration || r.goal == policy.MaintainLighting || r.goal == policy.MaintainFlooring || r.goal == policy.MaintainRoutes {
+	if (r.goal == policy.EnsureComfort || r.goal == policy.MaintainResource || r.goal == policy.MaintainMedicalCare || r.goal == policy.MaintainSleeping) && !r.shelter || r.goal == policy.EnsureBasicComfort || r.goal == policy.EnsureBasicPower || r.goal == policy.EnsureTemperatureSafety || r.goal == policy.MaintainRefrigeration || r.goal == policy.MaintainLighting || r.goal == policy.MaintainFlooring || r.goal == policy.MaintainRoutes {
 		preferences, loadErr := p.journal.LoadWorkPreferences(call, state.Snapshot.Plan)
 		if loadErr != nil && !errors.Is(loadErr, store.ErrNotFound) {
 			return RoutineBuildingResult{}, loadErr
@@ -469,6 +483,9 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	if r.goal == policy.EnsureComfort {
 		prefix = "routine-comfort"
 	}
+	if r.goal == policy.EnsureBasicComfort {
+		prefix = "routine-basic-comfort"
+	}
 	if r.goal == policy.MaintainRefrigeration {
 		prefix = "routine-refrigeration"
 	}
@@ -501,7 +518,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	if !r.shelter && (r.goal == policy.EnsureFoodSupply || r.goal == policy.EnsureCooking || r.goal == policy.EnsureComfort || r.goal == policy.MaintainResource || r.goal == policy.MaintainMedicalCare || r.goal == policy.MaintainSleeping || r.goal == policy.EnsureExpansion || r.goal == policy.EnsureBasicPower || r.goal == policy.EnsureTemperatureSafety || r.goal == policy.MaintainRefrigeration || r.goal == policy.MaintainLighting || r.goal == policy.MaintainFlooring || r.goal == policy.MaintainRoutes) {
+	if !r.shelter && (r.goal == policy.EnsureFoodSupply || r.goal == policy.EnsureCooking || r.goal == policy.EnsureComfort || r.goal == policy.EnsureBasicComfort || r.goal == policy.MaintainResource || r.goal == policy.MaintainMedicalCare || r.goal == policy.MaintainSleeping || r.goal == policy.EnsureExpansion || r.goal == policy.EnsureBasicPower || r.goal == policy.EnsureTemperatureSafety || r.goal == policy.MaintainRefrigeration || r.goal == policy.MaintainLighting || r.goal == policy.MaintainFlooring || r.goal == policy.MaintainRoutes) {
 		pending := func(progress domain.Progress) bool {
 			if r.goal == policy.EnsureTemperatureSafety {
 				if r.temperature.Method == policy.TemperatureHeat {
@@ -778,7 +795,7 @@ func (r *RoutineBuildingPlanner) previewMethod(call context.Context, snapshot do
 				return nil, policy.StockObservation{}, "", ErrControl
 			}
 			made, known := preview.Preview.MadeFromStuff.Value()
-			if r.goal == policy.EnsureComfort && r.definition == "HorseshoesPin" {
+			if (r.goal == policy.EnsureComfort || r.goal == policy.EnsureBasicComfort) && r.definition == "HorseshoesPin" {
 				accessible, known := preview.Preview.WatchCellsAccessible.Value()
 				unknownWatch = unknownWatch || !known
 				if !known || !accessible {

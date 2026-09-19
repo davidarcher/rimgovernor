@@ -326,6 +326,7 @@ func TestRoutineDevelopmentComfortFollowsServedStartupGoals(t *testing.T) {
 	r.Facts.FoodStorageUpkeep = policy.FoodStorageObservation{Stocks: domain.Known([]policy.FoodStorageStock{})}
 	r.Facts.Cooking = domain.Known(false)
 	r.Facts.Comfort = domain.Known(comfortCensus(false))
+	r.Facts.BasicComfort = domain.Known(comfortCensus(false))
 	out := reviewRoutine(t, s, &r)
 	if row := developmentRow(t, out.Review, policy.EnsureComfort); row.Selected || row.Reason != policy.DevelopmentStartup {
 		t.Fatal(row)
