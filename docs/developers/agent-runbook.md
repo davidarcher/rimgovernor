@@ -83,6 +83,9 @@ What it produces:
   RimWorld profile when there is one), `profile/Saves/` (Prepare stages
   the committed `scripts/fixtures/saves/RimGovernor-tribal8-baseline.rws`
   there itself, replacing an older copy).
+  Keep the root short: Prepare refuses a profile path over 211 characters,
+  the most that leaves a clock journal row under Windows MAX_PATH (#388);
+  a suite's `workers/N/headless-profile` adds 28 to the output path.
 - **The mod build**, `.rimgovernor/native-builds/<role>-<stamp>/`, from
   `scripts/build_native_mod.ps1`, installed over the copy's
   `Mods/RimGovernor`. Always go through `acceptance setup -rebuild

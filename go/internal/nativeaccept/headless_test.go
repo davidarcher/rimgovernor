@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -847,5 +848,25 @@ func TestPrepareStagesCommittedBaseline(t *testing.T) {
 	}
 	if after, _ := os.Stat(target); !after.ModTime().Equal(before.ModTime()) {
 		t.Fatal("an up-to-date baseline was rewritten")
+	}
+}
+
+// The smoke run of #388 launched a worker whose profile path was 224
+// characters up to the journal directory: the 24-character row name fit
+// MAX_PATH, the 40-character temporary did not, and every publication
+// failed. Prepare now refuses a profile that cannot hold a row at all.
+func TestRequireProfilePathFitsBoundsWindowsMaxPath(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("only Windows bounds paths at MAX_PATH")
+	}
+	if MaxProfilePathLength != 211 {
+		t.Fatalf("MaxProfilePathLength = %d, want 211 (259 - 48)", MaxProfilePathLength)
+	}
+	fits := `C:\` + strings.Repeat("a", MaxProfilePathLength-3)
+	if err := RequireProfilePathFits(fits); err != nil {
+		t.Fatalf("%d-character profile refused: %v", len(fits), err)
+	}
+	if err := RequireProfilePathFits(fits + "b"); err == nil || !strings.Contains(err.Error(), "MAX_PATH") {
+		t.Fatalf("%d-character profile accepted: %v", len(fits)+1, err)
 	}
 }

@@ -65,13 +65,18 @@ namespace HomeBridge.BridgeTools
         {
             var cursor = Convert.ToInt64(row["cursor"]);
             if (cursor != Newest + 1) throw new IOException("Native clock cursor is not consecutive.");
-            var temporary = Path.Combine(directory, Guid.NewGuid().ToString("N") + ".pending");
+            // The temporary is named by its cursor, no longer than the row it
+            // becomes: a save-data folder deep enough that only the final name
+            // fits Windows MAX_PATH otherwise fails every publication with a
+            // DirectoryNotFoundException before the first row exists (#388).
+            // A retry of the same cursor after a failed write overwrites it.
+            var temporary = Path.Combine(directory, cursor.ToString("X16", CultureInfo.InvariantCulture) + ".pending");
             // The directory can vanish under a live process (a tool clearing the
             // save-data folder between harnesses); the rows it held then read as
             // lost, and the journal keeps appending rather than failing every
             // event for the rest of the process (#119).
             Directory.CreateDirectory(directory);
-            using (var stream = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            using (var stream = new FileStream(temporary, FileMode.Create, FileAccess.Write, FileShare.None))
             {
                 Encode(row).Save(stream);
                 stream.Flush(true);

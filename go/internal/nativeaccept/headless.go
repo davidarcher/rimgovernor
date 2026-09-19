@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strings"
 
@@ -307,6 +308,25 @@ func gameSection(config map[string]any) (map[string]any, error) {
 		return nil, fmt.Errorf("configuration is missing games.rimgovernor-trial")
 	}
 	return game, nil
+}
+
+// MaxProfilePathLength bounds a profile's path on Windows so the longest
+// file the game writes under it -- a clock journal row,
+// RimGovernorClockEvents/<20-digit cursor>.xml (ClockEventJournal.cs) --
+// stays under MAX_PATH (260 with the terminator). Unity's Mono does not opt
+// into long paths, and a row that does not fit fails every clock
+// publication with a DirectoryNotFoundException, which a window reports as
+// STOP_REASON_EVENT_JOURNAL_ERROR at its origin tick (#388).
+const MaxProfilePathLength = 259 - len(`\RimGovernorClockEvents\00000000000000000001.xml`)
+
+// RequireProfilePathFits refuses a profile whose clock journal rows would
+// not fit MaxProfilePathLength, before the game launches with it. Only
+// Windows bounds paths this way.
+func RequireProfilePathFits(profile string) error {
+	if runtime.GOOS != "windows" || len(profile) <= MaxProfilePathLength {
+		return nil
+	}
+	return fmt.Errorf("profile path %s is %d characters, over the %d the native clock journal's rows fit under Windows MAX_PATH; use a shorter run root", profile, len(profile), MaxProfilePathLength)
 }
 
 // ClockJournalDir is the native clock journal (ClockEventJournal.cs, one
@@ -677,6 +697,9 @@ func prepareRendered(root string, fixtureOps, expansions []string) (string, erro
 		return "", err
 	}
 	profile := filepath.Join(root, "profile")
+	if err := RequireProfilePathFits(profile); err != nil {
+		return "", err
+	}
 	if err := PrepareNativeModConfig(filepath.Join(profile, "Config", "ModsConfig.xml"), installed, expansions...); err != nil {
 		return "", err
 	}
@@ -724,6 +747,9 @@ func prepare(root string, fixtureOps, expansions []string) (string, error) {
 		return "", err
 	}
 	profile := filepath.Join(root, "headless-profile")
+	if err := RequireProfilePathFits(profile); err != nil {
+		return "", err
+	}
 	if err := os.MkdirAll(filepath.Join(profile, "Config"), 0755); err != nil {
 		return "", err
 	}
