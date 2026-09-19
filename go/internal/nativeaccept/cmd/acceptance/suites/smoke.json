@@ -1,0 +1,8 @@
+[
+  {"name": "smoke/identity", "acceptance": "the runner opens a quiet debug game, freezes needs and hands the case a loaded identity"},
+  {"name": "smoke/dispatch", "acceptance": "companion tools dispatch off the GABP reader; a read under a held long poll returns in a round trip"},
+  {"name": "pawn/reads", "acceptance": "typed pawn reads: filters, detail presence, bounded refusals, paused invariance"},
+  {"name": "needs/freeze", "acceptance": "test/freeze_needs, which every fixture build carries, pins every unkept need"},
+  {"name": "presentation/roster", "acceptance": "the read-only presentation roster over the debug colony"},
+  {"name": "light/dark", "acceptance": "serve-driven: the live routine reviewer admits one lamp beside a measured-dark work cell"}
+]

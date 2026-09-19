@@ -38,6 +38,7 @@ func init() {
 		Quiet:  na.QuietIfAvailable,
 		Reason: "also runs against the production mod build, which has no quiet-storyteller fixture; the assertions are about the clock, not events",
 		Budget: 5 * time.Minute,
+		Matrix: true,
 		Run:    run,
 	})
 }

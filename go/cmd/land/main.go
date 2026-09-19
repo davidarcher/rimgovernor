@@ -12,7 +12,14 @@
 //     conflict aborts the merge and leaves the resolution to the caller;
 //  3. with -test, runs the Go tests the branch affects as cmd/test does
 //     (off by default: the branch runs cmd/test before landing, and the
-//     lane does not repeat it);
+//     lane does not repeat it); with -results <dir>, reads the acceptance
+//     suite report there (result.json from `acceptance suite`, the land
+//     tier's output) and refuses a suite that did not pass or whose rows
+//     resumed from a checkpoint (#308: a resumed pass is not a landing
+//     pass); without it, refuses a diff that touches the native mod
+//     sources or go/internal/buildingruntime (#273: nothing cheaper than a
+//     game run proves those) unless -unverified says the landing goes
+//     without, to be named in an issue;
 //  4. squash-merges the branch into the main checkout, which must be clean,
 //     with a message built from the branch's commits (-m or -F overrides
 //     the subject and body) carrying the branch's Co-Authored-By
@@ -51,18 +58,21 @@ func main() {
 	runTests := flag.Bool("test", false, "also run the affected Go tests against the merged tree before landing")
 	issue := flag.Int("issue", 0, "GitHub issue to close with the landing commit (default: the number in the branch name)")
 	noClose := flag.Bool("no-close", false, "do not close a GitHub issue")
+	results := flag.String("results", "", "acceptance suite output directory (its result.json) the landing presents as its fresh pass")
+	unverified := flag.Bool("unverified", false, "land a native or buildingruntime change without -results; file an issue naming what is unverified")
 	flag.Parse()
 	if flag.NArg() > 1 {
-		fmt.Fprintln(os.Stderr, "usage: land [-m msg | -F file] [-lock-timeout d] [-test] [-issue N | -no-close] [<branch>]")
+		fmt.Fprintln(os.Stderr, "usage: land [-m msg | -F file] [-lock-timeout d] [-test] [-results dir | -unverified] [-issue N | -no-close] [<branch>]")
 		os.Exit(2)
 	}
-	if err := run(flag.Arg(0), *message, *messageFile, *lockTimeout, *runTests, closeIssue(*issue, *noClose)); err != nil {
+	gate := acceptanceGate{Results: *results, Unverified: *unverified}
+	if err := run(flag.Arg(0), *message, *messageFile, *lockTimeout, *runTests, gate, closeIssue(*issue, *noClose)); err != nil {
 		fmt.Fprintln(os.Stderr, "land:", err)
 		os.Exit(1)
 	}
 }
 
-func run(branch, message, messageFile string, lockTimeout time.Duration, runTests bool, close issueCloser) error {
+func run(branch, message, messageFile string, lockTimeout time.Duration, runTests bool, gate acceptanceGate, close issueCloser) error {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return err
@@ -119,11 +129,14 @@ func run(branch, message, messageFile string, lockTimeout time.Duration, runTest
 		fmt.Printf("%s has nothing to land: its tree matches main\n", branch)
 		return nil
 	}
+	changed, err := affected.ChangedFiles(worktree, "main")
+	if err != nil {
+		return err
+	}
+	if err := gate.check(changed); err != nil {
+		return err
+	}
 	if runTests {
-		changed, err := affected.ChangedFiles(worktree, "main")
-		if err != nil {
-			return err
-		}
 		if err := affected.Test(worktree, changed); err != nil {
 			return err
 		}

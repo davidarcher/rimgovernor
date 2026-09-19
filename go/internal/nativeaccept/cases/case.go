@@ -244,6 +244,11 @@ type Case struct {
 	// (#249): no periodic bundles, no failed bundle, no resume. The
 	// speedmatrix and tickbudget areas are out regardless.
 	NoCheckpoint bool
+	// Matrix puts the case in the matrix tier (#273): a throughput or
+	// scheduler measurement (speedmatrix, tickbudget) or a DLC-save case,
+	// run on demand and whenever the clock scheduler or the native tick
+	// path changes, never by the land or full tier.
+	Matrix bool
 }
 
 // FixtureOps are the test ops the case's Start calls, outermost last:

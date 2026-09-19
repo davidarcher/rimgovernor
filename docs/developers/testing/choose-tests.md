@@ -583,7 +583,8 @@ colony.
 
 ### Running cases in parallel
 
-`acceptance suite (-all | -cases a,b | -suite file.json) -root <root>
+`acceptance suite (-all | -cases a,b | -suite file.json | -tier
+land|full|matrix|smoke) -root <root>
 -output <out> -workers N [-baseline <result.json> -series <metrics.jsonl>
 -rimgovernor <bin> -evidence capped|full]`
 (`go/internal/nativeaccept/cmd/acceptance`) clones the root into N
@@ -591,7 +592,8 @@ worker roots (`na.IsolatedRoot`: own GABS state, config and profile, same
 game installation), gives each worker a queue of cases chained on one kept
 process, and stops every worker's game at the end. `-all` and `-cases`
 name registry cases; a `-suite` file (`[{"name", "acceptance"}]`) lists
-registry cases with the criterion each stands for. The queue puts
+registry cases with the criterion each stands for; `-tier` names one of
+the three tiers below (the report records `tier`). The queue puts
 bridge-only cases first, cases that end or replace the process (`NoKeep`,
 `Rendered`) next and serve-driven ones (`Serve` or `Service`) last, so no
 bridge-only case inherits a process that hosted a service (#119); within
@@ -611,6 +613,35 @@ its `world` block and its `flake` record (#281). A suite used as
 flake 30%)`), and a failed row whose record has failures prints as a
 known flake, so neither is read as a regression without a look at the
 seed. The suite passes only when every case did.
+#### Tiers
+
+The registry runs in three tiers (#273), so a landing runs a fraction of
+it and the rest runs on its own cadence; `acceptance list -tier <name>`
+prints a tier and `-cost -baseline <result.json|metrics.jsonl>` prices it:
+
+- **land** (`suite -tier land [-base main]`): the case areas
+  `cmd/affected` selects for the worktree's diff plus the smoke set, fresh,
+  in the landing lane. `cmd/test` prints the command; `cmd/land -results
+  <output>` reads the suite's `result.json` and refuses a suite that did
+  not pass or whose rows resumed from a checkpoint (#308). A diff under
+  the native mod sources (`na.HarnessInputRoots`) or
+  `go/internal/buildingruntime` does not land without `-results`;
+  `-unverified` lands it anyway, and the issue names what went unverified.
+- **full** (`suite -tier full`): every case outside the matrix tier, the
+  nightly loop against `main`, chained with `-baseline` for regression
+  flagging.
+- **matrix** (`suite -tier matrix`): the cases that declare
+  `Case.Matrix` — `speedmatrix/`, `tickbudget/` and any DLC-save case — on
+  demand and whenever the clock scheduler or the native tick path changes.
+  Neither land nor full runs them.
+- **smoke** (`suite -tier smoke`): the land tier's fixed half alone,
+  `cmd/acceptance/suites/smoke.json`: runner-proving bridge-only cases over
+  a kept debug game plus one short serve-driven case (`light/dark`, so the
+  build carries `LightingFixture`); every row runs on any fixture build.
+  `TestSmokeSuiteShape` holds it to that shape (one serve-driven row, no
+  `NoKeep`, `Rendered` or matrix case, budgets within 5m); extend it with a
+  case that proves a runner path the others miss, not one per area.
+
 `cmd/acceptance/suites/issue-6-matrix.json` is issue #6's cross-slice
 acceptance matrix: one row per criterion in the issue text (dark and
 partially lit benches, protected fungus rooms, lighting repair after a
@@ -722,7 +753,8 @@ rewinding to t+6m`) and starts fresh past the ring. `-fresh` clears the
 ring; `-checkpoint-every 0` or a case's `NoCheckpoint` turns capture
 off, and `speedmatrix/` and `tickbudget/` never capture. A resumed pass
 is not a landing pass: `acceptance suite` runs every case fresh and fails
-a row whose `result.json` carries `resumed_from`. The bundles are
+a row whose `result.json` carries `resumed_from`, and `cmd/land -results`
+refuses such a suite (#308). The bundles are
 disposable per-worktree state, never committed. Resume replays the case
 body from the top against the restored world and store, so it suits
 watch-shaped cases (a declarative `Serve` spec or an `Observe` loop).

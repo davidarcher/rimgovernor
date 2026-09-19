@@ -157,7 +157,10 @@ func Select(repo string, changed []string) (Selection, error) {
 	// A case area is affected when it, the runner or the rimgovernor binary
 	// the cases drive imports a changed package. The runner imports every
 	// area to register it, so the areas themselves do not count as its
-	// inputs here.
+	// inputs here; nor does this package, which the runner imports to
+	// compose the land tier (#273): a change here re-selects checks, it
+	// changes no case's run.
+	selector := graph.module + "/internal/affected"
 	binaryAffected := false
 	for _, dep := range graph.deps[graph.module+"/cmd/rimgovernor"] {
 		if changedPkgs[dep] {
@@ -172,7 +175,7 @@ func Select(repo string, changed []string) (Selection, error) {
 		if runnerAffected {
 			break
 		}
-		runnerAffected = changedPkgs[dep] && !strings.HasPrefix(dep, prefix)
+		runnerAffected = changedPkgs[dep] && !strings.HasPrefix(dep, prefix) && dep != selector
 	}
 	for pkg, deps := range graph.deps {
 		name := strings.TrimPrefix(pkg, prefix)
@@ -406,7 +409,8 @@ func output(dir, name string, args ...string) (string, error) {
 // streaming the output to stdout/stderr, and names the affected case
 // areas first so the caller knows which acceptance runs the change may
 // still owe; the hint passes -fresh, since a landing pass never resumes
-// from a checkpoint (#249).
+// from a checkpoint (#249), and names the land tier whose results the
+// landing lane takes (#273).
 func Test(repo string, changed []string) error {
 	goDir := filepath.Join(repo, "go")
 	sel, err := Select(repo, changed)
@@ -424,6 +428,9 @@ func Test(repo string, changed []string) error {
 	}
 	for _, area := range sel.Cases {
 		fmt.Printf("case: go run ./internal/nativeaccept/cmd/acceptance run %s/... -root <abs root> -output <fresh dir> -fresh\n", area)
+	}
+	if len(sel.Cases) > 0 {
+		fmt.Println("landing: go run ./internal/nativeaccept/cmd/acceptance suite -tier land -root <abs root> -output <fresh dir>, then go run ./cmd/land -results <that dir>")
 	}
 	switch {
 	case sel.AllGo:

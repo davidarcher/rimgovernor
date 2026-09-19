@@ -1,8 +1,8 @@
 // Command acceptance is the shared runner over the case registry (#135):
 //
-//	acceptance list [-cost [-baseline <result.json|metrics.jsonl>]] [<case>|<area>/...]...
+//	acceptance list [-cost [-baseline <result.json|metrics.jsonl>]] [-tier land|full|matrix|smoke] [<case>|<area>/...]...
 //	acceptance run <case>... [-root -output -game -headless -timeout -budget -stall -rimgovernor -series -no-series -evidence -fresh -rewind N -checkpoint-every d -no-doctor -no-heal -repeat N -seed s]
-//	acceptance suite (-all | -cases a,b | -suite file.json) -root -output -workers N [-baseline result.json -series metrics.jsonl]
+//	acceptance suite (-all | -cases a,b | -suite file.json | -tier land|full|matrix|smoke) -root -output -workers N [-baseline result.json -series metrics.jsonl]
 //	acceptance stop -root <dir> [-config -game -takeover]
 //	acceptance setup [-worktree -rimworld -harmony -gabs -fixture -production -rebuild -skip-mod -skip-binaries]
 //	acceptance why <output>/<area>/<case> [-json]
@@ -18,7 +18,9 @@
 // the storyteller, freeze needs, run the case, write result.json with the
 // run's timing and metrics block, append the block to the metrics series
 // and flag drift (nativeaccept/metrics.go). `suite` (suite.go) runs a set
-// across N private game copies with regression and drift flagging. A run
+// across N private game copies with regression and drift flagging, a
+// tier (tier.go, #273) being the landing lane's, the nightly or the
+// on-demand matrix set. A run
 // checkpoints its case into the root's ring and resumes a case whose last
 // run there failed (#249; -fresh starts over, -rewind steps back,
 // -checkpoint-every 0 turns it off); suite always runs fresh. Every

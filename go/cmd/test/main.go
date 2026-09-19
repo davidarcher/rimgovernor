@@ -9,7 +9,8 @@
 // edit/test loop's check as well as the pre-land one; the landing lane
 // (cmd/land) does not test, so run this before landing. Affected
 // acceptance case areas are named, not run: run them at the milestone,
-// before landing.
+// before landing, as the land tier it prints (`acceptance suite -tier
+// land`, #273) and hand the suite's output to `cmd/land -results`.
 package main
 
 import (

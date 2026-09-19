@@ -18,9 +18,14 @@ needs is [choose-tests](docs/developers/testing/choose-tests.md).
    possible edit, so slow checks run once against meaningful progress.
 4. At the milestone, run the harnesses `cmd/test` named (native behaviour
    changes need game-level acceptance before completion; documentation
-   needs none) and name them in the commit message.
-5. `go run ./cmd/land` from the branch worktree. The lane takes the
-   repository lock, merges `main` into the branch, squash-lands on the
+   needs none) and name them in the commit message. The landing form is
+   the land tier it prints: `acceptance suite -tier land` (the affected
+   areas plus the smoke set, fresh).
+5. `go run ./cmd/land [-results <suite output>]` from the branch worktree.
+   The lane takes the repository lock, merges `main` into the branch,
+   refuses a presented suite that failed or resumed from a checkpoint,
+   refuses a diff under the native sources or `buildingruntime` without
+   one (`-unverified` lands it and you file the issue), squash-lands on the
    `main` checkout, resets the branch to `main` and closes the branch's
    GitHub issue with the landing commit. Call it once and move on; land
    each ready milestone rather than holding a branch until the whole task

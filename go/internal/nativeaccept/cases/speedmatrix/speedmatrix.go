@@ -86,6 +86,7 @@ func init() {
 		QuietWorld: true,
 		Service:    true,
 		Budget:     cases.MaxBudget,
+		Matrix:     true,
 		Run:        run,
 	})
 }

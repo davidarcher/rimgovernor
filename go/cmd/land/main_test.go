@@ -56,7 +56,7 @@ func TestLandSquashesOntoMainAndKeepsCoAuthors(t *testing.T) {
 	mustGit(t, root, "commit", "-qm", "peer: add c")
 
 	t.Chdir(wt)
-	if err := run("", "", "", time.Second, false, nil); err != nil {
+	if err := run("", "", "", time.Second, false, acceptanceGate{}, nil); err != nil {
 		t.Fatal(err)
 	}
 	if got := mustGit(t, root, "log", "--format=%s", "main"); got != "fix: b again\npeer: add c\ninit" {
@@ -94,14 +94,14 @@ func TestLandRefusesDirtyMainAndConflicts(t *testing.T) {
 	t.Chdir(wt)
 
 	write(t, filepath.Join(root, "a.txt"), "dirty\n")
-	if err := run("", "", "", time.Second, false, nil); err == nil || !strings.Contains(err.Error(), "main checkout") {
+	if err := run("", "", "", time.Second, false, acceptanceGate{}, nil); err == nil || !strings.Contains(err.Error(), "main checkout") {
 		t.Errorf("dirty main: got %v", err)
 	}
 	mustGit(t, root, "checkout", "--", "a.txt")
 
 	write(t, filepath.Join(root, "a.txt"), "main\n")
 	mustGit(t, root, "commit", "-qam", "main edit")
-	err := run("", "", "", time.Second, false, nil)
+	err := run("", "", "", time.Second, false, acceptanceGate{}, nil)
 	if err == nil || !strings.Contains(err.Error(), "resolve the conflict") {
 		t.Errorf("conflict: got %v", err)
 	}
@@ -120,7 +120,7 @@ func TestLandWaitsForLock(t *testing.T) {
 	mustGit(t, wt, "commit", "-qm", "b")
 	write(t, filepath.Join(root, ".git", lockName), "pid=0 branch=other\n")
 	t.Chdir(wt)
-	err := run("", "", "", 0, false, nil)
+	err := run("", "", "", 0, false, acceptanceGate{}, nil)
 	if err == nil || !strings.Contains(err.Error(), "landing lock") {
 		t.Errorf("held lock: got %v", err)
 	}

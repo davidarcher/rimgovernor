@@ -1,0 +1,154 @@
+package main
+
+import (
+	"bytes"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/davidarcher/RimGovernor/go/internal/affected"
+	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
+)
+
+// The smoke set stays a smoke set: bridge-only cases that read a kept
+// game, exactly one short serve-driven case, nothing that ends the
+// process, opens a window or belongs to the matrix tier.
+func TestSmokeSuiteShape(t *testing.T) {
+	smoke, err := smokeCases(cases.All())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(smoke) == 0 || len(smoke) > 10 {
+		t.Fatalf("smoke set has %d cases; it is a few minutes of runner proof, not a registry", len(smoke))
+	}
+	serve := 0
+	for _, c := range smoke {
+		if c.Serve != nil || c.Service {
+			serve++
+		}
+		if c.Matrix || c.NoKeep || c.Rendered {
+			t.Errorf("%s: matrix=%v nokeep=%v rendered=%v, none belongs in the smoke set", c.Name, c.Matrix, c.NoKeep, c.Rendered)
+		}
+		if c.Budget > 5*time.Minute {
+			t.Errorf("%s: budget %s over the smoke set's 5m", c.Name, c.Budget)
+		}
+	}
+	if serve != 1 {
+		t.Errorf("smoke set has %d serve-driven cases, want exactly one", serve)
+	}
+}
+
+func TestTierCasesSplitTheRegistry(t *testing.T) {
+	all := cases.All()
+	full, err := tierCases("full", "", "main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	matrix, err := tierCases("matrix", "", "main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(full)+len(matrix) != len(all) {
+		t.Errorf("full (%d) + matrix (%d) != registry (%d)", len(full), len(matrix), len(all))
+	}
+	for _, c := range full {
+		if c.Matrix {
+			t.Errorf("full tier carries matrix case %s", c.Name)
+		}
+	}
+	names := map[string]bool{}
+	for _, c := range matrix {
+		names[c.Name] = true
+		if !c.Matrix {
+			t.Errorf("matrix tier carries %s, which does not declare Matrix", c.Name)
+		}
+	}
+	for _, want := range []string{"speedmatrix/plain", "tickbudget/boundaries"} {
+		if !names[want] {
+			t.Errorf("matrix tier lacks %s", want)
+		}
+	}
+	if _, err := tierCases("nightly", "", "main"); err == nil || !strings.Contains(err.Error(), "unknown tier") {
+		t.Errorf("unknown tier: got %v", err)
+	}
+	if _, err := tierCases("land", "", "main"); err == nil {
+		t.Error("land tier outside a checkout should fail")
+	}
+}
+
+func TestLandCasesAreAffectedAreasPlusSmoke(t *testing.T) {
+	all := cases.All()
+	smoke, err := smokeCases(all)
+	if err != nil {
+		t.Fatal(err)
+	}
+	land, err := landCases(all, affected.Selection{Cases: []string{"power", "speedmatrix"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]bool{}
+	for _, c := range land {
+		got[c.Name] = true
+		area, _, _ := strings.Cut(c.Name, "/")
+		if c.Matrix {
+			t.Errorf("land tier carries matrix case %s", c.Name)
+		}
+		if area != "power" && !isSmoke(smoke, c.Name) {
+			t.Errorf("land tier carries %s, neither affected nor smoke", c.Name)
+		}
+	}
+	for _, want := range []string{"power/fuel", "power/reserve", "smoke/identity", "light/dark"} {
+		if !got[want] {
+			t.Errorf("land tier lacks %s", want)
+		}
+	}
+	// A shared input changed: every non-matrix case.
+	land, err = landCases(all, affected.Selection{AllHarnesses: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	full, _ := tierCases("full", "", "main")
+	if len(land) != len(full) {
+		t.Errorf("all harnesses affected: land has %d cases, full %d", len(land), len(full))
+	}
+}
+
+func isSmoke(smoke []cases.Case, name string) bool {
+	for _, c := range smoke {
+		if c.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
+func TestParseSuiteTierIsASelector(t *testing.T) {
+	var stderr bytes.Buffer
+	list, opts, err := parseSuite([]string{"-tier", "smoke", "-root", absRoot(), "-output", t.TempDir() + "/out"}, &stderr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if opts.Tier != "smoke" || len(list) == 0 {
+		t.Errorf("tier %q, %d rows", opts.Tier, len(list))
+	}
+	_, _, err = parseSuite([]string{"-tier", "smoke", "-all", "-root", absRoot(), "-output", t.TempDir()}, &stderr)
+	if err == nil || !strings.Contains(err.Error(), "exactly one") {
+		t.Errorf("-tier with -all: got %v", err)
+	}
+	if !strings.Contains(suiteUsage, "-tier") {
+		t.Error("suite usage does not mention -tier")
+	}
+}
+
+func TestListTierPrintsTheTier(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	if code := list([]string{"-tier", "matrix"}, &stdout, &stderr); code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "speedmatrix/plain") || strings.Contains(stdout.String(), "smoke/identity") {
+		t.Errorf("matrix listing:\n%s", stdout.String())
+	}
+	if code := list([]string{"-tier", "matrix", "smoke/identity"}, &stdout, &stderr); code == 0 {
+		t.Error("-tier with case names should be refused")
+	}
+}

@@ -11,10 +11,10 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cost"
 )
 
-const listUsage = `  acceptance list [-cost [-baseline <result.json|metrics.jsonl>]] [<case>|<area>/...]...`
+const listUsage = `  acceptance list [-cost [-baseline <result.json|metrics.jsonl>]] [-tier land|full|matrix|smoke [-base main]] [<case>|<area>/...]...`
 
-// list prints the registry, or the named cases and areas (`<area>/...`),
-// one per line with its scope. -cost adds each case's baseline wall and
+// list prints the registry, the named cases and areas (`<area>/...`) or a
+// tier (-tier, tier.go), one per line with its scope. -cost adds each case's baseline wall and
 // boot time (#283) and a total for the set; without a baseline row a case
 // is "untimed". The baseline is a suite result.json or a metrics series.
 func list(args []string, stdout, stderr io.Writer) int {
@@ -22,10 +22,23 @@ func list(args []string, stdout, stderr io.Writer) int {
 	fs.SetOutput(stderr)
 	withCost := fs.Bool("cost", false, "show each case's baseline wall and boot time and the set's total")
 	baselinePath := fs.String("baseline", "", "suite result.json or metrics.jsonl the costs come from")
+	tier := fs.String("tier", "", "list a tier: land, full, matrix or smoke")
+	base := fs.String("base", "main", "revision the land tier diffs the worktree against")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
-	selected, err := selectCases(fs.Args())
+	var selected []cases.Case
+	var err error
+	if *tier != "" {
+		if len(fs.Args()) > 0 {
+			fmt.Fprintln(stderr, "-tier takes no case names")
+			return 2
+		}
+		repo, _ := repoOfCwd()
+		selected, err = tierCases(*tier, repo, *base)
+	} else {
+		selected, err = selectCases(fs.Args())
+	}
 	if err != nil {
 		fmt.Fprintln(stderr, err)
 		return 2

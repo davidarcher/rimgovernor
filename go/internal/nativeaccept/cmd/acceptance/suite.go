@@ -9,8 +9,10 @@ package main
 // suite's result.json lists them with exit code, wall and boot time, and
 // passes only when every case did.
 //
-// The set is the registry (-all), registry names (-cases a,b) or a JSON
-// suite file (-suite) whose rows name registry cases; every row runs
+// The set is the registry (-all), registry names (-cases a,b), a JSON
+// suite file (-suite) whose rows name registry cases, or a tier (-tier
+// land|full|matrix|smoke, tier.go, #273; the land tier diffs the worktree
+// against -base and the report records "tier"); every row runs
 // through `acceptance run`, and a case that hosts a service (Serve or
 // Service) receives -rimgovernor. "acceptance" labels the criterion a row
 // stands for and is echoed into its report row. Every row runs fresh
@@ -107,9 +109,14 @@ type suiteOptions struct {
 	// Evidence passes through to `acceptance run -evidence`; empty leaves
 	// the runner's default.
 	Evidence string
+	// Tier is the tier the set came from (-tier), recorded in the report;
+	// empty for -all, -cases and -suite.
+	Tier string
 }
 
-const suiteUsage = `  acceptance suite (-all | -cases a,b,... | -suite file.json) -root <dir> -output <dir> [-workers N -baseline <result.json> -series <metrics.jsonl> -no-series -rimgovernor <bin> -game <id> -timeout <d> -case-timeout <d> -budget <d> -stall <d> -evidence capped|full]`
+const suiteUsage = `  acceptance suite (-all | -cases a,b,... | -suite file.json | -tier land|full|matrix|smoke [-base main]) -root <dir> -output <dir> [-workers N -baseline <result.json> -series <metrics.jsonl> -no-series -rimgovernor <bin> -game <id> -timeout <d> -case-timeout <d> -budget <d> -stall <d> -evidence capped|full]
+    -tier land runs the cases cmd/affected selects for the worktree's diff plus the smoke set; full every case but the matrix tier;
+    matrix the speedmatrix, tickbudget and DLC-save cases; smoke the land tier's fixed half alone (acceptance list -tier <name> prints a tier)`
 
 // parseSuite resolves the suite subcommand's flags into the list of rows
 // (in file order, before scheduling) and the options.
@@ -118,10 +125,12 @@ func parseSuite(args []string, stderr io.Writer) ([]entry, suiteOptions, error) 
 	fs.SetOutput(stderr)
 	var opts suiteOptions
 	var all bool
-	var names, suite string
+	var names, suite, base string
 	fs.BoolVar(&all, "all", false, "run every registered case")
 	fs.StringVar(&names, "cases", "", "comma-separated registry case names")
 	fs.StringVar(&suite, "suite", "", "JSON suite file: array of {name, acceptance}; names are registry cases")
+	fs.StringVar(&opts.Tier, "tier", "", "run a tier: land, full, matrix or smoke")
+	fs.StringVar(&base, "base", "main", "revision the land tier diffs the worktree against")
 	fs.StringVar(&opts.Root, "root", "", "absolute worker root to clone for every worker (e.g. .rimgovernor/bridge)")
 	fs.StringVar(&opts.Output, "output", "", "fresh output directory")
 	fs.StringVar(&opts.Rimgovernor, "rimgovernor", "", "prebuilt rimgovernor binary (absolute path) passed to the cases that host a service")
@@ -142,13 +151,13 @@ func parseSuite(args []string, stderr io.Writer) ([]entry, suiteOptions, error) 
 		return nil, opts, fmt.Errorf("unexpected arguments: %v", fs.Args())
 	}
 	selectors := 0
-	for _, set := range []bool{all, names != "", suite != ""} {
+	for _, set := range []bool{all, names != "", suite != "", opts.Tier != ""} {
 		if set {
 			selectors++
 		}
 	}
 	if selectors != 1 {
-		return nil, opts, errors.New("exactly one of -all, -cases or -suite is required")
+		return nil, opts, errors.New("exactly one of -all, -cases, -suite or -tier is required")
 	}
 	if opts.Root == "" || opts.Output == "" {
 		return nil, opts, errors.New("-root and -output are required")
@@ -175,6 +184,18 @@ func parseSuite(args []string, stderr io.Writer) ([]entry, suiteOptions, error) 
 			if name = strings.TrimSpace(name); name != "" {
 				list = append(list, entry{Name: name})
 			}
+		}
+	case opts.Tier != "":
+		repo, _ := repoOfCwd()
+		selected, err := tierCases(opts.Tier, repo, base)
+		if err != nil {
+			return nil, opts, err
+		}
+		for _, c := range selected {
+			list = append(list, entry{Name: c.Name})
+		}
+		if len(list) == 0 {
+			return nil, opts, fmt.Errorf("tier %s selects no case", opts.Tier)
 		}
 	default:
 		data, err := os.ReadFile(suite)
@@ -373,6 +394,9 @@ func runSuite(ctx context.Context, list []entry, opts suiteOptions, stderr io.Wr
 	}
 	report := na.NewReport(fmt.Sprintf("%d acceptance cases across %d private game copies, one kept process per worker", len(list), opts.Workers), true)
 	report["workers"] = opts.Workers
+	if opts.Tier != "" {
+		report["tier"] = opts.Tier
+	}
 	var b *baseline
 	if opts.Baseline != "" {
 		var err error
