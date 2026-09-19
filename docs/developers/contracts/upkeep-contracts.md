@@ -215,6 +215,16 @@ clearance census must report deconstructible geometry with no roof blocker,
 ancient danger, casket or existing designation. Repairs precede clearance;
 clearance precedes direct cleaning, and shared emergency admission still wins.
 The durable review records each skipped target and its reason in `ClearanceHolds`.
+Chunks are hauls, not deconstructions (#394): a chunk stack in Home that is
+allowed, unstored and has no store cell ordinary hauling would take it to is a
+clearance deficit too, and once no building target remains the planner admits
+one low-priority `RimGovernor dumping` stockpile (allow list: the pending chunk
+definitions plus `ChunkSlagSteel`, so a smelter bill draws from the same dump)
+on the census's `dump_sites` footprint outside held building footprints, one
+cell per pending stack between 4 and 16. The method is content-addressed by
+cells and allow list; ordinary hauling then clears the stacks and the deficit
+recovers as soon as every chunk is stored or has a destination. Forbidden
+chunks are the supply safety policy's (#336).
 Unknown observations preserve the previous need. Recovery requires no eligible
 candidate and no unresolved issued action; recurrence keeps the goal identity.
 Every dispatch rechecks eligibility, authority and emergency facts. Only the

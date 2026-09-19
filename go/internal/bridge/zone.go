@@ -78,6 +78,8 @@ func stockpileSettings(zone domain.ZoneCreate) *op.StockpileSettings {
 	switch zone.Priority() {
 	case domain.ImportantPriority:
 		priority = op.StoragePriority_STORAGE_PRIORITY_IMPORTANT
+	case domain.LowPriority:
+		priority = op.StoragePriority_STORAGE_PRIORITY_LOW
 	}
 	var preset op.FilterPreset
 	switch zone.Preset() {

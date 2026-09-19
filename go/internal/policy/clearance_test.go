@@ -83,3 +83,61 @@ func TestClearanceAdmissionFollowsRepairsAndPrecedesCleaning(t *testing.T) {
 	f.Upkeep.Structures = domain.Known([]UpkeepStructure{})
 	check(false)
 }
+
+func TestChunkHoldsAndPendingDeficit(t *testing.T) {
+	chunk := func(id string, forbidden, stored, destination bool) ClearanceChunk {
+		return ClearanceChunk{EntityID: id, DefName: "ChunkGranite", Cell: domain.Cell{X: 1, Z: 1}, Forbidden: forbidden, Stored: stored, Destination: destination}
+	}
+	rows := []ClearanceChunk{chunk("b", false, false, false), chunk("forbidden", true, false, false), chunk("stored", false, true, false), chunk("hauling", false, false, true), chunk("a", false, false, false)}
+	for _, row := range rows[1:4] {
+		if ChunkHoldReason(row) != row.EntityID {
+			t.Fatal(row)
+		}
+	}
+	pending := PendingChunks(rows)
+	if len(pending) != 2 || pending[0].EntityID != "a" || pending[1].EntityID != "b" {
+		t.Fatal(pending)
+	}
+	r, err := ReviewUpkeep(UpkeepObservation{Clearance: domain.Known([]ClearanceTarget{}), Chunks: domain.Known(rows)}, UpkeepHistory{}, nil)
+	if err != nil || !r.History.Clearance {
+		t.Fatal(r, err)
+	}
+	r, err = ReviewUpkeep(UpkeepObservation{Clearance: domain.Known([]ClearanceTarget{}), Chunks: domain.Known(rows[1:4])}, UpkeepHistory{}, nil)
+	if err != nil || r.History.Clearance {
+		t.Fatal(r, err)
+	}
+	if _, err = ReviewUpkeep(UpkeepObservation{Clearance: domain.Known([]ClearanceTarget{{EntityID: "a", InHome: true, Deconstructible: true}}), Chunks: domain.Known(rows)}, UpkeepHistory{}, nil); err == nil {
+		t.Fatal("duplicate identity across buildings and chunks")
+	}
+}
+
+func TestSelectChunkDumpSizesAndConnectsFootprint(t *testing.T) {
+	var rows []ClearanceChunk
+	for i := 0; i < 6; i++ {
+		rows = append(rows, ClearanceChunk{EntityID: string(rune('a' + i)), DefName: "ChunkGranite"})
+	}
+	rows[0].DefName = "ChunkSandstone"
+	rows[5].Destination = true
+	// A held footprint splits the native flood; only the run from the first
+	// free cell is kept, and it is bounded by the pending count.
+	var sites []domain.Cell
+	for x := int32(0); x < 12; x++ {
+		sites = append(sites, domain.Cell{X: x, Z: 0})
+	}
+	cells, allow, ok := SelectChunkDump(rows, sites, []domain.Cell{{X: 3, Z: 0}})
+	if !ok || len(cells) != 3 || cells[0] != (domain.Cell{X: 0, Z: 0}) || cells[2] != (domain.Cell{X: 2, Z: 0}) {
+		t.Fatal(cells, ok)
+	}
+	if len(allow) != 3 || allow[0] != "ChunkGranite" || allow[1] != "ChunkSandstone" || allow[2] != "ChunkSlagSteel" {
+		t.Fatal(allow)
+	}
+	if cells, _, ok = SelectChunkDump(rows[:1], sites, nil); !ok || len(cells) != minChunkDumpCells {
+		t.Fatal(cells, ok)
+	}
+	if _, _, ok = SelectChunkDump(rows[5:], sites, nil); ok {
+		t.Fatal("no pending chunk")
+	}
+	if _, _, ok = SelectChunkDump(rows, sites[:1], sites[:1]); ok {
+		t.Fatal("no free cell")
+	}
+}

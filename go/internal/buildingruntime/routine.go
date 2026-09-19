@@ -299,11 +299,14 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 		if !ok {
 			return store.RoutineReviewResult{}, ErrControl
 		}
-		clearance, err := observation.ObserveClearance(ctx, source, expected)
+		clearance, err := observation.ObserveClearanceCensus(ctx, source, expected)
 		if err != nil {
 			return store.RoutineReviewResult{}, err
 		}
-		reading.Projection.Facts.Upkeep.Clearance = clearance
+		if census, known := clearance.Value(); known {
+			reading.Projection.Facts.Upkeep.Clearance = domain.Known(census.Targets)
+			reading.Projection.Facts.Upkeep.Chunks = domain.Known(census.Chunks)
+		}
 	}
 	reading.Projection.Facts.AvailableMethods = r.methods
 	result, err := p.journal.ReviewRoutine(ctx, store.RoutineReviewRequest{Revision: previous.Revision, WorkPreferenceRevision: preferences.Revision, Current: state.Snapshot, Tick: reading.Projection.Identity.Tick, Enabled: true, Policy: r.policy, Facts: reading.Projection.Facts, PartialPlanners: partial, AsOf: routineAsOf(asOf)})

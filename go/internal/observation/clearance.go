@@ -24,15 +24,26 @@ const (
 // Faction means neutral and empty RoofBlocker means supported without this
 // one building. Combined removals require a new counterfactual check.
 type ClearanceTarget = policy.ClearanceTarget
+type ClearanceChunk = policy.ClearanceChunk
+type ClearanceCensus = policy.ClearanceCensus
 
 type ClearanceSource interface {
 	ReadClearanceTargets(context.Context, *c.Identity) (*o.ClearanceTargetsReply, bridge.Result, error)
 }
 
-// ObserveClearance tolerates an explicit unavailable native stub as unknown.
-// Transport, malformed-contract and identity errors remain errors.
+// ObserveClearance is the building half of ObserveClearanceCensus.
 func ObserveClearance(ctx context.Context, source ClearanceSource, expected Identity) (domain.Fact[[]ClearanceTarget], error) {
-	unknown := domain.Unknown[[]ClearanceTarget]()
+	census, err := ObserveClearanceCensus(ctx, source, expected)
+	if v, known := census.Value(); known {
+		return domain.Known(v.Targets), err
+	}
+	return domain.Unknown[[]ClearanceTarget](), err
+}
+
+// ObserveClearanceCensus tolerates an explicit unavailable native stub as
+// unknown. Transport, malformed-contract and identity errors remain errors.
+func ObserveClearanceCensus(ctx context.Context, source ClearanceSource, expected Identity) (domain.Fact[ClearanceCensus], error) {
+	unknown := domain.Unknown[ClearanceCensus]()
 	if source == nil || expected.Validate() != nil || !sameColonyBoundary(expected, expected) {
 		return unknown, ErrContract
 	}
@@ -78,5 +89,13 @@ func ObserveClearance(ctx context.Context, source ClearanceSource, expected Iden
 	for _, row := range v.Targets {
 		rows = append(rows, ClearanceTarget{EntityID: row.GetEntityId(), DefName: row.GetDefName(), Faction: row.GetFaction(), Class: classes[row.Class], Minimum: domain.Cell{X: row.Occupied.Minimum.GetX(), Z: row.Occupied.Minimum.GetZ()}, Maximum: domain.Cell{X: row.Occupied.Maximum.GetX(), Z: row.Occupied.Maximum.GetZ()}, Deconstructible: row.GetDeconstructible(), InHome: row.GetInHome(), AncientDanger: row.GetAncientDanger(), RoofBlocker: row.GetRoofBlocker(), Designated: row.GetDesignated(), ControllerOwned: row.GetControllerOwned()})
 	}
-	return domain.Known(rows), ctx.Err()
+	chunks := make([]ClearanceChunk, 0, len(v.Chunks))
+	for _, row := range v.Chunks {
+		chunks = append(chunks, ClearanceChunk{EntityID: row.GetEntityId(), DefName: row.GetDefName(), Cell: domain.Cell{X: row.Cell.GetX(), Z: row.Cell.GetZ()}, Forbidden: row.GetForbidden(), Stored: row.GetStored(), Destination: row.GetDestination()})
+	}
+	sites := make([]domain.Cell, 0, len(v.DumpSites))
+	for _, cell := range v.DumpSites {
+		sites = append(sites, domain.Cell{X: cell.GetX(), Z: cell.GetZ()})
+	}
+	return domain.Known(ClearanceCensus{Targets: rows, Chunks: chunks, DumpSites: sites}), ctx.Err()
 }

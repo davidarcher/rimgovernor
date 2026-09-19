@@ -428,14 +428,31 @@ func (r *RoutineResourcePlanner) admitStorageZone(call, epoch context.Context, s
 	}
 	hash := sha256.Sum256([]byte(fmt.Sprintf("%s/%v", resource, cells)))
 	method := domain.MethodID(fmt.Sprintf("%s-%x", methodPrefix, hash[:16]))
-	if _, err = p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
+	return admitZoneMethod(r.reviewer, r.native, call, epoch, state, goal, reviewTick, value, method, planPrefix, started)
+}
+
+// zoneMethodNative is the native surface a zone method admission needs: the
+// identity and colony facts behind the zone-map token, and the zone preview.
+type zoneMethodNative interface {
+	observation.ColonySource
+	FieldNative
+}
+
+// admitZoneMethod admits one already-shaped zone under goal as method: the
+// method ID is the caller's (fingerprint dedup reports BuildingMethodUsed),
+// the zone is previewed against the live zone-map token and admitted through
+// AdmitBuildingMethod, since a zone carries footprint like a building.
+func admitZoneMethod(reviewer *RoutineReviewer, native zoneMethodNative, call, epoch context.Context, state ControlState, goal store.GoalState, reviewTick domain.Tick, value domain.ZoneCreate, method domain.MethodID, planPrefix string, started time.Time) (RoutineResourceResult, error) {
+	p := reviewer.player
+	cells := value.Cells()
+	if _, err := p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
 		return RoutineResourceResult{Reason: BuildingMethodUsed}, nil
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineResourceResult{}, err
 	}
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
 	id := domain.PlanID(fmt.Sprintf("%s-%x", planPrefix, digest[:16]))
-	last, _, err := r.native.Identity(call)
+	last, _, err := native.Identity(call)
 	if err != nil {
 		return RoutineResourceResult{}, err
 	}
@@ -446,7 +463,7 @@ func (r *RoutineResourcePlanner) admitStorageZone(call, epoch context.Context, s
 	if !routineBuildingBoundary(expected, state.Snapshot, reviewTick) {
 		return RoutineResourceResult{}, ErrControl
 	}
-	reading, err := r.reviewer.observeColony(call, r.native, expected, nil)
+	reading, err := reviewer.observeColony(call, native, expected, nil)
 	if err != nil {
 		return RoutineResourceResult{}, err
 	}
@@ -462,7 +479,7 @@ func (r *RoutineResourcePlanner) admitStorageZone(call, epoch context.Context, s
 	if err != nil {
 		return RoutineResourceResult{}, err
 	}
-	reply, _, err := r.native.PreviewZone(call, boundary.Identity(snapshot), bridge.ZoneTarget{Zone: value, Token: token})
+	reply, _, err := native.PreviewZone(call, boundary.Identity(snapshot), bridge.ZoneTarget{Zone: value, Token: token})
 	if err != nil {
 		return RoutineResourceResult{}, err
 	}
@@ -481,11 +498,11 @@ func (r *RoutineResourcePlanner) admitStorageZone(call, epoch context.Context, s
 	if err = p.current(call, epoch); err != nil {
 		return RoutineResourceResult{}, err
 	}
-	elapsed := r.reviewer.clock.Now().Sub(started)
-	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
+	elapsed := reviewer.clock.Now().Sub(started)
+	if p.session.State() != state || elapsed < 0 || elapsed > reviewer.maxAge {
 		return RoutineResourceResult{}, ErrControl
 	}
-	decision, err := p.journal.AdmitBuildingMethod(call, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: projection.Identity.Tick, Bounds: domain.Known(projection.Bounds), Stock: policy.StockObservation{Snapshot: snapshot, Tick: projection.Identity.Tick}, Rules: r.reviewer.rules, Previews: []policy.Preview{preview}, Purpose: policy.Routine})
+	decision, err := p.journal.AdmitBuildingMethod(call, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: projection.Identity.Tick, Bounds: domain.Known(projection.Bounds), Stock: policy.StockObservation{Snapshot: snapshot, Tick: projection.Identity.Tick}, Rules: reviewer.rules, Previews: []policy.Preview{preview}, Purpose: policy.Routine})
 	if err != nil {
 		return RoutineResourceResult{}, err
 	}

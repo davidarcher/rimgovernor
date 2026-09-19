@@ -9,6 +9,7 @@ using Google.Protobuf;
 using RimBridgeServer.Sdk;
 using RimWorld;
 using Verse;
+using Verse.AI;
 using Common = RimGovernor.Protocol.Common;
 using Obs = RimGovernor.Protocol.Observations;
 
@@ -17,7 +18,7 @@ namespace HomeBridge.BridgeTools
     public sealed class NativeClearanceObservationTools
     {
         private const string ToolName = "rimgovernor/observations_get_clearance_targets";
-        [Tool(ToolName, Title = "Read clearance targets", Description = "Complete bounded census of visible, deconstructible non-player buildings touching Home. Includes exact footprints, roof-support blockers, sealed ancient danger and deconstruction ownership. Read-only; does not admit removal.")]
+        [Tool(ToolName, Title = "Read clearance targets", Description = "Complete bounded census of visible, deconstructible non-player buildings touching Home, plus the rock and slag chunk stacks standing in Home with their storage state and a free outdoor footprint for a dumping stockpile. Includes exact footprints, roof-support blockers, sealed ancient danger and deconstruction ownership. Read-only; does not admit removal.")]
         [ToolResponse("payload", "string", "Official ProtoJSON ClearanceTargetsReply.", Always = true)]
         public async Task<object> Read(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official ProtoJSON ClearanceTargetsRequest string.")] object? request = null)
@@ -38,11 +39,29 @@ namespace HomeBridge.BridgeTools
                     // non-player buildings standing in them.
                     var home = map.areaManager.Home;
                     var buildings = new Dictionary<int, Building>();
+                    var chunks = new Dictionary<int, Thing>();
                     foreach (var cell in home.ActiveCells)
-                        foreach (var thing in cell.GetThingList(map))
+                        foreach (var thing in cell.GetThingList(map)) {
                             if (thing is Building b && b.Spawned && b.Faction != player) buildings[b.thingIDNumber] = b;
+                            // Chunks are hauls, not deconstructions (#394): a
+                            // dumping stockpile clears them, so the census
+                            // reports them beside the buildings.
+                            else if (thing.Spawned && thing.def.category == ThingCategory.Item && thing.def.IsWithinCategory(ThingCategoryDefOf.Chunks)) chunks[thing.thingIDNumber] = thing;
+                        }
                     Require(buildings.Count <= 8192, "Non-player buildings touching Home exceed 8192.");
+                    Require(chunks.Count <= 256, "Chunk stacks in Home exceed 256.");
                     var snapshot = new Obs.ClearanceTargetsSnapshot { Context = context };
+                    var haulers = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Downed && !p.Drafted && !p.InMentalState && !p.WorkTypeIsDisabled(WorkTypeDefOf.Hauling)).ToList();
+                    var undelivered = new List<Thing>();
+                    foreach (var chunk in chunks.Values.OrderBy(t => t.thingIDNumber)) {
+                        if (!chunk.Position.InBounds(map) || chunk.Position.Fogged(map)) continue;
+                        var forbidden = chunk.IsForbidden(player);
+                        var stored = chunk.IsInValidStorage();
+                        var destination = !stored && StoreUtility.TryFindBestBetterStoreCellFor(chunk, null, map, StoreUtility.CurrentStoragePriorityOf(chunk), player, out _, false);
+                        snapshot.Chunks.Add(new Obs.ClearanceChunk { EntityId = Id(chunk.GetUniqueLoadID()), DefName = Id(chunk.def.defName), Cell = Cell(chunk.Position.x, chunk.Position.z), Forbidden = forbidden, Stored = stored, Destination = destination });
+                        if (!forbidden && !stored && !destination) undelivered.Add(chunk);
+                    }
+                    if (undelivered.Count > 0) snapshot.DumpSites.AddRange(DumpSites(map, home, undelivered, haulers).Select(c => Cell(c.x, c.z)));
                     foreach (var building in buildings.Values.OrderBy(b => b.thingIDNumber)) {
                         var rect = building.OccupiedRect();
                         Require(rect.Area > 0 && rect.Area <= 4096, "Building footprint exceeds 4096 cells.");
@@ -73,6 +92,42 @@ namespace HomeBridge.BridgeTools
                 catch (ReadLimit limit) { return Missing(Common.UnavailableReason.LimitExceeded, limit.Message); }
                 catch (Exception) { return Missing(Common.UnavailableReason.ReadFailed, "Clearance facts could not be read completely."); }
             }, cancellationToken).ConfigureAwait(false);
+        }
+
+        // DumpSites floods outward from the free outdoor Home cell nearest the
+        // undelivered chunks' centroid over the cells a dumping stockpile can
+        // take (in Home, psychologically outdoors, standable, unzoned, no
+        // building, blueprint, frame or item, not marked to collapse, reachable
+        // and unforbidden for an eligible hauler) and returns the first
+        // connected footprint of up to dumpSiteCells cells, or nothing when no
+        // hauler exists or no cell qualifies. The flood is bounded so a wide
+        // Home costs a bounded number of reachability checks.
+        private const int dumpSiteCells = 16;
+        private const int dumpSiteFloodBound = 512;
+        private static List<IntVec3> DumpSites(Map map, Area home, List<Thing> chunks, List<Pawn> haulers)
+        {
+            var result = new List<IntVec3>();
+            if (haulers.Count == 0) return result;
+            bool Free(IntVec3 c) => c.InBounds(map) && home[c] && !c.Fogged(map) && c.Standable(map)
+                && c.GetRoom(map)?.PsychologicallyOutdoors == true
+                && !map.roofCollapseBuffer.IsMarkedToCollapse(c)
+                && map.zoneManager.ZoneAt(c) == null && c.GetEdifice(map) == null && NativeZoneCreation.StorageEmpty(c, map);
+            bool Reachable(IntVec3 c) => haulers.Any(h => !c.IsForbidden(h) && h.CanReach(c, PathEndMode.OnCell, Danger.None));
+            var centroid = new IntVec3((int)chunks.Average(t => t.Position.x), 0, (int)chunks.Average(t => t.Position.z));
+            var seed = GenRadial.RadialCellsAround(centroid, 20, true).Where(c => Free(c) && Reachable(c)).Cast<IntVec3?>().FirstOrDefault();
+            if (seed == null) return result;
+            var seen = new HashSet<IntVec3> { seed.Value };
+            var queue = new Queue<IntVec3>();
+            queue.Enqueue(seed.Value);
+            while (queue.Count > 0 && result.Count < dumpSiteCells && seen.Count < dumpSiteFloodBound) {
+                var cell = queue.Dequeue();
+                result.Add(cell);
+                foreach (var next in GenAdj.CardinalDirections.Select(d => cell + d)) {
+                    if (!seen.Add(next) || !Free(next) || !Reachable(next)) continue;
+                    queue.Enqueue(next);
+                }
+            }
+            return result;
         }
 
         private static Obs.ClearanceClass Classify(Building building) =>

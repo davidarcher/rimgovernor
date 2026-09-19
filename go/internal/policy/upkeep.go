@@ -26,7 +26,10 @@ const (
 // Each fact is a complete native section. An unavailable section cannot prove
 // that its old targets disappeared, while a known empty section can.
 type UpkeepObservation struct {
-	Clearance  domain.Fact[[]ClearanceTarget]
+	Clearance domain.Fact[[]ClearanceTarget]
+	// Chunks are the same read's rock and slag stacks in Home; a pending one
+	// (no store will take it) is a clearance deficit until a dump exists.
+	Chunks     domain.Fact[[]ClearanceChunk]
 	Items      domain.Fact[[]UpkeepItem]
 	Structures domain.Fact[[]UpkeepStructure]
 	Fires      domain.Fact[[]UpkeepFire]
@@ -304,6 +307,16 @@ func ReviewUpkeepWith(v UpkeepObservation, previous UpkeepHistory, issued map[Go
 			}
 			if ClearanceHoldReason(row) == "" {
 				selected = append(selected, row.EntityID)
+			}
+		}
+		if chunks, known := v.Chunks.Value(); known {
+			for _, row := range chunks {
+				if !valid(seen, row.EntityID) {
+					return r, errors.New("invalid clearance chunk")
+				}
+				if ChunkHoldReason(row) == "" {
+					selected = append(selected, row.EntityID)
+				}
 			}
 		}
 		clearanceTargets = domain.Known(selected)

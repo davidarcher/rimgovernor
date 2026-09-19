@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
+	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
@@ -11,9 +12,12 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
+// RoutineClearanceSource is the clearance census plus the zone preview the
+// chunk dump needs.
 type RoutineClearanceSource interface {
 	observation.ColonySource
 	observation.ClearanceSource
+	FieldNative
 }
 
 type RoutineClearancePlanner struct {
@@ -102,17 +106,17 @@ func (r *RoutineClearancePlanner) step(call, epoch context.Context, arbiter *ste
 	if err != nil {
 		return RoutineClearanceResult{}, err
 	}
-	census, err := observation.ObserveClearance(call, r.native, expected)
+	read, err := observation.ObserveClearanceCensus(call, r.native, expected)
 	if err != nil {
 		return RoutineClearanceResult{}, err
 	}
-	rows, known := census.Value()
+	census, known := read.Value()
 	if !known {
 		return RoutineClearanceResult{Reason: BuildingMethodUsed}, nil
 	}
-	selection := policy.SelectHomeClearance(rows, colony.Projection.Center)
+	selection := policy.SelectHomeClearance(census.Targets, colony.Projection.Center)
 	if len(selection.Targets) == 0 {
-		return RoutineClearanceResult{Reason: BuildingMethodUsed}, nil
+		return r.dump(call, epoch, state, goal, review.Tick, census, started)
 	}
 	target := selection.Targets[0]
 	prefix := fmt.Sprintf("deconstruct-%s-", target.EntityID)
@@ -147,4 +151,36 @@ func (r *RoutineClearancePlanner) step(call, epoch context.Context, arbiter *ste
 		return RoutineClearanceResult{}, err
 	}
 	return RoutineClearanceResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+}
+
+// dump is the chunk half of the clearance goal (#394): chunks are hauls, not
+// deconstructions, so when a pending stack (in Home, allowed, unstored, no
+// store will take it) remains, one low-priority dumping stockpile allowing
+// the pending chunk kinds and steel slag is admitted on the native outdoor
+// footprint, outside held building footprints, and ordinary hauling clears
+// the stacks. The method is content-addressed by cells and allow list.
+func (r *RoutineClearancePlanner) dump(call, epoch context.Context, state ControlState, goal store.GoalState, reviewTick domain.Tick, census policy.ClearanceCensus, started time.Time) (RoutineClearanceResult, error) {
+	if len(policy.PendingChunks(census.Chunks)) == 0 {
+		return RoutineClearanceResult{Reason: BuildingMethodUsed}, nil
+	}
+	held, err := r.reviewer.player.journal.BuildingReservations(call, state.Snapshot)
+	if err != nil {
+		return RoutineClearanceResult{}, err
+	}
+	var protected []domain.Cell
+	for _, h := range held {
+		protected = append(protected, h.Footprint...)
+	}
+	cells, allow, ok := policy.SelectChunkDump(census.Chunks, census.DumpSites, protected)
+	if !ok {
+		return RoutineClearanceResult{Reason: BuildingMethodNoSpace}, nil
+	}
+	value, err := domain.NewAllowListStockpileZone(domain.LowPriority, allow, cells)
+	if err != nil {
+		return RoutineClearanceResult{}, err
+	}
+	hash := sha256.Sum256([]byte(fmt.Sprintf("%v/%v", allow, cells)))
+	method := domain.MethodID(fmt.Sprintf("chunk-dump-%x", hash[:16]))
+	result, err := admitZoneMethod(r.reviewer, r.native, call, epoch, state, goal, reviewTick, value, method, "routine-chunk-dump", started)
+	return RoutineClearanceResult{Reason: result.Reason, Plan: result.Plan}, err
 }

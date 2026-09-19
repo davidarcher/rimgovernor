@@ -9,6 +9,7 @@ import (
 
 const clearanceTool = "rimgovernor/observations_get_clearance_targets"
 const clearanceLimit = 256
+const clearanceDumpLimit = 64
 
 // ReadClearanceTargets is read-only and requires no authority. An unsupported
 // native stub returns ErrUnavailable, never a successful empty census.
@@ -41,9 +42,28 @@ func (client *Client) ReadClearanceTargets(ctx context.Context, identity *c.Iden
 // ValidateClearanceTargets rejects partial censuses and omitted safety facts.
 // A null faction and a null roof blocker have defined meanings only in a
 // fully validated row; false and absent booleans are never interchangeable.
+// Chunk rows carry every storage fact and the dump footprint is a bounded set
+// of distinct cells; both are bounded by the same census rules.
 func ValidateClearanceTargets(v *o.ClearanceTargetsSnapshot, identity *c.Identity) error {
 	if v == nil || buildingUnknown(v) != nil || ValidateContext(v.Context) != nil || !sameIdentity(v.Context.Identity, identity) {
 		return contract("invalid clearance context")
+	}
+	if len(v.Chunks) > clearanceLimit || len(v.DumpSites) > clearanceDumpLimit {
+		return contract("clearance chunk census exceeds bound")
+	}
+	chunks := map[string]bool{}
+	for _, row := range v.Chunks {
+		if row == nil || validID(row.GetEntityId()) != nil || validID(row.GetDefName()) != nil || chunks[row.GetEntityId()] || row.Cell == nil || row.Cell.X == nil || row.Cell.Z == nil || row.Cell.GetX() < 0 || row.Cell.GetZ() < 0 || row.Forbidden == nil || row.Stored == nil || row.Destination == nil || (row.GetStored() && row.GetDestination()) {
+			return contract("invalid clearance chunk")
+		}
+		chunks[row.GetEntityId()] = true
+	}
+	sites := map[[2]int32]bool{}
+	for _, cell := range v.DumpSites {
+		if cell == nil || cell.X == nil || cell.Z == nil || cell.GetX() < 0 || cell.GetZ() < 0 || sites[[2]int32{cell.GetX(), cell.GetZ()}] {
+			return contract("invalid clearance dump site")
+		}
+		sites[[2]int32{cell.GetX(), cell.GetZ()}] = true
 	}
 	n := uint64(len(v.Targets))
 	p := v.Completeness

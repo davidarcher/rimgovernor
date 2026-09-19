@@ -50,11 +50,28 @@ message ClearanceTarget {
   optional bool designated = 10;
   optional bool controller_owned = 11;
 }
+// A rock or slag chunk stack standing on a Home cell: a haul, never a
+// deconstruction. stored is vanilla's IsInValidStorage; destination is
+// whether ordinary hauling already has a better store cell for it.
+message ClearanceChunk {
+  optional string entity_id = 1;
+  optional string def_name = 2;
+  rimgovernor.common.v1.Cell cell = 3;
+  optional bool forbidden = 4;
+  optional bool stored = 5;
+  optional bool destination = 6;
+}
 message ClearanceTargetsRequest { ReadScope scope = 1; }
+// dump_sites is a bounded connected footprint of free, outdoor, unzoned,
+// hauler-reachable Home cells near the chunks lacking a destination on which
+// a dumping stockpile could be made; empty when no such chunk exists, no
+// hauler exists or no cell qualifies.
 message ClearanceTargetsSnapshot {
   rimgovernor.common.v1.ObservationContext context = 1;
   repeated ClearanceTarget targets = 2;
   Completeness completeness = 3;
+  repeated ClearanceChunk chunks = 4;
+  repeated rimgovernor.common.v1.Cell dump_sites = 5;
 }
 message ClearanceTargetsReply { oneof outcome {
   ClearanceTargetsSnapshot observed = 1;

@@ -81,3 +81,34 @@ func TestClearanceRejectsIncompleteAndUnsafeDefaults(t *testing.T) {
 		t.Fatal("complete empty census", err)
 	}
 }
+
+func TestClearanceChunkAndDumpSiteValidation(t *testing.T) {
+	chunk := func(id string) *o.ClearanceChunk {
+		return &o.ClearanceChunk{EntityId: proto.String(id), DefName: proto.String("ChunkGranite"), Cell: &c.Cell{X: proto.Int32(3), Z: proto.Int32(4)}, Forbidden: proto.Bool(false), Stored: proto.Bool(false), Destination: proto.Bool(false)}
+	}
+	v := clearanceSnapshot()
+	v.Chunks = []*o.ClearanceChunk{chunk("c1"), chunk("c2")}
+	v.DumpSites = []*c.Cell{{X: proto.Int32(5), Z: proto.Int32(5)}, {X: proto.Int32(6), Z: proto.Int32(5)}}
+	if err := ValidateClearanceTargets(v, pbIdentity()); err != nil {
+		t.Fatal(err)
+	}
+	for name, change := range map[string]func(*o.ClearanceTargetsSnapshot){
+		"duplicate chunk": func(v *o.ClearanceTargetsSnapshot) { v.Chunks[1].EntityId = proto.String("c1") },
+		"stored destination": func(v *o.ClearanceTargetsSnapshot) {
+			v.Chunks[0].Stored = proto.Bool(true)
+			v.Chunks[0].Destination = proto.Bool(true)
+		},
+		"absent forbidden": func(v *o.ClearanceTargetsSnapshot) { v.Chunks[0].Forbidden = nil },
+		"missing cell":     func(v *o.ClearanceTargetsSnapshot) { v.Chunks[0].Cell = nil },
+		"duplicate site":   func(v *o.ClearanceTargetsSnapshot) { v.DumpSites[1].X = proto.Int32(5) },
+		"negative site":    func(v *o.ClearanceTargetsSnapshot) { v.DumpSites[0].Z = proto.Int32(-1) },
+	} {
+		v := clearanceSnapshot()
+		v.Chunks = []*o.ClearanceChunk{chunk("c1"), chunk("c2")}
+		v.DumpSites = []*c.Cell{{X: proto.Int32(5), Z: proto.Int32(5)}, {X: proto.Int32(6), Z: proto.Int32(5)}}
+		change(v)
+		if ValidateClearanceTargets(v, pbIdentity()) == nil {
+			t.Fatal(name)
+		}
+	}
+}

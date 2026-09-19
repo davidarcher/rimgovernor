@@ -34,7 +34,13 @@ const (
 
 type StockpilePriority string
 
-const ImportantPriority StockpilePriority = "important"
+const (
+	ImportantPriority StockpilePriority = "important"
+	// LowPriority is vanilla's dumping-stockpile priority: the chunk dump a
+	// clearance method places so any other store the player or a later
+	// method admits for the same things wins the haul.
+	LowPriority StockpilePriority = "low"
+)
 
 // ZoneCreate owns one bounded connected footprint. Settings are closed variants:
 // an explicitly sown crop, or a typed stockpile filter preset/priority, the
@@ -154,8 +160,9 @@ func NewStockpileZone(preset StockpilePreset, priority StockpilePriority, cells 
 // storeroom fallback variant: an "everything disallowed except this explicit
 // definition list" filter, as the covered_storage and
 // supply_storeroom fallbacks request from the native zone-cells/CreateZone operation.
+// LowPriority marks a dumping stockpile.
 func NewAllowListStockpileZone(priority StockpilePriority, allow []string, cells []Cell) (ZoneCreate, error) {
-	if priority != ImportantPriority {
+	if priority != ImportantPriority && priority != LowPriority {
 		return ZoneCreate{}, errors.New("invalid stockpile zone configuration")
 	}
 	allowData, err := canonicalAllowList(allow)
@@ -216,6 +223,8 @@ func (z ZoneCreate) Label() string {
 		return "RimGovernor fishing"
 	case z.kind == StockpileZone && z.preset == CorpseLarderPreset:
 		return "RimGovernor corpse larder"
+	case z.kind == StockpileZone && z.preset == NothingPreset && z.priority == LowPriority:
+		return "RimGovernor dumping"
 	case z.kind == StockpileZone && z.preset == NothingPreset:
 		return "RimGovernor supplies storage"
 	case z.kind == StockpileZone:

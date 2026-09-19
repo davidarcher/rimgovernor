@@ -339,4 +339,4 @@ New producer obligations are explicit:
   definition names. Entity and map snapshot production is likewise new adapter
   work backed by actual native facts, not claimed existing wire behavior.
 
-Clearance: `GetClearanceTargets` reads visible, deconstructible non-player buildings touching Home. It retains partial Home overlap, sealed ancient-danger membership, counterfactual roof blockers, faction and designation ownership. No policy or demolition admission consumes this census yet.
+Clearance: `GetClearanceTargets` reads visible, deconstructible non-player buildings touching Home. It retains partial Home overlap, sealed ancient-danger membership, counterfactual roof blockers, faction and designation ownership. The same read lists the chunk stacks standing in Home (`chunks`: forbidden, stored, hauling destination) and, while an allowed unstored chunk has no destination, a free outdoor Home footprint for a dumping stockpile (`dump_sites`). `ClearHomeObstructions` consumes both.

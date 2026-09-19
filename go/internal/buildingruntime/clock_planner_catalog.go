@@ -394,7 +394,7 @@ var plannerCatalog = []plannerEntry{
 			out.FireSafety = &method
 			return nil
 		}},
-	{name: "clearance", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.DeconstructionAction}, families: factsColony,
+	{name: "clearance", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.DeconstructionAction, domain.ZoneCreateAction}, families: factsColony,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Clearance != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.Clearance.step(ctx, epoch, arbiter)

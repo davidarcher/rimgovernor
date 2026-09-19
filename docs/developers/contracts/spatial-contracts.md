@@ -244,7 +244,15 @@ visible, deconstructible non-player buildings whose occupied rectangle touches
 Home. Each row records the complete occupied rectangle, nullable faction,
 classification, whether every occupied cell is in Home, sealed ancient-danger
 membership, and the current deconstruct designation with controller ownership.
-Haulable rock chunks and slag are items and do not appear.
+Haulable rock chunks and slag are items, never targets: the same read lists
+them as `chunks` (every chunk-category stack standing on a Home cell, with its
+cell, forbidden state, vanilla's valid-storage test and whether ordinary
+hauling already has a better store cell for it, bounded to 256) and, only
+while some allowed, unstored chunk has no destination, `dump_sites`: one
+connected footprint of up to 16 free Home cells (psychologically outdoors,
+standable, unzoned, empty storage ground, not marked to collapse, reachable
+and unforbidden for an eligible hauler) flooded from the nearest such cell
+within 20 of those chunks' centroid, on which a dumping stockpile can be made.
 
 A missing roof blocker means removing this building alone preserves roof
 support; blocked or unknown geometry carries a reason. It does not authorize
@@ -267,8 +275,9 @@ standing in Home are bounded (8192). The complete census is bounded to 256 rows
 and 1 MiB; overflow or an unreadable scan is unavailable, never sampled. The Go observation treats an explicit
 unavailable native stub as an unknown fact, distinct from a complete empty
 census. Required safety booleans cannot be omitted. The observation context
-must match the expected load, map, generation and fresh tick. No clearance
-policy or new game orders are enabled by this read.
+must match the expected load, map, generation and fresh tick. The read admits
+nothing itself; `ClearHomeObstructions` consumes it
+([upkeep contracts](upkeep-contracts.md)).
 
 ## Related reading
 
