@@ -2,6 +2,7 @@ package nativeaccept
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -295,6 +296,15 @@ func TestScenarioClockChangeRejectsUnsupportedSpeed(t *testing.T) {
 	}
 }
 
+func TestScenarioClockAccelerationRequiresUltrafast(t *testing.T) {
+	clock := &ScenarioClock{TestAcceleration: true}
+	for _, speed := range []string{"Normal", "Fast", "Superfast"} {
+		if _, err := clock.Change(context.Background(), speed, 60); err == nil {
+			t.Fatalf("accepted acceleration at %s", speed)
+		}
+	}
+}
+
 func TestScenarioClockChangeRefusesUnderExternalHold(t *testing.T) {
 	clock := &ScenarioClock{Identity: scenarioIdentity(), Owner: "owner-1", Report: Report{}, Hold: "external_pause"}
 	if _, err := clock.Change(context.Background(), "Superfast", 60); err == nil {
@@ -358,40 +368,57 @@ func identityToolReply() map[string]any {
 }
 
 func TestAdvanceGameCompletesOnTickBudget(t *testing.T) {
-	attempt := map[string]any{"controllerSessionId": "owner-1", "actionId": "typed-clock-1", "attemptId": "1"}
-	fw := &fakeWire{replies: map[string][]map[string]any{
-		"clock_read_status": {{"status": map[string]any{"context": scenarioContext(0), "neverStarted": map[string]any{}}}},
-		"clock_start":       {controlReceiptReply("owner-1", 1, 0, 0, 60, attempt)},
-		"clock_read_events": {{"page": eventPage(scenarioIdentity(), 0, nil)}},
-	}}
-	fq := &fakeQuery{byTool: map[string][]map[string]any{
-		"home/colony_identity": {identityToolReply(), identityToolReply(), identityToolReply()},
-	}}
-	clock := &ScenarioClock{
-		Wire: fw.wire, Identity: scenarioIdentity(), Owner: "owner-1", Report: Report{},
-		Grant: map[string]any{"context": map[string]any{"nativeGeneration": float64(1)}, "authority": map[string]any{"mode": "MODE_AUTO"}},
-	}
-	rt := &ScenarioRuntime{Query: fq.query, Clock: clock, Report: Report{}}
+	for _, accelerated := range []bool{false, true} {
+		t.Run(fmt.Sprintf("accelerated=%t", accelerated), func(t *testing.T) {
+			attempt := map[string]any{"controllerSessionId": "owner-1", "actionId": "typed-clock-1", "attemptId": "1"}
+			fw := &fakeWire{replies: map[string][]map[string]any{
+				"clock_read_status": {{"status": map[string]any{"context": scenarioContext(0), "neverStarted": map[string]any{}}}},
+				"clock_start":       {controlReceiptReply("owner-1", 1, 0, 0, 60, attempt)},
+				"clock_read_events": {{"page": eventPage(scenarioIdentity(), 0, nil)}},
+			}}
+			fq := &fakeQuery{byTool: map[string][]map[string]any{
+				"home/colony_identity": {identityToolReply(), identityToolReply(), identityToolReply()},
+			}}
+			clock := &ScenarioClock{
+				Wire: fw.wire, Identity: scenarioIdentity(), Owner: "owner-1", Report: Report{},
+				Grant:            map[string]any{"context": map[string]any{"nativeGeneration": float64(1)}, "authority": map[string]any{"mode": "MODE_AUTO"}},
+				TestAcceleration: accelerated,
+			}
+			rt := &ScenarioRuntime{Query: fq.query, Clock: clock, Report: Report{}}
 
-	// The status poll loop asks clock_read_status repeatedly; queue a running
-	// reply once then a stopped/tick_budget reply.
-	fw.replies["clock_read_status"] = append(fw.replies["clock_read_status"],
-		map[string]any{"status": stoppedStatus("owner-1", 1, 0, 60, 60, 0, "STOP_REASON_TICK_BUDGET", true)})
+			// The status poll loop asks clock_read_status repeatedly; queue a running
+			// reply once then a stopped/tick_budget reply.
+			fw.replies["clock_read_status"] = append(fw.replies["clock_read_status"],
+				map[string]any{"status": stoppedStatus("owner-1", 1, 0, 60, 60, 0, "STOP_REASON_TICK_BUDGET", true)})
 
-	final, err := AdvanceGame(context.Background(), rt, 60)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if AsString(final["stopReason"]) != "tick_budget" {
-		t.Fatalf("unexpected final status: %#v", final)
-	}
-	simulation := AsSlice(rt.Report["simulation"])
-	if len(simulation) != 1 {
-		t.Fatalf("expected one simulation record, got %#v", simulation)
-	}
-	entry, _ := AsMap(simulation[0])
-	if entry["completed"] != true {
-		t.Fatalf("expected simulation to record completion: %#v", entry)
+			final, err := AdvanceGame(context.Background(), rt, 60)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if AsString(final["stopReason"]) != "tick_budget" {
+				t.Fatalf("unexpected final status: %#v", final)
+			}
+			simulation := AsSlice(rt.Report["simulation"])
+			if len(simulation) != 1 {
+				t.Fatalf("expected one simulation record, got %#v", simulation)
+			}
+			entry, _ := AsMap(simulation[0])
+			if entry["completed"] != true {
+				t.Fatalf("expected simulation to record completion: %#v", entry)
+			}
+			starts := fw.sent["clock_start"]
+			if len(starts) != 1 {
+				t.Fatalf("expected one start, got %#v", starts)
+			}
+			wantSpeed := "SPEED_SUPERFAST"
+			if accelerated {
+				wantSpeed = "SPEED_ULTRAFAST"
+			}
+			boost, _ := starts[0]["testAcceleration"].(bool)
+			if starts[0]["speed"] != wantSpeed || boost != accelerated || starts[0]["maxTicks"] != uint64(60) {
+				t.Fatalf("wrong speed, acceleration or tick budget: %#v", starts[0])
+			}
+		})
 	}
 }
 

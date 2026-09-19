@@ -321,6 +321,11 @@ type ScenarioClock struct {
 	// to WATCH_MODE_COMBAT with these acknowledged hostiles.
 	CombatTargets []string
 
+	// TestAcceleration opts AdvanceGame into Ultrafast with the native test
+	// tick boost. Requires a launch with -rimgovernor-test-acceleration;
+	// the zero value preserves Superfast and all native stop boundaries.
+	TestAcceleration bool
+
 	// Grant is the current authority grant (SetMode(Auto)'s "granted" body:
 	// {context, authority}); its context.nativeGeneration is the generation
 	// every owned write below is admitted against. Exported so callers can
@@ -464,11 +469,14 @@ func (s *ScenarioClock) Control(ctx context.Context, method string, request map[
 	return projected, nil
 }
 
-// Change starts a bounded Superfast/Fast/Normal clock window, mirroring
-// TypedScenarioClock.change(). speed must be "Normal", "Fast" or "Superfast".
+// Change starts a bounded native clock window. TestAcceleration requires
+// Ultrafast; native admission enforces the test-only launch gate.
 func (s *ScenarioClock) Change(ctx context.Context, speed string, maxTicks uint64) (map[string]any, error) {
-	if speed != "Normal" && speed != "Fast" && speed != "Superfast" {
+	if speed != "Normal" && speed != "Fast" && speed != "Superfast" && speed != "Ultrafast" {
 		return nil, fmt.Errorf("unsupported clock speed %q", speed)
+	}
+	if s.TestAcceleration && speed != "Ultrafast" {
+		return nil, fmt.Errorf("test acceleration requires Ultrafast")
 	}
 	if maxTicks == 0 {
 		return nil, fmt.Errorf("maxTicks must be positive")
@@ -500,13 +508,17 @@ func (s *ScenarioClock) Change(ctx context.Context, speed string, maxTicks uint6
 		}
 		freshEpoch = true
 	}
-	status, err := s.Control(ctx, "start", map[string]any{
+	request := map[string]any{
 		"authority": s.precondition(),
 		"speed":     "SPEED_" + strings.ToUpper(speed),
 		"policy":    deepCopyMap(scenarioPolicy),
 		"leaseMs":   30000,
 		"maxTicks":  maxTicks,
-	})
+	}
+	if s.TestAcceleration {
+		request["testAcceleration"] = true
+	}
+	status, err := s.Control(ctx, "start", request)
 	if err != nil {
 		return nil, err
 	}
@@ -808,7 +820,11 @@ func AdvanceGame(ctx context.Context, rt *ScenarioRuntime, ticks uint64, opts ..
 			if err := require(DeepEqual(now, identity), "Native identity changed"); err != nil {
 				return err
 			}
-			started, err := supervisor.Change(ctx, "Superfast", remaining)
+			speed := "Superfast"
+			if supervisor.TestAcceleration {
+				speed = "Ultrafast"
+			}
+			started, err := supervisor.Change(ctx, speed, remaining)
 			if err != nil {
 				return err
 			}

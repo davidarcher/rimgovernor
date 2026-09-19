@@ -94,6 +94,12 @@ and nothing hashes or grades it. Never enter a second rerun-and-land cycle
 for one milestone; land and name anything left unverified in the commit
 body (the nightly full tier verifies it, #387).
 
+Scenario-clock cases may set `ScenarioClock.TestAcceleration` to advance at
+Ultrafast with the native test tick boost; `needs/freeze` uses it for both
+6,000-tick windows. This requires the acceptance launch flag and preserves
+tick deadlines and interruption handling. Other scenario-clock cases retain
+Superfast by default; the serve-driven speed setting does not affect them.
+
 ## Stage the precondition, do not play into it
 
 A native acceptance case should open on a colony that is already in the

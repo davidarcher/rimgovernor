@@ -1,5 +1,5 @@
 // The needs/freeze case proves test/freeze_needs (issue #92): with every need
-// but Rest frozen, a tenth of a day at Superfast leaves each free colonist's
+// but Rest frozen, a tenth of a day at accelerated Ultrafast leaves each free colonist's
 // frozen needs at maximum while Rest keeps moving; release lets them fall
 // again.
 package needs
@@ -35,7 +35,7 @@ func run(ctx context.Context, s cases.Session) error {
 	identity := s.Identity()
 	names := s.Names()
 	report["frozen"] = report["frozen_needs"]
-	supervisor := &na.ScenarioClock{Wire: h.WireFunc(), Identity: identity, Owner: na.Controller, Report: report}
+	supervisor := &na.ScenarioClock{Wire: h.WireFunc(), Identity: identity, Owner: na.Controller, Report: report, TestAcceleration: true}
 	if _, err := supervisor.Acquire(ctx, "acquire"); err != nil {
 		return err
 	}
