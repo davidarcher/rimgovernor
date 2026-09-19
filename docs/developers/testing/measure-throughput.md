@@ -144,6 +144,36 @@ on Windows' coarse monotonic clock.
 - Low wall TPS with a low paused fraction: the game itself is slow at that
   speed; the controller is not the bottleneck.
 
+## Case timeline
+
+`dashboard/timeline.html` draws one acceptance case's output directory on
+a single axis: the clock windows (`started` to `stopped`, with the stop
+reason and the paused strip between status samples), the scheduler steps
+with their elapsed time and the stop→step latency of a woken step, the
+admissions and refusals (`clock_start`/`clock_renew` receipts, the
+`EvaluateClockWindow` refusals and pause-bound holds from the aligned
+stderr blocks, worker dispatches), the native events at the companion's
+own stamp with a dashed connector to the reply that delivered them, every
+native round trip as a span (a held long poll is the outlined bar), and the
+case's `started_at`/`finished_at`/boot from `result.json`. A restarted
+service (`service-2/`) is a second launch on the same axis.
+
+```bash
+pnpm --dir dashboard dev
+# open http://127.0.0.1:5173/timeline.html and pick the case directory
+```
+
+The built page ships with the dashboard assets (`dist/timeline.html`, served
+by `serve` at `/timeline.html`). It reads the picked files in the browser
+and uploads nothing. Switch the axis to *ticks advanced* to collapse paused
+wall time and compare windows by game time; hover shows the row, click
+pins it. Scheduler stderr lines carry no stamp, so they are placed by
+aligning the log's `step reads:` blocks with the `clock_step` rows; when
+the counts differ the page says so and leaves those refusals out. Harness
+HTTP evidence (`service/http-NNNN.json`) and the `NNNN-*.json` files are
+unstamped and listed beside the plot until #296 stamps them. The parsers
+live in `dashboard/src/features/timeline/`.
+
 ## Profile
 
 `serve --pprof` (off by default) serves `net/http/pprof` under

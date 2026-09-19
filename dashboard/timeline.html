@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#101717">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<title>RimGovernor · Case timeline</title>
+</head>
+<body>
+<main class="tl-page">
+  <header class="tl-header">
+    <div><h1>Case timeline</h1><p>Windows, steps, admissions, refusals, events and native calls of one acceptance case on one wall/tick axis. Reads the case output directory in this browser; nothing is uploaded.</p></div>
+    <label id="tl-drop">Drop a case output directory here, or <input id="tl-pick" type="file" webkitdirectory multiple></label>
+    <span id="tl-status">Pick a directory holding result.json and flight.jsonl.</span>
+  </header>
+  <div id="tl-summary" class="tl-summary"></div>
+  <ul id="tl-notes" class="tl-notes" hidden></ul>
+  <div id="tl-toolbar" class="tl-toolbar"></div>
+  <section class="tl-body">
+    <div id="tl-plot" class="tl-plot"></div>
+    <aside>
+      <div id="tl-detail" class="tl-detail"></div>
+      <details id="tl-unplaced-box" class="tl-unplaced" hidden><summary>Unstamped evidence (not on the axis)</summary><ul id="tl-unplaced"></ul></details>
+    </aside>
+  </section>
+</main>
+<script type="module" src="/src/features/timeline/index.ts"></script>
+</body>
+</html>

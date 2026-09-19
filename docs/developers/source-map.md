@@ -33,7 +33,7 @@ flowchart LR
 | HTTP API | [go/internal/httpapi](../../go/internal/httpapi) serves dashboard state, player command endpoints, checkpoints, media and diagnostics, and the built dashboard assets. |
 | Native acceptance | [go/internal/nativeaccept](../../go/internal/nativeaccept) holds the registered acceptance cases (`cases/<area>`) and their one runner (`cmd/acceptance`) verified against a real headless RimWorld instance; coverage gaps are tracked in [issue #38](https://github.com/davidarcher/rimgovernor/issues/38). |
 | Game integration | [integrations/rimgovernor-native/src/Bridge](../../integrations/rimgovernor-native/src/Bridge) supplies colony/status, pawn, item, building, room, zone, cell, research and world reads; construction, installation, settings, bills, orders, trade and dialog actions; clock supervision and rendering demand. The separate identity assembly persists colony identity in saves. RimBridgeServer supplies general game/UI tools. |
-| Dashboard | [dashboard/src](../../dashboard/src) is the React/TypeScript UI; it detects the Go backend (`GET /api/health`) and renders structured observation/player controls. |
+| Dashboard | [dashboard/src](../../dashboard/src) is the React/TypeScript UI; it detects the Go backend (`GET /api/health`) and renders structured observation/player controls. [dashboard/timeline.html](../../dashboard/timeline.html) is the offline case timeline over an acceptance output directory ([measure throughput](testing/measure-throughput.md#case-timeline)). |
 
 ## Related reading
 
