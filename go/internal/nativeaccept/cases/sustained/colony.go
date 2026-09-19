@@ -77,6 +77,9 @@ func colony(name string, quiet na.QuietMode, scope string) cases.Case {
 				WatchConfig: sustainedfood.WatchConfig{
 					Watch: Window(), Window: ColonyWindow(), Poll: 10 * time.Second,
 					Goal: policy.EnsureFoodSupply, Extra: colonyGoals,
+					// A diagnostic, not a gate: a refusal is part of what the
+					// long window records, never a reason to cut it short.
+					FailFast: sustainedfood.FailFast{Disabled: true},
 				},
 			})
 			return err

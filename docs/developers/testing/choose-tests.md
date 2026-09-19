@@ -607,6 +607,21 @@ duration, default 8m) only ends a game that stops advancing, and
 timeline. Each case's `result.json` records the observed window under
 `window` and the ceiling under `window_ms`.
 
+The watch also fails fast on the journal instead of running out that
+ceiling (#268, `sustainedfood.FailFast`, on by default): an action of the
+watched goal's committed method ending `unsuccessful` for any reason but
+`interrupted`/`cancelled`; the goal left active/deficit with no method
+through five consecutive reviews that handed its planner the slot (the
+development row's `Idle` flag -- a goal the review never selects, such as
+`EnsureComfort` under `startup_survival`, is waiting, not refused); or the
+service's latest `scheduler_step` line carrying the same native refusal in
+`planner_failures` for six consecutive samples (#219's shape). The verdict
+is the case's error and `result.json`'s `fail_fast` row, quoting the
+journal text; the failed checkpoint bundle is still taken. A case where
+one of these is an expected transient sets `FailFast{Disabled: true}`
+(the `sustained/colony` diagnostics) or raises `NoMethodReviews` /
+`RefusalSamples`.
+
 Process reuse carries the same static-state caveat as an `Owned` case's
 `GameReuse` (next paragraph), and process-wide `Prefs` too: the
 `letter/pause` case sets the pause mode it needs and restores the one it

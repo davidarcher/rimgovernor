@@ -58,6 +58,9 @@ type WatchConfig struct {
 	// first's; checkpoints lists them all.
 	Checkpoint  *Checkpoint
 	Checkpoints []Checkpoint
+	// FailFast ends the window early with the journal's refusal text once
+	// the case cannot pass (see FailFast); on by default.
+	FailFast FailFast
 }
 
 // Watch is the serve-driven family's observation window on a service
@@ -151,6 +154,7 @@ func Watch(ctx context.Context, naCfg *na.Config, service *na.ServiceProcess, cf
 	pending = append(pending, cfg.Checkpoints...)
 	var taken []map[string]any
 	stepped := false
+	failFast := newFailFast(cfg.FailFast, goalID, service.StderrPath())
 	defer func() {
 		report["timeline"] = timeline
 		report["events"] = events
@@ -191,6 +195,14 @@ func Watch(ctx context.Context, naCfg *na.Config, service *na.ServiceProcess, cf
 		}
 		if window.reached() {
 			break
+		}
+		// The failed checkpoint bundle (#249) is still taken: the runner
+		// captures it on the error path like any other watch failure.
+		if err == nil {
+			if verdict, failed := failFast.check(sample); failed {
+				report["fail_fast"] = verdict
+				return timeline, verdict
+			}
 		}
 		if err == nil {
 			for i := 0; i < len(pending); i++ {
@@ -317,7 +329,7 @@ func SampleGoal(ctx context.Context, s *store.Store, need policy.GoalID) (map[st
 	// or is not selected this review (startup_survival, capacity_committed...).
 	for _, row := range review.Development.Rows {
 		if row.Goal == need {
-			sample["development"] = map[string]any{"reason": string(row.Reason), "selected": row.Selected, "committed": row.Committed}
+			sample["development"] = map[string]any{"reason": string(row.Reason), "selected": row.Selected, "committed": row.Committed, "idle": row.Idle}
 		}
 	}
 	goal, err := s.LoadGoal(ctx, goalID)
@@ -338,11 +350,21 @@ func SampleGoal(ctx context.Context, s *store.Store, need policy.GoalID) (map[st
 			return map[string]any{"plan": string(method.Plan), "error": err.Error()}
 		}
 		stages, kinds := map[string]int{}, map[string]int{}
+		var unsuccessful []map[string]any
 		for _, p := range plan.Progress {
-			stages[string(p.View().Stage)]++
+			view := p.View()
+			stages[string(view.Stage)]++
 			kinds[string(p.Action().Kind())]++
+			if view.Stage == domain.Unsuccessful {
+				reason, _ := view.UnsuccessfulReason.Value()
+				unsuccessful = append(unsuccessful, map[string]any{"action": string(view.Action), "kind": string(p.Action().Kind()), "reason": string(reason)})
+			}
 		}
-		return map[string]any{"plan": string(method.Plan), "actions": len(plan.Spec.Actions()), "stages": stages, "kinds": kinds}
+		described := map[string]any{"plan": string(method.Plan), "actions": len(plan.Spec.Actions()), "stages": stages, "kinds": kinds}
+		if len(unsuccessful) > 0 {
+			described["unsuccessful"] = unsuccessful
+		}
+		return described
 	}
 	var plans []map[string]any
 	active := map[domain.PlanID]bool{}
