@@ -36,3 +36,19 @@ func TestReserveReleaseBypassesDevelopmentQueue(t *testing.T) {
 	}
 	t.Fatal("release goal absent")
 }
+
+func TestReserveRefillRanksADevelopmentDeficit(t *testing.T) {
+	f := stableRoutine()
+	f.FoodReserve = domain.Known(FoodReserveReview{TargetNutrition: 10, StockNutrition: 4, DeficitNutrition: 6})
+	if d, known := RoutineDevelopmentDeficit(MaintainFoodStorage, f, DefaultRoutinePolicy()).Value(); !known || d != 0.6 {
+		t.Fatal("refill must rank for a slot", d, known)
+	}
+	f.FoodReserve = domain.Known(FoodReserveReview{TargetNutrition: 10, StockNutrition: 10, Hold: []string{"stack"}})
+	if d, known := RoutineDevelopmentDeficit(MaintainFoodStorage, f, DefaultRoutinePolicy()).Value(); !known || d != 1 {
+		t.Fatal("pending access is a full deficit", d, known)
+	}
+	f.FoodReserve = domain.Unknown[FoodReserveReview]()
+	if _, known := RoutineDevelopmentDeficit(MaintainFoodStorage, f, DefaultRoutinePolicy()).Value(); known {
+		t.Fatal("unknown review ranks unknown")
+	}
+}

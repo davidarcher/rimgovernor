@@ -207,6 +207,81 @@ namespace HomeBridge.BridgeTools
             },cancellationToken);
         }
 
+        private static float reserveEaten;
+        private static bool reservePatched;
+        private static void ReserveIngested(Thing __instance, Pawn ingester, float __result)
+        {
+            if (__instance.def.defName == "Pemmican" && ingester?.IsColonist == true) reserveEaten += __result;
+        }
+
+        [Tool("test/food_reserve_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Add a roofed walled food room with a fueled stove, a food stockpile, pemmican research, unforbidden pemmican and meat, and a 10000 raw rice runway and 1000 wood outside it to the empty-channel fixture; every colonist cooks. Nothing is forbidden and no bill is preinstalled.")]
+        public async Task<object> ReservePrepare(IRimBridgeContext ctx, CancellationToken cancellationToken, int pemmican = 150)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                if (map == null || !Find.TickManager.Paused) throw new InvalidOperationException("Paused map required");
+                if (pemmican < 0 || pemmican > 1000) throw new ArgumentException("pemmican must be 0..1000");
+                var people = map.mapPawns.FreeColonistsSpawned.ToList();
+                var cook = people.First(p => !p.Downed);
+                var room = CellRect.Empty;
+                foreach (var c in GenRadial.RadialCellsAround(cook.Position, 25, true)) {
+                    var rect = CellRect.CenteredOn(c, 11, 9);
+                    if (rect.Cells.All(x => x.InBounds(map) && !x.Fogged(map) && x.Standable(map) && x.GetEdifice(map) == null && x.GetTerrain(map).passability != Traversability.Impassable && !x.GetThingList(map).Any(t => t is Pawn))) { room = rect; break; }
+                }
+                if (room.IsEmpty) throw new InvalidOperationException("No clear ground for the food room");
+                foreach (var p in people) { p.jobs.StopAll(); p.workSettings.EnableAndInitialize(); p.workSettings.SetPriority(DefDatabase<WorkTypeDef>.GetNamed("Cooking"), 1); if (!p.WorkTypeIsDisabled(WorkTypeDefOf.Hauling)) p.workSettings.SetPriority(WorkTypeDefOf.Hauling, 2); p.skills.GetSkill(SkillDefOf.Cooking).Level = 8; }
+                Thing Spawn(string name, IntVec3 cell) { var def = ThingDef.Named(name); var thing = ThingMaker.MakeThing(def, def.MadeFromStuff ? ThingDefOf.WoodLog : null); if (def.CanHaveFaction) thing.SetFaction(Faction.OfPlayer); GenSpawn.Spawn(thing, cell, map); thing.SetForbidden(false, false); return thing; }
+                var door = new IntVec3(room.minX, 0, room.CenterCell.z);
+                foreach (var cell in room.Cells) {
+                    foreach (var thing in cell.GetThingList(map).ToList()) if (!(thing is Pawn)) thing.Destroy(DestroyMode.Vanish);
+                    map.roofGrid.SetRoof(cell, RoofDefOf.RoofConstructed);
+                    if (cell.x == room.minX || cell.x == room.maxX || cell.z == room.minZ || cell.z == room.maxZ) Spawn(cell == door ? "Door" : "Wall", cell);
+                }
+                var inside = room.ContractedBy(1);
+                var stove = (Building_WorkTable)Spawn("FueledStove", new IntVec3(inside.maxX - 1, 0, inside.CenterCell.z));
+                stove.TryGetComp<CompRefuelable>().Refuel(100);
+                foreach (var recipe in stove.def.AllRecipes) if (recipe.products.Any(p => p.thingDef.defName == "Pemmican")) { if (recipe.researchPrerequisite != null) Find.ResearchManager.FinishProject(recipe.researchPrerequisite, false); foreach (var research in recipe.researchPrerequisites ?? new List<ResearchProjectDef>()) Find.ResearchManager.FinishProject(research, false); }
+                var zone = new Zone_Stockpile(StorageSettingsPreset.DefaultStockpile, map.zoneManager);
+                map.zoneManager.RegisterZone(zone);
+                var free = new List<IntVec3>();
+                foreach (var cell in inside.Cells) { if (cell.GetEdifice(map) != null || stove.OccupiedRect().Contains(cell) || stove.InteractionCell == cell) continue; zone.AddCell(cell); free.Add(cell); }
+                zone.settings.filter.SetDisallowAll(); zone.settings.filter.SetAllow(ThingCategoryDefOf.Foods, true); zone.settings.Priority = StoragePriority.Important;
+                int index = 0;
+                // Rice is the long-lived runway (40 rot days) that keeps the review out of
+                    // emergency under the seasonal minimum; it needs no roof, so it sits outside.
+                    // Wood keeps the stove fueled: the meal bill alone burns the initial 100 fuel.
+                    var outside = GenRadial.RadialCellsAround(room.CenterCell, 30, true).Where(c => c.InBounds(map) && !room.Contains(c) && !c.Fogged(map) && c.Standable(map) && c.GetEdifice(map) == null && !c.GetThingList(map).Any(t => t.def.category == ThingCategory.Item)).ToList();
+                    foreach (var seed in new[] { ("Pemmican", pemmican, free), ("Meat_Muffalo", 600, free), ("RawRice", 10000, outside), ("WoodLog", 1000, outside) }) {
+                        var def = ThingDef.Named(seed.Item1); int remaining = seed.Item2; var cells = seed.Item3; if (cells == outside) index = 0;
+                        while (remaining > 0) { var food = ThingMaker.MakeThing(def); food.stackCount = Math.Min(def.stackLimit, remaining); remaining -= food.stackCount; GenSpawn.Spawn(food, cells[index++], map); food.SetForbidden(false, false); }
+                    }
+                reserveEaten = 0;
+                if (!reservePatched) { new Harmony("rimgovernor.fixture.foodreserve").Patch(AccessTools.Method(typeof(Thing), "Ingested"), postfix: new HarmonyMethod(typeof(FoodChannelFixture), nameof(ReserveIngested))); reservePatched = true; }
+                return new { success = true, bench = stove.GetUniqueLoadID(), pemmican, room = new { x = room.minX, z = room.minZ, w = room.Width, h = room.Height } };
+            }, cancellationToken);
+        }
+
+        [Tool("test/food_reserve_probe", Description = "UNSAFE FOR MODEL EXECUTION when drain is true. Read pemmican stacks, food bills and colonist pemmican ingestion; optionally destroy every other food (free pemmican included), reset the ingestion counter and leave the colonists hungry.")]
+        public async Task<object> ReserveProbe(IRimBridgeContext ctx, CancellationToken cancellationToken, bool drain = false)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap ?? throw new InvalidOperationException("Map required");
+                if (drain) {
+                    if (!Find.TickManager.Paused) throw new InvalidOperationException("Pause before drain");
+                    foreach (var p in map.mapPawns.FreeColonistsSpawned) { p.jobs.StopAll(); p.needs.food.CurLevelPercentage = 0.2f; }
+                    foreach (var t in AllThings(map).Where(t => !t.Destroyed && !(t is Pawn) && t.def.IsNutritionGivingIngestible && (t.def.defName != "Pemmican" || !t.IsForbidden(Faction.OfPlayer))).ToList()) t.Destroy(DestroyMode.Vanish);
+                    reserveEaten = 0; // only the held reserve remains; count what the colonists eat from here
+                }
+                var things = AllThings(map).Where(t => !t.Destroyed).ToList();
+                return new { success = true, reserveEaten,
+                    pemmican = things.Where(t => t.def.defName == "Pemmican").Select(t => new { id = t.GetUniqueLoadID(), units = t.stackCount, forbidden = t.Spawned && t.IsForbidden(Faction.OfPlayer), roofed = t.Spawned && t.Position.Roofed(map) }).ToList(),
+                    otherFood = things.Where(t => !(t is Pawn) && t.def.category == ThingCategory.Item && t.def.IsNutritionGivingIngestible && t.def.defName != "Pemmican").Sum(t => t.stackCount),
+                    hungriest = map.mapPawns.FreeColonistsSpawned.Min(p => p.needs.food.CurLevelPercentage),
+                    bills = map.listerThings.AllThings.OfType<Building_WorkTable>().SelectMany(b => b.BillStack.Bills).OfType<Bill_Production>().Select(b => new { id = b.GetUniqueLoadID(), recipe = b.recipe.defName, target = b.targetCount, repeat = b.repeatMode.defName, suspended = b.suspended, paused = b.paused, shouldDo = b.ShouldDoNow(), count = b.recipe.WorkerCounter.CountProducts(b), fuel = (b.billStack.billGiver as Thing)?.TryGetComp<CompRefuelable>()?.Fuel ?? -1f }).ToList(),
+                    jobs = map.mapPawns.FreeColonistsSpawned.Select(p => new { name = p.LabelShort, job = p.CurJob?.def.defName ?? "", target = p.CurJob?.targetA.Thing?.def.defName ?? "", bill = p.CurJob?.bill?.recipe.defName ?? "", cooking = p.workSettings.GetPriority(DefDatabase<WorkTypeDef>.GetNamed("Cooking")), hauling = p.workSettings.GetPriority(WorkTypeDefOf.Hauling) }).ToList() };
+            }, cancellationToken);
+        }
+
         private static bool FoodPlant(Plant p) => p.def.plant?.harvestedThingDef?.IsNutritionGivingIngestible == true;
         private static bool Producer(Thing t) => t is Building_PlantGrower || t is Building_NutrientPasteDispenser;
         private static bool Remove(Thing t) => t is Corpse || t is Pawn p && p.RaceProps.Animal

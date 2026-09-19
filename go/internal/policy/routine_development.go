@@ -55,6 +55,22 @@ func RoutineDevelopmentDeficit(id GoalID, f RoutineFacts, p RoutinePolicy) domai
 			return domain.Known(0.0)
 		}
 		return domain.Known(1.0)
+	case MaintainFoodStorage:
+		// The food reserve review (#428): its refill is a preservation bill
+		// that needs a ranked deficit for a development slot. Reserve access
+		// (a pending hold or release) is a full deficit so the slot is not
+		// withheld while stock moves; the upkeep census itself ranks no slot.
+		reserve, reserveKnown := f.FoodReserve.Value()
+		if !reserveKnown {
+			return domain.Unknown[float64]()
+		}
+		if len(reserve.Hold) > 0 || len(reserve.Release) > 0 {
+			return domain.Known(1.0)
+		}
+		if reserve.TargetNutrition <= 0 {
+			return domain.Known(0.0)
+		}
+		return domain.Known(min(1.0, max(0.0, reserve.DeficitNutrition/reserve.TargetNutrition)))
 	case MaintainMedicalReserves:
 		// The reserve review's own stock/target: the harvest or bench method
 		// needs a ranked deficit to be admitted at development priority.

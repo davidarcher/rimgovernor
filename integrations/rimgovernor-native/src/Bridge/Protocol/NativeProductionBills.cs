@@ -45,7 +45,8 @@ namespace HomeBridge.BridgeTools {
    var row=new Obs.BillState{Id=bill.GetUniqueLoadID(),Index=(uint)index,Recipe=new Obs.DefinitionRef{DefName=bill.recipe.defName},Suspended=bill.suspended,ManagedUnchanged=NativeProductionTracking.ManagedUnchanged(bill)};
    row.WorkerId=bill.PawnRestriction?.GetUniqueLoadID()??"";
    // MakeNewBill consumes a native bill id; census defaults must stay detached.
-   var fresh=new Bill_Production { recipe=bill.recipe };
+   // The parameterless Bill constructor leaves ingredientFilter null.
+   var fresh=new Bill_Production { recipe=bill.recipe, ingredientFilter=new ThingFilter() };
    fresh.ingredientFilter.CopyAllowancesFrom(bill.recipe.defaultIngredientFilter ?? bill.recipe.fixedIngredientFilter);
    if(bill is Bill_Production && bill.billStack?.billGiver is Thing bench){
     bool human=bill.recipe.defName=="ButcherCorpseFlesh" && bill.ingredientFilter.AllowedThingDefs.Any(d=>d.IsCorpse&&d.ingestible?.sourceDef?.race?.Humanlike==true);

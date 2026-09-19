@@ -714,8 +714,12 @@ path, and the return path to the native storage choice. Fire within two cells,
 traps on the path, native region danger, and visible hostiles exposing the path
 with line of sight prevent Allow. Hostile exposure uses the native weapon range
 with a five-cell margin and a twelve-cell minimum for melee threats. This is a
-conservative current observation, not a prediction of enemy movement. The native
-boundary repeats the check immediately before applying Allow or Forbid.
+conservative current observation, not a prediction of enemy movement. The
+planner re-reads the census every review and cancels a pending action the
+fresh safety no longer supports; the native boundary applies Allow and Forbid
+without a safety rule of its own, because the forbid flag has other owners with
+other reasons (the reserve food and frozen corpses `MaintainFoodStorage` holds
+while they are perfectly safe to reach, #428/#431).
 
 Unsafe items are forbidden before safe items are allowed, in batches of eight.
 Forbid changes no pawn orders and may execute during an emergency; Allow retains

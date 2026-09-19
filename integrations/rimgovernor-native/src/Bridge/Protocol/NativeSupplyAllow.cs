@@ -76,7 +76,6 @@ namespace HomeBridge.BridgeTools
                 .Require(() => !found!.Position.Fogged(found.Map), "the item's cell is fogged")
                 .Require(() => Faction.OfPlayerSilentFail != null && (found!.Faction == null || found.Faction == Faction.OfPlayerSilentFail), "the item belongs to another faction")
                 .Require(() => found!.IsForbidden(Faction.OfPlayer) != forbid, "the item already has the desired forbid state")
-                .Require(() => EventLootFacts.Safe(found!) == !forbid, "hauling safety no longer permits this forbid state")
                 .Require(() => designator.CanDesignateThing(found!).Accepted, "the native unforbid designator refuses the item")
                 .Token(() => Snapshot(found!, context)?.Token == command.Target.ExpectedSnapshotToken, "the item snapshot changed since it was read");
             if (!rules.Holds) { failure = rules.Failure(); return false; }
