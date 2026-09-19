@@ -3,7 +3,7 @@
 // by removable environment thoughts (SleptOutside + NeedJoy) is read
 // through the same social block the routine census requests, the mood
 // review reduces that pressure to the upkeep goals whose facilities remove
-// it (EnsureInitialShelter, EnsureComfort) and proposes deferring to them
+// it (EnsureInitialShelter, EnsureBasicComfort/EnsureComfort) and proposes deferring to them
 // instead of a native relief job, and both thoughts then clear within a
 // day of ordinary native ticks with no relief dispatched at all. The
 // owner goals' own planning (a roofed bed, a recreation source) is covered
@@ -143,8 +143,8 @@ func runProvision(ctx context.Context, s cases.Session) error {
 	for _, p := range state.Provision {
 		owners[p.Goal] = true
 	}
-	if !owners[policy.EnsureComfort] || !owners[policy.EnsureInitialShelter] {
-		return fmt.Errorf("target-before: expected EnsureComfort and EnsureInitialShelter provisioning, got %+v", state.Provision)
+	if !owners[policy.EnsureBasicComfort] || !owners[policy.EnsureComfort] || !owners[policy.EnsureInitialShelter] {
+		return fmt.Errorf("target-before: expected EnsureBasicComfort, EnsureComfort and EnsureInitialShelter provisioning, got %+v", state.Provision)
 	}
 	proposal, err := policy.SelectMoodMethod(state, nil)
 	if err != nil {

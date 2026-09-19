@@ -28,7 +28,7 @@ Food, shelter and temperature provisioning use the existing shared colony goals.
 The routine pawn read carries each colonist's grouped thought rows (memories and
 the situational cache, the `social` block). The review keeps the rows that pull
 mood down and maps the removable environment thoughts to the upkeep goal whose
-facility removes them: `AteWithoutTable` and `NeedJoy` to `EnsureComfort`,
+facility removes them (a thought names every goal providing it): `AteWithoutTable` and `NeedJoy` to `EnsureBasicComfort` and `EnsureComfort`,
 `SleptOutside`/`SleptOnGround` to `EnsureInitialShelter`, `EnvironmentDark` to
 `MaintainLighting`, `EnvironmentCold`/`EnvironmentHot` to
 `EnsureTemperatureSafety`, `NeedBeauty` to `MaintainCleanFacilities` and

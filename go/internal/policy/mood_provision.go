@@ -24,34 +24,38 @@ type MoodProvision struct {
 	Offset float64
 }
 
-// moodProvisionOwners maps the removable environment thoughts to the goal
-// whose facility removes them. Everything else (SleptInBarracks, ugly
+// moodProvisionOwners maps the removable environment thoughts to the goals
+// whose facility removes them; a thought names every goal that provides
+// the facility (the foothold table/seat/recreation goal and the ranked
+// hosted-room one both remove the dining and recreation thoughts), and
+// each active one is raised. Everything else (SleptInBarracks, ugly
 // apparel, social memories) is left to native relief and the pawn's own
 // recovery: no goal builds bedrooms yet (#286).
-var moodProvisionOwners = map[string]GoalID{
-	"AteWithoutTable": EnsureComfort,
-	"NeedJoy":         EnsureComfort,
-	"SleptOutside":    EnsureInitialShelter,
-	"SleptOnGround":   EnsureInitialShelter,
-	"EnvironmentDark": MaintainLighting,
-	"EnvironmentCold": EnsureTemperatureSafety,
-	"EnvironmentHot":  EnsureTemperatureSafety,
-	"NeedBeauty":      MaintainCleanFacilities,
-	"NeedRoomSize":    EnsureExpansion,
+var moodProvisionOwners = map[string][]GoalID{
+	"AteWithoutTable": {EnsureBasicComfort, EnsureComfort},
+	"NeedJoy":         {EnsureBasicComfort, EnsureComfort},
+	"SleptOutside":    {EnsureInitialShelter},
+	"SleptOnGround":   {EnsureInitialShelter},
+	"EnvironmentDark": {MaintainLighting},
+	"EnvironmentCold": {EnsureTemperatureSafety},
+	"EnvironmentHot":  {EnsureTemperatureSafety},
+	"NeedBeauty":      {MaintainCleanFacilities},
+	"NeedRoomSize":    {EnsureExpansion},
 }
 
-// MoodProvisionOwner names the upkeep goal whose facility removes the
-// thought, if the catalog knows one.
-func MoodProvisionOwner(def string) (GoalID, bool) {
-	goal, ok := moodProvisionOwners[def]
-	return goal, ok
+// MoodProvisionOwners names the goals whose facility removes the thought,
+// if the catalog knows any.
+func MoodProvisionOwners(def string) []GoalID {
+	return append([]GoalID(nil), moodProvisionOwners[def]...)
 }
 
 // MoodProvisionGoal reports whether the catalog can name the goal as an owner.
 func MoodProvisionGoal(goal GoalID) bool {
-	for _, owner := range moodProvisionOwners {
-		if owner == goal {
-			return true
+	for _, owners := range moodProvisionOwners {
+		for _, owner := range owners {
+			if owner == goal {
+				return true
+			}
 		}
 	}
 	return false
@@ -105,8 +109,11 @@ func moodProvisioning(f domain.Fact[[]MoodThought]) []MoodProvision {
 	byGoal := map[GoalID]float64{}
 	for _, t := range rows {
 		total += t.Offset
-		if goal, ok := MoodProvisionOwner(t.Def); ok {
+		owners := moodProvisionOwners[t.Def]
+		if len(owners) > 0 {
 			owned += t.Offset
+		}
+		for _, goal := range owners {
 			byGoal[goal] += t.Offset
 		}
 	}

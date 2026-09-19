@@ -177,10 +177,14 @@ func (r *RoutineMoodReliefPlanner) step(call, epoch context.Context, arbiter *st
 		if err != nil {
 			return RoutineMoodReliefResult{}, err
 		}
-		if proposal.Reason == policy.MoodProvisioned && !activeOwner[proposal.Goal] {
-			// No active upkeep goal owns the facility the pressure names
-			// (its own census reports it recovered or unknown), so nothing
-			// is being provisioned: fall back to measured need relief.
+		provisioning := false
+		for _, owner := range policyState.Provision {
+			provisioning = provisioning || activeOwner[owner.Goal]
+		}
+		if proposal.Reason == policy.MoodProvisioned && !provisioning {
+			// No active upkeep goal owns any facility the pressure names
+			// (their own censuses report them recovered or unknown), so
+			// nothing is being provisioned: fall back to measured need relief.
 			proposal, err = policy.SelectMoodMethod(policyState.WithoutProvision(), used)
 			if err != nil {
 				return RoutineMoodReliefResult{}, err

@@ -16,15 +16,15 @@ func TestMoodProvisioningDominantEnvironmentThoughts(t *testing.T) {
 		t.Fatal(h)
 	}
 	s := h.States[0]
-	want := []MoodProvision{{EnsureComfort, -20}, {EnsureInitialShelter, -4}}
-	if len(s.Provision) != 2 || s.Provision[0] != want[0] || s.Provision[1] != want[1] {
+	want := []MoodProvision{{EnsureBasicComfort, -20}, {EnsureComfort, -20}, {EnsureInitialShelter, -4}}
+	if len(s.Provision) != 3 || s.Provision[0] != want[0] || s.Provision[1] != want[1] || s.Provision[2] != want[2] {
 		t.Fatalf("provision = %+v, want %+v", s.Provision, want)
 	}
 	proposal, err := SelectMoodMethod(s, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if proposal.Reason != MoodProvisioned || proposal.Goal != EnsureComfort || proposal.Need != "" {
+	if proposal.Reason != MoodProvisioned || proposal.Goal != EnsureBasicComfort || proposal.Need != "" {
 		t.Fatalf("provisioning did not defer to the owner: %+v", proposal)
 	}
 	proposal, err = SelectMoodMethod(s.WithoutProvision(), nil)
@@ -35,7 +35,7 @@ func TestMoodProvisioningDominantEnvironmentThoughts(t *testing.T) {
 		t.Fatalf("relief fallback lost: %+v", proposal)
 	}
 	deficits := MoodProvisionDeficits(h)
-	if deficits[EnsureComfort] != 1 || deficits[EnsureInitialShelter] != 1 {
+	if deficits[EnsureBasicComfort] != 1 || deficits[EnsureComfort] != 1 || deficits[EnsureInitialShelter] != 1 {
 		t.Fatal(deficits)
 	}
 
@@ -54,7 +54,7 @@ func TestMoodProvisioningDominantEnvironmentThoughts(t *testing.T) {
 	h = moodReview(t, p, MoodHistory{})
 	p.Thoughts = domain.Unknown[[]MoodThought]()
 	h = moodReview(t, p, h)
-	if len(h.States[0].Provision) != 1 || h.States[0].Provision[0].Goal != EnsureComfort {
+	if len(h.States[0].Provision) != 2 || h.States[0].Provision[0].Goal != EnsureBasicComfort {
 		t.Fatal("unknown thoughts dropped the retained provisioning", h.States[0].Provision)
 	}
 	p.Thoughts = domain.Known([]MoodThought{})
@@ -83,12 +83,17 @@ func TestMoodProvisionValidation(t *testing.T) {
 		t.Fatal("duplicate owner accepted")
 	}
 	for _, def := range []string{"AteWithoutTable", "NeedJoy", "SleptOutside", "SleptOnGround", "EnvironmentDark", "EnvironmentCold", "EnvironmentHot", "NeedBeauty", "NeedRoomSize"} {
-		goal, ok := MoodProvisionOwner(def)
-		if !ok || !MoodProvisionGoal(goal) {
-			t.Fatal(def, goal)
+		owners := MoodProvisionOwners(def)
+		if len(owners) == 0 {
+			t.Fatal(def)
+		}
+		for _, goal := range owners {
+			if !MoodProvisionGoal(goal) {
+				t.Fatal(def, goal)
+			}
 		}
 	}
-	if _, ok := MoodProvisionOwner("SleptInBarracks"); ok {
+	if len(MoodProvisionOwners("SleptInBarracks")) > 0 {
 		t.Fatal("bedrooms have no owner goal")
 	}
 }
