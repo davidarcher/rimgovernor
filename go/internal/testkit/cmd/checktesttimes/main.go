@@ -17,6 +17,7 @@ import (
 	"io"
 	"os"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -38,16 +39,20 @@ func main() {
 
 func run(r io.Reader, w io.Writer, max time.Duration) int {
 	type slow struct {
-		name    string
-		elapsed time.Duration
+		pkg, name string
+		elapsed   time.Duration
 	}
 	var slowTests []slow
 	var keyOrder []testKey
 	passed := 0
-	slowest := slow{}
+	slowestBy := map[string]slow{} // per package; the headline picks among uncached ones
 	output := map[testKey][]string{}
 	failedKey := map[testKey]bool{}
 	failedPackage := map[string]bool{}
+	// cached packages replay a previous run's timings, so a budget breach in
+	// one says nothing about this run: go test prints "(cached)" on the
+	// package's ok line and reports the old Elapsed for every test (#334).
+	cached := map[string]bool{}
 
 	scanner := bufio.NewScanner(r)
 	scanner.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
@@ -68,6 +73,9 @@ func run(r io.Reader, w io.Writer, max time.Duration) int {
 				keyOrder = append(keyOrder, k)
 			}
 			output[k] = append(output[k], e.Output)
+			if e.Test == "" && strings.Contains(e.Output, "(cached)") {
+				cached[e.Package] = true
+			}
 		case "fail":
 			failedKey[k] = true
 			if e.Test == "" {
@@ -79,17 +87,31 @@ func run(r io.Reader, w io.Writer, max time.Duration) int {
 			}
 			elapsed := time.Duration(e.Elapsed * float64(time.Second))
 			passed++
-			if elapsed > slowest.elapsed {
-				slowest = slow{name: e.Package + "." + e.Test, elapsed: elapsed}
+			if elapsed > slowestBy[e.Package].elapsed {
+				slowestBy[e.Package] = slow{pkg: e.Package, name: e.Package + "." + e.Test, elapsed: elapsed}
 			}
 			if elapsed > max {
-				slowTests = append(slowTests, slow{name: e.Package + "." + e.Test, elapsed: elapsed})
+				slowTests = append(slowTests, slow{pkg: e.Package, name: e.Package + "." + e.Test, elapsed: elapsed})
 			}
 		}
 	}
 	if err := scanner.Err(); err != nil {
 		fmt.Fprintln(w, "checktesttimes: reading test output:", err)
 		return 1
+	}
+
+	live := slowTests[:0]
+	for _, s := range slowTests {
+		if !cached[s.pkg] {
+			live = append(live, s)
+		}
+	}
+	slowTests = live
+	slowest := slow{}
+	for pkg, s := range slowestBy {
+		if !cached[pkg] && s.elapsed > slowest.elapsed {
+			slowest = s
+		}
 	}
 
 	var failedNames []string

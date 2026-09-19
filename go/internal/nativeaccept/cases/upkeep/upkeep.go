@@ -847,7 +847,7 @@ func watchStorageMissing(ctx context.Context, journal *store.Store, prepared map
 		return err
 	}
 	if report["home_recovered_by"] != "controller_order" {
-		return fmt.Errorf("Home was not extended over the stockpile by the controller's own order (%v)", report["home_recovered_by"])
+		return fmt.Errorf("home was not extended over the stockpile by the controller's own order (%v)", report["home_recovered_by"])
 	}
 	homeCtx, homeCancel := context.WithTimeout(ctx, 6*time.Minute)
 	defer homeCancel()

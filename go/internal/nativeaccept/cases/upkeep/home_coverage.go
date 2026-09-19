@@ -365,7 +365,7 @@ func watchHomeCoverage(ctx context.Context, journal *store.Store, bed, shape str
 		return err
 	}
 	if report["home_recovered_by"] != "controller_order" {
-		return fmt.Errorf("Home was not extended by the controller's own order (%v)", report["home_recovered_by"])
+		return fmt.Errorf("home was not extended by the controller's own order (%v)", report["home_recovered_by"])
 	}
 	recoverCtx, recoverCancel := context.WithTimeout(ctx, 6*time.Minute)
 	defer recoverCancel()

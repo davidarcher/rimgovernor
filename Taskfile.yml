@@ -5,7 +5,8 @@
 # fails to load instead of being skipped. `build` includes the static gates that
 # produce a build failure (gofmt, vet, staticcheck, tsc, eslint, warnings as
 # errors, locked restores); `test` is tests only and runs every project
-# concurrently. Projects needing machine-local inputs (game DLLs) report
+# concurrently, the Go suite last on its own (per-test wall-clock ceiling).
+# Projects needing machine-local inputs (game DLLs) report
 # `unavailable` with the missing path rather than pass.
 # Build outputs and evidence land under .rimgovernor/task. There is no hosted
 # CI; the gate runs locally before work lands on main.
@@ -44,9 +45,12 @@ tasks:
       - task: fixtures:build
 
   test:
-    desc: Tests for every project, run concurrently
+    desc: Tests for every project, run concurrently; the Go suite last, alone
+    # go:test measures a per-test wall-clock ceiling, so it runs after the
+    # concurrent deps finish rather than beside them: under the dashboard,
+    # protobuf and dotnet load its go-list-backed tests ran 3x over budget
+    # (#334).
     deps:
-      - go:test
       - dashboard:test
       - wire:test
       - protobuf-go:test
@@ -54,3 +58,5 @@ tasks:
       - native:test
       - probes:test
       - fixtures:test
+    cmds:
+      - task: go:test

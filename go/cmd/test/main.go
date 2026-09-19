@@ -1,6 +1,7 @@
 // Command test runs the Go tests a change affects: the packages holding
 // the changed files and every in-module package importing them, as
-// cmd/affected computes them (all packages when go.mod or go.sum changed).
+// cmd/affected computes them (all packages when go.mod or go.sum changed),
+// after gofmt, go vet and staticcheck on the change (#334).
 //
 //	go run ./cmd/test [-base main]
 //

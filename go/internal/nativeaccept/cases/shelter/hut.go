@@ -85,9 +85,6 @@ type variant struct {
 	// terrain is "open" (the save's own ground), "rows" (corridor strips)
 	// or "pocket" (one clearing shaped to a concave template).
 	terrain string
-	// fixture holds test/corridor_terrain_fixture's setup arguments for
-	// rows and pocket terrain.
-	fixture map[string]any
 	// shape is the template name the sited shell must classify as,
 	// "irregular" for a grown shell, or empty for any hut template.
 	shape string

@@ -32,6 +32,21 @@ func TestRunFailsOnSlowTest(t *testing.T) {
 	}
 }
 
+// A cached package replays an earlier run's Elapsed (the package ok line
+// carries "(cached)"), which may have been measured under load; the budget
+// judges only this run (#334).
+func TestRunIgnoresCachedTimings(t *testing.T) {
+	t.Parallel()
+	in := strings.NewReader(`{"Action":"pass","Package":"p","Test":"TestSlow","Elapsed":32.2}
+{"Action":"output","Package":"p","Output":"ok  \tp\t(cached)\n"}
+{"Action":"pass","Package":"p","Elapsed":0}
+`)
+	var out bytes.Buffer
+	if code := run(in, &out, 10*time.Second); code != 0 {
+		t.Fatalf("code = %d, output = %s", code, out.String())
+	}
+}
+
 func TestRunFailsOnTestFailure(t *testing.T) {
 	t.Parallel()
 	in := strings.NewReader(`{"Action":"fail","Package":"p","Test":"TestBroken","Elapsed":0.1}

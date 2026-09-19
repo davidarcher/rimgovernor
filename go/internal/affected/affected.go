@@ -5,6 +5,7 @@ package affected
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -434,14 +435,54 @@ func Test(repo string, changed []string) error {
 	}
 	switch {
 	case sel.AllGo:
+		if err := lint(goDir, changed, []string{"./..."}); err != nil {
+			return err
+		}
 		fmt.Println("tests: go.mod/go.sum changed, testing ./...")
 		return goRun(goDir, "test", "./...")
 	case len(sel.Packages) == 0:
 		fmt.Println("tests: no Go files changed, nothing to test")
 		return nil
 	}
+	if err := lint(goDir, changed, sel.Packages); err != nil {
+		return err
+	}
 	fmt.Println("tests:", len(sel.Packages), "affected package(s)")
 	return goRun(goDir, append([]string{"test"}, sel.Packages...)...)
+}
+
+// lint runs the static gates task go:build applies to the whole module
+// (gofmt, go vet, staticcheck) on the changed Go files and the affected
+// packages, so a finding surfaces in the edit/test loop rather than at the
+// next task build (#334).
+func lint(goDir string, changed, packages []string) error {
+	var files []string
+	for _, file := range changed {
+		if !strings.HasSuffix(file, ".go") || !strings.HasPrefix(file, "go/") {
+			continue
+		}
+		rel := filepath.FromSlash(strings.TrimPrefix(file, "go/"))
+		if _, err := os.Stat(filepath.Join(goDir, rel)); err == nil {
+			files = append(files, rel)
+		}
+	}
+	if len(files) > 0 {
+		unformatted, err := output(goDir, "gofmt", append([]string{"-l"}, files...)...)
+		if err != nil {
+			return err
+		}
+		if unformatted = strings.TrimSpace(unformatted); unformatted != "" {
+			return fmt.Errorf("gofmt -l: %s", strings.Join(strings.Fields(unformatted), " "))
+		}
+	}
+	fmt.Println("lint: go vet and staticcheck on", len(packages), "package(s)")
+	if err := goRun(goDir, append([]string{"vet"}, packages...)...); err != nil {
+		return errors.New("go vet: findings above")
+	}
+	if err := goRun(goDir, append([]string{"tool", "staticcheck"}, packages...)...); err != nil {
+		return errors.New("staticcheck: findings above")
+	}
+	return nil
 }
 
 // goRun streams a go command's output so test failures are visible.

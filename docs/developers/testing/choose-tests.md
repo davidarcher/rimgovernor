@@ -864,7 +864,9 @@ price: the total wall and boot time of the baseline's rows in the affected
 areas (cases the baseline never timed are not counted; `acceptance list
 -cost <area>/...` names them).
 `go run ./cmd/test` runs the `go test` line and the probes build (the
-landing lane does not). Run the acceptance lines at the milestone and name them in the commit
+landing lane does not), after gofmt on the changed Go files and `go vet`
+plus staticcheck on the affected packages, the gates `task go:build`
+applies to the whole module (#334). Run the acceptance lines at the milestone and name them in the commit
 message. Run `cmd/test` once before
 landing. Go-only changes need the full Go
 suite; dashboard-only changes need typecheck, Vitest and build. Changes to shared

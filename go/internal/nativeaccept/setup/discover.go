@@ -246,7 +246,7 @@ func SteamLibraries() ([]string, error) {
 		}
 	}
 	if len(roots) == 0 {
-		return nil, errors.New("Steam is not installed (no registry install path, no Program Files\\Steam)")
+		return nil, errors.New("steam is not installed (no registry install path, no Program Files\\Steam)")
 	}
 	var out []string
 	seen := map[string]bool{}

@@ -23,7 +23,8 @@ func TestTraceNestingAndContext(t *testing.T) {
 		t.Fatalf("wire form: %q", root.Wire())
 	}
 	ctx := WithTrace(context.Background(), child)
-	if TraceFrom(ctx) != child || !TraceFrom(context.Background()).Empty() || !TraceFrom(nil).Empty() {
+	var nilCtx context.Context // TraceFrom tolerates a nil ctx by contract
+	if TraceFrom(ctx) != child || !TraceFrom(context.Background()).Empty() || !TraceFrom(nilCtx).Empty() {
 		t.Fatal("trace does not round-trip through ctx")
 	}
 	if WithTrace(context.Background(), Trace{}) != context.Background() {
