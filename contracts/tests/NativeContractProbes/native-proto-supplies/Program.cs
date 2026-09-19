@@ -56,7 +56,8 @@ internal static class NativeProtoSuppliesProbe
             new[] { parse("Operations.DesignateThing", json) })!;
         const string target = "\"target\":{\"entityId\":\"Thing_Supply1\",\"expectedSnapshotToken\":\"token\"}";
         Check(validAllow("{" + target + ",\"designation\":\"THING_DESIGNATION_ALLOW\"}"), "Exact Allow accepted");
-        foreach (var designation in new[] { "FORBID", "HUNT", "HARVEST_PLANT", "DECONSTRUCT", "UNSPECIFIED" })
+        Check(validAllow("{" + target + ",\"designation\":\"THING_DESIGNATION_FORBID\"}"), "Exact Forbid accepted");
+        foreach (var designation in new[] { "HUNT", "HARVEST_PLANT", "DECONSTRUCT", "UNSPECIFIED" })
             Check(!validAllow("{" + target + ",\"designation\":\"THING_DESIGNATION_" + designation + "\"}"), "Allow cannot widen to " + designation);
         foreach (var invalid in new[] { "{}", "{" + target + "}",
             "{\"target\":{\"entityId\":\"Thing_Supply1\"},\"designation\":1}",

@@ -13,7 +13,7 @@ var inlinePlannerSet = []struct {
 	priority int
 }{
 	{"work", plannerFoothold}, {"fields", plannerFoothold}, {"foodStorage", plannerFoothold}, {"foodAcquisition", plannerFoothold}, {"pestAcquisition", plannerFoothold},
-	{"woodAcquisition", plannerMaintenance}, {"supplies", plannerFoothold}, {"sleeping", plannerFoothold}, {"power", plannerFoothold},
+	{"woodAcquisition", plannerMaintenance}, {"supplies", plannerCritical}, {"sleeping", plannerFoothold}, {"power", plannerFoothold},
 	{"temperature", plannerFoothold}, {"refrigeration", plannerMaintenance}, {"lighting", plannerMaintenance}, {"flooring", plannerMaintenance},
 	{"routes", plannerMaintenance}, {"cooking", plannerFoothold}, {"butcher", plannerMaintenance}, {"cookingBills", plannerFoothold},
 	{"preservationBills", plannerFoothold}, {"butcherBills", plannerMaintenance}, {"basicComfort", plannerFoothold}, {"comfort", plannerComfort}, {"workshop", plannerMaintenance},

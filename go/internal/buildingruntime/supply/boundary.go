@@ -44,7 +44,17 @@ func (b *SupplyBoundary) InspectSupply(ctx context.Context, target executor.Targ
 	if !ok {
 		return out, executor.ErrEvidence
 	}
-	read, _, err := b.supply.Native.ReadAllowSupplies(ctx, boundary.Identity(target.Snapshot), supply.Cell())
+	readSupply := b.supply.Native.ReadAllowSupplies
+	if supply.Forbidden() {
+		native, ok := b.supply.Native.(interface {
+			ReadForbidSupplies(context.Context, *c.Identity, domain.Cell) (bridge.SupplyRead, bridge.Result, error)
+		})
+		if !ok {
+			return out, executor.ErrEvidence
+		}
+		readSupply = native.ReadForbidSupplies
+	}
+	read, _, err := readSupply(ctx, boundary.Identity(target.Snapshot), supply.Cell())
 	if err != nil {
 		return out, err
 	}
@@ -181,5 +191,5 @@ func (b *SupplyBoundary) ObserveSupply(ctx context.Context, p executor.Placement
 
 func boundarySupplyEffect(v *r.EffectEvidence, supply domain.SupplyAllow, allowed bool) bool {
 	d := v.GetDesignation()
-	return d != nil && d.Present != nil && d.GetPresent() == allowed && d.GetThingId() == supply.Thing() && d.GetResourceDef() == supply.Definition() && d.GetDesignationDef() == "Allow" && d.Cell != nil && d.Cell.X != nil && d.Cell.Z != nil && d.Cell.GetX() == supply.Cell().X && d.Cell.GetZ() == supply.Cell().Z
+	return d != nil && d.Present != nil && d.GetPresent() == allowed && d.GetThingId() == supply.Thing() && d.GetResourceDef() == supply.Definition() && d.GetDesignationDef() == supply.Designation() && d.Cell != nil && d.Cell.X != nil && d.Cell.Z != nil && d.Cell.GetX() == supply.Cell().X && d.Cell.GetZ() == supply.Cell().Z
 }

@@ -58,7 +58,7 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 	} else if cut, ok := a.CutPlant(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,x,z) VALUES(?,?,?,'cut_plant',?,?,?,?)", a.ID(), plan, ordinal, cut.Plant(), cut.Definition(), cut.Cell().X, cut.Cell().Z)
 	} else if supply, ok := a.SupplyAllow(); ok {
-		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,x,z) VALUES(?,?,?,'supply_allow',?,?,?,?)", a.ID(), plan, ordinal, supply.Thing(), supply.Definition(), supply.Cell().X, supply.Cell().Z)
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,x,z) VALUES(?,?,?,?,?,?,?,?)", a.ID(), plan, ordinal, a.Kind(), supply.Thing(), supply.Definition(), supply.Cell().X, supply.Cell().Z)
 	} else if tend, ok := a.Tend(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target) VALUES(?,?,?,'tend',?,?)", a.ID(), plan, ordinal, tend.Doctor(), tend.Patient())
 	} else if rescue, ok := a.Rescue(); ok {
@@ -406,10 +406,16 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		a, err := domain.NewCutPlantAction(id, c)
 		return a, ordinal, err
 	}
-	if kind == "supply_allow" && target.Valid && def.Valid && x.Valid && z.Valid && !pawn.Valid && !draftAction.Valid && !rotation.Valid && !stuff.Valid && x.Int64 >= 0 && x.Int64 <= 2147483647 && z.Int64 >= 0 && z.Int64 <= 2147483647 {
+	if (kind == "supply_allow" || kind == "supply_forbid") && target.Valid && def.Valid && x.Valid && z.Valid && !pawn.Valid && !draftAction.Valid && !rotation.Valid && !stuff.Valid && x.Int64 >= 0 && x.Int64 <= 2147483647 && z.Int64 >= 0 && z.Int64 <= 2147483647 {
 		s, err := domain.NewSupplyAllow(target.String, def.String, domain.Cell{X: int32(x.Int64), Z: int32(z.Int64)})
 		if err != nil {
 			return domain.Action{}, 0, err
+		}
+		if kind == "supply_forbid" {
+			s, err = domain.NewSupplyForbid(target.String, def.String, domain.Cell{X: int32(x.Int64), Z: int32(z.Int64)})
+			if err != nil {
+				return domain.Action{}, 0, err
+			}
 		}
 		a, err := domain.NewSupplyAllowAction(id, s)
 		return a, ordinal, err

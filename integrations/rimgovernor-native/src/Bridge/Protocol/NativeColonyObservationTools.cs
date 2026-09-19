@@ -127,6 +127,7 @@ namespace HomeBridge.BridgeTools
             Bound(forbidden.Count, limit);
             foreach (var t in forbidden)
                 result.ForbiddenSupplies.Add(new Obs.EntityRef { Id = t.GetUniqueLoadID(), DefName = t.def.defName, MapId = map.uniqueID, Position = Cell(t.Position) });
+            result.EventLoot = EventLootFacts.Read(map, things, reachable);
             ReadProduction(result, map, people, things, reachable, humanFood, limit);
             var naming = ColonyNamingTools.Pending();
             if (naming != null) result.Naming = new Obs.ColonyNaming { WindowId = naming.ID,

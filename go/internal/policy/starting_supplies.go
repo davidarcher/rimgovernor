@@ -13,6 +13,7 @@ import (
 type StartingSupply struct {
 	Thing, Definition string
 	Cell              domain.Cell
+	Forbid            bool
 }
 
 // StartingSupplies retains only the first complete native startup census.

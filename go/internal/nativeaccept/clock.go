@@ -222,7 +222,7 @@ func numberOrDefault(m map[string]any, key string, def float64) float64 {
 }
 
 var routineNeeds = []string{
-	"ConfirmColonyNames", "AnswerDialog", "ActiveCombat", "CriticalMedical", "RestoreWorkers", "AllowStartingSupplies",
+	"ConfirmColonyNames", "AnswerDialog", "ActiveCombat", "CriticalMedical", "RestoreWorkers", "AllowStartingSupplies", "ManageSupplySafety",
 	"EnsureWorkAssignments", "EnsureFoodSupply", "EnsureInitialShelter", "EnsureTemperatureSafety",
 	"EnsureCooking", "EnsureBasicPower", "EnsureFoodStorage", "EnsureBasicDefense", "MaintainWood",
 	"MaintainMedicalCare", "EnsureBasicComfort", "ClearPests", "EnsureComfort", "EnsureExpansion", "MaintainEquipment",

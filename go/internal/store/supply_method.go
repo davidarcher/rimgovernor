@@ -62,7 +62,9 @@ func supplyClaims(ctx context.Context, tx *sql.Tx, world World) (map[string]bool
 			v := progress.View()
 			supply, ok := progress.Action().SupplyAllow()
 			effect, known := v.Effect.Value()
-			if !ok || !known || effect != domain.EffectCompleted || v.Stage != domain.Completed || v.Snapshot.Colony != world.Colony || v.Snapshot.Load != world.Load || v.Snapshot.Map != world.Map {
+			renewed, renewedKnown := v.UnsuccessfulReason.Value()
+			claimed := known && effect == domain.EffectCompleted && v.Stage == domain.Completed || renewedKnown && renewed == domain.OutcomeNotAchieved && v.Stage == domain.Unsuccessful
+			if !ok || !claimed || v.Snapshot.Colony != world.Colony || v.Snapshot.Load != world.Load || v.Snapshot.Map != world.Map {
 				continue
 			}
 			out[supply.Thing()] = true
@@ -76,7 +78,7 @@ func supplyClaims(ctx context.Context, tx *sql.Tx, world World) (map[string]bool
 func admitSupplyMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan domain.PlanSpec) error {
 	hasSupply := false
 	for _, action := range plan.Actions() {
-		hasSupply = hasSupply || action.Kind() == domain.SupplyAllowAction
+		hasSupply = hasSupply || action.Kind() == domain.SupplyAllowAction || action.Kind() == domain.SupplyForbidAction
 	}
 	if !hasSupply {
 		return nil
@@ -89,14 +91,24 @@ func admitSupplyMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan dom
 		return ErrConflict
 	}
 	bound := false
+	var cohort []policy.StartingSupply
 	for _, binding := range review.Goals {
-		bound = bound || binding.Need == policy.AllowStartingSupplies && binding.Goal == goal.Goal.ID
+		if binding.Goal == goal.Goal.ID {
+			switch binding.Need {
+			case policy.AllowStartingSupplies:
+				bound = true
+				cohort = review.StartingSupplies.Pending
+			case policy.ManageSupplySafety:
+				bound = true
+				cohort = review.EventLoot.Pending
+			}
+		}
 	}
 	if !bound {
 		return ErrConflict
 	}
 	pending := map[string]policy.StartingSupply{}
-	for _, row := range review.StartingSupplies.Pending {
+	for _, row := range cohort {
 		pending[row.Thing] = row
 	}
 	for _, action := range plan.Actions() {
@@ -105,7 +117,7 @@ func admitSupplyMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan dom
 			return ErrConflict
 		}
 		row, listed := pending[supply.Thing()]
-		if !listed || row.Definition != supply.Definition() || row.Cell != supply.Cell() {
+		if !listed || row.Definition != supply.Definition() || row.Cell != supply.Cell() || row.Forbid != supply.Forbidden() {
 			return ErrConflict
 		}
 	}

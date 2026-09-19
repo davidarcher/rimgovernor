@@ -1363,7 +1363,7 @@ func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot)
 		// Allow, work settings, zones, a building's temperature target, a
 		// bed's medical flag, a bed's owner and a grower's crop are immediate
 		// designations and need no simulation window.
-		if p.Action().Kind() == domain.SupplyAllowAction || p.Action().Kind() == domain.WorkAssignmentAction || p.Action().Kind() == domain.ZoneCreateAction || p.Action().Kind() == domain.BuildingTemperatureAction || p.Action().Kind() == domain.BedMedicalAction || p.Action().Kind() == domain.BedAssignAction || p.Action().Kind() == domain.GrowerCropAction {
+		if p.Action().Kind() == domain.SupplyAllowAction || p.Action().Kind() == domain.SupplyForbidAction || p.Action().Kind() == domain.WorkAssignmentAction || p.Action().Kind() == domain.ZoneCreateAction || p.Action().Kind() == domain.BuildingTemperatureAction || p.Action().Kind() == domain.BedMedicalAction || p.Action().Kind() == domain.BedAssignAction || p.Action().Kind() == domain.GrowerCropAction {
 			continue
 		}
 		// Construction, native plant labor, and the routine-dispatched action

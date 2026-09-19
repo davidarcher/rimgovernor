@@ -323,6 +323,13 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 		}
 		r.Facts.StartingSupplies = domain.Known(rows)
 	}
+	if loot := v.GetEventLoot().GetObserved(); loot != nil {
+		rows := make([]policy.LootItem, 0, len(loot.Items))
+		for _, row := range loot.Items {
+			rows = append(rows, policy.LootItem{Supply: policy.StartingSupply{Thing: row.Item.GetId(), Definition: row.Item.GetDefName(), Cell: domain.Cell{X: row.Item.Position.GetX(), Z: row.Item.Position.GetZ()}}, Forbidden: row.GetForbidden(), SafeToHaul: row.GetSafeToHaul(), SafetyKnown: row.SafeToHaul != nil})
+		}
+		r.Facts.EventLoot = domain.Known(rows)
+	}
 	if planning := v.GetPlanning().GetObserved(); planning != nil {
 		if planning.ZoneMapSnapshot != nil && !hasIssue(planning.Issues, "zone_map_snapshot") {
 			r.ZoneMapToken = domain.Known(planning.ZoneMapSnapshot.GetToken())

@@ -361,7 +361,7 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	if action.Kind() == domain.AcquisitionAction && e.acquisition != nil {
 		return e.runAcquisition(ctx, action, progress, authority, generation)
 	}
-	if action.Kind() == domain.SupplyAllowAction && e.supply != nil {
+	if (action.Kind() == domain.SupplyAllowAction || action.Kind() == domain.SupplyForbidAction) && e.supply != nil {
 		return e.runSupply(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.DeconstructionAction && e.deconstruction != nil {

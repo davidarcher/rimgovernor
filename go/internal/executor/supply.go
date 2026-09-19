@@ -160,7 +160,7 @@ func (e *Executor) runSupply(ctx context.Context, action domain.Action, p domain
 		if inspection.Current != expected || inspection.Supply != supply || !inspection.Accepted || !e.fresh(inspection.StartedAt, inspection.ObservedAt) {
 			return result, ErrHeld
 		}
-		if emergency := policy.EvaluateEmergency(inspection.Emergency, expected, inspection.Tick); !emergency.Clear {
+		if emergency := policy.EvaluateEmergency(inspection.Emergency, expected, inspection.Tick); !emergency.Clear && !supply.Forbidden() {
 			result.Progress = e.holdEmergency(ctx, v.Plan, v.Action, emergency, inspection.Tick, result.Progress)
 			return result, ErrHeld
 		}

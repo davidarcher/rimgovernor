@@ -563,3 +563,27 @@ available skill before balancing other work; player overrides remain authoritati
 Research assignment weighs native Intellectual skill and, in checkbox mode, removes
 routine hauling/cleaning from the selected researcher so those earlier jobs cannot
 starve research indefinitely. Explicit work overrides retain authority.
+
+## Autonomous supply safety
+
+`ManageSupplySafety` owns both directions of the forbid flag for visible,
+player-owned or unowned haulable items, including later event drops. A complete
+`event_loot` census reports each item's identity, cell, current forbid flag and
+native hauling safety. There is no first-seen or player-forbid exemption. Unknown
+or over-limit censuses do not authorize changes.
+
+Safety checks the item cell, each reachable eligible colonist's native approach
+path, and the return path to the native storage choice. Fire within two cells,
+traps on the path, native region danger, and visible hostiles exposing the path
+with line of sight prevent Allow. Hostile exposure uses the native weapon range
+with a five-cell margin and a twelve-cell minimum for melee threats. This is a
+conservative current observation, not a prediction of enemy movement. The native
+boundary repeats the check immediately before applying Allow or Forbid.
+
+Unsafe items are forbidden before safe items are allowed, in batches of eight.
+Forbid changes no pawn orders and may execute during an emergency; Allow retains
+the emergency gate. A changed safety census cancels stale undispatched proposals.
+The census is bounded to 4096 items. Each later review may reverse a prior decision
+when danger clears or returns. A designation receipt proves the flag only; native
+storage observations prove hauling completed. `supply/loot-safety` exercises a
+mid-run distant drop, danger removal, both flag changes and stockpile delivery.

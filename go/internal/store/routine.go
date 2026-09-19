@@ -36,6 +36,7 @@ type RoutineReview struct {
 	Latches                policy.RoutineLatches
 	MedicalCare            policy.MedicalCareHistory
 	StartingSupplies       policy.StartingSupplies
+	EventLoot              policy.EventLootHistory
 	Comfort                policy.ComfortHistory
 	Goals                  []RoutineGoal
 	Development            RoutineDevelopment
@@ -79,14 +80,14 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 		return RoutineReview{}, err
 	}
 	var r RoutineReview
-	if len(data) > 512*1024 {
+	if len(data) > 1024*1024 {
 		return r, ErrCapacity
 	}
 	if err := json.Unmarshal(data, &r); err != nil {
 		return r, err
 	}
 	canonical, err := json.Marshal(r)
-	if err != nil || !bytes.Equal(data, canonical) || r.Revision == 0 || r.Snapshot.Validate() != nil || r.Tick < 0 || len(r.Goals) > 303 {
+	if err != nil || !bytes.Equal(data, canonical) || r.Revision == 0 || r.Snapshot.Validate() != nil || r.Tick < 0 || len(r.Goals) > 304 {
 		return RoutineReview{}, errors.New("invalid routine review history")
 	}
 	if err := r.MedicalCare.Validate(); err != nil {
@@ -118,6 +119,9 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 	actualProposals, _ := json.Marshal(r.MoodMethods)
 	if !bytes.Equal(expectedProposals, actualProposals) {
 		return RoutineReview{}, errors.New("stale mood method proposal")
+	}
+	if err := r.EventLoot.Validate(); err != nil {
+		return RoutineReview{}, err
 	}
 	if err := r.StartingSupplies.Validate(); err != nil {
 		return RoutineReview{}, err
@@ -267,6 +271,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	latches := previous.Latches
 	medical := previous.MedicalCare
 	supplies := previous.StartingSupplies
+	loot := previous.EventLoot
 	sleeping := previous.Sleeping
 	comfort := previous.Comfort
 	mood := previous.moodHistory()
@@ -275,6 +280,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		latches = policy.RoutineLatches{}
 		medical = policy.MedicalCareHistory{}
 		supplies = policy.StartingSupplies{}
+		loot = policy.EventLootHistory{}
 		comfort = policy.ComfortHistory{}
 		sleeping = policy.SleepingHistory{}
 		mood = policy.MoodHistory{}
@@ -308,6 +314,10 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		comfort = comfortReview.History
 		request.Facts.ComfortRecovered, request.Facts.ComfortDeficit = comfortReview.Recovered(), comfortReview.Deficit()
 		supplies, request.Facts.ForbiddenSupplies, err = policy.ReviewStartingSupplies(request.Facts.StartingSupplies, supplies)
+		if err != nil {
+			return RoutineReviewResult{}, err
+		}
+		loot, request.Facts.EventLootPending, err = policy.ReviewEventLoot(request.Facts.EventLoot, loot)
 		if err != nil {
 			return RoutineReviewResult{}, err
 		}
@@ -387,6 +397,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	r := RoutineReview{Revision: previous.Revision + 1, WorkPreferenceRevision: request.WorkPreferenceRevision, Snapshot: b, Tick: request.Tick, Enabled: request.Enabled, Latches: needs.Latches}
 	r.MedicalCare = medical
 	r.StartingSupplies = supplies
+	r.EventLoot = loot
 	if request.Enabled && len(request.AsOf) > 0 {
 		r.AsOf = request.AsOf
 	}
@@ -490,7 +501,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	if err != nil {
 		return RoutineReviewResult{}, err
 	}
-	if len(data) > 512*1024 {
+	if len(data) > 1024*1024 {
 		return RoutineReviewResult{}, ErrCapacity
 	}
 	if _, err = tx.ExecContext(ctx, "INSERT INTO routine_review(singleton,payload) VALUES(1,?) ON CONFLICT(singleton) DO UPDATE SET payload=excluded.payload", data); err != nil {

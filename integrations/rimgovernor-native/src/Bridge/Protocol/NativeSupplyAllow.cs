@@ -21,7 +21,7 @@ namespace HomeBridge.BridgeTools
         internal const string Kind = "Allow";
         internal static bool Valid(Operations.DesignateThing? command) => command != null
             && NativeDraftProtocol.ValidEntity(command.Target) && command.HasDesignation
-            && command.Designation == Operations.ThingDesignation.Allow;
+            && (command.Designation == Operations.ThingDesignation.Allow || command.Designation == Operations.ThingDesignation.Forbid);
 
         internal static bool Eligible(Thing thing) => thing != null && !thing.Destroyed
             && thing.Spawned && ProtoBoundary.IsLoaded(thing.Map) && thing.def.EverHaulable
@@ -61,9 +61,11 @@ namespace HomeBridge.BridgeTools
             thing = null;
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Allow requires an exact supply snapshot; other designations are unsupported.");
             if (command == null) return false;
-            if (command.HasDesignation && command.Designation != Operations.ThingDesignation.Allow)
-            { failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Only the Allow designation is implemented by this adapter."); return false; }
+            if (command.HasDesignation && command.Designation != Operations.ThingDesignation.Allow && command.Designation != Operations.ThingDesignation.Forbid)
+            { failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Only Allow and Forbid are implemented by this adapter."); return false; }
             if (!Valid(command)) return false;
+            var forbid = command.Designation == Operations.ThingDesignation.Forbid;
+            Designator designator = forbid ? (Designator)new Designator_Forbid() : new Designator_Unforbid();
             var found = ProtoBoundary.LoadedMap(context).listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == command.Target.EntityId);
             // The apply-time precondition list for Allow
             // (action-contracts.md): Eligible one rule at a time, then the
@@ -73,17 +75,18 @@ namespace HomeBridge.BridgeTools
                 .Require(() => found!.def.EverHaulable && found.def.category == ThingCategory.Item && found.TryGetComp<CompForbiddable>() != null, "the item is not a forbiddable haulable item")
                 .Require(() => !found!.Position.Fogged(found.Map), "the item's cell is fogged")
                 .Require(() => Faction.OfPlayerSilentFail != null && (found!.Faction == null || found.Faction == Faction.OfPlayerSilentFail), "the item belongs to another faction")
-                .Require(() => found!.IsForbidden(Faction.OfPlayer), "the item is already allowed")
-                .Require(() => new Designator_Unforbid().CanDesignateThing(found!).Accepted, "the native unforbid designator refuses the item")
+                .Require(() => found!.IsForbidden(Faction.OfPlayer) != forbid, "the item already has the desired forbid state")
+                .Require(() => EventLootFacts.Safe(found!) == !forbid, "hauling safety no longer permits this forbid state")
+                .Require(() => designator.CanDesignateThing(found!).Accepted, "the native unforbid designator refuses the item")
                 .Token(() => Snapshot(found!, context)?.Token == command.Target.ExpectedSnapshotToken, "the item snapshot changed since it was read");
             if (!rules.Holds) { failure = rules.Failure(); return false; }
             thing = found;
             return true;
         }
 
-        private static Receipts.EffectEvidence Evidence(Thing thing) => new Receipts.EffectEvidence {
+        private static Receipts.EffectEvidence Evidence(Thing thing, bool forbid = false) => new Receipts.EffectEvidence {
             Designation = new Receipts.DesignationEffect { ThingId = thing.GetUniqueLoadID(),
-                DesignationDef = "Allow", Present = !thing.IsForbidden(Faction.OfPlayer),
+                DesignationDef = forbid ? "Forbid" : "Allow", Present = thing.IsForbidden(Faction.OfPlayer) == forbid,
                 ResourceDef = thing.def.defName, Cell = new Common.Cell { X = thing.Position.x, Z = thing.Position.z } } };
 
         internal static Operations.PreviewReply Preview(Operations.DesignateThing command, Common.ObservationContext context)
@@ -92,7 +95,7 @@ namespace HomeBridge.BridgeTools
             {
                 if (!Prepare(command, context, out var thing, out var failure)) return new Operations.PreviewReply { Failure = failure };
                 // Proposed=true is never a claim that an effect already happened.
-                var proposed = Evidence(thing!); proposed.Designation.Present = true;
+                var proposed = Evidence(thing!, command.Designation == Operations.ThingDesignation.Forbid); proposed.Designation.Present = true;
                 return NativeOperationEnvelope.Preview(new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation {
                     Context = context.Clone(), Accepted = true, Projected = proposed } });
             }
@@ -120,9 +123,11 @@ namespace HomeBridge.BridgeTools
                     var current = authority.Check(pre.ExpectedGeneration);
                     if (!current.Success || !Prepare(request.Operation.DesignateThing, context, out var checkedThing, out failure)
                         || !ReferenceEquals(checkedThing, thing)) throw new InvalidOperationException("Supply admission changed before effect.");
-                    new Designator_Unforbid().DesignateThing(thing);
-                    if (!Eligible(thing!) || thing!.IsForbidden(Faction.OfPlayer)) throw new InvalidOperationException("Native Allow did not produce an allowed item.");
-                    evidence = Evidence(thing!);
+                    var forbid = request.Operation.DesignateThing.Designation == Operations.ThingDesignation.Forbid;
+                    Designator designator = forbid ? (Designator)new Designator_Forbid() : new Designator_Unforbid();
+                    designator.DesignateThing(thing);
+                    if (!Eligible(thing!) || thing!.IsForbidden(Faction.OfPlayer) != forbid) throw new InvalidOperationException("Native supply designation did not achieve its forbid state.");
+                    evidence = Evidence(thing!, forbid);
                     state.AllowedSupplies.Add(pre.Attempt.Clone(), evidence.Designation.Clone());
                 }
                 return new Operations.ExecuteReply { Receipt = NativeOperationEnvelope.Applied(state.Ledger, handle, pre.Attempt, context, evidence) };
@@ -140,7 +145,7 @@ namespace HomeBridge.BridgeTools
             try
             {
                 var thing = ProtoBoundary.LoadedMap(context).listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == original.ThingId);
-                return ObservedProgress(attempt, context, original, thing != null && Eligible(thing) ? Evidence(thing).Designation : null);
+                return ObservedProgress(attempt, context, original, thing != null && Eligible(thing) ? Evidence(thing, original.DesignationDef == "Forbid").Designation : null);
             }
             catch (Exception) { return ObservedProgress(attempt, context, original, null); }
         }
@@ -150,7 +155,7 @@ namespace HomeBridge.BridgeTools
         {
             var result = new Receipts.Progress { Attempt = attempt.Clone(), Context = context.Clone(), CompleteInspection = false };
             if (observed == null || !observed.HasPresent || observed.ThingId != original.ThingId
-                || observed.ResourceDef != original.ResourceDef || observed.DesignationDef != "Allow")
+                || observed.ResourceDef != original.ResourceDef || observed.DesignationDef != original.DesignationDef)
             {
                 // The exact item leaving the loose census is the ordinary
                 // consequence of a successful Allow (a colonist ate, carried,
@@ -159,7 +164,7 @@ namespace HomeBridge.BridgeTools
                 // authority. That record completes the attempt; holding it
                 // Unknown kept a plan open forever and starved the remaining
                 // starting supplies of any further Allow (#114).
-                if (original != null && original.HasPresent && original.Present && original.DesignationDef == "Allow")
+                if (original != null && original.HasPresent && original.Present && (original.DesignationDef == "Allow" || original.DesignationDef == "Forbid"))
                 {
                     result.CompleteInspection = true;
                     result.Completed = new Receipts.CompletedEffect { Evidence = new Receipts.EffectEvidence { Designation = original.Clone() } };
@@ -172,7 +177,7 @@ namespace HomeBridge.BridgeTools
                 var evidence = new Receipts.EffectEvidence { Designation = observed.Clone() };
                 if (observed.Present) result.Completed = new Receipts.CompletedEffect { Evidence = evidence };
                 else result.Unsuccessful = new Receipts.UnsuccessfulEffect { Reason = Receipts.UnsuccessfulReason.OutcomeNotAchieved,
-                    Evidence = evidence, Detail = "The exact supply is forbidden again; do not override renewed player forbidding." };
+                    Evidence = evidence, Detail = "The exact supply no longer has the requested forbid state." };
             }
             return result;
         }

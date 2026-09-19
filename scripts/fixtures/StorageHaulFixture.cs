@@ -210,6 +210,60 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
+
+        private static Thing lootStack;
+        private static Thing lootTrap;
+        private static Zone_Stockpile lootZone;
+
+        [Tool("test/loot_drop", Description = "UNSAFE FOR MODEL EXECUTION. Spawn an allowed Steel stack more than 40 cells from the colony on a spike trap; extend the prepared stockpile. Tests autonomous safety forbidding of mid-run loot.")]
+        public async Task<object> LootDrop(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                if (map == null || map != preparedMap || preparedHauler == null || !Find.TickManager.Paused)
+                    return Refuse("Prepared paused storage fixture required.");
+                var center = new IntVec3((int)preparedPeople.Average(p => p.Position.x), 0, (int)preparedPeople.Average(p => p.Position.z));
+                var cells = map.AllCells.Where(c => !c.Fogged(map) && c.Standable(map) && c.GetEdifice(map) == null
+                    && c.GetThingList(map).All(t => t is Plant) && map.zoneManager.ZoneAt(c) == null
+                    && !map.areaManager.Home[c] && c.DistanceTo(center) > 45
+                    && preparedHauler.CanReach(c, PathEndMode.Touch, Danger.None)).OrderBy(c => c.DistanceToSquared(center)).ToList();
+                if (cells.Count == 0) return Refuse("No safe distant drop cell.");
+                lootZone = map.zoneManager.AllZones.OfType<Zone_Stockpile>().First(z => z.GetStoreSettings().filter.Allows(ThingDefOf.Steel));
+                foreach (var c in GenRadial.RadialCellsAround(lootZone.Cells[0], 6, true)
+                    .Where(c => c.InBounds(map) && c.Standable(map) && c.GetEdifice(map) == null && map.zoneManager.ZoneAt(c) == null).Take(8))
+                    lootZone.AddCell(c);
+                lootTrap = ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed("TrapSpike"), ThingDefOf.Steel);
+                lootTrap.SetFaction(Faction.OfPlayer);
+                GenSpawn.Spawn(lootTrap, cells[0], map);
+                lootStack = ThingMaker.MakeThing(ThingDefOf.Steel);
+                lootStack.stackCount = 25;
+                GenSpawn.Spawn(lootStack, cells[0], map);
+                lootStack.SetForbidden(false, false);
+                return new { success = true, id = lootStack.GetUniqueLoadID(), distance = cells[0].DistanceTo(center), forbidden = false };
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
+        [Tool("test/loot_safety_control", Description = "UNSAFE FOR MODEL EXECUTION. Read the staged loot's forbidden/storage state, or remove only its staged trap and release the prepared haulers for the safe-haul phase.")]
+        public async Task<object> LootSafetyControl(IRimBridgeContext ctx, CancellationToken cancellationToken, bool removeDanger = false)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                if (Current.Game != preparedGame || Find.CurrentMap != preparedMap || lootStack == null)
+                    return Refuse("Prepared loot fixture required.");
+                if (removeDanger) {
+                    if (lootTrap != null && !lootTrap.Destroyed) lootTrap.Destroy(DestroyMode.Vanish);
+                    foreach (var pawn in preparedPeople) {
+                        foreach (var work in DefDatabase<WorkTypeDef>.AllDefsListForReading)
+                            if (!pawn.WorkTypeIsDisabled(work)) pawn.workSettings.SetPriority(work, work == WorkTypeDefOf.Hauling ? 1 : 0);
+                        pawn.jobs.EndCurrentJob(JobCondition.InterruptForced);
+                    }
+                }
+                var stored = lootZone.Cells.SelectMany(c => c.GetThingList(preparedMap))
+                    .Where(t => t.def == ThingDefOf.Steel).Sum(t => t.stackCount);
+                return new { success = true, forbidden = !lootStack.Destroyed && lootStack.IsForbidden(Faction.OfPlayer),
+                    spawned = lootStack.Spawned, storedSteel = stored, hazard = lootTrap != null && !lootTrap.Destroyed,
+                    inStockpile = lootStack.Spawned && lootZone.Cells.Contains(lootStack.Position) };
+            }, cancellationToken).ConfigureAwait(false);
+        }
         private static object Refuse(string reason) => new { success = false, reason };
     }
 }

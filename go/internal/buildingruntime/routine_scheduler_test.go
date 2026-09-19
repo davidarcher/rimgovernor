@@ -55,7 +55,7 @@ func TestClockSchedulerReviewsRoutineUnderARunningWindow(t *testing.T) {
 	s, f := schedulerFixture(t)
 	n := schedulerRoutine(t, s, f)
 	first, err := s.Step(context.Background())
-	if err != nil || first.Routine == nil || len(first.Routine.Goals) != 47 || f.writes != 1 || n.reads != 1 {
+	if err != nil || first.Routine == nil || len(first.Routine.Goals) != 48 || f.writes != 1 || n.reads != 1 {
 		t.Fatal(first, err, f.writes, n.reads)
 	}
 	second, err := s.StepWithReason(context.Background(), StepReason{Cause: StepTimer})

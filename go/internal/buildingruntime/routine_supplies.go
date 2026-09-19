@@ -57,10 +57,25 @@ func (r *RoutineSupplyPlanner) step(call, epoch context.Context, arbiter *stepAr
 		return RoutineSupplyResult{Reason: BuildingMethodNoReview}, nil
 	}
 	var goal store.GoalState
+	var cohort []policy.StartingSupply
+	safetyGoal := false
+	sort.SliceStable(review.Goals, func(i, j int) bool {
+		return review.Goals[i].Need == policy.ManageSupplySafety && review.Goals[j].Need != policy.ManageSupplySafety
+	})
 	for _, binding := range review.Goals {
-		if binding.Need == policy.AllowStartingSupplies {
+		if binding.Need == policy.AllowStartingSupplies || binding.Need == policy.ManageSupplySafety {
 			goal, err = p.journal.LoadGoal(call, binding.Goal)
-			break
+			if err != nil {
+				return RoutineSupplyResult{}, err
+			}
+			if goal.Goal.Status == domain.GoalActive && goal.Goal.Need == domain.NeedDeficit {
+				cohort = review.StartingSupplies.Pending
+				if binding.Need == policy.ManageSupplySafety {
+					cohort = review.EventLoot.Pending
+					safetyGoal = true
+				}
+				break
+			}
 		}
 	}
 	if err != nil {
@@ -74,11 +89,41 @@ func (r *RoutineSupplyPlanner) step(call, epoch context.Context, arbiter *stepAr
 		if err != nil {
 			return RoutineSupplyResult{}, err
 		}
+		if safetyGoal {
+			for i, progress := range plan.Progress {
+				v := progress.View()
+				if v.Unresolved || (v.Stage != domain.Pending && v.Stage != domain.Prepared) {
+					continue
+				}
+				target, ok := progress.Action().SupplyAllow()
+				if !ok {
+					continue
+				}
+				keep := false
+				for _, row := range cohort {
+					if row.Thing == target.Thing() && row.Definition == target.Definition() && row.Cell == target.Cell() && row.Forbid == target.Forbidden() {
+						keep = true
+						break
+					}
+				}
+				if !keep {
+					cancelled, cancelErr := p.journal.Cancel(call, plan.Spec.ID(), progress.Action().ID())
+					if cancelErr != nil {
+						return RoutineSupplyResult{}, cancelErr
+					}
+					plan.Progress[i] = cancelled
+				}
+			}
+		}
 		if domain.GoalWorkOpen(plan.Progress) {
 			return RoutineSupplyResult{Reason: BuildingMethodExistingWork}, nil
 		}
 	}
-	claims, err := p.journal.SupplyClaims(call, playerWorld(state.Snapshot))
+	claims := map[string]bool{}
+	if !safetyGoal {
+		claims, err = p.journal.SupplyClaims(call, playerWorld(state.Snapshot))
+	}
+
 	if err != nil {
 		return RoutineSupplyResult{}, err
 	}
@@ -88,7 +133,7 @@ func (r *RoutineSupplyPlanner) step(call, epoch context.Context, arbiter *stepAr
 	// waits for the next census to report its new cell.
 	pending := map[string]policy.StartingSupply{}
 	var cells []domain.Cell
-	for _, row := range review.StartingSupplies.Pending {
+	for _, row := range cohort {
 		pending[row.Thing] = row
 		cells = append(cells, row.Cell)
 	}
@@ -96,9 +141,26 @@ func (r *RoutineSupplyPlanner) step(call, epoch context.Context, arbiter *stepAr
 		return cells[i].Z < cells[j].Z || cells[i].Z == cells[j].Z && cells[i].X < cells[j].X
 	})
 	cells = slices.Compact(cells)
+	// Forbid unsafe items before releasing safe items.
+	forbidBatch := false
+	for _, row := range cohort {
+		if row.Forbid {
+			forbidBatch = true
+		}
+	}
+	readSupply := r.native.ReadAllowSupplies
+	if forbidBatch {
+		native, ok := r.native.(interface {
+			ReadForbidSupplies(context.Context, *c.Identity, domain.Cell) (bridge.SupplyRead, bridge.Result, error)
+		})
+		if !ok {
+			return RoutineSupplyResult{}, ErrControl
+		}
+		readSupply = native.ReadForbidSupplies
+	}
 	var targets []domain.SupplyAllow
 	for _, cell := range cells {
-		read, _, err := r.native.ReadAllowSupplies(call, boundary.Identity(state.Snapshot), cell)
+		read, _, err := readSupply(call, boundary.Identity(state.Snapshot), cell)
 		if err != nil {
 			return RoutineSupplyResult{}, err
 		}
@@ -110,7 +172,7 @@ func (r *RoutineSupplyPlanner) step(call, epoch context.Context, arbiter *stepAr
 				return RoutineSupplyResult{}, ErrControl
 			}
 			row, listed := pending[target.Supply.Thing()]
-			if listed && row.Definition == target.Supply.Definition() && row.Cell == cell && !claims[target.Supply.Thing()] {
+			if listed && row.Forbid == forbidBatch && row.Definition == target.Supply.Definition() && row.Cell == cell && !claims[target.Supply.Thing()] {
 				targets = append(targets, target.Supply)
 			}
 		}
@@ -127,9 +189,9 @@ func (r *RoutineSupplyPlanner) step(call, epoch context.Context, arbiter *stepAr
 	}
 	hash := sha256.New()
 	for _, supply := range targets {
-		fmt.Fprintf(hash, "%s/%s/%d/%d\n", supply.Thing(), supply.Definition(), supply.Cell().X, supply.Cell().Z)
+		fmt.Fprintf(hash, "%s/%s/%d/%d/%t\n", supply.Thing(), supply.Definition(), supply.Cell().X, supply.Cell().Z, supply.Forbidden())
 	}
-	method := domain.MethodID(fmt.Sprintf("allow-%x", hash.Sum(nil)[:16]))
+	method := domain.MethodID(fmt.Sprintf("supply-%x-%d", hash.Sum(nil)[:16], review.Revision))
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
 	id := domain.PlanID(fmt.Sprintf("routine-allow-%x", digest[:16]))
 	var actions []domain.Action

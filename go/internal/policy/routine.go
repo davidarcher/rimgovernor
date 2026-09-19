@@ -14,6 +14,7 @@ const (
 	CriticalMedicine        GoalID = "CriticalMedical"
 	RestoreWorkers          GoalID = "RestoreWorkers"
 	AllowStartingSupplies   GoalID = "AllowStartingSupplies"
+	ManageSupplySafety      GoalID = "ManageSupplySafety"
 	EnsureWorkAssignments   GoalID = "EnsureWorkAssignments"
 	EnsureFoodSupply        GoalID = "EnsureFoodSupply"
 	EnsureInitialShelter    GoalID = "EnsureInitialShelter"
@@ -372,6 +373,8 @@ type RoutineFacts struct {
 	ComfortRecovered     domain.Fact[bool]
 	ComfortDeficit       domain.Fact[float64]
 	StartingSupplies     domain.Fact[[]StartingSupply]
+	EventLoot            domain.Fact[[]LootItem]
+	EventLootPending     domain.Fact[bool]
 	MedicalPawns         domain.Fact[[]CarePawn]
 	MedicalCareRecovered domain.Fact[bool]
 	Workers              domain.Fact[int]
@@ -690,6 +693,9 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if positive(measured(f.Hostiles, func(n int64) bool { return n == 0 })) && positive(f.CleanupPawns) {
 		addGoal(RestoreWorkers, 1)
 	}
+	if positive(f.EventLootPending) {
+		addGoal(ManageSupplySafety, supplySafetyPriority(f))
+	}
 	if positive(f.ForbiddenSupplies) {
 		addGoal(AllowStartingSupplies, 2)
 	}
@@ -806,6 +812,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	addAssessment(CriticalMedicine, medicalPriority, g.Medical)
 	addAssessment(RestoreWorkers, 1, not(f.CleanupPawns))
 	addAssessment(AllowStartingSupplies, 2, not(f.ForbiddenSupplies))
+	addAssessment(ManageSupplySafety, supplySafetyPriority(f), not(f.EventLootPending))
 	addAssessment(EnsureWorkAssignments, 2, g.Work)
 	addAssessment(EnsureFoodSupply, 2, allFacts(g.Food, g.Production, measured(f.FieldCoverage, func(v float64) bool { return v >= 1-1e-9 }), latchRecovered(l.Food, f.FoodDays)))
 	addAssessment(EnsureInitialShelter, 2, allFacts(g.Shelter, g.Sleeping))

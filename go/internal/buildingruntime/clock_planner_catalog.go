@@ -108,7 +108,7 @@ var plannerCatalog = []plannerEntry{
 			out.WoodAcquisition = &method
 			return nil
 		}},
-	{name: "supplies", priority: plannerFoothold, kinds: []domain.ActionKind{domain.SupplyAllowAction}, families: factsColony,
+	{name: "supplies", priority: plannerCritical, kinds: []domain.ActionKind{domain.SupplyAllowAction, domain.SupplyForbidAction}, families: factsColony,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Supplies != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.Supplies.step(ctx, epoch, arbiter)

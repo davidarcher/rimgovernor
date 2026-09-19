@@ -697,6 +697,10 @@ message UpkeepSection { oneof outcome { UpkeepFacts observed = 1; rimgovernor.co
 // TotalThreatPointsFactor) and difficulty_threat_scale. Read-only.
 message ThreatFacts { optional double wealth_items = 1; optional double wealth_buildings = 2; optional double wealth_pawns = 3; optional double wealth_total = 4; optional double storyteller_wealth = 5; optional double raid_points = 6; optional double adaptation_factor = 7; optional double difficulty_threat_scale = 8; optional uint32 colonist_count = 9; Completeness completeness = 10; repeated ReadIssue issues = 11; }
 message ThreatSection { oneof outcome { ThreatFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
+// Current autonomous hauling safety for visible haulable items.
+message LootItem { EntityRef item = 1; optional bool forbidden = 2; optional bool safe_to_haul = 3; }
+message LootCensus { repeated LootItem items = 1; }
+message LootSection { oneof outcome { LootCensus observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 message ColonyFactsSnapshot {
   rimgovernor.common.v1.ObservationContext context = 1; ColonyNaming naming = 2;
   optional uint32 colonist_count = 3; optional uint32 worker_count = 4; rimgovernor.common.v1.Cell center = 5; MapSize map_size = 6;
@@ -720,6 +724,7 @@ message ColonyFactsSnapshot {
   repeated BlightedPlant blighted_plants = 41;
   // Colony wealth and raid points (ThreatFacts), or why they could not be read.
   ThreatSection threat = 42;
+  LootSection event_loot = 43;
 }
 message ColonyFactsRequest { ReadScope scope = 1; optional bool planning = 2; repeated string requested_definition_names = 3; rimgovernor.common.v1.PageRequest page = 4; }
 message ColonyFactsReply { oneof outcome { ColonyFactsSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }

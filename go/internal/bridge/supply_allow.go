@@ -34,11 +34,17 @@ func NewSupplyControl(client *Client) (*SupplyControl, error) {
 	return &SupplyControl{client}, nil
 }
 func (client *Client) ReadAllowSupplies(ctx context.Context, identity *c.Identity, cell domain.Cell) (SupplyRead, Result, error) {
+	return client.readSupplyAccess(ctx, identity, cell, false)
+}
+func (client *Client) ReadForbidSupplies(ctx context.Context, identity *c.Identity, cell domain.Cell) (SupplyRead, Result, error) {
+	return client.readSupplyAccess(ctx, identity, cell, true)
+}
+func (client *Client) readSupplyAccess(ctx context.Context, identity *c.Identity, cell domain.Cell, forbid bool) (SupplyRead, Result, error) {
 	if ValidateIdentity(identity) != nil || cell.X < 0 || cell.Z < 0 {
 		return SupplyRead{}, Result{}, contract("invalid supply scope")
 	}
 	point := &c.Cell{X: proto.Int32(cell.X), Z: proto.Int32(cell.Z)}
-	request := &o.ListSuppliesRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Filter: &o.StockFilter{Category: proto.String("haulable"), Ownership: proto.String("ours"), IncludeHeld: proto.Bool(false), ForbiddenOnly: proto.Bool(true), Region: &o.Rectangle{Minimum: point, Maximum: proto.Clone(point).(*c.Cell)}}, Page: &c.PageRequest{Limit: proto.Uint32(256)}}
+	request := &o.ListSuppliesRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Filter: &o.StockFilter{Category: proto.String("haulable"), Ownership: proto.String("ours"), IncludeHeld: proto.Bool(false), ForbiddenOnly: proto.Bool(!forbid), Region: &o.Rectangle{Minimum: point, Maximum: proto.Clone(point).(*c.Cell)}}, Page: &c.PageRequest{Limit: proto.Uint32(256)}}
 	reply := &o.ListSuppliesReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/observations_list_supplies", request, reply)
 	if err != nil {
@@ -47,10 +53,13 @@ func (client *Client) ReadAllowSupplies(ctx context.Context, identity *c.Identit
 	if reply.GetFailure() != nil {
 		return SupplyRead{}, raw, failure(reply.GetFailure(), raw)
 	}
-	result, err := decodeAllowSupplies(reply, identity, cell)
+	result, err := decodeSupplyAccess(reply, identity, cell, forbid)
 	return result, raw, err
 }
 func decodeAllowSupplies(reply *o.ListSuppliesReply, identity *c.Identity, cell domain.Cell) (SupplyRead, error) {
+	return decodeSupplyAccess(reply, identity, cell, false)
+}
+func decodeSupplyAccess(reply *o.ListSuppliesReply, identity *c.Identity, cell domain.Cell, forbid bool) (SupplyRead, error) {
 	if reply == nil || buildingUnknown(reply) != nil {
 		return SupplyRead{}, contract("invalid supply reply")
 	}
@@ -65,7 +74,7 @@ func decodeAllowSupplies(reply *o.ListSuppliesReply, identity *c.Identity, cell 
 	out := SupplyRead{Context: proto.Clone(v.Context).(*c.ObservationContext), Targets: []SupplyTarget{}}
 	seen := map[string]bool{}
 	for _, stock := range v.Stocks {
-		if stock == nil || stock.Units == nil || stock.Forbidden == nil || stock.GetUnits() < 0 || stock.GetForbidden() != stock.GetUnits() || len(stock.Items) > 256 {
+		if stock == nil || stock.Units == nil || stock.Forbidden == nil || stock.GetUnits() < 0 || stock.GetForbidden() < 0 || stock.GetForbidden() > stock.GetUnits() || !forbid && stock.GetForbidden() != stock.GetUnits() || len(stock.Items) > 256 {
 			return SupplyRead{}, contract("invalid forbidden supply stock")
 		}
 		complete, err = emergencyCompleteness(stock.ItemsCompleteness, len(stock.Items))
@@ -91,6 +100,12 @@ func decodeAllowSupplies(reply *o.ListSuppliesReply, identity *c.Identity, cell 
 			if err != nil {
 				return SupplyRead{}, err
 			}
+			if forbid {
+				supply, err = domain.NewSupplyForbid(item.GetId(), item.GetDefName(), cell)
+				if err != nil {
+					return SupplyRead{}, err
+				}
+			}
 			out.Targets = append(out.Targets, SupplyTarget{supply, item.Snapshot.GetToken()})
 			if len(out.Targets) > 256 {
 				return SupplyRead{}, contract("supply targets exceed bound")
@@ -99,8 +114,14 @@ func decodeAllowSupplies(reply *o.ListSuppliesReply, identity *c.Identity, cell 
 	}
 	return out, nil
 }
+func supplyDesignation(s domain.SupplyAllow) *op.ThingDesignation {
+	if s.Forbidden() {
+		return op.ThingDesignation_THING_DESIGNATION_FORBID.Enum()
+	}
+	return op.ThingDesignation_THING_DESIGNATION_ALLOW.Enum()
+}
 func supplyOperation(target SupplyTarget) *op.Operation {
-	return &op.Operation{Command: &op.Operation_DesignateThing{DesignateThing: &op.DesignateThing{Target: &op.EntityPrecondition{EntityId: proto.String(target.Supply.Thing()), ExpectedSnapshotToken: proto.String(target.Token)}, Designation: op.ThingDesignation_THING_DESIGNATION_ALLOW.Enum()}}}
+	return &op.Operation{Command: &op.Operation_DesignateThing{DesignateThing: &op.DesignateThing{Target: &op.EntityPrecondition{EntityId: proto.String(target.Supply.Thing()), ExpectedSnapshotToken: proto.String(target.Token)}, Designation: supplyDesignation(target.Supply)}}}
 }
 func validSupply(target SupplyTarget) error {
 	if _, err := domain.NewSupplyAllow(target.Supply.Thing(), target.Supply.Definition(), target.Supply.Cell()); err != nil {
@@ -161,7 +182,7 @@ func validSupplyAttempt(w SupplyAttempt) error {
 }
 func supplyEffect(v *r.EffectEvidence, supply domain.SupplyAllow, allowed bool) error {
 	d := v.GetDesignation()
-	if d == nil || d.Present == nil || d.GetPresent() != allowed || d.GetThingId() != supply.Thing() || d.GetResourceDef() != supply.Definition() || d.GetDesignationDef() != "Allow" || d.Cell == nil || d.Cell.X == nil || d.Cell.Z == nil || d.Cell.GetX() != supply.Cell().X || d.Cell.GetZ() != supply.Cell().Z {
+	if d == nil || d.Present == nil || d.GetPresent() != allowed || d.GetThingId() != supply.Thing() || d.GetResourceDef() != supply.Definition() || d.GetDesignationDef() != supply.Designation() || d.Cell == nil || d.Cell.X == nil || d.Cell.Z == nil || d.Cell.GetX() != supply.Cell().X || d.Cell.GetZ() != supply.Cell().Z {
 		return contract("supply effect mismatch")
 	}
 	return nil
