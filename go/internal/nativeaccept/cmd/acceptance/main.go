@@ -10,6 +10,7 @@
 //	acceptance fixture <op> [key=value ...] -root <dir> [-save <name> | -loaded]
 //	acceptance doctor -root <dir> [-rimgovernor <bin> -output <dir> -game <id> -worktree <dir> -heal]
 //	acceptance prune -output <dir> [-keep <n> -dry-run]
+//	acceptance dev <area>/<case> -root <dir> [-from <bundle> -watch]
 //
 // It replaces the per-harness binaries' preamble with one loop: resolve the
 // shared configuration, run the doctor preflight (doctor.go, #277; only
@@ -42,7 +43,10 @@
 // a process matched by image name; warm (warm.go) boots that kept process
 // ahead of the first run (#285). fixture (fixture.go) runs one
 // fixture op against the root's kept game and leaves the world loaded
-// for the next call (#284).
+// for the next call (#284). dev (dev.go, #274) is the edit loop: build
+// rimgovernor, reload a checkpoint bundle on the kept process, run the
+// case's Run and Postmortem from there, wait for Enter or a source
+// change, repeat.
 package main
 
 import (
@@ -162,6 +166,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runDoctor(context.Background(), args[1:], stdout, stderr)
 	case "prune":
 		return prune(args[1:], stdout, stderr)
+	case "dev":
+		return dev(context.Background(), args[1:], os.Stdin, stdout, stderr)
 	default:
 		fmt.Fprintf(stderr, "unknown command %q\n%s\n", args[0], usage)
 		return 2
@@ -180,7 +186,7 @@ const usage = `usage:
     -repeat <n> runs each case n times fresh and reports the pass rate and seeds (<output>/<case>.repeat.json);
     -seed <s> pins a debug or scenario start's world seed (result.json "world".seed) to reproduce a run
   acceptance stop -root <dir> [-config <dir> -game <id> -takeover]
-` + setupUsage + suiteUsage + whyUsage + warmUsage + fixtureUsage + doctorUsage + pruneUsage
+` + setupUsage + suiteUsage + whyUsage + warmUsage + fixtureUsage + doctorUsage + pruneUsage + devUsage
 
 // parseRun resolves the run subcommand's flags and case names. Flags may
 // follow the case names (flag.FlagSet stops at the first non-flag, so the

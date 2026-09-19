@@ -119,7 +119,9 @@ issue comments, not chat.
   `-fresh` starts over; the land suite runs fresh unless `-resume`. An
   edit to a case's reads or asserts alone reruns with `-postmortem-only`
   (#275), which reloads the failed bundle and runs only its `Postmortem`
-  phase.
+  phase; an edit to the code a case's late stage exercises iterates with
+  `acceptance dev <case>` (#274), which rebuilds `rimgovernor` and reruns
+  `Run` and `Postmortem` from a bundle on the kept process each time.
 - A new case starts from a fixture that already exercises the behaviour
   (a committed save, a `test/*_prepare` op, or a programmatic start) and
   follows the performance checklist in choose-tests: Core-only, quiet

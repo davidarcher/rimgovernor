@@ -211,7 +211,7 @@ func newRing(c Case, opts Options, s *session, cfg *na.Config, output string, re
 	}
 	ring.Dir, ring.Every = opts.RingDir(c), opts.CheckpointEvery
 	switch {
-	case resumed.resuming():
+	case resumed.resuming() && resumed.previous != nil:
 		ring.Base = time.Duration(resumed.entry.OffsetMs) * time.Millisecond
 		ring.Prepared = resumed.entry.Prepared
 		ring.State = copyState(resumed.entry.State)

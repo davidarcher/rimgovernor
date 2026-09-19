@@ -64,6 +64,14 @@ type Options struct {
 	// empty. The ring is read, never changed.
 	PostmortemOnly bool
 	From           string
+	// Dev is the `acceptance dev` iteration (#274): the case runs as a
+	// resumed run over the bundle From names (a ring label or a bundle
+	// directory; the ring's next entry, then its failed bundle, by
+	// default), Run and Postmortem both, with the ring read but never
+	// written, no stage captures and no series row. Attempt numbers the
+	// iteration: output goes under Output/dev/<n>/<case> and the request
+	// ids carry dev<n>.
+	Dev bool
 	// Seed pins the world seed of a debug or scenario start (#281): the
 	// seed a result.json's world block recorded reproduces that run's
 	// world. A case that starts from a save has no seed to pin and is
@@ -114,6 +122,9 @@ func (o Options) RunID() string { return filepath.Base(o.Output) }
 
 // CaseOutput is where a case's evidence and result.json go.
 func (o Options) CaseOutput(c Case) string {
+	if o.Dev {
+		return filepath.Join(o.Output, "dev", fmt.Sprint(max(o.Attempt, 1)), filepath.FromSlash(c.Name))
+	}
 	if o.Attempt > 1 {
 		return filepath.Join(o.Output, "repeat", fmt.Sprint(o.Attempt), filepath.FromSlash(c.Name))
 	}
@@ -133,6 +144,10 @@ func (o Options) CaseOutput(c Case) string {
 // (na.Drift); neither changes the verdict.
 func Execute(ctx context.Context, c Case, opts Options) (na.Report, int) {
 	output := opts.CaseOutput(c)
+	if opts.Dev {
+		// An iteration over a pinned bundle is not a measurement of the case.
+		opts.NoSeries = true
+	}
 	headless := opts.Headless && !c.Rendered
 	report := na.NewReport(c.Scope, headless)
 	report["case"] = c.Name
@@ -243,18 +258,37 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 		// checkpoint would be some other run's world.
 		opts.Fresh = true
 	}
-	resumed, err := planResume(c, opts, log)
-	if err != nil {
-		return fmt.Errorf("checkpoint ring: %w", err)
+	var resumed resumption
+	var err error
+	if opts.Dev {
+		resumed, err = planDev(c, opts, log)
+		if err != nil {
+			return err
+		}
+		// The bundle is the iteration's fixed starting point: nothing this
+		// run does is recorded against it.
+		opts.CheckpointEvery = 0
+		report["dev"] = true
+	} else {
+		resumed, err = planResume(c, opts, log)
+		if err != nil {
+			return fmt.Errorf("checkpoint ring: %w", err)
+		}
 	}
 	staged, err := planStage(c, opts, resumed, log)
 	if err != nil {
 		return fmt.Errorf("stage bundles: %w", err)
 	}
+	if opts.Dev && staged.off == "" {
+		staged.off = "dev iteration"
+	}
 	s := &session{c: c, report: report, binary: opts.Rimgovernor, seed: opts.Seed, stagePlan: staged, stagesDir: opts.StagesDir(c)}
 	if resumed.resuming() || staged.staged() {
 		// The restored store holds the earlier run's submissions (#307).
 		s.resumeSuffix = opts.RunID()
+	}
+	if opts.Dev {
+		s.resumeSuffix = fmt.Sprintf("dev%d", max(opts.Attempt, 1))
 	}
 	if resumed.resuming() {
 		s.resumed = &resumed.entry
@@ -283,7 +317,11 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 		if entry.Store && entry.ServiceProfile != "" {
 			cfg.ServiceProfile = entry.ServiceProfile
 		}
-		report["resumed_from"] = map[string]any{"path": entry.Path, "label": entry.Label, "offset_ms": entry.OffsetMs, "tick": entry.Tick, "source_revision": resumed.previous.SourceRevision, "save": save}
+		rev := entry.SourceRevision
+		if resumed.previous != nil {
+			rev = resumed.previous.SourceRevision
+		}
+		report["resumed_from"] = map[string]any{"path": entry.Path, "label": entry.Label, "offset_ms": entry.OffsetMs, "tick": entry.Tick, "source_revision": rev, "save": save}
 	} else if staged.staged() {
 		// A stage bundle opens the way a resume does (#329): its save
 		// replaces the Start, its store and journal are restored.
@@ -331,7 +369,7 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 	// frozen needs and the identity, each on the report.
 	opened, err := na.OpenSession(ctx, cfg, report, start, c.Quiet, c.keepNeeds()...)
 	if err != nil {
-		if resumed.resuming() {
+		if resumed.resuming() && resumed.previous != nil {
 			rewindRing(opts.RingDir(c), resumed, err, report)
 		}
 		return err
@@ -446,10 +484,63 @@ func executePostmortem(ctx context.Context, c Case, opts Options, output string,
 	return CheckStartupLog(s)
 }
 
+// planDev is the resumption of an `acceptance dev` iteration (#274): the
+// bundle From names, or the ring's next entry (what a plain run would
+// resume from) and failing that its failed bundle, checked against this
+// root's fingerprint. The ring index is left out of the resumption so
+// nothing rewinds or rewrites it.
+func planDev(c Case, opts Options, log io.Writer) (resumption, error) {
+	if reason := ringExcluded(c); reason != "" {
+		return resumption{}, fmt.Errorf("case %s never checkpoints (%s): nothing to iterate from", c.Name, reason)
+	}
+	entry, _, err := namedBundle(c, opts, func(ring *na.Ring) (string, error) {
+		switch {
+		case ring != nil && ring.Next != "":
+			if e, ok := ring.Entry(ring.Next); ok {
+				return e.Path, nil
+			}
+		case ring != nil && ring.Failed != nil:
+			return ring.Failed.Path, nil
+		}
+		return "", fmt.Errorf("no bundle of %s in %s: a plain run that fails leaves a ring, or name a bundle with -from", c.Name, opts.RingDir(c))
+	})
+	if err != nil {
+		return resumption{}, err
+	}
+	fp, err := fingerprint(c, opts.configDir(c))
+	if err != nil {
+		return resumption{}, fmt.Errorf("fingerprint this root: %w", err)
+	}
+	if reason := fp.Mismatch(entry); reason != "" {
+		return resumption{}, fmt.Errorf("bundle %s cannot be loaded under this tree: %s", entry.Path, reason)
+	}
+	rev := entry.SourceRevision
+	if rev == "" {
+		rev = "unknown"
+	} else if len(rev) > 8 {
+		rev = rev[:8]
+	}
+	fmt.Fprintf(log, "dev: %s from %s (tick %d, rev %s); the ring is untouched\n", c.Name, entry.Path, entry.Tick, rev)
+	return resumption{entry: entry}, nil
+}
+
 // postmortemBundle resolves Options.From to a bundle of c: a directory
 // holding a sidecar, a label in c's ring, or the ring's failed bundle. The
 // ring index comes along when the bundle is one of its entries.
 func postmortemBundle(c Case, opts Options) (na.Checkpoint, *na.Ring, error) {
+	return namedBundle(c, opts, func(ring *na.Ring) (string, error) {
+		if ring == nil || ring.Failed == nil {
+			return "", fmt.Errorf("no failed bundle of %s in %s: a plain run that fails leaves one, or name a bundle with -from", c.Name, opts.RingDir(c))
+		}
+		return ring.Failed.Path, nil
+	})
+}
+
+// namedBundle resolves Options.From to a bundle of c: a directory holding
+// a sidecar, a label in c's ring, or with From empty the bundle fallback
+// picks from the ring (nil when there is none). The ring index comes
+// along when the bundle is one of its entries.
+func namedBundle(c Case, opts Options, fallback func(*na.Ring) (string, error)) (na.Checkpoint, *na.Ring, error) {
 	dir := opts.RingDir(c)
 	ring, err := na.ReadRing(dir)
 	if err != nil {
@@ -458,10 +549,9 @@ func postmortemBundle(c Case, opts Options) (na.Checkpoint, *na.Ring, error) {
 	from := opts.From
 	switch {
 	case from == "":
-		if ring == nil || ring.Failed == nil {
-			return na.Checkpoint{}, nil, fmt.Errorf("no failed bundle of %s in %s: a plain run that fails leaves one, or name a bundle with -from", c.Name, dir)
+		if from, err = fallback(ring); err != nil {
+			return na.Checkpoint{}, nil, err
 		}
-		from = ring.Failed.Path
 	case filepath.IsAbs(from) || strings.ContainsAny(from, `/\`):
 	default:
 		from = filepath.Join(dir, from)

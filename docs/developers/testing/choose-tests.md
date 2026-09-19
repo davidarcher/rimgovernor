@@ -151,6 +151,8 @@ can see that one costs 4 minutes and another 18, #283), and
 [-rimgovernor <abs rimgovernor.exe>] [-budget <d> -stall <d> -timeout <d>]
 [-fresh] [-rewind N] [-checkpoint-every <d>] [-restage] [-evidence capped|full]
 [-repeat N] [-seed <s>] [-postmortem-only [-from <label|dir>]]`
+(and `acceptance dev <area>/<case> -root <abs root> [-from <label|dir>]
+[-watch]`, the edit loop over a checkpoint bundle, #274)
 runs cases on one kept process, writing each case's `result.json` under
 `<output>/<area>/<case>` beside one evidence file per native call
 (`NNNN-<label>.json`) and per service request (`service*/http-NNNN.json`,
@@ -831,6 +833,23 @@ the case's wall time; the ring is left as it was for the next plain run.
 the suite and `cmd/land -results` refuse it like a resumed row. It takes
 none of `-fresh`, `-rewind`, `-repeat`, `-seed`, and needs an empty
 `-output` like any run.
+Iterating on the code a case's late stage exercises (the planner or a
+policy the cold stage of `upkeep/campaign` drives) is `acceptance dev
+<area>/<case> -root <root> [-from <label|dir>] [-watch]` (#274): each
+iteration builds `./cmd/rimgovernor` into `<root>/dev/`, stages the
+bundle (`-from`; the ring's next entry, then its failed bundle, by
+default) the way a resume does (its save reloaded on the kept process,
+its store and journal restored beside the rebuilt binary, never a fresh
+store: #119) and runs `Run` and `Postmortem` as a resumed run, then
+waits for Enter (`q` quits) or, with `-watch`, for a `.go` file under
+the module to change. Per iteration that is the stage under test plus a
+reload, not the relaunch, the fixture and the earlier stages, provided
+the `Run` body skips the work the bundle carries (`Session.Resumed`'s
+state or `Session.Stage`). Iteration `n` writes `<output>/dev/<n>/<case>`;
+`result.json` carries `resumed_from` and `dev: true`; the ring is read
+and never written, no stage bundle is captured and no series row is
+appended; the request ids carry `dev<n>`. A `dev` pass proves the code
+past the bundle only and is never a landing pass.
 A `Run` that submits a deterministic request id (a building plan whose
 acceptance fills the arbitration slot, a work-preference override) takes
 it from `s.RequestID(base)`: the base on a fresh run, the base suffixed

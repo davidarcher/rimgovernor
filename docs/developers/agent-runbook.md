@@ -188,6 +188,16 @@ What it produces:
   <case> -postmortem-only [-from t+7m] -output <empty dir>` reloads the
   failed bundle on the kept process and runs only the case's
   `Postmortem` phase (#275), ~20 s; a case without one says so.
+- Iterating on planner or policy code a serve-driven case exercises late
+  in its run: `acceptance dev <area>/<case> -root <root> [-from t+7m]
+  [-watch]` builds `rimgovernor`, reloads the bundle (the ring's next
+  entry by default) on the kept process and runs the case's `Run` and
+  `Postmortem` from there as a resumed run, then waits for Enter (or,
+  with `-watch`, a `.go` change) and goes again (#274): the stage under
+  test plus a reload per iteration instead of the whole replay. Each
+  iteration writes `<output>/dev/<n>/<case>`; the ring, the stage cache
+  and the metrics series are untouched, and a `dev` pass is never a
+  landing pass.
 - Flake or regression: `result.json` `world` names the seed, save hash
   and fixture hash the run had, and `flake` its recent failure share.
   `acceptance run <case> -repeat N` measures the pass rate under one
