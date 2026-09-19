@@ -14,10 +14,11 @@
 //     (off by default: the branch runs cmd/test before landing, and the
 //     lane does not repeat it); with -results <dir>, reads the acceptance
 //     suite report there (result.json from `acceptance suite`, the land
-//     tier's output) and refuses a suite that did not pass or whose rows
-//     resumed from a checkpoint (#308: a resumed pass is not a landing
-//     pass); without it, refuses a diff that touches the native mod
-//     sources or go/internal/buildingruntime (#273: nothing cheaper than a
+//     tier's output) and refuses a suite that did not pass; rows that
+//     resumed from a checkpoint (`acceptance suite -resume`) land and are
+//     named in the acceptance line, since their pass proves the fix past
+//     the resume point only (#249, #308); without it, refuses a diff that
+//     touches the native mod sources or go/internal/buildingruntime (#273: nothing cheaper than a
 //     game run proves those) unless -unverified says the landing goes
 //     without, to be named in an issue;
 //  4. squash-merges the branch into the main checkout, which must be clean,
@@ -58,7 +59,7 @@ func main() {
 	runTests := flag.Bool("test", false, "also run the affected Go tests against the merged tree before landing")
 	issue := flag.Int("issue", 0, "GitHub issue to close with the landing commit (default: the number in the branch name)")
 	noClose := flag.Bool("no-close", false, "do not close a GitHub issue")
-	results := flag.String("results", "", "acceptance suite output directory (its result.json) the landing presents as its fresh pass")
+	results := flag.String("results", "", "acceptance suite output directory (its result.json) the landing presents as its pass")
 	unverified := flag.Bool("unverified", false, "land a native or buildingruntime change without -results; file an issue naming what is unverified")
 	flag.Parse()
 	if flag.NArg() > 1 {

@@ -647,7 +647,7 @@ func (r *CheckpointRing) capture(ctx context.Context, label string, force bool) 
 	}
 	if journal, jerr := ClockJournalDir(r.Config.Configuration); jerr == nil {
 		if _, statErr := os.Stat(journal); statErr == nil {
-			if err := copyTree(journal, filepath.Join(dir, CheckpointJournalDir)); err != nil {
+			if err := CopyTree(journal, filepath.Join(dir, CheckpointJournalDir)); err != nil {
 				_ = os.RemoveAll(dir)
 				return Checkpoint{}, fmt.Errorf("journal: %w", err)
 			}
@@ -884,9 +884,9 @@ func snapshotStore(ctx context.Context, src, dst string) error {
 	return s.Snapshot(ctx, dst)
 }
 
-// copyTree copies the regular files under src into dst, recreating the
+// CopyTree copies the regular files under src into dst, recreating the
 // directory layout.
-func copyTree(src, dst string) error {
+func CopyTree(src, dst string) error {
 	return filepath.WalkDir(src, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -922,7 +922,7 @@ func RestoreClockJournal(configDir, bundle string) error {
 	if _, err := os.Stat(src); err != nil {
 		return nil
 	}
-	return copyTree(src, journal)
+	return CopyTree(src, journal)
 }
 
 // StageCheckpoint copies the bundle's save into root/profile/Saves (the

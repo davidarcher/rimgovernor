@@ -42,8 +42,11 @@ func TestGateReadsTheSuiteReport(t *testing.T) {
 	}
 
 	write(t, filepath.Join(dir, "result.json"), `{"passed": true, "cases": [{"name": "smoke/identity", "passed": true, "resumed_from": "t+7m"}]}`)
-	if err := gate.check(nil); err == nil || !strings.Contains(err.Error(), "resumed from a checkpoint (smoke/identity)") {
-		t.Errorf("resumed row: got %v", err)
+	if err := gate.check(nil); err != nil {
+		t.Errorf("resumed row lands: %v", err)
+	}
+	if summary, _ := readSuiteResults(dir); !strings.Contains(summary, "1 resumed from a checkpoint (smoke/identity: passed past the resume point only)") {
+		t.Errorf("resumed summary %q", summary)
 	}
 
 	write(t, filepath.Join(dir, "result.json"), `{"passed": false, "error": "1 of 2 cases failed: light/dark", "cases": [{"name": "light/dark"}]}`)

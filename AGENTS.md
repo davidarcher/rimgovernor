@@ -20,10 +20,13 @@ needs is [choose-tests](docs/developers/testing/choose-tests.md).
    changes need game-level acceptance before completion; documentation
    needs none) and name them in the commit message. The landing form is
    the land tier it prints: `acceptance suite -tier land` (the affected
-   areas plus the smoke set, fresh).
+   areas plus the smoke set, fresh). Add `-resume` to carry the checkpoint
+   rings your failed `acceptance run`s left in `-root`: resumed rows pass,
+   are listed under `resumed` and named in the landing, but prove the fix
+   past the resume point only, so a change to early behaviour runs fresh.
 5. `go run ./cmd/land [-results <suite output>]` from the branch worktree.
    The lane takes the repository lock, merges `main` into the branch,
-   refuses a presented suite that failed or resumed from a checkpoint,
+   refuses a presented suite that failed (resumed rows are recorded),
    refuses a diff under the native sources or `buildingruntime` without
    one (`-unverified` lands it and you file the issue), squash-lands on the
    `main` checkout, resets the branch to `main` and closes the branch's
@@ -104,7 +107,7 @@ issue comments, not chat.
 - After an acceptance failure, add a fast regression test where feasible
   and rerun that case. The rerun resumes from the run's last checkpoint
   by default (`resuming <case> from t+7m ...` on its first line; #249);
-  `-fresh` starts over, and landing always runs fresh.
+  `-fresh` starts over; the land suite runs fresh unless `-resume`.
 - A new case starts from a fixture that already exercises the behaviour
   (a committed save, a `test/*_prepare` op, or a programmatic start) and
   follows the performance checklist in choose-tests: Core-only, quiet

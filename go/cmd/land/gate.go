@@ -29,8 +29,9 @@ type acceptanceGate struct {
 	Unverified bool
 }
 
-// check refuses the landing when the presented suite did not pass from
-// scratch, or when none is presented for a diff under a gated root.
+// check refuses the landing when the presented suite did not pass, or when
+// none is presented for a diff under a gated root; resumed rows are named,
+// not refused.
 func (g acceptanceGate) check(changed []string) error {
 	if g.Results != "" {
 		summary, err := readSuiteResults(g.Results)
@@ -70,8 +71,11 @@ func gatedFiles(changed []string) []string {
 }
 
 // readSuiteResults reads a suite report and returns its one-line summary,
-// or the reason it is not a landing pass: it failed, or a row resumed from
-// a checkpoint (result.json "resumed_from").
+// or the reason it is not a landing pass: it failed. Rows that resumed from
+// a checkpoint (result.json "resumed_from", `acceptance suite -resume`)
+// pass, and the summary names them: everything before the resume point
+// ran under the earlier revision, so the landing records the fact rather
+// than paying a fresh run to erase it (#249, #308).
 func readSuiteResults(dir string) (string, error) {
 	path := dir
 	if info, err := os.Stat(dir); err == nil && info.IsDir() {
@@ -96,15 +100,6 @@ func readSuiteResults(dir string) (string, error) {
 	if report.Cases == nil {
 		return "", fmt.Errorf("-results: %s has no cases: give an `acceptance suite` output directory", path)
 	}
-	var resumed []string
-	for _, row := range report.Cases {
-		if row.ResumedFrom != nil {
-			resumed = append(resumed, row.Name)
-		}
-	}
-	if len(resumed) > 0 {
-		return "", fmt.Errorf("-results: %s resumed from a checkpoint (%s); a landing pass runs from scratch (acceptance suite runs every row -fresh)", path, strings.Join(resumed, ", "))
-	}
 	if !report.Passed {
 		reason := report.Error
 		if reason == "" {
@@ -115,6 +110,15 @@ func readSuiteResults(dir string) (string, error) {
 	tier := report.Tier
 	if tier == "" {
 		tier = "untiered"
+	}
+	var resumed []string
+	for _, row := range report.Cases {
+		if row.ResumedFrom != nil {
+			resumed = append(resumed, row.Name)
+		}
+	}
+	if len(resumed) > 0 {
+		return fmt.Sprintf("%s suite, %d case(s) passed, %d resumed from a checkpoint (%s: passed past the resume point only), %s", tier, len(report.Cases), len(resumed), strings.Join(resumed, ", "), path), nil
 	}
 	return fmt.Sprintf("%s suite, %d case(s) passed fresh, %s", tier, len(report.Cases), path), nil
 }

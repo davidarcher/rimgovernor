@@ -15,10 +15,14 @@ package main
 // against -base and the report records "tier"); every row runs
 // through `acceptance run`, and a case that hosts a service (Serve or
 // Service) receives -rimgovernor. "acceptance" labels the criterion a row
-// stands for and is echoed into its report row. Every row runs fresh
-// (-fresh, no checkpoint ring): a suite is the landing gate's form, and a
-// resumed pass is not a pass (#249); a row whose result.json carries
-// resumed_from fails the suite.
+// stands for and is echoed into its report row. Every row runs fresh (-fresh, no
+// checkpoint ring) unless -resume, which carries each case's checkpoint
+// ring from -root into its worker (the ring a failed `acceptance run` in
+// that root left, #249) so the row resumes as the run would: the row
+// passes and carries resumed_from, and the report lists "resumed". Without
+// -resume a row whose result.json carries resumed_from fails the suite.
+// A resumed pass proves the fix only past the resume point; cmd/land
+// records it in the landing rather than refusing it (#308).
 //
 // Scheduling: one shared queue in three tiers. Bridge-only cases that keep
 // the process come first; cases that end or replace it (NoKeep: a
@@ -112,9 +116,13 @@ type suiteOptions struct {
 	// Tier is the tier the set came from (-tier), recorded in the report;
 	// empty for -all, -cases and -suite.
 	Tier string
+	// Resume carries each case's checkpoint ring from Root into its worker
+	// and lets the row resume from it instead of forcing -fresh.
+	Resume bool
 }
 
-const suiteUsage = `  acceptance suite (-all | -cases a,b,... | -suite file.json | -tier land|full|matrix|smoke [-base main]) -root <dir> -output <dir> [-workers N -baseline <result.json> -series <metrics.jsonl> -no-series -rimgovernor <bin> -game <id> -timeout <d> -case-timeout <d> -budget <d> -stall <d> -evidence capped|full]
+const suiteUsage = `  acceptance suite (-all | -cases a,b,... | -suite file.json | -tier land|full|matrix|smoke [-base main]) -root <dir> -output <dir> [-workers N -baseline <result.json> -series <metrics.jsonl> -no-series -rimgovernor <bin> -game <id> -timeout <d> -case-timeout <d> -budget <d> -stall <d> -evidence capped|full -resume]
+|full]
     -tier land runs the cases cmd/affected selects for the worktree's diff plus the smoke set; full every case but the matrix tier;
     matrix the speedmatrix, tickbudget and DLC-save cases; smoke the land tier's fixed half alone (acceptance list -tier <name> prints a tier)`
 
@@ -144,6 +152,7 @@ func parseSuite(args []string, stderr io.Writer) ([]entry, suiteOptions, error) 
 	fs.DurationVar(&opts.Budget, "budget", 0, "per-case budget override")
 	fs.DurationVar(&opts.Stall, "stall", 0, "stall budget override")
 	fs.StringVar(&opts.Evidence, "evidence", "", "evidence mode passed to every case: capped (default) or full")
+	fs.BoolVar(&opts.Resume, "resume", false, "resume each case from the checkpoint ring its last failed run left in -root instead of running fresh; resumed rows pass and are listed")
 	if err := fs.Parse(args); err != nil {
 		return nil, opts, err
 	}
@@ -491,6 +500,10 @@ func runSuite(ctx context.Context, list []entry, opts suiteOptions, stderr io.Wr
 			}
 		}
 	}
+	if resumed := resumedRows(rows); len(resumed) > 0 {
+		report["resumed"] = resumed
+		fmt.Fprintf(stderr, "resumed from a checkpoint (passes prove the fix past the resume point only): %s\n", strings.Join(resumed, ", "))
+	}
 	report["cases_passed"] = passed
 	report["total_case_ms"] = total
 	if b != nil {
@@ -530,7 +543,11 @@ func runSuite(ctx context.Context, list []entry, opts suiteOptions, stderr io.Wr
 func entryCommand(e entry, opts suiteOptions, self, workerRoot string) (argv []string, output string) {
 	// The suite ran the preflight once on the shared root; a worker's
 	// process check would only see its siblings.
-	argv = []string{self, "run", e.Name, "-root", workerRoot, "-output", opts.Output, "-game", opts.GameID, "-fresh", "-checkpoint-every", "0", "-no-doctor"}
+	argv = []string{self, "run", e.Name, "-root", workerRoot, "-output", opts.Output, "-game", opts.GameID}
+	if !opts.Resume {
+		argv = append(argv, "-fresh", "-checkpoint-every", "0")
+	}
+	argv = append(argv, "-no-doctor")
 	if opts.NoSeries {
 		argv = append(argv, "-no-series")
 	} else if opts.Series != "" {
@@ -561,6 +578,12 @@ func runEntry(ctx context.Context, e entry, opts suiteOptions, self, workerRoot 
 	row := map[string]any{"name": e.Name, "worker": worker, "output": output, "argv": argv, "serve": e.serveDriven(), "passed": false}
 	if e.Acceptance != "" {
 		row["acceptance"] = e.Acceptance
+	}
+	if opts.Resume {
+		if err := carryRing(opts.Root, workerRoot, e.Name); err != nil {
+			row["error"] = "carry checkpoint ring: " + err.Error()
+			return row
+		}
 	}
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
 	childproc.HideConsole(cmd)
@@ -602,8 +625,10 @@ func runEntry(ctx context.Context, e entry, opts suiteOptions, self, workerRoot 
 				row["error"] = e
 			}
 			if resumed, ok := result["resumed_from"]; ok {
-				row["passed"], row["resumed_from"] = false, resumed
-				row["error"] = "resumed from a checkpoint: a landing run must pass from scratch"
+				row["resumed_from"] = resumed
+				if !opts.Resume {
+					row["passed"], row["error"] = false, "resumed from a checkpoint: a landing run must pass from scratch"
+				}
 			}
 			row["game_reuse"] = result["game_reuse"]
 			if ms, ok := result["boot_ms"].(float64); ok {
@@ -634,4 +659,35 @@ func mustAbs(path string) string {
 		return abs
 	}
 	return path
+}
+
+// carryRing copies the case's checkpoint ring from the shared root into
+// the worker root, replacing any ring an earlier row left there, so the
+// worker's `acceptance run` resumes exactly as a run in the shared root
+// would. A root without a ring for the case carries nothing: the row runs
+// fresh.
+func carryRing(root, workerRoot, name string) error {
+	rel := filepath.Join("checkpoints", filepath.FromSlash(name))
+	src, dst := filepath.Join(root, rel), filepath.Join(workerRoot, rel)
+	if err := os.RemoveAll(dst); err != nil {
+		return err
+	}
+	if _, err := os.Stat(src); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	return na.CopyTree(src, dst)
+}
+
+// resumedRows names the rows that resumed from a checkpoint, in queue order.
+func resumedRows(rows []map[string]any) []string {
+	var names []string
+	for _, row := range rows {
+		if _, ok := row["resumed_from"]; ok {
+			names = append(names, na.AsString(row["name"]))
+		}
+	}
+	return names
 }

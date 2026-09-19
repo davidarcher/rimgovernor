@@ -23,7 +23,7 @@
 // on-demand matrix set. A run
 // checkpoints its case into the root's ring and resumes a case whose last
 // run there failed (#249; -fresh starts over, -rewind steps back,
-// -checkpoint-every 0 turns it off); suite always runs fresh. Every
+// -checkpoint-every 0 turns it off); suite runs fresh unless -resume. Every
 // result.json carries a world block (na.RecordWorld, #281: the seed, the
 // loaded save and its hash, the fixture op and its arguments' hash);
 // -repeat N runs a case N times fresh on the kept process and writes
@@ -193,7 +193,7 @@ func parseRun(args []string, stderr io.Writer) ([]cases.Case, cases.Options, err
 	var evidence string
 	fs.StringVar(&evidence, "evidence", "", "evidence mode: capped (payloads over 256 KiB truncated, the default) or full (also written under <case>/full/)")
 	fs.StringVar(&opts.Rimgovernor, "rimgovernor", "", "absolute path to a prebuilt rimgovernor binary (go build ./go/cmd/rimgovernor) for cases that launch a service")
-	fs.BoolVar(&opts.Fresh, "fresh", false, "discard the case's checkpoint ring in this root and start from scratch (landing runs always do)")
+	fs.BoolVar(&opts.Fresh, "fresh", false, "discard the case's checkpoint ring in this root and start from scratch (a suite does unless -resume)")
 	fs.IntVar(&opts.Rewind, "rewind", 0, "resume this many checkpoint entries earlier than the ring's next")
 	fs.DurationVar(&opts.CheckpointEvery, "checkpoint-every", na.DefaultCheckpointEvery, "checkpoint the run phase this often at a natural pause into <root>/checkpoints/<case>/ (0 turns the ring and resuming off)")
 	fs.StringVar(&opts.Series, "series", "", "append-only metrics series each case's block is appended to (default <output>/../metrics.jsonl)")

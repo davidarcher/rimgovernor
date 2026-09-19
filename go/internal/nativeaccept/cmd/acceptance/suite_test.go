@@ -322,3 +322,48 @@ func TestRegressionsCarryTheBaselineFlake(t *testing.T) {
 		t.Errorf("json = %s", data)
 	}
 }
+
+func TestSuiteResumeCarriesTheRingAndKeepsThePass(t *testing.T) {
+	root := t.TempDir()
+	var stderr bytes.Buffer
+	list, opts, err := parseSuite([]string{"-cases", "smoke/identity", "-root", root, "-output", filepath.Join(root, "out"), "-no-series", "-resume"}, &stderr)
+	if err != nil {
+		t.Fatalf("parseSuite: %v (%s)", err, stderr.String())
+	}
+	self, worker := filepath.Join(root, "acceptance.exe"), filepath.Join(root, "out", "workers", "1")
+	argv, _ := entryCommand(list[0], opts, self, worker)
+	if slices.Contains(argv, "-fresh") || slices.Contains(argv, "-checkpoint-every") || !slices.Contains(argv, "-no-doctor") {
+		t.Errorf("-resume argv = %v", argv)
+	}
+
+	ring := filepath.Join(root, "checkpoints", "smoke", "identity")
+	if err := os.MkdirAll(filepath.Join(ring, "t+7m"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range []string{"ring.json", filepath.Join("t+7m", "save.rws")} {
+		if err := os.WriteFile(filepath.Join(ring, f), []byte("x"), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	stale := filepath.Join(worker, "checkpoints", "smoke", "identity", "stale")
+	if err := os.MkdirAll(stale, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := carryRing(root, worker, "smoke/identity"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(worker, "checkpoints", "smoke", "identity", "t+7m", "save.rws")); err != nil {
+		t.Errorf("ring not carried: %v", err)
+	}
+	if _, err := os.Stat(stale); !os.IsNotExist(err) {
+		t.Errorf("stale worker ring kept: %v", err)
+	}
+	if err := carryRing(root, worker, "light/dark"); err != nil {
+		t.Errorf("no ring to carry: %v", err)
+	}
+
+	rows := []map[string]any{{"name": "a"}, {"name": "b", "resumed_from": map[string]any{"label": "t+7m"}}}
+	if got := resumedRows(rows); len(got) != 1 || got[0] != "b" {
+		t.Errorf("resumedRows = %v", got)
+	}
+}
