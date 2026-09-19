@@ -436,7 +436,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		// leave the clock with no work and never let the break end.
 		emergency := false
 		for _, n := range needs.Assessments {
-			if n.Priority < 2 && n.ID != policy.ConfirmColonyNames && n.ID != policy.AnswerDialog && !policy.IsMoodGoal(n.ID) && n.Need != domain.NeedRecovered {
+			if n.Priority < 2 && n.ID != policy.ConfirmColonyNames && n.ID != policy.AnswerDialog && !policy.IsMoodGoal(n.ID) && n.Need != domain.NeedRecovered && !n.MethodUnavailable {
 				emergency = true
 				result.Emergency = append(result.Emergency, n.ID)
 			}

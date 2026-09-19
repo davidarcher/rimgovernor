@@ -121,3 +121,36 @@ func TestRoutineAnimalNeedsRankWhenTheirMethodIsDeclared(t *testing.T) {
 		}
 	}
 }
+
+// A home fire is a priority-1 emergency only when the fire family is
+// declared: undeclared, the assessment is marked method-unavailable so the
+// review records the need without suspending the colony behind a method it
+// does not have (#435). Unknown capabilities leave the emergency intact.
+func TestRoutineFireEmergencyFollowsDeclaredCapability(t *testing.T) {
+	f := stableRoutine()
+	f.Upkeep.Fires = domain.Known([]UpkeepFire{{ID: "fire", Home: true, Size: domain.Known(.5)}})
+	for _, tc := range []struct {
+		name        string
+		methods     domain.Fact[[]GoalID]
+		unavailable bool
+	}{
+		{"unknown", domain.Unknown[[]GoalID](), false},
+		{"declared", domain.Known([]GoalID{MaintainFireSafety}), false},
+		{"undeclared", domain.Known([]GoalID{}), true},
+	} {
+		f.AvailableMethods = tc.methods
+		found := false
+		for _, a := range needs(t, f, RoutineLatches{}).Assessments {
+			if a.ID != MaintainFireSafety {
+				continue
+			}
+			found = true
+			if a.Priority != 1 || a.Need != domain.NeedDeficit || a.MethodUnavailable != tc.unavailable {
+				t.Fatal(tc.name, a)
+			}
+		}
+		if !found {
+			t.Fatal(tc.name, "fire not assessed")
+		}
+	}
+}

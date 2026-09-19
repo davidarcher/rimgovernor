@@ -486,6 +486,13 @@ type RoutineAssessment struct {
 	ID       GoalID
 	Priority int
 	Need     domain.NeedState
+	// MethodUnavailable marks an emergency-tier upkeep need (a home fire)
+	// whose serve family this runtime did not declare. The review still
+	// records the need, but it must not suspend every other goal: with no
+	// method to clear it and the clock held for it, nothing could ever
+	// resume, which parked a power enclosure build behind an unfought
+	// short-circuit fire (#435).
+	MethodUnavailable bool
 }
 
 func positive(v domain.Fact[bool]) bool { b, k := v.Value(); return k && b }
@@ -809,7 +816,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 				need = domain.NeedRecovered
 			}
 		}
-		r.Assessments = append(r.Assessments, RoutineAssessment{id, priority, need})
+		r.Assessments = append(r.Assessments, RoutineAssessment{ID: id, Priority: priority, Need: need})
 	}
 	not := func(f domain.Fact[bool]) domain.Fact[bool] { return measured(f, func(v bool) bool { return !v }) }
 	// A retained latch with missing input preserves history, not fresh evidence.
@@ -1177,7 +1184,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	}
 	for _, state := range f.Mood.States {
 		id, priority, need := MoodGoal(state.Pawn.ID), state.Priority(), state.Need()
-		r.Assessments = append(r.Assessments, RoutineAssessment{id, priority, need})
+		r.Assessments = append(r.Assessments, RoutineAssessment{ID: id, Priority: priority, Need: need})
 		if state.Active {
 			addGoal(id, priority)
 			r.Goals[len(r.Goals)-1].MethodUnavailable = true
@@ -1207,7 +1214,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		if s, k := f.RecoverySafety.Value(); k && positive(s.RoofHazard) && r.Disaster.Phase != DisasterRestored {
 			priority = 2
 		}
-		r.Assessments = append(r.Assessments, RoutineAssessment{RecoverDisasterServices, priority, need})
+		r.Assessments = append(r.Assessments, RoutineAssessment{ID: RecoverDisasterServices, Priority: priority, Need: need})
 		if need != domain.NeedRecovered {
 			addGoal(RecoverDisasterServices, priority)
 			r.Goals[len(r.Goals)-1].MethodUnavailable = true
@@ -1241,6 +1248,17 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		for i := range r.Goals {
 			if r.Goals[i].Priority >= 3 && !available[r.Goals[i].ID] {
 				r.Goals[i].MethodUnavailable = true
+			}
+		}
+		// Each upkeep need's method is its own serve family; an undeclared
+		// one at emergency priority is recorded without the suspension.
+		declarable := map[GoalID]bool{}
+		for _, n := range upkeep.Needs {
+			declarable[n.Goal] = true
+		}
+		for i := range r.Assessments {
+			if a := r.Assessments[i]; a.Priority < 2 && declarable[a.ID] && !available[a.ID] {
+				r.Assessments[i].MethodUnavailable = true
 			}
 		}
 	}

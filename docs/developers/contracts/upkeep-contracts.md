@@ -228,8 +228,10 @@ observation. Salvage uses ordinary hauling and does not gate this goal.
 Any observed target enters maintenance; recovery requires no remaining deficit
 and no unresolved issued action. Missing evidence retains active risk, while a
 first unavailable read creates an ordinary visible blocker rather than an invented
-emergency. Fire risk preempts development. Unknown or oversized fire intervention
-retains an emergency hold. A pending, never-issued repair is cancelled on
+emergency. Fire risk preempts development while the fire family is declared;
+without it the review records the fire need but does not suspend the other
+goals, since no method could clear a hold the clock would then never leave.
+Unknown or oversized fire intervention retains an emergency hold. A pending, never-issued repair is cancelled on
 the next repair step, before the need gate, once `MaintainEssentialRepairs`
 has recovered (the colonists mended every target themselves) or its hold
 says the structure is ineligible (already repaired, or gone), so the
