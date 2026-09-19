@@ -42,7 +42,10 @@ admits Ultrafast (`rimgovernor serve --clock-speed Ultrafast`); the native tick
 boost behind it (`--clock-test-acceleration`, `StartRequest.test_acceleration`)
 is refused unless the game was launched with `-rimgovernor-test-acceleration`,
 which only the acceptance profiles (headless and rendered) carry, so boosted
-simulation stays outside the production gameplay surface.
+simulation stays outside the production gameplay surface. The same launch
+argument gates the acceptance-only world patches (`AcceptanceWorld`, #272):
+no autosaver tick, and, for a game the `test/quiet_world` fixture op marked,
+no wild plant or wild animal tick outside the home area and no wild spawners.
 
 Discrete camera navigation uses a separate player-only endpoint with a fixed
 pan/zoom action set. Each request validates the live native contract under the

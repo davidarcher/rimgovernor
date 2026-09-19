@@ -185,7 +185,11 @@ by review alone.
    planet); pass a larger `DebugStart{Size}` only when the assertion reasons
    about terrain beyond that, and never hardcode a map size in a fixture.
    *Enforced:* the zero `DebugStart{}` is the default size; a bigger one
-   needs a `Reason` (lint).
+   needs a `Reason` (lint). A construction-heavy case that never reasons
+   about terrain sets `DebugStart{Size: na.DebugStart{Flat: true}}` (#272):
+   the start settles a flat tile without rivers, roads or tile mutators
+   when the planet offers one, cached as its own
+   `RimGovernor-debug-...-flat` save.
 3. **Core-only unless the test is about DLC.** *Enforced:* the runner's
    profile is Core-only; a `Save` start (and an `Owned` case's `Saves`)
    activates the save's own `<modIds>` through `cfg.UseSaveExpansions`.
@@ -199,7 +203,14 @@ by review alone.
    `frozen_needs`. `s.Advance` passes the case's `Letters` as the expected
    interruption letters and the discovered names as `ScenarioRuntime.Tools`,
    so `AdvanceGame` dismisses the letters it acknowledges; a non-nil
-   `Letters` (even empty) makes every window strict.
+   `Letters` (even empty) makes every window strict. A case whose
+   assertion never watches the wild map also sets `QuietWorld` (#272):
+   under the headless profiles' `-rimgovernor-test-acceleration` launch,
+   `test/quiet_world` marks the game (persisted with its saves) so wild
+   plants and animals outside the home area and any growing zone stop
+   ticking and the wild spawners stop; the report records `quiet_world`.
+   Farm, husbandry and hunting cases leave it off. The same launch gate
+   also drops the autosaver tick; audio is already off headless.
 5. **Every wait is stall-bounded.** Poll through `na.WaitProgress` with a
    signature over the thing that must move and `Terminal: service.Exited`
    when a serve subprocess is involved; use the shared `WaitReview`,

@@ -81,6 +81,29 @@ namespace HomeBridge.BridgeTools
         private static bool SkipTick(Storyteller __instance) => !IsQuiet(__instance);
     }
 
+    // Disposable test setup only (#272). Sets the loaded game's QuietWorld
+    // marker (AcceptanceWorld, persisted with the save): under a game
+    // launched with -rimgovernor-test-acceleration, wild plants and wild
+    // animals outside the home area (and outside any growing zone) stop
+    // ticking and the wild spawners stop. A case whose assertion watches
+    // the wild map (farming, husbandry, hunting) must not call it.
+    public sealed class QuietWorldFixture
+    {
+        [Tool("test/quiet_world", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup: mark the loaded game quiet-world so, under -rimgovernor-test-acceleration, wild plants and animals outside the home area stop ticking and the wild spawners stop. Persists across save and reload. Farm, husbandry and hunting harnesses must not call it.")]
+        public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
+            [ToolParameter(Description = "apply (default), release or inspect.")] string action = "apply")
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                if (Current.Game == null) throw new InvalidOperationException("A loaded game is required.");
+                if (action == "apply") AcceptanceWorld.SetQuiet(true);
+                else if (action == "release") AcceptanceWorld.SetQuiet(false);
+                else if (action != "inspect") throw new ArgumentException("Unknown action.");
+                var marker = Current.Game.GetComponent<AcceptanceWorld>()?.QuietWorld ?? false;
+                return new { success = true, quietWorld = marker, active = AcceptanceWorld.Quiet, launched = AcceptanceWorld.Launched };
+            }, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
     public sealed class QuietStorytellerFixture
     {
         // The tick prefix must be live before a quiet save is reloaded, not

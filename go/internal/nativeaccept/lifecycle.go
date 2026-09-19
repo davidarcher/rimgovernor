@@ -62,6 +62,9 @@ func (d DebugStart) load(ctx context.Context, s *Session, quiet QuietMode) (map[
 	if d.Biomes != "" {
 		row["biomes"] = d.Biomes
 	}
+	if d.Flat {
+		row["flat"] = true
+	}
 	return row, nil
 }
 
@@ -287,6 +290,21 @@ func (s *Session) open(ctx context.Context, start Start, quiet QuietMode, keep [
 	s.Report["world"] = RecordWorld(s.Config, start)
 	if err := s.Pause(ctx); err != nil {
 		return err
+	}
+	if s.Config.QuietWorld {
+		// Before the fixture op, so a stage the op saves carries the marker.
+		if !Contains(names, QuietWorldTool) {
+			if quiet == QuietRequired {
+				return fmt.Errorf("%s not in discovery: rebuild the native mod with any -Fixture flag (every fixture build includes it)", QuietWorldTool)
+			}
+			s.Report["quiet_world"] = false
+		} else {
+			reply, err := ApplyQuietWorld(ctx, s.Harness)
+			if err != nil {
+				return err
+			}
+			s.Report["quiet_world"] = reply
+		}
 	}
 	if err := s.RefreshIdentity(ctx, "identity"); err != nil {
 		return err

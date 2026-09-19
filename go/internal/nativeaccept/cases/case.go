@@ -86,6 +86,9 @@ func (d DebugStart) Describe() map[string]any {
 	if d.Size.Seed != "" {
 		row["seed"] = d.Size.Seed
 	}
+	if d.Size.Flat {
+		row["flat"] = true
+	}
 	return row
 }
 func (s Save) Describe() map[string]any { return map[string]any{"kind": "save", "name": s.Name} }
@@ -201,6 +204,12 @@ type Case struct {
 	// than the default (item 2) or a Budget past MaxBudget (item 6). Lint
 	// requires it for any of the three.
 	Reason string
+	// QuietWorld marks the game quiet-world (na.Config.QuietWorld, #272):
+	// under test acceleration, wild plants and animals outside the home
+	// area (and any growing zone) stop ticking and the wild spawners stop.
+	// A case whose assertion watches the wild map (farm, husbandry,
+	// hunting) leaves it off.
+	QuietWorld bool
 	// Keep are the NeedDef names (Food, Rest, Joy...) left unfrozen;
 	// everything else is frozen before Run.
 	Keep []string

@@ -231,7 +231,7 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 		s.resumed = &resumed.entry
 	}
 	cfg := &na.Config{Root: opts.Root, Output: output, Headless: opts.Headless && !c.Rendered, GameID: opts.GameID,
-		Spawned: func(pid int) { s.gabsPID.Store(int64(pid)) }}
+		QuietWorld: c.QuietWorld, Spawned: func(pid int) { s.gabsPID.Store(int64(pid)) }}
 	s.config = cfg
 	report["keep"] = !c.NoKeep && na.KeepGame()
 	start, err := seededStart(c.Start, opts.Seed)

@@ -25,15 +25,16 @@ namespace HomeBridge.BridgeTools
         private static float planetCoverage;
         private static string[] biomes = Array.Empty<string>();
         private static string seed = "";
+        private static bool flat;
 
-        public static void Arm(int size, float coverage, string biomePreference = "", string worldSeed = "")
+        public static void Arm(int size, float coverage, string biomePreference = "", string worldSeed = "", bool flatTile = false)
         {
             if (size < MinMapSize || size > MaxMapSize) throw new ArgumentException($"mapSize must be within {MinMapSize}..{MaxMapSize}.");
             if (float.IsNaN(coverage) || coverage < 0.05f || coverage > 1f) throw new ArgumentException("planetCoverage must be within 0.05..1.");
             var wanted = (biomePreference ?? "").Split(',').Select(b => b.Trim()).Where(b => b.Length > 0).ToArray();
             foreach (var name in wanted)
                 if (DefDatabase<BiomeDef>.GetNamedSilentFail(name)?.canBuildBase != true) throw new ArgumentException($"Unknown or non-settleable BiomeDef {name}.");
-            mapSize = size; planetCoverage = coverage; biomes = wanted; seed = (worldSeed ?? "").Trim(); armed = true;
+            mapSize = size; planetCoverage = coverage; biomes = wanted; seed = (worldSeed ?? "").Trim(); flat = flatTile; armed = true;
             if (patched) return;
             new Harmony("rimgovernor.test.debug-start").Patch(
                 AccessTools.Method(typeof(Root_Play), nameof(Root_Play.SetupForQuickTestPlay)),
@@ -69,13 +70,27 @@ namespace HomeBridge.BridgeTools
             try
             {
                 Find.GameInitData.ChooseRandomStartingTile();
-                if (biomes.Length > 0)
+                if (biomes.Length > 0 || flat)
                 {
                     var surface = Find.WorldGrid.Surface;
                     var valid = Enumerable.Range(0, surface.TilesCount).Select(i => surface[i])
                         .Where(t => TileFinder.IsValidTileForNewSettlement(t.tile)).ToList();
-                    var chosen = biomes.Select(b => valid.Where(t => t.PrimaryBiome.defName == b).ToList()).FirstOrDefault(c => c.Count > 0);
+                    var chosen = biomes.Length == 0 ? valid
+                        : biomes.Select(b => valid.Where(t => t.PrimaryBiome.defName == b).ToList()).FirstOrDefault(c => c.Count > 0);
                     if (chosen == null) throw new InvalidOperationException($"No valid settlement tile in any requested biome ({string.Join(", ", biomes)}) on this planet.");
+                    if (flat)
+                    {
+                        // A flat, river-free, road-free tile with no mutator
+                        // (#272): no mountains to path around and no river
+                        // to bridge in a construction-heavy case. A planet
+                        // that offers none in the biome keeps the mutators
+                        // and drops the requirement in that order.
+                        var plain = chosen.Where(t => t.hilliness == Hilliness.Flat && t.Rivers.NullOrEmpty() && t.Roads.NullOrEmpty()).ToList();
+                        var bare = plain.Where(t => t.Mutators.Count == 0).ToList();
+                        var pick = bare.Count > 0 ? bare : plain.Count > 0 ? plain : chosen;
+                        if (pick != bare) Log.Warning($"[RimGovernor] debug start: no {(pick == plain ? "mutator-free flat" : "flat river-free")} tile on this planet; settling a {(pick == plain ? "flat tile with mutators" : "tile of the roll's own terrain")}.");
+                        chosen = pick;
+                    }
                     Find.GameInitData.startingTile = chosen.RandomElement().tile;
                 }
                 Find.GameInitData.mapSize = mapSize;
@@ -126,12 +141,13 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "Map edge in cells, 150..400 (default 200).")] int mapSize = DebugStart.DefaultMapSize,
             [ToolParameter(Description = "Planet coverage 0.05..1 (default 0.05).")] float planetCoverage = DebugStart.DefaultPlanetCoverage,
             [ToolParameter(Description = "Optional comma-separated native BiomeDef names in preference order; the start settles a random valid tile of the first biome the planet offers, or fails when it offers none.")] string biomes = "",
-            [ToolParameter(Description = "Optional world seed; the tile choice and starting pawns follow it, so the same seed reproduces the same start. Empty draws a random seed.")] string seed = "")
+            [ToolParameter(Description = "Optional world seed; the tile choice and starting pawns follow it, so the same seed reproduces the same start. Empty draws a random seed.")] string seed = "",
+            [ToolParameter(Description = "Settle a flat tile without rivers, roads or tile mutators when the planet (and biome) offers one (#272).", DefaultValue = false)] bool flat = false)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 if (Current.ProgramState != ProgramState.Entry || Current.Game != null) throw new InvalidOperationException("Only a fresh main-menu process can configure a debug start.");
-                DebugStart.Arm(mapSize, planetCoverage, biomes, seed);
-                return new { success = true, armed = true, mapSize, planetCoverage, biomes, seed };
+                DebugStart.Arm(mapSize, planetCoverage, biomes, seed, flat);
+                return new { success = true, armed = true, mapSize, planetCoverage, biomes, seed, flat };
             }, cancellationToken).ConfigureAwait(false);
         }
     }

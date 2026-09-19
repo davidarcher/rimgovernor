@@ -16,6 +16,14 @@ func TestCachedStartName(t *testing.T) {
 	if got := cachedStartName(DebugStart{MapSize: 200, PlanetCoverage: 0.05, Biomes: "TemperateForest, TropicalRainforest"}); got != "RimGovernor-debug-200-0_05-temperateforest-tropicalrainforest" {
 		t.Errorf("name = %q", got)
 	}
+	// A flat start never loads a plain roll's save (#272), and a pinned
+	// seed on it keeps its own name.
+	if got := cachedStartName(DebugStart{MapSize: 200, PlanetCoverage: 0.05, Flat: true}); got != "RimGovernor-debug-200-0_05-flat" {
+		t.Errorf("name = %q", got)
+	}
+	if got := cachedStartName(DebugStart{MapSize: 200, PlanetCoverage: 0.05, Flat: true, Seed: "abc"}); got != "RimGovernor-debug-200-0_05-flat-seed-abc" {
+		t.Errorf("name = %q", got)
+	}
 }
 
 func TestKeepGameAndCachedStartAreOnUnlessOptedOut(t *testing.T) {

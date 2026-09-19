@@ -51,6 +51,9 @@ func cachedStartName(start DebugStart) string {
 	if start.Biomes != "" {
 		name += "-" + strings.ToLower(strings.ReplaceAll(strings.ReplaceAll(start.Biomes, " ", ""), ",", "-"))
 	}
+	if start.Flat {
+		name += "-flat"
+	}
 	if start.Seed != "" {
 		name += "-seed-" + seedToken(start.Seed)
 	}

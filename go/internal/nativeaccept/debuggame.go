@@ -11,6 +11,11 @@ import (
 // (scripts/fixtures/QuietStorytellerFixture.cs); every fixture build carries it.
 const QuietStorytellerTool = "test/quiet_storyteller"
 
+// QuietWorldTool marks the loaded game quiet-world (#272; a second tool in
+// scripts/fixtures/QuietStorytellerFixture.cs, so every fixture build
+// carries it).
+const QuietWorldTool = "test/quiet_world"
+
 // DebugStartTool arms the next quick start's map size and planet coverage
 // (scripts/fixtures/DebugStartFixture.cs); every fixture build carries it.
 const DebugStartTool = "test/configure_debug_start"
@@ -37,11 +42,16 @@ const (
 // world seed (#281: `acceptance run -seed` reproduces a recorded run; the
 // tile and starting pawns follow it natively); empty draws one, which the
 // report's world block records. A pinned seed caches under its own save.
+// Flat settles a flat tile without rivers, roads or tile mutators when the
+// planet offers one (#272: nothing to path around or bridge in a
+// construction-heavy case); it also needs DebugStartTool and caches under
+// its own save.
 type DebugStart struct {
 	MapSize        int
 	PlanetCoverage float64
 	Biomes         string
 	Seed           string
+	Flat           bool
 }
 
 // withDefaults fills a zero size and coverage from DefaultDebugStart,
@@ -166,6 +176,9 @@ func StartDebugGameSized(ctx context.Context, h *Harness, names []string, mode Q
 	if !Contains(names, DebugStartTool) && start.Seed != "" {
 		return nil, fmt.Errorf("%s not in discovery but the start pins seed %s: rebuild the native mod with any -Fixture flag (every fixture build includes DebugStartFixture)", DebugStartTool, start.Seed)
 	}
+	if !Contains(names, DebugStartTool) && start.Flat {
+		return nil, fmt.Errorf("%s not in discovery but the start asks for a flat tile: rebuild the native mod with any -Fixture flag (every fixture build includes DebugStartFixture)", DebugStartTool)
+	}
 	if Contains(names, DebugStartTool) {
 		if err := start.Validate(); err != nil {
 			return nil, err
@@ -180,6 +193,9 @@ func StartDebugGameSized(ctx context.Context, h *Harness, names []string, mode Q
 		args := map[string]any{"mapSize": start.MapSize, "planetCoverage": start.PlanetCoverage, "seed": seed}
 		if start.Biomes != "" {
 			args["biomes"] = start.Biomes
+		}
+		if start.Flat {
+			args["flat"] = true
 		}
 		armed, err := h.Call(ctx, "debug-start", DebugStartTool, args)
 		if err != nil {
@@ -200,6 +216,19 @@ func StartDebugGameSized(ctx context.Context, h *Harness, names []string, mode Q
 		}
 	}
 	return applyQuiet(ctx, h, apply)
+}
+
+// ApplyQuietWorld sets the loaded game's quiet-world marker through
+// QuietWorldTool and returns its reply (quietWorld, active, launched).
+func ApplyQuietWorld(ctx context.Context, h *Harness) (map[string]any, error) {
+	reply, err := h.Call(ctx, "quiet-world", QuietWorldTool, map[string]any{"action": "apply"})
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", QuietWorldTool, err)
+	}
+	if ok, _ := AsBool(reply["success"]); !ok {
+		return nil, fmt.Errorf("%s refused: %#v", QuietWorldTool, reply)
+	}
+	return reply, nil
 }
 
 // applyQuiet applies the quiet storyteller when the mode asked for it.

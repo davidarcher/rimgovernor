@@ -174,6 +174,13 @@ type Config struct {
 	// it from the start when unset. The stale-package check names their
 	// fixtures in its rebuild hint (#208).
 	FixtureOps []string
+	// QuietWorld marks the opened game quiet-world (QuietWorldTool, #272):
+	// under the headless profiles' -rimgovernor-test-acceleration launch,
+	// wild plants and animals outside the home area stop ticking and the
+	// wild spawners stop. The marker persists with the game's saves, so a
+	// stage a case saves and reloads keeps it. A production build carries
+	// no op; the session then leaves the world live and the report says so.
+	QuietWorld bool
 	// Spawned, when set, is told the PID of each GABS process the game's
 	// session launches (bridge.ProcessConfig.Spawned), for a harness that
 	// kills its own transport.

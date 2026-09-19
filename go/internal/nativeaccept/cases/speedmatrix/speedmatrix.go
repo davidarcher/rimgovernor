@@ -79,10 +79,14 @@ func init() {
 		Scope: "Speed matrix (#111): one staged colony reloaded per clock speed under rimgovernor serve with an " +
 			"identical tick budget; wall TPS, paused fraction, steps, reads/step, parent hits, stop latency and " +
 			"budget-vs-reactive stops per speed; pawn outcomes equal within a tolerance.",
-		Start:   cases.Fixture{Op: prepareTool, Args: map[string]any{"itemCount": items, "wallSegments": segments}},
-		Service: true,
-		Budget:  cases.MaxBudget,
-		Run:     run,
+		Start: cases.Fixture{Op: prepareTool, Args: map[string]any{"itemCount": items, "wallSegments": segments},
+			On: cases.DebugStart{Size: na.DebugStart{Flat: true}}},
+		// The stage is hauling and wall building inside the home area; the
+		// wild map is unobserved (#272).
+		QuietWorld: true,
+		Service:    true,
+		Budget:     cases.MaxBudget,
+		Run:        run,
 	})
 }
 

@@ -14,6 +14,9 @@ namespace HeadlessRim
             try
             {
                 string[] args = Environment.GetCommandLineArgs();
+                // The acceptance-only world patches ride on their own launch
+                // gate (-rimgovernor-test-acceleration), not on batch mode.
+                HomeBridge.BridgeTools.AcceptanceWorld.Install();
                 if (!args.Contains("-batchmode")) return;
 
                 Log.Message("--------------------------------------------------");
