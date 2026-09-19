@@ -51,7 +51,16 @@ needs is [choose-tests](docs/developers/testing/choose-tests.md).
    it. An issue left open with a "remaining:" paragraph reads as blocked to
    every other agent sequencing against it.
 6. Continue to the next milestone of an authorized task without waiting to
-   be re-prompted.
+   be re-prompted. An issue is finished or you are still working it:
+   landing a milestone is not a stopping point, and a comment listing
+   remaining work you could do yourself is not a reason to stop. Stop only
+   on a blocker you cannot clear, and name it (a commit, an issue number,
+   a decision needed). Readiness checks and assessments that change
+   nothing are not work; do not post them.
+   An issue whose acceptance is an acceptance case is finished once the
+   case is written, registered and builds clean: it runs in the next
+   nightly, and a failure there opens a new issue. Do not hold the issue
+   open to run the case yourself.
 
 `main` moves constantly and that is never a reason to redo anything: a test
 or harness that passed on the branch's code stays passed, the lane's merge
