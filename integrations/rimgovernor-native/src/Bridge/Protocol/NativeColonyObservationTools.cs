@@ -108,6 +108,7 @@ namespace HomeBridge.BridgeTools
                         && !t.def.IsDrug && t.IngestibleNow && (t.Faction == null || t.Faction.IsPlayer)).ToList())) },
                 Forecast = new Obs.ForecastSection { Observed = Forecast(ForecastFacts.Read(map, people, things)) },
                 Upkeep = ReadComfort(map),
+                Threat = ReadThreat(map, people.Count),
                 Development = new Obs.DevelopmentSection { Observed = ReadPower(map, limit) }
             };
             if (demand > 0) result.FoodRunwayDays = Finite(nutrition / demand);
@@ -174,6 +175,29 @@ namespace HomeBridge.BridgeTools
             var label = BridgeCommon.SafeString(() => condition.LabelCap);
             if (!string.IsNullOrEmpty(label)) row.Label = label;
             return row;
+        }
+
+        // Colony wealth and raid points (#395): the WealthWatcher split (its
+        // own lazy recount; never ForceRecount on a read path), the wealth
+        // the storyteller scales by and the points a default threat incident
+        // would draw for this map now, with the adaptation and difficulty
+        // factors already inside that figure. Any failure makes the section
+        // unavailable rather than partial.
+        internal static Obs.ThreatSection ReadThreat(Map map, int colonists)
+        {
+            try {
+                var wealth = map.wealthWatcher;
+                var facts = new Obs.ThreatFacts {
+                    WealthItems = Finite(wealth.WealthItems), WealthBuildings = Finite(wealth.WealthBuildings), WealthPawns = Finite(wealth.WealthPawns),
+                    WealthTotal = Finite(wealth.WealthTotal), StorytellerWealth = Finite(map.PlayerWealthForStoryteller),
+                    RaidPoints = Finite(StorytellerUtility.DefaultThreatPointsNow(map)),
+                    AdaptationFactor = Finite(Find.StoryWatcher.watcherAdaptation.TotalThreatPointsFactor),
+                    DifficultyThreatScale = Finite(Find.Storyteller.difficulty.threatScale),
+                    ColonistCount = checked((uint)colonists), Completeness = Complete(1),
+                };
+                return new Obs.ThreatSection { Observed = facts };
+            }
+            catch (Exception) { return new Obs.ThreatSection { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Colony wealth and raid points could not be read.") }; }
         }
 
         private static Obs.UpkeepSection ReadComfort(Map map)

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
@@ -237,6 +238,9 @@ func ValidateColonyFacts(v *o.ColonyFactsSnapshot, identity *c.Identity) error {
 	} else if err := validateUnavailable(v.GetDevelopment().GetUnavailable()); err != nil {
 		return err
 	}
+	if err := validateColonyThreat(v.Threat); err != nil {
+		return err
+	}
 	if v.Planning == nil {
 		return contract("missing planning availability")
 	}
@@ -405,4 +409,68 @@ func validSeason(name string) bool {
 		return true
 	}
 	return false
+}
+
+// validateColonyThreat accepts an absent threat section (a native build
+// without #395 reports nothing, and the projection stays unknown), an
+// unavailable one, or observed facts whose every number is finite and
+// non-negative and whose completeness is the single colony row.
+func validateColonyThreat(v *o.ThreatSection) error {
+	if v == nil {
+		return nil
+	}
+	switch t := v.Outcome.(type) {
+	case *o.ThreatSection_Unavailable:
+		return validateUnavailable(t.Unavailable)
+	case *o.ThreatSection_Observed:
+		facts := t.Observed
+		if facts == nil {
+			return contract("missing threat facts")
+		}
+		if err := colonyCounts(facts.Completeness, 1, 1); err != nil {
+			return err
+		}
+		if err := pawnsIssues(facts.Issues, facts.ProtoReflect()); err != nil {
+			return err
+		}
+		for _, value := range []*float64{facts.WealthItems, facts.WealthBuildings, facts.WealthPawns, facts.WealthTotal, facts.StorytellerWealth, facts.RaidPoints, facts.AdaptationFactor, facts.DifficultyThreatScale} {
+			if !combatNumber(value, true) {
+				return contract("invalid colony threat number")
+			}
+		}
+		if facts.ColonistCount != nil && facts.GetColonistCount() > 65536 {
+			return contract("colony count exceeds bound")
+		}
+		return nil
+	default:
+		return contract("missing threat outcome")
+	}
+}
+
+// ColonyThreat is the threat section of one colony census as facts: the
+// wealth split and the raid points the storyteller would draw now (#395).
+// A section native did not observe (absent, unavailable, or a field it
+// withheld) leaves the fact unknown, never zero.
+type ColonyThreat struct {
+	RaidPoints, WealthTotal, WealthItems, WealthBuildings, WealthPawns domain.Fact[float64]
+	StorytellerWealth, AdaptationFactor, DifficultyThreatScale         domain.Fact[float64]
+}
+
+// ProjectColonyThreat reads the threat section of a validated census.
+func ProjectColonyThreat(v *o.ColonyFactsSnapshot) ColonyThreat {
+	facts := v.GetThreat().GetObserved()
+	if facts == nil {
+		return ColonyThreat{}
+	}
+	number := func(p *float64) domain.Fact[float64] {
+		if p == nil || math.IsNaN(*p) || math.IsInf(*p, 0) {
+			return domain.Unknown[float64]()
+		}
+		return domain.Known(*p)
+	}
+	return ColonyThreat{
+		RaidPoints: number(facts.RaidPoints), WealthTotal: number(facts.WealthTotal), WealthItems: number(facts.WealthItems),
+		WealthBuildings: number(facts.WealthBuildings), WealthPawns: number(facts.WealthPawns), StorytellerWealth: number(facts.StorytellerWealth),
+		AdaptationFactor: number(facts.AdaptationFactor), DifficultyThreatScale: number(facts.DifficultyThreatScale),
+	}
 }

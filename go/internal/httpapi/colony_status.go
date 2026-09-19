@@ -19,7 +19,8 @@ type ColonyStatus interface {
 
 // colonyStatusDTO is one census; unknown facts are null. downed and
 // moodMean are derived from the roster (moodMean over the colonists whose
-// mood was readable, null when none was).
+// mood was readable, null when none was). raidPoints and the wealth split
+// are the census's threat section (#395).
 type colonyStatusDTO struct {
 	Tick                 domain.Tick           `json:"tick"`
 	RosterTick           domain.Tick           `json:"rosterTick"`
@@ -30,6 +31,11 @@ type colonyStatusDTO struct {
 	FoodRunwayDays       *float64              `json:"foodRunwayDays"`
 	PendingFoodNutrition *float64              `json:"pendingFoodNutrition"`
 	FoodCorpses          int                   `json:"foodCorpses"`
+	RaidPoints           *float64              `json:"raidPoints"`
+	WealthTotal          *float64              `json:"wealthTotal"`
+	WealthItems          *float64              `json:"wealthItems"`
+	WealthBuildings      *float64              `json:"wealthBuildings"`
+	WealthPawns          *float64              `json:"wealthPawns"`
 	Downed               int                   `json:"downed"`
 	MoodMean             *float64              `json:"moodMean"`
 	Pawns                []colonyStatusPawnDTO `json:"pawns"`
@@ -55,7 +61,9 @@ func projectColonyStatus(v buildingruntime.ColonyStatusReport) colonyStatusDTO {
 		Tick: v.Tick, RosterTick: v.RosterTick, Colonists: factPointer(v.Colonists), Workers: factPointer(v.Workers),
 		FoodNutrition: factPointer(v.FoodNutrition), NutritionPerDay: factPointer(v.NutritionPerDay),
 		FoodRunwayDays: factPointer(v.FoodRunwayDays), PendingFoodNutrition: factPointer(v.PendingFoodNutrition),
-		FoodCorpses: v.FoodCorpses, Pawns: []colonyStatusPawnDTO{},
+		FoodCorpses: v.FoodCorpses, RaidPoints: factPointer(v.Threat.RaidPoints), WealthTotal: factPointer(v.Threat.WealthTotal),
+		WealthItems: factPointer(v.Threat.WealthItems), WealthBuildings: factPointer(v.Threat.WealthBuildings), WealthPawns: factPointer(v.Threat.WealthPawns),
+		Pawns: []colonyStatusPawnDTO{},
 	}
 	moodSum, moodCount := 0.0, 0
 	for _, pawn := range v.Pawns {

@@ -46,6 +46,9 @@ type ColonyStatusReport struct {
 	PendingFoodNutrition domain.Fact[float64]
 	// FoodCorpses counts the edible corpses the census listed.
 	FoodCorpses int
+	// Threat is the census's wealth split and raid points (#395); unknown
+	// under a native build that does not report the section.
+	Threat bridge.ColonyThreat
 	// Pawns is the living home colonist roster, sorted as native listed it.
 	Pawns []ColonyStatusPawn
 }
@@ -112,6 +115,7 @@ func (s *ColonyStatus) Read(ctx context.Context) (ColonyStatusReport, error) {
 		FoodRunwayDays:       optionalFact(observed.FoodRunwayDays),
 		PendingFoodNutrition: optionalFact(observed.PendingFoodNutrition),
 		FoodCorpses:          len(observed.FoodCorpses),
+		Threat:               bridge.ProjectColonyThreat(observed),
 		Pawns:                []ColonyStatusPawn{},
 	}
 	for _, row := range pawns.Pawns {

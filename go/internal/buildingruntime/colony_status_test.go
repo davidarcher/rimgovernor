@@ -77,6 +77,7 @@ func TestColonyStatusReadProjectsCensusAndRoster(t *testing.T) {
 	observed.ColonistCount, observed.WorkerCount = proto.Uint32(3), proto.Uint32(2)
 	observed.FoodNutrition, observed.FoodRunwayDays = proto.Float64(12.5), proto.Float64(2.25)
 	observed.FoodCorpses = []*o.FoodCorpse{{}, {}}
+	observed.Threat = &o.ThreatSection{Outcome: &o.ThreatSection_Observed{Observed: &o.ThreatFacts{RaidPoints: proto.Float64(120.5), WealthTotal: proto.Float64(7400), WealthItems: proto.Float64(1200)}}}
 	native.roster.GetObserved().Pawns = []*o.PawnState{
 		{Pawn: &o.EntityRef{Id: proto.String("p1"), Label: proto.String("Ann")}, Downed: proto.Bool(true), Needs: &o.PawnNeeds{Mood: proto.Float64(0.2), Food: proto.Float64(0.1)}},
 		{Pawn: &o.EntityRef{Id: proto.String("p2"), Label: proto.String("Bob")}, Downed: proto.Bool(false)},
@@ -97,6 +98,12 @@ func TestColonyStatusReadProjectsCensusAndRoster(t *testing.T) {
 	}
 	if report.FoodCorpses != 2 || len(report.Pawns) != 2 {
 		t.Fatal(report)
+	}
+	if points, known := report.Threat.RaidPoints.Value(); !known || points != 120.5 {
+		t.Fatal(report.Threat)
+	}
+	if _, known := report.Threat.WealthBuildings.Value(); known {
+		t.Fatal("wealth the threat section omitted must stay unknown")
 	}
 	if downed, _ := report.Pawns[0].Downed.Value(); !downed || report.Pawns[0].Label != "Ann" {
 		t.Fatal(report.Pawns)

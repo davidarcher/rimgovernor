@@ -7,6 +7,7 @@ import PlayerControls from './PlayerControls';
 import PresentationPanel from './PresentationPanel';
 import NotificationPanel from './NotificationPanel';
 import DevelopmentPanel from './DevelopmentPanel';
+import ThreatPanel from './ThreatPanel';
 import GameVideoGo, {MapOverviewGo, PawnFeedGo} from './GameVideoGo';
 import PawnPortraitGo from './PawnPortraitGo';
 import PlayerGuide from './PlayerGuide';
@@ -173,6 +174,7 @@ export default function ObservationDashboard() {
       </>}
       {view === 'colony' && <>
         <PresentationPanel observation={state} observationFresh={observationFresh}/>
+        <ThreatPanel active/>
         <ColonyPortraits token={token} active/>
       </>}
       {view === 'governor' && <GovernorPanel active/>}

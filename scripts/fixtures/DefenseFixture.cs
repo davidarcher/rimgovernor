@@ -20,7 +20,8 @@ namespace HomeBridge.BridgeTools
     // hit), breach (the game's auto-rebuild off, one trap gone, #117),
     // inspect (colonists on trap cells, trap ids and cells, sprung traps,
     // hostiles, the fixture predator, turrets with their power and last
-    // attack tick, conduits, generators), power (#61: turret and electricity
+    // attack tick, conduits, generators, the wealth split and raid points,
+    // #395), power (#61: turret and electricity
     // research finished, a fuelled wood generator with a conduit stub near
     // x,z, steel and components in stock), depower (one conduit at x,z
     // vanishes with the game's auto-rebuild off), empty (#205: the turret at
@@ -28,7 +29,9 @@ namespace HomeBridge.BridgeTools
     // later fuel in it came from a rearm order), hostile (#246: one insect
     // hive or crashed ship part of def kind spawned in the open near a
     // colonist under its native hostile faction, its pawn and child-hive
-    // spawning switched off so the building itself is the only threat). No
+    // spawning switched off so the building itself is the only threat),
+    // wealth (#395: the wealth watcher recounted now, so stock just placed
+    // counts, then the same wealth split and raid points inspect reads). No
     // completed-work injection: construction, movement and combat stay
     // native.
     public sealed class DefenseFixture
@@ -59,7 +62,7 @@ namespace HomeBridge.BridgeTools
             return fixtureHostile;
         }
 
-        [Tool("test/defense_setup", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable defensive-layout fixture: op=terrain|stock|ranged|raid|predator|damage|breach|heal|inspect|quiet|power|depower|muster|empty|hostile.")]
+        [Tool("test/defense_setup", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable defensive-layout fixture: op=terrain|stock|ranged|raid|predator|damage|breach|heal|inspect|quiet|power|depower|muster|empty|hostile|wealth.")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken, string op, string strategy = "ImmediateAttack", string arrival = "EdgeWalkIn", int points = 0, string wall = "", int rifles = 3, string kind = "Cougar", int x = -1, int z = -1, string cells = "")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -86,6 +89,7 @@ namespace HomeBridge.BridgeTools
                     case "muster": return Muster(map, colonists, cells);
                     case "empty": return Empty(map, new IntVec3(x, 0, z));
                     case "hostile": return Hostile(map, colonists, kind);
+                    case "wealth": map.wealthWatcher.ForceRecount(); return new { success = true, threat = Threat(map), tick = Find.TickManager.TicksGame };
                     default: return Refuse("Use terrain, stock, ranged, raid, predator, damage, breach, heal, inspect, quiet, power, depower, muster or empty.");
                 }
             }, cancellationToken).ConfigureAwait(false);
@@ -633,7 +637,19 @@ namespace HomeBridge.BridgeTools
                 .Select(b => new { id = b.GetUniqueLoadID(), def = b.def.defName, x = b.Position.x, z = b.Position.z, output = b.TryGetComp<CompPowerPlant>().PowerOutput,
                     fuel = b.TryGetComp<CompRefuelable>()?.Fuel ?? -1f }).ToList();
             return new { success = true, traps = traps.Count, trapIds, trapCells = cells, sprung, colonistsOnTraps, colonists, hostiles, predator, hostileBuilding, walls,
-                turrets = Turrets(map), conduits, generators, tick = Find.TickManager.TicksGame, paused = Find.TickManager.Paused };
+                turrets = Turrets(map), conduits, generators, threat = Threat(map), tick = Find.TickManager.TicksGame, paused = Find.TickManager.Paused };
+        }
+
+        // The wealth split and raid points the game itself computes (#395),
+        // read the same way the typed colony facts read them, so a case can
+        // hold the projected threat section to the native figure on a paused
+        // map at one tick.
+        private static object Threat(Map map)
+        {
+            var wealth = map.wealthWatcher;
+            return new { wealthItems = wealth.WealthItems, wealthBuildings = wealth.WealthBuildings, wealthPawns = wealth.WealthPawns, wealthTotal = wealth.WealthTotal,
+                storytellerWealth = map.PlayerWealthForStoryteller, raidPoints = StorytellerUtility.DefaultThreatPointsNow(map),
+                adaptationFactor = Find.StoryWatcher.watcherAdaptation.TotalThreatPointsFactor, difficultyThreatScale = Find.Storyteller.difficulty.threatScale };
         }
 
         // Building_TrapRearmable keeps its armed state private; a trap whose
