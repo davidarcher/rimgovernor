@@ -64,7 +64,7 @@ func TestNativeTemperatureMethodsReplay(t *testing.T) {
 		planning := temperatureRooms(rooms.GetObserved(), facts.Facts.Sleeping)
 		facts.Facts.SleepingMin, facts.Facts.SleepingMax = policy.TemperatureRange(planning)
 		latches := policy.RoutineLatches{Cold: evidence.Mode == "cold", Hot: evidence.Mode == "hot"}
-		proposal, err := policy.SelectTemperatureMethod(planning, policy.DefaultRoutinePolicy(), latches)
+		proposal, err := policy.SelectTemperatureMethod(planning, policy.TemperatureCooling{}, policy.DefaultRoutinePolicy(), latches)
 		if err != nil {
 			t.Fatal(err)
 		}

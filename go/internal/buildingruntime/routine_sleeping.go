@@ -283,7 +283,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		definitions = append(append([]string{"Wall", "Door"}, policy.PowerFamilyDefinitions()...), pendingConsumers...)
 	}
 	if r.goal == policy.EnsureTemperatureSafety {
-		definitions = []string{"Campfire", "PassiveCooler"}
+		definitions = temperatureDefinitions
 	}
 	if r.goal == policy.MaintainRefrigeration {
 		definitions = []string{"Cooler"}
@@ -779,6 +779,9 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 	}
 	if r.refrigeration != nil {
 		return r.previewRefrigeration(call, snapshot, facts, protected, check)
+	}
+	if r.temperature != nil && r.temperature.Method == policy.TemperatureCoolPowered {
+		return r.previewCoolerWall(call, snapshot, facts, protected, check, r.temperature.Cell, r.temperature.Rotation)
 	}
 	if r.lighting != nil {
 		return r.previewLighting(call, snapshot, facts, protected, check)

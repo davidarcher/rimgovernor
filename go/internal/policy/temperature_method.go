@@ -19,6 +19,11 @@ const (
 	TemperatureWait          TemperatureMethod = "waiting_for_native_temperature"
 	TemperatureHeat          TemperatureMethod = "Campfire"
 	TemperatureCool          TemperatureMethod = "PassiveCooler"
+	// TemperatureCoolPowered places one powered Cooler through a vented
+	// wall of the hottest sleeping room, its cold side facing the room;
+	// it outranks the passive cooler when the research is done and a
+	// power network has the spare capacity to run it (#406).
+	TemperatureCoolPowered TemperatureMethod = "Cooler"
 )
 
 type TemperatureProposal struct {
@@ -26,6 +31,110 @@ type TemperatureProposal struct {
 	Key    domain.MethodID
 	Room   string
 	Cells  []domain.Cell
+	// Cell and Rotation are the exact wall cell and facing of a powered
+	// cooler (TemperatureCoolPowered); the passive methods search Cells.
+	Cell     domain.Cell
+	Rotation domain.Rotation
+}
+
+// TemperatureCooling is the evidence the powered cooler method reads beside
+// the room census: the Cooler planning definition's availability and draw,
+// the colony power topology and the site cells the wall search walks. The
+// zero value (everything unknown) confines the method to passive coolers.
+type TemperatureCooling struct {
+	CoolerAvailable domain.Fact[bool]
+	CoolerDrawW     domain.Fact[float64]
+	Power           domain.Fact[PowerTopology]
+	Cells           []SiteCell
+}
+
+// SpareW is the largest surplus of nominal producer capacity over consumer
+// demand across the topology's connected power networks, the same
+// capacity-versus-demand reading the power family sizes its budget by.
+// Unknown when any connected building's draw or network is unknown, or when
+// no network has a producer.
+func (t PowerTopology) SpareW() domain.Fact[float64] {
+	type net struct{ capacity, demand float64 }
+	nets := map[string]*net{}
+	for _, b := range t.Buildings {
+		connected, ck := b.Connected.Value()
+		if !ck {
+			return domain.Unknown[float64]()
+		}
+		if !connected {
+			continue
+		}
+		w, wk := b.BaseW.Value()
+		id, nk := b.Network.Value()
+		if !wk || !nk {
+			return domain.Unknown[float64]()
+		}
+		n := nets[id]
+		if n == nil {
+			n = &net{}
+			nets[id] = n
+		}
+		if w > 0 {
+			n.capacity += w
+		} else {
+			n.demand -= w
+		}
+	}
+	spare, have := 0.0, false
+	for _, n := range nets {
+		if n.capacity <= 0 {
+			continue
+		}
+		if !have || n.capacity-n.demand > spare {
+			spare = n.capacity - n.demand
+		}
+		have = true
+	}
+	if !have {
+		return domain.Unknown[float64]()
+	}
+	return domain.Known(spare)
+}
+
+// wallCoolerBeside reports a Cooler in the power census standing on a cell
+// four-adjacent to one of the room's cells: a cooler placed through the
+// room's wall.
+func (c TemperatureCooling) wallCoolerBeside(room Room) bool {
+	topology, known := c.Power.Value()
+	if !known {
+		return false
+	}
+	inside := map[domain.Cell]bool{}
+	for _, cell := range room.Cells {
+		inside[cell] = true
+	}
+	for _, b := range topology.Buildings {
+		if b.Definition != "Cooler" {
+			continue
+		}
+		for _, rotation := range []domain.Rotation{domain.North, domain.East, domain.South, domain.West} {
+			if inside[step(b.Cell, facing(rotation), 1)] {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// poweredCoolerReady reports whether a powered cooler can be proposed at
+// all: research finished, draw known and a network with that much spare.
+func (c TemperatureCooling) poweredCoolerReady() bool {
+	available, ak := c.CoolerAvailable.Value()
+	draw, dk := c.CoolerDrawW.Value()
+	topology, tk := c.Power.Value()
+	if !ak || !available || !dk || !tk {
+		return false
+	}
+	if blackout, known := topology.Blackout.Value(); known && blackout {
+		return false
+	}
+	spare, sk := topology.SpareW().Value()
+	return sk && spare >= draw
 }
 
 func (v RoomObservation) Validate() error {
@@ -133,10 +242,16 @@ func TemperatureRange(fact domain.Fact[RoomObservation]) (minimum, maximum domai
 }
 
 // SelectTemperatureMethod reuses existing thermal facilities before proposing
-// one ordinary campfire or passive cooler. Native temperature proves recovery.
-func SelectTemperatureMethod(fact domain.Fact[RoomObservation], limits RoutinePolicy, latches RoutineLatches) (TemperatureProposal, error) {
+// one ordinary campfire, or one cooler for the hottest sleeping room: a
+// powered Cooler through a vented wall when cooling reports the research
+// done and a network with spare capacity for its draw, otherwise a passive
+// cooler inside the room. Native temperature proves recovery.
+func SelectTemperatureMethod(fact domain.Fact[RoomObservation], cooling TemperatureCooling, limits RoutinePolicy, latches RoutineLatches) (TemperatureProposal, error) {
 	if err := limits.Validate(); err != nil {
 		return TemperatureProposal{}, err
+	}
+	if len(cooling.Cells) > 65536 {
+		return TemperatureProposal{}, errors.New("temperature site census exceeds bound")
 	}
 	v, known := fact.Value()
 	if !known {
@@ -157,9 +272,10 @@ func SelectTemperatureMethod(fact domain.Fact[RoomObservation], limits RoutinePo
 		wanted[id] = true
 	}
 	type candidate struct {
-		room   Room
-		bed    string
-		method TemperatureMethod
+		room        Room
+		bed         string
+		method      TemperatureMethod
+		temperature float64
 	}
 	var choices []candidate
 	unknown, missing := false, false
@@ -193,15 +309,38 @@ func SelectTemperatureMethod(fact domain.Fact[RoomObservation], limits RoutinePo
 			method = TemperatureCool
 		}
 		if method != TemperatureNoMethod {
-			choices = append(choices, candidate{room, beds[0], method})
+			choices = append(choices, candidate{room, beds[0], method, temperature})
 		}
 	}
+	// Heat before cool; the coldest room first among the cold, the hottest
+	// first among the hot; the lowest bed breaks ties.
 	sort.Slice(choices, func(i, j int) bool {
-		if choices[i].method != choices[j].method {
-			return choices[i].method == TemperatureHeat
+		a, b := choices[i], choices[j]
+		if a.method != b.method {
+			return a.method == TemperatureHeat
 		}
-		return choices[i].bed < choices[j].bed
+		if a.temperature != b.temperature {
+			if a.method == TemperatureHeat {
+				return a.temperature < b.temperature
+			}
+			return a.temperature > b.temperature
+		}
+		return a.bed < b.bed
 	})
+	powered := cooling.poweredCoolerReady()
+	var cellRoom map[domain.Cell]string
+	var cells map[domain.Cell]SiteCell
+	if powered {
+		cellRoom, cells = map[domain.Cell]string{}, map[domain.Cell]SiteCell{}
+		for _, room := range v.Rooms {
+			for _, c := range room.Cells {
+				cellRoom[c] = room.ID
+			}
+		}
+		for _, c := range cooling.Cells {
+			cells[c.Cell] = c
+		}
+	}
 	for _, choice := range choices {
 		contents, known := choice.room.Contents.Value()
 		if !known {
@@ -219,8 +358,23 @@ func SelectTemperatureMethod(fact domain.Fact[RoomObservation], limits RoutinePo
 				exists = exists || q.Resource == "PassiveCooler" || q.Resource == "Cooler"
 			}
 		}
+		// A wall cooler stands in the room's boundary, outside its cell
+		// set and its contents: the power census's Cooler rows beside
+		// the room are the facility the room already has.
+		if choice.method == TemperatureCool && !exists {
+			exists = cooling.wallCoolerBeside(choice.room)
+		}
 		if exists {
 			continue
+		}
+		if choice.method == TemperatureCool && powered {
+			// A vented wall cell hosts the powered cooler; a room with no
+			// such wall (rock-bound, or ringed by other rooms) keeps the
+			// passive cooler.
+			if cell, rotation, ok := ventedWall(choice.room, cellRoom, cells, map[domain.Cell]bool{}); ok {
+				digest := sha256.Sum256([]byte(choice.bed + "/" + string(TemperatureCoolPowered)))
+				return TemperatureProposal{Method: TemperatureCoolPowered, Key: domain.MethodID(fmt.Sprintf("thermal-%x", digest[:12])), Room: choice.room.ID, Cells: append([]domain.Cell{}, choice.room.Cells...), Cell: cell, Rotation: rotation}, nil
+			}
 		}
 		digest := sha256.Sum256([]byte(choice.bed + "/" + string(choice.method)))
 		return TemperatureProposal{Method: choice.method, Key: domain.MethodID(fmt.Sprintf("thermal-%x", digest[:12])), Room: choice.room.ID, Cells: append([]domain.Cell{}, choice.room.Cells...)}, nil

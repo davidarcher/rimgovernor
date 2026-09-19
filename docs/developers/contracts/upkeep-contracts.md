@@ -492,6 +492,24 @@ in turn holds on out-of-fuel or broken producers (refuelling and repair are
 ordinary pawn work) and sizes a draining network by its daily energy budget
 ([power contracts](power-contracts.md)).
 
+`EnsureTemperatureSafety` reuses the same wall search for a hot sleeping
+room ([#406](https://github.com/davidarcher/rimgovernor/issues/406)). Hot
+rooms are served hottest first (cold rooms coldest first); a room with no
+thermal facility of its own gets one powered `Cooler` through the
+lowest-sorted vented wall cell, cold side in, when native `Cooler`
+availability is known true and a connected power network's nominal producer
+capacity exceeds its demand by the cooler's declared draw
+(`policy.TemperatureCooling`, `PowerTopology.SpareW`); a known solar flare,
+unfinished research, unknown power facts or a room with no vented wall keep
+the passive cooler inside the room. A `Cooler` the power census places on a
+cell beside the room counts as that room's facility (wall buildings are
+outside the room's cells and contents), so the room then waits on native
+cooling rather than gaining a second unit. The cooler's setpoint is the
+native default (21 C), inside the sleeping band; the temperature family patches
+no setpoints. Its draw reaches `EnsureBasicPower`'s budget as every other
+consumer's does: as pending demand while the plan is open, as measured demand
+once built.
+
 A solar flare switches every powered building off for hours, so neither goal
 answers it with a build: while a `SolarFlare` condition with a native
 remaining-duration read is observed (`policy.SolarFlareHold`) the review keeps

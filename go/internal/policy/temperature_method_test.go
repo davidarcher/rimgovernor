@@ -21,7 +21,7 @@ func TestTemperatureMethodThresholdsAndHysteresis(t *testing.T) {
 		{32, false, false, TemperatureNoMethod}, {32.1, false, false, TemperatureCool}, {28.1, false, true, TemperatureCool}, {28, false, true, TemperatureNoMethod},
 	} {
 		v := RoomObservation{EligibleBeds: domain.Known([]string{"bed"}), Rooms: []Room{thermalRoom("room", "bed", tc.temp, 2)}}
-		got, err := SelectTemperatureMethod(domain.Known(v), DefaultRoutinePolicy(), RoutineLatches{Cold: tc.cold, Hot: tc.hot})
+		got, err := SelectTemperatureMethod(domain.Known(v), TemperatureCooling{}, DefaultRoutinePolicy(), RoutineLatches{Cold: tc.cold, Hot: tc.hot})
 		if err != nil || got.Method != tc.want {
 			t.Fatalf("%+v: %+v %v", tc, got, err)
 		}
@@ -30,12 +30,12 @@ func TestTemperatureMethodThresholdsAndHysteresis(t *testing.T) {
 
 func TestTemperatureMethodTargetsPlayerSleepingRoomAndReusesFacilities(t *testing.T) {
 	v := RoomObservation{EligibleBeds: domain.Known([]string{"hot-bed", "cold-bed"}), Rooms: []Room{thermalRoom("hot", "hot-bed", 36, 1), thermalRoom("cold", "cold-bed", 5, 2), thermalRoom("enemy", "enemy-bed", -30, 3)}}
-	first, err := SelectTemperatureMethod(domain.Known(v), DefaultRoutinePolicy(), RoutineLatches{})
+	first, err := SelectTemperatureMethod(domain.Known(v), TemperatureCooling{}, DefaultRoutinePolicy(), RoutineLatches{})
 	if err != nil || first.Method != TemperatureHeat || first.Room != "cold" || len(first.Cells) != 1 || first.Cells[0].X != 2 {
 		t.Fatal(first, err)
 	}
 	v.Rooms[1].ID = "regenerated-native-room"
-	next, err := SelectTemperatureMethod(domain.Known(v), DefaultRoutinePolicy(), RoutineLatches{})
+	next, err := SelectTemperatureMethod(domain.Known(v), TemperatureCooling{}, DefaultRoutinePolicy(), RoutineLatches{})
 	if err != nil || next.Key != first.Key {
 		t.Fatal("room rebuild changed durable method identity", next, err)
 	}
@@ -45,14 +45,14 @@ func TestTemperatureMethodTargetsPlayerSleepingRoomAndReusesFacilities(t *testin
 	}
 	for _, def := range []Resource{"Campfire", "Heater"} {
 		v.Rooms[1].Contents = domain.Known([]Amount{{Resource: def, Count: 1}})
-		got, err := SelectTemperatureMethod(domain.Known(v), DefaultRoutinePolicy(), RoutineLatches{})
+		got, err := SelectTemperatureMethod(domain.Known(v), TemperatureCooling{}, DefaultRoutinePolicy(), RoutineLatches{})
 		if err != nil || got.Method != TemperatureCool || got.Room != "hot" {
 			t.Fatal(got, err)
 		}
 	}
 	for _, def := range []Resource{"PassiveCooler", "Cooler"} {
 		v.Rooms[0].Contents = domain.Known([]Amount{{Resource: def, Count: 1}})
-		got, err := SelectTemperatureMethod(domain.Known(v), DefaultRoutinePolicy(), RoutineLatches{})
+		got, err := SelectTemperatureMethod(domain.Known(v), TemperatureCooling{}, DefaultRoutinePolicy(), RoutineLatches{})
 		if err != nil || got.Method != TemperatureWait {
 			t.Fatal(got, err)
 		}
@@ -64,7 +64,7 @@ func TestTemperatureMethodTargetsPlayerSleepingRoomAndReusesFacilities(t *testin
 		}
 	}
 	v.Rooms[0].Temperature, v.Rooms[1].Temperature = domain.Known(24.0), domain.Known(18.0)
-	got, err := SelectTemperatureMethod(domain.Known(v), DefaultRoutinePolicy(), RoutineLatches{Cold: true, Hot: true})
+	got, err := SelectTemperatureMethod(domain.Known(v), TemperatureCooling{}, DefaultRoutinePolicy(), RoutineLatches{Cold: true, Hot: true})
 	if err != nil || got.Method != TemperatureNoMethod {
 		t.Fatal(got, err)
 	}
@@ -110,7 +110,7 @@ func TestTemperatureUnknownAndInvalidEvidence(t *testing.T) {
 			if mode == "unknown" {
 				fact = domain.Unknown[RoomObservation]()
 			}
-			got, err := SelectTemperatureMethod(fact, DefaultRoutinePolicy(), RoutineLatches{})
+			got, err := SelectTemperatureMethod(fact, TemperatureCooling{}, DefaultRoutinePolicy(), RoutineLatches{})
 			if invalid {
 				if err == nil {
 					t.Fatal("accepted invalid evidence")

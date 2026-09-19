@@ -45,12 +45,20 @@ func (r *RoutineReviewer) methodEnabled(goal policy.GoalID) bool {
 }
 
 func (r *RoutineBuildingPlanner) selectTemperature(facts observation.ColonyProjection, latches policy.RoutineLatches) (*RoutineBuildingPlanner, RoutineBuildingReason, error) {
-	proposal, err := policy.SelectTemperatureMethod(facts.Rooms, r.reviewer.policy, latches)
+	cooling := temperatureCooling(facts)
+	proposal, err := policy.SelectTemperatureMethod(facts.Rooms, cooling, r.reviewer.policy, latches)
 	if err != nil {
 		return nil, "", err
 	}
+	if clockDebug() && (latches.Hot || proposal.Method == policy.TemperatureCoolPowered) {
+		spare := domain.Unknown[float64]()
+		if topology, known := cooling.Power.Value(); known {
+			spare = topology.SpareW()
+		}
+		clockSchedulerLog("temperature: proposal=%s room=%s coolerAvailable=%+v draw=%+v spare=%+v cells=%d", proposal.Method, proposal.Room, cooling.CoolerAvailable, cooling.CoolerDrawW, spare, len(cooling.Cells))
+	}
 	switch proposal.Method {
-	case policy.TemperatureHeat, policy.TemperatureCool:
+	case policy.TemperatureHeat, policy.TemperatureCool, policy.TemperatureCoolPowered:
 		resolved := *r
 		resolved.temperature = &proposal
 		resolved.definition, resolved.environment = string(proposal.Method), policy.PlacementIndoors
@@ -63,6 +71,24 @@ func (r *RoutineBuildingPlanner) selectTemperature(facts observation.ColonyProje
 		return nil, RoutineBuildingReason(proposal.Method), nil
 	}
 }
+
+// temperatureCooling assembles the powered cooler evidence from the rooms
+// reading: the Cooler planning definition (availability, draw), the colony
+// power topology and the site cells the vented-wall search walks.
+func temperatureCooling(facts observation.ColonyProjection) policy.TemperatureCooling {
+	cooling := policy.TemperatureCooling{CoolerAvailable: domain.Unknown[bool](), CoolerDrawW: domain.Unknown[float64](), Power: facts.PowerPlanning, Cells: facts.Cells}
+	for _, d := range facts.Definitions {
+		if d.Name == "Cooler" {
+			cooling.CoolerAvailable, cooling.CoolerDrawW = d.Available, d.PowerW
+		}
+	}
+	return cooling
+}
+
+// temperatureDefinitions are the planning definitions the temperature
+// planner reads: every method it can place, so availability and draw are
+// known before one is chosen.
+var temperatureDefinitions = []string{"Campfire", "PassiveCooler", "Cooler"}
 
 // Completed construction lends bounded ordinary refueling and heat-exchange
 // time. Neither the construction receipt nor this allowance establishes safety.
@@ -88,7 +114,7 @@ func temperatureNativeWorkTicks(plan store.PlanState, current domain.GenerationS
 	}
 	progress := plan.Progress[0]
 	building, ok := progress.Action().Building()
-	if !ok || building.Definition() != "Campfire" && building.Definition() != "PassiveCooler" {
+	if !ok || building.Definition() != "Campfire" && building.Definition() != "PassiveCooler" && building.Definition() != "Cooler" {
 		return 0
 	}
 	// Native order-generation drift (authority reacquired since the build)

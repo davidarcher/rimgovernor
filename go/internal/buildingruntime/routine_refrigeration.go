@@ -163,17 +163,23 @@ func refrigerationNativeWorkTicks(plan store.PlanState, current domain.Generatio
 // previewRefrigeration previews the one exact wall cell and rotation the
 // policy chose; unlike the placement search, there is no fallback cell.
 func (r *RoutineBuildingPlanner) previewRefrigeration(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, check func() error) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, error) {
-	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
 	if r.refrigeration == nil || r.refrigeration.Method != policy.RefrigerationBuild {
-		return nil, stock, "", ErrControl
+		return nil, policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}, "", ErrControl
 	}
-	cell := r.refrigeration.Cell
+	return r.previewCoolerWall(ctx, snapshot, facts, protected, check, r.refrigeration.Cell, r.refrigeration.Rotation)
+}
+
+// previewCoolerWall previews one Cooler on the exact wall cell and rotation
+// a policy chose (the refrigeration family for a food store, the
+// temperature family for a sleeping room); there is no fallback cell.
+func (r *RoutineBuildingPlanner) previewCoolerWall(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, check func() error, cell domain.Cell, rotation domain.Rotation) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, error) {
+	stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
 	for _, c := range protected {
 		if c == cell {
 			return nil, stock, BuildingMethodExistingWork, nil
 		}
 	}
-	building, err := domain.NewBuilding("Cooler", cell, r.refrigeration.Rotation, "")
+	building, err := domain.NewBuilding("Cooler", cell, rotation, "")
 	if err != nil {
 		return nil, stock, "", err
 	}
@@ -206,7 +212,7 @@ func (r *RoutineBuildingPlanner) previewRefrigeration(ctx context.Context, snaps
 		return nil, stock, "", err
 	}
 	if clockDebug() {
-		clockSchedulerLog("refrigeration: preview costs=%+v stock=%+v", p.Costs, stock.Values)
+		clockSchedulerLog("%s: cooler preview costs=%+v stock=%+v", r.goal, p.Costs, stock.Values)
 	}
 	return []policy.Preview{p}, stock, "", nil
 }
