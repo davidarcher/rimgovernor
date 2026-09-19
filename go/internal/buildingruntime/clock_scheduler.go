@@ -16,6 +16,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
+	"github.com/davidarcher/RimGovernor/go/internal/facts"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
@@ -56,6 +57,11 @@ type ClockSchedulerConfig struct {
 	// Facts is the cross-step fact cache the scheduler's steps fill and the
 	// worker's writes discard (WorkerConfig.Facts); nil makes a private one.
 	Facts *bridge.FactCache
+	// Store is the decoded state store the steps fill beside Facts (#354):
+	// each review's census sections with the tick they describe, dropped
+	// by the same typed events. nil makes a private one; the HTTP API
+	// reads the shared one.
+	Store *facts.Store
 	// Routine is reviewed only after owned clock obligations have drained.
 	Routine                          *RoutineReviewer
 	FoodAcquisition, WoodAcquisition *RoutineAcquisitionPlanner
@@ -465,7 +471,11 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, err
 	}
 	config.Profile = inbox.Profile
-	return &ClockScheduler{player: player, session: session, native: native, config: config, clock: clock, pollGate: make(chan struct{}, 1), renewGate: make(chan struct{}, 1), facts: newClockFacts(config.Facts), running: new(atomic.Bool), latched: newClockLatched()}, nil
+	scheduler := &ClockScheduler{player: player, session: session, native: native, config: config, clock: clock, pollGate: make(chan struct{}, 1), renewGate: make(chan struct{}, 1), facts: newClockFacts(config.Facts, config.Store), running: new(atomic.Bool), latched: newClockLatched()}
+	if config.Routine != nil {
+		config.Routine.store = scheduler.facts.store
+	}
+	return scheduler, nil
 }
 
 // clockDebug reports whether the service logger keeps debug records (serve
@@ -825,6 +835,11 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	if err != nil {
 		return out, err
 	}
+	// The admission's emergency census is the freshest the step holds:
+	// file it so the store's section is the one the window was admitted
+	// against, not the review's earlier read of the same bundle.
+	colonistsComplete, colonistsKnown := emergency.Facts.ColonistsComplete.Value()
+	facts.Put(s.facts.store, factsScope(loaded.Context), facts.Emergency, facts.Held[policy.EmergencyFacts]{Value: emergency.Facts, AsOf: emergency.Context.GetTick(), Complete: colonistsKnown && colonistsComplete, Source: "rimgovernor/observations_read_bundle"})
 	review, err := s.player.journal.ReadClockReview(call, s.config.Profile)
 	if err != nil {
 		return out, err
@@ -1108,6 +1123,12 @@ func (s *ClockScheduler) bundleRequest(reason StepReason) *o.BundleRequest {
 		request.ColonyFacts, request.Population, request.Research, request.ColonistPawns = proto.Bool(true), proto.Bool(true), proto.Bool(true), proto.Bool(true)
 	}
 	return request
+}
+
+// factsScope is the store scope an observation context establishes: the
+// load token and native generation FactCache keys its rows by.
+func factsScope(context *c.ObservationContext) facts.Scope {
+	return facts.Scope{Load: context.GetIdentity().GetLoadToken(), Generation: context.GetNativeGeneration()}
 }
 
 // plannerRefusalWait is stockWaitTicks when any isolated planner failure of

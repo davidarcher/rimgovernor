@@ -6,6 +6,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	factsstore "github.com/davidarcher/RimGovernor/go/internal/facts"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	"google.golang.org/protobuf/proto"
@@ -23,7 +24,7 @@ func clockFactsOutcome(action string) *k.Event {
 // ObservationInvalidated event drops exactly the families it names, and an
 // unknown family is treated as everything rather than ignored.
 func TestClockPageInvalidation(t *testing.T) {
-	facts := newClockFacts(nil)
+	facts := newClockFacts(nil, nil)
 	facts.remember([]clockWorkItem{{Action: "build", Kind: domain.BuildingAction, Attempt: 1}, {Action: "unarmed", Kind: domain.HaulAction}})
 	cases := []struct {
 		name     string
@@ -49,21 +50,35 @@ func TestClockPageInvalidation(t *testing.T) {
 			t.Fatalf("%s: all=%v families=%v", tc.name, all, families)
 		}
 	}
-	// apply drives the parent cache: after a construction outcome the
-	// research row survives and the rooms row is gone.
+	// apply drives the parent cache and the state store alike: after a
+	// construction outcome the research section survives and the rooms
+	// section is gone; an authority change empties the store.
 	facts.cache.Invalidate()
+	scope := factsstore.Scope{Load: "l", Generation: 1}
+	factsstore.Put(facts.store, scope, factsstore.Research, factsstore.Held[int]{AsOf: 1, Source: "r"})
+	factsstore.Put(facts.store, scope, factsstore.Rooms, factsstore.Held[int]{AsOf: 1, Source: "r"})
 	before := facts.cache.Stats().Invalidations
 	facts.apply(cases[1].page)
 	facts.apply(cases[0].page)
 	if got := facts.cache.Stats().Invalidations; got != before+1 {
 		t.Fatalf("apply invalidated %d times", got-before)
 	}
+	if _, ok := factsstore.Get[int](facts.store, factsstore.Rooms); ok {
+		t.Fatal("rooms survived a construction outcome")
+	}
+	if _, ok := factsstore.Get[int](facts.store, factsstore.Research); !ok {
+		t.Fatal("research dropped by a construction outcome")
+	}
+	facts.apply(cases[3].page)
+	if facts.store.Len() != 0 {
+		t.Fatal("an authority change must empty the store")
+	}
 }
 
 // TestClockFactsRememberBounded: the watched-kind memory never grows past
 // its bound; overflow clears it, which only broadens later invalidation.
 func TestClockFactsRememberBounded(t *testing.T) {
-	facts := newClockFacts(nil)
+	facts := newClockFacts(nil, nil)
 	for i := 0; i < clockFactsWatchedMax+5; i++ {
 		facts.remember([]clockWorkItem{{Action: domain.ActionID(string(rune('a'+i%26)) + string(rune('a'+i/26))), Kind: domain.BuildingAction, Attempt: 1}})
 	}

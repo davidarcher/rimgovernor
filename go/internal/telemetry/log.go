@@ -255,7 +255,7 @@ func jsonValue(v slog.Value) any {
 			return x.Error()
 		case fmt.Stringer:
 			return x.String()
-		case int, int32, uint32, float32, []string:
+		case int, int32, uint32, float32, []string, map[string]int64:
 			return x
 		}
 		return fmt.Sprintf("%+v", v.Any())

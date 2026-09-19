@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/facts"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
@@ -103,7 +105,8 @@ func TestRoutinesRouteUnavailableWithoutProvider(t *testing.T) {
 func TestRoutinesRouteReportsComposedFamiliesAndReviewCursor(t *testing.T) {
 	s, err := New(Config{ReadTimeout: time.Second, ShutdownTimeout: time.Second, MaxResponseBytes: 1 << 20,
 		Routines: routineStatusFunc(func(context.Context) (RoutineStatus, error) {
-			return RoutineStatus{ReviewsEnabled: true, MethodsEnabled: true, ActiveFamilies: []string{"routine-sleeping-plans", "routine-bill-plans"}, LastReviewTick: domain.Tick(42), LastReviewKnown: true}, nil
+			return RoutineStatus{ReviewsEnabled: true, MethodsEnabled: true, ActiveFamilies: []string{"routine-sleeping-plans", "routine-bill-plans"}, LastReviewTick: domain.Tick(42), LastReviewKnown: true,
+				Sections: []facts.Status{{Section: facts.Colony, Family: bridge.FactColony, AsOf: 40, Complete: true, Source: "rimgovernor/observations_read_colony_facts", StoredAt: time.Date(2026, 9, 19, 10, 0, 0, 0, time.UTC)}}}, nil
 		})}, snapshotFunc(func(context.Context) (Snapshot, error) { return Snapshot{}, nil }), planFunc(unavailablePlan))
 	if err != nil {
 		t.Fatal(err)
@@ -117,6 +120,10 @@ func TestRoutinesRouteReportsComposedFamiliesAndReviewCursor(t *testing.T) {
 	}
 	if status != 200 || !got.ReviewsEnabled || !got.MethodsEnabled || len(got.ActiveFamilies) != 2 || got.LastReviewTick == nil || *got.LastReviewTick != 42 {
 		t.Fatalf("routine status: %s", body)
+	}
+	// The state store's sections ride along with the tick each describes (#354).
+	if len(got.Sections) != 1 || got.Sections[0] != (routineSectionDTO{Section: "colony", Family: "colony", AsOf: 40, Complete: true, Source: "rimgovernor/observations_read_colony_facts", StoredAt: "2026-09-19T10:00:00Z"}) {
+		t.Fatalf("routine sections: %s", body)
 	}
 }
 func TestRoutinesRouteRejectsMutationAndUnknownReviewCursor(t *testing.T) {

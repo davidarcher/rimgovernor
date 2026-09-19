@@ -416,6 +416,22 @@ tick the same way when the row was stored within one refresh interval
 (`FactCache.Context` reports `StoredAt`), so a stalled scheduler never
 passes off an old tick as current; otherwise it reads natively.
 
+Beside the cache the scheduler keeps one `facts.Store` (`go/internal/facts`,
+#354): decoded state per section (`colony`, `planning_cells`, `population`,
+`research`, `pawns`, `emergency`, `rooms`, `zones`, `buildings`), each held
+with the tick its reply described (`AsOf`), whether it covers the whole
+section and the method that produced it. Every routine review files the
+sections it decoded (`observation.RoutineReading.Sections`) and the
+admission's emergency census is filed from the step's bundle; the store
+follows the cache's scope rule (a new (load, generation) empties it) and
+the same typed-event discards, by family (`facts.Section.Family`). The
+`routine_review` event and the journal's review row record `as_of`
+(section -> tick), `as_of_min` and `as_of_spread` (max - min); the
+postmortem digest (`acceptance why`) prints a non-zero spread on the review
+line, and `/api/routines` lists the held sections (`sections`). The spread
+is zero while every section comes from one bundle; it is the drift
+indicator for the incremental reads that follow.
+
 ## Independent clock workers
 
 `ClockWorker` runs event polling, renewal and scheduling separately. Scheduling waits

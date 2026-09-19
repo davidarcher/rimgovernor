@@ -8,6 +8,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime"
+	"github.com/davidarcher/RimGovernor/go/internal/facts"
 	"github.com/davidarcher/RimGovernor/go/internal/httpapi"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -36,6 +37,9 @@ type serviceRoutineDiagnostics struct {
 	reviewsEnabled bool
 	methodsEnabled bool
 	families       []string
+	// sections is the state store the clock scheduler fills (#354); nil
+	// without clock control.
+	sections *facts.Store
 }
 
 func (s serviceRoutineDiagnostics) RoutineStatus(ctx context.Context) (httpapi.RoutineStatus, error) {
@@ -49,6 +53,7 @@ func (s serviceRoutineDiagnostics) RoutineStatus(ctx context.Context) (httpapi.R
 		ActiveFamilies:  s.families,
 		LastReviewTick:  review.Tick,
 		LastReviewKnown: review.Revision != 0,
+		Sections:        s.sections.Status(),
 	}
 	if review.Revision != 0 {
 		development := review.Development.State()
@@ -150,7 +155,7 @@ type serviceClockTimeoutConfig struct{ Poll, Renew, Step, PollWait, RunningPoll 
 
 // Session owns the attached worker's drain, including failed startup cleanup.
 // Starting these loops does not enable Player or acquire native authority.
-func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, journal *store.Store, sc serveConfig, timeouts serviceClockTimeoutConfig, wake *buildingruntime.WakeSignal, facts *bridge.FactCache) (*buildingruntime.ClockWorker, error) {
+func startServiceClock(ctx context.Context, player *buildingruntime.Player, session *buildingruntime.Session, reads serviceClockReads, journal *store.Store, sc serveConfig, timeouts serviceClockTimeoutConfig, wake *buildingruntime.WakeSignal, cache *bridge.FactCache, sections *facts.Store) (*buildingruntime.ClockWorker, error) {
 	profile, clockSpeed, routine := sc.profile, sc.clockSpeed, sc.routineReviews
 	sleeping, cooking, shelter, comfort, expansion, power, temperature := sc.routineSleepingPlans, sc.routineCookingPlans, sc.routineShelterPlans, sc.routineComfortPlans, sc.routineExpansionPlans, sc.routinePowerPlans, sc.routineTemperaturePlans
 	workshop := sc.routineWorkshopPlans && sc.resourceTargetsConfigured()
@@ -172,7 +177,8 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	haul, waste, moodRelief, naming, dialog, trade := sc.routineHaulPlans, sc.routineWastePlans, sc.routineMoodPlans, sc.routineNamingPlans, sc.routineDialogPlans, sc.routineTradePlans
 	blight := sc.routineBlightPlans
 	config := serviceClockConfig(profile, parseClockSpeed(clockSpeed), sc.clockTestAcceleration, uint32(sc.clockWindowTicks))
-	config.Facts = facts
+	config.Facts = cache
+	config.Store = sections
 	config.Worker = true
 	config.RoutineMethods = session.RoutineMethodsEnabled()
 	if caravanJourneyTracking {

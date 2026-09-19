@@ -57,7 +57,7 @@ func fixture(t *testing.T) string {
 	exec(`CREATE TABLE plans(id TEXT PRIMARY KEY, revision TEXT NOT NULL, retired INTEGER NOT NULL DEFAULT 0)`)
 	exec(`CREATE TABLE goal_methods(goal_id TEXT NOT NULL, epoch TEXT NOT NULL, method_id TEXT NOT NULL, plan_id TEXT NOT NULL)`)
 	exec(`CREATE TABLE transitions(sequence INTEGER PRIMARY KEY, action_id TEXT NOT NULL, payload BLOB NOT NULL)`)
-	review := map[string]any{"Revision": 7, "Tick": 1200, "Enabled": true, "Development": map[string]any{"Capacity": 2, "Rows": []map[string]any{
+	review := map[string]any{"Revision": 7, "Tick": 1200, "Enabled": true, "AsOf": map[string]int64{"colony": 1200, "planning_cells": 1200, "research": 1175}, "Development": map[string]any{"Capacity": 2, "Rows": []map[string]any{
 		{"Goal": "EnsureComfort", "Score": 10, "Selected": false, "Reason": "startup_survival"},
 		{"Goal": "EnsureFoodStorage", "Score": 50, "Selected": true, "Reason": ""},
 	}}}
@@ -131,6 +131,10 @@ func TestCollectReadsEachStepWithEvidence(t *testing.T) {
 	review := section(t, d, "routine review")
 	if !hasLine(review, "EnsureComfort not selected: startup_survival", "Development.Rows[EnsureComfort]") {
 		t.Fatalf("review = %+v", review)
+	}
+	// Sections read at different ticks show on the review line (#354).
+	if !hasLine(review, "review revision 7 at tick 1200 enabled=true; development capacity 2 committed=[] as_of_spread=25", "routine_review") {
+		t.Fatalf("as_of_spread missing: %+v", review)
 	}
 	if !hasLine(review, "goal routine-c-EnsureFoodStorage deficit/active priority 2 epoch 0: 0 live methods", "goals#routine-c-EnsureFoodStorage") {
 		t.Fatalf("selected goal without methods missing: %+v", review)

@@ -54,6 +54,9 @@ type RoutineReading struct {
 	TemperatureReceipt bridge.Result
 	PopulationReceipt  bridge.Result
 	QuestReceipt       bridge.Result
+	// Sections is the reading's decoded census, per section with the tick
+	// each reply described, for the step's facts.Store.
+	Sections RoutineSections
 }
 
 type routineBracket struct {
@@ -82,6 +85,9 @@ type routineBracket struct {
 	definitions       []string
 	extraDefinitions  []PlanningDefinition
 	definitionReceipt bridge.Result
+	// The tick each section's reply described, set on its own wave lane;
+	// zero where the source offered no read.
+	emergencyTick, pawnsTick, populationTick, researchTick, roomsTick int64
 }
 
 // ReadColonyFacts fans the routine census out inside ObserveColony's
@@ -130,9 +136,11 @@ func (s *routineBracket) ReadColonyFacts(ctx context.Context, id *c.Identity, pl
 		return nil, receipt, err
 	}
 	if rooms != nil {
+		s.roomsTick = rooms.GetContext().GetTick()
 		s.temperature = temperatureRooms(rooms, colonySleeping(colony.GetObserved()))
 	}
 	if pawns != nil {
+		s.pawnsTick = pawns.GetObserved().GetContext().GetTick()
 		s.armed = routineArmed(colony.GetObserved(), s.emergency.Facts, pawns.GetObserved())
 		s.work = routineWork(colony.GetObserved(), s.emergency.Facts, pawns.GetObserved())
 		s.medical = routineMedical(colony.GetObserved(), s.emergency.Facts, pawns.GetObserved())
@@ -161,6 +169,7 @@ func (s *routineBracket) readEmergency(ctx context.Context, id *c.Identity) (*o.
 	if !cachedColonyBoundary(identity, s.expected, bridge.FactEmergency) {
 		return nil, ErrChanged
 	}
+	s.emergencyTick = s.emergency.Context.GetTick()
 	complete, known := s.emergency.Facts.ColonistsComplete.Value()
 	if !known || !complete {
 		return nil, nil
@@ -208,6 +217,7 @@ func (s *routineBracket) readPopulation(ctx context.Context, id *c.Identity) err
 	if !cachedColonyBoundary(identity, s.expected, bridge.FactPawns) {
 		return ErrChanged
 	}
+	s.populationTick = s.population.Context.GetTick()
 	return nil
 }
 
@@ -253,7 +263,7 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 		reading.Projection.Facts.SleepingMin, reading.Projection.Facts.SleepingMax = policy.TemperatureRange(bracket.temperature)
 		reading.Projection.Facts.Comfort = hostedComfort(reading.Projection.Facts.Comfort, bracket.temperature)
 	}
-	return RoutineReading{ColonyReading: reading, Emergency: bracket.emergency.Facts, EmergencyReceipt: bracket.receipt, PawnReceipt: bracket.pawnReceipt, DefinitionReceipt: bracket.definitionReceipt, TemperatureReceipt: bracket.temperatureReceipt, PopulationReceipt: bracket.populationReceipt, ResearchReceipt: bracket.researchReceipt, QuestReceipt: bracket.questReceipt, TradersReceipt: bracket.tradersReceipt}, nil
+	return RoutineReading{ColonyReading: reading, Emergency: bracket.emergency.Facts, Sections: bracket.sections(reading.Projection), EmergencyReceipt: bracket.receipt, PawnReceipt: bracket.pawnReceipt, DefinitionReceipt: bracket.definitionReceipt, TemperatureReceipt: bracket.temperatureReceipt, PopulationReceipt: bracket.populationReceipt, ResearchReceipt: bracket.researchReceipt, QuestReceipt: bracket.questReceipt, TradersReceipt: bracket.tradersReceipt}, nil
 }
 
 // Request only project definitions absent from the default planning census. Both
@@ -360,6 +370,7 @@ func (s *routineBracket) readResearch(ctx context.Context, id *c.Identity) error
 	if !cachedColonyBoundary(identity, s.expected, bridge.FactResearch) {
 		return ErrChanged
 	}
+	s.researchTick = read.Context.GetTick()
 	facts := policy.ResearchFacts{Current: policy.ResearchProjectID(read.CurrentProject)}
 	if read.CurrentProject != "" {
 		facts.CurrentBenchMissing = policy.ResearchBenchNeeded(read.Projects[read.CurrentProject])

@@ -3,8 +3,10 @@ package httpapi
 import (
 	"context"
 	"sort"
+	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/facts"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
@@ -21,7 +23,9 @@ type RoutineProvider interface {
 // (composed default or explicit), regardless of whether it currently has
 // pending work; LastReviewTick is the durable review cursor's most recent
 // reviewed tick, known once at least one review has run. Development is the
-// ranking the last review recorded, nil until a review has run.
+// ranking the last review recorded, nil until a review has run. Sections
+// are the state store's held census sections with the tick each describes
+// (facts.Store, #354), so a live serve shows staleness per section.
 type RoutineStatus struct {
 	ReviewsEnabled  bool
 	MethodsEnabled  bool
@@ -29,6 +33,7 @@ type RoutineStatus struct {
 	LastReviewTick  domain.Tick
 	LastReviewKnown bool
 	Development     *policy.DevelopmentState
+	Sections        []facts.Status
 }
 
 type routineStatusDTO struct {
@@ -37,6 +42,19 @@ type routineStatusDTO struct {
 	ActiveFamilies []string               `json:"activeFamilies"`
 	LastReviewTick *domain.Tick           `json:"lastReviewTick"`
 	Development    *routineDevelopmentDTO `json:"development"`
+	Sections       []routineSectionDTO    `json:"sections"`
+}
+
+// routineSectionDTO is one held state section: the tick its value
+// describes, whether it covers the whole section, the native method that
+// produced it and when the store took it.
+type routineSectionDTO struct {
+	Section  string `json:"section"`
+	Family   string `json:"family"`
+	AsOf     int64  `json:"asOf"`
+	Complete bool   `json:"complete"`
+	Source   string `json:"source"`
+	StoredAt string `json:"storedAt"`
 }
 
 // routineDevelopmentDTO is the recorded development ranking: bounded
@@ -71,7 +89,10 @@ func routineStatus(v RoutineStatus) routineStatusDTO {
 	if families == nil {
 		families = []string{}
 	}
-	result := routineStatusDTO{ReviewsEnabled: v.ReviewsEnabled, MethodsEnabled: v.MethodsEnabled, ActiveFamilies: families}
+	result := routineStatusDTO{ReviewsEnabled: v.ReviewsEnabled, MethodsEnabled: v.MethodsEnabled, ActiveFamilies: families, Sections: []routineSectionDTO{}}
+	for _, section := range v.Sections {
+		result.Sections = append(result.Sections, routineSectionDTO{Section: string(section.Section), Family: string(section.Family), AsOf: section.AsOf, Complete: section.Complete, Source: section.Source, StoredAt: section.StoredAt.UTC().Format(time.RFC3339Nano)})
+	}
 	if v.LastReviewKnown {
 		tick := v.LastReviewTick
 		result.LastReviewTick = &tick

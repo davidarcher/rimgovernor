@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	factsstore "github.com/davidarcher/RimGovernor/go/internal/facts"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -145,5 +146,61 @@ func TestClockSchedulerBundleRequestsFamiliesForAReview(t *testing.T) {
 	s.lastFull = time.Time{}
 	if r := s.bundleRequest(StepReason{Cause: StepTimer}); !families(r) {
 		t.Fatal("timer under a running window with the full step due", r)
+	}
+}
+
+// TestClockSchedulerFilesReviewSectionsInTheStore: a reviewing step files
+// the census it decoded in the state store (#354), every section stamped
+// with the bundle's tick, and the review row records the same as-of map
+// with a zero spread: nothing drifts while everything comes from one
+// bundle. The admission's emergency census is filed from the bundle read
+// itself.
+func TestClockSchedulerFilesReviewSectionsInTheStore(t *testing.T) {
+	t.Parallel()
+	s, f := schedulerFixture(t)
+	schedulerRoutine(t, s, f)
+	if s.facts.store.Len() != 0 {
+		t.Fatal("store filled before any step")
+	}
+	first, err := s.Step(context.Background())
+	if err != nil || first.Routine == nil {
+		t.Fatal(first, err)
+	}
+	tick := int64(first.Routine.Review.Tick)
+	status := s.facts.store.Status()
+	held := map[factsstore.Section]factsstore.Status{}
+	for _, row := range status {
+		held[row.Section] = row
+	}
+	for _, section := range []factsstore.Section{factsstore.Colony, factsstore.PlanningCells, factsstore.Population, factsstore.Emergency} {
+		row, ok := held[section]
+		if !ok || row.AsOf != tick || row.Family != section.Family() {
+			t.Fatalf("%s = %+v ok=%v (tick %d)", section, row, ok, tick)
+		}
+	}
+	if held[factsstore.Emergency].Source != "rimgovernor/observations_read_bundle" {
+		t.Fatalf("emergency filed from %q, not the admission bundle", held[factsstore.Emergency].Source)
+	}
+	if _, ok := held[factsstore.Pawns]; ok {
+		t.Fatal("pawns filed under an unknown colonist census")
+	}
+	if scope := s.facts.store.Scope(); scope.Load != f.status.Context.GetIdentity().GetLoadToken() || scope.Generation != f.status.Context.GetNativeGeneration() {
+		t.Fatalf("scope = %+v", scope)
+	}
+	asOf := first.Routine.Review.AsOf
+	if len(asOf) != 4 {
+		t.Fatalf("review as_of = %v", asOf)
+	}
+	for section, at := range asOf {
+		if at != tick {
+			t.Fatalf("%s as of %d, bundle at %d", section, at, tick)
+		}
+	}
+	stored, err := s.player.journal.LoadRoutineReview(context.Background())
+	if err != nil || len(stored.AsOf) != 4 || stored.AsOf["colony"] != tick {
+		t.Fatalf("stored as_of = %v err=%v", stored.AsOf, err)
+	}
+	if _, spread := factsstore.Spread(s.facts.store.AsOf()); spread != 0 {
+		t.Fatalf("spread %d from one bundle", spread)
 	}
 }

@@ -477,6 +477,7 @@ func routineReview(ctx context.Context, db *sql.DB, note string) Section {
 			Revision    uint64
 			Tick        int64
 			Enabled     bool
+			AsOf        map[string]int64
 			Development struct {
 				Tick      int64
 				Capacity  int
@@ -494,7 +495,13 @@ func routineReview(ctx context.Context, db *sql.DB, note string) Section {
 		if err := json.Unmarshal(payload, &review); err != nil {
 			s.Note = "routine_review payload: " + err.Error()
 		} else {
-			s.Lines = append(s.Lines, Line{Text: fmt.Sprintf("review revision %d at tick %d enabled=%t; development capacity %d committed=%v", review.Revision, review.Tick, review.Enabled, review.Development.Capacity, review.Development.Committed), Evidence: "service.sqlite routine_review"})
+			text := fmt.Sprintf("review revision %d at tick %d enabled=%t; development capacity %d committed=%v", review.Revision, review.Tick, review.Enabled, review.Development.Capacity, review.Development.Committed)
+			// The census sections a review reads all describe one bundle's
+			// tick today; a non-zero spread says the review mixed ticks (#354).
+			if spread := asOfSpread(review.AsOf); spread != 0 {
+				text += fmt.Sprintf(" as_of_spread=%d", spread)
+			}
+			s.Lines = append(s.Lines, Line{Text: text, Evidence: "service.sqlite routine_review"})
 			for _, row := range review.Development.Rows {
 				development[row.Goal] = !row.Selected
 				if row.Selected {
@@ -556,6 +563,23 @@ func routineReview(ctx context.Context, db *sql.DB, note string) Section {
 		s.Lines = append(s.Lines, Line{Text: "no selected goal in deficit", Evidence: "service.sqlite goals"})
 	}
 	return s
+}
+
+// asOfSpread is max - min over the review's per-section ticks, zero when
+// the row carries none.
+func asOfSpread(asOf map[string]int64) int64 {
+	var min, max int64
+	first := true
+	for _, tick := range asOf {
+		if first || tick < min {
+			min = tick
+		}
+		if first || tick > max {
+			max = tick
+		}
+		first = false
+	}
+	return max - min
 }
 
 // needOf is the routine need a goal id names: routine goal ids are

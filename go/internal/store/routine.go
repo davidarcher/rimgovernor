@@ -38,6 +38,9 @@ type RoutineReview struct {
 	Comfort                policy.ComfortHistory
 	Goals                  []RoutineGoal
 	Development            RoutineDevelopment
+	// AsOf is the tick each census section the review read described,
+	// by facts.Section name (#354); absent before any review filed one.
+	AsOf map[string]int64 `json:",omitempty"`
 }
 
 type RoutineReviewRequest struct {
@@ -51,6 +54,8 @@ type RoutineReviewRequest struct {
 	// PartialPlanners: only the planners a wake named follow this review,
 	// so the next review must not count an unrun planner's goal idle.
 	PartialPlanners bool
+	// AsOf is the tick each census section described (RoutineReview.AsOf).
+	AsOf map[string]int64
 }
 
 type RoutineReviewResult struct {
@@ -381,6 +386,9 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	r := RoutineReview{Revision: previous.Revision + 1, WorkPreferenceRevision: request.WorkPreferenceRevision, Snapshot: b, Tick: request.Tick, Enabled: request.Enabled, Latches: needs.Latches}
 	r.MedicalCare = medical
 	r.StartingSupplies = supplies
+	if request.Enabled && len(request.AsOf) > 0 {
+		r.AsOf = request.AsOf
+	}
 	r.Comfort = comfort
 	r.Sleeping = sleeping
 	r.Mood = moodRecord(mood)

@@ -5,26 +5,32 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/facts"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 )
 
-// clockFacts is the scheduler's cross-step observation cache and the
-// bounded memory of which action kind each natively watched attempt
-// belongs to, so an OperationOutcome event can drop only the fact families
-// that kind of operation changes.
+// clockFacts is the scheduler's cross-step observation cache, the decoded
+// state store beside it (facts.Store, #354) and the bounded memory of
+// which action kind each natively watched attempt belongs to, so an
+// OperationOutcome event can drop only the fact families that kind of
+// operation changes. Every discard the cache takes, the store takes too.
 type clockFacts struct {
 	cache   *bridge.FactCache
+	store   *facts.Store
 	mu      sync.Mutex
 	watched map[domain.ActionID]domain.ActionKind
 }
 
 const clockFactsWatchedMax = 256
 
-func newClockFacts(cache *bridge.FactCache) *clockFacts {
+func newClockFacts(cache *bridge.FactCache, store *facts.Store) *clockFacts {
 	if cache == nil {
 		cache = bridge.NewFactCache()
 	}
-	return &clockFacts{cache: cache, watched: map[domain.ActionID]domain.ActionKind{}}
+	if store == nil {
+		store = facts.NewStore()
+	}
+	return &clockFacts{cache: cache, store: store, watched: map[domain.ActionID]domain.ActionKind{}}
 }
 
 // remember keeps the kind of every attempt a window arms; the map is
@@ -56,9 +62,11 @@ func (f *clockFacts) apply(page *k.EventsPage) bool {
 	all, families := clockPageInvalidation(page, f.kindOf)
 	if all {
 		f.cache.Invalidate()
+		f.store.InvalidateAll()
 		return true
 	}
 	f.cache.InvalidateFamilies(families...)
+	f.store.InvalidateFamily(families...)
 	return len(families) > 0
 }
 

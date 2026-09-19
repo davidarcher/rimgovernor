@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/facts"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
@@ -26,6 +27,9 @@ type RoutineReviewer struct {
 	// census retains the latest review reading for the planners of the same
 	// tick; see routineCensus.
 	census routineCensusStore
+	// store receives each review's decoded sections (#354); the scheduler
+	// that steps this reviewer sets it, a standalone reviewer files nowhere.
+	store *facts.Store
 }
 
 // seasonal is the configured policy with its food and wood targets widened
@@ -160,6 +164,9 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 		return store.RoutineReviewResult{}, err
 	}
 	r.census.retain(reading, r.roomsEnabled(), claims)
+	reading.Sections.File(r.store, facts.Scope{Load: string(expected.Load), Generation: uint64(native)})
+	asOf := reading.Sections.AsOf()
+	asOfMin, asOfSpread := facts.Spread(asOf)
 	emergency, err := policy.NewEmergencySnapshot(state.Snapshot, expected.Tick, reading.Emergency)
 	if err != nil {
 		clockSchedulerLog("routine.step: NewEmergencySnapshot err=%v", err)
@@ -243,13 +250,25 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	// Manual cancels ctx before waiting for this gate, then invalidates any
 	// completed review before returning. Never hold the local stop mutex for SQL.
 	reading.Projection.Facts.AvailableMethods = r.methods
-	result, err := p.journal.ReviewRoutine(ctx, store.RoutineReviewRequest{Revision: previous.Revision, WorkPreferenceRevision: preferences.Revision, Current: state.Snapshot, Tick: reading.Projection.Identity.Tick, Enabled: true, Policy: r.policy, Facts: reading.Projection.Facts, PartialPlanners: partial})
+	result, err := p.journal.ReviewRoutine(ctx, store.RoutineReviewRequest{Revision: previous.Revision, WorkPreferenceRevision: preferences.Revision, Current: state.Snapshot, Tick: reading.Projection.Identity.Tick, Enabled: true, Policy: r.policy, Facts: reading.Projection.Facts, PartialPlanners: partial, AsOf: routineAsOf(asOf)})
 	if err != nil {
 		clockSchedulerLog("routine.step: ReviewRoutine err=%v", err)
 	} else {
-		clockEvent(ctx, "routine", "routine_review", "routine reviewed", append([]any{"revision", result.Review.Revision, "previous_revision", previous.Revision, "tick", int64(reading.Projection.Identity.Tick), "goals", len(result.Goals), "emergency", routineEmergencyNames(result.Emergency)}, routineFoodAttrs(reading.Projection.Facts, r.seasonal(reading.Projection.Facts))...)...)
+		// as_of is the tick each census section described; as_of_spread
+		// (max - min) is zero while every section comes from one bundle
+		// and becomes visible the moment a section takes another source.
+		clockEvent(ctx, "routine", "routine_review", "routine reviewed", append([]any{"revision", result.Review.Revision, "previous_revision", previous.Revision, "tick", int64(reading.Projection.Identity.Tick), "goals", len(result.Goals), "emergency", routineEmergencyNames(result.Emergency), "as_of", routineAsOf(asOf), "as_of_min", asOfMin, "as_of_spread", asOfSpread}, routineFoodAttrs(reading.Projection.Facts, r.seasonal(reading.Projection.Facts))...)...)
 	}
 	return result, err
+}
+
+// routineAsOf keys the sections' ticks by name for the journal.
+func routineAsOf(asOf map[facts.Section]int64) map[string]int64 {
+	out := make(map[string]int64, len(asOf))
+	for section, tick := range asOf {
+		out[string(section)] = tick
+	}
+	return out
 }
 
 // routineFoodAttrs are the review row's stored-food attrs: the food runway

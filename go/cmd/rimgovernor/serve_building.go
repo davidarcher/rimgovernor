@@ -36,6 +36,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/zone"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
+	factsstore "github.com/davidarcher/RimGovernor/go/internal/facts"
 	"github.com/davidarcher/RimGovernor/go/internal/httpapi"
 	"github.com/davidarcher/RimGovernor/go/internal/interpreter"
 	"github.com/davidarcher/RimGovernor/go/internal/model"
@@ -800,10 +801,14 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	// One fact cache joins them too: the planners read facts across steps
 	// from it and the worker's writes discard what they make stale.
 	facts := bridge.NewFactCache()
+	// The decoded state store beside it (#354): the scheduler's reviews
+	// file their census sections, /api/routines reports them.
+	var sections *factsstore.Store
 	var advanced, windowRunning = func() {}, func() bool { return false }
 	var stepTrace func() telemetry.Trace
 	if config.clockControl {
-		clockWorker, err := startServiceClock(lifetime, player, session, client.clockReads, database, config, serviceClockTimeouts(callTimeout), wake, facts)
+		sections = factsstore.NewStore()
+		clockWorker, err := startServiceClock(lifetime, player, session, client.clockReads, database, config, serviceClockTimeouts(callTimeout), wake, facts, sections)
 		if err != nil {
 			return err
 		}
@@ -838,7 +843,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		clockReview = serviceClockReview{database, config.profile}
 	}
 	if config.routineReviews {
-		routines = serviceRoutineDiagnostics{database, config.routineReviews, config.routineMethods, config.activeRoutineFamilies()}
+		routines = serviceRoutineDiagnostics{journal: database, reviewsEnabled: config.routineReviews, methodsEnabled: config.routineMethods, families: config.activeRoutineFamilies(), sections: sections}
 	}
 	var worldEvaluation httpapi.WorldEvaluation
 	if config.worldEvaluation {

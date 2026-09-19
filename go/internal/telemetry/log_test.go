@@ -35,7 +35,7 @@ func TestEveryLineStartsWithTimeAndTick(t *testing.T) {
 	ObserveTick(-1)
 	logger.Debug("before any status", ComponentKey, "clock-scheduler")
 	ObserveTick(4200)
-	logger.Info("step done", KindKey, "scheduler_step", ComponentKey, "clock-worker", "err", errors.New("Fields: deadline"), "held", 250*time.Millisecond, "repeats", 3)
+	logger.Info("step done", KindKey, "scheduler_step", ComponentKey, "clock-worker", "err", errors.New("Fields: deadline"), "held", 250*time.Millisecond, "repeats", 3, "as_of", map[string]int64{"colony": 4200})
 	logger.Info("Fields select: kind=outdoor crop=Plant_Rice\n outdoor Plant_Rice needed=1 cells=2 score=0.5", ComponentKey, "clock-scheduler")
 
 	lines := strings.Split(strings.TrimRight(out.String(), "\n"), "\n")
@@ -50,7 +50,7 @@ func TestEveryLineStartsWithTimeAndTick(t *testing.T) {
 	if m == nil || m[1] != "4200" || m[2] != "INFO" {
 		t.Fatalf("stamped line: %q", lines[1])
 	}
-	if !strings.Contains(lines[1], "[clock-worker] step done err=\"Fields: deadline\" held=250ms repeats=3") {
+	if !strings.Contains(lines[1], "[clock-worker] step done err=\"Fields: deadline\" held=250ms repeats=3 as_of=map[colony:4200]") {
 		t.Fatalf("kind and component are not attrs on the line; err quoted: %q", lines[1])
 	}
 	if !strings.HasSuffix(lines[2], "[clock-scheduler] Fields select: kind=outdoor crop=Plant_Rice") || lines[3] != " outdoor Plant_Rice needed=1 cells=2 score=0.5" {
@@ -66,6 +66,10 @@ func TestEveryLineStartsWithTimeAndTick(t *testing.T) {
 	}
 	if row.payload["msg"] != "step done" || row.payload["err"] != "Fields: deadline" || row.payload["held"] != 250.0 || row.payload["repeats"] != int64(3) {
 		t.Fatalf("row payload: %+v", row.payload)
+	}
+	// A tick map rides into the row as an object, not its %+v rendering.
+	if asOf, ok := row.payload["as_of"].(map[string]int64); !ok || asOf["colony"] != 4200 {
+		t.Fatalf("row as_of: %#v", row.payload["as_of"])
 	}
 }
 
