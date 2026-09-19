@@ -35,6 +35,31 @@ namespace HomeBridge.BridgeTools
             return GenDate.DaysPerYear;
         }
 
+        /// <summary>Days until the tile's seasonal temperature next enters the
+        /// crop growth range: 0 while it is inside it now, DaysPerYear when it
+        /// never is. The same daily sample GrowingDaysRemaining walks.</summary>
+        internal static int GrowingDaysUntil(Map map)
+        {
+            for (var days = 0; days < GenDate.DaysPerYear; days++)
+            {
+                var temperature = GenTemperature.GetTemperatureFromSeasonAtTile(
+                    GenTicks.TicksAbs + days * GenDate.TicksPerDay, map.Tile);
+                if (temperature >= Plant.DefaultMinOptimalGrowthTemperature
+                    && temperature <= Plant.DefaultMaxOptimalGrowthTemperature) return days;
+            }
+            return GenDate.DaysPerYear;
+        }
+
+        /// <summary>The tile's native season name and 0-based day of the year.
+        /// GenDate.Season takes the Vector2 (longitude, latitude) overload; the
+        /// float overload's argument order differs.</summary>
+        internal static (string season, int dayOfYear) Calendar(Map map)
+        {
+            var longLat = Find.WorldGrid.LongLatOf(map.Tile);
+            long abs = GenTicks.TicksAbs;
+            return (GenDate.Season(abs, longLat).ToString(), GenDate.DayOfYear(abs, longLat.x));
+        }
+
         private static object Read(bool planning)
         {
             var map = Find.CurrentMap;

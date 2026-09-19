@@ -229,6 +229,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 	}
 	if climate := v.FoodClimate; climate != nil && !hasIssue(v.Issues, "food_climate") {
 		r.CropClimate = policy.CropClimate{Sowing: optional(climate.SowingNow), DaysRemaining: optional(climate.GrowingDaysRemaining)}
+		r.Facts.Calendar = colonyCalendar(climate)
 	}
 	colonyAcquisition(v, &r)
 	colonyProduction(v, &r.Facts)

@@ -272,7 +272,9 @@ assert the traced selection kind/crop, the winner's term breakdown and every los
 reason; `farm/select-greenhouse` and `farm/select-hydroponics` stage a lit, heated room under a cold
 snap through `FarmEnvironmentFixture` and audits the zones or basin placements inside
 it, and `-environment hydroponics -unavailable-crops Plant_Rice -expect-crop
-Plant_Potato` proves a built basin re-cropped to the winner. Insufficient farmland does not reject an otherwise legal
+Plant_Potato` proves a built basin re-cropped to the winner. `farm/calendar` holds the typed read's growing
+calendar to `home/status` and `home/world` and records the seasonal thresholds a review derives from it.
+Insufficient farmland does not reject an otherwise legal
 shelter. Selected field capacity remains separate from observed growing cells and the
 production gate. Work
 allocation uses observed capabilities/skills, job load and stable identity tie breaks;
@@ -325,6 +327,18 @@ food sharing are not guaranteed. Harvest ETA remains an optimistic lower bound.
 
 The maintained food goal budgets each crop's capacity from native daily demand and
 yield, covering consumption during its growth allowance plus the persisted food reserve.
+That reserve, the food latch's thresholds and the wood thresholds are seasonal: the
+colony read carries the tile's growing calendar (`policy.Calendar`: growing days per
+year, days until the seasonal temperature leaves and next re-enters the crop range,
+the native sowing flag, season and day of year), and each review widens the configured
+policy by its harvest gap (`RoutinePolicy.Seasonal`). The gap is the wait until growth
+resumes plus one rice cycle while nothing grows, and the coming non-growing part of the
+year, phased in over the gap plus one field cycle before the frost, while crops grow;
+a year-round tile has none and an unknown calendar keeps the flat thresholds. Food
+minimum and target both grow by the gap (capped at one year) and the wood minimum,
+target and maximum by the target's factor, so a runway is measured to the next
+possible harvest rather than to stock exhaustion and fields, larder and woodpile fill
+before the first frost. The foothold food gate keeps its flat minimum.
 Capacity includes native demand from colony animals permitted to eat that crop or
 preserved product; future grazing is not credited against this budget.
 Rice, potatoes and corn are ranked by native yield, soil response and remaining

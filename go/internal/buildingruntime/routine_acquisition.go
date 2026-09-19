@@ -151,12 +151,12 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 			}
 			need := 0.0
 			for _, consumer := range forecast.Consumers {
-				need += max(0, r.reviewer.policy.FoodTargetDays*consumer.NutritionPerDay-consumer.UsableNutrition)
+				need += max(0, r.reviewer.seasonal(projection.Facts).FoodTargetDays*consumer.NutritionPerDay-consumer.UsableNutrition)
 			}
 			deficit = domain.Known(need)
 		}
 	} else if wood, known := projection.Facts.Wood.Value(); known {
-		deficit = domain.Known(max(0, float64(r.reviewer.policy.WoodTarget)-float64(wood)))
+		deficit = domain.Known(max(0, float64(r.reviewer.seasonal(projection.Facts).WoodTarget)-float64(wood)))
 	}
 	held := map[string]bool{}
 	for _, plan := range plans {

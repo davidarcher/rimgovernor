@@ -158,13 +158,14 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 		}
 		choices = append(choices, policy.CropChoice{Name: d.Name, Available: d.Available, Edible: d.Edible, GrowDays: d.GrowDays, FertilityMin: d.FertilityMin, FertilitySensitivity: d.FertilitySensitivity, HarvestNutrition: d.HarvestNutrition, Demand: d.NutritionDemandPerDay, SowTags: d.SowTags, MinGlow: d.GrowMinGlow})
 	}
-	coverage := policy.FieldCoverage(projection.Facts.Colonists, projection.FieldCapacityCrops, r.reviewer.policy.FoodTargetDays)
+	reserveDays := r.reviewer.seasonal(projection.Facts).FoodTargetDays
+	coverage := policy.FieldCoverage(projection.Facts.Colonists, projection.FieldCapacityCrops, reserveDays)
 	var zones []policy.FarmZone
 	for _, farm := range projection.Farms {
 		zones = append(zones, policy.FarmZone{ID: farm.ID, Crop: farm.Crop, Managed: managed[farm.ID]})
 	}
 	site := policy.FarmSiteRequest{Bounds: projection.Bounds, Anchor: projection.Center, Storage: domain.Unknown[domain.Cell](), Cells: projection.Cells, Protected: protected, Zones: zones}
-	request := policy.SiteTypeRequest{Field: policy.FieldRequest{Choices: choices, Climate: projection.CropClimate, Runway: projection.Facts.FoodDays, Colonists: projection.Facts.Colonists, ReserveDays: r.reviewer.policy.FoodTargetDays, Coverage: coverage, Site: site}, Environment: projection.Environment, LampGrowthRadius: fieldLampGrowthRadius}
+	request := policy.SiteTypeRequest{Field: policy.FieldRequest{Choices: choices, Climate: projection.CropClimate, Runway: projection.Facts.FoodDays, Colonists: projection.Facts.Colonists, ReserveDays: reserveDays, Coverage: coverage, Site: site}, Environment: projection.Environment, LampGrowthRadius: fieldLampGrowthRadius}
 	for _, d := range projection.Definitions {
 		infrastructure := domain.Known(policy.Infrastructure{Name: d.Name, Available: d.Available, PowerW: d.PowerW, Fertility: d.GrowerFertility, Costs: d.Costs})
 		switch d.Name {
@@ -553,7 +554,7 @@ func (r *RoutineFieldPlanner) fieldAllowance(ctx context.Context, goal domain.Go
 				if d.Name == zone.Crop() {
 					days, known := d.GrowDays.Value()
 					if known && days > 0 && days <= 24 {
-						budget = domain.Tick(math.Ceil(min(60, days*2.5+r.reviewer.policy.FoodTargetDays) * 60000))
+						budget = domain.Tick(math.Ceil(min(60, days*2.5+r.reviewer.seasonal(facts.Facts).FoodTargetDays) * 60000))
 					}
 				}
 			}

@@ -142,7 +142,10 @@ namespace HomeBridge.BridgeTools
             result.Recovery = NativeRecoveryFacts.Read(map, context, limit);
             foreach (var field in new[] { "policy_resources", "food_corpses", "waste" })
                 result.Issues.Add(Issue(field, Common.UnavailableReason.Unsupported, "Section is not yet projected."));
-            try { result.FoodClimate = new Obs.FoodClimate { GrowingDaysRemaining = ColonyFactsTools.GrowingDaysRemaining(map),
+            try {
+                var (season, dayOfYear) = ColonyFactsTools.Calendar(map);
+                result.FoodClimate = new Obs.FoodClimate { GrowingDaysRemaining = ColonyFactsTools.GrowingDaysRemaining(map),
+                GrowingDaysUntil = ColonyFactsTools.GrowingDaysUntil(map), Season = season, DayOfYear = dayOfYear,
                 SowingNow = new[] { "Plant_Rice", "Plant_Potato", "Plant_Corn" }.Select(DefDatabase<ThingDef>.GetNamedSilentFail).Any(d => d != null && PlantUtility.GrowthSeasonNow(map,d)),
                 GrowingDays = GenTemperature.TwelfthsInAverageTemperatureRange(map.Tile,Plant.DefaultMinOptimalGrowthTemperature,Plant.DefaultMaxOptimalGrowthTemperature).Count * GenDate.DaysPerTwelfth }; }
             catch (Exception) { result.Issues.Add(Issue("food_climate", Common.UnavailableReason.ReadFailed, "Seasonal crop budget unavailable.")); }

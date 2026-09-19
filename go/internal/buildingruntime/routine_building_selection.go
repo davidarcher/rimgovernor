@@ -43,7 +43,7 @@ func (r *RoutineBuildingPlanner) selection(facts observation.ColonyProjection) (
 		}
 		days, dk := facts.Facts.FoodDays.Value()
 		armed, ak := facts.Facts.Armed.Value()
-		if !dk || !ak || armed <= 0 || days >= r.reviewer.policy.FoodTargetDays {
+		if !dk || !ak || armed <= 0 || days >= r.reviewer.seasonal(facts.Facts).FoodTargetDays {
 			return 0, "", BuildingMethodNoDeficit
 		}
 		benches, bk := facts.ButcheringBenches.Value()

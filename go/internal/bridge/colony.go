@@ -177,10 +177,13 @@ func ValidateColonyFacts(v *o.ColonyFactsSnapshot, identity *c.Identity) error {
 		if err := pawnsIssues(climate.Issues, climate.ProtoReflect()); err != nil {
 			return err
 		}
-		for _, number := range []*float64{climate.GrowingDays, climate.GrowingDaysRemaining} {
+		for _, number := range []*float64{climate.GrowingDays, climate.GrowingDaysRemaining, climate.GrowingDaysUntil} {
 			if !combatNumber(number, true) || number != nil && *number > 60 {
 				return contract("invalid seasonal crop budget")
 			}
+		}
+		if climate.DayOfYear != nil && (*climate.DayOfYear < 0 || *climate.DayOfYear >= 60) || climate.Season != nil && !validSeason(*climate.Season) {
+			return contract("invalid calendar")
 		}
 		for _, issue := range v.Issues {
 			if issue.GetField() == "food_climate" {
@@ -417,4 +420,13 @@ func validateGrowingEnvironment(e *o.ControlledEnvironment, size *o.MapSize) err
 		}
 	}
 	return nil
+}
+
+// validSeason accepts the native Season enum names (RimWorld.Season).
+func validSeason(name string) bool {
+	switch name {
+	case "Undefined", "Spring", "Summer", "Fall", "Winter", "PermanentSummer", "PermanentWinter":
+		return true
+	}
+	return false
 }

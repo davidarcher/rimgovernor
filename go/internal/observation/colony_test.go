@@ -77,6 +77,41 @@ func TestColonyProjectionKeepsRawFoodAndUnknownGeometryOutOfPolicy(t *testing.T)
 
 // Set this to a retained official ProtoJSON payload from native acceptance.
 // This proves the actual C# projection reaches durable Go review unchanged.
+func TestColonyCalendarReachesRoutineFacts(t *testing.T) {
+	data, err := os.ReadFile("../../../contracts/fixtures/colony-core.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := &o.ColonyFactsReply{}
+	if err = protojson.Unmarshal(data, r); err != nil {
+		t.Fatal(err)
+	}
+	expected := Identity{Colony: "colony", Load: "load", Map: 0, Tick: 7, NativeGeneration: domain.Known(domain.NativeGeneration(1))}
+	r.GetObserved().FoodClimate = &o.FoodClimate{GrowingDays: proto.Float64(40), GrowingDaysRemaining: proto.Float64(10), GrowingDaysUntil: proto.Float64(0), SowingNow: proto.Bool(true), DayOfYear: proto.Int32(35), Season: proto.String("Fall")}
+	p, err := DecodeColony(r, expected)
+	if err != nil {
+		t.Fatal(err)
+	}
+	calendar, known := p.Facts.Calendar.Value()
+	if !known || calendar != (policy.Calendar{Season: "Fall", DayOfYear: 35, GrowingDays: 40, GrowingDaysRemaining: 10, GrowingDaysUntil: 0, Sowing: true}) {
+		t.Fatal(p.Facts.Calendar)
+	}
+	if climate, known := p.CropClimate.DaysRemaining.Value(); !known || climate != 10 {
+		t.Fatal(p.CropClimate)
+	}
+	// The wait until growth resumes is part of the calendar: without it the
+	// pre-calendar climate keeps the crop plan but the routine gets no fact.
+	r.GetObserved().FoodClimate.GrowingDaysUntil = nil
+	if p, err = DecodeColony(r, expected); err != nil {
+		t.Fatal(err)
+	}
+	if _, known := p.Facts.Calendar.Value(); known {
+		t.Fatal("incomplete climate became a calendar")
+	}
+	if _, known := p.CropClimate.Sowing.Value(); !known {
+		t.Fatal(p.CropClimate)
+	}
+}
 func TestColonyNativeCaptureReachesRoutineReview(t *testing.T) {
 	path := os.Getenv("RIMGOVERNOR_NATIVE_COLONY_CAPTURE")
 	if path == "" {

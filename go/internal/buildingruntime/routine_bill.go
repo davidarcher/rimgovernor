@@ -127,7 +127,7 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if r.purpose == policy.ButcherFood {
 		days, dk := projection.Facts.FoodDays.Value()
 		armed, ak := projection.Facts.Armed.Value()
-		if !dk || !ak || armed <= 0 || days >= r.reviewer.policy.FoodTargetDays {
+		if !dk || !ak || armed <= 0 || days >= r.reviewer.seasonal(projection.Facts).FoodTargetDays {
 			return RoutineBillResult{Reason: BuildingMethodUnknown}, nil
 		}
 		// A butcher bench that shares a cooking room feeds the colony but keeps
@@ -144,7 +144,7 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 			}
 		}
 	}
-	selected, known := policy.SelectProductionBill(r.purpose, projection.ProductionBenches, projection.Facts.Colonists, projection.Facts.FoodDays, projection.FoodAtRiskNutrition, r.reviewer.policy.FoodTargetDays)
+	selected, known := policy.SelectProductionBill(r.purpose, projection.ProductionBenches, projection.Facts.Colonists, projection.Facts.FoodDays, projection.FoodAtRiskNutrition, r.reviewer.seasonal(projection.Facts).FoodTargetDays)
 	if !known {
 		return RoutineBillResult{Reason: BuildingMethodUnknown}, nil
 	}

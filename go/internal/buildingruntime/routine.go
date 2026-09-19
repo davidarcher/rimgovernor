@@ -28,6 +28,14 @@ type RoutineReviewer struct {
 	census routineCensusStore
 }
 
+// seasonal is the configured policy with its food and wood targets widened
+// by the calendar the reading carries (policy.RoutinePolicy.Seasonal): the
+// same targets DetectRoutine measures the latches against, so a planner's
+// deficit, field budget and butcher gate agree with the review.
+func (r *RoutineReviewer) seasonal(facts policy.RoutineFacts) policy.RoutinePolicy {
+	return r.policy.Seasonal(facts.Calendar)
+}
+
 // RoutineCapabilities is the runtime's complete configured method set. Omitting
 // it leaves availability unspecified for callers that compose methods themselves.
 //
@@ -167,7 +175,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter)
 		}
 	}
 	reading.Projection.Facts.CleanupPawns = domain.Known(cleanup)
-	reading.Projection.ApplyFieldBudget(r.policy.FoodTargetDays)
+	reading.Projection.ApplyFieldBudget(r.seasonal(reading.Projection.Facts).FoodTargetDays)
 	// The workshop ladder's recorded research rung is the derived
 	// EnsureResearch target; it is journal evidence, not a native read, so
 	// a review costs no extra call for it.

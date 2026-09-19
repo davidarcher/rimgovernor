@@ -519,7 +519,13 @@ message DevelopmentPower { BuildingState building = 1; optional double base_w = 
 message DevelopmentFurniture { EntityRef building = 1; optional bool indoors = 2; optional uint32 slots = 3; }
 message DevelopmentFacts { repeated DevelopmentPower power = 1; repeated DevelopmentFurniture furniture = 2; ResearchSnapshot research = 3; Completeness completeness = 4; repeated PowerNetwork networks = 5; }
 message EnvironmentCondition { optional string id = 1; optional string def_name = 2; optional string implementation = 3; optional string label = 4; optional bool permanent = 5; optional int64 ticks_left = 6; }
-message FoodClimate { optional double growing_days = 1; optional double growing_days_remaining = 2; repeated ReadIssue issues = 3; optional bool sowing_now = 4; }
+// FoodClimate is the map tile's calendar for food planning: growing_days is
+// the tile's growing period per 60-day year, growing_days_remaining the days
+// until the seasonal temperature next leaves the crop growth range (60 while
+// it never does), growing_days_until the days until it next re-enters it (0
+// while crops grow now, 60 when the tile never grows). season is the native
+// Season name at the tile and day_of_year the 0-based day of the 60-day year.
+message FoodClimate { optional double growing_days = 1; optional double growing_days_remaining = 2; repeated ReadIssue issues = 3; optional bool sowing_now = 4; optional double growing_days_until = 5; optional string season = 6; optional int32 day_of_year = 7; }
 message FarmFacts { optional string zone_id = 1; optional string crop = 2; optional uint32 usable_cells = 3; optional uint32 planted_cells = 4; optional uint32 growing_cells = 5; optional bool edible_crop = 6; optional double harvest_lower_bound_days = 7; optional double nutrition_per_harvest_cell = 8; optional bool sowing_now = 9; }
 message PlanningDefinition { DefinitionRef definition = 1; optional string stuff = 2; optional bool available = 3; repeated string research_prerequisites = 4; optional int32 construction_skill = 5; MapSize size = 6; repeated Quantity costs = 7; optional double rest_effectiveness = 8; optional double grow_days = 9; optional double fertility_min = 10; optional double fertility_sensitivity = 11; optional double harvest_nutrition = 12; optional double nutrition_demand_per_day = 13; optional bool edible = 14; repeated ReadIssue issues = 15; repeated string sow_tags = 16; optional double grow_min_glow = 17; optional double power_w = 18; /* native base draw: positive consumes, negative generates */ optional double grower_fertility = 19; optional string sow_tag = 20; optional double glow_radius = 21; optional bool needs_power = 22;
   // Floor (TerrainDef) facts: set only when the definition is a terrain. The

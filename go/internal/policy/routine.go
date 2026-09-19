@@ -317,8 +317,13 @@ type RoutineFacts struct {
 	Labor                                                                      domain.Fact[map[WorkType]int]
 	Colonists, HousingTarget, BedCapacity, IndoorCapacity, GrowingCells, Armed domain.Fact[int64]
 	FoodDays, PopulationFoodDays, FieldCoverage                                domain.Fact[float64]
-	SleepingMin, SleepingMax, OutdoorTemperature, PowerHeadroom                domain.Fact[float64]
-	Wood                                                                       domain.Fact[int64]
+	// Calendar is the tile's native growing calendar (policy.Calendar).
+	// DetectRoutine widens the policy's food and wood targets by its
+	// harvest gap (RoutinePolicy.Seasonal) before measuring any latch;
+	// an unknown calendar keeps the configured flat targets.
+	Calendar                                                    domain.Fact[Calendar]
+	SleepingMin, SleepingMax, OutdoorTemperature, PowerHeadroom domain.Fact[float64]
+	Wood                                                        domain.Fact[int64]
 	// Resources is the generic reachable, unforbidden player item census
 	// (the same colony facts rows Wood is taken from), so MaintainResource's
 	// deficit is measured at review time instead of assumed from config.
@@ -457,6 +462,10 @@ func countCapacity(capacity, count domain.Fact[int64], multiplier int64) domain.
 // DetectRoutine ports colony_policy.criteria/priority_nodes for the common
 // survival goals. Family-specific needs join these same goals during review.
 func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (RoutineNeeds, error) {
+	if c, known := f.Calendar.Value(); known && !c.Valid() {
+		return RoutineNeeds{}, errors.New("invalid calendar fact")
+	}
+	p = p.Seasonal(f.Calendar)
 	owned, err := OwnedConstructions(f.ConstructionClaims, f.CurrentConstruction)
 	if err != nil {
 		return RoutineNeeds{}, err
