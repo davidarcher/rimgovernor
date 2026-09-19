@@ -164,6 +164,9 @@ func (b *ZoneBoundary) ObserveZone(ctx context.Context, p executor.Placement, cu
 	case *r.Progress_Completed:
 		evidence = effect.Completed.GetEvidence()
 		out.Observation.Effect = domain.EffectCompleted
+		// The receipt's zone_id is the identity later censuses name the
+		// zone by (ZoneMatches has validated it).
+		out.Observation.Zone = evidence.GetZone().GetZoneId()
 	case *r.Progress_Unsuccessful:
 		if effect.Unsuccessful.GetReason() != r.UnsuccessfulReason_UNSUCCESSFUL_REASON_OUTCOME_NOT_ACHIEVED {
 			return out, executor.ErrEvidence

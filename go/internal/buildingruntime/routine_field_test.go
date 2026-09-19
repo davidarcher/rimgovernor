@@ -220,11 +220,11 @@ func (n *fieldExecutorTest) CreateZone(ctx context.Context, d executor.ZoneDispa
 }
 func (n *fieldExecutorTest) ObserveZone(ctx context.Context, p executor.Placement, current domain.GenerationSnapshot) (executor.ZoneEvidence, error) {
 	zone, _ := p.Action.ZoneCreate()
-	effect := domain.EffectUnknown
+	effect, id := domain.EffectUnknown, ""
 	if n.complete {
-		effect = domain.EffectCompleted
+		effect, id = domain.EffectCompleted, "field"
 	}
-	return executor.ZoneEvidence{Observation: domain.Observation{Action: p.Action.ID(), Attempt: p.Attempt, Snapshot: current, Tick: n.tick + 2, Effect: effect, Causality: domain.AfterDispatch}, StartedAt: n.clock.Now(), ObservedAt: n.clock.Now(), Complete: n.complete, Zone: zone, Matches: domain.Known(n.complete)}, nil
+	return executor.ZoneEvidence{Observation: domain.Observation{Action: p.Action.ID(), Attempt: p.Attempt, Snapshot: current, Tick: n.tick + 2, Effect: effect, Causality: domain.AfterDispatch, Zone: id}, StartedAt: n.clock.Now(), ObservedAt: n.clock.Now(), Complete: n.complete, Zone: zone, Matches: domain.Known(n.complete)}, nil
 }
 
 // Open hunting or foraging under EnsureFoodSupply must not starve the field

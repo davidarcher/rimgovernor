@@ -80,10 +80,16 @@ func (e *Executor) runZone(ctx context.Context, action domain.Action, p domain.P
 		if !o.Snapshot.Matches(current) || o.Action != action.ID() || o.Attempt != v.Attempt || !e.fresh(evidence.StartedAt, evidence.ObservedAt) || o.Construction != nil || o.ConstructionObserved {
 			return result, ErrEvidence
 		}
+		if o.Zone != "" && o.Effect != domain.EffectCompleted {
+			return result, ErrEvidence
+		}
 		switch o.Effect {
 		case domain.EffectCompleted:
+			// A completed creation names its zone; ownership (stockpile
+			// claims) is derived from that identity, so evidence without it
+			// cannot complete the action.
 			allowed, known := evidence.Matches.Value()
-			if !evidence.Complete || evidence.Zone != zone || !known || !allowed {
+			if !evidence.Complete || evidence.Zone != zone || !known || !allowed || o.Zone == "" {
 				return result, ErrEvidence
 			}
 		case domain.EffectUnsuccessful:

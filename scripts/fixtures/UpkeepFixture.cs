@@ -16,6 +16,7 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "Optional disposable fire size; zero omits fire.", DefaultValue = 0f)] float fireSize = 0f,
             [ToolParameter(Description = "Include a pen animal, pet and stored feed.", DefaultValue = false)] bool animals = false,
             [ToolParameter(Description = "Leave covered space unzoned for the storage method.", DefaultValue = false)] bool storageMissing = false,
+            [ToolParameter(Description = "Leave the covered storage cells outside Home and turn the auto home area play setting off, so a stockpile created there is a Home coverage deficit instead of being auto-covered.", DefaultValue = false)] bool storageOutsideHome = false,
             [ToolParameter(Description = "Wall off the fixture site so no worker can reach its targets.", DefaultValue = false)] bool restrictWorkers = false,
             [ToolParameter(Description = "Include a more damaged cosmetic repair target.", DefaultValue = false)] bool repairCompetition = false,
             [ToolParameter(Description = "Clear disposable loose items and filth before preparing bounded read censuses. Use only after gameplay assertions.", DefaultValue = false)] bool boundedCensus = false)
@@ -75,7 +76,17 @@ namespace HomeBridge.BridgeTools
                     zone.GetStoreSettings().Priority = StoragePriority.Critical;
                     zone.AddCell(storage);
                 }
+                // With the vanilla auto home area on, AutoHomeAreaMaker marks
+                // Home four cells around every added zone cell, so a created
+                // stockpile could never be a deficit; the setting is the
+                // player's and the routine only matters when it is off.
+                if (storageOutsideHome) Find.PlaySettings.autoHomeArea = false;
                 foreach (var cell in CellRect.FromLimits(storage, storage + new IntVec3(1, 0, 1))) {
+                    // Staged geometry, not a player removal: never an exclusion.
+                    if (storageOutsideHome) {
+                        try { HomeCoverage.PreparingFixture = true; map.areaManager.Home[cell] = false; }
+                        finally { HomeCoverage.PreparingFixture = false; }
+                    }
                     if (storageMissing)
                         foreach (var thing in cell.GetThingList(map).Where(t => t is Plant || t.def.category == ThingCategory.Item).ToList())
                             thing.Destroy();
@@ -163,6 +174,7 @@ namespace HomeBridge.BridgeTools
                 return new { success = true, clearedItems, clearedFilth, ringWalls, medicine = medicine.GetUniqueLoadID(), wall = wall.GetUniqueLoadID(),
                     cosmetic = cosmetic?.GetUniqueLoadID(),
                     filth = dirt.GetUniqueLoadID(), fire = fire?.GetUniqueLoadID(), storage = new { x = storage.x, z = storage.z },
+                    autoHomeArea = Find.PlaySettings.autoHomeArea,
                     penAnimal = penAnimal?.GetUniqueLoadID(), looseAnimal = looseAnimal?.GetUniqueLoadID(),
                     pet = pet?.GetUniqueLoadID(), pen = penMarker?.GetUniqueLoadID(),
                     penWall = penWall?.GetUniqueLoadID(), feed = feed?.GetUniqueLoadID(),

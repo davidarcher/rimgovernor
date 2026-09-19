@@ -101,11 +101,14 @@ namespace HomeBridge.BridgeTools
                     }
                     var missing = cells.Where(c => !map.areaManager.Home[c]).ToList();
                     if (missing.Count == 0) continue;
-                    // No native exclusion ledger exists yet: every missing cell
-                    // is extendable, so excluded_cells is zero rather than
-                    // absent (absent leaves the Go review unknown, #292, #314).
+                    // excluded_cells counts the missing cells a player removed
+                    // since observation began (HomeCoverageState.Excluded,
+                    // #314); any such cell blocks the whole target. Absent
+                    // would leave the Go review unknown (#292).
+                    var excluded = HomeCoverage.Excluded(state, missing);
                     var row = new Obs.HomeCoverageTarget { Id = Id(target), ShapeToken = HomeCoverage.Shape(target, cells),
-                        MissingCells = checked((uint)missing.Count), ExcludedCells = 0 };
+                        MissingCells = checked((uint)missing.Count), ExcludedCells = checked((uint)excluded) };
+                    if (excluded > 0) row.Blocker = HomeCoverage.ExcludedBlocker;
                     row.Cells.AddRange(cells.Select(Cell));
                     facts.Targets.Add(row);
                 }

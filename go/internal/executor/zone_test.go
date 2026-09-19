@@ -43,6 +43,9 @@ func (n *zoneEnvironment) ObserveZone(_ context.Context, p Placement, current do
 	if effect == domain.EffectCompleted || effect == domain.EffectUnsuccessful {
 		e.Matches = domain.Known(n.matches)
 	}
+	if effect == domain.EffectCompleted {
+		e.Observation.Zone = "Zone_7"
+	}
 	if effect == domain.EffectUnsuccessful {
 		e.Observation.UnsuccessfulReason = domain.OutcomeNotAchieved
 	}

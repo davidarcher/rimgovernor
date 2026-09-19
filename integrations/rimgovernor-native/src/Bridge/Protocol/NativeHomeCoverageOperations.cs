@@ -82,7 +82,7 @@ namespace HomeBridge.BridgeTools
         {
             map = null; cells = null; missing = null;
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,
-                "Home extension requires an exact facility identity (a colonist building's unique load id or stockpile:<id>), its footprint shape token and the Home revision it was read under.");
+                "Home extension requires an exact facility identity (a colonist building's or stockpile zone's unique load id), its footprint shape token and the Home revision it was read under.");
             if (!Valid(command)) return false;
             var loaded = ProtoBoundary.ResolveMap(context);
             if (loaded == null) return false;
@@ -92,7 +92,8 @@ namespace HomeBridge.BridgeTools
             var rules = new ApplyPreconditions(Kind)
                 .Present(() => (scope = HomeCoverage.Scope(loaded, command.Target.EntityId)) != null, "bounded visible native facility geometry is unavailable")
                 .Token(() => HomeCoverage.Shape(command.Target.EntityId, scope!) == command.ShapeToken, "the facility footprint changed since it was read")
-                .Token(() => HomeCoverage.State(loaded).Revision == command.Revision, "the Home area changed since it was read");
+                .Token(() => HomeCoverage.State(loaded).Revision == command.Revision, "the Home area changed since it was read")
+                .Require(() => HomeCoverage.Excluded(HomeCoverage.State(loaded), scope!.Where(c => !loaded.areaManager.Home[c])) == 0, "a player removed Home over part of the footprint");
             if (!rules.Holds) { failure = rules.Failure(); return false; }
             map = loaded; cells = scope; missing = scope!.Where(c => !loaded.areaManager.Home[c]).ToList();
             return true;

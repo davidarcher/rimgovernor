@@ -12,6 +12,9 @@ import (
 // methods for the current world scope to find completed ZoneCreate actions of
 // kind StockpileZone, so ReviewHomeCoverage can protect player edits to a zone
 // this colony already created instead of silently reclaiming or recreating it.
+// The claim's ID is the native zone identity the completion receipt returned
+// (the zone's unique load id), the same form the Home coverage census names
+// stockpiles by (#315); a completion recorded without one owns nothing.
 // The link query keeps only plans with an observed zone_create action, as in
 // constructionClaims.
 func stockpileClaims(ctx context.Context, tx *sql.Tx, current domain.GenerationSnapshot, tick domain.Tick) (domain.Fact[[]policy.OwnedStockpile], error) {
@@ -67,10 +70,11 @@ func stockpileClaims(ctx context.Context, tx *sql.Tx, current domain.GenerationS
 			v := progress.View()
 			zone, isZone := progress.Action().ZoneCreate()
 			effect, ek := v.Effect.Value()
-			if !isZone || zone.Kind() != domain.StockpileZone || !ek || effect != domain.EffectCompleted || v.Stage != domain.Completed || v.Tick > tick || v.Snapshot.Colony != current.Colony || v.Snapshot.Load != current.Load || v.Snapshot.Map != current.Map {
+			id, known := v.Zone.Value()
+			if !isZone || zone.Kind() != domain.StockpileZone || !ek || !known || effect != domain.EffectCompleted || v.Stage != domain.Completed || v.Tick > tick || v.Snapshot.Colony != current.Colony || v.Snapshot.Load != current.Load || v.Snapshot.Map != current.Map {
 				continue
 			}
-			result = append(result, policy.OwnedStockpile{ID: string(v.Action), Cells: zone.Cells()})
+			result = append(result, policy.OwnedStockpile{ID: id, Cells: zone.Cells()})
 			if len(result) > 256 {
 				return unknown, nil
 			}

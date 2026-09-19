@@ -12,10 +12,13 @@
 //	                   must restore the wall, each recovering only on the
 //	                   observed postcondition; the dirt is outside any workspace,
 //	                   so MaintainCleanFacilities never issues an order.
-//	storage-missing -- the same fixture with the covered cells left unzoned: no
-//	                   storage accepts the medicine, so ordinary hauling is
-//	                   refused and SecureSupplies falls back to creating one
-//	                   filtered stockpile on the covered cells before hauling.
+//	storage-missing -- the same fixture with the covered cells left unzoned and
+//	                   outside Home: no storage accepts the medicine, so
+//	                   ordinary hauling is refused and SecureSupplies falls
+//	                   back to creating one filtered stockpile on the covered
+//	                   cells before hauling; the created stockpile is then a
+//	                   Home deficit MaintainHomeCoverage extends Home over,
+//	                   owned by the zone identity its receipt returned (#315).
 //	blocked         -- the same fixture walled off from every worker (forced
 //	                   orders ignore allowed areas, so only pathing blocks
 //	                   them): no haul or repair may complete,
@@ -125,7 +128,8 @@ func scenarios() map[string]*scenario {
 	scattered.verify = verifyScattered
 	s["scattered"] = scattered
 
-	missing := upkeep("storage-missing", map[string]any{"storageMissing": true})
+	missing := upkeep("storage-missing", map[string]any{"storageMissing": true, "storageOutsideHome": true})
+	missing.families = append([]string{"home-coverage"}, missing.families...)
 	missing.watch = watchStorageMissing
 	missing.verify = verifyStorageMissing
 	s["storage-missing"] = missing
@@ -729,6 +733,12 @@ func verifyScattered(ctx context.Context, h *na.Harness, identity, prepared map[
 
 func watchStorageMissing(ctx context.Context, journal *store.Store, prepared map[string]any, report na.Report) error {
 	medicine := na.AsString(prepared["medicine"])
+	// Vanilla's auto home area would cover a created stockpile itself
+	// (AutoHomeAreaMaker.Notify_ZoneCellAdded); the fixture turns the play
+	// setting off so the extension is the controller's (#315).
+	if auto, ok := na.AsBool(prepared["autoHomeArea"]); !ok || auto {
+		return fmt.Errorf("fixture left the auto home area play setting on (%v); a created stockpile would be auto-covered", prepared["autoHomeArea"])
+	}
 	deficitCtx, deficitCancel := context.WithTimeout(ctx, 4*time.Minute)
 	defer deficitCancel()
 	if _, err := waitNeed(deficitCtx, journal, policy.SecureSupplies, domain.NeedDeficit); err != nil {
@@ -768,6 +778,11 @@ func watchStorageMissing(ctx context.Context, journal *store.Store, prepared map
 				continue
 			}
 			report["zone_completed_tick"] = int64(state.Progress[0].View().Tick)
+			zoneID, known := state.Progress[0].View().Zone.Value()
+			if !known {
+				return fmt.Errorf("zone plan %s completed without the receipt's zone identity", method.Plan)
+			}
+			report["zone_id"] = zoneID
 			break
 		}
 		haul, ok := actions[0].Haul()
@@ -815,6 +830,32 @@ func watchStorageMissing(ctx context.Context, journal *store.Store, prepared map
 		return err
 	}
 	report["supplies_recovered_tick"] = int64(supplies.Goal.Tick)
+	// The created stockpile sits on the fixture's covered cells outside Home:
+	// MaintainHomeCoverage owns it by the receipt's zone identity and extends
+	// Home over exactly that zone (#315).
+	zoneID := na.AsString(report["zone_id"])
+	if _, err := followMethods(ctx, journal, policy.MaintainHomeCoverage, "home", func(a domain.Action) error {
+		coverage, ok := a.HomeCoverage()
+		if !ok {
+			return fmt.Errorf("not a home coverage action: %v", a.Kind())
+		}
+		if coverage.Target() != zoneID {
+			return fmt.Errorf("home coverage targets %s, not the created stockpile %s", coverage.Target(), zoneID)
+		}
+		return nil
+	}, report); err != nil {
+		return err
+	}
+	if report["home_recovered_by"] != "controller_order" {
+		return fmt.Errorf("Home was not extended over the stockpile by the controller's own order (%v)", report["home_recovered_by"])
+	}
+	homeCtx, homeCancel := context.WithTimeout(ctx, 6*time.Minute)
+	defer homeCancel()
+	home, err := waitNeed(homeCtx, journal, policy.MaintainHomeCoverage, domain.NeedRecovered)
+	if err != nil {
+		return err
+	}
+	report["home_recovered_tick"] = int64(home.Goal.Tick)
 	return nil
 }
 
@@ -837,11 +878,36 @@ func verifyStorageMissing(ctx context.Context, h *na.Harness, identity, prepared
 		for _, c := range z.cells {
 			if c[0] == item.X && c[1] == item.Z {
 				report["medicine_stockpile"] = z.id
-				return nil
+				return verifyStockpileHome(ctx, h, identity, na.AsString(report["zone_id"]), report)
 			}
 		}
 	}
 	return fmt.Errorf("medicine at (%d,%d) is not inside any native stockpile: %+v", item.X, item.Z, zones)
+}
+
+// verifyStockpileHome is the independent native read behind the stockpile's
+// Home extension: every cell of the created zone is Home and the upkeep
+// census lists it as no deficit.
+func verifyStockpileHome(ctx context.Context, h *na.Harness, identity map[string]any, zoneID string, report na.Report) error {
+	if zoneID == "" {
+		return fmt.Errorf("the zone plan recorded no zone identity")
+	}
+	home, err := readHomeCoverage(ctx, h, identity, zoneID, "stockpile-home-after")
+	if err != nil {
+		return err
+	}
+	report["stockpile_home_after"] = home
+	if home.Total == 0 || home.Covered != home.Total {
+		return fmt.Errorf("%d of %d cells of the created stockpile %s are Home after MaintainHomeCoverage recovered", home.Covered, home.Total, zoneID)
+	}
+	census, err := readColonyFacts(ctx, h, identity, "upkeep-stockpile-home")
+	if err != nil {
+		return err
+	}
+	if row, present := homeCoverageRow(census, zoneID); present {
+		return fmt.Errorf("the upkeep census still lists the created stockpile %s as a Home deficit: %#v", zoneID, row)
+	}
+	return nil
 }
 
 type stockpile struct {

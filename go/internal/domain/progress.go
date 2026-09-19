@@ -201,8 +201,13 @@ func (v ConstructionIdentity) Validate() error {
 	return nil
 }
 
+// Zone is the native zone the completed zone_create receipt identifies (the
+// zone's unique load id, ZoneEffect.zone_id). It is the identity later native
+// censuses name the zone by, which is how a completed stockpile method owns
+// its zone for MaintainHomeCoverage (#315).
 type Observation struct {
 	Construction         *ConstructionIdentity `json:",omitempty"`
+	Zone                 string                `json:",omitempty"`
 	Action               ActionID
 	Attempt              AttemptID
 	Snapshot             GenerationSnapshot
@@ -214,6 +219,7 @@ type Observation struct {
 }
 type ProgressView struct {
 	Construction       Fact[ConstructionIdentity]
+	Zone               Fact[string]
 	Action             ActionID
 	Attempt            AttemptID
 	Plan               PlanID
@@ -351,6 +357,7 @@ func (p Progress) MarkDispatched(current GenerationSnapshot, tick Tick) (Progres
 	p.view.UnsuccessfulReason = Unknown[UnsuccessfulReason]()
 	p.view.HeldReason = Unknown[HoldEvidence]()
 	p.view.Construction = Unknown[ConstructionIdentity]()
+	p.view.Zone = Unknown[string]()
 	p.view.ConstructionObserved = Unknown[Tick]()
 	if p.action.kind == OwnedDraftAction {
 		p.view.DraftCleanup = Known(DraftCleanup{Stage: DraftAwaitingClaim})
@@ -393,6 +400,7 @@ func (p Progress) recordReceipt(attempt AttemptID, receipt Receipt) (Progress, e
 	}
 	return p, nil
 }
+
 // Withdraw opens the attempt that withdraws a cancelled, still-pending
 // dispatch natively (#291: a harvest designation nobody took). The action
 // stays Cancelled and unresolved under a fresh attempt id, whose receipt and
@@ -443,6 +451,9 @@ func (p Progress) observe(observation Observation, current GenerationSnapshot) (
 	if observation.Construction != nil && (p.action.Kind() != BuildingAction || observation.Effect != EffectCompleted || observation.Causality != AfterDispatch || observation.Construction.Validate() != nil) {
 		return p, errors.New("construction identity requires correlated completed building evidence")
 	}
+	if observation.Zone != "" && (p.action.Kind() != ZoneCreateAction || observation.Effect != EffectCompleted || observation.Causality != AfterDispatch || !validID(observation.Zone)) {
+		return p, errors.New("zone identity requires correlated completed zone evidence")
+	}
 	if !p.view.Unresolved {
 		return p, errors.New("no dispatched effect to observe")
 	}
@@ -479,6 +490,9 @@ func (p Progress) observe(observation Observation, current GenerationSnapshot) (
 	}
 	if observation.Construction != nil {
 		p.view.Construction = Known(*observation.Construction)
+	}
+	if observation.Zone != "" {
+		p.view.Zone = Known(observation.Zone)
 	}
 	p.view.Tick, p.view.Effect = observation.Tick, Known(observation.Effect)
 	if observation.Effect == EffectUnsuccessful {

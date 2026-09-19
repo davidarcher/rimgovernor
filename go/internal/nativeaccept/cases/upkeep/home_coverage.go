@@ -24,8 +24,11 @@ import (
 // the goal must open on the deficit, dispatch one ExtendHome method for the
 // bed under the fixture's shape token, and recover on the observed Home
 // cells, which test/home_coverage_read audits after the service releases
-// the game.
-const homeCoverageBudget = 20 * time.Minute
+// the game. Stage three (#314) is a player removal: test/home_player_remove
+// takes one covered footprint cell back out of Home, and a third service
+// must reopen the deficit with the census's exclusion blocker, commit no
+// method and leave the cell alone.
+const homeCoverageBudget = 25 * time.Minute
 
 func init() {
 	sleeping := scenarios()["sleeping"]
@@ -46,7 +49,7 @@ func init() {
 func runHomeCoverage(ctx context.Context, s cases.Session) error {
 	report, identity := s.Report(), s.Identity()
 	sleeping := scenarios()["sleeping"]
-	for _, fixture := range []string{sleeping.fixture, "test/home_coverage_setup", "test/home_coverage_read"} {
+	for _, fixture := range []string{sleeping.fixture, "test/home_coverage_setup", "test/home_coverage_read", "test/home_player_remove"} {
 		if !na.Contains(s.Names(), fixture) {
 			return fmt.Errorf("missing %s in discovery; rebuild the native mod with -Fixture UpkeepFixture,ForecastFixture,RoutineSleepingFixture", fixture)
 		}
@@ -182,7 +185,109 @@ func runHomeCoverage(ctx context.Context, s cases.Session) error {
 	if row, present := homeCoverageRow(census, bed); present {
 		return fmt.Errorf("stage home: the upkeep census still lists %s as a Home deficit: %#v", bed, row)
 	}
+
+	// Stage three: a player removal after the extension is an exclusion the
+	// routine preserves (#314).
+	exclusionReport := na.Report{}
+	report["stage_exclusion"] = exclusionReport
+	removed, err := callFixture(ctx, h, identity, "test/home_player_remove", map[string]any{"target": bed})
+	if err != nil {
+		return err
+	}
+	exclusionReport["removed"] = removed
+	spec = s.Spec()
+	service, err = s.Serve(ctx, spec)
+	if err != nil {
+		return err
+	}
+	journal, err = serveStage(ctx, service, exclusionReport)
+	if err != nil {
+		service.Stop()
+		return err
+	}
+	exclusionErr := watchHomeExclusion(ctx, journal, exclusionReport)
+	if exclusionErr == nil {
+		exclusionErr = na.AssertRoutineRunning(service.Get)
+	}
+	exclusionReport["authority_reacquisitions"] = service.Stop()
+	afterCtx = ctx
+	if ctx.Err() != nil {
+		var cancel context.CancelFunc
+		afterCtx, cancel = context.WithTimeout(context.Background(), 90*time.Second)
+		defer cancel()
+	}
+	if h, err = reattachPaused(afterCtx, s); err != nil {
+		return fmt.Errorf("stage exclusion: %w", err)
+	}
+	final, readErr := readHomeCoverage(afterCtx, h, identity, bed, "home-excluded")
+	if readErr == nil {
+		exclusionReport["home_after"] = final
+	}
+	if exclusionErr != nil {
+		return fmt.Errorf("stage exclusion: %w", exclusionErr)
+	}
+	if readErr != nil {
+		return readErr
+	}
+	if final.Total != footprint || final.Covered != footprint-1 {
+		return fmt.Errorf("stage exclusion: %d of %d footprint cells are Home after the player removed one; the routine must leave it alone", final.Covered, final.Total)
+	}
+	census, err = readColonyFacts(afterCtx, h, identity, "upkeep-excluded")
+	if err != nil {
+		return err
+	}
+	row, present := homeCoverageRow(census, bed)
+	if !present {
+		return fmt.Errorf("stage exclusion: the upkeep census lists no Home row for %s although one footprint cell is missing", bed)
+	}
+	exclusionReport["census_row"] = row
+	if na.AsNumber(row["missingCells"]) != 1 || na.AsNumber(row["excludedCells"]) != 1 || na.AsString(row["blocker"]) == "" {
+		return fmt.Errorf("stage exclusion: the census row for %s does not carry one excluded missing cell and a blocker: %#v", bed, row)
+	}
 	return nil
+}
+
+// watchHomeExclusion follows MaintainHomeCoverage back into deficit on the
+// removed cell and then holds the window open across several routine
+// reviews: the goal must stay in deficit without committing any method (the
+// only target is excluded, so no ExtendHome is eligible).
+func watchHomeExclusion(ctx context.Context, journal *store.Store, report na.Report) error {
+	deficitCtx, deficitCancel := context.WithTimeout(ctx, 4*time.Minute)
+	defer deficitCancel()
+	goal, err := waitNeed(deficitCtx, journal, policy.MaintainHomeCoverage, domain.NeedDeficit)
+	if err != nil {
+		return err
+	}
+	report["deficit_tick"] = int64(goal.Goal.Tick)
+	report["deficit_epoch"] = goal.Goal.Epoch
+	window := time.After(3 * time.Minute)
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-window:
+			row, found, err := developmentRow(ctx, journal, policy.MaintainHomeCoverage)
+			if err != nil {
+				return err
+			}
+			if found {
+				report["development_reason"] = string(row.Reason)
+			}
+			return nil
+		case <-time.After(5 * time.Second):
+		}
+		current, err := waitNeed(ctx, journal, policy.MaintainHomeCoverage, domain.NeedDeficit)
+		if err != nil {
+			return fmt.Errorf("MaintainHomeCoverage left deficit although the missing cell is a player exclusion: %w", err)
+		}
+		methods := current.Methods
+		if history, err := journal.LoadGoalMethods(ctx, current.Goal.ID, current.Goal.Epoch); err == nil && len(history) > len(methods) {
+			methods = history
+		}
+		if len(methods) != 0 {
+			return fmt.Errorf("MaintainHomeCoverage committed %d method(s) (%s) over a player-excluded cell", len(methods), methods[0].Plan)
+		}
+	}
 }
 
 // serveStage takes the service through authority to its first routine

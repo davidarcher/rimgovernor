@@ -252,20 +252,20 @@ Sources: [saved map state](../integrations/rimgovernor-native/src/Runtime/Persis
 | --- | --- | --- |
 | `Initialized/rimgovernorHomeInitialized` | Native per-load bookkeeping | No; whether the map has been observed once is historical. |
 | `Revision/rimgovernorHomeRevision` | Native per-load freshness token, unsaved target | No need to preserve its value if load identity invalidates all old requests. |
+| `Excluded/rimgovernorHomeExcluded` | Native player-intent ledger (#314) | No; which cells a player took out of Home after observation began is historical. |
 
-There is no `Excluded` grid any more: a cell the player removed from Home, or a
-facility cell not covered when the controller first observed the map, is no
-longer remembered as permanently off-limits. Installed patches only bump the
-saved revision on Home removal/clear/invert, purely so `home/upkeep_home`
-can detect that geometry changed since it last read the area; they no longer
-mark cells as excluded. `home/upkeep_home` may add Home over any cell in an
-observed facility/stockpile footprint that is currently missing it, including
-one the player deliberately removed, subject only to the revision/shape match
-against the geometry the caller observed. Actual Home area stays game-owned.
+`Excluded` is the set of cells a player removed from Home (Set, Clear or
+Invert) while `Initialized`; a cell anyone sets back to Home leaves it. Cells
+not covered when the controller first observed the map are not exclusions.
+The installed patches maintain the ledger and bump the saved revision on every
+Home edit. `ExtendHome`/`home/upkeep_home` refuse a footprint whose missing
+cells include an excluded one (the census reports them as `excluded_cells`
+with a blocker), and may add Home over any other missing footprint cell
+subject to the revision/shape match against the geometry the caller observed.
+Actual Home area stays game-owned.
 
-Required acceptance: disconnect across clear/invert and remove/re-add, restart,
-changed facility geometry and stale same-number revision from another load.
-Existing entry point: `scripts/home_coverage_acceptance.py`.
+Acceptance: `upkeep/home-coverage` (player removal after an extension stays
+out; `excluded_cells` and blocker in the census, no method committed).
 
 ## Shared migration gate
 
