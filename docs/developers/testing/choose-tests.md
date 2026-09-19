@@ -40,8 +40,11 @@ an area hosting `rimgovernor serve` (a `Serve` spec or `Service` case, a
 input changed (the native mod's build inputs, the same list
 `RequireCurrentPackage` compares, and `go.mod`/`go.sum`). A bridge-only
 area never runs the binary, so no binary change reaches it, and a
-`_test.go` or package `testdata` edit builds into no binary, so it names only its owning package to test and
-no area (#361). A test fixture under `scripts/fixtures` is not shared
+`_test.go` or non-embedded package `testdata` edit builds into no binary,
+so it names only its owning package to test and
+no area (#361). Embedded inputs use `go list` metadata: production embeds
+select their owner, importers and acceptance areas, including deleted files;
+test-only embeds select only their owner. A test fixture under `scripts/fixtures` is not shared
 (#170): a `<Name>Fixture.cs` affects the areas whose Go sources name one
 of its `[Tool("test/...")]` ops (and the fixtures it mentions by class
 name), a committed save under `saves/` the area naming it, and the

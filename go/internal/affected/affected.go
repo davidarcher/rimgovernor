@@ -5,8 +5,10 @@ package affected
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path"
@@ -23,7 +25,7 @@ type Selection struct {
 	// AllGo means go.mod or go.sum changed: every package is affected.
 	AllGo bool
 	// Packages are the import paths to go test: the packages holding the
-	// changed Go files (or testdata). Production edits also select every
+	// changed Go files, testdata or embedded inputs. Production edits also select every
 	// in-module importer; test-only edits stay local. Empty with AllGo set
 	// means ./... .
 	Packages []string
@@ -98,9 +100,13 @@ func Select(repo string, changed []string, base ...string) (Selection, error) {
 	sel := Selection{Why: map[string][]string{}}
 	goDir := filepath.Join(repo, "go")
 	dirs := map[string][]string{} // absolute package dir -> changed files in it
+	embeddedCandidates := false
 	changedFixtures := map[string]bool{}
 	for _, file := range changed {
 		file = filepath.ToSlash(file)
+		if strings.HasPrefix(file, "go/") {
+			embeddedCandidates = true
+		}
 		if file == "go/go.mod" || file == "go/go.sum" {
 			sel.AllGo = true
 		}
@@ -134,12 +140,38 @@ func Select(repo string, changed []string, base ...string) (Selection, error) {
 	if sel.AllGo {
 		return sel, nil
 	}
-	if len(dirs) == 0 && len(changedFixtures) == 0 && !sel.AllHarnesses {
+	if !embeddedCandidates && len(dirs) == 0 && len(changedFixtures) == 0 && !sel.AllHarnesses {
 		return sel, nil
 	}
 	graph, err := dependencyGraph(goDir)
 	if err != nil {
 		return sel, err
+	}
+	embeddedProduction := map[string]map[string]bool{}
+	for _, file := range changed {
+		file = filepath.ToSlash(file)
+		for dir, inputs := range graph.embedded {
+			production, test := inputs.matches(filepath.Join(repo, filepath.FromSlash(file)), dir)
+			if !production && !test {
+				continue
+			}
+			found := false
+			for _, existing := range dirs[dir] {
+				if existing == file {
+					found = true
+					break
+				}
+			}
+			if !found {
+				dirs[dir] = append(dirs[dir], file)
+			}
+			if production {
+				if embeddedProduction[dir] == nil {
+					embeddedProduction[dir] = map[string]bool{}
+				}
+				embeddedProduction[dir][file] = true
+			}
+		}
 	}
 	fixtureAreas, err := areasUsingFixtures(repo, graph, changedFixtures)
 	if err != nil {
@@ -161,6 +193,11 @@ func Select(repo string, changed []string, base ...string) (Selection, error) {
 		}
 		changedPkgs[pkg] = append(changedPkgs[pkg], files...)
 		for _, file := range files {
+			if embeddedProduction[dir][file] {
+				productionPkgs[pkg] = true
+				sources[pkg] = append(sources[pkg], file)
+				continue
+			}
 			if strings.HasSuffix(file, "_test.go") || !strings.HasSuffix(file, ".go") {
 				continue
 			}
@@ -367,6 +404,7 @@ func goPackageDir(repo, file string) (string, bool) {
 }
 
 type graph struct {
+	embedded map[string]embeddedInputs
 	module   string
 	byDir    map[string]string   // absolute directory -> import path
 	deps     map[string][]string // import path -> transitive in-module production deps
@@ -406,21 +444,42 @@ func readDependencyGraph(goDir string) (*graph, error) {
 		return nil, err
 	}
 	g := &graph{module: strings.TrimSpace(module), byDir: map[string]string{}, deps: map[string][]string{}, direct: map[string][]string{}, testDeps: map[string][]string{}}
-	out, err := goOutput(goDir, "list", "-f", `{{.ImportPath}}|{{.Dir}}|{{join .Imports " "}}|{{join .Deps " "}}|{{join .TestImports " "}} {{join .XTestImports " "}}`, "./...")
+	// -e retains embed patterns when the last matching file was removed.
+	out, err := goOutput(goDir, "list", "-e", "-test", "-json", "./...")
 	if err != nil {
 		return nil, err
 	}
 	tests := map[string][]string{}
-	for _, line := range strings.Split(out, "\n") {
-		fields := strings.SplitN(strings.TrimSpace(line), "|", 5)
-		if len(fields) != 5 {
+	g.embedded = map[string]embeddedInputs{}
+	decoder := json.NewDecoder(strings.NewReader(out))
+	for {
+		var p packageMetadata
+		if err := decoder.Decode(&p); err == io.EOF {
+			break
+		} else if err != nil {
+			return nil, err
+		}
+		// Keep original packages; -test resolves their test embeds but also
+		// emits synthetic test binaries and packages with augmented imports.
+		if p.ForTest != "" || (p.Name == "main" && strings.HasSuffix(p.ImportPath, ".test")) {
 			continue
 		}
-		pkg := fields[0]
-		g.byDir[filepath.Clean(fields[1])] = pkg
-		g.direct[pkg] = g.inModule(strings.Fields(fields[2]))
-		g.deps[pkg] = g.inModule(strings.Fields(fields[3]))
-		tests[pkg] = g.inModule(strings.Fields(fields[4]))
+		if p.Error != nil && !missingEmbed(p.Error.Err) {
+			return nil, fmt.Errorf("go list %s: %s", p.ImportPath, p.Error.Err)
+		}
+		for _, err := range p.DepsErrors {
+			if !missingEmbed(err.Err) {
+				return nil, fmt.Errorf("go list %s: %s", p.ImportPath, err.Err)
+			}
+		}
+		dir := filepath.Clean(p.Dir)
+		g.byDir[dir] = p.ImportPath
+		g.direct[p.ImportPath] = g.inModule(p.Imports)
+		g.deps[p.ImportPath] = g.inModule(p.Deps)
+		tests[p.ImportPath] = g.inModule(append(p.TestImports, p.XTestImports...))
+		if len(p.EmbedPatterns)+len(p.TestEmbedPatterns)+len(p.XTestEmbedPatterns) > 0 {
+			g.embedded[dir] = embeddedInputs{p.EmbedFiles, p.EmbedPatterns, append(p.TestEmbedFiles, p.XTestEmbedFiles...), append(p.TestEmbedPatterns, p.XTestEmbedPatterns...)}
+		}
 	}
 	g.addTestDependencies(tests)
 	return g, nil
