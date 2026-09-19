@@ -329,10 +329,16 @@ func acquisitionFoodChannels(sources []AcquisitionSource, hunt bool) []FoodChann
 		kind, cycle, work := FoodForage, FoodForageCycleDays, FoodForageWorkTicks
 		if hunt {
 			kind, cycle, work = FoodHunt, FoodHuntCycleDays, FoodHuntWorkTicks
+			// Range reduces pursuit work; downed prey needs only collection.
+			work /= 1 + s.WeaponRange/25
+			if s.Downed {
+				work = FoodForageWorkTicks
+			}
 		}
 		c := FoodChannel{Kind: kind, ID: s.ID, NutritionPerDay: domain.Known(s.NutritionYield / cycle), WorkPerDay: domain.Known(work / cycle), LeadDays: domain.Known(0.0), Open: domain.Known(false), Terms: []FoodPlanTerm{{"estimated_cycle_days", cycle}, {"estimated_work_ticks", work}}}
 		if hunt {
-			c.Risk = []FoodRisk{{FoodRevenge, 0}}
+			c.Risk = []FoodRisk{{FoodRevenge, math.Min(1, s.HuntRevengeCost())}}
+			c.Terms = append(c.Terms, FoodPlanTerm{"revenge_chance", s.RevengeChance}, FoodPlanTerm{"herd_size", float64(s.HerdSize)}, FoodPlanTerm{"revenge_cost", s.HuntRevengeCost()}, FoodPlanTerm{"weapon_range", s.WeaponRange})
 		}
 		out = append(out, c)
 	}

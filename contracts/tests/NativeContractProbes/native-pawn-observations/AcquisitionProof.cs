@@ -27,11 +27,16 @@ internal static class AcquisitionProof
         var verbType=native.GetType("Verse.VerbProperties",true)!;
         var thingDef=native.GetType("Verse.ThingDef",true)!;
         var projectileType=native.GetType("Verse.ProjectileProperties",true)!;
+        var damageType = native.GetType("Verse.DamageDef", true)!;
+        var bulletDamage = FormatterServices.GetUninitializedObject(damageType);
+        var flameDamage = FormatterServices.GetUninitializedObject(damageType);
+        damageType.GetField("workerClass")!.SetValue(flameDamage, native.GetType("Verse.DamageWorker_Flame", true));
         Func<string,float,object> verb=(kind,radius)=> {
             var definition=FormatterServices.GetUninitializedObject(thingDef)!;
             thingDef.GetField("thingClass")!.SetValue(definition,native.GetType(kind,true));
             var projectile=Activator.CreateInstance(projectileType)!;
             projectileType.GetField("explosionRadius")!.SetValue(projectile,radius);
+            projectileType.GetField("damageDef")!.SetValue(projectile,bulletDamage);
             thingDef.GetField("projectile")!.SetValue(definition,projectile);
             var value=Activator.CreateInstance(verbType)!;
             verbType.GetField("verbClass")!.SetValue(value,native.GetType("Verse.Verb_Shoot",true));
@@ -49,6 +54,13 @@ internal static class AcquisitionProof
         check(!ordinary(new[]{bullet,explosive}),"secondary safe verb cannot admit explosive weapon");
         check(!ordinary(new[]{verb("RimWorld.Bullet",1)}),"bullet with blast radius excluded");
         check(!ordinary(Array.Empty<object>()),"missing hunting projectile unavailable");
+        var fire = verb("RimWorld.Bullet", 0);
+        var fireDef = verbType.GetField("defaultProjectile")!.GetValue(fire)!;
+        var fireProjectile = thingDef.GetField("projectile")!.GetValue(fireDef)!;
+        projectileType.GetField("damageDef")!.SetValue(fireProjectile, flameDamage);
+        check(!ordinary(new[]{fire}), "incendiary bullet excluded");
+        check(!ordinary(new[]{bullet,fire}), "secondary incendiary verb excludes weapon");
+
         var record=bridge.GetType("HomeBridge.BridgeTools.NativeAcquisitionRecord",true)!;
         var attempt=parse("Common.AttemptKey","{\"controllerSessionId\":\"session\",\"actionId\":\"action\",\"attemptId\":1}");
         var context=parse("Common.ObservationContext","{\"identity\":{\"colonyId\":\"colony\",\"loadToken\":\"load\",\"mapId\":0},\"tick\":1}");

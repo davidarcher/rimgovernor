@@ -622,7 +622,7 @@ message CookingFacts { EntityRef bench = 1; optional bool usable = 2; repeated R
 // zone_id is the growing zone the plant stands in, absent on home ground.
 // designated: a CutPlant or HarvestPlant designation already exists.
 message BlightedPlant { EntityRef plant = 1; optional string zone_id = 2; optional bool designated = 3; optional double growth = 4; }
-message AcquisitionFacts { EntityRef source = 1; optional string resource = 2; optional bool tree = 3; optional bool food = 4; optional double yield = 5; optional double nutrition_yield = 6; optional bool designated = 7; optional bool hunt = 8; }
+message AcquisitionFacts { EntityRef source = 1; optional string resource = 2; optional bool tree = 3; optional bool food = 4; optional double yield = 5; optional double nutrition_yield = 6; optional bool designated = 7; optional bool hunt = 8; optional double revenge_chance = 9; optional uint32 herd_size = 10; optional bool melee_only = 11; optional bool downed = 12; optional double weapon_range = 13; }
 message ButcheringFacts { EntityRef bench = 1; repeated BillState bills = 2; optional bool usable = 3; repeated RecipeState recipes = 4; optional string room_id = 5; }
 message FoodCorpse { CorpseState corpse = 1; optional bool fresh = 2; optional bool reachable = 3; optional string meat_def = 4; optional double nutrition_yield = 5; }
 message ColonyNaming { optional int32 window_id = 1; optional string faction_name = 2; optional string settlement_name = 3; repeated ReadIssue issues = 4; }

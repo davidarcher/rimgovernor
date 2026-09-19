@@ -455,6 +455,16 @@ Supervised play pauses when an active hunt loses that route. Future prey movemen
 and shooting positions remain uncertain; native external inputs are not atomic
 with controller checks.
 
+Hunt acquisition reports revenge chance, same-race herd size within 25 cells
+(including the prey), melee eligibility, downed state and the longest ordinary
+weapon range among eligible hunters. Route safety remains authoritative. Food
+selection preserves forage priority, then prefers downed animals and lower
+revenge chance times herd size; equal costs retain native order. Hunt channels
+cap that exposure at one for Revenge risk and estimate pursuit work as
+7500 / (1 + range / 25) pawn ticks, or 2500 for downed prey. These are planning
+estimates, not inventory or proof of a kill. Incendiary weapons are excluded.
+Already-dead fresh corpses remain pending butcher material rather than hunts.
+
 ## Pest clearance
 
 A recognised pest (#247) is a wild animal hunted for what it destroys rather than

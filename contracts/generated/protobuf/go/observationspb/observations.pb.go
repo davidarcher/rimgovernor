@@ -23751,6 +23751,11 @@ type AcquisitionFacts struct {
 	NutritionYield *float64               `protobuf:"fixed64,6,opt,name=nutrition_yield,json=nutritionYield,proto3,oneof" json:"nutrition_yield,omitempty"`
 	Designated     *bool                  `protobuf:"varint,7,opt,name=designated,proto3,oneof" json:"designated,omitempty"`
 	Hunt           *bool                  `protobuf:"varint,8,opt,name=hunt,proto3,oneof" json:"hunt,omitempty"`
+	RevengeChance  *float64               `protobuf:"fixed64,9,opt,name=revenge_chance,json=revengeChance,proto3,oneof" json:"revenge_chance,omitempty"`
+	HerdSize       *uint32                `protobuf:"varint,10,opt,name=herd_size,json=herdSize,proto3,oneof" json:"herd_size,omitempty"`
+	MeleeOnly      *bool                  `protobuf:"varint,11,opt,name=melee_only,json=meleeOnly,proto3,oneof" json:"melee_only,omitempty"`
+	Downed         *bool                  `protobuf:"varint,12,opt,name=downed,proto3,oneof" json:"downed,omitempty"`
+	WeaponRange    *float64               `protobuf:"fixed64,13,opt,name=weapon_range,json=weaponRange,proto3,oneof" json:"weapon_range,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -23839,6 +23844,41 @@ func (x *AcquisitionFacts) GetHunt() bool {
 		return *x.Hunt
 	}
 	return false
+}
+
+func (x *AcquisitionFacts) GetRevengeChance() float64 {
+	if x != nil && x.RevengeChance != nil {
+		return *x.RevengeChance
+	}
+	return 0
+}
+
+func (x *AcquisitionFacts) GetHerdSize() uint32 {
+	if x != nil && x.HerdSize != nil {
+		return *x.HerdSize
+	}
+	return 0
+}
+
+func (x *AcquisitionFacts) GetMeleeOnly() bool {
+	if x != nil && x.MeleeOnly != nil {
+		return *x.MeleeOnly
+	}
+	return false
+}
+
+func (x *AcquisitionFacts) GetDowned() bool {
+	if x != nil && x.Downed != nil {
+		return *x.Downed
+	}
+	return false
+}
+
+func (x *AcquisitionFacts) GetWeaponRange() float64 {
+	if x != nil && x.WeaponRange != nil {
+		return *x.WeaponRange
+	}
+	return 0
 }
 
 type ButcheringFacts struct {
@@ -34278,7 +34318,7 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"\b_zone_idB\r\n" +
 	"\v_designatedB\t\n" +
-	"\a_growth\"\x81\x03\n" +
+	"\a_growth\"\x84\x05\n" +
 	"\x10AcquisitionFacts\x12>\n" +
 	"\x06source\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\x06source\x12\x1f\n" +
 	"\bresource\x18\x02 \x01(\tH\x00R\bresource\x88\x01\x01\x12\x17\n" +
@@ -34289,14 +34329,28 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"designated\x18\a \x01(\bH\x05R\n" +
 	"designated\x88\x01\x01\x12\x17\n" +
-	"\x04hunt\x18\b \x01(\bH\x06R\x04hunt\x88\x01\x01B\v\n" +
+	"\x04hunt\x18\b \x01(\bH\x06R\x04hunt\x88\x01\x01\x12*\n" +
+	"\x0erevenge_chance\x18\t \x01(\x01H\aR\rrevengeChance\x88\x01\x01\x12 \n" +
+	"\therd_size\x18\n" +
+	" \x01(\rH\bR\bherdSize\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"melee_only\x18\v \x01(\bH\tR\tmeleeOnly\x88\x01\x01\x12\x1b\n" +
+	"\x06downed\x18\f \x01(\bH\n" +
+	"R\x06downed\x88\x01\x01\x12&\n" +
+	"\fweapon_range\x18\r \x01(\x01H\vR\vweaponRange\x88\x01\x01B\v\n" +
 	"\t_resourceB\a\n" +
 	"\x05_treeB\a\n" +
 	"\x05_foodB\b\n" +
 	"\x06_yieldB\x12\n" +
 	"\x10_nutrition_yieldB\r\n" +
 	"\v_designatedB\a\n" +
-	"\x05_hunt\"\xa3\x02\n" +
+	"\x05_huntB\x11\n" +
+	"\x0f_revenge_chanceB\f\n" +
+	"\n" +
+	"_herd_sizeB\r\n" +
+	"\v_melee_onlyB\t\n" +
+	"\a_downedB\x0f\n" +
+	"\r_weapon_range\"\xa3\x02\n" +
 	"\x0fButcheringFacts\x12<\n" +
 	"\x05bench\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\x05bench\x12<\n" +
 	"\x05bills\x18\x02 \x03(\v2&.rimgovernor.observations.v1.BillStateR\x05bills\x12\x1b\n" +

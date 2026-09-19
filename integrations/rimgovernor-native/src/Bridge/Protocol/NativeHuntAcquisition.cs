@@ -79,7 +79,7 @@ namespace HomeBridge.BridgeTools
         internal static bool OrdinaryVerbs(IEnumerable<VerbProperties> definitions)
         {
             var verbs = definitions.Where(v => !v.IsMeleeAttack && v.ai_IsWeapon).ToArray();
-            return verbs.Length > 0 && verbs.All(v => v.defaultProjectile?.thingClass == typeof(Bullet) && v.defaultProjectile.projectile.explosionRadius == 0);
+            return verbs.Length > 0 && verbs.All(v => v.defaultProjectile?.thingClass == typeof(Bullet) && v.defaultProjectile.projectile.explosionRadius == 0 && v.defaultProjectile.projectile.damageDef?.workerClass != typeof(DamageWorker_Flame));
         }
         private static bool ButcherReady(Pawn prey) => prey.Map.listerThings.AllThings.OfType<Building>().Any(b =>
             b is IBillGiver giver && !b.IsForbidden(Faction.OfPlayer) && giver.CurrentlyUsableForBills()
@@ -90,9 +90,10 @@ namespace HomeBridge.BridgeTools
                     || bill.repeatMode == BillRepeatModeDefOf.TargetCount && BillCommon.ProductCount(bill) is int count && count < bill.targetCount))
             && prey.Map.mapPawns.FreeColonistsSpawned.Any(p => !p.Downed && !p.Drafted && !p.InMentalState
                 && DefDatabase<WorkTypeDef>.GetNamedSilentFail("Cooking") is WorkTypeDef cooking && p.workSettings?.WorkIsActive(cooking) == true && p.CanReach(b, PathEndMode.InteractionCell, Danger.None)));
-        // SafePrey is the animal rule: wild, docile, edible and visible.
+        // Food prey is wild, non-predatory and edible. Revenge is a policy cost;
+        // RouteSafe still rejects hazards and non-ordinary death actions.
         private static bool SafePrey(Pawn prey) => prey.Faction == null && prey.RaceProps.Animal
-            && !prey.RaceProps.predator && prey.RaceProps.manhunterOnDamageChance == 0 && !prey.InMentalState
+            && !prey.RaceProps.predator && !prey.InMentalState
             && prey.RaceProps.meatDef?.IsNutritionGivingIngestible == true && prey.RaceProps.corpseDef != null;
         // PestDefinitions are the wild animals hunted for what they destroy,
         // not for meat (#247): an alphabeaver pack defoliates the map and
@@ -111,7 +112,7 @@ namespace HomeBridge.BridgeTools
         // flees rather than fights back, so a colonist with a melee weapon
         // or bare hands can run it down. This is the wiki's day-one interim
         // food; it never covers a pest or anything the safe-prey rule rejects.
-        internal static bool Meleeable(Pawn prey) => SafePrey(prey) && prey.BodySize <= 1.0f;
+        internal static bool Meleeable(Pawn prey) => SafePrey(prey) && (prey.Downed || prey.RaceProps.manhunterOnDamageChance == 0 && prey.BodySize <= 1.0f);
         private static bool MeleeArmed(Pawn p, Pawn prey) => Meleeable(prey) && (p.equipment?.Primary == null || p.equipment.Primary.def.IsMeleeWeapon);
         // Hunter is the colonist rule: hunting enabled, an ordinary bullet
         // weapon (or a melee weapon or bare hands against meleeable prey),
@@ -128,7 +129,6 @@ namespace HomeBridge.BridgeTools
         {
             if (!prey.Spawned) return "not spawned";
             if (prey.Dead) return "dead";
-            if (prey.Downed) return "downed";
             if (prey.Position.Fogged(prey.Map)) return "fogged";
             if (!Pest(prey))
             {
@@ -148,7 +148,7 @@ namespace HomeBridge.BridgeTools
         }
         private static bool Eligible(Pawn prey)
         {
-            if (!prey.Spawned || prey.Dead || prey.Downed || prey.Position.Fogged(prey.Map)) return false;
+            if (!prey.Spawned || prey.Dead || prey.Position.Fogged(prey.Map)) return false;
             if (!Pest(prey) && (!SafePrey(prey) || !ButcherReady(prey))) return false;
             return prey.Map.mapPawns.FreeColonistsSpawned.Any(p => Hunter(p, prey));
         }
@@ -173,7 +173,13 @@ namespace HomeBridge.BridgeTools
                 Source = new Obs.EntityRef { Id = prey.GetUniqueLoadID(), DefName = prey.def.defName, MapId = map.uniqueID,
                     Position = new Common.Cell { X = prey.Position.x, Z = prey.Position.z }, Snapshot = Snapshot(prey, result.Context) },
                 Resource = prey.RaceProps.corpseDef.defName, Tree = false, Food = !Pest(prey), Hunt = true,
-                Yield = 1, NutritionYield = Pest(prey) ? 0 : Nutrition(prey), Designated = Designated(prey) });
+                Yield = 1, NutritionYield = Pest(prey) ? 0 : Nutrition(prey), Designated = Designated(prey),
+                RevengeChance = prey.RaceProps.manhunterOnDamageChance,
+                HerdSize = (uint)map.mapPawns.AllPawnsSpawned.Count(p => !p.Dead && p.def == prey.def && p.Position.DistanceToSquared(prey.Position) <= 625),
+                MeleeOnly = Meleeable(prey), Downed = prey.Downed,
+                WeaponRange = map.mapPawns.FreeColonistsSpawned.Where(p => Hunter(p, prey) && OrdinaryWeapon(p))
+                    .SelectMany(p => p.equipment.Primary.def.Verbs).Where(v => !v.IsMeleeAttack && v.ai_IsWeapon)
+                    .Select(v => (double)v.range).DefaultIfEmpty(0).Max() });
             result.PendingFoodNutrition += map.listerThings.AllThings.OfType<Corpse>().Where(c => c.GetRotStage() == RotStage.Fresh
                 && c.InnerPawn.RaceProps.Animal && c.InnerPawn.RaceProps.meatDef?.IsNutritionGivingIngestible == true).Sum(c => Nutrition(c.InnerPawn));
             result.PendingFoodNutrition += map.mapPawns.AllPawnsSpawned.Where(p => Designated(p) && p.RaceProps.meatDef != null).Sum(Nutrition);
@@ -233,7 +239,7 @@ namespace HomeBridge.BridgeTools
                 .Require(() => Pending(map) < 2, "two hunts are already outstanding on this map")
                 .Require(() => !map.AllCells.Any(c => map.roofCollapseBuffer.IsMarkedToCollapse(c)), "a roof collapse is pending on this map")
                 .Present(() => found != null && found.Spawned, "the exact animal is no longer spawned on this map")
-                .Require(() => !found!.Dead && !found.Downed, "the animal is dead or downed")
+                .Require(() => !found!.Dead, "the animal is dead")
                 .Require(() => Pest(found!) || SafePrey(found!), "the animal is neither safe wild prey nor a recognised pest")
                 .Require(() => found!.Position.x == command.Cell.X && found.Position.z == command.Cell.Z, "the animal is not at the expected cell")
                 .Require(() => found!.RaceProps.corpseDef.defName == command.ResourceDefName, "the animal's corpse is not the expected resource")

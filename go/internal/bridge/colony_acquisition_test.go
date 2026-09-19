@@ -41,9 +41,34 @@ func TestAcquisitionCensusBindsSourceSnapshotAndYield(t *testing.T) {
 
 func TestAcquisitionCensusAcceptsAnInediblePestHunt(t *testing.T) {
 	base := colonyFixture(t).GetObserved()
-	base.Acquisition = []*o.AcquisitionFacts{{Source: &o.EntityRef{Id: proto.String("beaver"), DefName: proto.String("Alphabeaver"), MapId: base.Context.Identity.MapId, Position: proto.Clone(base.Center).(*c.Cell), Snapshot: &o.SnapshotRef{EntityId: proto.String("beaver"), Token: proto.String("cas"), Context: proto.Clone(base.Context).(*c.ObservationContext)}}, Resource: proto.String("Corpse_Alphabeaver"), Hunt: proto.Bool(true), Tree: proto.Bool(false), Food: proto.Bool(false), Designated: proto.Bool(false), Yield: proto.Float64(1), NutritionYield: proto.Float64(0)}}
+	base.Acquisition = []*o.AcquisitionFacts{{Source: &o.EntityRef{Id: proto.String("beaver"), DefName: proto.String("Alphabeaver"), MapId: base.Context.Identity.MapId, Position: proto.Clone(base.Center).(*c.Cell), Snapshot: &o.SnapshotRef{EntityId: proto.String("beaver"), Token: proto.String("cas"), Context: proto.Clone(base.Context).(*c.ObservationContext)}}, RevengeChance: proto.Float64(0.1), HerdSize: proto.Uint32(3), MeleeOnly: proto.Bool(false), Downed: proto.Bool(false), WeaponRange: proto.Float64(30), Resource: proto.String("Corpse_Alphabeaver"), Hunt: proto.Bool(true), Tree: proto.Bool(false), Food: proto.Bool(false), Designated: proto.Bool(false), Yield: proto.Float64(1), NutritionYield: proto.Float64(0)}}
 	base.Issues = nil
 	if err := validateColonyAcquisition(base); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestHuntCostsRequireCompleteBoundedFacts(t *testing.T) {
+	base := colonyFixture(t).GetObserved()
+	source := &o.EntityRef{Id: proto.String("deer"), DefName: proto.String("Deer"), MapId: base.Context.Identity.MapId, Position: proto.Clone(base.Center).(*c.Cell), Snapshot: &o.SnapshotRef{EntityId: proto.String("deer"), Token: proto.String("cas"), Context: proto.Clone(base.Context).(*c.ObservationContext)}}
+	base.Acquisition = []*o.AcquisitionFacts{{Source: source, Resource: proto.String("Corpse_Deer"), Hunt: proto.Bool(true), Tree: proto.Bool(false), Food: proto.Bool(true), Designated: proto.Bool(false), Yield: proto.Float64(1), NutritionYield: proto.Float64(10), RevengeChance: proto.Float64(0), HerdSize: proto.Uint32(1), MeleeOnly: proto.Bool(true), Downed: proto.Bool(false), WeaponRange: proto.Float64(0)}}
+	base.Issues = nil
+	if err := validateColonyAcquisition(base); err != nil {
+		t.Fatal(err)
+	}
+	for _, mutate := range []func(*o.AcquisitionFacts){
+		func(r *o.AcquisitionFacts) { r.RevengeChance = nil },
+		func(r *o.AcquisitionFacts) { r.RevengeChance = proto.Float64(math.NaN()) },
+		func(r *o.AcquisitionFacts) { r.RevengeChance = proto.Float64(1.1) },
+		func(r *o.AcquisitionFacts) { r.HerdSize = proto.Uint32(0) },
+		func(r *o.AcquisitionFacts) { r.MeleeOnly = nil },
+		func(r *o.AcquisitionFacts) { r.Downed = nil },
+		func(r *o.AcquisitionFacts) { r.WeaponRange = proto.Float64(-1) },
+	} {
+		v := proto.Clone(base).(*o.ColonyFactsSnapshot)
+		mutate(v.Acquisition[0])
+		if validateColonyAcquisition(v) == nil {
+			t.Fatal("accepted invalid hunt cost", v.Acquisition[0])
+		}
 	}
 }
