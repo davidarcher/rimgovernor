@@ -1,6 +1,6 @@
 // Command acceptance is the shared runner over the case registry (#135):
 //
-//	acceptance list
+//	acceptance list [-cost [-baseline <result.json|metrics.jsonl>]] [<case>|<area>/...]...
 //	acceptance run <case>... [-root -output -game -headless -timeout -budget -stall -rimgovernor -series -no-series -evidence -fresh -rewind N -checkpoint-every d]
 //	acceptance suite (-all | -cases a,b | -suite file.json) -root -output -workers N [-baseline result.json -series metrics.jsonl]
 //	acceptance stop -root <dir> [-config -game -takeover]
@@ -110,10 +110,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 	switch args[0] {
 	case "list":
-		for _, c := range cases.All() {
-			fmt.Fprintf(stdout, "%s\t%s\n", c.Name, c.Scope)
-		}
-		return 0
+		return list(args[1:], stdout, stderr)
 	case "run":
 		selected, opts, err := parseRun(args[1:], stderr)
 		if err != nil {
@@ -143,7 +140,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 }
 
 const usage = `usage:
-  acceptance list
+` + listUsage + `
   acceptance run <case>... -root <dir> [-output <dir> -game <id> -headless=false -timeout <d> -budget <d> -stall <d> -rimgovernor <binary> -series <metrics.jsonl> -no-series -evidence capped|full -fresh -rewind <n> -checkpoint-every <d>]
     a case whose last run in this root failed resumes from its checkpoint ring (printed on the first line);
     -fresh starts over, -rewind <n> resumes n entries earlier, -checkpoint-every 0 turns the ring off

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"testing"
@@ -196,6 +197,44 @@ func TestWhyPrintsDigestForCaseDirectory(t *testing.T) {
 	}
 	if code := run([]string{"why"}, &stdout, &stderr); code != 2 {
 		t.Fatalf("why without a directory: exit %d", code)
+	}
+}
+
+func TestListCostPricesCasesFromBaseline(t *testing.T) {
+	baseline := filepath.Join(t.TempDir(), "result.json")
+	if err := os.WriteFile(baseline, []byte(`{"cases":[{"name":"smoke/identity","wall_ms":15000,"boot_ms":5000}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{"list", "-cost", "-baseline", baseline, "smoke/..."}, &stdout, &stderr); code != 0 {
+		t.Fatalf("list -cost exit %d: %s", code, stderr.String())
+	}
+	out := stdout.String()
+	if !regexp.MustCompile(`smoke/identity +15s +5s +Runner smoke`).MatchString(out) || !regexp.MustCompile(`smoke/dispatch +untimed +#227`).MatchString(out) {
+		t.Errorf("list -cost rows:\n%s", out)
+	}
+	if !strings.Contains(out, "total: 2 cases, 15s wall (boot 5s), 1 untimed (baseline "+baseline+")") {
+		t.Errorf("list -cost total:\n%s", out)
+	}
+	if strings.Contains(out, "light/") {
+		t.Errorf("area filter leaked other areas:\n%s", out)
+	}
+
+	// Without a baseline every case is untimed and the total says why.
+	stdout.Reset()
+	if code := run([]string{"list", "-cost", "smoke/identity"}, &stdout, &stderr); code != 0 {
+		t.Fatalf("list -cost exit %d: %s", code, stderr.String())
+	}
+	if out := stdout.String(); !regexp.MustCompile(`smoke/identity +untimed +Runner`).MatchString(out) || !strings.Contains(out, "total: 1 case, 1 untimed (no -baseline given)") {
+		t.Errorf("no-baseline output:\n%s", out)
+	}
+
+	stdout.Reset()
+	if code := run([]string{"list", "nosuch/case"}, &stdout, &stderr); code != 2 || !strings.Contains(stderr.String(), "unknown case") {
+		t.Errorf("unknown name exit %d: %s", code, stderr.String())
+	}
+	if code := run([]string{"list", "-cost", "-baseline", filepath.Join(t.TempDir(), "missing.json")}, &stdout, &stderr); code != 2 {
+		t.Errorf("missing baseline exit %d", code)
 	}
 }
 

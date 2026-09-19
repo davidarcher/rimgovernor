@@ -77,7 +77,11 @@ once so later runs can trust it.
 Every native acceptance is a registered `cases.Case` under
 `go/internal/nativeaccept/cases/<area>/*.go` (#135), run by the one
 binary `go/internal/nativeaccept/cmd/acceptance`: `go run
-./internal/nativeaccept/cmd/acceptance list` names the registry, and
+./internal/nativeaccept/cmd/acceptance list [<area>/...]` names the registry
+(`-cost -baseline <suite result.json or metrics.jsonl>` adds each case's
+baseline wall and boot time and the set's total, `untimed` for cases the
+baseline never ran, so an agent choosing among the cases a change owes
+can see that one costs 4 minutes and another 18, #283), and
 `acceptance run <area>/<case>... -root <abs root> [-output <dir>]
 [-rimgovernor <abs rimgovernor.exe>] [-budget <d> -stall <d> -timeout <d>]
 [-fresh] [-rewind N] [-checkpoint-every <d>] [-evidence capped|full]`
@@ -682,6 +686,10 @@ contract probes build (a source under `integrations/rimgovernor-native/src`,
 `contracts/tests` or the generated C# protocol classes): the probes compile
 production clock and authority sources against hand-written stubs, so a
 native addition can break them while the mod build stays green (#123).
+`-baseline <result.json|metrics.jsonl>` appends the affected case set's
+price: the total wall and boot time of the baseline's rows in the affected
+areas (cases the baseline never timed are not counted; `acceptance list
+-cost <area>/...` names them).
 `go run ./cmd/test` runs the `go test` line and the probes build (the
 landing lane does not). Run the acceptance lines at the milestone and name them in the commit
 message. Run `cmd/test` once before
