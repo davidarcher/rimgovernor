@@ -655,6 +655,34 @@ observed yet, so the Peaceful softening stays off. The colony status read
 fetches combat pawns, the emergency census and a 27x27 defense-site
 window around the wall only while a sealed shrine shows a breach wall.
 
+### Ancient shrine breach goal
+
+`ClearAncientShrine` (the `shrine` routine family, #458) owes work on every
+shrine whose room touches Home that is still sealed, or open with a guard
+seen standing; an open shrine nobody has looked into is not its target.
+The review journals one `ShrineHolds` row per censused shrine: the
+readiness reason above, `ready` with the chosen `wall`, `guards_alive`
+once the wall is down, or `readiness_unknown` under a native without the
+readiness reads. Repairs precede the breach and the breach precedes
+`ClearHomeObstructions` (a shrine wall is `ancient_danger` to the clearance
+census, which never touches it). The planner re-judges readiness live and
+admits one method for the first ready shrine: an `OwnedDraft` for each
+drafted defender, a `Movement` to a standing cell behind the trap line
+(at least five cells straight out from the wall's outside cell, within the
+trap radius, never a trap cell, nearest eight cells out first; a defender
+with no cell stands where it is), and last a breach `Deconstruction` of the
+chosen wall that depends on every draft and move. One colonist is always
+left undrafted for the deconstruct job: the squad's last defender when the
+colony is no larger than the squad. The breach deconstruction is
+inspected against the shrine census, not the clearance census, and is
+eligible only while the shrine is still sealed; a wall that vanishes or
+changes definition is absent. The wall falling ends the method: the plan
+has no open work, the worker releases the owned drafts and `ActiveCombat`
+answers the guards, which the goal then holds `guards_alive` until they are
+dead or downed. Eight attempts per wall and goal epoch; Stop and Manual
+release the drafts and controller-owned designations as for any owned
+draft. Ranged breaching and casket handling (#459, #460) are not composed.
+
 ## Autonomous supply safety
 
 `ManageSupplySafety` owns both directions of the forbid flag for visible,

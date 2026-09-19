@@ -32,10 +32,11 @@ type ShrineGuard struct {
 }
 
 // ShrineBreachWall is a perimeter wall the player may deconstruct without a
-// roof-support blocker; Outside is the adjacent cell beyond the room.
+// roof-support blocker; Outside is the adjacent cell beyond the room and
+// DefName the wall's definition (empty from a native before it was read).
 type ShrineBreachWall struct {
-	EntityID      string
-	Cell, Outside domain.Cell
+	EntityID, DefName string
+	Cell, Outside     domain.Cell
 }
 
 // AncientShrine is one ancient-danger room as observed. Guards is complete

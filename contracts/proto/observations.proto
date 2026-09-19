@@ -112,6 +112,7 @@ message ShrineBreachWall {
   optional string entity_id = 1;
   rimgovernor.common.v1.Cell cell = 2;
   rimgovernor.common.v1.Cell outside = 3; // Adjacent cell outside the room.
+  optional string def_name = 4; // The wall's ThingDef, the breach designation's definition.
 }
 message AncientShrine {
   optional string shrine_id = 1;

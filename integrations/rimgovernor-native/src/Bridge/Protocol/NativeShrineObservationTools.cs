@@ -100,7 +100,7 @@ namespace HomeBridge.BridgeTools
                                 }
                                 if (outside == null) continue;
                                 Require(row.BreachWalls.Count < BreachLimit, "Shrine breach walls exceed " + BreachLimit + ".");
-                                row.BreachWalls.Add(new Obs.ShrineBreachWall { EntityId = Id(wall.GetUniqueLoadID()), Cell = Cell(cell.x, cell.z), Outside = Cell(outside.Value.x, outside.Value.z) });
+                                row.BreachWalls.Add(new Obs.ShrineBreachWall { EntityId = Id(wall.GetUniqueLoadID()), DefName = Id(wall.def.defName), Cell = Cell(cell.x, cell.z), Outside = Cell(outside.Value.x, outside.Value.z) });
                             }
                         }
                         snapshot.Shrines.Add(row);

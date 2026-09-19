@@ -19,7 +19,7 @@ var inlinePlannerSet = []struct {
 	{"preservationBills", plannerFoothold}, {"butcherBills", plannerFoothold}, {"cookAheadBills", plannerFoothold}, {"basicComfort", plannerFoothold}, {"comfort", plannerComfort}, {"workshop", plannerMaintenance},
 	{"hospital", plannerCritical}, {"sleepingUpkeep", plannerCritical}, {"expansion", plannerComfort}, {"defense", plannerPreempt}, {"tend", plannerCritical},
 	{"rescue", plannerCritical}, {"equip", plannerMaintenance}, {"secureSupplies", plannerFoothold}, {"repair", plannerMaintenance},
-	{"fireSafety", plannerFoothold}, {"clearance", plannerMaintenance}, {"clean", plannerMaintenance}, {"blight", plannerMaintenance}, {"waste", plannerMaintenance}, {"moodRelief", plannerMaintenance},
+	{"fireSafety", plannerFoothold}, {"clearance", plannerMaintenance}, {"shrine", plannerMaintenance}, {"clean", plannerMaintenance}, {"blight", plannerMaintenance}, {"waste", plannerMaintenance}, {"moodRelief", plannerMaintenance},
 	{"haul", plannerMaintenance}, {"gear", plannerMaintenance}, {"medical", plannerCritical}, {"foodStorageUpkeep", plannerFoothold},
 	{"animalContainment", plannerMaintenance}, {"recovery", plannerCritical}, {"husbandry", plannerMaintenance}, {"prisonerInteraction", plannerMaintenance},
 	{"populationCustody", plannerFoothold}, {"populationJoiner", plannerMaintenance}, {"research", plannerMaintenance}, {"ingredient-storage", plannerMaintenance}, {"naming", plannerPreempt}, {"dialog", plannerPreempt}, {"trade", plannerFoothold}, {"resource", plannerMaintenance},

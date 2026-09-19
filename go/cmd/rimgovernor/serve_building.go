@@ -621,9 +621,9 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		cleanCapabilities = client.clean
 	}
 	var deconstructionCapabilities *buildingruntime.DeconstructionCapabilities
-	if config.routineClearancePlans {
+	if config.routineClearancePlans || config.routineShrinePlans {
 		if client.deconstruction == nil {
-			return errors.New("clearance plans require typed deconstruction capabilities")
+			return errors.New("clearance and shrine plans require typed deconstruction capabilities")
 		}
 		deconstructionCapabilities = client.deconstruction
 	}

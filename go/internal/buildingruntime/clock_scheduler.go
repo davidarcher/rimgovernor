@@ -71,6 +71,7 @@ type ClockSchedulerConfig struct {
 	Supplies                         *RoutineSupplyPlanner
 	Blight                           *RoutineBlightPlanner
 	Clearance                        *RoutineClearancePlanner
+	Shrine                           *RoutineShrinePlanner
 	Sleeping                         *RoutineBuildingPlanner
 	Cooking                          *RoutineBuildingPlanner
 	Comfort                          *RoutineBuildingPlanner
@@ -136,6 +137,7 @@ type ClockSchedulerResult struct {
 	Supplies                         *RoutineSupplyResult
 	Blight                           *RoutineBlightResult
 	Clearance                        *RoutineClearanceResult
+	Shrine                           *RoutineShrineResult
 	Sleeping                         *RoutineBuildingResult
 	Cooking                          *RoutineBuildingResult
 	Comfort                          *RoutineBuildingResult
@@ -302,6 +304,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, ErrControl
 	}
 	if config.Clearance != nil && (config.Routine == nil || config.Clearance.reviewer != config.Routine) {
+		return nil, ErrControl
+	}
+	if config.Shrine != nil && (config.Routine == nil || config.Shrine.reviewer != config.Routine) {
 		return nil, ErrControl
 	}
 	if config.Blight != nil && (config.Routine == nil || config.Blight.reviewer != config.Routine) {

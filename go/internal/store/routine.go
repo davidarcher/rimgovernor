@@ -32,6 +32,7 @@ type RoutineReview struct {
 	ReserveSupplies        []ReserveSupply         `json:",omitempty"`
 	LarderSupplies         []policy.StartingSupply `json:",omitempty"`
 	ClearanceHolds         []policy.ClearanceHold  `json:",omitempty"`
+	ShrineHolds            []policy.ShrineHold     `json:",omitempty"`
 	Recovery               *RoutineRecovery        `json:",omitempty"`
 	Disaster               *policy.DisasterHistory `json:",omitempty"`
 	Mood                   *RoutineMood            `json:",omitempty"`
@@ -100,7 +101,7 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 		return r, err
 	}
 	canonical, err := json.Marshal(r)
-	if err != nil || !bytes.Equal(data, canonical) || r.Revision == 0 || r.Snapshot.Validate() != nil || r.Tick < 0 || len(r.Goals) > 304 {
+	if err != nil || !bytes.Equal(data, canonical) || r.Revision == 0 || r.Snapshot.Validate() != nil || r.Tick < 0 || len(r.Goals) > 305 {
 		return RoutineReview{}, errors.New("invalid routine review history")
 	}
 	if err := r.MedicalCare.Validate(); err != nil {
@@ -558,6 +559,11 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		r.ClearanceHolds = policy.SelectHomeClearance(rows, domain.Cell{}).Holds
 	} else {
 		r.ClearanceHolds = previous.ClearanceHolds
+	}
+	if _, known := request.Facts.Upkeep.Shrines.Value(); known {
+		r.ShrineHolds = request.Facts.ShrineHolds
+	} else {
+		r.ShrineHolds = previous.ShrineHolds
 	}
 	data, err := json.Marshal(r)
 	if err != nil {

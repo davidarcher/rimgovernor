@@ -241,6 +241,9 @@ cell per pending stack between 4 and 16. The method is content-addressed by
 cells and allow list; ordinary hauling then clears the stacks and the deficit
 recovers as soon as every chunk is stored or has a destination. Forbidden
 chunks are the supply safety policy's (#336).
+`ClearAncientShrine` (the `shrine` family, #458) is the sealed-shrine
+counterpart: it holds the clearance goal while it has work and is described
+under the breach goal in `controller-contracts.md`.
 Unknown observations preserve the previous need. Recovery requires no eligible
 candidate and no unresolved issued action; recurrence keeps the goal identity.
 Every dispatch rechecks eligibility, authority and emergency facts. Only the

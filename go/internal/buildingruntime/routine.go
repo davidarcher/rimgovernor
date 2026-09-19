@@ -314,6 +314,22 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 			reading.Projection.Facts.Upkeep.Chunks = domain.Known(census.Chunks)
 		}
 	}
+	if r.methodEnabled(policy.ClearAncientShrine) {
+		source, ok := r.native.(observation.ShrineSource)
+		if !ok {
+			return store.RoutineReviewResult{}, ErrControl
+		}
+		if reading.Projection.Facts.Upkeep.Shrines, err = observation.ObserveShrines(ctx, source, expected); err != nil {
+			return store.RoutineReviewResult{}, err
+		}
+		// The breach judgement (#457) is journalled beside the review so the
+		// hold reason and the chosen wall are readable; the planner re-reads
+		// before drafting anyone. The reads only happen for a sealed shrine
+		// with a breach wall.
+		if reading.Projection.Facts.ShrineHolds, err = routineShrineHolds(ctx, r.native, state.Snapshot, reading.Projection); err != nil {
+			return store.RoutineReviewResult{}, err
+		}
+	}
 	reading.Projection.Facts.AvailableMethods = r.methods
 	result, err := p.journal.ReviewRoutine(ctx, store.RoutineReviewRequest{Revision: previous.Revision, WorkPreferenceRevision: preferences.Revision, Current: state.Snapshot, Tick: reading.Projection.Identity.Tick, Enabled: true, Policy: r.policy, Facts: reading.Projection.Facts, PartialPlanners: partial, AsOf: routineAsOf(asOf)})
 	if err != nil {

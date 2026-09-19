@@ -75,7 +75,7 @@ func ObserveShrines(ctx context.Context, source ShrineSource, expected Identity)
 			shrine.Guards = append(shrine.Guards, policy.ShrineGuard{EntityID: guard.GetEntityId(), Kind: kinds[guard.Kind], Downed: guard.GetDowned(), Dead: guard.GetDead()})
 		}
 		for _, wall := range row.BreachWalls {
-			shrine.BreachWalls = append(shrine.BreachWalls, policy.ShrineBreachWall{EntityID: wall.GetEntityId(), Cell: cell(wall.Cell), Outside: cell(wall.Outside)})
+			shrine.BreachWalls = append(shrine.BreachWalls, policy.ShrineBreachWall{EntityID: wall.GetEntityId(), DefName: wall.GetDefName(), Cell: cell(wall.Cell), Outside: cell(wall.Outside)})
 		}
 		rows = append(rows, shrine)
 	}

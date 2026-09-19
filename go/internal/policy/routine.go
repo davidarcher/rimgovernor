@@ -368,9 +368,13 @@ type RoutineFacts struct {
 	// AvailableMethods is supplied by the configured runtime, never native facts.
 	AvailableMethods domain.Fact[[]GoalID]
 	Upkeep           UpkeepObservation
-	UpkeepIssued     map[GoalID]bool
-	Gear             domain.Fact[GearObservation]
-	Comfort          domain.Fact[ComfortObservation]
+	// ShrineHolds is each Upkeep.Shrines row's breach judgement (#458) as
+	// the reviewer read it, journalled beside the review; empty while the
+	// census is unknown.
+	ShrineHolds  []ShrineHold
+	UpkeepIssued map[GoalID]bool
+	Gear         domain.Fact[GearObservation]
+	Comfort      domain.Fact[ComfortObservation]
 	// BasicComfort is the same census before the hosting-room filter: every
 	// indoor seat at an eating surface and every recreation source, whatever
 	// room (or none) hosts it. EnsureBasicComfort measures it; Comfort keeps
@@ -941,16 +945,24 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 			// (G01.07c 05.4, G01.07b 05.2); the rest of the direct upkeep
 			// orders remain visible-only until their own dispatch verticals
 			// land.
-			if n.Goal != SecureSupplies && n.Goal != MaintainEssentialRepairs && n.Goal != MaintainCleanFacilities && n.Goal != MaintainStorage && n.Goal != ClearHomeObstructions {
+			if n.Goal != SecureSupplies && n.Goal != MaintainEssentialRepairs && n.Goal != MaintainCleanFacilities && n.Goal != MaintainStorage && n.Goal != ClearHomeObstructions && n.Goal != ClearAncientShrine {
 				r.Goals[len(r.Goals)-1].MethodUnavailable = true
 			}
 		}
 	}
 	// Clearance ranks below repairs and above direct cleaning. Safety goals
 	// already suspend all development work through the shared emergency gate.
+	// The shrine breach (#458) ranks with clearance below repairs; while its
+	// breach is issued, obstruction clearance waits so the construction hand
+	// is the breacher, not a wanderer past the trap line.
 	for i := range r.Goals {
-		if r.Goals[i].ID == ClearHomeObstructions && upkeep.History.Repairs || r.Goals[i].ID == MaintainCleanFacilities && upkeep.History.Clearance {
-			r.Goals[i].MethodUnavailable = true
+		switch r.Goals[i].ID {
+		case ClearAncientShrine:
+			r.Goals[i].MethodUnavailable = r.Goals[i].MethodUnavailable || upkeep.History.Repairs
+		case ClearHomeObstructions:
+			r.Goals[i].MethodUnavailable = r.Goals[i].MethodUnavailable || upkeep.History.Repairs || f.UpkeepIssued[ClearAncientShrine]
+		case MaintainCleanFacilities:
+			r.Goals[i].MethodUnavailable = r.Goals[i].MethodUnavailable || upkeep.History.Clearance
 		}
 	}
 	homeRecovered, stoneRecovered := domain.Unknown[bool](), domain.Unknown[bool]()

@@ -289,8 +289,8 @@ the map edge), whether any room cell is in Home, every cryptosleep casket
 with its hit points, `has_contents` and player claim, the hostile pawns and
 hives inside the room once the interior is unfogged (`guards_known`; a
 sealed shrine never reports guards), and the perimeter walls the player may
-deconstruct without a roof-support blocker, each with the adjacent cell
-outside the room.
+deconstruct without a roof-support blocker, each with its definition
+(`def_name`, #458) and the adjacent cell outside the room.
 
 The occupant of a filled casket is unknown until it opens; a casket under
 20% hit points explodes, so hit points are a safety reading. The census is

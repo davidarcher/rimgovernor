@@ -178,6 +178,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	haul, waste, moodRelief, naming, dialog, trade := sc.routineHaulPlans, sc.routineWastePlans, sc.routineMoodPlans, sc.routineNamingPlans, sc.routineDialogPlans, sc.routineTradePlans
 	blight := sc.routineBlightPlans
 	clearance := sc.routineClearancePlans
+	shrine := sc.routineShrinePlans
 	config := serviceClockConfig(profile, parseClockSpeed(clockSpeed), sc.clockTestAcceleration, uint32(sc.clockWindowTicks))
 	config.Facts = cache
 	config.Store = sections
@@ -194,7 +195,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 		}
 		config.CaravanJourney = tracker
 	}
-	if (bills || fields || foodStorage || acquisition || work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || secureSupplies || repair || fireSafety || clean || haul || waste || blight || clearance || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || sc.routinePopulationJoinerPlans || homeCoverage || stoneShell || defensiveLayout || naming || dialog || trade || researchTarget != "" || resourceTargets || animalFeedPlans || productionPolicyPlans) && !routine {
+	if (bills || fields || foodStorage || acquisition || work || supplies || sleeping || cooking || shelter || comfort || hospital || expansion || power || temperature || defense || tend || rescue || equip || secureSupplies || repair || fireSafety || clean || haul || waste || blight || clearance || shrine || moodRelief || gear || medical || foodStorageUpkeep || refrigeration || lighting || flooring || routes || animalContainment || recovery || husbandry || prisonerInteraction || populationCustody || sc.routinePopulationJoinerPlans || homeCoverage || stoneShell || defensiveLayout || naming || dialog || trade || researchTarget != "" || resourceTargets || animalFeedPlans || productionPolicyPlans) && !routine {
 		return nil, errors.New("building plans require routine reviews")
 	}
 	if routine {
@@ -370,6 +371,16 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 				return nil, errors.New("clearance plans require typed colony observations")
 			}
 			config.Clearance, err = buildingruntime.NewRoutineClearancePlanner(reviewer, clearanceNative)
+			if err != nil {
+				return nil, err
+			}
+		}
+		if shrine {
+			shrineNative, ok := reads.(buildingruntime.RoutineShrineSource)
+			if !ok {
+				return nil, errors.New("shrine plans require typed shrine observations")
+			}
+			config.Shrine, err = buildingruntime.NewRoutineShrinePlanner(reviewer, shrineNative)
 			if err != nil {
 				return nil, err
 			}
@@ -799,6 +810,9 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 	}
 	if sc.routineClearancePlans {
 		capabilities.Methods = append(capabilities.Methods, policy.ClearHomeObstructions)
+	}
+	if sc.routineShrinePlans {
+		capabilities.Methods = append(capabilities.Methods, policy.ClearAncientShrine)
 	}
 	if sc.routineBlightPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.RemoveBlight)

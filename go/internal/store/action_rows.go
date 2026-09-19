@@ -54,7 +54,11 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 	} else if excavation, ok := a.Excavation(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,definition,x,z) VALUES(?,?,?,'excavation',?,?,?)", a.ID(), plan, ordinal, excavation.Definition(), excavation.Cell().X, excavation.Cell().Z)
 	} else if cut, ok := a.Deconstruction(); ok {
-		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,x,z) VALUES(?,?,?,'deconstruction',?,?,?,?)", a.ID(), plan, ordinal, cut.Target(), cut.Definition(), cut.Cell().X, cut.Cell().Z)
+		var breach sql.NullString
+		if cut.Breach() {
+			breach = sql.NullString{String: "breach", Valid: true}
+		}
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,x,z,stuff) VALUES(?,?,?,'deconstruction',?,?,?,?,?)", a.ID(), plan, ordinal, cut.Target(), cut.Definition(), cut.Cell().X, cut.Cell().Z, breach)
 	} else if cut, ok := a.CutPlant(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,target,definition,x,z) VALUES(?,?,?,'cut_plant',?,?,?,?)", a.ID(), plan, ordinal, cut.Plant(), cut.Definition(), cut.Cell().X, cut.Cell().Z)
 	} else if supply, ok := a.SupplyAllow(); ok {
@@ -412,8 +416,12 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		a, err := domain.NewExcavationAction(id, e)
 		return a, ordinal, err
 	}
-	if kind == "deconstruction" && target.Valid && def.Valid && x.Valid && z.Valid && !pawn.Valid && !draftAction.Valid && !rotation.Valid && !stuff.Valid && x.Int64 >= 0 && x.Int64 <= 2147483647 && z.Int64 >= 0 && z.Int64 <= 2147483647 {
-		c, err := domain.NewDeconstruction(target.String, def.String, domain.Cell{X: int32(x.Int64), Z: int32(z.Int64)})
+	if kind == "deconstruction" && target.Valid && def.Valid && x.Valid && z.Valid && !pawn.Valid && !draftAction.Valid && !rotation.Valid && (!stuff.Valid || stuff.String == "breach") && x.Int64 >= 0 && x.Int64 <= 2147483647 && z.Int64 >= 0 && z.Int64 <= 2147483647 {
+		construct := domain.NewDeconstruction
+		if stuff.Valid {
+			construct = domain.NewBreachDeconstruction
+		}
+		c, err := construct(target.String, def.String, domain.Cell{X: int32(x.Int64), Z: int32(z.Int64)})
 		if err != nil {
 			return domain.Action{}, 0, err
 		}

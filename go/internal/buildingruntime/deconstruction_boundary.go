@@ -20,6 +20,7 @@ import (
 
 type DeconstructionNative interface {
 	ReadClearanceTargets(context.Context, *c.Identity) (*n.ClearanceTargetsReply, bridge.Result, error)
+	ReadAncientShrines(context.Context, *c.Identity) (*n.AncientShrinesReply, bridge.Result, error)
 	ReadEmergency(context.Context, *c.Identity) (bridge.EmergencyObservation, bridge.Result, error)
 	LookupDeconstruction(context.Context, bridge.DeconstructionAttempt) (*r.LookupReply, bridge.Result, error)
 	ObserveDeconstructionProgress(context.Context, bridge.DeconstructionAttempt, *r.Receipt) (*r.ProgressReply, bridge.Result, error)
@@ -52,6 +53,9 @@ func (b *DeconstructionBoundary) InspectDeconstruction(ctx context.Context, targ
 	value, ok := target.Action.Deconstruction()
 	if !ok {
 		return out, executor.ErrEvidence
+	}
+	if value.Breach() {
+		return b.inspectBreach(ctx, target, value, out)
 	}
 	reply, _, err := b.native.ReadClearanceTargets(ctx, boundary.Identity(target.Snapshot))
 	if err != nil {
@@ -95,6 +99,58 @@ func (b *DeconstructionBoundary) InspectDeconstruction(ctx context.Context, targ
 		}
 		out.ObservedAt = b.clock.Now()
 		return out, ctx.Err()
+	}
+	return out, executor.ErrDeconstructionAbsent
+}
+
+// inspectBreach guards a shrine breach (#458) on the shrine census instead
+// of the Home clearance census: the wall is eligible while it is still a
+// breach wall of a sealed shrine (deconstructible, unfogged, no roof
+// blocker, an outside cell to stand on). A wall gone from that list is
+// absent: the shrine opened by other means or the wall fell. The emergency
+// hold is the same one an ordinary deconstruction takes.
+func (b *DeconstructionBoundary) inspectBreach(ctx context.Context, target executor.Target, value domain.Deconstruction, out executor.DeconstructionInspection) (executor.DeconstructionInspection, error) {
+	identity := boundary.Identity(target.Snapshot)
+	reply, _, err := b.native.ReadAncientShrines(ctx, identity)
+	if err != nil {
+		return out, err
+	}
+	observed := reply.GetObserved()
+	if err = bridge.ValidateAncientShrines(observed, identity); err != nil {
+		return out, err
+	}
+	current, err := boundary.Context(observed.Context, target.Snapshot)
+	if err != nil {
+		return out, err
+	}
+	out.Current, out.Tick, out.Target = current, domain.Tick(observed.Context.GetTick()), value
+	for _, shrine := range observed.Shrines {
+		for _, wall := range shrine.BreachWalls {
+			if wall.GetEntityId() != value.Target() {
+				continue
+			}
+			if wall.DefName != nil && wall.GetDefName() != value.Definition() || wall.Cell.GetX() != value.Cell().X || wall.Cell.GetZ() != value.Cell().Z {
+				return out, executor.ErrDeconstructionAbsent
+			}
+			out.Eligible = shrine.GetSealed()
+			out.Accepted = out.Eligible
+			emergency, _, err := b.native.ReadEmergency(ctx, boundary.Identity(current))
+			if err != nil {
+				return out, err
+			}
+			if _, err = boundary.Context(emergency.Context, current); err != nil {
+				return out, err
+			}
+			if bridge.FactEmergency.Outrun(emergency.Context.GetTick(), observed.Context.GetTick()) {
+				return out, executor.ErrHeld
+			}
+			out.Emergency, err = policy.NewEmergencySnapshot(current, out.Tick, emergency.Facts)
+			if err != nil {
+				return out, err
+			}
+			out.ObservedAt = b.clock.Now()
+			return out, ctx.Err()
+		}
 	}
 	return out, executor.ErrDeconstructionAbsent
 }

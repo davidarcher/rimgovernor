@@ -1197,7 +1197,8 @@ type ShrineBreachWall struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	EntityId      *string                `protobuf:"bytes,1,opt,name=entity_id,json=entityId,proto3,oneof" json:"entity_id,omitempty"`
 	Cell          *commonpb.Cell         `protobuf:"bytes,2,opt,name=cell,proto3" json:"cell,omitempty"`
-	Outside       *commonpb.Cell         `protobuf:"bytes,3,opt,name=outside,proto3" json:"outside,omitempty"` // Adjacent cell outside the room.
+	Outside       *commonpb.Cell         `protobuf:"bytes,3,opt,name=outside,proto3" json:"outside,omitempty"`                      // Adjacent cell outside the room.
+	DefName       *string                `protobuf:"bytes,4,opt,name=def_name,json=defName,proto3,oneof" json:"def_name,omitempty"` // The wall's ThingDef, the breach designation's definition.
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1251,6 +1252,13 @@ func (x *ShrineBreachWall) GetOutside() *commonpb.Cell {
 		return x.Outside
 	}
 	return nil
+}
+
+func (x *ShrineBreachWall) GetDefName() string {
+	if x != nil && x.DefName != nil {
+		return *x.DefName
+	}
+	return ""
 }
 
 type AncientShrine struct {
@@ -32720,13 +32728,15 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"_entity_idB\t\n" +
 	"\a_downedB\a\n" +
-	"\x05_dead\"\xaa\x01\n" +
+	"\x05_dead\"\xd7\x01\n" +
 	"\x10ShrineBreachWall\x12 \n" +
 	"\tentity_id\x18\x01 \x01(\tH\x00R\bentityId\x88\x01\x01\x12/\n" +
 	"\x04cell\x18\x02 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04cell\x125\n" +
-	"\aoutside\x18\x03 \x01(\v2\x1b.rimgovernor.common.v1.CellR\aoutsideB\f\n" +
+	"\aoutside\x18\x03 \x01(\v2\x1b.rimgovernor.common.v1.CellR\aoutside\x12\x1e\n" +
+	"\bdef_name\x18\x04 \x01(\tH\x01R\adefName\x88\x01\x01B\f\n" +
 	"\n" +
-	"_entity_id\"\xdf\x03\n" +
+	"_entity_idB\v\n" +
+	"\t_def_name\"\xdf\x03\n" +
 	"\rAncientShrine\x12 \n" +
 	"\tshrine_id\x18\x01 \x01(\tH\x00R\bshrineId\x88\x01\x01\x12:\n" +
 	"\x04room\x18\x02 \x01(\v2&.rimgovernor.observations.v1.RectangleR\x04room\x12\x1b\n" +

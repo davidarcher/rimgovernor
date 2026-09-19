@@ -29,7 +29,10 @@ type UpkeepObservation struct {
 	Clearance domain.Fact[[]ClearanceTarget]
 	// Chunks are the same read's rock and slag stacks in Home; a pending one
 	// (no store will take it) is a clearance deficit until a dump exists.
-	Chunks     domain.Fact[[]ClearanceChunk]
+	Chunks domain.Fact[[]ClearanceChunk]
+	// Shrines is the ancient shrine census (#456) ClearAncientShrine
+	// measures (#458); unknown under a native without the read.
+	Shrines    domain.Fact[[]AncientShrine]
 	Items      domain.Fact[[]UpkeepItem]
 	Structures domain.Fact[[]UpkeepStructure]
 	Fires      domain.Fact[[]UpkeepFire]
@@ -86,6 +89,7 @@ type UpkeepFilth struct {
 }
 type UpkeepHistory struct {
 	Clearance                                  bool `json:",omitempty"`
+	Shrine                                     bool `json:",omitempty"`
 	Fire, Supplies, Repairs, Cleaning, Storage bool
 	// DirtyRooms is MaintainCleanFacilities' per-room latch (see
 	// ReviewCleanliness); empty for a clean colony.
@@ -322,6 +326,20 @@ func ReviewUpkeepWith(v UpkeepObservation, previous UpkeepHistory, issued map[Go
 		clearanceTargets = domain.Known(selected)
 	}
 	r.History.Clearance = add(ClearHomeObstructions, 3, previous.Clearance, clearanceTargets, domain.Unknown[float64](), false)
+	shrineTargets := domain.Unknown[[]string]()
+	if rows, known := v.Shrines.Value(); known {
+		seen, err := ids(len(rows))
+		if err != nil {
+			return r, err
+		}
+		for _, row := range rows {
+			if !valid(seen, row.ID) {
+				return r, errors.New("invalid shrine")
+			}
+		}
+		shrineTargets = domain.Known(ShrineClearanceTargets(rows))
+	}
+	r.History.Shrine = add(ClearAncientShrine, 3, previous.Shrine, shrineTargets, domain.Unknown[float64](), false)
 	return r, nil
 }
 

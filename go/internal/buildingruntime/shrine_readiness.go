@@ -4,7 +4,9 @@ import (
 	"context"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	n "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -30,6 +32,11 @@ const shrineTrapWindow = 13
 type ShrineReadinessReport struct {
 	Shrine    string
 	Readiness policy.ShrineReadiness
+	// Standing are the unfogged, walkable, unbuilt cells of the trap window
+	// read around the chosen wall (the breach squad's candidate positions,
+	// #458) and Traps the built spike traps there; empty for a shrine the
+	// window was not read for.
+	Standing, Traps []domain.Cell
 }
 
 // emergencyActive reports whether the emergency census lists a threat that
@@ -49,7 +56,8 @@ func emergencyActive(facts policy.EmergencyFacts) bool {
 // costly reads happen once and only when such a shrine exists; shrines
 // with nothing to breach are judged from the census alone. raidPoints is
 // the colony census's reading; the storyteller is not observed, so the
-// Peaceful softening stays off until it is.
+// Peaceful softening stays off until it is. A nil colonists list takes the
+// emergency census's colonists.
 func shrineReadiness(ctx context.Context, native shrineReadinessNative, identity *c.Identity, shrines []policy.AncientShrine, colonists []string, raidPoints domain.Fact[float64], center domain.Cell, bounds policy.Bounds) ([]ShrineReadinessReport, error) {
 	out := make([]ShrineReadinessReport, 0, len(shrines))
 	needsReads := false
@@ -61,6 +69,16 @@ func shrineReadiness(ctx context.Context, native shrineReadinessNative, identity
 	var squad []policy.ShrineDefenderFacts
 	emergency := false
 	if needsReads {
+		observed, _, err := native.ReadEmergency(ctx, identity)
+		if err != nil {
+			return nil, err
+		}
+		emergency = emergencyActive(observed.Facts)
+		if colonists == nil {
+			for _, pawn := range observed.Facts.Colonists {
+				colonists = append(colonists, string(pawn.ID))
+			}
+		}
 		pawns, _, err := native.ReadCombatPawns(ctx, identity, colonists)
 		if err != nil {
 			return nil, err
@@ -75,14 +93,10 @@ func shrineReadiness(ctx context.Context, native shrineReadinessNative, identity
 			}
 			squad = append(squad, facts)
 		}
-		observed, _, err := native.ReadEmergency(ctx, identity)
-		if err != nil {
-			return nil, err
-		}
-		emergency = emergencyActive(observed.Facts)
 	}
 	for _, shrine := range shrines {
 		request := policy.ShrineReadinessRequest{Shrine: shrine, RaidPoints: raidPoints, Peaceful: domain.Unknown[bool](), Squad: squad, Center: center, Emergency: emergency}
+		report := ShrineReadinessReport{Shrine: shrine.ID}
 		if shrine.Sealed && len(shrine.BreachWalls) > 0 {
 			// The wall the policy will choose is the one nearest the centre;
 			// judge it first so the trap window is read around it.
@@ -105,12 +119,50 @@ func shrineReadiness(ctx context.Context, native shrineReadinessNative, identity
 				return nil, err
 			}
 			for _, cell := range site.Cells {
-				if !cell.Fogged && cell.PlayerOwned && cell.EdificeDefName == defenseDefinitions.Trap {
+				switch {
+				case cell.Fogged:
+				case cell.PlayerOwned && cell.EdificeDefName == defenseDefinitions.Trap:
 					request.Traps = append(request.Traps, cell.Cell)
+				case cell.Walkable && cell.EdificeDefName == "":
+					report.Standing = append(report.Standing, cell.Cell)
 				}
 			}
+			report.Traps = request.Traps
 		}
-		out = append(out, ShrineReadinessReport{Shrine: shrine.ID, Readiness: policy.ShrineBreachReadiness(request)})
+		report.Readiness = policy.ShrineBreachReadiness(request)
+		out = append(out, report)
 	}
 	return out, ctx.Err()
 }
+
+// routineShrineHolds judges every shrine the review's census lists for the
+// journal (#458): the readiness reason, guards_alive after a breach, or
+// ready with the chosen wall. A native without the readiness reads leaves
+// every row readiness_unknown; an unknown census leaves no rows.
+func routineShrineHolds(ctx context.Context, native any, snapshot domain.GenerationSnapshot, projection observation.ColonyProjection) ([]policy.ShrineHold, error) {
+	shrines, known := projection.Facts.Upkeep.Shrines.Value()
+	if !known || len(shrines) == 0 {
+		return nil, nil
+	}
+	reads, ok := native.(shrineReadinessNative)
+	if !ok {
+		out := make([]policy.ShrineHold, 0, len(shrines))
+		for _, shrine := range shrines {
+			out = append(out, policy.ShrineHold{Shrine: shrine.ID, Reason: ShrineHoldReadinessUnknown})
+		}
+		return out, nil
+	}
+	reports, err := shrineReadiness(ctx, reads, boundary.Identity(snapshot), shrines, nil, projection.Threat.RaidPoints, projection.Center, projection.Bounds)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]policy.ShrineHold, 0, len(reports))
+	for i, report := range reports {
+		out = append(out, policy.ShrineHold{Shrine: shrines[i].ID, Reason: policy.ShrineHoldReason(shrines[i], report.Readiness), Wall: report.Readiness.Wall.EntityID})
+	}
+	return out, nil
+}
+
+// ShrineHoldReadinessUnknown is the journal's reason under a native that
+// cannot read combat pawns, the defense site or the emergency census.
+const ShrineHoldReadinessUnknown = "readiness_unknown"

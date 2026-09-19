@@ -404,6 +404,16 @@ var plannerCatalog = []plannerEntry{
 			out.Clearance = &method
 			return nil
 		}},
+	{name: "shrine", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.OwnedDraftAction, domain.MovementAction, domain.DeconstructionAction}, families: factsColony,
+		configured: func(c *ClockSchedulerConfig) bool { return c.Shrine != nil },
+		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
+			method, err := s.config.Shrine.step(ctx, epoch, arbiter)
+			if err != nil {
+				return err
+			}
+			out.Shrine = &method
+			return nil
+		}},
 	{name: "clean", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.CleanAction}, families: factsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Clean != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
