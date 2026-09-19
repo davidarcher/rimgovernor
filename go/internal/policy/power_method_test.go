@@ -157,7 +157,7 @@ func TestPowerMethodHoldsForFuelRepairAndSizesReserve(t *testing.T) {
 			return domain.Unknown[int64]()
 		})
 	}
-	for _, name := range []string{"out-of-fuel", "broken", "reserve-short", "reserve-fine", "reserve-unknown", "solar-preferred", "wood-short", "no-generator", "legacy-default"} {
+	for _, name := range []string{"out-of-fuel", "broken", "reserve-short", "reserve-fine", "reserve-unknown", "reserve-store", "reserve-store-unavailable", "reserve-charging", "reserve-eclipse", "solar-preferred", "solar-without-battery", "wood-short", "no-generator", "legacy-default"} {
 		t.Run(name, func(t *testing.T) {
 			v := PowerTopology{Buildings: []PowerSite{powerSite("lamp", 2, -200, 0, "a")}, Blackout: domain.Known(false)}
 			planning := PowerPlanning{ReserveMinDays: 1, Generators: options(false, true, 200)}
@@ -172,26 +172,58 @@ func TestPowerMethodHoldsForFuelRepairAndSizesReserve(t *testing.T) {
 				v.Buildings[1].BrokenDown = domain.Known(true)
 				v.Buildings[1].OutOfFuel = domain.Known(true)
 				want = PowerWaitRepair
-			case "reserve-short", "reserve-fine", "reserve-unknown":
-				// Powered by a battery while the generator idles: capacity covers
-				// demand on paper, but the net drains.
+			case "reserve-short", "reserve-fine", "reserve-unknown", "reserve-store", "reserve-store-unavailable", "reserve-charging", "reserve-eclipse":
+				// Powered by a battery while a solar panel makes nothing at
+				// night: capacity covers demand on paper, but the net drains.
 				v.Buildings[0].Powered = domain.Known(true)
 				v.Buildings[0].OutputW = domain.Known(-200.0)
-				v.Buildings = append(v.Buildings, powerSite("generator", 5, 1000, 0, "a"))
+				v.Buildings = append(v.Buildings, powerSite("generator", 5, 1700, 0, "a"))
+				v.Buildings[1].Definition = "SolarGenerator"
 				v.Buildings[1].Powered = domain.Known(true)
-				net := PowerNetworkFact{ID: "a", GenerationW: domain.Known(0.0), ConsumptionW: domain.Known(200.0), StoredWD: domain.Known(100.0), CapacityWD: domain.Known(600.0)}
-				if name == "reserve-fine" {
+				planning.BatteryAvailable = domain.Known(true)
+				net := PowerNetworkFact{ID: "a", GenerationW: domain.Known(0.0), ConsumptionW: domain.Known(200.0), StoredWD: domain.Known(100.0), CapacityWD: domain.Known(0.0)}
+				switch name {
+				case "reserve-short":
+					// 1500 W against one panel is a generation shortfall by
+					// day and night: a generator, never a battery.
+					v.Buildings[0].BaseW = domain.Known(-1500.0)
+					net.ConsumptionW = domain.Known(1500.0)
+				case "reserve-fine":
 					net.StoredWD = domain.Known(500.0)
 					want = PowerWaitOutput
-				}
-				if name == "reserve-unknown" {
+				case "reserve-unknown":
 					net.StoredWD = domain.Unknown[float64]()
 					want = PowerWaitOutput
+				case "reserve-store":
+					// The panel's day surplus refills a night of 200 W; the
+					// net has no bank, so storage is what is short.
+					want, wantDefinition = PowerStore, BatteryDefinition
+				case "reserve-store-unavailable":
+					planning.BatteryAvailable = domain.Known(false)
+				case "reserve-charging":
+					// A bank the budget already sizes for the night, low
+					// now: wait for the day to charge it.
+					v.Buildings = append(v.Buildings, powerSite("battery", 7, 0, 0, "a"))
+					v.Buildings[2].Definition, v.Buildings[2].Powered = BatteryDefinition, domain.Known(true)
+					v.Buildings[2].Stored, v.Buildings[2].Capacity = domain.Known(100.0), domain.Known(600.0)
+					net.CapacityWD = domain.Known(600.0)
+					want = PowerWaitCharge
+				case "reserve-eclipse":
+					// The same bank cannot carry an eclipse: solar is zero for
+					// the day, so the budget is short of generation.
+					v.Buildings = append(v.Buildings, powerSite("battery", 7, 0, 0, "a"))
+					v.Buildings[2].Definition, v.Buildings[2].Powered = BatteryDefinition, domain.Known(true)
+					v.Buildings[2].Stored, v.Buildings[2].Capacity = domain.Known(100.0), domain.Known(600.0)
+					v.Eclipse = domain.Known(true)
 				}
 				v.Networks = []PowerNetworkFact{net}
 			case "solar-preferred":
 				planning.Generators = options(true, true, 200)
+				planning.BatteryAvailable = domain.Known(true)
 				wantDefinition = "SolarGenerator"
+			case "solar-without-battery":
+				// Free to run, but nothing banks its surplus for the night.
+				planning.Generators = options(true, true, 200)
 			case "wood-short":
 				planning.Generators = options(false, true, 10)
 			case "no-generator":
@@ -204,8 +236,11 @@ func TestPowerMethodHoldsForFuelRepairAndSizesReserve(t *testing.T) {
 			if err != nil || p.Method != want {
 				t.Fatal(p, err, want)
 			}
-			if want == PowerGenerate && (p.Definition != wantDefinition || p.Key == "" || p.Target != "lamp") {
+			if (want == PowerGenerate || want == PowerStore) && (p.Definition != wantDefinition || p.Key == "" || p.Target != "lamp") {
 				t.Fatal(p)
+			}
+			if want == PowerStore && (p.Budget.GenerationShortfallW != 0 || p.Budget.StorageShortfallWD <= 0 || p.Budget.Batteries() != 1) {
+				t.Fatal(p.Budget)
 			}
 		})
 	}
@@ -215,5 +250,41 @@ func TestPowerMethodHoldsForFuelRepairAndSizesReserve(t *testing.T) {
 	bad := PowerTopology{Buildings: []PowerSite{powerSite("lamp", 2, -200, 0, "a")}, Blackout: domain.Known(false), Networks: []PowerNetworkFact{{ID: "a"}, {ID: "a"}}}
 	if _, err := SelectPowerMethod(domain.Known(bad), Bounds{20, 20}, nil, nil, DefaultPowerPlanning()); err == nil {
 		t.Fatal("duplicate network accepted")
+	}
+}
+
+func TestRankGeneratorsByStorageStockAndShortfallShape(t *testing.T) {
+	options := DefaultGeneratorOptions(func(string) domain.Fact[bool] { return domain.Known(true) }, func(r Resource) domain.Fact[int64] {
+		if r == "WoodLog" {
+			return domain.Known(int64(10))
+		}
+		return domain.Known(int64(100))
+	})
+	battery := domain.Known(true)
+	for _, tc := range []struct {
+		name    string
+		ranking GeneratorRanking
+		want    []string
+	}{
+		// Wood is under its floor, so chemfuel leads the fuel tier.
+		{"battery", GeneratorRanking{BatteryAvailable: battery}, []string{"SolarGenerator", "ChemfuelPoweredGenerator", "WoodFiredGenerator"}},
+		{"no-battery", GeneratorRanking{}, []string{"ChemfuelPoweredGenerator", "WoodFiredGenerator", "SolarGenerator"}},
+		{"night-only", GeneratorRanking{BatteryAvailable: battery, NightOnly: true}, []string{"ChemfuelPoweredGenerator", "WoodFiredGenerator", "SolarGenerator"}},
+	} {
+		if got := RankGenerators(options, tc.ranking); !reflect.DeepEqual(got, tc.want) {
+			t.Fatal(tc.name, got)
+		}
+	}
+	unavailable := DefaultGeneratorOptions(func(string) domain.Fact[bool] { return domain.Known(false) }, func(Resource) domain.Fact[int64] { return domain.Unknown[int64]() })
+	if got := SelectGenerator(unavailable, GeneratorRanking{}); got != "" {
+		t.Fatal(got)
+	}
+	// A solar net short only at night is answered by a constant source.
+	v := PowerTopology{Buildings: []PowerSite{powerSite("lamp", 2, -800, -800, "a"), powerSite("panel", 5, 1700, 0, "a")}, Blackout: domain.Known(false), Networks: []PowerNetworkFact{{ID: "a", GenerationW: domain.Known(0.0), ConsumptionW: domain.Known(800.0), StoredWD: domain.Known(50.0), CapacityWD: domain.Known(600.0)}}}
+	v.Buildings[0].Powered, v.Buildings[1].Definition, v.Buildings[1].Powered = domain.Known(true), "SolarGenerator", domain.Known(true)
+	planning := PowerPlanning{ReserveMinDays: 1, StorageMargin: 0.25, BatteryAvailable: battery, Generators: options}
+	p, err := SelectPowerMethod(domain.Known(v), Bounds{Width: 20, Height: 20}, nil, nil, planning)
+	if err != nil || p.Method != PowerGenerate || p.Definition != "ChemfuelPoweredGenerator" || p.Budget.GenerationShortfallW <= 0 || p.Budget.DaySurplusWD <= 0 {
+		t.Fatal(p, err)
 	}
 }

@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
@@ -23,6 +24,7 @@ func NewRoutinePowerPlanner(reviewer *RoutineReviewer, native RoutineBuildingSou
 func (r *RoutineBuildingPlanner) selectPower(facts observation.ColonyProjection) (*RoutineBuildingPlanner, RoutineBuildingReason, error) {
 	planning := policy.DefaultPowerPlanning()
 	planning.Generators = facts.GeneratorOptions()
+	planning.BatteryAvailable = facts.DefinitionAvailable(policy.BatteryDefinition)
 	proposal, err := policy.SelectPowerMethod(facts.PowerPlanning, facts.Bounds, facts.Cells, nil, planning)
 	if err != nil {
 		return nil, "", err
@@ -42,14 +44,19 @@ func (r *RoutineBuildingPlanner) selectPower(facts observation.ColonyProjection)
 			return nil, researchWaitReason(gate), nil
 		}
 		return nil, RoutineBuildingReason(proposal.Method), nil
-	case policy.PowerWaitOutput, policy.PowerWaitFuel, policy.PowerWaitRepair, policy.PowerWaitBlackout, policy.PowerWaitPlayer:
+	case policy.PowerWaitOutput, policy.PowerWaitFuel, policy.PowerWaitRepair, policy.PowerWaitBlackout, policy.PowerWaitPlayer, policy.PowerWaitCharge:
 		return nil, RoutineBuildingReason(proposal.Method), nil
 	}
 	resolved := *r
 	resolved.power = &proposal
 	resolved.definition, resolved.environment = string(proposal.Method), policy.PlacementAnywhere
-	if proposal.Method == policy.PowerGenerate {
+	switch proposal.Method {
+	case policy.PowerGenerate:
 		resolved.definition = proposal.Definition
+	case policy.PowerStore:
+		// A battery short-circuits unroofed in rain or snow, so the bank
+		// sits indoors.
+		resolved.definition, resolved.environment = proposal.Definition, policy.PlacementIndoors
 	}
 	return &resolved, "", nil
 }
@@ -100,17 +107,9 @@ func powerOutputAllowance(ctx context.Context, journal *store.Store, goal domain
 }
 
 // powerDefinition reports whether a completed building belongs to the power
-// family: a conduit or any compilable generator definition.
+// family: a conduit, any compilable generator or the battery.
 func powerDefinition(name string) bool {
-	if name == "PowerConduit" {
-		return true
-	}
-	for _, g := range policy.GeneratorDefinitions {
-		if g == name {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(policy.PowerFamilyDefinitions(), name)
 }
 
 func powerNativeWorkTicks(plan store.PlanState, current domain.GenerationSnapshot, tick domain.Tick) uint32 {

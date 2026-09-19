@@ -88,6 +88,17 @@ func (r ColonyProjection) ResourceStock(name policy.Resource) domain.Fact[int64]
 	return domain.Known(stock[name])
 }
 
+// DefinitionAvailable is one planning definition's native availability,
+// unknown when the census did not describe it.
+func (r ColonyProjection) DefinitionAvailable(name string) domain.Fact[bool] {
+	for _, d := range r.Definitions {
+		if d.Name == name {
+			return d.Available
+		}
+	}
+	return domain.Unknown[bool]()
+}
+
 // GeneratorOptions pairs the power family's generator definitions with their
 // native availability and observed fuel stock.
 func (r ColonyProjection) GeneratorOptions() []policy.GeneratorOption {
@@ -179,11 +190,12 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 		topology := policy.PowerTopology{}
 		geometryKnown := true
 		if !hasIssue(v.Issues, "environment") {
-			blackout := false
+			blackout, eclipse := false, false
 			for _, condition := range v.Environment {
 				blackout = blackout || condition.GetDefName() == "SolarFlare"
+				eclipse = eclipse || condition.GetDefName() == "Eclipse"
 			}
-			topology.Blackout = domain.Known(blackout)
+			topology.Blackout, topology.Eclipse = domain.Known(blackout), domain.Known(eclipse)
 		}
 		for _, row := range development.Power {
 			s := row.Building.Service

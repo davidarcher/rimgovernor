@@ -454,9 +454,8 @@ defers to `EnsureBasicPower`, and one venting into another enclosed room is
 reported blocked. A cooler receipt or completed build never clears the
 deficit: native cooling must be observed on the stock itself. `EnsureBasicPower`
 in turn holds on out-of-fuel or broken producers (refuelling and repair are
-ordinary pawn work) and treats a powered network draining its batteries in
-under a day as a deficit, sizing the next generator to connected load and
-choosing its definition from native availability and fuel stock.
+ordinary pawn work) and sizes a draining network by its daily energy budget
+([power contracts](power-contracts.md)).
 
 A solar flare switches every powered building off for hours, so neither goal
 answers it with a build: while a `SolarFlare` condition with a native

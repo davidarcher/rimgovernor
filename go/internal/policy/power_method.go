@@ -22,6 +22,9 @@ type PowerTopology struct {
 	Buildings []PowerSite
 	Conduits  []domain.Cell
 	Blackout  domain.Fact[bool]
+	// Eclipse is the native eclipse condition: solar output is zero for the
+	// rest of it, so the day's budget carries no solar energy.
+	Eclipse domain.Fact[bool]
 	// Networks is the per-net energy summary; an empty census means the native
 	// read predates network facts and reserve runway stays unknown.
 	Networks []PowerNetworkFact
@@ -39,8 +42,10 @@ const (
 	PowerWaitPlayer   PowerMethod = "player_disabled_power"
 	PowerRouteBlocked PowerMethod = "no_observed_route"
 	PowerNoGenerator  PowerMethod = "no_affordable_generator"
+	PowerWaitCharge   PowerMethod = "waiting_for_charge"
 	PowerConnect      PowerMethod = "PowerConduit"
 	PowerGenerate     PowerMethod = "generate"
+	PowerStore        PowerMethod = "store"
 )
 
 // GeneratorOption is one generator definition the planner may compile, in
@@ -61,6 +66,12 @@ type GeneratorOption struct {
 // planning definitions and Hands correlate completed work against them.
 var GeneratorDefinitions = []string{"SolarGenerator", "WoodFiredGenerator", "ChemfuelPoweredGenerator"}
 
+// PowerFamilyDefinitions lists every definition the power family compiles:
+// the conduit, each generator and the battery.
+func PowerFamilyDefinitions() []string {
+	return append(append([]string{"PowerConduit"}, GeneratorDefinitions...), BatteryDefinition)
+}
+
 // DefaultGeneratorOptions pairs each generator definition with its fuel and the
 // stock floor below which the planner will not commit to that fuel.
 func DefaultGeneratorOptions(available func(string) domain.Fact[bool], stock func(Resource) domain.Fact[int64]) []GeneratorOption {
@@ -80,42 +91,89 @@ func DefaultGeneratorOptions(available func(string) domain.Fact[bool], stock fun
 }
 
 // PowerPlanning carries the planner-side choices SelectPowerMethod needs
-// beyond the observed topology: which generators are compilable and how many
-// days of stored reserve a draining network must keep before more generation
-// is proposed even though every consumer is currently powered.
+// beyond the observed topology: which generators are compilable, whether a
+// battery is, how many days of stored reserve a draining network must keep
+// before the budget is consulted even though every consumer is currently
+// powered, and the margin the storage target carries over the night deficit.
 type PowerPlanning struct {
-	Generators     []GeneratorOption
-	ReserveMinDays float64
+	Generators       []GeneratorOption
+	BatteryAvailable domain.Fact[bool]
+	ReserveMinDays   float64
+	StorageMargin    float64
 }
 
-func DefaultPowerPlanning() PowerPlanning { return PowerPlanning{ReserveMinDays: 1} }
+func DefaultPowerPlanning() PowerPlanning {
+	return PowerPlanning{ReserveMinDays: 1, StorageMargin: 0.25}
+}
 
-// SelectGenerator returns the first known-available option whose fuel stock
-// (if any) is not known to be under its floor; when every available option is
-// short of fuel the first available one is still chosen, since MaintainWood
-// and ordinary hauling replenish fuel after construction. With no options at
-// all the legacy wood-fired default applies; with options but none available
-// the result is empty and the caller reports PowerNoGenerator.
-func SelectGenerator(options []GeneratorOption) string {
-	if len(options) == 0 {
-		return "WoodFiredGenerator"
+// GeneratorRanking is what RankGenerators knows about the colony beyond the
+// options: whether a battery can be built (a renewable is free to run but
+// needs storage to carry the night) and whether the shortfall being closed
+// is night-only, which a solar generator cannot touch.
+type GeneratorRanking struct {
+	BatteryAvailable domain.Fact[bool]
+	NightOnly        bool
+}
+
+// RankGenerators orders the known-available options by cost per delivered
+// day of energy under current stock: a fuel-free generator first once a
+// battery can bank its surplus, fuel-burning generators whose stock meets
+// the floor next (list order breaks ties: wood before chemfuel, since
+// MaintainWood replenishes it), fuel-short ones after, and a renewable that
+// cannot serve the deficit (no battery, or a night-only shortfall) last,
+// still chosen when nothing else is available.
+func RankGenerators(options []GeneratorOption, ranking GeneratorRanking) []string {
+	type ranked struct {
+		definition  string
+		tier, order int
 	}
-	fallback := ""
-	for _, o := range options {
+	var rows []ranked
+	battery, _ := ranking.BatteryAvailable.Value()
+	for i, o := range options {
 		if available, ok := o.Available.Value(); !ok || !available {
 			continue
 		}
-		if fallback == "" {
-			fallback = o.Definition
-		}
-		if o.Fuel != "" {
+		tier := 0
+		switch profile := SourceProfile(o.Definition); {
+		case profile.Night < 1 && (!battery || ranking.NightOnly && profile.Night == 0):
+			tier = 3
+		case profile.Night < 1:
+			tier = 0
+		case o.Fuel == "":
+			tier = 1
+		default:
+			tier = 1
 			if stock, ok := o.FuelStock.Value(); ok && stock < o.MinimumFuel {
-				continue
+				tier = 2
 			}
 		}
-		return o.Definition
+		rows = append(rows, ranked{o.Definition, tier, i})
 	}
-	return fallback
+	sort.Slice(rows, func(i, j int) bool {
+		if rows[i].tier != rows[j].tier {
+			return rows[i].tier < rows[j].tier
+		}
+		return rows[i].order < rows[j].order
+	})
+	out := make([]string, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, r.definition)
+	}
+	return out
+}
+
+// SelectGenerator is the first generator RankGenerators returns. With no
+// options at all the legacy wood-fired default applies; with options but
+// none available the result is empty and the caller reports
+// PowerNoGenerator.
+func SelectGenerator(options []GeneratorOption, ranking GeneratorRanking) string {
+	if len(options) == 0 {
+		return "WoodFiredGenerator"
+	}
+	if ranked := RankGenerators(options, ranking); len(ranked) > 0 {
+		return ranked[0]
+	}
+	return ""
 }
 
 type PowerProposal struct {
@@ -125,6 +183,9 @@ type PowerProposal struct {
 	Target     string
 	Center     domain.Cell
 	Cells      []domain.Cell
+	// Budget is the target network's 24 h balance behind a generate, store
+	// or charge decision; zero for the connect and hold methods.
+	Budget PowerBudget
 }
 
 // SelectPowerMethod ports the network-local capacity and bounded route choices.
@@ -132,14 +193,16 @@ type PowerProposal struct {
 // Output and PowerOn, not installed capacity or a receipt, establish recovery.
 // Producers that are out of fuel or broken down hold the proposal: refueling
 // and repair are ordinary pawn work owned by other families. A powered network
-// whose stored reserve runway falls under ReserveMinDays is a deficit too, so
-// generation is sized to actual connected load rather than momentary surplus.
+// whose stored reserve runway falls under ReserveMinDays is a deficit too,
+// sized by its 24 h budget (ComputePowerBudget): a generation shortfall adds a
+// generator, a storage shortfall alone adds a battery, and a network the
+// budget already covers waits for its bank to charge.
 func SelectPowerMethod(fact domain.Fact[PowerTopology], bounds Bounds, cells []SiteCell, protected []domain.Cell, planning PowerPlanning) (PowerProposal, error) {
 	v, known := fact.Value()
 	if !known {
 		return PowerProposal{Method: PowerUnknown}, nil
 	}
-	if math.IsNaN(planning.ReserveMinDays) || math.IsInf(planning.ReserveMinDays, 0) || planning.ReserveMinDays < 0 || len(planning.Generators) > 64 {
+	if !foodNumber(planning.ReserveMinDays) || !foodNumber(planning.StorageMargin) || planning.StorageMargin > 10 || len(planning.Generators) > 64 {
 		return PowerProposal{}, errors.New("invalid power planning")
 	}
 	if len(v.Networks) > 4096 {
@@ -230,6 +293,7 @@ func SelectPowerMethod(fact domain.Fact[PowerTopology], bounds Bounds, cells []S
 		route[c.Cell] = positive(c.SupportsLight) && !blocked[c.Cell]
 	}
 	blackout, known := v.Blackout.Value()
+	eclipse, _ := v.Eclipse.Value()
 	if !known || !complete {
 		return PowerProposal{Method: PowerUnknown}, nil
 	}
@@ -265,6 +329,7 @@ func SelectPowerMethod(fact domain.Fact[PowerTopology], bounds Bounds, cells []S
 		}
 		demand, capacity, output := 0.0, 0.0, 0.0
 		connectedProducers, disabledProducer, unfueledProducer, brokenProducer := 0, false, false, false
+		budget := PowerBudgetInput{Eclipse: eclipse, StorageMargin: planning.StorageMargin}
 		for _, b := range v.Buildings {
 			if !same(b) {
 				continue
@@ -272,12 +337,16 @@ func SelectPowerMethod(fact domain.Fact[PowerTopology], bounds Bounds, cells []S
 			w, _ := b.BaseW.Value()
 			actual, _ := b.OutputW.Value()
 			output += actual
+			if stored, ok := b.Capacity.Value(); ok {
+				budget.CapacityWD += stored
+			}
 			if w < 0 {
 				demand -= w
 			}
 			if w > 0 {
 				connectedProducers++
 				capacity += w
+				budget.Producers = append(budget.Producers, PowerProducer{Definition: b.Definition, NominalW: w})
 				f, _ := b.Forbidden.Value()
 				s, _ := b.SwitchedOn.Value()
 				disabledProducer = disabledProducer || f || !s
@@ -314,8 +383,16 @@ func SelectPowerMethod(fact domain.Fact[PowerTopology], bounds Bounds, cells []S
 			case reserveShort && output < 0:
 				// Installed capacity covers demand on paper but the network is
 				// still draining its reserve (night-time solar, part-time
-				// generation): add generation sized to the observed load.
-				return generate(p, target, producers, planning)
+				// generation): size it by the day's budget.
+				budget.DemandW = demand
+				p.Budget = ComputePowerBudget(budget)
+				switch {
+				case p.Budget.GenerationShortfallW > 0:
+					return generate(p, target, producers, planning)
+				case p.Budget.StorageShortfallWD > 0:
+					return store(p, target, producers, planning)
+				}
+				p.Method = PowerWaitCharge
 			default:
 				p.Method = PowerWaitOutput
 			}
@@ -359,16 +436,38 @@ func SelectPowerMethod(fact domain.Fact[PowerTopology], bounds Bounds, cells []S
 			p.Key = powerMethodKey("connect", fmt.Sprint(p.Cells))
 			return p, nil
 		}
+		budget.DemandW = demand
+		p.Budget = ComputePowerBudget(budget)
 		return generate(p, target, producers, planning)
 	}
 	return result, nil
+}
+
+// store proposes one battery for target's network when the budget is short
+// of storage but not generation. A battery is never the answer to a
+// generation shortfall; without a compilable battery the generation path
+// adds a generator instead, which the observed reserve still justifies.
+func store(p PowerProposal, target PowerSite, producers []PowerSite, planning PowerPlanning) (PowerProposal, error) {
+	if available, ok := planning.BatteryAvailable.Value(); !ok || !available {
+		return generate(p, target, producers, planning)
+	}
+	ids := make([]string, 0, len(producers))
+	for _, b := range producers {
+		ids = append(ids, b.ID)
+	}
+	sort.Strings(ids)
+	p.Method, p.Definition = PowerStore, BatteryDefinition
+	p.Key = powerMethodKey("store", fmt.Sprintf("%s/%s/%d", target.ID, strings.Join(ids, "/"), int(p.Budget.StorageNeededWD-p.Budget.StorageShortfallWD)))
+	return p, nil
 }
 
 // generate proposes one more generator for target's network. Native producer
 // identity, rather than fluctuating output, distinguishes an additional
 // capacity proposal from replay of the same deficit.
 func generate(p PowerProposal, target PowerSite, producers []PowerSite, planning PowerPlanning) (PowerProposal, error) {
-	definition := SelectGenerator(planning.Generators)
+	// A shortfall the day already covers is night-only: no solar answers it.
+	ranking := GeneratorRanking{BatteryAvailable: planning.BatteryAvailable, NightOnly: p.Budget.GenerationShortfallW > 0 && p.Budget.DaySurplusWD > 0}
+	definition := SelectGenerator(planning.Generators, ranking)
 	if definition == "" {
 		p.Method = PowerNoGenerator
 		return p, nil

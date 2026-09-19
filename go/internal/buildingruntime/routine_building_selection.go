@@ -95,7 +95,7 @@ func (r *RoutineBuildingPlanner) selection(facts observation.ColonyProjection) (
 		if r.power.Method == policy.PowerConnect {
 			return int64(len(r.power.Cells)), r.power.Key, ""
 		}
-		if r.power.Method == policy.PowerGenerate {
+		if r.power.Method == policy.PowerGenerate || r.power.Method == policy.PowerStore {
 			return 1, r.power.Key, ""
 		}
 		return 0, "", BuildingMethodUnknown

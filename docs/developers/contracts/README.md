@@ -18,6 +18,7 @@ Current rules, payloads and completion criteria. Open the topic that owns your c
 - [Mood relief contracts](mood-control.md)
 - [Persistence contracts](persistence-contracts.md)
 - [Population commitments](population-contracts.md)
+- [Power contracts](power-contracts.md)
 - [Disaster planning](disaster-planning.md)
 - [Research tied to colony needs](research.md)
 - [Spatial contracts](spatial-contracts.md)
