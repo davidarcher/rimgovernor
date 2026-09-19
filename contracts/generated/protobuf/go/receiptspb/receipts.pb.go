@@ -1402,15 +1402,18 @@ func (x *ExcavationEffect) GetBlocker() string {
 // the stack; advanced: the dialog moved to a linked node instead (a new
 // ColonyFactsSnapshot.dialog observation names the next choice).
 type DialogEffect struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	WindowId      *int32                 `protobuf:"varint,1,opt,name=window_id,json=windowId,proto3,oneof" json:"window_id,omitempty"`
-	OptionIndex   *int32                 `protobuf:"varint,2,opt,name=option_index,json=optionIndex,proto3,oneof" json:"option_index,omitempty"`
-	OptionLabel   *string                `protobuf:"bytes,3,opt,name=option_label,json=optionLabel,proto3,oneof" json:"option_label,omitempty"`
-	Activated     *bool                  `protobuf:"varint,4,opt,name=activated,proto3,oneof" json:"activated,omitempty"`
-	Closed        *bool                  `protobuf:"varint,5,opt,name=closed,proto3,oneof" json:"closed,omitempty"`
-	Advanced      *bool                  `protobuf:"varint,6,opt,name=advanced,proto3,oneof" json:"advanced,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	WindowId          *int32                 `protobuf:"varint,1,opt,name=window_id,json=windowId,proto3,oneof" json:"window_id,omitempty"`
+	OptionIndex       *int32                 `protobuf:"varint,2,opt,name=option_index,json=optionIndex,proto3,oneof" json:"option_index,omitempty"`
+	OptionLabel       *string                `protobuf:"bytes,3,opt,name=option_label,json=optionLabel,proto3,oneof" json:"option_label,omitempty"`
+	Activated         *bool                  `protobuf:"varint,4,opt,name=activated,proto3,oneof" json:"activated,omitempty"`
+	Closed            *bool                  `protobuf:"varint,5,opt,name=closed,proto3,oneof" json:"closed,omitempty"`
+	Advanced          *bool                  `protobuf:"varint,6,opt,name=advanced,proto3,oneof" json:"advanced,omitempty"`
+	JoinerLetterToken *string                `protobuf:"bytes,7,opt,name=joiner_letter_token,json=joinerLetterToken,proto3,oneof" json:"joiner_letter_token,omitempty"`
+	JoinerPawnId      *string                `protobuf:"bytes,8,opt,name=joiner_pawn_id,json=joinerPawnId,proto3,oneof" json:"joiner_pawn_id,omitempty"`
+	Joined            *bool                  `protobuf:"varint,9,opt,name=joined,proto3,oneof" json:"joined,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *DialogEffect) Reset() {
@@ -1481,6 +1484,27 @@ func (x *DialogEffect) GetClosed() bool {
 func (x *DialogEffect) GetAdvanced() bool {
 	if x != nil && x.Advanced != nil {
 		return *x.Advanced
+	}
+	return false
+}
+
+func (x *DialogEffect) GetJoinerLetterToken() string {
+	if x != nil && x.JoinerLetterToken != nil {
+		return *x.JoinerLetterToken
+	}
+	return ""
+}
+
+func (x *DialogEffect) GetJoinerPawnId() string {
+	if x != nil && x.JoinerPawnId != nil {
+		return *x.JoinerPawnId
+	}
+	return ""
+}
+
+func (x *DialogEffect) GetJoined() bool {
+	if x != nil && x.Joined != nil {
+		return *x.Joined
 	}
 	return false
 }
@@ -4802,14 +4826,17 @@ const file_receipts_proto_rawDesc = "" +
 	"\n" +
 	"_cancelledB\n" +
 	"\n" +
-	"\b_blocker\"\xb7\x02\n" +
+	"\b_blocker\"\xea\x03\n" +
 	"\fDialogEffect\x12 \n" +
 	"\twindow_id\x18\x01 \x01(\x05H\x00R\bwindowId\x88\x01\x01\x12&\n" +
 	"\foption_index\x18\x02 \x01(\x05H\x01R\voptionIndex\x88\x01\x01\x12&\n" +
 	"\foption_label\x18\x03 \x01(\tH\x02R\voptionLabel\x88\x01\x01\x12!\n" +
 	"\tactivated\x18\x04 \x01(\bH\x03R\tactivated\x88\x01\x01\x12\x1b\n" +
 	"\x06closed\x18\x05 \x01(\bH\x04R\x06closed\x88\x01\x01\x12\x1f\n" +
-	"\badvanced\x18\x06 \x01(\bH\x05R\badvanced\x88\x01\x01B\f\n" +
+	"\badvanced\x18\x06 \x01(\bH\x05R\badvanced\x88\x01\x01\x123\n" +
+	"\x13joiner_letter_token\x18\a \x01(\tH\x06R\x11joinerLetterToken\x88\x01\x01\x12)\n" +
+	"\x0ejoiner_pawn_id\x18\b \x01(\tH\aR\fjoinerPawnId\x88\x01\x01\x12\x1b\n" +
+	"\x06joined\x18\t \x01(\bH\bR\x06joined\x88\x01\x01B\f\n" +
 	"\n" +
 	"_window_idB\x0f\n" +
 	"\r_option_indexB\x0f\n" +
@@ -4817,7 +4844,10 @@ const file_receipts_proto_rawDesc = "" +
 	"\n" +
 	"_activatedB\t\n" +
 	"\a_closedB\v\n" +
-	"\t_advanced\"\xea\x01\n" +
+	"\t_advancedB\x16\n" +
+	"\x14_joiner_letter_tokenB\x11\n" +
+	"\x0f_joiner_pawn_idB\t\n" +
+	"\a_joined\"\xea\x01\n" +
 	"\fNamingEffect\x12 \n" +
 	"\twindow_id\x18\x01 \x01(\x05H\x00R\bwindowId\x88\x01\x01\x12&\n" +
 	"\ffaction_name\x18\x02 \x01(\tH\x01R\vfactionName\x88\x01\x01\x12,\n" +

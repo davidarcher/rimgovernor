@@ -15,6 +15,7 @@
     <RimBridgeSdkDir Condition="'$(RimBridgeSdkDir)' == ''">C:/Program Files (x86)/Steam/steamapps/common/RimWorld/Mods/RimBridgeServer/1.6/Assemblies</RimBridgeSdkDir>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../../../../scripts/fixtures/InterruptionFixture.cs" Condition="'$(InterruptionFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ResearchObservationFixture.cs" Condition="'$(ResearchObservationFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/RoutineProductionFixture.cs" Condition="'$(RoutineProductionFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/RoutineSleepingFixture.cs" Condition="'$(RoutineSleepingFixture)' == 'true'" />

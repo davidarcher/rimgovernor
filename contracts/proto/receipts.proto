@@ -102,6 +102,9 @@ message DialogEffect {
   optional bool activated = 4;
   optional bool closed = 5;
   optional bool advanced = 6;
+  optional string joiner_letter_token = 7;
+  optional string joiner_pawn_id = 8;
+  optional bool joined = 9;
 }
 message NamingEffect {
   optional int32 window_id = 1;

@@ -300,7 +300,7 @@ message ConfirmColonyNames { optional int32 window_id = 1; optional string facti
 // Activates one option of the force-pausing choice dialog ColonyFactsSnapshot.dialog
 // observed (Verse.Dialog_NodeTree). window_id plus the exact observed option index
 // and label stand in for EntityPrecondition: native refuses on any drift.
-message AnswerDialog { optional int32 window_id = 1; optional int32 option_index = 2; optional string option_label = 3; }
+message AnswerDialog { optional int32 window_id = 1; optional int32 option_index = 2; optional string option_label = 3; optional string joiner_letter_token = 4; }
 
 // Safe cleanup may run after authority revocation, only for an unchanged native
 // claim. original_owner (rimgovernor.authority.v1.Owner) was removed: whether

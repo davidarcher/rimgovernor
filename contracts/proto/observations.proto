@@ -725,7 +725,10 @@ message ColonyFactsSnapshot {
   // Colony wealth and raid points (ThreatFacts), or why they could not be read.
   ThreatSection threat = 42;
   LootSection event_loot = 43;
+  repeated JoinerLetter joiner_letters = 44;
 }
+// Current-map WandererJoins offers; the token binds letter, quest, pawn and expiry.
+message JoinerLetter { optional int32 letter_id = 1; optional string snapshot_token = 2; optional string pawn_id = 3; optional int64 expires_tick = 4; optional string accept_label = 5; optional bool can_accept = 6; }
 message ColonyFactsRequest { ReadScope scope = 1; optional bool planning = 2; repeated string requested_definition_names = 3; rimgovernor.common.v1.PageRequest page = 4; }
 message ColonyFactsReply { oneof outcome { ColonyFactsSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 

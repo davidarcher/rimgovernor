@@ -5,7 +5,7 @@ param(
     [Parameter(Mandatory = $true)][string]$RimBridgeSdkDir,
     [string]$DotNet = 'dotnet',
     [string]$OutputRoot = '',
-    [ValidateSet('HomeCoverageFixture', 'SleepingFixture', 'StoreroomFixture', 'MedicineFixture', 'AnimalContainmentFixture', 'AnimalFeedFixture', 'ComfortFixture', 'ResearchObservationFixture', 'RoutineSleepingFixture', 'RoutineProductionFixture', 'GuardedConstructionFixture', 'StorageHaulFixture', 'ThroughputFixture', 'WasteFixture', 'DisasterFixture', 'GearFixture',
+    [ValidateSet('HomeCoverageFixture', 'InterruptionFixture', 'SleepingFixture', 'StoreroomFixture', 'MedicineFixture', 'AnimalContainmentFixture', 'AnimalFeedFixture', 'ComfortFixture', 'ResearchObservationFixture', 'RoutineSleepingFixture', 'RoutineProductionFixture', 'GuardedConstructionFixture', 'StorageHaulFixture', 'ThroughputFixture', 'WasteFixture', 'DisasterFixture', 'GearFixture',
         'MoodFixture', 'PopulationFixture', 'HusbandryFixture', 'MedicalManagementFixture',
         'MiningFixture', 'FoodObservationFixture', 'UpkeepFixture', 'TradeFixture',
         'ScenarioStartFixture', 'ConstructionLedgerFixture', 'EmergencyDevelopmentFixture',

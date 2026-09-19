@@ -144,7 +144,7 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 	} else if dialog, ok := a.DialogAnswer(); ok {
 		// x carries the window ID and z the option's list position; definition
 		// is the exact observed option label.
-		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,definition,x,z) VALUES(?,?,?,'dialog_answer',?,?,?)", a.ID(), plan, ordinal, dialog.OptionLabel(), dialog.WindowID(), dialog.OptionIndex())
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,definition,x,z,stuff) VALUES(?,?,?,'dialog_answer',?,?,?,?)", a.ID(), plan, ordinal, dialog.OptionLabel(), dialog.WindowID(), dialog.OptionIndex(), sql.NullString{String: dialog.LetterToken(), Valid: dialog.LetterToken() != ""})
 	} else if trade, ok := a.Trade(); ok {
 		data, encodeErr := json.Marshal(tradePayload{trade.Kind(), trade.Trader(), trade.Negotiator(), trade.GiftMode(), trade.Lines(), trade.AllowPawns(), trade.ExpectedDealSignature(), trade.EconomicFloors(), trade.AllowEmpty(), trade.EndKind(), trade.ReceiveQuest()})
 		if encodeErr != nil {
@@ -532,11 +532,17 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		a, err := domain.NewHomeCoverageAction(id, hc)
 		return a, ordinal, err
 	}
-	if kind == "dialog_answer" && def.Valid && x.Valid && z.Valid && !pawn.Valid && !target.Valid && !draftAction.Valid && !rotation.Valid && !stuff.Valid && work == nil && zone == nil && bill == nil {
+	if kind == "dialog_answer" && def.Valid && x.Valid && z.Valid && !pawn.Valid && !target.Valid && !draftAction.Valid && !rotation.Valid && work == nil && zone == nil && bill == nil {
 		if x.Int64 < 0 || x.Int64 > math.MaxInt32 || z.Int64 < 0 || z.Int64 > math.MaxInt32 {
 			return domain.Action{}, 0, errors.New("dialog answer window or option out of range")
 		}
 		v, err := domain.NewDialogAnswer(int32(x.Int64), int32(z.Int64), def.String)
+		if stuff.Valid {
+			if z.Int64 != 0 {
+				return domain.Action{}, 0, errors.New("invalid joiner letter option")
+			}
+			v, err = domain.NewJoinerLetterAnswer(int32(x.Int64), def.String, stuff.String)
+		}
 		if err != nil {
 			return domain.Action{}, 0, err
 		}

@@ -196,3 +196,42 @@ func SelectJoinerMethod(offers domain.Fact[[]JoinerOffer], capacity domain.Fact[
 func (f RoutineFacts) JoinerCapacity() JoinerCapacityFacts {
 	return JoinerCapacityFacts{Custody: f.Custody, Sleeping: f.Sleeping, FoodDays: fallback(f.PopulationFoodDays, f.FoodDays), Policy: f.PopulationCapacity}
 }
+
+// JoinerLetterOffer is a pending current-map WandererJoins letter. Its opaque
+// token binds the native pawn, quest, map, expiry and choices.
+type JoinerLetterOffer struct {
+	ID        int32
+	Token     string
+	Pawn      domain.PawnID
+	Expires   domain.Tick
+	Label     string
+	CanAccept bool
+}
+
+func SelectJoinerLetter(offers domain.Fact[[]JoinerLetterOffer], capacity domain.Fact[bool]) (JoinerLetterOffer, bool) {
+	rows, known := offers.Value()
+	room, capacityKnown := capacity.Value()
+	if !known || !capacityKnown || !room {
+		return JoinerLetterOffer{}, false
+	}
+	var chosen JoinerLetterOffer
+	found := false
+	for _, row := range rows {
+		if row.CanAccept && (!found || row.ID < chosen.ID) {
+			chosen, found = row, true
+		}
+	}
+	return chosen, found
+}
+func JoinerLetterDeficit(offers domain.Fact[[]JoinerLetterOffer], capacity domain.Fact[bool]) domain.Fact[bool] {
+	rows, known := offers.Value()
+	if !known {
+		return domain.Unknown[bool]()
+	}
+	for _, row := range rows {
+		if row.CanAccept {
+			return capacity
+		}
+	}
+	return domain.Known(false)
+}

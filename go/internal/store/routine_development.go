@@ -141,7 +141,7 @@ func rankRoutineDevelopment(ctx context.Context, tx *sql.Tx, r RoutineReviewRequ
 }
 
 // developmentExemptMethod reports a method whose every action is a
-// QuestAccept: accepting a joiner offer is one native settings write with
+// QuestAccept or a joiner-letter answer: accepting an offer is one native write with
 // no pawn work behind it (the quest's own parts walk the joiner in), so
 // MaintainPopulation answers it without holding a development slot, the
 // way ProductionPolicy's configuration pushes are exempt by need.
@@ -151,7 +151,8 @@ func developmentExemptMethod(plan domain.PlanSpec) bool {
 		return false
 	}
 	for _, action := range actions {
-		if action.Kind() != domain.QuestAcceptAction {
+		letter, isDialog := action.DialogAnswer()
+		if action.Kind() != domain.QuestAcceptAction && !(isDialog && letter.LetterToken() != "") {
 			return false
 		}
 	}

@@ -45,8 +45,15 @@ and living admitted colonists plus guests and prisoners are below its maximum, t
 food runway is at or above its reserve days and an unowned humanlike, non-medical,
 non-prisoner bed reads back. Without a policy, or without room, the offer is left
 to expire; nothing is ever rejected natively, and a reward-choice offer takes the
-game's first option. The wanderer-joins offer is a hidden auto-accepted quest
-answered from its letter, not the census, and stays a player choice.
+game's first option. Pending current-map `WandererJoins` letters are read through
+the typed colony census (`joiner_letters`) with their letter ID, pawn, expiry
+and snapshot token. The same capacity policy admits one letter answer at a time
+through `AnswerDialog.joiner_letter_token`. Native rechecks the exact letter,
+quest, pawn, map, expiry and option under authority and runs its ordinary Accept
+option. Completion requires the offered pawn to be a living spawned free colonist
+on that map; closing the letter alone is insufficient. Expired, changed and
+unsupported offers are never answered. Without known capacity, letters expire
+through their own native quest timeout.
 
 Progress observation of a prisoner order reads the pawn's actual custody state, not
 only the setting: `PrisonerEffect.outcome` is `held`, `recruited`, `enslaved`,

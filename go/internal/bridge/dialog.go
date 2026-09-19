@@ -27,6 +27,7 @@ type DialogAttempt struct {
 	WindowID    int32
 	OptionIndex int32
 	OptionLabel string
+	LetterToken string
 }
 type DialogControl struct{ client *Client }
 
@@ -42,9 +43,9 @@ func validDialog(windowID, optionIndex int32, label string) error {
 	}
 	return nil
 }
-func dialogOperation(windowID, optionIndex int32, label string) *op.Operation {
+func dialogOperation(windowID, optionIndex int32, label string, token string) *op.Operation {
 	return &op.Operation{Command: &op.Operation_AnswerDialog{AnswerDialog: &op.AnswerDialog{
-		WindowId: proto.Int32(windowID), OptionIndex: proto.Int32(optionIndex), OptionLabel: proto.String(label)}}}
+		WindowId: proto.Int32(windowID), OptionIndex: proto.Int32(optionIndex), OptionLabel: proto.String(label), JoinerLetterToken: optionalDialogToken(token)}}}
 }
 
 // validateChoiceDialog admits the colony census's dialog section: every
@@ -71,12 +72,19 @@ func validateChoiceDialog(v *ob.ChoiceDialog) error {
 	}
 	return nil
 }
-func (client *Client) PreviewAnswerDialog(ctx context.Context, identity *c.Identity, windowID, optionIndex int32, label string) (*op.PreviewReply, Result, error) {
-	if ValidateIdentity(identity) != nil || validDialog(windowID, optionIndex, label) != nil {
+func optionalDialogToken(token string) *string {
+	if token == "" {
+		return nil
+	}
+	return proto.String(token)
+}
+
+func (client *Client) PreviewAnswerDialog(ctx context.Context, identity *c.Identity, windowID, optionIndex int32, label, token string) (*op.PreviewReply, Result, error) {
+	if ValidateIdentity(identity) != nil || validDialog(windowID, optionIndex, label) != nil || (token != "" && (optionIndex != 0 || validID(token) != nil)) {
 		return nil, Result{}, contract("invalid dialog preview")
 	}
 	reply := &op.PreviewReply{}
-	raw, err := client.protoRead(ctx, "rimgovernor/operations_preview", &op.PreviewRequest{Identity: proto.Clone(identity).(*c.Identity), Operation: dialogOperation(windowID, optionIndex, label)}, reply)
+	raw, err := client.protoRead(ctx, "rimgovernor/operations_preview", &op.PreviewRequest{Identity: proto.Clone(identity).(*c.Identity), Operation: dialogOperation(windowID, optionIndex, label, token)}, reply)
 	if err != nil {
 		return nil, raw, err
 	}
@@ -92,12 +100,12 @@ func (client *Client) PreviewAnswerDialog(ctx context.Context, identity *c.Ident
 	}
 	return reply, raw, nil
 }
-func (writer *DialogControl) AnswerDialog(ctx context.Context, pre *a.WritePrecondition, windowID, optionIndex int32, label string) (*op.ExecuteReply, Result, error) {
-	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 || validDialog(windowID, optionIndex, label) != nil {
+func (writer *DialogControl) AnswerDialog(ctx context.Context, pre *a.WritePrecondition, windowID, optionIndex int32, label, token string) (*op.ExecuteReply, Result, error) {
+	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 || validDialog(windowID, optionIndex, label) != nil || (token != "" && (optionIndex != 0 || validID(token) != nil)) {
 		return nil, Result{}, contract("invalid dialog execution")
 	}
 	reply := &op.ExecuteReply{}
-	raw, err := writer.client.protoCall(ctx, "rimgovernor/operations_execute", &op.ExecuteRequest{Precondition: proto.Clone(pre).(*a.WritePrecondition), Operation: dialogOperation(windowID, optionIndex, label)}, reply)
+	raw, err := writer.client.protoCall(ctx, "rimgovernor/operations_execute", &op.ExecuteRequest{Precondition: proto.Clone(pre).(*a.WritePrecondition), Operation: dialogOperation(windowID, optionIndex, label, token)}, reply)
 	if err != nil {
 		return nil, raw, err
 	}
@@ -111,12 +119,15 @@ func (writer *DialogControl) AnswerDialog(ctx context.Context, pre *a.WritePreco
 	if v == nil {
 		return nil, raw, contract("dialog owner mismatch")
 	}
-	err = dialogReceipt(v, DialogAttempt{pre.Identity, pre.Attempt, pre.GetExpectedGeneration(), windowID, optionIndex, label})
+	err = dialogReceipt(v, DialogAttempt{pre.Identity, pre.Attempt, pre.GetExpectedGeneration(), windowID, optionIndex, label, token})
 	return reply, raw, err
 }
 func validDialogAttempt(w DialogAttempt) error {
 	if ValidateIdentity(w.Identity) != nil || buildingAttempt(w.Attempt) != nil || w.Generation == 0 {
 		return contract("invalid dialog attempt")
+	}
+	if w.LetterToken != "" && (w.OptionIndex != 0 || validID(w.LetterToken) != nil) {
+		return contract("invalid joiner letter target")
 	}
 	return validDialog(w.WindowID, w.OptionIndex, w.OptionLabel)
 }
@@ -125,8 +136,11 @@ func validDialogAttempt(w DialogAttempt) error {
 // either closed (resolveTree) or advanced to another node.
 func dialogEffect(v *r.EffectEvidence, w DialogAttempt, applied bool) error {
 	effect := v.GetDialog()
-	if effect == nil || buildingUnknown(v) != nil || effect.GetWindowId() != w.WindowID || effect.GetOptionIndex() != w.OptionIndex || effect.GetOptionLabel() != w.OptionLabel {
+	if effect == nil || buildingUnknown(v) != nil || effect.GetWindowId() != w.WindowID || effect.GetOptionIndex() != w.OptionIndex || effect.GetOptionLabel() != w.OptionLabel || effect.GetJoinerLetterToken() != w.LetterToken {
 		return contract("dialog effect missing or target mismatch")
+	}
+	if applied && w.LetterToken != "" && (!effect.GetJoined() || validID(effect.GetJoinerPawnId()) != nil) {
+		return contract("joiner pawn did not join")
 	}
 	if applied && (!effect.GetActivated() || !(effect.GetClosed() || effect.GetAdvanced())) {
 		return contract("dialog effect mismatch")
@@ -225,4 +239,20 @@ func (client *Client) ObserveAnswerDialogProgress(ctx context.Context, w DialogA
 		err = contract("unsupported dialog progress")
 	}
 	return reply, raw, err
+}
+
+func validateJoinerLetters(rows []*ob.JoinerLetter, tick int64) error {
+	if len(rows) > 256 {
+		return contract("joiner letter census exceeds bound")
+	}
+	seen := map[int32]bool{}
+	for _, row := range rows {
+		if row == nil || buildingUnknown(row) != nil || row.LetterId == nil || row.GetLetterId() < 0 || seen[row.GetLetterId()] ||
+			validID(row.GetSnapshotToken()) != nil || validID(row.GetPawnId()) != nil || row.ExpiresTick == nil || row.GetExpiresTick() <= tick ||
+			validID(row.GetAcceptLabel()) != nil || row.CanAccept == nil {
+			return contract("invalid joiner letter census")
+		}
+		seen[row.GetLetterId()] = true
+	}
+	return nil
 }

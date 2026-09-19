@@ -19,12 +19,12 @@ import (
 // *bridge.DialogControl to what dialogAnswerBoundary consumes, the same
 // split ConfirmColonyNames uses (#156).
 type DialogAnswerNative interface {
-	PreviewAnswerDialog(context.Context, *c.Identity, int32, int32, string) (*op.PreviewReply, bridge.Result, error)
+	PreviewAnswerDialog(context.Context, *c.Identity, int32, int32, string, string) (*op.PreviewReply, bridge.Result, error)
 	LookupAnswerDialog(context.Context, bridge.DialogAttempt) (*r.LookupReply, bridge.Result, error)
 	ObserveAnswerDialogProgress(context.Context, bridge.DialogAttempt, *r.Receipt) (*r.ProgressReply, bridge.Result, error)
 }
 type DialogAnswerWriter interface {
-	AnswerDialog(context.Context, *a.WritePrecondition, int32, int32, string) (*op.ExecuteReply, bridge.Result, error)
+	AnswerDialog(context.Context, *a.WritePrecondition, int32, int32, string, string) (*op.ExecuteReply, bridge.Result, error)
 }
 type DialogAnswerCapabilities struct {
 	Native DialogAnswerNative
@@ -46,7 +46,7 @@ func (b *dialogAnswerBoundary) InspectDialogAnswer(ctx context.Context, target e
 	if !ok {
 		return out, executor.ErrEvidence
 	}
-	preview, _, err := b.dialog.Native.PreviewAnswerDialog(ctx, boundary.Identity(target.Snapshot), value.WindowID(), value.OptionIndex(), value.OptionLabel())
+	preview, _, err := b.dialog.Native.PreviewAnswerDialog(ctx, boundary.Identity(target.Snapshot), value.WindowID(), value.OptionIndex(), value.OptionLabel(), value.LetterToken())
 	if err != nil {
 		return out, err
 	}
@@ -62,12 +62,12 @@ func (b *dialogAnswerBoundary) InspectDialogAnswer(ctx context.Context, target e
 	out.ObservedAt = b.Clock.Now()
 	return out, nil
 }
-func (b *dialogAnswerBoundary) dialogAttempt(p executor.Placement, windowID, optionIndex int32, label string) bridge.DialogAttempt {
-	return bridge.DialogAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: b.Attempt(p), Generation: uint64(p.Snapshot.Native), WindowID: windowID, OptionIndex: optionIndex, OptionLabel: label}
+func (b *dialogAnswerBoundary) dialogAttempt(p executor.Placement, windowID, optionIndex int32, label, token string) bridge.DialogAttempt {
+	return bridge.DialogAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: b.Attempt(p), Generation: uint64(p.Snapshot.Native), WindowID: windowID, OptionIndex: optionIndex, OptionLabel: label, LetterToken: token}
 }
 func (b *dialogAnswerBoundary) AnswerDialog(ctx context.Context, d executor.DialogAnswerDispatch) (executor.Receipt, error) {
 	p := d.Attempt
-	_, ok := p.Action.DialogAnswer()
+	value, ok := p.Action.DialogAnswer()
 	return b.DispatchWrite(ctx, p,
 		func() error {
 			if !ok {
@@ -76,7 +76,7 @@ func (b *dialogAnswerBoundary) AnswerDialog(ctx context.Context, d executor.Dial
 			return nil
 		},
 		func(pre *a.WritePrecondition) (*op.ExecuteReply, bridge.Result, error) {
-			return b.dialog.Writer.AnswerDialog(ctx, pre, d.WindowID, d.OptionIndex, d.OptionLabel)
+			return b.dialog.Writer.AnswerDialog(ctx, pre, d.WindowID, d.OptionIndex, d.OptionLabel, value.LetterToken())
 		},
 	)
 }
@@ -89,7 +89,7 @@ func (b *dialogAnswerBoundary) ObserveDialogAnswer(ctx context.Context, p execut
 	if !ok {
 		return out, executor.ErrEvidence
 	}
-	w := b.dialogAttempt(p, value.WindowID(), value.OptionIndex(), value.OptionLabel())
+	w := b.dialogAttempt(p, value.WindowID(), value.OptionIndex(), value.OptionLabel(), value.LetterToken())
 	lookup, _, err := b.dialog.Native.LookupAnswerDialog(ctx, w)
 	if err != nil {
 		return out, err

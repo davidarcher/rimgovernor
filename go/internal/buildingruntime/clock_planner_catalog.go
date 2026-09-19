@@ -524,7 +524,7 @@ var plannerCatalog = []plannerEntry{
 			out.PopulationCustody = &method
 			return nil
 		}},
-	{name: "populationJoiner", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.QuestAcceptAction}, families: factsPawns,
+	{name: "populationJoiner", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.QuestAcceptAction, domain.DialogAnswerAction}, families: factsMedical,
 		configured: func(c *ClockSchedulerConfig) bool { return c.PopulationJoiner != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.PopulationJoiner.step(ctx, epoch, arbiter)

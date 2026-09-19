@@ -342,7 +342,8 @@ type RoutineFacts struct {
 	// quest row (rimgovernor/observations_read_world_progression), read per
 	// cycle by a RoutineSource offering RoutineQuestSource, for JoinerDeficit
 	// to detect and SelectJoinerMethod to answer a joiner offer from.
-	QuestOffers domain.Fact[[]JoinerOffer]
+	QuestOffers   domain.Fact[[]JoinerOffer]
+	JoinerLetters domain.Fact[[]JoinerLetterOffer]
 	// PopulationCapacity is the player's declared PopulationPolicy (journal
 	// evidence, not a native read): the maximum and food reserve a joiner
 	// offer is admitted against. Unknown, or unset, answers no offer.
@@ -1096,8 +1097,9 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	prisonerDeficit, prisonerDeficitKnown := PrisonerRecruitDeficit(f.Prisoners, f.FoodDays, p.Prisoners()).Value()
 	custodyDeficit, custodyDeficitKnown := CustodyDeficit(f.Custody).Value()
 	joinerDeficit, joinerDeficitKnown := JoinerDeficit(f.QuestOffers, JoinerCapacity(f.JoinerCapacity())).Value()
+	letterDeficit, letterKnown := JoinerLetterDeficit(f.JoinerLetters, JoinerCapacity(f.JoinerCapacity())).Value()
 	switch {
-	case prisonerDeficitKnown && prisonerDeficit, custodyDeficitKnown && custodyDeficit, joinerDeficitKnown && joinerDeficit:
+	case prisonerDeficitKnown && prisonerDeficit, custodyDeficitKnown && custodyDeficit, joinerDeficitKnown && joinerDeficit, letterKnown && letterDeficit:
 		populationRecovered = domain.Known(false)
 	case prisonerDeficitKnown:
 		populationRecovered = domain.Known(!prisonerDeficit)

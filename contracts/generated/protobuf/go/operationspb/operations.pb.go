@@ -7783,12 +7783,13 @@ func (x *ConfirmColonyNames) GetSettlementName() string {
 // observed (Verse.Dialog_NodeTree). window_id plus the exact observed option index
 // and label stand in for EntityPrecondition: native refuses on any drift.
 type AnswerDialog struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	WindowId      *int32                 `protobuf:"varint,1,opt,name=window_id,json=windowId,proto3,oneof" json:"window_id,omitempty"`
-	OptionIndex   *int32                 `protobuf:"varint,2,opt,name=option_index,json=optionIndex,proto3,oneof" json:"option_index,omitempty"`
-	OptionLabel   *string                `protobuf:"bytes,3,opt,name=option_label,json=optionLabel,proto3,oneof" json:"option_label,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	WindowId          *int32                 `protobuf:"varint,1,opt,name=window_id,json=windowId,proto3,oneof" json:"window_id,omitempty"`
+	OptionIndex       *int32                 `protobuf:"varint,2,opt,name=option_index,json=optionIndex,proto3,oneof" json:"option_index,omitempty"`
+	OptionLabel       *string                `protobuf:"bytes,3,opt,name=option_label,json=optionLabel,proto3,oneof" json:"option_label,omitempty"`
+	JoinerLetterToken *string                `protobuf:"bytes,4,opt,name=joiner_letter_token,json=joinerLetterToken,proto3,oneof" json:"joiner_letter_token,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *AnswerDialog) Reset() {
@@ -7838,6 +7839,13 @@ func (x *AnswerDialog) GetOptionIndex() int32 {
 func (x *AnswerDialog) GetOptionLabel() string {
 	if x != nil && x.OptionLabel != nil {
 		return *x.OptionLabel
+	}
+	return ""
+}
+
+func (x *AnswerDialog) GetJoinerLetterToken() string {
+	if x != nil && x.JoinerLetterToken != nil {
+		return *x.JoinerLetterToken
 	}
 	return ""
 }
@@ -8809,15 +8817,17 @@ const file_operations_proto_rawDesc = "" +
 	"\n" +
 	"_window_idB\x0f\n" +
 	"\r_faction_nameB\x12\n" +
-	"\x10_settlement_name\"\xb0\x01\n" +
+	"\x10_settlement_name\"\xfd\x01\n" +
 	"\fAnswerDialog\x12 \n" +
 	"\twindow_id\x18\x01 \x01(\x05H\x00R\bwindowId\x88\x01\x01\x12&\n" +
 	"\foption_index\x18\x02 \x01(\x05H\x01R\voptionIndex\x88\x01\x01\x12&\n" +
-	"\foption_label\x18\x03 \x01(\tH\x02R\voptionLabel\x88\x01\x01B\f\n" +
+	"\foption_label\x18\x03 \x01(\tH\x02R\voptionLabel\x88\x01\x01\x123\n" +
+	"\x13joiner_letter_token\x18\x04 \x01(\tH\x03R\x11joinerLetterToken\x88\x01\x01B\f\n" +
 	"\n" +
 	"_window_idB\x0f\n" +
 	"\r_option_indexB\x0f\n" +
-	"\r_option_label\"\xf7\x01\n" +
+	"\r_option_labelB\x16\n" +
+	"\x14_joiner_letter_token\"\xf7\x01\n" +
 	"\x18ReleaseOwnedDraftRequest\x12;\n" +
 	"\bidentity\x18\x01 \x01(\v2\x1f.rimgovernor.common.v1.IdentityR\bidentity\x12A\n" +
 	"\x04pawn\x18\x02 \x01(\v2-.rimgovernor.operations.v1.EntityPreconditionR\x04pawn\x12/\n" +

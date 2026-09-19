@@ -65,7 +65,7 @@ namespace HomeBridge.BridgeTools
 
         [Tool("test/joiner_quest_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture: generate one real not-yet-accepted ThreatReward_Raid_Joiner offer through the native storyteller path and spawn spare unowned sleeping spots and survival meals beside the colonists.")]
         public async Task<object> PrepareJoiner(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            int spareBeds = 2, int mealPacks = 40, float minPoints = 300f)
+            int spareBeds = 2, int mealPacks = 40, float minPoints = 300f, bool skipQuest = false)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap; var player = Faction.OfPlayerSilentFail;
@@ -90,14 +90,17 @@ namespace HomeBridge.BridgeTools
                 var difficulty = Find.Storyteller.difficulty;
                 var allowViolent = difficulty.allowViolentQuests;
                 difficulty.allowViolentQuests = true;
-                Quest quest;
+                Quest quest = null;
                 try
                 {
-                    if (!def.root.TestRun(slate)) return Refuse("ThreatReward_Raid_Joiner root TestRun refused at " + points + " points.");
-                    quest = QuestUtility.GenerateQuestAndMakeAvailable(def, points);
+                    if (!skipQuest)
+                    {
+                        if (!def.root.TestRun(slate)) return Refuse("ThreatReward_Raid_Joiner root TestRun refused at " + points + " points.");
+                        quest = QuestUtility.GenerateQuestAndMakeAvailable(def, points);
+                    }
                 }
                 finally { difficulty.allowViolentQuests = allowViolent; }
-                if (quest == null || quest.State != QuestState.NotYetAccepted || quest.hidden)
+                if (!skipQuest && (quest == null || quest.State != QuestState.NotYetAccepted || quest.hidden))
                     return Refuse("The generated joiner quest is not a visible not-yet-accepted offer.");
 
                 // Spare beds and food beside the first colonist: a bare
@@ -141,8 +144,8 @@ namespace HomeBridge.BridgeTools
                 return new {
                     success = true, colonyId = identity?.ColonyId, loadToken = identity?.LoadToken, mapId = map.uniqueID,
                     tick = Find.TickManager.TicksGame, points,
-                    questId = quest.GetUniqueLoadID(), scriptDef = quest.root?.defName, state = quest.State.ToString(),
-                    expireTick = quest.acceptanceExpireTick, requiresAccepter = quest.RequiresAccepter,
+                    questId = quest?.GetUniqueLoadID(), scriptDef = quest?.root?.defName, state = quest?.State.ToString(),
+                    expireTick = quest?.acceptanceExpireTick, requiresAccepter = quest?.RequiresAccepter,
                     beds = beds.ToArray(), meals,
                     colonists = colonists.Select(p => p.GetUniqueLoadID()).ToArray(),
                 };

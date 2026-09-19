@@ -22,6 +22,7 @@ type DialogAnswerAdmission struct {
 	WindowID    int32
 	OptionIndex int32
 	OptionLabel string
+	LetterToken string `json:",omitempty"`
 }
 type ActionDialogAnswerAdmission struct {
 	Action    domain.ActionID
@@ -37,7 +38,7 @@ func validateDialogAnswerAdmission(a domain.Action, p domain.Progress, admission
 		return errors.New("admission plan or tick mismatch")
 	}
 	value, ok := a.DialogAnswer()
-	if !ok || value.WindowID() != admission.WindowID || value.OptionIndex() != admission.OptionIndex || value.OptionLabel() != admission.OptionLabel {
+	if !ok || value.WindowID() != admission.WindowID || value.OptionIndex() != admission.OptionIndex || value.OptionLabel() != admission.OptionLabel || value.LetterToken() != admission.LetterToken {
 		return errors.New("invalid dialog answer admission")
 	}
 	return nil

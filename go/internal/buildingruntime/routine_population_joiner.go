@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
+	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
@@ -18,9 +19,8 @@ import (
 // RoutineSource offers as RoutineQuestSource) against the colony's declared
 // population capacity (RoutineFacts.PopulationCapacity, the player's
 // PopulationPolicy) and the population, sleeping and food facts the review
-// already carries. Disclosed narrowing: only a ThreatReward_*_Joiner offer
-// is ever accepted (policy.IsJoinerOffer); an offer the colony cannot host
-// is left to expire, never rejected, and every other quest stays unanswered.
+// already carries. Pending WandererJoins letters use the same capacity gate
+// and the dialog-answer executor. Offers the colony cannot host expire.
 type RoutinePopulationJoinerPlanner struct {
 	reviewer *RoutineReviewer
 }
@@ -107,6 +107,9 @@ func (r *RoutinePopulationJoinerPlanner) step(call, epoch context.Context, arbit
 	if err != nil {
 		return RoutinePopulationJoinerResult{}, err
 	}
+	if letter, ok := policy.SelectJoinerLetter(facts.JoinerLetters, policy.JoinerCapacity(facts.JoinerCapacity())); ok {
+		return r.admitLetter(call, epoch, state, goal, letter, started)
+	}
 	choice := policy.SelectJoinerMethod(facts.QuestOffers, policy.JoinerCapacity(facts.JoinerCapacity()))
 	switch choice.Reason {
 	case policy.JoinerNoOffer, policy.JoinerNoCapacity:
@@ -130,6 +133,41 @@ func (r *RoutinePopulationJoinerPlanner) step(call, epoch context.Context, arbit
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
 	id := domain.PlanID(fmt.Sprintf("routine-population-joiner-%x", digest[:16]))
 	action, err := domain.NewQuestAcceptAction(domain.ActionID(fmt.Sprintf("%s-0", id)), accept)
+	if err != nil {
+		return RoutinePopulationJoinerResult{}, err
+	}
+	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
+	if err != nil {
+		return RoutinePopulationJoinerResult{}, err
+	}
+	if err = p.current(call, epoch); err != nil {
+		return RoutinePopulationJoinerResult{}, err
+	}
+	elapsed := r.reviewer.clock.Now().Sub(started)
+	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
+		return RoutinePopulationJoinerResult{}, ErrControl
+	}
+	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+		return RoutinePopulationJoinerResult{}, err
+	}
+	return RoutinePopulationJoinerResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+}
+
+func (r *RoutinePopulationJoinerPlanner) admitLetter(call, epoch context.Context, state ControlState, goal store.GoalState, letter policy.JoinerLetterOffer, started time.Time) (RoutinePopulationJoinerResult, error) {
+	p := r.reviewer.player
+	prefix := fmt.Sprintf("joiner-letter-%d-", letter.ID)
+	attempt := medicalAttemptCount(goal.Methods, goal.Goal.Epoch, prefix)
+	if attempt >= maxMedicalAttemptsPerPatient {
+		return RoutinePopulationJoinerResult{Reason: BuildingMethodExhausted}, nil
+	}
+	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
+	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
+	id := domain.PlanID(fmt.Sprintf("routine-joiner-letter-%x", digest[:16]))
+	value, err := domain.NewJoinerLetterAnswer(letter.ID, letter.Label, letter.Token)
+	if err != nil {
+		return RoutinePopulationJoinerResult{}, err
+	}
+	action, err := domain.NewDialogAnswerAction(domain.ActionID(fmt.Sprintf("%s-0", id)), value)
 	if err != nil {
 		return RoutinePopulationJoinerResult{}, err
 	}

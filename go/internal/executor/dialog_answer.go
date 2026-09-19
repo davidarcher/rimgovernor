@@ -92,7 +92,7 @@ func (e *Executor) runDialogAnswer(ctx context.Context, action domain.Action, p 
 			result.Progress = e.holdRefusal(ctx, v.Plan, v.Action, decision.Refused, v.Tick, result.Progress)
 			return result, ErrHeld
 		}
-		admission := store.DialogAnswerAdmission{Snapshot: expected, Tick: inspection.Facts.Tick, WindowID: value.WindowID(), OptionIndex: value.OptionIndex(), OptionLabel: value.OptionLabel()}
+		admission := store.DialogAnswerAdmission{Snapshot: expected, Tick: inspection.Facts.Tick, WindowID: value.WindowID(), OptionIndex: value.OptionIndex(), OptionLabel: value.OptionLabel(), LetterToken: value.LetterToken()}
 		next, err := e.dialogJournal.PrepareDialogAnswer(ctx, v.Plan, v.Action, admission)
 		if err != nil {
 			return result, err

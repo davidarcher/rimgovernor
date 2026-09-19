@@ -57,6 +57,7 @@ namespace HomeBridge.BridgeTools
         internal readonly Dictionary<Common.AttemptKey, NativeSurgeryRecord> Surgeries = new Dictionary<Common.AttemptKey, NativeSurgeryRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeCaravanTravelRecord> CaravanTravels = new Dictionary<Common.AttemptKey, NativeCaravanTravelRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeNamingRecord> Naming = new Dictionary<Common.AttemptKey, NativeNamingRecord>();
+        internal readonly Dictionary<Common.AttemptKey, NativeJoinerLetterRecord> JoinerLetters = new Dictionary<Common.AttemptKey, NativeJoinerLetterRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeDialogRecord> Dialogs = new Dictionary<Common.AttemptKey, NativeDialogRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeResearchSelectRecord> ResearchSelections = new Dictionary<Common.AttemptKey, NativeResearchSelectRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeBedAssignRecord> BedAssignments = new Dictionary<Common.AttemptKey, NativeBedAssignRecord>();
@@ -495,6 +496,8 @@ namespace HomeBridge.BridgeTools
                     NativeNamingRecord naming;
                     if (state.Naming.TryGetValue(parsed.Attempt, out naming))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeColonyNamingOperations.Observe(parsed.Attempt, context, naming) }));
+                    if (state.JoinerLetters.TryGetValue(parsed.Attempt, out var joinerLetter))
+                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeJoinerLetters.Observe(parsed.Attempt, context, joinerLetter) }));
                     NativeDialogRecord dialog;
                     if (state.Dialogs.TryGetValue(parsed.Attempt, out dialog))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeChoiceDialogOperations.Observe(parsed.Attempt, context, dialog) }));

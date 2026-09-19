@@ -46,6 +46,7 @@ namespace HomeBridge.BridgeTools
         {
             try
             {
+                if (command.HasJoinerLetterToken) return NativeJoinerLetters.Preview(command, context);
                 if (!PrepareStale(command, out var dialog, out var option))
                     return new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,
                         "Choice dialog or option changed; inspect again.") };
@@ -71,6 +72,7 @@ namespace HomeBridge.BridgeTools
             var pre = request.Precondition; var command = request.Operation.AnswerDialog;
             try
             {
+                if (command.HasJoinerLetterToken) return NativeJoinerLetters.Execute(state, request, context);
                 if (!PrepareStale(command, out var dialog, out var option))
                     return new Operations.ExecuteReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,
                         "Choice dialog or option changed; inspect again.") };

@@ -168,6 +168,9 @@ func ValidateColonyFacts(v *o.ColonyFactsSnapshot, identity *c.Identity) error {
 			}
 		}
 	}
+	if err := validateJoinerLetters(v.JoinerLetters, v.Context.GetTick()); err != nil {
+		return err
+	}
 	if err := validateChoiceDialog(v.Dialog); err != nil {
 		return err
 	}

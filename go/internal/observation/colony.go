@@ -250,6 +250,11 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 	// The dialog section is present exactly while a force-pausing choice
 	// dialog is open (#156); native omits it otherwise.
 	r.Facts.ChoiceDialog = domain.Known(v.Dialog != nil)
+	letters := make([]policy.JoinerLetterOffer, 0, len(v.JoinerLetters))
+	for _, row := range v.JoinerLetters {
+		letters = append(letters, policy.JoinerLetterOffer{ID: row.GetLetterId(), Token: row.GetSnapshotToken(), Pawn: domain.PawnID(row.GetPawnId()), Expires: domain.Tick(row.GetExpiresTick()), Label: row.GetAcceptLabel(), CanAccept: row.GetCanAccept()})
+	}
+	r.Facts.JoinerLetters = domain.Known(letters)
 	if v.Naming != nil {
 		r.Facts.ColonyNaming = domain.Known(true)
 	} else {

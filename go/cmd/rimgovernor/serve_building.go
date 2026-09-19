@@ -686,7 +686,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		namingCapabilities = client.naming
 	}
 	var dialogCapabilities *buildingruntime.DialogAnswerCapabilities
-	if config.routineDialogPlans {
+	if config.routineDialogPlans || config.routinePopulationJoinerPlans {
 		if client.dialog == nil {
 			return errors.New("dialog plans require typed capabilities")
 		}

@@ -11,11 +11,13 @@ const DialogAnswerAction ActionKind = "dialog_answer"
 // native list position and label stand in for an EntityPrecondition: the
 // native AnswerDialog operation refuses on any drift from these exact
 // observed values (NativeChoiceDialogOperations.cs), so a dialog that moved
-// on can never receive a stale answer.
+// on can never receive a stale answer. A nonempty LetterToken explicitly targets
+// a WandererJoins letter with WindowID carrying its letter ID instead.
 type DialogAnswer struct {
 	windowID    int32
 	optionIndex int32
 	optionLabel string
+	letterToken string
 }
 
 func NewDialogAnswer(windowID, optionIndex int32, optionLabel string) (DialogAnswer, error) {
@@ -25,6 +27,16 @@ func NewDialogAnswer(windowID, optionIndex int32, optionLabel string) (DialogAns
 	return DialogAnswer{windowID: windowID, optionIndex: optionIndex, optionLabel: optionLabel}, nil
 }
 
+// NewJoinerLetterAnswer targets a pending native letter rather than a window.
+func NewJoinerLetterAnswer(letterID int32, label, token string) (DialogAnswer, error) {
+	d, err := NewDialogAnswer(letterID, 0, label)
+	if err != nil || !validID(token) {
+		return DialogAnswer{}, errors.New("invalid joiner letter target")
+	}
+	d.letterToken = token
+	return d, nil
+}
+func (d DialogAnswer) LetterToken() string { return d.letterToken }
 func (d DialogAnswer) WindowID() int32     { return d.windowID }
 func (d DialogAnswer) OptionIndex() int32  { return d.optionIndex }
 func (d DialogAnswer) OptionLabel() string { return d.optionLabel }
@@ -35,6 +47,9 @@ func NewDialogAnswerAction(id ActionID, value DialogAnswer) (Action, error) {
 	}
 	if _, err := NewDialogAnswer(value.windowID, value.optionIndex, value.optionLabel); err != nil {
 		return Action{}, err
+	}
+	if value.letterToken != "" && (!validID(value.letterToken) || value.optionIndex != 0) {
+		return Action{}, errors.New("invalid joiner letter answer")
 	}
 	return Action{id: id, kind: DialogAnswerAction, dialogAnswer: value}, nil
 }

@@ -11,7 +11,7 @@ using Verse;
 
 namespace RimGovernor.InterruptionFixtures
 {
-    // Separate test assembly; never part of production or the gameplay capability allowlist.
+    // Test-only assembly or private fixture build; never production or model execution.
     public sealed class InterruptionFixture
     {
         [Tool("test/settle_caravan", Description = "Disposable multi-map acceptance through the enabled native settle command. Requires the private profile's ordinary multiple-settlement setting. Does not create maps or relocate pawns directly.")]
@@ -94,7 +94,7 @@ namespace RimGovernor.InterruptionFixtures
         }
 
         [Tool("test/join_incident", Description = "Disposable scenario setup: require and execute the ordinary native WandererJoin incident; no direct pawn generation or edits.")]
-        public async Task<object> Join(IRimBridgeContext ctx, CancellationToken cancellationToken, bool dryRun = true, bool acceptJoin = true)
+        public async Task<object> Join(IRimBridgeContext ctx, CancellationToken cancellationToken, bool dryRun = true, bool acceptJoin = true, bool deferAnswer = false)
         {
             return await ctx.MainThread.InvokeAsync(() =>
             {
@@ -119,7 +119,7 @@ namespace RimGovernor.InterruptionFixtures
                     if (choice.disabled || choice.action == null)
                         throw new InvalidOperationException("Native join choice is unavailable");
                     selectedLetter = letter.GetUniqueLoadID();
-                    choice.action();
+                    if (!deferAnswer) choice.action();
                 }
                 var after = map.mapPawns.FreeColonistsSpawned.Select(p => p.GetUniqueLoadID()).ToArray();
                 return (object)new { success = true, dryRun, eligible, applied, definition = def.defName,
