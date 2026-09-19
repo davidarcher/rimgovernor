@@ -122,7 +122,6 @@ type suiteOptions struct {
 }
 
 const suiteUsage = `  acceptance suite (-all | -cases a,b,... | -suite file.json | -tier land|full|matrix|smoke [-base main]) -root <dir> -output <dir> [-workers N -baseline <result.json> -series <metrics.jsonl> -no-series -rimgovernor <bin> -game <id> -timeout <d> -case-timeout <d> -budget <d> -stall <d> -evidence capped|full -resume]
-|full]
     -tier land runs the cases cmd/affected selects for the worktree's diff plus the smoke set; full every case but the matrix tier;
     matrix the speedmatrix, tickbudget and DLC-save cases; smoke the land tier's fixed half alone (acceptance list -tier <name> prints a tier)`
 
