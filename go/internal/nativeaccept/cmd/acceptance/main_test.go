@@ -250,3 +250,29 @@ func TestWarmRejectsBadRoots(t *testing.T) {
 		}
 	}
 }
+
+func TestDoctorRefusesBadFlagsAndFailsAnEmptyRoot(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{"doctor"}, &stdout, &stderr); code != 2 || !strings.Contains(stderr.String(), "-root is required") {
+		t.Fatalf("no root: code %d, stderr %q", code, stderr.String())
+	}
+	stderr.Reset()
+	if code := run([]string{"doctor", "-root", "relative"}, &stdout, &stderr); code != 2 || !strings.Contains(stderr.String(), "absolute") {
+		t.Fatalf("relative root: code %d, stderr %q", code, stderr.String())
+	}
+	// An empty directory is a root setup has not made: the root check
+	// fails with the setup command, and the exit code says so.
+	stdout.Reset()
+	if code := run([]string{"doctor", "-root", t.TempDir(), "-worktree", t.TempDir()}, &stdout, &stderr); code != 1 || !strings.Contains(stdout.String(), "FAIL  root") || !strings.Contains(stdout.String(), "acceptance setup") {
+		t.Fatalf("empty root: code %d\n%s", code, stdout.String())
+	}
+	// `run` fronts the same checks and refuses before any game opens.
+	stdout.Reset()
+	selected, opts, err := parseRun([]string{"smoke/identity", "-root", t.TempDir()}, &stderr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if code := runCases(context.Background(), selected, opts, &stdout); code != 2 || !strings.Contains(stdout.String(), "preflight failed") || strings.Contains(stdout.String(), "ok    ") {
+		t.Fatalf("run preflight: code %d\n%s", code, stdout.String())
+	}
+}

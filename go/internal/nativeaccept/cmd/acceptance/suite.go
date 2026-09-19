@@ -356,6 +356,10 @@ func runSuite(ctx context.Context, list []entry, opts suiteOptions, stderr io.Wr
 		report["baseline"] = opts.Baseline
 	}
 	schedule(list, b)
+	if !preflight(ctx, nil, cases.Options{Root: opts.Root, Rimgovernor: opts.Rimgovernor, Output: opts.Output, GameID: opts.GameID}, stderr) {
+		report["error"] = "doctor preflight failed on " + opts.Root
+		return report.Finalize(opts.Output)
+	}
 	self, err := os.Executable()
 	if err != nil {
 		report["error"] = fmt.Sprintf("own executable: %v", err)
@@ -460,7 +464,9 @@ func runSuite(ctx context.Context, list []entry, opts suiteOptions, stderr io.Wr
 // entryCommand is the argv a row runs as on a worker (`acceptance run`
 // on this executable) and where the row's result.json lands.
 func entryCommand(e entry, opts suiteOptions, self, workerRoot string) (argv []string, output string) {
-	argv = []string{self, "run", e.Name, "-root", workerRoot, "-output", opts.Output, "-game", opts.GameID, "-fresh", "-checkpoint-every", "0"}
+	// The suite ran the preflight once on the shared root; a worker's
+	// process check would only see its siblings.
+	argv = []string{self, "run", e.Name, "-root", workerRoot, "-output", opts.Output, "-game", opts.GameID, "-fresh", "-checkpoint-every", "0", "-no-doctor"}
 	if opts.NoSeries {
 		argv = append(argv, "-no-series")
 	} else if opts.Series != "" {

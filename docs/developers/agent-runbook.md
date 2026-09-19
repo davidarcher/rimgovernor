@@ -18,7 +18,9 @@ RimWorld running.
    ./internal/nativeaccept/cmd/acceptance setup` from `go/` builds the
    private layout below (game copy, bridge root, fixture mod, binaries) and
    prints the first run command; rerun it after merging `main` to rebuild a
-   stale mod. Then keep to the run pattern.
+   stale mod. `acceptance doctor -root <root> [-rimgovernor <bin>]` then
+   checks the environment in a second or two (below). Then keep to the
+   run pattern.
 
 ## Shared with peers: never touch these from a task
 
@@ -90,12 +92,24 @@ What it produces:
 ## Running a case
 
 - There is one runner, `go/internal/nativeaccept/cmd/acceptance`
-  (`list`, `run <area>/<case>...`, `suite`, `stop`). Build it to an exe
+  (`list`, `run <area>/<case>...`, `suite`, `stop`, `doctor`, `why`). Build it to an exe
   and launch it detached: `Start-Process -WindowStyle Hidden -PassThru`
   with stdout/stderr redirected under `.rimgovernor/`.
   The tool shell caps a command at ten minutes even in the background, and
   without `-WindowStyle Hidden` a console window opens on the user's
   desktop.
+- `acceptance doctor -root <root> [-rimgovernor <bin> -output <dir>]` is
+  the preflight (#277): one line per known pitfall with its fix -- the
+  root and its game copy (path past ~140 characters), `gabs.exe`, the
+  installed mod (present, stale against the worktree), the Core-only
+  baseline save, the profile's `ModsConfig.xml` against what the kept
+  process launched with, your own leftover game processes, the clock
+  journal backlog under a kept process, a private `GOCACHE`, the runner
+  and `rimgovernor` binaries against the worktree and `main`, and an
+  occupied output directory. It exits non-zero only on a check that would
+  certainly fail the run; `run` and `suite` run the same checks first,
+  print only the failing ones and refuse on a failure (`-no-doctor` on
+  `run` skips it).
 - Pass absolute paths (`-root`, `-output`, `-OutputRoot`): the PowerShell
   tool's working directory follows the last `cd` in the Bash tool.
 - Expect 170-250 ticks/s of game time with peers running whatever speed you

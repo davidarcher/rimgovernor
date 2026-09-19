@@ -56,6 +56,9 @@ type Options struct {
 	// series alone.
 	Series   string
 	NoSeries bool
+	// NoDoctor skips the runner's doctor preflight (a suite worker whose
+	// parent already ran it on the shared root).
+	NoDoctor bool
 }
 
 // SeriesPath is where the run's series lives: Series, or the default

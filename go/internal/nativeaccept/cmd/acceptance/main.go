@@ -1,16 +1,18 @@
 // Command acceptance is the shared runner over the case registry (#135):
 //
 //	acceptance list [-cost [-baseline <result.json|metrics.jsonl>]] [<case>|<area>/...]...
-//	acceptance run <case>... [-root -output -game -headless -timeout -budget -stall -rimgovernor -series -no-series -evidence -fresh -rewind N -checkpoint-every d]
+//	acceptance run <case>... [-root -output -game -headless -timeout -budget -stall -rimgovernor -series -no-series -evidence -fresh -rewind N -checkpoint-every d -no-doctor]
 //	acceptance suite (-all | -cases a,b | -suite file.json) -root -output -workers N [-baseline result.json -series metrics.jsonl]
 //	acceptance stop -root <dir> [-config -game -takeover]
 //	acceptance setup [-worktree -rimworld -harmony -gabs -fixture -production -rebuild -skip-mod -skip-binaries]
 //	acceptance why <output>/<area>/<case> [-json]
 //	acceptance warm -root <dir> [-game -headless=false -background]
 //	acceptance fixture <op> [key=value ...] -root <dir> [-save <name> | -loaded]
+//	acceptance doctor -root <dir> [-rimgovernor <bin> -output <dir> -game <id> -worktree <dir>]
 //
 // It replaces the per-harness binaries' preamble with one loop: resolve the
-// shared configuration, open the game, bring it to the case's Start, quiet
+// shared configuration, run the doctor preflight (doctor.go, #277; only
+// its failing checks print and a Fail refuses the run), open the game, bring it to the case's Start, quiet
 // the storyteller, freeze needs, run the case, write result.json with the
 // run's timing and metrics block, append the block to the metrics series
 // and flag drift (nativeaccept/metrics.go). `suite` (suite.go) runs a set
@@ -138,6 +140,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return warm(context.Background(), args[1:], stdout, stderr)
 	case "fixture":
 		return runFixture(context.Background(), args[1:], stdout, stderr)
+	case "doctor":
+		return runDoctor(context.Background(), args[1:], stdout, stderr)
 	default:
 		fmt.Fprintf(stderr, "unknown command %q\n%s\n", args[0], usage)
 		return 2
@@ -146,11 +150,11 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 const usage = `usage:
 ` + listUsage + `
-  acceptance run <case>... -root <dir> [-output <dir> -game <id> -headless=false -timeout <d> -budget <d> -stall <d> -rimgovernor <binary> -series <metrics.jsonl> -no-series -evidence capped|full -fresh -rewind <n> -checkpoint-every <d>]
+  acceptance run <case>... -root <dir> [-output <dir> -game <id> -headless=false -timeout <d> -budget <d> -stall <d> -rimgovernor <binary> -series <metrics.jsonl> -no-series -evidence capped|full -fresh -rewind <n> -checkpoint-every <d> -no-doctor]
     a case whose last run in this root failed resumes from its checkpoint ring (printed on the first line);
     -fresh starts over, -rewind <n> resumes n entries earlier, -checkpoint-every 0 turns the ring off
   acceptance stop -root <dir> [-config <dir> -game <id> -takeover]
-` + setupUsage + suiteUsage + whyUsage + warmUsage + fixtureUsage
+` + setupUsage + suiteUsage + whyUsage + warmUsage + fixtureUsage + doctorUsage
 
 // parseRun resolves the run subcommand's flags and case names. Flags may
 // follow the case names (flag.FlagSet stops at the first non-flag, so the
@@ -182,6 +186,7 @@ func parseRun(args []string, stderr io.Writer) ([]cases.Case, cases.Options, err
 	fs.DurationVar(&opts.CheckpointEvery, "checkpoint-every", na.DefaultCheckpointEvery, "checkpoint the run phase this often at a natural pause into <root>/checkpoints/<case>/ (0 turns the ring and resuming off)")
 	fs.StringVar(&opts.Series, "series", "", "append-only metrics series each case's block is appended to (default <output>/../metrics.jsonl)")
 	fs.BoolVar(&opts.NoSeries, "no-series", false, "leave the metrics series alone")
+	fs.BoolVar(&opts.NoDoctor, "no-doctor", false, "skip the doctor preflight (a suite worker, or a check you have judged wrong)")
 	if err := fs.Parse(flagArgs); err != nil {
 		return nil, opts, err
 	}
@@ -228,9 +233,13 @@ func parseRun(args []string, stderr io.Writer) ([]cases.Case, cases.Options, err
 	return selected, opts, nil
 }
 
-// runCases executes the cases in order on one game; the exit code is
-// non-zero when any case failed.
+// runCases executes the cases in order on one game after the doctor
+// preflight; the exit code is non-zero when any case failed, 2 when the
+// preflight refused the run.
 func runCases(ctx context.Context, selected []cases.Case, opts cases.Options, stdout io.Writer) int {
+	if !opts.NoDoctor && !preflight(ctx, selected, opts, stdout) {
+		return 2
+	}
 	exit := 0
 	opts.Log = stdout
 	for _, c := range selected {

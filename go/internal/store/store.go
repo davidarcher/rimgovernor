@@ -43,6 +43,11 @@ import (
 )
 
 const schemaVersion = 83
+
+// SchemaVersion is the PRAGMA user_version Open requires; a database
+// from another version is refused (tooling reads those raw).
+func SchemaVersion() int { return schemaVersion }
+
 const applicationID = 0x52474f31
 
 var ErrConflict = core.ErrConflict
