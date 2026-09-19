@@ -20,6 +20,32 @@ func comfortCensus(using bool) policy.ComfortObservation {
 		Recreation: []policy.ComfortFacility{{ID: "hoop", AccessibleTo: people, Users: users}}}
 }
 
+func TestRecreationMaintenanceAssessmentSurvivesJournalRead(t *testing.T) {
+	s := open(t, memoryPath(t))
+	r := routineRequest()
+	v := comfortCensus(false)
+	v.Recreation[0].Kind = "Dexterity"
+	v.Joy = &policy.RecreationCensus{Kinds: []string{"Dexterity"}, Pawns: []policy.JoyTolerance{{Pawn: "pawn", Tolerance: []float64{.4}, Bored: []bool{true}}}}
+	r.Facts.BasicComfort = domain.Known(v)
+	out := reviewRoutine(t, s, &r)
+	if routineGoal(t, out, policy.EnsureBasicComfort).Goal.Need != domain.NeedDeficit {
+		t.Fatal("variety not persisted as a deficit")
+	}
+	// Loading and reviewing again traverses RoutineReview's optional-goal
+	// validation: this goal can be foothold or maintenance in the same save.
+	out = reviewRoutine(t, s, &r)
+	row := developmentRow(t, out.Review, policy.EnsureBasicComfort)
+	if row.Goal != policy.EnsureBasicComfort {
+		t.Fatal(row)
+	}
+	v.Joy.Pawns[0].Bored[0] = false
+	r.Facts.BasicComfort = domain.Known(v)
+	out = reviewRoutine(t, s, &r)
+	if routineGoal(t, out, policy.EnsureBasicComfort).Goal.Need != domain.NeedRecovered {
+		t.Fatal("fresh native evidence did not recover variety")
+	}
+}
+
 func TestRoutineComfortUseSurvivesRestartManualButNotReplacement(t *testing.T) {
 	t.Parallel()
 	path := memoryPath(t)

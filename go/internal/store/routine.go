@@ -202,7 +202,7 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 	optional := map[domain.GoalID]bool{}
 	for _, n := range known.Assessments {
 		allowed[n.ID] = true
-		optional[n.ID] = n.Priority >= 3 || n.ID == policy.RecoverDisasterServices
+		optional[n.ID] = n.Priority >= 3 || n.ID == policy.RecoverDisasterServices || n.ID == policy.EnsureBasicComfort
 	}
 	// Manual may retain historical bindings after a world change reset their
 	// observation history. Enabled bindings must match the current pawn history.

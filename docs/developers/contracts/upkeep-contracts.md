@@ -668,6 +668,26 @@ preview indoors, the horseshoes pin anywhere with accessible watch cells; an
 existing facility nobody can reach stays a blocker rather than a duplicate.
 Methods are `basic-comfort-<definition>` under plans `routine-basic-comfort-*`.
 
+Once basic capacity holds, the same goal uses maintenance priority (3) for a
+second reachable building-backed joy kind: colonies with multiple joy-needing
+colonists request it immediately; a lone colonist requests it when native boredom
+is set for the only accessible kind. Two kinds cap construction even if both are
+bored. Duplicate buildings of the same JoyKindDef do not provide variety, and an
+inaccessible second kind blocks duplicate construction. Native research and
+builder availability gate selection: TubeTelevision with spare power at an indoor
+site within connector reach of a running generator, then BilliardsTable, then
+ChessTable or HorseshoesPin of a distinct kind. TV placement also requires native
+watch-cell access. Ordinary construction, materials and placement guards apply.
+
+The optional comfort joy census carries distinct usable building-backed kinds,
+and per-colonist tolerance and native boredom vectors indexed by that kind list.
+Pawns without a joy need are omitted. Native boredom preserves the game's tolerance
+hysteresis. Bounds are 16 kinds, 256 pawns, 2048 pawn-kind entries, four candidate
+definitions and 64 KiB of compact ProtoJSON, inside the existing colony envelope.
+Exceeding a bound omits the entire joy census; basic capacity remains observable,
+while variety stays unknown and cannot certify recovery or schedule construction.
+The hosted-room comfort projection does not retain this unfiltered kind matrix.
+
 `EnsureComfort` maintains dining and recreation once every startup survival goal
 has a method on record or is monitoring-only.
 Its deficit remains visible during emergencies; admission waits rather than

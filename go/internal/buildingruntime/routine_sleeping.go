@@ -80,22 +80,23 @@ type RoutineBuildingResult struct {
 // existing reviewed player direction. It creates shared pending work, never
 // acquires a lease, dispatches an action or advances the game.
 type RoutineBuildingPlanner struct {
-	paste         []policy.SiteBuilding
-	reviewer      *RoutineReviewer
-	native        RoutineBuildingSource
-	goal          policy.GoalID
-	definition    string
-	stuff         string
-	environment   policy.PlacementEnvironment
-	adjacent      []domain.Cell
-	shelter       bool
-	excavation    RoutineExcavationSource
-	power         *policy.PowerProposal
-	temperature   *policy.TemperatureProposal
-	refrigeration *policy.RefrigerationProposal
-	lighting      *policy.LightingProposal
-	flooring      *policy.FlooringProposal
-	routes        *policy.RoutesProposal
+	paste            []policy.SiteBuilding
+	reviewer         *RoutineReviewer
+	native           RoutineBuildingSource
+	goal             policy.GoalID
+	definition       string
+	recreationPowerW float64
+	stuff            string
+	environment      policy.PlacementEnvironment
+	adjacent         []domain.Cell
+	shelter          bool
+	excavation       RoutineExcavationSource
+	power            *policy.PowerProposal
+	temperature      *policy.TemperatureProposal
+	refrigeration    *policy.RefrigerationProposal
+	lighting         *policy.LightingProposal
+	flooring         *policy.FlooringProposal
+	routes           *policy.RoutesProposal
 	// facility restricts furnishing to rooms whose native role can host the
 	// function; with none observed, furnishing has no verified space and the
 	// same planner falls back to staging a starter shell for it.
@@ -258,6 +259,9 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	}
 	if r.goal == policy.EnsureComfort && !r.shelter || r.goal == policy.EnsureBasicComfort {
 		definitions = []string{"Table1x2c", "DiningChair", "HorseshoesPin"}
+	}
+	if r.goal == policy.EnsureBasicComfort {
+		definitions = append(definitions, "TubeTelevision", "BilliardsTable", "ChessTable")
 	}
 	if (r.goal == policy.MaintainResource || r.goal == policy.MaintainEquipment) && !r.shelter {
 		definitions = r.workshop.candidates
@@ -844,6 +848,9 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 		}
 	}
 	for _, c := range facts.Cells {
+		if r.recreationPowerW > 0 && !poweredRecreationCell(facts, c.Cell, r.recreationPowerW) {
+			continue
+		}
 		if restricted && !roomCells[c.Cell] {
 			continue
 		}
@@ -913,7 +920,7 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 				return nil, policy.StockObservation{}, "", ErrControl
 			}
 			made, known := preview.Preview.MadeFromStuff.Value()
-			if (r.goal == policy.EnsureComfort || r.goal == policy.EnsureBasicComfort) && r.definition == "HorseshoesPin" {
+			if (r.goal == policy.EnsureComfort || r.goal == policy.EnsureBasicComfort) && (r.definition == "HorseshoesPin" || r.definition == "TubeTelevision") {
 				accessible, known := preview.Preview.WatchCellsAccessible.Value()
 				unknownWatch = unknownWatch || !known
 				if !known || !accessible {

@@ -659,7 +659,13 @@ message PatientForecast { optional string pawn_id = 1; optional double bleed_rat
 message ForecastFacts { repeated string animal_ids = 1; FoodSupplyFacts combined_food_supply = 2; repeated CropForecast crops = 3; repeated PatientForecast patients = 4; Completeness completeness = 5; }
 message ComfortSurface { optional string id = 1; repeated rimgovernor.common.v1.Cell adjacent = 2; optional string room_id = 3; }
 message ComfortFacility { optional string id = 1; optional string kind = 2; repeated string accessible_to = 3; repeated string users = 4; optional string room_id = 5; }
-message ComfortFacts { repeated string people = 1; repeated ComfortSurface surfaces = 2; repeated ComfortFacility dining = 3; repeated ComfortFacility recreation = 4; Completeness completeness = 5; }
+// Complete building-backed kind census. Parallel tolerance/bored arrays follow
+// kinds; pawns without a joy need are omitted. Absent census means unavailable.
+// Bounds: 16 kinds, 256 pawns, 2048 pawn-kind values, 4 methods, 64 KiB ProtoJSON.
+message JoyTolerance { string pawn = 1; repeated double tolerance = 2; repeated bool bored = 3; }
+message JoyBuildingMethod { string definition = 1; string kind = 2; double power_w = 3; }
+message RecreationCensus { repeated string kinds = 1; repeated JoyTolerance pawns = 2; repeated JoyBuildingMethod methods = 3; }
+message ComfortFacts { repeated string people = 1; repeated ComfortSurface surfaces = 2; repeated ComfortFacility dining = 3; repeated ComfortFacility recreation = 4; Completeness completeness = 5; RecreationCensus joy = 6; }
 message UpkeepItem { EntityRef item = 1; optional int64 count = 2; optional int32 hit_points = 3; optional int32 max_hit_points = 4; optional bool roofed = 5; optional bool in_storage = 6; optional double deterioration_rate = 7; optional double base_deterioration_rate = 8; optional int64 rot_ticks = 9; optional bool perishable = 10; optional double temperature_c = 11; optional bool forbidden = 12; optional bool medicine = 13; optional bool nutrition_giving = 14; optional bool burning = 15; }
 message UpkeepBed { EntityRef bed = 1; optional uint32 slots = 2; optional bool humanlike = 3; optional double rest_effectiveness = 4; optional bool medical = 5; optional bool prisoners = 6; repeated string owners = 7; repeated string users = 8; repeated string accessible_to = 9; optional bool roofed = 10; optional double temperature_c = 11; }
 message StorageCell { rimgovernor.common.v1.Cell cell = 1; optional bool roofed = 2; optional bool occupied = 3; }

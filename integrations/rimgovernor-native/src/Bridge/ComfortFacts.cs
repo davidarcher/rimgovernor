@@ -1,6 +1,7 @@
 #nullable enable
 using System;
 using System.Linq;
+using System.Text;
 using RimWorld;
 using Verse;
 using Verse.AI;
@@ -103,7 +104,39 @@ namespace HomeBridge.BridgeTools
                     .Select(p => Id(p.GetUniqueLoadID())));
                 result.Recreation.Add(row);
             }
+            result.Joy = ReadJoy(people, play);
             return result;
+        }
+
+        // Keep the optional matrix small independently of the whole-colony
+        // 1 MiB envelope. No truncated matrix may masquerade as complete.
+        private static Obs.RecreationCensus? ReadJoy(System.Collections.Generic.List<Pawn> people,
+            System.Collections.Generic.List<Building> play)
+        {
+            var kinds = play.Select(b => b.def.building.joyKind).Distinct()
+                .OrderBy(k => k.defName, StringComparer.Ordinal).ToList();
+            var pawns = people.Where(p => p.needs?.joy != null).ToList();
+            if (kinds.Count > 16 || pawns.Count * kinds.Count > 2048) return null;
+            var result = new Obs.RecreationCensus();
+            result.Kinds.Add(kinds.Select(k => Id(k.defName)));
+            foreach (var p in pawns) {
+                var row = new Obs.JoyTolerance { Pawn = Id(p.GetUniqueLoadID()) };
+                foreach (var k in kinds) {
+                    var value = p.needs.joy.tolerances[k];
+                    if (float.IsNaN(value) || float.IsInfinity(value) || value < 0 || value > 1) return null;
+                    row.Tolerance.Add(value);
+                    row.Bored.Add(p.needs.joy.tolerances.BoredOf(k));
+                }
+                result.Pawns.Add(row);
+            }
+            foreach (var name in new[] { "TubeTelevision", "BilliardsTable", "ChessTable", "HorseshoesPin" }) {
+                var def = DefDatabase<ThingDef>.GetNamedSilentFail(name);
+                if (def?.building?.joyKind == null || !def.BuildableByPlayer
+                    || def.researchPrerequisites?.Any(r => !r.IsFinished) == true) continue;
+                result.Methods.Add(new Obs.JoyBuildingMethod { Definition = Id(name), Kind = Id(def.building.joyKind.defName),
+                    PowerW = Math.Max(0, def.GetCompProperties<CompProperties_Power>()?.PowerConsumption ?? 0) });
+            }
+            return Encoding.UTF8.GetByteCount(ProtoBoundary.Format(result, compact: true)) <= 64 * 1024 ? result : null;
         }
     }
 }

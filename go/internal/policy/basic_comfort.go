@@ -15,6 +15,8 @@ import (
 type BasicComfortReview struct {
 	Dining, Recreation                       ComfortNeed
 	MissingDining, MissingRecreation, People int
+	MissingVariety                           int
+	VarietyKnown                             bool
 }
 
 // ReviewBasicComfort measures the unfiltered comfort census (every indoor
@@ -35,6 +37,10 @@ func ReviewBasicComfort(observed domain.Fact[ComfortObservation]) (BasicComfortR
 	}
 	r.Dining, r.Recreation = provided(full.Dining), provided(full.Recreation)
 	r.MissingDining, r.MissingRecreation, r.People = full.MissingDining, full.MissingRecreation, full.People
+	if v, known := observed.Value(); known {
+		r.MissingVariety = recreationVarietyMissing(v)
+		r.VarietyKnown = v.Joy != nil
+	}
 	return r, nil
 }
 
@@ -42,21 +48,35 @@ func (r BasicComfortReview) Recovered() domain.Fact[bool] {
 	if r.Dining == ComfortUnknown || r.Recreation == ComfortUnknown {
 		return domain.Unknown[bool]()
 	}
-	return domain.Known(r.Dining == ComfortRecovered && r.Recreation == ComfortRecovered)
+	if r.Priority() == 3 && !r.VarietyKnown {
+		return domain.Unknown[bool]()
+	}
+	return domain.Known(r.Dining == ComfortRecovered && r.Recreation == ComfortRecovered && r.MissingVariety == 0)
 }
 
 func (r BasicComfortReview) Deficit() domain.Fact[float64] {
 	if r.Dining == ComfortUnknown || r.Recreation == ComfortUnknown {
 		return domain.Unknown[float64]()
 	}
+	if r.Priority() == 3 && !r.VarietyKnown {
+		return domain.Unknown[float64]()
+	}
 	value := 0.0
 	if r.Dining != ComfortRecovered {
 		value += .5
 	}
-	if r.Recreation != ComfortRecovered {
+	if r.Recreation != ComfortRecovered || r.MissingVariety > 0 {
 		value += .5
 	}
 	return domain.Known(value)
+}
+
+// Basic capacity remains foothold work; variety uses maintenance admission.
+func (r BasicComfortReview) Priority() int {
+	if r.Dining == ComfortRecovered && r.Recreation == ComfortRecovered {
+		return 3
+	}
+	return 2
 }
 
 // SelectBasicComfortMethod names the one facility the foothold goal builds

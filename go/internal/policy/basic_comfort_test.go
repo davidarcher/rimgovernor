@@ -26,7 +26,8 @@ func TestBasicComfortCountsCapacityWithoutProofOfUse(t *testing.T) {
 	check(ComfortBuildRecreation, .5, domain.Known(false))
 	// Unused furniture everyone can reach is provided: proof of use is
 	// EnsureComfort's later concern.
-	v.Recreation = []ComfortFacility{{ID: "pin", AccessibleTo: []PawnID{"a", "b"}}}
+	v.Recreation = []ComfortFacility{{ID: "pin", Kind: "Dexterity", AccessibleTo: []PawnID{"a", "b"}}, {ID: "chess", Kind: "Cerebral", AccessibleTo: []PawnID{"a", "b"}}}
+	v.Joy = providedComfort("a", "b").Joy
 	check(ComfortNoMethod, 0, domain.Known(true))
 	v.Dining[0].AccessibleTo = []PawnID{"a"}
 	check(ComfortAccessBlocked, .5, domain.Known(false))
@@ -72,10 +73,7 @@ func TestBasicComfortRanksAtFootholdOnceShelterStands(t *testing.T) {
 		t.Fatal("basic comfort competes before the shelter stands", g, ok)
 	}
 	f.IndoorCapacity = domain.Known[int64](8)
-	f.BasicComfort = domain.Known(ComfortObservation{People: []PawnID{"a"},
-		Surfaces:   []DiningSurface{{ID: "table"}},
-		Dining:     []ComfortFacility{{ID: "chair", AccessibleTo: []PawnID{"a"}}},
-		Recreation: []ComfortFacility{{ID: "pin", AccessibleTo: []PawnID{"a"}}}})
+	f.BasicComfort = domain.Known(providedComfort("a"))
 	needs, err = DetectRoutine(f, RoutineLatches{}, DefaultRoutinePolicy())
 	if err != nil {
 		t.Fatal(err)
@@ -93,8 +91,12 @@ func TestBasicComfortRanksAtFootholdOnceShelterStands(t *testing.T) {
 // providedComfort is a census in which every named colonist can reach a seat
 // at a table and a recreation source.
 func providedComfort(people ...PawnID) ComfortObservation {
-	return ComfortObservation{People: people,
+	j := &RecreationCensus{Kinds: []string{"Dexterity", "Cerebral"}}
+	for _, p := range people {
+		j.Pawns = append(j.Pawns, JoyTolerance{Pawn: p, Tolerance: []float64{0, 0}, Bored: []bool{false, false}})
+	}
+	return ComfortObservation{People: people, Joy: j,
 		Surfaces:   []DiningSurface{{ID: "table"}},
 		Dining:     []ComfortFacility{{ID: "chair", AccessibleTo: people}},
-		Recreation: []ComfortFacility{{ID: "pin", AccessibleTo: people}}}
+		Recreation: []ComfortFacility{{ID: "pin", Kind: "Dexterity", AccessibleTo: people}, {ID: "chess", Kind: "Cerebral", AccessibleTo: people}}}
 }

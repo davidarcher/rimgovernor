@@ -10,7 +10,7 @@ import (
 // RoomID names the proper indoor room hosting a facility, as the native room
 // census identifies it; empty when the facility stands outdoors.
 type ComfortFacility struct {
-	ID, RoomID          string
+	ID, RoomID, Kind    string
 	AccessibleTo, Users []PawnID
 }
 type DiningSurface struct {
@@ -21,6 +21,7 @@ type ComfortObservation struct {
 	People             []PawnID
 	Surfaces           []DiningSurface
 	Dining, Recreation []ComfortFacility
+	Joy                *RecreationCensus
 }
 type ComfortUse struct {
 	Facility string
@@ -52,6 +53,9 @@ func (h ComfortHistory) Validate() error {
 }
 
 func (v ComfortObservation) Validate() error {
+	if err := v.validateJoy(); err != nil {
+		return err
+	}
 	if len(v.People) > 256 || len(v.Surfaces) > 256 || len(v.Dining) > 256 || len(v.Recreation) > 256 {
 		return errors.New("comfort census exceeds bound")
 	}

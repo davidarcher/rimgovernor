@@ -2,7 +2,10 @@ package bridge
 
 import (
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+	"math"
+	"slices"
 )
 
 func validateColonyUpkeep(v *o.UpkeepFacts, size *o.MapSize) error {
@@ -67,6 +70,58 @@ func validateColonyUpkeep(v *o.UpkeepFacts, size *o.MapSize) error {
 				}
 			}
 		}
+	}
+	return validateRecreationCensus(comfort, people)
+}
+
+func validateRecreationCensus(v *o.ComfortFacts, people map[string]bool) error {
+	j := v.Joy
+	if j == nil {
+		return nil
+	}
+	bad := func() error { return contract("invalid recreation kind census") }
+	if len(j.Kinds) > 16 || len(j.Pawns) > 256 || len(j.Pawns)*len(j.Kinds) > 2048 || len(j.Methods) > 4 {
+		return bad()
+	}
+	encoded, err := protojson.Marshal(j)
+	if err != nil || len(encoded) > 64*1024 {
+		return bad()
+	}
+	kinds := map[string]bool{}
+	for _, k := range j.Kinds {
+		if validID(k) != nil || kinds[k] {
+			return bad()
+		}
+		kinds[k] = true
+	}
+	available := map[string]bool{}
+	for _, f := range v.Recreation {
+		if !kinds[f.GetKind()] {
+			return bad()
+		}
+		available[f.GetKind()] = true
+	}
+	if len(available) != len(kinds) {
+		return bad()
+	}
+	pawns := map[string]bool{}
+	for _, p := range j.Pawns {
+		if p == nil || !people[p.Pawn] || pawns[p.Pawn] || len(p.Tolerance) != len(j.Kinds) || len(p.Bored) != len(j.Kinds) {
+			return bad()
+		}
+		pawns[p.Pawn] = true
+		for _, t := range p.Tolerance {
+			if math.IsNaN(t) || math.IsInf(t, 0) || t < 0 || t > 1 {
+				return bad()
+			}
+		}
+	}
+	methods := map[string]bool{}
+	for _, m := range j.Methods {
+		if m == nil || !slices.Contains([]string{"TubeTelevision", "BilliardsTable", "ChessTable", "HorseshoesPin"}, m.Definition) || methods[m.Definition] || validID(m.Kind) != nil || math.IsNaN(m.PowerW) || math.IsInf(m.PowerW, 0) || m.PowerW < 0 {
+			return bad()
+		}
+		methods[m.Definition] = true
 	}
 	return nil
 }

@@ -4,8 +4,42 @@ import (
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
+	"math"
 	"testing"
 )
+
+func TestRecreationCensusBoundary(t *testing.T) {
+	valid := func() *o.ComfortFacts {
+		v := comfortWire().Comfort.GetObserved()
+		v.Joy = &o.RecreationCensus{Kinds: []string{"Dexterity"}, Pawns: []*o.JoyTolerance{{Pawn: "p", Tolerance: []float64{.4}, Bored: []bool{true}}}, Methods: []*o.JoyBuildingMethod{{Definition: "ChessTable", Kind: "Cerebral"}}}
+		return v
+	}
+	if err := validateRecreationCensus(valid(), map[string]bool{"p": true}); err != nil {
+		t.Fatal(err)
+	}
+	for _, mutate := range []func(*o.ComfortFacts){
+		func(v *o.ComfortFacts) { v.Joy.Kinds = append(v.Joy.Kinds, "Dexterity") },
+		func(v *o.ComfortFacts) { v.Joy.Pawns[0].Tolerance = nil },
+		func(v *o.ComfortFacts) { v.Joy.Pawns[0].Bored = nil },
+		func(v *o.ComfortFacts) { v.Joy.Pawns[0].Tolerance[0] = math.NaN() },
+		func(v *o.ComfortFacts) { v.Joy.Pawns[0].Tolerance[0] = -0.1 },
+		func(v *o.ComfortFacts) { v.Joy.Pawns[0].Pawn = "outsider" },
+		func(v *o.ComfortFacts) { v.Joy.Pawns = append(v.Joy.Pawns, v.Joy.Pawns[0]) },
+		func(v *o.ComfortFacts) { v.Joy.Pawns[0] = nil },
+		func(v *o.ComfortFacts) { v.Joy.Methods[0].PowerW = math.Inf(1) },
+		func(v *o.ComfortFacts) { v.Joy.Methods[0].Definition = "invented" },
+		func(v *o.ComfortFacts) { v.Joy.Kinds = []string{"missing"} },
+		func(v *o.ComfortFacts) { v.Joy.Pawns = make([]*o.JoyTolerance, 257) },
+		func(v *o.ComfortFacts) { v.Joy.Kinds = make([]string, 17) },
+		func(v *o.ComfortFacts) { v.Joy.Kinds = make([]string, 16); v.Joy.Pawns = make([]*o.JoyTolerance, 129) },
+	} {
+		v := valid()
+		mutate(v)
+		if validateRecreationCensus(v, map[string]bool{"p": true}) == nil {
+			t.Fatal("invalid recreation census accepted", v)
+		}
+	}
+}
 
 func comfortWire() *o.UpkeepFacts {
 	complete := func(n uint64) *o.Completeness {

@@ -255,6 +255,23 @@ func (r *RoutineBuildingPlanner) selectBasicComfort(facts observation.ColonyProj
 	if err != nil {
 		return nil, "", err
 	}
+	if method == policy.ComfortNoMethod && !review.VarietyKnown {
+		return nil, BuildingMethodUnknown, nil
+	}
+	if method == policy.ComfortNoMethod && review.MissingVariety > 0 {
+		method = policy.SelectRecreationVariety(v, func(m policy.JoyBuildingMethod) bool {
+			if m.PowerW > 0 {
+				canSite := false
+				for _, c := range facts.Cells {
+					canSite = canSite || c.Roofed == domain.Known(true) && c.Indoors == domain.Known(true) && c.Occupied == domain.Known(false) && poweredRecreationCell(facts, c.Cell, m.PowerW)
+				}
+				if !canSite {
+					return false
+				}
+			}
+			return comfortBuilderAvailable(facts, m.Definition, nil)
+		})
+	}
 	switch method {
 	case policy.ComfortNoMethod:
 		return nil, BuildingMethodNoDeficit, nil
@@ -263,6 +280,13 @@ func (r *RoutineBuildingPlanner) selectBasicComfort(facts observation.ColonyProj
 	}
 	resolved := *r
 	resolved.definition = string(method)
+	if v.Joy != nil {
+		for _, m := range v.Joy.Methods {
+			if m.Definition == resolved.definition {
+				resolved.recreationPowerW = m.PowerW
+			}
+		}
+	}
 	resolved.environment = policy.PlacementIndoors
 	if method == policy.ComfortBuildRecreation {
 		resolved.environment = policy.PlacementAnywhere
@@ -280,4 +304,29 @@ func (r *RoutineBuildingPlanner) selectBasicComfort(facts observation.ColonyProj
 		}
 	}
 	return &resolved, "", nil
+}
+
+// A TV is sited within connector reach of a running generator on a network
+// with observed surplus. A surplus on an unrelated network cannot lend power.
+func poweredRecreationCell(facts observation.ColonyProjection, cell domain.Cell, watts float64) bool {
+	topology, known := facts.PowerPlanning.Value()
+	if !known || topology.Blackout != domain.Known(false) {
+		return false
+	}
+	for _, b := range topology.Buildings {
+		output, ok := b.OutputW.Value()
+		net, nk := b.Network.Value()
+		dx, dz := cell.X-b.Cell.X, cell.Z-b.Cell.Z
+		if !ok || output <= 0 || !nk || b.Connected != domain.Known(true) || dx*dx+dz*dz > 36 {
+			continue
+		}
+		for _, n := range topology.Networks {
+			generation, gk := n.GenerationW.Value()
+			consumption, ck := n.ConsumptionW.Value()
+			if n.ID == net && gk && ck && generation-consumption >= watts {
+				return true
+			}
+		}
+	}
+	return false
 }

@@ -790,9 +790,9 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	// initial shelter is still owed there is no room to furnish, so the goal
 	// holds no method and neither extends the startup hold nor competes.
 	if !positive(basicComfort.Recovered()) {
-		addGoal(EnsureBasicComfort, 2)
+		addGoal(EnsureBasicComfort, basicComfort.Priority())
 		r.Goals[len(r.Goals)-1].Deficit = basicComfort.Deficit()
-		r.Goals[len(r.Goals)-1].MethodUnavailable = !positive(g.Shelter) || !positive(g.Sleeping)
+		r.Goals[len(r.Goals)-1].MethodUnavailable = !positive(g.Shelter) || !positive(g.Sleeping) || basicComfort.Priority() == 3 && !basicComfort.VarietyKnown
 	}
 	// A recognised pest on the map (an alphabeaver pack eating the trees,
 	// #247) is a foothold deficit answered by hunting, priority 2: it is
@@ -860,7 +860,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	addAssessment(EnsureBasicDefense, 3, g.Defense)
 	addAssessment(MaintainWood, 3, latchRecovered(l.Wood, wood))
 	addAssessment(MaintainMedicalCare, 2, f.MedicalCareRecovered)
-	addAssessment(EnsureBasicComfort, 2, basicComfort.Recovered())
+	addAssessment(EnsureBasicComfort, basicComfort.Priority(), basicComfort.Recovered())
 	addAssessment(ClearPests, 2, pestsClear)
 	addAssessment(EnsureComfort, 4, f.ComfortRecovered)
 	addAssessment(EnsureExpansion, 4, expansion)
