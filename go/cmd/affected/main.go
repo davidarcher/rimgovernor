@@ -4,7 +4,9 @@
 //	go run ./cmd/affected [-base main] [-files] [-baseline <result.json|metrics.jsonl>] [<file>...]
 //
 // With no files it diffs the working tree (committed, staged, unstaged and
-// untracked) against -base. -files prints the changed files it considered.
+// untracked) against -base. -files prints the changed files it considered
+// and, under each acceptance line, why the area was selected: the changed
+// file and the rule it reached the area through (#361).
 // The output is one command per line, ready to run from go/:
 //
 //	go test ./internal/policy/... ...
@@ -73,6 +75,11 @@ func main() {
 	}
 	for _, area := range sel.Cases {
 		fmt.Printf("go run ./internal/nativeaccept/cmd/acceptance run %s/... ...\n", area)
+		if *showFiles {
+			for _, why := range sel.Why[area] {
+				fmt.Printf("#   %s: %s\n", area, why)
+			}
+		}
 	}
 	if sel.Probes {
 		fmt.Println("task probes:build")

@@ -42,6 +42,11 @@ type Selection struct {
 	// or a generated protocol class change can break it while the mod and
 	// the Go suite stay green (#123).
 	Probes bool
+	// Why explains each selected area: one line per rule that selected it,
+	// naming the changed file (#361).
+	Why map[string][]string
+	// Shared names the changed shared acceptance inputs behind AllHarnesses.
+	Shared []string
 }
 
 // probeInputs are the roots whose files the native contract probes build
@@ -85,10 +90,9 @@ func ChangedFiles(repo, base string) ([]string, error) {
 
 // Select computes what the changed repo-relative files affect.
 func Select(repo string, changed []string) (Selection, error) {
-	var sel Selection
+	sel := Selection{Why: map[string][]string{}}
 	goDir := filepath.Join(repo, "go")
-	changedPkgs := map[string]bool{}
-	dirs := map[string]bool{}
+	dirs := map[string][]string{} // absolute package dir -> changed files in it
 	changedFixtures := map[string]bool{}
 	for _, file := range changed {
 		file = filepath.ToSlash(file)
@@ -101,6 +105,7 @@ func Select(repo string, changed []string) (Selection, error) {
 		for _, root := range na.HarnessInputRoots() {
 			if file == root || strings.HasPrefix(file, root+"/") {
 				sel.AllHarnesses = true
+				sel.Shared = append(sel.Shared, file)
 			}
 		}
 		for _, root := range probeInputs {
@@ -109,13 +114,16 @@ func Select(repo string, changed []string) (Selection, error) {
 			}
 		}
 		if dir, ok := goPackageDir(repo, file); ok {
-			dirs[dir] = true
+			dirs[dir] = append(dirs[dir], file)
 		}
 	}
 	if sel.AllHarnesses {
 		var err error
 		if sel.Cases, err = caseAreas(goDir); err != nil {
 			return sel, err
+		}
+		for _, area := range sel.Cases {
+			sel.Why[area] = []string{"shared acceptance input changed: " + strings.Join(sel.Shared, ", ")}
 		}
 	}
 	if sel.AllGo {
@@ -132,20 +140,46 @@ func Select(repo string, changed []string) (Selection, error) {
 	if err != nil {
 		return sel, err
 	}
-	for dir := range dirs {
-		if pkg, ok := graph.byDir[dir]; ok {
-			changedPkgs[pkg] = true
+	// changedPkgs holds every changed package with its files, for go test;
+	// sources holds only the files that build into a binary (no _test.go,
+	// no testdata), since only those reach a case through the binary or
+	// the runner; a source scoped to routine families (routineFamilyScope)
+	// is kept out of sources and recorded under families instead.
+	changedPkgs := map[string][]string{}
+	sources := map[string][]string{}
+	families := map[string][]string{} // family -> files scoped to it
+	for dir, files := range dirs {
+		pkg, ok := graph.byDir[dir]
+		if !ok {
+			continue
+		}
+		changedPkgs[pkg] = append(changedPkgs[pkg], files...)
+		for _, file := range files {
+			if strings.HasSuffix(file, "_test.go") || !strings.HasSuffix(file, ".go") {
+				continue
+			}
+			scope, err := routineFamilyScope(goDir, file)
+			if err != nil {
+				return sel, err
+			}
+			if scope.All {
+				sources[pkg] = append(sources[pkg], file)
+				continue
+			}
+			for _, family := range scope.Families {
+				families[family] = append(families[family], file)
+			}
 		}
 	}
 	// A package is affected when it changed or imports (directly, or
 	// through tests) a changed package.
 	for pkg, deps := range graph.deps {
-		if changedPkgs[pkg] {
+		if _, ok := changedPkgs[pkg]; ok {
 			sel.Packages = append(sel.Packages, pkg)
 			continue
 		}
 		for _, dep := range deps {
-			if changedPkgs[dep] {
+			if _, ok := changedPkgs[dep]; ok {
 				sel.Packages = append(sel.Packages, pkg)
 				break
 			}
@@ -155,43 +189,75 @@ func Select(repo string, changed []string) (Selection, error) {
 	if sel.AllHarnesses {
 		return sel, nil
 	}
-	// A case area is affected when it, the runner or the rimgovernor binary
-	// the cases drive imports a changed package. The runner imports every
-	// area to register it, so the areas themselves do not count as its
-	// inputs here; nor does this package, which the runner imports to
-	// compose the land tier (#273): a change here re-selects checks, it
-	// changes no case's run.
+	// A case area is affected when it or the runner imports a changed
+	// source, or, for an area hosting `rimgovernor serve`, when the binary
+	// does; a bridge-only area never runs the binary (#361). The runner
+	// imports every area to register it, so the areas, and what only they
+	// import, do not count as its inputs here; nor does this package, which
+	// the runner imports to compose the land tier (#273): a change here
+	// re-selects checks, it changes no case's run. A source scoped to routine
+	// families reaches the serve-hosting areas whose cases compose one of
+	// them, or compose every family.
 	selector := graph.module + "/internal/affected"
-	binaryAffected := false
-	for _, dep := range graph.deps[graph.module+"/cmd/rimgovernor"] {
-		if changedPkgs[dep] {
-			binaryAffected = true
-			break
+	binary := graph.module + "/cmd/rimgovernor"
+	var binaryWhy, runnerWhy []string
+	for _, dep := range graph.deps[binary] {
+		if files, ok := sources[dep]; ok {
+			binaryWhy = append(binaryWhy, "the rimgovernor binary imports "+dep+" ("+strings.Join(files, ", ")+")")
 		}
 	}
 	prefix := graph.module + "/internal/nativeaccept/cases/"
 	runner := graph.module + "/internal/nativeaccept/cmd/acceptance"
-	runnerAffected := binaryAffected || changedPkgs[runner]
-	for _, dep := range graph.deps[runner] {
-		if runnerAffected {
-			break
-		}
-		runnerAffected = changedPkgs[dep] && !strings.HasPrefix(dep, prefix) && dep != selector
+	if files, ok := sources[runner]; ok {
+		runnerWhy = append(runnerWhy, "the runner changed ("+strings.Join(files, ", ")+")")
 	}
+	for _, dep := range graph.closure(runner, func(dep string) bool { return strings.HasPrefix(dep, prefix) || dep == selector }) {
+		if files, ok := sources[dep]; ok {
+			runnerWhy = append(runnerWhy, "the runner imports "+dep+" ("+strings.Join(files, ", ")+")")
+		}
+	}
+	familyNames := make([]string, 0, len(families))
+	for family := range families {
+		familyNames = append(familyNames, family)
+	}
+	sort.Strings(familyNames)
 	for pkg, deps := range graph.deps {
 		name := strings.TrimPrefix(pkg, prefix)
 		if !strings.HasPrefix(pkg, prefix) || strings.Contains(name, "/") {
 			continue
 		}
-		affected := runnerAffected || changedPkgs[pkg] || fixtureAreas[name]
-		for _, dep := range deps {
-			if affected {
-				break
-			}
-			affected = changedPkgs[dep]
+		profile, err := readAreaProfile(filepath.Join(goDir, "internal", "nativeaccept", "cases", name))
+		if err != nil {
+			return sel, err
 		}
-		if affected {
+		why := append([]string{}, runnerWhy...)
+		if profile.Binary {
+			why = append(why, binaryWhy...)
+		}
+		if files, ok := changedPkgs[pkg]; ok {
+			why = append(why, "the area changed ("+strings.Join(files, ", ")+")")
+		}
+		if fixtureAreas[name] {
+			why = append(why, "the area uses a changed fixture")
+		}
+		for _, dep := range deps {
+			if files, ok := sources[dep]; ok && !strings.HasPrefix(dep, prefix) {
+				why = append(why, "the area imports "+dep+" ("+strings.Join(files, ", ")+")")
+			}
+		}
+		for _, family := range familyNames {
+			if !profile.composes(family) {
+				continue
+			}
+			how := "composes it"
+			if profile.AllFamilies {
+				how = "composes every family"
+			}
+			why = append(why, "routine family "+family+" changed ("+strings.Join(families[family], ", ")+") and the area "+how)
+		}
+		if len(why) > 0 {
 			sel.Cases = append(sel.Cases, name)
+			sel.Why[name] = why
 		}
 	}
 	sort.Strings(sel.Cases)
@@ -293,6 +359,7 @@ type graph struct {
 	module string
 	byDir  map[string]string   // absolute directory -> import path
 	deps   map[string][]string // import path -> in-module deps (transitive) plus direct test imports
+	direct map[string][]string // import path -> in-module direct imports (no tests)
 
 	fixturesOnce sync.Once
 	fixtures     map[string][]string // case area -> fixture inputs its sources depend on
@@ -326,31 +393,33 @@ func readDependencyGraph(goDir string) (*graph, error) {
 	if err != nil {
 		return nil, err
 	}
-	g := &graph{module: strings.TrimSpace(module), byDir: map[string]string{}, deps: map[string][]string{}}
-	out, err := goOutput(goDir, "list", "-f", `{{.ImportPath}}|{{.Dir}}|{{join .Deps " "}} {{join .TestImports " "}} {{join .XTestImports " "}}`, "./...")
+	g := &graph{module: strings.TrimSpace(module), byDir: map[string]string{}, deps: map[string][]string{}, direct: map[string][]string{}}
+	out, err := goOutput(goDir, "list", "-f", `{{.ImportPath}}|{{.Dir}}|{{join .Imports " "}}|{{join .Deps " "}}|{{join .TestImports " "}} {{join .XTestImports " "}}`, "./...")
 	if err != nil {
 		return nil, err
 	}
+	tests := map[string][]string{}
 	for _, line := range strings.Split(out, "\n") {
-		fields := strings.SplitN(strings.TrimSpace(line), "|", 3)
-		if len(fields) != 3 {
+		fields := strings.SplitN(strings.TrimSpace(line), "|", 5)
+		if len(fields) != 5 {
 			continue
 		}
 		pkg := fields[0]
 		g.byDir[filepath.Clean(fields[1])] = pkg
-		var deps []string
-		for _, dep := range strings.Fields(fields[2]) {
-			if dep == g.module || strings.HasPrefix(dep, g.module+"/") {
-				deps = append(deps, dep)
-			}
-		}
-		g.deps[pkg] = deps
+		g.direct[pkg] = g.inModule(strings.Fields(fields[2]))
+		g.deps[pkg] = g.inModule(strings.Fields(fields[3]))
+		tests[pkg] = g.inModule(strings.Fields(fields[4]))
 	}
-	// .Deps is transitive but the test imports are direct: close over them.
-	for pkg, deps := range g.deps {
+	// .Deps is transitive but the test imports are direct: close over them
+	// with each import's .Deps, so a package's own test imports never
+	// reach the packages importing it.
+	for pkg, imports := range tests {
 		seen := map[string]bool{}
-		var closed []string
-		for _, dep := range deps {
+		closed := append([]string{}, g.deps[pkg]...)
+		for _, dep := range closed {
+			seen[dep] = true
+		}
+		for _, dep := range imports {
 			for _, d := range append([]string{dep}, g.deps[dep]...) {
 				if !seen[d] {
 					seen[d] = true
@@ -361,6 +430,40 @@ func readDependencyGraph(goDir string) (*graph, error) {
 		g.deps[pkg] = closed
 	}
 	return g, nil
+}
+
+// inModule keeps the module's own import paths.
+func (g *graph) inModule(paths []string) []string {
+	var kept []string
+	for _, path := range paths {
+		if path == g.module || strings.HasPrefix(path, g.module+"/") {
+			kept = append(kept, path)
+		}
+	}
+	return kept
+}
+
+// closure is the in-module packages reachable from pkg through direct
+// (non-test) imports, skipping the packages skip admits and what is
+// reachable only through them.
+func (g *graph) closure(pkg string, skip func(string) bool) []string {
+	seen := map[string]bool{pkg: true}
+	var out []string
+	queue := []string{pkg}
+	for len(queue) > 0 {
+		next := queue[0]
+		queue = queue[1:]
+		for _, dep := range g.direct[next] {
+			if seen[dep] || skip(dep) {
+				continue
+			}
+			seen[dep] = true
+			out = append(out, dep)
+			queue = append(queue, dep)
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 // caseAreas lists the case area packages under
@@ -428,7 +531,7 @@ func Test(repo string, changed []string) error {
 		fmt.Println("cases affected: all (a shared acceptance input changed: native sources or go.mod)")
 	}
 	if len(sel.Cases) > 0 {
-		fmt.Printf("cases affected: %s\n", strings.Join(sel.Cases, " "))
+		fmt.Printf("cases affected: %s (cmd/affected -files says why)\n", strings.Join(sel.Cases, " "))
 	}
 	if len(sel.Cases) > 0 || sel.AllHarnesses {
 		fmt.Println("acceptance: one run, the land tier (it covers the affected areas and the smoke set; do not run the areas separately first):")

@@ -32,12 +32,16 @@ unit fixtures; the game stays the oracle for anything native.
 ## Which cases a change owes
 
 `go run ./cmd/test` (and `cmd/affected`, which only prints) names the
-case areas a change touches before it runs the Go tests, one
-`acceptance run <area>/...` line each: an area whose own package, the
-shared runner (`cmd/acceptance`) or `cmd/rimgovernor` imports a changed
-package, and every area when a shared input changed (the native mod's
-build inputs, the same list `RequireCurrentPackage` compares, and
-`go.mod`/`go.sum`). A test fixture under `scripts/fixtures` is not shared
+case areas a change touches before it runs the Go tests: an area whose
+own package or the shared runner (`cmd/acceptance`, through its own
+imports, not through the areas it registers) imports a changed package,
+an area hosting `rimgovernor serve` (a `Serve` spec or `Service` case, a
+`ServiceLaunch`) when `cmd/rimgovernor` does, and every area when a shared
+input changed (the native mod's build inputs, the same list
+`RequireCurrentPackage` compares, and `go.mod`/`go.sum`). A bridge-only
+area never runs the binary, so no binary change reaches it, and a
+`_test.go` edit builds into no binary, so it names packages to test and
+no area (#361). A test fixture under `scripts/fixtures` is not shared
 (#170): a `<Name>Fixture.cs` affects the areas whose Go sources name one
 of its `[Tool("test/...")]` ops (and the fixtures it mentions by class
 name), a committed save under `saves/` the area naming it, and the
@@ -47,9 +51,21 @@ case's inputs. Selection is per package, not
 per symbol: any code edit to a package the runner imports
 (`internal/nativeaccept`, `cases`, `clock`, ...) names every area, even an
 additive one whose zero value keeps the old path, because nothing cheaper
-proves that. A Go file whose edit changed only comments (compiler
-directives such as `//go:build` count as code) is not a change at all and
-names nothing. Run the named areas at the milestone, before landing, and
+proves that. The one finer grain is the routine family (#361): an edit
+confined to a family-owned planner file in `internal/buildingruntime`
+(`routine_lighting.go`, `routine_flooring.go`, ...; the table is
+`routineFamilyFiles` in `internal/affected`) names the serve-hosting areas
+whose cases compose that family in their `Families` list, or compose every
+family (no list, or `nil`), and no other. The scope widens through use: a
+file whose declarations another family's planner uses names that family
+too, and one a shared file uses (the scheduler's dispatch excepted) is
+every area, as every clock, worker, scheduler, review and boundary file
+is. A Go file whose edit changed only comments (compiler directives such
+as `//go:build` count as code), or only the clock's debug trace (an `if
+clockDebug()` block that traces and nothing else, a `clockSchedulerLog`
+call), is not a change at all and names nothing. `cmd/affected -files`
+prints, under each area, the changed file and the rule that reached it,
+so an unexpected tier is explainable. Run the named areas at the milestone, before landing, and
 name them in the commit message; an area you judged unaffected and skipped
 is "left unverified" below: land and say so in an issue. A run counts for the code it ran against: `main` moving under the
 branch afterwards, a clean rebase or a cherry-pick does not invalidate it,
@@ -909,12 +925,14 @@ For agents: `go run ./cmd/affected` from `go/` prints the checks a change
 needs, one command per line: the `go test` line for the packages holding the
 changed Go files plus every in-module package importing them (`./...` when
 `go.mod`/`go.sum` changed), and one `go run ./internal/nativeaccept/cmd/acceptance
-run <area>/...` line per case area whose inputs the change touched (the area,
-the runner or the `rimgovernor` binary imports a changed package; every area
-when the native sources, fixtures or `go.mod` changed). It diffs the working
-tree, including uncommitted and untracked files, against the merge base with
-`main` (`-base` for another revision); pass paths to ask about a hypothetical
-change, and a `task probes:build` line when the change touches the native
+run <area>/...` line per case area whose inputs the change touched (the area
+or the runner imports a changed package, the `rimgovernor` binary does and
+the area hosts it, or a changed routine family is one the area composes;
+every area when the native sources, fixtures or `go.mod` changed). It diffs
+the working tree, including uncommitted and untracked files, against the
+merge base with `main` (`-base` for another revision); pass paths to ask
+about a hypothetical change; `-files` lists the files considered and, under
+each area, why it was selected; and a `task probes:build` line when the change touches the native
 contract probes build (a source under `integrations/rimgovernor-native/src`,
 `contracts/tests` or the generated C# protocol classes): the probes compile
 production clock and authority sources against hand-written stubs, so a
