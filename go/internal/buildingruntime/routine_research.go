@@ -15,10 +15,11 @@ import (
 )
 
 // RoutineResearchSource is the native research census RoutineResearchPlanner
-// reads to find the next prerequisite-ordered project toward
-// RoutinePolicy.ResearchTarget, or toward the project the workshop ladder
-// recorded as gating a MaintainResource bench when no target is configured
-// (policy.ResearchGoalTarget). Laboratory/researcher usability
+// reads to find the next prerequisite-ordered project toward the goal
+// policy.ResearchGoal resolves: RoutinePolicy.ResearchTarget, else the
+// project the workshop ladder recorded as gating a MaintainResource bench,
+// else the next unfinished rung of RoutinePolicy.ResearchLadder (#230).
+// Laboratory/researcher usability
 // (policy.UsableResearchLaboratories/EligibleResearchers) is deliberately not
 // re-derived here: unlike ResearchProjectFacts.{Hidden,Prerequisites,...},
 // the wire ResearchProject message's lab-requirement/CanStart fields are not
@@ -77,17 +78,12 @@ func (r *RoutineResearchPlanner) step(call, epoch context.Context, arbiter *step
 	if !review.Enabled || review.Snapshot != state.Snapshot {
 		return RoutineResearchResult{Reason: BuildingMethodNoReview}, nil
 	}
-	target := r.reviewer.policy.ResearchTarget
-	if target == "" {
-		ladder, ok, err := p.journal.LoadProductionLadder(call, store.World{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snapshot.Map})
-		if err != nil {
-			return RoutineResearchResult{}, err
-		}
-		if ok && r.reviewer.policy.ResourceTargets[ladder.Resource] > 0 {
-			target = policy.ResearchGoalTarget("", ladder.Research, domain.Unknown[policy.ResearchFacts]())
-		}
+	needs, err := routineResearchNeeds(call, p.journal, r.reviewer.policy, state.Snapshot)
+	if err != nil {
+		return RoutineResearchResult{}, err
 	}
-	if target == "" {
+	roadmap := r.reviewer.policy.ResearchTarget == "" && (len(needs) > 0 || len(r.reviewer.policy.ResearchLadder) > 0)
+	if r.reviewer.policy.ResearchTarget == "" && !roadmap {
 		return RoutineResearchResult{Reason: BuildingMethodDisabled}, nil
 	}
 	var goal store.GoalState
@@ -102,16 +98,19 @@ func (r *RoutineResearchPlanner) step(call, epoch context.Context, arbiter *step
 	if err != nil {
 		return RoutineResearchResult{}, err
 	}
-	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit {
+	deficit := found && goal.Goal.Status == domain.GoalActive && goal.Goal.Need == domain.NeedDeficit
+	if !deficit && !roadmap {
 		return RoutineResearchResult{Reason: BuildingMethodNoDeficit}, nil
 	}
-	for _, method := range goal.Methods {
-		plan, err := p.journal.LoadPlan(call, method.Plan)
-		if err != nil {
-			return RoutineResearchResult{}, err
-		}
-		if domain.GoalWorkOpen(plan.Progress) {
-			return RoutineResearchResult{Reason: BuildingMethodExistingWork}, nil
+	if deficit {
+		for _, method := range goal.Methods {
+			plan, err := p.journal.LoadPlan(call, method.Plan)
+			if err != nil {
+				return RoutineResearchResult{}, err
+			}
+			if domain.GoalWorkOpen(plan.Progress) {
+				return RoutineResearchResult{Reason: BuildingMethodExistingWork}, nil
+			}
 		}
 	}
 	identity := boundary.Identity(state.Snapshot)
@@ -123,27 +122,28 @@ func (r *RoutineResearchPlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineResearchResult{}, ErrControl
 	}
 	if read.CurrentProject != "" {
+		// A current project finishes on native ticks alone: a derived or
+		// roadmap goal owes the window ticks until it does, whether the
+		// review still shows a deficit (a workshop need) or the current
+		// project recovered it (a ladder rung, or a player's own choice).
 		return RoutineResearchResult{Reason: BuildingMethodUsed, NativeWorkTicks: researchNativeWorkTicks}, nil
+	}
+	if !deficit {
+		return RoutineResearchResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	finished := make([]policy.ResearchProjectID, len(read.Finished))
 	for i, name := range read.Finished {
 		finished[i] = policy.ResearchProjectID(name)
 	}
-	if r.reviewer.policy.ResearchTarget == "" {
-		// Derived targets: the first recorded project the census lists
-		// and has not finished, in the ladder's own order.
-		ladder, _, err := p.journal.LoadProductionLadder(call, store.World{Colony: state.Snapshot.Colony, Load: state.Snapshot.Load, Map: state.Snapshot.Map})
-		if err != nil {
-			return RoutineResearchResult{}, err
-		}
-		facts := policy.ResearchFacts{Current: policy.ResearchProjectID(read.CurrentProject), Finished: finished}
-		for name := range read.Projects {
-			facts.Projects = append(facts.Projects, policy.ResearchProjectID(name))
-		}
-		target = policy.ResearchGoalTarget("", ladder.Research, domain.Known(facts))
-		if target == "" {
-			return RoutineResearchResult{Reason: BuildingMethodNoDeficit}, nil
-		}
+	facts := policy.ResearchFacts{Current: policy.ResearchProjectID(read.CurrentProject), Finished: finished}
+	for name := range read.Projects {
+		facts.Projects = append(facts.Projects, policy.ResearchProjectID(name))
+	}
+	// The goal against the fresh census: the first recorded need the
+	// census lists and has not finished, else the first such ladder rung.
+	target, _ := policy.ResearchGoal(r.reviewer.policy, needs, domain.Known(facts))
+	if target == "" {
+		return RoutineResearchResult{Reason: BuildingMethodNoDeficit}, nil
 	}
 	if _, ok := read.Projects[target]; !ok {
 		return RoutineResearchResult{Reason: BuildingMethodUnknown}, nil

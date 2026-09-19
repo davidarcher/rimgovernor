@@ -87,6 +87,7 @@ type serveConfig struct {
 	routineDialogPlans              bool
 	routineDialogPrefer             string
 	routineResearchTarget           string
+	routineResearchLadder           string
 	routineResourcePlans            bool
 	routineResourceTargets          resourceTargetFlags
 	routineAnimalFeedPlans          bool
@@ -143,6 +144,7 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.IntVar(&c.routineProjectLimit, "routine-project-limit", 2, "maximum concurrent optional projects, also bounded by observed workers (1..8)")
 	flags.StringVar(&c.routineDialogPrefer, "routine-dialog-prefer", strings.Join(policy.DefaultDialogAnswerPrefer, ","), "comma-separated option patterns AnswerDialog prefers when a force-pausing choice dialog is open: each matches an option's Keyed translation key exactly or its label as a case-insensitive substring, first match wins; the first selectable resolving option otherwise")
 	flags.StringVar(&c.routineResearchTarget, "routine-research-target", "", "native ResearchProjectDef name EnsureResearch selects prerequisite-ordered toward once no research project is current")
+	flags.StringVar(&c.routineResearchLadder, "routine-research-ladder", strings.Join(policy.DefaultResearchLadder(), ","), "comma-separated ResearchProjectDef names EnsureResearch walks in order when no --routine-research-target is set and no workshop ladder records a need; empty disables the roadmap")
 	flags.Var(&c.routineResourceTargets, "routine-resource-target", "repeatable RESOURCE:TARGET native stock floor MaintainResource dispatches a production bill toward")
 	flags.Var(&c.routineResourceReserves, "routine-resource-reserve", "repeatable RESOURCE:FLOOR native stock floor ProductionPolicy replaces into the current native production policy")
 	flags.Var(&c.routineStoppedResources, "routine-resource-stop", "repeatable RESOURCE name ProductionPolicy keeps stopped in the current native production policy")
@@ -167,7 +169,7 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	explicit := map[string]bool{}
 	flags.Visit(func(f *flag.Flag) { explicit[f.Name] = true })
 	if *observe {
-		for _, name := range []string{"profile", "clock-speed", "clock-test-acceleration", "clock-window-ticks", "clock-window-seconds", "routine-project-limit", "routine-dialog-prefer", "routine-research-target", "routine-resource-target", "routine-resource-reserve", "routine-resource-stop", "routine-allow-slaughter", "routine-herd-population-max", "resource-rule", "world-evaluation-food-margin-days", "chat-model", "chat-base-url", "chat-context-tokens", "chat-max-output-tokens", "resume"} {
+		for _, name := range []string{"profile", "clock-speed", "clock-test-acceleration", "clock-window-ticks", "clock-window-seconds", "routine-project-limit", "routine-dialog-prefer", "routine-research-target", "routine-research-ladder", "routine-resource-target", "routine-resource-reserve", "routine-resource-stop", "routine-allow-slaughter", "routine-herd-population-max", "resource-rule", "world-evaluation-food-margin-days", "chat-model", "chat-base-url", "chat-context-tokens", "chat-max-output-tokens", "resume"} {
 			if explicit[name] {
 				return c, fmt.Errorf("--%s does not apply to --observe", name)
 			}
@@ -343,10 +345,22 @@ func routineFamilies(c *serveConfig) []routineFamily {
 }
 
 // researchPlans reports whether EnsureResearch is composed: an operator
-// target always is; the research family alone follows the projects the
-// workshop ladder records for a MaintainResource bench (issue #4 M4).
+// target always is; the research family follows the projects the workshop
+// ladder records for a MaintainResource bench (issue #4 M4) and otherwise
+// the research ladder (#230).
 func (c serveConfig) researchPlans() bool {
-	return c.routineResearchTarget != "" || c.routineResearchPlans && len(c.routineResourceTargets) > 0
+	return c.routineResearchTarget != "" || c.routineResearchPlans && (len(c.routineResourceTargets) > 0 || len(c.researchLadder()) > 0)
+}
+
+// researchLadder is --routine-research-ladder split, blanks dropped.
+func (c serveConfig) researchLadder() []string {
+	var ladder []string
+	for _, name := range strings.Split(c.routineResearchLadder, ",") {
+		if name = strings.TrimSpace(name); name != "" {
+			ladder = append(ladder, name)
+		}
+	}
+	return ladder
 }
 
 // activeRoutineFamilies reports the name of every routine planner family this

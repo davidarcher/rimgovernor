@@ -34,7 +34,15 @@ func (r *RoutineBuildingPlanner) selectPower(facts observation.ColonyProjection)
 		return nil, BuildingMethodNoDeficit, nil
 	case policy.PowerRouteBlocked:
 		return nil, BuildingMethodNoSpace, nil
-	case policy.PowerWaitOutput, policy.PowerWaitFuel, policy.PowerWaitRepair, policy.PowerWaitBlackout, policy.PowerWaitPlayer, policy.PowerNoGenerator:
+	case policy.PowerNoGenerator:
+		// Every generator the family can compile is unavailable; when the
+		// research they require is unfinished, that is what the goal waits
+		// on, not a cheaper generator.
+		if gate := policy.ResearchGate(generatorResearch(facts), facts.Facts.Research); gate != "" {
+			return nil, researchWaitReason(gate), nil
+		}
+		return nil, RoutineBuildingReason(proposal.Method), nil
+	case policy.PowerWaitOutput, policy.PowerWaitFuel, policy.PowerWaitRepair, policy.PowerWaitBlackout, policy.PowerWaitPlayer:
 		return nil, RoutineBuildingReason(proposal.Method), nil
 	}
 	resolved := *r
@@ -44,6 +52,33 @@ func (r *RoutineBuildingPlanner) selectPower(facts observation.ColonyProjection)
 		resolved.definition = proposal.Definition
 	}
 	return &resolved, "", nil
+}
+
+// generatorResearch lists, in policy.GeneratorDefinitions order, the native
+// research every unavailable generator definition requires.
+func generatorResearch(facts observation.ColonyProjection) []string {
+	definitions := map[string]observation.PlanningDefinition{}
+	for _, d := range facts.Definitions {
+		definitions[d.Name] = d
+	}
+	seen := map[string]bool{}
+	var required []string
+	for _, name := range policy.GeneratorDefinitions {
+		d, ok := definitions[name]
+		if !ok {
+			continue
+		}
+		if available, known := d.Available.Value(); !known || available {
+			continue
+		}
+		for _, project := range d.Research {
+			if !seen[project] {
+				seen[project] = true
+				required = append(required, project)
+			}
+		}
+	}
+	return required
 }
 
 // Existing native power may need ordinary hauling/refueling, but only a

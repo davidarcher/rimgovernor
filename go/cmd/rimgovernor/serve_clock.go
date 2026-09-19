@@ -784,8 +784,10 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 		thresholds.DefensiveLayout = true
 		capabilities.Methods = append(capabilities.Methods, policy.EnsureDefensiveLayout)
 	}
+	thresholds.ResearchLadder = nil
 	if sc.researchPlans() {
 		thresholds.ResearchTarget = sc.routineResearchTarget
+		thresholds.ResearchLadder = sc.researchLadder()
 		capabilities.Methods = append(capabilities.Methods, policy.EnsureResearch)
 	}
 	if len(sc.routineResourceTargets.Map()) > 0 {

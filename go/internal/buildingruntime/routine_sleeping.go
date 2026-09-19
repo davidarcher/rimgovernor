@@ -40,14 +40,23 @@ const (
 	// finished as planned (its roof no longer held, its way in closed); the
 	// same step re-plans the shelter from the geometry the pawns opened.
 	BuildingExcavationBlocked RoutineBuildingReason = "excavation_blocked"
-	BuildingMethodAdmitted  RoutineBuildingReason = "admitted"
+	BuildingMethodAdmitted    RoutineBuildingReason = "admitted"
 	// BuildingMethodSeparation defers a butcher bill while the separated
 	// butcher spot build still owns the food-supply goal.
 	BuildingMethodSeparation RoutineBuildingReason = "butcher_separation_pending"
 	// BuildingMethodNotInteractive: the choice dialog's own interactivity
 	// delay has not elapsed; the next review re-reads it.
 	BuildingMethodNotInteractive RoutineBuildingReason = "dialog_not_interactive"
+	// BuildingMethodResearch: the goal's only method needs a native research
+	// project the census has not finished; the reason names it
+	// ("waiting_on_research:Electricity") and EnsureResearch's roadmap is
+	// what gets there (#230).
+	BuildingMethodResearch RoutineBuildingReason = "waiting_on_research"
 )
+
+func researchWaitReason(project string) RoutineBuildingReason {
+	return BuildingMethodResearch + ":" + RoutineBuildingReason(project)
+}
 
 type RoutineBuildingResult struct {
 	Reason   RoutineBuildingReason

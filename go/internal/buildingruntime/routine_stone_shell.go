@@ -146,6 +146,7 @@ func (r *RoutineStoneShellPlanner) step(call, epoch context.Context, arbiter *st
 			break
 		}
 	}
+	unstocked := false
 	for _, wall := range candidates {
 		result, ok, err := r.propose(call, epoch, goal, state, read, wall)
 		if err != nil {
@@ -154,9 +155,21 @@ func (r *RoutineStoneShellPlanner) step(call, epoch context.Context, arbiter *st
 		if ok {
 			return result, nil
 		}
+		unstocked = unstocked || result.Reason == stoneShellUnstocked
+	}
+	// A site with no replacement material while Stonecutting is unfinished
+	// waits on that research: nothing cuts the blocks a stone wall needs.
+	if unstocked {
+		if gate := policy.ResearchGate([]string{policy.StoneShellResearch}, projection.Facts.Research); gate != "" {
+			return RoutineStoneShellResult{Reason: researchWaitReason(gate)}, nil
+		}
 	}
 	return RoutineStoneShellResult{Reason: BuildingMethodUnknown}, nil
 }
+
+// stoneShellUnstocked marks a candidate propose passed over for want of any
+// replacement material, so the step can tell a research gate from no site.
+const stoneShellUnstocked RoutineBuildingReason = "no_replacement_material"
 
 // propose builds and admits one candidate wall's bundle. ok is false only for
 // a structural reason to move on to the next candidate (no site, no material,
@@ -178,8 +191,11 @@ func (r *RoutineStoneShellPlanner) propose(call, epoch context.Context, goal sto
 		return RoutineStoneShellResult{}, false, nil
 	}
 	site := sites.Sites[0]
-	if !site.Eligible() || len(site.ReplacementMaterials) == 0 {
+	if !site.Eligible() {
 		return RoutineStoneShellResult{}, false, nil
+	}
+	if len(site.ReplacementMaterials) == 0 {
+		return RoutineStoneShellResult{Reason: stoneShellUnstocked}, false, nil
 	}
 	backupCount := len(site.BackupCells)
 	if backupCount != 0 && backupCount != 3 {

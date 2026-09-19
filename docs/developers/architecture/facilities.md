@@ -18,11 +18,12 @@ Each rung is a separate deficit under an existing maintained goal, ranked by
    deficit is gated only by unfinished research, the workshop planner records
    the projects on the `production_ladder` journal record and steps aside. The
    next routine review reads that record as the derived `EnsureResearch`
-   target (`policy.ResearchGoalTarget`: an operator `--routine-research-target`
-   still wins), raises the goal, and adds Research to the work requirements so
-   a researcher is assigned; `RoutineResearchPlanner` selects the prerequisite
-   chain natively. Finishing the project clears the record on the next
-   workshop step.
+   target (`policy.ResearchGoal`: an operator `--routine-research-target`
+   still wins, and the default research ladder follows when no need is
+   recorded, see [research](../contracts/research.md)), raises the goal, and
+   adds Research to the work requirements so a researcher is assigned;
+   `RoutineResearchPlanner` selects the prerequisite chain natively.
+   Finishing the project clears the record on the next workshop step.
 3. **Power**: a bench that needs power is staged only once a generator
    definition is buildable; standing unpowered it is an ordinary consumer for
    `EnsureBasicPower`, which raises its own deficit and connects it.

@@ -2,11 +2,24 @@
 
 [Documentation](../../README.md)
 
-`EnsureResearch` shares ColonyPlan, priority arbitration and Hands. It is admitted
-only when a current construction method records an unavailable native definition,
-an accepted building step needs that definition, or a maintained production target
-finds a research-locked recipe, or its goal explicitly requests a project. It does not select projects merely because the
-research slot is empty. Advisory goals cannot create research orders.
+`EnsureResearch` shares ColonyPlan, priority arbitration and Hands. Its target
+(`policy.ResearchGoal`) is, in order: the operator's `--routine-research-target`;
+the project a maintained production target's workshop ladder recorded as gating
+its bench (a *derived* need: the goal stays in deficit while the project is
+current, so the ladder is not left waiting); else the first unfinished rung of
+the research ladder (`RoutinePolicy.ResearchLadder`, `--routine-research-ladder`,
+default Stonecutting, Electricity, Batteries, SolarPanels, Smithing, CarpetMaking,
+ComplexClothing, Machining, Gunsmithing). A rung is a deficit only while the
+research tab is idle: any current project, the player's own included, recovers
+it and is never replaced, and the research planner lends the clock ticks until it
+finishes. The ladder is only walked under a known research census and skips
+rungs the installed game does not list; an empty ladder with no target disables
+the goal. Advisory goals cannot create research orders.
+
+A goal whose only method is gated on research reports the project instead of
+no method: `EnsureBasicPower` with every generator definition unavailable and
+`MaintainStoneShell` with no replacement material report
+`waiting_on_research:<project>` (`policy.ResearchGate`).
 
 `home/research` supplies the installed prerequisite graph. Its optional `capability`
 argument resolves an exact `ThingDef:name` or `RecipeDef:name` and returns research
@@ -46,9 +59,13 @@ methods blocked on research resume only after fresh definition availability. A n
 selection receipt, a completed prerequisite, or a zero-length queue with an unresolved
 capability cannot certify the requested unlock.
 
-Research acceptance (native pawn research from zero points with a prepared
-ordinary research bench, verifying guarded Hands selection, actual completion
-and the newly available building definition) is Go native acceptance tracked in
+Research acceptance: `production/ladder` proves a derived need (Smithing
+finished natively and the gated bench built) and `research/ladder`
+(`acceptance run research/ladder`) proves the default ladder on the Core tribal
+baseline with no target: `test/research_ladder_prepare` seeds a simple research
+bench and Stonecutting at 97%, and the live research state must show
+Stonecutting finished and Electricity current. Native research from zero points
+with a bench the service builds itself is tracked in
 [issue #38](https://github.com/davidarcher/rimgovernor/issues/38). Laboratory
 construction, advanced facility installation, all research projects and sustained
 colony development remain separately uncertified either way.

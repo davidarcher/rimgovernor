@@ -91,8 +91,17 @@ type RoutinePolicy struct {
 	// target unfinished is a deficit; any current project or a finished
 	// target is recovered). With no explicit target the review derives one
 	// from RoutineFacts.ResearchNeeds, the projects the workshop ladder
-	// recorded as gating a MaintainResource bench (issue #4 M4).
+	// recorded as gating a MaintainResource bench (issue #4 M4), else from
+	// ResearchLadder.
 	ResearchTarget string
+	// ResearchLadder is the ordered roadmap EnsureResearch walks when no
+	// ResearchTarget is set and the workshop ladder records no need
+	// (DefaultResearchLadder by default; empty disables the roadmap). Each
+	// rung is reached through ResearchPrerequisiteQueue like a target, a
+	// current native project is respected and recovers the goal, and the
+	// planner lends the clock ticks while one is current so the rung
+	// finishes on its own (issue #230).
+	ResearchLadder []string
 	// ResourceTargets is an operator-declared map of native resource
 	// definition name to the native stock floor MaintainResource should keep
 	// it above; an empty map disables the goal entirely. The deficit is
@@ -160,7 +169,7 @@ type RoutinePolicy struct {
 
 func DefaultRoutinePolicy() RoutinePolicy {
 	return RoutinePolicy{AnimalUpkeep: DefaultAnimalUpkeepPolicy(), MedicalReserve: DefaultMedicalReservePolicy(), FoodStorage: DefaultFoodStoragePolicy(), Cleanliness: DefaultCleanlinessPolicy(), Lighting: DefaultLightingPolicy(), Flooring: DefaultFlooringPolicy(), Routes: DefaultRoutesPolicy(), MaxDevelopmentProjects: 2, FoodMinDays: 3, FoodTargetDays: 7, FootholdFoodDays: 3,
-		ColdEnter: 12, ColdExit: 16, HotExit: 28, HotEnter: 32, WoodMin: 120, WoodTarget: 350, WoodMax: 500, HuntStallTicks: 6000, HaulStallTicks: 2500}
+		ColdEnter: 12, ColdExit: 16, HotExit: 28, HotEnter: 32, WoodMin: 120, WoodTarget: 350, WoodMax: 500, HuntStallTicks: 6000, HaulStallTicks: 2500, ResearchLadder: DefaultResearchLadder()}
 }
 
 func (p RoutinePolicy) Validate() error {
@@ -200,6 +209,11 @@ func (p RoutinePolicy) Validate() error {
 	}
 	if p.ResearchTarget != "" && !validResource(Resource(p.ResearchTarget)) {
 		return errors.New("invalid research target")
+	}
+	for _, rung := range p.ResearchLadder {
+		if !validResource(Resource(rung)) {
+			return errors.New("invalid research ladder rung")
+		}
 	}
 	if err := ValidateResourceTargets(p.ResourceTargets); err != nil {
 		return err
@@ -721,7 +735,8 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	// configured is certain recovery, a configured target with missing facts is
 	// unknown, and RoutineResearchPlanner/RoutineResourcePlanner still re-read
 	// native state immediately before proposing a method.
-	researchRecovered, researchDeficit := ResearchTargetNeed(ResearchGoalTarget(p.ResearchTarget, f.ResearchNeeds, f.Research), p.ResearchTarget == "", f.Research)
+	researchTarget, researchDerived := ResearchGoal(p, f.ResearchNeeds, f.Research)
+	researchRecovered, researchDeficit := ResearchTargetNeed(researchTarget, researchDerived, f.Research)
 	if !positive(researchRecovered) {
 		addGoal(EnsureResearch, 4)
 		r.Goals[len(r.Goals)-1].Deficit = researchDeficit

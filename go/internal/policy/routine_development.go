@@ -126,6 +126,58 @@ func ResearchGoalTarget(configured string, derived []string, facts domain.Fact[R
 	return ""
 }
 
+// DefaultResearchLadder is the roadmap EnsureResearch walks when neither an
+// operator target nor a workshop need names a project: the early research
+// direction a new colony needs on its own (stone blocks, then power with its
+// storage and solar rungs, the medieval crafts, then Machining and simple
+// firearms). Geothermal and Microelectronics are deliberately absent. Rungs
+// the native census does not list (another mod set) are skipped.
+func DefaultResearchLadder() []string {
+	return []string{"Stonecutting", "Electricity", "Batteries", "SolarPanels", "Smithing", "CarpetMaking", "ComplexClothing", "Machining", "Gunsmithing"}
+}
+
+// ResearchGoal resolves the project EnsureResearch pursues and whether it is
+// a workshop need (derived): the operator target first, then the first
+// unfinished project the workshop ladder recorded, then the first unfinished
+// rung of RoutinePolicy.ResearchLadder. A ladder rung is only walked under a
+// known research census: the ladder is a default, not a declared need, and
+// without the census there is nothing to measure it against.
+func ResearchGoal(p RoutinePolicy, needs []string, facts domain.Fact[ResearchFacts]) (target string, derived bool) {
+	if p.ResearchTarget != "" {
+		return p.ResearchTarget, false
+	}
+	if target = ResearchGoalTarget("", needs, facts); target != "" {
+		return target, true
+	}
+	if _, known := facts.Value(); !known {
+		return "", false
+	}
+	return ResearchGoalTarget("", p.ResearchLadder, facts), false
+}
+
+// ResearchGate names the first project of required that the native census
+// has not finished: the research a goal's only method waits on. Unknown
+// facts keep the first requirement; none unfinished is no gate.
+func ResearchGate(required []string, facts domain.Fact[ResearchFacts]) string {
+	if len(required) == 0 {
+		return ""
+	}
+	f, known := facts.Value()
+	if !known {
+		return required[0]
+	}
+	finished := map[string]bool{}
+	for _, name := range f.Finished {
+		finished[string(name)] = true
+	}
+	for _, name := range required {
+		if !finished[name] {
+			return name
+		}
+	}
+	return ""
+}
+
 // ResearchTargetNeed measures EnsureResearch: no target is certain recovery;
 // a finished target is recovered; an idle research tab with the target
 // unfinished is a full deficit. A current native project also recovers a

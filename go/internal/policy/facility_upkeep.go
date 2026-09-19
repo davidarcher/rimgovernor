@@ -199,6 +199,11 @@ func SelectHomeCoverageMethod(targets domain.Fact[[]HomeCoverageTarget], revisio
 	return HomeCoverageMethod{Kind: HomeCoverageBlocked}, nil
 }
 
+// StoneShellResearch is the native project whose recipes cut the stone
+// blocks a wall replacement needs; a candidate with no replacement material
+// while it is unfinished is waiting on research, not on a site.
+const StoneShellResearch = "Stonecutting"
+
 func ReviewStoneShell(owned domain.Fact[[]ConstructionClaim], structures domain.Fact[[]StoneStructure]) (domain.Fact[[]string], error) {
 	unknown := domain.Unknown[[]string]()
 	buildings, known := owned.Value()

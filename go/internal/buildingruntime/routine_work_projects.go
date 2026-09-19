@@ -257,7 +257,7 @@ func routineResearchNeeds(ctx context.Context, journal *store.Store, p policy.Ro
 // Research unowned and the development rank reports labor_unavailable. Empty
 // when no target is owed or it is already finished.
 func routineResearchWork(p policy.RoutinePolicy, needs []string, research domain.Fact[policy.ResearchFacts]) []policy.WorkRequirement {
-	target := policy.ResearchGoalTarget(p.ResearchTarget, needs, research)
+	target, _ := policy.ResearchGoal(p, needs, research)
 	if target == "" {
 		return nil
 	}
