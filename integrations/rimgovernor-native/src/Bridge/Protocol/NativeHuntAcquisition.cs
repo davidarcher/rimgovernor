@@ -17,22 +17,38 @@ namespace HomeBridge.BridgeTools
     {
         private readonly Pawn prey;
         private readonly Map map;
+        // The admission cell is the controller's hint of where the animal
+        // was planned, echoed in the evidence; the animal itself is followed
+        // by identity (#321).
         private readonly IntVec3 cell;
         private readonly string source, resource;
+        private readonly bool pest;
         private bool withdrawn;
-        internal NativeHuntRecord(Pawn prey)
-        { this.prey = prey; map = prey.Map; cell = prey.Position; source = prey.GetUniqueLoadID(); resource = prey.RaceProps.corpseDef.defName; }
+        // killed remembers a pest's corpse once observed: it may be hauled,
+        // eaten or rot before the next observation, and the kill still
+        // happened through this hunt.
+        private string? killed;
+        internal NativeHuntRecord(Pawn prey, IntVec3 cell)
+        { this.prey = prey; map = prey.Map; this.cell = cell; source = prey.GetUniqueLoadID(); resource = prey.RaceProps.corpseDef.defName; pest = NativeHuntAcquisition.Pest(prey); }
+        // Gone is the pest exit (#321): the animal is dead, or it left the
+        // map (a wild animal that exits is destroyed); either way it no
+        // longer threatens the trees and the hunt is finished.
+        private bool Gone => prey.Dead || prey.Destroyed || !prey.Spawned || prey.Map != map;
         internal Receipts.AcquisitionEffect Evidence()
         {
             var corpse = prey.Corpse;
             var exact = prey.Dead && corpse != null && ReferenceEquals(corpse.InnerPawn, prey) && corpse.def.defName == resource;
-            var observed = exact && !corpse!.Destroyed && corpse.Spawned && corpse.Map == map
-                && !corpse.IsForbidden(Faction.OfPlayer) && !corpse.Position.Fogged(map)
-                && corpse.GetRotStage() == RotStage.Fresh;
+            var onMap = exact && !corpse!.Destroyed && corpse.Spawned && corpse.Map == map;
+            // A food hunt yields a fresh, unforbidden corpse for the butcher;
+            // a pest hunt yields the kill, whatever state the corpse is in.
+            var observed = onMap && (pest || !corpse!.IsForbidden(Faction.OfPlayer) && !corpse!.Position.Fogged(map) && corpse!.GetRotStage() == RotStage.Fresh);
+            if (pest && observed) killed = corpse!.GetUniqueLoadID();
+            var finished = pest ? Gone : exact;
+            var produced = pest ? killed != null : exact;
             var result = new Receipts.AcquisitionEffect { SourceId = source, ResourceDef = resource,
                 Cell = new Common.Cell { X = cell.x, Z = cell.z }, Designated = NativeHuntAcquisition.Designated(prey),
-                LaborFinished = exact, ProducedUnits = exact ? 1 : 0, OutputComplete = exact, OutputObserved = observed };
-            if (exact) result.Outputs.Add(new Receipts.AcquisitionOutput { ThingId = corpse!.GetUniqueLoadID(), Units = 1 });
+                LaborFinished = finished, ProducedUnits = produced ? 1 : 0, OutputComplete = finished, OutputObserved = produced && (pest || observed) };
+            if (produced) result.Outputs.Add(new Receipts.AcquisitionOutput { ThingId = pest ? killed! : corpse!.GetUniqueLoadID(), Units = 1 });
             return result;
         }
         internal bool Matches(Operations.CancelAcquisition command, Map current) => current == map
@@ -52,13 +68,20 @@ namespace HomeBridge.BridgeTools
                     hunter.jobs.EndCurrentJob(JobCondition.InterruptForced);
             withdrawn = true;
         }
+        private static Receipts.Progress Unsuccessful(Common.AttemptKey attempt, Common.ObservationContext context, Receipts.AcquisitionEffect evidence, string detail) =>
+            new Receipts.Progress { Attempt = attempt.Clone(), Context = context.Clone(), CompleteInspection = true,
+                Unsuccessful = new Receipts.UnsuccessfulEffect { Reason = Receipts.UnsuccessfulReason.OutcomeNotAchieved,
+                    Evidence = new Receipts.EffectEvidence { Acquisition = evidence }, Detail = detail } };
         public Receipts.Progress Observe(Common.AttemptKey attempt, Common.ObservationContext context)
         {
             var evidence = Evidence();
             if (withdrawn && !evidence.LaborFinished && !evidence.Designated)
-                return new Receipts.Progress { Attempt = attempt.Clone(), Context = context.Clone(), CompleteInspection = true,
-                    Unsuccessful = new Receipts.UnsuccessfulEffect { Reason = Receipts.UnsuccessfulReason.OutcomeNotAchieved,
-                        Evidence = new Receipts.EffectEvidence { Acquisition = evidence }, Detail = "Owned hunt was withdrawn before an observed kill." } };
+                return Unsuccessful(attempt, context, evidence, "Owned hunt was withdrawn before an observed kill.");
+            // A pest that left the map, or whose corpse was gone before any
+            // observation, is finished without a kill to show for it; the
+            // census, not the receipt, says whether the pack is cleared.
+            if (pest && evidence.LaborFinished && evidence.ProducedUnits == 0)
+                return Unsuccessful(attempt, context, evidence, "Pest left the map or its corpse was never observed.");
             return NativeAcquisitionRecord.Progress(attempt, context, evidence);
         }
     }
@@ -154,9 +177,11 @@ namespace HomeBridge.BridgeTools
         }
         private static double Nutrition(Pawn prey) => Math.Max(0, prey.GetStatValue(StatDefOf.MeatAmount)) * prey.RaceProps.meatDef.GetStatValueAbstract(StatDefOf.Nutrition);
         private static Obs.SnapshotRef Snapshot(Pawn prey, Common.ObservationContext context) => new Obs.SnapshotRef {
+            // A hunt follows its animal (#321): the token binds the animal,
+            // its corpse and its designation, not the cell or health the
+            // census read, which move every tick under a running clock.
             Context = context.Clone(), EntityId = prey.GetUniqueLoadID(), Token = NativePlantAcquisition.Token(context.Identity,
-                prey.GetUniqueLoadID(), prey.RaceProps.corpseDef.defName, prey.Position.x, prey.Position.z,
-                prey.health.summaryHealth.SummaryHealthPercent, 1, Designated(prey)) };
+                prey.GetUniqueLoadID(), prey.RaceProps.corpseDef.defName, 0, 0, 0, 1, Designated(prey)) };
         internal static void Read(Obs.ColonyFactsSnapshot result, Map map, IntVec3 center, int limit)
         {
             result.PendingHunts = (uint)Pending(map);
@@ -184,7 +209,8 @@ namespace HomeBridge.BridgeTools
         }
         internal const string Kind = "Hunt";
         // A withdrawal may only use this controller action's preceding hunt
-        // record. The captured admission cell stays valid after the prey moves.
+        // record. The admission cell is the controller's and stays valid
+        // after the prey moves.
         internal static NativeHuntRecord? WithdrawalRecord(NativeOperationState state, Common.AttemptKey attempt)
         {
             if (attempt.AttemptId <= 1) return null;
@@ -225,8 +251,11 @@ namespace HomeBridge.BridgeTools
             }
         }
         // Prepare is the apply-time precondition list for hunt
-        // (action-contracts.md): Eligible plus the request's cell, resource
-        // and designation rules, one rule at a time.
+        // (action-contracts.md): Eligible plus the request's resource and
+        // designation rules, one rule at a time. The request's cell is where
+        // the controller planned the animal, a hint only: the hunt follows
+        // the animal by identity wherever it is on the map (#321), and the
+        // hunter rule still bounds food prey to 100 cells.
         private static bool Prepare(Operations.AcquireResource command, Common.ObservationContext context, out Pawn? prey, out Common.Failure failure)
         {
             prey = null; failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Hunting requires an exact safe prey (or pest) snapshot, enabled hunter, butcher bill (food prey) and fewer than two outstanding hunts.");
@@ -239,7 +268,6 @@ namespace HomeBridge.BridgeTools
                 .Present(() => found != null && found.Spawned, "the exact animal is no longer spawned on this map")
                 .Require(() => !found!.Dead, "the animal is dead")
                 .Require(() => Pest(found!) || SafePrey(found!), "the animal is neither safe wild prey nor a recognised pest")
-                .Require(() => found!.Position.x == command.Cell.X && found.Position.z == command.Cell.Z, "the animal is not at the expected cell")
                 .Require(() => found!.RaceProps.corpseDef.defName == command.ResourceDefName, "the animal's corpse is not the expected resource")
                 .Require(() => !found!.Position.Fogged(map), "the animal's cell is fogged")
                 .Require(() => !Designated(found!), "the animal is already designated for hunting")
@@ -271,7 +299,7 @@ namespace HomeBridge.BridgeTools
                 var admitted = state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute", request, context);
                 if (admitted.Kind != NativeAttemptLedger.DecisionKind.Admitted) return admitted.DecidedReply;
                 handle = admitted.AdmittedHandle;
-                var record = new NativeHuntRecord(prey!); state.Acquisition.Add(pre.Attempt.Clone(), record);
+                var record = new NativeHuntRecord(prey!, new IntVec3(command.Cell.X, 0, command.Cell.Z)); state.Acquisition.Add(pre.Attempt.Clone(), record);
                 using (authority.Owned())
                 {
                     if (!authority.Check(pre.ExpectedGeneration).Success

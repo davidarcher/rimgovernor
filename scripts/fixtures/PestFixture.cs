@@ -15,9 +15,12 @@ namespace HomeBridge.BridgeTools
     // ground some distance from the colonists, factionless and not hostile,
     // exactly as IncidentWorker_Alphabeavers leaves them. The emergency
     // census ignores them; the ClearPests goal has to notice them in the
-    // wild-animal census and hunt them. Inspect reports each staged beaver's
-    // native state (dead, downed, still spawned) so the case asserts the
-    // postcondition natively rather than from receipts.
+    // wild-animal census and hunt them. The hunters are the equip and work
+    // families' to stage from the baseline's loose bows (#321); the fixture
+    // only reports who could hunt now and what is lying about. Inspect
+    // reports each staged beaver's native state (dead, downed, still
+    // spawned) so the case asserts the postcondition natively rather than
+    // from receipts.
     public sealed class PestFixture
     {
         private const string PestKind = "Alphabeaver";
@@ -32,7 +35,7 @@ namespace HomeBridge.BridgeTools
             return fixturePests;
         }
 
-        [Tool("test/pest_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture: spawn count (default 3) wild Alphabeaver on open reachable ground about distance (default 40) cells from the colonists' center, factionless and not hostile, and report the staged ids with the colonists holding a ranged weapon. No game tick changes.")]
+        [Tool("test/pest_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture: spawn count (default 3) wild Alphabeaver on open reachable ground about distance (default 40) cells from the colonists' center, factionless and not hostile, and report the staged ids with the colonists who could hunt now and the loose ordinary ranged weapons. Nobody is armed or assigned; the equip and work families do that. No game tick changes.")]
         public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken, int count = 3, int distance = 40)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -65,54 +68,23 @@ namespace HomeBridge.BridgeTools
                     pack.Add(pest);
                 }
                 fixturePests = pack; fixtureWorld = Find.World;
-                // The precondition is hunters, not the equip and work
-                // families: the baseline's bows start in the drop pile and
-                // nobody has Hunting active, so the best shooters who may hunt
-                // pick up the loose ranged weapons (longest range first) and
-                // take Hunting at priority 1, the way the two families would
-                // leave them. Every weapon is handed out: one hunter with a
-                // pila chased a fleeing beaver for seven hours and came home
-                // bitten (run 8 of #247), and two hunts are outstanding at a
-                // time.
-                var armed = new List<object>();
-                var shooters = colonists.Where(p => !p.WorkTypeIsDisabled(WorkTypeDefOf.Hunting) && p.workSettings?.Initialized == true)
-                    .OrderByDescending(p => p.equipment?.Primary?.def.IsRangedWeapon == true && NativeHuntAcquisition.OrdinaryVerbs(p.equipment.Primary.def.Verbs))
-                    .ThenByDescending(p => p.skills?.GetSkill(SkillDefOf.Shooting)?.Level ?? 0).ThenBy(p => p.thingIDNumber).ToList();
-                if (shooters.Count == 0) return Refuse("No colonist may hunt.");
+                // What the equip and work families have to work with: the
+                // loose ordinary ranged weapons on the map (longest range
+                // first) and who may hunt at all.
                 var weapons = map.listerThings.AllThings.OfType<ThingWithComps>()
                     .Where(t => t.Spawned && t.def.IsRangedWeapon && t.def.equipmentType == EquipmentType.Primary && t.TryGetComp<CompEquippable>() != null
                         && NativeHuntAcquisition.OrdinaryVerbs(t.def.Verbs))
                     .OrderByDescending(t => t.def.Verbs.Where(v => !v.IsMeleeAttack).Max(v => v.range)).ThenBy(t => t.thingIDNumber).ToList();
-                foreach (var shooter in shooters)
-                {
-                    if (shooter.equipment?.Primary?.def.IsRangedWeapon != true || !NativeHuntAcquisition.OrdinaryVerbs(shooter.equipment.Primary.def.Verbs))
-                    {
-                        if (weapons.Count == 0) break;
-                        var weapon = weapons[0];
-                        weapons.RemoveAt(0);
-                        if (shooter.equipment.Primary != null) shooter.equipment.TryDropEquipment(shooter.equipment.Primary, out _, shooter.Position);
-                        weapon.SetForbidden(false, false);
-                        weapon.DeSpawn();
-                        shooter.equipment.AddEquipment(weapon);
-                    }
-                    shooter.workSettings.SetPriority(WorkTypeDefOf.Hunting, 1);
-                    // A hunter with frozen rest idles through the Sleep block
-                    // of the schedule; the case is about the goal, not the
-                    // shift, so the hunters work the clock round.
-                    if (shooter.timetable != null)
-                        for (var hour = 0; hour < GenDate.HoursPerDay; hour++) shooter.timetable.SetAssignment(hour, TimeAssignmentDefOf.Anything);
-                    armed.Add(new { id = shooter.GetUniqueLoadID(), weapon = shooter.equipment.Primary.def.defName });
-                }
-                if (!colonists.Any(Hunter)) return Refuse("No loose ranged weapon on the map for a hunter.");
+                if (!colonists.Any(p => !p.WorkTypeIsDisabled(WorkTypeDefOf.Hunting))) return Refuse("No colonist may hunt.");
                 var identity = Current.Game.GetComponent<ColonyIdentity>();
                 return new {
                     success = true, colonyId = identity?.ColonyId, loadToken = identity?.LoadToken, mapId = map.uniqueID,
                     tick = Find.TickManager.TicksGame, kind = kindDef.defName, distance = anchor.DistanceTo(center),
                     center = new { x = center.x, z = center.z },
                     pests = pack.Select(Row).ToArray(),
-                    // Who can hunt now, and what every colonist holds.
+                    // Who can hunt now, what is lying about, and what every colonist holds.
                     hunters = colonists.Where(Hunter).Select(p => p.GetUniqueLoadID()).ToArray(),
-                    armed = armed.ToArray(),
+                    looseWeapons = weapons.Select(t => new { id = t.GetUniqueLoadID(), def = t.def.defName, forbidden = t.IsForbidden(Faction.OfPlayer), x = t.Position.x, z = t.Position.z }).ToArray(),
                     colonists = colonists.Select(p => new { id = p.GetUniqueLoadID(), weapon = p.equipment?.Primary?.def.defName,
                         ranged = p.equipment?.Primary?.def.IsRangedWeapon == true,
                         huntingActive = p.workSettings?.WorkIsActive(WorkTypeDefOf.Hunting) == true,

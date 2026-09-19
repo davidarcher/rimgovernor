@@ -1,11 +1,16 @@
 package bridge
 
 import (
+	"context"
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 	"math"
 	"testing"
+	"time"
+
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 func TestAcquisitionCensusBindsSourceSnapshotAndYield(t *testing.T) {
@@ -70,5 +75,47 @@ func TestHuntCostsRequireCompleteBoundedFacts(t *testing.T) {
 		if validateColonyAcquisition(v) == nil {
 			t.Fatal("accepted invalid hunt cost", v.Acquisition[0])
 		}
+	}
+}
+
+// A hunt follows its animal (#321): the read matches a hunt row by the
+// animal wherever the census reports it, keeping the action's cell as the
+// hint; a plant row is still matched by cell.
+func TestReadAcquisitionFollowsAHuntByAnimal(t *testing.T) {
+	r := colonyFixture(t)
+	v := r.GetObserved()
+	center := v.Center
+	away := &c.Cell{X: proto.Int32(center.GetX() + 9), Z: proto.Int32(center.GetZ())}
+	v.Acquisition = []*o.AcquisitionFacts{
+		{Source: &o.EntityRef{Id: proto.String("beaver"), DefName: proto.String("Alphabeaver"), MapId: v.Context.Identity.MapId, Position: away, Snapshot: &o.SnapshotRef{EntityId: proto.String("beaver"), Token: proto.String("cas"), Context: proto.Clone(v.Context).(*c.ObservationContext)}}, RevengeChance: proto.Float64(0.1), HerdSize: proto.Uint32(3), MeleeOnly: proto.Bool(false), Downed: proto.Bool(false), WeaponRange: proto.Float64(30), Resource: proto.String("Corpse_Alphabeaver"), Hunt: proto.Bool(true), Tree: proto.Bool(false), Food: proto.Bool(false), Designated: proto.Bool(false), Yield: proto.Float64(1), NutritionYield: proto.Float64(0)},
+		{Source: &o.EntityRef{Id: proto.String("plant"), DefName: proto.String("Oak"), MapId: v.Context.Identity.MapId, Position: proto.Clone(away).(*c.Cell), Snapshot: &o.SnapshotRef{EntityId: proto.String("plant"), Token: proto.String("cas"), Context: proto.Clone(v.Context).(*c.ObservationContext)}}, Resource: proto.String("WoodLog"), Hunt: proto.Bool(false), Tree: proto.Bool(true), Food: proto.Bool(false), Designated: proto.Bool(false), Yield: proto.Float64(10), NutritionYield: proto.Float64(0)},
+	}
+	v.Issues = nil
+	v.Planning = &o.PlanningSection{Outcome: &o.PlanningSection_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_REQUESTED.Enum()}}}
+	id := proto.Clone(v.Context.Identity).(*c.Identity)
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+		return pbResult(r), nil
+	}}, time.Second)
+	planned := domain.Cell{X: center.GetX(), Z: center.GetZ()}
+	hunt, err := domain.NewAcquisition("beaver", "Corpse_Alphabeaver", planned)
+	if err != nil {
+		t.Fatal(err)
+	}
+	read, _, err := client.ReadAcquisition(context.Background(), id, hunt)
+	if err != nil || len(read.Targets) != 1 || read.Targets[0].Acquisition != hunt || read.Targets[0].Token != "cas" {
+		t.Fatal(read, err)
+	}
+	// The plant at the planned cell is what a plant action reads there;
+	// nothing at a cell nobody stands on.
+	harvest, err := domain.NewAcquisition("plant", "WoodLog", planned)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if read, _, err = client.ReadAcquisition(context.Background(), id, harvest); err != nil || len(read.Targets) != 0 {
+		t.Fatal("a plant is matched by cell, not name", read, err)
+	}
+	harvest, _ = domain.NewAcquisition("plant", "WoodLog", domain.Cell{X: away.GetX(), Z: away.GetZ()})
+	if read, _, err = client.ReadAcquisition(context.Background(), id, harvest); err != nil || len(read.Targets) != 1 || read.Targets[0].Acquisition != harvest {
+		t.Fatal(read, err)
 	}
 }

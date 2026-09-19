@@ -16,7 +16,7 @@ import (
 )
 
 type AcquisitionNative interface {
-	ReadAcquisition(context.Context, *c.Identity, domain.Cell) (bridge.AcquisitionRead, bridge.Result, error)
+	ReadAcquisition(context.Context, *c.Identity, domain.Acquisition) (bridge.AcquisitionRead, bridge.Result, error)
 	PreviewAcquisition(context.Context, *c.Identity, bridge.AcquisitionTarget) (*op.PreviewReply, bridge.Result, error)
 	ReadEmergency(context.Context, *c.Identity) (bridge.EmergencyObservation, bridge.Result, error)
 	LookupAcquisition(context.Context, bridge.AcquisitionAttempt) (*r.LookupReply, bridge.Result, error)
@@ -45,7 +45,7 @@ func (b *AcquisitionBoundary) InspectAcquisition(ctx context.Context, target exe
 	if !ok {
 		return out, executor.ErrEvidence
 	}
-	read, _, err := b.acquisition.Native.ReadAcquisition(ctx, boundary.Identity(target.Snapshot), acquisition.Cell())
+	read, _, err := b.acquisition.Native.ReadAcquisition(ctx, boundary.Identity(target.Snapshot), acquisition)
 	if err != nil {
 		return out, err
 	}

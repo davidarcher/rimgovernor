@@ -13,20 +13,7 @@ import (
 type RoutineAcquisitionPlanner struct {
 	reviewer *RoutineReviewer
 	need     policy.GoalID
-	// strayed is the tick each unissued pest hunt was first seen planned at
-	// a cell its animal had left (ClearPests only): the hunt is cancelled
-	// once it has strayed for pestStrayGraceTicks. In memory only: a
-	// restart starts the grace again.
-	strayed map[domain.ActionID]domain.Tick
 }
-
-// pestStrayGraceTicks is how long an unissued pest hunt may sit planned at
-// a cell its animal wandered off before it is cancelled and re-planned
-// where the pack is now. A beaver stops to chew a tree for a good while, so
-// the exact-cell dispatch usually catches it within the hour; cancelling on
-// the first move re-planned every step and never caught one (run 6 of
-// #247).
-const pestStrayGraceTicks = 2500
 
 type RoutineAcquisitionResult struct {
 	Reason RoutineBuildingReason
@@ -41,7 +28,7 @@ func NewRoutineAcquisitionPlanner(reviewer *RoutineReviewer, need policy.GoalID)
 	if reviewer == nil || (need != policy.MaintainWood && need != policy.EnsureFoodSupply && need != policy.ClearPests) {
 		return nil, ErrControl
 	}
-	return &RoutineAcquisitionPlanner{reviewer: reviewer, need: need, strayed: map[domain.ActionID]domain.Tick{}}, nil
+	return &RoutineAcquisitionPlanner{reviewer: reviewer, need: need}, nil
 }
 func (r *RoutineAcquisitionPlanner) Step(ctx context.Context) (RoutineAcquisitionResult, error) {
 	call, epoch, done, err := r.reviewer.player.enter(ctx, false)
@@ -127,42 +114,39 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 	huntOnly := false
 	pests := policy.PestCensus(projection.Facts.AnimalUpkeep.WildAnimals)
 	reloadPlans := false
-	// Every strayed hunt seen this step, across the goal's plans: the
-	// grace clock of any other is stale and forgotten below.
-	stale := map[domain.ActionID]bool{}
 	stalledSources := map[string]bool{}
+	// A pest hunt follows its animal (#321) and native settles it on the
+	// animal's death or departure, so the hunt-stall rule is not its exit:
+	// a downed pest is bleeding out under a hunt nobody can hurry, and
+	// cancelling it only re-plans the same animal.
+	dying := map[string]bool{}
+	if pest {
+		if rows, known := projection.Acquisition.Value(); known {
+			for _, row := range rows {
+				if row.Hunt && row.Downed {
+					dying[row.ID] = true
+				}
+			}
+		}
+	}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
 		if err != nil {
 			return RoutineAcquisitionResult{}, err
 		}
 		if pest {
-			// A pest hunt planned at one cell is inspected against the
-			// census at that cell before dispatch; an animal that died to
-			// the defense or left the map leaves the action held forever
-			// and the goal behind it, so it is cancelled at once. One that
-			// merely wandered off is given pestStrayGraceTicks to stop
-			// again at its planned cell before the hunt is re-planned
-			// where the pack is now.
-			gone, strayed := movedPestHunts(plan.Progress, projection.Acquisition, projection.Facts.AnimalUpkeep.WildAnimals)
-			for _, action := range strayed {
-				stale[action] = true
-				first, seen := r.strayed[action]
-				if !seen {
-					r.strayed[action] = expected.Tick
-				} else if expected.Tick-first >= pestStrayGraceTicks {
-					gone = append(gone, action)
-				}
-			}
-			for _, action := range gone {
+			// An unissued pest hunt follows its animal wherever the census
+			// reports it; one whose animal died to the defense or left the
+			// map would be held forever and the goal behind it, so it is
+			// cancelled at once.
+			for _, action := range gonePestHunts(plan.Progress, projection.Facts.AnimalUpkeep.WildAnimals) {
 				if _, err = p.journal.Cancel(call, method.Plan, action); err != nil {
 					return RoutineAcquisitionResult{}, err
 				}
-				delete(r.strayed, action)
 				reloadPlans = true
 			}
 		}
-		for _, stalled := range stalledHuntActions(plan.Progress, huntSources, expected.Tick, r.reviewer.policy.HuntStallTicks) {
+		for _, stalled := range stalledHuntActions(plan.Progress, huntSources, dying, expected.Tick, r.reviewer.policy.HuntStallTicks) {
 			// HuntingSafety.RouteSafe (native) stays authoritative and is never
 			// bypassed here -- this only stops RimGovernor's own planner from
 			// staying wedged behind an action native keeps correctly refusing
@@ -203,11 +187,6 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 				return RoutineAcquisitionResult{Reason: BuildingMethodExistingWork}, nil
 			}
 			huntOnly = true
-		}
-	}
-	for action := range r.strayed {
-		if !stale[action] {
-			delete(r.strayed, action)
 		}
 	}
 	if reloadPlans {
@@ -366,24 +345,16 @@ func foodPlanAcquisition(plan policy.FoodPlan, sources domain.Fact[[]policy.Acqu
 	return domain.Known(selected), domain.Known(nutrition)
 }
 
-// movedPestHunts sorts the unissued (pending or prepared) hunt actions of
-// a pest plan into gone, whose animal the wild-animal census no longer
-// lists (dead or off the map), and strayed, whose animal the acquisition
-// census now reports at another cell. Both censuses have to be known: an
-// unknown census is not evidence the pack moved. A pest that is merely
-// ineligible this step (no free hunter, downed) keeps its row absent from
-// the acquisition census but present in the wild census, and is neither.
-func movedPestHunts(progress []domain.Progress, sources domain.Fact[[]policy.AcquisitionSource], wild domain.Fact[[]policy.UpkeepAnimal]) (gone, strayed []domain.ActionID) {
-	rows, sk := sources.Value()
-	animals, wk := wild.Value()
-	if !sk || !wk {
-		return nil, nil
-	}
-	cells := map[string]domain.Cell{}
-	for _, row := range rows {
-		if row.Hunt {
-			cells[row.ID] = row.Cell
-		}
+// gonePestHunts finds the unissued (pending or prepared) hunt actions of a
+// pest plan whose animal the wild-animal census no longer lists (dead or
+// off the map). The census has to be known: an unknown census is not
+// evidence the pack is gone. A pest that is merely ineligible this step
+// (no free hunter) or has wandered off its planned cell keeps its row in
+// the wild census and its hunt, which follows it (#321).
+func gonePestHunts(progress []domain.Progress, wild domain.Fact[[]policy.UpkeepAnimal]) (gone []domain.ActionID) {
+	animals, known := wild.Value()
+	if !known {
+		return nil
 	}
 	alive := map[string]bool{}
 	for _, animal := range animals {
@@ -392,17 +363,11 @@ func movedPestHunts(progress []domain.Progress, sources domain.Fact[[]policy.Acq
 	for _, p := range progress {
 		acquisition, ok := p.Action().Acquisition()
 		v := p.View()
-		if !ok || v.Stage != domain.Pending && v.Stage != domain.Prepared {
-			continue
-		}
-		cell, listed := cells[acquisition.Thing()]
-		if !alive[acquisition.Thing()] {
+		if ok && (v.Stage == domain.Pending || v.Stage == domain.Prepared) && !alive[acquisition.Thing()] {
 			gone = append(gone, v.Action)
-		} else if listed && cell != acquisition.Cell() {
-			strayed = append(strayed, v.Action)
 		}
 	}
-	return gone, strayed
+	return gone
 }
 
 // A queued production bill may be waiting for ingredients acquired by this method.
@@ -453,7 +418,8 @@ func acquisitionBlockingWork(progress []domain.Progress) bool {
 // unsafe, which leaves the dispatched action's evidence unresolved -- it never
 // completes, fails, or gets re-inspected -- so it reads as open work forever
 // and blocks acquisitionBlockingWork's caller from proposing anything else.
-// graceTicks <= 0 disables this (never treats anything as stalled).
+// graceTicks <= 0 disables this (never treats anything as stalled), and a
+// hunt of a thing in exempt is never stalled (a downed pest, #321).
 // stalledDesignation is a dispatched, still-designated harvest nobody has
 // taken: the action and the source thing the planner must stop counting.
 type stalledDesignation struct {
@@ -493,7 +459,7 @@ func stalledAcquisitionDesignations(ctx context.Context, journal *store.Store, p
 	return stalled, nil
 }
 
-func stalledHuntActions(progress []domain.Progress, huntSources map[string]bool, now domain.Tick, graceTicks int64) []domain.ActionID {
+func stalledHuntActions(progress []domain.Progress, huntSources, exempt map[string]bool, now domain.Tick, graceTicks int64) []domain.ActionID {
 	if graceTicks <= 0 {
 		return nil
 	}
@@ -501,7 +467,7 @@ func stalledHuntActions(progress []domain.Progress, huntSources map[string]bool,
 	for _, p := range progress {
 		acquisition, ok := p.Action().Acquisition()
 		v := p.View()
-		if ok && huntSources[acquisition.Thing()] && v.Unresolved && v.Stage != domain.Cancelled && int64(now-v.Tick) >= graceTicks {
+		if ok && huntSources[acquisition.Thing()] && !exempt[acquisition.Thing()] && v.Unresolved && v.Stage != domain.Cancelled && int64(now-v.Tick) >= graceTicks {
 			stalled = append(stalled, v.Action)
 		}
 	}

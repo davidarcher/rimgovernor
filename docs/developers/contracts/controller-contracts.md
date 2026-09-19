@@ -474,8 +474,12 @@ predator rejection evidence. The hunting budget (two outstanding) is zero while 
 roster is known and no [hunter](work-assignment.md#situational-roles) (`HunterFor`:
 Shooting, a ranged primary, never a Brawler) is on it, for stock and pest hunts alike.
 Compiled hunting methods retain the exact prey identity,
-anchor and action signature. Immediately before writing, the shared runtime rechecks
-wildlife, the planned cell, outstanding hunt count and paused native tick under its
+anchor and action signature. A hunt follows its animal (#321): the planned cell is
+the hint native echoes in the evidence, the census row is matched by the animal
+wherever it now is, the snapshot token binds the animal, its corpse and its
+designation but not its position or health, and native waives the expected-cell
+rule for an animal. Immediately before writing, the shared runtime rechecks
+wildlife, outstanding hunt count and paused native tick under its
 writer lock. It then verifies the selected animal's hunt designation. Missing legacy
 target metadata and changed observations block without a write; unconfirmed writes
 remain uncertain. Native evidence requires an enabled hunter with an ordinary ranged
@@ -520,11 +524,12 @@ a hunt already dispatched holds its own animal and counts against the two
 outstanding hunts, but neither the planner nor the store's open-work rule holds
 the next animal's method behind it. A pending or prepared pest hunt whose animal the wild-animal
 census no longer lists is cancelled before the next selection; one whose animal
-the acquisition census reports at another cell is given 2500 ticks to stop at
-its planned cell again (the exact-cell dispatch catches a beaver chewing a tree)
-before it is cancelled and re-planned where the pack is; a dispatched hunt is
-left to native and the hunt-stall rule. Pest hunts never count toward edible
-stock.
+wandered off follows it (#321). A dispatched pest hunt is finished natively when
+the animal is dead (completed, its corpse the output in whatever state it lies)
+or has left the map (unsuccessful, nothing to show), not when a fresh unforbidden
+corpse is observed as a food hunt is; the hunt-stall rule still cancels a pest
+hunt nobody takes, except one of a downed animal, which is bleeding out under a
+hunt nobody can hurry. Pest hunts never count toward edible stock.
 
 ## Wild-plant acquisition
 

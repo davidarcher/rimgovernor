@@ -36,7 +36,10 @@ func pendingHunt(t *testing.T, action domain.ActionID, thing string, cell domain
 	return p
 }
 
-func TestMovedPestHuntsCancelsMovedAndGoneAnimalsOnly(t *testing.T) {
+// A hunt follows its animal (#321): only an animal the wild census no
+// longer lists cancels its unissued hunt; one that wandered off its
+// planned cell keeps it.
+func TestGonePestHuntsCancelsGoneAnimalsOnly(t *testing.T) {
 	t.Parallel()
 	here := domain.Cell{X: 5, Z: 5}
 	moved := pendingHunt(t, "hunt-moved", "beaver-moved", here)
@@ -44,27 +47,19 @@ func TestMovedPestHuntsCancelsMovedAndGoneAnimalsOnly(t *testing.T) {
 	left := pendingHunt(t, "hunt-gone", "beaver-gone", here)
 	busy := pendingHunt(t, "hunt-busy", "beaver-busy", here)
 	progress := []domain.Progress{moved, still, left, busy}
-	sources := domain.Known([]policy.AcquisitionSource{
-		{ID: "beaver-moved", Definition: "Alphabeaver", Hunt: true, Cell: domain.Cell{X: 9, Z: 5}},
-		{ID: "beaver-still", Definition: "Alphabeaver", Hunt: true, Cell: here},
-	})
 	wild := domain.Known([]policy.UpkeepAnimal{{ID: "beaver-moved", Definition: "Alphabeaver"}, {ID: "beaver-still", Definition: "Alphabeaver"}, {ID: "beaver-busy", Definition: "Alphabeaver"}})
-	gone, strayed := movedPestHunts(progress, sources, wild)
-	if len(gone) != 1 || gone[0] != "hunt-gone" || len(strayed) != 1 || strayed[0] != "hunt-moved" {
-		t.Fatal(gone, strayed)
+	if gone := gonePestHunts(progress, wild); len(gone) != 1 || gone[0] != "hunt-gone" {
+		t.Fatal(gone)
 	}
-	// An unknown census is not evidence the pack moved.
-	if gone, strayed := movedPestHunts(progress, domain.Unknown[[]policy.AcquisitionSource](), wild); gone != nil || strayed != nil {
-		t.Fatal(gone, strayed)
+	// An unknown census is not evidence the pack is gone.
+	if gone := gonePestHunts(progress, domain.Unknown[[]policy.UpkeepAnimal]()); gone != nil {
+		t.Fatal(gone)
 	}
-	if gone, strayed := movedPestHunts(progress, sources, domain.Unknown[[]policy.UpkeepAnimal]()); gone != nil || strayed != nil {
-		t.Fatal(gone, strayed)
-	}
-	// A dispatched hunt is native's to resolve (stalledHuntActions), not
+	// A dispatched hunt is native's to resolve (death or departure), not
 	// this check's to cancel.
 	dispatched := dispatchedHunt(t, "hunt-dispatched", "beaver-gone", 100)
-	if gone, strayed := movedPestHunts([]domain.Progress{dispatched}, sources, wild); gone != nil || strayed != nil {
-		t.Fatal(gone, strayed)
+	if gone := gonePestHunts([]domain.Progress{dispatched}, wild); gone != nil {
+		t.Fatal(gone)
 	}
 }
 
@@ -118,7 +113,7 @@ func TestPestHuntWithdrawalReleasesTargetForReplanning(t *testing.T) {
 	if err != nil || plan.Progress[0].View().Stage != domain.Cancelled || !domain.GoalWorkOpen(plan.Progress) {
 		t.Fatal("stalled hunt must retain uncertainty until native withdrawal", plan, err)
 	}
-	if got := stalledHuntActions(plan.Progress, map[string]bool{target.Thing(): true}, domain.Tick(facts.Context.GetTick()), reviewer.policy.HuntStallTicks); len(got) != 0 {
+	if got := stalledHuntActions(plan.Progress, map[string]bool{target.Thing(): true}, nil, domain.Tick(facts.Context.GetTick()), reviewer.policy.HuntStallTicks); len(got) != 0 {
 		t.Fatal("cancelled hunt repeatedly cancelled instead of reconciled", got)
 	}
 	// Reconciliation observes the still-designated hunt, withdraws it, then
@@ -236,10 +231,10 @@ func TestPestAcquisitionPlannerAdmitsOneHuntPerPest(t *testing.T) {
 	}
 }
 
-// A strayed hunt's grace clock runs per action, whichever plan holds it:
-// with two plans open, the second plan's pass must not forget the
-// first's clocks (run 10 of #247 never re-planned either beaver).
-func TestPestAcquisitionPlannerReplansStrayedHuntsAcrossPlans(t *testing.T) {
+// A hunt follows its animal (#321): beavers wandering off their planned
+// cells leave both hunts open and nothing re-planned; a dispatched hunt of
+// a downed beaver is never stall-cancelled, the kill is its exit.
+func TestPestAcquisitionPlannerFollowsStrayedAndDownedAnimals(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	planner, reviewer, db, v := pestFixture(t)
@@ -261,36 +256,56 @@ func TestPestAcquisitionPlannerReplansStrayedHuntsAcrossPlans(t *testing.T) {
 			row.Source.Position = &c.Cell{X: proto.Int32(row.Source.Position.GetX() + 1), Z: proto.Int32(row.Source.Position.GetZ())}
 		}
 	}
+	retick(v.ProtoReflect(), v.Context.GetTick()+2500)
 	if _, err := reviewer.Step(ctx); err != nil {
 		t.Fatal(err)
 	}
-	// The first pass starts both clocks and re-plans nothing.
 	if result, err := planner.Step(ctx); err != nil || result.Reason != BuildingMethodUsed {
-		t.Fatal(result, err)
-	}
-	if len(planner.strayed) != 2 {
-		t.Fatal(planner.strayed)
-	}
-	retick(v.ProtoReflect(), v.Context.GetTick()+pestStrayGraceTicks)
-	if _, err := reviewer.Step(ctx); err != nil {
-		t.Fatal(err)
-	}
-	result, err := planner.Step(ctx)
-	if err != nil || result.Reason != BuildingMethodAdmitted {
 		t.Fatal(result, err)
 	}
 	for _, id := range []domain.PlanID{first.Plan, second.Plan} {
 		plan, err := db.LoadPlan(ctx, id)
-		if err != nil || len(plan.Progress) != 1 || plan.Progress[0].View().Stage != domain.Cancelled {
-			t.Fatal(id, plan, err)
+		if err != nil || len(plan.Progress) != 1 || plan.Progress[0].View().Stage != domain.Pending {
+			t.Fatal("a strayed hunt must stay open", id, plan, err)
 		}
 	}
-	plan, err := db.LoadPlan(ctx, result.Plan)
-	if err != nil || len(plan.Progress) != 2 {
-		t.Fatal(plan, err)
+	// The first hunt is dispatched and its beaver downed: the stall grace
+	// passes and the hunt stays dispatched.
+	plan, err := db.LoadPlan(ctx, first.Plan)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if len(planner.strayed) != 0 {
-		t.Fatal(planner.strayed)
+	action := plan.Spec.Actions()[0]
+	target, _ := action.Acquisition()
+	snapshot := reviewer.player.session.State().Snapshot
+	snapshot.Plan, snapshot.Revision = plan.Spec.ID(), plan.Spec.Revision()
+	tick := domain.Tick(v.Context.GetTick())
+	if _, err = db.PrepareAcquisition(ctx, first.Plan, action.ID(), store.AcquisitionAdmission{Snapshot: snapshot, Tick: tick, Thing: target.Thing(), SnapshotToken: "cas"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = db.Dispatch(ctx, first.Plan, action.ID(), snapshot, tick); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = db.RecordReceipt(ctx, first.Plan, action.ID(), 1, domain.ReceiptAccepted); err != nil {
+		t.Fatal(err)
+	}
+	for _, row := range v.Acquisition {
+		if row.Source.GetId() == target.Thing() {
+			row.Designated, row.Downed = proto.Bool(true), proto.Bool(true)
+		}
+	}
+	v.PendingHunts = proto.Uint32(1)
+	retick(v.ProtoReflect(), int64(tick)+reviewer.policy.HuntStallTicks)
+	reviewer.census.invalidate()
+	if _, err = reviewer.Step(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if result, err := planner.Step(ctx); err != nil || result.Reason != BuildingMethodUsed {
+		t.Fatal(result, err)
+	}
+	plan, err = db.LoadPlan(ctx, first.Plan)
+	if err != nil || plan.Progress[0].View().Stage != domain.AwaitingObservation {
+		t.Fatal("a hunt of a downed pest must not be stall-cancelled", plan, err)
 	}
 }
 

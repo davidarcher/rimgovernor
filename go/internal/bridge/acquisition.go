@@ -32,7 +32,14 @@ func NewAcquisitionControl(client *Client) (*AcquisitionControl, error) {
 	}
 	return &AcquisitionControl{client}, nil
 }
-func (client *Client) ReadAcquisition(ctx context.Context, identity *c.Identity, cell domain.Cell) (AcquisitionRead, Result, error) {
+
+// ReadAcquisition lists the undesignated census rows an action of
+// acquisition could dispatch: a plant is the rows at its cell (the source
+// is the cell's, whichever plant stands there now); a hunt is the row of
+// its animal wherever the animal is now (#321), the action's cell kept as
+// the hint native echoes in the evidence.
+func (client *Client) ReadAcquisition(ctx context.Context, identity *c.Identity, acquisition domain.Acquisition) (AcquisitionRead, Result, error) {
+	cell := acquisition.Cell()
 	reply, raw, err := client.ReadColonyFacts(ctx, identity, false, nil)
 	if err != nil {
 		return AcquisitionRead{}, raw, err
@@ -45,7 +52,14 @@ func (client *Client) ReadAcquisition(ctx context.Context, identity *c.Identity,
 	}
 	out := AcquisitionRead{Context: proto.Clone(v.Context).(*c.ObservationContext), Targets: []AcquisitionTarget{}}
 	for _, row := range v.Acquisition {
-		if row.GetDesignated() || row.Source.Position.GetX() != cell.X || row.Source.Position.GetZ() != cell.Z {
+		if row.GetDesignated() {
+			continue
+		}
+		if row.GetHunt() {
+			if row.Source.GetId() != acquisition.Thing() {
+				continue
+			}
+		} else if row.Source.Position.GetX() != cell.X || row.Source.Position.GetZ() != cell.Z {
 			continue
 		}
 		target, err := domain.NewAcquisition(row.Source.GetId(), row.GetResource(), cell)
