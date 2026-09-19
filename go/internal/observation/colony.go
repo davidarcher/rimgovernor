@@ -250,6 +250,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 	r.Facts.AnimalUpkeep.Animals = colonyAnimals(v)
 	r.Facts.AnimalUpkeep.WildAnimals = colonyWildAnimals(v)
 	r.Facts.Waste = colonyWaste(v)
+	r.Facts.Blight = colonyBlight(v)
 	r.Facts.Upkeep = colonyUpkeep(v)
 	r.Facts.MedicalReserve = colonyMedicalReserve(v)
 	// The dialog section is present exactly while a force-pausing choice

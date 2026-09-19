@@ -33,7 +33,7 @@ func GoalLabor(id GoalID) LaborProfile {
 	switch id {
 	case EnsureBasicDefense, EnsureComfort, EnsureBasicComfort, EnsureExpansion, MaintainEssentialRepairs, MaintainStoneShell, MaintainSleeping, MaintainFoodStorage, MaintainHomeCoverage, MaintainAnimalContainment, MaintainLighting, MaintainFlooring, MaintainRoutes:
 		return LaborProfile{WorkConstruction}
-	case MaintainWood:
+	case MaintainWood, RemoveBlight:
 		return LaborProfile{WorkPlantCutting}
 	case EnsureResearch:
 		return LaborProfile{WorkResearch}

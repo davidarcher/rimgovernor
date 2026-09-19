@@ -20,7 +20,7 @@ func TestRoutineGoalRetirementSurvivesRepeatedReloadsAndRestart(t *testing.T) {
 	for i := 0; i < 32; i++ {
 		r.Current.Load = domain.LoadID(fmt.Sprintf("load-%d", i))
 		out := reviewRoutine(t, s, &r)
-		if len(out.Goals) != 43 {
+		if len(out.Goals) != 44 {
 			t.Fatal(out)
 		}
 	}
@@ -34,7 +34,7 @@ func TestRoutineGoalRetirementSurvivesRepeatedReloadsAndRestart(t *testing.T) {
 	if err = s.db.QueryRowContext(ctx, "SELECT count(*),sum(retired=0) FROM goals").Scan(&history, &active); err != nil {
 		t.Fatal(err)
 	}
-	if active != 43 || history != 43*33 {
+	if active != 44 || history != 44*33 {
 		t.Fatal(active, history)
 	}
 	if _, err = s.ReviewGoal(ctx, g.Goal.ID, g.Revision, r.Current, r.Tick, domain.NeedDeficit, false); err == nil {

@@ -19,7 +19,7 @@ var inlinePlannerSet = []struct {
 	{"preservationBills", plannerFoothold}, {"butcherBills", plannerMaintenance}, {"basicComfort", plannerFoothold}, {"comfort", plannerComfort}, {"workshop", plannerMaintenance},
 	{"hospital", plannerCritical}, {"sleepingUpkeep", plannerCritical}, {"expansion", plannerComfort}, {"defense", plannerPreempt}, {"tend", plannerCritical},
 	{"rescue", plannerCritical}, {"equip", plannerMaintenance}, {"secureSupplies", plannerFoothold}, {"repair", plannerMaintenance},
-	{"fireSafety", plannerFoothold}, {"clean", plannerMaintenance}, {"waste", plannerMaintenance}, {"moodRelief", plannerMaintenance},
+	{"fireSafety", plannerFoothold}, {"clean", plannerMaintenance}, {"blight", plannerMaintenance}, {"waste", plannerMaintenance}, {"moodRelief", plannerMaintenance},
 	{"haul", plannerMaintenance}, {"gear", plannerMaintenance}, {"medical", plannerCritical}, {"foodStorageUpkeep", plannerFoothold},
 	{"animalContainment", plannerMaintenance}, {"recovery", plannerCritical}, {"husbandry", plannerMaintenance}, {"prisonerInteraction", plannerMaintenance},
 	{"populationCustody", plannerFoothold}, {"research", plannerMaintenance}, {"ingredient-storage", plannerMaintenance}, {"naming", plannerPreempt}, {"dialog", plannerPreempt}, {"resource", plannerMaintenance},

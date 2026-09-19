@@ -126,6 +126,8 @@ enum ThingDesignation {
   THING_DESIGNATION_HUNT = 3;
   THING_DESIGNATION_HARVEST_PLANT = 4;
   THING_DESIGNATION_DECONSTRUCT = 5;
+  // CutPlant on one exact blighted plant (ColonyFactsSnapshot.blighted_plants).
+  THING_DESIGNATION_CUT_PLANT = 6;
 }
 message DesignateThing { EntityPrecondition target = 1; optional ThingDesignation designation = 2; }
 enum PowerSetting { POWER_SETTING_UNSPECIFIED = 0; POWER_SETTING_ON = 1; POWER_SETTING_OFF = 2; }

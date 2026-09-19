@@ -19,6 +19,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/buildingtemperature"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/capture"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/cutplant"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/draft"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/equip"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/excavation"
@@ -112,6 +113,7 @@ type buildingServiceBridge struct {
 	zones               *zone.ZoneCapabilities
 	work                *work.WorkCapabilities
 	supplies            *supply.SupplyCapabilities
+	cutPlant            *cutplant.CutPlantCapabilities
 	draft               *draft.DraftCapabilities
 	clock               *buildingruntime.ClockCapabilities
 	clockReads          serviceClockReads
@@ -230,6 +232,10 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
+	cutPlantWriter, err := bridge.NewCutPlantControl(client)
+	if err != nil {
+		return buildingServiceBridge{}, errors.Join(err, client.Close())
+	}
 	wasteWriter, err := bridge.NewWasteWriter(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
@@ -302,6 +308,7 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		excavation:      &excavation.ExcavationCapabilities{Native: client, Writer: excavationWriter},
 		work:            &work.WorkCapabilities{Native: client, Writer: workWriter},
 		supplies:        &supply.SupplyCapabilities{Native: client, Writer: supplies},
+		cutPlant:        &cutplant.CutPlantCapabilities{Native: client, Writer: cutPlantWriter},
 		clock:           &buildingruntime.ClockCapabilities{Native: client, Writer: clock}, clockReads: client,
 		draft:               &draft.DraftCapabilities{Native: client, Writer: drafts, Cleanup: cleanup},
 		melee:               &melee.MeleeCapabilities{Native: client, Writer: attack},
@@ -562,6 +569,13 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		cleanCapabilities = client.clean
 	}
+	var cutPlantCapabilities *cutplant.CutPlantCapabilities
+	if config.routineBlightPlans {
+		if client.cutPlant == nil {
+			return errors.New("blight plans require typed cut plant capabilities")
+		}
+		cutPlantCapabilities = client.cutPlant
+	}
 	var wasteCapabilities *buildingruntime.WasteCapabilities
 	if config.routineWastePlans {
 		if client.waste == nil {
@@ -693,6 +707,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		Repair:              repairCapabilities,
 		Clean:               cleanCapabilities,
 		Waste:               wasteCapabilities,
+		CutPlant:            cutPlantCapabilities,
 		MoodRelief:          moodReliefCapabilities,
 		GearReplace:         gearReplaceCapabilities,
 		RecoveryService:     recoveryServiceCapabilities,

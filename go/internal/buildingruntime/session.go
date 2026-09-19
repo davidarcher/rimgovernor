@@ -13,6 +13,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/buildingtemperature"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/capture"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/cutplant"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/draft"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/equip"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/excavation"
@@ -39,6 +40,7 @@ type SessionConfig struct {
 	Work            *work.WorkCapabilities
 	Acquisition     *acquisition.AcquisitionCapabilities
 	Supplies        *supply.SupplyCapabilities
+	CutPlant        *cutplant.CutPlantCapabilities
 	RoutineMethods  bool
 	Control         ControlConfig
 	Executor        executor.Limits
@@ -304,6 +306,9 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.Supplies != nil && (config.Supplies.Native == nil || config.Supplies.Writer == nil) {
 		return cleanup(ErrControl)
 	}
+	if config.CutPlant != nil && (config.CutPlant.Native == nil || config.CutPlant.Writer == nil) {
+		return cleanup(ErrControl)
+	}
 	if config.Work != nil && (config.Work.Native == nil || config.Work.Writer == nil) {
 		return cleanup(ErrControl)
 	}
@@ -415,6 +420,11 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	// for why the composed-value approach was unsafe.
 	if config.Supplies != nil {
 		if err := worker.EnableSupply(supply.NewSupplyBoundary(place, *config.Supplies)); err != nil {
+			return cleanup(err)
+		}
+	}
+	if config.CutPlant != nil {
+		if err := worker.EnableCutPlant(cutplant.NewCutPlantBoundary(place, *config.CutPlant)); err != nil {
 			return cleanup(err)
 		}
 	}

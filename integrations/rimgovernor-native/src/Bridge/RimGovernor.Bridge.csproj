@@ -80,6 +80,7 @@
     <Compile Include="../../../../scripts/fixtures/BedAssignFixture.cs" Condition="'$(BedAssignFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ZoneDeleteFixture.cs" Condition="'$(ZoneDeleteFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ApplyRefusalFixture.cs" Condition="'$(ApplyRefusalFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/BlightFixture.cs" Condition="'$(BlightFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/RefrigerationFixture.cs" Condition="'$(RefrigerationFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/PowerFixture.cs" Condition="'$(PowerFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/FarmEnvironmentFixture.cs" Condition="'$(FarmEnvironmentFixture)' == 'true'" />

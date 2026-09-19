@@ -544,6 +544,12 @@ message PlanningFacts { repeated PlanningDefinition definitions = 1; CellsSnapsh
 message FoodProduct { optional string def_name = 1; optional int64 count = 2; optional bool edible = 3; optional double nutrition = 4; optional double nutrition_demand_per_day = 5; optional double rot_days = 6; optional bool perishable = 7; }
 message FoodProduction { optional string recipe = 1; optional bool available = 2; repeated FoodProduct products = 3; }
 message CookingFacts { EntityRef bench = 1; optional bool usable = 2; repeated RecipeState recipes = 3; repeated BillState bills = 4; repeated FoodProduction production = 5; optional string room_id = 6; }
+// A blighted plant standing in a player growing zone or on home ground: the
+// crop-blight census RemoveBlight cuts from. Nearest the colony first, at
+// most 64 rows; plant.snapshot is the CutPlant designation's CAS token.
+// zone_id is the growing zone the plant stands in, absent on home ground.
+// designated: a CutPlant or HarvestPlant designation already exists.
+message BlightedPlant { EntityRef plant = 1; optional string zone_id = 2; optional bool designated = 3; optional double growth = 4; }
 message AcquisitionFacts { EntityRef source = 1; optional string resource = 2; optional bool tree = 3; optional bool food = 4; optional double yield = 5; optional double nutrition_yield = 6; optional bool designated = 7; optional bool hunt = 8; }
 message ButcheringFacts { EntityRef bench = 1; repeated BillState bills = 2; optional bool usable = 3; repeated RecipeState recipes = 4; optional string room_id = 5; }
 message FoodCorpse { CorpseState corpse = 1; optional bool fresh = 2; optional bool reachable = 3; optional string meat_def = 4; optional double nutrition_yield = 5; }
@@ -647,6 +653,9 @@ message ColonyFactsSnapshot {
   optional string player_tech_level = 39;
   // Present only while exactly one force-pausing choice dialog is open.
   ChoiceDialog dialog = 40;
+  // Blighted plants in growing zones or home ground (BlightedPlant); a
+  // `blighted_plants` issue withholds the census.
+  repeated BlightedPlant blighted_plants = 41;
 }
 message ColonyFactsRequest { ReadScope scope = 1; optional bool planning = 2; repeated string requested_definition_names = 3; rimgovernor.common.v1.PageRequest page = 4; }
 message ColonyFactsReply { oneof outcome { ColonyFactsSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }

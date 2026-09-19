@@ -155,6 +155,8 @@ namespace HomeBridge.BridgeTools
                 foreach (var field in new[] { "acquisition", "pending_food_nutrition", "pending_wood_units", "pending_hunts" })
                     result.Issues.Add(Issue(field, Common.UnavailableReason.ReadFailed, "Complete safe acquisition facts are unavailable."));
             }
+            try { NativeCutPlant.Read(result, map, center); }
+            catch (Exception) { result.BlightedPlants.Clear(); result.Issues.Add(Issue("blighted_plants", Common.UnavailableReason.ReadFailed, "Complete blighted plant census is unavailable.")); }
             result.Planning = request.Planning ? new Obs.PlanningSection { Observed = Planning(map, center, request, context, limit) }
                 : new Obs.PlanningSection { Unavailable = Unavailable(Common.UnavailableReason.NotRequested, "Planning was not requested.") };
             return result;

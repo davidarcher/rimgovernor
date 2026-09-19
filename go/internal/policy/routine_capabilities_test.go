@@ -58,7 +58,7 @@ func TestRoutineDisabledMethodsYieldSlotsWithoutErasingNeeds(t *testing.T) {
 // native read. RecoverDisasterServices is only assessed once a disaster
 // history exists, so it needs an explicit recognition.
 func TestRoutineComposedCapabilitiesValidateOnEmptyFacts(t *testing.T) {
-	all := []GoalID{EnsureFoodSupply, EnsureFoodStorage, MaintainWood, EnsureCooking, EnsureTemperatureSafety, EnsureBasicPower, EnsureComfort, EnsureExpansion, MaintainAnimalContainment, MaintainEssentialRepairs, MaintainCleanFacilities, MaintainStorage, MaintainWaste, RecoverDisasterServices, MaintainHerd, MaintainPopulation, MaintainHomeCoverage, MaintainStoneShell, EnsureResearch, MaintainResource, MaintainAnimalFeed, ProductionPolicy}
+	all := []GoalID{EnsureFoodSupply, EnsureFoodStorage, MaintainWood, EnsureCooking, EnsureTemperatureSafety, EnsureBasicPower, EnsureComfort, EnsureExpansion, MaintainAnimalContainment, MaintainEssentialRepairs, MaintainCleanFacilities, MaintainStorage, MaintainWaste, RecoverDisasterServices, MaintainHerd, MaintainPopulation, MaintainHomeCoverage, MaintainStoneShell, EnsureResearch, MaintainResource, MaintainAnimalFeed, ProductionPolicy, RemoveBlight}
 	if _, err := DetectRoutine(RoutineFacts{AvailableMethods: domain.Known(all)}, RoutineLatches{}, DefaultRoutinePolicy()); err != nil {
 		t.Fatal(err)
 	}

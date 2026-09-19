@@ -133,7 +133,9 @@ their own narrow typed receipts, without an import cycle.
   policy definition labels, environment conditions, climate/growing inputs,
   farm productivity, cooking products/nutrition/rot and bills, butchering bills,
   harvestable acquisition items, food corpses, Boolean qualifying food storage,
-  forbidden supply cells, the player faction's tech level (`player_tech_level`,
+  forbidden supply cells, the bounded `blighted_plants` census (up to 64
+  blighted plants in growing zones or the home area with position, zone and
+  designation state, #245), the player faction's tech level (`player_tech_level`,
   which selects the starter shelter's shape), and planning definitions/cells
   including per-cell `doorway` (a door, door blueprint or door frame) so indoor
   furnishing keeps entrance aisles clear. Source's hardcoded starter definition

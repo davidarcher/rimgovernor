@@ -34,6 +34,8 @@ const (
 	ThingDesignation_THING_DESIGNATION_HUNT          ThingDesignation = 3
 	ThingDesignation_THING_DESIGNATION_HARVEST_PLANT ThingDesignation = 4
 	ThingDesignation_THING_DESIGNATION_DECONSTRUCT   ThingDesignation = 5
+	// CutPlant on one exact blighted plant (ColonyFactsSnapshot.blighted_plants).
+	ThingDesignation_THING_DESIGNATION_CUT_PLANT ThingDesignation = 6
 )
 
 // Enum value maps for ThingDesignation.
@@ -45,6 +47,7 @@ var (
 		3: "THING_DESIGNATION_HUNT",
 		4: "THING_DESIGNATION_HARVEST_PLANT",
 		5: "THING_DESIGNATION_DECONSTRUCT",
+		6: "THING_DESIGNATION_CUT_PLANT",
 	}
 	ThingDesignation_value = map[string]int32{
 		"THING_DESIGNATION_UNSPECIFIED":   0,
@@ -53,6 +56,7 @@ var (
 		"THING_DESIGNATION_HUNT":          3,
 		"THING_DESIGNATION_HARVEST_PLANT": 4,
 		"THING_DESIGNATION_DECONSTRUCT":   5,
+		"THING_DESIGNATION_CUT_PLANT":     6,
 	}
 )
 
@@ -8628,14 +8632,15 @@ const file_operations_proto_rawDesc = "" +
 	"\x10already_released\x18\x02 \x01(\v2'.rimgovernor.operations.v1.DraftReleaseH\x00R\x0falreadyReleased\x12P\n" +
 	"\tuncertain\x18\x03 \x01(\v20.rimgovernor.operations.v1.DraftReleaseUncertainH\x00R\tuncertain\x12:\n" +
 	"\afailure\x18\x04 \x01(\v2\x1e.rimgovernor.common.v1.FailureH\x00R\afailureB\t\n" +
-	"\aoutcome*\xd4\x01\n" +
+	"\aoutcome*\xf5\x01\n" +
 	"\x10ThingDesignation\x12!\n" +
 	"\x1dTHING_DESIGNATION_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17THING_DESIGNATION_ALLOW\x10\x01\x12\x1c\n" +
 	"\x18THING_DESIGNATION_FORBID\x10\x02\x12\x1a\n" +
 	"\x16THING_DESIGNATION_HUNT\x10\x03\x12#\n" +
 	"\x1fTHING_DESIGNATION_HARVEST_PLANT\x10\x04\x12!\n" +
-	"\x1dTHING_DESIGNATION_DECONSTRUCT\x10\x05*Z\n" +
+	"\x1dTHING_DESIGNATION_DECONSTRUCT\x10\x05\x12\x1f\n" +
+	"\x1bTHING_DESIGNATION_CUT_PLANT\x10\x06*Z\n" +
 	"\fPowerSetting\x12\x1d\n" +
 	"\x19POWER_SETTING_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10POWER_SETTING_ON\x10\x01\x12\x15\n" +

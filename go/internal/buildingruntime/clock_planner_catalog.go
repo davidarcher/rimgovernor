@@ -381,6 +381,16 @@ var plannerCatalog = []plannerEntry{
 			out.Clean = &method
 			return nil
 		}},
+	{name: "blight", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.CutPlantAction}, families: factsColony,
+		configured: func(c *ClockSchedulerConfig) bool { return c.Blight != nil },
+		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
+			method, err := s.config.Blight.step(ctx, epoch, arbiter)
+			if err != nil {
+				return err
+			}
+			out.Blight = &method
+			return nil
+		}},
 	{name: "waste", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.WasteAction}, families: factsColony,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Waste != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {

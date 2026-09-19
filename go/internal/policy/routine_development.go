@@ -78,6 +78,17 @@ func RoutineDevelopmentDeficit(id GoalID, f RoutineFacts, p RoutinePolicy) domai
 			return domain.Known(0.0)
 		}
 		return domain.Known(1.0)
+	case RemoveBlight:
+		// Census-driven like waste: any standing blighted plant is a full
+		// deficit until the census is empty.
+		deficit, deficitKnown := BlightDeficit(f.Blight).Value()
+		if !deficitKnown {
+			return domain.Unknown[float64]()
+		}
+		if !deficit {
+			return domain.Known(0.0)
+		}
+		return domain.Known(1.0)
 	default:
 		return domain.Unknown[float64]()
 	}

@@ -326,6 +326,10 @@ type RoutineFacts struct {
 	// pendingWaste/WasteDeficit to detect and, eventually, SelectWasteMethod
 	// to dispatch containment/burial candidates from.
 	Waste domain.Fact[[]WasteItem]
+	// Blight carries RemoveBlight's blighted-plant census (the colony read's
+	// blighted_plants section), for BlightDeficit to detect and
+	// SelectBlightCuts to designate from.
+	Blight domain.Fact[[]BlightedPlant]
 	// AvailableMethods is supplied by the configured runtime, never native facts.
 	AvailableMethods domain.Fact[[]GoalID]
 	Upkeep           UpkeepObservation
@@ -1075,6 +1079,16 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		// waste_admissions, WasteBoundary, RoutineWastePlanner); availability
 		// is config-only, gated below through AvailableMethods like
 		// MaintainResource/EnsureResearch/ProductionPolicy.
+	}
+	blightRecovered := domain.Unknown[bool]()
+	if deficit, known := BlightDeficit(f.Blight).Value(); known {
+		blightRecovered = domain.Known(!deficit)
+	}
+	addAssessment(RemoveBlight, 3, blightRecovered)
+	if !positive(blightRecovered) {
+		// Census-driven like waste: any standing blighted plant is a full
+		// deficit; availability is gated below through AvailableMethods.
+		addGoal(RemoveBlight, 3)
 	}
 	if err := f.Mood.Validate(); err != nil {
 		return RoutineNeeds{}, err

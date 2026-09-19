@@ -53,7 +53,7 @@ func routineExecutableKind(kind domain.ActionKind) bool {
 		domain.ProductionBillAction, domain.TendAction, domain.RescueAction, domain.CaptureAction, domain.HaulAction, domain.EquipAction,
 		domain.GearReplaceAction, domain.RecoveryServiceAction, domain.MovementAction, domain.HusbandryAction,
 		domain.PrisonerInteractionAction, domain.RepairAction, domain.CleanAction, domain.MineAcquisitionAction,
-		domain.ProductionPolicyAction, domain.BuildingTemperatureAction, domain.BedMedicalAction, domain.GrowerCropAction, domain.BedAssignAction, domain.ExcavationAction, domain.DialogAnswerAction, domain.NamingConfirmationAction, domain.ResearchSelectAction:
+		domain.ProductionPolicyAction, domain.BuildingTemperatureAction, domain.BedMedicalAction, domain.GrowerCropAction, domain.BedAssignAction, domain.ExcavationAction, domain.DialogAnswerAction, domain.NamingConfirmationAction, domain.ResearchSelectAction, domain.CutPlantAction:
 		return true
 	default:
 		return false
@@ -578,7 +578,7 @@ func workerBackoffCap(config WorkerConfig, v domain.ProgressView) time.Duration 
 func liveDispatchKind(kind domain.ActionKind) bool {
 	switch kind {
 	case domain.BuildingAction, domain.HaulAction, domain.SupplyAllowAction, domain.WorkAssignmentAction, domain.ZoneCreateAction,
-		domain.ProductionBillAction, domain.GrowerCropAction, domain.AcquisitionAction, domain.MineAcquisitionAction, domain.HusbandryAction:
+		domain.ProductionBillAction, domain.GrowerCropAction, domain.AcquisitionAction, domain.MineAcquisitionAction, domain.HusbandryAction, domain.CutPlantAction:
 		return true
 	}
 	return false
