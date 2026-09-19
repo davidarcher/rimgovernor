@@ -45,6 +45,9 @@ func (n *mineAcquisitionEnvironment) Acquire(_ context.Context, request Acquisit
 	p := request.Attempt
 	return Receipt{Action: p.Action.ID(), Attempt: p.Attempt, Snapshot: p.Snapshot, Kind: domain.ReceiptAccepted}, nil
 }
+func (n *mineAcquisitionEnvironment) WithdrawAcquisition(context.Context, AcquisitionDispatch) (Receipt, error) {
+	return Receipt{}, ErrEvidence
+}
 func (n *mineAcquisitionEnvironment) ObserveAcquisition(_ context.Context, p Placement, current domain.GenerationSnapshot) (AcquisitionEvidence, error) {
 	n.observed++
 	acquisition, _ := p.Action.MineAcquisition()

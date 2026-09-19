@@ -105,6 +105,7 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 		}
 	}
 	reloadPlans := false
+	stalledSources := map[string]bool{}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
 		if err != nil {
@@ -118,6 +119,17 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 			if _, err = p.journal.Cancel(call, method.Plan, stalled); err != nil {
 				return RoutineAcquisitionResult{}, err
 			}
+			reloadPlans = true
+		}
+		stalled, err := stalledAcquisitionDesignations(call, p.journal, plan.Progress, huntSources, expected.Tick, r.reviewer.policy.AcquisitionStallTicks)
+		if err != nil {
+			return RoutineAcquisitionResult{}, err
+		}
+		for _, v := range stalled {
+			if _, err = p.journal.Cancel(call, method.Plan, v.Action); err != nil {
+				return RoutineAcquisitionResult{}, err
+			}
+			stalledSources[v.Thing] = true
 			reloadPlans = true
 		}
 		plan, err = p.journal.LoadPlan(call, method.Plan)
@@ -138,6 +150,26 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 	food := r.need == policy.EnsureFoodSupply
 	if food {
 		pending = projection.PendingFoodNutrition
+	}
+	// A designation nobody took still counts in native's pending totals;
+	// without this the re-plan would see its own stalled yield as covering
+	// the deficit and propose nothing.
+	if rows, known := projection.Acquisition.Value(); known && len(stalledSources) > 0 {
+		if outstanding, pk := pending.Value(); pk {
+			for _, row := range rows {
+				if !stalledSources[row.ID] || !row.Designated {
+					continue
+				}
+				if food {
+					outstanding -= row.NutritionYield
+				} else {
+					outstanding -= row.Yield
+				}
+			}
+			pending = domain.Known(max(0, outstanding))
+		}
+	}
+	if food {
 		supply, known := projection.CombinedFoodSupply.Value()
 		humans, hk := projection.FoodSupply.Value()
 		if known && hk {
@@ -234,6 +266,45 @@ func acquisitionBlockingWork(progress []domain.Progress) bool {
 // completes, fails, or gets re-inspected -- so it reads as open work forever
 // and blocks acquisitionBlockingWork's caller from proposing anything else.
 // graceTicks <= 0 disables this (never treats anything as stalled).
+// stalledDesignation is a dispatched, still-designated harvest nobody has
+// taken: the action and the source thing the planner must stop counting.
+type stalledDesignation struct {
+	Action domain.ActionID
+	Thing  string
+}
+
+// stalledAcquisitionDesignations finds dispatched non-hunt acquisition
+// actions whose effect has stayed pending (designated, no labor) for at
+// least stallTicks since their dispatch (#291): native reports why in the
+// pending effect's reason (worker outcome detail), and the planner cancels
+// them so the goal re-plans from another source instead of holding a
+// method (and a development slot) on one plant nobody harvests. The native
+// executor then withdraws the designation natively (CancelAcquisition) and
+// the withdrawn record's terminal effect settles the action; an already
+// cancelled action is left to that. stallTicks <= 0 disables this.
+func stalledAcquisitionDesignations(ctx context.Context, journal *store.Store, progress []domain.Progress, huntSources map[string]bool, now domain.Tick, stallTicks int64) ([]stalledDesignation, error) {
+	if stallTicks <= 0 {
+		return nil, nil
+	}
+	var stalled []stalledDesignation
+	for _, p := range progress {
+		acquisition, ok := p.Action().Acquisition()
+		v := p.View()
+		effect, known := v.Effect.Value()
+		if !ok || huntSources[acquisition.Thing()] || !v.Unresolved || v.Stage == domain.Cancelled || !known || effect != domain.EffectPending {
+			continue
+		}
+		dispatched, err := journal.DispatchTick(ctx, v.Action)
+		if err != nil {
+			return nil, err
+		}
+		if since, known := dispatched.Value(); known && int64(now-since) >= stallTicks {
+			stalled = append(stalled, stalledDesignation{v.Action, acquisition.Thing()})
+		}
+	}
+	return stalled, nil
+}
+
 func stalledHuntActions(progress []domain.Progress, huntSources map[string]bool, now domain.Tick, graceTicks int64) []domain.ActionID {
 	if graceTicks <= 0 {
 		return nil

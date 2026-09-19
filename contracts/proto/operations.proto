@@ -101,6 +101,7 @@ message Operation {
     SetAnimalMaster set_animal_master = 51;
     SetAnimalFollowing set_animal_following = 52;
     AnswerDialog answer_dialog = 53;
+    CancelAcquisition cancel_acquisition = 54;
   }
 }
 
@@ -119,6 +120,12 @@ message ExcavateCell { rimgovernor.common.v1.Cell cell = 1; optional string expe
 message CancelConstruction { EntityPrecondition target = 1; optional string expected_def_name = 2; rimgovernor.common.v1.Cell cell = 3; optional string expected_stuff = 4; }
 message InstallBuilding { EntityPrecondition packed_or_inner = 1; rimgovernor.common.v1.Cell destination = 2; optional rimgovernor.placement.v1.Rotation rotation = 3; }
 message AcquireResource { EntityPrecondition source = 1; optional string resource_def_name = 2; rimgovernor.common.v1.Cell cell = 3; }
+// Withdraws one exact plant-harvest designation this controller placed and
+// nobody took (#291): the source, resource and cell of the AcquireResource
+// it cancels, under a fresh attempt of the same action. Applied evidence is
+// the acquisition effect with designated=false; the record then observes
+// unsuccessful (designation gone before harvest).
+message CancelAcquisition { EntityPrecondition source = 1; optional string resource_def_name = 2; rimgovernor.common.v1.Cell cell = 3; }
 enum ThingDesignation {
   THING_DESIGNATION_UNSPECIFIED = 0;
   THING_DESIGNATION_ALLOW = 1;

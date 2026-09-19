@@ -46,7 +46,7 @@ func TestAcquisitionFixedWriteAndExactAdmission(t *testing.T) {
 	} {
 		v := proto.Clone(receipt).(*r.Receipt)
 		edit(v)
-		if acquisitionReceipt(v, want) == nil {
+		if acquisitionReceipt(v, want, proto.Bool(true)) == nil {
 			t.Fatal("foreign or fabricated output admitted", v)
 		}
 	}

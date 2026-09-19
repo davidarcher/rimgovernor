@@ -75,6 +75,10 @@ message AcquisitionEffect {
   repeated AcquisitionOutput outputs = 7;
   optional bool output_observed = 8;
   optional bool output_complete = 9;
+  // Why a still-designated plant harvest has no worker (forbidden, below
+  // harvest growth, no enabled plant cutter, unreachable, cutters busy on
+  // other work); set only on a pending effect (#291).
+  optional string pending_reason = 10;
 }
 // Excavation completes when no mineable remains at the cell; yield is not evidence.
 message ExcavationEffect {

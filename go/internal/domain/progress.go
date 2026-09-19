@@ -393,6 +393,33 @@ func (p Progress) recordReceipt(attempt AttemptID, receipt Receipt) (Progress, e
 	}
 	return p, nil
 }
+// Withdraw opens the attempt that withdraws a cancelled, still-pending
+// dispatch natively (#291: a harvest designation nobody took). The action
+// stays Cancelled and unresolved under a fresh attempt id, whose receipt and
+// observation settle it the ordinary way; a lost receipt resolves as absent
+// like any other unadmitted attempt.
+func (p Progress) Withdraw(current GenerationSnapshot, tick Tick) (Progress, error) {
+	if p.view.Stage != Cancelled || !p.view.Unresolved {
+		return p, errors.New("withdrawal requires a cancelled unresolved dispatch")
+	}
+	if effect, known := p.view.Effect.Value(); !known || effect != EffectPending {
+		return p, errors.New("withdrawal requires a pending effect")
+	}
+	if err := current.Validate(); err != nil {
+		return p, err
+	}
+	if !p.view.Snapshot.sameWorld(current) || tick < p.view.Tick {
+		return p, errors.New("stale withdrawal authority or tick")
+	}
+	if p.view.Attempt == ^AttemptID(0) {
+		return p, errors.New("dispatch attempt identity exhausted")
+	}
+	p.view.Attempt++
+	p.view.Snapshot, p.view.Tick = current, tick
+	p.view.Receipt, p.view.Effect = Unknown[Receipt](), Unknown[Effect]()
+	p.view.UnsuccessfulReason = Unknown[UnsuccessfulReason]()
+	return p, nil
+}
 func (p Progress) Cancel() (Progress, error) {
 	if p.view.Stage == "" || p.view.Stage == Completed || p.view.Stage == Unsuccessful {
 		return p, errors.New("cannot cancel this action")

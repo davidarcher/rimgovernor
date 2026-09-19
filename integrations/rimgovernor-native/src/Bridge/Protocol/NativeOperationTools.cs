@@ -110,6 +110,8 @@ namespace HomeBridge.BridgeTools
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.CreateZone) return NativeZoneCreation.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.AcquireResource)
                 return NativePlantAcquisition.Execute(state, request, context);
+            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.CancelAcquisition)
+                return NativePlantAcquisition.Cancel(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.PatchPawn)
                 return NativeWorkSettings.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.PatchBuilding)

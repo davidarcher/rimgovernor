@@ -12,6 +12,7 @@ import (
 type AcquisitionJournal interface {
 	Journal
 	PrepareAcquisition(context.Context, domain.PlanID, domain.ActionID, store.AcquisitionAdmission) (domain.Progress, error)
+	Withdraw(context.Context, domain.PlanID, domain.ActionID, domain.GenerationSnapshot, domain.Tick) (domain.Progress, error)
 }
 type AcquisitionInspection struct {
 	Current               domain.GenerationSnapshot
@@ -33,10 +34,19 @@ type AcquisitionEvidence struct {
 	Acquisition                                   domain.Acquisition
 	LaborFinished, OutputObserved, OutputComplete bool
 	ProducedUnits                                 int32
+	// Designated is whether the source still carries the designation the
+	// dispatch placed; an unsuccessful effect without labor requires it gone.
+	Designated bool
+	// PendingReason is native's account of why a still-designated harvest
+	// has no worker (#291); empty unless the effect is pending.
+	PendingReason string
 }
 type AcquisitionBoundary interface {
 	InspectAcquisition(context.Context, Target) (AcquisitionInspection, error)
 	Acquire(context.Context, AcquisitionDispatch) (Receipt, error)
+	// WithdrawAcquisition cancels the designation Acquire placed, under the
+	// withdrawal attempt the journal opened (#291).
+	WithdrawAcquisition(context.Context, AcquisitionDispatch) (Receipt, error)
 	ObserveAcquisition(context.Context, Placement, domain.GenerationSnapshot) (AcquisitionEvidence, error)
 }
 
@@ -94,7 +104,10 @@ func (e *Executor) runAcquisition(ctx context.Context, action domain.Action, p d
 				return result, ErrEvidence
 			}
 		case domain.EffectUnsuccessful:
-			if !evidence.Complete || evidence.Acquisition != acquisition || !evidence.LaborFinished || !evidence.OutputComplete || evidence.ProducedUnits != 0 || o.UnsuccessfulReason != domain.OutcomeNotAchieved {
+			// Labor finished with nothing produced, or the designation left
+			// the source before any labor (withdrawn or removed; #291).
+			settled := evidence.LaborFinished && evidence.OutputComplete || !evidence.LaborFinished && !evidence.Designated
+			if !evidence.Complete || evidence.Acquisition != acquisition || !settled || evidence.ProducedUnits != 0 || o.UnsuccessfulReason != domain.OutcomeNotAchieved {
 				return result, ErrEvidence
 			}
 		case domain.EffectAbsent:
@@ -106,7 +119,20 @@ func (e *Executor) runAcquisition(ctx context.Context, action domain.Action, p d
 			if !evidence.Complete || o.Causality != domain.AfterDispatch {
 				return result, ErrEvidence
 			}
-		case domain.EffectUnknown, domain.EffectPending:
+		case domain.EffectPending:
+			result.Detail = evidence.PendingReason
+			if v.Stage == domain.Cancelled && evidence.Designated {
+				// The journal cancelled the action but the designation is
+				// still on the source with nobody harvesting: withdraw it
+				// natively so the effect can settle (#291).
+				next, err := e.journal.Observe(ctx, v.Plan, o, current)
+				if err != nil {
+					return result, err
+				}
+				result.Progress = next
+				return e.withdrawAcquisition(ctx, action, next, authority, generation, o.Tick)
+			}
+		case domain.EffectUnknown:
 		default:
 			return result, ErrEvidence
 		}
@@ -176,14 +202,50 @@ func (e *Executor) runAcquisition(ctx context.Context, action domain.Action, p d
 	}
 	result.NativeCalled = true
 	receipt, err := e.acquisition.Acquire(ctx, AcquisitionDispatch{attempt, inspection.SnapshotToken})
+	return e.recordAcquisition(ctx, result, v.Plan, next, attempt, receipt, err)
+}
+
+// withdrawAcquisition is the native half of a cancelled acquisition whose
+// designation nobody took (#291): open the withdrawal attempt durably, then
+// ask native to remove the designation under the current authority. The
+// receipt is journaled like a dispatch's; the next run observes the attempt
+// and the record settles as unsuccessful once the designation is gone.
+func (e *Executor) withdrawAcquisition(ctx context.Context, action domain.Action, p domain.Progress, authority Authority, generation context.Context, tick domain.Tick) (Result, error) {
+	result := Result{Progress: p}
+	v := p.View()
+	expected := authority.Snapshot
+	if expected.Plan != v.Plan || expected.Revision != v.Revision {
+		if e.routineScope == nil {
+			return result, ErrAuthority
+		}
+		expected.Plan, expected.Revision = v.Plan, v.Revision
+	}
+	if err := e.guard(ctx, expected, generation); err != nil {
+		return result, err
+	}
+	next, err := e.acquisitionJournal.Withdraw(ctx, v.Plan, v.Action, expected, tick)
+	if err != nil {
+		return result, err
+	}
+	result.Progress = next
+	attempt := Placement{action, next.View().Attempt, expected, tick}
+	if err = e.guard(ctx, expected, generation); err != nil {
+		return e.record(result, v.Plan, attempt, domain.ReceiptUnknown, err)
+	}
+	result.NativeCalled = true
+	receipt, err := e.acquisition.WithdrawAcquisition(ctx, AcquisitionDispatch{Attempt: attempt})
+	return e.recordAcquisition(ctx, result, v.Plan, next, attempt, receipt, err)
+}
+
+func (e *Executor) recordAcquisition(ctx context.Context, result Result, plan domain.PlanID, next domain.Progress, attempt Placement, receipt Receipt, err error) (Result, error) {
 	kind := receipt.Kind
 	if err != nil {
 		kind = receiptAfterCallError(err)
-	} else if receipt.Action != action.ID() || receipt.Attempt != attempt.Attempt || receipt.Snapshot != expected {
+	} else if receipt.Action != attempt.Action.ID() || receipt.Attempt != attempt.Attempt || receipt.Snapshot != attempt.Snapshot {
 		kind, err = domain.ReceiptUnknown, ErrEvidence
 	}
 	if _, check := next.RecordReceipt(attempt.Attempt, kind); check != nil {
 		kind, err = domain.ReceiptUnknown, errors.Join(err, ErrEvidence)
 	}
-	return e.record(result, v.Plan, attempt, kind, errors.Join(err, ctx.Err()))
+	return e.record(result, plan, attempt, kind, errors.Join(err, ctx.Err()))
 }

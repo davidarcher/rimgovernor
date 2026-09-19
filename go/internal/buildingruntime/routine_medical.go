@@ -172,10 +172,26 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit {
 		return RoutineMedicalResult{Reason: BuildingMethodNoDeficit}, nil
 	}
+	stalledSources := map[string]bool{}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
 		if err != nil {
 			return RoutineMedicalResult{}, err
+		}
+		stalled, err := stalledAcquisitionDesignations(call, p.journal, plan.Progress, nil, review.Tick, r.reviewer.policy.AcquisitionStallTicks)
+		if err != nil {
+			return RoutineMedicalResult{}, err
+		}
+		for _, v := range stalled {
+			if _, err = p.journal.Cancel(call, method.Plan, v.Action); err != nil {
+				return RoutineMedicalResult{}, err
+			}
+			stalledSources[v.Thing] = true
+		}
+		if len(stalled) > 0 {
+			if plan, err = p.journal.LoadPlan(call, method.Plan); err != nil {
+				return RoutineMedicalResult{}, err
+			}
 		}
 		if domain.GoalWorkOpen(plan.Progress) {
 			return RoutineMedicalResult{Reason: BuildingMethodExistingWork}, nil
@@ -235,7 +251,7 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 		return RoutineMedicalResult{}, err
 	}
 	if choice.Kind == policy.MedicineBlocked {
-		return r.harvestMedicine(call, epoch, state, goal, observed, medicalReview, started)
+		return r.harvestMedicine(call, epoch, state, goal, observed, medicalReview, stalledSources, started)
 	}
 	if choice.Kind != policy.MedicineProduce {
 		return RoutineMedicalResult{Reason: BuildingMethodUsed}, nil
@@ -296,7 +312,7 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 // already designated. The same executor and native designation path
 // EnsureFoodSupply's berry harvest uses carry it out; recovery is still
 // only the observed reserve.
-func (r *RoutineMedicalPlanner) harvestMedicine(call, epoch context.Context, state ControlState, goal store.GoalState, observed *o.ColonyFactsSnapshot, medicalReview policy.MedicalReserveReview, started time.Time) (RoutineMedicalResult, error) {
+func (r *RoutineMedicalPlanner) harvestMedicine(call, epoch context.Context, state ControlState, goal store.GoalState, observed *o.ColonyFactsSnapshot, medicalReview policy.MedicalReserveReview, stalledSources map[string]bool, started time.Time) (RoutineMedicalResult, error) {
 	p := r.reviewer.player
 	replenish, known := medicalReview.Replenish.Value()
 	if !known {
@@ -310,9 +326,11 @@ func (r *RoutineMedicalPlanner) harvestMedicine(call, epoch context.Context, sta
 	if !known {
 		return RoutineMedicalResult{Reason: BuildingMethodUnknown}, nil
 	}
+	// A designation this step cancelled as stalled (#291) is still on the
+	// plant; counting its yield as pending would leave nothing to replenish.
 	pending := 0.0
 	for _, row := range rows {
-		if row.Designated && !row.Hunt && policy.Resource(row.Resource) == medicineResourceDefinition {
+		if row.Designated && !row.Hunt && !stalledSources[row.ID] && policy.Resource(row.Resource) == medicineResourceDefinition {
 			pending += row.Yield
 		}
 	}

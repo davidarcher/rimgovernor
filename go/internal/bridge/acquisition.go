@@ -69,6 +69,12 @@ func acquisitionOperation(target AcquisitionTarget, withToken bool) *op.Operatio
 	}
 	return &op.Operation{Command: &op.Operation_AcquireResource{AcquireResource: &op.AcquireResource{Source: source, ResourceDefName: proto.String(target.Acquisition.Definition()), Cell: &c.Cell{X: proto.Int32(target.Acquisition.Cell().X), Z: proto.Int32(target.Acquisition.Cell().Z)}}}}
 }
+// cancelAcquisitionOperation withdraws the designation acquisitionOperation
+// placed; it carries no token (the designation, not the plant, is the
+// precondition).
+func cancelAcquisitionOperation(target AcquisitionTarget) *op.Operation {
+	return &op.Operation{Command: &op.Operation_CancelAcquisition{CancelAcquisition: &op.CancelAcquisition{Source: &op.EntityPrecondition{EntityId: proto.String(target.Acquisition.Thing())}, ResourceDefName: proto.String(target.Acquisition.Definition()), Cell: &c.Cell{X: proto.Int32(target.Acquisition.Cell().X), Z: proto.Int32(target.Acquisition.Cell().Z)}}}}
+}
 func validAcquisition(target AcquisitionTarget) error {
 	if _, err := domain.NewAcquisition(target.Acquisition.Thing(), target.Acquisition.Definition(), target.Acquisition.Cell()); err != nil {
 		return err
@@ -112,7 +118,32 @@ func (writer *AcquisitionControl) Acquire(ctx context.Context, pre *a.WritePreco
 		return nil, raw, failure(reply.GetFailure(), raw)
 	}
 	v := reply.GetReceipt()
-	err = acquisitionReceipt(v, AcquisitionAttempt{pre.Identity, pre.Attempt, pre.GetExpectedGeneration(), target.Acquisition})
+	err = acquisitionReceipt(v, AcquisitionAttempt{pre.Identity, pre.Attempt, pre.GetExpectedGeneration(), target.Acquisition}, proto.Bool(true))
+	return reply, raw, err
+}
+
+// Withdraw cancels the plant-harvest designation an earlier Acquire placed
+// (#291), under the withdrawal attempt the journal opened for it. The
+// applied evidence must show the designation gone.
+func (writer *AcquisitionControl) Withdraw(ctx context.Context, pre *a.WritePrecondition, target AcquisitionTarget) (*op.ExecuteReply, Result, error) {
+	if writer == nil || writer.client == nil || pre == nil || buildingUnknown(pre) != nil || ValidateIdentity(pre.Identity) != nil || buildingAttempt(pre.Attempt) != nil || pre.GetExpectedGeneration() == 0 {
+		return nil, Result{}, contract("invalid acquisition withdrawal")
+	}
+	if _, err := domain.NewAcquisition(target.Acquisition.Thing(), target.Acquisition.Definition(), target.Acquisition.Cell()); err != nil {
+		return nil, Result{}, contract("invalid acquisition withdrawal")
+	}
+	reply := &op.ExecuteReply{}
+	raw, err := writer.client.protoCall(ctx, "rimgovernor/operations_execute", &op.ExecuteRequest{Precondition: proto.Clone(pre).(*a.WritePrecondition), Operation: cancelAcquisitionOperation(target)}, reply)
+	if err != nil {
+		return nil, raw, err
+	}
+	if buildingUnknown(reply) != nil {
+		return nil, raw, contract("unknown acquisition withdrawal fields")
+	}
+	if reply.GetFailure() != nil {
+		return nil, raw, failure(reply.GetFailure(), raw)
+	}
+	err = acquisitionReceipt(reply.GetReceipt(), AcquisitionAttempt{pre.Identity, pre.Attempt, pre.GetExpectedGeneration(), target.Acquisition}, proto.Bool(false))
 	return reply, raw, err
 }
 func validAcquisitionAttempt(w AcquisitionAttempt) error {
@@ -127,7 +158,7 @@ func validAcquisitionAttempt(w AcquisitionAttempt) error {
 // placement counts. Positive expected yield is never effect evidence.
 func ValidateAcquisitionEffect(v *r.EffectEvidence, acquisition domain.Acquisition) error {
 	d := v.GetAcquisition()
-	if d == nil || buildingUnknown(v) != nil || d.GetSourceId() != acquisition.Thing() || d.GetResourceDef() != acquisition.Definition() || d.Cell == nil || d.Cell.X == nil || d.Cell.Z == nil || d.Cell.GetX() != acquisition.Cell().X || d.Cell.GetZ() != acquisition.Cell().Z || d.Designated == nil || d.LaborFinished == nil || d.ProducedUnits == nil || d.OutputComplete == nil || d.OutputObserved == nil || d.GetProducedUnits() < 0 || len(d.Outputs) > 256 {
+	if d == nil || buildingUnknown(v) != nil || d.GetSourceId() != acquisition.Thing() || d.GetResourceDef() != acquisition.Definition() || d.Cell == nil || d.Cell.X == nil || d.Cell.Z == nil || d.Cell.GetX() != acquisition.Cell().X || d.Cell.GetZ() != acquisition.Cell().Z || d.Designated == nil || d.LaborFinished == nil || d.ProducedUnits == nil || d.OutputComplete == nil || d.OutputObserved == nil || d.GetProducedUnits() < 0 || len(d.Outputs) > 256 || len(d.GetPendingReason()) > 512 {
 		return contract("acquisition effect mismatch")
 	}
 	var units int64
@@ -144,33 +175,44 @@ func ValidateAcquisitionEffect(v *r.EffectEvidence, acquisition domain.Acquisiti
 	}
 	return nil
 }
-func acquisitionEffect(v *r.EffectEvidence, acquisition domain.Acquisition, designated bool) error {
+// acquisitionEffect validates admission evidence; designated, when set,
+// is the designation state the write must have left (true after Acquire,
+// false after Withdraw). A lookup passes nil: the ledger entry may be
+// either attempt of the action.
+func acquisitionEffect(v *r.EffectEvidence, acquisition domain.Acquisition, designated *bool) error {
 	if err := ValidateAcquisitionEffect(v, acquisition); err != nil {
 		return err
 	}
-	if v.GetAcquisition().GetDesignated() != designated {
+	if designated != nil && v.GetAcquisition().GetDesignated() != *designated {
 		return contract("acquisition designation mismatch")
 	}
 	return nil
 }
-func acquisitionReceipt(v *r.Receipt, w AcquisitionAttempt) error {
+func acquisitionReceipt(v *r.Receipt, w AcquisitionAttempt, designated *bool) error {
 	if v == nil || buildingUnknown(v) != nil || !proto.Equal(v.Attempt, w.Attempt) || buildingContext(v.AdmittedContext, w.Identity, w.Generation, true) != nil {
 		return contract("acquisition admission mismatch")
 	}
 	switch out := v.Outcome.(type) {
 	case *r.Receipt_Applied:
-		return acquisitionEffect(out.Applied.GetObserved(), w.Acquisition, true)
+		return acquisitionEffect(out.Applied.GetObserved(), w.Acquisition, designated)
 	case *r.Receipt_Uncertain:
 		if out.Uncertain == nil {
 			return contract("acquisition uncertainty missing")
 		}
 		if out.Uncertain.LastObserved != nil {
-			return acquisitionEffect(out.Uncertain.LastObserved, w.Acquisition, true)
+			return acquisitionEffect(out.Uncertain.LastObserved, w.Acquisition, designated)
 		}
 		return nil
 	default:
 		return contract("unsupported acquisition receipt")
 	}
+}
+
+// acquisitionUnsuccessful is the evidence shape of a failed acquisition:
+// labor finished with nothing produced, or the designation gone before any
+// labor (withdrawn, removed by the player, or the source vanished; #291).
+func acquisitionUnsuccessful(d *r.AcquisitionEffect) bool {
+	return d.GetLaborFinished() && d.GetOutputComplete() && d.GetProducedUnits() == 0 || !d.GetLaborFinished() && !d.GetDesignated() && d.GetProducedUnits() == 0
 }
 func (client *Client) LookupAcquisition(ctx context.Context, w AcquisitionAttempt) (*r.LookupReply, Result, error) {
 	if err := validAcquisitionAttempt(w); err != nil {
@@ -189,7 +231,7 @@ func (client *Client) LookupAcquisition(ctx context.Context, w AcquisitionAttemp
 	}
 	switch v := reply.Outcome.(type) {
 	case *r.LookupReply_Receipt:
-		err = acquisitionReceipt(v.Receipt, w)
+		err = acquisitionReceipt(v.Receipt, w, nil)
 	case *r.LookupReply_Unknown:
 		err = buildingContext(v.Unknown.GetContext(), w.Identity, 0, false)
 	case *r.LookupReply_InFlight:
@@ -203,7 +245,7 @@ func (client *Client) LookupAcquisition(ctx context.Context, w AcquisitionAttemp
 	return reply, raw, err
 }
 func (client *Client) ObserveAcquisition(ctx context.Context, w AcquisitionAttempt, admitted *r.Receipt) (*r.ProgressReply, Result, error) {
-	if validAcquisitionAttempt(w) != nil || acquisitionReceipt(admitted, w) != nil {
+	if validAcquisitionAttempt(w) != nil || acquisitionReceipt(admitted, w, nil) != nil {
 		return nil, Result{}, contract("acquisition observation admission mismatch")
 	}
 	reply := &r.ProgressReply{}
@@ -240,8 +282,7 @@ func (client *Client) ObserveAcquisition(ctx context.Context, w AcquisitionAttem
 			return nil, raw, contract("unverified acquisition failure")
 		}
 		err = ValidateAcquisitionEffect(out.Unsuccessful.GetEvidence(), w.Acquisition)
-		d := out.Unsuccessful.GetEvidence().GetAcquisition()
-		if !d.GetLaborFinished() || !d.GetOutputComplete() || d.GetProducedUnits() != 0 {
+		if !acquisitionUnsuccessful(out.Unsuccessful.GetEvidence().GetAcquisition()) {
 			return nil, raw, contract("unverified acquisition failure")
 		}
 	case *r.Progress_Pending:

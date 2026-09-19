@@ -24,6 +24,7 @@ type AcquisitionNative interface {
 }
 type AcquisitionWriter interface {
 	Acquire(context.Context, *a.WritePrecondition, bridge.AcquisitionTarget) (*op.ExecuteReply, bridge.Result, error)
+	Withdraw(context.Context, *a.WritePrecondition, bridge.AcquisitionTarget) (*op.ExecuteReply, bridge.Result, error)
 }
 type AcquisitionCapabilities struct {
 	Native AcquisitionNative
@@ -115,6 +116,21 @@ func (b *AcquisitionBoundary) Acquire(ctx context.Context, request executor.Acqu
 		},
 	)
 }
+func (b *AcquisitionBoundary) WithdrawAcquisition(ctx context.Context, request executor.AcquisitionDispatch) (executor.Receipt, error) {
+	p := request.Attempt
+	acquisition, ok := p.Action.Acquisition()
+	return b.DispatchWrite(ctx, p,
+		func() error {
+			if !ok {
+				return executor.ErrEvidence
+			}
+			return nil
+		},
+		func(pre *a.WritePrecondition) (*op.ExecuteReply, bridge.Result, error) {
+			return b.acquisition.Writer.Withdraw(ctx, pre, bridge.AcquisitionTarget{Acquisition: acquisition})
+		},
+	)
+}
 func (b *AcquisitionBoundary) ObserveAcquisition(ctx context.Context, p executor.Placement, current domain.GenerationSnapshot) (executor.AcquisitionEvidence, error) {
 	out := executor.AcquisitionEvidence{StartedAt: b.Clock.Now(), Observation: domain.Observation{Action: p.Action.ID(), Attempt: p.Attempt, Snapshot: current, Effect: domain.EffectUnknown}}
 	if !boundary.World(current, p.Snapshot) {
@@ -178,7 +194,7 @@ func (b *AcquisitionBoundary) ObserveAcquisition(ctx context.Context, p executor
 			return out, executor.ErrEvidence
 		}
 		d := evidence.GetAcquisition()
-		out.LaborFinished, out.OutputComplete, out.OutputObserved, out.ProducedUnits = d.GetLaborFinished(), d.GetOutputComplete(), d.GetOutputObserved(), d.GetProducedUnits()
+		out.LaborFinished, out.OutputComplete, out.OutputObserved, out.ProducedUnits, out.Designated, out.PendingReason = d.GetLaborFinished(), d.GetOutputComplete(), d.GetOutputObserved(), d.GetProducedUnits(), d.GetDesignated(), d.GetPendingReason()
 		if out.Observation.Effect == domain.EffectPending && (!d.GetDesignated() || d.GetLaborFinished()) {
 			return out, executor.ErrEvidence
 		}

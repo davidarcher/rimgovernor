@@ -13,6 +13,7 @@ import (
 type acquisitionEnvironment struct {
 	*environment
 	inspected, allowed, observed       int
+	withdrawn                          int
 	uncertain, unsafe, foreign, absent bool
 	// unadmitted marks the absent evidence as the boundary's complete
 	// post-dispatch ledger lookup, as boundary.Unadmitted reports it.
@@ -41,6 +42,14 @@ func (n *acquisitionEnvironment) Acquire(_ context.Context, request AcquisitionD
 	p := request.Attempt
 	return Receipt{Action: p.Action.ID(), Attempt: p.Attempt, Snapshot: p.Snapshot, Kind: domain.ReceiptAccepted}, nil
 }
+func (n *acquisitionEnvironment) WithdrawAcquisition(_ context.Context, request AcquisitionDispatch) (Receipt, error) {
+	n.withdrawn++
+	if request.SnapshotToken != "" {
+		return Receipt{}, ErrEvidence
+	}
+	p := request.Attempt
+	return Receipt{Action: p.Action.ID(), Attempt: p.Attempt, Snapshot: p.Snapshot, Kind: domain.ReceiptAccepted}, nil
+}
 func (n *acquisitionEnvironment) ObserveAcquisition(_ context.Context, p Placement, current domain.GenerationSnapshot) (AcquisitionEvidence, error) {
 	n.observed++
 	acquisition, _ := p.Action.Acquisition()
@@ -58,7 +67,15 @@ func (n *acquisitionEnvironment) ObserveAcquisition(_ context.Context, p Placeme
 	if n.unadmitted {
 		causality = domain.AfterDispatch
 	}
-	return AcquisitionEvidence{Observation: domain.Observation{Action: p.Action.ID(), Attempt: p.Attempt, Snapshot: current, Tick: p.Tick + 1, Effect: effect, Causality: causality}, StartedAt: n.clock.Now(), ObservedAt: n.clock.Now(), Complete: effect != domain.EffectUnknown, Acquisition: acquisition, LaborFinished: effect == domain.EffectCompleted || effect == domain.EffectUnsuccessful, OutputComplete: true, OutputObserved: effect == domain.EffectCompleted, ProducedUnits: 10}, nil
+	// A withdrawn designation fails without labor (designated=false); an
+	// unsuccessful harvest otherwise finished its labor with nothing.
+	labor := effect == domain.EffectCompleted || effect == domain.EffectUnsuccessful && n.withdrawn == 0
+	units := int32(10)
+	var reason domain.UnsuccessfulReason
+	if effect == domain.EffectUnsuccessful {
+		units, reason = 0, domain.OutcomeNotAchieved
+	}
+	return AcquisitionEvidence{Observation: domain.Observation{Action: p.Action.ID(), Attempt: p.Attempt, Snapshot: current, Tick: p.Tick + 1, Effect: effect, Causality: causality, UnsuccessfulReason: reason}, StartedAt: n.clock.Now(), ObservedAt: n.clock.Now(), Complete: effect != domain.EffectUnknown, Acquisition: acquisition, LaborFinished: labor, OutputComplete: true, OutputObserved: effect == domain.EffectCompleted, ProducedUnits: units, Designated: effect == domain.EffectPending && n.withdrawn == 0, PendingReason: "2 enabled plant cutter(s) busy"}, nil
 }
 func acquisitionFixture(t *testing.T) (*fixture, *acquisitionEnvironment) {
 	t.Helper()
@@ -194,5 +211,57 @@ func TestAcquisitionUnadmittedAttemptRetries(t *testing.T) {
 	n.effect = domain.EffectCompleted
 	if result, err = f.run(); err != nil || result.Progress.View().Stage != domain.Completed {
 		t.Fatal(result, err)
+	}
+}
+
+// A cancelled acquisition whose designation still sits untaken (#291) is
+// withdrawn natively under a fresh attempt, and the withdrawn record's
+// unsuccessful effect (designation gone, no labor) settles the action.
+func TestAcquisitionCancelledPendingDesignationIsWithdrawn(t *testing.T) {
+	f, n := acquisitionFixture(t)
+	if _, err := f.run(); err != nil {
+		t.Fatal(err)
+	}
+	n.effect = domain.EffectPending
+	result, err := f.run()
+	if err != nil || result.Detail != "2 enabled plant cutter(s) busy" || n.withdrawn != 0 || result.Progress.View().Stage != domain.AwaitingObservation {
+		t.Fatal("pending designation reported without its reason", result, err)
+	}
+	if _, err = f.store.Cancel(context.Background(), f.plan.ID(), f.action.ID()); err != nil {
+		t.Fatal(err)
+	}
+	result, err = f.run()
+	v := result.Progress.View()
+	if err != nil || n.withdrawn != 1 || !result.NativeCalled || v.Stage != domain.Cancelled || !v.Unresolved || v.Attempt != 2 {
+		t.Fatalf("cancelled pending designation not withdrawn: %+v %v %+v", v, err, n)
+	}
+	if receipt, known := v.Receipt.Value(); !known || receipt != domain.ReceiptAccepted {
+		t.Fatal("withdrawal receipt not journaled", v)
+	}
+	n.effect = domain.EffectUnsuccessful
+	result, err = f.run()
+	v = result.Progress.View()
+	if err != nil || v.Unresolved || v.Stage != domain.Cancelled || n.withdrawn != 1 || n.allowed != 1 {
+		t.Fatalf("withdrawn designation did not settle: %+v %v %+v", v, err, n)
+	}
+	if domain.GoalWorkOpen([]domain.Progress{result.Progress}) {
+		t.Fatal("settled withdrawal still holds the goal's work open")
+	}
+}
+
+// Without a live designation there is nothing to withdraw: a cancelled
+// action whose effect is pending but undesignated keeps observing.
+func TestAcquisitionCancelledUndesignatedPendingIsNotWithdrawn(t *testing.T) {
+	f, n := acquisitionFixture(t)
+	if _, err := f.run(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.store.Cancel(context.Background(), f.plan.ID(), f.action.ID()); err != nil {
+		t.Fatal(err)
+	}
+	n.effect = domain.EffectUnsuccessful
+	result, err := f.run()
+	if err != nil || n.withdrawn != 0 || result.Progress.View().Unresolved {
+		t.Fatal("labor-finished failure of a cancelled action not settled", result, err, n)
 	}
 }

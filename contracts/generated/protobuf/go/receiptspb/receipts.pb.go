@@ -1165,8 +1165,12 @@ type AcquisitionEffect struct {
 	Outputs        []*AcquisitionOutput   `protobuf:"bytes,7,rep,name=outputs,proto3" json:"outputs,omitempty"`
 	OutputObserved *bool                  `protobuf:"varint,8,opt,name=output_observed,json=outputObserved,proto3,oneof" json:"output_observed,omitempty"`
 	OutputComplete *bool                  `protobuf:"varint,9,opt,name=output_complete,json=outputComplete,proto3,oneof" json:"output_complete,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Why a still-designated plant harvest has no worker (forbidden, below
+	// harvest growth, no enabled plant cutter, unreachable, cutters busy on
+	// other work); set only on a pending effect (#291).
+	PendingReason *string `protobuf:"bytes,10,opt,name=pending_reason,json=pendingReason,proto3,oneof" json:"pending_reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *AcquisitionEffect) Reset() {
@@ -1260,6 +1264,13 @@ func (x *AcquisitionEffect) GetOutputComplete() bool {
 		return *x.OutputComplete
 	}
 	return false
+}
+
+func (x *AcquisitionEffect) GetPendingReason() string {
+	if x != nil && x.PendingReason != nil {
+		return *x.PendingReason
+	}
+	return ""
 }
 
 // Excavation completes when no mineable remains at the cell; yield is not evidence.
@@ -4595,7 +4606,7 @@ const file_receipts_proto_rawDesc = "" +
 	"\bthing_id\x18\x01 \x01(\tH\x00R\athingId\x88\x01\x01\x12\x19\n" +
 	"\x05units\x18\x02 \x01(\x05H\x01R\x05units\x88\x01\x01B\v\n" +
 	"\t_thing_idB\b\n" +
-	"\x06_units\"\xa9\x04\n" +
+	"\x06_units\"\xe8\x04\n" +
 	"\x11AcquisitionEffect\x12 \n" +
 	"\tsource_id\x18\x01 \x01(\tH\x00R\bsourceId\x88\x01\x01\x12&\n" +
 	"\fresource_def\x18\x02 \x01(\tH\x01R\vresourceDef\x88\x01\x01\x12/\n" +
@@ -4607,7 +4618,9 @@ const file_receipts_proto_rawDesc = "" +
 	"\x0eproduced_units\x18\x06 \x01(\x05H\x04R\rproducedUnits\x88\x01\x01\x12D\n" +
 	"\aoutputs\x18\a \x03(\v2*.rimgovernor.receipts.v1.AcquisitionOutputR\aoutputs\x12,\n" +
 	"\x0foutput_observed\x18\b \x01(\bH\x05R\x0eoutputObserved\x88\x01\x01\x12,\n" +
-	"\x0foutput_complete\x18\t \x01(\bH\x06R\x0eoutputComplete\x88\x01\x01B\f\n" +
+	"\x0foutput_complete\x18\t \x01(\bH\x06R\x0eoutputComplete\x88\x01\x01\x12*\n" +
+	"\x0epending_reason\x18\n" +
+	" \x01(\tH\aR\rpendingReason\x88\x01\x01B\f\n" +
 	"\n" +
 	"_source_idB\x0f\n" +
 	"\r_resource_defB\r\n" +
@@ -4615,7 +4628,8 @@ const file_receipts_proto_rawDesc = "" +
 	"\x0f_labor_finishedB\x11\n" +
 	"\x0f_produced_unitsB\x12\n" +
 	"\x10_output_observedB\x12\n" +
-	"\x10_output_complete\"\xad\x03\n" +
+	"\x10_output_completeB\x11\n" +
+	"\x0f_pending_reason\"\xad\x03\n" +
 	"\x10ExcavationEffect\x12/\n" +
 	"\x04cell\x18\x01 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04cell\x12/\n" +
 	"\x11mineable_def_name\x18\x02 \x01(\tH\x00R\x0fmineableDefName\x88\x01\x01\x12#\n" +

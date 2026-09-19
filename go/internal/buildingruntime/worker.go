@@ -138,7 +138,11 @@ func workerOutcome(after domain.ProgressView, result executor.Result, err error)
 	if v, known := after.Effect.Value(); known {
 		effect = string(v)
 	}
-	return fmt.Sprintf("stage=%s attempt=%d receipt=%s effect=%s refused=[%s] err=%v", after.Stage, after.Attempt, receipt, effect, strings.Join(reasons, ","), err)
+	detail := ""
+	if result.Detail != "" {
+		detail = fmt.Sprintf(" detail=%q", result.Detail)
+	}
+	return fmt.Sprintf("stage=%s attempt=%d receipt=%s effect=%s%s refused=[%s] err=%v", after.Stage, after.Attempt, receipt, effect, detail, strings.Join(reasons, ","), err)
 }
 
 func NewWorker(ctx context.Context, config WorkerConfig, player *Player, session *Session) (*Worker, error) {

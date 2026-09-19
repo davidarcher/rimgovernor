@@ -7,6 +7,7 @@ using System.Runtime.CompilerServices;
 using HarmonyLib;
 using RimWorld;
 using Verse;
+using Verse.AI;
 using Common = RimGovernor.Protocol.Common;
 using Receipts = RimGovernor.Protocol.Receipts;
 
@@ -31,6 +32,11 @@ namespace HomeBridge.BridgeTools
                 ProducedUnits = (int)Math.Min(int.MaxValue, Outputs.Values.Sum(v => (long)v)),
                 OutputComplete = NativeAcquisitionTracking.Ready && !Unreadable && Outputs.Values.Sum(v => (long)v) <= int.MaxValue,
                 OutputObserved = NativeAcquisitionTracking.Ready && !Unreadable && Outputs.Count > 0 };
+            if (result.Designated && !Finished)
+            {
+                var reason = PendingReason(Source, Map);
+                if (reason != null) result.PendingReason = reason;
+            }
             foreach (var pair in Outputs.OrderBy(p => p.Key.GetUniqueLoadID(), StringComparer.Ordinal))
             {
                 var thing = pair.Key;
@@ -40,7 +46,34 @@ namespace HomeBridge.BridgeTools
             }
             return result;
         }
-        public Receipts.Progress Observe(Common.AttemptKey attempt, Common.ObservationContext context) => Progress(attempt, context, Evidence());
+        // Why a still-designated harvest has no worker, mirroring the checks
+        // WorkGiver_PlantsCut makes before taking the designation; null when a
+        // plant cutter is on it now. Read-only evidence for the pending effect.
+        internal static string? PendingReason(Plant source, Map map)
+        {
+            try
+            {
+                if (source.IsForbidden(Faction.OfPlayer)) return "source forbidden";
+                if (source.Position.Fogged(map)) return "source fogged";
+                if (source.IsBurning()) return "source burning";
+                if (map.designationManager.DesignationOn(source, DesignationDefOf.HarvestPlant) != null && !source.HarvestableNow)
+                    return "below harvest growth (" + source.Growth.ToString("0.00") + ")";
+                var work = WorkTypeDefOf.PlantCutting;
+                var cutters = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Downed && !p.Drafted && !p.InMentalState
+                    && !p.WorkTypeIsDisabled(work) && p.workSettings != null && p.workSettings.WorkIsActive(work)
+                    && p.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)).ToList();
+                if (cutters.Count == 0) return "no enabled plant cutter";
+                if (cutters.Any(p => p.CurJob?.targetA.Thing == source)) return null;
+                var able = cutters.Where(p => NativePlantAcquisition.Cutter(p, source)).ToList();
+                if (able.Count == 0) return cutters.Count + " enabled plant cutter(s), none can reach the source";
+                var reserver = map.reservationManager.FirstRespectedReserver(source, able[0]);
+                if (reserver != null && !able.Contains(reserver)) return "source reserved by " + BridgeCommon.SafeString(() => reserver.LabelShortCap.ToString());
+                return able.Count + " enabled plant cutter(s) busy: " + string.Join(", ", able.Take(4).Select(p =>
+                    BridgeCommon.SafeString(() => p.LabelShortCap.ToString()) + "=" + (p.CurJob?.def.defName ?? "idle")));
+            }
+            catch (Exception error) { return "pending reason unavailable: " + error.GetType().Name; }
+        }
+        public Receipts.Progress Observe(Common.AttemptKey attempt, Common.ObservationContext context) => ObservePlant(attempt, context);
         internal static Receipts.Progress Progress(Common.AttemptKey attempt, Common.ObservationContext context, Receipts.AcquisitionEffect observed)
         {
             var result = new Receipts.Progress { Attempt = attempt.Clone(), Context = context.Clone(), CompleteInspection = true };
@@ -54,6 +87,21 @@ namespace HomeBridge.BridgeTools
                 result.Pending = new Receipts.PendingEffect { Evidence = evidence };
             else { result.CompleteInspection = false; result.Unknown = new Receipts.UnknownEffect { Reason = "Missing source or output does not prove acquisition." }; }
             return result;
+        }
+        // A plant record whose designation is gone before any harvest is
+        // terminal (the excavation rule for a removed mine designation): the
+        // player, the game or CancelAcquisition (#291) withdrew it, and the
+        // acquisition certainly did not happen through it. A source that
+        // vanished uncollected is the same outcome.
+        internal Receipts.Progress ObservePlant(Common.AttemptKey attempt, Common.ObservationContext context)
+        {
+            var observed = Evidence();
+            if (!observed.LaborFinished && !observed.Designated)
+                return new Receipts.Progress { Attempt = attempt.Clone(), Context = context.Clone(), CompleteInspection = true,
+                    Unsuccessful = new Receipts.UnsuccessfulEffect { Reason = Receipts.UnsuccessfulReason.OutcomeNotAchieved,
+                        Evidence = new Receipts.EffectEvidence { Acquisition = observed },
+                        Detail = Source.Destroyed || !Source.Spawned ? "Source is gone without an observed harvest." : "Harvest designation is gone and the plant remains." } };
+            return Progress(attempt, context, observed);
         }
     }
 
@@ -94,6 +142,13 @@ namespace HomeBridge.BridgeTools
             var info = Harmony.GetPatchInfo(t);
             return info != null && info.Prefixes.Concat(info.Postfixes).Any(p => p.owner == Owner);
         });
+        // Tracked is the live (unfinished) record for a plant this controller
+        // designated, if any; CancelAcquisition withdraws through it.
+        internal static NativeAcquisitionRecord? Tracked(Plant source)
+        {
+            if (Current.Game == null || !States.TryGetValue(Current.Game, out var state) || !state.Sources.TryGetValue(source, out var record) || record.Finished) return null;
+            return record;
+        }
         internal static bool Track(NativeAcquisitionRecord record)
         {
             if (!Ready || Current.Game == null) return false;

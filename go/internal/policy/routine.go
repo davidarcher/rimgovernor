@@ -87,6 +87,12 @@ type RoutinePolicy struct {
 	// the covered-storage fallback instead of re-inspecting the same refusal
 	// forever.
 	HaulStallTicks int64
+	// AcquisitionStallTicks bounds how long a dispatched plant-harvest
+	// acquisition may stay designated with its effect pending (no colonist
+	// has taken the designation) before the acquisition and medical
+	// planners cancel it so the goal re-plans from another source instead
+	// of waiting on one plant (#291: wild healroot pending 120k ticks).
+	AcquisitionStallTicks int64
 	// ResearchTarget is an operator-declared desired native ResearchProjectDef
 	// name; empty disables EnsureResearch's routine dispatch. The need is
 	// measured against RoutineFacts.Research each review (idle tab with the
@@ -181,7 +187,7 @@ type RoutinePolicy struct {
 
 func DefaultRoutinePolicy() RoutinePolicy {
 	return RoutinePolicy{AnimalUpkeep: DefaultAnimalUpkeepPolicy(), MedicalReserve: DefaultMedicalReservePolicy(), FoodStorage: DefaultFoodStoragePolicy(), Cleanliness: DefaultCleanlinessPolicy(), Lighting: DefaultLightingPolicy(), Flooring: DefaultFlooringPolicy(), Routes: DefaultRoutesPolicy(), MaxDevelopmentProjects: 2, FoodMinDays: 3, FoodTargetDays: 7, FootholdFoodDays: 3,
-		ColdEnter: 12, ColdExit: 16, HotExit: 28, HotEnter: 32, WoodMin: 120, WoodTarget: 350, WoodMax: 500, HuntStallTicks: 6000, HaulStallTicks: 2500, ResearchLadder: DefaultResearchLadder()}
+		ColdEnter: 12, ColdExit: 16, HotExit: 28, HotEnter: 32, WoodMin: 120, WoodTarget: 350, WoodMax: 500, HuntStallTicks: 6000, HaulStallTicks: 2500, AcquisitionStallTicks: 60000, ResearchLadder: DefaultResearchLadder()}
 }
 
 func (p RoutinePolicy) Validate() error {
@@ -218,6 +224,9 @@ func (p RoutinePolicy) Validate() error {
 	}
 	if p.HaulStallTicks <= 0 {
 		return errors.New("invalid haul stall grace")
+	}
+	if p.AcquisitionStallTicks <= 0 {
+		return errors.New("invalid acquisition stall grace")
 	}
 	if p.ResearchTarget != "" && !validResource(Resource(p.ResearchTarget)) {
 		return errors.New("invalid research target")

@@ -129,6 +129,11 @@ func (b *MineAcquisitionBoundary) Acquire(ctx context.Context, request executor.
 		},
 	)
 }
+// WithdrawAcquisition is not a mine operation: the executor withdraws only
+// plant designations (#291), and runMineAcquisition never reaches it.
+func (b *MineAcquisitionBoundary) WithdrawAcquisition(context.Context, executor.AcquisitionDispatch) (executor.Receipt, error) {
+	return executor.Receipt{}, executor.ErrEvidence
+}
 func (b *MineAcquisitionBoundary) ObserveAcquisition(ctx context.Context, p executor.Placement, current domain.GenerationSnapshot) (executor.AcquisitionEvidence, error) {
 	out := executor.AcquisitionEvidence{StartedAt: b.Clock.Now(), Observation: domain.Observation{Action: p.Action.ID(), Attempt: p.Attempt, Snapshot: current, Effect: domain.EffectUnknown}}
 	if !boundary.World(current, p.Snapshot) {

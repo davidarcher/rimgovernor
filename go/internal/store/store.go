@@ -1013,6 +1013,8 @@ func apply(p domain.Progress, e transition) (domain.Progress, error) {
 		return p.Hold(e.HeldReasons, e.Tick)
 	case "cancel":
 		return p.Cancel()
+	case "withdraw":
+		return p.Withdraw(e.Snapshot, e.Tick)
 	default:
 		return p, fmt.Errorf("unknown transition %q", e.Kind)
 	}
@@ -1472,6 +1474,13 @@ func (s *Store) Observe(ctx context.Context, plan domain.PlanID, observation dom
 
 func (s *Store) Cancel(ctx context.Context, plan domain.PlanID, action domain.ActionID) (domain.Progress, error) {
 	return s.advance(ctx, plan, action, transition{Kind: "cancel"})
+}
+
+// Withdraw opens the native withdrawal attempt of a cancelled, still-pending
+// dispatch (domain.Progress.Withdraw); the executor writes the cancellation
+// only after this is durable, as with Dispatch.
+func (s *Store) Withdraw(ctx context.Context, plan domain.PlanID, action domain.ActionID, snapshot domain.GenerationSnapshot, tick domain.Tick) (domain.Progress, error) {
+	return s.advance(ctx, plan, action, transition{Kind: "withdraw", Snapshot: snapshot, Tick: tick})
 }
 
 // Hold durably records why a not-yet-dispatched action is currently stuck.

@@ -100,6 +100,10 @@ type Result struct {
 	Progress     domain.Progress
 	Refused      []policy.Refusal
 	NativeCalled bool
+	// Detail is native's free-text account of an unresolved effect, when
+	// the boundary carries one (an acquisition's pending reason, #291); it
+	// is evidence for the log, never a decision input.
+	Detail string
 }
 
 type Executor struct {
