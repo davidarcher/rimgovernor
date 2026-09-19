@@ -136,6 +136,22 @@ NegativeEvent, the classes the native supervisor never stops play for)
 stops the window but holds nothing: the next step admits again without a
 resume (#228).
 
+## Auto takeover acceptance
+
+The `takeover/*` cases enter Manual, apply a player edit, return to Auto and
+assert native readback. `takeover/schedule` restores the planned timetable;
+`takeover/draft` adopts and releases a standing player draft;
+`takeover/built-facility` maintains Home for a player-built bed without build
+history; `takeover/suspended-bill` corrects a player bill and observes produced
+feed; `takeover/demolition-designation` explicitly adopts a colony wall's order
+and observes pawn demolition; `takeover/home-removal` restores removed Home.
+Service cases audit the durable routine journal for provenance holds; direct
+operation cases recover their applied receipt from the native attempt journal.
+`draft/order` retains stale-snapshot and exact-claim checks alongside adoption;
+`upkeep/home-coverage` checks connected Home restoration and save recovery.
+Unadopted demolition orders remain untouched: Auto permits explicit adoption,
+but a player designation alone does not create a controller plan need.
+
 ## Verify progress
 
 Hands records receipts; completion tracking checks native postconditions. A
