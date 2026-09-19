@@ -59,9 +59,11 @@ func TestRescueDefenseHolds(t *testing.T) {
 		{"zero action", func(r *RescueRequest) { r.Action = domain.Action{} }},
 		{"zero progress", func(r *RescueRequest) { r.Progress = domain.Progress{} }},
 		{"cancelled", func(r *RescueRequest) { r.Progress, _ = r.Progress.Cancel() }},
-		{"minimum", func(r *RescueRequest) { r.MinimumTick = 13 }},
+		{"minimum", func(r *RescueRequest) { r.MinimumTick = 14 }},
 		{"negative minimum", func(r *RescueRequest) { r.MinimumTick = -1 }},
 		{"reversed interval", func(r *RescueRequest) { r.Facts.PreviewTick = 11 }},
+		{"pawn row outrun", func(r *RescueRequest) { r.Facts.PreviewTick = 12 + domain.PlanningTickTolerance + 1 }},
+		{"prepared past preview", func(r *RescueRequest) { r.Progress, _ = r.Progress.Prepare(r.Current, 14) }},
 		{"old emergency", func(r *RescueRequest) { r.Facts.Emergency.tick = 12 }},
 		{"zero generation", func(r *RescueRequest) { r.Current.Native = 0 }},
 		{"native", func(r *RescueRequest) { r.Current.Native++ }},
@@ -137,5 +139,23 @@ func TestSelectRescueExcludesIneligibleCandidates(t *testing.T) {
 	}
 	if _, _, ok := SelectRescue([]RescuerFacts{fine}, []RescuePatientFacts{standing, alreadyBedded}); ok {
 		t.Fatal("selected an ineligible patient")
+	}
+}
+
+// TestRescueAdmitsCachedPawnRowBehindPreparedTick is the #306 shape (#323):
+// the executor's second inspection under a running window is served the
+// pawn row the first read (tick 12) cached, while the first preview (tick
+// 13) prepared the action and raised the minimum; the second preview (tick
+// 15) anchors the admission, so the older row is fresh evidence.
+func TestRescueAdmitsCachedPawnRowBehindPreparedTick(t *testing.T) {
+	r := rescueRequest(t)
+	var err error
+	if r.Progress, err = r.Progress.Prepare(r.Current, 13); err != nil {
+		t.Fatal(err)
+	}
+	r.MinimumTick, r.Facts.PawnTick, r.Facts.PreviewTick = 13, 12, 15
+	r.Facts.Emergency.tick = r.Facts.PreviewTick
+	if d := EvaluateRescue(r); !d.Admitted || len(d.Refused) != 0 {
+		t.Fatal(d)
 	}
 }

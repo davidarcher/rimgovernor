@@ -48,9 +48,11 @@ func TestHaulDefenseHolds(t *testing.T) {
 		{"zero action", func(r *HaulRequest) { r.Action = domain.Action{} }},
 		{"zero progress", func(r *HaulRequest) { r.Progress = domain.Progress{} }},
 		{"cancelled", func(r *HaulRequest) { r.Progress, _ = r.Progress.Cancel() }},
-		{"minimum", func(r *HaulRequest) { r.MinimumTick = 13 }},
+		{"minimum", func(r *HaulRequest) { r.MinimumTick = 14 }},
 		{"negative minimum", func(r *HaulRequest) { r.MinimumTick = -1 }},
 		{"reversed interval", func(r *HaulRequest) { r.Facts.PreviewTick = 11 }},
+		{"pawn row outrun", func(r *HaulRequest) { r.Facts.PreviewTick = 12 + domain.PlanningTickTolerance + 1 }},
+		{"prepared past preview", func(r *HaulRequest) { r.Progress, _ = r.Progress.Prepare(r.Current, 14) }},
 		{"zero generation", func(r *HaulRequest) { r.Current.Native = 0 }},
 		{"native", func(r *HaulRequest) { r.Current.Native++ }},
 		{"colony", func(r *HaulRequest) { r.Current.Colony = "other" }},
@@ -95,6 +97,23 @@ func TestHaulRefusesAbsentThing(t *testing.T) {
 	r = haulRequest(t)
 	r.Facts.ThingPresent = domain.Known(true)
 	if d := EvaluateHaul(r); !d.Admitted {
+		t.Fatal(d)
+	}
+}
+
+// TestHaulAdmitsCachedPawnRowBehindPreparedTick is the #306 shape (#323):
+// the executor's second inspection under a running window is served the
+// pawn row the first read (tick 12) cached, while the first preview (tick
+// 13) prepared the action and raised the minimum; the second preview (tick
+// 15) anchors the admission, so the older row is fresh evidence.
+func TestHaulAdmitsCachedPawnRowBehindPreparedTick(t *testing.T) {
+	r := haulRequest(t)
+	var err error
+	if r.Progress, err = r.Progress.Prepare(r.Current, 13); err != nil {
+		t.Fatal(err)
+	}
+	r.MinimumTick, r.Facts.PawnTick, r.Facts.PreviewTick = 13, 12, 15
+	if d := EvaluateHaul(r); !d.Admitted || len(d.Refused) != 0 {
 		t.Fatal(d)
 	}
 }

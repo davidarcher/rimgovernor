@@ -48,9 +48,11 @@ func TestGearReplaceDefenseHolds(t *testing.T) {
 		{"zero action", func(r *GearReplaceRequest) { r.Action = domain.Action{} }},
 		{"zero progress", func(r *GearReplaceRequest) { r.Progress = domain.Progress{} }},
 		{"cancelled", func(r *GearReplaceRequest) { r.Progress, _ = r.Progress.Cancel() }},
-		{"minimum", func(r *GearReplaceRequest) { r.MinimumTick = 13 }},
+		{"minimum", func(r *GearReplaceRequest) { r.MinimumTick = 14 }},
 		{"negative minimum", func(r *GearReplaceRequest) { r.MinimumTick = -1 }},
 		{"reversed interval", func(r *GearReplaceRequest) { r.Facts.PreviewTick = 11 }},
+		{"pawn row outrun", func(r *GearReplaceRequest) { r.Facts.PreviewTick = 12 + domain.PlanningTickTolerance + 1 }},
+		{"prepared past preview", func(r *GearReplaceRequest) { r.Progress, _ = r.Progress.Prepare(r.Current, 14) }},
 		{"zero generation", func(r *GearReplaceRequest) { r.Current.Native = 0 }},
 		{"native", func(r *GearReplaceRequest) { r.Current.Native++ }},
 		{"colony", func(r *GearReplaceRequest) { r.Current.Colony = "other" }},
@@ -79,5 +81,22 @@ func TestGearReplaceDefenseHolds(t *testing.T) {
 				t.Fatal(d)
 			}
 		})
+	}
+}
+
+// TestGearReplaceAdmitsCachedPawnRowBehindPreparedTick is the #306 shape (#323):
+// the executor's second inspection under a running window is served the
+// pawn row the first read (tick 12) cached, while the first preview (tick
+// 13) prepared the action and raised the minimum; the second preview (tick
+// 15) anchors the admission, so the older row is fresh evidence.
+func TestGearReplaceAdmitsCachedPawnRowBehindPreparedTick(t *testing.T) {
+	r := gearReplaceRequest(t)
+	var err error
+	if r.Progress, err = r.Progress.Prepare(r.Current, 13); err != nil {
+		t.Fatal(err)
+	}
+	r.MinimumTick, r.Facts.PawnTick, r.Facts.PreviewTick = 13, 12, 15
+	if d := EvaluateGearReplace(r); !d.Admitted || len(d.Refused) != 0 {
+		t.Fatal(d)
 	}
 }

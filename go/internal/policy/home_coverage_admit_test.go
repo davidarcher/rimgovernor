@@ -57,9 +57,11 @@ func TestHomeCoverageDefenseHolds(t *testing.T) {
 		{"zero action", func(r *HomeCoverageRequest) { r.Action = domain.Action{} }},
 		{"zero progress", func(r *HomeCoverageRequest) { r.Progress = domain.Progress{} }},
 		{"cancelled", func(r *HomeCoverageRequest) { r.Progress, _ = r.Progress.Cancel() }},
-		{"minimum", func(r *HomeCoverageRequest) { r.MinimumTick = 13 }},
+		{"minimum", func(r *HomeCoverageRequest) { r.MinimumTick = 14 }},
 		{"negative minimum", func(r *HomeCoverageRequest) { r.MinimumTick = -1 }},
 		{"reversed interval", func(r *HomeCoverageRequest) { r.Facts.PreviewTick = 11 }},
+		{"observation row outrun", func(r *HomeCoverageRequest) { r.Facts.PreviewTick = 12 + domain.PlanningTickTolerance + 1 }},
+		{"prepared past preview", func(r *HomeCoverageRequest) { r.Progress, _ = r.Progress.Prepare(r.Current, 14) }},
 		{"zero generation", func(r *HomeCoverageRequest) { r.Current.Native = 0 }},
 		{"native", func(r *HomeCoverageRequest) { r.Current.Native++ }},
 		{"colony", func(r *HomeCoverageRequest) { r.Current.Colony = "other" }},
@@ -86,5 +88,22 @@ func TestHomeCoverageDefenseHolds(t *testing.T) {
 				t.Fatal(d)
 			}
 		})
+	}
+}
+
+// TestHomeCoverageAdmitsCachedPawnRowBehindPreparedTick is the #306 shape (#323):
+// the executor's second inspection under a running window is served the
+// observation row the first read (tick 12) cached, while the first preview (tick
+// 13) prepared the action and raised the minimum; the second preview (tick
+// 15) anchors the admission, so the older row is fresh evidence.
+func TestHomeCoverageAdmitsCachedPawnRowBehindPreparedTick(t *testing.T) {
+	r := homeCoverageRequest(t)
+	var err error
+	if r.Progress, err = r.Progress.Prepare(r.Current, 13); err != nil {
+		t.Fatal(err)
+	}
+	r.MinimumTick, r.Facts.ObservationTick, r.Facts.PreviewTick = 13, 12, 15
+	if d := EvaluateHomeCoverage(r); !d.Admitted || len(d.Refused) != 0 {
+		t.Fatal(d)
 	}
 }

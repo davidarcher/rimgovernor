@@ -389,8 +389,11 @@ accept that lag: a routine read's boundary (`observation.cachedColonyBoundary`,
 expected tick or within the planning tolerance ahead of it, and a pawn-order
 admission anchors on its preview tick, the inspection's one live read,
 tolerating a pawn row within the planning tolerance behind it and a target
-read (filth, haul stacks) within its family's tolerance behind the pawn
-read. Within the step a later native
+read (filth, haul stacks, a bed, a repair structure, a waste item, a gear
+census) within its family's tolerance behind the pawn read; every
+pawn-order family admits this way since #323, and a draft-owned attack or
+move anchors its draft's completion tick on the same preview. Within the
+step a later native
 reply of the same load and generation ahead of the anchor within its
 family's tolerance joins the scope and is filed at its own tick; one past
 the tolerance discards the step's rows and re-anchors, as a new generation

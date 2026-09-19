@@ -17,13 +17,16 @@ func EvaluateMovement(r MovementRequest) DraftDecision {
 	}
 	v, d := r.Progress.View(), r.DraftProgress.View()
 	f := r.Facts
-	if r.Current.Validate() != nil || r.Current.Native == 0 || !f.Snapshot.Matches(r.Current) || r.MinimumTick < 0 || f.PawnTick < r.MinimumTick || f.PreviewTick < f.PawnTick {
+	// The admission anchors on the preview tick, the inspection's one live
+	// read; the pawn row may come from the step's fact cache up to the
+	// planning tolerance behind it under a running window (#306, #323).
+	if r.Current.Validate() != nil || r.Current.Native == 0 || !f.Snapshot.Matches(r.Current) || r.MinimumTick < 0 || f.PreviewTick < r.MinimumTick || !f.PreviewTick.FreshFor(f.PawnTick) {
 		return refuse(StaleFacts)
 	}
 	if r.Progress.Action() != r.Action || v.Plan != r.Current.Plan || v.Revision != r.Current.Revision || v.Unresolved || (v.Stage != domain.Pending && v.Stage != domain.Prepared) {
 		return refuse(NotReady)
 	}
-	if f.PawnTick < v.Tick || (v.Stage == domain.Prepared && !sameWorld(v.Snapshot, r.Current)) || (v.Attempt > 0 && (v.Snapshot.Colony != r.Current.Colony || v.Snapshot.Map != r.Current.Map || v.Snapshot.Load != r.Current.Load)) {
+	if f.PreviewTick < v.Tick || (v.Stage == domain.Prepared && !sameWorld(v.Snapshot, r.Current)) || (v.Attempt > 0 && (v.Snapshot.Colony != r.Current.Colony || v.Snapshot.Map != r.Current.Map || v.Snapshot.Load != r.Current.Load)) {
 		return refuse(StaleFacts)
 	}
 	draft, isDraft := r.DraftProgress.Action().OwnedDraft()
@@ -36,7 +39,7 @@ func EvaluateMovement(r MovementRequest) DraftDecision {
 	if !known || cleanup.Stage != domain.DraftCleanupRequired || !claimed || !owned || claim.Action != d.Action || claim.Attempt != d.Attempt || claim.Pawn != m.Pawn() || !claim.Origin.Matches(r.Current) || owner.Claim != claim.Claim || owner.Session != claim.Session {
 		return refuse(DraftOwnership)
 	}
-	if f.PawnTick < d.Tick {
+	if f.PreviewTick < d.Tick {
 		return refuse(StaleFacts)
 	}
 	if f.Pawn.Pawn != m.Pawn() {

@@ -48,9 +48,11 @@ func TestEquipDefenseHolds(t *testing.T) {
 		{"zero action", func(r *EquipRequest) { r.Action = domain.Action{} }},
 		{"zero progress", func(r *EquipRequest) { r.Progress = domain.Progress{} }},
 		{"cancelled", func(r *EquipRequest) { r.Progress, _ = r.Progress.Cancel() }},
-		{"minimum", func(r *EquipRequest) { r.MinimumTick = 13 }},
+		{"minimum", func(r *EquipRequest) { r.MinimumTick = 14 }},
 		{"negative minimum", func(r *EquipRequest) { r.MinimumTick = -1 }},
 		{"reversed interval", func(r *EquipRequest) { r.Facts.PreviewTick = 11 }},
+		{"pawn row outrun", func(r *EquipRequest) { r.Facts.PreviewTick = 12 + domain.PlanningTickTolerance + 1 }},
+		{"prepared past preview", func(r *EquipRequest) { r.Progress, _ = r.Progress.Prepare(r.Current, 14) }},
 		{"zero generation", func(r *EquipRequest) { r.Current.Native = 0 }},
 		{"native", func(r *EquipRequest) { r.Current.Native++ }},
 		{"colony", func(r *EquipRequest) { r.Current.Colony = "other" }},
@@ -134,5 +136,22 @@ func TestSelectEquipPrefersRealWeaponsOverMakeshift(t *testing.T) {
 	}
 	if ClassifyWeapon(true, true, false) != WeaponRanged || ClassifyWeapon(false, true, false) != WeaponRanged || ClassifyWeapon(true, false, true) != WeaponMelee || ClassifyWeapon(false, false, true) != WeaponMakeshift || ClassifyWeapon(false, false, false) != WeaponMakeshift {
 		t.Fatal("classification")
+	}
+}
+
+// TestEquipAdmitsCachedPawnRowBehindPreparedTick is the #306 shape (#323):
+// the executor's second inspection under a running window is served the
+// pawn row the first read (tick 12) cached, while the first preview (tick
+// 13) prepared the action and raised the minimum; the second preview (tick
+// 15) anchors the admission, so the older row is fresh evidence.
+func TestEquipAdmitsCachedPawnRowBehindPreparedTick(t *testing.T) {
+	r := equipRequest(t)
+	var err error
+	if r.Progress, err = r.Progress.Prepare(r.Current, 13); err != nil {
+		t.Fatal(err)
+	}
+	r.MinimumTick, r.Facts.PawnTick, r.Facts.PreviewTick = 13, 12, 15
+	if d := EvaluateEquip(r); !d.Admitted || len(d.Refused) != 0 {
+		t.Fatal(d)
 	}
 }

@@ -17,6 +17,10 @@ type haulEnvironment struct {
 	uncertain, ineligible, foreign  bool
 	absent                          bool
 	effect                          domain.Effect
+	// running makes each inspection's preview land a few ticks after the
+	// one before while the pawn row keeps its first tick: the step's fact
+	// cache serving a re-read under a running window (#306, #323).
+	running bool
 }
 
 func (n *haulEnvironment) haulFacts(target Target) policy.HaulFacts {
@@ -25,6 +29,9 @@ func (n *haulEnvironment) haulFacts(target Target) policy.HaulFacts {
 	facts := policy.HaulFacts{Snapshot: target.Snapshot, PawnTick: n.tick, PreviewTick: n.tick, Pawn: pawn, ThingSnapshotToken: "thing-token", NativeCanTry: domain.Known(!n.ineligible)}
 	if n.absent {
 		facts.ThingPresent, facts.ThingSnapshotToken, facts.NativeCanTry = domain.Known(false), "", domain.Known(false)
+	}
+	if n.running {
+		facts.PreviewTick += domain.Tick(3 * n.inspected)
 	}
 	return facts
 }
@@ -79,6 +86,22 @@ func haulFixture(t *testing.T) (*fixture, *haulEnvironment) {
 		t.Fatal(err)
 	}
 	return f, n
+}
+
+// TestHaulDispatchesUnderRunningWindow is the #306 stall in the haul family
+// (#323): the second inspection's pawn row is the cached first one while its
+// preview tick has moved past the tick the first preview prepared the action
+// at.
+func TestHaulDispatchesUnderRunningWindow(t *testing.T) {
+	f, n := haulFixture(t)
+	n.running = true
+	result, err := f.run()
+	if err != nil || !result.Progress.View().Unresolved || n.dispatched != 1 || len(result.Refused) != 0 {
+		t.Fatal(result, err, n.dispatched)
+	}
+	if v := result.Progress.View(); v.Tick != n.tick+6 {
+		t.Fatalf("dispatched at %d, want the second preview tick %d", v.Tick, n.tick+6)
+	}
 }
 
 func TestHaulAdmitsAndDispatches(t *testing.T) {

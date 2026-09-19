@@ -81,9 +81,11 @@ func TestRangedDefenseHolds(t *testing.T) {
 		{"zero action", func(r *RangedDefenseRequest) { r.Action = domain.Action{} }},
 		{"zero progress", func(r *RangedDefenseRequest) { r.Progress = domain.Progress{} }},
 		{"cancelled", func(r *RangedDefenseRequest) { r.Progress, _ = r.Progress.Cancel() }},
-		{"minimum", func(r *RangedDefenseRequest) { r.MinimumTick = 13 }},
+		{"minimum", func(r *RangedDefenseRequest) { r.MinimumTick = 14 }},
 		{"negative minimum", func(r *RangedDefenseRequest) { r.MinimumTick = -1 }},
 		{"reversed interval", func(r *RangedDefenseRequest) { r.Facts.PreviewTick = 11 }},
+		{"pawn row outrun", func(r *RangedDefenseRequest) { r.Facts.PreviewTick = 12 + domain.PlanningTickTolerance + 1 }},
+		{"prepared past preview", func(r *RangedDefenseRequest) { r.Progress, _ = r.Progress.Prepare(r.Current, 14) }},
 		{"old emergency", func(r *RangedDefenseRequest) { r.Facts.Emergency.tick = 12 }},
 		{"zero generation", func(r *RangedDefenseRequest) { r.Current.Native = 0 }},
 		{"native", func(r *RangedDefenseRequest) { r.Current.Native++ }},
@@ -121,5 +123,23 @@ func TestRangedDefenseHolds(t *testing.T) {
 				t.Fatal(d)
 			}
 		})
+	}
+}
+
+// TestRangedAdmitsCachedPawnRowBehindPreparedTick is the #306 shape (#323):
+// the executor's second inspection under a running window is served the
+// pawn row the first read (tick 12) cached, while the first preview (tick
+// 13) prepared the action and raised the minimum; the second preview (tick
+// 15) anchors the admission, so the older row is fresh evidence.
+func TestRangedAdmitsCachedPawnRowBehindPreparedTick(t *testing.T) {
+	r := rangedRequest(t)
+	var err error
+	if r.Progress, err = r.Progress.Prepare(r.Current, 13); err != nil {
+		t.Fatal(err)
+	}
+	r.MinimumTick, r.Facts.PawnTick, r.Facts.PreviewTick = 13, 12, 15
+	r.Facts.Emergency.tick = r.Facts.PreviewTick
+	if d := EvaluateRangedDefense(r); !d.Admitted || len(d.Refused) != 0 {
+		t.Fatal(d)
 	}
 }

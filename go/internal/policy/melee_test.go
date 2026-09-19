@@ -76,9 +76,10 @@ func TestMeleeDefenseAdmission(t *testing.T) {
 
 // Under a running combat window the executor's second inspection may read
 // the pawn from the step's fact cache, up to PlanningTickTolerance behind
-// the first preview it already admitted (#244, #246): the cached read
-// covers the admitted tick and the attack goes on to dispatch; a read the
-// tolerance cannot bridge is stale.
+// the preview that anchors the admission (#244, #246, #306): the cached
+// read is fresh evidence for the preview and the attack goes on to
+// dispatch; a pawn row the preview has outrun by more is stale, as is a
+// preview behind the minimum tick.
 func TestMeleeDefenseToleratesACachedPawnReadBehindTheAdmittedTick(t *testing.T) {
 	r := meleeRequest(t)
 	var err error
@@ -87,12 +88,18 @@ func TestMeleeDefenseToleratesACachedPawnReadBehindTheAdmittedTick(t *testing.T)
 		t.Fatal(err)
 	}
 	r.MinimumTick = 12 + domain.PlanningTickTolerance
-	r.Facts.PreviewTick = 12 + domain.PlanningTickTolerance + 1
+	r.Facts.PreviewTick = 12 + domain.PlanningTickTolerance
 	r.Facts.Emergency.tick = r.Facts.PreviewTick
 	if d := EvaluateMeleeDefense(r); !d.Admitted || len(d.Refused) != 0 {
 		t.Fatalf("cached pawn read within tolerance refused: %v", d)
 	}
 	r.MinimumTick++
+	if d := EvaluateMeleeDefense(r); d.Admitted || len(d.Refused) != 1 || d.Refused[0].Reason != StaleFacts {
+		t.Fatalf("preview behind the minimum admitted: %v", d)
+	}
+	r.MinimumTick--
+	r.Facts.PreviewTick++
+	r.Facts.Emergency.tick = r.Facts.PreviewTick
 	if d := EvaluateMeleeDefense(r); d.Admitted || len(d.Refused) != 1 || d.Refused[0].Reason != StaleFacts {
 		t.Fatalf("pawn read beyond tolerance admitted: %v", d)
 	}

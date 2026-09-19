@@ -103,7 +103,12 @@ func (b *RepairBoundary) InspectRepair(ctx context.Context, target executor.Targ
 	if _, err = boundary.Context(structure.Context, current); err != nil {
 		return out, err
 	}
-	if structure.Context.GetTick() < observed.Context.GetTick() {
+	// The target read may come from the step's fact cache under a running
+	// window, up to its family's tick tolerance behind the pawn read, the
+	// step's first native read (#306, #323); its snapshot token still binds
+	// the order to what it listed, so native refuses a stale one at dispatch.
+	// Only a read the pawn read has outrun is wrong evidence.
+	if structure.Context.GetTick()+bridge.FactColony.TickTolerance() < observed.Context.GetTick() {
 		return out, executor.ErrEvidence
 	}
 	if structure.MaxHitPoints < structure.HitPoints || structure.MaxHitPoints <= 0 {

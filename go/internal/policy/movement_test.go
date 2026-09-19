@@ -71,9 +71,11 @@ func TestMovementHolds(t *testing.T) {
 		{"zero action", func(r *MovementRequest) { r.Action = domain.Action{} }},
 		{"zero progress", func(r *MovementRequest) { r.Progress = domain.Progress{} }},
 		{"cancelled", func(r *MovementRequest) { r.Progress, _ = r.Progress.Cancel() }},
-		{"minimum", func(r *MovementRequest) { r.MinimumTick = 13 }},
+		{"minimum", func(r *MovementRequest) { r.MinimumTick = 14 }},
 		{"negative minimum", func(r *MovementRequest) { r.MinimumTick = -1 }},
 		{"reversed interval", func(r *MovementRequest) { r.Facts.PreviewTick = 11 }},
+		{"pawn row outrun", func(r *MovementRequest) { r.Facts.PreviewTick = 12 + domain.PlanningTickTolerance + 1 }},
+		{"prepared past preview", func(r *MovementRequest) { r.Progress, _ = r.Progress.Prepare(r.Current, 14) }},
 		{"old emergency", func(r *MovementRequest) { r.Facts.Emergency.tick = 12 }},
 		{"zero generation", func(r *MovementRequest) { r.Current.Native = 0 }},
 		{"native", func(r *MovementRequest) { r.Current.Native++ }},
@@ -109,5 +111,23 @@ func TestMovementHolds(t *testing.T) {
 				t.Fatal(d)
 			}
 		})
+	}
+}
+
+// TestMovementAdmitsCachedPawnRowBehindPreparedTick is the #306 shape (#323):
+// the executor's second inspection under a running window is served the
+// pawn row the first read (tick 12) cached, while the first preview (tick
+// 13) prepared the action and raised the minimum; the second preview (tick
+// 15) anchors the admission, so the older row is fresh evidence.
+func TestMovementAdmitsCachedPawnRowBehindPreparedTick(t *testing.T) {
+	r := movementRequest(t)
+	var err error
+	if r.Progress, err = r.Progress.Prepare(r.Current, 13); err != nil {
+		t.Fatal(err)
+	}
+	r.MinimumTick, r.Facts.PawnTick, r.Facts.PreviewTick = 13, 12, 15
+	r.Facts.Emergency.tick = r.Facts.PreviewTick
+	if d := EvaluateMovement(r); !d.Admitted || len(d.Refused) != 0 {
+		t.Fatal(d)
 	}
 }

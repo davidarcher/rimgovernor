@@ -58,9 +58,11 @@ func TestCaptureDefenseHolds(t *testing.T) {
 		{"zero action", func(r *CaptureRequest) { r.Action = domain.Action{} }},
 		{"zero progress", func(r *CaptureRequest) { r.Progress = domain.Progress{} }},
 		{"cancelled", func(r *CaptureRequest) { r.Progress, _ = r.Progress.Cancel() }},
-		{"minimum", func(r *CaptureRequest) { r.MinimumTick = 13 }},
+		{"minimum", func(r *CaptureRequest) { r.MinimumTick = 14 }},
 		{"negative minimum", func(r *CaptureRequest) { r.MinimumTick = -1 }},
 		{"reversed interval", func(r *CaptureRequest) { r.Facts.PreviewTick = 11 }},
+		{"pawn row outrun", func(r *CaptureRequest) { r.Facts.PreviewTick = 12 + domain.PlanningTickTolerance + 1 }},
+		{"prepared past preview", func(r *CaptureRequest) { r.Progress, _ = r.Progress.Prepare(r.Current, 14) }},
 		{"old emergency", func(r *CaptureRequest) { r.Facts.Emergency.tick = 12 }},
 		{"zero generation", func(r *CaptureRequest) { r.Current.Native = 0 }},
 		{"native", func(r *CaptureRequest) { r.Current.Native++ }},
@@ -127,5 +129,23 @@ func TestSelectCaptureExcludesIneligibleCandidates(t *testing.T) {
 	}
 	if _, _, ok := SelectCapture([]RescuerFacts{fine}, []CapturePatientFacts{standing, alreadyPrisoner}); ok {
 		t.Fatal("selected an ineligible patient")
+	}
+}
+
+// TestCaptureAdmitsCachedPawnRowBehindPreparedTick is the #306 shape (#323):
+// the executor's second inspection under a running window is served the
+// pawn row the first read (tick 12) cached, while the first preview (tick
+// 13) prepared the action and raised the minimum; the second preview (tick
+// 15) anchors the admission, so the older row is fresh evidence.
+func TestCaptureAdmitsCachedPawnRowBehindPreparedTick(t *testing.T) {
+	r := captureRequest(t)
+	var err error
+	if r.Progress, err = r.Progress.Prepare(r.Current, 13); err != nil {
+		t.Fatal(err)
+	}
+	r.MinimumTick, r.Facts.PawnTick, r.Facts.PreviewTick = 13, 12, 15
+	r.Facts.Emergency.tick = r.Facts.PreviewTick
+	if d := EvaluateCapture(r); !d.Admitted || len(d.Refused) != 0 {
+		t.Fatal(d)
 	}
 }
