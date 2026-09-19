@@ -24,12 +24,18 @@ needs is [choose-tests](docs/developers/testing/choose-tests.md).
    when you want the change proven before it lands, and never run the
    areas with `acceptance run` first and then a tier, which runs every
    case twice. (Native behaviour changes need the smoke pass before
-   completion; documentation needs none.) Name the run in the commit
+   completion; documentation needs none.) Speed over proof: the smoke
+   tier is ~30 s, so run it; anything longer is the nightly's job, so
+   land `-unverified` rather than wait on an area case or on another
+   issue's run. Name the run in the commit
    message. Add `-resume` to carry the checkpoint
    rings your failed `acceptance run`s left in `-root`: resumed rows pass,
    are listed under `resumed` and named in the landing, but prove the fix
    past the resume point only, so a change to early behaviour runs fresh.
-5. `go run ./cmd/land [-results <suite output>]` from the branch worktree.
+5. `go run ./cmd/land [-results <suite output>]` from the branch worktree,
+   never piped through `tail` (nothing prints until it ends). The lane
+   titles the squash with the branch tip's commit subject, so make the
+   milestone commit the tip and fold fixups into it first.
    The lane takes the repository lock, merges `main` into the branch,
    refuses a presented suite that failed (resumed rows are recorded),
    refuses a diff under the native sources or `buildingruntime` without
@@ -68,6 +74,9 @@ at once; per-landing issues only pile up until then.
 - Rebuild the controller binary or the mod while a harness is running from
   them.
 - Commit generated builds, logs, saves, databases or temporary scripts.
+- Add Python to the repository. Tooling, acceptance cases and analysis
+  are Go (`go/cmd`, `go/internal/nativeaccept/cases/<area>`); throwaway
+  Python stays in the scratchpad.
 
 ## Tool pitfalls (Windows harness)
 
@@ -101,7 +110,8 @@ item, terse title, concrete evidence (file, commit, log line), what would
 resolve it, labeled `priority:P0`/`P1`/`P2` or `area:G01`/`N01`/`tooling`.
 Check open issues first and comment on a match instead of duplicating.
 Cite the number in your report instead of restating it. Status goes in
-issue comments, not chat.
+issue comments, not chat: a sentence on what landed or remains and the
+commit, not a file-by-file narrative.
 
 ## Checks
 
