@@ -32,6 +32,9 @@ func NewHarness(client *bridge.Client, output string) *Harness {
 // {}), records the request/reply pair as evidence, and returns the decoded structured
 // reply as a generic JSON object.
 func (h *Harness) Call(ctx context.Context, label, tool string, arguments any) (map[string]any, error) {
+	// Every native call of a bridge-only case is a natural pause for the
+	// checkpoint ring (#249); a capture in progress is not re-entered.
+	checkpointPause(ctx)
 	args, err := json.Marshal(arguments)
 	if err != nil {
 		return nil, fmt.Errorf("encode arguments for %s: %w", tool, err)

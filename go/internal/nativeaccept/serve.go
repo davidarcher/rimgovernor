@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/childproc"
@@ -244,7 +245,7 @@ func ServeArgs(cfg *Config, gabs, profileDir, statePath, flightPath string, spec
 // startup line and records the launch on the report.
 func launchServe(ctx context.Context, cfg *Config, gabs string, spec ServeSpec, launch int, report Report) (*ServiceProcess, error) {
 	output := cfg.Output
-	profileDir := filepath.Join(output, "service-profile")
+	profileDir := cfg.ServiceProfileDir()
 	serviceDir := filepath.Join(output, "service")
 	key := "service"
 	if launch > 1 {
@@ -296,6 +297,7 @@ func launchServe(ctx context.Context, cfg *Config, gabs string, spec ServeSpec, 
 	}
 	go func() { p.done <- cmd.Wait(); stderrFile.Close() }()
 	entry["pid"], entry["state"] = p.PID, "running"
+	latestService.Store(p)
 
 	reader := bufio.NewReader(stdoutPipe)
 	firstLine, err := reader.ReadString('\n')
@@ -439,6 +441,28 @@ func (p *ServiceProcess) Exited() error {
 		}
 	}
 	return fmt.Errorf("service %d exited: %w", p.PID, errOrExit(p.exit))
+}
+
+// latestService is the service most recently launched in this process,
+// however it was launched (Serve, LaunchService, Restart): the one a
+// checkpoint capture saves through while it runs.
+var latestService atomic.Pointer[ServiceProcess]
+
+// LatestService is the most recently launched service while it runs, nil
+// once it stopped or exited (or when none was launched).
+func LatestService() *ServiceProcess {
+	if p := latestService.Load(); p != nil && p.Running() {
+		return p
+	}
+	return nil
+}
+
+// Running reports whether the service is up: neither stopped nor exited.
+func (p *ServiceProcess) Running() bool {
+	p.mu.Lock()
+	stopped := p.stopped
+	p.mu.Unlock()
+	return !stopped && p.Exited() == nil
 }
 
 // errOrExit names a clean exit, which is as terminal for a wait as a crash.

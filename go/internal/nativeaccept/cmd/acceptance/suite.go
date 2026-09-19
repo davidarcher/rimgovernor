@@ -13,7 +13,10 @@ package main
 // suite file (-suite) whose rows name registry cases; every row runs
 // through `acceptance run`, and a case that hosts a service (Serve or
 // Service) receives -rimgovernor. "acceptance" labels the criterion a row
-// stands for and is echoed into its report row.
+// stands for and is echoed into its report row. Every row runs fresh
+// (-fresh, no checkpoint ring): a suite is the landing gate's form, and a
+// resumed pass is not a pass (#249); a row whose result.json carries
+// resumed_from fails the suite.
 //
 // Scheduling: one shared queue in three tiers. Bridge-only cases that keep
 // the process come first; cases that end or replace it (NoKeep: a
@@ -453,7 +456,7 @@ func runSuite(ctx context.Context, list []entry, opts suiteOptions, stderr io.Wr
 // entryCommand is the argv a row runs as on a worker (`acceptance run`
 // on this executable) and where the row's result.json lands.
 func entryCommand(e entry, opts suiteOptions, self, workerRoot string) (argv []string, output string) {
-	argv = []string{self, "run", e.Name, "-root", workerRoot, "-output", opts.Output, "-game", opts.GameID}
+	argv = []string{self, "run", e.Name, "-root", workerRoot, "-output", opts.Output, "-game", opts.GameID, "-fresh", "-checkpoint-every", "0"}
 	if opts.NoSeries {
 		argv = append(argv, "-no-series")
 	} else if opts.Series != "" {
@@ -520,6 +523,10 @@ func runEntry(ctx context.Context, e entry, opts suiteOptions, self, workerRoot 
 			row["passed"], _ = result["passed"].(bool)
 			if e := na.AsString(result["error"]); e != "" {
 				row["error"] = e
+			}
+			if resumed, ok := result["resumed_from"]; ok {
+				row["passed"], row["resumed_from"] = false, resumed
+				row["error"] = "resumed from a checkpoint: a landing run must pass from scratch"
 			}
 			row["game_reuse"] = result["game_reuse"]
 			if ms, ok := result["boot_ms"].(float64); ok {

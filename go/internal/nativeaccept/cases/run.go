@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sync/atomic"
@@ -37,6 +38,16 @@ type Options struct {
 	// Rimgovernor is the prebuilt rimgovernor binary (absolute path) a case
 	// that launches `rimgovernor serve` runs; a bridge-only case ignores it.
 	Rimgovernor string
+	// CheckpointEvery is the checkpoint ring's cadence in run phase (#249);
+	// zero turns the ring, and resuming, off.
+	CheckpointEvery time.Duration
+	// Fresh discards the case's ring in this root and starts from scratch;
+	// Rewind resumes that many entries earlier than the ring's next.
+	Fresh  bool
+	Rewind int
+	// Log receives the run's progress lines (the resume decision); nil
+	// discards them.
+	Log io.Writer
 	// Series is the append-only metrics series every case's block is
 	// appended to (na.SeriesPath(Output) by default); NoSeries leaves the
 	// series alone.
@@ -161,11 +172,38 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 	if err := stageSaves(c.Start, opts.Root); err != nil {
 		return err
 	}
+	log := opts.Log
+	if log == nil {
+		log = io.Discard
+	}
+	resumed, err := planResume(c, opts, log)
+	if err != nil {
+		return fmt.Errorf("checkpoint ring: %w", err)
+	}
 	s := &session{c: c, report: report, binary: opts.Rimgovernor}
 	cfg := &na.Config{Root: opts.Root, Output: output, Headless: opts.Headless && !c.Rendered, GameID: opts.GameID,
 		Spawned: func(pid int) { s.gabsPID.Store(int64(pid)) }}
 	s.config = cfg
 	report["keep"] = !c.NoKeep && na.KeepGame()
+	start := nativeStart(c.Start)
+	if resumed.resuming() {
+		// The bundle's save replaces the case's Start (the fixture op
+		// already ran before the capture), its store lands where the
+		// service opens it, and its journal is read at a fresh launch.
+		entry := resumed.entry
+		save, err := na.StageCheckpoint(opts.Root, entry, filepath.Join(output, "service.sqlite"))
+		if err != nil {
+			return fmt.Errorf("stage checkpoint: %w", err)
+		}
+		start = na.Save{Name: save}
+		if entry.Journal {
+			cfg.RestoreJournal = entry.Path
+		}
+		if entry.Store && entry.ServiceProfile != "" {
+			cfg.ServiceProfile = entry.ServiceProfile
+		}
+		report["resumed_from"] = map[string]any{"path": entry.Path, "label": entry.Label, "offset_ms": entry.OffsetMs, "tick": entry.Tick, "source_revision": resumed.previous.SourceRevision, "save": save}
+	}
 	if owned, ok := c.Start.(Owned); ok {
 		// The case launches, drives and stops the process itself on this
 		// profile (the expansions of the saves it names), so a game an
@@ -194,8 +232,11 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 	// na.OpenSession is the shared preamble (#137): stale-package check,
 	// profile, a kept process, discovery, the start, pause, the fixture op,
 	// frozen needs and the identity, each on the report.
-	opened, err := na.OpenSession(ctx, cfg, report, nativeStart(c.Start), c.Quiet, c.keepNeeds()...)
+	opened, err := na.OpenSession(ctx, cfg, report, start, c.Quiet, c.keepNeeds()...)
 	if err != nil {
+		if resumed.resuming() {
+			rewindRing(opts.RingDir(c), resumed, err, report)
+		}
 		return err
 	}
 	if c.NoKeep {
@@ -206,12 +247,27 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 	defer s.stopServices()
 	report["quiet_mode"] = c.Quiet.String()
 	s.Session = opened
-	if err := c.Run(ctx, s); err != nil {
-		return err
+	if resumed.resuming() && resumed.entry.Prepared != nil {
+		opened.Prepared = resumed.entry.Prepared
+		report["prepared"] = resumed.entry.Prepared
 	}
-	// The game's own startup log is part of every case's evidence: a
-	// native load error there fails the case even when its assertion held.
-	return CheckStartupLog(s)
+	ring := newRing(c, opts, s, cfg, output, resumed, report)
+	if ring != nil {
+		ring.Activate()
+	}
+	runErr := c.Run(ctx, s)
+	if runErr == nil {
+		// The game's own startup log is part of every case's evidence: a
+		// native load error there fails the case even when its assertion
+		// held.
+		runErr = CheckStartupLog(s)
+	}
+	closeRing(ring, resumed, runErr, report, func(ctx context.Context) error {
+		s.stopServices()
+		_, err := opened.Reattach(ctx)
+		return err
+	})
+	return runErr
 }
 
 // stageSaves copies every Save.From checkpoint the start names into

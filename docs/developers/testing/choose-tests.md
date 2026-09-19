@@ -79,7 +79,8 @@ Every native acceptance is a registered `cases.Case` under
 binary `go/internal/nativeaccept/cmd/acceptance`: `go run
 ./internal/nativeaccept/cmd/acceptance list` names the registry, and
 `acceptance run <area>/<case>... -root <abs root> [-output <dir>]
-[-rimgovernor <abs rimgovernor.exe>] [-budget <d> -stall <d> -timeout <d>]`
+[-rimgovernor <abs rimgovernor.exe>] [-budget <d> -stall <d> -timeout <d>]
+[-fresh] [-rewind N] [-checkpoint-every <d>]`
 runs cases on one kept process, writing each case's `result.json` under
 `<output>/<area>/<case>`. There is no other entry point: a new case is a
 new file in an area package (or a new area, imported for its `init()` from
@@ -566,6 +567,40 @@ by their `tools/variantsavegen-<save>` case before the `sustained/matrix-*`
 case that opens on them.
 
 ## Checkpointing a slow precondition
+
+Every run keeps a checkpoint ring of its own (#249): once a minute of run
+phase, at the next natural pause (a bridge call, a poll interval, a
+serve-driven inter-window stop), the runner bundles the save, the
+service's `service.sqlite` (an online-backup copy), the native clock
+journal and a `checkpoint.json` sidecar (identity, tick, offset, serve
+spec, source revision, native package hash, Start) into
+`<root>/checkpoints/<area>/<case>/t+<offset>/`, keeps the last five and,
+when the run fails, a final `failed/` bundle before teardown. The next
+`acceptance run` of that case in the same root resumes from the ring's
+newest entry, printing `resuming <case> from t+7m (rev abc123, failed at
+t+8m); -fresh starts over` first; the resumed game is relaunched so the
+restored journal is read from its start, and `result.json` records
+`resumed_from` and `checkpoints[]`. A ring is discarded, with the reason
+printed, when the installed native package, the case's `Start` or the
+profile's expansions changed; Go-only changes keep it. `-rewind N`
+resumes N entries earlier; a resumed run that fails at the same tick as
+the last one rewinds one entry by itself (`no progress since t+7m;
+rewinding to t+6m`) and starts fresh past the ring. `-fresh` clears the
+ring; `-checkpoint-every 0` or a case's `NoCheckpoint` turns capture
+off, and `speedmatrix/` and `tickbudget/` never capture. A resumed pass
+is not a landing pass: `acceptance suite` runs every case fresh and fails
+a row whose `result.json` carries `resumed_from`. The bundles are
+disposable per-worktree state, never committed. Resume replays the case
+body from the top against the restored world and store, so it suits
+watch-shaped cases (a declarative `Serve` spec or an `Observe` loop);
+an imperative `Run` that re-submits deterministic request ids hits `409
+conflict` on replay and should declare `NoCheckpoint`. A case that never
+pauses on its own (bridge-only, no service) only gets the `failed/`
+bundle.
+
+A `sustainedfood.WatchConfig` may also name phase-boundary checkpoints
+(`Checkpoints`, each a tick and save name): the watch saves the game
+there through the service and captures the same bundle into the ring.
 
 A case whose late scenario depends on minutes of earlier play (the
 defense layout build before its raid) checkpoints the precondition as a

@@ -11,7 +11,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"time"
 
@@ -21,7 +20,11 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// Checkpoint names a save to take mid-run and the sample that triggers it.
+// Checkpoint is a phase boundary the watch checkpoints at: the first
+// sample satisfying When saves the live game as Name (pause, save, resume
+// through the service), copies the save into root/profile/Saves for the
+// commit flow (tools/*-checkpoint) and, under the runner's checkpoint ring
+// (#249), takes a full bundle labelled Name a rerun can resume from.
 type Checkpoint struct {
 	Name string
 	When func(sample map[string]any) bool
@@ -50,8 +53,11 @@ type WatchConfig struct {
 	// Until, when set, ends the window early once a sample satisfies it.
 	Until func(sample map[string]any) bool
 	// Checkpoint, when set, saves the live game the first time a sample
-	// satisfies When (see Checkpoint).
-	Checkpoint *Checkpoint
+	// satisfies When (see Checkpoint); Checkpoints are further phase
+	// boundaries, each taken once. The report's checkpoint row is the
+	// first's; checkpoints lists them all.
+	Checkpoint  *Checkpoint
+	Checkpoints []Checkpoint
 }
 
 // Watch is the serve-driven family's observation window on a service
@@ -138,7 +144,12 @@ func Watch(ctx context.Context, naCfg *na.Config, service *na.ServiceProcess, cf
 	}
 	watchStarted := time.Now()
 	watchDeadline := watchStarted.Add(cfg.Watch)
-	checkpointed := false
+	var pending []Checkpoint
+	if cfg.Checkpoint != nil {
+		pending = append(pending, *cfg.Checkpoint)
+	}
+	pending = append(pending, cfg.Checkpoints...)
+	var taken []map[string]any
 	stepped := false
 	defer func() {
 		report["timeline"] = timeline
@@ -181,14 +192,37 @@ func Watch(ctx context.Context, naCfg *na.Config, service *na.ServiceProcess, cf
 		if window.reached() {
 			break
 		}
-		if cfg.Checkpoint != nil && !checkpointed && err == nil && cfg.Checkpoint.When(sample) {
-			checkpointed = true
-			saved, err := checkpoint(ctx, naCfg, cfg.Checkpoint, service.HoldAuthority, apiCall, identity, token, prefix)
-			if err != nil {
-				report["checkpoint"] = map[string]any{"name": cfg.Checkpoint.Name, "error": err.Error()}
-				return timeline, fmt.Errorf("checkpoint %s: %w", cfg.Checkpoint.Name, err)
+		if err == nil {
+			for i := 0; i < len(pending); i++ {
+				cp := pending[i]
+				if !cp.When(sample) {
+					continue
+				}
+				pending = append(pending[:i], pending[i+1:]...)
+				i--
+				saved, err := checkpoint(ctx, naCfg, &cp, service.HoldAuthority, apiCall, identity, token, prefix)
+				if err != nil {
+					report["checkpoint"] = map[string]any{"name": cp.Name, "error": err.Error()}
+					return timeline, fmt.Errorf("checkpoint %s: %w", cp.Name, err)
+				}
+				if bundle, ok, err := na.CaptureCheckpoint(ctx, cp.Name); ok {
+					if err != nil {
+						saved["bundle_error"] = err.Error()
+					} else {
+						saved["bundle"] = bundle.Path
+					}
+				}
+				taken = append(taken, saved)
+				if _, first := report["checkpoint"]; !first {
+					report["checkpoint"] = saved
+				}
+				report["checkpoints"] = taken
 			}
-			report["checkpoint"] = saved
+		}
+		// Between samples is a natural pause for the runner's checkpoint
+		// ring (#249); a capture's own time does not count against Watch.
+		if took := na.CheckpointPause(ctx); took > 0 {
+			watchDeadline = watchDeadline.Add(took)
 		}
 		select {
 		case <-ctx.Done():
@@ -331,52 +365,15 @@ func SampleGoal(ctx context.Context, s *store.Store, need policy.GoalID) (map[st
 	return sample, nil
 }
 
-// checkpoint pauses the clock, saves through the service's lifecycle save
-// (which needs manual control), copies the save into root/profile/Saves and
-// resumes. The keep-alive is held (hold) for the duration so it does not
-// re-acquire under the save. The result is the report's checkpoint record.
+// checkpoint saves the live game as cp.Name through the service
+// (na.ServiceSave: pause to manual control, save, resume, the keep-alive
+// held throughout) and copies the save into root/profile/Saves. The result
+// is the report's checkpoint record.
 func checkpoint(ctx context.Context, naCfg *na.Config, cp *Checkpoint, hold func(bool), apiCall func(string, string, map[string]any, string) (map[string]any, int, error), identity map[string]any, token, prefix string) (map[string]any, error) {
 	name := cp.Name
-	hold(true)
-	defer hold(false)
-	stamp := time.Now().UnixNano()
-	paused, status, err := apiCall("POST", "/api/player/control/pause", map[string]any{"requestId": fmt.Sprintf("%s-checkpoint-pause-%d", prefix, stamp), "expected": identity}, token)
+	src, err := na.ServiceSave(ctx, naCfg, name, hold, apiCall, identity, token, prefix+"-checkpoint")
 	if err != nil {
-		return nil, fmt.Errorf("pause: %w", err)
-	}
-	if status != 200 {
-		return nil, fmt.Errorf("pause status=%d body=%#v", status, paused)
-	}
-	// The pause is acknowledged before the mode reads manual; wait for it.
-	manualDeadline := time.Now().Add(30 * time.Second)
-	for {
-		state, status, err := apiCall("GET", "/api/state", nil, "")
-		if err == nil && status == 200 && na.AsString(state["mode"]) == "manual" {
-			break
-		}
-		if time.Now().After(manualDeadline) {
-			return nil, fmt.Errorf("service did not reach manual control after pause: %#v", state)
-		}
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-time.After(500 * time.Millisecond):
-		}
-	}
-	saved, status, err := apiCall("POST", "/api/lifecycle/save", map[string]any{"requestId": fmt.Sprintf("%s-checkpoint-save-%d", prefix, stamp), "saveName": name}, token)
-	if err != nil {
-		return nil, fmt.Errorf("save: %w", err)
-	}
-	if status != 201 {
-		return nil, fmt.Errorf("save status=%d body=%#v", status, saved)
-	}
-	profile := "profile"
-	if naCfg.Headless {
-		profile = "headless-profile"
-	}
-	src := filepath.Join(naCfg.Root, profile, "Saves", name+".rws")
-	if _, err := os.Stat(src); err != nil {
-		return nil, fmt.Errorf("save completed but %s is missing: %w", src, err)
+		return nil, err
 	}
 	dst := filepath.Join(naCfg.Root, "profile", "Saves", name+".rws")
 	if src != dst {
@@ -384,14 +381,7 @@ func checkpoint(ctx context.Context, naCfg *na.Config, cp *Checkpoint, hold func
 			return nil, err
 		}
 	}
-	resumed, status, err := apiCall("POST", "/api/player/control/resume", map[string]any{"requestId": fmt.Sprintf("%s-checkpoint-resume-%d", prefix, stamp), "expected": identity}, token)
-	if err != nil {
-		return nil, fmt.Errorf("resume: %w", err)
-	}
-	if status != 200 {
-		return nil, fmt.Errorf("resume status=%d body=%#v", status, resumed)
-	}
-	return map[string]any{"name": name, "path": dst, "saved": saved, "at": time.Now().UTC().Format(time.RFC3339)}, nil
+	return map[string]any{"name": name, "path": dst, "at": time.Now().UTC().Format(time.RFC3339)}, nil
 }
 
 // Observed is the slice of a registry case's session Observe drives

@@ -215,6 +215,10 @@ type Case struct {
 	// Rendered opens the windowed profile whatever -headless says: video
 	// capture needs Find.Camera, which batch mode never has.
 	Rendered bool
+	// NoCheckpoint opts the case out of the runner's checkpoint ring
+	// (#249): no periodic bundles, no failed bundle, no resume. The
+	// speedmatrix and tickbudget areas are out regardless.
+	NoCheckpoint bool
 }
 
 // Validate is the shape check Register applies.

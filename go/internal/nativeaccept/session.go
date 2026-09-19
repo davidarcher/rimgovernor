@@ -170,6 +170,23 @@ type Config struct {
 	// session launches (bridge.ProcessConfig.Spawned), for a harness that
 	// kills its own transport.
 	Spawned func(pid int)
+	// RestoreJournal, when set, is a checkpoint bundle whose clock journal
+	// replaces the profile's before the game launches: OpenGame stops a
+	// kept process, since a running one holds the journal's cursor (#249).
+	RestoreJournal string
+	// ServiceProfile, when set, is the profile directory every service this
+	// session launches uses instead of <Output>/service-profile: a resumed
+	// run keeps its bundle's, which the restored store is bound to (#249).
+	ServiceProfile string
+}
+
+// ServiceProfileDir is the profile directory services launched under c
+// use: ServiceProfile when set, else <Output>/service-profile.
+func (c *Config) ServiceProfileDir() string {
+	if c.ServiceProfile != "" {
+		return c.ServiceProfile
+	}
+	return filepath.Join(c.Output, "service-profile")
 }
 
 // PrepareConfig runs Prepare (headless) or PrepareRendered (windowed) against Root

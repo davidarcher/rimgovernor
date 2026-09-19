@@ -405,7 +405,8 @@ func output(dir, name string, args ...string) (string, error) {
 // native contract probes build when the change touches its inputs,
 // streaming the output to stdout/stderr, and names the affected case
 // areas first so the caller knows which acceptance runs the change may
-// still owe.
+// still owe; the hint passes -fresh, since a landing pass never resumes
+// from a checkpoint (#249).
 func Test(repo string, changed []string) error {
 	goDir := filepath.Join(repo, "go")
 	sel, err := Select(repo, changed)
@@ -422,7 +423,7 @@ func Test(repo string, changed []string) error {
 		fmt.Println("cases affected: all (a shared acceptance input changed: native sources or go.mod)")
 	}
 	for _, area := range sel.Cases {
-		fmt.Printf("case: go run ./internal/nativeaccept/cmd/acceptance run %s/... -root <abs root> -output <fresh dir>\n", area)
+		fmt.Printf("case: go run ./internal/nativeaccept/cmd/acceptance run %s/... -root <abs root> -output <fresh dir> -fresh\n", area)
 	}
 	switch {
 	case sel.AllGo:

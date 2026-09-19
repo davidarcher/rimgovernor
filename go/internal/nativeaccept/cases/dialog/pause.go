@@ -17,7 +17,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -245,7 +244,7 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 	// The service's clock inbox is keyed by its profile directory (na.Serve
 	// puts it beside the state under the case's output).
-	profile := filepath.Join(s.Config().Output, "service-profile")
+	profile := s.Config().ServiceProfileDir()
 	waitFor := func(label string, ready func(map[int32]answered, clockTrace) (bool, error)) (map[int32]answered, clockTrace, error) {
 		var answers map[int32]answered
 		var trace clockTrace

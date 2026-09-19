@@ -121,6 +121,10 @@ What it produces:
   native generation (`transitions` in `service.sqlite`, read-only), not a
   transport problem; `[worker] ... bridge transport failure` lines repeat a
   handful of real failures (`native_error` rows in the flight recorder).
+- A failed case resumes from its last checkpoint on the next `run` of it
+  in the same root (first output line says so); pass `-fresh` to start
+  over, `-rewind N` to step back. Report a resumed pass as such and land
+  on a fresh one: `acceptance suite` and the `cmd/test` hint run fresh.
 - Report evidence from `result.json`/`report.json` and the retained logs;
   name the cases you ran in the commit message.
 

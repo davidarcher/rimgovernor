@@ -257,6 +257,11 @@ func WaitProgress(ctx context.Context, w Wait, probe Probe) error {
 		if w.Ceiling > 0 && now.Sub(start) >= w.Ceiling {
 			return &WaitError{Outcome: WaitCeiling, Signature: last, Quiet: quiet, Elapsed: now.Sub(start), Rounds: rounds, TicksElapsed: ticksElapsed}
 		}
+		// Between probes is a natural pause for the checkpoint ring
+		// (#249); the time a capture takes is not the wait's quiet time.
+		if took := checkpointPause(ctx); took > 0 {
+			start, lastChange = start.Add(took), lastChange.Add(took)
+		}
 		select {
 		case <-ctx.Done():
 			return ctx.Err()

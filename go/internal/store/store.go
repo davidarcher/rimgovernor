@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -115,15 +116,10 @@ func Open(ctx context.Context, path string) (*Store, error) {
 		}
 		u = parsed
 	} else {
-		abs, err := filepath.Abs(path)
-		if err != nil {
+		var err error
+		if u, err = fileURL(path); err != nil {
 			return nil, err
 		}
-		uriPath := filepath.ToSlash(abs)
-		if !strings.HasPrefix(uriPath, "/") {
-			uriPath = "/" + uriPath
-		}
-		u = &url.URL{Scheme: "file", Path: uriPath}
 	}
 	q := u.Query()
 	q.Set("_txlock", "immediate")
@@ -161,6 +157,33 @@ func Open(ctx context.Context, path string) (*Store, error) {
 	return s, nil
 }
 func (s *Store) Close() error { return s.db.Close() }
+
+// fileURL is the file: URI SQLite opens the database at path through.
+func fileURL(path string) (*url.URL, error) {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return nil, err
+	}
+	uriPath := filepath.ToSlash(abs)
+	if !strings.HasPrefix(uriPath, "/") {
+		uriPath = "/" + uriPath
+	}
+	return &url.URL{Scheme: "file", Path: uriPath}, nil
+}
+
+// Snapshot copies the database into a new file at path through SQLite's
+// online backup (CopyPages), consistent even while another process holds
+// it open: an acceptance checkpoint's copy of a service's durable state.
+func (s *Store) Snapshot(ctx context.Context, path string) error {
+	if _, err := os.Stat(path); err == nil {
+		return fmt.Errorf("snapshot: %s already exists", path)
+	}
+	u, err := fileURL(path)
+	if err != nil {
+		return err
+	}
+	return CopyPages(ctx, s.db, u.String())
+}
 
 // syncMode keeps WAL durability in production. Under `go test` every test opens
 // a fresh database, and the per-commit and close-time fsyncs dominate the

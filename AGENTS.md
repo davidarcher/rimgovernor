@@ -75,7 +75,9 @@ issue comments, not chat.
   postcondition. Distinguish compilation/protocol checks from gameplay
   validation.
 - After an acceptance failure, add a fast regression test where feasible
-  and rerun that case.
+  and rerun that case. The rerun resumes from the run's last checkpoint
+  by default (`resuming <case> from t+7m ...` on its first line; #249);
+  `-fresh` starts over, and landing always runs fresh.
 - A new case starts from a fixture that already exercises the behaviour
   (a committed save, a `test/*_prepare` op, or a programmatic start) and
   follows the performance checklist in choose-tests: Core-only, quiet

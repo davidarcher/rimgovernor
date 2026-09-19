@@ -1,7 +1,7 @@
 // Command acceptance is the shared runner over the case registry (#135):
 //
 //	acceptance list
-//	acceptance run <case>... [-root -output -game -headless -timeout -budget -stall -rimgovernor -series -no-series]
+//	acceptance run <case>... [-root -output -game -headless -timeout -budget -stall -rimgovernor -series -no-series -fresh -rewind N -checkpoint-every d]
 //	acceptance suite (-all | -cases a,b | -suite file.json) -root -output -workers N [-baseline result.json -series metrics.jsonl]
 //	acceptance stop -root <dir> [-config -game -takeover]
 //	acceptance setup [-worktree -rimworld -harmony -gabs -fixture -production -rebuild -skip-mod -skip-binaries]
@@ -12,10 +12,11 @@
 // the storyteller, freeze needs, run the case, write result.json with the
 // run's timing and metrics block, append the block to the metrics series
 // and flag drift (nativeaccept/metrics.go). `suite` (suite.go) runs a set
-// across N private game copies with regression and drift flagging. Cases register from the area packages imported
-// below. stop ends the game a root keeps between runs (na.KeepGameEnv)
-// through GABS games_stop: the PID-owned launch recorded by that root's own
-// GABS configuration, never a process matched by image name.
+// across N private game copies with regression and drift flagging. A run
+// checkpoints its case into the root's ring and resumes a case whose last
+// run there failed (#249; -fresh starts over, -rewind steps back,
+// -checkpoint-every 0 turns it off); suite always runs fresh. Cases
+// register from the area packages imported
 package main
 
 import (
@@ -136,7 +137,9 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 const usage = `usage:
   acceptance list
-  acceptance run <case>... -root <dir> [-output <dir> -game <id> -headless=false -timeout <d> -budget <d> -stall <d> -rimgovernor <binary> -series <metrics.jsonl> -no-series]
+  acceptance run <case>... -root <dir> [-output <dir> -game <id> -headless=false -timeout <d> -budget <d> -stall <d> -rimgovernor <binary> -series <metrics.jsonl> -no-series -fresh -rewind <n> -checkpoint-every <d>]
+    a case whose last run in this root failed resumes from its checkpoint ring (printed on the first line);
+    -fresh starts over, -rewind <n> resumes n entries earlier, -checkpoint-every 0 turns the ring off
   acceptance stop -root <dir> [-config <dir> -game <id> -takeover]
 ` + setupUsage + suiteUsage + whyUsage
 
@@ -163,6 +166,9 @@ func parseRun(args []string, stderr io.Writer) ([]cases.Case, cases.Options, err
 	fs.DurationVar(&opts.Budget, "budget", 0, "per-case wall-clock budget that fails the run (default: the case's own)")
 	fs.DurationVar(&opts.Stall, "stall", 0, "stall budget for the shared waits (default: RIMGOVERNOR_ACCEPT_STALL or 3m)")
 	fs.StringVar(&opts.Rimgovernor, "rimgovernor", "", "absolute path to a prebuilt rimgovernor binary (go build ./go/cmd/rimgovernor) for cases that launch a service")
+	fs.BoolVar(&opts.Fresh, "fresh", false, "discard the case's checkpoint ring in this root and start from scratch (landing runs always do)")
+	fs.IntVar(&opts.Rewind, "rewind", 0, "resume this many checkpoint entries earlier than the ring's next")
+	fs.DurationVar(&opts.CheckpointEvery, "checkpoint-every", na.DefaultCheckpointEvery, "checkpoint the run phase this often at a natural pause into <root>/checkpoints/<case>/ (0 turns the ring and resuming off)")
 	fs.StringVar(&opts.Series, "series", "", "append-only metrics series each case's block is appended to (default <output>/../metrics.jsonl)")
 	fs.BoolVar(&opts.NoSeries, "no-series", false, "leave the metrics series alone")
 	if err := fs.Parse(flagArgs); err != nil {
@@ -186,6 +192,9 @@ func parseRun(args []string, stderr io.Writer) ([]cases.Case, cases.Options, err
 	if opts.Output == "" {
 		opts.Output = filepath.Join(opts.Root, "acceptance")
 	}
+	if opts.Rewind < 0 {
+		return nil, opts, fmt.Errorf("-rewind must not be negative: %d", opts.Rewind)
+	}
 	opts.Output = mustAbs(opts.Output)
 	if opts.Series != "" {
 		opts.Series = mustAbs(opts.Series)
@@ -208,6 +217,7 @@ func parseRun(args []string, stderr io.Writer) ([]cases.Case, cases.Options, err
 // non-zero when any case failed.
 func runCases(ctx context.Context, selected []cases.Case, opts cases.Options, stdout io.Writer) int {
 	exit := 0
+	opts.Log = stdout
 	for _, c := range selected {
 		started := time.Now()
 		report, code := cases.Execute(ctx, c, opts)

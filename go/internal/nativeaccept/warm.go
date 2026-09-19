@@ -72,9 +72,10 @@ type Game struct {
 // mod list than cfg prepared (ModsConfig.xml only applies at launch, so a
 // Core-only process cannot load a DLC save, #166) or with a package other
 // than the one now installed (a rebuilt mod's fixtures are not in the old
-// DLL's catalog, #209) is stopped and launched fresh instead;
-// Game.Relaunched and the report's game_reuse.relaunched say so. cfg must
-// have been prepared.
+// DLL's catalog, #209), or one a resumed run must relaunch over a restored
+// clock journal (Config.RestoreJournal, #249), is stopped and launched
+// fresh instead; Game.Relaunched and the report's game_reuse.relaunched
+// say so. cfg must have been prepared.
 func OpenGame(ctx context.Context, cfg *Config) (*Game, error) {
 	started := time.Now()
 	gabsExecutable, err := GABSExecutable(cfg.Root, cfg.Configuration)
@@ -98,10 +99,14 @@ func OpenGame(ctx context.Context, cfg *Config) (*Game, error) {
 			_ = client.Close()
 			return nil, err
 		}
+		if cfg.RestoreJournal != "" {
+			// A resumed run's journal must be read at launch (#249).
+			reason = "checkpoint"
+		}
 		if reason != "" {
 			if err := stopRunning(ctx, client); err != nil {
 				_ = client.Close()
-				return nil, fmt.Errorf("stop kept game launched with a different %s: %w", reason, err)
+				return nil, fmt.Errorf("stop kept game (relaunch: %s): %w", reason, err)
 			}
 			g.Reused, g.Relaunched = false, reason
 		}
@@ -110,6 +115,12 @@ func OpenGame(ctx context.Context, cfg *Config) (*Game, error) {
 		if err := prepareFreshLaunch(cfg.Configuration); err != nil {
 			_ = client.Close()
 			return nil, err
+		}
+		if cfg.RestoreJournal != "" {
+			if err := RestoreClockJournal(cfg.Configuration, cfg.RestoreJournal); err != nil {
+				_ = client.Close()
+				return nil, fmt.Errorf("restore clock journal: %w", err)
+			}
 		}
 	}
 	launched, err := client.GamesStart(ctx)
