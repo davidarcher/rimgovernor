@@ -58,6 +58,8 @@ func ValidateDevelopmentState(s DevelopmentState) error {
 			if row.Reason != "" || row.Committed || !k {
 				return errors.New("invalid development selection")
 			}
+		} else if row.Granted {
+			return errors.New("invalid development grant")
 		}
 	}
 	if selected > max(0, s.Capacity-len(s.Committed)) {

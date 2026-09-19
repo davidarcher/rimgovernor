@@ -227,6 +227,9 @@ func (r *RoutineCleanPlanner) step(call, epoch context.Context, arbiter *stepArb
 	prefix := fmt.Sprintf("clean-%s-", target.ID)
 	attempt := medicalAttemptCount(goal.Methods, goal.Goal.Epoch, prefix)
 	if attempt >= maxMedicalAttemptsPerPatient {
+		if err = yieldDevelopment(call, p.journal, review, policy.MaintainCleanFacilities); err != nil {
+			return RoutineCleanResult{}, err
+		}
 		return RoutineCleanResult{Reason: BuildingMethodExhausted}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))

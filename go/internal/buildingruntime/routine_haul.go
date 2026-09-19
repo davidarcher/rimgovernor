@@ -238,6 +238,9 @@ func (r *RoutineHaulPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return RoutineHaulResult{}, err
 	}
 	if attempt >= maxMedicalAttemptsPerPatient {
+		if err = yieldDevelopment(call, p.journal, review, policy.MaintainStorage); err != nil {
+			return RoutineHaulResult{}, err
+		}
 		return RoutineHaulResult{Reason: BuildingMethodExhausted}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))

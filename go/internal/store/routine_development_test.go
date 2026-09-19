@@ -400,3 +400,113 @@ func TestRoutineDevelopmentIdleSelectionRotates(t *testing.T) {
 		t.Fatal("idle flag not persisted", err)
 	}
 }
+
+func TestRoutineDevelopmentYieldMovesSlotWithinReview(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	s := open(t, memoryPath(t))
+	defer s.Close()
+	r := routineRequest()
+	r.Policy.MaxDevelopmentProjects = 1
+	r.Policy.ResearchTarget = "Stonecutting"
+	r.Policy.ResourceTargets = map[policy.Resource]int64{"Steel": 100}
+	r.Policy.ResourceReserves = map[policy.Resource]int64{"WoodLog": 50}
+	r.Facts.Research = domain.Known(policy.ResearchFacts{Projects: []policy.ResearchProjectID{"Stonecutting"}})
+	r.Facts.Resources = domain.Known([]policy.Amount{{Resource: "Steel", Count: 50}})
+	first := reviewRoutine(t, s, &r)
+	var selected, waiting []domain.GoalID
+	for _, row := range first.Review.Development.Rows {
+		switch {
+		case row.Selected:
+			selected = append(selected, row.Goal)
+		case row.Reason == policy.DevelopmentCapacity:
+			waiting = append(waiting, row.Goal)
+		}
+	}
+	if len(selected) != 1 || len(waiting) == 0 {
+		t.Fatal("fixture needs one selected goal and one waiting on capacity", first.Review.Development.Rows)
+	}
+	// A stale revision cannot rewrite the current review.
+	if _, err := s.YieldRoutineDevelopment(ctx, first.Review.Revision+1, selected[0]); !errors.Is(err, ErrConflict) {
+		t.Fatal(err)
+	}
+	yielded, err := s.YieldRoutineDevelopment(ctx, first.Review.Revision, selected[0])
+	if err != nil || yielded.Revision != first.Review.Revision {
+		t.Fatal(yielded, err)
+	}
+	if row := developmentRow(t, yielded, selected[0]); row.Selected || row.Reason != policy.DevelopmentMethodUnavailable || !row.Idle || row.WaitingSince != first.Review.Tick {
+		t.Fatalf("yielder should read method_unavailable, idle, age intact: %+v", row)
+	}
+	if row := developmentRow(t, yielded, waiting[0]); !row.Selected || !row.Granted || row.Reason != "" {
+		t.Fatalf("%s should take the yielded slot: %+v", waiting[0], yielded.Development.Rows)
+	}
+	loaded, err := s.LoadRoutineReview(ctx)
+	if err != nil || !reflect.DeepEqual(loaded, yielded) {
+		t.Fatal("yield not persisted", err)
+	}
+	// The recipient's method admits under the yielded selection; the
+	// yielder's no longer does.
+	recipient := routineGoal(t, first, waiting[0])
+	if _, err = s.CommitGoalMethod(ctx, recipient.Goal.ID, recipient.Revision, "granted", plan(t, "granted", "granted-action")); err != nil {
+		t.Fatal(err)
+	}
+	yielder := routineGoal(t, first, selected[0])
+	if _, err = s.CommitGoalMethod(ctx, yielder.Goal.ID, yielder.Revision, "yielded", plan(t, "yielded", "yielded-action")); !errors.Is(err, ErrNotAdmitted) {
+		t.Fatal(err)
+	}
+	// Yielding again is a no-op: the goal is no longer selected.
+	again, err := s.YieldRoutineDevelopment(ctx, first.Review.Revision, selected[0])
+	if err != nil || !reflect.DeepEqual(again, yielded) {
+		t.Fatal(again, err)
+	}
+	// The next review keeps the recipient committed and ranks the yielder
+	// idle rather than re-selecting it on hysteresis.
+	r.Tick += 10
+	second := reviewRoutine(t, s, &r)
+	if row := developmentRow(t, second.Review, waiting[0]); !row.Committed || row.Granted {
+		t.Fatalf("recipient should be committed: %+v", row)
+	}
+	if row := developmentRow(t, second.Review, selected[0]); row.Selected || !row.Idle || row.WaitingSince != first.Review.Tick {
+		t.Fatalf("yielder should be idle with its age intact: %+v", row)
+	}
+}
+
+func TestRoutineDevelopmentGrantedSelectionIsNotJudgedIdle(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	s := open(t, memoryPath(t))
+	defer s.Close()
+	r := routineRequest()
+	r.Policy.MaxDevelopmentProjects = 1
+	r.Policy.ResearchTarget = "Stonecutting"
+	r.Policy.ResourceTargets = map[policy.Resource]int64{"Steel": 100}
+	r.Policy.ResourceReserves = map[policy.Resource]int64{"WoodLog": 50}
+	r.Facts.Research = domain.Known(policy.ResearchFacts{Projects: []policy.ResearchProjectID{"Stonecutting"}})
+	r.Facts.Resources = domain.Known([]policy.Amount{{Resource: "Steel", Count: 50}})
+	first := reviewRoutine(t, s, &r)
+	var selected, waiting []domain.GoalID
+	for _, row := range first.Review.Development.Rows {
+		switch {
+		case row.Selected:
+			selected = append(selected, row.Goal)
+		case row.Reason == policy.DevelopmentCapacity:
+			waiting = append(waiting, row.Goal)
+		}
+	}
+	if len(selected) != 1 || len(waiting) == 0 {
+		t.Fatal("fixture needs one selected goal and one waiting on capacity", first.Review.Development.Rows)
+	}
+	if _, err := s.YieldRoutineDevelopment(ctx, first.Review.Revision, selected[0]); err != nil {
+		t.Fatal(err)
+	}
+	// The recipient's planner may never have run under the grant: the next
+	// review keeps it selected (hysteresis) instead of demoting it idle.
+	r.Tick += 10
+	second := reviewRoutine(t, s, &r)
+	if row := developmentRow(t, second.Review, waiting[0]); !row.Selected || row.Idle || row.Granted {
+		t.Fatalf("granted goal should hold its slot through the next review: %+v", row)
+	}
+	if row := developmentRow(t, second.Review, selected[0]); row.Selected || !row.Idle {
+		t.Fatalf("yielder should be idle: %+v", row)
+	}
+}

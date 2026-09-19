@@ -260,6 +260,12 @@ func (r *RoutineSecureSuppliesPlanner) step(call, epoch context.Context, arbiter
 		if fallback.Reason != "" {
 			return fallback, nil
 		}
+		// Every route for this item is spent: the direct-haul budget, the
+		// covered-storage zones and the supply room. The slot is no use
+		// to this goal until a new episode, so hand it on (#225).
+		if err = yieldDevelopment(call, p.journal, review, policy.SecureSupplies); err != nil {
+			return RoutineSecureSuppliesResult{}, err
+		}
 		return RoutineSecureSuppliesResult{Reason: BuildingMethodExhausted}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))

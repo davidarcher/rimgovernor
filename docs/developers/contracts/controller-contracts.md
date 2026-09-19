@@ -120,9 +120,15 @@ their slot. Falling capacity never deletes or rewrites accepted orders, and expl
 player work is not rejected by this optional-work limit. Native admission, material
 reservations and Hands dispatch guards still apply.
 
-Methods that cannot produce new work yield their admission slot to the next
-capacity-deferred candidate in the same review; labor-deferred candidates wait for the
-next review's fresh census. Waiting age advances only with native ticks and resets
+A selected goal whose planner has no method left this review (its retry bound is spent
+or every fallback refused: SecureSupplies, MaintainStorage, MaintainCleanFacilities and
+EnsureDefensiveLayout report this) yields its admission slot to the next
+capacity-deferred candidate in the same review. The yield rewrites the review's rows
+under the revision the planner loaded: the yielder reads `method_unavailable` and is
+idle for the next ranking, and the recipient is selected (planners queued later in the
+same wave see it, and method admission accepts it) but is not judged idle by the next
+review, since its planner may not have run under the grant. Labor-deferred candidates
+wait for the next review's fresh census. Waiting age advances only with native ticks and resets
 for committed work; world changes and tick rewinds reset ranking history. A review
 without authority (Manual, a player interruption, a restart before authority returns)
 keeps the last ranking with nothing selected and `control_disabled` on the rows it

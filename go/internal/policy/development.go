@@ -140,6 +140,10 @@ type DevelopmentRow struct {
 	// method this review (colony-3: EnsureDefensiveLayout and
 	// MaintainAnimalFeed held both slots for a game day) hands the slot on.
 	Idle bool
+	// Granted: the row took its slot from a planner's yield after this
+	// review's ranking (YieldDevelopment). Its planner may not have run under
+	// the selection, so the next review does not judge it idle.
+	Granted bool
 }
 
 // DevelopmentState is a value snapshot owned by the review caller. Context and
@@ -276,7 +280,7 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 		if exists {
 			since = previous.WaitingSince
 		}
-		idle := exists && !committed[g.ID] && (previous.Selected && !previous.Committed && !r.Previous.Partial || previous.Idle && !previous.Selected)
+		idle := exists && !committed[g.ID] && (previous.Selected && !previous.Committed && !previous.Granted && !r.Previous.Partial || previous.Idle && !previous.Selected)
 		fraction, known := g.Deficit.Value()
 		score := weights.Deficit*fraction + float64(r.Tick-since)/weights.AgeTicks
 		if g.Source == PlayerGoal {
@@ -407,8 +411,16 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 	return result, nil
 }
 
-// YieldDevelopment lets a refused or waiting method hand its unused slot to
-// the next eligible goal in this same review, without inflating waiting age.
+// YieldDevelopment lets a planner whose selected goal has no method this
+// review (retries exhausted, every fallback refused) hand its unused slot to
+// the next capacity-deferred goal in this same review, without inflating
+// waiting age. The yielding row reads method_unavailable and is idle, so the
+// next review ranks it behind the goals it yielded to, as an unused
+// selection would have been; the recipient is Granted, so the next review
+// does not judge it idle for a slot its planner may never have run under.
+// Labor released by the yielding goal is unknown here, so a labor-deferred
+// candidate waits for the next review's fresh census. A goal that is not
+// selected yields nothing.
 func YieldDevelopment(state DevelopmentState, goal GoalID) DevelopmentState {
 	state.Rows = append([]DevelopmentRow(nil), state.Rows...)
 	state.Committed = append([]GoalID(nil), state.Committed...)
@@ -417,13 +429,13 @@ func YieldDevelopment(state DevelopmentState, goal GoalID) DevelopmentState {
 			continue
 		}
 		state.Rows[i].Selected = false
+		state.Rows[i].Granted = false
 		state.Rows[i].Reason = DevelopmentMethodUnavailable
-		// The freed slot goes to the next capacity-deferred candidate; labor
-		// released by the yielding goal is unknown here, so a labor-deferred
-		// candidate waits for the next review's fresh census.
+		state.Rows[i].Idle = true
 		for j := range state.Rows {
 			if state.Rows[j].Reason == DevelopmentCapacity {
 				state.Rows[j].Selected = true
+				state.Rows[j].Granted = true
 				state.Rows[j].Reason = ""
 				break
 			}

@@ -49,8 +49,29 @@ func TestDevelopmentCapacityAndYield(t *testing.T) {
 	next := YieldDevelopment(s, "storage")
 	requireSelected(t, next, "defense")
 	requireSelected(t, s, "storage")
+	if next.Rows[0].Goal != "storage" || next.Rows[0].Reason != DevelopmentMethodUnavailable || !next.Rows[0].Idle || next.Rows[0].Granted || !next.Rows[1].Granted {
+		t.Fatalf("yield should mark the yielder unavailable and idle and the recipient granted: %+v", next.Rows)
+	}
+	if ValidateDevelopmentState(next) != nil {
+		t.Fatal(next)
+	}
+	// The recipient's planner may not have run under the grant: the next
+	// review keeps its hysteresis and does not judge it idle, while the
+	// yielder ranks behind it as an unused selection would.
+	r.Previous = next
+	r.Tick = 110
+	after := rank(t, r)
+	requireSelected(t, after, "defense")
+	if after.Rows[0].Idle || after.Rows[0].Granted || !after.Rows[len(after.Rows)-1].Idle || after.Rows[len(after.Rows)-1].Goal != "storage" {
+		t.Fatalf("granted recipient should keep the slot and the yielder should be idle: %+v", after.Rows)
+	}
+	r.Previous, r.Tick = DevelopmentState{}, 100
 	next = YieldDevelopment(next, "defense")
 	requireSelected(t, next, "wood")
+	// Yielding an unselected goal changes nothing.
+	if y := YieldDevelopment(next, "storage"); !reflect.DeepEqual(y, next) {
+		t.Fatal(y)
+	}
 	r.Workers = domain.Known(1)
 	r.Limit = 8
 	requireSelected(t, rank(t, r), "storage")

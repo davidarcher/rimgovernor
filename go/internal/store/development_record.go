@@ -26,6 +26,7 @@ type RoutineDevelopmentRow struct {
 	Bottleneck          policy.WorkType `json:",omitempty"`
 	Risk                *float64        `json:",omitempty"`
 	Idle                bool            `json:",omitempty"`
+	Granted             bool            `json:",omitempty"`
 }
 
 func developmentRecord(s policy.DevelopmentState) RoutineDevelopment {
@@ -40,7 +41,7 @@ func developmentRecord(s policy.DevelopmentState) RoutineDevelopment {
 		}
 	}
 	for _, row := range s.Rows {
-		v := RoutineDevelopmentRow{Goal: row.Goal, Score: row.Score, WaitingSince: row.WaitingSince, Selected: row.Selected, Committed: row.Committed, Reason: row.Reason, Bottleneck: row.Bottleneck, Idle: row.Idle}
+		v := RoutineDevelopmentRow{Goal: row.Goal, Score: row.Score, WaitingSince: row.WaitingSince, Selected: row.Selected, Committed: row.Committed, Reason: row.Reason, Bottleneck: row.Bottleneck, Idle: row.Idle, Granted: row.Granted}
 		if deficit, k := row.Deficit.Value(); k {
 			v.Deficit = &deficit
 		}
@@ -66,7 +67,7 @@ func (r RoutineDevelopment) State() policy.DevelopmentState {
 		s.Labor = domain.Known(labor)
 	}
 	for _, row := range r.Rows {
-		v := policy.DevelopmentRow{Goal: row.Goal, Score: row.Score, WaitingSince: row.WaitingSince, Selected: row.Selected, Committed: row.Committed, Reason: row.Reason, Bottleneck: row.Bottleneck, Idle: row.Idle}
+		v := policy.DevelopmentRow{Goal: row.Goal, Score: row.Score, WaitingSince: row.WaitingSince, Selected: row.Selected, Committed: row.Committed, Reason: row.Reason, Bottleneck: row.Bottleneck, Idle: row.Idle, Granted: row.Granted}
 		if row.Deficit != nil {
 			v.Deficit = domain.Known(*row.Deficit)
 		}

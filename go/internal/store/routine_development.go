@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -177,4 +178,48 @@ func admitRoutineDevelopment(ctx context.Context, tx *sql.Tx, g domain.Goal) err
 		return fmt.Errorf("%w: development capacity %d already committed", ErrNotAdmitted, review.Development.Capacity)
 	}
 	return nil
+}
+
+// YieldRoutineDevelopment records that the planner of need has no method
+// under review revision (its retries are exhausted or every fallback
+// refused) and hands the need's development slot to the next
+// capacity-deferred goal of the same review (policy.YieldDevelopment). The
+// row then reads method_unavailable instead of an unexplained selection, a
+// planner queued later in the same wave sees the recipient selected, and
+// the next review ranks the yielder behind the goals it yielded to. A
+// review that has moved past revision is ErrConflict; a need that is not
+// selected is a no-op. It grants no execution authority: method admission
+// still rechecks the recipient's selection.
+func (s *Store) YieldRoutineDevelopment(ctx context.Context, revision uint64, need domain.GoalID) (RoutineReview, error) {
+	tx, err := s.begin(ctx)
+	if err != nil {
+		return RoutineReview{}, err
+	}
+	defer tx.Rollback()
+	review, err := loadRoutine(ctx, tx)
+	if err != nil {
+		return RoutineReview{}, err
+	}
+	if review.Revision != revision {
+		return RoutineReview{}, fmt.Errorf("%w: routine review revision %d, yield under %d", ErrConflict, review.Revision, revision)
+	}
+	if !review.Enabled {
+		return review, tx.Commit()
+	}
+	state := policy.YieldDevelopment(review.Development.State(), need)
+	if err = policy.ValidateDevelopmentState(state); err != nil {
+		return RoutineReview{}, err
+	}
+	review.Development = developmentRecord(state)
+	data, err := json.Marshal(review)
+	if err != nil {
+		return RoutineReview{}, err
+	}
+	if len(data) > 512*1024 {
+		return RoutineReview{}, ErrCapacity
+	}
+	if _, err = tx.ExecContext(ctx, "INSERT INTO routine_review(singleton,payload) VALUES(1,?) ON CONFLICT(singleton) DO UPDATE SET payload=excluded.payload", data); err != nil {
+		return RoutineReview{}, err
+	}
+	return review, tx.Commit()
 }
