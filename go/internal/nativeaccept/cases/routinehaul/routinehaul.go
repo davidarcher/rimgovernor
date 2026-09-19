@@ -413,7 +413,7 @@ func run(ctx context.Context, s cases.Session) error {
 	if err != nil {
 		return fmt.Errorf("load goal at the quiet window: %w", err)
 	}
-	baselineMethodCount := len(baselineGoal.Methods)
+	baselineMethodCount := baselineGoal.Admitted
 
 	// Observe several review cycles: no new method should appear for the
 	// renewed deficit while the only eligible hauler is overridden off.
@@ -423,7 +423,7 @@ func run(ctx context.Context, s cases.Session) error {
 		if err != nil {
 			return fmt.Errorf("poll during interruption: %w", err)
 		}
-		if len(goal.Methods) > baselineMethodCount {
+		if goal.Admitted > baselineMethodCount {
 			return fmt.Errorf("RoutineHaulPlanner dispatched a new haul while the only eligible hauler's Hauling priority was revoked: %#v", goal.Methods)
 		}
 		select {
@@ -472,8 +472,8 @@ func run(ctx context.Context, s cases.Session) error {
 	// duplicate/conflicting order, just accounting for legitimate renewals
 	// rather than a hardcoded count.
 	wantMethodCount := baselineMethodCount + 1 + renewals2
-	if len(finalGoal.Methods) != wantMethodCount {
-		return fmt.Errorf("expected exactly %d committed haul methods (no duplicates; baseline=%d incidental_renewals=%d+%d), got %d: %#v", wantMethodCount, baselineMethodCount, renewals1, renewals2, len(finalGoal.Methods), finalGoal.Methods)
+	if finalGoal.Admitted != wantMethodCount {
+		return fmt.Errorf("expected exactly %d committed haul methods (no duplicates; baseline=%d incidental_renewals=%d+%d), got %d: %#v", wantMethodCount, baselineMethodCount, renewals1, renewals2, finalGoal.Admitted, finalGoal.Methods)
 	}
 	report["second_haul_item"] = item2
 
