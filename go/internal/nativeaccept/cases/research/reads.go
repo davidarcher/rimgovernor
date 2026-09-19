@@ -347,6 +347,13 @@ func compareProjects(observed map[string]any, legacy map[string]any) error {
 		}
 		canStart, _ := na.AsBool(row["canStart"])
 		if sourceCanStart, _ := na.AsBool(source["canStartNow"]); canStart != sourceCanStart {
+			// The typed row demands a research bench the colony owns where
+			// native CanStartNow only demands one for a project that names
+			// one (#254): a benchless colony (the Core-only debug start,
+			// #332) reads locked on that reason alone.
+			if !canStart && sourceCanStart && lockedOnlyByBench(row) {
+				continue
+			}
 			return fmt.Errorf("project %s canStart mismatch", name)
 		}
 	}
@@ -429,4 +436,11 @@ func compareCapability(observed map[string]any, legacy map[string]any) error {
 		}
 	}
 	return nil
+}
+
+// lockedOnlyByBench reports whether the typed row's only lock reason is
+// the missing research bench (research_building_or_facilities).
+func lockedOnlyByBench(row map[string]any) bool {
+	reasons := na.AsSlice(row["lockReasons"])
+	return len(reasons) == 1 && na.AsString(reasons[0]) == "research_building_or_facilities"
 }

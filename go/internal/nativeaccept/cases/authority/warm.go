@@ -186,7 +186,17 @@ func warmPhase2(ctx context.Context, cfg *na.Config, output, previousLoadToken s
 	// the finding.
 	reads := 0
 	held := time.Now()
-	elapsed, err := na.RunUntil(ctx, h, "p2-hold", warmHoldTicks, na.Wait{Stall: na.StallBudget()}, func(ctx context.Context) (string, bool, error) {
+	startTick, err := h.Tick(ctx)
+	if err != nil {
+		return err
+	}
+	// The probe ends the run once the hold window has passed; RunUntil's
+	// own budget (twice the window) is the failure bound, not the hold.
+	elapsed, err := na.RunUntil(ctx, h, "p2-hold", 2*warmHoldTicks, na.Wait{Stall: na.StallBudget()}, func(ctx context.Context) (string, bool, error) {
+		tick, err := h.Tick(ctx)
+		if err != nil {
+			return "", false, err
+		}
 		status, observed, err := na.AuthorityStatus(ctx, h.WireFunc(), fmt.Sprintf("p2-hold-%03d", reads), identity)
 		if err != nil {
 			return "", false, err
@@ -199,7 +209,7 @@ func warmPhase2(ctx context.Context, cfg *na.Config, output, previousLoadToken s
 				"authority": status, "generation": observed, "clock": clock}
 			return "", false, fmt.Errorf("phase 2 lost the Auto grant at generation %d after %d reads: %v", generation, reads, status)
 		}
-		return "", false, nil
+		return "", tick-startTick >= warmHoldTicks, nil
 	})
 	if err != nil {
 		return err

@@ -1,6 +1,10 @@
 package nativeaccept
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
 
 func TestCachedStartName(t *testing.T) {
 	defer func() { startCache.expansions = nil }()
@@ -35,6 +39,43 @@ func TestKeepGameAndCachedStartAreOnUnlessOptedOut(t *testing.T) {
 		t.Setenv(CachedStartEnv, tc.value)
 		if KeepGame() != tc.want || CachedStart() != tc.want {
 			t.Errorf("%q: KeepGame=%v CachedStart=%v, want %v", tc.value, KeepGame(), CachedStart(), tc.want)
+		}
+	}
+}
+
+func TestCachedStartStale(t *testing.T) {
+	defer func() { startCache.expansions = nil }()
+	dir := t.TempDir()
+	write := func(name, mods string) string {
+		path := filepath.Join(dir, name+".rws")
+		if err := os.WriteFile(path, []byte("<savegame><meta><modIds>"+mods+"</modIds></meta></savegame>"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
+	core := write("core", "<li>ludeon.rimworld</li><li>brrainz.harmony</li>")
+	dlc := write("dlc", "<li>ludeon.rimworld</li><li>Ludeon.RimWorld.Royalty</li><li>ludeon.rimworld.biotech</li>")
+	// A save every DLC was active for (every root cached before #332) is
+	// stale under the Core-only profile; the matching set, in any order or
+	// case and by short name, is current.
+	for _, tc := range []struct {
+		path       string
+		expansions []string
+		stale      bool
+	}{
+		{core, nil, false},
+		{dlc, nil, true},
+		{core, []string{"royalty"}, true},
+		{dlc, []string{"Biotech", "royalty"}, false},
+		{dlc, []string{"ludeon.rimworld.royalty"}, true},
+	} {
+		startCache.expansions = tc.expansions
+		stale, err := cachedStartStale(tc.path, filepath.Base(tc.path))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if stale != tc.stale {
+			t.Errorf("stale(%s, %v) = %v, want %v", filepath.Base(tc.path), tc.expansions, stale, tc.stale)
 		}
 	}
 }

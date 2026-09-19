@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -144,9 +145,16 @@ func ExpansionsFromEnv() ([]string, error) {
 // brrainz.rimbridgeserver and NativePackage, removing every other official
 // expansion plus legacy or duplicate entries first. Acceptance runs are
 // Core-only by default (issue #91): each active expansion adds def loading and
-// per-tick systems no harness needs unless it tests that DLC. knownExpansions
-// is left alone so RimWorld still recognizes the installed content.
-func PrepareNativeModConfig(modsConfigXMLPath string, expansions ...string) error {
+// per-tick systems no harness needs unless it tests that DLC.
+//
+// knownExpansions is extended with installed (the official expansions the
+// game copy ships, InstalledExpansions) and the requested ones. RimWorld
+// activates every installed expansion it has not seen before at boot --
+// knownExpansions is its record of which it has -- and rewrites
+// ModsConfig.xml with them, so a profile whose list leaves one out runs
+// every DLC the game owns whatever activeMods says, and a kept process's
+// launch snapshot no longer matches the file (#332).
+func PrepareNativeModConfig(modsConfigXMLPath string, installed []string, expansions ...string) error {
 	data, err := os.ReadFile(modsConfigXMLPath)
 	if err != nil {
 		return fmt.Errorf("read ModsConfig.xml: %w", err)
@@ -213,11 +221,50 @@ func PrepareNativeModConfig(modsConfigXMLPath string, expansions ...string) erro
 	for _, id := range required {
 		active.kids = append(active.kids, item(id))
 	}
+	known := root.find("knownExpansions")
+	if known == nil {
+		known = &xmlElem{name: xml.Name{Local: "knownExpansions"}}
+		root.kids = append(root.kids, xmlItem{elem: known})
+	}
+	seenKnown := map[string]bool{}
+	for _, li := range known.findAll("li") {
+		seenKnown[casefold(li.text())] = true
+	}
+	for _, id := range append(append([]string{}, installed...), wanted...) {
+		id = casefold(id)
+		if !seenKnown[id] {
+			seenKnown[id] = true
+			known.kids = append(known.kids, item(id))
+		}
+	}
 	out, err := writeXML(header, root)
 	if err != nil {
 		return fmt.Errorf("encode ModsConfig.xml: %w", err)
 	}
 	return os.WriteFile(modsConfigXMLPath, out, 0644)
+}
+
+// InstalledExpansions lists the casefolded package IDs of the official
+// expansions installed under workingDir's Data folder (Data/<name>/About/
+// About.xml with a ludeon.rimworld.* packageId), sorted. A game copy with
+// no Data folder has none.
+func InstalledExpansions(workingDir string) ([]string, error) {
+	matches, err := filepath.Glob(filepath.Join(workingDir, "Data", "*", "About", "About.xml"))
+	if err != nil {
+		return nil, fmt.Errorf("scan installed expansions: %w", err)
+	}
+	var out []string
+	for _, about := range matches {
+		id, err := packageID(about)
+		if err != nil {
+			return nil, err
+		}
+		if folded := casefold(id); strings.HasPrefix(folded, ExpansionPrefix) {
+			out = append(out, folded)
+		}
+	}
+	sort.Strings(out)
+	return out, nil
 }
 
 // requireOwnedLaunch enforces launchMode == DirectPath and strips stopProcessName so
@@ -625,8 +672,12 @@ func prepareRendered(root string, fixtureOps, expansions []string) (string, erro
 	if _, err := RequireCurrentPackage(filepath.Join(workingDir, "Mods", "RimGovernor"), fixtureOps...); err != nil {
 		return "", err
 	}
+	installed, err := InstalledExpansions(workingDir)
+	if err != nil {
+		return "", err
+	}
 	profile := filepath.Join(root, "profile")
-	if err := PrepareNativeModConfig(filepath.Join(profile, "Config", "ModsConfig.xml"), expansions...); err != nil {
+	if err := PrepareNativeModConfig(filepath.Join(profile, "Config", "ModsConfig.xml"), installed, expansions...); err != nil {
 		return "", err
 	}
 	if err := StageBaselineSave(root); err != nil {
@@ -684,7 +735,11 @@ func prepare(root string, fixtureOps, expansions []string) (string, error) {
 			return "", err
 		}
 	}
-	if err := PrepareNativeModConfig(filepath.Join(profile, "Config", "ModsConfig.xml"), expansions...); err != nil {
+	installed, err := InstalledExpansions(workingDir)
+	if err != nil {
+		return "", err
+	}
+	if err := PrepareNativeModConfig(filepath.Join(profile, "Config", "ModsConfig.xml"), installed, expansions...); err != nil {
 		return "", err
 	}
 	if err := TrimPrefs(filepath.Join(profile, "Config", "Prefs.xml")); err != nil {
@@ -832,7 +887,11 @@ func fileSHA256(path string) (string, error) {
 // them, so a harness that loads a save passes its result to Config.Expansions
 // rather than relying on the Core-only default.
 func SaveExpansions(root, saveName string) ([]string, error) {
-	path := filepath.Join(mustAbs(root), "profile", "Saves", saveName+".rws")
+	return saveExpansionsAt(filepath.Join(mustAbs(root), "profile", "Saves", saveName+".rws"), saveName)
+}
+
+// saveExpansionsAt is SaveExpansions on the .rws at path.
+func saveExpansionsAt(path, saveName string) ([]string, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("read save header: %w", err)

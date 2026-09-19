@@ -318,7 +318,10 @@ by review alone.
 Acceptance profiles are Core-only: `nativeaccept.PrepareNativeModConfig`
 drops every `ludeon.rimworld.*` expansion from the headless/rendered
 `ModsConfig.xml` it generates, because each active expansion adds def loading
-and per-tick systems no case needs unless it tests that DLC. A case that
+and per-tick systems no case needs unless it tests that DLC, and lists every
+expansion the game copy ships in `knownExpansions`: RimWorld activates any
+installed expansion it has not seen before at boot and rewrites the file
+with it, whatever `activeMods` said (#332). A case that
 does sets `Config.Expansions` (or the run sets
 `RIMGOVERNOR_ACCEPT_EXPANSIONS=royalty,biotech`). A save refuses to load
 (`save.missing_mods`) under a profile missing an expansion it was recorded

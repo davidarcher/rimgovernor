@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 )
@@ -70,6 +71,29 @@ func cachedStartPath(name string) (string, bool) {
 	path := filepath.Join(startCache.root, profile, "Saves", name+".rws")
 	_, err := os.Stat(path)
 	return path, err == nil
+}
+
+// cachedStartStale reports whether the cached save at path was recorded
+// under expansions other than the profile's, so the process cannot load it
+// (save.missing_mods) and the start regenerates over it. The saves every
+// root cached before #332 were recorded with every owned DLC active, since
+// the game activated them at boot whatever the profile said.
+func cachedStartStale(path, name string) (bool, error) {
+	recorded, err := saveExpansionsAt(path, name)
+	if err != nil {
+		return false, fmt.Errorf("cached start %s: %w", name, err)
+	}
+	var wanted []string
+	for _, name := range startCache.expansions {
+		id, err := ExpansionPackage(name)
+		if err != nil {
+			return false, err
+		}
+		wanted = append(wanted, id)
+	}
+	sort.Strings(wanted)
+	sort.Strings(recorded)
+	return strings.Join(wanted, ",") != strings.Join(recorded, ","), nil
 }
 
 // loadCachedStart loads the save and waits for it the way a quick start is

@@ -164,11 +164,17 @@ func StartDebugGameSized(ctx context.Context, h *Harness, names []string, mode Q
 	cached := CachedStart() && startCache.root != ""
 	name := cachedStartName(start)
 	startCache.seed = ""
-	if _, have := cachedStartPath(name); cached && have {
-		if err := loadCachedStart(ctx, h, name); err != nil {
+	if path, have := cachedStartPath(name); cached && have {
+		stale, err := cachedStartStale(path, name)
+		if err != nil {
 			return nil, err
 		}
-		return applyQuiet(ctx, h, apply)
+		if !stale {
+			if err := loadCachedStart(ctx, h, name); err != nil {
+				return nil, err
+			}
+			return applyQuiet(ctx, h, apply)
+		}
 	}
 	if !Contains(names, DebugStartTool) && start.Biomes != "" {
 		return nil, fmt.Errorf("%s not in discovery but the start asks for biome %s: rebuild the native mod with any -Fixture flag (every fixture build includes DebugStartFixture)", DebugStartTool, start.Biomes)

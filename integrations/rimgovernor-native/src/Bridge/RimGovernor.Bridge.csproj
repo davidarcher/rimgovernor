@@ -48,14 +48,14 @@
     <Compile Include="../../../../scripts/fixtures/VideoMatrixFixture.cs" Condition="'$(VideoMatrixFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/FoodObservationFixture.cs" Condition="'$(FoodObservationFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/UpkeepFixture.cs" Condition="'$(UpkeepFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/HomeCoverageFixture.cs" Condition="'$(UpkeepFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/SleepingFixture.cs" Condition="'$(UpkeepFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/StoreroomFixture.cs" Condition="'$(UpkeepFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/HomeCoverageFixture.cs" Condition="'$(UpkeepFixture)' == 'true' Or '$(HomeCoverageFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/SleepingFixture.cs" Condition="'$(UpkeepFixture)' == 'true' Or '$(SleepingFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/StoreroomFixture.cs" Condition="'$(UpkeepFixture)' == 'true' Or '$(StoreroomFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/WallUpgradeFixture.cs" Condition="'$(UpkeepFixture)' == 'true' Or '$(WallUpgradeFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/MedicineFixture.cs" Condition="'$(UpkeepFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/AnimalContainmentFixture.cs" Condition="'$(UpkeepFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/AnimalFeedFixture.cs" Condition="'$(UpkeepFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/ComfortFixture.cs" Condition="'$(UpkeepFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/MedicineFixture.cs" Condition="'$(UpkeepFixture)' == 'true' Or '$(MedicineFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/AnimalContainmentFixture.cs" Condition="'$(UpkeepFixture)' == 'true' Or '$(AnimalContainmentFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/AnimalFeedFixture.cs" Condition="'$(UpkeepFixture)' == 'true' Or '$(AnimalFeedFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/ComfortFixture.cs" Condition="'$(UpkeepFixture)' == 'true' Or '$(ComfortFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/TradeFixture.cs" Condition="'$(TradeFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ScenarioStartFixture.cs" Condition="'$(ScenarioStartFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ConstructionLedgerFixture.cs" Condition="'$(ConstructionLedgerFixture)' == 'true'" />

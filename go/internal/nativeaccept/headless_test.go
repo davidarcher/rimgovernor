@@ -100,7 +100,7 @@ func TestPrepareNativeModConfig(t *testing.T) {
 	if err := os.WriteFile(path, []byte(sampleModsConfig), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if err := PrepareNativeModConfig(path); err != nil {
+	if err := PrepareNativeModConfig(path, nil); err != nil {
 		t.Fatalf("PrepareNativeModConfig failed: %v", err)
 	}
 	data, err := os.ReadFile(path)
@@ -171,7 +171,7 @@ func activeModsAfter(t *testing.T, expansions ...string) []string {
 	if err := os.WriteFile(path, []byte(expansionModsConfig), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if err := PrepareNativeModConfig(path, expansions...); err != nil {
+	if err := PrepareNativeModConfig(path, nil, expansions...); err != nil {
 		t.Fatalf("PrepareNativeModConfig failed: %v", err)
 	}
 	data, err := os.ReadFile(path)
@@ -182,10 +182,76 @@ func activeModsAfter(t *testing.T, expansions ...string) []string {
 	if err != nil {
 		t.Fatalf("rewritten ModsConfig.xml did not parse: %v", err)
 	}
-	if len(root.find("knownExpansions").li()) != 4 {
-		t.Fatalf("knownExpansions element was mutated")
+	// Every requested expansion is known afterwards, so RimWorld does not
+	// treat it as newly installed; the profile's own entries stay (#332).
+	known := root.find("knownExpansions").li()
+	if len(known) < 4 || strings.Join(known[:4], ",") != "ludeon.rimworld.royalty,ludeon.rimworld.ideology,ludeon.rimworld.biotech,ludeon.rimworld.odyssey" {
+		t.Fatalf("knownExpansions = %v, want the profile's four first", known)
+	}
+	for _, id := range expansions {
+		want, _ := ExpansionPackage(id)
+		found := false
+		for _, k := range known {
+			found = found || k == want
+		}
+		if !found {
+			t.Fatalf("knownExpansions = %v, missing requested %s", known, want)
+		}
 	}
 	return root.find("activeMods").li()
+}
+
+func TestPrepareNativeModConfigKnowsInstalledExpansions(t *testing.T) {
+	// A game copy with every DLC installed: each one lands in
+	// knownExpansions (once, casefolded, the profile's own entries first)
+	// while activeMods stays Core-only, so RimWorld's boot-time "newly
+	// installed expansion" activation never fires (#332). A missing
+	// knownExpansions element is created.
+	path := filepath.Join(t.TempDir(), "ModsConfig.xml")
+	if err := os.WriteFile(path, []byte("<ModsConfigData><activeMods><li>ludeon.rimworld</li><li>Ludeon.RimWorld.Royalty</li></activeMods></ModsConfigData>"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	installed := []string{"ludeon.rimworld.anomaly", "ludeon.rimworld.biotech", "Ludeon.RimWorld.Royalty", "ludeon.rimworld.royalty"}
+	if err := PrepareNativeModConfig(path, installed); err != nil {
+		t.Fatalf("PrepareNativeModConfig failed: %v", err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, root, err := parseXML(data)
+	if err != nil {
+		t.Fatalf("rewritten ModsConfig.xml did not parse: %v", err)
+	}
+	if got := strings.Join(root.find("activeMods").li(), ","); got != "ludeon.rimworld,brrainz.harmony,brrainz.rimbridgeserver,"+NativePackage {
+		t.Fatalf("activeMods = %s", got)
+	}
+	if got := strings.Join(root.find("knownExpansions").li(), ","); got != "ludeon.rimworld.anomaly,ludeon.rimworld.biotech,ludeon.rimworld.royalty" {
+		t.Fatalf("knownExpansions = %s", got)
+	}
+}
+
+func TestInstalledExpansions(t *testing.T) {
+	game := t.TempDir()
+	for name, id := range map[string]string{"Core": "Ludeon.RimWorld", "Royalty": "Ludeon.RimWorld.Royalty", "Anomaly": "ludeon.rimworld.anomaly"} {
+		dir := filepath.Join(game, "Data", name, "About")
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "About.xml"), []byte("<ModMetaData><packageId>"+id+"</packageId></ModMetaData>"), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err := InstalledExpansions(game)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(got, ",") != "ludeon.rimworld.anomaly,ludeon.rimworld.royalty" {
+		t.Fatalf("InstalledExpansions = %v", got)
+	}
+	if got, err := InstalledExpansions(filepath.Join(game, "missing")); err != nil || len(got) != 0 {
+		t.Fatalf("InstalledExpansions(no Data) = %v, %v", got, err)
+	}
 }
 
 func TestPrepareNativeModConfigDropsExpansionsByDefault(t *testing.T) {
@@ -213,7 +279,7 @@ func TestPrepareNativeModConfigRejectsBadExpansion(t *testing.T) {
 		if err := os.WriteFile(path, []byte(expansionModsConfig), 0644); err != nil {
 			t.Fatal(err)
 		}
-		if err := PrepareNativeModConfig(path, bad); err == nil {
+		if err := PrepareNativeModConfig(path, nil, bad); err == nil {
 			t.Fatalf("expected error for expansion %q", bad)
 		}
 	}
@@ -224,7 +290,7 @@ func TestPrepareNativeModConfigRequiresCore(t *testing.T) {
 	if err := os.WriteFile(path, []byte("<ModsConfigData><activeMods><li>brrainz.harmony</li></activeMods></ModsConfigData>"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if err := PrepareNativeModConfig(path); err == nil {
+	if err := PrepareNativeModConfig(path, nil); err == nil {
 		t.Fatal("expected error when ludeon.rimworld is inactive")
 	}
 }
@@ -251,7 +317,7 @@ func TestPrepareNativeModConfigMissingActiveMods(t *testing.T) {
 	if err := os.WriteFile(path, []byte("<ModsConfigData><version>1</version></ModsConfigData>"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if err := PrepareNativeModConfig(path); err == nil {
+	if err := PrepareNativeModConfig(path, nil); err == nil {
 		t.Fatal("expected error for missing activeMods")
 	}
 }

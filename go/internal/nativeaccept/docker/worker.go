@@ -183,7 +183,11 @@ func prepareConfig(cfg WorkerConfig) error {
 	if err != nil {
 		return err
 	}
-	if err := nativeaccept.PrepareNativeModConfig(filepath.Join(profileConfigDir, "ModsConfig.xml"), expansions...); err != nil {
+	installed, err := nativeaccept.InstalledExpansions(cfg.Inputs.Game)
+	if err != nil {
+		return err
+	}
+	if err := nativeaccept.PrepareNativeModConfig(filepath.Join(profileConfigDir, "ModsConfig.xml"), installed, expansions...); err != nil {
 		return fmt.Errorf("prepare ModsConfig.xml: %w", err)
 	}
 
