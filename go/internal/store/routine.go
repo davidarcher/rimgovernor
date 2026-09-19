@@ -22,6 +22,7 @@ type RoutineGoal struct {
 // RoutineReview is the durable review cursor and hysteresis history. Goal
 // bindings retain semantic needs while old executable plans keep their identity.
 type RoutineReview struct {
+	ClearanceHolds         []policy.ClearanceHold  `json:",omitempty"`
 	Recovery               *RoutineRecovery        `json:",omitempty"`
 	Disaster               *policy.DisasterHistory `json:",omitempty"`
 	Mood                   *RoutineMood            `json:",omitempty"`
@@ -85,7 +86,7 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 		return r, err
 	}
 	canonical, err := json.Marshal(r)
-	if err != nil || !bytes.Equal(data, canonical) || r.Revision == 0 || r.Snapshot.Validate() != nil || r.Tick < 0 || len(r.Goals) > 302 {
+	if err != nil || !bytes.Equal(data, canonical) || r.Revision == 0 || r.Snapshot.Validate() != nil || r.Tick < 0 || len(r.Goals) > 303 {
 		return RoutineReview{}, errors.New("invalid routine review history")
 	}
 	if err := r.MedicalCare.Validate(); err != nil {
@@ -479,6 +480,11 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		if err != nil {
 			return RoutineReviewResult{}, err
 		}
+	}
+	if rows, known := request.Facts.Upkeep.Clearance.Value(); known {
+		r.ClearanceHolds = policy.SelectHomeClearance(rows, domain.Cell{}).Holds
+	} else {
+		r.ClearanceHolds = previous.ClearanceHolds
 	}
 	data, err := json.Marshal(r)
 	if err != nil {

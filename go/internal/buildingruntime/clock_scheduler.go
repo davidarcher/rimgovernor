@@ -70,6 +70,7 @@ type ClockSchedulerConfig struct {
 	Work                             *RoutineWorkPlanner
 	Supplies                         *RoutineSupplyPlanner
 	Blight                           *RoutineBlightPlanner
+	Clearance                        *RoutineClearancePlanner
 	Sleeping                         *RoutineBuildingPlanner
 	Cooking                          *RoutineBuildingPlanner
 	Comfort                          *RoutineBuildingPlanner
@@ -134,6 +135,7 @@ type ClockSchedulerResult struct {
 	Work                             *RoutineWorkResult
 	Supplies                         *RoutineSupplyResult
 	Blight                           *RoutineBlightResult
+	Clearance                        *RoutineClearanceResult
 	Sleeping                         *RoutineBuildingResult
 	Cooking                          *RoutineBuildingResult
 	Comfort                          *RoutineBuildingResult
@@ -297,6 +299,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, ErrControl
 	}
 	if config.Supplies != nil && (config.Routine == nil || config.Supplies.reviewer != config.Routine) {
+		return nil, ErrControl
+	}
+	if config.Clearance != nil && (config.Routine == nil || config.Clearance.reviewer != config.Routine) {
 		return nil, ErrControl
 	}
 	if config.Blight != nil && (config.Routine == nil || config.Blight.reviewer != config.Routine) {
@@ -1370,7 +1375,7 @@ func clockSchedulerWork(plan store.PlanState, current domain.GenerationSnapshot)
 				domain.MeleeAttackAction, domain.RangedAttackAction, domain.TendAction, domain.RescueAction, domain.CaptureAction,
 				domain.HaulAction, domain.EquipAction, domain.GearReplaceAction, domain.RecoveryServiceAction,
 				domain.MovementAction, domain.HusbandryAction, domain.PrisonerInteractionAction,
-				domain.RepairAction, domain.CleanAction, domain.WasteAction, domain.MineAcquisitionAction, domain.CutPlantAction, domain.ProductionPolicyAction, domain.MoodReliefAction, domain.ExcavationAction, domain.DialogAnswerAction, domain.NamingConfirmationAction, domain.TradeAction, domain.QuestAcceptAction:
+				domain.RepairAction, domain.CleanAction, domain.WasteAction, domain.MineAcquisitionAction, domain.DeconstructionAction, domain.CutPlantAction, domain.ProductionPolicyAction, domain.MoodReliefAction, domain.ExcavationAction, domain.DialogAnswerAction, domain.NamingConfirmationAction, domain.TradeAction, domain.QuestAcceptAction:
 			default:
 				return false, nil, executor.ErrHeld
 			}

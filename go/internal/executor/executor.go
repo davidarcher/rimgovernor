@@ -118,6 +118,8 @@ type Executor struct {
 	supply                     SupplyBoundary
 	supplyJournal              SupplyJournal
 	cutPlant                   CutPlantBoundary
+	deconstruction             DeconstructionBoundary
+	deconstructionJournal      DeconstructionJournal
 	cutPlantJournal            CutPlantJournal
 	tend                       TendBoundary
 	tendJournal                TendJournal
@@ -361,6 +363,9 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.SupplyAllowAction && e.supply != nil {
 		return e.runSupply(ctx, action, progress, authority, generation)
+	}
+	if action.Kind() == domain.DeconstructionAction && e.deconstruction != nil {
+		return e.runDeconstruction(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.CutPlantAction && e.cutPlant != nil {
 		return e.runCutPlant(ctx, action, progress, authority, generation)

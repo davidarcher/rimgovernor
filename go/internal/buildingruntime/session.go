@@ -35,6 +35,7 @@ import (
 )
 
 type SessionConfig struct {
+	Deconstruction  *DeconstructionCapabilities
 	Bills           *bill.BillCapabilities
 	Zones           *zone.ZoneCapabilities
 	Work            *work.WorkCapabilities
@@ -256,6 +257,12 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 			config.Control.Worlds = draftBoundary
 		}
 	}
+	if config.Deconstruction != nil {
+		if config.Deconstruction.Native == nil || config.Deconstruction.Writer == nil {
+			return nil, ErrControl
+		}
+		config.Control.BeforeRevoke = releaseDeconstructions(config.Deconstruction.Writer, string(namespace))
+	}
 	config.Control.StopWrites = sink.stop
 	config.Control.CleanupWrites = sink.cleanup
 	if config.Control.Worlds == nil && config.Clock != nil {
@@ -428,6 +435,15 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	// for why the composed-value approach was unsafe.
 	if config.Supplies != nil {
 		if err := worker.EnableSupply(supply.NewSupplyBoundary(place, *config.Supplies)); err != nil {
+			return cleanup(err)
+		}
+	}
+	if config.Deconstruction != nil {
+		b, err := NewDeconstructionBoundary(config.Deconstruction.Native, config.Deconstruction.Writer, place.Leases, clock, string(namespace))
+		if err != nil {
+			return cleanup(err)
+		}
+		if err = worker.EnableDeconstruction(b); err != nil {
 			return cleanup(err)
 		}
 	}

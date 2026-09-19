@@ -188,7 +188,7 @@ controller designation; replacing that designation relinquishes ownership.
 finishes. Only the native deconstruct job establishes completion; disappearance
 without that callback is unsuccessful. Receipt and designation ownership are
 scoped to the loaded game, like the operation ledger; loaded designations without
-a current receipt are not adopted. Manual suspends owned work.
+a current receipt are not adopted. Manual releases owned pending designations.
 `ReleaseDeconstructions` retires pending work on stop and removes only the exact
 controller-created designations, returning a separate `released_count` effect.
 Player replacements survive release. The Go bridge rejects unknown evidence
@@ -208,6 +208,20 @@ Issued construction remains under observation. Retained cancellation history pre
 duplicate replacement; existing backup walls remain intact. Blocked demolition is
 retired before further supervised simulation. Interrupted recovery beyond this safe
 retirement and wider native acceptance remain listed in the backlog.
+
+`ClearHomeObstructions` (the `clearance` routine family) admits one non-player
+building inside Home at a time, nearest the colony center first. A fresh
+clearance census must report deconstructible geometry with no roof blocker,
+ancient danger, casket or existing designation. Repairs precede clearance;
+clearance precedes direct cleaning, and shared emergency admission still wins.
+The durable review records each skipped target and its reason in `ClearanceHolds`.
+Unknown observations preserve the previous need. Recovery requires no eligible
+candidate and no unresolved issued action; recurrence keeps the goal identity.
+Every dispatch rechecks eligibility, authority and emergency facts. Only the
+native demolition callback completes its action. Stop calls
+`ReleaseDeconstructions` before revoking authority, and native authority loss
+also releases exact controller-owned designations. Issued actions remain under
+observation. Salvage uses ordinary hauling and does not gate this goal.
 
 `SecureSupplies`, `MaintainEssentialRepairs`, `MaintainCleanFacilities` and
 `MaintainFireSafety` retain their goal identities across recovery and recurrence.

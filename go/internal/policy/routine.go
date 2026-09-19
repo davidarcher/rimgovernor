@@ -900,9 +900,16 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 			// (G01.07c 05.4, G01.07b 05.2); the rest of the direct upkeep
 			// orders remain visible-only until their own dispatch verticals
 			// land.
-			if n.Goal != SecureSupplies && n.Goal != MaintainEssentialRepairs && n.Goal != MaintainCleanFacilities && n.Goal != MaintainStorage {
+			if n.Goal != SecureSupplies && n.Goal != MaintainEssentialRepairs && n.Goal != MaintainCleanFacilities && n.Goal != MaintainStorage && n.Goal != ClearHomeObstructions {
 				r.Goals[len(r.Goals)-1].MethodUnavailable = true
 			}
+		}
+	}
+	// Clearance ranks below repairs and above direct cleaning. Safety goals
+	// already suspend all development work through the shared emergency gate.
+	for i := range r.Goals {
+		if r.Goals[i].ID == ClearHomeObstructions && upkeep.History.Repairs || r.Goals[i].ID == MaintainCleanFacilities && upkeep.History.Clearance {
+			r.Goals[i].MethodUnavailable = true
 		}
 	}
 	homeRecovered, stoneRecovered := domain.Unknown[bool](), domain.Unknown[bool]()

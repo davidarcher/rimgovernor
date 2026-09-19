@@ -116,6 +116,7 @@ type buildingServiceBridge struct {
 	work                *work.WorkCapabilities
 	supplies            *supply.SupplyCapabilities
 	cutPlant            *cutplant.CutPlantCapabilities
+	deconstruction      *buildingruntime.DeconstructionCapabilities
 	draft               *draft.DraftCapabilities
 	clock               *buildingruntime.ClockCapabilities
 	clockReads          serviceClockReads
@@ -237,6 +238,10 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
+	deconstructionWriter, err := bridge.NewDeconstructionWriter(client)
+	if err != nil {
+		return buildingServiceBridge{}, errors.Join(err, client.Close())
+	}
 	cutPlantWriter, err := bridge.NewCutPlantControl(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
@@ -326,6 +331,7 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		work:            &work.WorkCapabilities{Native: client, Writer: workWriter},
 		supplies:        &supply.SupplyCapabilities{Native: client, Writer: supplies},
 		cutPlant:        &cutplant.CutPlantCapabilities{Native: client, Writer: cutPlantWriter},
+		deconstruction:  &buildingruntime.DeconstructionCapabilities{Native: client, Writer: deconstructionWriter},
 		clock:           &buildingruntime.ClockCapabilities{Native: client, Writer: clock}, clockReads: client,
 		draft:               &draft.DraftCapabilities{Native: client, Writer: drafts, Cleanup: cleanup},
 		melee:               &melee.MeleeCapabilities{Native: client, Writer: attack},
@@ -598,6 +604,13 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		cleanCapabilities = client.clean
 	}
+	var deconstructionCapabilities *buildingruntime.DeconstructionCapabilities
+	if config.routineClearancePlans {
+		if client.deconstruction == nil {
+			return errors.New("clearance plans require typed deconstruction capabilities")
+		}
+		deconstructionCapabilities = client.deconstruction
+	}
 	var cutPlantCapabilities *cutplant.CutPlantCapabilities
 	if config.routineBlightPlans {
 		if client.cutPlant == nil {
@@ -761,6 +774,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		Clean:               cleanCapabilities,
 		Waste:               wasteCapabilities,
 		CutPlant:            cutPlantCapabilities,
+		Deconstruction:      deconstructionCapabilities,
 		MoodRelief:          moodReliefCapabilities,
 		GearReplace:         gearReplaceCapabilities,
 		RecoveryService:     recoveryServiceCapabilities,

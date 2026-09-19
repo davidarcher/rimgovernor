@@ -5,12 +5,13 @@ import (
 	"errors"
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 )
 
-type ClearanceClass string
+type ClearanceClass = string
 
 const (
 	ClearanceAncientWallDoor ClearanceClass = "ancient_wall_door"
@@ -22,23 +23,14 @@ const (
 // ClearanceTarget is an observed building, not an admitted demolition. Empty
 // Faction means neutral and empty RoofBlocker means supported without this
 // one building. Combined removals require a new counterfactual check.
-type ClearanceTarget struct {
-	EntityID, DefName                      string
-	Minimum, Maximum                       domain.Cell
-	Faction                                string
-	Class                                  ClearanceClass
-	Deconstructible, InHome, AncientDanger bool
-	RoofBlocker                            string
-	Designated, ControllerOwned            bool
-}
+type ClearanceTarget = policy.ClearanceTarget
 
 type ClearanceSource interface {
 	ReadClearanceTargets(context.Context, *c.Identity) (*o.ClearanceTargetsReply, bridge.Result, error)
 }
 
 // ObserveClearance tolerates an explicit unavailable native stub as unknown.
-// Transport, malformed-contract and identity errors remain errors. Nothing
-// wires these facts into routine policy until clearance admission exists.
+// Transport, malformed-contract and identity errors remain errors.
 func ObserveClearance(ctx context.Context, source ClearanceSource, expected Identity) (domain.Fact[[]ClearanceTarget], error) {
 	unknown := domain.Unknown[[]ClearanceTarget]()
 	if source == nil || expected.Validate() != nil || !sameColonyBoundary(expected, expected) {

@@ -48,6 +48,9 @@ type ControlConfig struct {
 	// CleanupWrites joins invalidated commands and drains owned effects under
 	// the control gate. It must not call back into Control or acquire a lease.
 	CleanupWrites func(context.Context) error
+	// BeforeRevoke releases owned pending designations while native authority
+	// still permits the release. Local dispatch is already disabled.
+	BeforeRevoke func(context.Context, *c.Identity, uint64) error
 	// Worlds reads actual native identity without entering the control gate.
 	// Without it, shutdown cannot retire a target by proving world replacement.
 	Worlds WorldSource
@@ -495,6 +498,11 @@ func (control *Control) revoke(ctx context.Context, reason a.RevocationReason) e
 	generation := status.Context.GetNativeGeneration()
 	if generation == ^uint64(0) {
 		return ErrControl
+	}
+	if control.config.BeforeRevoke != nil {
+		if err := control.config.BeforeRevoke(ctx, controlIdentity(snapshot), generation); err != nil {
+			return err
+		}
 	}
 	result, _, err := control.native.Revoke(ctx, &a.Revoke{Identity: controlIdentity(snapshot), ExpectedGeneration: proto.Uint64(generation), Reason: reason.Enum()})
 	if err != nil {

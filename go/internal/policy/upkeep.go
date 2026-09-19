@@ -26,6 +26,7 @@ const (
 // Each fact is a complete native section. An unavailable section cannot prove
 // that its old targets disappeared, while a known empty section can.
 type UpkeepObservation struct {
+	Clearance  domain.Fact[[]ClearanceTarget]
 	Items      domain.Fact[[]UpkeepItem]
 	Structures domain.Fact[[]UpkeepStructure]
 	Fires      domain.Fact[[]UpkeepFire]
@@ -81,6 +82,7 @@ type UpkeepFilth struct {
 	Thickness uint32
 }
 type UpkeepHistory struct {
+	Clearance                                  bool `json:",omitempty"`
 	Fire, Supplies, Repairs, Cleaning, Storage bool
 	// DirtyRooms is MaintainCleanFacilities' per-room latch (see
 	// ReviewCleanliness); empty for a clean colony.
@@ -291,6 +293,22 @@ func ReviewUpkeepWith(v UpkeepObservation, previous UpkeepHistory, issued map[Go
 			return r, errors.New("upkeep metric overflow")
 		}
 	}
+
+	clearanceTargets := domain.Unknown[[]string]()
+	if rows, known := v.Clearance.Value(); known {
+		selected := []string{}
+		seen := map[string]bool{}
+		for _, row := range rows {
+			if !valid(seen, row.EntityID) {
+				return r, errors.New("invalid clearance target")
+			}
+			if ClearanceHoldReason(row) == "" {
+				selected = append(selected, row.EntityID)
+			}
+		}
+		clearanceTargets = domain.Known(selected)
+	}
+	r.History.Clearance = add(ClearHomeObstructions, 3, previous.Clearance, clearanceTargets, domain.Unknown[float64](), false)
 	return r, nil
 }
 

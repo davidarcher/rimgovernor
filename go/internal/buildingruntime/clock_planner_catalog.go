@@ -382,6 +382,16 @@ var plannerCatalog = []plannerEntry{
 			out.FireSafety = &method
 			return nil
 		}},
+	{name: "clearance", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.DeconstructionAction}, families: factsColony,
+		configured: func(c *ClockSchedulerConfig) bool { return c.Clearance != nil },
+		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
+			method, err := s.config.Clearance.step(ctx, epoch, arbiter)
+			if err != nil {
+				return err
+			}
+			out.Clearance = &method
+			return nil
+		}},
 	{name: "clean", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.CleanAction}, families: factsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Clean != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {

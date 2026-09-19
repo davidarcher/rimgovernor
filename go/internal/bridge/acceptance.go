@@ -167,8 +167,10 @@ func (c *Client) ConnectWithPoll(ctx context.Context, started Result) (Result, e
 	}
 	result, err := c.ConnectGame(ctx)
 	// A fresh process can publish its launch before its listener is ready.
-	// Retry connection refusals briefly, but never take over another owner.
-	for attempt := 0; err != nil && attempt < 5; attempt++ {
+	// An explicitly pending endpoint gets the same startup budget as the
+	// background-connect path. Other refusals retain their short retry limit.
+	connectDeadline := time.Now().Add(120 * time.Second)
+	for attempt := 0; err != nil && time.Now().Before(connectDeadline); attempt++ {
 		var refusal *Refusal
 		var ownership struct {
 			ForeignOwner bool `json:"foreignOwner"`
@@ -180,7 +182,10 @@ func (c *Client) ConnectWithPoll(ctx context.Context, started Result) (Result, e
 		if ownership.ForeignOwner {
 			break
 		}
-		if waitErr := sleepOrDone(ctx, time.Duration(attempt+1)*300*time.Millisecond); waitErr != nil {
+		if attempt >= 5 && !strings.Contains(refusalDetail(refusal), "no attachable endpoint yet") {
+			break
+		}
+		if waitErr := sleepOrDone(ctx, min(time.Duration(attempt+1)*300*time.Millisecond, time.Second)); waitErr != nil {
 			return result, waitErr
 		}
 		result, err = c.ConnectGame(ctx)

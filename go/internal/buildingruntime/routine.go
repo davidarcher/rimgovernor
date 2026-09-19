@@ -263,6 +263,17 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	}
 	// Manual cancels ctx before waiting for this gate, then invalidates any
 	// completed review before returning. Never hold the local stop mutex for SQL.
+	if r.methodEnabled(policy.ClearHomeObstructions) {
+		source, ok := r.native.(observation.ClearanceSource)
+		if !ok {
+			return store.RoutineReviewResult{}, ErrControl
+		}
+		clearance, err := observation.ObserveClearance(ctx, source, expected)
+		if err != nil {
+			return store.RoutineReviewResult{}, err
+		}
+		reading.Projection.Facts.Upkeep.Clearance = clearance
+	}
 	reading.Projection.Facts.AvailableMethods = r.methods
 	result, err := p.journal.ReviewRoutine(ctx, store.RoutineReviewRequest{Revision: previous.Revision, WorkPreferenceRevision: preferences.Revision, Current: state.Snapshot, Tick: reading.Projection.Identity.Tick, Enabled: true, Policy: r.policy, Facts: reading.Projection.Facts, PartialPlanners: partial, AsOf: routineAsOf(asOf)})
 	if err != nil {

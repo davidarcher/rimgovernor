@@ -79,14 +79,22 @@ namespace HomeBridge.BridgeTools
                 postfix: new HarmonyMethod(typeof(NativeDeconstructionOperations), nameof(Eligible)));
             harmony.Patch(AccessTools.Method(typeof(JobDriver_Deconstruct), "MakeNewToils"),
                 postfix: new HarmonyMethod(typeof(NativeDeconstructionOperations), nameof(GuardJob)));
+            NativeControlAuthority.GenerationChanged += (authority, snapshot, previous) =>
+            {
+                if (!snapshot.Active && ReferenceEquals(game, Current.Game))
+                    using (authority.Owned()) ReleaseAll();
+            };
             installed = true;
         }
         private static void Eligible(Thing t, ref bool __result)
         { var record = Claim(t); if (record != null && (!Supervisor.IsActive || record.Blocker() != null)) __result = false; }
         private static void GuardJob(JobDriver_Deconstruct __instance)
         {
-            if (Claim(__instance.job.targetA.Thing) == null) return;
-            __instance.FailOn(() => { var record = Claim(__instance.job.targetA.Thing); return record != null && (!Supervisor.IsActive || record.Blocker() != null); });
+            var record = Claim(__instance.job.targetA.Thing);
+            if (record == null) return;
+            // Releasing the designation must not detach an already-issued job
+            // from its guard. The retained record observes release or replacement.
+            __instance.FailOn(() => !Supervisor.IsActive || record.Blocker() != null);
         }
         private static bool BeforeRemoval(JobDriver_Deconstruct __instance, out NativeDeconstructionRecord? __state)
         {

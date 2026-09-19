@@ -43,6 +43,26 @@ func TestConnectWithPollPreservesForeignOwnership(t *testing.T) {
 	}
 }
 
+func TestConnectWithPollWaitsForUnpublishedStartupEndpoint(t *testing.T) {
+	calls := 0
+	s := &testServer{connectHandler: func() (*mcp.CallToolResult, error) {
+		calls++
+		if calls <= 6 {
+			r := structured(`{"error":"runtime claim carries no attachable endpoint yet"}`)
+			r.IsError = true
+			return r, nil
+		}
+		return structured(`{"connected":true}`), nil
+	}}
+	c := testClient(t, s, time.Second)
+	if _, err := c.ConnectWithPoll(context.Background(), Result{}); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 7 || strings.Contains(string(s.connectArgs), "forceTakeover") {
+		t.Fatalf("calls=%d args=%s", calls, s.connectArgs)
+	}
+}
+
 func TestConnectWithPollCancelsRetry(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
