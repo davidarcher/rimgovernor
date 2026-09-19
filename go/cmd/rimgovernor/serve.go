@@ -115,6 +115,7 @@ type serveConfig struct {
 	chat                            bool
 	resume                          bool
 	pprof                           bool
+	debug                           bool
 	chatModel                       string
 	chatBaseURL                     string
 	chatContextTokens               int
@@ -147,6 +148,7 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.StringVar(&c.clockSpeed, "clock-speed", "Normal", "requested native game-clock speed while a supervised window is held: Normal, Fast, Superfast or Ultrafast")
 	flags.BoolVar(&c.clockTestAcceleration, "clock-test-acceleration", false, "acceptance only: ask native for its dev tick boost under each Ultrafast window; the game refuses it unless launched with -rimgovernor-test-acceleration (headless acceptance profiles)")
 	flags.UintVar(&c.clockWindowTicks, "clock-window-ticks", defaultClockWindowTicks, fmt.Sprintf("game ticks one supervised routine window may run before it pauses (1..%d, default one game day); reviews and routine orders happen under the running window, and danger, a coupled order or player input still stops it earlier; combat windows stay at %d", maxClockWindowTicks, combatClockWindowTicks))
+	flags.BoolVar(&c.debug, "debug", false, "log debug records too: the clock trace (which step branch ran, what each planner decided, what a routine refused and why) and refused pawn orders; stderr only, never flight rows")
 	flags.BoolVar(&c.pprof, "pprof", false, "serve net/http/pprof under /debug/pprof/ on the listener (CPU profile, heap, trace); off by default")
 	flags.StringVar(&c.flightRecorder, "flight-recorder", "", "absolute path of the flight-recorder ring (every native request/response/error and service event; read back by /api/telemetry); default <profile>/flight/flight.jsonl, none under --observe")
 	flags.BoolVar(&c.noFlightRecorder, "no-flight-recorder", false, "run without a flight recorder; /api/telemetry answers 404")
@@ -454,8 +456,8 @@ func serve(ctx context.Context, args []string, out, diagnostics io.Writer) int {
 	// Service events: every record stamped with time and tick on
 	// diagnostics; kinded records also become flight-recorder rows so the
 	// scheduler, worker and routine layers sit in sequence with the bridge's
-	// native_* rows (#295). Debug records are the clock trace
-	// (RIMGOVERNOR_CLOCK_DEBUG); they reach stderr only.
+	// native_* rows (#295). Debug records are the clock trace (--debug);
+	// they reach stderr only.
 	var sink telemetry.Recorder
 	if config.flightRecorder != "" {
 		recorder, err := bridge.NewFlightRecorder(config.flightRecorder)
@@ -468,7 +470,7 @@ func serve(ctx context.Context, args []string, out, diagnostics io.Writer) int {
 		sink = recorder
 	}
 	level := slog.LevelInfo
-	if os.Getenv("RIMGOVERNOR_CLOCK_DEBUG") != "" {
+	if config.debug {
 		level = slog.LevelDebug
 	}
 	slog.SetDefault(telemetry.New(diagnostics, level, sink))

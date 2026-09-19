@@ -53,7 +53,7 @@ func (r *RoutineBuildingPlanner) selectRefrigeration(call context.Context, facts
 		return nil, "", err
 	}
 	if !review.Active {
-		if clockSchedulerDebug {
+		if clockDebug() {
 			clockSchedulerLog("refrigeration: inactive review=%+v storage=%+v", review, facts.Facts.FoodStorageUpkeep)
 		}
 		return nil, BuildingMethodNoDeficit, nil
@@ -67,7 +67,7 @@ func (r *RoutineBuildingPlanner) selectRefrigeration(call context.Context, facts
 	if err != nil {
 		return nil, "", err
 	}
-	if clockSchedulerDebug {
+	if clockDebug() {
 		v, known := fact.Value()
 		_, tk := facts.Rooms.Value()
 		_, ck := coolers.Value()
@@ -205,7 +205,7 @@ func (r *RoutineBuildingPlanner) previewRefrigeration(ctx context.Context, snaps
 	if err = mergeRoutineStock(&stock, preview.Stock, true); err != nil {
 		return nil, stock, "", err
 	}
-	if clockSchedulerDebug {
+	if clockDebug() {
 		clockSchedulerLog("refrigeration: preview costs=%+v stock=%+v", p.Costs, stock.Values)
 	}
 	return []policy.Preview{p}, stock, "", nil

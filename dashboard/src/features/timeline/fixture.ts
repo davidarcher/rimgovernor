@@ -61,7 +61,7 @@ export function recording(): string {
 // stderrLog is the scheduler log aligned with the two clock_step rows.
 export const stderrLog = [
   '[clock-scheduler] step waited 56ms for the player gate',
-  '[clock-scheduler] status: running=false stopping=false stopped=false neverStarted=true stopReason=STOP_REASON_UNSPECIFIED tick=11 deltaTick=0 deltaMs=0 cumulativeTick=0',
+  '[clock-scheduler] status: running=false stopping=false stopped=false neverStarted=true stopReason=STOP_REASON_UNSPECIFIED tick=11 tickAdvanced=false',
   '[clock-scheduler] step reason: full tick_advanced planners=true',
   '[clock-scheduler] routine.step: ReviewRoutine ok newRevision=1 emergency=[]',
   '[clock-scheduler] Haul.step result: reason=admitted plan=routine-haul-1',
@@ -70,7 +70,7 @@ export const stderrLog = [
   '[clock-scheduler] step reads: total=6 observations_read_bundle=2 clock_start=1 cache hits=7 misses=2 coalesced=0 parent_hits=0 invalidations=2 running=false elapsed=800ms',
   '[clock-scheduler] step done: err=<nil> planner failures=<nil>',
   '[clock-scheduler] stop committed: pause-bound admissions held 114ms before the review',
-  '[clock-scheduler] status: running=false stopping=false stopped=true neverStarted=false stopReason=STOP_REASON_WATCH_LATCHED tick=735 deltaTick=54 deltaMs=1846 cumulativeTick=724',
+  '[clock-scheduler] status: running=false stopping=false stopped=true neverStarted=false stopReason=STOP_REASON_WATCH_LATCHED tick=735 tickAdvanced=true',
   '[clock-scheduler] step reason: wake tick_advanced stopped routine-haul-1 planners=true',
   '[clock-scheduler] Haul.step result: reason=no_active_deficit plan=',
   '[clock-scheduler] colony window: 2500 ticks (target 2.0s at 90 ticks/s, pause estimate known=true 1.2s, observed rate known=true 90 ticks/s)',

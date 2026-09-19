@@ -365,7 +365,7 @@ take their scope through `lifecycle_read_tick` when the source offers it
 read; the full `lifecycle_read_identity` stays the fallback for a source
 without the tick read. A step that
 ran planners re-reads the bundle, scoped to the identity it observed, before
-admission. `RIMGOVERNOR_CLOCK_DEBUG=1` logs the step's hit/miss/coalesced/
+admission. The clock trace (`serve --debug`) logs the step's hit/miss/coalesced/
 parent-hit/invalidation counts and the flight recorder reports hits per method
 (the `cached` column of `rimgovernor phases`).
 

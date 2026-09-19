@@ -53,7 +53,7 @@ func (r *RoutineBuildingPlanner) selectFlooring(facts observation.ColonyProjecti
 	if err != nil {
 		return nil, "", err
 	}
-	if clockSchedulerDebug {
+	if clockDebug() {
 		clockSchedulerLog("flooring: review=%+v definitions=%d stock=%+v proposal=%+v", review, len(flooring.Definitions), flooring.Stock, proposal)
 	}
 	switch proposal.Method {
@@ -118,7 +118,7 @@ func (r *RoutineBuildingPlanner) previewFlooring(ctx context.Context, snapshot d
 			continue
 		}
 		if made || len(footprint) != 1 || footprint[0] != cell || !legal || !safe {
-			if clockSchedulerDebug {
+			if clockDebug() {
 				clockSchedulerLog("flooring: cell %v refused legal=%v safe=%v footprint=%v", cell, legal, safe, footprint)
 			}
 			continue
@@ -129,7 +129,7 @@ func (r *RoutineBuildingPlanner) previewFlooring(ctx context.Context, snapshot d
 		selected = append(selected, p)
 	}
 	if len(selected) > 0 {
-		if clockSchedulerDebug {
+		if clockDebug() {
 			clockSchedulerLog("flooring: %d cells previewed for %s in room %s stock=%+v", len(selected), r.flooring.Definition, r.flooring.Room, stock.Values)
 		}
 		return selected, stock, "", nil

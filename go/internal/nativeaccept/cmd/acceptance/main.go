@@ -9,6 +9,7 @@
 //	acceptance warm -root <dir> [-game -headless=false -background]
 //	acceptance fixture <op> [key=value ...] -root <dir> [-save <name> | -loaded]
 //	acceptance doctor -root <dir> [-rimgovernor <bin> -output <dir> -game <id> -worktree <dir>]
+//	acceptance prune -output <dir> [-keep <n> -dry-run]
 //
 // It replaces the per-harness binaries' preamble with one loop: resolve the
 // shared configuration, run the doctor preflight (doctor.go, #277; only
@@ -157,6 +158,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runFixture(context.Background(), args[1:], stdout, stderr)
 	case "doctor":
 		return runDoctor(context.Background(), args[1:], stdout, stderr)
+	case "prune":
+		return prune(args[1:], stdout, stderr)
 	default:
 		fmt.Fprintf(stderr, "unknown command %q\n%s\n", args[0], usage)
 		return 2
@@ -174,7 +177,7 @@ const usage = `usage:
     -repeat <n> runs each case n times fresh and reports the pass rate and seeds (<output>/<case>.repeat.json);
     -seed <s> pins a debug or scenario start's world seed (result.json "world".seed) to reproduce a run
   acceptance stop -root <dir> [-config <dir> -game <id> -takeover]
-` + setupUsage + suiteUsage + whyUsage + warmUsage + fixtureUsage + doctorUsage
+` + setupUsage + suiteUsage + whyUsage + warmUsage + fixtureUsage + doctorUsage + pruneUsage
 
 // parseRun resolves the run subcommand's flags and case names. Flags may
 // follow the case names (flag.FlagSet stops at the first non-flag, so the

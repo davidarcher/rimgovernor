@@ -80,7 +80,6 @@ flag. Every value is validated at `parseServe` before anything connects.
 | Environment variable | Read by | Effect |
 | --- | --- | --- |
 | `RIMGOVERNOR_ROUTINE_FAMILIES` | `parseServe` (autonomous play only) | Comma-separated short names (as listed by `GET /api/routines`) narrowing the routine planner families composed; unset composes every family. Rejected with `--observe`. |
-| `RIMGOVERNOR_CLOCK_DEBUG` | `internal/buildingruntime` at package init | Any non-empty value turns on temporary stderr tracing of clock scheduler steps and refused pawn orders. Diagnostic only; no behavior change. |
 | `RIMGOVERNOR_NATIVE_*_CAPTURE`, `RIMGOVERNOR_NATIVE_*_FORECAST`, `RIMGOVERNOR_NATIVE_*_REFERENCE`, `RIMGOVERNOR_NATIVE_NAMING` | `go test` only | Replay captured native evidence through component tests (see each component's section below). Never read by `serve`. |
 
 Startup reconciliation (durable holds and goal admission on process start) is
@@ -159,8 +158,9 @@ Multi-instance colony directory serving (`--colonies`) does not exist in Go
   `suite`) and verified against a real headless RimWorld instance; see
   [choose-tests.md](../docs/developers/testing/choose-tests.md) for when to run
   them and [issue #38](https://github.com/davidarcher/rimgovernor/issues/38)
-  for coverage gaps. `internal/buildingruntime/cmd/{buildingsmoke,billsmoke,haulsmoke}`
-  are single-family native smoke hosts. The `service/restart` case is the kill-and-restart
+  for coverage gaps. `internal/buildingruntime/cmd/buildingsmoke` is the
+  native fixture host `construction/guarded` spawns across a restart. The
+  `service/restart` case is the kill-and-restart
   acceptance: `serve --resume` plays with no HTTP write, is killed, and a
   restart on the same state resumes autonomous play for the same world.
 

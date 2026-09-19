@@ -116,7 +116,7 @@ func init() {
 	// family nothing admits one, so the fire holds every other goal
 	// suspended while the clock is refused no_work and the tick never moves
 	// -- the post-raid repair stall of #221.
-	spec := &cases.ServeSpec{Families: []string{"defensive-layout", "defense", "tend", "rescue", "fire"}, Env: []string{"RIMGOVERNOR_CLOCK_DEBUG=1"}, Prefix: "defense"}
+	spec := &cases.ServeSpec{Families: []string{"defensive-layout", "defense", "tend", "rescue", "fire"}, Prefix: "defense"}
 	// The baseline save keeps the site deterministic; a random debug colony
 	// can spawn beside ruins the rock band cannot close.
 	baseline := cases.Save{Name: sustained.BaselineSave}
@@ -132,7 +132,7 @@ func init() {
 			// The turret aftermath is routine upkeep: the repair family
 			// mends the damaged turret and the power family may route the
 			// lost connection before the layout re-places its conduit.
-			serve = &cases.ServeSpec{Families: append(append([]string{}, spec.Families...), "repair", "power"), Env: spec.Env, Prefix: spec.Prefix}
+			serve = &cases.ServeSpec{Families: append(append([]string{}, spec.Families...), "repair", "power"), Prefix: spec.Prefix}
 			reason = "turret build, raid answer, routine restoration of a depowered, damaged turret and the rearm of an emptied barrel are one native campaign on the committed layout"
 		}
 		cases.Register(cases.Case{

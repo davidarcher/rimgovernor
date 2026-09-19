@@ -74,7 +74,7 @@ func comfortBuilderAvailable(facts observation.ColonyProjection, definition stri
 			return false
 		}
 		available = builderAvailable(pawns, overrides, int(minimum))
-		if clockSchedulerDebug && !available {
+		if clockDebug() && !available {
 			clockSchedulerLog("%s builder gate: no available pawn with Construction enabled at skill >= %d (%s)", definition, minimum, builderCensus(pawns))
 		}
 		return available
@@ -156,7 +156,7 @@ func comfortNativeWorkTicks(plan store.PlanState, current domain.GenerationSnaps
 // enabled in its observed settings, no player override disabling it and,
 // when the definition needs one, a Construction skill at the native minimum.
 // builderCensus is the diagnostic behind a "builder unavailable" wait
-// (RIMGOVERNOR_CLOCK_DEBUG=1 only).
+// (clock trace, serve --debug).
 func builderAvailable(pawns []policy.WorkPawn, overrides []policy.WorkOverride, minimum int) bool {
 	for _, pawn := range pawns {
 		if pawn.Available != domain.Known(true) || pawn.Applies != domain.Known(true) {

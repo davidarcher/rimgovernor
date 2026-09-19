@@ -95,9 +95,17 @@ What it produces:
 ## Running a case
 
 - There is one runner, `go/internal/nativeaccept/cmd/acceptance`
-  (`list`, `run <area>/<case>...`, `suite`, `stop`, `doctor`, `why`). Build it to an exe
+  (`list`, `run <area>/<case>...`, `suite`, `stop`, `doctor`, `why`, `prune`). Build it to an exe
   and launch it detached: `Start-Process -WindowStyle Hidden -PassThru`
   with stdout/stderr redirected under `.rimgovernor/`.
+- Run outputs are never cleaned up for you and a suite is hundreds of
+  megabytes: a worktree with a few weeks of runs under `.rimgovernor/out/`
+  holds gigabytes. `acceptance prune -output <abs .rimgovernor/out> [-keep 5]
+  [-dry-run]` deletes the oldest run and suite outputs there (and the
+  `<name>.log`/`.err` a detached launch wrote beside each), keeps the
+  newest `-keep`, and leaves loose files and any directory without a
+  `result.json` alone. Runs whose checkpoint ring you still mean to
+  `-resume` live under `-root`, not there.
   The tool shell caps a command at ten minutes even in the background, and
   without `-WindowStyle Hidden` a console window opens on the user's
   desktop.

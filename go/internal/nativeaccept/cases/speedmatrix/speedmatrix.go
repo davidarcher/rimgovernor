@@ -272,8 +272,7 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 		return outcome, fmt.Errorf("stage is not fresh after reload: %#v", before)
 	}
 	startTick := uint64(na.AsNumber(before["tick"]))
-	extra := append(c.ServeArgs(), na.FlightRecorderArgs(output, true)...)
-	service, err = m.s.Launch(ctx, na.ServiceLaunch{Families: []string{"haul", "work"}, Extra: extra, Output: output, Report: report})
+	service, err = m.s.Launch(ctx, na.ServiceLaunch{Families: []string{"haul", "work"}, Extra: c.ServeArgs(), Output: output, Report: report})
 	if err != nil {
 		return outcome, err
 	}
@@ -362,7 +361,6 @@ func (m *matrix) runCase(ctx context.Context, c na.SpeedCase) (outcome na.SpeedO
 	}
 	phases := bridge.SummarizePhases(rows)
 	stops := na.SummarizeStops(rows, resumedAt.UnixMilli())
-	report["phases"] = phases
 	report["stops"] = stops
 	metrics := caseMetrics(c, phases, stops, startTick, lastTick, wallSeconds)
 	report["metrics"] = metrics

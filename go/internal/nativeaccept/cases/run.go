@@ -141,11 +141,7 @@ func Execute(ctx context.Context, c Case, opts Options) (na.Report, int) {
 	// The log copy lands only in an output directory this run owns.
 	opened := false
 	code := func() int {
-		stats := na.WaitStats()
-		report["wait_stats"] = stats
-		if stalled, _ := stats["stalled"].(int); stalled > 0 {
-			report["stalled_waits"] = stalled
-		}
+		report["wait_stats"] = na.WaitStats()
 		if opened {
 			gameLog.Close(output, report)
 		}

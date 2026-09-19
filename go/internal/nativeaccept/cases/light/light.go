@@ -111,7 +111,6 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 		}
 		if service != nil {
 			service.Stop()
-			na.ReportPhases(report, s.Config().Output, true)
 		}
 		stopCtx, stopCancel := context.WithTimeout(context.Background(), 90*time.Second)
 		defer stopCancel()
@@ -196,11 +195,10 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 	// requires the colony's work priorities to match the controller's own
 	// assignment, which only the work family applies.
 	// The outage and fungus holds are attributed from the scheduler's
-	// step-reason trace, which only RIMGOVERNOR_CLOCK_DEBUG prints.
+	// step-reason trace (serve --debug, on every launch).
 	service, err = s.Launch(ctx, na.ServiceLaunch{
 		Families: []string{"lighting", "work"},
-		Extra:    append(na.ClockSpeedArgs(), na.FlightRecorderArgs(s.Config().Output, true)...),
-		Env:      []string{"RIMGOVERNOR_CLOCK_DEBUG=1"},
+		Extra:    na.ClockSpeedArgs(),
 	})
 	if err != nil {
 		return err
@@ -648,10 +646,8 @@ func admitAndRelease(ctx context.Context, a admission) (admitted, error) {
 	return admitted{cell: builtCell, definition: builtDefinition, method: method, released: released.Revision}, nil
 }
 
-// finish summarizes the stopped service's flight recording and checks the
-// game's startup log, the way every scenario ends.
+// finish checks the game's startup log, the way every scenario ends.
 func finish(s cases.Session) error {
-	na.ReportPhases(s.Report(), s.Config().Output, true)
 	logData, err := os.ReadFile(s.Config().StartupLogPath())
 	if err != nil {
 		return fmt.Errorf("read startup log: %w", err)
@@ -823,7 +819,7 @@ func lightingMethods(ctx context.Context, s *store.Store) ([]domain.GoalMethod, 
 }
 
 // stepReasons counts the lighting planner's step reasons from the service's
-// debug log (RIMGOVERNOR_CLOCK_DEBUG), so a hold can be attributed.
+// debug log (service/stderr.log), so a hold can be attributed.
 func stepReasons(stderr string) map[string]int {
 	out := map[string]int{}
 	for _, line := range strings.Split(stderr, "\n") {

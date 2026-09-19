@@ -75,11 +75,10 @@ func (sel selection) register(name string) cases.Case {
 		Start: start,
 		Keep:  []string{string(na.NeedFood)},
 		// The field family alone keeps the whole step budget for the
-		// selection under test; the planner explains its selection only on
-		// the debug trace.
+		// selection under test; the planner explains its selection on the
+		// clock trace (service/stderr.log).
 		Serve: &cases.ServeSpec{
 			Families: []string{"field"}, NativeTimeout: 30 * time.Second, Prefix: "farm-select",
-			Env: []string{"RIMGOVERNOR_CLOCK_DEBUG=1"},
 		},
 		Budget: 10 * time.Minute,
 		Run: func(ctx context.Context, s cases.Session) error {

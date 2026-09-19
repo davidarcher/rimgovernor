@@ -252,20 +252,6 @@ type ClockScheduler struct {
 	// then deferred, so the step that finally admits reports the whole
 	// stop-to-readmit pause; touched only under the player gate.
 	readmitOwed bool
-
-	// tickTrace is a TEMPORARY diagnostic aid (RIMGOVERNOR_CLOCK_DEBUG=1),
-	// read and written only from Step() which the ClockWorker's stepLoop
-	// calls serially -- see clockSchedulerLog. It lets a live run directly
-	// answer G01.07b's follow-up open question (issue tracking the
-	// clock-restart-cadence gap): whether native ticks actually advance
-	// during a "running" burst (would show a healthy per-step tick delta)
-	// or the clock is running in name only (delta stays ~0 across many
-	// real seconds), versus the cumulative-across-the-run total showing
-	// whether restart cadence alone, not lost ticks, is the bottleneck.
-	tickTraceValid bool
-	tickTraceTick  int64
-	tickTraceAt    time.Time
-	tickTraceStart int64
 }
 
 func NewClockScheduler(player *Player, session *Session, native ClockWindowNative, config ClockSchedulerConfig, clock executor.Clock) (*ClockScheduler, error) {
@@ -482,7 +468,11 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	return &ClockScheduler{player: player, session: session, native: native, config: config, clock: clock, pollGate: make(chan struct{}, 1), renewGate: make(chan struct{}, 1), facts: newClockFacts(config.Facts), running: new(atomic.Bool), latched: newClockLatched()}, nil
 }
 
-var clockSchedulerDebug = os.Getenv("RIMGOVERNOR_CLOCK_DEBUG") != ""
+// clockDebug reports whether the service logger keeps debug records (serve
+// --debug): the clock trace is built only then.
+func clockDebug() bool {
+	return slog.Default().Enabled(context.Background(), slog.LevelDebug)
+}
 
 // WindowRunning reports whether the last evidence the scheduler saw had a
 // window it admitted still running. It is a hint for the poll cadence, not
@@ -490,14 +480,14 @@ var clockSchedulerDebug = os.Getenv("RIMGOVERNOR_CLOCK_DEBUG") != ""
 // clears it.
 func (s *ClockScheduler) WindowRunning() bool { return s.running.Load() }
 
-// clockSchedulerLog is the clock trace (RIMGOVERNOR_CLOCK_DEBUG=1): which
-// Step() branch was taken, what each planner decided, what a routine
-// refused and why. It is a debug record on the service logger, so the
-// stderr line carries the same time and tick stamp as every other; it
-// never becomes a flight row. Typed events (a step's outcome, an admission
+// clockSchedulerLog is the clock trace (serve --debug): which Step()
+// branch was taken, what each planner decided, what a routine refused and
+// why. It is a debug record on the service logger, so the stderr line
+// carries the same time and tick stamp as every other; it never becomes a
+// flight row. Typed events (a step's outcome, an admission
 // refusal, a stop, a worker outcome) log through clockEvent instead.
 func clockSchedulerLog(format string, args ...any) {
-	if clockSchedulerDebug {
+	if clockDebug() {
 		slog.Default().Debug(fmt.Sprintf(format, args...), telemetry.ComponentKey, "clock-scheduler")
 	}
 }
@@ -564,10 +554,9 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	call = bridge.WithStepReadCache(call, cache)
 	// The round trips that still cross the bridge (cache misses, the
 	// uncacheable reads, writes) are tallied by tool so the cost of the
-	// composition is visible per step: on stderr under
-	// RIMGOVERNOR_CLOCK_DEBUG=1 beside the cache's hit/miss counts, and as a
-	// clock_step row in the flight recorder, which `rimgovernor phases`
-	// reports as reads/step.
+	// composition is visible per step: as a debug record beside the cache's
+	// hit/miss counts, and as a clock_step row in the flight recorder,
+	// which `rimgovernor phases` reports as reads/step.
 	call, reads := bridge.WithReadTally(call)
 	stepBegan := time.Now()
 	defer func() {
@@ -687,23 +676,10 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		reason.Cause = StepFull
 	}
 	out.Reason = reason
-	if clockSchedulerDebug {
-		now := s.clock.Now()
-		tick := status.Context.GetTick()
-		if !s.tickTraceValid {
-			s.tickTraceStart = tick
-		}
-		var deltaTick int64
-		var deltaMs int64
-		if s.tickTraceValid {
-			deltaTick = tick - s.tickTraceTick
-			deltaMs = now.Sub(s.tickTraceAt).Milliseconds()
-		}
-		clockSchedulerLog("status: running=%v stopping=%v stopped=%v neverStarted=%v stopReason=%v tick=%d deltaTick=%d deltaMs=%d cumulativeTick=%d",
-			status.GetRunning() != nil, status.GetStopping() != nil, status.GetStopped() != nil, status.GetNeverStarted() != nil,
-			status.GetStopped().GetReason(), tick, deltaTick, deltaMs, tick-s.tickTraceStart)
-		s.tickTraceTick, s.tickTraceAt, s.tickTraceValid = tick, now, true
-	}
+	// The timeline page's stderr parser reads the tick from this line.
+	clockSchedulerLog("status: running=%v stopping=%v stopped=%v neverStarted=%v stopReason=%v tick=%d tickAdvanced=%v",
+		status.GetRunning() != nil, status.GetStopping() != nil, status.GetStopped() != nil, status.GetNeverStarted() != nil,
+		status.GetStopped().GetReason(), status.Context.GetTick(), reason.TickAdvanced)
 	if status.GetRunning() != nil || status.GetStopping() != nil {
 		var actual *k.Epoch
 		if status.GetRunning() != nil {

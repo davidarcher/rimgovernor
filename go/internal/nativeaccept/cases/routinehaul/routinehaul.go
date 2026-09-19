@@ -73,7 +73,6 @@ func init() {
 func run(ctx context.Context, s cases.Session) error {
 	report := s.Report()
 	h, identity, prepared := s.Harness(), s.Identity(), s.Prepared()
-	defer na.ReportPhases(report, s.Config().Output, true)
 	for _, want := range []string{"test/storage_haul_control", "test/storage_haul_allow", "test/guarded_construction_prepare"} {
 		if !na.Contains(s.Names(), want) {
 			return fmt.Errorf("missing %s in discovery; rebuild the native mod with -Fixture StorageHaulFixture -Fixture GuardedConstructionFixture", want)
@@ -136,7 +135,7 @@ func run(ctx context.Context, s cases.Session) error {
 	// Compose only the haul family so the receipt under test is unambiguous.
 	service, err := s.Serve(ctx, na.ServeSpec{
 		Prefix:   "routine-haul",
-		Families: []string{"haul"}, Env: []string{"RIMGOVERNOR_CLOCK_DEBUG=1"},
+		Families: []string{"haul"},
 	})
 	if err != nil {
 		return err

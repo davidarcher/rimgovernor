@@ -345,7 +345,7 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 			target.Plan, target.Revision = plan.Spec.ID(), plan.Spec.Revision()
 			if authErr := (planAuthorizer{w.player.journal, w.config.RoutineMethods}).AuthorizeRoutinePlan(call, scope.Snapshot, target); authErr == nil {
 				planScope.Snapshot = target
-			} else if clockSchedulerDebug {
+			} else if clockDebug() {
 				clockSchedulerLog("worker: authorize plan=%s root=%+v err=%v", plan.Spec.ID(), scope.Snapshot, authErr)
 			}
 		}
@@ -353,7 +353,7 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 			v := progress.View()
 			cleanup := workerCleanupEligible(plan, v, planScope, world)
 			routineObservation := w.config.RoutineMethods && v.Unresolved && routineExecutableKind(progress.Action().Kind()) && playerWorld(v.Snapshot) == world
-			if clockSchedulerDebug && progress.Action().Kind() == domain.BuildingTemperatureAction {
+			if clockDebug() && progress.Action().Kind() == domain.BuildingTemperatureAction {
 				clockSchedulerLog("worker: temperature candidate action=%s stage=%v authorized=%v eligible=%v worldErr=%v", v.Action, v.Stage, planScope.Snapshot != scope.Snapshot, workerEligible(plan, v, planScope, world), worldErr)
 			}
 			if cleanup || worldErr == nil && (routineObservation || workerEligible(plan, v, planScope, world)) {

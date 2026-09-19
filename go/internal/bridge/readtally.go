@@ -13,7 +13,7 @@ import (
 // tallied by native tool (the inner rimgovernor/* method for games_call_tool,
 // the GABS tool name otherwise), errors included. A ClockScheduler step
 // attaches one at entry so the reads a full planner composition costs are
-// visible per step (RIMGOVERNOR_CLOCK_DEBUG=1) and, through Publish, in the
+// visible per step (the clock trace, serve --debug) and, through Publish, in the
 // flight recorder the throughput profiler summarizes. It is safe for
 // concurrent use; planners run in parallel under the same step context.
 //

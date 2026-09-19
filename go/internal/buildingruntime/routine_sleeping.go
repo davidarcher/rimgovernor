@@ -428,7 +428,7 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		available = comfortBuilderAvailable(facts, r.definition, preferences.Overrides)
 	}
 	if !available {
-		if clockSchedulerDebug {
+		if clockDebug() {
 			for _, d := range facts.Definitions {
 				if d.Name == r.definition {
 					clockSchedulerLog("%s: builder unavailable definition=%+v workPawns=%+v", goal.Goal.ID, d, facts.WorkPawns)
@@ -717,7 +717,7 @@ func (r *RoutineBuildingPlanner) previewMethod(call context.Context, snapshot do
 			roomCells[c] = true
 		}
 		if len(roomCells) == 0 {
-			if clockSchedulerDebug {
+			if clockDebug() {
 				var summary []string
 				for _, room := range rooms.Rooms {
 					summary = append(summary, fmt.Sprintf("%s role=%v enclosed=%v cells=%d", room.ID, room.Role, room.Enclosed, len(room.Cells)))
@@ -851,7 +851,7 @@ func (r *RoutineBuildingPlanner) previewMethod(call context.Context, snapshot do
 			return nil, policy.StockObservation{}, BuildingMethodUnknown, nil
 		}
 		clockSchedulerLog("%s: no site for %s (%s): selected=%d missing=%d candidates=%d siteCells=%d roomCells=%d restricted=%v environment=%s", r.goal, r.definition, r.stuff, len(selected), missing, len(search.Candidates()), len(cells), len(roomCells), restricted, searchRequest.Environment)
-		if clockSchedulerDebug && restricted {
+		if clockDebug() && restricted {
 			blocked := map[domain.Cell]bool{}
 			for _, c := range searchRequest.Protected {
 				blocked[c] = true

@@ -38,9 +38,9 @@ Every row a phase report reads:
 - `clock_read_events` replies: the clock reads whose ticks and paused
   status give wall TPS and the paused fraction.
 
-`RIMGOVERNOR_CLOCK_DEBUG=1` prints the same per-step tally on stderr
-(`[clock-scheduler] step reads: ...`) with the cache's hit/miss/parent-hit
-counts, for a quick look without a recording.
+`serve --debug` (which every acceptance launch passes) prints the same
+per-step tally on stderr (`[clock-scheduler] step reads: ...`) with the
+cache's hit/miss/parent-hit counts, for a quick look without a recording.
 
 ## Service events
 
@@ -48,8 +48,8 @@ Every service log line is a structured record (`go/internal/telemetry`):
 stderr renders it as `<time> tick=<n|-> <LEVEL> [<component>] <message>
 k=v ...`, where `tick` is the game tick the scheduler or the clock poll last
 read, so a line lines up with an evidence file, a flight row and the game
-clock. The clock trace (`RIMGOVERNOR_CLOCK_DEBUG=1`) is the DEBUG level of
-the same log and reaches stderr only. A record that names an event `kind`
+clock. The clock trace (`serve --debug`) is the DEBUG level of the same
+log and reaches stderr only. A record that names an event `kind`
 is also a flight-recorder row of that kind, in sequence with the `native_*`
 rows, its attributes as the payload and `tick`, `level` and `component` in
 the context; `rimgovernor phases` ignores them. The kinds:
@@ -219,12 +219,10 @@ The built page ships with the dashboard assets (`dist/timeline.html`, served
 by `serve` at `/timeline.html`). It reads the picked files in the browser
 and uploads nothing. Switch the axis to *ticks advanced* to collapse paused
 wall time and compare windows by game time; hover shows the row, click
-pins it. Scheduler stderr lines carry no stamp, so they are placed by
-aligning the log's `step reads:` blocks with the `clock_step` rows; when
-the counts differ the page says so and leaves those refusals out. Harness
-HTTP evidence (`service/http-NNNN.json`) and the `NNNN-*.json` files are
-unstamped and listed beside the plot until #296 stamps them. The parsers
-live in `dashboard/src/features/timeline/`.
+pins it. Harness evidence (`NNNN-*.json` and `service*/http-NNNN.json`,
+one run-wide sequence) is placed by its `observed_at` stamp; a file
+without one is listed beside the plot. The parsers live in
+`dashboard/src/features/timeline/`.
 
 ## Profile
 

@@ -239,7 +239,7 @@ func (r *RoutineSleepingUpkeepPlanner) decide(call, epoch context.Context, arbit
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	if clockSchedulerDebug {
+	if clockDebug() {
 		clockSchedulerLog("sleeping: choice=%+v", choice)
 	}
 	switch choice.Method {

@@ -69,7 +69,7 @@ func (r *RoutineBuildingPlanner) selectLighting(facts observation.ColonyProjecti
 	if err != nil {
 		return nil, "", err
 	}
-	if clockSchedulerDebug {
+	if clockDebug() {
 		clockSchedulerLog("lighting: review=%+v rooms=%d cells=%d source=%+v proposal=%+v", review, len(lighting.Rooms), len(lighting.Cells), lighting.PoweredSource, proposal)
 	}
 	switch proposal.Method {
@@ -132,7 +132,7 @@ func (r *RoutineBuildingPlanner) previewLighting(ctx context.Context, snapshot d
 			continue
 		}
 		if made || len(footprint) != 1 || footprint[0] != cell || !legal || !safe {
-			if clockSchedulerDebug {
+			if clockDebug() {
 				clockSchedulerLog("lighting: cell %v refused legal=%v safe=%v footprint=%v", cell, legal, safe, footprint)
 			}
 			continue
@@ -140,7 +140,7 @@ func (r *RoutineBuildingPlanner) previewLighting(ctx context.Context, snapshot d
 		if err = mergeRoutineStock(&stock, preview.Stock, true); err != nil {
 			return nil, stock, "", err
 		}
-		if clockSchedulerDebug {
+		if clockDebug() {
 			clockSchedulerLog("lighting: preview cell=%v costs=%+v stock=%+v", cell, p.Costs, stock.Values)
 		}
 		return []policy.Preview{p}, stock, "", nil

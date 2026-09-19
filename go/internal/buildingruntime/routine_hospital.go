@@ -179,7 +179,7 @@ func (r *RoutineHospitalPlanner) step(call, epoch context.Context, arbiter *step
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	if clockSchedulerDebug {
+	if clockDebug() {
 		clockSchedulerLog("hospital: choice=%+v", choice)
 	}
 	switch choice.Method {

@@ -150,7 +150,7 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 		}
 	}
 	if page.GetGap() || clockPollInterruptsAfter(page, granted) {
-		if clockSchedulerDebug {
+		if clockDebug() {
 			clockSchedulerLog("poll: interrupting gap=%v events=%s", page.GetGap(), clockPollEventKinds(page))
 		}
 		if err = invalidate(); err != nil {
@@ -242,9 +242,9 @@ func clockPollMatchesAuthority(observed *c.ObservationContext, state ControlStat
 	return !state.Enabled || state.ObservationKnown && proto.Equal(observed.Identity, controlIdentity(state.Snapshot)) && observed.NativeGeneration != nil && observed.GetNativeGeneration() == uint64(state.Snapshot.Native)
 }
 
-// clockPollEventKinds is a TEMPORARY diagnostic aid (RIMGOVERNOR_CLOCK_DEBUG=1)
-// for issue #42: it names which event(s) in a page tripped clockPollInterrupts,
-// since that function itself only returns a bool.
+// clockPollEventKinds names, for the clock trace, which event(s) in a page
+// tripped clockPollInterrupts, since that function itself only returns a
+// bool.
 func clockPollEventKinds(page *k.EventsPage) string {
 	kinds := make([]string, 0, len(page.Events))
 	for _, event := range page.Events {

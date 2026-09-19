@@ -37,7 +37,7 @@ func init() {
 		// (#217). The checkpoint saves them fed; comfort's own fixture keeps
 		// Food live from there.
 		Keep:   []string{string(na.NeedJoy)},
-		Serve:  debugSpec("facility-checkpoint", comfortFamilies),
+		Serve:  spec("facility-checkpoint", comfortFamilies),
 		Budget: 60 * time.Minute,
 		Reason: "the startup ladder from the raw baseline takes over 30 minutes on a shared box (the shell alone is ~40 walls for one builder); this run replaces it with a save so facility/comfort stays within budget",
 		Run: func(ctx context.Context, s cases.Session) error {
@@ -77,14 +77,6 @@ func init() {
 			return err
 		},
 	})
-}
-
-// debugSpec is spec with the scheduler's step trace on: the checkpoint run
-// is where a startup planner that never produces a method is diagnosed.
-func debugSpec(prefix, families string) *cases.ServeSpec {
-	s := spec(prefix, families)
-	s.Env = []string{"RIMGOVERNOR_CLOCK_DEBUG=1"}
-	return s
 }
 
 // comfortAdmitted reports a sample whose EnsureComfort goal holds a

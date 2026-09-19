@@ -20,7 +20,10 @@ import (
 )
 
 // API issues one HTTP request against the service, recording every exchange
-// under output/service/http-NNNN.json.
+// as a capped evidence row under output/service/http-NNNN.json: NNNN is
+// the run's evidence sequence (shared with the harness's native rows, so
+// the two streams interleave by number) and the row carries the same
+// observed_at and elapsed_ms stamps.
 func (p *ServiceProcess) API(method, path string, body map[string]any, token string) (map[string]any, int, error) {
 	var reqBody io.Reader
 	if body != nil {
@@ -41,6 +44,7 @@ func (p *ServiceProcess) API(method, path string, body map[string]any, token str
 		req.Header.Set("X-RimGovernor-Player", token)
 	}
 	req.Header.Set("Origin", p.URL)
+	sent := time.Now()
 	resp, err := p.client.Do(req)
 	if err != nil {
 		return nil, 0, err
@@ -50,11 +54,9 @@ func (p *ServiceProcess) API(method, path string, body map[string]any, token str
 	if err != nil {
 		return nil, 0, err
 	}
-	p.mu.Lock()
-	p.counter++
-	n := p.counter
-	p.mu.Unlock()
+	n := nextEvidenceSequence(filepath.Dir(p.dir))
 	writeEvidence(filepath.Join(p.dir, fmt.Sprintf("http-%04d.json", n)), map[string]any{
+		"sequence": n, "observed_at": sent.UTC().Format("2006-01-02T15:04:05.000Z07:00"), "elapsed_ms": time.Since(sent).Milliseconds(),
 		"method": method, "path": path, "request": body, "status": resp.StatusCode, "response": json.RawMessage(data),
 	})
 	var out map[string]any

@@ -60,7 +60,7 @@ func init() {
 			// budget unless RIMGOVERNOR_ACCEPT_CLOCK_SPEED says otherwise.
 			Serve: &cases.ServeSpec{
 				Families: []string{"shelter", "tend", "rescue", "defense", "naming"},
-				Env:      []string{"RIMGOVERNOR_CLOCK_DEBUG=1"}, Prefix: prefix,
+				Prefix:   prefix,
 			},
 			// Fifty-odd granite cells mined by hand across a service restart ran
 			// 35 minutes on the 2026-09-17 baseline; staged, a healthy run takes

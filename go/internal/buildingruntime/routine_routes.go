@@ -54,7 +54,7 @@ func (r *RoutineBuildingPlanner) selectRoutes(facts observation.ColonyProjection
 	if err != nil {
 		return nil, "", err
 	}
-	if clockSchedulerDebug {
+	if clockDebug() {
 		clockSchedulerLog("routes: review=%+v door=%+v proposal=%+v", review, routes.DoorAvailable, proposal)
 	}
 	switch proposal.Method {
@@ -136,7 +136,7 @@ func (r *RoutineBuildingPlanner) previewRoutes(ctx context.Context, snapshot dom
 				p.SafeToPlace = domain.Known(true)
 			}
 			if !made || len(footprint) != 1 || footprint[0] != cell || !legal || !safe {
-				if clockSchedulerDebug {
+				if clockDebug() {
 					clockSchedulerLog("routes: breach %v rotation %v refused legal=%v safe=%v footprint=%v blockers=%+v", cell, rotation, legal, safe, footprint, p.Blockers)
 				}
 				continue
@@ -144,7 +144,7 @@ func (r *RoutineBuildingPlanner) previewRoutes(ctx context.Context, snapshot dom
 			if err = mergeRoutineStock(&stock, preview.Stock, true); err != nil {
 				return nil, stock, "", err
 			}
-			if clockSchedulerDebug {
+			if clockDebug() {
 				clockSchedulerLog("routes: door %s on breach %v for facility %s stock=%+v", r.routes.Definition, cell, r.routes.Facility, stock.Values)
 			}
 			return []policy.Preview{p}, stock, "", nil

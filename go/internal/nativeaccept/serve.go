@@ -100,7 +100,6 @@ type ServiceProcess struct {
 	dir      string
 	client   *http.Client
 	ctx      context.Context
-	counter  int
 	store    *store.Store
 	keep     *AuthorityKeepAlive
 	stopKeep func() map[string]any
@@ -234,6 +233,10 @@ func ServeArgs(cfg *Config, gabs, profileDir, statePath, flightPath string, spec
 		"--refresh", "1s",
 		"--timeout", timeout.String(),
 		"--flight-recorder", flightPath,
+		// The clock trace lands in service/stderr.log: a hold is attributed
+		// from it after the fact, and a planner explains its choice only
+		// there.
+		"--debug",
 	}
 	// A harness that names its own --clock-speed in Extra (speedmatrix's
 	// rows) owns the pair: the shared Ultrafast default would otherwise

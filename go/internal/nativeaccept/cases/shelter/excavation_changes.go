@@ -22,7 +22,7 @@ func init() {
 	serve := func(prefix string) *cases.ServeSpec {
 		return &cases.ServeSpec{
 			Families: []string{"shelter", "tend", "rescue", "defense", "naming"},
-			Env:      []string{"RIMGOVERNOR_CLOCK_DEBUG=1"}, Prefix: prefix,
+			Prefix:   prefix,
 		}
 	}
 	cases.Register(cases.Case{

@@ -13,8 +13,8 @@
 //   index (see stderr.ts) for admissions, refusals and holds.
 // - `result.json`: the case span (`started_at`, `finished_at`, `boot_ms`)
 //   and the scalars the summary shows.
-// - `service*/http-NNNN.json` and `NNNN-*.json` evidence: unstamped today;
-//   placed when a row carries `observed_at` (#296), otherwise listed.
+// - `service*/http-NNNN.json` and `NNNN-*.json` evidence: placed by the
+//   row's `observed_at` stamp, listed without one.
 import {findEvents, nativeToolOf, replyClock, replyOf, requestOf, type Flight, type FlightGap, type FlightRow} from './flight';
 import {bool, isObject, num, path, str} from './json';
 import {parseStderr, type StderrStep} from './stderr';

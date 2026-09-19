@@ -110,7 +110,7 @@ type Expectation struct {
 // as evidence.
 func Check(selections []Selection, want Expectation) (Selection, error) {
 	if len(selections) == 0 {
-		return Selection{}, errors.New("no field selection was traced; is RIMGOVERNOR_CLOCK_DEBUG set and the field family on?")
+		return Selection{}, errors.New("no field selection was traced; is the field family on?")
 	}
 	for i, s := range selections {
 		if want.Kind != "" && s.Kind != want.Kind {
