@@ -72,6 +72,18 @@ func (r *RoutineDefensePlanner) step(call, epoch context.Context, arbiter *stepA
 	if err != nil {
 		return RoutineDefenseResult{}, err
 	}
+	if found && goal.Goal.Status == domain.GoalActive && goal.Goal.Need == domain.NeedRecovered {
+		// The raid ended before every action was issued: a squad draft the
+		// worker prepared but never dispatched, and the moves and attacks
+		// waiting on it or on a target that is now dead, would hold the
+		// epoch open forever, so the goal could never satisfy and the next
+		// raid could never open a fresh epoch (#226). Nothing native was
+		// ordered for an unissued action, so cancelling it settles it.
+		if err = r.settleUnissuedWork(call, goal); err != nil {
+			return RoutineDefenseResult{}, err
+		}
+		return RoutineDefenseResult{Reason: BuildingMethodNoDeficit}, nil
+	}
 	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit {
 		return RoutineDefenseResult{Reason: BuildingMethodNoDeficit}, nil
 	}
@@ -378,6 +390,29 @@ func defenseMethodIDs(prefix string, goal store.GoalState, hash hash.Hash) (doma
 	method := domain.MethodID(fmt.Sprintf("%s-%x", prefix, hash.Sum(nil)[:16]))
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
 	return method, domain.PlanID(fmt.Sprintf("routine-defense-%x", digest[:16]))
+}
+
+// settleUnissuedWork cancels every pending or prepared action across the
+// recovered goal's methods. Dispatched actions are left to their own
+// reconciliation; once they close the goal has no open work and satisfies.
+func (r *RoutineDefensePlanner) settleUnissuedWork(call context.Context, goal store.GoalState) error {
+	p := r.reviewer.player
+	for _, method := range goal.Methods {
+		plan, err := p.journal.LoadPlan(call, method.Plan)
+		if err != nil {
+			return err
+		}
+		for _, progress := range plan.Progress {
+			v := progress.View()
+			if v.Stage != domain.Pending && v.Stage != domain.Prepared {
+				continue
+			}
+			if _, err = p.journal.Cancel(call, method.Plan, v.Action); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // orphanedDraftDependents lists the unissued movement and attack actions
