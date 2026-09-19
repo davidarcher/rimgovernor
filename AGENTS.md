@@ -116,8 +116,12 @@ Each of these fails the same way in every session; none is a judgment call.
 
 Open a GitHub issue (`gh issue create`) for anything you would otherwise
 leave as "follow-up" or ask about in a summary: bugs found in passing,
-deferred scope, decisions needed. Not for an unverified landing (see step 5
-above). One issue per
+deferred scope, decisions needed. Also for what you notice while developing
+and are not fixing: a slow test or check, a workflow step that makes no
+sense, a performance problem, an architecture problem or smell (a layer in
+the wrong place, duplicated logic, an interface that fights its callers).
+Do not swallow these; the issue is how they get scheduled. Not for an
+unverified landing (see step 5 above). One issue per
 item, terse title, concrete evidence (file, commit, log line), what would
 resolve it, labeled `priority:P0`/`P1`/`P2` or `area:G01`/`N01`/`tooling`.
 Check open issues first and comment on a match instead of duplicating.
