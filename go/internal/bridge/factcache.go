@@ -11,8 +11,10 @@ import (
 )
 
 // FactFamily groups the cacheable observation reads that go stale together.
-// Definitions and world facts survive a tick advance; every other family
-// describes one paused tick and is served only under that tick.
+// Each family tolerates a bounded tick advance (TickTolerance): a row read
+// at one tick is served under a later scope while the advance is within the
+// family's tolerance, so a step can plan against facts a running clock has
+// moved past by a little, and never against facts it has outrun.
 type FactFamily string
 
 const (
@@ -31,10 +33,72 @@ func FactFamilies() []FactFamily {
 	return []FactFamily{FactDefinitions, FactWorld, FactIdentity, FactColony, FactPawns, FactEmergency, FactRooms, FactResearch}
 }
 
-// SurvivesTick reports whether rows of the family stay valid when the game
-// tick advances within one (load, generation) scope.
-func (f FactFamily) SurvivesTick() bool {
-	return f == FactDefinitions || f == FactWorld
+// FactTickUnbounded is the tolerance of a family whose rows survive any
+// tick advance within one (load, generation) scope.
+const FactTickUnbounded int64 = -1
+
+// Tick tolerances, in game ticks (60 ticks a second at Normal speed, 2500
+// a game hour). Definitions and world facts do not change with the map's
+// ticks. The research page moves on the scale of a day; buildings, zones,
+// stock and rooms on the scale of an hour; pawns and the emergency census
+// (positions, health, hostiles) within minutes. The identity family's
+// payload is the tick itself, so an older row is a wrong fact by
+// definition: it serves the same tick only, and every step's bundle seeds
+// it afresh (FactCache.Context serves the last one held regardless).
+const (
+	FactTickToleranceIdentity  int64 = 0
+	FactTickToleranceResearch  int64 = 60000
+	FactTickToleranceColony    int64 = 2500
+	FactTickToleranceRooms     int64 = 2500
+	FactTickTolerancePawns     int64 = 250
+	FactTickToleranceEmergency int64 = 250
+)
+
+// PlanningTickTolerance is how far a planning step's facts may predate the
+// tick a window is admitted at: the tightest bounded family, since a plan
+// is only as fresh as the pawn and emergency facts it read.
+func PlanningTickTolerance() int64 {
+	tolerance := FactTickUnbounded
+	for _, family := range FactFamilies() {
+		if t := family.TickTolerance(); t != FactTickUnbounded && t > 0 && (tolerance == FactTickUnbounded || t < tolerance) {
+			tolerance = t
+		}
+	}
+	return tolerance
+}
+
+// TickTolerance is the greatest tick advance a row of the family stays
+// valid across, or FactTickUnbounded.
+func (f FactFamily) TickTolerance() int64 {
+	switch f {
+	case FactDefinitions, FactWorld:
+		return FactTickUnbounded
+	case FactIdentity:
+		return FactTickToleranceIdentity
+	case FactResearch:
+		return FactTickToleranceResearch
+	case FactColony:
+		return FactTickToleranceColony
+	case FactRooms:
+		return FactTickToleranceRooms
+	case FactPawns:
+		return FactTickTolerancePawns
+	case FactEmergency:
+		return FactTickToleranceEmergency
+	}
+	return 0
+}
+
+// Fresh reports whether a row of the family read at rowTick still serves a
+// scope at scopeTick: the scope is never behind the row (a tick rewind is a
+// new world) and not ahead of it by more than the tolerance.
+func (f FactFamily) Fresh(rowTick, scopeTick int64) bool {
+	advance := scopeTick - rowTick
+	if advance < 0 {
+		return false
+	}
+	tolerance := f.TickTolerance()
+	return tolerance == FactTickUnbounded || advance <= tolerance
 }
 
 // FactFamilyOf names the family of a cacheable read (cacheableRead) and
@@ -94,9 +158,9 @@ func FactFamilyFromWire(v k.FactFamily) (FactFamily, bool) {
 // established its observation scope serves later reads of the same
 // (method, request) from here when the row was read under the same load
 // and native generation and either belongs to a family that survives a
-// tick advance or was read at the step's own tick. A timer step with no
-// tick advance therefore issues one identity read and takes the rest of its
-// facts locally.
+// tick advance or was read within its family's tick tolerance of the step's
+// tick. A timer step with no tick advance therefore issues one identity read
+// and takes the rest of its facts locally.
 //
 // Rows are discarded by any write issued through a child cache, by the
 // typed clock events the scheduler ingests (an operation outcome drops the
@@ -193,8 +257,8 @@ func (f *FactCache) InvalidateFamilies(families ...FactFamily) {
 }
 
 // lookup serves key under scope: the row must have been read under the same
-// load and generation and be either tick-independent or read at scope.tick.
-// A row of a same-tick family left behind by an earlier tick is dropped.
+// load and generation and be fresh for its family at scope.tick. A row the
+// scope has outrun is dropped.
 func (f *FactCache) lookup(key readCacheKey, scope readScope) ([]byte, Result, bool) {
 	if f == nil {
 		return nil, Result{}, false
@@ -208,7 +272,7 @@ func (f *FactCache) lookup(key readCacheKey, scope readScope) ([]byte, Result, b
 	if row == nil {
 		return nil, Result{}, false
 	}
-	if row.tick != scope.tick && !row.family.SurvivesTick() {
+	if !row.family.Fresh(row.tick, scope.tick) {
 		delete(f.rows, key)
 		return nil, Result{}, false
 	}

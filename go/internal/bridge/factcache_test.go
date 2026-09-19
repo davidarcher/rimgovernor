@@ -16,7 +16,7 @@ func TestFactFamilyOfCoversEveryCacheableRead(t *testing.T) {
 		if cacheableRead(name) != ok {
 			t.Fatalf("%s: cacheable=%v family=%v", name, cacheableRead(name), ok)
 		}
-		if ok && family.SurvivesTick() != (family == FactDefinitions || family == FactWorld) {
+		if ok && (family.TickTolerance() == FactTickUnbounded) != (family == FactDefinitions || family == FactWorld) {
 			t.Fatal(name, family)
 		}
 	}
@@ -96,8 +96,9 @@ func TestFactCacheServesAcrossSteps(t *testing.T) {
 		t.Fatalf("step 2 %+v", stats)
 	}
 
-	// Step 3 after a tick advance: world survives, rooms is re-read.
-	server.tick.Add(60)
+	// Step 3 after a tick advance past the rooms tolerance: world survives,
+	// rooms is re-read.
+	server.tick.Add(FactTickToleranceRooms + 1)
 	cache, ctx = step(t)
 	read(t, ctx)
 	if id, world, rooms := counts(); id != 3 || world != 1 || rooms != 2 {
@@ -163,8 +164,15 @@ func TestFactCacheIgnoresRowsFromAnotherScope(t *testing.T) {
 	}
 	rooms := readCacheKey{method: "rimgovernor/observations_list_rooms", request: "b"}
 	parent.store(rooms, readScope{load: "l", tick: 1, generation: 1}, []byte("y"), Result{})
-	if _, _, ok := parent.lookup(rooms, readScope{load: "l", tick: 2, generation: 1}); ok || parent.Len() != 1 {
-		t.Fatal("same-tick row served or kept after a tick advance", parent.Len())
+	if _, _, ok := parent.lookup(rooms, readScope{load: "l", tick: 1 + FactTickToleranceRooms, generation: 1}); !ok {
+		t.Fatal("rooms row not served within its tolerance")
+	}
+	if _, _, ok := parent.lookup(rooms, readScope{load: "l", tick: 0, generation: 1}); ok || parent.Len() != 1 {
+		t.Fatal("rooms row served under a rewound tick", parent.Len())
+	}
+	parent.store(rooms, readScope{load: "l", tick: 1, generation: 1}, []byte("y"), Result{})
+	if _, _, ok := parent.lookup(rooms, readScope{load: "l", tick: 2 + FactTickToleranceRooms, generation: 1}); ok || parent.Len() != 1 {
+		t.Fatal("rooms row served or kept past its tolerance", parent.Len())
 	}
 	parent.store(key, readScope{load: "l", tick: 1, generation: 2}, []byte("z"), Result{})
 	if parent.Len() != 1 {
@@ -219,5 +227,37 @@ func TestFactCacheContextServesTheSeededIdentity(t *testing.T) {
 	cache.Invalidate()
 	if _, ok = parent.Context(); ok {
 		t.Fatal("write kept the context")
+	}
+}
+
+// TestFactFamilyTickTolerance is the per-family staleness contract (#243):
+// a row serves a later scope while the advance is within the family's
+// tolerance, never a scope behind it, and the tolerances order as the
+// facts change: identity and research on the scale of a day, colony and
+// rooms an hour, pawns and the emergency census minutes.
+func TestFactFamilyTickTolerance(t *testing.T) {
+	for _, family := range FactFamilies() {
+		tolerance := family.TickTolerance()
+		if !family.Fresh(100, 100) || family.Fresh(100, 99) {
+			t.Fatal(family, "same tick or rewind")
+		}
+		if tolerance == FactTickUnbounded {
+			if !family.Fresh(0, 1<<40) {
+				t.Fatal(family, "bounded")
+			}
+			continue
+		}
+		if tolerance < 0 || !family.Fresh(100, 100+tolerance) || family.Fresh(100, 101+tolerance) {
+			t.Fatal(family, tolerance)
+		}
+	}
+	if FactTickToleranceIdentity != 0 || FactTickToleranceResearch < FactTickToleranceColony || FactTickToleranceColony < FactTickTolerancePawns || FactTickToleranceRooms < FactTickTolerancePawns || FactTickToleranceEmergency > FactTickTolerancePawns {
+		t.Fatal("tolerances out of order")
+	}
+	if PlanningTickTolerance() != FactTickTolerancePawns {
+		t.Fatal(PlanningTickTolerance())
+	}
+	if FactFamily("other").TickTolerance() != 0 || FactFamily("other").Fresh(1, 2) {
+		t.Fatal("unknown family tolerates an advance")
 	}
 }

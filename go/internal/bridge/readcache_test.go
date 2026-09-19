@@ -280,3 +280,78 @@ func TestStepReadCacheHitsReachThePhaseReport(t *testing.T) {
 		t.Fatalf("identity not in summary: %+v", summary.Tools)
 	}
 }
+
+// TestStepReadCacheAnchorsAtTheFirstReply: under a running clock the
+// replies of one step arrive at different ticks. The first reply anchors
+// the scope; a later reply ahead of it within its family's tolerance keeps
+// the rows already held, and one past the tolerance discards them and
+// re-anchors, exactly as a new generation does (#243).
+func TestStepReadCacheAnchorsAtTheFirstReply(t *testing.T) {
+	server := newReadCacheServer()
+	client := testClient(t, &testServer{schema: protoSchema, handler: server.handle}, time.Second)
+	parent := NewFactCache()
+	cache := NewChildReadCache(parent)
+	ctx := WithStepReadCache(context.Background(), cache)
+
+	if _, _, err := client.Identity(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := client.ReadWorld(ctx, pbIdentity(), 42, 0); err != nil {
+		t.Fatal(err)
+	}
+	// Rooms answer a little later than the anchor: within tolerance, so
+	// the world row survives and the rooms row is filed at its own tick.
+	server.tick.Add(FactTickToleranceRooms)
+	rooms, _, err := client.ReadTemperatureRooms(ctx, pbIdentity())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rooms.GetObserved().GetContext().GetTick() != 1000+FactTickToleranceRooms {
+		t.Fatal(rooms.GetObserved().GetContext())
+	}
+	if _, _, err := client.ReadWorld(ctx, pbIdentity(), 42, 0); err != nil {
+		t.Fatal(err)
+	}
+	if got := server.count("rimgovernor/observations_read_world"); got != 1 {
+		t.Fatalf("world re-read after a tolerated advance: %d", got)
+	}
+	if stats := cache.Stats(); stats.Invalidations != 0 || stats.Hits != 1 {
+		t.Fatalf("stats %+v", stats)
+	}
+	if cache.scope.tick != 1000 {
+		t.Fatalf("anchor moved to %d", cache.scope.tick)
+	}
+	// The next step anchors at the new tick and takes rooms from the
+	// parent: the row is fresh for its family relative to the anchor.
+	cache = NewChildReadCache(parent)
+	ctx = WithStepReadCache(context.Background(), cache)
+	if _, _, err := client.Identity(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := client.ReadTemperatureRooms(ctx, pbIdentity()); err != nil {
+		t.Fatal(err)
+	}
+	if got := server.count("rimgovernor/observations_list_rooms"); got != 1 {
+		t.Fatalf("rooms re-read at its own tick: %d", got)
+	}
+	// A reply past the tolerance of its family re-anchors and drops the
+	// step's rows: the bare tick read (identity family, same tick only)
+	// answers past the anchor, and the rooms row the parent still holds is
+	// no longer fresh for the new one.
+	server.tick.Add(FactTickToleranceRooms + 1)
+	if _, _, err := client.Tick(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if stats := cache.Stats(); stats.Invalidations != 1 {
+		t.Fatalf("stats %+v", stats)
+	}
+	if cache.scope.tick != 1000+2*FactTickToleranceRooms+1 {
+		t.Fatalf("anchor %d", cache.scope.tick)
+	}
+	if _, _, err := client.ReadTemperatureRooms(ctx, pbIdentity()); err != nil {
+		t.Fatal(err)
+	}
+	if got := server.count("rimgovernor/observations_list_rooms"); got != 2 {
+		t.Fatalf("stale rooms served: %d", got)
+	}
+}

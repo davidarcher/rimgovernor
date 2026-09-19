@@ -18,11 +18,16 @@ import (
 // served locally, including callers that arrive while the first is still in
 // flight.
 //
-// Cached rows belong to one observation scope: the (load token, tick, native
-// generation) the native reply reported. A fresh reply from a different
-// scope, or any write issued through a context carrying the cache, discards
-// every row, so a planner never sees a fact from before a write or from an
-// earlier tick. Only replies carrying an ObservationContext are cached;
+// Cached rows belong to one observation scope: the (load token, native
+// generation) the native reply reported, anchored at the tick of the first
+// reply (a step's bundle). A later reply of the same load and generation
+// whose tick is ahead of the anchor by no more than its family's
+// TickTolerance joins the scope, so a step under a running clock keeps the
+// facts it read a moment ago; a reply from another load or generation, one
+// the anchor has outrun, or any write issued through a context carrying the
+// cache, discards every row and re-anchors, so a planner never sees a fact
+// from before a write or from a tick the step has left behind. Only replies
+// carrying an ObservationContext are cached;
 // refusals, unavailability and typed failures are never memoized. A hit is
 // decoded into a fresh reply message, so the typed adapters validate it
 // exactly as they validate a native reply.
@@ -145,8 +150,8 @@ func cacheableRead(name string) bool {
 // seed stores a reply another read carried (a bundle section) as if key had
 // been read natively under scope: a later read of key in this step is a
 // hit, and the parent files the row under key's family. A key already held
-// or in flight is left alone; a different scope discards the older rows
-// first, as complete does.
+// or in flight is left alone; a scope outside the anchored one discards the
+// older rows first, as complete does.
 func (s *StepReadCache) seed(key readCacheKey, scope readScope, payload []byte, result Result) {
 	if s == nil {
 		return
@@ -156,12 +161,7 @@ func (s *StepReadCache) seed(key readCacheKey, scope readScope, payload []byte, 
 	if s.entries[key] != nil {
 		return
 	}
-	if s.scope != scope {
-		if s.scope != (readScope{}) {
-			s.invalidateLocked()
-		}
-		s.scope = scope
-	}
+	s.anchorLocked(key, scope)
 	entry := &readCacheEntry{done: make(chan struct{}), epoch: s.epoch, payload: payload, result: result, ok: true}
 	close(entry.done)
 	s.entries[key] = entry
@@ -197,16 +197,30 @@ func (s *StepReadCache) complete(key readCacheKey, entry *readCacheEntry, scope 
 		}
 		return
 	}
-	if s.scope != *scope {
-		if s.scope != (readScope{}) {
-			s.invalidateLocked()
-		}
-		s.scope = *scope
+	if s.anchorLocked(key, *scope) {
 		entry.epoch = s.epoch
 		s.entries[key] = entry
 	}
 	entry.payload, entry.result, entry.ok = payload, result, true
 	s.parent.store(key, *scope, payload, result)
+}
+
+// anchorLocked fits a reply's scope to the cache's: the first reply anchors
+// it; a later reply of the same load and generation within key's family
+// tolerance ahead of the anchor keeps it; anything else discards the rows
+// and re-anchors at the reply. It reports whether the anchor changed.
+func (s *StepReadCache) anchorLocked(key readCacheKey, scope readScope) bool {
+	if s.scope == scope {
+		return false
+	}
+	if s.scope != (readScope{}) {
+		if family, ok := FactFamilyOf(key.method); ok && scope.load == s.scope.load && scope.generation == s.scope.generation && family.Fresh(s.scope.tick, scope.tick) {
+			return false
+		}
+		s.invalidateLocked()
+	}
+	s.scope = scope
+	return true
 }
 
 // fromParent serves a leader's miss from the parent when the step's scope

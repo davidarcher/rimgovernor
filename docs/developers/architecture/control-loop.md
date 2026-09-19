@@ -72,7 +72,9 @@ and only re-evaluates admission from the journal; a wake runs the planners
 that dispatch the latched outcomes' action kinds and the readers of any
 invalidated fact family (an authority change plans everything). Planner
 facts are bound to the tick they observed, so admission holds with
-`stale_planning` when a window has since outrun them; the scheduler's
+`stale_planning` when they predate the admitted tick by more than the
+planning tolerance (`bridge.PlanningTickTolerance`, the tightest fact
+family's: 250 ticks) or a window has since outrun them; the scheduler's
 `MaxAge` bounds only the admission reads. A colony window runs at least 2500
 ticks (`--clock-window-ticks`) and is sized by wall time at the configured
 speed: the ticks `--clock-speed` runs in `--clock-window-seconds` (default

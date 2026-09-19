@@ -368,14 +368,22 @@ parent-hit/invalidation counts and the flight recorder reports hits per method
 
 Across steps the scheduler keeps one `bridge.FactCache`, the parent of every
 step cache. Each cacheable method belongs to a fact family
-(`bridge.FactFamilyOf`): `definitions` (recipes) and `world` (world tile and
-settlements) survive a tick advance; `identity`, `colony`, `pawns`,
-`emergency`, `rooms` and `research` are facts of one paused tick. Once a
-step's first native reply (the bundle, always native) has fixed its
-(load, generation, tick) scope, a step miss is served from the parent when
-the row was read under the same load and generation and is either
-tick-independent or from that same tick, so a timer step under a stopped
-clock costs one round trip. Rows are dropped by any write through a step
+(`bridge.FactFamilyOf`) with a tick tolerance (`FactFamily.TickTolerance`,
+#243): `definitions` (recipes) and `world` (world tile and settlements)
+survive any tick advance; `research` serves 60000 ticks (a day) past its
+read, `colony` and `rooms` 2500 (an hour), `pawns` and `emergency` 250; the
+`identity` family is the tick itself, so it serves the same tick only and
+every step's bundle seeds it afresh. Once a step's first native reply (the
+bundle, always native) has anchored its (load, generation, tick) scope, a
+step miss is served from the parent when the row was read under the same
+load and generation and its family is still fresh at the anchor tick (never
+from a later tick than the anchor: a rewind is a new world), so a timer
+step under a stopped clock costs one round trip, and a step under a running
+clock keeps the facts it read a moment ago. Within the step a later native
+reply of the same load and generation ahead of the anchor within its
+family's tolerance joins the scope and is filed at its own tick; one past
+the tolerance discards the step's rows and re-anchors, as a new generation
+does. Rows are dropped by any write through a step
 context (all), by a reply from another (load, generation) scope (all), and
 by the typed events `PollEvents` commits: `AuthorityChanged`, `EpochStarted`
 and a stop drop everything; an `OperationOutcome` drops the families its

@@ -37,8 +37,11 @@ type ClockWindowFacts struct {
 	Tick    domain.Tick
 	// FactsTick is the tick the planner facts behind WorkRemaining were
 	// observed at; unknown when no planner has run yet (the work is then
-	// the journal's alone). Known facts from another tick hold the window.
+	// the journal's alone). Known facts more than FactsTolerance ticks
+	// older than Tick, or from a later tick, hold the window
+	// (stale_planning); the zero tolerance admits the admitted tick alone.
 	FactsTick             domain.Fact[domain.Tick]
+	FactsTolerance        domain.Tick
 	StartedAt, ObservedAt time.Time
 	Emergency             EmergencySnapshot
 	Review                ClockWindowReview
