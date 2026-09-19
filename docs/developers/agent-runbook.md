@@ -74,13 +74,14 @@ What it produces:
   there itself, replacing an older copy).
 - **The mod build**, `.rimgovernor/native-builds/<role>-<stamp>/`, from
   `scripts/build_native_mod.ps1`, installed over the copy's
-  `Mods/RimGovernor`. By hand it is called in-process from PowerShell
-  (`& scripts/build_native_mod.ps1 -RimWorldManagedDir "<Steam RimWorld>\RimWorldWin64_Data\Managed"
-  -HarmonyAssembly "<workshop>\2009463077\Current\Assemblies\0Harmony.dll"
-  -RimBridgeSdkDir "<Steam RimWorld>\Mods\RimBridgeServer\1.6\Assemblies"
-  -OutputRoot <absolute path> -Fixture @('UpkeepFixture','ShutdownFixture')`;
-  `pwsh -File` does not parse the fixture list), and copied in **only while
-  no game of yours is running**. `Prepare` refuses a stale install before
+  `Mods/RimGovernor`. Always go through `acceptance setup -rebuild
+  [-fixture A,B | -production]`: it supplies the script's three Steam
+  paths (`-RimWorldManagedDir`, `-HarmonyAssembly`, `-RimBridgeSdkDir`),
+  calls it in-process (`pwsh -File` does not parse the fixture list), and
+  refuses to install while a game of yours runs. Do not call the script
+  from an agent session: the harness blocks any PowerShell command whose
+  arguments contain `C:\Program Files`, which those Steam paths do. The
+  build is copied in **only while no game of yours is running**. `Prepare` refuses a stale install before
   boot (`na.RequireCurrentPackage`) and its error names the rebuild
   command. Rebuild whenever `integrations/rimgovernor-native` or
   `scripts/fixtures` changed, including after merging `main`.

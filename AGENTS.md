@@ -48,6 +48,26 @@ saying what.
   them.
 - Commit generated builds, logs, saves, databases or temporary scripts.
 
+## Tool pitfalls (Windows harness)
+
+Each of these fails the same way in every session; none is a judgment call.
+
+- Build the mod through `acceptance setup` (`-rebuild`, `-fixture A,B`,
+  `-production`), never `scripts/build_native_mod.ps1` by hand: the
+  harness refuses any PowerShell command carrying a `C:\Program Files`
+  argument, and the script needs three Steam paths `setup` discovers itself.
+- Never `sleep N && <check>` to wait on a run; the harness blocks it. Launch
+  long commands with `run_in_background: true` and wait for the notification,
+  or use `Monitor` with an until-loop.
+- Write files with the Write tool, not `cat <<'EOF'` in Bash: the Bash tool
+  re-escapes heredoc bodies, so any apostrophe or backslash in the content
+  breaks the whole command (`unexpected EOF while looking for matching`).
+  CRLF files (docs, AGENTS.md) need newline-preserving edits.
+- `python`, not `python3`; `python3` is the Microsoft Store stub.
+- Read GitHub issues with `gh issue view <n> --comments > <scratchpad>/issue-<n>.md`
+  and Read the file; direct output truncates on long threads. Never WebFetch
+  a github.com URL.
+
 ## Issues
 
 Open a GitHub issue (`gh issue create`) for anything you would otherwise
