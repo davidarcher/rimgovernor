@@ -35,12 +35,12 @@ var defenseDefinitions = policy.DefenseDefinitions{Sandbag: "Barricade", Sandbag
 // The powered turret tier (#61): the mini turret needs no rearming, and a
 // conduit chain connects it to the network. Both are planning definitions
 // the reviewer's census is asked for, so availability (research, content),
-// draw and cost are observed, never assumed. defenseMaxTurrets bounds the
-// tier; each turret costs steel and components the colony may need first.
+// draw and cost are observed, never assumed. policy.TurretBudget bounds the
+// tier by the observed raid points (#396); each turret costs steel and
+// components the colony may need first.
 const (
 	defenseTurretDefinition  = "Turret_MiniTurret"
 	defenseConduitDefinition = "PowerConduit"
-	defenseMaxTurrets        = 2
 )
 
 var defenseExtraDefinitions = []string{defenseTurretDefinition, defenseConduitDefinition}
@@ -469,6 +469,14 @@ func (c *defenseCensus) standing(definition string, cell domain.Cell) bool {
 	return c.edifice[cell] == definition
 }
 
+// defenseRaidPoints is the storyteller's raid-point reading the turret
+// budget scales with. The projection carries no threat observation yet
+// (#341); until that child lands the reading is unknown and the budget is
+// the pre-#396 constant.
+func defenseRaidPoints(observation.ColonyProjection) domain.Fact[float64] {
+	return domain.Unknown[float64]()
+}
+
 // defenseTurretRequest is the turret tier's observed gates from the shared
 // routine reading: the turret and conduit planning definitions (availability
 // re-checked against the research snapshot's finished projects), the
@@ -477,7 +485,7 @@ func (c *defenseCensus) standing(definition string, cell domain.Cell) bool {
 func defenseTurretRequest(read observation.RoutineReading) policy.DefenseRequest {
 	projection := read.Projection
 	request := policy.DefenseRequest{Definitions: defenseDefinitions, UnitCosts: map[string][]policy.Amount{}}
-	request.Turret = policy.DefenseTurretRequest{Definition: defenseTurretDefinition, Conduit: defenseConduitDefinition, Stock: projection.Resources, Max: defenseMaxTurrets}
+	request.Turret = policy.DefenseTurretRequest{Definition: defenseTurretDefinition, Conduit: defenseConduitDefinition, Stock: projection.Resources, Max: policy.TurretBudget(defenseRaidPoints(projection))}
 	research, rk := projection.Facts.Research.Value()
 	finished := map[policy.ResearchProjectID]bool{}
 	for _, id := range research.Finished {

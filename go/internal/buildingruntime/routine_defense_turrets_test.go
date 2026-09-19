@@ -43,7 +43,7 @@ func TestDefenseTurretRequestObservesEveryGate(t *testing.T) {
 	t.Parallel()
 	request := defenseTurretRequest(turretReading())
 	q := request.Turret
-	if q.Definition != defenseTurretDefinition || q.Conduit != defenseConduitDefinition || q.Max != defenseMaxTurrets {
+	if q.Definition != defenseTurretDefinition || q.Conduit != defenseConduitDefinition || q.Max != policy.TurretBudget(domain.Unknown[float64]()) {
 		t.Fatalf("%+v", q)
 	}
 	if v, k := q.Available.Value(); !k || !v {

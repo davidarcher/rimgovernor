@@ -54,8 +54,9 @@ const (
 	// consumer connects to the nearest transmitter within six cells, so a
 	// chain of conduits need only end that close to the turret.
 	conduitReach = 6
-	// maxTurretCandidates bounds the positions probed for line of sight.
-	maxTurretCandidates = 4
+	// maxTurretCandidates bounds the positions probed for line of sight; it
+	// covers TurretBudget's hard cap so a stocked colony can fill it.
+	maxTurretCandidates = turretHardCap
 )
 
 func directionOf(r domain.Rotation) domain.Cell {
@@ -204,7 +205,7 @@ func (s defenseSite) turrets(g DefenseGeometry) (DefenseTier, []TurretPosition, 
 			verified = append(verified, c.Cell)
 		}
 	}
-	n := turretBudget(s.r, len(verified))
+	n := turretGate(s.r, len(verified))
 	if n == 0 {
 		return tier, candidates, nil
 	}
@@ -265,12 +266,12 @@ func (s defenseSite) turrets(g DefenseGeometry) (DefenseTier, []TurretPosition, 
 // TurretGatesOpen reports whether the observed gates (available definition,
 // spare watts, stock) allow at least one turret, before any site or line of
 // sight is read; a caller re-proposes an empty turret tier only then.
-func (r DefenseRequest) TurretGatesOpen() bool { return turretBudget(r, 1) > 0 }
+func (r DefenseRequest) TurretGatesOpen() bool { return turretGate(r, 1) > 0 }
 
-// turretBudget is how many of the verified positions the power and stock
+// turretGate is how many of the verified positions the power and stock
 // gates allow: available definition, spare watts for every turret's draw,
 // and stock for the turrets alone (conduits are checked once routed).
-func turretBudget(r DefenseRequest, verified int) int {
+func turretGate(r DefenseRequest, verified int) int {
 	q := r.Turret
 	available, ak := q.Available.Value()
 	draw, dk := q.DrawW.Value()

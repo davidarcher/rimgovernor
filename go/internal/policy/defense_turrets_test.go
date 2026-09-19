@@ -132,7 +132,8 @@ func TestDefenseTurretsFlankTheFiringLineAndReachTheNetwork(t *testing.T) {
 func TestDefenseTurretsPreferTheRowBehindTheFiringLine(t *testing.T) {
 	// A candidate behind the shooters that sees the lane comes before the
 	// flanks: the lane-aligned cell first, then the cells three to either
-	// side, each verified only by a known line to a lane cell.
+	// side, each verified only by a known line to a lane cell. The probe
+	// runs to the hard cap, so both flanks follow.
 	r := turretFixture()
 	r.Lines = nil
 	for _, c := range cells(5, 23, 13, 23) {
@@ -147,7 +148,7 @@ func TestDefenseTurretsPreferTheRowBehindTheFiringLine(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(layout.Turrets, []TurretPosition{{Cell: domain.Cell{X: 9, Z: 26}, Verified: true}, {Cell: domain.Cell{X: 6, Z: 26}}, {Cell: domain.Cell{X: 12, Z: 26}, Verified: true}, {Cell: domain.Cell{X: 5, Z: 23}, Verified: true}}) {
+	if !reflect.DeepEqual(layout.Turrets, []TurretPosition{{Cell: domain.Cell{X: 9, Z: 26}, Verified: true}, {Cell: domain.Cell{X: 6, Z: 26}}, {Cell: domain.Cell{X: 12, Z: 26}, Verified: true}, {Cell: domain.Cell{X: 5, Z: 23}, Verified: true}, {Cell: domain.Cell{X: 13, Z: 23}, Verified: true}, {Cell: domain.Cell{X: 2, Z: 23}}}) {
 		t.Fatalf("%+v", layout.Turrets)
 	}
 	tier, _ := layout.Tier(TierTurrets)
@@ -174,7 +175,7 @@ func TestDefenseTurretsPreferTheRowBehindTheFiringLine(t *testing.T) {
 	}
 	// The probe asks for the behind-row lines before the flanks.
 	firing, _ := layout.Probe()
-	if !reflect.DeepEqual(firing, cells(9, 23, 8, 23, 10, 23, 9, 26, 6, 26, 12, 26, 5, 23)) {
+	if !reflect.DeepEqual(firing, cells(9, 23, 8, 23, 10, 23, 9, 26, 6, 26, 12, 26, 5, 23, 13, 23, 2, 23)) {
 		t.Fatal(firing)
 	}
 }
