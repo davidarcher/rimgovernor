@@ -21,10 +21,14 @@ import (
 // PollEvents never waits for the player gate. Interruption invalidation precedes
 // persistence and owned cleanup, which may need to join an active command.
 func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative, limit uint32, wait time.Duration) (out ClockPollResult, err error) {
+	// fresh is set once the poll holds a page that carries something earlier
+	// polls have not applied; until then a disable is for evidence already
+	// applied (see disableOnEvidence).
+	fresh := false
 	fail := func(cause error) (ClockPollResult, error) {
 		out.Interrupted = true
 		s.running.Store(false)
-		disabled := s.session.Disable()
+		disabled := s.disableOnEvidence(fresh)
 		cleanup, cancel := context.WithTimeout(context.Background(), s.session.control.config.CallTimeout)
 		defer cancel()
 		return out, errors.Join(cause, disabled, s.session.CleanupClock(cleanup))
@@ -42,7 +46,7 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 	ctx, _ = telemetry.EnsureTrace(ctx)
 	call, cancel := context.WithTimeout(ctx, s.session.control.config.CallTimeout)
 	defer cancel()
-	invalidate := func() error { out.Interrupted = true; return s.session.Disable() }
+	invalidate := func() error { out.Interrupted = true; return s.disableOnEvidence(fresh) }
 	review, err := s.player.journal.ReadClockReview(call, s.config.Profile)
 	if err != nil {
 		return fail(err)
@@ -95,6 +99,7 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 	if err = bridge.ValidateClockEventsPage(page, request); err != nil {
 		return fail(err)
 	}
+	fresh = page.GetGap() || len(page.Events) > 0
 	if page.Context.GetTick() < current.GetTick() || current.NativeGeneration != nil && (page.Context.NativeGeneration == nil || page.Context.GetNativeGeneration() < current.GetNativeGeneration()) {
 		return fail(executor.ErrEvidence)
 	}
@@ -166,6 +171,23 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 		return fail(nil)
 	}
 	return out, nil
+}
+
+// disableOnEvidence disables authority for what a poll or renewal found.
+// Fresh evidence (a captured page with events or a gap, a lease refused
+// while authority is live) disables before persistence, an acquisition in
+// progress included. Evidence earlier polls already applied (a standing
+// unacknowledged hold, an empty page, a failed read while nothing is
+// enabled) is not applied again: authority is already off, and every
+// Control.Disable replaces the control epoch, which cancels an Acquire's
+// SetMode in flight and reports the resume uncertain at generation 0 (#253).
+// The hold still keeps a window from opening (clock.Window) until it is
+// acknowledged; the grant itself is safe under it.
+func (s *ClockScheduler) disableOnEvidence(fresh bool) error {
+	if !fresh && !s.session.State().Enabled {
+		return nil
+	}
+	return s.session.Disable()
 }
 
 // Event ingestion is profile-wide and does not require a live lease. Compare

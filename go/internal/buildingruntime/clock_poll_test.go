@@ -8,6 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
@@ -199,6 +200,47 @@ func TestClockPollGapExistingHoldEmptyAndDisabled(t *testing.T) {
 	inbox, err := s.player.journal.LoadClockInbox(context.Background(), s.config.Profile, 4096)
 	if err != nil || inbox.Pages[1].Page.Events[0].Context.Identity.GetLoadToken() != "historical" {
 		t.Fatal(inbox, err)
+	}
+}
+
+// A poll that only re-finds a standing hold (nothing enabled, an empty
+// page) must not replace the control epoch: the harness restarts the
+// service per speed, the poll loop runs before the resume's Acquire
+// finishes, and each replacement cancelled the SetMode in flight (#253).
+func TestClockPollStandingHoldKeepsAcquireEpoch(t *testing.T) {
+	t.Parallel()
+	s, f, _ := clockPollFixture(t)
+	ctx := context.Background()
+	result, err := s.PollEvents(ctx, &clockPollNative{core: f.clockCoreFake, page: clockPollPage(f, 0, "gap")}, 128, 0)
+	if err == nil || len(result.Review.Holds) != 1 || s.session.State().Enabled {
+		t.Fatal(result, err)
+	}
+	var epoch context.Context
+	native := &clockPollNative{core: f.clockCoreFake, page: clockPollPage(f, 1, "empty")}
+	native.before = func() {
+		s.session.control.mu.Lock()
+		epoch = s.session.control.epoch
+		s.session.control.mu.Unlock()
+	}
+	result, err = s.PollEvents(ctx, native, 128, 0)
+	if !errors.Is(err, executor.ErrHeld) || result.Captured || !result.Interrupted {
+		t.Fatal(result, err)
+	}
+	if epoch.Err() != nil {
+		t.Fatal("a standing hold replaced the control epoch under a disabled session")
+	}
+	// A page with events is fresh evidence and still replaces it.
+	native = &clockPollNative{core: f.clockCoreFake, page: clockPollPage(f, 1, "benign")}
+	native.before = func() {
+		s.session.control.mu.Lock()
+		epoch = s.session.control.epoch
+		s.session.control.mu.Unlock()
+	}
+	if _, err = s.PollEvents(ctx, native, 128, 0); err == nil {
+		t.Fatal("benign page under a standing hold reported no hold")
+	}
+	if epoch.Err() == nil {
+		t.Fatal("fresh evidence left the control epoch in place")
 	}
 }
 func TestClockPollReadFailureAndCancellationCleanup(t *testing.T) {

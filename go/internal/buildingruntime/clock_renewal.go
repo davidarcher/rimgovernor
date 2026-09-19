@@ -16,7 +16,7 @@ import (
 )
 
 func (s *ClockScheduler) renewalHold(cause error) error {
-	disabled := s.session.Disable()
+	disabled := s.disableOnEvidence(false)
 	ctx, cancel := context.WithTimeout(context.Background(), s.session.control.config.CallTimeout)
 	defer cancel()
 	return errors.Join(cause, disabled, s.session.CleanupClock(ctx))

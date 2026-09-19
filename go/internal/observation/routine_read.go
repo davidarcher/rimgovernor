@@ -73,85 +73,130 @@ type routineBracket struct {
 	definitionReceipt bridge.Result
 }
 
-// Read the emergency census inside ObserveColony's identity brackets.
+// ReadColonyFacts fans the routine census out inside ObserveColony's
+// identity bracket. Every read here is independent of the others (each
+// reply carries its own ObservationContext and is validated against the
+// expected boundary), so they are issued at once and the bracket costs
+// max(read) rather than sum(read) (#227). Two reads chain behind their
+// input: the supplementary project definitions need the colony reply's
+// default catalog, and the pawn census needs the emergency census's
+// colonist ids. Post-processing that combines replies (room temperature
+// with colony beds, the work/medical/mood pawns with the colony and
+// emergency census) runs after the wave. The first failure wins and cancels
+// the rest; the wave's reads are all pure, so nothing needs undoing.
 func (s *routineBracket) ReadColonyFacts(ctx context.Context, id *c.Identity, planning bool, defs []string) (*o.ColonyFactsReply, bridge.Result, error) {
-	colony, receipt, err := s.RoutineSource.ReadColonyFacts(ctx, id, planning, defs)
-	if err != nil {
-		return colony, receipt, err
-	}
-	if err := s.readConstruction(ctx, id); err != nil {
+	var (
+		colony  *o.ColonyFactsReply
+		receipt bridge.Result
+		pawns   *o.ListPawnsReply
+		rooms   *o.RoomsSnapshot
+	)
+	wave := newReadWave(ctx)
+	wave.Go(func(ctx context.Context) error {
+		var err error
+		colony, receipt, err = s.RoutineSource.ReadColonyFacts(ctx, id, planning, defs)
+		if err != nil {
+			return err
+		}
+		return s.readProjectDefinitions(ctx, id, colony)
+	})
+	wave.Go(func(ctx context.Context) error { return s.readConstruction(ctx, id) })
+	wave.Go(func(ctx context.Context) error {
+		var err error
+		pawns, err = s.readEmergency(ctx, id)
+		return err
+	})
+	wave.Go(func(ctx context.Context) error { return s.readPopulation(ctx, id) })
+	wave.Go(func(ctx context.Context) error { return s.readResearch(ctx, id) })
+	wave.Go(func(ctx context.Context) error { return s.readTraders(ctx, id) })
+	wave.Go(func(ctx context.Context) error {
+		var err error
+		rooms, err = s.readTemperature(ctx, id)
+		return err
+	})
+	if err := wave.Wait(); err != nil {
 		return nil, receipt, err
 	}
-	if err := s.readProjectDefinitions(ctx, id, colony); err != nil {
-		return nil, receipt, err
+	if rooms != nil {
+		s.temperature = temperatureRooms(rooms, colonySleeping(colony.GetObserved()))
 	}
-	if err := s.readTemperature(ctx, id, colony); err != nil {
-		return nil, receipt, err
+	if pawns != nil {
+		s.armed = routineArmed(colony.GetObserved(), s.emergency.Facts, pawns.GetObserved())
+		s.work = routineWork(colony.GetObserved(), s.emergency.Facts, pawns.GetObserved())
+		s.medical = routineMedical(colony.GetObserved(), s.emergency.Facts, pawns.GetObserved())
+		s.mood = routineMood(colony.GetObserved(), s.emergency.Facts, pawns.GetObserved())
+	} else if complete, known := s.emergency.Facts.ColonistsComplete.Value(); known && complete && len(s.emergency.Facts.Colonists) == 0 && colony.GetObserved().ColonistCount != nil && colony.GetObserved().GetColonistCount() == 0 {
+		s.mood = domain.Known([]policy.MoodPawn{})
 	}
+	return colony, receipt, nil
+}
+
+// readEmergency reads the emergency census and, when it names a complete
+// colonist roster, the routine pawn census behind it. The pawn reply is
+// returned rather than projected: the projections also need the colony
+// reply, which is in flight on another lane of the wave.
+func (s *routineBracket) readEmergency(ctx context.Context, id *c.Identity) (*o.ListPawnsReply, error) {
+	var err error
 	s.emergency, s.receipt, err = s.ReadEmergency(ctx, id)
 	if err != nil {
-		return nil, receipt, err
+		return nil, err
 	}
 	identity, err := contextIdentity(s.emergency.Context)
 	if err != nil {
-		return nil, receipt, err
+		return nil, err
 	}
 	identity.Paused = s.expected.Paused
 	if !sameColonyBoundary(identity, s.expected) {
-		return nil, receipt, ErrChanged
+		return nil, ErrChanged
 	}
+	complete, known := s.emergency.Facts.ColonistsComplete.Value()
+	if !known || !complete {
+		return nil, nil
+	}
+	ids := make([]string, 0, len(s.emergency.Facts.Colonists))
+	for _, pawn := range s.emergency.Facts.Colonists {
+		ids = append(ids, string(pawn.ID))
+	}
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	pawns, pawnReceipt, err := s.ReadRoutinePawns(ctx, id, ids)
+	s.pawnReceipt = pawnReceipt
+	if err != nil {
+		return nil, err
+	}
+	if pawns == nil || pawns.GetObserved() == nil {
+		return nil, ErrContract
+	}
+	if err = bridge.ValidateRoutinePawnSnapshot(pawns.GetObserved(), id, ids); err != nil {
+		return nil, err
+	}
+	observed, err := contextIdentity(pawns.GetObserved().Context)
+	if err != nil {
+		return nil, err
+	}
+	observed.Paused = s.expected.Paused
+	if !sameColonyBoundary(observed, s.expected) {
+		return nil, ErrChanged
+	}
+	return pawns, nil
+}
+
+func (s *routineBracket) readPopulation(ctx context.Context, id *c.Identity) error {
+	var err error
 	s.population, s.populationReceipt, err = s.ReadRoutinePopulation(ctx, id)
 	if err != nil {
-		return nil, receipt, err
+		return err
 	}
-	populationIdentity, err := contextIdentity(s.population.Context)
+	identity, err := contextIdentity(s.population.Context)
 	if err != nil {
-		return nil, receipt, err
+		return err
 	}
-	populationIdentity.Paused = s.expected.Paused
-	if !sameColonyBoundary(populationIdentity, s.expected) {
-		return nil, receipt, ErrChanged
+	identity.Paused = s.expected.Paused
+	if !sameColonyBoundary(identity, s.expected) {
+		return ErrChanged
 	}
-	if err := s.readResearch(ctx, id); err != nil {
-		return nil, receipt, err
-	}
-	if err := s.readTraders(ctx, id); err != nil {
-		return nil, receipt, err
-	}
-	if complete, known := s.emergency.Facts.ColonistsComplete.Value(); known && complete {
-		ids := make([]string, 0, len(s.emergency.Facts.Colonists))
-		for _, pawn := range s.emergency.Facts.Colonists {
-			ids = append(ids, string(pawn.ID))
-		}
-		if len(ids) > 0 {
-			pawns, pawnReceipt, err := s.ReadRoutinePawns(ctx, id, ids)
-			s.pawnReceipt = pawnReceipt
-			if err != nil {
-				return nil, receipt, err
-			}
-			if pawns == nil || pawns.GetObserved() == nil {
-				return nil, receipt, ErrContract
-			}
-			if err = bridge.ValidateRoutinePawnSnapshot(pawns.GetObserved(), id, ids); err != nil {
-				return nil, receipt, err
-			}
-			observed, err := contextIdentity(pawns.GetObserved().Context)
-			if err != nil {
-				return nil, receipt, err
-			}
-			observed.Paused = s.expected.Paused
-			if !sameColonyBoundary(observed, s.expected) {
-				return nil, receipt, ErrChanged
-			}
-			s.armed = routineArmed(colony.GetObserved(), s.emergency.Facts, pawns.GetObserved())
-			s.work = routineWork(colony.GetObserved(), s.emergency.Facts, pawns.GetObserved())
-			s.medical = routineMedical(colony.GetObserved(), s.emergency.Facts, pawns.GetObserved())
-			s.mood = routineMood(colony.GetObserved(), s.emergency.Facts, pawns.GetObserved())
-		} else if colony.GetObserved().ColonistCount != nil && colony.GetObserved().GetColonistCount() == 0 {
-			s.mood = domain.Known([]policy.MoodPawn{})
-		}
-	}
-	return colony, receipt, nil
+	return nil
 }
 
 func ObserveRoutine(ctx context.Context, source RoutineSource, clock Clock, expected Identity, maxAge time.Duration, definitions ...string) (RoutineReading, error) {

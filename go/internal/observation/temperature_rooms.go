@@ -15,39 +15,43 @@ type TemperatureSource interface {
 	ReadTemperatureRooms(context.Context, *c.Identity) (*o.ListRoomsReply, bridge.Result, error)
 }
 
-func (s *routineBracket) readTemperature(ctx context.Context, id *c.Identity, colony *o.ColonyFactsReply) error {
+// readTemperature reads the typed room census when rooms are enabled and
+// returns the validated snapshot; the caller projects it once the colony
+// reply (whose beds decide eligibility) has arrived on its own lane. A nil
+// snapshot with a nil error is a source without the census or one that
+// reports it unavailable: the fact stays unknown.
+func (s *routineBracket) readTemperature(ctx context.Context, id *c.Identity) (*o.RoomsSnapshot, error) {
 	if !s.roomsEnabled {
-		return nil
+		return nil, nil
 	}
 	source, ok := s.RoutineSource.(TemperatureSource)
 	if !ok {
-		return ErrContract
+		return nil, ErrContract
 	}
 	reply, receipt, err := source.ReadTemperatureRooms(ctx, id)
 	s.temperatureReceipt = receipt
 	if errors.Is(err, bridge.ErrUnavailable) {
-		return nil
+		return nil, nil
 	}
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if reply == nil || reply.GetObserved() == nil {
-		return ErrContract
+		return nil, ErrContract
 	}
 	rooms := reply.GetObserved()
 	if err := bridge.ValidateTemperatureRooms(rooms, id); err != nil {
-		return err
+		return nil, err
 	}
 	observed, err := contextIdentity(rooms.Context)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	observed.Paused = s.expected.Paused
 	if !sameColonyBoundary(observed, s.expected) {
-		return ErrChanged
+		return nil, ErrChanged
 	}
-	s.temperature = temperatureRooms(rooms, colonySleeping(colony.GetObserved()))
-	return nil
+	return rooms, nil
 }
 
 func temperatureRooms(rooms *o.RoomsSnapshot, sleeping domain.Fact[policy.SleepingObservation]) domain.Fact[policy.RoomObservation] {
