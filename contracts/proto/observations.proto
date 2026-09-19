@@ -352,6 +352,8 @@ message CellState {
   optional bool occupied = 18; // Native edifice, blueprint or frame occupies this cell.
   optional bool doorway = 19; // A door, or a door blueprint or frame, occupies this cell.
   optional bool reachable = 20; // An available colonist can path to this cell without danger.
+  optional bool polluted = 21; // Growth field; false when Biotech is inactive.
+  optional double glow = 22; // Native ground glow, including artificial light.
 }
 message CellFields { optional bool terrain = 1; optional bool roof = 2; optional bool visibility = 3; optional bool traversal = 4; optional bool zone = 5; optional bool areas = 6; optional bool things = 7; optional bool designations = 8; optional bool room = 9; optional bool growth = 10; }
 message CellsSnapshot { rimgovernor.common.v1.ObservationContext context = 1; MapSize map_size = 2; Rectangle region = 3; repeated CellState cells = 4; Completeness completeness = 5; CellFields applied_fields = 6; SnapshotRef map_snapshot = 7; optional uint32 unchanged = 8; optional int64 as_of_tick = 9; }
@@ -604,7 +606,12 @@ message FarmFacts { optional string zone_id = 1; optional string crop = 2; optio
 message PlanningDefinition { DefinitionRef definition = 1; optional string stuff = 2; optional bool available = 3; repeated string research_prerequisites = 4; optional int32 construction_skill = 5; MapSize size = 6; repeated Quantity costs = 7; optional double rest_effectiveness = 8; optional double grow_days = 9; optional double fertility_min = 10; optional double fertility_sensitivity = 11; optional double harvest_nutrition = 12; optional double nutrition_demand_per_day = 13; optional bool edible = 14; repeated ReadIssue issues = 15; repeated string sow_tags = 16; optional double grow_min_glow = 17; optional double power_w = 18; /* native base draw: positive consumes, negative generates */ optional double grower_fertility = 19; optional string sow_tag = 20; optional double glow_radius = 21; optional bool needs_power = 22;
   // Floor (TerrainDef) facts: set only when the definition is a terrain. The
   // stats are the native abstract stat values a laid floor would carry.
-  optional bool terrain = 23; optional double cleanliness = 24; optional int32 path_cost = 25; optional double beauty = 26; optional double flammability = 27; }
+  optional bool terrain = 23; optional double cleanliness = 24; optional int32 path_cost = 25; optional double beauty = 26; optional double flammability = 27;
+  optional double harvest_work = 28;
+  optional bool raw_preferred = 29; // Edible raw without the native bad-taste thought.
+  optional bool diet_allowed = 30; // No colonist ideology penalises this crop product.
+  optional bool requires_pollution = 31; optional bool requires_clean_soil = 32;
+}
 // Controlled-environment growing facts within the planning region: sun lamps
 // with the exact cells they grow, plant growers (hydroponics) with their
 // fertility and sow tag, roofed rooms with temperature, and per-network

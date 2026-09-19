@@ -303,7 +303,7 @@ func validateColonyPlanning(p *o.PlanningFacts, ctx *c.ObservationContext, size 
 				return contract("invalid research prerequisite")
 			}
 		}
-		for i, number := range []*float64{d.RestEffectiveness, d.GrowDays, d.FertilityMin, d.FertilitySensitivity, d.HarvestNutrition, d.NutritionDemandPerDay, d.GrowMinGlow, d.GrowerFertility, d.GlowRadius} {
+		for i, number := range []*float64{d.RestEffectiveness, d.GrowDays, d.FertilityMin, d.FertilitySensitivity, d.HarvestNutrition, d.NutritionDemandPerDay, d.GrowMinGlow, d.GrowerFertility, d.GlowRadius, d.HarvestWork} {
 			if !combatNumber(number, true) {
 				return contract("invalid planning definition number %d for %s", i, d.Definition.GetDefName())
 			}

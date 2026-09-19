@@ -52,3 +52,18 @@ func TestParseAndCheck(t *testing.T) {
 		t.Fatal("loser without reason passed")
 	}
 }
+
+func TestResilienceTermsAreParsedAndRequired(t *testing.T) {
+	log := strings.Replace(trace, "yield=5.9000", "labor=-0.2000 harvest-delay=-0.3000 risk-frost=2.0000 yield=5.9000", 1)
+	selections, err := Parse(strings.NewReader(log))
+	if err != nil {
+		t.Fatal(err)
+	}
+	last := selections[len(selections)-1:]
+	if _, err := Check(last, Expectation{Terms: []string{"labor", "harvest-delay", "risk-frost"}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Check(last, Expectation{Terms: []string{"risk-fallout"}}); err == nil {
+		t.Fatal("missing risk term passed")
+	}
+}

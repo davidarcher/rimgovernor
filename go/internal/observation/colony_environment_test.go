@@ -21,7 +21,7 @@ func TestColonyEnvironmentDecodesLampsGrowersRoomsAndNetworks(t *testing.T) {
 		Networks: []*o.PowerHeadroom{{Id: proto.String("net-a"), GenerationW: proto.Float64(3000), SolarW: proto.Float64(1700), WindW: proto.Float64(300), ConsumptionW: proto.Float64(600), StoredWattDays: proto.Float64(400), CapacityWattDays: proto.Float64(600), HasActiveSource: proto.Bool(true)}}}
 	env.Completeness = &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(4), Returned: proto.Uint64(4), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}
 	definitions := []*o.PlanningDefinition{
-		{Definition: &o.DefinitionRef{DefName: proto.String("Plant_Rice")}, GrowDays: proto.Float64(3), GrowMinGlow: proto.Float64(0.3), SowTags: []string{"Ground", "Hydroponic"}},
+		{Definition: &o.DefinitionRef{DefName: proto.String("Plant_Rice")}, GrowDays: proto.Float64(3), GrowMinGlow: proto.Float64(0.3), SowTags: []string{"Ground", "Hydroponic"}, HarvestWork: proto.Float64(200), RawPreferred: proto.Bool(false), DietAllowed: proto.Bool(true), RequiresPollution: proto.Bool(false), RequiresCleanSoil: proto.Bool(true)},
 		{Definition: &o.DefinitionRef{DefName: proto.String("SunLamp")}, PowerW: proto.Float64(2900), GlowRadius: proto.Float64(14)},
 		{Definition: &o.DefinitionRef{DefName: proto.String("HydroponicsBasin")}, PowerW: proto.Float64(70), GrowerFertility: proto.Float64(2.8), SowTag: proto.String("Hydroponic")},
 	}
@@ -74,6 +74,12 @@ func TestColonyEnvironmentDecodesLampsGrowersRoomsAndNetworks(t *testing.T) {
 		}
 	}
 	crop := policy.CropChoice{Name: rice.Name, SowTags: rice.SowTags, MinGlow: rice.GrowMinGlow}
+	if rice.HarvestWork != domain.Known(200.0) || rice.RawPreferred != domain.Known(false) || rice.DietAllowed != domain.Known(true) || rice.RequiresPollution != domain.Known(false) || rice.RequiresCleanSoil != domain.Known(true) {
+		t.Fatal(rice)
+	}
+	if _, known := lamp.DietAllowed.Value(); known {
+		t.Fatal("absent crop facts became known")
+	}
 	if !policy.GrowerAccepts(e.Growers[0], crop) || policy.GrowsInDark(crop) || lamp.PowerW != domain.Known(2900.0) || basin.SowTag != domain.Known("Hydroponic") || basin.GrowerFertility != domain.Known(2.8) {
 		t.Fatal(rice, lamp, basin)
 	}

@@ -41,7 +41,7 @@ var (
 	// own continuation lines and carry no stamp.
 	selectLine    = regexp.MustCompile(`^(?:\S+ tick=\S+ \w+ )?\[clock-scheduler\] Fields select: kind=(\S+) crop=(\S+) cells=(\d+) buildings=(\d+) \| \S+ \S+ needed=\d+ urgent=(true|false) buildings=\d+$`)
 	candidateLine = regexp.MustCompile(`^ (\S+) (\S+) needed=(\d+) cells=(\d+) score=(-?[0-9.]+)(.*)$`)
-	termToken     = regexp.MustCompile(`^([a-z]+)=(-?[0-9.]+)$`)
+	termToken     = regexp.MustCompile(`^([a-z][a-z-]*)=(-?[0-9.]+)$`)
 )
 
 // Parse extracts every selection from a service stderr log. Candidate lines
@@ -102,6 +102,7 @@ type Expectation struct {
 	Kind     string
 	Crop     string
 	MinCells int
+	Terms    []string
 }
 
 // Check asserts every selection chose the expected kind (and crop when set),
@@ -128,6 +129,11 @@ func Check(selections []Selection, want Expectation) (Selection, error) {
 		best := s.Candidates[0]
 		if best.Kind != s.Kind || best.Crop != s.Crop || best.Cells == 0 || len(best.Terms) == 0 {
 			return s, fmt.Errorf("selection %d winner %s %s lacks a term breakdown", i, best.Kind, best.Crop)
+		}
+		for _, name := range want.Terms {
+			if _, known := best.Terms[name]; !known {
+				return s, fmt.Errorf("selection %d lacks %s term", i, name)
+			}
 		}
 		for _, c := range s.Candidates {
 			if c.Cells == 0 && c.Reason == "" {

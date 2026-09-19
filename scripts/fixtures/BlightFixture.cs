@@ -49,6 +49,14 @@ namespace HomeBridge.BridgeTools
                         && !cell.GetThingList(map).Any(t => t.def.category == ThingCategory.Pawn || t.def.category == ThingCategory.Building || t is Blueprint || t is Frame))
                     && cutter.CanReach(c, Verse.AI.PathEndMode.Touch, Danger.None));
                 if (origin == default) return Refuse("No open reachable 4x4 plot near the colonist centroid for the fixture zone.");
+                // A known fertile buffer offers the second field a separated
+                // site without waiting for clearing work or terrain discovery.
+                foreach (var old in map.zoneManager.AllZones.OfType<Zone_Growing>().ToList()) old.Delete();
+                foreach (var cell in new CellRect(origin.x - 4, origin.z - 4, 12, 12).Cells.Where(c => c.InBounds(map))) {
+                    if (!cell.Walkable(map) || cell.GetEdifice(map) != null || cell.GetZone(map) != null || cell.Roofed(map)) continue;
+                    foreach (var plant in cell.GetThingList(map).OfType<Plant>().ToList()) plant.Destroy();
+                    map.terrainGrid.SetTerrain(cell, TerrainDefOf.Soil);
+                }
                 var zone = new Zone_Growing(map.zoneManager) { label = "Blight fixture rice" };
                 BridgeCommon.PrivateInstanceField(typeof(Zone_Growing), "plantDefToGrow").SetValue(zone, riceDef);
                 map.zoneManager.RegisterZone(zone);
@@ -75,6 +83,7 @@ namespace HomeBridge.BridgeTools
                     plants = infected.Select(p => new { id = p.GetUniqueLoadID(), token = NativeCutPlant.Snapshot(p, context).Token,
                         cell = new { x = p.Position.x, z = p.Position.z } }).ToList(),
                     healthy = plants.Count - infected.Count,
+                    zoneCells = zone.Cells.Select(c => new { x = c.x, z = c.z }).ToList(),
                     setup = "Test-only sown rice zone with blighted plants; no designation, cut or condition injected.",
                 };
             }, cancellationToken).ConfigureAwait(false);
@@ -89,7 +98,12 @@ namespace HomeBridge.BridgeTools
                 var rows = map.listerThings.AllThings.OfType<Plant>().Where(p => p.Spawned && p.Blighted).OrderBy(p => p.thingIDNumber)
                     .Select(p => new { id = p.GetUniqueLoadID(), designated = NativeCutPlant.Designated(p), inColony = NativeCutPlant.InColony(p, map),
                         cell = new { x = p.Position.x, z = p.Position.z } }).ToList();
-                return new { success = true, tick = Find.TickManager.TicksGame, blighted = rows };
+                var zones = map.zoneManager.AllZones.OfType<Zone_Growing>().Select(zone => new {
+                    id = zone.ID,
+                    cells = zone.Cells.Select(c => new { x = c.x, z = c.z }).ToList(),
+                    planted = zone.Cells.Count(c => c.GetPlant(map)?.def == zone.GetPlantDefToGrow())
+                }).ToList();
+                return new { success = true, tick = Find.TickManager.TicksGame, blighted = rows, zones };
             }, cancellationToken).ConfigureAwait(false);
         }
 

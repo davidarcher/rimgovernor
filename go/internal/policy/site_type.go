@@ -193,7 +193,7 @@ func PlanSiteType(r SiteTypeRequest) (SiteTypePlan, bool) {
 		if !sk || !sowing {
 			reason = "outdoor sowing not possible"
 		}
-		plan.Candidates = append(plan.Candidates, SiteTypeCandidate{Kind: SiteOutdoor, Crop: c.Crop, Needed: c.Needed, Sites: c.Sites, Cells: c.Sites.Cells, Score: c.Score, Terms: siteTerms(c.Sites), Reason: reason})
+		plan.Candidates = append(plan.Candidates, SiteTypeCandidate{Kind: SiteOutdoor, Crop: c.Crop, Needed: c.Needed, Sites: c.Sites, Cells: c.Sites.Cells, Score: c.Score, Terms: c.Terms, Reason: reason})
 	}
 	if !ok && (!sk || !sowing) && len(field.Candidates) == 0 {
 		for _, crop := range r.Field.Choices {
@@ -210,7 +210,17 @@ func PlanSiteType(r SiteTypeRequest) (SiteTypePlan, bool) {
 					plan.Candidates = append(plan.Candidates, SiteTypeCandidate{Kind: kind, Crop: c.Crop, Reason: c.Reason})
 				}
 				for _, v := range viables {
-					plan.Candidates = append(plan.Candidates, siteCandidate(r, w, env, kind, v))
+					candidate := siteCandidate(r, w, env, kind, v)
+					if candidate.Cells > 0 {
+						candidate.Terms = append(candidate.Terms, cropChoiceTerms(r.Field, v.crop, candidate.Cells)...)
+						candidate.Terms = append(candidate.Terms, siteRiskTerms(r.Field, v.crop, candidate.Cells)...)
+						total := 0.0
+						for _, term := range candidate.Terms {
+							total += term.Value
+						}
+						candidate.Score = total / float64(v.needed)
+					}
+					plan.Candidates = append(plan.Candidates, candidate)
 				}
 			}
 		}
@@ -304,6 +314,10 @@ func sitePower(env ControlledEnvironment, drawW float64, night bool) (PowerHeadr
 
 func siteCandidate(r SiteTypeRequest, w SiteTypeWeights, env ControlledEnvironment, kind SiteKind, v viableCrop) SiteTypeCandidate {
 	c := SiteTypeCandidate{Kind: kind, Crop: v.crop, Needed: v.needed}
+	if kind != SiteDarkRoom && GrowsInDark(v.crop) {
+		c.Reason = "crop needs a dark room"
+		return c
+	}
 	minimum, mk := v.crop.FertilityMin.Value()
 	if !mk || !fieldPositive(minimum) {
 		c.Reason = "incomplete crop facts"
@@ -359,6 +373,10 @@ func siteCandidate(r SiteTypeRequest, w SiteTypeWeights, env ControlledEnvironme
 	}
 	switch kind {
 	case SiteHydroponics:
+		if positive(v.crop.RequiresPollution) || GrowsInDark(v.crop) {
+			c.Reason = "crop needs a compatible soil or dark site"
+			return c
+		}
 		return siteHydroponics(r, w, env, v, c, lit, unit)
 	case SiteGreenhouseReuse:
 		if len(lit) == 0 {

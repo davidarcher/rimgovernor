@@ -34,12 +34,15 @@ type FarmSiteWeights struct {
 	// Contiguity is credited per cell of a patch that adjoins a compatible
 	// managed zone, and such a patch is not charged the fixed Fragment cost.
 	Contiguity float64
+	// Blight charges each edge shared with another field; Firebreak credits
+	// an intervening roofed empty cell or impassable occupied cell.
+	Blight, Firebreak float64
 }
 
 // DefaultFarmSiteWeights make rich soil (+40% yield) worth about 27 extra
 // walked steps and a separate patch cost half a cell's output.
 func DefaultFarmSiteWeights() FarmSiteWeights {
-	return FarmSiteWeights{Travel: 0.015, Hauling: 0.005, Fragment: 0.5, Perimeter: 0.04, Contiguity: 0.1}
+	return FarmSiteWeights{Travel: 0.015, Hauling: 0.005, Fragment: 0.5, Perimeter: 0.04, Contiguity: 0.1, Blight: .8, Firebreak: .1}
 }
 
 type FarmSiteRequest struct {
@@ -118,7 +121,7 @@ func PlanFarmSites(r FarmSiteRequest) FarmSitePlan {
 	if r.Needed <= 0 || r.Needed > 65536 || len(r.Cells) > 65536 || len(r.Protected) > 65536 || len(r.Zones) > 4096 || r.Bounds.Width <= 0 || r.Bounds.Height <= 0 || r.Bounds.Width > 4096 || r.Bounds.Height > 4096 || !mk || !fieldPositive(minimum) || !sk || !foodNumber(sensitivity) || !dk || !fieldPositive(days) || !yk || !fieldPositive(yield) {
 		return FarmSitePlan{}
 	}
-	for _, v := range []float64{w.Travel, w.Hauling, w.Fragment, w.Perimeter, w.Contiguity} {
+	for _, v := range []float64{w.Travel, w.Hauling, w.Fragment, w.Perimeter, w.Contiguity, w.Blight, w.Firebreak} {
 		if !foodNumber(v) || v < 0 {
 			return FarmSitePlan{}
 		}
@@ -182,7 +185,7 @@ func PlanFarmSites(r FarmSiteRequest) FarmSitePlan {
 		if _, reachable := travel[c]; !reachable {
 			continue
 		}
-		if soil, ok := freeCropSoil(s, minimum, blocked); ok {
+		if soil, ok := freeCropSoil(s, minimum, blocked); ok && cropSoilCompatible(r.Crop, s) {
 			free[c] = soil
 		}
 	}
@@ -190,6 +193,27 @@ func PlanFarmSites(r FarmSiteRequest) FarmSitePlan {
 	unit := rate(1)
 	if !fieldPositive(unit) {
 		return FarmSitePlan{}
+	}
+	fields := map[string]bool{}
+	for _, zone := range r.Zones {
+		fields[zone.ID] = zone.ID != ""
+	}
+	edges, breaks := map[domain.Cell]int{}, map[domain.Cell]int{}
+	addField := func(c domain.Cell) {
+		for _, n := range farmNeighbors(c) {
+			edges[n]++
+			middle, known := census[n]
+			if !known || !(positive(middle.Roofed) && siteKnownFalse(middle.Occupied) && siteKnownFalse(middle.Zone) || positive(middle.Occupied) && siteKnownFalse(middle.Walkable)) {
+				continue
+			}
+			beyond := domain.Cell{X: 2*n.X - c.X, Z: 2*n.Z - c.Z}
+			breaks[beyond]++
+		}
+	}
+	for cell, s := range census {
+		if id, known := s.ZoneID.Value(); known && fields[id] {
+			addField(cell)
+		}
 	}
 	// A zoned census cell adjoining the patch is a contiguity partner only if
 	// it belongs to a compatible managed zone.
@@ -212,6 +236,7 @@ func PlanFarmSites(r FarmSiteRequest) FarmSitePlan {
 	score := func(patch Rectangle) (FarmSiteCandidate, bool) {
 		cells := rectCells(patch)
 		reward, walk, carry := 0.0, 0.0, 0.0
+		shared, firebreak := 0, 0
 		for _, c := range cells {
 			soil, ok := free[c]
 			if !ok {
@@ -220,10 +245,13 @@ func PlanFarmSites(r FarmSiteRequest) FarmSitePlan {
 			reward += rate(soil)
 			walk += float64(travel[c])
 			carry += float64(haul[c])
+			shared += edges[c]
+			firebreak += breaks[c]
 		}
 		n := float64(len(cells))
 		adjacent := adjacentZone(patch)
 		terms := []FarmSiteTerm{{"yield", reward}, {"travel", -w.Travel * unit * walk}, {"hauling", -w.Hauling * unit * carry}, {"perimeter", -w.Perimeter * unit * float64(2*(patch.Width+patch.Height))}}
+		terms = append(terms, FarmSiteTerm{"blight", -w.Blight * unit * float64(shared)}, FarmSiteTerm{"firebreak", w.Firebreak * unit * float64(firebreak)})
 		if adjacent == "" {
 			terms = append(terms, FarmSiteTerm{"fragment", -w.Fragment * unit})
 		} else {
@@ -270,10 +298,53 @@ func PlanFarmSites(r FarmSiteRequest) FarmSitePlan {
 	plan := FarmSitePlan{}
 	taken := map[domain.Cell]bool{}
 	pick := func(pool []FarmSiteCandidate) {
-		for _, cand := range pool {
+		for len(pool) > 0 {
 			if plan.Cells >= r.Needed || len(plan.Patches) >= farmSitePatchLimit {
 				return
 			}
+			// Re-score after each selection: a second patch also pays for
+			// touching a field admitted in this same batch.
+			best := -1
+			for i := range pool {
+				clear := true
+				shared, firebreak := 0, 0
+				for _, c := range rectCells(pool[i].Patch) {
+					if taken[c] {
+						clear = false
+						break
+					}
+					shared += edges[c]
+					firebreak += breaks[c]
+				}
+				if !clear {
+					continue
+				}
+				candidate := &pool[i]
+				for j := range candidate.Terms {
+					term := &candidate.Terms[j]
+					value := term.Value
+					if term.Name == "blight" {
+						value = -w.Blight * unit * float64(shared)
+					}
+					if term.Name == "firebreak" {
+						value = w.Firebreak * unit * float64(firebreak)
+					}
+					term.Value = value
+				}
+				candidate.Score = 0
+				for _, term := range candidate.Terms {
+					candidate.Score += term.Value
+				}
+				candidate.Density = candidate.Score / float64(candidate.Patch.Width*candidate.Patch.Height)
+				if best < 0 || pool[i].Density > pool[best].Density {
+					best = i
+				}
+			}
+			if best < 0 {
+				return
+			}
+			cand := pool[best]
+			pool = append(pool[:best], pool[best+1:]...)
 			cells := rectCells(cand.Patch)
 			clear := true
 			for _, c := range cells {
@@ -284,6 +355,7 @@ func PlanFarmSites(r FarmSiteRequest) FarmSitePlan {
 			}
 			for _, c := range cells {
 				taken[c] = true
+				addField(c)
 			}
 			plan.Patches = append(plan.Patches, cand.Patch)
 			plan.Selected = append(plan.Selected, cand)

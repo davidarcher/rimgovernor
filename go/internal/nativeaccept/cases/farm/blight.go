@@ -99,7 +99,7 @@ func runBlight(ctx context.Context, s cases.Session) error {
 	// "work" rides along so the colony's work priorities match the
 	// controller's own assignment, which keeps plant cutting enabled on the
 	// fixture's cutter.
-	service, err = s.Launch(ctx, na.ServiceLaunch{Families: []string{"blight", "work"}, Extra: na.ClockSpeedArgs()})
+	service, err = s.Launch(ctx, na.ServiceLaunch{Families: []string{"blight", "work", "field"}, Extra: na.ClockSpeedArgs()})
 	if err != nil {
 		return err
 	}
@@ -222,6 +222,25 @@ func runBlight(ctx context.Context, s cases.Session) error {
 	}
 
 	// Independent native read after the service releases the game slot.
+	fieldCtx, fieldCancel := context.WithTimeout(ctx, 2*time.Minute)
+	err = na.WaitProgress(fieldCtx, na.Wait{Stall: na.StallBudget(), Interval: time.Second, Terminal: service.Exited}, func(ctx context.Context) (string, bool, error) {
+		plans, err := journal.LoadPlans(ctx, 256)
+		if err != nil {
+			return "", false, err
+		}
+		for _, plan := range plans {
+			for _, progress := range plan.Progress {
+				if _, zone := progress.Action().ZoneCreate(); zone && progress.View().Stage == domain.Completed {
+					return "", true, nil
+				}
+			}
+		}
+		return na.Signature(len(plans)), false, nil
+	})
+	fieldCancel()
+	if err != nil {
+		return fmt.Errorf("second field was not created: %w", err)
+	}
 	journal.Close()
 	service.Stop()
 	if h, err = s.Reattach(ctx); err != nil {
@@ -230,11 +249,19 @@ func runBlight(ctx context.Context, s cases.Session) error {
 	if _, err := h.Call(ctx, "pause-after", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
 		return err
 	}
+	// Ordinary growers must sow the new zone; its creation receipt is not
+	// proof of planting. Advance a bounded window before the native audit.
+	if _, err := s.Advance(ctx, 12000); err != nil {
+		return err
+	}
 	native, err := h.Call(ctx, "blight-after-native", "test/blight_census", map[string]any{})
 	if err != nil {
 		return err
 	}
 	report["blight_after_native"] = native
+	if err := separatedPlantedField(native, prepared); err != nil {
+		return err
+	}
 	if rows := na.AsSlice(native["blighted"]); len(rows) != 0 {
 		return fmt.Errorf("blight-after: %d blighted plants still stand natively: %#v", len(rows), rows)
 	}
@@ -251,6 +278,38 @@ func runBlight(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("read startup log: %w", err)
 	}
 	return na.CheckStartupLog(string(logData), s.Config().Headless)
+}
+
+func separatedPlantedField(native, prepared map[string]any) error {
+	old := map[domain.Cell]bool{}
+	for _, raw := range na.AsSlice(prepared["zoneCells"]) {
+		c, _ := na.AsMap(raw)
+		old[domain.Cell{X: int32(na.AsNumber(c["x"])), Z: int32(na.AsNumber(c["z"]))}] = true
+	}
+	if len(old) == 0 {
+		return fmt.Errorf("fixture omitted field cells")
+	}
+	planted := false
+	for _, raw := range na.AsSlice(native["zones"]) {
+		zone, _ := na.AsMap(raw)
+		if na.AsNumber(zone["id"]) == na.AsNumber(prepared["zoneId"]) {
+			continue
+		}
+		for _, raw := range na.AsSlice(zone["cells"]) {
+			c, _ := na.AsMap(raw)
+			cell := domain.Cell{X: int32(na.AsNumber(c["x"])), Z: int32(na.AsNumber(c["z"]))}
+			for _, n := range []domain.Cell{{X: cell.X - 1, Z: cell.Z}, {X: cell.X + 1, Z: cell.Z}, {X: cell.X, Z: cell.Z - 1}, {X: cell.X, Z: cell.Z + 1}} {
+				if old[n] {
+					return fmt.Errorf("second field at %v shares an edge with the original field", cell)
+				}
+			}
+		}
+		planted = planted || na.AsNumber(zone["planted"]) > 0
+	}
+	if !planted {
+		return fmt.Errorf("no separate second field contains a natively sown crop")
+	}
+	return nil
 }
 
 type blightRow struct {

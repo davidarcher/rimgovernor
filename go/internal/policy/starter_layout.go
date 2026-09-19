@@ -17,6 +17,8 @@ type SiteCell struct {
 	// indoor furnishing keeps the cells beside a doorway clear as its aisle.
 	Doorway   domain.Fact[bool]
 	Fertility domain.Fact[float64]
+	Polluted  domain.Fact[bool]
+	Glow      domain.Fact[float64]
 	// Roof names the native roof def over the cell (rock roofs mark a
 	// mountain face for excavation).
 	Roof domain.Fact[string]

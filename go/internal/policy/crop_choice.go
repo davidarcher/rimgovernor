@@ -19,17 +19,22 @@ type CropChoice struct {
 	GrowDays, FertilityMin, FertilitySensitivity, HarvestNutrition, Demand domain.Fact[float64]
 	// SowTags are the native sow tags ("Ground", "Hydroponic"); MinGlow is the
 	// native minimum light for growth, zero for cave crops.
-	SowTags domain.Fact[[]string]
-	MinGlow domain.Fact[float64]
+	SowTags                                                         domain.Fact[[]string]
+	MinGlow                                                         domain.Fact[float64]
+	HarvestWork                                                     domain.Fact[float64]
+	RawPreferred, DietAllowed, RequiresPollution, RequiresCleanSoil domain.Fact[bool]
 }
 
 // FieldRequest is one expansion decision: which edible crop to sow, and where,
 // so that observed coverage reaches the reserve target.
 type FieldRequest struct {
-	Choices   []CropChoice
-	Climate   CropClimate
-	Runway    domain.Fact[float64]
-	Colonists domain.Fact[int64]
+	Choices        []CropChoice
+	Climate        CropClimate
+	Runway         domain.Fact[float64]
+	Colonists      domain.Fact[int64]
+	Growers, Cooks domain.Fact[int]
+	Calendar       domain.Fact[Calendar]
+	Conditions     domain.Fact[[]DisasterCondition]
 	// ReserveDays is the stored-food buffer FieldTarget budgets beyond one cycle.
 	ReserveDays float64
 	// Coverage is the fraction of the target already growing (FieldCoverage).
@@ -47,6 +52,7 @@ type FieldCandidate struct {
 	Score  float64
 	Urgent bool
 	Reason string
+	Terms  []FarmSiteTerm
 }
 
 type FieldPlan struct {
@@ -94,7 +100,7 @@ type viableCrop struct {
 func viableCrops(r FieldRequest, indoor bool) (viables []viableCrop, excluded []FieldCandidate, ok bool) {
 	season, seasonKnown := r.Climate.DaysRemaining.Value()
 	fraction, fk := r.Coverage.Value()
-	if len(r.Choices) > 256 || !fk || !foodNumber(fraction) || seasonKnown && !fieldPositive(season) {
+	if len(r.Choices) > 256 || !fk || !foodNumber(fraction) || !indoor && seasonKnown && !fieldPositive(season) {
 		return nil, nil, false
 	}
 	seen := map[string]bool{}
@@ -108,6 +114,10 @@ func viableCrops(r FieldRequest, indoor bool) (viables []viableCrop, excluded []
 		excluded = append(excluded, FieldCandidate{Crop: crop, Reason: reason})
 	}
 	for _, crop := range r.Choices {
+		if allowed, known := crop.DietAllowed.Value(); known && !allowed || GrowsInDark(crop) && !known {
+			exclude(crop, "crop diet unavailable or penalised")
+			continue
+		}
 		available, ak := crop.Available.Value()
 		edible, ek := crop.Edible.Value()
 		days, gk := crop.GrowDays.Value()
@@ -117,6 +127,9 @@ func viableCrops(r FieldRequest, indoor bool) (viables []viableCrop, excluded []
 			continue
 		case !available || !edible:
 			exclude(crop, "not an available edible crop")
+			continue
+		case !indoor && GrowsInDark(crop):
+			exclude(crop, "crop needs a dark room")
 			continue
 		case !indoor && seasonKnown && days*2.5 > season:
 			exclude(crop, "season too short")
@@ -172,9 +185,10 @@ func planField(r FieldRequest, indoor bool) (FieldPlan, bool) {
 		if sites.Cells == 0 {
 			c.Reason = "no plantable soil"
 		} else {
+			c.Terms = append(siteTerms(sites), cropChoiceTerms(r, v.crop, sites.Cells)...)
 			total := 0.0
-			for _, s := range sites.Selected {
-				total += s.Score
+			for _, term := range c.Terms {
+				total += term.Value
 			}
 			c.Score = total / float64(v.needed)
 			c.Reason = fmt.Sprintf("net %.4f/day over %d patches", total, len(sites.Patches))

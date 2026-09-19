@@ -11,12 +11,14 @@ import (
 )
 
 type PlanningDefinition struct {
-	Name              string
-	Edible            domain.Fact[bool]
-	Stuff             domain.Fact[string]
-	Available         domain.Fact[bool]
-	ConstructionSkill domain.Fact[int32]
-	NeedsPower        domain.Fact[bool]
+	HarvestWork                                                     domain.Fact[float64]
+	RawPreferred, DietAllowed, RequiresPollution, RequiresCleanSoil domain.Fact[bool]
+	Name                                                            string
+	Edible                                                          domain.Fact[bool]
+	Stuff                                                           domain.Fact[string]
+	Available                                                       domain.Fact[bool]
+	ConstructionSkill                                               domain.Fact[int32]
+	NeedsPower                                                      domain.Fact[bool]
 	// Research names the ResearchProjectDefs the definition requires, as the
 	// native definition declares them (unfinished ones make it unavailable).
 	Research                                                                              []string
@@ -360,7 +362,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 			r.ZoneMapToken = domain.Known(planning.ZoneMapSnapshot.GetToken())
 		}
 		for _, row := range planning.Definitions {
-			d := PlanningDefinition{Edible: optional(row.Edible), Name: row.Definition.GetDefName(), Stuff: optional(row.Stuff), Available: optional(row.Available), ConstructionSkill: optional(row.ConstructionSkill), NeedsPower: optional(row.NeedsPower), GrowDays: optional(row.GrowDays), FertilityMin: optional(row.FertilityMin), FertilitySensitivity: optional(row.FertilitySensitivity), HarvestNutrition: optional(row.HarvestNutrition), NutritionDemandPerDay: optional(row.NutritionDemandPerDay), GrowMinGlow: optional(row.GrowMinGlow), PowerW: optional(row.PowerW), GrowerFertility: optional(row.GrowerFertility), GlowRadius: optional(row.GlowRadius), SowTag: optional(row.SowTag), Terrain: optional(row.Terrain), Cleanliness: optional(row.Cleanliness), Beauty: optional(row.Beauty), Flammability: optional(row.Flammability), PathCost: optional(row.PathCost), Research: append([]string{}, row.ResearchPrerequisites...)}
+			d := PlanningDefinition{HarvestWork: optional(row.HarvestWork), RawPreferred: optional(row.RawPreferred), DietAllowed: optional(row.DietAllowed), RequiresPollution: optional(row.RequiresPollution), RequiresCleanSoil: optional(row.RequiresCleanSoil), Edible: optional(row.Edible), Name: row.Definition.GetDefName(), Stuff: optional(row.Stuff), Available: optional(row.Available), ConstructionSkill: optional(row.ConstructionSkill), NeedsPower: optional(row.NeedsPower), GrowDays: optional(row.GrowDays), FertilityMin: optional(row.FertilityMin), FertilitySensitivity: optional(row.FertilitySensitivity), HarvestNutrition: optional(row.HarvestNutrition), NutritionDemandPerDay: optional(row.NutritionDemandPerDay), GrowMinGlow: optional(row.GrowMinGlow), PowerW: optional(row.PowerW), GrowerFertility: optional(row.GrowerFertility), GlowRadius: optional(row.GlowRadius), SowTag: optional(row.SowTag), Terrain: optional(row.Terrain), Cleanliness: optional(row.Cleanliness), Beauty: optional(row.Beauty), Flammability: optional(row.Flammability), PathCost: optional(row.PathCost), Research: append([]string{}, row.ResearchPrerequisites...)}
 			if row.GrowDays != nil {
 				d.SowTags = domain.Known(append([]string{}, row.SowTags...))
 			}

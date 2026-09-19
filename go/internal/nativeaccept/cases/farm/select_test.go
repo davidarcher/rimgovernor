@@ -18,3 +18,21 @@ func TestBasinSowsRequiresABuiltBasinOnTheCrop(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestSecondFieldRequiresNativePlantingAndSeparation(t *testing.T) {
+	cell := func(x, z int) any { return map[string]any{"x": x, "z": z} }
+	prepared := map[string]any{"zoneId": 1, "zoneCells": []any{cell(4, 4)}}
+	zone := map[string]any{"id": 2, "cells": []any{cell(6, 4)}, "planted": 1}
+	native := map[string]any{"zones": []any{zone}}
+	if err := separatedPlantedField(native, prepared); err != nil {
+		t.Fatal(err)
+	}
+	zone["planted"] = 0
+	if err := separatedPlantedField(native, prepared); err == nil {
+		t.Fatal("unsown zone passed")
+	}
+	zone["planted"], zone["cells"] = 1, []any{cell(5, 4)}
+	if err := separatedPlantedField(native, prepared); err == nil {
+		t.Fatal("adjacent field passed")
+	}
+}

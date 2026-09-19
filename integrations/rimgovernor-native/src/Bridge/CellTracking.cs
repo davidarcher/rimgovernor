@@ -36,6 +36,8 @@ namespace HomeBridge.BridgeTools
         private readonly Map map;
         private readonly int[] lastChanged;
         private readonly bool[] indoors, roomSeen;
+        private readonly bool[] polluted, growthSeen;
+        private readonly float[] glow;
 
         // Since is the tick every cell was stamped with at creation.
         internal readonly int Since;
@@ -55,6 +57,9 @@ namespace HomeBridge.BridgeTools
             for (int i = 0; i < count; i++) lastChanged[i] = Since;
             indoors = new bool[count];
             roomSeen = new bool[count];
+            polluted = new bool[count];
+            growthSeen = new bool[count];
+            glow = new float[count];
             var events = map.events;
             events.TerrainChanged += Bump;
             events.RoofChanged += Bump;
@@ -79,6 +84,25 @@ namespace HomeBridge.BridgeTools
 
         // NoteRoom records the indoors a read emitted for the cell.
         internal void NoteRoom(IntVec3 cell, Room? room) => NoteRoom(map.cellIndices.CellToIndex(cell), room);
+
+        // Pollution and glow have no cell event in this tracker. Compare
+        // their native values on a growth delta read before omitting a row.
+        internal bool GrowthUnchanged(IntVec3 cell)
+        {
+            int index = map.cellIndices.CellToIndex(cell);
+            bool dirty = !growthSeen[index] || polluted[index] != (ModsConfig.BiotechActive && map.pollutionGrid.IsPolluted(cell))
+                || glow[index] != map.glowGrid.GroundGlowAt(cell);
+            if (dirty) lastChanged[index] = Find.TickManager.TicksGame;
+            return !dirty;
+        }
+
+        internal void NoteGrowth(IntVec3 cell, bool pollution, float groundGlow)
+        {
+            int index = map.cellIndices.CellToIndex(cell);
+            growthSeen[index] = true;
+            polluted[index] = pollution;
+            glow[index] = groundGlow;
+        }
 
         private void NoteRoom(int index, Room? room)
         {

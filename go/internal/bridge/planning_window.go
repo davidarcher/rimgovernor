@@ -197,7 +197,7 @@ func validatePlanningCells(v *o.CellsSnapshot, ctx *c.ObservationContext, size *
 		if err := pawnsIssues(row.Issues, row.ProtoReflect()); err != nil {
 			return err
 		}
-		if !combatNumber(row.Fertility, true) || !combatNumber(row.TemperatureC, false) || len(row.Things) != 0 || len(row.AreaIds) != 0 || len(row.Designations) != 0 {
+		if !combatNumber(row.Fertility, true) || !combatNumber(row.Glow, true) || row.GetGlow() > 1 || !combatNumber(row.TemperatureC, false) || len(row.Things) != 0 || len(row.AreaIds) != 0 || len(row.Designations) != 0 {
 			return contract("invalid planning cell details")
 		}
 		for _, name := range []*string{row.Terrain, row.Roof, row.ZoneId, row.RoomId} {
@@ -224,7 +224,7 @@ func PlanningCells(v *o.CellsSnapshot) ([]policy.SiteCell, uint64) {
 			filtered++
 			continue
 		}
-		cells = append(cells, policy.SiteCell{Cell: domain.Cell{X: row.Cell.GetX(), Z: row.Cell.GetZ()}, Walkable: cellFact(row.Walkable), Occupied: cellFact(row.Occupied), Zone: CellPresence(row.ZoneId, row.Issues, "zone_id", applied.GetZone()), Roofed: CellPresence(row.Roof, row.Issues, "roof", applied.GetRoof()), Roof: cellFact(row.Roof), Indoors: cellFact(row.Indoors), SupportsLight: cellFact(row.SupportsLight), Doorway: cellFact(row.Doorway), Fertility: cellFact(row.Fertility), StorageEmpty: cellFact(row.StorageEmpty), ZoneID: cellFact(row.ZoneId)})
+		cells = append(cells, policy.SiteCell{Cell: domain.Cell{X: row.Cell.GetX(), Z: row.Cell.GetZ()}, Walkable: cellFact(row.Walkable), Occupied: cellFact(row.Occupied), Zone: CellPresence(row.ZoneId, row.Issues, "zone_id", applied.GetZone()), Roofed: CellPresence(row.Roof, row.Issues, "roof", applied.GetRoof()), Roof: cellFact(row.Roof), Indoors: cellFact(row.Indoors), SupportsLight: cellFact(row.SupportsLight), Doorway: cellFact(row.Doorway), Fertility: cellFact(row.Fertility), Polluted: cellFact(row.Polluted), Glow: cellFact(row.Glow), StorageEmpty: cellFact(row.StorageEmpty), ZoneID: cellFact(row.ZoneId)})
 	}
 	return cells, filtered
 }

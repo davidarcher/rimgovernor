@@ -8830,6 +8830,8 @@ type CellState struct {
 	Occupied      *bool                  `protobuf:"varint,18,opt,name=occupied,proto3,oneof" json:"occupied,omitempty"`   // Native edifice, blueprint or frame occupies this cell.
 	Doorway       *bool                  `protobuf:"varint,19,opt,name=doorway,proto3,oneof" json:"doorway,omitempty"`     // A door, or a door blueprint or frame, occupies this cell.
 	Reachable     *bool                  `protobuf:"varint,20,opt,name=reachable,proto3,oneof" json:"reachable,omitempty"` // An available colonist can path to this cell without danger.
+	Polluted      *bool                  `protobuf:"varint,21,opt,name=polluted,proto3,oneof" json:"polluted,omitempty"`   // Growth field; false when Biotech is inactive.
+	Glow          *float64               `protobuf:"fixed64,22,opt,name=glow,proto3,oneof" json:"glow,omitempty"`          // Native ground glow, including artificial light.
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -9002,6 +9004,20 @@ func (x *CellState) GetReachable() bool {
 		return *x.Reachable
 	}
 	return false
+}
+
+func (x *CellState) GetPolluted() bool {
+	if x != nil && x.Polluted != nil {
+		return *x.Polluted
+	}
+	return false
+}
+
+func (x *CellState) GetGlow() float64 {
+	if x != nil && x.Glow != nil {
+		return *x.Glow
+	}
+	return 0
 }
 
 type CellFields struct {
@@ -22776,13 +22792,18 @@ type PlanningDefinition struct {
 	NeedsPower            *bool                  `protobuf:"varint,22,opt,name=needs_power,json=needsPower,proto3,oneof" json:"needs_power,omitempty"`
 	// Floor (TerrainDef) facts: set only when the definition is a terrain. The
 	// stats are the native abstract stat values a laid floor would carry.
-	Terrain       *bool    `protobuf:"varint,23,opt,name=terrain,proto3,oneof" json:"terrain,omitempty"`
-	Cleanliness   *float64 `protobuf:"fixed64,24,opt,name=cleanliness,proto3,oneof" json:"cleanliness,omitempty"`
-	PathCost      *int32   `protobuf:"varint,25,opt,name=path_cost,json=pathCost,proto3,oneof" json:"path_cost,omitempty"`
-	Beauty        *float64 `protobuf:"fixed64,26,opt,name=beauty,proto3,oneof" json:"beauty,omitempty"`
-	Flammability  *float64 `protobuf:"fixed64,27,opt,name=flammability,proto3,oneof" json:"flammability,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Terrain           *bool    `protobuf:"varint,23,opt,name=terrain,proto3,oneof" json:"terrain,omitempty"`
+	Cleanliness       *float64 `protobuf:"fixed64,24,opt,name=cleanliness,proto3,oneof" json:"cleanliness,omitempty"`
+	PathCost          *int32   `protobuf:"varint,25,opt,name=path_cost,json=pathCost,proto3,oneof" json:"path_cost,omitempty"`
+	Beauty            *float64 `protobuf:"fixed64,26,opt,name=beauty,proto3,oneof" json:"beauty,omitempty"`
+	Flammability      *float64 `protobuf:"fixed64,27,opt,name=flammability,proto3,oneof" json:"flammability,omitempty"`
+	HarvestWork       *float64 `protobuf:"fixed64,28,opt,name=harvest_work,json=harvestWork,proto3,oneof" json:"harvest_work,omitempty"`
+	RawPreferred      *bool    `protobuf:"varint,29,opt,name=raw_preferred,json=rawPreferred,proto3,oneof" json:"raw_preferred,omitempty"` // Edible raw without the native bad-taste thought.
+	DietAllowed       *bool    `protobuf:"varint,30,opt,name=diet_allowed,json=dietAllowed,proto3,oneof" json:"diet_allowed,omitempty"`    // No colonist ideology penalises this crop product.
+	RequiresPollution *bool    `protobuf:"varint,31,opt,name=requires_pollution,json=requiresPollution,proto3,oneof" json:"requires_pollution,omitempty"`
+	RequiresCleanSoil *bool    `protobuf:"varint,32,opt,name=requires_clean_soil,json=requiresCleanSoil,proto3,oneof" json:"requires_clean_soil,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *PlanningDefinition) Reset() {
@@ -23002,6 +23023,41 @@ func (x *PlanningDefinition) GetFlammability() float64 {
 		return *x.Flammability
 	}
 	return 0
+}
+
+func (x *PlanningDefinition) GetHarvestWork() float64 {
+	if x != nil && x.HarvestWork != nil {
+		return *x.HarvestWork
+	}
+	return 0
+}
+
+func (x *PlanningDefinition) GetRawPreferred() bool {
+	if x != nil && x.RawPreferred != nil {
+		return *x.RawPreferred
+	}
+	return false
+}
+
+func (x *PlanningDefinition) GetDietAllowed() bool {
+	if x != nil && x.DietAllowed != nil {
+		return *x.DietAllowed
+	}
+	return false
+}
+
+func (x *PlanningDefinition) GetRequiresPollution() bool {
+	if x != nil && x.RequiresPollution != nil {
+		return *x.RequiresPollution
+	}
+	return false
+}
+
+func (x *PlanningDefinition) GetRequiresCleanSoil() bool {
+	if x != nil && x.RequiresCleanSoil != nil {
+		return *x.RequiresCleanSoil
+	}
+	return false
 }
 
 // Controlled-environment growing facts within the planning region: sun lamps
@@ -32558,7 +32614,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x0f_build_def_nameB\f\n" +
 	"\n" +
 	"_blueprintB\b\n" +
-	"\x06_frame\"\xec\a\n" +
+	"\x06_frame\"\xbc\b\n" +
 	"\tCellState\x12/\n" +
 	"\x04cell\x18\x01 \x01(\v2\x1b.rimgovernor.common.v1.CellR\x04cell\x12\x1d\n" +
 	"\aterrain\x18\x02 \x01(\tH\x00R\aterrain\x88\x01\x01\x12\x17\n" +
@@ -32581,7 +32637,9 @@ const file_observations_proto_rawDesc = "" +
 	"\x06issues\x18\x11 \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issues\x12\x1f\n" +
 	"\boccupied\x18\x12 \x01(\bH\fR\boccupied\x88\x01\x01\x12\x1d\n" +
 	"\adoorway\x18\x13 \x01(\bH\rR\adoorway\x88\x01\x01\x12!\n" +
-	"\treachable\x18\x14 \x01(\bH\x0eR\treachable\x88\x01\x01B\n" +
+	"\treachable\x18\x14 \x01(\bH\x0eR\treachable\x88\x01\x01\x12\x1f\n" +
+	"\bpolluted\x18\x15 \x01(\bH\x0fR\bpolluted\x88\x01\x01\x12\x17\n" +
+	"\x04glow\x18\x16 \x01(\x01H\x10R\x04glow\x88\x01\x01B\n" +
 	"\n" +
 	"\b_terrainB\a\n" +
 	"\x05_roofB\t\n" +
@@ -32603,7 +32661,9 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"\b_doorwayB\f\n" +
 	"\n" +
-	"_reachable\"\xb1\x03\n" +
+	"_reachableB\v\n" +
+	"\t_pollutedB\a\n" +
+	"\x05_glow\"\xb1\x03\n" +
 	"\n" +
 	"CellFields\x12\x1d\n" +
 	"\aterrain\x18\x01 \x01(\bH\x00R\aterrain\x88\x01\x01\x12\x17\n" +
@@ -34317,7 +34377,7 @@ const file_observations_proto_rawDesc = "" +
 	"\f_edible_cropB\x1b\n" +
 	"\x19_harvest_lower_bound_daysB\x1d\n" +
 	"\x1b_nutrition_per_harvest_cellB\r\n" +
-	"\v_sowing_now\"\x94\f\n" +
+	"\v_sowing_now\"\xda\x0e\n" +
 	"\x12PlanningDefinition\x12J\n" +
 	"\n" +
 	"definition\x18\x01 \x01(\v2*.rimgovernor.observations.v1.DefinitionRefR\n" +
@@ -34351,7 +34411,12 @@ const file_observations_proto_rawDesc = "" +
 	"\vcleanliness\x18\x18 \x01(\x01H\x11R\vcleanliness\x88\x01\x01\x12 \n" +
 	"\tpath_cost\x18\x19 \x01(\x05H\x12R\bpathCost\x88\x01\x01\x12\x1b\n" +
 	"\x06beauty\x18\x1a \x01(\x01H\x13R\x06beauty\x88\x01\x01\x12'\n" +
-	"\fflammability\x18\x1b \x01(\x01H\x14R\fflammability\x88\x01\x01B\b\n" +
+	"\fflammability\x18\x1b \x01(\x01H\x14R\fflammability\x88\x01\x01\x12&\n" +
+	"\fharvest_work\x18\x1c \x01(\x01H\x15R\vharvestWork\x88\x01\x01\x12(\n" +
+	"\rraw_preferred\x18\x1d \x01(\bH\x16R\frawPreferred\x88\x01\x01\x12&\n" +
+	"\fdiet_allowed\x18\x1e \x01(\bH\x17R\vdietAllowed\x88\x01\x01\x122\n" +
+	"\x12requires_pollution\x18\x1f \x01(\bH\x18R\x11requiresPollution\x88\x01\x01\x123\n" +
+	"\x13requires_clean_soil\x18  \x01(\bH\x19R\x11requiresCleanSoil\x88\x01\x01B\b\n" +
 	"\x06_stuffB\f\n" +
 	"\n" +
 	"_availableB\x15\n" +
@@ -34378,7 +34443,12 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"_path_costB\t\n" +
 	"\a_beautyB\x0f\n" +
-	"\r_flammability\"\xb0\x03\n" +
+	"\r_flammabilityB\x0f\n" +
+	"\r_harvest_workB\x10\n" +
+	"\x0e_raw_preferredB\x0f\n" +
+	"\r_diet_allowedB\x15\n" +
+	"\x13_requires_pollutionB\x16\n" +
+	"\x14_requires_clean_soil\"\xb0\x03\n" +
 	"\tGrowLight\x12B\n" +
 	"\bbuilding\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\bbuilding\x12\x1c\n" +
 	"\aroom_id\x18\x02 \x01(\tH\x00R\x06roomId\x88\x01\x01\x12\x1d\n" +

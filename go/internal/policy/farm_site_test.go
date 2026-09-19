@@ -134,6 +134,7 @@ func TestFarmSiteContiguousManagedExpansion(t *testing.T) {
 	r.Zones = []FarmZone{{ID: "farm-a", Crop: "Plant_Rice", Managed: true}}
 	r.Weights = DefaultFarmSiteWeights()
 	r.Weights.Travel, r.Weights.Hauling = 0.005, 0
+	r.Weights.Blight = 0 // Isolate contiguity from separation.
 	plan := PlanFarmSites(r)
 	if len(plan.Patches) != 1 || plan.Selected[0].Adjacent != "farm-a" {
 		t.Fatal(plan.Explain())
@@ -261,5 +262,187 @@ func TestStarterFarmsUseSharedSiteScore(t *testing.T) {
 		if patch.Width < 2 {
 			t.Fatal("starter used single cells with open soil available", best.FarmSites.Explain())
 		}
+	}
+}
+
+func TestFieldLaborAndCookingTerms(t *testing.T) {
+	r := fieldRequest(1)
+	r.Choices = r.Choices[:2]
+	for i := range r.Choices {
+		r.Choices[i].HarvestWork = domain.Known(200.0)
+	}
+	for _, tc := range []struct {
+		growers int
+		crop    string
+	}{{1, "Plant_Corn"}, {3, "Plant_Rice"}} {
+		r.Growers = domain.Known(tc.growers)
+		p, ok := PlanField(r)
+		if !ok || p.Crop.Name != tc.crop {
+			t.Fatalf("growers=%d: %s", tc.growers, p.Explain())
+		}
+		if len(p.Candidates[0].Terms) == 0 {
+			t.Fatal("missing crop terms")
+		}
+	}
+	r.Growers = domain.Unknown[int]()
+	berry := fieldCrop("Plant_Strawberry", 4.6, .4, .7, 1)
+	berry.RawPreferred = domain.Known(true)
+	r.Choices = append(r.Choices, berry)
+	for _, cooks := range []int{0, 1} {
+		r.Cooks = domain.Known(cooks)
+		p, ok := PlanField(r)
+		if !ok || (p.Crop.Name == berry.Name) != (cooks == 0) {
+			t.Fatal(cooks, p.Explain())
+		}
+	}
+}
+
+func TestFarmSiteSeparationAndFirebreak(t *testing.T) {
+	r := farmSiteFixture()
+	r.Zones = []FarmZone{{ID: "field", Crop: r.Crop.Name, Managed: true}}
+	for i := range r.Cells {
+		s := &r.Cells[i]
+		if s.Cell.X < 4 {
+			s.Zone, s.ZoneID = domain.Known(true), domain.Known("field")
+		}
+	}
+	p := PlanFarmSites(r)
+	if p.Cells == 0 || p.Patches[0].X <= 4 {
+		t.Fatal("touching field won", p.Explain())
+	}
+	// A roofed gap earns an explicit credit; it remains unplantable.
+	for i := range r.Cells {
+		if r.Cells[i].Cell.X == 4 {
+			r.Cells[i].Roofed = domain.Known(true)
+		}
+	}
+	p = PlanFarmSites(r)
+	credited := false
+	for _, term := range p.Selected[0].Terms {
+		credited = credited || term.Name == "firebreak" && term.Value > 0
+	}
+	if !credited {
+		t.Fatal(p.Explain())
+	}
+	// Two new patches on open soil also leave a gap when there is room.
+	r = farmSiteFixture()
+	r.Needed = 32
+	p = PlanFarmSites(r)
+	for _, candidate := range p.Selected {
+		for _, term := range candidate.Terms {
+			if term.Name == "blight" && term.Value < 0 {
+				t.Fatal("new fields touch", p.Explain())
+			}
+		}
+	}
+}
+
+func TestFarmPollutionSelectsOnlyCompatibleCells(t *testing.T) {
+	r := fieldRequest(1)
+	r.Choices = r.Choices[:1]
+	r.Choices[0].RequiresCleanSoil = domain.Known(true)
+	toxi := fieldCrop("Plant_Toxipotato", 7, .55, .5, .4)
+	toxi.RequiresPollution = domain.Known(true)
+	r.Choices = append(r.Choices, toxi)
+	for i := range r.Site.Cells {
+		r.Site.Cells[i].Polluted = domain.Known(true)
+	}
+	p, ok := PlanField(r)
+	if !ok || p.Crop.Name != toxi.Name {
+		t.Fatal(p.Explain())
+	}
+	for i := range r.Site.Cells {
+		r.Site.Cells[i].Polluted = domain.Known(false)
+	}
+	p, ok = PlanField(r)
+	if !ok || p.Crop.Name != "Plant_Rice" {
+		t.Fatal(p.Explain())
+	}
+	for i := range r.Site.Cells {
+		r.Site.Cells[i].Polluted = domain.Unknown[bool]()
+	}
+	if p, ok = PlanField(r); ok {
+		t.Fatal("unknown pollution planted", p.Explain())
+	}
+}
+
+func TestFarmObservedRiskSelectsIndoorSite(t *testing.T) {
+	r := siteFixture(1)
+	r.Environment = domain.Known(siteEnv(21, siteLamp(domain.Cell{X: 6, Z: 6}, true)))
+	p, ok := PlanSiteType(r)
+	if !ok || p.Kind != SiteOutdoor {
+		t.Fatal(p.Explain())
+	}
+	r.Field.Conditions = domain.Known([]DisasterCondition{{Definition: "ToxicFallout"}})
+	p, ok = PlanSiteType(r)
+	if !ok || p.Kind == SiteOutdoor {
+		t.Fatal("fallout did not change the winner", p.Explain())
+	}
+	r.Field.Conditions = domain.Unknown[[]DisasterCondition]()
+	r.Field.Calendar = domain.Known(Calendar{GrowingDays: 30, GrowingDaysRemaining: 1, NonGrowingDays: 30, Sowing: true})
+	p, ok = PlanSiteType(r)
+	if !ok || p.Kind == SiteOutdoor {
+		t.Fatal("frost did not change the winner", p.Explain())
+	}
+	// Zero remaining season must still permit controlled crops.
+	r.Field.Climate.DaysRemaining = domain.Known(0.0)
+	r.Field.Climate.Sowing = domain.Known(false)
+	if p, ok = PlanSiteType(r); !ok || p.Kind == SiteOutdoor {
+		t.Fatal(p.Explain())
+	}
+}
+
+func TestFarmDarkCropRequiresDietAndZeroGlow(t *testing.T) {
+	r := siteFixture(0)
+	r.Environment = domain.Known(siteEnv(21))
+	fungus := fieldCrop("Plant_Nutrifungus", 6, .55, .5, .4)
+	fungus.MinGlow = domain.Known(0.0)
+	fungus.DietAllowed = domain.Known(true)
+	r.Field.Choices = []CropChoice{fungus}
+	p, ok := PlanSiteType(r)
+	if !ok || p.Kind != SiteDarkRoom {
+		t.Fatal(p.Explain())
+	}
+	// Night-time outdoor darkness is not a permanent dark growing room.
+	if outdoor, ok := PlanField(r.Field); ok {
+		t.Fatal(outdoor.Explain())
+	}
+	for _, candidate := range p.Candidates {
+		if candidate.Kind != SiteDarkRoom && candidate.Cells > 0 {
+			t.Fatal(p.Explain())
+		}
+	}
+	r.Field.Choices[0].DietAllowed = domain.Known(false)
+	if p, ok = PlanSiteType(r); ok {
+		t.Fatal("penalised fungus selected", p.Explain())
+	}
+	r.Field.Choices[0].DietAllowed = domain.Known(true)
+	for i := range r.Field.Site.Cells {
+		r.Field.Site.Cells[i].Glow = domain.Known(.1)
+	}
+	if p, ok = PlanSiteType(r); ok {
+		t.Fatal("lit fungus selected", p.Explain())
+	}
+}
+
+func TestCropWorkersPreserveUnknownAndDisabledWork(t *testing.T) {
+	pawn := testWorkPawn("farmer", true, false, []WorkSkill{{Name: "Plants", Level: 6}, {Name: "Cooking", Level: 0}})
+	pawn.Work = domain.Known([]WorkPriority{{Work: WorkGrowing, Priority: 1}, {Work: WorkCooking, Priority: 0}})
+	g, c := CropWorkers(domain.Known([]WorkPawn{pawn}))
+	if g != domain.Known(1) || c != domain.Known(1) {
+		t.Fatal(g, c)
+	}
+	pawn.Work = domain.Known([]WorkPriority{{Work: WorkGrowing, Priority: 0}, {Work: WorkCooking, Disabled: true}})
+	g, c = CropWorkers(domain.Known([]WorkPawn{pawn}))
+	if g != domain.Known(0) || c != domain.Known(0) {
+		t.Fatal(g, c)
+	}
+	pawn.Work = domain.Unknown[[]WorkPriority]()
+	g, c = CropWorkers(domain.Known([]WorkPawn{pawn}))
+	if _, known := g.Value(); known {
+		t.Fatal("unknown work counted growers")
+	}
+	if _, known := c.Value(); known {
+		t.Fatal("unknown work counted cooks")
 	}
 }

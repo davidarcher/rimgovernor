@@ -60,7 +60,8 @@ namespace HomeBridge.BridgeTools
                         Region = new Obs.Rectangle { Minimum = Cell(cells.Min(c => c.x), cells.Min(c => c.z)), Maximum = Cell(cells.Max(c => c.x), cells.Max(c => c.z)) },
                         AppliedFields = fields, AsOfTick = context.Tick, Unchanged = 0 };
                     foreach (var cell in cells) {
-                        if (parsed.HasChangedSinceTick && tracking.Unchanged(cell, parsed.ChangedSinceTick)) { snapshot.Unchanged++; continue; }
+                        if (parsed.HasChangedSinceTick && tracking.Unchanged(cell, parsed.ChangedSinceTick)
+                            && (!fields.Growth || tracking.GrowthUnchanged(cell))) { snapshot.Unchanged++; continue; }
                         var row = new Obs.CellState { Cell = Cell(cell.x, cell.z) };
                         // A fogged cell reveals nothing but its fog: the row
                         // carries no other fact, as the planning window it
@@ -93,6 +94,9 @@ namespace HomeBridge.BridgeTools
                             row.Indoors = CellTracking.Indoors(room);
                         }
                         if (fields.Growth) {
+                            row.Polluted = ModsConfig.BiotechActive && map.pollutionGrid.IsPolluted(cell);
+                            row.Glow = Finite(map.glowGrid.GroundGlowAt(cell));
+                            tracking.NoteGrowth(cell, row.Polluted, (float)row.Glow);
                             // Fertility only where the ground has any (issue #335).
                             var fertility = map.fertilityGrid.FertilityAt(cell);
                             if (fertility > 0f) row.Fertility = Finite(fertility);

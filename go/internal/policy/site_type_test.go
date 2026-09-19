@@ -16,6 +16,7 @@ func siteFixture(outdoor float64) SiteTypeRequest {
 		c := &f.Site.Cells[i]
 		indoor := c.Cell.X < 12 && c.Cell.Z < 12
 		c.Roofed, c.Indoors = domain.Known(indoor), domain.Known(indoor)
+		c.Glow = domain.Known(0.0)
 		if indoor {
 			c.Fertility = domain.Known(1.0)
 		}
@@ -253,6 +254,7 @@ func TestPlanSiteTypeDarkRoomOnlyForDarkCrops(t *testing.T) {
 	fungus := fieldCrop("Plant_Fungus", 6, 0.5, 0.5, 0.4)
 	fungus.SowTags = domain.Known([]string{"Ground"})
 	fungus.MinGlow = domain.Known(0.0)
+	fungus.DietAllowed = domain.Known(true)
 	r.Field.Choices = append(r.Field.Choices, fungus)
 	plan, ok = PlanSiteType(r)
 	if !ok || plan.Kind != SiteDarkRoom || plan.Crop.Name != "Plant_Fungus" || len(plan.Buildings) != 0 {

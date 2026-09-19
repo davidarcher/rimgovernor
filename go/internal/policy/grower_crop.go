@@ -13,6 +13,7 @@ type GrowerCropRequest struct {
 	Choices []CropChoice
 	Growers []PlantGrower
 	Urgent  bool
+	Field   FieldRequest
 }
 
 // GrowerCropChoice is one grower whose crop should change, with the
@@ -40,7 +41,7 @@ func PlanGrowerCrops(r GrowerCropRequest) []GrowerCropChoice {
 		if !positive(g.CanSow) || !tk || tag == "" || !ck || !fk || !fieldPositive(fertility) || g.ID == "" {
 			continue
 		}
-		ranking := growerCropRanking(r.Choices, tag, fertility, r.Urgent)
+		ranking := growerCropRanking(r.Choices, tag, fertility, r.Urgent, r.Field)
 		if len(ranking) == 0 || ranking[0].Score <= 0 || ranking[0].Crop.Name == current {
 			continue
 		}
@@ -52,7 +53,7 @@ func PlanGrowerCrops(r GrowerCropRequest) []GrowerCropChoice {
 
 // growerCropRanking scores every sowable crop for one grower; excluded
 // crops carry a zero score and their reason.
-func growerCropRanking(choices []CropChoice, tag string, fertility float64, urgent bool) []FieldCandidate {
+func growerCropRanking(choices []CropChoice, tag string, fertility float64, urgent bool, field FieldRequest) []FieldCandidate {
 	var ranking []FieldCandidate
 	for _, crop := range choices {
 		c := FieldCandidate{Crop: crop}
@@ -63,6 +64,8 @@ func growerCropRanking(choices []CropChoice, tag string, fertility float64, urge
 		_, yk := crop.HarvestNutrition.Value()
 		_, sk := crop.FertilitySensitivity.Value()
 		switch {
+		case siteKnownFalse(crop.DietAllowed) || positive(crop.RequiresPollution) || GrowsInDark(crop):
+			c.Reason = "crop needs a compatible soil or dark site"
 		case !ak || !ek || !gk || !fieldPositive(days) || !tk || !yk || !sk:
 			c.Reason = "incomplete crop facts"
 		case !available || !edible:
@@ -71,6 +74,9 @@ func growerCropRanking(choices []CropChoice, tag string, fertility float64, urge
 			c.Reason = "crop cannot be sown on this grower"
 		default:
 			c.Score = cropRate(crop, fertility)
+			for _, term := range cropChoiceTerms(field, crop, 1) {
+				c.Score += term.Value
+			}
 			c.Reason = fmt.Sprintf("%.4f nutrition/day per cell", c.Score)
 		}
 		ranking = append(ranking, c)

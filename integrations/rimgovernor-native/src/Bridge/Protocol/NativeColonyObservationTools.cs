@@ -424,10 +424,19 @@ namespace HomeBridge.BridgeTools
                 if (glowProps != null) row.GlowRadius = Finite(glowProps.glowRadius);
                 if (def.building?.sowTag != null) { row.SowTag = def.building.sowTag; if (def.fertility >= 0f) row.GrowerFertility = Finite(def.fertility); }
                 if (def.plant != null) {
+                    row.HarvestWork = Finite(def.plant.harvestWork);
+                    row.RequiresPollution = def.plant.RequiresPollution;
+                    row.RequiresCleanSoil = def.plant.RequiresNoPollution;
                     row.GrowDays = Finite(def.plant.growDays); row.FertilityMin = Finite(def.plant.fertilityMin); row.FertilitySensitivity = Finite(def.plant.fertilitySensitivity);
                     row.GrowMinGlow = Finite(def.plant.growMinGlow); row.SowTags.Add(def.plant.sowTags ?? new List<string>());
                     var product = def.plant.harvestedThingDef;
                     if (product != null) {
+                        row.RawPreferred = product.ingestible != null && product.ingestible.preferability >= FoodPreferability.RawTasty;
+                        row.DietAllowed = !product.IsFungus || !ModsConfig.IdeologyActive || !people.Any(p =>
+                            p.Ideo != null && p.Ideo.PreceptsListForReading.Any(precept => precept.def.comps
+                                .OfType<PreceptComp_SelfTookMemoryThought>().Any(comp =>
+                                    (comp.eventDef == HistoryEventDefOf.AteFungus || comp.eventDef == HistoryEventDefOf.AteFungusAsIngredient)
+                                    && comp.thought.stages.Any(stage => stage.baseMoodEffect < 0))));
                         row.Edible = product.IsNutritionGivingIngestible && !product.IsDrug;
                         row.HarvestNutrition = Finite(def.plant.harvestYield * product.GetStatValueAbstract(StatDefOf.Nutrition));
                         row.NutritionDemandPerDay = Finite(demand + animals.Where(p => p.RaceProps.CanEverEat(product)

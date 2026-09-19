@@ -292,6 +292,28 @@ snap through `FarmEnvironmentFixture` and audits the zones or basin placements i
 it, and `-environment hydroponics -unavailable-crops Plant_Rice -expect-crop
 Plant_Potato` proves a built basin re-cropped to the winner. `farm/calendar` holds the typed read's growing
 calendar to `home/status` and `home/world` and records the seasonal thresholds a review derives from it.
+Expansion also charges native harvest work per nutrition against the observed
+number of enabled growers and the delay before the first harvest: scarce growers
+favor corn, while sufficient growers favor rice. With an observed absence of
+capable cooks, crops natively preferred raw (such as strawberries) earn a cooking
+credit. Unknown worker facts add no such terms. Crop and grower re-cropping use
+the same labor and cooking terms.
+
+Each edge shared with an existing growing zone or an earlier patch in the same
+batch pays a blight penalty. An intervening roofed empty cell or occupied impassable
+cell earns a firebreak credit; this is a placement preference, not proof against
+all fire or blight spread. Pollution is checked per cell against the crop's native
+requirements, including toxipotatoes. Zero-glow crops require observed darkness
+and an affirmative native diet allowance; colonist ideology penalties exclude
+nutrifungus. Planning cell delta reads compare pollution and glow before omitting
+unchanged cells.
+
+Feasible indoor sites earn explicit `risk-fallout` and `risk-frost` credits for
+observed ToxicFallout and the seasonal harvest gap. These credits never bypass
+power, heating or crop compatibility checks. A zero-day outdoor season does not
+exclude an indoor crop. The score trace carries labor, harvest-delay, cook,
+blight, firebreak and risk terms when applicable.
+
 Insufficient farmland does not reject an otherwise legal
 shelter. Selected field capacity remains separate from observed growing cells and the
 production gate. Work

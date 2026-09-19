@@ -26,6 +26,24 @@ func TestPlanningWindowRectClipsToMap(t *testing.T) {
 	}
 }
 
+func TestPlanningCellsPollutionAndGlowPresence(t *testing.T) {
+	s := &o.CellsSnapshot{Cells: []*o.CellState{
+		{Cell: &c.Cell{X: proto.Int32(1), Z: proto.Int32(1)}, Polluted: proto.Bool(false), Glow: proto.Float64(0)},
+		{Cell: &c.Cell{X: proto.Int32(2), Z: proto.Int32(1)}, Polluted: proto.Bool(true), Glow: proto.Float64(.5)},
+		{Cell: &c.Cell{X: proto.Int32(3), Z: proto.Int32(1)}},
+	}}
+	rows, _ := PlanningCells(s)
+	if rows[0].Polluted != domain.Known(false) || rows[0].Glow != domain.Known(0.0) || rows[1].Polluted != domain.Known(true) || rows[1].Glow != domain.Known(.5) {
+		t.Fatal(rows)
+	}
+	if _, known := rows[2].Polluted.Value(); known {
+		t.Fatal("missing pollution became clean soil")
+	}
+	if _, known := rows[2].Glow.Value(); known {
+		t.Fatal("missing glow became darkness")
+	}
+}
+
 // windowSnapshot answers a planning window band request the way the native
 // get_cells serves it: one row per cell of the band, fogged rows filtered
 // into the completeness count.
