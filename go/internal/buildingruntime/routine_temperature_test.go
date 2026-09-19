@@ -2,11 +2,13 @@ package buildingruntime
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/testkit"
@@ -207,9 +209,54 @@ func TestTemperatureSharedMethodPlacementAndManual(t *testing.T) {
 	}
 }
 
+func TestTemperatureRepeatedReviewValidatesChangedRoomTick(t *testing.T) {
+	// Scheduler tests change the process-wide drift in parallel. Keep this
+	// boundary test serial so the allowance cannot change during a review.
+	drift := domain.LiveDrift()
+	t.Cleanup(func() { domain.SetLiveDrift(drift) })
+	for _, live := range []domain.Tick{0, 1000} {
+		t.Run(map[domain.Tick]string{0: "paused", 1000: "live"}[live], func(t *testing.T) {
+			domain.SetLiveDrift(live)
+			p, db, n, _ := temperatureFixture(t, false)
+			ctx := context.Background()
+			anchor := n.reply.GetObserved().Context.GetTick()
+			limit := anchor + int64(domain.PlanningTickTolerance+live)
+			for _, tick := range []int64{anchor, limit, limit + 1, limit + 1, anchor} {
+				before, err := db.LoadRoutineReview(ctx)
+				if err != nil {
+					t.Fatal(err)
+				}
+				reads := n.roomReads
+				n.rooms.GetObserved().Context.Tick = proto.Int64(tick)
+				_, err = p.reviewer.Step(ctx)
+				if tick > limit {
+					if !errors.Is(err, observation.ErrChanged) {
+						t.Fatalf("tick %d beyond %d: want changed observation, got %v", tick, limit, err)
+					}
+				} else if err != nil {
+					t.Fatalf("tick %d within %d: %v", tick, limit, err)
+				}
+				if n.roomReads != reads+1 {
+					t.Fatal("repeated review reused the retained room census")
+				}
+				after, err := db.LoadRoutineReview(ctx)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if tick > limit && after.Revision != before.Revision {
+					t.Fatal("stale room census published a review")
+				}
+				if tick <= limit && after.Revision <= before.Revision {
+					t.Fatal("valid room census did not publish a review")
+				}
+			}
+		})
+	}
+}
+
 func TestTemperatureUnknownExistingFacilityAndRecoveredRoom(t *testing.T) {
 	t.Parallel()
-	for _, mode := range []string{"unavailable", "existing", "recovered", "stale", "skill", "spill", "stock"} {
+	for _, mode := range []string{"unavailable", "existing", "recovered", "skill", "spill", "stock"} {
 		t.Run(mode, func(t *testing.T) {
 			p, db, n, _ := temperatureFixture(t, false)
 			room := n.rooms.GetObserved().Rooms[0]
@@ -222,8 +269,6 @@ func TestTemperatureUnknownExistingFacilityAndRecoveredRoom(t *testing.T) {
 				room.ContentsCompleteness.Returned = proto.Uint64(2)
 			case "recovered":
 				room.TemperatureC = proto.Float64(18)
-			case "stale":
-				n.rooms.GetObserved().Context.Tick = proto.Int64(n.rooms.GetObserved().Context.GetTick() + int64(domain.PlanningTickTolerance) + 1)
 			case "skill":
 				n.pawnReply.GetObserved().Pawns[0].Biography.Skills[0].Level = proto.Int32(3)
 			case "spill":
@@ -242,12 +287,7 @@ func TestTemperatureUnknownExistingFacilityAndRecoveredRoom(t *testing.T) {
 			}
 			// Planners plan from the review's census, so the review must
 			// observe the mutation before the planner steps (#75).
-			if _, err := p.reviewer.Step(context.Background()); mode == "stale" {
-				if err == nil {
-					t.Fatal("stale room reviewed")
-				}
-				return
-			} else if err != nil {
+			if _, err := p.reviewer.Step(context.Background()); err != nil {
 				t.Fatal(err)
 			}
 			result, err := p.Step(context.Background())
