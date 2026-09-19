@@ -82,14 +82,25 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit {
 		return RoutineWorkResult{Reason: BuildingMethodNoDeficit}, nil
 	}
+	// Open work no longer gates the fresh decision outright: an undispatched
+	// action whose premise moved (the pawn's settings token, or what the
+	// policy now wants for the pawn) is cancelled below so the goal can
+	// re-plan instead of holding the stale plan forever (#305).
+	var open []store.PlanState
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
 		if err != nil {
 			return RoutineWorkResult{}, err
 		}
 		if domain.GoalWorkOpen(plan.Progress) {
-			return RoutineWorkResult{Reason: BuildingMethodExistingWork}, nil
+			open = append(open, plan)
 		}
+	}
+	existing := func(unknown RoutineWorkResult) RoutineWorkResult {
+		if len(open) > 0 {
+			return RoutineWorkResult{Reason: BuildingMethodExistingWork}
+		}
+		return unknown
 	}
 	preferences, err := p.journal.LoadWorkPreferences(call, state.Snapshot.Plan)
 	if errors.Is(err, store.ErrNotFound) {
@@ -132,11 +143,11 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	}
 	pawns, known := read.Projection.WorkPawns.Value()
 	if !known {
-		return RoutineWorkResult{Reason: BuildingMethodUnknown}, nil
+		return existing(RoutineWorkResult{Reason: BuildingMethodUnknown}), nil
 	}
 	required, known := routineProjectWork(definitions, read.Projection.Definitions).Value()
 	if !known {
-		return RoutineWorkResult{Reason: BuildingMethodUnknown}, nil
+		return existing(RoutineWorkResult{Reason: BuildingMethodUnknown}), nil
 	}
 	resourceTargets, err := r.reviewer.resourceTargets(call, state.Snapshot, read.Projection.Facts.Resources)
 	if err != nil {
@@ -148,7 +159,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return RoutineWorkResult{}, err
 	}
 	if rows, known := benchWork.Value(); !known {
-		return RoutineWorkResult{Reason: BuildingMethodUnknown}, nil
+		return existing(RoutineWorkResult{Reason: BuildingMethodUnknown}), nil
 	} else {
 		required = mergeWorkRequirements(required, rows)
 	}
@@ -163,7 +174,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	}
 	_, known = decision.Capacity.Value()
 	if !known {
-		return RoutineWorkResult{Reason: BuildingMethodUnknown}, nil
+		return existing(RoutineWorkResult{Reason: BuildingMethodUnknown}), nil
 	}
 	byID := map[policy.PawnID]policy.WorkPawn{}
 	for _, pawn := range pawns {
@@ -208,17 +219,32 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 			return RoutineWorkResult{}, err
 		}
 		work = append(work, w)
-		if len(work) == 8 {
-			break
+	}
+	for _, plan := range open {
+		if err := cancelStaleWorkActions(call, p.journal, plan, work); err != nil {
+			return RoutineWorkResult{}, err
+		}
+		if plan, err = p.journal.LoadPlan(call, plan.Spec.ID()); err != nil {
+			return RoutineWorkResult{}, err
+		}
+		if domain.GoalWorkOpen(plan.Progress) {
+			return RoutineWorkResult{Reason: BuildingMethodExistingWork}, nil
 		}
 	}
 	if len(work) == 0 {
 		return RoutineWorkResult{Reason: BuildingMethodUnknown}, nil
 	}
+	// Staleness above judged every pawn; the plan itself carries at most eight.
+	if len(work) > 8 {
+		work = work[:8]
+	}
+	// The before-token is part of the identity: the same settings against a
+	// pawn whose settings moved under a cancelled plan is a fresh method,
+	// not the retired one.
 	hash := sha256.New()
 	for _, w := range work {
 		data, _ := json.Marshal(w.Settings())
-		fmt.Fprintf(hash, "%s/%t/%s\n", w.Pawn(), w.Manual(), data)
+		fmt.Fprintf(hash, "%s/%s/%t/%s\n", w.Pawn(), w.BeforeToken(), w.Manual(), data)
 	}
 	method := domain.MethodID(fmt.Sprintf("work-%x", hash.Sum(nil)[:16]))
 	if _, err = p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
@@ -250,4 +276,54 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return RoutineWorkResult{}, err
 	}
 	return RoutineWorkResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+}
+
+// cancelStaleWorkActions cancels every undispatched work assignment on the
+// plan whose premise no longer holds against the fresh decision: the pawn's
+// settings token or manual mode moved (WorkBoundary.InspectWork would hold
+// the write forever), the pawn dropped out of the decision, or the policy
+// now wants a different priority for a work type the action sets. A pending
+// action the fresh decision still agrees with stays open.
+func cancelStaleWorkActions(ctx context.Context, journal *store.Store, plan store.PlanState, fresh []domain.WorkAssignment) error {
+	wanted := map[domain.PawnID]domain.WorkAssignment{}
+	for _, w := range fresh {
+		wanted[w.Pawn()] = w
+	}
+	assignments := map[domain.ActionID]domain.WorkAssignment{}
+	for _, action := range plan.Spec.Actions() {
+		if w, ok := action.WorkAssignment(); ok {
+			assignments[action.ID()] = w
+		}
+	}
+	for _, progress := range plan.Progress {
+		v := progress.View()
+		w, ok := assignments[v.Action]
+		if !ok || v.Stage != domain.Pending && v.Stage != domain.Prepared {
+			continue
+		}
+		if !workActionStale(w, wanted) {
+			continue
+		}
+		if _, err := journal.Cancel(ctx, plan.Spec.ID(), v.Action); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func workActionStale(w domain.WorkAssignment, wanted map[domain.PawnID]domain.WorkAssignment) bool {
+	now, ok := wanted[w.Pawn()]
+	if !ok || now.BeforeToken() != w.BeforeToken() || now.Manual() != w.Manual() {
+		return true
+	}
+	values := map[string]int32{}
+	for _, setting := range now.Settings() {
+		values[setting.Definition] = setting.Priority
+	}
+	for _, setting := range w.Settings() {
+		if want, ok := values[setting.Definition]; !ok || want != setting.Priority {
+			return true
+		}
+	}
+	return false
 }

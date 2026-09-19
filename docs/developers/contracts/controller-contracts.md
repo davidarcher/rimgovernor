@@ -158,6 +158,14 @@ Additional growers exclude assigned hunters and player-disabled Growing work.
 Small or capability-limited workforces may still require shared roles; assignments
 alone do not establish completed sowing or food replacement.
 
+An open assignment plan does not freeze the decision. Each work-planner step
+recomputes the allocation and cancels any undispatched assignment whose premise
+moved: the pawn's settings token or manual mode changed (the write could never
+dispatch), the pawn left the decision, or the policy now wants a different
+priority for a work type it sets. Assignments the fresh decision still agrees
+with stay open; the method identity carries the before-token, so the same
+settings against a moved pawn are a fresh method rather than a retired one.
+
 ### Environmental disruption
 
 `home/colony_facts.environment.conditions` reports current-map native condition
