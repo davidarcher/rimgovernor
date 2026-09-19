@@ -69,6 +69,18 @@ type DecayingSkill struct {
 	Skill string
 	Level int
 }
+
+// WorkRosterReport is what a routine review records of the roster planner
+// for the dashboard dossier (#448): the coverage census, the decaying
+// skills and every work pawn's typed profile as of Tick. Presentation only;
+// no planner reads it back.
+type WorkRosterReport struct {
+	Tick     domain.Tick
+	Coverage []WorkCoverage
+	Decaying []DecayingSkill `json:",omitempty"`
+	Profiles []PawnProfile
+}
+
 type WorkDecision struct {
 	Assignments       []PawnWorkAssignment
 	Capacity, Matches domain.Fact[bool]

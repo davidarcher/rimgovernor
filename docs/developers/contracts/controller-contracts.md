@@ -140,7 +140,13 @@ capacity, nullable worker count, sorted free-labor rows, committed goal IDs and 
 per optional goal with score, nullable deficit and risk, `waitingSince`, selection and
 commitment flags, the deferral reason and, for `labor_unavailable`, the bottleneck work
 type. The dashboard's Work view renders it read-only as "Development priorities"; the
-panel hides itself when routine diagnostics are disabled. Native labor forecasts remain
+panel hides itself when routine diagnostics are disabled. The same route returns the
+roster planner's last report under `roster` (`policy.WorkRosterReport`, null until an
+enabled review planned work; a disabled review or an unknown census keeps the last one):
+the reviewed tick, `WorkCoverage` rows (demand, owners, capable per work type), the
+`DecayingSkill` rows and every work pawn's `PawnProfile` with its trait effects, learn
+factor per skill and forbidden and incapable work types, which the Colony view's
+dossier joins by pawn id (#448). Native labor forecasts remain
 evidence with unknown completion times. The `service/development` case samples this record
 from a resumed controller across a kill-and-restart pair and asserts the bounds,
 reasons, review-time research measurement and retained waiting ages above; pawn

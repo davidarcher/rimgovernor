@@ -12,6 +12,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/store/storetest"
 	"io"
+	"math"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -451,4 +452,60 @@ func TestRoutinesRouteExposesDevelopmentRanking(t *testing.T) {
 	if !strings.Contains(string(body), `"reason":"labor_unavailable"`) || !strings.Contains(string(body), `"reason":"risk_deferred"`) || !strings.Contains(string(body), `"bottleneck":""`) {
 		t.Fatalf("wire reasons: %s", body)
 	}
+	if got.Roster != nil {
+		t.Fatalf("roster without a report: %s", body)
+	}
+}
+
+func TestRoutinesRouteExposesWorkRoster(t *testing.T) {
+	pyro := policy.BuildProfile(policy.WorkPawn{ID: "b", Traits: domain.Known([]policy.PawnTrait{{Name: "Pyromaniac"}, {Name: "Abrasive"}, {Name: "FastLearner"}}),
+		Skills: domain.Known([]policy.WorkSkill{{Name: "Mining", Level: 12, Stored: 12, Passion: "Major"}, {Name: "Medicine", Level: 3}}), Incapable: domain.Known([]policy.WorkType{policy.WorkHauling}), Age: domain.Known(30.5), Ranged: domain.Known(true)})
+	plain := policy.BuildProfile(policy.WorkPawn{ID: "a", Skills: domain.Known([]policy.WorkSkill{{Name: "Cooking", Disabled: true}})})
+	report := policy.WorkRosterReport{Tick: 500, Coverage: []policy.WorkCoverage{{Work: policy.WorkMining, Demand: 1, Owners: 1, Capable: 1}, {Work: policy.WorkDoctor, Demand: 1, Owners: 0, Capable: 0}},
+		Decaying: []policy.DecayingSkill{{Pawn: "b", Skill: "Mining", Level: 12}}, Profiles: []policy.PawnProfile{pyro, plain}}
+	s, err := New(Config{ReadTimeout: time.Second, ShutdownTimeout: time.Second, MaxResponseBytes: 1 << 20,
+		Routines: routineStatusFunc(func(context.Context) (RoutineStatus, error) {
+			return RoutineStatus{ReviewsEnabled: true, LastReviewTick: 500, LastReviewKnown: true, Roster: &report}, nil
+		})}, snapshotFunc(func(context.Context) (Snapshot, error) { return Snapshot{}, nil }), planFunc(unavailablePlan))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { s.Close() })
+	server := testHTTP(t, s)
+	status, body := get(t, server.URL+"/api/routines")
+	var got routineStatusDTO
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatal(err)
+	}
+	r := got.Roster
+	if status != 200 || r == nil || r.Tick != 500 || len(r.Coverage) != 2 || r.Coverage[0].Work != policy.WorkDoctor || r.Coverage[0].Capable != 0 || r.Coverage[1].Owners != 1 {
+		t.Fatalf("roster coverage: %s", body)
+	}
+	if len(r.Decaying) != 1 || r.Decaying[0].Pawn != "b" || r.Decaying[0].Skill != "Mining" || r.Decaying[0].Level != 12 {
+		t.Fatalf("decaying rows: %s", body)
+	}
+	if len(r.Pawns) != 2 || r.Pawns[0].Pawn != "a" || r.Pawns[1].Pawn != "b" {
+		t.Fatalf("pawn rows unsorted or lost: %s", body)
+	}
+	a, b := r.Pawns[0], r.Pawns[1]
+	if len(a.Skills) != 1 || !a.Skills[0].Disabled || a.Skills[0].LearnFactor != 0 || len(a.Traits) != 0 || len(a.Effects.Flags) != 0 || len(a.Forbidden) != 0 || len(a.Incapable) != 0 {
+		t.Fatalf("plain profile: %s", body)
+	}
+	if b.Age != 30.5 || b.Child || !b.Ranged || len(b.Traits) != 3 || b.Effects.LearnRate != 0.75 || b.Effects.Sociable != -1 || strings.Join(b.Effects.Flags, ",") != "NoFirefighting,Pyromaniac" {
+		t.Fatalf("trait effects: %s", body)
+	}
+	if strings.Join(workTypes(b.Forbidden), ",") != "Firefighter,Warden" || strings.Join(workTypes(b.Incapable), ",") != "Hauling" {
+		t.Fatalf("forbidden and incapable roles: %s", body)
+	}
+	if len(b.Skills) != 2 || b.Skills[0].Name != "Medicine" || math.Abs(b.Skills[0].LearnFactor-0.35*1.75) > 1e-9 || b.Skills[1].Name != "Mining" || b.Skills[1].Passion != "Major" || math.Abs(b.Skills[1].LearnFactor-1.5*1.75) > 1e-9 {
+		t.Fatalf("learn factors: %s", body)
+	}
+}
+
+func workTypes(v []policy.WorkType) []string {
+	out := make([]string, len(v))
+	for i, w := range v {
+		out[i] = string(w)
+	}
+	return out
 }

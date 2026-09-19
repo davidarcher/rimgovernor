@@ -5,7 +5,19 @@ export type DevelopmentReason = typeof developmentReasons[number];
 export type DevelopmentRow = {goal: string; score: number; deficit: number | null; risk: number | null; waitingSince: number; selected: boolean; committed: boolean; reason: DevelopmentReason; bottleneck: string};
 export type LaborRow = {work: string; free: number};
 export type Development = {tick: number; workers: number | null; labor: LaborRow[]; capacity: number; committed: string[]; rows: DevelopmentRow[]};
-export type RoutineStatus = {reviewsEnabled: boolean; methodsEnabled: boolean; activeFamilies: string[]; lastReviewTick: number | null; development: Development | null};
+// The roster planner's last recorded report (#448): coverage per work type,
+// skills no assignment exercises and each pawn's typed profile as the
+// planner scored it. Pawn ids are the native pawn ids the colonist roster
+// carries, so the dossier joins on them.
+export type CoverageRow = {work: string; demand: number; owners: number; capable: number};
+export type DecayingRow = {pawn: string; skill: string; level: number};
+export type ProfileTrait = {name: string; degree: number};
+export type TraitEffects = {workSpeed: number; learnRate: number; moveSpeed: number; sociable: number; chemicalInterest: number; flags: string[]};
+export type ProfileSkill = {name: string; level: number; stored: number; passion: string; disabled: boolean; learnFactor: number};
+export type PawnProfile = {pawn: string; age: number; child: boolean; ranged: boolean; traits: ProfileTrait[]; effects: TraitEffects; skills: ProfileSkill[]; incapable: string[]; forbidden: string[]};
+export type WorkRoster = {tick: number; coverage: CoverageRow[]; decaying: DecayingRow[]; pawns: PawnProfile[]};
+export type SectionStatus = {section: string; family: string; asOf: number; complete: boolean; source: string; storedAt: string};
+export type RoutineStatus = {reviewsEnabled: boolean; methodsEnabled: boolean; activeFamilies: string[]; lastReviewTick: number | null; development: Development | null; roster: WorkRoster | null; sections: SectionStatus[]};
 
 function isObject(v: unknown): v is Record<string, unknown> {return typeof v === 'object' && v !== null && !Array.isArray(v);}
 function object(v: unknown, keys: readonly string[]): Record<string, unknown> {if (!isObject(v) || Object.keys(v).length !== keys.length || keys.some(key => !Object.hasOwn(v, key))) throw Error('Invalid routine fields'); return v;}
@@ -33,9 +45,34 @@ export function readDevelopment(value: unknown): Development {
   if (new Set(rows.map(r => r.goal)).size !== rows.length || rows.filter(r => r.selected).length + result.committed.length > result.capacity) throw Error('Inconsistent development admission');
   return result;
 }
+function signed(v: unknown): number {const n = finite(v); if (n < -100 || n > 100) throw Error('Invalid routine offset'); return n;}
+function level(v: unknown): number {const n = finite(v); if (!Number.isInteger(n) || n < 0 || n > 20) throw Error('Invalid routine skill level'); return n;}
+function years(v: unknown): number {const n = finite(v); if (n < 0 || n > 10000) throw Error('Invalid routine age'); return n;}
+export function readRoster(value: unknown): WorkRoster {
+  const v = object(value, ['tick', 'coverage', 'decaying', 'pawns']);
+  const coverage = list(v.coverage, 256).map(item => {const c = object(item, ['work', 'demand', 'owners', 'capable']); return {work: id(c.work), demand: count(c.demand), owners: count(c.owners), capable: count(c.capable)};});
+  const decaying = list(v.decaying, 4096).map(item => {const d = object(item, ['pawn', 'skill', 'level']); return {pawn: id(d.pawn), skill: id(d.skill), level: level(d.level)};});
+  const pawns = list(v.pawns, 256).map((item): PawnProfile => {
+    const p = object(item, ['pawn', 'age', 'child', 'ranged', 'traits', 'effects', 'skills', 'incapable', 'forbidden']);
+    const e = object(p.effects, ['workSpeed', 'learnRate', 'moveSpeed', 'sociable', 'chemicalInterest', 'flags']);
+    return {pawn: id(p.pawn), age: years(p.age), child: bool(p.child), ranged: bool(p.ranged),
+      traits: list(p.traits, 256).map(t => {const r = object(t, ['name', 'degree']); return {name: id(r.name), degree: signed(r.degree)};}),
+      effects: {workSpeed: signed(e.workSpeed), learnRate: signed(e.learnRate), moveSpeed: signed(e.moveSpeed), sociable: signed(e.sociable), chemicalInterest: signed(e.chemicalInterest), flags: list(e.flags, 64).map(id)},
+      skills: list(p.skills, 256).map(sk => {const r = object(sk, ['name', 'level', 'stored', 'passion', 'disabled', 'learnFactor']); return {name: id(r.name), level: level(r.level), stored: level(r.stored), passion: text(r.passion), disabled: bool(r.disabled), learnFactor: signed(r.learnFactor)};}),
+      incapable: list(p.incapable, 64).map(id), forbidden: list(p.forbidden, 64).map(id)};
+  });
+  if (new Set(pawns.map(p => p.pawn)).size !== pawns.length || new Set(coverage.map(c => c.work)).size !== coverage.length) throw Error('Inconsistent work roster');
+  if (pawns.some(p => p.skills.some(s => s.disabled && s.learnFactor !== 0 || s.learnFactor < 0))) throw Error('Inconsistent profile skill');
+  return {tick: tick(v.tick), coverage, decaying, pawns};
+}
+function readSection(value: unknown): SectionStatus {
+  // Stale marks are omitted while nothing is marked; the panel shows none of them.
+  const v = object(value, isObject(value) && Object.hasOwn(value, 'stale') ? ['section', 'family', 'asOf', 'complete', 'source', 'storedAt', 'stale'] : ['section', 'family', 'asOf', 'complete', 'source', 'storedAt']);
+  return {section: id(v.section), family: text(v.family), asOf: tick(v.asOf), complete: bool(v.complete), source: text(v.source), storedAt: text(v.storedAt)};
+}
 export function readRoutineStatus(value: unknown): RoutineStatus {
-  const v = object(value, ['reviewsEnabled', 'methodsEnabled', 'activeFamilies', 'lastReviewTick', 'development']);
-  return {reviewsEnabled: bool(v.reviewsEnabled), methodsEnabled: bool(v.methodsEnabled), activeFamilies: list(v.activeFamilies, 256).map(id), lastReviewTick: nullable(v.lastReviewTick, tick), development: nullable(v.development, readDevelopment)};
+  const v = object(value, ['reviewsEnabled', 'methodsEnabled', 'activeFamilies', 'lastReviewTick', 'development', 'roster', 'sections']);
+  return {reviewsEnabled: bool(v.reviewsEnabled), methodsEnabled: bool(v.methodsEnabled), activeFamilies: list(v.activeFamilies, 256).map(id), lastReviewTick: nullable(v.lastReviewTick, tick), development: nullable(v.development, readDevelopment), roster: nullable(v.roster, readRoster), sections: list(v.sections, 256).map(readSection)};
 }
 export class RoutineHTTPError extends Error {constructor(public status: number, detail: string) {super(detail);}}
 export async function fetchRoutineStatus(signal: AbortSignal): Promise<RoutineStatus> {

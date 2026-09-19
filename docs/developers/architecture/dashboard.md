@@ -40,6 +40,15 @@ worn gear and weapons, biography with skills and traits, mood memories, the
 current job). Settings and animal detail stay out of the roster; the bridge
 rejects a dossier whose pawn differs from the reference or that carries them.
 Job history is not observed anywhere; the dossier reports the current job only.
+Beside the raw traits and skills the dossier shows the roster planner's view
+of the same pawn from `GET /api/routines` `roster` (#448): the typed trait
+effects (`policy.TraitEffects`: work speed, learning and move offsets,
+sociability, the preference flags), the roles its traits forbid and its
+backstory disables, and each usable skill's level, stored level and learn
+factor, with the skills the last plan let decay marked. The roster section
+opens the same report's coverage table (owners found and wanted, pawns
+capable, per work type). Profiles join by native pawn id; a colonist the last
+review did not plan for shows the raw dossier alone.
 
 ## Video and simulation are independent
 

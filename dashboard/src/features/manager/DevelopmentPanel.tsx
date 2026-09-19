@@ -1,5 +1,5 @@
-import {useEffect, useState} from 'react';
-import {fetchRoutineStatus, RoutineHTTPError, type DevelopmentReason, type RoutineStatus} from './routineData';
+import {type DevelopmentReason} from './routineData';
+import {useRoutineStatus} from './useRoutineStatus';
 
 // Deferral reasons as the controller records them; the panel shows evidence,
 // not advice, so labels stay close to the contract vocabulary.
@@ -8,20 +8,9 @@ export const reasonLabels: Record<DevelopmentReason, string> = {
   existing_commitment: 'Already committed', workers_unknown: 'Worker count unknown', no_workers: 'No workers', deficit_unknown: 'Deficit unknown',
   capacity_committed: 'Waiting for capacity', method_unavailable: 'No method available', labor_unavailable: 'Waiting for labor', risk_deferred: 'Deferred: outdoor risk', control_disabled: 'Controller not in control',
 };
-type Reading = {value: RoutineStatus | null; stale: boolean; hidden: boolean; error: string};
 const percent = (v: number | null) => v === null ? 'unknown' : `${Math.round(v * 100)}%`;
 export default function DevelopmentPanel({active}: {active: boolean}) {
-  const [state, setState] = useState<Reading>({value: null, stale: true, hidden: false, error: ''});
-  useEffect(() => {
-    if (!active) return;
-    const controller = new AbortController(); let stopped = false, timer: ReturnType<typeof setTimeout> | undefined;
-    const poll = async () => {
-      try {const value = await fetchRoutineStatus(AbortSignal.any([controller.signal, AbortSignal.timeout(5000)])); if (!stopped) setState({value, stale: false, hidden: false, error: ''});}
-      catch (error) {if (!stopped) setState(previous => ({value: previous.value, stale: true, hidden: error instanceof RoutineHTTPError && error.status === 404, error: error instanceof Error ? error.message : 'Routine diagnostics unavailable'}));}
-      finally {if (!stopped) timer = setTimeout(() => void poll(), 3000);}
-    };
-    void poll(); return () => {stopped = true; controller.abort(); if (timer) clearTimeout(timer);};
-  }, [active]);
+  const state = useRoutineStatus(active);
   if (state.hidden) return null;
   const d = state.value?.development ?? null;
   return <section className="observation-panel development-panel" aria-label="Development priorities"><h2>Development priorities</h2>

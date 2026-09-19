@@ -2,7 +2,10 @@ import {expect, it} from 'vitest';
 import {readRoutineStatus} from './routineData';
 const row = (goal: string, extra: Record<string, unknown> = {}) => ({goal, score: 10, deficit: 0.5, risk: null, waitingSince: 100, selected: false, committed: false, reason: 'capacity_committed', bottleneck: '', ...extra});
 const development = (extra: Record<string, unknown> = {}) => ({tick: 500, workers: 3, labor: [{work: 'Construction', free: 0}, {work: 'Research', free: 1}], capacity: 2, committed: ['player-room'], rows: [row('ensure-research', {selected: true, reason: ''}), row('ensure-comfort', {reason: 'labor_unavailable', bottleneck: 'Construction'}), row('maintain-wood', {risk: 1, reason: 'risk_deferred'}), row('maintain-resource', {deficit: null, reason: 'deficit_unknown'})], ...extra});
-const status = (extra: Record<string, unknown> = {}) => ({reviewsEnabled: true, methodsEnabled: false, activeFamilies: ['routine-bill-plans'], lastReviewTick: 500, development: development(), ...extra});
+const profile = (extra: Record<string, unknown> = {}) => ({pawn: 'a', age: 30.5, child: false, ranged: true, traits: [{name: 'Pyromaniac', degree: 0}], effects: {workSpeed: 0, learnRate: 0.75, moveSpeed: -0.2, sociable: -1, chemicalInterest: 0, flags: ['NoFirefighting']}, skills: [{name: 'Mining', level: 12, stored: 12, passion: 'Major', disabled: false, learnFactor: 2.625}, {name: 'Art', level: 0, stored: 0, passion: '', disabled: true, learnFactor: 0}], incapable: ['Hauling'], forbidden: ['Firefighter', 'Warden'], ...extra});
+const roster = (extra: Record<string, unknown> = {}) => ({tick: 500, coverage: [{work: 'Doctor', demand: 1, owners: 0, capable: 0}], decaying: [{pawn: 'a', skill: 'Mining', level: 12}], pawns: [profile()], ...extra});
+const section = {section: 'colony_facts', family: 'routine', asOf: 480, complete: true, source: 'rimgovernor/colony_facts', storedAt: '2026-09-19T00:00:00Z'};
+const status = (extra: Record<string, unknown> = {}) => ({reviewsEnabled: true, methodsEnabled: false, activeFamilies: ['routine-bill-plans'], lastReviewTick: 500, development: development(), roster: roster(), sections: [section, {...section, section: 'cells', stale: {all: true}}], ...extra});
 it('preserves labor rows, deferral reasons, bottlenecks and unknown facts', () => {
   const result = readRoutineStatus(status());
   expect(result.development?.labor).toEqual([{work: 'Construction', free: 0}, {work: 'Research', free: 1}]);
@@ -19,4 +22,19 @@ it('rejects unknown reasons, bottlenecks without a labor deferral, and admission
   expect(() => readRoutineStatus(status({development: development({rows: [row('x'), row('x')]})}))).toThrow();
   expect(() => readRoutineStatus(status({development: development({rows: [row('x', {deficit: 1.5})]})}))).toThrow();
   expect(() => readRoutineStatus(status({extra: true}))).toThrow();
+});
+it('reads the work roster report and the held sections', () => {
+  const result = readRoutineStatus(status());
+  expect(result.roster).toEqual(roster());
+  expect(result.sections.map(s => s.section)).toEqual(['colony_facts', 'cells']);
+  expect(readRoutineStatus(status({roster: null, sections: []}))).toMatchObject({roster: null, sections: []});
+});
+it('rejects malformed roster reports', () => {
+  expect(() => readRoutineStatus(status({roster: roster({pawns: [profile(), profile()]})}))).toThrow();
+  expect(() => readRoutineStatus(status({roster: roster({coverage: [{work: 'Doctor', demand: 1, owners: 0, capable: 0}, {work: 'Doctor', demand: 1, owners: 0, capable: 0}]})}))).toThrow();
+  expect(() => readRoutineStatus(status({roster: roster({pawns: [profile({skills: [{name: 'Art', level: 0, stored: 0, passion: '', disabled: true, learnFactor: 1}]})]})}))).toThrow();
+  expect(() => readRoutineStatus(status({roster: roster({pawns: [profile({skills: [{name: 'Art', level: 21, stored: 0, passion: '', disabled: false, learnFactor: 1}]})]})}))).toThrow();
+  expect(() => readRoutineStatus(status({roster: roster({pawns: [profile({effects: {workSpeed: 0, learnRate: 0.75, moveSpeed: 0, sociable: 0, chemicalInterest: 0}})]})}))).toThrow();
+  expect(() => readRoutineStatus(status({roster: roster({tick: -1})}))).toThrow();
+  expect(() => readRoutineStatus(status({sections: [{...section, extra: true}]}))).toThrow();
 });

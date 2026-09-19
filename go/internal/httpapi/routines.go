@@ -33,7 +33,10 @@ type RoutineStatus struct {
 	LastReviewTick  domain.Tick
 	LastReviewKnown bool
 	Development     *policy.DevelopmentState
-	Sections        []facts.Status
+	// Roster is the roster planner's last recorded report (#448), nil until
+	// an enabled review planned work.
+	Roster   *policy.WorkRosterReport
+	Sections []facts.Status
 }
 
 type routineStatusDTO struct {
@@ -42,7 +45,65 @@ type routineStatusDTO struct {
 	ActiveFamilies []string               `json:"activeFamilies"`
 	LastReviewTick *domain.Tick           `json:"lastReviewTick"`
 	Development    *routineDevelopmentDTO `json:"development"`
+	Roster         *routineRosterDTO      `json:"roster"`
 	Sections       []routineSectionDTO    `json:"sections"`
+}
+
+// routineRosterDTO is the roster planner's recorded report: the per-work-type
+// census (owners wanted and found, pawns capable), the skills no assignment
+// exercises and each pawn's typed profile, so the dossier can say why a pawn
+// holds or lacks a role. Rows are sorted by work type, pawn then skill.
+type routineRosterDTO struct {
+	Tick     domain.Tick            `json:"tick"`
+	Coverage []routineCoverageDTO   `json:"coverage"`
+	Decaying []routineDecayingDTO   `json:"decaying"`
+	Pawns    []routineRosterPawnDTO `json:"pawns"`
+}
+type routineCoverageDTO struct {
+	Work    policy.WorkType `json:"work"`
+	Demand  int             `json:"demand"`
+	Owners  int             `json:"owners"`
+	Capable int             `json:"capable"`
+}
+type routineDecayingDTO struct {
+	Pawn  policy.PawnID `json:"pawn"`
+	Skill string        `json:"skill"`
+	Level int           `json:"level"`
+}
+type routineRosterPawnDTO struct {
+	Pawn      policy.PawnID            `json:"pawn"`
+	Age       float64                  `json:"age"`
+	Child     bool                     `json:"child"`
+	Ranged    bool                     `json:"ranged"`
+	Traits    []routineTraitDTO        `json:"traits"`
+	Effects   routineTraitEffectsDTO   `json:"effects"`
+	Skills    []routineProfileSkillDTO `json:"skills"`
+	Incapable []policy.WorkType        `json:"incapable"`
+	Forbidden []policy.WorkType        `json:"forbidden"`
+}
+type routineTraitDTO struct {
+	Name   string `json:"name"`
+	Degree int    `json:"degree"`
+}
+
+// routineTraitEffectsDTO is TraitEffects with the boolean preferences
+// flattened to their field names, so the dashboard lists them without
+// knowing the table.
+type routineTraitEffectsDTO struct {
+	WorkSpeed        float64  `json:"workSpeed"`
+	LearnRate        float64  `json:"learnRate"`
+	MoveSpeed        float64  `json:"moveSpeed"`
+	Sociable         int      `json:"sociable"`
+	ChemicalInterest int      `json:"chemicalInterest"`
+	Flags            []string `json:"flags"`
+}
+type routineProfileSkillDTO struct {
+	Name        string  `json:"name"`
+	Level       int     `json:"level"`
+	Stored      int     `json:"stored"`
+	Passion     string  `json:"passion"`
+	Disabled    bool    `json:"disabled"`
+	LearnFactor float64 `json:"learnFactor"`
 }
 
 // routineSectionDTO is one held state section: the tick its value
@@ -122,7 +183,62 @@ func routineStatus(v RoutineStatus) routineStatusDTO {
 		dto := routineDevelopment(*v.Development)
 		result.Development = &dto
 	}
+	if v.Roster != nil {
+		dto := routineRoster(*v.Roster)
+		result.Roster = &dto
+	}
 	return result
+}
+
+func routineRoster(r policy.WorkRosterReport) routineRosterDTO {
+	dto := routineRosterDTO{Tick: r.Tick, Coverage: []routineCoverageDTO{}, Decaying: []routineDecayingDTO{}, Pawns: []routineRosterPawnDTO{}}
+	for _, c := range r.Coverage {
+		dto.Coverage = append(dto.Coverage, routineCoverageDTO{Work: c.Work, Demand: c.Demand, Owners: c.Owners, Capable: c.Capable})
+	}
+	sort.SliceStable(dto.Coverage, func(i, j int) bool { return dto.Coverage[i].Work < dto.Coverage[j].Work })
+	for _, d := range r.Decaying {
+		dto.Decaying = append(dto.Decaying, routineDecayingDTO{Pawn: d.Pawn, Skill: d.Skill, Level: d.Level})
+	}
+	sort.SliceStable(dto.Decaying, func(i, j int) bool {
+		if dto.Decaying[i].Pawn != dto.Decaying[j].Pawn {
+			return dto.Decaying[i].Pawn < dto.Decaying[j].Pawn
+		}
+		return dto.Decaying[i].Skill < dto.Decaying[j].Skill
+	})
+	for _, p := range r.Profiles {
+		dto.Pawns = append(dto.Pawns, routineRosterPawn(p))
+	}
+	sort.SliceStable(dto.Pawns, func(i, j int) bool { return dto.Pawns[i].Pawn < dto.Pawns[j].Pawn })
+	return dto
+}
+
+func routineRosterPawn(p policy.PawnProfile) routineRosterPawnDTO {
+	dto := routineRosterPawnDTO{Pawn: p.ID, Age: p.Age, Child: p.Child, Ranged: p.Ranged, Traits: []routineTraitDTO{}, Skills: []routineProfileSkillDTO{}, Incapable: []policy.WorkType{}, Forbidden: []policy.WorkType{}}
+	for _, t := range p.Traits {
+		dto.Traits = append(dto.Traits, routineTraitDTO{Name: t.Name, Degree: t.Degree})
+	}
+	for _, s := range p.Skills {
+		dto.Skills = append(dto.Skills, routineProfileSkillDTO{Name: s.Name, Level: s.Level, Stored: s.Stored, Passion: s.Passion, Disabled: s.Disabled, LearnFactor: s.LearnFactor(p.Effects)})
+	}
+	sort.SliceStable(dto.Skills, func(i, j int) bool { return dto.Skills[i].Name < dto.Skills[j].Name })
+	for w, incapable := range p.Incapable {
+		if incapable {
+			dto.Incapable = append(dto.Incapable, w)
+		}
+	}
+	sort.Slice(dto.Incapable, func(i, j int) bool { return dto.Incapable[i] < dto.Incapable[j] })
+	dto.Forbidden = append(dto.Forbidden, p.ForbiddenWork()...)
+	e := p.Effects
+	dto.Effects = routineTraitEffectsDTO{WorkSpeed: e.WorkSpeed, LearnRate: e.LearnRate, MoveSpeed: e.MoveSpeed, Sociable: e.Sociable, ChemicalInterest: e.ChemicalInterest, Flags: []string{}}
+	for _, flag := range []struct {
+		name string
+		set  bool
+	}{{"GreatMemory", e.GreatMemory}, {"QuickSleeper", e.QuickSleeper}, {"NightShift", e.NightShift}, {"MeleeOnly", e.MeleeOnly}, {"FrontLine", e.FrontLine}, {"RearRanged", e.RearRanged}, {"NoFirefighting", e.NoFirefighting}, {"Pyromaniac", e.Pyromaniac}, {"Execution", e.Execution}, {"SurgeonSafe", e.SurgeonSafe}, {"Nudist", e.Nudist}, {"Ascetic", e.Ascetic}, {"Cannibal", e.Cannibal}, {"Gourmand", e.Gourmand}, {"Undergrounder", e.Undergrounder}, {"Greedy", e.Greedy}, {"Jealous", e.Jealous}} {
+		if flag.set {
+			dto.Effects.Flags = append(dto.Effects.Flags, flag.name)
+		}
+	}
+	return dto
 }
 
 func routineDevelopment(s policy.DevelopmentState) routineDevelopmentDTO {

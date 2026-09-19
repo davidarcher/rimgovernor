@@ -10,7 +10,7 @@ const development = {tick: 500, workers: 3, labor: [{work: 'Construction', free:
 ]};
 afterEach(() => {cleanup(); vi.unstubAllGlobals();});
 it('renders the recorded ranking with reasons, bottlenecks and labor', async () => {
-  vi.stubGlobal('fetch', vi.fn(() => reply({reviewsEnabled: true, methodsEnabled: true, activeFamilies: [], lastReviewTick: 500, development})));
+  vi.stubGlobal('fetch', vi.fn(() => reply({reviewsEnabled: true, methodsEnabled: true, activeFamilies: [], lastReviewTick: 500, development, roster: null, sections: []})));
   render(<DevelopmentPanel active/>);
   await waitFor(() => expect(screen.getByText('Selected')).toBeInTheDocument());
   expect(screen.getByText('Waiting for labor (Construction)')).toBeInTheDocument();

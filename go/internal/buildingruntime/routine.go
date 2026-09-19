@@ -235,6 +235,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	if pawns, known := reading.Projection.WorkPawns.Value(); known {
 		reading.Projection.Facts.Workers = policy.RoutineWorkers(pawns)
 		reading.Projection.Facts.Labor = policy.RoutineLabor(pawns)
+		reading.Projection.Facts.WorkProfiles = domain.Known(policy.Profiles(pawns))
 		required, known := routineProjectWork(definitions, reading.Projection.Definitions).Value()
 		if known {
 			// Bench work (open bills, a deficit's standing benches) counts
@@ -268,6 +269,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 				}
 				if _, ok := work.Capacity.Value(); ok {
 					reading.Projection.Facts.WorkRoster = domain.Known(work.Coverage)
+					reading.Projection.Facts.WorkDecaying = domain.Known(work.Decaying)
 				}
 			}
 		}

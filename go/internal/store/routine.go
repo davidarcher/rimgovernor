@@ -41,6 +41,10 @@ type RoutineReview struct {
 	Comfort                policy.ComfortHistory
 	Goals                  []RoutineGoal
 	Development            RoutineDevelopment
+	// Roster is the roster planner's last recorded report (#448): coverage,
+	// decaying skills and pawn profiles as of its Tick. A disabled review
+	// keeps the last one; absent until an enabled review planned work.
+	Roster *policy.WorkRosterReport `json:",omitempty"`
 	// AsOf is the tick each census section the review read described,
 	// by facts.Section name (#354); absent before any review filed one.
 	AsOf map[string]int64 `json:",omitempty"`
@@ -151,6 +155,9 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 	}
 	if r.Comfort.Dining.Tick > r.Tick || r.Comfort.Recreation.Tick > r.Tick {
 		return RoutineReview{}, errors.New("future comfort use history")
+	}
+	if r.Roster != nil && (r.Roster.Tick > r.Tick || len(r.Roster.Coverage) > 256 || len(r.Roster.Decaying) > 4096 || len(r.Roster.Profiles) > 256) {
+		return RoutineReview{}, errors.New("invalid routine roster history")
 	}
 	if r.Enabled {
 		if r.Development.Snapshot != r.Snapshot || r.Development.Tick != r.Tick || policy.ValidateDevelopmentState(r.Development.State()) != nil {
@@ -422,6 +429,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	r.Comfort = comfort
 	r.Sleeping = sleeping
 	r.Mood = moodRecord(mood)
+	r.Roster = routineRoster(request, previous, reset)
 	r.Disaster = disaster
 	if request.Enabled {
 		r.MoodMethods, err = moodProposals(mood)
@@ -527,4 +535,25 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	}
 	result.Review = r
 	return result, nil
+}
+
+// routineRoster records the roster planner's report when this review planned
+// work, keeps the previous report while it did not (a disabled review, an
+// unknown census) and drops it with the rest of the history on a world
+// change or tick rewind.
+func routineRoster(request RoutineReviewRequest, previous RoutineReview, reset bool) *policy.WorkRosterReport {
+	coverage, known := request.Facts.WorkRoster.Value()
+	if !request.Enabled || !known {
+		if reset {
+			return nil
+		}
+		return previous.Roster
+	}
+	report := &policy.WorkRosterReport{Tick: request.Tick, Coverage: append([]policy.WorkCoverage{}, coverage...)}
+	if decaying, ok := request.Facts.WorkDecaying.Value(); ok {
+		report.Decaying = append([]policy.DecayingSkill(nil), decaying...)
+	}
+	profiles, _ := request.Facts.WorkProfiles.Value()
+	report.Profiles = append([]policy.PawnProfile{}, profiles...)
+	return report
 }

@@ -386,7 +386,13 @@ type RoutineFacts struct {
 	// WorkRoster is the planner's per-work-type coverage (PlanWork): the
 	// owners each type wanted and found and the pawns capable of it, so a
 	// goal can name a missing capability instead of stalling.
-	WorkRoster                                                                 domain.Fact[[]WorkCoverage]
+	WorkRoster domain.Fact[[]WorkCoverage]
+	// WorkDecaying is the same plan's skills above 10 that no assignment
+	// exercises (WorkDecision.Decaying) and WorkProfiles every work pawn's
+	// typed profile (Profiles); both are presentation facts the review
+	// records for the dashboard dossier (#448), never planner inputs.
+	WorkDecaying                                                               domain.Fact[[]DecayingSkill]
+	WorkProfiles                                                               domain.Fact[[]PawnProfile]
 	Colonists, HousingTarget, BedCapacity, IndoorCapacity, GrowingCells, Armed domain.Fact[int64]
 	FoodDays, PopulationFoodDays, FieldCoverage                                domain.Fact[float64]
 	// Calendar is the tile's native growing calendar (policy.Calendar).

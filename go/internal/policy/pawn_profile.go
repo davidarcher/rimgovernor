@@ -225,6 +225,18 @@ func (p PawnProfile) Forbidden(work WorkType) bool {
 	return false
 }
 
+// ForbiddenWork lists the work types Forbidden refuses for this pawn, in
+// natural-priority order, for the dossier.
+func (p PawnProfile) ForbiddenWork() []WorkType {
+	var out []WorkType
+	for _, work := range []WorkType{WorkFirefighter, WorkWarden, WorkHunting} {
+		if p.Forbidden(work) {
+			out = append(out, work)
+		}
+	}
+	return out
+}
+
 // BuildProfile reads the profile from a WorkPawn; unknown traits, incapable
 // rows or age leave those parts empty rather than making the profile unknown,
 // since the planner degrades to skill-only ordering without them.
