@@ -16,6 +16,32 @@ namespace HomeBridge.BridgeTools
     // reset; nothing here advances time or suppresses ordinary simulation.
     public sealed class FoodChannelFixture
     {
+        [Tool("test/food_baseline_prey", Description = "UNSAFE FOR MODEL EXECUTION. Add one deterministic wild deer on reachable ground near the paused tribal baseline. Preserve all existing stock, plants, zones, animals, pawn skills, equipment and work settings; the controller supplies hunting prerequisites.")]
+        public async Task<object> BaselinePrey(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                if (map == null || Current.Game == null || !Find.TickManager.Paused)
+                    throw new InvalidOperationException("Paused disposable map required.");
+                var people = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed).ToList();
+                if (people.Count == 0) throw new InvalidOperationException("Standing colonist required.");
+                var center = new IntVec3((int)people.Average(p => p.Position.x), 0, (int)people.Average(p => p.Position.z));
+                var cells = GenRadial.RadialCellsAround(center, 20, true).Where(c => c.InBounds(map)
+                    && c.DistanceToSquared(center) >= 100 && !c.Fogged(map) && !c.Roofed(map)
+                    && c.Standable(map) && c.GetEdifice(map) == null
+                    && people.Any(p => p.CanReach(c, PathEndMode.OnCell, Danger.None))).Take(1).ToList();
+                if (cells.Count == 0) throw new InvalidOperationException("No safe reachable prey cell.");
+                Pawn deer;
+                Rand.PushState(419);
+                try { deer = PawnGenerator.GeneratePawn(PawnKindDef.Named("Deer"), null); }
+                finally { Rand.PopState(); }
+                GenSpawn.Spawn(deer, cells[0], map);
+                deer.SetForbidden(false, false);
+                return new { success = true, tick = Find.TickManager.TicksGame, prey = deer.GetUniqueLoadID(),
+                    kind = deer.def.defName, wild = deer.Faction == null, x = deer.Position.x, z = deer.Position.z };
+            }, cancellationToken);
+        }
+
         private static Game humanGame;
         private static string humanCook;
         private static readonly HashSet<string> fedHerd = new HashSet<string>();

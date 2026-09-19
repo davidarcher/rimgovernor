@@ -173,6 +173,7 @@ optional source ID, with nutrition/day minimums and finite explain terms.
 `food.CheckBaselinePlan` requires Forage and Hunt Open with positive admitted
 nutrition/day. Callers read the live controller plan and separately establish
 the native pre-harvest state; unknown rows cannot satisfy these assertions.
+`acceptance run food/ledger-baseline` brackets the live colony API plan with native field and rice censuses on the ordinary tribal8 save, before planting or harvest. `test/food_baseline_prey` adds one deterministic wild deer near the colony because the save has no wild prey; existing food channels and colonist skills, equipment and work remain untouched.
 
 ## Adding a case
 
