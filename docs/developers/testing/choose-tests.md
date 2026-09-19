@@ -168,6 +168,12 @@ with zero stock. Preparation must take less than a minute. This stages the
 initial state only: ordinary plant regrowth and animal arrivals still apply
 when a channel case advances the simulation.
 
+`food.CheckChannel` asserts typed portfolio rows by channel kind, decision and
+optional source ID, with nutrition/day minimums and finite explain terms.
+`food.CheckBaselinePlan` requires Forage and Hunt Open with positive admitted
+nutrition/day. Callers read the live controller plan and separately establish
+the native pre-harvest state; unknown rows cannot satisfy these assertions.
+
 ## Adding a case
 
 Every native acceptance is a registered `cases.Case` under
