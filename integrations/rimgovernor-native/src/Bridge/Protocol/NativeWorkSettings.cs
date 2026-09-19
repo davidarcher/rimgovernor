@@ -98,22 +98,32 @@ namespace HomeBridge.BridgeTools
             return area != null;
         }
 
+        internal const string Kind = "Work settings";
+        // Prepare is the apply-time precondition list for work priorities and
+        // the allowed-area assignment (action-contracts.md): Eligible plus
+        // the request's own rows, one rule at a time.
         private static bool Prepare(Operations.PatchPawn command, Common.ObservationContext context, out Pawn? pawn, out Common.Failure failure)
         {
             pawn = null;
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Work settings require an exact current work/area snapshot and only work priorities or an allowed-area assignment.");
             if (!Valid(command)) return false;
-            pawn = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Pawn.EntityId);
-            if (pawn == null || Snapshot(pawn, context)?.Token != command.Pawn.ExpectedSnapshotToken) return false;
+            var found = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Pawn.EntityId);
             var manual = PawnSettingsRead.ManualPriorities();
-            if (!manual.HasValue) return false;
-            foreach (var row in command.Work)
-            {
-                var def = DefDatabase<WorkTypeDef>.GetNamedSilentFail(row.WorkTypeDef);
-                if (def == null || row.Priority != 0 && pawn.WorkTypeIsDisabled(def)
-                    || !manual.Value && row.Priority != 0 && row.Priority != 3) return false;
-            }
-            if (!PrepareArea(command, pawn, out _, out _, out _)) return false;
+            var rules = new ApplyPreconditions(Kind)
+                .Present(() => found != null && !found.Destroyed && found.Spawned && ProtoBoundary.IsLoaded(found.Map), "the exact pawn is no longer spawned on this map")
+                .Require(() => found!.IsFreeColonist && !found.Dead, "the pawn is not a living free colonist")
+                .Require(() => !found!.Downed, "the pawn is downed")
+                .Require(() => !found!.Drafted, "the pawn is drafted")
+                .Require(() => !found!.InMentalState, "the pawn is in a mental state")
+                .Require(() => found!.workSettings?.Initialized == true && found.workSettings.EverWork, "the pawn has no work settings")
+                .Require(() => manual.HasValue, "the game's manual-priorities setting is unreadable")
+                .Require(() => command.Work.All(row => DefDatabase<WorkTypeDef>.GetNamedSilentFail(row.WorkTypeDef) != null), "a requested work type is not defined")
+                .Require(() => command.Work.All(row => row.Priority == 0 || !found!.WorkTypeIsDisabled(DefDatabase<WorkTypeDef>.GetNamed(row.WorkTypeDef))), "a requested work type is disabled for the pawn")
+                .Require(() => manual.GetValueOrDefault() || command.Work.All(row => row.Priority == 0 || row.Priority == 3), "manual priorities are off, so only 0 or 3 can be set")
+                .Require(() => PrepareArea(command, found!, out _, out _, out _), "the requested allowed area is not on the pawn's map")
+                .Token(() => Snapshot(found!, context)?.Token == command.Pawn.ExpectedSnapshotToken, "the pawn's work/area snapshot changed since it was read");
+            if (!rules.Holds) { failure = rules.Failure(); return false; }
+            pawn = found;
             return true;
         }
 

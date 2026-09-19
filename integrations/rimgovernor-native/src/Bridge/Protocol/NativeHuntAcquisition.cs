@@ -65,15 +65,20 @@ namespace HomeBridge.BridgeTools
                     || bill.repeatMode == BillRepeatModeDefOf.TargetCount && BillCommon.ProductCount(bill) is int count && count < bill.targetCount))
             && prey.Map.mapPawns.FreeColonistsSpawned.Any(p => !p.Downed && !p.Drafted && !p.InMentalState
                 && DefDatabase<WorkTypeDef>.GetNamedSilentFail("Cooking") is WorkTypeDef cooking && p.workSettings?.WorkIsActive(cooking) == true && p.CanReach(b, PathEndMode.InteractionCell, Danger.None)));
+        // SafePrey is the animal rule: wild, docile, edible and visible.
+        private static bool SafePrey(Pawn prey) => prey.Faction == null && prey.RaceProps.Animal
+            && !prey.RaceProps.predator && prey.RaceProps.manhunterOnDamageChance == 0 && !prey.InMentalState
+            && prey.RaceProps.meatDef?.IsNutritionGivingIngestible == true && prey.RaceProps.corpseDef != null;
+        // Hunter is the colonist rule: hunting enabled, an ordinary bullet
+        // weapon, within 100 cells over a safe route.
+        private static bool Hunter(Pawn p, Pawn prey) => !p.Downed && !p.Drafted && !p.InMentalState
+            && p.workSettings?.WorkIsActive(WorkTypeDefOf.Hunting) == true && OrdinaryWeapon(p)
+            && p.Position.DistanceToSquared(prey.Position) <= 10000 && HuntingSafety.RouteSafe(p, prey);
         private static bool Eligible(Pawn prey)
         {
-            if (!prey.Spawned || prey.Dead || prey.Downed || prey.Faction != null || !prey.RaceProps.Animal
-                || prey.RaceProps.predator || prey.RaceProps.manhunterOnDamageChance != 0 || prey.InMentalState
-                || prey.RaceProps.meatDef?.IsNutritionGivingIngestible != true || prey.RaceProps.corpseDef == null
+            if (!prey.Spawned || prey.Dead || prey.Downed || !SafePrey(prey)
                 || prey.Position.Fogged(prey.Map) || !ButcherReady(prey)) return false;
-            return prey.Map.mapPawns.FreeColonistsSpawned.Any(p => !p.Downed && !p.Drafted && !p.InMentalState
-                && p.workSettings?.WorkIsActive(WorkTypeDefOf.Hunting) == true && OrdinaryWeapon(p)
-                && p.Position.DistanceToSquared(prey.Position) <= 10000 && HuntingSafety.RouteSafe(p, prey));
+            return prey.Map.mapPawns.FreeColonistsSpawned.Any(p => Hunter(p, prey));
         }
         private static double Nutrition(Pawn prey) => Math.Max(0, prey.GetStatValue(StatDefOf.MeatAmount)) * prey.RaceProps.meatDef.GetStatValueAbstract(StatDefOf.Nutrition);
         private static Obs.SnapshotRef Snapshot(Pawn prey, Common.ObservationContext context) => new Obs.SnapshotRef {
@@ -95,16 +100,33 @@ namespace HomeBridge.BridgeTools
                 && c.InnerPawn.RaceProps.Animal && c.InnerPawn.RaceProps.meatDef?.IsNutritionGivingIngestible == true).Sum(c => Nutrition(c.InnerPawn));
             result.PendingFoodNutrition += map.mapPawns.AllPawnsSpawned.Where(p => Designated(p) && p.RaceProps.meatDef != null).Sum(Nutrition);
         }
+        internal const string Kind = "Hunt";
+        // Prepare is the apply-time precondition list for hunt
+        // (action-contracts.md): Eligible plus the request's cell, resource
+        // and designation rules, one rule at a time.
         private static bool Prepare(Operations.AcquireResource command, Common.ObservationContext context, out Pawn? prey, out Common.Failure failure)
         {
             prey = null; failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Hunting requires an exact safe prey snapshot, enabled hunter, butcher bill and fewer than two outstanding hunts.");
             if (!NativePlantAcquisition.Valid(command)) return false;
             var map = ProtoBoundary.LoadedMap(context);
-            if (Pending(map) >= 2 || map.AllCells.Any(c => map.roofCollapseBuffer.IsMarkedToCollapse(c))) return false;
-            prey = map.mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Source.EntityId);
-            return prey != null && Eligible(prey) && !Designated(prey) && prey.Position.x == command.Cell.X && prey.Position.z == command.Cell.Z
-                && prey.RaceProps.corpseDef.defName == command.ResourceDefName && Snapshot(prey, context).Token == command.Source.ExpectedSnapshotToken
-                && new Designator_Hunt().CanDesignateThing(prey).Accepted;
+            var found = map.mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Source.EntityId);
+            var rules = new ApplyPreconditions(Kind)
+                .Require(() => Pending(map) < 2, "two hunts are already outstanding on this map")
+                .Require(() => !map.AllCells.Any(c => map.roofCollapseBuffer.IsMarkedToCollapse(c)), "a roof collapse is pending on this map")
+                .Present(() => found != null && found.Spawned, "the exact animal is no longer spawned on this map")
+                .Require(() => !found!.Dead && !found.Downed, "the animal is dead or downed")
+                .Require(() => SafePrey(found!), "the animal is not safe wild prey")
+                .Require(() => found!.Position.x == command.Cell.X && found.Position.z == command.Cell.Z, "the animal is not at the expected cell")
+                .Require(() => found!.RaceProps.corpseDef.defName == command.ResourceDefName, "the animal's corpse is not the expected resource")
+                .Require(() => !found!.Position.Fogged(map), "the animal's cell is fogged")
+                .Require(() => !Designated(found!), "the animal is already designated for hunting")
+                .Require(() => new Designator_Hunt().CanDesignateThing(found!).Accepted, "the native hunt designator refuses the animal")
+                .Require(() => ButcherReady(found!), "no usable butcher bill with an assigned cook accepts the corpse")
+                .Require(() => map.mapPawns.FreeColonistsSpawned.Any(p => Hunter(p, found!)), "no free colonist with hunting enabled and an ordinary ranged weapon has a safe route to the animal")
+                .Token(() => Snapshot(found!, context).Token == command.Source.ExpectedSnapshotToken, "the animal snapshot changed since it was read");
+            if (!rules.Holds) { failure = rules.Failure(); return false; }
+            prey = found;
+            return true;
         }
         internal static Operations.PreviewReply Preview(Operations.AcquireResource command, Common.ObservationContext context)
         {

@@ -65,6 +65,7 @@ namespace HomeBridge.BridgeTools
         internal static bool Valid(Operations.PatchStockpile? command)
             => command != null && NativeDraftProtocol.ValidEntity(command.Zone) && NativeStockpileSettings.Valid(command.Settings);
 
+        internal const string Kind = "Stockpile patch";
         private static bool Prepare(Operations.PatchStockpile command, Common.ObservationContext context,
             out Zone_Stockpile? zone, out NativeStockpileSettings.Resolved? resolved, out Common.Failure failure)
         {
@@ -77,10 +78,15 @@ namespace HomeBridge.BridgeTools
             var map = ProtoBoundary.ResolveMap(context);
             if (map == null) return false;
             var candidate = map.zoneManager.AllZones.FirstOrDefault(z => z.GetUniqueLoadID() == command.Zone.EntityId) as Zone_Stockpile;
-            if (candidate == null || candidate.settings?.filter == null) return false;
-            if (NativeZoneObservationTools.Token(candidate, context).Token != command.Zone.ExpectedSnapshotToken) return false;
-            var body = NativeStockpileSettings.Resolve(command.Settings, StockpileFilter.StorableDefs(candidate));
-            if (body == null) return false;
+            NativeStockpileSettings.Resolved? body = null;
+            // The apply-time precondition list for stockpile settings
+            // (action-contracts.md), one rule at a time.
+            var rules = new ApplyPreconditions(Kind)
+                .Present(() => candidate != null, "the exact stockpile zone no longer exists on this map")
+                .Require(() => candidate!.settings?.filter != null, "the stockpile has no storage settings")
+                .Require(() => (body = NativeStockpileSettings.Resolve(command.Settings, StockpileFilter.StorableDefs(candidate!))) != null, "the settings body does not resolve against the stockpile's storable definitions")
+                .Token(() => NativeZoneObservationTools.Token(candidate!, context).Token == command.Zone.ExpectedSnapshotToken, "the stockpile snapshot changed since it was read");
+            if (!rules.Holds) { failure = rules.Failure(); return false; }
             zone = candidate; resolved = body;
             return true;
         }

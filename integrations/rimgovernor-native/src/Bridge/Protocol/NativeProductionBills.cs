@@ -63,7 +63,6 @@ namespace HomeBridge.BridgeTools {
    if(bench==null||giver==null){failure=Refuse("bench "+command.Bench.EntityId+" is not a loaded bill giver");return false;}
    if(!UsableForNewBill(bench)){failure=Refuse("bench is not usable for bills");return false;}
    if(giver.BillStack.Count>=15){failure=Refuse("bill stack is full");return false;}
-   if(Snapshot(bench,giver,context).Token!=command.Bench.ExpectedSnapshotToken){failure=Refuse("bench bill stack changed since it was read");return false;}
    if(giver.BillStack.Bills.Any(b=>b.recipe.defName==command.RecipeDef)){failure=Refuse("bench already carries a "+command.RecipeDef+" bill");return false;}
    recipe=DefDatabase<RecipeDef>.GetNamedSilentFail(command.RecipeDef);
    if(recipe==null||!Recipe(bench,recipe)){failure=Refuse("recipe "+command.RecipeDef+" is not available on the bench");return false;}
@@ -71,7 +70,11 @@ namespace HomeBridge.BridgeTools {
    var target=bench;var wanted=recipe;var work=NativeBillsObservationTools.WorkType(bench.def,recipe);
    if(work==null){failure=Refuse("recipe "+command.RecipeDef+" has no work type on "+bench.def.defName);return false;}
    var colonists=ProtoBoundary.LoadedMap(context).mapPawns.FreeColonistsSpawned.Where(p=>!p.Dead&&!p.Downed&&!p.Drafted&&!p.InMentalState&&p.workSettings?.Initialized==true).ToList();
-   if(colonists.Any(p=>p.workSettings.GetPriority(work)>0&&!p.WorkTypeIsDisabled(work)&&!target.IsForbidden(p)&&p.Position.DistanceTo(target.Position)<=40&&p.CanReach(target,PathEndMode.InteractionCell,Danger.None)&&(wanted.skillRequirements==null||wanted.skillRequirements.All(s=>p.skills?.GetSkill(s.skill)!=null&&!p.skills.GetSkill(s.skill).TotallyDisabled&&p.skills.GetSkill(s.skill).Level>=s.minLevel))))return true;
+   if(colonists.Any(p=>p.workSettings.GetPriority(work)>0&&!p.WorkTypeIsDisabled(work)&&!target.IsForbidden(p)&&p.Position.DistanceTo(target.Position)<=40&&p.CanReach(target,PathEndMode.InteractionCell,Danger.None)&&(wanted.skillRequirements==null||wanted.skillRequirements.All(s=>p.skills?.GetSkill(s.skill)!=null&&!p.skills.GetSkill(s.skill).TotallyDisabled&&p.skills.GetSkill(s.skill).Level>=s.minLevel)))){
+    // The bench token closes the list (#242): a moved world names the rule that moved before the hash.
+    if(Snapshot(bench,giver,context).Token!=command.Bench.ExpectedSnapshotToken){failure=Refuse("bench bill stack changed since it was read");return false;}
+    return true;
+   }
    var assigned=colonists.Count(p=>p.workSettings.GetPriority(work)>0&&!p.WorkTypeIsDisabled(work));
    var reaching=colonists.Count(p=>!target.IsForbidden(p)&&p.Position.DistanceTo(target.Position)<=40&&p.CanReach(target,PathEndMode.InteractionCell,Danger.None));
    var skills=wanted.skillRequirements==null?"none":string.Join(",",wanted.skillRequirements.Select(s=>s.skill.defName+">="+s.minLevel));

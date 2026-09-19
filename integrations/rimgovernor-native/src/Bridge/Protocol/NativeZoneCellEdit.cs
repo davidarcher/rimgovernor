@@ -75,6 +75,12 @@ namespace HomeBridge.BridgeTools
             catch { return false; }
         }
 
+        internal const string Kind = "Zone cell edit";
+        private static string At(IntVec3 c) => "(" + c.x + ", " + c.z + ")";
+        // Prepare is the apply-time precondition list for expand/shrink
+        // (action-contracts.md): the zone, its consistency, every requested
+        // cell and the resulting shape, one rule at a time, so a refusal
+        // names the cell that moved.
         private static bool Prepare(Operations.EditZoneCells command, Common.ObservationContext context,
             out Zone? zone, out HashSet<IntVec3>? finalCells, out bool needsSplit, out Common.Failure failure)
         {
@@ -87,52 +93,53 @@ namespace HomeBridge.BridgeTools
 
             var map = ProtoBoundary.LoadedMap(context);
             var candidate = map.zoneManager.AllZones.FirstOrDefault(z => z.GetUniqueLoadID() == command.Zone.EntityId);
-            if (candidate == null || candidate.Cells.Count == 0) return false;
-            if (NativeZoneObservationTools.Token(candidate, context).Token != command.Zone.ExpectedSnapshotToken) return false;
-
-            // Whole-zone consistency first: neither AddCell/RemoveCell nor a
-            // later CheckContiguous may run against a zone that already has a
-            // phantom cell or a haul grid pointing away from it.
-            if (candidate.Cells.Any(c => map.zoneManager.ZoneAt(c) != candidate)) return false;
             var slotGroup = (candidate as Zone_Stockpile)?.slotGroup;
-            if (slotGroup != null && candidate.Cells.Any(c => map.haulDestinationManager?.SlotGroupAt(c) != slotGroup)) return false;
-
             var requested = command.Cells.ExplicitCells.Cells.Select(c => new IntVec3(c.X, 0, c.Z)).ToArray();
-            var currentSet = new HashSet<IntVec3>(candidate.Cells);
-            var result = new HashSet<IntVec3>(currentSet);
-
-            if (command.Edit == Operations.CellEdit.Add)
+            var adding = command.Edit == Operations.CellEdit.Add;
+            var result = new HashSet<IntVec3>();
+            var split = false;
+            var rules = new ApplyPreconditions(Kind)
+                .Present(() => candidate != null && candidate.Cells.Count > 0, "the exact zone no longer exists on this map")
+                // Whole-zone consistency first: neither AddCell/RemoveCell nor a
+                // later CheckContiguous may run against a zone that already has a
+                // phantom cell or a haul grid pointing away from it.
+                .Require(() => candidate!.Cells.All(c => map.zoneManager.ZoneAt(c) == candidate), "the zone holds a phantom cell the zone grid does not map to it")
+                .Require(() => slotGroup == null || candidate!.Cells.All(c => map.haulDestinationManager?.SlotGroupAt(c) == slotGroup), "the stockpile's haul grid no longer matches its cells");
+            if (adding)
             {
-                foreach (var c in requested)
+                foreach (var cell in requested)
                 {
-                    if (currentSet.Contains(c)) return false;
-                    if (!IsFreeGround(c, map)) return false;
-                    if (command.RequireCoveredEmpty
-                        && (!c.Roofed(map) || c.GetEdifice(map) != null || c.GetThingList(map).Count != 0 || map.roofCollapseBuffer.IsMarkedToCollapse(c)))
-                        return false;
-                    if (slotGroup != null && map.haulDestinationManager?.SlotGroupAt(c) != null) return false;
-                    result.Add(c);
+                    var c = cell;
+                    rules.Require(() => !candidate!.Cells.Contains(c), "cell " + At(c) + " is already in the zone")
+                        .Require(() => IsFreeGround(c, map), "cell " + At(c) + " is not free zoneable ground")
+                        .Require(() => !command.RequireCoveredEmpty || c.Roofed(map) && c.GetEdifice(map) == null && c.GetThingList(map).Count == 0 && !map.roofCollapseBuffer.IsMarkedToCollapse(c),
+                            "cell " + At(c) + " is not roofed, empty and clear")
+                        .Require(() => slotGroup == null || map.haulDestinationManager?.SlotGroupAt(c) == null, "cell " + At(c) + " already belongs to a storage group");
                 }
             }
             else
             {
-                foreach (var c in requested)
+                foreach (var cell in requested)
                 {
-                    if (!currentSet.Contains(c)) return false;
-                    if (map.zoneManager.ZoneAt(c) != candidate) return false;
-                    if (slotGroup != null && map.haulDestinationManager?.SlotGroupAt(c) != slotGroup) return false;
-                    result.Remove(c);
+                    var c = cell;
+                    rules.Require(() => candidate!.Cells.Contains(c), "cell " + At(c) + " is not in the zone")
+                        .Require(() => map.zoneManager.ZoneAt(c) == candidate, "cell " + At(c) + " is not mapped to the zone on the zone grid")
+                        .Require(() => slotGroup == null || map.haulDestinationManager?.SlotGroupAt(c) == slotGroup, "cell " + At(c) + " is not mapped to the stockpile's storage group");
                 }
             }
-
-            if (result.Count > 0 && !Contiguous(result))
-            {
-                if (!command.AllowSplit) return false;
-                needsSplit = true;
-            }
+            rules.Require(() =>
+                {
+                    result = new HashSet<IntVec3>(candidate!.Cells);
+                    foreach (var c in requested) { if (adding) result.Add(c); else result.Remove(c); }
+                    split = result.Count > 0 && !Contiguous(result);
+                    return !split || command.AllowSplit;
+                }, "the edited zone would not be contiguous and allow_split is not set")
+                .Token(() => NativeZoneObservationTools.Token(candidate!, context).Token == command.Zone.ExpectedSnapshotToken, "the zone snapshot changed since it was read");
+            if (!rules.Holds) { failure = rules.Failure(); return false; }
 
             zone = candidate;
             finalCells = result;
+            needsSplit = split;
             return true;
         }
 

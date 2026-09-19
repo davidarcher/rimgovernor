@@ -78,6 +78,9 @@ namespace HomeBridge.BridgeTools
             command?.Zone != null && command.Zone.HasEntityId && ProtoBoundary.IsIdentifier(command.Zone.EntityId)
             && command.Zone.HasExpectedSnapshotToken && ProtoBoundary.IsIdentifier(command.Zone.ExpectedSnapshotToken);
 
+        internal const string Kind = "Zone deletion";
+        // Prepare is the apply-time precondition list for delete
+        // (action-contracts.md), one rule at a time.
         private static bool Prepare(Operations.DeleteZone command, Common.ObservationContext context, out Zone? zone, out Common.Failure failure)
         {
             zone = null;
@@ -85,10 +88,13 @@ namespace HomeBridge.BridgeTools
             if (!Valid(command)) return false;
             var map = ProtoBoundary.LoadedMap(context);
             var candidate = map.zoneManager.AllZones.FirstOrDefault(z => z.GetUniqueLoadID() == command.Zone.EntityId);
-            if (candidate == null || candidate.Cells.Count == 0) return false;
-            if (NativeZoneObservationTools.Token(candidate, context).Token != command.Zone.ExpectedSnapshotToken) return false;
-            if (candidate.Cells.Any(c => map.zoneManager.ZoneAt(c) != candidate)) return false;
-            if (candidate is Zone_Stockpile stockpile && candidate.Cells.Any(c => map.haulDestinationManager?.SlotGroupAt(c) != stockpile.slotGroup)) return false;
+            var slotGroup = (candidate as Zone_Stockpile)?.slotGroup;
+            var rules = new ApplyPreconditions(Kind)
+                .Present(() => candidate != null && candidate.Cells.Count > 0, "the exact zone no longer exists on this map")
+                .Require(() => candidate!.Cells.All(c => map.zoneManager.ZoneAt(c) == candidate), "the zone holds a phantom cell the zone grid does not map to it")
+                .Require(() => slotGroup == null || candidate!.Cells.All(c => map.haulDestinationManager?.SlotGroupAt(c) == slotGroup), "the stockpile's haul grid no longer matches its cells")
+                .Token(() => NativeZoneObservationTools.Token(candidate!, context).Token == command.Zone.ExpectedSnapshotToken, "the zone snapshot changed since it was read");
+            if (!rules.Holds) { failure = rules.Failure(); return false; }
             zone = candidate;
             return true;
         }

@@ -7,6 +7,7 @@ using System.Text;
 using System.Collections.Generic;
 using RimWorld;
 using Verse;
+using Verse.AI;
 using Common = RimGovernor.Protocol.Common;
 using Authority = RimGovernor.Protocol.Authority;
 using Obs = RimGovernor.Protocol.Observations;
@@ -86,16 +87,39 @@ namespace HomeBridge.BridgeTools
         internal static Obs.SnapshotRef Snapshot(Mineable rock, Common.ObservationContext context) => new Obs.SnapshotRef {
             Context = context.Clone(), EntityId = rock.GetUniqueLoadID(), Token = Token(context.Identity, rock.GetUniqueLoadID(),
                 rock.def.building.mineableThing.defName, rock.Position.x, rock.Position.z, rock.HitPoints, rock.def.building.mineableYield, ResourceAcquisitionTools.Designated(rock)) };
+        internal const string Kind = "Mine";
+        // Miner is the colonist rule ResourceAcquisitionTools.Eligible
+        // applies to mining: someone must be able to do the work now.
+        private static bool Miner(Pawn p, Mineable rock) => !p.Downed && !p.Drafted && !p.InMentalState
+            && !p.WorkTypeIsDisabled(WorkTypeDefOf.Mining) && !rock.IsForbidden(p)
+            && p.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)
+            && p.Position.DistanceTo(rock.Position) <= 50 && p.CanReach(rock, PathEndMode.Touch, Danger.None);
+        // Prepare is the apply-time precondition list for mine
+        // (action-contracts.md): ResourceAcquisitionTools.Eligible plus the
+        // request's cell, resource and designation rules, one rule at a time;
+        // the excavation-geometry rule reports MiningBlocker's own text.
         private static bool Prepare(Operations.AcquireResource command, Common.ObservationContext context, out Mineable? rock, out Common.Failure failure)
         {
             rock = null; failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Mining requires an exact safe mineable snapshot, an eligible miner and safe excavation geometry.");
             if (!NativePlantAcquisition.Valid(command)) return false;
             var map = ProtoBoundary.LoadedMap(context);
-            if (map.AllCells.Any(c => map.roofCollapseBuffer.IsMarkedToCollapse(c))) return false;
-            rock = map.listerThings.AllThings.OfType<Mineable>().SingleOrDefault(m => m.GetUniqueLoadID() == command.Source.EntityId);
-            return rock != null && ResourceAcquisitionTools.Eligible(rock, map) && rock.Position.x == command.Cell.X && rock.Position.z == command.Cell.Z
-                && rock.def.building.mineableThing.defName == command.ResourceDefName && Snapshot(rock, context).Token == command.Source.ExpectedSnapshotToken
-                && !ResourceAcquisitionTools.Designated(rock) && new Designator_Mine().CanDesignateThing(rock).Accepted;
+            var found = map.listerThings.AllThings.OfType<Mineable>().SingleOrDefault(m => m.GetUniqueLoadID() == command.Source.EntityId);
+            var blocker = found == null ? null : BridgeCommon.Try(() => ResourceAcquisitionTools.MiningBlocker(found, map), "Unknown excavation geometry");
+            var rules = new ApplyPreconditions(Kind)
+                .Require(() => !map.AllCells.Any(c => map.roofCollapseBuffer.IsMarkedToCollapse(c)), "a roof collapse is pending on this map")
+                .Present(() => found != null && found.Spawned, "the exact rock is no longer spawned on this map")
+                .Require(() => found!.Position.x == command.Cell.X && found.Position.z == command.Cell.Z, "the rock is not at the expected cell")
+                .Require(() => found!.def.building.mineableThing?.defName == command.ResourceDefName, "the rock no longer yields the expected resource")
+                .Require(() => !found!.Position.Fogged(map), "the rock's cell is fogged")
+                .Require(() => !found!.IsForbidden(Faction.OfPlayer), "the rock is forbidden")
+                .Require(() => blocker == null, "excavation geometry is unsafe: " + blocker)
+                .Require(() => !ResourceAcquisitionTools.Designated(found!), "the rock is already designated for mining")
+                .Require(() => new Designator_Mine().CanDesignateThing(found!).Accepted, "the native mine designator refuses the rock")
+                .Require(() => map.mapPawns.FreeColonistsSpawned.Any(p => Miner(p, found!)), "no free colonist able to mine can reach the rock")
+                .Token(() => Snapshot(found!, context).Token == command.Source.ExpectedSnapshotToken, "the rock snapshot changed since it was read");
+            if (!rules.Holds) { failure = rules.Failure(); return false; }
+            rock = found;
+            return true;
         }
         internal static Operations.PreviewReply Preview(Operations.AcquireResource command, Common.ObservationContext context)
         {

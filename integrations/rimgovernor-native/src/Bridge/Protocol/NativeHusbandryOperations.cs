@@ -225,8 +225,8 @@ namespace HomeBridge.BridgeTools
             bool eligible = kind == HusbandryKind.Tame ? EligibleWild(animal) : Eligible(animal);
             if (animal == null || !eligible)
             { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, kind == HusbandryKind.Tame ? "Exact wild animal is unavailable." : "Exact eligible player animal is unavailable."); return false; }
-            if (Settings(animal) != entity.ExpectedSnapshotToken || Census(animal) != CensusToken(operation, kind))
-            { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Animal settings or census changed; observe before new admission."); return false; }
+            // The kind's own rules run before the settings/census token so a
+            // refusal names the fact that moved (#242); the token closes.
             switch (kind)
             {
                 case HusbandryKind.Train:
@@ -234,30 +234,33 @@ namespace HomeBridge.BridgeTools
                     if (trainable == null || animal.training == null || !animal.training.CanAssignToTrain(trainable).Accepted
                         || Designated(animal, DesignationDefOf.Slaughter) || Designated(animal, DesignationDefOf.ReleaseAnimalToWild))
                     { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Native training is unavailable or the animal is designated for removal."); return false; }
-                    return true;
+                    break;
                 case HusbandryKind.Slaughter:
                     if (!SafeToSlaughter(animal)) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Animal is protected or native slaughter eligibility refused it."); return false; }
-                    return true;
+                    break;
                 case HusbandryKind.Tame:
                     if (!Tameable(animal)) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Native tame eligibility refused the animal or it is already designated."); return false; }
-                    return true;
+                    break;
                 case HusbandryKind.Area:
                     if (!SupportsAllowedAreas(animal)) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Native does not let this animal carry an allowed area."); return false; }
                     if (operation.SetAnimalArea.Area.ValueCase == Operations.Assignment.ValueOneofCase.EntityId && ResolveArea(animal, operation.SetAnimalArea.Area.EntityId) == null)
                     { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact allowed area is unavailable on the animal's map."); return false; }
-                    return true;
+                    break;
                 case HusbandryKind.Master:
                     if (!Obedient(animal)) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A master requires learned Obedience."); return false; }
                     if (operation.SetAnimalMaster.Master.ValueCase == Operations.Assignment.ValueOneofCase.EntityId && ResolveMaster(animal, operation.SetAnimalMaster.Master.EntityId) == null)
                     { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact master is not a spawned free colonist on the animal's map."); return false; }
-                    return true;
+                    break;
                 case HusbandryKind.Follow:
                     if (!Obedient(animal) || animal.playerSettings == null) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Following requires learned Obedience."); return false; }
-                    return true;
+                    break;
                 default:
                     if (!SafeToRelease(animal)) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Animal is protected or native release eligibility refused it."); return false; }
-                    return true;
+                    break;
             }
+            if (Settings(animal) != entity.ExpectedSnapshotToken || Census(animal) != CensusToken(operation, kind))
+            { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Animal settings or census changed; observe before new admission."); return false; }
+            return true;
         }
 
         private static Receipts.EffectEvidence Evidence(string animalId, string? before, string after, string census, HusbandryKind kind, string? trainableDef, bool present, Pawn? animal = null, NativeHusbandryRecord? record = null)

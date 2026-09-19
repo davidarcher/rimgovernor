@@ -33,6 +33,7 @@ import (
 	// Registered case areas.
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/animals"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/authority"
+	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/apply"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/bed"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/bills"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/caravan"

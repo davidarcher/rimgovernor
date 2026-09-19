@@ -18,6 +18,7 @@ namespace HomeBridge.BridgeTools
     // supply cohort; this boundary only permits Allow on an exact observed item.
     internal static class NativeSupplyAllow
     {
+        internal const string Kind = "Allow";
         internal static bool Valid(Operations.DesignateThing? command) => command != null
             && NativeDraftProtocol.ValidEntity(command.Target) && command.HasDesignation
             && command.Designation == Operations.ThingDesignation.Allow;
@@ -63,13 +64,20 @@ namespace HomeBridge.BridgeTools
             if (command.HasDesignation && command.Designation != Operations.ThingDesignation.Allow)
             { failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Only the Allow designation is implemented by this adapter."); return false; }
             if (!Valid(command)) return false;
-            thing = ProtoBoundary.LoadedMap(context).listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == command.Target.EntityId);
-            if (thing == null || !Eligible(thing))
-            { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact eligible loose supply is unavailable."); return false; }
-            if (Snapshot(thing, context)?.Token != command.Target.ExpectedSnapshotToken)
-            { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Supply snapshot changed; observe before new admission."); return false; }
-            if (!thing.IsForbidden(Faction.OfPlayer) || !new Designator_Unforbid().CanDesignateThing(thing).Accepted)
-            { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Ordinary native Allow is not available for this item."); return false; }
+            var found = ProtoBoundary.LoadedMap(context).listerThings.AllThings.SingleOrDefault(t => t.GetUniqueLoadID() == command.Target.EntityId);
+            // The apply-time precondition list for Allow
+            // (action-contracts.md): Eligible one rule at a time, then the
+            // designator's own answer, then the token.
+            var rules = new ApplyPreconditions(Kind)
+                .Present(() => found != null && !found.Destroyed && found.Spawned && ProtoBoundary.IsLoaded(found.Map), "the exact item is no longer spawned on this map")
+                .Require(() => found!.def.EverHaulable && found.def.category == ThingCategory.Item && found.TryGetComp<CompForbiddable>() != null, "the item is not a forbiddable haulable item")
+                .Require(() => !found!.Position.Fogged(found.Map), "the item's cell is fogged")
+                .Require(() => Faction.OfPlayerSilentFail != null && (found!.Faction == null || found.Faction == Faction.OfPlayerSilentFail), "the item belongs to another faction")
+                .Require(() => found!.IsForbidden(Faction.OfPlayer), "the item is already allowed")
+                .Require(() => new Designator_Unforbid().CanDesignateThing(found!).Accepted, "the native unforbid designator refuses the item")
+                .Token(() => Snapshot(found!, context)?.Token == command.Target.ExpectedSnapshotToken, "the item snapshot changed since it was read");
+            if (!rules.Holds) { failure = rules.Failure(); return false; }
+            thing = found;
             return true;
         }
 

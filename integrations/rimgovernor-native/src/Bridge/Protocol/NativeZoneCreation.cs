@@ -125,17 +125,21 @@ namespace HomeBridge.BridgeTools
                     && command.Stockpile != null && command.Stockpile.HasPriority && NativeStockpileSettings.Valid(command.Stockpile);
             return false;
         }
+        internal const string Kind = "Zone creation";
+        private static string At(IntVec3 c) => "(" + c.x + ", " + c.z + ")";
         // Prepare separates a request that cannot be evaluated (malformed,
         // stale map snapshot, unresolvable configuration) from ground that
         // refuses the zone (ground true): the failure always names the rule,
         // and a preview reports a ground refusal as an evaluation the
-        // controller can move past rather than a failed read.
+        // controller can move past rather than a failed read. The ground
+        // rules are the apply-time precondition list (action-contracts.md),
+        // one rule per cell so a refusal names the cell that moved; the
+        // whole-map zone census token is compared after them.
         private static bool Prepare(Operations.CreateZone command, Common.ObservationContext context, out ThingDef? crop, out Common.Failure failure, out bool ground)
         {
             crop = null; ground = false; failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Zone creation requires an available configuration and an exact map snapshot.");
             if (!Valid(command)) return false;
             var map = ProtoBoundary.LoadedMap(context);
-            if (MapSnapshot(map, context).Token != command.ExpectedMapSnapshotToken) return false;
             var cells = command.Cells.ExplicitCells.Cells.Select(c => new IntVec3(c.X, 0, c.Z)).ToArray();
             var selected = new HashSet<IntVec3>(cells);
             var reached = new HashSet<IntVec3> { cells[0] };
@@ -143,6 +147,7 @@ namespace HomeBridge.BridgeTools
             queue.Enqueue(cells[0]);
             while (queue.Count > 0) { var c = queue.Dequeue(); foreach (var offset in GenAdj.CardinalDirections) { var next = c + offset; if (selected.Contains(next) && reached.Add(next)) queue.Enqueue(next); } }
             if (reached.Count != selected.Count) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Zone creation requires cardinally connected cells."); return false; }
+            var rules = new ApplyPreconditions(Kind);
             if (command.Type == Operations.ZoneType.Growing)
             {
                 crop = DefDatabase<ThingDef>.GetNamedSilentFail(command.Growing.PlantDef);
@@ -150,34 +155,49 @@ namespace HomeBridge.BridgeTools
                     || crop.researchPrerequisites?.Any(r => !r.IsFinished) == true) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Zone creation requires an available crop."); return false; }
                 var designator = new Designator_ZoneAdd_Growing();
                 var wanted = crop;
-                ground = true; failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Zone creation requires fresh free ground in the growing season.");
+                ground = true;
                 // The growing season is each cell's own temperature, so a
                 // heated greenhouse under a roof sows in winter while open
                 // ground follows the outdoor season; the controller decides
                 // whether a roofed cell is lit enough to be worth planting.
-                return cells.All(c => c.InBounds(map) && !c.Fogged(map) && c.Walkable(map) && PlantUtility.GrowthSeasonNow(c, map, wanted)
-                    && c.GetEdifice(map) == null && !c.GetThingList(map).Any(t => t is Blueprint || t is Frame) && map.zoneManager.ZoneAt(c) == null && !map.zoneManager.AllZones.Any(z => z.Cells.Contains(c))
-                    && !map.roofCollapseBuffer.IsMarkedToCollapse(c) && map.fertilityGrid.FertilityAt(c) >= wanted.plant.fertilityMin
-                    && designator.CanDesignateCell(c).Accepted);
-            }
-            if (NativeStockpileSettings.Resolve(command.Stockpile, StockpileFilter.StorableDefs(null)) == null) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Zone creation requires resolvable stockpile settings."); return false; }
-            // A protected store needs a roof and clear, empty, walkable floor;
-            // the caller (a verified room) is responsible for the roof already
-            // existing -- this only refuses ground that is not actually safe.
-            // "Empty" is the cell census's own StorageEmpty: filth, a pawn or
-            // a mote on the floor never made a stockpile cell unusable, and a
-            // stricter check here refused every site the controller picked
-            // from that census on a lived-in floor (#216, #223).
-            ground = true;
-            foreach (var c in cells) {
-                if (!(c.InBounds(map) && !c.Fogged(map) && c.Walkable(map) && c.Roofed(map)
-                    && c.GetEdifice(map) == null && StorageEmpty(c, map)
-                    && map.zoneManager.ZoneAt(c) == null && !map.zoneManager.AllZones.Any(z => z.Cells.Contains(c))
-                    && !map.roofCollapseBuffer.IsMarkedToCollapse(c))) {
-                    failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Zone creation requires fresh free ground: cell (" + c.x + ", " + c.z + ") is not roofed, walkable, unzoned, empty storage ground.");
-                    return false;
+                foreach (var cell in cells)
+                {
+                    var c = cell;
+                    rules.Require(() => c.InBounds(map) && !c.Fogged(map), "cell " + At(c) + " is out of bounds or fogged")
+                        .Require(() => c.Walkable(map), "cell " + At(c) + " is not walkable")
+                        .Require(() => PlantUtility.GrowthSeasonNow(c, map, wanted), "cell " + At(c) + " is outside the crop's growing season")
+                        .Require(() => c.GetEdifice(map) == null && !c.GetThingList(map).Any(t => t is Blueprint || t is Frame), "cell " + At(c) + " holds a building, blueprint or frame")
+                        .Require(() => map.zoneManager.ZoneAt(c) == null && !map.zoneManager.AllZones.Any(z => z.Cells.Contains(c)), "cell " + At(c) + " is already zoned")
+                        .Require(() => !map.roofCollapseBuffer.IsMarkedToCollapse(c), "cell " + At(c) + " is marked for roof collapse")
+                        .Require(() => map.fertilityGrid.FertilityAt(c) >= wanted.plant.fertilityMin, "cell " + At(c) + " is not fertile enough for the crop")
+                        .Require(() => designator.CanDesignateCell(c).Accepted, "cell " + At(c) + " is refused by the native growing-zone designator");
                 }
             }
+            else
+            {
+                if (NativeStockpileSettings.Resolve(command.Stockpile, StockpileFilter.StorableDefs(null)) == null) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Zone creation requires resolvable stockpile settings."); return false; }
+                // A protected store needs a roof and clear, empty, walkable floor;
+                // the caller (a verified room) is responsible for the roof already
+                // existing -- this only refuses ground that is not actually safe.
+                // "Empty" is the cell census's own StorageEmpty: filth, a pawn or
+                // a mote on the floor never made a stockpile cell unusable, and a
+                // stricter check here refused every site the controller picked
+                // from that census on a lived-in floor (#216, #223).
+                ground = true;
+                foreach (var cell in cells)
+                {
+                    var c = cell;
+                    rules.Require(() => c.InBounds(map) && !c.Fogged(map) && c.Walkable(map) && c.Roofed(map)
+                        && c.GetEdifice(map) == null && StorageEmpty(c, map)
+                        && map.zoneManager.ZoneAt(c) == null && !map.zoneManager.AllZones.Any(z => z.Cells.Contains(c))
+                        && !map.roofCollapseBuffer.IsMarkedToCollapse(c),
+                        "fresh free ground required: cell " + At(c) + " is not roofed, walkable, unzoned, empty storage ground");
+                }
+            }
+            if (!rules.Holds) { failure = rules.Failure(); return false; }
+            ground = false;
+            if (MapSnapshot(map, context).Token != command.ExpectedMapSnapshotToken)
+            { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, ApplyPreconditions.Detail(Kind, "the map's zone census changed since it was read")); return false; }
             return true;
         }
         // StorageEmpty is the one definition of a cell with nothing stored or

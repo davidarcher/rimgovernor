@@ -22,11 +22,7 @@ namespace HomeBridge.BridgeTools
             && command.Cell != null && command.Cell.HasX && command.Cell.HasZ && command.Cell.X >= 0 && command.Cell.Z >= 0;
         private static bool Eligible(Plant plant) => ProtoBoundary.IsLoaded(plant.Map) && ResourceAcquisitionTools.Eligible(plant, plant.Map)
             && !(plant.Map.zoneManager.ZoneAt(plant.Position) is Zone_Growing)
-            && plant.Map.mapPawns.FreeColonistsSpawned.Any(p => p.workSettings?.Initialized == true
-                && p.workSettings.GetPriority(WorkTypeDefOf.PlantCutting) > 0 && !p.WorkTypeIsDisabled(WorkTypeDefOf.PlantCutting)
-                && !p.Downed && !p.Drafted && !p.InMentalState && !plant.IsForbidden(p)
-                && p.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation) && p.Position.DistanceTo(plant.Position) <= 50
-                && p.CanReach(plant, PathEndMode.Touch, Danger.None));
+            && plant.Map.mapPawns.FreeColonistsSpawned.Any(p => Cutter(p, plant));
         internal static string Token(Common.Identity identity, string id, string resource, int x, int z, float growth, int yield, bool designated)
         {
             using (var bytes = new MemoryStream())
@@ -38,7 +34,7 @@ namespace HomeBridge.BridgeTools
         }
         // The token hashes harvestability rather than YieldNow, whose random rounding would make a
         // read's token miss its own execute.
-        private static Obs.SnapshotRef Snapshot(Plant plant, Common.ObservationContext context) => new Obs.SnapshotRef {
+        internal static Obs.SnapshotRef Snapshot(Plant plant, Common.ObservationContext context) => new Obs.SnapshotRef {
             Context = context.Clone(), EntityId = plant.GetUniqueLoadID(), Token = Token(context.Identity, plant.GetUniqueLoadID(),
                 plant.def.plant.harvestedThingDef.defName, plant.Position.x, plant.Position.z, plant.Growth, plant.HarvestableNow ? 1 : 0, ResourceAcquisitionTools.Designated(plant)) };
         internal static void Read(Obs.ColonyFactsSnapshot result, Map map, IntVec3 center, Func<ThingDef, bool> humanFood, int limit)
@@ -67,16 +63,40 @@ namespace HomeBridge.BridgeTools
             NativeHuntAcquisition.Read(result, map, center, limit);
             result.PendingWoodUnits = pending.Where(p => p.def.plant.harvestedThingDef == ThingDefOf.WoodLog).Sum(p => (double)p.YieldNow());
         }
+        internal const string Kind = "Plant acquisition";
+        // Cutter is the colonist rule shared by the census (Eligible) and the
+        // apply-time check: someone must be able to do the work now.
+        private static bool Cutter(Pawn p, Plant plant) => p.workSettings?.Initialized == true
+            && p.workSettings.GetPriority(WorkTypeDefOf.PlantCutting) > 0 && !p.WorkTypeIsDisabled(WorkTypeDefOf.PlantCutting)
+            && !p.Downed && !p.Drafted && !p.InMentalState && !plant.IsForbidden(p)
+            && p.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation) && p.Position.DistanceTo(plant.Position) <= 50
+            && p.CanReach(plant, PathEndMode.Touch, Danger.None);
+        // Prepare is the apply-time precondition list for cut/harvest
+        // (action-contracts.md): the conjunction is Eligible plus the
+        // request's own cell, resource and designation rules, evaluated one
+        // rule at a time so a refusal names the fact that moved.
         private static bool Prepare(Operations.AcquireResource command, Common.ObservationContext context, out Plant? plant, out Common.Failure failure)
         {
             plant = null; failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Acquisition requires an exact safe mature wild plant snapshot.");
             if (!Valid(command) || !NativeAcquisitionTracking.Ready) return false;
             var map = ProtoBoundary.LoadedMap(context);
-            if (map.AllCells.Any(c => map.roofCollapseBuffer.IsMarkedToCollapse(c))) return false;
-            plant = map.listerThings.AllThings.OfType<Plant>().SingleOrDefault(p => p.GetUniqueLoadID() == command.Source.EntityId);
-            return plant != null && Eligible(plant) && plant.Position.x == command.Cell.X && plant.Position.z == command.Cell.Z
-                && plant.def.plant.harvestedThingDef.defName == command.ResourceDefName && Snapshot(plant, context).Token == command.Source.ExpectedSnapshotToken
-                && !ResourceAcquisitionTools.Designated(plant) && ResourceAcquisitionTools.DesignatorFor(plant).CanDesignateThing(plant).Accepted;
+            var found = map.listerThings.AllThings.OfType<Plant>().SingleOrDefault(p => p.GetUniqueLoadID() == command.Source.EntityId);
+            var rules = new ApplyPreconditions(Kind)
+                .Require(() => !map.AllCells.Any(c => map.roofCollapseBuffer.IsMarkedToCollapse(c)), "a roof collapse is pending on this map")
+                .Present(() => found != null && found.Spawned && ProtoBoundary.IsLoaded(found.Map), "the exact plant is no longer spawned on this map")
+                .Require(() => found!.Position.x == command.Cell.X && found.Position.z == command.Cell.Z, "the plant is not at the expected cell")
+                .Require(() => found!.def.plant.harvestedThingDef?.defName == command.ResourceDefName, "the plant no longer yields the expected resource")
+                .Require(() => !found!.Position.Fogged(map), "the plant's cell is fogged")
+                .Require(() => !found!.IsForbidden(Faction.OfPlayer), "the plant is forbidden")
+                .Require(() => found!.HarvestableNow, "the plant is not harvestable now")
+                .Require(() => !(map.zoneManager.ZoneAt(found!.Position) is Zone_Growing), "the plant stands in a growing zone")
+                .Require(() => !ResourceAcquisitionTools.Designated(found!), "the plant is already designated")
+                .Require(() => ResourceAcquisitionTools.DesignatorFor(found!).CanDesignateThing(found).Accepted, "the native designator refuses the plant")
+                .Require(() => map.mapPawns.FreeColonistsSpawned.Any(p => Cutter(p, found!)), "no free colonist with plant cutting enabled can reach the plant")
+                .Token(() => Snapshot(found!, context).Token == command.Source.ExpectedSnapshotToken, "the plant snapshot changed since it was read");
+            if (!rules.Holds) { failure = rules.Failure(); return false; }
+            plant = found;
+            return true;
         }
         internal static Operations.PreviewReply Preview(Operations.AcquireResource command, Common.ObservationContext context)
         {
