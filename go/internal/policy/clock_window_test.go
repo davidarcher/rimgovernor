@@ -70,6 +70,30 @@ func TestClockWindowCombatPlanWatchesLiveHostiles(t *testing.T) {
 	if d := EvaluateClockWindow(f, l); !d.Admitted || d.Mode != ClockWindowCombat || len(d.Hostiles) != 0 {
 		t.Fatal(d)
 	}
+	// A building no squad can answer (#326) is watched, not held: without
+	// a plan the colony window runs around it, and the planner's verdict
+	// has to be a known no-squad answer; a hostile pawn beside it still
+	// holds.
+	hive := EmergencyThreat{ID: "hive", Kind: HostileBuilding, Dead: domain.Known(false), Downed: domain.Known(false), Animal: domain.Known(false), SnapshotToken: "cas", Definition: "Hive"}
+	f.CombatPlan = domain.Known(false)
+	threats(hive)
+	if d := EvaluateClockWindow(f, l); d.Admitted || len(d.Refused) != 1 || d.Refused[0] != ClockWindowUnsafe {
+		t.Fatal(d)
+	}
+	f.SquadUnanswered = domain.Known(false)
+	if d := EvaluateClockWindow(f, l); d.Admitted || len(d.Refused) != 1 || d.Refused[0] != ClockWindowUnsafe {
+		t.Fatal(d)
+	}
+	f.SquadUnanswered = domain.Known(true)
+	if d := EvaluateClockWindow(f, l); !d.Admitted || d.Mode != ClockWindowColony || len(d.Hostiles) != 0 || d.MaxTicks != 100 {
+		t.Fatal(d)
+	}
+	threats(live("zed", Hostile), hive)
+	if d := EvaluateClockWindow(f, l); d.Admitted || len(d.Refused) != 1 || d.Refused[0] != ClockWindowUnsafe {
+		t.Fatal(d)
+	}
+	f.SquadUnanswered = domain.Unknown[bool]()
+	f.CombatPlan = domain.Known(true)
 	threats(live("zed", Hostile), live("abe", Hostile), live("wolf", HuntingPredator), EmergencyThreat{ID: "down", Kind: Hostile, Dead: domain.Known(false), Downed: domain.Known(true)}, live("bear", NearbyPredator))
 	// A zero combat budget keeps the colony budget; unknown hostile status
 	// still refuses even under a plan.

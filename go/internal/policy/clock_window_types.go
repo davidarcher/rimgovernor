@@ -51,6 +51,13 @@ type ClockWindowFacts struct {
 	// CombatPlan is whether the ActiveCombat goal holds an admitted plan with
 	// open work. Only then may live hostiles be watched instead of refused.
 	CombatPlan domain.Fact[bool]
+	// SquadUnanswered is whether the defense planner, at this tick, found
+	// no eligible squad for the emergency's threats. A hostile building it
+	// cannot answer is then watched like a distant one, so the colony keeps
+	// running around it, instead of holding the clock for good (#326); a
+	// hostile pawn still holds, a raid must not auto-advance. Unknown means
+	// the planner has not reported and the building holds.
+	SquadUnanswered domain.Fact[bool]
 }
 
 // CombatMaxTicks bounds a combat window; zero means the colony budget. A raid

@@ -29,6 +29,9 @@ const (
 	BuildingMethodNoSpace      RoutineBuildingReason = "insufficient_verified_space"
 	BuildingMethodUsed         RoutineBuildingReason = "method_already_used"
 	BuildingMethodRefused      RoutineBuildingReason = "shared_admission_refused"
+	// BuildingMethodNoSquad is the defense planner's answer when live
+	// threats remain and no eligible squad can be assigned to them (#326).
+	BuildingMethodNoSquad RoutineBuildingReason = "no_eligible_squad"
 	// BuildingShellBlocked: a shell begun earlier stands at the colony centre
 	// but the cells it still needs are not placeable this review, or it
 	// stands whole without a finished room inside; the routine waits rather

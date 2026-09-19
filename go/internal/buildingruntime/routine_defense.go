@@ -212,7 +212,7 @@ func (r *RoutineDefensePlanner) step(call, epoch context.Context, arbiter *stepA
 		assignments, ok = policy.SelectSquadDefense(threats, defenders)
 	}
 	if !ok {
-		return RoutineDefenseResult{Reason: BuildingMethodUsed}, nil
+		return RoutineDefenseResult{Reason: BuildingMethodNoSquad}, nil
 	}
 	defenderIDs := make([]domain.PawnID, 0, len(assignments))
 	for _, a := range assignments {

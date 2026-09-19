@@ -46,6 +46,7 @@ func EvaluateClockWindow(f ClockWindowFacts, limits ClockWindowLimits) ClockWind
 		hold(ClockWindowStale)
 	}
 	combatPlan, combatKnown := f.CombatPlan.Value()
+	unanswered, unansweredKnown := f.SquadUnanswered.Value()
 	var hostiles []PawnID
 	combat := false
 	buildings := hostileBuildingIDs(f.Emergency)
@@ -69,6 +70,12 @@ func EvaluateClockWindow(f ClockWindowFacts, limits ClockWindowLimits) ClockWind
 				// unacknowledged hostile pawns only and resolves every
 				// acknowledged id as a pawn.
 				combat = true
+			case h.Pawn != "" && buildings[h.Pawn] && unansweredKnown && unanswered:
+				// No squad can be assigned (every colonist downed or
+				// incapable of violence): the building goes nowhere, so
+				// it is watched rather than held (#326). The planner
+				// reports again at every stop and a plan it admits later
+				// makes the next window a combat one.
 			case combatPlan && h.Pawn != "":
 				hostiles = append(hostiles, h.Pawn)
 			default:

@@ -241,7 +241,10 @@ deadline. Admission carries its snapshot and review revision for dispatch bindin
 
 A live, undowned hostile or hunting predator refuses the window (`unsafe_colony`)
 unless the facts say the ActiveCombat goal holds an admitted plan with open work;
-unknown plan evidence refuses as `unknown_facts`. A hostile or hunting *animal*,
+unknown plan evidence refuses as `unknown_facts`. A hostile building alone
+refuses only while the defense planner has not reported `no_eligible_squad`
+for this stop (`ClockWindowFacts.SquadUnanswered`); reported, the building is
+watched and the colony window admits (#326). A hostile or hunting *animal*,
 or a hostile building (#246, #340), known to be at least
 `policy.DistantThreatCells` (50) from every colonist is not an emergency at all: no planner answers it, and the native supervisor's own
 radius (`hostile_within`, 20 cells in serve; 40 for a predator hunt) stops a

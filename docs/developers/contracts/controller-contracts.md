@@ -585,7 +585,12 @@ target while the goal is open for something else (#340: a map-gen hive in a
 cave held every window for good); the building's id is never
 acknowledged to the native watcher, which resolves every acknowledged id as a
 spawned pawn and only stops for unacknowledged hostile pawns, so a lone building
-admits a combat window with an empty acknowledgement list. Squad defense assigns buildings only once no eligible hostile pawn remains (a
+admits a combat window with an empty acknowledgement list. A building the
+planner cannot answer -- every colonist downed or incapable of violence, so
+`RoutineDefensePlanner` reports `no_eligible_squad` at this stop -- is watched
+rather than held (#326): the deficit stays open, colony windows run around it,
+and a plan admitted at a later stop makes the next window a combat one. A
+hostile pawn with no squad still holds; a raid never auto-advances. Squad defense assigns buildings only once no eligible hostile pawn remains (a
 hive's insects and a ship part's guards are the live danger) and always in melee;
 the controller never plans a ranged attack on a building. The melee executor
 reads the building's token from the census row instead of a pawn snapshot, and
