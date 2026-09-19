@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"errors"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"testing"
@@ -39,9 +38,27 @@ func TestRoutineGearNeedsPersistUnknownRecoveryRenewalAndManual(t *testing.T) {
 	if g.Goal.Need != domain.NeedDeficit || g.Goal.Epoch <= epoch {
 		t.Fatal("native replacement did not reopen equipment need", g)
 	}
-	method := plan(t, "gear-pending", "gear-action")
-	if _, err := db.CommitGoalMethod(context.Background(), g.Goal.ID, g.Revision, "method", method); !errors.Is(err, ErrNotAdmitted) {
-		t.Fatal("unavailable gear execution family admitted a method", err)
+	// The equipment goal ranks for a development slot like any other
+	// optional need (#233): with the slot it admits the gear family's
+	// replacement bill on a standing bench.
+	bill, err := domain.NewProductionBill("bench", "Make_Apparel_BasicShirt", "bench-cas", domain.StockTarget, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	action, err := domain.NewProductionBillAction("gear-action", bill)
+	if err != nil {
+		t.Fatal(err)
+	}
+	method, err := domain.NewPlan("gear-pending", 1, []domain.Action{action})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.CommitGoalMethod(context.Background(), g.Goal.ID, g.Revision, "method", method); err != nil {
+		t.Fatal("selected equipment goal refused a bill", err)
+	}
+	g, err = db.LoadGoal(context.Background(), g.Goal.ID)
+	if err != nil || len(g.Methods) != 1 {
+		t.Fatal(g, err)
 	}
 	r.Enabled = false
 	reviewRoutine(t, db, &r)

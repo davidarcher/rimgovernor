@@ -355,5 +355,12 @@ func (client *Client) ReadSupplyStock(ctx context.Context, identity *c.Identity,
 		}
 		out = append(out, stock)
 	}
+	// A complete page groups the things present: a requested definition
+	// with no row is a known zero, not an unobserved stock.
+	for _, n := range defNames {
+		if !seenOut[n] {
+			out = append(out, policy.Stock{Resource: policy.Resource(n), Available: domain.Known(int64(0))})
+		}
+	}
 	return out, raw, nil
 }

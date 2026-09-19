@@ -19,6 +19,8 @@ const (
 	WorkBasic        WorkType = "BasicWorker"
 	WorkHandling     WorkType = "Handling"
 	WorkFirefighter  WorkType = "Firefighter"
+	WorkTailoring    WorkType = "Tailoring"
+	WorkSmithing     WorkType = "Smithing"
 )
 
 // LaborProfile lists the native work types a goal's methods can put pawns to:
@@ -39,6 +41,10 @@ func GoalLabor(id GoalID) LaborProfile {
 		return LaborProfile{WorkResearch}
 	case MaintainResource:
 		return LaborProfile{WorkMining, WorkPlantCutting, WorkCrafting}
+	case MaintainEquipment:
+		// A wear order is a forced job any pawn carries; the replacement
+		// bill needs the bench's work type (tailoring, smithing or crafting).
+		return LaborProfile{WorkTailoring, WorkSmithing, WorkCrafting}
 	case SecureSupplies, MaintainStorage, MaintainWaste:
 		return LaborProfile{WorkHauling}
 	case MaintainCleanFacilities:

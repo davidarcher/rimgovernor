@@ -781,6 +781,9 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 	if sc.routineWastePlans {
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainWaste)
 	}
+	if sc.routineGearPlans {
+		capabilities.Methods = append(capabilities.Methods, policy.MaintainEquipment)
+	}
 	if sc.routineBlightPlans {
 		capabilities.Methods = append(capabilities.Methods, policy.RemoveBlight)
 	}

@@ -138,11 +138,12 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if !known {
 		return RoutineWorkResult{Reason: BuildingMethodUnknown}, nil
 	}
-	targets, err := r.reviewer.resourceTargets(call, state.Snapshot, read.Projection.Facts.Resources)
+	resourceTargets, err := r.reviewer.resourceTargets(call, state.Snapshot, read.Projection.Facts.Resources)
 	if err != nil {
 		return RoutineWorkResult{}, err
 	}
-	benchWork, err := routineBenchWork(call, r.benches, state.Snapshot, plans, playerPlans, targets, deficit)
+	targets := routineDeficitTargets(resourceTargets, deficit, read.Projection.Facts.Gear)
+	benchWork, err := routineBenchWork(call, r.benches, state.Snapshot, plans, playerPlans, targets, len(targets) > 0)
 	if err != nil {
 		return RoutineWorkResult{}, err
 	}

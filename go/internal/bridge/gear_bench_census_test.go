@@ -112,16 +112,20 @@ func TestReadSupplyStockReportsKnownAvailability(t *testing.T) {
 		}
 		return pbResult(reply), nil
 	}}, time.Second)
-	stock, _, err := client.ReadSupplyStock(context.Background(), pbIdentity(), []string{"Synthread"})
+	stock, _, err := client.ReadSupplyStock(context.Background(), pbIdentity(), []string{"Synthread", "Cloth"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(stock) != 1 || stock[0].Resource != "Synthread" {
+	if len(stock) != 2 || stock[0].Resource != "Synthread" || stock[1].Resource != "Cloth" {
 		t.Fatal(stock)
 	}
 	available, known := stock[0].Available.Value()
 	if !known || available != 12 {
 		t.Fatal(stock[0])
+	}
+	// A complete census with no row for a requested definition holds none of it.
+	if none, known := stock[1].Available.Value(); !known || none != 0 {
+		t.Fatal(stock[1])
 	}
 }
 

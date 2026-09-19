@@ -748,9 +748,6 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if !positive(gear.Recovered) {
 		addGoal(MaintainEquipment, 3)
 		r.Goals[len(r.Goals)-1].Deficit = gear.Deficit
-		// Gear execution remains gated in G01.07d. Keep the need visible without
-		// reserving optional capacity for an action family that cannot run yet.
-		r.Goals[len(r.Goals)-1].MethodUnavailable = true
 	}
 	addAssessment := func(id GoalID, priority int, recovered domain.Fact[bool]) {
 		need := domain.NeedUnknown

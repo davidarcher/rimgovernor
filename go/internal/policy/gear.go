@@ -23,6 +23,15 @@ type GearReplacement struct {
 	Stuff      Resource
 	Reason     string
 }
+
+// GearApparel is one worn garment as the native loadout reports it:
+// Condition is its hit-point fraction (1 for a definition without hit
+// points) and Groups the body-part groups it covers.
+type GearApparel struct {
+	Definition Resource
+	Condition  float64
+	Groups     []string
+}
 type GearPawn struct {
 	Pawn         PawnID
 	Loadout      string
@@ -30,11 +39,71 @@ type GearPawn struct {
 	Deficit      domain.Fact[bool]
 	Candidates   domain.Fact[[]GearCandidate]
 	Replacements domain.Fact[[]GearReplacement]
+	Apparel      domain.Fact[[]GearApparel]
 }
 type GearObservation struct{ Pawns []GearPawn }
+
+// GearReview is the census MaintainEquipment is judged on. Recovered and
+// Deficit follow the native deficit flags and candidates; WornOut and
+// Uncovered are the apparel-condition census (the fraction of pawns wearing
+// any garment at or under the tattered threshold, and the fraction with a
+// core body-part group uncovered), known only when every pawn's worn
+// apparel was observed.
 type GearReview struct {
 	Recovered domain.Fact[bool]
 	Deficit   domain.Fact[float64]
+	WornOut   domain.Fact[float64]
+	Uncovered domain.Fact[float64]
+}
+
+// GearTatteredCondition is the hit-point fraction at or under which native
+// upkeep counts a garment as worn out and raises a replacement need.
+const GearTatteredCondition = .5
+
+// GearCoreGroups are the body-part groups a dressed colonist covers; a pawn
+// wearing nothing over one of them is uncovered.
+var GearCoreGroups = []string{"Torso", "Legs"}
+
+func (a GearApparel) valid() bool {
+	if !validResource(a.Definition) || !foodNumber(a.Condition) || a.Condition > 1 || len(a.Groups) > 64 {
+		return false
+	}
+	seen := map[string]bool{}
+	for _, g := range a.Groups {
+		if !foodID(g) || seen[g] {
+			return false
+		}
+		seen[g] = true
+	}
+	return true
+}
+
+// tattered reports a pawn wearing any garment at or under the threshold.
+func (p GearPawn) tattered() bool {
+	apparel, _ := p.Apparel.Value()
+	for _, a := range apparel {
+		if a.Condition <= GearTatteredCondition {
+			return true
+		}
+	}
+	return false
+}
+
+// uncovered reports a pawn with a core body-part group no garment covers.
+func (p GearPawn) uncovered() bool {
+	apparel, _ := p.Apparel.Value()
+	for _, group := range GearCoreGroups {
+		covered := false
+		for _, a := range apparel {
+			for _, g := range a.Groups {
+				covered = covered || g == group
+			}
+		}
+		if !covered {
+			return true
+		}
+	}
+	return false
 }
 
 func (v GearObservation) Validate() error {
@@ -71,6 +140,16 @@ func (v GearObservation) Validate() error {
 				identities[n] = true
 			}
 		}
+		if apparel, known := p.Apparel.Value(); known {
+			if len(apparel) > 64 {
+				return errors.New("gear apparel exceeds bound")
+			}
+			for _, a := range apparel {
+				if !a.valid() {
+					return errors.New("invalid gear apparel")
+				}
+			}
+		}
 	}
 	return nil
 }
@@ -88,7 +167,7 @@ func ReviewGear(f domain.Fact[GearObservation]) (GearReview, error) {
 	if len(v.Pawns) == 0 {
 		return GearReview{}, nil
 	}
-	missing := 0
+	missing, tattered, uncovered, dressed := 0, 0, 0, true
 	for _, p := range v.Pawns {
 		deficit, dk := p.Deficit.Value()
 		candidates, ck := p.Candidates.Value()
@@ -98,8 +177,56 @@ func ReviewGear(f domain.Fact[GearObservation]) (GearReview, error) {
 		if deficit || len(candidates) > 0 {
 			missing++
 		}
+		if _, known := p.Apparel.Value(); !known {
+			dressed = false
+			continue
+		}
+		if p.tattered() {
+			tattered++
+		}
+		if p.uncovered() {
+			uncovered++
+		}
 	}
-	return GearReview{Recovered: domain.Known(missing == 0), Deficit: domain.Known(float64(missing) / float64(len(v.Pawns)))}, nil
+	n := float64(len(v.Pawns))
+	review := GearReview{Recovered: domain.Known(missing == 0), Deficit: domain.Known(float64(missing) / n)}
+	if dressed {
+		review.WornOut = domain.Known(float64(tattered) / n)
+		review.Uncovered = domain.Known(float64(uncovered) / n)
+	}
+	return review, nil
+}
+
+// GearReplacementNeeds is the definitions the census asks a bench to produce
+// for pawns in deficit (replacement needs with no loose candidate to wear),
+// sorted and deduplicated. Empty unless the census is known, valid and not
+// recovered, so the work planner enables a bench's work type exactly while
+// MaintainEquipment is in deficit and could raise a bill.
+func GearReplacementNeeds(f domain.Fact[GearObservation]) []Resource {
+	review, err := ReviewGear(f)
+	if err != nil {
+		return nil
+	}
+	if recovered, known := review.Recovered.Value(); !known || recovered {
+		return nil
+	}
+	v, _ := f.Value()
+	seen := map[Resource]bool{}
+	var out []Resource
+	for _, p := range v.Pawns {
+		if deficit, _ := p.Deficit.Value(); !deficit {
+			continue
+		}
+		needs, _ := p.Replacements.Value()
+		for _, n := range needs {
+			if !seen[n.Definition] {
+				seen[n.Definition] = true
+				out = append(out, n.Definition)
+			}
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
+	return out
 }
 
 type GearMethodKind string
@@ -350,7 +477,13 @@ func SelectGearMethod(r GearPlanningRequest) (GearMethod, error) {
 					return GearMethod{Kind: GearUnknown}, nil
 				}
 				costs, filter, ok, unknown := gearIngredients(slots, n.need.Stuff, r)
-				if unknown {
+				// The inspected stuff is a preference, not a requirement: a
+				// synthread shirt worn out with only leather in stock is still
+				// replaced, from whatever funded material the recipe accepts.
+				if !ok && n.need.Stuff != "" {
+					costs, filter, ok, unknown = gearIngredients(slots, "", r)
+				}
+				if !ok && unknown {
 					return GearMethod{Kind: GearUnknown}, nil
 				}
 				if ok {

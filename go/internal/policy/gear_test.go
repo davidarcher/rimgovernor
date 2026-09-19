@@ -97,6 +97,9 @@ func TestGearProductionPreservesMaterialAndSharedBudget(t *testing.T) {
 	if !reflect.DeepEqual(r, before) {
 		t.Fatal("selection mutated caller inputs")
 	}
+	// The inspected cloth protected by a reserve, hold or spending rule
+	// yields to the recipe's other funded material; with both protected the
+	// bill is refused.
 	for _, change := range []func(*GearPlanningRequest){
 		func(r *GearPlanningRequest) { r.Rules = []ResourceRule{{"Cloth", 21, Allow}} },
 		func(r *GearPlanningRequest) { r.Holds = []Amount{{"Cloth", 21}} },
@@ -106,6 +109,11 @@ func TestGearProductionPreservesMaterialAndSharedBudget(t *testing.T) {
 		r := gearFixture()
 		change(&r)
 		m, e := SelectGearMethod(r)
+		if e != nil || m.Kind != GearProduce || !reflect.DeepEqual(m.Costs, []Amount{{"Synthread", 60}}) {
+			t.Fatal(m, e)
+		}
+		r.Rules = append(r.Rules, ResourceRule{"Synthread", 0, Stop})
+		m, e = SelectGearMethod(r)
 		if e != nil || m.Kind != GearBlocked {
 			t.Fatal(m, e)
 		}
@@ -186,10 +194,103 @@ func TestGearProductionAggregatesSlotsAndRejectsAmbiguousFlatFilter(t *testing.T
 	if err != nil || m.Kind != GearProduce || !reflect.DeepEqual(m.Costs, []Amount{{"Cloth", 110}}) {
 		t.Fatal(m, err)
 	}
+	// A pinned stuff the flat filter cannot isolate falls back to any funded
+	// material rather than refusing the replacement.
 	recipes[0].Ingredients = domain.Known([][]Amount{{{"Cloth", 60}, {"Synthread", 60}}, {{"Synthread", 10}}})
 	m, err = SelectGearMethod(r)
+	if err != nil || m.Kind != GearProduce || !reflect.DeepEqual(m.Costs, []Amount{{"Cloth", 60}, {"Synthread", 10}}) {
+		t.Fatal(m, err)
+	}
+}
+
+func TestGearProductionPrefersInspectedStuffThenAnyFundedMaterial(t *testing.T) {
+	r := gearFixture()
+	m, err := SelectGearMethod(r)
+	if err != nil || m.Kind != GearProduce || !reflect.DeepEqual(m.Costs, []Amount{{"Cloth", 80}}) || !reflect.DeepEqual(m.Filter, []Resource{"Cloth"}) {
+		t.Fatal("inspected stuff not preferred", m, err)
+	}
+	// The worn-out shirt was cloth; only leather is in stock, and the
+	// recipe accepts it.
+	benches, _ := r.Benches.Value()
+	recipes, _ := benches[0].Recipes.Value()
+	recipes[0].Ingredients = domain.Known([][]Amount{{{"Cloth", 80}, {"Leather_Plain", 80}}})
+	r.Stock = []Stock{{"Cloth", domain.Known(int64(0))}, {"Leather_Plain", domain.Known(int64(100))}, {"Parka", domain.Known(int64(0))}}
+	m, err = SelectGearMethod(r)
+	if err != nil || m.Kind != GearProduce || !reflect.DeepEqual(m.Costs, []Amount{{"Leather_Plain", 80}}) || !reflect.DeepEqual(m.Filter, []Resource{"Leather_Plain"}) {
+		t.Fatal("funded alternative material refused", m, err)
+	}
+	r.Stock[1].Available = domain.Unknown[int64]()
+	m, err = SelectGearMethod(r)
+	if err != nil || m.Kind != GearUnknown {
+		t.Fatal("unknown alternative stock decided", m, err)
+	}
+	// An unobserved stock of the inspected stuff does not hold up a bill the
+	// alternative funds.
+	r.Stock[0].Available = domain.Unknown[int64]()
+	r.Stock[1].Available = domain.Known(int64(100))
+	m, err = SelectGearMethod(r)
+	if err != nil || m.Kind != GearProduce || !reflect.DeepEqual(m.Costs, []Amount{{"Leather_Plain", 80}}) {
+		t.Fatal("unknown inspected stuff blocked the alternative", m, err)
+	}
+	r.Stock[0].Available = domain.Known(int64(0))
+	r.Stock[1].Available = domain.Known(int64(10))
+	m, err = SelectGearMethod(r)
 	if err != nil || m.Kind != GearBlocked {
-		t.Fatal("flat filter allowed wrong stuff", m, err)
+		t.Fatal("unfunded alternative produced", m, err)
+	}
+}
+
+func TestGearReviewApparelCensus(t *testing.T) {
+	shirt := GearApparel{Definition: "Apparel_BasicShirt", Condition: .3, Groups: []string{"Torso", "Shoulders", "Arms"}}
+	pants := GearApparel{Definition: "Apparel_Pants", Condition: 1, Groups: []string{"Legs"}}
+	pawn := func(id PawnID, deficit bool, apparel ...GearApparel) GearPawn {
+		return GearPawn{Pawn: id, Loadout: "loadout", Deficit: domain.Known(deficit), Candidates: domain.Known([]GearCandidate{}), Replacements: domain.Known([]GearReplacement{}), Apparel: domain.Known(apparel)}
+	}
+	v := GearObservation{Pawns: []GearPawn{pawn("a", true, shirt, pants), pawn("b", false, pants), pawn("c", false, GearApparel{Definition: "Apparel_TribalA", Condition: .9, Groups: []string{"Torso", "Legs"}}), pawn("d", false)}}
+	review, err := ReviewGear(domain.Known(v))
+	if err != nil || review.Deficit != domain.Known(.25) || review.WornOut != domain.Known(.25) || review.Uncovered != domain.Known(.5) {
+		t.Fatal(review, err)
+	}
+	// One pawn with an unobserved wardrobe leaves the apparel census unknown
+	// while the native deficit still decides recovery.
+	v.Pawns[3].Apparel = domain.Unknown[[]GearApparel]()
+	review, err = ReviewGear(domain.Known(v))
+	if _, known := review.WornOut.Value(); err != nil || known || review.Deficit != domain.Known(.25) {
+		t.Fatal(review, err)
+	}
+	if _, known := review.Uncovered.Value(); known {
+		t.Fatal(review)
+	}
+	for _, bad := range []GearApparel{{Definition: "", Condition: 1}, {Definition: "Apparel_Pants", Condition: 1.5}, {Definition: "Apparel_Pants", Condition: math.NaN()}, {Definition: "Apparel_Pants", Condition: 1, Groups: []string{"Legs", "Legs"}}} {
+		v.Pawns[3].Apparel = domain.Known([]GearApparel{bad})
+		if _, err := ReviewGear(domain.Known(v)); err == nil {
+			t.Fatal("malformed apparel accepted", bad)
+		}
+	}
+}
+
+func TestGearReplacementNeedsListDeficitDefinitions(t *testing.T) {
+	pawn := func(id PawnID, deficit bool, needs ...GearReplacement) GearPawn {
+		return GearPawn{Pawn: id, Loadout: "loadout", Deficit: domain.Known(deficit), Candidates: domain.Known([]GearCandidate{}), Replacements: domain.Known(needs)}
+	}
+	shirt := GearReplacement{Definition: "Apparel_BasicShirt", Stuff: "Cloth", Reason: "wear"}
+	pants := GearReplacement{Definition: "Apparel_Pants", Reason: "missing"}
+	v := GearObservation{Pawns: []GearPawn{pawn("a", true, pants, shirt, GearReplacement{Definition: "Apparel_BasicShirt", Stuff: "Leather_Plain", Reason: "wear"}), pawn("b", false, GearReplacement{Definition: "Bow_Short", Reason: "weapon"})}}
+	if needs := GearReplacementNeeds(domain.Known(v)); !reflect.DeepEqual(needs, []Resource{"Apparel_BasicShirt", "Apparel_Pants"}) {
+		t.Fatal("deficit pawns' needs, sorted and deduplicated", needs)
+	}
+	// A recovered census, an unknown census and an unobserved deficit all
+	// ask for nothing.
+	v.Pawns[0].Deficit = domain.Known(false)
+	if needs := GearReplacementNeeds(domain.Known(v)); len(needs) != 0 {
+		t.Fatal("recovered census requested", needs)
+	}
+	if needs := GearReplacementNeeds(domain.Unknown[GearObservation]()); len(needs) != 0 {
+		t.Fatal("unknown census requested", needs)
+	}
+	v.Pawns[0].Deficit = domain.Unknown[bool]()
+	if needs := GearReplacementNeeds(domain.Known(v)); len(needs) != 0 {
+		t.Fatal("unobserved deficit requested", needs)
 	}
 }
 
@@ -222,8 +323,11 @@ func TestGearRejectsMalformedCandidatesAndProduction(t *testing.T) {
 
 func TestGearProductionKeepsUnknownEvidenceUnknown(t *testing.T) {
 	for _, change := range []func(*GearPlanningRequest){
-		func(r *GearPlanningRequest) { r.Stock[0].Available = domain.Unknown[int64]() },
-		func(r *GearPlanningRequest) { r.Stock = r.Stock[1:] },
+		func(r *GearPlanningRequest) {
+			r.Stock[0].Available = domain.Unknown[int64]()
+			r.Stock[1].Available = domain.Unknown[int64]()
+		},
+		func(r *GearPlanningRequest) { r.Stock = r.Stock[2:] },
 		func(r *GearPlanningRequest) {
 			b, _ := r.Benches.Value()
 			recipes, _ := b[0].Recipes.Value()

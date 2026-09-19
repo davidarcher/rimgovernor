@@ -4,10 +4,12 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
+	"sort"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -77,6 +79,7 @@ func gearObservationFacts(gear *o.GearSnapshot) policy.GearObservation {
 		}
 		row.Candidates = domain.Known(candidates)
 		row.Replacements = domain.Known(needs)
+		row.Apparel = observation.GearApparelFacts(p.GetEquipment())
 		result.Pawns = append(result.Pawns, row)
 	}
 	return result
@@ -170,18 +173,33 @@ func (r *RoutineGearPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	}
 	// SelectGearMethod always prefers wearing an already-observed replacement
 	// candidate over crafting a new one and never reaches bench/recipe
-	// selection while any candidate is pending, so the bench/stock census
-	// (extra native round trips) is only worth gathering once none exist.
+	// selection while any candidate is pending, so the bench census (extra
+	// native round trips) is only worth gathering once none exist. A wear
+	// order still needs the candidate's own definition in a funded stock
+	// (gearIngredients), so its stock is read either way (#233).
 	hasCandidates := false
+	candidateNames := map[string]bool{}
 	for _, pawn := range observation.Pawns {
 		if candidates, known := pawn.Candidates.Value(); known && len(candidates) > 0 {
 			hasCandidates = true
+			for _, c := range candidates {
+				candidateNames[string(c.Definition)] = true
+			}
 		}
 	}
 	benchesFact := domain.Unknown[[]policy.GearBench]()
 	tokens := map[string]string{}
 	var stock []policy.Stock
-	if !hasCandidates {
+	if hasCandidates {
+		names := make([]string, 0, len(candidateNames))
+		for name := range candidateNames {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+		if stock, _, err = r.native.ReadSupplyStock(call, identity, names); err != nil {
+			return RoutineGearResult{}, err
+		}
+	} else {
 		census, _, err := r.native.ReadGearBenches(call, identity)
 		if err != nil {
 			return RoutineGearResult{}, err

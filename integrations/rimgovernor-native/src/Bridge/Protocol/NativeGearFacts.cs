@@ -15,6 +15,10 @@ namespace HomeBridge.BridgeTools
             var people = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).ToList();
             Require(people.Count, limit);
             var result = new Obs.GearSnapshot { Context = context.Clone(), Completeness = Complete(people.Count) };
+            // ImproveGear (NativeGearOperations) checks the pawn's control
+            // snapshot token and each candidate's supply token, so the census
+            // carries both the way the pawn and supply censuses do (issue #233).
+            var identity = new NativeControlIdentity(Current.Game, map, context.Identity.ColonyId, context.Identity.LoadToken);
             foreach (var pawn in people) {
                 var refusal = GearUpkeepTools.Available(pawn);
                 var row = new Obs.GearLoadout {
@@ -25,15 +29,17 @@ namespace HomeBridge.BridgeTools
                     Equipment = Equipment(pawn)
                 };
                 if (refusal != null) row.Blocker = Text(refusal);
+                if (NativePawnControlState.Observe(identity, pawn, out var control) == NativePawnControlResult.Ready && control != null)
+                    row.Pawn.Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = control.PawnId, Token = control.Token };
                 if (refusal == null) {
                     foreach (var apparel in map.listerThings.ThingsInGroup(ThingRequestGroup.Apparel).OfType<Apparel>().OrderBy(a => a.thingIDNumber)) {
                         if (GearUpkeepTools.Eligible(pawn, apparel) != null) continue;
                         var gain = GearUpkeepTools.Gain(pawn, apparel);
-                        if (gain >= .05f) row.Candidates.Add(new Obs.GearCandidate { Item = Gear(apparel), Gain = Number(gain) });
+                        if (gain >= .05f) row.Candidates.Add(new Obs.GearCandidate { Item = Candidate(apparel, context), Gain = Number(gain) });
                     }
                     foreach (var weapon in map.listerThings.ThingsInGroup(ThingRequestGroup.Weapon).OfType<ThingWithComps>().OrderBy(w => w.thingIDNumber))
                         if (GearUpkeepTools.WeaponEligible(pawn, weapon) == null)
-                            row.Candidates.Add(new Obs.GearCandidate { Item = Gear(weapon), Gain = Number(GearUpkeepTools.WeaponGain(pawn, weapon)) });
+                            row.Candidates.Add(new Obs.GearCandidate { Item = Candidate(weapon, context), Gain = Number(GearUpkeepTools.WeaponGain(pawn, weapon)) });
                 }
                 Require(row.Candidates.Count, limit);
                 var needs = GearUpkeepTools.ProductionNeeds(pawn);
@@ -74,6 +80,16 @@ namespace HomeBridge.BridgeTools
             result.Issues.Add(Issue("inventory_item_count", Common.UnavailableReason.NotRequested, "Loadout upkeep excludes inventory."));
             result.Issues.Add(Issue("carried_thing_id", Common.UnavailableReason.NotRequested, "Loadout upkeep excludes carried items."));
             return result;
+        }
+
+        // A loose candidate carries the supply ("allow-") token ImproveGear
+        // and the equip order check against the exact thing.
+        private static Obs.GearItem Candidate(Thing thing, Common.ObservationContext context)
+        {
+            var row = Gear(thing);
+            var snapshot = NativeSupplyAllow.Snapshot(thing, context);
+            if (snapshot != null) row.Thing.Snapshot = snapshot;
+            return row;
         }
 
         private static Obs.GearItem Gear(Thing thing)

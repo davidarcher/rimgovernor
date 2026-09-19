@@ -23,12 +23,14 @@ func admitBillMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan domai
 	if !review.Enabled || review.Snapshot != goal.Goal.Snapshot || goal.Goal.Source != domain.AutopilotGoal || len(plan.Actions()) > 4 {
 		return fmt.Errorf("%w: bill method needs a current autopilot review and at most four actions", ErrConflict)
 	}
-	// Bills serve the cooking/food goals and the resource-target goals whose
+	// Bills serve the cooking/food goals, the resource-target goals whose
 	// production path (RoutineResourcePlanner.dispatchResourceGoal) stages a
-	// bench and then a StockTarget bill on it.
+	// bench and then a StockTarget bill on it, and the equipment goal whose
+	// replacement (RoutineGearPlanner, GearProduce) is a StockTarget bill on
+	// a standing bench (#233).
 	bound := false
 	for _, b := range review.Goals {
-		bound = bound || b.Goal == goal.Goal.ID && (b.Need == policy.EnsureCooking || b.Need == policy.EnsureFoodSupply || b.Need == policy.MaintainResource || b.Need == policy.MaintainAnimalFeed)
+		bound = bound || b.Goal == goal.Goal.ID && (b.Need == policy.EnsureCooking || b.Need == policy.EnsureFoodSupply || b.Need == policy.MaintainResource || b.Need == policy.MaintainAnimalFeed || b.Need == policy.MaintainEquipment)
 	}
 	if !bound {
 		return fmt.Errorf("%w: goal %s does not admit production bills", ErrConflict, goal.Goal.ID)

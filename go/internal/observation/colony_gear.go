@@ -24,9 +24,35 @@ func colonyGear(v *o.ColonyFactsSnapshot) domain.Fact[policy.GearObservation] {
 		}
 		row.Candidates = domain.Known(candidates)
 		row.Replacements = domain.Known(needs)
+		row.Apparel = GearApparelFacts(p.Equipment)
 		result.Pawns = append(result.Pawns, row)
 	}
 	return domain.Known(result)
+}
+
+// GearApparelFacts decodes one pawn's worn apparel from the loadout's
+// equipment read: unknown when the native apparel tracker could not be read
+// (the equipment carries an "apparel" issue), otherwise each garment's
+// definition, condition fraction (1 without hit points) and body-part
+// groups.
+func GearApparelFacts(equipment *o.PawnEquipment) domain.Fact[[]policy.GearApparel] {
+	if equipment == nil {
+		return domain.Unknown[[]policy.GearApparel]()
+	}
+	for _, issue := range equipment.GetIssues() {
+		if issue.GetField() == "apparel" {
+			return domain.Unknown[[]policy.GearApparel]()
+		}
+	}
+	apparel := []policy.GearApparel{}
+	for _, item := range equipment.GetApparel() {
+		row := policy.GearApparel{Definition: policy.Resource(item.GetThing().GetDefName()), Condition: 1, Groups: append([]string{}, item.GetBodyPartGroups()...)}
+		if item.ConditionFraction != nil {
+			row.Condition = item.GetConditionFraction()
+		}
+		apparel = append(apparel, row)
+	}
+	return domain.Known(apparel)
 }
 
 func routineGear(v domain.Fact[policy.GearObservation], emergency policy.EmergencyFacts) domain.Fact[policy.GearObservation] {

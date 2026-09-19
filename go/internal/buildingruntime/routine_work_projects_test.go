@@ -151,6 +151,21 @@ func TestRoutineBillWorkResolvesBenchWorkTypeAndMergesWithConstruction(t *testin
 	}
 }
 
+func TestRoutineDeficitTargetsFoldEquipmentNeedsIntoResourceTargets(t *testing.T) {
+	t.Parallel()
+	resources := map[policy.Resource]int64{"MeleeWeapon_Club": 3}
+	gear := domain.Known(policy.GearObservation{Pawns: []policy.GearPawn{{Pawn: "a", Loadout: "loadout", Deficit: domain.Known(true), Candidates: domain.Known([]policy.GearCandidate{}), Replacements: domain.Known([]policy.GearReplacement{{Definition: "Apparel_BasicShirt", Stuff: "Cloth", Reason: "wear"}})}}})
+	if targets := routineDeficitTargets(resources, true, gear); !reflect.DeepEqual(targets, map[policy.Resource]int64{"MeleeWeapon_Club": 3, "Apparel_BasicShirt": 1}) {
+		t.Fatal("both deficits cover their benches", targets)
+	}
+	if targets := routineDeficitTargets(resources, false, gear); !reflect.DeepEqual(targets, map[policy.Resource]int64{"Apparel_BasicShirt": 1}) {
+		t.Fatal("a recovered resource target drops out", targets)
+	}
+	if targets := routineDeficitTargets(resources, false, domain.Unknown[policy.GearObservation]()); len(targets) != 0 {
+		t.Fatal("nothing in deficit covers nothing", targets)
+	}
+}
+
 func TestRoutineDeficitWorkCoversStandingBenchesBeforeAnyBill(t *testing.T) {
 	t.Parallel()
 	crafting := policy.WorkRequirement{Work: "Crafting", Skill: "Crafting", Minimum: 0}

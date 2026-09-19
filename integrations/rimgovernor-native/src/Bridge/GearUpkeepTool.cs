@@ -39,7 +39,7 @@ namespace HomeBridge.BridgeTools
         }
 
         internal static object Gear(Thing t) => new {
-            thingId = t.GetUniqueLoadID(), defName = t.def.defName, label = t.Label,
+            thingId = t.GetUniqueLoadID(), defName = t.def.defName, label = t.Label, stuff = t.Stuff?.defName,
             hitPoints = t.HitPoints, maxHitPoints = t.MaxHitPoints,
             quality = t.TryGetQuality(out var quality) ? quality.ToString() : null,
             armorSharp = t.GetStatValue(StatDefOf.ArmorRating_Sharp),
@@ -125,8 +125,15 @@ namespace HomeBridge.BridgeTools
             public string? reason { get; set; }
         }
 
+        /// <summary>Body-part groups a dressed colonist covers; a pawn wearing nothing over one is undressed.</summary>
+        internal static readonly BodyPartGroupDef[] CoreGroups = { BodyPartGroupDefOf.Torso, BodyPartGroupDefOf.Legs };
+
+        internal static List<BodyPartGroupDef> Uncovered(Pawn p) => p.apparel == null ? new List<BodyPartGroupDef>()
+            : CoreGroups.Where(g => !p.apparel.WornApparel.Any(a => a.def.apparel.bodyPartGroups.Contains(g))).ToList();
+
         internal static bool Deficit(Pawn p) => p.apparel != null &&
             (p.apparel.WornApparel.Any(a => a.def.useHitPoints && a.HitPoints <= a.MaxHitPoints * .5f)
+             || Uncovered(p).Count > 0
              || p.AmbientTemperature < p.GetStatValue(StatDefOf.ComfyTemperatureMin)
              || p.AmbientTemperature > p.GetStatValue(StatDefOf.ComfyTemperatureMax)
              || (p.equipment?.Primary == null && !p.WorkTagIsDisabled(WorkTags.Violent))
@@ -146,26 +153,37 @@ namespace HomeBridge.BridgeTools
                 needs.Add(new ProductionNeed { defName = primary.def.defName, stuff = primary.Stuff?.defName, reason = "weapon wear" });
             var cold = p.AmbientTemperature < p.GetStatValue(StatDefOf.ComfyTemperatureMin);
             var hot = p.AmbientTemperature > p.GetStatValue(StatDefOf.ComfyTemperatureMax);
-            if (cold || hot) {
-                var stat = cold ? StatDefOf.Insulation_Cold : StatDefOf.Insulation_Heat;
-                var budgets = ProductionPolicyGuard.Budgets(p.Map, p);
+            var uncovered = Uncovered(p);
+            if (!cold && !hot && uncovered.Count == 0) return needs;
+            var budgets = ProductionPolicyGuard.Budgets(p.Map, p);
+            // Definition-level candidates: allowed, wearable, displacing no forced or locked garment,
+            // one per budgeted stuff, ranked by the insulation stat the deficit names.
+            List<Tuple<ThingDef, ThingDef?, float>> Options(StatDef stat, Func<ThingDef, bool> covers)
+            {
                 var options = new List<Tuple<ThingDef, ThingDef?, float>>();
-                foreach (var def in p.outfits.CurrentApparelPolicy.filter.AllowedThingDefs.Where(d => d.IsApparel
+                foreach (var def in p.outfits.CurrentApparelPolicy.filter.AllowedThingDefs.Where(d => d.IsApparel && covers(d)
                     && d.apparel.CorrectGenderForWearing(p.gender) && d.apparel.developmentalStageFilter.Has(p.DevelopmentalStage)
                     && ApparelUtility.HasPartsToWear(p, d))) {
                     var displaced = p.apparel.WornApparel.Where(a => !ApparelUtility.CanWearTogether(a.def, def, p.RaceProps.body)).ToList();
                     if (displaced.Any(a => !p.outfits.forcedHandler.AllowedToAutomaticallyDrop(a) || p.apparel.IsLocked(a))) continue;
                     var stuffs = def.MadeFromStuff ? GenStuff.AllowedStuffsFor(def).Where(s => budgets.TryGetValue(s.defName, out var n) && n > 0).Cast<ThingDef?>()
                         : new ThingDef?[] { null };
-                    foreach (var stuff in stuffs) {
-                        var gain = def.GetStatValueAbstract(stat, stuff) - displaced.Sum(a => a.GetStatValue(stat));
-                        if (gain > 1f) options.Add(Tuple.Create(def, stuff, gain));
-                    }
+                    foreach (var stuff in stuffs)
+                        options.Add(Tuple.Create(def, stuff, def.GetStatValueAbstract(stat, stuff) - displaced.Sum(a => a.GetStatValue(stat))));
                 }
-                needs.AddRange(options.OrderByDescending(o => o.Item3).ThenBy(o => o.Item1.defName)
-                    .ThenBy(o => o.Item2?.defName).Take(8).Select(o => new ProductionNeed {
-                        defName = o.Item1.defName, stuff = o.Item2?.defName, reason = cold ? "cold" : "heat" }));
+                return options.OrderByDescending(o => o.Item3).ThenBy(o => o.Item1.defName).ThenBy(o => o.Item2?.defName).ToList();
             }
+            if (cold || hot) {
+                var stat = cold ? StatDefOf.Insulation_Cold : StatDefOf.Insulation_Heat;
+                needs.AddRange(Options(stat, _ => true).Where(o => o.Item3 > 1f).Take(8).Select(o => new ProductionNeed {
+                    defName = o.Item1.defName, stuff = o.Item2?.defName, reason = cold ? "cold" : "heat" }));
+            }
+            // An uncovered core group is a deficit in any weather; the warmest budgeted garments covering it
+            // are the candidates, ahead of the first winter (issue #233).
+            foreach (var group in uncovered)
+                needs.AddRange(Options(StatDefOf.Insulation_Cold, d => d.apparel.bodyPartGroups.Contains(group)).Take(4)
+                    .Select(o => new ProductionNeed { defName = o.Item1.defName, stuff = o.Item2?.defName, reason = "missing" })
+                    .Where(n => !needs.Any(e => e.defName == n.defName && e.stuff == n.stuff && e.reason == n.reason)).ToList());
             return needs;
         }
 

@@ -413,11 +413,12 @@ func drainBuilding(owner buildingCloser) error {
 }
 
 // billExecutorRequired reports whether the composition dispatches production
-// bill actions: the cooking bill family, or MaintainResource toward a stock
-// target (routine_resource.go). Without the bill executor an admitted bill
-// action fails "missing or unsupported building action" on every worker pass.
+// bill actions: the cooking bill family, MaintainResource toward a stock
+// target (routine_resource.go), or the gear family's replacement bill
+// (routine_gear.go, #233). Without the bill executor an admitted bill action
+// fails "missing or unsupported building action" on every worker pass.
 func billExecutorRequired(config serveConfig) bool {
-	return config.routineBillPlans || config.resourceTargetsConfigured()
+	return config.routineBillPlans || config.resourceTargetsConfigured() || config.routineGearPlans
 }
 
 func serveBuildingControl(ctx context.Context, config serveConfig, out io.Writer) error {

@@ -2,6 +2,7 @@ package bridge
 
 import (
 	"context"
+	"fmt"
 
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	"google.golang.org/protobuf/proto"
@@ -33,6 +34,11 @@ func (client *Client) ReadGearReplacement(ctx context.Context, identity *c.Ident
 	gear := observed.GetPlanning().GetObserved().GetGear()
 	var pawnToken, loadoutToken, thingToken, definition string
 	found := false
+	// The unavailable error names what the census held so a wear order
+	// that keeps failing its prepare is diagnosable from the worker log
+	// (the pawn's blocker, or the candidate the census no longer offers).
+	var blocker string
+	candidates := 0
 	for _, row := range gear.GetPawns() {
 		if row.GetPawn().GetId() != pawn {
 			continue
@@ -41,6 +47,8 @@ func (client *Client) ReadGearReplacement(ctx context.Context, identity *c.Ident
 			return GearReplaceRead{}, raw, contract("duplicate gear pawn")
 		}
 		found = true
+		blocker = row.GetBlocker()
+		candidates = len(row.GetCandidates())
 		pawnToken = row.GetPawn().GetSnapshot().GetToken()
 		loadoutToken = row.GetSnapshot().GetToken()
 		for _, candidate := range row.GetCandidates() {
@@ -55,11 +63,14 @@ func (client *Client) ReadGearReplacement(ctx context.Context, identity *c.Ident
 			definition = item.GetThing().GetDefName()
 		}
 	}
-	if !found || validID(pawnToken) != nil || validID(loadoutToken) != nil {
-		return GearReplaceRead{}, raw, ErrUnavailable
+	if !found {
+		return GearReplaceRead{}, raw, fmt.Errorf("%w: pawn %s absent from the gear census of %d pawns", ErrUnavailable, pawn, len(gear.GetPawns()))
+	}
+	if validID(pawnToken) != nil || validID(loadoutToken) != nil {
+		return GearReplaceRead{}, raw, fmt.Errorf("%w: pawn %s has no loadout token (blocker %q)", ErrUnavailable, pawn, blocker)
 	}
 	if validID(thingToken) != nil || validID(definition) != nil {
-		return GearReplaceRead{}, raw, ErrUnavailable
+		return GearReplaceRead{}, raw, fmt.Errorf("%w: candidate %s not offered for pawn %s (blocker %q, %d candidates)", ErrUnavailable, thing, pawn, blocker, candidates)
 	}
 	return GearReplaceRead{Context: proto.Clone(observed.GetContext()).(*c.ObservationContext), PawnToken: pawnToken, ThingToken: thingToken, Definition: definition, LoadoutToken: loadoutToken}, raw, nil
 }

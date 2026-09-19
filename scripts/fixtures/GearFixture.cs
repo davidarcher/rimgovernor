@@ -17,7 +17,8 @@ namespace HomeBridge.BridgeTools
         private static ThingWithComps weapon;
         [Tool("test/gear_fixture", Description = "Set up disposable apparel acceptance conditions.")]
         public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "setup, force, unforce, forbid, allow, policy or interrupt")] string mode = "setup")
+            [ToolParameter(Description = "setup, force, unforce, forbid, allow, policy or interrupt")] string mode = "setup",
+            [ToolParameter(Description = "production_setup: the ingredient stack placed by the subject (Cloth or a leather def).")] string material = "Cloth")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 if (mode == "weapon_setup" || mode == "weapon_assigned" || mode == "weapon_damage") {
@@ -48,7 +49,7 @@ namespace HomeBridge.BridgeTools
                     var cell = GenRadial.RadialCellsAround(subject.Position, 15, false).First(c => c.InBounds(map)
                         && CellRect.CenteredOn(c, 3).Cells.All(v => v.InBounds(map) && v.Standable(map) && v.GetEdifice(map) == null));
                     GenSpawn.Spawn(bench, cell, map);
-                    var cloth = ThingMaker.MakeThing(ThingDefOf.Cloth);
+                    var cloth = ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed(material));
                     cloth.stackCount = 75;
                     GenPlace.TryPlaceThing(cloth, subject.Position, map, ThingPlaceMode.Near);
                     cloth.SetForbidden(false);
@@ -59,7 +60,12 @@ namespace HomeBridge.BridgeTools
                         var tailoring = DefDatabase<WorkTypeDef>.GetNamed("Tailoring");
                         if (!worker.WorkTypeIsDisabled(tailoring)) worker.workSettings.SetPriority(tailoring, 1);
                     }
-                    return new { success = true, pawn = subject.GetUniqueLoadID(), bench = bench.GetUniqueLoadID(), cloth = cloth.GetUniqueLoadID() };
+                    // Vanilla's apparel optimizer would dress the subject in the produced garment on its own
+                    // within an in-game hour or two; hold it off so the controller's wear order is what dresses
+                    // the pawn and the case proves the whole produce-then-equip path (issue #233).
+                    subject.mindState.nextApparelOptimizeTick = Find.TickManager.TicksGame + 600000;
+                    return new { success = true, pawn = subject.GetUniqueLoadID(), bench = bench.GetUniqueLoadID(), cloth = cloth.GetUniqueLoadID(), material = cloth.def.defName,
+                        worn = subject.apparel.WornApparel.Select(a => new { thingId = a.GetUniqueLoadID(), defName = a.def.defName, stuff = a.Stuff?.defName, hitPoints = a.HitPoints, maxHitPoints = a.MaxHitPoints }).ToList() };
                 }
                 if (mode == "production_research") {
                     var project = DefDatabase<ResearchProjectDef>.GetNamed("ComplexClothing");

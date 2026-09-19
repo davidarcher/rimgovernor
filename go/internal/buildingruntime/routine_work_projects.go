@@ -204,6 +204,27 @@ func routineDeficitWork(targets map[policy.Resource]int64, census []bridge.GearB
 	return domain.Known(out)
 }
 
+// routineDeficitTargets is the set of definitions routineDeficitWork covers
+// benches for: the operator's resource targets while MaintainResource is in
+// deficit, and the replacement needs the equipment census reports (a shirt
+// for a tattered or missing layer) while MaintainEquipment is in deficit.
+// The gear planner previews its bill against native admission, which refuses
+// a bench nobody works, so the tailoring work type must be enabled before the
+// bill is proposed, exactly as a resource deficit's bench work is. An unknown
+// census contributes nothing: the equipment goal is not in deficit then.
+func routineDeficitTargets(resources map[policy.Resource]int64, resourceDeficit bool, gear domain.Fact[policy.GearObservation]) map[policy.Resource]int64 {
+	out := map[policy.Resource]int64{}
+	if resourceDeficit {
+		for r, n := range resources {
+			out[r] = n
+		}
+	}
+	for _, need := range policy.GearReplacementNeeds(gear) {
+		out[need]++
+	}
+	return out
+}
+
 // routineBenchWork is the bench-hosted work the review and the work planner
 // both fold into the construction requirement: open bills (routineBillWork)
 // and, while a resource target is in deficit, the standing benches that

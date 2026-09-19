@@ -44,6 +44,7 @@ namespace HomeBridge.BridgeTools
         internal readonly Dictionary<Common.AttemptKey, NativePrisonerInteractionRecord> PrisonerInteractions = new Dictionary<Common.AttemptKey, NativePrisonerInteractionRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeWasteRecord> Waste = new Dictionary<Common.AttemptKey, NativeWasteRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeEquipRecord> Equips = new Dictionary<Common.AttemptKey, NativeEquipRecord>();
+        internal readonly Dictionary<Common.AttemptKey, NativeGearRecord> Gear = new Dictionary<Common.AttemptKey, NativeGearRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeCleanRecord> Cleans = new Dictionary<Common.AttemptKey, NativeCleanRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeTendRecord> Tends = new Dictionary<Common.AttemptKey, NativeTendRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeRepairRecord> Repairs = new Dictionary<Common.AttemptKey, NativeRepairRecord>();
@@ -140,6 +141,8 @@ namespace HomeBridge.BridgeTools
                     default: return Refuse(Common.FailureCode.Unsupported, "This native adapter implements Equip, Haul, Capture, Rescue, Clean, Repair and Tend pawn-target orders.");
                 }
             }
+            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.ImproveGear)
+                return NativeGearOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.RecoverService)
                 return NativeRecoveryOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.RelieveNeed)
@@ -284,6 +287,8 @@ namespace HomeBridge.BridgeTools
                         default: return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Preview implements Equip, Haul, Capture, Rescue, Clean, Repair and Tend pawn-target orders.") });
                     }
                 }
+                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.ImproveGear)
+                    return ProtoBoundary.Encode(NativeGearOperations.Preview(parsed.Operation.ImproveGear, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.RecoverService)
                     return ProtoBoundary.Encode(NativeRecoveryOperations.Preview(parsed.Operation.RecoverService, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.RelieveNeed)
@@ -435,6 +440,9 @@ namespace HomeBridge.BridgeTools
                     NativeEquipRecord equip;
                     if (state.Equips.TryGetValue(parsed.Attempt, out equip))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = equip.Observe(parsed.Attempt, context) }));
+                    NativeGearRecord gear;
+                    if (state.Gear.TryGetValue(parsed.Attempt, out gear))
+                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = gear.Observe(parsed.Attempt, context) }));
                     NativeCleanRecord clean;
                     if (state.Cleans.TryGetValue(parsed.Attempt, out clean))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = clean.Observe(parsed.Attempt, context) }));
