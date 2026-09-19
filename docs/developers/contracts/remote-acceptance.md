@@ -195,6 +195,28 @@ cancellations and exhausted time budgets never retry by text matching alone.
 its complete evidence even when the retry passes. Do not silently inherit the
 epic's superseded #349 retry proposal.
 
+Local suites expose `retry_policy`, and each case row adds `attempts`,
+`attempt_count`, nullable `final_attempt` and `disposition` (`passed`, `failed`,
+`retried_passed`, `retried_failed`, `cancelled`, `timed_out`). Attempt records use
+this contract's case/number/status/classification/retry/timestamp/exit/error
+fields. `evidence` references the native result and `log` references the case
+log, each with a SHA-256 and path relative to the suite output. A missing file
+is null and cannot authorize retry; the remote exporter must reject missing
+required evidence. Other diagnostics remain beside each native result. The
+final row retains the existing output/provenance fields; wall and boot totals
+include both attempts. The first output stays in its usual location; the second
+uses `attempts/2/<area>/<case>`, after stopping the worker-owned game, with fresh
+staging and checkpoint resume disabled. Resumed suites never retry.
+
+The installed policy is `native-read-v1-empty`: there are no enabled production
+classifiers. Retained supply failures contain observation-read timeouts alongside
+unresolved gameplay attempts, and do not establish a transient read as the cause.
+Neither nested diagnostics nor a caller-provided classification authorize retry.
+A new rule needs captured causal evidence, a narrow classifier, negative tests for
+writes/assertions/budgets/setup, and a new policy ID. Synthetic execution tests
+exercise an eligible failure followed by a fresh pass without enabling a rule.
+The remote envelope and aggregation projection remain owned by #378/#380/#382.
+
 Aggregation runs even after shard failure. Shard `status` is `complete`,
 `missing`, `cancelled` or `timed_out`; absent attempts references are null.
 Case and aggregate status are `passed`, `failed` or `incomplete`. Missing cases

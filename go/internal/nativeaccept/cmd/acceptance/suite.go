@@ -405,6 +405,7 @@ func runSuite(ctx context.Context, list []entry, opts suiteOptions, stderr io.Wr
 	}
 	report := na.NewReport(fmt.Sprintf("%d acceptance cases across %d private game copies, one kept process per worker", len(list), opts.Workers), true)
 	report["workers"] = opts.Workers
+	report["retry_policy"] = retryPolicy
 	if opts.Tier != "" {
 		report["tier"] = opts.Tier
 	}
@@ -575,10 +576,10 @@ func entryCommand(e entry, opts suiteOptions, self, workerRoot string) (argv []s
 	return argv, cases.Options{Output: opts.Output}.CaseOutput(*e.registered)
 }
 
-// runEntry executes one row on a worker's root with the game kept between
+// runEntryOnce executes one row on a worker's root with the game kept between
 // rows, and returns its report row: exit code, wall and boot time, output
 // directory and the row's own result.json verdict.
-func runEntry(ctx context.Context, e entry, opts suiteOptions, self, workerRoot string, worker int, stderr io.Writer) map[string]any {
+func runEntryOnce(ctx context.Context, e entry, opts suiteOptions, self, workerRoot string, worker int, stderr io.Writer) map[string]any {
 	argv, output := entryCommand(e, opts, self, workerRoot)
 	row := map[string]any{"name": e.Name, "worker": worker, "output": output, "argv": argv, "serve": e.serveDriven(), "passed": false}
 	if e.Acceptance != "" {
@@ -619,13 +620,16 @@ func runEntry(ctx context.Context, e entry, opts suiteOptions, self, workerRoot 
 	case errors.As(runErr, &exitErr):
 		row["exit"] = exitErr.ExitCode()
 	default:
-		row["exit"] = -1
+		row["exit"] = nil // no child process exit status (failed to start)
 		row["error"] = runErr.Error()
 	}
 	if data, err := os.ReadFile(filepath.Join(output, "result.json")); err == nil {
 		var result map[string]any
 		if json.Unmarshal(data, &result) == nil {
 			row["passed"], _ = result["passed"].(bool)
+			if runErr != nil {
+				row["passed"] = false
+			}
 			if e := na.AsString(result["error"]); e != "" {
 				row["error"] = e
 			}
