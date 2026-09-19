@@ -45,3 +45,6 @@ dashboard/dist/
 *.o
 *.obj
 *.test
+
+# cmd/issue dumps when CLAUDE_SCRATCHPAD is unset (legacy; now goes to the temp dir)
+issue-*.md

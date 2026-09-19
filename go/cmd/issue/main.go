@@ -10,7 +10,7 @@
 // `### <author> <date>` sections. The tool harness caps a command's
 // output near 30k characters, so past -limit the remainder is cut at a
 // comment boundary and the tail names the file holding the full text
-// (-o, default issue-<n>.md in the scratchpad or current directory).
+// (-o, default issue-<n>.md in the scratchpad or the OS temp directory).
 // -last keeps only the newest n comments, for catching up on a thread
 // already read.
 package main
@@ -54,7 +54,7 @@ type comment struct {
 const fields = "number,title,state,url,body,author,labels,createdAt,comments"
 
 func main() {
-	out := flag.String("o", "", "file to hold the full rendering (default issue-<n>.md under $CLAUDE_SCRATCHPAD or .)")
+	out := flag.String("o", "", "file to hold the full rendering (default issue-<n>.md under $CLAUDE_SCRATCHPAD or the OS temp dir)")
 	limit := flag.Int("limit", 25000, "bytes to print before deferring the rest to the file")
 	last := flag.Int("last", 0, "print only the newest n comments (0 = all)")
 	flag.Parse()
@@ -139,5 +139,5 @@ func scratchpad() string {
 	if dir := os.Getenv("CLAUDE_SCRATCHPAD"); dir != "" {
 		return dir
 	}
-	return "."
+	return os.TempDir()
 }
