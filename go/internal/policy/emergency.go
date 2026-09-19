@@ -49,8 +49,11 @@ type EmergencyThreat struct {
 	Dead, Downed domain.Fact[bool]
 	Animal       domain.Fact[bool]
 	Distance     domain.Fact[float64]
-	// SnapshotToken and Definition are set on HostileBuilding rows only.
+	// SnapshotToken, Definition and Cells are set on HostileBuilding rows
+	// only; Cells is the building's occupied rect, the cells a ranged
+	// defender needs a line of fire to (#327).
 	SnapshotToken, Definition string
+	Cells                     []domain.Cell
 }
 
 // Building reports whether the row is a hostile building rather than a pawn.
@@ -134,8 +137,8 @@ func NewEmergencySnapshot(current domain.GenerationSnapshot, tick domain.Tick, f
 		if !validID(threat.ID) || threat.Kind < Hostile || threat.Kind > HostileBuilding || seen[key] {
 			return EmergencySnapshot{}, errors.New("invalid or duplicate emergency threat")
 		}
-		if threat.Building() != (threat.SnapshotToken != "" || threat.Definition != "") || threat.Building() && (!validID(PawnID(threat.SnapshotToken)) || !validID(PawnID(threat.Definition))) {
-			return EmergencySnapshot{}, errors.New("hostile building threat requires its snapshot token and definition")
+		if threat.Building() != (threat.SnapshotToken != "" || threat.Definition != "" || len(threat.Cells) != 0) || threat.Building() && (!validID(PawnID(threat.SnapshotToken)) || !validID(PawnID(threat.Definition)) || len(threat.Cells) == 0) {
+			return EmergencySnapshot{}, errors.New("hostile building threat requires its snapshot token, definition and occupied cells")
 		}
 		if distance, known := threat.Distance.Value(); known && (math.IsNaN(distance) || math.IsInf(distance, 0) || distance < 0) {
 			return EmergencySnapshot{}, errors.New("invalid emergency threat distance")
@@ -144,6 +147,9 @@ func NewEmergencySnapshot(current domain.GenerationSnapshot, tick domain.Tick, f
 	}
 	facts.Colonists = append([]EmergencyPawn(nil), facts.Colonists...)
 	facts.Threats = append([]EmergencyThreat(nil), facts.Threats...)
+	for i := range facts.Threats {
+		facts.Threats[i].Cells = append([]domain.Cell(nil), facts.Threats[i].Cells...)
+	}
 	return EmergencySnapshot{current: current, tick: tick, facts: facts, valid: true}, nil
 }
 

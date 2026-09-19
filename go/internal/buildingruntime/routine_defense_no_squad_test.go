@@ -22,7 +22,7 @@ func (n *hiveTestNative) ReadEmergency(ctx context.Context, id *c.Identity) (bri
 	for i := range v.Facts.Colonists {
 		v.Facts.Colonists[i].Downed = domain.Known(true)
 	}
-	v.Facts.Threats = append(v.Facts.Threats, policy.EmergencyThreat{ID: "hive", Kind: policy.HostileBuilding, Dead: domain.Known(false), Downed: domain.Known(false), Animal: domain.Known(false), Distance: domain.Known(12.0), SnapshotToken: "cas", Definition: "Hive"})
+	v.Facts.Threats = append(v.Facts.Threats, policy.EmergencyThreat{ID: "hive", Kind: policy.HostileBuilding, Dead: domain.Known(false), Downed: domain.Known(false), Animal: domain.Known(false), Distance: domain.Known(12.0), SnapshotToken: "cas", Definition: "Hive", Cells: []domain.Cell{{X: 5, Z: 5}}})
 	return v, r, err
 }
 func (n *hiveTestNative) ReadCombatPawns(ctx context.Context, id *c.Identity, ids []string) (*o.ListPawnsReply, bridge.Result, error) {

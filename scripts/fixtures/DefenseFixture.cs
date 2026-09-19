@@ -308,13 +308,19 @@ namespace HomeBridge.BridgeTools
             var isHive = typeof(Hive).IsAssignableFrom(def.thingClass);
             var faction = Find.FactionManager.FirstFactionOfDef(isHive ? FactionDefOf.Insect : FactionDefOf.Mechanoid);
             if (faction == null) return Refuse("The world has no " + (isHive ? "insect" : "mechanoid") + " faction.");
-            var near = colonists.FirstOrDefault(p => !p.Dead && !p.Downed);
+            // The building goes 8-14 cells from a standing colonist, a
+            // ranged-armed one first, in that colonist's line of sight: a
+            // shooter with a line of fire from where it stands is what the
+            // ranged assignment on a building needs (#327).
+            var near = colonists.FirstOrDefault(p => !p.Dead && !p.Downed && p.equipment?.Primary?.def.IsRangedWeapon == true)
+                ?? colonists.FirstOrDefault(p => !p.Dead && !p.Downed);
             if (near == null) return Refuse("No standing colonist to threaten.");
             var rot = Rot4.North;
             var cell = GenRadial.RadialCellsAround(near.Position, 14, true).FirstOrDefault(c => c.DistanceTo(near.Position) >= 8
                 && GenAdj.OccupiedRect(c, rot, def.size).ExpandedBy(2).Cells.All(o => o.InBounds(map) && o.Standable(map) && !o.Fogged(map))
+                && GenSight.LineOfSight(near.Position, c, map, true)
                 && map.reachability.CanReach(near.Position, c, Verse.AI.PathEndMode.Touch, TraverseMode.NoPassClosedDoors, Danger.Deadly));
-            if (!cell.IsValid) return Refuse("No clear cell 8-14 cells from a colonist for a " + def.defName + ".");
+            if (!cell.IsValid) return Refuse("No clear cell 8-14 cells from a colonist, in its line of sight, for a " + def.defName + ".");
             var thing = ThingMaker.MakeThing(def);
             thing.SetFactionDirect(faction);
             var spawner = thing.TryGetComp<CompSpawnerPawn>();
@@ -339,7 +345,8 @@ namespace HomeBridge.BridgeTools
             fixtureHostile = thing; fixtureHostileWorld = Find.World;
             return new { success = true, building = thing.GetUniqueLoadID(), def = def.defName, faction = faction.def.defName, hostile,
                 hp = thing.HitPoints, max = thing.MaxHitPoints, x = cell.x, z = cell.z, sizeX = def.size.x, sizeZ = def.size.z,
-                distance = cell.DistanceTo(near.Position), near = near.GetUniqueLoadID(), strayVanished = stray.Count, tick = Find.TickManager.TicksGame };
+                distance = cell.DistanceTo(near.Position), near = near.GetUniqueLoadID(), nearRanged = near.equipment?.Primary?.def.IsRangedWeapon == true,
+                strayVanished = stray.Count, tick = Find.TickManager.TicksGame };
         }
 
         private static object Damage(Map map, string wall)

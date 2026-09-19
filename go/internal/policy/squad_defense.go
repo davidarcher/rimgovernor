@@ -20,12 +20,14 @@ type SquadThreatFacts struct {
 	Hunting        domain.Fact[bool]
 	RangedEquipped domain.Fact[bool]
 	// Building marks a hostile building (an insect hive, a crashed ship
-	// part) rather than a pawn: engaged in melee, since the defender walks
-	// to it and the native ranged predicates need it in range now, and
-	// only once no eligible hostile pawn remains (a hive's insects and a
-	// ship part's guards first). Dead is destroyed; the other pawn facts
-	// are irrelevant.
-	Building bool
+	// part) rather than a pawn, engaged only once no eligible hostile pawn
+	// remains (a hive's insects and a ship part's guards first). Dead is
+	// destroyed; the other pawn facts are irrelevant. A ranged-equipped
+	// defender listed under LinesOfFire shoots it from where it stands (the
+	// native ranged predicates need the target in range now; #327); every
+	// other defender walks to it in melee.
+	Building    bool
+	LinesOfFire map[domain.PawnID]bool
 }
 
 // SquadDefenderFacts describes one candidate defender. Health/NeedsTend mirror
@@ -179,43 +181,58 @@ func SelectSquadDefense(threats []SquadThreatFacts, defenders []SquadDefenderFac
 		return "", false
 	}
 
+	// A building takes the shooters with a line of fire on it first, then
+	// whoever is left in melee.
+	takeBuilding := func(t SquadThreatFacts) (domain.PawnID, SquadMode, bool) {
+		for _, d := range defenderPool {
+			equipped, known := d.RangedEquipped.Value()
+			if !used[d.ID] && known && equipped && t.LinesOfFire[d.ID] {
+				used[d.ID] = true
+				return d.ID, SquadRanged, true
+			}
+		}
+		id, found := take(false)
+		return id, SquadMelee, found
+	}
+
 	var assignments []SquadAssignment
 	for _, t := range threatPool {
 		if len(assignments)+requiredDefendersPerFoe > maxSquadDefenders {
 			break
 		}
 		ranged, known := t.RangedEquipped.Value()
-		if t.Building {
-			ranged, known = false, true
-		}
-		if !known {
+		if !t.Building && !known {
 			continue
 		}
-		mode := SquadMelee
-		if ranged {
-			mode = SquadRanged
-		}
-		var chosen []domain.PawnID
+		var chosen []SquadAssignment
 		ok := true
 		for i := 0; i < requiredDefendersPerFoe; i++ {
-			id, found := take(ranged)
+			var id domain.PawnID
+			var found bool
+			mode := SquadMelee
+			if t.Building {
+				id, mode, found = takeBuilding(t)
+			} else {
+				if ranged {
+					mode = SquadRanged
+				}
+				id, found = take(ranged)
+			}
 			if !found {
 				ok = false
 				break
 			}
-			chosen = append(chosen, id)
+			chosen = append(chosen, SquadAssignment{Defender: id, Target: t.ID, Mode: mode})
 		}
 		if !ok {
 			// Release any partial reservation; an unsupported encounter is an
 			// explicit hold, not a partially defended one.
-			for _, id := range chosen {
-				delete(used, id)
+			for _, a := range chosen {
+				delete(used, a.Defender)
 			}
 			continue
 		}
-		for _, id := range chosen {
-			assignments = append(assignments, SquadAssignment{Defender: id, Target: t.ID, Mode: mode})
-		}
+		assignments = append(assignments, chosen...)
 	}
 	return assignments, len(assignments) > 0
 }

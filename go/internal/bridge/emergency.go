@@ -302,8 +302,26 @@ func emergencyBuilding(row *o.ThreatBuilding, ctx *c.ObservationContext) (policy
 	if row.HitPoints != nil && row.GetHitPoints() < 0 || row.MaxHitPoints != nil && row.GetMaxHitPoints() < 0 || row.NearestColonistDistance != nil && row.GetNearestColonistDistance() < 0 {
 		return result, contract("invalid threat building facts")
 	}
+	// The occupied rect is the ranged target: every cell in bounds, none
+	// twice, at least one (a spawned building occupies its position).
+	if len(row.OccupiedCells) == 0 || len(row.OccupiedCells) > 1024 {
+		return result, contract("threat building occupied cells missing")
+	}
+	cells := make([]domain.Cell, 0, len(row.OccupiedCells))
+	seen := map[domain.Cell]bool{}
+	for _, cell := range row.OccupiedCells {
+		if cell == nil || cell.X == nil || cell.Z == nil || cell.GetX() < 0 || cell.GetZ() < 0 {
+			return result, contract("invalid threat building occupied cell")
+		}
+		at := domain.Cell{X: cell.GetX(), Z: cell.GetZ()}
+		if seen[at] {
+			return result, contract("duplicate threat building occupied cell")
+		}
+		seen[at] = true
+		cells = append(cells, at)
+	}
 	result = policy.EmergencyThreat{ID: policy.PawnID(row.Building.GetId()), Kind: policy.HostileBuilding, Dead: domain.Known(false), Downed: domain.Known(false), Animal: domain.Known(false),
-		SnapshotToken: row.Building.Snapshot.GetToken(), Definition: row.Building.GetDefName()}
+		SnapshotToken: row.Building.Snapshot.GetToken(), Definition: row.Building.GetDefName(), Cells: cells}
 	if row.NearestColonistDistance != nil {
 		result.Distance = domain.Known(float64(row.GetNearestColonistDistance()))
 	}

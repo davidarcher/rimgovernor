@@ -40,7 +40,7 @@ func TestMeleeBoundaryInspectsAHostileBuildingTarget(t *testing.T) {
 	t.Parallel()
 	b, f, d := NewFixture(t)
 	f.BuildingTarget = true
-	f.Threats = []policy.EmergencyThreat{{ID: "target", Kind: policy.HostileBuilding, Dead: domain.Known(false), Downed: domain.Known(false), Animal: domain.Known(false), SnapshotToken: "hive-cas", Definition: "Hive"}}
+	f.Threats = []policy.EmergencyThreat{{ID: "target", Kind: policy.HostileBuilding, Dead: domain.Known(false), Downed: domain.Known(false), Animal: domain.Known(false), SnapshotToken: "hive-cas", Definition: "Hive", Cells: []domain.Cell{{X: 5, Z: 5}}}}
 	v, err := b.InspectMelee(context.Background(), executor.Target{Action: d.Attempt.Action, Snapshot: d.Attempt.Snapshot}, d.Admission.DraftClaim)
 	if err != nil || f.EmergencyReads != 2 || v.Facts.Target.SnapshotToken != "hive-cas" || v.Facts.Target.Dead != domain.Known(false) || v.Facts.Target.Downed != domain.Known(false) || v.Facts.Target.Hostile != domain.Known(true) || f.Command.Target.GetExpectedSnapshotToken() != "hive-cas" {
 		t.Fatal(v, err, f.EmergencyReads, f.Command)

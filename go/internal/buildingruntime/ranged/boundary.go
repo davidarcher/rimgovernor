@@ -99,8 +99,12 @@ func (b *RangedAttackBoundary) InspectRanged(ctx context.Context, target executo
 	if err != nil {
 		return out, err
 	}
+	// The target is a hostile pawn (two rows) or a hostile building the
+	// threat census lists under its own token (the attacker's row alone;
+	// #327).
 	counts := observed.Completeness
-	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() || counts.Page.GetNextCursor() != "" || counts.Matched == nil || counts.Returned == nil || counts.Unreadable == nil || counts.GetUnreadable() != 0 || counts.GetMatched() != 2 || counts.GetReturned() != 2 || len(observed.Pawns) != 2 {
+	rows := uint64(len(observed.Pawns))
+	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() || counts.Page.GetNextCursor() != "" || counts.Matched == nil || counts.Returned == nil || counts.Unreadable == nil || counts.GetUnreadable() != 0 || rows < 1 || rows > 2 || counts.GetMatched() != rows || counts.GetReturned() != rows {
 		return out, executor.ErrHeld
 	}
 	var pawn, opponent *n.PawnState
@@ -123,16 +127,33 @@ func (b *RangedAttackBoundary) InspectRanged(ctx context.Context, target executo
 			return out, executor.ErrEvidence
 		}
 	}
-	if pawn == nil || opponent == nil {
+	if pawn == nil {
 		return out, executor.ErrHeld
 	}
 	pawnToken, err := boundary.PawnToken(pawn, observed.Context)
 	if err != nil {
 		return out, err
 	}
-	targetToken, err := boundary.PawnToken(opponent, observed.Context)
-	if err != nil {
-		return out, err
+	var targetToken string
+	if opponent != nil {
+		if targetToken, err = boundary.PawnToken(opponent, observed.Context); err != nil {
+			return out, err
+		}
+	} else {
+		// The building's token comes from the census; the emergency is
+		// read again after the preview, as the policy binds it by tick.
+		census, _, err := b.native.ReadEmergency(ctx, boundary.Identity(current))
+		if err != nil {
+			return out, err
+		}
+		if _, err = boundary.Context(census.Context, current); err != nil {
+			return out, err
+		}
+		building := hostileBuilding(census.Facts.Threats, m.Target())
+		if building == nil {
+			return out, executor.ErrHeld
+		}
+		targetToken = building.SnapshotToken
 	}
 	preview, _, err := b.native.PreviewAttack(ctx, boundary.Identity(current), rangedCommand(string(m.Pawn()), string(m.Target()), pawnToken, targetToken))
 	if err != nil {
@@ -191,9 +212,28 @@ func (b *RangedAttackBoundary) InspectRanged(ctx context.Context, target executo
 		facts.Pawn.ViolenceCapable = domain.Known(capable)
 	}
 	facts.Pawn.RangedWeaponEquipped = RangedWeaponEquipped(pawn.Equipment)
-	facts.Target = policy.RangedTargetFacts{Pawn: m.Target(), SnapshotToken: targetToken, Dead: boundary.FactBool(opponent.Dead), Downed: boundary.FactBool(opponent.Downed), Hostile: boundary.FactBool(opponent.Hostile)}
+	if opponent != nil {
+		facts.Target = policy.RangedTargetFacts{Pawn: m.Target(), SnapshotToken: targetToken, Dead: boundary.FactBool(opponent.Dead), Downed: boundary.FactBool(opponent.Downed), Hostile: boundary.FactBool(opponent.Hostile)}
+	} else {
+		// A building the census still lists is standing and hostile; one
+		// it no longer lists is gone, and the policy refuses the target.
+		facts.Target = policy.RangedTargetFacts{Pawn: m.Target(), SnapshotToken: targetToken, Dead: domain.Known(true), Downed: domain.Known(false), Hostile: domain.Known(false)}
+		if current := hostileBuilding(emergency.Facts.Threats, m.Target()); current != nil {
+			facts.Target.Dead, facts.Target.Hostile = current.Dead, domain.Known(true)
+		}
+	}
 	out.Facts, out.ObservedAt = facts, b.clock.Now()
 	return out, ctx.Err()
+}
+
+// hostileBuilding finds the census row of a hostile building target.
+func hostileBuilding(threats []policy.EmergencyThreat, id domain.PawnID) *policy.EmergencyThreat {
+	for i := range threats {
+		if threats[i].Building() && domain.PawnID(threats[i].ID) == id {
+			return &threats[i]
+		}
+	}
+	return nil
 }
 
 func (b *RangedAttackBoundary) attempt(dispatch executor.RangedDispatch) (bridge.AttackAttempt, error) {

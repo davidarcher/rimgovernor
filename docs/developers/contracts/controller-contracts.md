@@ -596,11 +596,16 @@ planner cannot answer -- every colonist downed or incapable of violence, so
 rather than held (#326): the deficit stays open, colony windows run around it,
 and a plan admitted at a later stop makes the next window a combat one. A
 hostile pawn with no squad still holds; a raid never auto-advances. Squad defense assigns buildings only once no eligible hostile pawn remains (a
-hive's insects and a ship part's guards are the live danger) and always in melee;
-the controller never plans a ranged attack on a building. The melee executor
-reads the building's token from the census row instead of a pawn snapshot, and
-the native attack operation accepts a census-listed building as its target under
-that token, with destruction as the completing outcome.
+hive's insects and a ship part's guards are the live danger). Each census row
+carries the building's occupied rect (`occupiedCells`); the defense planner
+reads native lines of fire from every ranged-equipped defender's cell to those
+cells and a defender with a line of sight to one of them within its weapon's
+range is planned as a shooter (`RangedAttack`, fired from where it stands, as
+the native ranged predicates need the target in range now), the rest walk in
+with `MeleeAttack` (#327). The melee and ranged executors read the building's
+token from the census row instead of a pawn snapshot, and the native attack
+operation accepts a census-listed building as its target under that token in
+either mode, with destruction as the completing outcome.
 Combat compilation, dispatch and clock admission inspect colonist health. Unknown
 health or a colonist at the native half-health limit produces an explicit hold;
 an unchanged injury cannot repeatedly rearm the combat clock. The native injury

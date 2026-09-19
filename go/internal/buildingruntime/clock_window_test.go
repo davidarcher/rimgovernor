@@ -274,7 +274,7 @@ func TestClockWindowCombatPolicyMustMatchDecision(t *testing.T) {
 	t.Run("building alone", func(t *testing.T) {
 		q, _, f, request := combat(t)
 		var err error
-		request.Facts.Emergency, err = policy.NewEmergencySnapshot(request.Intent.Snapshot, 12, policy.EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true), Threats: []policy.EmergencyThreat{{ID: "hive", Kind: policy.HostileBuilding, Dead: domain.Known(false), Downed: domain.Known(false), Animal: domain.Known(false), SnapshotToken: "cas", Definition: "Hive"}}})
+		request.Facts.Emergency, err = policy.NewEmergencySnapshot(request.Intent.Snapshot, 12, policy.EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true), Threats: []policy.EmergencyThreat{{ID: "hive", Kind: policy.HostileBuilding, Dead: domain.Known(false), Downed: domain.Known(false), Animal: domain.Known(false), SnapshotToken: "cas", Definition: "Hive", Cells: []domain.Cell{{X: 5, Z: 5}}}}})
 		if err != nil {
 			t.Fatal(err)
 		}

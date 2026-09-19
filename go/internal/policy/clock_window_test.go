@@ -62,11 +62,11 @@ func TestClockWindowCombatPlanWatchesLiveHostiles(t *testing.T) {
 	// A hostile building (#246) makes the window a combat one but is never
 	// acknowledged: the native watcher resolves every acknowledged id as a
 	// spawned pawn. Alone, it still admits a combat window with no ids.
-	threats(live("zed", Hostile), EmergencyThreat{ID: "hive", Kind: HostileBuilding, Dead: domain.Known(false), Downed: domain.Known(false), Animal: domain.Known(false), SnapshotToken: "cas", Definition: "Hive"})
+	threats(live("zed", Hostile), EmergencyThreat{ID: "hive", Kind: HostileBuilding, Dead: domain.Known(false), Downed: domain.Known(false), Animal: domain.Known(false), SnapshotToken: "cas", Definition: "Hive", Cells: []domain.Cell{{X: 5, Z: 5}}})
 	if d := EvaluateClockWindow(f, l); !d.Admitted || d.Mode != ClockWindowCombat || !reflect.DeepEqual(d.Hostiles, []PawnID{"zed"}) {
 		t.Fatal(d)
 	}
-	threats(EmergencyThreat{ID: "hive", Kind: HostileBuilding, Dead: domain.Known(false), Downed: domain.Known(false), Animal: domain.Known(false), SnapshotToken: "cas", Definition: "Hive"})
+	threats(EmergencyThreat{ID: "hive", Kind: HostileBuilding, Dead: domain.Known(false), Downed: domain.Known(false), Animal: domain.Known(false), SnapshotToken: "cas", Definition: "Hive", Cells: []domain.Cell{{X: 5, Z: 5}}})
 	if d := EvaluateClockWindow(f, l); !d.Admitted || d.Mode != ClockWindowCombat || len(d.Hostiles) != 0 {
 		t.Fatal(d)
 	}
@@ -74,7 +74,7 @@ func TestClockWindowCombatPlanWatchesLiveHostiles(t *testing.T) {
 	// a plan the colony window runs around it, and the planner's verdict
 	// has to be a known no-squad answer; a hostile pawn beside it still
 	// holds.
-	hive := EmergencyThreat{ID: "hive", Kind: HostileBuilding, Dead: domain.Known(false), Downed: domain.Known(false), Animal: domain.Known(false), SnapshotToken: "cas", Definition: "Hive"}
+	hive := EmergencyThreat{ID: "hive", Kind: HostileBuilding, Dead: domain.Known(false), Downed: domain.Known(false), Animal: domain.Known(false), SnapshotToken: "cas", Definition: "Hive", Cells: []domain.Cell{{X: 5, Z: 5}}}
 	f.CombatPlan = domain.Known(false)
 	threats(hive)
 	if d := EvaluateClockWindow(f, l); d.Admitted || len(d.Refused) != 1 || d.Refused[0] != ClockWindowUnsafe {

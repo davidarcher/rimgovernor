@@ -102,8 +102,12 @@ type variant struct {
 	bypass               bool
 	threat, predatorKind string
 	buildingKind         string
-	fromCheckpoint       bool
-	writeCheckpoint      bool
+	// rifles arms that many colonists with bolt-action rifles before the
+	// hostile building is staged, so the squad shoots it (#327); zero
+	// leaves the checkpoint's arms and accepts either mode.
+	rifles          int
+	fromCheckpoint  bool
+	writeCheckpoint bool
 	// turrets adds the powered turret tier (#61) before the raid and
 	// replaces the trap breach with a conduit loss and turret damage.
 	turrets bool
@@ -170,12 +174,12 @@ func init() {
 	hive := fromCheckpoint
 	hive.threat, hive.buildingKind = "building", "Hive"
 	register("defense/hive", "An insect hive near the colony (#246) is answered from the committed layout checkpoint: the census lists the hostile building, "+
-		"squad defense targets it with melee attacks under colony windows, the hive is destroyed natively and the drafts are released.",
+		"squad defense targets it (melee, or ranged from a line of fire) under colony windows, the hive is destroyed natively and the drafts are released.",
 		checkpoint, 15*time.Minute, hive)
 	shipPart := fromCheckpoint
-	shipPart.threat, shipPart.buildingKind = "building", "DefoliatorShipPart"
-	register("defense/shippart", "A crashed ship part near the colony (#246) is answered from the committed layout checkpoint: the census lists the hostile building, "+
-		"squad defense targets it with melee attacks under colony windows, the ship part is destroyed natively and the drafts are released.",
+	shipPart.threat, shipPart.buildingKind, shipPart.rifles = "building", "DefoliatorShipPart", 8
+	register("defense/shippart", "A crashed ship part near the colony (#246, #327) is answered from the committed layout checkpoint with every colonist armed with a rifle: the census lists the hostile building, "+
+		"squad defense targets it with a ranged attack from a defender with a line of fire, the ship part is destroyed natively and the drafts are released.",
 		checkpoint, 15*time.Minute, shipPart)
 }
 
@@ -1219,11 +1223,13 @@ func runPredator(ctx context.Context, closeClient func() error, reopenHarness fu
 // hive or a crashed ship part) in the open near the colony with its pawn
 // spawning off, so the census lists it under hostileBuildings and nothing
 // else. The building holds the clock like a hostile pawn; the service must
-// answer it with squad defense on the building itself (melee: the planner
-// never plans a ranged attack on a building), fight it under combat
-// windows until the ActiveCombat goal recovers, release the drafts and
-// resume colony windows. Natively the building must be destroyed, no pawn
-// of its faction on the map, and no colonist dead or drafted.
+// answer it with squad defense on the building itself (a ranged attack
+// from a defender with a line of fire on it, melee from the rest; #327),
+// fight it under combat windows until the ActiveCombat goal recovers,
+// release the drafts and resume colony windows. With v.rifles the fixture
+// arms the colonists first and a ranged attack must be planned and
+// dispatched. Natively the building must be destroyed, no pawn of its
+// faction on the map, and no colonist dead or drafted.
 func runHostileBuilding(ctx context.Context, closeClient func() error, reopenHarness func() error,
 	fixture func(string, map[string]any) (map[string]any, error), launch func(string) (*service, error),
 	layout store.DefenseLayoutRecord, v variant, report na.Report) error {
@@ -1237,6 +1243,13 @@ func runHostileBuilding(ctx context.Context, closeClient func() error, reopenHar
 		return err
 	}
 	report["healed_before_building"] = healed
+	if v.rifles > 0 {
+		armed, err := fixture("ranged-before-building", map[string]any{"op": "ranged", "rifles": v.rifles})
+		if err != nil {
+			return err
+		}
+		report["armed_before_building"] = armed
+	}
 	staged, err := fixture("hostile", map[string]any{"op": "hostile", "kind": v.buildingKind})
 	if err != nil {
 		return err
@@ -1271,10 +1284,15 @@ func runHostileBuilding(ctx context.Context, closeClient func() error, reopenHar
 	if err := assertSquadTargets(plan.Spec, buildingID); err != nil {
 		return err
 	}
+	rangedPlanned := 0
 	for _, action := range plan.Spec.Actions() {
 		if _, ok := action.RangedAttack(); ok {
-			return fmt.Errorf("squad plan %s plans a ranged attack on the building; buildings are melee targets", plan.Spec.ID())
+			rangedPlanned++
 		}
+	}
+	report["ranged_attacks_planned"] = rangedPlanned
+	if v.rifles > 0 && rangedPlanned == 0 {
+		return fmt.Errorf("squad plan %s plans no ranged attack on the building although the colonists are armed and one stands in its line of sight", plan.Spec.ID())
 	}
 	resolved, err := waitHuntResolved(ctx, svc.store, svc.wait(raidTimeout), true)
 	report["building_resolution"] = resolved
@@ -1291,7 +1309,7 @@ func runHostileBuilding(ctx context.Context, closeClient func() error, reopenHar
 	if err != nil {
 		return fmt.Errorf("clock after the building: %w", err)
 	}
-	attacks, err := squadAttacksDispatched(ctx, svc.store, "squad-", buildingID)
+	attacks, err := squadAttacksDispatched(ctx, svc.store, "squad-", buildingID, v.rifles > 0)
 	report["building_attacks"] = attacks
 	if err != nil {
 		return err
@@ -1353,11 +1371,12 @@ func assertSquadTargets(spec domain.PlanSpec, predatorID string) error {
 	return nil
 }
 
-// squadAttacksDispatched counts the melee attacks on the target that reached
-// a native dispatch across every squad plan of the ActiveCombat goal, and
-// fails when none did: a hostile building that fell without one was not
-// destroyed by the colony (an unmaintained hive deteriorates on its own).
-func squadAttacksDispatched(ctx context.Context, s *store.Store, prefix string, target string) (map[string]any, error) {
+// squadAttacksDispatched counts the melee and ranged attacks on the target
+// that reached a native dispatch across every squad plan of the
+// ActiveCombat goal, and fails when none did: a hostile building that fell
+// without one was not destroyed by the colony (an unmaintained hive
+// deteriorates on its own). With ranged set a ranged dispatch is required.
+func squadAttacksDispatched(ctx context.Context, s *store.Store, prefix string, target string, ranged bool) (map[string]any, error) {
 	review, err := s.LoadRoutineReview(ctx)
 	if err != nil {
 		return nil, err
@@ -1377,7 +1396,7 @@ func squadAttacksDispatched(ctx context.Context, s *store.Store, prefix string, 
 			}
 		}
 	}
-	dispatched, planned := 0, 0
+	dispatched, planned, rangedDispatched := 0, 0, 0
 	stages := map[string]string{}
 	for id := range plans {
 		state, err := s.LoadPlan(ctx, id)
@@ -1385,21 +1404,35 @@ func squadAttacksDispatched(ctx context.Context, s *store.Store, prefix string, 
 			return nil, err
 		}
 		for _, p := range state.Progress {
-			attack, ok := p.Action().MeleeAttack()
-			if !ok || string(attack.Target()) != target {
+			var pawn, attacked domain.PawnID
+			mode := "melee"
+			if attack, ok := p.Action().MeleeAttack(); ok {
+				pawn, attacked = attack.Pawn(), attack.Target()
+			} else if attack, ok := p.Action().RangedAttack(); ok {
+				pawn, attacked, mode = attack.Pawn(), attack.Target(), "ranged"
+			} else {
+				continue
+			}
+			if string(attacked) != target {
 				continue
 			}
 			planned++
 			v := p.View()
-			stages[string(id)+"/"+string(attack.Pawn())] = string(v.Stage)
+			stages[string(id)+"/"+string(pawn)] = mode + ":" + string(v.Stage)
 			if v.Attempt > 0 {
 				dispatched++
+				if mode == "ranged" {
+					rangedDispatched++
+				}
 			}
 		}
 	}
-	out := map[string]any{"plans": len(plans), "planned": planned, "dispatched": dispatched, "stages": stages}
+	out := map[string]any{"plans": len(plans), "planned": planned, "dispatched": dispatched, "ranged_dispatched": rangedDispatched, "stages": stages}
 	if dispatched == 0 {
-		return out, fmt.Errorf("no melee attack on %s was dispatched natively across %d squad plan(s): %v", target, len(plans), stages)
+		return out, fmt.Errorf("no attack on %s was dispatched natively across %d squad plan(s): %v", target, len(plans), stages)
+	}
+	if ranged && rangedDispatched == 0 {
+		return out, fmt.Errorf("no ranged attack on %s was dispatched natively across %d squad plan(s): %v", target, len(plans), stages)
 	}
 	return out, nil
 }

@@ -40,6 +40,9 @@ func (n *equipTestNative) ReadRoutinePawns(ctx context.Context, _ *c.Identity, _
 func (n *equipTestNative) ReadCombatPawns(ctx context.Context, _ *c.Identity, _ []string) (*o.ListPawnsReply, bridge.Result, error) {
 	return n.census(), bridge.Result{}, ctx.Err()
 }
+func (n *equipTestNative) ReadLinesOfFire(ctx context.Context, _ *c.Identity, _, _ []domain.Cell) (bridge.LinesOfFire, bridge.Result, error) {
+	return bridge.LinesOfFire{Context: n.reply.GetObserved().GetContext()}, bridge.Result{}, ctx.Err()
+}
 func (n *equipTestNative) ReadEmergency(ctx context.Context, id *c.Identity) (bridge.EmergencyObservation, bridge.Result, error) {
 	v, r, err := n.routineNative.ReadEmergency(ctx, id)
 	for _, id := range n.ids {

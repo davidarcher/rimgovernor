@@ -229,9 +229,9 @@ func TestEmergencyDistantAnimalThreatIsWatchedNotHeld(t *testing.T) {
 		// A hostile building within the band holds like a hostile pawn (#246);
 		// one at the animal watch distance, or of unknown distance, is a
 		// squad target only (#340).
-		{"hive near", EmergencyThreat{ID: "t", Kind: HostileBuilding, Dead: domain.Known(false), Downed: domain.Known(false), Animal: domain.Known(false), Distance: domain.Known(3.0), SnapshotToken: "cas", Definition: "Hive"}, true},
-		{"hive far", EmergencyThreat{ID: "t", Kind: HostileBuilding, Dead: domain.Known(false), Downed: domain.Known(false), Animal: domain.Known(false), Distance: far, SnapshotToken: "cas", Definition: "Hive"}, false},
-		{"hive distance unknown", EmergencyThreat{ID: "t", Kind: HostileBuilding, Dead: domain.Known(false), Downed: domain.Known(false), Animal: domain.Known(false), SnapshotToken: "cas", Definition: "Hive"}, true},
+		{"hive near", EmergencyThreat{ID: "t", Kind: HostileBuilding, Dead: domain.Known(false), Downed: domain.Known(false), Animal: domain.Known(false), Distance: domain.Known(3.0), SnapshotToken: "cas", Definition: "Hive", Cells: []domain.Cell{{X: 5, Z: 5}}}, true},
+		{"hive far", EmergencyThreat{ID: "t", Kind: HostileBuilding, Dead: domain.Known(false), Downed: domain.Known(false), Animal: domain.Known(false), Distance: far, SnapshotToken: "cas", Definition: "Hive", Cells: []domain.Cell{{X: 5, Z: 5}}}, false},
+		{"hive distance unknown", EmergencyThreat{ID: "t", Kind: HostileBuilding, Dead: domain.Known(false), Downed: domain.Known(false), Animal: domain.Known(false), SnapshotToken: "cas", Definition: "Hive", Cells: []domain.Cell{{X: 5, Z: 5}}}, true},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

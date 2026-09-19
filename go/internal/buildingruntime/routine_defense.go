@@ -21,6 +21,7 @@ import (
 type RoutineDefenseSource interface {
 	ReadEmergency(context.Context, *c.Identity) (bridge.EmergencyObservation, bridge.Result, error)
 	ReadCombatPawns(context.Context, *c.Identity, []string) (*n.ListPawnsReply, bridge.Result, error)
+	ReadLinesOfFire(context.Context, *c.Identity, []domain.Cell, []domain.Cell) (bridge.LinesOfFire, bridge.Result, error)
 }
 type RoutineDefensePlanner struct {
 	reviewer *RoutineReviewer
@@ -195,8 +196,14 @@ func (r *RoutineDefensePlanner) step(call, epoch context.Context, arbiter *stepA
 		facts.Hunting = domain.Known(hunting[id])
 		threats = append(threats, facts)
 	}
-	for _, building := range buildings {
-		threats = append(threats, policy.SquadThreatFacts{ID: building.ID, Dead: building.Dead, Building: true})
+	if len(buildings) > 0 {
+		lines, err := r.buildingLinesOfFire(call, identity, buildings, defenders, rows)
+		if err != nil {
+			return RoutineDefenseResult{}, err
+		}
+		for _, building := range buildings {
+			threats = append(threats, policy.SquadThreatFacts{ID: building.ID, Dead: building.Dead, Building: true, LinesOfFire: lines[building.ID]})
+		}
 	}
 	// A complete defensive layout against an ordinary edge assault sends the
 	// ranged line to its firing cells first; anything else is squad defense.
@@ -283,6 +290,94 @@ func (r *RoutineDefensePlanner) step(call, epoch context.Context, arbiter *stepA
 		return RoutineDefenseResult{}, err
 	}
 	return RoutineDefenseResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+}
+
+// buildingLinesOfFire reads, for every standing hostile building, which
+// eligible ranged-equipped defenders can fire on it from where they stand:
+// a native line of sight from the defender's cell to one of the building's
+// occupied cells no further than the defender's weapon range. The native
+// attack preview decides the shot itself; this only keeps a defender who
+// could not shoot from being planned as a shooter (#327). The read takes
+// at most 64 cells a side; further defenders or building cells are left
+// out and those defenders walk in.
+func (r *RoutineDefensePlanner) buildingLinesOfFire(call context.Context, identity *c.Identity, buildings []policy.EmergencyThreat, defenders []policy.SquadDefenderFacts, rows map[string]*n.PawnState) (map[policy.PawnID]map[domain.PawnID]bool, error) {
+	const maxCells = 64
+	lines := map[policy.PawnID]map[domain.PawnID]bool{}
+	var firing []domain.Cell
+	shooters := map[domain.Cell][]domain.PawnID{}
+	weaponRange := map[domain.PawnID]float64{}
+	for _, d := range defenders {
+		row := rows[string(d.ID)]
+		ranged, known := d.RangedEquipped.Value()
+		if !known || !ranged || row == nil || row.Pawn.Position == nil {
+			continue
+		}
+		reach := primaryRange(row.Equipment)
+		if reach <= 0 {
+			continue
+		}
+		at := domain.Cell{X: row.Pawn.Position.GetX(), Z: row.Pawn.Position.GetZ()}
+		if _, seen := shooters[at]; !seen {
+			if len(firing) == maxCells {
+				continue
+			}
+			firing = append(firing, at)
+		}
+		shooters[at] = append(shooters[at], d.ID)
+		weaponRange[d.ID] = reach
+	}
+	var approach []domain.Cell
+	cells := map[domain.Cell]bool{}
+	for _, b := range buildings {
+		for _, cell := range b.Cells {
+			if !cells[cell] && len(approach) < maxCells {
+				cells[cell] = true
+				approach = append(approach, cell)
+			}
+		}
+	}
+	if len(firing) == 0 || len(approach) == 0 {
+		return lines, nil
+	}
+	read, _, err := r.native.ReadLinesOfFire(call, identity, firing, approach)
+	if err != nil {
+		return nil, err
+	}
+	for _, line := range read.Lines {
+		if !line.Known || !line.LineOfSight {
+			continue
+		}
+		for _, b := range buildings {
+			for _, cell := range b.Cells {
+				if cell != line.To {
+					continue
+				}
+				for _, id := range shooters[line.From] {
+					if line.Distance <= weaponRange[id] {
+						if lines[b.ID] == nil {
+							lines[b.ID] = map[domain.PawnID]bool{}
+						}
+						lines[b.ID][id] = true
+					}
+				}
+			}
+		}
+	}
+	return lines, nil
+}
+
+// primaryRange is the range of the pawn's primary ranged weapon in cells;
+// zero when unarmed, melee-armed or unknown.
+func primaryRange(equipment *n.PawnEquipment) float64 {
+	if equipment == nil || equipment.PrimaryId == nil {
+		return 0
+	}
+	for _, item := range equipment.Equipped {
+		if item.GetThing().GetId() == equipment.GetPrimaryId() && item.GetRanged() && item.Range != nil && item.GetRange() > 0 {
+			return item.GetRange()
+		}
+	}
+	return 0
 }
 
 // holdTheLine returns a zero Reason when the stored layout is absent or

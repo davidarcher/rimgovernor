@@ -110,7 +110,7 @@ func TestMeleeDefenseToleratesACachedPawnReadBehindTheAdmittedTick(t *testing.T)
 // target is refused as an unsupported threat.
 func TestMeleeDefenseAdmitsAHostileBuildingTarget(t *testing.T) {
 	r := meleeRequest(t)
-	r.Facts.Emergency.facts.Threats = []EmergencyThreat{{ID: "target", Kind: HostileBuilding, Dead: domain.Known(false), Downed: domain.Known(false), Animal: domain.Known(false), SnapshotToken: "hive-cas", Definition: "Hive"}}
+	r.Facts.Emergency.facts.Threats = []EmergencyThreat{{ID: "target", Kind: HostileBuilding, Dead: domain.Known(false), Downed: domain.Known(false), Animal: domain.Known(false), SnapshotToken: "hive-cas", Definition: "Hive", Cells: []domain.Cell{{X: 5, Z: 5}}}}
 	r.Facts.Target.SnapshotToken = "hive-cas"
 	if d := EvaluateMeleeDefense(r); !d.Admitted || len(d.Refused) != 0 {
 		t.Fatal(d)
