@@ -104,8 +104,10 @@ opponent first, shooters a ranged opponent and the layout's firing cells
 first, as a preference over the ID order that stands when the profile is
 unknown. The custody review sends `WardenFor` to capture a downed hostile while
 that pawn is available. The husbandry review tames only a wild animal `TamerFor`
-finds a handler for at its minimum handling skill. The hunting review adopts
-`HunterFor` when it migrates (#447).
+finds a handler for at its minimum handling skill. The acquisition reviews
+(food, wood, pests) spend the hunting budget only while `HunterFor` finds a
+hunter on a known roster. The medical review has no surgery dispatch in Go,
+so `SurgeonFor` waits for one.
 
 ## Schedules
 

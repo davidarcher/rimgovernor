@@ -470,7 +470,10 @@ Autonomous hunting screens current wild-animal observations before compiling a
 designation. Harmless, undesignated prey must be within 100 cells of the colony anchor
 and more than 25 cells from live wild predators, using square-grid distance. Unknown
 predator flags or positions prevent selection. The food goal retains candidate IDs and
-predator rejection evidence. Compiled hunting methods retain the exact prey identity,
+predator rejection evidence. The hunting budget (two outstanding) is zero while the
+roster is known and no [hunter](work-assignment.md#situational-roles) (`HunterFor`:
+Shooting, a ranged primary, never a Brawler) is on it, for stock and pest hunts alike.
+Compiled hunting methods retain the exact prey identity,
 anchor and action signature. Immediately before writing, the shared runtime rechecks
 wildlife, the planned cell, outstanding hunt count and paused native tick under its
 writer lock. It then verifies the selected animal's hunt designation. Missing legacy

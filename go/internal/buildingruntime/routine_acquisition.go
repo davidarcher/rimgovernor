@@ -260,6 +260,15 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 	if n, known := projection.PendingHunts.Value(); known {
 		slots = domain.Known(max(0, 2-n))
 	}
+	// A hunt needs a hunter: with the roster known and HunterFor (Shooting,
+	// a ranged primary, never a Brawler) finding nobody, the hunting budget
+	// is zero and only gathering is proposed, instead of a designation
+	// native's hunt preview would refuse for want of a free ranged hunter.
+	if pawns, known := projection.WorkPawns.Value(); known {
+		if _, ok := policy.HunterFor(policy.Profiles(pawns)); !ok {
+			slots = domain.Known(0)
+		}
+	}
 	var selected []policy.AcquisitionSource
 	if pest {
 		selected, err = policy.SelectPestAcquisition(projection.Acquisition, pests, held, slots)

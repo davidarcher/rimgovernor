@@ -315,3 +315,35 @@ func retick(m protoreflect.Message, tick int64) {
 		return true
 	})
 }
+
+// A hunt needs a hunter (#447): with the roster known and nobody holding a
+// ranged weapon, the hunting budget is zero and the pest goes unplanned;
+// arming the colonist with a bow admits the hunt.
+func TestPestAcquisitionPlannerNeedsARangedHunter(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	planner, reviewer, _, v := pestFixture(t)
+	n := reviewer.native.(*routineNative)
+	// The emergency census names the colonist so the roster is known.
+	reviewer.native = &healthyWorkNative{routineMedicalNative: &routineMedicalNative{routineNative: n}}
+	missing := func(field string) *o.ReadIssue {
+		return &o.ReadIssue{Field: proto.String(field), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}
+	}
+	row := &o.PawnState{Pawn: &o.EntityRef{Id: proto.String("patient"), MapId: proto.Int32(v.Context.Identity.GetMapId())}, Colonist: proto.Bool(true), Dead: proto.Bool(false), Downed: proto.Bool(false), Drafted: proto.Bool(false), Equipment: &o.PawnEquipment{Armed: proto.Bool(false)}, Biography: &o.PawnBiography{Skills: []*o.Skill{{Definition: &o.DefinitionRef{DefName: proto.String("Shooting")}, Level: proto.Int32(6), Disabled: proto.Bool(false), Passion: proto.String("None")}}}, Settings: &o.PawnSettings{WorkApplies: proto.Bool(true), ManualWorkPriorities: proto.Bool(true)}, Issues: []*o.ReadIssue{missing("pawn.snapshot"), missing("mental_state")}}
+	n.pawnReply = &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Pawns: []*o.PawnState{row}, Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(1), Returned: proto.Uint64(1), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}}}}
+	reviewer.census.invalidate()
+	if _, err := reviewer.Step(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if result, err := planner.Step(ctx); err != nil || result.Reason != BuildingMethodUsed {
+		t.Fatal("an unarmed roster must not be handed a hunt", result, err)
+	}
+	row.Equipment = &o.PawnEquipment{Armed: proto.Bool(true), PrimaryId: proto.String("bow"), Equipped: []*o.GearItem{{Thing: &o.EntityRef{Id: proto.String("bow"), MapId: proto.Int32(v.Context.Identity.GetMapId())}, Ranged: proto.Bool(true)}}}
+	reviewer.census.invalidate()
+	if _, err := reviewer.Step(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if result, err := planner.Step(ctx); err != nil || result.Reason != BuildingMethodAdmitted {
+		t.Fatal("a bow-armed shooter admits the hunt", result, err)
+	}
+}
