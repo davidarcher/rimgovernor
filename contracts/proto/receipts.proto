@@ -55,6 +55,8 @@ message EffectEvidence {
     NamingEffect naming = 21;
     ExcavationEffect excavation = 22;
     DialogEffect dialog = 23;
+    DeconstructEffect deconstruct = 24;
+    ReleaseDeconstructionsEffect release_deconstructions = 25;
   }
 }
 message SnapshotEvidence {
@@ -155,6 +157,8 @@ message CellResult { rimgovernor.common.v1.Cell cell = 1; optional bool accepted
 message ZoneEffect { SnapshotEvidence snapshot = 1; optional string zone_id = 2; optional bool present = 3; optional int32 changed_cells = 4; repeated CellResult cells = 5; optional int32 listed_cell_count = 6; optional int32 grid_cell_count = 7; optional int32 phantom_cell_count = 8; }
 message HomeEffect { SnapshotEvidence snapshot = 1; optional string shape_token = 2; optional int64 revision = 3; optional int32 changed_cells = 4; optional bool covered = 5; }
 message BedEffect { optional string pawn_id = 1; optional string bed_id = 2; optional string previous_bed_id = 3; optional bool assigned = 4; optional bool sleeping = 5; }
+message DeconstructEffect { optional string target_id = 1; optional string designation_id = 2; repeated string worker_ids = 3; optional bool demolition_observed = 4; SnapshotEvidence site = 5; }
+message ReleaseDeconstructionsEffect { optional int32 released_count = 1; }
 message WallEffect { optional string target_id = 1; optional string removal_id = 2; repeated string worker_ids = 3; optional int32 released_count = 4; optional bool demolition_observed = 5; SnapshotEvidence site = 6; }
 message AreaEffect { optional string pawn_id = 1; optional string area_id = 2; optional string previous_area_id = 3; optional int64 expires_tick = 4; SnapshotEvidence snapshot = 5; }
 message JobTarget { oneof target { string thing_id = 1; rimgovernor.common.v1.Cell cell = 2; } }

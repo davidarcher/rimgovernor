@@ -102,6 +102,8 @@ message Operation {
     SetAnimalFollowing set_animal_following = 52;
     AnswerDialog answer_dialog = 53;
     CancelAcquisition cancel_acquisition = 54;
+    Deconstruct deconstruct = 55;
+    ReleaseDeconstructions release_deconstructions = 56;
   }
 }
 
@@ -230,6 +232,9 @@ message PatchStockpile { EntityPrecondition zone = 1; StockpileSettings settings
 message PatchGrowing { EntityPrecondition zone = 1; GrowingSettings settings = 2; }
 message ExtendHome { EntityPrecondition target = 1; optional string shape_token = 2; optional int64 revision = 3; }
 message AssignBed { EntityPrecondition pawn = 1; EntityPrecondition bed = 2; Assignment expected_previous_bed = 3; }
+// Exact non-colony occupant; no snapshot token. Native repeats eligibility and roof safety at apply.
+message Deconstruct { EntityPrecondition target = 1; }
+message ReleaseDeconstructions {}
 message RemoveWall { EntityPrecondition wall = 1; optional string expected_site_snapshot_token = 2; }
 message ReleaseWallRemovals { optional string expected_snapshot_token = 1; }
 message RecoveryArea { EntityPrecondition pawn = 1; EntityPrecondition area = 2; }

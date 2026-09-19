@@ -61,6 +61,7 @@ namespace HomeBridge.BridgeTools
         internal readonly Dictionary<Common.AttemptKey, NativeResearchSelectRecord> ResearchSelections = new Dictionary<Common.AttemptKey, NativeResearchSelectRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeBedAssignRecord> BedAssignments = new Dictionary<Common.AttemptKey, NativeBedAssignRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeExcavationRecord> Excavation = new Dictionary<Common.AttemptKey, NativeExcavationRecord>();
+        internal readonly Dictionary<Common.AttemptKey, NativeDeconstructionRecord> Deconstructions = new Dictionary<Common.AttemptKey, NativeDeconstructionRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeWallRemovalRecord> WallRemovals = new Dictionary<Common.AttemptKey, NativeWallRemovalRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeHomeCoverageRecord> HomeCoverage = new Dictionary<Common.AttemptKey, NativeHomeCoverageRecord>();
         private NativeOperationState(Common.Identity identity)
@@ -185,6 +186,10 @@ namespace HomeBridge.BridgeTools
                 return NativeBedAssignOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.ExcavateCell)
                 return NativeExcavationOperations.Execute(state, request, context);
+            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.Deconstruct)
+                return NativeDeconstructionOperations.Execute(state, request, context);
+            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.ReleaseDeconstructions)
+                return NativeDeconstructionOperations.ExecuteRelease(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.RemoveWall)
                 return NativeWallRemovalOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.ReleaseWallRemovals)
@@ -333,6 +338,10 @@ namespace HomeBridge.BridgeTools
                     return ProtoBoundary.Encode(NativeBedAssignOperations.Preview(parsed.Operation.AssignBed, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.ExcavateCell)
                     return ProtoBoundary.Encode(NativeExcavationOperations.Preview(parsed.Operation.ExcavateCell, context));
+                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.Deconstruct)
+                    return ProtoBoundary.Encode(NativeDeconstructionOperations.Preview(parsed.Operation.Deconstruct, context));
+                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.ReleaseDeconstructions)
+                    return ProtoBoundary.Encode(new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation { Context = context.Clone(), Accepted = true } });
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.RemoveWall)
                     return ProtoBoundary.Encode(NativeWallRemovalOperations.Preview(parsed.Operation.RemoveWall, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.ReleaseWallRemovals)
@@ -498,6 +507,8 @@ namespace HomeBridge.BridgeTools
                     NativeExcavationRecord excavation;
                     if (state.Excavation.TryGetValue(parsed.Attempt, out excavation))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = excavation.Observe(parsed.Attempt, context) }));
+                    if (state.Deconstructions.TryGetValue(parsed.Attempt, out var deconstruction))
+                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = deconstruction.Observe(parsed.Attempt, context) }));
                     NativeWallRemovalRecord wallRemoval;
                     if (state.WallRemovals.TryGetValue(parsed.Attempt, out wallRemoval))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = wallRemoval.Observe(parsed.Attempt, context) }));

@@ -174,6 +174,26 @@ can remove deconstruction salvage: native diagonal access to a wall does not gra
 the same access to loose items. The enclosed interior and its construction approach
 remain available; stonecutter placement preserves that approach.
 
+`Deconstruct { target: EntityPrecondition }` clears one exact non-colony building
+through native `Designator_Deconstruct`. The entity carries no CAS token. Preview
+and apply require player deconstructibility, visible geometry and safe remaining
+roof support; apply resolves the exact occupant again. Colony buildings are
+protected. This operation does not require a replacement wall or enclosure;
+`RemoveWall` retains those wall-upgrade guards.
+
+An existing designation is never adopted. The receipt names the target and the
+controller designation; replacing that designation relinquishes ownership.
+`DeconstructEffect` carries `target_id`, `designation_id`, `worker_ids`,
+`demolition_observed` and `site`. Workers are recorded when native demolition
+finishes. Only the native deconstruct job establishes completion; disappearance
+without that callback is unsuccessful. Receipt and designation ownership are
+scoped to the loaded game, like the operation ledger; loaded designations without
+a current receipt are not adopted. Manual suspends owned work.
+`ReleaseDeconstructions` retires pending work on stop and removes only the exact
+controller-created designations, returning a separate `released_count` effect.
+Player replacements survive release. The Go bridge rejects unknown evidence
+fields and completion without observed demolition.
+
 `home/upkeep_wall` creates an ordinary native deconstruction designation. Completion
 comes from the actual native deconstruction job, not disappearance of a wall. The
 guard rechecks exact supporting identities, enclosure, roofs, remaining materials
