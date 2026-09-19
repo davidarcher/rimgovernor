@@ -48,3 +48,6 @@ dashboard/dist/
 
 # cmd/issue dumps when CLAUDE_SCRATCHPAD is unset (legacy; now goes to the temp dir)
 issue-*.md
+
+# acceptance run evidence (-output dirs)
+/out/
