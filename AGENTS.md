@@ -39,6 +39,11 @@ needs is [choose-tests](docs/developers/testing/choose-tests.md).
    GitHub issue with the landing commit. Call it once and move on; land
    each ready milestone rather than holding a branch until the whole task
    is done. Rebase or merge by hand only to resolve a conflict it reports.
+   The issue closes when the landing meets the acceptance written in its
+   body, not when every follow-up you can think of is done: comment the
+   follow-ups in one line (or file them as issues) and let the lane close
+   it. An issue left open with a "remaining:" paragraph reads as blocked to
+   every other agent sequencing against it.
 6. Continue to the next milestone of an authorized task without waiting to
    be re-prompted.
 
