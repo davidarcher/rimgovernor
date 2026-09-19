@@ -8,7 +8,9 @@ that threshold and falling relative to current mood. Recovery requires five mood
 points above the threshold and recovery of retained need deficits. Missing pawns,
 thresholds or need reads never certify recovery. Native thresholds incorporate
 individual traits and ideology; current thought pressure predicts neither a break
-probability nor its timing.
+probability nor its timing. The [pawn profile](work-assignment.md#pawn-profile)
+exports the trait flags (Pyromaniac, chemical interest, NightOwl) for relief and
+containment ordering to consume.
 
 The Go routine reviewer keeps the same semantic name for ordinary native pawn IDs;
 IDs longer than 210 bytes use `EnsureMoodHash-<digest>` with the exact pawn retained

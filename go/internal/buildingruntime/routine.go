@@ -245,9 +245,12 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 			required = mergeWorkRequirements(required, routineResearchWork(r.policy, needs, reading.Projection.Facts.Research))
 		}
 		if known {
-			work, err := policy.AssignWork(pawns, required, preferences.Overrides)
+			work, err := policy.PlanWork(pawns, required, preferences.Overrides, policy.RoutineWorkDemand(reading.Projection.Facts, len(definitions) > 0))
 			if err == nil {
 				reading.Projection.Facts.WorkCoverage = work.Matches
+				if _, ok := work.Capacity.Value(); ok {
+					reading.Projection.Facts.WorkRoster = domain.Known(work.Coverage)
+				}
 			}
 		}
 	}

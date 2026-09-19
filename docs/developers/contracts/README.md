@@ -23,4 +23,5 @@ Current rules, payloads and completion criteria. Open the topic that owns your c
 - [Research tied to colony needs](research.md)
 - [Spatial contracts](spatial-contracts.md)
 - [Colony upkeep contracts](upkeep-contracts.md)
+- [Work assignment contracts](work-assignment.md)
 - [Waste containment contracts](waste-management.md)

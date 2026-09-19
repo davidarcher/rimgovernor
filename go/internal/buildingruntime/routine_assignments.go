@@ -168,7 +168,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return RoutineWorkResult{}, err
 	}
 	required = mergeWorkRequirements(required, routineResearchWork(r.reviewer.policy, needs, read.Projection.Facts.Research))
-	decision, err := policy.AssignWork(pawns, required, preferences.Overrides)
+	decision, err := policy.PlanWork(pawns, required, preferences.Overrides, policy.RoutineWorkDemand(read.Projection.Facts, len(definitions) > 0))
 	if err != nil {
 		return RoutineWorkResult{}, err
 	}

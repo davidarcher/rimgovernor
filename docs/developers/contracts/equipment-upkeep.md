@@ -7,7 +7,9 @@ Emergencies suspend it. Hands issues its actions; neither the native read nor an
 adviser independently starts work. Missing observations remain unknown. The goal
 ranks for an optional development slot like any other priority-3 need (labor
 profile Construction, Tailoring, Smithing or Crafting) and its methods are admitted only while
-it holds one.
+it holds one. The [pawn profile](work-assignment.md#pawn-profile) exports the
+per-pawn apparel and weapon flags (Nudist, Ascetic, Brawler's `MeleeOnly`) the
+loadout planner consumes.
 
 ## Native observations and selection
 

@@ -381,7 +381,11 @@ type RoutineFacts struct {
 	Workers              domain.Fact[int]
 	// Labor is the per-work-type census of the same pawns Workers counts
 	// (RoutineLabor); unknown labor leaves only the coarse worker bound.
-	Labor                                                                      domain.Fact[map[WorkType]int]
+	Labor domain.Fact[map[WorkType]int]
+	// WorkRoster is the planner's per-work-type coverage (PlanWork): the
+	// owners each type wanted and found and the pawns capable of it, so a
+	// goal can name a missing capability instead of stalling.
+	WorkRoster                                                                 domain.Fact[[]WorkCoverage]
 	Colonists, HousingTarget, BedCapacity, IndoorCapacity, GrowingCells, Armed domain.Fact[int64]
 	FoodDays, PopulationFoodDays, FieldCoverage                                domain.Fact[float64]
 	// Calendar is the tile's native growing calendar (policy.Calendar).

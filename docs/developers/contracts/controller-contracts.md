@@ -350,7 +350,7 @@ way routine methods are.
 room, at least three stock days of food by default, at least ten observed growing cells per colonist summed across edible farms, indoor food
 storage, usable cooking with a bill, safe sleeping temperature, sufficient power if
 electrical thermal loads exist, no critical patient, two armed colonists (or everyone in
-a smaller colony), no active threat, and verified work assignments. Accepted blueprints
+a smaller colony), no active threat, and verified work assignments ([work planner](work-assignment.md)). Accepted blueprints
 cannot satisfy these gates. Stability is reversible when observations change. The food
 forecast apportions shared nutrition by native demand among eaters permitted by diet,
 policy and safe access, reserving animal shares and crediting held food only to its

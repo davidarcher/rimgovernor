@@ -50,19 +50,37 @@ func routineWork(colony *o.ColonyFactsSnapshot, emergency policy.EmergencyFacts,
 				}
 			}
 		}
-		if b := row.Biography; b != nil && !hasIssue(b.Issues, "skills") {
-			skills := []policy.WorkSkill{}
-			known := true
-			for _, entry := range b.Skills {
-				if entry.Level == nil || entry.Disabled == nil || entry.Passion == nil {
-					known = false
-					break
+		if b := row.Biography; b != nil {
+			if !hasIssue(b.Issues, "skills") {
+				skills := []policy.WorkSkill{}
+				known := true
+				for _, entry := range b.Skills {
+					if entry.Level == nil || entry.Disabled == nil || entry.Passion == nil {
+						known = false
+						break
+					}
+					skills = append(skills, policy.WorkSkill{Name: entry.Definition.GetDefName(), Level: int(entry.GetLevel()), Stored: int(entry.GetStoredLevel()), Disabled: entry.GetDisabled(), Passion: entry.GetPassion()})
 				}
-				skills = append(skills, policy.WorkSkill{Name: entry.Definition.GetDefName(), Level: int(entry.GetLevel()), Disabled: entry.GetDisabled(), Passion: entry.GetPassion()})
+				if known {
+					w.Skills = domain.Known(skills)
+				}
 			}
-			if known {
-				w.Skills = domain.Known(skills)
+			// Traits, incapable work types and age feed the pawn profile
+			// (policy.BuildProfile); a read issue on them leaves the row
+			// unknown and the planner skill-only for this pawn.
+			if !hasIssue(b.Issues, "traits") {
+				traits := []policy.PawnTrait{}
+				for _, entry := range b.Traits {
+					traits = append(traits, policy.PawnTrait{Name: entry.GetDefName(), Degree: int(entry.GetDegree())})
+				}
+				w.Traits = domain.Known(traits)
 			}
+			incapable := []policy.WorkType{}
+			for _, name := range b.IncapableWorkTypes {
+				incapable = append(incapable, policy.WorkType(name))
+			}
+			w.Incapable = domain.Known(incapable)
+			w.Age = optional(b.BiologicalAgeYears)
 		}
 		if e := row.Equipment; e != nil {
 			if e.Armed != nil && !e.GetArmed() {
