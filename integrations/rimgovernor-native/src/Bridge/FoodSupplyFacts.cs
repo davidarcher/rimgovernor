@@ -86,7 +86,7 @@ namespace HomeBridge.BridgeTools
         internal static bool IsReserve(Thing thing) => thing.Spawned && thing.IsForbidden(Faction.OfPlayer)
             && (thing.def.defName == "MealSurvivalPack" || thing.def.defName == "Pemmican");
 
-        private static bool PolicyAllows(Pawn pawn, Thing food)
+        internal static bool PolicyAllows(Pawn pawn, Thing food)
         {
             return pawn.foodRestriction?.GetCurrentRespectedRestriction(pawn)?.filter.Allows(food) != false;
         }

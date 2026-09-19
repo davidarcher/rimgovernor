@@ -645,7 +645,13 @@ message TradeStatus { rimgovernor.common.v1.ObservationContext context = 1; opti
 message TradeStatusRequest { ReadScope scope = 1; optional string session_id = 2; }
 message TradeStatusReply { oneof outcome { TradeStatus observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message CaravanPawnEligibility { PawnState pawn = 1; optional bool available = 2; optional string reason = 3; }
-message CargoGroup { optional string group_id = 1; repeated EntityRef items = 2; optional string def_name = 3; optional int64 count = 4; optional double mass = 5; }
+// Food facts (#464): nutrition is per unit for a nutrition-giving ingestible
+// (absent otherwise); perishable groups carry rot_days, the shortest
+// remaining unrefrigerated shelf life of any stack in the group; reserve
+// marks a group holding forbidden pemmican or survival meals (the food
+// reserve MaintainFoodStorage holds); eater_ids lists the free colonists
+// whose diet and food restriction allow the food.
+message CargoGroup { optional string group_id = 1; repeated EntityRef items = 2; optional string def_name = 3; optional int64 count = 4; optional double mass = 5; optional double nutrition = 6; optional bool perishable = 7; optional double rot_days = 8; optional bool reserve = 9; repeated string eater_ids = 10; }
 message CaravanCatalog { SnapshotRef snapshot = 1; repeated CaravanPawnEligibility pawns = 2; repeated ResourceStock cargo = 3; repeated WorldRoute routes = 4; repeated Settlement settlements = 5; repeated StorageCapacity return_storage = 6; Completeness completeness = 7; repeated CargoGroup cargo_groups = 8; SnapshotRef return_storage_snapshot = 9; }
 message CaravanCatalogRequest { ReadScope scope = 1; optional int32 destination = 2; rimgovernor.common.v1.PageRequest page = 3; }
 message CaravanCatalogReply { oneof outcome { CaravanCatalog observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }

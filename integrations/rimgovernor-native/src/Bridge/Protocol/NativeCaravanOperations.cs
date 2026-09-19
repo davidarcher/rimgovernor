@@ -66,7 +66,7 @@ namespace HomeBridge.BridgeTools
             { failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "A loaded paused map is required."); return false; }
             dialog = NativeCaravanCatalog.BuildDialog(map);
             var pawnRows = NativeCaravanCatalog.PawnRows(map, context);
-            var cargoRows = NativeCaravanCatalog.CargoGroups(dialog);
+            var cargoRows = NativeCaravanCatalog.CargoGroups(map, dialog);
             if (NativeCaravanCatalog.Token(context, cargoRows, pawnRows) != command.ExpectedCatalogToken)
             { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Caravan catalog changed; observe before new admission."); return false; }
             var selected = new List<Pawn>();

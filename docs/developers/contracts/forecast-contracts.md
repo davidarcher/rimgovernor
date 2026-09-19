@@ -102,8 +102,22 @@ so the portfolio does not subtract the reserve a second time.
 `SelectCaravanFood` accepts observed transfer groups eligible for the entire
 crew, per-unit nutrition and unrefrigerated remaining shelf life. It packs
 reserve groups first, then the longest-lived food, and returns no selection
-when the journey cannot be covered. The departure adapter owns obtaining these
-facts, respecting home stock floors and admitting the resulting cargo.
+when the journey cannot be covered.
+
+The caravan catalog (`observations_read_caravan_catalog`) carries those facts
+per cargo group: nutrition, perishability, unrefrigerated rot days, the reserve
+flag and the pawns eligible to eat it. `PlanCaravanCargo` in the departure
+adapter (`buildingruntime.CaravanDepartureBoundary`) combines the action's
+trade cargo with a `SelectCaravanFood` pack for the crew over the route's
+estimated days plus the expedition travel margin, then checks the home runway
+remaining after the pack (excluding reserve stock, counting kibble only when a
+home eater remains) against the routine food floor (`RoutinePolicy.FoodMinDays`);
+an unknown journey, an uncoverable journey or a breached floor refuses the
+attempt without a preview. The admitted cargo lines are recorded with the
+catalog token and replayed exactly at dispatch; changed groups are stale
+evidence. Packing the reserve is how it leaves home: MaintainFoodStorage
+observes the reduced reserve stock afterwards and refills it through its
+ordinary holds and preservation bills.
 
 ## Meal tier policy
 

@@ -20924,6 +20924,12 @@ func (x *CaravanPawnEligibility) GetReason() string {
 	return ""
 }
 
+// Food facts (#464): nutrition is per unit for a nutrition-giving ingestible
+// (absent otherwise); perishable groups carry rot_days, the shortest
+// remaining unrefrigerated shelf life of any stack in the group; reserve
+// marks a group holding forbidden pemmican or survival meals (the food
+// reserve MaintainFoodStorage holds); eater_ids lists the free colonists
+// whose diet and food restriction allow the food.
 type CargoGroup struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	GroupId       *string                `protobuf:"bytes,1,opt,name=group_id,json=groupId,proto3,oneof" json:"group_id,omitempty"`
@@ -20931,6 +20937,11 @@ type CargoGroup struct {
 	DefName       *string                `protobuf:"bytes,3,opt,name=def_name,json=defName,proto3,oneof" json:"def_name,omitempty"`
 	Count         *int64                 `protobuf:"varint,4,opt,name=count,proto3,oneof" json:"count,omitempty"`
 	Mass          *float64               `protobuf:"fixed64,5,opt,name=mass,proto3,oneof" json:"mass,omitempty"`
+	Nutrition     *float64               `protobuf:"fixed64,6,opt,name=nutrition,proto3,oneof" json:"nutrition,omitempty"`
+	Perishable    *bool                  `protobuf:"varint,7,opt,name=perishable,proto3,oneof" json:"perishable,omitempty"`
+	RotDays       *float64               `protobuf:"fixed64,8,opt,name=rot_days,json=rotDays,proto3,oneof" json:"rot_days,omitempty"`
+	Reserve       *bool                  `protobuf:"varint,9,opt,name=reserve,proto3,oneof" json:"reserve,omitempty"`
+	EaterIds      []string               `protobuf:"bytes,10,rep,name=eater_ids,json=eaterIds,proto3" json:"eater_ids,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -20998,6 +21009,41 @@ func (x *CargoGroup) GetMass() float64 {
 		return *x.Mass
 	}
 	return 0
+}
+
+func (x *CargoGroup) GetNutrition() float64 {
+	if x != nil && x.Nutrition != nil {
+		return *x.Nutrition
+	}
+	return 0
+}
+
+func (x *CargoGroup) GetPerishable() bool {
+	if x != nil && x.Perishable != nil {
+		return *x.Perishable
+	}
+	return false
+}
+
+func (x *CargoGroup) GetRotDays() float64 {
+	if x != nil && x.RotDays != nil {
+		return *x.RotDays
+	}
+	return 0
+}
+
+func (x *CargoGroup) GetReserve() bool {
+	if x != nil && x.Reserve != nil {
+		return *x.Reserve
+	}
+	return false
+}
+
+func (x *CargoGroup) GetEaterIds() []string {
+	if x != nil {
+		return x.EaterIds
+	}
+	return nil
 }
 
 type CaravanCatalog struct {
@@ -36244,18 +36290,32 @@ const file_observations_proto_rawDesc = "" +
 	"\x06reason\x18\x03 \x01(\tH\x01R\x06reason\x88\x01\x01B\f\n" +
 	"\n" +
 	"_availableB\t\n" +
-	"\a_reason\"\xeb\x01\n" +
+	"\a_reason\"\xc5\x03\n" +
 	"\n" +
 	"CargoGroup\x12\x1e\n" +
 	"\bgroup_id\x18\x01 \x01(\tH\x00R\agroupId\x88\x01\x01\x12<\n" +
 	"\x05items\x18\x02 \x03(\v2&.rimgovernor.observations.v1.EntityRefR\x05items\x12\x1e\n" +
 	"\bdef_name\x18\x03 \x01(\tH\x01R\adefName\x88\x01\x01\x12\x19\n" +
 	"\x05count\x18\x04 \x01(\x03H\x02R\x05count\x88\x01\x01\x12\x17\n" +
-	"\x04mass\x18\x05 \x01(\x01H\x03R\x04mass\x88\x01\x01B\v\n" +
+	"\x04mass\x18\x05 \x01(\x01H\x03R\x04mass\x88\x01\x01\x12!\n" +
+	"\tnutrition\x18\x06 \x01(\x01H\x04R\tnutrition\x88\x01\x01\x12#\n" +
+	"\n" +
+	"perishable\x18\a \x01(\bH\x05R\n" +
+	"perishable\x88\x01\x01\x12\x1e\n" +
+	"\brot_days\x18\b \x01(\x01H\x06R\arotDays\x88\x01\x01\x12\x1d\n" +
+	"\areserve\x18\t \x01(\bH\aR\areserve\x88\x01\x01\x12\x1b\n" +
+	"\teater_ids\x18\n" +
+	" \x03(\tR\beaterIdsB\v\n" +
 	"\t_group_idB\v\n" +
 	"\t_def_nameB\b\n" +
 	"\x06_countB\a\n" +
-	"\x05_mass\"\xc1\x05\n" +
+	"\x05_massB\f\n" +
+	"\n" +
+	"_nutritionB\r\n" +
+	"\v_perishableB\v\n" +
+	"\t_rot_daysB\n" +
+	"\n" +
+	"\b_reserve\"\xc1\x05\n" +
 	"\x0eCaravanCatalog\x12D\n" +
 	"\bsnapshot\x18\x01 \x01(\v2(.rimgovernor.observations.v1.SnapshotRefR\bsnapshot\x12I\n" +
 	"\x05pawns\x18\x02 \x03(\v23.rimgovernor.observations.v1.CaravanPawnEligibilityR\x05pawns\x12@\n" +

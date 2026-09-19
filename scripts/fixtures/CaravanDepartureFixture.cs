@@ -63,6 +63,25 @@ namespace HomeBridge.BridgeTools
                 wood.stackCount = 75;
                 GenPlace.TryPlaceThing(wood, woodCell, map, ThingPlaceMode.Near);
                 wood.SetForbidden(false, false);
+                // The colony's food reserve (#428): forbidden pemmican the
+                // departure adapter packs first (#464), beside unforbidden
+                // survival meals it packs next and the simple meals above it
+                // must leave home. Two survival stacks keep the home runway
+                // over the routine floor after the pack leaves.
+                var pemmican = ThingMaker.MakeThing(ThingDef.Named("Pemmican"));
+                pemmican.stackCount = 20;
+                GenPlace.TryPlaceThing(pemmican, center + new IntVec3(0, 0, 3), map, ThingPlaceMode.Near);
+                pemmican.SetForbidden(true, false);
+                for (var i = 0; i < 2; i++)
+                {
+                    var survival = ThingMaker.MakeThing(ThingDef.Named("MealSurvivalPack"));
+                    survival.stackCount = 30;
+                    GenPlace.TryPlaceThing(survival, center + new IntVec3(i * 2 - 1, 0, -3), map, ThingPlaceMode.Near);
+                    survival.SetForbidden(false, false);
+                }
+                // A crew member carrying a packed meal would show in the
+                // caravan's inventory beside the composed pack.
+                foreach (var pawn in crew) pawn.inventory?.innerContainer.ClearAndDestroyContents();
 
                 // A candidate must have an actual native path from the home
                 // tile, not merely exist and be non-hostile: on a random world
@@ -75,7 +94,7 @@ namespace HomeBridge.BridgeTools
                 Settlement settlement = null;
                 foreach (var candidate in Find.WorldObjects.SettlementBases
                     .Where(s => s.Faction != null && s.Faction != player && !s.Faction.HostileTo(player) && s.Visitable && s.Tile != map.Tile)
-                    .OrderBy(s => s.GetUniqueLoadID()))
+                    .OrderBy(s => Find.WorldGrid.ApproxDistanceInTiles(map.Tile, s.Tile)).ThenBy(s => s.GetUniqueLoadID()))
                 {
                     using var path = map.Tile.Layer.Pather.FindPath(map.Tile, candidate.Tile, null);
                     if (path.Found) { settlement = candidate; break; }

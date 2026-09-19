@@ -76,17 +76,56 @@ namespace HomeBridge.BridgeTools
             return rows;
         }
 
-        internal static List<Obs.CargoGroup> CargoGroups(Dialog_FormCaravan dialog)
+        internal static List<Obs.CargoGroup> CargoGroups(Map map, Dialog_FormCaravan dialog)
         {
             var rows = new List<Obs.CargoGroup>();
+            var colonists = map.mapPawns.FreeColonistsSpawned.Where(p => p.needs?.food != null).OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
             foreach (var group in dialog.transferables.Where(g => !(g.AnyThing is Pawn)))
             {
                 var row = new Obs.CargoGroup { GroupId = GroupId(group), DefName = group.ThingDef.defName, Count = group.MaxCount };
                 try { row.Mass = group.AnyThing.GetStatValue(StatDefOf.Mass) * group.MaxCount; }
                 catch (Exception) { /* Mass is a diagnostic extra; omission does not affect catalog freshness. */ }
+                FoodFacts(row, group, colonists);
                 rows.Add(row);
             }
             return rows;
+        }
+
+        // Food facts (#464) feed Go's SelectCaravanFood: per-unit nutrition,
+        // the shortest unrefrigerated shelf life across the group's stacks
+        // (rot progresses at full rate above 10 C, which is what a caravan
+        // carrying the food sees), the reserve flag FoodSupplyFacts.IsReserve
+        // defines, and the colonists whose diet and food restriction admit the
+        // food. The group merges stacks by def, so a group holding any held
+        // reserve stack reports reserve. None of these join the catalog token:
+        // rot advances every tick and would refuse every admission.
+        private static void FoodFacts(Obs.CargoGroup row, TransferableOneWay group, List<Pawn> colonists)
+        {
+            var thing = group.AnyThing;
+            var def = thing.def;
+            if (def.category != ThingCategory.Item || !def.IsNutritionGivingIngestible || def.IsDrug || def.IsCorpse) return;
+            var nutrition = thing.GetStatValue(StatDefOf.Nutrition);
+            if (float.IsNaN(nutrition) || float.IsInfinity(nutrition) || nutrition <= 0f) return;
+            row.Nutrition = nutrition;
+            var perishable = false;
+            float? rotDays = null;
+            var reserve = false;
+            foreach (var stack in group.things)
+            {
+                var rot = stack.TryGetComp<CompRottable>();
+                if (rot != null && rot.Active)
+                {
+                    perishable = true;
+                    var remaining = Math.Max(0f, rot.PropsRot.TicksToRotStart - rot.RotProgress) / 60000f;
+                    if (rotDays == null || remaining < rotDays.Value) rotDays = remaining;
+                }
+                if (FoodSupplyFacts.IsReserve(stack)) reserve = true;
+            }
+            row.Perishable = perishable;
+            if (perishable && rotDays.HasValue && !float.IsNaN(rotDays.Value) && !float.IsInfinity(rotDays.Value)) row.RotDays = rotDays.Value;
+            row.Reserve = reserve;
+            foreach (var pawn in colonists)
+                if (pawn.WillEat(thing) && FoodSupplyFacts.PolicyAllows(pawn, thing)) row.EaterIds.Add(pawn.GetUniqueLoadID());
         }
 
         // Freshness token covering both home-colonist eligibility and cargo
@@ -203,7 +242,7 @@ namespace HomeBridge.BridgeTools
                 {
                     var dialog = NativeCaravanCatalog.BuildDialog(map);
                     var pawns = NativeCaravanCatalog.PawnRows(map, context);
-                    var cargo = NativeCaravanCatalog.CargoGroups(dialog);
+                    var cargo = NativeCaravanCatalog.CargoGroups(map, dialog);
                     var (route, settlement) = NativeCaravanCatalog.RouteFacts(map, dialog, parsed.Destination);
                     var token = NativeCaravanCatalog.Token(context, cargo, pawns);
                     var catalog = new Obs.CaravanCatalog

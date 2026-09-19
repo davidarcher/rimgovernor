@@ -160,6 +160,12 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 			return encodeErr
 		}
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,trade_payload) VALUES(?,?,?,'trade',?)", a.ID(), plan, ordinal, data)
+	} else if departure, ok := a.CaravanDeparture(); ok {
+		data, encodeErr := json.Marshal(caravanPayload{departure.Crew(), departure.Cargo(), departure.DestinationTile()})
+		if encodeErr != nil {
+			return encodeErr
+		}
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,caravan_payload) VALUES(?,?,?,'caravan_departure',?)", a.ID(), plan, ordinal, data)
 	} else if naming, ok := a.NamingConfirmation(); ok {
 		// x carries the window ID; definition and stuff are the exact observed
 		// faction and settlement suggestions.
@@ -175,8 +181,8 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 	var ordinal int
 	var def, rotation, stuff, pawn, target, draftAction sql.NullString
 	var x, z sql.NullInt64
-	var work, zone, bill, wallRemoval, productionPolicyBlob, buildingTemperatureBlob, moodReliefBlob, tradeBlob []byte
-	if err := rows.Scan(&id, &kind, &def, &x, &z, &rotation, &stuff, &pawn, &target, &draftAction, &work, &zone, &bill, &wallRemoval, &productionPolicyBlob, &buildingTemperatureBlob, &moodReliefBlob, &tradeBlob, &ordinal); err != nil {
+	var work, zone, bill, wallRemoval, productionPolicyBlob, buildingTemperatureBlob, moodReliefBlob, tradeBlob, caravanBlob []byte
+	if err := rows.Scan(&id, &kind, &def, &x, &z, &rotation, &stuff, &pawn, &target, &draftAction, &work, &zone, &bill, &wallRemoval, &productionPolicyBlob, &buildingTemperatureBlob, &moodReliefBlob, &tradeBlob, &caravanBlob, &ordinal); err != nil {
 		return domain.Action{}, 0, err
 	}
 	if kind == "production_bill" && !pawn.Valid && !target.Valid && !draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid && work == nil && zone == nil {
@@ -393,6 +399,25 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 	}
 	if tradeBlob != nil {
 		return domain.Action{}, 0, errors.New("mixed trade payload")
+	}
+	if kind == "caravan_departure" && !pawn.Valid && !target.Valid && !draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid {
+		var payload caravanPayload
+		if len(caravanBlob) > 32768 || json.Unmarshal(caravanBlob, &payload) != nil {
+			return domain.Action{}, 0, errors.New("invalid caravan payload")
+		}
+		canonical, _ := json.Marshal(payload)
+		if !bytes.Equal(canonical, caravanBlob) {
+			return domain.Action{}, 0, errors.New("noncanonical caravan payload")
+		}
+		c, err := domain.NewCaravanDeparture(payload.Crew, payload.Cargo, payload.DestinationTile)
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		action, err := domain.NewCaravanDepartureAction(id, c)
+		return action, ordinal, err
+	}
+	if caravanBlob != nil {
+		return domain.Action{}, 0, errors.New("mixed caravan payload")
 	}
 	if kind == "owned_draft" && pawn.Valid && !target.Valid && !draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid {
 		d, e := domain.NewOwnedDraft(domain.PawnID(pawn.String))
@@ -749,6 +774,12 @@ type productionPolicyPayload struct {
 type buildingTemperaturePayload struct {
 	Celsius float64
 	Before  string
+}
+
+type caravanPayload struct {
+	Crew            []domain.PawnID
+	Cargo           []domain.CargoItem
+	DestinationTile int32
 }
 
 type tradePayload struct {

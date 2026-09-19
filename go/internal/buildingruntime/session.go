@@ -90,6 +90,7 @@ type SessionConfig struct {
 	WallRemoval         *WallRemovalCapabilities
 	PrisonerInteraction *PrisonerInteractionCapabilities
 	QuestAccept         *QuestAcceptCapabilities
+	CaravanDeparture    *CaravanDepartureCapabilities
 	MineAcquisition     *mineacquisition.MineAcquisitionCapabilities
 	Excavation          *excavation.ExcavationCapabilities
 	ProductionPolicy    *ProductionPolicyCapabilities
@@ -414,6 +415,9 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.QuestAccept != nil && (config.QuestAccept.Native == nil || config.QuestAccept.Writer == nil) {
 		return cleanup(ErrControl)
 	}
+	if config.CaravanDeparture != nil && (config.CaravanDeparture.Native == nil || config.CaravanDeparture.Writer == nil) {
+		return cleanup(ErrControl)
+	}
 	if config.MineAcquisition != nil && (config.MineAcquisition.Native == nil || config.MineAcquisition.Writer == nil) {
 		return cleanup(ErrControl)
 	}
@@ -709,6 +713,15 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 			return cleanup(err)
 		}
 		if err := worker.EnableQuestAccept(questAcceptBoundary); err != nil {
+			return cleanup(err)
+		}
+	}
+	if config.CaravanDeparture != nil {
+		caravanDepartureBoundary, err := NewCaravanDepartureBoundary(config.CaravanDeparture.Native, config.CaravanDeparture.Writer, journal, sessionBuildingLeases{control, journal, config.RoutineMethods, config.Executor.JournalTimeout}, clock, string(namespace), config.CaravanDeparture.HomeFoodMinDays)
+		if err != nil {
+			return cleanup(err)
+		}
+		if err := worker.EnableCaravanDeparture(caravanDepartureBoundary); err != nil {
 			return cleanup(err)
 		}
 	}

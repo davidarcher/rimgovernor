@@ -139,6 +139,7 @@ type buildingServiceBridge struct {
 	husbandry           *buildingruntime.HusbandryCapabilities
 	prisonerInteraction *buildingruntime.PrisonerInteractionCapabilities
 	questAccept         *buildingruntime.QuestAcceptCapabilities
+	caravanDeparture    *buildingruntime.CaravanDepartureCapabilities
 	research            *buildingruntime.ResearchSelectCapabilities
 	naming              *buildingruntime.ConfirmColonyNamesCapabilities
 	dialog              *buildingruntime.DialogAnswerCapabilities
@@ -290,6 +291,10 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
+	caravanDepartureWriter, err := bridge.NewCaravanDepartureWriter(client)
+	if err != nil {
+		return buildingServiceBridge{}, errors.Join(err, client.Close())
+	}
 	productionPolicyWriter, err := bridge.NewProductionPolicyWriter(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
@@ -363,6 +368,7 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		husbandry:           &buildingruntime.HusbandryCapabilities{Native: client, Writer: husbandryWriter},
 		prisonerInteraction: &buildingruntime.PrisonerInteractionCapabilities{Native: client, Writer: prisonerInteractionWriter},
 		questAccept:         &buildingruntime.QuestAcceptCapabilities{Native: client, Writer: questAcceptWriter},
+		caravanDeparture:    &buildingruntime.CaravanDepartureCapabilities{Native: client, Writer: caravanDepartureWriter},
 		research:            &buildingruntime.ResearchSelectCapabilities{Native: client, Writer: researchSelect},
 		naming:              &buildingruntime.ConfirmColonyNamesCapabilities{Native: client, Writer: namingControl},
 		dialog:              &buildingruntime.DialogAnswerCapabilities{Native: client, Writer: dialogControl},
@@ -724,6 +730,16 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		tradeCapabilities = client.trade
 	}
+	// The departure adapter (#464) composes with caravan journey tracking:
+	// a completed FormCaravan starts the tracking the tracker reconciles,
+	// and the pack keeps the routine food floor at home.
+	var caravanDepartureCapabilities *buildingruntime.CaravanDepartureCapabilities
+	if config.caravanJourneyTracking && client.caravanDeparture != nil {
+		thresholds, _ := routineCapabilities(config)
+		capabilities := *client.caravanDeparture
+		capabilities.HomeFoodMinDays = thresholds.FoodMinDays
+		caravanDepartureCapabilities = &capabilities
+	}
 	var productionPolicyCapabilities *buildingruntime.ProductionPolicyCapabilities
 	if config.routineProductionPolicyPlans {
 		if client.production == nil {
@@ -832,6 +848,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		Husbandry:           husbandryCapabilities,
 		PrisonerInteraction: prisonerInteractionCapabilities,
 		QuestAccept:         questAcceptCapabilities,
+		CaravanDeparture:    caravanDepartureCapabilities,
 		ResearchSelect:      researchSelectCapabilities,
 		ConfirmColonyNames:  namingCapabilities,
 		DialogAnswer:        dialogCapabilities,
