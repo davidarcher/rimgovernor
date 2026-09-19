@@ -36,7 +36,8 @@ type WorkPawn struct {
 	Age       domain.Fact[float64]
 	// Schedule is the current timetable, one TimeAssignmentDef per hour
 	// (hour 0 first); unknown when the read carried no complete timetable.
-	Schedule domain.Fact[[]string]
+	Schedule        domain.Fact[[]string]
+	FoodRestriction domain.Fact[FoodRestriction]
 	// Job is the pawn's current job; unknown when the read carried no job
 	// block.
 	Job domain.Fact[PawnJob]

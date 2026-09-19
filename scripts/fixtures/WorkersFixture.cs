@@ -18,6 +18,42 @@ namespace HomeBridge.BridgeTools
     // production build.
     public sealed class WorkersFixture
     {
+        [Tool("test/food_policy", Description = "Test-only restrictive diet and reachable meal fixture; read reports actual nutrition eaten.")]
+        public async Task<object> FoodPolicy(IRimBridgeContext ctx, CancellationToken cancellationToken,
+            [ToolParameter(Description = "restrict, edit or read")] string action)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                var pawn = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed && p.foodRestriction != null && p.needs?.food != null && p.workSettings?.EverWork == true)
+                    .OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).First();
+                var database = Current.Game.foodRestrictionDatabase;
+                var manual = database.AllFoodRestrictions.FirstOrDefault(p => p.label == "test-restrictive-food");
+                if (action == "restrict") {
+                    Current.Game.playSettings.useWorkPriorities = true;
+                    if (manual == null) { manual = database.MakeNewFoodRestriction(); manual.label = "test-restrictive-food"; }
+                    manual.filter.SetDisallowAll();
+                    pawn.foodRestriction.CurrentFoodPolicy = manual;
+                    pawn.drafter.Drafted = false;
+                    if (pawn.InMentalState) pawn.MentalState.RecoverFromState();
+                    pawn.jobs.StopAll();
+                    pawn.needs.food.CurLevelPercentage = 0.1f;
+                    pawn.needs.rest.CurLevelPercentage = 1f;
+                    for (var hour = 0; hour < 24; hour++) pawn.timetable.SetAssignment(hour, TimeAssignmentDefOf.Anything);
+                    var meal = ThingMaker.MakeThing(ThingDefOf.MealSimple); meal.stackCount = 20;
+                    GenPlace.TryPlaceThing(meal, pawn.Position, map, ThingPlaceMode.Near);
+                    meal.SetForbidden(false, false);
+                } else if (action == "edit") {
+                    pawn.foodRestriction.CurrentFoodPolicy.filter.SetAllow(ThingDefOf.RawPotatoes, true);
+                } else if (action != "read") throw new ArgumentException("unknown food fixture action");
+                var current = pawn.foodRestriction.CurrentFoodPolicy;
+                return new { pawn = pawn.GetUniqueLoadID(), policy = current.GetUniqueLoadID(),
+                    allowed = current.filter.Allows(ThingDefOf.MealSimple),
+                    manualStillRestricted = manual != null && !manual.filter.Allows(ThingDefOf.MealSimple),
+                    food = pawn.needs.food.CurLevelPercentage, eaten = pawn.records.GetValue(RecordDefOf.NutritionEaten),
+                    tick = Find.TickManager.TicksGame };
+            }, cancellationToken);
+        }
+
         [Tool("test/workers_setup", Description = "Seed skills, passions, traits and timetables on the three colonists for a workers/* scenario; test builds only.")]
         public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "passion, traits, coverage or nightowl.")] string scenario)

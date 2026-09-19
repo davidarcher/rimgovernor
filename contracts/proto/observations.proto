@@ -235,6 +235,7 @@ message PawnSettings {
   repeated WorkSetting work = 9; repeated TimetableSlot schedule = 10; repeated DefinitionRef allowed_areas = 11;
   repeated string medical_care_options = 12; repeated string hostility_response_options = 13; repeated ReadIssue issues = 14;
   optional bool work_applies = 15; optional bool manual_work_priorities = 16;
+  FoodRestriction food_restriction = 17;
 }
 message TrainingEntry { optional string def_name = 1; optional bool learned = 2; optional bool wanted = 3; optional bool available = 4; optional string reason = 5; }
 message AnimalState {
@@ -1066,3 +1067,11 @@ service Observations {
 
 // Native definition classification for bounded food purchases and crop exports.
 message TradeFoodFacts { double nutrition = 1; FoodIngredientClass ingredient_class = 2; bool prepared = 3; bool non_perishable = 4; bool crop = 5; }
+
+// Native eligibility without the saved definition whitelist. Special filters
+// and condition ranges remain part of the exact settings snapshot.
+message FoodRestriction {
+  optional string policy_id = 1;
+  repeated string allowed_defs = 2;
+  repeated string eligible_defs = 3;
+}

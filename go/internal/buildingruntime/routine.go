@@ -282,6 +282,11 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 			work, err := policy.PlanWork(pawns, required, preferences.Overrides, demand)
 			if err == nil {
 				reading.Projection.Facts.WorkCoverage = work.Matches
+				for _, pawn := range pawns {
+					if len(policy.FoodPolicyChanges(pawn)) > 0 {
+						reading.Projection.Facts.WorkCoverage = domain.Known(false)
+					}
+				}
 				// A timetable behind its role template is a work
 				// deficit the same review corrects (#417).
 				if matches, ok := work.Matches.Value(); ok && matches {

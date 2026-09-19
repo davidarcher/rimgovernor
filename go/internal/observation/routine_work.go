@@ -42,6 +42,9 @@ func WorkPawnRow(row *o.PawnState) policy.WorkPawn {
 		w.Available = domain.Known(true)
 	}
 	if s := row.Settings; s != nil {
+		if food := s.FoodRestriction; food != nil && food.PolicyId != nil && !hasIssue(s.Issues, "food_restriction") {
+			w.FoodRestriction = domain.Known(policy.FoodRestriction{PolicyID: food.GetPolicyId(), Allowed: append([]string(nil), food.AllowedDefs...), Eligible: append([]string(nil), food.EligibleDefs...)})
+		}
 		if s.Snapshot != nil {
 			w.SnapshotToken = domain.Known(s.Snapshot.GetToken())
 		}

@@ -160,6 +160,11 @@ assert native readback. `takeover/schedule` restores the planned timetable;
 history; `takeover/suspended-bill` corrects a player bill and observes produced
 feed; `takeover/demolition-designation` explicitly adopts a colony wall's order
 and observes pawn demolition; `takeover/home-removal` restores removed Home.
+`takeover/food-policy` repairs a restrictive saved diet through the pawn-settings
+CAS, verifies actual eating and nutrition recovery after repeated edits, and
+checks that the assigned policy survives save/load. The planner restores missing
+natively eligible definitions while retaining ingredient filters and condition
+ranges; it never changes a shared diet in place or forces a pawn to eat.
 Service cases audit the durable routine journal for provenance holds; direct
 operation cases recover their applied receipt from the native attempt journal.
 `draft/order` retains stale-snapshot and exact-claim checks alongside adoption;

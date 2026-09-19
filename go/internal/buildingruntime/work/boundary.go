@@ -2,6 +2,7 @@ package work
 
 import (
 	"context"
+	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
@@ -184,6 +185,9 @@ func (b *WorkBoundary) ObserveWork(ctx context.Context, p executor.Placement, cu
 		values[setting.GetDefName()] = setting.GetPriority()
 	}
 	matches := true
+	for _, def := range wanted.Work.FoodAllow() {
+		matches = matches && settings.FoodRestriction != nil && slices.Contains(settings.FoodRestriction.AllowedDefs, def)
+	}
 	for _, desired := range wanted.Work.Settings() {
 		actual, known := values[desired.Definition]
 		matches = matches && known && actual == desired.Priority

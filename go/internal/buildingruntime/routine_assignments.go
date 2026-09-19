@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -203,6 +204,14 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		if _, ck := pawn.Work.Value(); !tk || !mk || !ck {
 			continue
 		}
+		if defs := policy.FoodPolicyChanges(pawn); len(defs) > 0 {
+			w, err := domain.NewFoodAssignment(domain.PawnID(pawn.ID), token, defs)
+			if err != nil {
+				return RoutineWorkResult{}, err
+			}
+			work = append(work, w)
+			continue
+		}
 		changed, ok := policy.WorkChanges(pawn, assignment)
 		if !ok {
 			return RoutineWorkResult{}, ErrControl
@@ -247,6 +256,11 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	for _, w := range work {
 		data, _ := json.Marshal(w.Settings())
 		fmt.Fprintf(hash, "%s/%s/%t/%s\n", w.Pawn(), w.BeforeToken(), w.Manual(), data)
+		if defs := w.FoodAllow(); len(defs) > 0 {
+			// An identical Manual edit after a completed repair needs another
+			// method even when the settings token returns to its old value.
+			fmt.Fprintf(hash, "food/%q/%d\n", defs, len(goal.Methods))
+		}
 	}
 	method := domain.MethodID(fmt.Sprintf("work-%x", hash.Sum(nil)[:16]))
 	if _, err = p.journal.LoadGoalMethod(call, goal.Goal.ID, goal.Goal.Epoch, method); err == nil {
@@ -316,6 +330,9 @@ func cancelStaleWorkActions(ctx context.Context, journal *store.Store, plan stor
 func workActionStale(w domain.WorkAssignment, wanted map[domain.PawnID]domain.WorkAssignment) bool {
 	now, ok := wanted[w.Pawn()]
 	if !ok || now.BeforeToken() != w.BeforeToken() || now.Manual() != w.Manual() {
+		return true
+	}
+	if !slices.Equal(w.FoodAllow(), now.FoodAllow()) {
 		return true
 	}
 	values := map[string]int32{}

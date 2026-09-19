@@ -178,6 +178,9 @@ message PatchPawn {
   repeated Training training = 11;
   optional bool slaughter = 12;
   optional bool release_to_wild = 13;
+  // Add eligible food definitions to a private copy of the pawn's diet.
+  // Native admission rechecks eligibility and the complete settings CAS.
+  DefinitionList food_allow = 14;
 }
 message FilterSelector { oneof definition { string thing_def = 1; string category_def = 2; string special_filter_def = 3; } }
 message SelectorList { repeated FilterSelector selectors = 1; }

@@ -34,6 +34,7 @@ func ValidateRoutinePawnSnapshot(snapshot *o.PawnSnapshot, id *c.Identity, ids [
 func validateSettings(s *o.PawnSettings, work, care, schedule bool) error {
 	allowed := &o.PawnSettings{Snapshot: s.Snapshot, Issues: s.Issues}
 	if work {
+		allowed.FoodRestriction = s.FoodRestriction
 		allowed.Work, allowed.WorkApplies, allowed.ManualWorkPriorities, allowed.AllowedAreaId = s.Work, s.WorkApplies, s.ManualWorkPriorities, s.AllowedAreaId
 	}
 	if care {
@@ -47,6 +48,23 @@ func validateSettings(s *o.PawnSettings, work, care, schedule bool) error {
 	}
 	if s.Snapshot != nil && (validID(s.Snapshot.GetEntityId()) != nil || validID(s.Snapshot.GetToken()) != nil) {
 		return contract("invalid work snapshot")
+	}
+	if food := s.FoodRestriction; food != nil {
+		if validID(food.GetPolicyId()) != nil {
+			return contract("invalid food policy identity")
+		}
+		for _, defs := range [][]string{food.AllowedDefs, food.EligibleDefs} {
+			if len(defs) > 65536 {
+				return contract("food definitions exceed bound")
+			}
+			seen := map[string]bool{}
+			for _, def := range defs {
+				if validID(def) != nil || seen[def] {
+					return contract("invalid food definition")
+				}
+				seen[def] = true
+			}
+		}
 	}
 	if err := pawnsIssues(s.Issues, s.ProtoReflect()); err != nil {
 		return err

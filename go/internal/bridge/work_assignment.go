@@ -46,6 +46,9 @@ func workOperation(w domain.WorkAssignment) *op.Operation {
 	if w.HasSchedule() {
 		patch.Schedule = &op.Schedule{AssignmentDefs: append([]string(nil), w.Schedule()...)}
 	}
+	if defs := w.FoodAllow(); len(defs) > 0 {
+		patch.FoodAllow = &op.DefinitionList{Defs: defs}
+	}
 	return &op.Operation{Command: &op.Operation_PatchPawn{PatchPawn: patch}}
 }
 func (client *Client) PreviewWorkAssignment(ctx context.Context, identity *c.Identity, target domain.WorkAssignment) (*op.PreviewReply, Result, error) {
@@ -105,6 +108,9 @@ func validWorkAttempt(w WorkAttempt) error {
 func workEffect(v *r.EffectEvidence, work domain.WorkAssignment, matches bool) error {
 	effect := v.GetSettings()
 	expectedFields := len(work.Settings())
+	if len(work.FoodAllow()) > 0 {
+		expectedFields++
+	}
 	if work.HasArea() {
 		expectedFields++
 	}
@@ -120,6 +126,7 @@ func workEffect(v *r.EffectEvidence, work domain.WorkAssignment, matches bool) e
 	}
 	areaSeen := !work.HasArea()
 	scheduleSeen := !work.HasSchedule()
+	foodSeen := len(work.FoodAllow()) == 0
 	want := r.FieldOutcome_FIELD_OUTCOME_APPLIED
 	if !matches {
 		want = r.FieldOutcome_FIELD_OUTCOME_REFUSED
@@ -129,6 +136,11 @@ func workEffect(v *r.EffectEvidence, work domain.WorkAssignment, matches bool) e
 			return contract("work field mismatch")
 		}
 		switch field.GetField() {
+		case r.SettingsField_SETTINGS_FIELD_FOOD_RESTRICTION:
+			if foodSeen {
+				return contract("duplicate food field")
+			}
+			foodSeen = true
 		case r.SettingsField_SETTINGS_FIELD_WORK:
 			if !seen[field.GetWorkTypeDef()] {
 				return contract("work field mismatch")
@@ -148,7 +160,7 @@ func workEffect(v *r.EffectEvidence, work domain.WorkAssignment, matches bool) e
 			return contract("work field mismatch")
 		}
 	}
-	if len(seen) != 0 || !areaSeen || !scheduleSeen {
+	if len(seen) != 0 || !areaSeen || !scheduleSeen || !foodSeen {
 		return contract("work field mismatch")
 	}
 	return nil

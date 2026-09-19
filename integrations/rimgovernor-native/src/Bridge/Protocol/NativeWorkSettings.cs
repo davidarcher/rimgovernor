@@ -15,7 +15,7 @@ using Receipts = RimGovernor.Protocol.Receipts;
 
 namespace HomeBridge.BridgeTools
 {
-    // A work-only settings token never authorizes care or pawn orders.
+    // A settings token never authorizes care or pawn orders.
     // AllowedArea (Assignment: a named area or an explicit clear) and
     // Schedule (the full 24-slot timetable, #417) are admitted alongside --
     // or instead of -- work priorities through this same PatchPawn dispatch:
@@ -25,7 +25,8 @@ namespace HomeBridge.BridgeTools
     // command actually touches. A pure work-priority write is consequently
     // also sensitive to an unrelated area or timetable change (and vice
     // versa); that is the same single-token-per-write-surface discipline
-    // PatchBuilding's settings fields already share.
+    // PatchBuilding's settings fields already share. Food-policy assignment
+    // and complete filter configuration are included in the same CAS.
     internal static class NativeWorkSettings
     {
         private static bool ValidArea(Operations.Assignment? area) => area == null
@@ -39,7 +40,8 @@ namespace HomeBridge.BridgeTools
 
         internal static bool Valid(Operations.PatchPawn? command) => command != null
             && NativeDraftProtocol.ValidEntity(command.Pawn) && command.Work.Count <= 256
-            && (command.Work.Count > 0 || command.AllowedArea != null || command.Schedule != null)
+            && (command.Work.Count > 0 || command.AllowedArea != null || command.Schedule != null || command.FoodAllow != null)
+            && NativeFoodPolicy.Valid(command.FoodAllow)
             && command.Work.All(w => w.HasWorkTypeDef && ProtoBoundary.IsIdentifier(w.WorkTypeDef) && w.HasPriority && w.Priority >= 0 && w.Priority <= 4)
             && command.Work.Select(w => w.WorkTypeDef).Distinct(StringComparer.Ordinal).Count() == command.Work.Count
             && ValidSchedule(command.Schedule) && !command.HasMedicalCare && !command.HasHostilityResponse && !command.HasSelfTend
@@ -90,7 +92,7 @@ namespace HomeBridge.BridgeTools
             if (!manual.HasValue || defs.Count == 0 || defs.Count > 256) return null;
             var rows = defs.Select(d => new Obs.WorkSetting { DefName = d.defName, Priority = pawn.workSettings.GetPriority(d), Disabled = pawn.WorkTypeIsDisabled(d) }).ToArray();
             return new Obs.SnapshotRef { Context = context.Clone(), EntityId = pawn.GetUniqueLoadID(),
-                Token = Token(context.Identity, pawn.GetUniqueLoadID(), manual.Value, rows, CurrentAreaId(pawn), CurrentSchedule(pawn)) };
+                Token = NativeFoodPolicy.SettingsToken(Token(context.Identity, pawn.GetUniqueLoadID(), manual.Value, rows, CurrentAreaId(pawn), CurrentSchedule(pawn)), pawn) };
         }
 
         // Resolves a requested area identifier tolerantly against either the
@@ -139,7 +141,7 @@ namespace HomeBridge.BridgeTools
         private static bool Prepare(Operations.PatchPawn command, Common.ObservationContext context, out Pawn? pawn, out Common.Failure failure)
         {
             pawn = null;
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Work settings require an exact current work/area/schedule snapshot and only work priorities, an allowed-area assignment or a 24-slot timetable.");
+            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn settings require an exact work/area/schedule/food snapshot and a supported settings change.");
             if (!Valid(command)) return false;
             var found = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Pawn.EntityId);
             var manual = PawnSettingsRead.ManualPriorities();
@@ -157,7 +159,8 @@ namespace HomeBridge.BridgeTools
                 .Require(() => PrepareArea(command, found!, out _, out _, out _), "the requested allowed area is missing, unreachable or unsafe under the current roof hazard")
                 .Require(() => ScheduleDefined(command), "a requested timetable assignment is not defined")
                 .Require(() => ScheduleWritable(command, found!), "the pawn has no 24-hour timetable")
-                .Token(() => Snapshot(found!, context)?.Token == command.Pawn.ExpectedSnapshotToken, "the pawn's work/area/schedule snapshot changed since it was read");
+                .Require(() => NativeFoodPolicy.Writable(found!, command.FoodAllow), "the requested food is not natively eligible")
+                .Token(() => Snapshot(found!, context)?.Token == command.Pawn.ExpectedSnapshotToken, "the pawn's work/area/schedule/food snapshot changed since it was read");
             if (!rules.Holds) { failure = rules.Failure(); return false; }
             pawn = found;
             return true;
@@ -172,6 +175,8 @@ namespace HomeBridge.BridgeTools
             if (command.AllowedArea != null) effect.Fields.Add(new Receipts.FieldResult { Field = Receipts.SettingsField.AllowedArea,
                 Outcome = matches ? Receipts.FieldOutcome.Applied : Receipts.FieldOutcome.Refused });
             if (command.Schedule != null) effect.Fields.Add(new Receipts.FieldResult { Field = Receipts.SettingsField.Schedule,
+                Outcome = matches ? Receipts.FieldOutcome.Applied : Receipts.FieldOutcome.Refused });
+            if (command.FoodAllow != null) effect.Fields.Add(new Receipts.FieldResult { Field = Receipts.SettingsField.FoodRestriction,
                 Outcome = matches ? Receipts.FieldOutcome.Applied : Receipts.FieldOutcome.Refused });
             return new Receipts.EffectEvidence { Settings = effect };
         }
@@ -220,6 +225,7 @@ namespace HomeBridge.BridgeTools
                         for (var hour = 0; hour < ScheduleHours; hour++)
                             pawn!.timetable.SetAssignment(hour, DefDatabase<TimeAssignmentDef>.GetNamed(command.Schedule.AssignmentDefs[hour]));
                     }
+                    NativeFoodPolicy.Apply(pawn!, command.FoodAllow);
                     var snapshot = Snapshot(pawn!, context);
                     if (snapshot == null || !Matches(pawn!, command)) throw new InvalidOperationException("Native work settings require readback.");
                     evidence = Evidence(command, snapshot.Token, true);
@@ -235,6 +241,7 @@ namespace HomeBridge.BridgeTools
 
         private static bool Matches(Pawn pawn, Operations.PatchPawn command)
         {
+            if (!NativeFoodPolicy.Matches(pawn, command.FoodAllow)) return false;
             if (!command.Work.All(row => {
                 var def = DefDatabase<WorkTypeDef>.GetNamedSilentFail(row.WorkTypeDef);
                 return def != null && pawn.workSettings.GetPriority(def) == row.Priority;
