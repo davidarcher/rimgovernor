@@ -15,7 +15,15 @@
 // the RoutineDefensePlanner must answer it with squad defense; the run then
 // waits for the hunt to resolve under the service (the predator dead,
 // downed or gone, the ActiveCombat goal recovered, the drafts released) and
-// for the clock to resume colony windows afterwards. For the edge
+// for the clock to resume colony windows afterwards. In defense/hive and
+// defense/shippart the incident is a hostile building (#246): the fixture
+// spawns one insect hive or one crashed ship part in the open near the
+// colony with its pawn spawning off, the census lists it under
+// hostileBuildings and holds the clock like a hostile pawn, the
+// RoutineDefensePlanner must answer it with a melee squad on the building,
+// the fight runs under combat windows until the goal recovers, the drafts
+// are released and colony windows resume, and natively the building must
+// be destroyed with no colonist dead or drafted. For the edge
 // raid the service then holds the raid itself -- the scheduler admits
 // bounded combat watch windows acknowledging the live hostiles while the
 // ActiveCombat goal has an admitted plan (#69) -- and the run waits for the
@@ -40,7 +48,8 @@
 // audits it, then saves the game as the committed checkpoint
 // (scripts/fixtures/saves/RimGovernor-defense-layout.rws plus its
 // .checkpoint.json: the layout record and the guarded-construction site).
-// defense/raid, defense/raid-bypass and defense/predator resume from that
+// defense/raid, defense/raid-bypass, defense/predator, defense/hive and
+// defense/shippart resume from that
 // checkpoint: they re-run the cheap layout audits and go straight to the
 // incident. The checkpoint is fixture-mod state, so regenerate it after
 // fixture or save-format changes.
@@ -84,13 +93,15 @@ const (
 
 // variant is one case's scenario: the incident staged after the layout
 // (threat "raid" with its RaidStrategyDef/PawnsArrivalModeDef, bypass when
-// the raid bypasses the line; or "predator" with its PawnKindDef), whether
+// the raid bypasses the line; "predator" with its PawnKindDef; or
+// "building" with the hostile building's ThingDef, #246), whether
 // the layout comes from the committed checkpoint, and whether the run ends
 // by writing that checkpoint instead of staging an incident.
 type variant struct {
 	strategy, arrival    string
 	bypass               bool
 	threat, predatorKind string
+	buildingKind         string
 	fromCheckpoint       bool
 	writeCheckpoint      bool
 	// turrets adds the powered turret tier (#61) before the raid and
@@ -156,6 +167,16 @@ func init() {
 	register("defense/predator", "A wild predator hunting a colonist during supervised play (#157) is answered with squad defense from the committed layout checkpoint: "+
 		"the hunt resolves under the service through combat windows, the drafts are released and colony windows resume.",
 		checkpoint, 15*time.Minute, predator)
+	hive := fromCheckpoint
+	hive.threat, hive.buildingKind = "building", "Hive"
+	register("defense/hive", "An insect hive near the colony (#246) is answered from the committed layout checkpoint: the census lists the hostile building, "+
+		"squad defense targets it with melee attacks under colony windows, the hive is destroyed natively and the drafts are released.",
+		checkpoint, 15*time.Minute, hive)
+	shipPart := fromCheckpoint
+	shipPart.threat, shipPart.buildingKind = "building", "DefoliatorShipPart"
+	register("defense/shippart", "A crashed ship part near the colony (#246) is answered from the committed layout checkpoint: the census lists the hostile building, "+
+		"squad defense targets it with melee attacks under colony windows, the ship part is destroyed natively and the drafts are released.",
+		checkpoint, 15*time.Minute, shipPart)
 }
 
 // layoutCheckpoint is what a raid-only run needs besides the save itself:
@@ -425,6 +446,9 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 	}
 	if v.threat == "predator" {
 		return runPredator(ctx, closeClient, reopenFixture, fixture, launch, layout, v, report)
+	}
+	if v.threat == "building" {
+		return runHostileBuilding(ctx, closeClient, reopenFixture, fixture, launch, layout, v, report)
 	}
 	if v.turrets {
 		// Scenario T1: the observed gates open and the planner adds the
@@ -1077,7 +1101,7 @@ func runPredator(ctx context.Context, closeClient func() error, reopenHarness fu
 	if err := assertSquadTargets(plan.Spec, predatorID); err != nil {
 		return err
 	}
-	resolved, err := waitHuntResolved(ctx, svc.store, svc.wait(raidTimeout))
+	resolved, err := waitHuntResolved(ctx, svc.store, svc.wait(raidTimeout), true)
 	report["hunt_resolution"] = resolved
 	if err != nil {
 		return fmt.Errorf("hunt resolution: %w", err)
@@ -1128,8 +1152,123 @@ func runPredator(ctx context.Context, closeClient func() error, reopenHarness fu
 	return nil
 }
 
+// runHostileBuilding is the -threat building scenario (#246) after the
+// layout is in place: the fixture spawns one hostile building (an insect
+// hive or a crashed ship part) in the open near the colony with its pawn
+// spawning off, so the census lists it under hostileBuildings and nothing
+// else. The building holds the clock like a hostile pawn; the service must
+// answer it with squad defense on the building itself (melee: the planner
+// never plans a ranged attack on a building), fight it under combat
+// windows until the ActiveCombat goal recovers, release the drafts and
+// resume colony windows. Natively the building must be destroyed, no pawn
+// of its faction on the map, and no colonist dead or drafted.
+func runHostileBuilding(ctx context.Context, closeClient func() error, reopenHarness func() error,
+	fixture func(string, map[string]any) (map[string]any, error), launch func(string) (*service, error),
+	layout store.DefenseLayoutRecord, v variant, report na.Report) error {
+	// The layout checkpoint carries a colonist with a known wound; a
+	// 1200-hit-point ship part outlives the wound's creep into a
+	// CriticalMedical hold that refuses every attack (the tend order has
+	// no native preview and the fixture colony no beds), so the case
+	// heals the colony before the building is staged.
+	healed, err := fixture("heal-before-building", map[string]any{"op": "heal"})
+	if err != nil {
+		return err
+	}
+	report["healed_before_building"] = healed
+	staged, err := fixture("hostile", map[string]any{"op": "hostile", "kind": v.buildingKind})
+	if err != nil {
+		return err
+	}
+	report["hostile_building_incident"] = staged
+	buildingID := na.AsString(staged["building"])
+	if hostile, _ := na.AsBool(staged["hostile"]); buildingID == "" || !hostile {
+		return fmt.Errorf("hostile fixture did not stage a hostile building: %#v", staged)
+	}
+	if err := closeClient(); err != nil {
+		return err
+	}
+	svc, err := launch("hostile")
+	if err != nil {
+		return err
+	}
+	defer svc.stop()
+	method, err := waitCombatMethod(ctx, svc.store, svc.wait(raidTimeout), report)
+	if err != nil {
+		return fmt.Errorf("combat response: %w", err)
+	}
+	if !strings.HasPrefix(string(method.Method), "squad-") {
+		return fmt.Errorf("combat method %q, expected prefix %q", method.Method, "squad-")
+	}
+	plan, err := svc.store.LoadPlan(ctx, method.Plan)
+	if err != nil {
+		return err
+	}
+	if err := assertNoLinePosition(plan.Spec, layout); err != nil {
+		return err
+	}
+	if err := assertSquadTargets(plan.Spec, buildingID); err != nil {
+		return err
+	}
+	for _, action := range plan.Spec.Actions() {
+		if _, ok := action.RangedAttack(); ok {
+			return fmt.Errorf("squad plan %s plans a ranged attack on the building; buildings are melee targets", plan.Spec.ID())
+		}
+	}
+	resolved, err := waitHuntResolved(ctx, svc.store, svc.wait(raidTimeout), true)
+	report["building_resolution"] = resolved
+	if err != nil {
+		return fmt.Errorf("building resolution: %w", err)
+	}
+	released, err := waitDefendersReleased(ctx, svc.store, method.Plan, "squad-", svc.wait(raidTimeout))
+	report["defenders_released"] = released
+	if err != nil {
+		return fmt.Errorf("draft release after the building: %w", err)
+	}
+	resumed, err := waitClockResumed(ctx, svc.store, svc.wait(raidTimeout))
+	report["clock_resumed"] = resumed
+	if err != nil {
+		return fmt.Errorf("clock after the building: %w", err)
+	}
+	attacks, err := squadAttacksDispatched(ctx, svc.store, "squad-", buildingID)
+	report["building_attacks"] = attacks
+	if err != nil {
+		return err
+	}
+	svc.stop()
+	report["raid_authority"] = svc.keepAlive.snapshot()
+	if err := reopenHarness(); err != nil {
+		return err
+	}
+	final, err := fixture("inspect-after-building", map[string]any{"op": "inspect"})
+	if err != nil {
+		return err
+	}
+	report["inspect_after_building"] = final
+	building, _ := na.AsMap(final["hostileBuilding"])
+	if na.AsString(building["id"]) != buildingID {
+		return fmt.Errorf("inspect lost the fixture hostile building (stale fixture build?): %#v", final)
+	}
+	if destroyed, _ := na.AsBool(building["destroyed"]); !destroyed {
+		return fmt.Errorf("hostile building still standing after the goal recovered: %#v", building)
+	}
+	if pawns := na.AsNumber(building["factionPawns"]); pawns != 0 {
+		return fmt.Errorf("%v pawns of the building's faction on the map; the fixture should have staged the building alone", pawns)
+	}
+	for _, raw := range na.AsSlice(final["colonists"]) {
+		row, _ := na.AsMap(raw)
+		if dead, _ := na.AsBool(row["dead"]); dead {
+			return fmt.Errorf("colonist %s died to the hostile building", na.AsString(row["id"]))
+		}
+		if drafted, _ := na.AsBool(row["drafted"]); drafted {
+			return fmt.Errorf("colonist %s still drafted after the building was destroyed", na.AsString(row["id"]))
+		}
+	}
+	return nil
+}
+
 // assertSquadTargets requires every attack in the squad plan to target the
-// fixture predator: the only threat on the map is the hunting predator.
+// fixture's threat: the hunting predator or the hostile building is the
+// only threat on the map.
 func assertSquadTargets(spec domain.PlanSpec, predatorID string) error {
 	attacks := 0
 	for _, action := range spec.Actions() {
@@ -1143,7 +1282,7 @@ func assertSquadTargets(spec domain.PlanSpec, predatorID string) error {
 		}
 		attacks++
 		if target != predatorID {
-			return fmt.Errorf("squad plan %s attacks %s, not the hunting predator %s", spec.ID(), target, predatorID)
+			return fmt.Errorf("squad plan %s attacks %s, not the fixture threat %s", spec.ID(), target, predatorID)
 		}
 	}
 	if attacks == 0 {
@@ -1152,10 +1291,61 @@ func assertSquadTargets(spec domain.PlanSpec, predatorID string) error {
 	return nil
 }
 
-// waitHuntResolved polls the journal while the service fights the predator:
-// at least one combat window must have run, and the ActiveCombat goal must
-// have recovered or be unbound.
-func waitHuntResolved(ctx context.Context, s *store.Store, w na.Wait) (map[string]any, error) {
+// squadAttacksDispatched counts the melee attacks on the target that reached
+// a native dispatch across every squad plan of the ActiveCombat goal, and
+// fails when none did: a hostile building that fell without one was not
+// destroyed by the colony (an unmaintained hive deteriorates on its own).
+func squadAttacksDispatched(ctx context.Context, s *store.Store, prefix string, target string) (map[string]any, error) {
+	review, err := s.LoadRoutineReview(ctx)
+	if err != nil {
+		return nil, err
+	}
+	plans := map[domain.PlanID]bool{}
+	for _, binding := range review.Goals {
+		if binding.Need != policy.ActiveCombat {
+			continue
+		}
+		goal, err := s.LoadGoal(ctx, binding.Goal)
+		if err != nil && !errors.Is(err, store.ErrNotFound) {
+			return nil, err
+		}
+		for _, m := range goal.Methods {
+			if strings.HasPrefix(string(m.Method), prefix) {
+				plans[m.Plan] = true
+			}
+		}
+	}
+	dispatched, planned := 0, 0
+	stages := map[string]string{}
+	for id := range plans {
+		state, err := s.LoadPlan(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		for _, p := range state.Progress {
+			attack, ok := p.Action().MeleeAttack()
+			if !ok || string(attack.Target()) != target {
+				continue
+			}
+			planned++
+			v := p.View()
+			stages[string(id)+"/"+string(attack.Pawn())] = string(v.Stage)
+			if v.Attempt > 0 {
+				dispatched++
+			}
+		}
+	}
+	out := map[string]any{"plans": len(plans), "planned": planned, "dispatched": dispatched, "stages": stages}
+	if dispatched == 0 {
+		return out, fmt.Errorf("no melee attack on %s was dispatched natively across %d squad plan(s): %v", target, len(plans), stages)
+	}
+	return out, nil
+}
+
+// waitHuntResolved polls the journal while the service fights the threat:
+// at least one window must have run (a combat window when combat is set),
+// and the ActiveCombat goal must have recovered or be unbound.
+func waitHuntResolved(ctx context.Context, s *store.Store, w na.Wait, combat bool) (map[string]any, error) {
 	out := map[string]any{}
 	err := na.WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
 		combatWindows, colonyWindows, acknowledged, err := clockWindows(ctx, s)
@@ -1184,7 +1374,11 @@ func waitHuntResolved(ctx context.Context, s *store.Store, w na.Wait) (map[strin
 		out["combat_goal_bound"] = bound
 		out["combat_goal_need"] = need
 		out["resolved_tick"] = int64(review.Tick)
-		if combatWindows > 0 && (!bound || need == string(domain.NeedRecovered)) {
+		windows := combatWindows
+		if !combat {
+			windows = colonyWindows
+		}
+		if windows > 0 && (!bound || need == string(domain.NeedRecovered)) {
 			return "", true, nil
 		}
 		return na.Signature(combatWindows, colonyWindows, bound, need), false, nil

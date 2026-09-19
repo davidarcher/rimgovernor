@@ -91,7 +91,7 @@ func EvaluateRangedDefense(r RangedDefenseRequest) DraftDecision {
 			if dead || down {
 				return refuse(UnsupportedThreat)
 			}
-			if threat.Kind == Hostile {
+			if threat.Kind == Hostile || threat.Building() {
 				foundTarget = true
 			}
 			continue

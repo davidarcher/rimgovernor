@@ -25,8 +25,12 @@ namespace HomeBridge.BridgeTools
     // x,z, steel and components in stock), depower (one conduit at x,z
     // vanishes with the game's auto-rebuild off), empty (#205: the turret at
     // x,z has its barrel emptied and its auto-refuel switched off, so any
-    // later fuel in it came from a rearm order). No completed-work
-    // injection: construction, movement and combat stay native.
+    // later fuel in it came from a rearm order), hostile (#246: one insect
+    // hive or crashed ship part of def kind spawned in the open near a
+    // colonist under its native hostile faction, its pawn and child-hive
+    // spawning switched off so the building itself is the only threat). No
+    // completed-work injection: construction, movement and combat stay
+    // native.
     public sealed class DefenseFixture
     {
         private const int Half = 22;
@@ -44,8 +48,18 @@ namespace HomeBridge.BridgeTools
             if (fixturePredator == null || fixturePredatorWorld != Find.World) { fixturePredator = null; fixturePredatorWorld = null; }
             return fixturePredator;
         }
+        // The hostile building the fixture spawned (#246), guarded by its
+        // world the same way; a destroyed thing keeps answering Destroyed,
+        // so it is remembered, not cleared, once it is gone.
+        private static Thing fixtureHostile;
+        private static World fixtureHostileWorld;
+        private static Thing CurrentHostile()
+        {
+            if (fixtureHostile == null || fixtureHostileWorld != Find.World) { fixtureHostile = null; fixtureHostileWorld = null; }
+            return fixtureHostile;
+        }
 
-        [Tool("test/defense_setup", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable defensive-layout fixture: op=terrain|stock|ranged|raid|predator|damage|breach|heal|inspect|quiet|power|depower|muster|empty.")]
+        [Tool("test/defense_setup", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable defensive-layout fixture: op=terrain|stock|ranged|raid|predator|damage|breach|heal|inspect|quiet|power|depower|muster|empty|hostile.")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken, string op, string strategy = "ImmediateAttack", string arrival = "EdgeWalkIn", int points = 0, string wall = "", int rifles = 3, string kind = "Cougar", int x = -1, int z = -1, string cells = "")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -71,6 +85,7 @@ namespace HomeBridge.BridgeTools
                     case "depower": return Depower(map, new IntVec3(x, 0, z));
                     case "muster": return Muster(map, colonists, cells);
                     case "empty": return Empty(map, new IntVec3(x, 0, z));
+                    case "hostile": return Hostile(map, colonists, kind);
                     default: return Refuse("Use terrain, stock, ranged, raid, predator, damage, breach, heal, inspect, quiet, power, depower, muster or empty.");
                 }
             }, cancellationToken).ConfigureAwait(false);
@@ -245,6 +260,59 @@ namespace HomeBridge.BridgeTools
             return new { success = true, predator = predator.GetUniqueLoadID(), kind = kindDef.defName, bodySize = predator.BodySize,
                 prey = prey.GetUniqueLoadID(), x = cell.x, z = cell.z, distance = cell.DistanceTo(prey.Position),
                 job = predator.CurJobDef.defName, faction = predator.Faction?.def.defName, tick = Find.TickManager.TicksGame };
+        }
+
+        // Hostile stages the #246 threat: one hostile building (an insect
+        // hive, or a crashed ship part) in open ground 8-14 cells from a
+        // standing colonist, with two cells of clearance on every side so
+        // it never sits in the corridor gap or against the hut. The hive's
+        // own pawn and child-hive spawners are switched off before it is
+        // spawned, so no insect ever appears and the building is the only
+        // threat the census lists; a ship part comes without its incident's
+        // mechanoid guards. Destroying it is left to the service.
+        private static object Hostile(Map map, List<Pawn> colonists, string kind)
+        {
+            var staged = CurrentHostile();
+            if (staged != null && staged.Spawned && !staged.Destroyed && staged.Map == map)
+                return Refuse("Fixture hostile building already on the map; inspect it before staging another.");
+            var def = DefDatabase<ThingDef>.GetNamedSilentFail(kind);
+            if (def == null || !def.useHitPoints || !(typeof(Hive).IsAssignableFrom(def.thingClass) || def.building != null && def.building.combatPower > 0))
+                return Refuse("kind must name Hive or a building ThingDef with combatPower.");
+            var isHive = typeof(Hive).IsAssignableFrom(def.thingClass);
+            var faction = Find.FactionManager.FirstFactionOfDef(isHive ? FactionDefOf.Insect : FactionDefOf.Mechanoid);
+            if (faction == null) return Refuse("The world has no " + (isHive ? "insect" : "mechanoid") + " faction.");
+            var near = colonists.FirstOrDefault(p => !p.Dead && !p.Downed);
+            if (near == null) return Refuse("No standing colonist to threaten.");
+            var rot = Rot4.North;
+            var cell = GenRadial.RadialCellsAround(near.Position, 14, true).FirstOrDefault(c => c.DistanceTo(near.Position) >= 8
+                && GenAdj.OccupiedRect(c, rot, def.size).ExpandedBy(2).Cells.All(o => o.InBounds(map) && o.Standable(map) && !o.Fogged(map))
+                && map.reachability.CanReach(near.Position, c, Verse.AI.PathEndMode.Touch, TraverseMode.NoPassClosedDoors, Danger.Deadly));
+            if (!cell.IsValid) return Refuse("No clear cell 8-14 cells from a colonist for a " + def.defName + ".");
+            var thing = ThingMaker.MakeThing(def);
+            thing.SetFactionDirect(faction);
+            var spawner = thing.TryGetComp<CompSpawnerPawn>();
+            if (spawner != null) spawner.canSpawnPawns = false;
+            var hives = thing.TryGetComp<CompSpawnerHives>();
+            if (hives != null) hives.canSpawnHives = false;
+            // A hive its insects never maintain deteriorates and destroys
+            // itself in about 10000 ticks; park its maintenance clock far in
+            // the past so only the colonists' damage can bring it down.
+            var maintainable = thing.TryGetComp<CompMaintainable>();
+            if (maintainable != null) maintainable.ticksSinceMaintain = int.MinValue / 2;
+            var insectsBefore = map.mapPawns.AllPawnsSpawned.Where(p => p.Faction == faction).Select(p => p.thingIDNumber).ToHashSet();
+            GenSpawn.Spawn(thing, cell, map, rot);
+            if (!thing.Spawned) return Refuse("The " + def.defName + " did not spawn.");
+            // Belt and braces: any pawn the spawn nevertheless produced is
+            // vanished so the building stays the only threat.
+            var stray = map.mapPawns.AllPawnsSpawned.Where(p => p.Faction == faction && !insectsBefore.Contains(p.thingIDNumber)).ToList();
+            foreach (var pawn in stray) pawn.Destroy(DestroyMode.Vanish);
+            if (spawner != null) spawner.spawnedPawns.Clear();
+            var hostile = thing.HostileTo(Faction.OfPlayer);
+            if (!hostile) { thing.Destroy(DestroyMode.Vanish); return Refuse("The spawned " + def.defName + " is not hostile to the player."); }
+            fixtureHostile = thing; fixtureHostileWorld = Find.World;
+            return new { success = true, building = thing.GetUniqueLoadID(), def = def.defName, faction = faction.def.defName, hostile,
+                hp = thing.HitPoints, max = thing.MaxHitPoints, x = cell.x, z = cell.z, sizeX = def.size.x, sizeZ = def.size.z,
+                distance = cell.DistanceTo(near.Position), near = near.GetUniqueLoadID(), strayVanished = stray.Count, tick = Find.TickManager.TicksGame };
         }
 
         private static object Damage(Map map, string wall)
@@ -539,6 +607,18 @@ namespace HomeBridge.BridgeTools
                 predator = new { id = p.GetUniqueLoadID(), spawned = p.Spawned && p.Map == map, dead = p.Dead, downed = p.Downed,
                     job = p.CurJobDef?.defName, huntingColonist, x = p.Position.x, z = p.Position.z };
             }
+            // The fixture hostile building's fate (#246): destroyed, or still
+            // spawned with its hit points; plus every hostile-faction pawn on
+            // the map so a run can tell an insect that slipped past the
+            // spawner switch from the building itself.
+            object hostileBuilding = null;
+            if (CurrentHostile() != null)
+            {
+                var b = fixtureHostile;
+                hostileBuilding = new { id = b.GetUniqueLoadID(), def = b.def.defName, destroyed = b.Destroyed, spawned = b.Spawned && b.Map == map,
+                    hp = b.Destroyed ? 0 : b.HitPoints, max = b.MaxHitPoints, x = b.Position.x, z = b.Position.z,
+                    factionPawns = map.mapPawns.AllPawnsSpawned.Count(p => p.Faction != null && p.Faction == b.Faction) };
+            }
             // Trap ids let a later inspect tell a destroyed trap (its id is
             // gone) from its replacement (a new id on the same cell).
             var trapIds = traps.Select(t => t.GetUniqueLoadID()).OrderBy(id => id).ToList();
@@ -548,7 +628,7 @@ namespace HomeBridge.BridgeTools
             var generators = map.listerBuildings.allBuildingsColonist.Where(b => b.TryGetComp<CompPowerPlant>() != null).OrderBy(b => b.thingIDNumber)
                 .Select(b => new { id = b.GetUniqueLoadID(), def = b.def.defName, x = b.Position.x, z = b.Position.z, output = b.TryGetComp<CompPowerPlant>().PowerOutput,
                     fuel = b.TryGetComp<CompRefuelable>()?.Fuel ?? -1f }).ToList();
-            return new { success = true, traps = traps.Count, trapIds, trapCells = cells, sprung, colonistsOnTraps, colonists, hostiles, predator, walls,
+            return new { success = true, traps = traps.Count, trapIds, trapCells = cells, sprung, colonistsOnTraps, colonists, hostiles, predator, hostileBuilding, walls,
                 turrets = Turrets(map), conduits, generators, tick = Find.TickManager.TicksGame, paused = Find.TickManager.Paused };
         }
 

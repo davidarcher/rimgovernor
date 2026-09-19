@@ -226,8 +226,8 @@ namespace HomeBridge.BridgeTools
                     || explosion.projectile!=flight.Definition || explosion.damType!=flight.Definition.projectile.damageDef
                     || worker.GetType()!=typeof(DamageWorker_AddInjury) || worker!=explosion.damType.Worker || victim!=e.Target
                     || damage.Instigator!=e.Attacker || damage.Def!=explosion.damType || !CurrentIdentity(flight.Record) || !flight.Record.ImpactGuard()
-                    || e.Target.Dead || e.CausedDeath || damageSequence==long.MaxValue) return null;
-                return new PendingImpact {Flight=flight,Sequence=damageSequence+1,WasDead=e.Target.Dead,WasDowned=e.Target.Downed};
+                    || e.TargetDead || e.CausedDeath || damageSequence==long.MaxValue) return null;
+                return new PendingImpact {Flight=flight,Sequence=damageSequence+1,WasDead=e.TargetDead,WasDowned=e.TargetDowned};
             } catch { return null; }
         }
         private static DamageWorker.DamageResult ApplyExplosionDamage(Thing victim,DamageInfo damage,Explosion explosion,DamageWorker worker)
@@ -241,7 +241,7 @@ namespace HomeBridge.BridgeTools
             try {
                 if (pending!=null && result!=null && !exhausted && damageDepth==0 && damageSequence==pending.Sequence && ExplosiveIsReady
                     && CurrentIdentity(pending.Flight.Record) && pending.Flight.Record.ImpactGuard() && Find.TickManager!=null) {
-                    var e=pending.Flight.Record.Evidence;e.Record(result.totalDamageDealt,pending.WasDead,pending.WasDowned,e.Target.Dead,e.Target.Downed,Find.TickManager.TicksGame);
+                    var e=pending.Flight.Record.Evidence;e.Record(result.totalDamageDealt,pending.WasDead,pending.WasDowned,e.TargetDead,e.TargetDowned,Find.TickManager.TicksGame);
                 }
             } catch { /* Forward native results without manufacturing completion. */ }
             return result!;

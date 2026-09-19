@@ -126,7 +126,7 @@ namespace HomeBridge.BridgeTools
             }
             return result;
         }
-        internal static bool Supports(Verb verb,Pawn attacker,Pawn target)
+        internal static bool Supports(Verb verb,Pawn attacker,Thing target)
         {
             try {
                 if (!IsReady || verb==null || attacker==null || target==null || verb.CasterPawn!=attacker
@@ -137,7 +137,7 @@ namespace HomeBridge.BridgeTools
                     && ((projectile.thingClass==typeof(Bullet) && projectile.projectile.explosionRadius==0) || SupportedExplosive(projectile));
             } catch { return false; }
         }
-        internal static NativeCombatDamageRecord Track(Game game,Pawn attacker,Pawn target,Job job,Func<bool> launchGuard,Func<bool> impactGuard)
+        internal static NativeCombatDamageRecord Track(Game game,Pawn attacker,Thing target,Job job,Func<bool> launchGuard,Func<bool> impactGuard)
         {
             if (!UnityData.IsInMainThread || !IsReady || game!=Current.Game || !attacker.Spawned || !target.Spawned
                 || attacker.Map!=target.Map || !ProtoBoundary.IsLoaded(target.Map) || job==null || job.def!=JobDefOf.AttackStatic
@@ -231,8 +231,8 @@ namespace HomeBridge.BridgeTools
                 var record=flight.Record;var e=record.Evidence;
                 if (projectile.GetType()!=typeof(Bullet) || projectile.thingIDNumber!=flight.ProjectileId || projectile.def!=flight.Definition
                     || projectile.Launcher!=e.Attacker || projectile.intendedTarget.Thing!=e.Target || victim!=e.Target || damage.Instigator!=e.Attacker
-                    || !CurrentIdentity(record) || !record.ImpactGuard() || e.Target.Dead || e.CausedDeath || damageSequence==long.MaxValue) return null;
-                return new PendingImpact {Flight=flight,Sequence=damageSequence+1,WasDead=e.Target.Dead,WasDowned=e.Target.Downed};
+                    || !CurrentIdentity(record) || !record.ImpactGuard() || e.TargetDead || e.CausedDeath || damageSequence==long.MaxValue) return null;
+                return new PendingImpact {Flight=flight,Sequence=damageSequence+1,WasDead=e.TargetDead,WasDowned=e.TargetDowned};
             } catch { return null; }
         }
         private static DamageWorker.DamageResult ApplyBulletDamage(Thing victim,DamageInfo damage,Bullet projectile,bool blockedByShield)
@@ -246,7 +246,7 @@ namespace HomeBridge.BridgeTools
                 if (pending!=null && result!=null && !exhausted && damageDepth==0 && damageSequence==pending.Sequence && IsReady
                     && CurrentIdentity(pending.Flight.Record) && pending.Flight.Record.ImpactGuard() && Find.TickManager!=null) {
                     var evidence=pending.Flight.Record.Evidence;
-                    evidence.Record(result.totalDamageDealt,pending.WasDead,pending.WasDowned,evidence.Target.Dead,evidence.Target.Downed,Find.TickManager.TicksGame);
+                    evidence.Record(result.totalDamageDealt,pending.WasDead,pending.WasDowned,evidence.TargetDead,evidence.TargetDowned,Find.TickManager.TicksGame);
                 }
             } catch { /* Keep the native result unchanged if outcome evidence is unreadable. */ }
             return result!;

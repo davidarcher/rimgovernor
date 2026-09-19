@@ -23,18 +23,34 @@ const (
 	IgnoredHunter
 	NearbyPredator
 	NearbyDowned
+	// HostileBuilding is a hostile-faction building the census lists as a
+	// combat target in its own right (an insect hive, a crashed ship part):
+	// a deficit for ActiveCombat, a squad target once no hostile pawn
+	// remains, and an unsafe-threat hold like a hostile pawn, so the fight
+	// is planned under a stopped clock and run under watched combat windows
+	// (the draft and attack executors bind their reads by tick and are not
+	// safe under a running colony window; live 2026-09-18, #246).
+	HostileBuilding
 )
 
 // EmergencyThreat is one native threat row. Animal and Distance (Chebyshev
 // cells from the nearest living colonist) decide whether a hostile or hunting
 // animal is close enough to be an emergency; either unknown keeps the hold.
+// A HostileBuilding row is dead when destroyed and never downed; it carries
+// its own native CAS token (SnapshotToken) for the attack order and its
+// definition name.
 type EmergencyThreat struct {
 	ID           PawnID
 	Kind         ThreatKind
 	Dead, Downed domain.Fact[bool]
 	Animal       domain.Fact[bool]
 	Distance     domain.Fact[float64]
+	// SnapshotToken and Definition are set on HostileBuilding rows only.
+	SnapshotToken, Definition string
 }
+
+// Building reports whether the row is a hostile building rather than a pawn.
+func (t EmergencyThreat) Building() bool { return t.Kind == HostileBuilding }
 
 // DistantThreatCells is the nearest-colonist distance from which a hostile or
 // hunting animal is watched rather than held: the native supervisor stops a
@@ -110,8 +126,11 @@ func NewEmergencySnapshot(current domain.GenerationSnapshot, tick domain.Tick, f
 			id   PawnID
 			kind ThreatKind
 		}{threat.ID, threat.Kind}
-		if !validID(threat.ID) || threat.Kind < Hostile || threat.Kind > NearbyDowned || seen[key] {
+		if !validID(threat.ID) || threat.Kind < Hostile || threat.Kind > HostileBuilding || seen[key] {
 			return EmergencySnapshot{}, errors.New("invalid or duplicate emergency threat")
+		}
+		if threat.Building() != (threat.SnapshotToken != "" || threat.Definition != "") || threat.Building() && (!validID(PawnID(threat.SnapshotToken)) || !validID(PawnID(threat.Definition))) {
+			return EmergencySnapshot{}, errors.New("hostile building threat requires its snapshot token and definition")
 		}
 		if distance, known := threat.Distance.Value(); known && (math.IsNaN(distance) || math.IsInf(distance, 0) || distance < 0) {
 			return EmergencySnapshot{}, errors.New("invalid emergency threat distance")
@@ -193,7 +212,8 @@ func EvaluateEmergency(snapshot EmergencySnapshot, current domain.GenerationSnap
 		// A distant animal is watched by the native supervisor's radius,
 		// not held: no planner answers a manhunter or a hunting predator a
 		// hundred cells out, and holding for one parked the clock for good.
-		if (threat.Kind == Hostile || threat.Kind == HuntingPredator) && !threat.DistantThreat() {
+		// A hostile building holds at any distance (see HostileBuilding).
+		if (threat.Kind == Hostile || threat.Kind == HuntingPredator || threat.Kind == HostileBuilding) && !threat.DistantThreat() {
 			hold(EmergencyUnsafeThreat, threat.ID)
 		}
 	}

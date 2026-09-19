@@ -194,8 +194,31 @@ namespace HomeBridge.BridgeTools
                     if (pawn.RaceProps.predator) { row.HostileReason = "predator_near"; threats.WildPredatorsNear.Add(threat); }
                 }
             }
-            var count = threats.Hostiles.Count+threats.HuntingPredators.Count+threats.IgnoredHunters.Count+threats.DownedNear.Count+threats.WildPredatorsNear.Count;
+            foreach (var building in HostileBuildings(map, player)) {
+                var row = new Obs.ThreatBuilding { Building = Entity(building), HostileReason = "faction:"+building.Faction!.GetUniqueLoadID(),
+                    HitPoints = building.HitPoints, MaxHitPoints = building.MaxHitPoints };
+                row.Building.Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = row.Building.Id, Token = NativeWasteOperations.Token(context.Identity, building) };
+                if (colonists.Count > 0) row.NearestColonistDistance = colonists.Min(p => Math.Max(Math.Abs(p.Position.x-building.Position.x),Math.Abs(p.Position.z-building.Position.z)));
+                threats.HostileBuildings.Add(row);
+            }
+            var count = threats.Hostiles.Count+threats.HuntingPredators.Count+threats.IgnoredHunters.Count+threats.DownedNear.Count+threats.WildPredatorsNear.Count+threats.HostileBuildings.Count;
             RequireCount(count,limit); threats.Completeness=Complete(count); result.Threats=threats; return result;
+        }
+
+        // A hostile building is a combat target in its own right: an insect
+        // hive (RimWorld.Hive is a ThingWithComps, so it is read by def, not
+        // from the building lister) or any hostile-faction building with hit
+        // points and combat power (crashed ship parts, mech-cluster pieces).
+        // Walls and other inert hostile edifices are not threats.
+        internal static bool HostileBuilding(Thing thing, Faction player) => thing.Spawned && !thing.Destroyed && thing.def.useHitPoints
+            && thing.Faction != null && thing.Faction != player && thing.Faction.HostileTo(player)
+            && (thing is Hive || thing.def.building != null && thing.def.building.combatPower > 0);
+        internal static List<Thing> HostileBuildings(Map map, Faction player)
+        {
+            var found = new List<Thing>();
+            foreach (var hive in map.listerThings.ThingsOfDef(ThingDefOf.Hive)) if (HostileBuilding(hive, player)) found.Add(hive);
+            foreach (var building in map.listerBuildings.allBuildingsNonColonist) if (!(building is Hive) && HostileBuilding(building, player)) found.Add(building);
+            return found.OrderBy(t => t.thingIDNumber).ToList();
         }
 
         internal static Obs.JobEvidence JobRow(Verse.AI.Job? job, int queuedJobs)

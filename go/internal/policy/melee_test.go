@@ -74,6 +74,47 @@ func TestMeleeDefenseAdmission(t *testing.T) {
 	}
 }
 
+// Under a running combat window the executor's second inspection may read
+// the pawn from the step's fact cache, up to PlanningTickTolerance behind
+// the first preview it already admitted (#244, #246): the cached read
+// covers the admitted tick and the attack goes on to dispatch; a read the
+// tolerance cannot bridge is stale.
+func TestMeleeDefenseToleratesACachedPawnReadBehindTheAdmittedTick(t *testing.T) {
+	r := meleeRequest(t)
+	var err error
+	r.Progress, err = r.Progress.Prepare(r.Current, 12+domain.PlanningTickTolerance)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.MinimumTick = 12 + domain.PlanningTickTolerance
+	r.Facts.PreviewTick = 12 + domain.PlanningTickTolerance + 1
+	r.Facts.Emergency.tick = r.Facts.PreviewTick
+	if d := EvaluateMeleeDefense(r); !d.Admitted || len(d.Refused) != 0 {
+		t.Fatalf("cached pawn read within tolerance refused: %v", d)
+	}
+	r.MinimumTick++
+	if d := EvaluateMeleeDefense(r); d.Admitted || len(d.Refused) != 1 || d.Refused[0].Reason != StaleFacts {
+		t.Fatalf("pawn read beyond tolerance admitted: %v", d)
+	}
+}
+
+// A hostile building target (#246) is admitted on its census row alone:
+// standing, never downed, hostile by faction; once the census drops it, the
+// target is refused as an unsupported threat.
+func TestMeleeDefenseAdmitsAHostileBuildingTarget(t *testing.T) {
+	r := meleeRequest(t)
+	r.Facts.Emergency.facts.Threats = []EmergencyThreat{{ID: "target", Kind: HostileBuilding, Dead: domain.Known(false), Downed: domain.Known(false), Animal: domain.Known(false), SnapshotToken: "hive-cas", Definition: "Hive"}}
+	r.Facts.Target.SnapshotToken = "hive-cas"
+	if d := EvaluateMeleeDefense(r); !d.Admitted || len(d.Refused) != 0 {
+		t.Fatal(d)
+	}
+	r.Facts.Emergency.facts.Threats = nil
+	r.Facts.Target.Dead, r.Facts.Target.Hostile = domain.Known(true), domain.Known(false)
+	if d := EvaluateMeleeDefense(r); d.Admitted || len(d.Refused) != 1 || d.Refused[0].Reason != UnsupportedThreat {
+		t.Fatal(d)
+	}
+}
+
 func TestMeleeDefenseHolds(t *testing.T) {
 	cases := []struct {
 		name   string
@@ -82,7 +123,7 @@ func TestMeleeDefenseHolds(t *testing.T) {
 		{"zero action", func(r *MeleeDefenseRequest) { r.Action = domain.Action{} }},
 		{"zero progress", func(r *MeleeDefenseRequest) { r.Progress = domain.Progress{} }},
 		{"cancelled", func(r *MeleeDefenseRequest) { r.Progress, _ = r.Progress.Cancel() }},
-		{"minimum", func(r *MeleeDefenseRequest) { r.MinimumTick = 13 }},
+		{"minimum", func(r *MeleeDefenseRequest) { r.MinimumTick = 12 + domain.PlanningTickTolerance + 1 }},
 		{"negative minimum", func(r *MeleeDefenseRequest) { r.MinimumTick = -1 }},
 		{"reversed interval", func(r *MeleeDefenseRequest) { r.Facts.PreviewTick = 11 }},
 		{"old emergency", func(r *MeleeDefenseRequest) { r.Facts.Emergency.tick = 12 }},

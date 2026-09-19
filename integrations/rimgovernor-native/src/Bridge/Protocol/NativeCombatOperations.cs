@@ -15,7 +15,9 @@ namespace HomeBridge.BridgeTools
     internal sealed class NativeCombatRecord
     {
         private readonly NativeControlIdentity identity;
-        private readonly Pawn pawn,target;
+        private readonly Pawn pawn;
+        // A pawn or a hostile building (NativeObservationTools.HostileBuilding).
+        private readonly Thing target;
         private readonly Job job;
         private readonly int jobId;
         private readonly string jobDef,targetId;
@@ -29,7 +31,7 @@ namespace HomeBridge.BridgeTools
         private readonly Verb? attackVerb;
         private bool dispatching;
         private ulong? order;
-        internal NativeCombatRecord(NativeControlIdentity identity,Pawn pawn,Pawn target,Job job,NativePawnSnapshot before,
+        internal NativeCombatRecord(NativeControlIdentity identity,Pawn pawn,Thing target,Job job,NativePawnSnapshot before,
             Common.ObservationContext context,bool requireStanding,Authority.WritePrecondition precondition,NativeControlAuthority authority)
         {this.identity=identity;this.pawn=pawn;this.target=target;this.job=job;jobId=job.loadID;jobDef=job.def.defName;
             targetId=target.GetUniqueLoadID();this.before=before;admitted=context.Clone();this.requireStanding=requireStanding;
@@ -98,7 +100,7 @@ namespace HomeBridge.BridgeTools
                     && snapshot.Claim?.ClaimId==before.Claim!.ClaimId
                     && snapshot.Facts.OrderRevision==order;
                 bool damageObserved=damage.ObservedDamage && damage.ObservedTick>=admitted.Tick;
-                var phase=Classify(order.HasValue,unchanged,target.Dead,target.Downed,requireStanding,LiveJob(),damageObserved && damage.CausedDeath,damageObserved && damage.CausedDowning);
+                var phase=Classify(order.HasValue,unchanged,NativeCombatDamageRecord.Dead(target),NativeCombatDamageRecord.Downed(target),requireStanding,LiveJob(),damageObserved && damage.CausedDeath,damageObserved && damage.CausedDowning);
                 bool trackingLoss=ranged && NativeRangedCausality.HasTrackingLoss(damage);
                 phase=WithTrackingLoss(phase,trackingLoss);
                 if(phase==NativeCombatPhase.Unknown){result.Unknown=new Receipts.UnknownEffect {Reason=trackingLoss
@@ -107,13 +109,13 @@ namespace HomeBridge.BridgeTools
                 var evidence=Evidence(snapshot,false,phase==NativeCombatPhase.Pending || phase==NativeCombatPhase.Completed);
                 result.CompleteInspection=true;
                 if(phase==NativeCombatPhase.Completed) {
-                    evidence.Job.VerifiedReason="Native positive damage by this exact attacker/job caused the observed target "+(damage.CausedDeath?"death.":"downing.");
+                    evidence.Job.VerifiedReason="Native positive damage by this exact attacker/job caused the observed target "+(damage.CausedDeath?(target is Pawn?"death.":"destruction."):"downing.");
                     result.Completed=new Receipts.CompletedEffect {Evidence=evidence};
                 }
                 else if(phase==NativeCombatPhase.Pending)result.Pending=new Receipts.PendingEffect {Evidence=evidence};
                 else result.Unsuccessful=new Receipts.UnsuccessfulEffect {Evidence=evidence,
                     Reason=phase==NativeCombatPhase.TargetDead?Receipts.UnsuccessfulReason.TargetDead:Receipts.UnsuccessfulReason.Interrupted,
-                    Detail=phase==NativeCombatPhase.TargetDead?"The exact target is dead. No attacker kill attribution is claimed.":"Authority, owned claim, later order or required standing target changed."};
+                    Detail=phase==NativeCombatPhase.TargetDead?(target is Pawn?"The exact target is dead. No attacker kill attribution is claimed.":"The exact target is destroyed. No attacker kill attribution is claimed."):"Authority, owned claim, later order or required standing target changed."};
             } catch(Exception error){result.CompleteInspection=false;result.Unknown=new Receipts.UnknownEffect {Reason="Combat inspection unavailable: "+error.GetType().Name};}
             return result;
         }
@@ -132,18 +134,18 @@ namespace HomeBridge.BridgeTools
             if(colonists.Any(p=>p.health?.summaryHealth==null))return false;
             return CombatHealthAllows(colonists.Select(p=>p.health.summaryHealth.SummaryHealthPercent).ToArray(),colonists.Select(p=>p.Dead || p.Downed).ToArray());
         }
-        internal static void ConfigureRangedJob(Job job,Verb verb,Pawn target)
+        internal static void ConfigureRangedJob(Job job,Verb verb,Thing target)
         {
             // Exact ordinary Verse.Verb.OrderForceTarget weapon job shape.
             job.verbToUse=verb;job.targetA=target;job.endIfCantShootInMelee=true;
         }
         private static bool Ranged(Operations.AttackTarget command,Pawn pawn)=>command.Mode==Operations.AttackMode.Ranged
             || command.Mode==Operations.AttackMode.Auto && FloatMenuUtility.UseRangedAttack(pawn);
-        private static bool Legal(Operations.AttackTarget command,Pawn pawn,Pawn target,out JobDef? definition,out Verb? verb)
+        private static bool Legal(Operations.AttackTarget command,Pawn pawn,Thing target,out JobDef? definition,out Verb? verb)
         {
             definition=null;verb=null;
-            if(pawn.WorkTagIsDisabled(WorkTags.Violent) || !pawn.Spawned || !target.Spawned || pawn.Map!=target.Map || target.Dead || target.Destroyed
-                || command.RequireStanding && target.Downed || command.RequireHostile && !target.HostileTo(Faction.OfPlayer)
+            if(pawn.WorkTagIsDisabled(WorkTags.Violent) || !pawn.Spawned || !target.Spawned || pawn.Map!=target.Map || NativeCombatDamageRecord.Dead(target) || target.Destroyed
+                || command.RequireStanding && NativeCombatDamageRecord.Downed(target) || command.RequireHostile && !target.HostileTo(Faction.OfPlayer)
                 || command.RequireCombatHealth && !Health(pawn.Map))return false;
             bool ranged=Ranged(command,pawn);
             if(ranged) {
@@ -163,24 +165,31 @@ namespace HomeBridge.BridgeTools
             return definition!=null;
         }
         private static bool Resolve(Operations.AttackTarget command,Common.ObservationContext context,out NativeControlIdentity identity,
-            out Pawn? pawn,out Pawn? target,out NativePawnSnapshot? snapshot,out JobDef? definition,out Verb? verb,out Common.Failure failure,bool requireLegal=true)
+            out Pawn? pawn,out Thing? target,out NativePawnSnapshot? snapshot,out JobDef? definition,out Verb? verb,out Common.Failure failure,bool requireLegal=true)
         {
             identity=new NativeControlIdentity(Current.Game, ProtoBoundary.LoadedMap(context),context.Identity.ColonyId,context.Identity.LoadToken);
             pawn=null;target=null;snapshot=null;definition=null;verb=null;
             failure=ProtoBoundary.Fail(Common.FailureCode.Unavailable,"Live canonical pawn snapshot and combat attribution hooks are required.");
             if(!NativePawnControlState.IsReady)return false;
             pawn=ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p=>p.GetUniqueLoadID()==command.Pawn.EntityId);
-            target=ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p=>p.GetUniqueLoadID()==command.Target.EntityId);
+            // The target is a spawned pawn under canonical pawn CAS, or a
+            // hostile building the threat census lists under its own token.
+            var player=Faction.OfPlayerSilentFail;
+            target=(Thing?)ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p=>p.GetUniqueLoadID()==command.Target.EntityId)
+                ??(player==null?null:NativeObservationTools.HostileBuildings(ProtoBoundary.LoadedMap(context),player).SingleOrDefault(t=>t.GetUniqueLoadID()==command.Target.EntityId));
             if(pawn==null){failure=ProtoBoundary.Fail(Common.FailureCode.NotFound,"Exact attacker is not spawned on this map.");return false;}
-            if(target==null){failure=ProtoBoundary.Fail(Common.FailureCode.Unsupported,"This attack adapter requires a spawned pawn target with canonical pawn CAS.");return false;}
+            if(target==null){failure=ProtoBoundary.Fail(Common.FailureCode.Unsupported,"This attack adapter requires a spawned pawn target with canonical pawn CAS or a census-listed hostile building.");return false;}
             bool ranged=Ranged(command,pawn);
             if(!(ranged?NativeRangedCausality.IsReady:NativeCombatCausality.IsReady))return false;
             if(ranged && (pawn.equipment?.PrimaryEq?.PrimaryVerb==null || !NativeRangedCausality.Supports(pawn.equipment.PrimaryEq.PrimaryVerb,pawn,target)))
             {failure=ProtoBoundary.Fail(Common.FailureCode.Unsupported,"Ranged attribution requires a verified ordinary pawn weapon bullet or injury-only explosive path with live lineage hooks; this verb/projectile path is unsupported.");return false;}
             var check=NativePawnControlState.Check(identity,pawn,command.Pawn.ExpectedSnapshotToken,out snapshot);
             if(check!=NativePawnControlResult.Ready){failure=NativeDraftProtocol.Failure(check,context);return false;}
-            check=NativePawnControlState.Check(identity,target,command.Target.ExpectedSnapshotToken,out _);
-            if(check!=NativePawnControlResult.Ready){failure=NativeDraftProtocol.Failure(check,context);return false;}
+            if(target is Pawn targetPawn) {
+                check=NativePawnControlState.Check(identity,targetPawn,command.Target.ExpectedSnapshotToken,out _);
+                if(check!=NativePawnControlResult.Ready){failure=NativeDraftProtocol.Failure(check,context);return false;}
+            } else if(NativeWasteOperations.Token(context.Identity,target)!=command.Target.ExpectedSnapshotToken)
+            {failure=ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,"Hostile building snapshot changed; observe before new admission.");return false;}
             if(!Legal(command,pawn,target,out definition,out verb) && requireLegal){failure=ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,"Native attack weapon, reach, target or requested combat predicates refuse this order.");return false;}
             return true;
         }
@@ -195,7 +204,7 @@ namespace HomeBridge.BridgeTools
                 var guard=authority.Check(pre.ExpectedGeneration);context.NativeGeneration=guard.Snapshot.Generation;
                 if(!guard.Success)return new Operations.ExecuteReply {Failure=NativeAuthorityControlTools.Refusal(guard.Error,context)};
                 if(!NativeMovementOperations.Owns(before!))return Refuse(Common.FailureCode.OwnerConflict,"Attack requires an eligible drafted attacker with an existing native claim.");
-                var job=JobMaker.MakeJob(definition,target);job.killIncappedTarget=definition==JobDefOf.AttackMelee && target!.Downed;
+                var job=JobMaker.MakeJob(definition,target);job.killIncappedTarget=definition==JobDefOf.AttackMelee && NativeCombatDamageRecord.Downed(target!);
                 if(verb!=null)ConfigureRangedJob(job,verb,target!);
                 if(!Resolve(command,context,out identity,out pawn,out target,out before,out var rechecked,out var recheckedVerb,out failure))return new Operations.ExecuteReply {Failure=failure};
                 if(rechecked!=definition || !ReferenceEquals(recheckedVerb,verb) || !NativeMovementOperations.Owns(before!))return Refuse(Common.FailureCode.OwnerConflict,"Attack prerequisites changed before admission.");

@@ -182,10 +182,17 @@ func TestDefenseTargetsIncludeANearHuntingPredator(t *testing.T) {
 		{ID: "far-cougar", Kind: policy.HuntingPredator, Animal: domain.Known(true), Distance: domain.Known(policy.DistantThreatCells)},
 		{ID: "wolf", Kind: policy.NearbyPredator, Animal: domain.Known(true), Distance: domain.Known(5.0)},
 		{ID: "hunter", Kind: policy.IgnoredHunter, Animal: domain.Known(true), Distance: domain.Known(5.0)},
+		{ID: "hive", Kind: policy.HostileBuilding, Dead: domain.Known(false), Downed: domain.Known(false), Animal: domain.Known(false), SnapshotToken: "tok", Definition: "Hive"},
+		{ID: "rubble", Kind: policy.HostileBuilding, Dead: domain.Known(true), Downed: domain.Known(false), Animal: domain.Known(false), SnapshotToken: "tok", Definition: "Hive"},
 	}
-	got, hunting := defenseTargets(threats)
+	got, hunting, buildings := defenseTargets(threats)
 	if len(got) != 2 || got[0] != "raider" || got[1] != "bear" || hunting["raider"] || !hunting["bear"] {
 		t.Fatal(got, hunting)
+	}
+	// A standing hostile building is a target apart from the pawn reads; a
+	// destroyed one is not.
+	if len(buildings) != 1 || buildings[0].ID != "hive" {
+		t.Fatal(buildings)
 	}
 }
 

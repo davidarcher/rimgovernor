@@ -226,6 +226,8 @@ func TestEmergencyDistantAnimalThreatIsWatchedNotHeld(t *testing.T) {
 		{"race unknown far", live(Hostile, domain.Unknown[bool](), far), true},
 		{"distance unknown animal", live(Hostile, domain.Known(true), domain.Unknown[float64]()), true},
 		{"legacy row", live(Hostile, domain.Unknown[bool](), domain.Unknown[float64]()), true},
+		// A hostile building holds at any distance (#246).
+		{"hive far", EmergencyThreat{ID: "t", Kind: HostileBuilding, Dead: domain.Known(false), Downed: domain.Known(false), Animal: domain.Known(false), Distance: far, SnapshotToken: "cas", Definition: "Hive"}, true},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

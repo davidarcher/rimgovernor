@@ -26,13 +26,18 @@ func EvaluateMeleeDefense(r MeleeDefenseRequest) DraftDecision {
 	}
 	v, d := r.Progress.View(), r.DraftProgress.View()
 	f := r.Facts
-	if r.Current.Validate() != nil || r.Current.Native == 0 || !f.Snapshot.Matches(r.Current) || r.MinimumTick < 0 || f.PawnTick < r.MinimumTick || f.PreviewTick < f.PawnTick {
+	// The pawn read may be served from the step's fact cache, up to
+	// PlanningTickTolerance behind the tick the executor already admitted
+	// (the first preview under a running combat window); it must cover
+	// that tick, as a draft's cached emergency read covers its first read
+	// (#244, #246).
+	if r.Current.Validate() != nil || r.Current.Native == 0 || !f.Snapshot.Matches(r.Current) || r.MinimumTick < 0 || !f.PawnTick.Covers(r.MinimumTick) || f.PreviewTick < f.PawnTick {
 		return refuse(StaleFacts)
 	}
 	if r.Progress.Action() != r.Action || v.Plan != r.Current.Plan || v.Revision != r.Current.Revision || v.Unresolved || (v.Stage != domain.Pending && v.Stage != domain.Prepared) {
 		return refuse(NotReady)
 	}
-	if f.PawnTick < v.Tick || (v.Stage == domain.Prepared && !sameWorld(v.Snapshot, r.Current)) || (v.Attempt > 0 && (v.Snapshot.Colony != r.Current.Colony || v.Snapshot.Map != r.Current.Map || v.Snapshot.Load != r.Current.Load)) {
+	if !f.PawnTick.Covers(v.Tick) || (v.Stage == domain.Prepared && !sameWorld(v.Snapshot, r.Current)) || (v.Attempt > 0 && (v.Snapshot.Colony != r.Current.Colony || v.Snapshot.Map != r.Current.Map || v.Snapshot.Load != r.Current.Load)) {
 		return refuse(StaleFacts)
 	}
 	draft, isDraft := r.DraftProgress.Action().OwnedDraft()
@@ -45,7 +50,7 @@ func EvaluateMeleeDefense(r MeleeDefenseRequest) DraftDecision {
 	if !known || cleanup.Stage != domain.DraftCleanupRequired || !claimed || !owned || claim.Action != d.Action || claim.Attempt != d.Attempt || claim.Pawn != m.Pawn() || !claim.Origin.Matches(r.Current) || owner.Claim != claim.Claim || owner.Session != claim.Session {
 		return refuse(DraftOwnership)
 	}
-	if f.PawnTick < d.Tick {
+	if !f.PawnTick.Covers(d.Tick) {
 		return refuse(StaleFacts)
 	}
 	validToken := func(s string) bool {
@@ -93,7 +98,9 @@ func EvaluateMeleeDefense(r MeleeDefenseRequest) DraftDecision {
 			if dead || down {
 				return refuse(UnsupportedThreat)
 			}
-			if threat.Kind == Hostile {
+			// A hostile pawn or a hostile building is a target; the
+			// other categories (a downed raider, a hunting predator) are not.
+			if threat.Kind == Hostile || threat.Building() {
 				foundTarget = true
 			}
 			continue // The same opponent may appear in several census categories.

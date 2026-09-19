@@ -9,8 +9,11 @@ import (
 
 // EvaluateClockWindow admits a finite window. Live hostiles refuse it unless
 // the ActiveCombat goal holds an admitted plan; then the window is a combat
-// watch acknowledging exactly those hostiles under the combat budget, and it
-// returns to colony mode once every hostile is dead or downed. The returned
+// watch acknowledging exactly those hostile pawns under the combat budget
+// (a hostile building, #246, makes the window a combat one but is never
+// acknowledged: the native watcher resolves acknowledged ids as pawns), and
+// it returns to colony mode once every hostile is dead, downed or, for a
+// building, destroyed. The returned
 // snapshot and review revision must still match at runtime dispatch.
 func EvaluateClockWindow(f ClockWindowFacts, limits ClockWindowLimits) ClockWindowDecision {
 	result := ClockWindowDecision{Refused: []ClockWindowReason{}}
@@ -44,6 +47,8 @@ func EvaluateClockWindow(f ClockWindowFacts, limits ClockWindowLimits) ClockWind
 	}
 	combatPlan, combatKnown := f.CombatPlan.Value()
 	var hostiles []PawnID
+	combat := false
+	buildings := hostileBuildingIDs(f.Emergency)
 	emergency := EvaluateEmergency(f.Emergency, f.Current, f.Tick)
 	for _, h := range emergency.Holds {
 		switch h.Reason {
@@ -58,6 +63,12 @@ func EvaluateClockWindow(f ClockWindowFacts, limits ClockWindowLimits) ClockWind
 			switch {
 			case !combatKnown:
 				hold(ClockWindowUnknown)
+			case combatPlan && h.Pawn != "" && buildings[h.Pawn]:
+				// A hostile building (#246) makes the window a combat one
+				// but is never acknowledged: the native watcher stops for
+				// unacknowledged hostile pawns only and resolves every
+				// acknowledged id as a pawn.
+				combat = true
 			case combatPlan && h.Pawn != "":
 				hostiles = append(hostiles, h.Pawn)
 			default:
@@ -122,7 +133,7 @@ func EvaluateClockWindow(f ClockWindowFacts, limits ClockWindowLimits) ClockWind
 	result.MaxTicks = limits.MaxTicks
 	result.Mode = ClockWindowColony
 	result.Downed = knownDownedColonists(f.Emergency)
-	if len(hostiles) > 0 {
+	if len(hostiles) > 0 || combat {
 		sort.Slice(hostiles, func(i, j int) bool { return hostiles[i] < hostiles[j] })
 		result.Mode = ClockWindowCombat
 		result.Hostiles = hostiles
@@ -137,6 +148,17 @@ func EvaluateClockWindow(f ClockWindowFacts, limits ClockWindowLimits) ClockWind
 // census knows to be downed. The window acknowledges them so the native
 // watcher lets ticks pass for their rescue instead of stopping at once on a
 // casualty the service already holds a CriticalMedical goal for.
+// hostileBuildingIDs is the set of HostileBuilding rows in the census.
+func hostileBuildingIDs(snapshot EmergencySnapshot) map[PawnID]bool {
+	out := map[PawnID]bool{}
+	for _, t := range snapshot.facts.Threats {
+		if t.Building() {
+			out[t.ID] = true
+		}
+	}
+	return out
+}
+
 func knownDownedColonists(snapshot EmergencySnapshot) []PawnID {
 	var downed []PawnID
 	for _, pawn := range snapshot.facts.Colonists {

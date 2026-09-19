@@ -15,12 +15,19 @@ namespace HomeBridge.BridgeTools
     {
         internal readonly Game Game;
         internal readonly Map Map;
-        internal readonly Pawn Attacker, Target;
+        internal readonly Pawn Attacker;
+        // A pawn or a hostile building: death is a pawn's Dead or a
+        // building's Destroyed, and only a pawn can be downed.
+        internal readonly Thing Target;
         internal readonly Job Job;
         internal readonly int JobId;
         internal readonly Func<bool> Guard;
-        internal NativeCombatDamageRecord(Game game, Pawn attacker, Pawn target, Job job, Func<bool> guard)
+        internal NativeCombatDamageRecord(Game game, Pawn attacker, Thing target, Job job, Func<bool> guard)
         { Game=game; Map=target.Map; Attacker=attacker; Target=target; Job=job; JobId=job.loadID; Guard=guard; }
+        internal bool TargetDead => Dead(Target);
+        internal bool TargetDowned => Downed(Target);
+        internal static bool Dead(Thing thing) => thing is Pawn pawn ? pawn.Dead : thing.Destroyed;
+        internal static bool Downed(Thing thing) => thing is Pawn pawn && pawn.Downed;
         internal bool ObservedDamage { get; private set; }
         internal bool CausedDowning { get; private set; }
         internal bool CausedDeath { get; private set; }
@@ -47,7 +54,7 @@ namespace HomeBridge.BridgeTools
         }
         private sealed class GameState
         {
-            internal readonly Dictionary<Pawn,TargetState> Targets=new Dictionary<Pawn,TargetState>();
+            internal readonly Dictionary<Thing,TargetState> Targets=new Dictionary<Thing,TargetState>();
             internal int Count;
         }
         private sealed class PendingDamage
@@ -116,7 +123,7 @@ namespace HomeBridge.BridgeTools
                 } catch { return false; }
             }
         }
-        internal static NativeCombatDamageRecord Track(Game game,Pawn attacker,Pawn target,Job job,Func<bool> guard)
+        internal static NativeCombatDamageRecord Track(Game game,Pawn attacker,Thing target,Job job,Func<bool> guard)
         {
             if (!UnityData.IsInMainThread || !IsReady || game!=Current.Game || attacker==null || target==null
                 || !attacker.Spawned || !target.Spawned || attacker.Map!=target.Map || !ProtoBoundary.IsLoaded(target.Map)
@@ -168,18 +175,19 @@ namespace HomeBridge.BridgeTools
                     __state=new DamageFrame {PreviousDepth=damageDepth};
                     damageDepth=checked(damageDepth+1);
                 }
-                if (!UnityData.IsInMainThread || Current.Game==null || !(__instance is Pawn victim)
+                var victim=__instance;
+                if (!UnityData.IsInMainThread || Current.Game==null || victim==null
                     || !Games.TryGetValue(Current.Game,out var game) || !game.Targets.TryGetValue(victim,out var target)) return;
                 if (target.Exhausted || target.Sequence==long.MaxValue) { target.Exhausted=true; return; }
                 var sequence=++target.Sequence;
                 var scope=meleeScope;
-                if (__state==null || __state.PreviousDepth!=0 || scope==null || scope.Caster==null || scope.Victim!=victim || !IsReady || victim.Dead) return;
+                if (__state==null || __state.PreviousDepth!=0 || scope==null || scope.Caster==null || scope.Victim!=victim || !IsReady || NativeCombatDamageRecord.Dead(victim)) return;
                 foreach (var record in target.Records) {
                     if (scope.Caster!=record.Attacker || scope.Job!=record.Job || scope.JobId!=record.JobId || record.CausedDeath || record.Game!=Current.Game || !ProtoBoundary.IsLoaded(record.Map)
                         || record.Map!=victim.Map || dinfo.Instigator!=record.Attacker || record.Attacker.CurJob!=record.Job
                         || record.Job.loadID!=record.JobId || record.Job.def!=JobDefOf.AttackMelee || record.Job.targetA.Thing!=victim) continue;
                     if (!record.Guard()) continue;
-                    __state.Pending.Add(new PendingDamage {Record=record,Target=target,Sequence=sequence,WasDead=victim.Dead,WasDowned=victim.Downed});
+                    __state.Pending.Add(new PendingDamage {Record=record,Target=target,Sequence=sequence,WasDead=NativeCombatDamageRecord.Dead(victim),WasDowned=NativeCombatDamageRecord.Downed(victim)});
                 }
             } catch { if (__state!=null) __state.Pending.Clear(); }
         }
@@ -194,7 +202,7 @@ namespace HomeBridge.BridgeTools
                     if (pending.Target.Exhausted || pending.Target.Sequence!=pending.Sequence || !IsReady
                         || dinfo.Instigator!=record.Attacker || record.Game!=Current.Game || !ProtoBoundary.IsLoaded(record.Map) || Find.TickManager==null) continue;
                     record.Record(__result.totalDamageDealt,pending.WasDead,pending.WasDowned,
-                        record.Target.Dead,record.Target.Downed,Find.TickManager.TicksGame);
+                        record.TargetDead,record.TargetDowned,Find.TickManager.TicksGame);
                 }
             } catch { /* Unreadable outcome supplies no completion evidence. */ }
         }

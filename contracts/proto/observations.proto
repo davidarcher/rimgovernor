@@ -668,7 +668,12 @@ message ColonyFactsReply { oneof outcome { ColonyFactsSnapshot observed = 1; rim
 
 // Simulation status excludes notifications/UI/clock, exposed by their typed owners.
 message ThreatPawn { PawnState pawn = 1; EntityRef prey = 2; optional bool prey_is_ours = 3; optional bool predator_is_ours = 4; optional string ignored_reason = 5; }
-message ThreatsSnapshot { repeated ThreatPawn hostiles = 1; repeated ThreatPawn hunting_predators = 2; repeated ThreatPawn ignored_hunters = 3; repeated ThreatPawn wild_predators_near = 4; repeated ThreatPawn downed_near = 5; Completeness completeness = 6; }
+// A hostile-faction building that is itself a combat target (an insect hive,
+// a crashed ship part, a mech-cluster piece with combat power): its own CAS
+// token rides on building.snapshot for Operations.AttackTarget, and
+// nearest_colonist_distance is Chebyshev cells like a threat pawn's.
+message ThreatBuilding { EntityRef building = 1; optional string hostile_reason = 2; optional int32 hit_points = 3; optional int32 max_hit_points = 4; optional int32 nearest_colonist_distance = 5; }
+message ThreatsSnapshot { repeated ThreatPawn hostiles = 1; repeated ThreatPawn hunting_predators = 2; repeated ThreatPawn ignored_hunters = 3; repeated ThreatPawn wild_predators_near = 4; repeated ThreatPawn downed_near = 5; Completeness completeness = 6; repeated ThreatBuilding hostile_buildings = 7; }
 message StatusSnapshot { rimgovernor.common.v1.ObservationContext context = 1; PawnSnapshot colonists = 2; ThreatsSnapshot threats = 3; repeated ReadIssue issues = 4; }
 message StatusRequest { ReadScope scope = 1; optional bool colonists = 2; optional bool threats = 3; optional bool colonist_detail = 4; optional double predator_radius = 5; rimgovernor.common.v1.PageRequest page = 6; }
 message StatusReply { oneof outcome { StatusSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }

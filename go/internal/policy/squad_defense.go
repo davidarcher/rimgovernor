@@ -19,6 +19,13 @@ type SquadThreatFacts struct {
 	// unknown counts as not hunting.
 	Hunting        domain.Fact[bool]
 	RangedEquipped domain.Fact[bool]
+	// Building marks a hostile building (an insect hive, a crashed ship
+	// part) rather than a pawn: engaged in melee, since the defender walks
+	// to it and the native ranged predicates need it in range now, and
+	// only once no eligible hostile pawn remains (a hive's insects and a
+	// ship part's guards first). Dead is destroyed; the other pawn facts
+	// are irrelevant.
+	Building bool
 }
 
 // SquadDefenderFacts describes one candidate defender. Health/NeedsTend mirror
@@ -90,6 +97,9 @@ func squadDefenderEligible(d SquadDefenderFacts) bool {
 func SelectSquadDefense(threats []SquadThreatFacts, defenders []SquadDefenderFacts) ([]SquadAssignment, bool) {
 	eligibleThreat := func(t SquadThreatFacts) bool {
 		dead, dk := t.Dead.Value()
+		if t.Building {
+			return dk && !dead
+		}
 		downed, wk := t.Downed.Value()
 		humanlike, hk := t.Humanlike.Value()
 		animal, ak := t.Animal.Value()
@@ -112,11 +122,20 @@ func SelectSquadDefense(threats []SquadThreatFacts, defenders []SquadDefenderFac
 	}
 	eligibleDefender := squadDefenderEligible
 
-	var threatPool []SquadThreatFacts
+	var threatPool, buildings []SquadThreatFacts
 	for _, t := range threats {
-		if eligibleThreat(t) {
+		switch {
+		case !eligibleThreat(t):
+		case t.Building:
+			buildings = append(buildings, t)
+		default:
 			threatPool = append(threatPool, t)
 		}
+	}
+	// Buildings wait for the field to clear: a hive's insects and a ship
+	// part's guards are the live danger, the building itself goes nowhere.
+	if len(threatPool) == 0 {
+		threatPool = buildings
 	}
 	sort.Slice(threatPool, func(i, j int) bool { return threatPool[i].ID < threatPool[j].ID })
 	if len(threatPool) > maxSquadOpponents {
@@ -156,6 +175,9 @@ func SelectSquadDefense(threats []SquadThreatFacts, defenders []SquadDefenderFac
 			break
 		}
 		ranged, known := t.RangedEquipped.Value()
+		if t.Building {
+			ranged, known = false, true
+		}
 		if !known {
 			continue
 		}
@@ -198,6 +220,9 @@ func SelectSquadDefense(threats []SquadThreatFacts, defenders []SquadDefenderFac
 // just holds — via the caller falling back to SelectSquadDefense's general,
 // unarmed-tolerant bound — until enough defenders are already armed.
 func SelectTribalRaiderDefense(threat SquadThreatFacts, defenders []SquadDefenderFacts) ([]SquadAssignment, bool) {
+	if threat.Building {
+		return nil, false
+	}
 	dead, dk := threat.Dead.Value()
 	downed, wk := threat.Downed.Value()
 	humanlike, hk := threat.Humanlike.Value()

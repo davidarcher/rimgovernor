@@ -517,6 +517,22 @@ This allows ordinary treatment and owned stand-down without attacking downed paw
 
 Downed permanent manhunters do not keep active combat open; any later recovery is
 observed as a fresh threat.
+
+Hostile buildings (#246) are threats in their own right: the native threat census
+lists every spawned insect hive and every hostile-faction building with hit points
+and combat power (crashed ship parts) under `hostileBuildings`, each with its
+definition, hit points and a snapshot token derived from the thing itself. A
+listed building keeps the active-combat deficit open and holds the clock as an
+unsafe threat exactly like a hostile pawn: the fight is planned under the stopped
+clock and run under watched combat windows; the building's id is never
+acknowledged to the native watcher, which resolves every acknowledged id as a
+spawned pawn and only stops for unacknowledged hostile pawns, so a lone building
+admits a combat window with an empty acknowledgement list. Squad defense assigns buildings only once no eligible hostile pawn remains (a
+hive's insects and a ship part's guards are the live danger) and always in melee;
+the controller never plans a ranged attack on a building. The melee executor
+reads the building's token from the census row instead of a pawn snapshot, and
+the native attack operation accepts a census-listed building as its target under
+that token, with destruction as the completing outcome.
 Combat compilation, dispatch and clock admission inspect colonist health. Unknown
 health or a colonist at the native half-health limit produces an explicit hold;
 an unchanged injury cannot repeatedly rearm the combat clock. The native injury

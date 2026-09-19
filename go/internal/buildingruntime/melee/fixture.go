@@ -9,6 +9,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/draft"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -25,6 +26,12 @@ type Fixture struct {
 	Command       *o.AttackTarget
 	PreviewTick   int64
 	ProgressReads int
+	// BuildingTarget serves the target as a hostile building: the pawn
+	// read returns the attacker alone and the emergency census carries
+	// Threats (the building row with its token) instead of nothing.
+	BuildingTarget bool
+	Threats        []policy.EmergencyThreat
+	EmergencyReads int
 }
 
 func NewFixture(t *testing.T) (*MeleeBoundary, *Fixture, executor.MeleeDispatch) {
@@ -72,7 +79,17 @@ func (f *Fixture) ReadCombatPawns(ctx context.Context, id *c.Identity, ids []str
 	if !proto.Equal(id, f.Ctx.Identity) {
 		return nil, bridge.Result{}, executor.ErrEvidence
 	}
-	return &n.ListPawnsReply{Outcome: &n.ListPawnsReply_Observed{Observed: &n.PawnSnapshot{Context: proto.Clone(f.Ctx).(*c.ObservationContext), Pawns: []*n.PawnState{proto.Clone(f.Row).(*n.PawnState), proto.Clone(f.Opponent).(*n.PawnState)}, Completeness: &n.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(2), Returned: proto.Uint64(2), Unreadable: proto.Uint64(0)}}}}, bridge.Result{}, ctx.Err()
+	rows := []*n.PawnState{proto.Clone(f.Row).(*n.PawnState)}
+	if !f.BuildingTarget {
+		rows = append(rows, proto.Clone(f.Opponent).(*n.PawnState))
+	}
+	return &n.ListPawnsReply{Outcome: &n.ListPawnsReply_Observed{Observed: &n.PawnSnapshot{Context: proto.Clone(f.Ctx).(*c.ObservationContext), Pawns: rows, Completeness: &n.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(uint64(len(rows))), Returned: proto.Uint64(uint64(len(rows))), Unreadable: proto.Uint64(0)}}}}, bridge.Result{}, ctx.Err()
+}
+func (f *Fixture) ReadEmergency(ctx context.Context, id *c.Identity) (bridge.EmergencyObservation, bridge.Result, error) {
+	f.EmergencyReads++
+	out, raw, err := f.Fixture.ReadEmergency(ctx, id)
+	out.Facts.Threats = append([]policy.EmergencyThreat(nil), f.Threats...)
+	return out, raw, err
 }
 func (f *Fixture) PreviewAttack(ctx context.Context, id *c.Identity, command *o.AttackTarget) (*o.PreviewReply, bridge.Result, error) {
 	f.Command = proto.Clone(command).(*o.AttackTarget)

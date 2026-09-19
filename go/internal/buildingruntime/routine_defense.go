@@ -123,8 +123,8 @@ func (r *RoutineDefensePlanner) step(call, epoch context.Context, arbiter *stepA
 	if !ck || !colonistsComplete || !tk || !threatsComplete {
 		return RoutineDefenseResult{Reason: BuildingMethodUsed}, nil
 	}
-	hostileIDs, hunting := defenseTargets(emergency.Facts.Threats)
-	if len(emergency.Facts.Colonists) == 0 || len(hostileIDs) == 0 {
+	hostileIDs, hunting, buildings := defenseTargets(emergency.Facts.Threats)
+	if len(emergency.Facts.Colonists) == 0 || len(hostileIDs)+len(buildings) == 0 {
 		return RoutineDefenseResult{Reason: BuildingMethodUsed}, nil
 	}
 	ids := make([]string, 0, len(emergency.Facts.Colonists)+len(hostileIDs))
@@ -180,6 +180,9 @@ func (r *RoutineDefensePlanner) step(call, epoch context.Context, arbiter *stepA
 		facts := squadThreatFacts(row)
 		facts.Hunting = domain.Known(hunting[id])
 		threats = append(threats, facts)
+	}
+	for _, building := range buildings {
+		threats = append(threats, policy.SquadThreatFacts{ID: building.ID, Dead: building.Dead, Building: true})
 	}
 	// A complete defensive layout against an ordinary edge assault sends the
 	// ranged line to its firing cells first; anything else is squad defense.
@@ -468,16 +471,22 @@ func orphanedDraftDependents(spec domain.PlanSpec, progress []domain.Progress) [
 	return out
 }
 
-// defenseTargets are the threats squad defense answers: every hostile, and a
-// predator hunting a colonist that the emergency holds the clock for (a
+// defenseTargets are the threats squad defense answers: every hostile pawn,
+// a predator hunting a colonist that the emergency holds the clock for (a
 // distant one is watched by the native supervisor instead), reported in the
-// hunting set. Without the predator here the hold has no planner and
-// autonomous play parks until the hunt ends on its own.
-func defenseTargets(threats []policy.EmergencyThreat) ([]string, map[string]bool) {
+// hunting set, and, returned apart since they are not pawns to read, the
+// standing hostile buildings (#246). Without the predator here the hold has
+// no planner and autonomous play parks until the hunt ends on its own.
+func defenseTargets(threats []policy.EmergencyThreat) ([]string, map[string]bool, []policy.EmergencyThreat) {
 	var ids []string
+	var buildings []policy.EmergencyThreat
 	hunting := map[string]bool{}
 	for _, threat := range threats {
 		switch {
+		case threat.Building():
+			if dead, known := threat.Dead.Value(); known && !dead {
+				buildings = append(buildings, threat)
+			}
 		case threat.Kind == policy.Hostile:
 			ids = append(ids, string(threat.ID))
 		case threat.Kind == policy.HuntingPredator && !threat.DistantThreat():
@@ -485,5 +494,5 @@ func defenseTargets(threats []policy.EmergencyThreat) ([]string, map[string]bool
 			hunting[string(threat.ID)] = true
 		}
 	}
-	return ids, hunting
+	return ids, hunting, buildings
 }

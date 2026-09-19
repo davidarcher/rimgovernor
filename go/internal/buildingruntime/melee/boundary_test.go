@@ -7,6 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
 	"google.golang.org/protobuf/proto"
@@ -28,6 +29,29 @@ func TestMeleeBoundaryInspectAndExactDispatch(t *testing.T) {
 	receipt, err := b.AttackMelee(context.Background(), d)
 	if err != nil || receipt.Kind != domain.ReceiptAccepted || f.Leases != 1 || f.Writes != 1 || !proto.Equal(f.Command, meleeCommand("pawn", "target", "cas", "target-cas")) {
 		t.Fatal(receipt, err, f.Command)
+	}
+}
+// A hostile building target (#246): the pawn read returns the attacker
+// alone, the target's token and standing come from the census row, the
+// preview and dispatch carry that token, and a building the census no
+// longer lists is read as dead and not hostile.
+func TestMeleeBoundaryInspectsAHostileBuildingTarget(t *testing.T) {
+	t.Parallel()
+	b, f, d := NewFixture(t)
+	f.BuildingTarget = true
+	f.Threats = []policy.EmergencyThreat{{ID: "target", Kind: policy.HostileBuilding, Dead: domain.Known(false), Downed: domain.Known(false), Animal: domain.Known(false), SnapshotToken: "hive-cas", Definition: "Hive"}}
+	v, err := b.InspectMelee(context.Background(), executor.Target{Action: d.Attempt.Action, Snapshot: d.Attempt.Snapshot}, d.Admission.DraftClaim)
+	if err != nil || f.EmergencyReads != 2 || v.Facts.Target.SnapshotToken != "hive-cas" || v.Facts.Target.Dead != domain.Known(false) || v.Facts.Target.Downed != domain.Known(false) || v.Facts.Target.Hostile != domain.Known(true) || f.Command.Target.GetExpectedSnapshotToken() != "hive-cas" {
+		t.Fatal(v, err, f.EmergencyReads, f.Command)
+	}
+	d.Admission.TargetSnapshotToken = "hive-cas"
+	receipt, err := b.AttackMelee(context.Background(), d)
+	if err != nil || receipt.Kind != domain.ReceiptAccepted || !proto.Equal(f.Command, meleeCommand("pawn", "target", "cas", "hive-cas")) {
+		t.Fatal(receipt, err, f.Command)
+	}
+	f.Threats = nil
+	if _, err := b.InspectMelee(context.Background(), executor.Target{Action: d.Attempt.Action, Snapshot: d.Attempt.Snapshot}, d.Admission.DraftClaim); !errors.Is(err, executor.ErrHeld) {
+		t.Fatal("a building the census no longer lists must hold", err)
 	}
 }
 func TestMeleeBoundaryRejectsNegativeAdmissionTick(t *testing.T) {

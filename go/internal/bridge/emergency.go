@@ -201,7 +201,7 @@ func emergencyStatus(v *o.StatusSnapshot, id *c.Identity) (EmergencyObservation,
 		rows []*o.ThreatPawn
 	}
 	categories := []category{{policy.Hostile, v.Threats.Hostiles}, {policy.HuntingPredator, v.Threats.HuntingPredators}, {policy.IgnoredHunter, v.Threats.IgnoredHunters}, {policy.NearbyPredator, v.Threats.WildPredatorsNear}, {policy.NearbyDowned, v.Threats.DownedNear}}
-	count := 0
+	count := len(v.Threats.HostileBuildings)
 	for _, group := range categories {
 		count += len(group.rows)
 	}
@@ -268,6 +268,44 @@ func emergencyStatus(v *o.StatusSnapshot, id *c.Identity) (EmergencyObservation,
 			result.Facts.Threats = append(result.Facts.Threats, threat)
 		}
 	}
+	seen = map[policy.PawnID]bool{}
+	for _, row := range v.Threats.HostileBuildings {
+		threat, err := emergencyBuilding(row, v.Context)
+		if err != nil {
+			return EmergencyObservation{}, err
+		}
+		if seen[threat.ID] || statuses[threat.ID].ID != "" {
+			return EmergencyObservation{}, contract("duplicate emergency hostile building")
+		}
+		seen[threat.ID] = true
+		result.Facts.Threats = append(result.Facts.Threats, threat)
+	}
 	result.Context = proto.Clone(v.Context).(*c.ObservationContext)
+	return result, nil
+}
+
+// emergencyBuilding reads one hostile-building row: a spawned building the
+// census lists is standing (not dead) and never downed; its CAS token must
+// be the row's own, scoped to this context, since the attack order sends it
+// back as the target precondition.
+func emergencyBuilding(row *o.ThreatBuilding, ctx *c.ObservationContext) (policy.EmergencyThreat, error) {
+	var result policy.EmergencyThreat
+	if row == nil || row.Building == nil {
+		return result, contract("missing threat building")
+	}
+	if err := pawnsEntity(row.Building, ctx); err != nil {
+		return result, err
+	}
+	if row.Building.Snapshot == nil || row.Building.DefName == nil {
+		return result, contract("threat building snapshot or definition missing")
+	}
+	if row.HitPoints != nil && row.GetHitPoints() < 0 || row.MaxHitPoints != nil && row.GetMaxHitPoints() < 0 || row.NearestColonistDistance != nil && row.GetNearestColonistDistance() < 0 {
+		return result, contract("invalid threat building facts")
+	}
+	result = policy.EmergencyThreat{ID: policy.PawnID(row.Building.GetId()), Kind: policy.HostileBuilding, Dead: domain.Known(false), Downed: domain.Known(false), Animal: domain.Known(false),
+		SnapshotToken: row.Building.Snapshot.GetToken(), Definition: row.Building.GetDefName()}
+	if row.NearestColonistDistance != nil {
+		result.Distance = domain.Known(float64(row.GetNearestColonistDistance()))
+	}
 	return result, nil
 }

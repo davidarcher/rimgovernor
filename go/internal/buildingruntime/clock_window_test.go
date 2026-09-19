@@ -269,6 +269,24 @@ func TestClockWindowCombatPolicyMustMatchDecision(t *testing.T) {
 			}
 		})
 	}
+	// A hostile building alone (#246) admits a combat window that
+	// acknowledges no pawn at all; acknowledging the building is held.
+	t.Run("building alone", func(t *testing.T) {
+		q, _, f, request := combat(t)
+		var err error
+		request.Facts.Emergency, err = policy.NewEmergencySnapshot(request.Intent.Snapshot, 12, policy.EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true), Threats: []policy.EmergencyThreat{{ID: "hive", Kind: policy.HostileBuilding, Dead: domain.Known(false), Downed: domain.Known(false), Animal: domain.Known(false), SnapshotToken: "cas", Definition: "Hive"}}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		request.Intent.Command.Start.Policy.AcknowledgedHostileIds = []string{"hive"}
+		if _, err := q.CommandWindow(context.Background(), request); !errors.Is(err, executor.ErrHeld) || f.writes != 0 {
+			t.Fatal(err, f.writes)
+		}
+		request.Intent.Command.Start.Policy.AcknowledgedHostileIds = nil
+		if got, err := q.CommandWindow(context.Background(), request); err != nil || got.Phase != store.ClockApplied || f.writes != 1 {
+			t.Fatal(got, err, f.writes)
+		}
+	})
 }
 
 // A window over a colonist already known downed must acknowledge exactly
