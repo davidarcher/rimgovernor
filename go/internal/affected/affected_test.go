@@ -2,6 +2,7 @@ package affected
 
 import (
 	"os"
+	"path/filepath"
 	"slices"
 	"testing"
 
@@ -48,6 +49,21 @@ func TestSelectNativeSourceIsEveryCaseNoGo(t *testing.T) {
 	}
 	if sel.AllGo || !sel.AllHarnesses || !sel.Probes || len(sel.Packages) != 0 || len(sel.Cases) < 10 {
 		t.Errorf("native change selected %+v", sel)
+	}
+}
+
+func TestSelectNativeSourceNeedsNoGoModule(t *testing.T) {
+	// No go.mod: asking Go for a dependency graph would fail. Native-only
+	// selection needs just the area directories, even in a partial checkout.
+	r := t.TempDir()
+	for _, area := range []string{"light", "power"} {
+		if err := os.MkdirAll(filepath.Join(r, "go", "internal", "nativeaccept", "cases", area), 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	sel, err := Select(r, []string{"integrations/rimgovernor-native/src/Foo.cs"})
+	if err != nil || !sel.AllHarnesses || !sel.Probes || sel.AllGo || len(sel.Packages) != 0 || !slices.Equal(sel.Cases, []string{"light", "power"}) {
+		t.Fatalf("native-only selection: %+v, %v", sel, err)
 	}
 }
 

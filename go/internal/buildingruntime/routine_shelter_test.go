@@ -2,6 +2,7 @@ package buildingruntime
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -100,9 +101,17 @@ func TestRoutineShelterAdmitsWholeShellWithObservedDoorDependency(t *testing.T) 
 }
 
 func TestRoutineShelterNeverCommitsPartialOrUnknownShell(t *testing.T) {
-	t.Parallel()
-	for _, change := range []string{"late-refusal", "footprint", "stock-short", "stock-conflict", "stock-unknown", "definition", "room-unknown", "terrain", "zone", "protected", "stale", "direction", "reserve"} {
+	// Clock scheduler tests widen the process-wide tolerance. Run this
+	// boundary check before parallel tests and restore the prior setting.
+	drift := domain.LiveDrift()
+	domain.SetLiveDrift(0)
+	t.Cleanup(func() { domain.SetLiveDrift(drift) })
+	for _, change := range []string{"late-refusal", "footprint", "stock-short", "stock-conflict", "stock-unknown", "definition", "room-unknown", "terrain", "zone", "protected", "stale", "stale-live", "direction", "reserve"} {
 		t.Run(change, func(t *testing.T) {
+			if change == "stale-live" {
+				domain.SetLiveDrift(1000)
+				t.Cleanup(func() { domain.SetLiveDrift(0) })
+			}
 			r, db, n := shelterFixture(t)
 			base := n.onPreview
 			n.onPreview = func(ctx context.Context, v *bridge.BuildingPreview) {
@@ -122,8 +131,8 @@ func TestRoutineShelterNeverCommitsPartialOrUnknownShell(t *testing.T) {
 					}
 				case "stock-unknown":
 					v.Stock.Values[0].Available = domain.Unknown[int64]()
-				case "stale":
-					v.Preview.Tick += domain.PlanningTickTolerance + 1
+				case "stale", "stale-live":
+					v.Preview.Tick += domain.PlanningTickTolerance + domain.LiveDrift() + 1
 				case "direction":
 					session := r.reviewer.player.session.(*playerFakeSession)
 					session.mu.Lock()
@@ -148,6 +157,9 @@ func TestRoutineShelterNeverCommitsPartialOrUnknownShell(t *testing.T) {
 				r.reviewer.rules = []policy.ResourceRule{{Resource: "WoodLog", Reserve: 1, Spending: policy.Allow}}
 			}
 			result, err := r.Step(context.Background())
+			if (change == "stale" || change == "stale-live") && (!errors.Is(err, ErrControl) || n.previews != 1) {
+				t.Fatal("stale preview did not reach the freshness refusal", result, err, n.previews)
+			}
 			if err == nil && result.Reason == BuildingMethodAdmitted {
 				t.Fatal("invalid shell admitted", change)
 			}

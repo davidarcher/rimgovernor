@@ -134,25 +134,39 @@ func TestRemotePlanPackageRoles(t *testing.T) {
 }
 
 func TestRemotePlanUsesAffectedEntryPointAndHarnessRules(t *testing.T) {
-	repo, _ := repoOfCwd()
+	// Exercise real Go discovery on a small module; the rules do not need
+	// the production repository's dependency closure or external modules.
+	repo := t.TempDir()
+	for name, body := range map[string]string{
+		"go.mod":                            "module example.com/plan\n\ngo 1.25\n",
+		"cmd/rimgovernor/serve_building.go": "package main\nfunc main() {}\n",
+		"internal/nativeaccept/cases/light/light.go": "package light\nvar Serve = true\n",
+		"internal/nativeaccept/cases/power/power.go": "package power\n",
+	} {
+		file := filepath.Join(repo, "go", filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(file), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(file, []byte(body), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
 	for _, tc := range []struct {
-		file, area string
-		all        bool
+		file  string
+		areas []string
+		all   bool
 	}{
-		{"go/cmd/rimgovernor/serve_building.go", "light", false},
-		{"go/internal/nativeaccept/cases/power/power.go", "power", false},
-		{"integrations/rimgovernor-native/src/Changed.cs", "", true},
-		{"docs/README.md", "", false},
+		{"go/cmd/rimgovernor/serve_building.go", []string{"light"}, false},
+		{"go/internal/nativeaccept/cases/power/power.go", []string{"power"}, false},
+		{"integrations/rimgovernor-native/src/Changed.cs", []string{"light", "power"}, true},
+		{"docs/README.md", nil, false},
 	} {
 		sel, err := affected.Select(repo, []string{tc.file})
 		if err != nil {
 			t.Fatal(err)
 		}
-		if sel.AllHarnesses != tc.all || tc.area != "" && !slices.Contains(sel.Cases, tc.area) {
+		if sel.AllHarnesses != tc.all || !slices.Equal(sel.Cases, tc.areas) {
 			t.Fatalf("%s: %+v", tc.file, sel)
-		}
-		if tc.area == "" && !tc.all && len(sel.Cases) != 0 {
-			t.Fatalf("documentation affected cases: %+v", sel)
 		}
 	}
 }

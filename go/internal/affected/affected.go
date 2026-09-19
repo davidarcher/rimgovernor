@@ -149,7 +149,9 @@ func Select(repo string, changed []string, base ...string) (Selection, error) {
 	if sel.AllGo {
 		return sel, nil
 	}
-	if !embeddedCandidates && len(dirs) == 0 && len(changedFixtures) == 0 && !sel.AllHarnesses {
+	// Shared native inputs already selected every area. Without Go or
+	// fixture inputs there is nothing left for the dependency graph to add.
+	if !embeddedCandidates && len(dirs) == 0 && len(changedFixtures) == 0 {
 		return sel, nil
 	}
 	graph, err := dependencyGraph(goDir)
