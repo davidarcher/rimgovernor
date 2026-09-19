@@ -114,8 +114,10 @@ type suiteOptions struct {
 	// the runner's default.
 	Evidence string
 	// Tier is the tier the set came from (-tier), recorded in the report;
-	// empty for -all, -cases and -suite.
-	Tier string
+	// empty for -all, -cases and -suite. Sampled are the areas the land
+	// tier ran one case of (#348), recorded as "sampled".
+	Tier    string
+	Sampled []string
 	// Resume carries each case's checkpoint ring from Root into its worker
 	// and lets the row resume from it instead of forcing -fresh.
 	Resume bool
@@ -195,11 +197,12 @@ func parseSuite(args []string, stderr io.Writer) ([]entry, suiteOptions, error) 
 		}
 	case opts.Tier != "":
 		repo, _ := repoOfCwd()
-		selected, err := tierCases(opts.Tier, repo, base)
+		set, err := tierCases(opts.Tier, repo, base)
 		if err != nil {
 			return nil, opts, err
 		}
-		for _, c := range selected {
+		opts.Sampled = set.Sampled
+		for _, c := range set.Cases {
 			list = append(list, entry{Name: c.Name})
 		}
 		if len(list) == 0 {
@@ -404,6 +407,9 @@ func runSuite(ctx context.Context, list []entry, opts suiteOptions, stderr io.Wr
 	report["workers"] = opts.Workers
 	if opts.Tier != "" {
 		report["tier"] = opts.Tier
+	}
+	if len(opts.Sampled) > 0 {
+		report["sampled"] = opts.Sampled
 	}
 	var b *baseline
 	if opts.Baseline != "" {

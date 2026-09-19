@@ -40,14 +40,15 @@ func TestSmokeSuiteShape(t *testing.T) {
 
 func TestTierCasesSplitTheRegistry(t *testing.T) {
 	all := cases.All()
-	full, err := tierCases("full", "", "main")
+	fullSet, err := tierCases("full", "", "main")
 	if err != nil {
 		t.Fatal(err)
 	}
-	matrix, err := tierCases("matrix", "", "main")
+	matrixSet, err := tierCases("matrix", "", "main")
 	if err != nil {
 		t.Fatal(err)
 	}
+	full, matrix := fullSet.Cases, matrixSet.Cases
 	if len(full)+len(matrix) != len(all) {
 		t.Errorf("full (%d) + matrix (%d) != registry (%d)", len(full), len(matrix), len(all))
 	}
@@ -108,8 +109,48 @@ func TestLandCasesAreAffectedAreasPlusSmoke(t *testing.T) {
 		t.Fatal(err)
 	}
 	full, _ := tierCases("full", "", "main")
-	if len(land) != len(full) {
-		t.Errorf("all harnesses affected: land has %d cases, full %d", len(land), len(full))
+	if len(land) != len(full.Cases) {
+		t.Errorf("all harnesses affected: land has %d cases, full %d", len(land), len(full.Cases))
+	}
+}
+
+// A sampled area (#348) contributes its cheapest non-matrix case, a
+// bridge-only one before a serve-driven one at the same budget; an area
+// selected outright still runs whole.
+func TestLandCasesSampleAnArea(t *testing.T) {
+	all := cases.All()
+	land, err := landCases(all, affected.Selection{Cases: []string{"power", "lifecycle"}, Sampled: []string{"lifecycle"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var power, lifecycle []cases.Case
+	for _, c := range land {
+		switch area, _, _ := strings.Cut(c.Name, "/"); area {
+		case "power":
+			power = append(power, c)
+		case "lifecycle":
+			lifecycle = append(lifecycle, c)
+		}
+	}
+	if len(lifecycle) != 1 {
+		t.Fatalf("sampled area lifecycle contributes %d cases, want 1: %v", len(lifecycle), lifecycle)
+	}
+	for _, c := range all {
+		if area, _, _ := strings.Cut(c.Name, "/"); area != "lifecycle" || c.Matrix || c.Name == lifecycle[0].Name {
+			continue
+		}
+		if c.Budget < lifecycle[0].Budget || c.Budget == lifecycle[0].Budget && serveDriven(lifecycle[0]) && !serveDriven(c) {
+			t.Errorf("sampled %s (budget %s, serve %v) over cheaper %s (budget %s, serve %v)", lifecycle[0].Name, lifecycle[0].Budget, serveDriven(lifecycle[0]), c.Name, c.Budget, serveDriven(c))
+		}
+	}
+	var wholePower int
+	for _, c := range all {
+		if area, _, _ := strings.Cut(c.Name, "/"); area == "power" && !c.Matrix {
+			wholePower++
+		}
+	}
+	if len(power) != wholePower {
+		t.Errorf("power selected outright runs %d of %d cases", len(power), wholePower)
 	}
 }
 

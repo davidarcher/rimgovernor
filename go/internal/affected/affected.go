@@ -50,6 +50,13 @@ type Selection struct {
 	Why map[string][]string
 	// Shared names the changed shared acceptance inputs behind AllHarnesses.
 	Shared []string
+	// Sampled are the areas in Cases that a changed harness source
+	// (go/internal/nativeaccept/*.go) reaches through plumbing alone: the
+	// runner or a helper package uses an object the change taints, the
+	// area's own sources use none. Every case of the area runs under the
+	// change the same way, so the land tier runs one case of the area
+	// rather than all of them (#348); the full tier runs the rest.
+	Sampled []string
 }
 
 // probeInputs are the roots whose files the native contract probes build
@@ -87,7 +94,9 @@ func ChangedFiles(repo, base string) ([]string, error) {
 }
 
 // Select computes what changed files affect. An optional base enables
-// acceptance-only filtering; fast checks always include every changed file.
+// acceptance-only filtering and scopes a harness source by the
+// declarations it edited since the merge base (without one, by every
+// declaration it holds); fast checks always include every changed file.
 func Select(repo string, changed []string, base ...string) (Selection, error) {
 	var revision string
 	if len(base) > 0 {
@@ -186,6 +195,7 @@ func Select(repo string, changed []string, base ...string) (Selection, error) {
 	productionPkgs := map[string]bool{}
 	sources := map[string][]string{}
 	families := map[string][]string{} // family -> files scoped to it
+	var harnessChanged []string       // harness package sources, scoped by harnessTaint
 	for dir, files := range dirs {
 		pkg, ok := graph.byDir[dir]
 		if !ok {
@@ -203,6 +213,10 @@ func Select(repo string, changed []string, base ...string) (Selection, error) {
 			}
 			productionPkgs[pkg] = true
 			if revision != "" && acceptanceOnly(repo, revision, file) {
+				continue
+			}
+			if harnessFile(file) {
+				harnessChanged = append(harnessChanged, file)
 				continue
 			}
 			scope, err := routineFamilyScope(goDir, file)
@@ -248,20 +262,56 @@ func Select(repo string, changed []string, base ...string) (Selection, error) {
 	// them, or compose every family.
 	selector := graph.module + "/internal/affected"
 	binary := graph.module + "/cmd/rimgovernor"
-	var binaryWhy, runnerWhy []string
+	prefix := graph.module + "/internal/nativeaccept/cases/"
+	runner := graph.module + "/internal/nativeaccept/cmd/acceptance"
+	var binaryWhy, runnerWhy, runnerPlumbing []string
+	// A changed harness source reaches a package through the objects its
+	// change taints (harnessTypes.taint): an area whose own sources use one
+	// runs in full; the runner, a helper package (cases, sustainedfood) and
+	// the areas importing it are harness plumbing shared by every case the
+	// area runs, so an area reached that way alone is sampled (#348).
+	areaUses := map[string]string{} // area -> tainted objects its sources use
+	plumbing := map[string]string{} // helper package -> tainted objects it uses
+	if len(harnessChanged) > 0 {
+		ht, err := loadHarnessTypes(goDir, graph)
+		if err != nil {
+			return sel, err
+		}
+		tainted := ht.taint(repo, revision, harnessChanged)
+		pkgs := make([]string, 0, len(ht.users))
+		for pkg := range ht.users {
+			pkgs = append(pkgs, pkg)
+		}
+		sort.Strings(pkgs)
+		for _, pkg := range pkgs {
+			uses := ht.uses(pkg, tainted)
+			if uses == "" || pkg == selector {
+				continue
+			}
+			switch name := strings.TrimPrefix(pkg, prefix); {
+			case pkg == runner:
+				runnerPlumbing = append(runnerPlumbing, "the runner uses "+uses)
+			case strings.HasPrefix(pkg, prefix) && !strings.Contains(name, "/"):
+				areaUses[name] = uses
+			default:
+				plumbing[pkg] = uses
+			}
+		}
+	}
 	for _, dep := range graph.deps[binary] {
 		if files, ok := sources[dep]; ok {
 			binaryWhy = append(binaryWhy, "the rimgovernor binary imports "+dep+" ("+strings.Join(files, ", ")+")")
 		}
 	}
-	prefix := graph.module + "/internal/nativeaccept/cases/"
-	runner := graph.module + "/internal/nativeaccept/cmd/acceptance"
 	if files, ok := sources[runner]; ok {
 		runnerWhy = append(runnerWhy, "the runner changed ("+strings.Join(files, ", ")+")")
 	}
 	for _, dep := range graph.closure(runner, func(dep string) bool { return strings.HasPrefix(dep, prefix) || dep == selector }) {
 		if files, ok := sources[dep]; ok {
 			runnerWhy = append(runnerWhy, "the runner imports "+dep+" ("+strings.Join(files, ", ")+")")
+		}
+		if uses, ok := plumbing[dep]; ok {
+			runnerPlumbing = append(runnerPlumbing, "the runner imports "+dep+", which uses "+uses)
 		}
 	}
 	familyNames := make([]string, 0, len(families))
@@ -288,6 +338,9 @@ func Select(repo string, changed []string, base ...string) (Selection, error) {
 		if fixtureAreas[name] {
 			why = append(why, "the area uses a changed fixture")
 		}
+		if uses, ok := areaUses[name]; ok {
+			why = append(why, "the area uses "+uses)
+		}
 		for _, dep := range deps {
 			if files, ok := sources[dep]; ok && !strings.HasPrefix(dep, prefix) {
 				why = append(why, "the area imports "+dep+" ("+strings.Join(files, ", ")+")")
@@ -303,11 +356,24 @@ func Select(repo string, changed []string, base ...string) (Selection, error) {
 			}
 			why = append(why, "routine family "+family+" changed ("+strings.Join(families[family], ", ")+") and the area "+how)
 		}
-		if len(why) > 0 {
-			sel.Cases = append(sel.Cases, name)
-			sel.Why[name] = why
+		sampled := len(why) == 0
+		why = append(why, runnerPlumbing...)
+		for _, dep := range deps {
+			if uses, ok := plumbing[dep]; ok {
+				why = append(why, "the area imports "+dep+", which uses "+uses)
+			}
 		}
+		if len(why) == 0 {
+			continue
+		}
+		if sampled {
+			why = append(why, "sampled: the change reaches the area through harness plumbing alone, so the land tier runs one case of it")
+			sel.Sampled = append(sel.Sampled, name)
+		}
+		sel.Cases = append(sel.Cases, name)
+		sel.Why[name] = why
 	}
+	sort.Strings(sel.Sampled)
 	sort.Strings(sel.Cases)
 	return sel, nil
 }
@@ -608,6 +674,9 @@ func Test(repo string, changed []string, base ...string) error {
 	}
 	if len(sel.Cases) > 0 {
 		fmt.Printf("cases affected: %s (cmd/affected -files says why)\n", strings.Join(sel.Cases, " "))
+	}
+	if len(sel.Sampled) > 0 {
+		fmt.Printf("  sampled, one case each in the land tier (a harness change reaching them through plumbing alone, #348): %s\n", strings.Join(sel.Sampled, " "))
 	}
 	if len(sel.Cases) > 0 || sel.AllHarnesses {
 		fmt.Println("acceptance: one run, the land tier (it covers the affected areas and the smoke set; do not run the areas separately first):")

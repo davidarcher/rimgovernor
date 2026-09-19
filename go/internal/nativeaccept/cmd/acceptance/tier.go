@@ -5,7 +5,9 @@ package main
 // own cadence:
 //
 //   - land: the cases cmd/affected selects for the worktree's diff against
-//     -base, plus the smoke set; the landing lane's fresh pass.
+//     -base, plus the smoke set; the landing lane's fresh pass. An area a
+//     harness change reaches through plumbing alone is sampled: one case
+//     (#348).
 //   - full: every case outside the matrix tier; the nightly loop against
 //     main, chained with -baseline for regression flagging.
 //   - matrix: the cases that declare Matrix (speedmatrix, tickbudget, a
@@ -24,6 +26,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/davidarcher/RimGovernor/go/internal/affected"
@@ -44,9 +47,16 @@ func repoOfCwd() (string, bool) {
 // tierNames are the tiers in the order the usage lists them.
 var tierNames = []string{"land", "full", "matrix", "smoke"}
 
-// tierCases resolves a tier to its registry cases in registry order. The
-// land tier diffs repo's working tree against base.
-func tierCases(tier, repo, base string) ([]cases.Case, error) {
+// tierSet is a resolved tier: its registry cases in registry order and,
+// for the land tier, the areas it sampled to one case (#348).
+type tierSet struct {
+	Cases   []cases.Case
+	Sampled []string
+}
+
+// tierCases resolves a tier. The land tier diffs repo's working tree
+// against base.
+func tierCases(tier, repo, base string) (tierSet, error) {
 	all := cases.All()
 	switch tier {
 	case "full":
@@ -56,7 +66,7 @@ func tierCases(tier, repo, base string) ([]cases.Case, error) {
 				out = append(out, c)
 			}
 		}
-		return out, nil
+		return tierSet{Cases: out}, nil
 	case "matrix":
 		var out []cases.Case
 		for _, c := range all {
@@ -64,28 +74,33 @@ func tierCases(tier, repo, base string) ([]cases.Case, error) {
 				out = append(out, c)
 			}
 		}
-		return out, nil
+		return tierSet{Cases: out}, nil
 	case "smoke":
-		return smokeCases(all)
+		smoke, err := smokeCases(all)
+		return tierSet{Cases: smoke}, err
 	case "land":
 		if repo == "" {
-			return nil, fmt.Errorf("the land tier needs a git checkout to diff")
+			return tierSet{}, fmt.Errorf("the land tier needs a git checkout to diff")
 		}
 		changed, err := affected.ChangedFiles(repo, base)
 		if err != nil {
-			return nil, err
+			return tierSet{}, err
 		}
-		sel, err := affected.Select(repo, changed)
+		sel, err := affected.Select(repo, changed, base)
 		if err != nil {
-			return nil, err
+			return tierSet{}, err
 		}
-		return landCases(all, sel)
+		land, err := landCases(all, sel)
+		return tierSet{Cases: land, Sampled: sel.Sampled}, err
 	}
-	return nil, fmt.Errorf("unknown tier %q (one of %s)", tier, strings.Join(tierNames, ", "))
+	return tierSet{}, fmt.Errorf("unknown tier %q (one of %s)", tier, strings.Join(tierNames, ", "))
 }
 
 // landCases is the affected areas' cases plus the smoke set, matrix cases
-// excluded, in registry order.
+// excluded, in registry order. An area the selection sampled (a harness
+// change reaching it through plumbing alone, #348) contributes one case,
+// its cheapest by budget, a bridge-only case before a serve-driven one at
+// the same budget; the full tier runs the rest.
 func landCases(all []cases.Case, sel affected.Selection) ([]cases.Case, error) {
 	smoke, err := smokeCases(all)
 	if err != nil {
@@ -99,18 +114,52 @@ func landCases(all []cases.Case, sel affected.Selection) ([]cases.Case, error) {
 	for _, area := range sel.Cases {
 		areas[area] = true
 	}
+	sampled := map[string]bool{}
+	for _, area := range sel.Sampled {
+		sampled[area] = true
+	}
+	for _, c := range sampleCases(all, sel.Sampled) {
+		want[c.Name] = true
+	}
 	var out []cases.Case
 	for _, c := range all {
 		area, _, _ := strings.Cut(c.Name, "/")
 		if c.Matrix {
 			continue
 		}
-		if want[c.Name] || areas[area] || sel.AllHarnesses {
+		if want[c.Name] || (areas[area] && !sampled[area]) || sel.AllHarnesses {
 			out = append(out, c)
 		}
 	}
 	return out, nil
 }
+
+// sampleCases picks one non-matrix case per named area: the smallest
+// budget, a bridge-only case before a serve-driven one, registry order
+// last. An area with matrix cases only contributes nothing.
+func sampleCases(all []cases.Case, areas []string) []cases.Case {
+	pick := map[string]cases.Case{}
+	for _, c := range all {
+		area, _, _ := strings.Cut(c.Name, "/")
+		if c.Matrix || !slices.Contains(areas, area) {
+			continue
+		}
+		best, ok := pick[area]
+		if !ok || c.Budget < best.Budget || c.Budget == best.Budget && serveDriven(best) && !serveDriven(c) {
+			pick[area] = c
+		}
+	}
+	var out []cases.Case
+	for _, c := range all {
+		if best, ok := pick[strings.Split(c.Name, "/")[0]]; ok && best.Name == c.Name {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+// serveDriven reports whether a case hosts rimgovernor serve.
+func serveDriven(c cases.Case) bool { return c.Serve != nil || c.Service }
 
 // smokeSuite is the committed smoke set (suites/smoke.json, embedded so
 // the tier resolves from any working directory): bridge-only cases over a

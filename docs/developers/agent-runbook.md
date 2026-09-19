@@ -114,7 +114,10 @@ What it produces:
   `-resume` live under `-root`, not there.
   The tool shell caps a command at ten minutes even in the background, and
   without `-WindowStyle Hidden` a console window opens on the user's
-  desktop.
+  desktop. A suite of more than a handful of cases (a land tier past
+  ~10 rows, any full tier) only ever runs detached: an in-shell attempt
+  the cap kills leaves its worker games orphaned under
+  `<output>/workers/<n>`, to be stopped by pid.
 - `acceptance doctor -root <root> [-rimgovernor <bin> -output <dir>]` is
   the preflight (#277): one line per known pitfall with its fix -- the
   root and its game copy (path past ~140 characters), `gabs.exe`, the

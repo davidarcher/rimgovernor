@@ -51,10 +51,10 @@ name), a committed save under `saves/` the area naming it, and the
 fixture build files (`.csproj`, `Taskfile.yml`, lock file) every area;
 `contracts/fixtures` feeds unit tests only. `na.HarnessInputs` lists a
 case's inputs. Selection is per package, not
-per symbol: any code edit to a package the runner imports
-(`internal/nativeaccept`, `cases`, `clock`, ...) names every area, even an
-additive one whose zero value keeps the old path, because nothing cheaper
-proves that. The one finer grain is the routine family (#361): an edit
+per symbol: any code edit to a package the runner imports (`cases`,
+`clock`, ...) names every area, even an additive one whose zero value
+keeps the old path, because nothing cheaper proves that. Two grains are
+finer. The routine family (#361): an edit
 confined to a family-owned planner file in `internal/buildingruntime`
 (`routine_lighting.go`, `routine_flooring.go`, ...; the table is
 `routineFamilyFiles` in `internal/affected`) names the serve-hosting areas
@@ -68,7 +68,21 @@ as `//go:build` count as code), or only the clock's debug trace (an `if
 clockDebug()` block that traces and nothing else, a `clockSchedulerLog`
 call), is not a change at all and names nothing. `cmd/affected -files`
 prints, under each area, the changed file and the rule that reached it,
-so an unexpected tier is explainable. Run the printed
+so an unexpected tier is explainable. The harness object (#348): an edit
+to `go/internal/nativeaccept/*.go` (the harness package itself, not its
+subpackages) is scoped by the declarations it edited against the merge
+base, then by every harness declaration whose body uses one, transitively
+(a named file given to `cmd/affected` by hand counts whole). An area whose
+own sources use a tainted declaration runs whole ("the area uses
+na.Session.Advance of wait.go"); an area the change reaches only through
+the runner or a helper package every case shares (`cases`, `sustainedfood`,
+`setup`...) is **sampled**: it is named, but the land tier runs one case
+of it, the cheapest by budget with a bridge-only case before a serve-driven
+one, and `-tier full` runs the rest. `cmd/test` lists the sampled areas
+under `cases affected`, `acceptance list -tier land` names them on stderr
+and the suite's `result.json` records them as `sampled`. A boot-path edit
+(`headless.go`, `warm.go`) therefore costs one case per area plus the
+smoke set, not the registry. Run the printed
 `acceptance suite -tier land` command at the milestone and hand its output
 to `cmd/land -results`. It covers the affected areas plus smoke; do not run
 the areas separately first. Name the suite in the commit message; an area you judged unaffected and skipped
@@ -659,7 +673,9 @@ prints a tier and `-cost -baseline <result.json|metrics.jsonl>` prices it:
 
 - **land** (`suite -tier land [-base main]`): the case areas
   `cmd/affected` selects for the worktree's diff plus the smoke set, fresh,
-  in the landing lane. `cmd/test` prints the command; `cmd/land -results
+  in the landing lane; an area a harness edit reaches through shared
+  plumbing alone contributes one case (sampled, #348, above). `cmd/test`
+  prints the command; `cmd/land -results
   <output>` reads the suite's `result.json` and refuses a suite that did
   not pass or whose rows resumed from a checkpoint (#308). A diff under
   the native mod sources (`na.HarnessInputRoots`) or

@@ -93,12 +93,14 @@ func TestSelectFollowsImports(t *testing.T) {
 		t.Errorf("cases selected for a tooling-only change: %v", sel.Cases)
 	}
 
-	sel, err = Select(r, []string{"go/internal/nativeaccept/clock.go"})
+	// A harness helper package selects the areas importing it; the
+	// harness package itself is scoped by object (harness_test.go).
+	sel, err = Select(r, []string{"go/internal/nativeaccept/sustainedfood/failfast.go"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Contains(sel.Cases, "authority") || !slices.Contains(sel.Cases, "smoke") {
-		t.Errorf("nativeaccept change selected cases %v", sel.Cases)
+	if !slices.Contains(sel.Cases, "sustained") || slices.Contains(sel.Cases, "smoke") {
+		t.Errorf("sustainedfood change selected cases %v", sel.Cases)
 	}
 	if sel.AllHarnesses {
 		t.Errorf("a Go change is not a shared-input change")

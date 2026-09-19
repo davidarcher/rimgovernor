@@ -35,7 +35,12 @@ func list(args []string, stdout, stderr io.Writer) int {
 			return 2
 		}
 		repo, _ := repoOfCwd()
-		selected, err = tierCases(*tier, repo, *base)
+		var set tierSet
+		set, err = tierCases(*tier, repo, *base)
+		selected = set.Cases
+		if len(set.Sampled) > 0 {
+			fmt.Fprintf(stderr, "sampled to one case each (a harness change reaches them through plumbing alone, #348): %s\n", strings.Join(set.Sampled, " "))
+		}
 	} else {
 		selected, err = selectCases(fs.Args())
 	}
