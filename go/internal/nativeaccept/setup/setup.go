@@ -90,6 +90,20 @@ func Run(ctx context.Context, o Options) (*Summary, error) {
 	}
 	l := o.Layout
 	s := &Summary{Layout: l, Inputs: o.Inputs}
+	if o.Inputs == nil {
+		return nil, errors.New("setup requires discovered inputs")
+	}
+	// Refuse before copying game/GABS files or rebuilding binaries, not only
+	// before installing the mod. A running harness owns all these inputs.
+	processes, err := ListProcesses(append(append([]string{}, HarnessImages...), "acceptance.exe")...)
+	if err != nil {
+		return nil, err
+	}
+	for _, p := range processes {
+		if p.PID != os.Getpid() && (p.Under(l.GameCopy) || p.Under(l.Root) || p.Under(l.Bin)) {
+			return nil, fmt.Errorf("setup refuses while owned process %d (%s) is running; stop this root first", p.PID, p.Name)
+		}
+	}
 	if n := len(l.GameCopy); n > MaxGameCopyPath {
 		return nil, fmt.Errorf("game copy path is %d characters (%s); RimWorld memory-maps Data files by full path and fails past MAX_PATH (observed: every Defs XML \"Could not open file\", the bridge assembly not loading). Keep the worktree under a path of at most %d characters", n, l.GameCopy, MaxGameCopyPath-len(filepath.FromSlash("/.rimgovernor/native-rimworld")))
 	}
@@ -101,8 +115,13 @@ func Run(ctx context.Context, o Options) (*Summary, error) {
 	fmt.Fprintf(o.Log, "worktree  %s\nrimworld  %s (%s)\nharmony   %s (%s)\ngabs      %s (%s)\n",
 		l.Repo, o.Inputs.RimWorldDir, o.Inputs.Sources["rimworld"], o.Inputs.Harmony, o.Inputs.Sources["harmony"], o.Inputs.GABS, o.Inputs.Sources["gabs"])
 
-	if err := gameCopy(o.Inputs.RimWorldDir, l.GameCopy, note); err != nil {
+	if err := gameCopy(o.Inputs.RimWorldDir, l.GameCopy, o.Inputs.BridgeDir, note); err != nil {
 		return s, fmt.Errorf("game copy: %w", err)
+	}
+	if o.Inputs.HarmonyMod != "" {
+		if _, err := ensureJunction(filepath.Join(l.GameCopy, "Mods", "Harmony"), o.Inputs.HarmonyMod); err != nil {
+			return s, fmt.Errorf("harmony runtime: %w", err)
+		}
 	}
 	if err := bridgeRoot(l, o.Inputs, note); err != nil {
 		return s, fmt.Errorf("bridge root: %w", err)
@@ -141,12 +160,18 @@ const bridgeMod = "RimBridgeServer"
 // and Mods/RimBridgeServer junctioned, every other top-level directory
 // copied, and any other mod left out (ModsConfig decides activation; the
 // copy holds only the bridge and our own package).
-func gameCopy(steam, dest string, note func(string, ...any)) error {
+func gameCopy(steam, dest, bridge string, note func(string, ...any)) error {
 	if err := os.MkdirAll(filepath.Join(dest, "Mods"), 0755); err != nil {
 		return err
 	}
 	entries, err := os.ReadDir(steam)
 	if err != nil {
+		return err
+	}
+	if bridge == "" {
+		bridge = filepath.Join(steam, "Mods", bridgeMod)
+	}
+	if _, err := ensureJunction(filepath.Join(dest, "Mods", bridgeMod), bridge); err != nil {
 		return err
 	}
 	junction := map[string]bool{}
@@ -167,13 +192,7 @@ func gameCopy(steam, dest string, note func(string, ...any)) error {
 				note("junction %s -> %s", to, from)
 			}
 		case name == "Mods":
-			changed, err := ensureJunction(filepath.Join(to, bridgeMod), filepath.Join(from, bridgeMod))
-			if err != nil {
-				return err
-			}
-			if changed {
-				note("junction %s -> %s", filepath.Join(to, bridgeMod), filepath.Join(from, bridgeMod))
-			}
+			continue
 		case e.IsDir():
 			n, err := copyTree(from, to)
 			if err != nil {
@@ -293,7 +312,11 @@ func bridgeRoot(l Layout, in *Inputs, note func(string, ...any)) error {
 	}
 	prefs := filepath.Join(config, "Prefs.xml")
 	if !isFile(prefs) {
-		if player := playerPrefs(); player != "" {
+		player := ""
+		if !in.CleanProfile {
+			player = playerPrefs()
+		}
+		if player != "" {
 			if err := na.CopyFile(player, prefs); err != nil {
 				return err
 			}

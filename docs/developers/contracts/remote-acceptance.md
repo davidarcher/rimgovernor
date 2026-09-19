@@ -3,8 +3,8 @@
 [Contracts](README.md) · [Choosing checks](../testing/choose-tests.md) ·
 [Delivery epic #363](https://github.com/davidarcher/rimgovernor/issues/363)
 
-This is the implementation contract for #377–#383, not an installed remote
-runner. Local `acceptance list`, `acceptance suite` and `cmd/land` remain the
+This is the implementation contract for #377–#383. Bundle/bootstrap tooling is
+documented [here](../remote-bundles.md); hosted workflow activation is separate. Local `acceptance list`, `acceptance suite` and `cmd/land` remain the
 execution and landing interfaces. The coordinated JSON [examples](remote-acceptance/)
 are synthetic fixtures, never acceptance evidence or downloadable game files.
 
@@ -131,13 +131,14 @@ are consulted, so untimed cases are assigned identically on every machine.
 ## Runner, storage and resource boundary
 
 Initial target: public source repository, standard GitHub-hosted Windows x64,
-`windows-2022`, with licensed inputs in a **separate private bundle repository**.
-#377 binds its actual repository/release IDs during provisioning; the example
-origin is illustrative, not a claim that a store exists. Never attach the bundle
-to a release in the public source repository. Each job gets one private game
+`windows-2022`, with **age-encrypted release assets in the public source
+repository** (maintainer choice, 2026-09-19). Only ciphertext is public; the age
+identity remains a trusted-run secret. #377 pins the repository/release/asset
+IDs during explicit maintainer publication; the example origin is synthetic.
+See [bundle tooling and bootstrap](../remote-bundles.md). Each job gets one private game
 layout and one suite worker. **Actions cache is the normal restore path**, keyed
 `rimgovernor-bundle-v1-windows-x64-<bundle-manifest-sha256>`, without broad restore
-prefixes. Cache the encrypted archive parts exactly as published at the private
+prefixes. Cache the encrypted archive parts exactly as published at the pinned
 origin, not the extracted tree. Cold misses download, verify and populate that
 cache; hits verify the same digests. A corrupt hit fails validation and must be
 replaced under a new bundle identity or removed before retry; never extract it.
@@ -155,18 +156,18 @@ in the job's private layout and is never re-cached. Public dependency caches sta
 separate. See
 [cache access rules](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching).
 
-The source repository's `GITHUB_TOKEN` cannot read the separate private origin.
-Use a short-lived GitHub App installation token scoped to that repository with
-`contents: read`, supplied only to the trusted download step; #377/#382 own
-provisioning and rotation. Keep the source token read-only and do not persist
-credentials in the checkout or subprocess environment. See
-[cross-repository authentication](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/making-authenticated-api-requests-with-a-github-app-in-a-github-actions-workflow).
+The public encrypted origin needs no cross-repository credential. Use the
+source repository's read-only token for authenticated release metadata/downloads
+and API rate limits. Never pass it to branch builds or persist it in the checkout.
+Only the explicit maintainer publication command needs release write access.
+The bootstrap still gates trust before cache restore or identity access: public
+ciphertext does not authorize unreviewed code to decrypt licensed inputs.
 
 Public Actions logs and artifacts are public-facing outputs. #380 uploads an
 allowlisted, sanitized evidence tree (reports, metrics, flight/log diagnostics),
 never entire game/profile/work directories, credentials or licensed bytes. Raw
 restricted diagnostics stay out of public uploads; if required, #377/#380 use
-the private store with authenticated retrieval and a digest-bound reference.
+separately age-encrypted assets with a digest-bound reference and trusted retrieval.
 Missing required diagnostics cannot be hidden by redaction: report incomplete
 until the importer can retrieve them. The initial evidence fixtures require no
 private diagnostic payloads. #377 inventories licensed inputs before packaging.

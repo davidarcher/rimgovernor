@@ -21,6 +21,7 @@ its contracts and run the relevant checks.
   [wire contracts](../contracts/README.md)
 - [Remote acceptance contract](developers/contracts/remote-acceptance.md), example manifests and
   [evidence aggregation/import](developers/testing/remote-evidence.md)
+- [Encrypted bundles and Windows bootstrap](developers/remote-bundles.md)
 - [Generated wire contracts](../contracts/schema-generation.md)
 - [Choose tests](developers/testing/choose-tests.md) and
   [measure throughput](developers/testing/measure-throughput.md) (flight recorder, `rimgovernor phases`, `rimgovernor trace`, speed matrix, the case timeline page)

@@ -20,6 +20,7 @@ const setupUsage = `  acceptance setup [-worktree <dir>] [-rimworld <RimWorld di
 // setupOptions are the parsed setup flags.
 type setupOptions struct {
 	repo      string
+	layoutDir string
 	overrides setup.Overrides
 	run       setup.Options
 }
@@ -35,6 +36,11 @@ func parseSetup(args []string, stderr io.Writer) (setupOptions, error) {
 	var o setupOptions
 	var fixtures string
 	fs.StringVar(&o.repo, "worktree", "", "checkout to set up (default: the one enclosing the working directory)")
+	fs.StringVar(&o.layoutDir, "layout", "", "private writable layout directory (default: <worktree>/.rimgovernor)")
+	fs.StringVar(&o.overrides.BridgeDir, "bridge", "", "explicit RimBridgeServer runtime directory")
+	fs.StringVar(&o.overrides.HarmonyMod, "harmony-mod", "", "explicit complete Harmony runtime mod directory")
+	fs.StringVar(&o.overrides.RimBridgeSDK, "sdk", "", "explicit RimBridgeServer SDK assemblies directory")
+	fs.BoolVar(&o.overrides.Explicit, "explicit", false, "require every dependency path and create a clean profile without machine discovery")
 	fs.StringVar(&o.overrides.RimWorldDir, "rimworld", "", "RimWorld install holding RimWorldWin64.exe (default: Steam, or $"+setup.RimWorldDirEnv+")")
 	fs.StringVar(&o.overrides.Harmony, "harmony", "", "0Harmony.dll (default: the Steam workshop item, or $"+setup.HarmonyEnv+")")
 	fs.StringVar(&o.overrides.GABS, "gabs", "", "gabs.exe to install (default: a peer worktree's, or $"+setup.GABSEnv+")")
@@ -90,6 +96,16 @@ func runSetup(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 		return 1
 	}
 	o.run.Layout = setup.NewLayout(o.repo)
+	if o.layoutDir != "" {
+		if !filepath.IsAbs(o.layoutDir) {
+			fmt.Fprintln(stderr, "-layout must be absolute")
+			return 2
+		}
+		o.run.Layout.GameCopy = filepath.Join(o.layoutDir, "native-rimworld")
+		o.run.Layout.Root = filepath.Join(o.layoutDir, "bridge")
+		o.run.Layout.Builds = filepath.Join(o.layoutDir, "native-builds")
+		o.run.Layout.Bin = filepath.Join(o.layoutDir, "bin")
+	}
 	o.run.Inputs = inputs
 	o.run.Log = stdout
 	s, err := setup.Run(ctx, o.run)

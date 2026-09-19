@@ -8,6 +8,10 @@ the commands that keep them apart. Several agent sessions run on this one
 Windows machine at once, each in its own worktree, several with a headless
 RimWorld running.
 
+Clean remote Windows runners use [encrypted bundles and bootstrap](remote-bundles.md).
+Their explicit setup uses job-local dependencies and never discovers Steam, peer
+worktrees or player preferences. Local sessions follow the steps below.
+
 ## Session start
 
 1. `git merge main` once (the branch's `cmd/test` and `cmd/land` come from
