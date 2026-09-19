@@ -80,9 +80,20 @@ binary `go/internal/nativeaccept/cmd/acceptance`: `go run
 ./internal/nativeaccept/cmd/acceptance list` names the registry, and
 `acceptance run <area>/<case>... -root <abs root> [-output <dir>]
 [-rimgovernor <abs rimgovernor.exe>] [-budget <d> -stall <d> -timeout <d>]
-[-fresh] [-rewind N] [-checkpoint-every <d>]`
+[-fresh] [-rewind N] [-checkpoint-every <d>] [-evidence capped|full]`
 runs cases on one kept process, writing each case's `result.json` under
-`<output>/<area>/<case>`. There is no other entry point: a new case is a
+`<output>/<area>/<case>` beside one evidence file per native call
+(`NNNN-<label>.json`) and per service request (`service*/http-NNNN.json`).
+Evidence is capped by default (#302): a reply or response over 256 KiB
+(the flight recorder's payload cap) is kept as `result_preview` (its
+first 256 KiB), `result_bytes`, `result_sha256` and `truncated: true`;
+`-evidence full` (or `RIMGOVERNOR_ACCEPT_EVIDENCE=full`) also writes
+the untouched row to `<case>/full/`. `result.json` records the mode
+under `evidence` and hashes the capped evidence files and every file the
+report names under `artifacts` (never the flight ring, service database
+or logs); `metrics.evidence_bytes` still sums everything under the case
+directory. No case reads an evidence file back; assertions go through
+the reply the harness returns. There is no other entry point: a new case is a
 new file in an area package (or a new area, imported for its `init()` from
 `cmd/acceptance/main.go`) that calls `cases.Register` with a `Name`
 (`<area>/<case>`), a `Scope`, a `Start` (`cases.DebugStart{}`,
@@ -502,7 +513,7 @@ colony.
 
 `acceptance suite (-all | -cases a,b | -suite file.json) -root <root>
 -output <out> -workers N [-baseline <result.json> -series <metrics.jsonl>
--rimgovernor <bin>]`
+-rimgovernor <bin> -evidence capped|full]`
 (`go/internal/nativeaccept/cmd/acceptance`) clones the root into N
 worker roots (`na.IsolatedRoot`: own GABS state, config and profile, same
 game installation), gives each worker a queue of cases chained on one kept

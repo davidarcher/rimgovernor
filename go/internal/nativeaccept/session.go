@@ -90,11 +90,11 @@ func NewReport(scope string, headless bool) Report {
 
 // Finalize fills the timing fields and applies the budget (a passing run
 // over its budget fails), computes the artifact hash manifest for output
-// and the metrics block (metrics.go), writes result.json, and returns the
+// (Artifacts: capped evidence and the files the report names) and the metrics block (metrics.go), writes result.json, and returns the
 // process exit code (0 when report["passed"] is true).
 func (r Report) Finalize(output string) int {
 	r.finalizeTiming(time.Now())
-	if hashes, err := ArtifactHashes(output); err == nil {
+	if hashes, err := Artifacts(output, r); err == nil {
 		r["artifacts"] = hashes
 	}
 	if _, has := r["wait_stats"]; !has {

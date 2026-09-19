@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -304,32 +303,6 @@ func PackageFiles(installation string) (map[string]string, error) {
 		}
 	}
 	return hashes, nil
-}
-
-// ArtifactHashes hashes every regular file under output, for the report's evidence
-// manifest (an artifact census of every file under output).
-func ArtifactHashes(output string) (map[string]string, error) {
-	hashes := map[string]string{}
-	err := filepath.WalkDir(output, func(path string, entry fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if entry.IsDir() {
-			return nil
-		}
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		relative, err := filepath.Rel(output, path)
-		if err != nil {
-			return err
-		}
-		sum := sha256.Sum256(data)
-		hashes[filepath.ToSlash(relative)] = hex.EncodeToString(sum[:])
-		return nil
-	})
-	return hashes, err
 }
 
 // CheckStartupLog validates the mod's HeadlessRim startup markers: batch initialization must be

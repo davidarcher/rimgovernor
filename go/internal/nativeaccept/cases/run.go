@@ -38,6 +38,9 @@ type Options struct {
 	// Rimgovernor is the prebuilt rimgovernor binary (absolute path) a case
 	// that launches `rimgovernor serve` runs; a bridge-only case ignores it.
 	Rimgovernor string
+	// Evidence is the evidence mode (na.EvidenceCapped, na.EvidenceFull);
+	// empty leaves na.CurrentEvidenceMode's default.
+	Evidence na.EvidenceMode
 	// CheckpointEvery is the checkpoint ring's cadence in run phase (#249);
 	// zero turns the ring, and resuming, off.
 	CheckpointEvery time.Duration
@@ -133,6 +136,11 @@ func Execute(ctx context.Context, c Case, opts Options) (na.Report, int) {
 		_ = os.Setenv(na.StallEnv, opts.Stall.String())
 	}
 	report["stall_ms"] = na.StallBudget().Milliseconds()
+	if err := na.SetEvidenceMode(opts.Evidence); err != nil {
+		report["error"] = err.Error()
+		return report, code()
+	}
+	report["evidence"] = string(na.CurrentEvidenceMode())
 	timeout := opts.Timeout
 	if timeout <= 0 {
 		timeout = DefaultTimeout

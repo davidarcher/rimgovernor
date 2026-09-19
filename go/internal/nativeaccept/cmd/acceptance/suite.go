@@ -97,9 +97,12 @@ type suiteOptions struct {
 	// CaseTimeout, Budget and Stall pass through to `acceptance run`;
 	// zero leaves the runner's defaults.
 	CaseTimeout, Budget, Stall time.Duration
+	// Evidence passes through to `acceptance run -evidence`; empty leaves
+	// the runner's default.
+	Evidence string
 }
 
-const suiteUsage = `  acceptance suite (-all | -cases a,b,... | -suite file.json) -root <dir> -output <dir> [-workers N -baseline <result.json> -series <metrics.jsonl> -no-series -rimgovernor <bin> -game <id> -timeout <d> -case-timeout <d> -budget <d> -stall <d>]`
+const suiteUsage = `  acceptance suite (-all | -cases a,b,... | -suite file.json) -root <dir> -output <dir> [-workers N -baseline <result.json> -series <metrics.jsonl> -no-series -rimgovernor <bin> -game <id> -timeout <d> -case-timeout <d> -budget <d> -stall <d> -evidence capped|full]`
 
 // parseSuite resolves the suite subcommand's flags into the list of rows
 // (in file order, before scheduling) and the options.
@@ -124,6 +127,7 @@ func parseSuite(args []string, stderr io.Writer) ([]entry, suiteOptions, error) 
 	fs.DurationVar(&opts.CaseTimeout, "case-timeout", 0, "per-case safety net (default: the runner's)")
 	fs.DurationVar(&opts.Budget, "budget", 0, "per-case budget override")
 	fs.DurationVar(&opts.Stall, "stall", 0, "stall budget override")
+	fs.StringVar(&opts.Evidence, "evidence", "", "evidence mode passed to every case: capped (default) or full")
 	if err := fs.Parse(args); err != nil {
 		return nil, opts, err
 	}
@@ -472,6 +476,9 @@ func entryCommand(e entry, opts suiteOptions, self, workerRoot string) (argv []s
 		if f.d > 0 {
 			argv = append(argv, f.name, f.d.String())
 		}
+	}
+	if opts.Evidence != "" {
+		argv = append(argv, "-evidence", opts.Evidence)
 	}
 	return argv, cases.Options{Output: opts.Output}.CaseOutput(*e.registered)
 }

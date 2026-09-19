@@ -1,7 +1,7 @@
 // Command acceptance is the shared runner over the case registry (#135):
 //
 //	acceptance list
-//	acceptance run <case>... [-root -output -game -headless -timeout -budget -stall -rimgovernor -series -no-series -fresh -rewind N -checkpoint-every d]
+//	acceptance run <case>... [-root -output -game -headless -timeout -budget -stall -rimgovernor -series -no-series -evidence -fresh -rewind N -checkpoint-every d]
 //	acceptance suite (-all | -cases a,b | -suite file.json) -root -output -workers N [-baseline result.json -series metrics.jsonl]
 //	acceptance stop -root <dir> [-config -game -takeover]
 //	acceptance setup [-worktree -rimworld -harmony -gabs -fixture -production -rebuild -skip-mod -skip-binaries]
@@ -144,7 +144,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 const usage = `usage:
   acceptance list
-  acceptance run <case>... -root <dir> [-output <dir> -game <id> -headless=false -timeout <d> -budget <d> -stall <d> -rimgovernor <binary> -series <metrics.jsonl> -no-series -fresh -rewind <n> -checkpoint-every <d>]
+  acceptance run <case>... -root <dir> [-output <dir> -game <id> -headless=false -timeout <d> -budget <d> -stall <d> -rimgovernor <binary> -series <metrics.jsonl> -no-series -evidence capped|full -fresh -rewind <n> -checkpoint-every <d>]
     a case whose last run in this root failed resumes from its checkpoint ring (printed on the first line);
     -fresh starts over, -rewind <n> resumes n entries earlier, -checkpoint-every 0 turns the ring off
   acceptance stop -root <dir> [-config <dir> -game <id> -takeover]
@@ -172,6 +172,8 @@ func parseRun(args []string, stderr io.Writer) ([]cases.Case, cases.Options, err
 	fs.DurationVar(&opts.Timeout, "timeout", cases.DefaultTimeout, "per-case safety net")
 	fs.DurationVar(&opts.Budget, "budget", 0, "per-case wall-clock budget that fails the run (default: the case's own)")
 	fs.DurationVar(&opts.Stall, "stall", 0, "stall budget for the shared waits (default: RIMGOVERNOR_ACCEPT_STALL or 3m)")
+	var evidence string
+	fs.StringVar(&evidence, "evidence", "", "evidence mode: capped (payloads over 256 KiB truncated, the default) or full (also written under <case>/full/)")
 	fs.StringVar(&opts.Rimgovernor, "rimgovernor", "", "absolute path to a prebuilt rimgovernor binary (go build ./go/cmd/rimgovernor) for cases that launch a service")
 	fs.BoolVar(&opts.Fresh, "fresh", false, "discard the case's checkpoint ring in this root and start from scratch (landing runs always do)")
 	fs.IntVar(&opts.Rewind, "rewind", 0, "resume this many checkpoint entries earlier than the ring's next")
@@ -179,6 +181,10 @@ func parseRun(args []string, stderr io.Writer) ([]cases.Case, cases.Options, err
 	fs.StringVar(&opts.Series, "series", "", "append-only metrics series each case's block is appended to (default <output>/../metrics.jsonl)")
 	fs.BoolVar(&opts.NoSeries, "no-series", false, "leave the metrics series alone")
 	if err := fs.Parse(flagArgs); err != nil {
+		return nil, opts, err
+	}
+	opts.Evidence = na.EvidenceMode(evidence)
+	if err := na.SetEvidenceMode(opts.Evidence); err != nil {
 		return nil, opts, err
 	}
 	if len(fs.Args()) > 0 {

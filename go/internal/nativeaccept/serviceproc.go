@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"path/filepath"
 	"sync"
 	"sync/atomic"
@@ -55,10 +54,9 @@ func (p *ServiceProcess) API(method, path string, body map[string]any, token str
 	p.counter++
 	n := p.counter
 	p.mu.Unlock()
-	record, _ := json.MarshalIndent(map[string]any{
+	writeEvidence(filepath.Join(p.dir, fmt.Sprintf("http-%04d.json", n)), map[string]any{
 		"method": method, "path": path, "request": body, "status": resp.StatusCode, "response": json.RawMessage(data),
-	}, "", "  ")
-	_ = os.WriteFile(filepath.Join(p.dir, fmt.Sprintf("http-%04d.json", n)), record, 0644)
+	})
 	var out map[string]any
 	if len(data) > 0 {
 		if err := json.Unmarshal(data, &out); err != nil {

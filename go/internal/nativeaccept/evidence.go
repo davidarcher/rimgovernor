@@ -3,7 +3,6 @@ package nativeaccept
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 	"sync"
 	"time"
@@ -60,12 +59,4 @@ func evidenceRow(sequence int, tool string, args json.RawMessage, sent time.Time
 		row["tick"] = *tick
 	}
 	return row
-}
-
-func writeEvidence(path string, row map[string]any) {
-	data, err := json.MarshalIndent(row, "", "  ")
-	if err != nil {
-		return
-	}
-	_ = os.WriteFile(path, data, 0644)
 }
