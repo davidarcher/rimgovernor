@@ -8,7 +8,7 @@ import (
 
 func joinerPolicy(t *testing.T, maximum int32, foodDays float64) domain.Fact[domain.PopulationPolicy] {
 	t.Helper()
-	p, err := domain.NewPopulationPolicy(maximum, foodDays)
+	p, err := domain.NewPopulationPolicy(maximum, foodDays, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -157,11 +157,56 @@ func TestSelectJoinerMethodPicksTheLowestAnswerableOffer(t *testing.T) {
 func TestRoutineFactsJoinerCapacityFallsBackToStockRunway(t *testing.T) {
 	t.Parallel()
 	f := RoutineFacts{FoodDays: domain.Known(4.0), PopulationCapacity: joinerPolicy(t, 5, 1)}
+	f.RaidPoints, f.DefenseTiers = domain.Known(120.0), domain.Known(1)
+	if f.JoinerCapacity().RaidPoints != f.RaidPoints || f.JoinerCapacity().DefenseTiers != f.DefenseTiers {
+		t.Fatal("joiner capacity lost raid/defense facts")
+	}
 	if days, known := f.JoinerCapacity().FoodDays.Value(); !known || days != 4 {
 		t.Fatal(f.JoinerCapacity().FoodDays)
 	}
 	f.PopulationFoodDays = domain.Known(2.0)
 	if days, known := f.JoinerCapacity().FoodDays.Value(); !known || days != 2 {
 		t.Fatal(f.JoinerCapacity().FoodDays)
+	}
+}
+
+func TestJoinerCapacityRaidThreshold(t *testing.T) {
+	for _, tt := range []struct {
+		name      string
+		points    domain.Fact[float64]
+		tiers     domain.Fact[int]
+		threshold float64
+		want      bool
+	}{
+		{"disabled", domain.Known(1000.0), domain.Known(0), 0, true},
+		{"below", domain.Known(99.0), domain.Known(0), 300, true},
+		{"at", domain.Known(100.0), domain.Known(0), 300, true},
+		{"crosses", domain.Known(101.0), domain.Known(0), 300, false},
+		{"already above", domain.Known(400.0), domain.Known(0), 300, false},
+		{"firing line", domain.Known(101.0), domain.Known(1), 300, true},
+		{"two tiers", domain.Known(101.0), domain.Known(2), 300, true},
+		{"unknown points", domain.Unknown[float64](), domain.Known(0), 300, true},
+		{"unknown tiers", domain.Known(101.0), domain.Unknown[int](), 300, true},
+		{"both unknown", domain.Unknown[float64](), domain.Unknown[int](), 300, true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			f := joinerFacts(t, 2, 10)
+			p, err := domain.NewPopulationPolicy(10, 3, tt.threshold)
+			if err != nil {
+				t.Fatal(err)
+			}
+			f.Policy, f.RaidPoints, f.DefenseTiers = domain.Known(p), tt.points, tt.tiers
+			if got, known := JoinerCapacity(f).Value(); !known || got != tt.want {
+				t.Fatalf("capacity = %v, known = %v; want %v", got, known, tt.want)
+			}
+			f.FoodDays = domain.Known(0.0)
+			if got, known := JoinerCapacity(f).Value(); !known || got {
+				t.Fatal("raid facts bypassed food capacity")
+			}
+			f.FoodDays = domain.Unknown[float64]()
+			if _, known := JoinerCapacity(f).Value(); known {
+				t.Fatal("raid facts changed unknown food capacity")
+			}
+		})
 	}
 }

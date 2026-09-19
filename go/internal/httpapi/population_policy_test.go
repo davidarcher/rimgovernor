@@ -98,3 +98,18 @@ func TestPlayerPopulationPolicyHTTPRejectsBadRequests(t *testing.T) {
 		t.Fatal(out.Code, out.Body.String())
 	}
 }
+
+func TestPlayerPopulationPolicyRaidThreshold(t *testing.T) {
+	s, _ := playerAPI(t)
+	const body = `{"requestId":"raid-policy","expected":{"colonyId":"colony","loadToken":"load","mapId":0},"policy":{"maximum":12,"foodDays":30,"raidThreshold":300.5}}`
+	out := playerCall(s, "POST", "/api/player/population-policy/replace", body, s.playerToken)
+	var got populationPolicySubmissionDTO
+	if err := json.Unmarshal(out.Body.Bytes(), &got); err != nil || out.Code != 201 || got.Current.RaidThreshold != 300.5 {
+		t.Fatal(out.Code, out.Body.String(), err)
+	}
+	out = playerCall(s, "GET", "/api/player/population-policy?colonyId=colony&loadToken=load&mapId=0", "", "")
+	var current populationPolicyDTO
+	if err := json.Unmarshal(out.Body.Bytes(), &current); err != nil || out.Code != 200 || current.Policy.RaidThreshold != 300.5 {
+		t.Fatal(out.Code, out.Body.String(), err)
+	}
+}

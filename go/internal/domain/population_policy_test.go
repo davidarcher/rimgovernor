@@ -7,8 +7,19 @@ import (
 
 func TestPopulationPolicyBounds(t *testing.T) {
 	t.Parallel()
+	for _, threshold := range []float64{-1, math.NaN(), math.Inf(1), math.Inf(-1)} {
+		if _, err := NewPopulationPolicy(12, 30, threshold); err == nil {
+			t.Fatalf("accepted threshold %v", threshold)
+		}
+	}
+	for _, threshold := range []float64{0, 300.5} {
+		p, err := NewPopulationPolicy(12, 30, threshold)
+		if err != nil || p.RaidThreshold() != threshold {
+			t.Fatal(p, err)
+		}
+	}
 	for _, valid := range [][2]float64{{1, 1}, {100, 120}, {12, 30.5}} {
-		policy, err := NewPopulationPolicy(int32(valid[0]), valid[1])
+		policy, err := NewPopulationPolicy(int32(valid[0]), valid[1], 0)
 		if err != nil || policy.Maximum() != int32(valid[0]) || policy.FoodDays() != valid[1] || !policy.Set() {
 			t.Fatal(valid, policy, err)
 		}
@@ -18,7 +29,7 @@ func TestPopulationPolicyBounds(t *testing.T) {
 		{12, 0}, {12, 0.99}, {12, 120.01}, {12, -1},
 		{12, math.NaN()}, {12, math.Inf(1)}, {12, math.Inf(-1)},
 	} {
-		if _, err := NewPopulationPolicy(int32(invalid[0]), invalid[1]); err == nil {
+		if _, err := NewPopulationPolicy(int32(invalid[0]), invalid[1], 0); err == nil {
 			t.Fatal("out-of-range population policy must be rejected", invalid)
 		}
 	}

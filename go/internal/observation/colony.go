@@ -197,6 +197,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 	r.Threat = bridge.ProjectColonyThreat(v)
 	r.FoodChannels = colonyFoodChannels(v.FoodChannels)
 	r.Facts = policy.RoutineFacts{Colonists: countFact(v.ColonistCount), BedCapacity: countFact(v.BedCapacity), IndoorCapacity: countFact(v.IndoorSleepingCapacity), SleepingMin: optional(v.SleepingTemperatureMinC), SleepingMax: optional(v.SleepingTemperatureMaxC), OutdoorTemperature: optional(v.OutdoorTemperatureC), FoodStorage: optional(v.FoodStorage)}
+	r.Facts.RaidPoints = bridge.ProjectColonyThreat(v).RaidPoints
 	threat := bridge.ProjectColonyThreat(v)
 	items, itemsKnown := threat.WealthItems.Value()
 	buildings, buildingsKnown := threat.WealthBuildings.Value()

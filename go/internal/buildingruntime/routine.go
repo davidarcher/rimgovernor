@@ -231,6 +231,10 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 		clockSchedulerLog("routine.step: CurrentPopulationPolicy err=%v", err)
 		return store.RoutineReviewResult{}, err
 	}
+	reading.Projection.Facts.DefenseTiers, err = routineJoinerDefenseTiers(ctx, p.journal, state.Snapshot)
+	if err != nil {
+		return store.RoutineReviewResult{}, err
+	}
 	reading.Projection.Facts.DefensiveLayoutStanding, reading.Projection.Facts.ResourceNeeds, err = routineDefensiveLayoutStanding(ctx, p.journal, r.policy, state.Snapshot)
 	if err != nil {
 		clockSchedulerLog("routine.step: LoadDefenseLayout err=%v", err)
@@ -375,4 +379,24 @@ func (p *Player) stopRoutine(ctx context.Context) (store.RoutineReviewResult, er
 		return store.RoutineReviewResult{Review: previous}, nil
 	}
 	return p.journal.ReviewRoutine(ctx, store.RoutineReviewRequest{Revision: previous.Revision, Current: previous.Snapshot, Tick: previous.Tick, Enabled: false})
+}
+
+// routineJoinerDefenseTiers counts only nonempty firing/turret tiers observed
+// built in this load. A record from another load awaits native re-verification.
+func routineJoinerDefenseTiers(ctx context.Context, journal *store.Store, snapshot domain.GenerationSnapshot) (domain.Fact[int], error) {
+	world := store.World{Colony: snapshot.Colony, Load: snapshot.Load, Map: snapshot.Map}
+	record, stored, err := journal.LoadDefenseLayout(ctx, world)
+	if err != nil {
+		return domain.Unknown[int](), err
+	}
+	if stored && record.World != world {
+		return domain.Unknown[int](), nil
+	}
+	tiers := 0
+	for _, tier := range record.Tiers {
+		if tier.Built && len(tier.Buildings) > 0 && (tier.Name == policy.TierFiringLine || tier.Name == policy.TierTurrets) {
+			tiers++
+		}
+	}
+	return domain.Known(tiers), nil
 }

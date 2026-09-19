@@ -20,12 +20,32 @@ func init() {
 		Budget: 10 * time.Minute,
 		Run:    runWanderer,
 	})
+	cases.Register(cases.Case{
+		Name:   "quest/wanderer-defense",
+		Scope:  "An enabled raid threshold leaves the stocked colony's wanderer letter unanswered without a built defense tier; after native firing cover is built and recorded, the exact offered pawn joins.",
+		Start:  cases.Fixture{Op: joinerPrepareTool, Args: map[string]any{"skipQuest": true}, On: cases.Save{Name: joinerBaseline}},
+		Serve:  &cases.ServeSpec{Families: []string{"population-joiner", "supply", "shelter"}, NativeTimeout: 15 * time.Second, Prefix: "quest-wanderer-defense"},
+		Budget: 10 * time.Minute,
+		Run:    func(ctx context.Context, s cases.Session) error { return runWandererCapacity(ctx, s, true) },
+	})
 }
 
 func runWanderer(ctx context.Context, s cases.Session) error {
+	return runWandererCapacity(ctx, s, false)
+}
+
+func runWandererCapacity(ctx context.Context, s cases.Session, defense bool) error {
 	h, report, identity := s.Harness(), s.Report(), s.Identity()
 	if _, err := na.ConfirmColonyNames(ctx, h, report); err != nil {
 		return err
+	}
+	var defenseSite domain.Cell
+	if defense {
+		var err error
+		defenseSite, err = prepareWandererDefense(ctx, s)
+		if err != nil {
+			return err
+		}
 	}
 	incident, err := h.Call(ctx, "wanderer-offer", "test/join_incident", map[string]any{"dryRun": false, "deferAnswer": true})
 	if err != nil {
@@ -130,12 +150,21 @@ func runWanderer(ctx context.Context, s cases.Session) error {
 	if found, _, _, err := answers(); err != nil || found {
 		return fmt.Errorf("letter answered without a population policy: found=%v err=%v", found, err)
 	}
-	response, status, err := service.API("POST", "/api/player/population-policy/replace", map[string]any{"requestId": "wanderer-capacity", "expected": identity, "policy": map[string]any{"maximum": joinerPolicyMaximum, "foodDays": joinerPolicyFoodDays}}, service.Token)
+	capacity := map[string]any{"maximum": joinerPolicyMaximum, "foodDays": joinerPolicyFoodDays}
+	if defense {
+		capacity["raidThreshold"] = 1.0
+	}
+	response, status, err := service.API("POST", "/api/player/population-policy/replace", map[string]any{"requestId": "wanderer-capacity", "expected": identity, "policy": capacity}, service.Token)
 	if err != nil {
 		return err
 	}
 	if status != 201 {
 		return fmt.Errorf("population policy: %d %#v", status, response)
+	}
+	if defense {
+		if err := proveWandererDefense(ctx, s, service, st, defenseSite, answers); err != nil {
+			return err
+		}
 	}
 	if err := na.WaitProgress(ctx, na.Wait{Ceiling: joinerCeiling, Stall: na.StallBudget(), Terminal: service.Exited}, func(context.Context) (string, bool, error) {
 		_, complete, signature, err := answers()

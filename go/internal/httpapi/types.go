@@ -128,8 +128,9 @@ type ResearchSelect struct {
 // days. It is a configuration value rather than a plan action, so it
 // carries no entity identity and no before-token.
 type PopulationPolicy struct {
-	Maximum  int32   `json:"maximum"`
-	FoodDays float64 `json:"foodDays"`
+	Maximum       int32   `json:"maximum"`
+	FoodDays      float64 `json:"foodDays"`
+	RaidThreshold float64 `json:"raidThreshold,omitempty"`
 }
 
 // PopulationDecision is the wire shape for one player-sourced per-pawn

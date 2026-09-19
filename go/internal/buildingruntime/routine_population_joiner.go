@@ -107,6 +107,10 @@ func (r *RoutinePopulationJoinerPlanner) step(call, epoch context.Context, arbit
 	if err != nil {
 		return RoutinePopulationJoinerResult{}, err
 	}
+	facts.DefenseTiers, err = routineJoinerDefenseTiers(call, p.journal, state.Snapshot)
+	if err != nil {
+		return RoutinePopulationJoinerResult{}, err
+	}
 	if letter, ok := policy.SelectJoinerLetter(facts.JoinerLetters, policy.JoinerCapacity(facts.JoinerCapacity())); ok {
 		return r.admitLetter(call, epoch, state, goal, letter, started)
 	}

@@ -275,7 +275,7 @@ func (i *Interpreter) bound(facts Facts, g *modelGuidance) (Guidance, error) {
 		}
 		guidance.CancelGoal = domain.GoalID(*g.GoalID)
 	case SetPopulationPolicy:
-		policy, err := domain.NewPopulationPolicy(*g.Maximum, *g.FoodDays)
+		policy, err := domain.NewPopulationPolicy(*g.Maximum, *g.FoodDays, 0)
 		if err != nil {
 			return guidance, fail(InvalidGuidance, "population policy out of supported range")
 		}
@@ -434,7 +434,7 @@ func validateInput(input Input) error {
 		}
 	}
 	if facts.PopulationPolicy != nil {
-		if _, err := domain.NewPopulationPolicy(facts.PopulationPolicy.Maximum, facts.PopulationPolicy.FoodDays); err != nil {
+		if _, err := domain.NewPopulationPolicy(facts.PopulationPolicy.Maximum, facts.PopulationPolicy.FoodDays, 0); err != nil {
 			return &Failure{InvalidInput, err}
 		}
 	}

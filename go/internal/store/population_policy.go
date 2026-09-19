@@ -41,7 +41,7 @@ func (q PopulationPolicySubmissionRequest) validate() error {
 	if err := q.World.Validate(); err != nil {
 		return err
 	}
-	canonical, err := domain.NewPopulationPolicy(q.Policy.Maximum(), q.Policy.FoodDays())
+	canonical, err := domain.NewPopulationPolicy(q.Policy.Maximum(), q.Policy.FoodDays(), q.Policy.RaidThreshold())
 	if err != nil || canonical != q.Policy {
 		return errors.New("invalid population policy")
 	}
@@ -75,12 +75,12 @@ func (s *Store) SubmitPopulationPolicy(ctx context.Context, q PopulationPolicySu
 	if !errors.Is(err, ErrNotFound) {
 		return PopulationPolicySubmission{}, false, err
 	}
-	if _, err = tx.ExecContext(ctx, "INSERT INTO population_policy_submissions(request_id,colony,load_token,map_id,maximum,food_days) VALUES(?,?,?,?,?,?)",
-		q.RequestID, q.World.Colony, q.World.Load, q.World.Map, q.Policy.Maximum(), q.Policy.FoodDays()); err != nil {
+	if _, err = tx.ExecContext(ctx, "INSERT INTO population_policy_submissions(request_id,colony,load_token,map_id,maximum,food_days,raid_threshold) VALUES(?,?,?,?,?,?,?)",
+		q.RequestID, q.World.Colony, q.World.Load, q.World.Map, q.Policy.Maximum(), q.Policy.FoodDays(), q.Policy.RaidThreshold()); err != nil {
 		return PopulationPolicySubmission{}, false, conflict(err)
 	}
-	if _, err = tx.ExecContext(ctx, "INSERT INTO population_policies(colony,load_token,map_id,request_id,maximum,food_days) VALUES(?,?,?,?,?,?) ON CONFLICT(colony,load_token,map_id) DO UPDATE SET request_id=excluded.request_id,maximum=excluded.maximum,food_days=excluded.food_days",
-		q.World.Colony, q.World.Load, q.World.Map, q.RequestID, q.Policy.Maximum(), q.Policy.FoodDays()); err != nil {
+	if _, err = tx.ExecContext(ctx, "INSERT INTO population_policies(colony,load_token,map_id,request_id,maximum,food_days,raid_threshold) VALUES(?,?,?,?,?,?,?) ON CONFLICT(colony,load_token,map_id) DO UPDATE SET request_id=excluded.request_id,maximum=excluded.maximum,food_days=excluded.food_days,raid_threshold=excluded.raid_threshold",
+		q.World.Colony, q.World.Load, q.World.Map, q.RequestID, q.Policy.Maximum(), q.Policy.FoodDays(), q.Policy.RaidThreshold()); err != nil {
 		return PopulationPolicySubmission{}, false, conflict(err)
 	}
 	if err = tx.Commit(); err != nil {
@@ -132,29 +132,29 @@ func (s *Store) CurrentPopulationPolicy(ctx context.Context, w World) (domain.Po
 
 func currentPopulationPolicy(ctx context.Context, tx *sql.Tx, w World) (domain.PopulationPolicy, error) {
 	var maximum int32
-	var foodDays float64
-	err := tx.QueryRowContext(ctx, "SELECT maximum,food_days FROM population_policies WHERE colony=? AND load_token=? AND map_id=?", w.Colony, w.Load, w.Map).Scan(&maximum, &foodDays)
+	var foodDays, raidThreshold float64
+	err := tx.QueryRowContext(ctx, "SELECT maximum,food_days,raid_threshold FROM population_policies WHERE colony=? AND load_token=? AND map_id=?", w.Colony, w.Load, w.Map).Scan(&maximum, &foodDays, &raidThreshold)
 	if errors.Is(err, sql.ErrNoRows) {
 		return domain.PopulationPolicy{}, ErrNotFound
 	}
 	if err != nil {
 		return domain.PopulationPolicy{}, err
 	}
-	return domain.NewPopulationPolicy(maximum, foodDays)
+	return domain.NewPopulationPolicy(maximum, foodDays, raidThreshold)
 }
 
 func lookupPopulationPolicySubmission(ctx context.Context, tx *sql.Tx, id string) (PopulationPolicySubmission, error) {
 	var world World
 	var maximum int32
-	var foodDays float64
-	err := tx.QueryRowContext(ctx, "SELECT colony,load_token,map_id,maximum,food_days FROM population_policy_submissions WHERE request_id=?", id).Scan(&world.Colony, &world.Load, &world.Map, &maximum, &foodDays)
+	var foodDays, raidThreshold float64
+	err := tx.QueryRowContext(ctx, "SELECT colony,load_token,map_id,maximum,food_days,raid_threshold FROM population_policy_submissions WHERE request_id=?", id).Scan(&world.Colony, &world.Load, &world.Map, &maximum, &foodDays, &raidThreshold)
 	if errors.Is(err, sql.ErrNoRows) {
 		return PopulationPolicySubmission{}, ErrNotFound
 	}
 	if err != nil {
 		return PopulationPolicySubmission{}, err
 	}
-	policy, err := domain.NewPopulationPolicy(maximum, foodDays)
+	policy, err := domain.NewPopulationPolicy(maximum, foodDays, raidThreshold)
 	if err != nil {
 		return PopulationPolicySubmission{}, err
 	}

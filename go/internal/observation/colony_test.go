@@ -7,6 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"github.com/davidarcher/RimGovernor/go/internal/store/storetest"
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -25,9 +26,13 @@ func TestColonyProjectionKeepsRawFoodAndUnknownGeometryOutOfPolicy(t *testing.T)
 		t.Fatal(err)
 	}
 	expected := Identity{Colony: "colony", Load: "load", Map: 0, Tick: 7, NativeGeneration: domain.Known(domain.NativeGeneration(1))}
+	r.GetObserved().Threat = &o.ThreatSection{Outcome: &o.ThreatSection_Observed{Observed: &o.ThreatFacts{RaidPoints: proto.Float64(120.5), Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(1), Returned: proto.Uint64(1), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}}}}
 	p, err := DecodeColony(r, expected)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if points, known := p.Facts.RaidPoints.Value(); !known || points != 120.5 {
+		t.Fatal("raid points lost in routine projection", p.Facts.RaidPoints)
 	}
 	if _, known := p.Facts.FoodDays.Value(); known {
 		t.Fatal("raw runway became forecast")

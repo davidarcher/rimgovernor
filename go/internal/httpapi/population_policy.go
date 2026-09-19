@@ -37,12 +37,15 @@ type populationPolicySubmissionDTO struct {
 }
 
 func populationPolicyWire(p domain.PopulationPolicy) PopulationPolicy {
-	return PopulationPolicy{Maximum: p.Maximum(), FoodDays: p.FoodDays()}
+	return PopulationPolicy{Maximum: p.Maximum(), FoodDays: p.FoodDays(), RaidThreshold: p.RaidThreshold()}
 }
 func decodePopulationPolicyFields(raw json.RawMessage) (domain.PopulationPolicy, error) {
 	fields, err := buildingFields(raw, "maximum", "foodDays")
 	if err != nil {
-		return domain.PopulationPolicy{}, err
+		fields, err = buildingFields(raw, "maximum", "foodDays", "raidThreshold")
+		if err != nil {
+			return domain.PopulationPolicy{}, err
+		}
 	}
 	var maximum int32
 	var foodDays float64
@@ -52,7 +55,13 @@ func decodePopulationPolicyFields(raw json.RawMessage) (domain.PopulationPolicy,
 	if err = json.Unmarshal(fields["foodDays"], &foodDays); err != nil {
 		return domain.PopulationPolicy{}, err
 	}
-	return domain.NewPopulationPolicy(maximum, foodDays)
+	var raidThreshold float64
+	if value, present := fields["raidThreshold"]; present {
+		if err = json.Unmarshal(value, &raidThreshold); err != nil {
+			return domain.PopulationPolicy{}, err
+		}
+	}
+	return domain.NewPopulationPolicy(maximum, foodDays, raidThreshold)
 }
 func decodePopulationPolicySubmission(reader io.Reader) (store.PopulationPolicySubmissionRequest, error) {
 	var q store.PopulationPolicySubmissionRequest

@@ -10,7 +10,7 @@ import (
 
 func populationPolicyRequest(t *testing.T, id string, maximum int32, foodDays float64) PopulationPolicySubmissionRequest {
 	t.Helper()
-	policy, err := domain.NewPopulationPolicy(maximum, foodDays)
+	policy, err := domain.NewPopulationPolicy(maximum, foodDays, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -26,6 +26,7 @@ func TestPopulationPolicySubmissionReplayConflictAndOverwrite(t *testing.T) {
 		t.Fatal("unset world must report no policy", err)
 	}
 	request := populationPolicyRequest(t, "request", 12, 30)
+	request.Policy, _ = domain.NewPopulationPolicy(12, 30, 300)
 	first, created, err := s.SubmitPopulationPolicy(ctx, request)
 	if err != nil || !created || first.Request != request || first.Current != request.Policy {
 		t.Fatal(first, created, err)
@@ -35,6 +36,7 @@ func TestPopulationPolicySubmissionReplayConflictAndOverwrite(t *testing.T) {
 		t.Fatal(replay, created, err)
 	}
 	for _, change := range []func(*PopulationPolicySubmissionRequest){
+		func(v *PopulationPolicySubmissionRequest) { v.Policy, _ = domain.NewPopulationPolicy(12, 30, 301) },
 		func(v *PopulationPolicySubmissionRequest) { v.World.Map = 1 },
 		func(v *PopulationPolicySubmissionRequest) { v.World.Load = "other" },
 		func(v *PopulationPolicySubmissionRequest) { v.World.Colony = "other" },
@@ -54,6 +56,7 @@ func TestPopulationPolicySubmissionReplayConflictAndOverwrite(t *testing.T) {
 	// A population policy is a current value: a new request ID with new
 	// fields replaces it rather than conflicting.
 	next := populationPolicyRequest(t, "request-2", 20, 45)
+	next.Policy, _ = domain.NewPopulationPolicy(20, 45, 600)
 	second, created, err := s.SubmitPopulationPolicy(ctx, next)
 	if err != nil || !created || second.Current != next.Policy {
 		t.Fatal(second, created, err)

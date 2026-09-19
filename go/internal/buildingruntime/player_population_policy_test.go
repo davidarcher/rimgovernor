@@ -10,7 +10,7 @@ import (
 )
 
 func playerPopulationPolicyRequest(maximum int32, foodDays float64) store.PopulationPolicySubmissionRequest {
-	policy, _ := domain.NewPopulationPolicy(maximum, foodDays)
+	policy, _ := domain.NewPopulationPolicy(maximum, foodDays, 0)
 	return store.PopulationPolicySubmissionRequest{RequestID: "population-policy-submit", World: playerSubmission().World, Policy: policy}
 }
 
@@ -35,7 +35,7 @@ func TestPlayerPopulationPolicySubmissionCommitsNoPlan(t *testing.T) {
 		t.Fatal(replay, created, err, worlds.calls)
 	}
 	changed := q
-	changed.Policy, _ = domain.NewPopulationPolicy(20, 30)
+	changed.Policy, _ = domain.NewPopulationPolicy(20, 30, 0)
 	if _, _, err = p.SubmitPopulationPolicy(context.Background(), changed); !errors.Is(err, store.ErrConflict) {
 		t.Fatal(err)
 	}

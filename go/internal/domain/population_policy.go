@@ -29,21 +29,30 @@ const maxPopulationFoodDays = 120
 // never happens. See store.SubmitPopulationPolicy for the persistence side
 // and interpreter.Guidance.PopulationPolicy for the chat nudge that feeds it.
 type PopulationPolicy struct {
-	maximum  int32
-	foodDays float64
+	maximum       int32
+	foodDays      float64
+	raidThreshold float64
 }
 
-// NewPopulationPolicy bounds both fields the same way the player command
-// contract does: maximum in [1,100] colonists, foodDays in [1,120] days.
-func NewPopulationPolicy(maximum int32, foodDays float64) (PopulationPolicy, error) {
+// NewPopulationPolicy bounds maximum to [1,100] colonists, foodDays to
+// [1,120] days and raidThreshold to finite nonnegative points. Pass zero
+// for raidThreshold to preserve the default population-only admission.
+func NewPopulationPolicy(maximum int32, foodDays, raidThreshold float64) (PopulationPolicy, error) {
 	if maximum < minPopulationMaximum || maximum > maxPopulationMaximum {
 		return PopulationPolicy{}, errors.New("population maximum out of range")
 	}
 	if math.IsNaN(foodDays) || math.IsInf(foodDays, 0) || foodDays < minPopulationFoodDays || foodDays > maxPopulationFoodDays {
 		return PopulationPolicy{}, errors.New("population food days out of range")
 	}
-	return PopulationPolicy{maximum, foodDays}, nil
+	if math.IsNaN(raidThreshold) || math.IsInf(raidThreshold, 0) || raidThreshold < 0 {
+		return PopulationPolicy{}, errors.New("population raid threshold out of range")
+	}
+	return PopulationPolicy{maximum, foodDays, raidThreshold}, nil
 }
+
+// RaidThreshold caps projected raid points for joiners without a built firing
+// or turret tier. Zero disables this optional gate.
+func (p PopulationPolicy) RaidThreshold() float64 { return p.raidThreshold }
 
 func (p PopulationPolicy) Maximum() int32    { return p.maximum }
 func (p PopulationPolicy) FoodDays() float64 { return p.foodDays }
