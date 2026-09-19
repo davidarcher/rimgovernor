@@ -142,6 +142,10 @@ func (w *ClockWorker) Nudge() {
 	w.wake.Notify(nil, false)
 }
 
+// WindowRunning is the scheduler's hint that a window it admitted was still
+// running at its last evidence (ClockScheduler.WindowRunning).
+func (w *ClockWorker) WindowRunning() bool { return w.held != nil && w.held() }
+
 // waitOrWake sleeps for delay unless the wake signal fires first. It reports
 // whether the wake fired and whether the worker is still alive.
 func (w *ClockWorker) waitOrWake(delay time.Duration, wake <-chan struct{}) (woken, alive bool) {

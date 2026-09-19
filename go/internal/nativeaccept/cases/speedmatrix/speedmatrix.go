@@ -573,6 +573,11 @@ func caseMetrics(c na.SpeedCase, phases bridge.PhaseSummary, stops na.StopSummar
 		"reactive_stops": stops.ReactiveStops, "stop_reasons": stops.Reasons,
 		"stop_latency_mean_ms": stops.MeanLatencyMs, "stop_latency_max_ms": stops.MaxLatencyMs,
 		"readmit_pause_count": phases.Steps.Pauses, "readmit_pause_mean_s": pauseMean, "readmit_pause_max_s": phases.Steps.MaxPauseSecs,
+		// Live dispatch (#243): steps by reason ("live" plans under a running
+		// window), the worker's native runs made under a running window and
+		// the fraction native refused.
+		"step_reasons": phases.Steps.Reasons, "dispatches": phases.Dispatch.Calls, "live_dispatches": phases.Dispatch.Live,
+		"refused_dispatches": phases.Dispatch.Refused, "live_refused_dispatches": phases.Dispatch.LiveRefused, "refused_fraction": phases.Dispatch.RefusedFraction(),
 	}
 }
 

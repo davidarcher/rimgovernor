@@ -123,7 +123,7 @@ namespace HomeBridge.BridgeTools
                 .Require(() => new Designator_Hunt().CanDesignateThing(found!).Accepted, "the native hunt designator refuses the animal")
                 .Require(() => ButcherReady(found!), "no usable butcher bill with an assigned cook accepts the corpse")
                 .Require(() => map.mapPawns.FreeColonistsSpawned.Any(p => Hunter(p, found!)), "no free colonist with hunting enabled and an ordinary ranged weapon has a safe route to the animal")
-                .Token(() => Snapshot(found!, context).Token == command.Source.ExpectedSnapshotToken, "the animal snapshot changed since it was read");
+                .Token(NativeDraftProtocol.TokenSent(command.Source), () => Snapshot(found!, context).Token == command.Source.ExpectedSnapshotToken, "the animal snapshot changed since it was read");
             if (!rules.Holds) { failure = rules.Failure(); return false; }
             prey = found;
             return true;

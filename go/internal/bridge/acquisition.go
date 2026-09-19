@@ -56,8 +56,18 @@ func (client *Client) ReadAcquisition(ctx context.Context, identity *c.Identity,
 	}
 	return out, raw, nil
 }
-func acquisitionOperation(target AcquisitionTarget) *op.Operation {
-	return &op.Operation{Command: &op.Operation_AcquireResource{AcquireResource: &op.AcquireResource{Source: &op.EntityPrecondition{EntityId: proto.String(target.Acquisition.Thing()), ExpectedSnapshotToken: proto.String(target.Token)}, ResourceDefName: proto.String(target.Acquisition.Definition()), Cell: &c.Cell{X: proto.Int32(target.Acquisition.Cell().X), Z: proto.Int32(target.Acquisition.Cell().Z)}}}}
+
+// acquisitionOperation is the wire operation for target. A preview carries
+// the snapshot token the census read; an execute omits it (#243): the
+// acquisition kinds are dispatched under a running clock, where the token
+// (growth, hit points, position) moves every tick, and the native
+// apply-time preconditions (#242) are the check that refuses a moved world.
+func acquisitionOperation(target AcquisitionTarget, withToken bool) *op.Operation {
+	source := &op.EntityPrecondition{EntityId: proto.String(target.Acquisition.Thing())}
+	if withToken {
+		source.ExpectedSnapshotToken = proto.String(target.Token)
+	}
+	return &op.Operation{Command: &op.Operation_AcquireResource{AcquireResource: &op.AcquireResource{Source: source, ResourceDefName: proto.String(target.Acquisition.Definition()), Cell: &c.Cell{X: proto.Int32(target.Acquisition.Cell().X), Z: proto.Int32(target.Acquisition.Cell().Z)}}}}
 }
 func validAcquisition(target AcquisitionTarget) error {
 	if _, err := domain.NewAcquisition(target.Acquisition.Thing(), target.Acquisition.Definition(), target.Acquisition.Cell()); err != nil {
@@ -70,7 +80,7 @@ func (client *Client) PreviewAcquisition(ctx context.Context, identity *c.Identi
 		return nil, Result{}, contract("invalid acquisition preview")
 	}
 	reply := &op.PreviewReply{}
-	raw, err := client.protoRead(ctx, "rimgovernor/operations_preview", &op.PreviewRequest{Identity: proto.Clone(identity).(*c.Identity), Operation: acquisitionOperation(target)}, reply)
+	raw, err := client.protoRead(ctx, "rimgovernor/operations_preview", &op.PreviewRequest{Identity: proto.Clone(identity).(*c.Identity), Operation: acquisitionOperation(target, true)}, reply)
 	if err != nil {
 		return nil, raw, err
 	}
@@ -91,7 +101,7 @@ func (writer *AcquisitionControl) Acquire(ctx context.Context, pre *a.WritePreco
 		return nil, Result{}, contract("invalid acquisition execution")
 	}
 	reply := &op.ExecuteReply{}
-	raw, err := writer.client.protoCall(ctx, "rimgovernor/operations_execute", &op.ExecuteRequest{Precondition: proto.Clone(pre).(*a.WritePrecondition), Operation: acquisitionOperation(target)}, reply)
+	raw, err := writer.client.protoCall(ctx, "rimgovernor/operations_execute", &op.ExecuteRequest{Precondition: proto.Clone(pre).(*a.WritePrecondition), Operation: acquisitionOperation(target, false)}, reply)
 	if err != nil {
 		return nil, raw, err
 	}

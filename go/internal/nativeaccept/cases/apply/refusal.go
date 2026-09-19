@@ -25,7 +25,8 @@ func init() {
 		Name: "apply/refusal",
 		Scope: "Apply-time precondition refusals (#242): for zone cell edit, stockpile patch, zone deletion, zone creation, " +
 			"Allow, work settings, plant and mine acquisition, a write whose token was valid when read is executed after " +
-			"the fixture moved the world and is refused with the documented reason naming the moved fact.",
+			"the fixture moved the world and is refused with the documented reason naming the moved fact; the acquisition " +
+			"writes are refused the same way without a token, as live dispatch sends them (#243).",
 		Start:  cases.Fixture{Op: "test/apply_refusal_prepare"},
 		Budget: 5 * time.Minute,
 		Run:    run,
@@ -203,7 +204,7 @@ func run(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	if err := refused("plant", map[string]any{"acquireResource": map[string]any{
-		"source": map[string]any{"entityId": tokens["plantId"], "expectedSnapshotToken": tokens["plantToken"]},
+		"source":          map[string]any{"entityId": tokens["plantId"], "expectedSnapshotToken": tokens["plantToken"]},
 		"resourceDefName": tokens["plantResource"], "cell": map[string]any{"x": plantCell["x"], "z": plantCell["z"]},
 	}}, "FAILURE_CODE_INVALID_REQUEST", "Plant acquisition refused: the plant is already designated"); err != nil {
 		return err
@@ -212,7 +213,21 @@ func run(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	if err := refused("mine", map[string]any{"acquireResource": map[string]any{
-		"source": map[string]any{"entityId": tokens["rockId"], "expectedSnapshotToken": tokens["rockToken"]},
+		"source":          map[string]any{"entityId": tokens["rockId"], "expectedSnapshotToken": tokens["rockToken"]},
+		"resourceDefName": tokens["rockResource"], "cell": map[string]any{"x": rockCell["x"], "z": rockCell["z"]},
+	}}, "FAILURE_CODE_INVALID_REQUEST", "Mine refused: the rock is already designated for mining"); err != nil {
+		return err
+	}
+	// Live dispatch (#243) omits the acquisition token: the rules alone
+	// refuse the moved world, with the same reason.
+	if err := refused("plant-untokened", map[string]any{"acquireResource": map[string]any{
+		"source":          map[string]any{"entityId": tokens["plantId"]},
+		"resourceDefName": tokens["plantResource"], "cell": map[string]any{"x": plantCell["x"], "z": plantCell["z"]},
+	}}, "FAILURE_CODE_INVALID_REQUEST", "Plant acquisition refused: the plant is already designated"); err != nil {
+		return err
+	}
+	if err := refused("mine-untokened", map[string]any{"acquireResource": map[string]any{
+		"source":          map[string]any{"entityId": tokens["rockId"]},
 		"resourceDefName": tokens["rockResource"], "cell": map[string]any{"x": rockCell["x"], "z": rockCell["z"]},
 	}}, "FAILURE_CODE_INVALID_REQUEST", "Mine refused: the rock is already designated for mining"); err != nil {
 		return err

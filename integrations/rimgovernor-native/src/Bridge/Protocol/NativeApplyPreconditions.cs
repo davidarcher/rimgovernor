@@ -11,7 +11,9 @@ namespace HomeBridge.BridgeTools
     // that fails names the refusal, so a world that moved under the order
     // reports the fact that moved. The snapshot-token comparison is always
     // the last rule: it still refuses a changed world the rules did not
-    // catch, and phase 3 of #240 can drop it without touching the rules.
+    // catch. A kind the controller dispatches under a running clock (#243)
+    // may omit the token, since the world it hashes moves every tick; the
+    // rules above it are then the whole check (Token with a sent flag).
     //
     // A rule that throws counts as failed with its own reason: the object it
     // read is in a state the rule did not anticipate, which is not a state
@@ -39,6 +41,10 @@ namespace HomeBridge.BridgeTools
         // must still hash to the token it sent. It keeps the InvalidRequest
         // code the routine kinds always answered a stale token with.
         internal ApplyPreconditions Token(Func<bool> rule, string reason) => Require(rule, reason, Common.FailureCode.InvalidRequest);
+
+        // Token with sent false is the CAS rule for a request that carries no
+        // token: the rule is skipped and the preconditions above stand alone.
+        internal ApplyPreconditions Token(bool sent, Func<bool> rule, string reason) => sent ? Token(rule, reason) : this;
 
         private ApplyPreconditions Require(Func<bool> rule, string reason, Common.FailureCode failureCode)
         {

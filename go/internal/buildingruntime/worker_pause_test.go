@@ -42,8 +42,9 @@ func TestWakeSignalCarriesStop(t *testing.T) {
 }
 
 // Only an admission whose native tool needs a paused map (excavation, bed
-// assignment, acquisition, ...) still to be made is pause-bound: once
-// dispatched its outcome is observed on a running map like any other.
+// assignment, ...) still to be made is pause-bound: once dispatched its
+// outcome is observed on a running map like any other. The kinds whose
+// operations validate at apply time dispatch live (#243).
 func TestWorkerPauseBound(t *testing.T) {
 	t.Parallel()
 	pending := domain.ProgressView{Stage: domain.Pending}
@@ -58,7 +59,9 @@ func TestWorkerPauseBound(t *testing.T) {
 		{domain.ExcavationAction, pending, true},
 		{domain.ExcavationAction, prepared, true},
 		{domain.BedAssignAction, pending, true},
-		{domain.AcquisitionAction, pending, true},
+		{domain.AcquisitionAction, pending, false},
+		{domain.MineAcquisitionAction, prepared, false},
+		{domain.HusbandryAction, pending, false},
 		{domain.WallRemovalAction, prepared, true},
 		{domain.ProductionBillAction, pending, false},
 		{domain.ZoneCreateAction, pending, false},

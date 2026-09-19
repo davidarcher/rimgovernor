@@ -31,6 +31,11 @@ type WorkerConfig struct {
 	// patch, a dispatch) discards the facts the planners would otherwise
 	// keep reading from before it; nil leaves the worker uncached (#66).
 	Facts *bridge.FactCache
+	// WindowRunning, when set, reports the scheduler's hint that its window
+	// is running; each native call the worker issues is recorded with it
+	// as a "worker_dispatch" flight row (#243), so a run can count the
+	// dispatches made live and the fraction native refused.
+	WindowRunning func() bool
 }
 
 // routineExecutableKind lists every action kind the worker (and, for a
@@ -416,16 +421,21 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 			err = w.player.current(call, epoch)
 		}
 		var result executor.Result
+		running := w.config.WindowRunning != nil && w.config.WindowRunning()
+		run, tally := bridge.WithReadTally(call)
 		if err == nil {
 			if candidate.cleanup {
-				result, err = w.session.CleanupDraft(call, v.Plan, v.Action)
+				result, err = w.session.CleanupDraft(run, v.Plan, v.Action)
 			} else {
-				result, err = w.session.Run(call, v.Plan, v.Action)
+				result, err = w.session.Run(run, v.Plan, v.Action)
 			}
 		}
 		after := v
 		if result.Progress.View().Action == v.Action {
 			after = result.Progress.View()
+		}
+		if result.NativeCalled {
+			workerDispatchRow(run, tally, candidate.view, after, running, err)
 		}
 		delay := w.config.StepInterval
 		if workerSameView(after, v) && workerSameView(wait.view, v) && wait.scope == workerScope(scope) && wait.cleanup == candidate.cleanup {
@@ -455,6 +465,29 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 		return errors.Join(worldErr, err)
 	}
 	return worldErr
+}
+
+// workerDispatchRow publishes one "worker_dispatch" flight row for a run
+// that reached native: the action's kind and attempt, the receipt the run
+// left (accepted, refused, unknown; "-" when the write was not a dispatch),
+// whether the scheduler's window was running when the run began (#243),
+// and the error. `rimgovernor phases` sums them (bridge.DispatchSample).
+func workerDispatchRow(ctx context.Context, tally *bridge.ReadTally, before, after domain.ProgressView, running bool, err error) {
+	receipt := "-"
+	if v, known := after.Receipt.Value(); known && (after.Attempt != before.Attempt || !workerSameReceipt(before, after)) {
+		receipt = string(v)
+	}
+	extra := map[string]any{"action": string(after.Action), "attempt": after.Attempt, "stage": string(after.Stage), "receipt": receipt, "running": running}
+	if err != nil {
+		extra["error"] = err.Error()
+	}
+	tally.PublishAs(ctx, "worker_dispatch", extra)
+}
+
+func workerSameReceipt(a, b domain.ProgressView) bool {
+	x, xk := a.Receipt.Value()
+	y, yk := b.Receipt.Value()
+	return xk == yk && x == y
 }
 
 // workerRepeats renders how many unlogged runs restated the previous outcome.
@@ -508,12 +541,13 @@ func liveDispatchKind(kind domain.ActionKind) bool {
 // game runs: these kinds inspect and dispatch against a paused map only
 // (their native tools check TimeSpeed.Paused), so between windows is the
 // only time they can be made (#150). Bills and zones left the set once
-// their boundaries accepted ordered reads: nothing native gates them on a
-// paused map, so they dispatch mid-window like buildings and supplies.
+// their boundaries accepted ordered reads, and the acquisition and
+// husbandry kinds once their operations validated at apply time (#242,
+// #243; liveDispatchKind): nothing native gates them on a paused map, so
+// they dispatch mid-window like buildings and supplies.
 func workerPauseBound(kind domain.ActionKind, v domain.ProgressView) bool {
 	switch kind {
-	case domain.ExcavationAction, domain.BedAssignAction, domain.AcquisitionAction, domain.MineAcquisitionAction,
-		domain.WallRemovalAction, domain.HusbandryAction, domain.ProductionPolicyAction, domain.ResearchSelectAction, domain.HomeCoverageAction:
+	case domain.ExcavationAction, domain.BedAssignAction, domain.WallRemovalAction, domain.ProductionPolicyAction, domain.ResearchSelectAction, domain.HomeCoverageAction:
 	default:
 		return false
 	}

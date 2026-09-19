@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	"bytes"
 	"context"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -26,7 +27,10 @@ func TestAcquisitionFixedWriteAndExactAdmission(t *testing.T) {
 		if arg.Tool != "rimgovernor/operations_execute" {
 			t.Fatal(arg.Tool)
 		}
-		draftTestRequest(t, arg, &op.ExecuteRequest{Precondition: buildingPre(), Operation: acquisitionOperation(acquisitionTestTarget())})
+		draftTestRequest(t, arg, &op.ExecuteRequest{Precondition: buildingPre(), Operation: acquisitionOperation(acquisitionTestTarget(), false)})
+		if arg.Arguments != nil && bytes.Contains(arg.Arguments, []byte("expectedSnapshotToken")) {
+			t.Fatal("execute carries the snapshot token", string(arg.Arguments))
+		}
 		return pbResult(&op.ExecuteReply{Outcome: &op.ExecuteReply_Receipt{Receipt: receipt}}), nil
 	}}, time.Second)
 	writer, _ := NewAcquisitionControl(client)

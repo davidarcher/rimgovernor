@@ -129,6 +129,12 @@ func (t *ReadTally) String() string {
 // that served the tallied calls. Without a recorder, or when nothing was
 // tallied, it is a no-op; the profiler (SummarizePhases) aggregates the rows.
 func (t *ReadTally) Publish(ctx context.Context, extra map[string]any) {
+	t.PublishAs(ctx, "clock_step", extra)
+}
+
+// PublishAs is Publish under another row kind: "worker_dispatch" for the
+// Worker's per-dispatch row (#243).
+func (t *ReadTally) PublishAs(ctx context.Context, kind string, extra map[string]any) {
 	if t == nil {
 		return
 	}
@@ -146,5 +152,5 @@ func (t *ReadTally) Publish(ctx context.Context, extra map[string]any) {
 	for key, value := range extra {
 		payload[key] = value
 	}
-	client.recorder.Event("clock_step", client.snapshotRecordingContext(ctx), false, payload)
+	client.recorder.Event(kind, client.snapshotRecordingContext(ctx), false, payload)
 }

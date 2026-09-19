@@ -18,6 +18,15 @@ namespace HomeBridge.BridgeTools
         internal static bool ValidEntityId(Operations.EntityPrecondition? entity) => entity != null
             && entity.HasEntityId && ProtoBoundary.IsIdentifier(entity.EntityId);
 
+        // ValidEntityTokenOptional accepts an entity precondition with or
+        // without its snapshot token: the kinds the controller dispatches
+        // under a running clock omit it (#243) and rely on the apply-time
+        // rules; a token that is sent must still be well formed.
+        internal static bool ValidEntityTokenOptional(Operations.EntityPrecondition? entity) => ValidEntityId(entity)
+            && (!TokenSent(entity!) || ProtoBoundary.IsIdentifier(entity!.ExpectedSnapshotToken));
+
+        internal static bool TokenSent(Operations.EntityPrecondition entity) => entity.HasExpectedSnapshotToken && entity.ExpectedSnapshotToken.Length > 0;
+
         internal static bool Validate(Operations.SetDrafted? command, out Common.Failure failure)
         {
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Draft command requires exact pawn ID, native snapshot token and explicit drafted state.");

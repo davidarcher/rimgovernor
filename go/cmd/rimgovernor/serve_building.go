@@ -730,17 +730,17 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	// One fact cache joins them too: the planners read facts across steps
 	// from it and the worker's writes discard what they make stale.
 	facts := bridge.NewFactCache()
-	var advanced func()
+	var advanced, windowRunning = func() {}, func() bool { return false }
 	if config.clockControl {
 		clockWorker, err := startServiceClock(lifetime, player, session, client.clockReads, database, config, serviceClockTimeouts(callTimeout), wake, facts)
 		if err != nil {
 			return err
 		}
-		advanced = clockWorker.Nudge
+		advanced, windowRunning = clockWorker.Nudge, clockWorker.WindowRunning
 	}
 	worker, err := buildingruntime.NewWorker(lifetime, buildingruntime.WorkerConfig{RoutineMethods: config.routineMethods,
 		StepInterval: time.Second, MaxBackoff: 10 * time.Second, StepTimeout: min(config.bridge.Timeout, 8*time.Second),
-		RenewInterval: 5 * time.Second, RenewTimeout: 5 * time.Second, Wake: wake, Advanced: advanced, Facts: facts,
+		RenewInterval: 5 * time.Second, RenewTimeout: 5 * time.Second, Wake: wake, Advanced: advanced, Facts: facts, WindowRunning: windowRunning,
 	}, player, session)
 	if err != nil {
 		return err

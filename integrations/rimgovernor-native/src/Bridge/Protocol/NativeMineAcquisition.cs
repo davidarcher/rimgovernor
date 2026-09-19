@@ -116,7 +116,7 @@ namespace HomeBridge.BridgeTools
                 .Require(() => !ResourceAcquisitionTools.Designated(found!), "the rock is already designated for mining")
                 .Require(() => new Designator_Mine().CanDesignateThing(found!).Accepted, "the native mine designator refuses the rock")
                 .Require(() => map.mapPawns.FreeColonistsSpawned.Any(p => Miner(p, found!)), "no free colonist able to mine can reach the rock")
-                .Token(() => Snapshot(found!, context).Token == command.Source.ExpectedSnapshotToken, "the rock snapshot changed since it was read");
+                .Token(NativeDraftProtocol.TokenSent(command.Source), () => Snapshot(found!, context).Token == command.Source.ExpectedSnapshotToken, "the rock snapshot changed since it was read");
             if (!rules.Holds) { failure = rules.Failure(); return false; }
             rock = found;
             return true;

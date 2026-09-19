@@ -41,15 +41,16 @@ type ToolPhases struct {
 // per-tool phase totals plus the game-clock progress visible in observation
 // replies. It changes nothing in the game and needs no authority.
 type PhaseSummary struct {
-	Records   uint64       `json:"records"`
-	Gaps      uint64       `json:"gaps"`
-	Untimed   uint64       `json:"untimed_calls"`
-	WallSecs  float64      `json:"wall_seconds"`
-	Tools     []ToolPhases `json:"tools"`
-	Clock     ClockSample  `json:"clock"`
-	Steps     StepSample   `json:"steps"`
-	FirstWall float64      `json:"first_wall_time"`
-	LastWall  float64      `json:"last_wall_time"`
+	Records   uint64         `json:"records"`
+	Gaps      uint64         `json:"gaps"`
+	Untimed   uint64         `json:"untimed_calls"`
+	WallSecs  float64        `json:"wall_seconds"`
+	Tools     []ToolPhases   `json:"tools"`
+	Clock     ClockSample    `json:"clock"`
+	Steps     StepSample     `json:"steps"`
+	Dispatch  DispatchSample `json:"dispatch"`
+	FirstWall float64        `json:"first_wall_time"`
+	LastWall  float64        `json:"last_wall_time"`
 }
 
 // StepSample aggregates the "clock_step" rows a ClockScheduler step publishes
@@ -82,6 +83,28 @@ type StepSample struct {
 	MaxPauseSecs   float64           `json:"max_pause_seconds"`
 	Reasons        map[string]uint64 `json:"reasons,omitempty"`
 	Stops          StopSample        `json:"stops"`
+}
+
+// DispatchSample aggregates the "worker_dispatch" rows the routine Worker
+// publishes for each run that reached native (#243): how many there were,
+// how many began while the scheduler's window was running (Live), how many
+// left a refused receipt (Refused, LiveRefused of those live), and the
+// receipts by kind. RefusedFraction is Refused over Calls.
+type DispatchSample struct {
+	Calls       uint64            `json:"calls"`
+	Live        uint64            `json:"live"`
+	Refused     uint64            `json:"refused"`
+	LiveRefused uint64            `json:"live_refused"`
+	Receipts    map[string]uint64 `json:"receipts,omitempty"`
+}
+
+// RefusedFraction is the share of the Worker's native runs that native
+// refused, or 0 without any.
+func (d DispatchSample) RefusedFraction() float64 {
+	if d.Calls == 0 {
+		return 0
+	}
+	return float64(d.Refused) / float64(d.Calls)
 }
 
 // StopSample counts the clock_step rows a committed clock stop woke
@@ -252,6 +275,26 @@ func SummarizePhases(records []TimelineRecord) PhaseSummary {
 					stopLatencyMs += latency
 					steps.Stops.MaxLatencyMs = math.Max(steps.Stops.MaxLatencyMs, latency)
 				}
+			}
+		case "worker_dispatch":
+			d := &summary.Dispatch
+			d.Calls++
+			running, _ := row.Payload["running"].(bool)
+			receipt, _ := row.Payload["receipt"].(string)
+			if running {
+				d.Live++
+			}
+			if receipt == "refused" {
+				d.Refused++
+				if running {
+					d.LiveRefused++
+				}
+			}
+			if receipt != "" {
+				if d.Receipts == nil {
+					d.Receipts = map[string]uint64{}
+				}
+				d.Receipts[receipt]++
 			}
 		case "native_decode":
 			request, ok := number(row.Payload["request"])

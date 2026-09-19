@@ -452,7 +452,11 @@ step loop leaves the player gate to the worker and steps again when a worker
 step advances any action (`WorkerConfig.Advanced` nudges it) or a
 `StepInterval` later, without backoff. Since the step that settles a stop
 reviews and admits in the same pass, the step loop first waits for the
-worker to report its pause-bound admissions for that stop tried
+worker to report its pause-bound admissions (`workerPauseBound`: excavation,
+bed assignment, wall removal, production policy, research selection, home
+coverage, the kinds whose native tools still need a paused map; every other
+kind, the apply-time-validated acquisition and husbandry kinds included,
+dispatches under the running window, #243) for that stop tried
 (`WakeSignal.PauseDrained`, #129), bounded by `clockPauseDrainMax` (5 s)
 since the last admission the worker reported tried
 (`WakeSignal.PauseProgressed`, #211) and by `clockPauseDrainTotal` (2 min)

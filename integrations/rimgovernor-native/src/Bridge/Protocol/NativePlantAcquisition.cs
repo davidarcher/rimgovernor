@@ -17,7 +17,7 @@ namespace HomeBridge.BridgeTools
 {
     internal static class NativePlantAcquisition
     {
-        internal static bool Valid(Operations.AcquireResource? command) => command != null && NativeDraftProtocol.ValidEntity(command.Source)
+        internal static bool Valid(Operations.AcquireResource? command) => command != null && NativeDraftProtocol.ValidEntityTokenOptional(command.Source)
             && command.HasResourceDefName && ProtoBoundary.IsIdentifier(command.ResourceDefName)
             && command.Cell != null && command.Cell.HasX && command.Cell.HasZ && command.Cell.X >= 0 && command.Cell.Z >= 0;
         private static bool Eligible(Plant plant) => ProtoBoundary.IsLoaded(plant.Map) && ResourceAcquisitionTools.Eligible(plant, plant.Map)
@@ -93,7 +93,7 @@ namespace HomeBridge.BridgeTools
                 .Require(() => !ResourceAcquisitionTools.Designated(found!), "the plant is already designated")
                 .Require(() => ResourceAcquisitionTools.DesignatorFor(found!).CanDesignateThing(found).Accepted, "the native designator refuses the plant")
                 .Require(() => map.mapPawns.FreeColonistsSpawned.Any(p => Cutter(p, found!)), "no free colonist with plant cutting enabled can reach the plant")
-                .Token(() => Snapshot(found!, context).Token == command.Source.ExpectedSnapshotToken, "the plant snapshot changed since it was read");
+                .Token(NativeDraftProtocol.TokenSent(command.Source), () => Snapshot(found!, context).Token == command.Source.ExpectedSnapshotToken, "the plant snapshot changed since it was read");
             if (!rules.Holds) { failure = rules.Failure(); return false; }
             plant = found;
             return true;

@@ -32,14 +32,17 @@ what each action must observe.
 
 ## Apply-time preconditions and refusal reasons
 
-A routine write carries the snapshot token the controller read at a stopped
-tick, but the token is not the check. Every kind below re-evaluates its
-preconditions inside the operation, on the main thread, at the tick the
-write applies (nothing ticks between the check and the effect), in the order
-listed; the first rule that fails is the refusal, so a world that moved under
-the order names the fact that moved. The token comparison is always the last
-rule: it still catches a change no rule names, and dropping it (#240 phase 3)
-leaves the rules untouched. A refusal is a terminal failure reply
+A routine write carries the snapshot token the controller read, but the
+token is not the check. Every kind below re-evaluates its preconditions
+inside the operation, on the main thread, at the tick the write applies
+(nothing ticks between the check and the effect), in the order listed; the
+first rule that fails is the refusal, so a world that moved under the order
+names the fact that moved. The token comparison is always the last rule: it
+still catches a change no rule names. The acquisition kinds (plant, mine,
+hunt) accept a request without a token, and the controller's execute omits
+it (#243): the worker dispatches them under a running clock, where the token
+(growth, hit points, position) moves every tick, and the rules alone refuse
+a moved world; a preview still sends it. A refusal is a terminal failure reply
 (`InvalidRequest`; `NotFound` where the exact target is gone), never a
 receipt: the worker reconciles it as `ReceiptRefused`, flight.jsonl keeps the
 detail verbatim, and no Go code parses it. The detail is
