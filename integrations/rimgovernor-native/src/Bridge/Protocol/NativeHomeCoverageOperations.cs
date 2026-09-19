@@ -11,11 +11,9 @@ namespace HomeBridge.BridgeTools
 {
     /// <summary>
     /// Progress record for one admitted ExtendHome: the facility target, the
-    /// shape token it was admitted against and the Home revision after the
-    /// write. Home is a synchronous area write, so the effect is known at
-    /// execute time; a later observation re-derives the footprint and checks
-    /// every cell is still Home (a player removal since the extension is an
-    /// unsuccessful outcome, not a pending one).
+    /// admitted batch, shape token and Home revision after the write.
+    /// A later observation checks the admitted cells still belong to the
+    /// facility and are Home, independently of the next census batch.
     /// </summary>
     internal sealed class NativeHomeCoverageRecord
     {
@@ -23,16 +21,20 @@ namespace HomeBridge.BridgeTools
         internal readonly string Target;
         internal readonly string Shape;
         internal readonly int Changed;
+        internal readonly List<IntVec3> Cells;
         internal long Revision;
-        internal NativeHomeCoverageRecord(Map map, string target, string shape, int changed, long revision)
-        { Map = map; Target = target; Shape = shape; Changed = changed; Revision = revision; }
+        internal NativeHomeCoverageRecord(Map map, string target, string shape, List<IntVec3> cells, List<IntVec3> missing, long revision)
+        {
+            Map = map; Target = target; Shape = shape; Changed = missing.Count; Revision = revision;
+            Cells = new List<IntVec3>(cells);
+        }
 
         internal Receipts.HomeEffect Evidence(List<IntVec3>? cells)
         {
             var state = HomeCoverage.State(Map);
             var effect = new Receipts.HomeEffect { ShapeToken = Shape, Revision = state.Revision, ChangedCells = Changed,
                 Snapshot = new Receipts.SnapshotEvidence { EntityId = Target, BeforeToken = Shape } };
-            if (cells != null) { effect.Snapshot.AfterToken = HomeCoverage.Shape(Target, cells); effect.Covered = cells.All(c => Map.areaManager.Home[c]); }
+            if (cells != null) { effect.Snapshot.AfterToken = HomeCoverage.Shape(Target, Cells); effect.Covered = Cells.All(c => Map.areaManager.Home[c]); }
             return effect;
         }
 
@@ -45,7 +47,11 @@ namespace HomeBridge.BridgeTools
                 result.Unknown = new Receipts.UnknownEffect { Reason = "Extended facility's map is unavailable." };
                 return result;
             }
-            var cells = HomeCoverage.Scope(Map, Target);
+            // The next census may select another batch after this write. Observe
+            // the admitted batch, never that next proposal. Every admitted cell
+            // must still belong to the current connected facility geometry.
+            var full = HomeCoverage.FullScope(Map, Target);
+            var cells = full != null && Cells.All(new HashSet<IntVec3>(full).Contains) ? Cells : null;
             var evidence = new Receipts.EffectEvidence { Home = Evidence(cells) };
             if (cells == null)
                 result.Unsuccessful = new Receipts.UnsuccessfulEffect { Reason = Receipts.UnsuccessfulReason.OutcomeNotAchieved, Evidence = evidence,
@@ -61,8 +67,8 @@ namespace HomeBridge.BridgeTools
 
     /// <summary>
     /// Typed ExtendHome: adds Home over the missing cells of one exact
-    /// facility's bounded footprint (HomeCoverage.Scope: the building plus
-    /// adjacent enclosed roofed rooms, or a stockpile's cells) under the
+    /// facility's bounded batch (the building plus connected enclosed roofed
+    /// rooms, or a stockpile's cells) under the
     /// footprint's shape hash and the map-wide Home revision the controller
     /// read from the upkeep census. Both are recomputed at apply time (#244);
     /// no per-target CAS token exists, so the shape and revision rules are the
@@ -92,10 +98,10 @@ namespace HomeBridge.BridgeTools
             var rules = new ApplyPreconditions(Kind)
                 .Present(() => (scope = HomeCoverage.Scope(loaded, command.Target.EntityId)) != null, "bounded visible native facility geometry is unavailable")
                 .Token(() => HomeCoverage.Shape(command.Target.EntityId, scope!) == command.ShapeToken, "the facility footprint changed since it was read")
-                .Token(() => HomeCoverage.State(loaded).Revision == command.Revision, "the Home area changed since it was read")
-                .Require(() => HomeCoverage.Excluded(HomeCoverage.State(loaded), scope!.Where(c => !loaded.areaManager.Home[c])) == 0, "a player removed Home over part of the footprint");
+                .Token(() => HomeCoverage.State(loaded).Revision == command.Revision, "the Home area changed since it was read");
             if (!rules.Holds) { failure = rules.Failure(); return false; }
-            map = loaded; cells = scope; missing = scope!.Where(c => !loaded.areaManager.Home[c]).ToList();
+            map = loaded; cells = scope;
+            missing = scope!.Where(c => !loaded.areaManager.Home[c]).ToList();
             return true;
         }
 
@@ -137,12 +143,12 @@ namespace HomeBridge.BridgeTools
                 {
                     if (!authority.Check(pre.ExpectedGeneration).Success || !Prepare(command, context, out map, out cells, out missing, out failure))
                         throw new InvalidOperationException("Home scope changed before the extension.");
-                    var record = new NativeHomeCoverageRecord(map!, command.Target.EntityId, command.ShapeToken, missing!.Count, command.Revision);
+                    var record = new NativeHomeCoverageRecord(map!, command.Target.EntityId, command.ShapeToken, cells!, missing!, command.Revision);
                     state.HomeCoverage.Add(pre.Attempt.Clone(), record);
                     // Area_Home.Set advances the persisted revision once per
                     // changed cell (HomeCoverageTool.cs); the receipt carries
                     // the revision after the last cell.
-                    foreach (var c in missing) map!.areaManager.Home[c] = true;
+                    foreach (var c in missing!) map!.areaManager.Home[c] = true;
                     record.Revision = HomeCoverage.State(map!).Revision;
                     evidence = new Receipts.EffectEvidence { Home = record.Evidence(cells) };
                 }

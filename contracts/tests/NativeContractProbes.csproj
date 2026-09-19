@@ -36,6 +36,8 @@
   <ItemGroup>
     <Compile Include="NativeContractProbes/Program.cs" />
     <Compile Include="NativeContractProbes/native-roof-support/Program.cs" />
+    <Compile Include="NativeContractProbes/native-home-coverage/Program.cs" />
+    <Compile Include="$(NativeSourceRoot)/Bridge/HomeCoverageGeometry.cs" Link="Production/HomeCoverageGeometry.cs" />
     <Compile Include="NativeContractProbes/native-production-bill-settings/Program.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/RoofSupportGeometry.cs" Link="Production/RoofSupportGeometry.cs" />
   </ItemGroup>

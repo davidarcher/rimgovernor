@@ -5,12 +5,10 @@ import "errors"
 const HomeCoverageAction ActionKind = "home_coverage"
 
 // HomeCoverage is explicit intent to extend the native Home area to cover the
-// exact bounded footprint of one already-observed autonomously owned
-// facility or stockpile zone. It reuses the native ExtendHome operation, the
-// same one the legacy JSON home/upkeep_home tool drives: native only adds
-// cells missing from Home within the target's exact scope, never overriding
-// a player or pre-observation exclusion. Native reachability, current
-// geometry and pending deficit are established at inspection, not here.
+// observed bounded batch of an autonomously owned facility's connected
+// enclosed rooms, or a stockpile zone. ExtendHome restores missing cells
+// under a shape and revision check. Native geometry and the pending deficit
+// are established at inspection, not here.
 type HomeCoverage struct {
 	target string
 	shape  string

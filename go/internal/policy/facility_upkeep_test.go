@@ -16,7 +16,7 @@ func facilityClaim(t *testing.T, id, def, stuff string) ConstructionClaim {
 	return ConstructionClaim{Plan: "method", Action: domain.ActionID(id), Goal: "goal", Identity: domain.ConstructionIdentity{Origin: "blueprint-" + id, Current: id}, Building: b}
 }
 
-func TestHomeCoveragePreservesPlayerExclusionsAndRequiresOwnedTargets(t *testing.T) {
+func TestHomeCoverageRestoresMissingCellsAndRequiresOwnedTargets(t *testing.T) {
 	claim := facilityClaim(t, "wall", "Wall", "WoodLog")
 	row := HomeCoverageTarget{ID: "wall", Shape: domain.Known("shape"), Missing: domain.Known(int64(1)), Excluded: domain.Known(int64(1)), Cells: []domain.Cell{{X: 3, Z: 7}}}
 	census := HomeCoverageObservation{Revision: 4, Targets: []HomeCoverageTarget{row, {ID: "player-wall"}}}
@@ -87,19 +87,19 @@ func TestHomeCoverageBlocksChangedOwnedStockpileFootprint(t *testing.T) {
 	}
 }
 
-func TestSelectHomeCoverageMethodSkipsBlockedExcludedAndSeenThenPicksFirst(t *testing.T) {
+func TestSelectHomeCoverageMethodSkipsCoveredBlockedAndSeenThenPicksFirst(t *testing.T) {
 	rows := []HomeCoverageTarget{
-		{ID: "a", Shape: domain.Known("shape"), Excluded: domain.Known(int64(1))},
-		{ID: "b", Shape: domain.Known("shape"), Excluded: domain.Known(int64(0)), Blocker: "player edit"},
-		{ID: "c", Shape: domain.Known("shape"), Excluded: domain.Known(int64(0))},
-		{ID: "d", Shape: domain.Known("shape"), Excluded: domain.Known(int64(0))},
+		{ID: "a", Shape: domain.Known("shape"), Missing: domain.Known(int64(0))},
+		{ID: "b", Shape: domain.Known("shape"), Missing: domain.Known(int64(1)), Blocker: "geometry unavailable"},
+		{ID: "c", Shape: domain.Known("shape"), Missing: domain.Known(int64(1))},
+		{ID: "d", Shape: domain.Known("shape"), Missing: domain.Known(int64(1))},
 	}
-	seenID := homeCoverageMethodID("c", "shape")
+	seenID := homeCoverageMethodID("c", "shape", 4)
 	choice, err := SelectHomeCoverageMethod(domain.Known(rows), 4, []domain.MethodID{seenID})
 	if err != nil || choice.Kind != HomeCoverageExtend || choice.Target != "d" || choice.Shape != "shape" || choice.Revision != 4 {
 		t.Fatal(choice, err)
 	}
-	if choice.ID != homeCoverageMethodID("d", "shape") {
+	if choice.ID != homeCoverageMethodID("d", "shape", 4) {
 		t.Fatal("method id not stable", choice.ID)
 	}
 }
@@ -115,8 +115,8 @@ func TestSelectHomeCoverageMethodRecoveredUnknownAndBlocked(t *testing.T) {
 	if choice, err := SelectHomeCoverageMethod(domain.Known(blocked), 0, nil); err != nil || choice.Kind != HomeCoverageBlocked {
 		t.Fatal(choice, err)
 	}
-	all := []HomeCoverageTarget{{ID: "a", Shape: domain.Known("s"), Excluded: domain.Known(int64(0))}}
-	seen := []domain.MethodID{homeCoverageMethodID("a", "s")}
+	all := []HomeCoverageTarget{{ID: "a", Shape: domain.Known("s"), Missing: domain.Known(int64(1))}}
+	seen := []domain.MethodID{homeCoverageMethodID("a", "s", 0)}
 	if choice, err := SelectHomeCoverageMethod(domain.Known(all), 0, seen); err != nil || choice.Kind != HomeCoverageBlocked {
 		t.Fatal(choice, err)
 	}

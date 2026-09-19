@@ -243,29 +243,26 @@ load before expiry, same-value setter, removed area/pawn, map departure/return
 and fallout ending while disconnected. Test the retained cleanup path without any
 bridge tool discovery. Existing entry point: `scripts/disaster_recovery_acceptance.py`.
 
-## Home exclusions
+## Home coverage
 
 Sources: [saved map state](../integrations/rimgovernor-native/src/Runtime/Persistence/HomeCoverageState.cs),
 [mutation observations](../integrations/rimgovernor-native/src/Bridge/HomeCoverageTool.cs).
 
 | Field/key | Sole target owner | Reconstructible? |
 | --- | --- | --- |
-| `Initialized/rimgovernorHomeInitialized` | Native per-load bookkeeping | No; whether the map has been observed once is historical. |
-| `Revision/rimgovernorHomeRevision` | Native per-load freshness token, unsaved target | No need to preserve its value if load identity invalidates all old requests. |
-| `Excluded/rimgovernorHomeExcluded` | Native player-intent ledger (#314) | No; which cells a player took out of Home after observation began is historical. |
+| `Revision/rimgovernorHomeRevision` | Native per-map freshness token | Its value need not survive if load identity invalidates every old request. |
 
-`Excluded` is the set of cells a player removed from Home (Set, Clear or
-Invert) while `Initialized`; a cell anyone sets back to Home leaves it. Cells
-not covered when the controller first observed the map are not exclusions.
-The installed patches maintain the ledger and bump the saved revision on every
-Home edit. `ExtendHome`/`home/upkeep_home` refuse a footprint whose missing
-cells include an excluded one (the census reports them as `excluded_cells`
-with a blocker), and may add Home over any other missing footprint cell
-subject to the revision/shape match against the geometry the caller observed.
-Actual Home area stays game-owned.
+Native Home remains game-owned. Autonomous `ExtendHome` adds missing cells
+within the observed batch of an owned facility's connected enclosed rooms
+or an exact owned stockpile, subject to the observed shape and Home revision.
+Set, Clear and Invert advance that revision. Removing Home is new maintenance
+work, not a persistent exclusion. Legacy `rimgovernorHomeInitialized` and
+`rimgovernorHomeExcluded` save fields are no longer read or written; old saves
+therefore resume autonomous restoration. The compatibility wire field
+`excluded_cells` is emitted as zero.
 
-Acceptance: `upkeep/home-coverage` (player removal after an extension stays
-out; `excluded_cells` and blocker in the census, no method committed).
+Acceptance: `upkeep/home-coverage` proves connected coverage, restoration,
+stale proposal refusal and native Home persistence across a save reload.
 
 ## Shared migration gate
 

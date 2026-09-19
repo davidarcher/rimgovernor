@@ -19,4 +19,5 @@ tasks:
     desc: Pure roof geometry checks; game-dependent probes run through native acceptance
     cmds:
       - '{{if ne OS "windows"}}mono {{end}}{{.EVIDENCE}}/bin/NativeContractProbes.exe native-roof-support'
+      - '{{if ne OS "windows"}}mono {{end}}{{.EVIDENCE}}/bin/NativeContractProbes.exe native-home-coverage'
       - '{{if ne OS "windows"}}mono {{end}}{{.EVIDENCE}}/bin/NativeContractProbes.exe native-production-bill-settings'

@@ -104,7 +104,7 @@ func ReviewHomeCoverage(owned domain.Fact[[]ConstructionClaim], zones domain.Fac
 		if !mk || !ek || !sk || !facilityCells(row.Cells) {
 			return unknown, nil
 		}
-		if !foodID(shape) || excluded < 0 || excluded > missing || missing > int64(len(row.Cells)) {
+		if !foodID(shape) || excluded < 0 || excluded > missing || missing < 0 || missing > int64(len(row.Cells)) {
 			return unknown, errors.New("invalid Home target geometry or counts")
 		}
 		if original, zone := footprints[row.ID]; zone {
@@ -144,16 +144,19 @@ type HomeCoverageMethod struct {
 	Revision      int64
 }
 
-func homeCoverageMethodID(target, shape string) domain.MethodID {
-	value := struct{ Target, Shape string }{target, shape}
+func homeCoverageMethodID(target, shape string, revision int64) domain.MethodID {
+	value := struct {
+		Target, Shape string
+		Revision      int64
+	}{target, shape, revision}
 	data, _ := json.Marshal(value)
 	sum := sha256.Sum256(data)
 	return domain.MethodID(fmt.Sprintf("home-%x", sum[:16]))
 }
 
-// SelectHomeCoverageMethod proposes one home-coverage extension: scan the first
-// eight sorted targets (already filtered to missing>0 or blocked by
-// ReviewHomeCoverage), skipping any with a blocker or a live exclusion and any
+// SelectHomeCoverageMethod proposes one bounded home-coverage extension from
+// sorted targets (already filtered to missing work or blocked by
+// ReviewHomeCoverage), skipping any with a blocker, no missing cells, or an
 // already method_seen for this goal epoch, and propose the first admissible
 // one.
 func SelectHomeCoverageMethod(targets domain.Fact[[]HomeCoverageTarget], revision int64, seen []domain.MethodID) (HomeCoverageMethod, error) {
@@ -177,20 +180,16 @@ func SelectHomeCoverageMethod(targets domain.Fact[[]HomeCoverageTarget], revisio
 		}
 		seenSet[id] = true
 	}
-	limit := rows
-	if len(limit) > 8 {
-		limit = limit[:8]
-	}
-	for _, row := range limit {
+	for _, row := range rows {
 		if row.Blocker != "" {
 			continue
 		}
-		excluded, ek := row.Excluded.Value()
+		missing, mk := row.Missing.Value()
 		shape, sk := row.Shape.Value()
-		if !ek || !sk || excluded > 0 {
+		if !mk || !sk || missing <= 0 {
 			continue
 		}
-		id := homeCoverageMethodID(row.ID, shape)
+		id := homeCoverageMethodID(row.ID, shape, revision)
 		if seenSet[id] {
 			continue
 		}

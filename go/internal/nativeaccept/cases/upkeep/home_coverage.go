@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -14,57 +15,36 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// upkeep/home-coverage (issue #292): MaintainHomeCoverage extends native Home
-// over a facility the controller built. Ownership is the journal's own
-// construction lineage, so the case first has MaintainSleeping build the
-// missing bed of test/sleeping_setup's room (stage one, the sleeping
-// scenario's bed method), then takes the slot back, strips Home from the
-// bed's bounded footprint (the bed plus its enclosed roofed room,
-// test/home_coverage_setup) and serves again with the home-coverage family:
-// the goal must open on the deficit, dispatch one ExtendHome method for the
-// bed under the fixture's shape token, and recover on the observed Home
-// cells, which test/home_coverage_read audits after the service releases
-// the game. Stage three (#314) is a player removal: test/home_player_remove
-// takes one covered footprint cell back out of Home, and a third service
-// must reopen the deficit with the census's exclusion blocker, commit no
-// method and leave the cell alone.
-const homeCoverageBudget = 25 * time.Minute
-
+// The fixture provides two empty bed chambers and a connecting corridor.
+// Both beds must be built through routine plans before Home can be maintained.
 func init() {
 	sleeping := scenarios()["sleeping"]
 	cases.Register(cases.Case{
-		Name: "upkeep/home-coverage",
-		Scope: "Home coverage upkeep (issue #292) on the " + sustained.BaselineSave + " save: MaintainSleeping builds one bed the controller then owns, " +
-			"test/home_coverage_setup removes Home over its footprint, and the service composed with the home-coverage family follows the journal " +
-			"from deficit through one typed ExtendHome method to observed recovery, audited by an independent native Home read after the service releases the game.",
+		Name:   "upkeep/home-coverage",
+		Scope:  "Connected autonomous Home (#452): two routine-built beds, corridor coverage, stale revision/geometry refusal, restoration after removal and save recovery.",
 		Start:  cases.Save{Name: sustained.BaselineSave},
 		Keep:   sleeping.keep,
 		Serve:  &cases.ServeSpec{Families: []string{"sleeping", "home-coverage", "work"}, Extra: sleeping.extra, Prefix: prefix},
-		Budget: homeCoverageBudget,
-		Reason: "Two served stages: the controller must first build the facility it will own (a bed, one to four minutes), and the Home extension is followed on a second service over the same journal.",
+		Budget: 12 * time.Minute,
+		Reason: "Two small beds establish real ownership; subsequent Home writes require only routine reviews on the same colony.",
 		Run:    runHomeCoverage,
 	})
 }
 
 func runHomeCoverage(ctx context.Context, s cases.Session) error {
 	report, identity := s.Report(), s.Identity()
-	sleeping := scenarios()["sleeping"]
-	for _, fixture := range []string{sleeping.fixture, "test/home_coverage_setup", "test/home_coverage_read", "test/home_player_remove"} {
+	for _, fixture := range []string{"test/sleeping_setup", "test/home_coverage_setup", "test/home_coverage_read", "test/home_remove_cell", "test/home_cell_read", "test/home_stale_guards"} {
 		if !na.Contains(s.Names(), fixture) {
-			return fmt.Errorf("missing %s in discovery; rebuild the native mod with -Fixture UpkeepFixture,ForecastFixture,RoutineSleepingFixture", fixture)
+			return fmt.Errorf("missing %s", fixture)
 		}
 	}
 	h := s.Harness()
-
-	// Stage one: the sleeping fixture and the bed MaintainSleeping builds.
-	bedReport := na.Report{}
-	report["stage_bed"] = bedReport
-	prepared, err := sleeping.prepare(ctx, h, identity, bedReport)
+	prepared, err := callFixture(ctx, h, identity, "test/sleeping_setup", map[string]any{"connectedRooms": true})
 	if err != nil {
 		return err
 	}
-	bedReport["prepared"] = prepared
-	bedsBefore, err := readBedIDs(ctx, h, identity, "beds-before")
+	report["prepared"] = prepared
+	before, err := readBedIDs(ctx, h, identity, "beds-before")
 	if err != nil {
 		return err
 	}
@@ -74,220 +54,180 @@ func runHomeCoverage(ctx context.Context, s cases.Session) error {
 	if err != nil {
 		return err
 	}
+	bedReport := na.Report{}
+	report["stage_beds"] = bedReport
 	journal, err := serveStage(ctx, service, bedReport)
-	if err != nil {
-		service.Stop()
-		return err
+	if err == nil {
+		err = watchHomeBeds(ctx, journal, bedReport)
 	}
-	bedErr := watchBedBuilt(ctx, journal, bedReport)
-	bedReport["authority_reacquisitions"] = service.Stop()
-	afterCtx := ctx
-	if ctx.Err() != nil {
-		var cancel context.CancelFunc
-		afterCtx, cancel = context.WithTimeout(context.Background(), 90*time.Second)
-		defer cancel()
-	}
-	if h, err = reattachPaused(afterCtx, s); err != nil {
-		return fmt.Errorf("stage bed: %w", err)
-	}
-	if bedErr != nil {
-		return fmt.Errorf("stage bed: %w", bedErr)
-	}
-	bedsAfter, err := readBedIDs(ctx, h, identity, "beds-after")
+	service.Stop()
 	if err != nil {
 		return err
 	}
-	// The method's bed is the one real Bed that is new; a sleeping spot the
-	// service also placed (#218) is not the owned facility under test.
-	var built, spots []string
-	for id, definition := range bedsAfter {
-		switch {
-		case bedsBefore[id] != "":
-		case definition == "SleepingSpot":
-			spots = append(spots, id)
-		default:
+	h, err = reattachPaused(ctx, s)
+	if err != nil {
+		return err
+	}
+	after, err := readBedIDs(ctx, h, identity, "beds-after")
+	if err != nil {
+		return err
+	}
+	built := []string{}
+	for id, def := range after {
+		if before[id] == "" && def == "Bed" {
 			built = append(built, id)
 		}
 	}
-	bedReport["beds_built"] = built
-	bedReport["sleeping_spots_built"] = spots
-	if len(built) != 1 {
-		return fmt.Errorf("stage bed: expected exactly one new bed, found %v", built)
+	sort.Strings(built)
+	report["beds_built"] = built
+	if len(built) != 2 {
+		return fmt.Errorf("expected two routine-built beds, got %v", built)
 	}
-	bed := built[0]
-
-	// Stage two: Home stripped from the bed's footprint, then the extension.
-	homeReport := na.Report{}
-	report["stage_home"] = homeReport
-	staged, err := callFixture(ctx, h, identity, "test/home_coverage_setup", map[string]any{"target": bed})
+	corridor, _ := na.AsMap(prepared["corridor"])
+	outside, _ := na.AsMap(prepared["outside"])
+	cx, cz := int(na.AsNumber(corridor["x"])), int(na.AsNumber(corridor["z"]))
+	target := built[0]
+	staged, err := callFixture(ctx, h, identity, "test/home_coverage_setup", map[string]any{"target": target})
 	if err != nil {
 		return err
 	}
-	homeReport["prepared"] = staged
-	shape := na.AsString(staged["shape"])
-	stagedRevision := int64(na.AsNumber(staged["revision"]))
-	footprint := int(na.AsNumber(staged["count"]))
-	if shape == "" || footprint <= 0 {
-		return fmt.Errorf("stage home: fixture staged no footprint for %s: %#v", bed, staged)
+	report["stripped"] = staged
+	total := int(na.AsNumber(staged["count"]))
+	if total < 9 {
+		return fmt.Errorf("connected geometry omitted chambers or corridor: %v", staged)
 	}
-	before, err := readHomeCoverage(ctx, h, identity, bed, "home-before")
-	if err != nil {
+	if err = auditHomeCells(ctx, h, cx, cz, outside, false); err != nil {
 		return err
 	}
-	homeReport["home_before"] = before
-	if before.Covered != 0 || before.Total != footprint {
-		return fmt.Errorf("stage home: %d of %d footprint cells are Home after the fixture removed them", before.Covered, before.Total)
-	}
-	spec = s.Spec()
-	service, err = s.Serve(ctx, spec)
-	if err != nil {
-		return err
-	}
-	journal, err = serveStage(ctx, service, homeReport)
-	if err != nil {
+	for stage := 0; stage < 2; stage++ {
+		stageReport := na.Report{}
+		report[fmt.Sprintf("stage_home_%d", stage)] = stageReport
+		if stage == 1 {
+			guards, e := callFixture(ctx, h, identity, "test/home_stale_guards", map[string]any{"target": target, "doorX": cx - 1, "doorZ": cz})
+			if e != nil {
+				return e
+			}
+			report["stale_guards"] = guards
+			removed, e := callFixture(ctx, h, identity, "test/home_remove_cell", map[string]any{"target": target, "x": cx + 1, "z": cz})
+			if e != nil {
+				return e
+			}
+			report["removed"] = removed
+		}
+		spec = s.Spec()
+		spec.Families = []string{"home-coverage", "work"}
+		service, err = s.Serve(ctx, spec)
+		if err != nil {
+			return err
+		}
+		journal, err = serveStage(ctx, service, stageReport)
+		if err == nil {
+			err = watchConnectedHome(ctx, journal, built, stageReport)
+		}
 		service.Stop()
+		if err != nil {
+			return err
+		}
+		h, err = reattachPaused(ctx, s)
+		if err != nil {
+			return err
+		}
+		for _, bed := range built {
+			covered, e := readHomeCoverage(ctx, h, identity, bed, fmt.Sprintf("home-%d-%s", stage, bed))
+			if e != nil {
+				return e
+			}
+			stageReport[bed] = covered
+			if covered.Covered != total || covered.Total != total {
+				return fmt.Errorf("connected footprint not fully Home: %+v, expected %d", covered, total)
+			}
+		}
+		if err = auditHomeCells(ctx, h, cx, cz, outside, true); err != nil {
+			return err
+		}
+	}
+	// Controller restarts above exercise durable routine ownership. Reload the
+	// final native save and independently audit the actual Home mask as well.
+	save := "RimGovernor-home-connected"
+	if _, err = h.Call(ctx, "save-home", "rimworld/save_game", map[string]any{"saveName": save}); err != nil {
 		return err
 	}
-	homeErr := watchHomeCoverage(ctx, journal, bed, shape, homeReport)
-	if homeErr == nil {
-		homeErr = na.AssertRoutineRunning(service.Get)
-	}
-	homeReport["authority_reacquisitions"] = service.Stop()
-	afterCtx = ctx
-	if ctx.Err() != nil {
-		var cancel context.CancelFunc
-		afterCtx, cancel = context.WithTimeout(context.Background(), 90*time.Second)
-		defer cancel()
-	}
-	if h, err = reattachPaused(afterCtx, s); err != nil {
-		return fmt.Errorf("stage home: %w", err)
-	}
-	after, readErr := readHomeCoverage(afterCtx, h, identity, bed, "home-after")
-	if readErr == nil {
-		homeReport["home_after"] = after
-	}
-	if homeErr != nil {
-		return fmt.Errorf("stage home: %w", homeErr)
-	}
-	if readErr != nil {
-		return readErr
-	}
-	if after.Total != footprint || after.Covered != after.Total {
-		return fmt.Errorf("stage home: %d of %d footprint cells are Home after MaintainHomeCoverage recovered", after.Covered, after.Total)
-	}
-	if after.Revision <= stagedRevision {
-		return fmt.Errorf("stage home: Home revision %d did not advance past the fixture's %d", after.Revision, stagedRevision)
-	}
-	census, err := readColonyFacts(ctx, h, identity, "upkeep-after")
-	if err != nil {
+	if _, err = h.Call(ctx, "reload-home", "rimworld/load_game_ready", map[string]any{"saveName": save, "readiness": "visual", "timeoutMs": 90000, "ignoreModCompatibility": false}); err != nil {
 		return err
 	}
-	if row, present := homeCoverageRow(census, bed); present {
-		return fmt.Errorf("stage home: the upkeep census still lists %s as a Home deficit: %#v", bed, row)
+	if _, err = h.Call(ctx, "pause-home", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
+		return err
 	}
+	if err = auditHomeCells(ctx, h, cx, cz, outside, true); err != nil {
+		return err
+	}
+	report["save_recovery_home"] = true
+	return nil
+}
 
-	// Stage three: a player removal after the extension is an exclusion the
-	// routine preserves (#314).
-	exclusionReport := na.Report{}
-	report["stage_exclusion"] = exclusionReport
-	removed, err := callFixture(ctx, h, identity, "test/home_player_remove", map[string]any{"target": bed})
-	if err != nil {
-		return err
-	}
-	exclusionReport["removed"] = removed
-	spec = s.Spec()
-	service, err = s.Serve(ctx, spec)
-	if err != nil {
-		return err
-	}
-	journal, err = serveStage(ctx, service, exclusionReport)
-	if err != nil {
-		service.Stop()
-		return err
-	}
-	exclusionErr := watchHomeExclusion(ctx, journal, exclusionReport)
-	if exclusionErr == nil {
-		exclusionErr = na.AssertRoutineRunning(service.Get)
-	}
-	exclusionReport["authority_reacquisitions"] = service.Stop()
-	afterCtx = ctx
-	if ctx.Err() != nil {
-		var cancel context.CancelFunc
-		afterCtx, cancel = context.WithTimeout(context.Background(), 90*time.Second)
-		defer cancel()
-	}
-	if h, err = reattachPaused(afterCtx, s); err != nil {
-		return fmt.Errorf("stage exclusion: %w", err)
-	}
-	final, readErr := readHomeCoverage(afterCtx, h, identity, bed, "home-excluded")
-	if readErr == nil {
-		exclusionReport["home_after"] = final
-	}
-	if exclusionErr != nil {
-		return fmt.Errorf("stage exclusion: %w", exclusionErr)
-	}
-	if readErr != nil {
-		return readErr
-	}
-	if final.Total != footprint || final.Covered != footprint-1 {
-		return fmt.Errorf("stage exclusion: %d of %d footprint cells are Home after the player removed one; the routine must leave it alone", final.Covered, final.Total)
-	}
-	census, err = readColonyFacts(afterCtx, h, identity, "upkeep-excluded")
-	if err != nil {
-		return err
-	}
-	row, present := homeCoverageRow(census, bed)
-	if !present {
-		return fmt.Errorf("stage exclusion: the upkeep census lists no Home row for %s although one footprint cell is missing", bed)
-	}
-	exclusionReport["census_row"] = row
-	if na.AsNumber(row["missingCells"]) != 1 || na.AsNumber(row["excludedCells"]) != 1 || na.AsString(row["blocker"]) == "" {
-		return fmt.Errorf("stage exclusion: the census row for %s does not carry one excluded missing cell and a blocker: %#v", bed, row)
+func watchHomeBeds(ctx context.Context, journal *store.Store, report na.Report) error {
+	bounded, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	defer cancel()
+	seen := map[domain.PlanID]bool{}
+	for n := 0; n < 2; n++ {
+		label := fmt.Sprintf("bed_%d", n)
+		_, err := followMethodsExcluding(bounded, journal, policy.MaintainSleeping, label, seen, func(a domain.Action) error {
+			b, ok := a.Building()
+			if !ok || b.Definition() != "Bed" {
+				return fmt.Errorf("not a bed build: %s", a.Kind())
+			}
+			return nil
+		}, report)
+		if err != nil {
+			return err
+		}
+		if report[label+"_recovered_by"] != "controller_order" {
+			return fmt.Errorf("bed %d lacks completed controller ownership", n)
+		}
 	}
 	return nil
 }
 
-// watchHomeExclusion follows MaintainHomeCoverage back into deficit on the
-// removed cell and then holds the window open across several routine
-// reviews: the goal must stay in deficit without committing any method (the
-// only target is excluded, so no ExtendHome is eligible).
-func watchHomeExclusion(ctx context.Context, journal *store.Store, report na.Report) error {
-	deficitCtx, deficitCancel := context.WithTimeout(ctx, 4*time.Minute)
-	defer deficitCancel()
-	goal, err := waitNeed(deficitCtx, journal, policy.MaintainHomeCoverage, domain.NeedDeficit)
+func watchConnectedHome(ctx context.Context, journal *store.Store, built []string, report na.Report) error {
+	bounded, cancel := context.WithTimeout(ctx, 90*time.Second)
+	defer cancel()
+	if _, err := waitNeed(bounded, journal, policy.MaintainHomeCoverage, domain.NeedDeficit); err != nil {
+		return err
+	}
+	_, err := followMethods(bounded, journal, policy.MaintainHomeCoverage, "home", func(a domain.Action) error {
+		coverage, ok := a.HomeCoverage()
+		if !ok || !na.Contains(built, coverage.Target()) {
+			return fmt.Errorf("home method did not target a built facility")
+		}
+		return nil
+	}, report)
 	if err != nil {
 		return err
 	}
-	report["deficit_tick"] = int64(goal.Goal.Tick)
-	report["deficit_epoch"] = goal.Goal.Epoch
-	window := time.After(3 * time.Minute)
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-window:
-			row, found, err := developmentRow(ctx, journal, policy.MaintainHomeCoverage)
-			if err != nil {
-				return err
-			}
-			if found {
-				report["development_reason"] = string(row.Reason)
-			}
-			return nil
-		case <-time.After(5 * time.Second):
+	if report["home_recovered_by"] != "controller_order" {
+		return fmt.Errorf("home extension lacks controller completion")
+	}
+	_, err = waitNeed(bounded, journal, policy.MaintainHomeCoverage, domain.NeedRecovered)
+	return err
+}
+
+func auditHomeCells(ctx context.Context, h *na.Harness, cx, cz int, outside map[string]any, want bool) error {
+	for i := 0; i < 4; i++ {
+		x, z, expected := cx+i, cz, want
+		if i == 3 {
+			x, z, expected = int(na.AsNumber(outside["x"])), int(na.AsNumber(outside["z"])), false
 		}
-		current, err := waitNeed(ctx, journal, policy.MaintainHomeCoverage, domain.NeedDeficit)
+		row, err := h.Call(ctx, fmt.Sprintf("home-cell-%d-%t", i, want), "test/home_cell_read", map[string]any{"x": x, "z": z})
 		if err != nil {
-			return fmt.Errorf("MaintainHomeCoverage left deficit although the missing cell is a player exclusion: %w", err)
+			return err
 		}
-		methods := current.Methods
-		if history, err := journal.LoadGoalMethods(ctx, current.Goal.ID, current.Goal.Epoch); err == nil && len(history) > len(methods) {
-			methods = history
-		}
-		if len(methods) != 0 {
-			return fmt.Errorf("MaintainHomeCoverage committed %d method(s) (%s) over a player-excluded cell", len(methods), methods[0].Plan)
+		actual, known := na.AsBool(row["home"])
+		success, _ := na.AsBool(row["success"])
+		if !success || !known || actual != expected {
+			return fmt.Errorf("home at %d,%d: %v, want %t", x, z, row, expected)
 		}
 	}
+	return nil
 }
 
 // serveStage takes the service through authority to its first routine
@@ -316,65 +256,6 @@ func serveStage(ctx context.Context, service *na.ServiceProcess, report na.Repor
 		}
 	}
 	return journal, nil
-}
-
-// watchBedBuilt follows MaintainSleeping's first method, the bed build, to
-// its completed plan; ownership and sleep are the sleeping case's property,
-// not this one's, so the stage ends once the controller owns a building.
-func watchBedBuilt(ctx context.Context, journal *store.Store, report na.Report) error {
-	deficitCtx, deficitCancel := context.WithTimeout(ctx, 4*time.Minute)
-	defer deficitCancel()
-	if _, err := waitNeed(deficitCtx, journal, policy.MaintainSleeping, domain.NeedDeficit); err != nil {
-		return err
-	}
-	if _, err := followMethods(ctx, journal, policy.MaintainSleeping, "bed", func(a domain.Action) error {
-		if _, ok := a.Building(); ok {
-			return nil
-		}
-		return fmt.Errorf("unexpected %s action before a bed was built", a.Kind())
-	}, report); err != nil {
-		return err
-	}
-	if report["bed_recovered_by"] != "controller_order" {
-		return fmt.Errorf("the bed was not built by the controller's own order (%v), so no construction lineage owns it", report["bed_recovered_by"])
-	}
-	return nil
-}
-
-// watchHomeCoverage follows MaintainHomeCoverage from deficit through one
-// ExtendHome method for the staged bed to recovery.
-func watchHomeCoverage(ctx context.Context, journal *store.Store, bed, shape string, report na.Report) error {
-	deficitCtx, deficitCancel := context.WithTimeout(ctx, 4*time.Minute)
-	defer deficitCancel()
-	if _, err := waitNeed(deficitCtx, journal, policy.MaintainHomeCoverage, domain.NeedDeficit); err != nil {
-		return err
-	}
-	if _, err := followMethods(ctx, journal, policy.MaintainHomeCoverage, "home", func(a domain.Action) error {
-		coverage, ok := a.HomeCoverage()
-		if !ok {
-			return fmt.Errorf("not a home coverage action: %v", a.Kind())
-		}
-		if coverage.Target() != bed {
-			return fmt.Errorf("home coverage targets %s, not the built bed %s", coverage.Target(), bed)
-		}
-		if coverage.Shape() != shape {
-			return fmt.Errorf("home coverage shape %s differs from the fixture's %s", coverage.Shape(), shape)
-		}
-		return nil
-	}, report); err != nil {
-		return err
-	}
-	if report["home_recovered_by"] != "controller_order" {
-		return fmt.Errorf("home was not extended by the controller's own order (%v)", report["home_recovered_by"])
-	}
-	recoverCtx, recoverCancel := context.WithTimeout(ctx, 6*time.Minute)
-	defer recoverCancel()
-	goal, err := waitNeed(recoverCtx, journal, policy.MaintainHomeCoverage, domain.NeedRecovered)
-	if err != nil {
-		return err
-	}
-	report["home_recovered_tick"] = int64(goal.Goal.Tick)
-	return nil
 }
 
 // readBedIDs maps every colonist bed on the map to its defName.

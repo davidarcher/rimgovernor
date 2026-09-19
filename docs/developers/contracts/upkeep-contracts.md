@@ -25,39 +25,42 @@ Non-damageable markers such as sleeping spots cannot become repair targets.
 ## Maintained jobs
 
 `MaintainHomeCoverage` joins native construction lineage and owned stockpiles
-to bounded facility geometry. Every target is named by its native unique load
-id on both sides: a building's, or for a stockpile the `zone_id` its
-`CreateZone` receipt returned, which the completed `zone_create` action keeps
-as the zone's ownership evidence (`ProgressView.Zone`, #315). A building may
-include adjacent fully roofed rooms of at most 128 cells; the complete target
-is limited to 256 visible cells. Stockpiles require their unchanged committed
-footprint. Missing geometry remains unknown.
+to observed facility geometry. Targets use the native unique load id: a
+building's, or the `zone_id` returned by the owned `CreateZone` receipt.
+A building anchors its occupied cells and connected visible, enclosed,
+fully roofed rooms. Traversal crosses usable colony doors only when both
+sides are enclosed rooms; outside doors and gaps do not extend coverage.
+Stockpiles retain their exact committed footprint.
 
-Native keeps a per-map exclusion ledger (`HomeCoverageState.Excluded`, saved
-with the map): once the controller has observed the map, every cell a player
-removes from Home (Set, Clear or Invert) is excluded until anyone sets it back
-to Home. The census's `excluded_cells` counts a target's missing cells that
-are excluded, and any such cell blocks the whole target (`blocker` set, no
-method proposed, `home_coverage_excluded` at admission); the routine never
-re-adds a removed cell. Fixture staging (`test/home_coverage_setup`) is not a
-removal.
-The typed `ExtendHome` operation (`rimgovernor/operations_execute`,
-`NativeHomeCoverageOperations.cs`; the legacy JSON `home/upkeep_home` applies the
-same rules) derives cells again and requires the same geometry hash, area
-revision and no excluded missing cell before adding Home ([preconditions](action-contracts.md#apply-time-preconditions-and-refusal-reasons)).
-It does not paint arbitrary terrain or change pawn allowed areas. Actual native
-Home cells establish completion. Uncertain writes cannot be replayed.
-`upkeep/home-coverage` is the acceptance case: the controller builds a bed,
-the fixture strips Home from its footprint, the goal recovers on the observed
-Home cells, and a player removal (`test/home_player_remove`) then reopens the
-deficit as an excluded, method-less target the routine leaves alone.
+Each target proposes at most 256 cells, preferring missing cells in stable
+coordinate order. Larger rooms and connected interiors progress through
+successive batches. Covered cells cannot hide missing cells beyond the first
+batch. The native census remains bounded; unavailable geometry stays unknown.
+
+Play is autonomous: every missing scoped cell is restoration work, regardless
+of how Home was removed. Native Home edits (Set, Clear, Invert) advance the
+map revision. Legacy saved Home exclusions are ignored; the retained
+`excluded_cells` wire field is zero. A method is identified by target, batch
+shape and observed Home revision, so a later removal can admit fresh work.
+
+Typed `ExtendHome` and legacy `home/upkeep_home` re-derive the batch and require
+the observed shape and revision before writing. Receipts/progress inspect the
+admitted cells, not the next batch; they must still belong to the connected
+facility and actually be Home. A missing cell or disconnected admitted
+geometry makes the outcome unsuccessful. Uncertain writes are not replayed.
+See [apply-time checks](action-contracts.md#apply-time-preconditions-and-refusal-reasons).
+
+`upkeep/home-coverage` builds two owned beds in connected chambers, checks
+corridor coverage and an uncovered outdoor cell, rejects stale geometry/revision,
+restores a removed corridor cell across service restarts and audits save/load
+persistence. Remote resource work does not expand Home.
+
 `upkeep/storage-missing` proves the stockpile side: the zone SecureSupplies
 creates outside Home is extended over under its receipt identity. Vanilla's
 auto home area play setting (on by default, `AutoHomeAreaMaker`) marks Home
 four cells around every added zone cell and around player buildings, so with
 it on a created stockpile is covered before the routine sees it; the fixture
-turns the setting off, and in play the stockpile row only matters when the
-player has.
+turns the setting off so the controller's extension is observable.
 
 Native construction lineage follows bridge-created blueprints into frames and
 finished buildings, including the game's failed-construction blueprint recovery.

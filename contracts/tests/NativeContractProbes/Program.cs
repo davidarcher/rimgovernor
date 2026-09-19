@@ -24,6 +24,7 @@ internal static class NativeContractProbesDispatcher
                 // ---- Category 1/2: in-process fake-Verse compile / pure logic (no args) ----
                 case "native-production-bill-settings": NativeProductionBillSettingsProbe.Invoke(); return 0;
                 case "native-roof-support": NativeRoofSupportProbe.Invoke(); return 0;
+                case "native-home-coverage": NativeHomeCoverageProbe.Invoke(); return 0;
                 case "native-authority": NativeAuthorityProbe.Invoke(); return 0;
 #if !HAVE_HARMONY
                 case "native-authority-control": NativeAuthorityControlProbe.Invoke(); return 0;

@@ -19,13 +19,14 @@ namespace HomeBridge.BridgeTools
         // missing bed, ownership must follow, and the goal recovers only once
         // every colonist has been observed sleeping in their own bed.
         [Tool("test/sleeping_setup", Description = "Prepare a disposable roofed warm room with one bed fewer than colonists, and construction wood.")]
-        public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken, bool connectedRooms = false)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 try {
                     var map = Find.CurrentMap;
                     var people = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed && !p.Drafted && !p.InMentalState).OrderBy(p => p.thingIDNumber).ToList();
-                    if (people.Count < 1 || people.Count > 8) throw new InvalidOperationException("Require 1..8 colonists.");
+                    if (people.Count < (connectedRooms ? 2 : 1) || people.Count > 8) throw new InvalidOperationException("Insufficient colonists or more than eight.");
+                    if (connectedRooms) Find.PlaySettings.autoHomeArea = false;
                     var p = people.First();
                     var prerequisites = ThingDefOf.Bed.researchPrerequisites;
                     if (prerequisites != null)
@@ -38,7 +39,7 @@ namespace HomeBridge.BridgeTools
                     // edifices, zones, pawns and terrain disqualify a site;
                     // the radius covers a wooded or rocky landing.
                     var site = GenRadial.RadialCellsAround(center, 45, true).Where(c => c.DistanceToSquared(center) >= 36).Cast<IntVec3?>().FirstOrDefault(c =>
-                        new CellRect(c.Value.x, c.Value.z, size, size).Cells.All(v => v.InBounds(map)
+                        new CellRect(c.Value.x, c.Value.z, connectedRooms ? 19 : size, size).Cells.All(v => v.InBounds(map)
                             && !v.Fogged(map) && v.GetEdifice(map) == null
                             && v.GetThingList(map).All(t => t is Plant || t.def.category == ThingCategory.Item)
                             && map.zoneManager.ZoneAt(v) == null && v.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Heavy)));
@@ -67,12 +68,18 @@ namespace HomeBridge.BridgeTools
                     wood.stackCount = wood.def.stackLimit;
                     GenPlace.TryPlaceThing(wood, origin + new IntVec3(size / 2, 0, size - 2), map, ThingPlaceMode.Near);
                     wood.SetForbidden(false, false);
+                    if (connectedRooms) {
+                        var extraWood = ThingMaker.MakeThing(ThingDefOf.WoodLog);
+                        extraWood.stackCount = extraWood.def.stackLimit;
+                        GenPlace.TryPlaceThing(extraWood, origin + new IntVec3(size / 2, 0, size - 2), map, ThingPlaceMode.Near);
+                        extraWood.SetForbidden(false, false);
+                    }
                     // Beds for everyone but the fixture pawn: vertical 1x2 beds in
                     // columns 1,3,5,7 and rows 1 and 4 of the 7x7 interior, which
                     // leaves free 1x2 sites for the controller's bed.
                     var owned = new System.Collections.Generic.List<object>();
                     var slots = new[] { 1, 3, 5, 7 }.SelectMany(x => new[] { 1, 4 }.Select(z => new IntVec3(origin.x + x, 0, origin.z + z))).ToList();
-                    foreach (var (pawn, index) in people.Skip(1).Select((pawn, index) => (pawn, index))) {
+                    foreach (var (pawn, index) in people.Skip(connectedRooms ? 2 : 1).Select((pawn, index) => (pawn, index))) {
                         var bed = (Building_Bed)ThingMaker.MakeThing(ThingDefOf.Bed, ThingDefOf.WoodLog);
                         bed.SetFaction(Faction.OfPlayerSilentFail);
                         GenSpawn.Spawn(bed, slots[index], map, Rot4.North);
@@ -80,6 +87,7 @@ namespace HomeBridge.BridgeTools
                         if (!pawn.ownership.ClaimBedIfNonMedical(bed) || pawn.ownership.OwnedBed != bed) throw new InvalidOperationException("Colonist could not claim a fixture bed.");
                         owned.Add(new { pawn = pawn.GetUniqueLoadID(), bed = bed.GetUniqueLoadID(), x = bed.Position.x, z = bed.Position.z });
                     }
+                    if (connectedRooms) PrepareHomeRooms(map, origin, rect);
                     foreach (var worker in people) {
                         worker.playerSettings.AreaRestrictionInPawnCurrentMap = null;
                         worker.needs.rest.CurLevelPercentage = .95f;
@@ -90,9 +98,40 @@ namespace HomeBridge.BridgeTools
                     }
                     return new { success = true, pawn = p.GetUniqueLoadID(), colonists = people.Count, ownedBeds = owned, research = prerequisites?.Select(r => r.defName).ToArray(),
                         x = floorCell.x, z = floorCell.z, roomTemperatureC = floorCell.GetRoom(map).Temperature,
-                        room = new { x = origin.x, z = origin.z, width = size, height = size } };
+                        room = new { x = origin.x, z = origin.z, width = size, height = size },
+                        corridor = new { x = origin.x + 12, z = origin.z + 3 },
+                        outside = new { x = origin.x + 18, z = origin.z + 6 } };
                 } catch (Exception error) { return new { success = false, error = error.ToString() }; }
             }, cancellationToken).ConfigureAwait(false);
+        }
+
+        // Two 1x2 bed chambers have only one legal Bed footprint each. The
+        // roofed corridor joins them through doors, independently of the
+        // existing dormitory. No controller-owned facility is fixture-spawned.
+        private static void PrepareHomeRooms(Map map, IntVec3 origin, CellRect dormitory)
+        {
+            foreach (var c in dormitory.ContractedBy(1).Cells.Where(c => c.GetEdifice(map) == null).ToList()) {
+                var chair = ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed("DiningChair"), ThingDefOf.WoodLog);
+                chair.SetFaction(Faction.OfPlayerSilentFail);
+                GenSpawn.Spawn(chair, c, map);
+            }
+            var footprint = new CellRect(origin.x + 9, origin.z + 2, 9, 4);
+            foreach (var c in footprint) {
+                foreach (var thing in c.GetThingList(map).Where(t => t is Plant || t.def.category == ThingCategory.Item).ToList()) thing.Destroy();
+                int x = c.x - origin.x, z = c.z - origin.z;
+                bool chamber = (x == 10 || x == 16) && (z == 3 || z == 4);
+                bool corridor = x >= 12 && x <= 14 && z == 3;
+                bool door = (x == 11 || x == 15) && z == 3 || x == 13 && z == 2;
+                if (!chamber && !corridor) {
+                    var wall = ThingMaker.MakeThing(door ? ThingDefOf.Door : ThingDefOf.Wall, ThingDefOf.WoodLog);
+                    wall.SetFaction(Faction.OfPlayerSilentFail);
+                    GenSpawn.Spawn(wall, c, map);
+                }
+                map.roofGrid.SetRoof(c, RoofDefOf.RoofConstructed);
+            }
+            map.regionAndRoomUpdater.RebuildAllRegionsAndRooms();
+            foreach (var c in footprint)
+                if (c.GetRoom(map) is Room room && !room.TouchesMapEdge) room.Temperature = 21f;
         }
 
         [Tool("test/sleeping_need", Description = "Prepare low rest on an exact disposable test colonist.")]

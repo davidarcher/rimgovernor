@@ -774,8 +774,10 @@ the journal, including after retirement and Manual. Routine reviews query those
 current IDs inside the paused observation bracket and verify definition, position,
 rotation and material before deriving Home coverage or stone-shell needs. Player
 placements, explicit cancellation and replacement geometry confer no ownership.
-Unknown queries preserve established needs. Home exclusions remain explicit;
-Home/stone execution and stockpile ownership await their shared action families.
+Unknown queries preserve established needs. Home coverage restores missing cells
+in connected enclosed interiors in bounded batches, including cells removed
+since the previous review. The shared action families execute Home/stone work;
+stockpile ownership follows the completed zone receipt.
 The ownership census is bounded to 256 method records and 256 completed buildings;
 larger histories produce unknown ownership instead of silently truncating it.
 The facility-upkeep scenario uses the existing `UpkeepFixture` to remove one

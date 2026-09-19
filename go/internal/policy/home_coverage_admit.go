@@ -9,9 +9,8 @@ import (
 // planner selected against, so the intended cells may have moved.
 const HomeCoverageGeometryChanged Reason = "home_coverage_geometry_changed"
 
-// HomeCoverageExcluded is the exclusion rule: any missing cell
-// in scope that is a player or pre-observation Home exclusion blocks the
-// whole target rather than being overridden.
+// HomeCoverageExcluded remains decodable in retained pre-autonomy histories.
+// New Home coverage decisions never emit this reason.
 const HomeCoverageExcluded Reason = "home_coverage_excluded"
 
 type HomeCoverageFacts struct {
@@ -71,10 +70,13 @@ func EvaluateHomeCoverage(r HomeCoverageRequest) DraftDecision {
 			return refuse(UnknownFacts)
 		}
 	}
-	if excluded, _ := f.Excluded.Value(); excluded != 0 {
-		return refuse(HomeCoverageExcluded)
+	excluded, _ := f.Excluded.Value()
+	missing, _ := f.Missing.Value()
+	revision, _ := f.Revision.Value()
+	if excluded < 0 || missing < 0 || excluded > missing || revision < 0 {
+		return refuse(UnknownFacts)
 	}
-	if missing, _ := f.Missing.Value(); missing <= 0 {
+	if missing == 0 {
 		return refuse(NotReady)
 	}
 	eligible, known := f.NativeCanTry.Value()
