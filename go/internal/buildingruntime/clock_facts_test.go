@@ -128,8 +128,8 @@ func TestClockPageInvalidationNarrowed(t *testing.T) {
 		t.Fatal("rooms touched by a colony invalidation")
 	}
 	facts.apply(wholePage)
-	if zones, ok := factsstore.Get[int](facts.store, factsstore.Zones); !ok || !zones.Stale.All || facts.store.Fresh(factsstore.Zones, 1) {
-		t.Fatalf("a whole-family mention must keep the incremental zones section wholly stale (#358): %+v ok=%v", zones, ok)
+	if held, ok := factsstore.Get[int](facts.store, factsstore.Zones); !ok || !held.Stale.All || facts.store.Fresh(factsstore.Zones, 1) {
+		t.Fatal("zones must retain a stale delta baseline after a whole-family mention")
 	}
 }
 

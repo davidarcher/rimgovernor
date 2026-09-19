@@ -7,6 +7,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/facts"
+	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
@@ -50,10 +51,14 @@ func refreshEntitySections(ctx context.Context, native EntityNative, f *clockFac
 	if native == nil || f == nil {
 		return
 	}
-	refreshEntitySection(ctx, f, scope, tick, facts.Zones, "rimgovernor/observations_list_zones", func(since int64) (bridge.EntityRows[*o.ZoneState], error) {
-		rows, _, err := native.ReadZones(ctx, identity, since)
-		return rows, err
-	})
+	// The policy zone refresher owns the typed zone census when available.
+	// Do not overwrite it with a second read under a different store type.
+	if _, policyZones := native.(observation.ZonesNative); !policyZones {
+		refreshEntitySection(ctx, f, scope, tick, facts.Zones, "rimgovernor/observations_list_zones", func(since int64) (bridge.EntityRows[*o.ZoneState], error) {
+			rows, _, err := native.ReadZones(ctx, identity, since)
+			return rows, err
+		})
+	}
 	refreshEntitySection(ctx, f, scope, tick, facts.Buildings, "rimgovernor/observations_list_buildings", func(since int64) (bridge.EntityRows[*o.BuildingState], error) {
 		rows, _, err := native.ReadBuildings(ctx, identity, since)
 		return rows, err

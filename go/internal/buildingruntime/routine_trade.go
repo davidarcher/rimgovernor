@@ -446,6 +446,10 @@ func (r *RoutineTradePlanner) selection(call context.Context, state ControlState
 	if err != nil {
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, err
 	}
+	zoneNative, _ := r.native.(observation.ZonesNative)
+	if err = observation.FillZones(call, zoneNative, observed.Context.Identity, projection.Identity, &projection); err != nil {
+		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, err
+	}
 	projection.Facts.FoodPlan = r.reviewer.planFood(projection)
 	seasonal := r.reviewer.seasonal(projection.Facts)
 	construction, _, err := r.native.ReadConstructionDeficits(call, identity)

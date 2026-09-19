@@ -26,6 +26,24 @@ type routineNative struct {
 	pawnReply *o.ListPawnsReply
 }
 
+// Translate the legacy colony fixture's zone data at the new list boundary.
+func (n *routineNative) ReadZoneSection(ctx context.Context, _ *c.Identity, _ int64) (bridge.ZonesRead, bridge.Result, error) {
+	v := n.reply.GetObserved()
+	out := bridge.ZonesRead{Context: v.Context, AsOf: v.Context.GetTick(), MapSnapshot: v.GetPlanning().GetObserved().GetZoneMapSnapshot()}
+	for _, issue := range v.Issues {
+		if issue.GetField() == "farms" && out.MapSnapshot == nil {
+			return out, bridge.Result{}, bridge.ErrUnavailable
+		}
+	}
+	for _, farm := range v.Farms {
+		out.Rows = append(out.Rows, &o.ZoneState{Id: farm.ZoneId, Farm: farm, FoodStorage: proto.Bool(false)})
+	}
+	if v.GetFoodStorage() {
+		out.Rows = append(out.Rows, &o.ZoneState{Id: proto.String("storage"), FoodStorage: proto.Bool(true)})
+	}
+	return out, bridge.Result{}, ctx.Err()
+}
+
 func (n *routineNative) ReadRoutinePawns(ctx context.Context, _ *c.Identity, _ []string) (*o.ListPawnsReply, bridge.Result, error) {
 	if n.pawnReply != nil {
 		return n.pawnReply, bridge.Result{}, ctx.Err()

@@ -70,6 +70,7 @@ type ColonyProjection struct {
 	// Window is the window's provenance when a PlanningWindowSource served
 	// it (Source set); empty when the reply listed the cells itself.
 	Window facts.Held[PlanningCells]
+	Zones  facts.Held[bridge.ZonesRead]
 	// Farms lists observed growing zones by native id and current crop.
 	Farms []FarmZoneFact
 	// Environment is the controlled-growing census inside the planning region.
@@ -196,7 +197,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 	r.PlayerTechLevel = optional(v.PlayerTechLevel)
 	r.Threat = bridge.ProjectColonyThreat(v)
 	r.FoodChannels = colonyFoodChannels(v.FoodChannels)
-	r.Facts = policy.RoutineFacts{Colonists: countFact(v.ColonistCount), BedCapacity: countFact(v.BedCapacity), IndoorCapacity: countFact(v.IndoorSleepingCapacity), SleepingMin: optional(v.SleepingTemperatureMinC), SleepingMax: optional(v.SleepingTemperatureMaxC), OutdoorTemperature: optional(v.OutdoorTemperatureC), FoodStorage: optional(v.FoodStorage)}
+	r.Facts = policy.RoutineFacts{Colonists: countFact(v.ColonistCount), BedCapacity: countFact(v.BedCapacity), IndoorCapacity: countFact(v.IndoorSleepingCapacity), SleepingMin: optional(v.SleepingTemperatureMinC), SleepingMax: optional(v.SleepingTemperatureMaxC), OutdoorTemperature: optional(v.OutdoorTemperatureC)}
 	r.Facts.RaidPoints = bridge.ProjectColonyThreat(v).RaidPoints
 	threat := bridge.ProjectColonyThreat(v)
 	items, itemsKnown := threat.WealthItems.Value()
@@ -379,9 +380,6 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 		r.Facts.EventLoot = domain.Known(rows)
 	}
 	if planning := v.GetPlanning().GetObserved(); planning != nil {
-		if planning.ZoneMapSnapshot != nil && !hasIssue(planning.Issues, "zone_map_snapshot") {
-			r.ZoneMapToken = domain.Known(planning.ZoneMapSnapshot.GetToken())
-		}
 		for _, row := range planning.Definitions {
 			d := PlanningDefinition{HarvestWork: optional(row.HarvestWork), RawPreferred: optional(row.RawPreferred), DietAllowed: optional(row.DietAllowed), RequiresPollution: optional(row.RequiresPollution), RequiresCleanSoil: optional(row.RequiresCleanSoil), Edible: optional(row.Edible), Name: row.Definition.GetDefName(), Stuff: optional(row.Stuff), Available: optional(row.Available), ConstructionSkill: optional(row.ConstructionSkill), NeedsPower: optional(row.NeedsPower), GrowDays: optional(row.GrowDays), FertilityMin: optional(row.FertilityMin), FertilitySensitivity: optional(row.FertilitySensitivity), HarvestNutrition: optional(row.HarvestNutrition), NutritionDemandPerDay: optional(row.NutritionDemandPerDay), GrowMinGlow: optional(row.GrowMinGlow), PowerW: optional(row.PowerW), GrowerFertility: optional(row.GrowerFertility), GlowRadius: optional(row.GlowRadius), SowTag: optional(row.SowTag), Terrain: optional(row.Terrain), Cleanliness: optional(row.Cleanliness), Beauty: optional(row.Beauty), Flammability: optional(row.Flammability), PathCost: optional(row.PathCost), Research: append([]string{}, row.ResearchPrerequisites...)}
 			if row.GrowDays != nil {
@@ -414,16 +412,6 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 	if planning := v.GetPlanning().GetObserved(); planning != nil && planning.Environment != nil && !hasIssue(planning.Issues, "environment") {
 		r.Environment = domain.Known(colonyEnvironment(planning.Environment))
 	}
-	if !hasIssue(v.Issues, "farms") {
-		for _, farm := range v.Farms {
-			if farm.ZoneId != nil && farm.Crop != nil {
-				r.Farms = append(r.Farms, FarmZoneFact{ID: farm.GetZoneId(), Crop: farm.GetCrop(), UsableCells: optional(farm.UsableCells)})
-			}
-		}
-	}
-	r.FieldCrops = colonyFieldCrops(v, r.Definitions)
-	r.FoodFields = colonyFoodFields(v, r.Definitions)
-	r.FieldCapacityCrops = colonyFieldCrops(v, r.Definitions, true)
 	r.Facts.Gear = colonyGear(v)
 	return r, nil
 }

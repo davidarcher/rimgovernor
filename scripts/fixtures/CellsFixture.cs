@@ -23,6 +23,47 @@ namespace HomeBridge.BridgeTools
         private static readonly Dictionary<IntVec3, TerrainDef> terrain = new Dictionary<IntVec3, TerrainDef>();
         private static readonly List<IntVec3> roofed = new List<IntVec3>();
 
+        [Tool("test/zones_delta_mutate", Description = "UNSAFE FOR MODEL EXECUTION. Disposable zone delta fixture: add, resize, crop, remove, or advance 2501 real ticks for retention expiry.")]
+        public async Task<object> ZonesDelta(IRimBridgeContext ctx, CancellationToken cancellationToken, int originX, int originZ, string phase)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                if (map == null || !Find.TickManager.Paused) return Refuse("A paused disposable map is required.");
+                var cell = new IntVec3(originX + 1, 0, originZ + 1);
+                string id = "";
+                switch (phase)
+                {
+                    case "add":
+                        var growing = new Zone_Growing(map.zoneManager);
+                        map.zoneManager.RegisterZone(growing);
+                        growing.SetPlantDefToGrow(DefDatabase<ThingDef>.GetNamed("Plant_Rice"));
+                        growing.AddCell(cell);
+                        growing.AddCell(cell + IntVec3.East);
+                        zones.Add(growing);
+                        id = growing.GetUniqueLoadID();
+                        break;
+                    case "change":
+                        var zone = (Zone_Growing)zones.Last();
+                        zone.RemoveCell(cell);
+                        zone.AddCell(cell + IntVec3.North);
+                        zone.SetPlantDefToGrow(ThingDefOf.Plant_Potato);
+                        id = zone.GetUniqueLoadID();
+                        break;
+                    case "remove":
+                        id = zones.Last().GetUniqueLoadID();
+                        zones.Last().Delete();
+                        zones.RemoveAt(zones.Count - 1);
+                        break;
+                    case "tick": Find.TickManager.DoSingleTick(); break;
+                    case "expire":
+                        for (var i = 0; i < 2501; i++) Find.TickManager.DoSingleTick();
+                        break;
+                    default: return Refuse("Unknown zone delta phase.");
+                }
+                return new { success = true, id, tick = Find.TickManager.TicksGame };
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
         [Tool("test/cells_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable fixture: find one clear, unroofed, unzoned 8x8 outdoor site near an existing colonist and report its origin.")]
         public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken)
         {

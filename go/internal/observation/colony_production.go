@@ -22,12 +22,12 @@ func billActive(suspended *bool) domain.Fact[bool] {
 
 // colonyFoodFields preserves the native optimistic harvest ETA. A planted
 // field is future capacity, not an observed delivery of edible stock.
-func colonyFoodFields(v *o.ColonyFactsSnapshot, definitions []PlanningDefinition) domain.Fact[[]policy.FoodField] {
-	if hasIssue(v.Issues, "farms") {
+func colonyFoodFields(farms []*o.FarmFacts, definitions []PlanningDefinition) domain.Fact[[]policy.FoodField] {
+	if farms == nil {
 		return domain.Unknown[[]policy.FoodField]()
 	}
 	rows := []policy.FoodField{}
-	for _, farm := range v.Farms {
+	for _, farm := range farms {
 		if farm.ZoneId == nil || farm.GrowingCells == nil {
 			return domain.Unknown[[]policy.FoodField]()
 		}
@@ -51,12 +51,12 @@ func colonyFoodFields(v *o.ColonyFactsSnapshot, definitions []PlanningDefinition
 	return domain.Known(rows)
 }
 
-func colonyFieldCrops(v *o.ColonyFactsSnapshot, definitions []PlanningDefinition, usable ...bool) domain.Fact[[]policy.FieldCrop] {
-	if hasIssue(v.Issues, "farms") {
+func colonyFieldCrops(farms []*o.FarmFacts, definitions []PlanningDefinition, usable ...bool) domain.Fact[[]policy.FieldCrop] {
+	if farms == nil {
 		return domain.Unknown[[]policy.FieldCrop]()
 	}
-	rows := make([]policy.FieldCrop, 0, len(v.Farms))
-	for _, farm := range v.Farms {
+	rows := make([]policy.FieldCrop, 0, len(farms))
+	for _, farm := range farms {
 		row := policy.FieldCrop{Edible: optional(farm.EdibleCrop), GrowingCells: countFact(farm.GrowingCells)}
 		if len(usable) == 1 && usable[0] {
 			row.GrowingCells = countFact(farm.UsableCells)
@@ -80,27 +80,6 @@ func (p *ColonyProjection) ApplyFieldBudget(reserveDays float64) {
 }
 
 func colonyProduction(v *o.ColonyFactsSnapshot, facts *policy.RoutineFacts) {
-	if !hasIssue(v.Issues, "farms") {
-		var growing int64
-		known := true
-		for _, farm := range v.Farms {
-			if farm.EdibleCrop == nil {
-				known = false
-				continue
-			}
-			if !farm.GetEdibleCrop() {
-				continue
-			}
-			if farm.GrowingCells == nil {
-				known = false
-				continue
-			}
-			growing += int64(farm.GetGrowingCells())
-		}
-		if known {
-			facts.GrowingCells = domain.Known(growing)
-		}
-	}
 	if !hasIssue(v.Issues, "cooking") {
 		ready, known := false, true
 		for _, bench := range v.Cooking {
@@ -200,4 +179,28 @@ func colonyCalendar(climate *o.FoodClimate) domain.Fact[policy.Calendar] {
 		return domain.Unknown[policy.Calendar]()
 	}
 	return domain.Known(c)
+}
+
+func zoneProduction(farms []*o.FarmFacts, facts *policy.RoutineFacts) {
+	if farms != nil {
+		var growing int64
+		known := true
+		for _, farm := range farms {
+			if farm.EdibleCrop == nil {
+				known = false
+				continue
+			}
+			if !farm.GetEdibleCrop() {
+				continue
+			}
+			if farm.GrowingCells == nil {
+				known = false
+				continue
+			}
+			growing += int64(farm.GetGrowingCells())
+		}
+		if known {
+			facts.GrowingCells = domain.Known(growing)
+		}
+	}
 }

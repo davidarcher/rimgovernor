@@ -53,6 +53,7 @@ namespace HomeBridge.BridgeTools
             this.map = map;
             int count = map.cellIndices.NumGridCells;
             Since = Find.TickManager.TicksGame - 1;
+            ZoneTracking.Initialize(map, Since);
             lastChanged = new int[count];
             for (int i = 0; i < count; i++) lastChanged[i] = Since;
             indoors = new bool[count];

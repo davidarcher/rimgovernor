@@ -94,11 +94,11 @@ func run(ctx context.Context, s cases.Session) error {
 	}
 
 	// mapSnapshotToken reads the whole-map zone census token through
-	// rimgovernor/observations_read_colony_facts (planning=true), the same
+	// rimgovernor/observations_list_zones, the same
 	// boundary read bridge.ReadZoneTarget issues for CreateZone.
 	mapSnapshotToken := func(label string) (string, error) {
-		reply, err := h.Wire(ctx, label, "observations_read_colony_facts", map[string]any{
-			"scope": map[string]any{"expectedIdentity": identity}, "planning": true, "page": map[string]any{"limit": 256},
+		reply, err := h.Wire(ctx, label, "observations_list_zones", map[string]any{
+			"scope": map[string]any{"expectedIdentity": identity}, "page": map[string]any{"limit": 16},
 		})
 		if err != nil {
 			return "", err
@@ -107,9 +107,7 @@ func run(ctx context.Context, s cases.Session) error {
 		if err != nil {
 			return "", err
 		}
-		planning, _ := na.AsMap(observed["planning"])
-		planningObserved, _ := na.AsMap(planning["observed"])
-		snapshot, _ := na.AsMap(planningObserved["zoneMapSnapshot"])
+		snapshot, _ := na.AsMap(observed["mapSnapshot"])
 		token := na.AsString(snapshot["token"])
 		if token == "" {
 			return "", fmt.Errorf("%s: missing zone map snapshot token", label)

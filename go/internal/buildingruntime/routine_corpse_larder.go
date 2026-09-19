@@ -8,6 +8,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -98,7 +99,7 @@ func (r *RoutineFoodStorageUpkeepPlanner) admitCorpseZone(ctx, epoch context.Con
 		return RoutineFoodStorageUpkeepResult{}, err
 	}
 	v := fresh.GetObserved()
-	if v == nil || v.GetPlanning().GetObserved().GetZoneMapSnapshot() == nil {
+	if v == nil {
 		return RoutineFoodStorageUpkeepResult{Reason: BuildingMethodUnknown}, nil
 	}
 	if err = bridge.ValidateColonyFacts(v, boundary.Identity(state.Snapshot)); err != nil {
@@ -115,7 +116,15 @@ func (r *RoutineFoodStorageUpkeepPlanner) admitCorpseZone(ctx, epoch context.Con
 	if _, err = boundary.Context(v.Context, state.Snapshot); err != nil || v.Context.GetTick() < observed.Context.GetTick() {
 		return RoutineFoodStorageUpkeepResult{}, ErrControl
 	}
-	reply, _, err := native.PreviewZone(ctx, boundary.Identity(state.Snapshot), bridge.ZoneTarget{Zone: zone, Token: v.GetPlanning().GetObserved().GetZoneMapSnapshot().GetToken()})
+	zonesNative, _ := r.native.(observation.ZonesNative)
+	zones, err := observation.ReadZoneSection(ctx, zonesNative, boundary.Identity(state.Snapshot))
+	if err != nil {
+		return RoutineFoodStorageUpkeepResult{}, err
+	}
+	if zones.Value.MapSnapshot == nil {
+		return RoutineFoodStorageUpkeepResult{Reason: BuildingMethodUnknown}, nil
+	}
+	reply, _, err := native.PreviewZone(ctx, boundary.Identity(state.Snapshot), bridge.ZoneTarget{Zone: zone, Token: zones.Value.MapSnapshot.GetToken()})
 	if err != nil {
 		return RoutineFoodStorageUpkeepResult{}, err
 	}

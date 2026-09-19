@@ -36,20 +36,15 @@ func NewZoneControl(client *Client) (*ZoneControl, error) {
 	return &ZoneControl{client}, nil
 }
 func (client *Client) ReadZoneTarget(ctx context.Context, identity *c.Identity, zone domain.ZoneCreate) (ZoneRead, Result, error) {
-	var requested []string
-	if zone.Kind() == domain.GrowingZone {
-		requested = []string{zone.Crop()}
-	}
-	reply, raw, err := client.ReadColonyFacts(ctx, identity, true, requested)
+	reply, raw, err := client.ReadZoneSection(ctx, identity, 0)
 	if err != nil {
 		return ZoneRead{}, raw, err
 	}
-	v := reply.GetObserved()
-	snapshot := v.GetPlanning().GetObserved().GetZoneMapSnapshot()
+	snapshot := reply.MapSnapshot
 	if snapshot == nil {
 		return ZoneRead{}, raw, ErrUnavailable
 	}
-	return ZoneRead{Context: proto.Clone(v.Context).(*c.ObservationContext), Token: snapshot.GetToken()}, raw, nil
+	return ZoneRead{Context: proto.Clone(reply.Context).(*c.ObservationContext), Token: snapshot.GetToken()}, raw, nil
 }
 func ZoneConfiguration(zone domain.ZoneCreate) *op.CreateZone {
 	cells := &op.CellList{}

@@ -708,3 +708,30 @@ a conflict; exact acknowledgement replay uses the retained request ID. This only
 acknowledges inspected evidence and never acquires authority or resumes time.
 The dashboard preserves its last review during refresh failures and offers an
 explicit retry of the same acknowledgement after an uncertain response.
+
+### Zone policy section
+
+The `zones` section supplies farm capacity, planted/growing counts, harvest
+lower bounds, food-stockpile suitability and the guarded zone-map token.
+`observations_read_colony_facts` omits `farms`, `food_storage` and
+`planning.zone_map_snapshot`; these fields remain in the schema only for
+retained captures. Routine policy and zone creation read the zone section.
+
+`observations_list_zones` accepts an inclusive `changed_since_tick` for an
+unfiltered census. Each reply carries `as_of_tick`, `unchanged`, `removed_ids`
+and `map_snapshot`; each growing row carries `farm`, and each zone carries
+`food_storage`. The per-map zone tracker starts with the cell tracker,
+records registration, removal and cell edits through Harmony postfixes,
+and retains tombstones for 2500 ticks. Read-time comparisons also catch
+settings, crop growth, diet and room-enclosure changes without a per-tick
+scan. Those continuous farm measurements can cause a growing row to be
+emitted on each refresh; they are not treated as static zone configuration.
+
+A stale colony invalidation retains the zone baseline for merging by id.
+A scope change reads in full. An expired cursor returns STALE with detail
+`entity_tombstone_window_expired`; a cursor predating tracking returns
+`entity_tracking_not_available`. The Go reader replaces its census with a
+full read for either refusal. Every eighth refresh also reads in full and
+logs `[facts] zones resync drift=<n>` when both reads describe the same tick.
+`zone/changed-since` and `zone/tombstone-expiry` cover native mutation,
+omission, deletion, expiry/fallback and the absence of aggregate zone fields.

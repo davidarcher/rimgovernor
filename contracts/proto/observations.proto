@@ -417,8 +417,9 @@ message ZoneState {
   optional uint32 free_cells = 20; optional uint32 blocked_cells = 21; optional uint32 impassable_cells = 22;
   optional uint32 crop_plants_in_listed_cells = 23; optional uint32 crop_plants_in_grid_cells = 24;
   Completeness cells_completeness = 25; Completeness contents_completeness = 26; repeated ReadIssue issues = 27;
+  FarmFacts farm = 28; optional bool food_storage = 29;
 }
-message ZonesSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated ZoneState zones = 2; Completeness completeness = 3; repeated string removed_ids = 4; optional uint32 unchanged = 5; optional int64 as_of_tick = 6; }
+message ZonesSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated ZoneState zones = 2; Completeness completeness = 3; repeated string removed_ids = 4; optional uint32 unchanged = 5; optional int64 as_of_tick = 6; SnapshotRef map_snapshot = 7; }
 message ListZonesRequest { ReadScope scope = 1; repeated string ids = 2; optional string name_contains = 3; Rectangle region = 4; optional bool include_cells = 5; optional bool include_contents = 6; optional bool include_filter = 7; rimgovernor.common.v1.PageRequest page = 8; optional int64 changed_since_tick = 9; }
 message ListZonesReply { oneof outcome { ZonesSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message DesignationState { optional string def_name = 1; TargetRef target = 2; }

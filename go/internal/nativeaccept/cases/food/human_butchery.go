@@ -113,7 +113,11 @@ func humanButchery(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	command := bridge.ZoneConfiguration(zone)
-	token := v.GetPlanning().GetObserved().GetZoneMapSnapshot().GetToken()
+	zoneRead, _, err := h.Client.ReadZoneSection(ctx, v.Context.Identity, 0)
+	if err != nil {
+		return err
+	}
+	token := zoneRead.MapSnapshot.GetToken()
 	command.ExpectedMapSnapshotToken = &token
 	if err = execute("human-storage", &op.Operation{Command: &op.Operation_CreateZone{CreateZone: command}}); err != nil {
 		return err

@@ -21,6 +21,7 @@ type RoutineSections struct {
 	Pawns         facts.Held[RoutinePawns]
 	Emergency     facts.Held[policy.EmergencyFacts]
 	Rooms         facts.Held[policy.RoomObservation]
+	Zones         facts.Held[bridge.ZonesRead]
 	// Served names the sections the reading took from the store instead
 	// of reading (#360): they carry the held value and its as-of tick, and
 	// File leaves them as they are.
@@ -57,6 +58,7 @@ func (r RoutineSections) File(store *facts.Store, scope facts.Scope) {
 	file(store, scope, facts.Pawns, r.Pawns, r.Served)
 	file(store, scope, facts.Emergency, r.Emergency, r.Served)
 	file(store, scope, facts.Rooms, r.Rooms, r.Served)
+	file(store, scope, facts.Zones, r.Zones, r.Served)
 }
 
 func file[T any](store *facts.Store, scope facts.Scope, section facts.Section, held facts.Held[T], served map[facts.Section]bool) {
@@ -73,6 +75,7 @@ func (s *routineBracket) sections(projection ColonyProjection) RoutineSections {
 	out := RoutineSections{
 		Colony:        facts.Held[ColonyProjection]{Value: projection, AsOf: tick, Complete: true, Source: "rimgovernor/observations_read_colony_facts"},
 		PlanningCells: projection.Window,
+		Zones:         projection.Zones,
 		Served:        s.served,
 	}
 	if out.PlanningCells.Source == "" && projection.Cells != nil {
@@ -118,5 +121,6 @@ func (r RoutineSections) AsOf() map[facts.Section]int64 {
 	add(facts.Pawns, r.Pawns.Source, r.Pawns.AsOf)
 	add(facts.Emergency, r.Emergency.Source, r.Emergency.AsOf)
 	add(facts.Rooms, r.Rooms.Source, r.Rooms.AsOf)
+	add(facts.Zones, r.Zones.Source, r.Zones.AsOf)
 	return out
 }

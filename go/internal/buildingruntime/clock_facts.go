@@ -22,6 +22,7 @@ type clockFacts struct {
 	// windowRefreshes counts the planning window's delta refreshes across
 	// steps for the resync cadence (planningWindow, #357).
 	windowRefreshes int
+	zoneRefreshes   int
 	// entityRefreshes counts each entity section's delta refreshes across
 	// steps for the same cadence (refreshEntitySections, #358).
 	entityRefreshes map[facts.Section]int

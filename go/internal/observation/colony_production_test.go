@@ -12,7 +12,7 @@ import (
 func TestFieldBudgetUsesCropDefinitionsAndPreservesFoodRunway(t *testing.T) {
 	v := &o.ColonyFactsSnapshot{NutritionPerDay: proto.Float64(99), Farms: []*o.FarmFacts{{Crop: proto.String("Rice"), EdibleCrop: proto.Bool(true), GrowingCells: proto.Uint32(73)}}}
 	p := ColonyProjection{Facts: policy.RoutineFacts{Colonists: domain.Known(int64(3)), FoodDays: domain.Known(2.0)}}
-	p.FieldCrops = colonyFieldCrops(v, []PlanningDefinition{{Name: "Rice", NutritionDemandPerDay: domain.Known(5.0), GrowDays: domain.Known(3.0), HarvestNutrition: domain.Known(1.0)}})
+	p.FieldCrops = colonyFieldCrops(v.Farms, []PlanningDefinition{{Name: "Rice", NutritionDemandPerDay: domain.Known(5.0), GrowDays: domain.Known(3.0), HarvestNutrition: domain.Known(1.0)}})
 	p.ApplyFieldBudget(7)
 	if n, known := p.Facts.FieldCoverage.Value(); !known || n != 1 {
 		t.Fatal(p.Facts)
@@ -24,12 +24,12 @@ func TestFieldBudgetUsesCropDefinitionsAndPreservesFoodRunway(t *testing.T) {
 	if n, known := p.Facts.FieldCoverage.Value(); !known || n >= 1 {
 		t.Fatal(p.Facts)
 	}
-	p.FieldCrops = colonyFieldCrops(v, nil)
+	p.FieldCrops = colonyFieldCrops(v.Farms, nil)
 	p.ApplyFieldBudget(7)
 	if _, known := p.Facts.FieldCoverage.Value(); known {
 		t.Fatal("missing crop definition certified")
 	}
-	p.FieldCrops = colonyFieldCrops(v, []PlanningDefinition{{Name: "Rice", GrowDays: domain.Known(3.0), HarvestNutrition: domain.Known(1.0)}})
+	p.FieldCrops = colonyFieldCrops(v.Farms, []PlanningDefinition{{Name: "Rice", GrowDays: domain.Known(3.0), HarvestNutrition: domain.Known(1.0)}})
 	p.ApplyFieldBudget(7)
 	if _, known := p.Facts.FieldCoverage.Value(); known {
 		t.Fatal("human demand substituted for unknown competing-animal demand")
@@ -58,6 +58,7 @@ func TestProductionFactsRequireEdibleGrowingCellsAndActiveFoodBills(t *testing.T
 			}
 			f := policy.RoutineFacts{Colonists: domain.Known(int64(3))}
 			colonyProduction(v, &f)
+			zoneProduction(v.Farms, &f)
 			cooking, known := f.Cooking.Value()
 			if known != (change != "unknown-bill" && change != "unknown-bench") || cooking != (change == "ready" || change == "unknown-farm") {
 				t.Fatal(f.Cooking)

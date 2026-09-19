@@ -583,6 +583,11 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	// whether this step reviews are fixed once the bundle below is read,
 	// before any planning read asks it.
 	var window *planningWindow
+	var zones *zoneRefresher
+	if native, ok := s.native.(observation.ZonesNative); ok {
+		zones = &zoneRefresher{native: native, store: s.facts.store, refreshes: &s.facts.zoneRefreshes}
+		call = observation.WithZones(call, zones)
+	}
 	if native, ok := s.native.(PlanningWindowNative); ok {
 		window = &planningWindow{native: native, store: s.facts.store, refreshes: &s.facts.windowRefreshes}
 		call = observation.WithPlanningWindow(call, window)
@@ -654,7 +659,10 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	if window != nil {
 		window.scope, window.tick, window.review = factsScope(loaded.Context), loaded.Context.GetTick(), s.stepReviews(reason)
 	}
-	// The entity sections (zones, buildings, bills; #358) refresh once per
+	if zones != nil {
+		zones.scope, zones.tick = factsScope(loaded.Context), loaded.Context.GetTick()
+	}
+	// The remaining entity sections refresh once per
 	// full review step, delta reads over what the store holds.
 	if native, ok := s.native.(EntityNative); ok && s.stepReviews(reason) {
 		refreshEntitySections(call, native, s.facts, loaded.Context.Identity, factsScope(loaded.Context), loaded.Context.GetTick())

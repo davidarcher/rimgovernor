@@ -119,10 +119,6 @@ namespace HomeBridge.BridgeTools
                 result.Issues.Add(Issue("sleeping_temperature_max_c", Common.UnavailableReason.NotApplicable, "No eligible indoor sleeping place."));
             }
             foreach (var group in stock) result.Resources.Add(new Obs.Quantity { DefName = group.Key.defName, Units = group.Sum(t => (long)t.stackCount) });
-            result.FoodStorage = map.zoneManager.AllZones.OfType<Zone_Stockpile>().Any(zone =>
-                zone.GetStoreSettings()?.filter != null && DefDatabase<ThingDef>.AllDefsListForReading.Any(d => humanFood(d) && zone.GetStoreSettings().filter.Allows(d))
-                && map.AllCells.Count(c => map.zoneManager.ZoneAt(c) == zone && c.Roofed(map) && c.GetRoom(map) != null
-                    && c.GetRoom(map).ProperRoom && !c.GetRoom(map).PsychologicallyOutdoors) >= 9);
             var forbidden = StartingSupplyFacts.Forbidden(things, center, reachable);
             Bound(forbidden.Count, limit);
             foreach (var t in forbidden)
@@ -317,24 +313,6 @@ namespace HomeBridge.BridgeTools
         private static void ReadProduction(Obs.ColonyFactsSnapshot result, Map map, List<Pawn> people,
             List<Thing> things, Func<Thing, bool> reachable, Func<ThingDef, bool> humanFood, int limit)
         {
-            var farms = map.zoneManager.AllZones.OfType<Zone_Growing>().OrderBy(z => z.ID).ToList();
-            Bound(farms.Count, limit);
-            var cropField = BridgeCommon.PrivateInstanceField(typeof(Zone_Growing), "plantDefToGrow");
-            if (farms.Count > 0 && cropField == null) throw new InvalidOperationException("Native growing crop schema unavailable.");
-            foreach (var zone in farms) {
-                var crop = cropField!.GetValue(zone) as ThingDef;
-                if (crop?.plant == null) throw new InvalidOperationException("Native growing crop unavailable.");
-                var cells = map.AllCells.Where(c => map.zoneManager.ZoneAt(c) == zone && !c.Fogged(map)).ToList();
-                var plants = cells.Select(c => c.GetPlant(map)).Where(p => p != null && p.def == crop).ToList();
-                var product = crop.plant.harvestedThingDef;
-                var edible = product != null && humanFood(product);
-                var row = new Obs.FarmFacts { ZoneId = zone.ID.ToString(System.Globalization.CultureInfo.InvariantCulture), Crop = crop.defName,
-                    UsableCells = (uint)cells.Count(c => map.fertilityGrid.FertilityAt(c) >= crop.plant.fertilityMin),
-                    PlantedCells = (uint)plants.Count, GrowingCells = (uint)plants.Count(p => p.GrowthRateFactor_Temperature > 0 && p.GrowthRateFactor_Fertility > 0),
-                    EdibleCrop = edible, NutritionPerHarvestCell = edible ? Finite(crop.plant.harvestYield * product.GetStatValueAbstract(StatDefOf.Nutrition)) : 0 };
-                if (plants.Count > 0) row.HarvestLowerBoundDays = Finite(plants.Min(p => (1f - p.Growth) * crop.plant.growDays / Math.Max(.01f, p.GrowthRateFactor_Fertility)));
-                result.Farms.Add(row);
-            }
             var benches = things.OfType<Building_WorkTable>().Where(b => b.Faction == Faction.OfPlayer && reachable(b)
                 && b.def.AllRecipes.Any(r => r.products.Any(p => humanFood(p.thingDef)))).OrderBy(b => b.thingIDNumber).ToList();
             Bound(benches.Count, limit);
@@ -379,8 +357,6 @@ namespace HomeBridge.BridgeTools
             var names = request.RequestedDefinitionNames.Count == 0 ? StarterDefinitions : request.RequestedDefinitionNames.ToArray();
             Bound(names.Length, limit);
             var result = new Obs.PlanningFacts { Completeness = Complete(names.Length) };
-            try { result.ZoneMapSnapshot = NativeZoneCreation.MapSnapshot(map,context); }
-            catch (Exception) { result.Issues.Add(Issue("zone_map_snapshot", Common.UnavailableReason.ReadFailed, "Zone occupancy snapshot unavailable.")); }
             try { result.Gear = NativeGearFacts.Read(map, context, limit); }
             catch (Exception) { result.Issues.Add(Issue("gear", Common.UnavailableReason.ReadFailed, "Complete native loadout upkeep is unavailable.")); }
             var people = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead).ToList();
