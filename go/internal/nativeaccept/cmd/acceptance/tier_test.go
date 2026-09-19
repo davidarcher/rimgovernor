@@ -103,14 +103,42 @@ func TestLandCasesAreAffectedAreasPlusSmoke(t *testing.T) {
 			t.Errorf("land tier lacks %s", want)
 		}
 	}
-	// A shared input changed: every non-matrix case.
+	// A shared input changed: every non-matrix case except the nightly gate.
 	land, err = landCases(all, affected.Selection{AllHarnesses: true})
 	if err != nil {
 		t.Fatal(err)
 	}
 	full, _ := tierCases("full", "", "main")
-	if len(land) != len(full.Cases) {
+	if len(land) != len(full.Cases)-1 {
 		t.Errorf("all harnesses affected: land has %d cases, full %d", len(land), len(full.Cases))
+	}
+}
+
+func TestColonyStableNightlyOnly(t *testing.T) {
+	const name = "sustained/colony-stable"
+	for _, tier := range []string{"full", "smoke", "matrix"} {
+		set, err := tierCases(tier, "", "main")
+		if err != nil {
+			t.Fatal(err)
+		}
+		found := false
+		for _, c := range set.Cases {
+			found = found || c.Name == name
+		}
+		if found != (tier == "full") {
+			t.Errorf("%s contains stable gate: %v", tier, found)
+		}
+	}
+	for _, sel := range []affected.Selection{{AllHarnesses: true}, {Cases: []string{"sustained"}}, {Cases: []string{"sustained"}, Sampled: []string{"sustained"}}} {
+		land, err := landCases(cases.All(), sel)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, c := range land {
+			if c.Name == name {
+				t.Fatalf("land contains nightly gate for %+v", sel)
+			}
+		}
 	}
 }
 
