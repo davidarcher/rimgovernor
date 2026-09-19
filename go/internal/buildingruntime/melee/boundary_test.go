@@ -59,7 +59,9 @@ func TestMeleeBoundaryInspectMissingAndChangedFacts(t *testing.T) {
 				f.PreviewTick = 9
 				reject = true
 			case "emergency past":
-				f.PreviewTick = 11
+				// A cached emergency read within PlanningTickTolerance of
+				// the pawn read is accepted (#244); one past it is not.
+				f.EmergencyTick = proto.Int64(f.Ctx.GetTick() - int64(domain.PlanningTickTolerance) - 1)
 				reject = true
 			case "violent":
 				f.Row.Biography.DisabledWorkTags = []string{"Violent"}

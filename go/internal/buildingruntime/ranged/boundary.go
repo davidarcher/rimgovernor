@@ -156,11 +156,14 @@ func (b *RangedAttackBoundary) InspectRanged(ctx context.Context, target executo
 	if _, err = boundary.Context(emergency.Context, current); err != nil {
 		return out, err
 	}
-	if emergency.Context.GetTick() < evaluated.Context.GetTick() {
+	// The emergency read may be served from the step's fact cache, up to
+	// PlanningTickTolerance behind this inspection's first read; it must
+	// cover that read, not the preview taken after it (#244).
+	if !domain.Tick(emergency.Context.GetTick()).Covers(domain.Tick(observed.Context.GetTick())) {
 		return out, executor.ErrEvidence
 	}
 	facts := policy.RangedDefenseFacts{Snapshot: current, PawnTick: domain.Tick(observed.Context.GetTick()), PreviewTick: domain.Tick(evaluated.Context.GetTick()), NativeCanTry: boundary.FactBool(job.CanTry)}
-	facts.Emergency, err = policy.NewEmergencySnapshot(current, domain.Tick(emergency.Context.GetTick()), emergency.Facts)
+	facts.Emergency, err = policy.NewEmergencySnapshot(current, domain.Tick(evaluated.Context.GetTick()), emergency.Facts)
 	if err != nil {
 		return out, err
 	}

@@ -34,6 +34,9 @@ type Fixture struct {
 	LastPre                                              *a.WritePrecondition
 	LastPawn                                             *o.EntityPrecondition
 	LastRelease                                          *o.ReleaseOwnedDraftRequest
+	// EmergencyTick, when set, is the tick the emergency read reports in
+	// place of Ctx's: a cached read behind the pawn read.
+	EmergencyTick *int64
 }
 
 func NewFixture(t *testing.T) (*DraftBoundary, *Fixture) {
@@ -71,7 +74,11 @@ func (f *Fixture) ReadPawns(_ context.Context, id *c.Identity, ids []string) (*n
 	return &n.ListPawnsReply{Outcome: &n.ListPawnsReply_Observed{Observed: &n.PawnSnapshot{Context: proto.Clone(f.Ctx).(*c.ObservationContext), Pawns: rows, Completeness: &n.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(uint64(len(rows))), Returned: proto.Uint64(uint64(len(rows))), Filtered: proto.Uint64(10), Unreadable: proto.Uint64(0)}}}}, bridge.Result{}, f.ReadErr
 }
 func (f *Fixture) ReadEmergency(context.Context, *c.Identity) (bridge.EmergencyObservation, bridge.Result, error) {
-	return bridge.EmergencyObservation{Context: proto.Clone(f.Ctx).(*c.ObservationContext), Facts: policy.EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true)}}, bridge.Result{}, f.ReadErr
+	ctx := proto.Clone(f.Ctx).(*c.ObservationContext)
+	if f.EmergencyTick != nil {
+		ctx.Tick = proto.Int64(*f.EmergencyTick)
+	}
+	return bridge.EmergencyObservation{Context: ctx, Facts: policy.EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true)}}, bridge.Result{}, f.ReadErr
 }
 func (f *Fixture) PreviewDraft(_ context.Context, _ *c.Identity, pawn *o.EntityPrecondition) (*o.PreviewReply, bridge.Result, error) {
 	f.LastPawn = proto.Clone(pawn).(*o.EntityPrecondition)

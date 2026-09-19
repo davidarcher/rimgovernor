@@ -92,7 +92,7 @@ func (b *Boundary) InspectBuildingTemperature(ctx context.Context, t executor.Ta
 	// so a tick that advanced between them is a running clock, not stale
 	// evidence. Demanding one tick held every dispatch until the game
 	// paused (#195); bills, zones and supplies accept the same order.
-	if v.Context.GetTick() < int64(tick) || emergency.Context.GetTick() < v.Context.GetTick() {
+	if v.Context.GetTick() < int64(tick) || !domain.Tick(emergency.Context.GetTick()).Covers(tick) {
 		return out, executor.ErrHeld
 	}
 	tick = domain.Tick(v.Context.GetTick())

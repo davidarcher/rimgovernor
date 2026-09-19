@@ -128,10 +128,13 @@ func (b *DraftBoundary) InspectDraft(ctx context.Context, target executor.Target
 	if err != nil {
 		return out, err
 	}
-	if emergency.Context.GetTick() < evaluated.Context.GetTick() {
+	// The emergency read may be served from the step's fact cache, up to
+	// PlanningTickTolerance behind this inspection's first read; it must
+	// cover that read, not the preview taken after it (#244).
+	if !domain.Tick(emergency.Context.GetTick()).Covers(domain.Tick(observed.GetTick())) {
 		return out, executor.ErrEvidence
 	}
-	out.Emergency, err = policy.NewEmergencySnapshot(current, domain.Tick(emergency.Context.GetTick()), emergency.Facts)
+	out.Emergency, err = policy.NewEmergencySnapshot(current, domain.Tick(evaluated.Context.GetTick()), emergency.Facts)
 	if err != nil {
 		return out, err
 	}
