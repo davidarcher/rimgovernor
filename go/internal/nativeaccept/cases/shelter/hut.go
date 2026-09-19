@@ -137,6 +137,8 @@ func init() {
 		Start:  cases.Fixture{Op: corridorFixture, Args: map[string]any{"action": "setup", "layout": "rows", "period": 6}, On: cases.Save{Name: sustained.BaselineSave}},
 		Serve:  spec("hut-corridor"),
 		Budget: 15 * time.Minute,
+		// The irregular shell holds a signature up to 34s in passing runs (#353).
+		Stall: 90 * time.Second,
 		Run: func(ctx context.Context, s cases.Session) error {
 			return hut(ctx, s, variant{terrain: "rows", shape: "irregular", maxHeight: 5, edit: "cancel"})
 		},

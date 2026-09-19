@@ -281,6 +281,7 @@ func (s *Session) open(ctx context.Context, start Start, quiet QuietMode, keep [
 		return err
 	}
 	s.Names = names
+	s.Harness.Tools = names
 	s.Report["discovery"] = names
 	row, err := start.load(ctx, s, quiet)
 	if err != nil {
@@ -399,6 +400,7 @@ func (s *Session) Reattach(ctx context.Context) (*Harness, error) {
 		return nil, err
 	}
 	s.Harness = NewHarness(client, s.Config.Output)
+	s.Harness.Tools = s.Names
 	return s.Harness, nil
 }
 

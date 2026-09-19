@@ -19,6 +19,10 @@ import (
 // DefaultTimeout is the per-case safety net when Options names none.
 const DefaultTimeout = 20 * time.Minute
 
+// initialStallEnv is na.StallEnv as the process started, restored before a
+// case that declares no Stall of its own.
+var initialStallEnv = os.Getenv(na.StallEnv)
+
 // timeoutMargin is how far past a case's Budget the safety net sits when
 // the Budget alone would exceed it.
 const timeoutMargin = 5 * time.Minute
@@ -170,10 +174,17 @@ func Execute(ctx context.Context, c Case, opts Options) (na.Report, int) {
 		budget = opts.Budget
 	}
 	report.SetBudget(budget)
-	if opts.Stall > 0 {
-		// The shared waits and the future Session read the stall budget
-		// from the environment; a flag override is a per-process setting.
-		_ = os.Setenv(na.StallEnv, opts.Stall.String())
+	// The shared waits and the future Session read the stall budget from
+	// the environment; a flag override or the case's own Stall is set for
+	// this case and the process's original value put back for the next.
+	stall := opts.Stall
+	if stall <= 0 {
+		stall = c.Stall
+	}
+	if stall > 0 {
+		_ = os.Setenv(na.StallEnv, stall.String())
+	} else {
+		_ = os.Setenv(na.StallEnv, initialStallEnv)
 	}
 	report["stall_ms"] = na.StallBudget().Milliseconds()
 	if err := na.SetEvidenceMode(opts.Evidence); err != nil {

@@ -39,7 +39,7 @@ import (
 // "...e.4.4.north_south" every stage plan and the paired restart must
 // rebuild.
 func init() {
-	register := func(name, colony string, start cases.Start, shape excavationShape) {
+	register := func(name, colony string, start cases.Start, shape excavationShape, stall time.Duration) {
 		prefix := strings.TrimPrefix(name, "shelter/")
 		cases.Register(cases.Case{
 			Name: name,
@@ -66,11 +66,13 @@ func init() {
 			// 35 minutes on the 2026-09-17 baseline; staged, a healthy run takes
 			// about four minutes (#129).
 			Budget: 15 * time.Minute,
+			Stall:  stall,
 			Run:    func(ctx context.Context, s cases.Session) error { return excavation(ctx, s, shape) },
 		})
 	}
-	register("shelter/excavation", "Industrial debug colony", rectangle.fixture(nil), rectangle)
-	register("shelter/excavation-round", "Neolithic "+sustained.BaselineSave, round.fixture(cases.Save{Name: sustained.BaselineSave}), round)
+	register("shelter/excavation", "Industrial debug colony", rectangle.fixture(nil), rectangle, 0)
+	// The tribal miners hold a stage's signature up to 83s in passing runs (#353).
+	register("shelter/excavation-round", "Neolithic "+sustained.BaselineSave, round.fixture(cases.Save{Name: sustained.BaselineSave}), round, 2*time.Minute)
 }
 
 // excavationShape is the room the colony's tech level makes the planner dig

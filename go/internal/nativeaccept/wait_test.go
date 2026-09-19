@@ -143,7 +143,7 @@ func TestWaitStatsRecordTheLongestQuietSpan(t *testing.T) {
 
 func TestDefaultStallIsMinutesNotTens(t *testing.T) {
 	t.Setenv(StallEnv, "")
-	if StallBudget() != DefaultStall || DefaultStall > 5*time.Minute {
+	if StallBudget() != DefaultStall || DefaultStall > 2*time.Minute {
 		t.Fatalf("StallBudget = %s (DefaultStall %s)", StallBudget(), DefaultStall)
 	}
 	t.Setenv(StallEnv, "90s")

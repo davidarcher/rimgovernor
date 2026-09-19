@@ -237,6 +237,10 @@ type Case struct {
 	// Budget fails the run when exceeded, distinct from the -timeout safety
 	// net. Every case declares one, at most MaxBudget (checklist item 6).
 	Budget time.Duration
+	// Stall replaces na.DefaultStall for the case's waits: a case whose
+	// passing runs hold a signature longer than the default (#353). Zero
+	// is the shared budget; the runner's -stall overrides both.
+	Stall time.Duration
 	// Letters are the interruption letters the case expects, as
 	// {label, letterDef} pairs in AdvanceGame's order. Nil leaves
 	// Session.Advance on AdvanceGame's lenient default (the acknowledged

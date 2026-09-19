@@ -15,16 +15,17 @@ import (
 const StallEnv = "RIMGOVERNOR_ACCEPT_STALL"
 
 // DefaultStall is the shared stall budget: long enough for a wall segment or
-// a haul under the serve clock at Fast, short enough that a letter pause, a
-// lost service or a plan the executor never moves ends the run soon after
-// it stops moving. It was 10 minutes until every failed run was found to
-// spend those ten minutes watching an unchanged signature (a 14-minute
-// defense run held its last signature for 10m1s); a wait that needs the
-// game to do more than a few minutes of work is bounded in ticks
-// (Wait.Ticks, RunUntil), not by a longer stall. Finalize records each
-// run's longest quiet span under wait_stats so the budget can be tuned
-// from passing runs.
-const DefaultStall = 3 * time.Minute
+// a haul under the serve clock, short enough that a lost service or a plan
+// the executor never moves ends the run soon after it stops moving. Across
+// 406 passing rows the longest quiet span was p90 6s, p99 39s (#353); a
+// case whose passing runs hold a signature longer declares its own
+// cases.Case.Stall rather than inflating this. A wait that needs the game
+// to do more than a minute of work is bounded in ticks (Wait.Ticks,
+// RunUntil), not by a longer stall, and a forced native pause under
+// RunUntil fails at once with its cause (PauseCause). Finalize records
+// each run's longest quiet span under wait_stats so the budget can be
+// tuned from passing runs.
+const DefaultStall = time.Minute
 
 // StallBudget returns StallEnv's duration, or DefaultStall when unset or
 // unparsable.

@@ -54,7 +54,9 @@ func init() {
 			Families: []string{"dialog", "supply", "shelter", "sleeping"}, NativeTimeout: 15 * time.Second, Prefix: "dialog-pause",
 		},
 		Budget: 12 * time.Minute,
-		Run:    run,
+		// A dialog answer took 68s to show in the trace once (#353).
+		Stall: 2 * time.Minute,
+		Run:   run,
 	})
 }
 

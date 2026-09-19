@@ -41,7 +41,9 @@ import (
 const prefix = "clean-accept"
 
 func init() {
-	for _, scenario := range []string{"filthy", "separation"} {
+	// Passing runs hold a journal signature up to 39s (filthy) and 124s
+	// (separation) while the routine cleans or rebuilds (#353).
+	for scenario, stall := range map[string]time.Duration{"filthy": 90 * time.Second, "separation": 3 * time.Minute} {
 		scenario := scenario
 		cases.Register(cases.Case{
 			Name: "clean/" + scenario,
@@ -53,6 +55,7 @@ func init() {
 			Start:   cases.Fixture{Op: "test/cleanliness_prepare", Args: map[string]any{"scenario": scenario, "filthPerRoom": 3}},
 			Service: true,
 			Budget:  5 * time.Minute,
+			Stall:   stall,
 			Run:     func(ctx context.Context, s cases.Session) error { return run(ctx, s, scenario) },
 		})
 	}

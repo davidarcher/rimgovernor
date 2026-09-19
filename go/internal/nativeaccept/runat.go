@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -38,11 +39,109 @@ func (h *Harness) Tick(ctx context.Context) (uint64, error) {
 	return uint64(AsNumber(loadedContext["tick"])), nil
 }
 
+// PauseCause is why the game stopped ticking under RunUntil (#353): what
+// home/status showed when a probe found the game paused although the
+// harness asked for RunSpeed. Letters are the stack's rows (id, label,
+// letterDef), Windows the open windows that force a pause (type, title).
+// A wait fails with it at once instead of burning its stall budget.
+type PauseCause struct {
+	Label       string
+	Tick        uint64
+	ForcePaused bool
+	Letters     []map[string]any
+	Windows     []map[string]any
+	Status      map[string]any
+}
+
+func (c *PauseCause) Error() string {
+	var parts []string
+	for _, letter := range c.Letters {
+		parts = append(parts, fmt.Sprintf("letter %q (%s)", AsString(letter["label"]), AsString(letter["letterDef"])))
+	}
+	for _, window := range c.Windows {
+		parts = append(parts, fmt.Sprintf("window %s %q", AsString(window["type"]), AsString(window["title"])))
+	}
+	cause := strings.Join(parts, ", ")
+	if cause == "" {
+		cause = "no letter or force-pausing window on home/status"
+	}
+	return fmt.Sprintf("%s: game paused at tick %d while running (forcePaused=%t): %s", c.Label, c.Tick, c.ForcePaused, cause)
+}
+
+// resolvePause is RunUntil's answer to a probe that found the game paused:
+// it reads home/status and either clears the cause and resumes RunSpeed,
+// or returns the *PauseCause classifyPause found.
+func (h *Harness) resolvePause(ctx context.Context, label string, tick uint64) error {
+	status, err := h.Call(ctx, label+"-paused", "home/status", map[string]any{"colonists": false, "threats": false})
+	if err != nil {
+		return err
+	}
+	cause, dismiss := classifyPause(status, h.Tools, label, tick)
+	if cause != nil {
+		return cause
+	}
+	for _, letter := range dismiss {
+		reply, err := h.Call(ctx, label+"-dismiss", DismissLetterTool, map[string]any{"letterId": letter["id"]})
+		if err != nil {
+			return err
+		}
+		if removed, _ := AsBool(reply["removed"]); !removed {
+			return fmt.Errorf("%s: letter %v was not on the stack: %#v", label, letter["id"], reply)
+		}
+	}
+	if len(dismiss) == 0 {
+		return nil
+	}
+	_, err = h.Call(ctx, label+"-resume", "rimworld/set_time_speed", map[string]any{"speed": RunSpeed, "ultraSpeedBoost": RunBoost})
+	return err
+}
+
+// classifyPause decides what a paused home/status means for a running
+// wait. A status that shows the game running again is a transient (nil,
+// nil). A stack of letters that are all in AcknowledgedLetterDefs is
+// returned to dismiss (DismissLetterTool, when tools carries it), as the
+// service acknowledges them, since a bridge-only case has no routine layer
+// to do it. A force-pausing window, any other letter, or a pause with no
+// visible cause is the *PauseCause that fails the wait.
+func classifyPause(status map[string]any, tools []string, label string, tick uint64) (cause *PauseCause, dismiss []map[string]any) {
+	timeStatus, _ := AsMap(status["time"])
+	if paused, _ := AsBool(timeStatus["paused"]); !paused {
+		return nil, nil
+	}
+	cause = &PauseCause{Label: label, Tick: tick, Status: status}
+	cause.ForcePaused, _ = AsBool(timeStatus["forcePaused"])
+	for _, raw := range AsSlice(status["letters"]) {
+		if row, ok := AsMap(raw); ok {
+			cause.Letters = append(cause.Letters, map[string]any{"id": row["id"], "label": row["label"], "letterDef": row["letterDef"]})
+		}
+	}
+	ui, _ := AsMap(status["ui"])
+	for _, raw := range AsSlice(ui["windows"]) {
+		if row, ok := AsMap(raw); ok {
+			if force, _ := AsBool(row["forcePause"]); force {
+				cause.Windows = append(cause.Windows, map[string]any{"type": row["type"], "title": row["title"]})
+			}
+		}
+	}
+	if len(cause.Windows) > 0 || len(cause.Letters) == 0 || !Contains(tools, DismissLetterTool) {
+		return cause, nil
+	}
+	for _, letter := range cause.Letters {
+		if !AcknowledgedLetterDefs[AsString(letter["letterDef"])] {
+			return cause, nil
+		}
+	}
+	return nil, cause.Letters
+}
+
 // RunUntil runs the game at RunSpeed and polls probe until it is done, then
 // pauses; ticks is the game-time budget and w's own bounds still apply
 // (Interval defaults to 2s, Tick is set here). It returns how many ticks
 // the game advanced. The probe's signature may be empty: the tick is
-// always part of the signature, so a game that stops ticking stalls.
+// always part of the signature, so a game that stops ticking stalls. A
+// game found paused is resolved before the probe (resolvePause): benign
+// letters are acknowledged and the run resumed, anything else fails the
+// wait at once with a *PauseCause.
 func RunUntil(ctx context.Context, h *Harness, label string, ticks uint64, w Wait, probe Probe) (uint64, error) {
 	if ticks == 0 {
 		return 0, fmt.Errorf("%s: a tick budget is required", label)
@@ -57,17 +156,28 @@ func RunUntil(ctx context.Context, h *Harness, label string, ticks uint64, w Wai
 		w.Interval = RunInterval
 	}
 	var latest uint64
+	var paused bool
 	w.Ticks = ticks
 	w.Tick = func(ctx context.Context) (uint64, error) {
-		tick, err := h.Tick(ctx)
-		latest = tick
-		return tick, err
+		loaded, err := readLoaded(ctx, h, "tick")
+		if err != nil {
+			return 0, err
+		}
+		loadedContext, _ := AsMap(loaded["context"])
+		latest = uint64(AsNumber(loadedContext["tick"]))
+		paused, _ = AsBool(loaded["paused"])
+		return latest, nil
 	}
 	first := uint64(0)
 	haveFirst := false
 	err := WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
 		if !haveFirst {
 			first, haveFirst = latest, true
+		}
+		if paused {
+			if err := h.resolvePause(ctx, label, latest); err != nil {
+				return "", false, err
+			}
 		}
 		signature, done, err := probe(ctx)
 		return Signature(latest, signature), done, err

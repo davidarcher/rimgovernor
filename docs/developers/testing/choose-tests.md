@@ -447,18 +447,21 @@ the serve subprocess having exited (`service.Exited`). The shared
 `WaitReview` (a latch or binding on the routine review), `WaitPlan` (a
 plan's stages, with `PlanSignature`), `WaitGoalMethod`, `WaitPlanTerminal`
 and `WaitRoutineReview` already do this
-with `na.StallBudget()` (3 minutes, `RIMGOVERNOR_ACCEPT_STALL` overrides);
-harnesses with their own loops take a `-stall` flag defaulting to the same.
-The budget was 10 minutes until a sweep of failed runs showed every one of
-them spending those ten minutes on an unchanged signature (a 14-minute
-defense run held its last signature for 10m1s; a 20-minute hut run for
-10m0s): a stall is a broken run, and a wait that legitimately needs the
-game to do more than a few minutes of work is bounded in ticks (`Wait.Ticks`,
-`RunUntil`), not by a longer stall. Every `result.json` carries
-`wait_stats` (`waits`, `stalled`, `max_quiet_ms` with the signature that
-held longest, `stall_budget_ms`); a passing run whose `max_quiet_ms`
-approaches the budget is the evidence for raising it, or for moving that
-wait onto a tick budget.
+with `na.StallBudget()` (1 minute; a case whose passing runs hold a
+signature longer declares `Case.Stall`, and `RIMGOVERNOR_ACCEPT_STALL` or
+the runner's `-stall` overrides both). Across 406 passing rows the longest
+quiet span was p90 6s, p99 39s (#353): a stall is a broken run, and a wait
+that legitimately needs the game to do more than a minute of work is
+bounded in ticks (`Wait.Ticks`, `RunUntil`), not by a longer stall.
+`RunUntil` also reads `paused` with every tick probe: a game that stopped
+under a running speed is resolved through `home/status` at once, letters
+in `AcknowledgedLetterDefs` dismissed and the run resumed, anything else
+(a force-pausing window, another letter, a pause with no visible cause)
+failing the wait with a `*na.PauseCause` that names it. Every
+`result.json` carries `wait_stats` (`waits`, `stalled`, `max_quiet_ms`
+with the signature that held longest, `stall_budget_ms`); a passing run
+whose `max_quiet_ms` approaches the budget is the evidence for a
+`Case.Stall`, or for moving that wait onto a tick budget.
 The headless profile's `Prefs.xml` is the player's copy trimmed by
 `na.TrimPrefs` (`HeadlessPrefs`): autosaves effectively off (1000 days;
 the interval must stay under ~35791 days or the autosaver's int threshold

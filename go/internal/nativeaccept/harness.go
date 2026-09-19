@@ -21,6 +21,9 @@ import (
 type Harness struct {
 	Client *bridge.Client
 	Output string
+	// Tools is the discovered tool catalog (Session sets it); RunUntil
+	// consults it for DismissLetterTool.
+	Tools []string
 }
 
 func NewHarness(client *bridge.Client, output string) *Harness {
