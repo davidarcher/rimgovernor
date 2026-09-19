@@ -1274,10 +1274,17 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	if err != nil {
 		return RoutineNeeds{}, err
 	}
-	if r.Disaster != nil {
+	areaChanges := PlanAllowedAreas(f)
+	if _, safetyKnown := f.RecoverySafety.Value(); r.Disaster != nil || safetyKnown {
 		need := RecoveryNeed(r.Disaster, f.RecoverySafety)
+		if len(areaChanges) > 0 {
+			need = domain.NeedDeficit
+		}
 		priority := r.Disaster.Promote(RecoverDisasterServices, 3)
-		if s, k := f.RecoverySafety.Value(); k && positive(s.RoofHazard) && r.Disaster.Phase != DisasterRestored {
+		if len(areaChanges) > 0 {
+			priority = 2
+		}
+		if s, k := f.RecoverySafety.Value(); k && positive(s.RoofHazard) {
 			priority = 2
 		}
 		r.Assessments = append(r.Assessments, RoutineAssessment{ID: RecoverDisasterServices, Priority: priority, Need: need})

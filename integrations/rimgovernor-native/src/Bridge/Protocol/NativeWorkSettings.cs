@@ -106,9 +106,23 @@ namespace HomeBridge.BridgeTools
         {
             requested = command.AllowedArea != null; clear = false; area = null;
             if (!requested) return true;
-            if (command.AllowedArea!.ValueCase == Operations.Assignment.ValueOneofCase.Clear) { clear = true; return true; }
+            if (command.AllowedArea!.ValueCase == Operations.Assignment.ValueOneofCase.Clear) { clear = true; return AreaSafeAndReachable(pawn, null); }
             area = ResolveArea(pawn, command.AllowedArea.EntityId);
-            return area != null;
+            return area != null && AreaSafeAndReachable(pawn, area);
+        }
+
+        // Recheck at preview and apply: a settings token alone does not bind
+        // changing weather, roof geometry or paths. Removing a saved restriction
+        // restores ordinary native job reachability; it never teleports a pawn.
+        internal static bool AreaSafeAndReachable(Pawn pawn, Area_Allowed? area)
+        {
+            var conditions = new System.Collections.Generic.List<GameCondition>();
+            pawn.Map.gameConditionManager.GetAllGameConditionsAffectingMap(pawn.Map, conditions);
+            var roofHazard = conditions.Any(c => c is GameCondition_ToxicFallout);
+            if (area == null) return !roofHazard;
+            if (area.TrueCount == 0 || (roofHazard && area.ActiveCells.Any(c => !c.Roofed(pawn.Map) || c.Fogged(pawn.Map)))) return false;
+            return area.ActiveCells.Any(c => !c.Fogged(pawn.Map) && c.Standable(pawn.Map)
+                && pawn.CanReach(c, Verse.AI.PathEndMode.OnCell, Danger.Some));
         }
 
         private static bool ScheduleDefined(Operations.PatchPawn command) => command.Schedule == null
@@ -140,7 +154,7 @@ namespace HomeBridge.BridgeTools
                 .Require(() => command.Work.All(row => DefDatabase<WorkTypeDef>.GetNamedSilentFail(row.WorkTypeDef) != null), "a requested work type is not defined")
                 .Require(() => command.Work.All(row => row.Priority == 0 || !found!.WorkTypeIsDisabled(DefDatabase<WorkTypeDef>.GetNamed(row.WorkTypeDef))), "a requested work type is disabled for the pawn")
                 .Require(() => manual.GetValueOrDefault() || command.Work.All(row => row.Priority == 0 || row.Priority == 3), "manual priorities are off, so only 0 or 3 can be set")
-                .Require(() => PrepareArea(command, found!, out _, out _, out _), "the requested allowed area is not on the pawn's map")
+                .Require(() => PrepareArea(command, found!, out _, out _, out _), "the requested allowed area is missing, unreachable or unsafe under the current roof hazard")
                 .Require(() => ScheduleDefined(command), "a requested timetable assignment is not defined")
                 .Require(() => ScheduleWritable(command, found!), "the pawn has no 24-hour timetable")
                 .Token(() => Snapshot(found!, context)?.Token == command.Pawn.ExpectedSnapshotToken, "the pawn's work/area/schedule snapshot changed since it was read");

@@ -11,17 +11,10 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// RoutineRecoveryPlanner proposes one recovery action for
-// RecoverDisasterServices: policy.SelectRecoveryMethods already ranks and
-// validates candidates, ordering exposure protection (RecoveryAreaProposal)
-// strictly before repair/breakdown/refuel work (RecoveryServiceProposal) --
-// the two kinds never co-occur in one selection, so this planner dispatches
-// whichever single kind SelectRecoveryMethods returned. A RecoveryAreaProposal
-// winner becomes a work_assignment action carrying only an allowed-area
-// change (domain.NewAreaAssignment), dispatched through the same native
-// PatchPawn CAS write work-priority assignments already use
-// (go/internal/bridge/work_assignment.go, NativeWorkSettings.cs); a
-// RecoveryServiceProposal winner becomes a recovery_service action as before.
+// RoutineRecoveryPlanner reconciles colonist and animal areas from current
+// hazards before proposing repair/breakdown/refuel work. Area correction needs
+// no disaster history. Colonists use PatchPawn CAS and animals use husbandry's
+// current-settings/census CAS, both through ordinary Hands admission.
 //
 // Unlike RoutineGearPlanner, this planner re-derives its selection with a
 // fresh full colony census (observation.ObserveRoutineOwned against the
@@ -81,9 +74,6 @@ func (r *RoutineRecoveryPlanner) step(call, epoch context.Context, arbiter *step
 	if !review.Enabled || !review.Snapshot.Matches(state.Snapshot) {
 		return RoutineRecoveryResult{Reason: BuildingMethodNoReview}, nil
 	}
-	if review.Disaster == nil {
-		return RoutineRecoveryResult{Reason: BuildingMethodNoDeficit}, nil
-	}
 	var goal store.GoalState
 	found := false
 	for _, binding := range review.Goals {
@@ -99,13 +89,14 @@ func (r *RoutineRecoveryPlanner) step(call, epoch context.Context, arbiter *step
 	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit {
 		return RoutineRecoveryResult{Reason: BuildingMethodNoDeficit}, nil
 	}
+	var open []store.PlanState
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
 		if err != nil {
 			return RoutineRecoveryResult{}, err
 		}
 		if domain.GoalWorkOpen(plan.Progress) {
-			return RoutineRecoveryResult{Reason: BuildingMethodExistingWork}, nil
+			open = append(open, plan)
 		}
 	}
 	identity, _, err := r.reviewer.native.Identity(call)
@@ -125,6 +116,29 @@ func (r *RoutineRecoveryPlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineRecoveryResult{}, err
 	}
 	facts := read.Projection.Facts
+	changes := policy.PlanAllowedAreas(facts)
+	workers, _ := read.Projection.WorkPawns.Value()
+	if err = p.current(call, epoch); err != nil {
+		return RoutineRecoveryResult{}, err
+	}
+	if p.session.State() != state {
+		return RoutineRecoveryResult{}, ErrControl
+	}
+	for _, plan := range open {
+		if err := cancelStaleAreaActions(call, p.journal, plan, changes, workers); err != nil {
+			return RoutineRecoveryResult{}, err
+		}
+		updated, err := p.journal.LoadPlan(call, plan.Spec.ID())
+		if err != nil {
+			return RoutineRecoveryResult{}, err
+		}
+		if domain.GoalWorkOpen(updated.Progress) {
+			return RoutineRecoveryResult{Reason: BuildingMethodExistingWork}, nil
+		}
+	}
+	if len(changes) > 0 {
+		return r.commitAreaChange(call, epoch, arbiter, state.Snapshot, goal, changes, workers, started)
+	}
 	planning := policy.RecoveryPlanning{Safety: facts.RecoverySafety, Workers: facts.RecoveryWorkers, Buildings: facts.RecoveryBuildings}
 	seen := make([]domain.MethodID, 0, len(goal.Methods))
 	for _, method := range goal.Methods {

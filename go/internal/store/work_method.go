@@ -23,16 +23,21 @@ func admitWorkMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan domai
 		return ErrConflict
 	}
 	bound := false
+	areaOnly := false
 	for _, binding := range review.Goals {
 		bound = bound || binding.Need == policy.EnsureWorkAssignments && binding.Goal == goal.Goal.ID
+		areaOnly = areaOnly || binding.Need == policy.RecoverDisasterServices && binding.Goal == goal.Goal.ID
 	}
-	if !bound {
+	if !bound && !areaOnly {
 		return ErrConflict
 	}
 	pawns := map[domain.PawnID]bool{}
 	for _, action := range plan.Actions() {
 		w, ok := action.WorkAssignment()
 		if !ok || pawns[w.Pawn()] {
+			return ErrConflict
+		}
+		if areaOnly && (!w.HasArea() || w.HasSchedule() || len(w.Settings()) != 0) {
 			return ErrConflict
 		}
 		pawns[w.Pawn()] = true

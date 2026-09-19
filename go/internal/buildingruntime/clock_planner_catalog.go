@@ -511,7 +511,7 @@ var plannerCatalog = []plannerEntry{
 			out.AnimalContainment = &method
 			return nil
 		}},
-	{name: "recovery", priority: plannerCritical, kinds: []domain.ActionKind{domain.RecoveryServiceAction, domain.WorkAssignmentAction}, families: factsThreat,
+	{name: "recovery", priority: plannerCritical, kinds: []domain.ActionKind{domain.RecoveryServiceAction, domain.WorkAssignmentAction, domain.HusbandryAction}, families: []bridge.FactFamily{bridge.FactPawns, bridge.FactEmergency, bridge.FactColony},
 		configured: func(c *ClockSchedulerConfig) bool { return c.Recovery != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.Recovery.step(ctx, epoch, arbiter)

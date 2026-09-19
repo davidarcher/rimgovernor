@@ -12,6 +12,8 @@ const (
 )
 
 type UpkeepAnimal struct {
+	SupportsAreas                              domain.Fact[bool]
+	AllowedArea                                domain.Fact[string]
 	ID                                         PawnID
 	Definition                                 Resource
 	RequiresPen, Contained, Release, Slaughter domain.Fact[bool]

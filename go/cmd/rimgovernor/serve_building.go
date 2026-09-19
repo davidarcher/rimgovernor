@@ -676,7 +676,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		recoveryServiceCapabilities = client.recoveryService
 	}
 	var husbandryCapabilities *buildingruntime.HusbandryCapabilities
-	if config.routineHusbandryPlans {
+	if config.routineHusbandryPlans || config.routineRecoveryPlans {
 		if client.husbandry == nil {
 			return errors.New("husbandry plans require typed capabilities")
 		}

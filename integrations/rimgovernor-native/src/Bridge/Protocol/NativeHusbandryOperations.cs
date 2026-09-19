@@ -250,6 +250,9 @@ namespace HomeBridge.BridgeTools
                     if (!SupportsAllowedAreas(animal)) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Native does not let this animal carry an allowed area."); return false; }
                     if (operation.SetAnimalArea.Area.ValueCase == Operations.Assignment.ValueOneofCase.EntityId && ResolveArea(animal, operation.SetAnimalArea.Area.EntityId) == null)
                     { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact allowed area is unavailable on the animal's map."); return false; }
+                    if (!NativeWorkSettings.AreaSafeAndReachable(animal, operation.SetAnimalArea.Area.ValueCase == Operations.Assignment.ValueOneofCase.EntityId
+                        ? ResolveArea(animal, operation.SetAnimalArea.Area.EntityId) : null))
+                    { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Allowed area must preserve current hazard protection and native reachability."); return false; }
                     break;
                 case HusbandryKind.Master:
                     if (!Obedient(animal)) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A master requires learned Obedience."); return false; }

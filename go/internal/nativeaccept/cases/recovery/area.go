@@ -207,6 +207,16 @@ func runArea(ctx context.Context, s cases.Session) error {
 	if err != nil {
 		return err
 	}
+	clearOperation := map[string]any{"patchPawn": map[string]any{
+		"pawn":        map[string]any{"entityId": pawnID, "expectedSnapshotToken": beforeToken},
+		"allowedArea": map[string]any{"clear": map[string]any{}},
+	}}
+	if _, err := failureCode("hazard-clear-refused", buildRequest("area-hazard-clear", staleGeneration, clearOperation)); err != nil {
+		return err
+	}
+	if _, area, err := pawnState("hazard-clear-unchanged"); err != nil || area != beforeArea {
+		return fmt.Errorf("hazard clear changed restriction: %s, %v", area, err)
+	}
 	staleRequest := buildRequest("area-stale-token", staleGeneration,
 		buildOperation(pawnID, "stale-pawn-token-00000000000000000000000000000000", refugeID))
 	if code, err := failureCode("stale-token", staleRequest); err != nil {

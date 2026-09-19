@@ -205,6 +205,13 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 		allowed[n.ID] = true
 		optional[n.ID] = n.Priority >= 3 || n.ID == policy.RecoverDisasterServices || n.ID == policy.EnsureBasicComfort
 	}
+	// Area reconciliation may own recovery without a disaster history, including
+	// a restriction restored by loading a save or set during Manual.
+	for _, binding := range r.Goals {
+		if binding.Need == policy.RecoverDisasterServices {
+			allowed[binding.Need], optional[binding.Need] = true, true
+		}
+	}
 	// Manual may retain historical bindings after a world change reset their
 	// observation history. Enabled bindings must match the current pawn history.
 	if !r.Enabled {

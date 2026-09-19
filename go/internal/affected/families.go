@@ -72,6 +72,7 @@ var routineFamilyFiles = map[string][]string{
 	"routine_prisoner_interaction.go": {"prisoner-interaction"},
 	"routine_production_policy.go":    {"production-policy"},
 	"routine_recovery.go":             {"recovery"},
+	"routine_areas.go":                {"recovery"},
 	"routine_refrigeration.go":        {"refrigeration"},
 	"routine_repair.go":               {"repair"},
 	"routine_repair_stale.go":         {"repair"},

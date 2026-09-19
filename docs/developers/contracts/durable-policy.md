@@ -16,7 +16,7 @@ native legality still guard every write.
 | `RoutinePolicy.ResourceTargets` and `StoneBlockTarget` | Startup configuration, not imported from native bills or Manual edits. | `EffectiveResourceTargets` combines configured floors with current stock and derived goal needs each review. They are acquisition floors, not spending prohibitions. |
 | `resource_policies`, `resource_policy_submissions` | Explicit API/chat directives keyed by colony/load/map/resource; normal/defense-only/stop and reserve persist until replaced. | Explicit directives override both reserve and spending for their resource, including zero/normal; startup reserves/stops supply defaults for other resources. Submission and routine reconciliation use this same merge. Auto resume retains current directives. |
 | Native `ProductionPolicyState.Floors` / `Stopped` | Saved in the game; full map replacement through `SetProductionPolicy`. Commitments are transient and not serialized by this component. | Fresh native floors/stops are observed state, never imported as intent. Auto replaces drift with the merged desired policy, including an empty replacement after config removal or save/load. Completed writes do not suppress later identical repairs; open work still prevents duplicate plans. Snapshot, world and authority checks guard dispatch; commitments/drills are preserved from a fresh read. |
-| Pawn/animal allowed areas | Saved native pawn settings; colonist `PatchPawn`, animal husbandry `allowed_area`. | The Go colonist writer assigns a refuge during a roof hazard; it has no general clear/reassessment path. Animal settings have an operation but no routine settings planner. [#500](https://github.com/davidarcher/rimgovernor/issues/500) owns reassessment, including obsolete refuge restrictions. |
+| Pawn/animal allowed areas | Saved native pawn settings; colonist `PatchPawn`, animal husbandry `allowed_area`. | Recovery re-derives both from the fresh Auto census without requiring disaster history. A roof hazard retains/selects a roofed refuge; known absence clears restrictions for ordinary food/work access. Unknown safety never widens access. Native admission rechecks hazard, refuge reachability, current settings and world identity. Manual performs no correction. |
 | Animal training and removal designations | Native saved settings/designations; routine husbandry selects training, tame and opted-in removal from a fresh census. | Training is selected from current availability/learned facts. Fresh Auto reviews reconcile standing release/slaughter flags with current herd floors, ceilings, removal opt-ins and food offers. Shared Hands cancels obsolete flags with exact animal/census guards; valid pending removals still suppress duplicate work. Upkeep and training resume from native readback. |
 | Pawn food restrictions | Native saved diet assignment/filter; read by food census eligibility. | Current restrictions exclude food and meal products. No typed routine food-policy writer corrects an obsolete diet. [#501](https://github.com/davidarcher/rimgovernor/issues/501) owns this missing reconciliation. |
 | Animal/feed and food policy configuration | Startup thresholds, herd floors/ceilings, removal opt-ins, food targets and storage fallback definitions. | Not inferred from Manual edits. Animal upkeep history stores deficit hysteresis and is recomputed from known current facts; unknown facts retain uncertainty, not a new prohibition. |
@@ -39,9 +39,12 @@ active. Native save serialization is
 `store/routine_recovery.go` retains observed restrictions for reproducible proposal
 readback and reconstructs them from each review's facts. It does not promote them
 to work overrides. The current typed refuge writer in
-`buildingruntime/routine_recovery.go` uses a permanent `NewAreaAssignment`, not the
-legacy `RecoveryTools` lease; the proposal's 600-tick window distinguishes method
-identity and does not expire the native restriction.
+`buildingruntime/routine_recovery.go` and `routine_areas.go` use explicit area
+assignment/clear actions, not the legacy `RecoveryTools` lease. Corrections use
+monotonic admission identities so repeated Manual restrictions remain correctable
+after plan retirement or restart. `takeover/allowed-areas` covers repeated
+restrictions, save-load and actual colonist/animal feeding; `recovery/area` checks
+hazard protection and native CAS refusal.
 
 `policy/animal_upkeep.go` and `policy/husbandry_upkeep.go` consume standing removal
 flags. `Bridge/FoodSupplyFacts.cs` and `Bridge/Protocol/NativeColonyObservationTools.cs`

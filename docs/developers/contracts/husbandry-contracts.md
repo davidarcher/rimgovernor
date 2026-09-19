@@ -50,8 +50,11 @@ area or master id the map does not carry is refused as not found. Each follow
 method writes only its own flag.
 
 Selection order each cycle is train, then tame, then surplus removal; one write
-per cycle. No routine planner yet produces the settings methods; they are
-available to any planner through the same husbandry action. Pen containment is not a husbandry method: pens are built by
+per cycle. The recovery planner also produces `allowed_area` changes from fresh
+Auto safety facts: a roofed refuge during roof hazards, otherwise unrestricted
+food/work access. It skips pen-managed animals and unknown area/safety facts.
+Other settings methods remain available through the same husbandry action.
+Pen containment is not a husbandry method: pens are built by
 `MaintainAnimalContainment` and native handlers rope pen animals into any
 suitable pen on their own.
 

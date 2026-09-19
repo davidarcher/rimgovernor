@@ -49,7 +49,7 @@ namespace HomeBridge.BridgeTools
                     var c = new IntVec3(origin.x + x, 0, origin.z + z);
                     if (x == 0 || z == 0 || x == 4 || z == 4)
                     {
-                        var wall = (Building)ThingMaker.MakeThing(wallDef, ThingDefOf.WoodLog);
+                        var wall = (Building)ThingMaker.MakeThing(x == 2 && z == 0 ? ThingDefOf.Door : wallDef, ThingDefOf.WoodLog);
                         wall.SetFaction(player);
                         GenSpawn.Spawn(wall, c, map);
                     }

@@ -10,6 +10,45 @@ namespace HomeBridge.BridgeTools
 {
     public sealed class AnimalFeedFixture
     {
+        [Tool("test/area_takeover_edit", Description = "Disposable Manual edit: restrict a colonist and feed-fixture pet to the roofed feed area, put meals outside it and reset hunger. Optionally start or end a roof hazard.")]
+        public async Task<object> EditArea(IRimBridgeContext ctx, CancellationToken cancellationToken,
+            string pet, int area, [ToolParameter(DefaultValue = false)] bool hazard = false)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                var animal = map.mapPawns.AllPawnsSpawned.Single(p => p.GetUniqueLoadID() == pet);
+                var target = map.areaManager.AllAreas.OfType<Area_Allowed>().Single(a => a.ID == area);
+                var pawn = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Downed && !p.Dead && !p.InMentalState).OrderBy(p => p.thingIDNumber).First();
+                foreach (var p in new[] { pawn, animal }) {
+                    p.playerSettings.AreaRestrictionInPawnCurrentMap = target;
+                    p.Position = target.ActiveCells.First(c => c.Standable(map));
+                    p.Notify_Teleported();
+                    p.needs.food.CurLevelPercentage = .15f;
+                    p.jobs.EndCurrentJob(Verse.AI.JobCondition.InterruptForced);
+                }
+                var outside = GenRadial.RadialCellsAround(pawn.Position, 12, false).First(c => c.InBounds(map) && !c.Fogged(map)
+                    && c.Standable(map) && !target[c] && pawn.CanReach(c, Verse.AI.PathEndMode.OnCell, Danger.None));
+                var meals = ThingMaker.MakeThing(ThingDefOf.MealSimple); meals.stackCount = 10;
+                GenPlace.TryPlaceThing(meals, outside, map, ThingPlaceMode.Near); meals.SetForbidden(false, false);
+                foreach (var condition in map.gameConditionManager.ActiveConditions.Where(c => c is GameCondition_ToxicFallout).ToList()) condition.End();
+                if (hazard) map.gameConditionManager.RegisterCondition(GameConditionMaker.MakeCondition(DefDatabase<GameConditionDef>.GetNamed("ToxicFallout"), 60000));
+                return new { success = true, pet, pawn = pawn.GetUniqueLoadID(), area = target.GetUniqueLoadID(), pawnFood = pawn.needs.food.CurLevelPercentage, animalFood = animal.needs.food.CurLevelPercentage };
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
+        [Tool("test/area_takeover_read", Description = "Read current allowed areas and actual food need for a fixture colonist and pet; never writes.")]
+        public async Task<object> ReadArea(IRimBridgeContext ctx, CancellationToken cancellationToken, string pawn, string pet)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var people = Find.CurrentMap.mapPawns.AllPawnsSpawned;
+                var colonist = people.Single(p => p.GetUniqueLoadID() == pawn);
+                var animal = people.Single(p => p.GetUniqueLoadID() == pet);
+                return new { success = true, pawnArea = colonist.playerSettings.AreaRestrictionInPawnCurrentMap?.GetUniqueLoadID() ?? "",
+                    animalArea = animal.playerSettings.AreaRestrictionInPawnCurrentMap?.GetUniqueLoadID() ?? "",
+                    pawnFood = colonist.needs.food.CurLevelPercentage, animalFood = animal.needs.food.CurLevelPercentage };
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
         [Tool("test/feed_setup", Description = "Prepare disposable pet, a butcher spot inside its restricted roofed feeding area, an earlier butcher spot outside it, and ingredients outside it. No feed or production bill is created.")]
         public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Spawn the butcher spot inside the pet's area; false leaves only the one outside it (#311).", DefaultValue = true)] bool benchInside = true)

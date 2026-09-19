@@ -51,7 +51,8 @@ const (
 
 // These are candidates for native preview, never admitted jobs or area leases.
 // PriorArea is the observed restriction; native admission must prove that a
-// proposed refuge does not widen it and is safe/reachable for this exact pawn.
+// proposed refuge is safe/reachable for this exact pawn. The saved restriction
+// is current state, not permanent player intent under Auto.
 type RecoveryCandidate struct {
 	ID             domain.MethodID
 	Kind           RecoveryProposalKind
