@@ -197,6 +197,14 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 	r.Threat = bridge.ProjectColonyThreat(v)
 	r.FoodChannels = colonyFoodChannels(v.FoodChannels)
 	r.Facts = policy.RoutineFacts{Colonists: countFact(v.ColonistCount), BedCapacity: countFact(v.BedCapacity), IndoorCapacity: countFact(v.IndoorSleepingCapacity), SleepingMin: optional(v.SleepingTemperatureMinC), SleepingMax: optional(v.SleepingTemperatureMaxC), OutdoorTemperature: optional(v.OutdoorTemperatureC), FoodStorage: optional(v.FoodStorage)}
+	threat := bridge.ProjectColonyThreat(v)
+	items, itemsKnown := threat.WealthItems.Value()
+	buildings, buildingsKnown := threat.WealthBuildings.Value()
+	pawns, pawnsKnown := threat.WealthPawns.Value()
+	total, totalKnown := threat.WealthTotal.Value()
+	if itemsKnown && buildingsKnown && pawnsKnown && totalKnown {
+		r.Facts.Wealth = domain.Known(policy.WealthFacts{Items: items, Buildings: buildings, Pawns: pawns, Total: total})
+	}
 	if channels, known := r.FoodChannels.Value(); known {
 		r.Facts.PenGrazing = domain.Known(channels.Grazing)
 	}

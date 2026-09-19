@@ -16,7 +16,7 @@ namespace HomeBridge.BridgeTools
     {
         [Tool("test/trade_fixture", Description = "Disposable trade acceptance setup/readback; excluded from production builds and model execution.")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            string action = "snapshot", string traderId = null, string pawnId = null, int silver = 600, int medicine = 30, string foodMode = "")
+            string action = "snapshot", string traderId = null, string pawnId = null, int silver = 600, int medicine = 30, string foodMode = "", int steel = 0)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
@@ -69,6 +69,20 @@ namespace HomeBridge.BridgeTools
                         silverStacks.Add(silverStack);
                     }
                     var silverStack0 = silverStacks[0];
+                    if (steel > 0)
+                    {
+                        foreach (var old in map.listerThings.ThingsOfDef(ThingDefOf.Steel).ToList()) old.Destroy();
+                        foreach (var colonist in map.mapPawns.FreeColonistsSpawned)
+                        {
+                            foreach (var held in colonist.inventory.innerContainer.Where(t => t.def == ThingDefOf.Steel).ToList()) held.Destroy();
+                            colonist.workSettings.SetPriority(DefDatabase<WorkTypeDef>.GetNamed("Construction"), 0);
+                        }
+                        var hoard = ThingMaker.MakeThing(ThingDefOf.Steel);
+                        hoard.stackCount = steel;
+                        GenSpawn.Spawn(hoard, silverCell, map);
+                        hoard.SetForbidden(false, false);
+                        map.areaManager.Home[hoard.Position] = true;
+                    }
                     var foodUnits = 0;
                     var dailyNutrition = map.mapPawns.FreeColonistsSpawned.Sum(p => (double)p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true) * 60000);
                     if (foodMode != "")
@@ -102,6 +116,18 @@ namespace HomeBridge.BridgeTools
                     var stocked = new System.Collections.Generic.List<object>();
                     foreach (var traderPawn in traderPawns)
                     {
+                        if (steel > 0)
+                        {
+                            if (!traderPawn.trader.traderKind.WillTrade(ThingDefOf.Steel)) throw new InvalidOperationException("Trader will not buy steel.");
+                            var steelCarrier = traderPawn.GetLord()?.ownedPawns.FirstOrDefault(p => p.GetTraderCaravanRole() == TraderCaravanRole.Carrier) ?? traderPawn;
+                            var payment = ThingMaker.MakeThing(ThingDefOf.Silver);
+                            payment.stackCount = steel * 10;
+                            if (!steelCarrier.inventory.innerContainer.TryAdd(payment)) throw new InvalidOperationException("Trader silver could not be stocked.");
+                            foreach (var caravanPawn in traderPawn.GetLord().ownedPawns)
+                            {
+                                caravanPawn.Position = CellFinder.StandableCellNear(anchor, map, 6); caravanPawn.Notify_Teleported();
+                            }
+                        }
                         if (foodMode != "")
                         {
                             foreach (var old in traderPawn.trader.Goods.Where(t => t.def.IsNutritionGivingIngestible || t.def.IsMedicine || t.def.defName == "ComponentIndustrial").ToList()) old.Destroy();
@@ -131,7 +157,7 @@ namespace HomeBridge.BridgeTools
                     }
                     return new { success = traderPawns.Count > 0, arrival, silver = silverStacks.Sum(t => t.stackCount), silverId = silverStack0.ThingID,
                         x = silverCell.x, z = silverCell.z, stocked, colonists = map.mapPawns.FreeColonistsSpawnedCount,
-                        colonyMedicine = map.listerThings.AllThings.Count(t => t.def.IsMedicine), foodMode, foodUnits, dailyNutrition };
+                        colonyMedicine = map.listerThings.AllThings.Count(t => t.def.IsMedicine), foodMode, foodUnits, dailyNutrition, steel };
                 }
                 if (action == "teleport_adjacent")
                 {

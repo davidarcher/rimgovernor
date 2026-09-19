@@ -25,6 +25,7 @@ import (
 // and native's own previews of the session phases (acceptance, not
 // authority; the executor re-previews at dispatch).
 type RoutineTradeSource interface {
+	ReadConstructionDeficits(context.Context, *c.Identity) (bridge.ConstructionDeficitRead, bridge.Result, error)
 	ReadColonyFacts(context.Context, *c.Identity, bool, []string) (*o.ColonyFactsReply, bridge.Result, error)
 	ListTraders(context.Context, *c.Identity) (bridge.TradersRead, bridge.Result, error)
 	ReadTradeSheet(context.Context, *c.Identity, string) (bridge.TradeSheetRead, bridge.Result, error)
@@ -447,7 +448,14 @@ func (r *RoutineTradePlanner) selection(call context.Context, state ControlState
 	}
 	projection.Facts.FoodPlan = r.reviewer.planFood(projection)
 	seasonal := r.reviewer.seasonal(projection.Facts)
-	floors := policy.RoutineTradeFloors(seasonal, nil)
+	construction, _, err := r.native.ReadConstructionDeficits(call, identity)
+	if err != nil {
+		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, err
+	}
+	if _, err = boundary.Context(construction.Context, state.Snapshot); err != nil {
+		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, ErrControl
+	}
+	floors := policy.RoutineTradeFloors(seasonal, construction.StillNeed)
 	need, known := policy.ReviewTradeNeed(medical, medicalFacts.Resources, seasonal.ResourceTargets, floors, projection.Facts.Wealth, seasonal.Trade, policy.RoutineTradeFood(projection.Facts, seasonal)).Value()
 	if !known {
 		return domain.TradeEconomicPolicy{}, policy.TradeSelectionFacts{}, ErrControl
