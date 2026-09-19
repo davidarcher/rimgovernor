@@ -35,6 +35,7 @@ type PlanningDefinition struct {
 	PathCost                          domain.Fact[int32]
 }
 type ColonyProjection struct {
+	FoodChannels        domain.Fact[FoodChannels]
 	ProductionBenches   domain.Fact[[]policy.ProductionBench]
 	ButcheringBenches   domain.Fact[[]CookingBench]
 	FoodAtRiskNutrition domain.Fact[float64]
@@ -184,6 +185,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 	}
 	r := ColonyProjection{Identity: identity, Bounds: policy.Bounds{Width: int32(v.MapSize.GetWidth()), Height: int32(v.MapSize.GetHeight())}, Center: domain.Cell{X: v.Center.GetX(), Z: v.Center.GetZ()}}
 	r.PlayerTechLevel = optional(v.PlayerTechLevel)
+	r.FoodChannels = colonyFoodChannels(v.FoodChannels)
 	r.Facts = policy.RoutineFacts{Colonists: countFact(v.ColonistCount), BedCapacity: countFact(v.BedCapacity), IndoorCapacity: countFact(v.IndoorSleepingCapacity), SleepingMin: optional(v.SleepingTemperatureMinC), SleepingMax: optional(v.SleepingTemperatureMaxC), OutdoorTemperature: optional(v.OutdoorTemperatureC), FoodStorage: optional(v.FoodStorage)}
 	if development := v.GetDevelopment().GetObserved(); development != nil {
 		power := make([]policy.PowerBuilding, 0, len(development.Power))

@@ -109,7 +109,8 @@ namespace HomeBridge.BridgeTools
                 Forecast = new Obs.ForecastSection { Observed = Forecast(ForecastFacts.Read(map, people, things)) },
                 Upkeep = ReadComfort(map),
                 Threat = ReadThreat(map, people.Count),
-                Development = new Obs.DevelopmentSection { Observed = ReadPower(map, limit) }
+                Development = new Obs.DevelopmentSection { Observed = ReadPower(map, limit) },
+                FoodChannels = NativeFoodChannels.Read(map, center, workers, humanFood, limit)
             };
             if (demand > 0) result.FoodRunwayDays = Finite(nutrition / demand);
             else result.Issues.Add(Issue("food_runway_days", Common.UnavailableReason.NotApplicable, "No observed nutrition demand."));

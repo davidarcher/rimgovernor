@@ -1,0 +1,78 @@
+package observation
+
+import (
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+)
+
+// FoodChannels describes native source potential. It does not select work.
+// A known census can contain animals with unknown component values.
+type FoodChannels struct {
+	FishableWater  domain.Fact[FishableWater]
+	Gatherable     []GatherableAnimal
+	EggLayer       []EggLayerAnimal
+	PasteDispenser []PasteDispenser
+	PollutedCells  domain.Fact[uint32]
+	Forage         []ForagePlant
+}
+type FishableWater struct {
+	Regions           []FishableRegion
+	FishingResearched domain.Fact[bool]
+}
+type FishableRegion struct {
+	Root                      domain.Cell
+	Population, MaxPopulation domain.Fact[float64]
+	Zoned, Reachable          domain.Fact[bool]
+	CellCount                 domain.Fact[uint32]
+}
+type GatherableAnimal struct {
+	PawnID, Race     string
+	Fullness         domain.Fact[float64]
+	Resource         domain.Fact[string]
+	HandlerReachable domain.Fact[bool]
+}
+type EggLayerAnimal struct {
+	PawnID, Race string
+	CanLayNow    domain.Fact[bool]
+	Progress     domain.Fact[float64]
+}
+type PasteDispenser struct {
+	BuildingID      string
+	Powered         domain.Fact[bool]
+	HopperNutrition domain.Fact[float64]
+	AdjacentRoomID  domain.Fact[string]
+}
+type ForagePlant struct {
+	DefName         string
+	GrowingTwelfths []int32
+	GrowingNow      domain.Fact[bool]
+}
+
+// Called only after the colony boundary validator has checked the section.
+func colonyFoodChannels(section *o.FoodChannelsSection) domain.Fact[FoodChannels] {
+	v := section.GetObserved()
+	if v == nil {
+		return domain.Unknown[FoodChannels]()
+	}
+	r := FoodChannels{PollutedCells: optional(v.PollutedCells)}
+	if water := v.FishableWater; water != nil {
+		w := FishableWater{FishingResearched: optional(water.FishingResearched)}
+		for _, row := range water.Regions {
+			w.Regions = append(w.Regions, FishableRegion{Root: domain.Cell{X: row.Root.GetX(), Z: row.Root.GetZ()}, Population: optional(row.Population), MaxPopulation: optional(row.MaxPopulation), Zoned: optional(row.Zoned), Reachable: optional(row.Reachable), CellCount: optional(row.CellCount)})
+		}
+		r.FishableWater = domain.Known(w)
+	}
+	for _, row := range v.Gatherable {
+		r.Gatherable = append(r.Gatherable, GatherableAnimal{PawnID: row.GetPawnId(), Race: row.GetRace(), Fullness: optional(row.Fullness), Resource: optional(row.Resource), HandlerReachable: optional(row.HandlerReachable)})
+	}
+	for _, row := range v.EggLayer {
+		r.EggLayer = append(r.EggLayer, EggLayerAnimal{PawnID: row.GetPawnId(), Race: row.GetRace(), CanLayNow: optional(row.CanLayNow), Progress: optional(row.Progress)})
+	}
+	for _, row := range v.PasteDispenser {
+		r.PasteDispenser = append(r.PasteDispenser, PasteDispenser{BuildingID: row.GetBuildingId(), Powered: optional(row.Powered), HopperNutrition: optional(row.HopperNutrition), AdjacentRoomID: optional(row.AdjacentRoomId)})
+	}
+	for _, row := range v.Forage {
+		r.Forage = append(r.Forage, ForagePlant{DefName: row.GetDefName(), GrowingTwelfths: append([]int32{}, row.GrowingTwelfths...), GrowingNow: optional(row.GrowingNow)})
+	}
+	return domain.Known(r)
+}

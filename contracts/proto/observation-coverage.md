@@ -12,6 +12,30 @@ SDK details used for external request coverage are historical discovery evidence
 not output-type authority. The Go team's consolidated consumer requirements cover
 97 native/SDK boundaries, including privileged presentation separately.
 
+## Food source channels
+
+`ColonyFactsSnapshot.food_channels` is an independent census, with unavailable
+outcomes for failed or oversized reads. It does not select food policy.
+`NativeFoodChannels` reads it; `observation.ColonyProjection.FoodChannels` retains
+optional values as `domain.Fact` after bridge validation.
+
+Every tame animal has gatherable and egg rows; missing components leave production
+values unknown. Multiple gatherable components produce one row per resource.
+Handler reachability requires an available colonist with Handling enabled.
+Paste dispensers report power, eligible hopper nutrition and the interaction
+cell's room. Pollution counts the map-clipped center +/-22 planning window.
+Forage lists biome wild plants with human-edible harvest products and native
+average-temperature growing twelfths (0..11); these are seasonal potential,
+not harvestable instances. Acquisition retains ownership of plant instances.
+
+Fishing is absent without Odyssey. With Odyssey, each fish-bearing water body
+has one row for its visible passable water cells, body-wide population/capacity,
+whether any such cell belongs to a fishing zone, and reachability from the colony
+anchor. The section also reports Fishing research. Each collection is bounded
+by the requested page limit, at most 256; no per-cell fishing payload is emitted.
+`tools/foodchannels` checks Core-only baseline forage and a cow's milk fullness;
+`tools/saveheadroom-*` checks the envelope budget.
+
 ## Required semantic validation
 
 - Every reply selects exactly one observed, unavailable, or request failure case.

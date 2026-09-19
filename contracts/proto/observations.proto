@@ -706,6 +706,21 @@ message ThreatSection { oneof outcome { ThreatFacts observed = 1; rimgovernor.co
 message LootItem { EntityRef item = 1; optional bool forbidden = 2; optional bool safe_to_haul = 3; }
 message LootCensus { repeated LootItem items = 1; }
 message LootSection { oneof outcome { LootCensus observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
+// Food source potential, independent of acquisition instances and policy.
+// Animal rows cover every tame animal: absent components leave their scalars
+// absent. Water rows aggregate fishable cells by native water body; population
+// is shared by that body, not multiplied by its shallow cells. FishableWater
+// is absent without Odyssey. Pollution uses the clipped center +/-22 window.
+message FishableRegion { rimgovernor.common.v1.Cell root = 1; optional double population = 2; optional double max_population = 3; optional bool zoned = 4; optional uint32 cell_count = 5; optional bool reachable = 6; }
+message FishableWater { repeated FishableRegion regions = 1; optional bool fishing_researched = 2; }
+message GatherableAnimal { optional string pawn_id = 1; optional string race = 2; optional double fullness = 3; optional string resource = 4; optional bool handler_reachable = 5; }
+message EggLayerAnimal { optional string pawn_id = 1; optional string race = 2; optional bool can_lay_now = 3; optional double progress = 4; }
+message PasteDispenser { optional string building_id = 1; optional bool powered = 2; optional double hopper_nutrition = 3; optional string adjacent_room_id = 4; }
+// Native twelfths (0..11) whose average tile temperature permits growth.
+// The window is climate potential, not a promise of harvestable instances.
+message ForagePlant { optional string def_name = 1; repeated int32 growing_twelfths = 2; optional bool growing_now = 3; }
+message FoodChannelsFacts { FishableWater fishable_water = 1; repeated GatherableAnimal gatherable = 2; repeated EggLayerAnimal egg_layer = 3; repeated PasteDispenser paste_dispenser = 4; optional uint32 polluted_cells = 5; repeated ForagePlant forage = 6; Completeness completeness = 7; }
+message FoodChannelsSection { oneof outcome { FoodChannelsFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 message ColonyFactsSnapshot {
   rimgovernor.common.v1.ObservationContext context = 1; ColonyNaming naming = 2;
   optional uint32 colonist_count = 3; optional uint32 worker_count = 4; rimgovernor.common.v1.Cell center = 5; MapSize map_size = 6;
@@ -731,6 +746,7 @@ message ColonyFactsSnapshot {
   ThreatSection threat = 42;
   LootSection event_loot = 43;
   repeated JoinerLetter joiner_letters = 44;
+  FoodChannelsSection food_channels = 45;
 }
 // Current-map WandererJoins offers; the token binds letter, quest, pawn and expiry.
 message JoinerLetter { optional int32 letter_id = 1; optional string snapshot_token = 2; optional string pawn_id = 3; optional int64 expires_tick = 4; optional string accept_label = 5; optional bool can_accept = 6; }
