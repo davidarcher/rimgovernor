@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"sync"
 	"testing"
 	"time"
@@ -286,10 +287,16 @@ type speedStep struct {
 	err    error
 }
 
+// speedSpan is the wall span of one worker call other than a step: a poll.
+type speedSpan struct {
+	began time.Time
+	ended time.Time
+}
+
 // speedMatrixFixture is schedulerFixture on a speedNative with the worker
-// loops of NewClockWorker, the step wrapped so the test sees each step's
-// reason and result.
-func speedMatrixFixture(t *testing.T, native *speedNative, snapshot domain.GenerationSnapshot, config ClockWorkerConfig, record func(speedStep)) (*ClockScheduler, *ClockWorker) {
+// loops of NewClockWorker, the step and the poll wrapped so the test sees
+// each step's reason and result and the span of every poll.
+func speedMatrixFixture(t *testing.T, native *speedNative, snapshot domain.GenerationSnapshot, config ClockWorkerConfig, record func(speedStep), recordPoll func(speedSpan)) (*ClockScheduler, *ClockWorker) {
 	t.Helper()
 	db, err := store.Open(context.Background(), storetest.Path(t))
 	if err != nil {
@@ -336,7 +343,10 @@ func speedMatrixFixture(t *testing.T, native *speedNative, snapshot domain.Gener
 		return result, err
 	}
 	worker.poll = func(ctx context.Context, wait time.Duration) (ClockPollResult, error) {
-		return scheduler.PollEvents(ctx, native, config.PageLimit, wait)
+		began := time.Now()
+		result, err := scheduler.PollEvents(ctx, native, config.PageLimit, wait)
+		recordPoll(speedSpan{began: began, ended: time.Now()})
+		return result, err
 	}
 	worker.stopParent = context.AfterFunc(player.lifetime, cancel)
 	if err = session.attachClockWorker(worker); err != nil {
@@ -353,16 +363,21 @@ func speedMatrixFixture(t *testing.T, native *speedNative, snapshot domain.Gener
 	return scheduler, worker
 }
 
-// stepsInFlight is the wall time between from and to during which some
-// recorded step other than the one beginning at to was running. The steps
-// are serial, so their clipped spans add without overlapping.
-func stepsInFlight(steps []speedStep, from, to time.Time) time.Duration {
-	var busy time.Duration
+// workInFlight is the wall time between from and to during which the
+// worker was inside a recorded step other than the one beginning at to, or
+// inside a poll. Steps run serially on one goroutine and polls on another,
+// so the clipped spans are merged before they are summed.
+func workInFlight(steps []speedStep, polls []speedSpan, from, to time.Time) time.Duration {
+	var spans []speedSpan
 	for _, step := range steps {
-		if step.began.Equal(to) {
-			continue
+		if !step.began.Equal(to) {
+			spans = append(spans, speedSpan{step.began, step.ended})
 		}
-		began, ended := step.began, step.ended
+	}
+	spans = append(spans, polls...)
+	var clipped []speedSpan
+	for _, span := range spans {
+		began, ended := span.began, span.ended
 		if began.Before(from) {
 			began = from
 		}
@@ -370,8 +385,19 @@ func stepsInFlight(steps []speedStep, from, to time.Time) time.Duration {
 			ended = to
 		}
 		if ended.After(began) {
-			busy += ended.Sub(began)
+			clipped = append(clipped, speedSpan{began, ended})
 		}
+	}
+	sort.Slice(clipped, func(i, j int) bool { return clipped[i].began.Before(clipped[j].began) })
+	var busy time.Duration
+	for i := 0; i < len(clipped); {
+		merged := clipped[i]
+		for i++; i < len(clipped) && !clipped[i].began.After(merged.ended); i++ {
+			if clipped[i].ended.After(merged.ended) {
+				merged.ended = clipped[i].ended
+			}
+		}
+		busy += merged.ended.Sub(merged.began)
 	}
 	return busy
 }
@@ -390,13 +416,16 @@ type speedDecision struct {
 // sequence per game tick at every multiplier: the decisions follow the
 // game's ticks, not the wall clock. And every step a budget stop woke must
 // begin within one StepInterval of the native stop, not counting the time
-// another step was in flight in between: the long poll and the wake signal
-// deliver the stop at once instead of waiting out the timer cadence, which
-// the step's clock_step row reports as its stop latency (issue #112). The
-// in-flight time is excluded because a step that settles the epoch holds
-// the worker for as long as its SQLite work takes, hundreds of
-// milliseconds under machine load, and that is the worker's serial
-// cadence, not a wake the timer had to catch (issue #203).
+// another step or a poll was in flight in between: the long poll and the
+// wake signal deliver the stop at once instead of waiting out the timer
+// cadence, which the step's clock_step row reports as its stop latency
+// (issue #112). The in-flight time is excluded because a step that settles
+// the epoch, or the poll that carries the stop, holds the worker for as
+// long as its SQLite work takes, hundreds of milliseconds under machine
+// load, and that is the worker's serial cadence, not a wake the timer had
+// to catch (issues #203, #349). What remains is the timer and wake
+// delivery alone: a stop that reached a step only by the timer cadence
+// would carry the step's backed-off delay, up to MaxBackoff.
 func TestClockSpeedMatrixDecidesPerTickAndWakesWithinStepInterval(t *testing.T) {
 	t.Parallel()
 	const windows = 3
@@ -408,9 +437,14 @@ func TestClockSpeedMatrixDecidesPerTickAndWakesWithinStepInterval(t *testing.T) 
 			native := newSpeedNative(snapshot, 4*time.Millisecond/time.Duration(multiplier))
 			var mu sync.Mutex
 			var steps []speedStep
+			var polls []speedSpan
 			scheduler, worker := speedMatrixFixture(t, native, snapshot, config, func(step speedStep) {
 				mu.Lock()
 				steps = append(steps, step)
+				mu.Unlock()
+			}, func(poll speedSpan) {
+				mu.Lock()
+				polls = append(polls, poll)
 				mu.Unlock()
 			})
 			// Run until the third window has stopped and the stop has been
@@ -473,9 +507,9 @@ func TestClockSpeedMatrixDecidesPerTickAndWakesWithinStepInterval(t *testing.T) 
 					t.Fatalf("stop reason: %s at %v", step.reason, step.reason.StopAt)
 				}
 				latency := step.began.Sub(step.reason.StopAt)
-				busy := stepsInFlight(steps, step.reason.StopAt, step.began)
+				busy := workInFlight(steps, polls, step.reason.StopAt, step.began)
 				if latency < 0 || latency-busy > config.StepInterval {
-					t.Fatalf("x%d: stop-to-step latency %s (%s of it with a step in flight) exceeds the %s step interval", multiplier, latency, busy, config.StepInterval)
+					t.Fatalf("x%d: stop-to-step latency %s (%s of it with a step or poll in flight) exceeds the %s step interval", multiplier, latency, busy, config.StepInterval)
 				}
 			}
 			if len(decisions) != 2*windows {

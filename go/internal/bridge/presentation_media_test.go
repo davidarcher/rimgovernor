@@ -293,7 +293,9 @@ func TestReadFrameSuccess(t *testing.T) {
 }
 
 // A whole-map or full-screen frame is several MiB; it decodes against the
-// media envelope, not the 1 MiB general payload cap.
+// media envelope, not the 1 MiB general payload cap. The call timeout only
+// bounds a hang: an 8 MiB frame crosses the JSON transport in seconds under
+// a whole-module -race pass (#343), and its latency is not what this checks.
 func TestReadFrameAcceptsAFullSizeFrame(t *testing.T) {
 	server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		return pbResult(&p.FrameReply{Outcome: &p.FrameReply_Frame{Frame: &p.MediaFrame{
@@ -305,7 +307,7 @@ func TestReadFrameAcceptsAFullSizeFrame(t *testing.T) {
 			Data: make([]byte, 1920*1080*4),
 		}}}), nil
 	}}
-	client := testClient(t, server, 5*time.Second)
+	client := testClient(t, server, time.Minute)
 	media, err := NewPresentationMedia(client)
 	if err != nil {
 		t.Fatal(err)
