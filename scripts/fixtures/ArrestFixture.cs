@@ -18,8 +18,20 @@ namespace HomeBridge.BridgeTools
                 var map = Find.CurrentMap;
                 if (map == null || !Find.TickManager.Paused) throw new InvalidOperationException("Paused disposable colony required.");
                 var hut = FixtureHut.Build(map, 7);
-                var pawn = hut.People.First(p => !p.WorkTagIsDisabled(WorkTags.Violent) && p.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation));
-                var target = hut.People.First(p => p != pawn);
+                var wardens = hut.People.Where(p => !p.WorkTagIsDisabled(WorkTags.Violent)
+                    && p.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)
+                    && !StatDefOf.ArrestSuccessChance.Worker.IsDisabledFor(p)).ToList();
+                foreach (var warden in wardens) warden.skills.GetSkill(SkillDefOf.Social).Level = 20;
+                // Social 20 cannot overcome disabled Social work or every pawn-kind
+                // multiplier. Select a certain pair using the native calculation.
+                var pair = wardens.SelectMany(warden => hut.People.Where(targetPawn => targetPawn != warden)
+                    .Select(targetPawn => new { Warden = warden, Target = targetPawn,
+                        Chance = targetPawn.GetAcceptArrestChance(warden) }))
+                    .OrderByDescending(candidate => candidate.Chance).FirstOrDefault();
+                if (pair == null || pair.Chance < 1f)
+                    throw new InvalidOperationException($"No certain arrest pair: warden={pair?.Warden.GetUniqueLoadID()} target={pair?.Target.GetUniqueLoadID()} chance={pair?.Chance}.");
+                var pawn = pair.Warden;
+                var target = pair.Target;
                 var bed = hut.Interior.SelectMany(c => c.GetThingList(map)).OfType<Building_Bed>().First();
                 bed.ForPrisoners = true;
                 // The player bed toggle refreshes both caches; setting the
@@ -31,9 +43,6 @@ namespace HomeBridge.BridgeTools
                 var ordinary = (Building_Bed)ThingMaker.MakeThing(ThingDefOf.SleepingSpot);
                 ordinary.SetFaction(Faction.OfPlayer);
                 GenSpawn.Spawn(ordinary, hut.Door + new IntVec3(2, 0, 0), map);
-                pawn.skills.GetSkill(SkillDefOf.Social).Level = 20;
-                if (target.GetAcceptArrestChance(pawn) < 1f)
-                    throw new InvalidOperationException("Fixture requires a naturally certain arrest with Social 20.");
                 return new { success = true, pawn = pawn.GetUniqueLoadID(), target = target.GetUniqueLoadID(),
                     bed = bed.GetUniqueLoadID(), ordinaryBed = ordinary.GetUniqueLoadID() };
             }, cancellationToken);
