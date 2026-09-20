@@ -103,6 +103,20 @@ func TestContractExamples(t *testing.T) {
 		t.Fatal("fixture accepted as real native evidence")
 	}
 }
+
+func TestHostedTimeoutLimits(t *testing.T) {
+	for _, tc := range []struct {
+		job, suite int
+		valid      bool
+	}{{360, 345, true}, {60, 45, true}, {361, 345, false}, {360, 346, false}, {60, 60, false}} {
+		f := fixtureRun(t)
+		f.run.Limits.JobMinutes, f.run.Limits.SuiteMinutes = tc.job, tc.suite
+		_, err := f.evaluate(t)
+		if (err == nil) != tc.valid {
+			t.Fatalf("job=%d suite=%d: %v", tc.job, tc.suite, err)
+		}
+	}
+}
 func TestAggregationRejectsBadEvidence(t *testing.T) {
 	tests := map[string]func(*testing.T, *fixture){
 		"missing case": func(t *testing.T, f *fixture) { f.attempts[0].Attempts = f.attempts[0].Attempts[1:] },

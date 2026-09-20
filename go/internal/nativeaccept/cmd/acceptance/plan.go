@@ -120,7 +120,7 @@ func (r planRun) validate() error {
 		return fmt.Errorf("invalid bundle reference")
 	}
 	l := r.Limits
-	if l.Runner != "windows-2022" || l.Shards < 1 || l.Shards > 32 || l.Parallel < 1 || l.Parallel > 4 || l.Workers != 1 || l.Paid || l.JobMinutes < 16 || l.JobMinutes > 60 || l.SuiteMinutes < 1 || l.SuiteMinutes > 45 || l.JobMinutes-l.SuiteMinutes < 15 || l.Attempts < 1 || l.Attempts > 2 || l.Retention < 1 || l.Retention > 7 || l.ArtifactBytes < 1 || l.ArtifactBytes > 1073741824 {
+	if l.Runner != "windows-2022" || l.Shards < 1 || l.Shards > 32 || l.Parallel < 1 || l.Parallel > 4 || l.Workers != 1 || l.Paid || l.JobMinutes < 16 || l.JobMinutes > 360 || l.SuiteMinutes < 1 || l.SuiteMinutes > 345 || l.JobMinutes-l.SuiteMinutes < 15 || l.Attempts < 1 || l.Attempts > 2 || l.Retention < 1 || l.Retention > 7 || l.ArtifactBytes < 1 || l.ArtifactBytes > 1073741824 {
 		return fmt.Errorf("run limits exceed remote v1 capabilities")
 	}
 	return nil

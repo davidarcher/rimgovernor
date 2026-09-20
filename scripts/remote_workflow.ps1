@@ -79,7 +79,7 @@ switch ($Phase) {
             repository=$env:GITHUB_REPOSITORY; workflow_commit=$env:GITHUB_WORKFLOW_SHA; tested_commit=$head; base_commit=$base; tier=$tier
             trigger=@{event=$env:GITHUB_EVENT_NAME; actor=$env:GITHUB_ACTOR; published_ref=$env:GITHUB_REF; actions_run_id=[long]$env:GITHUB_RUN_ID; actions_run_attempt=[int]$env:GITHUB_RUN_ATTEMPT}
             bundle=(File-Reference 'bundle.json')
-            limits=@{runner_label='windows-2022';shards=$shards;max_parallel=4;workers_per_shard=1;job_timeout_minutes=60;suite_timeout_minutes=45;max_attempts=1;artifact_retention_days=7;artifact_max_bytes=1073741824;paid_usage_authorized=$false}
+            limits=@{runner_label='windows-2022';shards=$shards;max_parallel=4;workers_per_shard=1;job_timeout_minutes=360;suite_timeout_minutes=345;max_attempts=1;artifact_retention_days=7;artifact_max_bytes=1073741824;paid_usage_authorized=$false}
         }
         "head=$head" >> $env:GITHUB_OUTPUT
     }

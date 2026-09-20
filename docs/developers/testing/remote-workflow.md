@@ -37,7 +37,7 @@ most four active shard jobs. The default smoke dispatch uses two shards. One
 workflow runs at a time with `queue: max` and cancellation disabled; later pushes
 do not replace an active landing or the pending queue. GitHub's queue capacity
 still applies. Planner/aggregation jobs have ten-minute limits; shard jobs have
-60 minutes including a shared 45-minute allowance across both role suites.
+360 minutes including a shared 345-minute allowance across both role suites.
 Known case budgets must fit before workers start. The production retry classifier
 remains empty, so runs use `max_attempts: 1` without reserving an unused retry.
 

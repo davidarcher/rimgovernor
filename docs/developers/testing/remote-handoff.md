@@ -24,7 +24,7 @@ coverage and budgets. A local planning preview has placeholder Actions identity
 and is not evidence; the workflow creates its own authenticated plan. Retain
 the exact selected names, reasons and shard assignments. A rejected plan means
 no run is ready: increasing shards may fix combined budgets, but cannot fit a
-single case longer than the 45-minute suite allowance. Track that case or
+single case longer than the 345-minute suite allowance. Track that case or
 planner issue instead of relabeling a reduced selection as land/full.
 
 Ask the maintainer to publish the tested commit and base to the same repository,

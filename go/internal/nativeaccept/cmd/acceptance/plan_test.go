@@ -181,20 +181,28 @@ func TestRemotePlanRejectsBudgets(t *testing.T) {
 	}
 }
 
+func TestRemoteLandCompleteRegistryFitsEightShards(t *testing.T) {
+	r := examplePlanRun(t)
+	r.Tier = "land"
+	r.Limits.Shards, r.Limits.Attempts = 8, 1
+	r.Limits.JobMinutes, r.Limits.SuiteMinutes = 360, 345
+	if _, err := buildSelection(r, planReference{}, nil, affected.Selection{AllHarnesses: true}); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestNightlyFullIncludesRenderedCases(t *testing.T) {
 	r := examplePlanRun(t)
 	r.Tier, r.Trigger.Event, r.Trigger.Ref = "full", "schedule", "refs/heads/main"
 	r.Base = r.Head
 	r.Limits.Shards, r.Limits.Attempts = 32, 1
+	r.Limits.JobMinutes, r.Limits.SuiteMinutes = 360, 345
 	if err := r.validate(); err != nil {
 		t.Fatal(err)
 	}
 	p, err := buildSelection(r, planReference{}, nil, affected.Selection{})
-	if err != nil && !strings.Contains(err.Error(), "known case budgets") {
-		t.Fatal(err)
-	}
 	if err != nil {
-		t.Log(err)
+		t.Fatal(err)
 	}
 	full, err := tierCases("full", "", "")
 	if err != nil {

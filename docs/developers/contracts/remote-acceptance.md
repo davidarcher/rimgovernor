@@ -196,7 +196,7 @@ These are conservative project limits, not purchased capacity:
 | --- | --- |
 | `runner_label` | `windows-2022`; #378 records actual image and hardware, verifies headless game, .NET/Go/build tools and free disk before execution. |
 | `shards`, `max_parallel`, `workers_per_shard` | 32 shards, 4 active shard jobs, 1 game worker per job; one acceptance workflow active repository-wide, queue without cancelling evidence collection. |
-| `job_timeout_minutes`, `suite_timeout_minutes` | 60 per shard job, 45 for its suite including retries; reserve 15 minutes for bootstrap, cleanup and upload. Planner and aggregation each capped at 10 minutes. Reject plans whose known case budgets cannot fit rather than dropping cases. |
+| `job_timeout_minutes`, `suite_timeout_minutes` | 360 per shard job (the GitHub-hosted six-hour limit), 345 for its suite including retries; reserve 15 minutes for bootstrap, cleanup and upload. Planner and aggregation each capped at 10 minutes. Reject plans whose known case budgets cannot fit rather than dropping cases. |
 | `max_attempts` | 2 per case; retries consume the same time allowance. |
 | `artifact_retention_days`, `artifact_max_bytes` | 7 days, 1073741824 bytes total per run; preserve verdicts and failing diagnostics first, explicitly index any truncated optional evidence. Missing required evidence fails aggregation. Never upload game files to meet this cap. |
 | `paid_usage_authorized` | false. Standard public hosted runners only; no larger runner, purchase or paid storage overage authorized. Verify repository visibility, storage allowance and applicable stop-usage controls before enabling triggers. If visibility changes, stop and revalidate capacity/billing; do not silently use paid runners. |

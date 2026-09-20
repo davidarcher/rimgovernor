@@ -147,7 +147,7 @@ jobs:
     needs: plan
     name: acceptance-${{ matrix.shard }}
     runs-on: windows-2022
-    timeout-minutes: 60
+    timeout-minutes: 360
     environment: remote-acceptance
     strategy:
       fail-fast: false
