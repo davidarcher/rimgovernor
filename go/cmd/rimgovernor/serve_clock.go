@@ -8,6 +8,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime"
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/facts"
 	"github.com/davidarcher/RimGovernor/go/internal/httpapi"
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
@@ -54,6 +55,23 @@ func (s serviceRoutineDiagnostics) RoutineStatus(ctx context.Context) (httpapi.R
 		LastReviewTick:  review.Tick,
 		LastReviewKnown: review.Revision != 0,
 		Sections:        s.sections.Status(),
+	}
+	// Read-only diagnostics: missing complete extent geometry or readiness
+	// stays unknown. This does not widen any planner or dispatch surface.
+	if held, ok := facts.Get[observation.ColonyProjection](s.sections, facts.Colony); ok && held.Complete {
+		f := held.Value.Facts
+		r := policy.ResourceReachRequest{Bounds: domain.Known(held.Value.Bounds), RaidPoints: f.RaidPoints, Armed: f.Armed}
+		if count, known := f.Hostiles.Value(); known {
+			r.Threat = domain.Known(count > 0)
+		}
+		r.Extent, err = policy.DeriveColonyExtent(policy.ColonyExtentRequest{
+			Bounds: r.Bounds, Construction: f.CurrentConstruction, Claims: f.ConstructionClaims,
+			Stockpiles: f.OwnedStockpiles, Home: f.HomeCoverage,
+		})
+		if err != nil {
+			return httpapi.RoutineStatus{}, err
+		}
+		status.ResourceReach = r
 	}
 	if review.Revision != 0 {
 		development := review.Development.State()

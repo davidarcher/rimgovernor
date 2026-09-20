@@ -99,6 +99,24 @@ contribute only their exact footprints. This model neither persists territory,
 assesses current safety, nor changes native Home; runtime projection and consumers
 belong to the later colony-extent slices.
 
+`policy.ResourceReach` limits resource candidate consideration to `base`,
+`near`, `far` or `map`, with a reason on every decision. Base means exact extent
+cells; near adds a 12-cell Chebyshev margin. Two armed colonists, positive hauling
+capacity and storage headroom permit near work, unless threat facts are unknown,
+a threat is present or raid points exceed 100 per armed colonist. Six armed
+colonists and a quiet storyteller permit far with two free haulers, map with
+three. These are conservative selection thresholds, not combat predictions.
+`FilterResourceReach` intersects that ceiling with current map bounds and a
+positive candidate eligibility verdict and observed passable route, including at
+base/map. Distance never supplies route evidence. Candidate eligibility is the
+narrow input boundary for the separate eligibility view; dispatch is unchanged.
+
+The routines API exposes `resourceReach.stage/reason` alongside `extent` known,
+region and cell counts. Its read-only projection uses held colony facts; complete
+extent geometry and missing readiness (hauler capacity, destination headroom,
+storyteller quietness) stay unknown until their observation producers supply them.
+Unknown extent reports `base` / `extent_unknown` and admits no candidates.
+
 The roof-support preview checks connected existing roof cells within the installed
 native support radius while excluding the specified wall as a holder. It changes
 no roof or building. Fog, map-edge uncertainty, pending collapse and unsupported
