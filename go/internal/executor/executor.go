@@ -162,6 +162,8 @@ type Executor struct {
 	tradeJournal               TradeJournal
 	caravanDeparture           CaravanDepartureBoundary
 	caravanDepartureJournal    CaravanDepartureJournal
+	apparelPolicy              ApparelPolicyBoundary
+	apparelPolicyJournal       ApparelPolicyJournal
 	dialog                     DialogAnswerBoundary
 	dialogJournal              DialogAnswerJournal
 	husbandry                  HusbandryBoundary
@@ -443,6 +445,9 @@ func (e *Executor) Run(ctx context.Context, plan domain.PlanID, actionID domain.
 	}
 	if action.Kind() == domain.CaravanDepartureAction && e.caravanDeparture != nil {
 		return e.runCaravanDeparture(ctx, action, progress, authority, generation)
+	}
+	if action.Kind() == domain.ApparelPolicyAction && e.apparelPolicy != nil {
+		return e.runApparelPolicy(ctx, action, progress, authority, generation)
 	}
 	if action.Kind() == domain.DialogAnswerAction && e.dialog != nil {
 		return e.runDialogAnswer(ctx, action, progress, authority, generation)

@@ -16,6 +16,38 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+func TestGearPlannerAssignsPolicyBeforeWearOrProduction(t *testing.T) {
+	reviewer, db, _, _, native := routineFixture(t)
+	setGearProductionNeed(native.reply.GetObserved())
+	gear := native.reply.GetObserved().GetPlanning().GetObserved().GetGear()
+	gear.Pawns[0].ApparelPolicy = &o.ApparelPolicyState{Token: proto.String("policy-cas"), Name: proto.String("Player custom"), Child: proto.Bool(false), Slave: proto.Bool(false), IncapableOfViolence: proto.Bool(false), Drafted: proto.Bool(false), MinHitPoints: proto.Float32(0), MaxHitPoints: proto.Float32(1), MinQuality: proto.Int32(0), MaxQuality: proto.Int32(6), ExcludesTainted: proto.Bool(false), Definitions: []*o.ApparelPolicyDefinition{{DefName: proto.String("Apparel_BasicShirt"), Adult: proto.Bool(true), Armor: proto.Bool(false), Child: proto.Bool(false)}}}
+	n := &gearProductionNative{gearTestNative: &gearTestNative{equipTestNative: &equipTestNative{routineNative: native, ids: []string{"a", "b"}}}}
+	reviewer.native = n
+	reviewer.methods = domain.Known([]policy.GoalID{policy.MaintainEquipment})
+	if _, err := reviewer.Step(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	planner, err := NewRoutineGearPlanner(reviewer, n)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := planner.Step(context.Background())
+	if err != nil || result.Reason != BuildingMethodAdmitted {
+		t.Fatal(result, err)
+	}
+	state, err := db.LoadPlan(context.Background(), result.Plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	value, ok := state.Spec.Actions()[0].ApparelPolicy()
+	if !ok || value.Pawn() != "a" || value.Spec().Name != "RimGovernor worker" || value.Spec().Token != "policy-cas" {
+		t.Fatal(value, ok)
+	}
+	if len(n.previews) != 0 {
+		t.Fatal("bill preview before apparel assignment")
+	}
+}
+
 type gearProductionNative struct {
 	*gearTestNative
 	previews []domain.ProductionBill

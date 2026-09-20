@@ -76,6 +76,7 @@ func gearObservationFacts(gear *o.GearSnapshot) policy.GearObservation {
 		row.Candidates = domain.Known(observation.GearCandidateFacts(p))
 		row.Replacements = domain.Known(needs)
 		row.Apparel = observation.GearApparelFacts(p.GetEquipment())
+		row.Policy = observation.ApparelPolicyFacts(p)
 		row.Climate = observation.GearClimateFacts(gear)
 		result.Pawns = append(result.Pawns, row)
 	}
@@ -164,6 +165,46 @@ func (r *RoutineGearPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return RoutineGearResult{Reason: BuildingMethodUsed}, nil
 	}
 	observation := gearObservationFacts(gear)
+	// Configure vanilla dressing before choosing individual replacements. The
+	// shared goal and Hands executor own this settings operation like wear work.
+	for _, pawn := range observation.Pawns {
+		value, needed := policy.DesiredApparelPolicy(pawn)
+		if !needed {
+			continue
+		}
+		digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, value.Encoded())))
+		method := domain.MethodID(fmt.Sprintf("apparel-policy-%x", digest[:16]))
+		seen := false
+		for _, m := range goal.Methods {
+			seen = seen || m.Method == method
+		}
+		if seen {
+			continue
+		}
+		if !arbiter.tryClaim([]domain.PawnID{value.Pawn()}) {
+			continue
+		}
+		id := domain.PlanID(method)
+		action, err := domain.NewApparelPolicyAction(domain.ActionID(string(id)+"-0"), value)
+		if err != nil {
+			return RoutineGearResult{}, err
+		}
+		plan, err := domain.NewPlan(id, 1, []domain.Action{action})
+		if err != nil {
+			return RoutineGearResult{}, err
+		}
+		if err = p.current(call, epoch); err != nil {
+			return RoutineGearResult{}, err
+		}
+		elapsed := r.reviewer.clock.Now().Sub(started)
+		if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
+			return RoutineGearResult{}, ErrControl
+		}
+		if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+			return RoutineGearResult{}, err
+		}
+		return RoutineGearResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+	}
 	seen := make([]domain.MethodID, 0, len(goal.Methods))
 	for _, method := range goal.Methods {
 		seen = append(seen, method.Method)

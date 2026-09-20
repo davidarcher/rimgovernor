@@ -21,6 +21,7 @@ func colonyGear(v *o.ColonyFactsSnapshot) domain.Fact[policy.GearObservation] {
 		row.Candidates = domain.Known(GearCandidateFacts(p))
 		row.Replacements = domain.Known(needs)
 		row.Apparel = GearApparelFacts(p.Equipment)
+		row.Policy = ApparelPolicyFacts(p)
 		row.Climate = GearClimateFacts(gear)
 		result.Pawns = append(result.Pawns, row)
 	}

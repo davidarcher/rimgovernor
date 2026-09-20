@@ -20,6 +20,7 @@ namespace HomeBridge.BridgeTools
         private readonly string colony;
         private readonly string load;
         internal readonly NativeAttemptLedger Ledger;
+        internal readonly Dictionary<Common.AttemptKey, Operations.SetApparelPolicy> ApparelPolicies = new Dictionary<Common.AttemptKey, Operations.SetApparelPolicy>();
         internal readonly Dictionary<Common.AttemptKey, NativeConstructionRecord> Construction = new Dictionary<Common.AttemptKey, NativeConstructionRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeDraftRecord> Drafts = new Dictionary<Common.AttemptKey, NativeDraftRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeMovementRecord> Movements = new Dictionary<Common.AttemptKey, NativeMovementRecord>();
@@ -184,6 +185,8 @@ namespace HomeBridge.BridgeTools
                 return NativeCaravanTravel.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.ConfirmColonyNames)
                 return NativeColonyNamingOperations.Execute(state, request, context);
+            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.SetApparelPolicy)
+                return NativeApparelPolicyOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.AnswerDialog)
                 return NativeChoiceDialogOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.SelectResearch)
@@ -341,6 +344,8 @@ namespace HomeBridge.BridgeTools
                     return ProtoBoundary.Encode(NativeCaravanTravel.Preview(parsed.Operation.TravelCaravan, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.ConfirmColonyNames)
                     return ProtoBoundary.Encode(NativeColonyNamingOperations.Preview(parsed.Operation.ConfirmColonyNames, context));
+                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.SetApparelPolicy)
+                    return ProtoBoundary.Encode(NativeApparelPolicyOperations.Preview(parsed.Operation.SetApparelPolicy, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.AnswerDialog)
                     return ProtoBoundary.Encode(NativeChoiceDialogOperations.Preview(parsed.Operation.AnswerDialog, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.SelectResearch)
@@ -515,6 +520,8 @@ namespace HomeBridge.BridgeTools
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeColonyNamingOperations.Observe(parsed.Attempt, context, naming) }));
                     if (state.JoinerLetters.TryGetValue(parsed.Attempt, out var joinerLetter))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeJoinerLetters.Observe(parsed.Attempt, context, joinerLetter) }));
+                    if (state.ApparelPolicies.TryGetValue(parsed.Attempt, out var apparelPolicy))
+                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeApparelPolicyOperations.Observe(parsed.Attempt, context, apparelPolicy) }));
                     NativeDialogRecord dialog;
                     if (state.Dialogs.TryGetValue(parsed.Attempt, out dialog))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeChoiceDialogOperations.Observe(parsed.Attempt, context, dialog) }));

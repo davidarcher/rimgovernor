@@ -633,7 +633,7 @@ message InstallStatusReply { oneof outcome { PackedFurnitureState observed = 1; 
 message GearCandidate { GearItem item = 1; optional double gain = 2; optional string reason = 3; optional string blocker = 4; }
 message GearReplacementNeed { optional string def_name = 1; optional string stuff = 2; optional string reason = 3; optional double gain = 4; }
 // candidates are the 8 best eligible loose items by gain (then thing id); further eligible items count as completeness.filtered, so a full list with filtered > 0 is complete.
-message GearLoadout { SnapshotRef snapshot = 1; EntityRef pawn = 2; PawnEquipment equipment = 3; repeated GearCandidate candidates = 4; repeated GearReplacementNeed replacement_needs = 5; optional double comfortable_min_c = 6; optional double comfortable_max_c = 7; Completeness completeness = 8; optional bool deficit = 9; optional string blocker = 10; }
+message GearLoadout { SnapshotRef snapshot = 1; EntityRef pawn = 2; PawnEquipment equipment = 3; repeated GearCandidate candidates = 4; repeated GearReplacementNeed replacement_needs = 5; optional double comfortable_min_c = 6; optional double comfortable_max_c = 7; Completeness completeness = 8; optional bool deficit = 9; optional string blocker = 10; ApparelPolicyState apparel_policy = 11; }
 // Temperatures are indexed by native Twelfth (0..11), in degrees Celsius.
 // Absent climate fields retain ambient-only planning for older producers.
 message GearSnapshot {
@@ -1104,3 +1104,6 @@ message FoodRestriction {
   repeated string allowed_defs = 2;
   repeated string eligible_defs = 3;
 }
+
+message ApparelPolicyDefinition { optional string def_name = 1; optional bool armor = 2; optional bool child = 3; optional bool adult = 4; }
+message ApparelPolicyState { optional string token = 1; reserved 2; optional string name = 3; repeated string allowed_defs = 4; optional float min_hit_points = 5; optional float max_hit_points = 6; optional int32 min_quality = 7; optional int32 max_quality = 8; optional bool excludes_tainted = 9; repeated ApparelPolicyDefinition definitions = 10; optional bool child = 11; optional bool slave = 12; optional bool incapable_of_violence = 13; repeated WorkSetting work = 14; optional bool drafted = 15; }

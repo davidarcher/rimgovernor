@@ -54,6 +54,9 @@ func validateColonyGear(v *o.GearSnapshot, ctx *c.ObservationContext, size *o.Ma
 		if err := pawnsRef(p.Snapshot, id, ctx); err != nil {
 			return err
 		}
+		if err := validateApparelPolicy(p.ApparelPolicy); err != nil {
+			return err
+		}
 		if !presentationText(p.Blocker, 4096) || p.Blocker != nil && p.GetBlocker() == "" || p.Blocker != nil && len(p.Candidates) > 0 {
 			return contract("invalid blocked gear loadout")
 		}

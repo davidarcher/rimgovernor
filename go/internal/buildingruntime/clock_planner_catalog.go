@@ -481,7 +481,7 @@ var plannerCatalog = []plannerEntry{
 			out.Haul = &method
 			return nil
 		}},
-	{name: "gear", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.GearReplaceAction, domain.ProductionBillAction}, families: factsMedical,
+	{name: "gear", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.GearReplaceAction, domain.ApparelPolicyAction, domain.ProductionBillAction}, families: factsMedical,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Gear != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.Gear.step(ctx, epoch, arbiter)

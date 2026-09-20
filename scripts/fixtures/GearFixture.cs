@@ -21,6 +21,26 @@ namespace HomeBridge.BridgeTools
             [ToolParameter(Description = "production_setup: the ingredient stack placed by the subject (Cloth or a leather def).")] string material = "Cloth")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
+                if (mode.StartsWith("policy_")) {
+                    if (mode == "policy_setup") {
+                        subject = Find.CurrentMap.mapPawns.FreeColonistsSpawned.First(p => !p.Downed && !p.InMentalState);
+                        subject.drafter.Drafted = false;
+                        var player = Current.Game.outfitDatabase.MakeNewOutfit(); player.label = "Player custom";
+                        subject.outfits.CurrentApparelPolicy = player;
+                        var shirt = (Apparel)ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed("Apparel_BasicShirt"), ThingDefOf.Cloth);
+                        foreach (var old in subject.apparel.WornApparel.ToList()) old.Destroy();
+                        subject.apparel.Wear(shirt); subject.outfits.forcedHandler.SetForced(shirt, true); subject.apparel.Lock(shirt);
+                    }
+                    if (mode == "policy_edit") subject.outfits.CurrentApparelPolicy.filter.SetAllow(SpecialThingFilterDefOf.AllowDeadmansApparel, true);
+                    var outfit = subject.outfits.CurrentApparelPolicy;
+                    return new { success = true, pawn = subject.GetUniqueLoadID(), token = NativeApparelPolicyOperations.Token(subject),
+                        policy = outfit.GetUniqueLoadID(), name = outfit.label, defs = outfit.filter.AllowedThingDefs.Select(d => d.defName).OrderBy(d => d).ToArray(),
+                        minHP = outfit.filter.AllowedHitPointsPercents.min, maxHP = outfit.filter.AllowedHitPointsPercents.max,
+                        minQuality = (int)outfit.filter.AllowedQualityLevels.min, maxQuality = (int)outfit.filter.AllowedQualityLevels.max,
+                        tainted = outfit.filter.Allows(SpecialThingFilterDefOf.AllowDeadmansApparel), clean = outfit.filter.Allows(SpecialThingFilterDefOf.AllowNonDeadmansApparel),
+                        forced = subject.outfits.forcedHandler.ForcedApparel.Count, locked = subject.apparel.AnyApparelLocked,
+                        count = Current.Game.outfitDatabase.AllOutfits.Count };
+                }
                 if (mode == "weapon_setup" || mode == "weapon_assigned" || mode == "weapon_damage") {
                     var map = Find.CurrentMap;
                     subject = map.mapPawns.FreeColonistsSpawned.First(p => !p.WorkTagIsDisabled(WorkTags.Violent)

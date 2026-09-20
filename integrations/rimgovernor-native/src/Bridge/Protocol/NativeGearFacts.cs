@@ -33,6 +33,7 @@ namespace HomeBridge.BridgeTools
                     Snapshot = new Obs.SnapshotRef { Context = context.Clone(), EntityId = Id(pawn.GetUniqueLoadID()), Token = GearUpkeepTools.Identity(pawn) },
                     ComfortableMinC = Number(pawn.GetStatValue(StatDefOf.ComfyTemperatureMin)),
                     ComfortableMaxC = Number(pawn.GetStatValue(StatDefOf.ComfyTemperatureMax)),
+                    ApparelPolicy = pawn.outfits?.CurrentApparelPolicy == null ? null : NativeApparelPolicyOperations.Read(pawn),
                     Equipment = Equipment(pawn)
                 };
                 if (refusal != null) row.Blocker = Text(refusal);

@@ -36,6 +36,7 @@ type GearPawn struct {
 	Climate *GearClimate
 	// LoadoutModel is supplied only with a complete eligible product census.
 	// Older native observations continue through the deficit-repair path.
+	Policy       domain.Fact[ApparelPolicyState]
 	LoadoutModel domain.Fact[GearLoadoutInput]
 	Pawn         PawnID
 	Loadout      string
@@ -203,7 +204,8 @@ func ReviewGear(f domain.Fact[GearObservation]) (GearReview, error) {
 		if !dk || !ck {
 			return GearReview{}, nil
 		}
-		if deficit || len(candidates) > 0 {
+		_, policyNeeded := DesiredApparelPolicy(p)
+		if deficit || len(candidates) > 0 || policyNeeded {
 			missing++
 		}
 		if _, known := p.Apparel.Value(); !known {

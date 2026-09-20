@@ -150,6 +150,8 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 			return encodeErr
 		}
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,mood_relief_payload) VALUES(?,?,?,'mood_relief',?,?)", a.ID(), plan, ordinal, relief.Pawn(), data)
+	} else if apparel, ok := a.ApparelPolicy(); ok {
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,definition) VALUES(?,?,?,'apparel_policy',?)", a.ID(), plan, ordinal, apparel.Encoded())
 	} else if dialog, ok := a.DialogAnswer(); ok {
 		// x carries the window ID and z the option's list position; definition
 		// is the exact observed option label.
@@ -423,6 +425,18 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 	}
 	if caravanBlob != nil {
 		return domain.Action{}, 0, errors.New("mixed caravan payload")
+	}
+	if kind == "apparel_policy" && def.Valid && !pawn.Valid && !target.Valid && !draftAction.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid {
+		var spec domain.ApparelPolicySpec
+		if len(def.String) > 32768 || json.Unmarshal([]byte(def.String), &spec) != nil {
+			return domain.Action{}, 0, errors.New("invalid apparel policy payload")
+		}
+		v, err := domain.NewApparelPolicy(spec)
+		if err != nil || v.Encoded() != def.String {
+			return domain.Action{}, 0, errors.New("noncanonical apparel policy")
+		}
+		a, err := domain.NewApparelPolicyAction(id, v)
+		return a, ordinal, err
 	}
 	if kind == "owned_draft" && pawn.Valid && !target.Valid && !draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid {
 		d, e := domain.NewOwnedDraft(domain.PawnID(pawn.String))

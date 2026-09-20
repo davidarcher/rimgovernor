@@ -83,6 +83,7 @@ type SessionConfig struct {
 	BedAssign           *bedassign.Capabilities
 	ResearchSelect      *ResearchSelectCapabilities
 	ConfirmColonyNames  *ConfirmColonyNamesCapabilities
+	ApparelPolicy       *ApparelPolicyCapabilities
 	DialogAnswer        *DialogAnswerCapabilities
 	Trade               *TradeCapabilities
 	Husbandry           *HusbandryCapabilities
@@ -397,6 +398,10 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 	if config.Trade != nil && (config.Trade.Native == nil || config.Trade.Writer == nil) {
 		return cleanup(ErrControl)
 	}
+	if config.ApparelPolicy != nil && (config.ApparelPolicy.Native == nil || config.ApparelPolicy.Writer == nil) {
+		return cleanup(ErrControl)
+	}
+
 	if config.DialogAnswer != nil && (config.DialogAnswer.Native == nil || config.DialogAnswer.Writer == nil) {
 		return cleanup(ErrControl)
 	}
@@ -544,6 +549,12 @@ func NewSession(ctx context.Context, config SessionConfig, journal *store.Store,
 			return cleanup(err)
 		}
 	}
+	if config.ApparelPolicy != nil {
+		if err := worker.EnableApparelPolicy(&apparelPolicyBoundary{Boundary: place, apparelPolicy: *config.ApparelPolicy}); err != nil {
+			return cleanup(err)
+		}
+	}
+
 	if config.DialogAnswer != nil {
 		if err := worker.EnableDialogAnswer(&dialogAnswerBoundary{Boundary: place, dialog: *config.DialogAnswer}); err != nil {
 			return cleanup(err)

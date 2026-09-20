@@ -22,8 +22,15 @@ Apparel candidates pass current outfit filters, developmental stage, body-part,
 biocoding, reservation, safe reachability and resource-budget checks. Native
 apparel scoring includes condition, armor, seasonal warmth and pawn-specific
 requirements. A gain below the native 0.05 threshold does not trigger dressing.
-Forced and locked apparel cannot be displaced. Orders do not change outfit filters
-or create forced apparel entries. A loadout carries at most 8 candidates, the
+The gear planner configures a named `RimGovernor <role>` apparel policy through
+`SetApparelPolicy` before selecting individual wear or production work. Autonomous
+control replaces manual policy assignments and clears forced/locked apparel;
+vanilla optimizes apparel between reviews. Worker, hunter, indoor, slave and
+non-combatant policies exclude armor; soldiers allow it; children use native
+child-compatible definitions. Every role excludes tainted apparel, admits
+51–100% hit points and Awful–Legendary quality. Policy filters update in place
+and assignments use CAS preview/admission with native postcondition readback.
+Individual wear orders still obey the current filter and do not create forced entries. A loadout carries at most 8 candidates, the
 best by gain then thing id; the eligible items past that bound count as
 `filtered` in the loadout's completeness, so the routine colony facts do not
 grow with pawns x loose items (issue #320). MaintainEquipment only wears the
@@ -95,7 +102,7 @@ it is known only when every colonist's worn apparel was observed. With complete
 loadout-model inputs, condition and coverage contribute to scored gaps; older
 observations retain native-deficit recovery.
 Missing research, workshops, materials or suitable definitions remain explicit
-blockers. This goal does not invent a trade or override a player outfit to obtain
+blockers. This goal does not invent a trade or bypass native apparel eligibility to obtain
 an item. Bench staging uses the equipment goal through the shared workshop ladder.
 
 ## Loadout model
@@ -199,3 +206,6 @@ shirt, no tailoring bench and only plain leather for fabric; the service must
 build the bench, raise the shirt bill from the leather and dress the colonist in the product. Fixture
 checks, native scripted pawn outcomes and sustained seasonal campaigns are
 different evidence levels.
+
+`production/apparel-policy` is a short native smoke case for create/update/assign,
+stale CAS refusal, manual-policy override and clearing forced/locked apparel.

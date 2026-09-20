@@ -105,6 +105,7 @@ message Operation {
     Deconstruct deconstruct = 55;
     ReleaseDeconstructions release_deconstructions = 56;
     Arrest arrest = 57;
+    SetApparelPolicy set_apparel_policy = 58;
   }
 }
 
@@ -350,3 +351,6 @@ service Operations {
   rpc Execute(ExecuteRequest) returns (ExecuteReply);
   rpc ReleaseOwnedDraft(ReleaseOwnedDraftRequest) returns (ReleaseOwnedDraftReply);
 }
+
+// Autonomous per-role policy assignment; tainted apparel is always excluded.
+message SetApparelPolicy { EntityPrecondition pawn = 1; optional string name = 2; repeated string allowed_defs = 3; optional float min_hit_points = 4; optional float max_hit_points = 5; optional int32 min_quality = 6; optional int32 max_quality = 7; }
