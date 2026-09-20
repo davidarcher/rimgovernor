@@ -143,12 +143,37 @@ namespace HomeBridge.BridgeTools
             return row;
         }
 
+        internal static void Biocode(Thing thing, Obs.GearItem row)
+        {
+            var comp = thing.TryGetComp<CompBiocodable>();
+            row.Biocoded = comp?.Biocoded == true;
+            if (row.Biocoded && comp?.CodedPawn != null) row.BiocodedTo = Id(comp.CodedPawn.GetUniqueLoadID());
+        }
+
+        // Planning census, not simulated damage: natural armor or strongest worn layer.
+        internal static double? RaidArmor(Map map)
+        {
+            var hostiles = map.mapPawns.AllPawnsSpawned.Where(p => !p.Dead && !p.Downed && p.HostileTo(Faction.OfPlayer));
+            var total = 0.0;
+            var count = 0;
+            foreach (var hostile in hostiles) {
+                var armor = Number(hostile.GetStatValue(StatDefOf.ArmorRating_Sharp));
+                if (hostile.apparel != null)
+                    foreach (var apparel in hostile.apparel.WornApparel)
+                        armor = Math.Max(armor, Number(apparel.GetStatValue(StatDefOf.ArmorRating_Sharp)));
+                total += armor;
+                count++;
+            }
+            return count == 0 ? (double?)null : Number(total / count);
+        }
+
         private static Obs.GearItem Gear(Thing thing)
         {
             var row = new Obs.GearItem { Thing = Entity(thing), Weapon = thing.def.IsWeapon, Apparel = thing.def.IsApparel,
                 Ranged = thing.def.IsRangedWeapon, Melee = thing.def.IsMeleeWeapon,
                 ArmorSharp = Number(thing.GetStatValue(StatDefOf.ArmorRating_Sharp)), ArmorBlunt = Number(thing.GetStatValue(StatDefOf.ArmorRating_Blunt)),
                 InsulationCold = Number(thing.GetStatValue(StatDefOf.Insulation_Cold)), InsulationHeat = Number(thing.GetStatValue(StatDefOf.Insulation_Heat)) };
+            Biocode(thing, row);
             if (thing.Stuff != null) row.Stuff = Id(thing.Stuff.defName);
             var range = NativePawnDetails.WeaponRange(thing); if (range.HasValue) row.Range = range.Value;
             if (thing.TryGetQuality(out var quality)) row.Quality = quality.ToString();

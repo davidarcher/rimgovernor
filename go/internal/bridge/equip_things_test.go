@@ -9,6 +9,49 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+func TestEquipCensusBiocodeIdentity(t *testing.T) {
+	fixture := func() *o.ListSuppliesReply {
+		reply := equipTestRead()
+		stock := reply.GetObserved().Stocks[0]
+		second := proto.Clone(stock.Items[0]).(*o.EntityRef)
+		second.Id = proto.String("other-sling")
+		second.Snapshot.EntityId = second.Id
+		stock.Items = append(stock.Items, second)
+		stock.Units = proto.Int64(2)
+		stock.ItemsCompleteness = emergencyCounts(2)
+		// Reverse order: ownership must join by ID, not definition or index.
+		stock.WeaponItems = []*o.GearItem{
+			{Thing: proto.Clone(second).(*o.EntityRef), Biocoded: proto.Bool(false)},
+			{Thing: proto.Clone(stock.Items[0]).(*o.EntityRef), Biocoded: proto.Bool(true), BiocodedTo: proto.String("pawn-b")},
+		}
+		return reply
+	}
+	read, err := decodeEquipWeapons(fixture(), pbIdentity(), domain.Cell{}, domain.Cell{X: 10, Z: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(read.Targets) != 4 || read.Targets[0].BiocodedTo != "pawn-b" || !read.Targets[0].Biocoded || read.Targets[1].BiocodedTo != "" || read.Targets[1].Biocoded {
+		t.Fatal(read)
+	}
+	for name, edit := range map[string]func(*o.ResourceStock){
+		"empty owner":    func(s *o.ResourceStock) { s.WeaponItems[1].BiocodedTo = proto.String("") },
+		"contradictory":  func(s *o.ResourceStock) { s.WeaponItems[1].Biocoded = proto.Bool(false) },
+		"duplicate":      func(s *o.ResourceStock) { s.WeaponItems[0] = s.WeaponItems[1] },
+		"partial":        func(s *o.ResourceStock) { s.WeaponItems = s.WeaponItems[:1] },
+		"other identity": func(s *o.ResourceStock) { s.WeaponItems[1].Thing.Id = proto.String("unlisted") },
+		"other map":      func(s *o.ResourceStock) { s.WeaponItems[1].Thing.MapId = proto.Int32(999) },
+		"other position": func(s *o.ResourceStock) { s.WeaponItems[1].Thing.Position.X = proto.Int32(9) },
+	} {
+		t.Run(name, func(t *testing.T) {
+			reply := fixture()
+			edit(reply.GetObserved().Stocks[0])
+			if _, err := decodeEquipWeapons(reply, pbIdentity(), domain.Cell{}, domain.Cell{X: 10, Z: 10}); err == nil {
+				t.Fatal("invalid ownership accepted")
+			}
+		})
+	}
+}
+
 func equipTestRead() *o.ListSuppliesReply {
 	ctx := buildingAdmission().AdmittedContext
 	stock := func(def, id string, byTrade, ranged, melee bool) *o.ResourceStock {

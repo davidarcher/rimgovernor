@@ -11,6 +11,8 @@ import (
 
 type EquipCandidate struct {
 	Thing, Definition string
+	BiocodedTo        domain.PawnID
+	Biocoded          bool
 	Cell              domain.Cell
 	Token             string
 	// ByTrade is the definition's membership in the Weapons thing category,
@@ -68,9 +70,23 @@ func decodeEquipWeapons(reply *o.ListSuppliesReply, identity *c.Identity, minimu
 		if yes, known := complete.Value(); err != nil || !known || !yes {
 			return EquipRead{}, contract("incomplete equip items")
 		}
+		owners := map[string]*o.GearItem{}
+		for _, weapon := range stock.WeaponItems {
+			if weapon == nil || validID(weapon.GetThing().GetId()) != nil || owners[weapon.GetThing().GetId()] != nil || !validBiocode(weapon) {
+				return EquipRead{}, contract("invalid equip biocode")
+			}
+			owners[weapon.GetThing().GetId()] = weapon
+		}
+		if len(owners) != 0 && len(owners) != len(stock.Items) {
+			return EquipRead{}, contract("incomplete equip biocodes")
+		}
 		for _, item := range stock.Items {
 			if item == nil || validID(item.GetId()) != nil || seen[item.GetId()] || item.MapId == nil || item.GetMapId() != identity.GetMapId() || item.Position == nil || item.Position.X == nil || item.Position.Z == nil || item.Position.GetX() < minimum.X || item.Position.GetX() > maximum.X || item.Position.GetZ() < minimum.Z || item.Position.GetZ() > maximum.Z || item.GetDefName() != stock.GetDefinition().GetDefName() {
 				return EquipRead{}, contract("equip entity mismatch")
+			}
+			weapon := owners[item.GetId()]
+			if len(owners) != 0 && (weapon == nil || weapon.GetThing().GetDefName() != item.GetDefName() || weapon.GetThing().GetMapId() != item.GetMapId() || !proto.Equal(weapon.GetThing().Position, item.Position)) {
+				return EquipRead{}, contract("equip biocode identity mismatch")
 			}
 			seen[item.GetId()] = true
 			if len(seen) > 256 {
@@ -84,7 +100,7 @@ func decodeEquipWeapons(reply *o.ListSuppliesReply, identity *c.Identity, minimu
 				return EquipRead{}, contract("equip CAS scope mismatch")
 			}
 			cell := domain.Cell{X: item.Position.GetX(), Z: item.Position.GetZ()}
-			out.Targets = append(out.Targets, EquipCandidate{Thing: item.GetId(), Definition: item.GetDefName(), Cell: cell, Token: item.Snapshot.GetToken(), ByTrade: stock.GetWeaponByTrade(), Ranged: stock.GetRanged(), Melee: stock.GetMelee()})
+			out.Targets = append(out.Targets, EquipCandidate{Thing: item.GetId(), Definition: item.GetDefName(), Cell: cell, Token: item.Snapshot.GetToken(), ByTrade: stock.GetWeaponByTrade(), Ranged: stock.GetRanged(), Melee: stock.GetMelee(), BiocodedTo: domain.PawnID(weapon.GetBiocodedTo()), Biocoded: weapon.GetBiocoded()})
 			if len(out.Targets) > 256 {
 				return EquipRead{}, contract("equip targets exceed bound")
 			}

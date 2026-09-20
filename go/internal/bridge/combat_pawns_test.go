@@ -20,6 +20,27 @@ func combatPawnsFixture() *o.PawnSnapshot {
 	p.Biography = &o.PawnBiography{BiologicalAgeYears: proto.Float64(25), Skills: []*o.Skill{{Definition: &o.DefinitionRef{DefName: proto.String("Melee")}, Level: proto.Int32(10), StoredLevel: proto.Float64(10), Disabled: proto.Bool(false)}}, Traits: []*o.Trait{{DefName: proto.String("Beauty"), Degree: proto.Int32(-1)}}}
 	return s
 }
+func TestCombatBiocodeAndRaidArmor(t *testing.T) {
+	s := combatPawnsFixture()
+	p := s.Pawns[0]
+	p.RaidArmor = proto.Float64(.8)
+	p.Equipment.Equipped[0].Biocoded = proto.Bool(true)
+	p.Equipment.Equipped[0].BiocodedTo = proto.String(p.Pawn.GetId())
+	if err := pawnsSnapshotDetails(s, pbIdentity(), map[string]bool{"pawn-1": true}, true); err != nil {
+		t.Fatal(err)
+	}
+	for _, armor := range []float64{-1, math.NaN(), math.Inf(1)} {
+		p.RaidArmor = proto.Float64(armor)
+		if err := pawnsSnapshotDetails(s, pbIdentity(), map[string]bool{"pawn-1": true}, true); err == nil {
+			t.Fatal("invalid armor accepted", armor)
+		}
+	}
+	p.RaidArmor = nil
+	p.Equipment.Equipped[0].BiocodedTo = proto.String("")
+	if err := pawnsSnapshotDetails(s, pbIdentity(), map[string]bool{"pawn-1": true}, true); err == nil {
+		t.Fatal("empty owner accepted")
+	}
+}
 func TestCombatPawnsFixedDetailsAndUnknown(t *testing.T) {
 	for _, details := range []bool{false, true} {
 		snapshot := pawnsTestSnapshot()

@@ -7,6 +7,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
@@ -15,8 +16,9 @@ import (
 // equipTestNative is a colony of unarmed colonists beside one loose bow.
 type equipTestNative struct {
 	*routineNative
-	ids     []string
-	weapons []bridge.EquipCandidate
+	ids      []string
+	weapons  []bridge.EquipCandidate
+	editPawn func(*o.PawnState)
 }
 
 func (n *equipTestNative) pawn(id string) *o.PawnState {
@@ -30,7 +32,11 @@ func (n *equipTestNative) census() *o.ListPawnsReply {
 	v := n.reply.GetObserved()
 	var rows []*o.PawnState
 	for _, id := range n.ids {
-		rows = append(rows, n.pawn(id))
+		row := n.pawn(id)
+		if n.editPawn != nil {
+			n.editPawn(row)
+		}
+		rows = append(rows, row)
 	}
 	count := uint64(len(rows))
 	return &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: &o.PawnSnapshot{Context: proto.Clone(v.Context).(*c.ObservationContext), Pawns: rows, Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(count), Returned: proto.Uint64(count), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}}}}
@@ -59,6 +65,146 @@ func (n *equipTestNative) ReadEquipWeapons(ctx context.Context, _ *c.Identity, _
 		return bridge.EquipRead{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Targets: n.weapons}, bridge.Result{}, ctx.Err()
 	}
 	return bridge.EquipRead{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Targets: []bridge.EquipCandidate{{Thing: "bow", Definition: "Bow_Short", Cell: domain.Cell{X: 5, Z: 5}, Token: "bow-token"}}}, bridge.Result{}, ctx.Err()
+}
+
+func TestEquipPlannerBiocodeOwnerOnly(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		owner domain.PawnID
+		coded bool
+		want  domain.PawnID
+	}{
+		{"uncoded", "", false, "a"},
+		{"owner", "b", true, "b"},
+		{"absent owner", "outside", true, ""},
+		{"lost owner", "", true, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			reviewer, db, _, _, native := routineFixture(t)
+			n := &equipTestNative{routineNative: native, ids: []string{"a", "b"}, weapons: []bridge.EquipCandidate{{Thing: "rifle", Definition: "Gun_BoltActionRifle", ByTrade: true, Ranged: true, BiocodedTo: tc.owner, Biocoded: tc.coded}}}
+			v := native.reply.GetObserved()
+			v.ColonistCount = proto.Uint32(uint32(len(n.ids)))
+			v.WorkerCount = proto.Uint32(uint32(len(n.ids)))
+			v.Issues = append(v.Issues, &o.ReadIssue{Field: proto.String("naming"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}})
+			reviewer.native = n
+			reviewer.methods = domain.Known([]policy.GoalID{policy.EnsureBasicDefense})
+			if _, err := reviewer.Step(ctx); err != nil {
+				t.Fatal(err)
+			}
+			planner, err := NewRoutineEquipPlanner(reviewer, n)
+			if err != nil {
+				t.Fatal(err)
+			}
+			result, err := planner.Step(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tc.want == "" {
+				if result.Reason != BuildingMethodUsed {
+					t.Fatal(result)
+				}
+				return
+			}
+			if result.Reason != BuildingMethodAdmitted {
+				t.Fatal(result)
+			}
+			plan, err := db.LoadPlan(ctx, result.Plan)
+			if err != nil || len(plan.Spec.Actions()) != 1 {
+				t.Fatal(plan, err)
+			}
+			equip, ok := plan.Spec.Actions()[0].Equip()
+			if !ok || equip.Pawn() != tc.want || equip.Thing() != "rifle" {
+				t.Fatal(equip)
+			}
+		})
+	}
+}
+
+func TestEquipPlannerPreservesCompletedBiocodedPrimary(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		coded bool
+		owner string
+	}{
+		{"uncoded upgrades", false, ""}, {"coded stays", true, "a"}, {"lost owner stays", true, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			reviewer, db, _, _, native := routineFixture(t)
+			n := &equipTestNative{routineNative: native, ids: []string{"a"}, weapons: []bridge.EquipCandidate{{Thing: "log", Definition: "WoodLog", Melee: true}}}
+			v := native.reply.GetObserved()
+			v.ColonistCount = proto.Uint32(uint32(len(n.ids)))
+			v.WorkerCount = proto.Uint32(uint32(len(n.ids)))
+			v.Issues = append(v.Issues, &o.ReadIssue{Field: proto.String("naming"), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}})
+			reviewer.native = n
+			reviewer.methods = domain.Known([]policy.GoalID{policy.EnsureBasicDefense})
+			if _, err := reviewer.Step(ctx); err != nil {
+				t.Fatal(err)
+			}
+			planner, err := NewRoutineEquipPlanner(reviewer, n)
+			if err != nil {
+				t.Fatal(err)
+			}
+			result, err := planner.Step(ctx)
+			if err != nil || result.Reason != BuildingMethodAdmitted {
+				t.Fatal(result, err)
+			}
+			plan, err := db.LoadPlan(ctx, result.Plan)
+			if err != nil {
+				t.Fatal(err)
+			}
+			action := plan.Spec.Actions()[0]
+			equip, _ := action.Equip()
+			snapshot := reviewer.player.State().Snapshot
+			snapshot.Plan, snapshot.Revision = plan.Spec.ID(), plan.Spec.Revision()
+			tick := domain.Tick(native.reply.GetObserved().Context.GetTick())
+			if _, err := db.PrepareEquip(ctx, result.Plan, action.ID(), store.EquipAdmission{Snapshot: snapshot, Tick: tick, Pawn: equip.Pawn(), Thing: equip.Thing(), Definition: equip.Definition(), Cell: equip.Cell(), PawnSnapshotToken: "pawn-token", ThingSnapshotToken: "thing-token"}); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.Dispatch(ctx, result.Plan, action.ID(), snapshot, tick); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.Observe(ctx, result.Plan, domain.Observation{Action: action.ID(), Attempt: 1, Snapshot: snapshot, Tick: tick, Effect: domain.EffectCompleted, Causality: domain.AfterDispatch}, snapshot); err != nil {
+				t.Fatal(err)
+			}
+			n.editPawn = func(row *o.PawnState) {
+				item := &o.GearItem{Thing: &o.EntityRef{Id: proto.String("log"), DefName: proto.String("WoodLog")}, Melee: proto.Bool(true), Biocoded: proto.Bool(tc.coded)}
+				if tc.owner != "" {
+					item.BiocodedTo = proto.String(tc.owner)
+				}
+				row.Equipment = &o.PawnEquipment{Armed: proto.Bool(true), PrimaryId: proto.String("log"), Equipped: []*o.GearItem{item}}
+			}
+			n.weapons = []bridge.EquipCandidate{{Thing: "rifle", Definition: "Gun_AssaultRifle", ByTrade: true, Ranged: true}}
+			next, err := planner.Step(ctx)
+			want := BuildingMethodAdmitted
+			if tc.coded {
+				want = BuildingMethodUsed
+			}
+			if err != nil || next.Reason != want {
+				t.Fatal(next, err)
+			}
+		})
+	}
+}
+
+func TestEquipPawnRaidArmorPresence(t *testing.T) {
+	row := &o.PawnState{Pawn: &o.EntityRef{Id: proto.String("pawn")}}
+	if _, known := equipCandidatePawnFacts(row).RaidArmor.Value(); known {
+		t.Fatal("missing armor became known")
+	}
+	row.RaidArmor = proto.Float64(0)
+	if armor, known := equipCandidatePawnFacts(row).RaidArmor.Value(); !known || armor != 0 {
+		t.Fatal("zero armor lost")
+	}
+	row.RaidArmor = proto.Float64(.8)
+	if armor, known := equipCandidatePawnFacts(row).RaidArmor.Value(); !known || armor != .8 {
+		t.Fatal("armor lost")
+	}
+	row.Issues = []*o.ReadIssue{{Field: proto.String("raid_armor")}}
+	if _, known := equipCandidatePawnFacts(row).RaidArmor.Value(); known {
+		t.Fatal("unavailable armor became known")
+	}
 }
 
 func TestEquipPlannerOneWave(t *testing.T) {

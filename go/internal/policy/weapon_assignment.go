@@ -78,7 +78,7 @@ func ScoreWeapon(p EquipCandidatePawn, w EquipCandidateWeapon) float64 {
 	if p.Role == WeaponRoleNonCombatant {
 		return 0
 	}
-	if w.BiocodedTo != "" && w.BiocodedTo != p.Pawn {
+	if (w.Biocoded || w.BiocodedTo != "") && w.BiocodedTo != p.Pawn {
 		return 0
 	}
 	if incapable, known := p.IncapableOfViolence.Value(); !known || incapable {
@@ -202,7 +202,7 @@ func AssignEquip(pawns []EquipCandidatePawn, weapons []EquipCandidateWeapon) []E
 	}
 	var pairs []pair
 	for _, p := range pawns {
-		if !equipAvailable(p) || p.Current != nil && p.Current.BiocodedTo != "" {
+		if !equipAvailable(p) || p.Current != nil && (p.Current.Biocoded || p.Current.BiocodedTo != "") {
 			continue
 		}
 		current := 0.0

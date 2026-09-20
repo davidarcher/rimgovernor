@@ -142,7 +142,7 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArb
 		if current := row.GetEquipment().GetPrimaryId(); current != "" && ownedWeapons[facts.Pawn] == current {
 			for _, item := range row.GetEquipment().GetEquipped() {
 				if item.GetThing().GetId() == current {
-					facts.Current = &policy.EquipCandidateWeapon{Thing: current, Definition: item.GetThing().GetDefName(), Class: policy.ClassifyWeapon(true, item.GetRanged(), item.GetMelee())}
+					facts.Current = &policy.EquipCandidateWeapon{Thing: current, Definition: item.GetThing().GetDefName(), Class: policy.ClassifyWeapon(true, item.GetRanged(), item.GetMelee()), BiocodedTo: domain.PawnID(item.GetBiocodedTo()), Biocoded: item.GetBiocoded()}
 					facts.AutomationOwned = true
 				}
 			}
@@ -165,7 +165,7 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArb
 	}
 	var candidates []policy.EquipCandidateWeapon
 	for _, w := range weapons.Targets {
-		candidates = append(candidates, policy.EquipCandidateWeapon{Thing: w.Thing, Definition: w.Definition, Cell: w.Cell, Class: policy.ClassifyWeapon(w.ByTrade, w.Ranged, w.Melee)})
+		candidates = append(candidates, policy.EquipCandidateWeapon{Thing: w.Thing, Definition: w.Definition, Cell: w.Cell, Class: policy.ClassifyWeapon(w.ByTrade, w.Ranged, w.Melee), BiocodedTo: w.BiocodedTo, Biocoded: w.Biocoded})
 	}
 	// Exclude unavailable pawns before matching so they cannot consume a weapon
 	// another colonist could use. The arbiter lock spans selection and claims.
@@ -237,6 +237,9 @@ func (r *RoutineEquipPlanner) step(call, epoch context.Context, arbiter *stepArb
 func equipCandidatePawnFacts(row *n.PawnState) policy.EquipCandidatePawn {
 	facts := policy.EquipCandidatePawn{Pawn: domain.PawnID(row.Pawn.GetId()), Dead: boundary.FactBool(row.Dead), Downed: boundary.FactBool(row.Downed), Drafted: boundary.FactBool(row.Drafted), MentalState: boundary.FactPresence(row.MentalState, row.Issues, "mental_state")}
 	facts.Profile = policy.BuildProfile(observation.WorkPawnRow(row))
+	if row.RaidArmor != nil && !boundary.IssueField(row.Issues, "raid_armor") {
+		facts.RaidArmor = domain.Known(row.GetRaidArmor())
+	}
 	facts.Position = domain.Cell{X: row.Pawn.GetPosition().GetX(), Z: row.Pawn.GetPosition().GetZ()}
 	if biography := row.Biography; biography != nil && !boundary.IssueField(biography.Issues, "disabled_work_tags") {
 		capable := true

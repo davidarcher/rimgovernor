@@ -185,6 +185,7 @@ namespace HomeBridge.BridgeTools
         private static Obs.GearItem Gear(Thing thing)
         {
             var row=new Obs.GearItem {Thing=Entity(thing),Weapon=thing.def.IsWeapon,Apparel=thing.def.IsApparel,Ranged=thing.def.IsRangedWeapon,Melee=thing.def.IsMeleeWeapon};
+            NativeGearFacts.Biocode(thing, row);
             if(thing.Stuff!=null) row.Stuff=Id(thing.Stuff.defName);
             var range=WeaponRange(thing); if(range.HasValue) row.Range=range.Value;
             if(thing.TryGetQuality(out var quality)) row.Quality=quality.ToString();

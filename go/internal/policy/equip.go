@@ -35,6 +35,7 @@ type EquipCandidateWeapon struct {
 	Cell              domain.Cell
 	Class             WeaponClass
 	BiocodedTo        domain.PawnID
+	Biocoded          bool
 }
 
 // WeaponClass ranks a loose equippable by what it is for. The native

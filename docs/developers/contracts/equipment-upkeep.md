@@ -52,9 +52,13 @@ Native preview still decides current equip eligibility, including biocoding.
 
 `WeaponProductionDemand` supplies definition/count demand to the bill batch
 (#469), net of assigned loose weapons and limited to discovered available
-recipes. Optional roles are supplied by the loadout model (#466). The current
-combat/loose-weapon read has no biocode or raid-armor census; those policy inputs
-remain absent until the observation contract supplies them.
+recipes. Optional roles are supplied by the loadout model (#466). Native gear
+items carry a biocoded flag and, when retained, their owner's pawn ID. Supply
+weapon details use exact item identities. Coded weapons with a lost owner
+remain unavailable, and coded primaries stay pinned even if automation equipped
+them. Combat pawn reads carry the map's mean peak sharp armor among live,
+standing hostile pawns (natural armor or strongest worn layer). No hostiles
+leaves raid armor unknown; older producers may omit these optional facts.
 
 ## Production and resource protection
 

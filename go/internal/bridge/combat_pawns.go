@@ -66,7 +66,14 @@ func combatDefinition(v *o.DefinitionRef) error {
 	}
 	return nil
 }
+func validBiocode(g *o.GearItem) bool {
+	return g.BiocodedTo == nil || validID(g.GetBiocodedTo()) == nil && (g.Biocoded == nil || g.GetBiocoded())
+}
+
 func combatDetails(row *o.PawnState, ctx *c.ObservationContext) error {
+	if !combatNumber(row.RaidArmor, true) {
+		return contract("invalid raid armor")
+	}
 	if h := row.Health; h != nil {
 		for _, v := range []*float64{h.SummaryFraction, h.BleedRatePerDay, h.Pain, h.BloodLoss, h.HoursUntilDeathFromBloodLoss} {
 			if !combatNumber(v, true) {
@@ -167,6 +174,9 @@ func combatDetails(row *o.PawnState, ctx *c.ObservationContext) error {
 					if id != nil && validID(*id) != nil {
 						return contract("invalid gear definition")
 					}
+				}
+				if !validBiocode(g) {
+					return contract("invalid gear biocode")
 				}
 				if g.HitPoints != nil && g.GetHitPoints() < 0 || g.MaxHitPoints != nil && g.GetMaxHitPoints() <= 0 {
 					return contract("invalid gear hit points")

@@ -252,6 +252,11 @@ namespace HomeBridge.BridgeTools
                 }
                 if (row.Items.Count >= ItemBound) continue;
                 row.Items.Add(Entity(entry.Thing, entry.Position));
+                if (entry.Thing.def.IsWeapon) {
+                    var weapon = new Obs.GearItem { Thing = Entity(entry.Thing, entry.Position) };
+                    NativeGearFacts.Biocode(entry.Thing, weapon);
+                    row.WeaponItems.Add(weapon);
+                }
                 if (entry.Holder != null) row.Holders.Add(new Obs.HeldStock { Holder = Entity(entry.Holder, entry.Position), HolderKind = entry.HolderKind!, Units = units });
                 if (entry.Thing is Corpse corpse)
                 {

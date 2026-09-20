@@ -210,6 +210,8 @@ message GearItem {
   optional bool forced = 13; optional bool locked = 14; optional double armor_sharp = 15; optional double armor_blunt = 16;
   optional double insulation_cold = 17; optional double insulation_heat = 18;
   optional double range = 19; // Ranged primary verb range in cells; absent for melee or unknown.
+  optional string biocoded_to = 20; // Native pawn ID, only when the coded owner still exists.
+  optional bool biocoded = 21; // True also when the coded owner reference was lost; absent on older producers.
 }
 message PawnEquipment {
   optional string primary_id = 1; repeated GearItem equipped = 2; repeated GearItem apparel = 3;
@@ -273,6 +275,9 @@ message PawnState {
   // Active MentalStateDef.IsAggro and MentalState.Age (native ticks, 30-tick granularity).
   // Absent without an active state or on older producers; mental_state is its defName.
   optional bool mental_state_is_aggro = 39; optional int32 mental_state_ticks = 40;
+  // Mean of each active spawned hostile's highest natural/worn sharp armor rating.
+  // Equipment detail only; absent when there are no live, standing hostiles.
+  optional double raid_armor = 41;
 }
 message NoOwnedDraftClaim {}
 // owner (rimgovernor.authority.v1.Owner) was removed: a claim is either held by
@@ -322,6 +327,9 @@ message ResourceStock {
   // Weapon class of the row's definition: ranged/melee are ThingDef.IsRangedWeapon/IsMeleeWeapon, which cover every equippable
   // (a wood log and a beer are melee weapons); weapon_by_trade is membership in the Weapons thing category (what a stockpile calls a weapon).
   optional bool weapon_by_trade = 25; optional bool ranged = 26; optional bool melee = 27;
+  // Biocode facts keyed by items' exact identities, bounded by items_completeness.
+  // Only weapon rows carry these; older producers omit them.
+  repeated GearItem weapon_items = 28;
 }
 message StockFilter { repeated string def_names = 1; optional string category = 2; optional string ownership = 3; optional bool include_held = 4; optional bool forbidden_only = 5; optional bool exclude_chunks = 6; optional bool corpses = 7; Rectangle region = 8; }
 message SuppliesSnapshot { rimgovernor.common.v1.ObservationContext context = 1; repeated ResourceStock stocks = 2; Completeness completeness = 3; }
