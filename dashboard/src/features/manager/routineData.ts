@@ -17,7 +17,8 @@ export type ProfileSkill = {name: string; level: number; stored: number; passion
 export type PawnProfile = {pawn: string; age: number; child: boolean; ranged: boolean; traits: ProfileTrait[]; effects: TraitEffects; skills: ProfileSkill[]; incapable: string[]; forbidden: string[]};
 export type WorkRoster = {tick: number; coverage: CoverageRow[]; decaying: DecayingRow[]; pawns: PawnProfile[]};
 export type SectionStatus = {section: string; family: string; asOf: number; complete: boolean; source: string; storedAt: string};
-export type RoutineStatus = {reviewsEnabled: boolean; methodsEnabled: boolean; activeFamilies: string[]; lastReviewTick: number | null; development: Development | null; roster: WorkRoster | null; sections: SectionStatus[]};
+export type ResourceRunway = {resource: string; tick: number; windowDays: number; thresholdDays: number; reserve: number; stock: number | null; surfaceOre: number | null; consumptionPerDay: number | null; stockDays: number | null; daysLeft: number | null; deficit: boolean | null; target: number};
+export type RoutineStatus = {reviewsEnabled: boolean; methodsEnabled: boolean; activeFamilies: string[]; lastReviewTick: number | null; development: Development | null; roster: WorkRoster | null; sections: SectionStatus[]; resourceRunways: ResourceRunway[]};
 
 function isObject(v: unknown): v is Record<string, unknown> {return typeof v === 'object' && v !== null && !Array.isArray(v);}
 function object(v: unknown, keys: readonly string[]): Record<string, unknown> {if (!isObject(v) || Object.keys(v).length !== keys.length || keys.some(key => !Object.hasOwn(v, key))) throw Error('Invalid routine fields'); return v;}
@@ -70,9 +71,14 @@ function readSection(value: unknown): SectionStatus {
   const v = object(value, isObject(value) && Object.hasOwn(value, 'stale') ? ['section', 'family', 'asOf', 'complete', 'source', 'storedAt', 'stale'] : ['section', 'family', 'asOf', 'complete', 'source', 'storedAt']);
   return {section: id(v.section), family: text(v.family), asOf: tick(v.asOf), complete: bool(v.complete), source: text(v.source), storedAt: text(v.storedAt)};
 }
+function nonnegative(v: unknown): number {const n = finite(v); if (n < 0) throw Error('Invalid runway number'); return n;}
+function readResourceRunway(value: unknown): ResourceRunway {
+  const r = object(value, ['resource', 'tick', 'windowDays', 'thresholdDays', 'reserve', 'stock', 'surfaceOre', 'consumptionPerDay', 'stockDays', 'daysLeft', 'deficit', 'target']);
+  return {resource: id(r.resource), tick: tick(r.tick), windowDays: nonnegative(r.windowDays), thresholdDays: nonnegative(r.thresholdDays), reserve: tick(r.reserve), stock: nullable(r.stock, tick), surfaceOre: nullable(r.surfaceOre, tick), consumptionPerDay: nullable(r.consumptionPerDay, nonnegative), stockDays: nullable(r.stockDays, nonnegative), daysLeft: nullable(r.daysLeft, nonnegative), deficit: nullable(r.deficit, bool), target: tick(r.target)};
+}
 export function readRoutineStatus(value: unknown): RoutineStatus {
-  const v = object(value, ['reviewsEnabled', 'methodsEnabled', 'activeFamilies', 'lastReviewTick', 'development', 'roster', 'sections']);
-  return {reviewsEnabled: bool(v.reviewsEnabled), methodsEnabled: bool(v.methodsEnabled), activeFamilies: list(v.activeFamilies, 256).map(id), lastReviewTick: nullable(v.lastReviewTick, tick), development: nullable(v.development, readDevelopment), roster: nullable(v.roster, readRoster), sections: list(v.sections, 256).map(readSection)};
+  const v = object(value, ['reviewsEnabled', 'methodsEnabled', 'activeFamilies', 'lastReviewTick', 'development', 'roster', 'sections', 'resourceRunways']);
+  return {reviewsEnabled: bool(v.reviewsEnabled), methodsEnabled: bool(v.methodsEnabled), activeFamilies: list(v.activeFamilies, 256).map(id), lastReviewTick: nullable(v.lastReviewTick, tick), development: nullable(v.development, readDevelopment), roster: nullable(v.roster, readRoster), sections: list(v.sections, 256).map(readSection), resourceRunways: list(v.resourceRunways, 256).map(readResourceRunway)};
 }
 export class RoutineHTTPError extends Error {constructor(public status: number, detail: string) {super(detail);}}
 export async function fetchRoutineStatus(signal: AbortSignal): Promise<RoutineStatus> {

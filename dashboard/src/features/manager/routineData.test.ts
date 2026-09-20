@@ -5,7 +5,7 @@ const development = (extra: Record<string, unknown> = {}) => ({tick: 500, worker
 const profile = (extra: Record<string, unknown> = {}) => ({pawn: 'a', age: 30.5, child: false, ranged: true, traits: [{name: 'Pyromaniac', degree: 0}], effects: {workSpeed: 0, learnRate: 0.75, moveSpeed: -0.2, sociable: -1, chemicalInterest: 0, flags: ['NoFirefighting']}, skills: [{name: 'Mining', level: 12, stored: 12, passion: 'Major', disabled: false, learnFactor: 2.625}, {name: 'Art', level: 0, stored: 0, passion: '', disabled: true, learnFactor: 0}], incapable: ['Hauling'], forbidden: ['Firefighter', 'Warden'], ...extra});
 const roster = (extra: Record<string, unknown> = {}) => ({tick: 500, coverage: [{work: 'Doctor', demand: 1, owners: 0, capable: 0}], decaying: [{pawn: 'a', skill: 'Mining', level: 12}], pawns: [profile()], ...extra});
 const section = {section: 'colony_facts', family: 'routine', asOf: 480, complete: true, source: 'rimgovernor/colony_facts', storedAt: '2026-09-19T00:00:00Z'};
-const status = (extra: Record<string, unknown> = {}) => ({reviewsEnabled: true, methodsEnabled: false, activeFamilies: ['routine-bill-plans'], lastReviewTick: 500, development: development(), roster: roster(), sections: [section, {...section, section: 'cells', stale: {all: true}}], ...extra});
+const status = (extra: Record<string, unknown> = {}) => ({reviewsEnabled: true, methodsEnabled: false, resourceRunways: [], activeFamilies: ['routine-bill-plans'], lastReviewTick: 500, development: development(), roster: roster(), sections: [section, {...section, section: 'cells', stale: {all: true}}], ...extra});
 it('preserves labor rows, deferral reasons, bottlenecks and unknown facts', () => {
   const result = readRoutineStatus(status());
   expect(result.development?.labor).toEqual([{work: 'Construction', free: 0}, {work: 'Research', free: 1}]);
@@ -37,4 +37,17 @@ it('rejects malformed roster reports', () => {
   expect(() => readRoutineStatus(status({roster: roster({pawns: [profile({effects: {workSpeed: 0, learnRate: 0.75, moveSpeed: 0, sociable: 0, chemicalInterest: 0}})]})}))).toThrow();
   expect(() => readRoutineStatus(status({roster: roster({tick: -1})}))).toThrow();
   expect(() => readRoutineStatus(status({sections: [{...section, extra: true}]}))).toThrow();
+});
+
+const runway = {resource: 'Steel', tick: 60000, windowDays: 15, thresholdDays: 5, reserve: 20, stock: 40, surfaceOre: null, consumptionPerDay: 20, stockDays: 1, daysLeft: null, deficit: null, target: 0};
+it('preserves resource runway numbers, nulls and zero rates', () => {
+  expect(readRoutineStatus(status({resourceRunways: [runway]})).resourceRunways).toEqual([runway]);
+  const zero = {...runway, consumptionPerDay: 0, stockDays: null, deficit: false};
+  expect(readRoutineStatus(status({resourceRunways: [zero]})).resourceRunways).toEqual([zero]);
+});
+it('rejects malformed resource runways at the API boundary', () => {
+  for (const extra of [{daysLeft: -1}, {consumptionPerDay: Infinity}, {stock: '40'}, {deficit: 0}, {tick: 0.5}, {surfaceOre: undefined}, {extra: true}]) {
+    expect(() => readRoutineStatus(status({resourceRunways: [{...runway, ...extra}]}))).toThrow();
+  }
+  expect(() => readRoutineStatus(status({resourceRunways: null}))).toThrow();
 });

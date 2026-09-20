@@ -9,7 +9,7 @@ const context = {identity: observation.identity, tick: '9007199254740993', nativ
 const listing = {totalCount: 0, returnedCount: 0, complete: true};
 const values = {camera: {camera: {context, mapPosition: {x: 12}, rootSize: 20}}, selection: {selection: {context, selectedObjects: [{label: 'Granite wall', inspectText: 'Damaged'}], listing: {totalCount: 2, returnedCount: 1, complete: false, truncated: true}}}, colonists: {roster: {context, listing}}};
 const reply = (value: unknown) => ({ok: true, text: async () => JSON.stringify(value)});
-const routines = (roster: unknown = null) => ({reviewsEnabled: true, methodsEnabled: true, activeFamilies: [], lastReviewTick: 500, development: null, roster, sections: []});
+const routines = (roster: unknown = null) => ({reviewsEnabled: true, methodsEnabled: true, resourceRunways: [], activeFamilies: [], lastReviewTick: 500, development: null, roster, sections: []});
 function response(url: string) {if (url.endsWith('/camera')) return reply(values.camera); if (url.endsWith('/selection')) return reply(values.selection); if (url.endsWith('/routines')) return reply(routines()); return reply(values.colonists);}
 afterEach(() => {cleanup(); vi.useRealTimers(); vi.unstubAllGlobals();});
 it('reads three fixed GETs and renders unknown/partial/known empty facts without controls', async () => {

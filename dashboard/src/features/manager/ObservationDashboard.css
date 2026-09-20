@@ -43,3 +43,5 @@
 .pawn-image-empty {width:100%;aspect-ratio:1;display:flex;align-items:center;justify-content:center;background:#0c0e0a;border-radius:4px;font:400 28px Georgia,serif;color:#77745c}
 .pawn-image figcaption {font-size:12px;color:#a8a697;margin-top:4px}
 .development-table {width:100%;border-collapse:collapse;margin:12px 0}.development-table th,.development-table td {text-align:left;padding:8px 10px;border-top:1px solid #3c3d34;font-weight:400}.development-table thead th {color:#a8a697;font-size:13px;border-top:0}.development-table tbody th {color:#e9e6d9}.development-labor {overflow-wrap:anywhere}
+
+.material-runway-scroll {overflow-x:auto}
