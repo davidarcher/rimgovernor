@@ -637,19 +637,6 @@ func waitPlanOrRecovery(ctx context.Context, journal *store.Store, planID domain
 }
 
 // developmentRow returns the current review's development row for goal.
-func developmentRow(ctx context.Context, journal *store.Store, goal policy.GoalID) (store.RoutineDevelopmentRow, bool, error) {
-	review, err := journal.LoadRoutineReview(ctx)
-	if err != nil {
-		return store.RoutineDevelopmentRow{}, false, err
-	}
-	for _, row := range review.Development.Rows {
-		if row.Goal == domain.GoalID(goal) {
-			return row, true, nil
-		}
-	}
-	return store.RoutineDevelopmentRow{}, false, nil
-}
-
 // ---- scattered -----------------------------------------------------------
 
 func watchScattered(ctx context.Context, journal *store.Store, prepared map[string]any, report na.Report) error {
@@ -981,40 +968,22 @@ func watchBlocked(ctx context.Context, journal *store.Store, prepared map[string
 	if _, err := waitNeed(deficitCtx, journal, policy.MaintainEssentialRepairs, domain.NeedDeficit); err != nil {
 		return err
 	}
-	// Hold the window open long enough for several review cycles and any
-	// dispatch attempts; nothing may complete and the deficits must stay
-	// visible with their attempts recorded rather than silently dropped.
-	window := time.After(6 * time.Minute)
+	// Observe a bounded number of routine reviews after both deficits
+	// exist instead of a fixed wall-clock window (#592): each distinct
+	// review revision is one observation, and the case ends once
+	// blockedReviews of them have passed with both deficits still visible,
+	// their development rows present and no admitted plan completed. Any
+	// method the controller admits meanwhile counts as a dispatch attempt
+	// and is recorded rather than silently dropped; ctx is the hang guard.
 	completed := map[string]int{}
 	attempts := map[string]int{}
+	observed := 0
+	var lastRevision int64 = -1
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-window:
-			review, err := journal.LoadRoutineReview(ctx)
-			if err != nil {
-				return err
-			}
-			for _, need := range []policy.GoalID{policy.SecureSupplies, policy.MaintainEssentialRepairs} {
-				goal, err := waitNeed(ctx, journal, need, domain.NeedDeficit)
-				if err != nil {
-					return fmt.Errorf("%s no longer in deficit although its targets are unreachable", need)
-				}
-				report[string(need)+"_status"] = string(goal.Goal.Status)
-				row, found, err := developmentRow(ctx, journal, need)
-				if err != nil {
-					return err
-				}
-				if !found {
-					return fmt.Errorf("%s has no development row in review %d", need, review.Revision)
-				}
-				report[string(need)+"_development_reason"] = string(row.Reason)
-				report[string(need)+"_attempts"] = attempts[string(need)]
-			}
-			report["completed_plans"] = completed
-			return nil
-		case <-time.After(5 * time.Second):
+		case <-time.After(2 * time.Second):
 		}
 		review, err := journal.LoadRoutineReview(ctx)
 		if err != nil {
@@ -1046,7 +1015,58 @@ func watchBlocked(ctx context.Context, journal *store.Store, prepared map[string
 				}
 			}
 		}
+		if int64(review.Revision) == lastRevision {
+			continue
+		}
+		lastRevision = int64(review.Revision)
+		for _, need := range []policy.GoalID{policy.SecureSupplies, policy.MaintainEssentialRepairs} {
+			goal, ok := boundGoal(ctx, journal, review, need)
+			if !ok || goal.Goal.Need != domain.NeedDeficit {
+				return fmt.Errorf("%s no longer in deficit in review %d although its targets are unreachable", need, review.Revision)
+			}
+			report[string(need)+"_status"] = string(goal.Goal.Status)
+			row, found := findDevelopmentRow(review, need)
+			if !found {
+				return fmt.Errorf("%s has no development row in review %d", need, review.Revision)
+			}
+			report[string(need)+"_development_reason"] = string(row.Reason)
+			report[string(need)+"_attempts"] = attempts[string(need)]
+		}
+		observed++
+		report["blocked_reviews_observed"] = observed
+		report["blocked_last_revision"] = review.Revision
+		if observed >= blockedReviews {
+			report["completed_plans"] = completed
+			return nil
+		}
 	}
+}
+
+// blockedReviews is how many distinct routine reviews watchBlocked observes
+// with both deficits open and nothing completed before it accepts the
+// invariant.
+const blockedReviews = 3
+
+// boundGoal loads the goal review binds to need, false when unbound.
+func boundGoal(ctx context.Context, journal *store.Store, review store.RoutineReview, need policy.GoalID) (store.GoalState, bool) {
+	for _, binding := range review.Goals {
+		if binding.Need != need {
+			continue
+		}
+		if goal, err := journal.LoadGoal(ctx, binding.Goal); err == nil {
+			return goal, true
+		}
+	}
+	return store.GoalState{}, false
+}
+
+func findDevelopmentRow(review store.RoutineReview, goal policy.GoalID) (store.RoutineDevelopmentRow, bool) {
+	for _, row := range review.Development.Rows {
+		if row.Goal == domain.GoalID(goal) {
+			return row, true
+		}
+	}
+	return store.RoutineDevelopmentRow{}, false
 }
 
 func verifyBlocked(ctx context.Context, h *na.Harness, identity, prepared map[string]any, report na.Report) error {
