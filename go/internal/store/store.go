@@ -42,7 +42,7 @@ import (
 	"modernc.org/sqlite"
 )
 
-const schemaVersion = 96
+const schemaVersion = 97
 
 // SchemaVersion is the PRAGMA user_version Open requires; a database
 // from another version is refused (tooling reads those raw).
@@ -339,6 +339,9 @@ CREATE TABLE resource_policies(colony TEXT NOT NULL, load_token TEXT NOT NULL, m
 		if err = initializeCaravanTracking(ctx, tx); err != nil {
 			return err
 		}
+		if err = initializeColonyExtent(ctx, tx); err != nil {
+			return err
+		}
 		if err = initializeTradeSessions(ctx, tx); err != nil {
 			return err
 		}
@@ -387,6 +390,9 @@ CREATE TABLE resource_policies(colony TEXT NOT NULL, load_token TEXT NOT NULL, m
 		return err
 	}
 	if err = checkCaravanTrackingSchema(ctx, tx); err != nil {
+		return err
+	}
+	if err = checkColonyExtentSchema(ctx, tx); err != nil {
 		return err
 	}
 	if err = checkTradeSessionsSchema(ctx, tx); err != nil {

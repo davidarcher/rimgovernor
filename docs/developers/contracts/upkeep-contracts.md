@@ -95,9 +95,10 @@ known empty means footprint only. It follows Home's enclosed roofed room and
 internal-door geometry contract, and every supplied cell must connect to the
 building footprint. Existing observations leave this field unknown. Missing
 census, bounds, target or complete geometry keeps the extent unknown. Stockpiles
-contribute only their exact footprints. This model neither persists territory,
-assesses current safety, nor changes native Home; runtime projection and consumers
-belong to the later colony-extent slices.
+contribute only their exact footprints. This model neither assesses current
+safety nor changes native Home; the established history and expansion areas it
+feeds persist per saved timeline ([persistence contracts](persistence-contracts.md#what-must-survive)),
+and runtime projection and consumers belong to the later colony-extent slices.
 
 `policy.ResourceReach` limits resource candidate consideration to `base`,
 `near`, `far` or `map`, with a reason on every decision. Base means exact extent

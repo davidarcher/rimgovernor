@@ -27,6 +27,27 @@ paired backups, manifests or archive tables.
   inbox atomically with the review. Colony-scoped cursors survive load
   changes; history beyond a bounded tail is retired once reviewed.
 
+- **Colony extent history.** Established extent regions (with their
+  provenance and the tick and native generation that first observed them)
+  and explicitly selected expansion areas (with the reason recorded on add
+  and on remove) are an append-only journal scoped to the world (colony,
+  map) and to its saved timeline (`store.EstablishColonyExtent`,
+  `AddExpansionArea`, `RemoveExpansionArea`). Each load token is one
+  timeline segment. On its first observation (`ReconcileColonyExtent`,
+  which every write also performs) a load forks from the segment of the
+  same world whose observed span covered that tick, preferring the segment
+  played most recently when several branches cover it, or continues the
+  latest segment that ended before it; with no such segment it starts
+  empty. A segment sees its ancestors' entries only up to each fork tick,
+  so loading an older save restores exactly what its timeline had recorded
+  by that tick, and territory established later or on another branch never
+  leaks back; another colony or map sees nothing. A tick rewind within one
+  load discards that load's entries past the tick. The reconciliation
+  report names the parent segment and counts the entries restored, the
+  parent's entries beyond the fork and any discarded, for the caller's log.
+  Historical Home exclusions are not recorded here: they are current
+  restorable state, not player vetoes.
+
 ## What is re-derived
 
 Routine goals are re-derived from observation every review. A world change
