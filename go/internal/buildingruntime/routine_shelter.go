@@ -180,8 +180,9 @@ func shellSiteCells(facts observation.ColonyProjection, free []domain.Cell) []po
 // previewFreshShell previews the layouts in order and returns the first
 // whose whole ring is placeable now.
 func (r *RoutineBuildingPlanner) previewFreshShell(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, layouts []policy.StarterLayout, check func() error) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, error) {
+	style := shellStyle(facts)
 	for candidate, layout := range layouts {
-		perimeter := layout.Shell.Placements("Wall", "Door", "WoodLog")
+		perimeter := layout.Shell.StyledPlacements(style)
 		if len(perimeter) == 0 {
 			return nil, policy.StockObservation{}, "", ErrControl
 		}
@@ -276,6 +277,26 @@ func (r *RoutineBuildingPlanner) previewShellCells(ctx context.Context, snapshot
 	return previews, placeable, "", nil
 }
 
+// shellDefinitions are the definitions a shell ring is made of and the
+// adoption census reads back: walls and either door the door ladder
+// proposes (#610).
+var shellDefinitions = []string{"Wall", "Door", "Autodoor"}
+
+// shellDoor reports a door definition of the ladder.
+func shellDoor(definition string) bool { return definition == "Door" || definition == "Autodoor" }
+
+// shellStands reports that the census holds the shape's building on its
+// cell: the same definition, or any door of the ladder where the shape
+// wants a door, so a ring begun with wood doors is still one ring once the
+// tier proposes autodoors.
+func shellStands(standing map[domain.Cell]string, building domain.Building) bool {
+	def, ok := standing[building.Cell()]
+	if !ok {
+		return false
+	}
+	return def == building.Definition() || shellDoor(def) && shellDoor(building.Definition())
+}
+
 // shellPlanPrefix names every whole-shell plan a shelter-style planner
 // admits (initial shelter, expansion, workshop and hospital shells alike);
 // adoptShell reads them back as the durable record of the rings it ordered.
@@ -324,7 +345,7 @@ func (r *RoutineBuildingPlanner) adoptShell(ctx context.Context, snapshot domain
 	if minimum.X > maximum.X || minimum.Z > maximum.Z {
 		return nil, policy.StockObservation{}, "", false, nil
 	}
-	census, _, err := reader.ReadStructures(ctx, boundary.Identity(snapshot), minimum, maximum, []string{"Wall", "Door"})
+	census, _, err := reader.ReadStructures(ctx, boundary.Identity(snapshot), minimum, maximum, shellDefinitions)
 	if err != nil {
 		return nil, policy.StockObservation{}, "", false, err
 	}
@@ -339,7 +360,7 @@ func (r *RoutineBuildingPlanner) adoptShell(ctx context.Context, snapshot domain
 	var doors []domain.Cell
 	for _, s := range census.Structures {
 		standing[s.Cell] = s.Definition
-		if s.Definition == "Door" && !seen[s.Cell] {
+		if shellDoor(s.Definition) && !seen[s.Cell] {
 			seen[s.Cell] = true
 			doors = append(doors, s.Cell)
 		}
@@ -368,16 +389,17 @@ func (r *RoutineBuildingPlanner) adoptShell(ctx context.Context, snapshot domain
 	for _, c := range protected {
 		guarded[c] = true
 	}
+	expanded := shellStyle(facts)
 	for d, door := range doors {
 		shapes := earlier[door]
 		for _, shell := range shellShapesAtDoor(facts, door, style) {
-			shapes = append(shapes, shell.Placements("Wall", "Door", "WoodLog"))
+			shapes = append(shapes, shell.StyledPlacements(expanded))
 		}
 		best, bestMatched := -1, 0
 		for shape, perimeter := range shapes {
 			matched := 0
 			for _, building := range perimeter {
-				if standing[building.Cell()] == building.Definition() {
+				if shellStands(standing, building) {
 					matched++
 				}
 			}
@@ -401,7 +423,7 @@ func (r *RoutineBuildingPlanner) adoptShell(ctx context.Context, snapshot domain
 		var missing []domain.Building
 		for i, building := range shapes[best] {
 			cell := building.Cell()
-			if standing[cell] == building.Definition() {
+			if shellStands(standing, building) {
 				continue
 			}
 			if _, other := standing[cell]; other || guarded[cell] {
@@ -504,7 +526,7 @@ func (r *RoutineBuildingPlanner) earlierShells(ctx context.Context, minimum, max
 			if !ok {
 				continue
 			}
-			if b.Definition() == "Door" {
+			if shellDoor(b.Definition()) {
 				door, doors = b.Cell(), doors+1
 			}
 			perimeter = append(perimeter, b)

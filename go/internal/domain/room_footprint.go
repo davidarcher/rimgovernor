@@ -188,12 +188,43 @@ func SameRoomFootprint(a, b RoomFootprint) bool {
 // definition facing north, in z-outer, x-inner order. Interior cells are
 // deliberately absent -- this is a shell, not a floor.
 func (f RoomFootprint) Placements(wallDef, doorDef, material string) []Building {
-	if !f.Set() {
+	return f.StyledPlacements(ShellStyle{WallDef: wallDef, DoorDef: doorDef, DoorStuff: material, WallStuff: func(ShellPart) string { return material }})
+}
+
+// ShellPart is the part of a shell a wall cell plays: a plain run, a corner
+// (a wall cell whose ring neighbours turn), or a door frame (a wall cell
+// beside the door). A style may accent the corners and frames in another
+// stuff (#610).
+type ShellPart int
+
+const (
+	ShellRun ShellPart = iota
+	ShellCorner
+	ShellDoorFrame
+)
+
+// ShellStyle is the definitions and stuff a shell is expanded with: the
+// wall and door definitions, the door's stuff and the wall stuff per part.
+type ShellStyle struct {
+	WallDef, DoorDef, DoorStuff string
+	WallStuff                   func(ShellPart) string
+}
+
+// StyledPlacements is Placements with the style choosing each cell's stuff:
+// the door first with its own stuff, then every wall cell with the stuff
+// the style gives its part. A nil WallStuff or an unset footprint expands
+// to nothing.
+func (f RoomFootprint) StyledPlacements(style ShellStyle) []Building {
+	if !f.Set() || style.WallStuff == nil {
 		return nil
 	}
-	first, err := NewBuilding(doorDef, f.door, f.entrance, material)
+	first, err := NewBuilding(style.DoorDef, f.door, f.entrance, style.DoorStuff)
 	if err != nil {
 		return nil
+	}
+	ring := make(map[Cell]bool, len(f.walls))
+	for _, cell := range f.walls {
+		ring[cell] = true
 	}
 	placements := make([]Building, 0, len(f.walls))
 	placements = append(placements, first)
@@ -201,13 +232,31 @@ func (f RoomFootprint) Placements(wallDef, doorDef, material string) []Building 
 		if cell == f.door {
 			continue
 		}
-		wall, err := NewBuilding(wallDef, cell, North, material)
+		wall, err := NewBuilding(style.WallDef, cell, North, style.WallStuff(f.shellPart(cell, ring)))
 		if err != nil {
 			return nil
 		}
 		placements = append(placements, wall)
 	}
 	return placements
+}
+
+// shellPart classifies one wall cell: a door frame when it touches the door
+// orthogonally, a corner when the ring continues from it along both axes,
+// otherwise a run.
+func (f RoomFootprint) shellPart(cell Cell, ring map[Cell]bool) ShellPart {
+	n := neighbours4(cell)
+	for _, c := range n {
+		if c == f.door {
+			return ShellDoorFrame
+		}
+	}
+	alongX := ring[n[0]] || ring[n[2]]
+	alongZ := ring[n[1]] || ring[n[3]]
+	if alongX && alongZ {
+		return ShellCorner
+	}
+	return ShellRun
 }
 
 // RectangleFootprint is the rectangular shell RoomShell describes: bounds

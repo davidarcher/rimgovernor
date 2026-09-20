@@ -311,6 +311,11 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 	if r.shelter && r.goal == policy.EnsureInitialShelter {
 		observed = append(append([]string(nil), definitions...), "SleepingSpot", shelterBedDefinition)
 	}
+	if r.shelter {
+		// The door ladder proposes an Autodoor only once the read shows it
+		// available (#610); the ring never waits on it.
+		observed = append(append([]string(nil), observed...), "Autodoor")
+	}
 	var reading observation.ColonyReading
 	_, routineSource := r.native.(observation.RoutineSource)
 	_, roomSource := r.native.(observation.TemperatureSource)

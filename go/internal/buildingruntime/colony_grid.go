@@ -70,7 +70,7 @@ func (r *RoutineReviewer) starterShell(ctx context.Context, bounds policy.Bounds
 		doors := 0
 		for _, action := range history[i].Spec.Actions() {
 			if b, ok := action.Building(); ok {
-				if b.Definition() == "Door" {
+				if shellDoor(b.Definition()) {
 					doors++
 				}
 				perimeter = append(perimeter, b)
@@ -112,7 +112,7 @@ func shellFootprint(perimeter []domain.Building) (domain.RoomFootprint, bool) {
 	for _, b := range perimeter {
 		c := b.Cell()
 		ring[c] = true
-		if b.Definition() == "Door" {
+		if shellDoor(b.Definition()) {
 			door = b
 		}
 		minX, maxX, minZ, maxZ = min(minX, c.X), max(maxX, c.X), min(minZ, c.Z), max(maxZ, c.Z)

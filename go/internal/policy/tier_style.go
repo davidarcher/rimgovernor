@@ -11,9 +11,11 @@ import "sort"
 // never proposes a stuff the colony has none of, so a Camp colony never
 // receives a stone, powered or floored proposal.
 //
-// Deferred to C6 (#609): the shape-family rules (double-module hall, paired
-// wings, courtyard). The routines still choose their own materials; wiring
-// these rules into the shell, door and lighting planners follows.
+// The shell planners expand their rings with WallStuff and DoorDef, the
+// flooring planner prefers FloorDef's floor for a deficient room's role and
+// the lighting planner ModuleLighting's fixture (buildingruntime's
+// routine_tier_style.go). The shape-family rules (double-module hall,
+// paired wings, courtyard) are not written yet.
 
 // TierStyleStock is the resource census the rules read: available count per
 // resource. Zero or absent means the colony holds none.

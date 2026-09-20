@@ -184,6 +184,10 @@ type LightingFacts struct {
 	// PoweredSource reports whether any power network currently has an
 	// active source; unknown defers powered lamps.
 	PoweredSource domain.Fact[bool]
+	// Styled is the fixture the tier style names (ModuleLighting, #610):
+	// chosen ahead of the policy's lamps when it is known available, empty
+	// when the tier styles none.
+	Styled string
 }
 
 // SelectLightingMethod resolves the lowest-sorted dark bench. An existing
@@ -317,6 +321,9 @@ func lampService(l Lamp) LightingMethod {
 // source facts defer rather than guess.
 func selectLampDefinition(facts LightingFacts, p LightingPolicy) (string, LightingMethod) {
 	deferred := LightingMethod("")
+	if ok, known := facts.Available[facts.Styled].Value(); facts.Styled != "" && known && ok {
+		return facts.Styled, ""
+	}
 	for _, lamp := range p.Lamps {
 		ok, known := facts.Available[lamp.Name].Value()
 		if !known {

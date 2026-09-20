@@ -49,21 +49,12 @@ func (r *RoutineBuildingPlanner) selectLighting(facts observation.ColonyProjecti
 	if !review.Known {
 		return nil, BuildingMethodUnknown, nil
 	}
-	lighting := policy.LightingFacts{Cells: facts.Cells, Available: map[string]domain.Fact[bool]{}}
+	lighting := policy.LightingFacts{Cells: facts.Cells, Available: map[string]domain.Fact[bool]{}, PoweredSource: poweredSource(facts), Styled: lampStyle(facts)}
 	if rooms, known := facts.Rooms.Value(); known {
 		lighting.Rooms = rooms.Rooms
 	}
 	for _, d := range facts.Definitions {
 		lighting.Available[d.Name] = d.Available
-	}
-	if topology, known := facts.PowerPlanning.Value(); known {
-		source := false
-		for _, net := range topology.Networks {
-			if generation, gk := net.GenerationW.Value(); gk && generation > 0 {
-				source = true
-			}
-		}
-		lighting.PoweredSource = domain.Known(source)
 	}
 	proposal, err := policy.SelectLightingMethod(review, facts.Facts.Upkeep.Lighting, lighting, p)
 	if err != nil {

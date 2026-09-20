@@ -68,7 +68,7 @@ type FloorWeights struct {
 
 func DefaultFlooringPolicy() FlooringPolicy {
 	return FlooringPolicy{
-		Floors:            []string{"SterileTile", "TileSandstone", "TileGranite", "TileLimestone", "TileSlate", "TileMarble", "PavedTile", "Concrete", "WoodPlankFloor"},
+		Floors:            []string{"SterileTile", "TileSandstone", "TileGranite", "TileLimestone", "TileSlate", "TileMarble", "FlagstoneSandstone", "FlagstoneGranite", "FlagstoneLimestone", "FlagstoneSlate", "FlagstoneMarble", Carpet, "PavedTile", "Concrete", "WoodPlankFloor"},
 		MaxCellsPerPlan:   24,
 		Clean:             FloorWeights{Cleanliness: 10, Beauty: 1, PathCost: 1, Flammability: 1, Cost: 0.2},
 		Living:            FloorWeights{Cleanliness: 1, Beauty: 3, PathCost: 1, Flammability: 3, Cost: 0.2},
@@ -190,6 +190,9 @@ func FloorRoomKey(room FloorRoom) string {
 type FloorDeficit struct {
 	Key, Room string
 	Tier      FloorTier
+	// Role is the room's role as the flooring census reports it, RoomRoleNone
+	// for the traffic deficit's aisles; the tier style reads it (#610).
+	Role RoomRole
 	// Cells are the deficient cells not yet ordered, in cell order;
 	// Pending counts the deficient cells with a floor already ordered.
 	Cells   []domain.Cell
@@ -302,7 +305,8 @@ func ReviewFlooring(fact domain.Fact[FlooringObservation], rooms domain.Fact[Roo
 		for _, c := range room.Cells {
 			roomed[c.Cell] = true
 		}
-		d := FloorDeficit{Key: FloorRoomKey(room), Room: room.ID, Tier: tier}
+		role, _ := room.Role.Value()
+		d := FloorDeficit{Key: FloorRoomKey(room), Room: room.ID, Tier: tier, Role: role}
 		for _, c := range room.Cells {
 			if !floorDeficient(tier, v.Terrains[c.Terrain]) {
 				continue
@@ -378,6 +382,10 @@ type FlooringFacts struct {
 	// Stock is the accessible colony stock by resource; unknown skips the
 	// affordability test and leaves it to admission.
 	Stock domain.Fact[map[Resource]int64]
+	// Style is the tier's floor rule per room role (FloorDef, #610): a
+	// styled floor that is known available, meets the tier and pays for
+	// the whole batch is chosen before any scoring. Nil styles nothing.
+	Style func(RoomRole) (string, bool)
 }
 
 // floorScore prices one candidate for a tier; ok is false when the floor
@@ -455,7 +463,13 @@ func SelectFlooringMethod(review FlooringReview, facts FlooringFacts, p Flooring
 		var best *candidate
 		reason := FlooringResearchNeeded
 		unknown := false
-		for _, name := range p.Floors {
+		// The tier style decides when it can be laid; the scored list is
+		// consulted only otherwise.
+		scored := p.Floors
+		if name, ok := styledFloor(d, facts, batch, weights); ok {
+			best, scored = &candidate{name, batch, 0}, nil
+		}
+		for _, name := range scored {
 			def, ok := facts.Definitions[name]
 			if !ok {
 				unknown = true
@@ -509,4 +523,33 @@ func firstFlooringReason(current, next FlooringMethod) FlooringMethod {
 		return next
 	}
 	return current
+}
+
+// styledFloor is the style's floor for the deficit when it can be laid
+// now: known available terrain that meets the tier's requirement and pays
+// for the whole batch. Otherwise the scored candidates decide.
+func styledFloor(d FloorDeficit, facts FlooringFacts, batch int, weights FloorWeights) (string, bool) {
+	if facts.Style == nil {
+		return "", false
+	}
+	name, ok := facts.Style(d.Role)
+	if !ok {
+		return "", false
+	}
+	def, ok := facts.Definitions[name]
+	if !ok {
+		return "", false
+	}
+	available, ak := def.Available.Value()
+	terrain, tk := def.Terrain.Value()
+	if !ak || !tk || !available || !terrain {
+		return "", false
+	}
+	if _, meets := floorScore(d.Tier, def, weights); !meets {
+		return "", false
+	}
+	if cells := affordableCells(def, facts.Stock, batch); cells >= 0 && cells < batch {
+		return "", false
+	}
+	return name, true
 }

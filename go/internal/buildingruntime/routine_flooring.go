@@ -45,7 +45,7 @@ func (r *RoutineBuildingPlanner) selectFlooring(facts observation.ColonyProjecti
 	if !review.Known {
 		return nil, BuildingMethodUnknown, nil
 	}
-	flooring := policy.FlooringFacts{Definitions: map[string]policy.FloorDefinition{}, Stock: facts.Resources}
+	flooring := policy.FlooringFacts{Definitions: map[string]policy.FloorDefinition{}, Stock: facts.Resources, Style: floorStyle(facts)}
 	for _, d := range facts.Definitions {
 		flooring.Definitions[d.Name] = policy.FloorDefinition{Available: d.Available, Terrain: d.Terrain, Cleanliness: d.Cleanliness, Beauty: d.Beauty, Flammability: d.Flammability, PathCost: d.PathCost, Costs: d.Costs}
 	}
