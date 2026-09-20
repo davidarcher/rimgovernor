@@ -12,6 +12,9 @@ namespace HomeBridge.BridgeTools
         public int MapId, X, Z, Started, Finished = -1, Recovered;
         public bool Cancelled, RebindVerified;
         public int SavedHitPoints;
+        // Live typed receipt captures exact spawned outputs at the destruction
+        // tick, before hauling. Receipt callbacks are not save authority.
+        public System.Action? OnMined;
         public void ExposeData()
         {
             Scribe_Values.Look(ref ThingId, "thingId", ""); Scribe_Values.Look(ref Resource, "resource", "");

@@ -58,7 +58,10 @@ func TestSourcesForDeficitSelectsAgainstOutstandingNeed(t *testing.T) {
 	}}
 	planner := &RoutineResourcePlanner{native: native}
 	stock := domain.Known([]policy.Amount{{Resource: "Steel", Count: 10}})
-	selected, _, ok := planner.sourcesForDeficit(context.Background(), &c.Identity{}, "Steel", 50, stock)
+	for i := range native.rows {
+		native.rows[i].Reachable = domain.Known(true)
+	}
+	selected, _, ok := planner.sourcesForDeficit(context.Background(), &c.Identity{}, "Steel", 50, stock, sourceTestReach())
 	if !ok || len(selected) != 1 || selected[0].ThingID != "rock1" {
 		t.Fatal(selected, ok)
 	}
@@ -67,7 +70,7 @@ func TestSourcesForDeficitSelectsAgainstOutstandingNeed(t *testing.T) {
 func TestSourcesForDeficitReturnsNilWhenStockUnknown(t *testing.T) {
 	native := &fakeResourceSourceNative{}
 	planner := &RoutineResourcePlanner{native: native}
-	selected, _, ok := planner.sourcesForDeficit(context.Background(), &c.Identity{}, "Steel", 50, domain.Unknown[[]policy.Amount]())
+	selected, _, ok := planner.sourcesForDeficit(context.Background(), &c.Identity{}, "Steel", 50, domain.Unknown[[]policy.Amount](), sourceTestReach())
 	if ok || selected != nil {
 		t.Fatal(selected, ok)
 	}
@@ -77,7 +80,7 @@ func TestSourcesForDeficitSwallowsNativeReadFailure(t *testing.T) {
 	native := &fakeResourceSourceNative{err: errors.New("native unavailable")}
 	planner := &RoutineResourcePlanner{native: native}
 	stock := domain.Known([]policy.Amount{{Resource: "Steel", Count: 0}})
-	selected, _, ok := planner.sourcesForDeficit(context.Background(), &c.Identity{}, "Steel", 50, stock)
+	selected, _, ok := planner.sourcesForDeficit(context.Background(), &c.Identity{}, "Steel", 50, stock, sourceTestReach())
 	if ok || selected != nil {
 		t.Fatal(selected, ok)
 	}
@@ -110,9 +113,42 @@ func TestSourcesForDeficitReturnsStorageOnSuccess(t *testing.T) {
 	}, storage: storage}
 	planner := &RoutineResourcePlanner{native: native}
 	stock := domain.Known([]policy.Amount{{Resource: "Steel", Count: 0}})
-	_, gotStorage, ok := planner.sourcesForDeficit(context.Background(), &c.Identity{}, "Steel", 50, stock)
+	_, gotStorage, ok := planner.sourcesForDeficit(context.Background(), &c.Identity{}, "Steel", 50, stock, sourceTestReach())
 	if !ok || !reflect.DeepEqual(gotStorage, storage) {
 		t.Fatal(gotStorage, ok)
+	}
+}
+
+func sourceTestReach() policy.ResourceReachRequest {
+	return policy.ResourceReachRequest{Bounds: domain.Known(policy.Bounds{Width: 100, Height: 100}),
+		Extent: domain.Known(policy.ColonyExtent{Regions: []policy.ExtentRegion{{Cells: []policy.ExtentCell{{Cell: domain.Cell{}}}}}})}
+}
+
+func TestSourcesForSatisfiedDemandDoesNotReadOrSelectOre(t *testing.T) {
+	planner := &RoutineResourcePlanner{}
+	selected, _, ok := planner.sourcesForDeficit(context.Background(), &c.Identity{}, "Steel", 50,
+		domain.Known([]policy.Amount{{Resource: "Steel", Count: 50}}), sourceTestReach())
+	if !ok || len(selected) != 0 {
+		t.Fatal(selected, ok)
+	}
+}
+
+func TestMiningReachLoadsKnownEmptyJournalClaims(t *testing.T) {
+	base, _, _, _, _ := sleepingFixture(t)
+	r := base.reviewer
+	f := &r.census.latest.reading.Projection.Facts
+	f.CurrentConstruction = domain.Known(policy.CurrentConstruction{Colony: true})
+	f.HomeCoverage = domain.Known(policy.HomeCoverageObservation{})
+	f.MapBounds = domain.Known(policy.Bounds{Width: 100, Height: 100})
+	f.ConstructionClaims = domain.Unknown[[]policy.ConstructionClaim]()
+	f.OwnedStockpiles = domain.Unknown[[]policy.OwnedStockpile]()
+	planner := &RoutineResourcePlanner{reviewer: r}
+	reach, err := planner.miningReach(context.Background(), r.player.session.State(), r.census.latest.reading.Projection.Identity.Tick)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, known := reach.Extent.Value(); !known {
+		t.Fatal("journal claims were left unknown", reach)
 	}
 }
 

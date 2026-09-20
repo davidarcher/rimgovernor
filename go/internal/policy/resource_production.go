@@ -166,8 +166,33 @@ type ResourceSource struct {
 	// to dispatch an AcquireResource operation against it. Harvest/hunt
 	// sources still carry neither -- they are reached only through the
 	// AcquisitionFacts census path's own token, not this one.
-	Cell  domain.Cell
-	Token string
+	Cell      domain.Cell
+	Token     string
+	Reachable domain.Fact[bool]
+}
+
+// SelectReachableResourceSources narrows mining to the current resource reach.
+// Existing designations reserve estimated yield but are never adopted or removed.
+// Each new method still contains at most one rock; its final native yield may
+// overshoot the remaining demand by one rock's output.
+func SelectReachableResourceSources(sources []ResourceSource, target, stock int64, reach ResourceReachRequest) []ResourceSource {
+	var pending int64
+	var candidates []ResourceSource
+	for _, source := range sources {
+		if source.Designated && source.Yield > 0 {
+			pending += source.Yield
+			continue
+		}
+		if source.Method == ResourceSourceMine {
+			decision := FilterResourceReach(reach, ResourceReachCandidate{Cell: source.Cell,
+				Eligible: domain.Known(source.Safety == "open_surface"), RouteObservedPassable: source.Reachable})
+			if !decision.Allowed {
+				continue
+			}
+		}
+		candidates = append(candidates, source)
+	}
+	return SelectResourceSources(candidates, target, stock, pending)
 }
 
 // SelectResourceSources chooses, nearest first, the undesignated sources

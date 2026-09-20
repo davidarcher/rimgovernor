@@ -101,6 +101,7 @@ import (
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/light"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/mapscope"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/medical"
+	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/mining"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/mood"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/movement"
 	_ "github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/naming"

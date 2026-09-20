@@ -127,6 +127,24 @@ func TestColonyCalendarReachesRoutineFacts(t *testing.T) {
 		r.GetObserved().FoodClimate = climate
 	}
 }
+func TestColonyMapBoundsReachRoutineFacts(t *testing.T) {
+	data, err := os.ReadFile("../../../contracts/fixtures/colony-core.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := &o.ColonyFactsReply{}
+	if err = protojson.Unmarshal(data, r); err != nil {
+		t.Fatal(err)
+	}
+	p, err := DecodeColony(r, Identity{Colony: "colony", Load: "load", Map: 0, Tick: 7, NativeGeneration: domain.Known(domain.NativeGeneration(1))})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Resource reach derives the colony extent from the routine facts alone.
+	if bounds, known := p.Facts.MapBounds.Value(); !known || bounds != p.Bounds || bounds.Width <= 0 {
+		t.Fatal(p.Facts.MapBounds)
+	}
+}
 func TestColonyNativeCaptureReachesRoutineReview(t *testing.T) {
 	path := os.Getenv("RIMGOVERNOR_NATIVE_COLONY_CAPTURE")
 	if path == "" {

@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -5,12 +7,103 @@ using RimBridgeServer.Sdk;
 using RimWorld;
 using RimWorld.Planet;
 using Verse;
+using Verse.AI;
 
 namespace HomeBridge.BridgeTools
 {
     // Disposable test setup only. All extraction uses unchanged native pawn labor.
     public sealed class MiningFixture
     {
+        private static Map remoteMap;
+        private static List<Thing> remoteOre;
+        private static Thing foreignOre;
+        private static Zone_Stockpile remoteStore;
+
+        [Tool("test/mining_remote_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Disposable flat-map steel shortage with three surface rocks near the far edge, a forbidden foreign Mine designation, accepting base storage and six armed hauling colonists.")]
+        public async Task<object> RemotePrepare(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                var people = map.mapPawns.FreeColonistsSpawned.ToList();
+                var anchor = people.First().Position;
+                var baseCell = GenRadial.RadialCellsAround(anchor, 5, true).First(c => c.InBounds(map) && c.Standable(map) && c.GetEdifice(map) == null);
+                var table = ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed("Table1x2c"), ThingDefOf.WoodLog);
+                table.SetFaction(Faction.OfPlayer);
+                GenSpawn.Spawn(table, baseCell, map);
+                // Isolate Steel demand from the medical reserve derived for
+                // every colony, even when only the resource family is enabled.
+                var medicine = ThingMaker.MakeThing(ThingDefOf.MedicineHerbal);
+                medicine.stackCount = 75;
+                GenPlace.TryPlaceThing(medicine, anchor, map, ThingPlaceMode.Near);
+                medicine.SetForbidden(false, false);
+                while (people.Count(p => p.equipment != null && !p.WorkTagIsDisabled(WorkTags.Violent)) < 6) {
+                    var pawn = PawnGenerator.GeneratePawn(new PawnGenerationRequest(PawnKindDefOf.Colonist, Faction.OfPlayer,
+                        forceGenerateNewPawn: true, colonistRelationChanceFactor: 0f, allowDead: false, allowDowned: false,
+                        canGeneratePawnRelations: false, mustBeCapableOfViolence: true, fixedBiologicalAge: 30f, fixedChronologicalAge: 30f));
+                    GenSpawn.Spawn(pawn, CellFinder.RandomClosewalkCellNear(anchor, map, 6), map);
+                    people.Add(pawn);
+                }
+                var miner = people.First(p => !p.WorkTypeIsDisabled(WorkTypeDefOf.Mining) && !p.WorkTypeIsDisabled(WorkTypeDefOf.Hauling));
+                foreach (var pawn in people) {
+                    if (pawn.equipment != null && !pawn.WorkTagIsDisabled(WorkTags.Violent) && pawn.equipment.Primary == null)
+                        pawn.equipment.AddEquipment((ThingWithComps)ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed("Gun_BoltActionRifle")));
+                    if (!pawn.workSettings.Initialized) pawn.workSettings.EnableAndInitialize();
+                    foreach (var work in DefDatabase<WorkTypeDef>.AllDefsListForReading)
+                        if (!pawn.WorkTypeIsDisabled(work)) pawn.workSettings.SetPriority(work,
+                            work == WorkTypeDefOf.Hauling ? 2 : work == WorkTypeDefOf.Mining && pawn == miner ? 1 : 0);
+                    pawn.jobs.EndCurrentJob(JobCondition.InterruptForced);
+                }
+                miner.skills.GetSkill(SkillDefOf.Mining).Level = 20;
+                foreach (var t in map.listerThings.AllThings.Where(t => t.def == ThingDefOf.Steel ||
+                    t is Mineable && t.def.building.mineableThing == ThingDefOf.Steel).ToList()) t.Destroy(DestroyMode.Vanish);
+                remoteStore = new Zone_Stockpile(StorageSettingsPreset.DefaultStockpile, map.zoneManager);
+                map.zoneManager.RegisterZone(remoteStore);
+                remoteStore.GetStoreSettings().filter.SetDisallowAll();
+                remoteStore.GetStoreSettings().filter.SetAllow(ThingDefOf.Steel, true);
+                foreach (var cell in GenRadial.RadialCellsAround(anchor, 8, true).Where(c => c.InBounds(map) && c.Standable(map)
+                    && c.GetEdifice(map) == null && map.zoneManager.ZoneAt(c) == null && c.GetThingList(map).All(t => t is Plant)).Take(8))
+                    remoteStore.AddCell(cell);
+                int Edge(IntVec3 c) => Math.Min(Math.Min(c.x, map.Size.x - 1 - c.x), Math.Min(c.z, map.Size.z - 1 - c.z));
+                var sites = map.AllCells.Where(c => Edge(c) >= 9 && Edge(c) <= 12 && c.DistanceTo(anchor) > 50
+                    && !c.Fogged(map) && c.Standable(map) && c.GetEdifice(map) == null && miner.CanReach(c, PathEndMode.Touch, Danger.None)
+                    && GenRadial.RadialCellsAround(c, 8, true).All(q => q.InBounds(map) && !q.Fogged(map) && !q.Roofed(map)
+                        && !map.areaManager.Home[q] && map.zoneManager.ZoneAt(q) == null && q.GetEdifice(map) == null))
+                    .OrderByDescending(c => c.DistanceToSquared(anchor)).ToList();
+                var cells = new List<IntVec3>();
+                // The foreign rock sits well clear of the demanded three: its
+                // enclosure must not border them or any cell they need.
+                foreach (var cell in sites) { if (cells.All(c => c.DistanceTo(cell) >= (cells.Count == 3 ? 8 : 3))) cells.Add(cell); if (cells.Count == 4) break; }
+                if (cells.Count != 4 || remoteStore.Cells.Count < 4) return new { success = false, reason = "Insufficient clear remote ore or storage sites" };
+                var def = DefDatabase<ThingDef>.AllDefs.First(d => d.building?.mineableThing == ThingDefOf.Steel && typeof(Mineable).IsAssignableFrom(d.thingClass));
+                remoteOre = cells.Take(3).Select(c => GenSpawn.Spawn(ThingMaker.MakeThing(def), c, map)).ToList();
+                foreignOre = GenSpawn.Spawn(ThingMaker.MakeThing(def), cells[3], map);
+                new Designator_Mine().DesignateThing(foreignOre);
+                foreignOre.SetForbidden(true, false);
+                // Mineables need not have a forbiddable comp. Enclose the
+                // foreign designation so ordinary player mining cannot run it.
+                // Factionless walls: a player building marks Home around it
+                // and would count as a colony facility next to the ore.
+                foreach (var cell in GenAdj.CellsAdjacent8Way(foreignOre))
+                    GenSpawn.Spawn(ThingMaker.MakeThing(ThingDefOf.Wall, DefDatabase<ThingDef>.GetNamed("BlocksGranite")), cell, map);
+                remoteMap = map;
+                return new { success = true, distance = cells[0].DistanceTo(anchor), edge = Edge(cells[0]),
+                    initialSteel = 0, rocks = remoteOre.Count, yield = def.building.mineableYield };
+            }, cancellationToken);
+        }
+
+        [Tool("test/mining_remote_observe", Description = "UNSAFE FOR MODEL EXECUTION. Read only: remote ore removal, steel delivered to the base stockpile and preserved foreign mining designation.")]
+        public async Task<object> RemoteObserve(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                if (remoteMap != Find.CurrentMap || remoteOre == null) return new { success = false };
+                return new { success = true, removed = remoteOre.Count(t => t.Destroyed),
+                    designated = remoteOre.Count(t => t.Spawned && remoteMap.designationManager.DesignationAt(t.Position, DesignationDefOf.Mine) != null),
+                    storedSteel = remoteStore.Cells.SelectMany(c => c.GetThingList(remoteMap)).Where(t => t.def == ThingDefOf.Steel).Sum(t => t.stackCount),
+                    foreignPreserved = foreignOre.Spawned && remoteMap.designationManager.DesignationAt(foreignOre.Position, DesignationDefOf.Mine) != null,
+                    ownedRecords = Current.Game.GetComponent<MiningState>()?.Records.Count(r => r.MapId == remoteMap.uniqueID) ?? 0 };
+            }, cancellationToken);
+        }
+
         [Tool("test/mining_fixture", Description = "Disposable surface deposit fixture; never installed for gameplay.")]
         public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken,
             string action = "setup", int x = 0, int z = 0)

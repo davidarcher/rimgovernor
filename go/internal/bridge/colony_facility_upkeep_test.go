@@ -20,11 +20,18 @@ func TestFacilityUpkeepWirePresenceGeometryAndCompleteness(t *testing.T) {
 	if err := validateDirectUpkeep(makeFacts(), size, 3); err != nil {
 		t.Fatal(err)
 	}
-	for _, field := range []string{"flammability", "revision", "shape", "count", "duplicate", "bounds", "page", "issue"} {
+	for _, field := range []string{"flammability", "revision", "shape", "count", "duplicate", "bounds", "page", "issue", "extent-bounds", "extent-duplicate", "extent-missing-coordinate"} {
 		t.Run(field, func(t *testing.T) {
 			v := makeFacts()
 			h := v.HomeCoverage.GetObserved()
 			switch field {
+			case "extent-bounds":
+				h.Targets[0].ExtentGeometry = &o.HomeExtentGeometry{Corridor: []*c.Cell{{X: proto.Int32(50), Z: proto.Int32(1)}}}
+			case "extent-duplicate":
+				cell := &c.Cell{X: proto.Int32(1), Z: proto.Int32(1)}
+				h.Targets[0].ExtentGeometry = &o.HomeExtentGeometry{Corridor: []*c.Cell{cell}, EnclosedInterior: []*c.Cell{cell}}
+			case "extent-missing-coordinate":
+				h.Targets[0].ExtentGeometry = &o.HomeExtentGeometry{Corridor: []*c.Cell{{X: proto.Int32(1)}}}
 			case "flammability":
 				v.Structures[0].Flammability = proto.Float64(math.NaN())
 			case "revision":

@@ -126,6 +126,7 @@ func (client *Client) ReadResourceSources(ctx context.Context, identity *c.Ident
 			Safety:     row.GetSafety(),
 			Cell:       cell,
 			Token:      token,
+			Reachable:  emergencyBool(row.Reachable),
 		})
 	}
 	sort.SliceStable(out, func(i, j int) bool {

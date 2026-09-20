@@ -8,6 +8,13 @@ contains one excavation target, or at most eight plant sources, and accounts for
 including sources beyond the displayed census. Estimated yield cannot satisfy a stock
 target. Fresh observations select another deposit after depletion.
 
+Surface mining uses resource reach rather than a fixed distance from a pawn.
+Visible deposits and meteorite rock inside that reach are candidates only while
+the selected resource target is unmet. Each method designates at most one rock;
+existing designations reserve estimated yield and are never adopted or removed.
+Fresh stock stops further methods once the target is met. The last rock can
+overshoot demand by its native yield; no tunnel is opened to reach interior ore.
+
 Surface mining requires a capable colonist with safe native reachability. Resource
 mining refuses unknown cells or any roof within the installed game's roof-support
 radius, pending roof collapse, adjacent structures, blueprints, frames, zones or home

@@ -32,7 +32,7 @@ namespace HomeBridge.BridgeTools
             return (t is Plant || t is Mineable) && (Designated(t) || DesignatorFor(t).CanDesignateThing(t).Accepted) && map.mapPawns.FreeColonistsSpawned.Any(p => !p.Downed && !p.Drafted
                 && !p.InMentalState && !p.WorkTypeIsDisabled(work) && !t.IsForbidden(p)
                 && p.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)
-                && p.Position.DistanceTo(t.Position) <= 50 && p.CanReach(t, PathEndMode.Touch, Danger.None));
+                && (t is Mineable || p.Position.DistanceTo(t.Position) <= 50) && p.CanReach(t, PathEndMode.Touch, Danger.None));
         }
 
         // Only surface excavation is certified. Never infer support from a partial

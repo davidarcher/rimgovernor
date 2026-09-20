@@ -288,7 +288,11 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 		if beer && choice.Kind == policy.ResourceMethodWait {
 			return RoutineResourceResult{Reason: BuildingMethodExistingWork, NativeWorkTicks: stockWaitTicks}, nil
 		}
-		selected, sourceStorage, ok := r.sourcesForDeficit(call, identity, resource, target, stock)
+		reach, err := r.miningReach(call, state, reviewTick)
+		if err != nil {
+			return RoutineResourceResult{}, err
+		}
+		selected, sourceStorage, ok := r.sourcesForDeficit(call, identity, resource, target, stock, reach)
 		if !ok {
 			return RoutineResourceResult{Reason: BuildingMethodUsed}, nil
 		}
@@ -386,7 +390,7 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 // adequate -- so a native read failure here is deliberately swallowed
 // (ok=false) rather than surfaced, preserving the bench/recipe outcome the
 // caller already computed.
-func (r *RoutineResourcePlanner) sourcesForDeficit(ctx context.Context, identity *c.Identity, resource policy.Resource, target int64, stock domain.Fact[[]policy.Amount]) (selected []policy.ResourceSource, storage policy.ResourceStorage, ok bool) {
+func (r *RoutineResourcePlanner) sourcesForDeficit(ctx context.Context, identity *c.Identity, resource policy.Resource, target int64, stock domain.Fact[[]policy.Amount], reach policy.ResourceReachRequest) (selected []policy.ResourceSource, storage policy.ResourceStorage, ok bool) {
 	rows, known := stock.Value()
 	if !known {
 		return nil, policy.ResourceStorage{}, false
@@ -398,11 +402,60 @@ func (r *RoutineResourcePlanner) sourcesForDeficit(ctx context.Context, identity
 			break
 		}
 	}
+	if have >= target {
+		return nil, policy.ResourceStorage{}, true
+	}
 	sources, storage, _, err := r.native.ReadResourceSources(ctx, identity, string(resource))
 	if err != nil {
 		return nil, policy.ResourceStorage{}, false
 	}
-	return policy.SelectResourceSources(sources, target, have, 0), storage, true
+	reach.StorageHeadroom = domain.Known(storage.Capacity)
+	selected = policy.SelectReachableResourceSources(sources, target, have, reach)
+	if len(selected) == 0 && len(sources) > 0 {
+		decision := policy.ResourceReach(reach)
+		clockSchedulerLog("resource %s: %d sources held, reach=%s reason=%s stock=%d target=%d", resource, len(sources), decision.Stage, decision.Reason, have, target)
+	}
+	return selected, storage, true
+}
+
+// Mining uses the same observed readiness and colony extent as remote loot,
+// with destination capacity from the exact resource's fresh source census.
+func (r *RoutineResourcePlanner) miningReach(ctx context.Context, state ControlState, tick domain.Tick) (policy.ResourceReachRequest, error) {
+	last, _, err := r.reviewer.native.Identity(ctx)
+	if err != nil {
+		return policy.ResourceReachRequest{}, err
+	}
+	expected, err := observation.DecodeIdentity(last)
+	if err != nil {
+		return policy.ResourceReachRequest{}, err
+	}
+	if !routineBuildingBoundary(expected, state.Snapshot, tick) {
+		return policy.ResourceReachRequest{}, ErrControl
+	}
+	reading, err := r.reviewer.observeOwned(ctx, r.reviewer.native, expected, domain.Unknown[[]policy.ConstructionClaim]())
+	if err != nil {
+		return policy.ResourceReachRequest{}, err
+	}
+	f := reading.Projection.Facts
+	f.ConstructionClaims, err = r.reviewer.player.journal.ConstructionClaims(ctx, state.Snapshot, expected.Tick)
+	if err != nil {
+		return policy.ResourceReachRequest{}, err
+	}
+	f.OwnedStockpiles, err = r.reviewer.player.journal.StockpileClaims(ctx, state.Snapshot, expected.Tick)
+	if err != nil {
+		return policy.ResourceReachRequest{}, err
+	}
+	emergency, err := policy.NewEmergencySnapshot(state.Snapshot, expected.Tick, reading.Emergency)
+	if err != nil {
+		return policy.ResourceReachRequest{}, err
+	}
+	f.Hostiles, _ = policy.EmergencyNeeds(emergency, state.Snapshot, expected.Tick)
+	extent, err := policy.DeriveColonyExtent(policy.ColonyExtentRequest{Bounds: f.MapBounds,
+		Construction: f.CurrentConstruction, Claims: f.ConstructionClaims, Stockpiles: f.OwnedStockpiles, Home: f.HomeCoverage})
+	if err != nil {
+		return policy.ResourceReachRequest{}, err
+	}
+	return policy.LootReach(f, f.MapBounds, extent), nil
 }
 
 // materialStorageZoneFallback is the resource method's

@@ -32,11 +32,19 @@ namespace HomeBridge.BridgeTools
         private readonly IntVec3 cell;
         private readonly string source, resource;
         private readonly Dictionary<string, int> baseline;
+        private readonly MiningRecord mining;
+        private Receipts.AcquisitionEffect? completed;
         internal NativeMineRecord(Mineable rock)
         {
             map = rock.Map; cell = rock.Position; source = rock.GetUniqueLoadID();
             resource = rock.def.building.mineableThing.defName;
             baseline = NearbyStacks(map, cell, resource);
+            MiningGuard.Install();
+            mining = new MiningRecord { ThingId = rock.ThingID, SourceId = rock.ThingID,
+                Definition = rock.def.defName, Resource = resource, MapId = map.uniqueID,
+                X = cell.x, Z = cell.z, Started = Find.TickManager.TicksGame };
+            MiningGuard.State().Records.Add(mining);
+            mining.OnMined = () => completed = Evidence();
         }
         private static Dictionary<string, int> NearbyStacks(Map map, IntVec3 cell, string resource) =>
             GenRadial.RadialCellsAround(cell, 2, true).Where(c => c.InBounds(map) && !c.Fogged(map))
@@ -44,6 +52,7 @@ namespace HomeBridge.BridgeTools
                 .ToDictionary(t => t.GetUniqueLoadID(), t => t.stackCount, StringComparer.Ordinal);
         internal Receipts.AcquisitionEffect Evidence()
         {
+            if (completed != null) return completed.Clone();
             var stillThere = cell.InBounds(map) && cell.GetThingList(map).OfType<Mineable>().Any(m => m.GetUniqueLoadID() == source && m.Spawned);
             var finished = !stillThere;
             var result = new Receipts.AcquisitionEffect
@@ -93,7 +102,7 @@ namespace HomeBridge.BridgeTools
         private static bool Miner(Pawn p, Mineable rock) => !p.Downed && !p.Drafted && !p.InMentalState
             && !p.WorkTypeIsDisabled(WorkTypeDefOf.Mining) && !rock.IsForbidden(p)
             && p.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)
-            && p.Position.DistanceTo(rock.Position) <= 50 && p.CanReach(rock, PathEndMode.Touch, Danger.None);
+            && p.CanReach(rock, PathEndMode.Touch, Danger.None);
         // Prepare is the apply-time precondition list for mine
         // (action-contracts.md): ResourceAcquisitionTools.Eligible plus the
         // request's cell, resource and designation rules, one rule at a time;

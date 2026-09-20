@@ -373,8 +373,9 @@ func (c Case) keepNeeds() []na.NeedDef {
 const MaxBudget = 15 * time.Minute
 
 // nameShape is "<area>/<case>": lowercase words joined by hyphens on each
-// side of one slash, so the output path and the report row are the name.
-var nameShape = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*/[a-z0-9]+(-[a-z0-9]+)*$`)
+// side of one slash (case names also accept underscores), so the output path
+// and the report row are the name.
+var nameShape = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*/[a-z0-9]+([-_][a-z0-9]+)*$`)
 
 // Lint holds c to the performance checklist in
 // docs/developers/testing/choose-tests.md: what the runner cannot make

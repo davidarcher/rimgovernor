@@ -58,7 +58,8 @@ These are alternatives, not a batch allocation or permission to dispatch. Consum
 must bound selected work and refresh demand, reach, native safety and storage before
 using the existing goals and Hands path. Remote loot consumes it through the
 [supply safety filter](../contracts/controller-contracts.md#remote-loot-and-resource-reach)
-(#522); salvage and mining integrations are tracked by #523 and #524.
+(#522). Surface mining uses the same reach ceiling and one-rock demand batches
+([mining contract](../contracts/mining-contracts.md)); salvage is tracked by #523.
 
 ## Material runway
 
