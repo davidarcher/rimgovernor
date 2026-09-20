@@ -100,12 +100,47 @@ func init() {
 					}
 				}
 				failures = append(failures, auditStableFood(ctx, h, s, report))
-				return errors.Join(failures...)
+				if err := errors.Join(failures...); err != nil {
+					return fmt.Errorf("%w; %s", err, stableTimeline(report))
+				}
+				return nil
 			},
 		})
 		return err
 	}
 	cases.Register(c)
+}
+
+// The census locates observed losses and the food trough, not the onset of
+// individual hediffs. Days are one-based relative to the observation window.
+func stableTimeline(report na.Report) string {
+	timeline, _ := report["timeline"].([]map[string]any)
+	window, _ := report["window"].(*sustainedfood.TickWindow)
+	if window == nil || !window.Sampled {
+		return "timeline day unavailable (no sampled game tick)"
+	}
+	day := func(tick uint64) uint64 { return (tick-window.FirstTick)/60000 + 1 }
+	detail := "timeline: no sampled colonist-count loss"
+	var previous float64
+	var known bool
+	for _, sample := range timeline {
+		census, ok := na.AsMap(sample["colony"])
+		if !ok || census["error"] != nil || census["colonists"] == nil {
+			continue
+		}
+		count := na.AsNumber(census["colonists"])
+		tick, timed := sample["tick"].(uint64)
+		if known && count < previous && timed && tick >= window.FirstTick {
+			detail = fmt.Sprintf("timeline: first sampled colonist-count loss on day %d (tick %d, %g -> %g)", day(tick), tick, previous, count)
+			break
+		}
+		previous, known = count, true
+	}
+	outcome := sustainedfood.DeriveColonyOutcome(timeline)
+	if outcome.MinFoodRunwayTick != nil && *outcome.MinFoodRunwayTick >= window.FirstTick {
+		detail += fmt.Sprintf("; minimum sampled food runway %g days on day %d (tick %d)", *outcome.MinFoodRunwayDays, day(*outcome.MinFoodRunwayTick), *outcome.MinFoodRunwayTick)
+	}
+	return detail
 }
 
 func auditStableFood(ctx context.Context, h *na.Harness, s cases.Session, report na.Report) error {
