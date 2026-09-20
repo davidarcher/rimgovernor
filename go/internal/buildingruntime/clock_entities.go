@@ -57,32 +57,39 @@ func refreshEntitySections(ctx context.Context, native EntityNative, f *clockFac
 	// The policy zone refresher owns the typed zone census when available.
 	// Do not overwrite it with a second read under a different store type.
 	if _, policyZones := native.(observation.ZonesNative); !policyZones {
-		refreshEntitySection(ctx, f, scope, tick, carried.zones, facts.Zones, "rimgovernor/observations_list_zones", func(since int64) (bridge.EntityRows[*o.ZoneState], error) {
+		refreshEntitySection(ctx, f, scope, tick, carried.zones, carried.wants(facts.Zones), facts.Zones, "rimgovernor/observations_list_zones", func(since int64) (bridge.EntityRows[*o.ZoneState], error) {
 			rows, _, err := native.ReadZones(ctx, identity, since)
 			return rows, err
 		})
 	}
-	refreshEntitySection(ctx, f, scope, tick, carried.buildings, facts.Buildings, "rimgovernor/observations_list_buildings", func(since int64) (bridge.EntityRows[*o.BuildingState], error) {
+	refreshEntitySection(ctx, f, scope, tick, carried.buildings, carried.wants(facts.Buildings), facts.Buildings, "rimgovernor/observations_list_buildings", func(since int64) (bridge.EntityRows[*o.BuildingState], error) {
 		rows, _, err := native.ReadBuildings(ctx, identity, since)
 		return rows, err
 	})
-	refreshEntitySection(ctx, f, scope, tick, carried.bills, facts.Bills, "rimgovernor/observations_read_bills", func(since int64) (bridge.EntityRows[*o.BillStack], error) {
+	refreshEntitySection(ctx, f, scope, tick, carried.bills, carried.wants(facts.Bills), facts.Bills, "rimgovernor/observations_read_bills", func(since int64) (bridge.EntityRows[*o.BillStack], error) {
 		rows, _, err := native.ReadBillStacks(ctx, identity, since)
 		return rows, err
 	})
 }
 
 // entitySectionsCarried names the entity sections the step's bundle
-// carried in full (#593).
+// carried in full (#593) and the sections the step's planners consume
+// (wanted, nil for all, #625): a held section none consumes is left as
+// it is past its cadence until an invalidation marks it.
 type entitySectionsCarried struct {
 	zones, buildings, bills bool
+	wanted                  map[facts.Section]bool
 }
 
-func refreshEntitySection[T proto.Message](ctx context.Context, f *clockFacts, scope facts.Scope, tick int64, carried bool, section facts.Section, source string, read func(since int64) (bridge.EntityRows[T], error)) {
+func (c entitySectionsCarried) wants(section facts.Section) bool {
+	return c.wanted == nil || c.wanted[section]
+}
+
+func refreshEntitySection[T proto.Message](ctx context.Context, f *clockFacts, scope facts.Scope, tick int64, carried, wanted bool, section facts.Section, source string, read func(since int64) (bridge.EntityRows[T], error)) {
 	store := f.store
 	held, ok := facts.Get[EntitySection[T]](store, section)
 	ok = ok && store.Scope() == scope
-	if ok && store.Fresh(section, tick) {
+	if ok && (store.Fresh(section, tick) || !wanted && store.Held(section, tick)) {
 		return
 	}
 	put := func(rows map[string]T, asOf int64) {

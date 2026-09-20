@@ -237,6 +237,15 @@ type ClockSchedulerResult struct {
 	Watched int
 	// Planners names the catalog planners this step queued, in catalog order.
 	Planners []string
+	// Waiting names the planners the selection skipped because each still
+	// waits on the open work it reported (plannerQueue.waits, #625); the
+	// clock_step row reports it as waiting.
+	Waiting []string
+	// Sections names the census sections a subset step read at cadence,
+	// the union its planners declare (sectionsWanted); nil when every
+	// planner ran and every section was read. The clock_step row reports
+	// it as sections.
+	Sections []string
 	// Proposals are the migrated planners' proposals in the coordinator's
 	// rank order, each admitted with its plan, waiting on the claim a
 	// higher-ranked proposal holds (#622) or expired against this step's
@@ -325,6 +334,13 @@ type ClockScheduler struct {
 	// stop-to-readmit pause; touched only under the player gate.
 	readmitOwed   bool
 	admissionWarm *atomic.Pointer[clockAdmissionWarm]
+	// queue is the planners' due queue (#625): what a step selects
+	// between full steps, and the waits it skips. Touched only under the
+	// player gate.
+	queue *plannerQueue
+	// lastLive is when the last timer-driven live wave ran under a running
+	// window (DefaultLiveWaveEvery); touched only under the player gate.
+	lastLive time.Time
 	// late carries proposals that reached a step's arbiter after its
 	// cutoff to the next step's coordinator (#623).
 	late *lateProposals
@@ -553,7 +569,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, err
 	}
 	config.Profile = inbox.Profile
-	scheduler := &ClockScheduler{player: player, session: session, native: native, config: config, clock: clock, pollGate: make(chan struct{}, 1), renewGate: make(chan struct{}, 1), facts: newClockFacts(config.Facts, config.Store), running: new(atomic.Bool), manualAt: new(atomic.Int64), admissionWarm: new(atomic.Pointer[clockAdmissionWarm]), latched: newClockLatched(), late: &lateProposals{}, catalog: plannerCatalog}
+	scheduler := &ClockScheduler{player: player, session: session, native: native, config: config, clock: clock, pollGate: make(chan struct{}, 1), renewGate: make(chan struct{}, 1), facts: newClockFacts(config.Facts, config.Store), queue: newPlannerQueue(), running: new(atomic.Bool), manualAt: new(atomic.Int64), admissionWarm: new(atomic.Pointer[clockAdmissionWarm]), latched: newClockLatched(), late: &lateProposals{}, catalog: plannerCatalog}
+	scheduler.queue.catalog = func() []plannerEntry { return scheduler.catalog }
+	scheduler.queue.configured = func(entry plannerEntry) bool { return entry.configured(&scheduler.config) }
 	if config.Routine != nil {
 		config.Routine.store = scheduler.facts.store
 	}
@@ -643,6 +661,12 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	// read under the same load, generation and tick (or a tick-independent
 	// family) are served from it, and the typed events PollEvents ingests
 	// drop what they make stale.
+	// A wake's evidence lands on the due queue once, here, so it outlives
+	// a step that runs no planners (a paced live wave, a stopping window)
+	// and selects the same planners on the next (#625).
+	if reason.Cause == StepWake {
+		s.queue.wake(reason, s.facts.kindOf)
+	}
 	cache := bridge.NewChildReadCache(s.facts.cache)
 	call = bridge.WithStepReadCache(call, cache)
 	call = observation.WithDefinitionPool(call, s.facts.definitions)
@@ -693,6 +717,12 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		}
 		if out.LivePlanning != "" {
 			extra["live_planning"] = out.LivePlanning
+		}
+		if len(out.Waiting) > 0 {
+			extra["waiting"] = out.Waiting
+		}
+		if out.Sections != nil {
+			extra["sections"] = out.Sections
 		}
 		// The step's budgets (#623) beside what it used: reads against the
 		// read budget, the planner waves against the wall budget, the
@@ -831,7 +861,8 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	// delta reads over what the store holds, or the full section the
 	// bundle carried (#593).
 	if native, ok := s.native.(EntityNative); ok && reviews {
-		refreshEntitySections(call, native, s.facts, loaded.Context.Identity, factsScope(loaded.Context), loaded.Context.GetTick(), entitySectionsCarried{zones: loaded.Zones != nil, buildings: loaded.Buildings != nil, bills: loaded.Bills != nil})
+		wanted := s.sectionsWanted(s.previewSelection(reason).pick)
+		refreshEntitySections(call, native, s.facts, loaded.Context.Identity, factsScope(loaded.Context), loaded.Context.GetTick(), entitySectionsCarried{zones: loaded.Zones != nil, buildings: loaded.Buildings != nil, bills: loaded.Bills != nil, wanted: wanted})
 	}
 	state := s.session.State()
 	world := domain.GenerationSnapshot{Colony: domain.ColonyID(loaded.Context.Identity.GetColonyId()), Load: domain.LoadID(loaded.Context.Identity.GetLoadToken()), Map: domain.MapID(loaded.Context.Identity.GetMapId())}
@@ -878,7 +909,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	s.lastTick, s.lastTickKnown = status.Context.GetTick(), true
 	s.livePace(status, started)
 	telemetry.ObserveTick(status.Context.GetTick())
-	if reason.Cause == StepTimer && !reason.TickAdvanced && s.fullStepDue() {
+	if reason.Cause == StepTimer && s.fullStepDue() {
 		reason.Cause = StepFull
 	}
 	out.Reason = reason
@@ -931,8 +962,16 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		}
 		out.Running = true
 		s.running.Store(status.GetRunning() != nil)
-		if status.GetStopping() != nil || !s.livePlanningDue(reason) {
+		var sel plannerSelectionResult
+		if status.GetStopping() == nil {
+			sel, err = s.selectPlanners(call, reason, status.Context.GetTick())
+			if err != nil {
+				return out, err
+			}
+		}
+		if status.GetStopping() != nil || !s.livePlanningDue(reason, sel) {
 			clockSchedulerLog("clock already running under our own epoch -> no planners this step")
+			out.Waiting = sel.waiting
 			return out, nil
 		}
 		if ticks, paced := s.livePlanningPaced(); paced {
@@ -953,15 +992,18 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 			clockSchedulerLog("step exit: player epoch replaced before the live review: %v", err)
 			return out, err
 		}
-		_, pick := plannerSelection(reason, s.facts.kindOf)
+		if reason.Cause == StepTimer {
+			s.lastLive = s.clock.Now()
+		}
 		reason.Cause = StepLive
 		out.Reason = reason
+		out.Waiting = sel.waiting
 		clockSchedulerLog("step reason: %s", reason)
-		if out.Planners, err = s.runPlanners(call, epoch, &out, pick, status); err != nil {
+		if out.Planners, err = s.runPlanners(call, epoch, &out, sel, status); err != nil {
 			return out, err
 		}
 		s.plannedTick, s.plannedTickKnown = status.Context.GetTick(), true
-		if pick == nil {
+		if sel.pick == nil {
 			s.lastFull = s.clock.Now()
 		}
 		return out, nil
@@ -1006,10 +1048,14 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	if s.plannedTickKnown {
 		factsTick = domain.Known(domain.Tick(s.plannedTick))
 	}
-	planners, pick := plannerSelection(reason, s.facts.kindOf)
-	clockSchedulerLog("step reason: %s planners=%v", reason, planners)
-	if planners {
-		if out.Planners, err = s.runPlanners(call, epoch, &out, pick, status); err != nil {
+	sel, err := s.selectPlanners(call, reason, status.Context.GetTick())
+	if err != nil {
+		return out, err
+	}
+	out.Waiting = sel.waiting
+	clockSchedulerLog("step reason: %s planners=%v waiting=%v", reason, sel.planners, sel.waiting)
+	if sel.planners {
+		if out.Planners, err = s.runPlanners(call, epoch, &out, sel, status); err != nil {
 			return out, err
 		}
 		if len(out.HeldBy) > 0 {
@@ -1022,7 +1068,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		}
 		factsTick = domain.Known(domain.Tick(status.Context.GetTick()))
 		s.plannedTick, s.plannedTickKnown = status.Context.GetTick(), true
-		if pick == nil {
+		if sel.pick == nil {
 			s.lastFull = s.clock.Now()
 		}
 		// The planners ran between the bundle and admission; MaxAge bounds
@@ -1311,15 +1357,21 @@ func (s *ClockScheduler) nativeWorkBudget() uint32 {
 // never past the wall budget); those still evaluating at that cutoff are
 // cancelled, recorded on out.MissedCutoff, and their results discarded. The
 // coordinator then arbitrates the proposals that made the cutoff, and any
-// carried from an earlier step, against this step's scope.
-func (s *ClockScheduler) runPlanners(call, epoch context.Context, out *ClockSchedulerResult, pick func(plannerEntry) bool, status *k.Status) ([]string, error) {
+// carried from an earlier step, against this step's scope. The due queue
+// records the planners that returned (#625): each is due again at its
+// cadence, one that found the work of its kinds still open waits on it,
+// and one that missed the cutoff keeps its marks for the next step.
+func (s *ClockScheduler) runPlanners(call, epoch context.Context, out *ClockSchedulerResult, sel plannerSelectionResult, status *k.Status) ([]string, error) {
 	arbiter := newStepArbiter()
 	arbiter.late = s.late
 	wave := newPlannerWave(call)
 	defer wave.cancelOptional()
+	defer s.recordWave(call, sel, wave, status.Context.GetTick())
 	began := time.Now()
 	wall := after(s.config.Budget.wall())
-	planners, err := s.stepPlanners(call, epoch, out, wave, arbiter, pick)
+	wanted := s.sectionsWanted(sel.pick)
+	out.Sections = sectionNames(wanted)
+	planners, err := s.stepPlanners(call, epoch, out, wave, arbiter, wanted, sel.pick)
 	if err != nil {
 		return nil, err
 	}
@@ -1379,6 +1431,7 @@ func (s *ClockScheduler) runPlanners(call, epoch context.Context, out *ClockSche
 		default:
 			clockSchedulerLog("proposal %s %s: %s", outcome.Proposal, outcome.Reason, outcome.Waiting)
 		}
+		wave.decided(outcome.Planner, outcome.Reason)
 	}
 	wave.merge(out)
 	// A failed planner is reported, not fatal: the step still evaluates the
@@ -1389,6 +1442,26 @@ func (s *ClockScheduler) runPlanners(call, epoch context.Context, out *ClockSche
 		clockSchedulerLog("planner failed (isolated): %v", failure)
 	}
 	return planners, nil
+}
+
+// recordWave files a wave on the due queue (plannerQueue.ran, #625):
+// the planners that returned before the cutoff are due again at their
+// cadence, and one that reported existing work of its kinds waits on the
+// open attempts of those kinds. The plans are read once, only when some
+// planner reported existing work.
+func (s *ClockScheduler) recordWave(call context.Context, sel plannerSelectionResult, wave *plannerWave, tick int64) {
+	var plans []store.PlanState
+	s.queue.ran(sel, wave.finishedNames(), wave.reason, tick, func(kinds []domain.ActionKind) []domain.ActionID {
+		if plans == nil {
+			loaded, err := s.player.journal.LoadPlans(call, 256)
+			if err != nil {
+				clockSchedulerLog("planner waits: LoadPlans %v", err)
+				return nil
+			}
+			plans = loaded
+		}
+		return openWorkOfKinds(plans, kinds)
+	})
 }
 
 // classOf is the class of the named catalog planner.
@@ -1475,15 +1548,54 @@ func (s *ClockScheduler) livePace(status *k.Status, readAt time.Time) {
 // the full-step safety net is due, so a running window costs one planner
 // wave per FullStepEvery rather than one per step. Whether the pace lets
 // the wave run is livePlanningPaced.
-func (s *ClockScheduler) livePlanningDue(reason StepReason) bool {
-	if s.config.Routine == nil {
+func (s *ClockScheduler) livePlanningDue(reason StepReason, sel plannerSelectionResult) bool {
+	if s.config.Routine == nil || !sel.planners {
 		return false
 	}
 	if reason.Cause == StepTimer {
-		return s.fullStepDue()
+		return s.liveWaveDue()
 	}
-	planners, _ := plannerSelection(reason, s.facts.kindOf)
-	return planners
+	return true
+}
+
+// liveWaveDue spaces the timer-driven live waves (DefaultLiveWaveEvery).
+func (s *ClockScheduler) liveWaveDue() bool {
+	return s.lastLive.IsZero() || s.clock.Now().Sub(s.lastLive) >= DefaultLiveWaveEvery
+}
+
+// selectPlanners is the step's selection over the due queue at tick
+// (plannerQueue.selection): a wake's evidence was folded when the step
+// began. The waits are checked against the journal only while any is
+// held, so a dependency that settled without an outcome event (an
+// immediate designation) releases its planner at the next step.
+func (s *ClockScheduler) selectPlanners(call context.Context, reason StepReason, tick int64) (plannerSelectionResult, error) {
+	var stillOpen func(domain.ActionID) bool
+	if len(s.queue.waits) > 0 {
+		plans, err := s.player.journal.LoadPlans(call, 256)
+		if err != nil {
+			return plannerSelectionResult{}, err
+		}
+		stillOpen = openWorkIndex(plans)
+	}
+	switch reason.Cause {
+	case StepSettled:
+		return s.queue.selection(tick, false, true, stillOpen), nil
+	case StepTimer, StepWake, StepLive:
+		return s.queue.selection(tick, false, false, stillOpen), nil
+	}
+	return s.queue.selection(tick, true, false, stillOpen), nil
+}
+
+// previewSelection is the selection a step for reason is expected to make
+// once its status is read, judged at the tick the step expects to observe
+// (the previous status tick plus the running window's drift) over a copy
+// of the queue: what bundleRequest sizes the bundle by. A wrong guess costs
+// a heavier bundle or a dedicated read, never a wrong fact.
+func (s *ClockScheduler) previewSelection(reason StepReason) plannerSelectionResult {
+	if reason.Cause == StepTimer && s.fullStepDue() {
+		reason.Cause = StepFull
+	}
+	return plannerSelection(reason, s.facts.kindOf, s.queue, s.lastTick+int64(domain.LiveDrift()))
 }
 
 // livePlanningPaced reports whether the running window outruns a live
@@ -1529,24 +1641,43 @@ func (s *ClockScheduler) livePlanningTicks() domain.Tick {
 // since its as-of tick, and what the previous review's planners asked
 // for through the read cache (the built census, traders, world
 // progression, resource sources), so those reads are cache hits.
+//
+// A step expected to run a planner subset reads at cadence only the
+// sections its planners declare (sectionsWanted, #625): a section none of
+// them consumes rides only while the store holds nothing usable for it
+// (absent, or dropped or marked by an invalidation), and is served held
+// otherwise, however old. The colony facts always ride: they are the
+// review's identity anchor.
 func (s *ClockScheduler) bundleRequest(reason StepReason) *o.BundleRequest {
 	request := &o.BundleRequest{ClockStatus: proto.Bool(true), Emergency: proto.Bool(true)}
 	if s.stepReviews(reason) {
 		request.ColonyFacts = proto.Bool(true)
 		tick := s.lastTick + int64(domain.LiveDrift())
-		population, research, pawns := bundleFamilies(s.facts.store, tick, s.lastTickKnown)
+		wanted := s.sectionsWanted(s.previewSelection(reason).pick)
+		population, research, pawns := bundleFamilies(s.facts.store, tick, s.lastTickKnown, wanted)
 		request.Population, request.Research, request.ColonistPawns = proto.Bool(population), proto.Bool(research), proto.Bool(pawns)
 		request.ColonistPawnFields, request.PopulationFields, request.ResearchFields = bundleMasks()
-		s.bundleStepFamilies(request, tick)
+		s.bundleStepFamilies(request, tick, wanted)
 	}
 	return request
 }
 
+// sectionRides reports whether a review step at tick reads section: when
+// the tick is unknown, when the store holds nothing usable for it, or
+// when a planner this step runs consumes it (wanted, nil for all) and
+// the held value is past its cadence.
+func sectionRides(store *facts.Store, section facts.Section, tick int64, known bool, wanted map[facts.Section]bool) bool {
+	if !known || !store.Held(section, tick) {
+		return true
+	}
+	return (wanted == nil || wanted[section]) && !store.Fresh(section, tick)
+}
+
 // bundleStepFamilies adds the step families to a review bundle request
 // (bundleRequest, #593).
-func (s *ClockScheduler) bundleStepFamilies(request *o.BundleRequest, tick int64) {
+func (s *ClockScheduler) bundleStepFamilies(request *o.BundleRequest, tick int64, wanted map[facts.Section]bool) {
 	store := s.facts.store
-	stale := func(section facts.Section) bool { return !s.lastTickKnown || !store.Fresh(section, tick) }
+	stale := func(section facts.Section) bool { return sectionRides(store, section, tick, s.lastTickKnown, wanted) }
 	_, entities := s.native.(EntityNative)
 	_, zones := s.native.(observation.ZonesNative)
 	if entities {
@@ -1573,10 +1704,11 @@ func (s *ClockScheduler) bundleStepFamilies(request *o.BundleRequest, tick int64
 }
 
 // bundleMasks is the review bundle's field mask per continuous family
-// (#360): the sub-blocks the routine review decodes. The mask is the same whatever
-// planners the step selects, because the review's DetectRoutine consumes
-// every decoded block on every review; a planner subset never narrows
-// what is read. Each mask is an empty message: present, so native drops
+// (#360): the sub-blocks the routine review decodes. The mask is the same
+// whatever planners the step selects: the review's DetectRoutine consumes
+// every decoded block, so a family that rides always rides whole; a
+// planner subset narrows which families ride instead (bundleFamilies,
+// #625), serving the rest held. Each mask is an empty message: present, so native drops
 // the blocks the controller never reads (gear detail, inventory,
 // capacities, surgery bills, backstory, traits, relations; owned beds,
 // nutrition, supported interactions; research unlocks, costs, facilities),
@@ -1591,12 +1723,11 @@ func bundleMasks() (*o.PawnFields, *o.PopulationFields, *o.ResearchFields) {
 // the step is expected to observe (the previous status tick plus the
 // running window's drift, so the guess errs on the later side), is served
 // by the review from the store and stays out; every family rides when the
-// tick is unknown (the first step) or the section is stale or absent.
-func bundleFamilies(store *facts.Store, tick int64, known bool) (population, research, pawns bool) {
-	if !known {
-		return true, true, true
-	}
-	return !store.Fresh(facts.Population, tick), !store.Fresh(facts.Research, tick), !store.Fresh(facts.Pawns, tick)
+// tick is unknown (the first step) or the section is stale or absent. A
+// section no selected planner consumes (wanted, nil for all) is served
+// held past its cadence too (sectionRides, #625).
+func bundleFamilies(store *facts.Store, tick int64, known bool, wanted map[facts.Section]bool) (population, research, pawns bool) {
+	return sectionRides(store, facts.Population, tick, known, wanted), sectionRides(store, facts.Research, tick, known, wanted), sectionRides(store, facts.Pawns, tick, known, wanted)
 }
 
 // stepReviews is whether a step taken for reason is expected to run the
@@ -1616,11 +1747,10 @@ func (s *ClockScheduler) stepReviews(reason StepReason) bool {
 			return false
 		}
 	}
-	if reason.Cause == StepTimer {
-		return s.fullStepDue()
+	if reason.Cause == StepTimer && s.running.Load() && !s.liveWaveDue() && !s.fullStepDue() {
+		return false
 	}
-	review, _ := plannerSelection(reason, s.facts.kindOf)
-	return review
+	return s.previewSelection(reason).planners
 }
 
 // factsScope is the store scope an observation context establishes: the
@@ -1689,10 +1819,11 @@ func (s *ClockScheduler) fullStepDue() bool {
 // the wave sharing arbiter, returning the queued names without waiting.
 // Routine's own error aborts before anything is queued; an error from a
 // queued planner is isolated by the wave and surfaces later, from its
-// failures, without stopping the step.
-func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSchedulerResult, wave *plannerWave, arbiter *stepArbiter, pick func(plannerEntry) bool) ([]string, error) {
+// failures, without stopping the step. wanted names the sections the
+// selected planners consume (nil: every section, #625).
+func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSchedulerResult, wave *plannerWave, arbiter *stepArbiter, wanted map[facts.Section]bool, pick func(plannerEntry) bool) ([]string, error) {
 	if s.config.Routine != nil {
-		review, err := s.config.Routine.step(call, epoch, arbiter, pick != nil)
+		review, err := s.config.Routine.step(call, epoch, arbiter, wanted)
 		if err != nil {
 			return nil, fmt.Errorf("routine: %w", err)
 		}

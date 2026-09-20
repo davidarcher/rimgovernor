@@ -176,6 +176,7 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 			s.running.Store(false)
 		}
 		out.Wake, out.Invalidated, out.AuthorityChanged, out.Stopped, out.StoppedAt = clockPageWakeStopped(page)
+		out.InvalidatedSections = clockPageSections(page)
 		// Recorded here, not only through the step's wake reason: a step
 		// already past taking its reason (waiting on the player gate
 		// behind the Worker) must still see an outcome this page carried

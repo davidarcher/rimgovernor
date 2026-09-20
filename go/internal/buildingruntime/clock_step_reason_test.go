@@ -10,18 +10,23 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
+	"github.com/davidarcher/RimGovernor/go/internal/facts"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	"google.golang.org/protobuf/proto"
 )
 
 func selectedPlanners(reason StepReason, kindOf func(domain.ActionID) (domain.ActionKind, bool)) (bool, []string) {
-	planners, pick := plannerSelection(reason, kindOf)
-	if !planners {
+	return selectedPlannersAt(reason, kindOf, newPlannerQueue(), 0)
+}
+
+func selectedPlannersAt(reason StepReason, kindOf func(domain.ActionID) (domain.ActionKind, bool), q *plannerQueue, tick int64) (bool, []string) {
+	sel := plannerSelection(reason, kindOf, q, tick)
+	if !sel.planners {
 		return false, nil
 	}
 	var names []string
 	for _, entry := range plannerCatalog {
-		if pick == nil || pick(entry) {
+		if sel.pick == nil || sel.pick(entry) {
 			names = append(names, entry.name)
 		}
 	}
@@ -29,10 +34,10 @@ func selectedPlanners(reason StepReason, kindOf func(domain.ActionID) (domain.Ac
 }
 
 // TestPlannerSelectionByReason: a full or settled step selects the whole
-// catalog; a timer step selects it only once the tick moved; a wake selects
-// the planners of the latched outcomes' kinds and the readers of the
-// invalidated families, and everything when an outcome's kind is unknown or
-// authority changed.
+// catalog; a timer step selects only the planners due on the queue at its
+// tick (#625); a wake selects the planners of the latched outcomes' kinds
+// and the readers of the invalidated families or sections, and everything
+// when an outcome's kind is unknown or authority changed.
 func TestPlannerSelectionByReason(t *testing.T) {
 	t.Parallel()
 	all := make([]string, 0, len(plannerCatalog))
@@ -49,10 +54,11 @@ func TestPlannerSelectionByReason(t *testing.T) {
 	}{
 		{"full", StepReason{Cause: StepFull}, true, all},
 		{"settled", StepReason{Cause: StepSettled}, true, all},
-		{"timer same tick", StepReason{Cause: StepTimer}, false, nil},
-		{"timer tick advanced", StepReason{Cause: StepTimer, TickAdvanced: true}, true, all},
+		{"timer nothing due", StepReason{Cause: StepTimer}, false, nil},
+		{"timer tick advanced, nothing due", StepReason{Cause: StepTimer, TickAdvanced: true}, false, nil},
 		{"wake haul", StepReason{Cause: StepWake, Events: []WakeOutcome{{Action: "haul-1", Attempt: 1, Terminal: true}}}, true, []string{"secureSupplies", "haul", "foodStorageUpkeep"}},
 		{"wake research family", StepReason{Cause: StepWake, Families: []bridge.FactFamily{bridge.FactResearch}}, true, []string{"research"}},
+		{"wake bills section", StepReason{Cause: StepWake, Families: []bridge.FactFamily{bridge.FactColony}, Sections: []facts.Section{facts.Bills}}, true, []string{"cookingBills", "preservationBills", "butcherBills", "cookAheadBills", "resource", "productionPolicy"}},
 		{"wake unknown kind", StepReason{Cause: StepWake, Events: []WakeOutcome{{Action: "ghost", Attempt: 1}}}, true, all},
 		{"wake authority", StepReason{Cause: StepWake, Authority: true}, true, all},
 		{"wake empty", StepReason{Cause: StepWake}, true, all},
@@ -62,6 +68,13 @@ func TestPlannerSelectionByReason(t *testing.T) {
 		if planners != tc.planners || !reflect.DeepEqual(got, tc.want) {
 			t.Errorf("%s: planners=%v %v, want %v %v", tc.name, planners, got, tc.planners, tc.want)
 		}
+	}
+	// A timer step selects the planners whose review tick has passed and
+	// leaves the rest to their cadence.
+	q := newPlannerQueue()
+	q.due["haul"], q.due["tend"] = 100, 200
+	if planners, got := selectedPlannersAt(StepReason{Cause: StepTimer}, kindOf, q, 150); !planners || !reflect.DeepEqual(got, []string{"haul"}) {
+		t.Fatal(planners, got)
 	}
 	// A building wake selects every construction planner (research stages
 	// its bench through one, #254) and no pawn-only one.

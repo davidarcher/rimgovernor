@@ -288,7 +288,7 @@ func TestClockSchedulerDisabledReviewFailsTheStep(t *testing.T) {
 		t.Fatal(err)
 	}
 	var out ClockSchedulerResult
-	planners, err := s.runPlanners(call, epoch, &out, nil, f.status)
+	planners, err := s.runPlanners(call, epoch, &out, plannerSelectionResult{planners: true}, f.status)
 	done()
 	if !errors.Is(err, executor.ErrAuthority) || planners != nil || out.Routine != nil || f.writes != writes {
 		t.Fatal(planners, err, f.writes, writes)
@@ -329,10 +329,10 @@ func TestClockSchedulerBundleLeavesFreshSectionsOut(t *testing.T) {
 	scope := factsstore.Scope{Load: "load", Generation: 1}
 	store := s.facts.store
 	// Wrong scope, unknown tick, or an empty store: everything rides.
-	if p, r, pw := bundleFamilies(store, 1000, false); !p || !r || !pw {
+	if p, r, pw := bundleFamilies(store, 1000, false, nil); !p || !r || !pw {
 		t.Fatal("unknown tick", p, r, pw)
 	}
-	if p, r, pw := bundleFamilies(store, 1000, true); !p || !r || !pw {
+	if p, r, pw := bundleFamilies(store, 1000, true, nil); !p || !r || !pw {
 		t.Fatal("empty store", p, r, pw)
 	}
 	factsstore.Put(store, scope, factsstore.Research, factsstore.Held[policy.ResearchFacts]{AsOf: 1000, Complete: true})
@@ -349,7 +349,7 @@ func TestClockSchedulerBundleLeavesFreshSectionsOut(t *testing.T) {
 		{"research past its cadence", 1000 + bridge.FactTickToleranceResearch + int64(domain.LiveDrift()) + 1, true, true, true},
 		{"held ahead of the step", 999, true, true, true},
 	} {
-		if p, r, pw := bundleFamilies(store, c.tick, true); p != c.population || r != c.research || pw != c.pawn {
+		if p, r, pw := bundleFamilies(store, c.tick, true, nil); p != c.population || r != c.research || pw != c.pawn {
 			t.Fatalf("%s: population=%v research=%v pawns=%v", c.name, p, r, pw)
 		}
 	}
@@ -364,7 +364,8 @@ func TestClockSchedulerBundleLeavesFreshSectionsOut(t *testing.T) {
 // step's bundle carries the same field mask per family, whatever planners
 // the step selects (the review consumes every decoded block regardless),
 // each mask present with no include flag; a step that does not review
-// carries none.
+// (a timer between full steps, a wake no configured planner declares,
+// #625) carries none.
 func TestClockSchedulerBundleMasksAreConstantPerReview(t *testing.T) {
 	t.Parallel()
 	s, f := schedulerFixture(t)
@@ -377,7 +378,7 @@ func TestClockSchedulerBundleMasksAreConstantPerReview(t *testing.T) {
 		{Cause: StepFull},
 		{Cause: StepWake, Authority: true},
 		{Cause: StepWake, Families: []bridge.FactFamily{bridge.FactPawns}},
-		{Cause: StepWake, Families: []bridge.FactFamily{bridge.FactResearch}},
+		{Cause: StepWake, Families: []bridge.FactFamily{bridge.FactEmergency}},
 	} {
 		if r := s.bundleRequest(reason); !empty(r) {
 			t.Fatalf("%+v: masks %v %v %v", reason, r.ColonistPawnFields, r.PopulationFields, r.ResearchFields)
@@ -386,6 +387,9 @@ func TestClockSchedulerBundleMasksAreConstantPerReview(t *testing.T) {
 	s.lastFull = s.clock.Now()
 	if r := s.bundleRequest(StepReason{Cause: StepTimer}); r.ColonistPawnFields != nil || r.PopulationFields != nil || r.ResearchFields != nil {
 		t.Fatal("masks on a timer step between full steps", r)
+	}
+	if r := s.bundleRequest(StepReason{Cause: StepWake, Families: []bridge.FactFamily{bridge.FactResearch}}); r.ColonistPawnFields != nil || r.PopulationFields != nil || r.ResearchFields != nil {
+		t.Fatal("masks on a wake no configured planner declares", r)
 	}
 }
 
@@ -399,18 +403,18 @@ func TestRoutineReviewerRoomsMaxAgeUnderATemperatureCondition(t *testing.T) {
 	schedulerRoutine(t, s, f)
 	r := s.config.Routine
 	scope := factsstore.Scope{Load: "load", Generation: 1}
-	if rs := r.routineStore(); rs.Store != s.facts.store || rs.MaxAge != nil {
+	if rs := r.routineStore(nil); rs.Store != s.facts.store || rs.MaxAge != nil {
 		t.Fatal("max age without colony facts", rs.MaxAge)
 	}
 	colony := observation.ColonyProjection{}
 	colony.Facts.DisasterConditions = domain.Known([]policy.DisasterCondition{{ID: "1", Definition: "Flashstorm"}})
 	factsstore.Put(s.facts.store, scope, factsstore.Colony, factsstore.Held[observation.ColonyProjection]{Value: colony, AsOf: 1, Complete: true})
-	if rs := r.routineStore(); rs.MaxAge != nil {
+	if rs := r.routineStore(nil); rs.MaxAge != nil {
 		t.Fatal("max age under a flashstorm", rs.MaxAge)
 	}
 	colony.Facts.DisasterConditions = domain.Known([]policy.DisasterCondition{{ID: "2", Definition: policy.ConditionColdSnap}})
 	factsstore.Put(s.facts.store, scope, factsstore.Colony, factsstore.Held[observation.ColonyProjection]{Value: colony, AsOf: 1, Complete: true})
-	if rs := r.routineStore(); rs.MaxAge[factsstore.Rooms] != 0 || len(rs.MaxAge) != 1 {
+	if rs := r.routineStore(nil); rs.MaxAge[factsstore.Rooms] != 0 || len(rs.MaxAge) != 1 {
 		t.Fatal("max age under a cold snap", rs.MaxAge)
 	}
 }

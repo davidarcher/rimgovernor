@@ -24,6 +24,8 @@ type routineNative struct {
 	reads     int
 	planning  bool
 	pawnReply *o.ListPawnsReply
+	// pawnReads and populationReads count the held-section reads (#625).
+	pawnReads, populationReads int
 }
 
 // Translate the legacy colony fixture's zone data at the new list boundary.
@@ -45,6 +47,7 @@ func (n *routineNative) ReadZoneSection(ctx context.Context, _ *c.Identity, _ in
 }
 
 func (n *routineNative) ReadRoutinePawns(ctx context.Context, _ *c.Identity, _ []string) (*o.ListPawnsReply, bridge.Result, error) {
+	n.pawnReads++
 	if n.pawnReply != nil {
 		return n.pawnReply, bridge.Result{}, ctx.Err()
 	}
@@ -52,6 +55,7 @@ func (n *routineNative) ReadRoutinePawns(ctx context.Context, _ *c.Identity, _ [
 }
 
 func (n *routineNative) ReadRoutinePopulation(ctx context.Context, _ *c.Identity) (bridge.PrisonerCensus, bridge.Result, error) {
+	n.populationReads++
 	return bridge.PrisonerCensus{Context: proto.Clone(n.reply.GetObserved().Context).(*c.ObservationContext), Prisoners: domain.Known([]policy.PrisonerFacts{})}, bridge.Result{}, ctx.Err()
 }
 

@@ -203,7 +203,7 @@ func (w *ClockWorker) pollLoop() {
 			// decision input of its own; its step carries the stop only
 			// to publish the stop-to-step latency.
 			w.config.Wake.NotifyStopped(result.Wake, result.Invalidated, result.AuthorityChanged, result.Stopped)
-			w.wake.NotifyStopAt(result.Wake, result.Invalidated, result.AuthorityChanged, result.Stopped, result.StoppedAt)
+			w.wake.NotifySections(result.Wake, result.Invalidated, result.InvalidatedSections, result.AuthorityChanged, result.Stopped, result.StoppedAt)
 		}
 		waited := wait > 0 && time.Since(started) >= wait/2
 		if err == nil && (waited || result.Captured) {

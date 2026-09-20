@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/facts"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"time"
@@ -19,9 +20,12 @@ type ClockPollResult struct {
 	Captured, Interrupted bool
 	// Wake and AuthorityChanged summarize evidence the journal committed in
 	// this poll; they are empty when nothing was captured.
-	Wake             []WakeOutcome
-	Invalidated      []bridge.FactFamily
-	AuthorityChanged bool
+	Wake        []WakeOutcome
+	Invalidated []bridge.FactFamily
+	// InvalidatedSections are the store sections the same events
+	// narrowed to (clockPageSections, #625).
+	InvalidatedSections []facts.Section
+	AuthorityChanged    bool
 	// Stopped reports that the committed page stopped the clock: the game
 	// is paused until the next window starts. StoppedAt is the earliest
 	// stop's native stamp, zero when the event carried none.

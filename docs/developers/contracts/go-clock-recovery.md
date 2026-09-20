@@ -675,9 +675,10 @@ planners read the bundle's snapshot (one main-thread hop, so its sections
 describe one tick) and commit plans the worker dispatches live; nothing is
 admitted, since the window already runs and the stop that ends it reviews
 and admits as before. The step reports the `live` cause; a `timer` step
-plans live only when `FullStepEvery` is due, a `wake` or `full` step at
-once, so a running window costs one planner wave per `FullStepEvery`
-rather than one per step. The wave is also bounded by pace (#598): when
+plans live only when a planner is due on the queue and `LiveWaveEvery`
+(`DefaultLiveWaveEvery`, 30 s) has passed since the last timer-driven wave,
+a `wake` or `full` step at once, so a running window costs one planner
+wave per `LiveWaveEvery` at most, and none while nothing is due. The wave is also bounded by pace (#598): when
 the ticks the window's measured pace covers in the previous `live` step's
 wall time exceed `LivePlanningTicks` (`DefaultLivePlanningTicks`, 6000, a
 tenth of a game day), the step reconciles, admits nothing, leaves the
@@ -688,17 +689,30 @@ Ultrafast (900 ticks/s over a 5 s step) plans live, an uncapped game at
 1000+ ticks/s under a 10 s wave does not.
 
 `StepReason.Cause` is `timer`, `wake`, `settled`, `full` or `live`. The planners the
-scheduler queues are the `plannerCatalog` entries `plannerSelection` picks:
-every configured entry for `full`, `settled` and a `timer` whose tick moved;
-none for a `timer` at the same tick (the admission tail alone, promoted to
-`full` once `FullStepEvery`, 30 s, has passed without a full wave); for a
+scheduler queues are the `plannerCatalog` entries `plannerSelection` picks
+over the scheduler's due queue (`plannerQueue`, #625): every configured
+entry for `full` and `settled`; for a `timer`, the entries whose next review
+tick (`plannerEntry.reviewEvery`: 2 500 ticks for the critical and foothold
+classes, 7 500 for maintenance, 15 000 for comfort, recorded when the entry
+last ran) has passed, so a timer with nothing due runs the admission tail
+alone (promoted to `full` once `FullStepEvery`, 2 min, has passed without a
+full wave: the coarse reconciliation for missed invalidations); for a
 `wake`, the entries whose dispatched `kinds` include a latched outcome's kind
 (as the scheduler remembered arming it; an unremembered action selects all)
-or whose `families` include an `ObservationInvalidated` family, and all of
-them when authority changed. The routine reviewer runs before any planner
-wave; its retained census is retired by any typed-event invalidation
-(`routineCensusStore` generation) so a same-tick reuse never serves facts an
-event made stale.
+or whose declared `sections` include one the `ObservationInvalidated` row
+dirtied (`facts.Invalidation.Sections`: a whole family names every section
+it holds, entity ids the entity sections, a rect the planning cells), and
+all of them when authority changed. Each entry declares the
+`observations_read_bundle` sections it consumes; a subset step reads only
+those at cadence and serves every other section held from the store past
+its cadence (`RoutineStore.Held`), and reports them as `sections` on its
+`clock_step` row. An entry that reported `existing_work` waits on the open
+attempts of its kinds it found (`plannerQueue.waits`): it is not selected
+again until one of them reaches its outcome row, its own next review tick
+passes, or a full step runs, and a step that skips it lists it under
+`waiting`. The routine reviewer runs before any planner wave; its retained
+census is retired by any typed-event invalidation (`routineCensusStore`
+generation) so a same-tick reuse never serves facts an event made stale.
 
 The scheduler arms `WatchPolicy.watched_attempts` for a combat window only,
 with the dispatched or awaiting-observation building and haul attempts of

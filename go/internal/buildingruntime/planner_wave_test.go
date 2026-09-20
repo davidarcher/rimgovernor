@@ -45,11 +45,11 @@ func TestPlannerCatalogClasses(t *testing.T) {
 func blockedPlanner(name string, class plannerClass, released chan<- error) plannerEntry {
 	return plannerEntry{name: name, class: class, priority: plannerFoothold,
 		configured: func(*ClockSchedulerConfig) bool { return true },
-		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
+		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {
 			<-ctx.Done()
 			released <- ctx.Err()
 			out.Lighting = &RoutineBuildingResult{Reason: BuildingMethodRefused}
-			return ctx.Err()
+			return "", ctx.Err()
 		}}
 }
 
@@ -57,9 +57,9 @@ func blockedPlanner(name string, class plannerClass, released chan<- error) plan
 func quickPlanner(name string, class plannerClass) plannerEntry {
 	return plannerEntry{name: name, class: class, priority: plannerCritical,
 		configured: func(*ClockSchedulerConfig) bool { return true },
-		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
+		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (RoutineBuildingReason, error) {
 			out.Sleeping = &RoutineBuildingResult{Reason: BuildingMethodNoDeficit}
-			return nil
+			return BuildingMethodNoDeficit, nil
 		}}
 }
 

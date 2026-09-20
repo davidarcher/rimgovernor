@@ -7,6 +7,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/facts"
 )
 
 // StepCause is why the clock worker stepped the scheduler.
@@ -35,9 +36,20 @@ const (
 	StepLive StepCause = "live"
 )
 
-// DefaultFullStepEvery bounds how long timer steps may skip the planners
-// before one is promoted to a full step.
-const DefaultFullStepEvery = 30 * time.Second
+// DefaultFullStepEvery bounds how long the due queue may drive the
+// planners before a timer step is promoted to a full one: the coarse
+// reconciliation that re-runs every planner in case an invalidation was
+// missed (#625). Between full steps a timer step runs only the planners
+// due at the game tick (plannerEntry.reviewEvery) or dirtied by a wake.
+const DefaultFullStepEvery = 2 * time.Minute
+
+// DefaultLiveWaveEvery spaces the timer-driven planner waves under a
+// running window (#243) in wall time whatever the game speed: the due
+// queue is keyed by game tick, so at Ultrafast every planner falls due
+// within seconds and the waves would otherwise run back to back, each
+// holding the player gate the Worker dispatches under. A wake still plans
+// live at once (livePlanningPaced bounds the outrun).
+const DefaultLiveWaveEvery = 30 * time.Second
 
 // DefaultLivePlanningTicks is the most ticks a running window may cover in
 // the wall time of one live planner wave before the wave waits for the
@@ -66,8 +78,11 @@ type StepReason struct {
 	// Events are the latched outcomes a wake carried.
 	Events []WakeOutcome
 	// Families are the fact families a wake's ObservationInvalidated
-	// events named.
+	// events named; Sections the store sections the same events narrowed
+	// to (clockPageSections, #625). A reason carrying families alone is
+	// taken to dirty every section of theirs.
 	Families []bridge.FactFamily
+	Sections []facts.Section
 	// Authority is set when a wake carried an AuthorityChanged event.
 	Authority bool
 	// TickAdvanced reports whether the game tick moved since the previous
@@ -100,57 +115,36 @@ func (r StepReason) String() string {
 		b.WriteString(" ")
 		b.WriteString(string(family))
 	}
+	for _, section := range r.Sections {
+		b.WriteString(" ")
+		b.WriteString(string(section))
+	}
 	return b.String()
 }
 
-// plannerSelection decides which catalog planners a step runs. It returns
-// whether any planner (and the routine reviewer before it) runs at all, and
-// the catalog filter when only a subset does (nil selects every planner).
-// kindOf resolves a woken action to the kind the scheduler remembered
-// arming; an unremembered action could be any kind, so it selects all.
-func plannerSelection(reason StepReason, kindOf func(domain.ActionID) (domain.ActionKind, bool)) (planners bool, pick func(plannerEntry) bool) {
+// plannerSelection decides which catalog planners a step for reason runs
+// at tick, over a copy of the due queue q (#625): a full step runs every
+// planner; a settled step (a window just ran) marks every planner and
+// runs those not waiting on a dependency; a timer step runs the planners
+// dirty or due at tick; a wake or live step folds its evidence first (the
+// planners of the latched outcomes' kinds, the consumers of the dirty
+// sections, everything on an authority change or an outcome whose kind
+// kindOf does not remember, everything on a wake carrying nothing
+// selectable). The result's pick is nil when every planner runs.
+func plannerSelection(reason StepReason, kindOf func(domain.ActionID) (domain.ActionKind, bool), q *plannerQueue, tick int64) plannerSelectionResult {
+	q = q.clone()
 	switch reason.Cause {
-	case StepFull, StepSettled:
-		return true, nil
+	case StepFull:
+		return q.selection(tick, true, false, nil)
+	case StepSettled:
+		return q.selection(tick, false, true, nil)
 	case StepTimer:
-		return reason.TickAdvanced, nil
+		return q.selection(tick, false, false, nil)
 	case StepWake, StepLive:
-	default:
-		return true, nil
+		q.wake(reason, kindOf)
+		return q.selection(tick, false, false, nil)
 	}
-	if reason.Authority {
-		return true, nil
-	}
-	kinds := map[domain.ActionKind]bool{}
-	for _, event := range reason.Events {
-		kind, known := kindOf(event.Action)
-		if !known {
-			return true, nil
-		}
-		kinds[kind] = true
-	}
-	families := map[bridge.FactFamily]bool{}
-	for _, family := range reason.Families {
-		families[family] = true
-	}
-	if len(kinds) == 0 && len(families) == 0 {
-		// A wake that carried nothing selectable (a watch stop without an
-		// outcome) is a settled window: re-plan everything.
-		return true, nil
-	}
-	return true, func(entry plannerEntry) bool {
-		for _, kind := range entry.kinds {
-			if kinds[kind] {
-				return true
-			}
-		}
-		for _, family := range entry.families {
-			if families[family] {
-				return true
-			}
-		}
-		return false
-	}
+	return q.selection(tick, true, false, nil)
 }
 
 // Step runs one full scheduling decision; see StepWithReason.

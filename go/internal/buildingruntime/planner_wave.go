@@ -69,12 +69,16 @@ type plannerWave struct {
 	mu             sync.Mutex
 	results        map[string]*ClockSchedulerResult
 	finished       []string
-	closed         bool
+	// reasons is each returned planner's reason (its run's, or for a
+	// migrated planner its proposal's outcome): what the due queue reads
+	// to tell a planner waiting on open work from one that is due (#625).
+	reasons map[string]RoutineBuildingReason
+	closed  bool
 }
 
 func newPlannerWave(call context.Context) *plannerWave {
 	optional, cancel := context.WithCancel(call)
-	return &plannerWave{group: newPlannerGroup(call, plannerWidth), optional: optional, cancelOptional: cancel, results: map[string]*ClockSchedulerResult{}}
+	return &plannerWave{group: newPlannerGroup(call, plannerWidth), optional: optional, cancelOptional: cancel, results: map[string]*ClockSchedulerResult{}, reasons: map[string]RoutineBuildingReason{}}
 }
 
 // queue queues entry's run on the wave: a critical planner under the step
@@ -87,25 +91,53 @@ func (w *plannerWave) queue(s *ClockScheduler, call, epoch context.Context, arbi
 		ctx = w.optional
 	}
 	w.group.Go(entry.name, entry.class, entry.priority, func() error {
-		err := entry.run(s, ctx, epoch, private, arbiter)
+		reason, err := entry.run(s, ctx, epoch, private, arbiter)
 		if err != nil {
 			err = fmt.Errorf("%s: %w", entry.name, err)
 		}
-		return w.done(entry.name, err)
+		return w.done(entry.name, reason, err)
 	})
 }
 
-// done records a planner's return. After the cutoff the return is
-// discarded: the planner was recorded missed, its result is not merged and
-// its (cancellation) error is not a failure.
-func (w *plannerWave) done(name string, err error) error {
+// done records a planner's return and its reason. After the cutoff the
+// return is discarded: the planner was recorded missed, its result is not
+// merged and its (cancellation) error is not a failure.
+func (w *plannerWave) done(name string, reason RoutineBuildingReason, err error) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if w.closed {
 		return nil
 	}
 	w.finished = append(w.finished, name)
+	if err == nil {
+		w.reasons[name] = reason
+	}
 	return err
+}
+
+// decided records a reason decided after the planner returned: a
+// migrated planner's proposal outcome from the coordinator.
+func (w *plannerWave) decided(name string, reason RoutineBuildingReason) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.reasons[name] = reason
+}
+
+// reason is the reason recorded for name; false for a planner that failed
+// or missed the cutoff.
+func (w *plannerWave) reason(name string) (RoutineBuildingReason, bool) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	reason, ok := w.reasons[name]
+	return reason, ok
+}
+
+// finishedNames lists the planners that returned before the cutoff, in
+// return order.
+func (w *plannerWave) finishedNames() []string {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return append([]string(nil), w.finished...)
 }
 
 // close ends the wave at the cutoff: the optional planners still running

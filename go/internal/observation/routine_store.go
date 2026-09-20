@@ -24,6 +24,12 @@ type RoutineStore struct {
 	// MaxAge bounds a section's cadence for this reading, in ticks
 	// (facts.Store.FreshWithin); a section absent from it keeps its cadence.
 	MaxAge map[facts.Section]int64
+	// Held names the sections no planner this reading feeds consumes
+	// (#625): each is served from the store past its cadence while the
+	// store holds it usable (facts.Store.Held), and read again only once
+	// an invalidation has dropped or marked it. MaxAge still bounds a
+	// section named in both.
+	Held map[facts.Section]bool
 }
 
 type routineStoreKey struct{}
@@ -49,6 +55,12 @@ func heldSection[T any](r RoutineStore, section facts.Section, tick int64) (fact
 	maxAge := bridge.FactTickUnbounded
 	if age, ok := r.MaxAge[section]; ok {
 		maxAge = age
+	}
+	if r.Held[section] && maxAge == bridge.FactTickUnbounded {
+		if !r.Store.Held(section, tick) {
+			return facts.Held[T]{}, false
+		}
+		return facts.Get[T](r.Store, section)
 	}
 	if !r.Store.FreshWithin(section, tick, maxAge) {
 		return facts.Held[T]{}, false

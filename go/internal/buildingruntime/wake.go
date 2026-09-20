@@ -6,6 +6,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/facts"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 )
 
@@ -22,10 +23,14 @@ type WakeOutcome struct {
 // wakes anyone; a wake is a hint to act now, never a fact by itself. Every
 // method is nil-safe so timer-only callers and tests need no signal.
 type WakeSignal struct {
-	mu        sync.Mutex
-	ch        chan struct{}
-	pending   map[domain.ActionID]WakeOutcome
-	families  map[bridge.FactFamily]bool
+	mu       sync.Mutex
+	ch       chan struct{}
+	pending  map[domain.ActionID]WakeOutcome
+	families map[bridge.FactFamily]bool
+	// sections are the store sections the pages' invalidations made
+	// stale, as narrowed as native attributed them (#625); the families
+	// stay the byte cache's whole-family view of the same events.
+	sections  map[facts.Section]bool
 	authority bool
 	// stopAt is the native stamp of the earliest stop still pending for
 	// the step loop, zero when the page carried none; the step that acts
@@ -40,7 +45,7 @@ type WakeSignal struct {
 }
 
 func NewWakeSignal() *WakeSignal {
-	return &WakeSignal{ch: make(chan struct{}, 1), pending: map[domain.ActionID]WakeOutcome{}, families: map[bridge.FactFamily]bool{}}
+	return &WakeSignal{ch: make(chan struct{}, 1), pending: map[domain.ActionID]WakeOutcome{}, families: map[bridge.FactFamily]bool{}, sections: map[facts.Section]bool{}}
 }
 
 // Notify merges outcomes into the pending set and signals without blocking.
@@ -63,15 +68,29 @@ func (w *WakeSignal) NotifyStopped(outcomes []WakeOutcome, families []bridge.Fac
 // NotifyStopAt is NotifyStopped carrying the native stamp of the stop
 // (the Stopped event's observed_at), zero when unknown.
 func (w *WakeSignal) NotifyStopAt(outcomes []WakeOutcome, families []bridge.FactFamily, authority, stopped bool, stopAt time.Time) {
+	w.NotifySections(outcomes, families, nil, authority, stopped, stopAt)
+}
+
+// NotifySections is NotifyStopAt carrying the sections the page's
+// invalidations narrowed to (clockPageSections). Invalidations coalesce
+// into one set; a terminal outcome is never replaced by a later
+// non-terminal one of the same attempt, and authority stays set until taken.
+func (w *WakeSignal) NotifySections(outcomes []WakeOutcome, families []bridge.FactFamily, sections []facts.Section, authority, stopped bool, stopAt time.Time) {
 	if w == nil {
 		return
 	}
 	w.mu.Lock()
 	for _, o := range outcomes {
+		if held, ok := w.pending[o.Action]; ok && held.Terminal && !o.Terminal {
+			continue
+		}
 		w.pending[o.Action] = o
 	}
 	for _, family := range families {
 		w.families[family] = true
+	}
+	for _, section := range sections {
+		w.sections[section] = true
 	}
 	w.authority = w.authority || authority
 	if stopped {
@@ -125,10 +144,14 @@ func (w *WakeSignal) TakeInvalidated() StepReason {
 	for family := range w.families {
 		reason.Families = append(reason.Families, family)
 	}
+	for section := range w.sections {
+		reason.Sections = append(reason.Sections, section)
+	}
 	reason.Authority = w.authority
 	reason.Stopped, reason.StopAt = w.stops > w.stopsTaken, w.stopAt
 	w.pending = map[domain.ActionID]WakeOutcome{}
 	w.families = map[bridge.FactFamily]bool{}
+	w.sections = map[facts.Section]bool{}
 	w.authority = false
 	w.stopsTaken, w.stopAt = w.stops, time.Time{}
 	return reason
@@ -172,6 +195,34 @@ func clockPageWakeStopped(page *k.EventsPage) (outcomes []WakeOutcome, families 
 	}
 	return outcomes, families, authority, stopped, stopAt
 }
+
+// clockPageSections names the store sections the page's
+// ObservationInvalidated events made stale (facts.Invalidation.Sections):
+// the routing key for the planners a wake re-runs (#625). An event whose
+// family the controller does not know names nothing here; the wake's
+// authority flag (clockPageWakeStopped) already re-runs everything.
+func clockPageSections(page *k.EventsPage) []facts.Section {
+	var out []facts.Section
+	seen := map[facts.Section]bool{}
+	for _, event := range page.GetEvents() {
+		v, ok := event.Event.(*k.Event_ObservationInvalidated)
+		if !ok {
+			continue
+		}
+		inv, ok := facts.InvalidationFromWire(v.ObservationInvalidated)
+		if !ok {
+			continue
+		}
+		for _, section := range inv.Sections() {
+			if !seen[section] {
+				seen[section] = true
+				out = append(out, section)
+			}
+		}
+	}
+	return out
+}
+
 func wakeOutcome(o *k.OperationOutcome) WakeOutcome {
 	_, unknown := o.Outcome.(*k.OperationOutcome_Unknown)
 	return WakeOutcome{Action: domain.ActionID(o.Attempt.GetActionId()), Attempt: domain.AttemptID(o.Attempt.GetAttemptId()), Terminal: !unknown}

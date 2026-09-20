@@ -229,6 +229,21 @@ func (s *Store) Fresh(section Section, scopeTick int64) bool {
 	return s.FreshWithin(section, scopeTick, bridge.FactTickUnbounded)
 }
 
+// Held reports whether the section's value is usable at all at scopeTick
+// (held, not stale-marked, not from ahead of the step), cadence aside: a
+// review serves a section none of its selected planners consume from it
+// however old the value is (#625), and reads it again only once an
+// invalidation drops or marks it.
+func (s *Store) Held(section Section, scopeTick int64) bool {
+	if s == nil {
+		return false
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	r, ok := s.rows[section]
+	return ok && !r.stale.Any() && r.asOf <= scopeTick
+}
+
 // FreshWithin is Fresh under the tighter of the section's cadence and
 // maxAge, a policy's own bound in ticks (#360): a consumer that needs a
 // continuous value fresher than the cadence asks with it, and a section
@@ -359,6 +374,56 @@ type Invalidation struct {
 // Narrowed reports whether the invalidation names rows rather than whole
 // families.
 func (inv Invalidation) Narrowed() bool { return len(inv.IDs) > 0 || inv.Rect != nil }
+
+// Sections names the sections the invalidation makes stale, the rows a
+// scheduler routes to the planners declaring them (#625): every section of
+// each family when nothing narrows it; the entity sections when entity
+// ids do; the cell section when a rectangle does. A family without a
+// section of the narrowed shape (ids against pawns) is dirty whole.
+func (inv Invalidation) Sections() []Section {
+	var out []Section
+	add := func(section Section) {
+		for _, held := range out {
+			if held == section {
+				return
+			}
+		}
+		out = append(out, section)
+	}
+	for _, family := range inv.Families {
+		if !inv.Narrowed() {
+			for _, section := range FamilySections(family) {
+				add(section)
+			}
+			continue
+		}
+		fitted := false
+		for _, section := range FamilySections(family) {
+			if section.Cells() && inv.Rect != nil || !section.Cells() && section.Incremental() && len(inv.IDs) > 0 {
+				add(section)
+				fitted = true
+			}
+		}
+		if !fitted {
+			for _, section := range FamilySections(family) {
+				add(section)
+			}
+		}
+	}
+	return out
+}
+
+// FamilySections lists the sections of one family in report order; a
+// family without a section (world, definitions, identity) has none.
+func FamilySections(family bridge.FactFamily) []Section {
+	var out []Section
+	for _, section := range Sections() {
+		if section.Family() == family {
+			out = append(out, section)
+		}
+	}
+	return out
+}
 
 // InvalidationFromWire decodes an ObservationInvalidated; an unknown
 // family reports false. A rectangle is taken as the decoder validated it
