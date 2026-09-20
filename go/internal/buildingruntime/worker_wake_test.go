@@ -18,6 +18,7 @@ func TestWorkerWakeReconcilesNamedAttemptFirst(t *testing.T) {
 	t.Parallel()
 	w, f, db := workerFixture(t)
 	w.config.Wake = NewWakeSignal()
+	w.config.MaxDispatches = 1
 	first := workerPending(t, w, "one", true)
 	second := workerPending(t, w, "two", true)
 	var order []domain.ActionID
@@ -82,6 +83,7 @@ func TestWorkerWakeStepsConsecutivelyWhileFocused(t *testing.T) {
 	t.Parallel()
 	w, f, db := workerFixture(t)
 	w.config.Wake = NewWakeSignal()
+	w.config.MaxDispatches = 1
 	// The ticker never fires during the test: every step past the first is
 	// a wake or a focus re-step.
 	w.config.StepInterval = time.Hour

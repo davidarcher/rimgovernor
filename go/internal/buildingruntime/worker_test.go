@@ -93,6 +93,7 @@ func workerPending(t *testing.T, w *Worker, id string, unresolved bool) domain.P
 func TestWorkerDisabledFairScanAndPausedBackoff(t *testing.T) {
 	t.Parallel()
 	w, f, db := workerFixture(t)
+	w.config.MaxDispatches = 1
 	first := workerPending(t, w, "one", true)
 	second := workerPending(t, w, "two", true)
 	seen := map[domain.ActionID]int{}
@@ -132,6 +133,7 @@ func TestWorkerDisabledFairScanAndPausedBackoff(t *testing.T) {
 func TestWorkerRotationResumesPastADepartedCursor(t *testing.T) {
 	t.Parallel()
 	w, f, db := workerFixture(t)
+	w.config.MaxDispatches = 1
 	// Catalog order is by plan id (a digest), so sort the three to know it.
 	views := []domain.ProgressView{workerPending(t, w, "one", true), workerPending(t, w, "two", true), workerPending(t, w, "three", true)}
 	sort.Slice(views, func(i, j int) bool { return views[i].Plan < views[j].Plan })
@@ -738,6 +740,7 @@ func TestWorkerStepReadsWorldNativelyWithoutASeededIdentity(t *testing.T) {
 func TestWorkerRotationAlternatesPlans(t *testing.T) {
 	t.Parallel()
 	w, f, db := workerFixture(t)
+	w.config.MaxDispatches = 1
 	short := workerPending(t, w, "short", true)
 	// "0-long" sorts before the short plan's digest id.
 	var actions []domain.Action
@@ -789,6 +792,56 @@ func TestWorkerRotationAlternatesPlans(t *testing.T) {
 	want := []domain.ActionID{"0-long-0", short.Action, "0-long-1", "0-long-2"}
 	if fmt.Sprint(order) != fmt.Sprint(want) {
 		t.Fatal(order, want)
+	}
+}
+
+// Every eligible action dispatches in the step that finds it, in catalog
+// order, up to the dispatch budget; one per step cost a scheduler round per
+// wall segment (#593). Actions on their backoff are skipped, and the budget
+// leaves the rest for the next step past the rotation cursor.
+func TestWorkerDispatchesEveryEligibleActionPerStep(t *testing.T) {
+	t.Parallel()
+	w, f, db := workerFixture(t)
+	views := []domain.ProgressView{workerPending(t, w, "one", true), workerPending(t, w, "two", true), workerPending(t, w, "three", true)}
+	sort.Slice(views, func(i, j int) bool { return views[i].Plan < views[j].Plan })
+	var order []domain.ActionID
+	f.run = func(ctx context.Context, p domain.PlanID, a domain.ActionID) (executor.Result, error) {
+		order = append(order, a)
+		plan, err := db.LoadPlan(ctx, p)
+		return executor.Result{Progress: plan.Progress[0]}, err
+	}
+	now := time.Now()
+	if err := w.step(context.Background(), now); err != nil {
+		t.Fatal(err)
+	}
+	if len(order) != 3 || order[0] != views[0].Action || order[1] != views[1].Action || order[2] != views[2].Action {
+		t.Fatal("one step dispatches every eligible action", order)
+	}
+	// All three are now on their backoff: a step at the same instant runs none.
+	if err := w.step(context.Background(), now); err != nil {
+		t.Fatal(err)
+	}
+	if len(order) != 3 {
+		t.Fatal("backoff ignored", order)
+	}
+	// A budget of two takes two and leaves the third for the next step,
+	// which resumes past the cursor rather than at the head.
+	w.waits = map[domain.ActionID]workerWait{}
+	w.cursorKnown = false
+	w.config.MaxDispatches = 2
+	order = nil
+	if err := w.step(context.Background(), now); err != nil {
+		t.Fatal(err)
+	}
+	if len(order) != 2 || order[0] != views[0].Action || order[1] != views[1].Action {
+		t.Fatal("budget", order)
+	}
+	w.waits = map[domain.ActionID]workerWait{}
+	if err := w.step(context.Background(), now); err != nil {
+		t.Fatal(err)
+	}
+	if len(order) != 4 || order[2] != views[2].Action || order[3] != views[0].Action {
+		t.Fatal("rotation past the budget cursor", order)
 	}
 }
 

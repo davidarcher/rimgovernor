@@ -23,6 +23,13 @@ type WorkerConfig struct {
 	RoutineMethods                        bool
 	StepInterval, MaxBackoff, StepTimeout time.Duration
 	RenewInterval, RenewTimeout           time.Duration
+	// MaxDispatches bounds the actions one step runs before it yields the
+	// player gate; zero means workerDefaultDispatches. Every eligible
+	// independent action is dispatched in the step that finds it (#593):
+	// one per step cost a scheduler-step round trip per wall segment. A
+	// dependent action still waits for its prerequisite's outcome, which
+	// Hands enforces.
+	MaxDispatches int
 	// Wake names attempts whose outcome the native clock latched; the next
 	// step reconciles them first and ignores their backoff. Nil keeps the
 	// ticker cadence.
@@ -108,6 +115,19 @@ type Worker struct {
 
 // workerBurstMax bounds the steps one wake or advance runs back to back.
 const workerBurstMax = 16
+
+// workerDefaultDispatches is MaxDispatches when the config leaves it zero:
+// the whole of an ordinary plan (a wall run, a room's furniture) in one
+// step, bounded so a long catalog still yields the gate within the step
+// budget.
+const workerDefaultDispatches = 16
+
+func (w *Worker) dispatchBudget() int {
+	if w.config.MaxDispatches > 0 {
+		return w.config.MaxDispatches
+	}
+	return workerDefaultDispatches
+}
 
 type workerCandidate struct {
 	view    domain.ProgressView
@@ -307,8 +327,10 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 	}
 	stepTrace := parent.Child()
 	call = telemetry.WithTrace(call, stepTrace)
+	var cache *bridge.StepReadCache
 	if w.config.Facts != nil {
-		call = bridge.WithStepReadCache(call, bridge.NewChildReadCache(w.config.Facts))
+		cache = bridge.NewChildReadCache(w.config.Facts)
+		call = bridge.WithStepReadCache(call, cache)
 	}
 	call, epoch, done, err := w.player.enter(call, false)
 	if err != nil {
@@ -431,13 +453,24 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 			}
 		}
 	}
+	// Every candidate off its backoff dispatches in this step, up to the
+	// dispatch budget, so a plan's independent actions reach native in one
+	// gate hold rather than one per scheduler round (#593). A dependent
+	// action Hands holds until its prerequisite's outcome stays a held
+	// result here and backs off like any other.
+	var dispatched int
+	var errs []error
 	for _, candidate := range ordered {
+		if dispatched >= w.dispatchBudget() {
+			break
+		}
 		v := candidate.view
 		wait := w.waits[v.Action]
 		focused := w.focusNamed(v.Action)
 		if !focused && workerSameView(wait.view, v) && wait.scope == workerScope(scope) && wait.cleanup == candidate.cleanup && now.Before(wait.until) {
 			continue
 		}
+		dispatched++
 		delete(w.focus, v.Action)
 		if !focused {
 			w.cursor, w.cursorKnown = candidate.plan, true
@@ -453,6 +486,12 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 		}
 		var result executor.Result
 		running := w.config.WindowRunning != nil && w.config.WindowRunning()
+		// The dispatch's write drops the scheduler's cross-step facts by the
+		// families this kind can change, as the poll narrows its outcome;
+		// dropping everything on every dispatch left the next step reading
+		// every family natively again (#593).
+		kind, known := candidate.kind, !candidate.cleanup
+		cache.SetWriteFamilies(func() (bool, []bridge.FactFamily) { return operationFamilies(kind, known) })
 		run, tally := bridge.WithReadTally(telemetry.WithTrace(call, stepTrace.Child()))
 		if err == nil {
 			if candidate.cleanup {
@@ -475,9 +514,8 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 		if workerSameView(after, v) && workerSameView(wait.view, v) && wait.scope == workerScope(scope) && wait.cleanup == candidate.cleanup {
 			delay = min(wait.delay*2, workerBackoffCap(w.config, after))
 		}
-		w.advanced = err == nil && after.Stage != v.Stage
-		if w.advanced && w.config.Advanced != nil {
-			w.config.Advanced()
+		if err == nil && after.Stage != v.Stage {
+			w.advanced = true
 		}
 		// A dispatch held on stale facts (the authority or tick moved under
 		// its inspection) clears on the next observation, so it is retried
@@ -505,9 +543,19 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 			repeats++
 		}
 		w.waits[v.Action] = workerWait{cleanup: candidate.cleanup, view: after, scope: workerScope(w.session.State()), delay: delay, until: now.Add(delay), outcome: outcome, repeats: repeats, stale: stale}
-		return errors.Join(worldErr, err)
+		if err != nil {
+			errs = append(errs, err)
+			// A step that ran out of budget or lost its transport says
+			// nothing about the next candidate either (#342).
+			if call.Err() != nil || errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) || errors.Is(err, bridge.ErrTransport) {
+				break
+			}
+		}
 	}
-	return worldErr
+	if w.advanced && w.config.Advanced != nil {
+		w.config.Advanced()
+	}
+	return errors.Join(append([]error{worldErr}, errs...)...)
 }
 
 // workerDispatchRow publishes one "worker_dispatch" flight row for a run

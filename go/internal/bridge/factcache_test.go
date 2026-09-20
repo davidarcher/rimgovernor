@@ -147,6 +147,54 @@ func TestFactCacheServesAcrossSteps(t *testing.T) {
 	}
 }
 
+// TestStepReadCacheWriteFamiliesNarrowTheParentDrop: a write through a
+// step cache that names the families it can change drops those in the
+// parent and keeps the rest, so a dispatch every step no longer empties
+// the cross-step cache (#593); a step without the narrowing, or one that
+// reports everything, drops the parent whole as before. The step's own
+// rows go either way.
+func TestStepReadCacheWriteFamiliesNarrowTheParentDrop(t *testing.T) {
+	scope := readScope{load: "l", tick: 1, generation: 1}
+	world := readCacheKey{method: "rimgovernor/observations_read_world", request: "a"}
+	rooms := readCacheKey{method: "rimgovernor/observations_list_rooms", request: "a"}
+	fill := func() *FactCache {
+		parent := NewFactCache()
+		parent.store(world, scope, []byte("w"), Result{})
+		parent.store(rooms, scope, []byte("r"), Result{})
+		return parent
+	}
+	held := func(parent *FactCache, key readCacheKey) bool {
+		_, _, ok := parent.lookup(key, scope)
+		return ok
+	}
+
+	parent := fill()
+	cache := NewChildReadCache(parent)
+	cache.seed(world, scope, []byte("w"), Result{})
+	cache.SetWriteFamilies(func() (bool, []FactFamily) { return false, []FactFamily{FactRooms} })
+	cache.Invalidate()
+	if !held(parent, world) || held(parent, rooms) {
+		t.Fatalf("narrowed write: world=%v rooms=%v", held(parent, world), held(parent, rooms))
+	}
+	if cache.Stats().Invalidations != 1 || len(cache.entries) != 0 {
+		t.Fatalf("step rows survived the write: %+v %d", cache.Stats(), len(cache.entries))
+	}
+
+	parent = fill()
+	cache = NewChildReadCache(parent)
+	cache.SetWriteFamilies(func() (bool, []FactFamily) { return true, nil })
+	cache.Invalidate()
+	if parent.Len() != 0 {
+		t.Fatalf("everything left %d rows", parent.Len())
+	}
+
+	parent = fill()
+	NewChildReadCache(parent).Invalidate()
+	if parent.Len() != 0 {
+		t.Fatalf("default left %d rows", parent.Len())
+	}
+}
+
 // TestFactCacheIgnoresRowsFromAnotherScope: rows stored under one
 // (load, generation) are never served under another, and storing under a
 // new scope discards the old rows rather than mixing them.

@@ -44,6 +44,25 @@ type StepReadCache struct {
 	entries map[readCacheKey]*readCacheEntry
 	stats   StepReadCacheStats
 	parent  *FactCache
+	// writeFamilies, when set, names what a write through this cache can
+	// change: the parent drops those families instead of every row. Nil,
+	// or a report of everything, drops the parent whole.
+	writeFamilies func() (everything bool, families []FactFamily)
+}
+
+// SetWriteFamilies narrows the parent invalidation a write through this
+// cache causes to the families the caller knows the write can change (a
+// building placement moves colony, room and pawn facts, never research or
+// the trader roster), the same narrowing the event poll applies to the
+// write's outcome (#593). The step's own rows are still discarded whole.
+// Nil restores the default, every row.
+func (s *StepReadCache) SetWriteFamilies(families func() (everything bool, families []FactFamily)) {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.writeFamilies = families
 }
 
 // StepReadCacheStats counts a cache's outcomes. Hits were served locally;
@@ -127,6 +146,12 @@ func (s *StepReadCache) Invalidate() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.invalidateLocked()
+	if s.writeFamilies != nil {
+		if everything, families := s.writeFamilies(); !everything {
+			s.parent.InvalidateFamilies(families...)
+			return
+		}
+	}
 	s.parent.Invalidate()
 }
 
