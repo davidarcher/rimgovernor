@@ -92,12 +92,14 @@ switch ($Phase) {
             $manifest.inventory.path -cnotmatch '^inventory(?:-[0-9a-f]{64})?\.json$') { throw 'Unsupported encrypted bundle origin/inventory' }
         Download-Asset $env:REMOTE_INVENTORY_ASSET (Join-Path $Evidence $manifest.inventory.path)
         if ((File-Reference $manifest.inventory.path).sha256 -cne $manifest.inventory.sha256) { throw 'Inventory digest mismatch' }
+        $artifactBytes = [long]$env:REMOTE_ARTIFACT_MAX_BYTES
+        if ($artifactBytes -lt 0) { throw 'Artifact byte cap must be nonnegative; zero disables the local cap' }
         Write-JSON (Join-Path $Evidence 'run.json') @{
             schema_version=1; run_id="gh:$($env:GITHUB_REPOSITORY):$($env:GITHUB_RUN_ID):$($env:GITHUB_RUN_ATTEMPT)"
             repository=$env:GITHUB_REPOSITORY; workflow_commit=$env:GITHUB_WORKFLOW_SHA; tested_commit=$head; base_commit=$base; tier=$tier
             trigger=@{event=$env:GITHUB_EVENT_NAME; actor=$env:GITHUB_ACTOR; published_ref=$env:GITHUB_REF; actions_run_id=[long]$env:GITHUB_RUN_ID; actions_run_attempt=[int]$env:GITHUB_RUN_ATTEMPT}
             bundle=(File-Reference 'bundle.json')
-            limits=@{runner_label='windows-2022';shards=$shards;max_parallel=20;workers_per_shard=1;job_timeout_minutes=360;suite_timeout_minutes=345;max_attempts=1;artifact_retention_days=7;artifact_max_bytes=1073741824;paid_usage_authorized=$false}
+            limits=@{runner_label='windows-2022';shards=$shards;max_parallel=20;workers_per_shard=1;job_timeout_minutes=360;suite_timeout_minutes=345;max_attempts=1;artifact_retention_days=7;artifact_max_bytes=$artifactBytes;paid_usage_authorized=$false}
         }
         "head=$head" >> $env:GITHUB_OUTPUT
     }
@@ -190,9 +192,9 @@ switch ($Phase) {
             $shards += @{id=$sh.id;status=$status;attempts=$attempts}
         }
         Write-JSON (Join-Path $Evidence 'shards.json') @($shards)
-        # Bound the combined tree before upload; duplicate job and final artifacts
-        # share the 1 GiB storage budget with the plan.
+        # Honor an optional operator cap across shard and final uploads.
+        $run = Read-JSON (Join-Path $Evidence 'run.json')
         $size = (Get-ChildItem -LiteralPath $Evidence -File -Recurse | Measure-Object Length -Sum).Sum
-        if ($size -gt 512MB) { throw 'Combined evidence exceeds the run storage allowance' }
+        if ($run.limits.artifact_max_bytes -gt 0 -and $size -gt ($run.limits.artifact_max_bytes / 2)) { throw 'Combined evidence exceeds the configured run storage allowance' }
     }
 }

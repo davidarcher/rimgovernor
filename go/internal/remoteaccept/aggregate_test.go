@@ -128,6 +128,17 @@ func TestHostedConcurrencyLimits(t *testing.T) {
 		}
 	}
 }
+
+func TestArtifactBudgetIsOptionalAndNotAPlanQuota(t *testing.T) {
+	for _, cap := range []int64{-1, 0, 1 << 30, 8 << 30} {
+		f := fixtureRun(t)
+		f.run.Limits.Bytes = cap
+		_, err := f.evaluate(t)
+		if (err == nil) != (cap >= 0) {
+			t.Fatalf("artifact cap %d: %v", cap, err)
+		}
+	}
+}
 func TestAggregationRejectsBadEvidence(t *testing.T) {
 	tests := map[string]func(*testing.T, *fixture){
 		"missing case": func(t *testing.T, f *fixture) { f.attempts[0].Attempts = f.attempts[0].Attempts[1:] },

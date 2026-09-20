@@ -200,7 +200,7 @@ These are conservative project limits, not purchased capacity:
 | `shards`, `max_parallel`, `workers_per_shard` | 32 shards, up to 20 active shard jobs per run, 1 game worker per job. Independent workflow runs may overlap; GitHub enforces the account-wide runner capacity. |
 | `job_timeout_minutes`, `suite_timeout_minutes` | 360 per shard job (the GitHub-hosted six-hour limit), 345 for its suite including retries; reserve 15 minutes for bootstrap, cleanup and upload. Planner and aggregation each capped at 10 minutes. Reject plans whose known case budgets cannot fit rather than dropping cases. |
 | `max_attempts` | 2 per case; retries consume the same time allowance. |
-| `artifact_retention_days`, `artifact_max_bytes` | 7 days, 1073741824 bytes total per run; preserve verdicts and failing diagnostics first, explicitly index any truncated optional evidence. Missing required evidence fails aggregation. Never upload game files to meet this cap. |
+| `artifact_retention_days`, `artifact_max_bytes` | 7 days; zero bytes means no local raw-diagnostic cap (the public-repository default). A positive value is an optional operator cap across shard and verdict uploads, not a GitHub storage quota. Negative values are invalid. Preserve complete verdicts and diagnostics; never upload game files. |
 | `paid_usage_authorized` | false. Standard public hosted runners only; no larger runner, purchase or paid storage overage authorized. Verify repository visibility, storage allowance and applicable stop-usage controls before enabling triggers. If visibility changes, stop and revalidate capacity/billing; do not silently use paid runners. |
 
 Thirty-two shards cap suite execution at 1440 runner-minutes, with up to 1920

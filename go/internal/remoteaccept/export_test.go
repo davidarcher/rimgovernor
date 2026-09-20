@@ -3,6 +3,7 @@ package remoteaccept
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"image"
 	"image/png"
 	"os"
@@ -216,6 +217,34 @@ func TestExportRejectsUnsafeOrIncompleteEvidence(t *testing.T) {
 				t.Fatal("unsafe export succeeded")
 			}
 		})
+	}
+}
+
+func TestExportFullShardBeyondFormerFifteenMiBAllowance(t *testing.T) {
+	f := fixtureRun(t)
+	job := exportFixture(t, f, 0)
+	for len(f.selection.Shards) < 32 {
+		f.selection.Shards = append(f.selection.Shards, PlannedShard{ID: fmt.Sprintf("s%d", len(f.selection.Shards)+1), Cases: []string{}})
+	}
+	f.run.Limits.Shards = 32
+	rel := f.attempts[0].Attempts[0].Case + "/flight.jsonl"
+	data := append([]byte(`{"message":"`), bytes.Repeat([]byte("x"), 16<<20)...)
+	data = append(data, []byte("\"}\n")...)
+	if err := os.WriteFile(filepath.Join(job.Output, rel), data, 0600); err != nil {
+		t.Fatal(err)
+	}
+	f.save(t)
+	if err := ExportShard(f.root, "s1", []ExportJob{job}, nil); err == nil || !strings.Contains(err.Error(), "allowance exhausted") {
+		t.Fatalf("legacy explicit cap should reject the oversized shard: %v", err)
+	}
+	f.run.Limits.Bytes = 0
+	f.save(t)
+	if err := ExportShard(f.root, "s1", []ExportJob{job}, nil); err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(filepath.Join(f.root, "s1", "fixture", rel))
+	if err != nil || !bytes.Equal(got, data) {
+		t.Fatalf("diagnostic was lost or truncated: %v", err)
 	}
 }
 

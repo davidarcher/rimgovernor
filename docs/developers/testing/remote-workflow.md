@@ -74,9 +74,13 @@ not a way to make hostile tested code safe. Never add a diagnostic containing
 licensed file contents or secrets. A role bootstrap report is projected to public
 runner measurements; dependencies, tools and profiles are never uploaded.
 
-The 1 GiB run allowance includes duplicate shard/final uploads: 64 MiB is reserved
-for manifests, and the remaining space is divided among shards and their final
-copies. Required reports/logs are exported first. A size limit, malformed record,
+Public runs have no local raw-diagnostic byte cap by default. The optional
+repository variable `REMOTE_ARTIFACT_MAX_BYTES` sets a positive run cap; zero
+disables it. A configured cap reserves 64 MiB for manifests and divides the
+remainder across shard and final copies. This is an operator limit, not a GitHub
+plan quota: GitHub stores compressed artifacts and enforces its own service
+limits. See [GitHub Actions billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions).
+Required reports/logs are exported first. A size limit, malformed record,
 missing required file or unsafe diagnostic stops export; partial diagnostics and
 an `incomplete.json` marker remain available. Nothing is silently truncated into
 a green report. Aggregation authenticates job conclusions, covers every planned

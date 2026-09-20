@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -54,10 +55,21 @@ func apiJSON(api API, endpoint string, dst any) error {
 	}
 	return json.Unmarshal(b.Bytes(), dst)
 }
+
+type artifactIdentity struct {
+	digest string
+	size   int64
+}
+
 func Authenticate(api API, p Provenance) (string, error) {
+	a, err := authenticateArtifact(api, p)
+	return a.digest, err
+}
+
+func authenticateArtifact(api API, p Provenance) (artifactIdentity, error) {
 	t := p.Trust
 	if !repository.MatchString(t.Repository) || !validPath(t.Workflow) || !strings.HasPrefix(t.Workflow, ".github/workflows/") || !oid.MatchString(t.WorkflowCommit) || !digest.MatchString(t.BundleSHA256) || p.ArtifactID <= 0 || p.RunID <= 0 || p.Attempt < 1 {
-		return "", fmt.Errorf("missing/invalid operator trust pins or Actions identity")
+		return artifactIdentity{}, fmt.Errorf("missing/invalid operator trust pins or Actions identity")
 	}
 	var run struct {
 		ID         int64  `json:"id"`
@@ -75,13 +87,13 @@ func Authenticate(api API, p Provenance) (string, error) {
 		} `json:"head_repository"`
 	}
 	if err := apiJSON(api, fmt.Sprintf("repos/%s/actions/runs/%d/attempts/%d", t.Repository, p.RunID, p.Attempt), &run); err != nil {
-		return "", err
+		return artifactIdentity{}, err
 	}
 	if run.ID != p.RunID || run.Attempt != p.Attempt || run.Head != t.WorkflowCommit || run.Path != t.Workflow || run.Repository.FullName != t.Repository || run.HeadRepository.FullName != t.Repository || (run.Event != "push" && run.Event != "workflow_dispatch" && run.Event != "schedule") || run.Status != "completed" {
-		return "", fmt.Errorf("actions run is not the pinned completed same-repository workflow")
+		return artifactIdentity{}, fmt.Errorf("actions run is not the pinned completed same-repository workflow")
 	}
 	if run.Conclusion != "success" && run.Conclusion != "failure" {
-		return "", fmt.Errorf("actions run was cancelled, timed out, or has an unknown conclusion")
+		return artifactIdentity{}, fmt.Errorf("actions run was cancelled, timed out, or has an unknown conclusion")
 	}
 	var artifact struct {
 		ID          int64  `json:"id"`
@@ -94,26 +106,26 @@ func Authenticate(api API, p Provenance) (string, error) {
 		} `json:"workflow_run"`
 	}
 	if err := apiJSON(api, fmt.Sprintf("repos/%s/actions/artifacts/%d", t.Repository, p.ArtifactID), &artifact); err != nil {
-		return "", err
+		return artifactIdentity{}, err
 	}
 	d := strings.TrimPrefix(artifact.Digest, "sha256:")
-	if artifact.ID != p.ArtifactID || artifact.Expired || artifact.WorkflowRun.ID != p.RunID || artifact.WorkflowRun.Head != t.WorkflowCommit || artifact.Size < 1 || artifact.Size > 1<<30 || !digest.MatchString(d) || artifact.Digest != "sha256:"+d {
-		return "", fmt.Errorf("artifact metadata/digest does not match the trusted run")
+	if artifact.ID != p.ArtifactID || artifact.Expired || artifact.WorkflowRun.ID != p.RunID || artifact.WorkflowRun.Head != t.WorkflowCommit || artifact.Size < 1 || !digest.MatchString(d) || artifact.Digest != "sha256:"+d {
+		return artifactIdentity{}, fmt.Errorf("artifact metadata/digest does not match the trusted run")
 	}
 	if p.ArchiveSHA256 != "" && p.ArchiveSHA256 != d {
-		return "", fmt.Errorf("artifact digest changed")
+		return artifactIdentity{}, fmt.Errorf("artifact digest changed")
 	}
-	return d, nil
+	return artifactIdentity{digest: d, size: artifact.Size}, nil
 }
 
 // Download always uses a new directory, preserves the archive and extracts only
 // regular diagnostic files. It never downloads licensed bundle parts.
 func Download(api API, p Provenance, output, repo string) error {
-	d, err := Authenticate(api, p)
+	identity, err := authenticateArtifact(api, p)
 	if err != nil {
 		return err
 	}
-	p.ArchiveSHA256 = d
+	p.ArchiveSHA256 = identity.digest
 	if err = os.Mkdir(output, 0o755); err != nil {
 		return fmt.Errorf("new import directory: %w", err)
 	}
@@ -122,7 +134,7 @@ func Download(api API, p Provenance, output, repo string) error {
 	if err != nil {
 		return err
 	}
-	limited := &boundedWriter{w: f, left: 1 << 30}
+	limited := &boundedWriter{w: f, left: identity.size}
 	err = api.Get(fmt.Sprintf("repos/%s/actions/artifacts/%d/zip", p.Trust.Repository, p.ArtifactID), limited)
 	closeErr := f.Close()
 	if err != nil {
@@ -131,7 +143,7 @@ func Download(api API, p Provenance, output, repo string) error {
 	if closeErr != nil {
 		return closeErr
 	}
-	if err = verifyArchive(archive, d); err != nil {
+	if err = verifyArchive(archive, identity.digest); err != nil {
 		return err
 	}
 	root := filepath.Join(output, "evidence")
@@ -230,7 +242,7 @@ func extract(archive, root string) error {
 		default:
 			return fmt.Errorf("non-diagnostic archive entry %s", p)
 		}
-		if f.UncompressedSize64 > 1<<30 || total > (1<<30)-f.UncompressedSize64 {
+		if f.UncompressedSize64 >= math.MaxInt64 || total > math.MaxInt64-f.UncompressedSize64 {
 			return fmt.Errorf("expanded evidence exceeds size limit")
 		}
 		total += f.UncompressedSize64

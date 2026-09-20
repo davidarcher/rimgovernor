@@ -43,6 +43,7 @@ if (-not $rejected) { throw 'Visibility change bypassed billing gate' }
 # Exercise complete native failures, infrastructure failures and cancellation
 # through the same authenticated-job projection used by the final verdict job.
 $env:GITHUB_RUN_ID='1';$env:GITHUB_RUN_ATTEMPT='1'
+[IO.File]::WriteAllText((Join-Path $TestRoot 'run.json'), '{"limits":{"artifact_max_bytes":0}}')
 [IO.File]::WriteAllText((Join-Path $TestRoot 'selection.json'), '{"shards":[{"id":"s1","cases":["smoke/identity"]}]}')
 [IO.Directory]::CreateDirectory((Join-Path $TestRoot 's1')) | Out-Null
 [IO.File]::WriteAllText((Join-Path $TestRoot 's1/attempts.json'), '{}')

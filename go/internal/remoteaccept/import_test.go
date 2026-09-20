@@ -336,3 +336,23 @@ func TestActionsCancellationAndForeignRepositoryFail(t *testing.T) {
 		t.Fatal("accepted fork artifact")
 	}
 }
+
+func TestArtifactDownloadUsesAuthenticatedSize(t *testing.T) {
+	api, p, repo, _ := importFixture(t)
+	endpoint := "repos/" + p.Trust.Repository + "/actions/artifacts/10"
+	var metadata map[string]json.RawMessage
+	if err := json.Unmarshal(api[endpoint], &metadata); err != nil {
+		t.Fatal(err)
+	}
+	metadata["size_in_bytes"] = raw("2147483648")
+	api[endpoint] = jsonBytes(t, metadata)
+	identity, err := authenticateArtifact(api, p)
+	if err != nil || identity.size != 2<<30 {
+		t.Fatalf("large authenticated artifact refused: %+v %v", identity, err)
+	}
+	metadata["size_in_bytes"] = raw("1")
+	api[endpoint] = jsonBytes(t, metadata)
+	if err := Download(api, p, filepath.Join(t.TempDir(), "import"), repo); err == nil || !strings.Contains(err.Error(), "size limit") {
+		t.Fatalf("download exceeded authenticated size: %v", err)
+	}
+}

@@ -9,6 +9,7 @@ import (
 	"image/png"
 	"io"
 	"io/fs"
+	"math"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -249,10 +250,16 @@ func ExportShard(root, shard string, jobs []ExportJob, secrets []string) error {
 	if len(want) == 0 || !validPath(shard) || strings.Contains(shard, "/") {
 		return fmt.Errorf("unknown shard")
 	}
-	if run.Limits.Bytes <= 64<<20 {
+	if run.Limits.Bytes < 0 || (run.Limits.Bytes > 0 && run.Limits.Bytes <= 64<<20) {
 		return fmt.Errorf("artifact allowance cannot accommodate plan and verdict")
 	}
-	remaining := (run.Limits.Bytes - (64 << 20)) / (2 * int64(len(selection.Shards))) // shard artifacts + final aggregate, with plan/manifest reserve
+	// Zero disables the operator's raw-byte cap. It is not a GitHub quota:
+	// GitHub stores compressed uploads, and public-repository usage differs
+	// from the included private-repository storage allowance.
+	remaining := int64(math.MaxInt64)
+	if run.Limits.Bytes > 0 {
+		remaining = (run.Limits.Bytes - (64 << 20)) / (2 * int64(len(selection.Shards))) // shard artifacts + final aggregate, with plan/manifest reserve
+	}
 	a := Attempts{Version: 1, ShardID: shard, Attempts: []Attempt{}}
 	a.Run, err = FileRef(root, "run.json")
 	if err != nil {
