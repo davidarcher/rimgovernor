@@ -552,6 +552,10 @@ func followMethodsExcluding(ctx context.Context, journal *store.Store, need poli
 		// returning deficit, so no terminal stage is coming.
 		state, incidental, undispatched, err := waitPlanOrRecovery(ctx, journal, method.Plan, recovered)
 		if err != nil {
+			if feedBillNeedsRecovery(need, state) {
+				report[label+"_unsuccessful_bill_plan"] = string(method.Plan)
+				return state, nil
+			}
 			return state, fmt.Errorf("%s plan %s: %w", label, method.Plan, err)
 		}
 		if undispatched {

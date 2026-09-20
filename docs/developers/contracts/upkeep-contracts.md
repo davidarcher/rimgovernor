@@ -502,6 +502,10 @@ observed iteration; while the feed deficit persists afterwards the planner asks
 for bounded clock windows (2500 ticks) so colonists keep working the standing
 bill instead of leaving the clock refused as `no_work`.
 
+Feed acceptance follows an unsuccessful production bill to the bounded goal
+recovery wait, then verifies native reachable feed. A changed bill remains an
+unsuccessful order; produced items alone neither complete it nor prove recovery.
+
 `MaintainFoodStorage` tracks perishable, not-yet-rotted nutrition split between
 stock already sitting in an adequately covered or enclosed/cold site and stock
 that is not. It starts when unstored nutrition clears a small at-risk floor
