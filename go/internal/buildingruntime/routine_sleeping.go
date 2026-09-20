@@ -916,6 +916,13 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 	}
 	searchRequest := policy.PlacementSearchRequest{Snapshot: snapshot, Tick: facts.Identity.Tick, Bounds: facts.Bounds, Center: facts.Center, Cells: cells, Protected: layoutProtected(facts, append(append([]domain.Cell(nil), protected...), policy.DoorwayAisles(facts.Bounds, facts.Cells)...)), Environment: policy.PlacementIndoors, Radius: 22, Limit: 64}
 	searchRequest.Grid, searchRequest.Alignment = layoutAlignment(facts)
+	if r.facility != nil {
+		// A facility furnishes the room nearest its district (#609); the
+		// radius still reaches the colony centre so the starter shell stays
+		// a candidate until a room stands in the district.
+		anchor := layoutAnchor(facts, r.district())
+		searchRequest.Center, searchRequest.Radius = anchor, 22+max(anchor.X-facts.Center.X, facts.Center.X-anchor.X, anchor.Z-facts.Center.Z, facts.Center.Z-anchor.Z)
+	}
 	if r.power != nil {
 		searchRequest.Center, searchRequest.Radius = r.power.Center, 6
 		if r.definition == policy.WindTurbineDefinition {

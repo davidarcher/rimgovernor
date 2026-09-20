@@ -199,9 +199,6 @@ func TestColonyGridModuleAndSubCells(t *testing.T) {
 	if g.SubCells(Rectangle{X: 20, Z: 21, Width: 13, Height: 13}) != nil || g.SubCells(Rectangle{X: 19, Z: 21, Width: 12, Height: 13}) != nil {
 		t.Fatal("a rectangle off the grid is not a module")
 	}
-	if g.District(domain.Cell{X: 1, Z: 1}) != DistrictCore {
-		t.Fatal("single district until C6")
-	}
 }
 
 func TestColonyGridUnsetAxesAreTheMapAxes(t *testing.T) {

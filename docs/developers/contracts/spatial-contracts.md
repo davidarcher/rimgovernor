@@ -83,8 +83,11 @@ inward cell is interior with interior on both sides and one cell deeper, so a
 door never lands in a notch or on a connector's mouth, and the nearest such
 cell to the centre line wins.
 
-The first shelter's shape follows the colony's observed player faction tech
-level, in deterministic tiers. A Neolithic colony tries the hut templates
+A shell's shape follows the build tier and the colony's observed player
+faction tech level (`shelterStyle`, #609): from `Masonry` up every room is
+a module of the colony grid (the module style below); at `Camp` a Neolithic
+colony raises huts and everyone else the rectangle, in deterministic tiers.
+A Neolithic colony tries the hut templates
 (`hut-template-0..7`: circle r4, ovals 3x5 north-south, east-west, north-east
 and north-west, circle r3, then the low ovals 2x6 north-south and east-west
 that fit a strip seven cells wide) at each candidate centre; every colony
@@ -103,6 +106,21 @@ stopping at the rectangle's 49 interior cells or sooner when the terrain runs
 out (minimum nine), and walls its ring; that is how shapeless rooms in a
 corridor arise. Site score, reserved yard and indoor storage placement are
 computed from the footprint, not a fixed rectangle.
+
+The module style (`policy.ShelterModule`) fills the colony grid's modules
+instead of searching centres: `ModuleShells` places every template in one
+module — the two 5x11 and two 11x5 halves first (55 cells, nearest the
+starter interior), then the whole 11x11, then the four 5x5 quarters — each
+a rectangle on one `SubCells` interior so neighbours share their divider
+wall and a whole module roofs itself, with the door centred on every side
+that faces an aisle (four for the whole, three for a half, two for a
+quarter; `module-<w>x<h>-<sub-cell>-<side>`). The search tries every
+module the observed cells touch in corner order and sites each with its
+first buildable class, the door nearest the plaza (the origin module's
+centre) preferred, the class as the tier; a module's threshold is an aisle
+cell, so it need only be open ground, not unprotected. Without a known grid
+the style searches as the rectangle. `ModuleShellsAtDoor` is the module
+counterpart of `ShellShapesAtDoor` for adopting a ring begun earlier.
 
 On a fresh site the initial shelter runs three rungs under one goal epoch
 (#612): sleeping spots at the first review, one per colonist owed, on the
@@ -175,7 +193,31 @@ ignores the grid and higher tiers fill module sub-cells. The pure helpers
 are `Snap` (nearest intersection), `OnGridLine` and `CornerError` (a
 rectangle's south-west corner offsets to the nearest lines, C4's penalty
 input), `Aisles`/`AislesWithin` (aisle cells at offsets 13-15 of each pitch
-along either axis) and `District` (a single core district until C6).
+along either axis) and `District` (below).
+
+Districts (#609) are the grid's coarse sectors: `policy.Districts` over a
+grid assigns the origin module to `plaza`, the ring of modules at the
+defense radius (three, or one module past the furthest module a known
+colony extent reaches, `DistrictsFor`) to `defense`, and every other module
+to the wedge of the axis it lies furthest along — `housing` along +axis1
+(north), `production` +axis0 (east), `storage` -axis0 (west), `fields`
+-axis1 (south); ties go to the axis1 wedges. A known wind (the unit vector
+it blows toward) rotates the wedges so `fields` lie downwind, `storage`
+upwind and `production` a quarter turn on from the wind. `RoomDistrict`
+maps a room role to its district beside `FacilityCatalog` (sleeping and
+care in housing, benches and kitchens in production, storerooms in storage,
+barns with the fields, common rooms on the plaza). `Districts.Anchor`
+returns the centre of the district's module nearest the origin that a
+caller's free predicate accepts, ring by ring, and reports none when the
+district is full. Each routine declares its district and anchors its site
+search there (`layoutAnchor`: the shelter and expansion planners and the
+bedroom ladder in housing, the workshop and laboratory ladders in
+production, covered storage and the supply room in storage, farms, hay and
+pens in the fields); at `Camp`, without a grid, or when the district has no
+module whose cells are all observed free, the search anchors on the colony
+centre as before. Indoor furnishing keeps its radius reaching the colony
+centre from the district anchor, so the starter shell stays a candidate
+until a room stands in the district.
 
 `DeriveColonyGrid` fixes the origin at the starter shell's south-west
 exterior corner or, without a recorded starter shell, at the largest wall

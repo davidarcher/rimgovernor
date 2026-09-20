@@ -310,7 +310,7 @@ func (r *RoutineAnimalContainmentPlanner) buildShell(call, epoch context.Context
 	if !known {
 		return RoutineAnimalContainmentResult{Reason: BuildingMethodUnknown}, nil
 	}
-	sites, err := policy.PenEnclosureSites(policy.PenEnclosureRequest{Bounds: facts.Bounds, Anchor: facts.Center, Cells: facts.Cells, Protected: layoutProtected(facts, protected)})
+	sites, err := policy.PenEnclosureSites(policy.PenEnclosureRequest{Bounds: facts.Bounds, Anchor: layoutAnchor(facts, policy.DistrictFields), Cells: facts.Cells, Protected: layoutProtected(facts, protected)})
 	if err != nil {
 		return RoutineAnimalContainmentResult{}, err
 	}

@@ -188,7 +188,7 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 	for _, farm := range projection.Farms {
 		zones = append(zones, policy.FarmZone{ID: farm.ID, Crop: farm.Crop, Managed: managed[farm.ID]})
 	}
-	site := policy.FarmSiteRequest{Bounds: projection.Bounds, Anchor: projection.Center, Storage: domain.Unknown[domain.Cell](), Cells: projection.Cells, Protected: layoutProtected(projection, protected), Zones: zones, Weights: layoutFarmWeights(projection)}
+	site := policy.FarmSiteRequest{Bounds: projection.Bounds, Anchor: layoutAnchor(projection, policy.DistrictFields), Storage: domain.Unknown[domain.Cell](), Cells: projection.Cells, Protected: layoutProtected(projection, protected), Zones: zones, Weights: layoutFarmWeights(projection)}
 	site.Grid, _ = layoutAlignment(projection)
 	growers, cooks := policy.CropWorkers(projection.WorkPawns)
 	request := policy.SiteTypeRequest{Field: policy.FieldRequest{Growers: growers, Cooks: cooks, Calendar: projection.Facts.Calendar, Conditions: projection.Facts.DisasterConditions, Choices: choices, Climate: projection.CropClimate, Runway: projection.Facts.FoodDays, Colonists: projection.Facts.Colonists, ReserveDays: reserveDays, Coverage: coverage, Site: site}, Environment: projection.Environment, LampGrowthRadius: fieldLampGrowthRadius}

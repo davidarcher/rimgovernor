@@ -28,7 +28,9 @@ type SiteCell struct {
 
 // ShelterStyle selects the starter shell's shape family. The rectangle is
 // the 9x9 template; the hut style prefers the circular and oval templates a
-// neolithic colony builds and falls back to the rectangle when none fits.
+// neolithic colony builds and falls back to the rectangle when none fits;
+// the module style (ShelterModule, #609) fills the colony grid's modules
+// and falls back to the rectangle without a grid or a free module.
 type ShelterStyle string
 
 const (
@@ -45,6 +47,9 @@ type StarterRequest struct {
 	NutritionPerDay, CropGrowDays, HarvestNutrition, FertilityMin domain.Fact[float64]
 	// Shelter is the preferred shape family; empty means the rectangle.
 	Shelter ShelterStyle
+	// Grid is the colony grid the module style places its templates on;
+	// unknown, the module style searches as the rectangle.
+	Grid domain.Fact[ColonyGrid]
 	// Crop, when known, replaces the bare crop facts above for farm scoring.
 	Crop domain.Fact[CropChoice]
 	// Zones lists existing growing zones so farms can extend managed ones.
@@ -179,6 +184,28 @@ func starterStorage(shell domain.RoomFootprint) Rectangle {
 	return best
 }
 
+// starterSite is one shell the starter search found buildable.
+type starterSite struct {
+	tier  int
+	score int64
+	shell domain.RoomFootprint
+}
+
+// shellYard is the three-row yard beyond a shell's entrance side, one row
+// out from the wall, that the site score wants clear.
+func shellYard(shell domain.RoomFootprint) Rectangle {
+	b := shell.Bounds()
+	switch shell.Entrance() {
+	case domain.North:
+		return Rectangle{b.X, b.Z + b.Height + 1, b.Width, 3}
+	case domain.East:
+		return Rectangle{b.X + b.Width + 1, b.Z, 3, b.Height}
+	case domain.West:
+		return Rectangle{b.X - 4, b.Z, 3, b.Height}
+	}
+	return Rectangle{b.X, b.Z - 4, b.Width, 3}
+}
+
 func rectCells(r Rectangle) []domain.Cell {
 	cells := make([]domain.Cell, 0, int(r.Width*r.Height))
 	for x := r.X; x < r.X+r.Width; x++ {
@@ -259,11 +286,7 @@ func StarterLayouts(r StarterRequest) ([]StarterLayout, error) {
 	// search prefers an earlier template a few cells further out over a
 	// later one at the anchor, so a narrow site never trades the circle for
 	// a low oval that happens to fit nearer.
-	type site struct {
-		tier  int
-		score int64
-		shell domain.RoomFootprint
-	}
+	type site = starterSite
 	// A shell is buildable when every cell of it is free, lit ground and its
 	// door does not open onto ground observed blocked: a door against rock
 	// or water seals the room as surely as a wall (a template pressed
@@ -278,12 +301,23 @@ func StarterLayouts(r StarterRequest) ([]StarterLayout, error) {
 		_, observed := cells[shell.Threshold()]
 		return !observed || free(shell.Threshold())
 	}
+	// A module's door opens onto an aisle, which the caller protects from
+	// building: its threshold need only be open ground, not unprotected.
+	moduleBuildable := func(shell domain.RoomFootprint) bool {
+		for _, p := range shell.Cells() {
+			if !free(p) || !positive(cells[p].SupportsLight) {
+				return false
+			}
+		}
+		c, observed := cells[shell.Threshold()]
+		return !observed || positive(c.Walkable) && positive(measured(c.Occupied, func(v bool) bool { return !v }))
+	}
 	// A site scores by its centre's distance to the anchor plus three per
-	// blocked cell in the three-row yard south of the shell.
+	// blocked cell in the three-row yard beyond the shell's entrance side.
 	score := func(shell domain.RoomFootprint) int64 {
 		b := shell.Bounds()
 		score := squaredDistance(domain.Cell{X: b.X + b.Width/2, Z: b.Z + b.Height/2}, r.Anchor)
-		for _, p := range rectCells(Rectangle{b.X, b.Z - 4, b.Width, 3}) {
+		for _, p := range rectCells(shellYard(shell)) {
 			if !free(p) {
 				score += 3
 			}
@@ -291,6 +325,9 @@ func StarterLayouts(r StarterRequest) ([]StarterLayout, error) {
 		return score
 	}
 	var sites []site
+	if grid, known := r.Grid.Value(); r.Shelter == ShelterModule && known && grid.Valid() {
+		sites = moduleSites(grid, ordered, moduleBuildable, score)
+	}
 	templated := func(templates []ShellTemplate) {
 		for _, c := range ordered {
 			for tier, template := range templates {
@@ -303,7 +340,7 @@ func StarterLayouts(r StarterRequest) ([]StarterLayout, error) {
 			}
 		}
 	}
-	if r.Shelter == ShelterHut {
+	if r.Shelter == ShelterHut && len(sites) == 0 {
 		templated(hutShellTemplates())
 	}
 	if len(sites) == 0 {

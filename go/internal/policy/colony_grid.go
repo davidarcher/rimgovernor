@@ -58,12 +58,6 @@ const (
 // along +Z.
 var ColonyGridAxes = [2]domain.Cell{{X: 1, Z: 0}, {X: 0, Z: 1}}
 
-// District is the grid district a cell belongs to. Until C6 (#603) every
-// cell is in the single core district.
-type District string
-
-const DistrictCore District = "core"
-
 // Valid reports a positive pitch and two perpendicular unit axes, each
 // along one map axis. Unset axes stand for the map's own (ColonyGridAxes),
 // so a grid built from just an origin and pitch is the map-aligned grid.
@@ -177,9 +171,6 @@ func (g ColonyGrid) AislesWithin(bounds Bounds, region Rectangle) []domain.Cell 
 	}
 	return out
 }
-
-// District names the district a cell belongs to.
-func (g ColonyGrid) District(domain.Cell) District { return DistrictCore }
 
 // Module is the exterior rectangle, walls included, of the module whose
 // pitch square contains the cell; a cell in an aisle belongs to the module

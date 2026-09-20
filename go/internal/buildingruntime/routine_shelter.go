@@ -37,14 +37,43 @@ func NewRoutineExpansionPlanner(reviewer *RoutineReviewer, native RoutineBuildin
 	return &RoutineBuildingPlanner{reviewer: reviewer, native: native, excavation: excavation, goal: policy.EnsureExpansion, definition: "Wall", shelter: true}, nil
 }
 
-// shelterStyle maps the player faction's native tech level to a shell shape:
-// a neolithic colony raises circular and oval huts, everyone else the
-// rectangle. An unknown tech level keeps the rectangle.
+// shelterStyle maps the build tier and the player faction's native tech
+// level to a shell shape (#609): from Masonry up every room is a module of
+// the colony grid; at Camp a neolithic colony raises circular and oval
+// huts and everyone else the rectangle. An unknown tier or tech level keeps
+// the Camp rectangle.
 func shelterStyle(facts observation.ColonyProjection) policy.ShelterStyle {
+	if tier, known := facts.BuildTier.Value(); known && tier >= policy.BuildTierMasonry {
+		return policy.ShelterModule
+	}
 	if level, known := facts.PlayerTechLevel.Value(); known && level == "Neolithic" {
 		return policy.ShelterHut
 	}
 	return policy.ShelterRectangle
+}
+
+// district is the district this planner sites a shell in (#609): a
+// facility ladder's room role names it, the shelter and expansion
+// planners raise housing.
+func (r *RoutineBuildingPlanner) district() policy.District {
+	if r.facility != nil {
+		return policy.RoomDistrict(r.facility.Role)
+	}
+	return policy.DistrictHousing
+}
+
+// shellShapesAtDoor lists every shell shape whose door would stand on
+// door: the module templates on the grid for the module style, then the
+// starter templates, which a ring begun at Camp still matches.
+func shellShapesAtDoor(facts observation.ColonyProjection, door domain.Cell, style policy.ShelterStyle) []domain.RoomFootprint {
+	var shells []domain.RoomFootprint
+	if style == policy.ShelterModule {
+		grid, _ := layoutAlignment(facts)
+		if g, known := grid.Value(); known {
+			shells = policy.ModuleShellsAtDoor(g, door)
+		}
+	}
+	return append(shells, policy.ShellShapesAtDoor(door, style)...)
 }
 
 // A completed starter shell may trigger RimWorld's normal automatic roofing.
@@ -115,7 +144,8 @@ func (r *RoutineBuildingPlanner) previewShell(ctx context.Context, snapshot doma
 	if selected, stock, reason, adopted, err := r.adoptShell(ctx, snapshot, facts, protected, style, check); err != nil || adopted {
 		return selected, stock, reason, err
 	}
-	layouts, err := policy.StarterLayouts(policy.StarterRequest{Bounds: facts.Bounds, Anchor: facts.Center, Cells: shellSiteCells(facts, nil), Protected: protected, Shelter: style})
+	grid, _ := layoutAlignment(facts)
+	layouts, err := policy.StarterLayouts(policy.StarterRequest{Bounds: facts.Bounds, Anchor: layoutAnchor(facts, r.district()), Cells: shellSiteCells(facts, nil), Protected: protected, Shelter: style, Grid: grid})
 	if err != nil {
 		return nil, policy.StockObservation{}, "", err
 	}
@@ -340,7 +370,7 @@ func (r *RoutineBuildingPlanner) adoptShell(ctx context.Context, snapshot domain
 	}
 	for d, door := range doors {
 		shapes := earlier[door]
-		for _, shell := range policy.ShellShapesAtDoor(door, style) {
+		for _, shell := range shellShapesAtDoor(facts, door, style) {
 			shapes = append(shapes, shell.Placements("Wall", "Door", "WoodLog"))
 		}
 		best, bestMatched := -1, 0

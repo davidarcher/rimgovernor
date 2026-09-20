@@ -136,7 +136,8 @@ func (r *RoutineBuildingPlanner) stepShelterSite(call, epoch context.Context, s 
 			protected = append(protected, c)
 		}
 	}
-	layouts, err := policy.StarterLayouts(policy.StarterRequest{Bounds: s.facts.Bounds, Anchor: s.facts.Center, Cells: shellSiteCells(s.facts, free), Protected: protected, Shelter: style})
+	grid, _ := layoutAlignment(s.facts)
+	layouts, err := policy.StarterLayouts(policy.StarterRequest{Bounds: s.facts.Bounds, Anchor: layoutAnchor(s.facts, r.district()), Cells: shellSiteCells(s.facts, free), Protected: protected, Shelter: style, Grid: grid})
 	if err != nil {
 		return nil, none, "", nil, err
 	}

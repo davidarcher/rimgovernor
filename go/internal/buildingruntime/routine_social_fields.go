@@ -79,7 +79,7 @@ func (r *RoutineFieldPlanner) socialFields(call, epoch context.Context, state Co
 		for _, d := range projection.Definitions {
 			if d.Name == name {
 				crop := policy.CropChoice{Name: name, Available: d.Available, Edible: d.Edible, GrowDays: d.GrowDays, FertilityMin: d.FertilityMin, FertilitySensitivity: d.FertilitySensitivity, SowTags: d.SowTags, MinGlow: d.GrowMinGlow, RequiresPollution: d.RequiresPollution, RequiresCleanSoil: d.RequiresCleanSoil}
-				socialSite := policy.FarmSiteRequest{Bounds: projection.Bounds, Anchor: projection.Center, Cells: projection.Cells, Protected: layoutProtected(projection, protected), Weights: layoutFarmWeights(projection)}
+				socialSite := policy.FarmSiteRequest{Bounds: projection.Bounds, Anchor: layoutAnchor(projection, policy.DistrictFields), Cells: projection.Cells, Protected: layoutProtected(projection, protected), Weights: layoutFarmWeights(projection)}
 				socialSite.Grid, _ = layoutAlignment(projection)
 				sites := policy.PlanSocialCrop(crop, projection.CropClimate, cells, socialSite)
 				if sites.Cells == 0 {
