@@ -41,7 +41,7 @@ namespace HomeBridge.BridgeTools
                 pawn.drafter.Drafted = false;
                 pawn.jobs.EndCurrentJob(JobCondition.InterruptForced);
                 pawn.equipment.DestroyAllEquipment();
-                if (scenario == "ranged") pawn.equipment.AddEquipment((ThingWithComps)ThingMaker.MakeThing(ThingDefOf.Gun_Autopistol));
+                if (scenario == "ranged") pawn.equipment.AddEquipment((ThingWithComps)ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed("Gun_Autopistol")));
                 target.drafter.Drafted = false;
                 target.jobs.EndCurrentJob(JobCondition.InterruptForced);
                 if (scenario != "normal" && !target.mindState.mentalStateHandler.TryStartMentalState(MentalStateDefOf.Berserk, forced: true, forceWake: true))

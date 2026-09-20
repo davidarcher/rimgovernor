@@ -96,7 +96,9 @@
     <Compile Include="../../../../scripts/fixtures/FarmEnvironmentFixture.cs" Condition="'$(FarmEnvironmentFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ProductionLadderFixture.cs" Condition="'$(ProductionLadderFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ResearchLadderFixture.cs" Condition="'$(ResearchLadderFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/FixtureHut.cs" Condition="'$(ProductionLadderFixture)' == 'true' Or '$(ResearchLadderFixture)' == 'true' Or '$(GearFixture)' == 'true' Or '$(MoodFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/BerserkFixture.cs" Condition="'$(BerserkFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/SubdueFixture.cs" Condition="'$(SubdueFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/FixtureHut.cs" Condition="'$(ProductionLadderFixture)' == 'true' Or '$(ResearchLadderFixture)' == 'true' Or '$(GearFixture)' == 'true' Or '$(MoodFixture)' == 'true' Or '$(BerserkFixture)' == 'true' Or '$(SubdueFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/PestFixture.cs" Condition="'$(PestFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/CellsFixture.cs" Condition="'$(CellsFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/EntitiesFixture.cs" Condition="'$(EntitiesFixture)' == 'true'" />

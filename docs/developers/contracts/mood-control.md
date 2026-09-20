@@ -103,6 +103,21 @@ of the target; uncertain attempts and draft cleanup remain reconcilable. Downing
 the target ends containment and lets the ordinary RESCUE planner carry the pawn
 to a colonist bed using native bed selection. There is no Capture or prisoner
 custody. Arrest remains a non-aggressive custody operation.
+`mood/berserk` starts from the Core-only tribal8 baseline and proves the
+controller-selected melee squad, SUBDUE and subsequent RESCUE to the target's
+own assigned colonist bed. Its fixture gives an unarmed Wimp target two healthy
+wooden-club responders and induces Berserk once; damage, downing and mental
+recovery follow ordinary game rules. No damage immunity, healing or forced
+recovery is installed. A read-only native audit retains every baseline
+colonist's death or prisoner conversion, observes downing, and requires the
+living target's break to have ended in the exact owned bed.
+
+Containment clearance applies to new dispatch's observed worker and explicit
+target positions (including the fixture's nearby damaged wall), not a predicted
+walking route. The case audits ordered native dispatch requests against pawn
+censuses throughout containment, while repair remains enabled. SUBDUE and its
+owned drafts are exempt; cleanup remains available. A receipt or completed
+plan alone cannot satisfy the native bed outcome.
 
 ## Recreation
 
