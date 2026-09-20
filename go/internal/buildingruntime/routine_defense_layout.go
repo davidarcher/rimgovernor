@@ -471,23 +471,16 @@ func (c *defenseCensus) standing(definition string, cell domain.Cell) bool {
 	return c.edifice[cell] == definition
 }
 
-// defenseRaidPoints is the storyteller's raid-point reading the turret
-// budget scales with. The projection carries no threat observation yet
-// (#341); until that child lands the reading is unknown and the budget is
-// the pre-#396 constant.
-func defenseRaidPoints(observation.ColonyProjection) domain.Fact[float64] {
-	return domain.Unknown[float64]()
-}
-
 // defenseTurretRequest is the turret tier's observed gates from the shared
 // routine reading: the turret and conduit planning definitions (availability
 // re-checked against the research snapshot's finished projects), the
-// network with the most spare watts and the conduits that carry it, and the
-// stock census.
+// network with the most spare watts and the conduits that carry it, the
+// stock census, and the budget the census's observed raid points buy
+// (#341); an unknown reading keeps the base budget.
 func defenseTurretRequest(read observation.RoutineReading) policy.DefenseRequest {
 	projection := read.Projection
 	request := policy.DefenseRequest{Definitions: defenseDefinitions, UnitCosts: map[string][]policy.Amount{}}
-	request.Turret = policy.DefenseTurretRequest{Definition: defenseTurretDefinition, Conduit: defenseConduitDefinition, Stock: projection.Resources, Max: policy.TurretBudget(defenseRaidPoints(projection))}
+	request.Turret = policy.DefenseTurretRequest{Definition: defenseTurretDefinition, Conduit: defenseConduitDefinition, Stock: projection.Resources, Max: policy.TurretBudget(projection.Facts.RaidPoints)}
 	research, rk := projection.Facts.Research.Value()
 	finished := map[policy.ResearchProjectID]bool{}
 	for _, id := range research.Finished {

@@ -1,6 +1,7 @@
 package buildingruntime
 
 import (
+	"math"
 	"reflect"
 	"testing"
 
@@ -37,6 +38,38 @@ func turretReading() observation.RoutineReading {
 		},
 	})
 	return read
+}
+
+// TestDefenseTurretRequestBudgetsObservedRaidPoints proves the census's
+// raid-point reading reaches the request as the turret budget (#341): the
+// bands step 2/4/6 through policy.TurretBudget, an unknown or NaN reading
+// keeps the base budget, and no other gate of the request moves with it.
+func TestDefenseTurretRequestBudgetsObservedRaidPoints(t *testing.T) {
+	t.Parallel()
+	base := defenseTurretRequest(turretReading())
+	for _, tc := range []struct {
+		name   string
+		points domain.Fact[float64]
+		max    int
+	}{
+		{"unknown", domain.Unknown[float64](), 2},
+		{"nan", domain.Known(math.NaN()), 2},
+		{"low", domain.Known(120.0), 2},
+		{"mid", domain.Known(450.0), 4},
+		{"high", domain.Known(1500.0), 6},
+	} {
+		read := turretReading()
+		read.Projection.Facts.RaidPoints = tc.points
+		request := defenseTurretRequest(read)
+		if request.Turret.Max != tc.max || request.Turret.Max != policy.TurretBudget(tc.points) {
+			t.Fatalf("%s: max %d want %d", tc.name, request.Turret.Max, tc.max)
+		}
+		got, want := request, base
+		got.Turret.Max, want.Turret.Max = 0, 0
+		if !reflect.DeepEqual(got, want) {
+			t.Fatalf("%s: raid points moved a gate other than the budget: %+v want %+v", tc.name, got, want)
+		}
+	}
 }
 
 func TestDefenseTurretRequestObservesEveryGate(t *testing.T) {
