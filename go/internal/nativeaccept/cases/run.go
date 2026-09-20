@@ -812,9 +812,13 @@ type session struct {
 	through string
 	cutRun  context.CancelCauseFunc
 	// prior is the failed run's result.json under -postmortem-only.
-	prior   map[string]any
-	runtime *na.ScenarioRuntime
-	gabsPID atomic.Int64
+	prior map[string]any
+	// runtime is the cached scenario runtime and runtimeHarness the harness
+	// its Query and Clock.Wire bind; Reattach replaces the harness, so a
+	// cached runtime built on an earlier one holds a closed bridge (#597).
+	runtime        *na.ScenarioRuntime
+	runtimeHarness *na.Harness
+	gabsPID        atomic.Int64
 }
 
 func (s *session) Config() *na.Config { return s.config }
@@ -953,16 +957,22 @@ func (s *session) stopServices() {
 
 // Runtime is the case's scenario runtime over a controller clock the
 // runner acquires on first use; the discovered tools let AdvanceGame
-// dismiss the letters it acknowledges (checklist item 4).
+// dismiss the letters it acknowledges (checklist item 4). The runtime is
+// cached per harness: Serve releases the bridge and Reattach replaces the
+// harness, so a runtime built before a service ran binds a closed bridge
+// and the next Advance would fail bridge-closed (#597). Once the harness
+// changes the runtime is rebuilt and the clock re-acquired on it.
 func (s *session) Runtime(ctx context.Context) (*na.ScenarioRuntime, error) {
-	if s.runtime != nil {
+	h := s.Harness()
+	if s.runtime != nil && s.runtimeHarness == h {
 		return s.runtime, nil
 	}
-	clock := &na.ScenarioClock{Wire: s.Harness().WireFunc(), Identity: s.Identity(), Owner: na.Controller, Report: s.Report()}
+	clock := &na.ScenarioClock{Wire: h.WireFunc(), Identity: s.Identity(), Owner: na.Controller, Report: s.Report()}
 	if _, err := clock.Acquire(ctx, "acquire"); err != nil {
 		return nil, err
 	}
-	s.runtime = &na.ScenarioRuntime{Query: s.Harness().Call, Clock: clock, Report: s.Report(), Tools: s.Names()}
+	s.runtime = &na.ScenarioRuntime{Query: h.Call, Clock: clock, Report: s.Report(), Tools: s.Names()}
+	s.runtimeHarness = h
 	return s.runtime, nil
 }
 
