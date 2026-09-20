@@ -272,7 +272,7 @@ func run(ctx context.Context, s cases.Session) error {
 		"settings": map[string]any{"repeatMode": "REPEAT_MODE_FOREVER", "suspended": false, "ingredientSearchRadius": 40,
 			"store": map[string]any{"mode": "STORE_MODE_DROP_ON_FLOOR"}},
 	}}, "FAILURE_CODE_INVALID_REQUEST", "Production bill requires unchanged native bench, available recipe and assigned skilled worker: "+
-		"bench already carries a ButcherCorpseFlesh bill"); err != nil {
+		"bench already carries a matching ButcherCorpseFlesh bill"); err != nil {
 		return err
 	}
 
