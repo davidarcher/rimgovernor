@@ -42,7 +42,7 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 	} else if m, ok := a.MeleeAttack(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target,draft_action) VALUES(?,?,?,'melee_attack',?,?,?)", a.ID(), plan, ordinal, m.Pawn(), m.Target(), m.DraftAction())
 	} else if work, ok := a.WorkAssignment(); ok {
-		data, encodeErr := json.Marshal(workPayload{work.Manual(), work.Settings(), work.HasArea(), work.AreaClear(), work.Area(), work.Schedule(), work.FoodAllow(), work.MedicalCare()})
+		data, encodeErr := json.Marshal(workPayload{work.Manual(), work.Settings(), work.HasArea(), work.AreaClear(), work.Area(), work.Schedule(), work.FoodAllow(), work.MedicalCare(), work.DrugPolicy()})
 		if encodeErr != nil {
 			return encodeErr
 		}
@@ -270,8 +270,13 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		}
 		var w domain.WorkAssignment
 		var err error
-		if payload.MedicalCare != "" {
-			if payload.Manual || len(payload.Settings) != 0 || payload.HasArea || payload.AreaClear || payload.Area != "" || len(payload.Schedule) != 0 || len(payload.FoodAllow) != 0 {
+		if payload.DrugPolicy != "" {
+			if payload.MedicalCare != "" || payload.HasArea || payload.AreaClear || payload.Area != "" || len(payload.Schedule) > 0 || len(payload.Settings) > 0 || payload.Manual || len(payload.FoodAllow) > 0 {
+				return domain.Action{}, 0, errors.New("mixed drug policy payload")
+			}
+			w, err = domain.NewDrugPolicyAssignment(domain.PawnID(pawn.String), target.String, payload.DrugPolicy)
+		} else if payload.MedicalCare != "" {
+			if payload.DrugPolicy != "" || payload.Manual || len(payload.Settings) != 0 || payload.HasArea || payload.AreaClear || payload.Area != "" || len(payload.Schedule) != 0 || len(payload.FoodAllow) != 0 {
 				return domain.Action{}, 0, errors.New("mixed medical care payload")
 			}
 			w, err = domain.NewMedicalCareAssignment(domain.PawnID(pawn.String), target.String, payload.MedicalCare)
@@ -758,6 +763,7 @@ type workPayload struct {
 	Schedule    []string `json:",omitempty"`
 	FoodAllow   []string `json:",omitempty"`
 	MedicalCare string   `json:",omitempty"`
+	DrugPolicy  string   `json:",omitempty"`
 }
 
 type zonePayload struct {

@@ -187,6 +187,9 @@ func routineDeficitWork(targets map[policy.Resource]int64, census []bridge.GearB
 			}
 			produces := false
 			for _, product := range recipe.Products {
+				if product == "Wort" && targets["Beer"] > 0 {
+					produces = true
+				}
 				if _, wanted := targets[product]; wanted {
 					produces = true
 					break

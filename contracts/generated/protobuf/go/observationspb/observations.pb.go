@@ -3793,6 +3793,8 @@ type PawnSettings struct {
 	WorkApplies              *bool                  `protobuf:"varint,15,opt,name=work_applies,json=workApplies,proto3,oneof" json:"work_applies,omitempty"`
 	ManualWorkPriorities     *bool                  `protobuf:"varint,16,opt,name=manual_work_priorities,json=manualWorkPriorities,proto3,oneof" json:"manual_work_priorities,omitempty"`
 	FoodRestriction          *FoodRestriction       `protobuf:"bytes,17,opt,name=food_restriction,json=foodRestriction,proto3" json:"food_restriction,omitempty"`
+	DrugPolicyWritable       *bool                  `protobuf:"varint,18,opt,name=drug_policy_writable,json=drugPolicyWritable,proto3,oneof" json:"drug_policy_writable,omitempty"`
+	DrugPolicyName           *string                `protobuf:"bytes,19,opt,name=drug_policy_name,json=drugPolicyName,proto3,oneof" json:"drug_policy_name,omitempty"`
 	unknownFields            protoimpl.UnknownFields
 	sizeCache                protoimpl.SizeCache
 }
@@ -3944,6 +3946,20 @@ func (x *PawnSettings) GetFoodRestriction() *FoodRestriction {
 		return x.FoodRestriction
 	}
 	return nil
+}
+
+func (x *PawnSettings) GetDrugPolicyWritable() bool {
+	if x != nil && x.DrugPolicyWritable != nil {
+		return *x.DrugPolicyWritable
+	}
+	return false
+}
+
+func (x *PawnSettings) GetDrugPolicyName() string {
+	if x != nil && x.DrugPolicyName != nil {
+		return *x.DrugPolicyName
+	}
+	return ""
 }
 
 type TrainingEntry struct {
@@ -30491,13 +30507,14 @@ type ColonyFactsSnapshot struct {
 	// `blighted_plants` issue withholds the census.
 	BlightedPlants []*BlightedPlant `protobuf:"bytes,41,rep,name=blighted_plants,json=blightedPlants,proto3" json:"blighted_plants,omitempty"`
 	// Colony wealth and raid points (ThreatFacts), or why they could not be read.
-	Threat        *ThreatSection        `protobuf:"bytes,42,opt,name=threat,proto3" json:"threat,omitempty"`
-	EventLoot     *LootSection          `protobuf:"bytes,43,opt,name=event_loot,json=eventLoot,proto3" json:"event_loot,omitempty"`
-	JoinerLetters []*JoinerLetter       `protobuf:"bytes,44,rep,name=joiner_letters,json=joinerLetters,proto3" json:"joiner_letters,omitempty"`
-	FoodChannels  *FoodChannelsSection  `protobuf:"bytes,45,opt,name=food_channels,json=foodChannels,proto3" json:"food_channels,omitempty"`
-	DeepResources *DeepResourcesSection `protobuf:"bytes,46,opt,name=deep_resources,json=deepResources,proto3" json:"deep_resources,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Threat            *ThreatSection        `protobuf:"bytes,42,opt,name=threat,proto3" json:"threat,omitempty"`
+	EventLoot         *LootSection          `protobuf:"bytes,43,opt,name=event_loot,json=eventLoot,proto3" json:"event_loot,omitempty"`
+	JoinerLetters     []*JoinerLetter       `protobuf:"bytes,44,rep,name=joiner_letters,json=joinerLetters,proto3" json:"joiner_letters,omitempty"`
+	FoodChannels      *FoodChannelsSection  `protobuf:"bytes,45,opt,name=food_channels,json=foodChannels,proto3" json:"food_channels,omitempty"`
+	DeepResources     *DeepResourcesSection `protobuf:"bytes,46,opt,name=deep_resources,json=deepResources,proto3" json:"deep_resources,omitempty"`
+	FermentingBarrels *uint32               `protobuf:"varint,47,opt,name=fermenting_barrels,json=fermentingBarrels,proto3,oneof" json:"fermenting_barrels,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *ColonyFactsSnapshot) Reset() {
@@ -30850,6 +30867,13 @@ func (x *ColonyFactsSnapshot) GetDeepResources() *DeepResourcesSection {
 		return x.DeepResources
 	}
 	return nil
+}
+
+func (x *ColonyFactsSnapshot) GetFermentingBarrels() uint32 {
+	if x != nil && x.FermentingBarrels != nil {
+		return *x.FermentingBarrels
+	}
+	return 0
 }
 
 // Current-map WandererJoins offers; the token binds letter, quest, pawn and expiry.
@@ -34292,7 +34316,8 @@ const file_observations_proto_rawDesc = "" +
 	"\x17situational_cache_stale\x18\x04 \x01(\bH\x01R\x15situationalCacheStale\x88\x01\x01\x12>\n" +
 	"\x06issues\x18\x05 \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issuesB\x14\n" +
 	"\x12_high_expectationsB\x1a\n" +
-	"\x18_situational_cache_stale\"\xec\b\n" +
+	"\x18_situational_cache_stale\"\x80\n" +
+	"\n" +
 	"\fPawnSettings\x12D\n" +
 	"\bsnapshot\x18\x01 \x01(\v2(.rimgovernor.observations.v1.SnapshotRefR\bsnapshot\x12&\n" +
 	"\fmedical_care\x18\x02 \x01(\tH\x00R\vmedicalCare\x88\x01\x01\x12 \n" +
@@ -34311,7 +34336,10 @@ const file_observations_proto_rawDesc = "" +
 	"\x06issues\x18\x0e \x03(\v2&.rimgovernor.observations.v1.ReadIssueR\x06issues\x12&\n" +
 	"\fwork_applies\x18\x0f \x01(\bH\aR\vworkApplies\x88\x01\x01\x129\n" +
 	"\x16manual_work_priorities\x18\x10 \x01(\bH\bR\x14manualWorkPriorities\x88\x01\x01\x12W\n" +
-	"\x10food_restriction\x18\x11 \x01(\v2,.rimgovernor.observations.v1.FoodRestrictionR\x0ffoodRestrictionB\x0f\n" +
+	"\x10food_restriction\x18\x11 \x01(\v2,.rimgovernor.observations.v1.FoodRestrictionR\x0ffoodRestriction\x125\n" +
+	"\x14drug_policy_writable\x18\x12 \x01(\bH\tR\x12drugPolicyWritable\x88\x01\x01\x12-\n" +
+	"\x10drug_policy_name\x18\x13 \x01(\tH\n" +
+	"R\x0edrugPolicyName\x88\x01\x01B\x0f\n" +
 	"\r_medical_careB\f\n" +
 	"\n" +
 	"_self_tendB\x15\n" +
@@ -34322,7 +34350,9 @@ const file_observations_proto_rawDesc = "" +
 	"\x0f_follow_draftedB\x13\n" +
 	"\x11_follow_fieldworkB\x0f\n" +
 	"\r_work_appliesB\x19\n" +
-	"\x17_manual_work_priorities\"\xe8\x01\n" +
+	"\x17_manual_work_prioritiesB\x17\n" +
+	"\x15_drug_policy_writableB\x13\n" +
+	"\x11_drug_policy_name\"\xe8\x01\n" +
 	"\rTrainingEntry\x12\x1e\n" +
 	"\bdef_name\x18\x01 \x01(\tH\x00R\adefName\x88\x01\x01\x12\x1d\n" +
 	"\alearned\x18\x02 \x01(\bH\x01R\alearned\x88\x01\x01\x12\x1b\n" +
@@ -37954,7 +37984,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x14DeepResourcesSection\x12M\n" +
 	"\bobserved\x18\x01 \x01(\v2/.rimgovernor.observations.v1.DeepResourcesFactsH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailableB\t\n" +
-	"\aoutcome\"\xbd\x1a\n" +
+	"\aoutcome\"\x88\x1b\n" +
 	"\x13ColonyFactsSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12A\n" +
 	"\x06naming\x18\x02 \x01(\v2).rimgovernor.observations.v1.ColonyNamingR\x06naming\x12*\n" +
@@ -38007,7 +38037,8 @@ const file_observations_proto_rawDesc = "" +
 	"event_loot\x18+ \x01(\v2(.rimgovernor.observations.v1.LootSectionR\teventLoot\x12P\n" +
 	"\x0ejoiner_letters\x18, \x03(\v2).rimgovernor.observations.v1.JoinerLetterR\rjoinerLetters\x12U\n" +
 	"\rfood_channels\x18- \x01(\v20.rimgovernor.observations.v1.FoodChannelsSectionR\ffoodChannels\x12X\n" +
-	"\x0edeep_resources\x18. \x01(\v21.rimgovernor.observations.v1.DeepResourcesSectionR\rdeepResourcesB\x11\n" +
+	"\x0edeep_resources\x18. \x01(\v21.rimgovernor.observations.v1.DeepResourcesSectionR\rdeepResources\x122\n" +
+	"\x12fermenting_barrels\x18/ \x01(\rH\x10R\x11fermentingBarrels\x88\x01\x01B\x11\n" +
 	"\x0f_colonist_countB\x0f\n" +
 	"\r_worker_countB\b\n" +
 	"\x06_biomeB\x11\n" +
@@ -38023,7 +38054,8 @@ const file_observations_proto_rawDesc = "" +
 	"\r_food_storageB\x15\n" +
 	"\x13_pending_wood_unitsB\x10\n" +
 	"\x0e_pending_huntsB\x14\n" +
-	"\x12_player_tech_level\"\xcc\x02\n" +
+	"\x12_player_tech_levelB\x15\n" +
+	"\x13_fermenting_barrels\"\xcc\x02\n" +
 	"\fJoinerLetter\x12 \n" +
 	"\tletter_id\x18\x01 \x01(\x05H\x00R\bletterId\x88\x01\x01\x12*\n" +
 	"\x0esnapshot_token\x18\x02 \x01(\tH\x01R\rsnapshotToken\x88\x01\x01\x12\x1c\n" +

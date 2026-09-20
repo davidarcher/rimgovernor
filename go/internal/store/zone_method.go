@@ -75,7 +75,7 @@ func admitZoneMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan domai
 	// way until bound); ClearHomeObstructions places the chunk dump
 	// (routine_clearance.go, #394).
 	limit := 32
-	needs := []policy.GoalID{policy.EnsureFoodSupply}
+	needs := []policy.GoalID{policy.EnsureFoodSupply, policy.MaintainResource}
 	if stockpile {
 		limit = 1
 		needs = []policy.GoalID{policy.EnsureFoodSupply, policy.EnsureFoodStorage, policy.SecureSupplies, policy.MaintainResource, policy.MaintainAnimalFeed, policy.MaintainFoodStorage, policy.ClearHomeObstructions}
@@ -85,6 +85,7 @@ func admitZoneMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan domai
 	}
 	bound := false
 	larder := false
+	social := false
 	for _, binding := range review.Goals {
 		if binding.Goal != goal.Goal.ID {
 			continue
@@ -93,15 +94,26 @@ func admitZoneMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan domai
 			bound = bound || binding.Need == need
 		}
 		larder = binding.Need == policy.MaintainFoodStorage
+		social = binding.Need == policy.MaintainResource && !stockpile
 	}
 	if !bound {
 		return ErrConflict
 	}
 	cells := map[domain.Cell]bool{}
+	cropCells := map[string]int{}
 	for _, action := range plan.Actions() {
 		zone, ok := action.ZoneCreate()
 		if !ok || stockpile != (zone.Kind() == domain.StockpileZone) {
 			return ErrConflict
+		}
+		if social {
+			if !review.BrewingFinished || zone.Kind() != domain.GrowingZone || zone.Crop() != "Plant_Hops" && zone.Crop() != "Plant_Smokeleaf" {
+				return ErrConflict
+			}
+			cropCells[zone.Crop()] += len(zone.Cells())
+			if cropCells[zone.Crop()] > 9 {
+				return ErrConflict
+			}
 		}
 		if larder && zone.Preset() != domain.CorpseLarderPreset {
 			return ErrConflict

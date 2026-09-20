@@ -103,3 +103,16 @@ Trade line counts are absolute: positive buys and negative sells in normal trade
 Hard native work remains: token producers/resolution/CAS are not implemented for every family; existing native outputs sometimes expose sampled/incomplete filters and reflection-dependent reads. Upstream SDK architect/UI implementations need verified discovery before adding additional variants. Exact cardinal rotation conversion and native whole-body surgery mapping must be tested. Native admitted-attempt ledger and progress attribution are not implemented by these DTOs. Required preview preparation tokens and readback facts must be produced truthfully or explicitly unavailable. These are adapter/gameplay acceptance gaps, not permission for arbitrary payload fallback. Contract compilation validates syntax and official generated C# compatibility only.
 
 | NativeApparelPolicyOperations.cs | SetApparelPolicy | Named role filter and pawn assignment; exact CAS, hit points/quality bounds, tainted excluded, forced/locked overrides cleared under autonomous control. |
+
+## Social drug settings
+
+`SetDrugPolicy` uses an exact pawn settings token and the ordinary authority,
+attempt, preview and progress paths. The named policy is created or updated,
+assigned to the pawn and installed as the default. It permits only Beer and
+SmokeleafJoint for recreation, with all scheduled, addiction and inventory use
+disabled. `SETTINGS_FIELD_DRUG_POLICY` evidence binds the before/after settings
+snapshots; observed completion rechecks the assigned policy and default.
+
+`BillSettings.beer_reserve=true` is valid only for an ordinary single-product
+wort recipe with target-count settings. Its saved bill counts wort, barrel
+contents and finished beer; other production bills retain native counting.

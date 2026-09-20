@@ -147,3 +147,23 @@ write: a NightOwl's night shift and a QuickSleeper's six-hour sleep beside the
 work rows, a hand-edited timetable replanned and rewritten). Each writes through the real
 `PatchPawn` execute under the work snapshot token and reads the sheet back
 through the routine census's pawn observation.
+
+## Social drug policy
+
+The autonomous work routine assigns `RimGovernor social drugs` through
+`SetDrugPolicy`, using the same durable settings actions and pawn snapshot CAS
+as work assignment. Native execution creates or updates the named policy,
+assigns the pawn and makes it the colony default. Only Beer and SmokeleafJoint
+are permitted for recreation; addiction use, scheduled consumption and inventory
+carry are disabled for every drug. A changed assignment is replanned from fresh
+facts. The settings snapshot includes the drug configuration and colony default.
+
+After Brewing finishes, MaintainResource requests 12 beer and 12 smokeleaf joints.
+Once food fields are sufficient, the field planner adds at most nine cells each
+of hops and smokeleaf, accounting for existing fields and native season, soil and
+sowing availability. These crops never contribute food coverage. The workshop
+ladder builds a fermenting barrel and a discovered wort-recipe bench. A saved
+`SocialBeerBill` counts loose wort, barrel contents and finished beer against its
+reserve, so fermentation does not cause continuous wort production. Native recipe
+batch size can overshoot the target. Hauling, brewing, fermentation and consumption
+remain ordinary game work; actual mood/recreation recovery is a separate check.

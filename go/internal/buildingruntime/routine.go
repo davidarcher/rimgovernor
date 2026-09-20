@@ -246,6 +246,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 		clockSchedulerLog("routine.step: LoadDefenseLayout err=%v", err)
 		return store.RoutineReviewResult{}, err
 	}
+	reading.Projection.Facts.ResourceNeeds = policy.ResourceGoalTargets(reading.Projection.Facts.ResourceNeeds, policy.SocialDrugTargets(reading.Projection.Facts.Research))
 	medicine, err := policy.ReviewMedicalReserve(reading.Projection.Facts.MedicalReserve, previous.Snapshot == state.Snapshot && previous.Latches.MedicalReserve, r.policy.MedicalReserve)
 	if err != nil {
 		return store.RoutineReviewResult{}, err
@@ -288,7 +289,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 			if err == nil {
 				reading.Projection.Facts.WorkCoverage = work.Matches
 				for _, pawn := range pawns {
-					if len(policy.FoodPolicyChanges(pawn)) > 0 {
+					if len(policy.FoodPolicyChanges(pawn)) > 0 || policy.DrugPolicyChange(pawn) {
 						reading.Projection.Facts.WorkCoverage = domain.Known(false)
 					}
 				}

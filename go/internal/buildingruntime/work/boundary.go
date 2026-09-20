@@ -185,8 +185,11 @@ func (b *WorkBoundary) ObserveWork(ctx context.Context, p executor.Placement, cu
 		values[setting.GetDefName()] = setting.GetPriority()
 	}
 	matches := true
+	if wanted.Work.DrugPolicy() != "" {
+		matches = settings.DrugPolicyName != nil && settings.GetDrugPolicyName() == wanted.Work.DrugPolicy()
+	}
 	if wanted.Work.MedicalCare() != "" {
-		matches = settings.MedicalCare != nil && settings.GetMedicalCare() == wanted.Work.MedicalCare()
+		matches = matches && settings.MedicalCare != nil && settings.GetMedicalCare() == wanted.Work.MedicalCare()
 	}
 	for _, def := range wanted.Work.FoodAllow() {
 		matches = matches && settings.FoodRestriction != nil && slices.Contains(settings.FoodRestriction.AllowedDefs, def)

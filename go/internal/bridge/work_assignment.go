@@ -32,6 +32,9 @@ func validateWork(w domain.WorkAssignment) error {
 	return nil
 }
 func workOperation(w domain.WorkAssignment) *op.Operation {
+	if w.DrugPolicy() != "" {
+		return &op.Operation{Command: &op.Operation_SetDrugPolicy{SetDrugPolicy: &op.SetDrugPolicy{Pawn: &op.EntityPrecondition{EntityId: proto.String(string(w.Pawn())), ExpectedSnapshotToken: proto.String(w.BeforeToken())}, Name: proto.String(w.DrugPolicy())}}}
+	}
 	patch := &op.PatchPawn{Pawn: &op.EntityPrecondition{EntityId: proto.String(string(w.Pawn())), ExpectedSnapshotToken: proto.String(w.BeforeToken())}}
 	switch w.MedicalCare() {
 	case "NoMeds":
@@ -116,6 +119,9 @@ func validWorkAttempt(w WorkAttempt) error {
 func workEffect(v *r.EffectEvidence, work domain.WorkAssignment, matches bool) error {
 	effect := v.GetSettings()
 	expectedFields := len(work.Settings())
+	if work.DrugPolicy() != "" {
+		expectedFields++
+	}
 	if work.MedicalCare() != "" {
 		expectedFields++
 	}
@@ -138,6 +144,7 @@ func workEffect(v *r.EffectEvidence, work domain.WorkAssignment, matches bool) e
 	areaSeen := !work.HasArea()
 	scheduleSeen := !work.HasSchedule()
 	foodSeen := len(work.FoodAllow()) == 0
+	drugSeen := work.DrugPolicy() == ""
 	careSeen := work.MedicalCare() == ""
 	want := r.FieldOutcome_FIELD_OUTCOME_APPLIED
 	if !matches {
@@ -148,6 +155,11 @@ func workEffect(v *r.EffectEvidence, work domain.WorkAssignment, matches bool) e
 			return contract("work field mismatch")
 		}
 		switch field.GetField() {
+		case r.SettingsField_SETTINGS_FIELD_DRUG_POLICY:
+			if drugSeen {
+				return contract("duplicate drug policy field")
+			}
+			drugSeen = true
 		case r.SettingsField_SETTINGS_FIELD_MEDICAL_CARE:
 			if careSeen {
 				return contract("work field mismatch")
@@ -177,7 +189,7 @@ func workEffect(v *r.EffectEvidence, work domain.WorkAssignment, matches bool) e
 			return contract("work field mismatch")
 		}
 	}
-	if len(seen) != 0 || !areaSeen || !scheduleSeen || !foodSeen || !careSeen {
+	if len(seen) != 0 || !areaSeen || !scheduleSeen || !foodSeen || !drugSeen || !careSeen {
 		return contract("work field mismatch")
 	}
 	return nil

@@ -17,6 +17,7 @@ namespace HomeBridge.BridgeTools {
  internal static class NativeProductionBills {
   internal static string Hash(Action<BinaryWriter> write){using(var bytes=new MemoryStream()){using(var writer=new BinaryWriter(bytes,Encoding.UTF8,true))write(writer);using(var hash=SHA256.Create())return "bill-"+BitConverter.ToString(hash.ComputeHash(bytes.ToArray())).Replace("-","").ToLowerInvariant();}}
   internal static string Configuration(Bill bill)=>Hash(w=>{
+   w.Write(bill is SocialBeerBill);
    w.Write(bill.GetUniqueLoadID());w.Write(bill.recipe.defName);w.Write(bill.suspended);w.Write(bill.ingredientSearchRadius);w.Write(bill.allowedSkillRange.min);w.Write(bill.allowedSkillRange.max);
    w.Write(bill.PawnRestriction?.GetUniqueLoadID()??"");w.Write(bill.SlavesOnly);w.Write(bill.MechsOnly);w.Write(bill.NonMechsOnly);w.Write(bill.GetStoreMode()?.defName??"");var group=bill.GetSlotGroup();w.Write(group!=null);if(group!=null){if(group.CellsList.Count>65536)throw new InvalidOperationException("Bill storage bound");w.Write(group.CellsList.Count);foreach(var c in group.CellsList.OrderBy(c=>c.x).ThenBy(c=>c.z)){w.Write(c.x);w.Write(c.z);}}
    if(bill is Bill_Production p){w.Write(p.repeatMode.defName);w.Write(p.repeatCount);w.Write(p.targetCount);w.Write(p.unpauseWhenYouHave);w.Write(p.pauseWhenSatisfied);w.Write(p.hpRange.min);w.Write(p.hpRange.max);w.Write((int)p.qualityRange.min);w.Write((int)p.qualityRange.max);w.Write(p.limitToAllowedStuff);w.Write(p.includeEquipped);w.Write(p.includeTainted);}
@@ -100,6 +101,7 @@ namespace HomeBridge.BridgeTools {
    if((replaced==null || replaced.recipe.defName!=command.RecipeDef) && giver.BillStack.Bills.Any(b=>b!=replaced && b.recipe.defName==command.RecipeDef && (command.RecipeDef!="ButcherCorpseFlesh" || b.ingredientFilter.AllowedThingDefs.Any(d=>d.IsCorpse && (d.ingestible?.sourceDef?.race?.Humanlike==true)==humanButcher)))){failure=Refuse("bench already carries a matching "+command.RecipeDef+" bill");return false;}
    recipe=DefDatabase<RecipeDef>.GetNamedSilentFail(command.RecipeDef);
    if(recipe==null||!Recipe(bench,recipe)){failure=Refuse("recipe "+command.RecipeDef+" is not available on the bench");return false;}
+   if(command.Settings.BeerReserve && (recipe.products.Count!=1 || recipe.products[0].thingDef.defName!="Wort")){failure=Refuse("Beer reserve requires a wort recipe");return false;}
    if(command.RecipeDef!="ButcherCorpseFlesh"&&(recipe.WorkerCounter.GetType()!=typeof(RecipeWorkerCounter)||recipe.specialProducts!=null||recipe.products.Count!=1)){failure=Refuse("recipe "+command.RecipeDef+" is not ordinary single-product work");return false;}
    if(command.HasReplaceOwnedBillId && replaced!.recipe.defName!=command.RecipeDef && (recipe.products.Count!=1 || recipe.products[0].thingDef.ingestible==null || recipe.products[0].thingDef.ingestible.preferability<FoodPreferability.MealSimple || recipe.products[0].thingDef.ingestible.preferability>FoodPreferability.MealLavish)){failure=Refuse("replacement requires an ordinary meal recipe");return false;}
    var ingredientRecipe=recipe;
@@ -132,7 +134,7 @@ namespace HomeBridge.BridgeTools {
     var admitted=state.Ledger.Admit("rimgovernor.operations.v1.Operations/Execute",request,context);if(admitted.Kind!=NativeAttemptLedger.DecisionKind.Admitted)return admitted.DecidedReply;handle=admitted.AdmittedHandle;
     using(authority.Owned()){
      if(!authority.Check(pre.ExpectedGeneration).Success||!Prepare(command,context,out bench,out giver,out recipe,out failure))throw new InvalidOperationException("Bill scope changed");
-     var bill=recipe!.MakeNewBill(null) as Bill_Production;if(bill==null)throw new InvalidOperationException("Recipe is not ordinary production");
+     var bill=command.Settings.BeerReserve ? new SocialBeerBill(recipe!) : recipe!.MakeNewBill(null) as Bill_Production;if(bill==null)throw new InvalidOperationException("Recipe is not ordinary production");
      var s=command.Settings;bill.repeatMode=s.RepeatMode==Operations.RepeatMode.Forever?BillRepeatModeDefOf.Forever:BillRepeatModeDefOf.TargetCount;
      if(s.RepeatMode==Operations.RepeatMode.Target){bill.targetCount=s.TargetCount;bill.unpauseWhenYouHave=s.UnpauseThreshold;bill.pauseWhenSatisfied=true;}
      bill.suspended=false;bill.ingredientSearchRadius=40;bill.SetStoreMode(BillStoreModeDefOf.DropOnFloor,null);

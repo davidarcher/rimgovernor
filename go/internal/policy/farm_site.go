@@ -52,11 +52,12 @@ type FarmSiteRequest struct {
 	Cells   []SiteCell
 	// Protected cells are never planted: accepted footprints, player
 	// exclusions, walkways, entrances and reserved routes.
-	Protected []domain.Cell
-	Zones     []FarmZone
-	Crop      CropChoice
-	Needed    int
-	Weights   FarmSiteWeights
+	Protected    []domain.Cell
+	Zones        []FarmZone
+	Crop         CropChoice
+	Needed       int
+	StrictTarget bool
+	Weights      FarmSiteWeights
 }
 
 type FarmSiteTerm struct {
@@ -118,6 +119,9 @@ func PlanFarmSites(r FarmSiteRequest) FarmSitePlan {
 	sensitivity, sk := r.Crop.FertilitySensitivity.Value()
 	days, dk := r.Crop.GrowDays.Value()
 	yield, yk := r.Crop.HarvestNutrition.Value()
+	if units, known := r.Crop.HarvestUnits.Value(); known {
+		yield, yk = units, true
+	}
 	if r.Needed <= 0 || r.Needed > 65536 || len(r.Cells) > 65536 || len(r.Protected) > 65536 || len(r.Zones) > 4096 || r.Bounds.Width <= 0 || r.Bounds.Height <= 0 || r.Bounds.Width > 4096 || r.Bounds.Height > 4096 || !mk || !fieldPositive(minimum) || !sk || !foodNumber(sensitivity) || !dk || !fieldPositive(days) || !yk || !fieldPositive(yield) {
 		return FarmSitePlan{}
 	}
@@ -306,6 +310,9 @@ func PlanFarmSites(r FarmSiteRequest) FarmSitePlan {
 			// touching a field admitted in this same batch.
 			best := -1
 			for i := range pool {
+				if r.StrictTarget && int(pool[i].Patch.Width*pool[i].Patch.Height) > r.Needed-plan.Cells {
+					continue
+				}
 				clear := true
 				shared, firebreak := 0, 0
 				for _, c := range rectCells(pool[i].Patch) {

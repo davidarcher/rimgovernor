@@ -213,6 +213,14 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 			continue
 		}
 		changed, ok := policy.WorkChanges(pawn, assignment)
+		if policy.DrugPolicyChange(pawn) {
+			w, err := domain.NewDrugPolicyAssignment(domain.PawnID(pawn.ID), token, policy.SocialDrugPolicyName)
+			if err != nil {
+				return RoutineWorkResult{}, err
+			}
+			work = append(work, w)
+			continue
+		}
 		if !ok {
 			return RoutineWorkResult{}, ErrControl
 		}
@@ -255,6 +263,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	hash := sha256.New()
 	for _, w := range work {
 		data, _ := json.Marshal(w.Settings())
+		fmt.Fprintf(hash, "drug:%s\n", w.DrugPolicy())
 		fmt.Fprintf(hash, "%s/%s/%t/%s\n", w.Pawn(), w.BeforeToken(), w.Manual(), data)
 		if defs := w.FoodAllow(); len(defs) > 0 {
 			// An identical Manual edit after a completed repair needs another
@@ -332,7 +341,7 @@ func workActionStale(w domain.WorkAssignment, wanted map[domain.PawnID]domain.Wo
 	if !ok || now.BeforeToken() != w.BeforeToken() || now.Manual() != w.Manual() {
 		return true
 	}
-	if !slices.Equal(w.FoodAllow(), now.FoodAllow()) {
+	if !slices.Equal(w.FoodAllow(), now.FoodAllow()) || w.DrugPolicy() != now.DrugPolicy() {
 		return true
 	}
 	values := map[string]int32{}

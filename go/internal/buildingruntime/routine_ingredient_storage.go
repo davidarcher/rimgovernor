@@ -125,6 +125,9 @@ func (r *RoutineIngredientStoragePlanner) step(call, epoch context.Context) (Rou
 	if !ok {
 		return RoutineIngredientStorageResult{Reason: BuildingMethodNoDeficit}, nil
 	}
+	if resource == "Beer" {
+		resource = "Wort"
+	}
 	census, _, err := r.native.ReadGearBenches(call, identity)
 	if err != nil {
 		return RoutineIngredientStorageResult{}, err

@@ -238,6 +238,8 @@ message PawnSettings {
   repeated string medical_care_options = 12; repeated string hostility_response_options = 13; repeated ReadIssue issues = 14;
   optional bool work_applies = 15; optional bool manual_work_priorities = 16;
   FoodRestriction food_restriction = 17;
+  optional bool drug_policy_writable = 18;
+  optional string drug_policy_name = 19;
 }
 message TrainingEntry { optional string def_name = 1; optional bool learned = 2; optional bool wanted = 3; optional bool available = 4; optional string reason = 5; }
 message AnimalState {
@@ -924,6 +926,7 @@ message ColonyFactsSnapshot {
   repeated JoinerLetter joiner_letters = 44;
   FoodChannelsSection food_channels = 45;
   DeepResourcesSection deep_resources = 46;
+  optional uint32 fermenting_barrels = 47;
 }
 // Current-map WandererJoins offers; the token binds letter, quest, pawn and expiry.
 message JoinerLetter { optional int32 letter_id = 1; optional string snapshot_token = 2; optional string pawn_id = 3; optional int64 expires_tick = 4; optional string accept_label = 5; optional bool can_accept = 6; }

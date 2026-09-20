@@ -879,7 +879,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		r.Goals[len(r.Goals)-1].Deficit = researchDeficit
 	}
 	addAssessment(EnsureResearch, 4, researchRecovered)
-	resourceTargets, err := p.EffectiveResourceTargets(f.Resources, MedicineResourceNeeds(f.ResourceNeeds, p.MedicineReserveTarget(f.Colonists, medicine.Active)))
+	resourceTargets, err := p.EffectiveResourceTargets(f.Resources, MedicineResourceNeeds(ResourceGoalTargets(f.ResourceNeeds, SocialDrugTargets(f.Research)), p.MedicineReserveTarget(f.Colonists, medicine.Active)))
 	if err != nil {
 		return RoutineNeeds{}, err
 	}

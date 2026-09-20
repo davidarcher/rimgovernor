@@ -106,11 +106,15 @@ message Operation {
     ReleaseDeconstructions release_deconstructions = 56;
     Arrest arrest = 57;
     SetApparelPolicy set_apparel_policy = 58;
+    SetDrugPolicy set_drug_policy = 59;
   }
 }
 
 // Tokens are opaque native snapshots scoped to request identity and exact entity.
 message EntityPrecondition { optional string entity_id = 1; optional string expected_snapshot_token = 2; }
+// Creates/updates a named social-only policy, assigns an eligible pawn and
+// makes it the default. No hard drugs or scheduled consumption.
+message SetDrugPolicy { EntityPrecondition pawn = 1; optional string name = 2; }
 message Clear {}
 message Assignment { oneof value { string entity_id = 1; Clear clear = 2; } }
 message DefCount { optional string def_name = 1; optional int32 count = 2; }
@@ -213,6 +217,8 @@ message BillSettings {
   Assignment worker = 10;
   BillStore store = 11;
   FilterPatch ingredients = 12;
+  // Wort bill whose target counts wort, fermenting contents and finished beer.
+  optional bool beer_reserve = 13;
 }
 message AddBill { EntityPrecondition bench = 1; optional string recipe_def = 2; BillSettings settings = 3; optional string replace_owned_bill_id = 4; }
 message BillPrecondition { EntityPrecondition bench = 1; optional string bill_id = 2; }

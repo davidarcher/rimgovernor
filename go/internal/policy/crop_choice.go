@@ -14,6 +14,8 @@ type CropClimate struct {
 	DaysRemaining domain.Fact[float64]
 }
 type CropChoice struct {
+	// HarvestUnits scores non-food crop sites without inventing nutrition.
+	HarvestUnits                                                           domain.Fact[float64]
 	Name                                                                   string
 	Available, Edible                                                      domain.Fact[bool]
 	GrowDays, FertilityMin, FertilitySensitivity, HarvestNutrition, Demand domain.Fact[float64]

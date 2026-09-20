@@ -64,12 +64,21 @@ func (n *resourceNative) PreviewZone(context.Context, *c.Identity, bridge.ZoneTa
 // admission (which once bound bills to the food goals only), and the next
 // step sees that open work rather than a second bill.
 func TestResourceDispatchCommitsWorkshopBillThroughTheJournal(t *testing.T) {
+	testResourceDispatch(t, "MeleeWeapon_Club", "MeleeWeapon_Club", "Make_MeleeWeapon_Club", domain.StockTarget)
+}
+func TestBeerReserveDispatchesWortThroughTheJournal(t *testing.T) {
+	testResourceDispatch(t, "Beer", "Wort", "Make_Wort", domain.BeerReserve)
+}
+func TestSmokeleafReserveDispatchesThroughTheJournal(t *testing.T) {
+	testResourceDispatch(t, "SmokeleafJoint", "SmokeleafJoint", "Make_SmokeleafJoint", domain.StockTarget)
+}
+func testResourceDispatch(t *testing.T, resource, product policy.Resource, recipe string, mode domain.BillMode) {
 	t.Parallel()
 	base, db, _, _, sleeping := sleepingFixture(t)
-	base.reviewer.policy.ResourceTargets = map[policy.Resource]int64{"MeleeWeapon_Club": 3}
-	sleeping.reply.GetObserved().Resources = []*o.Quantity{{DefName: proto.String("MeleeWeapon_Club"), Units: proto.Int64(0)}}
+	base.reviewer.policy.ResourceTargets = map[policy.Resource]int64{resource: 3}
+	sleeping.reply.GetObserved().Resources = []*o.Quantity{{DefName: proto.String(string(resource)), Units: proto.Int64(0)}}
 	club := policy.GearRecipe{
-		Definition: "Make_MeleeWeapon_Club", Products: []policy.Resource{"MeleeWeapon_Club"},
+		Definition: recipe, Products: []policy.Resource{product},
 		Available: domain.Known(true), AvailableOn: domain.Known(true),
 		Ingredients:  domain.Known([][]policy.Amount{{{Resource: "WoodLog", Count: 40}}}),
 		RequiredWork: domain.Known([]policy.WorkRequirement{{Work: "Crafting", Skill: "Crafting"}}),
@@ -111,7 +120,7 @@ func TestResourceDispatchCommitsWorkshopBillThroughTheJournal(t *testing.T) {
 	if err != nil || result.Reason != BuildingMethodAdmitted || result.Plan == "" {
 		t.Fatal(result, err)
 	}
-	if len(native.previews) != 1 || native.previews[0].Bench() != "Thing_CraftingSpot1" || native.previews[0].Recipe() != "Make_MeleeWeapon_Club" || native.previews[0].BeforeToken() != "bench-cas" {
+	if len(native.previews) != 1 || native.previews[0].Bench() != "Thing_CraftingSpot1" || native.previews[0].Recipe() != recipe || native.previews[0].BeforeToken() != "bench-cas" {
 		t.Fatal(native.previews)
 	}
 	plan, err := db.LoadPlan(context.Background(), result.Plan)
@@ -119,7 +128,7 @@ func TestResourceDispatchCommitsWorkshopBillThroughTheJournal(t *testing.T) {
 		t.Fatal(plan, err)
 	}
 	bill, ok := plan.Spec.Actions()[0].ProductionBill()
-	if !ok || bill.Target() != 3 || bill.Mode() != domain.StockTarget {
+	if !ok || bill.Target() != 3 || bill.Mode() != mode {
 		t.Fatal(bill, ok)
 	}
 	again, err := planner.Step(context.Background())

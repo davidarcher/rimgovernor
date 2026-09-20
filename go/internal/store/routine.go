@@ -29,6 +29,7 @@ type ReserveSupply struct {
 // RoutineReview is the durable review cursor and hysteresis history. Goal
 // bindings retain semantic needs while old executable plans keep their identity.
 type RoutineReview struct {
+	BrewingFinished        bool                    `json:",omitempty"`
 	ResourceRunways        []ResourceRunwayRecord  `json:",omitempty"`
 	ReserveSupplies        []ReserveSupply         `json:",omitempty"`
 	LarderSupplies         []policy.StartingSupply `json:",omitempty"`
@@ -451,6 +452,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	}
 	r := RoutineReview{Revision: previous.Revision + 1, WorkPreferenceRevision: request.WorkPreferenceRevision, Snapshot: b, Tick: request.Tick, Enabled: request.Enabled, Latches: needs.Latches}
 	r.MedicalCare = medical
+	r.BrewingFinished = policy.BrewingFinished(request.Facts.Research)
 	r.MedicineTarget = request.Policy.MedicineReserveTarget(request.Facts.Colonists, needs.Latches.MedicalReserve)
 	r.StartingSupplies = supplies
 	r.EventLoot = loot

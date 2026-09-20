@@ -35,7 +35,11 @@ func validateSettings(s *o.PawnSettings, work, care, schedule bool) error {
 	allowed := &o.PawnSettings{Snapshot: s.Snapshot, Issues: s.Issues}
 	if work {
 		allowed.FoodRestriction = s.FoodRestriction
+		allowed.DrugPolicyWritable, allowed.DrugPolicyName = s.DrugPolicyWritable, s.DrugPolicyName
 		allowed.Work, allowed.WorkApplies, allowed.ManualWorkPriorities, allowed.AllowedAreaId = s.Work, s.WorkApplies, s.ManualWorkPriorities, s.AllowedAreaId
+	}
+	if (s.DrugPolicyWritable == nil) != (s.DrugPolicyName == nil) || s.DrugPolicyName != nil && s.GetDrugPolicyName() != "" && validID(s.GetDrugPolicyName()) != nil {
+		return contract("invalid drug policy settings")
 	}
 	if care {
 		allowed.MedicalCare, allowed.SelfTend = s.MedicalCare, s.SelfTend

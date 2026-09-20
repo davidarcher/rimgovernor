@@ -68,6 +68,9 @@ func (client *Client) ReadBillTarget(ctx context.Context, identity *c.Identity, 
 }
 func BillOperation(bill domain.ProductionBill) *op.Operation {
 	settings := &op.BillSettings{Suspended: proto.Bool(false), IngredientSearchRadius: proto.Float32(40), Store: &op.BillStore{Destination: &op.BillStore_Mode{Mode: op.StoreMode_STORE_MODE_DROP_ON_FLOOR}}}
+	if bill.Mode() == domain.BeerReserve {
+		settings.BeerReserve = proto.Bool(true)
+	}
 	if ingredients := bill.Ingredients(); len(ingredients) > 0 {
 		selectors := make([]*op.FilterSelector, 0, len(ingredients))
 		for _, name := range ingredients {

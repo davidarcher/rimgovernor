@@ -86,13 +86,14 @@ namespace HomeBridge.BridgeTools
 
         internal static Obs.SnapshotRef? Snapshot(Pawn pawn, Common.ObservationContext context)
         {
+            NativeDrugPolicy.Install();
             if (!Eligible(pawn)) return null;
             var manual = PawnSettingsRead.ManualPriorities();
             var defs = DefDatabase<WorkTypeDef>.AllDefsListForReading;
             if (!manual.HasValue || defs.Count == 0 || defs.Count > 256) return null;
             var rows = defs.Select(d => new Obs.WorkSetting { DefName = d.defName, Priority = pawn.workSettings.GetPriority(d), Disabled = pawn.WorkTypeIsDisabled(d) }).ToArray();
             return new Obs.SnapshotRef { Context = context.Clone(), EntityId = pawn.GetUniqueLoadID(),
-                Token = NativeFoodPolicy.SettingsToken(Token(context.Identity, pawn.GetUniqueLoadID(), manual.Value, rows, CurrentAreaId(pawn), CurrentSchedule(pawn), pawn.playerSettings?.medCare.ToString() ?? ""), pawn) };
+                Token = NativeDrugPolicy.Token(NativeFoodPolicy.SettingsToken(Token(context.Identity, pawn.GetUniqueLoadID(), manual.Value, rows, CurrentAreaId(pawn), CurrentSchedule(pawn), pawn.playerSettings?.medCare.ToString() ?? ""), pawn), pawn) };
         }
 
         // Resolves a requested area identifier tolerantly against either the

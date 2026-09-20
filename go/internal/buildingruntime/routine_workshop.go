@@ -39,6 +39,7 @@ type workshopProduct struct {
 }
 
 type workshopSelection struct {
+	barrel       bool
 	alternatives []workshopProduct
 	resource     policy.Resource
 	benches      []policy.GearBench
@@ -153,6 +154,15 @@ func (r *RoutineBuildingPlanner) prepareWorkshop(call context.Context, state Con
 		}
 	}
 	census, _, err := source.ReadGearBenches(call, identity)
+	if resource == "Beer" {
+		if observed.FermentingBarrels == nil {
+			return nil, BuildingMethodUnknown, nil
+		}
+		if observed.GetFermentingBarrels() == 0 {
+			return &workshopSelection{barrel: true, resource: resource, candidates: []string{"FermentingBarrel"}}, "", nil
+		}
+		resource = "Wort"
+	}
 	if err != nil {
 		return nil, "", err
 	}
@@ -224,6 +234,18 @@ func (r *RoutineBuildingPlanner) recordWorkshopLadder(call context.Context, stat
 func (r *RoutineBuildingPlanner) selectWorkshop(call context.Context, state ControlState, review store.RoutineReview, facts observation.ColonyProjection) (*RoutineBuildingPlanner, RoutineBuildingReason, error) {
 	if r.workshop == nil {
 		return nil, BuildingMethodUnknown, nil
+	}
+	if r.workshop.barrel {
+		if available, known := facts.DefinitionAvailable("FermentingBarrel").Value(); !known || !available {
+			return nil, BuildingWorkshopUnavailable, nil
+		}
+		facility, err := policy.Facility(policy.RoomRoleWorkshop)
+		if err != nil {
+			return nil, "", err
+		}
+		resolved := *r
+		resolved.definition, resolved.environment, resolved.facility = "FermentingBarrel", policy.PlacementIndoors, &facility
+		return &resolved, "", nil
 	}
 	definitions := make([]policy.BenchDefinition, 0, len(facts.Definitions))
 	available := map[string]domain.Fact[bool]{}

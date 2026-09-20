@@ -207,6 +207,10 @@ func (r *RoutineResourcePlanner) step(call, epoch context.Context, arbiter *step
 // drops at its bench); an empty set refuses the production path outright
 // rather than producing where the product cannot be used.
 func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Context, state ControlState, goal store.GoalState, reviewTick domain.Tick, identity *c.Identity, resource policy.Resource, target int64, stock domain.Fact[[]policy.Amount], benchFilter []string, started time.Time, ingredients ...string) (RoutineResourceResult, error) {
+	beer := resource == "Beer"
+	if beer {
+		resource = "Wort"
+	}
 	p := r.reviewer.player
 	seen := make([]domain.MethodID, 0, len(goal.Methods))
 	for _, method := range goal.Methods {
@@ -262,6 +266,9 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 		return RoutineResourceResult{}, err
 	}
 	if choice.Kind != policy.ResourceMethodProduce {
+		if beer && choice.Kind == policy.ResourceMethodWait {
+			return RoutineResourceResult{Reason: BuildingMethodExistingWork, NativeWorkTicks: stockWaitTicks}, nil
+		}
 		selected, sourceStorage, ok := r.sourcesForDeficit(call, identity, resource, target, stock)
 		if !ok {
 			return RoutineResourceResult{Reason: BuildingMethodUsed}, nil
@@ -294,7 +301,11 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 	if int64(targetCount) != choice.Target {
 		return RoutineResourceResult{}, ErrControl
 	}
-	bill, err := domain.NewProductionBill(choice.Bench, choice.Recipe, token, domain.StockTarget, targetCount, ingredients...)
+	mode := domain.StockTarget
+	if beer {
+		mode = domain.BeerReserve
+	}
+	bill, err := domain.NewProductionBill(choice.Bench, choice.Recipe, token, mode, targetCount, ingredients...)
 	if err != nil {
 		return RoutineResourceResult{}, err
 	}

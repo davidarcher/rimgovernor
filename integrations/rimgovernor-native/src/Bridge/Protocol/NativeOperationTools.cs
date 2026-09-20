@@ -56,6 +56,7 @@ namespace HomeBridge.BridgeTools
         internal readonly Dictionary<Common.AttemptKey, NativeSettlementGiftRecord> SettlementGifts = new Dictionary<Common.AttemptKey, NativeSettlementGiftRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeQuestFulfillRecord> QuestFulfills = new Dictionary<Common.AttemptKey, NativeQuestFulfillRecord>();
         internal readonly Dictionary<Common.AttemptKey, Operations.SetProductionPolicy> ProductionPolicies = new Dictionary<Common.AttemptKey, Operations.SetProductionPolicy>();
+        internal readonly Dictionary<Common.AttemptKey, Operations.SetDrugPolicy> DrugPolicies = new Dictionary<Common.AttemptKey, Operations.SetDrugPolicy>();
         internal readonly Dictionary<Common.AttemptKey, NativeSurgeryRecord> Surgeries = new Dictionary<Common.AttemptKey, NativeSurgeryRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeCaravanTravelRecord> CaravanTravels = new Dictionary<Common.AttemptKey, NativeCaravanTravelRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeNamingRecord> Naming = new Dictionary<Common.AttemptKey, NativeNamingRecord>();
@@ -86,7 +87,7 @@ namespace HomeBridge.BridgeTools
 
     public sealed class NativeOperationTools
     {
-        public NativeOperationTools() { NativeProductionTracking.Install(); NativeAcquisitionTracking.Install(); NativeConstructionTracking.Install(); NativePawnControlState.Initialize(); NativeCombatCausality.Initialize(); NativeRangedCausality.Initialize(); }
+        public NativeOperationTools() { NativeProductionTracking.Install(); NativeDrugPolicy.Install(); NativeAcquisitionTracking.Install(); NativeConstructionTracking.Install(); NativePawnControlState.Initialize(); NativeCombatCausality.Initialize(); NativeRangedCausality.Initialize(); }
 
         [Tool("rimgovernor/operations_execute", Title = "Execute guarded native operation", Description = "Admit typed PlaceBuilding, exact supply Allow, work-only PatchPawn, temporary SetDrafted, MovePawn or melee, direct-bullet or supported injury-only explosive AttackTarget under current native authority. Movement and combat require an existing owned draft. Exact retries return their original receipt.")]
         [ToolResponse("payload", "string", "Official ProtoJSON ExecuteReply.", Always = true)]
@@ -109,9 +110,11 @@ namespace HomeBridge.BridgeTools
             if (request.Operation == null || request.Operation.CommandCase == Operations.Operation.CommandOneofCase.None)
                 return Refuse(Common.FailureCode.InvalidRequest, "An operation is required.");
             var state = NativeOperationState.ForAdmission(context.Identity);
+            NativeDrugPolicy.Install();
             var prior = state.Ledger.Inspect("rimgovernor.operations.v1.Operations/Execute", request);
             if (prior.Kind != NativeAttemptLedger.DecisionKind.New) return prior.DecidedReply;
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.AddBill) return NativeProductionBills.Execute(state, request, context);
+            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.SetDrugPolicy) return NativeDrugPolicyOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.CreateZone) return NativeZoneCreation.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.AcquireResource)
                 return NativePlantAcquisition.Execute(state, request, context);
@@ -338,6 +341,8 @@ namespace HomeBridge.BridgeTools
                     return ProtoBoundary.Encode(NativeQuestFulfillOperations.Preview(parsed.Operation.FulfillQuest, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.SetProductionPolicy)
                     return ProtoBoundary.Encode(NativeProductionPolicyOperations.Preview(parsed.Operation.SetProductionPolicy, context));
+                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.SetDrugPolicy)
+                    return ProtoBoundary.Encode(NativeDrugPolicyOperations.Preview(parsed.Operation.SetDrugPolicy, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.QueueSurgery)
                     return ProtoBoundary.Encode(NativeSurgeryOperations.Preview(parsed.Operation.QueueSurgery, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.TravelCaravan)
@@ -507,6 +512,8 @@ namespace HomeBridge.BridgeTools
                     if (state.QuestFulfills.TryGetValue(parsed.Attempt, out questFulfill))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeQuestFulfillOperations.Observe(parsed.Attempt, context, questFulfill) }));
                     Operations.SetProductionPolicy productionPolicy;
+                    if (state.DrugPolicies.TryGetValue(parsed.Attempt, out var drugPolicy))
+                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeDrugPolicyOperations.Observe(parsed.Attempt, context, drugPolicy) }));
                     if (state.ProductionPolicies.TryGetValue(parsed.Attempt, out productionPolicy))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeProductionPolicyOperations.Observe(parsed.Attempt, context, productionPolicy) }));
                     NativeSurgeryRecord surgery;

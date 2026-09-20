@@ -73,7 +73,7 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 		return RoutineFieldResult{}, err
 	}
 	if goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit {
-		return RoutineFieldResult{Reason: BuildingMethodNoDeficit}, nil
+		return r.socialFields(call, epoch, state, review)
 	}
 	if goal.Goal.Priority >= 3 {
 		selected := false
