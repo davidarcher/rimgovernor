@@ -125,8 +125,8 @@ func landCases(all []cases.Case, sel affected.Selection) ([]cases.Case, error) {
 	var out []cases.Case
 	for _, c := range all {
 		area, _, _ := strings.Cut(c.Name, "/")
-		// The fifteen-day stability gate belongs to the nightly full tier only.
-		if c.Matrix || c.Name == "sustained/colony-stable" {
+		// Multi-day outcome gates belong to the nightly full tier only.
+		if c.Matrix || (c.Name == "sustained/colony-stable" || c.Name == "mood/recreation") {
 			continue
 		}
 		if want[c.Name] || (areas[area] && !sampled[area]) || sel.AllHarnesses {
@@ -143,7 +143,7 @@ func sampleCases(all []cases.Case, areas []string) []cases.Case {
 	pick := map[string]cases.Case{}
 	for _, c := range all {
 		area, _, _ := strings.Cut(c.Name, "/")
-		if c.Matrix || c.Name == "sustained/colony-stable" || !slices.Contains(areas, area) {
+		if c.Matrix || (c.Name == "sustained/colony-stable" || c.Name == "mood/recreation") || !slices.Contains(areas, area) {
 			continue
 		}
 		best, ok := pick[area]

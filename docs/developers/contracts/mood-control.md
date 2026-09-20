@@ -104,6 +104,32 @@ the target ends containment and lets the ordinary RESCUE planner carry the pawn
 to a colonist bed using native bed selection. There is no Capture or prisoner
 custody. Arrest remains a non-aggressive custody operation.
 
+## Recreation
+
+`EnsureBasicComfort` supplies a reachable recreation source. `EnsureComfort`
+adds a second distinct building-backed joy kind for multiple colonists, or for a
+lone colonist bored with their only reachable kind. The native census supplies
+kinds, each colonist's tolerance and boredom, and available building methods.
+Selection prefers a researched, powered television, then billiards, chess or
+horseshoes when they add a kind. Two kinds cap this provisioning; inaccessible
+existing facilities are access blockers rather than reasons to duplicate them.
+
+After Brewing research, ordinary resource production targets twelve Beer and
+twelve SmokeleafJoint, with small hops and smokeleaf plots when climate permits.
+The work planner assigns `RimGovernor social drugs` through Hands and makes it
+the default. This policy permits beer and smokeleaf for joy, disables hard-drug
+joy, addiction use, scheduled use and inventory stocking. Native readback exposes
+the policy name only when its contents and default assignment match. Recreation
+relief itself still excludes ingestible joy; RimWorld chooses ordinary drug use.
+
+The nightly full tier includes `mood/recreation`: the baseline colony runs ten
+quiet game days with live needs and every routine family. At the end, every
+colonist must have readable current thoughts with no `NeedJoy` offset below -5.
+When Brewing is complete, every colonist must have the social drug policy
+assigned. Missing research, incomplete colonist reads and stale thoughts fail the
+case. Its fixed 600,000-tick window exceeds the smoke budget and is excluded from
+smoke, land and matrix tiers; diagnostic window overrides cannot shorten it.
+
 ## Active mental-state observation
 
 The colonist status and pawn list reads carry the active mental state's native
