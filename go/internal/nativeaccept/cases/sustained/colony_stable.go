@@ -62,7 +62,7 @@ func init() {
 				if !ok || !window.Reached {
 					failures = append(failures, fmt.Errorf("fifteen-day window not reached: %v", report["window"]))
 				}
-				failures = append(failures, auditReacquisitions(ctx, h, report), auditNutrition(ctx, h, report))
+				failures = append(failures, auditReacquisitions(ctx, h, report), AuditNutrition(ctx, h, report))
 				listed, err := h.Call(ctx, "stable-health", "home/list_pawns", map[string]any{"colonistsOnly": true, "includeDead": true, "health": true})
 				if err != nil {
 					return errors.Join(append(failures, err)...)

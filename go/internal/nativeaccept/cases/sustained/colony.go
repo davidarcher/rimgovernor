@@ -87,7 +87,7 @@ func colony(name string, quiet na.QuietMode, scope string) cases.Case {
 					if err := auditReacquisitions(ctx, h, report); err != nil {
 						return err
 					}
-					return auditNutrition(ctx, h, report)
+					return AuditNutrition(ctx, h, report)
 				},
 			})
 			return err
@@ -100,12 +100,12 @@ func colony(name string, quiet na.QuietMode, scope string) cases.Case {
 // the malnourished tier where work slows and death approaches.
 const colonyMalnutritionLimit = 0.3
 
-// auditNutrition is the food gate the diagnostic keeps (#260): the tribal8
+// AuditNutrition is the food gate the diagnostic keeps (#260): the tribal8
 // baseline holds under two days of pemmican, so a window that ends with a
 // colonist past hungry means the foothold food methods (butcher spot, bill,
 // hunting, fields) did not stack in time. The report keeps every
 // colonist's worst nutrition hediff either way.
-func auditNutrition(ctx context.Context, h *na.Harness, report na.Report) error {
+func AuditNutrition(ctx context.Context, h *na.Harness, report na.Report) error {
 	listed, err := h.Call(ctx, "audit-nutrition", "home/list_pawns", map[string]any{"colonistsOnly": true, "health": true})
 	if err != nil {
 		return err

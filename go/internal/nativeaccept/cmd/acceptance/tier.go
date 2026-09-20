@@ -198,7 +198,11 @@ func smokeCases(all []cases.Case) ([]cases.Case, error) {
 	return out, nil
 }
 
-// nightlyOnly excludes slow gameplay proofs from the landing and sampled sets.
+// nightlyOnly excludes slow gameplay proofs from the landing and sampled
+// sets: the named long cases and the whole campaign/* family (#633), whose
+// unassisted campaigns and fault injections are pass/fail rows of the
+// nightly bulk tier only.
 func nightlyOnly(name string) bool {
-	return name == "mood/recreation" || name == "sustained/colony-stable" || name == "production/deepdrill" || name == "production/components"
+	return name == "mood/recreation" || name == "sustained/colony-stable" || name == "production/deepdrill" || name == "production/components" ||
+		strings.HasPrefix(name, "campaign/")
 }

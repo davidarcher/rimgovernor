@@ -71,6 +71,9 @@ type ClockSchedulerConfig struct {
 	Facts *bridge.FactCache
 	// Budget bounds the step's planner waves (#623); see StepBudget.
 	Budget StepBudget
+	// Faults are the acceptance harness's injected failures (#633); the
+	// zero value injects none.
+	Faults Faults
 	// Store is the decoded state store the steps fill beside Facts (#354):
 	// each review's census sections with the tick they describe, dropped
 	// by the same typed events. nil makes a private one; the HTTP API

@@ -109,13 +109,14 @@ func TestLandCasesAreAffectedAreasPlusSmoke(t *testing.T) {
 		t.Fatal(err)
 	}
 	full, _ := tierCases("full", "", "main")
-	if len(land) != len(full.Cases)-4 {
+	// Four named long cases and the eight campaign/* rows (#633).
+	if len(land) != len(full.Cases)-12 {
 		t.Errorf("all harnesses affected: land has %d cases, full %d", len(land), len(full.Cases))
 	}
 }
 
 func TestColonyStableNightlyOnly(t *testing.T) {
-	for _, name := range []string{"sustained/colony-stable", "mood/recreation", "production/deepdrill", "production/components"} {
+	for _, name := range []string{"sustained/colony-stable", "mood/recreation", "production/deepdrill", "production/components", "campaign/foothold", "campaign/recovery", "campaign/fault-authority-loss"} {
 		for _, tier := range []string{"full", "smoke", "matrix"} {
 			set, err := tierCases(tier, "", "main")
 			if err != nil {
@@ -129,7 +130,7 @@ func TestColonyStableNightlyOnly(t *testing.T) {
 				t.Errorf("%s contains stable gate: %v", tier, found)
 			}
 		}
-		for _, sel := range []affected.Selection{{AllHarnesses: true}, {Cases: []string{"sustained", "production", "mood"}}, {Cases: []string{"sustained", "production", "mood"}, Sampled: []string{"sustained", "production", "mood"}}} {
+		for _, sel := range []affected.Selection{{AllHarnesses: true}, {Cases: []string{"sustained", "production", "mood", "campaign"}}, {Cases: []string{"sustained", "production", "mood", "campaign"}, Sampled: []string{"sustained", "production", "mood", "campaign"}}} {
 			land, err := landCases(cases.All(), sel)
 			if err != nil {
 				t.Fatal(err)

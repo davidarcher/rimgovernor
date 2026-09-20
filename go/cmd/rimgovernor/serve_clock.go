@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -233,6 +235,19 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	config.Facts = cache
 	config.Store = sections
 	config.Worker = true
+	// Acceptance fault injection (#633): a failing or hanging planner, a
+	// dropped renewal. Off unless the environment names one.
+	faults, err := buildingruntime.ParseFaults(os.Getenv(buildingruntime.FaultsEnv))
+	if err != nil {
+		return nil, err
+	}
+	if err := faults.Validate(); err != nil {
+		return nil, err
+	}
+	if !faults.Empty() {
+		fmt.Fprintf(os.Stderr, "clock: fault injection active: %s\n", faults)
+	}
+	config.Faults = faults
 	config.RoutineMethods = session.RoutineMethodsEnabled()
 	if caravanJourneyTracking {
 		native, ok := reads.(buildingruntime.CaravanJourneyNative)

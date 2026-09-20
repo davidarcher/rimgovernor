@@ -172,6 +172,36 @@ instead of reloading; the next `acceptance run` unloads it as it does any
 leftover. Evidence lands under `<root>/acceptance/fixture/<op>-<time>`
 (`-output`), `-json` prints one object.
 
+## Unassisted campaigns
+
+The `campaign/*` family (#633, epic #613) is the proof of autonomy and runs
+in the nightly full tier only (`nightlyOnly` in `cmd/acceptance/tier.go`).
+Every case declares its fixture (the committed tribal8 baseline, Core only,
+the save's seed) in `report.json`'s `manifest`, plays through the player
+control path (`--clock-speed Ultrafast` without test acceleration;
+`RIMGOVERNOR_ACCEPT_CAMPAIGN_CONTROL=player` is the hook for #627's paced
+mode) with one dashboard viewer streaming video, and lets the harness act
+only during setup: every later hand (a keep-alive re-acquisition, a fixture
+op) lands under `interventions` and `intervention_count`, which the
+campaigns require to be zero. The disturbances a scenario stages are
+`injections`, `milestones` carry their ticks, and every gate is native end
+state (every initial colonist alive, malnutrition under 0.3, indoor
+sleeping capacity for the colony, a known food runway) plus an advancing
+goal progress record (#629), never a plan count.
+
+`campaign/foothold` plays three game days (`RIMGOVERNOR_ACCEPT_CAMPAIGN_TICKS`
+overrides the window). `campaign/recovery` settles, takes every wood log
+(`test/hut_shell_fixture take`), requires MaintainWood to bind and the
+stock to return to the policy floor natively, then stages an edge walk-in
+raid (`test/defense_setup raid`) and requires no hostile standing after a
+day. The `campaign/fault-*` rows inject one failure each through
+`RIMGOVERNOR_FAULT_INJECT` (`planner:<name>=fail|hang`, `renewal=drop`; see
+`buildingruntime.Faults`), a dead chat endpoint, or the viewer: an optional
+planner failing, the LLM endpoint down, the viewer disconnecting and a
+stalled dashboard client must leave the campaign playing; a hung critical
+planner (nothing admitted, `held_by` in the flight rows) and a lapsed
+native lease (mode `manual`) must stop it within one window.
+
 ## Late-game material production
 
 `production/deepdrill` and `production/components` run in the nightly full

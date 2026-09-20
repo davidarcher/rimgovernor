@@ -91,7 +91,12 @@ func (w *plannerWave) queue(s *ClockScheduler, call, epoch context.Context, arbi
 		ctx = w.optional
 	}
 	w.group.Go(entry.name, entry.class, entry.priority, func() error {
-		reason, err := entry.run(s, ctx, epoch, private, arbiter)
+		var reason RoutineBuildingReason
+		run := s.config.Faults.plannerFault(entry.name, ctx, func() (err error) {
+			reason, err = entry.run(s, ctx, epoch, private, arbiter)
+			return err
+		})
+		err := run()
 		if err != nil {
 			err = fmt.Errorf("%s: %w", entry.name, err)
 		}

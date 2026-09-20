@@ -172,8 +172,8 @@ func TestSelectScopesFixtures(t *testing.T) {
 		t.Fatal(err)
 	}
 	// tools/saveheadroom-defense-layout loads the committed defense save
-	// too (#320).
-	if sel.AllHarnesses || !slices.Equal(sel.Cases, []string{"defense", "tools"}) || len(sel.Packages) != 0 {
+	// too (#320); campaign/recovery stages its raid with the fixture (#633).
+	if sel.AllHarnesses || !slices.Equal(sel.Cases, []string{"campaign", "defense", "tools"}) || len(sel.Packages) != 0 {
 		t.Errorf("defense fixture change selected %+v", sel)
 	}
 	sel, err = Select(r, []string{"scripts/fixtures/GuardedConstructionFixture.cs"})

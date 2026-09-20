@@ -24,6 +24,7 @@ import (
 type ViewerClient struct {
 	service *ServiceProcess
 	token   string
+	opts    ViewerOptions
 	cancel  context.CancelFunc
 	done    chan struct{}
 	started time.Time
@@ -58,11 +59,28 @@ const (
 	viewerID           = "speedmatrix-viewer"
 )
 
+// ViewerOptions shape a viewer beyond the tile's defaults (#633): ID is
+// the lease's viewerId (default viewerID); Stalled connects the stream and
+// then never reads it, a dashboard client that stopped consuming frames
+// while holding its socket and renewing its lease.
+type ViewerOptions struct {
+	ID      string
+	Stalled bool
+}
+
 // StartViewer starts the client against the service; Stop ends it and
 // returns its summary.
 func StartViewer(ctx context.Context, service *ServiceProcess, token string) *ViewerClient {
+	return StartViewerWith(ctx, service, token, ViewerOptions{})
+}
+
+// StartViewerWith is StartViewer with options.
+func StartViewerWith(ctx context.Context, service *ServiceProcess, token string, opts ViewerOptions) *ViewerClient {
+	if opts.ID == "" {
+		opts.ID = viewerID
+	}
 	ctx, cancel := context.WithCancel(ctx)
-	v := &ViewerClient{service: service, token: token, cancel: cancel, done: make(chan struct{}), started: time.Now()}
+	v := &ViewerClient{service: service, token: token, opts: opts, cancel: cancel, done: make(chan struct{}), started: time.Now()}
 	go v.run(ctx)
 	return v
 }
@@ -81,6 +99,7 @@ func (v *ViewerClient) Stop() map[string]any {
 		"supported": v.summary.Supported, "active": v.summary.Active, "unavailable": v.summary.Unavailable, "source_id": v.summary.SourceID,
 		"frames": v.summary.Frames, "bytes": v.summary.Bytes, "connects": v.summary.Connects, "stalled_connects": v.summary.StalledConnects, "leases": v.summary.Leases,
 		"errors": v.summary.Errors, "duration_s": v.summary.DurationS, "frames_per_second": v.summary.FramesPerSec, "capture_method": v.summary.CaptureMethod,
+		"viewer_id": v.opts.ID, "stalled": v.opts.Stalled,
 	}
 }
 
@@ -100,7 +119,7 @@ func (v *ViewerClient) note(err error) {
 func (v *ViewerClient) lease() bool {
 	_, _, _ = v.service.API("POST", "/api/presentation/render-demand", map[string]any{"leaseSeconds": viewerLeaseSeconds}, v.token)
 	state, status, err := v.service.API("POST", "/api/presentation/video-lease", map[string]any{
-		"leaseSeconds": viewerLeaseSeconds, "source": map[string]any{"kind": "screen"}, "viewerId": viewerID,
+		"leaseSeconds": viewerLeaseSeconds, "source": map[string]any{"kind": "screen"}, "viewerId": v.opts.ID,
 	}, v.token)
 	v.mu.Lock()
 	defer v.mu.Unlock()
@@ -135,7 +154,7 @@ func (v *ViewerClient) run(ctx context.Context) {
 		supported := v.summary.Supported
 		v.mu.Unlock()
 		if supported {
-			_, _, _ = v.service.API("POST", "/api/presentation/video-lease", map[string]any{"leaseSeconds": 0, "viewerId": viewerID}, v.token)
+			_, _, _ = v.service.API("POST", "/api/presentation/video-lease", map[string]any{"leaseSeconds": 0, "viewerId": v.opts.ID}, v.token)
 		}
 	}()
 	if !v.lease() {
@@ -193,6 +212,11 @@ func (v *ViewerClient) stream(ctx context.Context, source string) {
 	v.mu.Unlock()
 	if stalled := v.stalledCompanion(ctx, source); stalled != nil {
 		defer stalled.CloseNow()
+	}
+	if v.opts.Stalled {
+		// The socket stays open and unread until the client is stopped.
+		<-ctx.Done()
+		return
 	}
 	for {
 		_, data, err := conn.Read(ctx)
