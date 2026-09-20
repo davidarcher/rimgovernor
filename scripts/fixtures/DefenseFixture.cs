@@ -455,22 +455,28 @@ namespace HomeBridge.BridgeTools
         }
 
         // Cover stages raider cover inside the firing line's engagement zone
-        // (#581): a line of trees and a pair of stone chunks on the approach
-        // ahead of Entry (away from Home, along direction d), two to seven
-        // cells out, on open standable cells. The things are ordinary map
-        // objects the game's own designators remove; the run asserts the
-        // service designates and clears them.
+        // (#581, #620): a line of trees and a pair of stone chunks on the
+        // approach ahead of Entry (away from Home, along direction d), two to
+        // nine cells out, on open standable cells, then one lone granite
+        // rock and one unowned wall segment (a ruin) farther out, each on a
+        // cell with no edifice beside it and placed only if Entry still
+        // reaches the map edge afterwards. The things are ordinary map
+        // objects the game's own designators remove (cut, haul, mine,
+        // deconstruct); the run asserts the service designates and clears
+        // them.
         private static object Cover(Map map, IntVec3 entry, IntVec3 d)
         {
             if (!entry.InBounds(map) || d == IntVec3.Zero) return Refuse("cover needs the entry cell and a unit direction away from Home.");
             var tree = DefDatabase<ThingDef>.GetNamedSilentFail("Plant_TreeOak");
             var chunk = DefDatabase<ThingDef>.GetNamedSilentFail("ChunkGranite");
-            if (tree == null || chunk == null) return Refuse("Plant_TreeOak or ChunkGranite is not defined.");
+            var rock = DefDatabase<ThingDef>.GetNamedSilentFail("Granite");
+            var blocks = DefDatabase<ThingDef>.GetNamedSilentFail("BlocksGranite");
+            if (tree == null || chunk == null || rock == null || blocks == null) return Refuse("Plant_TreeOak, ChunkGranite, Granite or BlocksGranite is not defined.");
             var side = new IntVec3(d.z, 0, -d.x);
             var staged = new List<Thing>();
             var placed = new List<object>();
             var cells = new List<IntVec3>();
-            for (var step = 2; step <= 7; step++)
+            for (var step = 2; step <= 9; step++)
             {
                 var row = entry + d * step;
                 foreach (var offset in new[] { 0, -1, 1, -2, 2 })
@@ -482,17 +488,52 @@ namespace HomeBridge.BridgeTools
                 }
             }
             if (cells.Count < 5) return Refuse("Fewer than five open cells ahead of the entry for cover: " + cells.Count + ".");
-            for (var i = 0; i < 5; i++)
+            var raider = TraverseParms.For(TraverseMode.NoPassClosedDoors, Danger.Deadly);
+            if (!map.reachability.CanReachMapEdge(entry, raider)) return Refuse("Entry does not reach the map edge before any cover is staged.");
+            Thing Stage(ThingDef def, ThingDef stuff, IntVec3 cell, string designation)
             {
-                var cell = cells[i];
-                var def = i < 3 ? tree : chunk;
-                var thing = ThingMaker.MakeThing(def);
+                var thing = ThingMaker.MakeThing(def, stuff);
                 if (thing is Plant plant) plant.Growth = 1f;
                 GenSpawn.Spawn(thing, cell, map);
-                if (!thing.Spawned) return Refuse("Staged " + def.defName + " did not spawn at " + cell + ".");
+                if (!thing.Spawned) return null;
                 thing.SetForbidden(false, false);
                 staged.Add(thing);
-                placed.Add(new { id = thing.GetUniqueLoadID(), def = def.defName, x = cell.x, z = cell.z, fill = def.fillPercent, distance = cell.DistanceTo(entry) });
+                placed.Add(new { id = thing.GetUniqueLoadID(), def = def.defName, designation, x = cell.x, z = cell.z, fill = def.fillPercent, distance = cell.DistanceTo(entry) });
+                return thing;
+            }
+            for (var i = 0; i < 5; i++)
+            {
+                var def = i < 3 ? tree : chunk;
+                if (Stage(def, null, cells[i], i < 3 ? "CutPlant" : "Haul") == null) return Refuse("Staged " + def.defName + " did not spawn at " + cells[i] + ".");
+            }
+            // The impassable pair: a lone rock (no natural rock beside it, so
+            // the policy does not hold it as a rock face) and an unowned wall,
+            // each on an open cell with a passable neighbour, never beside
+            // each other, and only where the corridor stays open.
+            var solids = new[] { new { def = rock, stuff = (ThingDef)null, designation = "Mine" }, new { def = ThingDefOf.Wall, stuff = blocks, designation = "Deconstruct" } };
+            var solidCells = new List<IntVec3>();
+            foreach (var solid in solids)
+            {
+                Thing spawned = null;
+                var tried = 0;
+                foreach (var cell in cells.Skip(5))
+                {
+                    if (cell.GetEdifice(map) != null || !cell.Standable(map)) continue;
+                    var neighbours = GenAdj.CardinalDirections.Select(a => cell + a).ToList();
+                    if (neighbours.Any(n => !n.InBounds(map) || solidCells.Contains(n))) continue;
+                    if (solid.def == rock && neighbours.Any(n => n.GetEdifice(map)?.def.building?.isNaturalRock == true)) continue;
+                    if (!neighbours.Any(n => n.Standable(map))) continue;
+                    tried++;
+                    spawned = Stage(solid.def, solid.stuff, cell, solid.designation);
+                    if (spawned == null) continue;
+                    if (map.reachability.CanReachMapEdge(entry, raider)) { solidCells.Add(cell); break; }
+                    staged.Remove(spawned); placed.RemoveAt(placed.Count - 1); spawned.Destroy(); spawned = null;
+                }
+                if (spawned == null)
+                {
+                    foreach (var thing in staged) thing.Destroy();
+                    return Refuse("No open cell ahead of the entry takes a " + solid.def.defName + " without sealing the corridor (" + cells.Count + " candidates, " + tried + " tried).");
+                }
             }
             fixtureCover = staged; fixtureCoverWorld = Find.World;
             // A hauled chunk needs somewhere to go: a small dumping

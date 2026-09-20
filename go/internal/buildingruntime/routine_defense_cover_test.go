@@ -30,8 +30,9 @@ func TestDefenseArrivalsUseFirstCrossingInsideTheCensus(t *testing.T) {
 }
 
 // The census identity decides what the policy's demand becomes: plants,
-// chunks and rock are ordered by their kind's designation; unidentified,
-// already designated, player-owned and building cover is held and counted.
+// chunks, rock and unowned buildings (ruins) are ordered by their kind's
+// designation; unidentified, already designated and player-owned cover is
+// held and counted.
 func TestDefenseCoverSelectionMapsKindsAndHolds(t *testing.T) {
 	cell := func(x int32) domain.Cell { return domain.Cell{X: x, Z: 5} }
 	approaches := policy.DefenseApproaches{Cover: []policy.DefenseCover{
@@ -56,11 +57,11 @@ func TestDefenseCoverSelectionMapsKindsAndHolds(t *testing.T) {
 	for _, c := range clearances {
 		got = append(got, [2]string{c.Thing(), c.Designation()})
 	}
-	want := [][2]string{{"Plant_TreeOak1", domain.CoverClearanceCutPlant}, {"ChunkSlateSolid2", domain.CoverClearanceHaul}, {"Slate3", domain.CoverClearanceMine}}
+	want := [][2]string{{"Plant_TreeOak1", domain.CoverClearanceCutPlant}, {"ChunkSlateSolid2", domain.CoverClearanceHaul}, {"Slate3", domain.CoverClearanceMine}, {"AncientWall8", domain.CoverClearanceDeconstruct}}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("clearances %v, want %v", got, want)
 	}
-	if !reflect.DeepEqual(held, map[string]int{"map_edge_rock": 1, "unidentified": 1, "designated": 1, "structure": 2}) {
+	if !reflect.DeepEqual(held, map[string]int{"map_edge_rock": 1, "unidentified": 1, "designated": 1, "structure": 1}) {
 		t.Fatalf("held %v", held)
 	}
 }

@@ -4,7 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -14,20 +17,26 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
-// defense/cover (#581): on the committed layout the fixture stages raider
-// cover ahead of Entry inside the firing line's engagement zone (three
-// mature oaks and two granite chunks, ordinary map things), the service is
-// pointed at the complete layout, and the layout planner must recompute the
-// approaches from the fresh census, identify every staged thing as cover
-// and order its clearance (cut for the trees, haul for the chunks) as one
-// cover_clearance method under EnsureDefensiveLayout. The run waits for the
-// method's plan to settle with every clearance completed, then asserts
-// natively that no staged thing still stands on its cell.
+// defense/cover (#581, #620): on the committed layout the fixture stages
+// raider cover ahead of Entry inside the firing line's engagement zone
+// (three mature oaks, two granite chunks, a lone granite rock and an
+// unowned wall segment, ordinary map things) and a small ground raid that
+// walks in through the corridor toward Entry. The service fights the raid
+// from the line (the ActiveCombat goal recovers, the drafts are released),
+// then the layout planner must recompute the approaches from the fresh
+// census with the raid's crossing ranking a sector, identify every staged
+// thing as cover and order its clearance (cut, haul, mine, deconstruct) as
+// cover_clearance methods under EnsureDefensiveLayout. The run waits for
+// every clearance to complete, then asserts natively that no staged thing
+// still stands on its cell and that the planner saw the arrival.
 const coverTimeout = 15 * time.Minute
 
 // coverPrefix is the layout planner's cover method prefix
 // (buildingruntime.defenseCoverPrefix).
 const coverPrefix = "defense-cover-"
+
+// coverStaged is the fixture's count of staged cover things.
+const coverStaged = 7
 
 func awayFromHome(toward domain.Rotation) (int, int) {
 	switch toward {
@@ -40,6 +49,10 @@ func awayFromHome(toward domain.Rotation) (int, int) {
 	}
 	return 1, 0
 }
+
+// coverThing is one staged cover thing: its definition and the designation
+// the fixture expects the planner to order for it.
+type coverThing struct{ def, designation string }
 
 func runCover(ctx context.Context, closeClient func() error, reopenFixture func() error,
 	fixture func(string, map[string]any) (map[string]any, error), launch func(string) (*service, error),
@@ -58,17 +71,38 @@ func runCover(ctx context.Context, closeClient func() error, reopenFixture func(
 		return err
 	}
 	report["cover_staged"] = staged
-	want := map[string]string{}
+	want := map[string]coverThing{}
 	stagedAt := map[string][2]int64{}
 	for _, row := range na.AsSlice(staged["cover"]) {
 		m, _ := na.AsMap(row)
-		want[na.AsString(m["id"])] = na.AsString(m["def"])
+		want[na.AsString(m["id"])] = coverThing{def: na.AsString(m["def"]), designation: na.AsString(m["designation"])}
 		x := int64(na.AsNumber(m["x"]))
 		z := int64(na.AsNumber(m["z"]))
 		stagedAt[na.AsString(m["id"])] = [2]int64{x, z}
 	}
-	if len(want) != 5 {
-		return fmt.Errorf("fixture staged %d cover things, want 5: %#v", len(want), staged)
+	if len(want) != coverStaged {
+		return fmt.Errorf("fixture staged %d cover things, want %d: %#v", len(want), coverStaged, staged)
+	}
+	designations := map[string]int{}
+	for _, thing := range want {
+		designations[thing.designation]++
+	}
+	for _, d := range []string{domain.CoverClearanceCutPlant, domain.CoverClearanceHaul, domain.CoverClearanceMine, domain.CoverClearanceDeconstruct} {
+		if designations[d] == 0 {
+			return fmt.Errorf("fixture staged no %s cover: %v", d, designations)
+		}
+	}
+	// The raid walks in from the map edge nearest Entry so its trail
+	// crosses the census through the corridor. The ring stops here: a
+	// resume would replay the pre-raid audits (#330).
+	na.CapCheckpoints("raid staged; a resume replays the pre-raid audits, so no entry is taken after this point (#330)")
+	raid, err := fixture("raid", map[string]any{"op": "raid", "strategy": "ImmediateAttack", "arrival": "EdgeWalkIn", "x": int(layout.Entry.X), "z": int(layout.Entry.Z)})
+	if err != nil {
+		return err
+	}
+	report["raid_incident"] = raid
+	if ok, _ := na.AsBool(raid["success"]); !ok {
+		return fmt.Errorf("raid fixture staged no raid: %#v", raid)
 	}
 	if err := closeClient(); err != nil {
 		return err
@@ -78,6 +112,15 @@ func runCover(ctx context.Context, closeClient func() error, reopenFixture func(
 		return err
 	}
 	defer svc.stop()
+	hold, err := waitCombatMethod(ctx, svc.store, svc.wait(coverTimeout), report)
+	if err != nil {
+		return fmt.Errorf("combat response: %w", err)
+	}
+	resolved, err := waitRaidResolved(ctx, svc.store, hold.Plan, svc.wait(coverTimeout))
+	report["cover_raid"] = resolved
+	if err != nil {
+		return err
+	}
 	method, err := waitCoverMethod(ctx, svc.store, svc.wait(coverTimeout), report)
 	if err != nil {
 		return err
@@ -89,6 +132,11 @@ func runCover(ctx context.Context, closeClient func() error, reopenFixture func(
 	}
 	svc.stop()
 	report["cover_authority"] = svc.keepAlive.snapshot()
+	arrivals, err := coverArrivals(svc.StderrPath())
+	report["cover_arrivals"] = arrivals
+	if err != nil {
+		return err
+	}
 	if err := reopenFixture(); err != nil {
 		return err
 	}
@@ -97,8 +145,9 @@ func runCover(ctx context.Context, closeClient func() error, reopenFixture func(
 		return err
 	}
 	report["inspect_after_cover"] = after
-	// A cut tree is destroyed; a hauled chunk still exists in the dump
-	// stockpile, so the assertion is that nothing stands on its staged cell.
+	// A cut tree, a mined rock and a deconstructed wall are destroyed; a
+	// hauled chunk still exists in the dump stockpile, so the assertion is
+	// that nothing stands on its staged cell.
 	var standing []string
 	for _, row := range na.AsSlice(after["cover"]) {
 		m, _ := na.AsMap(row)
@@ -117,6 +166,35 @@ func runCover(ctx context.Context, closeClient func() error, reopenFixture func(
 		return fmt.Errorf("colonists left drafted: %v", drafted)
 	}
 	return nil
+}
+
+// coverDemandLine matches the planner's approach summary
+// (buildingruntime.clearCover): the sector count, the ranked sector's
+// recent raids and the arrivals the census carried.
+var coverDemandLine = regexp.MustCompile(`defense-layout: cover demand .*sectors (\d+), ranked_sector_raids (\d+), arrivals (\d+)`)
+
+// coverArrivals reads the service log for the last approach summary the
+// planner logged and requires the staged raid to have been an arrival that
+// ranked a sector: the crossing the native trail recorded reached the
+// policy, not just the census.
+func coverArrivals(logPath string) (map[string]any, error) {
+	data, err := os.ReadFile(logPath)
+	if err != nil {
+		return nil, fmt.Errorf("read service log: %w", err)
+	}
+	matches := coverDemandLine.FindAllStringSubmatch(string(data), -1)
+	if len(matches) == 0 {
+		return nil, errors.New("the planner logged no cover approach summary")
+	}
+	last := matches[len(matches)-1]
+	sectors, _ := strconv.Atoi(last[1])
+	ranked, _ := strconv.Atoi(last[2])
+	arrivals, _ := strconv.Atoi(last[3])
+	out := map[string]any{"summaries": len(matches), "sectors": sectors, "ranked_sector_raids": ranked, "arrivals": arrivals, "line": last[0]}
+	if arrivals == 0 || ranked == 0 {
+		return out, fmt.Errorf("the staged raid ranked no sector: %s", last[0])
+	}
+	return out, nil
 }
 
 // waitCoverMethod polls the journal for the layout goal's first cover
@@ -162,7 +240,7 @@ func waitCoverMethod(ctx context.Context, s *store.Store, w na.Wait, report na.R
 // the same batches and is not asserted. The first method found is followed
 // by its plan: once the deficit closes the goal recovers and retires its
 // methods, so the goal's list alone would lose the plan that did the work.
-func waitCoverCleared(ctx context.Context, s *store.Store, first domain.GoalMethod, want map[string]string, w na.Wait) (map[string]any, error) {
+func waitCoverCleared(ctx context.Context, s *store.Store, first domain.GoalMethod, want map[string]coverThing, w na.Wait) (map[string]any, error) {
 	var out map[string]any
 	err := na.WaitProgress(ctx, w, func(ctx context.Context) (string, bool, error) {
 		goal, err := s.LoadGoal(ctx, first.Goal)
@@ -196,16 +274,12 @@ func waitCoverCleared(ctx context.Context, s *store.Store, first domain.GoalMeth
 				if !ok {
 					return "", false, fmt.Errorf("cover plan %s carries a %s action", m.Plan, p.Action().Kind())
 				}
-				def, isStaged := want[clearance.Thing()]
+				thing, isStaged := want[clearance.Thing()]
 				if !isStaged {
 					continue
 				}
-				wantDesignation := domain.CoverClearanceCutPlant
-				if strings.HasPrefix(def, "Chunk") {
-					wantDesignation = domain.CoverClearanceHaul
-				}
-				if clearance.Definition() != def || clearance.Designation() != wantDesignation {
-					return "", false, fmt.Errorf("cover plan orders %s on %s (%s), want %s on %s", clearance.Designation(), clearance.Thing(), clearance.Definition(), wantDesignation, def)
+				if clearance.Definition() != thing.def || clearance.Designation() != thing.designation {
+					return "", false, fmt.Errorf("cover plan orders %s on %s (%s), want %s on %s", clearance.Designation(), clearance.Thing(), clearance.Definition(), thing.designation, thing.def)
 				}
 				v := p.View()
 				if v.Stage == domain.Unsuccessful || v.Stage == domain.Cancelled {

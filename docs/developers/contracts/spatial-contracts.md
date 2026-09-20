@@ -434,7 +434,8 @@ comes from a thing the game's own designators could remove names it
 building, `cover_designated`) with a CAS token over identity, definition,
 cell and designation state. `RaidArrivalState`, a map component, samples
 every hostile lord every 60 ticks: its first pawn position is the spawn
-(ground when on the map edge) and the pawn nearest the home area adds one
+(ground when within 14 cells of the map edge, where a walk-in raid stands at
+its first sample) and the pawn nearest the home area adds one
 trail cell per sample, up to 128 per lord and 32 lords per session. The
 snapshot's `raids` rows carry those tracks; the controller takes the first
 trail cell inside its census region as the crossing, and the policy snaps it
@@ -443,8 +444,8 @@ are not ground arrivals.
 
 Clearance is the `cover_clearance` action (`ClearCover` operation): one exact
 thing by identity and token with the designation its kind takes (`CutPlant`,
-`Haul`, `Mine`; `Deconstruct` exists for the operation but the layout planner
-never orders it, holding player-owned and building cover as `structure`).
+`Haul`, `Mine`, and `Deconstruct` on an unowned building such as a ruin wall;
+player-owned cover is held as `structure`).
 The native side re-checks presence, cell, fog, fill, forbiddance, an existing
 designation, roof and mining safety, a store for a chunk, the designator's
 own acceptance (its refusal text is surfaced), a reachable free colonist with

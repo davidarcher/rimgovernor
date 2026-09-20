@@ -9,8 +9,10 @@ namespace HomeBridge.BridgeTools
     // Observed hostile arrivals (#581): every SampleInterval ticks each lord
     // of a faction hostile to the player is looked up; the first time one is
     // seen, the position of its first spawned pawn is its spawn cell (ground
-    // when that cell lies on the map edge, which is how walk-in raids enter;
-    // drop pods and tunnellers land anywhere else). Afterwards the pawn of
+    // when that cell lies within EdgeMargin of the map edge: a walk-in raid
+    // spawns up to eight cells inside its edge cell and walks a few more
+    // before the first sample, while drop pods and tunnellers land at the
+    // colony; #620). Afterwards the pawn of
     // the lord nearest the colony adds one trail sample, so the controller
     // can find where the raid crossed the boundary of its own census rather
     // than guess from a far map-edge coordinate. Tracks live for the loaded
@@ -20,6 +22,7 @@ namespace HomeBridge.BridgeTools
         public const int SampleInterval = 60;
         public const int TrailLimit = 128;
         public const int TrackLimit = 32;
+        public const int EdgeMargin = 14;
 
         public sealed class Track
         {
@@ -62,7 +65,7 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        private bool OnEdge(IntVec3 c) => c.x <= 1 || c.z <= 1 || c.x >= map.Size.x - 2 || c.z >= map.Size.z - 2;
+        private bool OnEdge(IntVec3 c) => c.x < EdgeMargin || c.z < EdgeMargin || c.x >= map.Size.x - EdgeMargin || c.z >= map.Size.z - EdgeMargin;
 
         private static IntVec3 Centroid(Area area)
         {

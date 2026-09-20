@@ -130,8 +130,13 @@ func init() {
 	// whose only method is a short native-firefighting window. Without the
 	// family nothing admits one, so the fire holds every other goal
 	// suspended while the clock is refused no_work and the tick never moves
-	// -- the post-raid repair stall of #221.
-	spec := &cases.ServeSpec{Families: []string{"defensive-layout", "defense", "tend", "rescue", "fire"}, Prefix: "defense"}
+	// -- the post-raid repair stall of #221. The supply family belongs here
+	// too: a dead raider's drops lie in the trap lane, where the hauling
+	// safety verdict flaps unsafe, and ManageSupplySafety is then a
+	// priority-0 emergency that only the supplies planner clears by
+	// forbidding the stack; without it every development goal, the layout's
+	// cover clearance included, stays unselected after the raid (#620).
+	spec := &cases.ServeSpec{Families: []string{"defensive-layout", "defense", "tend", "rescue", "fire", "supply"}, Prefix: "defense"}
 	// The baseline save keeps the site deterministic; a random debug colony
 	// can spawn beside ruins the rock band cannot close.
 	baseline := cases.Save{Name: sustained.BaselineSave}
@@ -204,8 +209,8 @@ func init() {
 		checkpoint, 15*time.Minute, hive)
 	cover := fromCheckpoint
 	cover.threat, cover.cover = "", true
-	register("defense/cover", "Raider cover clearance (#581) from the committed layout checkpoint: trees and chunks staged on the approach inside the firing line's engagement zone "+
-		"are identified by the defense census, ordered cleared by the layout planner through the game's own cut and haul designations, and are gone natively when the plan completes.",
+	register("defense/cover", "Raider cover clearance (#581, #620) from the committed layout checkpoint: trees, chunks, a lone rock and a ruin wall staged on the approach inside the firing line's engagement zone, "+
+		"then a ground raid fought from the line; the raid's crossing ranks a sector, the census identifies every staged thing, the layout planner orders it cleared through the game's own cut, haul, mine and deconstruct designations, and all are gone natively when the plans complete.",
 		checkpoint, 20*time.Minute, cover)
 	shipPart := fromCheckpoint
 	shipPart.threat, shipPart.buildingKind, shipPart.rifles = "building", "DefoliatorShipPart", 8

@@ -13,7 +13,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
-	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 )
 
 // Cover clearance (#581): once every tier of the accepted layout stands,
@@ -21,9 +20,10 @@ import (
 // layout's approaches (raid arrival sectors from the native raid trails,
 // each sector's route to Entry) and designates the cover things the policy
 // selects inside the firing line's engagement zone for removal: plants are
-// cut, chunks hauled, rock mined. Buildings are never touched here: a
-// player's own structure is theirs, and a ruin the game's deconstruct
-// designator would refuse is reported, not ordered. Each method is one plan
+// cut, chunks hauled, rock mined, ruins deconstructed. A player's own
+// structure is theirs and is held, and a ruin the game's deconstruct
+// designator refuses fails its clearance natively with the designator's
+// reason rather than being re-ordered. Each method is one plan
 // of up to maxDefenseCoverBatch clearances, bounded per game day so a thing
 // the player keeps undesignating does not become a loop.
 const (
@@ -144,7 +144,7 @@ func defenseCoverSelection(approaches policy.DefenseApproaches, byCell map[domai
 			held["unidentified"]++
 		case cell.Cover.Designated:
 			held["designated"]++
-		case cell.PlayerOwned || cell.Cover.Kind == o.CoverKind_COVER_KIND_BUILDING:
+		case cell.PlayerOwned:
 			held["structure"]++
 		case cell.Cover.Designation() == "":
 			held["unknown_kind"]++
@@ -217,9 +217,11 @@ func (r *RoutineDefenseLayoutPlanner) clearCover(call, epoch context.Context, go
 	if err != nil {
 		return RoutineDefenseLayoutResult{}, false, err
 	}
-	if len(held) > 0 || len(clearances) == 0 {
-		clockSchedulerLog("defense-layout: cover demand %d, orderable %d, held %v (range %.1f, sectors %d, arrivals %d, unmatched %v, %s)", len(approaches.Cover), len(clearances), held, rangeLimit, len(approaches.Sectors), len(request.Arrivals), approaches.UnmatchedArrivals, defenseCensusSummary(request, byCell))
+	rankedRaids := 0
+	if len(approaches.Sectors) > 0 {
+		rankedRaids = approaches.Sectors[0].RecentRaids
 	}
+	clockSchedulerLog("defense-layout: cover demand %d, orderable %d, held %v (range %.1f, sectors %d, ranked_sector_raids %d, arrivals %d, unmatched %v, %s)", len(approaches.Cover), len(clearances), held, rangeLimit, len(approaches.Sectors), rankedRaids, len(request.Arrivals), approaches.UnmatchedArrivals, defenseCensusSummary(request, byCell))
 	if len(clearances) == 0 {
 		return RoutineDefenseLayoutResult{}, false, nil
 	}
