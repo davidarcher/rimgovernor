@@ -292,7 +292,8 @@ type Case struct {
 	// state. A suite schedules NoKeep cases last on a worker.
 	NoKeep bool
 	// Rendered opens the windowed profile whatever -headless says: video
-	// capture needs Find.Camera, which batch mode never has.
+	// capture needs Find.Camera, which batch mode never has. Remote plans skip
+	// these GPU-dependent cases on hosted Windows runners.
 	Rendered bool
 	// NoCheckpoint opts the case out of the runner's checkpoint ring
 	// (#249): no periodic bundles, no failed bundle, no resume. The

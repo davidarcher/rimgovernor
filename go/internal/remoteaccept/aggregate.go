@@ -83,6 +83,16 @@ func Evaluate(root string, runRef, selectionRef Ref, shards []Shard) (Evaluation
 		}
 		names = append(names, c.Name)
 	}
+	for i, c := range s.Skipped {
+		if !validPath(c.Name) || strings.Count(c.Name, "/") != 1 || c.Reason != "rendered" ||
+			(i > 0 && s.Skipped[i-1].Name >= c.Name) {
+			return e, fmt.Errorf("invalid skipped case %s", c.Name)
+		}
+		if idx := sort.SearchStrings(names, c.Name); idx < len(names) && names[idx] == c.Name {
+			return e, fmt.Errorf("skipped case %s is also selected", c.Name)
+		}
+	}
+	e.Aggregate.Skipped = s.Skipped
 	n := min(len(names), l.Shards)
 	if len(s.Shards) != n {
 		return e, fmt.Errorf("shard count does not match algorithm")

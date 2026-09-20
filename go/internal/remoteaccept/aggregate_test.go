@@ -334,3 +334,29 @@ func TestNativeAndSuiteFormats(t *testing.T) {
 		t.Fatal("duplicate suite case passed")
 	}
 }
+
+func TestRenderedSkipsAreReportedWithoutFailure(t *testing.T) {
+	f := fixtureRun(t)
+	f.selection.Skipped = []SkippedCase{{Name: "presentation/media", Reason: "rendered"}, {Name: "video/stream", Reason: "rendered"}}
+	e, err := f.evaluate(t)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !e.Aggregate.Passed || len(e.Aggregate.Cases) != 6 || len(e.Aggregate.Skipped) != 2 || e.Aggregate.Skipped[0].Reason != "rendered" {
+		t.Fatalf("%+v", e.Aggregate)
+	}
+	ref := writeTest(t, f.root, "aggregate.json", e.Aggregate)
+	if _, err := Verify(f.root, ref); err != nil {
+		t.Fatal(err)
+	}
+	for _, skipped := range [][]SkippedCase{
+		{{Name: "video/stream", Reason: "failed"}},
+		{{Name: "smoke/dispatch", Reason: "rendered"}},
+		{{Name: "video/stream", Reason: "rendered"}, {Name: "video/stream", Reason: "rendered"}},
+	} {
+		f.selection.Skipped = skipped
+		if _, err := f.evaluate(t); err == nil {
+			t.Fatalf("invalid skips accepted: %+v", skipped)
+		}
+	}
+}

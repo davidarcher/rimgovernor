@@ -22,13 +22,14 @@ import (
 
 func init() {
 	cases.Register(cases.Case{
-		Name:   "presentation/media",
-		Scope:  "RenderState zero-side-effect read, DemandRendering lease reflected by a subsequent RenderState, CapturePawn portrait and follow against a real spawned colonist, an unknown-pawn-id typed failure, and presentation state across a native load: a long-hold Research watch and a capture in flight when the colony is replaced must not strand the new game (the watch closes as nothing, the capture fails with a typed reason) and both work again against the loaded colony. LeaseVideo/ReadFrame/AcknowledgeFrame, CaptureScreenshot and the whole PlayerPresentation service are out of scope and not exercised.",
-		Start:  cases.DebugStart{},
-		Quiet:  na.QuietIfAvailable,
-		Reason: "a rendered presentation read that also runs on a production build, which carries no quiet fixture",
-		Budget: 5 * time.Minute,
-		Run:    run,
+		Name:     "presentation/media",
+		Rendered: true,
+		Scope:    "RenderState zero-side-effect read, DemandRendering lease reflected by a subsequent RenderState, CapturePawn portrait and follow against a real spawned colonist, an unknown-pawn-id typed failure, and presentation state across a native load: a long-hold Research watch and a capture in flight when the colony is replaced must not strand the new game (the watch closes as nothing, the capture fails with a typed reason) and both work again against the loaded colony. LeaseVideo/ReadFrame/AcknowledgeFrame, CaptureScreenshot and the whole PlayerPresentation service are out of scope and not exercised.",
+		Start:    cases.DebugStart{},
+		Quiet:    na.QuietIfAvailable,
+		Reason:   "a rendered presentation read that also runs on a production build, which carries no quiet fixture",
+		Budget:   5 * time.Minute,
+		Run:      run,
 	})
 }
 

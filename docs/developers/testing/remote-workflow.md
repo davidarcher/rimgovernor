@@ -106,15 +106,10 @@ an injected red native assertion, missing/corrupt diagnostics, content rejection
 limits, aggregation/import and schedule provenance. These are synthetic tooling
 checks; no game is launched. Validate workflow syntax with actionlint v1.7.12.
 
-The full tier includes rendered video cases. They run through the existing
-windowed profile without batch/no-graphics flags and must produce real frames.
-Hosted display/graphics support is unverified until those cases run; it is not a
-planner exclusion. Standard Windows runners do not promise a dedicated GPU.
-Unity supports a software Direct3D WARP option, but its suitability for this
-RimWorld build and image needs measurement before changing launch flags. There
-is no automatic paid GPU fallback. Known case budgets must still fit the bounded
-shards; [#387](https://github.com/davidarcher/rimgovernor/issues/387) owns the
-nightly rollout and its measured resource requirements.
+The remote full tier excludes rendered cases because hosted Windows has no
+usable GPU. The plan and aggregate record these as `skipped` with reason
+`rendered`; they remain in the local full tier. There is no automatic paid GPU
+fallback. Known runnable case budgets must still fit the bounded shards.
 
 Before claiming hosted operation, retain cold and warm smoke runs, a native
 failure with accessible diagnostics, cancelled/missing-shard evidence, and a

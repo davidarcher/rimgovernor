@@ -14,6 +14,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/affected"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
+	"github.com/davidarcher/RimGovernor/go/internal/remoteaccept"
 )
 
 func examplePlanRun(t *testing.T) planRun {
@@ -191,7 +192,7 @@ func TestRemoteLandCompleteRegistryFitsEightShards(t *testing.T) {
 	}
 }
 
-func TestNightlyFullIncludesRenderedCases(t *testing.T) {
+func TestNightlyFullSkipsRenderedCases(t *testing.T) {
 	r := examplePlanRun(t)
 	r.Tier, r.Trigger.Event, r.Trigger.Ref = "full", "schedule", "refs/heads/main"
 	r.Base = r.Head
@@ -210,12 +211,19 @@ func TestNightlyFullIncludesRenderedCases(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(p.Cases) != len(full.Cases) {
+	if len(p.Cases)+len(p.Skipped) != len(full.Cases) {
 		t.Fatal("full selection dropped cases")
 	}
 	for _, c := range full.Cases {
 		idx := slices.IndexFunc(p.Cases, func(pc plannedCase) bool { return pc.Name == c.Name })
-		if idx < 0 || p.Cases[idx].Rendered != c.Rendered {
+		if c.Rendered {
+			skipped := slices.IndexFunc(p.Skipped, func(pc remoteaccept.SkippedCase) bool { return pc.Name == c.Name && pc.Reason == "rendered" })
+			if idx >= 0 || skipped < 0 {
+				t.Fatalf("rendered case not skipped: %s", c.Name)
+			}
+			continue
+		}
+		if idx < 0 || p.Cases[idx].Rendered {
 			t.Fatalf("lost rendering requirement for %s", c.Name)
 		}
 	}
@@ -225,17 +233,26 @@ func TestNightlyFullIncludesRenderedCases(t *testing.T) {
 	}
 }
 
-func TestRemoteRenderedAreaPlansNormally(t *testing.T) {
+func TestRemoteRenderedAreasAreSkipped(t *testing.T) {
 	r := examplePlanRun(t)
 	r.Tier, r.Limits.Shards, r.Limits.Attempts = "land", 4, 1
-	p, err := buildSelection(r, planReference{}, nil, affected.Selection{Cases: []string{"video"}})
+	p, err := buildSelection(r, planReference{}, nil, affected.Selection{Cases: []string{"video", "presentation"}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"video/stream", "video/feeds", "video/matrix", "video/source-spike"} {
+	for _, shard := range p.Shards {
+		for _, name := range shard.Cases {
+			c, _ := cases.Lookup(name)
+			if c.Rendered {
+				t.Fatalf("rendered case assigned to shard: %s", name)
+			}
+		}
+	}
+	for _, name := range []string{"presentation/media", "video/feeds", "video/matrix", "video/source-spike", "video/stream"} {
 		i := slices.IndexFunc(p.Cases, func(c plannedCase) bool { return c.Name == name })
-		if i < 0 || !p.Cases[i].Rendered {
-			t.Fatalf("rendered case missing: %s", name)
+		skipped := slices.IndexFunc(p.Skipped, func(c remoteaccept.SkippedCase) bool { return c.Name == name && c.Reason == "rendered" })
+		if i >= 0 || skipped < 0 {
+			t.Fatalf("rendered case not skipped: %s", name)
 		}
 	}
 }

@@ -18,6 +18,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/affected"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
+	"github.com/davidarcher/RimGovernor/go/internal/remoteaccept"
 )
 
 type planReference struct {
@@ -70,15 +71,16 @@ type plannedShard struct {
 	Cases []string `json:"cases"`
 }
 type remoteSelection struct {
-	Version   int            `json:"schema_version"`
-	Run       planReference  `json:"run"`
-	Commit    string         `json:"planner_commit"`
-	DiffMode  string         `json:"diff_mode"`
-	Files     []string       `json:"changed_files"`
-	Cases     []plannedCase  `json:"cases"`
-	Sampled   []string       `json:"sampled_areas"`
-	Algorithm string         `json:"algorithm"`
-	Shards    []plannedShard `json:"shards"`
+	Version   int                        `json:"schema_version"`
+	Run       planReference              `json:"run"`
+	Commit    string                     `json:"planner_commit"`
+	DiffMode  string                     `json:"diff_mode"`
+	Files     []string                   `json:"changed_files"`
+	Cases     []plannedCase              `json:"cases"`
+	Skipped   []remoteaccept.SkippedCase `json:"skipped,omitempty"`
+	Sampled   []string                   `json:"sampled_areas"`
+	Algorithm string                     `json:"algorithm"`
+	Shards    []plannedShard             `json:"shards"`
 }
 
 var planOID = regexp.MustCompile(`^[0-9a-f]{40}$`)
@@ -290,6 +292,15 @@ func buildSelection(r planRun, ref planReference, files []string, sel affected.S
 	slices.Sort(p.Files)
 	p.Files = slices.Compact(p.Files)
 	slices.SortFunc(selected, func(a, b cases.Case) int { return strings.Compare(a.Name, b.Name) })
+	// Hosted Windows has no usable GPU. Keep exclusions explicit and remove
+	// them before assigning shards or charging execution budgets.
+	selected = slices.DeleteFunc(selected, func(c cases.Case) bool {
+		if !c.Rendered {
+			return false
+		}
+		p.Skipped = append(p.Skipped, remoteaccept.SkippedCase{Name: c.Name, Reason: "rendered"})
+		return true
+	})
 	if len(selected) == 0 {
 		return p, fmt.Errorf("empty remote selection")
 	}

@@ -40,7 +40,13 @@ type Run struct {
 	} `json:"limits"`
 }
 
+type SkippedCase struct {
+	Name   string `json:"name"`
+	Reason string `json:"reason"`
+}
+
 type Selection struct {
+	Skipped   []SkippedCase  `json:"skipped,omitempty"`
 	Version   int            `json:"schema_version"`
 	Run       Ref            `json:"run"`
 	Planner   string         `json:"planner_commit"`
@@ -101,14 +107,15 @@ type Case struct {
 	Status       string `json:"status"`
 }
 type Aggregate struct {
-	Version   int     `json:"schema_version"`
-	Run       Ref     `json:"run"`
-	Selection Ref     `json:"selection"`
-	Shards    []Shard `json:"shards"`
-	Status    string  `json:"status"`
-	Passed    bool    `json:"passed"`
-	Cases     []Case  `json:"cases"`
-	Error     *string `json:"error"`
+	Skipped   []SkippedCase `json:"skipped,omitempty"`
+	Version   int           `json:"schema_version"`
+	Run       Ref           `json:"run"`
+	Selection Ref           `json:"selection"`
+	Shards    []Shard       `json:"shards"`
+	Status    string        `json:"status"`
+	Passed    bool          `json:"passed"`
+	Cases     []Case        `json:"cases"`
+	Error     *string       `json:"error"`
 }
 type Remote struct {
 	Version      int    `json:"schema_version"`

@@ -123,12 +123,11 @@ case bodies; `fixture_ops` alone is not a complete build allowlist. Production
 rows require a fixture-free build. An executor must support switching private
 layouts for these roles or reject the complete plan before running it.
 
-V1 includes both headless and rendered non-matrix cases. The planner records
-`rendered` metadata; the native runner stops a kept headless process and launches
-rendered cases through its ordinary windowed profile. Graphics/display support on
-the hosted image is established by real frame assertions, not presumed absent or
-present from its runner label. A graphics initialization or capture failure is a
-failed case; never omit it from coverage. No paid GPU runner fallback is authorized.
+The hosted Windows runner has no usable GPU. The planner excludes cases with
+the `Rendered` trait before sharding and budget checks, recording them in
+`skipped` as `{name, reason: "rendered"}`. The aggregate preserves this list
+without treating skips as passes or failures. Rendered cases remain in the local
+full tier and open the windowed profile. No paid GPU runner fallback is authorized.
 Each shard's sum of declared case budgets times `max_attempts` must fit its
 suite allowance. This is a necessary bound, not a prediction that boot and
 cleanup will fit; executors enforce the actual deadline. No historical timings
