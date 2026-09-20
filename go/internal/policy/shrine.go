@@ -55,6 +55,7 @@ type AncientShrine struct {
 	// Occupants are the humanlikes the caskets released (#460), hostile or
 	// not, and their corpses; empty while the caskets are sealed.
 	Occupants []ShrineOccupant
+	Heat      domain.Fact[ShrineHeatFacts]
 }
 
 // GuardsAlive reports whether any observed guard still stands or lies downed.

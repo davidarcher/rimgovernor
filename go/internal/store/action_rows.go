@@ -86,7 +86,11 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 	} else if replace, ok := a.GearReplace(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target,definition) VALUES(?,?,?,'gear_replace',?,?,?)", a.ID(), plan, ordinal, replace.Pawn(), replace.Thing(), replace.Definition())
 	} else if open, ok := a.OpenCasket(); ok {
-		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target,x,z) VALUES(?,?,?,'open_casket',?,?,?,?)", a.ID(), plan, ordinal, open.Pawn(), open.Casket(), open.Cell().X, open.Cell().Z)
+		var mode any
+		if open.Heat() {
+			mode = "heat"
+		}
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target,x,z,definition) VALUES(?,?,?,'open_casket',?,?,?,?,?)", a.ID(), plan, ordinal, open.Pawn(), open.Casket(), open.Cell().X, open.Cell().Z, mode)
 	} else if repair, ok := a.Repair(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target,x,z) VALUES(?,?,?,'repair',?,?,?,?)", a.ID(), plan, ordinal, repair.Pawn(), repair.Structure(), repair.Cell().X, repair.Cell().Z)
 	} else if clean, ok := a.Clean(); ok {
@@ -598,8 +602,12 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		a, err := domain.NewGearReplaceAction(id, g)
 		return a, ordinal, err
 	}
-	if kind == "open_casket" && pawn.Valid && target.Valid && x.Valid && z.Valid && !def.Valid && !draftAction.Valid && !rotation.Valid && !stuff.Valid && x.Int64 >= 0 && x.Int64 <= 2147483647 && z.Int64 >= 0 && z.Int64 <= 2147483647 {
-		op, err := domain.NewOpenCasket(domain.PawnID(pawn.String), target.String, domain.Cell{X: int32(x.Int64), Z: int32(z.Int64)})
+	if kind == "open_casket" && pawn.Valid && target.Valid && x.Valid && z.Valid && (!def.Valid || def.String == "heat") && !draftAction.Valid && !rotation.Valid && !stuff.Valid && x.Int64 >= 0 && x.Int64 <= 2147483647 && z.Int64 >= 0 && z.Int64 <= 2147483647 {
+		newOpen := domain.NewOpenCasket
+		if def.Valid {
+			newOpen = domain.NewHeatOpenCasket
+		}
+		op, err := newOpen(domain.PawnID(pawn.String), target.String, domain.Cell{X: int32(x.Int64), Z: int32(z.Int64)})
 		if err != nil {
 			return domain.Action{}, 0, err
 		}

@@ -44,6 +44,13 @@ eight-minute cases in the clearance land selection and nightly full tier.
 Build with `acceptance setup -rebuild -fixture ShrineFixture`; the existing
 csproj and build-script registrations include the class.
 
+`clearance/shrine-heat` uses `test/shrine_prepare heat=true`: a breached
+roofed room, filled caskets, rifle-equipped colonists, construction stock and
+a powered grid. It requires native door/heater construction, measured heat,
+a ranged opening and completed retreat, then audits empty caskets and no
+colonist deaths. It is a quiet eight-minute case for the nightly full tier;
+use the same `ShrineFixture` build.
+
 ## Remote checks
 
 Use the [maintainer-to-agent handoff](remote-handoff.md) to prepare a complete

@@ -68,6 +68,25 @@ func ObserveShrines(ctx context.Context, source ShrineSource, expected Identity)
 	rows := make([]AncientShrine, 0, len(v.Shrines))
 	for _, row := range v.Shrines {
 		shrine := AncientShrine{ID: row.GetShrineId(), Minimum: cell(row.Room.Minimum), Maximum: cell(row.Room.Maximum), Sealed: row.GetSealed(), InHome: row.GetInHome(), GuardsKnown: row.GetGuardsKnown()}
+		if h := row.Heat; h != nil {
+			f := policy.ShrineHeatFacts{Temperature: h.GetTemperatureCelsius(), OutdoorTemperature: h.GetOutdoorTemperatureCelsius(), Cells: h.GetCellCount(), BoundaryCells: h.GetBoundaryCells(), Enclosed: h.GetEnclosed(), ColonistsInside: h.GetColonistsInside()}
+			for _, c := range h.DoorSites {
+				f.DoorSites = append(f.DoorSites, cell(c))
+			}
+			for _, c := range h.HeaterSites {
+				f.HeaterSites = append(f.HeaterSites, cell(c))
+			}
+			for _, c := range h.FiringCells {
+				f.FiringCells = append(f.FiringCells, cell(c))
+			}
+			for _, c := range h.RetreatCells {
+				f.RetreatCells = append(f.RetreatCells, cell(c))
+			}
+			for _, v := range h.Heaters {
+				f.Heaters = append(f.Heaters, policy.ShrineHeater{ID: v.GetId(), Cell: cell(v.Position)})
+			}
+			shrine.Heat = domain.Known(f)
+		}
 		for _, casket := range row.Caskets {
 			shrine.Caskets = append(shrine.Caskets, policy.ShrineCasket{EntityID: casket.GetEntityId(), Cell: cell(casket.Cell), InteractionCell: cell(casket.InteractionCell), HitPoints: casket.GetHitPoints(), MaxHitPoints: casket.GetMaxHitPoints(), HasContents: casket.GetHasContents(), PlayerClaimed: casket.GetPlayerClaimed()})
 		}

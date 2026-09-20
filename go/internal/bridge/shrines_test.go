@@ -14,6 +14,36 @@ import (
 
 func cell(x, z int32) *c.Cell { return &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)} }
 
+func TestShrineHeatRejectsUnknownAndUnpairedSafetyFacts(t *testing.T) {
+	for _, fault := range []string{"", "temperature", "occupants", "enclosure", "retreat", "duplicate", "fog"} {
+		t.Run(fault, func(t *testing.T) {
+			v := shrineSnapshot()
+			row := v.Shrines[0]
+			row.Sealed = proto.Bool(false)
+			row.GuardsKnown = proto.Bool(true)
+			h := &o.ShrineHeat{TemperatureCelsius: proto.Float64(65), OutdoorTemperatureCelsius: proto.Float64(20), CellCount: proto.Uint32(15), BoundaryCells: proto.Uint32(16), Enclosed: proto.Bool(true), ColonistsInside: proto.Bool(false), FiringCells: []*c.Cell{cell(10, 9)}, RetreatCells: []*c.Cell{cell(10, 8)}}
+			row.Heat = h
+			switch fault {
+			case "temperature":
+				h.TemperatureCelsius = nil
+			case "occupants":
+				h.ColonistsInside = nil
+			case "enclosure":
+				h.DoorSites = []*c.Cell{cell(10, 9)}
+			case "retreat":
+				h.RetreatCells = nil
+			case "duplicate":
+				h.HeaterSites = []*c.Cell{cell(11, 11), cell(11, 11)}
+			case "fog":
+				row.GuardsKnown = proto.Bool(false)
+			}
+			if err := ValidateAncientShrines(v, pbIdentity()); (err != nil) != (fault != "") {
+				t.Fatalf("%s: %v", fault, err)
+			}
+		})
+	}
+}
+
 func shrineSnapshot() *o.AncientShrinesSnapshot {
 	shrine := &o.AncientShrine{ShrineId: proto.String("ancientTempleApproached-1"), Room: &o.Rectangle{Minimum: cell(10, 10), Maximum: cell(20, 18)}, Sealed: proto.Bool(true), InHome: proto.Bool(false), GuardsKnown: proto.Bool(false),
 		Caskets:     []*o.ShrineCasket{{EntityId: proto.String("AncientCryptosleepCasket1"), Cell: cell(12, 12), InteractionCell: cell(13, 12), HitPoints: proto.Uint32(250), MaxHitPoints: proto.Uint32(250), HasContents: proto.Bool(true), PlayerClaimed: proto.Bool(false)}},

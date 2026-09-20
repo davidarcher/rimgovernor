@@ -83,7 +83,7 @@ namespace HomeBridge.BridgeTools
     internal static class NativeOpenCasketOperations
     {
         internal static bool Valid(Operations.PawnTargetOrder? command) => command != null
-            && command.HasKind && command.Kind == Operations.PawnOrderKind.OpenCasket
+            && command.HasKind && (command.Kind == Operations.PawnOrderKind.OpenCasket || command.Kind == Operations.PawnOrderKind.OpenCasketHeat)
             && NativeDraftProtocol.ValidEntity(command.Pawn) && NativeDraftProtocol.ValidEntity(command.Target)
             && command.Pawn.EntityId != command.Target.EntityId
             && command.HasRequireSafeStorage && !command.RequireSafeStorage;
@@ -117,6 +117,12 @@ namespace HomeBridge.BridgeTools
             { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Casket snapshot changed; observe before new admission."); return false; }
             if (!casket.HasAnyContents || !casket.CanOpen)
             { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Casket is empty."); return false; }
+            if (command.Kind == Operations.PawnOrderKind.OpenCasketHeat)
+            {
+                if (snapshot.Claim == null || !HeatReady(pawn, casket))
+                { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Heat opening needs an owned drafted shooter at the doorway of an enclosed room above 60 C, no colonists inside, and a safe direct bullet shot."); return false; }
+                return true;
+            }
             if (!pawn.CanReach(casket, PathEndMode.InteractionCell, Danger.Some))
             { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn cannot reach the casket interaction cell."); return false; }
             if (!pawn.CanReserve(casket))
@@ -124,6 +130,25 @@ namespace HomeBridge.BridgeTools
             if (pawn.WorkTagIsDisabled(WorkTags.ManualDumb))
             { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Pawn is incapable of the dumb labor the Open job needs."); return false; }
             return true;
+        }
+
+        private static bool HeatReady(Pawn pawn, Building_AncientCryptosleepCasket casket)
+        {
+            var group = casket.Map.listerThings.AllThings.OfType<Building_AncientCryptosleepCasket>()
+                .Where(c => casket.groupID >= 0 ? c.groupID == casket.groupID : c == casket).ToList();
+            var heat = NativeShrineHeat.Read(casket.Map, group);
+            var verb = pawn.equipment?.PrimaryEq?.PrimaryVerb as Verb_LaunchProjectile;
+            var projectile = verb?.Projectile;
+            return heat != null && heat.Enclosed && heat.TemperatureCelsius > 60 && !heat.ColonistsInside
+                && heat.FiringCells.Any(c => c.X == pawn.Position.x && c.Z == pawn.Position.z)
+                && pawn.Drafted && !pawn.WorkTagIsDisabled(WorkTags.Violent)
+                && pawn.skills?.GetSkill(SkillDefOf.Shooting)?.TotallyDisabled == false
+                && verb != null && verb.Available() && verb.CanHitTarget(casket)
+                && NativeRangedCausality.Supports(verb, pawn, casket)
+                && projectile?.thingClass == typeof(Bullet) && projectile.projectile.explosionRadius == 0
+                && projectile.projectile.damageDef == DamageDefOf.Bullet
+                && casket.HitPoints > casket.MaxHitPoints * 0.5f
+                && projectile.projectile.GetDamageAmount(pawn.equipment!.Primary) * verb.verbProps.burstShotCount < casket.HitPoints - casket.MaxHitPoints * 0.2f;
         }
 
         internal static Operations.ExecuteReply Execute(NativeOperationState state, Operations.ExecuteRequest request, Common.ObservationContext context)
@@ -152,9 +177,26 @@ namespace HomeBridge.BridgeTools
                     guard = authority.Check(pre.ExpectedGeneration);
                     if (!guard.Success) throw new InvalidOperationException("OpenCasket authority changed before native effect.");
                     var map = casket!.Map;
-                    if (map.designationManager.DesignationOn(casket, DesignationDefOf.Open) == null)
+                    bool heat = command.Kind == Operations.PawnOrderKind.OpenCasketHeat;
+                    if (heat && snapshot!.Claim == null) throw new InvalidOperationException("Heat opening requires an owned draft.");
+                    if (!heat && map.designationManager.DesignationOn(casket, DesignationDefOf.Open) == null)
                         map.designationManager.AddDesignation(new Designation(casket, DesignationDefOf.Open));
-                    var job = JobMaker.MakeJob(JobDefOf.Open, casket);
+                    var job = JobMaker.MakeJob(heat ? JobDefOf.AttackStatic : JobDefOf.Open, casket);
+                    if (heat)
+                    {
+                        NativeCombatOperations.ConfigureRangedJob(job, pawn!.equipment.PrimaryEq.PrimaryVerb, casket);
+                        job.maxNumStaticAttacks = 1;
+                        var shooter = pawn;
+                        var target = casket;
+                        var before = snapshot!;
+                        bool Causal(bool launch) => authority.Check(pre.ExpectedGeneration).Success
+                            && NativePawnControlState.Observe(identity, shooter, out var currentSnapshot) == NativePawnControlResult.Ready
+                            && currentSnapshot != null && currentSnapshot.Eligible && currentSnapshot.Drafted
+                            && currentSnapshot.Claim?.ClaimId == before.Claim!.ClaimId
+                            && currentSnapshot.Facts.OrderRevision == before.Facts.OrderRevision + 1
+                            && (!launch || shooter.CurJob == job && target.HasAnyContents && HeatReady(shooter, target));
+                        NativeRangedCausality.Track(Current.Game, shooter, target, job, () => Causal(true), () => Causal(false));
+                    }
                     var record = new NativeOpenCasketRecord(identity, pawn!, casket, job, context);
                     state.OpenCaskets.Add(pre.Attempt.Clone(), record);
                     try { accepted = pawn!.jobs.TryTakeOrderedJob(job, JobTag.Misc); }
@@ -199,7 +241,7 @@ namespace HomeBridge.BridgeTools
                             {
                                 Job = new Receipts.JobEffect
                                 {
-                                    PawnId = command.Pawn.EntityId, JobDef = JobDefOf.Open.defName, CanTry = false, Issued = false, Verified = false,
+                                    PawnId = command.Pawn.EntityId, JobDef = command.Kind == Operations.PawnOrderKind.OpenCasketHeat ? JobDefOf.AttackStatic.defName : JobDefOf.Open.defName, CanTry = false, Issued = false, Verified = false,
                                     TargetA = new Receipts.JobTarget { ThingId = command.Target.EntityId },
                                 }
                             }
@@ -216,7 +258,7 @@ namespace HomeBridge.BridgeTools
                         {
                             Job = new Receipts.JobEffect
                             {
-                                PawnId = snapshot!.PawnId, JobDef = JobDefOf.Open.defName, CanTry = true, Issued = false, Verified = false,
+                                PawnId = snapshot!.PawnId, JobDef = command.Kind == Operations.PawnOrderKind.OpenCasketHeat ? JobDefOf.AttackStatic.defName : JobDefOf.Open.defName, CanTry = true, Issued = false, Verified = false,
                                 TargetA = new Receipts.JobTarget { ThingId = casket!.GetUniqueLoadID() },
                             }
                         }

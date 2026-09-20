@@ -943,8 +943,11 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	out.Window = ClockWindowSize{Ticks: start.MaxTicks}
 	clockSchedulerLog("colony window: %d ticks", out.Window.Ticks)
 	var nativeWorkTicks uint32
+	if out.Shrine != nil {
+		nativeWorkTicks = out.Shrine.NativeWorkTicks
+	}
 	if out.Fields != nil {
-		nativeWorkTicks = out.Fields.NativeWorkTicks
+		nativeWorkTicks = max(nativeWorkTicks, out.Fields.NativeWorkTicks)
 	}
 	for _, result := range []*RoutineBuildingResult{out.Sleeping, out.Cooking, out.Butcher, out.Comfort, out.BasicComfort, out.Workshop, out.Hospital, out.SleepingUpkeep, out.Expansion, out.Power, out.Temperature, out.Refrigeration, out.Lighting, out.Flooring, out.Routes} {
 		if result != nil {

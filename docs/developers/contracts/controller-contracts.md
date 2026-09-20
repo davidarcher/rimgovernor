@@ -720,9 +720,28 @@ an occupant and `policy.OccupantDecision` names its `ShrineHolds` row:
 (ActiveCombat), `capture` for a downed hostile or a standing neutral while
 `JoinerCapacity` has room (MaintainPopulation's custody method), `release`
 otherwise and `captured` once a prisoner. The flag belongs on once the
-colony can hold prisoners. The heat opening (door, fuel, ignite over 200 °C)
-and arresting a standing neutral are not composed: they need an ignition
-and an arrest job the controller lacks.
+colony can hold prisoners.
+
+`--routine-shrine-heat-fallback` additionally permits the heater strategy
+when the melee lock cannot be staffed. The visible roof-connected footprint
+must be bounded to 256 cells, with at most one breach to close with a door.
+The planner builds the door and at most eight heaters through shared resource
+admission, then sets them to 80 °C while no colonist is inside. Heater sizing
+accounts for per-cell warmup and wall heat loss; measured room temperature
+strictly above 60 °C is the opening gate. Heating lends 2500-tick windows,
+bounded to two game days after the setpoint work. Power comes from the normal
+colony power network. Unknown geometry, insufficient construction resources,
+missing ranged staff or failed warming holds the goal.
+
+Once heat preparation starts, the goal stays on that strategy. A heat opening
+owns one draft, moves the shooter to a door cell outside the interior, issues
+one stationary bullet attack, then retreats to the adjacent exterior cell.
+Native admission and projectile launch recheck heat, enclosure, an empty
+colonist interior, weapon eligibility, line of sight and casket damage margin.
+Explosive ammunition is refused. The zero-value policy still uses melee lock;
+the fallback requires the opening flag. Ordinary combat and custody retain
+ownership of released occupants. Neutral arrest uses the existing Capture
+variant described in [population contracts](population-contracts.md).
 
 ## Autonomous supply safety
 

@@ -300,6 +300,12 @@ sampled, and the Go observation treats the unavailable stub as unknown.
 Nothing in this read admits a breach, a casket order or a claim: readiness
 (#457), the breach goal (#458) and casket handling (#459) decide.
 
+The shrine census also carries optional heat facts for a visible roof-connected
+interior of at most 256 cells, independent of building ownership: measured
+inside/outside temperature, enclosure, colonist presence, one repairable door
+site, heater sites and existing heaters, and paired doorway/retreat cells.
+Ambiguous geometry or fog omits this section; unknown never means heat-ready.
+
 ## Related reading
 
 Read [space and resources](../architecture/space-and-resources.md) for why planned

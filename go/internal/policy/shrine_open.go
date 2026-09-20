@@ -16,6 +16,9 @@ import (
 // resistance), which needs a prisoner bed.
 type ShrinePolicy struct {
 	OpenCaskets bool
+	// HeatFallback permits heaters and a ranged opening only when the melee
+	// lock cannot be staffed. The zero value preserves the melee strategy.
+	HeatFallback bool
 }
 
 // Casket decisions and holds under the opening policy (#460).
@@ -218,7 +221,7 @@ func EvaluateOpenCasket(r OpenCasketRequest) DraftDecision {
 	dead, _ := f.Pawn.Dead.Value()
 	downed, _ := f.Pawn.Downed.Value()
 	mental, _ := f.Pawn.MentalState.Value()
-	if dead || downed || existingJob == "Open" {
+	if dead || downed || existingJob == open.JobDef() {
 		return refuse(OpenerUnavailable)
 	}
 	if mental {

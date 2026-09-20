@@ -249,6 +249,19 @@ func TestRoutineShrineDraftsBehindTrapsAndBreachesTheWall(t *testing.T) {
 // caskets and one melee colonist hold lock_understaffed; off policy the
 // caskets stay sealed (the claim test).
 func TestRoutineShrineOpensFilledCasketsUnderAMeleeLock(t *testing.T) {
+	t.Run("melee", func(t *testing.T) { testRoutineShrineOpening(t, false) })
+	t.Run("heat fallback", func(t *testing.T) { testRoutineShrineOpening(t, true) })
+}
+
+func (s *routineShrineNative) ReadBuildingTemperatureTarget(ctx context.Context, id *c.Identity, thing string) (bridge.BuildingTemperatureTarget, bridge.Result, error) {
+	return bridge.BuildingTemperatureTarget{Context: proto.Clone(s.reply.GetObserved().Context).(*c.ObservationContext), Thing: thing, Token: "heater-token", Temperature: policy.ShrineHeatTargetC}, bridge.Result{}, ctx.Err()
+}
+
+func (s *routineShrineNative) PreviewBuilding(ctx context.Context, a domain.Action, snapshot domain.GenerationSnapshot) (bridge.BuildingPreview, bridge.Result, error) {
+	return (&sleepingNative{routineNative: s.routineNative}).PreviewBuilding(ctx, a, snapshot)
+}
+
+func testRoutineShrineOpening(t *testing.T, heat bool) {
 	reviewer, db, _, _, native := routineFixture(t)
 	v := native.reply.GetObserved()
 	v.ColonistCount = proto.Uint32(3)
@@ -287,11 +300,29 @@ func TestRoutineShrineOpensFilledCasketsUnderAMeleeLock(t *testing.T) {
 	if err != nil || result.Reason != BuildingMethodHeld || result.Hold != policy.CasketHoldLockUnderstaffed || result.Shrine != "shrine" {
 		t.Fatal(result, err, review.Review.Development.Rows)
 	}
-	source.melee = true
+	if heat {
+		reviewer.policy.Shrine.HeatFallback = true
+		cell := func(x, z int32) *c.Cell { return &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)} }
+		opened.Heat = &o.ShrineHeat{TemperatureCelsius: proto.Float64(65), OutdoorTemperatureCelsius: proto.Float64(20), CellCount: proto.Uint32(15), BoundaryCells: proto.Uint32(16), Enclosed: proto.Bool(true), ColonistsInside: proto.Bool(false), FiringCells: []*c.Cell{cell(33, 30)}, RetreatCells: []*c.Cell{cell(33, 29)}, Heaters: []*o.EntityRef{{Id: proto.String("h1"), DefName: proto.String("Heater"), Position: cell(31, 31)}, {Id: proto.String("h2"), DefName: proto.String("Heater"), Position: cell(32, 31)}, {Id: proto.String("h3"), DefName: proto.String("Heater"), Position: cell(33, 31)}}}
+	} else {
+		source.melee = true
+	}
 	if result, err = planner.Step(ctx); err != nil || result.Reason != BuildingMethodAdmitted || result.Shrine != "shrine" {
 		t.Fatal(result, err)
 	}
 	plan, err := db.LoadPlan(ctx, result.Plan)
+	if heat {
+		if err != nil || len(plan.Progress) != 4 {
+			t.Fatal(plan, err)
+		}
+		actions := plan.Spec.Actions()
+		open, ok := actions[2].OpenCasket()
+		move, mk := actions[1].Movement()
+		if !ok || !open.Heat() || open.JobDef() != "AttackStatic" || !mk || move.Destination() != (domain.Cell{X: 33, Z: 30}) || len(plan.Spec.Dependencies()) != 5 {
+			t.Fatal(actions, plan.Spec.Dependencies())
+		}
+		return
+	}
 	if err != nil || len(plan.Progress) != 5 {
 		t.Fatal(plan, err)
 	}

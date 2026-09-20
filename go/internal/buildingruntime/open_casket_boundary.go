@@ -51,8 +51,12 @@ func NewOpenCasketBoundary(native OpenCasketNative, writer OpenCasketWriter, lea
 	return &OpenCasketBoundary{native, writer, leases, clock, session}, nil
 }
 
-func openCasketCommand(pawn, casket, pawnToken, casketToken string) *o.PawnTargetOrder {
-	return &o.PawnTargetOrder{Pawn: &o.EntityPrecondition{EntityId: proto.String(pawn), ExpectedSnapshotToken: proto.String(pawnToken)}, Target: &o.EntityPrecondition{EntityId: proto.String(casket), ExpectedSnapshotToken: proto.String(casketToken)}, Kind: o.PawnOrderKind_PAWN_ORDER_KIND_OPEN_CASKET.Enum(), RequireSafeStorage: proto.Bool(false)}
+func openCasketCommand(pawn, casket, pawnToken, casketToken string, heat ...bool) *o.PawnTargetOrder {
+	kind := o.PawnOrderKind_PAWN_ORDER_KIND_OPEN_CASKET
+	if len(heat) > 0 && heat[0] {
+		kind = o.PawnOrderKind_PAWN_ORDER_KIND_OPEN_CASKET_HEAT
+	}
+	return &o.PawnTargetOrder{Pawn: &o.EntityPrecondition{EntityId: proto.String(pawn), ExpectedSnapshotToken: proto.String(pawnToken)}, Target: &o.EntityPrecondition{EntityId: proto.String(casket), ExpectedSnapshotToken: proto.String(casketToken)}, Kind: kind.Enum(), RequireSafeStorage: proto.Bool(false)}
 }
 
 func (b *OpenCasketBoundary) InspectOpenCasket(ctx context.Context, target executor.Target) (executor.OpenCasketInspection, error) {
@@ -128,7 +132,7 @@ func (b *OpenCasketBoundary) InspectOpenCasket(ctx context.Context, target execu
 			}
 		}
 	}
-	preview, _, err := b.native.PreviewPawnOrder(ctx, boundary.Identity(current), openCasketCommand(string(open.Pawn()), open.Casket(), pawnToken, casket.Token))
+	preview, _, err := b.native.PreviewPawnOrder(ctx, boundary.Identity(current), openCasketCommand(string(open.Pawn()), open.Casket(), pawnToken, casket.Token, open.Heat()))
 	if err != nil {
 		return out, err
 	}
@@ -140,7 +144,7 @@ func (b *OpenCasketBoundary) InspectOpenCasket(ctx context.Context, target execu
 		return out, err
 	}
 	job := evaluated.GetProjected().GetJob()
-	if evaluated.Context.GetTick() < observed.Context.GetTick() || evaluated.Accepted == nil || job == nil || job.GetPawnId() != string(open.Pawn()) || job.GetTargetA().GetThingId() != open.Casket() || job.GetJobDef() != "Open" || job.CanTry == nil || job.GetCanTry() != evaluated.GetAccepted() {
+	if evaluated.Context.GetTick() < observed.Context.GetTick() || evaluated.Accepted == nil || job == nil || job.GetPawnId() != string(open.Pawn()) || job.GetTargetA().GetThingId() != open.Casket() || job.GetJobDef() != open.JobDef() || job.CanTry == nil || job.GetCanTry() != evaluated.GetAccepted() {
 		return out, executor.ErrEvidence
 	}
 	pawn := repairPawnFacts(open.Pawn(), row, pawnToken)
@@ -157,7 +161,11 @@ func (b *OpenCasketBoundary) attempt(dispatch executor.OpenCasketDispatch) (brid
 	if !ok || p.Attempt == 0 || p.Tick < 0 || admission.Snapshot != p.Snapshot || admission.Pawn != open.Pawn() || admission.Structure != open.Casket() || admission.Cell != open.Cell() || admission.Tick > p.Tick || !boundary.ValidID(admission.PawnSnapshotToken) || !boundary.ValidID(admission.StructureSnapshotToken) {
 		return bridge.PawnOrderAttempt{}, executor.ErrEvidence
 	}
-	return bridge.PawnOrderAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, NativeGeneration: uint64(p.Snapshot.Native), PawnID: string(open.Pawn()), TargetID: open.Casket(), Kind: o.PawnOrderKind_PAWN_ORDER_KIND_OPEN_CASKET, RequireSafeStorage: false}, nil
+	kind := o.PawnOrderKind_PAWN_ORDER_KIND_OPEN_CASKET
+	if open.Heat() {
+		kind = o.PawnOrderKind_PAWN_ORDER_KIND_OPEN_CASKET_HEAT
+	}
+	return bridge.PawnOrderAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, NativeGeneration: uint64(p.Snapshot.Native), PawnID: string(open.Pawn()), TargetID: open.Casket(), Kind: kind, RequireSafeStorage: false}, nil
 }
 
 // openCasketJob accepts a drafted opener (the melee lock drafts first) but
@@ -167,7 +175,7 @@ func openCasketJob(job *r.JobEffect, dispatch executor.OpenCasketDispatch) error
 		return nil
 	}
 	open, _ := dispatch.Attempt.Action.OpenCasket()
-	if job.GetPawnId() != string(open.Pawn()) || job.GetTargetA().GetThingId() != open.Casket() || job.GetJobDef() != "Open" || job.JobId == nil || job.GetJobId() < 0 {
+	if job.GetPawnId() != string(open.Pawn()) || job.GetTargetA().GetThingId() != open.Casket() || job.GetJobDef() != open.JobDef() || job.JobId == nil || job.GetJobId() < 0 {
 		return executor.ErrEvidence
 	}
 	if job.DraftClaimId != nil || job.DraftOwner != nil {
@@ -180,7 +188,7 @@ func (b *OpenCasketBoundary) OpenCasket(ctx context.Context, dispatch executor.O
 	return boundary.DispatchPawnOrder(ctx, b.leases, b.writer, dispatch.Attempt,
 		func() (bridge.PawnOrderAttempt, error) { return b.attempt(dispatch) },
 		func(attempt bridge.PawnOrderAttempt) *o.PawnTargetOrder {
-			return openCasketCommand(attempt.PawnID, attempt.TargetID, dispatch.Admission.PawnSnapshotToken, dispatch.Admission.StructureSnapshotToken)
+			return openCasketCommand(attempt.PawnID, attempt.TargetID, dispatch.Admission.PawnSnapshotToken, dispatch.Admission.StructureSnapshotToken, attempt.Kind == o.PawnOrderKind_PAWN_ORDER_KIND_OPEN_CASKET_HEAT)
 		},
 		func(receipt *r.Receipt) error { return b.checkReceipt(receipt, dispatch) },
 	)

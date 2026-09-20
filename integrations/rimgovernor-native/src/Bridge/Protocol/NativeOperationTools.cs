@@ -152,6 +152,7 @@ namespace HomeBridge.BridgeTools
                     case Operations.PawnOrderKind.Rescue: return NativeCustodyOperations.Execute(state, request, context);
                     case Operations.PawnOrderKind.Clean: return NativeCleanOperations.Execute(state, request, context);
                     case Operations.PawnOrderKind.Repair: return NativeRepairOperations.Execute(state, request, context);
+                    case Operations.PawnOrderKind.OpenCasketHeat:
                     case Operations.PawnOrderKind.OpenCasket: return NativeOpenCasketOperations.Execute(state, request, context);
                     case Operations.PawnOrderKind.Tend: return NativeTendOperations.Execute(state, request, context);
                     default: return Refuse(Common.FailureCode.Unsupported, "This native adapter implements Equip, Haul, Capture, Rescue, Clean, Repair, OpenCasket and Tend pawn-target orders.");
@@ -312,7 +313,8 @@ namespace HomeBridge.BridgeTools
                         case Operations.PawnOrderKind.Rescue: return ProtoBoundary.Encode(NativeCustodyOperations.Preview(parsed.Operation.PawnTargetOrder, context));
                         case Operations.PawnOrderKind.Clean: return ProtoBoundary.Encode(NativeCleanOperations.Preview(parsed.Operation.PawnTargetOrder, context));
                         case Operations.PawnOrderKind.Repair: return ProtoBoundary.Encode(NativeRepairOperations.Preview(parsed.Operation.PawnTargetOrder, context));
-                        case Operations.PawnOrderKind.OpenCasket: return ProtoBoundary.Encode(NativeOpenCasketOperations.Preview(parsed.Operation.PawnTargetOrder, context));
+                        case Operations.PawnOrderKind.OpenCasketHeat:
+                    case Operations.PawnOrderKind.OpenCasket: return ProtoBoundary.Encode(NativeOpenCasketOperations.Preview(parsed.Operation.PawnTargetOrder, context));
                         case Operations.PawnOrderKind.Tend: return ProtoBoundary.Encode(NativeTendOperations.Preview(parsed.Operation.PawnTargetOrder, context));
                         default: return ProtoBoundary.Encode(new Operations.PreviewReply { Failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Preview implements Equip, Haul, Capture, Rescue, Clean, Repair, OpenCasket and Tend pawn-target orders.") });
                     }

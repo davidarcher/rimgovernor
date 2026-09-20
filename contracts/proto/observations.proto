@@ -135,6 +135,21 @@ message AncientShrine {
   repeated ShrineGuard guards = 7;
   repeated ShrineBreachWall breach_walls = 8;
   repeated ShrineOccupant occupants = 9;
+  ShrineHeat heat = 10; // Absent while fogged or the roofed enclosure cannot be read.
+}
+// Visible roof-connected interior, bounded independently of room ownership.
+message ShrineHeat {
+  optional double temperature_celsius = 1;
+  optional uint32 cell_count = 2;
+  optional bool enclosed = 3;
+  optional bool colonists_inside = 4;
+  repeated rimgovernor.common.v1.Cell door_sites = 5;
+  repeated rimgovernor.common.v1.Cell heater_sites = 6;
+  repeated EntityRef heaters = 7;
+  repeated rimgovernor.common.v1.Cell firing_cells = 8; // Doorway cells outside the interior.
+  optional double outdoor_temperature_celsius = 9;
+  optional uint32 boundary_cells = 10;
+  repeated rimgovernor.common.v1.Cell retreat_cells = 11; // Paired with firing_cells.
 }
 message AncientShrinesRequest { ReadScope scope = 1; }
 message AncientShrinesSnapshot {

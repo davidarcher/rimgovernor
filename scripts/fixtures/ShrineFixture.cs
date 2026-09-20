@@ -19,7 +19,7 @@ namespace HomeBridge.BridgeTools
         private const int Group = 9460;
 
         [Tool("test/shrine_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Stage a roofed two-casket shrine: open with longswords by default; sealedBreach stages one breach wall, scyther, empty/filled caskets, rifles and three traps; never issues controller orders.")]
-        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken, bool sealedBreach = false)
+        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken, bool sealedBreach = false, bool heat = false)
             => await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
                 if (map == null || !Find.TickManager.Paused) throw new InvalidOperationException("Paused map required.");
@@ -29,7 +29,9 @@ namespace HomeBridge.BridgeTools
                 // Clear the whole footprint, including the sealed variant's
                 // trap lane and squad positions. Natural obstructions are fixture
                 // preparation; existing buildings and zones remain protected.
-                CellRect Footprint(IntVec3 c) => sealedBreach
+                CellRect Footprint(IntVec3 c) => heat
+                    ? new CellRect(c.x - 6, c.z - 10, 13, 15)
+                    : sealedBreach
                     ? new CellRect(c.x - 4, c.z - 10, 11, 15)
                     : new CellRect(c.x - 3, c.z - 3, 9, 7);
                 var candidates = map.AllCells.OrderBy(c => c.DistanceToSquared(anchor.Position)).Where(c =>
@@ -80,22 +82,25 @@ namespace HomeBridge.BridgeTools
                         throw new InvalidOperationException("Casket must be filled with a standable interaction cell inside the room.");
                     caskets.Add(casket);
                 }
-                var swordDef = DefDatabase<ThingDef>.GetNamed(sealedBreach ? "Gun_AssaultRifle" : "MeleeWeapon_LongSword");
+                var swordDef = DefDatabase<ThingDef>.GetNamed(sealedBreach || heat ? "Gun_AssaultRifle" : "MeleeWeapon_LongSword");
                 var armed = new List<string>();
                 foreach (var p in people) {
                     p.jobs.StopAll();
-                    if (sealedBreach) {
+                    if (sealedBreach || heat) {
                         p.Position = door + IntVec3.South * 8 + IntVec3.East * (people.IndexOf(p) - 3);
                         p.Notify_Teleported();
                         if (p.skills != null) p.skills.GetSkill(SkillDefOf.Shooting).Level = 16;
                     }
-                    if (sealedBreach && !p.WorkTypeIsDisabled(WorkTypeDefOf.Construction)) p.workSettings.SetPriority(WorkTypeDefOf.Construction, 1);
+                    if ((sealedBreach || heat) && !p.WorkTypeIsDisabled(WorkTypeDefOf.Construction)) {
+                        p.workSettings.SetPriority(WorkTypeDefOf.Construction, 1);
+                        p.skills.GetSkill(SkillDefOf.Construction).Level = 16;
+                    }
                     foreach (var bad in p.health.hediffSet.hediffs.Where(h => h.def.isBad && !(h is Hediff_MissingPart)).ToList()) p.health.RemoveHediff(bad);
                     for (int hour = 0; hour < 24; hour++) p.timetable.SetAssignment(hour, TimeAssignmentDefOf.Work);
                     if (p.equipment == null || p.WorkTagIsDisabled(WorkTags.Violent)) continue;
                     var prior = p.equipment.Primary;
                     if (prior != null) prior.Destroy();
-                    var sword = (ThingWithComps)ThingMaker.MakeThing(swordDef, sealedBreach ? null : ThingDefOf.Steel);
+                    var sword = (ThingWithComps)ThingMaker.MakeThing(swordDef, sealedBreach || heat ? null : ThingDefOf.Steel);
                     p.equipment.AddEquipment(sword);
                     if (p.equipment.Primary != sword) throw new InvalidOperationException("Fixture weapon was not assigned.");
                     armed.Add(p.GetUniqueLoadID());
@@ -119,9 +124,34 @@ namespace HomeBridge.BridgeTools
                     if (people.Count(p => !p.Downed && !p.WorkTagIsDisabled(WorkTags.Violent)) < 3)
                         throw new InvalidOperationException("Three healthy defenders required.");
                 }
+                if (heat) {
+                    // The controller builds the missing door and heaters. The
+                    // fixture supplies researched technology, materials and a
+                    // powered network, so it starts at the heat precondition.
+                    door.GetEdifice(map).Destroy(DestroyMode.Vanish);
+                    var heaterDef = DefDatabase<ThingDef>.GetNamed("Heater");
+                    foreach (var project in heaterDef.researchPrerequisites ?? new List<ResearchProjectDef>())
+                        Find.ResearchManager.FinishProject(project, false);
+                    var conduitDef = DefDatabase<ThingDef>.GetNamed("PowerConduit");
+                    foreach (var cell in ring.Cells) {
+                        var conduit = ThingMaker.MakeThing(conduitDef); conduit.SetFaction(player); GenSpawn.Spawn(conduit, cell, map);
+                    }
+                    var generator = ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed("WoodFiredGenerator"));
+                    generator.SetFaction(player); GenSpawn.Spawn(generator, new IntVec3(ring.minX - 2, 0, ring.minZ), map);
+                    generator.TryGetComp<CompRefuelable>().Refuel(75f);
+                    int index = 0;
+                    foreach (var supply in new[] { ("Steel", 600), ("ComponentIndustrial", 12), ("WoodLog", 200) }) {
+                        var def = DefDatabase<ThingDef>.GetNamed(supply.Item1);
+                        for (int left = supply.Item2; left > 0; left -= def.stackLimit) {
+                            var stack = ThingMaker.MakeThing(def); stack.stackCount = Math.Min(left, def.stackLimit);
+                            var cell = door + IntVec3.South * (3 + index / 5) + IntVec3.East * (index % 5 - 2);
+                            GenSpawn.Spawn(stack, cell, map); stack.SetForbidden(false, false); map.areaManager.Home[cell] = true; index++;
+                        }
+                    }
+                }
                 var room = caskets[0].GetRoom();
                 return new {
-                    success = true, guard, salvage, breach, sealedBreach, caskets = caskets.Select(c => c.GetUniqueLoadID()).ToList(),
+                    success = true, guard, salvage, breach, sealedBreach, heat, caskets = caskets.Select(c => c.GetUniqueLoadID()).ToList(),
                     interactionCells = caskets.Select(c => new { x = c.InteractionCell.x, z = c.InteractionCell.z }).ToList(),
                     x = site.x, z = site.z, door = door.x + "," + door.z, armed,
                     properRoom = room != null && room.ProperRoom && !room.PsychologicallyOutdoors,

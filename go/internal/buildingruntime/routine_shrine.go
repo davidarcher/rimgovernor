@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -37,9 +38,9 @@ type RoutineShrineSource interface {
 // (#460), under a policy that opens caskets, the melee lock: one
 // violence-capable melee colonist drafted at each filled casket and one
 // OpenCasket order, held lock_understaffed while the squad cannot cover
-// every casket. Off policy, filled caskets stay sealed. Ranged breaching
-// and the heat opening are not composed; they need an attack-building
-// order and an ignition the controller lacks.
+// every casket. The optional heat fallback builds heaters and opens by a
+// doorway shot when the melee lock is understaffed. Off policy, filled
+// caskets stay sealed.
 type RoutineShrinePlanner struct {
 	reviewer *RoutineReviewer
 	native   RoutineShrineSource
@@ -49,7 +50,8 @@ type RoutineShrineResult struct {
 	Plan   domain.PlanID
 	// Hold is the readiness reason the planner held on (BuildingMethodHeld)
 	// and Shrine the shrine it judged.
-	Hold, Shrine string
+	Hold, Shrine    string
+	NativeWorkTicks uint32
 }
 
 // BuildingMethodHeld is the shrine planner's answer while every target
@@ -59,6 +61,11 @@ const BuildingMethodHeld RoutineBuildingReason = "breach_held"
 func NewRoutineShrinePlanner(reviewer *RoutineReviewer, native RoutineShrineSource) (*RoutineShrinePlanner, error) {
 	if reviewer == nil || native == nil {
 		return nil, ErrControl
+	}
+	if reviewer.policy.Shrine.HeatFallback {
+		if _, ok := native.(shrineHeatSource); !ok {
+			return nil, ErrControl
+		}
 	}
 	return &RoutineShrinePlanner{reviewer, native}, nil
 }
@@ -174,7 +181,20 @@ func (r *RoutineShrinePlanner) step(call, epoch context.Context, arbiter *stepAr
 				continue
 			}
 			lock := policy.ShrineMeleeLock(caskets, squad)
+			heatStarted := false
+			for _, method := range goal.Methods {
+				heatStarted = heatStarted || method.Epoch == goal.Goal.Epoch && strings.HasPrefix(string(method.Method), "heat_") && strings.Contains(string(method.Method), "-"+shrine.ID+"-")
+			}
+			if heatStarted {
+				if !r.reviewer.policy.Shrine.HeatFallback {
+					return RoutineShrineResult{Reason: BuildingMethodHeld, Shrine: shrine.ID, Hold: "heat_policy_disabled"}, nil
+				}
+				return r.heat(call, epoch, state, goal, shrine, caskets, squad, colony.Projection, started, arbiter)
+			}
 			if lock.Reason != "" {
+				if r.reviewer.policy.Shrine.HeatFallback {
+					return r.heat(call, epoch, state, goal, shrine, caskets, squad, colony.Projection, started, arbiter)
+				}
 				if held.Hold == "" {
 					held.Hold, held.Shrine = lock.Reason, shrine.ID
 				}

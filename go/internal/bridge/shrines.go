@@ -5,6 +5,7 @@ import (
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
+	"math"
 )
 
 const shrinesTool = "rimgovernor/observations_get_ancient_shrines"
@@ -101,6 +102,33 @@ func ValidateAncientShrines(v *o.AncientShrinesSnapshot, identity *c.Identity) e
 		}
 		if !row.GetGuardsKnown() && len(row.Occupants) != 0 {
 			return contract("occupants reported while unknown")
+		}
+		if h := row.Heat; h != nil {
+			if !row.GetGuardsKnown() || h.TemperatureCelsius == nil || h.OutdoorTemperatureCelsius == nil || math.IsNaN(h.GetTemperatureCelsius()) || math.IsInf(h.GetTemperatureCelsius(), 0) || math.IsNaN(h.GetOutdoorTemperatureCelsius()) || math.IsInf(h.GetOutdoorTemperatureCelsius(), 0) || h.CellCount == nil || h.GetCellCount() == 0 || h.GetCellCount() > 256 || h.BoundaryCells == nil || h.GetBoundaryCells() == 0 || h.GetBoundaryCells() > 1024 || h.Enclosed == nil || h.ColonistsInside == nil || len(h.DoorSites) > 1 || len(h.HeaterSites) > 256 || len(h.Heaters) > 256 || len(h.FiringCells) > 64 || len(h.RetreatCells) != len(h.FiringCells) || h.GetEnclosed() && len(h.DoorSites) > 0 {
+				return contract("invalid shrine heat")
+			}
+			for _, cells := range [][]*c.Cell{h.DoorSites, h.HeaterSites, h.FiringCells, h.RetreatCells} {
+				seenCells := map[[2]int32]bool{}
+				for _, cell := range cells {
+					key := [2]int32{cell.GetX(), cell.GetZ()}
+					if validCell(cell) != nil || seenCells[key] {
+						return contract("invalid shrine heat cell")
+					}
+					seenCells[key] = true
+				}
+			}
+			for i, firing := range h.FiringCells {
+				if !adjacentCells(firing, h.RetreatCells[i]) {
+					return contract("invalid shrine retreat")
+				}
+			}
+			heaters := map[string]bool{}
+			for _, heater := range h.Heaters {
+				if heater == nil || validID(heater.GetId()) != nil || heaters[heater.GetId()] || heater.GetDefName() != "Heater" || validCell(heater.Position) != nil {
+					return contract("invalid shrine heater")
+				}
+				heaters[heater.GetId()] = true
+			}
 		}
 	}
 	return nil
