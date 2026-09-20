@@ -36,7 +36,7 @@ func Evaluate(root string, runRef, selectionRef Ref, shards []Shard) (Evaluation
 		return e, fmt.Errorf("invalid trigger/run ID")
 	}
 	l := r.Limits
-	if l.Shards < 1 || l.Shards > 32 || l.Parallel < 1 || l.Parallel > 4 || l.Workers != 1 || l.Attempts < 1 || l.Attempts > 2 || l.Bytes < 1 || l.Bytes > 1<<30 || l.Paid || l.Runner != "windows-2022" || l.JobMinutes < 16 || l.JobMinutes > 360 || l.SuiteMinutes < 1 || l.SuiteMinutes > 345 || l.JobMinutes-l.SuiteMinutes < 15 || l.Retention < 1 || l.Retention > 7 {
+	if l.Shards < 1 || l.Shards > 32 || l.Parallel < 1 || l.Parallel > 20 || l.Workers != 1 || l.Attempts < 1 || l.Attempts > 2 || l.Bytes < 1 || l.Bytes > 1<<30 || l.Paid || l.Runner != "windows-2022" || l.JobMinutes < 16 || l.JobMinutes > 360 || l.SuiteMinutes < 1 || l.SuiteMinutes > 345 || l.JobMinutes-l.SuiteMinutes < 15 || l.Retention < 1 || l.Retention > 7 {
 		return e, fmt.Errorf("invalid run limits")
 	}
 	var bundle struct {

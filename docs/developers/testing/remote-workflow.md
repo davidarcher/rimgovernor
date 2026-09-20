@@ -7,7 +7,9 @@
 select smoke using the event's exact before/after commits. Manual dispatch
 accepts full ancestor/base and tested commit IDs, tier, shard count and an
 explicit attestation that the maintainer reviewed the tested code. The nightly
-07:23 UTC schedule selects full against its immutable main commit. Reruns need
+07:23 UTC schedule selects full against its immutable main commit. Both scheduled
+and manually dispatched full tiers also run the Go race, protobuf generation drift
+and protobuf proof checks. Reruns need
 **Re-run all jobs**: an attempt cannot borrow a previous attempt's plan/artifacts.
 
 Activation remains closed until a maintainer publishes the workflow and encrypted
@@ -33,10 +35,10 @@ decryption. Public source is the configured v1 policy; changing visibility requi
 revalidation, not automatic use of paid Windows minutes.
 
 Each job uses `windows-2022`, one native worker, up to 32 nonempty shards and at
-most four active shard jobs. The default smoke dispatch uses two shards. One
-workflow runs at a time with `queue: max` and cancellation disabled; later pushes
-do not replace an active landing or the pending queue. GitHub's queue capacity
-still applies. Planner/aggregation jobs have ten-minute limits; shard jobs have
+most 20 active shard jobs per run. The default smoke dispatch uses two shards.
+Independent push, manual and scheduled runs can overlap; no workflow concurrency
+group serializes or cancels them. GitHub enforces the account-wide runner capacity.
+Planner/aggregation jobs have ten-minute limits; shard jobs have
 360 minutes including a shared 345-minute allowance across both role suites.
 Known case budgets must fit before workers start. The production retry classifier
 remains empty, so runs use `max_attempts: 1` without reserving an unused retry.
@@ -85,10 +87,6 @@ failure outside the native suite cannot yield a passing aggregate.
 an injected red native assertion, missing/corrupt diagnostics, content rejection,
 limits, aggregation/import and schedule provenance. These are synthetic tooling
 checks; no game is launched. Validate workflow syntax with actionlint v1.7.12.
-That release lacks GitHub's newer `concurrency.queue` property; its exact
-`unexpected key "queue" for "concurrency" section` diagnostic is the only
-allowed exclusion. GitHub documents the field in its
-[concurrency guide](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency).
 
 The full tier includes rendered video cases. They run through the existing
 windowed profile without batch/no-graphics flags and must produce real frames.

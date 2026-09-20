@@ -16,7 +16,7 @@ on:
         options: [smoke, land, full]
         default: smoke
       shards:
-        description: Nonempty shards, 1 through 32 (at most four active)
+        description: Nonempty shards, 1 through 32 (at most 20 active)
         type: number
         default: 2
       reviewed_commit:
@@ -31,12 +31,6 @@ on:
 
 permissions:
   contents: read
-
-# Keep active landing evidence and queue pending runs instead of replacing it.
-concurrency:
-  group: remote-acceptance
-  cancel-in-progress: false
-  queue: max
 
 defaults:
   run:
@@ -96,7 +90,7 @@ jobs:
 
   # Whole-module Go race pass. Not a landing gate (it is dropped from
   # go:test as too slow for the win it delivered) and it needs no licensed
-  # inputs, so it runs alone on the nightly schedule against public source
+  # inputs, so it runs on scheduled and manually dispatched full tiers against public source
   # with no environment or secrets. Linux because the race runtime is
   # several times faster there and gcc is preinstalled.
   # The same job owns the Protobuf generation drift check (contracts/proto
@@ -107,12 +101,13 @@ jobs:
   # exchange proof (task protobuf:test) stays manual: it proves the pinned
   # runtime, which only changes with the pins, and needs Mono here.
   race:
-    if: github.repository == 'davidarcher/rimgovernor' && github.event_name == 'schedule'
+    if: github.repository == 'davidarcher/rimgovernor' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.tier == 'full'))
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ inputs.tested_commit || github.sha }}
           persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
@@ -151,7 +146,7 @@ jobs:
     environment: remote-acceptance
     strategy:
       fail-fast: false
-      max-parallel: 4
+      max-parallel: 20
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

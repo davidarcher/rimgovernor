@@ -196,6 +196,7 @@ func TestNightlyFullIncludesRenderedCases(t *testing.T) {
 	r.Tier, r.Trigger.Event, r.Trigger.Ref = "full", "schedule", "refs/heads/main"
 	r.Base = r.Head
 	r.Limits.Shards, r.Limits.Attempts = 32, 1
+	r.Limits.Parallel = 20
 	r.Limits.JobMinutes, r.Limits.SuiteMinutes = 360, 345
 	if err := r.validate(); err != nil {
 		t.Fatal(err)
@@ -244,7 +245,7 @@ func TestRemotePlanRejectsMalformedRun(t *testing.T) {
 		func(r *planRun) { r.Version = 2 }, func(r *planRun) { r.Base = strings.Repeat("0", 40) },
 		func(r *planRun) { r.Tier = "land"; r.Base = r.Head }, func(r *planRun) { r.Trigger.Event = "pull_request" },
 		func(r *planRun) { r.Limits.Shards = 33 }, func(r *planRun) { r.Limits.Workers = 2 },
-		func(r *planRun) { r.Limits.Parallel = 5 }, func(r *planRun) { r.Limits.Paid = true },
+		func(r *planRun) { r.Limits.Parallel = 21 }, func(r *planRun) { r.Limits.Paid = true },
 		func(r *planRun) { r.Bundle.Path = "../bundle.json" }, func(r *planRun) { r.Repository = "host/repo?query" },
 	} {
 		bad := r

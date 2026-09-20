@@ -117,6 +117,17 @@ func TestHostedTimeoutLimits(t *testing.T) {
 		}
 	}
 }
+
+func TestHostedConcurrencyLimits(t *testing.T) {
+	for _, parallel := range []int{0, 1, 4, 20, 21} {
+		f := fixtureRun(t)
+		f.run.Limits.Parallel = parallel
+		_, err := f.evaluate(t)
+		if (err == nil) != (parallel >= 1 && parallel <= 20) {
+			t.Fatalf("parallel=%d: %v", parallel, err)
+		}
+	}
+}
 func TestAggregationRejectsBadEvidence(t *testing.T) {
 	tests := map[string]func(*testing.T, *fixture){
 		"missing case": func(t *testing.T, f *fixture) { f.attempts[0].Attempts = f.attempts[0].Attempts[1:] },

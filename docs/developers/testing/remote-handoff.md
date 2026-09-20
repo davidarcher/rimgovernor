@@ -41,7 +41,7 @@ gh run view <run-id> --json url,headSha,event,status,conclusion,jobs
 
 Identify the new run by its source inputs and attempt, not simply the newest
 run in a shared repository. Record its URL in the issue. Use two shards for
-smoke, one worker per shard, and at most four active shard jobs. Size land by
+smoke, one worker per shard, and at most 20 active shard jobs per run. Size land by
 the planner's complete selection and budget checks, up to 32 shards. These are
 bounded operational defaults, not a measured optimum. Local worker tuning
 remains [#271](https://github.com/davidarcher/rimgovernor/issues/271).
