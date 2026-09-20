@@ -346,10 +346,9 @@ func run(ctx context.Context, s cases.Session) error {
 	// cmd/disconnectaccept). Here that happens while a genuinely admitted Goto
 	// job is current: the harness issues a fresh move, starts a typed epoch with
 	// the shortest admissible lease (1000ms, Normal speed) and never renews it.
-	// The generation moving past the attempt's admitted generation must degrade
-	// that exact attempt's own observed progress to an explicit interrupted
-	// outcome; the owned draft claim is a different, longer-lived native state
-	// than authority and must survive unchanged; the pre-disconnect generation
+	// The same-world generation change preserves the exact move and owned
+	// draft claim: progress remains pending or proves physical arrival.
+	// The pre-disconnect generation
 	// must no longer be able to issue orders (stale generation); and a fresh
 	// SetMode(Auto) at the observed generation must recover full command under
 	// the same claim, with no redraft.
@@ -378,7 +377,8 @@ func run(ctx context.Context, s cases.Session) error {
 	if err != nil {
 		return err
 	}
-	if _, err := jobEffect(expiryReceipt, expiryMoving, expiryDestination); err != nil {
+	expiryIssued, err := jobEffect(expiryReceipt, expiryMoving, expiryDestination)
+	if err != nil {
 		return fmt.Errorf("disconnect-move: %w", err)
 	}
 	expiryPrecondition, _ := na.AsMap(expiryRequest["precondition"])
@@ -442,22 +442,20 @@ func run(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("disconnect-status: expected generation %d, got %d", expiringGeneration+1, expiryGeneration)
 	}
 
-	expiryInterruptedReply, err := h.Wire(ctx, "disconnect-interrupted", "receipts_observe_progress", expiryAttempt)
+	expiryProgressReply, err := h.Wire(ctx, "disconnect-progress", "receipts_observe_progress", expiryAttempt)
 	if err != nil {
 		return err
 	}
-	_, expiryProgress, err := na.Outcome(expiryInterruptedReply, "progress")
+	_, expiryProgress, err := na.Outcome(expiryProgressReply, "progress")
 	if err != nil {
 		return err
 	}
-	expiryUnsuccessful, _ := na.AsMap(expiryProgress["unsuccessful"])
-	if na.AsString(expiryUnsuccessful["reason"]) != "UNSUCCESSFUL_REASON_INTERRUPTED" {
-		return fmt.Errorf("disconnect-interrupted: expected UNSUCCESSFUL_REASON_INTERRUPTED, got %#v", expiryProgress)
-	}
-
 	postExpiryRow, err := read("post-disconnect", pawnID)
 	if err != nil {
 		return err
+	}
+	if err := continuedMovement(expiryProgress, postExpiryRow, expiryDestination, expiryIssued); err != nil {
+		return fmt.Errorf("disconnect-progress: %w", err)
 	}
 	if drafted, _ := postExpiryRow["drafted"].(bool); !drafted {
 		return fmt.Errorf("post-disconnect: the disconnect alone unexpectedly undrafted the pawn")
@@ -532,7 +530,7 @@ func run(ctx context.Context, s cases.Session) error {
 		"generation_before":     expiringGeneration,
 		"generation_after":      expiryGeneration,
 		"generation_regranted":  na.GrantGeneration(recovered),
-		"interrupted_reason":    na.AsString(expiryUnsuccessful["reason"]),
+		"progress":              expiryProgress,
 		"refused_failure_code":  "FAILURE_CODE_STALE_GENERATION",
 		"disconnect_ticks":      disconnectTicks,
 		"position_after_window": currentPosition,
@@ -765,6 +763,38 @@ func arrival(progress, row, destination, issued map[string]any) error {
 		return fmt.Errorf("arrival job effect was not verified")
 	}
 	return nil
+}
+
+// continuedMovement proves the original order survived a same-world authority
+// lapse, including the possibility that it arrived before the clock stopped.
+func continuedMovement(progress, row, destination, issued map[string]any) error {
+	outcomes := map[string]any{}
+	for _, key := range []string{"pending", "completed", "unknown", "unsuccessful"} {
+		if value, ok := progress[key]; ok {
+			outcomes[key] = value
+		}
+	}
+	state, value, err := na.Outcome(outcomes, "pending", "completed")
+	if err != nil {
+		return err
+	}
+	complete, _ := na.AsBool(progress["completeInspection"])
+	evidence, _ := na.AsMap(value["evidence"])
+	effect, _ := na.AsMap(evidence["job"])
+	verified, _ := na.AsBool(effect["verified"])
+	if !complete || !verified {
+		return fmt.Errorf("movement continuity was not completely verified")
+	}
+	for _, key := range []string{"pawnId", "jobId", "jobDef", "draftClaimId", "targetA"} {
+		if !na.DeepEqual(effect[key], issued[key]) {
+			return fmt.Errorf("movement continuity %s differs from the issued job", key)
+		}
+	}
+	if state == "completed" {
+		return arrival(progress, row, destination, issued)
+	}
+	_, err = jobEffect(map[string]any{"applied": map[string]any{"observed": map[string]any{"job": issued}}}, row, destination)
+	return err
 }
 
 // failureCode wires request through operations_execute and returns the failure code

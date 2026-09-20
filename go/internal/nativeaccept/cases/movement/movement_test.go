@@ -135,6 +135,45 @@ func TestArrivalRequiresPositionAndCausalCompletedEvidence(t *testing.T) {
 	}
 }
 
+func TestDisconnectPreservesExactMovementOrArrival(t *testing.T) {
+	for _, state := range []string{"pending", "completed"} {
+		for _, bad := range []string{"", "inspection", "verified", "pawnId", "jobId", "jobDef", "draftClaimId", "targetA", "native"} {
+			t.Run(state+"/"+bad, func(t *testing.T) {
+				destination, issued, row, progress := movementFixture()
+				value := progress["completed"]
+				delete(progress, "completed")
+				progress[state] = value
+				effect := dig(progress, state, "evidence", "job").(map[string]any)
+				effect["issued"] = false
+				switch bad {
+				case "":
+				case "inspection":
+					progress["completeInspection"] = false
+				case "verified":
+					effect["verified"] = false
+				case "native":
+					if state == "pending" {
+						row["job"].(map[string]any)["loadId"] = "59"
+					} else {
+						row["pawn"].(map[string]any)["position"] = map[string]any{"x": 99.0, "z": 0.0}
+					}
+				default:
+					effect[bad] = "different"
+				}
+				if err := continuedMovement(progress, row, destination, issued); (err != nil) != (bad != "") {
+					t.Fatalf("mutation %q: %v", bad, err)
+				}
+			})
+		}
+	}
+	destination, issued, row, _ := movementFixture()
+	for _, state := range []string{"unknown", "unsuccessful"} {
+		if err := continuedMovement(map[string]any{state: map[string]any{}}, row, destination, issued); err == nil {
+			t.Fatalf("accepted %s as continuing movement", state)
+		}
+	}
+}
+
 func TestMoveRequestUsesNativeSnapshotAndImmutableDestination(t *testing.T) {
 	destination, _, row, _ := movementFixture()
 	request := moveRequest(map[string]any{"mapId": 0.0}, map[string]any{"context": map[string]any{"nativeGeneration": "2"}, "leaseId": "lease"}, row, 4, destination)
