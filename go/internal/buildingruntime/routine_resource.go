@@ -183,6 +183,9 @@ func (r *RoutineResourcePlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineResourceResult{}, ErrControl
 	}
 	stock := resourceStockFacts(observed)
+	if result, handled, err := r.deepDrill(call, epoch, state, goal, review, started); err != nil || handled {
+		return result, err
+	}
 	if targets, err = r.reviewer.resourceTargets(call, state.Snapshot, stock); err != nil {
 		return RoutineResourceResult{}, err
 	}

@@ -872,7 +872,8 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	// configured is certain recovery, a configured target with missing facts is
 	// unknown, and RoutineResearchPlanner/RoutineResourcePlanner still re-read
 	// native state immediately before proposing a method.
-	researchTarget, researchDerived := ResearchGoal(p, f.ResearchNeeds, f.Research)
+	researchNeeds := DeepDrillingResearch(f.ResearchNeeds, f.ResourceRunways)
+	researchTarget, researchDerived := ResearchGoal(p, researchNeeds, f.Research)
 	researchRecovered, researchDeficit := ResearchTargetNeed(researchTarget, researchDerived, f.Research)
 	if !positive(researchRecovered) {
 		addGoal(EnsureResearch, 4)

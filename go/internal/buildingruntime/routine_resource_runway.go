@@ -20,7 +20,7 @@ func (r *RoutineReviewer) resourceSurfaceOre(ctx context.Context, snapshot domai
 	if !ok {
 		return out
 	}
-	for _, resource := range []policy.Resource{"Steel", "ComponentIndustrial"} {
+	for _, resource := range []policy.Resource{"Steel", "ComponentIndustrial", "Plasteel"} {
 		rows, _, _, err := reader.ReadResourceSources(ctx, boundary.Identity(snapshot), string(resource))
 		if err == nil {
 			out[resource] = policy.SurfaceOre(rows)

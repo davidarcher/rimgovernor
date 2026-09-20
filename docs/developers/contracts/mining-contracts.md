@@ -15,6 +15,23 @@ area. This deliberately excludes supported tunnels as well as unsafe excavations
 eligibility and exact colony/load/map, source identity and coordinates are rechecked
 while paused before designation.
 
+## Go deep-drill planning
+
+A measured Steel or Plasteel runway deficit adds `DeepDrilling`, then
+`GroundPenetratingScanner`, to the derived research needs. The resource planner
+requires both completed projects and a built ground scanner before considering
+positive scanned lumps of the needed resource, ordered by distance from the
+colony centre. It previews a drill at the reported resource cell and requires
+native reachability plus a completely observed, clear, unroofed footprint.
+Shared building admission retains spending limits and footprint reservations;
+the power planner includes the pending drill's native declared draw.
+
+An existing drill or drill blueprint prevents another placement. Automatic
+exhausted-drill removal requires per-drill exhaustion and ownership observations
+([#538](https://github.com/davidarcher/rimgovernor/issues/538)); a lump centre
+moving as it is mined does not establish exhaustion. Plasteel construction costs
+join runway history; bill consumption without a Plasteel quantity stays unknown.
+
 ## Excavation
 
 Rooms and corridors are excavated through a separate contract that never relaxes the

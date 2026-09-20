@@ -61,7 +61,7 @@ func resourceHistory(ctx context.Context, tx *sql.Tx, current domain.GenerationS
 		if o.Tick <= h.Start || o.Tick > tick {
 			continue
 		}
-		var steel, components domain.Fact[int64]
+		var steel, components, plasteel domain.Fact[int64]
 		if kind == "building" {
 			var admission Admission
 			if len(costs) > 0 {
@@ -70,12 +70,14 @@ func resourceHistory(ctx context.Context, tx *sql.Tx, current domain.GenerationS
 				}
 			}
 			if admission.Costs != nil {
-				steel, components = domain.Known(int64(0)), domain.Known(int64(0))
+				steel, components, plasteel = domain.Known(int64(0)), domain.Known(int64(0)), domain.Known(int64(0))
 			}
 			for _, cost := range admission.Costs {
 				switch cost.Definition {
 				case "Steel":
 					steel = domain.Known(cost.Count)
+				case "Plasteel":
+					plasteel = domain.Known(cost.Count)
 				case "ComponentIndustrial":
 					components = domain.Known(cost.Count)
 				}
@@ -88,7 +90,7 @@ func resourceHistory(ctx context.Context, tx *sql.Tx, current domain.GenerationS
 				components = domain.Known(*use.Components)
 			}
 		}
-		h.Uses = append(h.Uses, policy.ResourceUse{Tick: o.Tick, Resource: "Steel", Count: steel}, policy.ResourceUse{Tick: o.Tick, Resource: "ComponentIndustrial", Count: components})
+		h.Uses = append(h.Uses, policy.ResourceUse{Tick: o.Tick, Resource: "Steel", Count: steel}, policy.ResourceUse{Tick: o.Tick, Resource: "ComponentIndustrial", Count: components}, policy.ResourceUse{Tick: o.Tick, Resource: "Plasteel", Count: plasteel})
 	}
 	return h, rows.Err()
 }
@@ -99,7 +101,7 @@ func resourceRunways(ctx context.Context, tx *sql.Tx, r RoutineReviewRequest) ([
 		return nil, err
 	}
 	var result []policy.ResourceRunway
-	for _, resource := range []policy.Resource{"Steel", "ComponentIndustrial"} {
+	for _, resource := range []policy.Resource{"Steel", "ComponentIndustrial", "Plasteel"} {
 		stock := domain.Unknown[int64]()
 		if rows, known := r.Facts.Resources.Value(); known {
 			var n int64

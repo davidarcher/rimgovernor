@@ -10,7 +10,9 @@ import (
 func TestResourceHistoryCountsBuildOnceAndScopesWorld(t *testing.T) {
 	ctx := context.Background()
 	s, _ := fixture(t)
-	if _, err := s.ReserveAndPrepare(ctx, "p", "a", evidence(10, 100)); err != nil {
+	admission := evidence(10, 100)
+	admission.Costs = append(admission.Costs, MaterialCost{Definition: "Plasteel", Count: 50})
+	if _, err := s.ReserveAndPrepare(ctx, "p", "a", admission); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.Dispatch(ctx, "p", "a", scope(), 10); err != nil {
@@ -30,11 +32,18 @@ func TestResourceHistoryCountsBuildOnceAndScopesWorld(t *testing.T) {
 	}
 	defer tx.Rollback()
 	h, err := resourceHistory(ctx, tx, scope(), 60010)
-	if err != nil || len(h.Uses) != 2 {
+	if err != nil || len(h.Uses) != 3 {
 		t.Fatal(h, err)
 	}
 	if n, k := h.Uses[0].Count.Value(); !k || n != 100 {
 		t.Fatal(h)
+	}
+	if n, k := h.Uses[2].Count.Value(); !k || n != 50 || h.Uses[2].Resource != "Plasteel" {
+		t.Fatal(h)
+	}
+	forecast := policy.ForecastResourceRunway("Plasteel", domain.Known(int64(10)), domain.Known(int64(0)), 0, h)
+	if deficit, known := forecast.Deficit.Value(); !known || !deficit || forecast.Target != 250 {
+		t.Fatal(forecast)
 	}
 	other := scope()
 	other.Load = "other"
@@ -66,7 +75,7 @@ func TestCompletedBillConsumptionAndReviewPersistence(t *testing.T) {
 	if routineGoal(t, out, policy.MaintainResource).Goal.Need != domain.NeedDeficit {
 		t.Fatal(out.Needs)
 	}
-	if len(out.Review.ResourceRunways) != 2 || out.Review.ResourceRunways[0].DaysLeft == nil || *out.Review.ResourceRunways[0].DaysLeft != 2 {
+	if len(out.Review.ResourceRunways) != 3 || out.Review.ResourceRunways[0].DaysLeft == nil || *out.Review.ResourceRunways[0].DaysLeft != 2 {
 		t.Fatal(out.Review.ResourceRunways)
 	}
 	s.Close()
