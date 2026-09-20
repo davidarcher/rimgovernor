@@ -140,16 +140,15 @@ func TestModsConfigWithoutCoreFails(t *testing.T) {
 }
 
 func TestOccupiedCaseOutputFails(t *testing.T) {
-	o, l := fakeRoot(t)
-	o.Cases = []string{"smoke/identity", "bed/assign"}
-	write(t, filepath.Join(l.Root, "acceptance", "smoke", "identity", "result.json"), "{}")
-	c := byName(Run(context.Background(), o), "output")
+	o := Options{Root: t.TempDir(), Cases: []string{"smoke/identity", "bed/assign"}}
+	write(t, filepath.Join(o.Root, "acceptance", "smoke", "identity", "result.json"), "{}")
+	c := output(o)
 	if c.Status != Fail || !strings.Contains(c.Detail, "smoke/identity") || strings.Contains(c.Detail, "bed/assign") {
 		t.Fatalf("output = %+v", c)
 	}
 	// Without case names, earlier results are informational.
 	o.Cases = nil
-	if c := byName(Run(context.Background(), o), "output"); c.Status != OK || !strings.Contains(c.Detail, "1 earlier") {
+	if c := output(o); c.Status != OK || !strings.Contains(c.Detail, "1 earlier") {
 		t.Fatalf("output without cases = %+v", c)
 	}
 }
