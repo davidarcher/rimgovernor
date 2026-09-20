@@ -38,6 +38,10 @@ func NewHarness(client *bridge.Client, output string) *Harness {
 // {}), records the request/reply pair as evidence, and returns the decoded structured
 // reply as a generic JSON object.
 func (h *Harness) Call(ctx context.Context, label, tool string, arguments any) (map[string]any, error) {
+	return h.call(ctx, label, tool, arguments, true)
+}
+
+func (h *Harness) call(ctx context.Context, label, tool string, arguments any, retry bool) (map[string]any, error) {
 	// Every native call of a bridge-only case is a natural pause for the
 	// checkpoint ring (#249); a capture in progress is not re-entered.
 	checkpointPause(ctx)
@@ -53,21 +57,40 @@ func (h *Harness) Call(ctx context.Context, label, tool string, arguments any) (
 	// The evidence label is the call's phase in a recorded transcript.
 	result, callErr := h.Client.NativeCall(bridge.WithTranscriptPhase(ctx, label), tool, args)
 	elapsed := time.Since(sent)
+	row := evidenceRow(sequence, tool, args, sent, elapsed, result.Envelope, callErr, nil)
+	defer func() { writeEvidence(evidencePath(h.Output, sequence, label), row) }()
+	blocked := blockingAttention(callErr)
+	if blocked || (callErr == nil && tool == "rimworld/start_debug_game_ready") {
+		attention, attentionErr := h.readAndAckAttention(bridge.WithTranscriptPhase(ctx, label), func(attention map[string]any) {
+			row["attention"] = attention
+			writeEvidence(evidencePath(h.Output, sequence, label), row)
+		})
+		row["attention"] = attention
+		if attentionErr != nil {
+			callErr = errors.Join(callErr, attentionErr)
+		} else if blocked && retry {
+			// GABS explicitly refused execution, so one retry cannot duplicate a mutation.
+			writeEvidence(evidencePath(h.Output, sequence, label), row)
+			payload, err := h.call(ctx, label+"-retry", tool, arguments, false)
+			row["retried"] = true
+			return payload, err
+		}
+	}
 	if callErr != nil {
-		if failure, ok := stepresult.Parse(result.Envelope); ok && errors.Is(callErr, bridge.ErrRefused) {
+		if failure, ok := stepresult.Parse(result.Envelope); ok && errors.Is(callErr, bridge.ErrRefused) && row["attention"] == nil {
 			kind := failure.Kind
 			if kind == "native exception" && strings.HasPrefix(tool, "test/") {
 				kind = "fixture exception"
 			}
 			callErr = &toolFailure{cause: callErr, message: fmt.Sprintf("%s: %s: %s (%s)", bridge.ErrRefused, tool, failure.Summary, kind)}
 		}
-		writeEvidence(evidencePath(h.Output, sequence, label), evidenceRow(sequence, tool, args, sent, elapsed, result.Envelope, callErr, nil))
+		row["error"] = callErr.Error()
 		return nil, callErr
 	}
 	var payload map[string]any
 	if len(result.Structured) > 0 {
 		if err := json.Unmarshal(result.Structured, &payload); err != nil {
-			writeEvidence(evidencePath(h.Output, sequence, label), evidenceRow(sequence, tool, args, sent, elapsed, result.Envelope, nil, nil))
+			row["error"] = err.Error()
 			return nil, fmt.Errorf("%s: structuredContent must be an object: %w", tool, err)
 		}
 	}
@@ -75,7 +98,9 @@ func (h *Harness) Call(ctx context.Context, label, tool string, arguments any) (
 	if observed, ok := replyTick(tool, payload); ok {
 		tick = &observed
 	}
-	writeEvidence(evidencePath(h.Output, sequence, label), evidenceRow(sequence, tool, args, sent, elapsed, result.Envelope, nil, tick))
+	if tick != nil {
+		row["tick"] = *tick
+	}
 	observeReplyTick(tool, tick)
 	if payload == nil {
 		return map[string]any{}, nil

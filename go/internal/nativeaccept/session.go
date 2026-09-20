@@ -103,6 +103,7 @@ func NewReport(scope string, headless bool) Report {
 // run paused at a breakpoint, 1 otherwise).
 func (r Report) Finalize(output string) int {
 	r.finalizeTiming(time.Now())
+	r.collectAttentions(output)
 	if hashes, err := Artifacts(output, r); err == nil {
 		r["artifacts"] = hashes
 	}

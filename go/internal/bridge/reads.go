@@ -77,6 +77,13 @@ type attentionArgument struct {
 	AttentionID string `json:"attentionId"`
 }
 
+// GetAttention reads the current GABS attention without acknowledging it.
+func (c *Client) GetAttention(ctx context.Context) (Result, error) {
+	return c.operation(ctx, func(ctx context.Context, live *liveSession) (Result, error) {
+		return c.core(ctx, live, "games_get_attention", encode(gameArgument{c.gameID}))
+	})
+}
+
 // AckAttention acknowledges a blocking GABS attention item (raised when GABS
 // observes a game-side log line it treats as noteworthy, e.g. an error-level
 // message) so that games_call_tool stops refusing further calls for this

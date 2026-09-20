@@ -1151,3 +1151,9 @@ gaps, and `acceptance list` (the packages under
 `go/internal/nativeaccept/cases/`) for the actual current set of cases (issue
 #38's own description can lag newly landed families — trust the registry over
 the issue body when they disagree).
+
+Harness calls inspect and acknowledge GABS attention after debug startup and
+after an explicit blocked-by-attention refusal, retrying a refused call once.
+Each step retains the original receipt, attention details and acknowledgement;
+`result.json` includes these under `attentions`, even when the case passes.
+Acknowledgement permits progress; it does not classify a game fault as harmless.
