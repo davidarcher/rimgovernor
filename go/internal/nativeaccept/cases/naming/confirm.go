@@ -28,6 +28,12 @@ import (
 const (
 	baselineSave = "RimGovernor-tribal8-baseline"
 	fixtureTool  = "test/open_colony_naming"
+	// seededFaction is what the fixture puts in place of the generated
+	// faction suggestion when asked (nonAsciiFaction): a name outside
+	// ASCII, so the run proves the suggestion survives the census decode,
+	// the journal and the ConfirmColonyNames request byte for byte (#600).
+	// The settlement suggestion stays the dialog's own.
+	seededFaction = "Coalition of Ñoa"
 	// ceiling bounds the wait for the dialog to be confirmed and the clock
 	// to start; the stall budget ends it earlier when nothing moves.
 	ceiling = 8 * time.Minute
@@ -65,7 +71,7 @@ func (d *staged) open(ctx context.Context, h *na.Harness, names []string, identi
 	if !na.Contains(names, fixtureTool) {
 		return fmt.Errorf("missing %s in discovery; rebuild the native mod with -Fixture NamingFixture", fixtureTool)
 	}
-	opened, err := h.Call(ctx, "open-naming", fixtureTool, map[string]any{"action": "open"})
+	opened, err := h.Call(ctx, "open-naming", fixtureTool, map[string]any{"action": "open", "nonAsciiFaction": true})
 	if err != nil {
 		return err
 	}
@@ -78,6 +84,9 @@ func (d *staged) open(ctx context.Context, h *na.Harness, names []string, identi
 	d.window, d.faction, d.settlement = int32(na.AsNumber(opened["windowId"])), na.AsString(opened["factionName"]), na.AsString(opened["settlementName"])
 	if d.faction == "" || d.settlement == "" {
 		return fmt.Errorf("open-naming: the dialog carries no suggestions: %#v", opened)
+	}
+	if d.faction != seededFaction {
+		return fmt.Errorf("open-naming: the fixture reads the seeded faction name back as %q, not %q", d.faction, seededFaction)
 	}
 	if d.faction == na.AsString(opened["currentFactionName"]) && d.settlement == na.AsString(opened["currentSettlementName"]) {
 		return fmt.Errorf("open-naming: the suggestions already are the live names, so confirming would prove nothing: %#v", opened)

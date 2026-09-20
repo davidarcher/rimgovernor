@@ -73,6 +73,7 @@
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NullableAttributes.cs" Link="Production/NullableAttributes.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/CompactCellEncoding.cs" Link="Production/CompactCellEncoding.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/ProtoBoundary.cs" Link="Production/ProtoBoundary.cs" />
+    <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/MainThreadWatchdog.cs" Link="Production/MainThreadWatchdog.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/ClockEventJournal.cs" Link="Production/ClockEventJournal.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeAttemptLedger.cs" Link="Production/NativeAttemptLedger.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeClockEventProjection.cs" Link="Production/NativeClockEventProjection.cs" />

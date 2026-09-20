@@ -29,6 +29,8 @@ namespace RimBridgeServer.Sdk
     {
         IMainThread MainThread { get; }
         Dictionary<string, object> Arguments { get; }
+        string OperationId { get; }
+        string CapabilityId { get; }
     }
     public interface IMainThread { Task<T> InvokeAsync<T>(Func<T> action, CancellationToken token); }
 }

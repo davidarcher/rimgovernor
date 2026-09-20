@@ -25,6 +25,8 @@ internal static class NativeClockProbe
     {
         public Dictionary<string, object> Arguments { get; set; } = new();
         public RimBridgeServer.Sdk.IMainThread MainThread => this;
+        public string OperationId => "probe";
+        public string CapabilityId => "probe";
         public int Invocations;
         // The probe thread is the game's main thread: a hop requested from it runs
         // inline; one requested from a continuation off that thread queues until the

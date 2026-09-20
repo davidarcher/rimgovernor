@@ -39,6 +39,7 @@ namespace Verse
         public void DoSingleTick() { }
     }
     public static class LongEventHandler { public static bool AnyEventNowOrWaiting; }
+    public static class Log { public static void Warning(string text) { } public static void Message(string text) { } }
     public class Dialog_NodeTree { public int ID; }
     public static class GenFilePaths
     {

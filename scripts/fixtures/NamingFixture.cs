@@ -19,10 +19,13 @@ namespace HomeBridge.BridgeTools
     public sealed class NamingFixture
     {
         private static Dialog_NamePlayerFactionAndSettlement opened;
+        // "Coalition of Ñoa": the name the rendered run generated (#600).
+        private const string SeededFaction = "Coalition of Ñoa";
 
         [Tool("test/open_colony_naming", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup: open the force-pausing faction/settlement naming dialog on the current player settlement with generated suggestions (action=open), or report its state and the live names (action=read).")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "open or read.")] string action = "open")
+            [ToolParameter(Description = "open or read.")] string action = "open",
+            [ToolParameter(Description = "open only: seed the faction suggestion with a fixed name outside ASCII (#600). The name is built here, not passed in: a non-ASCII value in a plain argument map cannot cross the host's GABP reader.")] bool nonAsciiFaction = false)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 if (Current.Game == null || Find.CurrentMap == null) throw new InvalidOperationException("A loaded game is required.");
@@ -38,6 +41,11 @@ namespace HomeBridge.BridgeTools
                     AccessTools.Field(giveName, "curName").SetValue(opened, ((Func<string>)AccessTools.Field(giveName, "nameGenerator").GetValue(opened))());
                 if (AccessTools.Field(giveName, "curSecondName").GetValue(opened) == null)
                     AccessTools.Field(giveName, "curSecondName").SetValue(opened, ((Func<string>)AccessTools.Field(giveName, "secondNameGenerator").GetValue(opened))());
+                if (nonAsciiFaction)
+                {
+                    if (!NamePlayerFactionDialogUtility.IsValidName(SeededFaction)) throw new InvalidOperationException("The seeded faction name fails native validation.");
+                    AccessTools.Field(giveName, "curName").SetValue(opened, SeededFaction);
+                }
                 Find.WindowStack.Add(opened);
                 return Read(settlement);
             }, cancellationToken).ConfigureAwait(false);

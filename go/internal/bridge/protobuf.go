@@ -336,6 +336,7 @@ func (caller *Client) protoCall(ctx context.Context, name string, request, reply
 	if err != nil {
 		return Result{}, contract("request encoding: %v", err)
 	}
+	inner = asciiJSON(inner)
 	if len(inner) > maxProtoBytes {
 		return Result{}, contract("oversized request")
 	}

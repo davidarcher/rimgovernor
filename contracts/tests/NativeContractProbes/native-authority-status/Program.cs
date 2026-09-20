@@ -34,6 +34,8 @@ internal static class NativeAuthorityStatusProbe
     {
         public Dictionary<string, object>? Arguments { get; set; } = new Dictionary<string, object>();
         public RimBridgeServer.Sdk.IMainThread MainThread => this;
+        public string OperationId => "probe";
+        public string CapabilityId => "probe";
         public int Invocations;
         public Task<T> InvokeAsync<T>(Func<T> action, CancellationToken token)
         {

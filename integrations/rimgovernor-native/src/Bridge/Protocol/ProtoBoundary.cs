@@ -139,12 +139,34 @@ namespace HomeBridge.BridgeTools
         {
             var queued = Stopwatch.GetTimestamp();
             var trace = TraceOf(ctx);
-            return ctx.MainThread.InvokeAsync<object>(() =>
+            var hop = MainThreadWatchdog.Enqueue(OperationOf(ctx), trace);
+            var task = ctx.MainThread.InvokeAsync<object>(() =>
             {
+                MainThreadWatchdog.Start(hop);
                 var started = Stopwatch.GetTimestamp();
-                var reply = body();
-                return WithTiming(reply, queued, started, Stopwatch.GetTimestamp(), trace);
+                try
+                {
+                    var reply = body();
+                    return WithTiming(reply, queued, started, Stopwatch.GetTimestamp(), trace);
+                }
+                finally { MainThreadWatchdog.Finish(hop); }
             }, cancellationToken);
+            // A hop the host never runs (cancelled while queued) still leaves
+            // the watchdog once its task settles.
+            task.ContinueWith(_ => MainThreadWatchdog.Finish(hop), TaskContinuationOptions.ExecuteSynchronously);
+            return task;
+        }
+
+        // The host's capability id (the tool) and operation id for the
+        // watchdog line; a context that cannot be read is never a failure.
+        private static string OperationOf(IRimBridgeContext ctx)
+        {
+            try
+            {
+                var capability = ctx?.CapabilityId; var operation = ctx?.OperationId;
+                return (string.IsNullOrEmpty(capability) ? "tool" : capability!) + (string.IsNullOrEmpty(operation) ? "" : " op=" + operation);
+            }
+            catch (Exception) { return "tool"; }
         }
 
         // The caller's trace argument, or null when it sent none or the raw
