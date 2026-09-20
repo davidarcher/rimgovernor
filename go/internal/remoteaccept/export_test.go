@@ -125,7 +125,28 @@ func exportFixture(t *testing.T, f *fixture, index int) ExportJob {
 func TestExportPortableEvidenceAndRedVerdict(t *testing.T) {
 	for _, fail := range []bool{false, true} {
 		t.Run(map[bool]string{false: "green", true: "red"}[fail], func(t *testing.T) {
-			f := fixtureRun(t)
+			// One case exercises export and verdict propagation. Keep each branch's
+			// source evidence and export destination private, without copying the
+			// unrelated contract examples or exporting the whole smoke selection.
+			source := filepath.Join("..", "..", "..", "docs", "developers", "contracts", "remote-acceptance")
+			f := &fixture{root: t.TempDir(), shards: []Shard{{ID: "s1", Status: "complete"}}, attempts: make([]Attempts, 1)}
+			readTest(t, source, "run.json", &f.run)
+			readTest(t, source, "selection.json", &f.selection)
+			readTest(t, source, "s1/attempts.json", &f.attempts[0])
+			f.selection.Cases = f.selection.Cases[:1]
+			f.selection.Shards = f.selection.Shards[:1]
+			f.selection.Shards[0].Cases = f.selection.Shards[0].Cases[:1]
+			f.attempts[0].Attempts = f.attempts[0].Attempts[:1]
+			for _, ref := range []Ref{f.run.Bundle, f.attempts[0].Attempts[0].Evidence} {
+				var document json.RawMessage
+				readTest(t, source, ref.Path, &document)
+				copied := writeTest(t, f.root, ref.Path, document)
+				if ref == f.run.Bundle {
+					f.run.Bundle = copied
+				} else {
+					f.attempts[0].Attempts[0].Evidence = copied
+				}
+			}
 			if fail {
 				f.native(t, 0, 0, func(m map[string]json.RawMessage) { m["passed"] = raw("false"); m["exit"] = raw("1") })
 				f.attempts[0].Attempts[0].Status = "failed"
