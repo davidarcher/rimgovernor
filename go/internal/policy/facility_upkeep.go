@@ -20,6 +20,9 @@ type OwnedStockpile struct {
 	Cells []domain.Cell
 }
 type HomeCoverageTarget struct {
+	// ExtentGeometry is complete, unbatched geometry. Legacy Home batches
+	// leave it unknown and cannot establish colony territory.
+	ExtentGeometry    domain.Fact[HomeExtentGeometry]
 	ID                string
 	Shape             domain.Fact[string]
 	Missing, Excluded domain.Fact[int64]

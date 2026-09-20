@@ -80,6 +80,25 @@ completed action annotates provenance; missing history does not exclude a
 player-built facility, and replacement geometry never inherits causal history.
 Lineage does not authorize demolition or establish safe removal.
 
+`policy.DeriveColonyExtent` is a pure current-territory model. It joins the
+complete `CurrentConstruction` census, optional action provenance and exact
+owned stockpiles into sorted four-neighbor regions. Each cell records `facility`,
+`enclosed_interior`, `corridor` or `margin` provenance. A margin is an explicit
+0–8 cell Chebyshev radius clipped to map bounds; overlapping margins never join
+separate regions. No bounding rectangle or inferred path fills gaps between
+facilities, wall fragments or islands.
+
+Home repair batches are not complete geometry: their 256-cell selection can omit
+covered cells and change as Home is restored. `HomeCoverageTarget.ExtentGeometry`
+is the separate complete, unbatched interior/corridor fact for the pure model;
+known empty means footprint only. It follows Home's enclosed roofed room and
+internal-door geometry contract, and every supplied cell must connect to the
+building footprint. Existing observations leave this field unknown. Missing
+census, bounds, target or complete geometry keeps the extent unknown. Stockpiles
+contribute only their exact footprints. This model neither persists territory,
+assesses current safety, nor changes native Home; runtime projection and consumers
+belong to the later colony-extent slices.
+
 The roof-support preview checks connected existing roof cells within the installed
 native support radius while excluding the specified wall as a holder. It changes
 no roof or building. Fog, map-edge uncertainty, pending collapse and unsupported
