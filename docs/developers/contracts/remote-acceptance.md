@@ -85,19 +85,26 @@ ancestor requirement and a verified clean checkout make the remote comparison
 equivalent without changing local semantics. Detect dirty/generated tracked
 changes before planning and fail.
 
-The planner uses `algorithm: "dependency-round-robin-v2"`: sort selected case
+The planner uses `algorithm: "dependency-budget-lpt-v3"`: sort selected case
 names bytewise and group each `sustained/matrix-<save>` with its required
 `tools/variantsavegen-<save>` generator. A missing generator fails planning.
-Assign the remaining names, in sorted order, round-robin to
-min(group count, configured shard count) nonempty shards, appending each
-consumer immediately after its generator in that shard. Generated saves stay
-in the shard's private worker profile. IDs are `s1`, `s2`, etc. Budgets include
-both members of a dependency group on their assigned shard.
+Each selected case records its positive registry budget in integer nanoseconds
+as `budget_ns`, pinned by the selection digest and planner commit. Sort groups
+by descending sum of member budgets, breaking ties by the first case name
+(the generator for a dependency group). Assign each group to the shard with
+the smallest assigned budget, breaking ties by shard index. There are
+min(group count, configured shard count) nonempty shards, with IDs `s1`, `s2`,
+etc. Append each consumer immediately after its generator, keeping generated
+saves in the shard's private worker profile. Retry counts multiply every
+budget equally and do not change assignment.
 
 Every selected case occurs in exactly one shard; reasons and sampled areas are
-retained. No cost estimate influences assignment. Aggregation recomputes the
-same groups and order. Legacy `sorted-round-robin-v1` evidence remains readable:
-it assigns each sorted case independently by index modulo shard count.
+retained. Aggregation recomputes the same groups and order from the recorded
+budgets, rejecting missing, nonpositive or overflowing costs for v3. No ambient
+timing history influences assignment. Legacy `dependency-round-robin-v2`
+evidence remains readable and assigns name-sorted groups round-robin;
+`sorted-round-robin-v1` assigns each sorted case independently by index modulo
+shard count. Both legacy versions ignore the optional `budget_ns` field.
 Future cost balancing must name a new algorithm and pin its cost input.
 Reject empty, unknown, duplicated or omitted cases before starting runners.
 

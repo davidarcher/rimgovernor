@@ -52,7 +52,7 @@ func Evaluate(root string, runRef, selectionRef Ref, shards []Shard) (Evaluation
 		return e, err
 	}
 	s := e.Selection
-	if s.Version != 1 || s.Run != runRef || s.Planner != r.TestedCommit || s.DiffMode != "ancestor-tree" || (s.Algorithm != "sorted-round-robin-v1" && s.Algorithm != DependencyAlgorithm) {
+	if s.Version != 1 || s.Run != runRef || s.Planner != r.TestedCommit || s.DiffMode != "ancestor-tree" || (s.Algorithm != "sorted-round-robin-v1" && s.Algorithm != DependencyAlgorithm && s.Algorithm != BudgetAlgorithm) {
 		return e, fmt.Errorf("selection identity/version/algorithm mismatch")
 	}
 	if len(s.Cases) == 0 || len(s.Shards) == 0 || len(s.Shards) > l.Shards {
@@ -68,6 +68,7 @@ func Evaluate(root string, runRef, selectionRef Ref, shards []Shard) (Evaluation
 	}
 	planned := map[string]string{}
 	names := []string{}
+	budgets := map[string]int64{}
 	for _, c := range s.Cases {
 		if !validPath(c.Name) || strings.Count(c.Name, "/") != 1 || len(c.Reasons) == 0 {
 			return e, fmt.Errorf("invalid selected case %s", c.Name)
@@ -82,6 +83,7 @@ func Evaluate(root string, runRef, selectionRef Ref, shards []Shard) (Evaluation
 			}
 		}
 		names = append(names, c.Name)
+		budgets[c.Name] = c.BudgetNS
 	}
 	for i, c := range s.Skipped {
 		if !validPath(c.Name) || strings.Count(c.Name, "/") != 1 || c.Reason != "rendered" ||
@@ -93,7 +95,7 @@ func Evaluate(root string, runRef, selectionRef Ref, shards []Shard) (Evaluation
 		}
 	}
 	e.Aggregate.Skipped = s.Skipped
-	wantShards, err := PlanShards(names, l.Shards, s.Algorithm)
+	wantShards, err := PlanShards(names, l.Shards, s.Algorithm, budgets)
 	if err != nil {
 		return e, err
 	}

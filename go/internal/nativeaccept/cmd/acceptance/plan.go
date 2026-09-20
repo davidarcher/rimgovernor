@@ -59,6 +59,7 @@ type planRun struct {
 }
 
 type plannedCase struct {
+	BudgetNS   int64    `json:"budget_ns,omitempty"`
 	Name       string   `json:"name"`
 	Reasons    []string `json:"reasons"`
 	FixtureOps []string `json:"fixture_ops"`
@@ -264,7 +265,7 @@ func planComparison(repo string, r planRun, fetch bool) ([]string, error) {
 }
 
 func buildSelection(r planRun, ref planReference, files []string, sel affected.Selection) (remoteSelection, error) {
-	p := remoteSelection{Version: 1, Run: ref, Commit: r.Head, DiffMode: "ancestor-tree", Files: append([]string{}, files...), Sampled: []string{}, Algorithm: remoteaccept.DependencyAlgorithm}
+	p := remoteSelection{Version: 1, Run: ref, Commit: r.Head, DiffMode: "ancestor-tree", Files: append([]string{}, files...), Sampled: []string{}, Algorithm: remoteaccept.BudgetAlgorithm}
 	if err := r.validate(); err != nil {
 		return p, err
 	}
@@ -305,10 +306,12 @@ func buildSelection(r planRun, ref planReference, files []string, sel affected.S
 		return p, fmt.Errorf("empty remote selection")
 	}
 	names := make([]string, len(selected))
+	costs := map[string]int64{}
 	for i, c := range selected {
 		names[i] = c.Name
+		costs[c.Name] = int64(c.Budget)
 	}
-	shards, err := remoteaccept.PlanShards(names, r.Limits.Shards, p.Algorithm)
+	shards, err := remoteaccept.PlanShards(names, r.Limits.Shards, p.Algorithm, costs)
 	if err != nil {
 		return p, err
 	}
@@ -324,7 +327,7 @@ func buildSelection(r planRun, ref planReference, files []string, sel affected.S
 		if c.Matrix {
 			return p, fmt.Errorf("%s requires a separate matrix selection; selection cannot be truncated", c.Name)
 		}
-		row := plannedCase{Name: c.Name, Reasons: []string{}, FixtureOps: append([]string{}, c.FixtureOps()...), Roles: []string{"bridge"}, ModRole: "fixture", Rendered: c.Rendered}
+		row := plannedCase{Name: c.Name, BudgetNS: int64(c.Budget), Reasons: []string{}, FixtureOps: append([]string{}, c.FixtureOps()...), Roles: []string{"bridge"}, ModRole: "fixture", Rendered: c.Rendered}
 		if c.Production {
 			row.ModRole = "production"
 		}

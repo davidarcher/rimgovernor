@@ -73,9 +73,9 @@ func TestRemotePlanDeterministicCoverage(t *testing.T) {
 				t.Fatalf("%s coverage = %d", c.Name, seen[c.Name])
 			}
 		}
-		for i, c := range p.Cases {
-			if !slices.Contains(p.Shards[i%len(p.Shards)].Cases, c.Name) {
-				t.Fatal("not sorted round robin")
+		for _, c := range p.Cases {
+			if p.Algorithm != remoteaccept.BudgetAlgorithm || c.BudgetNS <= 0 {
+				t.Fatal("missing versioned budget evidence")
 			}
 			if len(c.Reasons) == 0 {
 				t.Fatal("missing reason")
@@ -93,13 +93,13 @@ func TestRemotePlanSmokeMatchesContract(t *testing.T) {
 	if !reflect.DeepEqual(p.Files, []string{"a", "b"}) {
 		t.Fatal(p.Files)
 	}
-	if !reflect.DeepEqual(p.Shards[0].Cases, []string{"light/dark", "pawn/reads", "smoke/dispatch"}) {
+	if !reflect.DeepEqual(p.Shards[0].Cases, []string{"light/dark", "pawn/reads", "smoke/identity"}) {
 		t.Fatal(p.Shards)
 	}
 	if !reflect.DeepEqual(p.Cases[0].Roles, []string{"bridge", "controller"}) {
 		t.Fatal(p.Cases[0])
 	}
-	// Untimed cases use the same algorithm: no ambient cost history enters it.
+	// Registry budgets are the only costs; no ambient timing history enters it.
 	r.Limits.Shards = 32
 	p, err = buildSelection(r, planReference{}, nil, affected.Selection{})
 	if err != nil {
@@ -231,16 +231,16 @@ func TestRemotePlanMatrixDependencies(t *testing.T) {
 		if !found {
 			t.Fatalf("missing manifest consumer %s", consumer)
 		}
-		if _, err := remoteaccept.PlanShards([]string{consumer}, 32, p.Algorithm); err == nil || !strings.Contains(err.Error(), generator) {
+		if _, err := remoteaccept.PlanShards([]string{consumer}, 32, p.Algorithm, nil); err == nil || !strings.Contains(err.Error(), generator) {
 			t.Fatalf("missing generator did not fail planning: %v", err)
 		}
 	}
 }
 
-func TestRemoteLandCompleteRegistryFitsNineShards(t *testing.T) {
+func TestRemoteLandCompleteRegistryFitsEightShards(t *testing.T) {
 	r := examplePlanRun(t)
 	r.Tier = "land"
-	r.Limits.Shards, r.Limits.Attempts = 9, 1
+	r.Limits.Shards, r.Limits.Attempts = 8, 1
 	r.Limits.JobMinutes, r.Limits.SuiteMinutes = 360, 345
 	if _, err := buildSelection(r, planReference{}, nil, affected.Selection{AllHarnesses: true}); err != nil {
 		t.Fatal(err)

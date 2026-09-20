@@ -58,8 +58,9 @@ type Selection struct {
 	Shards    []PlannedShard `json:"shards"`
 }
 type SelectedCase struct {
-	Name    string   `json:"name"`
-	Reasons []string `json:"reasons"`
+	BudgetNS int64    `json:"budget_ns,omitempty"`
+	Name     string   `json:"name"`
+	Reasons  []string `json:"reasons"`
 }
 type PlannedShard struct {
 	ID    string   `json:"id"`
