@@ -468,9 +468,14 @@ indicator for the incremental reads that follow.
 native's colony facts carry no `planning.cells`; the window (the site
 cells at the colony centre +/- 22, `bridge.PlanningWindowRect`) is read
 through `observations_get_cells` by `bridge.ReadPlanningWindow` (roof,
-visibility, traversal, zone, room, growth; one page up to 4096 cells,
+visibility, traversal, zone, room, growth; compact pages up to 65536 cells,
 row bands beyond) and decoded by `bridge.PlanningCells`, the decoder an
-older native's reply-carried cells also go through. The step attaches a
+older native's reply-carried cells also go through. Compact pages use two-byte
+flag rows, reply-local roof/zone/room and glow tables, and a sparse fertility
+array without quantization. Fogged and unchanged cells carry no other facts.
+Sparse deltas retain ordinary rows when a full flag grid would cost more.
+The 1 MiB envelope remains enforced; `tools/saveheadroom-*` compares both
+encodings for the same colony window and reports bytes per cell. The step attaches a
 refresher to its context (`observation.WithPlanningWindow`); a planning
 colony read whose reply lists no cells asks it, and the refresher reads
 natively when nothing held covers the region or when a full review step

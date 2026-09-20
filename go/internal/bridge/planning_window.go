@@ -18,7 +18,7 @@ const PlanningWindowRadius int32 = 22
 
 // planningWindowPage is the most cells one observations_get_cells page
 // carries for a rectangle selection; a larger window is read in row bands.
-const planningWindowPage = 4096
+const planningWindowPage = 65536
 
 // PlanningWindowRect is the planning window around center on a map of
 // bounds: centre +/- PlanningWindowRadius, clipped to the map.
@@ -115,7 +115,7 @@ func SortSiteCells(cells []policy.SiteCell) {
 
 func (client *Client) readPlanningBand(ctx context.Context, identity *c.Identity, band policy.Rectangle, since int64) (*o.CellsSnapshot, Result, error) {
 	region := &o.Rectangle{Minimum: &c.Cell{X: proto.Int32(band.X), Z: proto.Int32(band.Z)}, Maximum: &c.Cell{X: proto.Int32(band.X + band.Width - 1), Z: proto.Int32(band.Z + band.Height - 1)}}
-	request := &o.GetCellsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Selection: &o.GetCellsRequest_Rectangle{Rectangle: region}, Fields: planningWindowFields(), Page: &c.PageRequest{Limit: proto.Uint32(uint32(band.Width) * uint32(band.Height))}}
+	request := &o.GetCellsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Selection: &o.GetCellsRequest_Rectangle{Rectangle: region}, Fields: planningWindowFields(), Compact: proto.Bool(true), Page: &c.PageRequest{Limit: proto.Uint32(uint32(band.Width) * uint32(band.Height))}}
 	if since > 0 {
 		request.ChangedSinceTick = proto.Int64(since)
 	}
@@ -145,6 +145,9 @@ func (client *Client) readPlanningBand(ctx context.Context, identity *c.Identity
 		}
 		if !proto.Equal(snapshot.AppliedFields, planningWindowFields()) {
 			return nil, raw, contract("planning window applied fields differ")
+		}
+		if err := ExpandCompactCells(snapshot); err != nil {
+			return nil, raw, err
 		}
 		if err := validatePlanningCells(snapshot, snapshot.Context, snapshot.MapSize, since); err != nil {
 			return nil, raw, err

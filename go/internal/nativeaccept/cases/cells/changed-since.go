@@ -17,8 +17,12 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 func init() {
@@ -73,6 +77,47 @@ func run(ctx context.Context, s cases.Session) error {
 		_, observed, err := na.Outcome(reply, "observed")
 		if err != nil {
 			return nil, 0, 0, err
+		}
+		// Compare compact planning coverage with the same full or delta read.
+		// Terrain is outside the compact planning projection.
+		request["compact"] = true
+		request["fields"] = map[string]any{"terrain": false, "roof": true, "visibility": true, "traversal": true, "zone": true, "room": true, "growth": true}
+		packed, err := h.Wire(ctx, label+"-compact", "observations_get_cells", request)
+		if err != nil {
+			return nil, 0, 0, err
+		}
+		_, compactObserved, err := na.Outcome(packed, "observed")
+		if err != nil {
+			return nil, 0, 0, err
+		}
+		decode := func(value map[string]any) (*o.CellsSnapshot, error) {
+			data, err := json.Marshal(value)
+			if err != nil {
+				return nil, err
+			}
+			snapshot := &o.CellsSnapshot{}
+			if err := protojson.Unmarshal(data, snapshot); err != nil {
+				return nil, err
+			}
+			if err := bridge.ExpandCompactCells(snapshot); err != nil {
+				return nil, err
+			}
+			snapshot.AppliedFields.Terrain = proto.Bool(false)
+			for _, cell := range snapshot.Cells {
+				cell.Terrain = nil
+			}
+			return snapshot, nil
+		}
+		plain, err := decode(observed)
+		if err != nil {
+			return nil, 0, 0, err
+		}
+		compact, err := decode(compactObserved)
+		if err != nil {
+			return nil, 0, 0, err
+		}
+		if !proto.Equal(plain, compact) {
+			return nil, 0, 0, fmt.Errorf("%s: compact full/delta facts differ", label)
 		}
 		obsContext, _ := na.AsMap(observed["context"])
 		asOf, tick := na.AsNumber(observed["asOfTick"]), na.AsNumber(obsContext["tick"])

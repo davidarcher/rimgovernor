@@ -36,7 +36,7 @@ namespace HomeBridge.BridgeTools
         }
 
         [Tool("rimgovernor/observations_get_cells", Title = "Read bounded map cells",
-            Description = "Official GetCellsRequest ProtoJSON. Exact cells (1..256) or inclusive rectangle (1..4096 cells). Returns native map dimensions. Absent fields select terrain/roof/visibility/traversal; explicit false skips. Traversal adds occupied/doorway/supports_light, zone adds zone_id/storage_empty, room adds room_id/indoors, growth adds fertility where the ground has any; a fogged cell under visibility carries only fogged, and an absent roof/zone/room is the applied field with no value. changed_since_tick omits the cells unchanged at or after that tick (counted in unchanged; room_id alone never counts as a change, rooms being renumbered on every region rebuild); as_of_tick is always the context tick. Areas and designations are unavailable until migrated.")]
+            Description = "Official GetCellsRequest ProtoJSON. Exact cells (1..256) or inclusive rectangle (1..4096 cells; compact planning fields up to65536). Returns native map dimensions. Absent fields select terrain/roof/visibility/traversal; explicit false skips. Traversal adds occupied/doorway/supports_light, zone adds zone_id/storage_empty, room adds room_id/indoors, growth adds fertility where the ground has any; a fogged cell under visibility carries only fogged, and an absent roof/zone/room is the applied field with no value. changed_since_tick omits the cells unchanged at or after that tick (counted in unchanged; room_id alone never counts as a change, rooms being renumbered on every region rebuild); as_of_tick is always the context tick. Areas and designations are unavailable until migrated.")]
         [ToolResponse("payload", "string", "Official observations GetCellsReply ProtoJSON.", Always = true)]
         public async Task<object> GetCells(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw value must be a GetCellsRequest ProtoJSON string.")] object? request = null)
@@ -109,6 +109,8 @@ namespace HomeBridge.BridgeTools
                         snapshot.Cells.Add(row);
                     }
                     snapshot.Completeness = Complete(snapshot.Cells.Count);
+                    // Sparse deltas are smaller as ordinary rows than a full flag grid.
+                    if (parsed.Compact && snapshot.Cells.Count * 20L >= cells.Count) CompactCellEncoding.Encode(snapshot);
                     return EncodeBounded(new Obs.GetCellsReply { Observed = snapshot });
                 }
                 catch (ReadLimit error) { return ProtoBoundary.Encode(new Obs.GetCellsReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, error.Message) }); }
@@ -142,7 +144,8 @@ namespace HomeBridge.BridgeTools
         internal static bool ValidateCells(Obs.GetCellsRequest request, out Common.Failure failure)
         {
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Valid identity, bounded unique exact cells or inclusive rectangle required.");
-            if (request == null || request.Scope?.ExpectedIdentity == null || !PageValid(request.Page, CellsPageLimit) || request.HasChangedSinceTick && request.ChangedSinceTick < 0) return false;
+            if (request == null || request.Scope?.ExpectedIdentity == null || !PageValid(request.Page, request.Compact ? CompactCellEncoding.Limit : CellsPageLimit) || request.HasChangedSinceTick && request.ChangedSinceTick < 0) return false;
+            if (request.Compact && (request.SelectionCase != Obs.GetCellsRequest.SelectionOneofCase.Rectangle || !CompactCellEncoding.Supports(Fields(request.Fields)))) return false;
             var fields = request.Fields;
             if (fields != null && (fields.Areas || fields.Designations)) {
                 failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "Only terrain, roof, visibility, traversal, zone, room, growth and things cell fields are implemented."); return false;

@@ -5,6 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+
+	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 // ColonyFactsEnvelopeBytes is the native reply bound every
@@ -167,8 +172,85 @@ func CheckCommittedSaveHeadroom(ctx context.Context, h *Harness, report Report) 
 		return fmt.Errorf("checkpoint masked bundle: %w", err)
 	}
 	report["bundle_masked"] = masked
+	if err := planningCellHeadroom(ctx, h, report); err != nil {
+		return err
+	}
 	if size.Bytes > CommittedSaveHeadroomBytes {
 		return fmt.Errorf("checkpoint colony facts read %d bytes, over the %d-byte committed-save headroom (envelope %d); largest sections %v", size.Bytes, CommittedSaveHeadroomBytes, ColonyFactsEnvelopeBytes, size.Sections)
 	}
+	return nil
+}
+
+// Compare the same paused colony-centre window in both wire representations.
+// Keep the colony-facts gate independent: moving bytes to another read cannot
+// excuse a colony-facts envelope regression.
+func planningCellHeadroom(ctx context.Context, h *Harness, report Report) error {
+	identity, err := ReadIdentity(ctx, h, "cell-headroom-identity")
+	if err != nil {
+		return err
+	}
+	reply, err := h.Wire(ctx, "cell-headroom-center", "observations_read_colony_facts", map[string]any{"scope": map[string]any{"expectedIdentity": identity}})
+	if err != nil {
+		return err
+	}
+	_, facts, err := Outcome(reply, "observed")
+	if err != nil {
+		return err
+	}
+	center, _ := AsMap(facts["center"])
+	size, _ := AsMap(facts["mapSize"])
+	x, z := int(AsNumber(center["x"])), int(AsNumber(center["z"]))
+	w, hgt := int(AsNumber(size["width"])), int(AsNumber(size["height"]))
+	if center == nil || w < 1 || hgt < 1 {
+		return fmt.Errorf("cell headroom: missing colony extent")
+	}
+	minX, minZ, maxX, maxZ := max(0, x-22), max(0, z-22), min(w-1, x+22), min(hgt-1, z+22)
+	area := (maxX - minX + 1) * (maxZ - minZ + 1)
+	request := map[string]any{
+		"scope":     map[string]any{"expectedIdentity": identity},
+		"rectangle": map[string]any{"minimum": map[string]any{"x": minX, "z": minZ}, "maximum": map[string]any{"x": maxX, "z": maxZ}},
+		"fields":    map[string]any{"terrain": false, "roof": true, "visibility": true, "traversal": true, "zone": true, "areas": false, "things": false, "designations": false, "room": true, "growth": true},
+		"page":      map[string]any{"limit": area},
+	}
+	var before *o.CellsSnapshot
+	measurements := map[string]any{"cells": area}
+	for _, packed := range []bool{false, true} {
+		name := "rows"
+		if packed {
+			name = "compact"
+		}
+		request["compact"] = packed
+		raw, n, err := h.WireBytes(ctx, "cell-headroom-"+name, "observations_get_cells", request)
+		if err != nil {
+			return err
+		}
+		_, observed, err := Outcome(raw, "observed")
+		if err != nil {
+			return err
+		}
+		encoded, err := json.Marshal(observed)
+		if err != nil {
+			return err
+		}
+		snapshot := &o.CellsSnapshot{}
+		if err := protojson.Unmarshal(encoded, snapshot); err != nil {
+			return err
+		}
+		if packed && snapshot.Compact == nil {
+			return fmt.Errorf("cell headroom: compact encoding missing")
+		}
+		if err := bridge.ExpandCompactCells(snapshot); err != nil {
+			return err
+		}
+		if before != nil && !proto.Equal(before, snapshot) {
+			return fmt.Errorf("cell headroom: compact facts differ from rows")
+		}
+		before = snapshot
+		measurements[name] = map[string]any{"bytes": n, "bytes_per_cell": float64(n) / float64(area)}
+		if n > CommittedSaveHeadroomBytes {
+			return fmt.Errorf("cell headroom: %s window exceeds %d bytes: %d", name, CommittedSaveHeadroomBytes, n)
+		}
+	}
+	report["planning_cells"] = measurements
 	return nil
 }

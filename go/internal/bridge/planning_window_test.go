@@ -48,7 +48,7 @@ func TestPlanningCellsPollutionAndGlowPresence(t *testing.T) {
 // into the completeness count.
 func windowSnapshot(request *o.GetCellsRequest, fogged func(x, z int32) bool) *o.CellsSnapshot {
 	rect := request.GetRectangle()
-	s := &o.CellsSnapshot{Context: pbContext(), MapSize: &o.MapSize{Width: proto.Uint32(100), Height: proto.Uint32(100)}, Region: proto.Clone(rect).(*o.Rectangle), AppliedFields: planningWindowFields()}
+	s := &o.CellsSnapshot{Context: pbContext(), MapSize: &o.MapSize{Width: proto.Uint32(1000), Height: proto.Uint32(1000)}, Region: proto.Clone(rect).(*o.Rectangle), AppliedFields: planningWindowFields()}
 	filtered := uint64(0)
 	for z := rect.Minimum.GetZ(); z <= rect.Maximum.GetZ(); z++ {
 		for x := rect.Minimum.GetX(); x <= rect.Maximum.GetX(); x++ {
@@ -131,18 +131,24 @@ func TestReadPlanningWindowBandsARectBeyondOnePage(t *testing.T) {
 	server := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
 		request := decodeCellsRequest(t, arg)
 		bands = append(bands, request.GetRectangle())
-		return pbResult(&o.GetCellsReply{Outcome: &o.GetCellsReply_Observed{Observed: windowSnapshot(request, nil)}}), nil
+		s := windowSnapshot(request, nil)
+		s.Cells = nil
+		s.Compact = &o.CompactCells{Glow: []float64{0}}
+		for z := request.GetRectangle().Minimum.GetZ(); z <= request.GetRectangle().Maximum.GetZ(); z++ {
+			s.Compact.Rows = append(s.Compact.Rows, make([]byte, 3000))
+		}
+		return pbResult(&o.GetCellsReply{Outcome: &o.GetCellsReply_Observed{Observed: s}}), nil
 	}}
 	client := testClient(t, server, testBudget)
-	rect := policy.Rectangle{X: 0, Z: 0, Width: 100, Height: 90}
+	rect := policy.Rectangle{X: 0, Z: 0, Width: 1000, Height: 90}
 	window, _, err := client.ReadPlanningWindow(context.Background(), pbIdentity(), rect, 0)
-	if err != nil || len(bands) != 3 || len(window.Cells) != 9000 || window.Region != rect {
+	if err != nil || len(bands) != 2 || len(window.Cells) != 90000 || window.Region != rect {
 		t.Fatalf("%v bands=%d cells=%d", err, len(bands), len(window.Cells))
 	}
-	if bands[0].Maximum.GetZ() != 39 || bands[1].Minimum.GetZ() != 40 || bands[2].Minimum.GetZ() != 80 || bands[2].Maximum.GetZ() != 89 {
+	if bands[0].Maximum.GetZ() != 64 || bands[1].Minimum.GetZ() != 65 || bands[1].Maximum.GetZ() != 89 {
 		t.Fatal(bands)
 	}
-	if window.Cells[100].Cell != (domain.Cell{X: 0, Z: 1}) || window.Cells[8999].Cell != (domain.Cell{X: 99, Z: 89}) {
+	if window.Cells[1000].Cell != (domain.Cell{X: 0, Z: 1}) || window.Cells[89999].Cell != (domain.Cell{X: 999, Z: 89}) {
 		t.Fatal("rows out of order")
 	}
 }
