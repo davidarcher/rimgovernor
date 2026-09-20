@@ -348,8 +348,11 @@ completed or failed) and then prefers the separated bench, so a forever bill on
 the shared bench never holds the food-supply goal open. Methods preserve forbidden items, player work
 overrides, schedules, drafts, existing player-forced jobs, storage filters and home
 areas. Native cleaning eligibility determines whether fresh filth can be worked;
-the controller does not encode a filth-age threshold. Deterioration and growing
-fires do not reset the progress watchdog. A newly oversized fire retains a hold
+the controller does not encode a filth-age threshold. Cleaning admission uses
+the live preview tick: native revalidates pawn and filth tokens and eligibility,
+while the executor bounds inspection age in wall time. Tick advance between
+the pawn read and preview alone does not stale an accepted preview.
+Deterioration and growing fires do not reset the progress watchdog. A newly oversized fire retains a hold
 even when native firefighting was already underway. Fire monitoring uses Normal
 speed and at most 60 game ticks between reviews; unavailable safe workers retain
 an emergency hold.

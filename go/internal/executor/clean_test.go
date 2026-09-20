@@ -20,7 +20,8 @@ type cleanEnvironment struct {
 	// running makes each inspection's preview land a few ticks after the
 	// one before while the pawn row keeps its first tick: the step's fact
 	// cache serving a re-read under a running window (#306).
-	running bool
+	running        bool
+	previewAdvance domain.Tick
 }
 
 func (n *cleanEnvironment) cleanFacts(target Target) policy.CleanFacts {
@@ -31,6 +32,7 @@ func (n *cleanEnvironment) cleanFacts(target Target) policy.CleanFacts {
 	if n.running {
 		facts.PreviewTick += domain.Tick(3 * n.inspected)
 	}
+	facts.PreviewTick += n.previewAdvance
 	return facts
 }
 func (n *cleanEnvironment) InspectClean(_ context.Context, target Target) (CleanInspection, error) {
@@ -118,6 +120,26 @@ func TestCleanDispatchesUnderRunningWindow(t *testing.T) {
 	}
 	if v := result.Progress.View(); v.Tick != n.tick+6 {
 		t.Fatalf("dispatched at %d, want the second preview tick %d", v.Tick, n.tick+6)
+	}
+}
+
+// The fresh campaign's first running window has no measured live drift.
+// Native accepted the exact pawn/filth tokens after more than 250 ticks;
+// admission must use that preview rather than stall on the pawn read's age.
+func TestCleanDispatchesBeforeRunningPaceIsKnown(t *testing.T) {
+	previous := domain.LiveDrift()
+	domain.SetLiveDrift(0)
+	t.Cleanup(func() { domain.SetLiveDrift(previous) })
+	f, n := cleanFixture(t)
+	n.tick = 103805
+	n.running = true
+	n.previewAdvance = 635
+	result, err := f.run()
+	if err != nil || !result.Progress.View().Unresolved || n.dispatched != 1 || len(result.Refused) != 0 {
+		t.Fatal(result, err, n.dispatched)
+	}
+	if got := result.Progress.View().Tick; got != 104446 {
+		t.Fatalf("dispatch tick = %d, want live preview tick 104446", got)
 	}
 }
 

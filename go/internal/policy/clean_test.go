@@ -69,7 +69,7 @@ func TestCleanDefenseHolds(t *testing.T) {
 		{"minimum", func(r *CleanRequest) { r.MinimumTick = 14 }},
 		{"negative minimum", func(r *CleanRequest) { r.MinimumTick = -1 }},
 		{"reversed interval", func(r *CleanRequest) { r.Facts.PreviewTick = 11 }},
-		{"pawn row outrun", func(r *CleanRequest) { r.Facts.PreviewTick = 12 + domain.PlanningTickTolerance + 1 }},
+		{"negative pawn tick", func(r *CleanRequest) { r.Facts.PawnTick = -1 }},
 		{"prepared past preview", func(r *CleanRequest) { r.Progress, _ = r.Progress.Prepare(r.Current, 14) }},
 		{"zero generation", func(r *CleanRequest) { r.Current.Native = 0 }},
 		{"native", func(r *CleanRequest) { r.Current.Native++ }},
