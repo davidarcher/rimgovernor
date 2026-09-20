@@ -619,8 +619,7 @@ type ClearanceTarget struct {
 	InHome          *bool                  `protobuf:"varint,7,opt,name=in_home,json=inHome,proto3,oneof" json:"in_home,omitempty"` // Every occupied cell, not just the origin.
 	RoofBlocker     *string                `protobuf:"bytes,8,opt,name=roof_blocker,json=roofBlocker,proto3,oneof" json:"roof_blocker,omitempty"`
 	AncientDanger   *bool                  `protobuf:"varint,9,opt,name=ancient_danger,json=ancientDanger,proto3,oneof" json:"ancient_danger,omitempty"`
-	Designated      *bool                  `protobuf:"varint,10,opt,name=designated,proto3,oneof" json:"designated,omitempty"`
-	ControllerOwned *bool                  `protobuf:"varint,11,opt,name=controller_owned,json=controllerOwned,proto3,oneof" json:"controller_owned,omitempty"`
+	Designated      *bool                  `protobuf:"varint,10,opt,name=designated,proto3,oneof" json:"designated,omitempty"` // A standing Deconstruct designation; the controller adopts it (no ownership ledger).
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -721,13 +720,6 @@ func (x *ClearanceTarget) GetAncientDanger() bool {
 func (x *ClearanceTarget) GetDesignated() bool {
 	if x != nil && x.Designated != nil {
 		return *x.Designated
-	}
-	return false
-}
-
-func (x *ClearanceTarget) GetControllerOwned() bool {
-	if x != nil && x.ControllerOwned != nil {
-		return *x.ControllerOwned
 	}
 	return false
 }
@@ -13226,7 +13218,6 @@ type WallUpgradeSite struct {
 	state                protoimpl.MessageState `protogen:"open.v1"`
 	Target               *EntityRef             `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
 	TargetPresent        *bool                  `protobuf:"varint,2,opt,name=target_present,json=targetPresent,proto3,oneof" json:"target_present,omitempty"`
-	PlayerOwned          *bool                  `protobuf:"varint,3,opt,name=player_owned,json=playerOwned,proto3,oneof" json:"player_owned,omitempty"`
 	BackupCells          []*commonpb.Cell       `protobuf:"bytes,4,rep,name=backup_cells,json=backupCells,proto3" json:"backup_cells,omitempty"`
 	Costs                []*Quantity            `protobuf:"bytes,5,rep,name=costs,proto3" json:"costs,omitempty"`
 	Materials            []*ResourceStock       `protobuf:"bytes,6,rep,name=materials,proto3" json:"materials,omitempty"`
@@ -13289,13 +13280,6 @@ func (x *WallUpgradeSite) GetTarget() *EntityRef {
 func (x *WallUpgradeSite) GetTargetPresent() bool {
 	if x != nil && x.TargetPresent != nil {
 		return *x.TargetPresent
-	}
-	return false
-}
-
-func (x *WallUpgradeSite) GetPlayerOwned() bool {
-	if x != nil && x.PlayerOwned != nil {
-		return *x.PlayerOwned
 	}
 	return false
 }
@@ -26967,7 +26951,6 @@ type WallRemovalRecord struct {
 	Complete      *bool                  `protobuf:"varint,3,opt,name=complete,proto3,oneof" json:"complete,omitempty"`
 	CompletedTick *int64                 `protobuf:"varint,4,opt,name=completed_tick,json=completedTick,proto3,oneof" json:"completed_tick,omitempty"`
 	Blocker       *string                `protobuf:"bytes,5,opt,name=blocker,proto3,oneof" json:"blocker,omitempty"`
-	PlayerOwned   *bool                  `protobuf:"varint,6,opt,name=player_owned,json=playerOwned,proto3,oneof" json:"player_owned,omitempty"`
 	Retired       *bool                  `protobuf:"varint,7,opt,name=retired,proto3,oneof" json:"retired,omitempty"`
 	TargetPresent *bool                  `protobuf:"varint,8,opt,name=target_present,json=targetPresent,proto3,oneof" json:"target_present,omitempty"`
 	Designated    *bool                  `protobuf:"varint,9,opt,name=designated,proto3,oneof" json:"designated,omitempty"`
@@ -27038,13 +27021,6 @@ func (x *WallRemovalRecord) GetBlocker() string {
 		return *x.Blocker
 	}
 	return ""
-}
-
-func (x *WallRemovalRecord) GetPlayerOwned() bool {
-	if x != nil && x.PlayerOwned != nil {
-		return *x.PlayerOwned
-	}
-	return false
 }
 
 func (x *WallRemovalRecord) GetRetired() bool {
@@ -33963,7 +33939,7 @@ const file_observations_proto_rawDesc = "" +
 	"\x06_field\"y\n" +
 	"\tRectangle\x125\n" +
 	"\aminimum\x18\x01 \x01(\v2\x1b.rimgovernor.common.v1.CellR\aminimum\x125\n" +
-	"\amaximum\x18\x02 \x01(\v2\x1b.rimgovernor.common.v1.CellR\amaximum\"\xfe\x04\n" +
+	"\amaximum\x18\x02 \x01(\v2\x1b.rimgovernor.common.v1.CellR\amaximum\"\xbf\x04\n" +
 	"\x0fClearanceTarget\x12 \n" +
 	"\tentity_id\x18\x01 \x01(\tH\x00R\bentityId\x88\x01\x01\x12\x1e\n" +
 	"\bdef_name\x18\x02 \x01(\tH\x01R\adefName\x88\x01\x01\x12B\n" +
@@ -33977,8 +33953,7 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"designated\x18\n" +
 	" \x01(\bH\aR\n" +
-	"designated\x88\x01\x01\x12.\n" +
-	"\x10controller_owned\x18\v \x01(\bH\bR\x0fcontrollerOwned\x88\x01\x01B\f\n" +
+	"designated\x88\x01\x01B\f\n" +
 	"\n" +
 	"_entity_idB\v\n" +
 	"\t_def_nameB\n" +
@@ -33989,8 +33964,7 @@ const file_observations_proto_rawDesc = "" +
 	"\b_in_homeB\x0f\n" +
 	"\r_roof_blockerB\x11\n" +
 	"\x0f_ancient_dangerB\r\n" +
-	"\v_designatedB\x13\n" +
-	"\x11_controller_owned\"\xae\x02\n" +
+	"\v_designatedJ\x04\b\v\x10\f\"\xae\x02\n" +
 	"\x0eClearanceChunk\x12 \n" +
 	"\tentity_id\x18\x01 \x01(\tH\x00R\bentityId\x88\x01\x01\x12\x1e\n" +
 	"\bdef_name\x18\x02 \x01(\tH\x01R\adefName\x88\x01\x01\x12/\n" +
@@ -35861,23 +35835,23 @@ const file_observations_proto_rawDesc = "" +
 	"\x12WallMaterialOption\x12\x19\n" +
 	"\x05stuff\x18\x01 \x01(\tH\x00R\x05stuff\x88\x01\x01\x12;\n" +
 	"\x05costs\x18\x02 \x03(\v2%.rimgovernor.observations.v1.QuantityR\x05costsB\b\n" +
-	"\x06_stuff\"\xb0\v\n" +
+	"\x06_stuff\"\xfd\n" +
+	"\n" +
 	"\x0fWallUpgradeSite\x12>\n" +
 	"\x06target\x18\x01 \x01(\v2&.rimgovernor.observations.v1.EntityRefR\x06target\x12*\n" +
-	"\x0etarget_present\x18\x02 \x01(\bH\x00R\rtargetPresent\x88\x01\x01\x12&\n" +
-	"\fplayer_owned\x18\x03 \x01(\bH\x01R\vplayerOwned\x88\x01\x01\x12>\n" +
+	"\x0etarget_present\x18\x02 \x01(\bH\x00R\rtargetPresent\x88\x01\x01\x12>\n" +
 	"\fbackup_cells\x18\x04 \x03(\v2\x1b.rimgovernor.common.v1.CellR\vbackupCells\x12;\n" +
 	"\x05costs\x18\x05 \x03(\v2%.rimgovernor.observations.v1.QuantityR\x05costs\x12H\n" +
 	"\tmaterials\x18\x06 \x03(\v2*.rimgovernor.observations.v1.ResourceStockR\tmaterials\x12@\n" +
 	"\aworkers\x18\a \x03(\v2&.rimgovernor.observations.v1.EntityRefR\aworkers\x12\x1d\n" +
-	"\ablocker\x18\b \x01(\tH\x02R\ablocker\x88\x01\x01\x12#\n" +
+	"\ablocker\x18\b \x01(\tH\x01R\ablocker\x88\x01\x01\x12#\n" +
 	"\n" +
-	"designated\x18\t \x01(\bH\x03R\n" +
+	"designated\x18\t \x01(\bH\x02R\n" +
 	"designated\x88\x01\x01\x12\"\n" +
 	"\n" +
 	"removal_id\x18\n" +
-	" \x01(\tH\x04R\tremovalId\x88\x01\x01\x12*\n" +
-	"\x0ecompleted_tick\x18\v \x01(\x03H\x05R\rcompletedTick\x88\x01\x01\x12D\n" +
+	" \x01(\tH\x03R\tremovalId\x88\x01\x01\x12*\n" +
+	"\x0ecompleted_tick\x18\v \x01(\x03H\x04R\rcompletedTick\x88\x01\x01\x12D\n" +
 	"\bsnapshot\x18\f \x01(\v2(.rimgovernor.observations.v1.SnapshotRefR\bsnapshot\x123\n" +
 	"\x06normal\x18\r \x01(\v2\x1b.rimgovernor.common.v1.CellR\x06normal\x12F\n" +
 	"\boriginal\x18\x0e \x01(\v2*.rimgovernor.observations.v1.BuildingStateR\boriginal\x12M\n" +
@@ -35888,13 +35862,12 @@ const file_observations_proto_rawDesc = "" +
 	"\x15replacement_materials\x18\x13 \x03(\v2/.rimgovernor.observations.v1.WallMaterialOptionR\x14replacementMaterials\x12F\n" +
 	"\bgeometry\x18\x14 \x01(\v2*.rimgovernor.observations.v1.CellsSnapshotR\bgeometry\x12S\n" +
 	"\froof_support\x18\x15 \x01(\v20.rimgovernor.observations.v1.RoofSupportSnapshotR\vroofSupportB\x11\n" +
-	"\x0f_target_presentB\x0f\n" +
-	"\r_player_ownedB\n" +
+	"\x0f_target_presentB\n" +
 	"\n" +
 	"\b_blockerB\r\n" +
 	"\v_designatedB\r\n" +
 	"\v_removal_idB\x11\n" +
-	"\x0f_completed_tick\"\xed\x01\n" +
+	"\x0f_completed_tickJ\x04\b\x03\x10\x04\"\xed\x01\n" +
 	"\x13WallUpgradeSnapshot\x12C\n" +
 	"\acontext\x18\x01 \x01(\v2).rimgovernor.common.v1.ObservationContextR\acontext\x12B\n" +
 	"\x05sites\x18\x02 \x03(\v2,.rimgovernor.observations.v1.WallUpgradeSiteR\x05sites\x12M\n" +
@@ -37666,18 +37639,17 @@ const file_observations_proto_rawDesc = "" +
 	"\x0eHaulingSection\x12G\n" +
 	"\bobserved\x18\x01 \x01(\v2).rimgovernor.observations.v1.HaulingFactsH\x00R\bobserved\x12F\n" +
 	"\vunavailable\x18\x02 \x01(\v2\".rimgovernor.common.v1.UnavailableH\x00R\vunavailableB\t\n" +
-	"\aoutcome\"\xce\x03\n" +
+	"\aoutcome\"\x9b\x03\n" +
 	"\x11WallRemovalRecord\x12\x13\n" +
 	"\x02id\x18\x01 \x01(\tH\x00R\x02id\x88\x01\x01\x12 \n" +
 	"\ttarget_id\x18\x02 \x01(\tH\x01R\btargetId\x88\x01\x01\x12\x1f\n" +
 	"\bcomplete\x18\x03 \x01(\bH\x02R\bcomplete\x88\x01\x01\x12*\n" +
 	"\x0ecompleted_tick\x18\x04 \x01(\x03H\x03R\rcompletedTick\x88\x01\x01\x12\x1d\n" +
-	"\ablocker\x18\x05 \x01(\tH\x04R\ablocker\x88\x01\x01\x12&\n" +
-	"\fplayer_owned\x18\x06 \x01(\bH\x05R\vplayerOwned\x88\x01\x01\x12\x1d\n" +
-	"\aretired\x18\a \x01(\bH\x06R\aretired\x88\x01\x01\x12*\n" +
-	"\x0etarget_present\x18\b \x01(\bH\aR\rtargetPresent\x88\x01\x01\x12#\n" +
+	"\ablocker\x18\x05 \x01(\tH\x04R\ablocker\x88\x01\x01\x12\x1d\n" +
+	"\aretired\x18\a \x01(\bH\x05R\aretired\x88\x01\x01\x12*\n" +
+	"\x0etarget_present\x18\b \x01(\bH\x06R\rtargetPresent\x88\x01\x01\x12#\n" +
 	"\n" +
-	"designated\x18\t \x01(\bH\bR\n" +
+	"designated\x18\t \x01(\bH\aR\n" +
 	"designated\x88\x01\x01B\x05\n" +
 	"\x03_idB\f\n" +
 	"\n" +
@@ -37685,12 +37657,11 @@ const file_observations_proto_rawDesc = "" +
 	"\t_completeB\x11\n" +
 	"\x0f_completed_tickB\n" +
 	"\n" +
-	"\b_blockerB\x0f\n" +
-	"\r_player_ownedB\n" +
+	"\b_blockerB\n" +
 	"\n" +
 	"\b_retiredB\x11\n" +
 	"\x0f_target_presentB\r\n" +
-	"\v_designated\"\xf1\x01\n" +
+	"\v_designatedJ\x04\b\x06\x10\a\"\xf1\x01\n" +
 	"\x10WallRemovalFacts\x12H\n" +
 	"\arecords\x18\x01 \x03(\v2..rimgovernor.observations.v1.WallRemovalRecordR\arecords\x12M\n" +
 	"\fcompleteness\x18\x02 \x01(\v2).rimgovernor.observations.v1.CompletenessR\fcompleteness\x12D\n" +

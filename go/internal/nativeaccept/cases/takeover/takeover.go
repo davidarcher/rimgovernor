@@ -68,6 +68,10 @@ func Journal(ctx context.Context, journal *store.Store, report na.Report) error 
 	return nil
 }
 
+// noProvenanceHold is a fence: every reason listed is a retired
+// "the player owns this, hands off" hold, and none is produced any more (the
+// last, clearance's foreign_designation, went with the wall removal ledger's
+// ownership flags). A journal naming one means the concept crept back.
 func noProvenanceHold(value any) error {
 	data, err := json.Marshal(value)
 	if err != nil {

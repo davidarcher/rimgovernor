@@ -36,7 +36,6 @@ type Amount struct {
 type WallUpgradeSite struct {
 	TargetID             string
 	TargetPresent        bool
-	PlayerOwned          bool
 	Blocker              string
 	X, Z, NX, NZ         int32
 	BackupCells          []domain.Cell
@@ -109,7 +108,7 @@ func validateWallUpgradeSites(v *o.WallUpgradeSnapshot, identity *c.Identity) ([
 		if row == nil || row.Normal == nil {
 			return nil, contract("invalid wall upgrade site")
 		}
-		site := WallUpgradeSite{Blocker: row.GetBlocker(), PlayerOwned: row.GetPlayerOwned(), NX: row.Normal.GetX(), NZ: row.Normal.GetZ(), LeftSupport: row.LeftSupport != nil, RightSupport: row.RightSupport != nil}
+		site := WallUpgradeSite{Blocker: row.GetBlocker(), NX: row.Normal.GetX(), NZ: row.Normal.GetZ(), LeftSupport: row.LeftSupport != nil, RightSupport: row.RightSupport != nil}
 		if row.Original != nil && row.Original.Building != nil {
 			if pos := row.Original.Building.Position; pos != nil {
 				site.X, site.Z = pos.GetX(), pos.GetZ()

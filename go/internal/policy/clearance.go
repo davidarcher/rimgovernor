@@ -16,7 +16,10 @@ type ClearanceTarget struct {
 	Class                                  string
 	Deconstructible, InHome, AncientDanger bool
 	RoofBlocker                            string
-	Designated, ControllerOwned            bool
+	// Designated is a standing Deconstruct designation, whoever placed it: not a
+	// hold, since the Deconstruction operation adopts it rather than placing a
+	// second one, and no ownership ledger says whose it was.
+	Designated bool
 }
 
 // ClearanceChunk is one rock or slag chunk stack standing on a Home cell: a
@@ -49,18 +52,12 @@ func ClearanceHoldReason(row ClearanceTarget) string {
 		return "outside_home"
 	case !row.Deconstructible:
 		return "not_deconstructible"
-	case row.Faction == "Player":
-		return "player_building"
 	case row.RoofBlocker != "":
 		return "roof_blocker"
 	case row.AncientDanger:
 		return "ancient_danger"
 	case row.Class == "ancient_casket":
 		return "casket"
-	case row.Designated && !row.ControllerOwned:
-		return "foreign_designation"
-	case row.Designated:
-		return "owned_designation"
 	}
 	return ""
 }

@@ -18,7 +18,7 @@ namespace HomeBridge.BridgeTools
             => await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
                 if (map == null || !Find.TickManager.Paused) throw new InvalidOperationException("Paused map required.");
-                if (!new[] { "ancient_wall", "roof_support_refused", "player_designation", "chunk_dump" }.Contains(scenario))
+                if (!new[] { "ancient_wall", "roof_support_refused", "standing_designation", "chunk_dump" }.Contains(scenario))
                     throw new ArgumentException("Unknown clearance scenario.");
                 var people = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead).ToList();
                 var worker = people.First(p => !p.Downed && !p.WorkTypeIsDisabled(WorkTypeDefOf.Construction)
@@ -40,7 +40,7 @@ namespace HomeBridge.BridgeTools
                     foreach (var bad in p.health.hediffSet.hediffs.Where(h => h.def.isBad && !(h is Hediff_MissingPart)).ToList()) p.health.RemoveHediff(bad);
                     foreach (var work in DefDatabase<WorkTypeDef>.AllDefsListForReading)
                         if (!p.WorkTypeIsDisabled(work)) p.workSettings.SetPriority(work,
-                            work == WorkTypeDefOf.Hauling || work == WorkTypeDefOf.Construction && scenario != "player_designation" ? 1 : 0);
+                            work == WorkTypeDefOf.Hauling || work == WorkTypeDefOf.Construction ? 1 : 0);
                     for (int hour = 0; hour < 24; hour++) p.timetable.SetAssignment(hour, TimeAssignmentDefOf.Work);
                 }
                 var stone = GenStuff.AllowedStuffsFor(ThingDefOf.Wall).Where(d => d.stuffProps.categories.Contains(StuffCategoryDefOf.Stony)).OrderBy(d => d.defName).First();
@@ -67,7 +67,7 @@ namespace HomeBridge.BridgeTools
                         support.SetFaction(Faction.OfPlayer); GenSpawn.Spawn(support, site + IntVec3.North * 2, map);
                         map.roofGrid.SetRoof(site + IntVec3.North, RoofDefOf.RoofConstructed);
                     }
-                    if (scenario == "player_designation") map.designationManager.AddDesignation(new Designation(wall, DesignationDefOf.Deconstruct));
+                    if (scenario == "standing_designation") map.designationManager.AddDesignation(new Designation(wall, DesignationDefOf.Deconstruct));
                 }
                 return new { success = true, target, chunks = ids, defs, x = site.x, z = site.z, stuff = stone.defName };
             }, cancellationToken);

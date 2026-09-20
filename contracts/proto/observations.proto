@@ -47,8 +47,8 @@ message ClearanceTarget {
   optional bool in_home = 7; // Every occupied cell, not just the origin.
   optional string roof_blocker = 8;
   optional bool ancient_danger = 9;
-  optional bool designated = 10;
-  optional bool controller_owned = 11;
+  optional bool designated = 10; // A standing Deconstruct designation; the controller adopts it (no ownership ledger).
+  reserved 11;
 }
 // A rock or slag chunk stack standing on a Home cell: a haul, never a
 // deconstruction. stored is vanilla's IsInValidStorage; destination is
@@ -541,7 +541,7 @@ message ExcavationSiteRequest { ReadScope scope = 1; repeated rimgovernor.common
 message ExcavationSiteReply { oneof outcome { ExcavationSiteSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message WallMaterialOption { optional string stuff = 1; repeated Quantity costs = 2; }
 message WallUpgradeSite {
-  EntityRef target = 1; optional bool target_present = 2; optional bool player_owned = 3;
+  EntityRef target = 1; optional bool target_present = 2; reserved 3;
   repeated rimgovernor.common.v1.Cell backup_cells = 4; repeated Quantity costs = 5;
   repeated ResourceStock materials = 6; repeated EntityRef workers = 7; optional string blocker = 8;
   optional bool designated = 9; optional string removal_id = 10; optional int64 completed_tick = 11;
@@ -802,7 +802,7 @@ message HaulPortion { optional string id = 1; optional int64 count = 2; optional
 message HaulRecord { optional string id = 1; optional string source_id = 2; optional string pawn_id = 3; optional string def_name = 4; optional int64 original_count = 5; optional int64 required_count = 6; optional int64 started_tick = 7; optional bool accepted = 8; optional bool complete = 9; optional int64 completed_tick = 10; optional string blocker = 11; repeated HaulPortion portions = 12; }
 message HaulingFacts { repeated HaulRecord records = 1; Completeness completeness = 2; }
 message HaulingSection { oneof outcome { HaulingFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
-message WallRemovalRecord { optional string id = 1; optional string target_id = 2; optional bool complete = 3; optional int64 completed_tick = 4; optional string blocker = 5; optional bool player_owned = 6; optional bool retired = 7; optional bool target_present = 8; optional bool designated = 9; }
+message WallRemovalRecord { optional string id = 1; optional string target_id = 2; optional bool complete = 3; optional int64 completed_tick = 4; optional string blocker = 5; reserved 6; optional bool retired = 7; optional bool target_present = 8; optional bool designated = 9; }
 message WallRemovalFacts { repeated WallRemovalRecord records = 1; Completeness completeness = 2; SnapshotRef snapshot = 3; }
 message WallRemovalSection { oneof outcome { WallRemovalFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 message HomeCoverageTarget { optional string id = 1; optional string shape_token = 2; optional uint32 missing_cells = 3; optional uint32 excluded_cells = 4; optional string blocker = 5; repeated rimgovernor.common.v1.Cell cells = 6; SnapshotRef snapshot = 7; }

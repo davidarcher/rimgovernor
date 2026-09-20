@@ -81,7 +81,7 @@ func (b *DeconstructionBoundary) InspectDeconstruction(ctx context.Context, targ
 		if row.GetDefName() != value.Definition() || row.Occupied.Minimum.GetX() != value.Cell().X || row.Occupied.Minimum.GetZ() != value.Cell().Z {
 			return out, executor.ErrDeconstructionAbsent
 		}
-		candidate := policy.ClearanceTarget{EntityID: row.GetEntityId(), InHome: row.GetInHome(), Deconstructible: row.GetDeconstructible(), AncientDanger: row.GetAncientDanger(), RoofBlocker: row.GetRoofBlocker(), Designated: row.GetDesignated(), ControllerOwned: row.GetControllerOwned(), Faction: row.GetFaction()}
+		candidate := policy.ClearanceTarget{EntityID: row.GetEntityId(), InHome: row.GetInHome(), Deconstructible: row.GetDeconstructible(), AncientDanger: row.GetAncientDanger(), RoofBlocker: row.GetRoofBlocker(), Designated: row.GetDesignated(), Faction: row.GetFaction()}
 		if row.Class == n.ClearanceClass_CLEARANCE_CLASS_ANCIENT_CASKET {
 			candidate.Class = "ancient_casket"
 		}

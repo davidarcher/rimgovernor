@@ -239,8 +239,9 @@ roof support; apply resolves the exact occupant again. Enclosing colony walls
 require guarded `RemoveWall`; generic deconstruction cannot bypass its enclosure
 and replacement checks.
 
-An explicit operation may adopt a foreign designation. The receipt names the
-target and controller designation; replacing it relinquishes ownership.
+An explicit operation adopts a standing designation rather than placing a
+second one; there is no designation ownership ledger. The receipt names the
+target and designation.
 `DeconstructEffect` carries `target_id`, `designation_id`, `worker_ids`,
 `demolition_observed` and `site`. Workers are recorded when native demolition
 finishes. Only the native deconstruct job establishes completion; disappearance
@@ -258,10 +259,10 @@ comes from the actual native deconstruction job, not disappearance of a wall. Th
 guard rechecks exact supporting identities, enclosure, roofs, remaining materials
 and resource policies before completion. Jobs require active supervised simulation.
 Native UI input, a load/map change or changed safety invalidates pending
-demolition; Manual suspends it until control resumes. Player replacement of a designation relinquishes controller ownership.
+demolition; Manual suspends it until control resumes.
 Cleanup requires the completed permanent wall. Missing or uncertain outcomes stay
-blocked. Stopping automation removes only controller-owned pending demolition
-designations. Native evidence must confirm retirement, the surviving exact target
+blocked. Stopping automation removes the pending demolition designations its
+removal records placed. Native evidence must confirm retirement, the surviving exact target
 and the absent designation before the shared plan cancels unissued descendants.
 Issued construction remains under observation. Retained cancellation history prevents
 duplicate replacement; existing backup walls remain intact. Blocked demolition is
@@ -271,7 +272,8 @@ retirement and wider native acceptance remain listed in the backlog.
 `ClearHomeObstructions` (the `clearance` routine family) admits one non-player
 building inside Home at a time, nearest the colony center first. A fresh
 clearance census must report deconstructible geometry with no roof blocker,
-ancient danger, casket or existing designation. Repairs precede clearance;
+ancient danger or casket. A standing deconstruct designation is no hold: the
+admitted Deconstruction adopts it, whoever placed it. Repairs precede clearance;
 clearance precedes direct cleaning, and shared emergency admission still wins.
 The durable review records each skipped target and its reason in `ClearanceHolds`.
 Chunks are hauls, not deconstructions (#394): a chunk stack in Home that is

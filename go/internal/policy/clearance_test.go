@@ -13,12 +13,10 @@ func TestHomeClearanceBoundDistanceAndHolds(t *testing.T) {
 	far.Maximum = far.Minimum
 	rows := []ClearanceTarget{far, base}
 	for reason, change := range map[string]func(*ClearanceTarget){
-		"roof_blocker":        func(r *ClearanceTarget) { r.RoofBlocker = "unsupported" },
-		"ancient_danger":      func(r *ClearanceTarget) { r.AncientDanger = true },
-		"casket":              func(r *ClearanceTarget) { r.Class = "ancient_casket" },
-		"foreign_designation": func(r *ClearanceTarget) { r.Designated = true },
-		"owned_designation":   func(r *ClearanceTarget) { r.Designated = true; r.ControllerOwned = true },
-		"outside_home":        func(r *ClearanceTarget) { r.InHome = false },
+		"roof_blocker":   func(r *ClearanceTarget) { r.RoofBlocker = "unsupported" },
+		"ancient_danger": func(r *ClearanceTarget) { r.AncientDanger = true },
+		"casket":         func(r *ClearanceTarget) { r.Class = "ancient_casket" },
+		"outside_home":   func(r *ClearanceTarget) { r.InHome = false },
 	} {
 		row := base
 		row.EntityID = reason
@@ -26,7 +24,7 @@ func TestHomeClearanceBoundDistanceAndHolds(t *testing.T) {
 		rows = append(rows, row)
 	}
 	got := SelectHomeClearance(rows, domain.Cell{X: 10, Z: 10})
-	if len(got.Targets) != 1 || got.Targets[0].EntityID != "near" || len(got.Holds) != 6 {
+	if len(got.Targets) != 1 || got.Targets[0].EntityID != "near" || len(got.Holds) != 4 {
 		t.Fatal(got)
 	}
 	for _, h := range got.Holds {

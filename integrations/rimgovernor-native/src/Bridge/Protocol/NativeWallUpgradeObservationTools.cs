@@ -26,9 +26,9 @@ namespace HomeBridge.BridgeTools
     //    straight-side backup cells still hold same-stuff colonist stone
     //    walls; target is the first remaining backup in backup-cell order so
     //    successive reads name each backup in turn.
-    // player_owned marks a deconstruct designation the native removal ledger
-    // does not claim. It remains untouched until an explicit RemoveWall
-    // operation adopts it with a receipt. Workers, stock, geometry and the roof-support
+    // A standing deconstruct designation no removal record claims is adopted by
+    // the RemoveWall operation (#461); designated and removal_id report it.
+    // Workers, stock, geometry and the roof-support
     // snapshot are not projected: builders are checked at admission, stock
     // through ListSupplies and cells through GetCells.
     public sealed class NativeWallUpgradeObservationTools
@@ -183,12 +183,9 @@ namespace HomeBridge.BridgeTools
             var pending = WallUpgradeSafety.Pending(target);
             row.Designated = designation != null;
             if (pending != null) row.RemovalId = pending.Id;
-            // A designation no record of ours claims: evidence of an old order,
-            // adopted by admission rather than preserved (#461).
-            row.PlayerOwned = designation != null && pending == null;
             row.Snapshot = NativeObservationSnapshot.Snapshot("wall-site", context, target.GetUniqueLoadID(), w => {
                 w.Write(original.GetUniqueLoadID()); w.Write(normal.x); w.Write(normal.z); w.Write(target.HitPoints);
-                w.Write(row.Designated); w.Write(row.PlayerOwned); w.Write(row.RemovalId ?? "");
+                w.Write(row.Designated); w.Write(row.RemovalId ?? "");
                 w.Write(row.LeftSupport.Building.Id); w.Write(row.RightSupport.Building.Id);
                 foreach (var backup in row.CompletedBackups) w.Write(backup.Building.Id);
             });

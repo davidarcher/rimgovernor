@@ -72,7 +72,7 @@ func ValidateClearanceTargets(v *o.ClearanceTargetsSnapshot, identity *c.Identit
 	}
 	seen := map[string]bool{}
 	for _, row := range v.Targets {
-		if row == nil || validID(row.GetEntityId()) != nil || validID(row.GetDefName()) != nil || seen[row.GetEntityId()] || row.Deconstructible == nil || !row.GetDeconstructible() || row.InHome == nil || row.AncientDanger == nil || row.Designated == nil || row.ControllerOwned == nil || (row.GetControllerOwned() && !row.GetDesignated()) {
+		if row == nil || validID(row.GetEntityId()) != nil || validID(row.GetDefName()) != nil || seen[row.GetEntityId()] || row.Deconstructible == nil || !row.GetDeconstructible() || row.InHome == nil || row.AncientDanger == nil || row.Designated == nil {
 			return contract("invalid clearance target")
 		}
 		seen[row.GetEntityId()] = true

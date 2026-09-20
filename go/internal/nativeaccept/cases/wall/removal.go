@@ -163,9 +163,8 @@ func runRemoval(ctx context.Context, s cases.Session) error {
 			row, _ := na.AsMap(raw)
 			normal, _ := na.AsMap(row["normal"])
 			nx, nz := na.AsNumber(normal["x"]), na.AsNumber(normal["z"])
-			owned, _ := na.AsBool(row["playerOwned"])
 			cells := na.AsSlice(row["backupCells"])
-			if nx != 0 && nz != 0 || na.AsString(row["blocker"]) != "" || owned || len(cells) != 3 || len(na.AsSlice(row["completedBackups"])) != 0 {
+			if nx != 0 && nz != 0 || na.AsString(row["blocker"]) != "" || len(cells) != 3 || len(na.AsSlice(row["completedBackups"])) != 0 {
 				continue
 			}
 			materials := na.AsSlice(row["replacementMaterials"])
@@ -446,19 +445,19 @@ func runRemoval(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("after-preview-census: preview must not designate")
 	}
 
-	if _, err := h.Call(ctx, "player-demolition", "test/deconstruct_target", map[string]any{"target": chosen.wall, "action": "replace"}); err != nil {
+	if _, err := h.Call(ctx, "standing-demolition", "test/deconstruct_target", map[string]any{"target": chosen.wall, "action": "replace"}); err != nil {
 		return err
 	}
-	foreign, err := census("foreign-designation", chosen.wall)
+	standing, err := census("standing-designation", chosen.wall)
 	if err != nil {
 		return err
 	}
-	foreignRow, err := rowForNormal(foreign, chosen.nx, chosen.nz)
+	standingRow, err := rowForNormal(standing, chosen.nx, chosen.nz)
 	if err != nil {
 		return err
 	}
-	if owned, _ := na.AsBool(foreignRow["playerOwned"]); !owned {
-		return fmt.Errorf("foreign demolition not observed: %#v", foreignRow)
+	if designated, _ := na.AsBool(standingRow["designated"]); !designated || na.AsString(standingRow["removalId"]) != "" {
+		return fmt.Errorf("standing demolition designation not observed: %#v", standingRow)
 	}
 	unsafeReply, err := h.Wire(ctx, "generic-enclosure-refusal", "operations_preview", map[string]any{
 		"identity": identity, "operation": map[string]any{"deconstruct": map[string]any{"target": map[string]any{"entityId": chosen.wall}}}})
@@ -486,9 +485,6 @@ func runRemoval(ctx context.Context, s cases.Session) error {
 	}
 	if designated, _ := na.AsBool(designatedRow["designated"]); !designated || na.AsString(designatedRow["removalId"]) != removalID {
 		return fmt.Errorf("designated-census: expected the ledger's designation %s, got %#v", removalID, designatedRow)
-	}
-	if owned, _ := na.AsBool(designatedRow["playerOwned"]); owned {
-		return fmt.Errorf("designated-census: a ledger designation must not read as player owned")
 	}
 	replayReply, err := h.Wire(ctx, "replay-demolish", "operations_execute", demolishRequest)
 	if err != nil {

@@ -75,8 +75,7 @@ namespace HomeBridge.BridgeTools
                             EntityId = Id(building.GetUniqueLoadID()), DefName = Id(building.def.defName),
                             Occupied = new Obs.Rectangle { Minimum = Cell(rect.minX, rect.minZ), Maximum = Cell(rect.maxX, rect.maxZ) },
                             Deconstructible = true, Class = Classify(building), InHome = rect.All(c => home[c]),
-                            AncientDanger = AncientDanger(map, building, player), Designated = designated,
-                            ControllerOwned = designated && WallUpgradeSafety.Pending(building) != null
+                            AncientDanger = AncientDanger(map, building, player), Designated = designated
                         };
                         if (building.Faction != null) row.Faction = Id(building.Faction.GetUniqueLoadID());
                         var blocker = RoofSupportSafety.Blocker(building, out _);

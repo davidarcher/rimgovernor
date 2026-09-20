@@ -283,10 +283,9 @@ func readStoneShellSites(ctx context.Context, h *na.Harness, identity map[string
 			row, _ := na.AsMap(raw)
 			normal, _ := na.AsMap(row["normal"])
 			nx, nz := int(na.AsNumber(normal["x"])), int(na.AsNumber(normal["z"]))
-			playerOwned, _ := na.AsBool(row["playerOwned"])
 			cells := na.AsSlice(row["backupCells"])
 			materials := na.AsSlice(row["replacementMaterials"])
-			if nx != 0 && nz != 0 || na.AsString(row["blocker"]) != "" || playerOwned || len(cells) != 3 || len(na.AsSlice(row["completedBackups"])) != 0 || len(materials) == 0 {
+			if nx != 0 && nz != 0 || na.AsString(row["blocker"]) != "" || len(cells) != 3 || len(na.AsSlice(row["completedBackups"])) != 0 || len(materials) == 0 {
 				continue
 			}
 			material, _ := na.AsMap(materials[0])

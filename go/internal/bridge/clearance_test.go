@@ -13,7 +13,7 @@ import (
 )
 
 func clearanceSnapshot() *o.ClearanceTargetsSnapshot {
-	return &o.ClearanceTargetsSnapshot{Context: pbContext(), Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(1), Returned: proto.Uint64(1), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}, Targets: []*o.ClearanceTarget{{EntityId: proto.String("Wall1"), DefName: proto.String("Wall"), Occupied: &o.Rectangle{Minimum: &c.Cell{X: proto.Int32(1), Z: proto.Int32(2)}, Maximum: &c.Cell{X: proto.Int32(2), Z: proto.Int32(3)}}, Class: o.ClearanceClass_CLEARANCE_CLASS_ANCIENT_WALL_DOOR, Deconstructible: proto.Bool(true), InHome: proto.Bool(false), AncientDanger: proto.Bool(true), RoofBlocker: proto.String("Unsupported roof"), Designated: proto.Bool(true), ControllerOwned: proto.Bool(false)}}}
+	return &o.ClearanceTargetsSnapshot{Context: pbContext(), Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}, Matched: proto.Uint64(1), Returned: proto.Uint64(1), Filtered: proto.Uint64(0), Unreadable: proto.Uint64(0)}, Targets: []*o.ClearanceTarget{{EntityId: proto.String("Wall1"), DefName: proto.String("Wall"), Occupied: &o.Rectangle{Minimum: &c.Cell{X: proto.Int32(1), Z: proto.Int32(2)}, Maximum: &c.Cell{X: proto.Int32(2), Z: proto.Int32(3)}}, Class: o.ClearanceClass_CLEARANCE_CLASS_ANCIENT_WALL_DOOR, Deconstructible: proto.Bool(true), InHome: proto.Bool(false), AncientDanger: proto.Bool(true), RoofBlocker: proto.String("Unsupported roof"), Designated: proto.Bool(true)}}}
 }
 
 func TestClearanceReadAndUnavailableStub(t *testing.T) {
@@ -56,15 +56,10 @@ func TestClearanceRejectsIncompleteAndUnsafeDefaults(t *testing.T) {
 		"danger absent":          func(v *o.ClearanceTargetsSnapshot) { v.Targets[0].AncientDanger = nil },
 		"home absent":            func(v *o.ClearanceTargetsSnapshot) { v.Targets[0].InHome = nil },
 		"deconstructible absent": func(v *o.ClearanceTargetsSnapshot) { v.Targets[0].Deconstructible = nil },
-		"ownership absent":       func(v *o.ClearanceTargetsSnapshot) { v.Targets[0].ControllerOwned = nil },
-		"ownership without order": func(v *o.ClearanceTargetsSnapshot) {
-			v.Targets[0].ControllerOwned = proto.Bool(true)
-			v.Targets[0].Designated = proto.Bool(false)
-		},
-		"unknown class":  func(v *o.ClearanceTargetsSnapshot) { v.Targets[0].Class = 99 },
-		"bad rect":       func(v *o.ClearanceTargetsSnapshot) { v.Targets[0].Occupied.Maximum.X = proto.Int32(0) },
-		"oversized rect": func(v *o.ClearanceTargetsSnapshot) { v.Targets[0].Occupied.Maximum.X = proto.Int32(2147483647) },
-		"empty blocker":  func(v *o.ClearanceTargetsSnapshot) { v.Targets[0].RoofBlocker = proto.String("") },
+		"unknown class":          func(v *o.ClearanceTargetsSnapshot) { v.Targets[0].Class = 99 },
+		"bad rect":               func(v *o.ClearanceTargetsSnapshot) { v.Targets[0].Occupied.Maximum.X = proto.Int32(0) },
+		"oversized rect":         func(v *o.ClearanceTargetsSnapshot) { v.Targets[0].Occupied.Maximum.X = proto.Int32(2147483647) },
+		"empty blocker":          func(v *o.ClearanceTargetsSnapshot) { v.Targets[0].RoofBlocker = proto.String("") },
 	} {
 		t.Run(name, func(t *testing.T) {
 			v := clearanceSnapshot()

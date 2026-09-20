@@ -18,10 +18,10 @@ import (
 const fixtureKey = "clearance_fixture"
 
 func init() {
-	for _, scenario := range []string{"ancient_wall", "roof_support_refused", "player_designation", "chunk_dump"} {
+	for _, scenario := range []string{"ancient_wall", "roof_support_refused", "standing_designation", "chunk_dump"} {
 		cases.Register(cases.Case{
 			Name:        "clearance/" + strings.ReplaceAll(scenario, "_", "-"),
-			Scope:       "Routine Home clearance: " + scenario + "; exact native targets, journal holds, ownership and observed completion.",
+			Scope:       "Routine Home clearance: " + scenario + "; exact native targets, journal holds and observed completion.",
 			Start:       cases.Save{Name: "RimGovernor-tribal8-baseline"},
 			RequiredOps: []string{"test/clearance_prepare", "test/clearance_support", "test/clearance_audit"},
 			Serve:       &cases.ServeSpec{Families: []string{"clearance", "tend", "rescue"}, Prefix: "clearance"},
@@ -67,10 +67,10 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 	if scenario == "roof_support_refused" {
 		reason = "roof_blocker"
 	}
-	if scenario == "player_designation" {
-		reason = "foreign_designation"
-	}
-	if (na.AsString(row["roofBlocker"]) != "") != (reason == "roof_blocker") || boolean(row["designated"]) != (reason == "foreign_designation") || boolean(row["controllerOwned"]) {
+	// A standing deconstruct designation, whoever placed it, is no hold: the
+	// routine adopts it into an ordinary Deconstruction plan (no ownership
+	// ledger) and the native operation keeps the one designation.
+	if (na.AsString(row["roofBlocker"]) != "") != (reason == "roof_blocker") || boolean(row["designated"]) != (scenario == "standing_designation") {
 		return fmt.Errorf("incorrect initial protection: %v", row)
 	}
 	if reason != "" {
@@ -122,20 +122,17 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 			return err
 		}
 		protected := targetRow(after, target)
-		if protected == nil || boolean(protected["controllerOwned"]) || boolean(protected["designated"]) != (reason == "foreign_designation") {
-			return fmt.Errorf("stop changed protected wall ownership: %v", protected)
+		if protected == nil || boolean(protected["designated"]) {
+			return fmt.Errorf("stop changed protected wall: %v", protected)
 		}
 		audit, err := audit(ctx, s, fixture, "protected-native")
 		if err != nil {
 			return err
 		}
-		if !boolean(audit["present"]) || boolean(audit["designated"]) != (reason == "foreign_designation") {
+		if !boolean(audit["present"]) || boolean(audit["designated"]) {
 			return fmt.Errorf("protected designation changed: %v", audit)
 		}
-		if scenario == "player_designation" {
-			return nil
-		}
-		if _, err = s.Harness().Call(ctx, "player-support", "test/clearance_support", map[string]any{"x": fixture["x"], "z": fixture["z"], "stuff": fixture["stuff"]}); err != nil {
+		if _, err = s.Harness().Call(ctx, "support-column", "test/clearance_support", map[string]any{"x": fixture["x"], "z": fixture["z"], "stuff": fixture["stuff"]}); err != nil {
 			return err
 		}
 		supported, err := census(ctx, s, "supported")
@@ -146,7 +143,7 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 			return fmt.Errorf("support column did not clear roof hold: %v", row)
 		}
 	}
-	return demolish(ctx, s, fixture)
+	return demolish(ctx, s, fixture, scenario == "standing_designation")
 }
 
 func wait(service *na.ServiceProcess) na.Wait {
@@ -214,8 +211,12 @@ func audit(ctx context.Context, s cases.Session, fixture map[string]any, label s
 
 func boolean(raw any) bool { value, _ := na.AsBool(raw); return value }
 
-func demolish(ctx context.Context, s cases.Session, fixture map[string]any) error {
+func demolish(ctx context.Context, s cases.Session, fixture map[string]any, standing bool) error {
 	target := na.AsString(fixture["target"])
+	// A standing designation is adopted into the plan, but the pawns may work
+	// it before the worker dispatches: the plan then cancels on an absent
+	// target rather than completing with demolition evidence. Either way the
+	// native audit below must find the wall and its designation gone.
 	// Follow native evidence from before launch so a fast demolition cannot
 	// disappear between the method-admission and completion polls.
 	tail := na.NewFlightTail(na.FlightRecorderPath(s.Config().Output))
@@ -265,11 +266,11 @@ func demolish(ctx context.Context, s cases.Session, fixture map[string]any) erro
 					if v.Stage == domain.Unsuccessful {
 						return "", false, fmt.Errorf("demolition failed: %v", v)
 					}
-					completed = completed || v.Stage == domain.Completed
+					completed = completed || v.Stage == domain.Completed || standing && v.Stage == domain.Cancelled
 				}
 			}
 		}
-		return na.Signature(states, effect != nil), completed && effect != nil, nil
+		return na.Signature(states, effect != nil), completed && (effect != nil || standing), nil
 	})
 	if err != nil {
 		return err

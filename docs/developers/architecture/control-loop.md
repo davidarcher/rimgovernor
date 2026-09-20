@@ -169,8 +169,8 @@ Service cases audit the durable routine journal for provenance holds; direct
 operation cases recover their applied receipt from the native attempt journal.
 `draft/order` retains stale-snapshot and exact-claim checks alongside adoption;
 `upkeep/home-coverage` checks connected Home restoration and save recovery.
-`takeover/herd-removal` cancels obsolete standing release/slaughter designations through shared Hands, resumes training without replacement taming, and checks restart and save/load readback. Destructive orders still require explicit opt-ins and native eligibility. Unadopted demolition orders remain untouched: Auto permits explicit adoption,
-but a player designation alone does not create a controller plan need.
+`takeover/herd-removal` cancels obsolete standing release/slaughter designations through shared Hands, resumes training without replacement taming, and checks restart and save/load readback. Destructive orders still require explicit opt-ins and native eligibility. A standing demolition order is neither a hold nor a ledger entry: an explicit
+removal adopts it, and a designation alone does not create a controller plan need.
 
 ## Verify progress
 

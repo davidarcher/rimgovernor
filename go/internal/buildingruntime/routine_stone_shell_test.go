@@ -190,16 +190,6 @@ func TestRoutineStoneShellAdmitsReplacementBundleWithFreshStock(t *testing.T) {
 	}
 }
 
-func TestRoutineStoneShellAdmitsPlayerDesignatedWall(t *testing.T) {
-	t.Parallel()
-	p, _, n := stoneShellFixture(t)
-	n.sites.Sites[0].PlayerOwned = true
-	result, err := p.Step(context.Background())
-	if err != nil || result.Reason != BuildingMethodAdmitted {
-		t.Fatal(result, err)
-	}
-}
-
 // A stock observation without the current snapshot and tick is exactly what
 // the planner used to build: admission must refuse it as stale_facts rather
 // than admit against unverified stock.
