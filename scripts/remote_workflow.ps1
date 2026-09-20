@@ -12,6 +12,47 @@ function Write-JSON($Path, $Value) {
     [IO.File]::WriteAllText($Path, (ConvertTo-Json -InputObject $Value -Depth 80) + "`n")
 }
 function Read-JSON($Path) { Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json }
+function New-ProgressObserver($Executable, $Arguments, $Token) {
+    $start = [Diagnostics.ProcessStartInfo]::new()
+    $start.FileName = $Executable
+    $start.Arguments = $Arguments
+    $start.UseShellExecute = $false
+    $start.CreateNoWindow = $true
+    $start.RedirectStandardInput = $true
+    foreach ($key in @($start.Environment.Keys)) {
+        if ($key -match 'TOKEN|SECRET|PASSWORD|PRIVATE_KEY|REMOTE_BUNDLE_IDENTITY') { $start.Environment.Remove($key) | Out-Null }
+    }
+    $observer = [Diagnostics.Process]::Start($start)
+    try {
+        $observer.StandardInput.WriteLine($Token)
+        $observer.StandardInput.Close()
+        return $observer
+    } catch {
+        try { if (-not $observer.HasExited) { $observer.Kill() } } catch { }
+        $observer.Dispose()
+        throw
+    }
+}
+function Start-Progress($Evidence, $Shard) {
+    # The observer is trusted, starts before the suite scrub, and receives its
+    # token only on stdin. It inherits no credentials of its own via environment.
+    try {
+        & C:\rg\remoteaccept.exe progress -prepare -root $Evidence -shard $Shard
+        if (-not (Test-Path -LiteralPath C:\rg\progress.json)) { return $null }
+        return New-ProgressObserver 'C:\rg\remoteaccept.exe' 'progress -plan C:\rg\progress.json -watch -stop-file C:\rg\progress.stop' $env:GH_TOKEN
+    } catch {
+        Write-Warning 'Live progress unavailable; native execution continues'
+        return $null
+    }
+}
+function Stop-Progress($Observer) {
+    if ($null -eq $Observer) { return }
+    try {
+        [IO.File]::WriteAllText('C:\rg\progress.stop', '')
+        if (-not $Observer.WaitForExit(30000)) { $Observer.Kill() }
+    } catch { Write-Warning 'Live progress did not finish; verdict will sweep it' }
+    finally { $Observer.Dispose() }
+}
 function Input-Value($Inputs, $Name) {
     $property = $Inputs.PSObject.Properties[$Name]
     if ($null -eq $property) { return '' }
@@ -133,6 +174,7 @@ switch ($Phase) {
         [IO.File]::WriteAllText($identity,$env:REMOTE_BUNDLE_IDENTITY)
         Remove-Item Env:REMOTE_BUNDLE_IDENTITY
         $jobs = @(); $bad = $false
+        $observer = Start-Progress $Evidence $Shard
         try {
             # Both roles are built before any game is launched.
             foreach ($role in $roles) {
@@ -146,6 +188,8 @@ switch ($Phase) {
             Remove-Item -LiteralPath $identity
             Get-ChildItem Env: | Where-Object Name -Match 'TOKEN|SECRET|PASSWORD|PRIVATE_KEY' | ForEach-Object {
                 [Environment]::SetEnvironmentVariable($_.Name, $null, 'Process')
+                # Newer .NET hosts preserve empty values; remove the entry too.
+                Remove-Item -LiteralPath ("Env:" + $_.Name) -ErrorAction SilentlyContinue
             }
             $deadline = [DateTime]::UtcNow.AddMinutes($run.limits.suite_timeout_minutes)
             foreach ($job in $jobs) {
@@ -160,6 +204,7 @@ switch ($Phase) {
                 } finally { Pop-Location }
             }
         } finally {
+            Stop-Progress $observer
             if (Test-Path -LiteralPath $identity) { Remove-Item -LiteralPath $identity }
             Write-JSON 'C:\rg\export-jobs.json' @($jobs)
             foreach ($role in $roles) { & "$PSScriptRoot/cleanup_remote.ps1" -Work "C:\rg\$role" }

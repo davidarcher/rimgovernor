@@ -144,6 +144,9 @@ jobs:
 
   shard:
     needs: plan
+    permissions:
+      contents: read
+      checks: write
     name: acceptance-${{ matrix.shard }}
     runs-on: windows-2022
     timeout-minutes: 360
@@ -234,9 +237,15 @@ jobs:
           retention-days: 7
       - name: Link shard evidence
         if: always()
+        continue-on-error: true
         env:
+          GH_TOKEN: ${{ github.token }}
           ARTIFACT_URL: ${{ steps.upload.outputs.artifact-url }}
-        run: '"Shard diagnostics: $env:ARTIFACT_URL" >> $env:GITHUB_STEP_SUMMARY'
+        run: |
+          "Shard diagnostics: $env:ARTIFACT_URL" >> $env:GITHUB_STEP_SUMMARY
+          if (Test-Path C:\rg\remoteaccept.exe) {
+            $env:GH_TOKEN | & C:\rg\remoteaccept.exe progress -finish -artifact-url $env:ARTIFACT_URL
+          }
 
   verdict:
     needs: [plan, shard]
@@ -246,6 +255,7 @@ jobs:
     permissions:
       contents: read
       actions: read
+      checks: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -265,6 +275,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: ./trusted/scripts/remote_workflow.ps1 -Phase collect
+      - name: Close abandoned shard progress
+        if: always()
+        continue-on-error: true
+        working-directory: trusted/go
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: $env:GH_TOKEN | go run ./cmd/remoteaccept progress -sweep
       - name: Compute complete native verdict
         id: aggregate
         working-directory: trusted/go

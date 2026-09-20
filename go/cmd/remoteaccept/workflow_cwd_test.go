@@ -65,6 +65,7 @@ func TestWorkflowSuiteWorkingDirectory(t *testing.T) {
 	write(filepath.Join(workspace, "package", na.PackageManifestName), string(manifest))
 	wrapper := filepath.Join(workspace, "suite.ps1")
 	write(wrapper, `if ((Get-Location).Path -cne (Join-Path $env:RG_CWD_WORKSPACE 'tested' 'go')) { throw 'incorrect suite cwd' }
+if (@(Get-ChildItem Env: | Where-Object Name -Match 'TOKEN|SECRET|PASSWORD|PRIVATE_KEY').Count) { throw 'suite inherited a credential' }
 if ($env:RG_CWD_OUTCOME -eq '0') {
     & $env:RG_CWD_TEST_EXE '-test.run=^TestWorkflowCWDProbe$' '-test.v'
     if ($LASTEXITCODE) { throw 'cwd probe failed' }
@@ -82,6 +83,10 @@ $global:LASTEXITCODE = [int]$env:RG_CWD_OUTCOME
 $ErrorActionPreference = 'Stop'
 function Read-JSON($Path) { Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json }
 $ast = [System.Management.Automation.Language.Parser]::ParseFile($Script, [ref]$null, [ref]$null)
+$scrub = $ast.Find({ param($node) $node -is [System.Management.Automation.Language.PipelineAst] -and $node.Extent.Text.StartsWith('Get-ChildItem Env: | Where-Object Name -Match') }, $true)
+if (-not $scrub) { throw 'suite credential scrub missing' }
+$env:GH_TOKEN = 'synthetic-token'; $env:TEST_SECRET = 'synthetic-secret'; $env:TEST_PASSWORD = 'synthetic-password'; $env:TEST_PRIVATE_KEY = 'synthetic-key'
+& ([scriptblock]::Create($scrub.Extent.Text))
 $loop = $ast.Find({ param($node) $node -is [System.Management.Automation.Language.ForEachStatementAst] -and $node.Variable.VariablePath.UserPath -eq 'job' }, $true)
 if (-not $loop) { throw 'suite job loop missing' }
 $body = $loop.Body.Extent.Text

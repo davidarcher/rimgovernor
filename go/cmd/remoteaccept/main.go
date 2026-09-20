@@ -18,6 +18,13 @@ func main() {
 	}
 }
 func run(args []string) error {
+	if len(args) > 0 && args[0] == "progress" {
+		// Display-only: API, startup and observation failures never change verdicts.
+		if err := progressCommand(args[1:]); err != nil {
+			fmt.Fprintln(os.Stderr, "remoteaccept: live progress unavailable; native verdict is unaffected")
+		}
+		return nil
+	}
 	if len(args) == 0 {
 		return fmt.Errorf("usage: remoteaccept aggregate|import [flags]")
 	}

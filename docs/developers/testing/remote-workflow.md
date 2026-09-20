@@ -55,6 +55,16 @@ can prevent cleanup/upload, which aggregation reports as missing evidence.
 
 ## Verdicts and diagnostics
 
+Each shard owns a live check run on the workflow run page. Its name shows the
+completed count and running case; its table shows queued, running and terminal
+case states. A trusted observer polls the planned registry paths every five
+seconds and updates GitHub only on transitions. It receives the token on stdin
+before the suite environment is scrubbed; native reports contribute only the
+passed boolean and numeric wall time. The check summary identifies the tested
+commit and links uploaded shard diagnostics. Missing results fail the display;
+verdict cleanup cancels abandoned checks for the same run attempt. API failures
+disable progress without affecting execution or the authoritative aggregate.
+
 Plan, shard and final verdict artifact names include the Actions run ID and
 attempt, and shard artifacts also include the shard ID. Retention is seven days.
 Job summaries link the diagnostic and final artifacts. The final `verdict` artifact
