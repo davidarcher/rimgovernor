@@ -815,18 +815,23 @@ func earlierGrownShell(t *testing.T, db *store.Store, id domain.PlanID) (domain.
 func TestRoutineShelterAdoptsAnEarlierGrownShellFromItsPlan(t *testing.T) {
 	t.Parallel()
 	r, db, base := shelterFixture(t)
+	// Race instrumentation and parallel package load slow the whole adoption
+	// operation, including its journal writes; this test checks geometry, not latency.
+	r.reviewer.player.config.CallTimeout = 30 * time.Second
 	base.reply.GetObserved().PlayerTechLevel = proto.String("Neolithic")
 	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
 	hutCells(base, 21, func(int32, int32) bool { return true })
 	// An earlier controller grew a concave shell over constrained terrain,
-	// which no template describes, and a restart left its door and three of
-	// its walls standing. The terrain is open now: every hut template at the
+	// which no template describes, and a restart left its door and all but
+	// three walls standing. The terrain is open now: every hut template at the
 	// door is placeable, so only the journal tells the true ring apart.
 	shell, ring := earlierGrownShell(t, db, "routine-shell-earlier")
 	n := &adoptingNative{sleepingNative: base}
 	standing := map[domain.Cell]bool{}
 	walls := shell.Walls()
-	for i, cell := range append([]domain.Cell{shell.Door()}, walls[len(walls)-3:]...) {
+	// Three missing walls exercise exact reissuance without journaling most
+	// of a shell again on every repetition of the race suite.
+	for i, cell := range append([]domain.Cell{shell.Door()}, walls[3:]...) {
 		if i > 0 && cell == shell.Door() {
 			t.Fatal("fixture picked the door twice")
 		}
