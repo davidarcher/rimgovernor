@@ -950,7 +950,8 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		advanced, windowRunning, stepTrace = clockWorker.Nudge, clockWorker.WindowRunning, clockWorker.Trace
 	}
 	breakSource, _ := client.reads.(buildingruntime.BreakResponseSource)
-	worker, err := buildingruntime.NewWorker(lifetime, buildingruntime.WorkerConfig{BreakSource: breakSource, RoutineMethods: config.routineMethods,
+	previews, _ := client.native.(buildingruntime.BuildingPreviewSource)
+	worker, err := buildingruntime.NewWorker(lifetime, buildingruntime.WorkerConfig{BreakSource: breakSource, Previews: previews, RoutineMethods: config.routineMethods,
 		StepInterval: time.Second, MaxBackoff: 10 * time.Second, StepTimeout: min(config.bridge.Timeout, 8*time.Second),
 		RenewInterval: 5 * time.Second, RenewTimeout: 5 * time.Second, Wake: wake, Advanced: advanced, Facts: facts, Store: sections, WindowRunning: windowRunning, Trace: stepTrace,
 	}, player, session)

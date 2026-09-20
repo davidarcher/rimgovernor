@@ -21,13 +21,17 @@ import (
 // (Bill, Zone, Work, Supply, Acquisition) that embeds a *Boundary built from
 // it, so those tests need not duplicate a building-boundary fake.
 type Fixture struct {
-	Placement                         executor.Placement
-	Bounds                            bridge.MapBounds
-	Preview                           bridge.BuildingPreview
-	Emergency                         bridge.EmergencyObservation
-	EmergencyErr                      error
-	EmergencyHook                     func()
-	Emergencies                       int
+	Placement     executor.Placement
+	Bounds        bridge.MapBounds
+	Preview       bridge.BuildingPreview
+	Emergency     bridge.EmergencyObservation
+	EmergencyErr  error
+	EmergencyHook func()
+	Emergencies   int
+	// PreviewHook and BoundsHook run inside the preview and bounds reads;
+	// Previews counts the preview reads.
+	PreviewHook, BoundsHook           func()
+	Previews                          int
 	Receipt                           *r.Receipt
 	Progress                          *r.Progress
 	LeaseErr, HoldErr, PlaceErr       error
@@ -64,6 +68,10 @@ func NewFixture(t *testing.T) (*Boundary, *Fixture) {
 	return boundary, f
 }
 func (f *Fixture) PreviewBuilding(context.Context, domain.Action, domain.GenerationSnapshot) (bridge.BuildingPreview, bridge.Result, error) {
+	f.Previews++
+	if f.PreviewHook != nil {
+		f.PreviewHook()
+	}
 	return f.Preview, bridge.Result{}, nil
 }
 func (f *Fixture) ReadEmergency(_ context.Context, identity *c.Identity) (bridge.EmergencyObservation, bridge.Result, error) {
@@ -77,6 +85,9 @@ func (f *Fixture) ReadEmergency(_ context.Context, identity *c.Identity) (bridge
 	return f.Emergency, bridge.Result{}, f.EmergencyErr
 }
 func (f *Fixture) ReadMapBounds(context.Context, *c.Identity, domain.Cell) (bridge.MapBounds, bridge.Result, error) {
+	if f.BoundsHook != nil {
+		f.BoundsHook()
+	}
 	return f.Bounds, bridge.Result{}, nil
 }
 func (f *Fixture) LookupBuildingAttempt(_ context.Context, identity *c.Identity, attempt *c.AttemptKey, generation uint64, _ *p.PlacementCandidate) (*r.LookupReply, bridge.Result, error) {

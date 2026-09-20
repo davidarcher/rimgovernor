@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/executor"
 	"github.com/davidarcher/RimGovernor/go/internal/facts"
@@ -30,6 +31,11 @@ type WorkerConfig struct {
 	// dependent action still waits for its prerequisite's outcome, which
 	// Hands enforces.
 	MaxDispatches int
+	// Previews, when set, reads the step's building candidates' placement
+	// previews in one native batch ahead of their dispatches (#593); each
+	// candidate's first inspection takes its row instead of reading one
+	// (boundary.PreviewMemo). Nil leaves every inspection reading its own.
+	Previews BuildingPreviewSource
 	// Wake names attempts whose outcome the native clock latched; the next
 	// step reconciles them first and ignores their backoff. Nil keeps the
 	// ticker cadence.
@@ -78,6 +84,12 @@ func routineExecutableKind(kind domain.ActionKind) bool {
 	default:
 		return false
 	}
+}
+
+// BuildingPreviewSource is the batched placement preview a native client
+// offers (bridge.Client.PreviewBuildings).
+type BuildingPreviewSource interface {
+	PreviewBuildings(context.Context, []domain.Action, domain.GenerationSnapshot) ([]bridge.BuildingPreview, bridge.Result, error)
 }
 
 type workerSession interface {
@@ -134,6 +146,10 @@ type workerCandidate struct {
 	cleanup bool
 	plan    domain.PlanID
 	kind    domain.ActionKind
+	// action and snapshot are what a dispatch inspects: the action's spec
+	// and the authority snapshot the plan dispatches under.
+	action   domain.Action
+	snapshot domain.GenerationSnapshot
 }
 
 type workerWait struct {
@@ -410,7 +426,7 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 			}
 			if cleanup || worldErr == nil && (routineObservation || workerEligible(plan, v, planScope, world)) {
 				live[v.Action] = true
-				candidates = append(candidates, workerCandidate{view: v, cleanup: cleanup, plan: plan.Spec.ID(), kind: progress.Action().Kind()})
+				candidates = append(candidates, workerCandidate{view: v, cleanup: cleanup, plan: plan.Spec.ID(), kind: progress.Action().Kind(), action: progress.Action(), snapshot: planScope.Snapshot})
 			}
 		}
 	}
@@ -470,6 +486,12 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 	// the step yields instead and the next one starts it whole (#410).
 	var longest time.Duration
 	deadline, bounded := call.Deadline()
+	// The building candidates this step dispatches are previewed in one
+	// batch first, so each costs the dispatch one preview hop (the live
+	// re-read after preparation), not two (#593).
+	if scope.Enabled && scope.ObservationKnown {
+		call = boundary.WithPreviewMemo(call, w.previewCandidates(call, ordered, scope, now))
+	}
 	for _, candidate := range ordered {
 		if dispatched >= w.dispatchBudget() {
 			break
@@ -481,7 +503,7 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 		v := candidate.view
 		wait := w.waits[v.Action]
 		focused := w.focusNamed(v.Action)
-		if !focused && workerSameView(wait.view, v) && wait.scope == workerScope(scope) && wait.cleanup == candidate.cleanup && now.Before(wait.until) {
+		if w.backedOff(candidate, scope, now) {
 			continue
 		}
 		dispatched++
@@ -572,6 +594,62 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 		w.config.Advanced()
 	}
 	return errors.Join(append([]error{worldErr}, errs...)...)
+}
+
+// backedOff reports whether candidate waits out a backoff from an earlier
+// step's identical outcome; a woken action never does.
+func (w *Worker) backedOff(candidate workerCandidate, scope ControlState, now time.Time) bool {
+	v := candidate.view
+	wait := w.waits[v.Action]
+	return !w.focusNamed(v.Action) && workerSameView(wait.view, v) && wait.scope == workerScope(scope) && wait.cleanup == candidate.cleanup && now.Before(wait.until)
+}
+
+// previewCandidates reads, in one native batch per authority snapshot,
+// the placement previews of the building candidates the dispatch loop is
+// about to run (in its order, within its budget), for their first
+// inspections to take (#593). A batch that fails leaves those inspections
+// reading their own previews, as they did before; nil when there is no
+// source or nothing to preview.
+func (w *Worker) previewCandidates(ctx context.Context, ordered []workerCandidate, scope ControlState, now time.Time) *boundary.PreviewMemo {
+	if w.config.Previews == nil {
+		return nil
+	}
+	var snapshots []domain.GenerationSnapshot
+	groups := map[domain.GenerationSnapshot][]domain.Action{}
+	budget := 0
+	for _, candidate := range ordered {
+		if budget >= w.dispatchBudget() {
+			break
+		}
+		if w.backedOff(candidate, scope, now) {
+			continue
+		}
+		budget++
+		v := candidate.view
+		if candidate.cleanup || candidate.kind != domain.BuildingAction || v.Unresolved || v.Stage != domain.Pending && v.Stage != domain.Prepared {
+			continue
+		}
+		if _, seen := groups[candidate.snapshot]; !seen {
+			snapshots = append(snapshots, candidate.snapshot)
+		}
+		groups[candidate.snapshot] = append(groups[candidate.snapshot], candidate.action)
+	}
+	if len(snapshots) == 0 {
+		return nil
+	}
+	var previews []bridge.BuildingPreview
+	for _, snapshot := range snapshots {
+		batch, _, err := w.config.Previews.PreviewBuildings(ctx, groups[snapshot], snapshot)
+		if err != nil {
+			clockSchedulerLog("worker: batch preview of %d placements under %+v: %v", len(groups[snapshot]), snapshot, err)
+			continue
+		}
+		previews = append(previews, batch...)
+	}
+	if len(previews) == 0 {
+		return nil
+	}
+	return boundary.NewPreviewMemo(previews)
 }
 
 // workerDispatchRow publishes one "worker_dispatch" flight row for a run

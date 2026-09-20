@@ -207,6 +207,10 @@ player work takes priority. Routine building work can keep finite clock windows
 eligible after the selected player plan settles. Uncertain effects still reconcile
 after cancellation, while observed terminal building outcomes yield accounting to
 fresh native stock and placement facts.
+A worker step previews its building candidates in one native batch and each
+candidate's first inspection takes its preview from that memo, reading the map
+bounds and the emergency state in parallel; the inspection after durable
+preparation always previews live (#593).
 
 Comfort joins that shared path through native access and use observations. Its
 durable history distinguishes completed furniture from ordinary dining and

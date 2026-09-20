@@ -76,22 +76,52 @@ func (b *Boundary) Inspect(ctx context.Context, target executor.Target) (executo
 	if err != nil {
 		return out, err
 	}
+	// The preview depends on neither the bounds read nor the emergency
+	// census, so one the step has not memoized is read beside them: the
+	// inspection costs one round trip of wall time, not two (#593). The
+	// bounds read opens the inspection and anchors the step cache, so the
+	// emergency read behind it is served from the cache.
+	preview, memoized := PreviewMemoFrom(ctx).Take(target.Action.ID(), target.Snapshot)
+	var previewErr error
+	previewRead := make(chan struct{})
+	if memoized {
+		close(previewRead)
+	} else {
+		go func() {
+			defer close(previewRead)
+			preview, _, previewErr = b.Native.PreviewBuilding(ctx, target.Action, target.Snapshot)
+		}()
+	}
 	bounds, _, err := b.Native.ReadMapBounds(ctx, Identity(target.Snapshot), domain.Cell{X: candidate.GetX(), Z: candidate.GetZ()})
 	if err != nil {
+		<-previewRead
 		return out, err
 	}
 	current, err := Context(bounds.Context, target.Snapshot)
 	if err != nil {
+		<-previewRead
 		return out, err
 	}
 	if bounds.Bounds.Width <= 0 || bounds.Bounds.Height <= 0 {
+		<-previewRead
 		return out, executor.ErrEvidence
 	}
-	preview, _, err := b.Native.PreviewBuilding(ctx, target.Action, target.Snapshot)
-	if err != nil {
-		return out, err
+	<-previewRead
+	if previewErr != nil {
+		return out, previewErr
 	}
-	if !preview.Preview.Snapshot.Matches(current) || !preview.Stock.Snapshot.Matches(current) || preview.Preview.Action != target.Action || preview.Preview.Tick < domain.Tick(bounds.Context.GetTick()) || !preview.Stock.Tick.FreshFor(preview.Preview.Tick) {
+	boundsTick := domain.Tick(bounds.Context.GetTick())
+	if memoized && !preview.Preview.Tick.Covers(boundsTick) {
+		// The step outran its batch: this inspection reads live.
+		memoized = false
+		if preview, _, err = b.Native.PreviewBuilding(ctx, target.Action, target.Snapshot); err != nil {
+			return out, err
+		}
+	}
+	// A live preview runs after the bounds read; a memoized one covers it
+	// (at or after it, or before it within the planning tolerance and the
+	// live drift), as checked above.
+	if !preview.Preview.Snapshot.Matches(current) || !preview.Stock.Snapshot.Matches(current) || preview.Preview.Action != target.Action || !memoized && preview.Preview.Tick < boundsTick || !preview.Stock.Tick.FreshFor(preview.Preview.Tick) {
 		return out, executor.ErrEvidence
 	}
 	emergency, _, err := b.Native.ReadEmergency(ctx, Identity(current))

@@ -849,3 +849,92 @@ func workerActionCell(action domain.Action) domain.Cell {
 	b, _ := action.Building()
 	return b.Cell()
 }
+
+type workerPreviewFake struct {
+	calls [][]domain.Action
+	err   error
+}
+
+func (f *workerPreviewFake) PreviewBuildings(_ context.Context, actions []domain.Action, snapshot domain.GenerationSnapshot) ([]bridge.BuildingPreview, bridge.Result, error) {
+	f.calls = append(f.calls, actions)
+	if f.err != nil {
+		return nil, bridge.Result{}, f.err
+	}
+	out := make([]bridge.BuildingPreview, 0, len(actions))
+	for _, action := range actions {
+		out = append(out, bridge.BuildingPreview{Preview: policy.Preview{Action: action, Snapshot: snapshot, Tick: 5}, Stock: policy.StockObservation{Snapshot: snapshot, Tick: 5}})
+	}
+	return out, bridge.Result{}, nil
+}
+
+// The building candidates a step dispatches are previewed in one native
+// batch before the loop, and each dispatch finds its row on the step
+// context (#593); a step whose candidates are all on backoff previews
+// nothing, and a batch that fails leaves the dispatches to read their own.
+func TestWorkerPreviewsTheStepsBuildingCandidatesInOneBatch(t *testing.T) {
+	t.Parallel()
+	w, f, db := workerFixture(t)
+	var actions []domain.Action
+	for i := 0; i < 3; i++ {
+		b, err := domain.NewBuilding("Wall", domain.Cell{X: int32(10 + i), Z: 2}, domain.North, "WoodLog")
+		if err != nil {
+			t.Fatal(err)
+		}
+		action, err := domain.NewBuildingAction(domain.ActionID(fmt.Sprintf("wall-%d", i)), b)
+		if err != nil {
+			t.Fatal(err)
+		}
+		actions = append(actions, action)
+	}
+	plan, err := domain.NewPlan("walls", 1, actions)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = db.CreatePlan(context.Background(), plan); err != nil {
+		t.Fatal(err)
+	}
+	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: plan.ID(), Revision: 1, Native: 1}
+	f.mu.Lock()
+	f.state = ControlState{Snapshot: snapshot, ObservationKnown: true, Enabled: true}
+	f.mu.Unlock()
+	previews := &workerPreviewFake{}
+	w.config.Previews = previews
+	var served, runs int
+	f.run = func(ctx context.Context, p domain.PlanID, a domain.ActionID) (executor.Result, error) {
+		runs++
+		if preview, ok := boundary.PreviewMemoFrom(ctx).Take(a, snapshot); ok && preview.Preview.Action.ID() == a {
+			served++
+		}
+		state, err := db.LoadPlan(ctx, p)
+		for _, progress := range state.Progress {
+			if progress.View().Action == a {
+				return executor.Result{Progress: progress}, err
+			}
+		}
+		return executor.Result{}, err
+	}
+	now := time.Now()
+	if err := w.step(context.Background(), now); err != nil {
+		t.Fatal(err)
+	}
+	if runs != 3 || served != 3 || len(previews.calls) != 1 || len(previews.calls[0]) != 3 {
+		t.Fatalf("runs=%d served=%d batches=%v", runs, served, previews.calls)
+	}
+	// Every candidate is on its backoff: nothing to preview.
+	if err := w.step(context.Background(), now); err != nil {
+		t.Fatal(err)
+	}
+	if len(previews.calls) != 1 {
+		t.Fatal("previewed backed-off candidates", previews.calls)
+	}
+	// A failed batch is not a failed step.
+	w.waits = map[domain.ActionID]workerWait{}
+	previews.err = errors.New("native unavailable")
+	served = 0
+	if err := w.step(context.Background(), now); err != nil {
+		t.Fatal(err)
+	}
+	if runs != 6 || served != 0 || len(previews.calls) != 2 {
+		t.Fatalf("runs=%d served=%d batches=%d", runs, served, len(previews.calls))
+	}
+}

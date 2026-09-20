@@ -586,6 +586,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	var paused time.Duration
 	var readmit bool
 	entered := time.Now()
+	var gateWait time.Duration
 	// The step is a trace root (or runs under the caller's): every flight
 	// row it leaves, native or kinded, carries its trace_id (#298).
 	ctx, trace := telemetry.EnsureTrace(ctx)
@@ -598,8 +599,8 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		return out, err
 	}
 	defer done()
-	if wait := time.Since(entered); wait > 50*time.Millisecond {
-		clockSchedulerLog("step waited %s for the player gate", wait.Round(time.Millisecond))
+	if gateWait = time.Since(entered); gateWait > 50*time.Millisecond {
+		clockSchedulerLog("step waited %s for the player gate", gateWait.Round(time.Millisecond))
 	}
 	// Every native observation this step issues -- the bundle below, the
 	// routine census and each planner's own reads -- goes through one cache
@@ -647,6 +648,11 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 			cause = reason.Cause
 		}
 		extra := map[string]any{"cache_hits": stats.Hits, "parent_hits": stats.ParentHits, "running": out.Running, "elapsed_ms": float64(elapsed) / float64(time.Millisecond), "reason": string(cause)}
+		// The wait for the player gate before the step began: the
+		// Worker's dispatch step, or manual control, holding it (#593).
+		if gateWait > 0 {
+			extra["gate_wait_ms"] = float64(gateWait) / float64(time.Millisecond)
+		}
 		if cause == StepLive {
 			s.liveStepWall = elapsed
 		}
@@ -1358,6 +1364,13 @@ func (s *ClockScheduler) bundleStepFamilies(request *o.BundleRequest, tick int64
 		}
 	}
 	asks := s.facts.asks
+	if !s.lastTickKnown && asks.Empty() {
+		// No review has asked yet: the first carries the families every
+		// review's planners ask for, rather than paying them one hop each
+		// once (#593). The resources depend on the colony and wait for
+		// the planners to name them.
+		asks.BuiltBuildings, asks.Traders, asks.WorldProgression = true, true, true
+	}
 	request.BuiltBuildings, request.Traders, request.WorldProgression = proto.Bool(asks.BuiltBuildings), proto.Bool(asks.Traders), proto.Bool(asks.WorldProgression)
 	request.ResourceSources = append([]string(nil), asks.Resources...)
 }
