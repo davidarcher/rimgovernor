@@ -323,23 +323,22 @@ func run(ctx context.Context, s cases.Session, ranged, explosive bool) error {
 	if err != nil {
 		return err
 	}
-	refusalReply, err := h.Wire(ctx, "unowned-draft-refused", "operations_execute", na.ExecuteRequest(identity, grant, player, 4))
+	// Auto adopts the player's standing draft without issuing a setter or
+	// replacing the player order. The override above still interrupts the attack.
+	adoptReply, err := h.Wire(ctx, "adopt-player-draft", "operations_execute", na.ExecuteRequest(identity, grant, player, 4))
 	if err != nil {
 		return err
 	}
-	_, refusal, err := na.Outcome(refusalReply, "failure")
+	_, adopted, err := na.Outcome(adoptReply, "receipt")
 	if err != nil {
 		return err
-	}
-	if na.AsString(refusal["code"]) != "FAILURE_CODE_OWNER_CONFLICT" {
-		return fmt.Errorf("unowned-draft-refused: expected FAILURE_CODE_OWNER_CONFLICT, got %q", refusal["code"])
 	}
 	preserved, err := read("player-job-preserved", actorID)
 	if err != nil {
 		return err
 	}
-	if err := na.SameControl(player, preserved); err != nil {
-		return fmt.Errorf("player-job-preserved: %w", err)
+	if err := na.OwnedEffect(adopted, preserved, "applied", false); err != nil {
+		return fmt.Errorf("adopt-player-draft: %w", err)
 	}
 	if err := na.ActualOrder(external, preserved); err != nil {
 		return err
