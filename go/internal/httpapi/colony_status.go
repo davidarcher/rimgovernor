@@ -21,7 +21,9 @@ type ColonyStatus interface {
 // colonyStatusDTO is one census; unknown facts are null. downed and
 // moodMean are derived from the roster (moodMean over the colonists whose
 // mood was readable, null when none was). raidPoints and the wealth split
-// are the census's threat section (#395).
+// are the census's threat section (#395). playerTechLevel is the faction's
+// native TechLevel name and buildTier the research-derived construction
+// tier (#604), null until a routine review with the research census filed.
 type colonyStatusDTO struct {
 	FoodPlan             *foodPlanDTO          `json:"foodPlan"`
 	FoodPlanTick         *domain.Tick          `json:"foodPlanTick"`
@@ -39,6 +41,8 @@ type colonyStatusDTO struct {
 	WealthItems          *float64              `json:"wealthItems"`
 	WealthBuildings      *float64              `json:"wealthBuildings"`
 	WealthPawns          *float64              `json:"wealthPawns"`
+	PlayerTechLevel      *string               `json:"playerTechLevel"`
+	BuildTier            *string               `json:"buildTier"`
 	Shrines              []colonyShrineDTO     `json:"shrines"`
 	Downed               int                   `json:"downed"`
 	MoodMean             *float64              `json:"moodMean"`
@@ -90,6 +94,11 @@ func projectColonyStatus(v buildingruntime.ColonyStatusReport) colonyStatusDTO {
 		Pawns: []colonyStatusPawnDTO{},
 	}
 	out.FoodPlanTick = factPointer(v.FoodPlanTick)
+	out.PlayerTechLevel = factPointer(v.PlayerTechLevel)
+	if tier, known := v.BuildTier.Value(); known {
+		name := tier.String()
+		out.BuildTier = &name
+	}
 	if shrines, known := v.Shrines.Value(); known {
 		out.Shrines = []colonyShrineDTO{}
 		for _, shrine := range shrines {

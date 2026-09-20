@@ -30,6 +30,29 @@ type RoutineReviewer struct {
 	// store receives each review's decoded sections (#354); the scheduler
 	// that steps this reviewer sets it, a standalone reviewer files nowhere.
 	store *facts.Store
+	// buildTier is the last build tier logged (#604): the service log
+	// records a change once, not every review.
+	buildTier domain.Fact[policy.BuildTier]
+}
+
+// logBuildTier records the reading's build tier in the service log once per
+// change: `[layout] build tier Masonry (Stonecutting)`. An unknown tier
+// (no research census) is not a change.
+func (r *RoutineReviewer) logBuildTier(ctx context.Context, projection observation.ColonyProjection) {
+	tier, known := projection.BuildTier.Value()
+	if !known {
+		return
+	}
+	if last, logged := r.buildTier.Value(); logged && last == tier {
+		return
+	}
+	r.buildTier = projection.BuildTier
+	evidence := policy.BuildTierEvidence(observation.FinishedResearch(projection.Facts.Research), projection.PlayerTechLevel)
+	message := "build tier " + tier.String()
+	if evidence != "" {
+		message += " (" + evidence + ")"
+	}
+	clockEvent(ctx, "layout", "build_tier", message, "tier", tier.String(), "evidence", evidence)
 }
 
 // seasonal is the configured policy with its food and wood targets widened
@@ -184,6 +207,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	if err = releaseBreakWork(ctx, p.journal, state.Snapshot, reading.Emergency, plans); err != nil {
 		return store.RoutineReviewResult{}, err
 	}
+	r.logBuildTier(ctx, reading.Projection)
 	reading.Projection.Facts.FoodPlan = r.planFood(reading.Projection)
 	reading.Projection.Facts.ConstructionClaims = claims
 	reading.Projection.Facts.OwnedStockpiles, err = p.journal.StockpileClaims(ctx, state.Snapshot, reading.Projection.Identity.Tick)

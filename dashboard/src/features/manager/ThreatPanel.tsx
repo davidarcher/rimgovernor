@@ -28,6 +28,7 @@ export default function ThreatPanel({active}: {active: boolean}) {
       <div><dt>Items</dt><dd>{silver(v.wealthItems)}</dd></div>
       <div><dt>Buildings</dt><dd>{silver(v.wealthBuildings)}</dd></div>
       <div><dt>Pawns</dt><dd>{silver(v.wealthPawns)}</dd></div>
+      <div><dt>Build tier</dt><dd>{v.buildTier ?? 'â€”'}{v.playerTechLevel ? ` (${v.playerTechLevel} faction)` : ''}</dd></div>
     </dl>}
     {v && v.shrines && v.shrines.length > 0 && <dl className="observation-identity" aria-label="Ancient shrines">
       {v.shrines.map(shrine => <div key={shrine.id}><dt>Shrine {shrine.id}</dt><dd>{shrine.sealed ? 'sealed' : shrine.guardsAlive ? 'breached, guards alive' : 'cleared'}, {shrine.filledCaskets}/{shrine.caskets} caskets filled{shrine.inHome ? ', in Home' : ''}{shrine.ready === null ? '' : shrine.ready ? ` — breach ready (${shrine.squad} armed, ${shrine.traps} traps)` : ` — hold: ${shrine.reason}`}</dd></div>)}

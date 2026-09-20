@@ -37,6 +37,7 @@ func TestRoutineResearchAndResourceFactsStayInsideBracket(t *testing.T) {
 	if err := protojson.Unmarshal(data, base); err != nil {
 		t.Fatal(err)
 	}
+	base.GetObserved().PlayerTechLevel = proto.String("Neolithic")
 	identity := func() *l.IdentityReply {
 		return &l.IdentityReply{Outcome: &l.IdentityReply_Loaded{Loaded: &l.LoadedIdentity{Context: proto.Clone(base.GetObserved().Context).(*c.ObservationContext), Paused: proto.Bool(true)}}}
 	}
@@ -59,6 +60,9 @@ func TestRoutineResearchAndResourceFactsStayInsideBracket(t *testing.T) {
 	if _, known := out.Projection.Facts.Research.Value(); known {
 		t.Fatal("research known without a source")
 	}
+	if _, known := out.Projection.BuildTier.Value(); known {
+		t.Fatal("build tier known without a research census")
+	}
 	if rows, known := out.Projection.Facts.Resources.Value(); !known || !reflect.DeepEqual(rows, []policy.Amount{{Resource: "WoodLog", Count: 40}}) {
 		t.Fatal(out.Projection.Facts.Resources)
 	}
@@ -71,6 +75,11 @@ func TestRoutineResearchAndResourceFactsStayInsideBracket(t *testing.T) {
 	want := policy.ResearchFacts{Current: "Electricity", Finished: []policy.ResearchProjectID{"Stonecutting"}, Projects: []policy.ResearchProjectID{"Batteries", "Electricity", "Stonecutting"}}
 	if facts := out.Projection.Facts.Research; !reflect.DeepEqual(facts, domain.Known(want)) {
 		t.Fatal(facts)
+	}
+	// The build tier follows the census (#604): Stonecutting finished on
+	// the fixture's Neolithic faction is Masonry, filed with the section.
+	if tier := out.Projection.BuildTier; tier != domain.Known(policy.BuildTierMasonry) || out.Sections.Colony.Value.BuildTier != tier {
+		t.Fatal(tier, out.Sections.Colony.Value.BuildTier)
 	}
 
 	// A research snapshot from a different colony boundary invalidates the reading.

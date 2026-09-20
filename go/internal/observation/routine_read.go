@@ -286,6 +286,7 @@ func observeRoutine(ctx context.Context, source RoutineSource, clock Clock, expe
 	reading.Projection.Facts.RecoveryWorkers = recoveryWorkers(bracket.mood)
 	reading.Projection.Facts.Gear = routineGear(reading.Projection.Facts.Gear, bracket.emergency.Facts)
 	reading.Projection.Facts.Research = bracket.research
+	reading.Projection.BuildTier = policy.SelectBuildTier(FinishedResearch(bracket.research), reading.Projection.PlayerTechLevel)
 	reading.Projection.Facts.Traders = bracket.traders
 	reading.Projection.Facts.Prisoners = bracket.population.Prisoners
 	reading.Projection.Facts.Custody = bracket.population.Custody
@@ -471,4 +472,13 @@ func hostedComfort(comfort domain.Fact[policy.ComfortObservation], rooms domain.
 		return domain.Unknown[policy.ComfortObservation]()
 	}
 	return domain.Known(hosted)
+}
+
+// FinishedResearch is the finished project list of a known research census,
+// the input BuildTier is selected from.
+func FinishedResearch(research domain.Fact[policy.ResearchFacts]) domain.Fact[[]policy.ResearchProjectID] {
+	if facts, known := research.Value(); known {
+		return domain.Known(facts.Finished)
+	}
+	return domain.Unknown[[]policy.ResearchProjectID]()
 }

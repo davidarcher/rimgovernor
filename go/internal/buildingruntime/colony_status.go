@@ -60,6 +60,12 @@ type ColonyStatusReport struct {
 	// ShrineReadiness is each shrine's breach judgement (#457), one per
 	// Shrines row; empty while the census or its inputs are unknown.
 	ShrineReadiness []ShrineReadinessReport
+	// PlayerTechLevel is the player faction's native TechLevel name and
+	// BuildTier the construction tier the last routine review derived from
+	// it and finished research (#604); the tier is unknown until a review
+	// with the research census has filed.
+	PlayerTechLevel domain.Fact[string]
+	BuildTier       domain.Fact[policy.BuildTier]
 	// Pawns is the living home colonist roster, sorted as native listed it.
 	Pawns []ColonyStatusPawn
 }
@@ -135,6 +141,8 @@ func (s *ColonyStatus) Read(ctx context.Context) (ColonyStatusReport, error) {
 		FoodCorpses:          len(observed.FoodCorpses),
 		Threat:               bridge.ProjectColonyThreat(observed),
 		Shrines:              domain.Unknown[[]policy.AncientShrine](),
+		PlayerTechLevel:      optionalFact(observed.PlayerTechLevel),
+		BuildTier:            domain.Unknown[policy.BuildTier](),
 		Pawns:                []ColonyStatusPawn{},
 	}
 	if source, ok := s.native.(observation.ShrineSource); ok {
@@ -148,6 +156,7 @@ func (s *ColonyStatus) Read(ctx context.Context) (ColonyStatusReport, error) {
 			a, ak := id.NativeGeneration.Value()
 			b, bk := decoded.NativeGeneration.Value()
 			if ak && bk && a == b {
+				report.BuildTier = held.Value.BuildTier
 				report.FoodPlan = held.Value.Facts.FoodPlan
 				if _, known := report.FoodPlan.Value(); known {
 					report.FoodPlanTick = domain.Known(id.Tick)

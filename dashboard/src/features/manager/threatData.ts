@@ -1,7 +1,7 @@
 // The raid-threat slice of /api/player/colony (#395): the raid points the
 // storyteller would draw now and the wealth split behind them. Every figure
 // is null when the native census could not observe it.
-export type ThreatStatus = {tick: number; raidPoints: number | null; wealthTotal: number | null; wealthItems: number | null; wealthBuildings: number | null; wealthPawns: number | null; shrines: ShrineStatus[] | null};
+export type ThreatStatus = {tick: number; raidPoints: number | null; wealthTotal: number | null; wealthItems: number | null; wealthBuildings: number | null; wealthPawns: number | null; shrines: ShrineStatus[] | null; playerTechLevel: string | null; buildTier: string | null};
 // One ancient shrine (#456): a casket group, sealed until breached; guards
 // are unknown while sealed and count as alive until seen dead.
 // ready/reason are the breach judgement (#457): null until judged, reason
@@ -17,6 +17,12 @@ function figure(value: unknown, field: string): number | null {
 }
 function count(value: unknown, field: string): number {
   if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) throw Error(`Invalid colony status ${field}`);
+  return value;
+}
+// An optional name: absent or null when the service does not report it.
+function name(value: unknown, field: string): string | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== 'string' || value === '') throw Error(`Invalid colony status ${field}`);
   return value;
 }
 function flag(value: unknown, field: string): boolean {
@@ -40,7 +46,8 @@ export function readThreatStatus(raw: unknown): ThreatStatus {
   const v = raw as Record<string, unknown>;
   if (typeof v.tick !== 'number' || !Number.isInteger(v.tick) || v.tick < 0) throw Error('Invalid colony status tick');
   return {tick: v.tick, raidPoints: figure(v.raidPoints, 'raidPoints'), wealthTotal: figure(v.wealthTotal, 'wealthTotal'),
-    wealthItems: figure(v.wealthItems, 'wealthItems'), wealthBuildings: figure(v.wealthBuildings, 'wealthBuildings'), wealthPawns: figure(v.wealthPawns, 'wealthPawns'), shrines: readShrines(v.shrines)};
+    wealthItems: figure(v.wealthItems, 'wealthItems'), wealthBuildings: figure(v.wealthBuildings, 'wealthBuildings'), wealthPawns: figure(v.wealthPawns, 'wealthPawns'), shrines: readShrines(v.shrines),
+    playerTechLevel: name(v.playerTechLevel, 'playerTechLevel'), buildTier: name(v.buildTier, 'buildTier')};
 }
 export async function fetchThreatStatus(signal?: AbortSignal): Promise<ThreatStatus> {
   const response = await fetch('/api/player/colony', {method: 'GET', cache: 'no-store', credentials: 'same-origin', signal});
