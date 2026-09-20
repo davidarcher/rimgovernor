@@ -14,8 +14,8 @@ const Controller = "native-draft-acceptance"
 var Owner = map[string]any{"controllerSessionId": Controller}
 
 // PawnRow asserts an observations_list_pawns reply is a single complete, exact-match
-// page whose context matches identity, extracts the (optionally id-checked) single
-// row, and validates its snapshot/draftClaim invariants.
+// page whose context matches identity, extracts the row for pawnID (the first
+// row when pawnID is empty) and validates its snapshot/draftClaim invariants.
 func PawnRow(reply map[string]any, identity map[string]any, pawnID string) (map[string]any, error) {
 	_, observed, err := Outcome(reply, "observed")
 	if err != nil {
@@ -35,21 +35,28 @@ func PawnRow(reply map[string]any, identity map[string]any, pawnID string) (map[
 	if matched != returned || int(returned) != len(rows) || unreadable != 0 {
 		return nil, fmt.Errorf("completeness does not exactly account for the returned rows: %#v", completeness)
 	}
-	if pawnID != "" {
-		if len(rows) != 1 {
-			return nil, fmt.Errorf("expected exactly one pawn for id %q, found %d", pawnID, len(rows))
-		}
-		row, _ := AsMap(rows[0])
-		pawn, _ := AsMap(row["pawn"])
-		if AsString(pawn["id"]) != pawnID {
-			return nil, fmt.Errorf("expected pawn %q, found %q", pawnID, pawn["id"])
-		}
-	}
 	if len(rows) == 0 {
 		return nil, fmt.Errorf("expected at least one pawn row")
 	}
 	row, _ := AsMap(rows[0])
 	pawn, _ := AsMap(row["pawn"])
+	if pawnID != "" {
+		// A multi-id filter returns one row per id; pick the requested one.
+		row, pawn = nil, nil
+		for _, candidate := range rows {
+			r, _ := AsMap(candidate)
+			p, _ := AsMap(r["pawn"])
+			if AsString(p["id"]) == pawnID {
+				if row != nil {
+					return nil, fmt.Errorf("expected exactly one pawn for id %q, found %d", pawnID, len(rows))
+				}
+				row, pawn = r, p
+			}
+		}
+		if row == nil {
+			return nil, fmt.Errorf("expected pawn %q among %d rows", pawnID, len(rows))
+		}
+	}
 	snapshot, _ := AsMap(pawn["snapshot"])
 	if AsString(snapshot["entityId"]) != AsString(pawn["id"]) || AsString(snapshot["token"]) == "" {
 		return nil, fmt.Errorf("pawn snapshot missing entityId/token: %#v", snapshot)
