@@ -101,14 +101,15 @@ func caravanCatalogSelected(v *o.CaravanCatalog, identity *c.Identity, destinati
 	if len(v.CargoGroups) > 256 {
 		return CaravanCatalogRead{}, contract("caravan catalog cargo groups exceed bound")
 	}
+	// Group ids are unique; definitions are not: RimWorld splits one def
+	// into several transferables when stacks differ by quality, stuff,
+	// ingredients, rot stage or ten hit points.
 	seenGroups := map[string]bool{}
-	seenDefs := map[string]bool{}
 	for _, group := range v.CargoGroups {
-		if !caravanCargoGroupValid(group) || seenGroups[group.GetGroupId()] || seenDefs[group.GetDefName()] {
+		if !caravanCargoGroupValid(group) || seenGroups[group.GetGroupId()] {
 			return CaravanCatalogRead{}, contract("invalid caravan cargo group")
 		}
 		seenGroups[group.GetGroupId()] = true
-		seenDefs[group.GetDefName()] = true
 	}
 	if len(v.Routes) > 4096 {
 		return CaravanCatalogRead{}, contract("caravan catalog routes exceed bound")

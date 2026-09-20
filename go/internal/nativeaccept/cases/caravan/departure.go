@@ -135,6 +135,9 @@ func runDeparture(ctx context.Context, s cases.Session) error {
 	if err != nil {
 		return fmt.Errorf("catalog-before: %w", err)
 	}
+	// One definition may span several groups (RimWorld splits stacks by
+	// hit points, ingredients or rot stage); fold them per definition,
+	// keeping the reserve group's id so the pack order can be checked.
 	groups := map[string]policy.CaravanCargoGroup{}
 	for _, group := range catalog.CargoGroups {
 		nutrition := domain.Unknown[float64]()
@@ -148,6 +151,18 @@ func runDeparture(ctx context.Context, s cases.Session) error {
 		row := policy.CaravanCargoGroup{GroupID: group.GetGroupId(), Definition: group.GetDefName(), Count: group.GetCount(), Nutrition: nutrition, Perishable: group.GetPerishable(), RotDays: rot, Reserve: group.GetReserve()}
 		for _, eater := range group.EaterIds {
 			row.Eaters = append(row.Eaters, domain.PawnID(eater))
+		}
+		if prior, seen := groups[row.Definition]; seen {
+			row.Count += prior.Count
+			row.Reserve = row.Reserve || prior.Reserve
+			row.Perishable = row.Perishable || prior.Perishable
+			if !row.Reserve || prior.Reserve {
+				row.GroupID = prior.GroupID
+			}
+			if prior.Reserve {
+				row.RotDays = prior.RotDays
+			}
+			row.Eaters = append(row.Eaters, prior.Eaters...)
 		}
 		groups[row.Definition] = row
 	}
@@ -172,8 +187,9 @@ func runDeparture(ctx context.Context, s cases.Session) error {
 	if rot, known := pemmican.RotDays.Value(); !known || rot < 30 {
 		return fmt.Errorf("catalog-before: expected pemmican's unrefrigerated shelf life (>=30 days), got %#v", pemmican)
 	}
-	if n, known := survival.Nutrition.Value(); survival.Count != 60 || !known || n <= 0 || survival.Reserve || survival.Perishable || !crewEats(survival) {
-		return fmt.Errorf("catalog-before: expected 60 unforbidden non-perishable survival meals, got %#v", survival)
+	// The start may hold survival meals of its own beside the fixture's 60.
+	if n, known := survival.Nutrition.Value(); survival.Count < 60 || !known || n <= 0 || survival.Reserve || survival.Perishable || !crewEats(survival) {
+		return fmt.Errorf("catalog-before: expected at least 60 unforbidden non-perishable survival meals, got %#v", survival)
 	}
 	if rot, known := meals.RotDays.Value(); meals.Count < 5 || meals.Reserve || !meals.Perishable || !known || rot <= 0 || rot > 5 || !crewEats(meals) {
 		return fmt.Errorf("catalog-before: expected perishable simple meals with a few days of shelf life, got %#v", meals)

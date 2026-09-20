@@ -73,15 +73,16 @@ func PlanCaravanCargo(r CaravanCargoRequest) (CaravanCargoPlan, Reason) {
 	if len(r.Crew) == 0 || len(r.Groups) > 256 || !fieldPositive(r.JourneyDays) || !foodNumber(r.HomeFoodMinDays) {
 		return CaravanCargoPlan{}, UnknownFacts
 	}
-	byDef := make(map[string]int, len(r.Groups))
+	// A definition may span several groups (stacks split by quality, stuff,
+	// ingredients, rot stage or hit points); each is drawn in catalog order.
+	byDef := make(map[string][]int, len(r.Groups))
+	seenGroup := make(map[string]bool, len(r.Groups))
 	for i, group := range r.Groups {
-		if !foodID(group.GroupID) || !foodID(group.Definition) || group.Count < 0 {
+		if !foodID(group.GroupID) || !foodID(group.Definition) || group.Count < 0 || seenGroup[group.GroupID] {
 			return CaravanCargoPlan{}, UnknownFacts
 		}
-		if _, dup := byDef[group.Definition]; dup {
-			return CaravanCargoPlan{}, UnknownFacts
-		}
-		byDef[group.Definition] = i
+		seenGroup[group.GroupID] = true
+		byDef[group.Definition] = append(byDef[group.Definition], i)
 	}
 	crew := make(map[domain.PawnID]bool, len(r.Crew))
 	crewDemand := 0.0
@@ -105,12 +106,25 @@ func PlanCaravanCargo(r CaravanCargoRequest) (CaravanCargoPlan, Reason) {
 	plan := CaravanCargoPlan{}
 	taken := make(map[string]int64, len(r.Groups))
 	for _, item := range r.Cargo {
-		i, ok := byDef[item.Definition]
-		if !ok || item.Count == 0 || item.Count > math.MaxInt32 || int64(item.Count) > r.Groups[i].Count {
+		indexes, ok := byDef[item.Definition]
+		if !ok || item.Count == 0 || item.Count > math.MaxInt32 {
 			return CaravanCargoPlan{}, UnknownFacts
 		}
-		taken[r.Groups[i].GroupID] = int64(item.Count)
-		plan.Cargo = append(plan.Cargo, CaravanCargoSelection{GroupID: r.Groups[i].GroupID, Definition: item.Definition, Count: int64(item.Count)})
+		want := int64(item.Count)
+		for _, i := range indexes {
+			group := r.Groups[i]
+			free := group.Count - taken[group.GroupID]
+			if free <= 0 || want == 0 {
+				continue
+			}
+			take := min(free, want)
+			taken[group.GroupID] += take
+			want -= take
+			plan.Cargo = append(plan.Cargo, CaravanCargoSelection{GroupID: group.GroupID, Definition: item.Definition, Count: take})
+		}
+		if want > 0 {
+			return CaravanCargoPlan{}, UnknownFacts
+		}
 	}
 	byGroup := make(map[string]CaravanCargoGroup, len(r.Groups))
 	var stocks []CaravanFoodStock

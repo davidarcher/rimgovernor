@@ -40,8 +40,9 @@ namespace HomeBridge.BridgeTools
 
         // A stable ordinal-smallest constituent ThingID; used as both
         // FormCaravan.Cargo's group_id and this catalog's CargoGroup.group_id.
-        // RimWorld's TransferableOneWay grouping already merges non-pawn rows
-        // by def (and stuff), so one row exists per distinct cargo def.
+        // RimWorld's TransferableOneWay grouping merges non-pawn rows by def,
+        // stuff, quality, ingredients, rot stage and hit points (ten apart), so
+        // one def may span several rows; only the group id is unique.
         internal static string GroupId(TransferableOneWay group) =>
             group.things.Select(t => t.ThingID).OrderBy(id => id, StringComparer.Ordinal).First();
 

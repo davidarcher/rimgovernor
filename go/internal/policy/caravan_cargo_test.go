@@ -72,7 +72,7 @@ func TestPlanCaravanCargoRefusals(t *testing.T) {
 		{"zero journey", func(r *CaravanCargoRequest) { r.JourneyDays = 0 }, UnknownFacts},
 		{"cargo not listed", func(r *CaravanCargoRequest) { r.Cargo = []domain.CargoItem{{Definition: "Steel", Count: 1}} }, UnknownFacts},
 		{"cargo beyond stock", func(r *CaravanCargoRequest) { r.Cargo[0].Count = 76 }, UnknownFacts},
-		{"duplicate definition", func(r *CaravanCargoRequest) { r.Groups[0].Definition = "RawRice" }, UnknownFacts},
+		{"duplicate group", func(r *CaravanCargoRequest) { r.Groups[0].GroupID = "g-rice" }, UnknownFacts},
 		{"journey outlasts food", func(r *CaravanCargoRequest) { r.JourneyDays = 45 }, CaravanFoodInsufficient},
 		{"home floor", func(r *CaravanCargoRequest) { r.HomeFoodMinDays = 18 }, CaravanHomeFoodInsufficient},
 	}
@@ -84,6 +84,27 @@ func TestPlanCaravanCargoRefusals(t *testing.T) {
 				t.Fatalf("got %q want %q", reason, c.reason)
 			}
 		})
+	}
+}
+
+// TestPlanCaravanCargoSplitDefinition: a definition RimWorld split across
+// groups (hit points, ingredients, rot stage) is drawn group by group in
+// catalog order, and a short total still refuses.
+func TestPlanCaravanCargoSplitDefinition(t *testing.T) {
+	r := caravanCargoRequest()
+	r.Groups[0].Count = 30
+	r.Groups = append(r.Groups, CaravanCargoGroup{GroupID: "g-wood-worn", Definition: "WoodLog", Count: 45})
+	plan, reason := PlanCaravanCargo(r)
+	if reason != "" {
+		t.Fatal(reason)
+	}
+	want := []CaravanCargoSelection{{"g-wood", "WoodLog", 30}, {"g-wood-worn", "WoodLog", 20}}
+	if len(plan.Cargo) < 2 || plan.Cargo[0] != want[0] || plan.Cargo[1] != want[1] {
+		t.Fatal(plan.Cargo)
+	}
+	r.Cargo[0].Count = 76
+	if _, reason := PlanCaravanCargo(r); reason != UnknownFacts {
+		t.Fatalf("got %q want %q", reason, UnknownFacts)
 	}
 }
 
