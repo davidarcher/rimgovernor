@@ -30,6 +30,8 @@ namespace HomeBridge.BridgeTools
         public List<MiningRecord> Records = new List<MiningRecord>();
         public List<DrillingRecord> Drills = new List<DrillingRecord>();
         public List<ExcavationRecord> Excavations = new List<ExcavationRecord>();
+        // Drills completed from typed constructions the controller admitted (#538).
+        public List<BuiltDrillRecord> BuiltDrills = new List<BuiltDrillRecord>();
         public MiningState(Game game) { }
         public override void ExposeData()
         {
@@ -44,9 +46,11 @@ namespace HomeBridge.BridgeTools
             Scribe_Collections.Look(ref Records, "rimgovernorMining", LookMode.Deep);
             Scribe_Collections.Look(ref Drills, "rimgovernorDrilling", LookMode.Deep);
             Scribe_Collections.Look(ref Excavations, "rimgovernorExcavation", LookMode.Deep);
+            Scribe_Collections.Look(ref BuiltDrills, "rimgovernorBuiltDrills", LookMode.Deep);
             if (Scribe.mode == LoadSaveMode.PostLoadInit && Records == null) Records = new List<MiningRecord>();
             if (Scribe.mode == LoadSaveMode.PostLoadInit && Drills == null) Drills = new List<DrillingRecord>();
             if (Scribe.mode == LoadSaveMode.PostLoadInit && Excavations == null) Excavations = new List<ExcavationRecord>();
+            if (Scribe.mode == LoadSaveMode.PostLoadInit && BuiltDrills == null) BuiltDrills = new List<BuiltDrillRecord>();
         }
         public override void FinalizeInit()
         {
@@ -88,6 +92,21 @@ namespace HomeBridge.BridgeTools
             Scribe_Values.Look(ref MapId, "mapId"); Scribe_Values.Look(ref X, "x"); Scribe_Values.Look(ref Z, "z");
             Scribe_Values.Look(ref Started, "started"); Scribe_Values.Look(ref Finished, "finished", -1);
             Scribe_Values.Look(ref Cancelled, "cancelled");
+        }
+    }
+
+    // Ownership evidence for one controller-built drill: the exact thing id,
+    // definition and cell bind across save/load (building ids are stable), so a
+    // player drill or a rebuilt drill at the same cell is never adopted.
+    public sealed class BuiltDrillRecord : IExposable
+    {
+        public string ThingId = "", Definition = "";
+        public int MapId, X, Z, Built;
+        public void ExposeData()
+        {
+            Scribe_Values.Look(ref ThingId, "thingId", ""); Scribe_Values.Look(ref Definition, "definition", "");
+            Scribe_Values.Look(ref MapId, "mapId"); Scribe_Values.Look(ref X, "x"); Scribe_Values.Look(ref Z, "z");
+            Scribe_Values.Look(ref Built, "built");
         }
     }
 

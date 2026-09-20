@@ -614,7 +614,7 @@ var plannerCatalog = []plannerEntry{
 			out.Trade = &method
 			return nil
 		}},
-	{name: "resource", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.MineAcquisitionAction, domain.ProductionBillAction, domain.ZoneCreateAction}, families: factsColony,
+	{name: "resource", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.MineAcquisitionAction, domain.ProductionBillAction, domain.ZoneCreateAction, domain.BuildingAction, domain.DeconstructionAction}, families: factsColony,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Resource != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.Resource.step(ctx, epoch, arbiter)

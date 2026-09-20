@@ -45,7 +45,23 @@ namespace HomeBridge.BridgeTools
                     facts.Lumps.Add(new Obs.DeepResourceLump { DefName = def.defName, Count = count,
                         Centre = Cell(centre), CellCount = (uint)cells.Count });
                 }
+                NativeDrillOwnership.Prune(map);
                 foreach (var building in map.listerBuildings.allBuildingsColonist.OrderBy(b => b.thingIDNumber)) {
+                    if (building.Spawned && building.TryGetComp<CompDeepDrill>() != null) {
+                        if (facts.GroundScanners.Count + facts.LongRangeScanners.Count + facts.Drills.Count == Limit)
+                            return Unavailable(Common.UnavailableReason.LimitExceeded);
+                        var drill = new Obs.DeepDrillState { BuildingId = building.GetUniqueLoadID(), DefName = building.def.defName,
+                            Position = Cell(building.Position), Powered = building.GetComp<CompPowerTrader>()?.PowerOn ?? false,
+                            ControllerOwned = NativeDrillOwnership.Owned(building),
+                            Designated = map.designationManager.DesignationOn(building, DesignationDefOf.Deconstruct) != null };
+                        // GetNextResource is the drill's own deposit lookup: false with no
+                        // valuable deposit in radius, when vanilla drills stone chunks only.
+                        if (DeepDrillUtility.GetNextResource(building.Position, map, out var resource, out var remaining, out _)
+                            && resource != null && remaining > 0) {
+                            drill.Resource = resource.defName; drill.Remaining = remaining; drill.Depleted = false;
+                        } else drill.Depleted = true;
+                        facts.Drills.Add(drill);
+                    }
                     foreach (var scanner in building.AllComps.OfType<CompScanner>()) {
                         if (!(scanner is CompDeepScanner) && !(scanner is CompLongRangeMineralScanner)) continue;
                         if (facts.GroundScanners.Count + facts.LongRangeScanners.Count == Limit)

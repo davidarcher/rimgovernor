@@ -895,9 +895,18 @@ message DeepResourceLump { optional string def_name = 1; optional int64 count = 
 // the <=59 tick discovery check interval; random finds may happen sooner.
 // Timing is absent when native progress/speed or a guaranteed threshold is absent.
 message MineralScannerState { optional string building_id = 1; optional string def_name = 2; rimgovernor.common.v1.Cell position = 3; optional bool built = 4; optional bool powered = 5; optional bool working = 6; optional int64 ticks_to_next_find = 7; optional string target_resource = 8; }
-// At most 256 lumps and 256 scanners total; excess/read failure makes the section
-// unavailable, never a silently truncated census. Absent section means unknown.
-message DeepResourcesFacts { repeated DeepResourceLump lumps = 1; repeated MineralScannerState ground_scanners = 2; repeated MineralScannerState long_range_scanners = 3; }
+// Every spawned player deep drill (an observed empty list means none). resource
+// and remaining are the native next deposit under the drill's radius; depleted
+// means no valuable deposit remains there (vanilla then drills stone only), so a
+// lump centre moving as it is mined never implies depletion. controller_owned
+// means the drill completed from a typed construction the controller admitted;
+// the record survives save/load, binds the exact thing id, definition and cell,
+// and never adopts a player-built or rebuilt drill. designated reports a
+// standing Deconstruct designation on the drill.
+message DeepDrillState { optional string building_id = 1; optional string def_name = 2; rimgovernor.common.v1.Cell position = 3; optional bool powered = 4; optional string resource = 5; optional int64 remaining = 6; optional bool depleted = 7; optional bool controller_owned = 8; optional bool designated = 9; }
+// At most 256 lumps and 256 scanners plus drills total; excess/read failure makes the
+// section unavailable, never a silently truncated census. Absent section means unknown.
+message DeepResourcesFacts { repeated DeepResourceLump lumps = 1; repeated MineralScannerState ground_scanners = 2; repeated MineralScannerState long_range_scanners = 3; repeated DeepDrillState drills = 4; }
 message DeepResourcesSection { oneof outcome { DeepResourcesFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 message ColonyFactsSnapshot {
   rimgovernor.common.v1.ObservationContext context = 1; ColonyNaming naming = 2;

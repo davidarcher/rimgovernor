@@ -26,11 +26,20 @@ native reachability plus a completely observed, clear, unroofed footprint.
 Shared building admission retains spending limits and footprint reservations;
 the power planner includes the pending drill's native declared draw.
 
-An existing drill or drill blueprint prevents another placement. Automatic
-exhausted-drill removal requires per-drill exhaustion and ownership observations
-([#538](https://github.com/davidarcher/rimgovernor/issues/538)); a lump centre
-moving as it is mined does not establish exhaustion. Plasteel construction costs
-join runway history; bill consumption without a Plasteel quantity stays unknown.
+An existing drill or drill blueprint prevents another placement. The deep
+resource census also reports every player drill with its exact next deposit
+(resource and remaining units), the native depletion verdict and controller
+ownership. Ownership is written natively when a typed construction the
+controller admitted completes into a drill, persists with the save bound to the
+exact thing id, definition and cell, and never adopts a player-built or rebuilt
+drill. While a metal runway is in deficit, an owned drill the census reads as
+depleted is removed through the shared Hands deconstruction path (a drill
+`Deconstruction`, bounded attempts per drill); the dispatch guard re-reads the
+census and designates only while the exact drill is still present, owned and
+depleted. A lump centre moving as it is mined, an unknown census, a still
+yielding seam or a player drill never triggers removal; player and undesignated
+drills keep holding placement. Plasteel construction costs join runway history;
+bill consumption without a Plasteel quantity stays unknown.
 
 ## Excavation
 

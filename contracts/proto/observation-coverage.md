@@ -48,8 +48,17 @@ by the requested page limit, at most 256; no per-cell fishing payload is emitted
 aggregated into eight-connected lumps of the same definition. Each row reports
 total remaining units, cell count and the member nearest its centroid (ties x,z).
 Depleted cells disappear; touching discoveries of the same definition merge.
-The census is capped at 256 lumps and 256 built player scanners total. Oversize
-or failed reads return section-unavailable, never partial known-empty facts.
+The census is capped at 256 lumps and 256 built player scanners plus drills total.
+Oversize or failed reads return section-unavailable, never partial known-empty facts.
+
+Drill rows (`DeepDrillState`) cover every spawned player deep drill: powered
+state, the native next deposit under the drill (`resource`, `remaining`, absent
+when `depleted`), a standing Deconstruct designation and `controller_owned`,
+the save-persistent record written when a typed construction the controller
+admitted completed into that exact drill (thing id, definition, cell). Go
+requires depletion, ownership, designation and power to be stated, a positive
+exact deposit on an undepleted drill and none on a depleted one; the removal
+guard dispatches only an owned, depleted, still-present drill.
 
 Ground and long-range scanner rows carry built, powered and recent-working state;
 long-range rows also expose the selected output mineral when readable. Remaining
@@ -58,7 +67,8 @@ excluding idle time and the native discovery-check interval of up to 59 ticks.
 Random discovery may occur sooner. Missing timing stays unknown. Go preserves an
 absent/unavailable section as `ColonyProjection.DeepResources` unknown, while an
 observed empty section establishes no discovered lumps or built scanners.
-`tools/deepresources` checks seeded aggregation and both scanner kinds;
+`tools/deepresources` checks seeded aggregation, both scanner kinds and a
+yielding player drill beside an owned depleted one;
 `tools/saveheadroom-*` checks the committed-save envelope budget.
 
 ## Required semantic validation

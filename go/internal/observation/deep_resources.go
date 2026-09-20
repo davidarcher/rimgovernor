@@ -18,9 +18,22 @@ type MineralScanner struct {
 	TicksToNextFind         domain.Fact[int64]
 	TargetResource          domain.Fact[string]
 }
+
+// DeepDrill is one spawned player drill. Depleted is the native verdict that no
+// valuable deposit remains under it; ControllerOwned binds a drill the controller
+// built through a typed construction (save-persistent, exact identity).
+type DeepDrill struct {
+	ID, Definition              string
+	Position                    domain.Cell
+	Powered, Depleted           domain.Fact[bool]
+	ControllerOwned, Designated domain.Fact[bool]
+	Resource                    domain.Fact[string]
+	Remaining                   domain.Fact[int64]
+}
 type DeepResources struct {
 	Lumps                             []DeepResourceLump
 	GroundScanners, LongRangeScanners []MineralScanner
+	Drills                            []DeepDrill
 }
 
 // DecodeColony validates the census before projection. Missing sections remain
@@ -42,5 +55,8 @@ func colonyDeepResources(section *o.DeepResourcesSection) domain.Fact[DeepResour
 		return result
 	}
 	r.GroundScanners, r.LongRangeScanners = scanners(f.GroundScanners), scanners(f.LongRangeScanners)
+	for _, row := range f.Drills {
+		r.Drills = append(r.Drills, DeepDrill{ID: row.GetBuildingId(), Definition: row.GetDefName(), Position: domain.Cell{X: row.Position.GetX(), Z: row.Position.GetZ()}, Powered: optional(row.Powered), Depleted: optional(row.Depleted), ControllerOwned: optional(row.ControllerOwned), Designated: optional(row.Designated), Resource: optional(row.Resource), Remaining: optional(row.Remaining)})
+	}
 	return domain.Known(r)
 }

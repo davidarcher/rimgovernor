@@ -71,6 +71,69 @@ func deepDrillSites(f observation.ColonyProjection, runways []policy.ResourceRun
 	return sites
 }
 
+// exhaustedDrills selects the controller-owned drills whose seam the native
+// census reads as depleted and that carry no Deconstruct designation yet,
+// by id. Unknown ownership or depletion, a player drill and a shifted lump
+// centre (which is not a drill fact at all) never qualify.
+func exhaustedDrills(deep observation.DeepResources) []observation.DeepDrill {
+	var out []observation.DeepDrill
+	for _, drill := range deep.Drills {
+		owned, ok := drill.ControllerOwned.Value()
+		depleted, dk := drill.Depleted.Value()
+		designated, gk := drill.Designated.Value()
+		if ok && owned && dk && depleted && gk && !designated {
+			out = append(out, drill)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out
+}
+
+// removeExhaustedDrill admits one Deconstruction of an exhausted owned drill
+// through the ordinary Hands path; the dispatch guard re-reads ownership and
+// depletion before designating. Attempts per drill are bounded per episode.
+func (r *RoutineResourcePlanner) removeExhaustedDrill(call, epoch context.Context, state ControlState, goal store.GoalState, f observation.ColonyProjection, started time.Time) (RoutineResourceResult, bool, error) {
+	deep, known := f.DeepResources.Value()
+	if !known {
+		return RoutineResourceResult{}, false, nil
+	}
+	for _, drill := range exhaustedDrills(deep) {
+		prefix := fmt.Sprintf("deconstruct-drill-%s-", drill.ID)
+		attempt := medicalAttemptCount(goal.Methods, goal.Goal.Epoch, prefix)
+		if attempt >= maxMedicalAttemptsPerPatient {
+			continue
+		}
+		method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
+		digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
+		planID := domain.PlanID(fmt.Sprintf("routine-drill-removal-%x", digest[:16]))
+		value, err := domain.NewDrillDeconstruction(drill.ID, drill.Definition, drill.Position)
+		if err != nil {
+			return RoutineResourceResult{}, true, err
+		}
+		action, err := domain.NewDeconstructionAction(domain.ActionID(string(planID)+"-0"), value)
+		if err != nil {
+			return RoutineResourceResult{}, true, err
+		}
+		plan, err := domain.NewPlan(planID, 1, []domain.Action{action})
+		if err != nil {
+			return RoutineResourceResult{}, true, err
+		}
+		player := r.reviewer.player
+		if err = player.current(call, epoch); err != nil {
+			return RoutineResourceResult{}, true, err
+		}
+		elapsed := r.reviewer.clock.Now().Sub(started)
+		if player.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
+			return RoutineResourceResult{}, true, ErrControl
+		}
+		if _, err = player.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+			return RoutineResourceResult{}, true, err
+		}
+		return RoutineResourceResult{Reason: BuildingMethodAdmitted, Plan: planID}, true, nil
+	}
+	return RoutineResourceResult{}, false, nil
+}
+
 func deepDrillFootprint(cells []policy.SiteCell, footprint []domain.Cell, anchor domain.Cell) bool {
 	if len(footprint) == 0 {
 		return false
@@ -129,6 +192,9 @@ func (r *RoutineResourcePlanner) deepDrill(call, epoch context.Context, state Co
 	if len(deepDrillSites(f, review.ResourceRunwayState())) == 0 {
 		return RoutineResourceResult{}, false, nil
 	}
+	if result, handled, err := r.removeExhaustedDrill(call, epoch, state, goal, f, started); err != nil || handled {
+		return result, handled, err
+	}
 	buildings, _, err := native.ReadBuildings(call, boundary.Identity(state.Snapshot), 0)
 	if err != nil {
 		return RoutineResourceResult{}, true, err
@@ -136,8 +202,9 @@ func (r *RoutineResourcePlanner) deepDrill(call, epoch context.Context, state Co
 	if _, err := boundary.Context(buildings.Context, state.Snapshot); err != nil || buildings.Delta || !domain.Tick(buildings.AsOf()).FreshFor(f.Identity.Tick) {
 		return RoutineResourceResult{}, true, ErrControl
 	}
-	// Until per-drill resource observations can distinguish an exhausted seam
-	// from a shifted lump centre, retain an existing drill and do not multiply it.
+	// Any remaining drill or drill blueprint holds placement: a player drill is
+	// never removed, a working drill is not multiplied, and an owned exhausted
+	// drill already designated for removal leaves the census once demolished.
 	for _, row := range buildings.Rows {
 		if row.GetBuilding().GetDefName() == "DeepDrill" || row.GetBuildDefName() == "DeepDrill" {
 			return RoutineResourceResult{Reason: BuildingMethodExistingWork, NativeWorkTicks: stockWaitTicks}, true, nil

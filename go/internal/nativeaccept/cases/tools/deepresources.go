@@ -14,7 +14,7 @@ import (
 )
 
 func init() {
-	cases.Register(cases.Case{Name: "tools/deepresources", Scope: "Seeded deep resource lumps aggregate by connected definition, and both scanner types expose native state without drills or bills (#482).",
+	cases.Register(cases.Case{Name: "tools/deepresources", Scope: "Seeded deep resource lumps aggregate by connected definition, both scanner types expose native state, and drills report exact deposit, depletion and controller ownership (#482, #538).",
 		Start: cases.Fixture{Op: "test/deep_resources_seed", On: cases.Save{Name: sustained.BaselineSave, From: cases.CommittedSaves()}}, Budget: 3 * time.Minute,
 		Run: func(ctx context.Context, s cases.Session) error {
 			h := s.Harness()
@@ -86,6 +86,22 @@ func init() {
 				if !foundScanner {
 					return fmt.Errorf("fixture scanner missing: %v", rows)
 				}
+			}
+			// The player drill on the lump reads its deposit; the owned drill over
+			// cleared ground reads depleted with no deposit (#538).
+			drills := map[[2]int32]*o.DeepDrillState{}
+			for _, row := range f.Drills {
+				if row.GetDefName() != "DeepDrill" || row.Depleted == nil || row.ControllerOwned == nil || row.Designated == nil || row.GetDesignated() {
+					return fmt.Errorf("incomplete drill row: %v", row)
+				}
+				drills[[2]int32{row.Position.GetX(), row.Position.GetZ()}] = row
+			}
+			yielding, depleted := drills[[2]int32{expected.X, expected.Z}], drills[[2]int32{expected.X, expected.Z - 8}]
+			if yielding == nil || yielding.GetDepleted() || yielding.GetControllerOwned() || yielding.GetResource() != "Plasteel" || yielding.GetRemaining() != 100 {
+				return fmt.Errorf("incorrect player drill state: %v", yielding)
+			}
+			if depleted == nil || !depleted.GetDepleted() || !depleted.GetControllerOwned() || depleted.Resource != nil || depleted.Remaining != nil {
+				return fmt.Errorf("incorrect owned depleted drill state: %v", depleted)
 			}
 			s.Report()["deep_resources"] = f
 			return nil

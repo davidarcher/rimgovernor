@@ -21,6 +21,7 @@ import (
 type DeconstructionNative interface {
 	ReadClearanceTargets(context.Context, *c.Identity) (*n.ClearanceTargetsReply, bridge.Result, error)
 	ReadAncientShrines(context.Context, *c.Identity) (*n.AncientShrinesReply, bridge.Result, error)
+	ReadColonyFacts(context.Context, *c.Identity, bool, []string) (*n.ColonyFactsReply, bridge.Result, error)
 	ReadEmergency(context.Context, *c.Identity) (bridge.EmergencyObservation, bridge.Result, error)
 	LookupDeconstruction(context.Context, bridge.DeconstructionAttempt) (*r.LookupReply, bridge.Result, error)
 	ObserveDeconstructionProgress(context.Context, bridge.DeconstructionAttempt, *r.Receipt) (*r.ProgressReply, bridge.Result, error)
@@ -56,6 +57,9 @@ func (b *DeconstructionBoundary) InspectDeconstruction(ctx context.Context, targ
 	}
 	if value.Breach() {
 		return b.inspectBreach(ctx, target, value, out)
+	}
+	if value.Drill() {
+		return b.inspectDrill(ctx, target, value, out)
 	}
 	reply, _, err := b.native.ReadClearanceTargets(ctx, boundary.Identity(target.Snapshot))
 	if err != nil {
@@ -151,6 +155,59 @@ func (b *DeconstructionBoundary) inspectBreach(ctx context.Context, target execu
 			out.ObservedAt = b.clock.Now()
 			return out, ctx.Err()
 		}
+	}
+	return out, executor.ErrDeconstructionAbsent
+}
+
+// inspectDrill guards an exhausted-drill removal (#538) on the typed drill
+// census in colony facts instead of the Home clearance census, which excludes
+// player buildings. The exact drill (id, definition, cell) must still be
+// present, controller-owned and depleted at dispatch: a drill the player built
+// or rebuilt at the cell, a seam that still reads a deposit, or an unknown
+// census never dispatches. A drill gone from the census is absent.
+func (b *DeconstructionBoundary) inspectDrill(ctx context.Context, target executor.Target, value domain.Deconstruction, out executor.DeconstructionInspection) (executor.DeconstructionInspection, error) {
+	reply, _, err := b.native.ReadColonyFacts(ctx, boundary.Identity(target.Snapshot), false, nil)
+	if err != nil {
+		return out, err
+	}
+	observed := reply.GetObserved()
+	if observed == nil {
+		return out, executor.ErrHeld
+	}
+	current, err := boundary.Context(observed.Context, target.Snapshot)
+	if err != nil {
+		return out, err
+	}
+	out.Current, out.Tick, out.Target = current, domain.Tick(observed.Context.GetTick()), value
+	census := observed.GetDeepResources().GetObserved()
+	if census == nil {
+		return out, executor.ErrHeld
+	}
+	for _, drill := range census.Drills {
+		if drill.GetBuildingId() != value.Target() {
+			continue
+		}
+		if drill.GetDefName() != value.Definition() || drill.Position.GetX() != value.Cell().X || drill.Position.GetZ() != value.Cell().Z {
+			return out, executor.ErrDeconstructionAbsent
+		}
+		out.Eligible = drill.GetControllerOwned() && drill.GetDepleted()
+		out.Accepted = out.Eligible
+		emergency, _, err := b.native.ReadEmergency(ctx, boundary.Identity(current))
+		if err != nil {
+			return out, err
+		}
+		if _, err = boundary.Context(emergency.Context, current); err != nil {
+			return out, err
+		}
+		if bridge.FactEmergency.Outrun(emergency.Context.GetTick(), observed.Context.GetTick()) {
+			return out, executor.ErrHeld
+		}
+		out.Emergency, err = policy.NewEmergencySnapshot(current, out.Tick, emergency.Facts)
+		if err != nil {
+			return out, err
+		}
+		out.ObservedAt = b.clock.Now()
+		return out, ctx.Err()
 	}
 	return out, executor.ErrDeconstructionAbsent
 }

@@ -11,7 +11,7 @@ func validateDeepResources(v *o.ColonyFactsSnapshot) error {
 		return validateUnavailable(s.Unavailable)
 	case *o.DeepResourcesSection_Observed:
 		f := s.Observed
-		if f == nil || len(f.Lumps) > 256 || len(f.GroundScanners)+len(f.LongRangeScanners) > 256 {
+		if f == nil || len(f.Lumps) > 256 || len(f.GroundScanners)+len(f.LongRangeScanners)+len(f.Drills) > 256 {
 			return contract("deep resource census exceeds bound")
 		}
 		centres := map[[2]int32]bool{}
@@ -38,6 +38,17 @@ func validateDeepResources(v *o.ColonyFactsSnapshot) error {
 				}
 				seen[row.GetBuildingId()] = true
 			}
+		}
+		// A depleted drill carries no deposit; an undepleted one names its exact
+		// resource and a positive remainder. Ownership and designation are always stated.
+		for _, row := range f.Drills {
+			if row == nil || validID(row.GetBuildingId()) != nil || validID(row.GetDefName()) != nil || seen[row.GetBuildingId()] || !colonyCell(row.Position, v.MapSize) || row.Depleted == nil || row.ControllerOwned == nil || row.Designated == nil || row.Powered == nil {
+				return contract("invalid deep drill")
+			}
+			if row.GetDepleted() && (row.Resource != nil || row.Remaining != nil) || !row.GetDepleted() && (validID(row.GetResource()) != nil || row.Remaining == nil || row.GetRemaining() <= 0) {
+				return contract("invalid deep drill deposit")
+			}
+			seen[row.GetBuildingId()] = true
 		}
 		return nil
 	default:
