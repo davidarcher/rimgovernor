@@ -34,7 +34,9 @@ Every row a phase report reads:
 - `clock_step`: one row per `ClockScheduler.Step` with the round trips it
   still issued by tool, the step cache and cross-step `FactCache` parent
   hits, the reason the step ran, whether a clock stop woke it and the
-  stop-to-step latency (#112), and the wall-sized window it sized (#126).
+  stop-to-step latency (#112), the wall-sized window it sized (#126), and
+  its budgets against what it used: `budget` (wall, native ticks, reads),
+  `critical_wave_ms`, `missed_cutoff` and `held_by` (#623).
 - `clock_read_events` replies: the clock reads whose ticks and paused
   status give wall TPS and the paused fraction.
 

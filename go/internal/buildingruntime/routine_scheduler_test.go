@@ -288,7 +288,7 @@ func TestClockSchedulerDisabledReviewFailsTheStep(t *testing.T) {
 		t.Fatal(err)
 	}
 	var out ClockSchedulerResult
-	planners, err := s.runPlanners(call, epoch, &out, nil)
+	planners, err := s.runPlanners(call, epoch, &out, nil, f.status)
 	done()
 	if !errors.Is(err, executor.ErrAuthority) || planners != nil || out.Routine != nil || f.writes != writes {
 		t.Fatal(planners, err, f.writes, writes)

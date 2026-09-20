@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -83,8 +84,8 @@ type Proposal struct {
 }
 
 // ProposalOutcome is one proposal's fate on the step row: admitted with
-// its plan, or waiting on the claim a peer holds. A loser is never an
-// error; it proposes again next step.
+// its plan, waiting on the claim a peer holds, or expired against the
+// step it reached. A loser is never an error; it proposes again next step.
 type ProposalOutcome struct {
 	Proposal string
 	Planner  string
@@ -93,7 +94,11 @@ type ProposalOutcome struct {
 	Plan     domain.PlanID
 	// Waiting names the claim that refused the proposal and who holds it.
 	Waiting string
-	Reason  RoutineBuildingReason
+	// Stale names the dependency the coordinator found changed since the
+	// proposal was evaluated (#623): the snapshot's scope, its native
+	// generation or plan revision, or the tick it was planned from.
+	Stale  string
+	Reason RoutineBuildingReason
 	// Demand is the quantity the step could not cover for the proposal:
 	// what it claimed beyond the stock left after the step's earlier
 	// claims and the admitted plans' commitments (#628). Nil unless Reason
@@ -109,6 +114,69 @@ type ProposalOutcome struct {
 // coordinator gave a claim it needs to a higher-ranked proposal; the step
 // row's proposal outcome names the claim.
 const BuildingMethodWaiting RoutineBuildingReason = "waiting_on_claim"
+
+// BuildingMethodExpired is a proposal's outcome when the step it reached
+// no longer matches what it was evaluated against (#623): its commit never
+// runs, so nothing is written to the journal.
+const BuildingMethodExpired RoutineBuildingReason = "expired"
+
+// proposalScope is the step the coordinator commits under: the snapshot and
+// tick every proposal must still match. A proposal evaluated late, on an
+// earlier step's snapshot (#623), is revalidated against it before its
+// commit; the zero scope revalidates nothing.
+type proposalScope struct {
+	Snapshot domain.GenerationSnapshot
+	Tick     domain.Tick
+	// Tolerance is how far behind Tick a proposal's ValidTick may lie:
+	// the planning tick tolerance the admission itself allows the facts.
+	Tolerance domain.Tick
+}
+
+// stale names the first dependency of p that no longer holds under the
+// scope, empty when p is still valid.
+func (c proposalScope) stale(p *Proposal) string {
+	if c == (proposalScope{}) {
+		return ""
+	}
+	have, want := p.Snapshot, c.Snapshot
+	switch {
+	case have.Colony != want.Colony || have.Map != want.Map || have.Load != want.Load:
+		return fmt.Sprintf("scope %s/%d/%s, step is %s/%d/%s", have.Colony, have.Map, have.Load, want.Colony, want.Map, want.Load)
+	case have.Native != want.Native:
+		return fmt.Sprintf("native generation %d, step is %d", have.Native, want.Native)
+	case have.Plan != want.Plan || have.Revision != want.Revision:
+		return fmt.Sprintf("plan %s@%d, step is %s@%d", have.Plan, have.Revision, want.Plan, want.Revision)
+	case p.ValidTick > c.Tick || c.Tick-p.ValidTick > c.Tolerance:
+		return fmt.Sprintf("tick %d, step is at %d (tolerance %d)", p.ValidTick, c.Tick, c.Tolerance)
+	}
+	return ""
+}
+
+// lateProposals carries the proposals that reached their step's arbiter
+// after its cutoff (#623) to the next step's coordinator, which revalidates
+// them against its own scope: a still-valid one commits there, an expired
+// one is refused with the stale dependency named.
+type lateProposals struct {
+	mu       sync.Mutex
+	arrivals []proposalArrival
+}
+
+func (l *lateProposals) add(arrival proposalArrival) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.arrivals = append(l.arrivals, arrival)
+}
+
+func (l *lateProposals) drain() []proposalArrival {
+	if l == nil {
+		return nil
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	arrivals := l.arrivals
+	l.arrivals = nil
+	return arrivals
+}
 
 // BuildingMethodDemand is a migrated planner's result when the step's
 // stock, less the quantities earlier proposals claimed and admitted plans
@@ -147,6 +215,16 @@ func (a *stepArbiter) propose(planner string, result PlanResult, settle func(Pro
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	arrival := proposalArrival{planner: planner, result: result, settle: settle}
+	if a.closed {
+		// Past the cutoff the step has moved on and its result is not
+		// read again: a proposal is carried to the next coordinator, and
+		// a non-proposal result has nothing to carry.
+		if a.late != nil && result.Kind == PlanProposed && result.Proposal != nil {
+			arrival.settle, arrival.legacy = nil, true
+			a.late.add(arrival)
+		}
+		return
+	}
 	if result.Kind == PlanProposed && result.Proposal != nil {
 		if a.shadow == nil {
 			a.shadow = newStepArbiter()
@@ -390,25 +468,29 @@ func (c *claimIndex) take(p *Proposal) {
 	}
 }
 
-// coordinate arbitrates the wave's proposals after every planner has
-// returned: proposals sorted by (priority, urgency, ID) take their claims
-// against the step's index in that order, and a proposal whose claims are
-// free commits through its planner's own admission path. A proposal that
-// loses a pawn or entity is reported waiting on it, never failed. A
-// quantity the stock left after earlier claims and the admitted plans'
-// commitments cannot cover is first offered the preempt path: the less
-// urgent, undispatched plans whose retirement covers the shortfall are
-// retired through the journal (budget.Preempt) and the proposal claims
-// what they held in this same step; otherwise the proposal is refused as
-// demand with the shortfall on its outcome (#628). Non-proposal results
-// settle as they were reported. The outcomes are returned in rank order;
-// commit errors are returned beside them for the step to isolate.
+// coordinate arbitrates the wave's proposals once the admission cycle has
+// joined it: proposals sorted by (priority, urgency, ID) are revalidated
+// against scope and take their claims against the step's index in that
+// order, and a proposal whose claims are free commits through its
+// planner's own admission path. A proposal whose dependencies changed
+// since it was evaluated (a late proposal carried from an earlier step,
+// #623) is reported expired with the stale dependency named and never
+// commits. One that loses a pawn or entity is reported waiting on it,
+// never failed. A quantity the stock left after earlier claims and the
+// admitted plans' commitments cannot cover is first offered the preempt
+// path: the less urgent, undispatched plans whose retirement covers the
+// shortfall are retired through the journal (budget.Preempt) and the
+// proposal claims what they held in this same step; otherwise the proposal
+// is refused as demand with the shortfall on its outcome (#628).
+// Non-proposal results settle as they were reported. The outcomes are
+// returned in rank order; commit errors are returned beside them for the
+// step to isolate.
 //
 // During the migration the coordinator also logs every proposal whose fate
 // differs from the first-arrival verdict the shadow arbiter recorded.
-func (a *stepArbiter) coordinate(ctx context.Context, budget stepBudget) ([]ProposalOutcome, []error) {
+func (a *stepArbiter) coordinate(ctx context.Context, budget stepBudget, scope proposalScope) ([]ProposalOutcome, []error) {
 	a.mu.Lock()
-	arrivals := append([]proposalArrival(nil), a.arrivals...)
+	arrivals := append(a.late.drain(), a.arrivals...)
 	a.arrivals = nil
 	a.mu.Unlock()
 	index := newClaimIndex(a, budget)
@@ -430,6 +512,14 @@ func (a *stepArbiter) coordinate(ctx context.Context, budget stepBudget) ([]Prop
 	for _, arrival := range proposals {
 		p := arrival.result.Proposal
 		outcome := ProposalOutcome{Proposal: p.ID, Planner: arrival.planner, Goal: p.Goal}
+		if stale := scope.stale(p); stale != "" {
+			outcome.Stale, outcome.Reason = stale, BuildingMethodExpired
+			if arrival.settle != nil {
+				arrival.settle(outcome)
+			}
+			outcomes = append(outcomes, outcome)
+			continue
+		}
 		refused := index.refusal(p)
 		var demand []policy.Amount
 		if refused == "" {

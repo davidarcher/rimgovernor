@@ -20,10 +20,23 @@ type stepArbiter struct {
 	// (#622); shadow records what first arrival would have claimed.
 	arrivals []proposalArrival
 	shadow   *stepArbiter
+	// closed is set at the step's cutoff (#623): a result proposed after
+	// it goes to late, the carry to the next step's coordinator, when the
+	// step has one; otherwise it is dropped.
+	closed bool
+	late   *lateProposals
 }
 
 func newStepArbiter() *stepArbiter {
 	return &stepArbiter{pawns: map[domain.PawnID]bool{}, resources: map[string]bool{}}
+}
+
+// close ends the arbiter's own step: later proposals are carried, not
+// arbitrated here.
+func (a *stepArbiter) close() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.closed = true
 }
 
 // tryClaim reserves every given pawn and resource atomically, or reserves

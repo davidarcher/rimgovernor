@@ -2,7 +2,6 @@ package buildingruntime
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
@@ -13,7 +12,12 @@ import (
 // replaces the inline per-planner blocks Step used to carry: the same set,
 // priorities and queue order, now selectable by step reason.
 type plannerEntry struct {
-	name     string
+	name string
+	// class says whether the admission cycle waits on the planner (#623):
+	// critical for the preempt and critical priority classes and the
+	// emergency evidence (fire safety), optional for the development
+	// reviews. TestPlannerCatalogClasses holds the rule.
+	class    plannerClass
 	priority int
 	// kinds are the action kinds the planner dispatches. A terminal outcome
 	// of one of these kinds is the planner's own work completing, so a wake
@@ -42,12 +46,12 @@ var (
 // breaks priority ties (plannerGroup.Wait is stable), so the order here is
 // the order Step queued them inline.
 var plannerCatalog = []plannerEntry{
-	{name: "idleDrafts", priority: plannerCritical, kinds: []domain.ActionKind{domain.OwnedDraftAction}, families: factsThreat,
+	{name: "idleDrafts", class: classCritical, priority: plannerCritical, kinds: []domain.ActionKind{domain.OwnedDraftAction}, families: factsThreat,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Routine != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			return s.config.Routine.restoreIdleDrafts(ctx, epoch, arbiter)
 		}},
-	{name: "work", priority: plannerFoothold, kinds: []domain.ActionKind{domain.WorkAssignmentAction}, families: factsPawns,
+	{name: "work", class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.WorkAssignmentAction}, families: factsPawns,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Work != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.Work.step(ctx, epoch, arbiter)
@@ -58,7 +62,7 @@ var plannerCatalog = []plannerEntry{
 			out.Work = &method
 			return nil
 		}},
-	{name: "fields", priority: plannerFoothold, kinds: []domain.ActionKind{domain.BuildingAction, domain.ZoneCreateAction}, families: factsBuilding,
+	{name: "fields", class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.BuildingAction, domain.ZoneCreateAction}, families: factsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Fields != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			started := time.Now()
@@ -71,7 +75,7 @@ var plannerCatalog = []plannerEntry{
 			out.Fields = &method
 			return nil
 		}},
-	{name: "foodStorage", priority: plannerFoothold, kinds: []domain.ActionKind{domain.ZoneCreateAction}, families: factsBuilding,
+	{name: "foodStorage", class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.ZoneCreateAction}, families: factsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.FoodStorage != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.FoodStorage.step(ctx, epoch, arbiter)
@@ -82,7 +86,7 @@ var plannerCatalog = []plannerEntry{
 			out.FoodStorage = &method
 			return nil
 		}},
-	{name: "foodAcquisition", priority: plannerFoothold, kinds: []domain.ActionKind{domain.AcquisitionAction}, families: factsColony,
+	{name: "foodAcquisition", class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.AcquisitionAction}, families: factsColony,
 		configured: func(c *ClockSchedulerConfig) bool { return c.FoodAcquisition != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.FoodAcquisition.step(ctx, epoch, arbiter)
@@ -93,7 +97,7 @@ var plannerCatalog = []plannerEntry{
 			out.FoodAcquisition = &method
 			return nil
 		}},
-	{name: "pestAcquisition", priority: plannerFoothold, kinds: []domain.ActionKind{domain.AcquisitionAction}, families: factsColony,
+	{name: "pestAcquisition", class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.AcquisitionAction}, families: factsColony,
 		configured: func(c *ClockSchedulerConfig) bool { return c.PestAcquisition != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.PestAcquisition.step(ctx, epoch, arbiter)
@@ -104,7 +108,7 @@ var plannerCatalog = []plannerEntry{
 			out.PestAcquisition = &method
 			return nil
 		}},
-	{name: "woodAcquisition", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.AcquisitionAction}, families: factsColony,
+	{name: "woodAcquisition", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.AcquisitionAction}, families: factsColony,
 		configured: func(c *ClockSchedulerConfig) bool { return c.WoodAcquisition != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.WoodAcquisition.step(ctx, epoch, arbiter)
@@ -114,7 +118,7 @@ var plannerCatalog = []plannerEntry{
 			out.WoodAcquisition = &method
 			return nil
 		}},
-	{name: "supplies", priority: plannerCritical, kinds: []domain.ActionKind{domain.SupplyAllowAction, domain.SupplyForbidAction}, families: factsColony,
+	{name: "supplies", class: classCritical, priority: plannerCritical, kinds: []domain.ActionKind{domain.SupplyAllowAction, domain.SupplyForbidAction}, families: factsColony,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Supplies != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.Supplies.step(ctx, epoch, arbiter)
@@ -124,7 +128,7 @@ var plannerCatalog = []plannerEntry{
 			out.Supplies = &method
 			return nil
 		}},
-	{name: "sleeping", priority: plannerFoothold, kinds: []domain.ActionKind{domain.BuildingAction}, families: factsBuilding,
+	{name: "sleeping", class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.BuildingAction}, families: factsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Sleeping != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.Sleeping.step(ctx, epoch, arbiter)
@@ -135,7 +139,7 @@ var plannerCatalog = []plannerEntry{
 			out.Sleeping = &method
 			return nil
 		}},
-	{name: "power", priority: plannerFoothold, kinds: []domain.ActionKind{domain.BuildingAction}, families: factsBuilding,
+	{name: "power", class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.BuildingAction}, families: factsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Power != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.Power.step(ctx, epoch, arbiter)
@@ -146,7 +150,7 @@ var plannerCatalog = []plannerEntry{
 			out.Power = &method
 			return nil
 		}},
-	{name: "temperature", priority: plannerFoothold, kinds: []domain.ActionKind{domain.BuildingAction}, families: factsBuilding,
+	{name: "temperature", class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.BuildingAction}, families: factsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Temperature != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.Temperature.step(ctx, epoch, arbiter)
@@ -157,7 +161,7 @@ var plannerCatalog = []plannerEntry{
 			out.Temperature = &method
 			return nil
 		}},
-	{name: "refrigeration", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.BuildingAction, domain.BuildingTemperatureAction}, families: factsBuilding,
+	{name: "refrigeration", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.BuildingAction, domain.BuildingTemperatureAction}, families: factsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Refrigeration != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.Refrigeration.step(ctx, epoch, arbiter)
@@ -168,7 +172,7 @@ var plannerCatalog = []plannerEntry{
 			out.Refrigeration = &method
 			return nil
 		}},
-	{name: "lighting", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.BuildingAction}, families: factsBuilding,
+	{name: "lighting", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.BuildingAction}, families: factsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Lighting != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.Lighting.step(ctx, epoch, arbiter)
@@ -179,7 +183,7 @@ var plannerCatalog = []plannerEntry{
 			out.Lighting = &method
 			return nil
 		}},
-	{name: "flooring", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.BuildingAction}, families: factsBuilding,
+	{name: "flooring", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.BuildingAction}, families: factsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Flooring != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.Flooring.step(ctx, epoch, arbiter)
@@ -190,7 +194,7 @@ var plannerCatalog = []plannerEntry{
 			out.Flooring = &method
 			return nil
 		}},
-	{name: "routes", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.BuildingAction}, families: factsBuilding,
+	{name: "routes", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.BuildingAction}, families: factsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Routes != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.Routes.step(ctx, epoch, arbiter)
@@ -201,7 +205,7 @@ var plannerCatalog = []plannerEntry{
 			out.Routes = &method
 			return nil
 		}},
-	{name: "cooking", priority: plannerFoothold, kinds: []domain.ActionKind{domain.BuildingAction}, families: factsBuilding,
+	{name: "cooking", class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.BuildingAction}, families: factsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Cooking != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.Cooking.step(ctx, epoch, arbiter)
@@ -212,7 +216,7 @@ var plannerCatalog = []plannerEntry{
 			out.Cooking = &method
 			return nil
 		}},
-	{name: "butcher", priority: plannerFoothold, kinds: []domain.ActionKind{domain.BuildingAction}, families: factsBuilding,
+	{name: "butcher", class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.BuildingAction}, families: factsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Butcher != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.Butcher.step(ctx, epoch, arbiter)
@@ -223,7 +227,7 @@ var plannerCatalog = []plannerEntry{
 			out.Butcher = &method
 			return nil
 		}},
-	{name: "cookingBills", priority: plannerFoothold, kinds: []domain.ActionKind{domain.ProductionBillAction}, families: factsColony,
+	{name: "cookingBills", class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.ProductionBillAction}, families: factsColony,
 		configured: func(c *ClockSchedulerConfig) bool { return c.CookingBills != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.CookingBills.step(ctx, epoch, arbiter)
@@ -233,7 +237,7 @@ var plannerCatalog = []plannerEntry{
 			out.CookingBills = &method
 			return nil
 		}},
-	{name: "preservationBills", priority: plannerFoothold, kinds: []domain.ActionKind{domain.ProductionBillAction}, families: factsColony,
+	{name: "preservationBills", class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.ProductionBillAction}, families: factsColony,
 		configured: func(c *ClockSchedulerConfig) bool { return c.PreservationBills != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.PreservationBills.step(ctx, epoch, arbiter)
@@ -243,7 +247,7 @@ var plannerCatalog = []plannerEntry{
 			out.PreservationBills = &method
 			return nil
 		}},
-	{name: "butcherBills", priority: plannerFoothold, kinds: []domain.ActionKind{domain.ProductionBillAction, domain.ZoneCreateAction}, families: factsColony,
+	{name: "butcherBills", class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.ProductionBillAction, domain.ZoneCreateAction}, families: factsColony,
 		configured: func(c *ClockSchedulerConfig) bool { return c.ButcherBills != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.ButcherBills.step(ctx, epoch, arbiter)
@@ -253,7 +257,7 @@ var plannerCatalog = []plannerEntry{
 			out.ButcherBills = &method
 			return nil
 		}},
-	{name: "cookAheadBills", priority: plannerFoothold, kinds: []domain.ActionKind{domain.ProductionBillAction}, families: factsColony,
+	{name: "cookAheadBills", class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.ProductionBillAction}, families: factsColony,
 		configured: func(c *ClockSchedulerConfig) bool { return c.CookAheadBills != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.CookAheadBills.step(ctx, epoch, arbiter)
@@ -263,7 +267,7 @@ var plannerCatalog = []plannerEntry{
 			out.CookAheadBills = &method
 			return nil
 		}},
-	{name: "basicComfort", priority: plannerFoothold, kinds: []domain.ActionKind{domain.BuildingAction}, families: factsBuilding,
+	{name: "basicComfort", class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.BuildingAction}, families: factsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.BasicComfort != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.BasicComfort.step(ctx, epoch, arbiter)
@@ -274,7 +278,7 @@ var plannerCatalog = []plannerEntry{
 			out.BasicComfort = &method
 			return nil
 		}},
-	{name: "comfort", priority: plannerComfort, kinds: []domain.ActionKind{domain.BuildingAction}, families: factsBuilding,
+	{name: "comfort", class: classOptional, priority: plannerComfort, kinds: []domain.ActionKind{domain.BuildingAction}, families: factsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Comfort != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.Comfort.step(ctx, epoch, arbiter)
@@ -284,7 +288,7 @@ var plannerCatalog = []plannerEntry{
 			out.Comfort = &method
 			return nil
 		}},
-	{name: "workshop", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.BuildingAction}, families: factsBuilding,
+	{name: "workshop", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.BuildingAction}, families: factsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Workshop != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.Workshop.stepWorkshops(ctx, epoch, arbiter)
@@ -295,7 +299,7 @@ var plannerCatalog = []plannerEntry{
 			out.Workshop = &method
 			return nil
 		}},
-	{name: "hospital", priority: plannerCritical, kinds: []domain.ActionKind{domain.BuildingAction, domain.BedMedicalAction}, families: factsBuilding,
+	{name: "hospital", class: classCritical, priority: plannerCritical, kinds: []domain.ActionKind{domain.BuildingAction, domain.BedMedicalAction}, families: factsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Hospital != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.Hospital.step(ctx, epoch, arbiter)
@@ -306,7 +310,7 @@ var plannerCatalog = []plannerEntry{
 			out.Hospital = &method
 			return nil
 		}},
-	{name: "sleepingUpkeep", priority: plannerCritical, kinds: []domain.ActionKind{domain.BuildingAction, domain.BedAssignAction}, families: factsBuilding,
+	{name: "sleepingUpkeep", class: classCritical, priority: plannerCritical, kinds: []domain.ActionKind{domain.BuildingAction, domain.BedAssignAction}, families: factsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.SleepingUpkeep != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.SleepingUpkeep.step(ctx, epoch, arbiter)
@@ -317,7 +321,7 @@ var plannerCatalog = []plannerEntry{
 			out.SleepingUpkeep = &method
 			return nil
 		}},
-	{name: "expansion", priority: plannerComfort, kinds: []domain.ActionKind{domain.BuildingAction, domain.ExcavationAction}, families: factsBuilding,
+	{name: "expansion", class: classOptional, priority: plannerComfort, kinds: []domain.ActionKind{domain.BuildingAction, domain.ExcavationAction}, families: factsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Expansion != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.Expansion.step(ctx, epoch, arbiter)
@@ -327,7 +331,7 @@ var plannerCatalog = []plannerEntry{
 			out.Expansion = &method
 			return nil
 		}},
-	{name: "defense", priority: plannerPreempt, kinds: []domain.ActionKind{domain.OwnedDraftAction, domain.MeleeAttackAction, domain.RangedAttackAction, domain.MovementAction}, families: factsThreat,
+	{name: "defense", class: classCritical, priority: plannerPreempt, kinds: []domain.ActionKind{domain.OwnedDraftAction, domain.MeleeAttackAction, domain.RangedAttackAction, domain.MovementAction}, families: factsThreat,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Defense != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.Defense.step(ctx, epoch, arbiter)
@@ -338,7 +342,7 @@ var plannerCatalog = []plannerEntry{
 			out.Defense = &method
 			return nil
 		}},
-	{name: "medical", priority: plannerCritical, kinds: []domain.ActionKind{domain.AcquisitionAction, domain.ProductionBillAction, domain.WorkAssignmentAction}, families: factsMedical,
+	{name: "medical", class: classCritical, priority: plannerCritical, kinds: []domain.ActionKind{domain.AcquisitionAction, domain.ProductionBillAction, domain.WorkAssignmentAction}, families: factsMedical,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Medical != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.Medical.step(ctx, epoch, arbiter)
@@ -349,7 +353,7 @@ var plannerCatalog = []plannerEntry{
 			out.Medical = &method
 			return nil
 		}},
-	{name: "tend", priority: plannerCritical, kinds: []domain.ActionKind{domain.TendAction}, families: factsThreat,
+	{name: "tend", class: classCritical, priority: plannerCritical, kinds: []domain.ActionKind{domain.TendAction}, families: factsThreat,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Tend != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.Tend.step(ctx, epoch, arbiter)
@@ -359,7 +363,7 @@ var plannerCatalog = []plannerEntry{
 			out.Tend = &method
 			return nil
 		}},
-	{name: "rescue", priority: plannerCritical, kinds: []domain.ActionKind{domain.RescueAction}, families: factsThreat,
+	{name: "rescue", class: classCritical, priority: plannerCritical, kinds: []domain.ActionKind{domain.RescueAction}, families: factsThreat,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Rescue != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.Rescue.step(ctx, epoch, arbiter)
@@ -369,7 +373,7 @@ var plannerCatalog = []plannerEntry{
 			out.Rescue = &method
 			return nil
 		}},
-	{name: "equip", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.EquipAction}, families: factsMedical,
+	{name: "equip", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.EquipAction}, families: factsMedical,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Equip != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.Equip.step(ctx, epoch, arbiter)
@@ -379,7 +383,7 @@ var plannerCatalog = []plannerEntry{
 			out.Equip = &method
 			return nil
 		}},
-	{name: "secureSupplies", priority: plannerFoothold, kinds: []domain.ActionKind{domain.BuildingAction, domain.HaulAction, domain.ZoneCreateAction}, families: factsBuilding,
+	{name: "secureSupplies", class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.BuildingAction, domain.HaulAction, domain.ZoneCreateAction}, families: factsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.SecureSupplies != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			// Migrated (#622): the planner proposes; the coordinator after
@@ -393,7 +397,7 @@ var plannerCatalog = []plannerEntry{
 			})
 			return nil
 		}},
-	{name: "repair", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.RepairAction}, families: factsBuilding,
+	{name: "repair", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.RepairAction}, families: factsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Repair != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.Repair.step(ctx, epoch, arbiter)
@@ -403,7 +407,7 @@ var plannerCatalog = []plannerEntry{
 			out.Repair = &method
 			return nil
 		}},
-	{name: "fireSafety", priority: plannerFoothold, families: []bridge.FactFamily{bridge.FactEmergency, bridge.FactColony},
+	{name: "fireSafety", class: classCritical, priority: plannerFoothold, families: []bridge.FactFamily{bridge.FactEmergency, bridge.FactColony},
 		configured: func(c *ClockSchedulerConfig) bool { return c.FireSafety != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, _ *stepArbiter) error {
 			method, err := s.config.FireSafety.step(ctx, epoch)
@@ -414,7 +418,7 @@ var plannerCatalog = []plannerEntry{
 			out.FireSafety = &method
 			return nil
 		}},
-	{name: "clearance", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.DeconstructionAction, domain.ZoneCreateAction}, families: factsColony,
+	{name: "clearance", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.DeconstructionAction, domain.ZoneCreateAction}, families: factsColony,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Clearance != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.Clearance.step(ctx, epoch, arbiter)
@@ -424,7 +428,7 @@ var plannerCatalog = []plannerEntry{
 			out.Clearance = &method
 			return nil
 		}},
-	{name: "shrine", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.OwnedDraftAction, domain.MovementAction, domain.DeconstructionAction}, families: factsColony,
+	{name: "shrine", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.OwnedDraftAction, domain.MovementAction, domain.DeconstructionAction}, families: factsColony,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Shrine != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.Shrine.step(ctx, epoch, arbiter)
@@ -434,7 +438,7 @@ var plannerCatalog = []plannerEntry{
 			out.Shrine = &method
 			return nil
 		}},
-	{name: "clean", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.CleanAction}, families: factsBuilding,
+	{name: "clean", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.CleanAction}, families: factsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Clean != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.Clean.step(ctx, epoch, arbiter)
@@ -444,7 +448,7 @@ var plannerCatalog = []plannerEntry{
 			out.Clean = &method
 			return nil
 		}},
-	{name: "blight", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.CutPlantAction}, families: factsColony,
+	{name: "blight", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.CutPlantAction}, families: factsColony,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Blight != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.Blight.step(ctx, epoch, arbiter)
@@ -454,7 +458,7 @@ var plannerCatalog = []plannerEntry{
 			out.Blight = &method
 			return nil
 		}},
-	{name: "waste", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.WasteAction}, families: factsColony,
+	{name: "waste", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.WasteAction}, families: factsColony,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Waste != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.Waste.step(ctx, epoch, arbiter)
@@ -464,7 +468,7 @@ var plannerCatalog = []plannerEntry{
 			out.Waste = &method
 			return nil
 		}},
-	{name: "moodRelief", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.MoodReliefAction}, families: factsPawns,
+	{name: "moodRelief", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.MoodReliefAction}, families: factsPawns,
 		configured: func(c *ClockSchedulerConfig) bool { return c.MoodRelief != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.MoodRelief.step(ctx, epoch, arbiter)
@@ -474,7 +478,7 @@ var plannerCatalog = []plannerEntry{
 			out.MoodRelief = &method
 			return nil
 		}},
-	{name: "haul", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.HaulAction}, families: factsColony,
+	{name: "haul", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.HaulAction}, families: factsColony,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Haul != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			// Migrated (#622): the planner proposes; the coordinator after
@@ -489,7 +493,7 @@ var plannerCatalog = []plannerEntry{
 			})
 			return nil
 		}},
-	{name: "gear", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.GearReplaceAction, domain.ApparelPolicyAction, domain.ProductionBillAction}, families: factsMedical,
+	{name: "gear", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.GearReplaceAction, domain.ApparelPolicyAction, domain.ProductionBillAction}, families: factsMedical,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Gear != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.Gear.step(ctx, epoch, arbiter)
@@ -499,7 +503,7 @@ var plannerCatalog = []plannerEntry{
 			out.Gear = &method
 			return nil
 		}},
-	{name: "foodStorageUpkeep", priority: plannerFoothold, kinds: []domain.ActionKind{domain.HaulAction, domain.ProductionBillAction, domain.SupplyAllowAction, domain.SupplyForbidAction, domain.ZoneCreateAction}, families: factsColony,
+	{name: "foodStorageUpkeep", class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.HaulAction, domain.ProductionBillAction, domain.SupplyAllowAction, domain.SupplyForbidAction, domain.ZoneCreateAction}, families: factsColony,
 		configured: func(c *ClockSchedulerConfig) bool { return c.FoodStorageUpkeep != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.FoodStorageUpkeep.step(ctx, epoch, arbiter)
@@ -509,7 +513,7 @@ var plannerCatalog = []plannerEntry{
 			out.FoodStorageUpkeep = &method
 			return nil
 		}},
-	{name: "animalContainment", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.BuildingAction}, families: factsBuilding,
+	{name: "animalContainment", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.BuildingAction}, families: factsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.AnimalContainment != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.AnimalContainment.step(ctx, epoch, arbiter)
@@ -519,7 +523,7 @@ var plannerCatalog = []plannerEntry{
 			out.AnimalContainment = &method
 			return nil
 		}},
-	{name: "recovery", priority: plannerCritical, kinds: []domain.ActionKind{domain.RecoveryServiceAction, domain.WorkAssignmentAction, domain.HusbandryAction}, families: []bridge.FactFamily{bridge.FactPawns, bridge.FactEmergency, bridge.FactColony},
+	{name: "recovery", class: classCritical, priority: plannerCritical, kinds: []domain.ActionKind{domain.RecoveryServiceAction, domain.WorkAssignmentAction, domain.HusbandryAction}, families: []bridge.FactFamily{bridge.FactPawns, bridge.FactEmergency, bridge.FactColony},
 		configured: func(c *ClockSchedulerConfig) bool { return c.Recovery != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.Recovery.step(ctx, epoch, arbiter)
@@ -529,7 +533,7 @@ var plannerCatalog = []plannerEntry{
 			out.Recovery = &method
 			return nil
 		}},
-	{name: "husbandry", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.HusbandryAction}, families: factsPawns,
+	{name: "husbandry", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.HusbandryAction}, families: factsPawns,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Husbandry != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.Husbandry.step(ctx, epoch, arbiter)
@@ -539,7 +543,7 @@ var plannerCatalog = []plannerEntry{
 			out.Husbandry = &method
 			return nil
 		}},
-	{name: "prisonerInteraction", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.PrisonerInteractionAction}, families: factsPawns,
+	{name: "prisonerInteraction", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.PrisonerInteractionAction}, families: factsPawns,
 		configured: func(c *ClockSchedulerConfig) bool { return c.PrisonerInteraction != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.PrisonerInteraction.step(ctx, epoch, arbiter)
@@ -549,7 +553,7 @@ var plannerCatalog = []plannerEntry{
 			out.PrisonerInteraction = &method
 			return nil
 		}},
-	{name: "populationCustody", priority: plannerPreempt, kinds: []domain.ActionKind{domain.CaptureAction, domain.RescueAction, domain.OpenCasketAction}, families: []bridge.FactFamily{bridge.FactPawns, bridge.FactEmergency, bridge.FactColony},
+	{name: "populationCustody", class: classCritical, priority: plannerPreempt, kinds: []domain.ActionKind{domain.CaptureAction, domain.RescueAction, domain.OpenCasketAction}, families: []bridge.FactFamily{bridge.FactPawns, bridge.FactEmergency, bridge.FactColony},
 		configured: func(c *ClockSchedulerConfig) bool { return c.PopulationCustody != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.PopulationCustody.step(ctx, epoch, arbiter)
@@ -559,7 +563,7 @@ var plannerCatalog = []plannerEntry{
 			out.PopulationCustody = &method
 			return nil
 		}},
-	{name: "populationJoiner", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.QuestAcceptAction, domain.DialogAnswerAction}, families: factsMedical,
+	{name: "populationJoiner", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.QuestAcceptAction, domain.DialogAnswerAction}, families: factsMedical,
 		configured: func(c *ClockSchedulerConfig) bool { return c.PopulationJoiner != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.PopulationJoiner.step(ctx, epoch, arbiter)
@@ -569,7 +573,7 @@ var plannerCatalog = []plannerEntry{
 			out.PopulationJoiner = &method
 			return nil
 		}},
-	{name: "research", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.ResearchSelectAction, domain.BuildingAction}, families: []bridge.FactFamily{bridge.FactResearch, bridge.FactColony, bridge.FactRooms},
+	{name: "research", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.ResearchSelectAction, domain.BuildingAction}, families: []bridge.FactFamily{bridge.FactResearch, bridge.FactColony, bridge.FactRooms},
 		configured: func(c *ClockSchedulerConfig) bool { return c.Research != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.Research.step(ctx, epoch, arbiter)
@@ -580,7 +584,7 @@ var plannerCatalog = []plannerEntry{
 			out.Research = &method
 			return nil
 		}},
-	{name: "ingredient-storage", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.ZoneCreateAction}, families: factsBuilding,
+	{name: "ingredient-storage", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.ZoneCreateAction}, families: factsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.IngredientStorage != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.IngredientStorage.step(ctx, epoch)
@@ -591,7 +595,7 @@ var plannerCatalog = []plannerEntry{
 			out.IngredientStorage = &method
 			return nil
 		}},
-	{name: "naming", priority: plannerPreempt, kinds: []domain.ActionKind{domain.NamingConfirmationAction}, families: factsColony,
+	{name: "naming", class: classCritical, priority: plannerPreempt, kinds: []domain.ActionKind{domain.NamingConfirmationAction}, families: factsColony,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Naming != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.Naming.step(ctx, epoch, arbiter)
@@ -601,7 +605,7 @@ var plannerCatalog = []plannerEntry{
 			out.Naming = &method
 			return nil
 		}},
-	{name: "dialog", priority: plannerPreempt, kinds: []domain.ActionKind{domain.DialogAnswerAction}, families: factsColony,
+	{name: "dialog", class: classCritical, priority: plannerPreempt, kinds: []domain.ActionKind{domain.DialogAnswerAction}, families: factsColony,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Dialog != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.Dialog.step(ctx, epoch, arbiter)
@@ -611,7 +615,7 @@ var plannerCatalog = []plannerEntry{
 			out.Dialog = &method
 			return nil
 		}},
-	{name: "trade", priority: plannerFoothold, kinds: []domain.ActionKind{domain.TradeAction}, families: factsColony,
+	{name: "trade", class: classOptional, priority: plannerFoothold, kinds: []domain.ActionKind{domain.TradeAction}, families: factsColony,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Trade != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.Trade.step(ctx, epoch, arbiter)
@@ -622,7 +626,7 @@ var plannerCatalog = []plannerEntry{
 			out.Trade = &method
 			return nil
 		}},
-	{name: "resource", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.MineAcquisitionAction, domain.ProductionBillAction, domain.ZoneCreateAction, domain.BuildingAction, domain.DeconstructionAction}, families: factsColony,
+	{name: "resource", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.MineAcquisitionAction, domain.ProductionBillAction, domain.ZoneCreateAction, domain.BuildingAction, domain.DeconstructionAction}, families: factsColony,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Resource != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.Resource.step(ctx, epoch, arbiter)
@@ -632,7 +636,7 @@ var plannerCatalog = []plannerEntry{
 			out.Resource = &method
 			return nil
 		}},
-	{name: "animalFeed", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.MineAcquisitionAction, domain.ProductionBillAction, domain.ZoneCreateAction}, families: factsColony,
+	{name: "animalFeed", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.MineAcquisitionAction, domain.ProductionBillAction, domain.ZoneCreateAction}, families: factsColony,
 		configured: func(c *ClockSchedulerConfig) bool { return c.AnimalFeed != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.AnimalFeed.step(ctx, epoch, arbiter)
@@ -643,7 +647,7 @@ var plannerCatalog = []plannerEntry{
 			out.AnimalFeed = &method
 			return nil
 		}},
-	{name: "productionPolicy", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.ProductionPolicyAction}, families: factsColony,
+	{name: "productionPolicy", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.ProductionPolicyAction}, families: factsColony,
 		configured: func(c *ClockSchedulerConfig) bool { return c.ProductionPolicy != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.ProductionPolicy.step(ctx, epoch, arbiter)
@@ -653,7 +657,7 @@ var plannerCatalog = []plannerEntry{
 			out.ProductionPolicy = &method
 			return nil
 		}},
-	{name: "caravanJourney", priority: plannerMaintenance, families: []bridge.FactFamily{bridge.FactWorld},
+	{name: "caravanJourney", class: classOptional, priority: plannerMaintenance, families: []bridge.FactFamily{bridge.FactWorld},
 		configured: func(c *ClockSchedulerConfig) bool { return c.CaravanJourney != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.CaravanJourney.step(ctx, epoch, arbiter)
@@ -663,7 +667,7 @@ var plannerCatalog = []plannerEntry{
 			out.CaravanJourney = &method
 			return nil
 		}},
-	{name: "homeCoverage", priority: plannerComfort, kinds: []domain.ActionKind{domain.HomeCoverageAction}, families: factsBuilding,
+	{name: "homeCoverage", class: classOptional, priority: plannerComfort, kinds: []domain.ActionKind{domain.HomeCoverageAction}, families: factsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.HomeCoverage != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.HomeCoverage.step(ctx, epoch, arbiter)
@@ -673,7 +677,7 @@ var plannerCatalog = []plannerEntry{
 			out.HomeCoverage = &method
 			return nil
 		}},
-	{name: "stoneShell", priority: plannerComfort, kinds: []domain.ActionKind{domain.BuildingAction, domain.WallRemovalAction}, families: factsBuilding,
+	{name: "stoneShell", class: classOptional, priority: plannerComfort, kinds: []domain.ActionKind{domain.BuildingAction, domain.WallRemovalAction}, families: factsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.StoneShell != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.StoneShell.step(ctx, epoch, arbiter)
@@ -683,7 +687,7 @@ var plannerCatalog = []plannerEntry{
 			out.StoneShell = &method
 			return nil
 		}},
-	{name: "defenseLayout", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.BuildingAction, domain.RecoveryServiceAction, domain.CoverClearanceAction}, families: factsBuilding,
+	{name: "defenseLayout", class: classOptional, priority: plannerMaintenance, kinds: []domain.ActionKind{domain.BuildingAction, domain.RecoveryServiceAction, domain.CoverClearanceAction}, families: factsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.DefenseLayout != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.DefenseLayout.step(ctx, epoch, arbiter)
@@ -697,22 +701,16 @@ var plannerCatalog = []plannerEntry{
 }
 
 // queuePlanners queues every configured catalog planner selected by pick
-// onto g, returning the names queued in catalog order. A nil pick selects
-// the whole catalog.
-func (s *ClockScheduler) queuePlanners(ctx, epoch context.Context, out *ClockSchedulerResult, g *plannerGroup, arbiter *stepArbiter, pick func(plannerEntry) bool) []string {
+// onto the wave, returning the names queued in catalog order. A nil pick
+// selects the whole catalog.
+func (s *ClockScheduler) queuePlanners(ctx, epoch context.Context, wave *plannerWave, arbiter *stepArbiter, pick func(plannerEntry) bool) []string {
 	var queued []string
-	for _, entry := range plannerCatalog {
+	for _, entry := range s.catalog {
 		if !entry.configured(&s.config) || pick != nil && !pick(entry) {
 			continue
 		}
-		entry := entry
 		queued = append(queued, entry.name)
-		g.Go(entry.priority, func() error {
-			if err := entry.run(s, ctx, epoch, out, arbiter); err != nil {
-				return fmt.Errorf("%s: %w", entry.name, err)
-			}
-			return nil
-		})
+		wave.queue(s, ctx, epoch, arbiter, entry)
 	}
 	return queued
 }

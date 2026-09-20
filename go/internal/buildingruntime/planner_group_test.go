@@ -73,8 +73,8 @@ func TestPlannerGroupIsolatesFailuresUntilContextEnds(t *testing.T) {
 	t.Parallel()
 	g := newPlannerGroup(context.Background(), 2)
 	boom := errors.New("boom")
-	g.Go(plannerFoothold, func() error { return boom })
-	g.Go(plannerFoothold, func() error { return nil })
+	g.Go("boom", classOptional, plannerFoothold, func() error { return boom })
+	g.Go("fine", classOptional, plannerFoothold, func() error { return nil })
 	if err := g.Wait(); err != nil {
 		t.Fatal(err)
 	}
@@ -83,9 +83,9 @@ func TestPlannerGroupIsolatesFailuresUntilContextEnds(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancelled := newPlannerGroup(ctx, 1)
-	cancelled.Go(plannerPreempt, func() error { cancel(); return boom })
+	cancelled.Go("first", classCritical, plannerPreempt, func() error { cancel(); return boom })
 	ran := false
-	cancelled.Go(plannerComfort, func() error { ran = true; return nil })
+	cancelled.Go("second", classOptional, plannerComfort, func() error { ran = true; return nil })
 	if err := cancelled.Wait(); !errors.Is(err, context.Canceled) || !errors.Is(err, boom) {
 		t.Fatal(err)
 	}
@@ -102,7 +102,7 @@ func TestPlannerGroupAdmitsByPriorityThenQueueOrder(t *testing.T) {
 	g := newPlannerGroup(context.Background(), 1)
 	var order []string
 	queue := func(name string, priority int) {
-		g.Go(priority, func() error { order = append(order, name); return nil })
+		g.Go(name, classOptional, priority, func() error { order = append(order, name); return nil })
 	}
 	queue("comfort", plannerComfort)
 	queue("work", plannerFoothold)
@@ -127,7 +127,7 @@ func TestPlannerGroupHoldsLowPriorityUntilASlotFrees(t *testing.T) {
 	gate := make(chan struct{})
 	started := make(chan string, 3)
 	hold := func(name string, priority int) {
-		g.Go(priority, func() error {
+		g.Go(name, classOptional, priority, func() error {
 			started <- name
 			<-gate
 			return nil

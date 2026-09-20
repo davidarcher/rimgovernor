@@ -27,7 +27,7 @@ func TestCoordinateCommitsFirstAndRefusesSecondAsDemand(t *testing.T) {
 	a := newStepArbiter()
 	a.propose("bench", PlanResult{Kind: PlanProposed, Proposal: testProposal("bench", plannerFoothold, 3, wood(60), &committed)}, nil)
 	a.propose("bed", PlanResult{Kind: PlanProposed, Proposal: testProposal("bed", plannerFoothold, 2, wood(60), &committed)}, nil)
-	outcomes, failures := a.coordinate(context.Background(), stepBudget{Stock: map[policy.Resource]int64{"WoodLog": 100}})
+	outcomes, failures := a.coordinate(context.Background(), stepBudget{Stock: map[policy.Resource]int64{"WoodLog": 100}}, proposalScope{})
 	if len(failures) != 0 || len(outcomes) != 2 || len(committed) != 1 || committed[0] != "bed" {
 		t.Fatalf("%+v %v %v", outcomes, failures, committed)
 	}
@@ -54,7 +54,7 @@ func TestCoordinateCommitmentRefusesAsDemandUntilExpiry(t *testing.T) {
 	outcomes, failures := a.coordinate(context.Background(), stepBudget{Stock: stock, Commitments: store.PlanCommitments{Tick: 50, Committed: []store.PlanCommitment{shelter}}, Preempt: func(context.Context, store.PlanCommitment) error {
 		t.Fatal("an equally urgent commitment must not be preempted")
 		return nil
-	}})
+	}}, proposalScope{})
 	if len(failures) != 0 || len(committed) != 0 || len(outcomes) != 1 || outcomes[0].Admitted || outcomes[0].Reason != BuildingMethodDemand || outcomes[0].Waiting != "WoodLog:40 of 30 committed to shelter" || len(outcomes[0].Demand) != 1 || outcomes[0].Demand[0].Count != 10 {
 		t.Fatalf("%+v %v %v", outcomes, failures, committed)
 	}
@@ -64,7 +64,7 @@ func TestCoordinateCommitmentRefusesAsDemandUntilExpiry(t *testing.T) {
 	expired.Release = store.CommitmentExpired
 	b := newStepArbiter()
 	b.propose("bench", PlanResult{Kind: PlanProposed, Proposal: testProposal("bench", plannerFoothold, 2, wood(40), &committed)}, nil)
-	if outcomes, failures = b.coordinate(context.Background(), stepBudget{Stock: stock, Commitments: store.PlanCommitments{Tick: 200, Demand: []store.PlanCommitment{expired}}}); len(failures) != 0 || len(outcomes) != 1 || !outcomes[0].Admitted || len(committed) != 1 {
+	if outcomes, failures = b.coordinate(context.Background(), stepBudget{Stock: stock, Commitments: store.PlanCommitments{Tick: 200, Demand: []store.PlanCommitment{expired}}}, proposalScope{}); len(failures) != 0 || len(outcomes) != 1 || !outcomes[0].Admitted || len(committed) != 1 {
 		t.Fatalf("%+v %v %v", outcomes, failures, committed)
 	}
 }
@@ -83,7 +83,7 @@ func TestCoordinatePreemptsLessUrgentCommitmentInSameStep(t *testing.T) {
 	a.propose("bench", PlanResult{Kind: PlanProposed, Proposal: testProposal("bench", plannerFoothold, 3, wood(50), &committed)}, nil)
 	budget := stepBudget{Stock: map[policy.Resource]int64{"WoodLog": 100}, Commitments: store.PlanCommitments{Committed: []store.PlanCommitment{held("shelter", 3, 90, true), held("floor", 4, 5, true)}},
 		Preempt: func(_ context.Context, c store.PlanCommitment) error { retired = append(retired, c); return nil }}
-	outcomes, failures := a.coordinate(context.Background(), budget)
+	outcomes, failures := a.coordinate(context.Background(), budget, proposalScope{})
 	if len(failures) != 0 || len(outcomes) != 2 || len(committed) != 2 || committed[0] != "bed" || committed[1] != "bench" {
 		t.Fatalf("%+v %v %v", outcomes, failures, committed)
 	}
@@ -102,7 +102,7 @@ func TestCoordinatePreemptsLessUrgentCommitmentInSameStep(t *testing.T) {
 	var none []string
 	b := newStepArbiter()
 	b.propose("bed", PlanResult{Kind: PlanProposed, Proposal: testProposal("bed", plannerFoothold, 1, wood(40), &none)}, nil)
-	outcomes, failures = b.coordinate(context.Background(), stepBudget{Stock: budget.Stock, Commitments: store.PlanCommitments{Committed: []store.PlanCommitment{held("shelter", 3, 90, false)}}, Preempt: budget.Preempt})
+	outcomes, failures = b.coordinate(context.Background(), stepBudget{Stock: budget.Stock, Commitments: store.PlanCommitments{Committed: []store.PlanCommitment{held("shelter", 3, 90, false)}}, Preempt: budget.Preempt}, proposalScope{})
 	if len(failures) != 0 || len(none) != 0 || len(outcomes) != 1 || outcomes[0].Admitted || outcomes[0].Reason != BuildingMethodDemand || len(retired) != 1 {
 		t.Fatalf("%+v %v %v", outcomes, failures, none)
 	}
@@ -111,7 +111,7 @@ func TestCoordinatePreemptsLessUrgentCommitmentInSameStep(t *testing.T) {
 	stale := errors.New("conflict")
 	c := newStepArbiter()
 	c.propose("bed", PlanResult{Kind: PlanProposed, Proposal: testProposal("bed", plannerFoothold, 1, wood(40), &none)}, nil)
-	outcomes, failures = c.coordinate(context.Background(), stepBudget{Stock: budget.Stock, Commitments: store.PlanCommitments{Committed: []store.PlanCommitment{held("shelter", 3, 90, true)}}, Preempt: func(context.Context, store.PlanCommitment) error { return stale }})
+	outcomes, failures = c.coordinate(context.Background(), stepBudget{Stock: budget.Stock, Commitments: store.PlanCommitments{Committed: []store.PlanCommitment{held("shelter", 3, 90, true)}}, Preempt: func(context.Context, store.PlanCommitment) error { return stale }}, proposalScope{})
 	if len(failures) != 1 || !errors.Is(failures[0], stale) || len(none) != 0 || len(outcomes) != 1 || outcomes[0].Admitted || outcomes[0].Reason != BuildingMethodDemand || len(outcomes[0].Preempted) != 0 {
 		t.Fatalf("%+v %v %v", outcomes, failures, none)
 	}
@@ -137,7 +137,7 @@ func TestCoordinateLongPlanCommitsOnlyAdmittedSegment(t *testing.T) {
 	outcomes, failures := a.coordinate(context.Background(), stepBudget{Stock: map[policy.Resource]int64{"WoodLog": 120}, Commitments: view, Preempt: func(context.Context, store.PlanCommitment) error {
 		t.Fatal("no preemption at equal urgency")
 		return nil
-	}})
+	}}, proposalScope{})
 	if len(failures) != 0 || len(outcomes) != 2 || len(committed) != 1 || committed[0] != "bed" {
 		t.Fatalf("%+v %v %v", outcomes, failures, committed)
 	}

@@ -332,6 +332,36 @@ slot taken before the next planner starts, so a tight step budget is spent on
 the highest priorities first. Native reads still execute one at a time on the
 game's main thread; the wave only overlaps their round trips, so a wider
 session pool would not help.
+
+The admission cycle waits on the critical class only (#623). Each catalog
+entry is `critical` (the preempt and critical priority classes and fire
+safety: authority, emergency evidence and the verdicts the window decision
+reads) or `optional` (the development reviews). The step joins the routine
+review and the critical planners under the wall budget
+(`StepBudget.Wall`, 20 s by default): past it, the critical planners still
+evaluating are named on `ClockSchedulerResult.HeldBy` and the `clock_step`
+row's `held_by`, and the step admits nothing (`admission_refused` with
+`critical_wave_budget`). The optional planners run on the same snapshot,
+started after the critical ones, and are joined for one critical-wave
+duration more (floored by `StepBudget.OptionalGrace`, 1 s by default, and
+never past the wall budget); those still evaluating at that cutoff are
+cancelled, listed under `missed_cutoff` on the row and
+`ClockSchedulerResult.MissedCutoff`, and their results discarded. Planners
+write into a private result merged only for those that made the cutoff, so
+a late return writes nothing the step reads.
+
+Migrated planners (#622) return proposals, and the coordinator arbitrates
+them after the cutoff by `(priority, urgency, id)` against the step's claim
+index. Before a proposal commits it is revalidated against the step's scope
+(snapshot scope and native generation, plan revision, and the tick it was
+planned from within `bridge.PlanningTickTolerance()` of the step's): a
+proposal that reached its arbiter after the cutoff is carried to the next
+step's coordinator, where an expired one is reported `expired` with the
+stale dependency named (`ProposalOutcome.Stale`) and its commit never runs,
+so nothing reaches the journal. The row also carries the step's budgets
+(`budget.wall_ms`, `budget.native_ticks`, `budget.reads` when set, with
+`reads_over_budget` on an overrun) beside what it used (`reads`,
+`elapsed_ms`, `critical_wave_ms`, `native_work_ticks`).
 The step itself has no polling loop; autonomous play attaches ClockWorker.
 
 Every native observation a step issues (the bundle, the routine census and each

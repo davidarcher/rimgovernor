@@ -36,7 +36,7 @@ func TestCoordinateAdmitsHigherRankAndReportsLoserWaiting(t *testing.T) {
 		for _, name := range order {
 			a.propose(name, PlanResult{Kind: PlanProposed, Proposal: proposals[name], Reason: BuildingMethodAdmitted}, func(o ProposalOutcome) { settled[name] = o })
 		}
-		outcomes, failures := a.coordinate(context.Background(), stepBudget{Stock: map[policy.Resource]int64{"Steel": 25}})
+		outcomes, failures := a.coordinate(context.Background(), stepBudget{Stock: map[policy.Resource]int64{"Steel": 25}}, proposalScope{})
 		if len(failures) != 0 || len(outcomes) != 2 || len(committed) != 1 || committed[0] != "high" {
 			t.Fatalf("%v: outcomes %+v failures %v committed %v", order, outcomes, failures, committed)
 		}
@@ -58,7 +58,7 @@ func TestCoordinateQuantityBudgetRefusesSecondClaim(t *testing.T) {
 	steel := []policy.Amount{{Resource: "Steel", Count: 25}}
 	a.propose("b", PlanResult{Kind: PlanProposed, Proposal: testProposal("b", plannerFoothold, 3, ResourceClaims{Pawns: []domain.PawnID{"p2"}, Quantities: steel}, &committed)}, nil)
 	a.propose("a", PlanResult{Kind: PlanProposed, Proposal: testProposal("a", plannerFoothold, 3, ResourceClaims{Pawns: []domain.PawnID{"p1"}, Quantities: steel}, &committed)}, nil)
-	outcomes, _ := a.coordinate(context.Background(), stepBudget{Stock: map[policy.Resource]int64{"Steel": 40}})
+	outcomes, _ := a.coordinate(context.Background(), stepBudget{Stock: map[policy.Resource]int64{"Steel": 40}}, proposalScope{})
 	if len(outcomes) != 2 || outcomes[0].Proposal != "a" || !outcomes[0].Admitted || outcomes[1].Admitted || outcomes[1].Waiting != "Steel:25 of 15 held by a" {
 		t.Fatalf("%+v", outcomes)
 	}
@@ -67,7 +67,7 @@ func TestCoordinateQuantityBudgetRefusesSecondClaim(t *testing.T) {
 	b := newStepArbiter()
 	b.propose("a", PlanResult{Kind: PlanProposed, Proposal: testProposal("a", plannerFoothold, 3, ResourceClaims{Pawns: []domain.PawnID{"p1"}, Quantities: steel}, &again)}, nil)
 	b.propose("b", PlanResult{Kind: PlanProposed, Proposal: testProposal("b", plannerFoothold, 3, ResourceClaims{Pawns: []domain.PawnID{"p2"}, Quantities: steel}, &again)}, nil)
-	if outcomes, _ = b.coordinate(context.Background(), stepBudget{}); len(again) != 2 || !outcomes[1].Admitted {
+	if outcomes, _ = b.coordinate(context.Background(), stepBudget{}, proposalScope{}); len(again) != 2 || !outcomes[1].Admitted {
 		t.Fatalf("%+v %v", outcomes, again)
 	}
 }
@@ -84,7 +84,7 @@ func TestCoordinateRankOrder(t *testing.T) {
 	a.propose("y", PlanResult{Kind: PlanProposed, Proposal: testProposal("y", plannerFoothold, 2, claims, &committed)}, nil)
 	a.propose("x", PlanResult{Kind: PlanProposed, Proposal: testProposal("x", plannerFoothold, 3, claims, &committed)}, nil)
 	a.propose("w", PlanResult{Kind: PlanProposed, Proposal: testProposal("w", plannerMaintenance, 0, claims, &committed)}, nil)
-	outcomes, _ := a.coordinate(context.Background(), stepBudget{})
+	outcomes, _ := a.coordinate(context.Background(), stepBudget{}, proposalScope{})
 	got := make([]string, len(outcomes))
 	for i, o := range outcomes {
 		got[i] = o.Proposal
@@ -107,7 +107,7 @@ func TestCoordinateHonoursArbiterClaimsAndSettlesNonProposals(t *testing.T) {
 	a.propose("tend", PlanResult{Kind: PlanProposed, Proposal: testProposal("tend", plannerCritical, 1, ResourceClaims{Pawns: []domain.PawnID{"doctor"}}, &committed)}, nil)
 	var waiting ProposalOutcome
 	a.propose("idle", PlanResult{Kind: PlanWaiting, Dependency: "review", Reason: BuildingMethodNoReview}, func(o ProposalOutcome) { waiting = o })
-	outcomes, failures := a.coordinate(context.Background(), stepBudget{})
+	outcomes, failures := a.coordinate(context.Background(), stepBudget{}, proposalScope{})
 	if len(failures) != 0 || len(committed) != 0 || len(outcomes) != 1 || outcomes[0].Admitted || outcomes[0].Waiting != "pawn:doctor" {
 		t.Fatalf("%+v %v %v", outcomes, failures, committed)
 	}
@@ -127,7 +127,7 @@ func TestCoordinateIsolatesCommitFailure(t *testing.T) {
 		commit: func(context.Context) (domain.PlanID, RoutineBuildingReason, error) { return "", "", broken }}}, nil)
 	var committed []string
 	a.propose("second", PlanResult{Kind: PlanProposed, Proposal: testProposal("second", plannerFoothold, 3, ResourceClaims{Pawns: []domain.PawnID{"q"}}, &committed)}, nil)
-	outcomes, failures := a.coordinate(context.Background(), stepBudget{})
+	outcomes, failures := a.coordinate(context.Background(), stepBudget{}, proposalScope{})
 	if len(failures) != 1 || !errors.Is(failures[0], broken) || len(outcomes) != 2 || outcomes[0].Admitted || outcomes[0].Reason != BuildingMethodRefused || !outcomes[1].Admitted {
 		t.Fatalf("%+v %v", outcomes, failures)
 	}

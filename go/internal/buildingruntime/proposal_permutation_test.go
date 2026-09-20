@@ -139,7 +139,7 @@ func haulPairWave(t *testing.T, held string) []domain.PlanID {
 	arbiter := newStepArbiter()
 	g := newPlannerGroup(call, plannerWidth)
 	var secureResult, haulResult ProposalOutcome
-	g.Go(plannerFoothold, func() error {
+	g.Go("secureSupplies", classOptional, plannerFoothold, func() error {
 		defer releaseHaul.Do(func() { close(haulGate) })
 		result, err := secure.propose(call, epoch)
 		if err != nil {
@@ -148,7 +148,7 @@ func haulPairWave(t *testing.T, held string) []domain.PlanID {
 		arbiter.propose("secureSupplies", result, func(outcome ProposalOutcome) { secureResult = outcome })
 		return nil
 	})
-	g.Go(plannerMaintenance, func() error {
+	g.Go("haul", classOptional, plannerMaintenance, func() error {
 		defer releaseSecure.Do(func() { close(secureGate) })
 		result, err := haul.propose(call, epoch)
 		if err != nil {
@@ -163,7 +163,7 @@ func haulPairWave(t *testing.T, held string) []domain.PlanID {
 	if failures := g.Failures(); len(failures) > 0 {
 		t.Fatal(failures)
 	}
-	outcomes, failures := arbiter.coordinate(call, stepBudget{})
+	outcomes, failures := arbiter.coordinate(call, stepBudget{}, proposalScope{})
 	if len(failures) > 0 {
 		t.Fatal(failures)
 	}

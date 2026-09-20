@@ -69,6 +69,8 @@ type ClockSchedulerConfig struct {
 	// Facts is the cross-step fact cache the scheduler's steps fill and the
 	// worker's writes discard (WorkerConfig.Facts); nil makes a private one.
 	Facts *bridge.FactCache
+	// Budget bounds the step's planner waves (#623); see StepBudget.
+	Budget StepBudget
 	// Store is the decoded state store the steps fill beside Facts (#354):
 	// each review's census sections with the tick they describe, dropped
 	// by the same typed events. nil makes a private one; the HTTP API
@@ -236,9 +238,25 @@ type ClockSchedulerResult struct {
 	// Planners names the catalog planners this step queued, in catalog order.
 	Planners []string
 	// Proposals are the migrated planners' proposals in the coordinator's
-	// rank order, each admitted with its plan or waiting on the claim a
-	// higher-ranked proposal holds (#622).
+	// rank order, each admitted with its plan, waiting on the claim a
+	// higher-ranked proposal holds (#622) or expired against this step's
+	// snapshot (#623).
 	Proposals []ProposalOutcome
+	// MissedCutoff names the optional planners still evaluating when the
+	// admission cycle moved on (#623): their results are discarded, a
+	// proposal among them is carried to the next step's coordinator, and
+	// they run again next step. The clock_step row lists them.
+	MissedCutoff []string
+	// HeldBy names the critical planners still evaluating when the wall
+	// budget ran out (#623): the step admitted no window and the stop
+	// reason names them.
+	HeldBy []string
+	// CriticalWave is the wall time of the admission cycle's wave: the
+	// routine review and the critical planners.
+	CriticalWave time.Duration
+	// NativeWorkTicks is the native-work window the planners asked for,
+	// the largest of their NativeWorkTicks, before the budget bounds it.
+	NativeWorkTicks uint32
 	// LivePlanning is LivePlanningSkippedPace when a running-window step
 	// that would have planned live left the wave to the stop (#598); empty
 	// otherwise. The scheduler_step row reports it as live_planning.
@@ -307,6 +325,12 @@ type ClockScheduler struct {
 	// stop-to-readmit pause; touched only under the player gate.
 	readmitOwed   bool
 	admissionWarm *atomic.Pointer[clockAdmissionWarm]
+	// late carries proposals that reached a step's arbiter after its
+	// cutoff to the next step's coordinator (#623).
+	late *lateProposals
+	// catalog is the planner table the steps queue from: plannerCatalog,
+	// or a table a test substitutes.
+	catalog []plannerEntry
 }
 
 func NewClockScheduler(player *Player, session *Session, native ClockWindowNative, config ClockSchedulerConfig, clock executor.Clock) (*ClockScheduler, error) {
@@ -529,7 +553,7 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, err
 	}
 	config.Profile = inbox.Profile
-	scheduler := &ClockScheduler{player: player, session: session, native: native, config: config, clock: clock, pollGate: make(chan struct{}, 1), renewGate: make(chan struct{}, 1), facts: newClockFacts(config.Facts, config.Store), running: new(atomic.Bool), manualAt: new(atomic.Int64), admissionWarm: new(atomic.Pointer[clockAdmissionWarm]), latched: newClockLatched()}
+	scheduler := &ClockScheduler{player: player, session: session, native: native, config: config, clock: clock, pollGate: make(chan struct{}, 1), renewGate: make(chan struct{}, 1), facts: newClockFacts(config.Facts, config.Store), running: new(atomic.Bool), manualAt: new(atomic.Int64), admissionWarm: new(atomic.Pointer[clockAdmissionWarm]), latched: newClockLatched(), late: &lateProposals{}, catalog: plannerCatalog}
 	if config.Routine != nil {
 		config.Routine.store = scheduler.facts.store
 	}
@@ -669,6 +693,29 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		}
 		if out.LivePlanning != "" {
 			extra["live_planning"] = out.LivePlanning
+		}
+		// The step's budgets (#623) beside what it used: reads against the
+		// read budget, the planner waves against the wall budget, the
+		// native-work window against its bound.
+		budget := map[string]any{"wall_ms": float64(s.config.Budget.wall()) / float64(time.Millisecond), "native_ticks": s.nativeWorkBudget()}
+		if s.config.Budget.Reads > 0 {
+			budget["reads"] = s.config.Budget.Reads
+			if reads.Total() > s.config.Budget.Reads {
+				extra["reads_over_budget"] = true
+			}
+		}
+		extra["budget"] = budget
+		if out.CriticalWave > 0 {
+			extra["critical_wave_ms"] = float64(out.CriticalWave) / float64(time.Millisecond)
+		}
+		if out.NativeWorkTicks > 0 {
+			extra["native_work_ticks"] = out.NativeWorkTicks
+		}
+		if len(out.MissedCutoff) > 0 {
+			extra["missed_cutoff"] = out.MissedCutoff
+		}
+		if len(out.HeldBy) > 0 {
+			extra["held_by"] = out.HeldBy
 		}
 		if reason.Stopped {
 			extra["stop"] = true
@@ -910,7 +957,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		reason.Cause = StepLive
 		out.Reason = reason
 		clockSchedulerLog("step reason: %s", reason)
-		if out.Planners, err = s.runPlanners(call, epoch, &out, pick); err != nil {
+		if out.Planners, err = s.runPlanners(call, epoch, &out, pick, status); err != nil {
 			return out, err
 		}
 		s.plannedTick, s.plannedTickKnown = status.Context.GetTick(), true
@@ -962,8 +1009,16 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	planners, pick := plannerSelection(reason, s.facts.kindOf)
 	clockSchedulerLog("step reason: %s planners=%v", reason, planners)
 	if planners {
-		if out.Planners, err = s.runPlanners(call, epoch, &out, pick); err != nil {
+		if out.Planners, err = s.runPlanners(call, epoch, &out, pick, status); err != nil {
 			return out, err
+		}
+		if len(out.HeldBy) > 0 {
+			// A critical planner is still evaluating past the wall budget:
+			// the window decision would read a verdict it does not have.
+			// Hold, naming the planners; the next step evaluates again.
+			clockSchedulerLog("critical planners %v past the wall budget %s -> holding admission", out.HeldBy, s.config.Budget.wall())
+			clockEvent(call, "clock-scheduler", "admission_refused", "window not admitted", "refused", []string{"critical_wave_budget"}, "held_by", out.HeldBy, "wall_budget_ms", float64(s.config.Budget.wall())/float64(time.Millisecond))
+			return out, executor.ErrHeld
 		}
 		factsTick = domain.Known(domain.Tick(status.Context.GetTick()))
 		s.plannedTick, s.plannedTickKnown = status.Context.GetTick(), true
@@ -1116,9 +1171,10 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		clockSchedulerLog("planner failed on a native refusal -> lending %d ticks", wait)
 		nativeWorkTicks = max(nativeWorkTicks, wait)
 	}
+	out.NativeWorkTicks = nativeWorkTicks
 	if !work && s.config.RoutineMethods && nativeWorkTicks > 0 {
 		work = true
-		start.MaxTicks = min(start.MaxTicks, nativeWorkTicks)
+		start.MaxTicks = min(start.MaxTicks, nativeWorkTicks, s.nativeWorkBudget())
 	}
 	if status.GetNeverStarted() != nil {
 		clockState = policy.ClockNeverStarted
@@ -1237,49 +1293,112 @@ func (s *ClockScheduler) seedLiveDrift(startTick int64) {
 	domain.SetLiveDrift(drift)
 }
 
-// runPlanners runs the routine reviewer and the selected planner wave
-// (stepPlanners) and waits for it, reporting the isolated failures on out.
-func (s *ClockScheduler) runPlanners(call, epoch context.Context, out *ClockSchedulerResult, pick func(plannerEntry) bool) ([]string, error) {
+// nativeWorkBudget is the most ticks a step lends as a native-work window
+// (#623): the configured bound, else the window's own MaxTicks.
+func (s *ClockScheduler) nativeWorkBudget() uint32 {
+	if s.config.Budget.NativeWork > 0 {
+		return s.config.Budget.NativeWork
+	}
+	return s.config.Start.MaxTicks
+}
+
+// runPlanners runs the routine reviewer and the selected planner wave as an
+// admission cycle and an optional wave (#623). The cycle joins the routine
+// review and the critical planners under the wall budget: past it, the
+// critical planners still pending are named on out.HeldBy and the step
+// admits nothing. The optional planners run on the same snapshot and are
+// joined for one critical-wave duration more (floored by OptionalGrace,
+// never past the wall budget); those still evaluating at that cutoff are
+// cancelled, recorded on out.MissedCutoff, and their results discarded. The
+// coordinator then arbitrates the proposals that made the cutoff, and any
+// carried from an earlier step, against this step's scope.
+func (s *ClockScheduler) runPlanners(call, epoch context.Context, out *ClockSchedulerResult, pick func(plannerEntry) bool, status *k.Status) ([]string, error) {
 	arbiter := newStepArbiter()
-	g := newPlannerGroup(call, plannerWidth)
-	planners, err := s.stepPlanners(call, epoch, out, g, arbiter, pick)
+	arbiter.late = s.late
+	wave := newPlannerWave(call)
+	defer wave.cancelOptional()
+	began := time.Now()
+	wall := after(s.config.Budget.wall())
+	planners, err := s.stepPlanners(call, epoch, out, wave, arbiter, pick)
 	if err != nil {
 		return nil, err
 	}
-	if err = g.Wait(); err != nil {
-		return nil, err
+	if err = wave.group.WaitCritical(wall); err != nil {
+		if !errors.Is(err, errCutoff) {
+			return nil, err
+		}
+		pending := wave.close()
+		arbiter.close()
+		out.CriticalWave = time.Since(began)
+		for _, name := range pending {
+			if s.classOf(name) == classCritical {
+				out.HeldBy = append(out.HeldBy, name)
+			} else {
+				out.MissedCutoff = append(out.MissedCutoff, name)
+			}
+		}
+		return planners, nil
 	}
+	out.CriticalWave = time.Since(began)
+	grace := max(out.CriticalWave, s.config.Budget.optionalGrace())
+	cutoff := after(min(grace, s.config.Budget.wall()-out.CriticalWave))
+	select {
+	case <-wall:
+		cutoff = wall
+	default:
+	}
+	if pending := wave.group.WaitUntil(cutoff); len(pending) > 0 {
+		out.MissedCutoff = pending
+		clockSchedulerLog("optional planners %v still evaluating %s after the critical wave (%s) -> missed the cutoff", pending, grace.Round(time.Millisecond), out.CriticalWave.Round(time.Millisecond))
+	}
+	wave.close()
+	arbiter.close()
 	// The migrated planners proposed instead of committing: rank their
 	// proposals by (priority, urgency, ID) against the claims the wave
 	// left on the arbiter, the stock the review observed and what the
-	// admitted plans hold of it, and commit the winners (#622, #628). The
-	// admission path beneath each commit still checks stock itself.
+	// admitted plans hold of it, revalidate each against this step and
+	// commit the winners (#622, #623, #628). The admission path beneath
+	// each commit still checks stock itself.
 	budget, err := s.stepBudget(call, out, arbiter)
 	if err != nil {
 		return nil, err
 	}
+	scope := proposalScope{Snapshot: s.session.State().Snapshot, Tick: domain.Tick(status.Context.GetTick()), Tolerance: domain.Tick(bridge.PlanningTickTolerance())}
 	var commitFailures []error
-	out.Proposals, commitFailures = arbiter.coordinate(call, budget)
+	out.Proposals, commitFailures = arbiter.coordinate(call, budget, scope)
 	for _, outcome := range out.Proposals {
 		switch {
 		case outcome.Admitted && len(outcome.Preempted) != 0:
 			clockSchedulerLog("proposal %s admitted plan %s after preempting %v", outcome.Proposal, outcome.Plan, outcome.Preempted)
 		case outcome.Admitted:
 			clockSchedulerLog("proposal %s admitted plan %s", outcome.Proposal, outcome.Plan)
+		case outcome.Stale != "":
+			clockSchedulerLog("proposal %s %s: %s", outcome.Proposal, outcome.Reason, outcome.Stale)
 		case outcome.Reason == BuildingMethodDemand:
 			clockSchedulerLog("proposal %s %s: %s (demand %v)", outcome.Proposal, outcome.Reason, outcome.Waiting, outcome.Demand)
 		default:
 			clockSchedulerLog("proposal %s %s: %s", outcome.Proposal, outcome.Reason, outcome.Waiting)
 		}
 	}
+	wave.merge(out)
 	// A failed planner is reported, not fatal: the step still evaluates the
 	// clock window on what the other planners committed, and the failed
 	// planner retries next step (#62).
-	out.PlannerFailures = append(g.Failures(), commitFailures...)
+	out.PlannerFailures = append(wave.group.Failures(), commitFailures...)
 	for _, failure := range out.PlannerFailures {
 		clockSchedulerLog("planner failed (isolated): %v", failure)
 	}
 	return planners, nil
+}
+
+// classOf is the class of the named catalog planner.
+func (s *ClockScheduler) classOf(name string) plannerClass {
+	for _, entry := range s.catalog {
+		if entry.name == name {
+			return entry.class
+		}
+	}
+	return classOptional
 }
 
 // commitmentHorizon is how long an undispatched hold outlives the tick of
@@ -1567,11 +1686,11 @@ func (s *ClockScheduler) fullStepDue() bool {
 // stepPlanners runs the routine reviewer synchronously first (every other
 // planner's dispatch depends on being able to load the review it commits),
 // then queues the configured catalog planners pick selects (nil: all) onto
-// g as one concurrent wave sharing arbiter, returning the queued names
-// without waiting. Routine's own error aborts before anything is queued;
-// an error from a queued planner is isolated by g and surfaces later, from
-// g.Failures(), without stopping the step.
-func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSchedulerResult, g *plannerGroup, arbiter *stepArbiter, pick func(plannerEntry) bool) ([]string, error) {
+// the wave sharing arbiter, returning the queued names without waiting.
+// Routine's own error aborts before anything is queued; an error from a
+// queued planner is isolated by the wave and surfaces later, from its
+// failures, without stopping the step.
+func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSchedulerResult, wave *plannerWave, arbiter *stepArbiter, pick func(plannerEntry) bool) ([]string, error) {
 	if s.config.Routine != nil {
 		review, err := s.config.Routine.step(call, epoch, arbiter, pick != nil)
 		if err != nil {
@@ -1595,7 +1714,7 @@ func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSch
 		// autonomous play. The break stays visible through the pawn's mood
 		// goal and the native hazard supervisor keeps its authority.
 	}
-	return s.queuePlanners(call, epoch, out, g, arbiter, pick), nil
+	return s.queuePlanners(call, epoch, wave, arbiter, pick), nil
 }
 
 type clockWorkItem struct {
