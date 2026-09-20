@@ -288,6 +288,11 @@ namespace HomeBridge.BridgeTools
                     result.EvidenceCompleteness = new Common.PageInfo { Complete = s.SuppressedInjuries.Count == 0 };
                 }
                 result.PausedMs = ClockPauseAccounting.PausedMs(Current.Game); result.RunningMs = ClockPauseAccounting.RunningMs(Current.Game);
+                result.ProbeElapsedMs = ClockProbeAccounting.ProbeMs(Current.Game); result.DigestElapsedMs = ClockProbeAccounting.DigestMs(Current.Game);
+                result.ProbeTotal = ClockProbeAccounting.Probes(Current.Game); result.DigestTotal = ClockProbeAccounting.Digests(Current.Game);
+                result.SessionMaxProbeTickGap = ClockProbeAccounting.MaxProbeTickGap(Current.Game);
+                foreach (var gap in ClockProbeAccounting.HazardGapsFor(Current.Game))
+                    result.HazardGaps.Add(new Clock.HazardGap { HazardClass = gap.Key, MaxTickGap = gap.Value, BoundTicks = HazardBoundTicks(gap.Key), Hooked = HazardHooked(gap.Key) && HazardHooksInstalled });
                 if (_patchError != null) result.WatcherError = Text(_patchError);
                 return result;
             }

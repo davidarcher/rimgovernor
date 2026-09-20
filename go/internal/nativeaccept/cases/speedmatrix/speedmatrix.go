@@ -126,6 +126,7 @@ func run(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	m := &matrix{s: s, report: s.Report(), cases: speedCases}
+	m.report["speeds_spec"] = spec
 	m.report["speeds"] = speedCases
 	m.report["tick_budget"] = ticks
 	m.report["tolerance"] = tolerance
@@ -633,6 +634,12 @@ func caseMetrics(c na.SpeedCase, phases bridge.PhaseSummary, stops na.StopSummar
 		"ticks_advanced": lastTick - startTick, "wall_seconds": wallSeconds, "budget_wall_tps": budgetTPS,
 		"wall_tps":  phases.Clock.WallTPS,
 		"paused_ms": phases.Clock.NativePausedMs, "running_ms": phases.Clock.NativeRunningMs, "paused_fraction_native": phases.Clock.PausedFractionNative(), "native_pause_samples": phases.Clock.NativePauseSamples,
+		// The supervisor's probe path split (#626): hazard probe against
+		// the fact-change digests, session-cumulative between the first and
+		// last status samples, and the detection gaps the session reported.
+		"probe_ms": phases.Clock.NativeProbeMs, "digest_ms": phases.Clock.NativeDigestMs, "digest_share": phases.Clock.DigestShare(),
+		"probes": phases.Clock.NativeProbes, "digests": phases.Clock.NativeDigests,
+		"max_probe_tick_gap": phases.Clock.NativeMaxProbeTickGap, "hazard_gaps": phases.Clock.NativeHazardGaps,
 		"paused_fraction": pausedFraction, "paused_fraction_sampling": "status-sample ratio, a sampling diagnostic; paused_fraction_native is the measure",
 		"paused_samples": phases.Clock.PausedSamples, "clock_samples": phases.Clock.ClockSamples, "paused_sampled_seconds": phases.Clock.SampledSecs,
 		"steps": phases.Steps.Steps, "reads_per_step": readsPerStep, "parent_hits": phases.Steps.ParentHits,

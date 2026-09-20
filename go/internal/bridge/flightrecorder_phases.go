@@ -159,6 +159,39 @@ type ClockSample struct {
 	NativePausedMs     uint64 `json:"native_paused_ms"`
 	NativeRunningMs    uint64 `json:"native_running_ms"`
 	NativePauseSamples uint64 `json:"native_pause_samples"`
+	// NativeProbeMs and NativeDigestMs split the supervisor's main-thread
+	// time between the same first and last status samples (#626): the
+	// hazard probe and the fact-change digests, with the passes each
+	// took; NativeMaxProbeTickGap is the widest tick gap between
+	// consecutive probes the session reported and NativeHazardGaps the
+	// per-class detection gap and declared bound from the last sample.
+	NativeProbeMs         float64     `json:"native_probe_ms"`
+	NativeDigestMs        float64     `json:"native_digest_ms"`
+	NativeProbes          uint64      `json:"native_probes"`
+	NativeDigests         uint64      `json:"native_digests"`
+	NativeMaxProbeTickGap int64       `json:"native_max_probe_tick_gap"`
+	NativeHazardGaps      []HazardGap `json:"native_hazard_gaps,omitempty"`
+}
+
+// HazardGap is one hazard class's detection gap as the native clock status
+// reports it (#626): the declared bound in ticks, the widest gap observed
+// this game session and whether a direct game hook backs the class.
+type HazardGap struct {
+	HazardClass string `json:"hazard_class"`
+	BoundTicks  int64  `json:"bound_ticks"`
+	MaxTickGap  int64  `json:"max_tick_gap"`
+	Hooked      bool   `json:"hooked"`
+}
+
+// DigestShare is the digests' share of the supervisor's probe-path time,
+// NativeDigestMs / (NativeProbeMs + NativeDigestMs), or 0 with nothing
+// accounted.
+func (c ClockSample) DigestShare() float64 {
+	total := c.NativeProbeMs + c.NativeDigestMs
+	if total <= 0 {
+		return 0
+	}
+	return c.NativeDigestMs / total
 }
 
 // PausedFractionNative is native's paused share of the accounted wall
@@ -376,6 +409,18 @@ func SummarizePhases(records []TimelineRecord) PhaseSummary {
 		summary.Clock.NativePausedMs = lastPause.paused - firstPause.paused
 		summary.Clock.NativeRunningMs = lastPause.running - firstPause.running
 	}
+	if havePause && lastPause.probeMs >= firstPause.probeMs && lastPause.digestMs >= firstPause.digestMs {
+		summary.Clock.NativeProbeMs = lastPause.probeMs - firstPause.probeMs
+		summary.Clock.NativeDigestMs = lastPause.digestMs - firstPause.digestMs
+		if lastPause.probes >= firstPause.probes {
+			summary.Clock.NativeProbes = lastPause.probes - firstPause.probes
+		}
+		if lastPause.digests >= firstPause.digests {
+			summary.Clock.NativeDigests = lastPause.digests - firstPause.digests
+		}
+		summary.Clock.NativeMaxProbeTickGap = lastPause.maxProbeTickGap
+		summary.Clock.NativeHazardGaps = lastPause.hazardGaps
+	}
 	if summary.Steps.Stops.LatencySamples > 0 {
 		summary.Steps.Stops.MeanLatencyMs = stopLatencyMs / float64(summary.Steps.Stops.LatencySamples)
 	}
@@ -425,7 +470,14 @@ func number(value any) (float64, bool) {
 // <reply>.status.context.tick for clock status.
 // nativePause is one status sample's native pause account (issue #621):
 // cumulative paused and running milliseconds on native's clock.
-type nativePause struct{ paused, running uint64 }
+type nativePause struct {
+	paused, running uint64
+	// The probe account (#626), cumulative like the pause account.
+	probeMs, digestMs float64
+	probes, digests   uint64
+	maxProbeTickGap   int64
+	hazardGaps        []HazardGap
+}
 
 func replyClock(result any) (tick int64, paused bool, hasTick bool, hasPaused bool, pause nativePause, hasPause bool) {
 	wrapper, ok := result.(map[string]any)
@@ -485,7 +537,31 @@ func statusPause(status map[string]any) (nativePause, bool) {
 	if pausedMs < 0 || runningMs < 0 {
 		return nativePause{}, false
 	}
-	return nativePause{paused: uint64(pausedMs), running: uint64(runningMs)}, true
+	sample := nativePause{paused: uint64(pausedMs), running: uint64(runningMs)}
+	// The probe account (#626) is absent on a native build without it.
+	sample.probeMs, _ = number(status["probeElapsedMs"])
+	sample.digestMs, _ = number(status["digestElapsedMs"])
+	if probes, ok := tickValue(status["probeTotal"]); ok && probes >= 0 {
+		sample.probes = uint64(probes)
+	}
+	if digests, ok := tickValue(status["digestTotal"]); ok && digests >= 0 {
+		sample.digests = uint64(digests)
+	}
+	sample.maxProbeTickGap, _ = tickValue(status["sessionMaxProbeTickGap"])
+	if gaps, ok := status["hazardGaps"].([]any); ok {
+		for _, raw := range gaps {
+			row, ok := raw.(map[string]any)
+			if !ok {
+				continue
+			}
+			gap := HazardGap{HazardClass: fmt.Sprint(row["hazardClass"])}
+			gap.BoundTicks, _ = tickValue(row["boundTicks"])
+			gap.MaxTickGap, _ = tickValue(row["maxTickGap"])
+			gap.Hooked, _ = row["hooked"].(bool)
+			sample.hazardGaps = append(sample.hazardGaps, gap)
+		}
+	}
+	return sample, true
 }
 
 // statusPaused reads whether a recorded clock status shows the clock paused:

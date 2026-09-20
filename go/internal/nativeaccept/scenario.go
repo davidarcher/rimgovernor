@@ -621,6 +621,16 @@ func (s *ScenarioClock) finishStatus(status map[string]any) (map[string]any, err
 	return projected, nil
 }
 
+// SeekEvents moves the Poll cursor forward to Change()'s newestCursor (the
+// exclusive pre-dispatch watermark) so a case that polls the events of a
+// window it started itself reads from that window, never from the retained
+// authority churn before it (see AdvanceGame). Never regresses.
+func (s *ScenarioClock) SeekEvents(started map[string]any) {
+	if cursor, _ := started["newestCursor"].(uint64); cursor > s.cursor {
+		s.cursor = cursor
+	}
+}
+
 // Poll drains events since the last Poll, mirroring TypedScenarioClock.poll().
 func (s *ScenarioClock) Poll(ctx context.Context) ([]any, error) {
 	batch, err := s.Call(ctx, "events", map[string]any{"afterCursor": s.cursor, "limit": 128})

@@ -109,6 +109,8 @@ namespace HomeBridge.BridgeTools
         internal static long WallTime = 1700000000000;
         internal static bool RefusePause;
         internal static string InitialStop;
+        // The hazard hooks (#626) are Verse-bound; the fake reports them installed.
+        internal static bool HazardHooksInstalled = true;
         // The production partial reads TickManager.UltraSpeedBoost by reflection
         // (#109); the fake TickManager has no boost, so test acceleration is
         // never available to the probe.

@@ -112,7 +112,6 @@ namespace HomeBridge.BridgeTools
     internal static partial class Supervisor
     {
         private const int Capacity = 128;
-        private const int AcceleratedProbeTicks = 30;
         private static readonly FieldInfo BoostField = typeof(TickManager).GetField("UltraSpeedBoost", BindingFlags.Static | BindingFlags.NonPublic);
         // Wall-clock grace for a force pause with no window behind it.
         // An autosave takes about a second; 20 s is generous and still
@@ -192,6 +191,7 @@ namespace HomeBridge.BridgeTools
                 if (tickInfo == null || !tickInfo.Owners.Contains("homebridge.supervised-play"))
                     throw new InvalidOperationException("Native tick boundary patch was not installed.");
                 EnsureCeilingPatched();
+                EnsureHazardHooks();
                 NativeControlAuthority.GenerationChanged += OnAuthorityChanged;
                 _patchError = null;
             }
@@ -244,7 +244,7 @@ namespace HomeBridge.BridgeTools
                     StartTick = Find.TickManager.TicksGame,
                     TickDeadline = maxTicks == 0 ? (long?)null : (long)Find.TickManager.TicksGame + maxTicks,
                     LastTick = Find.TickManager.TicksGame,
-                    LastProbeTick = Find.TickManager.TicksGame, LastProbeMs = NowMs(),
+                    LastProbeTick = Find.TickManager.TicksGame, LastProbeMs = NowMs(), LastDigestTick = Find.TickManager.TicksGame,
                     TestAcceleration = testAcceleration,
                     BlindTickBudget = Clamp(blindTickBudget, 0, 1800000), MaxTicksPerSecond = Clamp(maxTicksPerSecond, 0, 60000),
                     LastReadTick = Find.TickManager.TicksGame, AckedCursor = _cursor,
@@ -280,8 +280,18 @@ namespace HomeBridge.BridgeTools
                 }
                 _state = s;
                 ClockPauseAccounting.Started(s.Session);
+                ClockProbeAccounting.Started(s.Session);
+                ResetHazardHooks();
+                DigestDirty = false;
+                var digestBegan = System.Diagnostics.Stopwatch.GetTimestamp();
                 PublishFactChanges(s);
+                var probeBegan = System.Diagnostics.Stopwatch.GetTimestamp();
+                s.Timing.DigestElapsed += probeBegan - digestBegan; s.Timing.Digests++;
+                ClockProbeAccounting.Digested(probeBegan - digestBegan);
                 var hit = Probe(s);
+                var probeTook = System.Diagnostics.Stopwatch.GetTimestamp() - probeBegan;
+                s.Timing.ProbeElapsed += probeTook;
+                ClockProbeAccounting.Probed(probeTook);
                 if (hit != null)
                 {
                     // Starting a guard is itself a request for safety. If the
@@ -388,7 +398,7 @@ namespace HomeBridge.BridgeTools
             lock (Gate)
             {
                 var s = _state;
-                if (s == null || !s.Active || !s.TickDeadline.HasValue) return;
+                if (s == null || !s.Active) return;
                 var began = System.Diagnostics.Stopwatch.GetTimestamp();
                 try { TickBody(s); }
                 finally { s.Timing.HookTicks++; s.Timing.FrameTicks++; s.Timing.HookElapsed += System.Diagnostics.Stopwatch.GetTimestamp() - began; }
@@ -397,7 +407,6 @@ namespace HomeBridge.BridgeTools
         private static void TickBody(State s)
         {
             {
-                var deadline = s.TickDeadline!.Value;
                 // The frame can contain many accelerated ticks. Check ownership,
                 // lease and tick-bounded hazards before admitting another tick.
                 if (s.TestAcceleration) OnUpdate();
@@ -418,6 +427,16 @@ namespace HomeBridge.BridgeTools
                 // Preserve player and letter attribution if the final tick also
                 // changed the clock. The frame watcher handles those stops.
                 if (tm.CurTimeSpeed != s.RequestedSpeed) return;
+                // The tick-paced hazard probe (#626): at every production speed
+                // consecutive probes are at most ProbeIntervalTicks apart, however
+                // many ticks the frame carries. The accelerated path ran it above.
+                if (!s.TestAcceleration)
+                {
+                    if (!RunProbeIfDue(s, tm)) return;
+                    RunDigestIfDue(s, tm);
+                }
+                if (!s.TickDeadline.HasValue) return;
+                var deadline = s.TickDeadline.Value;
                 if (tm.TicksGame >= deadline)
                     Stop(s, "tick_budget", "Native execution tick budget reached.", true,
                         new Dictionary<string, object?> { { "startTick", s.StartTick },
@@ -481,20 +500,60 @@ namespace HomeBridge.BridgeTools
                             { "actualSpeed", tm.CurTimeSpeed.ToString() } }); return; }
                     if (LeaseNow(s) >= s.LeaseExpiresMs) { Stop(s, "lease_expired", "Heartbeat lease expired.", true, null); return; }
                     Regulate(s);
-                    if (NowMs() - s.LastProbeMs < 100
-                        && (!s.TestAcceleration || tm.TicksGame - s.LastProbeTick < AcceleratedProbeTicks)) return;
-                    s.MaxProbeTickGap = Math.Max(s.MaxProbeTickGap, tm.TicksGame - s.LastProbeTick);
-                    s.LastProbeTick = tm.TicksGame;
-                    s.ProbeCount++;
-                    s.LastProbeMs = NowMs();
-                    var probeBegan = System.Diagnostics.Stopwatch.GetTimestamp();
-                    PublishFactChanges(s);
-                    var hit = Probe(s);
-                    s.Timing.ProbeElapsed += System.Diagnostics.Stopwatch.GetTimestamp() - probeBegan;
-                    if (hit != null) Stop(s, hit.Kind, hit.Detail, true, hit.Payload);
+                    if (!RunProbeIfDue(s, tm)) return;
+                    RunDigestIfDue(s, tm);
                 }
                 catch (Exception ex) { Stop(s, "watcher_error", ex.GetType().Name + ": " + ex.Message, true, null); }
             }
+        }
+
+        /// The hazard probe when a gate is due (SupervisedPlayHazards.cs: a
+        /// hook requested one, ProbeIntervalTicks or ProbeIntervalMs
+        /// elapsed). Records the tick gap overall and per hazard class, then
+        /// stops on a hit. -> false when play stopped.
+        private static bool RunProbeIfDue(State s, TickManager tm)
+        {
+            var now = NowMs();
+            if (!ProbeDue(s.ProbeRequested, tm.TicksGame - s.LastProbeTick, now - s.LastProbeMs)) return true;
+            var gap = tm.TicksGame - s.LastProbeTick;
+            s.MaxProbeTickGap = Math.Max(s.MaxProbeTickGap, gap);
+            ClockProbeAccounting.ProbeGap(gap);
+            // A polled class could have gone the whole probe gap undetected; a
+            // hooked class at most the ticks from its hook to this probe.
+            foreach (var name in HazardClassNames())
+                if (HazardBoundTicks(name) == ProbeIntervalTicks) ClockProbeAccounting.HazardGap(name, gap);
+            if (s.ProbeRequested)
+            {
+                foreach (var request in s.ProbeRequests)
+                    if (HazardBoundTicks(request.Key) == HookedBoundTicks) ClockProbeAccounting.HazardGap(request.Key, Math.Max(0, tm.TicksGame - request.Value));
+                s.ProbeRequests.Clear(); s.ProbeRequested = false;
+            }
+            s.LastProbeTick = tm.TicksGame;
+            s.ProbeCount++;
+            s.LastProbeMs = now;
+            var probeBegan = System.Diagnostics.Stopwatch.GetTimestamp();
+            var hit = Probe(s);
+            var probeTook = System.Diagnostics.Stopwatch.GetTimestamp() - probeBegan;
+            s.Timing.ProbeElapsed += probeTook;
+            ClockProbeAccounting.Probed(probeTook);
+            if (hit == null) return true;
+            Stop(s, hit.Kind, hit.Detail, true, hit.Payload);
+            return false;
+        }
+
+        /// The fact-change digests on their own cadence (#626): a game hook
+        /// marked one dirty (SupervisedPlayHooks.cs) or DigestIntervalTicks
+        /// elapsed. Never part of the probe.
+        private static void RunDigestIfDue(State s, TickManager tm)
+        {
+            if (!DigestDue(DigestDirty, tm.TicksGame - s.LastDigestTick)) return;
+            DigestDirty = false;
+            s.LastDigestTick = tm.TicksGame;
+            var digestBegan = System.Diagnostics.Stopwatch.GetTimestamp();
+            PublishFactChanges(s);
+            var took = System.Diagnostics.Stopwatch.GetTimestamp() - digestBegan;
+            s.Timing.DigestElapsed += took; s.Timing.Digests++;
+            ClockProbeAccounting.Digested(took);
         }
 
         /// A force pause with NO force-pausing window is a long event (the
@@ -781,7 +840,7 @@ namespace HomeBridge.BridgeTools
                     continue;
                 }
                 newLetters.Add(new Dictionary<string, object?> { { "id", id }, { "label", label },
-                    { "letterDef", l.def != null ? l.def.defName : null } });
+                    { "letterDef", l.def != null ? l.def.defName : null }, { "arrivalTick", SafeArrivalTick(l) } });
             }
             var newMessages = new List<Dictionary<string, object?>>();
             foreach (var m in HomePlayUntilEventTools.LiveMessages())
@@ -807,11 +866,15 @@ namespace HomeBridge.BridgeTools
             {
                 var names = newLetters.Select(x => Convert.ToString(x["label"]))
                     .Concat(newMessages.Select(x => Convert.ToString(x["text"]))).ToList();
-                return new Hit("notification_batch",
-                    names.Count + " new notification(s): " + string.Join("; ", names),
-                    new Dictionary<string, object?> { { "letters", newLetters },
+                var payload = new Dictionary<string, object?> { { "letters", newLetters },
                         { "messages", newMessages }, { "letterCount", newLetters.Count },
-                        { "messageCount", newMessages.Count } });
+                        { "messageCount", newMessages.Count } };
+                // The newest arrival is the hazard's occurrence (#626): the
+                // older ones were already stopping play had they been seen.
+                var arrived = newLetters.Select(x => x["arrivalTick"]).Concat(newMessages.Select(x => x["startingTick"]))
+                    .Where(t => t != null).Select(t => Convert.ToInt64(t)).Where(t => t >= 0).ToList();
+                if (arrived.Count > 0) payload["occurrenceTick"] = arrived.Max();
+                return new Hit("notification_batch", names.Count + " new notification(s): " + string.Join("; ", names), payload);
             }
             // An alert never stops play; a new one is a message. The key set only
             // grows within an epoch, so an alert that flaps cannot re-report.
@@ -826,6 +889,7 @@ namespace HomeBridge.BridgeTools
                     return new Hit("medical_rest_changed", "Resting patient requires a fresh medical review",
                         new Dictionary<string, object?> { { "pawnId", identity } });
             }
+            var tick = Find.TickManager != null ? Find.TickManager.TicksGame : s.LastTick;
             CheckHostilesCleared(s, pawns);
             foreach (var p in pawns)
             {
@@ -835,17 +899,17 @@ namespace HomeBridge.BridgeTools
                     && HomePlayUntilEventTools.IsHostile(p, out why)
                     && !s.IgnoredHostiles.Contains(p.thingIDNumber)
                     && colonists.Any(c => Distance(p, c) <= s.HostileWithin))
-                    return PawnHit("hostile", p, why);
+                    return PawnHit("hostile", p, why, SpawnedTick(p));
                 if (HomePlayUntilEventTools.SafeIsColonist(p)
                     && (HomePlayUntilEventTools.SafeDowned(p) || HomePlayUntilEventTools.SafeDead(p))
                     && !s.IgnoredDowned.Contains(p.thingIDNumber)
                     && !SafeSurgicalRecovery(s, p)
                     && !(s.MedicalRest.Contains(p.thingIDNumber) && MedicalRestSafety.Eligible(p)))
-                    return PawnHit("colonist_downed", p, HomePlayUntilEventTools.SafeDead(p) ? "dead" : "downed");
+                    return PawnHit("colonist_downed", p, HomePlayUntilEventTools.SafeDead(p) ? "dead" : "downed", DownedTick(p));
                 if (ThreateningPredatorHunt(p)
                     && !s.IgnoredHostiles.Contains(p.thingIDNumber)
                     && colonists.Any(c => Distance(p, c) <= 40))
-                    return PawnHit("predator_hunt", p, "PredatorHunt targeting colony property or unreadable prey within 40 cells");
+                    return PawnHit("predator_hunt", p, "PredatorHunt targeting colony property or unreadable prey within 40 cells", JobStartTick(p));
                 if (HomePlayUntilEventTools.SafeIsColonist(p))
                 {
                     if (p.CurJobDef == JobDefOf.Hunt)
@@ -853,7 +917,7 @@ namespace HomeBridge.BridgeTools
                         var prey = p.CurJob.targetA.Thing as Pawn;
                         if (prey != null && !prey.Dead && !HuntingSafety.RouteSafe(p, prey))
                             return PawnHit("hunting_route_unsafe", p,
-                                "Prey has an unsafe death effect, or the hunter's route is unavailable or near a predator");
+                                "Prey has an unsafe death effect, or the hunter's route is unavailable or near a predator", JobStartTick(p));
                     }
                     var after = InjurySnapshot.Capture(p);
                     InjurySnapshot before;
@@ -873,13 +937,16 @@ namespace HomeBridge.BridgeTools
                     if (before != null
                         && s.Mode == "combat"
                         && HealthThresholdCrossed(s, before, after))
-                        return new Hit("colonist_health", HomePlayUntilEventTools.SafeName(p)
-                            + " crossed a combat health threshold.",
-                            new Dictionary<string, object?> { { "pawnId", p.thingIDNumber },
+                    {
+                        var health = new Dictionary<string, object?> { { "pawnId", p.thingIDNumber },
                                 { "pawnName", HomePlayUntilEventTools.SafeName(p) },
                                 { "position", Position(p) }, { "healthAtStart", before.Health },
                                 { "healthNow", after.Health }, { "minHealthFraction", s.MinHealthFraction },
-                                { "healthDropFraction", s.HealthDropFraction } });
+                                { "healthDropFraction", s.HealthDropFraction } };
+                        if (after.NewestWoundAgeTicks != int.MaxValue) health["occurrenceTick"] = tick - after.NewestWoundAgeTicks;
+                        return new Hit("colonist_health", HomePlayUntilEventTools.SafeName(p)
+                            + " crossed a combat health threshold.", health);
+                    }
                     if (before != null
                         && (after.Count > before.Count
                             || after.Severity > before.Severity + 0.01f
@@ -1060,13 +1127,18 @@ namespace HomeBridge.BridgeTools
             } catch { return false; }
         }
 
-        private static Hit PawnHit(string kind, Pawn pawn, string reason)
+        private static Hit PawnHit(string kind, Pawn pawn, string reason, int? occurrenceTick = null)
         {
-            return new Hit(kind, HomePlayUntilEventTools.SafeName(pawn) + " (" + reason + ")",
-                new Dictionary<string, object?> { { "pawnId", pawn.thingIDNumber },
+            var payload = new Dictionary<string, object?> { { "pawnId", pawn.thingIDNumber },
                     { "pawnName", HomePlayUntilEventTools.SafeName(pawn) }, { "position", Position(pawn) },
-                    { "reason", reason } });
+                    { "reason", reason } };
+            // The tick the hazard arose where the game records one (#626), for
+            // the stop's detect_ticks; absent when it does not.
+            if (occurrenceTick.HasValue && occurrenceTick.Value >= 0) payload["occurrenceTick"] = occurrenceTick.Value;
+            return new Hit(kind, HomePlayUntilEventTools.SafeName(pawn) + " (" + reason + ")", payload);
         }
+        private static int SafeArrivalTick(Letter letter) { try { return letter.arrivalTick; } catch { return -1; } }
+        private static int? JobStartTick(Pawn pawn) { try { var job = pawn.CurJob; return job != null && job.startTick >= 0 ? job.startTick : (int?)null; } catch { return null; } }
         /// One alert row; the key is type|priority|normalized-label.
         private static Dictionary<string, object?> AlertRow(KeyValuePair<string, string> a)
         {
@@ -1247,9 +1319,11 @@ namespace HomeBridge.BridgeTools
                 { "boostOwned", s != null && s.BoostOwned },
                 { "maxProbeTickGap", s != null ? s.MaxProbeTickGap : 0 },
                 { "probeCount", s != null ? s.ProbeCount : 0 },
+                { "probeElapsedMs", s != null ? Ms(s.Timing.ProbeElapsed) : 0 }, { "digestElapsedMs", s != null ? Ms(s.Timing.DigestElapsed) : 0 },
+                { "digestCount", s != null ? s.Timing.Digests : 0 },
                 { "stopAtMs", s != null ? (object?)s.StopAtMs : null },
                 { "pausedMs", ClockPauseAccounting.PausedMs(Current.Game) }, { "runningMs", ClockPauseAccounting.RunningMs(Current.Game) },
-                { "probeTickLimit", s != null && s.TestAcceleration ? (object)AcceleratedProbeTicks : null },
+                { "probeTickLimit", ProbeIntervalTicks },
                 { "blindTickBudget", s != null ? s.BlindTickBudget : 0 }, { "maxTicksPerSecond", s != null ? s.MaxTicksPerSecond : 0 },
                 { "regulatedTicksPerSecond", s != null ? s.RegulatedTicksPerSecond : 0 }, { "blindTicks", s != null ? BlindTicks(s) : 0 },
                 { "maxBlindTicks", s != null ? s.MaxBlindTicks : 0 }, { "regulatorThrottles", s != null ? s.RegulatorThrottles : 0 },
@@ -1279,11 +1353,13 @@ namespace HomeBridge.BridgeTools
 
         // Where an epoch's wall time went, per epoch, for the acceptance
         // speed work (#265): game ticks and frames, the tick-boundary hook,
-        // the watch checks inside it and the periodic probe. Logged once per
-        // stop, only under the acceptance test-acceleration launch flag.
+        // the watch checks inside it, the periodic hazard probe and, apart
+        // from it (#626), the fact-change digests. Logged once per stop, only
+        // under the acceptance test-acceleration launch flag.
         private sealed class EpochTiming
         {
-            public long HookTicks, HookElapsed, WatchElapsed, ProbeElapsed;
+            public long HookTicks, HookElapsed, WatchElapsed, ProbeElapsed, DigestElapsed;
+            public int Digests;
             public int Frames, FrameTicks, MaxFrameTicks;
             public long StartedAt = System.Diagnostics.Stopwatch.GetTimestamp();
         }
@@ -1295,10 +1371,10 @@ namespace HomeBridge.BridgeTools
             var wall = Ms(System.Diagnostics.Stopwatch.GetTimestamp() - t.StartedAt);
             var ticks = s.LastTick - s.StartTick;
             Log.Message(string.Format(CultureInfo.InvariantCulture,
-                "RimGovernor clock epoch {0} timing: stop={1} speed={2} boost={3} ticks={4} wallMs={5:F0} tps={6:F0} frames={7} maxTicksPerFrame={8} hookTicks={9} hookMs={10:F1} watchMs={11:F1} probes={12} probeMs={13:F1} maxProbeTickGap={14} blindBudget={15} maxBlind={16} throttles={17}",
+                "RimGovernor clock epoch {0} timing: stop={1} speed={2} boost={3} ticks={4} wallMs={5:F0} tps={6:F0} frames={7} maxTicksPerFrame={8} hookTicks={9} hookMs={10:F1} watchMs={11:F1} probes={12} probeMs={13:F1} maxProbeTickGap={14} blindBudget={15} maxBlind={16} throttles={17} digests={18} digestMs={19:F1}",
                 s.Epoch, kind, s.RequestedSpeed, s.TestAcceleration, ticks, wall, wall > 0 ? ticks * 1000.0 / wall : 0,
                 t.Frames, t.MaxFrameTicks, t.HookTicks, Ms(t.HookElapsed), Ms(t.WatchElapsed), s.ProbeCount, Ms(t.ProbeElapsed), s.MaxProbeTickGap,
-                s.BlindTickBudget, s.MaxBlindTicks, s.RegulatorThrottles));
+                s.BlindTickBudget, s.MaxBlindTicks, s.RegulatorThrottles, t.Digests, Ms(t.DigestElapsed)));
         }
 
         private sealed class Hit
@@ -1350,6 +1426,10 @@ namespace HomeBridge.BridgeTools
             public int LastReadTick; public long AckedCursor; public readonly List<KeyValuePair<long, int>> Unacked = new List<KeyValuePair<long, int>>();
             public long LastRampMs; public int MaxBlindTicks; public int RegulatorThrottles;
             public int LastProbeTick; public int MaxProbeTickGap; public int ProbeCount;
+            // The digest cadence (#626) and the probe requests direct game
+            // hooks raised (hazard class -> tick), served at the next probe.
+            public int LastDigestTick; public bool ProbeRequested;
+            public readonly List<KeyValuePair<string, int>> ProbeRequests = new List<KeyValuePair<string, int>>();
             public readonly EpochTiming Timing = new EpochTiming();
             public long? StopAtMs;
             public int DetectedTick;

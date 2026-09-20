@@ -195,6 +195,29 @@ message Status {
   // Both reset when the loaded game changes.
   optional uint64 paused_ms = 21;
   optional uint64 running_ms = 22;
+  // Supervisor probe accounting (#626), cumulative for the loaded game
+  // session like paused_ms: wall time the hazard probe (probe_elapsed_ms,
+  // probe_total passes) and the fact-change digests (digest_elapsed_ms,
+  // digest_total passes) took on the main thread, and the widest tick gap
+  // between consecutive probes any epoch of the session saw.
+  optional double probe_elapsed_ms = 23;
+  optional double digest_elapsed_ms = 24;
+  optional uint64 probe_total = 25;
+  optional uint64 digest_total = 26;
+  optional int64 session_max_probe_tick_gap = 27;
+  // Per hazard class: the declared maximum detection gap in ticks and the
+  // widest gap observed this session (#626).
+  repeated HazardGap hazard_gaps = 28;
+}
+// One hazard class the supervisor probe covers: its declared detection
+// bound in ticks (holds at every speed) and the widest gap observed.
+message HazardGap {
+  string hazard_class = 1;
+  int64 bound_ticks = 2;
+  int64 max_tick_gap = 3;
+  // The class also has a direct game hook that requests a probe on the
+  // next tick; max_tick_gap then measures hook to probe.
+  bool hooked = 4;
 }
 message StatusReply {
   oneof outcome {

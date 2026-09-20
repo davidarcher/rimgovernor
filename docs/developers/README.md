@@ -28,6 +28,7 @@ the multi-instance colony directory.
 ## Component guides
 
 - [Control loop](architecture/control-loop.md): observations, priorities and scheduling.
+- [Hazard detection bounds](architecture/hazard-detection-bounds.md): the native supervisor's probe cadence, per-hazard-class bound in ticks and digest cadence.
 - [Plans and Hands](architecture/plans-and-hands.md): admission, execution and completion.
 - [Space and resources](architecture/space-and-resources.md): placement and shared budgets.
 - [Facilities](architecture/facilities.md): the room-function ladder and per-role matrix.

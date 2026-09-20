@@ -22,6 +22,7 @@
     <Compile Include="../../../../scripts/fixtures/GuardedConstructionFixture.cs" Condition="'$(GuardedConstructionFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/StorageHaulFixture.cs" Condition="'$(StorageHaulFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/DefenseFixture.cs" Condition="'$(DefenseFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/HazardFixture.cs" Condition="'$(HazardFixture)' == 'true'" />
     <Compile Include="../../../../contracts/generated/protobuf/csharp/*.cs" />
     <PackageReference Include="Google.Protobuf" Version="3.31.1" />
     <Compile Include="../../../../scripts/fixtures/ThroughputFixture.cs" Condition="'$(ThroughputFixture)' == 'true'" />

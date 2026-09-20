@@ -326,9 +326,72 @@ internal static class NativeClockProbe
         Find.TickManager.TicksGame = 3; Supervisor.OnUpdate();
         Check(Supervisor.IsActiveForFixture() && Events().Page.Events.Count == 2, "already-terminal watch reported again or latched later");
     }
+    // #626: the hazard probe is tick-paced at every production speed, the
+    // digests run on their own cadence, and the status carries both counters.
+    private static void ProbeAndDigestCadence()
+    {
+        Reset();
+        // Ticks per frame at Normal, Fast, Superfast, Ultrafast and the
+        // ultra-speed boost, 16 ms of wall per frame: the tick gate runs at
+        // every tick boundary and the wall gate once per frame, as the
+        // production OnTick/OnFrame pair does. The old frame-only gate let
+        // the gap grow with the ticks per frame; the bound must hold at all.
+        foreach (var perFrame in new[] { 1, 3, 6, 15, 150 })
+        {
+            long lastProbe = 0, lastProbeMs = 0, widest = 0, frameOnlyWidest = 0, frameOnlyLast = 0, frameOnlyLastMs = 0;
+            for (var tick = 1; tick <= 3000; tick++)
+            {
+                var wall = tick / perFrame * 16L; var atFrame = tick % perFrame == 0;
+                if (Supervisor.ProbeDue(false, tick - lastProbe, atFrame ? wall - lastProbeMs : 0))
+                { widest = Math.Max(widest, tick - lastProbe); lastProbe = tick; lastProbeMs = wall; }
+                if (atFrame && wall - frameOnlyLastMs >= Supervisor.ProbeIntervalMs)
+                { frameOnlyWidest = Math.Max(frameOnlyWidest, tick - frameOnlyLast); frameOnlyLast = tick; frameOnlyLastMs = wall; }
+            }
+            Check(widest <= Supervisor.ProbeIntervalTicks, "probe gap " + widest + " over the bound at " + perFrame + " ticks/frame");
+            Check(perFrame < 6 || frameOnlyWidest > Supervisor.ProbeIntervalTicks, "wall-only gate model did not exceed the bound at " + perFrame + " ticks/frame");
+        }
+        Check(Supervisor.ProbeDue(true, 0, 0) && !Supervisor.ProbeDue(false, 29, 99) && Supervisor.ProbeDue(false, 0, 100), "hook request or wall gate ignored");
+        // A probe never implies a digest and a digest never implies a probe.
+        Check(!Supervisor.DigestDue(false, Supervisor.ProbeIntervalTicks) && Supervisor.DigestDue(true, 0) && Supervisor.DigestDue(false, Supervisor.DigestIntervalTicks), "digest cadence tied to the probe");
+        foreach (var name in Supervisor.HazardClassNames())
+            Check(Supervisor.HazardBoundTicks(name) > 0 && Supervisor.HazardBoundTicks(name) <= Supervisor.ProbeIntervalTicks, "undeclared or unbounded class " + name);
+        Check(Supervisor.HazardBoundTicks("colonist_downed") == Supervisor.HookedBoundTicks && Supervisor.HazardHooked("colonist_downed") && !Supervisor.HazardHooked("predator_hunt"), "hook declarations");
+        // The production Probe body contains no digest call: the digests left
+        // the probe path (source scan of the Verse-bound partial).
+        var root = AppContext.BaseDirectory;
+        while (root != null && !File.Exists(Path.Combine(root, "integrations/rimgovernor-native/src/Bridge/SupervisedPlayTool.cs"))) root = Path.GetDirectoryName(root.TrimEnd(Path.DirectorySeparatorChar));
+        Check(root != null, "repository root not found above " + AppContext.BaseDirectory);
+        root = Path.Combine(root, "integrations/rimgovernor-native/src");
+        var source = File.ReadAllText(Path.Combine(root, "Bridge/SupervisedPlayTool.cs"));
+        var probeAt = source.IndexOf("private static Hit? Probe(State s)", StringComparison.Ordinal);
+        if (probeAt < 0) probeAt = source.IndexOf("private static Hit Probe(State s)", StringComparison.Ordinal);
+        Check(probeAt > 0, "Probe(State s) not found in SupervisedPlayTool.cs");
+        var probeEnd = probeAt; var depth = 0; var opened = false;
+        for (; probeEnd < source.Length; probeEnd++)
+        {
+            if (source[probeEnd] == (char)123) { depth++; opened = true; }
+            else if (source[probeEnd] == (char)125 && --depth == 0 && opened) break;
+        }
+        var body = source.Substring(probeAt, probeEnd - probeAt);
+        foreach (var digest in new[] { "PublishFactChanges", "ZoneDigests", "ResearchDigest", "WorldDigest", "ConditionDigest", "PublishZoneChanges" })
+            Check(!body.Contains(digest), "Probe still runs " + digest);
+        Check(source.Contains("RunDigestIfDue(s, tm)") && !source.Contains("AcceleratedProbeTicks"), "digest cadence or wall gate not replaced");
+        // The status carries the two elapsed counters and per-class gaps.
+        ClockProbeAccounting.Started(Current.Game);
+        ClockProbeAccounting.Probed(System.Diagnostics.Stopwatch.Frequency / 1000 * 4); ClockProbeAccounting.Probed(System.Diagnostics.Stopwatch.Frequency / 1000 * 4);
+        ClockProbeAccounting.Digested(System.Diagnostics.Stopwatch.Frequency / 1000 * 3);
+        ClockProbeAccounting.ProbeGap(30); ClockProbeAccounting.ProbeGap(12);
+        ClockProbeAccounting.HazardGap("colonist_downed", 1); ClockProbeAccounting.HazardGap("predator_hunt", 30);
+        var status = Status().Status;
+        Check(Math.Abs(status.ProbeElapsedMs - 8) < 0.5 && Math.Abs(status.DigestElapsedMs - 3) < 0.5 && status.ProbeTotal == 2 && status.DigestTotal == 1, "status elapsed counters");
+        Check(status.SessionMaxProbeTickGap == 30, "status session max probe gap");
+        var downed = status.HazardGaps.FirstOrDefault(g => g.HazardClass == "colonist_downed");
+        var predator = status.HazardGaps.FirstOrDefault(g => g.HazardClass == "predator_hunt");
+        Check(downed != null && downed.BoundTicks == 1 && downed.MaxTickGap == 1 && downed.Hooked && predator != null && predator.BoundTicks == 30 && predator.MaxTickGap == 30 && !predator.Hooked, "status hazard gaps");
+    }
     internal static void Invoke()
     {
-        Boundaries(); OwnedLifecycle(); StopsAndContext(); EventProjection(); ReplacementGrantCannotAdoptEpoch(); LostHooksCannotExtendEpoch(); CorruptStoredEvents(); ReadRecoveredHistoryBeforeStart(); WatchedAttemptLatches();
+        Boundaries(); OwnedLifecycle(); StopsAndContext(); EventProjection(); ReplacementGrantCannotAdoptEpoch(); LostHooksCannotExtendEpoch(); CorruptStoredEvents(); ReadRecoveredHistoryBeforeStart(); WatchedAttemptLatches(); ProbeAndDigestCadence();
         Console.WriteLine($"Native clock: {checks} checks; production typed runtime/adapter/ledger/journal, controlled native watcher and SDK seams.");
     }
 }

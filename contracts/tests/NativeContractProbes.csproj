@@ -77,6 +77,8 @@
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/MainThreadAdmission.cs" Link="Production/MainThreadAdmission.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/ClockEventJournal.cs" Link="Production/ClockEventJournal.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/ClockPauseAccounting.cs" Link="Production/ClockPauseAccounting.cs" />
+    <Compile Include="$(NativeSourceRoot)/Bridge/ClockProbeAccounting.cs" Link="Production/ClockProbeAccounting.cs" />
+    <Compile Include="$(NativeSourceRoot)/Bridge/SupervisedPlayHazards.cs" Link="Production/SupervisedPlayHazards.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeAttemptLedger.cs" Link="Production/NativeAttemptLedger.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeClockEventProjection.cs" Link="Production/NativeClockEventProjection.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeClockRuntime.cs" Link="Production/NativeClockRuntime.cs" />
