@@ -130,9 +130,7 @@ func TestClockInboxEventAndByteCapacity(t *testing.T) {
 		t.Run(map[bool]string{false: "events", true: "bytes"}[large], func(t *testing.T) {
 			ctx := context.Background()
 			s, _, profile := boundInbox(t)
-			cursor := int64(0)
-			var before ClockInboxState
-			for i := 0; i < 33; i++ {
+			page := func(cursor int64) (*k.EventsRequest, *k.EventsPage) {
 				r, p := inboxPage(cursor, 128, 0)
 				if large {
 					for _, e := range p.Events {
@@ -140,14 +138,73 @@ func TestClockInboxEventAndByteCapacity(t *testing.T) {
 						e.Event = &k.Event_Notification{Notification: &k.Notification{Source: &k.Notification_Message{Message: &k.TransientMessage{Id: proto.String("message"), Text: proto.String(strings.Repeat("m", 4096))}}}}
 					}
 				}
+				return r, p
+			}
+			// Seed in one transaction: AppendClockEvents revalidates all retained
+			// history on each call. Exercise it only at the capacity boundary.
+			seedPages := clock.InboxCapacity/128 - 1
+			if large {
+				seedPages = 14 // Fifteen large pages fit; the sixteenth exceeds 16 MiB.
+			}
+			tx, err := s.begin(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer tx.Rollback()
+			cursor := int64(0)
+			for i := 0; i < seedPages; i++ {
+				r, p := page(cursor)
+				rb, err := clock.CanonicalBytes(r)
+				if err != nil {
+					t.Fatal(err)
+				}
+				pb, err := clock.CanonicalBytes(p)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if _, err = tx.ExecContext(ctx, "INSERT INTO clock_event_pages(sequence,after_cursor,next_cursor,request,page) VALUES(?,?,?,?,?)", i+1, cursor, p.GetNextCursor(), rb, pb); err != nil {
+					t.Fatal(err)
+				}
+				for _, event := range p.Events {
+					payload, err := clock.CanonicalBytes(event)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if _, err = tx.ExecContext(ctx, "INSERT INTO clock_inbox_events(cursor,page_sequence,payload) VALUES(?,?,?)", event.GetCursor(), i+1, payload); err != nil {
+						t.Fatal(err)
+					}
+				}
+				cursor = p.GetNextCursor()
+			}
+			if err = tx.Commit(); err != nil {
+				t.Fatal(err)
+			}
+			var before ClockInboxState
+			for i := 0; i < 2; i++ {
+				r, p := page(cursor)
+				if !large && i == 1 {
+					r, p = inboxPage(cursor, 1, 0)
+				}
 				st, added, err := s.AppendClockEvents(ctx, profile, r, p)
-				if errors.Is(err, ErrCapacity) {
+				if i == 1 {
+					if !errors.Is(err, ErrCapacity) || added {
+						t.Fatal("capacity not enforced", st, added, err)
+					}
 					actual, e := s.ReadClockInbox(ctx, profile)
 					if e != nil || actual != before {
 						t.Fatal("partial capacity append", actual, before, e)
 					}
-					if !large && actual.EventCount != 4096 {
+					if !large && actual.EventCount != clock.InboxCapacity {
 						t.Fatal(actual)
+					}
+					if large {
+						var size int
+						if err := s.db.QueryRowContext(ctx, "SELECT sum(length(request)+length(page)) FROM clock_event_pages").Scan(&size); err != nil {
+							t.Fatal(err)
+						}
+						if size > 16<<20 || size+proto.Size(r)+proto.Size(p) <= 16<<20 || actual.EventCount+len(p.Events) > clock.InboxCapacity {
+							t.Fatal("fixture must cross only the byte capacity", size, actual)
+						}
 					}
 					return
 				}
@@ -157,7 +214,6 @@ func TestClockInboxEventAndByteCapacity(t *testing.T) {
 				before = st
 				cursor = st.Cursor
 			}
-			t.Fatal("capacity not enforced")
 		})
 	}
 }
