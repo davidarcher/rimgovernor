@@ -92,8 +92,11 @@ func init() {
 						return err
 					}
 					report["basic_comfort_goal"] = map[string]any{"status": string(goal.Goal.Status), "need": string(goal.Goal.Need), "priority": goal.Goal.Priority}
-					if goal.Goal.Priority != 2 {
-						return fmt.Errorf("EnsureBasicComfort ranks at priority %d, not foothold", goal.Goal.Priority)
+					// Once dining and recreation capacity stand, the goal
+					// ranks at maintenance priority for variety (#494); a
+					// goal still at foothold priority never built both.
+					if goal.Goal.Priority != 3 {
+						return fmt.Errorf("EnsureBasicComfort ranks at priority %d, not maintenance: capacity never recovered", goal.Goal.Priority)
 					}
 					if goal.Goal.Need != domain.NeedRecovered || goal.Goal.Status != domain.GoalSatisfied {
 						return fmt.Errorf("EnsureBasicComfort did not recover within the watch window: need=%s status=%s", goal.Goal.Need, goal.Goal.Status)
