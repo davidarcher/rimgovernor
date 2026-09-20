@@ -242,7 +242,17 @@ credit instead of the fragment charge; player zones, occupied, roofed, protected
 unreachable and undescribed cells never become free land. Isolated 1x1 cells are used
 only when no larger patch meets the crop's fertility floor. Each selected patch keeps
 its scored terms (`FarmSitePlan.Explain`) so acceptance evidence can say why a site
-won. Expansion chooses crop and patches jointly (`policy.PlanField`): every available
+won. From `Masonry` up (a known colony grid and `FarmSiteWeightsFor(tier)`, #608)
+demand is rounded up to whole field modules (`policy.FieldModuleCells`: one 11x5 half
+under 60 cells, else whole 11x11 modules) and the candidates are module patches, the
+11x11 interior of a grid module at offsets 1..11 from its corner (the wall ring stays
+free for a later hydroponics room, the aisle beyond it for hauling) or its two 11x5
+halves; a module patch sharing a full co-linear edge with an aligned zone of the same
+crop, one pitch away or across the half divider, earns the row term in place of touch
+contiguity, so fields grow as aligned rows. The size ladder is the fallback when no
+module patch meets the fertility floor, its patches starting on the module's sub-cell
+corners. Restricted sites (a lamp disc or a room) plan without the grid, and `Camp` is
+unchanged. Expansion chooses crop and patches jointly (`policy.PlanField`): every available
 edible crop with complete native facts is planned over its own fertility floor and ranked
 by net nutrition per needed cell, so a fertility-tolerant crop wins on poor soil; a
 remaining season under 2.5 grow cycles excludes a crop, an unknown remaining season while

@@ -1,10 +1,12 @@
 // Package layout holds the tiered colony layout cases (#603). layout/grid
-// (#607) runs the field family on the tribal baseline with Stonecutting
-// finished, so the build tier reads Masonry, from a fixture hut whose
-// south-west corner the controller fixes the colony grid on: the hut ring
-// and the field the planner sites both read back natively with their
-// corners on grid lines, no field cell in an aisle, and an aisle between
-// the two.
+// (#607, #608) runs the field family on the tribal baseline with
+// Stonecutting finished, so the build tier reads Masonry, from a fixture
+// hut whose south-west corner the controller fixes the colony grid on: the
+// hut ring reads back natively with its corner on a grid line, every
+// growing zone the planner sites is a module patch on the grid (a module
+// interior, an 11x5 half, or a ladder patch on a sub-cell corner), no
+// field cell lies in an aisle, and the second field shares a full
+// co-linear edge with the first.
 package layout
 
 import (
@@ -38,8 +40,9 @@ func init() {
 		Name: "layout/grid",
 		Scope: "Issue #607: on the tribal " + sustained.BaselineSave + " colony with Stonecutting finished (build tier Masonry) and " +
 			"a fixture hut standing, the controller fixes the colony grid on the hut's south-west corner and the field planner " +
-			"sites its field with an alignment term: the hut ring and a growing zone read back natively with corners on grid " +
-			"lines, no zone cell lies in an aisle, and an aisle separates the zone from the hut's module.",
+			"sites module fields on the grid: the hut ring reads back natively with its corner on a grid line, every growing " +
+			"zone is a module patch on the grid outside the hut's module, no zone cell lies in an aisle, and the second field " +
+			"shares a full co-linear edge with the first (#608).",
 		Start:  cases.Fixture{Op: gridPrepare, Args: map[string]any{}, On: cases.Save{Name: sustained.BaselineSave}},
 		Keep:   []string{string(na.NeedFood)},
 		Serve:  &cases.ServeSpec{Families: []string{"field"}, NativeTimeout: 30 * time.Second, Prefix: "layout-grid"},
@@ -105,14 +108,16 @@ func grid(ctx context.Context, s cases.Session) error {
 		return fmt.Errorf("the room's south-west corner %d,%d is %d cells off the grid", room.X, room.Z, g.CornerError(room))
 	}
 	module := g.Module(domain.Cell{X: room.X, Z: room.Z})
-	// The field: every zone off the aisles, and one on a grid intersection
-	// outside the room's module, so an aisle lies between them.
+	// The fields: every zone off the aisles, each a module patch (#608)
+	// outside the room's module, and the second sharing a full co-linear
+	// edge with the first: one pitch away along an axis, or across the
+	// half-module divider.
 	zones := na.AsSlice(audit["zones"])
 	if len(zones) == 0 {
 		return fmt.Errorf("no growing zone read back after the fields plan: %#v", audit)
 	}
 	var described []map[string]any
-	aligned := false
+	var rects []policy.Rectangle
 	for _, row := range zones {
 		zone, _ := na.AsMap(row)
 		cells := cellsOf(zone["cells"])
@@ -128,15 +133,22 @@ func grid(ctx context.Context, s cases.Session) error {
 				return fmt.Errorf("zone %v plants aisle cell %d,%d (grid offsets %d,%d)", zone["id"], c.X, c.Z, u, v)
 			}
 		}
-		if g.OnGridLine(rect) && !intersects(rect, module) {
-			aligned = true
+		if !modulePatch(g, rect) {
+			return fmt.Errorf("zone %v %+v is not a module patch on the grid: %v", zone["id"], rect, described)
 		}
+		if intersects(rect, module) {
+			return fmt.Errorf("zone %v %+v lies in the room's module %+v", zone["id"], rect, module)
+		}
+		rects = append(rects, rect)
 	}
 	report["zones"] = described
-	if !aligned {
-		return fmt.Errorf("no growing zone sits on a grid intersection outside the room's module %+v: %v", module, described)
+	if len(rects) < 2 {
+		return fmt.Errorf("one field only; the module rows need a second: %v", described)
 	}
-	// The planner explained the choice with the alignment term.
+	if !rowPartners(g, rects[0], rects[1]) {
+		return fmt.Errorf("the second field %+v shares no full co-linear edge with the first %+v", rects[1], rects[0])
+	}
+	// The planner explained the choice with the alignment and row terms.
 	f, err := os.Open(filepath.Join(s.Config().Output, "service", "stderr.log"))
 	if err != nil {
 		return err
@@ -146,7 +158,7 @@ func grid(ctx context.Context, s cases.Session) error {
 	if err != nil {
 		return err
 	}
-	last, err := farmselect.Check(selections, farmselect.Expectation{Kind: "outdoor", MinCells: 1, Terms: []string{"alignment"}})
+	last, err := farmselect.Check(selections, farmselect.Expectation{Kind: "outdoor", MinCells: 1, Terms: []string{"alignment", "row"}})
 	report["selection"] = last
 	return err
 }
@@ -200,6 +212,36 @@ func gridOffsets(g policy.ColonyGrid, c domain.Cell) (int32, int32) {
 		v = -v
 	}
 	return u, v
+}
+
+// modulePatch reports a module interior, an 11x5 half module, or a ladder
+// patch starting on one of the module's sub-cell corners (#608).
+func modulePatch(g policy.ColonyGrid, r policy.Rectangle) bool {
+	for _, sub := range g.SubCells(g.Module(domain.Cell{X: r.X, Z: r.Z})) {
+		if sub == r || sub.X == r.X && sub.Z == r.Z && r.Width <= 4 && r.Height <= 4 {
+			return true
+		}
+	}
+	return false
+}
+
+// rowPartners reports two equal patches facing each other with a full
+// co-linear edge: one pitch apart along an axis, or a half module's
+// divider apart along its short axis.
+func rowPartners(g policy.ColonyGrid, a, b policy.Rectangle) bool {
+	if a.Width != b.Width || a.Height != b.Height {
+		return false
+	}
+	dx, dz := b.X-a.X, b.Z-a.Z
+	abs := func(v int32) int32 {
+		if v < 0 {
+			return -v
+		}
+		return v
+	}
+	divider := policy.ColonyGridSubCell + 1
+	return dz == 0 && (abs(dx) == g.Pitch || a.Width == policy.ColonyGridSubCell && abs(dx) == divider) ||
+		dx == 0 && (abs(dz) == g.Pitch || a.Height == policy.ColonyGridSubCell && abs(dz) == divider)
 }
 
 func intersects(a, b policy.Rectangle) bool {

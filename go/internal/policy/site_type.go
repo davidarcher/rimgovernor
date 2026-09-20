@@ -648,9 +648,12 @@ func siteUnroofed(s SiteCell) SiteCell {
 
 // siteRestricted rewrites the census so only cells the kind supports are
 // plantable: they are presented as unroofed so PlanFarmSites accepts them,
-// every other cell keeps its walkability for travel but has no soil.
+// every other cell keeps its walkability for travel but has no soil. A
+// restricted site fills a lamp disc or a room, not a grid module, so the
+// colony grid is dropped and the planner lays its size ladder (#608).
 func siteRestricted(site FarmSiteRequest, keep func(SiteCell) bool, protected []domain.Cell) FarmSiteRequest {
 	out := site
+	out.Grid = domain.Unknown[ColonyGrid]()
 	out.Cells = make([]SiteCell, 0, len(site.Cells))
 	for _, s := range site.Cells {
 		if keep(s) {

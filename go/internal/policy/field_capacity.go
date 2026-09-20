@@ -48,4 +48,28 @@ func FieldCoverage(colonists domain.Fact[int64], crops domain.Fact[[]FieldCrop],
 	return domain.Known(coverage)
 }
 
+const (
+	// FieldModuleCellCount is one field module, the 11x11 grid module
+	// interior (#608); FieldHalfModuleCellCount the 11x5 half module.
+	FieldModuleCellCount     = int(ColonyGridInterior * ColonyGridInterior)
+	FieldHalfModuleCellCount = int(ColonyGridInterior * ColonyGridSubCell)
+	// FieldHalfModuleBelow is the demand under which a half module is
+	// planted instead of a whole one.
+	FieldHalfModuleBelow = 60
+)
+
+// FieldModuleCells rounds a cell shortfall up to whole field modules at the
+// tiers that plant on the colony grid (#608): under FieldHalfModuleBelow
+// cells one half module, otherwise whole modules. A shortfall of 20 cells
+// is one 11x5, not a 4x4 and a 2x2.
+func FieldModuleCells(needed int) int {
+	if needed <= 0 {
+		return 0
+	}
+	if needed < FieldHalfModuleBelow {
+		return FieldHalfModuleCellCount
+	}
+	return (needed + FieldModuleCellCount - 1) / FieldModuleCellCount * FieldModuleCellCount
+}
+
 func fieldPositive(v float64) bool { return v > 0 && !math.IsNaN(v) && !math.IsInf(v, 0) }

@@ -161,32 +161,176 @@ func TestFarmSiteWithoutGridOrAtCampIsUnchanged(t *testing.T) {
 	}
 }
 
-func TestFarmSiteAtMasonryPrefersGridCornerWithinReach(t *testing.T) {
-	// The nearest 4x4 beside the anchor is six corner cells off the grid
-	// whose line runs at x=10; the patch on the intersection eight steps
-	// further out wins and explains the term.
-	plan := PlanFarmSites(alignedFarm(farmSiteFixture(), domain.Cell{X: 10, Z: 4}, BuildTierMasonry))
-	if plan.Cells != 16 || len(plan.Patches) != 1 || plan.Patches[0] != (Rectangle{X: 10, Z: 4, Width: 4, Height: 4}) {
+// Module fields (#608): from Masonry the planner plants whole grid module
+// interiors, or 11x5 halves under 60 cells, snapped to the grid, and grows
+// them as rows that share a full co-linear edge.
+
+// moduleFarmFixture is a flat walkable strip of normal soil with the
+// colony grid's origin at 2,2, so module interiors start at x and z in
+// {3, 19, 35, ...}, and the anchor at the west end beside the south row.
+func moduleFarmFixture(width, height int32, needed int) FarmSiteRequest {
+	r := FarmSiteRequest{Bounds: Bounds{width, height}, Anchor: domain.Cell{X: 1, Z: 5}, Needed: needed, Crop: CropChoice{Name: "Plant_Rice", GrowDays: domain.Known(3.0), HarvestNutrition: domain.Known(0.3), FertilityMin: domain.Known(0.7), FertilitySensitivity: domain.Known(1.0)}}
+	for x := int32(0); x < width; x++ {
+		for z := int32(0); z < height; z++ {
+			r.Cells = append(r.Cells, SiteCell{Cell: domain.Cell{X: x, Z: z}, Walkable: domain.Known(true), Occupied: domain.Known(false), Zone: domain.Known(false), Roofed: domain.Known(false), Fertility: domain.Known(1.0)})
+		}
+	}
+	return alignedFarm(r, domain.Cell{X: 2, Z: 2}, BuildTierMasonry)
+}
+
+// zoneCells marks a rectangle as an existing managed zone of the fixture's
+// crop.
+func zoneCells(r *FarmSiteRequest, id string, rect Rectangle) {
+	inside := map[domain.Cell]bool{}
+	for _, c := range rectCells(rect) {
+		inside[c] = true
+	}
+	for i := range r.Cells {
+		if inside[r.Cells[i].Cell] {
+			r.Cells[i].Zone, r.Cells[i].ZoneID = domain.Known(true), domain.Known(id)
+		}
+	}
+	r.Zones = append(r.Zones, FarmZone{ID: id, Crop: r.Crop.Name, Managed: true})
+}
+
+func TestFieldModuleCells(t *testing.T) {
+	for needed, want := range map[int]int{0: 0, 1: 55, 20: 55, 59: 55, 60: 121, 121: 121, 130: 242, 242: 242, 243: 363} {
+		if got := FieldModuleCells(needed); got != want {
+			t.Errorf("FieldModuleCells(%d) = %d, want %d", needed, got, want)
+		}
+	}
+}
+
+func TestFarmSiteAtMasonryPlantsOneModuleInteriorOnGrid(t *testing.T) {
+	plan := PlanFarmSites(moduleFarmFixture(50, 20, 100))
+	if plan.Cells != 121 || len(plan.Patches) != 1 || plan.Fallback || plan.Patches[0] != (Rectangle{X: 3, Z: 3, Width: 11, Height: 11}) {
+		t.Fatal(plan.Explain())
+	}
+	if plan.Target != 121 || plan.Module != (Rectangle{Width: 11, Height: 11}) || !strings.Contains(plan.Explain(), "module=11x11 target=121") {
 		t.Fatal(plan.Explain())
 	}
 	terms := farmTerms(plan)
-	if v, ok := terms["alignment"]; !ok || v != 0 || !strings.Contains(plan.Explain(), "alignment=0.0000") {
+	if v, ok := terms["alignment"]; !ok || v != 0 {
+		t.Fatal("alignment term missing", plan.Explain())
+	}
+	if v, ok := terms["row"]; !ok || v != 0 || terms["fragment"] >= 0 || strings.Contains(plan.Explain(), "contiguity") {
+		t.Fatal("a first module is a fragment with no row partner", plan.Explain())
+	}
+	// Under 60 cells a half module: the lower 11x5 of the nearest module.
+	plan = PlanFarmSites(moduleFarmFixture(50, 20, 20))
+	if plan.Cells != 55 || len(plan.Patches) != 1 || plan.Fallback || plan.Patches[0] != (Rectangle{X: 3, Z: 3, Width: 11, Height: 5}) || !strings.Contains(plan.Explain(), "module=11x5 target=55") {
 		t.Fatal(plan.Explain())
 	}
-	// Off-grid patches pay the term: the same planner with the origin
-	// pushed east of every candidate charges the nearest patch's error.
-	r := alignedFarm(farmSiteFixture(), domain.Cell{X: 26, Z: 4}, BuildTierMasonry)
+}
+
+func TestFarmSiteSecondFieldSharesFullEdgeWithAlignedZone(t *testing.T) {
+	// An aligned zone fills the middle module of the south row; both of
+	// its row neighbours face it across an aisle with a full edge, and the
+	// nearer one wins with the row term instead of the fragment charge.
+	r := moduleFarmFixture(50, 36, 100)
+	zoneCells(&r, "z1", Rectangle{X: 19, Z: 3, Width: 11, Height: 11})
+	plan := PlanFarmSites(r)
+	if plan.Cells != 121 || len(plan.Patches) != 1 || plan.Patches[0] != (Rectangle{X: 3, Z: 3, Width: 11, Height: 11}) {
+		t.Fatal(plan.Explain())
+	}
+	if c := plan.Selected[0]; c.Adjacent != "z1" || farmTerms(plan)["row"] <= 0 || strings.Contains(plan.Explain(), "fragment") {
+		t.Fatal(plan.Explain())
+	}
+	// A zone covering only half the facing edge is not a row partner.
+	r = moduleFarmFixture(50, 36, 100)
+	zoneCells(&r, "z1", Rectangle{X: 19, Z: 3, Width: 11, Height: 5})
+	plan = PlanFarmSites(r)
+	if plan.Patches[0] != (Rectangle{X: 3, Z: 3, Width: 11, Height: 11}) || plan.Selected[0].Adjacent != "" || farmTerms(plan)["row"] != 0 {
+		t.Fatal("a partial edge earned the row term", plan.Explain())
+	}
+	// The row term outweighs a few steps of travel: from an anchor in the
+	// aisle north-west of the zone's east neighbour, the module north of
+	// the anchor is two steps nearer on average but has no partner, and
+	// the one east of the zone that extends the row wins (the module
+	// north of the zone, also a partner, is built over).
+	r = moduleFarmFixture(50, 36, 100)
+	zoneCells(&r, "z1", Rectangle{X: 19, Z: 3, Width: 11, Height: 11})
+	r.Anchor = domain.Cell{X: 33, Z: 17}
 	for i := range r.Cells {
-		if x := r.Cells[i].Cell.X; x >= 8 && x < 14 {
+		if c := r.Cells[i].Cell; c.X >= 19 && c.X < 30 && c.Z >= 19 && c.Z < 30 {
 			r.Cells[i].Occupied = domain.Known(true)
 		}
 	}
 	plan = PlanFarmSites(r)
-	if plan.Cells != 16 || len(plan.Patches) != 1 || plan.Patches[0].X >= 26 {
-		t.Fatal("a patch a whole module away won", plan.Explain())
+	if len(plan.Patches) != 1 || plan.Patches[0] != (Rectangle{X: 35, Z: 3, Width: 11, Height: 11}) || plan.Selected[0].Adjacent != "z1" {
+		t.Fatal(plan.Explain())
 	}
-	if v := farmTerms(plan)["alignment"]; v >= 0 {
-		t.Fatal("off-grid patch paid nothing", plan.Explain())
+}
+
+func TestFarmSiteThirdFieldExtendsRowOrStartsNextRowOnGrid(t *testing.T) {
+	r := moduleFarmFixture(60, 36, 250)
+	plan := PlanFarmSites(r)
+	if plan.Target != 363 || plan.Cells != 363 || len(plan.Patches) != 3 || plan.Fallback {
+		t.Fatal(plan.Explain())
+	}
+	grid, _ := r.Grid.Value()
+	for i, patch := range plan.Patches {
+		if patch.Width != 11 || patch.Height != 11 || grid.SubCells(grid.Module(domain.Cell{X: patch.X, Z: patch.Z}))[0] != patch {
+			t.Fatal("patch", i, "is not a module interior", plan.Explain())
+		}
+		if i > 0 && (plan.Selected[i].Adjacent != "plan" || plan.Selected[i].Terms[len(plan.Selected[i].Terms)-1].Name != "row") {
+			t.Fatal("patch", i, "does not extend the row", plan.Explain())
+		}
+	}
+	if plan.Patches[0] != (Rectangle{X: 3, Z: 3, Width: 11, Height: 11}) {
+		t.Fatal(plan.Explain())
+	}
+	// The later two patches each share a full edge with a planned one.
+	pitch := grid.Pitch
+	for _, i := range []int{1, 2} {
+		p := plan.Patches[i]
+		partner := false
+		for _, q := range plan.Patches[:i] {
+			dx, dz := p.X-q.X, p.Z-q.Z
+			partner = partner || dx == 0 && (dz == pitch || dz == -pitch) || dz == 0 && (dx == pitch || dx == -pitch)
+		}
+		if !partner {
+			t.Fatal("patch", i, "has no row partner", plan.Explain())
+		}
+	}
+}
+
+func TestFarmSiteFallbackEngagesOnlyWhenNoModuleMeetsTheFloorAndSnaps(t *testing.T) {
+	// One poor cell in each half of every module interior: no whole or
+	// half module meets the fertility floor, so the ladder engages on the
+	// modules' sub-cell corners.
+	r := moduleFarmFixture(50, 20, 20)
+	grid, _ := r.Grid.Value()
+	for i := range r.Cells {
+		if c := r.Cells[i].Cell; (c.X == 8 || c.X == 24 || c.X == 40) && (c.Z == 5 || c.Z == 11) {
+			r.Cells[i].Fertility = domain.Known(0.5)
+		}
+	}
+	plan := PlanFarmSites(r)
+	if !plan.Fallback || plan.Cells < 55 || plan.Module.Height != 5 {
+		t.Fatal(plan.Explain())
+	}
+	corners := map[domain.Cell]bool{}
+	for _, m := range []Rectangle{grid.Module(domain.Cell{X: 3, Z: 3}), grid.Module(domain.Cell{X: 19, Z: 3}), grid.Module(domain.Cell{X: 35, Z: 3})} {
+		for _, sub := range grid.SubCells(m) {
+			corners[domain.Cell{X: sub.X, Z: sub.Z}] = true
+		}
+	}
+	for _, patch := range plan.Patches {
+		if patch.Width > 4 || !corners[domain.Cell{X: patch.X, Z: patch.Z}] {
+			t.Fatal("fallback patch off the sub-cell corners", patch, plan.Explain())
+		}
+	}
+	// With the poor cells only in the upper halves, the lower halves meet
+	// the floor and no fallback engages.
+	r = moduleFarmFixture(50, 20, 20)
+	for i := range r.Cells {
+		if c := r.Cells[i].Cell; (c.X == 8 || c.X == 24 || c.X == 40) && c.Z == 11 {
+			r.Cells[i].Fertility = domain.Known(0.5)
+		}
+	}
+	if plan = PlanFarmSites(r); plan.Fallback || len(plan.Patches) != 1 || plan.Patches[0] != (Rectangle{X: 3, Z: 3, Width: 11, Height: 5}) {
+		t.Fatal(plan.Explain())
 	}
 }
 
