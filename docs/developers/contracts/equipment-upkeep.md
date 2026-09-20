@@ -106,6 +106,15 @@ Stats are Normal-quality values for the specific material; armor multipliers are
 0.6/0.8/1/1.15/1.3/1.45/1.8 and insulation multipliers
 0.8/0.9/1/1.1/1.2/1.5/1.8, Awful through Legendary.
 
+The optional seasonal observation carries 12 outdoor temperatures indexed by native
+Twelfth, the current twelfth and ticks to its next boundary, and at most one
+ColdSnap/HeatWave row with its native temperature offset and remaining ticks
+(-1 for permanent). Loadout scoring covers the current and next two twelfths
+for both cold and heat, retaining current ambient extremes. Weather extends
+the target only over twelfths it overlaps, including beyond the normal lookahead
+when its duration is longer. Missing seasonal fields retain ambient-only scoring.
+The complete product-catalog requirement still applies to modeled loadouts.
+
 Targets cover skin torso, skin legs, middle torso, outer, belt, headgear and
 primary weapon. An exact bounded ensemble search rejects shared layer AND body
 group conflicts and preserves locked items. It scores armor, current ambient

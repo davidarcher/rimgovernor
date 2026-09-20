@@ -4,6 +4,7 @@ import (
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
+	"math"
 )
 
 // gearCandidateBound mirrors NativeGearFacts.CandidateBound.
@@ -12,6 +13,21 @@ const gearCandidateBound = 8
 func validateColonyGear(v *o.GearSnapshot, ctx *c.ObservationContext, size *o.MapSize) error {
 	if v == nil || !proto.Equal(v.Context, ctx) {
 		return contract("gear census context mismatch")
+	}
+	if len(v.OutdoorTemperatureByTwelfthC) != 0 || v.CurrentTwelfth != nil || v.TicksToNextTwelfth != nil || v.ActiveWeather != nil {
+		if len(v.OutdoorTemperatureByTwelfthC) != 12 || v.CurrentTwelfth == nil || v.GetCurrentTwelfth() >= 12 || v.TicksToNextTwelfth == nil || v.GetTicksToNextTwelfth() <= 0 || v.GetTicksToNextTwelfth() > 300000 {
+			return contract("invalid gear seasonal curve")
+		}
+		for _, n := range v.OutdoorTemperatureByTwelfthC {
+			if math.IsNaN(float64(n)) || math.IsInf(float64(n), 0) {
+				return contract("invalid gear seasonal temperature")
+			}
+		}
+		if w := v.ActiveWeather; w != nil {
+			if w.DefName == nil || (w.GetDefName() != "ColdSnap" && w.GetDefName() != "HeatWave") || w.RemainingTicks == nil || w.GetRemainingTicks() < -1 || w.TemperatureOffsetC == nil || math.IsNaN(float64(w.GetTemperatureOffsetC())) || math.IsInf(float64(w.GetTemperatureOffsetC()), 0) || w.GetDefName() == "ColdSnap" && w.GetTemperatureOffsetC() > 0 || w.GetDefName() == "HeatWave" && w.GetTemperatureOffsetC() < 0 {
+				return contract("invalid gear weather condition")
+			}
+		}
 	}
 	if err := colonyCounts(v.Completeness, len(v.Pawns), 256); err != nil {
 		return err

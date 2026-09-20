@@ -106,6 +106,7 @@ type GearOption struct {
 }
 
 type GearLoadoutInput struct {
+	Climate                                      *GearClimate
 	Role                                         GearRoleInput
 	Female, Nudist, Bloodlust, Inhuman, Smithing bool
 	Ambient, ComfortableMin, ComfortableMax      float64
@@ -232,7 +233,8 @@ func gearItemScore(p GearLoadoutInput, o GearOption) float64 {
 	a, i := GearQualityMultipliers(o.Quality)
 	role := DeriveGearRole(p.Role)
 	armor := (o.Sharp*2 + o.Blunt) * a * o.Condition
-	thermal := math.Min(math.Max(0, p.ComfortableMin-p.Ambient), o.Cold*i) + math.Min(math.Max(0, p.Ambient-p.ComfortableMax), o.Heat*i)
+	low, high := p.Climate.TemperatureRange(p.Ambient)
+	thermal := math.Min(math.Max(0, p.ComfortableMin-low), o.Cold*i) + math.Min(math.Max(0, high-p.ComfortableMax), o.Heat*i)
 	score := armor + thermal + o.MoveSpeed*10 - o.Cost*.001
 	switch role {
 	case GearSoldier:
@@ -289,6 +291,9 @@ func gearEnsembleScore(p GearLoadoutInput, items []GearOption) float64 {
 }
 
 func (p GearLoadoutInput) Validate() error {
+	if err := p.Climate.Validate(); err != nil {
+		return err
+	}
 	if len(p.Worn) > 7 || len(p.Options) > 64 {
 		return errors.New("gear loadout exceeds bound")
 	}
@@ -582,6 +587,9 @@ func PlanColonyGear(pawns []GearPawn) ([]GearLoadout, domain.Fact[[]GearDemand],
 		input, known := p.LoadoutModel.Value()
 		if !known {
 			return nil, domain.Unknown[[]GearDemand](), nil
+		}
+		if p.Climate != nil {
+			input.Climate = p.Climate
 		}
 		options := []GearOption{}
 		for _, o := range input.Options {

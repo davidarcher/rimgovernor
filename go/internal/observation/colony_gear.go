@@ -21,9 +21,26 @@ func colonyGear(v *o.ColonyFactsSnapshot) domain.Fact[policy.GearObservation] {
 		row.Candidates = domain.Known(GearCandidateFacts(p))
 		row.Replacements = domain.Known(needs)
 		row.Apparel = GearApparelFacts(p.Equipment)
+		row.Climate = GearClimateFacts(gear)
 		result.Pawns = append(result.Pawns, row)
 	}
 	return domain.Known(result)
+}
+
+// GearClimateFacts maps a validated optional seasonal observation. Older
+// producers omit the entire group, preserving ambient-only policy.
+func GearClimateFacts(gear *o.GearSnapshot) *policy.GearClimate {
+	if gear == nil || len(gear.GetOutdoorTemperatureByTwelfthC()) == 0 {
+		return nil
+	}
+	climate := &policy.GearClimate{CurrentTwelfth: int(gear.GetCurrentTwelfth()), TicksToNextTwelfth: int64(gear.GetTicksToNextTwelfth())}
+	for _, n := range gear.GetOutdoorTemperatureByTwelfthC() {
+		climate.Temperatures = append(climate.Temperatures, float64(n))
+	}
+	if w := gear.GetActiveWeather(); w != nil {
+		climate.Weather = &policy.GearWeather{Definition: w.GetDefName(), RemainingTicks: w.GetRemainingTicks(), TemperatureOffset: float64(w.GetTemperatureOffsetC())}
+	}
+	return climate
 }
 
 // GearCandidateFacts decodes one loadout's loose replacement candidates:

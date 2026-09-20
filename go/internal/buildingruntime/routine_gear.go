@@ -76,6 +76,7 @@ func gearObservationFacts(gear *o.GearSnapshot) policy.GearObservation {
 		row.Candidates = domain.Known(observation.GearCandidateFacts(p))
 		row.Replacements = domain.Known(needs)
 		row.Apparel = observation.GearApparelFacts(p.GetEquipment())
+		row.Climate = observation.GearClimateFacts(gear)
 		result.Pawns = append(result.Pawns, row)
 	}
 	return result

@@ -33,6 +33,7 @@ type GearApparel struct {
 	Groups     []string
 }
 type GearPawn struct {
+	Climate *GearClimate
 	// LoadoutModel is supplied only with a complete eligible product census.
 	// Older native observations continue through the deficit-repair path.
 	LoadoutModel domain.Fact[GearLoadoutInput]
@@ -117,6 +118,9 @@ func (v GearObservation) Validate() error {
 	}
 	seen := map[PawnID]bool{}
 	for _, p := range v.Pawns {
+		if err := p.Climate.Validate(); err != nil {
+			return err
+		}
 		if !foodID(string(p.Pawn)) || !foodID(p.Loadout) || seen[p.Pawn] {
 			return errors.New("invalid gear pawn or loadout")
 		}

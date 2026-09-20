@@ -75,3 +75,31 @@ func TestColonyGearRequiresExactCompleteLoadoutEvidence(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestGearClimateWireValidation(t *testing.T) {
+	for name, mutate := range map[string]func(*o.GearSnapshot){
+		"valid":            func(g *o.GearSnapshot) {},
+		"short curve":      func(g *o.GearSnapshot) { g.OutdoorTemperatureByTwelfthC = g.OutdoorTemperatureByTwelfthC[:11] },
+		"nan":              func(g *o.GearSnapshot) { g.OutdoorTemperatureByTwelfthC[0] = float32(math.NaN()) },
+		"missing phase":    func(g *o.GearSnapshot) { g.CurrentTwelfth = nil },
+		"invalid phase":    func(g *o.GearSnapshot) { g.CurrentTwelfth = proto.Uint32(12) },
+		"missing boundary": func(g *o.GearSnapshot) { g.TicksToNextTwelfth = nil },
+		"missing duration": func(g *o.GearSnapshot) { g.ActiveWeather.RemainingTicks = nil },
+		"invalid duration": func(g *o.GearSnapshot) { g.ActiveWeather.RemainingTicks = proto.Int64(-2) },
+		"wrong sign":       func(g *o.GearSnapshot) { g.ActiveWeather.TemperatureOffsetC = proto.Float32(20) },
+		"unknown weather":  func(g *o.GearSnapshot) { g.ActiveWeather.DefName = proto.String("Rain") },
+	} {
+		t.Run(name, func(t *testing.T) {
+			v := gearColonyFixture(t)
+			g := v.GetPlanning().GetObserved().Gear
+			g.OutdoorTemperatureByTwelfthC = make([]float32, 12)
+			g.CurrentTwelfth, g.TicksToNextTwelfth = proto.Uint32(7), proto.Int32(300000)
+			g.ActiveWeather = &o.GearWeatherCondition{DefName: proto.String("ColdSnap"), RemainingTicks: proto.Int64(60000), TemperatureOffsetC: proto.Float32(-20)}
+			mutate(g)
+			err := ValidateColonyFacts(v, v.Context.Identity)
+			if (err == nil) != (name == "valid") {
+				t.Fatalf("validation: %v", err)
+			}
+		})
+	}
+}
