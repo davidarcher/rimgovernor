@@ -588,7 +588,11 @@ The headless profile's `Prefs.xml` is the player's copy trimmed by
 the interval must stay under ~35791 days or the autosaver's int threshold
 overflows and it saves every tick), run in background, the smallest
 window, no eye candy, and no ModsConfig reset on crash. Pause preferences
-are left alone. That is the last of the #91 speed work.
+are left alone. That is the last of the #91 speed work. The rendered
+profile (`PrepareRendered`, `-headless=false`) gets only `na.RenderedPrefs`:
+a 1280x720 window with `fullscreen` off, because RimWorld reapplies the saved
+resolution and fullscreen preference at startup over the `-screen-*` launch
+arguments, so a player copy saved full screen came up full screen.
 
 Passing evidence follows relevant code, dependencies, inputs and environment,
 not the main HEAD hash. Unrelated main commits, clean cherry-picks and rebases

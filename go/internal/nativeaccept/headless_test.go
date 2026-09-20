@@ -629,6 +629,17 @@ func TestPrepareRenderedRewritesWindowedArgs(t *testing.T) {
 	if joined["-batchmode"] || joined["-nographics"] {
 		t.Fatalf("rendered args must not include batch flags: %v", args)
 	}
+	// The saved prefs override the launch arguments at startup, so the
+	// rendered profile's Prefs.xml must itself say windowed.
+	prefs, err := os.ReadFile(filepath.Join(root, "profile", "Config", "Prefs.xml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"<fullscreen>False</fullscreen>", "<screenWidth>1280</screenWidth>", "<screenHeight>720</screenHeight>"} {
+		if !strings.Contains(string(prefs), want) {
+			t.Fatalf("rendered Prefs.xml missing %s:\n%s", want, prefs)
+		}
+	}
 }
 
 func TestGABSExecutableDefaultsToRelativePath(t *testing.T) {

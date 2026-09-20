@@ -39,6 +39,18 @@ var HeadlessPrefs = map[string]string{
 	"adaptiveTrainingEnabled": "False",
 }
 
+// RenderedPrefs is what a rendered (windowed) profile's Prefs.xml is set to.
+// RimWorld applies the saved resolution and fullscreen preference itself at
+// startup (Prefs.Apply -> Screen.SetResolution), which overrides the
+// -screen-fullscreen 0 / -screen-width / -screen-height launch arguments, so
+// a player Prefs.xml saved full screen at desktop resolution came up full
+// screen whatever the arguments said. Everything else stays the player's.
+var RenderedPrefs = map[string]string{
+	"screenWidth":  "1280",
+	"screenHeight": "720",
+	"fullscreen":   "False",
+}
+
 // TrimPrefs rewrites the Prefs.xml at path with HeadlessPrefs: each element
 // present is replaced in place, each absent one is added before
 // </PrefsData>. Anything else in the file is kept as the player set it.

@@ -706,6 +706,9 @@ func prepareRendered(root string, fixtureOps, expansions []string) (string, erro
 	if err := StageBaselineSave(root); err != nil {
 		return "", err
 	}
+	if err := SetPrefs(filepath.Join(profile, "Config", "Prefs.xml"), RenderedPrefs); err != nil {
+		return "", err
+	}
 	game["args"] = []any{
 		"-savedatafolder=" + profile, "-logFile", filepath.Join(root, "Player.log"),
 		"-screen-fullscreen", "0", "-screen-width", "1280", "-screen-height", "720", "-rimgovernor-pause-on-load",
