@@ -17,11 +17,32 @@ import (
 
 type sleepingNative struct {
 	*routineNative
+	// previews counts placements evaluated; calls counts native hops, so a
+	// batched sweep shows as many previews as cells and one call (#599).
 	previews  int
+	calls     int
 	onPreview func(context.Context, *bridge.BuildingPreview)
 }
 
+func (n *sleepingNative) PreviewBuildings(ctx context.Context, actions []domain.Action, s domain.GenerationSnapshot) ([]bridge.BuildingPreview, bridge.Result, error) {
+	n.calls++
+	out := make([]bridge.BuildingPreview, 0, len(actions))
+	for _, a := range actions {
+		v, _, err := n.previewOne(ctx, a, s)
+		if err != nil {
+			return nil, bridge.Result{}, err
+		}
+		out = append(out, v)
+	}
+	return out, bridge.Result{}, nil
+}
+
 func (n *sleepingNative) PreviewBuilding(ctx context.Context, a domain.Action, s domain.GenerationSnapshot) (bridge.BuildingPreview, bridge.Result, error) {
+	n.calls++
+	return n.previewOne(ctx, a, s)
+}
+
+func (n *sleepingNative) previewOne(ctx context.Context, a domain.Action, s domain.GenerationSnapshot) (bridge.BuildingPreview, bridge.Result, error) {
 	n.previews++
 	b, _ := a.Building()
 	anchor := b.Cell()

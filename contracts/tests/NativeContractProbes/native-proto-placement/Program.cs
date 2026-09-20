@@ -81,8 +81,8 @@ internal static class NativeProtoPlacementProbe
         Assert(Valid(request(row.Replace("}", ",\"stuff\":\"\"}"))), "empty material means default");
         Assert(!Valid("{\"placements\":[" + row + "]}"), "identity required");
         Assert(!Valid(request("")), "empty batch refused");
-        Assert(Valid(request(string.Join(",", Enumerable.Repeat(row, 16)))), "sixteen candidates accepted");
-        Assert(!Valid(request(string.Join(",", Enumerable.Repeat(row, 17)))), "seventeen candidates refused");
+        Assert(Valid(request(string.Join(",", Enumerable.Repeat(row, 64)))), "sixty-four candidates accepted");
+        Assert(!Valid(request(string.Join(",", Enumerable.Repeat(row, 65)))), "sixty-five candidates refused");
         foreach (var missing in new[] { "\"defName\":\"SleepingSpot\",", "\"x\":0,", "\"z\":0,", ",\"rotation\":\"ROTATION_NORTH\"" })
             Assert(!Valid(request(row.Replace(missing, ""))), "required candidate field " + missing);
         Assert(!Valid(request(row.Replace("ROTATION_NORTH", "ROTATION_UNSPECIFIED"))), "zero rotation refused");

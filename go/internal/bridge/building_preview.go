@@ -25,36 +25,73 @@ type BuildingPreview struct {
 // PreviewBuilding binds a single native evaluation to the exact immutable action
 // and authority generation. It neither acquires authority nor reserves resources.
 func (caller *Client) PreviewBuilding(ctx context.Context, action domain.Action, snapshot domain.GenerationSnapshot) (BuildingPreview, Result, error) {
-	if err := snapshot.Validate(); err != nil || snapshot.Native == 0 {
-		return BuildingPreview{}, Result{}, contract("building preview snapshot")
-	}
-	b, ok := action.Building()
-	if !ok {
-		return BuildingPreview{}, Result{}, contract("building action required")
-	}
-	if _, err := domain.NewBuildingAction(action.ID(), b); err != nil {
-		return BuildingPreview{}, Result{}, err
-	}
-	rotation := map[domain.Rotation]p.Rotation{domain.North: p.Rotation_ROTATION_NORTH, domain.East: p.Rotation_ROTATION_EAST, domain.South: p.Rotation_ROTATION_SOUTH, domain.West: p.Rotation_ROTATION_WEST}[b.Rotation()]
-	request := &p.PlacementRequest{
-		Identity:   &c.Identity{ColonyId: proto.String(string(snapshot.Colony)), LoadToken: proto.String(string(snapshot.Load)), MapId: proto.Int32(int32(snapshot.Map))},
-		Placements: []*p.PlacementCandidate{{DefName: proto.String(b.Definition()), Stuff: proto.String(b.Stuff()), X: proto.Int32(b.Cell().X), Z: proto.Int32(b.Cell().Z), Rotation: rotation.Enum()}},
-	}
-	reply, raw, err := caller.PlacementPreviews(ctx, request)
+	previews, raw, err := caller.PreviewBuildings(ctx, []domain.Action{action}, snapshot)
 	if err != nil {
 		return BuildingPreview{}, raw, err
 	}
-	batch := reply.GetBatch()
-	if batch.Context.NativeGeneration == nil || batch.Context.GetNativeGeneration() != uint64(snapshot.Native) {
-		return BuildingPreview{}, raw, contract("building preview generation changed or unavailable")
+	return previews[0], raw, nil
+}
+
+// PreviewBuildings evaluates every action in one native call per
+// PlacementBatchLimit placements (a planner sweeping a shell pays one
+// main-thread hop, not one per cell; #599). Previews come back in action
+// order, each bound to its own action exactly as PreviewBuilding binds one;
+// a failed row fails the whole read. Later chunks of an oversized sweep are
+// separate hops, and each must observe the same native generation.
+func (caller *Client) PreviewBuildings(ctx context.Context, actions []domain.Action, snapshot domain.GenerationSnapshot) ([]BuildingPreview, Result, error) {
+	if err := snapshot.Validate(); err != nil || snapshot.Native == 0 {
+		return nil, Result{}, contract("building preview snapshot")
 	}
-	row := batch.Results[0]
-	if row.GetFailure() != nil {
-		return BuildingPreview{}, raw, failure(row.GetFailure(), raw)
+	if len(actions) == 0 {
+		return nil, Result{}, contract("building preview actions")
 	}
-	evaluation := row.GetEvaluated()
+	rotations := map[domain.Rotation]p.Rotation{domain.North: p.Rotation_ROTATION_NORTH, domain.East: p.Rotation_ROTATION_EAST, domain.South: p.Rotation_ROTATION_SOUTH, domain.West: p.Rotation_ROTATION_WEST}
+	candidates := make([]*p.PlacementCandidate, 0, len(actions))
+	for _, action := range actions {
+		b, ok := action.Building()
+		if !ok {
+			return nil, Result{}, contract("building action required")
+		}
+		if _, err := domain.NewBuildingAction(action.ID(), b); err != nil {
+			return nil, Result{}, err
+		}
+		candidates = append(candidates, &p.PlacementCandidate{DefName: proto.String(b.Definition()), Stuff: proto.String(b.Stuff()), X: proto.Int32(b.Cell().X), Z: proto.Int32(b.Cell().Z), Rotation: rotations[b.Rotation()].Enum()})
+	}
+	out := make([]BuildingPreview, 0, len(actions))
+	var raw Result
+	for start := 0; start < len(actions); start += PlacementBatchLimit {
+		end := min(start+PlacementBatchLimit, len(actions))
+		request := &p.PlacementRequest{
+			Identity:   &c.Identity{ColonyId: proto.String(string(snapshot.Colony)), LoadToken: proto.String(string(snapshot.Load)), MapId: proto.Int32(int32(snapshot.Map))},
+			Placements: candidates[start:end],
+		}
+		reply, result, err := caller.PlacementPreviews(ctx, request)
+		raw = result
+		if err != nil {
+			return nil, raw, err
+		}
+		batch := reply.GetBatch()
+		if batch.Context.NativeGeneration == nil || batch.Context.GetNativeGeneration() != uint64(snapshot.Native) {
+			return nil, raw, contract("building preview generation changed or unavailable")
+		}
+		for index, row := range batch.Results {
+			if row.GetFailure() != nil {
+				return nil, raw, failure(row.GetFailure(), raw)
+			}
+			preview, err := buildingPreviewRow(actions[start+index], snapshot, domain.Tick(batch.Context.GetTick()), row.GetEvaluated())
+			if err != nil {
+				return nil, raw, err
+			}
+			out = append(out, preview)
+		}
+	}
+	return out, raw, nil
+}
+
+// buildingPreviewRow binds one evaluated placement row to its action.
+func buildingPreviewRow(action domain.Action, snapshot domain.GenerationSnapshot, tick domain.Tick, evaluation *p.PlacementEvaluated) (BuildingPreview, error) {
+	b, _ := action.Building()
 	orientation := evaluation.Rotations[0]
-	tick := domain.Tick(batch.Context.GetTick())
 	out := BuildingPreview{Preview: policy.Preview{Action: action, Snapshot: snapshot, Tick: tick}, Stock: policy.StockObservation{Snapshot: snapshot, Tick: tick}}
 	out.Preview.CanPlace = domain.Known(evaluation.GetCanPlace() && orientation.GetAccepted() && evaluation.GetResearchFinished() && evaluation.GetBuildableByPlayer())
 	out.Preview.MadeFromStuff = domain.Known(evaluation.GetMadeFromStuff())
@@ -108,5 +145,5 @@ func (caller *Client) PreviewBuilding(ctx context.Context, action domain.Action,
 		cells = append(cells, claim)
 	}
 	out.Preview.Footprint = domain.Known(cells)
-	return out, raw, nil
+	return out, nil
 }

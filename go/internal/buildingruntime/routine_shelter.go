@@ -131,14 +131,18 @@ func (r *RoutineBuildingPlanner) previewShell(ctx context.Context, snapshot doma
 		if len(perimeter) == 0 {
 			return nil, policy.StockObservation{}, "", ErrControl
 		}
+		ids := make([]domain.ActionID, len(perimeter))
+		for i := range perimeter {
+			ids[i] = domain.ActionID(fmt.Sprintf("%s-%d-%d", snapshot.Plan, candidate, i))
+		}
+		previews, placeable, reason, err := r.previewShellCells(ctx, snapshot, facts, ids, perimeter, check)
+		if err != nil || reason != "" {
+			return nil, policy.StockObservation{}, reason, err
+		}
 		stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
 		var selected []policy.Preview
-		for i, building := range perimeter {
-			preview, placeable, reason, err := r.previewShellCell(ctx, snapshot, facts, domain.ActionID(fmt.Sprintf("%s-%d-%d", snapshot.Plan, candidate, i)), building, check)
-			if err != nil || reason != "" {
-				return nil, policy.StockObservation{}, reason, err
-			}
-			if !placeable {
+		for i, preview := range previews {
+			if !placeable[i] {
 				break
 			}
 			if err := mergeRoutineStock(&stock, preview.Stock, len(selected) == 0); err != nil {
@@ -153,38 +157,69 @@ func (r *RoutineBuildingPlanner) previewShell(ctx context.Context, snapshot doma
 	return nil, policy.StockObservation{}, BuildingMethodNoSpace, nil
 }
 
-// previewShellCell previews one shell placement natively. It reports whether
-// the cell is placeable now; a stale or mismatched preview is ErrControl and
-// an unreadable material scan is the unknown-prerequisite reason.
-func (r *RoutineBuildingPlanner) previewShellCell(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, id domain.ActionID, building domain.Building, check func() error) (bridge.BuildingPreview, bool, RoutineBuildingReason, error) {
+// shellBatchPreviewer is the batched preview a native source may offer: one
+// call for every cell of a ring instead of one hop per cell (#599).
+type shellBatchPreviewer interface {
+	PreviewBuildings(context.Context, []domain.Action, domain.GenerationSnapshot) ([]bridge.BuildingPreview, bridge.Result, error)
+}
+
+// previewShellCells previews every shell placement natively, in one batched
+// call when the source offers it, and reports per cell whether it is
+// placeable now. A stale or mismatched preview is ErrControl and an
+// unreadable material scan is the unknown-prerequisite reason; either ends
+// the sweep, since the ring is only ever admitted whole.
+func (r *RoutineBuildingPlanner) previewShellCells(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, ids []domain.ActionID, buildings []domain.Building, check func() error) ([]bridge.BuildingPreview, []bool, RoutineBuildingReason, error) {
+	if len(ids) != len(buildings) || len(buildings) == 0 {
+		return nil, nil, "", ErrControl
+	}
 	if err := check(); err != nil {
-		return bridge.BuildingPreview{}, false, "", err
+		return nil, nil, "", err
 	}
-	cell := building.Cell()
-	action, err := domain.NewBuildingAction(id, building)
-	if err != nil {
-		return bridge.BuildingPreview{}, false, "", err
+	actions := make([]domain.Action, len(buildings))
+	for i, building := range buildings {
+		action, err := domain.NewBuildingAction(ids[i], building)
+		if err != nil {
+			return nil, nil, "", err
+		}
+		actions[i] = action
 	}
-	preview, _, err := r.native.PreviewBuilding(ctx, action, snapshot)
-	if err != nil {
-		return bridge.BuildingPreview{}, false, "", err
+	var previews []bridge.BuildingPreview
+	if batch, ok := r.native.(shellBatchPreviewer); ok {
+		var err error
+		if previews, _, err = batch.PreviewBuildings(ctx, actions, snapshot); err != nil {
+			return nil, nil, "", err
+		}
+	} else {
+		for _, action := range actions {
+			preview, _, err := r.native.PreviewBuilding(ctx, action, snapshot)
+			if err != nil {
+				return nil, nil, "", err
+			}
+			previews = append(previews, preview)
+		}
 	}
 	if err := check(); err != nil {
-		return bridge.BuildingPreview{}, false, "", err
+		return nil, nil, "", err
 	}
-	v := preview.Preview
-	if v.Action != action || !v.Snapshot.Matches(snapshot) || !v.Tick.FreshFor(facts.Identity.Tick) || !preview.Stock.Snapshot.Matches(snapshot) || !preview.Stock.Tick.FreshFor(facts.Identity.Tick) {
-		return bridge.BuildingPreview{}, false, "", ErrControl
+	if len(previews) != len(actions) {
+		return nil, nil, "", ErrControl
 	}
-	stuff, known := v.MadeFromStuff.Value()
-	if !known || !stuff {
-		return bridge.BuildingPreview{}, false, BuildingMethodUnknown, nil
+	placeable := make([]bool, len(previews))
+	for i, preview := range previews {
+		v := preview.Preview
+		if v.Action != actions[i] || !v.Snapshot.Matches(snapshot) || !v.Tick.FreshFor(facts.Identity.Tick) || !preview.Stock.Snapshot.Matches(snapshot) || !preview.Stock.Tick.FreshFor(facts.Identity.Tick) {
+			return nil, nil, "", ErrControl
+		}
+		stuff, known := v.MadeFromStuff.Value()
+		if !known || !stuff {
+			return nil, nil, BuildingMethodUnknown, nil
+		}
+		footprint, known := v.Footprint.Value()
+		can, canKnown := v.CanPlace.Value()
+		safe, safeKnown := v.SafeToPlace.Value()
+		placeable[i] = known && len(footprint) == 1 && footprint[0] == buildings[i].Cell() && canKnown && can && safeKnown && safe
 	}
-	footprint, known := v.Footprint.Value()
-	can, canKnown := v.CanPlace.Value()
-	safe, safeKnown := v.SafeToPlace.Value()
-	placeable := known && len(footprint) == 1 && footprint[0] == cell && canKnown && can && safeKnown && safe
-	return preview, placeable, "", nil
+	return previews, placeable, "", nil
 }
 
 // shellPlanPrefix names every whole-shell plan a shelter-style planner
@@ -308,8 +343,8 @@ func (r *RoutineBuildingPlanner) adoptShell(ctx context.Context, snapshot domain
 		if r.facilityLadder() && shellEncloses(shapes[best], facts.Rooms) {
 			continue
 		}
-		stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
-		var selected []policy.Preview
+		var ids []domain.ActionID
+		var missing []domain.Building
 		for i, building := range shapes[best] {
 			cell := building.Cell()
 			if standing[cell] == building.Definition() {
@@ -318,25 +353,31 @@ func (r *RoutineBuildingPlanner) adoptShell(ctx context.Context, snapshot domain
 			if _, other := standing[cell]; other || guarded[cell] {
 				return nil, policy.StockObservation{}, BuildingShellBlocked, true, nil
 			}
-			preview, placeable, reason, err := r.previewShellCell(ctx, snapshot, facts, domain.ActionID(fmt.Sprintf("%s-adopt-%d-%d-%d", snapshot.Plan, d, best, i)), building, check)
-			if err != nil {
-				return nil, policy.StockObservation{}, "", false, err
-			}
-			if reason != "" {
-				return nil, policy.StockObservation{}, reason, true, nil
-			}
-			if !placeable {
+			ids = append(ids, domain.ActionID(fmt.Sprintf("%s-adopt-%d-%d-%d", snapshot.Plan, d, best, i)))
+			missing = append(missing, building)
+		}
+		if len(missing) == 0 {
+			// The shell stands whole; nothing to adopt and nothing to site
+			// while it waits on its roof.
+			return nil, policy.StockObservation{}, BuildingShellBlocked, true, nil
+		}
+		previews, placeable, reason, err := r.previewShellCells(ctx, snapshot, facts, ids, missing, check)
+		if err != nil {
+			return nil, policy.StockObservation{}, "", false, err
+		}
+		if reason != "" {
+			return nil, policy.StockObservation{}, reason, true, nil
+		}
+		stock := policy.StockObservation{Snapshot: snapshot, Tick: facts.Identity.Tick}
+		var selected []policy.Preview
+		for i, preview := range previews {
+			if !placeable[i] {
 				return nil, policy.StockObservation{}, BuildingShellBlocked, true, nil
 			}
 			if err := mergeRoutineStock(&stock, preview.Stock, len(selected) == 0); err != nil {
 				return nil, policy.StockObservation{}, "", false, err
 			}
 			selected = append(selected, preview.Preview)
-		}
-		if len(selected) == 0 {
-			// The shell stands whole; nothing to adopt and nothing to site
-			// while it waits on its roof.
-			return nil, policy.StockObservation{}, BuildingShellBlocked, true, nil
 		}
 		return selected, stock, "", true, nil
 	}

@@ -62,8 +62,8 @@ func TestRoutineShelterAdmitsWholeShellWithObservedDoorDependency(t *testing.T) 
 	t.Parallel()
 	r, db, n := shelterFixture(t)
 	result, err := r.Step(context.Background())
-	if err != nil || result.Reason != BuildingMethodAdmitted || n.previews != 32 {
-		t.Fatal(result, err, n.previews)
+	if err != nil || result.Reason != BuildingMethodAdmitted || n.previews != 32 || n.calls != 1 {
+		t.Fatal(result, err, n.previews, n.calls)
 	}
 	plan, err := db.LoadPlan(context.Background(), result.Decision.Goal.Methods[0].Plan)
 	if err != nil || len(plan.Progress) != 32 || len(plan.Admissions) != 32 || len(plan.Spec.Dependencies()) != 31 {
@@ -156,8 +156,8 @@ func TestRoutineShelterNeverCommitsPartialOrUnknownShell(t *testing.T) {
 				r.reviewer.rules = []policy.ResourceRule{{Resource: "WoodLog", Reserve: 1, Spending: policy.Allow}}
 			}
 			result, err := r.Step(context.Background())
-			if (change == "stale" || change == "stale-live") && (!errors.Is(err, ErrControl) || n.previews != 1) {
-				t.Fatal("stale preview did not reach the freshness refusal", result, err, n.previews)
+			if (change == "stale" || change == "stale-live") && (!errors.Is(err, ErrControl) || n.calls != 1) {
+				t.Fatal("stale preview did not reach the freshness refusal", result, err, n.calls)
 			}
 			if err == nil && result.Reason == BuildingMethodAdmitted {
 				t.Fatal("invalid shell admitted", change)
@@ -555,6 +555,11 @@ func (n *adoptingNative) PreviewBuilding(ctx context.Context, a domain.Action, s
 	return n.sleepingNative.PreviewBuilding(ctx, a, s)
 }
 
+func (n *adoptingNative) PreviewBuildings(ctx context.Context, actions []domain.Action, s domain.GenerationSnapshot) ([]bridge.BuildingPreview, bridge.Result, error) {
+	n.last = s
+	return n.sleepingNative.PreviewBuildings(ctx, actions, s)
+}
+
 func TestRoutineShelterReissuesOnlyTheMissingCellsOfAnEarlierShell(t *testing.T) {
 	t.Parallel()
 	r, db, base := shelterFixture(t)
@@ -625,8 +630,8 @@ func TestRoutineShelterReissuesOnlyTheMissingCellsOfAnEarlierShell(t *testing.T)
 	if len(plan.Spec.Dependencies()) != 0 {
 		t.Fatal("walls of an adopted shell must not wait for a door that already stands")
 	}
-	if base.previews != len(got) {
-		t.Fatalf("previews %d, want one per missing cell %d", base.previews, len(got))
+	if base.previews != len(got) || base.calls != 1 {
+		t.Fatalf("previews %d calls %d, want one per missing cell %d in one call", base.previews, base.calls, len(got))
 	}
 }
 

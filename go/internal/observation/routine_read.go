@@ -313,13 +313,14 @@ func (s *routineBracket) readProjectDefinitions(ctx context.Context, id *c.Ident
 	if err != nil {
 		return err
 	}
-	seen := map[string]bool{}
+	census := map[string]bool{}
 	for _, d := range base.Definitions {
-		seen[d.Name] = true
+		census[d.Name] = true
 	}
+	seen := map[string]bool{}
 	missing := []string{}
 	for _, name := range s.definitions {
-		if !seen[name] {
+		if !census[name] && !seen[name] {
 			missing = append(missing, name)
 			seen[name] = true
 		}
@@ -327,7 +328,11 @@ func (s *routineBracket) readProjectDefinitions(ctx context.Context, id *c.Ident
 	if len(missing) == 0 {
 		return nil
 	}
-	reply, receipt, err := s.RoutineSource.ReadColonyFacts(ctx, id, true, missing)
+	// The request carries every name the scheduler's planners pool, so the
+	// planners of one step share one read (#599); only this planner's own
+	// names join its projection.
+	request := DefinitionPoolFrom(ctx).Request(missing, census)
+	reply, receipt, err := s.RoutineSource.ReadColonyFacts(ctx, id, true, request)
 	s.definitionReceipt = receipt
 	if err != nil {
 		return err
@@ -340,15 +345,17 @@ func (s *routineBracket) readProjectDefinitions(ctx context.Context, id *c.Ident
 	if !cachedColonyBoundary(extra.Identity, s.expected, bridge.FactColony) {
 		return ErrChanged
 	}
-	wanted := map[string]bool{}
-	for _, name := range missing {
-		wanted[name] = true
+	requested := map[string]bool{}
+	for _, name := range request {
+		requested[name] = true
 	}
 	for _, d := range extra.Definitions {
-		if !wanted[d.Name] {
+		if !requested[d.Name] {
 			return ErrContract
 		}
-		s.extraDefinitions = append(s.extraDefinitions, d)
+		if seen[d.Name] {
+			s.extraDefinitions = append(s.extraDefinitions, d)
+		}
 	}
 	return nil
 }

@@ -12,9 +12,9 @@ namespace HomeBridge.BridgeTools
         internal const string ToolName = "rimgovernor/placement_preview";
 
         [Tool(ToolName, Title = "Placement preview",
-            Description = "Read ordinary native placement facts for 1..16 ordered candidates in one main-thread turn. request is the official ProtoJSON PlacementRequest string. No orders, clock, camera or god mode effects.")]
+            Description = "Read ordinary native placement facts for 1..64 ordered candidates in one main-thread turn. request is the official ProtoJSON PlacementRequest string. No orders, clock, camera or god mode effects.")]
         public async Task<object> Preview(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            [ToolParameter(Description = "Raw transport value; must be a ProtoJSON PlacementRequest string with exact identity and 1..16 placements.", Required = true)] object? request = null)
+            [ToolParameter(Description = "Raw transport value; must be a ProtoJSON PlacementRequest string with exact identity and 1..64 placements.", Required = true)] object? request = null)
         {
             if (!ProtoBoundary.TryParse(ctx, ToolName, request!, PlacementRequest.Parser, out var parsed, out var failure))
                 return ProtoBoundary.Encode(new PlacementReply { Failure = failure });

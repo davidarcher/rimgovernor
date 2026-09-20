@@ -123,7 +123,7 @@ func decodeFixture(data []byte) (fixture, error) {
 	request := &wire.PlacementRequest{}
 	err = protojson.Unmarshal(append(append([]byte(`{"placements":`), raw...), '}'), request)
 	placements := request.Placements
-	if err != nil || len(placements) < 1 || len(placements) > 16 {
+	if err != nil || len(placements) < 1 || len(placements) > bridge.PlacementBatchLimit {
 		return fixture{}, fmt.Errorf("invalid placement fixture count or ProtoJSON: %v", err)
 	}
 	if len(placements) != len(expected) {

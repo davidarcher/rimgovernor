@@ -6,6 +6,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/facts"
+	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 )
 
@@ -29,6 +30,9 @@ type clockFacts struct {
 	// asks are the step families the last review step's planners asked
 	// for, folded into the next review bundle (#593).
 	asks bridge.BundleStepAsks
+	// definitions pools the project definition names the planners read
+	// beyond the census, so a step reads them once (#599).
+	definitions *observation.DefinitionPool
 }
 
 const clockFactsWatchedMax = 256
@@ -40,7 +44,7 @@ func newClockFacts(cache *bridge.FactCache, store *facts.Store) *clockFacts {
 	if store == nil {
 		store = facts.NewStore()
 	}
-	return &clockFacts{cache: cache, store: store, watched: map[domain.ActionID]domain.ActionKind{}}
+	return &clockFacts{cache: cache, store: store, watched: map[domain.ActionID]domain.ActionKind{}, definitions: observation.NewDefinitionPool()}
 }
 
 // remember keeps the kind of every attempt a window arms; the map is

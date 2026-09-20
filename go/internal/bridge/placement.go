@@ -6,8 +6,12 @@ import (
 	p "github.com/davidarcher/RimGovernor/go/internal/wire/placementpb"
 )
 
+// PlacementBatchLimit is the most placements one placement_preview request
+// carries, matching the native PlacementProtocol bound.
+const PlacementBatchLimit = 64
+
 func validatePlacementRequest(request *p.PlacementRequest) error {
-	if request == nil || len(request.Placements) < 1 || len(request.Placements) > 16 {
+	if request == nil || len(request.Placements) < 1 || len(request.Placements) > PlacementBatchLimit {
 		return contract("placement count")
 	}
 	if len(request.ProtoReflect().GetUnknown()) > 0 {

@@ -596,6 +596,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	// drop what they make stale.
 	cache := bridge.NewChildReadCache(s.facts.cache)
 	call = bridge.WithStepReadCache(call, cache)
+	call = observation.WithDefinitionPool(call, s.facts.definitions)
 	// The round trips that still cross the bridge (cache misses, the
 	// uncacheable reads, writes) are tallied by tool so the cost of the
 	// composition is visible per step: as a debug record beside the cache's

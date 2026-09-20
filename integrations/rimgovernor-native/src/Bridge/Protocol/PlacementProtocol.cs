@@ -14,8 +14,8 @@ namespace HomeBridge.BridgeTools
 
         internal static bool Validate(Wire.PlacementRequest request, out Failure failure)
         {
-            failure = new Failure { Code = FailureCode.InvalidRequest, Detail = "Placement request requires identity and 1..16 complete candidates." };
-            if (request.Identity == null || request.Placements.Count < 1 || request.Placements.Count > 16) return false;
+            failure = new Failure { Code = FailureCode.InvalidRequest, Detail = "Placement request requires identity and 1..64 complete candidates." };
+            if (request.Identity == null || request.Placements.Count < 1 || request.Placements.Count > 64) return false;
             foreach (var row in request.Placements)
                 if (!row.HasDefName || !ProtoBoundary.IsIdentifier(row.DefName) || !row.HasX || !row.HasZ
                     || !row.HasRotation || row.Rotation < Wire.Rotation.North || row.Rotation > Wire.Rotation.All
