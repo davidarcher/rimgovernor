@@ -15,6 +15,27 @@ area. This deliberately excludes supported tunnels as well as unsafe excavations
 eligibility and exact colony/load/map, source identity and coordinates are rechecked
 while paused before designation.
 
+## Material runway and fabrication
+
+Steel, ComponentIndustrial and Plasteel use journaled construction placements and
+completed production batches over at most fifteen game days, with at least one
+day of history. Stock above the reserve and known safe surface ore determine the
+five-day runway deficit; ore remains prospective yield, never spendable stock.
+Unknown consumption or ore keeps the corresponding forecast unknown. At a known
+zero consumption rate, days left is unknown and stock below reserve still raises
+a deficit. These maintenance targets reuse `MaintainResource`. The routines API
+and development panel expose the forecast, including unknown values.
+
+Component fabrication requires a measured component deficit, researched native
+recipe and a suitable bench, staged through the existing workshop prerequisites.
+Each additional component budgets twelve usable steel while retaining the steel
+reserve plus five days of consumption. Prospective ore cannot fund a bill.
+
+The registered nightly cases `production/deepdrill` and `production/components`
+start with research, power, labor and history prepared. They require native stock
+growth backed by drilled-lump depletion or a component bill and steel consumption;
+orders and forecast recovery alone cannot establish production.
+
 ## Go deep-drill planning
 
 A measured Steel or Plasteel runway deficit adds `DeepDrilling`, then

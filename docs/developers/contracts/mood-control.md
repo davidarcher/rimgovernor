@@ -136,7 +136,9 @@ existing facilities are access blockers rather than reasons to duplicate them.
 After Brewing research, ordinary resource production targets twelve Beer and
 twelve SmokeleafJoint, with small hops and smokeleaf plots when climate permits.
 The work planner assigns `RimGovernor social drugs` through Hands and makes it
-the default. This policy permits beer and smokeleaf for joy, disables hard-drug
+the default. Current assignment replaces any available colonist's existing policy,
+including a customized policy; player-policy preservation is not implemented (#495).
+This policy permits beer and smokeleaf for joy, disables hard-drug
 joy, addiction use, scheduled use and inventory stocking. Native readback exposes
 the policy name only when its contents and default assignment match. Recreation
 relief itself still excludes ingestible joy; RimWorld chooses ordinary drug use.

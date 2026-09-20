@@ -553,6 +553,28 @@ colony's forage never blocks the hunt that follows it. A hunt-only food plan is
 planned and admitted while the goal's plant harvests stay open; an open hunt still
 blocks the next hunt, and a second forage waits for the first.
 
+## Raid-point awareness
+
+The native threat section supplies the wealth split, storyteller wealth, current
+raid points, adaptation and difficulty scale; absent or invalid readings remain
+unknown. The colony API and dashboard expose the observed values. These are native
+storyteller inputs, not a prediction of the next raid.
+
+Defense feeds observed raid points into the turret budget: unknown or below 300
+allows two, below 800 allows four, otherwise six. Power, stock, spacing and native
+lines of fire still gate placement. Armed colonists determine firing-line size;
+wealth never lengthens it. `defense/layout-stocked` compares native and projected
+facts before and after tripling a stock bundle and requires more proposed turrets
+with the same armed roster and firing geometry.
+
+When the configured item-wealth share is exceeded, routine trade offers excess
+Steel, Plasteel, Gold, Uranium and Jade while retaining the greatest of the target,
+economic floor and configured minimum. Silver and components are excluded.
+Unknown wealth or a zero share setting adds no wealth-driven surplus. Existing
+target surplus takes precedence and dispatch preserves economic floors;
+`trade/routine-stocked` requires the exact sold quantity and final steel floor.
+[Joiner admission](population-contracts.md) uses its separate optional raid threshold.
+
 ## Bounded combat response
 
 A bounded squad method assigns at least two capable defenders per observed opponent,

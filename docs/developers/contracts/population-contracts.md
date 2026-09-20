@@ -57,6 +57,14 @@ on that map; closing the letter alone is insufficient. Expired, changed and
 unsupported offers are never answered. Without known capacity, letters expire
 through their own native quest timeout.
 
+An optional population raid threshold adds a veto to quest and letter admission:
+when raid points and built defense tiers are known, no firing or turret tier
+stands, and current points plus a conservative 200-point allowance exceed the
+threshold, the joiner is not admitted. Zero disables this veto; unknown threat or
+defense leaves the ordinary capacity answer unchanged. The allowance is not a
+prediction of final raid strength. `quest/wanderer-defense` requires rejection
+without defense and admission after a native firing tier is built and recorded.
+
 Progress observation of a prisoner order reads the pawn's actual custody state, not
 only the setting: `PrisonerEffect.outcome` is `held`, `recruited`, `enslaved`,
 `converted`, `released`, `escaped` or `died`. While held, the order is complete as

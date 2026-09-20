@@ -1050,8 +1050,9 @@ dependency; a row with nothing cached runs its whole chain as one item.
 A finished item's bundles are published back into `-root`, so the next
 item opens on them from whichever worker is free and the next suite or
 `run` starts warm; an item whose producer failed is blocked, not run.
-With warm bundles only the tails run, in parallel, so the suite's wall
-is the longest tail plus a reload rather than the sum of the chains.
+With warm bundles only the tails run; independent cases can use separate workers.
+Stages of one case retain their dependency order. Wall-time savings depend on
+cached stages and available workers; this is not a measured campaign speed guarantee.
 The suite report lists the tails' rows under `cases` (passing, with
 `staged_from`, and named under `staged`), the stage items under
 `stage_runs` and the graph under `stages`; `acceptance why` prints a
