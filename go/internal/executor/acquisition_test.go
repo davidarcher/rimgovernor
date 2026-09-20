@@ -19,6 +19,7 @@ type acquisitionEnvironment struct {
 	// post-dispatch ledger lookup, as boundary.Unadmitted reports it.
 	unadmitted bool
 	onInspect  func()
+	inspectErr error
 	effect     domain.Effect
 }
 
@@ -26,6 +27,9 @@ func (n *acquisitionEnvironment) InspectAcquisition(_ context.Context, target Ta
 	n.inspected++
 	if n.onInspect != nil {
 		n.onInspect()
+	}
+	if n.inspectErr != nil {
+		return AcquisitionInspection{Tick: n.tick}, n.inspectErr
 	}
 	acquisition, _ := target.Action.Acquisition()
 	emergency, _ := policy.NewEmergencySnapshot(target.Snapshot, n.tick, policy.EmergencyFacts{ColonistsComplete: domain.Known(!n.unsafe), ThreatsComplete: domain.Known(true)})
@@ -101,6 +105,27 @@ func acquisitionFixture(t *testing.T) (*fixture, *acquisitionEnvironment) {
 	}
 	return f, n
 }
+func TestAcquisitionPreparedStaleInspectionRequestsFreshRetry(t *testing.T) {
+	f, n := acquisitionFixture(t)
+	n.onInspect = func() {
+		if n.inspected == 2 {
+			n.inspectErr = ErrAcquisitionStale
+		}
+	}
+	result, err := f.run()
+	if !errors.Is(err, ErrHeld) || result.Progress.View().Stage != domain.Prepared || n.allowed != 0 || len(result.Refused) != 1 || result.Refused[0].Reason != policy.StaleFacts {
+		t.Fatal(result, err, n.allowed)
+	}
+	if held, ok := result.Progress.View().FreshHeldReason(); !ok || len(held) != 1 || held[0] != domain.HeldStaleFacts {
+		t.Fatal("missing durable stale inspection reason", held, ok)
+	}
+	n.inspectErr, n.onInspect = nil, nil
+	result, err = f.run()
+	if err != nil || n.allowed != 1 || result.Progress.View().Attempt != 1 {
+		t.Fatal("fresh inspection did not dispatch the prepared action", result, err)
+	}
+}
+
 func TestAcquisitionUnknownReplyReopensAndObservesAfterManual(t *testing.T) {
 	f, n := acquisitionFixture(t)
 	n.uncertain = true

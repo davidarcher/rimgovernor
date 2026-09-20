@@ -88,6 +88,9 @@ namespace HomeBridge.BridgeTools
             harmony.Patch(
                 AccessTools.Method(typeof(InspirationHandler), nameof(InspirationHandler.InspirationHandlerTickInterval)),
                 prefix: new HarmonyMethod(typeof(QuietStoryteller), nameof(SkipInspiration)));
+            harmony.Patch(
+                AccessTools.Method(typeof(Pawn_InteractionsTracker), nameof(Pawn_InteractionsTracker.SocialFightChance)),
+                postfix: new HarmonyMethod(typeof(QuietStoryteller), nameof(QuietSocialFightChance)));
             patched = true;
         }
 
@@ -100,6 +103,15 @@ namespace HomeBridge.BridgeTools
         // own handler, not the storyteller, and its PositiveEvent letter was
         // the one event a quiet colony still delivered mid-raid (#228).
         private static bool SkipInspiration() => !IsQuiet(Find.Storyteller);
+
+        // Social fights roll during pawn interactions, independently of mood
+        // and storyteller incidents. Keep ordinary interactions, but suppress
+        // their random fights in quiet fixtures. Explicitly staged fights still
+        // use StartSocialFight and are unaffected.
+        private static void QuietSocialFightChance(ref float __result)
+        {
+            if (IsQuiet(Find.Storyteller)) __result = 0f;
+        }
     }
 
     // Disposable test setup only (#272). Sets the loaded game's QuietWorld

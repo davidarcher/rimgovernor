@@ -3,11 +3,17 @@ package executor
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	"time"
 )
+
+// ErrAcquisitionStale distinguishes an inspection outrun by the live clock
+// from a target that is currently ineligible. The worker retries stale reads
+// before rotating through the other plans.
+var ErrAcquisitionStale = fmt.Errorf("%w: acquisition inspection is stale", ErrHeld)
 
 type AcquisitionJournal interface {
 	Journal
@@ -163,6 +169,11 @@ func (e *Executor) runAcquisition(ctx context.Context, action domain.Action, p d
 		}
 		var err error
 		inspection, err = e.acquisition.InspectAcquisition(ctx, Target{action, expected})
+		if errors.Is(err, ErrAcquisitionStale) {
+			result.Refused = []policy.Refusal{{Action: v.Action, Reason: policy.StaleFacts}}
+			result.Progress = e.holdRefusal(ctx, v.Plan, v.Action, result.Refused, max(result.Progress.View().Tick, inspection.Tick), result.Progress)
+			return result, err
+		}
 		if err != nil {
 			return result, err
 		}

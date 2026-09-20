@@ -134,11 +134,12 @@ func init() {
 	})
 }
 
-// cumulativeFamilies is the union of the first n stages' families, in first
-// appearance order: a stage's service reviews every earlier goal too.
+// cumulativeFamilies keeps colony naming available throughout the campaign:
+// its delayed modal can open after a stage's service has started. Every stage
+// also reviews the families of every earlier goal.
 func cumulativeFamilies(stages []stage, n int) []string {
-	seen := map[string]bool{}
-	var out []string
+	seen := map[string]bool{"naming": true}
+	out := []string{"naming"}
 	for _, st := range stages[:n] {
 		for _, family := range st.families {
 			if !seen[family] {

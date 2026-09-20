@@ -94,3 +94,27 @@ func TestCampaignDeclaresStages(t *testing.T) {
 		t.Fatalf("stages = %v; want %v", c.Stages, want)
 	}
 }
+
+func TestCampaignKeepsNamingAvailableAcrossStageRestarts(t *testing.T) {
+	stages := campaignStages()
+	for n := 1; n <= len(stages); n++ {
+		families := cumulativeFamilies(stages, n)
+		seen := map[string]bool{}
+		for _, family := range families {
+			if seen[family] {
+				t.Fatalf("stage %s repeats family %s", stages[n-1].name, family)
+			}
+			seen[family] = true
+		}
+		if !seen["naming"] {
+			t.Fatalf("stage %s cannot resolve a delayed naming modal", stages[n-1].name)
+		}
+		for _, st := range stages[:n] {
+			for _, family := range st.families {
+				if !seen[family] {
+					t.Fatalf("stage %s dropped earlier family %s", stages[n-1].name, family)
+				}
+			}
+		}
+	}
+}

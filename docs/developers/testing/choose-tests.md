@@ -506,8 +506,9 @@ a threat letter's pause drops authority but only suspends routine goals
 still open and their held drafts still owned, so a case following a
 routine plan sees the same plan resume, not a successor. An informational
 letter's pause holds nothing there: the next step admits again (#228).
-`test/quiet_storyteller` also stops the pawns' inspiration rolls, the one
-letter source outside the storyteller.
+`test/quiet_storyteller` also stops pawn inspiration rolls and random social
+fights, which originate outside the storyteller. Ordinary interactions and
+explicitly staged social fights remain enabled.
 
 Starts are small by default. `test/configure_debug_start` (in every fixture
 build) arms the next quick start with a map size and planet coverage, and

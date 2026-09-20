@@ -90,7 +90,10 @@ func (b *AcquisitionBoundary) InspectAcquisition(ctx context.Context, target exe
 	// preview's tick anchors the admission and the others must be fresh for
 	// it.
 	if !domain.Tick(v.Context.GetTick()).FreshFor(domain.Tick(read.Context.GetTick())) || !domain.Tick(emergency.Context.GetTick()).Covers(domain.Tick(read.Context.GetTick())) {
-		return out, executor.ErrHeld
+		out.Tick = domain.Tick(v.Context.GetTick())
+		// A retry must not inherit the census that the preview just outran.
+		bridge.StepReadCacheFrom(ctx).Invalidate()
+		return out, executor.ErrAcquisitionStale
 	}
 	out.Current, out.Tick, out.Acquisition, out.SnapshotToken, out.Accepted = current, domain.Tick(v.Context.GetTick()), acquisition, selected.Token, true
 	out.Emergency, err = policy.NewEmergencySnapshot(current, out.Tick, emergency.Facts)

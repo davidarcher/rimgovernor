@@ -52,6 +52,11 @@ detail verbatim, and no Go code parses it. The detail is
 `<Kind> refused: <reason>`; the `apply/refusal` case executes one write per
 kind after moving the world under a token that was valid when read.
 
+An acquisition inspection outrun by the live clock records a stale_facts hold
+and invalidates its cached reads. The worker gives it one immediate fresh retry
+before returning to ordinary backoff. A stale inspection never dispatches a
+write; native ineligibility remains an ordinary hold.
+
 | Kind | Preconditions, in order (the reason text is the rule that failed) |
 | --- | --- |
 | Zone creation (`CreateZone`) | Growing zones, per cell: `cell (x, z) is out of bounds or fogged`, `is not walkable`, `is outside the crop's growing season`, `holds a building, blueprint or frame`, `is already zoned`, `is marked for roof collapse`, `is not fertile enough for the crop`, `is refused by the native growing-zone designator`. Stockpiles, per cell: `fresh free ground required: cell (x, z) is not roofed, walkable, unzoned, empty storage ground`; a filter admitting only things with no deterioration rate (a chunk dump) drops the roof rule and reports `is not walkable, unzoned, empty storage ground`. Then `the map's zone census changed since it was read`. |
