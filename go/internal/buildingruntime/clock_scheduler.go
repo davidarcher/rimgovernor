@@ -55,6 +55,12 @@ type ClockSchedulerConfig struct {
 	// FullStepEvery bounds how long timer steps without a tick advance may
 	// skip the planners; zero means DefaultFullStepEvery.
 	FullStepEvery time.Duration
+	// LivePlanningTicks bounds the live planner wave by pace (#598): when
+	// the previous live step's wall time covers more ticks than this at the
+	// running window's measured pace, a running-window step admits,
+	// reconciles and leaves the Worker's dispatch, and the wave waits for
+	// the stop. Zero means DefaultLivePlanningTicks.
+	LivePlanningTicks domain.Tick
 	// Facts is the cross-step fact cache the scheduler's steps fill and the
 	// worker's writes discard (WorkerConfig.Facts); nil makes a private one.
 	Facts *bridge.FactCache
@@ -213,6 +219,10 @@ type ClockSchedulerResult struct {
 	Watched int
 	// Planners names the catalog planners this step queued, in catalog order.
 	Planners []string
+	// LivePlanning is LivePlanningSkippedPace when a running-window step
+	// that would have planned live left the wave to the stop (#598); empty
+	// otherwise. The scheduler_step row reports it as live_planning.
+	LivePlanning string
 	// Reason is the step reason applied, with TickAdvanced resolved and a
 	// timer promoted to full by FullStepEvery.
 	Reason StepReason
@@ -243,6 +253,10 @@ type ClockScheduler struct {
 	// window, kept across stops so the next window starts with a drift
 	// (seedLiveDrift) instead of the stopped clock's zero.
 	pacePerSecond float64
+	// liveStepWall is the wall time of the last live step (StepLive): what
+	// a live planner wave costs under this process, measured against the
+	// pace (livePlanningPaced, #598). Touched only under the player gate.
+	liveStepWall time.Duration
 	// running is the scheduler's belief that a colony window it admitted
 	// is still running: set by the step that dispatched or observed it,
 	// cleared by the step or poll that saw it stopped. The poll loop holds
@@ -616,6 +630,12 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 			cause = reason.Cause
 		}
 		extra := map[string]any{"cache_hits": stats.Hits, "parent_hits": stats.ParentHits, "running": out.Running, "elapsed_ms": float64(elapsed) / float64(time.Millisecond), "reason": string(cause)}
+		if cause == StepLive {
+			s.liveStepWall = elapsed
+		}
+		if out.LivePlanning != "" {
+			extra["live_planning"] = out.LivePlanning
+		}
 		if reason.Stopped {
 			extra["stop"] = true
 			if !reason.StopAt.IsZero() {
@@ -789,6 +809,16 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		s.running.Store(status.GetRunning() != nil)
 		if status.GetStopping() != nil || !s.livePlanningDue(reason) {
 			clockSchedulerLog("clock already running under our own epoch -> no planners this step")
+			return out, nil
+		}
+		if ticks, paced := s.livePlanningPaced(); paced {
+			// The game outruns the wave: the facts it would plan on go
+			// stale by a fraction of a day before its planners commit,
+			// and the player gate it holds meanwhile keeps the Worker
+			// from dispatching what the last stop admitted (#598). The
+			// wave waits for the stop, one window away at most.
+			out.LivePlanning = LivePlanningSkippedPace
+			clockSchedulerLog("clock running at %.0f ticks/s: the last live step (%s) covers %d ticks, over %d -> planner wave waits for the stop", s.pacePerSecond, s.liveStepWall.Round(time.Millisecond), ticks, s.livePlanningTicks())
 			return out, nil
 		}
 		// The window runs on; plan against the bundle's snapshot (one
@@ -1171,7 +1201,8 @@ func (s *ClockScheduler) livePace(status *k.Status, readAt time.Time) {
 // livePlanningDue reports whether a step that found its own window running
 // plans under it (#243): a wake or full step at once, a timer step when
 // the full-step safety net is due, so a running window costs one planner
-// wave per FullStepEvery rather than one per step.
+// wave per FullStepEvery rather than one per step. Whether the pace lets
+// the wave run is livePlanningPaced.
 func (s *ClockScheduler) livePlanningDue(reason StepReason) bool {
 	if s.config.Routine == nil {
 		return false
@@ -1181,6 +1212,28 @@ func (s *ClockScheduler) livePlanningDue(reason StepReason) bool {
 	}
 	planners, _ := plannerSelection(reason, s.facts.kindOf)
 	return planners
+}
+
+// livePlanningPaced reports whether the running window outruns a live
+// planner wave (#598): the ticks the measured pace covers in the previous
+// live step's wall time, and whether they exceed LivePlanningTicks. It
+// keys on that ratio, not the speed, so a capped Ultrafast (900 ticks/s
+// over a 5 s step is 4.5k ticks) plans live as before, while an uncapped
+// game at 1000+ ticks/s under a 10 s wave does not. Unmeasured (no pace,
+// no live step yet) never skips.
+func (s *ClockScheduler) livePlanningPaced() (domain.Tick, bool) {
+	if s.pacePerSecond <= 0 || s.liveStepWall <= 0 {
+		return 0, false
+	}
+	ticks := domain.Tick(s.pacePerSecond * s.liveStepWall.Seconds())
+	return ticks, ticks > s.livePlanningTicks()
+}
+
+func (s *ClockScheduler) livePlanningTicks() domain.Tick {
+	if s.config.LivePlanningTicks > 0 {
+		return s.config.LivePlanningTicks
+	}
+	return DefaultLivePlanningTicks
 }
 
 // bundleRequest is the step's first bundle: the clock status and the
@@ -1274,6 +1327,15 @@ func bundleFamilies(store *facts.Store, tick int64, known bool) (population, res
 func (s *ClockScheduler) stepReviews(reason StepReason) bool {
 	if s.config.Routine == nil {
 		return false
+	}
+	if s.running.Load() {
+		// Under a window believed running the review is the live wave,
+		// which the pace may hold for the stop (#598): the bundle then
+		// stays the light status read. A window that turns out stopped
+		// reviews on dedicated reads, a heavier step, never a wrong fact.
+		if _, paced := s.livePlanningPaced(); paced {
+			return false
+		}
 	}
 	if reason.Cause == StepTimer {
 		return s.fullStepDue()

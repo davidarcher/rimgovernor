@@ -647,7 +647,15 @@ admitted, since the window already runs and the stop that ends it reviews
 and admits as before. The step reports the `live` cause; a `timer` step
 plans live only when `FullStepEvery` is due, a `wake` or `full` step at
 once, so a running window costs one planner wave per `FullStepEvery`
-rather than one per step.
+rather than one per step. The wave is also bounded by pace (#598): when
+the ticks the window's measured pace covers in the previous `live` step's
+wall time exceed `LivePlanningTicks` (`DefaultLivePlanningTicks`, 6000, a
+tenth of a game day), the step reconciles, admits nothing, leaves the
+worker's dispatch and reports `live_planning=skipped_pace` on its
+`scheduler_step` and `clock_step` rows; the wave waits for the stop, one
+window away at most. The bound keys on the ratio, not the speed: capped
+Ultrafast (900 ticks/s over a 5 s step) plans live, an uncapped game at
+1000+ ticks/s under a 10 s wave does not.
 
 `StepReason.Cause` is `timer`, `wake`, `settled`, `full` or `live`. The planners the
 scheduler queues are the `plannerCatalog` entries `plannerSelection` picks:

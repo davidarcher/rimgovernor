@@ -75,6 +75,59 @@ func TestClockSchedulerReviewsRoutineUnderARunningWindow(t *testing.T) {
 	}
 }
 
+// TestClockSchedulerLivePlanningWaitsForTheStopWhenTheGameOutrunsIt: the
+// live wave is bounded by pace (#598). With the previous live step's wall
+// time covering more than LivePlanningTicks at the measured pace (5000
+// ticks/s over 6 s), a running-window step that would have planned live
+// reviews nothing, asks for the light bundle, and reports
+// live_planning=skipped_pace; at 300 ticks/s the same step plans live as
+// before. The stop still reviews.
+func TestClockSchedulerLivePlanningWaitsForTheStopWhenTheGameOutrunsIt(t *testing.T) {
+	t.Parallel()
+	s, f := schedulerFixture(t)
+	n := schedulerRoutine(t, s, f)
+	first, err := s.Step(context.Background())
+	if err != nil || first.Routine == nil || f.writes != 1 || n.reads != 1 {
+		t.Fatal(first, err, f.writes, n.reads)
+	}
+	s.pacePerSecond, s.liveStepWall = 5000, 6*time.Second
+	if ticks, paced := s.livePlanningPaced(); !paced || ticks != 30000 {
+		t.Fatal(ticks, paced)
+	}
+	if s.stepReviews(StepReason{Cause: StepFull}) || s.bundleRequest(StepReason{Cause: StepFull}).GetColonyFacts() {
+		t.Fatal("a paced step still asks for the review bundle")
+	}
+	skipped, err := s.StepWithReason(context.Background(), StepReason{Cause: StepFull})
+	if err != nil || !skipped.Running || skipped.Routine != nil || n.reads != 1 || skipped.LivePlanning != LivePlanningSkippedPace || skipped.Reason.Cause != StepFull {
+		t.Fatal(skipped, err, n.reads)
+	}
+	s.pacePerSecond = 300
+	if ticks, paced := s.livePlanningPaced(); paced || ticks != 1800 {
+		t.Fatal(ticks, paced)
+	}
+	if !s.stepReviews(StepReason{Cause: StepFull}) {
+		t.Fatal("a capped pace skips the review bundle")
+	}
+	live, err := s.StepWithReason(context.Background(), StepReason{Cause: StepFull})
+	if err != nil || !live.Running || live.Routine == nil || n.reads != 2 || live.LivePlanning != "" || live.Reason.Cause != StepLive || f.writes != 1 {
+		t.Fatal(live, err, n.reads)
+	}
+	if s.liveStepWall <= 0 || s.liveStepWall == 6*time.Second {
+		t.Fatal("the live step did not record its wall time", s.liveStepWall)
+	}
+	// The paced key is a change of outcome the worker logs once more.
+	if clockWorkerKey(skipped, nil) == clockWorkerKey(live, nil) {
+		t.Fatal("skipped_pace does not change the step key")
+	}
+	if err = s.session.Disable(); err != nil {
+		t.Fatal(err)
+	}
+	cleanup, err := s.Step(context.Background())
+	if err != nil || !cleanup.Cleaned || f.pauses != 1 {
+		t.Fatal(cleanup, err)
+	}
+}
+
 func TestClockSchedulerFailedRoutineReadCannotStartWindow(t *testing.T) {
 	t.Parallel()
 	s, f := schedulerFixture(t)

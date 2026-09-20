@@ -39,6 +39,18 @@ const (
 // before one is promoted to a full step.
 const DefaultFullStepEvery = 30 * time.Second
 
+// DefaultLivePlanningTicks is the most ticks a running window may cover in
+// the wall time of one live planner wave before the wave waits for the
+// stop instead (#598): a tenth of a game day, 24 PlanningTickTolerances.
+// Capped Ultrafast (900 ticks/s) over a 5 s step covers 4.5k and plans
+// live; an uncapped game at 1000 ticks/s over a 10 s step covers 10k and
+// waits.
+const DefaultLivePlanningTicks domain.Tick = 6000
+
+// LivePlanningSkippedPace is ClockSchedulerResult.LivePlanning when the
+// live wave waited for the stop because the game outran it (#598).
+const LivePlanningSkippedPace = "skipped_pace"
+
 // StepReason is the evidence one step acts on. The worker fills Cause and
 // the wake fields; the scheduler fills TickAdvanced from its status read and
 // reports the reason it actually applied on ClockSchedulerResult.Reason.

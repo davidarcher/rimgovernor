@@ -244,12 +244,12 @@ func (w *ClockWorker) renewLoop() {
 }
 
 type clockStepKey struct {
-	request, phase, reasons, failure               string
+	request, phase, reasons, failure, livePlanning string
 	failed, running, reconciled, cleaned, deferred bool
 }
 
 func clockWorkerKey(result ClockSchedulerResult, err error) clockStepKey {
-	key := clockStepKey{failed: err != nil, running: result.Running, reconciled: result.Reconciled, cleaned: result.Cleaned, deferred: result.Deferred}
+	key := clockStepKey{failed: err != nil, running: result.Running, reconciled: result.Reconciled, cleaned: result.Cleaned, deferred: result.Deferred, livePlanning: result.LivePlanning}
 	if err != nil {
 		// A different failure is a state change worth one more log line:
 		// otherwise a planner error that follows the routine startup
@@ -288,7 +288,7 @@ func clockWorkerStepEvent(ctx context.Context, result ClockSchedulerResult, err 
 	}
 	slog.Default().Log(ctx, level, message, telemetry.ComponentKey, "clock-worker", telemetry.KindKey, "scheduler_step",
 		"err", err, "planner_failures", failures, "cause", string(result.Reason.Cause), "admitted", result.Decision.Admitted, "running", result.Running,
-		"reconciled", result.Reconciled, "cleaned", result.Cleaned, "deferred", result.Deferred, "combat", result.Combat, "window_ticks", result.Window.Ticks, "repeated", repeats)
+		"reconciled", result.Reconciled, "cleaned", result.Cleaned, "deferred", result.Deferred, "combat", result.Combat, "window_ticks", result.Window.Ticks, "live_planning", result.LivePlanning, "repeated", repeats)
 }
 
 func (w *ClockWorker) stepLoop() {
