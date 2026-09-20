@@ -282,7 +282,7 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 				return fmt.Errorf("service reported %s in a protected fungus room: %v", reason, reasons)
 			}
 		}
-		if err := na.AssertRoutineRunning(service.Get); err != nil {
+		if err := waitRunning(ctx, service.Get, storeWait(service)); err != nil {
 			return err
 		}
 		journal.Close()
@@ -361,7 +361,7 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 				return fmt.Errorf("service reported a lamp build behind an unpowered lamp: %v", reasons)
 			}
 		}
-		if err := na.AssertRoutineRunning(service.Get); err != nil {
+		if err := waitRunning(ctx, service.Get, storeWait(service)); err != nil {
 			return err
 		}
 		journal.Close()
@@ -390,7 +390,7 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 	if err != nil {
 		return err
 	}
-	if err := na.AssertRoutineRunning(service.Get); err != nil {
+	if err := waitRunning(ctx, service.Get, storeWait(service)); err != nil {
 		return err
 	}
 
@@ -488,7 +488,7 @@ func run(ctx context.Context, s cases.Session, scenario string) error {
 	if replacement.method.Plan == lamp.method.Plan {
 		return fmt.Errorf("repair reused the first lamp's plan %s", lamp.method.Plan)
 	}
-	if err := na.AssertRoutineRunning(service.Get); err != nil {
+	if err := waitRunning(ctx, service.Get, storeWait(service)); err != nil {
 		return err
 	}
 	journal.Close()
@@ -790,7 +790,7 @@ func waitLatch(ctx context.Context, s *store.Store, service *na.ServiceProcess, 
 }
 
 func waitRelease(ctx context.Context, s *store.Store, service *na.ServiceProcess, bench string) (store.RoutineReview, error) {
-	review, err := na.WaitReview(ctx, s, storeWait(service), func(r store.RoutineReview) bool { return !latchedOn(r, bench) })
+	review, err := na.WaitReview(ctx, s, storeWait(service), func(r store.RoutineReview) bool { return lightingReleased(r, bench) })
 	if err != nil {
 		return review, fmt.Errorf("review never released the lighting latch on %s (revision %d): %w", bench, review.Revision, err)
 	}
@@ -834,4 +834,24 @@ func stepReasons(stderr string) map[string]int {
 		out[rest]++
 	}
 	return out
+}
+
+// A disabled review after a transport timeout cannot prove measured light.
+// Keep waiting while the case's authority keep-alive resumes the controller.
+func lightingReleased(r store.RoutineReview, bench string) bool {
+	return r.Enabled && !latchedOn(r, bench)
+}
+
+// The case explicitly renews authority; a momentary Manual state is not a
+// terminal failure. Persistent loss still fails within the shared stall budget.
+func waitRunning(ctx context.Context, get na.HTTPGet, w na.Wait) error {
+	var last error
+	err := na.WaitProgress(ctx, w, func(context.Context) (string, bool, error) {
+		last = na.AssertRoutineRunning(get)
+		return "authority", last == nil, nil
+	})
+	if err != nil {
+		return fmt.Errorf("lighting authority recovery: %w (last state: %v)", err, last)
+	}
+	return nil
 }
