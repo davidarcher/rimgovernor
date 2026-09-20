@@ -9,7 +9,7 @@ param(
   [string]$Profile = '',
   [string]$Gabs = '',
   [string]$Config = '',
-  [string]$Game = 'rimgovernor',
+  [string]$Game = '',
   [string]$State = '',
   [string]$Assets = '',
   [switch]$NoBrowser,
@@ -36,6 +36,13 @@ if (!$Gabs) { $Gabs = Join-Path $PSScriptRoot '.rimgovernor/bridge/gabs/gabs-v1.
 if (!$Config) { $Config = Join-Path $PSScriptRoot '.rimgovernor/bridge/config' }
 if (!(Test-Path -LiteralPath $Gabs)) { throw 'Prepare the native bridge profile and GABS first; see docs/players/setup.md.' }
 if (!(Test-Path -LiteralPath (Join-Path $Config 'config.json'))) { throw 'Missing GABS configuration; see docs/players/setup.md.' }
+if (!$Game) {
+  # setup registers the game under one id (rimgovernor-trial); read it from
+  # the configuration instead of guessing, or GABS refuses games_start.
+  $configuredGames = @((Get-Content -LiteralPath (Join-Path $Config 'config.json') -Raw | ConvertFrom-Json).games.PSObject.Properties.Name)
+  if ($configuredGames.Count -ne 1) { throw "Pass -Game; the GABS configuration lists $($configuredGames.Count) games ($($configuredGames -join ', '))." }
+  $Game = $configuredGames[0]
+}
 
 if (!$Assets) { $Assets = Join-Path $PSScriptRoot 'dashboard/dist' }
 if (!(Test-Path -LiteralPath (Join-Path $Assets 'index.html'))) {
