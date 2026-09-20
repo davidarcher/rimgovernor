@@ -149,6 +149,34 @@ Indoor furnishing treats the four orthogonal neighbours of every observed
 doorway (a door, or a door blueprint or frame) as protected: the entrance
 aisle is never a furniture candidate.
 
+## Colony grid
+
+`policy.ColonyGrid` is the shared layout geometry every site search can
+snap to (#605): an origin cell, a pitch and two perpendicular unit axes.
+The pitch is `policy.GridPitch` (16) at every build tier: an 11x11 module
+interior, its two walls and a 3-wide aisle. 11x11 is the largest interior
+the game roofs without a pillar and the lit disc of one sun lamp, and it
+subdivides 5+1+5 into two 5x11 halls or four 5x5 rooms (`SubCells`) with
+the divider walls on the module's own sub-grid; conduits run inside the
+walls, never in the aisle, so power never dictates the pitch. `Camp` simply
+ignores the grid and higher tiers fill module sub-cells. The pure helpers
+are `Snap` (nearest intersection), `OnGridLine` and `CornerError` (a
+rectangle's south-west corner offsets to the nearest lines, C4's penalty
+input), `Aisles`/`AislesWithin` (aisle cells at offsets 13-15 of each pitch
+along either axis) and `District` (a single core district until C6).
+
+`DeriveColonyGrid` fixes the origin at the starter shell's south-west
+exterior corner or, without a recorded starter shell, at the largest wall
+ring's corner in a complete construction census; neither known leaves it
+unknown, and identical inputs give identical grids. The routine review
+(`reviewColonyGrid`) serves the persisted grid on the colony projection
+(`ColonyProjection.ColonyGrid`) and derives one only when the timeline holds
+none; a grid once recorded never moves (persistence:
+[persistence contracts](persistence-contracts.md)). The routines API reports
+it as `colonyGrid` with the map bounds, the dashboard's development panel
+draws the overlay (grid lines and origin marker) and `acceptance why` lists
+the persisted rows.
+
 ## Site selection and development
 
 Site selection compares up to the configured method-attempt limit using native

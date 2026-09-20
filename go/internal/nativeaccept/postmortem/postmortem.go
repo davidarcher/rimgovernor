@@ -83,6 +83,7 @@ func Collect(ctx context.Context, dir string, report map[string]any) Digest {
 	}
 	d.Sections = append(d.Sections, routineReview(ctx, db, storeNote))
 	d.Sections = append(d.Sections, extentEligibility(dir))
+	d.Sections = append(d.Sections, colonyGrid(ctx, db, storeNote))
 	d.Sections = append(d.Sections, unsuccessfulStages(ctx, db, storeNote))
 	d.Sections = append(d.Sections, jobFailures(dir, logs))
 	d.Sections = append(d.Sections, authorityGenerations(ctx, db, storeNote, logs, report))

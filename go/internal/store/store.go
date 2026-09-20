@@ -342,6 +342,9 @@ CREATE TABLE resource_policies(colony TEXT NOT NULL, load_token TEXT NOT NULL, m
 		if err = initializeColonyExtent(ctx, tx); err != nil {
 			return err
 		}
+		if err = initializeColonyGrid(ctx, tx); err != nil {
+			return err
+		}
 		if err = initializeTradeSessions(ctx, tx); err != nil {
 			return err
 		}
@@ -393,6 +396,9 @@ CREATE TABLE resource_policies(colony TEXT NOT NULL, load_token TEXT NOT NULL, m
 		return err
 	}
 	if err = checkColonyExtentSchema(ctx, tx); err != nil {
+		return err
+	}
+	if err = checkColonyGridSchema(ctx, tx); err != nil {
 		return err
 	}
 	if err = checkTradeSessionsSchema(ctx, tx); err != nil {

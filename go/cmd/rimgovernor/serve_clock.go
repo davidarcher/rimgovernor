@@ -61,6 +61,7 @@ func (s serviceRoutineDiagnostics) RoutineStatus(ctx context.Context) (httpapi.R
 	// stays unknown. This does not widen any planner or dispatch surface.
 	if held, ok := facts.Get[observation.ColonyProjection](s.sections, facts.Colony); ok && held.Complete && !held.Stale.Any() {
 		f := held.Value.Facts
+		status.ColonyGrid, status.Bounds = held.Value.ColonyGrid, held.Value.Bounds
 		r := policy.ResourceReachRequest{Bounds: domain.Known(held.Value.Bounds), RaidPoints: f.RaidPoints, Armed: f.Armed}
 		if count, known := f.Hostiles.Value(); known {
 			r.Threat = domain.Known(count > 0)

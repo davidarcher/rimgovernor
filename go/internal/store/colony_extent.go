@@ -244,6 +244,9 @@ func reconcileColonyExtent(ctx context.Context, tx *sql.Tx, s domain.GenerationS
 				return report, err
 			}
 			report.Discarded = int(n)
+			if err = discardColonyGrid(ctx, tx, s, tick); err != nil {
+				return report, err
+			}
 		}
 		if tick < fork {
 			fork = tick

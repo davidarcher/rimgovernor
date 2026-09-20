@@ -49,6 +49,16 @@ paired backups, manifests or archive tables.
   restorable state, not player vetoes. Ownership and the consumer contract:
   [colony extent contract](colony-extent.md).
 
+- **Colony grid.** The layout grid (`store.EstablishColonyGrid`,
+  `ColonyGrid`) is one row per world and timeline segment, sharing the
+  colony extent's segments and reconciliation: a load sees the grid its
+  lineage established at or before each fork, so an older save restores the
+  grid that save knew (or none, and may fix its own), a later save restores
+  its origin segment's grid, another colony or map sees none, and a tick
+  rewind within one load past the grid's tick forgets it. A grid visible
+  through the lineage is never replaced: `EstablishColonyGrid` returns the
+  visible grid and reports nothing established.
+
 ## What is re-derived
 
 Routine goals are re-derived from observation every review. A world change

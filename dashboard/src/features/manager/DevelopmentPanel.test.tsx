@@ -78,3 +78,18 @@ it('retains the last forecast and marks it stale when a refresh fails', async ()
   expect(screen.getByRole('rowheader', {name: 'Steel'})).toBeInTheDocument();
   expect(screen.getByText('2.5')).toBeInTheDocument();
 });
+it('draws the colony grid overlay with its lines and origin', async () => {
+  vi.stubGlobal('fetch', vi.fn(() => reply({reviewsEnabled: true, methodsEnabled: true, resourceRunways: [], activeFamilies: [], lastReviewTick: 500, development: null, roster: null, sections: [], lootHolds: [],
+    colonyGrid: {origin: {x: 40, z: 50}, pitch: 16, axes: [{x: 1, z: 0}, {x: 0, z: 1}], source: 'starter_shell', bounds: {width: 100, height: 80}}})));
+  render(<DevelopmentPanel active/>);
+  await waitFor(() => expect(screen.getByText(/Origin 40, 50 · Pitch 16 · From starter shell/)).toBeInTheDocument());
+  const overlay = screen.getByRole('img', {name: /Colony grid overlay/});
+  expect(overlay.querySelectorAll('[data-grid-line="x"]')).toHaveLength(6);
+  expect(overlay.querySelectorAll('[data-grid-line="z"]')).toHaveLength(5);
+  expect(overlay.querySelector('[data-grid-origin]')).not.toBeNull();
+});
+it('reports a missing colony grid', async () => {
+  vi.stubGlobal('fetch', vi.fn(() => reply({reviewsEnabled: true, methodsEnabled: true, resourceRunways: [], activeFamilies: [], lastReviewTick: 500, development: null, roster: null, sections: [], colonyGrid: null})));
+  render(<DevelopmentPanel active/>);
+  await waitFor(() => expect(screen.getByText('No colony grid has been established yet.')).toBeInTheDocument());
+});

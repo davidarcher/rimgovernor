@@ -64,9 +64,9 @@ type ColonyProjection struct {
 	// with PlayerTechLevel as its floor (#604); unknown until a routine
 	// reading served the research census.
 	BuildTier domain.Fact[policy.BuildTier]
-	// ColonyGrid is the colony's layout grid (#605); unknown until one is
-	// derived or served from the store. At tier >= Masonry its aisles are
-	// protected cells in every site search (#606).
+	// ColonyGrid is the persisted layout grid (#605), served by the routine
+	// review from the journal; unknown until one is established. At tier
+	// >= Masonry its aisles are protected cells in every site search (#606).
 	ColonyGrid domain.Fact[policy.ColonyGrid]
 	Facts      policy.RoutineFacts
 	Workers    domain.Fact[int]

@@ -50,4 +50,12 @@ it('rejects malformed resource runways at the API boundary', () => {
     expect(() => readRoutineStatus(status({resourceRunways: [{...runway, ...extra}]}))).toThrow();
   }
   expect(() => readRoutineStatus(status({resourceRunways: null}))).toThrow();
+});it('reads the colony grid, tolerates loot holds and rejects an inconsistent grid', () => {
+  const grid = {origin: {x: 40, z: 50}, pitch: 16, axes: [{x: 0, z: -1}, {x: 1, z: 0}], source: 'starter_shell', bounds: {width: 250, height: 200}};
+  expect(readRoutineStatus(status({colonyGrid: grid, lootHolds: [{thing: 'Thing_1', definition: 'Steel', x: 1, z: 2, reason: 'reach'}]})).colonyGrid).toEqual(grid);
+  expect(readRoutineStatus(status({colonyGrid: null})).colonyGrid).toBeNull();
+  expect(readRoutineStatus(status()).colonyGrid).toBeNull();
+  for (const bad of [{...grid, pitch: 0}, {...grid, axes: [{x: 1, z: 0}, {x: 1, z: 0}]}, {...grid, axes: [{x: 2, z: 0}, {x: 0, z: 1}]}, {...grid, source: ''}, {...grid, origin: {x: 1}}]) {
+    expect(() => readRoutineStatus(status({colonyGrid: bad}))).toThrow();
+  }
 });

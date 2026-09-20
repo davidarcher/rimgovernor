@@ -1,4 +1,4 @@
-import {type DevelopmentReason, type ResourceRunway} from './routineData';
+import {type ColonyGrid, type DevelopmentReason, type ResourceRunway} from './routineData';
 import {useRoutineStatus} from './useRoutineStatus';
 
 // Deferral reasons as the controller records them; the panel shows evidence,
@@ -12,6 +12,33 @@ const percent = (v: number | null) => v === null ? 'unknown' : `${Math.round(v *
 const number = (v: number | null) => v === null ? 'unknown' : v.toLocaleString(undefined, {maximumFractionDigits: 1});
 const days = (v: number | null, r: ResourceRunway) => v !== null ? number(v) : r.consumptionPerDay === 0 ? 'No observed consumption' : 'unknown';
 const materialName = (resource: string) => resource === 'ComponentIndustrial' ? 'Components' : resource;
+const gridSourceLabels: Record<string, string> = {starter_shell: 'starter shell', largest_room: 'largest room'};
+// gridLines lists the map coordinates of every grid line along one map axis
+// inside a bound: lines pass through the origin's coordinate on that axis
+// every pitch cells, whichever grid axis runs along it.
+export function gridLines(origin: number, pitch: number, bound: number): number[] {
+  const lines: number[] = [];
+  for (let c = origin - Math.floor(origin / pitch) * pitch; c < bound; c += pitch) lines.push(c);
+  return lines;
+}
+// ColonyGridOverlay draws the persisted grid over the map bounds: one line
+// per grid line on each axis and a marker at the origin. Map z grows north,
+// so the drawing flips it to keep south at the bottom.
+export function ColonyGridOverlay({grid}: {grid: ColonyGrid}) {
+  const {width, height} = grid.bounds;
+  if (width === 0 || height === 0) return null;
+  const scale = Math.min(320 / width, 320 / height);
+  const px = (x: number) => x * scale;
+  const pz = (z: number) => (height - z) * scale;
+  const xs = gridLines(grid.origin.x, grid.pitch, width);
+  const zs = gridLines(grid.origin.z, grid.pitch, height);
+  return <svg className="colony-grid-overlay" role="img" aria-label={`Colony grid overlay: ${xs.length} lines across, ${zs.length} lines up, origin at ${grid.origin.x}, ${grid.origin.z}`} viewBox={`0 0 ${px(width)} ${pz(0)}`} width={px(width)} height={pz(0)}>
+    <rect x={0} y={0} width={px(width)} height={pz(0)} fill="none" stroke="currentColor" strokeWidth={1}/>
+    {xs.map(x => <line key={`x${x}`} data-grid-line="x" x1={px(x)} x2={px(x)} y1={0} y2={pz(0)} stroke="currentColor" strokeOpacity={0.35} strokeWidth={0.5}/>)}
+    {zs.map(z => <line key={`z${z}`} data-grid-line="z" x1={0} x2={px(width)} y1={pz(z)} y2={pz(z)} stroke="currentColor" strokeOpacity={0.35} strokeWidth={0.5}/>)}
+    <circle data-grid-origin cx={px(grid.origin.x)} cy={pz(grid.origin.z)} r={3} fill="currentColor"/>
+  </svg>;
+}
 export default function DevelopmentPanel({active}: {active: boolean}) {
   const state = useRoutineStatus(active);
   if (state.hidden) return null;
@@ -34,6 +61,12 @@ export default function DevelopmentPanel({active}: {active: boolean}) {
       {state.value.resourceReach && <p>Resource reach: {state.value.resourceReach.stage} · {state.value.resourceReach.reason}</p>}
       {state.value.extentEligibility.regions.map(r => <p key={r.region}>Region {r.region + 1} · {r.stage} · {r.cells} cells · Origins: {r.origins.join(', ')} · Active facilities: {r.activeFacilities.join(', ') || 'none'} · {r.eligible ? 'Eligible' : r.holdReasons.join(', ')}</p>)}
       <p>Current holds do not erase territory history. Home coverage is managed separately.</p>
+    </section>}
+    {state.value && <section aria-label="Colony grid"><h3>Colony grid</h3>
+      {state.value.colonyGrid ? <>
+        <p>Origin {state.value.colonyGrid.origin.x}, {state.value.colonyGrid.origin.z} · Pitch {state.value.colonyGrid.pitch} · From {gridSourceLabels[state.value.colonyGrid.source] ?? state.value.colonyGrid.source} · Map {state.value.colonyGrid.bounds.width}×{state.value.colonyGrid.bounds.height}</p>
+        <ColonyGridOverlay grid={state.value.colonyGrid}/>
+      </> : <p>No colony grid has been established yet.</p>}
     </section>}
     {state.value && <section aria-label="Material runway"><h3>Material runway</h3>
       {state.value.resourceRunways.length === 0 ? <p>No material runway has been recorded yet.</p> : <>

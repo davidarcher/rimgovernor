@@ -216,6 +216,11 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 	}
 	reading.Sections.Colony.Value.Facts.ConstructionClaims = reading.Projection.Facts.ConstructionClaims
 	reading.Sections.Colony.Value.Facts.OwnedStockpiles = reading.Projection.Facts.OwnedStockpiles
+	if err = r.reviewColonyGrid(ctx, state.Snapshot, &reading.Projection); err != nil {
+		clockSchedulerLog("routine.step: colony grid err=%v", err)
+		return store.RoutineReviewResult{}, err
+	}
+	reading.Sections.Colony.Value.ColonyGrid = reading.Projection.ColonyGrid
 	reading.Projection.Facts.ResourceSurfaceOre = r.resourceSurfaceOre(ctx, state.Snapshot)
 	r.reviewMeals(&reading.Projection)
 	r.reviewReserve(&reading.Projection)
