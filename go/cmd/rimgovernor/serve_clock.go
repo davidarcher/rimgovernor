@@ -58,7 +58,7 @@ func (s serviceRoutineDiagnostics) RoutineStatus(ctx context.Context) (httpapi.R
 	}
 	// Read-only diagnostics: missing complete extent geometry or readiness
 	// stays unknown. This does not widen any planner or dispatch surface.
-	if held, ok := facts.Get[observation.ColonyProjection](s.sections, facts.Colony); ok && held.Complete {
+	if held, ok := facts.Get[observation.ColonyProjection](s.sections, facts.Colony); ok && held.Complete && !held.Stale.Any() {
 		f := held.Value.Facts
 		r := policy.ResourceReachRequest{Bounds: domain.Known(held.Value.Bounds), RaidPoints: f.RaidPoints, Armed: f.Armed}
 		if count, known := f.Hostiles.Value(); known {
@@ -72,6 +72,31 @@ func (s serviceRoutineDiagnostics) RoutineStatus(ctx context.Context) (httpapi.R
 			return httpapi.RoutineStatus{}, err
 		}
 		status.ResourceReach = r
+		id := held.Value.Identity
+		if id.Validate() == nil {
+			history, err := s.journal.EstablishedColonyExtent(ctx, domain.GenerationSnapshot{Colony: id.Colony, Map: id.Map, Load: id.Load, Plan: "extent-diagnostics"}, id.Tick)
+			if err != nil {
+				return httpapi.RoutineStatus{}, err
+			}
+			extent := policy.ColonyExtent{Regions: []policy.ExtentRegion{}}
+			for _, row := range history {
+				extent.Regions = append(extent.Regions, row.Region)
+			}
+			status.ExtentEligibility = policy.ExtentEligibilityRequest{Extent: domain.Known(extent), Threat: r.Threat}
+			buildings, bk := f.CurrentConstruction.Value()
+			zones, zk := f.OwnedStockpiles.Value()
+			if bk && buildings.Colony && zk {
+				ids := []string{}
+				for _, b := range buildings.Buildings {
+					ids = append(ids, b.ID)
+				}
+				for _, z := range zones {
+					ids = append(ids, z.ID)
+				}
+				status.ExtentEligibility.Facilities = domain.Known(ids)
+			}
+			// No region route census is currently held: route_unknown is a hold.
+		}
 	}
 	if review.Revision != 0 {
 		development := review.Development.State()

@@ -111,7 +111,7 @@ func TestCollectReadsEachStepWithEvidence(t *testing.T) {
 	for _, s := range d.Sections {
 		names = append(names, s.Name)
 	}
-	want := []string{"revision", "native refusals (last first)", "routine review", "unsuccessful plan stages", "native job failures", "authority generations", "pooled-job mismatches"}
+	want := []string{"revision", "native refusals (last first)", "routine review", "colony extent", "unsuccessful plan stages", "native job failures", "authority generations", "pooled-job mismatches"}
 	if strings.Join(names, ",") != strings.Join(want, ",") {
 		t.Fatalf("sections = %v", names)
 	}

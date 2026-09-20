@@ -419,6 +419,11 @@ func (p *ServiceProcess) Stop() map[string]any {
 	if p.profile != nil {
 		p.profile.stop(p.Exited() == nil)
 	}
+	// Retain the current read-only routine view before shutting down. API
+	// records the exchange for acceptance why, including unavailable evidence.
+	if p.Exited() == nil {
+		_, _, _ = p.API("GET", "/api/routines", nil, "")
+	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if keep != nil {

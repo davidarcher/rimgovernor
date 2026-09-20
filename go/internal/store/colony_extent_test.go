@@ -36,6 +36,41 @@ func extentRegions(t *testing.T, db *Store, s domain.GenerationSnapshot, tick do
 	return out
 }
 
+func TestExtentEligibilityDoesNotRewritePersistedHistory(t *testing.T) {
+	ctx := context.Background()
+	db, err := Open(ctx, filepath.Join(t.TempDir(), "state.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	w := extentWorld("colony", "load", 1)
+	region := extentRegion("bed", domain.Cell{X: 2, Z: 3})
+	if _, err := db.EstablishColonyExtent(ctx, w, 100, []policy.ExtentRegion{region}); err != nil {
+		t.Fatal(err)
+	}
+	before, err := db.EstablishedColonyExtent(ctx, w, 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := policy.ExtentEligibilityRequest{Extent: domain.Known(policy.ColonyExtent{Regions: []policy.ExtentRegion{before[0].Region}}), Facilities: domain.Known([]string{"bed"}), Threat: domain.Known(false), Regions: map[int]policy.ExtentRegionObservation{0: {RouteObservedPassable: domain.Known(true)}}}
+	if !policy.ExtentEligibility(r).Regions[0].Eligible {
+		t.Fatal("initial region held")
+	}
+	r.Threat = domain.Known(true)
+	if got := policy.ExtentEligibility(r).Regions[0]; got.Eligible || !reflect.DeepEqual(got.HoldReasons, []string{"threat_present"}) {
+		t.Fatal(got)
+	}
+	r.Threat = domain.Known(false)
+	r.Facilities = domain.Known([]string{})
+	if got := policy.ExtentEligibility(r).Regions[0]; got.Eligible || len(got.ActiveFacilities) != 0 || !reflect.DeepEqual(got.HoldReasons, []string{"facility_lost"}) {
+		t.Fatal(got)
+	}
+	after, err := db.EstablishedColonyExtent(ctx, w, 200)
+	if err != nil || !reflect.DeepEqual(before, after) {
+		t.Fatalf("history changed: %v %v", after, err)
+	}
+}
+
 func TestColonyExtentPersistsAcrossReopenWithProvenance(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()

@@ -29,6 +29,12 @@ export default function DevelopmentPanel({active}: {active: boolean}) {
           <td>{row.score.toFixed(1)}</td><td>{percent(row.deficit)}</td><td>{percent(row.risk)}</td><td>{row.waitingSince.toLocaleString()}</td>
         </tr>)}</tbody></table>}
     </>}
+    {state.value?.extentEligibility && <section aria-label="Colony extent"><h3>Colony extent</h3>
+      <p>{state.value.extentEligibility.known ? 'Established territory' : 'Territory unknown'}{state.value.extentEligibility.reason && ` · ${state.value.extentEligibility.reason}`}</p>
+      {state.value.resourceReach && <p>Resource reach: {state.value.resourceReach.stage} · {state.value.resourceReach.reason}</p>}
+      {state.value.extentEligibility.regions.map(r => <p key={r.region}>Region {r.region + 1} · {r.stage} · {r.cells} cells · Origins: {r.origins.join(', ')} · Active facilities: {r.activeFacilities.join(', ') || 'none'} · {r.eligible ? 'Eligible' : r.holdReasons.join(', ')}</p>)}
+      <p>Current holds do not erase territory history. Home coverage is managed separately.</p>
+    </section>}
     {state.value && <section aria-label="Material runway"><h3>Material runway</h3>
       {state.value.resourceRunways.length === 0 ? <p>No material runway has been recorded yet.</p> : <>
         <div className="material-runway-scroll" role="region" aria-label="Material runway details" tabIndex={0}><table className="development-table"><thead><tr><th scope="col">Material</th><th scope="col">Days left</th><th scope="col">Stock-only days</th><th scope="col">Stock</th><th scope="col">Surface ore</th><th scope="col">Consumption/day</th><th scope="col">Reserve</th><th scope="col">Status</th><th scope="col">Target</th><th scope="col">Review</th></tr></thead>

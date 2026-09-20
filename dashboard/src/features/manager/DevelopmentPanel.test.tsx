@@ -9,6 +9,16 @@ const development = {tick: 500, workers: 3, labor: [{work: 'Construction', free:
   {goal: 'maintain-wood', score: 0, deficit: 0.3, risk: 1, waitingSince: 200, selected: false, committed: false, reason: 'risk_deferred', bottleneck: ''},
 ]};
 afterEach(() => {cleanup(); vi.unstubAllGlobals();});
+it('shows territory origins, current holds and resource reach separately', async () => {
+  vi.stubGlobal('fetch', vi.fn(() => reply({reviewsEnabled: true, methodsEnabled: true, resourceRunways: [], activeFamilies: [], lastReviewTick: 500, development: null, roster: null, sections: [],
+    extent: {known: true, regions: 1, cells: 1}, resourceReach: {stage: 'base', reason: 'threat_present'},
+    extentEligibility: {known: true, reason: '', regions: [{region: 0, stage: 'established', cells: 1, origins: ['facility'], facilities: ['bed'], activeFacilities: [], eligible: false, holdReasons: ['threat_present', 'facility_lost', 'route_unknown']}]},
+  })));
+  render(<DevelopmentPanel active/>);
+  await waitFor(() => expect(screen.getByText(/Origins: facility/)).toBeInTheDocument());
+  expect(screen.getByText(/Active facilities: none/)).toHaveTextContent('threat_present, facility_lost, route_unknown');
+  expect(screen.getByText('Resource reach: base · threat_present')).toBeInTheDocument();
+});
 it('renders the recorded ranking with reasons, bottlenecks and labor', async () => {
   vi.stubGlobal('fetch', vi.fn(() => reply({reviewsEnabled: true, methodsEnabled: true, resourceRunways: [], activeFamilies: [], lastReviewTick: 500, development, roster: null, sections: []})));
   render(<DevelopmentPanel active/>);

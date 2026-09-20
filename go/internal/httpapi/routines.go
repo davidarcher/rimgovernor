@@ -27,6 +27,7 @@ type RoutineProvider interface {
 // are the state store's held census sections with the tick each describes
 // (facts.Store, #354), so a live serve shows staleness per section.
 type RoutineStatus struct {
+	ExtentEligibility policy.ExtentEligibilityRequest
 	// ResourceReach holds same-observation inputs; absent facts stay unknown.
 	ResourceReach   policy.ResourceReachRequest
 	ResourceRunways []policy.ResourceRunway
@@ -43,16 +44,17 @@ type RoutineStatus struct {
 }
 
 type routineStatusDTO struct {
-	ResourceReach   policy.ResourceReachDecision `json:"resourceReach"`
-	Extent          routineExtentDTO             `json:"extent"`
-	ResourceRunways []resourceRunwayDTO          `json:"resourceRunways"`
-	ReviewsEnabled  bool                         `json:"reviewsEnabled"`
-	MethodsEnabled  bool                         `json:"methodsEnabled"`
-	ActiveFamilies  []string                     `json:"activeFamilies"`
-	LastReviewTick  *domain.Tick                 `json:"lastReviewTick"`
-	Development     *routineDevelopmentDTO       `json:"development"`
-	Roster          *routineRosterDTO            `json:"roster"`
-	Sections        []routineSectionDTO          `json:"sections"`
+	ExtentEligibility policy.ExtentEligibilityView `json:"extentEligibility"`
+	ResourceReach     policy.ResourceReachDecision `json:"resourceReach"`
+	Extent            routineExtentDTO             `json:"extent"`
+	ResourceRunways   []resourceRunwayDTO          `json:"resourceRunways"`
+	ReviewsEnabled    bool                         `json:"reviewsEnabled"`
+	MethodsEnabled    bool                         `json:"methodsEnabled"`
+	ActiveFamilies    []string                     `json:"activeFamilies"`
+	LastReviewTick    *domain.Tick                 `json:"lastReviewTick"`
+	Development       *routineDevelopmentDTO       `json:"development"`
+	Roster            *routineRosterDTO            `json:"roster"`
+	Sections          []routineSectionDTO          `json:"sections"`
 }
 
 // routineRosterDTO is the roster planner's recorded report: the per-work-type
@@ -181,6 +183,7 @@ func routineStatus(v RoutineStatus) routineStatusDTO {
 	result.ResourceRunways = resourceRunwaysDTO(v.ResourceRunways)
 	result.ResourceReach = policy.ResourceReach(v.ResourceReach)
 	result.Extent = routineExtent(v.ResourceReach.Extent)
+	result.ExtentEligibility = policy.ExtentEligibility(v.ExtentEligibility)
 	for _, section := range v.Sections {
 		result.Sections = append(result.Sections, routineSectionDTO{Section: string(section.Section), Family: string(section.Family), AsOf: section.AsOf, Complete: section.Complete, Source: section.Source, StoredAt: section.StoredAt.UTC().Format(time.RFC3339Nano), Stale: routineStale(section.Stale)})
 	}

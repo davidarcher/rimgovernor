@@ -18,7 +18,9 @@ export type PawnProfile = {pawn: string; age: number; child: boolean; ranged: bo
 export type WorkRoster = {tick: number; coverage: CoverageRow[]; decaying: DecayingRow[]; pawns: PawnProfile[]};
 export type SectionStatus = {section: string; family: string; asOf: number; complete: boolean; source: string; storedAt: string};
 export type ResourceRunway = {resource: string; tick: number; windowDays: number; thresholdDays: number; reserve: number; stock: number | null; surfaceOre: number | null; consumptionPerDay: number | null; stockDays: number | null; daysLeft: number | null; deficit: boolean | null; target: number};
-export type RoutineStatus = {reviewsEnabled: boolean; methodsEnabled: boolean; activeFamilies: string[]; lastReviewTick: number | null; development: Development | null; roster: WorkRoster | null; sections: SectionStatus[]; resourceRunways: ResourceRunway[]};
+export type ExtentRegion = {region: number; stage: string; cells: number; origins: string[]; facilities: string[]; activeFacilities: string[]; eligible: boolean; holdReasons: string[]};
+export type ExtentEligibility = {known: boolean; reason: string; regions: ExtentRegion[]};
+export type RoutineStatus = {reviewsEnabled: boolean; methodsEnabled: boolean; activeFamilies: string[]; lastReviewTick: number | null; development: Development | null; roster: WorkRoster | null; sections: SectionStatus[]; resourceRunways: ResourceRunway[]; resourceReach: {stage: string; reason: string} | null; extentEligibility: ExtentEligibility | null};
 
 function isObject(v: unknown): v is Record<string, unknown> {return typeof v === 'object' && v !== null && !Array.isArray(v);}
 function object(v: unknown, keys: readonly string[]): Record<string, unknown> {if (!isObject(v) || Object.keys(v).length !== keys.length || keys.some(key => !Object.hasOwn(v, key))) throw Error('Invalid routine fields'); return v;}
@@ -77,8 +79,23 @@ function readResourceRunway(value: unknown): ResourceRunway {
   return {resource: id(r.resource), tick: tick(r.tick), windowDays: nonnegative(r.windowDays), thresholdDays: nonnegative(r.thresholdDays), reserve: tick(r.reserve), stock: nullable(r.stock, tick), surfaceOre: nullable(r.surfaceOre, tick), consumptionPerDay: nullable(r.consumptionPerDay, nonnegative), stockDays: nullable(r.stockDays, nonnegative), daysLeft: nullable(r.daysLeft, nonnegative), deficit: nullable(r.deficit, bool), target: tick(r.target)};
 }
 export function readRoutineStatus(value: unknown): RoutineStatus {
-  const v = object(value, ['reviewsEnabled', 'methodsEnabled', 'activeFamilies', 'lastReviewTick', 'development', 'roster', 'sections', 'resourceRunways']);
-  return {reviewsEnabled: bool(v.reviewsEnabled), methodsEnabled: bool(v.methodsEnabled), activeFamilies: list(v.activeFamilies, 256).map(id), lastReviewTick: nullable(v.lastReviewTick, tick), development: nullable(v.development, readDevelopment), roster: nullable(v.roster, readRoster), sections: list(v.sections, 256).map(readSection), resourceRunways: list(v.resourceRunways, 256).map(readResourceRunway)};
+  // Older retained responses predate extent diagnostics.
+  const optional = ['resourceReach', 'extent', 'extentEligibility'].filter(k => isObject(value) && Object.hasOwn(value, k));
+  const v = object(value, ['reviewsEnabled', 'methodsEnabled', 'activeFamilies', 'lastReviewTick', 'development', 'roster', 'sections', 'resourceRunways', ...optional]);
+  let resourceReach = null;
+  if (v.resourceReach !== undefined) {const r = object(v.resourceReach, ['stage', 'reason']); resourceReach = {stage: id(r.stage), reason: text(r.reason)};}
+  if (v.extent !== undefined) {const e = object(v.extent, ['known', 'regions', 'cells']); bool(e.known); count(e.regions); count(e.cells);}
+  let extentEligibility = null;
+  if (v.extentEligibility !== undefined) {
+    const e = object(v.extentEligibility, ['known', 'reason', 'regions']);
+    extentEligibility = {known: bool(e.known), reason: text(e.reason), regions: list(e.regions, 65536).map((item): ExtentRegion => {
+      const r = object(item, ['region', 'stage', 'cells', 'origins', 'facilities', 'activeFacilities', 'eligible', 'holdReasons']);
+      const row = {region: count(r.region), stage: id(r.stage), cells: count(r.cells), origins: list(r.origins, 4).map(id), facilities: list(r.facilities, 65536).map(id), activeFacilities: list(r.activeFacilities, 65536).map(id), eligible: bool(r.eligible), holdReasons: list(r.holdReasons, 16).map(id)};
+      if (row.eligible !== (row.holdReasons.length === 0) || row.activeFacilities.some(f => !row.facilities.includes(f))) throw Error('Inconsistent extent eligibility');
+      return row;
+    })};
+  }
+  return {reviewsEnabled: bool(v.reviewsEnabled), methodsEnabled: bool(v.methodsEnabled), activeFamilies: list(v.activeFamilies, 256).map(id), lastReviewTick: nullable(v.lastReviewTick, tick), development: nullable(v.development, readDevelopment), roster: nullable(v.roster, readRoster), sections: list(v.sections, 256).map(readSection), resourceRunways: list(v.resourceRunways, 256).map(readResourceRunway), resourceReach, extentEligibility};
 }
 export class RoutineHTTPError extends Error {constructor(public status: number, detail: string) {super(detail);}}
 export async function fetchRoutineStatus(signal: AbortSignal): Promise<RoutineStatus> {

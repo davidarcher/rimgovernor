@@ -117,6 +117,23 @@ region and cell counts. Its read-only projection uses held colony facts; complet
 extent geometry and missing readiness (hauler capacity, destination headroom,
 storyteller quietness) stay unknown until their observation producers supply them.
 Unknown extent reports `base` / `extent_unknown` and admits no candidates.
+`policy.ExtentEligibility` overlays current evidence on established history,
+without mutating that history. Per-region diagnostics retain origins and facility
+IDs, list active facilities separately, and report all holds: `threat_present`,
+`threat_unknown`, `facility_lost`, `facilities_unknown`, `route_unknown` or
+`route_impassable`. Losing any supporting facility holds the historical region;
+replacement identities cannot inherit its provenance. Regional safety and routes
+must be observed; missing evidence never grants permission. A map-wide threat
+conservatively holds every region. Recovery clears current holds, not history.
+
+The routines API's `extentEligibility` and the dashboard's Colony extent view
+show established stage, origins, active facilities and hold reasons separately
+from `resourceReach`. The service reads the current timeline's stored history and
+fresh held colony census without writing either. Route evidence remains unknown
+until a producer supplies it. The acceptance harness records `/api/routines`
+before service shutdown; `acceptance why` and postmortems show the latest recorded
+view with its evidence filename. Missing captures are reported as unavailable.
+This view neither paints Home nor changes planner selection or dispatch.
 
 The roof-support preview checks connected existing roof cells within the installed
 native support radius while excluding the specified wall as a holder. It changes
