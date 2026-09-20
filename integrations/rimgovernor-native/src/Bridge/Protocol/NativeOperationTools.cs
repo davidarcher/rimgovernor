@@ -67,6 +67,7 @@ namespace HomeBridge.BridgeTools
         internal readonly Dictionary<Common.AttemptKey, NativeExcavationRecord> Excavation = new Dictionary<Common.AttemptKey, NativeExcavationRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeDeconstructionRecord> Deconstructions = new Dictionary<Common.AttemptKey, NativeDeconstructionRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeWallRemovalRecord> WallRemovals = new Dictionary<Common.AttemptKey, NativeWallRemovalRecord>();
+        internal readonly Dictionary<Common.AttemptKey, NativeSubdueRecord> Subdues = new Dictionary<Common.AttemptKey, NativeSubdueRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeArrestRecord> Arrests = new Dictionary<Common.AttemptKey, NativeArrestRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeHomeCoverageRecord> HomeCoverage = new Dictionary<Common.AttemptKey, NativeHomeCoverageRecord>();
         private NativeOperationState(Common.Identity identity)
@@ -144,6 +145,7 @@ namespace HomeBridge.BridgeTools
             {
                 switch (request.Operation.PawnTargetOrder.Kind)
                 {
+                    case Operations.PawnOrderKind.Subdue: return NativeSubdueOperations.Execute(state, request, context);
                     case Operations.PawnOrderKind.Equip: return NativeEquipOperations.Execute(state, request, context);
                     case Operations.PawnOrderKind.Haul: return NativeHaulOperations.Execute(state, request, context);
                     case Operations.PawnOrderKind.Capture:
@@ -303,6 +305,7 @@ namespace HomeBridge.BridgeTools
                 {
                     switch (parsed.Operation.PawnTargetOrder.Kind)
                     {
+                        case Operations.PawnOrderKind.Subdue: return ProtoBoundary.Encode(NativeSubdueOperations.Preview(parsed.Operation.PawnTargetOrder, context));
                         case Operations.PawnOrderKind.Equip: return ProtoBoundary.Encode(NativeEquipOperations.Preview(parsed.Operation.PawnTargetOrder, context));
                         case Operations.PawnOrderKind.Haul: return ProtoBoundary.Encode(NativeHaulOperations.Preview(parsed.Operation.PawnTargetOrder, context));
                         case Operations.PawnOrderKind.Capture:
@@ -544,6 +547,8 @@ namespace HomeBridge.BridgeTools
                     if (state.Deconstructions.TryGetValue(parsed.Attempt, out var deconstruction))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = deconstruction.Observe(parsed.Attempt, context) }));
                     NativeWallRemovalRecord wallRemoval;
+                    if (state.Subdues.TryGetValue(parsed.Attempt, out var subdue))
+                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = subdue.Observe(parsed.Attempt, context) }));
                     if (state.Arrests.TryGetValue(parsed.Attempt, out var arrest))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = arrest.Observe(parsed.Attempt, context) }));
                     if (state.WallRemovals.TryGetValue(parsed.Attempt, out wallRemoval))

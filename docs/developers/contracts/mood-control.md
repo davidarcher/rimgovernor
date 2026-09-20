@@ -109,3 +109,14 @@ absent when no state is active. Go projects all three as
 including replies from older native builds, leave it unknown. Existing worker
 eligibility continues to use mental-state presence. `pawn/mental-state` uses
 the test-only `test/mental_state_berserk` fixture and verifies both reads.
+
+## Native subdual
+
+PAWN_ORDER_KIND_SUBDUE accepts exact colonist snapshots and an aggressive,
+standing colonist target. It drafts an undrafted responder with an owned claim
+and issues an ordinary AttackMelee job; an existing owned draft is retained.
+Unarmed and melee responders are legal; ranged weapons are refused. The job
+ends when the target is downed or its aggressive break ends. Death is failure,
+never successful containment. Progress requires the same draft claim and order.
+The operation neither changes damage rules nor creates prisoner custody.
+The mood/subdue case covers native refusal, replay and living containment.
