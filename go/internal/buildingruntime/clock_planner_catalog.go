@@ -382,11 +382,15 @@ var plannerCatalog = []plannerEntry{
 	{name: "secureSupplies", priority: plannerFoothold, kinds: []domain.ActionKind{domain.BuildingAction, domain.HaulAction, domain.ZoneCreateAction}, families: factsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.SecureSupplies != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
-			method, err := s.config.SecureSupplies.step(ctx, epoch, arbiter)
+			// Migrated (#622): the planner proposes; the coordinator after
+			// the wave ranks and commits.
+			result, err := s.config.SecureSupplies.propose(ctx, epoch)
 			if err != nil {
 				return err
 			}
-			out.SecureSupplies = &method
+			arbiter.propose("secureSupplies", result, func(outcome ProposalOutcome) {
+				out.SecureSupplies = &RoutineSecureSuppliesResult{Reason: outcome.Reason, Plan: outcome.Plan}
+			})
 			return nil
 		}},
 	{name: "repair", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.RepairAction}, families: factsBuilding,
@@ -473,12 +477,16 @@ var plannerCatalog = []plannerEntry{
 	{name: "haul", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.HaulAction}, families: factsColony,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Haul != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
-			method, err := s.config.Haul.step(ctx, epoch, arbiter)
+			// Migrated (#622): the planner proposes; the coordinator after
+			// the wave ranks and commits.
+			result, err := s.config.Haul.propose(ctx, epoch)
 			if err != nil {
 				return err
 			}
-			clockSchedulerLog("Haul.step result: reason=%v plan=%s", method.Reason, method.Plan)
-			out.Haul = &method
+			arbiter.propose("haul", result, func(outcome ProposalOutcome) {
+				clockSchedulerLog("Haul.step result: reason=%v plan=%s", outcome.Reason, outcome.Plan)
+				out.Haul = &RoutineHaulResult{Reason: outcome.Reason, Plan: outcome.Plan}
+			})
 			return nil
 		}},
 	{name: "gear", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.GearReplaceAction, domain.ApparelPolicyAction, domain.ProductionBillAction}, families: factsMedical,

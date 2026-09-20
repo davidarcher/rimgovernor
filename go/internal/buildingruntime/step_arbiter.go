@@ -15,6 +15,11 @@ type stepArbiter struct {
 	mu        sync.Mutex
 	pawns     map[domain.PawnID]bool
 	resources map[string]bool // namespaced, e.g. "haul-item:<id>", "bench:<id>"
+	// arrivals are the migrated planners' results in the order the wave
+	// delivered them, arbitrated by coordinate once the wave has returned
+	// (#622); shadow records what first arrival would have claimed.
+	arrivals []proposalArrival
+	shadow   *stepArbiter
 }
 
 func newStepArbiter() *stepArbiter {

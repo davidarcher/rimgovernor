@@ -230,6 +230,10 @@ type ClockSchedulerResult struct {
 	Watched int
 	// Planners names the catalog planners this step queued, in catalog order.
 	Planners []string
+	// Proposals are the migrated planners' proposals in the coordinator's
+	// rank order, each admitted with its plan or waiting on the claim a
+	// higher-ranked proposal holds (#622).
+	Proposals []ProposalOutcome
 	// LivePlanning is LivePlanningSkippedPace when a running-window step
 	// that would have planned live left the wave to the stop (#598); empty
 	// otherwise. The scheduler_step row reports it as live_planning.
@@ -1236,10 +1240,23 @@ func (s *ClockScheduler) runPlanners(call, epoch context.Context, out *ClockSche
 	if err = g.Wait(); err != nil {
 		return nil, err
 	}
+	// The migrated planners proposed instead of committing: rank their
+	// proposals by (priority, urgency, ID) against the claims the wave
+	// left on the arbiter and commit the winners (#622). No quantity
+	// budget yet: the admission path beneath each commit checks stock.
+	var commitFailures []error
+	out.Proposals, commitFailures = arbiter.coordinate(call, nil)
+	for _, outcome := range out.Proposals {
+		if outcome.Admitted {
+			clockSchedulerLog("proposal %s admitted plan %s", outcome.Proposal, outcome.Plan)
+		} else {
+			clockSchedulerLog("proposal %s %s: %s", outcome.Proposal, outcome.Reason, outcome.Waiting)
+		}
+	}
 	// A failed planner is reported, not fatal: the step still evaluates the
 	// clock window on what the other planners committed, and the failed
 	// planner retries next step (#62).
-	out.PlannerFailures = g.Failures()
+	out.PlannerFailures = append(g.Failures(), commitFailures...)
 	for _, failure := range out.PlannerFailures {
 		clockSchedulerLog("planner failed (isolated): %v", failure)
 	}

@@ -73,20 +73,33 @@ func (r *RoutineSecureSuppliesPlanner) Step(ctx context.Context) (RoutineSecureS
 const maxSecureSuppliesHaulAttempts = 2
 
 func (r *RoutineSecureSuppliesPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineSecureSuppliesResult, error) {
+	result, err := r.propose(call, epoch)
+	if err != nil || result.Kind != PlanProposed {
+		return RoutineSecureSuppliesResult{Reason: result.Reason}, err
+	}
+	got, err := commitClaimed(call, arbiter, result.Proposal)
+	return RoutineSecureSuppliesResult(got), err
+}
+
+// propose plans one SecureSupplies method without committing it: a direct
+// haul while the item's haul budget lasts, then the covered-storage and
+// supply-room fallbacks. Every read runs here; the returned proposal's
+// commit runs the admission path the step used to run inline (#622).
+func (r *RoutineSecureSuppliesPlanner) propose(call, epoch context.Context) (PlanResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
-		return RoutineSecureSuppliesResult{Reason: BuildingMethodDisabled}, nil
+		return PlanResult{Kind: PlanUnsupported, Reason: BuildingMethodDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0 {
-		return RoutineSecureSuppliesResult{}, ErrControl
+		return PlanResult{}, ErrControl
 	}
 	review, err := p.journal.LoadRoutineReview(call)
 	if err != nil {
-		return RoutineSecureSuppliesResult{}, err
+		return PlanResult{}, err
 	}
 	if !review.Enabled || !review.Snapshot.Matches(state.Snapshot) {
-		return RoutineSecureSuppliesResult{Reason: BuildingMethodNoReview}, nil
+		return PlanResult{Kind: PlanWaiting, Dependency: "routine review", Reason: BuildingMethodNoReview}, nil
 	}
 	var goal store.GoalState
 	found := false
@@ -98,43 +111,43 @@ func (r *RoutineSecureSuppliesPlanner) step(call, epoch context.Context, arbiter
 		}
 	}
 	if err != nil {
-		return RoutineSecureSuppliesResult{}, err
+		return PlanResult{}, err
 	}
 	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit {
-		return RoutineSecureSuppliesResult{Reason: BuildingMethodNoDeficit}, nil
+		return PlanResult{Kind: PlanDemandSatisfied, Reason: BuildingMethodNoDeficit}, nil
 	}
 	// SecureSupplies competes for the same bounded concurrent-project capacity
 	// as comfort/expansion/other priority>=3 autopilot goals; only act while
 	// this review's arbitration actually selected it.
 	if err = cancelStalledHaulMethods(call, p.journal, goal, review.Tick, r.reviewer.policy.HaulStallTicks); err != nil {
-		return RoutineSecureSuppliesResult{}, err
+		return PlanResult{}, err
 	}
 	selected := false
 	for _, row := range review.Development.Rows {
 		selected = selected || row.Goal == policy.SecureSupplies && row.Selected
 	}
 	if !selected {
-		return RoutineSecureSuppliesResult{Reason: BuildingMethodRefused}, nil
+		return PlanResult{Kind: PlanWaiting, Dependency: "development slot", Reason: BuildingMethodRefused}, nil
 	}
 	identity, _, err := r.native.Identity(call)
 	if err != nil {
-		return RoutineSecureSuppliesResult{}, err
+		return PlanResult{}, err
 	}
 	expected, err := observation.DecodeIdentity(identity)
 	if err != nil {
-		return RoutineSecureSuppliesResult{}, err
+		return PlanResult{}, err
 	}
 	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
-		return RoutineSecureSuppliesResult{}, ErrControl
+		return PlanResult{}, ErrControl
 	}
 	started := r.reviewer.clock.Now()
 	reading, err := r.reviewer.observeColony(call, r.native, expected, nil)
 	if err != nil {
-		return RoutineSecureSuppliesResult{}, err
+		return PlanResult{}, err
 	}
 	upkeepReview, err := policy.ReviewUpkeep(reading.Projection.Facts.Upkeep, policy.UpkeepHistory{}, nil)
 	if err != nil {
-		return RoutineSecureSuppliesResult{}, err
+		return PlanResult{}, err
 	}
 	var targetIDs []string
 	for _, need := range upkeepReview.Needs {
@@ -143,12 +156,12 @@ func (r *RoutineSecureSuppliesPlanner) step(call, epoch context.Context, arbiter
 		}
 	}
 	if len(targetIDs) == 0 {
-		return RoutineSecureSuppliesResult{Reason: BuildingMethodUsed}, nil
+		return PlanResult{Kind: PlanDemandSatisfied, Reason: BuildingMethodUsed}, nil
 	}
 	if open, err := cancelStaleHaulMethods(call, p.journal, goal, targetIDs, review.Tick, r.reviewer.policy.HaulStallTicks); err != nil {
-		return RoutineSecureSuppliesResult{}, err
+		return PlanResult{}, err
 	} else if open {
-		return RoutineSecureSuppliesResult{Reason: BuildingMethodExistingWork}, nil
+		return PlanResult{Kind: PlanDemandSatisfied, Reason: BuildingMethodExistingWork}, nil
 	}
 	byID := map[string]policy.UpkeepItem{}
 	if rows, known := reading.Projection.Facts.Upkeep.Items.Value(); known {
@@ -168,14 +181,14 @@ func (r *RoutineSecureSuppliesPlanner) step(call, epoch context.Context, arbiter
 	identityRef := boundary.Identity(state.Snapshot)
 	emergency, _, err := r.native.ReadEmergency(call, identityRef)
 	if err != nil {
-		return RoutineSecureSuppliesResult{}, err
+		return PlanResult{}, err
 	}
 	if _, err = boundary.Context(emergency.Context, state.Snapshot); err != nil || emergency.Context.GetTick() < int64(review.Tick) {
-		return RoutineSecureSuppliesResult{}, ErrControl
+		return PlanResult{}, ErrControl
 	}
 	complete, known := emergency.Facts.ColonistsComplete.Value()
 	if !known || !complete || len(emergency.Facts.Colonists) == 0 {
-		return RoutineSecureSuppliesResult{Reason: BuildingMethodUsed}, nil
+		return PlanResult{Kind: PlanWaiting, Dependency: "colonist census", Reason: BuildingMethodUsed}, nil
 	}
 	ids := make([]string, 0, len(emergency.Facts.Colonists))
 	for _, pawn := range emergency.Facts.Colonists {
@@ -183,25 +196,25 @@ func (r *RoutineSecureSuppliesPlanner) step(call, epoch context.Context, arbiter
 	}
 	reply, _, err := r.native.ReadTendPawns(call, identityRef, ids)
 	if err != nil {
-		return RoutineSecureSuppliesResult{}, err
+		return PlanResult{}, err
 	}
 	observed := reply.GetObserved()
 	if observed == nil {
-		return RoutineSecureSuppliesResult{}, ErrControl
+		return PlanResult{}, ErrControl
 	}
 	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil {
-		return RoutineSecureSuppliesResult{}, ErrControl
+		return PlanResult{}, ErrControl
 	}
 	counts := observed.Completeness
 	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() || counts.Page.GetNextCursor() != "" || counts.Matched == nil || counts.Returned == nil || counts.Unreadable == nil || counts.GetUnreadable() != 0 || counts.GetMatched() != uint64(len(ids)) || counts.GetReturned() != uint64(len(ids)) || len(observed.Pawns) != len(ids) {
-		return RoutineSecureSuppliesResult{}, ErrControl
+		return PlanResult{}, ErrControl
 	}
 	preferences, loadErr := p.journal.LoadWorkPreferences(call, state.Snapshot.Plan)
 	if loadErr != nil && !errors.Is(loadErr, store.ErrNotFound) {
-		return RoutineSecureSuppliesResult{}, loadErr
+		return PlanResult{}, loadErr
 	}
 	if preferences.Revision != review.WorkPreferenceRevision {
-		return RoutineSecureSuppliesResult{}, ErrControl
+		return PlanResult{}, ErrControl
 	}
 	overridden := map[domain.PawnID]bool{}
 	for _, o := range preferences.Overrides {
@@ -213,7 +226,7 @@ func (r *RoutineSecureSuppliesPlanner) step(call, epoch context.Context, arbiter
 	seen := map[string]bool{}
 	for _, row := range observed.Pawns {
 		if row == nil || row.Pawn == nil || seen[row.Pawn.GetId()] {
-			return RoutineSecureSuppliesResult{}, ErrControl
+			return PlanResult{}, ErrControl
 		}
 		seen[row.Pawn.GetId()] = true
 		pawn := domain.PawnID(row.Pawn.GetId())
@@ -224,72 +237,128 @@ func (r *RoutineSecureSuppliesPlanner) step(call, epoch context.Context, arbiter
 		pawns = append(pawns, facts)
 	}
 	item, pawn, ok := policy.SelectSecureSupplies(items, pawns)
-	if ok && !arbiter.tryClaim([]domain.PawnID{pawn}, "haul-item:"+item.ID) {
-		ok = false
-	}
 	if !ok {
-		return RoutineSecureSuppliesResult{Reason: BuildingMethodUsed}, nil
+		return PlanResult{Kind: PlanWaiting, Dependency: "eligible hauler", Reason: BuildingMethodUsed}, nil
 	}
 	haul, err := domain.NewHaul(pawn, item.ID, item.Definition, item.Cell)
 	if err != nil {
-		return RoutineSecureSuppliesResult{}, err
+		return PlanResult{}, err
 	}
 	// Keyed by item and attempt count, not pawn: a fresh attempt after an
 	// interrupted or refused try picks whichever hauler is currently best.
 	prefix := fmt.Sprintf("secure-supplies-%s-", item.ID)
 	attempt, err := haulAttemptCount(call, p.journal, goal, prefix)
 	if err != nil {
-		return RoutineSecureSuppliesResult{}, err
+		return PlanResult{}, err
 	}
 	zonesCompleted, err := completedSecureSuppliesZones(call, p.journal, goal)
 	if err != nil {
-		return RoutineSecureSuppliesResult{}, err
+		return PlanResult{}, err
 	}
 	if attempt >= secureSuppliesHaulBudget(zonesCompleted) {
-		fallback, err := r.coveredStorageFallback(call, epoch, state, goal, reading.Projection, item, started, arbiter)
+		fallback, err := r.coveredStorageFallback(call, epoch, state, goal, reading.Projection, item, started)
 		if err != nil {
-			return RoutineSecureSuppliesResult{}, err
+			return PlanResult{}, err
 		}
-		if fallback.Reason != "" {
+		if fallback.Kind != "" {
 			return fallback, nil
 		}
-		fallback, err = r.supplyRoomFallback(call, epoch, state, goal, reading.Projection, started, arbiter)
+		fallback, err = r.supplyRoomFallback(call, epoch, state, goal, reading.Projection, started)
 		if err != nil {
-			return RoutineSecureSuppliesResult{}, err
+			return PlanResult{}, err
 		}
-		if fallback.Reason != "" {
+		if fallback.Kind != "" {
 			return fallback, nil
 		}
 		// Every route for this item is spent: the direct-haul budget, the
 		// covered-storage zones and the supply room. The slot is no use
 		// to this goal until a new episode, so hand it on (#225).
 		if err = yieldDevelopment(call, p.journal, review, policy.SecureSupplies); err != nil {
-			return RoutineSecureSuppliesResult{}, err
+			return PlanResult{}, err
 		}
-		return RoutineSecureSuppliesResult{Reason: BuildingMethodExhausted}, nil
+		return PlanResult{Kind: PlanWaiting, Dependency: "retry budget", Reason: BuildingMethodExhausted}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
 	id := domain.PlanID(fmt.Sprintf("routine-secure-supplies-%x", digest[:16]))
 	action, err := domain.NewHaulAction(domain.ActionID(fmt.Sprintf("%s-0", id)), haul)
 	if err != nil {
-		return RoutineSecureSuppliesResult{}, err
+		return PlanResult{}, err
 	}
 	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
 	if err != nil {
-		return RoutineSecureSuppliesResult{}, err
+		return PlanResult{}, err
 	}
-	if err = p.current(call, epoch); err != nil {
-		return RoutineSecureSuppliesResult{}, err
+	proposal := r.proposal(id, goal, state, review.Tick, []domain.Action{action}, ResourceClaims{Pawns: []domain.PawnID{pawn}, Entities: []string{"haul-item:" + item.ID}})
+	proposal.commit = func(ctx context.Context) (domain.PlanID, RoutineBuildingReason, error) {
+		if err := p.current(ctx, epoch); err != nil {
+			return "", "", err
+		}
+		elapsed := r.reviewer.clock.Now().Sub(started)
+		if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
+			return "", "", ErrControl
+		}
+		if _, err := p.journal.CommitGoalMethod(ctx, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+			return "", "", err
+		}
+		return id, BuildingMethodAdmitted, nil
 	}
-	elapsed := r.reviewer.clock.Now().Sub(started)
-	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-		return RoutineSecureSuppliesResult{}, ErrControl
+	return PlanResult{Kind: PlanProposed, Proposal: proposal, Reason: BuildingMethodAdmitted}, nil
+}
+
+// proposal is the planner's Proposal for plan id under goal: the wave's
+// foothold priority, the goal's own urgency, and the claims given.
+func (r *RoutineSecureSuppliesPlanner) proposal(id domain.PlanID, goal store.GoalState, state ControlState, tick domain.Tick, actions []domain.Action, claims ResourceClaims) *Proposal {
+	return &Proposal{ID: "secureSupplies/" + string(id), Planner: "secureSupplies", Goal: goal.Goal.ID, Priority: plannerFoothold, Urgency: goal.Goal.Priority, Snapshot: state.Snapshot, Facts: factsBuilding, Claims: claims, ValidTick: tick, Actions: actions}
+}
+
+// previewClaims sums the previews' known costs into quantity claims.
+func previewClaims(previews []policy.Preview) ResourceClaims {
+	totals := map[policy.Resource]int64{}
+	var order []policy.Resource
+	for _, preview := range previews {
+		costs, known := preview.Costs.Value()
+		if !known {
+			continue
+		}
+		for _, cost := range costs {
+			if _, seen := totals[cost.Resource]; !seen {
+				order = append(order, cost.Resource)
+			}
+			totals[cost.Resource] += cost.Count
+		}
 	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
-		return RoutineSecureSuppliesResult{}, err
+	claims := ResourceClaims{}
+	for _, resource := range order {
+		claims.Quantities = append(claims.Quantities, policy.Amount{Resource: resource, Count: totals[resource]})
 	}
-	return RoutineSecureSuppliesResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+	return claims
+}
+
+// admitBuilding is the fallbacks' commit: the shared building admission
+// path, refused when it declines the method.
+func (r *RoutineSecureSuppliesPlanner) admitBuilding(epoch context.Context, state ControlState, started time.Time, request store.BuildingMethodRequest) func(context.Context) (domain.PlanID, RoutineBuildingReason, error) {
+	p := r.reviewer.player
+	return func(ctx context.Context) (domain.PlanID, RoutineBuildingReason, error) {
+		if err := p.current(ctx, epoch); err != nil {
+			return "", "", err
+		}
+		if p.session.State() != state {
+			return "", "", ErrControl
+		}
+		elapsed := r.reviewer.clock.Now().Sub(started)
+		if elapsed < 0 || elapsed > r.reviewer.maxAge {
+			return "", "", ErrControl
+		}
+		decision, err := p.journal.AdmitBuildingMethod(ctx, request)
+		if err != nil {
+			return "", "", err
+		}
+		if !decision.Admitted {
+			return request.Plan.ID(), BuildingMethodRefused, nil
+		}
+		return request.Plan.ID(), BuildingMethodAdmitted, nil
+	}
 }
 
 // secureSuppliesHaulBudget is how many direct hauls of one item the goal
@@ -350,22 +419,22 @@ const maxSecureSuppliesZoneSites = 4
 // this step (no zone budget left, no legal site, every previewed site refused
 // natively, or a stale read) and the caller should try supplyRoomFallback
 // next.
-func (r *RoutineSecureSuppliesPlanner) coveredStorageFallback(call, epoch context.Context, state ControlState, goal store.GoalState, projection observation.ColonyProjection, item policy.UpkeepItem, started time.Time, arbiter *stepArbiter) (RoutineSecureSuppliesResult, error) {
+func (r *RoutineSecureSuppliesPlanner) coveredStorageFallback(call, epoch context.Context, state ControlState, goal store.GoalState, projection observation.ColonyProjection, item policy.UpkeepItem, started time.Time) (PlanResult, error) {
 	p := r.reviewer.player
 	zoneAttempts, err := haulAttemptCount(call, p.journal, goal, secureSuppliesZonePrefix)
 	if err != nil {
-		return RoutineSecureSuppliesResult{}, err
+		return PlanResult{}, err
 	}
 	if zoneAttempts >= maxSecureSuppliesZoneMethods {
-		return RoutineSecureSuppliesResult{}, nil
+		return PlanResult{}, nil
 	}
 	token, known := projection.ZoneMapToken.Value()
 	if !known {
-		return RoutineSecureSuppliesResult{}, nil
+		return PlanResult{}, nil
 	}
 	held, err := p.journal.BuildingReservations(call, state.Snapshot)
 	if err != nil {
-		return RoutineSecureSuppliesResult{}, err
+		return PlanResult{}, err
 	}
 	var protected []domain.Cell
 	for _, h := range held {
@@ -373,10 +442,10 @@ func (r *RoutineSecureSuppliesPlanner) coveredStorageFallback(call, epoch contex
 	}
 	sites, err := policy.CoveredStorageSites(policy.CoveredStorageRequest{Bounds: projection.Bounds, Anchor: layoutAnchor(projection, policy.DistrictStorage), Cells: projection.Cells, Protected: layoutProtected(projection, protected)})
 	if err != nil {
-		return RoutineSecureSuppliesResult{}, err
+		return PlanResult{}, err
 	}
 	if len(sites) == 0 {
-		return RoutineSecureSuppliesResult{}, nil
+		return PlanResult{}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", secureSuppliesZonePrefix, zoneAttempts))
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
@@ -386,41 +455,26 @@ func (r *RoutineSecureSuppliesPlanner) coveredStorageFallback(call, epoch contex
 	snapshot.Revision = 1
 	value, cells, v, err := previewCoveredStorageSites(call, r.native, boundary.Identity(snapshot), token, item.Definition, sites, goal.Goal.ID)
 	if err != nil {
-		return RoutineSecureSuppliesResult{}, err
+		return PlanResult{}, err
 	}
 	if v == nil {
-		return RoutineSecureSuppliesResult{}, nil
+		return PlanResult{}, nil
 	}
 	if _, err = boundary.Context(v.Context, snapshot); err != nil || domain.Tick(v.Context.GetTick()) != projection.Identity.Tick {
-		return RoutineSecureSuppliesResult{}, ErrControl
+		return PlanResult{}, ErrControl
 	}
 	action, err := domain.NewZoneCreateAction(domain.ActionID(fmt.Sprintf("%s-0", id)), value)
 	if err != nil {
-		return RoutineSecureSuppliesResult{}, err
+		return PlanResult{}, err
 	}
 	preview := policy.Preview{Action: action, Snapshot: snapshot, Tick: projection.Identity.Tick, CanPlace: domain.Known(true), SafeToPlace: domain.Known(true), MadeFromStuff: domain.Known(false), WatchCellsAccessible: domain.Known(true), Footprint: domain.Known(cells), Costs: domain.Known([]policy.Amount{})}
 	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
 	if err != nil {
-		return RoutineSecureSuppliesResult{}, err
+		return PlanResult{}, err
 	}
-	if err = p.current(call, epoch); err != nil {
-		return RoutineSecureSuppliesResult{}, err
-	}
-	if p.session.State() != state {
-		return RoutineSecureSuppliesResult{}, ErrControl
-	}
-	elapsed := r.reviewer.clock.Now().Sub(started)
-	if elapsed < 0 || elapsed > r.reviewer.maxAge {
-		return RoutineSecureSuppliesResult{}, ErrControl
-	}
-	decision, err := p.journal.AdmitBuildingMethod(call, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: projection.Identity.Tick, Bounds: domain.Known(projection.Bounds), Stock: policy.StockObservation{Snapshot: snapshot, Tick: projection.Identity.Tick}, Rules: r.reviewer.rules, Previews: []policy.Preview{preview}, Purpose: policy.Routine})
-	if err != nil {
-		return RoutineSecureSuppliesResult{}, err
-	}
-	if !decision.Admitted {
-		return RoutineSecureSuppliesResult{Reason: BuildingMethodRefused}, nil
-	}
-	return RoutineSecureSuppliesResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+	proposal := r.proposal(id, goal, state, projection.Identity.Tick, []domain.Action{action}, previewClaims([]policy.Preview{preview}))
+	proposal.commit = r.admitBuilding(epoch, state, started, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: projection.Identity.Tick, Bounds: domain.Known(projection.Bounds), Stock: policy.StockObservation{Snapshot: snapshot, Tick: projection.Identity.Tick}, Rules: r.reviewer.rules, Previews: []policy.Preview{preview}, Purpose: policy.Routine})
+	return PlanResult{Kind: PlanProposed, Proposal: proposal, Reason: BuildingMethodAdmitted}, nil
 }
 
 // zonePreviewer is the one native read previewCoveredStorageSites needs.
@@ -504,27 +558,27 @@ func secureSuppliesRoomShellPlan(spec domain.PlanSpec) bool {
 // to do" here rather than an interactive skill-blocked error. A zero-value,
 // empty-Reason result means the fallback did not apply this step, and the
 // caller should report its own exhaustion reason instead.
-func (r *RoutineSecureSuppliesPlanner) supplyRoomFallback(call, epoch context.Context, state ControlState, goal store.GoalState, projection observation.ColonyProjection, started time.Time, arbiter *stepArbiter) (RoutineSecureSuppliesResult, error) {
+func (r *RoutineSecureSuppliesPlanner) supplyRoomFallback(call, epoch context.Context, state ControlState, goal store.GoalState, projection observation.ColonyProjection, started time.Time) (PlanResult, error) {
 	p := r.reviewer.player
 	zoneAttempts, err := haulAttemptCount(call, p.journal, goal, secureSuppliesZonePrefix)
 	if err != nil {
-		return RoutineSecureSuppliesResult{}, err
+		return PlanResult{}, err
 	}
 	if zoneAttempts >= maxSecureSuppliesZoneMethods {
-		return RoutineSecureSuppliesResult{}, nil
+		return PlanResult{}, nil
 	}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
 		if err != nil {
-			return RoutineSecureSuppliesResult{}, err
+			return PlanResult{}, err
 		}
 		if secureSuppliesRoomShellPlan(plan.Spec) {
-			return RoutineSecureSuppliesResult{}, nil
+			return PlanResult{}, nil
 		}
 	}
 	held, err := p.journal.BuildingReservations(call, state.Snapshot)
 	if err != nil {
-		return RoutineSecureSuppliesResult{}, err
+		return PlanResult{}, err
 	}
 	var protected []domain.Cell
 	for _, h := range held {
@@ -533,20 +587,20 @@ func (r *RoutineSecureSuppliesPlanner) supplyRoomFallback(call, epoch context.Co
 	wallDef, wok := animalContainmentDefinition(projection.Definitions, "Wall")
 	doorDef, dok := animalContainmentDefinition(projection.Definitions, "Door")
 	if !wok || !dok {
-		return RoutineSecureSuppliesResult{Reason: BuildingMethodUnknown}, nil
+		return PlanResult{Kind: PlanWaiting, Dependency: "wall and door definitions", Reason: BuildingMethodUnknown}, nil
 	}
 	wavail, wak := wallDef.Available.Value()
 	davail, dak := doorDef.Available.Value()
 	if !wak || !dak || !wavail || !davail {
-		return RoutineSecureSuppliesResult{Reason: BuildingMethodUnknown}, nil
+		return PlanResult{Kind: PlanWaiting, Dependency: "wall and door definitions", Reason: BuildingMethodUnknown}, nil
 	}
 	stuff, known := animalContainmentStuff(wallDef, doorDef)
 	if !known {
-		return RoutineSecureSuppliesResult{Reason: BuildingMethodUnknown}, nil
+		return PlanResult{Kind: PlanWaiting, Dependency: "wall and door definitions", Reason: BuildingMethodUnknown}, nil
 	}
 	sites, err := policy.SupplyRoomEnclosureSites(policy.SupplyRoomEnclosureRequest{Bounds: projection.Bounds, Anchor: layoutAnchor(projection, policy.DistrictStorage), Cells: projection.Cells, Protected: layoutProtected(projection, protected)})
 	if err != nil {
-		return RoutineSecureSuppliesResult{}, err
+		return PlanResult{}, err
 	}
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, supplyRoomShellMethod)))
 	planID := domain.PlanID(fmt.Sprintf("routine-supply-room-shell-%x", digest[:16]))
@@ -556,39 +610,23 @@ func (r *RoutineSecureSuppliesPlanner) supplyRoomFallback(call, epoch context.Co
 	for _, room := range sites {
 		actions, previews, stock, reason, err := r.previewSupplyRoomShell(call, snapshot, room, stuff, projection)
 		if err != nil {
-			return RoutineSecureSuppliesResult{}, err
+			return PlanResult{}, err
 		}
 		if reason == BuildingMethodUnknown {
-			return RoutineSecureSuppliesResult{Reason: reason}, nil
+			return PlanResult{Kind: PlanWaiting, Dependency: "shell preview", Reason: reason}, nil
 		}
 		if reason != "" {
 			continue
 		}
 		plan, err := domain.NewPlan(planID, 1, actions)
 		if err != nil {
-			return RoutineSecureSuppliesResult{}, err
+			return PlanResult{}, err
 		}
-		if err = p.current(call, epoch); err != nil {
-			return RoutineSecureSuppliesResult{}, err
-		}
-		if p.session.State() != state {
-			return RoutineSecureSuppliesResult{}, ErrControl
-		}
-		elapsed := r.reviewer.clock.Now().Sub(started)
-		if elapsed < 0 || elapsed > r.reviewer.maxAge {
-			return RoutineSecureSuppliesResult{}, ErrControl
-		}
-		decision, err := p.journal.AdmitBuildingMethod(call, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: supplyRoomShellMethod, Plan: plan, Current: snapshot, Tick: projection.Identity.Tick, Bounds: domain.Known(projection.Bounds), Stock: stock, Rules: r.reviewer.rules, Previews: previews, Purpose: policy.Routine})
-		if err != nil {
-			return RoutineSecureSuppliesResult{}, err
-		}
-		outcome := BuildingMethodRefused
-		if decision.Admitted {
-			outcome = BuildingMethodAdmitted
-		}
-		return RoutineSecureSuppliesResult{Reason: outcome, Plan: planID}, nil
+		proposal := r.proposal(planID, goal, state, projection.Identity.Tick, actions, previewClaims(previews))
+		proposal.commit = r.admitBuilding(epoch, state, started, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: supplyRoomShellMethod, Plan: plan, Current: snapshot, Tick: projection.Identity.Tick, Bounds: domain.Known(projection.Bounds), Stock: stock, Rules: r.reviewer.rules, Previews: previews, Purpose: policy.Routine})
+		return PlanResult{Kind: PlanProposed, Proposal: proposal, Reason: BuildingMethodAdmitted}, nil
 	}
-	return RoutineSecureSuppliesResult{Reason: BuildingMethodNoSpace}, nil
+	return PlanResult{Kind: PlanWaiting, Dependency: "supply room site", Reason: BuildingMethodNoSpace}, nil
 }
 
 // previewSupplyRoomShell previews one candidate room's full 6x6 perimeter

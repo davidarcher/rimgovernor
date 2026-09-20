@@ -64,20 +64,46 @@ func (r *RoutineHaulPlanner) Step(ctx context.Context) (RoutineHaulResult, error
 // > 0 for SecureSupplies), so the two planners never race over the same
 // real-world item.
 func (r *RoutineHaulPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineHaulResult, error) {
-	p := r.reviewer.player
-	state := p.session.State()
-	if !state.Enabled {
-		return RoutineHaulResult{Reason: BuildingMethodDisabled}, nil
+	result, err := r.propose(call, epoch)
+	if err != nil || result.Kind != PlanProposed {
+		return RoutineHaulResult{Reason: result.Reason}, err
 	}
-	if !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0 {
-		return RoutineHaulResult{}, ErrControl
+	return commitClaimed(call, arbiter, result.Proposal)
+}
+
+// commitClaimed is the first-arrival path a migrated planner keeps for its
+// own Step(): claim the proposal's pawns and entities on arbiter and commit
+// at once. The clock step never takes it; there the coordinator ranks the
+// wave's proposals first (#622).
+func commitClaimed(call context.Context, arbiter *stepArbiter, proposal *Proposal) (RoutineHaulResult, error) {
+	if !arbiter.tryClaim(proposal.Claims.Pawns, proposal.Claims.Entities...) {
+		return RoutineHaulResult{Reason: BuildingMethodUsed}, nil
 	}
-	review, err := p.journal.LoadRoutineReview(call)
+	plan, reason, err := proposal.commit(call)
 	if err != nil {
 		return RoutineHaulResult{}, err
 	}
+	return RoutineHaulResult{Reason: reason, Plan: plan}, nil
+}
+
+// propose plans one MaintainStorage haul without committing it: every read
+// and selection runs here, and the returned proposal's commit runs the
+// admission path the step used to run inline (#622).
+func (r *RoutineHaulPlanner) propose(call, epoch context.Context) (PlanResult, error) {
+	p := r.reviewer.player
+	state := p.session.State()
+	if !state.Enabled {
+		return PlanResult{Kind: PlanUnsupported, Reason: BuildingMethodDisabled}, nil
+	}
+	if !state.ObservationKnown || state.Snapshot.Validate() != nil || state.Snapshot.Native == 0 {
+		return PlanResult{}, ErrControl
+	}
+	review, err := p.journal.LoadRoutineReview(call)
+	if err != nil {
+		return PlanResult{}, err
+	}
 	if !review.Enabled || !review.Snapshot.Matches(state.Snapshot) {
-		return RoutineHaulResult{Reason: BuildingMethodNoReview}, nil
+		return PlanResult{Kind: PlanWaiting, Dependency: "routine review", Reason: BuildingMethodNoReview}, nil
 	}
 	var goal store.GoalState
 	found := false
@@ -89,10 +115,10 @@ func (r *RoutineHaulPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		}
 	}
 	if err != nil {
-		return RoutineHaulResult{}, err
+		return PlanResult{}, err
 	}
 	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit {
-		return RoutineHaulResult{Reason: BuildingMethodNoDeficit}, nil
+		return PlanResult{Kind: PlanDemandSatisfied, Reason: BuildingMethodNoDeficit}, nil
 	}
 	// MaintainStorage competes for the same bounded concurrent-project
 	// capacity as comfort/expansion/other priority>=3 autopilot goals; only
@@ -103,34 +129,34 @@ func (r *RoutineHaulPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	// cycle after admission, instead of recognizing it as existing work --
 	// stalling completion and never letting the clock settle (issue #42).
 	if err = cancelStalledHaulMethods(call, p.journal, goal, review.Tick, r.reviewer.policy.HaulStallTicks); err != nil {
-		return RoutineHaulResult{}, err
+		return PlanResult{}, err
 	}
 	selected := false
 	for _, row := range review.Development.Rows {
 		selected = selected || row.Goal == policy.MaintainStorage && row.Selected
 	}
 	if !selected {
-		return RoutineHaulResult{Reason: BuildingMethodRefused}, nil
+		return PlanResult{Kind: PlanWaiting, Dependency: "development slot", Reason: BuildingMethodRefused}, nil
 	}
 	identity, _, err := r.native.Identity(call)
 	if err != nil {
-		return RoutineHaulResult{}, err
+		return PlanResult{}, err
 	}
 	expected, err := observation.DecodeIdentity(identity)
 	if err != nil {
-		return RoutineHaulResult{}, err
+		return PlanResult{}, err
 	}
 	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
-		return RoutineHaulResult{}, ErrControl
+		return PlanResult{}, ErrControl
 	}
 	started := r.reviewer.clock.Now()
 	reading, err := r.reviewer.observeColony(call, r.native, expected, nil)
 	if err != nil {
-		return RoutineHaulResult{}, err
+		return PlanResult{}, err
 	}
 	upkeepReview, err := policy.ReviewUpkeep(reading.Projection.Facts.Upkeep, policy.UpkeepHistory{}, nil)
 	if err != nil {
-		return RoutineHaulResult{}, err
+		return PlanResult{}, err
 	}
 	var targetIDs []string
 	for _, need := range upkeepReview.Needs {
@@ -139,12 +165,12 @@ func (r *RoutineHaulPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		}
 	}
 	if len(targetIDs) == 0 {
-		return RoutineHaulResult{Reason: BuildingMethodUsed}, nil
+		return PlanResult{Kind: PlanDemandSatisfied, Reason: BuildingMethodUsed}, nil
 	}
 	if open, err := cancelStaleHaulMethods(call, p.journal, goal, targetIDs, review.Tick, r.reviewer.policy.HaulStallTicks); err != nil {
-		return RoutineHaulResult{}, err
+		return PlanResult{}, err
 	} else if open {
-		return RoutineHaulResult{Reason: BuildingMethodExistingWork}, nil
+		return PlanResult{Kind: PlanDemandSatisfied, Reason: BuildingMethodExistingWork}, nil
 	}
 	byID := map[string]policy.UpkeepItem{}
 	if rows, known := reading.Projection.Facts.Upkeep.Items.Value(); known {
@@ -164,14 +190,14 @@ func (r *RoutineHaulPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	identityRef := boundary.Identity(state.Snapshot)
 	emergency, _, err := r.native.ReadEmergency(call, identityRef)
 	if err != nil {
-		return RoutineHaulResult{}, err
+		return PlanResult{}, err
 	}
 	if _, err = boundary.Context(emergency.Context, state.Snapshot); err != nil || emergency.Context.GetTick() < int64(review.Tick) {
-		return RoutineHaulResult{}, ErrControl
+		return PlanResult{}, ErrControl
 	}
 	complete, known := emergency.Facts.ColonistsComplete.Value()
 	if !known || !complete || len(emergency.Facts.Colonists) == 0 {
-		return RoutineHaulResult{Reason: BuildingMethodUsed}, nil
+		return PlanResult{Kind: PlanWaiting, Dependency: "colonist census", Reason: BuildingMethodUsed}, nil
 	}
 	ids := make([]string, 0, len(emergency.Facts.Colonists))
 	for _, pawn := range emergency.Facts.Colonists {
@@ -179,25 +205,25 @@ func (r *RoutineHaulPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	}
 	reply, _, err := r.native.ReadTendPawns(call, identityRef, ids)
 	if err != nil {
-		return RoutineHaulResult{}, err
+		return PlanResult{}, err
 	}
 	observed := reply.GetObserved()
 	if observed == nil {
-		return RoutineHaulResult{}, ErrControl
+		return PlanResult{}, ErrControl
 	}
 	if _, err = boundary.Context(observed.Context, state.Snapshot); err != nil {
-		return RoutineHaulResult{}, ErrControl
+		return PlanResult{}, ErrControl
 	}
 	counts := observed.Completeness
 	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() || counts.Page.GetNextCursor() != "" || counts.Matched == nil || counts.Returned == nil || counts.Unreadable == nil || counts.GetUnreadable() != 0 || counts.GetMatched() != uint64(len(ids)) || counts.GetReturned() != uint64(len(ids)) || len(observed.Pawns) != len(ids) {
-		return RoutineHaulResult{}, ErrControl
+		return PlanResult{}, ErrControl
 	}
 	preferences, loadErr := p.journal.LoadWorkPreferences(call, state.Snapshot.Plan)
 	if loadErr != nil && !errors.Is(loadErr, store.ErrNotFound) {
-		return RoutineHaulResult{}, loadErr
+		return PlanResult{}, loadErr
 	}
 	if preferences.Revision != review.WorkPreferenceRevision {
-		return RoutineHaulResult{}, ErrControl
+		return PlanResult{}, ErrControl
 	}
 	overridden := map[domain.PawnID]bool{}
 	for _, o := range preferences.Overrides {
@@ -209,7 +235,7 @@ func (r *RoutineHaulPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	seen := map[string]bool{}
 	for _, row := range observed.Pawns {
 		if row == nil || row.Pawn == nil || seen[row.Pawn.GetId()] {
-			return RoutineHaulResult{}, ErrControl
+			return PlanResult{}, ErrControl
 		}
 		seen[row.Pawn.GetId()] = true
 		pawn := domain.PawnID(row.Pawn.GetId())
@@ -220,49 +246,51 @@ func (r *RoutineHaulPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		pawns = append(pawns, facts)
 	}
 	item, pawn, ok := policy.SelectSecureSupplies(items, pawns)
-	if ok && !arbiter.tryClaim([]domain.PawnID{pawn}, "haul-item:"+item.ID) {
-		ok = false
-	}
 	if !ok {
-		return RoutineHaulResult{Reason: BuildingMethodUsed}, nil
+		return PlanResult{Kind: PlanWaiting, Dependency: "eligible hauler", Reason: BuildingMethodUsed}, nil
 	}
 	haul, err := domain.NewHaul(pawn, item.ID, item.Definition, item.Cell)
 	if err != nil {
-		return RoutineHaulResult{}, err
+		return PlanResult{}, err
 	}
 	// Keyed by item and attempt count, not pawn: a fresh attempt after an
 	// interrupted or refused try picks whichever hauler is currently best.
 	prefix := fmt.Sprintf("haul-%s-", item.ID)
 	attempt, err := haulAttemptCount(call, p.journal, goal, prefix)
 	if err != nil {
-		return RoutineHaulResult{}, err
+		return PlanResult{}, err
 	}
 	if attempt >= maxMedicalAttemptsPerPatient {
 		if err = yieldDevelopment(call, p.journal, review, policy.MaintainStorage); err != nil {
-			return RoutineHaulResult{}, err
+			return PlanResult{}, err
 		}
-		return RoutineHaulResult{Reason: BuildingMethodExhausted}, nil
+		return PlanResult{Kind: PlanWaiting, Dependency: "retry budget", Reason: BuildingMethodExhausted}, nil
 	}
 	method := domain.MethodID(fmt.Sprintf("%s%d", prefix, attempt))
 	digest := sha256.Sum256([]byte(fmt.Sprintf("%s/%d/%s", goal.Goal.ID, goal.Goal.Epoch, method)))
 	id := domain.PlanID(fmt.Sprintf("routine-haul-%x", digest[:16]))
 	action, err := domain.NewHaulAction(domain.ActionID(fmt.Sprintf("%s-0", id)), haul)
 	if err != nil {
-		return RoutineHaulResult{}, err
+		return PlanResult{}, err
 	}
 	plan, err := domain.NewPlan(id, 1, []domain.Action{action})
 	if err != nil {
-		return RoutineHaulResult{}, err
+		return PlanResult{}, err
 	}
-	if err = p.current(call, epoch); err != nil {
-		return RoutineHaulResult{}, err
+	proposal := &Proposal{ID: "haul/" + string(id), Planner: "haul", Goal: goal.Goal.ID, Priority: plannerMaintenance, Urgency: goal.Goal.Priority, Snapshot: state.Snapshot, Facts: factsColony,
+		Claims: ResourceClaims{Pawns: []domain.PawnID{pawn}, Entities: []string{"haul-item:" + item.ID}}, ValidTick: review.Tick, Actions: []domain.Action{action}}
+	proposal.commit = func(ctx context.Context) (domain.PlanID, RoutineBuildingReason, error) {
+		if err := p.current(ctx, epoch); err != nil {
+			return "", "", err
+		}
+		elapsed := r.reviewer.clock.Now().Sub(started)
+		if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
+			return "", "", ErrControl
+		}
+		if _, err := p.journal.CommitGoalMethod(ctx, goal.Goal.ID, goal.Revision, method, plan); err != nil {
+			return "", "", err
+		}
+		return id, BuildingMethodAdmitted, nil
 	}
-	elapsed := r.reviewer.clock.Now().Sub(started)
-	if p.session.State() != state || elapsed < 0 || elapsed > r.reviewer.maxAge {
-		return RoutineHaulResult{}, ErrControl
-	}
-	if _, err = p.journal.CommitGoalMethod(call, goal.Goal.ID, goal.Revision, method, plan); err != nil {
-		return RoutineHaulResult{}, err
-	}
-	return RoutineHaulResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+	return PlanResult{Kind: PlanProposed, Proposal: proposal, Reason: BuildingMethodAdmitted}, nil
 }
