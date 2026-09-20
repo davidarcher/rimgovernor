@@ -947,10 +947,18 @@ func TestRoutineShelterIgnoresEarlierShellsNothingStandingMatches(t *testing.T) 
 func TestRoutineShelterRepairsAGapLeftByAnUnsuccessfulCellUnderTheSameEpoch(t *testing.T) {
 	t.Parallel()
 	r, db, base := shelterFixture(t)
-	base.reply.GetObserved().PlayerTechLevel = proto.String("Neolithic")
-	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
-	hutCells(base, 21, func(int32, int32) bool { return true })
+	// Only the missing wall needs a journal lifecycle. The rest of the
+	// 9x9 shell already stands in the native census.
+	shell, err := domain.RectangleFootprint(domain.RoomBounds{Width: 9, Height: 9}, domain.South)
+	if err != nil {
+		t.Fatal(err)
+	}
+	placements := shell.Placements("Wall", "Door", "WoodLog")
+	gap := placements[len(placements)-1]
 	n := &adoptingNative{sleepingNative: base}
+	for i, b := range placements[:len(placements)-1] {
+		n.standing = append(n.standing, bridge.Structure{ID: strconv.Itoa(i), Definition: b.Definition(), Cell: b.Cell(), Status: "built"})
+	}
 	planner, err := NewRoutineShelterPlanner(r.reviewer, n, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -971,24 +979,22 @@ func TestRoutineShelterRepairsAGapLeftByAnUnsuccessfulCellUnderTheSameEpoch(t *t
 	snapshot := first.Decision.Goal.Goal.Snapshot
 	snapshot.Plan, snapshot.Revision = plan.Spec.ID(), plan.Spec.Revision()
 	actions := plan.Spec.Actions()
-	gap, _ := actions[len(actions)-1].Building()
-	for i, action := range actions {
-		if _, err := db.ReserveAndPrepare(ctx, plan.Spec.ID(), action.ID(), plan.Admissions[i].Admission); err != nil {
-			t.Fatal(err)
-		}
-		if _, err := db.Dispatch(ctx, plan.Spec.ID(), action.ID(), snapshot, 7); err != nil {
-			t.Fatal(err)
-		}
-		observation := domain.Observation{Action: action.ID(), Attempt: 1, Snapshot: snapshot, Tick: 7, Effect: domain.EffectCompleted, Causality: domain.AfterDispatch}
-		b, _ := action.Building()
-		if b.Cell() == gap.Cell() {
-			observation.Effect, observation.UnsuccessfulReason = domain.EffectUnsuccessful, domain.NativeCancelled
-		} else {
-			n.standing = append(n.standing, bridge.Structure{ID: strconv.Itoa(i), Definition: b.Definition(), Cell: b.Cell(), Status: "built"})
-		}
-		if _, err := db.Observe(ctx, plan.Spec.ID(), observation, snapshot); err != nil {
-			t.Fatal(err)
-		}
+	if len(actions) != 1 {
+		t.Fatal("initial method must issue only the gap", actions)
+	}
+	action := actions[0]
+	if b, _ := action.Building(); b.Cell() != gap.Cell() || b.Definition() != gap.Definition() {
+		t.Fatal("initial method issued the wrong cell", b, gap)
+	}
+	if _, err := db.ReserveAndPrepare(ctx, plan.Spec.ID(), action.ID(), plan.Admissions[0].Admission); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Dispatch(ctx, plan.Spec.ID(), action.ID(), snapshot, 7); err != nil {
+		t.Fatal(err)
+	}
+	failed := domain.Observation{Action: action.ID(), Attempt: 1, Snapshot: snapshot, Tick: 7, Effect: domain.EffectUnsuccessful, UnsuccessfulReason: domain.NativeCancelled, Causality: domain.AfterDispatch}
+	if _, err := db.Observe(ctx, plan.Spec.ID(), failed, snapshot); err != nil {
+		t.Fatal(err)
 	}
 	n.last = r.reviewer.player.session.State().Snapshot
 	second, err := planner.Step(ctx)
