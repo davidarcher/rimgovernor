@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/inputs"
+	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/stepresult"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
@@ -247,6 +248,7 @@ func launchIndex(name string) int {
 // refusal repeated every window shows once with its count.
 func refusals(dir string, logs []logLine) Section {
 	s := Section{Name: "native refusals (last first)"}
+	s.Lines = refusedSteps(dir)
 	type hit struct {
 		text  string
 		last  logLine
@@ -287,9 +289,53 @@ func refusals(dir string, logs []logLine) Section {
 		s.Lines = append(s.Lines, flightErrors[i])
 	}
 	if len(s.Lines) == 0 {
-		s.Note = "no refusal in service*/stderr.log and no native_error row in flight.jsonl*"
+		s.Note = "no refused step result, refusal in service*/stderr.log or native_error row in flight.jsonl*"
 	}
 	return s
+}
+
+func refusedSteps(dir string) []Line {
+	files, _ := filepath.Glob(filepath.Join(dir, "[0-9][0-9][0-9][0-9]*-*.json"))
+	// Sequence numbers can grow beyond the four-digit minimum width.
+	sequence := func(path string) int {
+		n, _, _ := strings.Cut(filepath.Base(path), "-")
+		v, _ := strconv.Atoi(n)
+		return v
+	}
+	sort.Slice(files, func(i, j int) bool { return sequence(files[i]) > sequence(files[j]) })
+	var lines []Line
+	for _, file := range files {
+		data, err := os.ReadFile(file)
+		if err != nil {
+			continue
+		}
+		var step struct {
+			Request struct {
+				Tool string `json:"tool"`
+			} `json:"request"`
+			Result json.RawMessage `json:"result"`
+		}
+		if json.Unmarshal(data, &step) != nil {
+			continue
+		}
+		failure, ok := stepresult.Parse(step.Result)
+		if !ok {
+			continue
+		}
+		kind := failure.Kind
+		if kind == "native exception" && strings.HasPrefix(step.Request.Tool, "test/") {
+			kind = "fixture exception"
+		}
+		text := fmt.Sprintf("%s: %s: %s", kind, step.Request.Tool, failure.Summary)
+		if kind == "blocking attention" {
+			text += "\n" + failure.Detail
+		}
+		lines = append(lines, Line{Text: text, Evidence: filepath.Base(file) + " result"})
+		if len(lines) == maxLines {
+			break
+		}
+	}
+	return lines
 }
 
 // isRefusal matches a log line carrying a native refusal: the transport's

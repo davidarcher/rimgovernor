@@ -128,7 +128,7 @@ func TestReplayRefusalReachesTheHarness(t *testing.T) {
 		t.Fatalf("evidence row: %v", rows)
 	}
 	data, _ := os.ReadFile(rows[0])
-	if !strings.Contains(string(data), `"error": "bridge read refused: games_call_tool"`) {
+	if !strings.Contains(string(data), `"error": "bridge read refused: rimgovernor/observations_read_colony_facts: Tool 'rimgovernor/observations_read_colony_facts' not found`) {
 		t.Fatalf("evidence row lacks the refusal:\n%s", data)
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/stepresult"
 )
 
 // Harness owns evidence recording and generic native calls for the acceptance
@@ -52,6 +54,13 @@ func (h *Harness) Call(ctx context.Context, label, tool string, arguments any) (
 	result, callErr := h.Client.NativeCall(bridge.WithTranscriptPhase(ctx, label), tool, args)
 	elapsed := time.Since(sent)
 	if callErr != nil {
+		if failure, ok := stepresult.Parse(result.Envelope); ok && errors.Is(callErr, bridge.ErrRefused) {
+			kind := failure.Kind
+			if kind == "native exception" && strings.HasPrefix(tool, "test/") {
+				kind = "fixture exception"
+			}
+			callErr = &toolFailure{cause: callErr, message: fmt.Sprintf("%s: %s: %s (%s)", bridge.ErrRefused, tool, failure.Summary, kind)}
+		}
 		writeEvidence(evidencePath(h.Output, sequence, label), evidenceRow(sequence, tool, args, sent, elapsed, result.Envelope, callErr, nil))
 		return nil, callErr
 	}
@@ -73,6 +82,15 @@ func (h *Harness) Call(ctx context.Context, label, tool string, arguments any) (
 	}
 	return payload, nil
 }
+
+// Keep the original refusal available to errors.Is/As and recovery callers.
+type toolFailure struct {
+	cause   error
+	message string
+}
+
+func (e *toolFailure) Error() string { return e.message }
+func (e *toolFailure) Unwrap() error { return e.cause }
 
 // Wire calls a rimgovernor/* Protobuf-JSON tool: it wraps request as {"request":
 // json.Marshal(request)} and unwraps the ProtoJSON string payload from the reply's

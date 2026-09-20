@@ -179,6 +179,8 @@ What it produces:
   review's refused development rows and selected goals with no method,
   unsuccessful stages, native job failures, authority generation flips
   and pooled-job mismatches, each line naming its file and row (#278).
+  Failed step receipts also identify the native tool and distinguish fixture
+  exceptions, blocking attentions (with IDs and sample messages), and refusals.
   It reads `service.sqlite` raw, so an old schema does not stop it.
 - Diagnosis before latency: a harness that stalls with policies refusing
   `not_ready`/`StaleFacts` usually has an action prepared under an older
