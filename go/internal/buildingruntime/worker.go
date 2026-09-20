@@ -319,24 +319,28 @@ func (w *Worker) focusNamed(id domain.ActionID) bool { _, ok := w.focus[id]; ret
 func (w *Worker) step(ctx context.Context, now time.Time) error {
 	w.advanced = false
 	w.takeWake()
-	call, cancel := context.WithTimeout(ctx, w.config.StepTimeout)
-	defer cancel()
 	var parent telemetry.Trace
 	if w.config.Trace != nil {
 		parent = w.config.Trace()
 	}
 	stepTrace := parent.Child()
-	call = telemetry.WithTrace(call, stepTrace)
+	call := telemetry.WithTrace(ctx, stepTrace)
 	var cache *bridge.StepReadCache
 	if w.config.Facts != nil {
 		cache = bridge.NewChildReadCache(w.config.Facts)
 		call = bridge.WithStepReadCache(call, cache)
 	}
+	// StepTimeout budgets the dispatches, not the wait for the player
+	// gate: a scheduler step holds the gate for its whole planner wave, and
+	// a budget that started before the wait left the step 0-3 s for its
+	// actions and killed the last one at the deadline (#410).
 	call, epoch, done, err := w.player.enter(call, false)
 	if err != nil {
 		return err
 	}
 	defer done()
+	call, cancel := context.WithTimeout(call, w.config.StepTimeout)
+	defer cancel()
 	world, worldErr := w.readWorld(call)
 	if worldErr == nil {
 		worldErr = world.Validate()
@@ -460,8 +464,18 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 	// result here and backs off like any other.
 	var dispatched int
 	var errs []error
+	// A dispatch that starts with less of the step's budget left than the
+	// longest dispatch so far took would lose its native call to the
+	// deadline with the receipt unknown (a reconcile round trip later);
+	// the step yields instead and the next one starts it whole (#410).
+	var longest time.Duration
+	deadline, bounded := call.Deadline()
 	for _, candidate := range ordered {
 		if dispatched >= w.dispatchBudget() {
+			break
+		}
+		if bounded && dispatched > 0 && time.Until(deadline) < longest {
+			clockSchedulerLog("worker: step budget short of a dispatch (%s left, longest %s): yielding after %d", time.Until(deadline).Round(time.Millisecond), longest.Round(time.Millisecond), dispatched)
 			break
 		}
 		v := candidate.view
@@ -485,6 +499,7 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 			err = w.player.current(call, epoch)
 		}
 		var result executor.Result
+		dispatchStarted := time.Now()
 		running := w.config.WindowRunning != nil && w.config.WindowRunning()
 		// The dispatch's write drops the scheduler's cross-step facts by the
 		// families this kind can change, as the poll narrows its outcome;
@@ -500,6 +515,7 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 				result, err = w.session.Run(run, v.Plan, v.Action)
 			}
 		}
+		longest = max(longest, time.Since(dispatchStarted))
 		after := v
 		if result.Progress.View().Action == v.Action {
 			after = result.Progress.View()

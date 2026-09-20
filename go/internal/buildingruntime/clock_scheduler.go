@@ -239,6 +239,10 @@ type ClockScheduler struct {
 	paceTick  int64
 	paceAt    time.Time
 	paceKnown bool
+	// pacePerSecond is the last pace livePace measured under a running
+	// window, kept across stops so the next window starts with a drift
+	// (seedLiveDrift) instead of the stopped clock's zero.
+	pacePerSecond float64
 	// running is the scheduler's belief that a colony window it admitted
 	// is still running: set by the step that dispatched or observed it,
 	// cleared by the step or poll that saw it stopped. The poll loop holds
@@ -273,6 +277,9 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	if config.Start.Policy == nil {
 		return nil, ErrControl
 	}
+	// The drift is process-wide state this scheduler owns (livePace,
+	// seedLiveDrift): a new scheduler starts from the stopped clock's bound.
+	domain.SetLiveDrift(0)
 	if config.Routine != nil && config.Routine.player != player {
 		return nil, ErrControl
 	}
@@ -1091,7 +1098,30 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		return out, errors.Join(executor.ErrHeld, err)
 	}
 	s.running.Store(err == nil)
+	if err == nil {
+		s.seedLiveDrift(status.Context.GetTick())
+	}
 	return out, err
+}
+
+// seedLiveDrift sets the drift for the window this step just started from
+// the last pace livePace measured in this process, and restarts the pace
+// measurement at the start tick: the step's own status read predates the
+// start, and a pace measured from it would count the stop as running time.
+// Before this every window began under the stopped clock's zero drift and
+// the Worker's dispatches under it, whose cached emergency read predates
+// the inspection's first read by one round trip, held on the tick-exact
+// bound until the next step measured the pace -- at boosted Ultrafast every
+// dispatch of the window's first seconds (#410). The first window of a
+// process, with no pace measured yet, still starts at zero.
+func (s *ClockScheduler) seedLiveDrift(startTick int64) {
+	s.paceTick, s.paceAt, s.paceKnown = startTick, s.clock.Now(), true
+	if s.pacePerSecond <= 0 {
+		return
+	}
+	drift := domain.Tick(s.pacePerSecond * s.config.MaxAge.Seconds())
+	clockSchedulerLog("window started: live drift %d -> %d ticks (pace %.0f ticks/s)", domain.LiveDrift(), drift, s.pacePerSecond)
+	domain.SetLiveDrift(drift)
 }
 
 // runPlanners runs the routine reviewer and the selected planner wave
@@ -1129,6 +1159,7 @@ func (s *ClockScheduler) livePace(status *k.Status, readAt time.Time) {
 	if status.GetRunning() != nil && s.paceKnown && tick > s.paceTick && readAt.After(s.paceAt) {
 		perSecond := float64(tick-s.paceTick) / readAt.Sub(s.paceAt).Seconds()
 		drift = domain.Tick(perSecond * s.config.MaxAge.Seconds())
+		s.pacePerSecond = perSecond
 	}
 	if drift != domain.LiveDrift() {
 		clockSchedulerLog("live drift %d -> %d ticks (tick %d, %d ticks since the previous step)", domain.LiveDrift(), drift, tick, tick-s.paceTick)

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
+	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/telemetry"
 )
 
@@ -296,6 +297,9 @@ func (w *ClockWorker) stepLoop() {
 		return
 	case <-w.ready:
 	}
+	// No step runs after the loop, so no window of this scheduler's is
+	// running: the drift it seeded or measured ends with it.
+	defer domain.SetLiveDrift(0)
 	delay := w.config.StepInterval
 	var previous clockStepKey
 	havePrevious := false

@@ -100,18 +100,28 @@ func (p *Player) enter(ctx context.Context, manual bool) (context.Context, conte
 	}
 	epoch := p.epoch
 	p.mu.Unlock()
-	call, cancel := context.WithTimeout(ctx, p.config.CallTimeout)
-	stop := context.AfterFunc(epoch, cancel)
-	cleanup := func() { stop(); cancel() }
+	// The wait for the gate and the call under it are budgeted apart, each
+	// by CallTimeout: a caller queued behind a long scheduler step (its
+	// planner reads run 5-11 s under peer load, up to serviceClockStepTimeout)
+	// used to enter with a budget the wait had spent and lose its first
+	// native call to that deadline (#410). Both waits end with the epoch.
+	wait, cancelWait := context.WithTimeout(ctx, p.config.CallTimeout)
+	stopWait := context.AfterFunc(epoch, cancelWait)
 	if p.queued != nil {
 		p.queued()
 	}
 	select {
 	case p.gate <- struct{}{}:
-	case <-call.Done():
-		cleanup()
-		return nil, nil, nil, call.Err()
+		stopWait()
+		cancelWait()
+	case <-wait.Done():
+		stopWait()
+		cancelWait()
+		return nil, nil, nil, wait.Err()
 	}
+	call, cancel := context.WithTimeout(ctx, p.config.CallTimeout)
+	stop := context.AfterFunc(epoch, cancel)
+	cleanup := func() { stop(); cancel() }
 	if err := p.current(call, epoch); err != nil {
 		<-p.gate
 		cleanup()
