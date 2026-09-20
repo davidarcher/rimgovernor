@@ -34,7 +34,10 @@ unit fixtures; the game stays the oracle for anything native.
 `clearance/shrine-breach` and `clearance/shrine-claim` use `ShrineFixture`'s
 `test/shrine_prepare sealedBreach=true` on the tribal baseline. The sealed,
 fogged room has one breach wall, a scyther, empty and filled caskets, rifles
-and three traps. The cases observe drafting, breach completion, ActiveCombat
+and three traps. Preparation searches the map nearest-first for a reachable
+site on Heavy terrain outside existing buildings and zones, then clears natural
+rock, roofs, plants, items and fog across the room, trap lane and squad footprint.
+The cases observe drafting, breach completion, ActiveCombat
 handoff and goal recovery; claim additionally checks ClaimBuilding ownership
 and native salvage while the filled casket stays closed. Both are quiet,
 eight-minute cases in the clearance land selection and nightly full tier.

@@ -26,23 +26,35 @@ namespace HomeBridge.BridgeTools
                 var player = Faction.OfPlayer;
                 var people = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead).ToList();
                 var anchor = people.First(p => !p.Downed);
-                // Interior 5x3 at (sx, sz); walls on the ring around it; a door
-                // in the south wall's middle. The site is flat, open, unroofed
-                // ground the colonist can reach.
-                var site = GenRadial.RadialCellsAround(anchor.Position, 40, true).First(c => {
-                    var outer = sealedBreach ? new CellRect(c.x - 4, c.z - 10, 11, 15) : new CellRect(c.x - 3, c.z - 3, 9, 7);
-                    return outer.Cells.All(n => n.InBounds(map) && !n.Fogged(map) && !n.Roofed(map) && n.GetEdifice(map) == null
-                        && n.Standable(map) && n.GetZone(map) == null && n.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Heavy))
-                        && anchor.CanReach(c, PathEndMode.OnCell, Danger.None);
-                });
+                // Clear the whole footprint, including the sealed variant's
+                // trap lane and squad positions. Natural obstructions are fixture
+                // preparation; existing buildings and zones remain protected.
+                CellRect Footprint(IntVec3 c) => sealedBreach
+                    ? new CellRect(c.x - 4, c.z - 10, 11, 15)
+                    : new CellRect(c.x - 3, c.z - 3, 9, 7);
+                var candidates = map.AllCells.OrderBy(c => c.DistanceToSquared(anchor.Position)).Where(c =>
+                    !c.Fogged(map) && Footprint(c).Cells.All(n => n.InBounds(map)
+                        && (n.GetRoof(map) == null || n.GetRoof(map).isNatural)
+                        && (n.GetEdifice(map) == null || n.GetEdifice(map) is Mineable)
+                        && (n.Standable(map) || n.GetEdifice(map) is Mineable)
+                        && n.GetZone(map) == null && n.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Heavy))
+                    && anchor.CanReach(c, PathEndMode.OnCell, Danger.None)).Take(1).ToList();
+                if (candidates.Count == 0)
+                    throw new InvalidOperationException("Shrine fixture needs reachable, zone-free Heavy terrain on the map.");
+                var site = candidates[0];
+                foreach (var c in Footprint(site).Cells) {
+                    map.fogGrid.Unfog(c);
+                    map.roofGrid.SetRoof(c, null);
+                    if (c.GetEdifice(map) is Mineable rock) rock.Destroy(DestroyMode.Vanish);
+                    foreach (var t in c.GetThingList(map).Where(t => t is Plant || t.def.category == ThingCategory.Item).ToList()) t.Destroy(DestroyMode.Vanish);
+                }
+                if (Footprint(site).Cells.Any(c => !c.Standable(map) || c.Fogged(map) || c.Roofed(map) || c.GetEdifice(map) != null))
+                    throw new InvalidOperationException("Shrine footprint did not clear to open, standable ground.");
                 var interior = new CellRect(site.x - 2, site.z - 1, 5, 3);
                 var ring = interior.ExpandedBy(1);
                 if (sealedBreach)
                     foreach (var c in map.areaManager.Home.ActiveCells.ToList()) map.areaManager.Home[c] = false;
-                foreach (var c in ring.ExpandedBy(1).Cells) {
-                    foreach (var t in c.GetThingList(map).Where(t => t is Plant || t.def.category == ThingCategory.Item).ToList()) t.Destroy(DestroyMode.Vanish);
-                    map.areaManager.Home[c] = true;
-                }
+                foreach (var c in ring.ExpandedBy(1).Cells) map.areaManager.Home[c] = true;
                 var stone = GenStuff.AllowedStuffsFor(ThingDefOf.Wall).Where(d => d.stuffProps.categories.Contains(StuffCategoryDefOf.Stony)).OrderBy(d => d.defName).First();
                 var door = new IntVec3(interior.minX + 2, 0, interior.minZ - 1);
                 foreach (var c in ring.EdgeCells) {
