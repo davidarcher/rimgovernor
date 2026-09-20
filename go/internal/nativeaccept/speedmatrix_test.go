@@ -205,8 +205,10 @@ func TestSpeedRowProblems(t *testing.T) {
 	if got := CompareOutcomes(nil, 1); len(got) != 0 {
 		t.Fatalf("CompareOutcomes is not the boundary: %v", got)
 	}
+	// A row read back in memory carries its tick count as the integer the
+	// case computed, never the float64 JSON would decode.
 	full := SpeedMetricsFromRows([]map[string]any{
-		{"case": "Normal", "speed": "Normal", "wall_tps": 60.0, "ticks_advanced": 2300.0},
+		{"case": "Normal", "speed": "Normal", "wall_tps": 60.0, "ticks_advanced": uint64(2300)},
 		{"case": "uncapped", "speed": "Ultrafast", "wall_tps": 4000.0, "ticks_advanced": 30000.0},
 		{"case": "governor-off", "speed": "Ultrafast", "wall_tps": 5000.0, "ticks_advanced": 30000.0},
 		{"case": "viewer", "speed": "Ultrafast", "wall_tps": 3500.0, "ticks_advanced": 30000.0},

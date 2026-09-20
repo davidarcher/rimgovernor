@@ -32,6 +32,18 @@ func AsNumber(v any) float64 {
 		return n
 	case int:
 		return float64(n)
+	// The sized integers a case's own in-memory rows carry (a metrics row
+	// read back before it was ever JSON-encoded, #621).
+	case int64:
+		return float64(n)
+	case uint64:
+		return float64(n)
+	case int32:
+		return float64(n)
+	case uint32:
+		return float64(n)
+	case float32:
+		return float64(n)
 	case string:
 		var f float64
 		fmt.Sscanf(n, "%f", &f)
