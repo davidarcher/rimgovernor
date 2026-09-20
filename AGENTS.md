@@ -131,6 +131,13 @@ commit, not a file-by-file narrative.
 
 ## Checks
 
+- Whole-module race checks and repeated package-wide race stress runs belong
+  in nightly validation, not the local landing loop. Do not run them locally
+  unless explicitly requested. For a concurrency fix, use a focused
+  `go test -race -run <tests>` check when useful; repeat only those tests to
+  reproduce a flake. Prefer synchronized events or virtual time over
+  scheduling-sensitive wall-clock bounds. The nightly `remote-acceptance`
+  workflow runs the whole module with `-race` on Linux.
 - Pyramid: many fast Go unit tests (via `cmd/test`), fewer integration
   tests, a small set of targeted native acceptance cases run by
   `go/internal/nativeaccept/cmd/acceptance` (`acceptance run
