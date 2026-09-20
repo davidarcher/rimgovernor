@@ -46,7 +46,8 @@ paired backups, manifests or archive tables.
   report names the parent segment and counts the entries restored, the
   parent's entries beyond the fork and any discarded, for the caller's log.
   Historical Home exclusions are not recorded here: they are current
-  restorable state, not player vetoes.
+  restorable state, not player vetoes. Ownership and the consumer contract:
+  [colony extent contract](colony-extent.md).
 
 ## What is re-derived
 

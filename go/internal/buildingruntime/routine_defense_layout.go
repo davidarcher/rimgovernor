@@ -597,7 +597,10 @@ func abs32(v int32) int32 {
 func (r *RoutineDefenseLayoutPlanner) proposeTurrets(call context.Context, state ControlState, read observation.RoutineReading, record *store.DefenseLayoutRecord) error {
 	projection := read.Projection
 	identity := boundary.Identity(state.Snapshot)
-	region := defenseRegion(projection.Center, projection.Bounds)
+	region, err := defenseRegion(projection)
+	if err != nil {
+		return err
+	}
 	site, _, err := r.native.ReadDefenseSite(call, identity, region)
 	if err != nil {
 		return err
@@ -836,7 +839,10 @@ func defenseMissingBuildings(buildings []domain.Building, census *defenseCensus)
 func (r *RoutineDefenseLayoutPlanner) propose(call context.Context, state ControlState, read observation.RoutineReading) (policy.DefenseLayout, []domain.Cell, bool, error) {
 	projection := read.Projection
 	identity := boundary.Identity(state.Snapshot)
-	region := defenseRegion(projection.Center, projection.Bounds)
+	region, err := defenseRegion(projection)
+	if err != nil {
+		return policy.DefenseLayout{}, nil, false, err
+	}
 	site, _, err := r.native.ReadDefenseSite(call, identity, region)
 	if err != nil {
 		return policy.DefenseLayout{}, nil, false, err
@@ -1083,18 +1089,29 @@ func (r *RoutineDefenseLayoutPlanner) preview(ctx context.Context, action domain
 
 // defenseRegion is the inclusive census rectangle centred on the colony,
 // clipped to the map.
-func defenseRegion(center domain.Cell, bounds policy.Bounds) bridge.CellRect {
-	clamp := func(v, hi int32) int32 {
-		if v < 0 {
-			return 0
-		}
-		if v > hi {
-			return hi
-		}
-		return v
+// defenseRegion is the census rectangle the planner reads: the shared colony
+// extent's bounded window (#519), centred on the established footprint and
+// shifted only as far as keeps the Home cell inside, so the census no longer
+// drifts with the colonists' centre. An unknown extent (no complete
+// geometry yet) keeps the previous derivation, a window centred on Home.
+// The window selects cells to read; it grants nothing and paints no Home.
+func defenseRegion(projection observation.ColonyProjection) (bridge.CellRect, error) {
+	f := projection.Facts
+	extent, err := policy.DeriveColonyExtent(policy.ColonyExtentRequest{
+		Bounds: domain.Known(projection.Bounds), Construction: f.CurrentConstruction, Claims: f.ConstructionClaims,
+		Stockpiles: f.OwnedStockpiles, Home: f.HomeCoverage,
+	})
+	if err != nil {
+		return bridge.CellRect{}, err
 	}
-	return bridge.CellRect{Min: domain.Cell{X: clamp(center.X-defenseSiteHalfExtent, bounds.Width-1), Z: clamp(center.Z-defenseSiteHalfExtent, bounds.Height-1)},
-		Max: domain.Cell{X: clamp(center.X+defenseSiteHalfExtent, bounds.Width-1), Z: clamp(center.Z+defenseSiteHalfExtent, bounds.Height-1)}}
+	window, source, err := policy.ExtentWindow(policy.ExtentWindowRequest{Extent: extent, Focus: projection.Center, Bounds: projection.Bounds, Half: defenseSiteHalfExtent})
+	if err != nil {
+		return bridge.CellRect{}, err
+	}
+	if source == policy.ExtentWindowExtent {
+		clockSchedulerLog("defense-layout: census window from colony extent %+v", window)
+	}
+	return bridge.CellRect{Min: domain.Cell{X: window.X, Z: window.Z}, Max: domain.Cell{X: window.X + window.Width - 1, Z: window.Z + window.Height - 1}}, nil
 }
 
 // defenseRecordRegion is the census rectangle that covers every building the

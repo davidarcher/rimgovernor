@@ -23,6 +23,7 @@ Current rules, payloads and completion criteria. Open the topic that owns your c
 - [Disaster planning](disaster-planning.md)
 - [Research tied to colony needs](research.md)
 - [Spatial contracts](spatial-contracts.md)
+- [Colony extent contract](colony-extent.md)
 - [Colony upkeep contracts](upkeep-contracts.md)
 - [Work assignment contracts](work-assignment.md)
 - [Waste containment contracts](waste-management.md)

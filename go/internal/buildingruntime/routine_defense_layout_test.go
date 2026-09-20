@@ -5,6 +5,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -15,13 +16,49 @@ import (
 func TestDefenseRegionStaysInsideMapAndBound(t *testing.T) {
 	t.Parallel()
 	bounds := policy.Bounds{Width: 250, Height: 250}
-	region := defenseRegion(domain.Cell{X: 125, Z: 125}, bounds)
-	if region.Min != (domain.Cell{X: 103, Z: 103}) || region.Max != (domain.Cell{X: 147, Z: 147}) || region.Cells() > 2048 {
+	// No complete extent geometry: the previous Home-centred derivation.
+	region, err := defenseRegion(observation.ColonyProjection{Bounds: bounds, Center: domain.Cell{X: 125, Z: 125}})
+	if err != nil || region.Min != (domain.Cell{X: 103, Z: 103}) || region.Max != (domain.Cell{X: 147, Z: 147}) || region.Cells() > 2048 {
+		t.Fatalf("%+v %d %v", region, region.Cells(), err)
+	}
+	edge, err := defenseRegion(observation.ColonyProjection{Bounds: bounds, Center: domain.Cell{X: 3, Z: 248}})
+	if err != nil || edge.Min != (domain.Cell{X: 0, Z: 226}) || edge.Max != (domain.Cell{X: 25, Z: 249}) {
+		t.Fatalf("%+v %v", edge, err)
+	}
+}
+
+// TestDefenseRegionReadsColonyExtent: with complete extent geometry the
+// census window anchors on the established footprint, still holding Home.
+func TestDefenseRegionReadsColonyExtent(t *testing.T) {
+	t.Parallel()
+	bounds := policy.Bounds{Width: 250, Height: 250}
+	wall, err := domain.NewBuilding("Wall", domain.Cell{X: 150, Z: 150}, domain.North, "WoodLog")
+	if err != nil {
+		t.Fatal(err)
+	}
+	facts := policy.RoutineFacts{
+		CurrentConstruction: domain.Known(policy.CurrentConstruction{Colony: true, Buildings: []policy.CurrentBuilding{{ID: "w", Building: wall, Cells: []domain.Cell{{X: 150, Z: 150}}}}}),
+		OwnedStockpiles:     domain.Known([]policy.OwnedStockpile{}),
+		HomeCoverage: domain.Known(policy.HomeCoverageObservation{Targets: []policy.HomeCoverageTarget{{
+			ID: "w", Cells: []domain.Cell{{X: 150, Z: 150}}, Shape: domain.Known("shape"), Missing: domain.Known(int64(0)), Excluded: domain.Known(int64(0)),
+			ExtentGeometry: domain.Known(policy.HomeExtentGeometry{}),
+		}}}),
+	}
+	projection := observation.ColonyProjection{Bounds: bounds, Center: domain.Cell{X: 125, Z: 125}, Facts: facts}
+	region, err := defenseRegion(projection)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Extent centre (150,150) is 25 cells from Home; the 22-cell window is
+	// shifted back so Home stays on its border.
+	if region.Min != (domain.Cell{X: 125, Z: 125}) || region.Max != (domain.Cell{X: 169, Z: 169}) || region.Cells() > 2048 {
 		t.Fatalf("%+v %d", region, region.Cells())
 	}
-	edge := defenseRegion(domain.Cell{X: 3, Z: 248}, bounds)
-	if edge.Min != (domain.Cell{X: 0, Z: 226}) || edge.Max != (domain.Cell{X: 25, Z: 249}) {
-		t.Fatalf("%+v", edge)
+	// The same facts without complete geometry keep the previous derivation.
+	facts.HomeCoverage = domain.Known(policy.HomeCoverageObservation{Targets: []policy.HomeCoverageTarget{{ID: "w", Cells: []domain.Cell{{X: 150, Z: 150}}, Shape: domain.Known("shape"), Missing: domain.Known(int64(0)), Excluded: domain.Known(int64(0))}}})
+	projection.Facts = facts
+	if region, err = defenseRegion(projection); err != nil || region.Min != (domain.Cell{X: 103, Z: 103}) {
+		t.Fatalf("%+v %v", region, err)
 	}
 }
 

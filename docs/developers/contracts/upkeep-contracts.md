@@ -74,7 +74,8 @@ by coordinates. The bounded ledger retains at most 4,096 origins.
 Planning ownership uses `policy.CurrentConstruction`: a complete bounded census
 of built artificial player-faction buildings, with native identity, definition,
 material, rotation, anchor and occupied cells. Home coverage and stone-shell
-planning share this view; colony extent consumers must use the same contract.
+planning share this view; colony extent consumers must use the same contract
+([colony extent contract](colony-extent.md#consumer-contract)).
 Unknown or incomplete observations do not establish eligibility. A matching
 completed action annotates provenance; missing history does not exclude a
 player-built facility, and replacement geometry never inherits causal history.
@@ -98,7 +99,9 @@ census, bounds, target or complete geometry keeps the extent unknown. Stockpiles
 contribute only their exact footprints. This model neither assesses current
 safety nor changes native Home; the established history and expansion areas it
 feeds persist per saved timeline ([persistence contracts](persistence-contracts.md#what-must-survive)),
-and runtime projection and consumers belong to the later colony-extent slices.
+and its ownership, consumer contract (`policy.ExtentWindow`, first read by the
+defense layout planner) and the rule that extent growth never paints Home are the
+[colony extent contract](colony-extent.md).
 
 `policy.ResourceReach` limits resource candidate consideration to `base`,
 `near`, `far` or `map`, with a reason on every decision. Base means exact extent
