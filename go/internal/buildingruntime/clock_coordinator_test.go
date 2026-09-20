@@ -81,6 +81,12 @@ func clockCoreFixture(t *testing.T) (*ClockCoordinator, *store.Store, *clockCore
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { db.Close() })
+	return clockCoreFixtureOver(t, db)
+}
+
+// clockCoreFixtureOver is clockCoreFixture over an opened journal.
+func clockCoreFixtureOver(t *testing.T, db *store.Store) (*ClockCoordinator, *store.Store, *clockCoreFake, store.ClockIntent) {
+	t.Helper()
 	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Revision: 1, Native: 7}
 	policy := &k.WatchPolicy{Mode: k.WatchMode_WATCH_MODE_COLONY.Enum(), HealthDropFraction: proto.Float32(.1), MinHealthFraction: proto.Float32(.2), HostileWithin: proto.Float32(20), InjuryStopCooldownMs: proto.Uint32(0)}
 	intent := store.ClockIntent{RequestID: clockTestNextID(t, db), Snapshot: snapshot, Command: bridge.ClockCommand{Start: &bridge.ClockStart{Speed: k.Speed_SPEED_NORMAL, Policy: policy, LeaseMS: 1000, MaxTicks: 100}}}

@@ -213,6 +213,11 @@ type ClockSchedulerResult struct {
 	// found the player running the game under a stopped clock and is
 	// waiting out PlayerQuiet before it re-takes it defers too (#601).
 	Deferred bool
+	// Journal is the wall time the step's own obligation reads spent in
+	// the journal: the attempt and epoch catalogs, the review, the current
+	// plan and the active catalog. It is the clock_step row's journal_ms
+	// (#634); a save's retired history must not grow it.
+	Journal time.Duration
 	// Retaken is set when the step found the player running the game under
 	// a stopped clock, paused it natively and reviewed from the paused tick
 	// in the same step (#601).
@@ -585,8 +590,7 @@ func clockReasonNames(reasons []policy.ClockWindowReason) []string {
 // a background loop. Which planners run is the reason's plannerSelection;
 // the admission tail (status, emergency, review and plan reads, then
 // EvaluateClockWindow) runs on every step that reaches it.
-func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) (ClockSchedulerResult, error) {
-	var out ClockSchedulerResult
+func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) (out ClockSchedulerResult, err error) {
 	var paused time.Duration
 	var readmit bool
 	entered := time.Now()
@@ -639,8 +643,10 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		call = observation.WithPlanningWindow(call, window)
 	}
 	stepBegan := time.Now()
+	journal := &journalTimer{}
 	defer func() {
 		elapsed := time.Since(stepBegan)
+		out.Journal = journal.total
 		stats := cache.Stats()
 		clockSchedulerLog("step reads: %s cache hits=%d misses=%d coalesced=%d parent_hits=%d invalidations=%d running=%v elapsed=%s", reads, stats.Hits, stats.Misses, stats.Coalesced, stats.ParentHits, stats.Invalidations, out.Running, elapsed.Round(time.Millisecond))
 		// The reason the step acted on (out.Reason once the status read
@@ -657,6 +663,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		if gateWait > 0 {
 			extra["gate_wait_ms"] = float64(gateWait) / float64(time.Millisecond)
 		}
+		extra["journal_ms"] = float64(journal.total) / float64(time.Millisecond)
 		if cause == StepLive {
 			s.liveStepWall = elapsed
 		}
@@ -698,7 +705,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 			s.facts.asks = cache.StepAsks()
 		}
 	}()
-	attempts, err := s.player.journal.LoadClockAttempts(call, 4096)
+	attempts, err := journalTimed(journal, func() ([]store.ClockAttempt, error) { return s.player.journal.LoadClockAttempts(call, 4096) })
 	if err != nil {
 		return out, err
 	}
@@ -719,7 +726,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	if err = bridge.ValidateContext(loaded.Context); err != nil {
 		return out, errors.Join(err, s.session.Disable())
 	}
-	epochs, err := s.player.journal.LoadClockEpochs(call, 4096)
+	epochs, err := journalTimed(journal, func() ([]store.ClockEpochObligation, error) { return s.player.journal.LoadClockEpochs(call, 4096) })
 	if err != nil {
 		clockSchedulerLog("step exit: LoadClockEpochs %v", err)
 		return out, err
@@ -924,7 +931,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 			out.Cleaned = true
 			return out, err
 		}
-		if epochs, err = s.player.journal.LoadClockEpochs(call, 4096); err != nil {
+		if epochs, err = journalTimed(journal, func() ([]store.ClockEpochObligation, error) { return s.player.journal.LoadClockEpochs(call, 4096) }); err != nil {
 			out.Cleaned = true
 			return out, err
 		}
@@ -992,11 +999,13 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	// against, not the review's earlier read of the same bundle.
 	colonistsComplete, colonistsKnown := emergency.Facts.ColonistsComplete.Value()
 	facts.Put(s.facts.store, factsScope(loaded.Context), facts.Emergency, facts.Held[policy.EmergencyFacts]{Value: emergency.Facts, AsOf: emergency.Context.GetTick(), Complete: colonistsKnown && colonistsComplete, Source: "rimgovernor/observations_read_bundle"})
-	review, err := s.player.journal.ReadClockReview(call, s.config.Profile)
+	review, err := journalTimed(journal, func() (store.ClockReviewState, error) {
+		return s.player.journal.ReadClockReview(call, s.config.Profile)
+	})
 	if err != nil {
 		return out, err
 	}
-	plan, err := s.player.journal.LoadPlan(call, state.Snapshot.Plan)
+	plan, err := journalTimed(journal, func() (store.PlanState, error) { return s.player.journal.LoadPlan(call, state.Snapshot.Plan) })
 	if err != nil {
 		return out, err
 	}
@@ -1005,7 +1014,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		return out, err
 	}
 	{
-		plans, err := s.player.journal.LoadPlans(call, 256)
+		plans, err := journalTimed(journal, func() ([]store.PlanState, error) { return s.player.journal.LoadPlans(call, 256) })
 		if err != nil {
 			return out, err
 		}
@@ -1757,4 +1766,14 @@ func (s *ClockScheduler) playerQuietFor() time.Duration {
 		return s.config.PlayerQuiet
 	}
 	return DefaultPlayerQuiet
+}
+
+// journalTimer sums the wall time of a step's own journal reads (#634).
+type journalTimer struct{ total time.Duration }
+
+func journalTimed[T any](t *journalTimer, read func() (T, error)) (T, error) {
+	began := time.Now()
+	v, err := read()
+	t.total += time.Since(began)
+	return v, err
 }

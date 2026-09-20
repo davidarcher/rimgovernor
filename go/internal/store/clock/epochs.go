@@ -122,29 +122,18 @@ func LoadEpochs(ctx context.Context, tx *sql.Tx, limit int) ([]EpochObligation, 
 	if limit < 1 || limit > 4096 {
 		return nil, ErrCapacity
 	}
-	rows, err := tx.QueryContext(ctx, "SELECT request_id FROM clock_attempts ORDER BY request_id LIMIT 4097")
+	// The sequence head is loaded once: it has already checked that the
+	// catalog's rows are exactly the retained sequences, so each attempt is
+	// read unchecked rather than re-verifying the head per row, which made
+	// this read quadratic in the retained tail (#634).
+	session, head, err := loadClockSequence(ctx, tx)
 	if err != nil {
 		return nil, err
-	}
-	var ids []string
-	for rows.Next() {
-		var id string
-		if err = rows.Scan(&id); err != nil {
-			rows.Close()
-			return nil, err
-		}
-		ids = append(ids, id)
-	}
-	err = errors.Join(rows.Err(), rows.Close())
-	if err != nil {
-		return nil, err
-	}
-	if len(ids) > 4096 {
-		return nil, ErrCapacity
 	}
 	values := make([]EpochObligation, 0)
-	for _, id := range ids {
-		attempt, e := loadClock(ctx, tx, id)
+	for _, sequence := range head.Retained {
+		id, _ := ClockRequestID(session, sequence)
+		attempt, e := loadClockUnchecked(ctx, tx, id, session)
 		if e != nil {
 			return nil, e
 		}

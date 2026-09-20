@@ -82,6 +82,11 @@ type StepSample struct {
 	MaxPauseSecs   float64           `json:"max_pause_seconds"`
 	Reasons        map[string]uint64 `json:"reasons,omitempty"`
 	Stops          StopSample        `json:"stops"`
+	// JournalMs sums the steps' journal_ms, the wall time each step's own
+	// obligation reads spent in the journal (#634); MaxJournalMs is the
+	// slowest step's.
+	JournalMs    float64 `json:"journal_ms"`
+	MaxJournalMs float64 `json:"max_journal_ms"`
 }
 
 // DispatchSample aggregates the "worker_dispatch" rows the routine Worker
@@ -252,6 +257,10 @@ func SummarizePhases(records []TimelineRecord) PhaseSummary {
 				steps.Windows++
 				steps.WindowTicks += ticks
 				steps.MaxWindowTicks = max(steps.MaxWindowTicks, ticks)
+			}
+			if journal := field(row.Payload, "journal_ms"); journal > 0 {
+				steps.JournalMs += journal
+				steps.MaxJournalMs = math.Max(steps.MaxJournalMs, journal)
 			}
 			if pause := field(row.Payload, "stop_pause_s"); pause > 0 {
 				steps.Pauses++

@@ -11,6 +11,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
+	"github.com/davidarcher/RimGovernor/go/internal/store/storetest"
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -43,7 +44,20 @@ func schedulerFixture(t *testing.T) (*ClockScheduler, *schedulerNative) {
 // and dependencies after the fixture placement.
 func schedulerFixturePlan(t *testing.T, extra []domain.Action, dependencies ...domain.ActionDependency) (*ClockScheduler, *schedulerNative) {
 	t.Helper()
-	_, db, f, intent := clockCoreFixture(t)
+	db, err := store.Open(context.Background(), storetest.Path(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+	s, native := schedulerFixtureJournal(t, db, extra, dependencies...)
+	return s, native
+}
+
+// schedulerFixtureJournal is schedulerFixturePlan over an opened journal,
+// for tests that seed it directly.
+func schedulerFixtureJournal(t *testing.T, db *store.Store, extra []domain.Action, dependencies ...domain.ActionDependency) (*ClockScheduler, *schedulerNative) {
+	t.Helper()
+	_, _, f, intent := clockCoreFixtureOver(t, db)
 	s, _, profile := newClockSessionTestPlan(t, db, f, extra, dependencies...)
 	p, err := NewPlayer(context.Background(), PlayerConfig{CallTimeout: 10 * time.Second, JournalTimeout: 10 * time.Second}, db, s, playerWorldFunc(func(context.Context) (store.World, error) { return playerWorld(intent.Snapshot), nil }))
 	if err != nil {
