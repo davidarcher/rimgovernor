@@ -67,7 +67,9 @@ disable progress without affecting execution or the authoritative aggregate.
 
 Plan, shard and final verdict artifact names include the Actions run ID and
 attempt, and shard artifacts also include the shard ID. Retention is seven days.
-Job summaries link the diagnostic and final artifacts. The final `verdict` artifact
+Planner refusals are retained in `planner.log`; without a selection, collection
+records the refusal in `incomplete.json` and the job summary, and fails before
+shard aggregation. Job summaries link the diagnostic and final artifacts. The final `verdict` artifact
 is the one to [import](remote-evidence.md#import-an-authenticated-actions-artifact).
 Pin workflow path `.github/workflows/remote-acceptance.yml` and its reviewed
 published revision when configuring the importer.

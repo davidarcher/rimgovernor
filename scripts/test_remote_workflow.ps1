@@ -106,3 +106,30 @@ $rejected=$false
 try { Assert-Gate } catch { $rejected=$true }
 if (-not $rejected) { throw 'Automatic push was accepted' }
 'Remote workflow source selection passed'
+
+# A real native stderr/exit pair survives plan upload and verdict collection.
+$planRoot = Join-Path $TestRoot 'rejected-plan'
+[IO.Directory]::CreateDirectory((Join-Path $planRoot 'go')) | Out-Null
+[IO.File]::WriteAllText((Join-Path $planRoot 'run.json'), '{}')
+$env:GITHUB_STEP_SUMMARY = Join-Path $planRoot 'summary.md'
+function global:go {
+    & pwsh -NoProfile -Command '[Console]::Error.WriteLine("case budget exceeds suite allowance"); exit 1'
+}
+$message = ''
+try { & "$PSScriptRoot/remote_workflow.ps1" -Phase plan -Evidence $planRoot -Repo $planRoot } catch { $message = $_.Exception.Message }
+if ($message -notlike '*case budget exceeds suite allowance*') { throw "Planner refusal lost: $message" }
+if (Test-Path (Join-Path $planRoot 'selection.json')) { throw 'Rejected planner wrote a selection' }
+function global:gh { throw 'Collection must not query shards without a selection' }
+foreach ($hasLog in @($true, $false)) {
+    if (-not $hasLog) { Remove-Item -LiteralPath (Join-Path $planRoot 'planner.log') }
+    $message = ''
+    try { & "$PSScriptRoot/remote_workflow.ps1" -Phase collect -Evidence $planRoot } catch { $message = $_.Exception.Message }
+    $want = if ($hasLog) { 'case budget exceeds suite allowance' } else { 'Planning did not produce a selection' }
+    $verdict = Get-Content (Join-Path $planRoot 'incomplete.json') -Raw | ConvertFrom-Json
+    $summary = Get-Content $env:GITHUB_STEP_SUMMARY -Raw
+    if ($message -notlike "*$want*" -or $verdict.passed -ne $false -or $verdict.error -notlike "*$want*" -or $summary -notlike "*$want*") {
+        throw "Planning verdict lost its diagnostic: $message"
+    }
+    if (Test-Path (Join-Path $planRoot 'shards.json')) { throw 'Missing selection reached shard aggregation' }
+}
+'Remote workflow planner refusal passed'

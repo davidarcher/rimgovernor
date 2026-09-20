@@ -148,8 +148,11 @@ switch ($Phase) {
         $run = Read-JSON (Join-Path $Evidence 'run.json')
         Push-Location (Join-Path $Repo 'go')
         try {
-            $selection = & go run ./internal/nativeaccept/cmd/acceptance plan -evidence $Evidence -run run.json -fetch
-            if ($LASTEXITCODE) { throw 'Planner rejected the complete selection; see diagnostics' }
+            $selection = & go run ./internal/nativeaccept/cmd/acceptance plan -evidence $Evidence -run run.json -fetch 2> (Join-Path $Evidence 'planner.log')
+            if ($LASTEXITCODE) {
+                $diagnostic = Get-Content -LiteralPath (Join-Path $Evidence 'planner.log') -Raw
+                throw "Planner rejected the complete selection: $diagnostic"
+            }
             [IO.File]::WriteAllText((Join-Path $Evidence 'selection.json'), ($selection -join "`n") + "`n")
         } finally { Pop-Location }
         $selection = Read-JSON (Join-Path $Evidence 'selection.json')
@@ -212,6 +215,17 @@ switch ($Phase) {
         if ($bad) { throw 'One or more native cases failed; export retains their diagnostics' }
     }
     'collect' {
+        if (-not (Test-Path -LiteralPath (Join-Path $Evidence 'selection.json'))) {
+            $diagnostic = 'Planning did not produce a selection; inspect the plan job logs.'
+            $plannerLog = Join-Path $Evidence 'planner.log'
+            if (Test-Path -LiteralPath $plannerLog) {
+                $refusal = Get-Content -LiteralPath $plannerLog -Raw
+                if (-not [string]::IsNullOrWhiteSpace($refusal)) { $diagnostic = $refusal.Trim() }
+            }
+            Write-JSON (Join-Path $Evidence 'incomplete.json') @{passed=$false;error=$diagnostic}
+            "Planning failed: $diagnostic" >> $env:GITHUB_STEP_SUMMARY
+            throw "Planning failed: $diagnostic"
+        }
         $selection = Read-JSON (Join-Path $Evidence 'selection.json')
         $pages = & gh api --paginate --slurp "repos/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID/attempts/$env:GITHUB_RUN_ATTEMPT/jobs?per_page=100"
         if ($LASTEXITCODE) { throw 'Cannot authenticate shard job conclusions' }

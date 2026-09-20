@@ -306,7 +306,7 @@ jobs:
         if: always()
         env:
           ARTIFACT_URL: ${{ steps.upload.outputs.artifact-url }}
-          VERDICT: ${{ steps.aggregate.outcome }}
+          VERDICT: ${{ job.status }}
           TESTED_COMMIT: ${{ needs.plan.outputs.head }}
         run: |
           "Remote acceptance: $env:VERDICT" >> $env:GITHUB_STEP_SUMMARY
