@@ -473,11 +473,12 @@ func billExecutorRequired(config serveConfig) bool {
 // zoneExecutorRequired reports whether the composition dispatches zone-create
 // actions: field and food-storage plans, SecureSupplies' covered-storage
 // fallback (routine_secure_supplies.go), MaintainResource's material-storage
-// fallback (routine_resource.go) and MaintainAnimalFeed's feed-storage
+// fallback (routine_resource.go), clearance's chunk-dump stockpile,
+// and MaintainAnimalFeed's feed-storage
 // fallback (routine_animal_feed.go, #311: the feed zone sat pending as an
 // unsupported action until the family carried the executor).
 func zoneExecutorRequired(config serveConfig) bool {
-	return config.routineFieldPlans || config.routineFoodStoragePlans || config.routineSecureSuppliesPlans || config.routineResourcePlans || config.routineAnimalFeedPlans || config.routineFoodStorageUpkeepPlans
+	return config.routineFieldPlans || config.routineFoodStoragePlans || config.routineSecureSuppliesPlans || config.routineResourcePlans || config.routineAnimalFeedPlans || config.routineFoodStorageUpkeepPlans || config.routineClearancePlans
 }
 
 func supplyExecutorRequired(config serveConfig) bool {
@@ -551,7 +552,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	var zoneCapabilities *zone.ZoneCapabilities
 	if zoneExecutorRequired(config) {
 		if client.zones == nil {
-			return errors.New("field, food storage, secure-supplies, resource and animal feed plans require typed capabilities")
+			return errors.New("zone plans require typed zone capabilities")
 		}
 		zoneCapabilities = client.zones
 	}

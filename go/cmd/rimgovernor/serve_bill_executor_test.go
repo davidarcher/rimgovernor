@@ -59,6 +59,7 @@ func TestZoneExecutorRequiredByStorageFallbacks(t *testing.T) {
 		"resource":            func(c *serveConfig) { c.routineResourcePlans = true },
 		"animal-feed":         func(c *serveConfig) { c.routineAnimalFeedPlans = true },
 		"food-storage-upkeep": func(c *serveConfig) { c.routineFoodStorageUpkeepPlans = true },
+		"clearance":           func(c *serveConfig) { c.routineClearancePlans = true },
 	} {
 		var c serveConfig
 		set(&c)
