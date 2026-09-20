@@ -206,7 +206,7 @@ func (r *RoutineIngredientStoragePlanner) step(call, epoch context.Context) (Rou
 	for _, h := range held {
 		protected = append(protected, h.Footprint...)
 	}
-	sites, err := ingredientStorageSites(rooms.Rooms, projection.Bounds, projection.Cells, protected)
+	sites, err := ingredientStorageSites(rooms.Rooms, projection.Bounds, projection.Cells, layoutProtected(projection, protected))
 	if err != nil {
 		return RoutineIngredientStorageResult{}, err
 	}

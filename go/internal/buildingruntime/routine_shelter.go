@@ -111,6 +111,7 @@ const shellAdoptionReach int32 = 64
 
 func (r *RoutineBuildingPlanner) previewShell(ctx context.Context, snapshot domain.GenerationSnapshot, facts observation.ColonyProjection, protected []domain.Cell, check func() error) ([]policy.Preview, policy.StockObservation, RoutineBuildingReason, error) {
 	style := shelterStyle(facts)
+	protected = layoutProtected(facts, protected)
 	if selected, stock, reason, adopted, err := r.adoptShell(ctx, snapshot, facts, protected, style, check); err != nil || adopted {
 		return selected, stock, reason, err
 	}

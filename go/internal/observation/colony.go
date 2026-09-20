@@ -64,10 +64,14 @@ type ColonyProjection struct {
 	// with PlayerTechLevel as its floor (#604); unknown until a routine
 	// reading served the research census.
 	BuildTier domain.Fact[policy.BuildTier]
-	Facts     policy.RoutineFacts
-	Workers   domain.Fact[int]
-	Bounds    policy.Bounds
-	Center    domain.Cell
+	// ColonyGrid is the colony's layout grid (#605); unknown until one is
+	// derived or served from the store. At tier >= Masonry its aisles are
+	// protected cells in every site search (#606).
+	ColonyGrid domain.Fact[policy.ColonyGrid]
+	Facts      policy.RoutineFacts
+	Workers    domain.Fact[int]
+	Bounds     policy.Bounds
+	Center     domain.Cell
 	// Region is the observed planning window; cells absent inside it are
 	// fogged, cells outside it were never read.
 	Region policy.Rectangle
@@ -201,6 +205,7 @@ func DecodeColony(reply *o.ColonyFactsReply, expected Identity) (ColonyProjectio
 	r := ColonyProjection{Identity: identity, Bounds: policy.Bounds{Width: int32(v.MapSize.GetWidth()), Height: int32(v.MapSize.GetHeight())}, Center: domain.Cell{X: v.Center.GetX(), Z: v.Center.GetZ()}}
 	r.PlayerTechLevel = optional(v.PlayerTechLevel)
 	r.BuildTier = domain.Unknown[policy.BuildTier]()
+	r.ColonyGrid = domain.Unknown[policy.ColonyGrid]()
 	r.Threat = bridge.ProjectColonyThreat(v)
 	r.FoodChannels = colonyFoodChannels(v.FoodChannels)
 	r.DeepResources = colonyDeepResources(v.DeepResources)

@@ -606,6 +606,7 @@ func (r *RoutineDefenseLayoutPlanner) proposeTurrets(call context.Context, state
 	}
 	request := defenseTurretRequest(read)
 	request.Bounds, request.Home = projection.Bounds, projection.Center
+	request.Protected = layoutProtected(projection, request.Protected)
 	request.Region = policy.Rectangle{X: region.Min.X, Z: region.Min.Z, Width: region.Max.X - region.Min.X + 1, Height: region.Max.Z - region.Min.Z + 1}
 	for _, cell := range site.Cells {
 		request.Cells = append(request.Cells, defenseCellFacts(cell))
@@ -848,6 +849,7 @@ func (r *RoutineDefenseLayoutPlanner) propose(call context.Context, state Contro
 	}
 	request := defenseTurretRequest(read)
 	request.Bounds, request.Home = projection.Bounds, projection.Center
+	request.Protected = layoutProtected(projection, request.Protected)
 	request.Region = policy.Rectangle{X: region.Min.X, Z: region.Min.Z, Width: region.Max.X - region.Min.X + 1, Height: region.Max.Z - region.Min.Z + 1}
 	for _, cell := range site.Cells {
 		request.Cells = append(request.Cells, defenseCellFacts(cell))
