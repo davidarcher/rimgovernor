@@ -7,6 +7,7 @@ using RimBridgeServer.Sdk;
 using RimWorld;
 using Verse;
 using Verse.AI;
+using Verse.AI.Group;
 
 namespace HomeBridge.BridgeTools
 {
@@ -365,11 +366,33 @@ namespace HomeBridge.BridgeTools
         private static IntVec3 salvageCell;
         private static int salvageHomeCount;
         private static int salvageStoredBefore;
-        [Tool("test/salvage_remote", Description = "UNSAFE FOR MODEL EXECUTION. Replace the prepared remote loot with a steel-rich ruin (a battery) and raise readiness, or audit ordinary deconstruction, delivered steel and unchanged Home.")]
-        public async Task<object> SalvageRemote(IRimBridgeContext ctx, CancellationToken cancellationToken, bool prepare = false)
+        private static Pawn salvageThreat;
+        [Tool("test/salvage_remote", Description = "UNSAFE FOR MODEL EXECUTION. Replace the prepared remote loot with a steel-rich ruin (a battery) and raise readiness, or audit ordinary deconstruction, delivered steel and unchanged Home. threat=spawn stages one hostile humanlike beside the ruin, holding position (a raid that fires after selection, #525); threat=clear removes it.")]
+        public async Task<object> SalvageRemote(IRimBridgeContext ctx, CancellationToken cancellationToken, bool prepare = false, string threat = "")
             => await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
                 int Stored() => lootZone.Cells.SelectMany(c => c.GetThingList(map)).Where(t => t.def == ThingDefOf.Steel).Sum(t => t.stackCount);
+                if (threat == "spawn") {
+                    if (salvageWall == null || !Find.TickManager.Paused) return Refuse("Prepared salvage wall on a paused map required.");
+                    if (salvageThreat != null && salvageThreat.Spawned && !salvageThreat.Dead) return Refuse("Fixture threat already on the map.");
+                    var faction = Find.FactionManager.AllFactionsVisible.Where(f => f.HostileTo(Faction.OfPlayer) && !f.def.hidden && f.def.humanlikeFaction && !f.defeated)
+                        .OrderBy(f => f.def.techLevel).FirstOrDefault();
+                    if (faction == null) return Refuse("No hostile humanlike faction.");
+                    var cell = GenRadial.RadialCellsAround(salvageCell, 6, false).FirstOrDefault(c => c.InBounds(map) && c.Standable(map) && !c.Fogged(map)
+                        && c.DistanceTo(salvageCell) >= 3 && map.reachability.CanReach(c, salvageCell, PathEndMode.Touch, TraverseMode.PassDoors, Danger.Deadly));
+                    if (!cell.IsValid) return Refuse("No standable cell beside the salvage wall.");
+                    var kind = faction.RandomPawnKind();
+                    var pawn = PawnGenerator.GeneratePawn(new PawnGenerationRequest(kind, faction, PawnGenerationContext.NonPlayer, -1, forceGenerateNewPawn: true, mustBeCapableOfViolence: true));
+                    GenSpawn.Spawn(pawn, cell, map);
+                    // The raider holds its ground beside the ruin: a threat on the
+                    // route and at the target, not an assault on the colony.
+                    LordMaker.MakeNewLord(faction, new LordJob_DefendPoint(cell), map, new[] { pawn });
+                    salvageThreat = pawn;
+                }
+                if (threat == "clear") {
+                    if (salvageThreat != null && !salvageThreat.Destroyed) salvageThreat.Destroy(DestroyMode.Vanish);
+                    salvageThreat = null;
+                }
                 if (prepare) {
                     if (map != preparedMap || remoteStack?.Spawned != true || !Find.TickManager.Paused) return Refuse("Prepared remote loot required.");
                     salvageCell = remoteStack.Position;
@@ -409,7 +432,11 @@ namespace HomeBridge.BridgeTools
                     salvageStoredBefore = Stored();
                 }
                 if (salvageWall == null) return Refuse("No prepared salvage wall.");
+                var designations = salvageWall.Spawned ? map.designationManager.AllDesignationsOn(salvageWall).Count(d => d.def == DesignationDefOf.Deconstruct) : 0;
+                var hostiles = map.mapPawns.AllPawnsSpawned.Count(p => !p.Dead && !p.Downed && p.RaceProps.Humanlike && p.HostileTo(Faction.OfPlayer));
                 return new { success = true, target = salvageWall.GetUniqueLoadID(), present = salvageWall.Spawned, delivered = Stored() - salvageStoredBefore,
+                    designations, hostiles, threatPresent = salvageThreat != null && salvageThreat.Spawned && !salvageThreat.Dead,
+                    threatId = salvageThreat?.GetUniqueLoadID(), threatCell = salvageThreat?.Spawned == true ? new { x = salvageThreat.Position.x, z = salvageThreat.Position.z } : null,
                     homeUnchanged = salvageHomeCount == map.areaManager.Home.ActiveCells.Count() && !map.areaManager.Home[salvageCell] };
             }, cancellationToken);
 

@@ -28,6 +28,9 @@ type AcquisitionInspection struct {
 	SnapshotToken         string
 	Accepted              bool
 	Emergency             policy.EmergencySnapshot
+	// Refusals explain a target the native preview refused (#525); the mine
+	// executor records them as the pending action's hold reason.
+	Refusals []policy.Refusal
 }
 type AcquisitionDispatch struct {
 	Attempt       Placement

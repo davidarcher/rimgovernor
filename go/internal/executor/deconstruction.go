@@ -25,6 +25,10 @@ type DeconstructionInspection struct {
 	Eligible              bool
 	Accepted              bool
 	Emergency             policy.EmergencySnapshot
+	// Refusals explain an ineligible target (#525): a roof the removal would
+	// drop, no safe route or yield storage, a structure the census refuses.
+	// The executor records them as the pending action's hold reason.
+	Refusals []policy.Refusal
 }
 type DeconstructionDispatch struct {
 	Attempt  Placement
@@ -141,11 +145,16 @@ func (e *Executor) runDeconstruction(ctx context.Context, action domain.Action, 
 		if err = e.guard(ctx, expected, generation); err != nil {
 			return result, err
 		}
-		if inspection.Current != expected || inspection.Target != target || !inspection.Accepted || !inspection.Eligible || !e.fresh(inspection.StartedAt, inspection.ObservedAt) {
+		if inspection.Current != expected || inspection.Target != target || !e.fresh(inspection.StartedAt, inspection.ObservedAt) {
 			return result, ErrHeld
 		}
-		if emergency := policy.EvaluateEmergency(inspection.Emergency, expected, inspection.Tick); !emergency.Clear {
-			result.Progress = e.holdEmergency(ctx, v.Plan, v.Action, emergency, inspection.Tick, result.Progress)
+		// Safety is revalidated on every dispatch: a threat that appeared
+		// after the review selected the target, a route that turned unsafe
+		// or storage that filled hold the pending designation with the
+		// reason on record; nothing stale is dispatched (#525).
+		emergency := policy.EvaluateEmergency(inspection.Emergency, expected, inspection.Tick)
+		if !emergency.Clear || !inspection.Accepted || !inspection.Eligible {
+			result.Progress = e.holdDispatch(ctx, v.Plan, v.Action, emergency, inspection.Refusals, inspection.Tick, result.Progress)
 			return result, ErrHeld
 		}
 		next, err := e.deconstructionJournal.PrepareDeconstruction(ctx, v.Plan, v.Action, store.DeconstructionAdmission{Snapshot: expected, Tick: inspection.Tick, Thing: target.Target(), Eligible: inspection.Eligible})

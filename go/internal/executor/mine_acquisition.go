@@ -122,11 +122,15 @@ func (e *Executor) runMineAcquisition(ctx context.Context, action domain.Action,
 		if err = e.guard(ctx, expected, generation); err != nil {
 			return result, err
 		}
-		if inspection.Current != expected || inspection.Acquisition != acquisition || !inspection.Accepted || !e.fresh(inspection.StartedAt, inspection.ObservedAt) {
+		if inspection.Current != expected || inspection.Acquisition != acquisition || !e.fresh(inspection.StartedAt, inspection.ObservedAt) {
 			return result, ErrHeld
 		}
-		if emergency := policy.EvaluateEmergency(inspection.Emergency, expected, inspection.Tick); !emergency.Clear {
-			result.Progress = e.holdEmergency(ctx, v.Plan, v.Action, emergency, inspection.Tick, result.Progress)
+		// The deposit is revalidated on every dispatch (#525): a refused
+		// native preview or a threat holds the pending designation with the
+		// reason on record.
+		emergency := policy.EvaluateEmergency(inspection.Emergency, expected, inspection.Tick)
+		if !emergency.Clear || !inspection.Accepted {
+			result.Progress = e.holdDispatch(ctx, v.Plan, v.Action, emergency, inspection.Refusals, inspection.Tick, result.Progress)
 			return result, ErrHeld
 		}
 		next, err := e.mineAcquisitionJournal.PrepareMineAcquisition(ctx, v.Plan, v.Action, store.MineAcquisitionAdmission{Snapshot: expected, Tick: inspection.Tick, Thing: acquisition.Thing(), SnapshotToken: inspection.SnapshotToken})

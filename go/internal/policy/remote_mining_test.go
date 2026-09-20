@@ -37,7 +37,7 @@ func TestSurfaceMiningReachDemandAndSafety(t *testing.T) {
 				other = s
 				other.ThingID = "other"
 			}
-			got := SelectReachableResourceSources([]ResourceSource{s, other}, 40, tt.stock, r)
+			got, _ := SelectReachableResourceSources([]ResourceSource{s, other}, 40, tt.stock, RemoteWorkRequest{Reach: r})
 			if len(got) != tt.want {
 				t.Fatalf("selected %v, want %d", got, tt.want)
 			}

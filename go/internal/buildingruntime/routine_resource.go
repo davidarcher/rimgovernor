@@ -307,11 +307,11 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 		if beer && choice.Kind == policy.ResourceMethodWait {
 			return RoutineResourceResult{Reason: BuildingMethodExistingWork, NativeWorkTicks: stockWaitTicks}, nil
 		}
-		reach, err := r.miningReach(call, state, reviewTick)
+		remote, err := r.miningReach(call, state, reviewTick)
 		if err != nil {
 			return RoutineResourceResult{}, err
 		}
-		selected, sourceStorage, ok := r.sourcesForDeficit(call, identity, resource, target, stock, reach)
+		selected, sourceStorage, ok := r.sourcesForDeficit(call, identity, resource, target, stock, remote)
 		if !ok {
 			return RoutineResourceResult{Reason: BuildingMethodUsed}, nil
 		}
@@ -409,7 +409,7 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 // adequate -- so a native read failure here is deliberately swallowed
 // (ok=false) rather than surfaced, preserving the bench/recipe outcome the
 // caller already computed.
-func (r *RoutineResourcePlanner) sourcesForDeficit(ctx context.Context, identity *c.Identity, resource policy.Resource, target int64, stock domain.Fact[[]policy.Amount], reach policy.ResourceReachRequest) (selected []policy.ResourceSource, storage policy.ResourceStorage, ok bool) {
+func (r *RoutineResourcePlanner) sourcesForDeficit(ctx context.Context, identity *c.Identity, resource policy.Resource, target int64, stock domain.Fact[[]policy.Amount], remote policy.RemoteWorkRequest) (selected []policy.ResourceSource, storage policy.ResourceStorage, ok bool) {
 	rows, known := stock.Value()
 	if !known {
 		return nil, policy.ResourceStorage{}, false
@@ -428,53 +428,56 @@ func (r *RoutineResourcePlanner) sourcesForDeficit(ctx context.Context, identity
 	if err != nil {
 		return nil, policy.ResourceStorage{}, false
 	}
-	reach.StorageHeadroom = domain.Known(storage.Capacity)
-	selected = policy.SelectReachableResourceSources(sources, target, have, reach)
-	if len(selected) == 0 && len(sources) > 0 {
-		decision := policy.ResourceReach(reach)
-		clockSchedulerLog("resource %s: %d sources held, reach=%s reason=%s stock=%d target=%d", resource, len(sources), decision.Stage, decision.Reason, have, target)
+	remote.Reach.StorageHeadroom = domain.Known(storage.Capacity)
+	var holds []policy.RemoteWorkHold
+	selected, holds = policy.SelectReachableResourceSources(sources, target, have, remote)
+	if len(selected) == 0 && len(holds) > 0 {
+		decision := policy.ResourceReach(remote.Reach)
+		clockSchedulerLog("resource %s: %d sources held, reach=%s first=%s:%s stock=%d target=%d", resource, len(holds), decision.Stage, holds[0].Target, holds[0].Reason, have, target)
 	}
 	return selected, storage, true
 }
 
-// Mining uses the same observed readiness and colony extent as remote loot,
-// with destination capacity from the exact resource's fresh source census.
-func (r *RoutineResourcePlanner) miningReach(ctx context.Context, state ControlState, tick domain.Tick) (policy.ResourceReachRequest, error) {
+// Mining uses the same observed readiness, colony extent and urgent-work
+// competition as remote loot, with destination capacity from the exact
+// resource's fresh source census.
+func (r *RoutineResourcePlanner) miningReach(ctx context.Context, state ControlState, tick domain.Tick) (policy.RemoteWorkRequest, error) {
 	last, _, err := r.reviewer.native.Identity(ctx)
 	if err != nil {
-		return policy.ResourceReachRequest{}, err
+		return policy.RemoteWorkRequest{}, err
 	}
 	expected, err := observation.DecodeIdentity(last)
 	if err != nil {
-		return policy.ResourceReachRequest{}, err
+		return policy.RemoteWorkRequest{}, err
 	}
 	if !routineBuildingBoundary(expected, state.Snapshot, tick) {
-		return policy.ResourceReachRequest{}, ErrControl
+		return policy.RemoteWorkRequest{}, ErrControl
 	}
 	reading, err := r.reviewer.observeOwned(ctx, r.reviewer.native, expected, domain.Unknown[[]policy.ConstructionClaim]())
 	if err != nil {
-		return policy.ResourceReachRequest{}, err
+		return policy.RemoteWorkRequest{}, err
 	}
 	f := reading.Projection.Facts
 	f.ConstructionClaims, err = r.reviewer.player.journal.ConstructionClaims(ctx, state.Snapshot, expected.Tick)
 	if err != nil {
-		return policy.ResourceReachRequest{}, err
+		return policy.RemoteWorkRequest{}, err
 	}
 	f.OwnedStockpiles, err = r.reviewer.player.journal.StockpileClaims(ctx, state.Snapshot, expected.Tick)
 	if err != nil {
-		return policy.ResourceReachRequest{}, err
+		return policy.RemoteWorkRequest{}, err
 	}
 	emergency, err := policy.NewEmergencySnapshot(state.Snapshot, expected.Tick, reading.Emergency)
 	if err != nil {
-		return policy.ResourceReachRequest{}, err
+		return policy.RemoteWorkRequest{}, err
 	}
 	f.Hostiles, _ = policy.EmergencyNeeds(emergency, state.Snapshot, expected.Tick)
+	f.UrgentPatients = policy.UrgentPatients(emergency, state.Snapshot, expected.Tick)
 	extent, err := policy.DeriveColonyExtent(policy.ColonyExtentRequest{Bounds: f.MapBounds,
 		Construction: f.CurrentConstruction, Claims: f.ConstructionClaims, Stockpiles: f.OwnedStockpiles, Home: f.HomeCoverage})
 	if err != nil {
-		return policy.ResourceReachRequest{}, err
+		return policy.RemoteWorkRequest{}, err
 	}
-	return policy.LootReach(f, f.MapBounds, extent), nil
+	return policy.RemoteWorkRequest{Reach: policy.LootReach(f, f.MapBounds, extent), Competition: policy.RemoteCompetition(f)}, nil
 }
 
 // materialStorageZoneFallback is the resource method's

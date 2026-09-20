@@ -386,11 +386,11 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		}
 		loot.Held = held
 		if rows, known := request.Facts.Upkeep.Clearance.Value(); known {
-			reach, demand, err := policy.SalvageContext(request.Policy, request.Facts)
+			remote, err := policy.SalvageContext(request.Policy, request.Facts)
 			if err != nil {
 				return RoutineReviewResult{}, err
 			}
-			filtered, _, err := policy.FilterRemoteSalvage(rows, reach, demand)
+			filtered, _, err := policy.FilterRemoteSalvage(rows, remote)
 			if err != nil {
 				return RoutineReviewResult{}, err
 			}
@@ -600,11 +600,11 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	}
 	if rows, known := request.Facts.Upkeep.Clearance.Value(); known {
 		r.ClearanceHolds = policy.SelectHomeClearance(rows, domain.Cell{}).Holds
-		reach, demand, err := policy.SalvageContext(request.Policy, request.Facts)
+		remote, err := policy.SalvageContext(request.Policy, request.Facts)
 		if err != nil {
 			return RoutineReviewResult{}, err
 		}
-		filtered, remoteHolds, err := policy.FilterRemoteSalvage(rows, reach, demand)
+		filtered, remoteHolds, err := policy.FilterRemoteSalvage(rows, remote)
 		if err != nil {
 			return RoutineReviewResult{}, err
 		}

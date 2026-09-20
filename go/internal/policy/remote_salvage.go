@@ -9,18 +9,24 @@ type SalvageEvidence struct {
 	Candidate AcquisitionCandidate
 }
 
-func SalvageContext(p RoutinePolicy, f RoutineFacts) (ResourceReachRequest, domain.Fact[[]ResourceDemand], error) {
+// SalvageContext assembles the remote request every remote selection in a
+// review shares: reach from the derived extent, demand from the effective
+// targets and the urgent work competing for the colonists.
+func SalvageContext(p RoutinePolicy, f RoutineFacts) (RemoteWorkRequest, error) {
 	extent, err := DeriveColonyExtent(ColonyExtentRequest{Bounds: f.MapBounds, Construction: f.CurrentConstruction, Claims: f.ConstructionClaims, Stockpiles: f.OwnedStockpiles, Home: f.HomeCoverage})
 	if err != nil {
-		return ResourceReachRequest{}, domain.Unknown[[]ResourceDemand](), err
+		return RemoteWorkRequest{}, err
 	}
 	demand, err := LootDemand(p, f)
-	return LootReach(f, f.MapBounds, extent), demand, err
+	return RemoteWorkRequest{Reach: LootReach(f, f.MapBounds, extent), Demand: demand, Competition: RemoteCompetition(f)}, err
 }
 
 // FilterRemoteSalvage preserves Home clearance and admits at most one remote
 // removal. The next removal needs a new counterfactual roof-support census.
-func FilterRemoteSalvage(rows []ClearanceTarget, reach ResourceReachRequest, demand domain.Fact[[]ResourceDemand]) ([]ClearanceTarget, []ClearanceHold, error) {
+// Holds carry the explicit remote reasons (RemoteHoldReason): a known threat
+// first, then roof support, native route safety, the reach stage and demand.
+func FilterRemoteSalvage(rows []ClearanceTarget, r RemoteWorkRequest) ([]ClearanceTarget, []ClearanceHold, error) {
+	reach, demand := r.Reach, r.Demand
 	out := append([]ClearanceTarget(nil), rows...)
 	var candidates []AcquisitionCandidate
 	var holds []ClearanceHold
@@ -32,7 +38,10 @@ func FilterRemoteSalvage(rows []ClearanceTarget, reach ResourceReachRequest, dem
 		}
 		check := *row
 		check.SalvageSelected = true
-		reason := ClearanceHoldReason(check)
+		reason := remoteThreatHold(reach)
+		if reason == "" {
+			reason = RemoteHoldReason(RemoteSalvage, ClearanceHoldReason(check))
+		}
 		if reason == "" && row.Salvage == nil {
 			reason = "salvage_unknown"
 		}
@@ -47,7 +56,7 @@ func FilterRemoteSalvage(rows []ClearanceTarget, reach ResourceReachRequest, dem
 			r.StorageHeadroom = domain.Known(headroom)
 			decision := FilterResourceReach(r, ResourceReachCandidate{Cell: row.Minimum, Eligible: row.Salvage.Safe, RouteObservedPassable: row.Salvage.Safe})
 			if !decision.Allowed {
-				reason = decision.Reason
+				reason = RemoteHoldReason(RemoteSalvage, decision.Reason)
 			}
 		}
 		if reason != "" {
@@ -56,17 +65,17 @@ func FilterRemoteSalvage(rows []ClearanceTarget, reach ResourceReachRequest, dem
 		}
 		candidate := row.Salvage.Candidate
 		candidate.ID, candidate.Kind = row.EntityID, AcquisitionSalvage
-		score, err := ScoreResourceCandidate(demand, candidate, AcquisitionCompetition{})
+		score, err := ScoreResourceCandidate(demand, candidate, r.Competition)
 		if err != nil {
 			return nil, nil, err
 		}
 		if score.Score <= 0 {
-			holds = append(holds, ClearanceHold{row.EntityID, "demand:" + score.Hold})
+			holds = append(holds, ClearanceHold{row.EntityID, RemoteHoldReason(RemoteSalvage, "demand:"+score.Hold)})
 			continue
 		}
 		candidates = append(candidates, candidate)
 	}
-	ranked, err := RankResourceCandidates(demand, candidates, AcquisitionCompetition{})
+	ranked, err := RankResourceCandidates(demand, candidates, r.Competition)
 	if err != nil {
 		return nil, nil, err
 	}

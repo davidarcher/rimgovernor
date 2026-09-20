@@ -803,9 +803,13 @@ multi-season campaigns are tracked separately.
 Remote clearance considers visible abandoned buildings outside Home only when
 resource reach permits their observed safe route and native salvage yield scores
 against unmet resource demand with accepting storage headroom. Roof-support
-blockers, caskets and sealed ancient-danger rooms remain held. One remote removal
-is selected per fresh census; ordinary deconstruction and hauling produce and
-deliver the yield. Selection never adds Home cells.
+blockers, caskets and sealed ancient-danger rooms remain held, and a remote ruin's
+hold names its [explicit reason](controller-contracts.md#remote-work-holds-and-resume)
+(`threat_present`, `urgent_competing_work`, `roof_support_risk`, `route_unsafe`,
+`missing_storage`). One remote removal is selected per fresh census; its dispatch
+revalidates the census and the emergency read and resumes without a duplicate
+designation. Ordinary deconstruction and hauling produce and deliver the yield.
+Selection never adds Home cells.
 
 ## Corpse larder
 

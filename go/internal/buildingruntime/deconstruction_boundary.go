@@ -88,6 +88,7 @@ func (b *DeconstructionBoundary) InspectDeconstruction(ctx context.Context, targ
 		candidate.SalvageSelected = !candidate.InHome && row.Salvage != nil && row.Salvage.Safe
 		out.Eligible = policy.ClearanceHoldReason(candidate) == ""
 		out.Accepted = out.Eligible
+		out.Refusals = deconstructionRefusals(target.Action.ID(), candidate, row.Salvage)
 		emergency, _, err := b.native.ReadEmergency(ctx, boundary.Identity(current))
 		if err != nil {
 			return out, err
@@ -106,6 +107,39 @@ func (b *DeconstructionBoundary) InspectDeconstruction(ctx context.Context, targ
 		return out, ctx.Err()
 	}
 	return out, executor.ErrDeconstructionAbsent
+}
+
+// deconstructionRefusals names why the census refuses the target now (#525):
+// a roof the removal would drop, a remote ruin with no safe route or no
+// accepting storage for its yield, or a structure the clearance census will
+// not have removed at all. A remote ruin's storage hold reads the native
+// salvage row's per-yield headroom exactly as the review's filter does.
+func deconstructionRefusals(action domain.ActionID, candidate policy.ClearanceTarget, salvage *n.SalvageEvidence) []policy.Refusal {
+	var out []policy.Refusal
+	refuse := func(reason policy.Reason) { out = append(out, policy.Refusal{Action: action, Reason: reason}) }
+	switch policy.ClearanceHoldReason(candidate) {
+	case "":
+		return nil
+	case "roof_blocker":
+		refuse(policy.RoofSupportRisk)
+	case "outside_home":
+		if salvage == nil || !salvage.GetSafe() {
+			refuse(policy.UnsafeRoute)
+		}
+		headroom := false
+		for _, y := range salvage.GetYields() {
+			headroom = headroom || y.GetStorageHeadroom() > 0
+		}
+		if salvage != nil && len(salvage.GetYields()) > 0 && !headroom {
+			refuse(policy.StorageMissing)
+		}
+		if len(out) == 0 {
+			refuse(policy.StructureIneligible)
+		}
+	default:
+		refuse(policy.StructureIneligible)
+	}
+	return out
 }
 
 // inspectBreach guards a shrine breach (#458) on the shrine census instead

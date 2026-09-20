@@ -174,25 +174,39 @@ type ResourceSource struct {
 // SelectReachableResourceSources narrows mining to the current resource reach.
 // Existing designations reserve estimated yield but are never adopted or removed.
 // Each new method still contains at most one rock; its final native yield may
-// overshoot the remaining demand by one rock's output.
-func SelectReachableResourceSources(sources []ResourceSource, target, stock int64, reach ResourceReachRequest) []ResourceSource {
+// overshoot the remaining demand by one rock's output. Every mine source kept
+// back is returned as a hold with its explicit reason (RemoteHoldReason): a
+// known threat or urgent competing work holds every deposit, then the
+// open-surface roof check, the observed route and the reach stage.
+func SelectReachableResourceSources(sources []ResourceSource, target, stock int64, r RemoteWorkRequest) ([]ResourceSource, []RemoteWorkHold) {
 	var pending int64
 	var candidates []ResourceSource
+	var holds []RemoteWorkHold
 	for _, source := range sources {
 		if source.Designated && source.Yield > 0 {
 			pending += source.Yield
 			continue
 		}
 		if source.Method == ResourceSourceMine {
-			decision := FilterResourceReach(reach, ResourceReachCandidate{Cell: source.Cell,
-				Eligible: domain.Known(source.Safety == "open_surface"), RouteObservedPassable: source.Reachable})
-			if !decision.Allowed {
+			reason := remoteThreatHold(r.Reach)
+			if reason == "" && r.Competition.UrgentPriority > 0 {
+				reason = RemoteHoldUrgentWork
+			}
+			if reason == "" {
+				decision := FilterResourceReach(r.Reach, ResourceReachCandidate{Cell: source.Cell,
+					Eligible: domain.Known(source.Safety == "open_surface"), RouteObservedPassable: source.Reachable})
+				if !decision.Allowed {
+					reason = RemoteHoldReason(RemoteMining, decision.Reason)
+				}
+			}
+			if reason != "" {
+				holds = append(holds, RemoteWorkHold{Kind: RemoteMining, Target: source.ThingID, Reason: reason})
 				continue
 			}
 		}
 		candidates = append(candidates, source)
 	}
-	return SelectResourceSources(candidates, target, stock, pending)
+	return SelectResourceSources(candidates, target, stock, pending), holds
 }
 
 // SelectResourceSources chooses, nearest first, the undesignated sources

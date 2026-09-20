@@ -51,7 +51,8 @@ floors default to 1 and a merged row retains its highest priority.
 and mining integrations. It values only unmet demand that fits observed destination
 headroom, weighted by priority and native unit value. Path distance, total source
 labor and rounded hauling trips reduce the score. Unknown cost facts withhold a
-candidate; unknown storage supplies no headroom. Higher-priority urgent work holds
+candidate; unknown storage supplies no headroom. Higher-priority urgent work
+(`policy.RemoteCompetition`: an urgent patient or a disrupting disaster) holds
 acquisition, while an unrelated routine deficit does not. Positive scores sort by
 score descending, then kind and stable source ID; input order cannot break ties.
 These are alternatives, not a batch allocation or permission to dispatch. Consumers
@@ -59,7 +60,10 @@ must bound selected work and refresh demand, reach, native safety and storage be
 using the existing goals and Hands path. Remote loot consumes it through the
 [supply safety filter](../contracts/controller-contracts.md#remote-loot-and-resource-reach)
 (#522). Surface mining uses the same reach ceiling and one-rock demand batches
-([mining contract](../contracts/mining-contracts.md)); salvage is tracked by #523.
+([mining contract](../contracts/mining-contracts.md)); salvage reads the
+[upkeep contract](../contracts/upkeep-contracts.md). All three report the same
+[explicit holds](../contracts/controller-contracts.md#remote-work-holds-and-resume)
+and revalidate safety at dispatch.
 
 ## Material runway
 

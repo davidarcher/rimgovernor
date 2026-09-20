@@ -60,6 +60,10 @@ var reasonHeldReasons = map[policy.Reason]domain.HeldReason{
 	policy.ExcavationUnsupported:          domain.HeldExcavationUnsupported,
 	policy.ExcavationGeometryChanged:      domain.HeldExcavationGeometryChanged,
 	policy.OpenerUnavailable:              domain.HeldOpenerUnavailable,
+	policy.UnsafeRoute:                    domain.HeldUnsafeRoute,
+	policy.RoofSupportRisk:                domain.HeldRoofSupportRisk,
+	policy.StorageMissing:                 domain.HeldStorageMissing,
+	policy.UrgentCompetingWork:            domain.HeldUrgentCompetingWork,
 }
 
 // holdRefusal durably records a refused-but-not-yet-dispatched action's
@@ -80,6 +84,44 @@ func (e *Executor) holdRefusal(ctx context.Context, plan domain.PlanID, actionID
 		}
 		seen[held] = true
 		reasons = append(reasons, held)
+	}
+	if len(reasons) == 0 {
+		return progress
+	}
+	if next, err := e.journal.Hold(ctx, plan, actionID, reasons, tick); err == nil {
+		return next
+	}
+	return progress
+}
+
+// holdDispatch records one hold carrying both the emergency's reasons and
+// the inspection's refusals, so a target that is unsafe for two reasons at
+// once (a raid that also makes the route unsafe) keeps both on record.
+func (e *Executor) holdDispatch(ctx context.Context, plan domain.PlanID, actionID domain.ActionID, decision policy.EmergencyDecision, refused []policy.Refusal, tick domain.Tick, progress domain.Progress) domain.Progress {
+	seen := map[domain.HeldReason]bool{}
+	var reasons []domain.HeldReason
+	add := func(held domain.HeldReason) {
+		if !seen[held] {
+			seen[held] = true
+			reasons = append(reasons, held)
+		}
+	}
+	for _, hold := range decision.Holds {
+		switch hold.Reason {
+		case policy.EmergencyUnsafeThreat:
+			add(domain.HeldUnsafeThreat)
+		case policy.EmergencyCriticalMedical:
+			add(domain.HeldCriticalMedical)
+		case policy.EmergencyStaleFacts:
+			add(domain.HeldStaleFacts)
+		default:
+			add(domain.HeldUnknownFacts)
+		}
+	}
+	for _, refusal := range refused {
+		if held, ok := reasonHeldReasons[refusal.Reason]; ok {
+			add(held)
+		}
 	}
 	if len(reasons) == 0 {
 		return progress

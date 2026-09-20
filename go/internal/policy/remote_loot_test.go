@@ -33,12 +33,12 @@ func TestRemoteLootFollowsReachStage(t *testing.T) {
 			r.Armed = domain.Known(int64(6))
 			r.FreeHaulers = domain.Known(int64(2))
 			r.Threat = domain.Known(true)
-		}, false, "outside_base:threat_present"},
+		}, false, "threat_present"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			r := tribal8Reach()
 			tt.edit(&r)
-			rows, holds, err := FilterLootReach(domain.Known([]LootItem{remoteLootRow("steel-1", remote, true, true)}), LootReachRequest{Reach: r, Demand: steelDemand()})
+			rows, holds, err := FilterLootReach(domain.Known([]LootItem{remoteLootRow("steel-1", remote, true, true)}), RemoteWorkRequest{Reach: r, Demand: steelDemand()})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -65,7 +65,7 @@ func TestRemoteLootKeepsSafetySemantics(t *testing.T) {
 		remoteLootRow("remote-forbidden", remote, true, true),
 	}
 	rows[0].SafeToHaul = false
-	kept, holds, err := FilterLootReach(domain.Known(rows), LootReachRequest{Reach: r, Demand: steelDemand()})
+	kept, holds, err := FilterLootReach(domain.Known(rows), RemoteWorkRequest{Reach: r, Demand: steelDemand()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,7 +84,7 @@ func TestRemoteLootKeepsSafetySemantics(t *testing.T) {
 	if err := next.Validate(); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := FilterLootReach(domain.Unknown[[]LootItem](), LootReachRequest{Reach: r}); err != nil {
+	if _, _, err := FilterLootReach(domain.Unknown[[]LootItem](), RemoteWorkRequest{Reach: r}); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -107,7 +107,7 @@ func TestRemoteLootScoresAgainstDemand(t *testing.T) {
 			row := remoteLootRow("s", remote, true, true)
 			row.StorageHeadroom = domain.Known(int64(0))
 			return row
-		}(), steelDemand(), "demand:no_storage_headroom"},
+		}(), steelDemand(), "missing_storage"},
 		{"unknown path", func() LootItem {
 			row := remoteLootRow("s", remote, true, true)
 			row.PathLength = domain.Unknown[float64]()
@@ -116,7 +116,7 @@ func TestRemoteLootScoresAgainstDemand(t *testing.T) {
 		{"demanded", remoteLootRow("s", remote, true, true), steelDemand(), ""},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			kept, holds, err := FilterLootReach(domain.Known([]LootItem{tt.row}), LootReachRequest{Reach: r, Demand: tt.demand})
+			kept, holds, err := FilterLootReach(domain.Known([]LootItem{tt.row}), RemoteWorkRequest{Reach: r, Demand: tt.demand})
 			if err != nil {
 				t.Fatal(err)
 			}

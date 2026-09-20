@@ -18,6 +18,10 @@ type deconstructionEnvironment struct {
 	onInspect                          func()
 	gone                               bool
 	effect                             domain.Effect
+	// threat adds a live hostile to the emergency read; refusals make the
+	// target ineligible with those reasons (#525).
+	threat   bool
+	refusals []policy.Refusal
 }
 
 func (n *deconstructionEnvironment) InspectDeconstruction(_ context.Context, target Target) (DeconstructionInspection, error) {
@@ -29,8 +33,13 @@ func (n *deconstructionEnvironment) InspectDeconstruction(_ context.Context, tar
 		return DeconstructionInspection{}, ErrDeconstructionAbsent
 	}
 	value, _ := target.Action.Deconstruction()
-	emergency, _ := policy.NewEmergencySnapshot(target.Snapshot, n.tick, policy.EmergencyFacts{ColonistsComplete: domain.Known(!n.unsafe), ThreatsComplete: domain.Known(true)})
-	return DeconstructionInspection{Current: target.Snapshot, Tick: n.tick, StartedAt: n.clock.Now(), ObservedAt: n.clock.Now(), Target: value, Eligible: true, Accepted: true, Emergency: emergency}, nil
+	facts := policy.EmergencyFacts{ColonistsComplete: domain.Known(!n.unsafe), ThreatsComplete: domain.Known(true)}
+	if n.threat {
+		facts.Threats = []policy.EmergencyThreat{{ID: "raider", Kind: policy.Hostile, Dead: domain.Known(false), Downed: domain.Known(false), Animal: domain.Known(false), Distance: domain.Known(150.0)}}
+	}
+	emergency, _ := policy.NewEmergencySnapshot(target.Snapshot, n.tick, facts)
+	eligible := len(n.refusals) == 0
+	return DeconstructionInspection{Current: target.Snapshot, Tick: n.tick, StartedAt: n.clock.Now(), ObservedAt: n.clock.Now(), Target: value, Eligible: eligible, Accepted: eligible, Emergency: emergency, Refusals: n.refusals}, nil
 }
 func (n *deconstructionEnvironment) DesignateDeconstruction(_ context.Context, request DeconstructionDispatch) (Receipt, error) {
 	n.allowed++
@@ -218,5 +227,76 @@ func TestDeconstructionPendingStaysOpenUntilDemolitionObserved(t *testing.T) {
 	n.effect = domain.EffectCompleted
 	if result, err := f.run(); err != nil || result.Progress.View().Stage != domain.Completed || n.allowed != 1 {
 		t.Fatal(result, err)
+	}
+}
+
+// A remote designation is revalidated at every dispatch (#525): a hostile
+// that appears after selection, a roof the removal would drop, a route that
+// turned unsafe or storage that filled each hold the pending action with the
+// reason on record and never reach native. Once the holds clear it is
+// designated exactly once, and a restart on the same journal observes the
+// in-flight designation instead of placing a second one.
+func TestDeconstructionRemoteHoldsRecordReasonsAndResumeWithoutDuplicates(t *testing.T) {
+	f, n := deconstructionFixture(t)
+	expect := func(want ...domain.HeldReason) {
+		t.Helper()
+		if _, err := f.run(); !errors.Is(err, ErrHeld) || n.allowed != 0 {
+			t.Fatal("dispatched under a hold", err, n.allowed)
+		}
+		held, ok := f.progress(t).FreshHeldReason()
+		if !ok || len(held) != len(want) {
+			t.Fatal("hold reasons", held, want)
+		}
+		for i := range want {
+			if held[i] != want[i] {
+				t.Fatal("hold reasons", held, want)
+			}
+		}
+	}
+	n.threat = true
+	expect(domain.HeldUnsafeThreat)
+	n.refusals = []policy.Refusal{{Action: f.action.ID(), Reason: policy.UnsafeRoute}}
+	expect(domain.HeldUnsafeThreat, domain.HeldUnsafeRoute)
+	n.threat = false
+	for _, reason := range []policy.Reason{policy.RoofSupportRisk, policy.StorageMissing, policy.UrgentCompetingWork, policy.StructureIneligible} {
+		n.refusals = []policy.Refusal{{Action: f.action.ID(), Reason: reason}}
+		expect(reasonHeldReasons[reason])
+	}
+	n.refusals = nil
+	result, err := f.run()
+	if err != nil || n.allowed != 1 || !result.Progress.View().Unresolved {
+		t.Fatal("hold did not clear into one designation", result, err, n.allowed)
+	}
+	if _, ok := f.progress(t).FreshHeldReason(); ok {
+		t.Fatal("dispatch left a stale hold reason")
+	}
+	// Restart: a fresh executor over the same journal.
+	if err = f.store.Close(); err != nil {
+		t.Fatal(err)
+	}
+	f.store, err = store.Open(context.Background(), f.path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.store.Close()
+	restarted, err := New(f.store, n, f.clock, Limits{MaxAge: time.Second, RunTimeout: 5 * time.Second, JournalTimeout: 5 * time.Second})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = restarted.EnableDeconstruction(n); err != nil {
+		t.Fatal(err)
+	}
+	if err = restarted.UpdateAuthority(f.authority); err != nil {
+		t.Fatal(err)
+	}
+	f.executor = restarted
+	n.effect = domain.EffectPending
+	if _, err = f.run(); err != nil || n.allowed != 1 || n.observed != 1 {
+		t.Fatal("restart re-designated instead of observing", err, n.allowed, n.observed)
+	}
+	n.effect = domain.EffectCompleted
+	result, err = f.run()
+	if err != nil || result.Progress.View().Stage != domain.Completed || n.allowed != 1 {
+		t.Fatal(result, err, n.allowed)
 	}
 }

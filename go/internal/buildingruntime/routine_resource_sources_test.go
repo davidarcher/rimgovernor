@@ -119,9 +119,9 @@ func TestSourcesForDeficitReturnsStorageOnSuccess(t *testing.T) {
 	}
 }
 
-func sourceTestReach() policy.ResourceReachRequest {
-	return policy.ResourceReachRequest{Bounds: domain.Known(policy.Bounds{Width: 100, Height: 100}),
-		Extent: domain.Known(policy.ColonyExtent{Regions: []policy.ExtentRegion{{Cells: []policy.ExtentCell{{Cell: domain.Cell{}}}}}})}
+func sourceTestReach() policy.RemoteWorkRequest {
+	return policy.RemoteWorkRequest{Reach: policy.ResourceReachRequest{Bounds: domain.Known(policy.Bounds{Width: 100, Height: 100}),
+		Extent: domain.Known(policy.ColonyExtent{Regions: []policy.ExtentRegion{{Cells: []policy.ExtentCell{{Cell: domain.Cell{}}}}}})}}
 }
 
 func TestSourcesForSatisfiedDemandDoesNotReadOrSelectOre(t *testing.T) {
@@ -147,7 +147,7 @@ func TestMiningReachLoadsKnownEmptyJournalClaims(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, known := reach.Extent.Value(); !known {
+	if _, known := reach.Reach.Extent.Value(); !known {
 		t.Fatal("journal claims were left unknown", reach)
 	}
 }

@@ -83,7 +83,7 @@ func (b *MineAcquisitionBoundary) InspectAcquisition(ctx context.Context, target
 		return out, err
 	}
 	v := preview.GetEvaluated()
-	if v == nil || !v.GetAccepted() {
+	if v == nil {
 		return out, executor.ErrHeld
 	}
 	if v.Projected != nil {
@@ -91,6 +91,11 @@ func (b *MineAcquisitionBoundary) InspectAcquisition(ctx context.Context, target
 	}
 	if _, err = boundary.Context(v.Context, current); err != nil {
 		return out, err
+	}
+	// A refused preview (roof support, a blocked access cell, a foreign
+	// designation) is a recorded hold, not a silent one (#525).
+	if !v.GetAccepted() {
+		out.Refusals = []policy.Refusal{{Action: target.Action.ID(), Reason: policy.NativeIneligible}}
 	}
 	emergency, _, err := b.capabilities.Native.ReadEmergency(ctx, boundary.Identity(current))
 	if err != nil {
@@ -105,7 +110,7 @@ func (b *MineAcquisitionBoundary) InspectAcquisition(ctx context.Context, target
 	if !domain.Tick(v.Context.GetTick()).FreshFor(domain.Tick(read.Context.GetTick())) || !domain.Tick(emergency.Context.GetTick()).Covers(domain.Tick(read.Context.GetTick())) {
 		return out, executor.ErrHeld
 	}
-	out.Current, out.Tick, out.Acquisition, out.SnapshotToken, out.Accepted = current, domain.Tick(v.Context.GetTick()), acquisition, selected.Token, true
+	out.Current, out.Tick, out.Acquisition, out.SnapshotToken, out.Accepted = current, domain.Tick(v.Context.GetTick()), acquisition, selected.Token, v.GetAccepted()
 	out.Emergency, err = policy.NewEmergencySnapshot(current, out.Tick, emergency.Facts)
 	out.ObservedAt = b.Clock.Now()
 	return out, err

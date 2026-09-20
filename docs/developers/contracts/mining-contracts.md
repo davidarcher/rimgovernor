@@ -14,6 +14,11 @@ the selected resource target is unmet. Each method designates at most one rock;
 existing designations reserve estimated yield and are never adopted or removed.
 Fresh stock stops further methods once the target is met. The last rock can
 overshoot demand by its native yield; no tunnel is opened to reach interior ore.
+A deposit kept back is a hold with an explicit reason ([remote work
+holds](controller-contracts.md#remote-work-holds-and-resume)): `threat_present`,
+`urgent_competing_work`, `roof_support_risk` (not an open-surface rock),
+`route_unsafe`, `missing_storage`, or the reach stage; the planner logs the
+first hold when nothing is selected.
 
 Surface mining requires a capable colonist with safe native reachability. Resource
 mining refuses unknown cells or any roof within the installed game's roof-support

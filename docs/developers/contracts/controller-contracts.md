@@ -801,11 +801,12 @@ above. Outside the extent it is allowed only when `FilterResourceReach` admits
 its cell at the current [reach stage](upkeep-contracts.md) and it scores against
 unmet demand (`ScoreResourceCandidate` over the effective stock targets, the
 operator's reserve floors and the usable stock census); otherwise it stays
-forbidden and the review records the stack under `EventLoot.Held` with the
-reach reason (`outside_base:insufficient_defense`, `outside_near:...`) or the
-demand hold (`demand:no_demand`, `demand:no_storage_headroom`,
-`demand:unknown_demand_or_cost`). The routines API reports these as
-`lootHolds`. The census supplies the readiness the reach needs beside each
+forbidden and the review records the stack under `EventLoot.Held` with an
+[explicit hold](#remote-work-holds-and-resume) (`threat_present`,
+`urgent_competing_work`, `missing_storage`), the reach reason
+(`outside_base:insufficient_defense`, `outside_near:...`) or the demand hold
+(`demand:no_demand`, `demand:unknown_demand_or_cost`). The routines API
+reports these as `lootHolds`. The census supplies the readiness the reach needs beside each
 item's stack count, safe route length and accepting-storage headroom:
 `free_haulers` (free colonists with Hauling active) and `storyteller_quiet`
 (zero threat scale or no incident generators). Unknown readiness or demand
@@ -813,3 +814,36 @@ holds remote stacks; it never widens reach. Reach changes no Home cell.
 `supply/loot-remote` drops a forbidden stack near the far map edge, proves the
 hold at base reach, raises readiness and proves Allow and stockpile delivery
 with the cell still outside Home.
+
+### Remote work holds and resume
+
+Remote loot, ruin salvage and surface mining share one hold vocabulary
+(`policy.RemoteHoldReason`, #525), reported on the review's `EventLoot.Held`
+and `ClearanceHolds` rows and in the resource planner's log: `threat_present`
+(a known hostile on the map, reported ahead of the route verdict it causes),
+`urgent_competing_work` (an urgent patient or a disrupting disaster,
+`policy.UrgentWorkCompeting`; it outranks every demand priority in
+`ScoreResourceCandidate`), `roof_support_risk` (a removal that drops a roof,
+a deposit that is not open surface), `route_unsafe` (native walked no safe
+route to the target and back to storage) and `missing_storage` (no accepting
+headroom). Reach-stage and demand reasons keep their own text. Unknown urgency
+holds nothing at selection; the dispatch emergency check holds on the same
+unknown facts.
+
+Selection never dispatches. A pending remote `Deconstruction` is revalidated
+on every dispatch against the fresh clearance census and the emergency read,
+and a target that turned unsafe holds with the reasons on record
+(`unsafe_threat`, `unsafe_route`, `roof_support_risk`, `missing_storage`,
+`critical_medical`, `structure_ineligible`); a mine acquisition holds on its
+native preview and the same emergency read. A threat that appears after the
+review selected a target therefore never becomes a stale designation, and
+foreign designations are never touched. Holds clear on the next admitted
+dispatch, which designates exactly once: the plan stays open while it is
+held, the clearance planner admits no second method while one is open, and
+a restarted service observes the in-flight attempt through the native ledger
+instead of designating again. A designation released with a lapsed authority
+ends its plan unsuccessfully and the next review admits one replacement.
+`clearance/salvage-hold-resume` stages a hostile beside a selected ruin,
+proves the `threat_present` hold and an undesignated ruin across a restart,
+clears the threat and proves one designation and the delivered yield across a
+second restart.
