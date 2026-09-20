@@ -30,11 +30,14 @@ planner issue instead of relabeling a reduced selection as land/full.
 Ask the maintainer to publish the tested commit and base to the same repository,
 review the exact tested tree (including build scripts), and dispatch or authorize
 the following command. Publication is separate from the agent's local landing.
-The workflow revision comes from protected `main`; confirm it still matches the
+Use `tested_ref` to test a published branch or tag; the gate resolves its current tip
+once. An explicit `tested_commit` overrides it. The workflow
+revision comes from protected `main`; confirm it still matches the
 reviewed revision before dispatch.
 
 ```text
 gh workflow run remote-acceptance.yml --ref main -f tested_commit=<40-hex-tested> -f base_commit=<40-hex-base> -f tier=land -f shards=<count> -f reviewed_commit=true
+gh workflow run remote-acceptance.yml --ref main -f tested_ref=<branch> -f tier=full -f shards=32 -f reviewed_commit=true
 gh run list --workflow remote-acceptance.yml --event workflow_dispatch --limit 10
 gh run view <run-id> --json url,headSha,event,status,conclusion,jobs
 ```

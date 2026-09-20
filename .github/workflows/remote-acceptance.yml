@@ -3,13 +3,17 @@ name: Remote acceptance
 on:
   workflow_dispatch:
     inputs:
+      tested_ref:
+        description: Same-repository branch or tag to test (resolved once at startup)
+        default: main
+        type: string
       tested_commit:
-        description: Full same-repository commit reviewed by the maintainer
-        required: true
+        description: Optional full commit SHA overriding tested_ref
+        required: false
         type: string
       base_commit:
-        description: Full ancestor commit used for selection
-        required: true
+        description: Full ancestor SHA (required for land; otherwise defaults to tested commit)
+        required: false
         type: string
       tier:
         type: choice
@@ -24,8 +28,6 @@ on:
         required: true
         type: boolean
         default: false
-  push:
-    branches: [main]
   schedule:
     - cron: '23 7 * * *'
 
@@ -101,13 +103,14 @@ jobs:
   # exchange proof (task protobuf:test) stays manual: it proves the pinned
   # runtime, which only changes with the pins, and needs Mono here.
   race:
+    needs: plan
     if: github.repository == 'davidarcher/rimgovernor' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.tier == 'full'))
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ inputs.tested_commit || github.sha }}
+          ref: ${{ needs.plan.outputs.head }}
           persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:

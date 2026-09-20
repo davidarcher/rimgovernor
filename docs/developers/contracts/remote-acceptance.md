@@ -54,7 +54,7 @@ keep their existing native formats.
 
 Agents commit locally and do not push or open PRs. The maintainer publishes the
 requested commit to a same-repository ref, then dispatches from the trusted
-default-branch workflow with explicit `tested_commit`, `base_commit`, `tier`
+default-branch workflow with `tested_ref` or `tested_commit`, `base_commit`, `tier`
 (`smoke`, `land` or `full`), and pinned bundle reference. A maintainer may
 explicitly authorize an agent to dispatch an already published commit; the issue
 alone does not authorize publication. The source repository is public (maintainer
@@ -64,8 +64,10 @@ alternatives outside v1; repository conversion is not a delivery prerequisite.
 For manual dispatch, the operator chooses the exact comparison base, ordinarily
 the task's merge base with local main when requesting publication. Both objects
 must be fetchable from the same repository; the base must be an ancestor of the
-tested commit. For `push` to `main`, tested commit is the event's `after`, and
-base is its `before`, covering all commits in that push, not just `HEAD^`.
+tested commit. Pushes do not trigger CI. Manual dispatch may instead supply a
+same-repository branch or tag as `tested_ref`, resolved once to an immutable SHA;
+an explicit `tested_commit` takes precedence. An omitted base defaults to
+that SHA for smoke/full; land requires an explicit base.
 Resolve and fetch these once; never replace them with the branch's current tip.
 Deletion, zero/missing base, unavailable history and non-ancestor force-push
 bases fail planning with an explicit reason. A maintainer can dispatch again
@@ -104,7 +106,7 @@ use stderr; a rejected plan emits no partial selection. Keep the evidence root
 outside tracked source. `-fetch` obtains the exact base/head objects from
 `run.repository` and unshallows history; omit it only when complete comparison
 history is already available. The dispatcher supplies the explicit event
-identities in `run.json`: dispatch inputs, or push `before`/`after`. Planning
+identities in `run.json`: resolved dispatch inputs or the scheduled event SHA. Planning
 never substitutes a moving ref. Invoke the tested checkout's source as above;
 a runner binary compiled from another revision is not a valid planner.
 
@@ -176,14 +178,14 @@ Missing required diagnostics cannot be hidden by redaction: report incomplete
 until the importer can retrieve them. The initial evidence fixtures require no
 private diagnostic payloads. #377 inventories licensed inputs before packaging.
 
-#382 accepts only maintainer-controlled dispatch and protected main pushes, using
+#382 accepts only maintainer-controlled dispatch and scheduled main runs, using
 a trusted workflow revision recorded as `workflow_commit`. No PR, fork or
 `pull_request_target` trigger receives licensed inputs or credentials. Before
 executing any selected source, validate same-repository provenance and maintainer
 trust of the **exact tested commit**; merely copying fork code onto a local ref
 or approving a workflow run does not establish code trust. Build and test code
 can read downloaded game files even after credentials are removed. Maintainer
-publication/dispatch therefore includes review of that commit; main pushes rely
+publication/dispatch therefore includes review of that commit; scheduled runs rely
 on the repository's review/protection policy. Do not execute workflow definitions
 from a task ref. Pin external actions by commit. A digest detects corruption,
 not authorship: #380 also verifies artifact repository, workflow identity and run

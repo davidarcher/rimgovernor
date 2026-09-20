@@ -12,6 +12,32 @@ function Write-JSON($Path, $Value) {
     [IO.File]::WriteAllText($Path, (ConvertTo-Json -InputObject $Value -Depth 80) + "`n")
 }
 function Read-JSON($Path) { Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json }
+function Input-Value($Inputs, $Name) {
+    $property = $Inputs.PSObject.Properties[$Name]
+    if ($null -eq $property) { return '' }
+    return [string]$property.Value
+}
+function Resolve-Source($Event) {
+    $head = $env:GITHUB_SHA; $base = $head; $tier = 'full'; $shards = 32
+    if ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch') {
+        if ((Input-Value $Event.inputs 'reviewed_commit') -cne 'true') { throw 'Dispatch must attest review of the tested source' }
+        $head = Input-Value $Event.inputs 'tested_commit'
+        $base = Input-Value $Event.inputs 'base_commit'
+        $tier = Input-Value $Event.inputs 'tier'
+        $shards = [int](Input-Value $Event.inputs 'shards')
+        if (-not $head) {
+            $ref = Input-Value $Event.inputs 'tested_ref'
+            if (-not $ref) { $ref = 'main' }
+            $encoded = [Uri]::EscapeDataString($ref)
+            $head = (Invoke-API "repos/$env:GITHUB_REPOSITORY/commits/$encoded").sha
+        }
+        if (-not $base -and $tier -ne 'land') { $base = $head }
+    }
+    if ($head -cnotmatch '^[0-9a-f]{40}$' -or $base -cnotmatch '^[0-9a-f]{40}$' -or
+        $head -eq ('0'*40) -or $base -eq ('0'*40) -or $tier -notin @('smoke','land','full') -or
+        $shards -lt 1 -or $shards -gt 32) { throw 'Invalid source, base, tier or shard limit; land requires an explicit ancestor base SHA' }
+    return @{head=$head; base=$base; tier=$tier; shards=$shards}
+}
 function Invoke-API($Path) {
     $value = & gh api $Path
     if ($LASTEXITCODE) { throw "GitHub metadata unavailable: $Path" }
@@ -25,7 +51,7 @@ function Assert-Gate {
         $env:GITHUB_REPOSITORY -cne 'davidarcher/rimgovernor' -or
         $env:GITHUB_REF -cne 'refs/heads/main' -or
         $env:GITHUB_REF_PROTECTED -cne 'true' -or
-        $env:GITHUB_EVENT_NAME -notin @('workflow_dispatch','push','schedule') -or
+        $env:GITHUB_EVENT_NAME -notin @('workflow_dispatch','schedule') -or
         $env:GITHUB_WORKFLOW_SHA -cnotmatch '^[0-9a-f]{40}$' -or
         $env:GITHUB_SHA -cne $env:GITHUB_WORKFLOW_SHA) {
         throw 'Remote acceptance requires activation, protected main and its exact trusted workflow revision'
@@ -54,16 +80,8 @@ switch ($Phase) {
     'gate' {
         Assert-Gate
         $event = Read-JSON $env:GITHUB_EVENT_PATH
-        $tier = 'smoke'; $head = $env:GITHUB_SHA; $base = $head; $shards = 2
-        if ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch') {
-            $head = $event.inputs.tested_commit; $base = $event.inputs.base_commit
-            $tier = $event.inputs.tier; $shards = [int]$event.inputs.shards
-            if ($event.inputs.reviewed_commit -cne 'true') { throw 'Dispatch must attest review of the exact tested commit' }
-        } elseif ($env:GITHUB_EVENT_NAME -eq 'push') { $base = $event.before; $head = $event.after
-        } else { $tier = 'full'; $shards = 32 }
-        if ($head -cnotmatch '^[0-9a-f]{40}$' -or $base -cnotmatch '^[0-9a-f]{40}$' -or
-            $head -eq ('0'*40) -or $base -eq ('0'*40) -or $tier -notin @('smoke','land','full') -or
-            $shards -lt 1 -or $shards -gt 32) { throw 'Invalid source, base, tier or shard limit' }
+        $source = Resolve-Source $event
+        $head = $source.head; $base = $source.base; $tier = $source.tier; $shards = $source.shards
         # Resolve immutable objects through the same repository, never a caller URL/ref.
         foreach ($oid in @($head,$base)) { if ((Invoke-API "repos/$env:GITHUB_REPOSITORY/commits/$oid").sha -cne $oid) { throw 'Commit unavailable in source repository' } }
         [IO.Directory]::CreateDirectory($Evidence) | Out-Null

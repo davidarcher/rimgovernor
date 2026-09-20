@@ -3,10 +3,12 @@
 [Evidence and import](remote-evidence.md) · [Bundle setup](../remote-bundles.md) ·
 [Contract](../contracts/remote-acceptance.md)
 
-`.github/workflows/remote-acceptance.yml` runs from protected `main`. Pushes
-select smoke using the event's exact before/after commits. Manual dispatch
-accepts full ancestor/base and tested commit IDs, tier, shard count and an
-explicit attestation that the maintainer reviewed the tested code. The nightly
+`.github/workflows/remote-acceptance.yml` runs nightly or by manual dispatch;
+pushes do not trigger CI. Keep the workflow branch selector on protected `main`.
+Manual dispatch accepts `tested_ref` (any same-repository branch or tag, default `main`)
+or an overriding `tested_commit` SHA, tier, shard count and review attestation.
+The gate resolves the source once to a full SHA shared by native, race and protobuf jobs.
+`base_commit` is required for land; smoke/full default it to the resolved source SHA. The nightly
 07:23 UTC schedule selects full against its immutable main commit. Both scheduled
 and manually dispatched full tiers also run the Go race, protobuf generation drift
 and protobuf proof checks. Reruns need
@@ -36,7 +38,7 @@ revalidation, not automatic use of paid Windows minutes.
 
 Each job uses `windows-2022`, one native worker, up to 32 nonempty shards and at
 most 20 active shard jobs per run. The default smoke dispatch uses two shards.
-Independent push, manual and scheduled runs can overlap; no workflow concurrency
+Independent manual and scheduled runs can overlap; no workflow concurrency
 group serializes or cancels them. GitHub enforces the account-wide runner capacity.
 Planner/aggregation jobs have ten-minute limits; shard jobs have
 360 minutes including a shared 345-minute allowance across both role suites.
