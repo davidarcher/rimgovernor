@@ -110,7 +110,8 @@ namespace HomeBridge.BridgeTools
                             foreach (var cook in map.mapPawns.FreeColonistsSpawned) cook.workSettings.SetPriority(DefDatabase<WorkTypeDef>.GetNamed("Cooking"), 0);
                         }
                     }
-                    var arrival = incident(true, "Caravan_Neolithic_BulkGoods");
+                    // Outlander bulk traders buy steel; neolithic traders cover the herbal-medicine and food cases.
+                    var arrival = incident(true, steel > 0 ? "Caravan_Outlander_BulkGoods" : "Caravan_Neolithic_BulkGoods");
                     var traderPawns = map.mapPawns.AllPawnsSpawned.Where(p => p.trader != null && p.trader.traderKind != null
                         && p.Faction != null && !p.Faction.IsPlayer).ToList();
                     var stocked = new System.Collections.Generic.List<object>();
