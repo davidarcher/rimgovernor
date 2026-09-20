@@ -138,7 +138,10 @@ func TestClockWorkerActualSessionInterruptionAndJoinedClose(t *testing.T) {
 			t.Fatal("timed out: " + what)
 		}
 	}
-	wait(native.started, "actual scheduler start")
+	// Synchronize with the worker's first native Start, regardless of how
+	// long scheduling and journal setup take under concurrent test load.
+	// The go test deadline still bounds a worker that never starts.
+	<-native.started
 	select {
 	case s.player.gate <- struct{}{}:
 	case <-time.After(time.Second):
