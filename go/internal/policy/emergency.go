@@ -23,6 +23,10 @@ type EmergencyPawn struct {
 	MentalState                       domain.Fact[MentalState]
 	ID                                PawnID
 	Dead, Downed, Bleeding, NeedsTend domain.Fact[bool]
+	// InBed decides whether a bleeding colonist who is still on their feet
+	// is anyone's patient: WorkGiver_Tend tends a humanlike only in a bed
+	// and the ground tend needs a downed pawn (#618).
+	InBed domain.Fact[bool]
 }
 type ThreatKind uint8
 
@@ -266,9 +270,22 @@ func allKnown(facts ...domain.Fact[bool]) bool {
 // urgentPatient reports a living colonist whose care cannot wait for
 // ordinary work: bleeding, or downed with a tend outstanding. Callers have
 // established that every health fact is known.
+// urgentPatient is the CriticalMedical test: a bleeding colonist, or one
+// downed with a tend outstanding. A bleeding colonist who is up and not in
+// a bed is excluded (#618): no doctor can tend them (WorkGiver_Tend wants a
+// humanlike in bed, the ground tend a downed pawn), and on a colony without
+// a bed the hold suspended the very goal that would build one. Native sends
+// them to a bed on its own when there is one, and the hold returns the
+// moment they lie down. An unknown InBed keeps the hold, as before.
 func urgentPatient(pawn EmergencyPawn) bool {
 	downed, _ := pawn.Downed.Value()
 	bleeding, _ := pawn.Bleeding.Value()
 	needsTend, _ := pawn.NeedsTend.Value()
-	return bleeding || downed && needsTend
+	if downed {
+		return bleeding || needsTend
+	}
+	if inBed, known := pawn.InBed.Value(); known && !inBed {
+		return false
+	}
+	return bleeding
 }

@@ -23,7 +23,7 @@ func emergencyFixture() *o.StatusSnapshot {
 	return &o.StatusSnapshot{Context: pbContext(), Colonists: &o.PawnSnapshot{Context: pbContext(), Completeness: emergencyCounts(0)}, Threats: &o.ThreatsSnapshot{Completeness: emergencyCounts(0)}}
 }
 func emergencyRow(id string) *o.PawnState {
-	return &o.PawnState{Pawn: &o.EntityRef{Id: proto.String(id)}, Dead: proto.Bool(false), Downed: proto.Bool(false), Health: &o.PawnHealth{Bleeding: proto.Bool(false), NeedsTend: proto.Bool(false)}}
+	return &o.PawnState{Pawn: &o.EntityRef{Id: proto.String(id)}, Dead: proto.Bool(false), Downed: proto.Bool(false), InBed: proto.Bool(true), Health: &o.PawnHealth{Bleeding: proto.Bool(false), NeedsTend: proto.Bool(false)}}
 }
 func TestEmergencyReadExactRequestAndOwnedFacts(t *testing.T) {
 	original := emergencyFixture()

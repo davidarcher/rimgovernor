@@ -239,4 +239,8 @@ func TestPawnsIdleNativeJobAndEmergencyProjection(t *testing.T) {
 			t.Fatal("idle job obscured healthy facts")
 		}
 	}
+	// The row's in_bed flag reaches the emergency pawn (#618).
+	if inBed, known := pawn.InBed.Value(); !known || !inBed {
+		t.Fatal("in_bed lost", pawn.InBed)
+	}
 }

@@ -29,7 +29,7 @@ func (n *tendEnvironment) tendFacts(target Target) policy.TendFacts {
 		},
 	})
 	doctor := policy.TendDoctorFacts{Pawn: tend.Doctor(), SnapshotToken: "doctor-token", Dead: domain.Known(false), Downed: domain.Known(false), Drafted: domain.Known(false), MentalState: domain.Known(false), PlayerForced: domain.Known(false), QueuedJobs: domain.Known(uint32(0)), ExistingJobDef: domain.Known(""), MedicineSkill: domain.Known(int32(8)), MedicineSkillDisabled: domain.Known(false), DoctorWorkEnabled: domain.Known(true), DoctorWorkOverrideDisabled: domain.Known(false)}
-	patient := policy.TendPatientFacts{Pawn: tend.Patient(), SnapshotToken: "patient-token", Dead: domain.Known(false), Downed: domain.Known(false), NeedsTend: domain.Known(true), NoCare: domain.Known(false), Bleeding: domain.Known(true), LifeThreatening: domain.Known(false), HoursUntilDeathFromBloodLoss: domain.Known(6.0), ExistingJobDef: domain.Known("")}
+	patient := policy.TendPatientFacts{Pawn: tend.Patient(), SnapshotToken: "patient-token", Dead: domain.Known(false), Downed: domain.Known(false), InBed: domain.Known(true), NeedsTend: domain.Known(true), NoCare: domain.Known(false), Bleeding: domain.Known(true), LifeThreatening: domain.Known(false), HoursUntilDeathFromBloodLoss: domain.Known(6.0), ExistingJobDef: domain.Known("")}
 	return policy.TendFacts{Snapshot: target.Snapshot, PawnTick: n.tick, PreviewTick: n.tick, NativeCanTry: domain.Known(true), Emergency: emergency, Doctor: doctor, Patient: patient}
 }
 func (n *tendEnvironment) InspectTend(_ context.Context, target Target) (TendInspection, error) {

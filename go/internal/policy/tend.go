@@ -35,9 +35,14 @@ type TendDoctorFacts struct {
 // is only meaningful when Bleeding is known true; callers must not treat an
 // unknown/absent value as "not urgent" without checking Bleeding first.
 type TendPatientFacts struct {
-	Pawn                         domain.PawnID
-	SnapshotToken                string
-	Dead, Downed                 domain.Fact[bool]
+	Pawn          domain.PawnID
+	SnapshotToken string
+	Dead, Downed  domain.Fact[bool]
+	// InBed with Downed decides whether the patient can be tended at all:
+	// WorkGiver_Tend tends a humanlike only in a bed and the ground tend
+	// needs a downed pawn, so an up patient out of bed is refused natively
+	// however urgent (#618).
+	InBed                        domain.Fact[bool]
 	NeedsTend                    domain.Fact[bool]
 	NoCare                       domain.Fact[bool]
 	Bleeding, LifeThreatening    domain.Fact[bool]
@@ -77,7 +82,7 @@ func SelectTend(doctors []TendDoctorFacts, patients []TendPatientFacts) (domain.
 		if !dk || !nk || !ck || !ek {
 			return false
 		}
-		return !dead && needsTend && !noCare && existing != "TendPatient"
+		return !dead && needsTend && !noCare && existing != "TendPatient" && tendable(p)
 	}
 	var patientPool []TendPatientFacts
 	needsTendItself := map[domain.PawnID]bool{}
@@ -152,6 +157,14 @@ func SelectTend(doctors []TendDoctorFacts, patients []TendPatientFacts) (domain.
 		return a.Pawn < b.Pawn
 	})
 	return doctorPool[0].Pawn, patientPool[0].Pawn, true
+}
+
+// tendable reports whether a doctor can tend the patient where they are: in
+// a bed, or downed on the ground. Both facts must be known.
+func tendable(p TendPatientFacts) bool {
+	downed, dk := p.Downed.Value()
+	inBed, bk := p.InBed.Value()
+	return dk && bk && (downed || inBed)
 }
 
 type TendFacts struct {
@@ -268,7 +281,7 @@ func EvaluateTend(r TendRequest) DraftDecision {
 	if !enabled || overrideDisabled || skillDisabled {
 		return refuse(DoctorUnavailable)
 	}
-	for _, fact := range []domain.Fact[bool]{f.Patient.Dead, f.Patient.Downed, f.Patient.NeedsTend, f.Patient.NoCare} {
+	for _, fact := range []domain.Fact[bool]{f.Patient.Dead, f.Patient.Downed, f.Patient.InBed, f.Patient.NeedsTend, f.Patient.NoCare} {
 		if _, known := fact.Value(); !known {
 			return refuse(UnknownFacts)
 		}
@@ -287,7 +300,7 @@ func EvaluateTend(r TendRequest) DraftDecision {
 		// The patient recovered or was already treated; nothing left to admit.
 		return refuse(PatientIneligible)
 	}
-	if noCare || existingPatientJob == "TendPatient" {
+	if noCare || existingPatientJob == "TendPatient" || !tendable(f.Patient) {
 		return refuse(PatientIneligible)
 	}
 	eligible, known := f.NativeCanTry.Value()

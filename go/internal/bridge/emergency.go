@@ -143,6 +143,8 @@ func emergencyPawn(row *o.PawnState) (policy.EmergencyPawn, error) {
 			return row.Dead != nil
 		case "downed":
 			return row.Downed != nil
+		case "in_bed", "inBed":
+			return row.InBed != nil
 		case "health":
 			return row.Health != nil
 		}
@@ -150,7 +152,7 @@ func emergencyPawn(row *o.PawnState) (policy.EmergencyPawn, error) {
 	}); err != nil {
 		return result, err
 	}
-	result = policy.EmergencyPawn{ID: policy.PawnID(row.Pawn.GetId()), Dead: emergencyBool(row.Dead), Downed: emergencyBool(row.Downed)}
+	result = policy.EmergencyPawn{ID: policy.PawnID(row.Pawn.GetId()), Dead: emergencyBool(row.Dead), Downed: emergencyBool(row.Downed), InBed: emergencyBool(row.InBed)}
 	mental, err := PawnMentalState(row)
 	if err != nil {
 		return result, err

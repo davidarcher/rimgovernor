@@ -51,7 +51,7 @@ func NewFixture(t *testing.T) (*Boundary, *Fixture) {
 	ctx := &c.ObservationContext{Identity: Identity(snapshot), Tick: proto.Int64(10), NativeGeneration: proto.Uint64(1)}
 	f.Bounds = bridge.MapBounds{Context: proto.Clone(ctx).(*c.ObservationContext), Bounds: policy.Bounds{Width: 100, Height: 100}}
 	f.Preview = bridge.BuildingPreview{Preview: policy.Preview{Action: action, Snapshot: snapshot, Tick: 11}, Stock: policy.StockObservation{Snapshot: snapshot, Tick: 11}}
-	f.Emergency = bridge.EmergencyObservation{Context: proto.Clone(ctx).(*c.ObservationContext), Facts: policy.EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true), Colonists: []policy.EmergencyPawn{{ID: "pawn", Dead: domain.Known(false), Downed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false)}}}}
+	f.Emergency = bridge.EmergencyObservation{Context: proto.Clone(ctx).(*c.ObservationContext), Facts: policy.EmergencyFacts{ColonistsComplete: domain.Known(true), ThreatsComplete: domain.Known(true), Colonists: []policy.EmergencyPawn{{ID: "pawn", Dead: domain.Known(false), Downed: domain.Known(false), InBed: domain.Known(false), Bleeding: domain.Known(false), NeedsTend: domain.Known(false)}}}}
 	f.Emergency.Context.Tick = proto.Int64(12)
 	attempt := &c.AttemptKey{ControllerSessionId: proto.String("session"), ActionId: proto.String("action"), AttemptId: proto.Uint64(1)}
 	f.Receipt = &r.Receipt{Attempt: attempt, AdmittedContext: ctx, Outcome: &r.Receipt_Uncertain{Uncertain: &r.Uncertain{}}}

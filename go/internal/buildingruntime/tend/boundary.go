@@ -191,7 +191,7 @@ func NewTendDoctorFacts(pawn domain.PawnID, row *n.PawnState, token string) poli
 	return facts
 }
 func NewTendPatientFacts(pawn domain.PawnID, row *n.PawnState, token string) policy.TendPatientFacts {
-	facts := policy.TendPatientFacts{Pawn: pawn, SnapshotToken: token, Dead: boundary.FactBool(row.Dead), Downed: boundary.FactBool(row.Downed)}
+	facts := policy.TendPatientFacts{Pawn: pawn, SnapshotToken: token, Dead: boundary.FactBool(row.Dead), Downed: boundary.FactBool(row.Downed), InBed: boundary.FactBool(row.InBed)}
 	if row.Job != nil && !boundary.IssueField(row.Job.Issues, "def_name") && row.Job.DefName != nil {
 		facts.ExistingJobDef = domain.Known(row.Job.GetDefName())
 	}

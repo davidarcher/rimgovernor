@@ -27,7 +27,7 @@ func tendRequest(t *testing.T) TendRequest {
 		t.Fatal(err)
 	}
 	doctor := TendDoctorFacts{Pawn: "doctor", SnapshotToken: "doctor-cas", Dead: domain.Known(false), Downed: domain.Known(false), Drafted: domain.Known(false), MentalState: domain.Known(false), PlayerForced: domain.Known(false), QueuedJobs: domain.Known(uint32(0)), ExistingJobDef: domain.Known(""), MedicineSkill: domain.Known(int32(8)), MedicineSkillDisabled: domain.Known(false), DoctorWorkEnabled: domain.Known(true), DoctorWorkOverrideDisabled: domain.Known(false)}
-	patient := TendPatientFacts{Pawn: "patient", SnapshotToken: "patient-cas", Dead: domain.Known(false), Downed: domain.Known(false), NeedsTend: domain.Known(true), NoCare: domain.Known(false), Bleeding: domain.Known(true), LifeThreatening: domain.Known(false), HoursUntilDeathFromBloodLoss: domain.Known(6.0), ExistingJobDef: domain.Known("")}
+	patient := TendPatientFacts{Pawn: "patient", SnapshotToken: "patient-cas", Dead: domain.Known(false), Downed: domain.Known(false), InBed: domain.Known(true), NeedsTend: domain.Known(true), NoCare: domain.Known(false), Bleeding: domain.Known(true), LifeThreatening: domain.Known(false), HoursUntilDeathFromBloodLoss: domain.Known(6.0), ExistingJobDef: domain.Known("")}
 	return TendRequest{Action: a, Progress: p, Current: s, MinimumTick: 11, Facts: TendFacts{Snapshot: s, PawnTick: 12, PreviewTick: 13, Emergency: e, NativeCanTry: domain.Known(true), Doctor: doctor, Patient: patient}}
 }
 
@@ -146,7 +146,7 @@ func tendDoctor(id domain.PawnID, skill int32) TendDoctorFacts {
 	return TendDoctorFacts{Pawn: id, Dead: domain.Known(false), Downed: domain.Known(false), Drafted: domain.Known(false), MentalState: domain.Known(false), PlayerForced: domain.Known(false), QueuedJobs: domain.Known(uint32(0)), ExistingJobDef: domain.Known(""), MedicineSkill: domain.Known(skill), MedicineSkillDisabled: domain.Known(false), DoctorWorkEnabled: domain.Known(true), DoctorWorkOverrideDisabled: domain.Known(false)}
 }
 func tendPatient(id domain.PawnID, hours float64) TendPatientFacts {
-	return TendPatientFacts{Pawn: id, Dead: domain.Known(false), Downed: domain.Known(false), NeedsTend: domain.Known(true), NoCare: domain.Known(false), Bleeding: domain.Known(true), LifeThreatening: domain.Known(false), HoursUntilDeathFromBloodLoss: domain.Known(hours), ExistingJobDef: domain.Known("")}
+	return TendPatientFacts{Pawn: id, Dead: domain.Known(false), Downed: domain.Known(false), InBed: domain.Known(true), NeedsTend: domain.Known(true), NoCare: domain.Known(false), Bleeding: domain.Known(true), LifeThreatening: domain.Known(false), HoursUntilDeathFromBloodLoss: domain.Known(hours), ExistingJobDef: domain.Known("")}
 }
 
 func TestSelectTendRanksBySkillAndUrgency(t *testing.T) {
@@ -244,5 +244,37 @@ func TestSelectTendUsesForcedAndQueuedDoctorAsFallback(t *testing.T) {
 	forced.Drafted = domain.Known(true)
 	if pawn, _, ok := SelectTend([]TendDoctorFacts{forced}, patients); !ok || pawn != forced.Pawn {
 		t.Fatal("drafted forced doctor excluded", pawn, ok)
+	}
+}
+
+// An up patient out of bed is refused natively ("WorkGiver_Tend makes no job
+// and ground tending needs a downed patient", #618): selection skips them and
+// admission refuses them, while a downed or bedded patient still qualifies.
+func TestTendSkipsUpPatientOutOfBed(t *testing.T) {
+	up := tendPatient("up", 2)
+	up.InBed = domain.Known(false)
+	downed := tendPatient("downed", 40)
+	downed.InBed, downed.Downed = domain.Known(false), domain.Known(true)
+	unknownBed := tendPatient("unknown", 1)
+	unknownBed.InBed = domain.Unknown[bool]()
+	doctor, patient, ok := SelectTend([]TendDoctorFacts{tendDoctor("doc", 5)}, []TendPatientFacts{up, unknownBed, downed})
+	if !ok || doctor != "doc" || patient != "downed" {
+		t.Fatal(doctor, patient, ok)
+	}
+	if _, _, ok := SelectTend([]TendDoctorFacts{tendDoctor("doc", 5)}, []TendPatientFacts{up}); ok {
+		t.Fatal("selected an up patient out of bed")
+	}
+	r := tendRequest(t)
+	r.Facts.Patient.InBed = domain.Known(false)
+	if d := EvaluateTend(r); d.Admitted || len(d.Refused) != 1 || d.Refused[0].Reason != PatientIneligible {
+		t.Fatal(d)
+	}
+	r.Facts.Patient.Downed = domain.Known(true)
+	if d := EvaluateTend(r); !d.Admitted {
+		t.Fatal(d)
+	}
+	r.Facts.Patient.Downed, r.Facts.Patient.InBed = domain.Known(false), domain.Unknown[bool]()
+	if d := EvaluateTend(r); d.Admitted || len(d.Refused) != 1 || d.Refused[0].Reason != UnknownFacts {
+		t.Fatal(d)
 	}
 }

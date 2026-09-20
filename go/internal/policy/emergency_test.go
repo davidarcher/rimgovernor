@@ -262,3 +262,36 @@ func TestEmergencyDistantAnimalThreatIsWatchedNotHeld(t *testing.T) {
 		}
 	}
 }
+
+// A bleeding colonist still on their feet and out of bed is nobody's patient
+// (#618): WorkGiver_Tend tends a humanlike in bed only and the ground tend
+// needs a downed pawn, so the hold would suspend every goal, including the
+// one that builds the bed. The hold returns once they lie down or drop, and
+// an unknown InBed keeps it.
+func TestEmergencyAmbulatoryBleederOutOfBedIsNotCritical(t *testing.T) {
+	bleeder := func(downed, needsTend bool, inBed domain.Fact[bool]) EmergencyFacts {
+		f := completeEmergency()
+		p := healthyPawn("p")
+		p.Downed, p.Bleeding, p.NeedsTend, p.InBed = domain.Known(downed), domain.Known(true), domain.Known(needsTend), inBed
+		f.Colonists = []EmergencyPawn{p}
+		return f
+	}
+	if d := evaluateEmergency(t, bleeder(false, true, domain.Known(false))); !d.Clear {
+		t.Fatal("up and out of bed held", d)
+	}
+	if d := evaluateEmergency(t, bleeder(false, true, domain.Known(true))); !hasEmergencyHold(d, EmergencyCriticalMedical, "p") {
+		t.Fatal("in bed cleared", d)
+	}
+	if d := evaluateEmergency(t, bleeder(true, true, domain.Known(false))); !hasEmergencyHold(d, EmergencyCriticalMedical, "p") {
+		t.Fatal("downed on the ground cleared", d)
+	}
+	if d := evaluateEmergency(t, bleeder(false, true, domain.Unknown[bool]())); !hasEmergencyHold(d, EmergencyCriticalMedical, "p") {
+		t.Fatal("unknown bed cleared", d)
+	}
+	// Downed with a tend outstanding stays the emergency regardless of bed.
+	f := bleeder(true, true, domain.Known(false))
+	f.Colonists[0].Bleeding = domain.Known(false)
+	if d := evaluateEmergency(t, f); !hasEmergencyHold(d, EmergencyCriticalMedical, "p") {
+		t.Fatal("downed untended cleared", d)
+	}
+}
