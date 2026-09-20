@@ -150,8 +150,14 @@ func planStage(c Case, opts Options, resumed resumption, log io.Writer) (staging
 		return plan, nil
 	}
 	current, err := fingerprint(c, opts.configDir(c))
+	if errors.Is(err, os.ErrNotExist) {
+		// A root nothing has prepared yet (a suite worker the bundles were
+		// carried into, #527) still names the installed game in its base
+		// config; CachedStage planned from the same fallback.
+		current, err = fingerprint(c, filepath.Join(opts.Root, "config"))
+	}
 	if err != nil {
-		// The root has never been prepared; nothing can have been staged.
+		fmt.Fprintf(log, "stages of %s off: cannot fingerprint this root (%v)\n", c.Name, err)
 		return plan, nil
 	}
 	for i := len(c.Stages) - 1; i >= 0; i-- {
