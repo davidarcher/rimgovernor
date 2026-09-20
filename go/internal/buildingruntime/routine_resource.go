@@ -247,7 +247,17 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 			return RoutineResourceResult{}, err
 		}
 	}
-	choice, err := policy.SelectResourceMethod(policy.ResourceMethodRequest{Resource: resource, Target: target, Seen: seen, Benches: domain.Known(benches), Stock: supply})
+	var runways []policy.ResourceRunway
+	if resource == policy.ComponentResource {
+		review, err := p.journal.LoadRoutineReview(call)
+		if err != nil {
+			return RoutineResourceResult{}, err
+		}
+		if review.Enabled && review.Snapshot == state.Snapshot {
+			runways = review.ResourceRunwayState()
+		}
+	}
+	choice, err := policy.SelectResourceMethod(policy.ResourceMethodRequest{Resource: resource, Target: target, Seen: seen, Benches: domain.Known(benches), Stock: supply, Runways: runways, CurrentStock: stock})
 	if err != nil {
 		return RoutineResourceResult{}, err
 	}

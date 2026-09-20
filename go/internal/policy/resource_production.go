@@ -395,6 +395,10 @@ type ResourceMethodRequest struct {
 	Seen     []domain.MethodID
 	Benches  domain.Fact[[]GearBench]
 	Stock    []Stock
+	// Runways and CurrentStock fund component fabrication without spending
+	// the steel needed for the maintenance horizon.
+	Runways      []ResourceRunway
+	CurrentStock domain.Fact[[]Amount]
 }
 
 func resourceMethodID(resource Resource, bench, recipe string) domain.MethodID {
@@ -422,6 +426,16 @@ func SelectResourceMethod(r ResourceMethodRequest) (ResourceMethod, error) {
 	}
 	if len(r.Seen) > 4096 {
 		return ResourceMethod{}, errors.New("resource method history exceeds bound")
+	}
+	if r.Resource == ComponentResource {
+		target, known := ComponentFabricationTarget(r.Target, r.CurrentStock, r.Stock, r.Runways)
+		if !known {
+			return ResourceMethod{Kind: ResourceMethodUnknown}, nil
+		}
+		if target == 0 {
+			return ResourceMethod{Kind: ResourceMethodBlocked}, nil
+		}
+		r.Target = target
 	}
 	seen := map[domain.MethodID]bool{}
 	for _, id := range r.Seen {

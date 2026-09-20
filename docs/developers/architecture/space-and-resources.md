@@ -53,6 +53,15 @@ raises a maintenance deficit and an ordinary `MaintainResource` target covering
 five days plus the existing floor (bounded by the target limit of 10,000).
 Existing resource methods consume that target; the forecast issues no orders.
 
+A component deficit uses the ordinary workshop prerequisite ladder to stage a
+fabrication bench. Once the native MakeComponent recipe is research-available
+and usable on that bench, the resource production method proposes a StockTarget
+bill. Its target is capped at current components plus one per 12 surplus steel,
+retaining the Steel reserve and five days of observed consumption in stock.
+The budget uses the lower of fresh colony and usable ingredient stock; ore is
+never spendable steel. Unknown consumption or stock blocks fabrication, and
+an existing active component bill prevents a duplicate.
+
 The durable review retains both materials' stock, ore, rate, window, reserve,
 target and deficit. `/api/routines` exposes them as `resourceRunways`, with
 unknown values represented as null. The API is independent of dashboard

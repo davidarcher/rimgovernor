@@ -94,7 +94,13 @@ func NewRoutineWorkshopPlanner(reviewer *RoutineReviewer, native RoutineBuilding
 // ends the step.
 func (r *RoutineBuildingPlanner) prepareWorkshop(call context.Context, state ControlState, review store.RoutineReview) (*workshopSelection, RoutineBuildingReason, error) {
 	if r.goal != policy.MaintainEquipment && !r.reviewer.policy.ResourceGoalConfigured() {
-		return nil, BuildingMethodDisabled, nil
+		targets, err := r.reviewer.resourceTargets(call, state.Snapshot, domain.Unknown[[]policy.Amount]())
+		if err != nil {
+			return nil, "", err
+		}
+		if len(targets) == 0 {
+			return nil, BuildingMethodDisabled, nil
+		}
 	}
 	source, ok := r.native.(RoutineWorkshopSource)
 	if !ok {

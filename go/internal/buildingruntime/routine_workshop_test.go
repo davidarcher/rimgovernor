@@ -44,6 +44,27 @@ func (n *workshopNative) ReadRecipeCatalog(_ context.Context, _ *c.Identity, pro
 
 var clubRecipe = policy.RecipeHost{Definition: "Make_MeleeWeapon_Club", Products: []policy.Resource{"MeleeWeapon_Club"}, Available: true, Benches: []string{"CraftingSpot"}}
 
+func TestComponentWorkshopUsesResourcePrerequisites(t *testing.T) {
+	planner, session, native := workshopFixture(t)
+	planner.reviewer.policy.ResourceTargets = map[policy.Resource]int64{policy.ComponentResource: 20}
+	native.reply.GetObserved().Resources = []*o.Quantity{{DefName: proto.String("ComponentIndustrial"), Units: proto.Int64(2)}}
+	native.hosts = []policy.RecipeHost{{Definition: "MakeComponent", Products: []policy.Resource{policy.ComponentResource}, Available: true, Benches: []string{"FabricationBench"}, Research: []string{"Fabrication"}}}
+	ctx := context.Background()
+	selection, reason, err := planner.prepareWorkshop(ctx, session.State(), store.RoutineReview{})
+	if err != nil || reason != "" || selection == nil || selection.resource != policy.ComponentResource || selection.candidates[0] != "FabricationBench" {
+		t.Fatal(selection, reason, err)
+	}
+	planner.workshop = selection
+	facts := observation.ColonyProjection{Definitions: []observation.PlanningDefinition{
+		{Name: "FabricationBench", Available: domain.Known(true), NeedsPower: domain.Known(true), ConstructionSkill: domain.Known(int32(0)), Stuff: domain.Known("")},
+		{Name: "WoodFiredGenerator", Available: domain.Known(true)},
+	}}
+	bench, reason, err := planner.selectWorkshop(ctx, session.State(), store.RoutineReview{}, facts)
+	if err != nil || reason != "" || bench == nil || bench.definition != "FabricationBench" || bench.facility == nil || bench.facility.Role != policy.RoomRoleWorkshop {
+		t.Fatal(bench, reason, err)
+	}
+}
+
 func TestEquipmentWorkshopDiscoversReplacementBenchWithoutResourceTargets(t *testing.T) {
 	t.Parallel()
 	planner, session, native := workshopFixture(t)
