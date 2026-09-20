@@ -347,7 +347,9 @@ geometry is rechecked.
 ## Defense approach demand
 
 `policy.DefenseLayout.Approaches` groups observed, Home-connected boundary
-cells into contiguous sectors on each side of the bounded defense census.
+cells into contiguous sectors on each side of the bounded defense census. The
+flood starts at Home, or at the layout's Entry when Home itself is not a
+passable cell (the colony centre often lands on a building).
 `EdgeReachable` proves a connection to some map edge; it does not identify
 which edge a distant raid used. Arrival inputs therefore carry a distinct
 raid ID, its observed local boundary crossing and its arrival tick. Duplicate
@@ -360,16 +362,42 @@ arrival location, and cannot by itself increment a sector's count.
 Each sector has an observed passable route to Entry with proposed funnel
 walls closed. Reachability to firing positions with both entry lanes closed
 reports `route_bypasses_entry`; this is a layout finding, not clearance demand.
-Cover demand uses the observed native sandbag fill threshold, strictly
+Cover demand uses the observed native cover fill threshold, strictly
 exceeded, within the shortest defender range ahead of Entry or beside the
-last six route cells. Unknown range or threshold holds selection. Accepted
-footprints, firing positions, both lanes and existing rock supporting their
-flanks are protected. Map-edge rock and mountain interiors carry concrete
-holds. Ranking cover demand does not change geometry or `LinesVerified`.
+last six route cells. The game grants a block chance to any positive fill,
+so the native census reports a threshold of zero: a tree (0.25) or a chunk
+(0.5) is cover as much as a rock wall. Unknown range or threshold holds
+selection. Accepted footprints, firing positions, both lanes and existing
+rock supporting their flanks are protected. Map-edge rock, mountain
+interiors and rock faces (natural rock touching impassable natural rock, the
+outer course of a rock band) carry concrete holds; only free-standing rock
+is mined. Demand within a sector ranks nearest Entry first. Ranking cover
+demand does not change geometry or `LinesVerified`.
 
-This policy output is not an admitted designation. A stewardship consumer
-must obtain target identities and fresh native roof, reach, threat and
-ownership checks before using the existing mining, cutting, hauling or
-deconstruction actions. The current production defense census does not
-supply raid crossings, cover target identities or the sandbag fill threshold;
-without those observations automatic clearance remains gated.
+The defense site census supplies the inputs (#581). Each cell whose fill
+comes from a thing the game's own designators could remove names it
+(`cover_thing_id`, `cover_def_name`, `cover_kind` plant/chunk/mineable/
+building, `cover_designated`) with a CAS token over identity, definition,
+cell and designation state. `RaidArrivalState`, a map component, samples
+every hostile lord every 60 ticks: its first pawn position is the spawn
+(ground when on the map edge) and the pawn nearest the home area adds one
+trail cell per sample, up to 128 per lord and 32 lords per session. The
+snapshot's `raids` rows carry those tracks; the controller takes the first
+trail cell inside its census region as the crossing, and the policy snaps it
+to the nearest sector edge cell within eight cells. Drop pods and tunnellers
+are not ground arrivals.
+
+Clearance is the `cover_clearance` action (`ClearCover` operation): one exact
+thing by identity and token with the designation its kind takes (`CutPlant`,
+`Haul`, `Mine`; `Deconstruct` exists for the operation but the layout planner
+never orders it, holding player-owned and building cover as `structure`).
+The native side re-checks presence, cell, fog, fill, forbiddance, an existing
+designation, roof and mining safety, a store for a chunk, the designator's
+own acceptance (its refusal text is surfaced), a reachable free colonist with
+the work type and the token before designating. `CutPlant` on a harvestable
+tree designates `HarvestPlant` (chop wood), since the cut-plants designator
+refuses harvestable trees; other plants take a forced `CutPlant`. The thing
+gone, or a chunk hauled off its cell, is completed; still designated is pending
+ordinary work, undesignated by the player is unsuccessful. The defense layout
+planner orders up to eight clearances per method once every tier stands, at
+most four methods per game day.

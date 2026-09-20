@@ -86,6 +86,7 @@ namespace HomeBridge.BridgeTools
                         if (!row.InHome) row.Salvage = Salvage(map, building, salvageSafety);
                         snapshot.Targets.Add(row);
                     }
+                    salvageSafety.Dispose();
                     var count = (ulong)snapshot.Targets.Count;
                     snapshot.Completeness = new Obs.Completeness { Page = new Common.PageInfo { Complete = true }, Matched = count, Returned = count, Filtered = 0, Unreadable = 0 };
                     var reply = new Obs.ClearanceTargetsReply { Observed = snapshot };

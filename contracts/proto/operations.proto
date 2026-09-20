@@ -107,6 +107,7 @@ message Operation {
     Arrest arrest = 57;
     SetApparelPolicy set_apparel_policy = 58;
     SetDrugPolicy set_drug_policy = 59;
+    ClearCover clear_cover = 60;
   }
 }
 
@@ -145,6 +146,11 @@ enum ThingDesignation {
   THING_DESIGNATION_CUT_PLANT = 6;
 }
 message DesignateThing { EntityPrecondition target = 1; optional ThingDesignation designation = 2; }
+// Clearance designation on one exact cover thing from the defense site
+// census (DefenseCell.cover_*): Mine on a mineable, CutPlant on a plant,
+// Haul on a chunk, Deconstruct on a factionless or player building. The
+// designation is the whole write; ordinary work removes the thing.
+message ClearCover { EntityPrecondition target = 1; optional string designation_def = 2; rimgovernor.common.v1.Cell cell = 3; }
 enum PowerSetting { POWER_SETTING_UNSPECIFIED = 0; POWER_SETTING_ON = 1; POWER_SETTING_OFF = 2; }
 message PatchBuilding {
   EntityPrecondition building = 1;

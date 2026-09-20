@@ -9,8 +9,10 @@ import (
 )
 
 // DefenseArrival identifies one ground raid, rather than a pawn or a turret
-// burst. Edge must be an observed boundary crossing in the census; a distant
-// map-edge coordinate does not establish which local opening the raid used.
+// burst. Edge is the observed boundary crossing: the first sampled position
+// of the raid inside the census. It is matched to the sector whose edge
+// cell lies nearest, within defenseArrivalSnap cells; a distant map-edge
+// coordinate does not establish which local opening the raid used.
 type DefenseArrival struct {
 	ID   string
 	Edge domain.Cell
@@ -53,6 +55,11 @@ type DefenseApproaches struct {
 const defenseArrivalWindow domain.Tick = 3 * 60000
 const defenseRouteTail = 6
 
+// defenseArrivalSnap bounds how far an arrival's crossing may lie from a
+// sector's edge cell: the native trail is sampled every 60 ticks, a few
+// cells of raider movement.
+const defenseArrivalSnap = 8
+
 func validateDefenseArrivals(r DefenseRequest) error {
 	if r.Tick < 0 || len(r.Arrivals) > 128 {
 		return errors.New("invalid defense arrival census")
@@ -67,7 +74,7 @@ func validateDefenseArrivals(r DefenseRequest) error {
 		}
 		seen[a.ID] = a
 	}
-	if v, known := r.CoverThreshold.Value(); known && (math.IsNaN(v) || math.IsInf(v, 0) || v <= 0 || v > 1) {
+	if v, known := r.CoverThreshold.Value(); known && (math.IsNaN(v) || math.IsInf(v, 0) || v < 0 || v >= 1) {
 		return errors.New("invalid defense cover threshold")
 	}
 	return nil
@@ -133,8 +140,11 @@ func (s defenseSite) borderSide(c domain.Cell) int {
 	}
 }
 
-func (s defenseSite) sectors() ([]DefenseSector, []string) {
-	_, distance := s.paths(s.r.Home, nil)
+// sectors floods from origin: Home while it is passable, else the
+// layout's Entry, since the colony centre drifts onto buildings as the base
+// grows and the approaches are what reaches the corridor anyway.
+func (s defenseSite) sectors(origin domain.Cell) ([]DefenseSector, []string) {
+	_, distance := s.paths(origin, nil)
 	edge := map[domain.Cell]bool{}
 	var ordered []domain.Cell
 	for c := range distance {
@@ -183,6 +193,17 @@ func (s defenseSite) sectors() ([]DefenseSector, []string) {
 		counted[a.ID] = true
 		i, ok := byCell[a.Edge]
 		if !ok {
+			// The crossing was sampled a few cells inside the border:
+			// the nearest sector edge cell within the snap radius, the
+			// lowest-ordered on a tie.
+			nearest := int64(defenseArrivalSnap*defenseArrivalSnap + 1)
+			for _, c := range ordered {
+				if d := int64(squaredDistance(c, a.Edge)); d < nearest {
+					i, ok, nearest = byCell[c], true, d
+				}
+			}
+		}
+		if !ok {
 			unmatched = append(unmatched, a.ID)
 			continue
 		}
@@ -205,9 +226,25 @@ func (s defenseSite) sectors() ([]DefenseSector, []string) {
 	return sectors, unmatched
 }
 
+// DefenseApproachesFor recomputes the approaches of an accepted layout
+// against a fresh census: the layout's tiers, lanes and firing cells stay
+// protected, and the request's arrivals and cover threshold decide the
+// cover demand (#581). It validates the request as DefenseLayouts does.
+func DefenseApproachesFor(r DefenseRequest, l DefenseLayout) (DefenseApproaches, error) {
+	s, err := newDefenseSite(r)
+	if err != nil {
+		return DefenseApproaches{}, err
+	}
+	return s.defenseApproaches(l), nil
+}
+
 func (s defenseSite) defenseApproaches(l DefenseLayout) DefenseApproaches {
 	out := DefenseApproaches{}
-	out.Sectors, out.UnmatchedArrivals = s.sectors()
+	origin := s.r.Home
+	if !s.passable(origin) {
+		origin = l.Entry
+	}
+	out.Sectors, out.UnmatchedArrivals = s.sectors(origin)
 	closed := map[domain.Cell]bool{}
 	protected := map[domain.Cell]bool{}
 	for c := range s.protect {
@@ -325,12 +362,28 @@ func (s defenseSite) defenseApproaches(l DefenseLayout) DefenseApproaches {
 				hold = "mountain_interior"
 			}
 		}
+		if positive(row.NaturalRock) && hold == "" {
+			// A rock face is terrain: mining one cell of a mass exposes the
+			// next, and the mass may be the wall the layout leans on. Only
+			// a lone rock (no natural rock beside it) is orderable.
+			for _, delta := range directions {
+				if n := addCell(c, delta); positive(s.cells[n].NaturalRock) && !s.passable(n) {
+					hold = "rock_face"
+					break
+				}
+			}
+		}
 		out.Cover = append(out.Cover, DefenseCover{Cell: c, Fill: fill, Sector: sectorIndex, Hold: hold})
 	}
 	sort.Slice(out.Cover, func(i, j int) bool {
 		a, b := out.Cover[i], out.Cover[j]
 		if a.Sector != b.Sector {
 			return a.Sector < b.Sector
+		}
+		// Nearest the entry first: the cover a raider would take at the
+		// line is cleared before the cover farther up the approach.
+		if da, db := squaredDistance(a.Cell, l.Entry), squaredDistance(b.Cell, l.Entry); da != db {
+			return da < db
 		}
 		return defenseCellLess(a.Cell, b.Cell)
 	})

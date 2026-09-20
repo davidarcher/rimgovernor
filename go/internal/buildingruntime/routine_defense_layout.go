@@ -323,6 +323,11 @@ func (r *RoutineDefenseLayoutPlanner) step(call, epoch context.Context, arbiter 
 		clockSchedulerLog("defense-layout: turrets unpowered at %v, unfuelled at %v (fuel shortage %v)", upkeep.Unpowered, upkeep.Empty, upkeep.Shortage)
 		return RoutineDefenseLayoutResult{Reason: BuildingMethodUnknown, Tier: policy.TierTurrets}, nil
 	}
+	// The line stands: raider cover inside its engagement zone is the
+	// remaining deficit (#581).
+	if result, handled, err := r.clearCover(call, epoch, goal, review, state, read, record); handled || err != nil {
+		return result, err
+	}
 	return RoutineDefenseLayoutResult{Reason: BuildingMethodNoDeficit}, nil
 }
 
@@ -857,29 +862,11 @@ func (r *RoutineDefenseLayoutPlanner) propose(call context.Context, state Contro
 			request.Entrances = append(request.Entrances, cell.Cell)
 		}
 	}
-	colonistsComplete, ck := read.Emergency.ColonistsComplete.Value()
-	if !ck || !colonistsComplete || len(read.Emergency.Colonists) == 0 {
-		return policy.DefenseLayout{}, nil, false, nil
-	}
-	ids := make([]string, 0, len(read.Emergency.Colonists))
-	for _, pawn := range read.Emergency.Colonists {
-		ids = append(ids, string(pawn.ID))
-	}
-	reply, _, err := r.native.ReadCombatPawns(call, identity, ids)
-	if err != nil {
+	defenders, minRange, ok, err := r.defenderRange(call, state, read)
+	if err != nil || !ok {
 		return policy.DefenseLayout{}, nil, false, err
 	}
-	observed := reply.GetObserved()
-	if observed == nil || len(observed.Pawns) != len(ids) {
-		return policy.DefenseLayout{}, nil, false, defenseControlErr(248)
-	}
-	if err = r.sameTick(observed.Context, state, projection.Identity.Tick); err != nil {
-		return policy.DefenseLayout{}, nil, false, err
-	}
-	request.Defenders, request.MinRange = defenderRange(observed.Pawns)
-	if request.Defenders == 0 {
-		return policy.DefenseLayout{}, nil, false, nil
-	}
+	request.Defenders, request.MinRange = defenders, minRange
 	layout, err := policy.DefenseLayouts(request)
 	if err != nil {
 		return policy.DefenseLayout{}, nil, false, nil

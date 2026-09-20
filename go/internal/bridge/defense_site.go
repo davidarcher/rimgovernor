@@ -44,16 +44,61 @@ type DefenseCell struct {
 	CoverFill                       float64
 	PlayerOwned, NaturalRock, Door  bool
 	EdgeReachable, HomeArea         bool
+	// Cover names the thing whose fill CoverFill reports, when the census
+	// can identify one the game's designators could remove.
+	Cover *DefenseCover
+}
+
+// DefenseCover is the clearance identity of one cover thing: what it is,
+// which designation removes it, whether one already stands, and the snapshot
+// token ClearCover compares at apply.
+// Designation is the native designation def the cover's kind takes, the
+// one a CoverClearance action carries; empty for an unknown kind.
+func (c DefenseCover) Designation() string {
+	switch c.Kind {
+	case o.CoverKind_COVER_KIND_PLANT:
+		return domain.CoverClearanceCutPlant
+	case o.CoverKind_COVER_KIND_CHUNK:
+		return domain.CoverClearanceHaul
+	case o.CoverKind_COVER_KIND_MINEABLE:
+		return domain.CoverClearanceMine
+	case o.CoverKind_COVER_KIND_BUILDING:
+		return domain.CoverClearanceDeconstruct
+	}
+	return ""
+}
+
+type DefenseCover struct {
+	ThingID, DefName string
+	Kind             o.CoverKind
+	Token            string
+	Designated       bool
+}
+
+// RaidTrack is one hostile lord the map has seen since load: its first
+// pawn's spawn cell (Ground when on the map edge) and a bounded trail of one
+// of its pawns, sampled by the native RaidArrivalState component.
+type RaidTrack struct {
+	LordID, FactionDef  string
+	SpawnTick, LastTick domain.Tick
+	Spawn               domain.Cell
+	Ground              bool
+	Trail               []domain.Cell
 }
 
 // DefenseSite is one complete rectangle census with the context the caller
-// validates against its acting generation.
+// validates against its acting generation. CoverThreshold is the fill above
+// which the game's shooting model grants a block chance.
 type DefenseSite struct {
-	Context       *c.ObservationContext
-	Width, Height uint32
-	Region        CellRect
-	Cells         []DefenseCell
+	Context        *c.ObservationContext
+	Width, Height  uint32
+	Region         CellRect
+	Cells          []DefenseCell
+	CoverThreshold float64
+	Raids          []RaidTrack
 }
+
+const maxRaidTracks, maxRaidTrail = 32, 128
 
 // LineOfFire is the native shooting-model evidence for one (firing, approach)
 // pair: GenSight line of sight and CoverUtility's overall block chance for a
@@ -241,7 +286,38 @@ func validateDefenseSite(v *o.DefenseSiteSnapshot, identity *c.Identity, region 
 		out.CoverFill = row.GetCoverFill()
 		out.PlayerOwned, out.NaturalRock, out.Door = row.GetPlayerOwned(), row.GetNaturalRock(), row.GetDoor()
 		out.EdgeReachable, out.HomeArea = row.GetEdgeReachable(), row.GetHomeArea()
+		if row.CoverThingId != nil || row.CoverDefName != nil || row.CoverKind != nil || row.CoverToken != nil || row.CoverDesignated != nil {
+			if validID(row.GetCoverThingId()) != nil || validID(row.GetCoverDefName()) != nil || validID(row.GetCoverToken()) != nil || row.CoverDesignated == nil || row.GetCoverKind() == o.CoverKind_COVER_KIND_UNSPECIFIED || row.GetCoverFill() <= 0 {
+				return DefenseSite{}, contract("defense cell cover identity incomplete")
+			}
+			out.Cover = &DefenseCover{ThingID: row.GetCoverThingId(), DefName: row.GetCoverDefName(), Kind: row.GetCoverKind(), Token: row.GetCoverToken(), Designated: row.GetCoverDesignated()}
+		}
 		site.Cells = append(site.Cells, out)
+	}
+	if v.CoverThreshold == nil || !fraction(v.CoverThreshold) || v.GetCoverThreshold() >= 1 {
+		return DefenseSite{}, contract("defense site cover threshold missing")
+	}
+	site.CoverThreshold = v.GetCoverThreshold()
+	if len(v.Raids) > maxRaidTracks {
+		return DefenseSite{}, contract("defense site raid tracks exceed bound")
+	}
+	lords := map[string]bool{}
+	for _, row := range v.Raids {
+		spawn, ok := protoCell(row.GetSpawn())
+		if row == nil || !ok || validID(row.GetLordId()) != nil || lords[row.GetLordId()] || validID(row.GetFactionDef()) != nil || row.SpawnTick == nil || row.LastTick == nil || row.Ground == nil ||
+			row.GetSpawnTick() < 0 || row.GetLastTick() < row.GetSpawnTick() || len(row.Trail) > maxRaidTrail || int64(spawn.X) >= int64(site.Width) || int64(spawn.Z) >= int64(site.Height) {
+			return DefenseSite{}, contract("invalid defense site raid track")
+		}
+		lords[row.GetLordId()] = true
+		track := RaidTrack{LordID: row.GetLordId(), FactionDef: row.GetFactionDef(), SpawnTick: domain.Tick(row.GetSpawnTick()), LastTick: domain.Tick(row.GetLastTick()), Spawn: spawn, Ground: row.GetGround()}
+		for _, at := range row.Trail {
+			cell, ok := protoCell(at)
+			if !ok || int64(cell.X) >= int64(site.Width) || int64(cell.Z) >= int64(site.Height) {
+				return DefenseSite{}, contract("invalid defense site raid trail")
+			}
+			track.Trail = append(track.Trail, cell)
+		}
+		site.Raids = append(site.Raids, track)
 	}
 	return site, nil
 }

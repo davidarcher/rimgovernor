@@ -119,6 +119,9 @@ type variant struct {
 	// run expects squad defense from the start and plays it to the native
 	// outcome without the repair phase (#118).
 	squad bool
+	// cover stages raider cover ahead of the line and expects the layout
+	// planner to clear it (#581) instead of an incident.
+	cover bool
 }
 
 func init() {
@@ -199,6 +202,11 @@ func init() {
 	register("defense/hive", "An insect hive near the colony (#246) is answered from the committed layout checkpoint: the census lists the hostile building, "+
 		"squad defense targets it (melee, or ranged from a line of fire) under colony windows, the hive is destroyed natively and the drafts are released.",
 		checkpoint, 15*time.Minute, hive)
+	cover := fromCheckpoint
+	cover.threat, cover.cover = "", true
+	register("defense/cover", "Raider cover clearance (#581) from the committed layout checkpoint: trees and chunks staged on the approach inside the firing line's engagement zone "+
+		"are identified by the defense census, ordered cleared by the layout planner through the game's own cut and haul designations, and are gone natively when the plan completes.",
+		checkpoint, 20*time.Minute, cover)
 	shipPart := fromCheckpoint
 	shipPart.threat, shipPart.buildingKind, shipPart.rifles = "building", "DefoliatorShipPart", 8
 	register("defense/shippart", "A crashed ship part near the colony (#246, #327) is answered from the committed layout checkpoint with every colonist armed with a rifle: the census lists the hostile building, "+
@@ -512,6 +520,9 @@ func run(ctx context.Context, s cases.Session, v variant) error {
 		var err error
 		h, err = reopenHarness()
 		return err
+	}
+	if v.cover {
+		return runCover(ctx, closeClient, reopenFixture, fixture, launch, layout, report)
 	}
 	if v.threat == "predator" {
 		return runPredator(ctx, closeClient, reopenFixture, fixture, launch, layout, v, report)

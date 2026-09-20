@@ -675,7 +675,7 @@ var plannerCatalog = []plannerEntry{
 			out.StoneShell = &method
 			return nil
 		}},
-	{name: "defenseLayout", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.BuildingAction, domain.RecoveryServiceAction}, families: factsBuilding,
+	{name: "defenseLayout", priority: plannerMaintenance, kinds: []domain.ActionKind{domain.BuildingAction, domain.RecoveryServiceAction, domain.CoverClearanceAction}, families: factsBuilding,
 		configured: func(c *ClockSchedulerConfig) bool { return c.DefenseLayout != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.DefenseLayout.step(ctx, epoch, arbiter)

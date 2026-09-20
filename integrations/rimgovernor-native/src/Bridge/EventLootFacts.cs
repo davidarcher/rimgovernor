@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using RimWorld;
+using Unity.Collections;
 using Verse;
 using Verse.AI;
 using Common = RimGovernor.Protocol.Common;
@@ -37,6 +38,7 @@ namespace HomeBridge.BridgeTools
                 row.StorageHeadroom = units;
                 census.Items.Add(row);
             }
+            safety.Dispose();
             return new Obs.LootSection { Observed = census };
         }
 
@@ -66,7 +68,11 @@ namespace HomeBridge.BridgeTools
             return units;
         }
 
-        internal static bool? Safe(Thing item) => new HaulingSafety(item.Map).Safe(item);
+        internal static bool? Safe(Thing item)
+        {
+            var safety = new HaulingSafety(item.Map);
+            try { return safety.Safe(item); } finally { safety.Dispose(); }
+        }
 
         internal sealed class HaulingSafety
         {
@@ -74,6 +80,31 @@ namespace HomeBridge.BridgeTools
             private readonly List<Pawn> people;
             private readonly List<Thing> hazards;
             private readonly Dictionary<IntVec3, bool> exposed = new Dictionary<IntVec3, bool>();
+            // The colony's own traps are exposed cells, but a pawn walks over
+            // them at will (no path cost, a 0.5% spring chance), so the
+            // shortest route through a trapped corridor always crosses the
+            // trap lane and every item beyond it read as unsafe (#581). The
+            // safety route is measured with the trap cells priced out, the
+            // way the layout's safe lane is meant to be used.
+            private TrapAvoidance? trapAvoidance;
+            private TrapAvoidance? TrapAvoid()
+            {
+                if (trapAvoidance != null) return trapAvoidance;
+                var traps = hazards.Where(h => h is Building_Trap).Select(h => h.Position).ToList();
+                return traps.Count == 0 ? null : trapAvoidance = new TrapAvoidance(map, traps);
+            }
+            private sealed class TrapAvoidance : PathRequest.IPathGridCustomizer
+            {
+                private readonly NativeArray<ushort> grid;
+                internal TrapAvoidance(Map map, List<IntVec3> traps)
+                {
+                    grid = new NativeArray<ushort>(map.cellIndices.NumGridCells, Allocator.Persistent);
+                    foreach (var cell in traps) grid[map.cellIndices.CellToIndex(cell)] = 10000;
+                }
+                public NativeArray<ushort> GetOffsetGrid() => grid;
+                internal void Dispose() => grid.Dispose();
+            }
+            internal void Dispose() { trapAvoidance?.Dispose(); trapAvoidance = null; }
             // PathLength is the last Safe(true) verdict's colonist route length in
             // cells, -1 when that verdict came without a measured path.
             internal double PathLength = -1;
@@ -108,13 +139,19 @@ namespace HomeBridge.BridgeTools
             private bool Route(Pawn pawn, IntVec3 from, LocalTargetInfo target, PathEndMode end, bool measure = false)
             {
                 if (hazards.Count == 0 && !measure) return pawn.CanReach(target, end, Danger.None);
-                using (var path = map.pathFinder.FindPathNow(from, target, TraverseParms.For(pawn, Danger.None), peMode: end)) {
+                using (var path = map.pathFinder.FindPathNow(from, target, TraverseParms.For(pawn, Danger.None), peMode: end, customizer: TrapAvoid())) {
                     if (!path.Found) return false;
                     if (measure) PathLength = Math.Min(PathLength < 0 ? path.NodesReversed.Count : PathLength, path.NodesReversed.Count);
                     return hazards.Count == 0 || path.NodesReversed.All(c => !Exposed(c) && c.GetDangerFor(pawn, map) == Danger.None);
                 }
             }
 
+            // Safe when some colonist who can reach the item has a route
+            // there and back that meets no hazard; false when colonists reach
+            // it but every route is exposed; unknown when nobody reaches it.
+            // One colonist's exposed route (standing in the trap lane at the
+            // moment of the census) does not veto the item for the rest
+            // (#581): the verdict is the best route, not the worst.
             internal bool? Safe(Thing item)
             {
                 PathLength = -1;
@@ -126,13 +163,16 @@ namespace HomeBridge.BridgeTools
                     if (area != null && !area[item.Position]) continue;
                     if (!pawn.CanReach(item, PathEndMode.Touch, Danger.None)) continue;
                     reachable = true;
-                    if (!Route(pawn, pawn.Position, item, PathEndMode.Touch, measure: true)) return false;
+                    var measured = PathLength;
+                    PathLength = -1;
+                    if (!Route(pawn, pawn.Position, item, PathEndMode.Touch, measure: true)) { PathLength = measured; continue; }
                     // Check the return route to the native storage choice, too.
                     if (StoreUtility.TryFindBestBetterStoreCellFor(item, pawn, map, StoragePriority.Unstored,
                         Faction.OfPlayer, out var destination)
-                        && !Route(pawn, item.Position, destination, PathEndMode.OnCell)) return false;
+                        && !Route(pawn, item.Position, destination, PathEndMode.OnCell)) { PathLength = measured; continue; }
+                    return true;
                 }
-                return reachable ? (bool?)true : null;
+                return reachable ? (bool?)false : null;
             }
 
             internal bool SalvageReturn(Building source, Thing output)

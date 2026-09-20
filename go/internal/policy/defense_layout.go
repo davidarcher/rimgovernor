@@ -59,8 +59,10 @@ type DefenseRequest struct {
 	// Tick bounds their recency; turret attack ticks alone are not arrivals.
 	Arrivals []DefenseArrival
 	Tick     domain.Tick
-	// CoverThreshold is the native sandbag fill percentage. Unknown disables
-	// cover selection; a definition name is not evidence of its fill.
+	// CoverThreshold is the fill percentage above which a thing counts as
+	// raider cover; the game grants a block chance to any positive fill, so
+	// the native census reports zero. Unknown disables cover selection; a
+	// definition name is not evidence of its fill.
 	CoverThreshold domain.Fact[float64]
 }
 

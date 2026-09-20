@@ -37,6 +37,7 @@ namespace HomeBridge.BridgeTools
         internal readonly Dictionary<Common.AttemptKey, Operations.PatchBuilding> BuildingPatches = new Dictionary<Common.AttemptKey, Operations.PatchBuilding>();
         internal readonly Dictionary<Common.AttemptKey, Receipts.DesignationEffect> AllowedSupplies = new Dictionary<Common.AttemptKey, Receipts.DesignationEffect>();
         internal readonly Dictionary<Common.AttemptKey, Receipts.DesignationEffect> CutPlants = new Dictionary<Common.AttemptKey, Receipts.DesignationEffect>();
+        internal readonly Dictionary<Common.AttemptKey, Receipts.DesignationEffect> CoverClearances = new Dictionary<Common.AttemptKey, Receipts.DesignationEffect>();
         internal readonly Dictionary<Common.AttemptKey, NativeHaulRecord> Hauls = new Dictionary<Common.AttemptKey, NativeHaulRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeCustodyRecord> Custody = new Dictionary<Common.AttemptKey, NativeCustodyRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeRecoveryServiceRecord> RecoveryServices = new Dictionary<Common.AttemptKey, NativeRecoveryServiceRecord>();
@@ -135,6 +136,8 @@ namespace HomeBridge.BridgeTools
                 return NativeCutPlant.IsCutPlant(request.Operation.DesignateThing)
                     ? NativeCutPlant.Execute(state, request, context)
                     : NativeSupplyAllow.Execute(state, request, context);
+            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.ClearCover)
+                return NativeClearCover.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.SetDrafted)
                 return NativeDraftOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.MovePawn)
@@ -298,6 +301,8 @@ namespace HomeBridge.BridgeTools
                     return ProtoBoundary.Encode(NativeCutPlant.IsCutPlant(parsed.Operation.DesignateThing)
                         ? NativeCutPlant.Preview(parsed.Operation.DesignateThing, context)
                         : NativeSupplyAllow.Preview(parsed.Operation.DesignateThing, context));
+                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.ClearCover)
+                    return ProtoBoundary.Encode(NativeClearCover.Preview(parsed.Operation.ClearCover, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.MovePawn)
                     return ProtoBoundary.Encode(NativeMovementOperations.Preview(parsed.Operation.MovePawn, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.AttackTarget)
@@ -444,6 +449,9 @@ namespace HomeBridge.BridgeTools
                     Receipts.DesignationEffect cut;
                     if (state.CutPlants.TryGetValue(parsed.Attempt, out cut))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeCutPlant.Observe(parsed.Attempt, context, cut) }));
+                    Receipts.DesignationEffect cover;
+                    if (state.CoverClearances.TryGetValue(parsed.Attempt, out cover))
+                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = NativeClearCover.Observe(parsed.Attempt, context, cover) }));
                     Operations.PatchBuilding buildingPatch;
                     if (state.BuildingPatches.TryGetValue(parsed.Attempt, out buildingPatch))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = buildingPatch.HasMedical

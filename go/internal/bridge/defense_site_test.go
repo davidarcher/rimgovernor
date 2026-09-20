@@ -27,7 +27,9 @@ func defenseSiteFixture() *o.DefenseSiteSnapshot {
 		CoverFill: proto.Float64(0.57), BlocksSight: proto.Bool(false), EdificeDefName: proto.String("Sandbags"), PlayerOwned: proto.Bool(true), NaturalRock: proto.Bool(false), Door: proto.Bool(false), EdgeReachable: proto.Bool(true), HomeArea: proto.Bool(true)}
 	return &o.DefenseSiteSnapshot{Context: pbContext(), MapSize: &o.MapSize{Width: proto.Uint32(250), Height: proto.Uint32(250)},
 		Region: &o.Rectangle{Minimum: &c.Cell{X: proto.Int32(4), Z: proto.Int32(6)}, Maximum: &c.Cell{X: proto.Int32(5), Z: proto.Int32(6)}},
-		Cells:  []*o.DefenseCell{open, sandbag}, Completeness: defenseComplete(2)}
+		Cells:  []*o.DefenseCell{open, sandbag}, Completeness: defenseComplete(2), CoverThreshold: proto.Float64(0),
+		Raids: []*o.RaidTrack{{LordId: proto.String("lord-7"), FactionDef: proto.String("TribeRough"), SpawnTick: proto.Int64(100), LastTick: proto.Int64(400), Ground: proto.Bool(true),
+			Spawn: &c.Cell{X: proto.Int32(0), Z: proto.Int32(120)}, Trail: []*c.Cell{{X: proto.Int32(0), Z: proto.Int32(120)}, {X: proto.Int32(3), Z: proto.Int32(118)}}}}}
 }
 func defenseServer(t *testing.T, tool string, want proto.Message, reply proto.Message) *Client {
 	t.Helper()
@@ -53,7 +55,25 @@ func TestDefenseSiteReadsCompleteCensus(t *testing.T) {
 	if got := site.Cells[1]; got.EdificeDefName != "Sandbags" || !got.PlayerOwned || got.CoverFill != 0.57 || got.Walkable || !got.Passable || !got.EdgeReachable || !got.HomeArea {
 		t.Fatalf("%+v", got)
 	}
-	if got := site.Cells[0]; got.EdificeDefName != "" || got.PlayerOwned || got.CoverFill != 0 || !got.Walkable {
+	if got := site.Cells[0]; got.EdificeDefName != "" || got.PlayerOwned || got.CoverFill != 0 || !got.Walkable || got.Cover != nil {
+		t.Fatalf("%+v", got)
+	}
+	if site.CoverThreshold != 0 || len(site.Raids) != 1 || site.Raids[0].LordID != "lord-7" || !site.Raids[0].Ground || len(site.Raids[0].Trail) != 2 || site.Raids[0].Trail[1] != (domain.Cell{X: 3, Z: 118}) {
+		t.Fatalf("%+v", site.Raids)
+	}
+}
+func TestDefenseSiteCoverIdentity(t *testing.T) {
+	fixture := defenseSiteFixture()
+	fixture.Cells[1].CoverThingId, fixture.Cells[1].CoverDefName = proto.String("Thing_Sandbags_9"), proto.String("Sandbags")
+	fixture.Cells[1].CoverKind, fixture.Cells[1].CoverToken, fixture.Cells[1].CoverDesignated = o.CoverKind_COVER_KIND_BUILDING.Enum(), proto.String("cover-abc"), proto.Bool(false)
+	client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
+		return pbResult(&o.DefenseSiteReply{Outcome: &o.DefenseSiteReply_Observed{Observed: fixture}}), nil
+	}}, time.Second)
+	site, _, err := client.ReadDefenseSite(context.Background(), pbIdentity(), defenseRegion())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := site.Cells[1].Cover; got == nil || got.ThingID != "Thing_Sandbags_9" || got.Kind != o.CoverKind_COVER_KIND_BUILDING || got.Token != "cover-abc" || got.Designated {
 		t.Fatalf("%+v", got)
 	}
 }
@@ -89,6 +109,15 @@ func TestDefenseSiteRejectsMalformed(t *testing.T) {
 		"walkable impassabl": func(s *o.DefenseSiteSnapshot) { s.Cells[0].Passable = proto.Bool(false) },
 		"identity":           func(s *o.DefenseSiteSnapshot) { s.Context.Identity.LoadToken = proto.String("other") },
 		"map size":           func(s *o.DefenseSiteSnapshot) { s.MapSize = nil },
+		"threshold missing":  func(s *o.DefenseSiteSnapshot) { s.CoverThreshold = nil },
+		"threshold one":      func(s *o.DefenseSiteSnapshot) { s.CoverThreshold = proto.Float64(1) },
+		"cover half named":   func(s *o.DefenseSiteSnapshot) { s.Cells[1].CoverThingId = proto.String("Thing_1") },
+		"cover on open cell": func(s *o.DefenseSiteSnapshot) {
+			s.Cells[0].CoverThingId, s.Cells[0].CoverDefName, s.Cells[0].CoverKind, s.Cells[0].CoverToken, s.Cells[0].CoverDesignated = proto.String("Thing_1"), proto.String("Plant_TreeOak"), o.CoverKind_COVER_KIND_PLANT.Enum(), proto.String("cover-1"), proto.Bool(false)
+		},
+		"raid dup lord":      func(s *o.DefenseSiteSnapshot) { s.Raids = append(s.Raids, s.Raids[0]) },
+		"raid trail outside": func(s *o.DefenseSiteSnapshot) { s.Raids[0].Trail[1].X = proto.Int32(250) },
+		"raid last before":   func(s *o.DefenseSiteSnapshot) { s.Raids[0].LastTick = proto.Int64(50) },
 	}
 	for name, edit := range edits {
 		fixture := defenseSiteFixture()

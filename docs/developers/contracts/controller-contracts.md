@@ -774,7 +774,11 @@ native hauling safety. There is no first-seen or player-forbid exemption. Unknow
 or over-limit censuses do not authorize changes.
 
 Safety checks the item cell, each reachable eligible colonist's native approach
-path, and the return path to the native storage choice. Fire within two cells,
+path, and the return path to the native storage choice; the verdict is the best
+route, so one colonist whose own route is exposed cannot veto an item another
+colonist reaches safely, and an item nobody reaches is unknown rather than
+unsafe (#581). The measured routes price the colony's own trap cells out, since
+vanilla pathing crosses friendly traps at no cost. Fire within two cells,
 traps on the path, native region danger, and visible hostiles exposing the path
 with line of sight prevent Allow. Hostile exposure uses the native weapon range
 with a five-cell margin and a twelve-cell minimum for melee threats. This is a

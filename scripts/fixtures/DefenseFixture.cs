@@ -64,9 +64,20 @@ namespace HomeBridge.BridgeTools
             if (fixtureHostile == null || fixtureHostileWorld != Find.World) { fixtureHostile = null; fixtureHostileWorld = null; }
             return fixtureHostile;
         }
+        // The cover things the fixture staged ahead of the line (#581),
+        // guarded by their world the same way; a removed thing keeps
+        // answering Destroyed, so the list is remembered until the world
+        // changes.
+        private static List<Thing> fixtureCover;
+        private static World fixtureCoverWorld;
+        private static List<Thing> CurrentCover()
+        {
+            if (fixtureCover == null || fixtureCoverWorld != Find.World) { fixtureCover = null; fixtureCoverWorld = null; }
+            return fixtureCover;
+        }
 
-        [Tool("test/defense_setup", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable defensive-layout fixture: op=terrain|stock|scaling|ranged|raid|predator|damage|breach|heal|inspect|quiet|power|depower|muster|empty|hostile|wealth|intrude.")]
-        public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken, string op, string strategy = "ImmediateAttack", string arrival = "EdgeWalkIn", int points = 0, string wall = "", int rifles = 3, string kind = "Cougar", int x = -1, int z = -1, string cells = "", int grace = 600)
+        [Tool("test/defense_setup", Description = "UNSAFE FOR MODEL EXECUTION. Private disposable defensive-layout fixture: op=terrain|stock|scaling|ranged|raid|predator|damage|breach|heal|inspect|quiet|power|depower|muster|empty|hostile|wealth|intrude|cover.")]
+        public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken, string op, string strategy = "ImmediateAttack", string arrival = "EdgeWalkIn", int points = 0, string wall = "", int rifles = 3, string kind = "Cougar", int x = -1, int z = -1, string cells = "", int grace = 600, int dx = 0, int dz = 1)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap; var player = Faction.OfPlayerSilentFail;
@@ -95,6 +106,7 @@ namespace HomeBridge.BridgeTools
                     case "hostile": return Hostile(map, colonists, kind);
                     case "wealth": map.wealthWatcher.ForceRecount(); return new { success = true, threat = Threat(map), tick = Find.TickManager.TicksGame };
                     case "intrude": return Intrude(map, new IntVec3(x, 0, z), grace);
+                    case "cover": return Cover(map, new IntVec3(x, 0, z), new IntVec3(dx, 0, dz));
                     default: return Refuse("Use terrain, stock, ranged, raid, predator, damage, breach, heal, inspect, quiet, power, depower, muster or empty.");
                 }
             }, cancellationToken).ConfigureAwait(false);
@@ -442,6 +454,68 @@ namespace HomeBridge.BridgeTools
                 strayVanished = stray.Count, tick = Find.TickManager.TicksGame };
         }
 
+        // Cover stages raider cover inside the firing line's engagement zone
+        // (#581): a line of trees and a pair of stone chunks on the approach
+        // ahead of Entry (away from Home, along direction d), two to seven
+        // cells out, on open standable cells. The things are ordinary map
+        // objects the game's own designators remove; the run asserts the
+        // service designates and clears them.
+        private static object Cover(Map map, IntVec3 entry, IntVec3 d)
+        {
+            if (!entry.InBounds(map) || d == IntVec3.Zero) return Refuse("cover needs the entry cell and a unit direction away from Home.");
+            var tree = DefDatabase<ThingDef>.GetNamedSilentFail("Plant_TreeOak");
+            var chunk = DefDatabase<ThingDef>.GetNamedSilentFail("ChunkGranite");
+            if (tree == null || chunk == null) return Refuse("Plant_TreeOak or ChunkGranite is not defined.");
+            var side = new IntVec3(d.z, 0, -d.x);
+            var staged = new List<Thing>();
+            var placed = new List<object>();
+            var cells = new List<IntVec3>();
+            for (var step = 2; step <= 7; step++)
+            {
+                var row = entry + d * step;
+                foreach (var offset in new[] { 0, -1, 1, -2, 2 })
+                {
+                    var cell = row + side * offset;
+                    if (!cell.InBounds(map) || cell.Fogged(map) || !cell.Standable(map) || cell.GetEdifice(map) != null || cell.GetPlant(map) != null || cell.GetThingList(map).Any(t => t.def.category == ThingCategory.Item)) continue;
+                    if (!map.reachability.CanReachColony(cell)) continue;
+                    cells.Add(cell);
+                }
+            }
+            if (cells.Count < 5) return Refuse("Fewer than five open cells ahead of the entry for cover: " + cells.Count + ".");
+            for (var i = 0; i < 5; i++)
+            {
+                var cell = cells[i];
+                var def = i < 3 ? tree : chunk;
+                var thing = ThingMaker.MakeThing(def);
+                if (thing is Plant plant) plant.Growth = 1f;
+                GenSpawn.Spawn(thing, cell, map);
+                if (!thing.Spawned) return Refuse("Staged " + def.defName + " did not spawn at " + cell + ".");
+                thing.SetForbidden(false, false);
+                staged.Add(thing);
+                placed.Add(new { id = thing.GetUniqueLoadID(), def = def.defName, x = cell.x, z = cell.z, fill = def.fillPercent, distance = cell.DistanceTo(entry) });
+            }
+            fixtureCover = staged; fixtureCoverWorld = Find.World;
+            // A hauled chunk needs somewhere to go: a small dumping
+            // stockpile inside the line (nine to fourteen cells back from
+            // Entry toward Home) unless the colony already has a store that
+            // takes chunks.
+            var dump = new List<object>();
+            if (!StoreUtility.TryFindBestBetterStoreCellFor(staged[3], null, map, StoragePriority.Unstored, Faction.OfPlayer, out _, false))
+            {
+                var zone = new Zone_Stockpile(StorageSettingsPreset.DumpingStockpile, map.zoneManager);
+                map.zoneManager.RegisterZone(zone);
+                for (var step = 9; step <= 14 && zone.Cells.Count < 6; step++)
+                    foreach (var offset in new[] { 0, -1, 1, -2, 2 })
+                    {
+                        var cell = entry - d * step + side * offset;
+                        if (zone.Cells.Count >= 6 || !cell.InBounds(map) || cell.Fogged(map) || !cell.Standable(map) || cell.GetEdifice(map) != null || cell.GetZone(map) != null || cell.GetThingList(map).Any(t => t.def.category == ThingCategory.Item)) continue;
+                        zone.AddCell(cell); dump.Add(new { x = cell.x, z = cell.z });
+                    }
+                if (zone.Cells.Count == 0) return Refuse("No open cell inside the line for a dumping stockpile.");
+            }
+            return new { success = true, cover = placed, dump, tick = Find.TickManager.TicksGame };
+        }
+
         private static object Damage(Map map, string wall)
         {
             var target = map.listerBuildings.allBuildingsColonist.FirstOrDefault(b => b.GetUniqueLoadID() == wall);
@@ -758,8 +832,16 @@ namespace HomeBridge.BridgeTools
                 .Select(b => new { id = b.GetUniqueLoadID(), def = b.def.defName, x = b.Position.x, z = b.Position.z, output = b.TryGetComp<CompPowerPlant>().PowerOutput,
                     fuel = b.TryGetComp<CompRefuelable>()?.Fuel ?? -1f }).ToList();
             var breach = map.GetComponent<DefenseBreachFixture>()?.Report();
+            // The staged cover's fate (#581): gone (destroyed, harvested,
+            // hauled away from its cell), or still there and whether the
+            // game holds a designation on it.
+            object cover = null;
+            if (CurrentCover() != null)
+                cover = fixtureCover.Select(t => new { id = t.GetUniqueLoadID(), def = t.def.defName, destroyed = t.Destroyed, spawned = t.Spawned && t.Map == map,
+                    x = t.Position.x, z = t.Position.z, designated = t.Spawned && t.Map == map && map.designationManager.AllDesignationsOn(t).Any(),
+                    designation = t.Spawned && t.Map == map ? map.designationManager.AllDesignationsOn(t).Select(g => g.def.defName).FirstOrDefault() : null }).ToList();
             return new { success = true, traps = traps.Count, trapIds, trapCells = cells, sprung, colonistsOnTraps, colonists, hostiles, predator, hostileBuilding, walls,
-                turrets = Turrets(map), conduits, generators, threat = Threat(map), breach, tick = Find.TickManager.TicksGame, paused = Find.TickManager.Paused };
+                turrets = Turrets(map), conduits, generators, threat = Threat(map), breach, cover, tick = Find.TickManager.TicksGame, paused = Find.TickManager.Paused };
         }
 
         // The wealth split and raid points the game itself computes (#395),

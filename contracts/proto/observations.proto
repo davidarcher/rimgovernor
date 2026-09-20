@@ -548,8 +548,28 @@ message DefenseCell {
   optional double cover_fill = 5; optional bool blocks_sight = 6; optional string edifice_def_name = 7; optional bool player_owned = 8;
   optional bool natural_rock = 9; optional bool edge_reachable = 10; optional bool home_area = 11; optional string terrain = 12;
   optional bool door = 13; repeated ReadIssue issues = 14;
+  // The thing whose fillPercent cover_fill reports (GetCover, else the
+  // edifice), with the clearance designation ordinary work would need and a
+  // snapshot token ClearCover compares at apply. Absent when the cell is open.
+  optional string cover_thing_id = 15; optional string cover_def_name = 16; optional CoverKind cover_kind = 17;
+  optional string cover_token = 18; optional bool cover_designated = 19;
 }
-message DefenseSiteSnapshot { rimgovernor.common.v1.ObservationContext context = 1; MapSize map_size = 2; Rectangle region = 3; repeated DefenseCell cells = 4; Completeness completeness = 5; }
+// How the game's own designators would remove a cover thing.
+enum CoverKind { COVER_KIND_UNSPECIFIED = 0; COVER_KIND_PLANT = 1; COVER_KIND_CHUNK = 2; COVER_KIND_MINEABLE = 3; COVER_KIND_BUILDING = 4; }
+// One hostile lord observed on the map since load: where its first pawn was
+// seen (ground when on the map edge), and a bounded trail of one of its
+// pawns sampled every RaidTrack.SampleInterval ticks, so a census can find
+// where the raid crossed its boundary. Session-scoped, like traffic.
+message RaidTrack {
+  optional string lord_id = 1; optional string faction_def = 2; optional int64 spawn_tick = 3; rimgovernor.common.v1.Cell spawn = 4;
+  optional bool ground = 5; repeated rimgovernor.common.v1.Cell trail = 6; optional int64 last_tick = 7;
+}
+// cover_threshold is the lowest positive fillPercent among loaded defs: the
+// floor below which nothing on the map gives CoverUtility a block chance.
+message DefenseSiteSnapshot {
+  rimgovernor.common.v1.ObservationContext context = 1; MapSize map_size = 2; Rectangle region = 3; repeated DefenseCell cells = 4; Completeness completeness = 5;
+  optional double cover_threshold = 6; repeated RaidTrack raids = 7;
+}
 message DefenseSiteRequest { ReadScope scope = 1; Rectangle region = 2; }
 message DefenseSiteReply { oneof outcome { DefenseSiteSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 // Lines of fire: native GenSight line of sight and CoverUtility overall block

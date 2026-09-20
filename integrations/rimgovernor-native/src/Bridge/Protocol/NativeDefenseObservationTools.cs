@@ -27,7 +27,7 @@ namespace HomeBridge.BridgeTools
         internal const int MaximumLineCells = 64;
 
         [Tool("rimgovernor/observations_read_defense_site", Title = "Read defense site census",
-            Description = "Official DefenseSiteRequest ProtoJSON. Inclusive rectangle of at most 2048 cells: terrain, traversal, native cover fill, sight blocking, edifice ownership, natural rock, doors, home area and ground reachability to a map edge without opening doors. Unavailable instead of truncation.")]
+            Description = "Official DefenseSiteRequest ProtoJSON. Inclusive rectangle of at most 2048 cells: terrain, traversal, native cover fill and the cover thing's clearance identity, sight blocking, edifice ownership, natural rock, doors, home area and ground reachability to a map edge without opening doors; plus the session's observed hostile arrivals. Unavailable instead of truncation.")]
         [ToolResponse("payload", "string", "Official observations DefenseSiteReply ProtoJSON.", Always = true)]
         public async Task<object> ReadDefenseSite(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Raw value must be a DefenseSiteRequest ProtoJSON string.")] object? request = null)
@@ -120,6 +120,12 @@ namespace HomeBridge.BridgeTools
                 var edifice = cell.GetEdifice(map);
                 var cover = cell.GetCover(map);
                 row.CoverFill = Finite(cover?.def.fillPercent ?? edifice?.def.fillPercent ?? 0);
+                var giver = cover ?? (edifice != null && edifice.def.fillPercent > 0 ? edifice : null);
+                if (giver != null && NativeClearCover.KindOf(giver) != Obs.CoverKind.Unspecified) {
+                    row.CoverThingId = giver.GetUniqueLoadID(); row.CoverDefName = Identifier(giver.def.defName);
+                    row.CoverKind = NativeClearCover.KindOf(giver); row.CoverDesignated = NativeClearCover.Designated(giver);
+                    row.CoverToken = NativeClearCover.Token(context.Identity, giver);
+                }
                 if (edifice != null) {
                     row.EdificeDefName = Identifier(edifice.def.defName);
                     row.PlayerOwned = edifice.Faction == player;
@@ -130,6 +136,17 @@ namespace HomeBridge.BridgeTools
                 snapshot.Cells.Add(row);
             }
             snapshot.Completeness = Complete(snapshot.Cells.Count);
+            // CoverUtility grants a block chance to any positive fill, so the
+            // floor is zero: nothing on the map is cover below it.
+            snapshot.CoverThreshold = 0;
+            var raids = map.GetComponent<RaidArrivalState>();
+            if (raids != null)
+                foreach (var track in raids.Tracks.Values.OrderBy(t => t.SpawnTick).ThenBy(t => t.LordId)) {
+                    var row = new Obs.RaidTrack { LordId = "lord-" + track.LordId.ToString(System.Globalization.CultureInfo.InvariantCulture), FactionDef = Identifier(track.FactionDef),
+                        SpawnTick = track.SpawnTick, Spawn = new Common.Cell { X = track.Spawn.x, Z = track.Spawn.z }, Ground = track.Ground, LastTick = track.LastTick };
+                    foreach (var c in track.Trail) row.Trail.Add(new Common.Cell { X = c.x, Z = c.z });
+                    snapshot.Raids.Add(row);
+                }
             return snapshot;
         }
 

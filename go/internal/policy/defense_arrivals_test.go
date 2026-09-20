@@ -29,16 +29,28 @@ func arrivalFixture(t *testing.T) defenseSite {
 
 func TestDefenseSectorsClusterRankAndDeduplicate(t *testing.T) {
 	s := arrivalFixture(t)
-	sectors, unmatched := s.sectors()
+	sectors, unmatched := s.sectors(s.r.Home)
 	if len(sectors) != 3 || len(unmatched) != 0 || sectors[0].PathLength != 2 || !reflect.DeepEqual(sectors[1].Edge, cells(1, 0, 2, 0)) {
 		t.Fatalf("sectors: %+v; unmatched: %v", sectors, unmatched)
 	}
 	a := DefenseArrival{ID: "raid-a", Edge: domain.Cell{X: 1}, Tick: s.r.Tick - 1}
-	s.r.Arrivals = []DefenseArrival{a, a, {ID: "raid-b", Edge: domain.Cell{X: 2}, Tick: s.r.Tick - 2}, {ID: "old", Edge: domain.Cell{X: 4, Z: 8}, Tick: 0}, {ID: "unknown-crossing", Edge: domain.Cell{X: 0}, Tick: s.r.Tick}}
-	sectors, unmatched = s.sectors()
-	if sectors[0].RecentRaids != 2 || sectors[0].LastArrivalTick != a.Tick || !reflect.DeepEqual(sectors[0].Edge, cells(1, 0, 2, 0)) || !reflect.DeepEqual(unmatched, []string{"unknown-crossing"}) {
+	s.r.Arrivals = []DefenseArrival{a, a, {ID: "raid-b", Edge: domain.Cell{X: 2}, Tick: s.r.Tick - 2}, {ID: "old", Edge: domain.Cell{X: 4, Z: 8}, Tick: 0}, {ID: "unknown-crossing", Edge: domain.Cell{X: 0}, Tick: s.r.Tick}, {ID: "snapped", Edge: domain.Cell{X: 6, Z: 2}, Tick: s.r.Tick}}
+	sectors, unmatched = s.sectors(s.r.Home)
+	if sectors[0].RecentRaids != 3 || sectors[0].LastArrivalTick != s.r.Tick || !reflect.DeepEqual(sectors[0].Edge, cells(1, 0, 2, 0)) || len(unmatched) != 0 {
 		t.Fatalf("ranked sectors: %+v; unmatched: %v", sectors, unmatched)
 	}
+	// A crossing sampled inside the border snaps to the nearest sector
+	// edge within reach; (0,0) is a sector cell's neighbour and so counts,
+	// while a crossing farther than the snap radius stays unmatched.
+	if sectors[1].RecentRaids != 1 || !reflect.DeepEqual(sectors[1].Edge, cells(7, 0)) {
+		t.Fatalf("snapped arrival: %+v", sectors)
+	}
+	s.r.Bounds, s.r.Region = Bounds{Width: 40, Height: 40}, Rectangle{Width: 40, Height: 40}
+	s.r.Arrivals = []DefenseArrival{{ID: "far", Edge: domain.Cell{X: 30, Z: 30}, Tick: s.r.Tick}}
+	if _, unmatched = s.sectors(s.r.Home); !reflect.DeepEqual(unmatched, []string{"far"}) {
+		t.Fatalf("far arrival matched: %v", unmatched)
+	}
+	s.r.Bounds, s.r.Region = Bounds{Width: 9, Height: 9}, Rectangle{Width: 9, Height: 9}
 	// Both reachability predicates are required. A native edge-reachable
 	// cell disconnected from Home within this census proves no local route.
 	for _, c := range cells(4, 7, 3, 8, 5, 8) {
@@ -46,7 +58,7 @@ func TestDefenseSectorsClusterRankAndDeduplicate(t *testing.T) {
 		row.Passable = domain.Unknown[bool]()
 		s.cells[c] = row
 	}
-	sectors, _ = s.sectors()
+	sectors, _ = s.sectors(s.r.Home)
 	if len(sectors) != 2 {
 		t.Fatalf("disconnected sector retained: %+v", sectors)
 	}
@@ -58,7 +70,7 @@ func TestDefenseSectorOpenPerimeterHasFourSides(t *testing.T) {
 		row.EdgeReachable = domain.Known(true)
 		s.cells[c] = row
 	}
-	sectors, _ := s.sectors()
+	sectors, _ := s.sectors(s.r.Home)
 	if len(sectors) != 4 {
 		t.Fatalf("open perimeter collapsed into %d sectors", len(sectors))
 	}
@@ -169,7 +181,7 @@ func TestDefenseArrivalValidation(t *testing.T) {
 		},
 		"negative tick":  func(r *DefenseRequest) { r.Tick = -1 },
 		"nan threshold":  func(r *DefenseRequest) { r.CoverThreshold = domain.Known(math.NaN()) },
-		"zero threshold": func(r *DefenseRequest) { r.CoverThreshold = domain.Known(0.0) },
+		"full threshold": func(r *DefenseRequest) { r.CoverThreshold = domain.Known(1.0) },
 		"oversized":      func(r *DefenseRequest) { r.Arrivals = make([]DefenseArrival, 129) },
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -197,6 +209,25 @@ func TestDefenseCoverRangeUnknownsAndRockHolds(t *testing.T) {
 	got := s.defenseApproaches(l)
 	if len(got.Cover) != 1 || got.Cover[0].Hold != "mountain_interior" {
 		t.Fatal("unexposed rock not held", got.Cover)
+	}
+	// Exposed on one side but part of a mass: a rock face, not a boulder.
+	face := s.cells[domain.Cell{X: 1, Z: 3}]
+	face.Passable, face.NaturalRock = domain.Known(true), domain.Known(false)
+	s.cells[domain.Cell{X: 1, Z: 3}] = face
+	neighbour := s.cells[domain.Cell{X: 1, Z: 1}]
+	neighbour.NaturalRock = domain.Known(true)
+	s.cells[domain.Cell{X: 1, Z: 1}] = neighbour
+	if got = s.defenseApproaches(l); len(got.Cover) != 1 || got.Cover[0].Hold != "rock_face" {
+		t.Fatal("rock face not held", got.Cover)
+	}
+	// A lone rock with passable, rock-free neighbours is orderable.
+	for _, c := range cells(1, 1, 0, 2, 2, 2) {
+		row := s.cells[c]
+		row.Passable, row.NaturalRock = domain.Known(true), domain.Known(false)
+		s.cells[c] = row
+	}
+	if got = s.defenseApproaches(l); len(got.Cover) != 1 || got.Cover[0].Hold != "" {
+		t.Fatal("lone rock held", got.Cover)
 	}
 	s.r.MinRange = domain.Known(2.0)
 	if got = s.defenseApproaches(l); len(got.Cover) != 0 {
@@ -257,5 +288,30 @@ func TestDefenseApproachesDeterministicCensusOrder(t *testing.T) {
 	}
 	if !reflect.DeepEqual(a.Approaches, b.Approaches) {
 		t.Fatal("census order changed arrival model")
+	}
+}
+
+// A colony centre that has drifted onto a building floods the sectors
+// from the layout's Entry instead of finding none.
+func TestDefenseApproachesFloodFromEntryWhenHomeIsBlocked(t *testing.T) {
+	r := arrivalFixture(t).r
+	layout := DefenseLayout{Entry: domain.Cell{X: 4, Z: 4}, Toward: domain.North}
+	blocked := r
+	blocked.Cells = append([]DefenseCell(nil), r.Cells...)
+	for i := range blocked.Cells {
+		if blocked.Cells[i].Cell == r.Home {
+			blocked.Cells[i].Passable, blocked.Cells[i].Walkable = domain.Known(false), domain.Known(false)
+		}
+	}
+	open, err := DefenseApproachesFor(r, layout)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := DefenseApproachesFor(blocked, layout)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(open.Sectors) == 0 || len(got.Sectors) != len(open.Sectors) {
+		t.Fatalf("sectors %d with Home blocked, %d open", len(got.Sectors), len(open.Sectors))
 	}
 }

@@ -20,6 +20,7 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/buildingtemperature"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/capture"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/claimbuilding"
+	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/coverclearance"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/cutplant"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/draft"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/equip"
@@ -117,6 +118,7 @@ type buildingServiceBridge struct {
 	work                *work.WorkCapabilities
 	supplies            *supply.SupplyCapabilities
 	cutPlant            *cutplant.CutPlantCapabilities
+	coverClearance      *coverclearance.CoverClearanceCapabilities
 	deconstruction      *buildingruntime.DeconstructionCapabilities
 	draft               *draft.DraftCapabilities
 	clock               *buildingruntime.ClockCapabilities
@@ -256,6 +258,10 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
 	}
+	coverClearanceWriter, err := bridge.NewCoverClearanceControl(client)
+	if err != nil {
+		return buildingServiceBridge{}, errors.Join(err, client.Close())
+	}
 	wasteWriter, err := bridge.NewWasteWriter(client)
 	if err != nil {
 		return buildingServiceBridge{}, errors.Join(err, client.Close())
@@ -353,6 +359,7 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 		work:            &work.WorkCapabilities{Native: client, Writer: workWriter},
 		supplies:        &supply.SupplyCapabilities{Native: client, Writer: supplies},
 		cutPlant:        &cutplant.CutPlantCapabilities{Native: client, Writer: cutPlantWriter},
+		coverClearance:  &coverclearance.CoverClearanceCapabilities{Native: client, Writer: coverClearanceWriter},
 		deconstruction:  &buildingruntime.DeconstructionCapabilities{Native: client, Writer: deconstructionWriter},
 		clock:           &buildingruntime.ClockCapabilities{Native: client, Writer: clock}, clockReads: client,
 		draft:               &draft.DraftCapabilities{Native: client, Writer: drafts, Cleanup: cleanup},
@@ -699,6 +706,15 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		recoveryServiceCapabilities = client.recoveryService
 	}
+	// The defensive layout clears raider cover inside the engagement zone
+	// once every tier stands (#581).
+	var coverClearanceCapabilities *coverclearance.CoverClearanceCapabilities
+	if config.routineDefensiveLayoutPlans {
+		if client.coverClearance == nil {
+			return errors.New("defensive-layout plans require typed cover clearance capabilities")
+		}
+		coverClearanceCapabilities = client.coverClearance
+	}
 	var husbandryCapabilities *buildingruntime.HusbandryCapabilities
 	if config.routineHusbandryPlans || config.routineRecoveryPlans {
 		if client.husbandry == nil {
@@ -859,6 +875,7 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		Clean:               cleanCapabilities,
 		Waste:               wasteCapabilities,
 		CutPlant:            cutPlantCapabilities,
+		CoverClearance:      coverClearanceCapabilities,
 		Deconstruction:      deconstructionCapabilities,
 		MoodRelief:          moodReliefCapabilities,
 		GearReplace:         gearReplaceCapabilities,
