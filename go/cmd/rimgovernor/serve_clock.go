@@ -103,6 +103,7 @@ func (s serviceRoutineDiagnostics) RoutineStatus(ctx context.Context) (httpapi.R
 	if review.Revision != 0 {
 		development := review.Development.State()
 		status.Development = &development
+		status.Progress = review.Progress
 		status.Roster = review.Roster
 		status.ResourceRunways = review.ResourceRunwayState()
 	}

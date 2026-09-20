@@ -37,6 +37,10 @@ type RoutineStatus struct {
 	LastReviewTick  domain.Tick
 	LastReviewKnown bool
 	Development     *policy.DevelopmentState
+	// Progress is every active goal's progress record from the last review
+	// (#629): method, expected observable, last progress tick, next review
+	// tick and blocker.
+	Progress []policy.GoalProgress
 	// Roster is the roster planner's last recorded report (#448), nil until
 	// an enabled review planned work.
 	Roster   *policy.WorkRosterReport
@@ -60,6 +64,7 @@ type routineStatusDTO struct {
 	ActiveFamilies    []string                     `json:"activeFamilies"`
 	LastReviewTick    *domain.Tick                 `json:"lastReviewTick"`
 	Development       *routineDevelopmentDTO       `json:"development"`
+	Progress          []goalProgressDTO            `json:"progress"`
 	Roster            *routineRosterDTO            `json:"roster"`
 	Sections          []routineSectionDTO          `json:"sections"`
 	LootHolds         []lootHoldDTO                `json:"lootHolds"`
@@ -210,6 +215,37 @@ type routineDevelopmentRowDTO struct {
 	Bottleneck   policy.WorkType          `json:"bottleneck"`
 }
 
+// goalProgressDTO is one goal's progress record on the wire (#629): the
+// five fields per goal plus the bounded cooldowns keying failed situations
+// out. lastProgress and nextReview are ticks; blocked is empty when the
+// goal is not blocked.
+type goalProgressDTO struct {
+	Goal         domain.GoalID         `json:"goal"`
+	Method       string                `json:"method"`
+	Expected     string                `json:"expected"`
+	LastProgress domain.Tick           `json:"lastProgress"`
+	NextReview   domain.Tick           `json:"nextReview"`
+	Blocked      policy.BlockedReason  `json:"blocked"`
+	Cooldowns    []progressCooldownDTO `json:"cooldowns"`
+}
+
+type progressCooldownDTO struct {
+	Key   string      `json:"key"`
+	Until domain.Tick `json:"until"`
+}
+
+func goalProgress(records []policy.GoalProgress) []goalProgressDTO {
+	out := make([]goalProgressDTO, 0, len(records))
+	for _, p := range records {
+		dto := goalProgressDTO{Goal: p.Goal, Method: p.Method, Expected: p.Expected, LastProgress: p.LastProgress, NextReview: p.NextReview, Blocked: p.Blocked, Cooldowns: []progressCooldownDTO{}}
+		for _, c := range p.Cooldowns {
+			dto.Cooldowns = append(dto.Cooldowns, progressCooldownDTO{Key: c.Key, Until: c.Until})
+		}
+		out = append(out, dto)
+	}
+	return out
+}
+
 func routineStatus(v RoutineStatus) routineStatusDTO {
 	families := v.ActiveFamilies
 	if families == nil {
@@ -222,6 +258,7 @@ func routineStatus(v RoutineStatus) routineStatusDTO {
 	result.ExtentEligibility = policy.ExtentEligibility(v.ExtentEligibility)
 	result.LootHolds = lootHolds(v.LootHolds)
 	result.ColonyGrid = colonyGrid(v.ColonyGrid, v.Bounds)
+	result.Progress = goalProgress(v.Progress)
 	for _, section := range v.Sections {
 		result.Sections = append(result.Sections, routineSectionDTO{Section: string(section.Section), Family: string(section.Family), AsOf: section.AsOf, Complete: section.Complete, Source: section.Source, StoredAt: section.StoredAt.UTC().Format(time.RFC3339Nano), Stale: routineStale(section.Stale)})
 	}

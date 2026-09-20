@@ -181,7 +181,7 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 		if err != nil {
 			return RoutineMedicalResult{}, err
 		}
-		stalled, err := stalledAcquisitionDesignations(call, p.journal, plan.Progress, nil, review.Tick, r.reviewer.policy.AcquisitionStallTicks)
+		stalled, err := stalledAcquisitionDesignations(call, p.journal, plan.Progress, nil, review.Tick, r.reviewer.policy.AcquisitionProgress())
 		if err != nil {
 			return RoutineMedicalResult{}, err
 		}

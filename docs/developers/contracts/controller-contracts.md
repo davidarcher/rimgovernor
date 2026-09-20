@@ -153,6 +153,28 @@ reasons, review-time research measurement and retained waiting ages above; pawn
 progress on the admitted projects is campaign evidence from the `sustained/matrix-*` cases,
 tracked in [issue #9](https://github.com/davidarcher/rimgovernor/issues/9).
 
+Every active goal also carries a progress record in the review (`policy.GoalProgress`,
+#629): the method in play, the observable it should move, the tick native evidence
+last moved it, the tick the review inspects the blocker and the blocker itself. Progress
+is native outcome, never dispatch: a settled effect, observed construction or a shrinking
+deficit advances the clock; a dispatched designation with no capable available pawn in
+the labor census reads `blocked:no_worker`, a fresh native-ineligible hold
+`native_ineligible`, an order whose receipt is unknown `reconcile_write` (the review
+reconciles it by action identity before anything retries), and a goal with no open
+method `no_method`. The deadline (`DevelopmentStallTicks`; the hunt, haul and harvest
+stall contracts `RoutinePolicy.HuntProgress`/`HaulProgress`/`AcquisitionProgress` are
+instances of the same `ProgressContract`) keys the failed situation out for a bounded
+cooldown (`ProgressCooldownMax`, never a permanent ban) and the planners rotate the
+method or target: the acquisition planner records the source a stall cancelled under
+the review's revision (`Store.RecordProgressCooldown`) and passes it over until the
+cooldown lifts. The food goal walks acquire -> cook -> store -> grow and names
+`prerequisite:EnsureCooking` while the cooking gate is known missing (a known-missing
+storage gate names `EnsureFoodStorage` on the store rung); a record blocked on a
+foothold prerequisite withholds Construction from the same review's development ranking
+(`DevelopmentRequest.Withheld`), so optional projects read `labor_unavailable` instead
+of diverting the builder. `GET /api/routines` returns the records under `progress` and
+the Development priorities panel lists them as "Goal progress".
+
 ## Method compilation and work allocation
 
 Work allocation reserves the highest-skilled native builder first, then separates

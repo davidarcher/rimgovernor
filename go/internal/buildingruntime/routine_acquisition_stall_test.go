@@ -65,19 +65,19 @@ func TestStalledAcquisitionDesignationsMeasureFromDispatch(t *testing.T) {
 	}
 	// The pending observations moved the view's tick to 40000; the stall
 	// bound counts from the dispatch at 100, not the latest observation.
-	if got, err := stalledAcquisitionDesignations(ctx, db, plan.Progress, nil, 100+59999, 60000); err != nil || got != nil {
+	if got, err := stalledAcquisitionDesignations(ctx, db, plan.Progress, nil, 100+59999, harvestContract(60000)); err != nil || got != nil {
 		t.Fatal("stalled before the bound elapses", got, err)
 	}
-	got, err := stalledAcquisitionDesignations(ctx, db, plan.Progress, nil, 100+60000, 60000)
+	got, err := stalledAcquisitionDesignations(ctx, db, plan.Progress, nil, 100+60000, harvestContract(60000))
 	if err != nil || len(got) != 1 || got[0].Action != "medical-plan-0" || got[0].Thing != "Thing_Plant_HealrootWild16865" {
 		t.Fatal("did not report the stalled designation", got, err)
 	}
-	if got, err := stalledAcquisitionDesignations(ctx, db, plan.Progress, nil, 100+60000, 0); err != nil || got != nil {
+	if got, err := stalledAcquisitionDesignations(ctx, db, plan.Progress, nil, 100+60000, harvestContract(0)); err != nil || got != nil {
 		t.Fatal("zero bound must disable stall detection", got, err)
 	}
 	// Hunts have their own bound (stalledHuntActions) and are not designations.
 	hunts := map[string]bool{"Thing_Plant_HealrootWild16865": true}
-	if got, err := stalledAcquisitionDesignations(ctx, db, plan.Progress, hunts, 100+60000, 60000); err != nil || got != nil {
+	if got, err := stalledAcquisitionDesignations(ctx, db, plan.Progress, hunts, 100+60000, harvestContract(60000)); err != nil || got != nil {
 		t.Fatal("hunt sources are not stalled designations", got, err)
 	}
 	// Cancelling it stops the planner from re-reporting it, but the method's
@@ -90,7 +90,7 @@ func TestStalledAcquisitionDesignationsMeasureFromDispatch(t *testing.T) {
 	if plan, err = db.LoadPlan(ctx, "medical-plan"); err != nil || !domain.GoalWorkOpen(plan.Progress) {
 		t.Fatal("cancelled designation released the work before its withdrawal", err)
 	}
-	if got, err = stalledAcquisitionDesignations(ctx, db, plan.Progress, nil, 100+60000, 60000); err != nil || got != nil {
+	if got, err = stalledAcquisitionDesignations(ctx, db, plan.Progress, nil, 100+60000, harvestContract(60000)); err != nil || got != nil {
 		t.Fatal("cancelled designation reported as stalled again", got, err)
 	}
 	snapshot := plan.Progress[0].View().Snapshot
@@ -130,7 +130,7 @@ func TestStalledAcquisitionDesignationsIgnoreResolvedAndUndispatchedWork(t *test
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got, err := stalledAcquisitionDesignations(ctx, db, plan.Progress, nil, 100+60000, 60000); err != nil || got != nil {
+	if got, err := stalledAcquisitionDesignations(ctx, db, plan.Progress, nil, 100+60000, harvestContract(60000)); err != nil || got != nil {
 		t.Fatal("a completed harvest is not stalled", got, err)
 	}
 	value, err := domain.NewAcquisition("Thing_Plant_HealrootWild2", "MedicineHerbal", domain.Cell{X: 1, Z: 1})
@@ -151,7 +151,7 @@ func TestStalledAcquisitionDesignationsIgnoreResolvedAndUndispatchedWork(t *test
 	if plan, err = db.LoadPlan(ctx, "waiting-plan"); err != nil {
 		t.Fatal(err)
 	}
-	if got, err := stalledAcquisitionDesignations(ctx, db, plan.Progress, nil, 1000000, 60000); err != nil || got != nil {
+	if got, err := stalledAcquisitionDesignations(ctx, db, plan.Progress, nil, 1000000, harvestContract(60000)); err != nil || got != nil {
 		t.Fatal("an undispatched harvest is not stalled", got, err)
 	}
 }

@@ -63,6 +63,10 @@ type RoutineReview struct {
 	// AsOf is the tick each census section the review read described,
 	// by facts.Section name (#354); absent before any review filed one.
 	AsOf map[string]int64 `json:",omitempty"`
+	// Progress is every active goal's progress record (#629), keyed by
+	// need: method, expected observable, last progress tick, next review
+	// tick, blocked reason and the bounded cooldowns its rotations keyed.
+	Progress []policy.GoalProgress `json:",omitempty"`
 }
 
 type RoutineReviewRequest struct {
@@ -189,6 +193,16 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 	}
 	if r.Roster != nil && (r.Roster.Tick > r.Tick || len(r.Roster.Coverage) > 256 || len(r.Roster.Decaying) > 4096 || len(r.Roster.Profiles) > 256) {
 		return RoutineReview{}, errors.New("invalid routine roster history")
+	}
+	if len(r.Progress) > 305 {
+		return RoutineReview{}, errors.New("invalid routine progress history")
+	}
+	progressGoals := map[domain.GoalID]bool{}
+	for _, p := range r.Progress {
+		if progressGoals[p.Goal] || policy.ValidateGoalProgress(p, r.Tick) != nil {
+			return RoutineReview{}, errors.New("invalid routine progress history")
+		}
+		progressGoals[p.Goal] = true
 	}
 	if r.Enabled {
 		if r.Development.Snapshot != r.Snapshot || r.Development.Tick != r.Tick || policy.ValidateDevelopmentState(r.Development.State()) != nil {
@@ -528,6 +542,9 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		// resets ranking history.
 		r.Development = previous.Development
 		r.Development.Rows = append([]RoutineDevelopmentRow(nil), previous.Development.Rows...)
+		if !reset {
+			r.Progress = previous.Progress
+		}
 		for i := range r.Development.Rows {
 			if row := &r.Development.Rows[i]; row.Selected || row.Reason == "" {
 				row.Selected, row.Reason = false, policy.DevelopmentDisabled
@@ -587,8 +604,12 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 		}
 	}
 	if request.Enabled {
+		r.Progress, err = routineProgress(ctx, tx, request, previous, reset, needs, result.Goals)
+		if err != nil {
+			return RoutineReviewResult{}, err
+		}
 		var development policy.DevelopmentState
-		development, err = rankRoutineDevelopment(ctx, tx, request, needs, result.Goals, previous.Development.State())
+		development, err = rankRoutineDevelopment(ctx, tx, request, needs, result.Goals, previous.Development.State(), policy.WithheldLabor(r.Progress))
 		if err != nil {
 			return RoutineReviewResult{}, err
 		}

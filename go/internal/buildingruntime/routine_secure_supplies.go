@@ -119,7 +119,7 @@ func (r *RoutineSecureSuppliesPlanner) propose(call, epoch context.Context) (Pla
 	// SecureSupplies competes for the same bounded concurrent-project capacity
 	// as comfort/expansion/other priority>=3 autopilot goals; only act while
 	// this review's arbitration actually selected it.
-	if err = cancelStalledHaulMethods(call, p.journal, goal, review.Tick, r.reviewer.policy.HaulStallTicks); err != nil {
+	if err = cancelStalledHaulMethods(call, p.journal, goal, review.Tick, r.reviewer.policy.HaulProgress()); err != nil {
 		return PlanResult{}, err
 	}
 	selected := false
@@ -158,7 +158,7 @@ func (r *RoutineSecureSuppliesPlanner) propose(call, epoch context.Context) (Pla
 	if len(targetIDs) == 0 {
 		return PlanResult{Kind: PlanDemandSatisfied, Reason: BuildingMethodUsed}, nil
 	}
-	if open, err := cancelStaleHaulMethods(call, p.journal, goal, targetIDs, review.Tick, r.reviewer.policy.HaulStallTicks); err != nil {
+	if open, err := cancelStaleHaulMethods(call, p.journal, goal, targetIDs, review.Tick, r.reviewer.policy.HaulProgress()); err != nil {
 		return PlanResult{}, err
 	} else if open {
 		return PlanResult{Kind: PlanDemandSatisfied, Reason: BuildingMethodExistingWork}, nil

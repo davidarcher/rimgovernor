@@ -19,6 +19,21 @@ it('shows territory origins, current holds and resource reach separately', async
   expect(screen.getByText(/Active facilities: none/)).toHaveTextContent('threat_present, facility_lost, route_unknown');
   expect(screen.getByText('Resource reach: base · threat_present')).toBeInTheDocument();
 });
+it('renders each goal progress record with its five fields', async () => {
+  vi.stubGlobal('fetch', vi.fn(() => reply({reviewsEnabled: true, methodsEnabled: true, resourceRunways: [], activeFamilies: [], lastReviewTick: 500, development: null, roster: null, sections: [], progress: [
+    {goal: 'EnsureFoodSupply', method: 'acquire', expected: 'food runway toward target', lastProgress: 100, nextReview: 60100, blocked: 'prerequisite:EnsureCooking', cooldowns: []},
+    {goal: 'MaintainWood', method: 'cut', expected: 'wood stock', lastProgress: 400, nextReview: 900, blocked: 'no_worker', cooldowns: [{key: 'cut/Plant_TreeOak', until: 1200}]},
+  ]})));
+  render(<DevelopmentPanel active/>);
+  await waitFor(() => expect(screen.getByRole('region', {name: 'Goal progress'})).toBeInTheDocument());
+  const food = within(screen.getByRole('row', {name: /EnsureFoodSupply/}));
+  expect(food.getByText('acquire')).toBeInTheDocument();
+  expect(food.getByText('food runway toward target')).toBeInTheDocument();
+  expect(food.getByText('100')).toBeInTheDocument();
+  expect(food.getByText('60,100')).toBeInTheDocument();
+  expect(food.getByText('Needs EnsureCooking first')).toBeInTheDocument();
+  expect(screen.getByText(/No capable worker available · cooldowns: cut\/Plant_TreeOak until 1,200/)).toBeInTheDocument();
+});
 it('renders the recorded ranking with reasons, bottlenecks and labor', async () => {
   vi.stubGlobal('fetch', vi.fn(() => reply({reviewsEnabled: true, methodsEnabled: true, resourceRunways: [], activeFamilies: [], lastReviewTick: 500, development, roster: null, sections: []})));
   render(<DevelopmentPanel active/>);

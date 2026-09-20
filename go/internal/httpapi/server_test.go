@@ -457,6 +457,56 @@ func TestRoutinesRouteExposesDevelopmentRanking(t *testing.T) {
 	}
 }
 
+// The Governor projection carries every goal's progress record (#629):
+// method, expected observable, last progress tick, next review tick and
+// blocker, with its bounded cooldowns.
+func TestRoutinesRouteExposesGoalProgress(t *testing.T) {
+	progress := []policy.GoalProgress{
+		{Goal: policy.EnsureFoodSupply, Method: "acquire", Expected: "food runway toward target", LastProgress: 100, NextReview: 100 + policy.DevelopmentStallTicks, Blocked: policy.BlockedPrerequisite(policy.EnsureCooking)},
+		{Goal: policy.MaintainWood, Method: "cut", Expected: "wood stock", LastProgress: 400, NextReview: 900, Blocked: policy.BlockedNoWorker, Cooldowns: []policy.ProgressCooldown{{Key: "cut/Plant_TreeOak", Until: 1200}}},
+	}
+	s, err := New(Config{ReadTimeout: time.Second, ShutdownTimeout: time.Second, MaxResponseBytes: 1 << 20,
+		Routines: routineStatusFunc(func(context.Context) (RoutineStatus, error) {
+			return RoutineStatus{ReviewsEnabled: true, LastReviewTick: 500, LastReviewKnown: true, Progress: progress}, nil
+		})}, snapshotFunc(func(context.Context) (Snapshot, error) { return Snapshot{}, nil }), planFunc(unavailablePlan))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { s.Close() })
+	server := testHTTP(t, s)
+	status, body := get(t, server.URL+"/api/routines")
+	var got routineStatusDTO
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatal(err)
+	}
+	if status != 200 || len(got.Progress) != 2 {
+		t.Fatalf("goal progress: %s", body)
+	}
+	food := got.Progress[0]
+	if food.Goal != policy.EnsureFoodSupply || food.Method != "acquire" || food.Expected == "" || food.LastProgress != 100 || food.NextReview != 100+policy.DevelopmentStallTicks || food.Blocked.Prerequisite() != policy.EnsureCooking || len(food.Cooldowns) != 0 {
+		t.Fatalf("food record: %s", body)
+	}
+	wood := got.Progress[1]
+	if wood.Blocked != policy.BlockedNoWorker || len(wood.Cooldowns) != 1 || wood.Cooldowns[0].Key != "cut/Plant_TreeOak" || wood.Cooldowns[0].Until != 1200 {
+		t.Fatalf("wood record: %s", body)
+	}
+	for _, want := range []string{`"blocked":"prerequisite:EnsureCooking"`, `"blocked":"no_worker"`, `"cooldowns":[]`, `"lastProgress":100`, `"nextReview":900`} {
+		if !strings.Contains(string(body), want) {
+			t.Fatalf("wire %s missing: %s", want, body)
+		}
+	}
+	// Without a review the list is empty, never null.
+	s2, err := New(Config{ReadTimeout: time.Second, ShutdownTimeout: time.Second, MaxResponseBytes: 1 << 20,
+		Routines: routineStatusFunc(func(context.Context) (RoutineStatus, error) { return RoutineStatus{}, nil })}, snapshotFunc(func(context.Context) (Snapshot, error) { return Snapshot{}, nil }), planFunc(unavailablePlan))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { s2.Close() })
+	if _, body = get(t, testHTTP(t, s2).URL+"/api/routines"); !strings.Contains(string(body), `"progress":[]`) {
+		t.Fatalf("empty progress: %s", body)
+	}
+}
+
 func TestRoutinesRouteExposesWorkRoster(t *testing.T) {
 	pyro := policy.BuildProfile(policy.WorkPawn{ID: "b", Traits: domain.Known([]policy.PawnTrait{{Name: "Pyromaniac"}, {Name: "Abrasive"}, {Name: "FastLearner"}}),
 		Skills: domain.Known([]policy.WorkSkill{{Name: "Mining", Level: 12, Stored: 12, Passion: "Major"}, {Name: "Medicine", Level: 3}}), Incapable: domain.Known([]policy.WorkType{policy.WorkHauling}), Age: domain.Known(30.5), Ranged: domain.Known(true)})

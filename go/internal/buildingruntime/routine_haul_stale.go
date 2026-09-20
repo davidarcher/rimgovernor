@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
@@ -12,23 +13,24 @@ import (
 // colonists (or the player) already stored, consumed or forbade it, so the
 // proposal can never complete and would otherwise hold the goal's only
 // method slot forever (EvaluateHaul keeps refusing it as thing_absent). It
-// A haul held as native_ineligible for stallTicks or longer (no storage
-// accepts the thing, nobody can reach it) is cancelled the same way so the
-// goal's attempt count advances toward its fallbacks. It reports whether any
-// open work remains after the cancellations.
-func cancelStaleHaulMethods(ctx context.Context, journal *store.Store, goal store.GoalState, targets []string, now domain.Tick, stallTicks int64) (bool, error) {
-	return cancelHaulMethods(ctx, journal, goal, targets, now, stallTicks)
+// A haul held as native_ineligible past the contract's deadline
+// (RoutinePolicy.HaulProgress: no storage accepts the thing, nobody can
+// reach it) is cancelled the same way so the goal's attempt count advances
+// toward its fallbacks. It reports whether any open work remains after the
+// cancellations.
+func cancelStaleHaulMethods(ctx context.Context, journal *store.Store, goal store.GoalState, targets []string, now domain.Tick, contract policy.ProgressContract) (bool, error) {
+	return cancelHaulMethods(ctx, journal, goal, targets, now, contract)
 }
 
 // cancelStalledHaulMethods is the stall-only half, run before the ranking
 // gate: a stalled haul counts as an existing commitment, so the ranking
 // never selects the goal again until the hold is settled here.
-func cancelStalledHaulMethods(ctx context.Context, journal *store.Store, goal store.GoalState, now domain.Tick, stallTicks int64) error {
-	_, err := cancelHaulMethods(ctx, journal, goal, nil, now, stallTicks)
+func cancelStalledHaulMethods(ctx context.Context, journal *store.Store, goal store.GoalState, now domain.Tick, contract policy.ProgressContract) error {
+	_, err := cancelHaulMethods(ctx, journal, goal, nil, now, contract)
 	return err
 }
 
-func cancelHaulMethods(ctx context.Context, journal *store.Store, goal store.GoalState, targets []string, now domain.Tick, stallTicks int64) (bool, error) {
+func cancelHaulMethods(ctx context.Context, journal *store.Store, goal store.GoalState, targets []string, now domain.Tick, contract policy.ProgressContract) (bool, error) {
 	current := map[string]bool{}
 	for _, id := range targets {
 		current[id] = true
@@ -55,7 +57,7 @@ func cancelHaulMethods(ctx context.Context, journal *store.Store, goal store.Goa
 			if !ok || v.Stage != domain.Pending && v.Stage != domain.Prepared {
 				continue
 			}
-			if (targets == nil || current[haul.Thing()]) && !haulStalled(v, now, stallTicks) {
+			if (targets == nil || current[haul.Thing()]) && !haulStalled(v, now, contract) {
 				continue
 			}
 			if _, err = journal.Cancel(ctx, method.Plan, v.Action); err != nil {
@@ -73,8 +75,8 @@ func cancelHaulMethods(ctx context.Context, journal *store.Store, goal store.Goa
 	return open, nil
 }
 
-func haulStalled(v domain.ProgressView, now domain.Tick, stallTicks int64) bool {
-	if stallTicks <= 0 {
+func haulStalled(v domain.ProgressView, now domain.Tick, contract policy.ProgressContract) bool {
+	if contract.Deadline <= 0 {
 		return false
 	}
 	hold, ok := v.FreshHold()
@@ -82,7 +84,7 @@ func haulStalled(v domain.ProgressView, now domain.Tick, stallTicks int64) bool 
 		return false
 	}
 	for _, reason := range hold.Reasons() {
-		if reason == domain.HeldNativeIneligible && int64(now-hold.Since) >= stallTicks {
+		if reason == domain.HeldNativeIneligible && contract.Expired(hold.Since, now) {
 			return true
 		}
 	}

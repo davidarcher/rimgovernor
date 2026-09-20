@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
@@ -55,11 +56,11 @@ func TestCancelStaleHaulMethodsFreesTheGoalWhenTheThingIsNoLongerTargeted(t *tes
 	defer journal.Close()
 	goal := staleHaulGoal(t, journal, "Thing_MedicineHerbal1")
 
-	open, err := cancelStaleHaulMethods(ctx, journal, goal, []string{"Thing_MedicineHerbal1", "Thing_Other"}, 20, 6000)
+	open, err := cancelStaleHaulMethods(ctx, journal, goal, []string{"Thing_MedicineHerbal1", "Thing_Other"}, 20, haulContract(6000))
 	if err != nil || !open {
 		t.Fatalf("still-targeted haul must stay open: open=%v err=%v", open, err)
 	}
-	open, err = cancelStaleHaulMethods(ctx, journal, goal, []string{"Thing_Other"}, 20, 6000)
+	open, err = cancelStaleHaulMethods(ctx, journal, goal, []string{"Thing_Other"}, 20, haulContract(6000))
 	if err != nil || open {
 		t.Fatalf("stale haul must be cancelled: open=%v err=%v", open, err)
 	}
@@ -90,12 +91,29 @@ func TestCancelStaleHaulMethodsCancelsLongNativeIneligibleHolds(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	open, err := cancelStaleHaulMethods(ctx, journal, goal, targets, 6000, 6000)
+	open, err := cancelStaleHaulMethods(ctx, journal, goal, targets, 6000, haulContract(6000))
 	if err != nil || !open {
 		t.Fatalf("hold younger than the grace must stay open: open=%v err=%v", open, err)
 	}
-	open, err = cancelStaleHaulMethods(ctx, journal, goal, targets, 6100, 6000)
+	open, err = cancelStaleHaulMethods(ctx, journal, goal, targets, 6100, haulContract(6000))
 	if err != nil || open {
 		t.Fatalf("hold older than the grace must be cancelled: open=%v err=%v", open, err)
 	}
+}
+
+// The stall contracts under test, with the deadline the case names.
+func haulContract(deadline int64) policy.ProgressContract {
+	p := policy.DefaultRoutinePolicy()
+	p.HaulStallTicks = deadline
+	return p.HaulProgress()
+}
+func huntContract(deadline int64) policy.ProgressContract {
+	p := policy.DefaultRoutinePolicy()
+	p.HuntStallTicks = deadline
+	return p.HuntProgress()
+}
+func harvestContract(deadline int64) policy.ProgressContract {
+	p := policy.DefaultRoutinePolicy()
+	p.AcquisitionStallTicks = deadline
+	return p.AcquisitionProgress()
 }

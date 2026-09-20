@@ -23,6 +23,15 @@ it('rejects unknown reasons, bottlenecks without a labor deferral, and admission
   expect(() => readRoutineStatus(status({development: development({rows: [row('x', {deficit: 1.5})]})}))).toThrow();
   expect(() => readRoutineStatus(status({extra: true}))).toThrow();
 });
+it('reads goal progress records with their five fields and cooldowns', () => {
+  const record = {goal: 'EnsureFoodSupply', method: 'acquire', expected: 'food runway', lastProgress: 100, nextReview: 60100, blocked: 'prerequisite:EnsureCooking', cooldowns: [{key: 'harvest/Plant_Berry1', until: 900}]};
+  expect(readRoutineStatus(status()).progress).toEqual([]);
+  expect(readRoutineStatus(status({progress: [record]})).progress).toEqual([record]);
+  expect(() => readRoutineStatus(status({progress: [{...record, nextReview: 99}]}))).toThrow();
+  expect(() => readRoutineStatus(status({progress: [record, record]}))).toThrow();
+  expect(() => readRoutineStatus(status({progress: [{...record, extra: true}]}))).toThrow();
+  expect(() => readRoutineStatus(status({progress: [{...record, method: ''}]}))).toThrow();
+});
 it('reads the work roster report and the held sections', () => {
   const result = readRoutineStatus(status());
   expect(result.roster).toEqual(roster());

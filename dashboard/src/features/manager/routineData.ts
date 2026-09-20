@@ -23,7 +23,12 @@ export type ExtentEligibility = {known: boolean; reason: string; regions: Extent
 export type GridCell = {x: number; z: number};
 // The persisted colony grid (#605): origin and unit axes in map cells, the pitch, the evidence the origin came from and the map bounds the overlay draws it across.
 export type ColonyGrid = {origin: GridCell; pitch: number; axes: [GridCell, GridCell]; source: string; bounds: {width: number; height: number}};
-export type RoutineStatus = {reviewsEnabled: boolean; methodsEnabled: boolean; activeFamilies: string[]; lastReviewTick: number | null; development: Development | null; roster: WorkRoster | null; sections: SectionStatus[]; resourceRunways: ResourceRunway[]; resourceReach: {stage: string; reason: string} | null; extentEligibility: ExtentEligibility | null; colonyGrid: ColonyGrid | null};
+// GoalProgress is one active goal's progress record (#629): the method in
+// play, the observable it should move, the tick native evidence last moved
+// it, the tick the review inspects the blocker, and why it is blocked ('' when
+// it is not). Cooldowns key failed situations out until a bounded tick.
+export type GoalProgress = {goal: string; method: string; expected: string; lastProgress: number; nextReview: number; blocked: string; cooldowns: {key: string; until: number}[]};
+export type RoutineStatus = {reviewsEnabled: boolean; methodsEnabled: boolean; activeFamilies: string[]; lastReviewTick: number | null; development: Development | null; progress: GoalProgress[]; roster: WorkRoster | null; sections: SectionStatus[]; resourceRunways: ResourceRunway[]; resourceReach: {stage: string; reason: string} | null; extentEligibility: ExtentEligibility | null; colonyGrid: ColonyGrid | null};
 
 function isObject(v: unknown): v is Record<string, unknown> {return typeof v === 'object' && v !== null && !Array.isArray(v);}
 function object(v: unknown, keys: readonly string[]): Record<string, unknown> {if (!isObject(v) || Object.keys(v).length !== keys.length || keys.some(key => !Object.hasOwn(v, key))) throw Error('Invalid routine fields'); return v;}
@@ -92,9 +97,16 @@ function readColonyGrid(value: unknown): ColonyGrid {
   if (axes.length !== 2 || grid.pitch === 0 || !unit(axes[0]) || !unit(axes[1]) || axes[0].x * axes[1].x + axes[0].z * axes[1].z !== 0) throw Error('Inconsistent colony grid');
   return grid;
 }
+function readGoalProgress(v: unknown): GoalProgress {
+  const p = object(v, ['goal', 'method', 'expected', 'lastProgress', 'nextReview', 'blocked', 'cooldowns']);
+  const row = {goal: id(p.goal), method: id(p.method), expected: text(p.expected), lastProgress: tick(p.lastProgress), nextReview: tick(p.nextReview), blocked: text(p.blocked), cooldowns: list(p.cooldowns, 64).map(c => {const d = object(c, ['key', 'until']); return {key: id(d.key), until: tick(d.until)};})};
+  if (row.nextReview < row.lastProgress) throw Error('Inconsistent goal progress');
+  return row;
+}
+
 export function readRoutineStatus(value: unknown): RoutineStatus {
-  // Older retained responses predate extent diagnostics, loot holds and the colony grid.
-  const optional = ['resourceReach', 'extent', 'extentEligibility', 'lootHolds', 'colonyGrid'].filter(k => isObject(value) && Object.hasOwn(value, k));
+  // Older retained responses predate extent diagnostics, loot holds, the colony grid and goal progress.
+  const optional = ['resourceReach', 'extent', 'extentEligibility', 'lootHolds', 'colonyGrid', 'progress'].filter(k => isObject(value) && Object.hasOwn(value, k));
   const v = object(value, ['reviewsEnabled', 'methodsEnabled', 'activeFamilies', 'lastReviewTick', 'development', 'roster', 'sections', 'resourceRunways', ...optional]);
   let resourceReach = null;
   if (v.resourceReach !== undefined) {const r = object(v.resourceReach, ['stage', 'reason']); resourceReach = {stage: id(r.stage), reason: text(r.reason)};}
@@ -111,7 +123,9 @@ export function readRoutineStatus(value: unknown): RoutineStatus {
   }
   if (v.lootHolds !== undefined) list(v.lootHolds, 65536).forEach(h => object(h, ['thing', 'definition', 'x', 'z', 'reason']));
   const colonyGrid = v.colonyGrid === undefined ? null : nullable(v.colonyGrid, readColonyGrid);
-  return {reviewsEnabled: bool(v.reviewsEnabled), methodsEnabled: bool(v.methodsEnabled), activeFamilies: list(v.activeFamilies, 256).map(id), lastReviewTick: nullable(v.lastReviewTick, tick), development: nullable(v.development, readDevelopment), roster: nullable(v.roster, readRoster), sections: list(v.sections, 256).map(readSection), resourceRunways: list(v.resourceRunways, 256).map(readResourceRunway), resourceReach, extentEligibility, colonyGrid};
+  const progress = v.progress === undefined ? [] : list(v.progress, 512).map(readGoalProgress);
+  if (new Set(progress.map(p => p.goal)).size !== progress.length) throw Error('Duplicate goal progress');
+  return {reviewsEnabled: bool(v.reviewsEnabled), methodsEnabled: bool(v.methodsEnabled), activeFamilies: list(v.activeFamilies, 256).map(id), lastReviewTick: nullable(v.lastReviewTick, tick), development: nullable(v.development, readDevelopment), progress, roster: nullable(v.roster, readRoster), sections: list(v.sections, 256).map(readSection), resourceRunways: list(v.resourceRunways, 256).map(readResourceRunway), resourceReach, extentEligibility, colonyGrid};
 }
 export class RoutineHTTPError extends Error {constructor(public status: number, detail: string) {super(detail);}}
 export async function fetchRoutineStatus(signal: AbortSignal): Promise<RoutineStatus> {

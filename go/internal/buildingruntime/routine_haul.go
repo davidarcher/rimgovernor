@@ -128,7 +128,7 @@ func (r *RoutineHaulPlanner) propose(call, epoch context.Context) (PlanResult, e
 	// would refuse a goal that already has a haul in flight on every review
 	// cycle after admission, instead of recognizing it as existing work --
 	// stalling completion and never letting the clock settle (issue #42).
-	if err = cancelStalledHaulMethods(call, p.journal, goal, review.Tick, r.reviewer.policy.HaulStallTicks); err != nil {
+	if err = cancelStalledHaulMethods(call, p.journal, goal, review.Tick, r.reviewer.policy.HaulProgress()); err != nil {
 		return PlanResult{}, err
 	}
 	selected := false
@@ -167,7 +167,7 @@ func (r *RoutineHaulPlanner) propose(call, epoch context.Context) (PlanResult, e
 	if len(targetIDs) == 0 {
 		return PlanResult{Kind: PlanDemandSatisfied, Reason: BuildingMethodUsed}, nil
 	}
-	if open, err := cancelStaleHaulMethods(call, p.journal, goal, targetIDs, review.Tick, r.reviewer.policy.HaulStallTicks); err != nil {
+	if open, err := cancelStaleHaulMethods(call, p.journal, goal, targetIDs, review.Tick, r.reviewer.policy.HaulProgress()); err != nil {
 		return PlanResult{}, err
 	} else if open {
 		return PlanResult{Kind: PlanDemandSatisfied, Reason: BuildingMethodExistingWork}, nil

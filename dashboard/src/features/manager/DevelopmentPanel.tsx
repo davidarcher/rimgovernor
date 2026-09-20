@@ -1,4 +1,4 @@
-import {type ColonyGrid, type DevelopmentReason, type ResourceRunway} from './routineData';
+import {type ColonyGrid, type DevelopmentReason, type GoalProgress, type ResourceRunway} from './routineData';
 import {useRoutineStatus} from './useRoutineStatus';
 
 // Deferral reasons as the controller records them; the panel shows evidence,
@@ -8,6 +8,13 @@ export const reasonLabels: Record<DevelopmentReason, string> = {
   existing_commitment: 'Already committed', labor_idle: 'Committed work idle: slot released', workers_unknown: 'Worker count unknown', no_workers: 'No workers', deficit_unknown: 'Deficit unknown',
   capacity_committed: 'Waiting for capacity', method_unavailable: 'No method available', labor_unavailable: 'Waiting for labor', risk_deferred: 'Deferred: outdoor risk', control_disabled: 'Controller not in control',
 };
+// Blockers as the controller records them (policy.BlockedReason); a
+// prerequisite names the goal that must land first.
+export function blockedLabel(blocked: string): string {
+  const labels: Record<string, string> = {'': 'Progressing', no_worker: 'No capable worker available', native_ineligible: 'Native holds the order ineligible', reconcile_write: 'Reconciling an uncertain order', cooldown: 'Every method on cooldown', no_method: 'No method in play'};
+  if (blocked.startsWith('prerequisite:')) return `Needs ${blocked.slice('prerequisite:'.length)} first`;
+  return labels[blocked] ?? blocked;
+}
 const percent = (v: number | null) => v === null ? 'unknown' : `${Math.round(v * 100)}%`;
 const number = (v: number | null) => v === null ? 'unknown' : v.toLocaleString(undefined, {maximumFractionDigits: 1});
 const days = (v: number | null, r: ResourceRunway) => v !== null ? number(v) : r.consumptionPerDay === 0 ? 'No observed consumption' : 'unknown';
@@ -56,6 +63,14 @@ export default function DevelopmentPanel({active}: {active: boolean}) {
           <td>{row.score.toFixed(1)}</td><td>{percent(row.deficit)}</td><td>{percent(row.risk)}</td><td>{row.waitingSince.toLocaleString()}</td>
         </tr>)}</tbody></table>}
     </>}
+    {state.value && state.value.progress.length > 0 && <section aria-label="Goal progress"><h3>Goal progress</h3>
+      <table className="development-table"><thead><tr><th scope="col">Goal</th><th scope="col">Method</th><th scope="col">Expected</th><th scope="col">Last progress</th><th scope="col">Next review</th><th scope="col">Blocked</th></tr></thead>
+        <tbody>{state.value.progress.map((p: GoalProgress) => <tr key={p.goal}>
+          <th scope="row">{p.goal}</th><td>{p.method}</td><td>{p.expected}</td><td>{p.lastProgress.toLocaleString()}</td><td>{p.nextReview.toLocaleString()}</td>
+          <td>{blockedLabel(p.blocked)}{p.cooldowns.length > 0 && ` · cooldowns: ${p.cooldowns.map(c => `${c.key} until ${c.until.toLocaleString()}`).join(', ')}`}</td>
+        </tr>)}</tbody></table>
+      <p>Progress is native evidence, not dispatch: a deadline that passes rotates the method or target and keys the failed situation out for a bounded cooldown.</p>
+    </section>}
     {state.value?.extentEligibility && <section aria-label="Colony extent"><h3>Colony extent</h3>
       <p>{state.value.extentEligibility.known ? 'Established territory' : 'Territory unknown'}{state.value.extentEligibility.reason && ` · ${state.value.extentEligibility.reason}`}</p>
       {state.value.resourceReach && <p>Resource reach: {state.value.resourceReach.stage} · {state.value.resourceReach.reason}</p>}

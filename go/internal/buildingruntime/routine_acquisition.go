@@ -115,6 +115,23 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 	pests := policy.PestCensus(projection.Facts.AnimalUpkeep.WildAnimals)
 	reloadPlans := false
 	stalledSources := map[string]bool{}
+	// A source a stall rotated away from stays keyed out for its contract's
+	// bounded cooldown (#629): the goal's progress record carries the key,
+	// and RecordProgressCooldown adds one under this review's revision.
+	progress, _ := review.GoalProgress(r.need)
+	cooled := map[string]bool{}
+	cool := func(contract policy.ProgressContract, thing string) error {
+		key := policy.CooldownKey(contract.Method, thing)
+		cooled[thing] = true
+		updated, err := p.journal.RecordProgressCooldown(call, review.Revision, r.need, key, contract.CooldownUntil(expected.Tick))
+		if errors.Is(err, store.ErrConflict) {
+			return nil
+		}
+		if err == nil {
+			review = updated
+		}
+		return err
+	}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
 		if err != nil {
@@ -138,23 +155,29 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 		// and cancelling the hunt withdraws the designation from under its
 		// hunter only to re-plan the same animal (#455).
 		if !pest {
-			for _, stalled := range stalledHuntActions(plan.Progress, huntSources, expected.Tick, r.reviewer.policy.HuntStallTicks) {
+			for _, stalled := range stalledHuntActions(plan.Progress, huntSources, expected.Tick, r.reviewer.policy.HuntProgress()) {
 				// HuntingSafety.RouteSafe (native) stays authoritative and is never
 				// bypassed here -- this only stops RimGovernor's own planner from
 				// staying wedged behind an action native keeps correctly refusing
 				// to let through, freeing it to try a different prey or source.
-				if _, err = p.journal.Cancel(call, method.Plan, stalled); err != nil {
+				if _, err = p.journal.Cancel(call, method.Plan, stalled.Action); err != nil {
+					return RoutineAcquisitionResult{}, err
+				}
+				if err = cool(r.reviewer.policy.HuntProgress(), stalled.Thing); err != nil {
 					return RoutineAcquisitionResult{}, err
 				}
 				reloadPlans = true
 			}
 		}
-		stalled, err := stalledAcquisitionDesignations(call, p.journal, plan.Progress, huntSources, expected.Tick, r.reviewer.policy.AcquisitionStallTicks)
+		stalled, err := stalledAcquisitionDesignations(call, p.journal, plan.Progress, huntSources, expected.Tick, r.reviewer.policy.AcquisitionProgress())
 		if err != nil {
 			return RoutineAcquisitionResult{}, err
 		}
 		for _, v := range stalled {
 			if _, err = p.journal.Cancel(call, method.Plan, v.Action); err != nil {
+				return RoutineAcquisitionResult{}, err
+			}
+			if err = cool(r.reviewer.policy.AcquisitionProgress(), v.Thing); err != nil {
 				return RoutineAcquisitionResult{}, err
 			}
 			stalledSources[v.Thing] = true
@@ -225,6 +248,15 @@ func (r *RoutineAcquisitionPlanner) step(call, epoch context.Context, arbiter *s
 		for _, progress := range plan.Progress {
 			if acquisition, ok := progress.Action().Acquisition(); ok && domain.GoalWorkOpen([]domain.Progress{progress}) {
 				held[acquisition.Thing()] = true
+			}
+		}
+	}
+	// Sources under a cooldown are passed over like held ones: the cooldown
+	// lifts by itself at its bound, never a permanent ban (#629).
+	if rows, known := projection.Acquisition.Value(); known && !pest {
+		for _, row := range rows {
+			if cooled[row.ID] || progress.Cooled(policy.CooldownKey(r.reviewer.policy.HuntProgress().Method, row.ID), expected.Tick) || progress.Cooled(policy.CooldownKey(r.reviewer.policy.AcquisitionProgress().Method, row.ID), expected.Tick) {
+				held[row.ID] = true
 			}
 		}
 	}
@@ -405,14 +437,6 @@ func acquisitionBlockingWork(progress []domain.Progress) bool {
 	return false
 }
 
-// stalledHuntActions finds dispatched Hunt-kind acquisition actions that have
-// stayed unresolved for at least graceTicks. Native's HuntingSafety.RouteSafe
-// can repeatedly interrupt the shared game clock while a hunter's route stays
-// unsafe, which leaves the dispatched action's evidence unresolved -- it never
-// completes, fails, or gets re-inspected -- so it reads as open work forever
-// and blocks acquisitionBlockingWork's caller from proposing anything else.
-// graceTicks <= 0 disables this (never treats anything as stalled). Pest
-// hunts are not subject to it (#321, #455).
 // stalledDesignation is a dispatched, still-designated harvest nobody has
 // taken: the action and the source thing the planner must stop counting.
 type stalledDesignation struct {
@@ -428,9 +452,10 @@ type stalledDesignation struct {
 // method (and a development slot) on one plant nobody harvests. The native
 // executor then withdraws the designation natively (CancelAcquisition) and
 // the withdrawn record's terminal effect settles the action; an already
-// cancelled action is left to that. stallTicks <= 0 disables this.
-func stalledAcquisitionDesignations(ctx context.Context, journal *store.Store, progress []domain.Progress, huntSources map[string]bool, now domain.Tick, stallTicks int64) ([]stalledDesignation, error) {
-	if stallTicks <= 0 {
+// cancelled action is left to that. The contract is
+// RoutinePolicy.AcquisitionProgress; one without a deadline disables this.
+func stalledAcquisitionDesignations(ctx context.Context, journal *store.Store, progress []domain.Progress, huntSources map[string]bool, now domain.Tick, contract policy.ProgressContract) ([]stalledDesignation, error) {
+	if contract.Deadline <= 0 {
 		return nil, nil
 	}
 	var stalled []stalledDesignation
@@ -445,23 +470,31 @@ func stalledAcquisitionDesignations(ctx context.Context, journal *store.Store, p
 		if err != nil {
 			return nil, err
 		}
-		if since, known := dispatched.Value(); known && int64(now-since) >= stallTicks {
+		if since, known := dispatched.Value(); known && contract.Expired(since, now) {
 			stalled = append(stalled, stalledDesignation{v.Action, acquisition.Thing()})
 		}
 	}
 	return stalled, nil
 }
 
-func stalledHuntActions(progress []domain.Progress, huntSources map[string]bool, now domain.Tick, graceTicks int64) []domain.ActionID {
-	if graceTicks <= 0 {
+// stalledHuntActions finds dispatched Hunt-kind acquisition actions whose
+// contract (RoutinePolicy.HuntProgress) has expired unresolved. Native's
+// HuntingSafety.RouteSafe can repeatedly interrupt the shared game clock
+// while a hunter's route stays unsafe, which leaves the dispatched action's
+// evidence unresolved -- it never completes, fails, or gets re-inspected --
+// so it reads as open work forever and blocks acquisitionBlockingWork's
+// caller from proposing anything else. A contract without a deadline never
+// treats anything as stalled. Pest hunts are not subject to it (#321, #455).
+func stalledHuntActions(progress []domain.Progress, huntSources map[string]bool, now domain.Tick, contract policy.ProgressContract) []stalledDesignation {
+	if contract.Deadline <= 0 {
 		return nil
 	}
-	var stalled []domain.ActionID
+	var stalled []stalledDesignation
 	for _, p := range progress {
 		acquisition, ok := p.Action().Acquisition()
 		v := p.View()
-		if ok && huntSources[acquisition.Thing()] && v.Unresolved && v.Stage != domain.Cancelled && int64(now-v.Tick) >= graceTicks {
-			stalled = append(stalled, v.Action)
+		if ok && huntSources[acquisition.Thing()] && v.Unresolved && v.Stage != domain.Cancelled && contract.Expired(v.Tick, now) {
+			stalled = append(stalled, stalledDesignation{v.Action, acquisition.Thing()})
 		}
 	}
 	return stalled

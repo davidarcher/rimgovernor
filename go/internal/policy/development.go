@@ -196,6 +196,10 @@ type DevelopmentRequest struct {
 	Previous    DevelopmentState
 	// Partial marks this review's planner pass as a wake subset.
 	Partial bool
+	// Withheld is labor a blocked prerequisite keeps out of the ranked
+	// queue (WithheldLabor): one pawn of each type is reserved before any
+	// optional goal takes it, so a goal needing it reads labor_unavailable.
+	Withheld LaborProfile
 }
 
 func validGoal(id GoalID, source GoalSource, priority int) bool {
@@ -231,7 +235,13 @@ func RankDevelopment(r DevelopmentRequest) (DevelopmentState, error) {
 	}
 	result := DevelopmentState{Snapshot: r.Snapshot, Tick: r.Tick, Workers: r.Workers, Labor: r.Labor, Capacity: min(r.Limit, workers)}
 	result.Partial = r.Partial
+	if !validLabor(r.Withheld) {
+		return DevelopmentState{}, errors.New("invalid withheld labor")
+	}
 	ledger := newLaborLedger(r.Labor)
+	for _, w := range r.Withheld {
+		ledger.take(LaborProfile{w})
+	}
 	old := map[GoalID]DevelopmentRow{}
 	if sameWorld(r.Previous.Snapshot, r.Snapshot) && r.Tick >= r.Previous.Tick {
 		for _, row := range r.Previous.Rows {
