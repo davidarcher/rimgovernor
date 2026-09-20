@@ -3,7 +3,6 @@ package bridge
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	p "github.com/davidarcher/RimGovernor/go/internal/wire/placementpb"
@@ -34,7 +33,7 @@ func TestHiddenConduitReplacementOnlyAllowsFinishedOrdinaryConduit(t *testing.T)
 			}
 			reply.GetBatch().Results[0].GetEvaluated().Rotations[0].BlockingThings = []*p.PlacementBlocker{blocker}
 			server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) { return pbResult(reply), nil }}
-			preview, _, err := testClient(t, server, time.Second).PreviewBuilding(context.Background(), a, snapshot)
+			preview, _, err := testClient(t, server, testBudget).PreviewBuilding(context.Background(), a, snapshot)
 			if err != nil {
 				t.Fatal(err)
 			}

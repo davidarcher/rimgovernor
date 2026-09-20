@@ -107,7 +107,7 @@ jobs:
     needs: plan
     if: github.repository == 'davidarcher/rimgovernor' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.tier == 'full'))
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 50
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -123,7 +123,12 @@ jobs:
         env:
           CGO_ENABLED: '1'
           GORACE: atexit_sleep_ms=0
-        run: go test -race -parallel 8 ./...
+        # The hosted runner has 4 vCPUs; go test would also build and run
+        # up to 4 packages at once, and the race runtime multiplies each
+        # test's CPU. Two packages at a time with 4 tests each keeps the
+        # tests' hang guards (bridge testBudget, buildingruntime
+        # playerFixture) out of reach instead of tripping them on load.
+        run: go test -race -p 2 -parallel 4 -timeout 40m ./...
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: 8.0.x

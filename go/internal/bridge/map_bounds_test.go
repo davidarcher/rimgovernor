@@ -41,7 +41,7 @@ func TestReadMapBoundsFixedSDKQuery(t *testing.T) {
 		}
 		return pbResult(&o.GetCellsReply{Outcome: &o.GetCellsReply_Observed{Observed: boundsSnapshot()}}), nil
 	}}
-	client := testClient(t, server, time.Second)
+	client := testClient(t, server, testBudget)
 	bounds, raw, err := client.ReadMapBounds(context.Background(), pbIdentity(), domain.Cell{X: 2, Z: 3})
 	if err != nil || bounds.Context == nil || bounds.Bounds.Width != 20 || bounds.Bounds.Height != 30 || len(raw.Envelope) == 0 || calls != 1 {
 		t.Fatalf("%v %v calls%d", bounds, err, calls)

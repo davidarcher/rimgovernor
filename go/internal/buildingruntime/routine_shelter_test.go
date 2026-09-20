@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
@@ -260,9 +259,6 @@ func TestShelterRoofingBudgetRequiresObservedCompletionAndDoesNotRenew(t *testin
 func TestRoutineShelterManualCancelsWholePendingShell(t *testing.T) {
 	t.Parallel()
 	r, db, n := shelterFixture(t)
-	// This case journals cancellation of 32 dependent actions under race detection.
-	r.reviewer.player.config.CallTimeout = 5 * time.Second
-	r.reviewer.player.config.JournalTimeout = 5 * time.Second
 	ctx := context.Background()
 	result, err := r.Step(ctx)
 	if err != nil || !result.Decision.Admitted {
@@ -329,7 +325,6 @@ func completeRoutineBuildingMethod(t *testing.T, db *store.Store, result Routine
 func TestShelterRoofingContinuesAfterFurnishingUntilNativeCapacityRecovers(t *testing.T) {
 	t.Parallel()
 	r, db, n := shelterFixture(t)
-	r.reviewer.player.config.CallTimeout = 5 * time.Second
 	ctx := context.Background()
 	shell, err := r.Step(ctx)
 	if err != nil || !shell.Decision.Admitted {
@@ -503,9 +498,6 @@ func TestRoutineShelterGrowsIrregularShellOverConstrainedTerrain(t *testing.T) {
 	// fits, so a concave connected footprint is grown and admitted whole.
 	lit := func(x, z int32) bool { return x >= 8 && x <= 12 && z >= 1 || z >= 8 && z <= 12 && x >= 8 }
 	hutCells(n, 21, lit)
-	// Growing the footprint is CPU-bound and runs several times slower under
-	// race detection alongside the rest of the package.
-	r.reviewer.player.config.CallTimeout = 20 * time.Second
 	result, err := r.Step(context.Background())
 	if err != nil || result.Reason != BuildingMethodAdmitted {
 		t.Fatal(result, err)
@@ -815,9 +807,6 @@ func earlierGrownShell(t *testing.T, db *store.Store, id domain.PlanID) (domain.
 func TestRoutineShelterAdoptsAnEarlierGrownShellFromItsPlan(t *testing.T) {
 	t.Parallel()
 	r, db, base := shelterFixture(t)
-	// Race instrumentation and parallel package load slow the whole adoption
-	// operation, including its journal writes; this test checks geometry, not latency.
-	r.reviewer.player.config.CallTimeout = 30 * time.Second
 	base.reply.GetObserved().PlayerTechLevel = proto.String("Neolithic")
 	base.reply.GetObserved().Center = &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}
 	hutCells(base, 21, func(int32, int32) bool { return true })

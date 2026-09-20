@@ -1,10 +1,11 @@
 package bridge
 
 import (
+	"testing"
+
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
 	"google.golang.org/protobuf/proto"
-	"testing"
 )
 
 func TestDrugPolicyOperationAndEvidence(t *testing.T) {

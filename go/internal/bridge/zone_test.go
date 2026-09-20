@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -159,7 +158,7 @@ func TestPreviewZoneReturnsARefusedSiteAsAnEvaluation(t *testing.T) {
 				}
 				return pbResult(reply), nil
 			}}
-			client := testClient(t, s, time.Second)
+			client := testClient(t, s, testBudget)
 			got, _, err := client.PreviewZone(context.Background(), pbIdentity(), target)
 			if !test.ok {
 				if !errors.Is(err, ErrContract) && !errors.Is(err, ErrRefused) {

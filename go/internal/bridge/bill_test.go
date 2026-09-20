@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
@@ -155,7 +154,7 @@ func TestPreviewBillAcceptedAndRejections(t *testing.T) {
 				}
 				return pbResult(reply), nil
 			}}
-			client := testClient(t, s, time.Second)
+			client := testClient(t, s, testBudget)
 			_, raw, err := client.PreviewBill(context.Background(), pbIdentity(), target)
 			if test.ok {
 				if err != nil || len(raw.Envelope) == 0 {
@@ -191,7 +190,7 @@ func TestAddBillReceiptCorrelationAndOwnerMismatch(t *testing.T) {
 		}
 		return pbResult(&op.ExecuteReply{Outcome: &op.ExecuteReply_Receipt{Receipt: billAdmission()}}), nil
 	}}
-	control, err := NewBillControl(testClient(t, s, time.Second))
+	control, err := NewBillControl(testClient(t, s, testBudget))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -204,7 +203,7 @@ func TestAddBillReceiptCorrelationAndOwnerMismatch(t *testing.T) {
 		admission.Attempt.AttemptId = proto.Uint64(999)
 		return pbResult(&op.ExecuteReply{Outcome: &op.ExecuteReply_Receipt{Receipt: admission}}), nil
 	}}
-	control, _ = NewBillControl(testClient(t, mismatched, time.Second))
+	control, _ = NewBillControl(testClient(t, mismatched, testBudget))
 	if _, _, err = control.AddBill(context.Background(), billPre(), target); !errors.Is(err, ErrContract) {
 		t.Fatal("owner mismatch accepted", err)
 	}
@@ -212,7 +211,7 @@ func TestAddBillReceiptCorrelationAndOwnerMismatch(t *testing.T) {
 
 func TestAddBillInvalidInputsNeverDispatch(t *testing.T) {
 	s := &testServer{schema: protoSchema}
-	control, _ := NewBillControl(testClient(t, s, time.Second))
+	control, _ := NewBillControl(testClient(t, s, testBudget))
 	target := billFoodTarget(t)
 	for _, change := range []func(*a.WritePrecondition){
 		func(v *a.WritePrecondition) { v.ExpectedGeneration = nil },
@@ -307,7 +306,7 @@ func TestLookupAndObserveBill(t *testing.T) {
 		}
 		return pbResult(unknown), nil
 	}}
-	client := testClient(t, s, time.Second)
+	client := testClient(t, s, testBudget)
 	reply, _, err := client.LookupBill(context.Background(), w)
 	if err != nil || reply.GetUnknown() == nil {
 		t.Fatal("unknown attempt lookup failed", err)
@@ -319,7 +318,7 @@ func TestLookupAndObserveBill(t *testing.T) {
 		}
 		return pbResult(&r.ProgressReply{Outcome: &r.ProgressReply_Progress{Progress: completed}}), nil
 	}}
-	client2 := testClient(t, s2, time.Second)
+	client2 := testClient(t, s2, testBudget)
 	if _, _, err = client2.ObserveBill(context.Background(), w, admission); err != nil {
 		t.Fatal("completed progress rejected", err)
 	}
@@ -339,7 +338,7 @@ func TestLookupAndObserveBill(t *testing.T) {
 			bad := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 				return pbResult(&r.ProgressReply{Outcome: &r.ProgressReply_Progress{Progress: p}}), nil
 			}}
-			if _, _, err := testClient(t, bad, time.Second).ObserveBill(context.Background(), w, admission); !errors.Is(err, ErrContract) {
+			if _, _, err := testClient(t, bad, testBudget).ObserveBill(context.Background(), w, admission); !errors.Is(err, ErrContract) {
 				t.Fatal("invalid completion accepted", err)
 			}
 		})
@@ -349,14 +348,14 @@ func TestLookupAndObserveBill(t *testing.T) {
 		out.IsError = true
 		return out, nil
 	}}
-	control, _ := NewBillControl(testClient(t, refusal, time.Second))
+	control, _ := NewBillControl(testClient(t, refusal, testBudget))
 	if _, raw, err := control.AddBill(context.Background(), billPre(), billFoodTarget(t)); !errors.Is(err, ErrRefused) || len(raw.Envelope) == 0 {
 		t.Fatal("typed refusal lost", err)
 	}
 	lost := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		return nil, errors.New("lost after potential effect")
 	}}
-	control, _ = NewBillControl(testClient(t, lost, time.Second))
+	control, _ = NewBillControl(testClient(t, lost, testBudget))
 	if reply, _, err := control.AddBill(context.Background(), billPre(), billFoodTarget(t)); err == nil || reply != nil || len(lost.calls) != 1 {
 		t.Fatal("lost reply fabricated outcome or retried", err)
 	}
@@ -379,7 +378,7 @@ func TestReadBillTarget(t *testing.T) {
 		}
 		return pbResult(&o.ColonyFactsReply{Outcome: &o.ColonyFactsReply_Observed{Observed: fixture}}), nil
 	}}
-	client := testClient(t, s, time.Second)
+	client := testClient(t, s, testBudget)
 	read, _, err := client.ReadBillTarget(context.Background(), fixture.Context.Identity, "stove")
 	if err != nil || read.Token != "stove-token" {
 		t.Fatal("bench token lost", read, err)
@@ -396,7 +395,7 @@ func TestReadBillTarget(t *testing.T) {
 	sDup := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		return pbResult(&o.ColonyFactsReply{Outcome: &o.ColonyFactsReply_Observed{Observed: duplicate}}), nil
 	}}
-	if _, _, err = testClient(t, sDup, time.Second).ReadBillTarget(context.Background(), fixture.Context.Identity, "stove"); !errors.Is(err, ErrContract) {
+	if _, _, err = testClient(t, sDup, testBudget).ReadBillTarget(context.Background(), fixture.Context.Identity, "stove"); !errors.Is(err, ErrContract) {
 		t.Fatal("duplicate bench id across cooking/butchering accepted", err)
 	}
 }

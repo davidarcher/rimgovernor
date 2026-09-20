@@ -3,12 +3,13 @@ package bridge
 import (
 	"context"
 	"errors"
+	"testing"
+	"time"
+
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/proto"
-	"testing"
-	"time"
 )
 
 func cell(x, z int32) *c.Cell { return &c.Cell{X: proto.Int32(x), Z: proto.Int32(z)} }

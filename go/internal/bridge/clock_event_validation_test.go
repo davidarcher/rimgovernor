@@ -2,10 +2,11 @@ package bridge
 
 import (
 	"errors"
-	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
-	"google.golang.org/protobuf/proto"
 	"math"
 	"testing"
+
+	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestValidateClockEventsPageProfileHistory(t *testing.T) {

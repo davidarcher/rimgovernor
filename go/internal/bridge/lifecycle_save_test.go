@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"testing"
-	"time"
 
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
@@ -30,7 +29,7 @@ func TestSaveHappyPathValidatesEchoedFields(t *testing.T) {
 	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		return pbResult(pbSaveCompleted(request)), nil
 	}}
-	client := testClient(t, s, time.Second)
+	client := testClient(t, s, testBudget)
 	save, err := NewLifecycleSave(client)
 	if err != nil {
 		t.Fatal(err)
@@ -46,7 +45,7 @@ func TestSaveHappyPathValidatesEchoedFields(t *testing.T) {
 
 func TestSaveRejectsMalformedRequestBeforeDispatch(t *testing.T) {
 	s := &testServer{schema: protoSchema}
-	client := testClient(t, s, time.Second)
+	client := testClient(t, s, testBudget)
 	save, err := NewLifecycleSave(client)
 	if err != nil {
 		t.Fatal(err)
@@ -95,7 +94,7 @@ func TestSaveRejectsIncompleteOrMismatchedCompleted(t *testing.T) {
 			s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 				return pbResult(reply), nil
 			}}
-			save, err := NewLifecycleSave(testClient(t, s, time.Second))
+			save, err := NewLifecycleSave(testClient(t, s, testBudget))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -112,7 +111,7 @@ func TestSaveExpectedTickMustMatchCompletedContext(t *testing.T) {
 	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		return pbResult(pbSaveCompleted(request)), nil
 	}}
-	save, err := NewLifecycleSave(testClient(t, s, time.Second))
+	save, err := NewLifecycleSave(testClient(t, s, testBudget))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,7 +132,7 @@ func TestSaveUncertainOutcomeReturnsTypedRefusal(t *testing.T) {
 	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		return pbResult(uncertainReply), nil
 	}}
-	save, err := NewLifecycleSave(testClient(t, s, time.Second))
+	save, err := NewLifecycleSave(testClient(t, s, testBudget))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -150,7 +149,7 @@ func TestSaveFailureOutcomeReturnsNativeFailure(t *testing.T) {
 	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		return pbResult(failureReply), nil
 	}}
-	save, err := NewLifecycleSave(testClient(t, s, time.Second))
+	save, err := NewLifecycleSave(testClient(t, s, testBudget))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -163,7 +162,7 @@ func TestSaveFailureOutcomeReturnsNativeFailure(t *testing.T) {
 
 func TestReadSaveRequiresRequestID(t *testing.T) {
 	s := &testServer{schema: protoSchema}
-	save, err := NewLifecycleSave(testClient(t, s, time.Second))
+	save, err := NewLifecycleSave(testClient(t, s, testBudget))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -183,7 +182,7 @@ func TestReadSaveHappyPathReplaysCompleted(t *testing.T) {
 	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		return pbResult(pbSaveCompleted(request)), nil
 	}}
-	save, err := NewLifecycleSave(testClient(t, s, time.Second))
+	save, err := NewLifecycleSave(testClient(t, s, testBudget))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -204,7 +203,7 @@ func TestReadSaveUncertainOutcomeReturnsTypedRefusal(t *testing.T) {
 	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		return pbResult(uncertainReply), nil
 	}}
-	save, err := NewLifecycleSave(testClient(t, s, time.Second))
+	save, err := NewLifecycleSave(testClient(t, s, testBudget))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -220,7 +219,7 @@ func TestReadSaveUnknownRequestIDReturnsFailure(t *testing.T) {
 	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		return pbResult(failureReply), nil
 	}}
-	save, err := NewLifecycleSave(testClient(t, s, time.Second))
+	save, err := NewLifecycleSave(testClient(t, s, testBudget))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -238,7 +237,7 @@ func TestReadSaveMismatchedRequestIDRejected(t *testing.T) {
 	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		return pbResult(completed), nil
 	}}
-	save, err := NewLifecycleSave(testClient(t, s, time.Second))
+	save, err := NewLifecycleSave(testClient(t, s, testBudget))
 	if err != nil {
 		t.Fatal(err)
 	}

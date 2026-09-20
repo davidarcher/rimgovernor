@@ -97,7 +97,7 @@ table fails the gate; everything in the second is reviewed by hand.
 | --- | --- |
 | Go toolchain pinned to `go/.go-version` and the root `GOTOOLCHAIN`; gofmt; `go mod verify` and `tidy -diff`; `go vet` | `go`, `wire` (`contracts/generated/protobuf/go`), `protobuf-go` (`tools/protobuf/go`) |
 | Go static analysis: unused code, always-true comparisons, dead assignments, same-type assertions, error-string style | `go` (`go tool staticcheck`, pinned in `go/go.mod`) |
-| Go tests under a 10 s per-test budget (`-race` is opt-in via `task go:test:race`) | `go` (`checktesttimes`) |
+| Go tests under a 60 s per-test budget (`-race` is opt-in via `task go:test:race`) | `go` (`checktesttimes`) |
 | TypeScript `strict`; no `any`, `@ts-ignore`, `@ts-nocheck`, unsafe `any` flow, unnecessary or object-literal assertions, or `as unknown as` double casts; `@ts-expect-error` only with a description | `dashboard` (`dashboard/eslint.config.js`, typescript-eslint type-checked, plus `tsc --noEmit`) |
 | Dashboard dependencies locked | `dashboard` (`pnpm install --frozen-lockfile`) |
 | Generated protobuf C#/Go match the checked-in outputs; C#→Go→C# exchange is byte-identical | `protobuf` (`tools/protobuf`) |

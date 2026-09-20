@@ -4,16 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"math"
+	"strings"
+	"testing"
+	"time"
+
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	p "github.com/davidarcher/RimGovernor/go/internal/wire/presentationpb"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
-	"math"
-	"strings"
-	"testing"
-	"time"
 )
 
 func TestPresentationReadsExactAndPartial(t *testing.T) {
@@ -46,7 +47,7 @@ func TestPresentationReadsExactAndPartial(t *testing.T) {
 			return nil, errors.New("unexpected")
 		}
 	}}
-	client := testClient(t, server, time.Second)
+	client := testClient(t, server, testBudget)
 	camera, _, e := client.ReadCamera(context.Background(), &p.ReadRequest{Identity: pbIdentity()})
 	if e != nil || camera.GetCamera().RootSize != nil || camera.GetCamera().MapPosition.Z != nil {
 		t.Fatal(camera, e)
@@ -185,7 +186,7 @@ func TestPresentationMCPErrorPreservesOnlyTypedFailure(t *testing.T) {
 						reply.IsError = true
 						return reply, nil
 					}}
-					client := testClient(t, server, time.Second)
+					client := testClient(t, server, testBudget)
 					reply, raw, err := tc.call(client)
 					if !errors.Is(err, ErrRefused) || len(raw.Envelope) == 0 {
 						t.Fatal("error flag lost", reply, err)

@@ -1,11 +1,12 @@
 package bridge
 
 import (
+	"math"
+	"testing"
+
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
-	"math"
-	"testing"
 )
 
 func TestRecreationCensusBoundary(t *testing.T) {

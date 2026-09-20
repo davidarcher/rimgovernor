@@ -3,12 +3,13 @@ package bridge
 import (
 	"context"
 	"encoding/json"
+	"testing"
+	"time"
+
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
-	"testing"
-	"time"
 )
 
 func TestRoutinePawnsOwnWorkSelectionAndValidatePriorities(t *testing.T) {

@@ -1,11 +1,12 @@
 package bridge
 
 import (
+	"testing"
+
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
 	"google.golang.org/protobuf/proto"
-	"testing"
 )
 
 func TestFoodPolicyObservationAndEvidence(t *testing.T) {

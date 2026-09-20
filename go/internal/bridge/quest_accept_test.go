@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
-	"time"
 
 	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -82,7 +81,7 @@ func TestPreviewQuestAcceptAcceptedAndRejections(t *testing.T) {
 				}
 				return pbResult(reply), nil
 			}}
-			client := testClient(t, s, time.Second)
+			client := testClient(t, s, testBudget)
 			_, raw, err := client.PreviewQuestAccept(context.Background(), pbIdentity(), "quest-1", "quest-cas", "pawn-1", 0)
 			if test.ok {
 				if err != nil || len(raw.Envelope) == 0 {
@@ -99,7 +98,7 @@ func TestPreviewQuestAcceptAcceptedAndRejections(t *testing.T) {
 
 func TestPreviewQuestAcceptInvalidInputsNeverDispatch(t *testing.T) {
 	s := &testServer{schema: protoSchema}
-	client := testClient(t, s, time.Second)
+	client := testClient(t, s, testBudget)
 	for _, args := range []struct {
 		quest, token, accepter string
 		choice                 int32
@@ -138,7 +137,7 @@ func TestApplyQuestAcceptCorrelationAndOwnerMismatch(t *testing.T) {
 		}
 		return pbResult(&op.ExecuteReply{Outcome: &op.ExecuteReply_Receipt{Receipt: questAcceptAdmission()}}), nil
 	}}
-	writer, err := NewQuestAcceptWriter(testClient(t, s, time.Second))
+	writer, err := NewQuestAcceptWriter(testClient(t, s, testBudget))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -152,7 +151,7 @@ func TestApplyQuestAcceptCorrelationAndOwnerMismatch(t *testing.T) {
 		admission.Attempt.AttemptId = proto.Uint64(999)
 		return pbResult(&op.ExecuteReply{Outcome: &op.ExecuteReply_Receipt{Receipt: admission}}), nil
 	}}
-	writer, _ = NewQuestAcceptWriter(testClient(t, mismatched, time.Second))
+	writer, _ = NewQuestAcceptWriter(testClient(t, mismatched, testBudget))
 	if _, _, err = writer.ApplyQuestAccept(context.Background(), pre, "quest-1", "quest-cas", "pawn-1", 0); !errors.Is(err, ErrContract) {
 		t.Fatal("owner mismatch accepted", err)
 	}
@@ -160,7 +159,7 @@ func TestApplyQuestAcceptCorrelationAndOwnerMismatch(t *testing.T) {
 
 func TestApplyQuestAcceptInvalidInputsNeverDispatch(t *testing.T) {
 	s := &testServer{schema: protoSchema}
-	writer, _ := NewQuestAcceptWriter(testClient(t, s, time.Second))
+	writer, _ := NewQuestAcceptWriter(testClient(t, s, testBudget))
 	for _, change := range []func(*a.WritePrecondition){
 		func(v *a.WritePrecondition) { v.ExpectedGeneration = nil },
 		func(v *a.WritePrecondition) { v.ExpectedGeneration = proto.Uint64(0) },
@@ -190,7 +189,7 @@ func TestLookupAndObserveQuestAccept(t *testing.T) {
 		}
 		return pbResult(unknown), nil
 	}}
-	client := testClient(t, s, time.Second)
+	client := testClient(t, s, testBudget)
 	reply, _, err := client.LookupQuestAccept(context.Background(), w)
 	if err != nil || reply.GetUnknown() == nil {
 		t.Fatal("unknown attempt lookup failed", err)
@@ -202,7 +201,7 @@ func TestLookupAndObserveQuestAccept(t *testing.T) {
 		}
 		return pbResult(&r.ProgressReply{Outcome: &r.ProgressReply_Progress{Progress: completed}}), nil
 	}}
-	client2 := testClient(t, s2, time.Second)
+	client2 := testClient(t, s2, testBudget)
 	if _, _, err = client2.ObserveQuestAcceptProgress(context.Background(), w, admission); err != nil {
 		t.Fatal("completed progress rejected", err)
 	}
@@ -217,7 +216,7 @@ func TestLookupAndObserveQuestAccept(t *testing.T) {
 			bad := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 				return pbResult(&r.ProgressReply{Outcome: &r.ProgressReply_Progress{Progress: p}}), nil
 			}}
-			if _, _, err := testClient(t, bad, time.Second).ObserveQuestAcceptProgress(context.Background(), w, admission); !errors.Is(err, ErrContract) {
+			if _, _, err := testClient(t, bad, testBudget).ObserveQuestAcceptProgress(context.Background(), w, admission); !errors.Is(err, ErrContract) {
 				t.Fatal("invalid completion accepted", err)
 			}
 		})
@@ -227,14 +226,14 @@ func TestLookupAndObserveQuestAccept(t *testing.T) {
 		out.IsError = true
 		return out, nil
 	}}
-	writer, _ := NewQuestAcceptWriter(testClient(t, refusal, time.Second))
+	writer, _ := NewQuestAcceptWriter(testClient(t, refusal, testBudget))
 	if _, raw, err := writer.ApplyQuestAccept(context.Background(), questAcceptPre(), "quest-1", "quest-cas", "pawn-1", 0); !errors.Is(err, ErrRefused) || len(raw.Envelope) == 0 {
 		t.Fatal("typed refusal lost", err)
 	}
 	lost := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		return nil, errors.New("lost after potential effect")
 	}}
-	writer, _ = NewQuestAcceptWriter(testClient(t, lost, time.Second))
+	writer, _ = NewQuestAcceptWriter(testClient(t, lost, testBudget))
 	if reply, _, err := writer.ApplyQuestAccept(context.Background(), questAcceptPre(), "quest-1", "quest-cas", "pawn-1", 0); err == nil || reply != nil || len(lost.calls) != 1 {
 		t.Fatal("lost reply fabricated outcome or retried", err)
 	}
@@ -248,7 +247,7 @@ func TestReadQuestAcceptTargetSelectsAndValidates(t *testing.T) {
 		}
 		return pbResult(&o.WorldProgressionReply{Outcome: &o.WorldProgressionReply_Observed{Observed: snapshot}}), nil
 	}}
-	client := testClient(t, server, time.Second)
+	client := testClient(t, server, testBudget)
 	target, _, err := client.ReadQuestAcceptTarget(context.Background(), pbIdentity(), "quest-1")
 	if err != nil || target.Quest != "quest-1" || target.SnapshotToken != "quest-cas" || target.State != "NotYetAccepted" ||
 		!target.RequiresAccepter || !target.CanAccept || target.ChoiceCount != 1 || !target.HasTradeRequest || len(target.EligiblePawnIDs) != 1 {
@@ -257,10 +256,10 @@ func TestReadQuestAcceptTargetSelectsAndValidates(t *testing.T) {
 	missing := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		return pbResult(&o.WorldProgressionReply{Outcome: &o.WorldProgressionReply_Observed{Observed: worldProgressionFixture()}}), nil
 	}}
-	if _, _, err := testClient(t, missing, time.Second).ReadQuestAcceptTarget(context.Background(), pbIdentity(), "quest-missing"); !errors.Is(err, ErrUnavailable) {
+	if _, _, err := testClient(t, missing, testBudget).ReadQuestAcceptTarget(context.Background(), pbIdentity(), "quest-missing"); !errors.Is(err, ErrUnavailable) {
 		t.Fatal("missing quest accepted", err)
 	}
-	if _, _, err := testClient(t, server, time.Second).ReadQuestAcceptTarget(context.Background(), pbIdentity(), ""); !errors.Is(err, ErrContract) {
+	if _, _, err := testClient(t, server, testBudget).ReadQuestAcceptTarget(context.Background(), pbIdentity(), ""); !errors.Is(err, ErrContract) {
 		t.Fatal("invalid quest target identity accepted", err)
 	}
 }

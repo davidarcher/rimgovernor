@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"testing"
+
 	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
@@ -11,8 +13,6 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
-	"testing"
-	"time"
 )
 
 func buildingPre() *a.WritePrecondition {
@@ -51,7 +51,7 @@ func TestBuildingCapabilityAndReceiptCorrelation(t *testing.T) {
 		}
 		return pbResult(&o.ExecuteReply{Outcome: &o.ExecuteReply_Receipt{Receipt: buildingAdmission()}}), nil
 	}}
-	cap, err := NewBuildingControl(testClient(t, s, time.Second))
+	cap, err := NewBuildingControl(testClient(t, s, testBudget))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,7 +74,7 @@ func TestBuildingCapabilityAndReceiptCorrelation(t *testing.T) {
 }
 func TestBuildingInvalidInputsNeverDispatch(t *testing.T) {
 	s := &testServer{schema: protoSchema}
-	cap, _ := NewBuildingControl(testClient(t, s, time.Second))
+	cap, _ := NewBuildingControl(testClient(t, s, testBudget))
 	for _, change := range []func(*a.WritePrecondition){func(v *a.WritePrecondition) { v.ExpectedGeneration = nil }, func(v *a.WritePrecondition) { v.ExpectedGeneration = proto.Uint64(0) },
 		func(v *a.WritePrecondition) { v.Attempt.AttemptId = nil }, func(v *a.WritePrecondition) { v.Identity.ProtoReflect().SetUnknown([]byte{0x20, 1}) }, func(v *a.WritePrecondition) { v.Attempt.ControllerSessionId = proto.String("bad\x00") }} {
 		v := buildingPre()
@@ -137,7 +137,7 @@ func TestBuildingReadMethodsAndUncertainty(t *testing.T) {
 			return nil, nil
 		}
 	}}
-	client := testClient(t, s, time.Second)
+	client := testClient(t, s, testBudget)
 	lookup, _, err := client.LookupBuildingAttempt(context.Background(), buildingPre().Identity, buildingPre().Attempt, 1, pbRequest().Placements[0])
 	if err != nil || lookup.GetUnknown() == nil {
 		t.Fatal(err)
@@ -150,7 +150,7 @@ func TestBuildingReadMethodsAndUncertainty(t *testing.T) {
 		out.IsError = true
 		return out, nil
 	}}
-	cap, _ := NewBuildingControl(testClient(t, refusal, time.Second))
+	cap, _ := NewBuildingControl(testClient(t, refusal, testBudget))
 	reply, raw, err := cap.PlaceBuilding(context.Background(), buildingPre(), pbRequest().Placements[0])
 	if !errors.Is(err, ErrRefused) || reply.GetFailure() == nil || len(raw.Envelope) == 0 {
 		t.Fatal("typed refusal lost", err)
@@ -158,7 +158,7 @@ func TestBuildingReadMethodsAndUncertainty(t *testing.T) {
 	lost := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		return nil, errors.New("lost after potential effect")
 	}}
-	cap, _ = NewBuildingControl(testClient(t, lost, time.Second))
+	cap, _ = NewBuildingControl(testClient(t, lost, testBudget))
 	reply, _, err = cap.PlaceBuilding(context.Background(), buildingPre(), pbRequest().Placements[0])
 	if err == nil || reply != nil || len(lost.calls) != 1 {
 		t.Fatal("lost reply fabricated outcome or retried", err)

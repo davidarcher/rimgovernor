@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"testing"
-	"time"
 
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	l "github.com/davidarcher/RimGovernor/go/internal/wire/lifecyclepb"
@@ -32,7 +31,7 @@ func TestLoadHappyPathValidatesEchoedFields(t *testing.T) {
 	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		return pbResult(pbLoadCompleted(request)), nil
 	}}
-	client := testClient(t, s, time.Second)
+	client := testClient(t, s, testBudget)
 	load, err := NewLifecycleLoad(client)
 	if err != nil {
 		t.Fatal(err)
@@ -48,7 +47,7 @@ func TestLoadHappyPathValidatesEchoedFields(t *testing.T) {
 
 func TestLoadRejectsMalformedRequestBeforeDispatch(t *testing.T) {
 	s := &testServer{schema: protoSchema}
-	client := testClient(t, s, time.Second)
+	client := testClient(t, s, testBudget)
 	load, err := NewLifecycleLoad(client)
 	if err != nil {
 		t.Fatal(err)
@@ -97,7 +96,7 @@ func TestLoadRejectsIncompleteOrMismatchedCompleted(t *testing.T) {
 			s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 				return pbResult(reply), nil
 			}}
-			load, err := NewLifecycleLoad(testClient(t, s, time.Second))
+			load, err := NewLifecycleLoad(testClient(t, s, testBudget))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -116,7 +115,7 @@ func TestLoadPendingOutcomeReturnsTypedRefusal(t *testing.T) {
 	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		return pbResult(pendingReply), nil
 	}}
-	load, err := NewLifecycleLoad(testClient(t, s, time.Second))
+	load, err := NewLifecycleLoad(testClient(t, s, testBudget))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -135,7 +134,7 @@ func TestLoadSupersededOutcomeReturnsTypedRefusal(t *testing.T) {
 	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		return pbResult(supersededReply), nil
 	}}
-	load, err := NewLifecycleLoad(testClient(t, s, time.Second))
+	load, err := NewLifecycleLoad(testClient(t, s, testBudget))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -152,7 +151,7 @@ func TestLoadFailureOutcomeReturnsNativeFailure(t *testing.T) {
 	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		return pbResult(failureReply), nil
 	}}
-	load, err := NewLifecycleLoad(testClient(t, s, time.Second))
+	load, err := NewLifecycleLoad(testClient(t, s, testBudget))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -165,7 +164,7 @@ func TestLoadFailureOutcomeReturnsNativeFailure(t *testing.T) {
 
 func TestReadLoadRequiresRequestID(t *testing.T) {
 	s := &testServer{schema: protoSchema}
-	load, err := NewLifecycleLoad(testClient(t, s, time.Second))
+	load, err := NewLifecycleLoad(testClient(t, s, testBudget))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -182,7 +181,7 @@ func TestReadLoadHappyPath(t *testing.T) {
 	s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		return pbResult(pbLoadCompleted(request)), nil
 	}}
-	load, err := NewLifecycleLoad(testClient(t, s, time.Second))
+	load, err := NewLifecycleLoad(testClient(t, s, testBudget))
 	if err != nil {
 		t.Fatal(err)
 	}

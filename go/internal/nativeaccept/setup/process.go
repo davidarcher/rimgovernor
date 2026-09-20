@@ -79,11 +79,16 @@ func parseProcesses(out string) []Process {
 }
 
 // Under reports whether the process's executable or command line names a
-// path under dir (case-insensitive, as Windows paths are).
+// path under dir (case-insensitive, as Windows paths are). Both sides are
+// compared with forward slashes: the listing carries Windows backslashes,
+// and filepath.Clean only normalises to them on Windows, so a `/` dir
+// never matched on the Linux CI runner that runs this package's tests.
 func (p Process) Under(dir string) bool {
-	prefix := strings.ToLower(filepath.Clean(dir))
-	return strings.Contains(strings.ToLower(p.Path), prefix) || strings.Contains(strings.ToLower(p.CommandLine), prefix)
+	prefix := strings.ToLower(slashed(filepath.Clean(dir)))
+	return strings.Contains(strings.ToLower(slashed(p.Path)), prefix) || strings.Contains(strings.ToLower(slashed(p.CommandLine)), prefix)
 }
+
+func slashed(path string) string { return strings.ReplaceAll(path, "\\", "/") }
 
 // RunningGames lists the PIDs of RimWorldWin64.exe processes whose
 // executable lives under gameCopy: this worktree's own games, never a

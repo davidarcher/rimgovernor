@@ -25,7 +25,11 @@ tasks:
       - go build -trimpath -o {{.EVIDENCE}}/go/rimgovernor{{exeExt}} ./cmd/rimgovernor
 
   test:
-    desc: Unit tests under a 10s per-test ceiling
+    desc: Unit tests under a 60s per-test ceiling
+    # The ceiling catches a test that has structurally become slow, not one
+    # that lands a few seconds late while ./... saturates the machine: a
+    # 10s gate over tests that idle at 8-9s failed on load alone
+    # (#546, #551-#554).
     # The -race pass is not part of the landing gate: it is several times
     # slower on Windows, and every race-related commit in the history fixed
     # a timing flake the pass itself caused rather than a data race it found.
@@ -33,7 +37,7 @@ tasks:
     # (clock, bridge, buildingruntime, ownership), or `go test -race` on that
     # package alone.
     cmds:
-      - go test -json ./... | go run ./internal/testkit/cmd/checktesttimes -max 10s
+      - go test -json ./... | go run ./internal/testkit/cmd/checktesttimes -max 60s
 
   test:race:
     desc: Whole-module go test -race; opt-in, needs a C compiler on PATH

@@ -2,13 +2,14 @@ package bridge
 
 import (
 	"context"
+	"math"
+	"testing"
+	"time"
+
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
-	"math"
-	"testing"
-	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )

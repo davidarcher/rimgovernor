@@ -3,13 +3,14 @@ package bridge
 import (
 	"context"
 	"errors"
+	"math"
+	"testing"
+	"time"
+
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/proto"
-	"math"
-	"testing"
-	"time"
 )
 
 func combatPawnsFixture() *o.PawnSnapshot {

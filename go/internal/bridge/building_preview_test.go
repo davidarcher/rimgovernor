@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -61,7 +60,7 @@ func TestBuildingPreviewProjection(t *testing.T) {
 				}
 				return pbResult(reply), nil
 			}}
-			client := testClient(t, s, time.Second)
+			client := testClient(t, s, testBudget)
 			result, raw, err := client.PreviewBuilding(context.Background(), a, snapshot)
 			if test.wantError {
 				if !errors.Is(err, ErrContract) {
@@ -112,7 +111,7 @@ func TestBuildingPreviewWatchAccessPreservesPresenceWithoutChangingLegality(t *t
 		reply := pbBatch()
 		reply.GetBatch().Results[0].GetEvaluated().Rotations[0].WatchCellsAccessible = value
 		server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) { return pbResult(reply), nil }}
-		client := testClient(t, server, time.Second)
+		client := testClient(t, server, testBudget)
 		building, _ := domain.NewBuilding("HorseshoesPin", domain.Cell{}, domain.North, "")
 		action, _ := domain.NewBuildingAction("play", building)
 		snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Native: domain.NativeGeneration(^uint64(0))}

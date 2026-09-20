@@ -1,10 +1,11 @@
 package bridge
 
 import (
+	"testing"
+
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
-	"testing"
 )
 
 func TestEventLootBoundary(t *testing.T) {

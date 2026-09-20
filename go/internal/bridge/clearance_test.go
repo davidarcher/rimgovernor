@@ -3,12 +3,13 @@ package bridge
 import (
 	"context"
 	"errors"
+	"testing"
+	"time"
+
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/proto"
-	"testing"
-	"time"
 )
 
 func clearanceSnapshot() *o.ClearanceTargetsSnapshot {

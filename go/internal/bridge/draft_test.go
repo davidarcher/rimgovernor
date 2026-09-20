@@ -4,15 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"sync/atomic"
+	"testing"
+	"time"
+
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
-	"sync/atomic"
-	"testing"
-	"time"
 )
 
 func draftTestAttempt() DraftAttempt {

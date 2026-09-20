@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
@@ -92,7 +91,7 @@ func TestPreviewProductionPolicyAcceptedAndRejections(t *testing.T) {
 				}
 				return pbResult(reply), nil
 			}}
-			client := testClient(t, s, time.Second)
+			client := testClient(t, s, testBudget)
 			_, raw, err := client.PreviewProductionPolicy(context.Background(), pbIdentity(), productionPolicyTargetFixture())
 			if test.ok {
 				if err != nil || len(raw.Envelope) == 0 {
@@ -109,7 +108,7 @@ func TestPreviewProductionPolicyAcceptedAndRejections(t *testing.T) {
 
 func TestPreviewProductionPolicyInvalidInputsNeverDispatch(t *testing.T) {
 	s := &testServer{schema: protoSchema}
-	client := testClient(t, s, time.Second)
+	client := testClient(t, s, testBudget)
 	for name, change := range map[string]func(*ProductionPolicyTarget){
 		"empty token":       func(v *ProductionPolicyTarget) { v.ExpectedSnapshotToken = "" },
 		"negative floor":    func(v *ProductionPolicyTarget) { v.Floors["Steel"] = -1 },
@@ -156,7 +155,7 @@ func TestApplyProductionPolicyCorrelationAndOwnerMismatch(t *testing.T) {
 		}
 		return pbResult(&op.ExecuteReply{Outcome: &op.ExecuteReply_Receipt{Receipt: productionPolicyAdmission()}}), nil
 	}}
-	writer, err := NewProductionPolicyWriter(testClient(t, s, time.Second))
+	writer, err := NewProductionPolicyWriter(testClient(t, s, testBudget))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -170,7 +169,7 @@ func TestApplyProductionPolicyCorrelationAndOwnerMismatch(t *testing.T) {
 		admission.Attempt.AttemptId = proto.Uint64(999)
 		return pbResult(&op.ExecuteReply{Outcome: &op.ExecuteReply_Receipt{Receipt: admission}}), nil
 	}}
-	writer, _ = NewProductionPolicyWriter(testClient(t, mismatched, time.Second))
+	writer, _ = NewProductionPolicyWriter(testClient(t, mismatched, testBudget))
 	if _, _, err = writer.ApplyProductionPolicy(context.Background(), pre, productionPolicyTargetFixture()); !errors.Is(err, ErrContract) {
 		t.Fatal("owner mismatch accepted", err)
 	}
@@ -178,7 +177,7 @@ func TestApplyProductionPolicyCorrelationAndOwnerMismatch(t *testing.T) {
 
 func TestApplyProductionPolicyInvalidInputsNeverDispatch(t *testing.T) {
 	s := &testServer{schema: protoSchema}
-	writer, _ := NewProductionPolicyWriter(testClient(t, s, time.Second))
+	writer, _ := NewProductionPolicyWriter(testClient(t, s, testBudget))
 	for _, change := range []func(*a.WritePrecondition){
 		func(v *a.WritePrecondition) { v.ExpectedGeneration = nil },
 		func(v *a.WritePrecondition) { v.ExpectedGeneration = proto.Uint64(0) },
@@ -210,7 +209,7 @@ func TestLookupAndObserveProductionPolicy(t *testing.T) {
 		}
 		return pbResult(unknown), nil
 	}}
-	client := testClient(t, s, time.Second)
+	client := testClient(t, s, testBudget)
 	reply, _, err := client.LookupProductionPolicy(context.Background(), w)
 	if err != nil || reply.GetUnknown() == nil {
 		t.Fatal("unknown attempt lookup failed", err)
@@ -222,7 +221,7 @@ func TestLookupAndObserveProductionPolicy(t *testing.T) {
 		}
 		return pbResult(&r.ProgressReply{Outcome: &r.ProgressReply_Progress{Progress: completed}}), nil
 	}}
-	client2 := testClient(t, s2, time.Second)
+	client2 := testClient(t, s2, testBudget)
 	if _, _, err = client2.ObserveProductionPolicyProgress(context.Background(), w, admission); err != nil {
 		t.Fatal("completed progress rejected", err)
 	}
@@ -242,7 +241,7 @@ func TestLookupAndObserveProductionPolicy(t *testing.T) {
 			bad := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 				return pbResult(&r.ProgressReply{Outcome: &r.ProgressReply_Progress{Progress: p}}), nil
 			}}
-			if _, _, err := testClient(t, bad, time.Second).ObserveProductionPolicyProgress(context.Background(), w, admission); !errors.Is(err, ErrContract) {
+			if _, _, err := testClient(t, bad, testBudget).ObserveProductionPolicyProgress(context.Background(), w, admission); !errors.Is(err, ErrContract) {
 				t.Fatal("invalid completion accepted", err)
 			}
 		})
@@ -252,14 +251,14 @@ func TestLookupAndObserveProductionPolicy(t *testing.T) {
 		out.IsError = true
 		return out, nil
 	}}
-	writer, _ := NewProductionPolicyWriter(testClient(t, refusal, time.Second))
+	writer, _ := NewProductionPolicyWriter(testClient(t, refusal, testBudget))
 	if _, raw, err := writer.ApplyProductionPolicy(context.Background(), productionPolicyPre(), productionPolicyTargetFixture()); !errors.Is(err, ErrRefused) || len(raw.Envelope) == 0 {
 		t.Fatal("typed refusal lost", err)
 	}
 	lost := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		return nil, errors.New("lost after potential effect")
 	}}
-	writer, _ = NewProductionPolicyWriter(testClient(t, lost, time.Second))
+	writer, _ = NewProductionPolicyWriter(testClient(t, lost, testBudget))
 	if reply, _, err := writer.ApplyProductionPolicy(context.Background(), productionPolicyPre(), productionPolicyTargetFixture()); err == nil || reply != nil || len(lost.calls) != 1 {
 		t.Fatal("lost reply fabricated outcome or retried", err)
 	}
@@ -284,7 +283,7 @@ func TestReadProductionPolicyDecodesAndRejectsMalformed(t *testing.T) {
 		}
 		return pbResult(&o.ProductionPolicyReply{Outcome: &o.ProductionPolicyReply_Observed{Observed: valid}}), nil
 	}}
-	client := testClient(t, s, time.Second)
+	client := testClient(t, s, testBudget)
 	read, _, err := client.ReadProductionPolicy(context.Background(), pbIdentity())
 	if err != nil {
 		t.Fatal(err)
@@ -308,7 +307,7 @@ func TestReadProductionPolicyDecodesAndRejectsMalformed(t *testing.T) {
 			s := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 				return pbResult(&o.ProductionPolicyReply{Outcome: &o.ProductionPolicyReply_Observed{Observed: bad}}), nil
 			}}
-			if _, _, err := testClient(t, s, time.Second).ReadProductionPolicy(context.Background(), pbIdentity()); !errors.Is(err, ErrContract) {
+			if _, _, err := testClient(t, s, testBudget).ReadProductionPolicy(context.Background(), pbIdentity()); !errors.Is(err, ErrContract) {
 				t.Fatal("malformed production policy snapshot accepted", err)
 			}
 		})

@@ -1,11 +1,12 @@
 package bridge
 
 import (
+	"math"
+	"testing"
+
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	"google.golang.org/protobuf/proto"
-	"math"
-	"testing"
 )
 
 func clockExpectationFixture() ClockExpectation {

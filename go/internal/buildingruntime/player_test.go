@@ -105,10 +105,12 @@ func playerFixture(t *testing.T) (*Player, *store.Store, *playerFakeSession, *pl
 	}
 	session := &playerFakeSession{}
 	worlds := &playerWorldSource{world: store.World{Colony: "colony", Load: "load", Map: 0}}
-	// Upper bounds only: no test on this fixture waits for them to expire,
-	// and the routine planners' previews and journal writes ran past a 1s
-	// call budget under CPU contention.
-	p, err := newPlayer(context.Background(), PlayerConfig{CallTimeout: 10 * time.Second, JournalTimeout: 10 * time.Second}, db, session, worlds)
+	// Hang guards only, at the widest bound newPlayer accepts: no test on
+	// this fixture waits for them to expire, and the routine planners'
+	// previews and journal writes have run past every tighter budget under
+	// race detection on a loaded machine (#556). Do not tighten these per
+	// test.
+	p, err := newPlayer(context.Background(), PlayerConfig{CallTimeout: time.Minute, JournalTimeout: time.Minute}, db, session, worlds)
 	if err != nil {
 		t.Fatal(err)
 	}

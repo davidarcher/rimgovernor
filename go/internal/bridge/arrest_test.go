@@ -2,12 +2,13 @@ package bridge
 
 import (
 	"context"
+	"testing"
+	"time"
+
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/proto"
-	"testing"
-	"time"
 )
 
 func TestArrestPreviewReusesNativeOperation(t *testing.T) {

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
-	"time"
 
 	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -83,7 +82,7 @@ func TestPreviewCaravanDepartureAcceptedAndRejections(t *testing.T) {
 				}
 				return pbResult(reply), nil
 			}}
-			client := testClient(t, s, time.Second)
+			client := testClient(t, s, testBudget)
 			_, raw, err := client.PreviewCaravanDeparture(context.Background(), pbIdentity(), "catalog-token", []string{"alpha", "beta"}, []CaravanCargoSelection{{GroupID: "meals", Count: 10}}, 42)
 			if test.ok {
 				if err != nil || len(raw.Envelope) == 0 {
@@ -100,7 +99,7 @@ func TestPreviewCaravanDepartureAcceptedAndRejections(t *testing.T) {
 
 func TestPreviewCaravanDepartureInvalidInputsNeverDispatch(t *testing.T) {
 	s := &testServer{schema: protoSchema}
-	client := testClient(t, s, time.Second)
+	client := testClient(t, s, testBudget)
 	for _, test := range []struct {
 		token   string
 		pawns   []string
@@ -145,7 +144,7 @@ func TestApplyCaravanDepartureCorrelationAndOwnerMismatch(t *testing.T) {
 		}
 		return pbResult(&op.ExecuteReply{Outcome: &op.ExecuteReply_Receipt{Receipt: caravanDepartureAdmission()}}), nil
 	}}
-	writer, err := NewCaravanDepartureWriter(testClient(t, s, time.Second))
+	writer, err := NewCaravanDepartureWriter(testClient(t, s, testBudget))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -160,7 +159,7 @@ func TestApplyCaravanDepartureCorrelationAndOwnerMismatch(t *testing.T) {
 		admission.Attempt.AttemptId = proto.Uint64(999)
 		return pbResult(&op.ExecuteReply{Outcome: &op.ExecuteReply_Receipt{Receipt: admission}}), nil
 	}}
-	writer, _ = NewCaravanDepartureWriter(testClient(t, mismatched, time.Second))
+	writer, _ = NewCaravanDepartureWriter(testClient(t, mismatched, testBudget))
 	if _, _, err = writer.ApplyCaravanDeparture(context.Background(), pre, "catalog-token", []string{"alpha", "beta"}, cargo, 42); !errors.Is(err, ErrContract) {
 		t.Fatal("owner mismatch accepted", err)
 	}
@@ -168,7 +167,7 @@ func TestApplyCaravanDepartureCorrelationAndOwnerMismatch(t *testing.T) {
 
 func TestApplyCaravanDepartureInvalidInputsNeverDispatch(t *testing.T) {
 	s := &testServer{schema: protoSchema}
-	writer, _ := NewCaravanDepartureWriter(testClient(t, s, time.Second))
+	writer, _ := NewCaravanDepartureWriter(testClient(t, s, testBudget))
 	cargo := []CaravanCargoSelection{{GroupID: "meals", Count: 10}}
 	for _, change := range []func(*a.WritePrecondition){
 		func(v *a.WritePrecondition) { v.ExpectedGeneration = nil },
@@ -199,7 +198,7 @@ func TestLookupAndObserveCaravanDeparture(t *testing.T) {
 		}
 		return pbResult(unknown), nil
 	}}
-	client := testClient(t, s, time.Second)
+	client := testClient(t, s, testBudget)
 	reply, _, err := client.LookupCaravanDeparture(context.Background(), w)
 	if err != nil || reply.GetUnknown() == nil {
 		t.Fatal("unknown attempt lookup failed", err)
@@ -211,7 +210,7 @@ func TestLookupAndObserveCaravanDeparture(t *testing.T) {
 		}
 		return pbResult(&r.ProgressReply{Outcome: &r.ProgressReply_Progress{Progress: completed}}), nil
 	}}
-	client2 := testClient(t, s2, time.Second)
+	client2 := testClient(t, s2, testBudget)
 	if _, _, err = client2.ObserveCaravanDepartureProgress(context.Background(), w, admission); err != nil {
 		t.Fatal("completed progress rejected", err)
 	}
@@ -227,7 +226,7 @@ func TestLookupAndObserveCaravanDeparture(t *testing.T) {
 			bad := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 				return pbResult(&r.ProgressReply{Outcome: &r.ProgressReply_Progress{Progress: p}}), nil
 			}}
-			if _, _, err := testClient(t, bad, time.Second).ObserveCaravanDepartureProgress(context.Background(), w, admission); !errors.Is(err, ErrContract) {
+			if _, _, err := testClient(t, bad, testBudget).ObserveCaravanDepartureProgress(context.Background(), w, admission); !errors.Is(err, ErrContract) {
 				t.Fatal("invalid completion accepted", err)
 			}
 		})
@@ -238,14 +237,14 @@ func TestLookupAndObserveCaravanDeparture(t *testing.T) {
 		return out, nil
 	}}
 	cargo := []CaravanCargoSelection{{GroupID: "meals", Count: 10}}
-	writer, _ := NewCaravanDepartureWriter(testClient(t, refusal, time.Second))
+	writer, _ := NewCaravanDepartureWriter(testClient(t, refusal, testBudget))
 	if _, raw, err := writer.ApplyCaravanDeparture(context.Background(), caravanDeparturePre(), "catalog-token", []string{"alpha", "beta"}, cargo, 42); !errors.Is(err, ErrRefused) || len(raw.Envelope) == 0 {
 		t.Fatal("typed refusal lost", err)
 	}
 	lost := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		return nil, errors.New("lost after potential effect")
 	}}
-	writer, _ = NewCaravanDepartureWriter(testClient(t, lost, time.Second))
+	writer, _ = NewCaravanDepartureWriter(testClient(t, lost, testBudget))
 	if reply, _, err := writer.ApplyCaravanDeparture(context.Background(), caravanDeparturePre(), "catalog-token", []string{"alpha", "beta"}, cargo, 42); err == nil || reply != nil || len(lost.calls) != 1 {
 		t.Fatal("lost reply fabricated outcome or retried", err)
 	}

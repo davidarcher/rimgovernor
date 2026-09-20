@@ -3,13 +3,14 @@ package bridge
 import (
 	"context"
 	"errors"
+	"testing"
+	"time"
+
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/protobuf/proto"
-	"testing"
-	"time"
 )
 
 // gotoTestProgress is a completed pawn-job progress reply (a Goto job that

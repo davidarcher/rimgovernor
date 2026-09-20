@@ -22,7 +22,7 @@ func TestReadRenderState(t *testing.T) {
 	server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		return pbResult(&p.RenderReply{Outcome: &p.RenderReply_Status{Status: &p.RenderStatus{Context: pbContext(), Supported: proto.Bool(true), Suspended: proto.Bool(false), WindowVisible: proto.Bool(true), RemainingLeaseMs: proto.Uint32(2500)}}}), nil
 	}}
-	client := testClient(t, server, time.Second)
+	client := testClient(t, server, testBudget)
 	reply, _, err := client.ReadRenderState(context.Background(), &p.ReadRequest{Identity: pbIdentity()})
 	if err != nil || !reply.GetStatus().GetSupported() || reply.GetStatus().GetRemainingLeaseMs() != 2500 {
 		t.Fatal(reply, err)
@@ -36,7 +36,7 @@ func TestReadRenderStateUnavailable(t *testing.T) {
 		return pbResult(&p.RenderReply{Outcome: &p.RenderReply_Status{Status: &p.RenderStatus{Context: pbContext(), Supported: proto.Bool(false), Suspended: proto.Bool(true),
 			Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_LOADED.Enum(), Detail: proto.String("Startup headless mode cannot render")}}}}), nil
 	}}
-	client := testClient(t, server, time.Second)
+	client := testClient(t, server, testBudget)
 	reply, _, err := client.ReadRenderState(context.Background(), &p.ReadRequest{Identity: pbIdentity()})
 	if err != nil || reply.GetStatus().GetSupported() || reply.GetStatus().GetUnavailable().GetDetail() == "" {
 		t.Fatal(reply, err)
@@ -65,7 +65,7 @@ func TestDemandRenderingSuccess(t *testing.T) {
 	server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		return pbResult(&p.RenderReply{Outcome: &p.RenderReply_Status{Status: &p.RenderStatus{Context: pbContext(), Supported: proto.Bool(true), Suspended: proto.Bool(false), WindowVisible: proto.Bool(true), RemainingLeaseMs: proto.Uint32(5000)}}}), nil
 	}}
-	client := testClient(t, server, time.Second)
+	client := testClient(t, server, testBudget)
 	media, err := NewPresentationMedia(client)
 	if err != nil {
 		t.Fatal(err)
@@ -82,7 +82,7 @@ func TestDemandRenderingRefused(t *testing.T) {
 		reply.IsError = true
 		return reply, nil
 	}}
-	client := testClient(t, server, time.Second)
+	client := testClient(t, server, testBudget)
 	media, err := NewPresentationMedia(client)
 	if err != nil {
 		t.Fatal(err)
@@ -126,7 +126,7 @@ func TestCapturePawnSuccess(t *testing.T) {
 				Frame: &p.MediaFrame{Width: proto.Uint32(tc.width), Height: proto.Uint32(tc.height), Encoding: p.MediaEncoding_MEDIA_ENCODING_PNG.Enum(),
 					CaptureMethod: tc.method.Enum(), CapturedUnixMs: proto.Int64(1700000000000), ReadbackMs: proto.Float64(12.5), Data: minimalPNG}}}}), nil
 		}}
-		client := testClient(t, server, time.Second)
+		client := testClient(t, server, testBudget)
 		media, err := NewPresentationMedia(client)
 		if err != nil {
 			t.Fatal(err)
@@ -144,7 +144,7 @@ func TestCapturePawnFailureAndMismatch(t *testing.T) {
 		reply.IsError = true
 		return reply, nil
 	}}
-	client := testClient(t, server, time.Second)
+	client := testClient(t, server, testBudget)
 	media, err := NewPresentationMedia(client)
 	if err != nil {
 		t.Fatal(err)
@@ -161,7 +161,7 @@ func TestCapturePawnFailureAndMismatch(t *testing.T) {
 			Frame: &p.MediaFrame{Width: proto.Uint32(192), Height: proto.Uint32(192), Encoding: p.MediaEncoding_MEDIA_ENCODING_PNG.Enum(),
 				CaptureMethod: p.CaptureMethod_CAPTURE_METHOD_OFFSCREEN_FOLLOW.Enum(), CapturedUnixMs: proto.Int64(1), ReadbackMs: proto.Float64(1), Data: minimalPNG}}}}), nil
 	}}
-	client2 := testClient(t, wrongMethod, time.Second)
+	client2 := testClient(t, wrongMethod, testBudget)
 	media2, err := NewPresentationMedia(client2)
 	if err != nil {
 		t.Fatal(err)
@@ -214,7 +214,7 @@ func TestLeaseVideoStartSuccess(t *testing.T) {
 	server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		return pbResult(&p.VideoReply{Outcome: &p.VideoReply_State{State: pbVideoState(true)}}), nil
 	}}
-	client := testClient(t, server, time.Second)
+	client := testClient(t, server, testBudget)
 	media, err := NewPresentationMedia(client)
 	if err != nil {
 		t.Fatal(err)
@@ -228,7 +228,7 @@ func TestLeaseVideoStopSuccess(t *testing.T) {
 	server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		return pbResult(&p.VideoReply{Outcome: &p.VideoReply_State{State: pbVideoState(false)}}), nil
 	}}
-	client := testClient(t, server, time.Second)
+	client := testClient(t, server, testBudget)
 	media, err := NewPresentationMedia(client)
 	if err != nil {
 		t.Fatal(err)
@@ -245,7 +245,7 @@ func TestLeaseVideoRefused(t *testing.T) {
 		reply.IsError = true
 		return reply, nil
 	}}
-	client := testClient(t, server, time.Second)
+	client := testClient(t, server, testBudget)
 	media, err := NewPresentationMedia(client)
 	if err != nil {
 		t.Fatal(err)
@@ -281,7 +281,7 @@ func TestReadFrameSuccess(t *testing.T) {
 			Data: minimalVideoFrame,
 		}}}), nil
 	}}
-	client := testClient(t, server, time.Second)
+	client := testClient(t, server, testBudget)
 	media, err := NewPresentationMedia(client)
 	if err != nil {
 		t.Fatal(err)
@@ -326,7 +326,7 @@ func TestReadFrameInvalidReference(t *testing.T) {
 			CapturedUnixMs: proto.Int64(1), ReadbackMs: proto.Float64(1), Data: minimalVideoFrame,
 		}}}), nil
 	}}
-	client := testClient(t, server, time.Second)
+	client := testClient(t, server, testBudget)
 	media, err := NewPresentationMedia(client)
 	if err != nil {
 		t.Fatal(err)
@@ -355,7 +355,7 @@ func TestAcknowledgeFrameValidationAndSuccess(t *testing.T) {
 	server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		return pbResult(&p.FrameAcknowledgementReply{Outcome: &p.FrameAcknowledgementReply_Acknowledged{Acknowledged: &p.FrameAcknowledged{Frame: ref}}}), nil
 	}}
-	client2 := testClient(t, server, time.Second)
+	client2 := testClient(t, server, testBudget)
 	media2, err := NewPresentationMedia(client2)
 	if err != nil {
 		t.Fatal(err)
@@ -371,7 +371,7 @@ func TestAcknowledgeFrameMismatch(t *testing.T) {
 	server := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		return pbResult(&p.FrameAcknowledgementReply{Outcome: &p.FrameAcknowledgementReply_Acknowledged{Acknowledged: &p.FrameAcknowledged{Frame: other}}}), nil
 	}}
-	client := testClient(t, server, time.Second)
+	client := testClient(t, server, testBudget)
 	media, err := NewPresentationMedia(client)
 	if err != nil {
 		t.Fatal(err)
@@ -388,7 +388,7 @@ func TestAcknowledgeFrameRefused(t *testing.T) {
 		reply.IsError = true
 		return reply, nil
 	}}
-	client := testClient(t, server, time.Second)
+	client := testClient(t, server, testBudget)
 	media, err := NewPresentationMedia(client)
 	if err != nil {
 		t.Fatal(err)

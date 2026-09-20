@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
@@ -102,7 +101,7 @@ func TestReadPlanningWindowDecodesOnePageWindow(t *testing.T) {
 		}
 		return pbResult(&o.GetCellsReply{Outcome: &o.GetCellsReply_Observed{Observed: windowSnapshot(request, func(x, z int32) bool { return x == 13 && z == 22 })}}), nil
 	}}
-	client := testClient(t, server, time.Second)
+	client := testClient(t, server, testBudget)
 	window, raw, err := client.ReadPlanningWindow(context.Background(), pbIdentity(), rect, 0)
 	if err != nil || calls != 1 || len(raw.Envelope) == 0 || window.Region != rect || window.Filtered != 1 || len(window.Cells) != 11 || window.Context.GetTick() != pbContext().GetTick() || window.Delta || window.Unchanged != 0 || len(window.Fogged) != 0 {
 		t.Fatalf("%+v %v calls=%d", window, err, calls)
@@ -134,7 +133,7 @@ func TestReadPlanningWindowBandsARectBeyondOnePage(t *testing.T) {
 		bands = append(bands, request.GetRectangle())
 		return pbResult(&o.GetCellsReply{Outcome: &o.GetCellsReply_Observed{Observed: windowSnapshot(request, nil)}}), nil
 	}}
-	client := testClient(t, server, time.Second)
+	client := testClient(t, server, testBudget)
 	rect := policy.Rectangle{X: 0, Z: 0, Width: 100, Height: 90}
 	window, _, err := client.ReadPlanningWindow(context.Background(), pbIdentity(), rect, 0)
 	if err != nil || len(bands) != 3 || len(window.Cells) != 9000 || window.Region != rect {
@@ -193,7 +192,7 @@ func TestReadPlanningWindowRefusalsAndContractFaults(t *testing.T) {
 			server := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
 				return pbResult(tc.reply(decodeCellsRequest(t, arg))), nil
 			}}
-			client := testClient(t, server, time.Second)
+			client := testClient(t, server, testBudget)
 			window, _, err := client.ReadPlanningWindow(context.Background(), pbIdentity(), rect, 0)
 			if !errors.Is(err, tc.want) || window.Cells != nil {
 				t.Fatalf("%+v %v", window, err)
@@ -232,7 +231,7 @@ func TestReadPlanningWindowDelta(t *testing.T) {
 		s.Cells[3] = &o.CellState{Cell: s.Cells[3].Cell, Fogged: proto.Bool(true)}
 		return pbResult(&o.GetCellsReply{Outcome: &o.GetCellsReply_Observed{Observed: s}}), nil
 	}}
-	client := testClient(t, server, time.Second)
+	client := testClient(t, server, testBudget)
 	window, _, err := client.ReadPlanningWindow(context.Background(), pbIdentity(), rect, 500)
 	if err != nil || request.GetChangedSinceTick() != 500 || !window.Delta || window.Unchanged != 8 || len(window.Cells) != 3 || window.Filtered != 1 || len(window.Fogged) != 1 || window.Fogged[0] != (domain.Cell{X: 13, Z: 21}) {
 		t.Fatalf("%+v %v", window, err)

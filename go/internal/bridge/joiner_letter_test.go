@@ -1,10 +1,11 @@
 package bridge
 
 import (
+	"testing"
+
 	ob "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
 	"google.golang.org/protobuf/proto"
-	"testing"
 )
 
 func TestJoinerLetterCensusRejectsExpiredAndIncompleteOffers(t *testing.T) {

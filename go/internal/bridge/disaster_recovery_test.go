@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
-	"time"
 
 	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -82,7 +81,7 @@ func TestPreviewRecoveryServiceAcceptedAndRejections(t *testing.T) {
 				}
 				return pbResult(reply), nil
 			}}
-			client := testClient(t, s, time.Second)
+			client := testClient(t, s, testBudget)
 			_, raw, err := client.PreviewRecoveryService(context.Background(), pbIdentity(), "pawn", "pawn-token", "thing", "thing-token", RecoveryServiceRepair)
 			if test.ok {
 				if err != nil || len(raw.Envelope) == 0 {
@@ -99,7 +98,7 @@ func TestPreviewRecoveryServiceAcceptedAndRejections(t *testing.T) {
 
 func TestPreviewRecoveryServiceInvalidInputsNeverDispatch(t *testing.T) {
 	s := &testServer{schema: protoSchema}
-	client := testClient(t, s, time.Second)
+	client := testClient(t, s, testBudget)
 	for _, args := range []struct {
 		pawn, pawnToken, thing, thingToken string
 		method                             RecoveryServiceMethod
@@ -140,7 +139,7 @@ func TestApplyRecoveryServiceCorrelationAndOwnerMismatch(t *testing.T) {
 		}
 		return pbResult(&op.ExecuteReply{Outcome: &op.ExecuteReply_Receipt{Receipt: recoveryServiceAdmission()}}), nil
 	}}
-	writer, err := NewRecoveryServiceWriter(testClient(t, s, time.Second))
+	writer, err := NewRecoveryServiceWriter(testClient(t, s, testBudget))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -154,7 +153,7 @@ func TestApplyRecoveryServiceCorrelationAndOwnerMismatch(t *testing.T) {
 		admission.Attempt.AttemptId = proto.Uint64(999)
 		return pbResult(&op.ExecuteReply{Outcome: &op.ExecuteReply_Receipt{Receipt: admission}}), nil
 	}}
-	writer, _ = NewRecoveryServiceWriter(testClient(t, mismatched, time.Second))
+	writer, _ = NewRecoveryServiceWriter(testClient(t, mismatched, testBudget))
 	if _, _, err = writer.ApplyRecoveryService(context.Background(), pre, "pawn", "pawn-token", "thing", "thing-token", RecoveryServiceRepair); !errors.Is(err, ErrContract) {
 		t.Fatal("owner mismatch accepted", err)
 	}
@@ -162,7 +161,7 @@ func TestApplyRecoveryServiceCorrelationAndOwnerMismatch(t *testing.T) {
 
 func TestApplyRecoveryServiceInvalidInputsNeverDispatch(t *testing.T) {
 	s := &testServer{schema: protoSchema}
-	writer, _ := NewRecoveryServiceWriter(testClient(t, s, time.Second))
+	writer, _ := NewRecoveryServiceWriter(testClient(t, s, testBudget))
 	for _, change := range []func(*a.WritePrecondition){
 		func(v *a.WritePrecondition) { v.ExpectedGeneration = nil },
 		func(v *a.WritePrecondition) { v.ExpectedGeneration = proto.Uint64(0) },
@@ -195,7 +194,7 @@ func TestLookupAndObserveRecoveryService(t *testing.T) {
 		}
 		return pbResult(unknown), nil
 	}}
-	client := testClient(t, s, time.Second)
+	client := testClient(t, s, testBudget)
 	reply, _, err := client.LookupRecoveryService(context.Background(), w)
 	if err != nil || reply.GetUnknown() == nil {
 		t.Fatal("unknown attempt lookup failed", err)
@@ -207,7 +206,7 @@ func TestLookupAndObserveRecoveryService(t *testing.T) {
 		}
 		return pbResult(&r.ProgressReply{Outcome: &r.ProgressReply_Progress{Progress: completed}}), nil
 	}}
-	client2 := testClient(t, s2, time.Second)
+	client2 := testClient(t, s2, testBudget)
 	if _, _, err = client2.ObserveRecoveryServiceProgress(context.Background(), w, admission); err != nil {
 		t.Fatal("completed progress rejected", err)
 	}
@@ -226,7 +225,7 @@ func TestLookupAndObserveRecoveryService(t *testing.T) {
 			bad := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 				return pbResult(&r.ProgressReply{Outcome: &r.ProgressReply_Progress{Progress: p}}), nil
 			}}
-			if _, _, err := testClient(t, bad, time.Second).ObserveRecoveryServiceProgress(context.Background(), w, admission); !errors.Is(err, ErrContract) {
+			if _, _, err := testClient(t, bad, testBudget).ObserveRecoveryServiceProgress(context.Background(), w, admission); !errors.Is(err, ErrContract) {
 				t.Fatal("invalid completion accepted", err)
 			}
 		})
@@ -236,14 +235,14 @@ func TestLookupAndObserveRecoveryService(t *testing.T) {
 		out.IsError = true
 		return out, nil
 	}}
-	writer, _ := NewRecoveryServiceWriter(testClient(t, refusal, time.Second))
+	writer, _ := NewRecoveryServiceWriter(testClient(t, refusal, testBudget))
 	if _, raw, err := writer.ApplyRecoveryService(context.Background(), recoveryServicePre(), "pawn", "pawn-token", "thing", "thing-token", RecoveryServiceRepair); !errors.Is(err, ErrRefused) || len(raw.Envelope) == 0 {
 		t.Fatal("typed refusal lost", err)
 	}
 	lost := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		return nil, errors.New("lost after potential effect")
 	}}
-	writer, _ = NewRecoveryServiceWriter(testClient(t, lost, time.Second))
+	writer, _ = NewRecoveryServiceWriter(testClient(t, lost, testBudget))
 	if reply, _, err := writer.ApplyRecoveryService(context.Background(), recoveryServicePre(), "pawn", "pawn-token", "thing", "thing-token", RecoveryServiceRepair); err == nil || reply != nil || len(lost.calls) != 1 {
 		t.Fatal("lost reply fabricated outcome or retried", err)
 	}

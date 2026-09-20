@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
-	"time"
 
 	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -83,7 +82,7 @@ func TestPreviewGearReplaceAcceptedAndRejections(t *testing.T) {
 				}
 				return pbResult(reply), nil
 			}}
-			client := testClient(t, s, time.Second)
+			client := testClient(t, s, testBudget)
 			_, raw, err := client.PreviewGearReplace(context.Background(), pbIdentity(), "pawn", "pawn-token", "thing", "thing-token", "loadout-token")
 			if test.ok {
 				if err != nil || len(raw.Envelope) == 0 {
@@ -100,7 +99,7 @@ func TestPreviewGearReplaceAcceptedAndRejections(t *testing.T) {
 
 func TestPreviewGearReplaceInvalidInputsNeverDispatch(t *testing.T) {
 	s := &testServer{schema: protoSchema}
-	client := testClient(t, s, time.Second)
+	client := testClient(t, s, testBudget)
 	for _, args := range [][5]string{
 		{"", "pawn-token", "thing", "thing-token", "loadout-token"},
 		{"pawn", "", "thing", "thing-token", "loadout-token"},
@@ -138,7 +137,7 @@ func TestApplyGearReplaceCorrelationAndOwnerMismatch(t *testing.T) {
 		}
 		return pbResult(&op.ExecuteReply{Outcome: &op.ExecuteReply_Receipt{Receipt: gearReplaceAdmission()}}), nil
 	}}
-	writer, err := NewGearReplaceWriter(testClient(t, s, time.Second))
+	writer, err := NewGearReplaceWriter(testClient(t, s, testBudget))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -152,7 +151,7 @@ func TestApplyGearReplaceCorrelationAndOwnerMismatch(t *testing.T) {
 		admission.Attempt.AttemptId = proto.Uint64(999)
 		return pbResult(&op.ExecuteReply{Outcome: &op.ExecuteReply_Receipt{Receipt: admission}}), nil
 	}}
-	writer, _ = NewGearReplaceWriter(testClient(t, mismatched, time.Second))
+	writer, _ = NewGearReplaceWriter(testClient(t, mismatched, testBudget))
 	if _, _, err = writer.ApplyGearReplace(context.Background(), pre, "pawn", "pawn-token", "thing", "thing-token", "loadout-token"); !errors.Is(err, ErrContract) {
 		t.Fatal("owner mismatch accepted", err)
 	}
@@ -160,7 +159,7 @@ func TestApplyGearReplaceCorrelationAndOwnerMismatch(t *testing.T) {
 
 func TestApplyGearReplaceInvalidInputsNeverDispatch(t *testing.T) {
 	s := &testServer{schema: protoSchema}
-	writer, _ := NewGearReplaceWriter(testClient(t, s, time.Second))
+	writer, _ := NewGearReplaceWriter(testClient(t, s, testBudget))
 	for _, change := range []func(*a.WritePrecondition){
 		func(v *a.WritePrecondition) { v.ExpectedGeneration = nil },
 		func(v *a.WritePrecondition) { v.ExpectedGeneration = proto.Uint64(0) },
@@ -190,7 +189,7 @@ func TestLookupAndObserveGearReplace(t *testing.T) {
 		}
 		return pbResult(unknown), nil
 	}}
-	client := testClient(t, s, time.Second)
+	client := testClient(t, s, testBudget)
 	reply, _, err := client.LookupGearReplace(context.Background(), w)
 	if err != nil || reply.GetUnknown() == nil {
 		t.Fatal("unknown attempt lookup failed", err)
@@ -202,7 +201,7 @@ func TestLookupAndObserveGearReplace(t *testing.T) {
 		}
 		return pbResult(&r.ProgressReply{Outcome: &r.ProgressReply_Progress{Progress: completed}}), nil
 	}}
-	client2 := testClient(t, s2, time.Second)
+	client2 := testClient(t, s2, testBudget)
 	if _, _, err = client2.ObserveGearReplaceProgress(context.Background(), w, admission); err != nil {
 		t.Fatal("completed progress rejected", err)
 	}
@@ -221,7 +220,7 @@ func TestLookupAndObserveGearReplace(t *testing.T) {
 			bad := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 				return pbResult(&r.ProgressReply{Outcome: &r.ProgressReply_Progress{Progress: p}}), nil
 			}}
-			if _, _, err := testClient(t, bad, time.Second).ObserveGearReplaceProgress(context.Background(), w, admission); !errors.Is(err, ErrContract) {
+			if _, _, err := testClient(t, bad, testBudget).ObserveGearReplaceProgress(context.Background(), w, admission); !errors.Is(err, ErrContract) {
 				t.Fatal("invalid completion accepted", err)
 			}
 		})
@@ -231,14 +230,14 @@ func TestLookupAndObserveGearReplace(t *testing.T) {
 		out.IsError = true
 		return out, nil
 	}}
-	writer, _ := NewGearReplaceWriter(testClient(t, refusal, time.Second))
+	writer, _ := NewGearReplaceWriter(testClient(t, refusal, testBudget))
 	if _, raw, err := writer.ApplyGearReplace(context.Background(), gearReplacePre(), "pawn", "pawn-token", "thing", "thing-token", "loadout-token"); !errors.Is(err, ErrRefused) || len(raw.Envelope) == 0 {
 		t.Fatal("typed refusal lost", err)
 	}
 	lost := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		return nil, errors.New("lost after potential effect")
 	}}
-	writer, _ = NewGearReplaceWriter(testClient(t, lost, time.Second))
+	writer, _ = NewGearReplaceWriter(testClient(t, lost, testBudget))
 	if reply, _, err := writer.ApplyGearReplace(context.Background(), gearReplacePre(), "pawn", "pawn-token", "thing", "thing-token", "loadout-token"); err == nil || reply != nil || len(lost.calls) != 1 {
 		t.Fatal("lost reply fabricated outcome or retried", err)
 	}

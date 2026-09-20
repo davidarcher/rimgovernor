@@ -100,6 +100,14 @@ func (s *testServer) factory(t *testing.T) transportFactory {
 		return clientTransport
 	}
 }
+
+// testBudget is the per-call deadline for tests that never expect it to
+// expire: a hang guard, not a latency assertion. Decoding a multi-megabyte
+// payload through the in-memory transport under race detection on a loaded
+// CI runner has run past 1s and past 30s; a test that asserts an expiry
+// passes its own, shorter deadline.
+const testBudget = time.Minute
+
 func testClient(t *testing.T, s *testServer, timeout time.Duration) *Client {
 	t.Helper()
 	client, err := open(context.Background(), "fixture-game", timeout, nil, nil, s.factory(t))
@@ -130,7 +138,7 @@ func TestCancellationAndClose(t *testing.T) {
 		<-ctx.Done()
 		return nil, ctx.Err()
 	}}
-	client := testClient(t, s, time.Second)
+	client := testClient(t, s, testBudget)
 	done := make(chan error, 1)
 	go func() { _, err := testNativeRead(client, context.Background()); done <- err }()
 	<-entered
@@ -168,7 +176,7 @@ func TestExplicitReconnectNeverRetriesRead(t *testing.T) {
 		count.Add(1)
 		return structured(`{"success":false}`), nil
 	}}
-	client := testClient(t, s, time.Second)
+	client := testClient(t, s, testBudget)
 	if _, err := testNativeRead(client, context.Background()); !errors.Is(err, ErrRefused) {
 		t.Fatal(err)
 	}
@@ -236,7 +244,7 @@ func TestOwnedSubprocessAndFailedConnections(t *testing.T) {
 func TestRawReceiptPreservesInt64AndFutureFields(t *testing.T) {
 	wire := `{"identity":18446744073709551615,"tick":9223372036854775807,"nested":{"value":9007199254740993}}`
 	s := &testServer{handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) { return structured(wire), nil }}
-	client := testClient(t, s, time.Second)
+	client := testClient(t, s, testBudget)
 	result, err := testNativeRead(client, context.Background())
 	if err != nil {
 		t.Fatal(err)
@@ -253,7 +261,7 @@ func TestRawReceiptPreservesInt64AndFutureFields(t *testing.T) {
 
 func TestLostConnectionAndMissingCapabilities(t *testing.T) {
 	s := &testServer{}
-	client := testClient(t, s, time.Second)
+	client := testClient(t, s, testBudget)
 	lost := client.Disconnected()
 	select {
 	case <-lost:
@@ -315,8 +323,9 @@ func TestReadDeadlineAndOversizedWireResult(t *testing.T) {
 		return structured(`{"payload":"` + strings.Repeat("x", maxResponseBytes) + `"}`), nil
 	}}
 	// The deadline only guards against a hang; decoding 50 MiB under race
-	// detection takes several seconds.
-	bigClient := testClient(t, large, 30*time.Second)
+	// detection takes several seconds idle and ran past 30s on a loaded CI
+	// runner.
+	bigClient := testClient(t, large, 2*testBudget)
 	if _, err := testNativeRead(bigClient, context.Background()); !errors.Is(err, ErrContract) {
 		t.Fatalf("oversized result: %v", err)
 	}
@@ -496,7 +505,7 @@ func assertContains(t *testing.T, values []string, want string) {
 // closed meanwhile refuses to reattach.
 func TestReattachAfterLostSession(t *testing.T) {
 	s := &testServer{}
-	client := testClient(t, s, time.Second)
+	client := testClient(t, s, testBudget)
 	if err := s.sessions[0].Close(); err != nil {
 		t.Fatal(err)
 	}

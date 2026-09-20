@@ -1,10 +1,11 @@
 package bridge
 
 import (
+	"testing"
+
 	k "github.com/davidarcher/RimGovernor/go/internal/wire/clockpb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	"google.golang.org/protobuf/proto"
-	"testing"
 )
 
 func TestAssessClockEpochStates(t *testing.T) {

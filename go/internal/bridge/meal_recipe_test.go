@@ -1,10 +1,11 @@
 package bridge
 
 import (
-	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
-	"google.golang.org/protobuf/proto"
 	"math"
 	"testing"
+
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestColonyProductionAdmitsMealFacts(t *testing.T) {

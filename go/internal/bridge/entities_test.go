@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
-	"time"
 
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
@@ -59,7 +58,7 @@ func TestReadZonesPagesAFullRead(t *testing.T) {
 		}
 		return pbResult(zonesPageReply([]*o.ZoneState{zoneRow("Zone_3")}, true, "")), nil
 	}}
-	client := testClient(t, server, time.Second)
+	client := testClient(t, server, testBudget)
 	rows, _, err := client.ReadZones(context.Background(), pbIdentity(), 0)
 	if err != nil || len(cursors) != 2 || cursors[1] != "c1" || len(rows.Rows) != 3 || rows.Delta || rows.Unchanged != 0 || rows.AsOf() != pbContext().GetTick() {
 		t.Fatalf("%+v %v cursors=%v", rows, err, cursors)
@@ -86,7 +85,7 @@ func TestReadZonesDelta(t *testing.T) {
 		}
 		return pbResult(reply), nil
 	}}
-	client := testClient(t, server, time.Second)
+	client := testClient(t, server, testBudget)
 	rows, _, err := client.ReadZones(context.Background(), pbIdentity(), 40)
 	if err != nil || !rows.Delta || rows.Unchanged != 4 || len(rows.Removed) != 1 || rows.Removed[0] != "Zone_9" || len(rows.Rows) != 1 {
 		t.Fatalf("%+v %v", rows, err)
@@ -149,7 +148,7 @@ func TestReadZonesRefusalsAndContractFaults(t *testing.T) {
 			server := &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
 				return pbResult(tc.reply()), nil
 			}}
-			client := testClient(t, server, time.Second)
+			client := testClient(t, server, testBudget)
 			rows, _, err := client.ReadZones(context.Background(), pbIdentity(), tc.since)
 			for _, want := range tc.want {
 				if !errors.Is(err, want) {

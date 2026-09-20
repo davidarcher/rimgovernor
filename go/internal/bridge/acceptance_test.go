@@ -5,7 +5,6 @@ import (
 	"errors"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -21,7 +20,7 @@ func TestConnectWithPollRetriesStartupRefusal(t *testing.T) {
 		}
 		return structured(`{"connected":true}`), nil
 	}}
-	c := testClient(t, s, time.Second)
+	c := testClient(t, s, testBudget)
 	if _, err := c.ConnectWithPoll(context.Background(), Result{}); err != nil {
 		t.Fatal(err)
 	}
@@ -36,7 +35,7 @@ func TestConnectWithPollPreservesForeignOwnership(t *testing.T) {
 		calls++
 		return structured(`{"foreignOwner":true,"message":"owned by peer"}`), nil
 	}}
-	c := testClient(t, s, time.Second)
+	c := testClient(t, s, testBudget)
 	_, err := c.ConnectWithPoll(context.Background(), Result{})
 	if !errors.Is(err, ErrRefused) || !strings.Contains(err.Error(), "owned by peer") || calls != 1 {
 		t.Fatalf("calls=%d error=%v", calls, err)
@@ -54,7 +53,7 @@ func TestConnectWithPollWaitsForUnpublishedStartupEndpoint(t *testing.T) {
 		}
 		return structured(`{"connected":true}`), nil
 	}}
-	c := testClient(t, s, time.Second)
+	c := testClient(t, s, testBudget)
 	if _, err := c.ConnectWithPoll(context.Background(), Result{}); err != nil {
 		t.Fatal(err)
 	}
@@ -72,7 +71,7 @@ func TestConnectWithPollCancelsRetry(t *testing.T) {
 		r.IsError = true
 		return r, nil
 	}}
-	c := testClient(t, s, time.Second)
+	c := testClient(t, s, testBudget)
 	if _, err := c.ConnectWithPoll(ctx, Result{}); !errors.Is(err, context.Canceled) {
 		t.Fatalf("error=%v", err)
 	}

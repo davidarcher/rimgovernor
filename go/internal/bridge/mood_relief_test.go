@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
-	"time"
 
 	a "github.com/davidarcher/RimGovernor/go/internal/wire/authoritypb"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
@@ -85,7 +84,7 @@ func TestPreviewMoodReliefAcceptedAndRejections(t *testing.T) {
 				}
 				return pbResult(reply), nil
 			}}
-			client := testClient(t, s, time.Second)
+			client := testClient(t, s, testBudget)
 			_, raw, err := client.PreviewMoodRelief(context.Background(), pbIdentity(), "pawn", "pawn-token", MoodReliefFood, moodReliefJob(), "Anything")
 			if test.ok {
 				if err != nil || len(raw.Envelope) == 0 {
@@ -102,7 +101,7 @@ func TestPreviewMoodReliefAcceptedAndRejections(t *testing.T) {
 
 func TestPreviewMoodReliefInvalidInputsNeverDispatch(t *testing.T) {
 	s := &testServer{schema: protoSchema}
-	client := testClient(t, s, time.Second)
+	client := testClient(t, s, testBudget)
 	for _, args := range []struct {
 		pawn, pawnToken, schedule string
 		need                      MoodReliefNeed
@@ -144,7 +143,7 @@ func TestApplyMoodReliefCorrelationAndOwnerMismatch(t *testing.T) {
 		}
 		return pbResult(&op.ExecuteReply{Outcome: &op.ExecuteReply_Receipt{Receipt: moodReliefAdmission()}}), nil
 	}}
-	writer, err := NewMoodReliefWriter(testClient(t, s, time.Second))
+	writer, err := NewMoodReliefWriter(testClient(t, s, testBudget))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -158,7 +157,7 @@ func TestApplyMoodReliefCorrelationAndOwnerMismatch(t *testing.T) {
 		admission.Attempt.AttemptId = proto.Uint64(999)
 		return pbResult(&op.ExecuteReply{Outcome: &op.ExecuteReply_Receipt{Receipt: admission}}), nil
 	}}
-	writer, _ = NewMoodReliefWriter(testClient(t, mismatched, time.Second))
+	writer, _ = NewMoodReliefWriter(testClient(t, mismatched, testBudget))
 	if _, _, err = writer.ApplyMoodRelief(context.Background(), pre, "pawn", "pawn-token", MoodReliefFood, moodReliefJob(), "Anything"); !errors.Is(err, ErrContract) {
 		t.Fatal("owner mismatch accepted", err)
 	}
@@ -166,7 +165,7 @@ func TestApplyMoodReliefCorrelationAndOwnerMismatch(t *testing.T) {
 
 func TestApplyMoodReliefInvalidInputsNeverDispatch(t *testing.T) {
 	s := &testServer{schema: protoSchema}
-	writer, _ := NewMoodReliefWriter(testClient(t, s, time.Second))
+	writer, _ := NewMoodReliefWriter(testClient(t, s, testBudget))
 	for _, change := range []func(*a.WritePrecondition){
 		func(v *a.WritePrecondition) { v.ExpectedGeneration = nil },
 		func(v *a.WritePrecondition) { v.ExpectedGeneration = proto.Uint64(0) },
@@ -196,7 +195,7 @@ func TestLookupAndObserveMoodRelief(t *testing.T) {
 		}
 		return pbResult(unknown), nil
 	}}
-	client := testClient(t, s, time.Second)
+	client := testClient(t, s, testBudget)
 	reply, _, err := client.LookupMoodRelief(context.Background(), w)
 	if err != nil || reply.GetUnknown() == nil {
 		t.Fatal("unknown attempt lookup failed", err)
@@ -208,7 +207,7 @@ func TestLookupAndObserveMoodRelief(t *testing.T) {
 		}
 		return pbResult(&r.ProgressReply{Outcome: &r.ProgressReply_Progress{Progress: completed}}), nil
 	}}
-	client2 := testClient(t, s2, time.Second)
+	client2 := testClient(t, s2, testBudget)
 	if _, _, err = client2.ObserveMoodReliefProgress(context.Background(), w, admission); err != nil {
 		t.Fatal("completed progress rejected", err)
 	}
@@ -223,7 +222,7 @@ func TestLookupAndObserveMoodRelief(t *testing.T) {
 			bad := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 				return pbResult(&r.ProgressReply{Outcome: &r.ProgressReply_Progress{Progress: p}}), nil
 			}}
-			if _, _, err := testClient(t, bad, time.Second).ObserveMoodReliefProgress(context.Background(), w, admission); !errors.Is(err, ErrContract) {
+			if _, _, err := testClient(t, bad, testBudget).ObserveMoodReliefProgress(context.Background(), w, admission); !errors.Is(err, ErrContract) {
 				t.Fatal("invalid completion accepted", err)
 			}
 		})
@@ -233,14 +232,14 @@ func TestLookupAndObserveMoodRelief(t *testing.T) {
 		out.IsError = true
 		return out, nil
 	}}
-	writer, _ := NewMoodReliefWriter(testClient(t, refusal, time.Second))
+	writer, _ := NewMoodReliefWriter(testClient(t, refusal, testBudget))
 	if _, raw, err := writer.ApplyMoodRelief(context.Background(), moodReliefPre(), "pawn", "pawn-token", MoodReliefFood, moodReliefJob(), "Anything"); !errors.Is(err, ErrRefused) || len(raw.Envelope) == 0 {
 		t.Fatal("typed refusal lost", err)
 	}
 	lost := &testServer{schema: protoSchema, handler: func(context.Context, nativeArgument) (*mcp.CallToolResult, error) {
 		return nil, errors.New("lost after potential effect")
 	}}
-	writer, _ = NewMoodReliefWriter(testClient(t, lost, time.Second))
+	writer, _ = NewMoodReliefWriter(testClient(t, lost, testBudget))
 	if reply, _, err := writer.ApplyMoodRelief(context.Background(), moodReliefPre(), "pawn", "pawn-token", MoodReliefFood, moodReliefJob(), "Anything"); err == nil || reply != nil || len(lost.calls) != 1 {
 		t.Fatal("lost reply fabricated outcome or retried", err)
 	}
