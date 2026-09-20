@@ -13,7 +13,8 @@ namespace HomeBridge.BridgeTools
         private static int surgicalId;
 
         [Tool("test/medical_plague_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Add Plague to two disposable colonists, one untended and one tended, for native disease readback.")]
-        public async Task<object> Plague(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        public async Task<object> Plague(IRimBridgeContext ctx, CancellationToken cancellationToken,
+            [ToolParameter(Description = "Stage the disease survival case: both untended, five herbal and five industrial medicine, medical sleeping spots.", DefaultValue = false)] bool survival = false)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 if (Find.CurrentMap == null || !Find.TickManager.Paused)
@@ -30,9 +31,46 @@ namespace HomeBridge.BridgeTools
                     // Seed the precondition normally created on the first immunity tick.
                     pawn.health.immunity.TryAddImmunityRecord(def, def);
                     pawn.health.immunity.GetImmunityRecord(def).immunity = .1f;
-                    if (pawn == people[1]) plague.Tended(.75f, .75f);
+                    if (!survival && pawn == people[1]) plague.Tended(.75f, .75f);
+                }
+                if (survival) {
+                    var map = Find.CurrentMap;
+                    foreach (var item in map.listerThings.ThingsInGroup(ThingRequestGroup.Medicine).ToArray()) item.Destroy();
+                    foreach (var pawn in map.mapPawns.FreeColonistsSpawned) {
+                        foreach (var item in pawn.inventory.innerContainer.Where(t => t.def.IsMedicine).ToArray()) item.Destroy();
+                        pawn.drafter.Drafted = false;
+                        pawn.playerSettings.medCare = MedicalCareCategory.HerbalOrWorse;
+                        pawn.workSettings.EnableAndInitialize();
+                        foreach (var work in new[] { "Doctor", "Patient", "PatientBedRest" }) {
+                            var workDef = DefDatabase<WorkTypeDef>.GetNamed(work);
+                            if (!pawn.WorkTypeIsDisabled(workDef)) pawn.workSettings.SetPriority(workDef, work == "PatientBedRest" ? 0 : 1);
+                        }
+                    }
+                    foreach (var name in new[] { "MedicineHerbal", "MedicineIndustrial" }) {
+                        var item = ThingMaker.MakeThing(ThingDef.Named(name)); item.stackCount = 5;
+                        if (!GenPlace.TryPlaceThing(item, people[0].Position, map, ThingPlaceMode.Near))
+                            throw new InvalidOperationException("Medicine placement failed");
+                        item.SetForbidden(false, false);
+                    }
+                    var cells = GenRadial.RadialCellsAround(people[0].Position, 12, true)
+                        .Where(c => c.InBounds(map) && c.Standable(map) && !c.Fogged(map)
+                            && c.GetEdifice(map) == null && map.thingGrid.ThingsListAt(c).Count == 0).Take(2).ToArray();
+                    if (cells.Length != 2) throw new InvalidOperationException("Two medical sleeping cells required");
+                    foreach (var cell in cells) {
+                        var bed = (Building_Bed)ThingMaker.MakeThing(ThingDef.Named("SleepingSpot"));
+                        bed.SetFaction(Faction.OfPlayer); GenSpawn.Spawn(bed, cell, map); bed.Medical = true;
+                    }
                 }
                 return new { success = true, patients = people.Select(p => p.GetUniqueLoadID()).ToArray() };
+            }, cancellationToken).ConfigureAwait(false);
+        }
+        [Tool("test/medical_disease_stock", Description = "UNSAFE FOR MODEL EXECUTION. Read disposable disease medicine stocks; no mutations.")]
+        public async Task<object> DiseaseStock(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var items = Find.CurrentMap.listerThings.ThingsInGroup(ThingRequestGroup.Medicine);
+                return new { herbal = items.Where(t => t.def.defName == "MedicineHerbal").Sum(t => t.stackCount),
+                    industrial = items.Where(t => t.def.defName == "MedicineIndustrial").Sum(t => t.stackCount) };
             }, cancellationToken).ConfigureAwait(false);
         }
         [Tool("test/medical_management_setup", Description = "Disposable B23 initial disease, injury, beds and supplies. Never performs treatment or surgery.")]

@@ -81,6 +81,24 @@ While the medicine reserve is low, it contributes the configured herbal target p
 `MaintainResource`; explicit higher resource floors remain authoritative. The
 medical reserve's existing bill and wild-healroot methods continue to work.
 
+## Disease care
+
+When a disease's projected immunity lead over lethal severity is less than a
+day, the medical routine enables PatientBedRest and retains rest until the
+tracked condition reaches full immunity or leaves a complete census. Native tending, bed selection,
+severity progression and immunity gain remain ordinary RimWorld simulation;
+medicine selection follows the tier rules above. Missing patients or health
+observations cannot establish recovery, and death is a failure.
+
+`medical/disease` starts from the Core-only tribal8 baseline with Plague on two
+colonists, both untended, and exactly five herbal plus five industrial medicine.
+The disposable `test/medical_plague_prepare` survival variant supplies medical
+sleeping spots and disables bed rest initially. The case observes Auto selecting
+`NormalOrWorse` while industrial stock remains, subsequent native tending and
+bed rest, and explicit full immunity for both patients with all eight original
+colonists alive. Needs are frozen and the storyteller is quiet to isolate the
+disease race. Contagion and organ-decay or blood-rot surgery are outside this case.
+
 ## Surgery
 
 `home/medical_operations` discovers current patient recipes, body-part indices,
