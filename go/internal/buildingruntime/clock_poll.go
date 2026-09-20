@@ -26,6 +26,7 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 	// applied (see disableOnEvidence).
 	fresh := false
 	fail := func(cause error) (ClockPollResult, error) {
+		s.admissionWarm.Store(nil)
 		out.Interrupted = true
 		s.running.Store(false)
 		disabled := s.disableOnEvidence(fresh)
@@ -165,6 +166,7 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 		return fail(err)
 	}
 	if out.Captured {
+		s.admissionWarm.Store(nil)
 		telemetry.ObserveTick(page.Context.GetTick())
 		clockPollEvents(call, page)
 		if clockPollStopped(page) {
@@ -213,6 +215,9 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 	}
 	if out.Interrupted {
 		return fail(nil)
+	}
+	if out.Stopped {
+		s.warmAdmission(call, current)
 	}
 	return out, nil
 }

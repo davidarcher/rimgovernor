@@ -262,7 +262,8 @@ type ClockScheduler struct {
 	// readmitOwed is set by a step that settled its own stopped window and
 	// then deferred, so the step that finally admits reports the whole
 	// stop-to-readmit pause; touched only under the player gate.
-	readmitOwed bool
+	readmitOwed   bool
+	admissionWarm *atomic.Pointer[clockAdmissionWarm]
 }
 
 func NewClockScheduler(player *Player, session *Session, native ClockWindowNative, config ClockSchedulerConfig, clock executor.Clock) (*ClockScheduler, error) {
@@ -482,7 +483,7 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, err
 	}
 	config.Profile = inbox.Profile
-	scheduler := &ClockScheduler{player: player, session: session, native: native, config: config, clock: clock, pollGate: make(chan struct{}, 1), renewGate: make(chan struct{}, 1), facts: newClockFacts(config.Facts, config.Store), running: new(atomic.Bool), latched: newClockLatched()}
+	scheduler := &ClockScheduler{player: player, session: session, native: native, config: config, clock: clock, pollGate: make(chan struct{}, 1), renewGate: make(chan struct{}, 1), facts: newClockFacts(config.Facts, config.Store), running: new(atomic.Bool), admissionWarm: new(atomic.Pointer[clockAdmissionWarm]), latched: newClockLatched()}
 	if config.Routine != nil {
 		config.Routine.store = scheduler.facts.store
 	}
@@ -645,7 +646,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	// census and the planners read them without another round trip; a step
 	// about to review asks for the census families too (issue #180).
 	started := s.clock.Now()
-	bundle, _, err := s.native.ReadBundle(call, s.bundleRequest(reason))
+	bundle, err := s.readStepBundle(call, s.bundleRequest(reason))
 	if err != nil {
 		return out, errors.Join(err, s.session.Disable())
 	}

@@ -335,7 +335,7 @@ func speedMatrixFixture(t *testing.T, native *speedNative, snapshot domain.Gener
 	// NewClockWorker starts its loops before returning, so the step is
 	// wrapped here, on a worker built the same way.
 	lifetime, cancel := context.WithCancel(context.Background())
-	worker := &ClockWorker{ctx: lifetime, cancel: cancel, config: config, done: make(chan struct{}), ready: make(chan struct{}), stopGate: make(chan struct{}, 1), disable: session.disableClockWorker, cleanup: session.CleanupClock, renew: scheduler.RenewEpoch, held: scheduler.WindowRunning, wake: NewWakeSignal()}
+	worker := &ClockWorker{ctx: lifetime, cancel: cancel, config: config, done: make(chan struct{}), ready: make(chan struct{}), stopGate: make(chan struct{}, 1), disable: session.disableClockWorker, cleanup: session.CleanupClock, renew: scheduler.RenewEpoch, held: scheduler.WindowRunning, wake: NewWakeSignal(), pollWake: make(chan struct{}, 1)}
 	worker.step = func(ctx context.Context, reason StepReason) (ClockSchedulerResult, error) {
 		began := time.Now()
 		result, err := scheduler.StepWithReason(ctx, reason)

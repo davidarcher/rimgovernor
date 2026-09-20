@@ -67,9 +67,15 @@ the transport is request/response only, so the poll's `observations_read_bundle`
 empty read for up to `wait_ms` (at most 5 s) and answer as soon as a row lands.
 The service holds the read while a window it admitted is running (4 s, the
 `serve` bound), so a stop is seen as soon as its row lands; between windows,
-where a held read would queue ahead of the planners' reads, it polls unheld
-once a second, the cadence a held read that returns empty early also falls
-back to. Every
+the poll waits locally for scheduler step completion, then reads immediately.
+The poll interval remains a safety bound so a blocked step cannot hide player
+input or authority interruptions. The local wait does not occupy the native
+transport while the paused step needs reads.
+A running held read that returns empty early still falls back to its poll
+cadence. A committed stop warms the pawn and emergency admission observations
+before waking the step. The step reuses them only at the same paused tick,
+identity and native generation, within its freshness bound and with no cache
+invalidation since the warm read; otherwise it reads them again. Every
 captured page wakes the scheduler step and the routine worker through their
 wake signals, which also reset the step backoff; a page whose events carry
 attempt outcomes names those actions so the worker reconciles them first, and

@@ -37,10 +37,9 @@ type ClockWorker struct {
 	// config.Wake alike, so the Worker and the step loop each drain their
 	// own pending evidence instead of racing for one channel token.
 	wake *WakeSignal
-	// pollWake ends the poll loop's cadence sleep when a step leaves a
-	// window running, so the held read starts with the window instead of
-	// up to a PollInterval later; pollHeld records whether the last read
-	// was already held, in which case the loop re-polls on its own.
+	// pollWake releases the local between-window wait after each step,
+	// and starts a running window's held poll without a cadence delay.
+	// pollHeld records whether the running loop already re-polls itself.
 	pollWake chan struct{}
 	pollHeld atomic.Bool
 }
@@ -169,10 +168,9 @@ func (w *ClockWorker) waitOrWake(delay time.Duration, wake <-chan struct{}) (wok
 // the read is a long poll bounded by PollWait, so a stop wakes the step as
 // soon as its event lands instead of at the next PollInterval, or, with
 // PollWait zero, an unheld read at the RunningPollInterval cadence;
-// otherwise the read returns at once and the loop keeps the PollInterval
-// cadence, which a step that leaves a window running cuts short (pollWake)
-// so the held read begins with the window. The read is never held under a
-// review, where it would queue ahead of the planners' reads. A call that
+// between windows the loop waits locally on scheduler completion (pollWake).
+// The native read is never held under a paused review, where it would queue
+// ahead of the planners' reads. A call that
 // waited (it returned no sooner than half of its wait) or that captured
 // evidence is followed by the next poll at once; a call that returned early
 // against a native build that ignores wait_ms falls back to the cadence.
@@ -212,19 +210,22 @@ func (w *ClockWorker) pollLoop() {
 			}
 			continue
 		}
+		// Step completion releases this wait immediately. The cadence is
+		// still a safety bound: a blocked step must not hide player input or
+		// an authority interruption from the independent poll loop.
 		if _, alive := w.waitOrWake(interval, w.pollWake); !alive {
 			return
 		}
 	}
 }
 
-// wakePoll ends the poll loop's current cadence sleep once a window is
-// running, so its next read is held from the window's start. A loop whose
+// wakePoll releases the between-window wait on every completed step, and
+// ends the cadence sleep when a held window starts. A running loop whose
 // last read was already held is left to its own cadence: it re-polls at
 // once after a wait, and a build that ignores wait_ms must not be spun by
 // every step.
 func (w *ClockWorker) wakePoll() {
-	if w.config.PollWait <= 0 || w.pollHeld.Load() || (w.held != nil && !w.held()) {
+	if (w.held == nil || w.held()) && (w.config.PollWait <= 0 || w.pollHeld.Load()) {
 		return
 	}
 	select {
