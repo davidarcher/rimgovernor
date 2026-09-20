@@ -64,6 +64,13 @@ type WorkerConfig struct {
 	// the trace of the step that admitted the window it ran in (#298).
 	// Nil starts a trace per worker step.
 	Trace func() telemetry.Trace
+	// Validity, when set, is the read validity of the scheduler's latest
+	// step (ClockScheduler.Validity, #624): each dispatch runs under it, so
+	// its boundaries judge their reads by age class (a dispatch
+	// precondition within one dispatch's reads at the window's pace, the
+	// cached emergency census within the step's) instead of the global
+	// drift. Nil leaves the dispatches on the compatibility shim.
+	Validity func() (domain.ReadValidity, bool)
 }
 
 // routineExecutableKind lists every action kind the worker (and, for a
@@ -357,6 +364,11 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 	defer done()
 	call, cancel := context.WithTimeout(call, w.config.StepTimeout)
 	defer cancel()
+	if w.config.Validity != nil {
+		if v, ok := w.config.Validity(); ok {
+			call = domain.WithReadValidity(call, v)
+		}
+	}
 	world, worldErr := w.readWorld(call)
 	if worldErr == nil {
 		worldErr = world.Validate()
@@ -542,8 +554,9 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 		if result.Progress.View().Action == v.Action {
 			after = result.Progress.View()
 		}
+		stale := !candidate.cleanup && workerHeldStale(after, result, err)
 		if result.NativeCalled {
-			workerDispatchRow(run, tally, candidate.view, after, running, err)
+			workerDispatchRow(run, tally, candidate.view, after, running, stale, err)
 			if receipt, known := after.Receipt.Value(); known && receipt == domain.ReceiptRefused && workerMapConsumingKind(candidate.kind) {
 				w.config.Store.RequestResync(facts.PlanningCells)
 			}
@@ -561,7 +574,6 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 		// the order's target (#288); the clock is not held for it, since
 		// every routine kind dispatches under the running window (#244). One
 		// retry per hold: a hold that survives it backs off as usual.
-		stale := !candidate.cleanup && workerHeldStale(after, result, err)
 		if stale && !wait.stale {
 			if w.focus == nil {
 				w.focus = map[domain.ActionID]WakeOutcome{}
@@ -657,12 +669,14 @@ func (w *Worker) previewCandidates(ctx context.Context, ordered []workerCandidat
 // left (accepted, refused, unknown; "-" when the write was not a dispatch),
 // whether the scheduler's window was running when the run began (#243),
 // and the error. `rimgovernor phases` sums them (bridge.DispatchSample).
-func workerDispatchRow(ctx context.Context, tally *bridge.ReadTally, before, after domain.ProgressView, running bool, err error) {
+func workerDispatchRow(ctx context.Context, tally *bridge.ReadTally, before, after domain.ProgressView, running, stale bool, err error) {
 	receipt := "-"
 	if v, known := after.Receipt.Value(); known && (after.Attempt != before.Attempt || !workerSameReceipt(before, after)) {
 		receipt = string(v)
 	}
-	extra := map[string]any{"action": string(after.Action), "attempt": after.Attempt, "stage": string(after.Stage), "receipt": receipt, "running": running}
+	// stale marks a run held on stale facts (workerHeldStale) so a run can
+	// count the holds the read bounds refused (#624).
+	extra := map[string]any{"action": string(after.Action), "attempt": after.Attempt, "stage": string(after.Stage), "receipt": receipt, "running": running, "stale": stale}
 	if err != nil {
 		extra["error"] = err.Error()
 	}

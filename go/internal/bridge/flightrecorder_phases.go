@@ -94,13 +94,15 @@ type StepSample struct {
 // DispatchSample aggregates the "worker_dispatch" rows the routine Worker
 // publishes for each run that reached native (#243): how many there were,
 // how many began while the scheduler's window was running (Live), how many
-// left a refused receipt (Refused, LiveRefused of those live), and the
+// left a refused receipt (Refused, LiveRefused of those live), how many
+// were held on stale facts before dispatch (StaleHolds, #624) and the
 // receipts by kind. RefusedFraction is Refused over Calls.
 type DispatchSample struct {
 	Calls       uint64            `json:"calls"`
 	Live        uint64            `json:"live"`
 	Refused     uint64            `json:"refused"`
 	LiveRefused uint64            `json:"live_refused"`
+	StaleHolds  uint64            `json:"stale_holds"`
 	Receipts    map[string]uint64 `json:"receipts,omitempty"`
 }
 
@@ -332,6 +334,9 @@ func SummarizePhases(records []TimelineRecord) PhaseSummary {
 			receipt, _ := row.Payload["receipt"].(string)
 			if running {
 				d.Live++
+			}
+			if stale, _ := row.Payload["stale"].(bool); stale {
+				d.StaleHolds++
 			}
 			if receipt == "refused" {
 				d.Refused++

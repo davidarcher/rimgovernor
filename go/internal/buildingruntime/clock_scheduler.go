@@ -300,6 +300,14 @@ type ClockScheduler struct {
 	// window, kept across stops so the next window starts with a drift
 	// (seedLiveDrift) instead of the stopped clock's zero.
 	pacePerSecond float64
+	// livePaceTicks is the pace the running window widens the step's
+	// bounds by (domain.ReadValidity.Pace): pacePerSecond while a window
+	// runs, zero under a stopped clock. Touched only under the player gate.
+	livePaceTicks float64
+	// validity is the read validity of the latest step whose scope was
+	// fixed (#624): what the Worker's dispatches under that step's window
+	// judge their reads by (Validity).
+	validity *atomic.Pointer[domain.ReadValidity]
 	// liveStepWall is the wall time of the last live step (StepLive): what
 	// a live planner wave costs under this process, measured against the
 	// pace (livePlanningPaced, #598). Touched only under the player gate.
@@ -356,7 +364,7 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	if config.Start.Policy == nil {
 		return nil, ErrControl
 	}
-	// The drift is process-wide state this scheduler owns (livePace,
+	// The shim drift is process-wide state this scheduler owns (livePace,
 	// seedLiveDrift): a new scheduler starts from the stopped clock's bound.
 	domain.SetLiveDrift(0)
 	if config.Routine != nil && config.Routine.player != player {
@@ -569,7 +577,7 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, err
 	}
 	config.Profile = inbox.Profile
-	scheduler := &ClockScheduler{player: player, session: session, native: native, config: config, clock: clock, pollGate: make(chan struct{}, 1), renewGate: make(chan struct{}, 1), facts: newClockFacts(config.Facts, config.Store), queue: newPlannerQueue(), running: new(atomic.Bool), manualAt: new(atomic.Int64), admissionWarm: new(atomic.Pointer[clockAdmissionWarm]), latched: newClockLatched(), late: &lateProposals{}, catalog: plannerCatalog}
+	scheduler := &ClockScheduler{player: player, session: session, native: native, config: config, clock: clock, pollGate: make(chan struct{}, 1), renewGate: make(chan struct{}, 1), facts: newClockFacts(config.Facts, config.Store), queue: newPlannerQueue(), running: new(atomic.Bool), manualAt: new(atomic.Int64), admissionWarm: new(atomic.Pointer[clockAdmissionWarm]), validity: new(atomic.Pointer[domain.ReadValidity]), latched: newClockLatched(), late: &lateProposals{}, catalog: plannerCatalog}
 	scheduler.queue.catalog = func() []plannerEntry { return scheduler.catalog }
 	scheduler.queue.configured = func(entry plannerEntry) bool { return entry.configured(&scheduler.config) }
 	if config.Routine != nil {
@@ -590,6 +598,45 @@ func clockDebug() bool {
 // authority: a stale true costs one held poll before the next step or page
 // clears it.
 func (s *ClockScheduler) WindowRunning() bool { return s.running.Load() }
+
+// Validity is the read validity of the latest step whose scope was fixed
+// (#624): the scope and tick its facts describe, the pace its bounds
+// widen by and the fact store's section versions then. The Worker carries
+// it on each dispatch's context; false before any step fixed one.
+func (s *ClockScheduler) Validity() (domain.ReadValidity, bool) {
+	v := s.validity.Load()
+	if v == nil {
+		return domain.ReadValidity{}, false
+	}
+	return *v, true
+}
+
+// readValidity fixes the step's validity once its scope, tick and pace
+// are known (#624) and publishes it for the Worker. The shim drift for
+// un-migrated callers follows the inventory bound of the same validity.
+func (s *ClockScheduler) readValidity(snapshot domain.GenerationSnapshot, tick int64) domain.ReadValidity {
+	v := domain.ValidityOf(snapshot, domain.Tick(tick))
+	v.Pace, v.Wall, v.Versions = s.livePaceTicks, s.config.MaxAge, s.facts.store.Versions()
+	s.validity.Store(&v)
+	s.setShimDrift(v.Drift(domain.AgeInventory))
+	return v
+}
+
+// drift is the ticks the running window's pace covers in the step's wall
+// (the inventory bound's widening): what a step expects the tick to have
+// moved by since its predecessor.
+func (s *ClockScheduler) drift() domain.Tick {
+	return domain.ReadValidity{Pace: s.livePaceTicks, Wall: s.config.MaxAge}.Drift(domain.AgeInventory)
+}
+
+// setShimDrift keeps domain.SetLiveDrift, the compatibility shim for
+// callers not yet carrying a validity, in step with the scheduler's pace.
+func (s *ClockScheduler) setShimDrift(drift domain.Tick) {
+	if drift != domain.LiveDrift() {
+		clockSchedulerLog("live drift %d -> %d ticks (pace %.0f ticks/s)", domain.LiveDrift(), drift, s.livePaceTicks)
+	}
+	domain.SetLiveDrift(drift)
+}
 
 // clockSchedulerLog is the clock trace (serve --debug): which Step()
 // branch was taken, what each planner decided, what a routine refused and
@@ -908,6 +955,10 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	reason.TickAdvanced = out.Retaken || !s.lastTickKnown || status.Context.GetTick() != s.lastTick
 	s.lastTick, s.lastTickKnown = status.Context.GetTick(), true
 	s.livePace(status, started)
+	// The step's scope, tick and pace are fixed: every read and decision
+	// below, and the Worker's dispatches under the window this step may
+	// admit, judge their facts against this validity (#624).
+	call = domain.WithReadValidity(call, s.readValidity(state.Snapshot, status.Context.GetTick()))
 	telemetry.ObserveTick(status.Context.GetTick())
 	if reason.Cause == StepTimer && s.fullStepDue() {
 		reason.Cause = StepFull
@@ -1334,9 +1385,14 @@ func (s *ClockScheduler) seedLiveDrift(startTick int64) {
 	if s.pacePerSecond <= 0 {
 		return
 	}
-	drift := domain.Tick(s.pacePerSecond * s.config.MaxAge.Seconds())
-	clockSchedulerLog("window started: live drift %d -> %d ticks (pace %.0f ticks/s)", domain.LiveDrift(), drift, s.pacePerSecond)
-	domain.SetLiveDrift(drift)
+	s.livePaceTicks = s.pacePerSecond
+	if v := s.validity.Load(); v != nil {
+		started := *v
+		started.Pace = s.livePaceTicks
+		s.validity.Store(&started)
+	}
+	clockSchedulerLog("window started: pace %.0f ticks/s widens the step's bounds", s.pacePerSecond)
+	s.setShimDrift(s.drift())
 }
 
 // nativeWorkBudget is the most ticks a step lends as a native-work window
@@ -1415,7 +1471,7 @@ func (s *ClockScheduler) runPlanners(call, epoch context.Context, out *ClockSche
 	if err != nil {
 		return nil, err
 	}
-	scope := proposalScope{Snapshot: s.session.State().Snapshot, Tick: domain.Tick(status.Context.GetTick()), Tolerance: domain.Tick(bridge.PlanningTickTolerance())}
+	scope, _ := domain.ReadValidityFrom(call)
 	var commitFailures []error
 	out.Proposals, commitFailures = arbiter.coordinate(call, budget, scope)
 	for _, outcome := range out.Proposals {
@@ -1517,29 +1573,26 @@ func (s *ClockScheduler) stepBudget(call context.Context, out *ClockSchedulerRes
 }
 
 // livePace measures the running window's pace from the previous step's
-// status tick and sets domain.SetLiveDrift to the ticks that pace covers
-// in MaxAge, the wall time a step's reads already have (#345): a live
-// step and the Worker's dispatches under it then read one plan however
-// fast the game runs. A stopped, stopping or never-started clock, or a
-// pace not yet measured, clears the drift so a paused step keeps the
-// tick-exact bound.
+// status tick: the pace the step's read validity widens its bounds by
+// (#345, #624), so a live step and the Worker's dispatches under it read
+// one plan however fast the game runs. A stopped, stopping or
+// never-started clock, or a pace not yet measured, leaves the pace at
+// zero so a paused step keeps the tick-exact bound.
 func (s *ClockScheduler) livePace(status *k.Status, readAt time.Time) {
 	tick := status.Context.GetTick()
-	drift := domain.Tick(0)
+	pace := 0.0
 	// The pace is measured under a running window and, the same way, under
 	// a stopped clock the player runs by hand (#601); only the window
-	// widens the drift.
+	// widens the bounds.
 	running := status.GetRunning() != nil
 	if (running || clockPlayerRunning(status)) && s.paceKnown && tick > s.paceTick && readAt.After(s.paceAt) {
 		s.pacePerSecond = float64(tick-s.paceTick) / readAt.Sub(s.paceAt).Seconds()
 		if running {
-			drift = domain.Tick(s.pacePerSecond * s.config.MaxAge.Seconds())
+			pace = s.pacePerSecond
 		}
 	}
-	if drift != domain.LiveDrift() {
-		clockSchedulerLog("live drift %d -> %d ticks (tick %d, %d ticks since the previous step)", domain.LiveDrift(), drift, tick, tick-s.paceTick)
-	}
-	domain.SetLiveDrift(drift)
+	s.livePaceTicks = pace
+	s.setShimDrift(s.drift())
 	s.paceTick, s.paceAt, s.paceKnown = tick, readAt, true
 }
 
@@ -1595,7 +1648,7 @@ func (s *ClockScheduler) previewSelection(reason StepReason) plannerSelectionRes
 	if reason.Cause == StepTimer && s.fullStepDue() {
 		reason.Cause = StepFull
 	}
-	return plannerSelection(reason, s.facts.kindOf, s.queue, s.lastTick+int64(domain.LiveDrift()))
+	return plannerSelection(reason, s.facts.kindOf, s.queue, s.lastTick+int64(s.drift()))
 }
 
 // livePlanningPaced reports whether the running window outruns a live
@@ -1652,7 +1705,7 @@ func (s *ClockScheduler) bundleRequest(reason StepReason) *o.BundleRequest {
 	request := &o.BundleRequest{ClockStatus: proto.Bool(true), Emergency: proto.Bool(true)}
 	if s.stepReviews(reason) {
 		request.ColonyFacts = proto.Bool(true)
-		tick := s.lastTick + int64(domain.LiveDrift())
+		tick := s.lastTick + int64(s.drift())
 		wanted := s.sectionsWanted(s.previewSelection(reason).pick)
 		population, research, pawns := bundleFamilies(s.facts.store, tick, s.lastTickKnown, wanted)
 		request.Population, request.Research, request.ColonistPawns = proto.Bool(population), proto.Bool(research), proto.Bool(pawns)

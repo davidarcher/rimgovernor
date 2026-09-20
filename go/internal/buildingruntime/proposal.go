@@ -9,6 +9,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/facts"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
@@ -79,8 +80,13 @@ type Proposal struct {
 	Claims   ResourceClaims
 	// ValidTick is the review tick the proposal was planned from.
 	ValidTick domain.Tick
-	Actions   []domain.Action
-	commit    func(context.Context) (domain.PlanID, RoutineBuildingReason, error)
+	// Versions is the fact store's version of each section the proposal's
+	// families cover when it was planned (proposalVersions, #624): the
+	// coordinator refuses the proposal, whatever its age, once the native
+	// invalidation stream has moved one.
+	Versions map[string]uint64
+	Actions  []domain.Action
+	commit   func(context.Context) (domain.PlanID, RoutineBuildingReason, error)
 }
 
 // ProposalOutcome is one proposal's fate on the step row: admitted with
@@ -120,36 +126,63 @@ const BuildingMethodWaiting RoutineBuildingReason = "waiting_on_claim"
 // runs, so nothing is written to the journal.
 const BuildingMethodExpired RoutineBuildingReason = "expired"
 
-// proposalScope is the step the coordinator commits under: the snapshot and
-// tick every proposal must still match. A proposal evaluated late, on an
-// earlier step's snapshot (#623), is revalidated against it before its
-// commit; the zero scope revalidates nothing.
-type proposalScope struct {
-	Snapshot domain.GenerationSnapshot
-	Tick     domain.Tick
-	// Tolerance is how far behind Tick a proposal's ValidTick may lie:
-	// the planning tick tolerance the admission itself allows the facts.
-	Tolerance domain.Tick
-}
+// proposalScope is the step the coordinator commits under: the read
+// validity the step fixed (#624), which every proposal must still hold
+// under. A proposal evaluated late, on an earlier step's facts (#623), is
+// revalidated against it before its commit; the zero validity revalidates
+// nothing.
+type proposalScope = domain.ReadValidity
 
-// stale names the first dependency of p that no longer holds under the
-// scope, empty when p is still valid.
-func (c proposalScope) stale(p *Proposal) string {
-	if c == (proposalScope{}) {
+// proposalStale names the first dependency of p that no longer holds
+// under scope, empty when p is still valid: the world and generation, the
+// plan revision, then each section version the proposal carries, then
+// the tick under the inventory class (a proposal is planned from the
+// review's colony state; its dispatch preconditions are revalidated
+// natively when its actions apply).
+func proposalStale(scope proposalScope, p *Proposal) string {
+	if !scope.Known() {
 		return ""
 	}
-	have, want := p.Snapshot, c.Snapshot
-	switch {
-	case have.Colony != want.Colony || have.Map != want.Map || have.Load != want.Load:
-		return fmt.Sprintf("scope %s/%d/%s, step is %s/%d/%s", have.Colony, have.Map, have.Load, want.Colony, want.Map, want.Load)
-	case have.Native != want.Native:
-		return fmt.Sprintf("native generation %d, step is %d", have.Native, want.Native)
-	case have.Plan != want.Plan || have.Revision != want.Revision:
-		return fmt.Sprintf("plan %s@%d, step is %s@%d", have.Plan, have.Revision, want.Plan, want.Revision)
-	case p.ValidTick > c.Tick || c.Tick-p.ValidTick > c.Tolerance:
-		return fmt.Sprintf("tick %d, step is at %d (tolerance %d)", p.ValidTick, c.Tick, c.Tolerance)
+	if stale := scope.Stale(domain.AgeInventory, domain.ReadObservation{Scope: domain.ScopeOf(p.Snapshot), Tick: p.ValidTick}); stale != "" {
+		return stale
+	}
+	if have := p.Snapshot; have.Plan != scope.Plan || have.Revision != scope.Revision {
+		return fmt.Sprintf("plan %s@%d, step is %s@%d", have.Plan, have.Revision, scope.Plan, scope.Revision)
+	}
+	for _, section := range sortedSections(p.Versions) {
+		if stale := scope.Stale(domain.AgeInventory, domain.ReadObservation{Scope: domain.ScopeOf(p.Snapshot), Tick: p.ValidTick, Section: section, Version: p.Versions[section]}); stale != "" {
+			return stale
+		}
 	}
 	return ""
+}
+
+func sortedSections(versions map[string]uint64) []string {
+	out := make([]string, 0, len(versions))
+	for section := range versions {
+		out = append(out, section)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// proposalVersions is the version of each section of families the
+// context's validity holds, for a Proposal planned under it; nil without
+// a validity.
+func proposalVersions(ctx context.Context, families []bridge.FactFamily) map[string]uint64 {
+	v, ok := domain.ReadValidityFrom(ctx)
+	if !ok || len(v.Versions) == 0 {
+		return nil
+	}
+	out := map[string]uint64{}
+	for _, family := range families {
+		for _, section := range facts.FamilySections(family) {
+			if version, tracked := v.Versions[string(section)]; tracked {
+				out[string(section)] = version
+			}
+		}
+	}
+	return out
 }
 
 // lateProposals carries the proposals that reached their step's arbiter
@@ -512,7 +545,7 @@ func (a *stepArbiter) coordinate(ctx context.Context, budget stepBudget, scope p
 	for _, arrival := range proposals {
 		p := arrival.result.Proposal
 		outcome := ProposalOutcome{Proposal: p.ID, Planner: arrival.planner, Goal: p.Goal}
-		if stale := scope.stale(p); stale != "" {
+		if stale := proposalStale(scope, p); stale != "" {
 			outcome.Stale, outcome.Reason = stale, BuildingMethodExpired
 			if arrival.settle != nil {
 				arrival.settle(outcome)

@@ -366,13 +366,41 @@ a late return writes nothing the step reads.
 
 Migrated planners (#622) return proposals, and the coordinator arbitrates
 them after the cutoff by `(priority, urgency, id)` against the step's claim
-index. Before a proposal commits it is revalidated against the step's scope
-(snapshot scope and native generation, plan revision, and the tick it was
-planned from within `bridge.PlanningTickTolerance()` of the step's): a
-proposal that reached its arbiter after the cutoff is carried to the next
-step's coordinator, where an expired one is reported `expired` with the
-stale dependency named (`ProposalOutcome.Stale`) and its commit never runs,
-so nothing reaches the journal. The row also carries the step's budgets
+index. Before a proposal commits it is revalidated against the step's read
+validity (`domain.ReadValidity`, #624: the world, load and native
+generation, the plan revision, the fact store's version of every section
+the proposal's families cover, and the tick it was planned from within the
+inventory bound): a proposal that reached its arbiter after the cutoff is
+carried to the next step's coordinator, where an expired one is reported
+`expired` with the stale dependency named (`ProposalOutcome.Stale`) and its
+commit never runs, so nothing reaches the journal.
+
+The validity replaces the process-global live drift (#345) as the bound a
+step's facts are judged by. `livePace` measures the running window's pace
+from the previous step's status tick; once the step's scope, tick and pace
+are fixed (`readValidity`) the validity rides the step context and is
+published for the Worker (`ClockScheduler.Validity`, carried on each
+dispatch by `WorkerConfig.Validity`). Each fact names its age class
+(`domain.AgeClass`): a stable fact (definitions) is never tick-bound and
+serves until the view is invalidated; an inventory fact (construction,
+bills, stock, the cached emergency census a dispatch pairs with its
+inspection) is fresh by section version where the invalidation stream
+moved one, else within `PlanningTickTolerance` plus the pace over the
+step's `MaxAge`; a dispatch precondition (the live re-read a dispatch
+boundary pairs with its inspection) is bound to the pace over one
+dispatch's reads (`domain.DispatchReadWall`, 250 ms), and the native
+operation revalidates it at application time, so a fresh census never
+certifies an earlier read. Section versions live on the fact store
+(`facts.Store.Versions`): each moves on an invalidation that names the
+section, whole or narrowed, on a whole-view invalidation (an event gap, an
+unattributed mutation) and on a scope change, never on a refresh at
+cadence. `domain.SetLiveDrift` remains a compatibility shim the scheduler
+keeps in step with the inventory bound for the freshness checks not yet
+carrying a validity (`Tick.FreshFor`, the fact caches' tolerances); a
+migrated check reads its bound from the context (`domain.FreshIn`,
+`domain.CoversIn`). The `worker_dispatch` flight row marks a run held on
+stale facts (`stale`), summarised as `stale_holds` and reported by
+`speedmatrix/plain` as `stale_facts_holds` per row. The row also carries the step's budgets
 (`budget.wall_ms`, `budget.native_ticks`, `budget.reads` when set, with
 `reads_over_budget` on an overrun) beside what it used (`reads`,
 `elapsed_ms`, `critical_wave_ms`, `native_work_ticks`).
@@ -566,12 +594,13 @@ the store when the held row is still fresh at the reading's tick under
 the section's cadence (`facts.Section.TickTolerance`: pawns and emergency
 at `PlanningTickTolerance`, rooms and population at
 `FactTickToleranceColony`, research at `FactTickToleranceResearch`, each
-widened by `LiveDrift`) and reads natively otherwise; the colony facts and
+widened by the shim `LiveDrift`, kept at the step's inventory drift) and
+reads natively otherwise; the colony facts and
 the emergency census are always read. A served section keeps its own
 `AsOf` and is not refiled (`RoutineSections.Served`), so `as_of_spread`
 shows what the review planned against. The step's bundle request leaves
 out a family the store holds fresh at the tick the step expects (the last
-status tick plus `LiveDrift`; `bundleFamilies`), so research and
+status tick plus the inventory drift; `bundleFamilies`), so research and
 population ride nearly no bundle and pawns ride only when the clock has
 moved. The one policy that needs a fresher read than its cadence is
 temperature: while a `ColdSnap`, `HeatWave` or `VolcanicWinter` condition

@@ -289,7 +289,7 @@ func (r *RoutineSecureSuppliesPlanner) propose(call, epoch context.Context) (Pla
 	if err != nil {
 		return PlanResult{}, err
 	}
-	proposal := r.proposal(id, goal, state, review.Tick, []domain.Action{action}, ResourceClaims{Pawns: []domain.PawnID{pawn}, Entities: []string{"haul-item:" + item.ID}})
+	proposal := r.proposal(call, id, goal, state, review.Tick, []domain.Action{action}, ResourceClaims{Pawns: []domain.PawnID{pawn}, Entities: []string{"haul-item:" + item.ID}})
 	proposal.commit = func(ctx context.Context) (domain.PlanID, RoutineBuildingReason, error) {
 		if err := p.current(ctx, epoch); err != nil {
 			return "", "", err
@@ -308,8 +308,8 @@ func (r *RoutineSecureSuppliesPlanner) propose(call, epoch context.Context) (Pla
 
 // proposal is the planner's Proposal for plan id under goal: the wave's
 // foothold priority, the goal's own urgency, and the claims given.
-func (r *RoutineSecureSuppliesPlanner) proposal(id domain.PlanID, goal store.GoalState, state ControlState, tick domain.Tick, actions []domain.Action, claims ResourceClaims) *Proposal {
-	return &Proposal{ID: "secureSupplies/" + string(id), Planner: "secureSupplies", Goal: goal.Goal.ID, Priority: plannerFoothold, Urgency: goal.Goal.Priority, Snapshot: state.Snapshot, Facts: factsBuilding, Claims: claims, ValidTick: tick, Actions: actions}
+func (r *RoutineSecureSuppliesPlanner) proposal(ctx context.Context, id domain.PlanID, goal store.GoalState, state ControlState, tick domain.Tick, actions []domain.Action, claims ResourceClaims) *Proposal {
+	return &Proposal{ID: "secureSupplies/" + string(id), Planner: "secureSupplies", Goal: goal.Goal.ID, Priority: plannerFoothold, Urgency: goal.Goal.Priority, Snapshot: state.Snapshot, Facts: factsBuilding, Claims: claims, ValidTick: tick, Versions: proposalVersions(ctx, factsBuilding), Actions: actions}
 }
 
 // previewClaims sums the previews' known costs into quantity claims.
@@ -472,7 +472,7 @@ func (r *RoutineSecureSuppliesPlanner) coveredStorageFallback(call, epoch contex
 	if err != nil {
 		return PlanResult{}, err
 	}
-	proposal := r.proposal(id, goal, state, projection.Identity.Tick, []domain.Action{action}, previewClaims([]policy.Preview{preview}))
+	proposal := r.proposal(call, id, goal, state, projection.Identity.Tick, []domain.Action{action}, previewClaims([]policy.Preview{preview}))
 	proposal.commit = r.admitBuilding(epoch, state, started, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: projection.Identity.Tick, Bounds: domain.Known(projection.Bounds), Stock: policy.StockObservation{Snapshot: snapshot, Tick: projection.Identity.Tick}, Rules: r.reviewer.rules, Previews: []policy.Preview{preview}, Purpose: policy.Routine})
 	return PlanResult{Kind: PlanProposed, Proposal: proposal, Reason: BuildingMethodAdmitted}, nil
 }
@@ -622,7 +622,7 @@ func (r *RoutineSecureSuppliesPlanner) supplyRoomFallback(call, epoch context.Co
 		if err != nil {
 			return PlanResult{}, err
 		}
-		proposal := r.proposal(planID, goal, state, projection.Identity.Tick, actions, previewClaims(previews))
+		proposal := r.proposal(call, planID, goal, state, projection.Identity.Tick, actions, previewClaims(previews))
 		proposal.commit = r.admitBuilding(epoch, state, started, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: supplyRoomShellMethod, Plan: plan, Current: snapshot, Tick: projection.Identity.Tick, Bounds: domain.Known(projection.Bounds), Stock: stock, Rules: r.reviewer.rules, Previews: previews, Purpose: policy.Routine})
 		return PlanResult{Kind: PlanProposed, Proposal: proposal, Reason: BuildingMethodAdmitted}, nil
 	}

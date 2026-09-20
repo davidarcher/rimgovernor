@@ -178,6 +178,12 @@ type Store struct {
 	// resync names the incremental sections whose next refresh must be a
 	// full read (#357).
 	resync map[Section]bool
+	// versions counts, per section, the invalidations the native
+	// fact-change stream has named it in (an ObservationInvalidated row, an
+	// operation outcome, a scope change): the per-section version a
+	// domain.ReadValidity carries (#624). A refresh at cadence does not
+	// move it; only evidence that the section changed does.
+	versions map[Section]uint64
 }
 
 // storeNow stamps rows; tests substitute it.
@@ -198,6 +204,7 @@ func Put[T any](s *Store, scope Scope, section Section, held Held[T]) {
 	if scope != s.scope {
 		s.rows = map[Section]row{}
 		s.scope = scope
+		s.bumpAll()
 	}
 	s.rows[section] = row{value: held.Value, asOf: held.AsOf, complete: held.Complete, source: held.Source, storedAt: storeNow(), region: held.Region}
 }
@@ -305,9 +312,41 @@ func (s *Store) Invalidate(sections ...Section) {
 	}
 }
 
+// bump moves a section's version: the native said it changed.
+func (s *Store) bump(section Section) {
+	if s.versions == nil {
+		s.versions = map[Section]uint64{}
+	}
+	s.versions[section]++
+}
+
+// bumpAll moves every section's version (a scope change, a whole-view
+// invalidation).
+func (s *Store) bumpAll() {
+	for _, section := range Sections() {
+		s.bump(section)
+	}
+}
+
+// Versions is each section's version, keyed by name, for a
+// domain.ReadValidity; a section never invalidated is at zero.
+func (s *Store) Versions() map[string]uint64 {
+	if s == nil {
+		return nil
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := make(map[string]uint64, len(Sections()))
+	for _, section := range Sections() {
+		out[string(section)] = s.versions[section]
+	}
+	return out
+}
+
 // drop forgets a section, or marks an incremental one wholly stale so its
 // next refresh is a delta over the value kept.
 func (s *Store) drop(section Section) {
+	s.bump(section)
 	if !section.Incremental() {
 		delete(s.rows, section)
 		return
@@ -352,12 +391,9 @@ func (s *Store) InvalidateFamily(families ...bridge.FactFamily) {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for section := range s.rows {
-		for _, family := range families {
-			if section.Family() == family {
-				s.drop(section)
-				break
-			}
+	for _, family := range families {
+		for _, section := range FamilySections(family) {
+			s.drop(section)
 		}
 	}
 }
@@ -483,6 +519,7 @@ func (s *Store) Apply(inv Invalidation) {
 			r.stale.All = true
 		}
 		s.rows[section] = r
+		s.bump(section)
 	}
 }
 
@@ -504,7 +541,9 @@ func containsID(ids []string, id string) bool {
 	return false
 }
 
-// InvalidateAll drops every section; the scope is kept.
+// InvalidateAll drops every section and moves every version (a held or
+// unheld section alike: an event gap or an unattributed mutation says
+// nothing is known to have stayed the same); the scope is kept.
 func (s *Store) InvalidateAll() {
 	if s == nil {
 		return
@@ -514,6 +553,7 @@ func (s *Store) InvalidateAll() {
 	for section := range s.rows {
 		s.drop(section)
 	}
+	s.bumpAll()
 }
 
 // Status lists the held sections in Sections order.

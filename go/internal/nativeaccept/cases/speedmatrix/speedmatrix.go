@@ -648,6 +648,8 @@ func caseMetrics(c na.SpeedCase, phases bridge.PhaseSummary, stops na.StopSummar
 		// the fraction native refused.
 		"step_reasons": phases.Steps.Reasons, "dispatches": phases.Dispatch.Calls, "live_dispatches": phases.Dispatch.Live,
 		"refused_dispatches": phases.Dispatch.Refused, "live_refused_dispatches": phases.Dispatch.LiveRefused, "refused_fraction": phases.Dispatch.RefusedFraction(),
+		// Dispatches held on stale facts before native ran them (#624).
+		"stale_facts_holds": phases.Dispatch.StaleHolds,
 	}
 }
 

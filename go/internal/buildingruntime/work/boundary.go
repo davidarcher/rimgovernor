@@ -95,12 +95,13 @@ func (b *WorkBoundary) InspectWork(ctx context.Context, t executor.Target) (exec
 	if _, err = boundary.Context(emergency.Context, t.Snapshot); err != nil {
 		return out, err
 	}
-	// The reads need only be ordered within the planning tolerance, not
+	// The reads need only be ordered within the dispatch's own bound, not
 	// simultaneous: the before-token binds the write to the settings the
 	// read listed, and the emergency read may come from the fact cache a
-	// bounded advance behind the work read, the step's first
-	// (domain.Tick.Covers, #244).
-	if !domain.Tick(v.Context.GetTick()).FreshFor(tick) || !domain.Tick(emergency.Context.GetTick()).Covers(tick) {
+	// bounded advance behind the work read, the step's first, under the
+	// step's inventory bound (domain.CoversIn, #244, #624); its freshness
+	// never certifies the preview.
+	if !domain.FreshIn(ctx, domain.AgeDispatch, domain.Tick(v.Context.GetTick()), tick) || !domain.CoversIn(ctx, domain.AgeInventory, domain.Tick(emergency.Context.GetTick()), tick) {
 		return out, executor.ErrHeld
 	}
 	tick = domain.Tick(v.Context.GetTick())

@@ -107,7 +107,7 @@ func (b *MineAcquisitionBoundary) InspectAcquisition(ctx context.Context, target
 	// The three reads may straddle ticks under a running clock (#243); the
 	// preview's tick anchors the admission and the others must be fresh for
 	// it.
-	if !domain.Tick(v.Context.GetTick()).FreshFor(domain.Tick(read.Context.GetTick())) || !domain.Tick(emergency.Context.GetTick()).Covers(domain.Tick(read.Context.GetTick())) {
+	if !domain.FreshIn(ctx, domain.AgeDispatch, domain.Tick(v.Context.GetTick()), domain.Tick(read.Context.GetTick())) || !domain.CoversIn(ctx, domain.AgeInventory, domain.Tick(emergency.Context.GetTick()), domain.Tick(read.Context.GetTick())) {
 		return out, executor.ErrHeld
 	}
 	out.Current, out.Tick, out.Acquisition, out.SnapshotToken, out.Accepted = current, domain.Tick(v.Context.GetTick()), acquisition, selected.Token, v.GetAccepted()

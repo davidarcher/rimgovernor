@@ -941,19 +941,20 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 	var sections *factsstore.Store
 	var advanced, windowRunning = func() {}, func() bool { return false }
 	var stepTrace func() telemetry.Trace
+	var validity func() (domain.ReadValidity, bool)
 	if config.clockControl {
 		sections = factsstore.NewStore()
 		clockWorker, err := startServiceClock(lifetime, player, session, client.clockReads, database, config, serviceClockTimeouts(callTimeout), wake, facts, sections)
 		if err != nil {
 			return err
 		}
-		advanced, windowRunning, stepTrace = clockWorker.Nudge, clockWorker.WindowRunning, clockWorker.Trace
+		advanced, windowRunning, stepTrace, validity = clockWorker.Nudge, clockWorker.WindowRunning, clockWorker.Trace, clockWorker.Validity
 	}
 	breakSource, _ := client.reads.(buildingruntime.BreakResponseSource)
 	previews, _ := client.native.(buildingruntime.BuildingPreviewSource)
 	worker, err := buildingruntime.NewWorker(lifetime, buildingruntime.WorkerConfig{BreakSource: breakSource, Previews: previews, RoutineMethods: config.routineMethods,
 		StepInterval: time.Second, MaxBackoff: 10 * time.Second, StepTimeout: min(config.bridge.Timeout, 8*time.Second),
-		RenewInterval: 5 * time.Second, RenewTimeout: 5 * time.Second, Wake: wake, Advanced: advanced, Facts: facts, Store: sections, WindowRunning: windowRunning, Trace: stepTrace,
+		RenewInterval: 5 * time.Second, RenewTimeout: 5 * time.Second, Wake: wake, Advanced: advanced, Facts: facts, Store: sections, WindowRunning: windowRunning, Trace: stepTrace, Validity: validity,
 	}, player, session)
 	if err != nil {
 		return err

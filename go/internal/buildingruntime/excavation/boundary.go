@@ -101,7 +101,7 @@ func (b *ExcavationBoundary) InspectExcavation(ctx context.Context, target execu
 		// The reads may straddle ticks under a running clock (#244): the
 		// site read anchors the admission and the preview must be fresh
 		// for it.
-		if !domain.Tick(v.Context.GetTick()).FreshFor(out.Tick) {
+		if !domain.FreshIn(ctx, domain.AgeDispatch, domain.Tick(v.Context.GetTick()), out.Tick) {
 			return out, executor.ErrHeld
 		}
 		out.SnapshotToken = token

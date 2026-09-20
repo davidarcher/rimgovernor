@@ -28,18 +28,17 @@ type Tick int64
 // one at Fast (180 ticks/s) crosses it in under two seconds.
 const PlanningTickTolerance Tick = 250
 
-// liveDrift widens the tolerance while an owned clock window runs (#345):
-// the ticks the window's observed pace covers in the wall time a step's
-// reads already have (the scheduler's MaxAge). A step under a running
-// window reads at several ticks by construction, and at boosted Ultrafast
-// one bridge round trip alone advances the game past
-// PlanningTickTolerance; the drift keeps such a step's reads one plan
-// without a per-speed tolerance at every site. It is zero while the clock
-// is stopped, so a paused step keeps the tick-exact bound.
+// liveDrift is the compatibility shim for callers not yet migrated to a
+// ReadValidity on their decision context (#624): the widening the
+// scheduler measured for the running window (#345), applied by
+// Tick.FreshFor and the fact caches' tolerances. A migrated caller reads
+// its bound from the context (FreshIn, CoversIn) by age class instead.
 var liveDrift atomic.Int64
 
-// SetLiveDrift sets the widening the scheduler measured for the running
-// window; zero (a stopped clock, an unknown pace) restores the bound.
+// SetLiveDrift sets the shim's widening; zero (a stopped clock, an
+// unknown pace) restores the tick-exact bound. The scheduler keeps it in
+// step with the inventory drift of the validity it publishes; it is
+// removed once no un-migrated caller of Tick.FreshFor remains.
 func SetLiveDrift(ticks Tick) {
 	if ticks < 0 {
 		ticks = 0
@@ -47,13 +46,14 @@ func SetLiveDrift(ticks Tick) {
 	liveDrift.Store(int64(ticks))
 }
 
-// LiveDrift is the widening in force.
+// LiveDrift is the shim's widening in force.
 func LiveDrift() Tick { return Tick(liveDrift.Load()) }
 
 // FreshFor reports whether an observation at t still describes anchor, the
 // tick a step's facts are bound to: never earlier than the anchor (a tick
 // rewind is another world) and past it by no more than
-// PlanningTickTolerance plus the LiveDrift of a running window.
+// PlanningTickTolerance plus the shim's LiveDrift. A caller with a
+// decision context uses FreshIn, which judges by age class.
 func (t Tick) FreshFor(anchor Tick) bool {
 	return t >= anchor && t-anchor <= PlanningTickTolerance+LiveDrift()
 }

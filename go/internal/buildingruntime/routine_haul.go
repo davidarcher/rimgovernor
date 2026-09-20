@@ -278,7 +278,7 @@ func (r *RoutineHaulPlanner) propose(call, epoch context.Context) (PlanResult, e
 		return PlanResult{}, err
 	}
 	proposal := &Proposal{ID: "haul/" + string(id), Planner: "haul", Goal: goal.Goal.ID, Priority: plannerMaintenance, Urgency: goal.Goal.Priority, Snapshot: state.Snapshot, Facts: factsColony,
-		Claims: ResourceClaims{Pawns: []domain.PawnID{pawn}, Entities: []string{"haul-item:" + item.ID}}, ValidTick: review.Tick, Actions: []domain.Action{action}}
+		Claims: ResourceClaims{Pawns: []domain.PawnID{pawn}, Entities: []string{"haul-item:" + item.ID}}, ValidTick: review.Tick, Versions: proposalVersions(call, factsColony), Actions: []domain.Action{action}}
 	proposal.commit = func(ctx context.Context) (domain.PlanID, RoutineBuildingReason, error) {
 		if err := p.current(ctx, epoch); err != nil {
 			return "", "", err

@@ -32,6 +32,7 @@ type ClockWorker struct {
 	// config.PollWait; nil holds whenever PollWait is set.
 	held       func() bool
 	trace      func() telemetry.Trace
+	validity   func() (domain.ReadValidity, bool)
 	renew      func(context.Context) (ClockRenewResult, error)
 	step       func(context.Context, StepReason) (ClockSchedulerResult, error)
 	stopParent func() bool
@@ -71,7 +72,7 @@ func NewClockWorker(ctx context.Context, scheduler *ClockScheduler, nativeEvents
 		return nil, ErrControl
 	}
 	lifetime, cancel := context.WithCancel(ctx)
-	w := &ClockWorker{ctx: lifetime, cancel: cancel, config: config, done: make(chan struct{}), ready: make(chan struct{}), stopGate: make(chan struct{}, 1), disable: scheduler.session.disableClockWorker, cleanup: scheduler.session.CleanupClock, step: scheduler.StepWithReason, renew: scheduler.RenewEpoch, held: scheduler.WindowRunning, trace: scheduler.Trace, wake: NewWakeSignal(), pollWake: make(chan struct{}, 1)}
+	w := &ClockWorker{ctx: lifetime, cancel: cancel, config: config, done: make(chan struct{}), ready: make(chan struct{}), stopGate: make(chan struct{}, 1), disable: scheduler.session.disableClockWorker, cleanup: scheduler.session.CleanupClock, step: scheduler.StepWithReason, renew: scheduler.RenewEpoch, held: scheduler.WindowRunning, trace: scheduler.Trace, validity: scheduler.Validity, wake: NewWakeSignal(), pollWake: make(chan struct{}, 1)}
 	w.poll = func(ctx context.Context, wait time.Duration) (ClockPollResult, error) {
 		return scheduler.PollEvents(ctx, nativeEvents, config.PageLimit, wait)
 	}
@@ -150,6 +151,15 @@ func (w *ClockWorker) WindowRunning() bool { return w.held != nil && w.held() }
 
 // Trace is the trace of the scheduler's latest step (ClockScheduler.Trace).
 func (w *ClockWorker) Trace() telemetry.Trace { return w.trace() }
+
+// Validity is the read validity of the scheduler's latest step
+// (ClockScheduler.Validity, #624).
+func (w *ClockWorker) Validity() (domain.ReadValidity, bool) {
+	if w.validity == nil {
+		return domain.ReadValidity{}, false
+	}
+	return w.validity()
+}
 
 // waitOrWake sleeps for delay unless the wake signal fires first. It reports
 // whether the wake fired and whether the worker is still alive.
@@ -312,7 +322,7 @@ func (w *ClockWorker) stepLoop() {
 	case <-w.ready:
 	}
 	// No step runs after the loop, so no window of this scheduler's is
-	// running: the drift it seeded or measured ends with it.
+	// running: the shim drift it seeded or measured ends with it.
 	defer domain.SetLiveDrift(0)
 	delay := w.config.StepInterval
 	var previous clockStepKey
