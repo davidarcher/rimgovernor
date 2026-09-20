@@ -53,3 +53,24 @@ func layoutProtected(facts observation.ColonyProjection, protected []domain.Cell
 	}
 	return out
 }
+
+// layoutAlignment returns the colony grid and placement alignment weight
+// the site searches score against (#607): the grid stays unknown and the
+// weight zero at Camp, when the tier is unknown or when no grid is known,
+// so those searches choose exactly as before.
+func layoutAlignment(facts observation.ColonyProjection) (domain.Fact[policy.ColonyGrid], float64) {
+	tier, tk := facts.BuildTier.Value()
+	grid, gk := facts.ColonyGrid.Value()
+	if !tk || !gk || tier < policy.BuildTierMasonry {
+		return domain.Unknown[policy.ColonyGrid](), 0
+	}
+	return domain.Known(grid), policy.DefaultPlacementAlignment(tier)
+}
+
+// layoutFarmWeights are the farm planner's weights for the projection's
+// build tier (#607): the default weights at Camp or an unknown tier, the
+// alignment charge above.
+func layoutFarmWeights(facts observation.ColonyProjection) policy.FarmSiteWeights {
+	tier, _ := facts.BuildTier.Value()
+	return policy.FarmSiteWeightsFor(tier)
+}

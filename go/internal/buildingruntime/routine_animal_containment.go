@@ -452,7 +452,9 @@ func (r *RoutineAnimalContainmentPlanner) placeMarker(call, epoch context.Contex
 	snapshot.Plan = planID
 	snapshot.Revision = 1
 	center := domain.Cell{X: room.X + 1, Z: room.Z + 1}
-	search, err := policy.NewPlacementSearch(policy.PlacementSearchRequest{Snapshot: snapshot, Tick: facts.Identity.Tick, Bounds: facts.Bounds, Center: center, Cells: cells, Protected: layoutProtected(facts, protected), Environment: policy.PlacementAnywhere, Radius: 4, Limit: 64})
+	markerSearch := policy.PlacementSearchRequest{Snapshot: snapshot, Tick: facts.Identity.Tick, Bounds: facts.Bounds, Center: center, Cells: cells, Protected: layoutProtected(facts, protected), Environment: policy.PlacementAnywhere, Radius: 4, Limit: 64}
+	markerSearch.Grid, markerSearch.Alignment = layoutAlignment(facts)
+	search, err := policy.NewPlacementSearch(markerSearch)
 	if err != nil {
 		return RoutineAnimalContainmentResult{}, err
 	}

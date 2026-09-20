@@ -37,12 +37,45 @@ type FarmSiteWeights struct {
 	// Blight charges each edge shared with another field; Firebreak credits
 	// an intervening roofed empty cell or impassable occupied cell.
 	Blight, Firebreak float64
+	// Alignment is a fixed charge per corner cell the patch sits off the
+	// colony grid (#607); it applies only when the request carries a grid.
+	Alignment float64
 }
 
 // DefaultFarmSiteWeights make rich soil (+40% yield) worth about 27 extra
-// walked steps and a separate patch cost half a cell's output.
+// walked steps and a separate patch cost half a cell's output. The
+// alignment charge (FarmSiteWeightsFor) is zero at Camp.
 func DefaultFarmSiteWeights() FarmSiteWeights {
 	return FarmSiteWeights{Travel: 0.015, Hauling: 0.005, Fragment: 0.5, Perimeter: 0.04, Contiguity: 0.1, Blight: .8, Firebreak: .1}
+}
+
+// FarmSiteWeightsFor are the default weights with the alignment charge for
+// a build tier (#607): zero at Camp, and above it a charge that makes one
+// corner cell of grid error on a 4x4 patch worth about 1.5 walked steps
+// (travel and hauling together) for every cell of the patch, so a patch on a
+// grid intersection 8 steps further out beats a 4x4 six cells off the grid,
+// while one a whole module (16 steps) further out does not.
+func FarmSiteWeightsFor(tier BuildTier) FarmSiteWeights {
+	w := DefaultFarmSiteWeights()
+	if tier >= BuildTierMasonry {
+		w.Alignment = 0.5
+	}
+	return w
+}
+
+// DefaultPlacementAlignment is the placement search's alignment weight for
+// a build tier (#607): zero at Camp, and above it one corner cell of grid
+// error is worth one cell of distance. Moving a footprint one cell toward a
+// grid line removes one cell of error, so the nearest intersection wins
+// whenever its footprint is free (a diagonal step removes two cells of
+// error for 1.41 of distance; along an axis the tie falls to the nearer
+// site), while the next intersection along, a whole module (16 cells)
+// further out, never beats a nearby off-grid site.
+func DefaultPlacementAlignment(tier BuildTier) float64 {
+	if tier < BuildTierMasonry {
+		return 0
+	}
+	return 1
 }
 
 type FarmSiteRequest struct {
@@ -58,6 +91,9 @@ type FarmSiteRequest struct {
 	Needed       int
 	StrictTarget bool
 	Weights      FarmSiteWeights
+	// Grid is the colony grid the alignment term measures against (#607);
+	// unknown, no patch pays it.
+	Grid domain.Fact[ColonyGrid]
 }
 
 type FarmSiteTerm struct {
@@ -125,7 +161,7 @@ func PlanFarmSites(r FarmSiteRequest) FarmSitePlan {
 	if r.Needed <= 0 || r.Needed > 65536 || len(r.Cells) > 65536 || len(r.Protected) > 65536 || len(r.Zones) > 4096 || r.Bounds.Width <= 0 || r.Bounds.Height <= 0 || r.Bounds.Width > 4096 || r.Bounds.Height > 4096 || !mk || !fieldPositive(minimum) || !sk || !foodNumber(sensitivity) || !dk || !fieldPositive(days) || !yk || !fieldPositive(yield) {
 		return FarmSitePlan{}
 	}
-	for _, v := range []float64{w.Travel, w.Hauling, w.Fragment, w.Perimeter, w.Contiguity, w.Blight, w.Firebreak} {
+	for _, v := range []float64{w.Travel, w.Hauling, w.Fragment, w.Perimeter, w.Contiguity, w.Blight, w.Firebreak, w.Alignment} {
 		if !foodNumber(v) || v < 0 {
 			return FarmSitePlan{}
 		}
@@ -198,6 +234,8 @@ func PlanFarmSites(r FarmSiteRequest) FarmSitePlan {
 	if !fieldPositive(unit) {
 		return FarmSitePlan{}
 	}
+	grid, aligned := r.Grid.Value()
+	aligned = aligned && grid.Valid() && w.Alignment > 0
 	fields := map[string]bool{}
 	for _, zone := range r.Zones {
 		fields[zone.ID] = zone.ID != ""
@@ -255,6 +293,13 @@ func PlanFarmSites(r FarmSiteRequest) FarmSitePlan {
 		n := float64(len(cells))
 		adjacent := adjacentZone(patch)
 		terms := []FarmSiteTerm{{"yield", reward}, {"travel", -w.Travel * unit * walk}, {"hauling", -w.Hauling * unit * carry}, {"perimeter", -w.Perimeter * unit * float64(2*(patch.Width+patch.Height))}}
+		if aligned {
+			alignment := 0.0
+			if e := grid.CornerError(patch); e > 0 {
+				alignment = -w.Alignment * unit * float64(e)
+			}
+			terms = append(terms, FarmSiteTerm{"alignment", alignment})
+		}
 		terms = append(terms, FarmSiteTerm{"blight", -w.Blight * unit * float64(shared)}, FarmSiteTerm{"firebreak", w.Firebreak * unit * float64(firebreak)})
 		if adjacent == "" {
 			terms = append(terms, FarmSiteTerm{"fragment", -w.Fragment * unit})

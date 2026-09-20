@@ -915,6 +915,7 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 		}
 	}
 	searchRequest := policy.PlacementSearchRequest{Snapshot: snapshot, Tick: facts.Identity.Tick, Bounds: facts.Bounds, Center: facts.Center, Cells: cells, Protected: layoutProtected(facts, append(append([]domain.Cell(nil), protected...), policy.DoorwayAisles(facts.Bounds, facts.Cells)...)), Environment: policy.PlacementIndoors, Radius: 22, Limit: 64}
+	searchRequest.Grid, searchRequest.Alignment = layoutAlignment(facts)
 	if r.power != nil {
 		searchRequest.Center, searchRequest.Radius = r.power.Center, 6
 		if r.definition == policy.WindTurbineDefinition {
@@ -942,8 +943,39 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 	if r.workshop != nil {
 		rotations = []domain.Rotation{domain.North, domain.East, domain.South, domain.West}
 	}
+	// Candidates come nearest first, and a footprint's score is its distance
+	// plus a non-negative alignment term, so once the next candidate's
+	// distance reaches the best valid score no later candidate can beat it:
+	// the best is committed and the previews stop there. Without a grid
+	// every valid preview commits at once, as before.
+	var pending *placementChoice
+	commit := func() error {
+		selected = append(selected, pending.choice)
+		if err := mergeRoutineStock(&stock, pending.preview.Stock, len(selected) == 1); err != nil {
+			return err
+		}
+		footprint, _ := pending.choice.Footprint.Value()
+		for _, c := range footprint {
+			usedCells[c] = true
+		}
+		if searchRequest.Alignment > 0 {
+			sc := pending.score
+			clockSchedulerLog("%s: %s site %d,%d distance=%.2f corner_error=%d alignment=%.2f score=%.2f", r.goal, r.definition, sc.Anchor.X, sc.Anchor.Z, sc.Distance, sc.CornerError, sc.Alignment, sc.Score)
+		}
+		pending = nil
+		return nil
+	}
 	for i, c := range search.Candidates() {
+		if pending != nil && search.Score(c, nil).Distance >= pending.score.Score {
+			if err := commit(); err != nil {
+				return nil, policy.StockObservation{}, "", err
+			}
+			if int64(len(selected)) == missing {
+				break
+			}
+		}
 		var choice policy.Preview
+		var score policy.PlacementScore
 		var preview bridge.BuildingPreview
 		ok := false
 		for _, rotation := range rotations {
@@ -990,7 +1022,7 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 					continue
 				}
 			}
-			choice, ok, err = search.Select(r.definition, r.stuff, []policy.Preview{preview.Preview})
+			choice, score, ok, err = search.SelectScored(r.definition, r.stuff, []policy.Preview{preview.Preview})
 			if err != nil {
 				return nil, policy.StockObservation{}, "", err
 			}
@@ -1009,15 +1041,13 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 		if overlaps {
 			continue
 		}
-		selected = append(selected, choice)
-		if err := mergeRoutineStock(&stock, preview.Stock, len(selected) == 1); err != nil {
+		if pending == nil || score.Score < pending.score.Score {
+			pending = &placementChoice{choice: choice, preview: preview, score: score}
+		}
+	}
+	if pending != nil && int64(len(selected)) < missing {
+		if err := commit(); err != nil {
 			return nil, policy.StockObservation{}, "", err
-		}
-		for _, c := range footprint {
-			usedCells[c] = true
-		}
-		if int64(len(selected)) == missing {
-			break
 		}
 	}
 	if int64(len(selected)) != missing {
@@ -1133,4 +1163,12 @@ func routineBuildingCompleted(progress []domain.Progress) bool {
 		}
 	}
 	return true
+}
+
+// placementChoice is a valid previewed footprint held while nearer-scored
+// candidates are still possible.
+type placementChoice struct {
+	choice  policy.Preview
+	preview bridge.BuildingPreview
+	score   policy.PlacementScore
 }
