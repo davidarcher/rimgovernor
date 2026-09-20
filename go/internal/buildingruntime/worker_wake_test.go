@@ -91,11 +91,23 @@ func TestWorkerWakeStepsConsecutivelyWhileFocused(t *testing.T) {
 	second := workerPending(t, w, "two", true)
 	ran := make(chan domain.ActionID, 8)
 	f.run = func(ctx context.Context, p domain.PlanID, a domain.ActionID) (executor.Result, error) {
-		ran <- a
 		plan, err := db.LoadPlan(ctx, p)
-		return executor.Result{Progress: plan.Progress[0]}, err
+		if err != nil {
+			return executor.Result{}, err
+		}
+		ran <- a
+		return executor.Result{Progress: plan.Progress[0]}, nil
 	}
-	go w.steps()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		w.steps()
+	}()
+	// Stop and join before the fixture closes its database, even on failure.
+	defer func() {
+		w.cancel()
+		<-done
+	}()
 	next := func() domain.ActionID {
 		select {
 		case a := <-ran:
@@ -141,7 +153,6 @@ func TestWorkerAdvanceStepsAgainAtOnce(t *testing.T) {
 	second := workerPending(t, w, "two", true)
 	ran := make(chan domain.ActionID, 8)
 	f.run = func(ctx context.Context, p domain.PlanID, a domain.ActionID) (executor.Result, error) {
-		ran <- a
 		plan, err := db.LoadPlan(ctx, p)
 		if err != nil {
 			return executor.Result{}, err
@@ -149,11 +160,22 @@ func TestWorkerAdvanceStepsAgainAtOnce(t *testing.T) {
 		// The run settles the dispatched action: a stage change.
 		if v := plan.Progress[0].View(); v.Stage == domain.Dispatched {
 			progress, err := db.RecordReceipt(ctx, p, a, v.Attempt, domain.ReceiptRefused)
+			ran <- a
 			return executor.Result{Progress: progress}, err
 		}
+		ran <- a
 		return executor.Result{Progress: plan.Progress[0]}, nil
 	}
-	go w.steps()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		w.steps()
+	}()
+	// Stop and join before the fixture closes its database, even on failure.
+	defer func() {
+		w.cancel()
+		<-done
+	}()
 	next := func() domain.ActionID {
 		select {
 		case a := <-ran:
