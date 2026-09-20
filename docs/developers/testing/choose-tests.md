@@ -29,6 +29,18 @@ edit loop before a 15-minute case does (#282). The transcripts under
 `go/internal/nativeaccept/testdata/transcripts/` are the harness's own
 unit fixtures; the game stays the oracle for anything native.
 
+## Shrine clearance fixtures
+
+`clearance/shrine-breach` and `clearance/shrine-claim` use `ShrineFixture`'s
+`test/shrine_prepare sealedBreach=true` on the tribal baseline. The sealed,
+fogged room has one breach wall, a scyther, empty and filled caskets, rifles
+and three traps. The cases observe drafting, breach completion, ActiveCombat
+handoff and goal recovery; claim additionally checks ClaimBuilding ownership
+and native salvage while the filled casket stays closed. Both are quiet,
+eight-minute cases in the clearance land selection and nightly full tier.
+Build with `acceptance setup -rebuild -fixture ShrineFixture`; the existing
+csproj and build-script registrations include the class.
+
 ## Remote checks
 
 Use the [maintainer-to-agent handoff](remote-handoff.md) to prepare a complete

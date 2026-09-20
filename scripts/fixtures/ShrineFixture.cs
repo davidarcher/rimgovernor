@@ -10,19 +10,16 @@ using Verse.AI;
 
 namespace HomeBridge.BridgeTools
 {
-    // Stages an open, guard-free two-casket ancient shrine touching Home on
-    // the tribal baseline (#460): a roofed stone room with a player door,
-    // two filled AncientCryptosleepCaskets of one group (hostile ancient
-    // soldiers, the game's own pod contents), unclaimed and unknown, and a
-    // steel longsword in every violence-capable colonist's hands so the
-    // melee lock has its staff. All identity comes from arguments or the
-    // saved map, so stage reloads exercise the same fixture.
+    // Two-casket shrine on the tribal baseline. The default stages hostile
+    // casket opening; sealedBreach stages a fogged guard room, one empty
+    // casket, one filled casket and an armed squad behind three traps.
+    // Returned map identities survive checkpoint reloads.
     public sealed class ShrineFixture
     {
         private const int Group = 9460;
 
-        [Tool("test/shrine_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Stage an open two-casket ancient shrine (filled with hostile ancients) in a roofed stone room touching Home and arm the colonists with longswords; never issues controller orders.")]
-        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        [Tool("test/shrine_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Stage a roofed two-casket shrine: open with longswords by default; sealedBreach stages one breach wall, scyther, empty/filled caskets, rifles and three traps; never issues controller orders.")]
+        public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken cancellationToken, bool sealedBreach = false)
             => await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
                 if (map == null || !Find.TickManager.Paused) throw new InvalidOperationException("Paused map required.");
@@ -33,13 +30,15 @@ namespace HomeBridge.BridgeTools
                 // in the south wall's middle. The site is flat, open, unroofed
                 // ground the colonist can reach.
                 var site = GenRadial.RadialCellsAround(anchor.Position, 40, true).First(c => {
-                    var outer = new CellRect(c.x - 3, c.z - 3, 9, 7);
+                    var outer = sealedBreach ? new CellRect(c.x - 4, c.z - 10, 11, 15) : new CellRect(c.x - 3, c.z - 3, 9, 7);
                     return outer.Cells.All(n => n.InBounds(map) && !n.Fogged(map) && !n.Roofed(map) && n.GetEdifice(map) == null
                         && n.Standable(map) && n.GetZone(map) == null && n.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Heavy))
                         && anchor.CanReach(c, PathEndMode.OnCell, Danger.None);
                 });
                 var interior = new CellRect(site.x - 2, site.z - 1, 5, 3);
                 var ring = interior.ExpandedBy(1);
+                if (sealedBreach)
+                    foreach (var c in map.areaManager.Home.ActiveCells.ToList()) map.areaManager.Home[c] = false;
                 foreach (var c in ring.ExpandedBy(1).Cells) {
                     foreach (var t in c.GetThingList(map).Where(t => t is Plant || t.def.category == ThingCategory.Item).ToList()) t.Destroy(DestroyMode.Vanish);
                     map.areaManager.Home[c] = true;
@@ -47,9 +46,9 @@ namespace HomeBridge.BridgeTools
                 var stone = GenStuff.AllowedStuffsFor(ThingDefOf.Wall).Where(d => d.stuffProps.categories.Contains(StuffCategoryDefOf.Stony)).OrderBy(d => d.defName).First();
                 var door = new IntVec3(interior.minX + 2, 0, interior.minZ - 1);
                 foreach (var c in ring.EdgeCells) {
-                    var def = c == door ? ThingDefOf.Door : ThingDefOf.Wall;
+                    var def = c == door && !sealedBreach ? ThingDefOf.Door : ThingDefOf.Wall;
                     var wall = ThingMaker.MakeThing(def, stone);
-                    wall.SetFaction(player);
+                    if (!sealedBreach || c != door) wall.SetFaction(player);
                     GenSpawn.Spawn(wall, c, map);
                 }
                 foreach (var c in ring.Cells) map.roofGrid.SetRoof(c, RoofDefOf.RoofConstructed);
@@ -62,30 +61,55 @@ namespace HomeBridge.BridgeTools
                     var parms = default(ThingSetMakerParams);
                     parms.podContentsType = PodContentsType.AncientHostile;
                     parms.tile = map.Tile;
-                    foreach (var thing in ThingSetMakerDefOf.MapGen_AncientPodContents.root.Generate(parms))
+                    foreach (var thing in sealedBreach && caskets.Count == 0 ? new List<Thing>() : ThingSetMakerDefOf.MapGen_AncientPodContents.root.Generate(parms))
                         if (!casket.TryAcceptThing(thing, false)) throw new InvalidOperationException("Casket refused its contents.");
                     if (casket.Faction != null) casket.SetFaction(null);
-                    if (!casket.HasAnyContents || !interior.Contains(casket.InteractionCell) || !casket.InteractionCell.Standable(map))
+                    if ((!sealedBreach && !casket.HasAnyContents) || !interior.Contains(casket.InteractionCell) || !casket.InteractionCell.Standable(map))
                         throw new InvalidOperationException("Casket must be filled with a standable interaction cell inside the room.");
                     caskets.Add(casket);
                 }
-                var swordDef = DefDatabase<ThingDef>.GetNamed("MeleeWeapon_LongSword");
+                var swordDef = DefDatabase<ThingDef>.GetNamed(sealedBreach ? "Gun_AssaultRifle" : "MeleeWeapon_LongSword");
                 var armed = new List<string>();
                 foreach (var p in people) {
                     p.jobs.StopAll();
+                    if (sealedBreach) {
+                        p.Position = door + IntVec3.South * 8 + IntVec3.East * (people.IndexOf(p) - 3);
+                        p.Notify_Teleported();
+                        if (p.skills != null) p.skills.GetSkill(SkillDefOf.Shooting).Level = 16;
+                    }
+                    if (sealedBreach && !p.WorkTypeIsDisabled(WorkTypeDefOf.Construction)) p.workSettings.SetPriority(WorkTypeDefOf.Construction, 1);
                     foreach (var bad in p.health.hediffSet.hediffs.Where(h => h.def.isBad && !(h is Hediff_MissingPart)).ToList()) p.health.RemoveHediff(bad);
                     for (int hour = 0; hour < 24; hour++) p.timetable.SetAssignment(hour, TimeAssignmentDefOf.Work);
                     if (p.equipment == null || p.WorkTagIsDisabled(WorkTags.Violent)) continue;
                     var prior = p.equipment.Primary;
                     if (prior != null) prior.Destroy();
-                    var sword = (ThingWithComps)ThingMaker.MakeThing(swordDef, ThingDefOf.Steel);
+                    var sword = (ThingWithComps)ThingMaker.MakeThing(swordDef, sealedBreach ? null : ThingDefOf.Steel);
                     p.equipment.AddEquipment(sword);
-                    if (p.equipment.Primary != sword) throw new InvalidOperationException("Longsword was not assigned.");
+                    if (p.equipment.Primary != sword) throw new InvalidOperationException("Fixture weapon was not assigned.");
                     armed.Add(p.GetUniqueLoadID());
+                }
+                string guard = "", salvage = "", breach = "";
+                if (sealedBreach) {
+                    breach = door.GetEdifice(map).GetUniqueLoadID();
+                    var mech = PawnGenerator.GeneratePawn(DefDatabase<PawnKindDef>.GetNamed("Mech_Scyther"), Faction.OfMechanoids);
+                    GenSpawn.Spawn(mech, site + IntVec3.North, map);
+                    guard = mech.GetUniqueLoadID();
+                    var scrap = ThingMaker.MakeThing(ThingDefOf.Wall, stone);
+                    GenSpawn.Spawn(scrap, site + IntVec3.West * 2, map);
+                    salvage = scrap.GetUniqueLoadID();
+                    for (int i = 1; i <= 3; i++) {
+                        var trap = ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed("TrapSpike"), ThingDefOf.Steel);
+                        trap.SetFaction(player);
+                        GenSpawn.Spawn(trap, door + IntVec3.South * (i * 2), map);
+                    }
+                    var fog = FogSetter(map);
+                    foreach (var cell in interior.Cells) fog(cell);
+                    if (people.Count(p => !p.Downed && !p.WorkTagIsDisabled(WorkTags.Violent)) < 3)
+                        throw new InvalidOperationException("Three healthy defenders required.");
                 }
                 var room = caskets[0].GetRoom();
                 return new {
-                    success = true, caskets = caskets.Select(c => c.GetUniqueLoadID()).ToList(),
+                    success = true, guard, salvage, breach, sealedBreach, caskets = caskets.Select(c => c.GetUniqueLoadID()).ToList(),
                     interactionCells = caskets.Select(c => new { x = c.InteractionCell.x, z = c.InteractionCell.z }).ToList(),
                     x = site.x, z = site.z, door = door.x + "," + door.z, armed,
                     properRoom = room != null && room.ProperRoom && !room.PsychologicallyOutdoors,
@@ -93,12 +117,12 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken);
 
         [Tool("test/shrine_audit", Description = "Read the staged caskets' contents, every ancient (pawn or corpse) on the map with its state, and the colonists' dead and downed counts.")]
-        public async Task<object> Audit(IRimBridgeContext ctx, CancellationToken cancellationToken, string caskets = "")
+        public async Task<object> Audit(IRimBridgeContext ctx, CancellationToken cancellationToken, string caskets = "", string guard = "", string breach = "", string salvage = "")
             => await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
                 var ids = caskets.Split(';');
                 var rows = map.listerThings.AllThings.OfType<Building_Casket>().Where(c => ids.Contains(c.GetUniqueLoadID())).Select(c => new {
-                    id = c.GetUniqueLoadID(), hasContents = c.HasAnyContents,
+                    id = c.GetUniqueLoadID(), fogged = c.Position.Fogged(map), hasContents = c.HasAnyContents, playerOwned = c.Faction == Faction.OfPlayer,
                     designated = map.designationManager.DesignationOn(c, DesignationDefOf.Open) != null,
                 }).ToList();
                 bool ancient(Pawn p) => p.Faction != null && p.Faction.def == FactionDefOf.Ancients || p.Faction != null && p.Faction.def == FactionDefOf.AncientsHostile;
@@ -111,9 +135,32 @@ namespace HomeBridge.BridgeTools
                 var colonists = map.mapPawns.AllPawns.Where(p => p.IsColonist).ToList();
                 return new {
                     success = true, caskets = rows, occupants,
+                    guardPresent = map.mapPawns.AllPawnsSpawned.Any(p => p.GetUniqueLoadID() == guard && !p.Dead),
+                    guardDead = map.listerThings.ThingsInGroup(ThingRequestGroup.Corpse).OfType<Corpse>().Any(c => c.InnerPawn?.GetUniqueLoadID() == guard),
+                    breachPresent = map.listerThings.AllThings.Any(t => t.GetUniqueLoadID() == breach),
+                    salvagePresent = map.listerThings.AllThings.Any(t => t.GetUniqueLoadID() == salvage),
                     colonistsDead = colonists.Count(p => p.Dead) + map.listerThings.ThingsInGroup(ThingRequestGroup.Corpse).OfType<Corpse>().Count(c => c.InnerPawn?.Faction == Faction.OfPlayer && c.InnerPawn.RaceProps.Humanlike),
                     colonistsDowned = colonists.Count(p => !p.Dead && p.Downed),
                 };
             }, cancellationToken);
+        private static Action<IntVec3> FogSetter(Map map)
+        {
+            var grid = map.fogGrid;
+            object storage = null;
+            foreach (var name in new[] { "FogGrid_Unsafe", "fogGridDirect", "fogGrid" }) {
+                var prop = HarmonyLib.AccessTools.Property(typeof(FogGrid), name);
+                if (prop != null) { storage = prop.GetValue(grid); if (storage != null) break; }
+                var field = HarmonyLib.AccessTools.Field(typeof(FogGrid), name);
+                if (field != null) { storage = field.GetValue(grid); if (storage != null) break; }
+            }
+            if (storage is bool[] array) return c => array[map.cellIndices.CellToIndex(c)] = true;
+            // NativeBitArray/NativeArray copies still point at the same native
+            // memory, so writing through a boxed copy updates the grid.
+            var setter = storage?.GetType().GetMethod("Set", new[] { typeof(int), typeof(bool) })
+                ?? storage?.GetType().GetMethod("set_Item", new[] { typeof(int), typeof(bool) });
+            if (setter != null) return c => setter.Invoke(storage, new object[] { map.cellIndices.CellToIndex(c), true });
+            throw new InvalidOperationException("FogGrid storage unavailable: " + (storage?.GetType().FullName ?? "none"));
+        }
+
     }
 }
