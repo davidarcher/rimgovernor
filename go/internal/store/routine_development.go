@@ -148,8 +148,12 @@ func rankRoutineDevelopment(ctx context.Context, tx *sql.Tx, r RoutineReviewRequ
 // colony already owns (one pawn walks to a loose bow and picks it up, a
 // minute of forced work that builds nothing; #411: EnsureBasicDefense
 // waited three days behind a wood haul and a herbal bill for a slot while
-// five bows lay on the ground). An exempt method is admitted without a
-// slot and, while open, holds none (routineCommitments).
+// five bows lay on the ground), or a husbandry settings write (a
+// designation cancel, an allowed area, a master or a follow flag: one
+// native write, no handler work; #577: takeover/herd-removal parked on
+// no_work while MaintainHerd's cancel of a Manual slaughter flag waited
+// for a slot at maintenance priority). An exempt method is admitted
+// without a slot and, while open, holds none (routineCommitments).
 func developmentExemptMethod(plan domain.PlanSpec) bool {
 	actions := plan.Actions()
 	if len(actions) == 0 {
@@ -157,11 +161,23 @@ func developmentExemptMethod(plan domain.PlanSpec) bool {
 	}
 	for _, action := range actions {
 		letter, isDialog := action.DialogAnswer()
-		if action.Kind() != domain.QuestAcceptAction && action.Kind() != domain.EquipAction && !(isDialog && letter.LetterToken() != "") {
+		husbandry, isHusbandry := action.Husbandry()
+		if action.Kind() != domain.QuestAcceptAction && action.Kind() != domain.EquipAction && !(isDialog && letter.LetterToken() != "") && !(isHusbandry && husbandrySettingsWrite(husbandry.Method())) {
 			return false
 		}
 	}
 	return true
+}
+
+// husbandrySettingsWrite names the husbandry methods that change a flag on
+// the animal and nothing else; tame, train, slaughter and release put a
+// handler to work.
+func husbandrySettingsWrite(method domain.HusbandryMethod) bool {
+	switch method {
+	case domain.HusbandryCancelSlaughter, domain.HusbandryCancelRelease, domain.HusbandryAllowedArea, domain.HusbandryMaster, domain.HusbandryFollowDrafted, domain.HusbandryFollowFieldwork:
+		return true
+	}
+	return false
 }
 
 // Recheck current commitments inside method admission: a player project accepted

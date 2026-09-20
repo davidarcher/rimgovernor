@@ -112,7 +112,7 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 		}
 		p := row.Pawn
 		a := p.AnimalState
-		if !proto.Equal(p, &o.PawnState{Pawn: p.Pawn, AnimalState: a}) || !proto.Equal(a, &o.AnimalState{Contained: a.Contained, PenId: a.PenId, Release: a.Release, Slaughter: a.Slaughter, SafeToRelease: a.SafeToRelease}) || a.PenId != nil && (validID(a.GetPenId()) != nil || a.Contained != nil && !a.GetContained()) || row.RequiresPen != nil && !row.GetRequiresPen() && (a.Contained != nil || a.PenId != nil || row.SuitablePenId != nil) || !proto.Equal(row, &o.AnimalFeed{Pawn: p, Diet: row.Diet, RequiresPen: row.RequiresPen, SuitablePenId: row.SuitablePenId, ReachableStoredFeed: row.ReachableStoredFeed, ReachableBenchIds: row.ReachableBenchIds, ReachableStorage: row.ReachableStorage, StorageCandidates: row.StorageCandidates}) {
+		if !proto.Equal(p, &o.PawnState{Pawn: p.Pawn, AnimalState: a}) || !proto.Equal(a, &o.AnimalState{Contained: a.Contained, PenId: a.PenId, Release: a.Release, Slaughter: a.Slaughter, SafeToRelease: a.SafeToRelease, AllowedAreaId: a.AllowedAreaId, SupportsAllowedAreas: a.SupportsAllowedAreas}) || a.PenId != nil && (validID(a.GetPenId()) != nil || a.Contained != nil && !a.GetContained()) || row.RequiresPen != nil && !row.GetRequiresPen() && (a.Contained != nil || a.PenId != nil || row.SuitablePenId != nil) || !proto.Equal(row, &o.AnimalFeed{Pawn: p, Diet: row.Diet, RequiresPen: row.RequiresPen, SuitablePenId: row.SuitablePenId, ReachableStoredFeed: row.ReachableStoredFeed, ReachableBenchIds: row.ReachableBenchIds, ReachableStorage: row.ReachableStorage, StorageCandidates: row.StorageCandidates}) {
 			return contract("conflicting upkeep animal fields")
 		}
 		stocks := map[string]bool{}

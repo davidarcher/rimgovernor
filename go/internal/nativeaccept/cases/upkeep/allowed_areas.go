@@ -61,7 +61,7 @@ func runAllowedAreas(ctx context.Context, s cases.Session) error {
 			if _, err = s.Harness().Call(ctx, "save-areas", "rimworld/save_game", map[string]any{"saveName": save}); err != nil {
 				return err
 			}
-			if _, err = s.Harness().Call(ctx, "load-areas", "rimworld/load_game_ready", map[string]any{"saveName": save, "readiness": "map", "timeoutMs": 90000, "ignoreModCompatibility": false}); err != nil {
+			if _, err = s.Harness().Call(ctx, "load-areas", "rimworld/load_game_ready", map[string]any{"saveName": save, "readiness": "visual", "timeoutMs": 90000, "ignoreModCompatibility": false}); err != nil {
 				return err
 			}
 			if _, err = s.Harness().Call(ctx, "pause-loaded-areas", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
@@ -116,7 +116,7 @@ func runAllowedAreas(ctx context.Context, s cases.Session) error {
 			if colonist && animal && corrected == 0 {
 				corrected = review.Tick
 			}
-			return na.Signature(colonist, animal, review.Tick), corrected > 0 && review.Tick >= corrected+2500, nil
+			return na.Signature(colonist, animal, review.Tick), corrected > 0 && review.Tick >= corrected+15000, nil
 		})
 		if err != nil {
 			return err

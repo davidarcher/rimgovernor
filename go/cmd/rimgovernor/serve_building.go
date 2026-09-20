@@ -585,8 +585,10 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		}
 		mineAcquisitionCapabilities = client.mineAcquisition
 	}
+	// Recovery reconciles saved colonist areas through work assignments
+	// (#500), so its plans need the work executor too.
 	var workCapabilities *work.WorkCapabilities
-	if config.routineWorkPlans {
+	if config.routineWorkPlans || config.routineRecoveryPlans {
 		if client.work == nil {
 			return errors.New("work plans require typed settings capabilities")
 		}

@@ -125,7 +125,7 @@ func TestHusbandryTameAndReleaseActionsRoundTrip(t *testing.T) {
 	ctx := context.Background()
 	s := open(t, filepath.Join(t.TempDir(), "husbandry-designations.db"))
 	arguments := map[domain.HusbandryMethod]string{domain.HusbandryAllowedArea: "Area_3", domain.HusbandryFollowDrafted: "true", domain.HusbandryFollowFieldwork: "false"}
-	for i, method := range []domain.HusbandryMethod{domain.HusbandryTame, domain.HusbandryRelease, domain.HusbandryAllowedArea, domain.HusbandryMaster, domain.HusbandryFollowDrafted, domain.HusbandryFollowFieldwork} {
+	for i, method := range []domain.HusbandryMethod{domain.HusbandryTame, domain.HusbandryRelease, domain.HusbandryCancelSlaughter, domain.HusbandryCancelRelease, domain.HusbandryAllowedArea, domain.HusbandryMaster, domain.HusbandryFollowDrafted, domain.HusbandryFollowFieldwork} {
 		// master with an empty argument round-trips the NULL-as-clear column.
 		h, _ := domain.NewHusbandry("animal", method, arguments[method])
 		id := domain.ActionID("husbandry-" + string(method))

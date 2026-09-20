@@ -657,3 +657,21 @@ func TestRoutineDevelopmentIdleLaborReleasesSlot(t *testing.T) {
 		t.Fatal("resumed work should commit again", out.Review.Development)
 	}
 }
+
+// A husbandry designation cancel is a settings write and holds no
+// development slot (#577); a tame puts a handler to work and does.
+func TestDevelopmentExemptHusbandrySettingsWrite(t *testing.T) {
+	t.Parallel()
+	cancel, _ := domain.NewHusbandry("Thing_Cow1", domain.HusbandryCancelSlaughter, "")
+	cancelAction, _ := domain.NewHusbandryAction("cancel-action", cancel)
+	cancelPlan, _ := domain.NewPlan("cancel", 1, []domain.Action{cancelAction})
+	if !developmentExemptMethod(cancelPlan) {
+		t.Fatal("cancel_slaughter needs a development slot")
+	}
+	tame, _ := domain.NewHusbandry("Thing_Muffalo1", domain.HusbandryTame, "")
+	tameAction, _ := domain.NewHusbandryAction("tame-action", tame)
+	tamePlan, _ := domain.NewPlan("tame", 1, []domain.Action{tameAction})
+	if developmentExemptMethod(tamePlan) {
+		t.Fatal("tame gained the settings-write exemption")
+	}
+}

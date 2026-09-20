@@ -420,7 +420,7 @@ func (w *Worker) loadBaselineSave(ctx context.Context) error {
 	requestBody, err := json.Marshal(map[string]any{
 		"requestId": fmt.Sprintf("dockerworkeraccept-load-%d", time.Now().UnixNano()),
 		"saveName":  saveName,
-		"readiness": "map",
+		"readiness": "visual",
 		"timeoutMs": 100000,
 	})
 	if err != nil {

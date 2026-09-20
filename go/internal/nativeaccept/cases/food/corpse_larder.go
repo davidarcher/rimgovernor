@@ -7,6 +7,7 @@ import (
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
+	"strings"
 	"time"
 )
 
@@ -105,11 +106,28 @@ func runCorpseLarder(ctx context.Context, s cases.Session) error {
 		return err
 	}
 	defer journal.Close()
-	methodCtx, cancel := context.WithTimeout(ctx, 90*time.Second)
+	methodCtx, cancel := context.WithTimeout(ctx, 3*time.Minute)
 	defer cancel()
-	_, method, err := na.WaitGoalMethod(methodCtx, journal, policy.MaintainFoodStorage, nil)
-	if err != nil {
-		return err
+	// The food reserve (#428) reviews first under the same goal and may
+	// hold or release the start's survival meals before the larder gets
+	// its turn; follow those plans to their end and wait for the corpse.
+	seen := map[domain.PlanID]bool{}
+	var method domain.GoalMethod
+	for {
+		_, method, err = na.WaitGoalMethodExcluding(methodCtx, journal, policy.MaintainFoodStorage, seen)
+		if err != nil {
+			return err
+		}
+		seen[method.Plan] = true
+		if strings.HasPrefix(string(method.Plan), "routine-corpse-") {
+			break
+		}
+		if !strings.HasPrefix(string(method.Plan), "routine-reserve-") {
+			return fmt.Errorf("expected a reserve or corpse plan, got %s", method.Plan)
+		}
+		if _, _, err = na.WaitPlanTerminal(methodCtx, journal, method.Plan); err != nil {
+			return err
+		}
 	}
 	plan, _, err := na.WaitPlanTerminal(methodCtx, journal, method.Plan)
 	if err != nil {

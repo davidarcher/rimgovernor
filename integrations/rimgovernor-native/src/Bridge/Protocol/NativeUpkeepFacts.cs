@@ -399,6 +399,13 @@ namespace HomeBridge.BridgeTools
                     };
                     if (requiresPen) state.Contained = pen != null;
                     if (pen != null) state.PenId = Id(pen.parent.GetUniqueLoadID());
+                    // Area reconciliation (#500) reads the colony bundle, not
+                    // husbandry_facts: the saved restriction must travel here.
+                    if (NativeHusbandryOperations.Eligible(p))
+                    {
+                        state.AllowedAreaId = NativeHusbandryOperations.AreaId(p);
+                        state.SupportsAllowedAreas = NativeHusbandryOperations.SupportsAllowedAreas(p);
+                    }
                     var value = new Obs.AnimalFeed {
                         Pawn = new Obs.PawnState { Pawn = Ref(p), AnimalState = state },
                         Diet = Id(p.RaceProps.foodType.ToString()), RequiresPen = requiresPen

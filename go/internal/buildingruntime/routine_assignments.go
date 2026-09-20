@@ -98,6 +98,7 @@ func (r *RoutineWorkPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	}
 	existing := func(unknown RoutineWorkResult) RoutineWorkResult {
 		if len(open) > 0 {
+			clockSchedulerLog("Work.step: open plan kept, fresh decision unknown reason=%v", unknown.Reason)
 			return RoutineWorkResult{Reason: BuildingMethodExistingWork}
 		}
 		return unknown
