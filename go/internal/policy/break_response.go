@@ -9,11 +9,13 @@ const BreakExclusionRadius = 8
 
 // AggressiveBreak uses the native aggression fact, never an inferred mood risk
 // or a closed list that silently misses modded mental states.
+// Social fights resolve through native ticks without a subdue response;
+// treating them as combat would hold the clock that must resolve them.
 func AggressiveBreak(p EmergencyPawn) bool {
 	state, known := p.MentalState.Value()
 	dead, dk := p.Dead.Value()
 	down, wk := p.Downed.Value()
-	return known && state.IsAggro && dk && wk && !dead && !down
+	return known && state.IsAggro && state.DefName != "SocialFighting" && dk && wk && !dead && !down
 }
 
 type BreakResponder struct {

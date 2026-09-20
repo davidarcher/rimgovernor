@@ -96,7 +96,11 @@ An active mental break keeps its pawn's mood goal in deficit and releases its
 reserved work through shared cancellation. State kind, aggression and age remain
 mood evidence. Non-violent breaks continue ordinary clock windows.
 
-A standing aggressive colonist activates defense. The controller drafts one or
+SocialFighting continues ordinary clock windows despite its native aggression flag:
+it neither activates ActiveCombat nor selects a subdue response. Independent
+hostile threats and urgent medical needs retain their emergency classification.
+
+Other standing aggressive colonists activate defense. The controller drafts one or
 two nearest healthy armed-melee colonists and dispatches SUBDUE through the shared
 owned-draft and melee lifecycle. Other dispatch stays outside an eight-cell radius
 of the target; uncertain attempts and draft cleanup remain reconcilable. Downing

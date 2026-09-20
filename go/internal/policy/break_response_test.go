@@ -42,6 +42,45 @@ func TestBreakResponseStateKinds(t *testing.T) {
 	}
 }
 
+func TestSocialFightingDoesNotRaiseCombatEmergency(t *testing.T) {
+	f, limits := clockWindowFixture(t)
+	facts := completeEmergency()
+	for _, id := range []PawnID{"fighter-a", "fighter-b"} {
+		pawn := breakingPawn("SocialFighting", true)
+		pawn.ID = id
+		facts.Colonists = append(facts.Colonists, pawn)
+		if AggressiveBreak(pawn) {
+			t.Fatal("social fighter selected for subdue")
+		}
+	}
+	var err error
+	f.Emergency, err = NewEmergencySnapshot(f.Current, f.Tick, facts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d := EvaluateEmergency(f.Emergency, f.Current, f.Tick); !d.Clear {
+		t.Fatalf("social fight held the colony: %+v", d)
+	}
+	routine := stableRoutine()
+	routine.Hostiles, routine.CriticalPatients = EmergencyNeeds(f.Emergency, f.Current, f.Tick)
+	if r := needs(t, routine, RoutineLatches{}); hasNeed(r, ActiveCombat) {
+		t.Fatalf("social fight raised ActiveCombat: %+v", r)
+	}
+	if d := EvaluateClockWindow(f, limits); !d.Admitted || d.Mode != ClockWindowColony || len(d.Hostiles) != 0 {
+		t.Fatalf("social fight blocked routine ticks: %+v", d)
+	}
+	// Social fights must not hide independent combat or medical emergencies.
+	facts.Threats = []EmergencyThreat{{ID: "raider", Kind: Hostile, Dead: domain.Known(false), Downed: domain.Known(false)}}
+	if !hasEmergencyHold(evaluateEmergency(t, facts), EmergencyUnsafeThreat, "raider") {
+		t.Fatal("social fight hid a hostile")
+	}
+	facts.Threats = nil
+	facts.Colonists[0].Bleeding = domain.Known(true)
+	if !hasEmergencyHold(evaluateEmergency(t, facts), EmergencyCriticalMedical, "fighter-a") {
+		t.Fatal("social fight hid urgent medical care")
+	}
+}
+
 func TestBreakResponseClockNeedsContainmentThenAllowsCombatTicks(t *testing.T) {
 	f, l := clockWindowFixture(t)
 	l.CombatMaxTicks = 30
