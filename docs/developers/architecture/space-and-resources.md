@@ -36,6 +36,29 @@ construction actions have been archived. The projection uses completed native
 definitions, so an unfamiliar wall is still an obstruction. It does not predict
 future danger or certify that a pawn will perform the work.
 
+## Resource demand and acquisition scoring
+
+`policy.BuildResourceDemand` combines MaintainResource stock targets, the output
+of `EconomicReserves`, and remaining planned construction bills of materials.
+Overlapping stock targets use their maximum; construction costs are additive.
+Do not supply a commitment twice through both economic floors and planned costs.
+Exact-stuff requirements consume usable stock before definition-wide requirements;
+each stock unit is counted once. Unknown stock leaves demand unknown. Estimated
+acquisition yield is not inventory. Priorities are 1–100, higher first; economic
+floors default to 1 and a merged row retains its highest priority.
+
+`RankResourceCandidates` is the shared pure scoring contract for loot, salvage
+and mining integrations. It values only unmet demand that fits observed destination
+headroom, weighted by priority and native unit value. Path distance, total source
+labor and rounded hauling trips reduce the score. Unknown cost facts withhold a
+candidate; unknown storage supplies no headroom. Higher-priority urgent work holds
+acquisition, while an unrelated routine deficit does not. Positive scores sort by
+score descending, then kind and stable source ID; input order cannot break ties.
+These are alternatives, not a batch allocation or permission to dispatch. Consumers
+must bound selected work and refresh demand, reach, native safety and storage before
+using the existing goals and Hands path. The remote acquisition integrations are
+tracked by #522, #523 and #524.
+
 ## Material runway
 
 `MaintainResource` reviews Steel and ComponentIndustrial over the last 15 game
