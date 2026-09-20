@@ -182,9 +182,9 @@ func run(opts options) (err error) {
 	return r.generate(protoc, protoRoot, output, opts)
 }
 
-// privateEnv keeps the plugin install and build cache inside the run; the module
-// cache is private too unless the caller supplies a reusable one (go.sum still
-// verifies its contents).
+// privateEnv keeps the plugin install inside the run and preserves the shared
+// Go build cache. The module cache is private unless the caller supplies a
+// reusable one (go.sum still verifies its contents).
 func privateEnv(output, modCache string) []string {
 	env := os.Environ()
 	set := func(key, value string) {
@@ -202,7 +202,6 @@ func privateEnv(output, modCache string) []string {
 	}
 	set("GOWORK", "off")
 	set("GOBIN", filepath.Join(output, "bin"))
-	set("GOCACHE", filepath.Join(output, "cache"))
 	set("GOMODCACHE", modCache)
 	return env
 }

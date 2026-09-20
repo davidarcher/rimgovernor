@@ -49,7 +49,7 @@ func TestRelativeFilesMissingDirIsEmpty(t *testing.T) {
 	}
 }
 
-func TestPrivateEnvOverridesInheritedCaches(t *testing.T) {
+func TestPrivateEnvPreservesBuildCache(t *testing.T) {
 	t.Setenv("GOCACHE", "/inherited")
 	t.Setenv("GOTOOLCHAIN", "")
 	env := privateEnv(filepath.FromSlash("/run"), filepath.FromSlash("/run/modcache"))
@@ -59,8 +59,16 @@ func TestPrivateEnvOverridesInheritedCaches(t *testing.T) {
 		seen[key]++
 		switch key {
 		case "GOCACHE":
-			if value != filepath.FromSlash("/run/cache") {
+			if value != "/inherited" {
 				t.Errorf("GOCACHE = %q", value)
+			}
+		case "GOBIN":
+			if value != filepath.FromSlash("/run/bin") {
+				t.Errorf("GOBIN = %q", value)
+			}
+		case "GOMODCACHE":
+			if value != filepath.FromSlash("/run/modcache") {
+				t.Errorf("GOMODCACHE = %q", value)
 			}
 		case "GOTOOLCHAIN":
 			if value != "local" {
