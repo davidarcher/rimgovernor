@@ -230,6 +230,20 @@ namespace HomeBridge.BridgeTools
                     TypedOf(s).PauseRequested = true;
                     Stop(s, "requested_pause", "Paused by the canonical epoch owner.", true, null);
                 }
+                else if (s != null && s.Typed != null && ReferenceEquals(s.Session, Current.Game) && ReferenceEquals(s.Map, Find.CurrentMap)
+                    && Find.TickManager != null && Find.TickManager.CurTimeSpeed != TimeSpeed.Paused)
+                {
+                    // The epoch is stopped but the game runs: the player un-paused
+                    // after an external pause and drove the speed by hand. The
+                    // owner re-takes the clock before admitting the next window
+                    // (#601): pause here, so the stopped status it reads next
+                    // verifies the pause a start needs.
+                    Find.TickManager.CurTimeSpeed = TimeSpeed.Paused;
+                    var paused = Find.TickManager.CurTimeSpeed == TimeSpeed.Paused;
+                    s.PauseVerified = paused;
+                    s.Typed.PauseRequested = true;
+                    s.Typed.StopPauseVerified = paused;
+                }
                 return TypedStatus(context);
             }
         }

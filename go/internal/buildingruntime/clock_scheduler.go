@@ -61,6 +61,11 @@ type ClockSchedulerConfig struct {
 	// reconciles and leaves the Worker's dispatch, and the wave waits for
 	// the stop. Zero means DefaultLivePlanningTicks.
 	LivePlanningTicks domain.Tick
+	// PlayerQuiet is how long after the last Manual authority bump (the
+	// player pressing a speed key) a step waits before it re-takes a clock
+	// the player runs by hand under a stopped epoch (#601). Zero means
+	// DefaultPlayerQuiet.
+	PlayerQuiet time.Duration
 	// Facts is the cross-step fact cache the scheduler's steps fill and the
 	// worker's writes discard (WorkerConfig.Facts); nil makes a private one.
 	Facts *bridge.FactCache
@@ -204,8 +209,14 @@ type ClockSchedulerResult struct {
 	Unwatched int
 	// Deferred is set when the step admitted nothing because the Worker
 	// has yet to reconcile an attempt whose terminal outcome the clock
-	// latched; the step loop steps again at once (issue #162).
+	// latched; the step loop steps again at once (issue #162). A step that
+	// found the player running the game under a stopped clock and is
+	// waiting out PlayerQuiet before it re-takes it defers too (#601).
 	Deferred bool
+	// Retaken is set when the step found the player running the game under
+	// a stopped clock, paused it natively and reviewed from the paused tick
+	// in the same step (#601).
+	Retaken bool
 	// Combat is set while a combat watch window was admitted or is running,
 	// so the worker keeps its short poll instead of backing off.
 	Combat bool
@@ -257,6 +268,11 @@ type ClockScheduler struct {
 	// a live planner wave costs under this process, measured against the
 	// pace (livePlanningPaced, #598). Touched only under the player gate.
 	liveStepWall time.Duration
+	// manualAt is the wall time (unix nanoseconds, zero for none) of the
+	// last Manual authority change a committed page carried: the player
+	// pressing a speed key. Written under the poll gate, read under the
+	// player gate by the re-take decision (#601).
+	manualAt *atomic.Int64
 	// running is the scheduler's belief that a colony window it admitted
 	// is still running: set by the step that dispatched or observed it,
 	// cleared by the step or poll that saw it stopped. The poll loop holds
@@ -504,7 +520,7 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 		return nil, err
 	}
 	config.Profile = inbox.Profile
-	scheduler := &ClockScheduler{player: player, session: session, native: native, config: config, clock: clock, pollGate: make(chan struct{}, 1), renewGate: make(chan struct{}, 1), facts: newClockFacts(config.Facts, config.Store), running: new(atomic.Bool), admissionWarm: new(atomic.Pointer[clockAdmissionWarm]), latched: newClockLatched()}
+	scheduler := &ClockScheduler{player: player, session: session, native: native, config: config, clock: clock, pollGate: make(chan struct{}, 1), renewGate: make(chan struct{}, 1), facts: newClockFacts(config.Facts, config.Store), running: new(atomic.Bool), manualAt: new(atomic.Int64), admissionWarm: new(atomic.Pointer[clockAdmissionWarm]), latched: newClockLatched()}
 	if config.Routine != nil {
 		config.Routine.store = scheduler.facts.store
 	}
@@ -693,6 +709,54 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	if err = bridge.ValidateContext(loaded.Context); err != nil {
 		return out, errors.Join(err, s.session.Disable())
 	}
+	epochs, err := s.player.journal.LoadClockEpochs(call, 4096)
+	if err != nil {
+		clockSchedulerLog("step exit: LoadClockEpochs %v", err)
+		return out, err
+	}
+	// The player runs the game by hand under a stopped clock (#601): every
+	// fact read while it runs is stale before the review commits, and no
+	// window can be admitted against a running game. Re-take the clock
+	// here, before the facts below are filled, once the player has let go
+	// of the speed keys: pause natively and read the bundle again at the
+	// paused tick, so the same step reviews and admits from it.
+	if s.playerDriven(loaded, epochs) {
+		if since, quiet := s.playerQuiet(); !quiet {
+			clockSchedulerLog("stopped clock advanced to tick %d under the player: last Manual bump %s ago, waiting for %s of quiet before re-taking", loaded.Context.GetTick(), since.Round(time.Millisecond), s.playerQuietFor())
+			out.Deferred = true
+			return out, nil
+		}
+		status, e := s.bundleClockStatus(loaded, s.session.State().Snapshot)
+		if e != nil {
+			clockSchedulerLog("step exit: bundle clock status %v -> disable", e)
+			return out, errors.Join(e, s.session.Disable())
+		}
+		s.livePace(status, started)
+		clockSchedulerLog("stopped clock advanced to tick %d under the player (%.0f ticks/s, stopReason=%v) -> re-taking the clock: pausing natively", status.Context.GetTick(), s.pacePerSecond, status.GetStopped().GetReason())
+		repaused, e := s.session.RepauseClock(call, status)
+		if e != nil {
+			clockSchedulerLog("step exit: native re-pause %v", e)
+			return out, e
+		}
+		clockEvent(call, "clock-scheduler", "clock_retaken", "clock re-taken from the player", "tick", repaused.Context.GetTick(), "paused", repaused.GetActualPaused(), "pace", s.pacePerSecond, "stop_reason", status.GetStopped().GetReason().String())
+		out.Retaken = true
+		// The re-read below is judged against the paused tick: the families
+		// the store holds fresh at the previous step's tick are not fresh
+		// at this one, and a step that re-took the clock reviews in full.
+		s.lastTick, s.lastTickKnown = repaused.Context.GetTick(), true
+		reason.TickAdvanced = true
+		reviews = s.stepReviews(reason)
+		started = s.clock.Now()
+		if bundle, err = s.readStepBundle(call, s.bundleRequest(reason)); err != nil {
+			return out, errors.Join(err, s.session.Disable())
+		}
+		if loaded = bundle.GetObserved(); loaded == nil {
+			return out, errors.Join(executor.ErrHeld, s.session.Disable())
+		}
+		if err = bridge.ValidateContext(loaded.Context); err != nil {
+			return out, errors.Join(err, s.session.Disable())
+		}
+	}
 	if window != nil {
 		window.scope, window.tick, window.review = factsScope(loaded.Context), loaded.Context.GetTick(), reviews
 	}
@@ -707,11 +771,6 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	}
 	state := s.session.State()
 	world := domain.GenerationSnapshot{Colony: domain.ColonyID(loaded.Context.Identity.GetColonyId()), Load: domain.LoadID(loaded.Context.Identity.GetLoadToken()), Map: domain.MapID(loaded.Context.Identity.GetMapId())}
-	epochs, err := s.player.journal.LoadClockEpochs(call, 4096)
-	if err != nil {
-		clockSchedulerLog("step exit: LoadClockEpochs %v", err)
-		return out, err
-	}
 	obligations := false
 	for _, owned := range epochs {
 		if !clockCoordinatorTerminal(owned.Stage) {
@@ -751,7 +810,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		return out, errors.Join(executor.ErrEvidence, s.session.Disable())
 	}
 	s.running.Store(false)
-	reason.TickAdvanced = !s.lastTickKnown || status.Context.GetTick() != s.lastTick
+	reason.TickAdvanced = out.Retaken || !s.lastTickKnown || status.Context.GetTick() != s.lastTick
 	s.lastTick, s.lastTickKnown = status.Context.GetTick(), true
 	s.livePace(status, started)
 	telemetry.ObserveTick(status.Context.GetTick())
@@ -1187,10 +1246,15 @@ func (s *ClockScheduler) runPlanners(call, epoch context.Context, out *ClockSche
 func (s *ClockScheduler) livePace(status *k.Status, readAt time.Time) {
 	tick := status.Context.GetTick()
 	drift := domain.Tick(0)
-	if status.GetRunning() != nil && s.paceKnown && tick > s.paceTick && readAt.After(s.paceAt) {
-		perSecond := float64(tick-s.paceTick) / readAt.Sub(s.paceAt).Seconds()
-		drift = domain.Tick(perSecond * s.config.MaxAge.Seconds())
-		s.pacePerSecond = perSecond
+	// The pace is measured under a running window and, the same way, under
+	// a stopped clock the player runs by hand (#601); only the window
+	// widens the drift.
+	running := status.GetRunning() != nil
+	if (running || clockPlayerRunning(status)) && s.paceKnown && tick > s.paceTick && readAt.After(s.paceAt) {
+		s.pacePerSecond = float64(tick-s.paceTick) / readAt.Sub(s.paceAt).Seconds()
+		if running {
+			drift = domain.Tick(s.pacePerSecond * s.config.MaxAge.Seconds())
+		}
 	}
 	if drift != domain.LiveDrift() {
 		clockSchedulerLog("live drift %d -> %d ticks (tick %d, %d ticks since the previous step)", domain.LiveDrift(), drift, tick, tick-s.paceTick)
@@ -1611,4 +1675,52 @@ func clockSchedulerKey(admission *store.ClockWindowAdmission, work []clockWorkIt
 	}
 	sum := sha256.Sum256(data)
 	return "clock-window-" + hex.EncodeToString(sum[:]), nil
+}
+
+// clockPlayerRunning reports whether a stopped clock's game is running: the
+// player un-paused after an external pause and drives the speed by hand
+// (#601). Never a running or stopping epoch, which the scheduler paces.
+func clockPlayerRunning(status *k.Status) bool {
+	return status.GetStopped() != nil && status.ActualPaused != nil && !status.GetActualPaused()
+}
+
+// playerDriven reports whether the bundle just read shows the player
+// running the game under a stopped clock this process no longer owes: the
+// status is stopped and not actually paused, the tick moved on since the
+// previous step's (a first step, with no previous tick, waits for the
+// next), no epoch is owed, and authority stands so the re-take's review
+// can admit. A player who paused and stays paused never trips it.
+func (s *ClockScheduler) playerDriven(loaded *o.BundleSnapshot, epochs []store.ClockEpochObligation) bool {
+	status := loaded.GetClockStatus()
+	if !clockPlayerRunning(status) || !s.lastTickKnown || status.Context.GetTick() <= s.lastTick {
+		return false
+	}
+	for _, owned := range epochs {
+		if !clockCoordinatorTerminal(owned.Stage) {
+			return false
+		}
+	}
+	return s.session.State().Enabled
+}
+
+// noteManual records a Manual authority change the poll committed: the
+// player pressed a speed key at that wall time (#601).
+func (s *ClockScheduler) noteManual(at time.Time) { s.manualAt.Store(at.UnixNano()) }
+
+// playerQuiet reports how long since the last Manual bump and whether that
+// is at least PlayerQuiet; with no bump seen the clock is quiet.
+func (s *ClockScheduler) playerQuiet() (time.Duration, bool) {
+	at := s.manualAt.Load()
+	if at == 0 {
+		return 0, true
+	}
+	since := s.clock.Now().Sub(time.Unix(0, at))
+	return since, since >= s.playerQuietFor()
+}
+
+func (s *ClockScheduler) playerQuietFor() time.Duration {
+	if s.config.PlayerQuiet > 0 {
+		return s.config.PlayerQuiet
+	}
+	return DefaultPlayerQuiet
 }

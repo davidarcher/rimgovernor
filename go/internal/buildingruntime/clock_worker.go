@@ -288,7 +288,7 @@ func clockWorkerStepEvent(ctx context.Context, result ClockSchedulerResult, err 
 	}
 	slog.Default().Log(ctx, level, message, telemetry.ComponentKey, "clock-worker", telemetry.KindKey, "scheduler_step",
 		"err", err, "planner_failures", failures, "cause", string(result.Reason.Cause), "admitted", result.Decision.Admitted, "running", result.Running,
-		"reconciled", result.Reconciled, "cleaned", result.Cleaned, "deferred", result.Deferred, "combat", result.Combat, "window_ticks", result.Window.Ticks, "live_planning", result.LivePlanning, "repeated", repeats)
+		"reconciled", result.Reconciled, "cleaned", result.Cleaned, "deferred", result.Deferred, "retaken", result.Retaken, "combat", result.Combat, "window_ticks", result.Window.Ticks, "live_planning", result.LivePlanning, "repeated", repeats)
 }
 
 func (w *ClockWorker) stepLoop() {

@@ -47,6 +47,13 @@ const DefaultFullStepEvery = 30 * time.Second
 // waits.
 const DefaultLivePlanningTicks domain.Tick = 6000
 
+// DefaultPlayerQuiet is how long after the player's last speed-key press (a
+// Manual authority change) a step waits before it re-takes a clock the
+// player runs by hand under a stopped epoch (#601): long enough not to
+// fight a player still pressing keys, short enough that the next window
+// and the test-acceleration boost return within a few seconds.
+const DefaultPlayerQuiet = 3 * time.Second
+
 // LivePlanningSkippedPace is ClockSchedulerResult.LivePlanning when the
 // live wave waited for the stop because the game outran it (#598).
 const LivePlanningSkippedPace = "skipped_pace"

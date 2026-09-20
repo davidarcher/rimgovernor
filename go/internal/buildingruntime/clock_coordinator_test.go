@@ -48,7 +48,7 @@ func (f *clockCoreFake) Start(ctx context.Context, r *k.StartRequest) (*k.Contro
 	if f.write != nil {
 		f.write(ctx)
 	}
-	e := &k.Epoch{Owner: &k.EpochOwner{ControllerSessionId: proto.String(r.Authority.Attempt.GetControllerSessionId()), Epoch: proto.Int64(1)}, Origin: proto.Clone(f.status.Context).(*c.ObservationContext), RequestedSpeed: r.Speed, Policy: r.Policy, StartTick: proto.Int64(12), TickDeadline: proto.Int64(12 + int64(r.GetMaxTicks())), LastTick: proto.Int64(12), LeaseRemainingMs: proto.Uint32(r.GetLeaseMs())}
+	e := &k.Epoch{Owner: &k.EpochOwner{ControllerSessionId: proto.String(r.Authority.Attempt.GetControllerSessionId()), Epoch: proto.Int64(1)}, Origin: proto.Clone(f.status.Context).(*c.ObservationContext), RequestedSpeed: r.Speed, Policy: r.Policy, StartTick: proto.Int64(f.status.Context.GetTick()), TickDeadline: proto.Int64(f.status.Context.GetTick() + int64(r.GetMaxTicks())), LastTick: proto.Int64(f.status.Context.GetTick()), LeaseRemainingMs: proto.Uint32(r.GetLeaseMs())}
 	f.status.State = &k.Status_Running{Running: &k.Running{Epoch: e}}
 	f.receipt = &k.ControlReceipt{Attempt: proto.Clone(r.Authority.Attempt).(*c.AttemptKey), AdmittedContext: proto.Clone(f.status.Context).(*c.ObservationContext), Outcome: &k.ControlReceipt_Applied{Applied: &k.AppliedControl{Status: proto.Clone(f.status).(*k.Status)}}}
 	if f.lost {

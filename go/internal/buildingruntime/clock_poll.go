@@ -169,6 +169,9 @@ func (s *ClockScheduler) PollEvents(ctx context.Context, native ClockEventNative
 		s.admissionWarm.Store(nil)
 		telemetry.ObserveTick(page.Context.GetTick())
 		clockPollEvents(call, page)
+		if clockPollManual(page) {
+			s.noteManual(s.clock.Now())
+		}
 		if clockPollStopped(page) {
 			s.running.Store(false)
 		}
@@ -375,4 +378,16 @@ func (g clockGrant) answers(state ControlState, holds []clock.Hold, granted int6
 		}
 	}
 	return true
+}
+
+// clockPollManual reports whether the page carries a Manual authority
+// change: the player pressed a speed key, which revokes authority before
+// the service re-acquires it (#601).
+func clockPollManual(page *k.EventsPage) bool {
+	for _, event := range page.GetEvents() {
+		if v, ok := event.Event.(*k.Event_AuthorityChanged); ok && v.AuthorityChanged.GetReason() == "Manual" {
+			return true
+		}
+	}
+	return false
 }

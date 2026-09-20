@@ -118,6 +118,12 @@ internal static class NativeClockProbe
         var paused = Pause(owned).Status;
         Check(paused.Stopped != null && paused.Stopped.Reason == Clock.StopReason.RequestedPause && paused.Stopped.PauseVerified && paused.ActualPaused, "owned cleanup after revoke");
         Check(Pause(owned).Status.Stopped.Epoch.Owner.Equals(epoch.Owner), "exact pause not idempotent");
+        // The player un-pauses under the stopped epoch and runs the game by
+        // hand: the owner's pause re-takes the clock without a new epoch (#601).
+        Find.TickManager.CurTimeSpeed = TimeSpeed.Ultrafast;
+        Check(!Status().Status.ActualPaused && Status().Status.Stopped != null, "player-driven stopped clock");
+        var retaken = Pause(owned).Status;
+        Check(retaken.Stopped != null && retaken.ActualPaused && retaken.Stopped.PauseVerified && Find.TickManager.Paused && retaken.Stopped.Epoch.Owner.Equals(epoch.Owner), "owned pause did not re-take the player-driven clock");
         Check(Renew(new Clock.RenewRequest { Epoch = owned, Authority = Pre(), LeaseMs = 1000 }).Failure != null, "renew restarted stopped clock");
         var lookup = Call(new Clock.AttemptRequest { Identity = Identity, Attempt = request.Authority.Attempt }, (ctx, json) => Tools.ReadAttempt(ctx, default, json), Clock.AttemptReply.Parser);
         Check(lookup.Receipt.Equals(reply.Receipt), "clock lookup lost original receipt");

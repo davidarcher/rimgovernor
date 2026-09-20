@@ -183,3 +183,38 @@ func (q *ClockCoordinator) cleanupPauseUncertain(v store.ClockEpochObligation, c
 	_, err := q.journal.MarkClockPauseUncertain(persist, v.StartRequestID, v.Sequence)
 	return errors.Join(cause, err)
 }
+
+// RepauseObserved pauses a game the player runs by hand under a stopped
+// epoch this process owned (#601). The status is the stopped one the
+// caller just read and validated (a scheduler step's bundle); the owned
+// pause names its epoch, so a replacement owner's clock is never touched
+// (ClockWriter.OwnedPause). The epoch is already settled, so nothing is
+// journaled: the returned status is what the admission that follows reads
+// its pause facts from.
+func (q *ClockCoordinator) RepauseObserved(ctx context.Context, observed *k.Status) (*k.Status, error) {
+	epoch := observed.GetStopped().GetEpoch()
+	if epoch == nil || epoch.Owner == nil || epoch.Origin == nil || observed.Context.GetIdentity() == nil {
+		return nil, executor.ErrEvidence
+	}
+	select {
+	case q.gate <- struct{}{}:
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+	defer func() { <-q.gate }()
+	call, cancel := context.WithTimeout(ctx, q.config.CallTimeout)
+	defer cancel()
+	identity := proto.Clone(observed.Context.GetIdentity()).(*c.Identity)
+	reply, _, err := q.writer.OwnedPause(call, &k.OwnedRequest{Identity: identity, Owner: proto.Clone(epoch.Owner).(*k.EpochOwner)})
+	if err != nil {
+		return nil, err
+	}
+	status := reply.GetStatus()
+	if err = bridge.ValidateClockStatus(status, identity); err != nil {
+		return nil, err
+	}
+	if status.GetStopped() == nil || status.Context.GetTick() < observed.Context.GetTick() {
+		return nil, executor.ErrEvidence
+	}
+	return status, nil
+}

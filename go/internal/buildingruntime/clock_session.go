@@ -111,3 +111,12 @@ func (s *Session) CleanupClockObserved(ctx context.Context, observed *k.Status) 
 	}
 	return s.clock.CleanupObserved(ctx, observed)
 }
+
+// RepauseClock is ClockCoordinator.RepauseObserved: pause a game the player
+// runs under a stopped owned epoch before the next window is admitted.
+func (s *Session) RepauseClock(ctx context.Context, observed *k.Status) (*k.Status, error) {
+	if s.clock == nil {
+		return nil, ErrControl
+	}
+	return s.clock.RepauseObserved(ctx, observed)
+}
