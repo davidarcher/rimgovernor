@@ -394,6 +394,14 @@ func openBuildingService(ctx context.Context, config bridge.ProcessConfig) (buil
 
 type buildingWorldSource struct{ reads observation.Source }
 
+func (s buildingWorldSource) ReadExtentIdentity(ctx context.Context) (observation.Identity, error) {
+	reply, _, err := s.reads.Tick(ctx)
+	if err != nil {
+		return observation.Identity{}, err
+	}
+	return observation.DecodeTick(reply)
+}
+
 func (s buildingWorldSource) ReadWorld(ctx context.Context) (store.World, error) {
 	reply, _, err := s.reads.Tick(ctx)
 	if err != nil {

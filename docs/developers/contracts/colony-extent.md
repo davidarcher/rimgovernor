@@ -98,15 +98,28 @@ The first consumer is the defense layout planner
 to drift with the colonists' centre, is now the extent window around the
 established footprint with Home kept inside, and it logs
 `defense-layout: census window from colony extent` when the extent anchors
-it. With no complete `ExtentGeometry` producer in the runtime yet the extent
-is unknown on every existing fixture, so the planner's census region, and
-therefore its plan, are byte-identical to the previous derivation; the
-intended difference appears only once geometry is observed, when the
-window anchors on the base instead of on wandering colonists.
+it. The native census includes every target, including fully covered
+facilities, with complete geometry separate from its 256-cell Home write
+batch. Enclosed traversable cells carry interior provenance; internal
+door cells carry corridor provenance. The clock scheduler establishes known
+regions after each routine review; missing or stale evidence writes nothing.
+The planner reads established history and live expansion areas for that
+world and timeline, falling back to current derivation when history is empty.
 
 The stone-shell and storage site planners still derive their candidate
 area per facility (claims, starter room, the planning-cell window);
 adopting the extent window there follows the same three steps.
+
+## Expansion area controls
+
+Authenticated player POST routes `/api/player/expansion-area/add` and
+`/api/player/expansion-area/remove` accept `expected` (colonyId, mapId,
+loadToken), `id` and `reason`; add also requires `cells` (`x`, `z`).
+They use the shared player gate, verify the live world, and journal at its
+observed tick. Add requires complete same-world bounds and in-map cells.
+Repeated additions of identical cells are idempotent; a changed live area
+must be removed before its id is reused. Both routes use the existing
+player token and local-origin checks and issue no native write.
 
 ## Home mask rule
 

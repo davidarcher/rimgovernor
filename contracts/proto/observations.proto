@@ -840,7 +840,9 @@ message HaulingSection { oneof outcome { HaulingFacts observed = 1; rimgovernor.
 message WallRemovalRecord { optional string id = 1; optional string target_id = 2; optional bool complete = 3; optional int64 completed_tick = 4; optional string blocker = 5; reserved 6; optional bool retired = 7; optional bool target_present = 8; optional bool designated = 9; }
 message WallRemovalFacts { repeated WallRemovalRecord records = 1; Completeness completeness = 2; SnapshotRef snapshot = 3; }
 message WallRemovalSection { oneof outcome { WallRemovalFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
-message HomeCoverageTarget { optional string id = 1; optional string shape_token = 2; optional uint32 missing_cells = 3; optional uint32 excluded_cells = 4; optional string blocker = 5; repeated rimgovernor.common.v1.Cell cells = 6; SnapshotRef snapshot = 7; }
+// Present geometry is complete and independent of the bounded Home write batch.
+message HomeExtentGeometry { repeated rimgovernor.common.v1.Cell enclosed_interior = 1; repeated rimgovernor.common.v1.Cell corridor = 2; }
+message HomeCoverageTarget { optional string id = 1; optional string shape_token = 2; optional uint32 missing_cells = 3; optional uint32 excluded_cells = 4; optional string blocker = 5; repeated rimgovernor.common.v1.Cell cells = 6; SnapshotRef snapshot = 7; HomeExtentGeometry extent_geometry = 8; }
 message HomeCoverageFacts { optional int64 revision = 1; repeated HomeCoverageTarget targets = 2; Completeness completeness = 3; }
 message HomeCoverageSection { oneof outcome { HomeCoverageFacts observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; } }
 // Lighting facts: the measured ground glow at every colonist work bench

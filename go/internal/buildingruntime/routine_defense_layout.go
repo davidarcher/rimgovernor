@@ -597,7 +597,7 @@ func abs32(v int32) int32 {
 func (r *RoutineDefenseLayoutPlanner) proposeTurrets(call context.Context, state ControlState, read observation.RoutineReading, record *store.DefenseLayoutRecord) error {
 	projection := read.Projection
 	identity := boundary.Identity(state.Snapshot)
-	region, err := defenseRegion(projection)
+	region, err := r.extentRegion(call, state.Snapshot, projection)
 	if err != nil {
 		return err
 	}
@@ -839,7 +839,7 @@ func defenseMissingBuildings(buildings []domain.Building, census *defenseCensus)
 func (r *RoutineDefenseLayoutPlanner) propose(call context.Context, state ControlState, read observation.RoutineReading) (policy.DefenseLayout, []domain.Cell, bool, error) {
 	projection := read.Projection
 	identity := boundary.Identity(state.Snapshot)
-	region, err := defenseRegion(projection)
+	region, err := r.extentRegion(call, state.Snapshot, projection)
 	if err != nil {
 		return policy.DefenseLayout{}, nil, false, err
 	}

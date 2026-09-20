@@ -487,6 +487,7 @@ func NewClockScheduler(player *Player, session *Session, native ClockWindowNativ
 	if config.Routine != nil {
 		config.Routine.store = scheduler.facts.store
 	}
+	player.extentFacts = scheduler.facts.store
 	return scheduler, nil
 }
 
@@ -1292,6 +1293,9 @@ func (s *ClockScheduler) stepPlanners(call, epoch context.Context, out *ClockSch
 			return nil, fmt.Errorf("routine: %w", executor.ErrAuthority)
 		}
 		out.Routine = &review
+		if err := s.establishExtent(call, review.Review.Tick); err != nil {
+			return nil, fmt.Errorf("colony extent: %w", err)
+		}
 		// A mental break is not a hold: it only ends with ticks, so refusing
 		// every window while one is observed stopped the clock for good in
 		// autonomous play. The break stays visible through the pawn's mood

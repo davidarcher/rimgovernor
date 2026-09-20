@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
 	"math"
@@ -150,6 +151,21 @@ func validateDirectUpkeep(v *o.UpkeepFacts, size *o.MapSize, mapID int32) error 
 					return contract("invalid Home coverage target")
 				}
 				seen[row.GetId()] = true
+				if g := row.ExtentGeometry; g != nil {
+					if row.GetBlocker() != "" || len(g.EnclosedInterior)+len(g.Corridor) > 65536 {
+						return contract("invalid complete Home extent geometry")
+					}
+					geometryCells := map[[2]int32]bool{}
+					for _, group := range [][]*c.Cell{g.EnclosedInterior, g.Corridor} {
+						for _, cell := range group {
+							key := [2]int32{cell.GetX(), cell.GetZ()}
+							if !colonyCell(cell, size) || geometryCells[key] {
+								return contract("invalid Home extent cell")
+							}
+							geometryCells[key] = true
+						}
+					}
+				}
 				cells := map[[2]int32]bool{}
 				for _, cell := range row.Cells {
 					if !colonyCell(cell, size) {

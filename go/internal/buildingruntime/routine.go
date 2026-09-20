@@ -185,6 +185,13 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 		return store.RoutineReviewResult{}, err
 	}
 	reading.Projection.Facts.FoodPlan = r.planFood(reading.Projection)
+	reading.Projection.Facts.ConstructionClaims = claims
+	reading.Projection.Facts.OwnedStockpiles, err = p.journal.StockpileClaims(ctx, state.Snapshot, reading.Projection.Identity.Tick)
+	if err != nil {
+		return store.RoutineReviewResult{}, err
+	}
+	reading.Sections.Colony.Value.Facts.ConstructionClaims = reading.Projection.Facts.ConstructionClaims
+	reading.Sections.Colony.Value.Facts.OwnedStockpiles = reading.Projection.Facts.OwnedStockpiles
 	reading.Projection.Facts.ResourceSurfaceOre = r.resourceSurfaceOre(ctx, state.Snapshot)
 	r.reviewMeals(&reading.Projection)
 	r.reviewReserve(&reading.Projection)

@@ -95,17 +95,28 @@ namespace HomeBridge.BridgeTools
                 Require(targets.Count, 256);
                 var facts = new Obs.HomeCoverageFacts { Revision = state.Revision };
                 foreach (var target in targets) {
-                    var cells = HomeCoverage.Scope(map, target);
-                    if (cells == null) {
+                    var full = HomeCoverage.FullScope(map, target);
+                    if (full == null) {
                         facts.Targets.Add(new Obs.HomeCoverageTarget { Id = Id(target), Blocker = "Bounded visible native facility geometry unavailable" });
                         continue;
                     }
+                    Require(full.Count, 65536);
+                    var cells = HomeCoverageGeometry.Batch(full, c => map.areaManager.Home[c]).OrderBy(c => c.x).ThenBy(c => c.z).ToList();
                     var missing = cells.Where(c => !map.areaManager.Home[c]).ToList();
-                    if (missing.Count == 0) continue;
                     // Retained wire field: autonomous Home has no exclusions.
                     var row = new Obs.HomeCoverageTarget { Id = Id(target), ShapeToken = HomeCoverage.Shape(target, cells),
                         MissingCells = checked((uint)missing.Count), ExcludedCells = 0 };
                     row.Cells.AddRange(cells.Select(Cell));
+                    row.ExtentGeometry = new Obs.HomeExtentGeometry();
+                    var building = map.listerBuildings.allBuildingsColonist.SingleOrDefault(b => b.GetUniqueLoadID() == target);
+                    if (building != null) {
+                        var footprint = new HashSet<IntVec3>(building.OccupiedRect());
+                        foreach (var cell in full.Where(c => !footprint.Contains(c))) {
+                            // Internal doors are the observed connections between enclosed rooms.
+                            if (cell.GetEdifice(map) is Building_Door) row.ExtentGeometry.Corridor.Add(Cell(cell));
+                            else row.ExtentGeometry.EnclosedInterior.Add(Cell(cell));
+                        }
+                    }
                     facts.Targets.Add(row);
                 }
                 facts.Completeness = Complete(facts.Targets.Count);

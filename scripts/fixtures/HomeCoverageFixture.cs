@@ -11,6 +11,29 @@ namespace HomeBridge.BridgeTools
 {
     public sealed class HomeCoverageFixture
     {
+        [Tool("test/extent_home_prepare", Description = "Prepare a ready Home census with one missing observed corridor cell for the colony extent smoke.")]
+        public async Task<object> PrepareExtent(IRimBridgeContext ctx, CancellationToken cancellationToken, int x, int z)
+            => await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                var cell = new IntVec3(x, 0, z);
+                var scopes = HomeCoverage.Targets(map).Select(id => HomeCoverage.FullScope(map, id)).ToList();
+                if (scopes.Any(cells => cells == null) || !scopes.Any(cells => cells.Contains(cell)))
+                    throw new InvalidOperationException("Complete observed corridor required.");
+                foreach (var cells in scopes) foreach (var c in cells) map.areaManager.Home[c] = true;
+                map.areaManager.Home[cell] = false;
+                return new { success = true, x, z, targets = scopes.Count };
+            }, cancellationToken).ConfigureAwait(false);
+        [Tool("test/home_mask", Description = "Read every native Home bit in cell-index order without changing the map.")]
+        public async Task<object> Mask(IRimBridgeContext ctx, CancellationToken cancellationToken)
+            => await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                var bytes = new byte[(map.cellIndices.NumGridCells + 7) / 8];
+                foreach (var cell in map.areaManager.Home.ActiveCells) {
+                    int index = map.cellIndices.CellToIndex(cell);
+                    bytes[index / 8] |= (byte)(1 << (index % 8));
+                }
+                return new { success = true, mask = Convert.ToBase64String(bytes) };
+            }, cancellationToken).ConfigureAwait(false);
         [Tool("test/home_coverage_setup", Description = "Prepare missing Home over an exact disposable controller-built facility. Does not change its native geometry. Fixture input only.")]
         public async Task<object> Setup(IRimBridgeContext ctx, CancellationToken cancellationToken, string target)
             => await ctx.MainThread.InvokeAsync<object>(() => {

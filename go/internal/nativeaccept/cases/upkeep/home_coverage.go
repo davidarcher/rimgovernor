@@ -281,7 +281,7 @@ func readBedIDs(ctx context.Context, h *na.Harness, identity map[string]any, lab
 }
 
 // homeCoverageRow returns the upkeep census's Home coverage row for target;
-// native lists only targets with missing cells or a blocker.
+// native includes covered targets so complete extent geometry remains available.
 func homeCoverageRow(observed map[string]any, target string) (map[string]any, bool) {
 	section, _ := na.AsMap(observed["upkeep"])
 	_, upkeep, err := na.Outcome(section, "observed")

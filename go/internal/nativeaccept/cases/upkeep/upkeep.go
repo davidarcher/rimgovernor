@@ -920,7 +920,7 @@ func verifyStockpileHome(ctx context.Context, h *na.Harness, identity map[string
 	if err != nil {
 		return err
 	}
-	if row, present := homeCoverageRow(census, zoneID); present {
+	if row, present := homeCoverageRow(census, zoneID); present && (na.AsNumber(row["missingCells"]) != 0 || na.AsString(row["blocker"]) != "") {
 		return fmt.Errorf("the upkeep census still lists the created stockpile %s as a Home deficit: %#v", zoneID, row)
 	}
 	return nil
