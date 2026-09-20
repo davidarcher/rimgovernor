@@ -106,8 +106,9 @@ Stats are Normal-quality values for the specific material; armor multipliers are
 0.6/0.8/1/1.15/1.3/1.45/1.8 and insulation multipliers
 0.8/0.9/1/1.1/1.2/1.5/1.8, Awful through Legendary.
 
-The optional seasonal observation carries 12 outdoor temperatures indexed by native
-Twelfth, the current twelfth and ticks to its next boundary, and at most one
+The optional seasonal observation carries 12 outdoor temperatures sampled at local
+twelfth midpoints and indexed by native Twelfth, the current twelfth and ticks to
+its next boundary, and at most one
 ColdSnap/HeatWave row with its native temperature offset and remaining ticks
 (-1 for permanent). Loadout scoring covers the current and next two twelfths
 for both cold and heat, retaining current ambient extremes. Weather extends

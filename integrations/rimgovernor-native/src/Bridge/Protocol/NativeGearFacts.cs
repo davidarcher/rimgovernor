@@ -21,6 +21,7 @@ namespace HomeBridge.BridgeTools
             var people = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).ToList();
             Require(people.Count, limit);
             var result = new Obs.GearSnapshot { Context = context.Clone(), Completeness = Complete(people.Count) };
+            ReadClimate(map, result);
             // ImproveGear (NativeGearOperations) checks the pawn's control
             // snapshot token and each candidate's supply token, so the census
             // carries both the way the pawn and supply censuses do (issue #233).
@@ -73,6 +74,36 @@ namespace HomeBridge.BridgeTools
                 result.Pawns.Add(row);
             }
             return result;
+        }
+
+        private static void ReadClimate(Map map, Obs.GearSnapshot result)
+        {
+            var longitude = Find.WorldGrid.LongLatOf(map.Tile).x;
+            var offset = GenDate.LocalTicksOffsetFromLongitude(longitude);
+            var localTicks = (long)GenTicks.TicksAbs + offset;
+            result.CurrentTwelfth = (uint)GenDate.Twelfth(GenTicks.TicksAbs, longitude);
+            result.TicksToNextTwelfth = GenDate.TicksPerTwelfth
+                - (int)((localTicks % GenDate.TicksPerTwelfth + GenDate.TicksPerTwelfth) % GenDate.TicksPerTwelfth);
+            // Sample the middle of each local-calendar twelfth. Seasonal
+            // temperature excludes weather and indoor heating; Go applies the
+            // bounded weather row only while the condition remains active.
+            for (var twelfth = 0; twelfth < GenDate.TwelfthsPerYear; twelfth++) {
+                var sampleTick = (int)(twelfth * GenDate.TicksPerTwelfth + GenDate.TicksPerTwelfth / 2 - offset);
+                result.OutdoorTemperatureByTwelfthC.Add(GenTemperature.GetTemperatureFromSeasonAtTile(sampleTick, map.Tile));
+            }
+            var conditions = new List<GameCondition>();
+            map.gameConditionManager.GetAllGameConditionsAffectingMap(map, conditions);
+            // Normally these events exclude each other. If mods overlap them,
+            // retain the strongest current offset, then stable native identity.
+            var weather = conditions
+                .Where(c => (c.def == GameConditionDefOf.ColdSnap || c.def == GameConditionDefOf.HeatWave)
+                    && (c.Permanent || c.TicksLeft > 0))
+                .OrderByDescending(c => Math.Abs(c.TemperatureOffset())).ThenBy(c => c.uniqueID).FirstOrDefault();
+            if (weather != null) result.ActiveWeather = new Obs.GearWeatherCondition {
+                DefName = weather.def.defName,
+                RemainingTicks = weather.Permanent ? -1 : Math.Max(0, weather.TicksLeft),
+                TemperatureOffsetC = weather.TemperatureOffset()
+            };
         }
 
         private static Obs.PawnEquipment Equipment(Pawn pawn)
