@@ -660,25 +660,7 @@ func validateGearProduction(benches []GearBench, r GearPlanningRequest) error {
 }
 
 func gearIngredients(slots [][]Amount, stuff Resource, r GearPlanningRequest) ([]Amount, []Resource, bool, bool) {
-	available := map[Resource]int64{}
-	knownStock := map[Resource]bool{}
-	for _, s := range r.Stock {
-		if n, known := s.Available.Value(); known {
-			available[s.Resource] = n
-			knownStock[s.Resource] = true
-		}
-	}
-	for _, rule := range r.Rules {
-		if rule.Spending != Allow {
-			available[rule.Resource] = 0
-			knownStock[rule.Resource] = true
-		} else {
-			available[rule.Resource] = max(0, available[rule.Resource]-rule.Reserve)
-		}
-	}
-	for _, hold := range r.Holds {
-		available[hold.Resource] = max(0, available[hold.Resource]-hold.Count)
-	}
+	available, knownStock := gearAvailable(r.Stock, r.Rules, r.Holds)
 	used := map[Resource]int64{}
 	for _, slot := range slots {
 		hasStuff := false

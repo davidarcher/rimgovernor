@@ -498,6 +498,10 @@ type RoutineLatches struct {
 	Routes                []string
 	Food, Cold, Hot, Wood bool
 	Upkeep                UpkeepHistory
+	// Soldiers latches once the gear census derives a soldier role: the
+	// research roadmap then walks the armor ladder (ArmorResearchLadder,
+	// #470) and keeps walking it when the squad is later undrafted.
+	Soldiers bool `json:",omitempty"`
 }
 type RoutineNeeds struct {
 	Disaster    *DisasterHistory
@@ -716,6 +720,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 		Cold:           latchValue(previous.Cold, fallback(f.SleepingMin, f.OutdoorTemperature), p.ColdEnter, p.ColdExit, false),
 		Hot:            latchValue(previous.Hot, fallback(f.SleepingMax, f.OutdoorTemperature), p.HotEnter, p.HotExit, true),
 		Wood:           latchValue(previous.Wood, wood, float64(p.WoodMin), float64(p.WoodTarget), false),
+		Soldiers:       previous.Soldiers || GearSoldierPresent(f.Gear),
 	}
 	r := RoutineNeeds{Gates: g, Latches: l}
 	addGoal := func(id GoalID, priority int) {
@@ -879,7 +884,7 @@ func DetectRoutine(f RoutineFacts, previous RoutineLatches, p RoutinePolicy) (Ro
 	// unknown, and RoutineResearchPlanner/RoutineResourcePlanner still re-read
 	// native state immediately before proposing a method.
 	researchNeeds := DeepDrillingResearch(f.ResearchNeeds, f.ResourceRunways)
-	researchTarget, researchDerived := ResearchGoal(p, researchNeeds, f.Research)
+	researchTarget, researchDerived := ResearchGoal(ArmorResearchPolicy(p, l.Soldiers), researchNeeds, f.Research)
 	researchRecovered, researchDeficit := ResearchTargetNeed(researchTarget, researchDerived, f.Research)
 	if !positive(researchRecovered) {
 		addGoal(EnsureResearch, 4)

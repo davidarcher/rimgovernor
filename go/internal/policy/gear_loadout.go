@@ -103,14 +103,32 @@ type GearOption struct {
 	Source                                                      GearSource
 	Condition, Sharp, Blunt, Cold, Heat, MoveSpeed, Cost, Range float64
 	Tainted, Locked, Shield, Ranged                             bool
+	// Psychic marks a psychic foil helmet, Smokepop a smokepop belt: utility
+	// gear the model plans only on evidence (a psychic-drone letter) or never.
+	Psychic, Smokepop bool
+	// Research names the ResearchProjectDefs the option's recipe requires;
+	// Ingredients its materials for a bill source (the armor ladder's steel,
+	// plasteel and components), judged against the input Budget.
+	Research    []string
+	Ingredients []Amount
 }
 
 type GearLoadoutInput struct {
 	Climate                                      *GearClimate
 	Role                                         GearRoleInput
 	Female, Nudist, Bloodlust, Inhuman, Smithing bool
-	Ambient, ComfortableMin, ComfortableMax      float64
-	Worn                                         []GearOption
+	// Research is the finished research census; an option is eligible only
+	// once every project its Research names is finished (Smithing remains
+	// the legacy flag for the simple helmet).
+	Research []string
+	// Budget is GearMaterialBudget: stock after MaintainResource reserves.
+	// A bill option whose Ingredients exceed it is refused; nil is
+	// unbudgeted.
+	Budget []Amount
+	// PsychicDrone is whether a psychic-drone letter has been seen.
+	PsychicDrone                            bool
+	Ambient, ComfortableMin, ComfortableMax float64
+	Worn                                    []GearOption
 	// Options have passed outfit/body/stage and resource-policy eligibility.
 	// Loose/stored IDs identify physical items; bill IDs identify products.
 	Options []GearOption
@@ -178,16 +196,64 @@ func gearMelee(p GearLoadoutInput) bool {
 	return melee > shooting
 }
 
+// GearArmorSpeedFloor is the move-speed penalty at or past which the soldier
+// role refuses armor: plate (-0.8) and cataphract (-0.5) slow a squad more
+// than their armor is worth; marine (-0.25) and flak vests (-0.12) pass.
+const GearArmorSpeedFloor = -.5
+
+func gearResearched(p GearLoadoutInput, project string) bool {
+	for _, finished := range p.Research {
+		if finished == project {
+			return true
+		}
+	}
+	return false
+}
+
+// gearMedic reports a pawn whose highest enabled work priority is doctoring.
+func gearMedic(p GearLoadoutInput) bool {
+	priorities, _ := p.Role.Work.Work.Value()
+	best, medic := 5, false
+	for _, w := range priorities {
+		if w.Disabled || w.Priority <= 0 || w.Priority > 4 {
+			continue
+		}
+		if w.Priority < best {
+			best, medic = w.Priority, w.Work == WorkDoctor
+		} else if w.Priority == best && w.Work != WorkDoctor {
+			medic = false
+		}
+	}
+	return medic
+}
+
 func gearEligible(p GearLoadoutInput, o GearOption) bool {
 	role := DeriveGearRole(p.Role)
 	kid := strings.HasPrefix(string(o.Definition), "Kid") || strings.HasPrefix(string(o.Definition), "Apparel_Kid")
 	if (role == GearChild) != kid {
 		return false
 	}
-	if o.Shield && (role != GearSoldier || !gearMelee(p)) {
+	// A shield belt stops the wearer shooting: melee soldiers and the medic.
+	if o.Shield && !(role == GearSoldier && gearMelee(p) || role != GearSoldier && role != GearChild && role != GearSlave && gearMedic(p)) {
 		return false
 	}
-	if role == GearSoldier && o.Slot == GearHeadgear && o.Sharp > 0 && !p.Smithing {
+	if o.Smokepop || o.Psychic && !p.PsychicDrone {
+		return false
+	}
+	if role == GearSoldier && o.Slot == GearHeadgear && o.Sharp > 0 && !p.Smithing && !gearResearched(p, "Smithing") {
+		return false
+	}
+	// Plate (-0.8 c/s) and cataphract (-0.5) never; recon and marine only as
+	// far as their plasteel and advanced components are funded.
+	if role == GearSoldier && o.MoveSpeed <= GearArmorSpeedFloor {
+		return false
+	}
+	for _, project := range o.Research {
+		if !gearResearched(p, project) {
+			return false
+		}
+	}
+	if o.Source == GearBillSource && !gearFunded(p.Budget, o) {
 		return false
 	}
 	if o.Slot == GearPrimary {
@@ -329,6 +395,19 @@ func (p GearLoadoutInput) Validate() error {
 		if o.Condition > 1 || math.IsNaN(o.MoveSpeed) || math.IsInf(o.MoveSpeed, 0) {
 			return errors.New("invalid gear condition or speed")
 		}
+		if len(o.Research) > 16 || len(o.Ingredients) > 16 {
+			return errors.New("gear recipe exceeds bound")
+		}
+		for _, project := range o.Research {
+			if !validResource(Resource(project)) {
+				return errors.New("invalid gear research")
+			}
+		}
+		for _, a := range o.Ingredients {
+			if !validResource(a.Resource) || a.Count <= 0 {
+				return errors.New("invalid gear ingredient")
+			}
+		}
 		for _, list := range [][]string{o.Layers, o.Groups} {
 			if len(list) > 16 {
 				return errors.New("gear coverage exceeds bound")
@@ -340,6 +419,19 @@ func (p GearLoadoutInput) Validate() error {
 				}
 				seen[v] = true
 			}
+		}
+	}
+	if len(p.Research) > 512 || len(p.Budget) > 64 {
+		return errors.New("gear research or budget exceeds bound")
+	}
+	for _, project := range p.Research {
+		if !validResource(Resource(project)) {
+			return errors.New("invalid gear research")
+		}
+	}
+	for _, a := range p.Budget {
+		if !validResource(a.Resource) || a.Count < 0 {
+			return errors.New("invalid gear budget")
 		}
 	}
 	for _, o := range p.Options {

@@ -280,7 +280,7 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 			var rows []policy.WorkRequirement
 			rows, known = benchWork.Value()
 			required = mergeWorkRequirements(required, rows)
-			required = mergeWorkRequirements(required, routineResearchWork(r.policy, needs, reading.Projection.Facts.Research))
+			required = mergeWorkRequirements(required, routineResearchWork(policy.ArmorResearchPolicy(r.policy, previous.Latches.Soldiers || policy.GearSoldierPresent(reading.Projection.Facts.Gear)), needs, reading.Projection.Facts.Research))
 			required = mergeWorkRequirements(required, fishingWork(reading.Projection))
 		}
 		if known {

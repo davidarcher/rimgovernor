@@ -223,7 +223,7 @@ func (r *RoutineResearchPlanner) step(call, epoch context.Context, arbiter *step
 	}
 	// The goal against the fresh census: the first recorded need the
 	// census lists and has not finished, else the first such ladder rung.
-	target, _ := policy.ResearchGoal(r.reviewer.policy, needs, domain.Known(facts))
+	target, _ := policy.ResearchGoal(policy.ArmorResearchPolicy(r.reviewer.policy, review.Latches.Soldiers), needs, domain.Known(facts))
 	if target == "" {
 		return RoutineResearchResult{Reason: BuildingMethodNoDeficit}, nil
 	}

@@ -145,6 +145,22 @@ shields restricted to melee, children select Kid/Apparel_Kid definitions, and
 slaves favor low cost. Garment stats and conflict metadata determine combinations
 such as a flak vest beneath a duster; definitions are not hard-coded.
 
+Armor ladder (#470). An option carries its recipe's research and ingredients;
+it is eligible only once the input's finished-research census names every
+project, so a soldier's gaps progress simple helmet (Smithing), then flak vest
+and flak helmet, then flak jacket and pants (FlakArmor), and recon or marine
+armor only once their plasteel and advanced components are funded. Soldiers
+refuse armor at or past the `GearArmorSpeedFloor` (-0.5 c/s: plate and
+cataphract, never). `Budget` is `GearMaterialBudget`: the supply census less
+MaintainResource reserves and holds, the floor food bills honour; a bill option
+whose ingredients exceed it is refused (nil is unbudgeted, an unmeasured
+material unfunded). Shield belts go to melee soldiers and the medic (highest
+work priority Doctor); a psychic foil helmet only after a psychic-drone letter;
+smokepop belts are never planned. Once the gear census derives a soldier role
+the review latches `Soldiers` and the research roadmap splices
+`ArmorResearchRungs` (Smithing, ComplexClothing, FlakArmor, Shields) directly
+after Electricity for every EnsureResearch reading.
+
 Each target purchase produces a gap with slot, exact product, source
 (loose/stored/bill) and marginal ensemble gain against the current worn slot.
 Gaps sort by descending gain then slot. Recovery means no gap above the role
