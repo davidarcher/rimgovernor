@@ -1,7 +1,7 @@
 // Command acceptance is the shared runner over the case registry (#135):
 //
 //	acceptance list [-cost [-baseline <result.json|metrics.jsonl>]] [-tier land|full|matrix|smoke] [<case>|<area>/...]...
-//	acceptance run <case>... [-root -output -game -headless -timeout -budget -stall -rimgovernor -series -no-series -evidence -fresh -rewind N -checkpoint-every d -restage -no-doctor -no-heal -repeat N -seed s -postmortem-only [-from bundle] -break stage=<name>|tick=<n>|minute=<m>]
+//	acceptance run <case>... [-root -output -game -headless -timeout -budget -stall -rimgovernor -series -no-series -evidence -fresh -rewind N -checkpoint-every d -restage -no-doctor -no-heal -repeat N -seed s -postmortem-only [-from bundle] -break stage=<name>|tick=<n>|minute=<m> -through <stage>]
 //	acceptance resume [<case>...] -root <dir> [run flags]
 //	acceptance suite (-all | -cases a,b | -suite file.json | -tier land|full|matrix|smoke) -root -output -workers N [-baseline result.json -series metrics.jsonl]
 //	acceptance stop -root <dir> [-config -game -takeover]
@@ -29,7 +29,10 @@
 // -checkpoint-every 0 turns it off); suite runs fresh unless -resume. A
 // case that declares Stages opens on its newest cached stage bundle in
 // the root (#329; -restage stages again, RIMGOVERNOR_ACCEPT_STAGES=0
-// turns the cache off); a fresh suite restages. -postmortem-only (#275)
+// turns the cache off); a fresh suite restages, and `suite -stages`
+// (stages.go, #527) instead schedules each declared stage as its own
+// work item (`run -through <stage>`) from the bundles cached in -root.
+// -postmortem-only (#275)
 // reloads the case's failed bundle (or -from) on the kept process and
 // runs only its Postmortem phase, leaving the ring as it was. Every
 // result.json carries a world block (na.RecordWorld, #281: the seed, the
@@ -190,7 +193,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 const usage = `usage:
   acceptance plan -evidence <root> -run <relative run.json> [-fetch]
 ` + listUsage + `
-  acceptance run <case>... -root <dir> [-output <dir> -game <id> -headless=false -timeout <d> -budget <d> -stall <d> -rimgovernor <binary> -series <metrics.jsonl> -no-series -evidence capped|full -fresh -rewind <n> -checkpoint-every <d> -restage -no-doctor -no-heal -repeat <n> -seed <s> -postmortem-only [-from <bundle>] -break stage=<name>|tick=<n>|minute=<m>]
+  acceptance run <case>... -root <dir> [-output <dir> -game <id> -headless=false -timeout <d> -budget <d> -stall <d> -rimgovernor <binary> -series <metrics.jsonl> -no-series -evidence capped|full -fresh -rewind <n> -checkpoint-every <d> -restage -no-doctor -no-heal -repeat <n> -seed <s> -postmortem-only [-from <bundle>] -break stage=<name>|tick=<n>|minute=<m> -through <stage>]
+    -through <stage> ends the run once that stage's bundle is cached (a suite -stages worker; the report carries staged_through);
     a case whose last run in this root failed resumes from its checkpoint ring (printed on the first line);
     -fresh starts over, -rewind <n> resumes n entries earlier, -checkpoint-every 0 turns the ring off;
     a case that declares Stages opens on its newest cached stage bundle (printed on the first line);
@@ -241,6 +245,7 @@ func parseRun(args []string, stderr io.Writer) ([]cases.Case, cases.Options, err
 	fs.StringVar(&opts.Seed, "seed", "", "pin the world seed of a debug or scenario start (a result.json world.seed) to reproduce that run; implies -fresh")
 	fs.BoolVar(&opts.PostmortemOnly, "postmortem-only", false, "reload the case's failed bundle on the kept process and run only its Postmortem phase; the ring is left as it was")
 	fs.StringVar(&opts.From, "from", "", "with -postmortem-only: the bundle to load, a ring label (t+7m, failed) or a bundle directory (default: the ring's failed bundle)")
+	fs.StringVar(&opts.Through, "through", "", "end the run once the named declared stage's bundle is cached, skipping the rest of the chain (a suite -stages worker)")
 	var breakSpec string
 	fs.StringVar(&breakSpec, "break", "", "pause the run at a breakpoint for inspection: stage=<name> (a declared stage), tick=<n> or minute=<m> (run phase); acceptance resume continues it")
 	if err := fs.Parse(flagArgs); err != nil {
@@ -258,6 +263,9 @@ func parseRun(args []string, stderr io.Writer) ([]cases.Case, cases.Options, err
 			return nil, opts, errors.New("-break needs the checkpoint ring: drop -checkpoint-every 0")
 		}
 		opts.Break = b
+	}
+	if opts.Through != "" && (opts.PostmortemOnly || opts.Repeat > 1 || breakSpec != "") {
+		return nil, opts, errors.New("-through takes a plain run: none of -postmortem-only, -repeat, -break")
 	}
 	if opts.From != "" && !opts.PostmortemOnly {
 		return nil, opts, errors.New("-from names the bundle of a -postmortem-only run")

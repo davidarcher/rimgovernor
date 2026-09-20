@@ -75,6 +75,7 @@ func Collect(ctx context.Context, dir string, report map[string]any) Digest {
 	d := Digest{Case: asString(report["case"]), Error: asString(report["error"])}
 	logs := serviceLogs(dir)
 	d.Sections = append(d.Sections, revision(ctx, report))
+	d.Sections = append(d.Sections, stageGraph(report))
 	d.Sections = append(d.Sections, refusals(dir, logs))
 	db, storeNote := openRaw(dir)
 	if db != nil {

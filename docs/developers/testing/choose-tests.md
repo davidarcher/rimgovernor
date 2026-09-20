@@ -236,7 +236,7 @@ baseline never ran, so an agent choosing among the cases a change owes
 can see that one costs 4 minutes and another 18, #283), and
 `acceptance run <area>/<case>... -root <abs root> [-output <dir>]
 [-rimgovernor <abs rimgovernor.exe>] [-budget <d> -stall <d> -timeout <d>]
-[-fresh] [-rewind N] [-checkpoint-every <d>] [-restage] [-evidence capped|full]
+[-fresh] [-rewind N] [-checkpoint-every <d>] [-restage] [-through <stage>] [-evidence capped|full]
 [-repeat N] [-seed <s>] [-postmortem-only [-from <label|dir>]]
 [-break stage=<name>|tick=<n>|minute=<m>]`
 (and `acceptance dev <area>/<case> -root <abs root> [-from <label|dir>]
@@ -1039,6 +1039,25 @@ bundle path and wall time) and `stage_key`. A staged pass is not a
 landing pass either: `acceptance suite` runs every row `-restage` and
 fails one whose `result.json` carries `staged_from`, and `cmd/land
 -results` refuses such a suite.
+
+`acceptance suite -stages` (#527) is the iteration mode over staged
+cases: the planner expands each staged row into one work item per
+declared stage still missing from the bundles cached in `-root` (each
+`acceptance run <case> -through <stage>`, which opens on the newest
+cached bundle, captures its stage's and ends with `staged_through` on
+its report) plus the tail that runs the case to its verdict, chained by
+dependency; a row with nothing cached runs its whole chain as one item.
+A finished item's bundles are published back into `-root`, so the next
+item opens on them from whichever worker is free and the next suite or
+`run` starts warm; an item whose producer failed is blocked, not run.
+With warm bundles only the tails run, in parallel, so the suite's wall
+is the longest tail plus a reload rather than the sum of the chains.
+The suite report lists the tails' rows under `cases` (passing, with
+`staged_from`, and named under `staged`), the stage items under
+`stage_runs` and the graph under `stages`; `acceptance why` prints a
+case's stage graph from its `result.json`. `-stages` is refused with
+`-tier land` and with `-resume`, and `cmd/land -results` refuses its
+report.
 
 A case whose late scenario depends on minutes of earlier play (the
 defense layout build before its raid) checkpoints the precondition as a

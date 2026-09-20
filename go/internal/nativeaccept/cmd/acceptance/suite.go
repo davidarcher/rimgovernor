@@ -92,6 +92,9 @@ type entry struct {
 
 	// registered is the registry case the row resolves to.
 	registered *cases.Case
+	// Through, under -stages, makes the row one stage item of its case
+	// (`run -through`, stages.go) rather than the run to its verdict.
+	Through string `json:"-"`
 }
 
 // serveDriven reports whether the row hosts a `rimgovernor serve` process.
@@ -121,9 +124,13 @@ type suiteOptions struct {
 	// Resume carries each case's checkpoint ring from Root into its worker
 	// and lets the row resume from it instead of forcing -fresh.
 	Resume bool
+	// Stages schedules each staged case's declared stages as their own
+	// work items from the bundles cached in Root (stages.go, #527);
+	// rows that opened on a stage bundle pass and are listed.
+	Stages bool
 }
 
-const suiteUsage = `  acceptance suite (-all | -cases a,b,... | -suite file.json | -tier land|full|matrix|smoke [-base main]) -root <dir> -output <dir> [-workers N -baseline <result.json> -series <metrics.jsonl> -no-series -rimgovernor <bin> -game <id> -timeout <d> -case-timeout <d> -budget <d> -stall <d> -evidence capped|full -resume]
+const suiteUsage = `  acceptance suite (-all | -cases a,b,... | -suite file.json | -tier land|full|matrix|smoke [-base main]) -root <dir> -output <dir> [-workers N -baseline <result.json> -series <metrics.jsonl> -no-series -rimgovernor <bin> -game <id> -timeout <d> -case-timeout <d> -budget <d> -stall <d> -evidence capped|full -resume -stages]
     -tier land runs the cases cmd/affected selects for the worktree's diff plus the smoke set; full every case but the matrix tier;
     matrix the speedmatrix, tickbudget and DLC-save cases; smoke the land tier's fixed half alone (acceptance list -tier <name> prints a tier)`
 
@@ -154,6 +161,7 @@ func parseSuite(args []string, stderr io.Writer) ([]entry, suiteOptions, error) 
 	fs.DurationVar(&opts.Stall, "stall", 0, "stall budget override")
 	fs.StringVar(&opts.Evidence, "evidence", "", "evidence mode passed to every case: capped (default) or full")
 	fs.BoolVar(&opts.Resume, "resume", false, "resume each case from the checkpoint ring its last failed run left in -root instead of running fresh; resumed rows pass and are listed")
+	fs.BoolVar(&opts.Stages, "stages", false, "schedule each staged case's declared stages as their own work items from the stage bundles cached in -root, publishing new bundles back (not a landing pass; refused with -tier land)")
 	if err := fs.Parse(args); err != nil {
 		return nil, opts, err
 	}
@@ -177,6 +185,12 @@ func parseSuite(args []string, stderr io.Writer) ([]entry, suiteOptions, error) 
 	}
 	if opts.Workers < 1 {
 		return nil, opts, errors.New("-workers must be at least 1")
+	}
+	if opts.Stages && opts.Tier == "land" {
+		return nil, opts, errors.New("-stages is for iteration: the land tier stages every chain from scratch")
+	}
+	if opts.Stages && opts.Resume {
+		return nil, opts, errors.New("-stages and -resume are exclusive: a ring resume is later on the timeline than any stage")
 	}
 	opts.Output = mustAbs(opts.Output)
 	if opts.Series == "" {
@@ -457,39 +471,50 @@ func runSuite(ctx context.Context, list []entry, opts suiteOptions, stderr io.Wr
 	}
 	report["worker_roots"] = roots
 
-	queue := make(chan entry)
+	cached := func(entry) string { return "" }
+	if opts.Stages {
+		cached = cachedStage(opts)
+	}
+	items := expand(list, cached)
 	rows := make([]map[string]any, len(list))
 	index := map[string]int{}
 	for i, e := range list {
 		index[e.Name] = i
 	}
+	itemRows := make([]map[string]any, len(items))
 	var mu sync.Mutex
-	var wg sync.WaitGroup
-	for w := range roots {
-		wg.Add(1)
-		go func(worker int, workerRoot string) {
-			defer wg.Done()
-			for e := range queue {
-				row := runEntry(ctx, e, opts, self, workerRoot, worker+1, stderr)
-				mu.Lock()
-				rows[index[e.Name]] = row
-				mu.Unlock()
-			}
-			stopCtx, stopCancel := context.WithTimeout(context.Background(), 2*time.Minute)
-			defer stopCancel()
-			if err := na.StopGame(stopCtx, workerRoot, opts.GameID); err != nil {
-				mu.Lock()
-				report[fmt.Sprintf("worker_%d_stop_error", worker+1)] = err.Error()
-				mu.Unlock()
-			}
-		}(w, roots[w])
-	}
 	started := time.Now()
-	for _, e := range list {
-		queue <- e
+	blocked := dispatch(items, opts.Workers, func(worker, i int) bool {
+		row := runItem(ctx, items[i], opts, self, roots[worker-1], worker, stderr)
+		mu.Lock()
+		itemRows[i] = row
+		mu.Unlock()
+		ok, _ := row["passed"].(bool)
+		return ok
+	}, func(worker int) {
+		stopCtx, stopCancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer stopCancel()
+		if err := na.StopGame(stopCtx, roots[worker-1], opts.GameID); err != nil {
+			mu.Lock()
+			report[fmt.Sprintf("worker_%d_stop_error", worker)] = err.Error()
+			mu.Unlock()
+		}
+	})
+	var stageRuns []map[string]any
+	for i, it := range items {
+		if cause, ok := blocked[i]; ok {
+			itemRows[i] = blockedRow(it, items[cause])
+		}
+		if it.through == "" {
+			rows[index[it.entry.Name]] = itemRows[i]
+		} else {
+			stageRuns = append(stageRuns, itemRows[i])
+		}
 	}
-	close(queue)
-	wg.Wait()
+	if opts.Stages {
+		report["stage_runs"] = stageRuns
+		report["stages"] = stageGraph(items, itemRows)
+	}
 	report["wall_ms"] = time.Since(started).Milliseconds()
 	report["cases"] = rows
 	passed, failed := 0, []string{}
@@ -509,6 +534,10 @@ func runSuite(ctx context.Context, list []entry, opts suiteOptions, stderr io.Wr
 	if resumed := resumedRows(rows); len(resumed) > 0 {
 		report["resumed"] = resumed
 		fmt.Fprintf(stderr, "resumed from a checkpoint (passes prove the fix past the resume point only): %s\n", strings.Join(resumed, ", "))
+	}
+	if staged := stagedRows(rows); len(staged) > 0 {
+		report["staged"] = staged
+		fmt.Fprintf(stderr, "opened on a cached stage bundle (passes prove the fix past the stage only): %s\n", strings.Join(staged, ", "))
 	}
 	report["cases_passed"] = passed
 	report["total_case_ms"] = total
@@ -551,7 +580,13 @@ func entryCommand(e entry, opts suiteOptions, self, workerRoot string) (argv []s
 	// process check would only see its siblings.
 	argv = []string{self, "run", e.Name, "-root", workerRoot, "-output", opts.Output, "-game", opts.GameID}
 	if !opts.Resume {
-		argv = append(argv, "-fresh", "-checkpoint-every", "0", "-restage")
+		argv = append(argv, "-fresh", "-checkpoint-every", "0")
+		if !opts.Stages {
+			argv = append(argv, "-restage")
+		}
+	}
+	if e.Through != "" {
+		argv = append(argv, "-through", e.Through)
 	}
 	argv = append(argv, "-no-doctor")
 	if opts.NoSeries {
@@ -582,6 +617,9 @@ func entryCommand(e entry, opts suiteOptions, self, workerRoot string) (argv []s
 func runEntryOnce(ctx context.Context, e entry, opts suiteOptions, self, workerRoot string, worker int, stderr io.Writer) map[string]any {
 	argv, output := entryCommand(e, opts, self, workerRoot)
 	row := map[string]any{"name": e.Name, "worker": worker, "output": output, "argv": argv, "serve": e.serveDriven(), "passed": false}
+	if e.Through != "" {
+		row["stage"] = e.Through
+	}
 	if e.Acceptance != "" {
 		row["acceptance"] = e.Acceptance
 	}
@@ -608,7 +646,11 @@ func runEntryOnce(ctx context.Context, e entry, opts suiteOptions, self, workerR
 	}
 	defer logFile.Close()
 	cmd.Stdout, cmd.Stderr = logFile, logFile
-	fmt.Fprintf(stderr, "[worker %d] %s\n", worker, e.Name)
+	label := e.Name
+	if e.Through != "" {
+		label += "@" + e.Through
+	}
+	fmt.Fprintf(stderr, "[worker %d] %s\n", worker, label)
 	started := time.Now()
 	runErr := cmd.Run()
 	row["wall_ms"] = time.Since(started).Milliseconds()
@@ -644,8 +686,13 @@ func runEntryOnce(ctx context.Context, e entry, opts suiteOptions, self, workerR
 				row["error"] = "postmortem-only: a landing run must pass from scratch"
 			}
 			if staged, ok := result["staged_from"]; ok {
-				row["passed"], row["staged_from"] = false, staged
-				row["error"] = "opened on a cached stage bundle: a landing run must stage from scratch"
+				row["staged_from"] = staged
+				if !opts.Stages {
+					row["passed"], row["error"] = false, "opened on a cached stage bundle: a landing run must stage from scratch"
+				}
+			}
+			if through, ok := result["staged_through"]; ok {
+				row["staged_through"] = through
 			}
 			row["game_reuse"] = result["game_reuse"]
 			if ms, ok := result["boot_ms"].(float64); ok {
@@ -667,7 +714,7 @@ func runEntryOnce(ctx context.Context, e entry, opts suiteOptions, self, workerR
 	} else if row["error"] == nil {
 		row["error"] = "no result.json: " + err.Error()
 	}
-	fmt.Fprintf(stderr, "[worker %d] %s exit=%v passed=%v %s\n", worker, e.Name, row["exit"], row["passed"], time.Since(started).Round(time.Second))
+	fmt.Fprintf(stderr, "[worker %d] %s exit=%v passed=%v %s\n", worker, label, row["exit"], row["passed"], time.Since(started).Round(time.Second))
 	return row
 }
 
@@ -696,6 +743,18 @@ func carryRing(root, workerRoot, name string) error {
 		return err
 	}
 	return na.CopyTree(src, dst)
+}
+
+// stagedRows names the rows that opened on a cached stage bundle, in
+// queue order.
+func stagedRows(rows []map[string]any) []string {
+	var names []string
+	for _, row := range rows {
+		if _, ok := row["staged_from"]; ok {
+			names = append(names, na.AsString(row["name"]))
+		}
+	}
+	return names
 }
 
 // resumedRows names the rows that resumed from a checkpoint, in queue order.

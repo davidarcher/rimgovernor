@@ -54,6 +54,12 @@ type Options struct {
 	// Rewind resumes that many entries earlier than the ring's next.
 	Fresh  bool
 	Rewind int
+	// Through ends the run once the named declared stage's bundle is
+	// cached (#527): the Run body is cut there, the case's Postmortem
+	// does not run, and the report carries staged_through. A suite
+	// scheduling stages across workers runs each stage this way; the
+	// run appends no series row.
+	Through string
 	// Restage discards the case's stage bundles in this root (#329) and
 	// stages again; Fresh leaves them, since a stage is deterministic
 	// setup, not the failed attempt.
@@ -189,9 +195,9 @@ func stopOtherProfile(ctx context.Context, c Case, opts Options, report na.Repor
 // (na.Drift); neither changes the verdict.
 func Execute(ctx context.Context, c Case, opts Options) (na.Report, int) {
 	output := opts.CaseOutput(c)
-	if opts.Dev || !opts.Break.IsZero() {
-		// An iteration over a pinned bundle, or a run cut at a breakpoint,
-		// is not a measurement of the case.
+	if opts.Dev || !opts.Break.IsZero() || opts.Through != "" {
+		// An iteration over a pinned bundle, or a run cut at a breakpoint
+		// or after a stage, is not a measurement of the case.
 		opts.NoSeries = true
 	}
 	headless := opts.Headless && !c.Rendered
@@ -303,6 +309,9 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 	if err := checkBreak(c, &opts); err != nil {
 		return err
 	}
+	if err := checkThrough(c, opts); err != nil {
+		return err
+	}
 	if err := StageSaves(c.Start, opts.Root); err != nil {
 		return err
 	}
@@ -339,7 +348,7 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 	if opts.Dev && staged.off == "" {
 		staged.off = "dev iteration"
 	}
-	s := &session{c: c, report: report, binary: opts.Rimgovernor, seed: opts.Seed, stagePlan: staged, stagesDir: opts.StagesDir(c)}
+	s := &session{c: c, report: report, binary: opts.Rimgovernor, seed: opts.Seed, stagePlan: staged, stagesDir: opts.StagesDir(c), through: opts.Through}
 	if resumed.resuming() || staged.staged() {
 		// The restored store holds the earlier run's submissions (#307).
 		s.resumeSuffix = opts.RunID()
@@ -453,6 +462,7 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 	// the BreakError as the cause (na.Broke reads it back).
 	runCtx, cutRun := context.WithCancelCause(ctx)
 	defer cutRun(nil)
+	s.cutRun = cutRun
 	if ring != nil {
 		ring.Break = opts.Break
 		ring.OnBreak = func(reason string) { cutRun(&na.BreakError{Reason: reason}) }
@@ -466,7 +476,13 @@ func execute(ctx context.Context, c Case, opts Options, output string, report na
 	if broke := na.Broke(runCtx); broke != nil && ctx.Err() == nil {
 		return breakRun(c, opts, s, ring, resumed, broke, report)
 	}
-	if runErr == nil && c.Postmortem != nil {
+	through := stagedThrough(runCtx)
+	if through != nil && ctx.Err() == nil {
+		// The stage's bundle is cached: the rest of the chain, its
+		// Postmortem included, is another run's (#527), so nothing failed.
+		runErr = nil
+	}
+	if runErr == nil && c.Postmortem != nil && through == nil {
 		runErr = s.postmortem(ctx)
 	}
 	if runErr == nil {
@@ -791,6 +807,10 @@ type session struct {
 	stagesDir string
 	stageNext int
 	stageRows []map[string]any
+	// through is the stage the run ends after (Options.Through), cutRun
+	// how Stage ends it.
+	through string
+	cutRun  context.CancelCauseFunc
 	// prior is the failed run's result.json under -postmortem-only.
 	prior   map[string]any
 	runtime *na.ScenarioRuntime

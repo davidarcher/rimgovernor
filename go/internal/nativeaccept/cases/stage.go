@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -162,15 +163,7 @@ func planStage(c Case, opts Options, resumed resumption, log io.Writer) (staging
 			}
 			continue
 		}
-		reason := current.Mismatch(entry)
-		switch {
-		case reason != "":
-		case entry.StageKey != key:
-			reason = "the case's staging code changed"
-		case entry.Stage != name:
-			reason = "the bundle is not a stage bundle"
-		}
-		if reason != "" {
+		if reason := stageMismatch(entry, name, current, key); reason != "" {
 			fmt.Fprintf(log, "discarding stage %s of %s: %s\n", name, c.Name, reason)
 			_ = os.RemoveAll(entry.Path)
 			continue
@@ -180,6 +173,50 @@ func planStage(c Case, opts Options, resumed resumption, log io.Writer) (staging
 		return plan, nil
 	}
 	return plan, nil
+}
+
+// stageMismatch says why a bundle read from the stage directory name
+// cannot open a run under the current fingerprint and stage key, or "".
+func stageMismatch(entry na.Checkpoint, name string, current na.Fingerprint, key string) string {
+	switch reason := current.Mismatch(entry); {
+	case reason != "":
+		return reason
+	case entry.StageKey != key:
+		return "the case's staging code changed"
+	case entry.Stage != name:
+		return "the bundle is not a stage bundle"
+	}
+	return ""
+}
+
+// CachedStage is the newest declared stage of c whose bundle under
+// opts.Root a run would open on (the fingerprint and stage key match),
+// "" when none: what a suite scheduling stages (#527) plans from. It
+// reads only; the run itself discards what it finds stale.
+func CachedStage(c Case, opts Options) string {
+	if len(c.Stages) == 0 || !stagesEnabled() {
+		return ""
+	}
+	key, err := StageKey(c)
+	if err != nil {
+		return ""
+	}
+	current, err := fingerprint(c, opts.configDir(c))
+	if errors.Is(err, os.ErrNotExist) {
+		current, err = fingerprint(c, filepath.Join(opts.Root, "config"))
+	}
+	if err != nil {
+		return ""
+	}
+	for i := len(c.Stages) - 1; i >= 0; i-- {
+		name := c.Stages[i]
+		entry, err := na.ReadCheckpoint(filepath.Join(opts.StagesDir(c), name))
+		if err != nil || stageMismatch(entry, name, current, key) != "" {
+			continue
+		}
+		return name
+	}
+	return ""
 }
 
 // RestoredState is the case state key as the bundle this run opened on
@@ -227,7 +264,7 @@ func (s *session) Stage(ctx context.Context, name string, fn func(ctx context.Co
 	if index <= s.stagePlan.hit {
 		row["outcome"], row["path"], row["wall_ms"] = "hit", filepath.Join(s.stagesDir, name), int64(0)
 		s.tripStage(name)
-		return nil
+		return s.endThrough(name, "hit")
 	}
 	if err := fn(ctx); err != nil {
 		row["outcome"], row["wall_ms"] = "failed", time.Since(began).Milliseconds()
@@ -255,6 +292,9 @@ func (s *session) Stage(ctx context.Context, name string, fn func(ctx context.Co
 	defer s.tripStage(name)
 	if s.stages == nil {
 		row["outcome"], row["wall_ms"] = "uncached", time.Since(began).Milliseconds()
+		if name == s.through {
+			return fmt.Errorf("stage %q: -through needs the bundle cached, but staging is off (%s)", name, s.stagePlan.off)
+		}
 		return nil
 	}
 	// The bundle's offset is the run's, so a hit sets the ring's Base and
@@ -269,6 +309,61 @@ func (s *session) Stage(ctx context.Context, name string, fn func(ctx context.Co
 		return fmt.Errorf("stage %q: capture: %w", name, err)
 	}
 	row["outcome"], row["path"], row["wall_ms"], row["capture_ms"] = "captured", entry.Path, time.Since(began).Milliseconds(), entry.WallMs
+	return s.endThrough(name, "captured")
+}
+
+// throughError is the cause a run ended after its -through stage cancels
+// the Run body with; stagedThrough reads it back.
+type throughError struct {
+	Stage, Outcome string
+}
+
+func (e *throughError) Error() string { return "staged through " + e.Stage + " (" + e.Outcome + ")" }
+
+// stagedThrough is the -through stage that ended ctx, nil when the
+// context ended for any other reason (or not at all).
+func stagedThrough(ctx context.Context) *throughError {
+	var te *throughError
+	if errors.As(context.Cause(ctx), &te) {
+		return te
+	}
+	return nil
+}
+
+// endThrough ends the run after the named stage when it is the run's
+// -through stage (#527): the Run body is cut through its context and the
+// report says which stage the run ended on and whether its bundle was
+// taken by this run or found cached.
+func (s *session) endThrough(name, outcome string) error {
+	if name != s.through {
+		return nil
+	}
+	s.report["staged_through"] = map[string]any{"stage": name, "outcome": outcome, "path": filepath.Join(s.stagesDir, name)}
+	err := &throughError{Stage: name, Outcome: outcome}
+	if s.cutRun != nil {
+		s.cutRun(err)
+	}
+	return err
+}
+
+// checkThrough validates opts.Through against c before the game opens: a
+// declared stage of a plain run with staging on.
+func checkThrough(c Case, opts Options) error {
+	if opts.Through == "" {
+		return nil
+	}
+	if opts.PostmortemOnly || opts.Dev || opts.Repeat > 1 || !opts.Break.IsZero() {
+		return errors.New("-through takes a plain run: none of -postmortem-only, -repeat, -break, or dev")
+	}
+	if !slices.Contains(c.Stages, opts.Through) {
+		if len(c.Stages) == 0 {
+			return fmt.Errorf("-through %s: case %s declares no Stages", opts.Through, c.Name)
+		}
+		return fmt.Errorf("-through %s: case %s declares the stages %v", opts.Through, c.Name, c.Stages)
+	}
+	if !stagesEnabled() {
+		return fmt.Errorf("-through %s: stage bundles are off (%s=0), so nothing would be cached", opts.Through, StagesEnv)
+	}
 	return nil
 }
 

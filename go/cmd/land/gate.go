@@ -186,7 +186,7 @@ func readSuiteResults(dir string) (string, error) {
 		return "", fmt.Errorf("-results: %s ran postmortem-only (%s); a landing pass runs the scenario", path, strings.Join(only, ", "))
 	}
 	if len(staged) > 0 {
-		return "", fmt.Errorf("-results: %s opened on a cached stage bundle (%s); a landing pass stages from scratch (acceptance suite runs every row -restage)", path, strings.Join(staged, ", "))
+		return "", fmt.Errorf("-results: %s opened on a cached stage bundle (%s); a landing pass stages from scratch (acceptance suite runs every row -restage unless -stages)", path, strings.Join(staged, ", "))
 	}
 	if !report.Passed {
 		reason := report.Error

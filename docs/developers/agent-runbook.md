@@ -195,6 +195,11 @@ What it produces:
   in the root (first output line says so; #329) and skips the staging
   blocks it covers; `-restage` stages again, and a landing suite always
   does. Say `staged_from` in a report the same way as `resumed_from`.
+  To iterate on the tails of several staged cases at once, `acceptance
+  suite -cases a,b -stages` (#527) schedules each case's missing stages
+  as their own work items (`run -through <stage>`) from the bundles
+  cached in `-root`, publishes new bundles back and runs the tails in
+  parallel; refused with `-tier land` and by `cmd/land -results`.
 - Iterating on a case's asserts, not its scenario: `acceptance run
   <case> -postmortem-only [-from t+7m] -output <empty dir>` reloads the
   failed bundle on the kept process and runs only the case's
