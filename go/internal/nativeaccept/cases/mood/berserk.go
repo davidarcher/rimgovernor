@@ -66,13 +66,8 @@ func runBerserk(ctx context.Context, s cases.Session) error {
 			return "", false, err
 		}
 		for _, event := range events {
-			if event.Kind == "native_response" && na.AsString(event.Payload["native_tool"]) == "rimgovernor/observations_list_pawns" {
-				result, _ := na.AsMap(event.Payload["result"])
-				var reply map[string]any
-				if err := json.Unmarshal([]byte(na.AsString(result["payload"])), &reply); err != nil {
-					return "", false, err
-				}
-				audit.observe(reply)
+			if err := audit.observeEvent(event); err != nil {
+				return "", false, err
 			}
 			if event.Kind == "native_request" {
 				args, _ := na.AsMap(event.Payload["arguments"])
@@ -255,5 +250,19 @@ func (a *berserkDispatch) dispatch(op map[string]any) error {
 		return fmt.Errorf("cannot establish clearance of other dispatch: %v", op)
 	}
 	a.checked++
+	return nil
+}
+
+func (a *berserkDispatch) observeEvent(event na.FlightRow) error {
+	// Discovery responses name the native tool too, but contain schemas.
+	if event.Kind != "native_response" || na.AsString(event.Payload["tool"]) != "games_call_tool" || na.AsString(event.Payload["native_tool"]) != "rimgovernor/observations_list_pawns" {
+		return nil
+	}
+	result, _ := na.AsMap(event.Payload["result"])
+	var reply map[string]any
+	if err := json.Unmarshal([]byte(na.AsString(result["payload"])), &reply); err != nil {
+		return err
+	}
+	a.observe(reply)
 	return nil
 }
