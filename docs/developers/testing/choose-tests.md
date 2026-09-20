@@ -181,6 +181,14 @@ over it. Fabrication requires more components, steel consumption and a
 build registration. Compilation and registration complete the case-writing
 task; the next nightly run proves the native outcome.
 
+`production/drillremoval` (#538) runs in the ordinary tiers: the same fixture's
+`exhausted` scenario adds one colonist drill over barren ground beside the
+seeded lump, the steel deficit admits a `routine-drill-removal-*` plan whose
+drill `Deconstruction` dispatches through Hands, and the audit requires the
+barren drill gone with the scanner and lump untouched. About 30 seconds; rerun
+when `routine_deep_drill.go`, the deconstruction boundary or
+`NativeDeepResources.cs` changes.
+
 ## Isolated food channels
 
 The `food/` area owns nutrition-channel acceptance. `food/empty-channels`

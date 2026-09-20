@@ -51,14 +51,13 @@ Depleted cells disappear; touching discoveries of the same definition merge.
 The census is capped at 256 lumps and 256 built player scanners plus drills total.
 Oversize or failed reads return section-unavailable, never partial known-empty facts.
 
-Drill rows (`DeepDrillState`) cover every spawned player deep drill: powered
+Drill rows (`DeepDrillState`) cover every spawned colonist deep drill: powered
 state, the native next deposit under the drill (`resource`, `remaining`, absent
-when `depleted`), a standing Deconstruct designation and `controller_owned`,
-the save-persistent record written when a typed construction the controller
-admitted completed into that exact drill (thing id, definition, cell). Go
-requires depletion, ownership, designation and power to be stated, a positive
-exact deposit on an undepleted drill and none on a depleted one; the removal
-guard dispatches only an owned, depleted, still-present drill.
+when `depleted`) and a standing Deconstruct designation. Go requires depletion,
+designation and power to be stated, a positive exact deposit on an undepleted
+drill and none on a depleted one; the removal guard dispatches only a depleted,
+still-present drill (every colonist drill is the controller's; no ownership
+ledger).
 
 Ground and long-range scanner rows carry built, powered and recent-working state;
 long-range rows also expose the selected output mineral when readable. Remaining
@@ -68,7 +67,8 @@ Random discovery may occur sooner. Missing timing stays unknown. Go preserves an
 absent/unavailable section as `ColonyProjection.DeepResources` unknown, while an
 observed empty section establishes no discovered lumps or built scanners.
 `tools/deepresources` checks seeded aggregation, both scanner kinds and a
-yielding player drill beside an owned depleted one;
+yielding drill beside a depleted one, `production/drillremoval` the removal of
+a depleted drill through Hands;
 `tools/saveheadroom-*` checks the committed-save envelope budget.
 
 ## Required semantic validation

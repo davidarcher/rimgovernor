@@ -71,17 +71,16 @@ func deepDrillSites(f observation.ColonyProjection, runways []policy.ResourceRun
 	return sites
 }
 
-// exhaustedDrills selects the controller-owned drills whose seam the native
-// census reads as depleted and that carry no Deconstruct designation yet,
-// by id. Unknown ownership or depletion, a player drill and a shifted lump
-// centre (which is not a drill fact at all) never qualify.
+// exhaustedDrills selects the colonist drills whose seam the native census
+// reads as depleted and that carry no Deconstruct designation yet, by id.
+// Unknown depletion and a shifted lump centre (which is not a drill fact at
+// all) never qualify; every colonist drill is the controller's.
 func exhaustedDrills(deep observation.DeepResources) []observation.DeepDrill {
 	var out []observation.DeepDrill
 	for _, drill := range deep.Drills {
-		owned, ok := drill.ControllerOwned.Value()
 		depleted, dk := drill.Depleted.Value()
 		designated, gk := drill.Designated.Value()
-		if ok && owned && dk && depleted && gk && !designated {
+		if dk && depleted && gk && !designated {
 			out = append(out, drill)
 		}
 	}
@@ -89,9 +88,9 @@ func exhaustedDrills(deep observation.DeepResources) []observation.DeepDrill {
 	return out
 }
 
-// removeExhaustedDrill admits one Deconstruction of an exhausted owned drill
-// through the ordinary Hands path; the dispatch guard re-reads ownership and
-// depletion before designating. Attempts per drill are bounded per episode.
+// removeExhaustedDrill admits one Deconstruction of an exhausted drill through
+// the ordinary Hands path; the dispatch guard re-reads depletion before
+// designating. Attempts per drill are bounded per episode.
 func (r *RoutineResourcePlanner) removeExhaustedDrill(call, epoch context.Context, state ControlState, goal store.GoalState, f observation.ColonyProjection, started time.Time) (RoutineResourceResult, bool, error) {
 	deep, known := f.DeepResources.Value()
 	if !known {
@@ -202,9 +201,9 @@ func (r *RoutineResourcePlanner) deepDrill(call, epoch context.Context, state Co
 	if _, err := boundary.Context(buildings.Context, state.Snapshot); err != nil || buildings.Delta || !domain.Tick(buildings.AsOf()).FreshFor(f.Identity.Tick) {
 		return RoutineResourceResult{}, true, ErrControl
 	}
-	// Any remaining drill or drill blueprint holds placement: a player drill is
-	// never removed, a working drill is not multiplied, and an owned exhausted
-	// drill already designated for removal leaves the census once demolished.
+	// Any remaining drill or drill blueprint holds placement: a working drill
+	// is not multiplied, and an exhausted drill already designated for removal
+	// leaves the census once demolished.
 	for _, row := range buildings.Rows {
 		if row.GetBuilding().GetDefName() == "DeepDrill" || row.GetBuildDefName() == "DeepDrill" {
 			return RoutineResourceResult{Reason: BuildingMethodExistingWork, NativeWorkTicks: stockWaitTicks}, true, nil

@@ -642,9 +642,10 @@ func serveBuildingWithBridge(ctx context.Context, config serveConfig, out io.Wri
 		cleanCapabilities = client.clean
 	}
 	var deconstructionCapabilities *buildingruntime.DeconstructionCapabilities
-	if config.routineClearancePlans || config.routineShrinePlans {
+	// Resource plans remove exhausted deep drills through the same path (#538).
+	if config.routineClearancePlans || config.routineShrinePlans || config.routineResourcePlans {
 		if client.deconstruction == nil {
-			return errors.New("clearance and shrine plans require typed deconstruction capabilities")
+			return errors.New("clearance, shrine and resource plans require typed deconstruction capabilities")
 		}
 		deconstructionCapabilities = client.deconstruction
 	}

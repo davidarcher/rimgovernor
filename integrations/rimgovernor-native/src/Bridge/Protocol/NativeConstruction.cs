@@ -152,7 +152,6 @@ namespace HomeBridge.BridgeTools
             Effect.Stage = thing is Frame ? Receipts.ConstructionStage.Frame : thing is Blueprint
                 ? Receipts.ConstructionStage.Blueprint : Receipts.ConstructionStage.Building;
             Effect.Present = Matches(thing); Effect.Started = true; Effect.Failed = false;
-            if (Effect.Present && Effect.Stage == Receipts.ConstructionStage.Building) NativeDrillOwnership.Register(thing);
         }
         internal Receipts.Progress Observe(Common.AttemptKey attempt, Common.ObservationContext context)
         {

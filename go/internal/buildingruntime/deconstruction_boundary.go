@@ -162,9 +162,8 @@ func (b *DeconstructionBoundary) inspectBreach(ctx context.Context, target execu
 // inspectDrill guards an exhausted-drill removal (#538) on the typed drill
 // census in colony facts instead of the Home clearance census, which excludes
 // player buildings. The exact drill (id, definition, cell) must still be
-// present, controller-owned and depleted at dispatch: a drill the player built
-// or rebuilt at the cell, a seam that still reads a deposit, or an unknown
-// census never dispatches. A drill gone from the census is absent.
+// present and depleted at dispatch: a seam that still reads a deposit or an
+// unknown census never dispatches. A drill gone from the census is absent.
 func (b *DeconstructionBoundary) inspectDrill(ctx context.Context, target executor.Target, value domain.Deconstruction, out executor.DeconstructionInspection) (executor.DeconstructionInspection, error) {
 	reply, _, err := b.native.ReadColonyFacts(ctx, boundary.Identity(target.Snapshot), false, nil)
 	if err != nil {
@@ -190,7 +189,7 @@ func (b *DeconstructionBoundary) inspectDrill(ctx context.Context, target execut
 		if drill.GetDefName() != value.Definition() || drill.Position.GetX() != value.Cell().X || drill.Position.GetZ() != value.Cell().Z {
 			return out, executor.ErrDeconstructionAbsent
 		}
-		out.Eligible = drill.GetControllerOwned() && drill.GetDepleted()
+		out.Eligible = drill.GetDepleted()
 		out.Accepted = out.Eligible
 		emergency, _, err := b.native.ReadEmergency(ctx, boundary.Identity(current))
 		if err != nil {

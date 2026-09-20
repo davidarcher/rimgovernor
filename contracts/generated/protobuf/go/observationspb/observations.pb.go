@@ -30318,24 +30318,21 @@ func (x *MineralScannerState) GetTargetResource() string {
 // Every spawned player deep drill (an observed empty list means none). resource
 // and remaining are the native next deposit under the drill's radius; depleted
 // means no valuable deposit remains there (vanilla then drills stone only), so a
-// lump centre moving as it is mined never implies depletion. controller_owned
-// means the drill completed from a typed construction the controller admitted;
-// the record survives save/load, binds the exact thing id, definition and cell,
-// and never adopts a player-built or rebuilt drill. designated reports a
-// standing Deconstruct designation on the drill.
+// lump centre moving as it is mined never implies depletion. Every colonist
+// drill is the controller's under autonomous play; there is no ownership
+// ledger. designated reports a standing Deconstruct designation on the drill.
 type DeepDrillState struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	BuildingId      *string                `protobuf:"bytes,1,opt,name=building_id,json=buildingId,proto3,oneof" json:"building_id,omitempty"`
-	DefName         *string                `protobuf:"bytes,2,opt,name=def_name,json=defName,proto3,oneof" json:"def_name,omitempty"`
-	Position        *commonpb.Cell         `protobuf:"bytes,3,opt,name=position,proto3" json:"position,omitempty"`
-	Powered         *bool                  `protobuf:"varint,4,opt,name=powered,proto3,oneof" json:"powered,omitempty"`
-	Resource        *string                `protobuf:"bytes,5,opt,name=resource,proto3,oneof" json:"resource,omitempty"`
-	Remaining       *int64                 `protobuf:"varint,6,opt,name=remaining,proto3,oneof" json:"remaining,omitempty"`
-	Depleted        *bool                  `protobuf:"varint,7,opt,name=depleted,proto3,oneof" json:"depleted,omitempty"`
-	ControllerOwned *bool                  `protobuf:"varint,8,opt,name=controller_owned,json=controllerOwned,proto3,oneof" json:"controller_owned,omitempty"`
-	Designated      *bool                  `protobuf:"varint,9,opt,name=designated,proto3,oneof" json:"designated,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	BuildingId    *string                `protobuf:"bytes,1,opt,name=building_id,json=buildingId,proto3,oneof" json:"building_id,omitempty"`
+	DefName       *string                `protobuf:"bytes,2,opt,name=def_name,json=defName,proto3,oneof" json:"def_name,omitempty"`
+	Position      *commonpb.Cell         `protobuf:"bytes,3,opt,name=position,proto3" json:"position,omitempty"`
+	Powered       *bool                  `protobuf:"varint,4,opt,name=powered,proto3,oneof" json:"powered,omitempty"`
+	Resource      *string                `protobuf:"bytes,5,opt,name=resource,proto3,oneof" json:"resource,omitempty"`
+	Remaining     *int64                 `protobuf:"varint,6,opt,name=remaining,proto3,oneof" json:"remaining,omitempty"`
+	Depleted      *bool                  `protobuf:"varint,7,opt,name=depleted,proto3,oneof" json:"depleted,omitempty"`
+	Designated    *bool                  `protobuf:"varint,9,opt,name=designated,proto3,oneof" json:"designated,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *DeepDrillState) Reset() {
@@ -30413,13 +30410,6 @@ func (x *DeepDrillState) GetRemaining() int64 {
 func (x *DeepDrillState) GetDepleted() bool {
 	if x != nil && x.Depleted != nil {
 		return *x.Depleted
-	}
-	return false
-}
-
-func (x *DeepDrillState) GetControllerOwned() bool {
-	if x != nil && x.ControllerOwned != nil {
-		return *x.ControllerOwned
 	}
 	return false
 }
@@ -38100,7 +38090,7 @@ const file_observations_proto_rawDesc = "" +
 	"\n" +
 	"\b_workingB\x15\n" +
 	"\x13_ticks_to_next_findB\x12\n" +
-	"\x10_target_resource\"\xdd\x03\n" +
+	"\x10_target_resource\"\x9e\x03\n" +
 	"\x0eDeepDrillState\x12$\n" +
 	"\vbuilding_id\x18\x01 \x01(\tH\x00R\n" +
 	"buildingId\x88\x01\x01\x12\x1e\n" +
@@ -38109,10 +38099,9 @@ const file_observations_proto_rawDesc = "" +
 	"\apowered\x18\x04 \x01(\bH\x02R\apowered\x88\x01\x01\x12\x1f\n" +
 	"\bresource\x18\x05 \x01(\tH\x03R\bresource\x88\x01\x01\x12!\n" +
 	"\tremaining\x18\x06 \x01(\x03H\x04R\tremaining\x88\x01\x01\x12\x1f\n" +
-	"\bdepleted\x18\a \x01(\bH\x05R\bdepleted\x88\x01\x01\x12.\n" +
-	"\x10controller_owned\x18\b \x01(\bH\x06R\x0fcontrollerOwned\x88\x01\x01\x12#\n" +
+	"\bdepleted\x18\a \x01(\bH\x05R\bdepleted\x88\x01\x01\x12#\n" +
 	"\n" +
-	"designated\x18\t \x01(\bH\aR\n" +
+	"designated\x18\t \x01(\bH\x06R\n" +
 	"designated\x88\x01\x01B\x0e\n" +
 	"\f_building_idB\v\n" +
 	"\t_def_nameB\n" +
@@ -38121,9 +38110,8 @@ const file_observations_proto_rawDesc = "" +
 	"\t_resourceB\f\n" +
 	"\n" +
 	"_remainingB\v\n" +
-	"\t_depletedB\x13\n" +
-	"\x11_controller_ownedB\r\n" +
-	"\v_designated\"\xdb\x02\n" +
+	"\t_depletedB\r\n" +
+	"\v_designatedJ\x04\b\b\x10\t\"\xdb\x02\n" +
 	"\x12DeepResourcesFacts\x12C\n" +
 	"\x05lumps\x18\x01 \x03(\v2-.rimgovernor.observations.v1.DeepResourceLumpR\x05lumps\x12Y\n" +
 	"\x0fground_scanners\x18\x02 \x03(\v20.rimgovernor.observations.v1.MineralScannerStateR\x0egroundScanners\x12`\n" +

@@ -101,13 +101,13 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        [Tool("test/production_materials_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Stage an exhausted surface, powered workshop, completed research and either a seeded steel lump plus scanner or a fabrication bench; no drill or bill is supplied.")]
+        [Tool("test/production_materials_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Stage an exhausted surface, powered workshop, completed research and either a seeded steel lump plus scanner (with, for the exhausted scenario, one unpowered drill over barren ground) or a fabrication bench; no bill is supplied.")]
         public async Task<object> PrepareMaterials(IRimBridgeContext ctx, CancellationToken cancellationToken, string scenario = "deepdrill")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
                 if (map == null || !Find.TickManager.Paused) throw new InvalidOperationException("Paused disposable colony required.");
-                if (scenario != "deepdrill" && scenario != "components") throw new InvalidOperationException("Unknown materials scenario.");
+                if (scenario != "deepdrill" && scenario != "exhausted" && scenario != "components") throw new InvalidOperationException("Unknown materials scenario.");
                 var component = ThingDef.Named("ComponentIndustrial");
                 bool Material(Thing t) => t.def == ThingDefOf.Steel || t.def == component || t.def.defName == "Plasteel";
                 // Remove every alternative mineral source, including fogged ore,
@@ -124,7 +124,7 @@ namespace HomeBridge.BridgeTools
                     if (project.prerequisites != null) foreach (var prerequisite in project.prerequisites) Finish(prerequisite);
                     Find.ResearchManager.FinishProject(project, false);
                 }
-                Finish(DefDatabase<ResearchProjectDef>.GetNamed(scenario == "deepdrill" ? "GroundPenetratingScanner" : "Fabrication"));
+                Finish(DefDatabase<ResearchProjectDef>.GetNamed(scenario == "components" ? "Fabrication" : "GroundPenetratingScanner"));
                 var generator = FixtureHut.SpawnInside(map, hut, ThingDef.Named("WoodFiredGenerator"));
                 generator.TryGetComp<CompRefuelable>().Refuel(1000f);
                 var end = generator.Position;
@@ -144,6 +144,13 @@ namespace HomeBridge.BridgeTools
                     GenSpawn.Spawn(scanner, origin + new IntVec3(1, 0, 1), map);
                     end = origin + new IntVec3(6, 0, 3);
                     foreach (var cell in CellRect.CenteredOn(end, 1).Cells) map.deepResourceGrid.SetAt(cell, ThingDefOf.Steel, 300);
+                    if (scenario == "exhausted") {
+                        // A colonist drill whose radius holds no deposit (#538): the
+                        // census reads it depleted and the runway deficit removes it.
+                        var drill = ThingMaker.MakeThing(ThingDef.Named("DeepDrill"));
+                        drill.SetFaction(Faction.OfPlayer);
+                        GenSpawn.Spawn(drill, origin + new IntVec3(1, 0, 5), map);
+                    }
                 }
                 // A funded ordinary network already reaches the future drill.
                 // No power flags, work progress, bills or drill are fabricated.
@@ -164,8 +171,8 @@ namespace HomeBridge.BridgeTools
                     foreach (var work in DefDatabase<WorkTypeDef>.AllDefsListForReading)
                         if (!pawn.WorkTypeIsDisabled(work)) pawn.workSettings.SetPriority(work, work == WorkTypeDefOf.Construction || work == WorkTypeDefOf.Mining || work == WorkTypeDefOf.Crafting ? 1 : 0);
                 }
-                FixtureHut.DropOutside(map, hut, ThingDefOf.Steel, scenario == "deepdrill" ? 150 : 600);
-                FixtureHut.DropOutside(map, hut, component, scenario == "deepdrill" ? 10 : 0);
+                FixtureHut.DropOutside(map, hut, ThingDefOf.Steel, scenario == "components" ? 600 : 150);
+                FixtureHut.DropOutside(map, hut, component, scenario == "components" ? 0 : 10);
                 map.powerNetManager.UpdatePowerNetsAndConnections_First();
                 // Pair with the harness's synthetic, cancelled history plan;
                 // this advances the fixture date, not simulation or production.
@@ -189,6 +196,7 @@ namespace HomeBridge.BridgeTools
                     surfaceOre = map.listerThings.AllThings.Count(t => t is Mineable && t.def.building.mineableThing != null),
                     deepSteel = map.AllCells.Where(c => map.deepResourceGrid.ThingDefAt(c) == ThingDefOf.Steel).Sum(c => map.deepResourceGrid.CountAt(c)),
                     drills = drills.Length, drillsOnLump = drills.Count(b => b.OccupiedRect().Cells.Any(c => map.deepResourceGrid.ThingDefAt(c) == ThingDefOf.Steel)),
+                    drillsDesignated = drills.Count(b => map.designationManager.DesignationOn(b, DesignationDefOf.Deconstruct) != null),
                     scanners = map.listerBuildings.allBuildingsColonist.Count(b => b.def == ThingDefOf.GroundPenetratingScanner), benches = benches.Length,
                     componentBills = benches.Sum(b => b.BillStack.Bills.Count(bill => bill.recipe.defName == "MakeComponent")),
                     researched = DefDatabase<ResearchProjectDef>.GetNamed(benches.Length > 0 ? "Fabrication" : "GroundPenetratingScanner").IsFinished };

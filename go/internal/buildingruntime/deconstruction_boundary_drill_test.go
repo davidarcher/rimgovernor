@@ -49,9 +49,8 @@ type drillBoundaryLease struct{}
 func (drillBoundaryLease) Lease(domain.GenerationSnapshot) (string, error) { return "lease", nil }
 
 // The dispatch guard for a drill removal (#538) reads the typed drill census:
-// the exact owned, depleted drill is eligible; a player drill, a still-yielding
-// drill or an unknown census never dispatches; a moved, redefined or missing
-// drill is absent. The Home clearance census (which excludes player buildings)
+// the exact depleted drill is eligible; a still-yielding drill or an unknown
+// census never dispatches; a moved, redefined or missing drill is absent. The Home clearance census (which excludes player buildings)
 // is never consulted.
 func TestDeconstructionBoundaryInspectsDrillCensus(t *testing.T) {
 	_, _, session, _, sleeping := sleepingFixture(t)
@@ -61,8 +60,8 @@ func TestDeconstructionBoundaryInspectsDrillCensus(t *testing.T) {
 		t.Fatal(err)
 	}
 	snapshot := session.State().Snapshot
-	row := func(owned, depleted bool) *n.DeepDrillState {
-		d := &n.DeepDrillState{BuildingId: proto.String("Thing_DeepDrill_7"), DefName: proto.String("DeepDrill"), Position: &c.Cell{X: proto.Int32(4), Z: proto.Int32(1)}, Powered: proto.Bool(true), Depleted: proto.Bool(depleted), ControllerOwned: proto.Bool(owned), Designated: proto.Bool(false)}
+	row := func(depleted bool) *n.DeepDrillState {
+		d := &n.DeepDrillState{BuildingId: proto.String("Thing_DeepDrill_7"), DefName: proto.String("DeepDrill"), Position: &c.Cell{X: proto.Int32(4), Z: proto.Int32(1)}, Powered: proto.Bool(true), Depleted: proto.Bool(depleted), Designated: proto.Bool(false)}
 		if !depleted {
 			d.Resource, d.Remaining = proto.String("Steel"), proto.Int64(12)
 		}
@@ -87,13 +86,12 @@ func TestDeconstructionBoundaryInspectsDrillCensus(t *testing.T) {
 		eligible bool
 		err      error
 	}{
-		{"owned exhausted", observedDrills(row(true, true)), exact, true, nil},
-		{"player exhausted", observedDrills(row(false, true)), exact, false, nil},
-		{"owned yielding", observedDrills(row(true, false)), exact, false, nil},
+		{"exhausted", observedDrills(row(true)), exact, true, nil},
+		{"yielding", observedDrills(row(false)), exact, false, nil},
 		{"census unavailable", &n.DeepResourcesSection{Outcome: &n.DeepResourcesSection_Unavailable{Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_READ_FAILED.Enum(), Detail: proto.String("x")}}}, exact, false, executor.ErrHeld},
 		{"drill gone", observedDrills(), exact, false, executor.ErrDeconstructionAbsent},
-		{"drill moved", observedDrills(row(true, true)), target("Thing_DeepDrill_7", "DeepDrill", domain.Cell{X: 5, Z: 1}), false, executor.ErrDeconstructionAbsent},
-		{"drill redefined", observedDrills(row(true, true)), target("Thing_DeepDrill_7", "Other", domain.Cell{X: 4, Z: 1}), false, executor.ErrDeconstructionAbsent},
+		{"drill moved", observedDrills(row(true)), target("Thing_DeepDrill_7", "DeepDrill", domain.Cell{X: 5, Z: 1}), false, executor.ErrDeconstructionAbsent},
+		{"drill redefined", observedDrills(row(true)), target("Thing_DeepDrill_7", "Other", domain.Cell{X: 4, Z: 1}), false, executor.ErrDeconstructionAbsent},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			sleeping.reply.GetObserved().DeepResources = tc.census

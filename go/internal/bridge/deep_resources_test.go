@@ -26,7 +26,6 @@ func TestDeepResourcesRejectsMalformedCensus(t *testing.T) {
 		{"drill shares scanner id", func(f *o.DeepResourcesFacts) { f.Drills[0].BuildingId = proto.String("scanner") }},
 		{"drill off map", func(f *o.DeepResourcesFacts) { f.Drills[0].Position.X = proto.Int32(-1) }},
 		{"drill unknown depletion", func(f *o.DeepResourcesFacts) { f.Drills[0].Depleted = nil }},
-		{"drill unknown ownership", func(f *o.DeepResourcesFacts) { f.Drills[0].ControllerOwned = nil }},
 		{"drill unknown designation", func(f *o.DeepResourcesFacts) { f.Drills[0].Designated = nil }},
 		{"yielding drill without resource", func(f *o.DeepResourcesFacts) { f.Drills[0].Resource = nil }},
 		{"yielding drill without remainder", func(f *o.DeepResourcesFacts) { f.Drills[0].Remaining = proto.Int64(0) }},
@@ -35,7 +34,7 @@ func TestDeepResourcesRejectsMalformedCensus(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			v := colonyFixture(t).GetObserved()
 			f := &o.DeepResourcesFacts{Lumps: []*o.DeepResourceLump{{DefName: proto.String("Plasteel"), Count: proto.Int64(300), CellCount: proto.Uint32(3), Centre: &c.Cell{X: proto.Int32(10), Z: proto.Int32(10)}}}, GroundScanners: []*o.MineralScannerState{{BuildingId: proto.String("scanner"), DefName: proto.String("GroundPenetratingScanner"), Built: proto.Bool(true), Position: &c.Cell{X: proto.Int32(11), Z: proto.Int32(10)}}},
-				Drills: []*o.DeepDrillState{{BuildingId: proto.String("drill"), DefName: proto.String("DeepDrill"), Position: &c.Cell{X: proto.Int32(12), Z: proto.Int32(10)}, Powered: proto.Bool(true), Depleted: proto.Bool(false), Resource: proto.String("Plasteel"), Remaining: proto.Int64(300), ControllerOwned: proto.Bool(true), Designated: proto.Bool(false)}}}
+				Drills: []*o.DeepDrillState{{BuildingId: proto.String("drill"), DefName: proto.String("DeepDrill"), Position: &c.Cell{X: proto.Int32(12), Z: proto.Int32(10)}, Powered: proto.Bool(true), Depleted: proto.Bool(false), Resource: proto.String("Plasteel"), Remaining: proto.Int64(300), Designated: proto.Bool(false)}}}
 			v.DeepResources = &o.DeepResourcesSection{Outcome: &o.DeepResourcesSection_Observed{Observed: f}}
 			if err := ValidateColonyFacts(v, v.Context.Identity); err != nil {
 				t.Fatal(err)

@@ -139,32 +139,30 @@ func TestDeepDrillAdmitsNearestReachableSiteAndHoldsExistingDrill(t *testing.T) 
 	}
 }
 
-func drillRow(owned, depleted, designated bool) *o.DeepDrillState {
+func drillRow(depleted, designated bool) *o.DeepDrillState {
 	row := &o.DeepDrillState{BuildingId: proto.String("Thing_DeepDrill_7"), DefName: proto.String("DeepDrill"), Position: &c.Cell{X: proto.Int32(4), Z: proto.Int32(1)},
-		Powered: proto.Bool(true), Depleted: proto.Bool(depleted), ControllerOwned: proto.Bool(owned), Designated: proto.Bool(designated)}
+		Powered: proto.Bool(true), Depleted: proto.Bool(depleted), Designated: proto.Bool(designated)}
 	if !depleted {
 		row.Resource, row.Remaining = proto.String("Steel"), proto.Int64(40)
 	}
 	return row
 }
 
-// Only a controller-owned drill whose seam the native census reads as depleted
-// is removed, and only through a Hands-dispatched drill Deconstruction; every
-// other drill (player-built, still yielding, already designated) holds
-// placement exactly as before (#538).
-func TestDeepDrillRemovesOnlyExhaustedOwnedDrills(t *testing.T) {
+// Only a drill whose seam the native census reads as depleted is removed, and
+// only through a Hands-dispatched drill Deconstruction; every other drill
+// (still yielding, already designated) holds placement exactly as before (#538).
+func TestDeepDrillRemovesOnlyExhaustedDrills(t *testing.T) {
 	for _, tc := range []struct {
-		name                        string
-		owned, depleted, designated bool
-		removal                     bool
+		name                 string
+		depleted, designated bool
+		removal              bool
 	}{
-		{"owned exhausted", true, true, false, true},
-		{"player exhausted", false, true, false, false},
-		{"owned yielding", true, false, false, false},
-		{"owned exhausted designated", true, true, true, false},
+		{"exhausted", true, false, true},
+		{"yielding", false, false, false},
+		{"exhausted designated", true, true, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			d := deepDrillDispatchFixture(t, false, []*o.DeepDrillState{drillRow(tc.owned, tc.depleted, tc.designated)})
+			d := deepDrillDispatchFixture(t, false, []*o.DeepDrillState{drillRow(tc.depleted, tc.designated)})
 			result, handled, err := d.run(t)
 			if err != nil || !handled {
 				t.Fatal(result, handled, err)
@@ -199,15 +197,15 @@ func TestDeepDrillRemovesOnlyExhaustedOwnedDrills(t *testing.T) {
 	}
 }
 
-func TestExhaustedDrillsRequireKnownOwnershipAndDepletion(t *testing.T) {
-	known := observation.DeepDrill{ID: "b", ControllerOwned: domain.Known(true), Depleted: domain.Known(true), Designated: domain.Known(false)}
-	unknownOwner := known
-	unknownOwner.ID, unknownOwner.ControllerOwned = "a", domain.Unknown[bool]()
+func TestExhaustedDrillsRequireKnownDepletion(t *testing.T) {
+	known := observation.DeepDrill{ID: "b", Depleted: domain.Known(true), Designated: domain.Known(false)}
 	unknownDepletion := known
 	unknownDepletion.ID, unknownDepletion.Depleted = "c", domain.Unknown[bool]()
+	unknownDesignation := known
+	unknownDesignation.ID, unknownDesignation.Designated = "a", domain.Unknown[bool]()
 	second := known
 	second.ID = "a2"
-	out := exhaustedDrills(observation.DeepResources{Drills: []observation.DeepDrill{known, unknownOwner, unknownDepletion, second}})
+	out := exhaustedDrills(observation.DeepResources{Drills: []observation.DeepDrill{known, unknownDepletion, unknownDesignation, second}})
 	if len(out) != 2 || out[0].ID != "a2" || out[1].ID != "b" {
 		t.Fatal(out)
 	}

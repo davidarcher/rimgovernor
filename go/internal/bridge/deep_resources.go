@@ -42,7 +42,7 @@ func validateDeepResources(v *o.ColonyFactsSnapshot) error {
 		// A depleted drill carries no deposit; an undepleted one names its exact
 		// resource and a positive remainder. Ownership and designation are always stated.
 		for _, row := range f.Drills {
-			if row == nil || validID(row.GetBuildingId()) != nil || validID(row.GetDefName()) != nil || seen[row.GetBuildingId()] || !colonyCell(row.Position, v.MapSize) || row.Depleted == nil || row.ControllerOwned == nil || row.Designated == nil || row.Powered == nil {
+			if row == nil || validID(row.GetBuildingId()) != nil || validID(row.GetDefName()) != nil || seen[row.GetBuildingId()] || !colonyCell(row.Position, v.MapSize) || row.Depleted == nil || row.Designated == nil || row.Powered == nil {
 				return contract("invalid deep drill")
 			}
 			if row.GetDepleted() && (row.Resource != nil || row.Remaining != nil) || !row.GetDepleted() && (validID(row.GetResource()) != nil || row.Remaining == nil || row.GetRemaining() <= 0) {
