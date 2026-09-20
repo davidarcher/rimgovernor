@@ -13,6 +13,7 @@ func TestTrimPrefsText(t *testing.T) {
 	}
 	for _, want := range []string{
 		"<autosaveIntervalDays>1000</autosaveIntervalDays>",
+		"<adaptiveTrainingEnabled>False</adaptiveTrainingEnabled>",
 		"<runInBackground>True</runInBackground>",
 		"<temperatureMode>Celsius</temperatureMode>",
 		"  <screenWidth>640</screenWidth>\n",

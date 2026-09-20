@@ -16,24 +16,27 @@ import (
 // event that never clears), the process kept
 // running unfocused, the smallest window and no eye candy so a -batchmode
 // player computes as little as possible, and a crash leaving ModsConfig.xml
-// alone so the next launch still loads the mod. Pause behaviour is left to
+// alone so the next launch still loads the mod. The learning helper
+// (adaptiveTrainingEnabled) is off: its readout and concept popups are
+// player UI a driven game never dismisses. Pause behaviour is left to
 // the launch arguments and the harnesses (the letter/pause case sets and restores
 // automaticPauseMode itself).
 var HeadlessPrefs = map[string]string{
-	"autosaveIntervalDays":   "1000",
-	"runInBackground":        "True",
-	"screenWidth":            "640",
-	"screenHeight":           "480",
-	"fullscreen":             "False",
-	"uiScale":                "1",
-	"customCursorEnabled":    "False",
-	"plantWindSway":          "False",
-	"screenShakeIntensity":   "0",
-	"textureCompression":     "True",
-	"volumeMaster":           "0",
-	"resetModsConfigOnCrash": "False",
-	"openLogOnWarnings":      "False",
-	"pauseOnError":           "False",
+	"autosaveIntervalDays":    "1000",
+	"runInBackground":         "True",
+	"screenWidth":             "640",
+	"screenHeight":            "480",
+	"fullscreen":              "False",
+	"uiScale":                 "1",
+	"customCursorEnabled":     "False",
+	"plantWindSway":           "False",
+	"screenShakeIntensity":    "0",
+	"textureCompression":      "True",
+	"volumeMaster":            "0",
+	"resetModsConfigOnCrash":  "False",
+	"openLogOnWarnings":       "False",
+	"pauseOnError":            "False",
+	"adaptiveTrainingEnabled": "False",
 }
 
 // TrimPrefs rewrites the Prefs.xml at path with HeadlessPrefs: each element

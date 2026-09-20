@@ -400,6 +400,7 @@ const minimalPrefs = `<?xml version="1.0" encoding="utf-8"?>
   <runInBackground>True</runInBackground>
   <automaticPauseMode>MajorThreat</automaticPauseMode>
   <resetModsConfigOnCrash>False</resetModsConfigOnCrash>
+  <adaptiveTrainingEnabled>False</adaptiveTrainingEnabled>
 </PrefsData>
 `
 
