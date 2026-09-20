@@ -440,13 +440,14 @@ func (r *CheckpointRing) offset() time.Duration {
 }
 
 // OffsetLabel is a bundle's label for a run-phase offset: "t+7m" for
-// whole minutes, "t+1m30s" or "t+45s" otherwise, rounded to the second
-// (a sub-second cadence keeps the milliseconds).
+// whole minutes, "t+1m30s" or "t+45s" otherwise. An offset that is not a
+// whole second (a sub-second cadence, which rounds its offsets to the
+// cadence) keeps its milliseconds, so two captures a few milliseconds
+// apart never share a label (#596).
 func OffsetLabel(d time.Duration) string {
-	if d < time.Second {
+	if d%time.Second != 0 {
 		return "t+" + d.String()
 	}
-	d = d.Round(time.Second)
 	h, m, sec := d/time.Hour, (d%time.Hour)/time.Minute, (d%time.Minute)/time.Second
 	var b strings.Builder
 	b.WriteString("t+")
@@ -550,6 +551,13 @@ func (r *CheckpointRing) maybe(ctx context.Context) time.Duration {
 	// The label rounds to the cadence so consecutive captures never share
 	// one: 61 seconds in at a one-minute cadence is t+1m.
 	label := OffsetLabel(r.offset().Round(r.Every))
+	if r.holds(label) {
+		// The bundle under this label is live; overwriting it would leave
+		// two entries on one directory and the prune deleting the newer.
+		r.busy = false
+		r.mu.Unlock()
+		return 0
+	}
 	r.mu.Unlock()
 	began := time.Now()
 	entry, err := r.capture(ctx, label, false)
@@ -586,6 +594,17 @@ func (r *CheckpointRing) maybe(ctx context.Context) time.Duration {
 		r.errs = append(r.errs, fmt.Sprintf("%s: write provisional index: %v", label, err))
 	}
 	return took
+}
+
+// holds reports whether a live ring entry carries label; the caller holds
+// r.mu.
+func (r *CheckpointRing) holds(label string) bool {
+	for _, e := range r.entries {
+		if e.Label == label {
+			return true
+		}
+	}
+	return false
 }
 
 // Capture takes a named bundle now (a phase boundary a case declared),

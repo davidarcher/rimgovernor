@@ -18,6 +18,7 @@ func TestOffsetLabel(t *testing.T) {
 	for d, want := range map[time.Duration]string{
 		0: "t+0s", 10 * time.Second: "t+10s", 61 * time.Second: "t+1m1s", 7 * time.Minute: "t+7m",
 		90 * time.Second: "t+1m30s", time.Hour: "t+1h", 65 * time.Minute: "t+1h5m", 5 * time.Millisecond: "t+5ms",
+		1003 * time.Millisecond: "t+1.003s",
 	} {
 		if got := OffsetLabel(d); got != want {
 			t.Errorf("OffsetLabel(%s) = %s, want %s", d, got, want)
@@ -220,6 +221,34 @@ func TestCheckpointRingCapturesAndPrunes(t *testing.T) {
 			t.Fatalf("label %s repeated: %v", l, labels)
 		}
 		seen[l] = true
+	}
+}
+
+// A sub-second cadence past the one-second mark still labels every
+// capture distinctly, so no capture overwrites a live bundle and the
+// pruned ring matches its directory (#596).
+func TestCheckpointRingLabelsPastOneSecond(t *testing.T) {
+	ring, _ := ringFixture(t, time.Millisecond)
+	ring.Base = time.Second
+	ring.Activate()
+	defer ring.Deactivate()
+	ctx := context.Background()
+	for i := 0; i < 5; i++ {
+		time.Sleep(2 * time.Millisecond)
+		if took := checkpointPause(ctx); took == 0 {
+			t.Fatalf("capture %d did not run", i)
+		}
+	}
+	entries := ring.Entries()
+	dirs, _ := os.ReadDir(ring.Dir)
+	bundles := 0
+	for _, d := range dirs {
+		if d.IsDir() {
+			bundles++
+		}
+	}
+	if len(entries) != 3 || bundles != 3 {
+		t.Fatalf("kept %d entries over %d bundles, want 3 and 3: %+v", len(entries), bundles, entries)
 	}
 }
 
