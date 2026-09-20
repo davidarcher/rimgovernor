@@ -11,7 +11,7 @@ func colonyGear(v *o.ColonyFactsSnapshot) domain.Fact[policy.GearObservation] {
 	if gear == nil || v.ColonistCount == nil || uint32(len(gear.Pawns)) != v.GetColonistCount() {
 		return domain.Unknown[policy.GearObservation]()
 	}
-	result := policy.GearObservation{Pawns: []policy.GearPawn{}}
+	result := policy.GearObservation{Pawns: []policy.GearPawn{}, Stored: GearStorageFacts(gear)}
 	for _, p := range gear.Pawns {
 		row := policy.GearPawn{Pawn: policy.PawnID(p.Pawn.GetId()), Loadout: p.Snapshot.GetToken(), Blocked: p.Blocker != nil, Deficit: optional(p.Deficit)}
 		needs := []policy.GearReplacement{}
@@ -30,6 +30,17 @@ func colonyGear(v *o.ColonyFactsSnapshot) domain.Fact[policy.GearObservation] {
 
 // GearClimateFacts maps a validated optional seasonal observation. Older
 // producers omit the entire group, preserving ambient-only policy.
+func GearStorageFacts(gear *o.GearSnapshot) domain.Fact[[]policy.GearStock] {
+	if gear.GetStoredApparel() == nil {
+		return domain.Unknown[[]policy.GearStock]()
+	}
+	rows := []policy.GearStock{}
+	for _, row := range gear.GetStoredApparel().GetRows() {
+		rows = append(rows, policy.GearStock{Definition: policy.Resource(row.GetDefName()), Stuff: policy.Resource(row.GetStuff()), Quality: int(row.GetQuality()), HPBand: int(row.GetHpBand()), Count: int(row.GetCount())})
+	}
+	return domain.Known(rows)
+}
+
 func GearClimateFacts(gear *o.GearSnapshot) *policy.GearClimate {
 	if gear == nil || len(gear.GetOutdoorTemperatureByTwelfthC()) == 0 {
 		return nil

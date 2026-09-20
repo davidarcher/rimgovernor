@@ -10,12 +10,16 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
-func billStoreFixture(t *testing.T) (*Store, string, BillAdmission) {
+func billStoreFixture(t *testing.T, modes ...domain.BillMode) (*Store, string, BillAdmission) {
 	t.Helper()
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "bill.db")
 	s := open(t, path)
-	bill, _ := domain.NewProductionBill("bench", "recipe", "bench-cas", domain.FoodTarget, 10)
+	mode := domain.FoodTarget
+	if len(modes) > 0 {
+		mode = modes[0]
+	}
+	bill, _ := domain.NewProductionBill("bench", "recipe", "bench-cas", mode, 10)
 	a, _ := domain.NewProductionBillAction("bill", bill)
 	plan, err := domain.NewPlan("plan", 1, []domain.Action{a})
 	if err != nil {
@@ -27,6 +31,26 @@ func billStoreFixture(t *testing.T) (*Store, string, BillAdmission) {
 	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Revision: 1, Native: 2}
 	v := BillAdmission{Snapshot: snapshot, Tick: 12, Bench: "bench", SnapshotToken: "bench-cas"}
 	return s, path, v
+}
+
+func TestFiniteGearBillDoesNotPermanentlyClaimRecipe(t *testing.T) {
+	ctx := context.Background()
+	s, _, v := billStoreFixture(t, domain.GearBatch)
+	if _, err := s.PrepareBill(ctx, "plan", "bill", v); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Dispatch(ctx, "plan", "bill", v.Snapshot, v.Tick); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.RecordReceipt(ctx, "plan", "bill", 1, domain.ReceiptAccepted); err != nil {
+		t.Fatal(err)
+	}
+	if claimed, err := s.BillClaimed(ctx, v.Snapshot, "bench", "recipe"); err != nil || claimed {
+		t.Fatal("finite batch permanently claimed recipe", claimed, err)
+	}
+	if _, err := s.LoadPlan(ctx, "plan"); err != nil {
+		t.Fatal("finite batch did not survive persistence", err)
+	}
 }
 
 func TestBillAdmissionPrepareAndLoad(t *testing.T) {

@@ -87,6 +87,9 @@ func TestGearProductionPreviewsAndPersistsOnlyFundedMaterials(t *testing.T) {
 	for _, refuse := range []bool{false, true} {
 		reviewer, db, session, _, native := routineFixture(t)
 		setGearProductionNeed(native.reply.GetObserved())
+		gear := native.reply.GetObserved().GetPlanning().GetObserved().Gear
+		gear.Pawns[1].Deficit = proto.Bool(true)
+		gear.Pawns[1].ReplacementNeeds = []*o.GearReplacementNeed{proto.Clone(gear.Pawns[0].ReplacementNeeds[0]).(*o.GearReplacementNeed)}
 		n := &gearProductionNative{gearTestNative: &gearTestNative{equipTestNative: &equipTestNative{routineNative: native, ids: []string{"a", "b"}}}, refuse: refuse}
 		reviewer.native = n
 		reviewer.methods = domain.Known([]policy.GoalID{policy.MaintainEquipment})
@@ -112,6 +115,9 @@ func TestGearProductionPreviewsAndPersistsOnlyFundedMaterials(t *testing.T) {
 		}
 		if len(n.previews) != 1 || !reflect.DeepEqual(n.previews[0].Ingredients(), []string{"Leather_Plain"}) {
 			t.Fatal("protected cloth reached preview", n.previews)
+		}
+		if n.previews[0].Mode() != domain.GearBatch || n.previews[0].Target() != 2 {
+			t.Fatal("colony gap not batched", n.previews)
 		}
 		if refuse {
 			if result.Reason != BuildingMethodRefused || result.Plan != "" {

@@ -47,7 +47,9 @@ func admitBillMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan domai
 		if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM bill_claims WHERE colony=? AND load_token=? AND map_id=? AND bench=? AND recipe=?", goal.Goal.Snapshot.Colony, goal.Goal.Snapshot.Load, goal.Goal.Snapshot.Map, b.Bench(), b.ClaimRecipe()).Scan(&n); err != nil {
 			return err
 		}
-		if n != 0 && b.Replaces() == "" {
+		// Finite batches expire. Fresh stack CAS and active-bill census guard
+		// them; a historical standing-bill claim must not prohibit renewal.
+		if n != 0 && b.Replaces() == "" && b.Mode() != domain.GearBatch {
 			return fmt.Errorf("%w: bench %s already has a claimed %s bill", ErrConflict, b.Bench(), b.Recipe())
 		}
 	}

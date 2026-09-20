@@ -77,6 +77,33 @@ func TestColonyGearRequiresExactCompleteLoadoutEvidence(t *testing.T) {
 	}
 }
 
+func TestGearStorageCensusValidation(t *testing.T) {
+	for _, bad := range []string{"", "count", "quality", "band", "duplicate", "partial"} {
+		v := gearColonyFixture(t)
+		g := v.GetPlanning().GetObserved().Gear
+		row := &o.GearStock{DefName: proto.String("Parka"), Stuff: proto.String("Cloth"), Quality: proto.Int32(2), HpBand: proto.Int32(9), Count: proto.Int32(3)}
+		g.StoredApparel = &o.GearStorage{Rows: []*o.GearStock{row}, Completeness: proto.Clone(g.Completeness).(*o.Completeness)}
+		switch bad {
+		case "count":
+			row.Count = nil
+		case "quality":
+			row.Quality = proto.Int32(7)
+		case "band":
+			row.HpBand = proto.Int32(10)
+		case "duplicate":
+			g.StoredApparel.Rows = append(g.StoredApparel.Rows, row)
+			g.StoredApparel.Completeness.Matched = proto.Uint64(2)
+			g.StoredApparel.Completeness.Returned = proto.Uint64(2)
+		case "partial":
+			g.StoredApparel.Completeness.Filtered = proto.Uint64(1)
+		}
+		err := ValidateColonyFacts(v, v.Context.Identity)
+		if (err != nil) != (bad != "") {
+			t.Fatal(bad, err)
+		}
+	}
+}
+
 func TestGearClimateWireValidation(t *testing.T) {
 	for name, mutate := range map[string]func(*o.GearSnapshot){
 		"valid":            func(g *o.GearSnapshot) {},

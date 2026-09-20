@@ -124,6 +124,9 @@ type RoutinePolicy struct {
 	// policy.SelectResourceTarget's own single-goal dynamic-target selection
 	// across these targets and issues no SetProductionPolicy push at all.
 	ResourceTargets map[Resource]int64
+	// GearSpareTargets optionally maintains unworn replacements by definition.
+	// MaintainResource owns both its stockpile zone and standing production bill.
+	GearSpareTargets map[Resource]int64
 	// StoneBlockTarget is an operator-declared native stock floor for stone
 	// blocks of whichever Core stone the map's chunk census counts most
 	// (StoneBlockTarget): it joins ResourceTargets through
@@ -242,6 +245,9 @@ func (p RoutinePolicy) Validate() error {
 		}
 	}
 	if err := ValidateResourceTargets(p.ResourceTargets); err != nil {
+		return err
+	}
+	if err := ValidateResourceTargets(p.GearSpareTargets); err != nil {
 		return err
 	}
 	if p.StoneBlockTarget < 0 || p.StoneBlockTarget > 10000 {

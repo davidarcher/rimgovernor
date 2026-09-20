@@ -22,6 +22,18 @@ namespace HomeBridge.BridgeTools
             Require(people.Count, limit);
             var result = new Obs.GearSnapshot { Context = context.Clone(), Completeness = Complete(people.Count) };
             ReadClimate(map, result);
+            var stored = map.listerThings.ThingsInGroup(ThingRequestGroup.Apparel).OfType<Apparel>()
+                .Where(a => a.IsInValidStorage() && !a.IsForbidden(Faction.OfPlayer) && !a.WornByCorpse
+                    && (!a.def.useHitPoints || (float)a.HitPoints / a.MaxHitPoints > .5f))
+                .GroupBy(a => new { Def = a.def.defName, Stuff = a.Stuff?.defName ?? "",
+                    Quality = a.TryGetQuality(out var q) ? (int)q : 2,
+                    Band = a.def.useHitPoints ? Math.Min(9, (int)(10f * a.HitPoints / a.MaxHitPoints)) : 9 })
+                .OrderBy(g => g.Key.Def).ThenBy(g => g.Key.Stuff).ThenBy(g => g.Key.Quality).ThenBy(g => g.Key.Band).ToList();
+            Require(stored.Count, 4096);
+            result.StoredApparel = new Obs.GearStorage { Completeness = Complete(stored.Count) };
+            foreach (var group in stored)
+                result.StoredApparel.Rows.Add(new Obs.GearStock { DefName = group.Key.Def, Stuff = group.Key.Stuff,
+                    Quality = group.Key.Quality, HpBand = group.Key.Band, Count = group.Sum(a => a.stackCount) });
             // ImproveGear (NativeGearOperations) checks the pawn's control
             // snapshot token and each candidate's supply token, so the census
             // carries both the way the pawn and supply censuses do (issue #233).

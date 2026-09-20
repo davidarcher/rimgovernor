@@ -46,7 +46,10 @@ type GearPawn struct {
 	Replacements domain.Fact[[]GearReplacement]
 	Apparel      domain.Fact[[]GearApparel]
 }
-type GearObservation struct{ Pawns []GearPawn }
+type GearObservation struct {
+	Pawns  []GearPawn
+	Stored domain.Fact[[]GearStock]
+}
 
 // GearReview is the census MaintainEquipment is judged on. Recovered and
 // Deficit follow the native deficit flags and candidates; WornOut and
@@ -114,6 +117,20 @@ func (p GearPawn) uncovered() bool {
 }
 
 func (v GearObservation) Validate() error {
+	if stored, known := v.Stored.Value(); known {
+		if len(stored) > 4096 {
+			return errors.New("gear storage exceeds bound")
+		}
+		seen := map[GearStock]bool{}
+		for _, row := range stored {
+			key := row
+			key.Count = 0
+			if !validResource(row.Definition) || row.Stuff != "" && !validResource(row.Stuff) || row.Quality < 0 || row.Quality > 6 || row.HPBand < 5 || row.HPBand > 9 || row.Count <= 0 || seen[key] {
+				return errors.New("invalid gear storage")
+			}
+			seen[key] = true
+		}
+	}
 	if len(v.Pawns) > 256 {
 		return errors.New("gear census exceeds bound")
 	}
@@ -273,6 +290,7 @@ const (
 )
 
 type GearMethod struct {
+	Count           int32
 	Kind            GearMethodKind
 	ID              domain.MethodID
 	Pawn            PawnID
@@ -317,12 +335,13 @@ type RecipeHost struct {
 	Research []string
 }
 type GearPlanningRequest struct {
-	Observation domain.Fact[GearObservation]
-	Seen        []domain.MethodID
-	Benches     domain.Fact[[]GearBench]
-	Stock       []Stock
-	Rules       []ResourceRule
-	Holds       []Amount
+	WeaponDemand []Amount
+	Observation  domain.Fact[GearObservation]
+	Seen         []domain.MethodID
+	Benches      domain.Fact[[]GearBench]
+	Stock        []Stock
+	Rules        []ResourceRule
+	Holds        []Amount
 }
 
 func gearMethodID(kind string, p GearPawn, target string, need GearReplacement) domain.MethodID {
@@ -346,7 +365,7 @@ func containsResource(values []Resource, want Resource) bool {
 	return false
 }
 
-// SelectGearMethod proposes one exact replacement or one repeat-count-one bill.
+// SelectGearMethod proposes one exact replacement or one demand-sized bill.
 // It issues no game orders and does not reserve resources. The shared method
 // admission must recheck these costs against concurrent plans before committing.
 func SelectGearMethod(r GearPlanningRequest) (GearMethod, error) {
@@ -357,11 +376,14 @@ func SelectGearMethod(r GearPlanningRequest) (GearMethod, error) {
 	if _, known := review.Recovered.Value(); !known {
 		return GearMethod{Kind: GearUnknown}, nil
 	}
-	if positive(review.Recovered) {
+	if positive(review.Recovered) && len(r.WeaponDemand) == 0 {
 		return GearMethod{Kind: GearRecovered}, nil
 	}
 	if len(r.Seen) > 4096 {
 		return GearMethod{}, errors.New("gear method history exceeds bound")
+	}
+	if len(r.WeaponDemand) > 256 {
+		return GearMethod{}, errors.New("weapon demand exceeds bound")
 	}
 	seen := map[domain.MethodID]bool{}
 	for _, id := range r.Seen {
@@ -433,6 +455,14 @@ func SelectGearMethod(r GearPlanningRequest) (GearMethod, error) {
 			needs = append(needs, replacement{p, n})
 		}
 	}
+	for _, d := range r.WeaponDemand {
+		if !validResource(d.Resource) || d.Count <= 0 || d.Count > 256 {
+			return GearMethod{}, errors.New("invalid weapon demand")
+		}
+		for i := int64(0); i < d.Count; i++ {
+			needs = append(needs, replacement{GearPawn{Pawn: "weapon-batch", Loadout: "colony"}, GearReplacement{Definition: d.Resource, Reason: "unarmed"}})
+		}
+	}
 	if len(needs) == 0 {
 		return GearMethod{Kind: GearBlocked}, nil
 	}
@@ -458,7 +488,26 @@ func SelectGearMethod(r GearPlanningRequest) (GearMethod, error) {
 	}
 	benches = append([]GearBench(nil), benches...)
 	sort.Slice(benches, func(i, j int) bool { return benches[i].ID < benches[j].ID })
+	demand := map[gearStockKey]int{}
 	for _, n := range needs {
+		demand[gearStockKey{n.need.Definition, n.need.Stuff}]++
+	}
+	stored, _ := v.Stored.Value()
+	stored = unassignedGearStock(stored, review.Loadouts)
+	for _, row := range stored {
+		if row.HPBand >= 5 && row.Quality >= 2 {
+			key := gearStockKey{row.Definition, row.Stuff}
+			demand[key] = max(0, demand[key]-row.Count)
+		}
+	}
+	for _, n := range needs {
+		count := demand[gearStockKey{n.need.Definition, n.need.Stuff}]
+		if count == 0 {
+			continue
+		}
+		if count > 10000 {
+			return GearMethod{}, errors.New("gear batch exceeds bill bound")
+		}
 		id := gearMethodID("produce", n.pawn, "", n.need)
 		if seen[id] {
 			return GearMethod{Kind: GearWait, ID: id, Pawn: n.pawn.Pawn, Loadout: n.pawn.Loadout, Need: n.need}, nil
@@ -509,18 +558,19 @@ func SelectGearMethod(r GearPlanningRequest) (GearMethod, error) {
 				if !known {
 					return GearMethod{Kind: GearUnknown}, nil
 				}
+				slots = gearBatchIngredients(slots, count)
 				costs, filter, ok, unknown := gearIngredients(slots, n.need.Stuff, r)
 				// The inspected stuff is a preference, not a requirement: a
 				// synthread shirt worn out with only leather in stock is still
 				// replaced, from whatever funded material the recipe accepts.
-				if !ok && n.need.Stuff != "" {
+				if !ok && n.need.Stuff != "" && n.need.Reason != "loadout" {
 					costs, filter, ok, unknown = gearIngredients(slots, "", r)
 				}
 				if !ok && unknown {
 					return GearMethod{Kind: GearUnknown}, nil
 				}
 				if ok {
-					return GearMethod{Kind: GearProduce, ID: id, Pawn: n.pawn.Pawn, Loadout: n.pawn.Loadout, Need: n.need, Bench: b.ID, Recipe: recipe.Definition, Costs: costs, Filter: filter, RequiredWork: append([]WorkRequirement(nil), work...)}, nil
+					return GearMethod{Kind: GearProduce, Count: int32(count), ID: id, Pawn: n.pawn.Pawn, Loadout: n.pawn.Loadout, Need: n.need, Bench: b.ID, Recipe: recipe.Definition, Costs: costs, Filter: filter, RequiredWork: append([]WorkRequirement(nil), work...)}, nil
 				}
 			}
 		}

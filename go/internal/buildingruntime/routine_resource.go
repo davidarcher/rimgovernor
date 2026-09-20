@@ -210,6 +210,22 @@ func (r *RoutineResourcePlanner) step(call, epoch context.Context, arbiter *step
 // drops at its bench); an empty set refuses the production path outright
 // rather than producing where the product cannot be used.
 func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Context, state ControlState, goal store.GoalState, reviewTick domain.Tick, identity *c.Identity, resource policy.Resource, target int64, stock domain.Fact[[]policy.Amount], benchFilter []string, started time.Time, ingredients ...string) (RoutineResourceResult, error) {
+	if r.reviewer.policy.GearSpareTargets[resource] > 0 {
+		_, storage, _, err := r.native.ReadResourceSources(call, identity, string(resource))
+		if err != nil {
+			return RoutineResourceResult{}, err
+		}
+		zone, needed, blocked, err := policy.SelectStockpileCapacity(max(0, target-storage.Stored), storage)
+		if err != nil {
+			return RoutineResourceResult{}, err
+		}
+		if blocked {
+			return RoutineResourceResult{Reason: BuildingMethodNoSpace}, nil
+		}
+		if needed {
+			return r.admitStorageZone(call, epoch, state, goal, reviewTick, resource, zone.Cells, started, "gear-spares-storage", "routine-resource-zone")
+		}
+	}
 	beer := resource == "Beer"
 	if beer {
 		resource = "Wort"

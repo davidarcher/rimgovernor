@@ -83,6 +83,9 @@ func BillOperation(bill domain.ProductionBill) *op.Operation {
 	}
 	if bill.Mode() == domain.ButcherForever || bill.Mode() == domain.HumanButcherForever {
 		settings.RepeatMode = op.RepeatMode_REPEAT_MODE_FOREVER.Enum()
+	} else if bill.Mode() == domain.GearBatch {
+		settings.RepeatMode = op.RepeatMode_REPEAT_MODE_COUNT.Enum()
+		settings.RepeatCount = proto.Int32(bill.Target())
 	} else {
 		settings.RepeatMode = op.RepeatMode_REPEAT_MODE_TARGET.Enum()
 		settings.TargetCount = proto.Int32(bill.Target())

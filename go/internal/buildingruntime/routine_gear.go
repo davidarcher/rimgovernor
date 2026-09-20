@@ -66,7 +66,7 @@ func (r *RoutineGearPlanner) Step(ctx context.Context) (RoutineGearResult, error
 // method, the same way RoutineEquipPlanner rereads combat pawns and loose
 // weapons rather than reusing the review's cached facts.
 func gearObservationFacts(gear *o.GearSnapshot) policy.GearObservation {
-	result := policy.GearObservation{Pawns: []policy.GearPawn{}}
+	result := policy.GearObservation{Pawns: []policy.GearPawn{}, Stored: observation.GearStorageFacts(gear)}
 	for _, p := range gear.GetPawns() {
 		row := policy.GearPawn{Pawn: policy.PawnID(p.GetPawn().GetId()), Loadout: p.GetSnapshot().GetToken(), Blocked: p.Blocker != nil, Deficit: optionalBool(p.Deficit)}
 		needs := []policy.GearReplacement{}
@@ -108,6 +108,60 @@ func gearCandidateDefinition(observation policy.GearObservation, pawn policy.Paw
 }
 
 func (r *RoutineGearPlanner) step(call, epoch context.Context, arbiter *stepArbiter) (RoutineGearResult, error) {
+	review, err := r.reviewer.player.journal.LoadRoutineReview(call)
+	if err != nil {
+		return RoutineGearResult{}, err
+	}
+	limit := review.Development.Capacity - len(review.Development.Committed)
+	open := 0
+	for _, binding := range review.Goals {
+		if binding.Need != policy.MaintainEquipment {
+			continue
+		}
+		goal, err := r.reviewer.player.journal.LoadGoal(call, binding.Goal)
+		if err != nil {
+			return RoutineGearResult{}, err
+		}
+		for _, method := range goal.Methods {
+			plan, err := r.reviewer.player.journal.LoadPlan(call, method.Plan)
+			if err != nil {
+				return RoutineGearResult{}, err
+			}
+			if domain.GoalWorkOpen(plan.Progress) {
+				open++
+			}
+		}
+	}
+	for _, goal := range review.Development.Committed {
+		if goal == policy.MaintainEquipment {
+			limit++
+		}
+	}
+	limit -= open
+	if limit <= 0 {
+		if open > 0 {
+			return RoutineGearResult{Reason: BuildingMethodExistingWork}, nil
+		}
+		return RoutineGearResult{Reason: BuildingMethodRefused}, nil
+	}
+	var admitted RoutineGearResult
+	for i := 0; i < limit; i++ {
+		result, err := r.stepOne(call, epoch, arbiter)
+		if err != nil {
+			return result, err
+		}
+		if result.Reason != BuildingMethodAdmitted {
+			if admitted.Plan != "" {
+				return admitted, nil
+			}
+			return result, nil
+		}
+		admitted = result
+	}
+	return admitted, nil
+}
+
+func (r *RoutineGearPlanner) stepOne(call, epoch context.Context, arbiter *stepArbiter) (RoutineGearResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
 	if !state.Enabled {
@@ -138,13 +192,24 @@ func (r *RoutineGearPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit {
 		return RoutineGearResult{Reason: BuildingMethodNoDeficit}, nil
 	}
+	busy := map[domain.PawnID]bool{}
+	claimed := map[string]bool{}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
 		if err != nil {
 			return RoutineGearResult{}, err
 		}
 		if domain.GoalWorkOpen(plan.Progress) {
-			return RoutineGearResult{Reason: BuildingMethodExistingWork}, nil
+			for _, action := range plan.Spec.Actions() {
+				if wear, ok := action.GearReplace(); ok {
+					busy[wear.Pawn()] = true
+					claimed[wear.Thing()] = true
+				} else if settings, ok := action.ApparelPolicy(); ok {
+					busy[settings.Pawn()] = true
+				} else {
+					return RoutineGearResult{Reason: BuildingMethodExistingWork}, nil
+				}
+			}
 		}
 	}
 	started := r.reviewer.clock.Now()
@@ -165,9 +230,24 @@ func (r *RoutineGearPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		return RoutineGearResult{Reason: BuildingMethodUsed}, nil
 	}
 	observation := gearObservationFacts(gear)
+	for i := range observation.Pawns {
+		pawn := &observation.Pawns[i]
+		pawn.Blocked = pawn.Blocked || busy[domain.PawnID(pawn.Pawn)]
+		candidates, _ := pawn.Candidates.Value()
+		available := []policy.GearCandidate{}
+		for _, c := range candidates {
+			if !claimed[c.Target] {
+				available = append(available, c)
+			}
+		}
+		pawn.Candidates = domain.Known(available)
+	}
 	// Configure vanilla dressing before choosing individual replacements. The
 	// shared goal and Hands executor own this settings operation like wear work.
 	for _, pawn := range observation.Pawns {
+		if pawn.Blocked {
+			continue
+		}
 		value, needed := policy.DesiredApparelPolicy(pawn)
 		if !needed {
 			continue
@@ -259,7 +339,14 @@ func (r *RoutineGearPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		}
 		benchesFact = domain.Known(benches)
 	}
-	choice, err := policy.SelectGearMethod(policy.GearPlanningRequest{Observation: domain.Known(observation), Seen: seen, Benches: benchesFact, Stock: stock, Rules: r.reviewer.rules})
+	var weaponDemand []policy.Amount
+	if benches, known := benchesFact.Value(); known {
+		weaponDemand, err = r.weaponDemand(call, state, gear, benches)
+		if err != nil {
+			return RoutineGearResult{}, err
+		}
+	}
+	choice, err := policy.SelectGearMethod(policy.GearPlanningRequest{Observation: domain.Known(observation), Seen: seen, Benches: benchesFact, Stock: stock, Rules: r.reviewer.rules, WeaponDemand: weaponDemand})
 	if err != nil {
 		return RoutineGearResult{}, err
 	}
@@ -287,14 +374,12 @@ func (r *RoutineGearPlanner) step(call, epoch context.Context, arbiter *stepArbi
 		if !ok {
 			return RoutineGearResult{}, ErrControl
 		}
-		// Target 1: pause-when-satisfied maintains a standing buffer of the
-		// needed replacement rather than crafting a single unit once. Restrict
-		// native consumption to the material set funded by the selector.
+		// A finite batch covers the colony gap, using only funded ingredients.
 		ingredients := make([]string, len(choice.Filter))
 		for i, resource := range choice.Filter {
 			ingredients[i] = string(resource)
 		}
-		bill, err := domain.NewProductionBill(choice.Bench, choice.Recipe, token, domain.StockTarget, 1, ingredients...)
+		bill, err := domain.NewProductionBill(choice.Bench, choice.Recipe, token, domain.GearBatch, choice.Count, ingredients...)
 		if err != nil {
 			return RoutineGearResult{}, err
 		}
@@ -313,6 +398,9 @@ func (r *RoutineGearPlanner) step(call, epoch context.Context, arbiter *stepArbi
 			return RoutineGearResult{}, err
 		}
 	default:
+		if len(busy) > 0 {
+			return RoutineGearResult{Reason: BuildingMethodExistingWork}, nil
+		}
 		return RoutineGearResult{Reason: BuildingMethodUsed}, nil
 	}
 	plan, err := domain.NewPlan(id, 1, []domain.Action{action})

@@ -278,10 +278,17 @@ func SelectResourceStorageZone(selected []ResourceSource, pending int64, storage
 	if !hasMine {
 		return ResourceStorageZone{}, false, false, nil
 	}
+	return SelectStockpileCapacity(yield+pending, storage)
+}
+
+// SelectStockpileCapacity uses native covered, reachable storage candidates.
+func SelectStockpileCapacity(capacityNeeded int64, storage ResourceStorage) (zone ResourceStorageZone, needed, blocked bool, err error) {
+	if capacityNeeded < 0 || storage.Capacity < 0 || storage.Stored < 0 || storage.StackLimit < 0 || storage.Haulers < 0 || len(storage.Candidates) > 4096 {
+		return zone, false, false, errors.New("invalid stockpile capacity")
+	}
 	if storage.Haulers == 0 {
 		return ResourceStorageZone{}, false, true, nil
 	}
-	capacityNeeded := yield + pending
 	if storage.Capacity >= capacityNeeded {
 		return ResourceStorageZone{}, false, false, nil
 	}

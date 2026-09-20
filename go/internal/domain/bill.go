@@ -20,6 +20,7 @@ const (
 	// and MaintainMedicalReserves rather than inventing a mode per consumer.
 	// Unlike FoodTarget it carries no food-specific recipe exclusion.
 	StockTarget BillMode = "stock_target"
+	GearBatch   BillMode = "gear_batch"
 	BeerReserve BillMode = "beer_reserve"
 )
 
@@ -35,7 +36,7 @@ type ProductionBill struct {
 }
 
 func NewProductionBill(bench, recipe, token string, mode BillMode, target int32, ingredients ...string) (ProductionBill, error) {
-	if !validID(bench) || !validID(recipe) || !validID(token) || (mode != FoodTarget && mode != ButcherForever && mode != StockTarget && mode != BeerReserve) || mode == FoodTarget && (target < 1 || target > 10000 || recipe == "ButcherCorpseFlesh") || mode == ButcherForever && (recipe != "ButcherCorpseFlesh" || target != 0) || (mode == StockTarget || mode == BeerReserve) && (target < 1 || target > 10000) {
+	if !validID(bench) || !validID(recipe) || !validID(token) || (mode != FoodTarget && mode != ButcherForever && mode != StockTarget && mode != BeerReserve && mode != GearBatch) || mode == FoodTarget && (target < 1 || target > 10000 || recipe == "ButcherCorpseFlesh") || mode == ButcherForever && (recipe != "ButcherCorpseFlesh" || target != 0) || (mode == StockTarget || mode == BeerReserve || mode == GearBatch) && (target < 1 || target > 10000) {
 		return ProductionBill{}, errors.New("invalid production bill")
 	}
 	if len(ingredients) > 256 || mode == ButcherForever && len(ingredients) > 0 {

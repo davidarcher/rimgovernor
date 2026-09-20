@@ -28,7 +28,7 @@ control replaces manual policy assignments and clears forced/locked apparel;
 vanilla optimizes apparel between reviews. Worker, hunter, indoor, slave and
 non-combatant policies exclude armor; soldiers allow it; children use native
 child-compatible definitions. Every role excludes tainted apparel, admits
-51–100% hit points and Awful–Legendary quality. Policy filters update in place
+51ï¿½100% hit points and Awfulï¿½Legendary quality. Policy filters update in place
 and assignments use CAS preview/admission with native postcondition readback.
 Individual wear orders still obey the current filter and do not create forced entries. A loadout carries at most 8 candidates, the
 best by gain then thing id; the eligible items past that bound count as
@@ -70,7 +70,7 @@ leaves raid armor unknown; older producers may omit these optional facts.
 ## Production and resource protection
 
 Available eligible replacements precede production. A missing replacement can
-select a discovered recipe and maintain a one-item stock bill. When its workshop
+select a discovered recipe and issue a finite bill for the colony gap count. When its workshop
 is missing, the shared workshop ladder stages the bench in a suitable room (or
 stages the room first) and raises research prerequisites under `EnsureResearch`.
 Existing active production is preserved. Ingredient alternatives use native costs
@@ -156,7 +156,7 @@ bill gaps by definition and stuff; quality does not split demand. These are
 product quantities, not ingredient reservations or promises of crafted quality.
 
 `ReviewGear` exposes targets and demand when every pawn has a complete model.
-The existing method planner projects those gaps into replacement or one-item
+The existing method planner projects those gaps into replacement or demand-sized
 production methods. Loose/stored targets must still occur in the native eligible
 candidate list; native gain admits the item, while model gain orders it. An
 unavailable admission stays blocked. Existing production resource checks and
@@ -209,3 +209,16 @@ different evidence levels.
 
 `production/apparel-policy` is a short native smoke case for create/update/assign,
 stale CAS refusal, manual-policy override and clearing forced/locked apparel.
+Finished apparel in valid storage is aggregated by definition, stuff, quality
+and hit-point band in `GearSnapshot.stored_apparel`, bounded to 4096 rows.
+Forbidden and tainted apparel is excluded. Normal-or-better items above 50%
+condition offset matching definition/stuff demand before production. A finite
+`GearBatch` bill reserves the full batch ingredients and carries its exact filter;
+weapon demand joins after colony-wide loose-weapon assignment. Each review admits
+at most one bill and independent pawn orders bounded by free development slots;
+pawn and item identities cannot be claimed twice by open dressing methods.
+
+Optional `RoutinePolicy.GearSpareTargets` keeps unworn spares by definition.
+These targets bind to `MaintainResource`: its workshop ladder stages missing
+benches, and its storage prerequisite creates covered, reachable allow-listed
+stockpile space before the standing stock bill. Spares default to disabled.

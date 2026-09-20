@@ -2,10 +2,54 @@ package store
 
 import (
 	"context"
+	"fmt"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"testing"
 )
+
+func TestGearParallelAdmissionBoundsAndClaims(t *testing.T) {
+	db := open(t, memoryPath(t))
+	defer db.Close()
+	r := routineRequest()
+	r.Policy.MaxDevelopmentProjects = 2
+	r.Facts.Gear = domain.Known(policy.GearObservation{Pawns: []policy.GearPawn{{Pawn: "a", Loadout: "loadout", Deficit: domain.Known(true), Candidates: domain.Known([]policy.GearCandidate{})}}})
+	g := routineGoal(t, reviewRoutine(t, db, &r), policy.MaintainEquipment)
+	admit := func(index int, pawn domain.PawnID, item string) error {
+		gear, err := domain.NewGearReplace(pawn, item, "Parka")
+		if err != nil {
+			return err
+		}
+		a, err := domain.NewGearReplaceAction(domain.ActionID(fmt.Sprintf("wear-%d", index)), gear)
+		if err != nil {
+			return err
+		}
+		p, err := domain.NewPlan(domain.PlanID(fmt.Sprintf("gear-%d", index)), 1, []domain.Action{a})
+		if err != nil {
+			return err
+		}
+		next, err := db.CommitGoalMethod(context.Background(), g.Goal.ID, g.Revision, domain.MethodID(fmt.Sprintf("method-%d", index)), p)
+		if err == nil {
+			g = next
+		}
+		return err
+	}
+	if err := admit(1, "a", "one"); err != nil {
+		t.Fatal(err)
+	}
+	if err := admit(2, "a", "two"); err == nil {
+		t.Fatal("pawn dressed twice")
+	}
+	if err := admit(2, "b", "one"); err == nil {
+		t.Fatal("item allocated twice")
+	}
+	if err := admit(2, "b", "two"); err != nil {
+		t.Fatal(err)
+	}
+	if err := admit(3, "c", "three"); err == nil {
+		t.Fatal("exceeded free slots")
+	}
+}
 
 func TestRoutineGearNeedsPersistUnknownRecoveryRenewalAndManual(t *testing.T) {
 	t.Parallel()

@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	"fmt"
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
@@ -13,6 +14,25 @@ const gearCandidateBound = 8
 func validateColonyGear(v *o.GearSnapshot, ctx *c.ObservationContext, size *o.MapSize) error {
 	if v == nil || !proto.Equal(v.Context, ctx) {
 		return contract("gear census context mismatch")
+	}
+	if stored := v.StoredApparel; stored != nil {
+		if err := colonyCounts(stored.Completeness, len(stored.Rows), 4096); err != nil {
+			return err
+		}
+		if stored.Completeness.GetFiltered() != 0 {
+			return contract("filtered apparel storage")
+		}
+		seen := map[string]bool{}
+		for _, row := range stored.Rows {
+			if row == nil || row.DefName == nil || validID(row.GetDefName()) != nil || row.Stuff == nil || row.GetStuff() != "" && validID(row.GetStuff()) != nil || row.Quality == nil || row.GetQuality() < 0 || row.GetQuality() > 6 || row.HpBand == nil || row.GetHpBand() < 5 || row.GetHpBand() > 9 || row.Count == nil || row.GetCount() <= 0 {
+				return contract("invalid apparel storage row")
+			}
+			key := fmt.Sprintf("%s/%s/%d/%d", row.GetDefName(), row.GetStuff(), row.GetQuality(), row.GetHpBand())
+			if seen[key] {
+				return contract("duplicate apparel storage row")
+			}
+			seen[key] = true
+		}
 	}
 	if len(v.OutdoorTemperatureByTwelfthC) != 0 || v.CurrentTwelfth != nil || v.TicksToNextTwelfth != nil || v.ActiveWeather != nil {
 		if len(v.OutdoorTemperatureByTwelfthC) != 12 || v.CurrentTwelfth == nil || v.GetCurrentTwelfth() >= 12 || v.TicksToNextTwelfth == nil || v.GetTicksToNextTwelfth() <= 0 || v.GetTicksToNextTwelfth() > 300000 {
