@@ -100,11 +100,7 @@ func (r *RoutineStoneShellPlanner) step(call, epoch context.Context, arbiter *st
 			return RoutineStoneShellResult{Reason: BuildingMethodExistingWork}, nil
 		}
 	}
-	identity, _, err := r.reviewer.native.Identity(call)
-	if err != nil {
-		return RoutineStoneShellResult{}, err
-	}
-	expected, err := observation.DecodeIdentity(identity)
+	expected, err := routineScope(call, r.reviewer.native)
 	if err != nil {
 		return RoutineStoneShellResult{}, err
 	}
@@ -308,11 +304,7 @@ func (r *RoutineStoneShellPlanner) propose(call, epoch context.Context, goal sto
 	if p.session.State() != state {
 		return RoutineStoneShellResult{}, false, ErrControl
 	}
-	last, _, err := r.reviewer.native.Identity(call)
-	if err != nil {
-		return RoutineStoneShellResult{}, false, err
-	}
-	actual, err := observation.DecodeIdentity(last)
+	actual, err := routineScope(call, r.reviewer.native)
 	if err != nil || !routineBuildingBoundary(actual, state.Snapshot, projection.Identity.Tick) {
 		return RoutineStoneShellResult{}, false, ErrControl
 	}

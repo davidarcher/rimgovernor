@@ -92,7 +92,11 @@ func TestPlanningWindowServesStoreAndReadsOnDemand(t *testing.T) {
 	if held, err = w.PlanningWindow(context.Background(), identity, rect); err != nil || native.reads != 2 || held.AsOf != 2700 {
 		t.Fatalf("%+v %v reads=%d", held, err, native.reads)
 	}
-	// Another region is never served from a held one.
+	// A region within planningWindowSlack of the held one is served from
+	// it, at the held place (#593); one further off is read at its own.
+	if held, err = w.PlanningWindow(context.Background(), identity, policy.Rectangle{X: 4, Z: 4, Width: 45, Height: 45}); err != nil || native.reads != 2 || held.Value.Region != rect {
+		t.Fatalf("%+v %v reads=%d", held, err, native.reads)
+	}
 	other := policy.Rectangle{X: 5, Z: 5, Width: 45, Height: 45}
 	if held, err = w.PlanningWindow(context.Background(), identity, other); err != nil || native.reads != 3 || held.Value.Region != other {
 		t.Fatalf("%+v %v reads=%d", held, err, native.reads)
@@ -112,6 +116,24 @@ func TestPlanningWindowServesStoreAndReadsOnDemand(t *testing.T) {
 	// without the grid answers in full and the refresher keeps counting.
 	if native.since[0] != 0 || native.since[1] != 100 || native.since[2] != 0 || native.since[3] != 2700 || native.since[4] != 0 {
 		t.Fatal(native.since)
+	}
+}
+
+func TestPlanningWindowCovers(t *testing.T) {
+	held := policy.Rectangle{X: 10, Z: 10, Width: 45, Height: 45}
+	for _, tc := range []struct {
+		region policy.Rectangle
+		covers bool
+	}{
+		{held, true},
+		{policy.Rectangle{X: 14, Z: 6, Width: 45, Height: 45}, true},
+		{policy.Rectangle{X: 15, Z: 10, Width: 45, Height: 45}, false},
+		{policy.Rectangle{X: 10, Z: 5, Width: 45, Height: 45}, false},
+		{policy.Rectangle{X: 10, Z: 10, Width: 44, Height: 45}, false},
+	} {
+		if got := planningWindowCovers(held, tc.region); got != tc.covers {
+			t.Errorf("%+v: covers=%v, want %v", tc.region, got, tc.covers)
+		}
 	}
 }
 

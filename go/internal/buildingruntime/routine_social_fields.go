@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
@@ -38,11 +37,7 @@ func (r *RoutineFieldPlanner) socialFields(call, epoch context.Context, state Co
 			return RoutineFieldResult{Reason: BuildingMethodExistingWork}, nil
 		}
 	}
-	identity, _, err := r.reviewer.native.Identity(call)
-	if err != nil {
-		return RoutineFieldResult{}, err
-	}
-	expected, err := observation.DecodeIdentity(identity)
+	expected, err := routineScope(call, r.reviewer.native)
 	if err != nil || !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
 		return RoutineFieldResult{}, ErrControl
 	}

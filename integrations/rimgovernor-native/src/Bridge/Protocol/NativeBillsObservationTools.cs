@@ -37,62 +37,70 @@ namespace HomeBridge.BridgeTools
             return await ProtoBoundary.OnMainThread(ctx, () => {
                 if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var error))
                     return ProtoBoundary.Encode(new Obs.BillsReply { Failure = error });
-                try
-                {
-                    if (Faction.OfPlayerSilentFail == null || map.listerThings == null)
-                        return ProtoBoundary.Encode(new Obs.BillsReply { Unavailable = Unavailable(Common.UnavailableReason.NativeComponentMissing, "Player faction or map things are unavailable.") });
-                    var benches = Benches(map, parsed.AllFactions);
-                    if (parsed.HasBenchId) benches = benches.Where(b => b.GetUniqueLoadID() == parsed.BenchId).ToList();
-                    var seed = "bills" + parsed.AllFactions + (parsed.HasBenchId ? parsed.BenchId : "");
-                    // Entity tracking (issue #358) follows every read of all
-                    // benches: a full one primes the shadow and sweeps the
-                    // removed, a changed_since one lists only the changed.
-                    var tracking = parsed.HasBenchId ? null : EntityTracking.For(map, BillsToolName + parsed.AllFactions);
-                    if (parsed.HasChangedSinceTick && EntityTracking.Expired(parsed.ChangedSinceTick))
-                        return ProtoBoundary.Encode(new Obs.BillsReply { Unavailable = Unavailable(Common.UnavailableReason.Stale, "changed_since_tick is older than the tombstone window; read in full.") });
-                    var snapshot = new Obs.BillsSnapshot { Context = context, AsOfTick = context.Tick, Unchanged = 0 };
-                    var rows = new Dictionary<string, Obs.BillStack>();
-                    var listed = benches;
-                    if (parsed.HasChangedSinceTick)
-                    {
-                        listed = new List<Thing>();
-                        foreach (var bench in benches)
-                        {
-                            var row = Stack(bench, map, context);
-                            if (tracking!.Note(bench.GetUniqueLoadID(), row) >= parsed.ChangedSinceTick) { rows[bench.GetUniqueLoadID()] = row; listed.Add(bench); }
-                            else snapshot.Unchanged++;
-                        }
-                    }
-                    if (tracking != null)
-                    {
-                        tracking.Sweep(new HashSet<string>(benches.Select(b => b.GetUniqueLoadID())));
-                        if (parsed.HasChangedSinceTick) snapshot.RemovedIds.AddRange(tracking.RemovedSince(parsed.ChangedSinceTick));
-                    }
-                    var afterCursor = listed;
-                    if (parsed.Page != null && parsed.Page.HasCursor && parsed.Page.Cursor.Length != 0)
-                    {
-                        if (!NativeObservationSnapshot.Cursor.TryDecode(context.Identity, seed, parsed.Page.Cursor, out var after))
-                            return ProtoBoundary.Encode(new Obs.BillsReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, "Bills cursor is stale or does not match this query.") });
-                        afterCursor = listed.Where(b => string.CompareOrdinal(b.GetUniqueLoadID(), after) > 0).ToList();
-                    }
-                    var limit = parsed.Page?.HasLimit == true ? (int)parsed.Page.Limit : MaxRows;
-                    var page = afterCursor.Take(limit).ToList();
-                    var truncated = afterCursor.Count > page.Count;
-                    var completeness = Complete(page.Count);
-                    completeness.Matched = (ulong)listed.Count;
-                    completeness.Page.Complete = !truncated;
-                    if (truncated) completeness.Page.NextCursor = NativeObservationSnapshot.Cursor.Encode(context.Identity, seed, page[page.Count - 1].GetUniqueLoadID());
-                    snapshot.Completeness = completeness;
-                    foreach (var bench in page)
-                    {
-                        if (!rows.TryGetValue(bench.GetUniqueLoadID(), out var row)) { row = Stack(bench, map, context); tracking?.Note(bench.GetUniqueLoadID(), row); }
-                        snapshot.Benches.Add(row);
-                    }
-                    return Encode(new Obs.BillsReply { Observed = snapshot });
-                }
+                try { return Encode(Read(map, parsed, context)); }
                 catch (ReadLimit limit) { return ProtoBoundary.Encode(new Obs.BillsReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, limit.Message) }); }
-                catch (Exception e) { return ProtoBoundary.Encode(new Obs.BillsReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, Failed("Bench or bill facts", e)) }); }
             }, cancellationToken).ConfigureAwait(false);
+        }
+
+        // Read is the read on the main thread under a validated identity: the
+        // reply its tool encodes, and the section the bundle carries (#593).
+        internal static Obs.BillsReply Read(Map map, Obs.BillsRequest parsed, Common.ObservationContext context)
+        {
+            try
+            {
+                if (Faction.OfPlayerSilentFail == null || map.listerThings == null)
+                    return new Obs.BillsReply { Unavailable = Unavailable(Common.UnavailableReason.NativeComponentMissing, "Player faction or map things are unavailable.") };
+                var benches = Benches(map, parsed.AllFactions);
+                if (parsed.HasBenchId) benches = benches.Where(b => b.GetUniqueLoadID() == parsed.BenchId).ToList();
+                var seed = "bills" + parsed.AllFactions + (parsed.HasBenchId ? parsed.BenchId : "");
+                // Entity tracking (issue #358) follows every read of all
+                // benches: a full one primes the shadow and sweeps the
+                // removed, a changed_since one lists only the changed.
+                var tracking = parsed.HasBenchId ? null : EntityTracking.For(map, BillsToolName + parsed.AllFactions);
+                if (parsed.HasChangedSinceTick && EntityTracking.Expired(parsed.ChangedSinceTick))
+                    return new Obs.BillsReply { Unavailable = Unavailable(Common.UnavailableReason.Stale, "changed_since_tick is older than the tombstone window; read in full.") };
+                var snapshot = new Obs.BillsSnapshot { Context = context, AsOfTick = context.Tick, Unchanged = 0 };
+                var rows = new Dictionary<string, Obs.BillStack>();
+                var listed = benches;
+                if (parsed.HasChangedSinceTick)
+                {
+                    listed = new List<Thing>();
+                    foreach (var bench in benches)
+                    {
+                        var row = Stack(bench, map, context);
+                        if (tracking!.Note(bench.GetUniqueLoadID(), row) >= parsed.ChangedSinceTick) { rows[bench.GetUniqueLoadID()] = row; listed.Add(bench); }
+                        else snapshot.Unchanged++;
+                    }
+                }
+                if (tracking != null)
+                {
+                    tracking.Sweep(new HashSet<string>(benches.Select(b => b.GetUniqueLoadID())));
+                    if (parsed.HasChangedSinceTick) snapshot.RemovedIds.AddRange(tracking.RemovedSince(parsed.ChangedSinceTick));
+                }
+                var afterCursor = listed;
+                if (parsed.Page != null && parsed.Page.HasCursor && parsed.Page.Cursor.Length != 0)
+                {
+                    if (!NativeObservationSnapshot.Cursor.TryDecode(context.Identity, seed, parsed.Page.Cursor, out var after))
+                        return new Obs.BillsReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, "Bills cursor is stale or does not match this query.") };
+                    afterCursor = listed.Where(b => string.CompareOrdinal(b.GetUniqueLoadID(), after) > 0).ToList();
+                }
+                var limit = parsed.Page?.HasLimit == true ? (int)parsed.Page.Limit : MaxRows;
+                var page = afterCursor.Take(limit).ToList();
+                var truncated = afterCursor.Count > page.Count;
+                var completeness = Complete(page.Count);
+                completeness.Matched = (ulong)listed.Count;
+                completeness.Page.Complete = !truncated;
+                if (truncated) completeness.Page.NextCursor = NativeObservationSnapshot.Cursor.Encode(context.Identity, seed, page[page.Count - 1].GetUniqueLoadID());
+                snapshot.Completeness = completeness;
+                foreach (var bench in page)
+                {
+                    if (!rows.TryGetValue(bench.GetUniqueLoadID(), out var row)) { row = Stack(bench, map, context); tracking?.Note(bench.GetUniqueLoadID(), row); }
+                    snapshot.Benches.Add(row);
+                }
+                return new Obs.BillsReply { Observed = snapshot };
+            }
+            catch (ReadLimit limit) { return new Obs.BillsReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, limit.Message) }; }
+            catch (Exception e) { return new Obs.BillsReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, Failed("Bench or bill facts", e)) }; }
         }
 
         [Tool(RecipesToolName, Title = "Read typed bench recipes", Description = "With bench_id: complete bounded recipe catalog of one bench: availability, work, the work type a worker must enable, skill requirements, per-slot required ingredient counts and products. Without: the recipe definition catalog with hosting player-buildable bench definitions, optionally narrowed to recipes producing product_def. No stock scan; ingredient rows carry required amounts only.")]

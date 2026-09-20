@@ -991,6 +991,26 @@ func (r *RoutineBuildingPlanner) previewSearch(call context.Context, snapshot do
 	return selected, stock, "", nil
 }
 
+// routineScope is the observation scope a planner checks its review
+// against: the bare tick read when the native offers one (bridge.Client
+// does), which the step's bundle seeds into the read cache so no planner
+// crosses the bridge for it (#593), else the identity read. Only the
+// context and pause state are used; the capability list is not.
+func routineScope(ctx context.Context, native observation.ColonySource) (observation.Identity, error) {
+	if source, ok := native.(observation.Source); ok {
+		reply, _, err := source.Tick(ctx)
+		if err != nil {
+			return observation.Identity{}, err
+		}
+		return observation.DecodeTick(reply)
+	}
+	reply, _, err := native.Identity(ctx)
+	if err != nil {
+		return observation.Identity{}, err
+	}
+	return observation.DecodeIdentity(reply)
+}
+
 func routineBuildingBoundary(actual observation.Identity, expected domain.GenerationSnapshot, tick domain.Tick) bool {
 	generation, generationKnown := actual.NativeGeneration.Value()
 	return actual.Colony == expected.Colony && actual.Load == expected.Load && actual.Map == expected.Map && actual.Tick.FreshFor(tick) && generationKnown && generation == expected.Native

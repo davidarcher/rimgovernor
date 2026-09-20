@@ -6,7 +6,6 @@ import (
 	"github.com/davidarcher/RimGovernor/go/internal/bridge"
 	"github.com/davidarcher/RimGovernor/go/internal/buildingruntime/boundary"
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
@@ -98,11 +97,7 @@ func (r *RoutineAnimalFeedPlanner) step(call, epoch context.Context, arbiter *st
 		}
 		standingBill = standingBill || completedBillPlan(plan)
 	}
-	identityReply, _, err := r.reviewer.native.Identity(call)
-	if err != nil {
-		return RoutineResourceResult{}, err
-	}
-	expected, err := observation.DecodeIdentity(identityReply)
+	expected, err := routineScope(call, r.reviewer.native)
 	if err != nil {
 		return RoutineResourceResult{}, err
 	}

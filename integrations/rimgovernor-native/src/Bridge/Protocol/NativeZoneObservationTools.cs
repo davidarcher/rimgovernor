@@ -34,43 +34,51 @@ namespace HomeBridge.BridgeTools
             return await ProtoBoundary.OnMainThread(ctx, () => {
                 if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var error))
                     return ProtoBoundary.Encode(new Obs.ListZonesReply { Failure = error });
-                try
-                {
-                    var tracking = ZoneTracking.For(map);
-                    var since = parsed.HasChangedSinceTick ? parsed.ChangedSinceTick : 0;
-                    var refusal = tracking.Refusal(since);
-                    if (refusal != null)
-                        return ProtoBoundary.Encode(new Obs.ListZonesReply { Unavailable = Unavailable(Common.UnavailableReason.Stale, refusal) });
-                    var source = map.zoneManager.AllZones.Where(z => z != null && z.Cells.Count != 0).ToList();
-                    var matched = source.Where(z => Matches(z, parsed)).OrderBy(z => z.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
-                    var filtered = source.Count - matched.Count;
-                    var rows = new Dictionary<Zone, Obs.ZoneState>();
-                    foreach (var zone in matched) rows[zone] = Project(zone, map, context, parsed);
-                    var changed = matched.Where(z => !tracking.Unchanged(z, rows[z], since)).ToList();
-                    var unchanged = matched.Count - changed.Count;
-                    matched = changed;
-                    var seed = QuerySeed(parsed);
-                    var afterCursor = matched;
-                    if (parsed.Page != null && parsed.Page.HasCursor && parsed.Page.Cursor.Length != 0)
-                    {
-                        if (!NativeObservationSnapshot.Cursor.TryDecode(context.Identity, seed, parsed.Page.Cursor, out var after))
-                            return ProtoBoundary.Encode(new Obs.ListZonesReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, "Zone cursor is stale or does not match this query.") });
-                        afterCursor = matched.Where(z => string.CompareOrdinal(Id(z.GetUniqueLoadID()), after) > 0).ToList();
-                    }
-                    var page = afterCursor.Take(Limit(parsed)).ToList();
-                    Require(page.Count <= MaxPage, "Matched zone collection exceeds page limit; narrow filters.");
-                    var truncated = afterCursor.Count > page.Count;
-                    var snapshot = new Obs.ZonesSnapshot { Context = context, Completeness = Complete(page.Count, filtered),
-                        AsOfTick = context.Tick, Unchanged = (uint)unchanged, MapSnapshot = NativeZoneCreation.MapSnapshot(map, context) };
-                    if (since > 0) snapshot.RemovedIds.Add(tracking.Removed(since));
-                    snapshot.Completeness.Page.Complete = !truncated;
-                    if (truncated) snapshot.Completeness.Page.NextCursor = NativeObservationSnapshot.Cursor.Encode(context.Identity, seed, Id(page[page.Count-1].GetUniqueLoadID()));
-                    foreach (var zone in page) snapshot.Zones.Add(rows[zone]);
-                    return Encode(new Obs.ListZonesReply { Observed = snapshot });
-                }
+                try { return Encode(Read(map, parsed, context)); }
                 catch (ReadLimit errorLimit) { return ProtoBoundary.Encode(new Obs.ListZonesReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, errorLimit.Message) }); }
-                catch (Exception) { return ProtoBoundary.Encode(new Obs.ListZonesReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Zone facts could not be read completely.") }); }
             }, cancellationToken).ConfigureAwait(false);
+        }
+
+        // Read is the read on the main thread under a validated identity: the
+        // reply its tool encodes, and the section the bundle carries (#593).
+        internal static Obs.ListZonesReply Read(Map map, Obs.ListZonesRequest parsed, Common.ObservationContext context)
+        {
+            try
+            {
+                var tracking = ZoneTracking.For(map);
+                var since = parsed.HasChangedSinceTick ? parsed.ChangedSinceTick : 0;
+                var refusal = tracking.Refusal(since);
+                if (refusal != null)
+                    return new Obs.ListZonesReply { Unavailable = Unavailable(Common.UnavailableReason.Stale, refusal) };
+                var source = map.zoneManager.AllZones.Where(z => z != null && z.Cells.Count != 0).ToList();
+                var matched = source.Where(z => Matches(z, parsed)).OrderBy(z => z.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
+                var filtered = source.Count - matched.Count;
+                var rows = new Dictionary<Zone, Obs.ZoneState>();
+                foreach (var zone in matched) rows[zone] = Project(zone, map, context, parsed);
+                var changed = matched.Where(z => !tracking.Unchanged(z, rows[z], since)).ToList();
+                var unchanged = matched.Count - changed.Count;
+                matched = changed;
+                var seed = QuerySeed(parsed);
+                var afterCursor = matched;
+                if (parsed.Page != null && parsed.Page.HasCursor && parsed.Page.Cursor.Length != 0)
+                {
+                    if (!NativeObservationSnapshot.Cursor.TryDecode(context.Identity, seed, parsed.Page.Cursor, out var after))
+                        return new Obs.ListZonesReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, "Zone cursor is stale or does not match this query.") };
+                    afterCursor = matched.Where(z => string.CompareOrdinal(Id(z.GetUniqueLoadID()), after) > 0).ToList();
+                }
+                var page = afterCursor.Take(Limit(parsed)).ToList();
+                Require(page.Count <= MaxPage, "Matched zone collection exceeds page limit; narrow filters.");
+                var truncated = afterCursor.Count > page.Count;
+                var snapshot = new Obs.ZonesSnapshot { Context = context, Completeness = Complete(page.Count, filtered),
+                    AsOfTick = context.Tick, Unchanged = (uint)unchanged, MapSnapshot = NativeZoneCreation.MapSnapshot(map, context) };
+                if (since > 0) snapshot.RemovedIds.Add(tracking.Removed(since));
+                snapshot.Completeness.Page.Complete = !truncated;
+                if (truncated) snapshot.Completeness.Page.NextCursor = NativeObservationSnapshot.Cursor.Encode(context.Identity, seed, Id(page[page.Count-1].GetUniqueLoadID()));
+                foreach (var zone in page) snapshot.Zones.Add(rows[zone]);
+                return new Obs.ListZonesReply { Observed = snapshot };
+            }
+            catch (ReadLimit errorLimit) { return new Obs.ListZonesReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, errorLimit.Message) }; }
+            catch (Exception) { return new Obs.ListZonesReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Zone facts could not be read completely.") }; }
         }
 
         internal static bool Validate(Obs.ListZonesRequest request, out Common.Failure failure)

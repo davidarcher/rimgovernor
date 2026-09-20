@@ -1069,7 +1069,22 @@ message BundleRequest {
   PawnFields colonist_pawn_fields = 9;
   PopulationFields population_fields = 10;
   ResearchFields research_fields = 11;
+  // Step families (#593): the reads a review step would otherwise issue one
+  // by one after the bundle, each the exact read its dedicated tool answers
+  // and best effort like the census families (omitted when it fails or
+  // pushes the reply past the envelope; the step families drop first).
+  optional bool buildings = 12;        // list_buildings: artificial, player-only, one page of 256
+  optional bool built_buildings = 13;  // list_buildings: the same, statuses [built]
+  optional bool bills = 14;            // read_bills: player benches, one page of 256
+  optional bool zones = 15;            // list_zones: no cells, contents or filter, first page of 16
+  optional bool traders = 16;          // list_traders
+  optional bool world_progression = 17; // read_world_progression without storage, page 256
+  repeated string resource_sources = 18; // list_resource_sources per named resource, no development
+  BundlePlanningWindowRequest planning_window = 19; // get_cells: the planning window's band
 }
+// The planning window's one get_cells band: the region (at most 65536
+// cells) with the planning fields, compact, optionally as a delta.
+message BundlePlanningWindowRequest { Rectangle region = 1; optional int64 changed_since_tick = 2; }
 message BundleSnapshot {
   rimgovernor.common.v1.ObservationContext context = 1;
   optional bool paused = 2;
@@ -1080,6 +1095,14 @@ message BundleSnapshot {
   PopulationSnapshot population = 7;
   ResearchSnapshot research = 8;
   PawnSnapshot colonist_pawns = 9;
+  BuildingsSnapshot buildings = 10;
+  BuildingsSnapshot built_buildings = 11;
+  BillsSnapshot bills = 12;
+  ZonesSnapshot zones = 13;
+  TradersSnapshot traders = 14;
+  WorldProgressionSnapshot world_progression = 15;
+  repeated ResourceSourcesSnapshot resource_sources = 16;
+  CellsSnapshot planning_window = 17;
 }
 message BundleReply { oneof outcome { BundleSnapshot observed = 1; rimgovernor.common.v1.Unavailable unavailable = 2; rimgovernor.common.v1.Failure failure = 3; } }
 message ObservationBatchSnapshot {

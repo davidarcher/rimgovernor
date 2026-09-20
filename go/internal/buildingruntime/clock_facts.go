@@ -26,6 +26,9 @@ type clockFacts struct {
 	// entityRefreshes counts each entity section's delta refreshes across
 	// steps for the same cadence (refreshEntitySections, #358).
 	entityRefreshes map[facts.Section]int
+	// asks are the step families the last review step's planners asked
+	// for, folded into the next review bundle (#593).
+	asks bridge.BundleStepAsks
 }
 
 const clockFactsWatchedMax = 256

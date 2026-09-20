@@ -109,7 +109,13 @@ namespace HomeBridge.BridgeTools
                 observed.Events = page.Page;
             }
             var families = wake == null && ReadFamilies(map, request, context, observed);
+            var step = wake == null && ReadStepFamilies(map, request, context, observed);
             var reply = new Obs.BundleReply { Observed = observed };
+            if (step && Oversized(reply))
+            {
+                observed.Buildings = null; observed.BuiltBuildings = null; observed.Bills = null; observed.Zones = null;
+                observed.Traders = null; observed.WorldProgression = null; observed.ResourceSources.Clear(); observed.PlanningWindow = null;
+            }
             if (families && Oversized(reply))
             {
                 observed.ColonyFacts = null; observed.Population = null; observed.Research = null; observed.ColonistPawns = null;
@@ -153,6 +159,72 @@ namespace HomeBridge.BridgeTools
                 };
                 foreach (var row in observed.Emergency.Colonists.Pawns) pawns.Filter.Ids.Add(row.Pawn.Id);
                 if (NativePawnObservationTools.TryRead(map, pawns, context, out var detail)) { observed.ColonistPawns = NativeBundleMasks.Apply(detail, request.ColonistPawnFields); added = true; }
+            }
+            return added;
+        }
+
+        // On the main thread. Adds the requested step families (#593), each
+        // the exact read its dedicated tool answers for the request shape the
+        // controller's step issues, omitting any that fails or is not
+        // observed; reports whether any was added. They drop before the
+        // census families when the reply outgrows the envelope.
+        private static bool ReadStepFamilies(Map map, Obs.BundleRequest request, Common.ObservationContext context, Obs.BundleSnapshot observed)
+        {
+            var added = false;
+            Obs.ReadScope Scope() => new Obs.ReadScope { ExpectedIdentity = context.Identity.Clone() };
+            if (request.HasBuildings && request.Buildings)
+            {
+                var buildings = NativeBuildingObservationTools.Read(map, new Obs.ListBuildingsRequest { Scope = Scope(), PlayerOnly = true, Category = "artificial", Page = new Common.PageRequest { Limit = 256 } }, context).Observed;
+                if (buildings != null) { observed.Buildings = buildings; added = true; }
+            }
+            if (request.HasBuiltBuildings && request.BuiltBuildings)
+            {
+                var built = new Obs.ListBuildingsRequest { Scope = Scope(), PlayerOnly = true, Category = "artificial", Page = new Common.PageRequest { Limit = 256 } };
+                built.Statuses.Add("built");
+                var buildings = NativeBuildingObservationTools.Read(map, built, context).Observed;
+                if (buildings != null) { observed.BuiltBuildings = buildings; added = true; }
+            }
+            if (request.HasBills && request.Bills)
+            {
+                var bills = NativeBillsObservationTools.Read(map, new Obs.BillsRequest { Scope = Scope(), Page = new Common.PageRequest { Limit = 256 } }, context).Observed;
+                if (bills != null) { observed.Bills = bills; added = true; }
+            }
+            if (request.HasZones && request.Zones)
+            {
+                var zones = NativeZoneObservationTools.Read(map, new Obs.ListZonesRequest { Scope = Scope(), Page = new Common.PageRequest { Limit = 16 } }, context).Observed;
+                if (zones != null) { observed.Zones = zones; added = true; }
+            }
+            if (request.HasTraders && request.Traders)
+            {
+                try { observed.Traders = NativeTradeObservation.Traders(map, context); added = true; } catch (System.Exception) { }
+            }
+            if (request.HasWorldProgression && request.WorldProgression)
+            {
+                try { observed.WorldProgression = NativeWorldProgressionObservation.Build(context, false); added = true; } catch (System.Exception) { }
+            }
+            foreach (var resource in request.ResourceSources)
+            {
+                if (!ProtoBoundary.IsIdentifier(resource)) continue;
+                var sources = NativeResourceSourcesTool.Read(map, new Obs.ResourceSourcesRequest { Scope = Scope(), Resource = resource, IncludeDevelopment = false }, context).Observed;
+                if (sources != null) { observed.ResourceSources.Add(sources); added = true; }
+            }
+            var window = request.PlanningWindow;
+            if (window?.Region?.Minimum != null && window.Region.Maximum != null)
+            {
+                var width = (long)window.Region.Maximum.X - window.Region.Minimum.X + 1;
+                var height = (long)window.Region.Maximum.Z - window.Region.Minimum.Z + 1;
+                if (width >= 1 && height >= 1 && width * height <= 65536)
+                {
+                    var cells = new Obs.GetCellsRequest { Scope = Scope(), Rectangle = window.Region.Clone(), Compact = true,
+                        Fields = new Obs.CellFields { Terrain = false, Roof = true, Visibility = true, Traversal = true, Zone = true, Areas = false, Things = false, Designations = false, Room = true, Growth = true },
+                        Page = new Common.PageRequest { Limit = (uint)(width * height) } };
+                    if (window.HasChangedSinceTick && window.ChangedSinceTick > 0) cells.ChangedSinceTick = window.ChangedSinceTick;
+                    if (NativeObservationTools.ValidateCells(cells, out _))
+                    {
+                        var snapshot = NativeObservationTools.ReadCells(map, cells, context).Observed;
+                        if (snapshot != null) { observed.PlanningWindow = snapshot; added = true; }
+                    }
+                }
             }
             return added;
         }

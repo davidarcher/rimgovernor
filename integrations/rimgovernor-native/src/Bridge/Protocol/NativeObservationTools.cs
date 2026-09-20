@@ -46,76 +46,84 @@ namespace HomeBridge.BridgeTools
             return await ProtoBoundary.OnMainThread(ctx, () => {
                 if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out failure))
                     return ProtoBoundary.Encode(new Obs.GetCellsReply { Failure = failure });
-                try {
-                    var cells = Selection(parsed);
-                    if (cells.Any(cell => !cell.InBounds(map))) return ProtoBoundary.Encode(new Obs.GetCellsReply {
-                        Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Selected cell is outside the current map.") });
-                    var fields = Fields(parsed.Fields);
-                    // The change grid (issue #357) exists from a map's first
-                    // cells read, so a later ask since this read's tick is
-                    // answered from it; every read stamps as_of_tick.
-                    var tracking = CellTracking.For(map);
-                    var snapshot = new Obs.CellsSnapshot { Context = context,
-                        MapSize = new Obs.MapSize { Width = checked((uint)map.Size.x), Height = checked((uint)map.Size.z) },
-                        Region = new Obs.Rectangle { Minimum = Cell(cells.Min(c => c.x), cells.Min(c => c.z)), Maximum = Cell(cells.Max(c => c.x), cells.Max(c => c.z)) },
-                        AppliedFields = fields, AsOfTick = context.Tick, Unchanged = 0 };
-                    foreach (var cell in cells) {
-                        if (parsed.HasChangedSinceTick && tracking.Unchanged(cell, parsed.ChangedSinceTick)
-                            && (!fields.Growth || tracking.GrowthUnchanged(cell))) { snapshot.Unchanged++; continue; }
-                        var row = new Obs.CellState { Cell = Cell(cell.x, cell.z) };
-                        // A fogged cell reveals nothing but its fog: the row
-                        // carries no other fact, as the planning window it
-                        // now serves (issue #356) never listed fogged cells.
-                        // Visibility applied and the row listed means visible;
-                        // only a fogged row says so.
-                        if (fields.Visibility && cell.Fogged(map)) { row.Fogged = true; snapshot.Cells.Add(row); continue; }
-                        if (fields.Terrain) row.Terrain = Identifier(cell.GetTerrain(map)?.defName);
-                        // An absent roof, zone or room is the applied field
-                        // set with no value (a declared field without a value
-                        // decodes as a known absence): a per-cell issue row
-                        // costs ~110 bytes and put a 45x45 window past 700 KB.
-                        if (fields.Roof) { var roof = cell.GetRoof(map); if (roof != null) row.Roof = Identifier(roof.defName); }
-                        if (fields.Traversal) {
-                            row.Walkable = cell.Walkable(map); row.Passable = !cell.Impassable(map);
-                            row.Occupied = cell.GetEdifice(map) != null || cell.GetThingList(map).Any(t => t is Blueprint || t is Frame);
-                            row.Doorway = cell.GetDoor(map) != null || cell.GetThingList(map).Any(t => (t is Blueprint || t is Frame)
-                                && t.def.entityDefToBuild is ThingDef built && typeof(Building_Door).IsAssignableFrom(built.thingClass));
-                            row.SupportsLight = cell.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Light);
-                        }
-                        if (fields.Zone) {
-                            var zone = map.zoneManager.ZoneAt(cell);
-                            if (zone != null) row.ZoneId = zone.ID.ToString(System.Globalization.CultureInfo.InvariantCulture);
-                            row.StorageEmpty = NativeZoneCreation.StorageEmpty(cell, map);
-                        }
-                        var room = cell.GetRoom(map);
-                        tracking.NoteRoom(cell, room);
-                        if (fields.Room) {
-                            if (room != null) row.RoomId = room.ID.ToString(System.Globalization.CultureInfo.InvariantCulture);
-                            row.Indoors = CellTracking.Indoors(room);
-                        }
-                        if (fields.Growth) {
-                            row.Polluted = ModsConfig.BiotechActive && map.pollutionGrid.IsPolluted(cell);
-                            row.Glow = Finite(map.glowGrid.GroundGlowAt(cell));
-                            tracking.NoteGrowth(cell, row.Polluted, (float)row.Glow);
-                            // Fertility only where the ground has any (issue #335).
-                            var fertility = map.fertilityGrid.FertilityAt(cell);
-                            if (fertility > 0f) row.Fertility = Finite(fertility);
-                        }
-                        if (fields.Things) {
-                            var here = cell.GetThingList(map);
-                            RequireCount(here.Count, 256);
-                            foreach (var thing in here) row.Things.Add(CellThingRow(thing, context));
-                        }
-                        snapshot.Cells.Add(row);
-                    }
-                    snapshot.Completeness = Complete(snapshot.Cells.Count);
-                    // Sparse deltas are smaller as ordinary rows than a full flag grid.
-                    if (parsed.Compact && snapshot.Cells.Count * 20L >= cells.Count) CompactCellEncoding.Encode(snapshot);
-                    return EncodeBounded(new Obs.GetCellsReply { Observed = snapshot });
-                }
+                try { return EncodeBounded(ReadCells(map, parsed, context)); }
                 catch (ReadLimit error) { return ProtoBoundary.Encode(new Obs.GetCellsReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, error.Message) }); }
-                catch (Exception) { return ProtoBoundary.Encode(new Obs.GetCellsReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Native cell facts could not be read completely.") }); }
             }, cancellationToken).ConfigureAwait(false);
+        }
+
+        // ReadCells is the read on the main thread under a validated identity: the
+        // reply its tool encodes, and the section the bundle carries (#593).
+        internal static Obs.GetCellsReply ReadCells(Map map, Obs.GetCellsRequest parsed, Common.ObservationContext context)
+        {
+            try {
+                var cells = Selection(parsed);
+                if (cells.Any(cell => !cell.InBounds(map))) return new Obs.GetCellsReply {
+                    Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Selected cell is outside the current map.") };
+                var fields = Fields(parsed.Fields);
+                // The change grid (issue #357) exists from a map's first
+                // cells read, so a later ask since this read's tick is
+                // answered from it; every read stamps as_of_tick.
+                var tracking = CellTracking.For(map);
+                var snapshot = new Obs.CellsSnapshot { Context = context,
+                    MapSize = new Obs.MapSize { Width = checked((uint)map.Size.x), Height = checked((uint)map.Size.z) },
+                    Region = new Obs.Rectangle { Minimum = Cell(cells.Min(c => c.x), cells.Min(c => c.z)), Maximum = Cell(cells.Max(c => c.x), cells.Max(c => c.z)) },
+                    AppliedFields = fields, AsOfTick = context.Tick, Unchanged = 0 };
+                foreach (var cell in cells) {
+                    if (parsed.HasChangedSinceTick && tracking.Unchanged(cell, parsed.ChangedSinceTick)
+                        && (!fields.Growth || tracking.GrowthUnchanged(cell))) { snapshot.Unchanged++; continue; }
+                    var row = new Obs.CellState { Cell = Cell(cell.x, cell.z) };
+                    // A fogged cell reveals nothing but its fog: the row
+                    // carries no other fact, as the planning window it
+                    // now serves (issue #356) never listed fogged cells.
+                    // Visibility applied and the row listed means visible;
+                    // only a fogged row says so.
+                    if (fields.Visibility && cell.Fogged(map)) { row.Fogged = true; snapshot.Cells.Add(row); continue; }
+                    if (fields.Terrain) row.Terrain = Identifier(cell.GetTerrain(map)?.defName);
+                    // An absent roof, zone or room is the applied field
+                    // set with no value (a declared field without a value
+                    // decodes as a known absence): a per-cell issue row
+                    // costs ~110 bytes and put a 45x45 window past 700 KB.
+                    if (fields.Roof) { var roof = cell.GetRoof(map); if (roof != null) row.Roof = Identifier(roof.defName); }
+                    if (fields.Traversal) {
+                        row.Walkable = cell.Walkable(map); row.Passable = !cell.Impassable(map);
+                        row.Occupied = cell.GetEdifice(map) != null || cell.GetThingList(map).Any(t => t is Blueprint || t is Frame);
+                        row.Doorway = cell.GetDoor(map) != null || cell.GetThingList(map).Any(t => (t is Blueprint || t is Frame)
+                            && t.def.entityDefToBuild is ThingDef built && typeof(Building_Door).IsAssignableFrom(built.thingClass));
+                        row.SupportsLight = cell.GetTerrain(map).affordances.Contains(TerrainAffordanceDefOf.Light);
+                    }
+                    if (fields.Zone) {
+                        var zone = map.zoneManager.ZoneAt(cell);
+                        if (zone != null) row.ZoneId = zone.ID.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                        row.StorageEmpty = NativeZoneCreation.StorageEmpty(cell, map);
+                    }
+                    var room = cell.GetRoom(map);
+                    tracking.NoteRoom(cell, room);
+                    if (fields.Room) {
+                        if (room != null) row.RoomId = room.ID.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                        row.Indoors = CellTracking.Indoors(room);
+                    }
+                    if (fields.Growth) {
+                        row.Polluted = ModsConfig.BiotechActive && map.pollutionGrid.IsPolluted(cell);
+                        row.Glow = Finite(map.glowGrid.GroundGlowAt(cell));
+                        tracking.NoteGrowth(cell, row.Polluted, (float)row.Glow);
+                        // Fertility only where the ground has any (issue #335).
+                        var fertility = map.fertilityGrid.FertilityAt(cell);
+                        if (fertility > 0f) row.Fertility = Finite(fertility);
+                    }
+                    if (fields.Things) {
+                        var here = cell.GetThingList(map);
+                        RequireCount(here.Count, 256);
+                        foreach (var thing in here) row.Things.Add(CellThingRow(thing, context));
+                    }
+                    snapshot.Cells.Add(row);
+                }
+                snapshot.Completeness = Complete(snapshot.Cells.Count);
+                // Sparse deltas are smaller as ordinary rows than a full flag grid.
+                if (parsed.Compact && snapshot.Cells.Count * 20L >= cells.Count) CompactCellEncoding.Encode(snapshot);
+                return new Obs.GetCellsReply { Observed = snapshot };
+            }
+            catch (ReadLimit error) { return new Obs.GetCellsReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, error.Message) }; }
+            catch (Exception) { return new Obs.GetCellsReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Native cell facts could not be read completely.") }; }
         }
 
         [Tool("rimgovernor/observations_read_excavation_site", Title = "Read excavation site",

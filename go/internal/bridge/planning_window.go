@@ -113,12 +113,20 @@ func SortSiteCells(cells []policy.SiteCell) {
 	})
 }
 
-func (client *Client) readPlanningBand(ctx context.Context, identity *c.Identity, band policy.Rectangle, since int64) (*o.CellsSnapshot, Result, error) {
+// planningBandRequest is one band's get_cells read, shared with the
+// bundle's planning window family (#593).
+func planningBandRequest(identity *c.Identity, band policy.Rectangle, since int64) *o.GetCellsRequest {
 	region := &o.Rectangle{Minimum: &c.Cell{X: proto.Int32(band.X), Z: proto.Int32(band.Z)}, Maximum: &c.Cell{X: proto.Int32(band.X + band.Width - 1), Z: proto.Int32(band.Z + band.Height - 1)}}
 	request := &o.GetCellsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Selection: &o.GetCellsRequest_Rectangle{Rectangle: region}, Fields: planningWindowFields(), Compact: proto.Bool(true), Page: &c.PageRequest{Limit: proto.Uint32(uint32(band.Width) * uint32(band.Height))}}
 	if since > 0 {
 		request.ChangedSinceTick = proto.Int64(since)
 	}
+	return request
+}
+
+func (client *Client) readPlanningBand(ctx context.Context, identity *c.Identity, band policy.Rectangle, since int64) (*o.CellsSnapshot, Result, error) {
+	request := planningBandRequest(identity, band, since)
+	region := request.GetRectangle()
 	reply := &o.GetCellsReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/observations_get_cells", request, reply)
 	if err != nil {

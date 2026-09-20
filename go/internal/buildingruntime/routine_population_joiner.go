@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
-	"github.com/davidarcher/RimGovernor/go/internal/observation"
 	"github.com/davidarcher/RimGovernor/go/internal/policy"
 	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
@@ -84,11 +83,7 @@ func (r *RoutinePopulationJoinerPlanner) step(call, epoch context.Context, arbit
 			return RoutinePopulationJoinerResult{Reason: BuildingMethodExistingWork}, nil
 		}
 	}
-	identity, _, err := r.reviewer.native.Identity(call)
-	if err != nil {
-		return RoutinePopulationJoinerResult{}, err
-	}
-	expected, err := observation.DecodeIdentity(identity)
+	expected, err := routineScope(call, r.reviewer.native)
 	if err != nil {
 		return RoutinePopulationJoinerResult{}, err
 	}

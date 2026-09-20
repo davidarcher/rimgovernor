@@ -92,11 +92,7 @@ func (r *RoutineFoodStoragePlanner) step(call, epoch context.Context, arbiter *s
 			return RoutineFoodStorageResult{Reason: BuildingMethodExistingWork}, nil
 		}
 	}
-	identity, _, err := r.reviewer.native.Identity(call)
-	if err != nil {
-		return RoutineFoodStorageResult{}, err
-	}
-	expected, err := observation.DecodeIdentity(identity)
+	expected, err := routineScope(call, r.reviewer.native)
 	if err != nil {
 		return RoutineFoodStorageResult{}, err
 	}
@@ -200,11 +196,7 @@ func (r *RoutineFoodStoragePlanner) step(call, epoch context.Context, arbiter *s
 	if p.session.State() != state {
 		return RoutineFoodStorageResult{}, ErrControl
 	}
-	last, _, err := r.reviewer.native.Identity(call)
-	if err != nil {
-		return RoutineFoodStorageResult{}, err
-	}
-	actual, err := observation.DecodeIdentity(last)
+	actual, err := routineScope(call, r.reviewer.native)
 	if err != nil || !routineBuildingBoundary(actual, state.Snapshot, projection.Identity.Tick) {
 		return RoutineFoodStorageResult{}, ErrControl
 	}

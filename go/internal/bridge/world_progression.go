@@ -171,11 +171,17 @@ type WorldProgressionRead struct {
 // writing native implements this handler (NativeWorldProgressionObservation.cs,
 // ported from the legacy home/world_progression JSON tool); this wrapper is
 // the first Go consumer of it.
+// worldProgressionRequest is the census read, shared with the bundle's
+// world progression family (#593).
+func worldProgressionRequest(identity *c.Identity, includeStorage bool) *o.WorldProgressionRequest {
+	return &o.WorldProgressionRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, IncludeStorage: proto.Bool(includeStorage), Page: &c.PageRequest{Limit: proto.Uint32(256)}}
+}
+
 func (client *Client) ReadWorldProgression(ctx context.Context, identity *c.Identity, includeStorage bool) (WorldProgressionRead, Result, error) {
 	if err := ValidateIdentity(identity); err != nil {
 		return WorldProgressionRead{}, Result{}, err
 	}
-	request := &o.WorldProgressionRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, IncludeStorage: proto.Bool(includeStorage), Page: &c.PageRequest{Limit: proto.Uint32(256)}}
+	request := worldProgressionRequest(identity, includeStorage)
 	reply := &o.WorldProgressionReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/observations_read_world_progression", request, reply)
 	if err != nil {

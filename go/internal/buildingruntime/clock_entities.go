@@ -41,35 +41,44 @@ type EntitySection[T proto.Message] map[string]T
 // or an invalidation marked it) is read as a delta since its as-of tick
 // and merged by id, removed ids dropped. A delta the native refuses as
 // expired (the since tick older than its tombstone window) is read in
-// full. Every entitySectionsResyncEvery-th refresh of a section, and the
-// first after a resync request, reads the section in full beside the
-// delta and logs how many rows the delta got wrong as `[facts] <section>
-// resync drift=<n>`; non-zero drift is a bug against the native tracker.
+// full, as is one the step's bundle carried in full (#593) and one
+// whose as-of tick the tombstone window has already outrun (the delta
+// would only be refused). Every entitySectionsResyncEvery-th refresh of
+// a section, and the first after a resync request, reads the section in
+// full beside the delta and logs how many rows the delta got wrong as
+// `[facts] <section> resync drift=<n>`; non-zero drift is a bug against
+// the native tracker.
 // A failed read keeps the held section: a plan may reason over stale
 // state, apply refuses stale intent.
-func refreshEntitySections(ctx context.Context, native EntityNative, f *clockFacts, identity *c.Identity, scope facts.Scope, tick int64) {
+func refreshEntitySections(ctx context.Context, native EntityNative, f *clockFacts, identity *c.Identity, scope facts.Scope, tick int64, carried entitySectionsCarried) {
 	if native == nil || f == nil {
 		return
 	}
 	// The policy zone refresher owns the typed zone census when available.
 	// Do not overwrite it with a second read under a different store type.
 	if _, policyZones := native.(observation.ZonesNative); !policyZones {
-		refreshEntitySection(ctx, f, scope, tick, facts.Zones, "rimgovernor/observations_list_zones", func(since int64) (bridge.EntityRows[*o.ZoneState], error) {
+		refreshEntitySection(ctx, f, scope, tick, carried.zones, facts.Zones, "rimgovernor/observations_list_zones", func(since int64) (bridge.EntityRows[*o.ZoneState], error) {
 			rows, _, err := native.ReadZones(ctx, identity, since)
 			return rows, err
 		})
 	}
-	refreshEntitySection(ctx, f, scope, tick, facts.Buildings, "rimgovernor/observations_list_buildings", func(since int64) (bridge.EntityRows[*o.BuildingState], error) {
+	refreshEntitySection(ctx, f, scope, tick, carried.buildings, facts.Buildings, "rimgovernor/observations_list_buildings", func(since int64) (bridge.EntityRows[*o.BuildingState], error) {
 		rows, _, err := native.ReadBuildings(ctx, identity, since)
 		return rows, err
 	})
-	refreshEntitySection(ctx, f, scope, tick, facts.Bills, "rimgovernor/observations_read_bills", func(since int64) (bridge.EntityRows[*o.BillStack], error) {
+	refreshEntitySection(ctx, f, scope, tick, carried.bills, facts.Bills, "rimgovernor/observations_read_bills", func(since int64) (bridge.EntityRows[*o.BillStack], error) {
 		rows, _, err := native.ReadBillStacks(ctx, identity, since)
 		return rows, err
 	})
 }
 
-func refreshEntitySection[T proto.Message](ctx context.Context, f *clockFacts, scope facts.Scope, tick int64, section facts.Section, source string, read func(since int64) (bridge.EntityRows[T], error)) {
+// entitySectionsCarried names the entity sections the step's bundle
+// carried in full (#593).
+type entitySectionsCarried struct {
+	zones, buildings, bills bool
+}
+
+func refreshEntitySection[T proto.Message](ctx context.Context, f *clockFacts, scope facts.Scope, tick int64, carried bool, section facts.Section, source string, read func(since int64) (bridge.EntityRows[T], error)) {
 	store := f.store
 	held, ok := facts.Get[EntitySection[T]](store, section)
 	ok = ok && store.Scope() == scope
@@ -80,10 +89,13 @@ func refreshEntitySection[T proto.Message](ctx context.Context, f *clockFacts, s
 		facts.Put(store, scope, section, facts.Held[EntitySection[T]]{Value: rows, AsOf: asOf, Complete: true, Source: source})
 	}
 	requested := store.ResyncDue(section)
-	if !ok {
+	if ok && (carried || tick-held.AsOf > bridge.EntityTombstoneWindow) {
+		f.entityRefresh(section)
+	}
+	if !ok || carried || tick-held.AsOf > bridge.EntityTombstoneWindow {
 		full, err := read(0)
 		if err != nil {
-			clockSchedulerLog("%s: read failed, holding nothing: %v", section, err)
+			clockSchedulerLog("%s: full read failed, held=%v: %v", section, ok, err)
 			return
 		}
 		put(full.Rows, full.AsOf())

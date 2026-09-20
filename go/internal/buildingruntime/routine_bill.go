@@ -128,11 +128,7 @@ func (r *RoutineBillPlanner) step(call, epoch context.Context, arbiter *stepArbi
 	if r.purpose == policy.CookFood {
 		definitions = append(definitions, "NutrientPasteDispenser", "Hopper")
 	}
-	identity, _, err := r.reviewer.native.Identity(call)
-	if err != nil {
-		return RoutineBillResult{}, err
-	}
-	expected, err := observation.DecodeIdentity(identity)
+	expected, err := routineScope(call, r.reviewer.native)
 	if err != nil {
 		return RoutineBillResult{}, err
 	}

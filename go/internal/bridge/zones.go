@@ -25,6 +25,19 @@ type ZonesRead struct {
 	MapSnapshot *o.SnapshotRef
 }
 
+// zoneSectionRequest is one page of the zone census read, shared with the
+// bundle's zones family (#593).
+func zoneSectionRequest(identity *c.Identity, since int64, cursor string) *o.ListZonesRequest {
+	q := &o.ListZonesRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Page: &c.PageRequest{Limit: proto.Uint32(16)}}
+	if since > 0 {
+		q.ChangedSinceTick = proto.Int64(since)
+	}
+	if cursor != "" {
+		q.Page.Cursor = proto.String(cursor)
+	}
+	return q
+}
+
 // ReadZoneSection falls back only for the native's explicit retention/startup
 // refusals. Other failures never silently replace a held census.
 func (client *Client) ReadZoneSection(ctx context.Context, identity *c.Identity, since int64) (ZonesRead, Result, error) {
@@ -39,13 +52,7 @@ func (client *Client) ReadZoneSection(ctx context.Context, identity *c.Identity,
 	seen := map[string]bool{}
 	var raw Result
 	for page := 0; page < 256; page++ {
-		q := &o.ListZonesRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Page: &c.PageRequest{Limit: proto.Uint32(16)}}
-		if since > 0 {
-			q.ChangedSinceTick = proto.Int64(since)
-		}
-		if cursor != "" {
-			q.Page.Cursor = proto.String(cursor)
-		}
+		q := zoneSectionRequest(identity, since, cursor)
 		reply := &o.ListZonesReply{}
 		var err error
 		raw, err = client.protoRead(ctx, "rimgovernor/observations_list_zones", q, reply)

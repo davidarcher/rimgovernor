@@ -136,7 +136,10 @@ func (client *Client) bundleObserved(ctx context.Context, request *o.BundleReque
 			return contract("bundle events context mismatch")
 		}
 	}
-	client.seedBundle(ctx, v, emergency, raw)
+	if err := validateBundleStepFamilies(request, v); err != nil {
+		return err
+	}
+	client.seedBundle(ctx, request, v, emergency, raw)
 	if v.ClockStatus != nil && v.ClockStatus.GetUnavailable() != nil {
 		return unavailable(v.ClockStatus.GetUnavailable(), raw)
 	}
@@ -168,7 +171,7 @@ func BundleEmergency(v *o.BundleSnapshot) (EmergencyObservation, error) {
 // builds from the same emergency section (the colonists' ids in census
 // order, only when that census is complete), so the routine bracket's read
 // is the hit.
-func (client *Client) seedBundle(ctx context.Context, v *o.BundleSnapshot, emergency EmergencyObservation, raw Result) {
+func (client *Client) seedBundle(ctx context.Context, request *o.BundleRequest, v *o.BundleSnapshot, emergency EmergencyObservation, raw Result) {
 	cache := StepReadCacheFrom(ctx)
 	if cache == nil {
 		return
@@ -205,6 +208,7 @@ func (client *Client) seedBundle(ctx context.Context, v *o.BundleSnapshot, emerg
 	if ids := routinePawnIDs(emergency); v.ColonistPawns != nil && len(ids) > 0 {
 		seed("rimgovernor/observations_list_pawns", pawnDetailsRequest(identity, ids, true, true, true, true, true), &o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: v.ColonistPawns}})
 	}
+	client.seedBundleStepFamilies(ctx, request, v, seed)
 }
 
 // routinePawnIDs lists the colonists the routine census reads pawn detail

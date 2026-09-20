@@ -38,6 +38,13 @@ type ResourceSourceRow = policy.ResourceSource
 // payload (NativeResourceSourcesTool.Storage): the resource method's
 // storage branch (material-storage zoning) reads it whenever
 // a selected source is a "mine" source -- see policy.SelectResourceStorageZone.
+// resourceSourcesRequest is the per-resource read, shared with the bundle's
+// resource sources family (#593).
+func resourceSourcesRequest(identity *c.Identity, resource string) *o.ResourceSourcesRequest {
+	return &o.ResourceSourcesRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)},
+		Resource: proto.String(resource), IncludeDevelopment: proto.Bool(false)}
+}
+
 func (client *Client) ReadResourceSources(ctx context.Context, identity *c.Identity, resource string) ([]ResourceSourceRow, policy.ResourceStorage, Result, error) {
 	if err := ValidateIdentity(identity); err != nil {
 		return nil, policy.ResourceStorage{}, Result{}, err
@@ -45,8 +52,7 @@ func (client *Client) ReadResourceSources(ctx context.Context, identity *c.Ident
 	if validID(resource) != nil {
 		return nil, policy.ResourceStorage{}, Result{}, contract("invalid resource source definition")
 	}
-	request := &o.ResourceSourcesRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)},
-		Resource: proto.String(resource), IncludeDevelopment: proto.Bool(false)}
+	request := resourceSourcesRequest(identity, resource)
 	reply := &o.ResourceSourcesReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/observations_list_resource_sources", request, reply)
 	if err != nil {

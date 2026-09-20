@@ -48,6 +48,10 @@ type StepReadCache struct {
 	// change: the parent drops those families instead of every row. Nil,
 	// or a report of everything, drops the parent whole.
 	writeFamilies func() (everything bool, families []FactFamily)
+	// asked lists every key read through this cache, in order, hit or
+	// miss, for StepAsks: what the step asked is what the next step's
+	// bundle can carry (#593).
+	asked []readCacheKey
 }
 
 // SetWriteFamilies narrows the parent invalidation a write through this
@@ -199,6 +203,7 @@ func (s *StepReadCache) seed(key readCacheKey, scope readScope, payload []byte, 
 func (s *StepReadCache) acquire(key readCacheKey) (*readCacheEntry, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.asked = append(s.asked, key)
 	if entry := s.entries[key]; entry != nil {
 		return entry, false
 	}

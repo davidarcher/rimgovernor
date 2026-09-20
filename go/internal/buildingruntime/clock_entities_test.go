@@ -64,14 +64,17 @@ func zoneState(id, label string) *o.ZoneState {
 }
 
 // Nothing held reads every section in full; a fresh section is left
-// alone; a stale one is read as a delta since its as-of tick and merged,
-// removed ids dropped; an invalidation makes the next refresh a delta.
+// alone; one stale by cadence is read in full again (its as-of tick has
+// left the tombstone window, so a delta would only be refused, #593); an
+// invalidation makes the next refresh a delta since its as-of tick,
+// merged by id with removed ids dropped; a section the bundle carried is
+// read in full, the cache hit.
 func TestRefreshEntitySectionsFullThenDelta(t *testing.T) {
 	f := newClockFacts(nil, nil)
 	scope := facts.Scope{Load: "load", Generation: 1}
 	identity := &c.Identity{ColonyId: proto.String("colony"), LoadToken: proto.String("load"), MapId: proto.Int32(0)}
 	native := &entityFake{tick: 100, full: map[string]*o.ZoneState{"Zone_1": zoneState("Zone_1", "a"), "Zone_2": zoneState("Zone_2", "b")}}
-	refreshEntitySections(context.Background(), native, f, identity, scope, 100)
+	refreshEntitySections(context.Background(), native, f, identity, scope, 100, entitySectionsCarried{})
 	for _, section := range []facts.Section{facts.Zones, facts.Buildings, facts.Bills} {
 		if asks := native.since[section]; len(asks) != 1 || asks[0] != 0 || !f.store.Fresh(section, 100) {
 			t.Fatalf("%s: since=%v fresh=%v", section, asks, f.store.Fresh(section, 100))
@@ -82,27 +85,38 @@ func TestRefreshEntitySectionsFullThenDelta(t *testing.T) {
 		t.Fatalf("%+v ok=%v", held, ok)
 	}
 	// Fresh: no read.
-	refreshEntitySections(context.Background(), native, f, identity, scope, 200)
+	refreshEntitySections(context.Background(), native, f, identity, scope, 200, entitySectionsCarried{})
 	if len(native.since[facts.Zones]) != 1 {
 		t.Fatal(native.since)
 	}
-	// Stale by cadence: a delta since 100 merged by id.
+	// Stale by cadence, past the tombstone window: a full read.
 	native.tick = 5000
-	native.delta = bridge.EntityRows[*o.ZoneState]{Rows: map[string]*o.ZoneState{"Zone_2": zoneState("Zone_2", "renamed"), "Zone_3": zoneState("Zone_3", "c")}, Removed: []string{"Zone_1"}, Unchanged: 0}
-	refreshEntitySections(context.Background(), native, f, identity, scope, 5000)
+	native.full = map[string]*o.ZoneState{"Zone_2": zoneState("Zone_2", "renamed"), "Zone_3": zoneState("Zone_3", "c")}
+	refreshEntitySections(context.Background(), native, f, identity, scope, 5000, entitySectionsCarried{})
 	held, _ = facts.Get[EntitySection[*o.ZoneState]](f.store, facts.Zones)
-	if asks := native.since[facts.Zones]; len(asks) != 2 || asks[1] != 100 || held.AsOf != 5000 || len(held.Value) != 2 || held.Value["Zone_2"].GetLabel() != "renamed" || held.Value["Zone_3"] == nil || held.Value["Zone_1"] != nil {
+	if asks := native.since[facts.Zones]; len(asks) != 2 || asks[1] != 0 || held.AsOf != 5000 || len(held.Value) != 2 || held.Value["Zone_1"] != nil || f.entityRefreshes[facts.Zones] != 1 {
 		t.Fatalf("%+v since=%v", held.Value, asks)
 	}
 	// A colony invalidation keeps the section and marks it stale (#358
-	// point 5): the next review refresh is a delta since the merge, not a
-	// full read.
+	// point 5): the next review refresh is a delta since the full read,
+	// merged by id, removed ids dropped.
 	f.store.InvalidateFamily(bridge.FactColony)
-	native.delta = bridge.EntityRows[*o.ZoneState]{Rows: map[string]*o.ZoneState{}, Unchanged: 2}
-	refreshEntitySections(context.Background(), native, f, identity, scope, 5001)
+	native.tick = 5001
+	native.delta = bridge.EntityRows[*o.ZoneState]{Rows: map[string]*o.ZoneState{"Zone_2": zoneState("Zone_2", "again"), "Zone_4": zoneState("Zone_4", "d")}, Removed: []string{"Zone_3"}, Unchanged: 0}
+	refreshEntitySections(context.Background(), native, f, identity, scope, 5001, entitySectionsCarried{})
 	held, _ = facts.Get[EntitySection[*o.ZoneState]](f.store, facts.Zones)
-	if asks := native.since[facts.Zones]; len(asks) != 3 || asks[2] != 5000 || len(held.Value) != 2 || !f.store.Fresh(facts.Zones, 5001) {
+	if asks := native.since[facts.Zones]; len(asks) != 3 || asks[2] != 5000 || held.AsOf != 5001 || len(held.Value) != 2 || held.Value["Zone_2"].GetLabel() != "again" || held.Value["Zone_4"] == nil || held.Value["Zone_3"] != nil || !f.store.Fresh(facts.Zones, 5001) {
 		t.Fatalf("%+v since=%v", held.Value, asks)
+	}
+	// A section the bundle carried in full is read in full, whatever the
+	// held as-of tick (#593); the others still read their deltas.
+	f.store.InvalidateFamily(bridge.FactColony)
+	native.tick = 5002
+	refreshEntitySections(context.Background(), native, f, identity, scope, 5002, entitySectionsCarried{zones: true})
+	held, _ = facts.Get[EntitySection[*o.ZoneState]](f.store, facts.Zones)
+	buildings := native.since[facts.Buildings]
+	if asks := native.since[facts.Zones]; len(asks) != 4 || asks[3] != 0 || held.AsOf != 5002 || len(held.Value) != 2 || held.Value["Zone_3"] == nil || buildings[len(buildings)-1] != 5001 {
+		t.Fatalf("%+v since=%v", held.Value, native.since)
 	}
 }
 
@@ -113,21 +127,22 @@ func TestRefreshEntitySectionsExpiryFailureAndScope(t *testing.T) {
 	scope := facts.Scope{Load: "load", Generation: 1}
 	identity := &c.Identity{ColonyId: proto.String("colony"), LoadToken: proto.String("load"), MapId: proto.Int32(0)}
 	facts.Put(f.store, scope, facts.Zones, facts.Held[EntitySection[*o.ZoneState]]{Value: EntitySection[*o.ZoneState]{"Zone_1": zoneState("Zone_1", "a")}, AsOf: 100, Complete: true, Source: "x"})
-	native := &entityFake{tick: 9000, expired: true, full: map[string]*o.ZoneState{"Zone_5": zoneState("Zone_5", "e")}}
-	refreshEntitySections(context.Background(), native, f, identity, scope, 9000)
+	f.store.Invalidate(facts.Zones)
+	native := &entityFake{tick: 2000, expired: true, full: map[string]*o.ZoneState{"Zone_5": zoneState("Zone_5", "e")}}
+	refreshEntitySections(context.Background(), native, f, identity, scope, 2000, entitySectionsCarried{})
 	held, _ := facts.Get[EntitySection[*o.ZoneState]](f.store, facts.Zones)
-	if asks := native.since[facts.Zones]; len(asks) != 2 || asks[0] != 100 || asks[1] != 0 || len(held.Value) != 1 || held.Value["Zone_5"] == nil || held.AsOf != 9000 {
+	if asks := native.since[facts.Zones]; len(asks) != 2 || asks[0] != 100 || asks[1] != 0 || len(held.Value) != 1 || held.Value["Zone_5"] == nil || held.AsOf != 2000 {
 		t.Fatalf("%+v since=%v", held.Value, asks)
 	}
 	native.err = errors.New("transport")
 	native.tick = 20000
-	refreshEntitySections(context.Background(), native, f, identity, scope, 20000)
-	if held, _ = facts.Get[EntitySection[*o.ZoneState]](f.store, facts.Zones); held.AsOf != 9000 || len(held.Value) != 1 {
+	refreshEntitySections(context.Background(), native, f, identity, scope, 20000, entitySectionsCarried{})
+	if held, _ = facts.Get[EntitySection[*o.ZoneState]](f.store, facts.Zones); held.AsOf != 2000 || len(held.Value) != 1 {
 		t.Fatalf("a failed read must keep the held section: %+v", held)
 	}
 	native.err = nil
 	other := facts.Scope{Load: "load", Generation: 2}
-	refreshEntitySections(context.Background(), native, f, identity, other, 20000)
+	refreshEntitySections(context.Background(), native, f, identity, other, 20000, entitySectionsCarried{})
 	if asks := native.since[facts.Zones]; asks[len(asks)-1] != 0 || f.store.Scope() != other {
 		t.Fatalf("a new scope must read in full: since=%v scope=%+v", asks, f.store.Scope())
 	}
@@ -149,18 +164,20 @@ func TestRefreshEntitySectionsResync(t *testing.T) {
 	scope := facts.Scope{Load: "load", Generation: 1}
 	identity := &c.Identity{ColonyId: proto.String("colony"), LoadToken: proto.String("load"), MapId: proto.Int32(0)}
 	facts.Put(f.store, scope, facts.Zones, facts.Held[EntitySection[*o.ZoneState]]{Value: EntitySection[*o.ZoneState]{"Zone_1": zoneState("Zone_1", "a"), "Zone_2": zoneState("Zone_2", "b")}, AsOf: 100, Complete: true, Source: "x"})
-	native := &entityFake{tick: 5000, delta: bridge.EntityRows[*o.ZoneState]{Rows: map[string]*o.ZoneState{}, Unchanged: 2}, full: map[string]*o.ZoneState{"Zone_1": zoneState("Zone_1", "a")}}
+	native := &entityFake{tick: 2000, delta: bridge.EntityRows[*o.ZoneState]{Rows: map[string]*o.ZoneState{}, Unchanged: 2}, full: map[string]*o.ZoneState{"Zone_1": zoneState("Zone_1", "a")}}
+	f.store.Invalidate(facts.Zones)
 	f.store.RequestResync(facts.Zones)
-	refreshEntitySections(context.Background(), native, f, identity, scope, 5000)
+	refreshEntitySections(context.Background(), native, f, identity, scope, 2000, entitySectionsCarried{})
 	held, _ := facts.Get[EntitySection[*o.ZoneState]](f.store, facts.Zones)
 	// The full read (one row) replaces the merged delta (two rows).
-	if asks := native.since[facts.Zones]; len(asks) != 2 || asks[0] != 100 || asks[1] != 0 || len(held.Value) != 1 || held.AsOf != 5000 || f.entityRefreshes[facts.Zones] != 1 {
+	if asks := native.since[facts.Zones]; len(asks) != 2 || asks[0] != 100 || asks[1] != 0 || len(held.Value) != 1 || held.AsOf != 2000 || f.entityRefreshes[facts.Zones] != 1 {
 		t.Fatalf("%+v since=%v", held.Value, asks)
 	}
 	// The request was consumed: the next stale refresh is a delta alone.
 	f.store.Invalidate(facts.Zones)
-	refreshEntitySections(context.Background(), native, f, identity, scope, 5001)
-	if asks := native.since[facts.Zones]; len(asks) != 3 || asks[2] != 5000 {
+	native.tick = 2001
+	refreshEntitySections(context.Background(), native, f, identity, scope, 2001, entitySectionsCarried{})
+	if asks := native.since[facts.Zones]; len(asks) != 3 || asks[2] != 2000 {
 		t.Fatalf("since=%v", asks)
 	}
 }

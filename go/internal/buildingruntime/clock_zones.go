@@ -17,6 +17,9 @@ type zoneRefresher struct {
 	scope     facts.Scope
 	tick      int64
 	refreshes *int
+	// carried is whether the step's bundle carried the zone census in
+	// full (#593): the full read is then the cache hit, not the delta.
+	carried bool
 }
 
 func (p *zoneRefresher) Zones(ctx context.Context, id *c.Identity) (facts.Held[bridge.ZonesRead], error) {
@@ -26,7 +29,7 @@ func (p *zoneRefresher) Zones(ctx context.Context, id *c.Identity) (facts.Held[b
 		return held, nil
 	}
 	since := int64(0)
-	if ok {
+	if ok && !p.carried {
 		since = held.AsOf
 	}
 	read, _, err := p.native.ReadZoneSection(ctx, id, since)

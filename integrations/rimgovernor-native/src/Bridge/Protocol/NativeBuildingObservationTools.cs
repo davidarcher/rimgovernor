@@ -28,67 +28,75 @@ namespace HomeBridge.BridgeTools
             return await ProtoBoundary.OnMainThread(ctx, () => {
                 if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var error))
                     return ProtoBoundary.Encode(new Obs.ListBuildingsReply { Failure = error });
-                try
-                {
-                    if ((!parsed.HasPlayerOnly || parsed.PlayerOnly) && Faction.OfPlayerSilentFail == null)
-                        return ProtoBoundary.Encode(new Obs.ListBuildingsReply { Unavailable = Unavailable(Common.UnavailableReason.NativeComponentMissing, "Player faction unavailable.") });
-                    if (parsed.Region != null && (!NativeCell(parsed.Region.Minimum).InBounds(map) || !NativeCell(parsed.Region.Maximum).InBounds(map)))
-                        return ProtoBoundary.Encode(new Obs.ListBuildingsReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Region must be inside the current map.") });
-                    var source = Source(map, parsed.HasCategory && parsed.Category == "all");
-                    var matched = source.Where(t => Matches(t, parsed)).OrderBy(t => t.thingIDNumber).ToList();
-                    var seed = QuerySeed(parsed);
-                    // Entity tracking (issue #358) follows every unfiltered
-                    // read: a full one primes the shadow and sweeps the
-                    // removed, a changed_since one lists only the changed.
-                    var tracking = Unfiltered(parsed) ? EntityTracking.For(map, ToolName + parsed.PlayerOnly + (parsed.Category ?? "")) : null;
-                    if (parsed.HasChangedSinceTick && EntityTracking.Expired(parsed.ChangedSinceTick))
-                        return ProtoBoundary.Encode(new Obs.ListBuildingsReply { Unavailable = Unavailable(Common.UnavailableReason.Stale, "changed_since_tick is older than the tombstone window; read in full.") });
-                    var snapshot = new Obs.BuildingsSnapshot { Context = context, AsOfTick = context.Tick, Unchanged = 0,
-                        NetworksCompleteness = new Obs.Completeness { Page = new Common.PageInfo { Complete = false } } };
-                    var rows = new Dictionary<string, Obs.BuildingState>();
-                    var listed = matched;
-                    if (parsed.HasChangedSinceTick)
-                    {
-                        listed = new List<Thing>();
-                        foreach (var thing in matched)
-                        {
-                            var row = Row(thing, context);
-                            if (tracking!.Note(row.Building.Id, row) >= parsed.ChangedSinceTick) { rows[row.Building.Id] = row; listed.Add(thing); }
-                            else snapshot.Unchanged++;
-                        }
-                    }
-                    if (tracking != null)
-                    {
-                        tracking.Sweep(new HashSet<string>(matched.Select(t => Id(t.GetUniqueLoadID()))));
-                        if (parsed.HasChangedSinceTick) snapshot.RemovedIds.AddRange(tracking.RemovedSince(parsed.ChangedSinceTick));
-                    }
-                    var afterCursor = listed;
-                    if (parsed.Page != null && parsed.Page.HasCursor && parsed.Page.Cursor.Length != 0)
-                    {
-                        if (!NativeObservationSnapshot.Cursor.TryDecode(context.Identity, seed, parsed.Page.Cursor, out var after))
-                            return ProtoBoundary.Encode(new Obs.ListBuildingsReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, "Building cursor is stale or does not match this query.") });
-                        afterCursor = listed.Where(t => string.CompareOrdinal(Id(t.GetUniqueLoadID()), after) > 0).ToList();
-                    }
-                    var page = afterCursor.Take(Limit(parsed)).ToList();
-                    Require(page.Count <= 256, "Matched building collection exceeds page limit; narrow filters.");
-                    var truncated = afterCursor.Count > page.Count;
-                    snapshot.Completeness = Complete(page.Count, source.Count - matched.Count);
-                    snapshot.Completeness.Page.Complete = !truncated;
-                    if (truncated) snapshot.Completeness.Page.NextCursor = NativeObservationSnapshot.Cursor.Encode(context.Identity, seed, Id(page[page.Count-1].GetUniqueLoadID()));
-                    var cells = 0;
-                    foreach (var thing in page)
-                    {
-                        var id = Id(thing.GetUniqueLoadID());
-                        if (!rows.TryGetValue(id, out var row)) { row = Row(thing, context); tracking?.Note(id, row); }
-                        cells = checked(cells + row.OccupiedCells.Count);
-                        Require(cells <= 4096, "Complete building geometry exceeds 4096 cells.");
-                        snapshot.Buildings.Add(row);
-                    }
-                    return Encode(new Obs.ListBuildingsReply { Observed = snapshot });
-                }
+                try { return Encode(Read(map, parsed, context)); }
                 catch (ReadLimit errorLimit) { return ProtoBoundary.Encode(new Obs.ListBuildingsReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, errorLimit.Message) }); }
-                catch (Exception) { return ProtoBoundary.Encode(new Obs.ListBuildingsReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Building facts could not be read completely.") }); }
             }, cancellationToken).ConfigureAwait(false);
+        }
+
+        // Read is the list on the main thread under a validated identity: the
+        // reply its tool encodes, and the section the bundle carries (#593).
+        internal static Obs.ListBuildingsReply Read(Map map, Obs.ListBuildingsRequest parsed, Common.ObservationContext context)
+        {
+            try
+            {
+                if ((!parsed.HasPlayerOnly || parsed.PlayerOnly) && Faction.OfPlayerSilentFail == null)
+                    return new Obs.ListBuildingsReply { Unavailable = Unavailable(Common.UnavailableReason.NativeComponentMissing, "Player faction unavailable.") };
+                if (parsed.Region != null && (!NativeCell(parsed.Region.Minimum).InBounds(map) || !NativeCell(parsed.Region.Maximum).InBounds(map)))
+                    return new Obs.ListBuildingsReply { Failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Region must be inside the current map.") };
+                var source = Source(map, parsed.HasCategory && parsed.Category == "all");
+                var matched = source.Where(t => Matches(t, parsed)).OrderBy(t => t.thingIDNumber).ToList();
+                var seed = QuerySeed(parsed);
+                // Entity tracking (issue #358) follows every unfiltered
+                // read: a full one primes the shadow and sweeps the
+                // removed, a changed_since one lists only the changed.
+                var tracking = Unfiltered(parsed) ? EntityTracking.For(map, ToolName + parsed.PlayerOnly + (parsed.Category ?? "")) : null;
+                if (parsed.HasChangedSinceTick && EntityTracking.Expired(parsed.ChangedSinceTick))
+                    return new Obs.ListBuildingsReply { Unavailable = Unavailable(Common.UnavailableReason.Stale, "changed_since_tick is older than the tombstone window; read in full.") };
+                var snapshot = new Obs.BuildingsSnapshot { Context = context, AsOfTick = context.Tick, Unchanged = 0,
+                    NetworksCompleteness = new Obs.Completeness { Page = new Common.PageInfo { Complete = false } } };
+                var rows = new Dictionary<string, Obs.BuildingState>();
+                var listed = matched;
+                if (parsed.HasChangedSinceTick)
+                {
+                    listed = new List<Thing>();
+                    foreach (var thing in matched)
+                    {
+                        var row = Row(thing, context);
+                        if (tracking!.Note(row.Building.Id, row) >= parsed.ChangedSinceTick) { rows[row.Building.Id] = row; listed.Add(thing); }
+                        else snapshot.Unchanged++;
+                    }
+                }
+                if (tracking != null)
+                {
+                    tracking.Sweep(new HashSet<string>(matched.Select(t => Id(t.GetUniqueLoadID()))));
+                    if (parsed.HasChangedSinceTick) snapshot.RemovedIds.AddRange(tracking.RemovedSince(parsed.ChangedSinceTick));
+                }
+                var afterCursor = listed;
+                if (parsed.Page != null && parsed.Page.HasCursor && parsed.Page.Cursor.Length != 0)
+                {
+                    if (!NativeObservationSnapshot.Cursor.TryDecode(context.Identity, seed, parsed.Page.Cursor, out var after))
+                        return new Obs.ListBuildingsReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, "Building cursor is stale or does not match this query.") };
+                    afterCursor = listed.Where(t => string.CompareOrdinal(Id(t.GetUniqueLoadID()), after) > 0).ToList();
+                }
+                var page = afterCursor.Take(Limit(parsed)).ToList();
+                Require(page.Count <= 256, "Matched building collection exceeds page limit; narrow filters.");
+                var truncated = afterCursor.Count > page.Count;
+                snapshot.Completeness = Complete(page.Count, source.Count - matched.Count);
+                snapshot.Completeness.Page.Complete = !truncated;
+                if (truncated) snapshot.Completeness.Page.NextCursor = NativeObservationSnapshot.Cursor.Encode(context.Identity, seed, Id(page[page.Count-1].GetUniqueLoadID()));
+                var cells = 0;
+                foreach (var thing in page)
+                {
+                    var id = Id(thing.GetUniqueLoadID());
+                    if (!rows.TryGetValue(id, out var row)) { row = Row(thing, context); tracking?.Note(id, row); }
+                    cells = checked(cells + row.OccupiedCells.Count);
+                    Require(cells <= 4096, "Complete building geometry exceeds 4096 cells.");
+                    snapshot.Buildings.Add(row);
+                }
+                return new Obs.ListBuildingsReply { Observed = snapshot };
+            }
+            catch (ReadLimit errorLimit) { return new Obs.ListBuildingsReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, errorLimit.Message) }; }
+            catch (Exception) { return new Obs.ListBuildingsReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Building facts could not be read completely.") }; }
         }
 
         // Row is one listed building as the read emits it: the projection

@@ -9,6 +9,16 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// constructionBuildingsRequest is the built census read (nil ids), shared
+// with the bundle's built buildings family (#593), or the exact targets.
+func constructionBuildingsRequest(identity *c.Identity, ids []string) *o.ListBuildingsRequest {
+	limit := len(ids)
+	if limit == 0 {
+		limit = 256
+	}
+	return &o.ListBuildingsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Ids: append([]string{}, ids...), Statuses: []string{"built"}, PlayerOnly: proto.Bool(true), Category: proto.String("artificial"), Page: &c.PageRequest{Limit: proto.Uint32(uint32(limit))}}
+}
+
 // ReadConstructionBuildings requests built artificial player-faction buildings.
 // Empty IDs requests the complete bounded colony census; nonempty IDs refresh
 // exact targets. Native faction filtering supplies planning ownership, not lineage.
@@ -26,11 +36,7 @@ func (client *Client) ReadConstructionBuildings(ctx context.Context, identity *c
 		}
 		seen[id] = true
 	}
-	limit := len(ids)
-	if limit == 0 {
-		limit = 256
-	}
-	request := &o.ListBuildingsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Ids: append([]string{}, ids...), Statuses: []string{"built"}, PlayerOnly: proto.Bool(true), Category: proto.String("artificial"), Page: &c.PageRequest{Limit: proto.Uint32(uint32(limit))}}
+	request := constructionBuildingsRequest(identity, ids)
 	reply := &o.ListBuildingsReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/observations_list_buildings", request, reply)
 	if err != nil {

@@ -30,7 +30,7 @@ func TestEntityRefreshPreservesPolicyZoneSection(t *testing.T) {
 	if _, err := p.Zones(context.Background(), id); err != nil {
 		t.Fatal(err)
 	}
-	refreshEntitySections(context.Background(), native, f, id, scope, 100)
+	refreshEntitySections(context.Background(), native, f, id, scope, 100, entitySectionsCarried{})
 	if len(native.entityFake.since[facts.Zones]) != 0 || len(native.zonesFake.asks) != 1 {
 		t.Fatal("zone census read twice")
 	}

@@ -48,13 +48,7 @@ const (
 // positive since asks for the zones changed at or after that tick (#358).
 func (client *Client) ReadZones(ctx context.Context, identity *c.Identity, since int64) (EntityRows[*o.ZoneState], Result, error) {
 	return readEntities(ctx, client, identity, since, "rimgovernor/observations_list_zones",
-		func(cursor string) proto.Message {
-			request := &o.ListZonesRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, IncludeCells: proto.Bool(false), IncludeContents: proto.Bool(false), IncludeFilter: proto.Bool(false), Page: entityPage(zonesPage, cursor)}
-			if since > 0 {
-				request.ChangedSinceTick = proto.Int64(since)
-			}
-			return request
-		},
+		func(cursor string) proto.Message { return zonesListRequest(identity, since, cursor) },
 		func() proto.Message { return &o.ListZonesReply{} },
 		func(reply proto.Message) (entityPageReply[*o.ZoneState], error) {
 			switch v := reply.(*o.ListZonesReply).Outcome.(type) {
@@ -85,13 +79,7 @@ func (client *Client) ReadZones(ctx context.Context, identity *c.Identity, since
 // positive since asks for the buildings changed at or after that tick.
 func (client *Client) ReadBuildings(ctx context.Context, identity *c.Identity, since int64) (EntityRows[*o.BuildingState], Result, error) {
 	return readEntities(ctx, client, identity, since, "rimgovernor/observations_list_buildings",
-		func(cursor string) proto.Message {
-			request := &o.ListBuildingsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, PlayerOnly: proto.Bool(true), Category: proto.String("artificial"), Page: entityPage(buildingsPage, cursor)}
-			if since > 0 {
-				request.ChangedSinceTick = proto.Int64(since)
-			}
-			return request
-		},
+		func(cursor string) proto.Message { return buildingsListRequest(identity, since, cursor) },
 		func() proto.Message { return &o.ListBuildingsReply{} },
 		func(reply proto.Message) (entityPageReply[*o.BuildingState], error) {
 			switch v := reply.(*o.ListBuildingsReply).Outcome.(type) {
@@ -122,13 +110,7 @@ func (client *Client) ReadBuildings(ctx context.Context, identity *c.Identity, s
 // asks for the stacks changed at or after that tick.
 func (client *Client) ReadBillStacks(ctx context.Context, identity *c.Identity, since int64) (EntityRows[*o.BillStack], Result, error) {
 	return readEntities(ctx, client, identity, since, "rimgovernor/observations_read_bills",
-		func(cursor string) proto.Message {
-			request := &o.BillsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Page: entityPage(billsPage, cursor)}
-			if since > 0 {
-				request.ChangedSinceTick = proto.Int64(since)
-			}
-			return request
-		},
+		func(cursor string) proto.Message { return billsListRequest(identity, since, cursor) },
 		func() proto.Message { return &o.BillsReply{} },
 		func(reply proto.Message) (entityPageReply[*o.BillStack], error) {
 			switch v := reply.(*o.BillsReply).Outcome.(type) {
@@ -152,6 +134,32 @@ func (client *Client) ReadBillStacks(ctx context.Context, identity *c.Identity, 
 			}
 			return entityPageReply[*o.BillStack]{}, contract("missing bills outcome")
 		})
+}
+
+// The entity list requests, shared with the bundle's step families so a
+// section the bundle carries is seeded under the key the read uses (#593).
+func zonesListRequest(identity *c.Identity, since int64, cursor string) *o.ListZonesRequest {
+	request := &o.ListZonesRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, IncludeCells: proto.Bool(false), IncludeContents: proto.Bool(false), IncludeFilter: proto.Bool(false), Page: entityPage(zonesPage, cursor)}
+	if since > 0 {
+		request.ChangedSinceTick = proto.Int64(since)
+	}
+	return request
+}
+
+func buildingsListRequest(identity *c.Identity, since int64, cursor string) *o.ListBuildingsRequest {
+	request := &o.ListBuildingsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, PlayerOnly: proto.Bool(true), Category: proto.String("artificial"), Page: entityPage(buildingsPage, cursor)}
+	if since > 0 {
+		request.ChangedSinceTick = proto.Int64(since)
+	}
+	return request
+}
+
+func billsListRequest(identity *c.Identity, since int64, cursor string) *o.BillsRequest {
+	request := &o.BillsRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}, Page: entityPage(billsPage, cursor)}
+	if since > 0 {
+		request.ChangedSinceTick = proto.Int64(since)
+	}
+	return request
 }
 
 func entityPage(limit uint32, cursor string) *c.PageRequest {

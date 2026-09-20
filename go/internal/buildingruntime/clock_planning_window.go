@@ -31,7 +31,8 @@ const planningWindowResyncEvery = 8
 // (observation.WithPlanningWindow) and every planning colony read in the
 // step whose reply carries no cells asks it. It reads natively once per
 // full review step when the held section is stale, and on demand when a
-// planner asks for a region the store does not hold; a timer or event step
+// planner asks for a region the store does not hold (planningWindowCovers);
+// a timer or event step
 // with a held window serves it whatever its age, since stale state is
 // re-planned at apply (operations_preview, CAS tokens). The step's read
 // cache makes a second ask in the same step free.
@@ -64,6 +65,25 @@ func planningWindowRead(review, held, fresh bool) bool {
 	return review && !fresh
 }
 
+// planningWindowSlack is how far, in cells on each axis, a planner's
+// region may sit from the held window's before the window is re-read
+// at the new place (#593). The window is centred on the colony's centre,
+// which moves a cell or two as colonists walk; a window that followed it
+// exactly was read in full on every review step, and a site a few cells
+// past one edge is no better than one a few cells inside the other.
+const planningWindowSlack int32 = 4
+
+// planningWindowCovers is whether a held window of region held serves a
+// planner asking for region: the same size, offset by at most
+// planningWindowSlack on each axis.
+func planningWindowCovers(held, region policy.Rectangle) bool {
+	if held.Width != region.Width || held.Height != region.Height {
+		return false
+	}
+	dx, dz := held.X-region.X, held.Z-region.Z
+	return max(dx, -dx) <= planningWindowSlack && max(dz, -dz) <= planningWindowSlack
+}
+
 // planningWindowResync is whether a refresh of a held window is also a
 // full read: one was requested, or the cadence is due.
 func planningWindowResync(requested bool, refreshes int) bool {
@@ -72,7 +92,7 @@ func planningWindowResync(requested bool, refreshes int) bool {
 
 func (p *planningWindow) PlanningWindow(ctx context.Context, identity *c.Identity, region policy.Rectangle) (facts.Held[observation.PlanningCells], error) {
 	held, ok := facts.Get[observation.PlanningCells](p.store, facts.PlanningCells)
-	ok = ok && held.Value.Region == region
+	ok = ok && planningWindowCovers(held.Value.Region, region)
 	if !planningWindowRead(p.review, ok, ok && p.store.Fresh(facts.PlanningCells, p.tick)) {
 		return held, nil
 	}
@@ -89,6 +109,9 @@ func (p *planningWindow) PlanningWindow(ctx context.Context, identity *c.Identit
 		refreshes = *p.refreshes
 		*p.refreshes++
 	}
+	// The held window is refreshed where it is; the step's bundle carries
+	// this very delta (#593).
+	region = held.Value.Region
 	window, _, err := p.native.ReadPlanningWindow(ctx, identity, region, held.AsOf)
 	if err != nil {
 		clockSchedulerLog("planning window: read failed, serving the held window as of %d: %v", held.AsOf, err)

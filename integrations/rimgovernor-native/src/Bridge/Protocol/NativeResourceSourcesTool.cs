@@ -44,26 +44,34 @@ namespace HomeBridge.BridgeTools
             return await ProtoBoundary.OnMainThread(ctx, () => {
                 if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var error))
                     return ProtoBoundary.Encode(new Obs.ResourceSourcesReply { Failure = error });
-                try
-                {
-                    var definition = DefDatabase<ThingDef>.GetNamedSilentFail(parsed.Resource);
-                    if (definition == null)
-                        return ProtoBoundary.Encode(new Obs.ResourceSourcesReply { Unavailable = Unavailable(Common.UnavailableReason.NotApplicable, "Unknown resource definition.") });
-                    var deposits = map.listerThings.AllThings.Where(t => ResourceAcquisitionTools.Product(t)?.defName == parsed.Resource && !t.Position.Fogged(map)).ToList();
-                    var eligible = deposits.Where(t => ResourceAcquisitionTools.Eligible(t, map)).ToList();
-                    double Distance(Thing t) => map.mapPawns.FreeColonistsSpawned.Min(p => p.Position.DistanceTo(t.Position));
-                    var ordered = eligible.OrderByDescending(ResourceAcquisitionTools.Designated).ThenBy(Distance).ThenBy(t => t.thingIDNumber).ToList();
-                    Require(ordered.Count <= SourceLimit, "Reachable resource source collection exceeds the read bound; narrow the query.");
-                    var snapshot = new Obs.ResourceSourcesSnapshot { Context = context, Resource = parsed.Resource,
-                        Storage = Storage(map, definition),
-                        Completeness = new Obs.Completeness { Page = new Common.PageInfo { Complete = true },
-                            Matched = (ulong)ordered.Count, Returned = (ulong)ordered.Count, Filtered = (ulong)(deposits.Count - eligible.Count) } };
-                    foreach (var thing in ordered) snapshot.Sources.Add(Project(thing, map, Distance(thing), context));
-                    return Encode(new Obs.ResourceSourcesReply { Observed = snapshot });
-                }
+                try { return Encode(Read(map, parsed, context)); }
                 catch (ReadLimit errorLimit) { return ProtoBoundary.Encode(new Obs.ResourceSourcesReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, errorLimit.Message) }); }
-                catch (Exception) { return ProtoBoundary.Encode(new Obs.ResourceSourcesReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Resource sources could not be read completely.") }); }
             }, cancellationToken).ConfigureAwait(false);
+        }
+
+        // Read is the read on the main thread under a validated identity: the
+        // reply its tool encodes, and the section the bundle carries (#593).
+        internal static Obs.ResourceSourcesReply Read(Map map, Obs.ResourceSourcesRequest parsed, Common.ObservationContext context)
+        {
+            try
+            {
+                var definition = DefDatabase<ThingDef>.GetNamedSilentFail(parsed.Resource);
+                if (definition == null)
+                    return new Obs.ResourceSourcesReply { Unavailable = Unavailable(Common.UnavailableReason.NotApplicable, "Unknown resource definition.") };
+                var deposits = map.listerThings.AllThings.Where(t => ResourceAcquisitionTools.Product(t)?.defName == parsed.Resource && !t.Position.Fogged(map)).ToList();
+                var eligible = deposits.Where(t => ResourceAcquisitionTools.Eligible(t, map)).ToList();
+                double Distance(Thing t) => map.mapPawns.FreeColonistsSpawned.Min(p => p.Position.DistanceTo(t.Position));
+                var ordered = eligible.OrderByDescending(ResourceAcquisitionTools.Designated).ThenBy(Distance).ThenBy(t => t.thingIDNumber).ToList();
+                Require(ordered.Count <= SourceLimit, "Reachable resource source collection exceeds the read bound; narrow the query.");
+                var snapshot = new Obs.ResourceSourcesSnapshot { Context = context, Resource = parsed.Resource,
+                    Storage = Storage(map, definition),
+                    Completeness = new Obs.Completeness { Page = new Common.PageInfo { Complete = true },
+                        Matched = (ulong)ordered.Count, Returned = (ulong)ordered.Count, Filtered = (ulong)(deposits.Count - eligible.Count) } };
+                foreach (var thing in ordered) snapshot.Sources.Add(Project(thing, map, Distance(thing), context));
+                return new Obs.ResourceSourcesReply { Observed = snapshot };
+            }
+            catch (ReadLimit errorLimit) { return new Obs.ResourceSourcesReply { Unavailable = Unavailable(Common.UnavailableReason.LimitExceeded, errorLimit.Message) }; }
+            catch (Exception) { return new Obs.ResourceSourcesReply { Unavailable = Unavailable(Common.UnavailableReason.ReadFailed, "Resource sources could not be read completely.") }; }
         }
 
         internal static bool Validate(Obs.ResourceSourcesRequest request, out Common.Failure failure)

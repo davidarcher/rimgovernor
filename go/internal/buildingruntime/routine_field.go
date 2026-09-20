@@ -104,11 +104,7 @@ func (r *RoutineFieldPlanner) step(call, epoch context.Context, arbiter *stepArb
 	}
 	definitions := append(routineProjectDefinitions(plans, state.Snapshot, playerPlans), "Plant_Rice", "Plant_Potato", "Plant_Corn", "Plant_Strawberry", "Plant_Toxipotato", "Plant_Nutrifungus", "SunLamp", "HydroponicsBasin", "Heater")
 	definitions = uniqueFieldDefinitions(definitions)
-	identity, _, err := r.reviewer.native.Identity(call)
-	if err != nil {
-		return RoutineFieldResult{}, err
-	}
-	expected, err := observation.DecodeIdentity(identity)
+	expected, err := routineScope(call, r.reviewer.native)
 	if err != nil {
 		return RoutineFieldResult{}, err
 	}
@@ -385,11 +381,7 @@ func (r *RoutineFieldPlanner) enact(call, epoch context.Context, state ControlSt
 	if p.session.State() != state {
 		return RoutineFieldResult{}, false, ErrControl
 	}
-	last, _, err := r.reviewer.native.Identity(call)
-	if err != nil {
-		return RoutineFieldResult{}, false, err
-	}
-	actual, err := observation.DecodeIdentity(last)
+	actual, err := routineScope(call, r.reviewer.native)
 	if err != nil || !routineBuildingBoundary(actual, state.Snapshot, projection.Identity.Tick) {
 		return RoutineFieldResult{}, false, ErrControl
 	}

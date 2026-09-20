@@ -178,11 +178,7 @@ func (r *RoutineIngredientStoragePlanner) step(call, epoch context.Context) (Rou
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return RoutineIngredientStorageResult{}, err
 	}
-	last, _, err := r.reviewer.native.Identity(call)
-	if err != nil {
-		return RoutineIngredientStorageResult{}, err
-	}
-	expected, err := observation.DecodeIdentity(last)
+	expected, err := routineScope(call, r.reviewer.native)
 	if err != nil {
 		return RoutineIngredientStorageResult{}, err
 	}

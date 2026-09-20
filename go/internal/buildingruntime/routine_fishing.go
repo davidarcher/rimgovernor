@@ -111,11 +111,7 @@ func (r *RoutineFieldPlanner) fishing(call, epoch context.Context, state Control
 			if err = r.reviewer.player.current(call, epoch); err != nil {
 				return RoutineFieldResult{}, false, err
 			}
-			identity, _, err := r.reviewer.native.Identity(call)
-			if err != nil {
-				return RoutineFieldResult{}, false, err
-			}
-			actual, err := observation.DecodeIdentity(identity)
+			actual, err := routineScope(call, r.reviewer.native)
 			if err != nil || !routineBuildingBoundary(actual, state.Snapshot, p.Identity.Tick) || r.reviewer.player.session.State() != state {
 				return RoutineFieldResult{}, false, ErrControl
 			}

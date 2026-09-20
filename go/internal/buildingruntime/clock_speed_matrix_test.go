@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -44,6 +45,11 @@ type speedNative struct {
 	receipt   *k.ControlReceipt
 	// stops is the wall time of each budget stop, in order.
 	stops []time.Time
+	// reads counts every native read the scheduler's steps issue (the
+	// bundle, the identity, tick, status, attempt and emergency reads
+	// under a step's context), not the worker's poll, for the
+	// reads-per-step bound (#593).
+	reads atomic.Int64
 }
 
 func newSpeedNative(snapshot domain.GenerationSnapshot, tickEvery time.Duration) *speedNative {
@@ -95,6 +101,7 @@ func (n *speedNative) context() *c.ObservationContext {
 }
 
 func (n *speedNative) Identity(ctx context.Context) (*l.IdentityReply, bridge.Result, error) {
+	n.read(ctx)
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	n.advance()
@@ -102,6 +109,7 @@ func (n *speedNative) Identity(ctx context.Context) (*l.IdentityReply, bridge.Re
 }
 
 func (n *speedNative) Tick(ctx context.Context) (*l.TickReply, bridge.Result, error) {
+	n.read(ctx)
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	n.advance()
@@ -109,6 +117,7 @@ func (n *speedNative) Tick(ctx context.Context) (*l.TickReply, bridge.Result, er
 }
 
 func (n *speedNative) ReadClockStatus(ctx context.Context, id *c.Identity) (*k.StatusReply, bridge.Result, error) {
+	n.read(ctx)
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	n.advance()
@@ -116,6 +125,7 @@ func (n *speedNative) ReadClockStatus(ctx context.Context, id *c.Identity) (*k.S
 }
 
 func (n *speedNative) ReadClockAttempt(ctx context.Context, r *k.AttemptRequest) (*k.AttemptReply, bridge.Result, error) {
+	n.read(ctx)
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	if n.receipt == nil || !proto.Equal(n.receipt.Attempt, r.Attempt) {
@@ -125,6 +135,7 @@ func (n *speedNative) ReadClockAttempt(ctx context.Context, r *k.AttemptRequest)
 }
 
 func (n *speedNative) ReadEmergency(ctx context.Context, id *c.Identity) (bridge.EmergencyObservation, bridge.Result, error) {
+	n.read(ctx)
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	n.advance()
@@ -241,6 +252,7 @@ func (n *speedNative) ReadClockEvents(ctx context.Context, request *k.EventsRequ
 // from one locked snapshot so the tick, status, emergency and events page
 // agree, as the native bundle does.
 func (n *speedNative) ReadBundle(ctx context.Context, request *o.BundleRequest) (*o.BundleReply, bridge.Result, error) {
+	n.read(ctx)
 	if request.Events != nil {
 		n.await(ctx, request.Events.GetAfterCursor(), time.Duration(request.Events.GetWaitMs())*time.Millisecond)
 	}
@@ -338,7 +350,7 @@ func speedMatrixFixture(t *testing.T, native *speedNative, snapshot domain.Gener
 	worker := &ClockWorker{ctx: lifetime, cancel: cancel, config: config, done: make(chan struct{}), ready: make(chan struct{}), stopGate: make(chan struct{}, 1), disable: session.disableClockWorker, cleanup: session.CleanupClock, renew: scheduler.RenewEpoch, held: scheduler.WindowRunning, wake: NewWakeSignal(), pollWake: make(chan struct{}, 1)}
 	worker.step = func(ctx context.Context, reason StepReason) (ClockSchedulerResult, error) {
 		began := time.Now()
-		result, err := scheduler.StepWithReason(ctx, reason)
+		result, err := scheduler.StepWithReason(context.WithValue(ctx, speedStepKey{}, true), reason)
 		record(speedStep{began: began, ended: time.Now(), reason: reason, result: result, err: err})
 		return result, err
 	}
@@ -523,6 +535,16 @@ func TestClockSpeedMatrixDecidesPerTickAndWakesWithinStepInterval(t *testing.T) 
 			if len(decisions) != 2*windows {
 				t.Fatalf("x%d: %d windows admitted: %+v", multiplier, len(epochs), decisions)
 			}
+			// Every step observes through its one bundle (#593): the
+			// reads the fake counts under the steps' contexts stay
+			// within two per step, the bundle and the status the clock
+			// coordinator inspects before it commands a window. A
+			// regression that reads a section natively after the
+			// bundle (a tick or identity read a planner issues) shows
+			// here.
+			if reads := native.reads.Load(); reads > int64(2*len(steps)) {
+				t.Fatalf("x%d: %d native reads over %d steps exceed the two-per-step bound", multiplier, reads, len(steps))
+			}
 			if multiplier == 1 {
 				expected = decisions
 				return
@@ -533,5 +555,15 @@ func TestClockSpeedMatrixDecidesPerTickAndWakesWithinStepInterval(t *testing.T) 
 				}
 			}
 		})
+	}
+}
+
+// speedStepKey marks a step's context so speedNative counts the reads the
+// step issues apart from the worker's poll and the fixture's teardown.
+type speedStepKey struct{}
+
+func (n *speedNative) read(ctx context.Context) {
+	if ctx.Value(speedStepKey{}) != nil {
+		n.reads.Add(1)
 	}
 }

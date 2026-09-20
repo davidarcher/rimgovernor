@@ -48,12 +48,18 @@ const tradersMaximumRows = 4096
 // ListTraders reads the map's trader caravans and eligible negotiators. A
 // reply whose completeness reports filtered or unreadable rows is refused: a
 // partial trader census is not a usable basis for deciding not to trade.
+// tradersRequest is the trader census read, shared with the bundle's
+// traders family (#593).
+func tradersRequest(identity *c.Identity) *o.TradersRequest {
+	return &o.TradersRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}}
+}
+
 func (client *Client) ListTraders(ctx context.Context, identity *c.Identity) (TradersRead, Result, error) {
 	if err := ValidateIdentity(identity); err != nil {
 		return TradersRead{}, Result{}, err
 	}
 	identity = proto.Clone(identity).(*c.Identity)
-	request := &o.TradersRequest{Scope: &o.ReadScope{ExpectedIdentity: proto.Clone(identity).(*c.Identity)}}
+	request := tradersRequest(identity)
 	reply := &o.TradersReply{}
 	raw, err := client.protoRead(ctx, "rimgovernor/observations_list_traders", request, reply)
 	if err != nil {

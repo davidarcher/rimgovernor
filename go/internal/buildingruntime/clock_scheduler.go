@@ -586,6 +586,7 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	// before any planning read asks it.
 	var window *planningWindow
 	var zones *zoneRefresher
+	reviews := s.stepReviews(reason)
 	if native, ok := s.native.(observation.ZonesNative); ok {
 		zones = &zoneRefresher{native: native, store: s.facts.store, refreshes: &s.facts.zoneRefreshes}
 		call = observation.WithZones(call, zones)
@@ -636,6 +637,12 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 			extra["stop_pause_s"] = paused.Seconds()
 		}
 		reads.Publish(call, extra)
+		// What this review's planners asked through the cache is what the
+		// next review's bundle carries (#593); a step that ran no review
+		// says nothing about it.
+		if reviews {
+			s.facts.asks = cache.StepAsks()
+		}
 	}()
 	attempts, err := s.player.journal.LoadClockAttempts(call, 4096)
 	if err != nil {
@@ -659,15 +666,16 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 		return out, errors.Join(err, s.session.Disable())
 	}
 	if window != nil {
-		window.scope, window.tick, window.review = factsScope(loaded.Context), loaded.Context.GetTick(), s.stepReviews(reason)
+		window.scope, window.tick, window.review = factsScope(loaded.Context), loaded.Context.GetTick(), reviews
 	}
 	if zones != nil {
-		zones.scope, zones.tick = factsScope(loaded.Context), loaded.Context.GetTick()
+		zones.scope, zones.tick, zones.carried = factsScope(loaded.Context), loaded.Context.GetTick(), loaded.Zones != nil
 	}
-	// The remaining entity sections refresh once per
-	// full review step, delta reads over what the store holds.
-	if native, ok := s.native.(EntityNative); ok && s.stepReviews(reason) {
-		refreshEntitySections(call, native, s.facts, loaded.Context.Identity, factsScope(loaded.Context), loaded.Context.GetTick())
+	// The remaining entity sections refresh once per full review step,
+	// delta reads over what the store holds, or the full section the
+	// bundle carried (#593).
+	if native, ok := s.native.(EntityNative); ok && reviews {
+		refreshEntitySections(call, native, s.facts, loaded.Context.Identity, factsScope(loaded.Context), loaded.Context.GetTick(), entitySectionsCarried{zones: loaded.Zones != nil, buildings: loaded.Buildings != nil, bills: loaded.Bills != nil})
 	}
 	state := s.session.State()
 	world := domain.GenerationSnapshot{Colony: domain.ColonyID(loaded.Context.Identity.GetColonyId()), Load: domain.LoadID(loaded.Context.Identity.GetLoadToken()), Map: domain.MapID(loaded.Context.Identity.GetMapId())}
@@ -1157,15 +1165,48 @@ func (s *ClockScheduler) livePlanningDue(reason StepReason) bool {
 // under its cadence (bundleFamilies, #360) is left out: the review serves
 // it from the store. A wrong guess costs a heavier bundle or the dedicated
 // reads, never a wrong fact.
+//
+// A review step's bundle also carries the step families (#593): the
+// entity sections the refreshers would otherwise read after the bundle
+// (zones, buildings, bills, each in full when the store's row is absent
+// or stale under the expected tick), the held planning window's delta
+// since its as-of tick, and what the previous review's planners asked
+// for through the read cache (the built census, traders, world
+// progression, resource sources), so those reads are cache hits.
 func (s *ClockScheduler) bundleRequest(reason StepReason) *o.BundleRequest {
 	request := &o.BundleRequest{ClockStatus: proto.Bool(true), Emergency: proto.Bool(true)}
 	if s.stepReviews(reason) {
 		request.ColonyFacts = proto.Bool(true)
-		population, research, pawns := bundleFamilies(s.facts.store, s.lastTick+int64(domain.LiveDrift()), s.lastTickKnown)
+		tick := s.lastTick + int64(domain.LiveDrift())
+		population, research, pawns := bundleFamilies(s.facts.store, tick, s.lastTickKnown)
 		request.Population, request.Research, request.ColonistPawns = proto.Bool(population), proto.Bool(research), proto.Bool(pawns)
 		request.ColonistPawnFields, request.PopulationFields, request.ResearchFields = bundleMasks()
+		s.bundleStepFamilies(request, tick)
 	}
 	return request
+}
+
+// bundleStepFamilies adds the step families to a review bundle request
+// (bundleRequest, #593).
+func (s *ClockScheduler) bundleStepFamilies(request *o.BundleRequest, tick int64) {
+	store := s.facts.store
+	stale := func(section facts.Section) bool { return !s.lastTickKnown || !store.Fresh(section, tick) }
+	_, entities := s.native.(EntityNative)
+	_, zones := s.native.(observation.ZonesNative)
+	if entities {
+		request.Buildings, request.Bills = proto.Bool(stale(facts.Buildings)), proto.Bool(stale(facts.Bills))
+	}
+	if entities || zones {
+		request.Zones = proto.Bool(stale(facts.Zones))
+	}
+	if _, ok := s.native.(PlanningWindowNative); ok && stale(facts.PlanningCells) {
+		if held, ok := facts.Get[observation.PlanningCells](store, facts.PlanningCells); ok {
+			request.PlanningWindow = bridge.BundlePlanningWindowRequest(&bridge.BundlePlanningWindow{Region: held.Value.Region, Since: held.AsOf})
+		}
+	}
+	asks := s.facts.asks
+	request.BuiltBuildings, request.Traders, request.WorldProgression = proto.Bool(asks.BuiltBuildings), proto.Bool(asks.Traders), proto.Bool(asks.WorldProgression)
+	request.ResourceSources = append([]string(nil), asks.Resources...)
 }
 
 // bundleMasks is the review bundle's field mask per continuous family
