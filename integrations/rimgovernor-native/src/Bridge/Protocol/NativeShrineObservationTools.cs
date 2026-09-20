@@ -99,7 +99,7 @@ namespace HomeBridge.BridgeTools
                                 if (!cell.InBounds(map) || cell.Fogged(map) || inside.Contains(cell)) continue;
                                 if (!(cell.GetEdifice(map) is Building wall) || wall.Faction == player || wall.def != ThingDefOf.Wall && !(wall is Building_Door) || !wall.DeconstructibleBy(player)) continue;
                                 if (row.BreachWalls.Any(w => w.EntityId == wall.GetUniqueLoadID())) continue;
-                                if (RoofSupportSafety.Blocker(wall, out _) != null) continue;
+                                if (NativeShrineBreachSafety.RoofBlocker(wall) != null) continue;
                                 IntVec3? outside = null;
                                 foreach (var offset in GenAdj.CardinalDirections) {
                                     var near = cell + offset;

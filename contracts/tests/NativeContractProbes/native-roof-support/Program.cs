@@ -44,6 +44,21 @@ internal static class NativeRoofSupportProbe
         removed.Clear(); removed.Add(Cell(20,20)); roofs.Clear(); roofs.Add(Cell(20,20)); holders.Clear(); holders.Add(Cell(21,20));
         Require(check() == null, "single-cell wall keeps its prior supported behavior");
         holders.Clear(); Require(check() != null, "single-cell wall removal remains blocked");
+        // The sealed shrine's interior is fogged by definition. Its bounded
+        // structural survey permits roof checks, not a blanket fog bypass.
+        holders.Add(Cell(21,20)); fog.Add(Cell(20,20));
+        var structure = new HashSet<int> { Cell(20,20) };
+        Func<string> shrineCheck = () => RoofSupportGeometry.Blocker(removed, Radial, Cardinal,
+            c => Cardinal(c).Concat(new[] { c }), Near, inside, fog.Contains, roofs.Contains,
+            holders.Contains, pending.Contains, out checkedRoofs, structure);
+        Require(check() != null, "ordinary removal still refuses the sealed interior");
+        Require(shrineCheck() == null, "surveyed sealed roof retains alternate support");
+        holders.Clear();
+        Require(shrineCheck() != null, "surveyed fog does not excuse unsupported roof");
+        holders.Add(Cell(21,20)); pending.Add(Cell(20,20));
+        Require(shrineCheck() != null, "surveyed fog does not excuse pending collapse");
+        pending.Clear(); fog.Add(Cell(20,22));
+        Require(shrineCheck() != null, "fog outside the shrine structure still blocks");
         Console.WriteLine("native-roof-support: rectangular exclusion, perimeter roots, fog, collapse and single-cell checks passed");
     }
     private static void Require(bool condition, string message) { if (!condition) throw new Exception(message); }

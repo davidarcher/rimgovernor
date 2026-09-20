@@ -13,15 +13,17 @@ namespace HomeBridge.BridgeTools
             Func<T, IEnumerable<T>> radial, Func<T, IEnumerable<T>> cardinal,
             Func<T, IEnumerable<T>> adjacentAndInside, Func<T, T, bool> withinRadius,
             Func<T, bool> inBounds, Func<T, bool> fogged, Func<T, bool> roofed,
-            Func<T, bool> holdsRoof, Func<T, bool> collapsePending, out int checkedRoofs) where T : struct
+            Func<T, bool> holdsRoof, Func<T, bool> collapsePending, out int checkedRoofs,
+            ICollection<T>? structuralCells = null) where T : struct
         {
+            bool Unknown(T cell) => fogged(cell) && structuralCells?.Contains(cell) != true;
             checkedRoofs = 0;
             if (removed.Count == 0) return "No occupied support cells";
             var excluded = new HashSet<T>(removed);
             var roots = new HashSet<T>();
             foreach (var cell in removed)
                 foreach (var near in radial(cell)) {
-                    if (!inBounds(near) || fogged(near)) return "Unknown building support geometry";
+                    if (!inBounds(near) || Unknown(near)) return "Unknown building support geometry";
                     if (roofed(near)) roots.Add(near);
                 }
             foreach (var root in roots) {
@@ -35,12 +37,12 @@ namespace HomeBridge.BridgeTools
                     var cell = queue.Dequeue();
                     foreach (var near in adjacentAndInside(cell)) {
                         if (!inBounds(near) || !withinRadius(near, root)) continue;
-                        if (fogged(near)) { unknown = true; continue; }
+                        if (Unknown(near)) { unknown = true; continue; }
                         if (!excluded.Contains(near) && holdsRoof(near)) { supported = true; break; }
                     }
                     foreach (var next in cardinal(cell)) {
                         if (!inBounds(next) || !withinRadius(next, root) || !roofed(next)) continue;
-                        if (fogged(next)) { unknown = true; continue; }
+                        if (Unknown(next)) { unknown = true; continue; }
                         if (seen.Add(next)) queue.Enqueue(next);
                     }
                 }

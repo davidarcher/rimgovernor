@@ -77,6 +77,18 @@ func runShrineBreach(ctx context.Context, s cases.Session, claim bool) error {
 			return fmt.Errorf("fixture caskets must be fogged, unowned, one empty and one filled: %v", row)
 		}
 	}
+	reply, err := s.Harness().Wire(ctx, "sealed_shrine_census", "observations_get_ancient_shrines", map[string]any{"scope": map[string]any{"expectedIdentity": s.Identity()}})
+	if err != nil {
+		return err
+	}
+	_, observed, err := na.Outcome(reply, "observed")
+	if err != nil {
+		return err
+	}
+	s.Report()["sealed_shrine_census"] = observed
+	if err := checkSealedBreachWall(observed, na.AsString(fixture["breach"])); err != nil {
+		return err
+	}
 	service, err := start(ctx, s)
 	if err != nil {
 		return err
@@ -162,6 +174,23 @@ func runShrineBreach(ctx context.Context, s cases.Session, claim bool) error {
 		return err
 	}
 	return checkShrineBreach(after, caskets, claim)
+}
+
+func checkSealedBreachWall(observed map[string]any, wall string) error {
+	for _, raw := range na.AsSlice(observed["shrines"]) {
+		row, _ := na.AsMap(raw)
+		for _, rawWall := range na.AsSlice(row["breachWalls"]) {
+			candidate, _ := na.AsMap(rawWall)
+			if na.AsString(candidate["entityId"]) != wall {
+				continue
+			}
+			if !boolean(row["sealed"]) || boolean(row["guardsKnown"]) || len(na.AsSlice(row["guards"])) != 0 || len(na.AsSlice(row["caskets"])) != 0 {
+				return fmt.Errorf("sealed breach census exposed the interior: %v", row)
+			}
+			return nil
+		}
+	}
+	return fmt.Errorf("sealed shrine census omitted fixture breach wall %s: %v", wall, observed)
 }
 
 func checkShrineBreach(after map[string]any, caskets []string, claim bool) error {

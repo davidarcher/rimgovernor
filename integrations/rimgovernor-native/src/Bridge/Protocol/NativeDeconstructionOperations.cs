@@ -126,6 +126,9 @@ namespace HomeBridge.BridgeTools
                     room.ProperRoom && !room.TouchesMapEdge))
                 return "Enclosing colony walls require guarded RemoveWall.";
             if (!target.def.holdsRoof) return null;
+            var shrineStructure = NativeShrineBreachSafety.StructuralCells(target);
+            if (shrineStructure != null)
+                return RoofSupportSafety.Blocker(target, null, out _, shrineStructure);
             var cells = target.OccupiedRect().Cells.ToList();
             if (cells.Any(c => !RoofSupportSafety.GeometryKnown(target.Map, c))) return "Unknown roof support geometry.";
             return ExcavationSafety.Check(target.Map, cells, out _, out var blocker) == ExcavationSafety.Support.Supported ? null : blocker ?? "Roof support is unproven.";

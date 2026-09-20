@@ -291,6 +291,10 @@ hives inside the room once the interior is unfogged (`guards_known`; a
 sealed shrine never reports guards), and the perimeter walls the player may
 deconstruct without a roof-support blocker, each with its definition
 (`def_name`, #458) and the adjacent cell outside the room.
+For a visible neutral wall on a sealed shrine, observation and deconstruction
+inspect native roof structure inside that bounded room and its border despite
+fog. Unsupported roofs, pending collapse and fog outside that footprint still
+block. This structural check reveals no occupants and never unfogs the room.
 
 The occupant of a filled casket is unknown until it opens; a casket under
 20% hit points explodes, so hit points are a safety reading. The census is
