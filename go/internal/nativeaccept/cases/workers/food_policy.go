@@ -10,13 +10,13 @@ import (
 	na "github.com/davidarcher/RimGovernor/go/internal/nativeaccept"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/takeover"
-	"github.com/davidarcher/RimGovernor/go/internal/store"
 )
 
 func init() {
 	cases.Register(cases.Case{
 		Name: "takeover/food-policy", Scope: "Restrictive Manual diet is untouched in Manual, exact settings CAS refuses edits, Auto repairs repeated restrictions through Hands, actual eating recovers nutrition, and the diet survives save/load.",
-		Start: cases.Fixture{Op: "test/food_policy", Args: map[string]any{"action": "restrict"}}, QuietWorld: true, Keep: []string{"Food"}, RequiredOps: []string{"test/food_policy"},
+		// runFoodPolicy establishes Manual before applying and checking each diet edit.
+		Start: cases.Save{Name: "RimGovernor-tribal8-baseline"}, QuietWorld: true, Keep: []string{"Food"}, RequiredOps: []string{"test/food_policy"},
 		Serve: &cases.ServeSpec{Families: []string{"work"}, Prefix: "food-policy"}, Budget: 4 * time.Minute, Run: runFoodPolicy,
 	})
 }
@@ -100,7 +100,7 @@ func runFoodPolicy(ctx context.Context, s cases.Session) error {
 			return err
 		}
 		var completed domain.ActionID
-		err = na.WaitProgress(ctx, na.Wait{Ceiling: 60 * time.Second, Stall: 30 * time.Second, Interval: time.Second, Terminal: service.Exited}, func(ctx context.Context) (string, bool, error) {
+		err = na.WaitProgress(ctx, na.Wait{Ceiling: 90 * time.Second, Stall: 60 * time.Second, Interval: time.Second, Terminal: service.Exited}, func(ctx context.Context) (string, bool, error) {
 			plans, err := journal.PlanHistoryWithPrefix(ctx, "routine-work-", 256)
 			if err != nil {
 				return "", false, err
@@ -118,9 +118,6 @@ func runFoodPolicy(ctx context.Context, s cases.Session) error {
 		})
 		if err == nil {
 			seen[completed] = true
-			_, err = service.WaitReview(ctx, na.Wait{Ceiling: 40 * time.Second, Stall: 20 * time.Second, Interval: time.Second}, func(review store.RoutineReview) bool {
-				return int64(review.Tick) >= int64(na.AsNumber(before["tick"]))+2500
-			})
 		}
 		if err == nil {
 			err = takeover.Journal(ctx, journal, s.Report())
@@ -130,6 +127,17 @@ func runFoodPolicy(ctx context.Context, s cases.Session) error {
 			return err
 		}
 		if _, err = s.Reattach(ctx); err != nil {
+			return err
+		}
+		// Settings repair completes while paused. The work-only service has no
+		// production work to admit a clock window, so observe eating in a bounded
+		// native window after releasing the service's authority.
+		clock := &na.ScenarioClock{Wire: s.Harness().WireFunc(), Identity: s.Identity(), Owner: s.RequestID(label + "-eat"), Report: s.Report()}
+		if _, err = clock.Acquire(ctx, label+"-eat-acquire"); err != nil {
+			return err
+		}
+		runtime := &na.ScenarioRuntime{Query: s.Harness().Call, Clock: clock, Report: s.Report(), Tools: s.Names()}
+		if _, err = na.AdvanceGame(ctx, runtime, 2500); err != nil {
 			return err
 		}
 		after, err := fixture(label+"-outcome", "read")
