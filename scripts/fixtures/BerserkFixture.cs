@@ -17,14 +17,20 @@ namespace HomeBridge.BridgeTools
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
                 if (map == null || !Find.TickManager.Paused) throw new InvalidOperationException("Paused tribal8 baseline required.");
+                var people = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead).OrderBy(p => p.thingIDNumber).ToList();
+                if (people.Count != 8) throw new InvalidOperationException("Expected eight baseline colonists.");
+                // Normalize the saved baseline before the hut selects standing pawns.
+                // Once Berserk starts, damage and recovery use ordinary game rules.
+                foreach (var p in people) {
+                    foreach (var h in p.health.hediffSet.hediffs.Where(h => h.def.isBad).ToList()) p.health.RemoveHediff(h);
+                    if (p.InMentalState) p.MentalState.RecoverFromState();
+                }
                 var hut = FixtureHut.Build(map, 11);
                 if (hut.People.Count != 8) throw new InvalidOperationException("Expected eight baseline colonists.");
                 var squad = hut.People.Where(p => !p.WorkTagIsDisabled(WorkTags.Violent)).Take(2).ToList();
                 if (squad.Count != 2) throw new InvalidOperationException("Two melee responders required.");
                 var target = hut.People.First(p => !squad.Contains(p));
                 foreach (var p in hut.People) {
-                    if (p.Downed || p.InMentalState || p.health.hediffSet.hediffs.Any(h => h is Hediff_Injury))
-                        throw new InvalidOperationException("Healthy baseline required.");
                     p.drafter.Drafted = false;
                     p.equipment.DestroyAllEquipment();
                     p.jobs.StopAll();
@@ -56,6 +62,7 @@ namespace HomeBridge.BridgeTools
                 wall.HitPoints = wall.MaxHitPoints / 2;
                 map.areaManager.Home[wall.Position] = true;
                 var audit = map.GetComponent<BerserkAudit>();
+                if (audit == null) { audit = new BerserkAudit(map); map.components.Add(audit); }
                 audit.People = hut.People; audit.Target = target; audit.Bed = bed;
                 if (!target.mindState.mentalStateHandler.TryStartMentalState(MentalStateDefOf.Berserk, forced: true, forceWake: true))
                     throw new InvalidOperationException("Berserk did not start.");
