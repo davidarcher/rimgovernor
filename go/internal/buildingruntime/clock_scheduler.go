@@ -1075,6 +1075,10 @@ func (s *ClockScheduler) StepWithReason(ctx context.Context, reason StepReason) 
 	if out.Research != nil {
 		nativeWorkTicks = max(nativeWorkTicks, out.Research.NativeWorkTicks)
 	}
+	// Milk and eggs are gathered by native jobs alone.
+	if out.Husbandry != nil {
+		nativeWorkTicks = max(nativeWorkTicks, out.Husbandry.NativeWorkTicks)
+	}
 	// A caravan walks to its trade spot on native ticks alone (#234).
 	if out.Trade != nil {
 		nativeWorkTicks = max(nativeWorkTicks, out.Trade.NativeWorkTicks)

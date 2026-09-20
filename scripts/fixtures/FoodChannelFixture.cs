@@ -166,10 +166,11 @@ namespace HomeBridge.BridgeTools
                     fields = map.zoneManager.AllZones.OfType<Zone_Growing>().Count(),
                     plants = things.OfType<Plant>().Count(FoodPlant),
                     animals = things.OfType<Pawn>().Count(p => p.RaceProps.Animal),
+                    heldAnimals = things.OfType<Pawn>().Where(p => p.RaceProps.Animal && !p.Spawned).Select(p => new { defName = p.def.defName, holder = Holders(p) }).ToList(),
                     corpses = things.OfType<Corpse>().Count(),
                     producers = things.Count(Producer),
                     stock = things.Where(t => t.def.category == ThingCategory.Item && t.def.IsNutritionGivingIngestible)
-                        .Select(t => new { defName = t.def.defName, units = t.stackCount, spawned = t.Spawned }).ToList() };
+                        .Select(t => new { defName = t.def.defName, units = t.stackCount, spawned = t.Spawned, holder = t.Spawned ? null : Holders(t) }).ToList() };
             }, cancellationToken);
         }
 
@@ -288,13 +289,24 @@ namespace HomeBridge.BridgeTools
             || t is Plant plant && FoodPlant(plant) || Producer(t)
             || t.def.category == ThingCategory.Item && t.def.IsNutritionGivingIngestible;
 
+        // The parent holder chain of an unspawned thing, outermost last.
+        private static string Holders(Thing t)
+        {
+            var names = new List<string>();
+            for (var holder = t.ParentHolder; holder != null && names.Count < 8; holder = holder.ParentHolder)
+                names.Add(holder is Thing thing ? thing.GetUniqueLoadID() : holder.GetType().Name);
+            return string.Join(" < ", names);
+        }
+
         private static HashSet<Thing> AllThings(Map map)
         {
             var things = new HashSet<Thing>(map.listerThings.AllThings);
             var holders = new HashSet<IThingHolder>();
             void Visit(IThingHolder holder)
             {
-                if (holder == null || !holders.Add(holder)) return;
+                // Sealed ancient-danger caskets (megascarabs, a corpse, a
+                // sleeper's pemmican) are no channel the colony can draw on.
+                if (holder == null || holder is Building_AncientCryptosleepCasket || !holders.Add(holder)) return;
                 var direct = holder.GetDirectlyHeldThings();
                 if (direct != null) foreach (var thing in direct) things.Add(thing);
                 var children = new List<IThingHolder>();

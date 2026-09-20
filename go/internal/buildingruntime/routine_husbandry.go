@@ -24,6 +24,10 @@ type RoutineHusbandryPlanner struct {
 type RoutineHusbandryResult struct {
 	Reason RoutineBuildingReason
 	Plan   domain.PlanID
+	// NativeWorkTicks is lent while an open animal-product channel delivers
+	// on native jobs alone (milking, egg gathering): the herd needs game
+	// time, not a method, and a hold without it parks the clock on no_work.
+	NativeWorkTicks uint32
 }
 
 func NewRoutineHusbandryPlanner(reviewer *RoutineReviewer) (*RoutineHusbandryPlanner, error) {
@@ -57,6 +61,21 @@ func (r *RoutineHusbandryPlanner) step(call, epoch context.Context, arbiter *ste
 	if !review.Enabled || !review.Snapshot.Matches(state.Snapshot) {
 		return RoutineHusbandryResult{Reason: BuildingMethodNoReview}, nil
 	}
+	// Read before the goal check: an open animal-product channel lends
+	// game time whether or not the herd goal is in deficit.
+	expected, err := routineScope(call, r.reviewer.native)
+	if err != nil {
+		return RoutineHusbandryResult{}, err
+	}
+	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
+		return RoutineHusbandryResult{}, ErrControl
+	}
+	started := r.reviewer.clock.Now()
+	read, err := r.reviewer.observeOwned(call, r.reviewer.native, expected, domain.Unknown[[]policy.ConstructionClaim]())
+	if err != nil {
+		return RoutineHusbandryResult{}, err
+	}
+	wait := animalProductWait(read.Projection.Facts.FoodPlan)
 	var goal store.GoalState
 	found := false
 	for _, binding := range review.Goals {
@@ -70,7 +89,7 @@ func (r *RoutineHusbandryPlanner) step(call, epoch context.Context, arbiter *ste
 		return RoutineHusbandryResult{}, err
 	}
 	if !found || goal.Goal.Status != domain.GoalActive || goal.Goal.Need != domain.NeedDeficit {
-		return RoutineHusbandryResult{Reason: BuildingMethodNoDeficit}, nil
+		return RoutineHusbandryResult{Reason: BuildingMethodNoDeficit, NativeWorkTicks: wait}, nil
 	}
 	for _, method := range goal.Methods {
 		plan, err := p.journal.LoadPlan(call, method.Plan)
@@ -78,20 +97,8 @@ func (r *RoutineHusbandryPlanner) step(call, epoch context.Context, arbiter *ste
 			return RoutineHusbandryResult{}, err
 		}
 		if domain.GoalWorkOpen(plan.Progress) {
-			return RoutineHusbandryResult{Reason: BuildingMethodExistingWork}, nil
+			return RoutineHusbandryResult{Reason: BuildingMethodExistingWork, NativeWorkTicks: wait}, nil
 		}
-	}
-	expected, err := routineScope(call, r.reviewer.native)
-	if err != nil {
-		return RoutineHusbandryResult{}, err
-	}
-	if !routineBuildingBoundary(expected, state.Snapshot, review.Tick) {
-		return RoutineHusbandryResult{}, ErrControl
-	}
-	started := r.reviewer.clock.Now()
-	read, err := r.reviewer.observeOwned(call, r.reviewer.native, expected, domain.Unknown[[]policy.ConstructionClaim]())
-	if err != nil {
-		return RoutineHusbandryResult{}, err
 	}
 	upkeep := read.Projection.Facts.AnimalUpkeep
 	animals := upkeep.Animals
@@ -116,7 +123,7 @@ func (r *RoutineHusbandryPlanner) step(call, epoch context.Context, arbiter *ste
 	}
 	switch choice.Reason {
 	case policy.HusbandryNoDeficit:
-		return RoutineHusbandryResult{Reason: BuildingMethodUsed}, nil
+		return RoutineHusbandryResult{Reason: BuildingMethodUsed, NativeWorkTicks: wait}, nil
 	case policy.HusbandryUnknown:
 		return RoutineHusbandryResult{Reason: BuildingMethodUnknown}, nil
 	}
@@ -160,4 +167,19 @@ func (r *RoutineHusbandryPlanner) step(call, epoch context.Context, arbiter *ste
 		return RoutineHusbandryResult{}, err
 	}
 	return RoutineHusbandryResult{Reason: BuildingMethodAdmitted, Plan: id}, nil
+}
+
+// animalProductWait is the game time an open animal-product channel needs:
+// its nutrition arrives through ordinary native gathering jobs.
+func animalProductWait(plan domain.Fact[policy.FoodPlan]) uint32 {
+	v, known := plan.Value()
+	if !known {
+		return 0
+	}
+	for _, entry := range v.Portfolio {
+		if entry.Channel.Kind == policy.FoodAnimalProduct && entry.DeliveredPerDay > 0 {
+			return stockWaitTicks
+		}
+	}
+	return 0
 }
