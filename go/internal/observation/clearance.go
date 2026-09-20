@@ -88,6 +88,13 @@ func ObserveClearanceCensus(ctx context.Context, source ClearanceSource, expecte
 	}
 	for _, row := range v.Targets {
 		rows = append(rows, ClearanceTarget{EntityID: row.GetEntityId(), DefName: row.GetDefName(), Faction: row.GetFaction(), Class: classes[row.Class], Minimum: domain.Cell{X: row.Occupied.Minimum.GetX(), Z: row.Occupied.Minimum.GetZ()}, Maximum: domain.Cell{X: row.Occupied.Maximum.GetX(), Z: row.Occupied.Maximum.GetZ()}, Deconstructible: row.GetDeconstructible(), InHome: row.GetInHome(), AncientDanger: row.GetAncientDanger(), RoofBlocker: row.GetRoofBlocker(), Designated: row.GetDesignated()})
+		if s := row.Salvage; s != nil {
+			candidate := policy.AcquisitionCandidate{ID: row.GetEntityId(), Kind: policy.AcquisitionSalvage, PathDistance: domain.Known(s.PathLength), Labor: domain.Known(s.Labor), NeedsHaul: true, UnitsPerTrip: 75}
+			for _, y := range s.Yields {
+				candidate.Yields = append(candidate.Yields, policy.AcquisitionYield{ResourceQuantity: policy.ResourceQuantity{Key: policy.ResourceKey{Def: policy.Resource(y.DefName)}, Count: y.Count}, UnitValue: y.UnitValue, Headroom: domain.Known(y.StorageHeadroom)})
+			}
+			rows[len(rows)-1].Salvage = &policy.SalvageEvidence{Safe: domain.Known(s.Safe), Candidate: candidate}
+		}
 	}
 	chunks := make([]ClearanceChunk, 0, len(v.Chunks))
 	for _, row := range v.Chunks {

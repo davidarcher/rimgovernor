@@ -114,7 +114,19 @@ func (r *RoutineClearancePlanner) step(call, epoch context.Context, arbiter *ste
 	if !known {
 		return RoutineClearanceResult{Reason: BuildingMethodUsed}, nil
 	}
-	selection := policy.SelectHomeClearance(census.Targets, colony.Projection.Center)
+	// The review admitted at most one remote ruin by reach and demand from
+	// its complete facts; the planner executes that choice against the fresh
+	// census, whose native safety verdict still gates it.
+	filtered := append([]policy.ClearanceTarget(nil), census.Targets...)
+	for i := range filtered {
+		row := &filtered[i]
+		safe := false
+		if row.Salvage != nil {
+			safe, _ = row.Salvage.Safe.Value()
+		}
+		row.SalvageSelected = !row.InHome && review.SalvageTarget != "" && row.EntityID == review.SalvageTarget && safe
+	}
+	selection := policy.SelectHomeClearance(filtered, colony.Projection.Center)
 	if len(selection.Targets) == 0 {
 		return r.dump(call, epoch, state, goal, review.Tick, census, started)
 	}

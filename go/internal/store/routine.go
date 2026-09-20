@@ -29,11 +29,14 @@ type ReserveSupply struct {
 // RoutineReview is the durable review cursor and hysteresis history. Goal
 // bindings retain semantic needs while old executable plans keep their identity.
 type RoutineReview struct {
-	BrewingFinished        bool                    `json:",omitempty"`
-	ResourceRunways        []ResourceRunwayRecord  `json:",omitempty"`
-	ReserveSupplies        []ReserveSupply         `json:",omitempty"`
-	LarderSupplies         []policy.StartingSupply `json:",omitempty"`
-	ClearanceHolds         []policy.ClearanceHold  `json:",omitempty"`
+	BrewingFinished bool                    `json:",omitempty"`
+	ResourceRunways []ResourceRunwayRecord  `json:",omitempty"`
+	ReserveSupplies []ReserveSupply         `json:",omitempty"`
+	LarderSupplies  []policy.StartingSupply `json:",omitempty"`
+	ClearanceHolds  []policy.ClearanceHold  `json:",omitempty"`
+	// SalvageTarget is the one remote ruin this review admitted by reach and
+	// demand; the clearance planner executes it against a fresh native census.
+	SalvageTarget          string                  `json:",omitempty"`
 	ShrineHolds            []policy.ShrineHold     `json:",omitempty"`
 	Recovery               *RoutineRecovery        `json:",omitempty"`
 	Disaster               *policy.DisasterHistory `json:",omitempty"`
@@ -382,6 +385,17 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 			return RoutineReviewResult{}, err
 		}
 		loot.Held = held
+		if rows, known := request.Facts.Upkeep.Clearance.Value(); known {
+			reach, demand, err := policy.SalvageContext(request.Policy, request.Facts)
+			if err != nil {
+				return RoutineReviewResult{}, err
+			}
+			filtered, _, err := policy.FilterRemoteSalvage(rows, reach, demand)
+			if err != nil {
+				return RoutineReviewResult{}, err
+			}
+			request.Facts.Upkeep.Clearance = domain.Known(filtered)
+		}
 		medical, err = policy.ReviewMedicalCare(request.Facts.MedicalPawns, medical)
 		if err != nil {
 			return RoutineReviewResult{}, err
@@ -586,6 +600,26 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	}
 	if rows, known := request.Facts.Upkeep.Clearance.Value(); known {
 		r.ClearanceHolds = policy.SelectHomeClearance(rows, domain.Cell{}).Holds
+		reach, demand, err := policy.SalvageContext(request.Policy, request.Facts)
+		if err != nil {
+			return RoutineReviewResult{}, err
+		}
+		filtered, remoteHolds, err := policy.FilterRemoteSalvage(rows, reach, demand)
+		if err != nil {
+			return RoutineReviewResult{}, err
+		}
+		for _, row := range filtered {
+			if row.SalvageSelected {
+				r.SalvageTarget = row.EntityID
+			}
+		}
+		for _, hold := range remoteHolds {
+			for i := range r.ClearanceHolds {
+				if r.ClearanceHolds[i].Target == hold.Target {
+					r.ClearanceHolds[i] = hold
+				}
+			}
+		}
 	} else {
 		r.ClearanceHolds = previous.ClearanceHolds
 	}

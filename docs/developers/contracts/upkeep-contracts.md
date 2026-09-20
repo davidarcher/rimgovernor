@@ -800,6 +800,13 @@ clock a bounded native-work window while `EvaluateFireSafety` finds a bounded
 home fire with an eligible firefighter. Wall replacement and the sustained
 multi-season campaigns are tracked separately.
 
+Remote clearance considers visible abandoned buildings outside Home only when
+resource reach permits their observed safe route and native salvage yield scores
+against unmet resource demand with accepting storage headroom. Roof-support
+blockers, caskets and sealed ancient-danger rooms remain held. One remote removal
+is selected per fresh census; ordinary deconstruction and hauling produce and
+deliver the yield. Selection never adds Home cells.
+
 ## Corpse larder
 
 `MaintainFoodStorage` also reviews fresh animal corpses when ordinary storage

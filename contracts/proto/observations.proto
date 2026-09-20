@@ -49,6 +49,19 @@ message ClearanceTarget {
   optional bool ancient_danger = 9;
   optional bool designated = 10; // A standing Deconstruct designation; the controller adopts it (no ownership ledger).
   reserved 11;
+  SalvageEvidence salvage = 12;
+}
+message SalvageYield {
+  string def_name = 1;
+  int64 count = 2;
+  double unit_value = 3;
+  int64 storage_headroom = 4;
+}
+message SalvageEvidence {
+  bool safe = 1;
+  double path_length = 2;
+  double labor = 3;
+  repeated SalvageYield yields = 4;
 }
 // A rock or slag chunk stack standing on a Home cell: a haul, never a
 // deconstruction. stored is vanilla's IsInValidStorage; destination is

@@ -42,7 +42,7 @@ namespace HomeBridge.BridgeTools
 
         // Reach readiness (#520) reads the storyteller as quiet at zero threat
         // scale (peaceful) or with no incident generators at all.
-        private static bool StorytellerQuiet()
+        internal static bool StorytellerQuiet()
         {
             var storyteller = Find.Storyteller;
             return storyteller != null && (storyteller.difficulty.threatScale <= 0f || storyteller.storytellerComps.Count == 0);
@@ -51,7 +51,7 @@ namespace HomeBridge.BridgeTools
         // Free item units the player's storage accepting this def can still take:
         // empty accepting cells at the def's stack limit plus partial same-def
         // stacks. Bounded so a huge storage never drives the census cost.
-        private static long StorageHeadroom(Map map, Thing item)
+        internal static long StorageHeadroom(Map map, Thing item)
         {
             long units = 0;
             foreach (var group in map.haulDestinationManager.AllGroupsListInPriorityOrder) {
@@ -68,7 +68,7 @@ namespace HomeBridge.BridgeTools
 
         internal static bool? Safe(Thing item) => new HaulingSafety(item.Map).Safe(item);
 
-        private sealed class HaulingSafety
+        internal sealed class HaulingSafety
         {
             private readonly Map map;
             private readonly List<Pawn> people;
@@ -133,6 +133,20 @@ namespace HomeBridge.BridgeTools
                         && !Route(pawn, item.Position, destination, PathEndMode.OnCell)) return false;
                 }
                 return reachable ? (bool?)true : null;
+            }
+
+            internal bool SalvageReturn(Building source, Thing output)
+            {
+                output.Position = source.Position;
+                foreach (var pawn in people.Where(p => !p.Drafted && !p.WorkTypeIsDisabled(WorkTypeDefOf.Hauling))) {
+                    if (!pawn.CanReach(source, PathEndMode.Touch, Danger.None)) continue;
+                    if (!StoreUtility.TryFindBestBetterStoreCellFor(output, pawn, map, StoragePriority.Unstored, Faction.OfPlayer, out var destination)) continue;
+                    foreach (var cell in GenAdj.CellsAdjacent8Way(source))
+                        if (cell.InBounds(map) && cell.Standable(map) && !Exposed(cell) && !cell.IsForbidden(pawn)
+                            && Route(pawn, pawn.Position, cell, PathEndMode.OnCell)
+                            && Route(pawn, cell, destination, PathEndMode.OnCell)) return true;
+                }
+                return false;
             }
         }
     }

@@ -19,7 +19,9 @@ type ClearanceTarget struct {
 	// Designated is a standing Deconstruct designation, whoever placed it: not a
 	// hold, since the Deconstruction operation adopts it rather than placing a
 	// second one, and no ownership ledger says whose it was.
-	Designated bool
+	Designated      bool
+	Salvage         *SalvageEvidence
+	SalvageSelected bool
 }
 
 // ClearanceChunk is one rock or slag chunk stack standing on a Home cell: a
@@ -48,7 +50,7 @@ type ClearanceSelection struct {
 
 func ClearanceHoldReason(row ClearanceTarget) string {
 	switch {
-	case !row.InHome:
+	case !row.InHome && !row.SalvageSelected:
 		return "outside_home"
 	case !row.Deconstructible:
 		return "not_deconstructible"

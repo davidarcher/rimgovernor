@@ -5,6 +5,7 @@ import (
 	c "github.com/davidarcher/RimGovernor/go/internal/wire/commonpb"
 	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	"google.golang.org/protobuf/proto"
+	"math"
 )
 
 const clearanceTool = "rimgovernor/observations_get_clearance_targets"
@@ -67,7 +68,7 @@ func ValidateClearanceTargets(v *o.ClearanceTargetsSnapshot, identity *c.Identit
 	}
 	n := uint64(len(v.Targets))
 	p := v.Completeness
-	if n > clearanceLimit || p == nil || p.Page == nil || !p.Page.GetComplete() || p.Page.GetNextCursor() != "" || p.Matched == nil || p.Returned == nil || p.Filtered == nil || p.Unreadable == nil || p.GetMatched() != n || p.GetReturned() != n || p.GetFiltered() != 0 || p.GetUnreadable() != 0 {
+	if n > 4096 || p == nil || p.Page == nil || !p.Page.GetComplete() || p.Page.GetNextCursor() != "" || p.Matched == nil || p.Returned == nil || p.Filtered == nil || p.Unreadable == nil || p.GetMatched() != n || p.GetReturned() != n || p.GetFiltered() != 0 || p.GetUnreadable() != 0 {
 		return contract("incomplete clearance census")
 	}
 	seen := map[string]bool{}
@@ -76,6 +77,19 @@ func ValidateClearanceTargets(v *o.ClearanceTargetsSnapshot, identity *c.Identit
 			return contract("invalid clearance target")
 		}
 		seen[row.GetEntityId()] = true
+		if s := row.Salvage; s != nil {
+			finite := func(n float64) bool { return !math.IsNaN(n) && !math.IsInf(n, 0) && n >= 0 && n <= 1e12 }
+			if !finite(s.PathLength) || !finite(s.Labor) || len(s.Yields) > 256 {
+				return contract("invalid salvage costs")
+			}
+			yields := map[string]bool{}
+			for _, y := range s.Yields {
+				if y == nil || validID(y.DefName) != nil || yields[y.DefName] || y.Count <= 0 || y.Count > 1e9 || y.StorageHeadroom < 0 || y.StorageHeadroom > 1e9 || !finite(y.UnitValue) {
+					return contract("invalid salvage yield")
+				}
+				yields[y.DefName] = true
+			}
+		}
 		if row.Faction != nil && validID(row.GetFaction()) != nil {
 			return contract("invalid clearance faction")
 		}

@@ -85,6 +85,7 @@ func (b *DeconstructionBoundary) InspectDeconstruction(ctx context.Context, targ
 		if row.Class == n.ClearanceClass_CLEARANCE_CLASS_ANCIENT_CASKET {
 			candidate.Class = "ancient_casket"
 		}
+		candidate.SalvageSelected = !candidate.InHome && row.Salvage != nil && row.Salvage.Safe
 		out.Eligible = policy.ClearanceHoldReason(candidate) == ""
 		out.Accepted = out.Eligible
 		emergency, _, err := b.native.ReadEmergency(ctx, boundary.Identity(current))

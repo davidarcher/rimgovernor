@@ -18,7 +18,7 @@ namespace HomeBridge.BridgeTools
     public sealed class NativeClearanceObservationTools
     {
         private const string ToolName = "rimgovernor/observations_get_clearance_targets";
-        [Tool(ToolName, Title = "Read clearance targets", Description = "Complete bounded census of visible, deconstructible non-player buildings touching Home, plus the rock and slag chunk stacks standing in Home with their storage state and a free outdoor footprint for a dumping stockpile. Includes exact footprints, roof-support blockers, sealed ancient danger and deconstruction ownership. Read-only; does not admit removal.")]
+        [Tool(ToolName, Title = "Read clearance targets", Description = "Complete bounded census of visible, deconstructible non-player buildings across the map, plus the rock and slag chunk stacks standing in Home with their storage state and a free outdoor footprint for a dumping stockpile. Includes exact footprints, roof-support blockers, sealed ancient danger and deconstruction ownership. Read-only; does not admit removal.")]
         [ToolResponse("payload", "string", "Official ProtoJSON ClearanceTargetsReply.", Always = true)]
         public async Task<object> Read(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "Official ProtoJSON ClearanceTargetsRequest string.")] object? request = null)
@@ -48,9 +48,12 @@ namespace HomeBridge.BridgeTools
                             // reports them beside the buildings.
                             else if (thing.Spawned && thing.def.category == ThingCategory.Item && thing.def.IsWithinCategory(ThingCategoryDefOf.Chunks)) chunks[thing.thingIDNumber] = thing;
                         }
-                    Require(buildings.Count <= 8192, "Non-player buildings touching Home exceed 8192.");
+                    foreach (var b in map.listerThings.AllThings.OfType<Building>())
+                        if (b.Spawned && b.Faction != player && !b.def.IsNonResourceNaturalRock && !b.def.mineable && b.DeconstructibleBy(player)) buildings[b.thingIDNumber] = b;
+                    Require(buildings.Count <= 8192, "Non-player clearance buildings exceed 8192.");
                     Require(chunks.Count <= 256, "Chunk stacks in Home exceed 256.");
                     var snapshot = new Obs.ClearanceTargetsSnapshot { Context = context };
+                    var salvageSafety = new EventLootFacts.HaulingSafety(map);
                     var haulers = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Downed && !p.Drafted && !p.InMentalState && !p.WorkTypeIsDisabled(WorkTypeDefOf.Hauling)).ToList();
                     var undelivered = new List<Thing>();
                     foreach (var chunk in chunks.Values.OrderBy(t => t.thingIDNumber)) {
@@ -69,7 +72,7 @@ namespace HomeBridge.BridgeTools
                         // OfPlayerSilentFail was checked above: the native method
                         // cannot reach its missing-player Log.Error/pause branch.
                         if (!building.DeconstructibleBy(player)) continue;
-                        Require(snapshot.Targets.Count < 256, "Clearance census exceeds 256 rows; no sample returned.");
+                        Require(snapshot.Targets.Count < 4096, "Clearance census exceeds 4096 rows; no sample returned.");
                         var designated = map.designationManager.DesignationOn(building, DesignationDefOf.Deconstruct) != null;
                         var row = new Obs.ClearanceTarget {
                             EntityId = Id(building.GetUniqueLoadID()), DefName = Id(building.def.defName),
@@ -80,6 +83,7 @@ namespace HomeBridge.BridgeTools
                         if (building.Faction != null) row.Faction = Id(building.Faction.GetUniqueLoadID());
                         var blocker = RoofSupportSafety.Blocker(building, out _);
                         if (blocker != null) row.RoofBlocker = blocker;
+                        if (!row.InHome) row.Salvage = Salvage(map, building, salvageSafety);
                         snapshot.Targets.Add(row);
                     }
                     var count = (ulong)snapshot.Targets.Count;
@@ -101,6 +105,22 @@ namespace HomeBridge.BridgeTools
         // connected footprint of up to dumpSiteCells cells, or nothing when no
         // hauler exists or no cell qualifies. The flood is bounded so a wide
         // Home costs a bounded number of reachability checks.
+        private static Obs.SalvageEvidence Salvage(Map map, Building building, EventLootFacts.HaulingSafety safety)
+        {
+            var safe = !building.IsForbidden(Faction.OfPlayer) && !building.IsBurning() && safety.Safe(building) == true;
+            var result = new Obs.SalvageEvidence { Safe = safe, PathLength = Math.Max(0, safety.PathLength), Labor = building.GetStatValue(StatDefOf.WorkToBuild) };
+            foreach (var cost in building.def.CostListAdjusted(building.Stuff, false)) {
+                var count = (long)Math.Floor(cost.count * building.def.resourcesFractionWhenDeconstructed);
+                if (count <= 0) continue;
+                var item = ThingMaker.MakeThing(cost.thingDef);
+                var headroom = EventLootFacts.StorageHeadroom(map, item);
+                // A yield nothing stores stays on the ground; only a yield
+                // haulers will carry home needs a safe return route.
+                if (headroom > 0) result.Safe = result.Safe && safety.SalvageReturn(building, item);
+                result.Yields.Add(new Obs.SalvageYield { DefName = cost.thingDef.defName, Count = count, UnitValue = item.MarketValue, StorageHeadroom = headroom });
+            }
+            return result;
+        }
         private const int dumpSiteCells = 16;
         private const int dumpSiteFloodBound = 512;
         private static List<IntVec3> DumpSites(Map map, Area home, List<Thing> chunks, List<Pawn> haulers)
@@ -134,7 +154,7 @@ namespace HomeBridge.BridgeTools
             building.def == ThingDefOf.ShipChunk ? Obs.ClearanceClass.ShipChunk :
             building.def == ThingDefOf.Wall || building is Building_Door ? Obs.ClearanceClass.AncientWallDoor : Obs.ClearanceClass.Other;
 
-        private static bool AncientDanger(Map map, Building building, Faction player)
+        internal static bool AncientDanger(Map map, Building building, Faction player)
         {
             var occupied = building.OccupiedRect();
             // The warning trigger can disappear when a colonist approaches,

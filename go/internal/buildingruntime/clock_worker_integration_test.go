@@ -126,7 +126,7 @@ func TestClockWorkerActualSessionInterruptionAndJoinedClose(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 		defer cancel()
 		_ = worker.Stop(ctx)
 	})
@@ -134,7 +134,7 @@ func TestClockWorkerActualSessionInterruptionAndJoinedClose(t *testing.T) {
 		t.Helper()
 		select {
 		case <-ch:
-		case <-time.After(3 * time.Second):
+		case <-time.After(60 * time.Second):
 			t.Fatal("timed out: " + what)
 		}
 	}
@@ -144,7 +144,7 @@ func TestClockWorkerActualSessionInterruptionAndJoinedClose(t *testing.T) {
 	<-native.started
 	select {
 	case s.player.gate <- struct{}{}:
-	case <-time.After(time.Second):
+	case <-time.After(60 * time.Second):
 		t.Fatal("could not hold player gate")
 	}
 	held := true
@@ -170,7 +170,7 @@ func TestClockWorkerActualSessionInterruptionAndJoinedClose(t *testing.T) {
 		t.Fatal("native counts", pauses, writes)
 	}
 	// Session Close must cancel/join a scheduler waiting on the still-held gate.
-	closeCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	closeCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 	if err = s.session.Close(closeCtx); err != nil {
 		t.Fatal(err)

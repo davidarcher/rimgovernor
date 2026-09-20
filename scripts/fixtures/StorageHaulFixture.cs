@@ -361,6 +361,58 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
+        private static Building salvageWall;
+        private static IntVec3 salvageCell;
+        private static int salvageHomeCount;
+        private static int salvageStoredBefore;
+        [Tool("test/salvage_remote", Description = "UNSAFE FOR MODEL EXECUTION. Replace the prepared remote loot with a steel-rich ruin (a battery) and raise readiness, or audit ordinary deconstruction, delivered steel and unchanged Home.")]
+        public async Task<object> SalvageRemote(IRimBridgeContext ctx, CancellationToken cancellationToken, bool prepare = false)
+            => await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                int Stored() => lootZone.Cells.SelectMany(c => c.GetThingList(map)).Where(t => t.def == ThingDefOf.Steel).Sum(t => t.stackCount);
+                if (prepare) {
+                    if (map != preparedMap || remoteStack?.Spawned != true || !Find.TickManager.Paused) return Refuse("Prepared remote loot required.");
+                    salvageCell = remoteStack.Position;
+                    remoteStack.Destroy(DestroyMode.Vanish);
+                    // Every generated ruin competes for the one remote removal a
+                    // census admits (nearer, lighter yields rank first), so the
+                    // case measures one source: the map seed's visible ruins go.
+                    // Ancient danger, caskets and anything fogged stay untouched.
+                    foreach (var ruin in map.listerThings.AllThings.OfType<Building>().Where(b => b.Faction != Faction.OfPlayer && !b.def.mineable
+                            && b.DeconstructibleBy(Faction.OfPlayer) && !b.Position.Fogged(map) && !(b is Building_AncientCryptosleepCasket)
+                            && !NativeClearanceObservationTools.AncientDanger(map, b, Faction.OfPlayer)).ToList())
+                        ruin.Destroy(DestroyMode.Vanish);
+                    var readiness = RaiseReadiness(map);
+                    if (readiness is string reason) return Refuse(reason);
+                    foreach (var p in map.mapPawns.FreeColonistsSpawned)
+                        if (!p.WorkTypeIsDisabled(WorkTypeDefOf.Construction)) p.workSettings.SetPriority(WorkTypeDefOf.Construction, 1);
+                    // The ruin must pass the same counterfactual roof-support
+                    // check the census applies (#337): a wall the map's roofs
+                    // lean on is a legitimate hold, not a salvage candidate.
+                    salvageWall = null;
+                    foreach (var cell in GenRadial.RadialCellsAround(salvageCell, 20, true)) {
+                        if (!cell.InBounds(map) || !cell.Standable(map) || cell.GetEdifice(map) != null || cell.Roofed(map)
+                            || map.areaManager.Home[cell] || map.zoneManager.ZoneAt(cell) != null || !preparedHauler.CanReach(cell, PathEndMode.Touch, Danger.None)) continue;
+                        // A battery's 35 steel outranks the map seed's urns and doors
+                        // under the Steel target; a steel wall's 2 never would.
+                        var candidate = (Building)GenSpawn.Spawn(ThingMaker.MakeThing(DefDatabase<ThingDef>.GetNamed("Battery")), cell, map);
+                        if (RoofSupportSafety.Blocker(candidate, out _) == null) { salvageWall = candidate; salvageCell = cell; break; }
+                        candidate.Destroy(DestroyMode.Vanish);
+                    }
+                    if (salvageWall == null) return Refuse("No roof-safe reachable cell for the salvage ruin near the remote cell.");
+                    salvageWall.SetForbidden(false, false);
+                    var baseCell = GenRadial.RadialCellsAround(lootZone.Cells[0], 8, true).First(c => c.InBounds(map) && c.Standable(map) && c.GetEdifice(map) == null && c.GetZone(map) == null);
+                    var marker = ThingMaker.MakeThing(ThingDefOf.Table2x2c, ThingDefOf.WoodLog);
+                    marker.SetFaction(Faction.OfPlayer);
+                    GenSpawn.Spawn(marker, baseCell, map);
+                    salvageHomeCount = map.areaManager.Home.ActiveCells.Count();
+                    salvageStoredBefore = Stored();
+                }
+                if (salvageWall == null) return Refuse("No prepared salvage wall.");
+                return new { success = true, target = salvageWall.GetUniqueLoadID(), present = salvageWall.Spawned, delivered = Stored() - salvageStoredBefore,
+                    homeUnchanged = salvageHomeCount == map.areaManager.Home.ActiveCells.Count() && !map.areaManager.Home[salvageCell] };
+            }, cancellationToken);
+
         private static object Refuse(string reason) => new { success = false, reason };
     }
 }
