@@ -24,7 +24,7 @@ func TestReadGearBenchesAssemblesCensusAcrossBillsAndRecipes(t *testing.T) {
 			Snapshot: &o.SnapshotRef{Context: gearBenchContext(), EntityId: proto.String("bench1"), Token: proto.String("bench1-token")},
 			Bench:    &o.EntityRef{Id: proto.String("bench1")},
 			Bills: []*o.BillState{
-				{Recipe: &o.DefinitionRef{DefName: proto.String("MakeParka")}, Suspended: proto.Bool(false), Finished: proto.Bool(false)},
+				{Id: proto.String("bill1"), Recipe: &o.DefinitionRef{DefName: proto.String("MakeParka")}, Suspended: proto.Bool(false), Finished: proto.Bool(false)},
 			},
 		}},
 		Completeness: &o.Completeness{Page: &c.PageInfo{Complete: proto.Bool(true)}},
@@ -88,7 +88,7 @@ func TestReadGearBenchesAssemblesCensusAcrossBillsAndRecipes(t *testing.T) {
 		t.Fatal(work)
 	}
 	billList, known := census[0].Bench.Bills.Value()
-	if !known || len(billList) != 1 {
+	if !known || len(billList) != 1 || billList[0].ID != "bill1" || billList[0].Recipe != "MakeParka" {
 		t.Fatal(billList)
 	}
 	active, known := billList[0].Active.Value()

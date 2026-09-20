@@ -72,7 +72,10 @@ func TestBeerReserveDispatchesWortThroughTheJournal(t *testing.T) {
 func TestSmokeleafReserveDispatchesThroughTheJournal(t *testing.T) {
 	testResourceDispatch(t, "SmokeleafJoint", "SmokeleafJoint", "Make_SmokeleafJoint", domain.StockTarget)
 }
-func testResourceDispatch(t *testing.T, resource, product policy.Resource, recipe string, mode domain.BillMode) {
+func TestResourceDispatchReplacesSuspendedKibbleBillThroughTheJournal(t *testing.T) {
+	testResourceDispatch(t, "Kibble", "Kibble", "Make_Kibble", domain.StockTarget, "player-kibble")
+}
+func testResourceDispatch(t *testing.T, resource, product policy.Resource, recipe string, mode domain.BillMode, replacement ...string) {
 	t.Parallel()
 	base, db, _, _, sleeping := sleepingFixture(t)
 	base.reviewer.policy.ResourceTargets = map[policy.Resource]int64{resource: 3}
@@ -86,6 +89,11 @@ func testResourceDispatch(t *testing.T, resource, product policy.Resource, recip
 	native := &resourceNative{
 		workshopNative: &workshopNative{sleepingNative: sleeping, benches: []bridge.GearBenchRead{{Token: "bench-cas", Bench: policy.GearBench{ID: "Thing_CraftingSpot1", Bills: domain.Known([]policy.GearBill{}), Recipes: domain.Known([]policy.GearRecipe{club})}}}},
 		stock:          []policy.Stock{{Resource: "WoodLog", Available: domain.Known(int64(200))}},
+	}
+	var replace string
+	if len(replacement) > 0 {
+		replace = replacement[0]
+		native.benches[0].Bench.Bills = domain.Known([]policy.GearBill{{ID: replace, Recipe: recipe, Active: domain.Known(false), Products: []policy.Resource{product}}})
 	}
 	// The review must see the deficit and rank MaintainResource into a
 	// development slot: the fixture's player Wall plan holds one, so two
@@ -120,7 +128,7 @@ func testResourceDispatch(t *testing.T, resource, product policy.Resource, recip
 	if err != nil || result.Reason != BuildingMethodAdmitted || result.Plan == "" {
 		t.Fatal(result, err)
 	}
-	if len(native.previews) != 1 || native.previews[0].Bench() != "Thing_CraftingSpot1" || native.previews[0].Recipe() != recipe || native.previews[0].BeforeToken() != "bench-cas" {
+	if len(native.previews) != 1 || native.previews[0].Bench() != "Thing_CraftingSpot1" || native.previews[0].Recipe() != recipe || native.previews[0].BeforeToken() != "bench-cas" || native.previews[0].Replaces() != replace {
 		t.Fatal(native.previews)
 	}
 	plan, err := db.LoadPlan(context.Background(), result.Plan)
@@ -128,7 +136,7 @@ func testResourceDispatch(t *testing.T, resource, product policy.Resource, recip
 		t.Fatal(plan, err)
 	}
 	bill, ok := plan.Spec.Actions()[0].ProductionBill()
-	if !ok || bill.Target() != 3 || bill.Mode() != mode {
+	if !ok || bill.Target() != 3 || bill.Mode() != mode || bill.Replaces() != replace {
 		t.Fatal(bill, ok)
 	}
 	again, err := planner.Step(context.Background())

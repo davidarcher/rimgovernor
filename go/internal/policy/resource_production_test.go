@@ -359,6 +359,34 @@ func TestSelectResourceMethodExistingActiveBillWaits(t *testing.T) {
 	}
 }
 
+func TestSelectResourceMethodReplacesInactiveMatchingBill(t *testing.T) {
+	for _, state := range []string{"inactive", "active", "unknown", "missing-id", "other-recipe"} {
+		t.Run(state, func(t *testing.T) {
+			r := resourceMethodFixture()
+			benches, _ := r.Benches.Value()
+			bill := GearBill{ID: "player-bill", Recipe: "Smelt", Active: domain.Known(false), Products: []Resource{"Steel"}}
+			want := ResourceMethodProduce
+			replace := bill.ID
+			switch state {
+			case "active":
+				bill.Active, want, replace = domain.Known(true), ResourceMethodWait, ""
+			case "unknown":
+				bill.Active, want, replace = domain.Unknown[bool](), ResourceMethodUnknown, ""
+			case "missing-id":
+				bill.ID, want, replace = "", ResourceMethodUnknown, ""
+			case "other-recipe":
+				bill.Recipe, replace = "OtherRecipe", ""
+			}
+			benches[0].Bills = domain.Known([]GearBill{bill})
+			r.Benches = domain.Known(benches)
+			got, err := SelectResourceMethod(r)
+			if err != nil || got.Kind != want || got.Replace != replace {
+				t.Fatalf("%+v, %v", got, err)
+			}
+		})
+	}
+}
+
 func TestSelectResourceMethodUnfundedRecipeIsBlocked(t *testing.T) {
 	r := resourceMethodFixture()
 	r.Stock = []Stock{{"Slag", domain.Known(int64(2))}}

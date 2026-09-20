@@ -385,6 +385,7 @@ type ResourceMethod struct {
 	Kind          ResourceMethodKind
 	ID            domain.MethodID
 	Bench, Recipe string
+	Replace       string
 	Resource      Resource
 	Target        int64
 }
@@ -513,7 +514,24 @@ func SelectResourceMethod(r ResourceMethodRequest) (ResourceMethod, error) {
 			if seen[id] {
 				return ResourceMethod{Kind: ResourceMethodWait, ID: id}, nil
 			}
-			return ResourceMethod{Kind: ResourceMethodProduce, ID: id, Bench: b.ID, Recipe: recipe.Definition, Resource: r.Resource, Target: r.Target}, nil
+			// Reuse the native replacement operation for an inactive matching
+			// bill; adding beside it is refused by the native duplicate guard.
+			var replace string
+			bills, _ := b.Bills.Value()
+			for _, bill := range bills {
+				if bill.Recipe != recipe.Definition {
+					continue
+				}
+				active, known := bill.Active.Value()
+				if !known || !foodID(bill.ID) {
+					return ResourceMethod{Kind: ResourceMethodUnknown}, nil
+				}
+				if !active {
+					replace = bill.ID
+					break
+				}
+			}
+			return ResourceMethod{Kind: ResourceMethodProduce, ID: id, Bench: b.ID, Recipe: recipe.Definition, Replace: replace, Resource: r.Resource, Target: r.Target}, nil
 		}
 	}
 	return ResourceMethod{Kind: ResourceMethodBlocked}, nil

@@ -302,8 +302,9 @@ type GearMethod struct {
 	RequiredWork    []WorkRequirement
 }
 type GearBill struct {
-	Active   domain.Fact[bool]
-	Products []Resource
+	ID, Recipe string
+	Active     domain.Fact[bool]
+	Products   []Resource
 }
 type GearRecipe struct {
 	Definition             string

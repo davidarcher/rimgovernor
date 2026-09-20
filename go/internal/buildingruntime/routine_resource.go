@@ -328,6 +328,12 @@ func (r *RoutineResourcePlanner) dispatchResourceGoal(call, epoch context.Contex
 	if err != nil {
 		return RoutineResourceResult{}, err
 	}
+	if choice.Replace != "" {
+		bill, err = bill.ReplaceOwnedBill(choice.Replace)
+		if err != nil {
+			return RoutineResourceResult{}, err
+		}
+	}
 	preview, _, err := r.native.PreviewBill(call, boundary.Identity(state.Snapshot), bill)
 	var refused *bridge.NativeFailure
 	if errors.As(err, &refused) {

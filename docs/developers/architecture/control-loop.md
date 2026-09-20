@@ -166,6 +166,9 @@ assert native readback. `takeover/schedule` restores the planned timetable;
 history; `takeover/suspended-bill` corrects a player bill and observes produced
 feed; `takeover/demolition-designation` explicitly adopts a colony wall's order
 and observes pawn demolition; `takeover/home-removal` restores removed Home.
+Resource and animal-feed production replace an inactive bill for the selected
+recipe using its native identity and the current bench snapshot. An active bill
+continues to suppress duplicate production; unrelated recipes remain unchanged.
 `takeover/food-policy` repairs a restrictive saved diet through the pawn-settings
 CAS, verifies actual eating and nutrition recovery after repeated edits, and
 checks that the assigned policy survives save/load. The planner restores missing

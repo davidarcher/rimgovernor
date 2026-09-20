@@ -280,7 +280,7 @@ func gearBillsFromStack(stack *o.BillStack, recipes []policy.GearRecipe) ([]poli
 		if bill == nil || bill.Recipe == nil || validID(bill.Recipe.GetDefName()) != nil {
 			return nil, contract("invalid gear bill identity")
 		}
-		row := policy.GearBill{}
+		row := policy.GearBill{ID: bill.GetId(), Recipe: bill.Recipe.GetDefName()}
 		if bill.Suspended != nil && bill.Finished != nil {
 			row.Active = domain.Known(!bill.GetSuspended() && !bill.GetFinished())
 		}
