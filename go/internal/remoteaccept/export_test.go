@@ -186,6 +186,38 @@ func TestExportPortableEvidenceAndRedVerdict(t *testing.T) {
 	}
 }
 
+func TestExportWorkersCaseBesidePrivateRoots(t *testing.T) {
+	f := fixtureRun(t)
+	f.attempts[0].Attempts[0].Case = "workers/coverage"
+	f.selection.Shards[0].Cases[0] = "workers/coverage"
+	f.save(t)
+	job := exportFixture(t, f, 0)
+	for _, root := range []string{"workers/1", "workers/12"} {
+		writeTest(t, job.Output, root+"/profile/private.json", map[string]string{"secret": "AGE-SECRET-KEY-private"})
+	}
+	if err := ExportShard(f.root, "s1", []ExportJob{job}, nil); err != nil {
+		t.Fatal(err)
+	}
+	var attempts Attempts
+	readTest(t, f.root, "s1/attempts.json", &attempts)
+	want := "s1/fixture/workers/coverage/result.json"
+	ref, err := FileRef(f.root, want)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if attempts.Attempts[0].Evidence != ref {
+		t.Fatalf("case evidence reference = %+v, want %+v", attempts.Attempts[0].Evidence, ref)
+	}
+	if _, err := os.Stat(filepath.Join(f.root, "s1/fixture/workers/coverage.log")); err != nil {
+		t.Fatal(err)
+	}
+	for _, root := range []string{"workers/1", "workers/12"} {
+		if _, err := os.Stat(filepath.Join(f.root, "s1/fixture", root)); !os.IsNotExist(err) {
+			t.Fatalf("private worker root exported: %s (%v)", root, err)
+		}
+	}
+}
+
 func TestExportRejectsUnsafeOrIncompleteEvidence(t *testing.T) {
 	for _, kind := range []string{"digest", "missing", "restricted", "budget", "extra"} {
 		t.Run(kind, func(t *testing.T) {
@@ -215,6 +247,8 @@ func TestExportRejectsUnsafeOrIncompleteEvidence(t *testing.T) {
 			}
 			if err := ExportShard(f.root, "s1", []ExportJob{job}, nil); err == nil {
 				t.Fatal("unsafe export succeeded")
+			} else if kind == "missing" && !strings.Contains(err.Error(), f.attempts[0].Attempts[0].Case+".log") {
+				t.Fatalf("refusal omitted the missing diagnostic path: %v", err)
 			}
 		})
 	}

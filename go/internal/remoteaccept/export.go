@@ -32,6 +32,7 @@ type exporter struct {
 }
 
 var runnerPath = regexp.MustCompile(`(?i)[a-z]:[\\/][^\s"<>]*`)
+var workerRoot = regexp.MustCompile(`^workers/[0-9]+$`)
 
 func (e *exporter) clean(s string) string {
 	for _, secret := range e.secrets {
@@ -108,7 +109,7 @@ func (e *exporter) value(v any) (any, error) {
 		if len(x) == 2 && x["path"] != nil && x["sha256"] != nil {
 			p, ok := x["path"].(string)
 			if !ok || !validPath(p) || e.files[strings.ToLower(p)] != p {
-				return nil, fmt.Errorf("unsafe diagnostic reference")
+				return nil, fmt.Errorf("unsafe diagnostic reference %q", p)
 			}
 			d, ok := x["sha256"].(string)
 			if !ok {
@@ -288,7 +289,8 @@ func ExportShard(root, shard string, jobs []ExportJob, secrets []string) error {
 			rel, _ := filepath.Rel(source, p)
 			rel = filepath.ToSlash(rel)
 			if d.IsDir() {
-				if rel == "workers" || rel == "checkpoints" || rel == "profile" {
+				// Numeric suite roots share the workers prefix with case diagnostics.
+				if workerRoot.MatchString(rel) || rel == "checkpoints" || rel == "profile" {
 					return filepath.SkipDir
 				}
 				return nil
