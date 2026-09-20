@@ -338,6 +338,17 @@ var plannerCatalog = []plannerEntry{
 			out.Defense = &method
 			return nil
 		}},
+	{name: "medical", priority: plannerCritical, kinds: []domain.ActionKind{domain.AcquisitionAction, domain.ProductionBillAction, domain.WorkAssignmentAction}, families: factsMedical,
+		configured: func(c *ClockSchedulerConfig) bool { return c.Medical != nil },
+		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
+			method, err := s.config.Medical.step(ctx, epoch, arbiter)
+			if err != nil {
+				return err
+			}
+			clockSchedulerLog("Medical.step result: reason=%v plan=%s", method.Reason, method.Plan)
+			out.Medical = &method
+			return nil
+		}},
 	{name: "tend", priority: plannerCritical, kinds: []domain.ActionKind{domain.TendAction}, families: factsThreat,
 		configured: func(c *ClockSchedulerConfig) bool { return c.Tend != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
@@ -478,17 +489,6 @@ var plannerCatalog = []plannerEntry{
 				return err
 			}
 			out.Gear = &method
-			return nil
-		}},
-	{name: "medical", priority: plannerCritical, kinds: []domain.ActionKind{domain.AcquisitionAction, domain.ProductionBillAction}, families: factsMedical,
-		configured: func(c *ClockSchedulerConfig) bool { return c.Medical != nil },
-		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
-			method, err := s.config.Medical.step(ctx, epoch, arbiter)
-			if err != nil {
-				return err
-			}
-			clockSchedulerLog("Medical.step result: reason=%v plan=%s", method.Reason, method.Plan)
-			out.Medical = &method
 			return nil
 		}},
 	{name: "foodStorageUpkeep", priority: plannerFoothold, kinds: []domain.ActionKind{domain.HaulAction, domain.ProductionBillAction, domain.SupplyAllowAction, domain.SupplyForbidAction, domain.ZoneCreateAction}, families: factsColony,

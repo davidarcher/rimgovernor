@@ -63,7 +63,7 @@ func (r *RoutineIngredientStoragePlanner) Step(ctx context.Context) (RoutineIngr
 func (r *RoutineIngredientStoragePlanner) step(call, epoch context.Context) (RoutineIngredientStorageResult, error) {
 	p := r.reviewer.player
 	state := p.session.State()
-	if !state.Enabled || !r.reviewer.policy.ResourceGoalConfigured() {
+	if !state.Enabled {
 		return RoutineIngredientStorageResult{Reason: BuildingMethodDisabled}, nil
 	}
 	if !state.ObservationKnown || state.Snapshot.Validate() != nil {
@@ -75,6 +75,9 @@ func (r *RoutineIngredientStoragePlanner) step(call, epoch context.Context) (Rou
 	}
 	if !review.Enabled || review.Snapshot != state.Snapshot {
 		return RoutineIngredientStorageResult{Reason: BuildingMethodNoReview}, nil
+	}
+	if !r.reviewer.policy.ResourceGoalConfigured() && review.MedicineTarget == 0 {
+		return RoutineIngredientStorageResult{Reason: BuildingMethodDisabled}, nil
 	}
 	var goal store.GoalState
 	found := false

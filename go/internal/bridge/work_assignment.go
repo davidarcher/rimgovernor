@@ -33,6 +33,14 @@ func validateWork(w domain.WorkAssignment) error {
 }
 func workOperation(w domain.WorkAssignment) *op.Operation {
 	patch := &op.PatchPawn{Pawn: &op.EntityPrecondition{EntityId: proto.String(string(w.Pawn())), ExpectedSnapshotToken: proto.String(w.BeforeToken())}}
+	switch w.MedicalCare() {
+	case "NoMeds":
+		patch.MedicalCare = op.MedicalCare_MEDICAL_CARE_NO_MEDICINE.Enum()
+	case "HerbalOrWorse":
+		patch.MedicalCare = op.MedicalCare_MEDICAL_CARE_HERBAL_OR_WORSE.Enum()
+	case "NormalOrWorse":
+		patch.MedicalCare = op.MedicalCare_MEDICAL_CARE_NORMAL_OR_WORSE.Enum()
+	}
 	for _, setting := range w.Settings() {
 		patch.Work = append(patch.Work, &op.WorkPriority{WorkTypeDef: proto.String(setting.Definition), Priority: proto.Int32(setting.Priority)})
 	}
@@ -108,6 +116,9 @@ func validWorkAttempt(w WorkAttempt) error {
 func workEffect(v *r.EffectEvidence, work domain.WorkAssignment, matches bool) error {
 	effect := v.GetSettings()
 	expectedFields := len(work.Settings())
+	if work.MedicalCare() != "" {
+		expectedFields++
+	}
 	if len(work.FoodAllow()) > 0 {
 		expectedFields++
 	}
@@ -127,6 +138,7 @@ func workEffect(v *r.EffectEvidence, work domain.WorkAssignment, matches bool) e
 	areaSeen := !work.HasArea()
 	scheduleSeen := !work.HasSchedule()
 	foodSeen := len(work.FoodAllow()) == 0
+	careSeen := work.MedicalCare() == ""
 	want := r.FieldOutcome_FIELD_OUTCOME_APPLIED
 	if !matches {
 		want = r.FieldOutcome_FIELD_OUTCOME_REFUSED
@@ -136,6 +148,11 @@ func workEffect(v *r.EffectEvidence, work domain.WorkAssignment, matches bool) e
 			return contract("work field mismatch")
 		}
 		switch field.GetField() {
+		case r.SettingsField_SETTINGS_FIELD_MEDICAL_CARE:
+			if careSeen {
+				return contract("work field mismatch")
+			}
+			careSeen = true
 		case r.SettingsField_SETTINGS_FIELD_FOOD_RESTRICTION:
 			if foodSeen {
 				return contract("duplicate food field")
@@ -160,7 +177,7 @@ func workEffect(v *r.EffectEvidence, work domain.WorkAssignment, matches bool) e
 			return contract("work field mismatch")
 		}
 	}
-	if len(seen) != 0 || !areaSeen || !scheduleSeen || !foodSeen {
+	if len(seen) != 0 || !areaSeen || !scheduleSeen || !foodSeen || !careSeen {
 		return contract("work field mismatch")
 	}
 	return nil

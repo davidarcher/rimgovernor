@@ -858,7 +858,7 @@ func routineCapabilities(sc serveConfig) (policy.RoutinePolicy, buildingruntime.
 		capabilities.Methods = append(capabilities.Methods, policy.MaintainAnimalFeed)
 	}
 	if sc.routineMedicalPlans {
-		capabilities.Methods = append(capabilities.Methods, policy.MaintainMedicalReserves)
+		capabilities.Methods = append(capabilities.Methods, policy.MaintainMedicalReserves, policy.MaintainMedicalCare)
 	}
 	if sc.routineTradePlans {
 		thresholds.Trade = policy.RoutineTradePolicy{SilverReserve: sc.routineSilverReserve, ComponentTarget: sc.routineComponentTarget, ItemWealthShare: sc.routineItemWealthShare}

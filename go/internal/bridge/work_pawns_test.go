@@ -12,7 +12,7 @@ import (
 )
 
 func TestRoutinePawnsOwnWorkSelectionAndValidatePriorities(t *testing.T) {
-	for _, change := range []string{"valid", "unknown-mode", "duplicate", "priority", "inapplicable", "extra-settings"} {
+	for _, change := range []string{"valid", "unknown-mode", "duplicate", "priority", "inapplicable", "care", "extra-settings"} {
 		t.Run(change, func(t *testing.T) {
 			s := combatPawnsFixture()
 			s.Pawns[0].Settings = &o.PawnSettings{WorkApplies: proto.Bool(true), ManualWorkPriorities: proto.Bool(false), Work: []*o.WorkSetting{{DefName: proto.String("Construction"), Priority: proto.Int32(3), Disabled: proto.Bool(false)}}}
@@ -27,6 +27,9 @@ func TestRoutinePawnsOwnWorkSelectionAndValidatePriorities(t *testing.T) {
 			case "inapplicable":
 				settings.WorkApplies = proto.Bool(false)
 			case "extra-settings":
+				settings.HostilityResponse = proto.String("Attack")
+			case "care":
+				settings.MedicalCare = proto.String("NormalOrWorse")
 				settings.SelfTend = proto.Bool(true)
 			}
 			client := testClient(t, &testServer{schema: protoSchema, handler: func(_ context.Context, arg nativeArgument) (*mcp.CallToolResult, error) {
@@ -40,13 +43,13 @@ func TestRoutinePawnsOwnWorkSelectionAndValidatePriorities(t *testing.T) {
 				if err := protojson.Unmarshal([]byte(outer.Request), q); err != nil {
 					t.Fatal(err)
 				}
-				if !q.Details.GetWork() || !q.Details.GetNeeds() || !q.Details.GetSchedule() || !q.Details.GetSocial() || q.Details.GetSettings() || !q.Details.GetBiography() || !q.Details.GetEquipment() {
+				if !q.Details.GetWork() || !q.Details.GetNeeds() || !q.Details.GetSchedule() || !q.Details.GetSocial() || !q.Details.GetSettings() || !q.Details.GetBiography() || !q.Details.GetEquipment() {
 					t.Fatal(q)
 				}
 				return pbResult(&o.ListPawnsReply{Outcome: &o.ListPawnsReply_Observed{Observed: s}}), nil
 			}}, time.Second)
 			_, _, err := client.ReadRoutinePawns(context.Background(), pbIdentity(), []string{"pawn-1"})
-			valid := change == "valid" || change == "unknown-mode"
+			valid := change == "valid" || change == "unknown-mode" || change == "care"
 			if (err == nil) != valid {
 				t.Fatal(change, err)
 			}

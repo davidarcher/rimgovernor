@@ -19,10 +19,10 @@ import (
 // can defer to the upkeep goal whose facility removes it (#255). A native
 // build that skips the block leaves thoughts unknown, never the read failed.
 func (client *Client) ReadRoutinePawns(ctx context.Context, id *c.Identity, ids []string) (*o.ListPawnsReply, Result, error) {
-	return client.readPawnDetails(ctx, id, ids, true, true, false, true, true)
+	return client.readPawnDetails(ctx, id, ids, true, true, true, true, true)
 }
 func ValidateRoutinePawnSnapshot(snapshot *o.PawnSnapshot, id *c.Identity, ids []string) error {
-	return validateDetailedPawnSnapshot(snapshot, id, ids, true, false, true, true)
+	return validateDetailedPawnSnapshot(snapshot, id, ids, true, true, true, true)
 }
 
 // validateSettings enforces that PawnSettings carries only the fields the

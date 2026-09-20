@@ -246,6 +246,11 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 		clockSchedulerLog("routine.step: LoadDefenseLayout err=%v", err)
 		return store.RoutineReviewResult{}, err
 	}
+	medicine, err := policy.ReviewMedicalReserve(reading.Projection.Facts.MedicalReserve, previous.Snapshot == state.Snapshot && previous.Latches.MedicalReserve, r.policy.MedicalReserve)
+	if err != nil {
+		return store.RoutineReviewResult{}, err
+	}
+	reading.Projection.Facts.ResourceNeeds = policy.MedicineResourceNeeds(reading.Projection.Facts.ResourceNeeds, r.policy.MedicineReserveTarget(reading.Projection.Facts.Colonists, medicine.Active))
 	resourceTargets, err := r.policy.EffectiveResourceTargets(reading.Projection.Facts.Resources, reading.Projection.Facts.ResourceNeeds)
 	if err != nil {
 		return store.RoutineReviewResult{}, err

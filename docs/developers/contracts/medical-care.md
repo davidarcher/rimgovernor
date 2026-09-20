@@ -61,6 +61,26 @@ World replacement and tick rewind clear that history. The shared goal retains
 cancellation and renewed-deficit semantics. Go care orders, detailed clinical
 evidence and monitoring composition remain in G01.07a/e.
 
+## Medicine selection
+
+The medical routine chooses an autonomous care ceiling from usable stock and
+fresh disease facts. Early flu uses herbal medicine. A projected loss or tie in
+the immunity race, native life-threatening illness, plague, or malaria at severity
+0.5 or above prefers industrial medicine. Herbal is the fallback when industrial
+is unavailable; industrial is the fallback when no herbal remains. With neither,
+tending continues without medicine. Glitterworld is never selected automatically.
+Unknown clinical or stock facts defer a change.
+
+Auto reassesses the current care setting, including settings changed during Manual.
+Care writes use the existing typed `PatchPawn.medical_care` operation through Hands,
+with the current settings token and observed care readback. A changed token refuses
+a stale action; the next review plans from the new facts. Care-only writes also
+permit downed patients, without enabling work or timetable writes to them.
+
+While the medicine reserve is low, it contributes the configured herbal target per colonist to
+`MaintainResource`; explicit higher resource floors remain authoritative. The
+medical reserve's existing bill and wild-healroot methods continue to work.
+
 ## Surgery
 
 `home/medical_operations` discovers current patient recipes, body-part indices,

@@ -46,6 +46,7 @@ type RoutineReview struct {
 	Enabled                bool
 	Latches                policy.RoutineLatches
 	MedicalCare            policy.MedicalCareHistory
+	MedicineTarget         int64 `json:",omitempty"`
 	StartingSupplies       policy.StartingSupplies
 	EventLoot              policy.EventLootHistory
 	Comfort                policy.ComfortHistory
@@ -104,6 +105,9 @@ func loadRoutine(ctx context.Context, tx *sql.Tx) (RoutineReview, error) {
 	canonical, err := json.Marshal(r)
 	if err != nil || !bytes.Equal(data, canonical) || r.Revision == 0 || r.Snapshot.Validate() != nil || r.Tick < 0 || len(r.Goals) > 305 {
 		return RoutineReview{}, errors.New("invalid routine review history")
+	}
+	if r.MedicineTarget < 0 || r.MedicineTarget > 10000 {
+		return RoutineReview{}, errors.New("invalid medicine resource target")
 	}
 	if err := r.MedicalCare.Validate(); err != nil {
 		return RoutineReview{}, err
@@ -447,6 +451,7 @@ func reviewRoutineTx(ctx context.Context, tx *sql.Tx, request RoutineReviewReque
 	}
 	r := RoutineReview{Revision: previous.Revision + 1, WorkPreferenceRevision: request.WorkPreferenceRevision, Snapshot: b, Tick: request.Tick, Enabled: request.Enabled, Latches: needs.Latches}
 	r.MedicalCare = medical
+	r.MedicineTarget = request.Policy.MedicineReserveTarget(request.Facts.Colonists, needs.Latches.MedicalReserve)
 	r.StartingSupplies = supplies
 	r.EventLoot = loot
 	if request.Enabled {

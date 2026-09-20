@@ -809,6 +809,7 @@ func (r *RoutineReviewer) resourceTargets(ctx context.Context, snapshot domain.G
 		return nil, err
 	}
 	if review.Enabled && review.Snapshot == snapshot {
+		needs = policy.MedicineResourceNeeds(needs, review.MedicineTarget)
 		needs = policy.ResourceGoalTargets(needs, policy.ResourceRunwayTargets(review.ResourceRunwayState()))
 	}
 	return r.policy.EffectiveResourceTargets(stock, needs)

@@ -157,6 +157,9 @@ func (r *RoutineMedicalPlanner) step(call, epoch context.Context, arbiter *stepA
 	if !review.Enabled || review.Snapshot != state.Snapshot {
 		return RoutineMedicalResult{Reason: BuildingMethodNoReview}, nil
 	}
+	if result, err := r.planMedicineTier(call, epoch, state, review, arbiter); err != nil || result.Plan != "" || result.Reason == BuildingMethodExistingWork {
+		return result, err
+	}
 	var goal store.GoalState
 	found := false
 	for _, binding := range review.Goals {

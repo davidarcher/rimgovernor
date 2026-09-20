@@ -83,7 +83,7 @@ func (p RoutinePolicy) ResourceGoalConfigured() bool {
 // TracksResource reports whether resource is one MaintainResource keeps a
 // floor for, so a workshop ladder record for it still drives research.
 func (p RoutinePolicy) TracksResource(resource Resource) bool {
-	return p.ResourceTargets[resource] > 0 || p.StoneBlockTarget > 0 && StoneBlockResource(resource)
+	return p.ResourceTargets[resource] > 0 || p.StoneBlockTarget > 0 && StoneBlockResource(resource) || resource == "MedicineHerbal" && p.MedicalReserve.TargetPerColonist > 0
 }
 
 // EffectiveResourceTargets is the MaintainResource target map one review or

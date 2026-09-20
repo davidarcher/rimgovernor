@@ -68,3 +68,23 @@ func TestWorkFixedCapabilityAndReceiptCorrelation(t *testing.T) {
 		})
 	}
 }
+
+func TestMedicalCareOperationAndEvidence(t *testing.T) {
+	w, err := domain.NewMedicalCareAssignment("pawn", "before", "HerbalOrWorse")
+	if err != nil {
+		t.Fatal(err)
+	}
+	patch := workOperation(w).GetPatchPawn()
+	if patch.GetMedicalCare() != op.MedicalCare_MEDICAL_CARE_HERBAL_OR_WORSE || len(patch.Work) != 0 {
+		t.Fatal(patch)
+	}
+	effect := workTestEffect()
+	effect.GetSettings().Fields = []*r.FieldResult{{Field: r.SettingsField_SETTINGS_FIELD_MEDICAL_CARE.Enum(), Outcome: r.FieldOutcome_FIELD_OUTCOME_APPLIED.Enum()}}
+	if err := workEffect(effect, w, true); err != nil {
+		t.Fatal(err)
+	}
+	effect.GetSettings().Fields[0].Field = r.SettingsField_SETTINGS_FIELD_WORK.Enum()
+	if err := workEffect(effect, w, true); err == nil {
+		t.Fatal("work receipt certified care")
+	}
+}

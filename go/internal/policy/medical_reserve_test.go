@@ -6,6 +6,35 @@ import (
 	"testing"
 )
 
+func TestMedicineReserveJoinsResourceFloors(t *testing.T) {
+	p := DefaultRoutinePolicy()
+	needs := map[Resource]int64{"Steel": 20, "MedicineHerbal": 30}
+	if got := p.MedicineReserveTarget(domain.Known(int64(8)), true); got != 24 {
+		t.Fatal(got)
+	}
+	merged := MedicineResourceNeeds(needs, 24)
+	if merged["Steel"] != 20 || merged["MedicineHerbal"] != 30 || len(needs) != 2 {
+		t.Fatal(merged, needs)
+	}
+	if got := MedicineResourceNeeds(nil, 24); got["MedicineHerbal"] != 24 {
+		t.Fatal(got)
+	}
+	if got := p.MedicineReserveTarget(domain.Unknown[int64](), true); got != 0 {
+		t.Fatal(got)
+	}
+	if !p.TracksResource("MedicineHerbal") {
+		t.Fatal("medicine workshop research must remain tracked")
+	}
+}
+
+func TestGlitterworldDoesNotSatisfyAutonomousMedicineReserve(t *testing.T) {
+	f := MedicalReserveObservation{Colonists: domain.Known(int64(1)), Resources: domain.Known([]Amount{{Resource: "MedicineUltratech", Count: 10}}), Items: domain.Known([]MedicineStack{{ID: "glitterworld", Definition: "MedicineUltratech", Count: 10, Perishable: domain.Known(false)}})}
+	review, err := ReviewMedicalReserve(f, false, DefaultMedicalReservePolicy())
+	if err != nil || !review.Active || review.Stock != domain.Known(int64(0)) {
+		t.Fatal(review, err)
+	}
+}
+
 func TestMedicineReserveHysteresisAndUsableStockCaps(t *testing.T) {
 	f := MedicalReserveObservation{Colonists: domain.Known(int64(3)), Resources: domain.Known([]Amount{{"MedicineHerbal", 20}})}
 	active := false

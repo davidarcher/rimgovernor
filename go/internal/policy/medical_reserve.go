@@ -34,6 +34,27 @@ type MedicalReserveReview struct {
 
 func DefaultMedicalReservePolicy() MedicalReservePolicy { return MedicalReservePolicy{1, 3} }
 
+// MedicineReserveTarget supplies MaintainResource's renewable herbal floor.
+// Industrial stock remains available for urgent treatment; glitterworld stock
+// never substitutes for the reserve that autonomous play replenishes.
+func (p RoutinePolicy) MedicineReserveTarget(colonists domain.Fact[int64], active bool) int64 {
+	count, known := colonists.Value()
+	if !active || !known || count <= 0 || p.MedicalReserve.TargetPerColonist <= 0 {
+		return 0
+	}
+	if count > 10000/p.MedicalReserve.TargetPerColonist {
+		return 10000
+	}
+	return count * p.MedicalReserve.TargetPerColonist
+}
+
+func MedicineResourceNeeds(needs map[Resource]int64, target int64) map[Resource]int64 {
+	if target <= 0 {
+		return needs
+	}
+	return ResourceGoalTargets(needs, map[Resource]int64{"MedicineHerbal": target})
+}
+
 // ReviewMedicalReserve preserves the latch through unavailable reads. Equal entry
 // stock does not activate it; equal recovery stock clears it. Future production
 // and expired stacks never contribute to the current reserve.
@@ -77,7 +98,7 @@ func ReviewMedicalReserve(v MedicalReserveObservation, active bool, p MedicalRes
 		if tk && ticks < 0 {
 			return r, invalid
 		}
-		if item.Forbidden || !(known && !perishable || tk && ticks > 0) {
+		if item.Definition == "MedicineUltratech" || item.Forbidden || !(known && !perishable || tk && ticks > 0) {
 			continue
 		}
 		if item.Count > math.MaxInt64-usable[item.Definition] {

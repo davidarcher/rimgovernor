@@ -33,6 +33,7 @@ type WorkAssignment struct {
 	areaID    string
 	schedule  string
 	food      string
+	care      string
 }
 
 func newWorkAssignment(pawn PawnID, before string, manual bool, settings []WorkSetting, hasArea, areaClear bool, areaID string, schedule []string, food ...string) (WorkAssignment, error) {
@@ -103,8 +104,19 @@ func newWorkAssignment(pawn PawnID, before string, manual bool, settings []WorkS
 		}
 		encodedFood = string(data)
 	}
-	return WorkAssignment{pawn, before, manual, string(data), hasArea, areaClear, areaID, encodedSchedule, encodedFood}, nil
+	return WorkAssignment{pawn: pawn, before: before, manual: manual, settings: string(data), hasArea: hasArea, areaClear: areaClear, areaID: areaID, schedule: encodedSchedule, food: encodedFood}, nil
 }
+
+// NewMedicalCareAssignment changes only the medicine ceiling through PatchPawn.
+// Automatic care never authorizes glitterworld medicine or disables tending.
+func NewMedicalCareAssignment(pawn PawnID, before, care string) (WorkAssignment, error) {
+	if !validID(string(pawn)) || !validID(before) || care != "NoMeds" && care != "HerbalOrWorse" && care != "NormalOrWorse" {
+		return WorkAssignment{}, errors.New("invalid medical care assignment")
+	}
+	return WorkAssignment{pawn: pawn, before: before, settings: "null", care: care}, nil
+}
+
+func (w WorkAssignment) MedicalCare() string { return w.care }
 
 // NewFoodAssignment carries a bounded diet expansion through the pawn settings CAS.
 func NewFoodAssignment(pawn PawnID, before string, defs []string) (WorkAssignment, error) {
@@ -173,6 +185,9 @@ func (w WorkAssignment) Schedule() []string {
 // bridge, decoding a stored payload) use it to confirm the value is still
 // exactly what NewWorkAssignment/NewAreaAssignment would have produced.
 func (w WorkAssignment) Canonical() (WorkAssignment, error) {
+	if w.care != "" {
+		return NewMedicalCareAssignment(w.pawn, w.before, w.care)
+	}
 	return newWorkAssignment(w.pawn, w.before, w.manual, w.Settings(), w.hasArea, w.areaClear, w.areaID, w.Schedule(), w.FoodAllow()...)
 }
 

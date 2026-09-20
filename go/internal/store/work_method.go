@@ -24,8 +24,13 @@ func admitWorkMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan domai
 	}
 	bound := false
 	areaOnly := false
+	need := policy.EnsureWorkAssignments
+	medical := medicalCarePlan(plan)
+	if medical {
+		need = policy.MaintainMedicalCare
+	}
 	for _, binding := range review.Goals {
-		bound = bound || binding.Need == policy.EnsureWorkAssignments && binding.Goal == goal.Goal.ID
+		bound = bound || binding.Need == need && binding.Goal == goal.Goal.ID
 		areaOnly = areaOnly || binding.Need == policy.RecoverDisasterServices && binding.Goal == goal.Goal.ID
 	}
 	if !bound && !areaOnly {
@@ -34,7 +39,7 @@ func admitWorkMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan domai
 	pawns := map[domain.PawnID]bool{}
 	for _, action := range plan.Actions() {
 		w, ok := action.WorkAssignment()
-		if !ok || pawns[w.Pawn()] {
+		if !ok || pawns[w.Pawn()] || (w.MedicalCare() != "") != medical {
 			return ErrConflict
 		}
 		if areaOnly && (!w.HasArea() || w.HasSchedule() || len(w.Settings()) != 0) {
@@ -43,4 +48,19 @@ func admitWorkMethod(ctx context.Context, tx *sql.Tx, goal GoalState, plan domai
 		pawns[w.Pawn()] = true
 	}
 	return nil
+}
+
+// Care settings may accompany hospital construction or bed-rest work in the
+// same medical goal; their admission remains a care-only plan below that goal.
+func medicalCarePlan(plan domain.PlanSpec) bool {
+	if len(plan.Actions()) == 0 {
+		return false
+	}
+	for _, action := range plan.Actions() {
+		w, ok := action.WorkAssignment()
+		if !ok || w.MedicalCare() == "" {
+			return false
+		}
+	}
+	return true
 }

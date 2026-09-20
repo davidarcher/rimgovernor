@@ -10,6 +10,8 @@ import (
 // CarePawn is a fresh native health assessment, independent of urgent tending.
 type CarePawn struct {
 	ID                                        PawnID
+	Care, SettingsToken                       domain.Fact[string]
+	LifeThreatening                           domain.Fact[bool]
 	Conditions                                domain.Fact[[]CareCondition]
 	Dead, NeedsRest, NeedsTend, BadConditions domain.Fact[bool]
 }
