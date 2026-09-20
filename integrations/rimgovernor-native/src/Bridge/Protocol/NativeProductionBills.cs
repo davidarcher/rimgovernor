@@ -16,17 +16,20 @@ using Receipts=RimGovernor.Protocol.Receipts;
 namespace HomeBridge.BridgeTools {
  internal static class NativeProductionBills {
   internal static string Hash(Action<BinaryWriter> write){using(var bytes=new MemoryStream()){using(var writer=new BinaryWriter(bytes,Encoding.UTF8,true))write(writer);using(var hash=SHA256.Create())return "bill-"+BitConverter.ToString(hash.ComputeHash(bytes.ToArray())).Replace("-","").ToLowerInvariant();}}
-  internal static string Configuration(Bill bill)=>Hash(w=>{
-   w.Write(bill is SocialBeerBill);
-   w.Write(bill.GetUniqueLoadID());w.Write(bill.recipe.defName);w.Write(bill.suspended);w.Write(bill.ingredientSearchRadius);w.Write(bill.allowedSkillRange.min);w.Write(bill.allowedSkillRange.max);
-   w.Write(bill.PawnRestriction?.GetUniqueLoadID()??"");w.Write(bill.SlavesOnly);w.Write(bill.MechsOnly);w.Write(bill.NonMechsOnly);w.Write(bill.GetStoreMode()?.defName??"");var group=bill.GetSlotGroup();w.Write(group!=null);if(group!=null){if(group.CellsList.Count>65536)throw new InvalidOperationException("Bill storage bound");w.Write(group.CellsList.Count);foreach(var c in group.CellsList.OrderBy(c=>c.x).ThenBy(c=>c.z)){w.Write(c.x);w.Write(c.z);}}
-   if(bill is Bill_Production p){w.Write(p.repeatMode.defName);w.Write(p.repeatCount);w.Write(p.targetCount);w.Write(p.unpauseWhenYouHave);w.Write(p.pauseWhenSatisfied);w.Write(p.hpRange.min);w.Write(p.hpRange.max);w.Write((int)p.qualityRange.min);w.Write((int)p.qualityRange.max);w.Write(p.limitToAllowedStuff);w.Write(p.includeEquipped);w.Write(p.includeTainted);}
-   w.Write(FilterConfiguration(bill.ingredientFilter));
+  internal static string Configuration(Bill bill,Dictionary<string,string>? fields=null)=>Hash(raw=>{
+   var w=new NativeBillConfiguration(raw,fields);
+   w.Write("socialBeer",bill is SocialBeerBill);
+   w.Write("billId",bill.GetUniqueLoadID());w.Write("recipe",bill.recipe.defName);w.Write("suspended",bill.suspended);w.Write("ingredientSearchRadius",bill.ingredientSearchRadius);w.Write("skill.min",bill.allowedSkillRange.min);w.Write("skill.max",bill.allowedSkillRange.max);
+   w.Write("worker",bill.PawnRestriction?.GetUniqueLoadID()??"");w.Write("slavesOnly",bill.SlavesOnly);w.Write("mechsOnly",bill.MechsOnly);w.Write("nonMechsOnly",bill.NonMechsOnly);w.Write("storeMode",bill.GetStoreMode()?.defName??"");var group=bill.GetSlotGroup();
+   w.Group("storeCells",g=>{g.Write(group!=null);if(group!=null){if(group.CellsList.Count>65536)throw new InvalidOperationException("Bill storage bound");g.Write(group.CellsList.Count);foreach(var c in group.CellsList.OrderBy(c=>c.x).ThenBy(c=>c.z)){g.Write(c.x);g.Write(c.z);}}});
+   if(bill is Bill_Production p){w.Write("repeatMode",p.repeatMode.defName);w.Write("repeatCount",p.repeatCount);w.Write("targetCount",p.targetCount);w.Write("unpauseWhenYouHave",p.unpauseWhenYouHave);w.Write("pauseWhenSatisfied",p.pauseWhenSatisfied);w.Write("hp.min",p.hpRange.min);w.Write("hp.max",p.hpRange.max);w.Write("quality.min",(int)p.qualityRange.min);w.Write("quality.max",(int)p.qualityRange.max);w.Write("limitToAllowedStuff",p.limitToAllowedStuff);w.Write("includeEquipped",p.includeEquipped);w.Write("includeTainted",p.includeTainted);}
+   raw.Write(FilterConfiguration(bill.ingredientFilter,fields));
   });
-  private static string FilterConfiguration(ThingFilter filter)=>Hash(w=>{
-   var defs=filter.AllowedThingDefs.OrderBy(d=>d.defName,StringComparer.Ordinal).ToArray();if(defs.Length>65536)throw new InvalidOperationException("Bill filter bound");w.Write(defs.Length);foreach(var d in defs)w.Write(d.defName);
-   w.Write(filter.AllowedHitPointsPercents.min);w.Write(filter.AllowedHitPointsPercents.max);w.Write((int)filter.AllowedQualityLevels.min);w.Write((int)filter.AllowedQualityLevels.max);w.Write(filter.AllowedMentalBreakChance.min);w.Write(filter.AllowedMentalBreakChance.max);
-   foreach(var f in DefDatabase<SpecialThingFilterDef>.AllDefsListForReading.OrderBy(d=>d.defName,StringComparer.Ordinal)){w.Write(f.defName);w.Write(filter.Allows(f));}
+  private static string FilterConfiguration(ThingFilter filter,Dictionary<string,string>? fields=null)=>Hash(raw=>{
+   var w=new NativeBillConfiguration(raw,fields);
+   w.Group("ingredients.defs",g=>{var defs=filter.AllowedThingDefs.OrderBy(d=>d.defName,StringComparer.Ordinal).ToArray();if(defs.Length>65536)throw new InvalidOperationException("Bill filter bound");g.Write(defs.Length);foreach(var d in defs)g.Write(d.defName);});
+   w.Write("ingredients.hp.min",filter.AllowedHitPointsPercents.min);w.Write("ingredients.hp.max",filter.AllowedHitPointsPercents.max);w.Write("ingredients.quality.min",(int)filter.AllowedQualityLevels.min);w.Write("ingredients.quality.max",(int)filter.AllowedQualityLevels.max);w.Write("ingredients.mentalBreak.min",filter.AllowedMentalBreakChance.min);w.Write("ingredients.mentalBreak.max",filter.AllowedMentalBreakChance.max);
+   w.Group("ingredients.special",g=>{foreach(var f in DefDatabase<SpecialThingFilterDef>.AllDefsListForReading.OrderBy(d=>d.defName,StringComparer.Ordinal)){g.Write(f.defName);g.Write(filter.Allows(f));}});
   });
   internal static Obs.SnapshotRef Snapshot(Thing bench,IBillGiver giver,Common.ObservationContext context)=>new Obs.SnapshotRef{Context=context.Clone(),EntityId=bench.GetUniqueLoadID(),Token=Hash(w=>{w.Write(context.Identity.ColonyId);w.Write(context.Identity.LoadToken);w.Write(context.Identity.MapId);w.Write(bench.GetUniqueLoadID());w.Write(giver.BillStack.Count);if(giver.BillStack.Count>15)throw new InvalidOperationException("Bill stack bound");foreach(var b in giver.BillStack.Bills){w.Write(Configuration(b));w.Write(b is Bill_Production p&&p.paused);}})};
   internal static bool Usable(Thing bench)=>bench.Spawned&&ProtoBoundary.IsLoaded(bench.Map)&&bench.Faction==Faction.OfPlayer&&!bench.IsForbidden(Faction.OfPlayer)&&!bench.Position.Fogged(bench.Map)&&!bench.IsBurning()&&bench is IBillGiver g&&g.CurrentlyUsableForBills();

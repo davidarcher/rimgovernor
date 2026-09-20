@@ -19,7 +19,9 @@ namespace HomeBridge.BridgeTools {
   internal bool Retired;
   internal string Config="";internal int Index=-1;internal uint Iterations;internal long Generated;internal bool Unreadable;
   internal NativeProductionRecord(Thing bench,IBillGiver giver,Bill_Production bill,string before){Bench=bench;Giver=giver;Bill=bill;Before=before;Map=bench.Map;}
-  internal void Capture(){Config=NativeProductionBills.Configuration(Bill);Index=Giver.BillStack.IndexOf(Bill);}
+  private readonly Dictionary<string,string> configurationFields=new Dictionary<string,string>();
+  internal void Capture(){configurationFields.Clear();Config=NativeProductionBills.Configuration(Bill,configurationFields);Index=Giver.BillStack.IndexOf(Bill);}
+  private string ConfigurationChanges(){var current=new Dictionary<string,string>();NativeProductionBills.Configuration(Bill,current);return NativeBillConfiguration.Changes(configurationFields,current,Index,Giver.BillStack.IndexOf(Bill));}
   internal Receipts.BillEffect Evidence(Common.ObservationContext context){
    var present=Bench.Spawned&&Bench.Map==Map&&Giver.BillStack.Bills.Contains(Bill);var total=Outputs.Values.Sum(v=>(long)v);
    var result=new Receipts.BillEffect{Stack=new Receipts.SnapshotEvidence{EntityId=Bench.GetUniqueLoadID(),BeforeToken=Before},BillId=Bill.GetUniqueLoadID(),RecipeDef=Bill.recipe.defName,Present=present,Index=present?Giver.BillStack.IndexOf(Bill):-1,ConfigurationMatches=present&&Index>=0&&Giver.BillStack.IndexOf(Bill)==Index&&NativeProductionBills.Configuration(Bill)==Config,Iterations=Iterations,OutputComplete=NativeProductionTracking.Ready&&!Unreadable&&total==Generated,OutputObserved=NativeProductionTracking.Ready&&!Unreadable&&total==Generated&&Outputs.Count>0};
@@ -31,7 +33,7 @@ namespace HomeBridge.BridgeTools {
   internal Receipts.Progress Observe(Common.AttemptKey attempt,Common.ObservationContext context){var result=new Receipts.Progress{Attempt=attempt.Clone(),Context=context.Clone(),CompleteInspection=true};var value=Evidence(context);var evidence=new Receipts.EffectEvidence{Bill=value};
    if(!value.Present && Retired)result.Unsuccessful=new Receipts.UnsuccessfulEffect{Reason=Receipts.UnsuccessfulReason.OutcomeNotAchieved,Evidence=evidence,Detail="Owned meal bill superseded."};
    else if(!value.Present){result.CompleteInspection=false;result.Unknown=new Receipts.UnknownEffect{Reason="Original bill unavailable."};}
-   else if(!value.ConfigurationMatches)result.Unsuccessful=new Receipts.UnsuccessfulEffect{Reason=Receipts.UnsuccessfulReason.OutcomeNotAchieved,Evidence=evidence,Detail="Original bill configuration changed."};
+   else if(!value.ConfigurationMatches)result.Unsuccessful=new Receipts.UnsuccessfulEffect{Reason=Receipts.UnsuccessfulReason.OutcomeNotAchieved,Evidence=evidence,Detail=ConfigurationChanges()};
    else if(value.Iterations>0&&value.OutputComplete&&value.OutputObserved)result.Completed=new Receipts.CompletedEffect{Evidence=evidence};
    else if(value.Iterations>0&&value.OutputComplete&&value.Outputs.Count==0)result.Unsuccessful=new Receipts.UnsuccessfulEffect{Reason=Receipts.UnsuccessfulReason.OutcomeNotAchieved,Evidence=evidence,Detail="Ordinary bill iteration produced no item."};
    else if(value.Iterations==0)result.Pending=new Receipts.PendingEffect{Evidence=evidence};

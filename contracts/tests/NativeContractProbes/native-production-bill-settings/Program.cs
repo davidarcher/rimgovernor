@@ -4,8 +4,35 @@ using Operations = RimGovernor.Protocol.Operations;
 
 internal static class NativeProductionBillSettingsProbe
 {
+    private static void ConfigurationDiagnostics()
+    {
+        var fields = new System.Collections.Generic.Dictionary<string,string>();
+        byte[] Write(bool annotate) {
+            using (var bytes = new System.IO.MemoryStream()) {
+                using (var writer = new System.IO.BinaryWriter(bytes, System.Text.Encoding.UTF8, true)) {
+                    var config = new NativeBillConfiguration(writer, annotate ? fields : null);
+                    config.Write("flag", true); config.Write("count", 65); config.Write("radius", 40f);
+                    config.Write("recipe", "Make_Kibble");
+                    config.Group("defs", w => { w.Write(2); w.Write("Hay"); w.Write("Meat_Muffalo"); });
+                    config.Write("long", new string('x', 10000));
+                }
+                return bytes.ToArray();
+            }
+        }
+        var plain = Write(false); var annotated = Write(true);
+        Check(System.Linq.Enumerable.SequenceEqual(plain, annotated), "diagnostics changed hash input");
+        Check(fields["long"].Length == 71, "large value was not digested");
+        var after = new System.Collections.Generic.Dictionary<string,string>(fields);
+        after["count"] = "66";
+        var detail = NativeBillConfiguration.Changes(fields, after, 0, 1);
+        Check(detail.Contains("count=65 -> 66") && detail.Contains("index=0 -> 1"), "before/after or order missing");
+        for (var i = 0; i < 40; i++) { fields["field"+i] = new string('a',80); after["field"+i] = new string('b',80); }
+        detail = NativeBillConfiguration.Changes(fields, after, 0, 1);
+        Check(detail.Length <= 1536 && detail.Contains("omitted=36"), "diagnostic budget or omission count");
+    }
     public static void Invoke()
     {
+        ConfigurationDiagnostics();
         var bill = new Operations.AddBill {
             Bench = new Operations.EntityPrecondition { EntityId = "tailor", ExpectedSnapshotToken = "token" },
             RecipeDef = "Make_Apparel_BasicShirt",

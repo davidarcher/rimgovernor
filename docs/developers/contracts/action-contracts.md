@@ -160,3 +160,17 @@ The bill census reports whether ingredient definitions, ranges and special rules
 match Auto defaults, along with worker-category/skill restrictions and the pinned
 pawn. Ordinary cooking also reports its allowed definitions for explicit diets.
 Butchery retains its separate human-corpse census and routing.
+
+### Production configuration diagnostics
+
+Native bill progress rejects a changed configuration or stack index even when
+output was produced. Its unsuccessful detail names up to six changed fields
+with captured and current values, an omitted-field count, and a 1536-byte ASCII
+bound. Collection fields (ingredient definitions, special filters and storage
+cells) use full SHA-256 digests; long or non-ASCII scalar values use digests too.
+These diagnostics are emitted only for unsuccessful progress, not colony facts.
+Native pause state remains outside the configuration hash.
+
+Saving can change a bill: RimWorld's Bill.ExposeData prunes ingredient
+definitions excluded by the recipe's fixed filter. Production/configuration
+reproduces this for a Kibble bill and checks scalar and reorder rejection.
