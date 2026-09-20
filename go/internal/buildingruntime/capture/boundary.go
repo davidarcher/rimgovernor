@@ -123,7 +123,7 @@ func (b *CaptureBoundary) InspectCapture(ctx context.Context, target executor.Ta
 	if err != nil {
 		return out, err
 	}
-	preview, _, err := b.native.PreviewPawnOrder(ctx, boundary.Identity(current), captureCommand(string(capture.Capturer()), string(capture.Patient()), capturerToken, patientToken))
+	preview, err := b.preview(ctx, current, capture, capturerToken, patientToken)
 	if err != nil {
 		return out, err
 	}
@@ -135,7 +135,10 @@ func (b *CaptureBoundary) InspectCapture(ctx context.Context, target executor.Ta
 		return out, err
 	}
 	job := evaluated.GetProjected().GetJob()
-	if evaluated.Context.GetTick() < observed.Context.GetTick() || evaluated.Accepted == nil || job == nil || job.GetPawnId() != string(capture.Capturer()) || job.GetTargetA().GetThingId() != string(capture.Patient()) || job.GetJobDef() != "Capture" || job.CanTry == nil || job.GetCanTry() != evaluated.GetAccepted() {
+	if evaluated.Context.GetTick() < observed.Context.GetTick() || evaluated.Accepted == nil {
+		return out, executor.ErrEvidence
+	}
+	if !capture.Arrest() && (job == nil || job.GetPawnId() != string(capture.Capturer()) || job.GetTargetA().GetThingId() != string(capture.Patient()) || job.GetJobDef() != "Capture" || job.CanTry == nil || job.GetCanTry() != evaluated.GetAccepted()) {
 		return out, executor.ErrEvidence
 	}
 	emergency, _, err := b.native.ReadEmergency(ctx, boundary.Identity(current))
@@ -151,7 +154,7 @@ func (b *CaptureBoundary) InspectCapture(ctx context.Context, target executor.Ta
 	if !domain.Tick(emergency.Context.GetTick()).Covers(domain.Tick(observed.Context.GetTick())) {
 		return out, executor.ErrEvidence
 	}
-	facts := policy.CaptureFacts{Snapshot: current, PawnTick: domain.Tick(observed.Context.GetTick()), PreviewTick: domain.Tick(evaluated.Context.GetTick()), NativeCanTry: boundary.FactBool(job.CanTry)}
+	facts := policy.CaptureFacts{Snapshot: current, PawnTick: domain.Tick(observed.Context.GetTick()), PreviewTick: domain.Tick(evaluated.Context.GetTick()), NativeCanTry: boundary.FactBool(evaluated.Accepted)}
 	facts.Emergency, err = policy.NewEmergencySnapshot(current, domain.Tick(evaluated.Context.GetTick()), emergency.Facts)
 	if err != nil {
 		return out, err
@@ -168,7 +171,7 @@ func (b *CaptureBoundary) attempt(dispatch executor.CaptureDispatch) (bridge.Paw
 	if !ok || p.Attempt == 0 || p.Tick < 0 || admission.Snapshot != p.Snapshot || admission.Capturer != capture.Capturer() || admission.Patient != capture.Patient() || admission.Tick > p.Tick || !boundary.ValidID(admission.CapturerSnapshotToken) || !boundary.ValidID(admission.PatientSnapshotToken) {
 		return bridge.PawnOrderAttempt{}, executor.ErrEvidence
 	}
-	return bridge.PawnOrderAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, NativeGeneration: uint64(p.Snapshot.Native), PawnID: string(capture.Capturer()), TargetID: string(capture.Patient()), Kind: o.PawnOrderKind_PAWN_ORDER_KIND_CAPTURE, RequireSafeStorage: false}, nil
+	return bridge.PawnOrderAttempt{Identity: boundary.Identity(p.Snapshot), Attempt: &c.AttemptKey{ControllerSessionId: proto.String(b.session), ActionId: proto.String(string(p.Action.ID())), AttemptId: proto.Uint64(uint64(p.Attempt))}, NativeGeneration: uint64(p.Snapshot.Native), PawnID: string(capture.Capturer()), TargetID: string(capture.Patient()), Kind: o.PawnOrderKind_PAWN_ORDER_KIND_CAPTURE, RequireSafeStorage: false, ArrestBed: capture.Bed()}, nil
 }
 
 func captureJob(job *r.JobEffect, dispatch executor.CaptureDispatch) error {
@@ -176,8 +179,14 @@ func captureJob(job *r.JobEffect, dispatch executor.CaptureDispatch) error {
 		return nil
 	}
 	capture, _ := dispatch.Attempt.Action.Capture()
-	if job.GetPawnId() != string(capture.Capturer()) || job.GetTargetA().GetThingId() != string(capture.Patient()) || job.GetJobDef() != "Capture" || job.JobId == nil || job.GetJobId() < 0 {
+	if job.GetPawnId() != string(capture.Capturer()) || job.GetTargetA().GetThingId() != string(capture.Patient()) || job.GetJobDef() != captureJobDef(capture) || job.JobId == nil || job.GetJobId() < 0 {
 		return executor.ErrEvidence
+	}
+	if capture.Arrest() {
+		if job.GetTargetB().GetThingId() != capture.Bed() || !boundary.ValidID(job.GetDraftClaimId()) {
+			return executor.ErrEvidence
+		}
+		return nil
 	}
 	if job.Drafted != nil && job.GetDrafted() || job.DraftClaimId != nil || job.DraftOwner != nil {
 		return executor.ErrEvidence
@@ -186,6 +195,9 @@ func captureJob(job *r.JobEffect, dispatch executor.CaptureDispatch) error {
 }
 
 func (b *CaptureBoundary) CapturePatient(ctx context.Context, dispatch executor.CaptureDispatch) (executor.Receipt, error) {
+	if c, _ := dispatch.Attempt.Action.Capture(); c.Arrest() {
+		return b.arrest(ctx, dispatch)
+	}
 	return boundary.DispatchPawnOrder(ctx, b.leases, b.writer, dispatch.Attempt,
 		func() (bridge.PawnOrderAttempt, error) { return b.attempt(dispatch) },
 		func(attempt bridge.PawnOrderAttempt) *o.PawnTargetOrder {

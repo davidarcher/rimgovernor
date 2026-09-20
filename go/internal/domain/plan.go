@@ -331,6 +331,18 @@ func NewPlan(id PlanID, revision PlanRevision, actions []Action, dependencies ..
 	if err != nil {
 		return PlanSpec{}, err
 	}
+	for _, a := range actions {
+		if capture, ok := a.Capture(); ok && capture.Arrest() {
+			owned := false
+			for _, dep := range deps {
+				draft, isDraft := seen[dep.Requires].OwnedDraft()
+				owned = owned || dep.Action == a.ID() && dep.Coupled && isDraft && draft.Pawn() == capture.Capturer()
+			}
+			if !owned {
+				return PlanSpec{}, errors.New("arrest requires a coupled owned draft for its capturer")
+			}
+		}
+	}
 	return PlanSpec{id, revision, append([]Action(nil), actions...), deps}, nil
 }
 func (p PlanSpec) ID() PlanID             { return p.id }

@@ -68,7 +68,11 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 	} else if rescue, ok := a.Rescue(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target) VALUES(?,?,?,'rescue',?,?)", a.ID(), plan, ordinal, rescue.Rescuer(), rescue.Patient())
 	} else if capture, ok := a.Capture(); ok {
-		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target) VALUES(?,?,?,'capture',?,?)", a.ID(), plan, ordinal, capture.Capturer(), capture.Patient())
+		if capture.Arrest() {
+			_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target,definition) VALUES(?,?,?,'capture',?,?,?)", a.ID(), plan, ordinal, capture.Capturer(), capture.Patient(), capture.Bed())
+		} else {
+			_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target) VALUES(?,?,?,'capture',?,?)", a.ID(), plan, ordinal, capture.Capturer(), capture.Patient())
+		}
 	} else if ranged, ok := a.RangedAttack(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target,draft_action) VALUES(?,?,?,'ranged_attack',?,?,?)", a.ID(), plan, ordinal, ranged.Pawn(), ranged.Target(), ranged.DraftAction())
 	} else if mv, ok := a.Movement(); ok {
@@ -533,8 +537,11 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		a, err := domain.NewRescueAction(id, r)
 		return a, ordinal, err
 	}
-	if kind == "capture" && pawn.Valid && target.Valid && !draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid {
+	if kind == "capture" && pawn.Valid && target.Valid && !draftAction.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid {
 		c, err := domain.NewCapture(domain.PawnID(pawn.String), domain.PawnID(target.String))
+		if def.Valid {
+			c, err = domain.NewArrest(domain.PawnID(pawn.String), domain.PawnID(target.String), def.String)
+		}
 		if err != nil {
 			return domain.Action{}, 0, err
 		}

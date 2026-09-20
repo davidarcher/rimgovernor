@@ -156,7 +156,7 @@ func EvaluateCapture(r CaptureRequest) DraftDecision {
 	if dead || downed {
 		return refuse(CriticalMedical)
 	}
-	if drafted || mental {
+	if drafted != capture.Arrest() || mental {
 		return refuse(PlayerOrder)
 	}
 	if existingCapturerJob == "Capture" {
@@ -177,7 +177,7 @@ func EvaluateCapture(r CaptureRequest) DraftDecision {
 	if patientDead {
 		return refuse(PatientIneligible)
 	}
-	if !patientDowned || patientPrisoner {
+	if patientDowned == capture.Arrest() || patientPrisoner {
 		// Already captured or never needed capture; nothing left to admit.
 		return refuse(PatientIneligible)
 	}

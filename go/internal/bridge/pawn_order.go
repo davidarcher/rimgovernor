@@ -44,6 +44,9 @@ func pawnOrderAttempt(v PawnOrderAttempt) (PawnOrderAttempt, error) {
 	if err := validID(v.PawnID); err != nil {
 		return PawnOrderAttempt{}, err
 	}
+	if v.ArrestBed != "" && (v.Kind != o.PawnOrderKind_PAWN_ORDER_KIND_CAPTURE || validID(v.ArrestBed) != nil || v.ArrestBed == v.PawnID || v.ArrestBed == v.TargetID) {
+		return PawnOrderAttempt{}, contract("invalid arrest bed")
+	}
 	v.Identity = proto.Clone(v.Identity).(*c.Identity)
 	v.Attempt = proto.Clone(v.Attempt).(*c.AttemptKey)
 	if validID(v.TargetID) != nil || v.TargetID == v.PawnID || len(pawnOrderJobDefs(v.Kind)) == 0 || v.RequireSafeStorage != pawnOrderRequiresSafeStorage(v.Kind) {
@@ -109,7 +112,7 @@ func (control *PawnOrderControl) OrderPawn(ctx context.Context, pre *a.WritePrec
 	if err := pawnOrderCommand(command); err != nil {
 		return nil, Result{}, err
 	}
-	expected, err := pawnOrderAttempt(PawnOrderAttempt{pre.Identity, pre.Attempt, pre.GetExpectedGeneration(), command.Pawn.GetEntityId(), command.Target.GetEntityId(), command.GetKind(), command.GetRequireSafeStorage()})
+	expected, err := pawnOrderAttempt(PawnOrderAttempt{pre.Identity, pre.Attempt, pre.GetExpectedGeneration(), command.Pawn.GetEntityId(), command.Target.GetEntityId(), command.GetKind(), command.GetRequireSafeStorage(), ""})
 	if err != nil {
 		return nil, Result{}, err
 	}

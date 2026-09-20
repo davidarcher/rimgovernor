@@ -11,6 +11,7 @@ import (
 )
 
 func init() {
+	cases.Register(cases.Case{Name: "mood/ancient-arrest", Scope: "Existing Arrest operation delivers a standing neutral Faction.OfAncients pawn to its exact prisoner bed under owned draft; ordinary colonists still require a legal mental state.", Start: cases.Fixture{Op: "test/arrest_prepare"}, Keep: []string{string(na.NeedRest)}, Budget: 2 * time.Minute, Run: func(ctx context.Context, s cases.Session) error { return runArrestTarget(ctx, s, "ancient") }})
 	cases.Register(cases.Case{
 		Name:   "mood/arrest",
 		Scope:  "Vanilla Arrest custody: refuse normal targets, unarmed arresters, hostile Berserk and non-prisoner beds; require owned draft; replay/lookup and observe a living sad-wander target in the exact prisoner bed with its mental state ended.",
@@ -21,7 +22,9 @@ func init() {
 	})
 }
 
-func runArrest(ctx context.Context, s cases.Session) error {
+func runArrest(ctx context.Context, s cases.Session) error { return runArrestTarget(ctx, s, "legal") }
+
+func runArrestTarget(ctx context.Context, s cases.Session, legalFixture string) error {
 	h, identity, prepared := s.Harness(), s.Identity(), s.Prepared()
 	pawnID, targetID := na.AsString(prepared["pawn"]), na.AsString(prepared["target"])
 	bedID, ordinaryBedID := na.AsString(prepared["bed"]), na.AsString(prepared["ordinaryBed"])
@@ -46,7 +49,7 @@ func runArrest(ctx context.Context, s cases.Session) error {
 		{"ordinary-bed", "legal", "prisoner bed", true},
 		{"unowned", "legal", "owned draft claim", false},
 		{"stale", "legal", "snapshot changed", true},
-		{"legal", "legal", "", true},
+		{"legal", legalFixture, "", true},
 	}
 	for i, scenario := range scenarios {
 		staged, err := h.Call(ctx, "stage-"+scenario.name, "test/arrest_stage", map[string]any{"pawnId": pawnID, "targetId": targetID, "scenario": scenario.fixture})

@@ -541,7 +541,7 @@ var plannerCatalog = []plannerEntry{
 			out.PrisonerInteraction = &method
 			return nil
 		}},
-	{name: "populationCustody", priority: plannerFoothold, kinds: []domain.ActionKind{domain.CaptureAction, domain.RescueAction}, families: factsThreat,
+	{name: "populationCustody", priority: plannerPreempt, kinds: []domain.ActionKind{domain.CaptureAction, domain.RescueAction, domain.OpenCasketAction}, families: []bridge.FactFamily{bridge.FactPawns, bridge.FactEmergency, bridge.FactColony},
 		configured: func(c *ClockSchedulerConfig) bool { return c.PopulationCustody != nil },
 		run: func(s *ClockScheduler, ctx, epoch context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) error {
 			method, err := s.config.PopulationCustody.step(ctx, epoch, arbiter)

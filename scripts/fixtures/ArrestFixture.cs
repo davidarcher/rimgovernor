@@ -56,7 +56,8 @@ namespace HomeBridge.BridgeTools
                 target.drafter.Drafted = false;
                 target.jobs.EndCurrentJob(JobCondition.InterruptForced);
                 target.needs.rest.CurLevelPercentage = 0.1f;
-                if (scenario != "normal")
+                if (scenario == "ancient") target.SetFaction(Faction.OfAncients);
+                if (scenario != "normal" && scenario != "ancient")
                 {
                     var state = scenario == "berserk" ? MentalStateDefOf.Berserk : MentalStateDefOf.Wander_Sad;
                     if (!target.mindState.mentalStateHandler.TryStartMentalState(state, forced: true, forceWake: true))

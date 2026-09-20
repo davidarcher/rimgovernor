@@ -102,7 +102,7 @@ namespace HomeBridge.BridgeTools
             if (pawn == null || target == null || bed == null)
             { failure = ProtoBoundary.Fail(Common.FailureCode.NotFound, "Exact arrest pawn, target or bed is not spawned on this map."); return false; }
             string? reason = null;
-            if (target.Dead || !target.InMentalState) reason = "target is not living in a mental state";
+            if (target.Dead || !target.InMentalState && !(target.Faction == Faction.OfAncients && !target.HostileTo(pawn) && !target.Downed && target.RaceProps.Humanlike && !target.IsPrisonerOfColony)) reason = "target is not living in a mental state or a standing neutral ancient";
             else if (pawn.equipment?.Primary == null || !pawn.equipment.Primary.def.IsWeapon || pawn.WorkTagIsDisabled(WorkTags.Violent))
                 reason = "arrester is unarmed or incapable of violence";
             else if (!pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)) reason = "arrester cannot manipulate";

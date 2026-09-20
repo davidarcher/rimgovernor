@@ -67,7 +67,7 @@ a pawn that is no longer observable anywhere stays unknown.
 
 `home/order` capture uses the installed game's capture eligibility, manipulation,
 reservation and bed checks, followed by its ordinary Capture job. Non-hostile capture
-is explicitly unsupported because it changes faction relations. Rescue remains the
+is explicitly unsupported because it changes faction relations. Standing neutral shrine ancients use the existing `Arrest` operation through the Capture action instead: the journal's `OccupantCapture` decision and known JoinerCapacity create a MaintainPopulation deficit. Its custody planner runs before routine work, wakes after casket opening, reserves an exact vacant prisoner bed and couples arrest to an owned draft. Native completion requires living custody in that bed; no second Arrest order kind is defined. Rescue remains the
 existing ordinary rescue path. Unknown prerequisites block new commitments.
 
 An issued order is not successful custody. The population goal observes actual

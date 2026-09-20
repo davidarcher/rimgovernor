@@ -105,6 +105,10 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 		return RoutinePopulationCustodyResult{}, err
 	}
 	choice := policy.SelectCustodyMethod(read.Projection.Facts.Custody)
+	arrestTarget := policy.ShrineArrestTarget(read.Projection.Facts)
+	if arrestTarget != "" {
+		choice = policy.CustodyChoice{Pawn: arrestTarget}
+	}
 	switch choice.Reason {
 	case policy.CustodyNoDeficit:
 		return RoutinePopulationCustodyResult{Reason: BuildingMethodUsed}, nil
@@ -146,6 +150,7 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 	if counts == nil || counts.Page == nil || !counts.Page.GetComplete() || counts.Page.GetNextCursor() != "" || counts.Matched == nil || counts.Returned == nil || counts.Unreadable == nil || counts.GetUnreadable() != 0 || counts.GetMatched() != uint64(len(ids)) || counts.GetReturned() != uint64(len(ids)) || len(observed.Pawns) != len(ids) {
 		return RoutinePopulationCustodyResult{}, ErrControl
 	}
+	var squad []policy.ShrineDefenderFacts
 	var performers []policy.RescuerFacts
 	var profiles []policy.PawnProfile
 	var patient *n.PawnState
@@ -160,11 +165,15 @@ func (r *RoutinePopulationCustodyPlanner) step(call, epoch context.Context, arbi
 			patient = row
 			continue
 		}
+		squad = append(squad, policy.ShrineDefenderFacts{SquadDefenderFacts: squadDefenderFacts(row)})
 		performers = append(performers, rescue.NewRescuerFacts(pawn, row, ""))
 		profiles = append(profiles, policy.BuildProfile(observation.WorkPawnRow(row)))
 	}
 	if patient == nil {
 		return RoutinePopulationCustodyResult{}, ErrControl
+	}
+	if arrestTarget != "" {
+		return r.commitArrest(call, epoch, p, state, started, goal, read.Projection.Facts, squad, arrestTarget, arbiter)
 	}
 	var action domain.Action
 	var prefix string

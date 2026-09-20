@@ -15,6 +15,8 @@ type PawnOrderAttempt struct {
 	PawnID, TargetID   string
 	Kind               o.PawnOrderKind
 	RequireSafeStorage bool
+	// ArrestBed selects the existing Arrest operation for custody of a standing ancient.
+	ArrestBed string
 }
 
 type PawnOrderControl struct{ client *Client }

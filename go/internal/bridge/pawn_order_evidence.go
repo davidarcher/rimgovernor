@@ -14,13 +14,23 @@ func pawnOrderEvidence(evidence *r.EffectEvidence, expected PawnOrderAttempt) (*
 		return nil, contract("pawn order pawn or target mismatch")
 	}
 	allowed := &r.JobEffect{PawnId: job.PawnId, JobId: job.JobId, JobDef: job.JobDef, TargetA: job.TargetA, Drafted: job.Drafted, Issued: job.Issued, Verified: job.Verified, VerifiedReason: job.VerifiedReason, DraftClaimId: job.DraftClaimId, ResultingSnapshotToken: job.ResultingSnapshotToken}
+	if expected.ArrestBed != "" {
+		allowed.TargetB = job.TargetB
+	}
 	if !proto.Equal(job, allowed) || !diagnostic(job.VerifiedReason) || job.Issued == nil || job.Verified == nil || job.ResultingSnapshotToken == nil {
 		return nil, contract("pawn order effect fields missing or unsupported")
 	}
-	if job.Drafted != nil && job.GetDrafted() || job.DraftClaimId != nil || job.DraftOwner != nil {
+	if expected.ArrestBed == "" && (job.Drafted != nil && job.GetDrafted() || job.DraftClaimId != nil || job.DraftOwner != nil) {
 		return nil, contract("undrafted pawn order cannot carry draft claim facts")
 	}
-	if job.JobId == nil || job.JobDef == nil || job.GetJobId() < 0 || !pawnOrderJobDefAllowed(expected.Kind, job.GetJobDef()) {
+	if expected.ArrestBed != "" && (job.GetTargetB().GetThingId() != expected.ArrestBed || validID(job.GetDraftClaimId()) != nil) {
+		return nil, contract("arrest custody evidence mismatch")
+	}
+	jobAllowed := pawnOrderJobDefAllowed(expected.Kind, job.GetJobDef())
+	if expected.ArrestBed != "" {
+		jobAllowed = job.GetJobDef() == "Arrest"
+	}
+	if job.JobId == nil || job.JobDef == nil || job.GetJobId() < 0 || !jobAllowed {
 		return nil, contract("pawn order job mismatch")
 	}
 	if err := validID(job.GetResultingSnapshotToken()); err != nil {
@@ -135,6 +145,9 @@ func pawnOrderProgress(v *r.Progress, expected PawnOrderAttempt, admitted *r.Rec
 		return contract("pawn order progress cannot issue a job")
 	}
 	original := draftObserved(admitted)
+	if expected.ArrestBed != "" && original != nil && original.GetDraftClaimId() != job.GetDraftClaimId() {
+		return contract("arrest progress draft claim mismatch")
+	}
 	if completed && original != nil && (!proto.Equal(original.TargetA, job.TargetA) || original.JobId != nil && (job.JobId == nil || original.GetJobId() != job.GetJobId()) || original.JobDef != nil && original.GetJobDef() != job.GetJobDef()) {
 		return contract("pawn order completion lacks original job correlation")
 	}
