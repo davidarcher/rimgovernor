@@ -237,10 +237,10 @@ func TestRemotePlanMatrixDependencies(t *testing.T) {
 	}
 }
 
-func TestRemoteLandCompleteRegistryFitsEightShards(t *testing.T) {
+func TestRemoteLandCompleteRegistryFitsNineShards(t *testing.T) {
 	r := examplePlanRun(t)
 	r.Tier = "land"
-	r.Limits.Shards, r.Limits.Attempts = 8, 1
+	r.Limits.Shards, r.Limits.Attempts = 9, 1
 	r.Limits.JobMinutes, r.Limits.SuiteMinutes = 360, 345
 	if _, err := buildSelection(r, planReference{}, nil, affected.Selection{AllHarnesses: true}); err != nil {
 		t.Fatal(err)

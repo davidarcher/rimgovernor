@@ -2,6 +2,9 @@
 
 [Documentation](../../README.md) · [Controller contracts](controller-contracts.md)
 
+Equipment and apparel are their own contracts: the [loadout model](equipment-upkeep.md),
+the [apparel policy operation](apparel-policy.md) and the [weapon planner](weapon-planner.md).
+
 Upkeep uses the existing ColonyPlan, resource admission and Hands executor.
 `home/colony_facts.upkeep` is versioned read-only native evidence. Each section is
 independently nullable with an error; an empty successful census differs from an

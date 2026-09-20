@@ -1,6 +1,6 @@
 # Equipment and apparel upkeep
 
-[Documentation](../../README.md) · [Controller contracts](controller-contracts.md)
+[Documentation](../../README.md) · [Controller contracts](controller-contracts.md) · [Apparel policy operation](apparel-policy.md) · [Weapon planner](weapon-planner.md)
 
 `MaintainEquipment` is a maintained development goal in the shared ColonyPlan.
 Emergencies suspend it. Hands issues its actions; neither the native read nor an
@@ -9,7 +9,9 @@ ranks for an optional development slot like any other priority-3 need (labor
 profile Construction, Tailoring, Smithing or Crafting) and its methods are admitted only while
 it holds one. The [pawn profile](work-assignment.md#pawn-profile) exports the
 per-pawn apparel and weapon flags (Nudist, Ascetic, Brawler's `MeleeOnly`) the
-loadout planner consumes.
+loadout planner consumes. The role apparel policies are the
+[apparel-policy operation](apparel-policy.md); weapon assignment is the
+[weapon planner](weapon-planner.md); this page is the loadout model.
 
 ## Native observations and selection
 
@@ -22,15 +24,9 @@ Apparel candidates pass current outfit filters, developmental stage, body-part,
 biocoding, reservation, safe reachability and resource-budget checks. Native
 apparel scoring includes condition, armor, seasonal warmth and pawn-specific
 requirements. A gain below the native 0.05 threshold does not trigger dressing.
-The gear planner configures a named `RimGovernor <role>` apparel policy through
-`SetApparelPolicy` before selecting individual wear or production work. Autonomous
-control replaces manual policy assignments and clears forced/locked apparel;
-vanilla optimizes apparel between reviews. Worker, hunter, indoor, slave and
-non-combatant policies exclude armor; soldiers allow it; children use native
-child-compatible definitions. Every role excludes tainted apparel, admits
-51�100% hit points and Awful�Legendary quality. Policy filters update in place
-and assignments use CAS preview/admission with native postcondition readback.
-Individual wear orders still obey the current filter and do not create forced entries. A loadout carries at most 8 candidates, the
+Individual wear orders obey the pawn's current apparel policy (the role
+policy the [apparel-policy operation](apparel-policy.md) assigns) and do not
+create forced entries. A loadout carries at most 8 candidates, the
 best by gain then thing id; the eligible items past that bound count as
 `filtered` in the loadout's completeness, so the routine colony facts do not
 grow with pawns x loose items (issue #320). MaintainEquipment only wears the
@@ -40,32 +36,6 @@ The census candidates are apparel only; loose weapons are the equip family's
 as apparel, or whose wear preview refuses `NOT_FOUND`, is cancelled rather than
 held, so the plan closes and the goal's development slot frees at the next
 review, as haul and supply do for a thing that left its cell.
-
-Weapon planning scores the colony's pawn/weapon pairs before assigning any
-weapon. Skill, optional combat role, nominal weapon throughput/range and known
-raid armor shape the score. Precision rifles favor accurate shooters; short
-burst weapons favor novices. Brawlers and Shooting-disabled pawns receive melee;
-Violent-disabled pawns receive nothing. Area-fire weapons require an explicit
-lone-fighter input. Unknown roles and armor are neutral. The Core definition
-table uses planning estimates, with conservative class defaults for other defs.
-
-Pairs are assigned highest score first, then pawn identity, distance and weapon
-identity; each pawn and weapon appears once. A known biocode restricts the weapon
-to its pawn. An existing weapon is preserved unless automation owns its exact
-identity, and a swap requires over 20% score improvement. Biocoded primaries stay
-pinned. The routine equip planner admits the entire assignment as independent
-actions in one plan, retaining per-pawn retry limits and native postconditions.
-Native preview still decides current equip eligibility, including biocoding.
-
-`WeaponProductionDemand` supplies definition/count demand to the bill batch
-(#469), net of assigned loose weapons and limited to discovered available
-recipes. Optional roles are supplied by the loadout model (#466). Native gear
-items carry a biocoded flag and, when retained, their owner's pawn ID. Supply
-weapon details use exact item identities. Coded weapons with a lost owner
-remain unavailable, and coded primaries stay pinned even if automation equipped
-them. Combat pawn reads carry the map's mean peak sharp armor among live,
-standing hostile pawns (natural armor or strongest worn layer). No hostiles
-leaves raid armor unknown; older producers may omit these optional facts.
 
 ## Production and resource protection
 
@@ -205,26 +175,24 @@ matching loadout evidence can reconcile success without replay. Changed load or
 player direction blocks completion. Interrupted jobs and missing observations
 cannot certify success. The shared watchdog bounds lack of progress.
 
-Ordinary `pawn_equipped` weapon orders use the same passive completion recovery.
-The pre-write record retains observation time, load and plan revision even
-when the native reply is lost. A later exact weapon observation can complete a
-blocked order without sending it again. Changed context, cancelled work, unknown
-pawn health and a different equipped item cannot clear the hold.
-
 A bill receipt only confirms configuration. The maintained deficit remains until
 usable gear is observed. A completed bill that produces an unsuitable item does
 not trigger unlimited replacement bills under the same loadout prerequisite.
 
 ## Acceptance
 
-`acceptance run production/apparel` (issue #233): a colonist in a tattered cloth
-shirt, no tailoring bench and only plain leather for fabric; the service must
-build the bench, raise the shirt bill from the leather and dress the colonist in the product. Fixture
-checks, native scripted pawn outcomes and sustained seasonal campaigns are
-different evidence levels.
+The `gear/*` area (#472) is the gear planner's acceptance, each case a
+serve run over the tribal baseline staged by `test/gear_area_prepare`
+(`GearAreaFixture.cs`) and audited against `test/gear_area_probe`:
+`gear/winter` (season lookahead, #467) dresses every colonist in a parka or
+jacket plus a tuque before the first winter twelfth without a thermal deficit;
+`gear/tainted` (#468) leaves a tainted parka on the ground and assigns the
+worker policy; `gear/soldier` (#470, #471) ends two marksmen in flak vests and
+helmets holding the bolt-action and the shotgun by skill; `gear/roster` (#469)
+recovers twelve stripped colonists from stored spares within a day, with at
+most three bills and no slot dressed twice. `production/apparel` keeps the
+single-shirt-from-leather path.
 
-`production/apparel-policy` is a short native smoke case for create/update/assign,
-stale CAS refusal, manual-policy override and clearing forced/locked apparel.
 Finished apparel in valid storage is aggregated by definition, stuff, quality
 and hit-point band in `GearSnapshot.stored_apparel`, bounded to 4096 rows.
 Forbidden and tainted apparel is excluded. Normal-or-better items above 50%
@@ -233,6 +201,12 @@ condition offset matching definition/stuff demand before production. A finite
 weapon demand joins after colony-wide loose-weapon assignment. Each review admits
 at most one bill and independent pawn orders bounded by free development slots;
 pawn and item identities cannot be claimed twice by open dressing methods.
+
+`acceptance run production/apparel` (issue #233): a colonist in a tattered cloth
+shirt, no tailoring bench and only plain leather for fabric; the service must
+build the bench, raise the shirt bill from the leather and dress the colonist in the product. Fixture
+checks, native scripted pawn outcomes and sustained seasonal campaigns are
+different evidence levels.
 
 Optional `RoutinePolicy.GearSpareTargets` keeps unworn spares by definition.
 These targets bind to `MaintainResource`: its workshop ladder stages missing

@@ -8,6 +8,8 @@ Current rules, payloads and completion criteria. Open the topic that owns your c
 - [Action completion contracts](action-contracts.md)
 - [Controller and colony contracts](controller-contracts.md)
 - [Equipment and apparel upkeep](equipment-upkeep.md)
+- [Apparel policy operation](apparel-policy.md)
+- [Weapon planner](weapon-planner.md)
 - [Native forecast contracts](forecast-contracts.md)
 - [Animal husbandry contracts](husbandry-contracts.md)
 - [Dashboard and video contracts](interface-contracts.md)
