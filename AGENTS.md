@@ -138,6 +138,14 @@ commit, not a file-by-file narrative.
   reproduce a flake. Prefer synchronized events or virtual time over
   scheduling-sensitive wall-clock bounds. The nightly `remote-acceptance`
   workflow runs the whole module with `-race` on Linux.
+- Test deadlines are hang guards, not latency assertions. A test that fails
+  on `context deadline exceeded` or a `checktesttimes` breach under load
+  (`./...`, `-race`, a busy CI runner) has measured the machine, not the
+  code: widen the guard to the accepted maximum (bridge `testBudget`,
+  `playerFixture` CallTimeout, the 60 s `checktesttimes` gate) or assert
+  the event instead of the wall clock. Never tighten a deadline per test,
+  shave a test to fit a budget, or open a per-test timing issue for it
+  (#546, #551-#557 were all this, closed by one landing).
 - Pyramid: many fast Go unit tests (via `cmd/test`), fewer integration
   tests, a small set of targeted native acceptance cases run by
   `go/internal/nativeaccept/cmd/acceptance` (`acceptance run
