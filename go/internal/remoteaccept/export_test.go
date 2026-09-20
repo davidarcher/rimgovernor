@@ -90,11 +90,21 @@ func TestExportExecutableIdentityWithoutCopyingBinary(t *testing.T) {
 
 func exportFixture(t *testing.T, f *fixture, index int) ExportJob {
 	t.Helper()
+	return exportFixtureVerdict(t, f, index, false)
+}
+
+func exportFixtureVerdict(t *testing.T, f *fixture, index int, fail bool) ExportJob {
+	t.Helper()
 	output := t.TempDir()
 	rows := []map[string]any{}
 	for _, a := range f.attempts[index].Attempts {
 		var native map[string]json.RawMessage
 		readTest(t, f.root, a.Evidence.Path, &native)
+		if fail {
+			native["passed"], native["exit"] = raw("false"), raw("1")
+			a.Status, a.Classification = "failed", "assertion"
+			a.Exit, a.Error = ptr(1), ptr("injected assertion failure")
+		}
 		a.Evidence = writeTest(t, output, a.Case+"/result.json", native)
 		log := a.Case + ".log"
 		if err := os.WriteFile(filepath.Join(output, log), []byte("test-token diagnostic at C:\\runner\\private\\game.exe\n"), 0600); err != nil {
@@ -125,11 +135,10 @@ func exportFixture(t *testing.T, f *fixture, index int) ExportJob {
 func TestExportPortableEvidenceAndRedVerdict(t *testing.T) {
 	for _, fail := range []bool{false, true} {
 		t.Run(map[bool]string{false: "green", true: "red"}[fail], func(t *testing.T) {
-			// One case exercises export and verdict propagation. Keep each branch's
-			// source evidence and export destination private, without copying the
-			// unrelated contract examples or exporting the whole smoke selection.
+			// Read immutable contract inputs directly and stage one case once.
+			// Export writes the attempts manifest; no intermediate copy is needed.
 			source := filepath.Join("..", "..", "..", "docs", "developers", "contracts", "remote-acceptance")
-			f := &fixture{root: t.TempDir(), shards: []Shard{{ID: "s1", Status: "complete"}}, attempts: make([]Attempts, 1)}
+			f := &fixture{root: source, shards: []Shard{{ID: "s1", Status: "complete"}}, attempts: make([]Attempts, 1)}
 			readTest(t, source, "run.json", &f.run)
 			readTest(t, source, "selection.json", &f.selection)
 			readTest(t, source, "s1/attempts.json", &f.attempts[0])
@@ -137,26 +146,15 @@ func TestExportPortableEvidenceAndRedVerdict(t *testing.T) {
 			f.selection.Shards = f.selection.Shards[:1]
 			f.selection.Shards[0].Cases = f.selection.Shards[0].Cases[:1]
 			f.attempts[0].Attempts = f.attempts[0].Attempts[:1]
-			for _, ref := range []Ref{f.run.Bundle, f.attempts[0].Attempts[0].Evidence} {
-				var document json.RawMessage
-				readTest(t, source, ref.Path, &document)
-				copied := writeTest(t, f.root, ref.Path, document)
-				if ref == f.run.Bundle {
-					f.run.Bundle = copied
-				} else {
-					f.attempts[0].Attempts[0].Evidence = copied
-				}
-			}
-			if fail {
-				f.native(t, 0, 0, func(m map[string]json.RawMessage) { m["passed"] = raw("false"); m["exit"] = raw("1") })
-				f.attempts[0].Attempts[0].Status = "failed"
-				f.attempts[0].Attempts[0].Classification = "assertion"
-				f.attempts[0].Attempts[0].Exit = ptr(1)
-				f.attempts[0].Attempts[0].Error = ptr("injected assertion failure")
-			}
-			r, s := f.save(t)
+			job := exportFixtureVerdict(t, f, 0, fail)
+			var bundle json.RawMessage
+			readTest(t, source, f.run.Bundle.Path, &bundle)
+			f.root = t.TempDir()
+			f.run.Bundle = writeTest(t, f.root, f.run.Bundle.Path, bundle)
+			r := writeTest(t, f.root, "run.json", f.run)
+			f.selection.Run = r
+			s := writeTest(t, f.root, "selection.json", f.selection)
 			for i, sh := range f.shards {
-				job := exportFixture(t, f, i)
 				if err := ExportShard(f.root, sh.ID, []ExportJob{job}, []string{"test-token"}); err != nil {
 					t.Fatal(err)
 				}
