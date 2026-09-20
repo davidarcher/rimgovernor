@@ -248,8 +248,8 @@ const shellHistoryLimit = 64
 // all that remains when the journal did not survive the restart. A door is
 // a candidate when it stands natively or when an earlier plan ordered it: a
 // ring whose door was cancelled but whose walls stand is still one ring, and
-// reissuing it orders the door first with the walls gated on it as a fresh
-// shell would. Shapes at one door share their lowest courses, so the shape
+// reissuing it orders the door first in the wave as a fresh shell would.
+// Shapes at one door share their lowest courses, so the shape
 // is the one the census matches best, decided before any preview and with
 // an earlier plan winning ties over a template: adopting the first shape
 // whose remaining cells happened to be placeable issued a second, taller

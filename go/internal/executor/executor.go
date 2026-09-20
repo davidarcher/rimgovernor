@@ -618,7 +618,16 @@ func (e *Executor) inspect(ctx context.Context, target Target, progress domain.P
 		}
 		reservations = append(reservations, external)
 	}
-	input, err := policy.NewInput(policy.Request{Current: inspection.Current, CurrentTick: inspection.Tick, Bounds: inspection.Bounds, Stock: inspection.Stock, Held: reservations, Rules: inspection.Rules, Candidates: []policy.Candidate{{Action: target.Action, Progress: progress, Purpose: policy.Routine, Preview: inspection.Preview}}})
+	// The fresh check spends under the class the method was admitted with:
+	// a shell's walls are not held for stock at dispatch any more than they
+	// were at admission (#602). Work without a record is routine.
+	purpose := policy.Routine
+	for _, record := range state.Admissions {
+		if record.Action == target.Action.ID() {
+			purpose = record.Admission.SpendingPurpose()
+		}
+	}
+	input, err := policy.NewInput(policy.Request{Current: inspection.Current, CurrentTick: inspection.Tick, Bounds: inspection.Bounds, Stock: inspection.Stock, Held: reservations, Rules: inspection.Rules, Candidates: []policy.Candidate{{Action: target.Action, Progress: progress, Purpose: purpose, Preview: inspection.Preview}}})
 	if err != nil {
 		return inspection, nil, progress, fmt.Errorf("%w: %v", ErrEvidence, err)
 	}
@@ -628,7 +637,7 @@ func (e *Executor) inspect(ctx context.Context, target Target, progress domain.P
 		return inspection, decision.Refused, progress, ErrHeld
 	}
 	accepted := decision.Admitted[0]
-	inspection.admission = store.Admission{Snapshot: accepted.Snapshot, Tick: inspection.Tick, Footprint: append([]domain.Cell(nil), accepted.Footprint...), Costs: make([]store.MaterialCost, len(accepted.Costs))}
+	inspection.admission = store.Admission{Snapshot: accepted.Snapshot, Tick: inspection.Tick, Footprint: append([]domain.Cell(nil), accepted.Footprint...), Costs: make([]store.MaterialCost, len(accepted.Costs)), Purpose: purpose}
 	for i, cost := range accepted.Costs {
 		inspection.admission.Costs[i] = store.MaterialCost{Definition: string(cost.Resource), Count: cost.Count}
 	}

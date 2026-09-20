@@ -58,23 +58,22 @@ func shelterFixture(t *testing.T) (*RoutineBuildingPlanner, *store.Store, *sleep
 	return planner, db, n
 }
 
-func TestRoutineShelterAdmitsWholeShellWithObservedDoorDependency(t *testing.T) {
+// The shell is one wave: the door leads the dispatch order and no wall is
+// gated on it completing, since a door blueprint seals nothing (#602).
+func TestRoutineShelterAdmitsWholeShellInOneWave(t *testing.T) {
 	t.Parallel()
 	r, db, n := shelterFixture(t)
 	result, err := r.Step(context.Background())
-	if err != nil || result.Reason != BuildingMethodAdmitted || n.previews != 32 || n.calls != 1 {
+	if err != nil || result.Reason != BuildingMethodAdmitted || len(result.Decision.Refused) != 0 || n.previews != 32 || n.calls != 1 {
 		t.Fatal(result, err, n.previews, n.calls)
 	}
 	plan, err := db.LoadPlan(context.Background(), result.Decision.Goal.Methods[0].Plan)
-	if err != nil || len(plan.Progress) != 32 || len(plan.Admissions) != 32 || len(plan.Spec.Dependencies()) != 31 {
+	if err != nil || len(plan.Progress) != 32 || len(plan.Admissions) != 32 || len(plan.Spec.Dependencies()) != 0 {
 		t.Fatal(plan, err)
 	}
 	actions := plan.Spec.Actions()
 	snapshot := result.Decision.Goal.Goal.Snapshot
 	snapshot.Plan, snapshot.Revision = plan.Spec.ID(), plan.Spec.Revision()
-	if err := plan.Spec.CheckDependencies(actions[0].ID(), plan.Progress, snapshot, 7); err != nil {
-		t.Fatal(err)
-	}
 	door, _ := actions[0].Building()
 	if door.Definition() != "Door" || door.Cell() != (domain.Cell{X: 4, Z: 0}) {
 		t.Fatal(door)
@@ -84,18 +83,93 @@ func TestRoutineShelterAdmitsWholeShellWithObservedDoorDependency(t *testing.T) 
 		if b.Stuff() != "WoodLog" || i > 0 && b.Definition() != "Wall" || plan.Progress[i].View().Attempt != 0 {
 			t.Fatal(action, plan.Progress[i])
 		}
-		if i > 0 {
-			dep := plan.Spec.Dependencies()[i-1]
-			if dep.Requires != actions[0].ID() {
-				t.Fatal(dep)
-			}
-			if err := plan.Spec.CheckDependencies(action.ID(), plan.Progress, snapshot, 7); err == nil {
-				t.Fatal("unbuilt door permitted enclosure")
-			}
+		// Every wall is dispatchable alongside the unbuilt door.
+		if err := plan.Spec.CheckDependencies(action.ID(), plan.Progress, snapshot, 7); err != nil {
+			t.Fatal("wall waits for the door", action, err)
+		}
+	}
+	for _, admission := range plan.Admissions {
+		if admission.Admission.Purpose != policy.Shelter {
+			t.Fatal("shell not admitted as shelter work", admission)
 		}
 	}
 	if again, err := r.Step(context.Background()); err != nil || again.Reason != BuildingMethodExistingWork || n.previews != 32 {
 		t.Fatal(again, err)
+	}
+}
+
+// A shell is admitted without a stock check: RimWorld places its blueprints
+// regardless and the frames hold natively for materials (#602). A spending
+// rule still refuses it whole, and an operator reserve admits the cells the
+// budget above the reserve covers, leaving the rest pending unreserved.
+func TestRoutineShelterAdmitsShellWithoutStockCheck(t *testing.T) {
+	t.Parallel()
+	for _, change := range []string{"stock-short", "stock-zero", "stock-unknown", "reserve", "spending-stop"} {
+		t.Run(change, func(t *testing.T) {
+			t.Parallel()
+			r, db, n := shelterFixture(t)
+			base := n.onPreview
+			n.onPreview = func(ctx context.Context, v *bridge.BuildingPreview) {
+				base(ctx, v)
+				switch change {
+				case "stock-short":
+					v.Stock.Values[0].Available = domain.Known(int64(179))
+				case "stock-zero":
+					v.Stock.Values[0].Available = domain.Known(int64(0))
+				case "stock-unknown":
+					v.Stock.Values[0].Available = domain.Unknown[int64]()
+				}
+			}
+			switch change {
+			case "reserve":
+				r.reviewer.rules = []policy.ResourceRule{{Resource: "WoodLog", Reserve: 1, Spending: policy.Allow}}
+			case "spending-stop":
+				r.reviewer.rules = []policy.ResourceRule{{Resource: "WoodLog", Spending: policy.Stop}}
+			}
+			result, err := r.Step(context.Background())
+			if err != nil {
+				t.Fatal(err)
+			}
+			plans, err := db.LoadPlans(context.Background(), 256)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if change == "spending-stop" {
+				if result.Reason != BuildingMethodRefused || len(result.Decision.Refused) != 32 || result.Decision.Refused[0].Reason != policy.SpendingBlocked || len(plans) != 2 {
+					t.Fatal("spending rule did not refuse the shell", result, len(plans))
+				}
+				return
+			}
+			if result.Reason != BuildingMethodAdmitted || len(plans) != 3 {
+				t.Fatal("shell not admitted", result, len(plans))
+			}
+			plan, err := db.LoadPlan(context.Background(), result.Decision.Goal.Methods[0].Plan)
+			if err != nil || len(plan.Progress) != 32 {
+				t.Fatal(plan, err)
+			}
+			admissions, refused := 32, 0
+			if change == "reserve" {
+				// 180 wood covers the door and 31 walls exactly; the reserve
+				// of one leaves the last-sorted wall pending unreserved.
+				admissions, refused = 31, 1
+			}
+			if len(plan.Admissions) != admissions || len(result.Decision.Refused) != refused {
+				t.Fatal("wrong admitted prefix", len(plan.Admissions), result.Decision.Refused)
+			}
+			for _, refusal := range result.Decision.Refused {
+				if refusal.Reason != policy.InsufficientStock || refusal.Resource != "WoodLog" {
+					t.Fatal(refusal)
+				}
+				for _, admission := range plan.Admissions {
+					if admission.Action == refusal.Action {
+						t.Fatal("refused wall reserved", refusal)
+					}
+				}
+			}
+			if again, err := r.Step(context.Background()); err != nil || again.Reason != BuildingMethodExistingWork {
+				t.Fatal(again, err)
+			}
+		})
 	}
 }
 
@@ -105,7 +179,7 @@ func TestRoutineShelterNeverCommitsPartialOrUnknownShell(t *testing.T) {
 	drift := domain.LiveDrift()
 	domain.SetLiveDrift(0)
 	t.Cleanup(func() { domain.SetLiveDrift(drift) })
-	for _, change := range []string{"late-refusal", "footprint", "stock-short", "stock-conflict", "stock-unknown", "definition", "room-unknown", "terrain", "zone", "protected", "stale", "stale-live", "direction", "reserve"} {
+	for _, change := range []string{"late-refusal", "footprint", "stock-conflict", "definition", "room-unknown", "terrain", "zone", "protected", "stale", "stale-live", "direction"} {
 		t.Run(change, func(t *testing.T) {
 			if change == "stale-live" {
 				domain.SetLiveDrift(1000)
@@ -122,14 +196,10 @@ func TestRoutineShelterNeverCommitsPartialOrUnknownShell(t *testing.T) {
 					}
 				case "footprint":
 					v.Preview.Footprint = domain.Known([]domain.Cell{{X: 1, Z: 1}})
-				case "stock-short":
-					v.Stock.Values[0].Available = domain.Known(int64(179))
 				case "stock-conflict":
 					if n.previews == 32 {
 						v.Stock.Values[0].Available = domain.Known(int64(179))
 					}
-				case "stock-unknown":
-					v.Stock.Values[0].Available = domain.Unknown[int64]()
 				case "stale", "stale-live":
 					v.Preview.Tick += domain.PlanningTickTolerance + domain.LiveDrift() + 1
 				case "direction":
@@ -152,8 +222,6 @@ func TestRoutineShelterNeverCommitsPartialOrUnknownShell(t *testing.T) {
 				planning.Cells.Cells[40].Issues = planning.Cells.Cells[40].Issues[1:]
 			case "protected":
 				planning.Cells.Cells[40].Occupied = proto.Bool(true)
-			case "reserve":
-				r.reviewer.rules = []policy.ResourceRule{{Resource: "WoodLog", Reserve: 1, Spending: policy.Allow}}
 			}
 			result, err := r.Step(context.Background())
 			if (change == "stale" || change == "stale-live") && (!errors.Is(err, ErrControl) || n.calls != 1) {
@@ -403,9 +471,9 @@ func shellCells(t *testing.T, plan store.PlanState) (domain.Building, map[domain
 			t.Fatal(action)
 		}
 		cells[b.Cell()] = true
-		if i > 0 && plan.Spec.Dependencies()[i-1].Requires != actions[0].ID() {
-			t.Fatal("wall does not depend on the door", action)
-		}
+	}
+	if len(plan.Spec.Dependencies()) != 0 {
+		t.Fatal("shell walls gated on the door", plan.Spec.Dependencies())
 	}
 	return door, cells
 }
@@ -437,7 +505,7 @@ func TestRoutineShelterRaisesOvalHutForNeolithicColony(t *testing.T) {
 			t.Fatal("missing hut wall", w)
 		}
 	}
-	if len(plan.Progress) != len(cells) || len(plan.Spec.Dependencies()) != len(cells)-1 {
+	if len(plan.Progress) != len(cells) || len(plan.Spec.Dependencies()) != 0 {
 		t.Fatal(len(plan.Progress), len(plan.Spec.Dependencies()))
 	}
 	// Roofing budget accepts a shell of any size once every wall is complete.

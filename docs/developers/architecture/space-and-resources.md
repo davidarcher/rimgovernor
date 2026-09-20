@@ -212,7 +212,17 @@ ready work is considered in a stable order against current stock. Unissued work 
 its native costs; issued blueprints and frames contribute their native deficits instead
 of being counted a second time.
 
-Player reserves and spending policies further constrain what can be used. The native
+Player reserves and spending policies further constrain what can be used. A shell
+(the initial shelter, expansion, a power shelter, the pen ring) is admitted as
+`Shelter` work without a stock check: RimWorld places its blueprints regardless
+and the frames hold natively for materials, which the wood upkeep then reads as
+a deficit; only a spending policy or an operator reserve on the resource keeps
+a shell unadmitted, at admission and again at dispatch (the purpose is recorded
+with the admission). Furnishing and facility methods keep the stock budget, since
+their open frames would strand hauling, and admit the candidates the stock covers
+rather than refusing the whole method for one short of it; the rest stay pending
+without a reservation and the worker admits each afresh when the census covers
+it. The native
 production path checks actual recipe ingredients and consumption. A controller-side
 stock estimate alone could not protect a reserve once an ordinary bill begins consuming
 a different permitted ingredient.

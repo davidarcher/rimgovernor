@@ -24,12 +24,26 @@ type Stock struct {
 	Available domain.Fact[int64]
 }
 type Bounds struct{ Width, Height int32 }
+
+// Purpose is the spending class a building candidate is admitted under.
+// Routine work spends stock it can see; Defense work may spend under a
+// DefenseOnly rule; Shelter work is a shell whose frames RimWorld places
+// regardless of stock and holds natively for materials, so InsufficientStock
+// is not a refusal for it (#602): only a Stop/DefenseOnly spending rule or an
+// operator reserve on the resource keeps its walls unadmitted. The purpose
+// is recorded with the admission and applied again at dispatch.
 type Purpose string
 
 const (
 	Routine Purpose = "routine"
 	Defense Purpose = "defense"
+	Shelter Purpose = "shelter"
 )
+
+// ValidPurpose reports whether p names a spending class.
+func ValidPurpose(p Purpose) bool {
+	return p == Routine || p == Defense || p == Shelter
+}
 
 type Spending string
 
@@ -179,7 +193,7 @@ func NewInput(r Request) (Input, error) {
 		if c.Progress.View().Plan != r.Current.Plan || c.Progress.View().Revision != r.Current.Revision {
 			return Input{}, errors.New("candidate belongs to a different plan revision")
 		}
-		if c.Purpose != Routine && c.Purpose != Defense {
+		if !ValidPurpose(c.Purpose) {
 			return Input{}, errors.New("invalid building purpose")
 		}
 		if len(c.Dependencies) > 256 {
@@ -561,6 +575,11 @@ func assess(c Candidate, r Request, bounds Bounds, boundsKnown, stockFresh bool,
 		rule := rules[cost.Resource]
 		if rule.Spending == Stop || rule.Spending == DefenseOnly && c.Purpose != Defense {
 			return SpendingBlocked, cost.Resource
+		}
+		// A shell's frames wait natively for materials; its stock is a
+		// spending budget only where the operator reserved some of it.
+		if c.Purpose == Shelter && rule.Reserve == 0 {
+			continue
 		}
 		available, known := stock[cost.Resource].Value()
 		if !known {

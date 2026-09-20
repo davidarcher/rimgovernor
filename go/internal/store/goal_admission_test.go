@@ -82,6 +82,89 @@ func TestBuildingMethodAdmissionAllOrNothing(t *testing.T) {
 		}
 	}
 }
+
+// A PartialStock request admits the candidates the stock covers and commits
+// the whole plan; the refused ones stay pending without a reservation for
+// the worker to admit afresh (#602). Any other refusal, or no candidate
+// covered, still refuses the method whole.
+func TestBuildingMethodAdmitsAffordablePrefixWhenPartialStock(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	s, _, g := goalFixture(t)
+	r := methodRequest(t, g, "method", 60, 30, 30)
+	r.PartialStock = true
+	d, e := s.AdmitBuildingMethod(ctx, r)
+	if e != nil || !d.Admitted || len(d.Refused) != 1 || d.Refused[0].Reason != policy.InsufficientStock || d.Refused[0].Action != r.Plan.Actions()[2].ID() {
+		t.Fatal(d, e)
+	}
+	p, e := s.LoadPlan(ctx, r.Plan.ID())
+	if e != nil || len(p.Progress) != 3 || len(p.Admissions) != 2 {
+		t.Fatal(p, e)
+	}
+	for _, a := range p.Admissions {
+		if a.Action == r.Plan.Actions()[2].ID() || a.Admission.Purpose != policy.Routine {
+			t.Fatal("refused candidate reserved or purpose lost", a)
+		}
+	}
+	for _, v := range p.Progress {
+		if v.View().Stage != domain.Pending {
+			t.Fatal("admission prepared execution")
+		}
+	}
+	// The unreserved action holds nothing against a competing method.
+	other := anotherGoal(t, s, "storage")
+	competing := methodRequest(t, other, "competing", 10)
+	if d, e = s.AdmitBuildingMethod(ctx, competing); e != nil || !d.Admitted {
+		t.Fatal(d, e)
+	}
+	// Nothing covered: refused whole, as is a mixed refusal.
+	third := anotherGoal(t, s, "third")
+	none := methodRequest(t, third, "none", 5, 5)
+	none.PartialStock = true
+	if d, e = s.AdmitBuildingMethod(ctx, none); e != nil || d.Admitted || len(d.Refused) != 2 {
+		t.Fatal(d, e)
+	}
+	mixed := methodRequest(t, third, "mixed", 1, 1, 60)
+	mixed.PartialStock = true
+	mixed.Previews[1].SafeToPlace = domain.Known(false)
+	if d, e = s.AdmitBuildingMethod(ctx, mixed); e != nil || d.Admitted || d.Refused[1].Reason != policy.UnsafePlacement {
+		t.Fatal(d, e)
+	}
+	if _, e = s.LoadPlan(ctx, mixed.Plan.ID()); !errors.Is(e, ErrNotFound) {
+		t.Fatal("partial method persisted", e)
+	}
+}
+
+// The purpose a method is admitted under is recorded with each reservation
+// and survives a restart, so dispatch spends under the same class (#602).
+func TestBuildingMethodRecordsPurpose(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	s, path, g := goalFixture(t)
+	r := methodRequest(t, g, "shell", 60, 60, 60)
+	r.Purpose = policy.Shelter
+	if d, e := s.AdmitBuildingMethod(ctx, r); e != nil || !d.Admitted || len(d.Refused) != 0 {
+		t.Fatal("shelter held for stock", d, e)
+	}
+	s.Close()
+	s = open(t, path)
+	p, e := s.LoadPlan(ctx, r.Plan.ID())
+	if e != nil || len(p.Admissions) != 3 {
+		t.Fatal(p, e)
+	}
+	for _, a := range p.Admissions {
+		if a.Admission.Purpose != policy.Shelter || a.Admission.SpendingPurpose() != policy.Shelter {
+			t.Fatal(a)
+		}
+	}
+	if (Admission{}).SpendingPurpose() != policy.Routine {
+		t.Fatal("unrecorded purpose is not routine")
+	}
+	held, e := s.BuildingReservations(ctx, r.Current)
+	if e != nil || len(held) != 3 {
+		t.Fatal(held, e)
+	}
+}
 func TestBuildingMethodReservesDependenciesBeforeTheyAreReady(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()

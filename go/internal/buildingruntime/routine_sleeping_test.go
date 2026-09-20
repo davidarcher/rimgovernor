@@ -126,7 +126,7 @@ func TestRoutineSleepingAdmitsWholePendingMethodAndManualInvalidates(t *testing.
 
 func TestRoutineSleepingRejectsIncompleteAndChangedEvidence(t *testing.T) {
 	t.Parallel()
-	for _, change := range []string{"space", "unsafe", "stock", "direction", "tick", "age", "prerequisite", "unknown-room"} {
+	for _, change := range []string{"space", "unsafe", "direction", "tick", "age", "prerequisite", "unknown-room"} {
 		t.Run(change, func(t *testing.T) {
 			r, db, session, _, n := sleepingFixture(t)
 			switch change {
@@ -145,9 +145,6 @@ func TestRoutineSleepingRejectsIncompleteAndChangedEvidence(t *testing.T) {
 						}
 					case "unsafe":
 						v.Preview.SafeToPlace = domain.Unknown[bool]()
-					case "stock":
-						v.Preview.Costs = domain.Known([]policy.Amount{{Resource: "WoodLog", Count: 50}})
-						v.Stock.Values = []policy.Stock{{Resource: "WoodLog", Available: domain.Known(int64(50))}}
 					case "direction":
 						session.mu.Lock()
 						session.state.Snapshot.Native++
@@ -168,6 +165,50 @@ func TestRoutineSleepingRejectsIncompleteAndChangedEvidence(t *testing.T) {
 				t.Fatal("partial method committed", plans, err)
 			}
 		})
+	}
+}
+
+// A furnishing method keeps the stock budget but admits the candidates it
+// covers: the second spot stays pending without a reservation for the
+// worker to admit when the census covers it, instead of the one short
+// candidate refusing both (#602). With nothing covered the method is refused.
+func TestRoutineSleepingAdmitsAffordablePrefix(t *testing.T) {
+	t.Parallel()
+	for _, available := range []int64{50, 20} {
+		r, db, _, _, n := sleepingFixture(t)
+		n.onPreview = func(_ context.Context, v *bridge.BuildingPreview) {
+			v.Preview.Costs = domain.Known([]policy.Amount{{Resource: "WoodLog", Count: 50}})
+			v.Stock.Values = []policy.Stock{{Resource: "WoodLog", Available: domain.Known(available)}}
+		}
+		result, err := r.Step(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+		plans, err := db.LoadPlans(context.Background(), 256)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if available == 20 {
+			if result.Reason != BuildingMethodRefused || len(result.Decision.Refused) != 2 || len(plans) != 2 || result.NativeWorkTicks != stockWaitTicks {
+				t.Fatal("uncovered method admitted", result, len(plans))
+			}
+			continue
+		}
+		if result.Reason != BuildingMethodAdmitted || len(result.Decision.Refused) != 1 || result.Decision.Refused[0].Reason != policy.InsufficientStock || result.NativeWorkTicks != 0 || len(plans) != 3 {
+			t.Fatal("affordable spot not admitted", result, len(plans))
+		}
+		p, err := db.LoadPlan(context.Background(), result.Decision.Goal.Methods[0].Plan)
+		if err != nil || len(p.Progress) != 2 || len(p.Admissions) != 1 || p.Admissions[0].Action == result.Decision.Refused[0].Action || p.Admissions[0].Admission.Purpose != policy.Routine {
+			t.Fatal(p, err)
+		}
+		for _, progress := range p.Progress {
+			if progress.View().Stage != domain.Pending || progress.View().Attempt != 0 {
+				t.Fatal("compiler dispatched", progress)
+			}
+		}
+		if next, err := r.Step(context.Background()); err != nil || next.Reason != BuildingMethodExistingWork {
+			t.Fatal(next, err)
+		}
 	}
 }
 
@@ -378,6 +419,9 @@ func TestStockRefusalWaitOnlyForStock(t *testing.T) {
 		want     uint32
 	}{
 		{store.BuildingMethodDecision{Admitted: true}, 0},
+		// A partial admission's leftover stock refusals are the worker's to
+		// retry; the admitted work lends its own construction ticks.
+		{store.BuildingMethodDecision{Admitted: true, Refused: []policy.Refusal{stock}}, 0},
 		{store.BuildingMethodDecision{}, 0},
 		{store.BuildingMethodDecision{Refused: []policy.Refusal{stock}}, stockWaitTicks},
 		{store.BuildingMethodDecision{Refused: []policy.Refusal{stock, {Action: "b", Reason: policy.InsufficientStock, Resource: "WoodLog"}}}, stockWaitTicks},

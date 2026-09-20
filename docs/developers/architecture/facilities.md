@@ -61,7 +61,7 @@ Native power facts identify rain-sensitive equipment and whether its whole
 footprint is roofed. Exposed equipment and ordinary conduits keep power at
 priority 2 even in dry weather. Where a free, observed perimeter exists, the power
 planner builds a small enclosure around exposed equipment through shared Hands.
-The door precedes the walls; ordinary colonist roofing has a bounded allowance,
+The door precedes the walls in one wave; ordinary colonist roofing has a bounded allowance,
 and only an observed roof clears exposure. Blocked sites remain a deficit.
 New rain-sensitive equipment requires a finished roof at placement admission.
 

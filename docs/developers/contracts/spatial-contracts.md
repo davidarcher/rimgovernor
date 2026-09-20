@@ -66,8 +66,10 @@ Every planned shell is an exact-cell `RoomFootprint`: a 4-connected interior of
 1..3844 cells away from the map edge, a wall ring of every non-interior cell
 that touches the interior orthogonally or diagonally, and one door on the ring
 whose inward neighbour is interior and whose outward neighbour is neither. The
-door is placed first, then walls in north-facing, z-outer/x-inner order, so a
-door dependency on placement zero holds for any shape. Rectangles keep their
+door is placed first, then walls in north-facing, z-outer/x-inner order; the
+ring is one wave with the door first in dispatch order, and no wall waits for
+the door to complete (a door blueprint or frame no more seals a room than a
+wall's does). Rectangles keep their
 former cells exactly. Ovals use integer membership on the axis-aligned or 45°
 diagonal ellipse (long axis north-south, east-west, north-east or north-west,
 radii 2..30) and are only generated when every interior cell lies within
@@ -121,9 +123,8 @@ shape adopted is the one whose ring the census matches best (most standing
 cells; an earlier plan, then the earliest template, on a tie), decided before
 any placement preview; a shape nothing standing matches is never adopted, so
 a ring cancelled before anything was built is sited afresh. The admitted plan
-holds only that shape's missing cells; its walls do not wait for a door that
-already stands, and a ring whose door was cancelled is reissued door first
-with the walls gated on it as a fresh shell would be. When a missing cell of
+holds only that shape's missing cells, and a ring whose door was cancelled is
+reissued door first as a fresh shell would be. When a missing cell of
 the best-matched shape is not placeable now (for instance a cancelled frame
 still clearing), or when it stands whole but the room census lists no enclosed
 room inside it yet, the review reports `earlier_shell_blocked` and waits: it

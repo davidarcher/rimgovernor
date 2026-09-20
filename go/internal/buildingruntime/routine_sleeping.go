@@ -696,27 +696,36 @@ func (r *RoutineBuildingPlanner) step(call, epoch context.Context, arbiter *step
 		return RoutineBuildingResult{}, ErrControl
 	}
 	actions := make([]domain.Action, len(selected))
-	var dependencies []domain.ActionDependency
-	// A shell's walls wait for its door so the room is never sealed before it
-	// has an entrance; an adopted shell whose door already stands has no such
-	// gate and its walls are independent.
-	doorFirst := false
-	if (r.shelter || r.power != nil && r.power.Method == policy.PowerShelter) && len(selected) > 0 {
-		if first, ok := selected[0].Action.Building(); ok {
-			doorFirst = first.Definition() == "Door"
-		}
-	}
+	// A shell goes out as one wave with its door first in dispatch order
+	// (the preview lists it first). The walls are not gated on the door
+	// completing: a door blueprint or frame no more seals a room than a
+	// wall's does, and gating held every wall until the door stood, or for
+	// ever when its observation came back unknown (#602). The pen shell in
+	// routine_animal_containment.go orders its ring the same way.
 	for i, v := range selected {
 		actions[i] = v.Action
-		if doorFirst && i > 0 {
-			dependencies = append(dependencies, domain.ActionDependency{Action: v.Action.ID(), Requires: selected[0].Action.ID()})
-		}
 	}
-	plan, err := domain.NewPlan(planID, 1, actions, dependencies...)
+	plan, err := domain.NewPlan(planID, 1, actions)
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}
-	decision, err := p.journal.AdmitBuildingMethod(call, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: facts.Identity.Tick, Bounds: domain.Known(facts.Bounds), Stock: stock, Rules: r.reviewer.rules, Previews: selected, Purpose: policy.Routine})
+	// A shell (the initial shelter, expansion, or a power shelter) is
+	// admitted without a stock check: RimWorld places its blueprints
+	// regardless and the frames hold natively for materials, which
+	// MaintainWood then reads as the wood deficit (#602). Furnishing and
+	// facility methods keep the stock budget, since their open frames would
+	// strand hauling, but admit the candidates the stock covers rather than
+	// refusing the whole method for one short of it.
+	purpose := policy.Routine
+	if r.shelter || r.power != nil && r.power.Method == policy.PowerShelter {
+		purpose = policy.Shelter
+	}
+	// Partial admission suits methods whose candidates stand alone
+	// (furniture, benches, beds, lamps, floor and route cells, the cells of
+	// a shell); a generator and its conduits, a cooler and its wall, a
+	// heater batch or a pasted layout are one set and admit whole or not.
+	partial := r.power == nil && r.temperature == nil && r.refrigeration == nil && len(r.paste) == 0
+	decision, err := p.journal.AdmitBuildingMethod(call, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: method, Plan: plan, Current: snapshot, Tick: facts.Identity.Tick, Bounds: domain.Known(facts.Bounds), Stock: stock, Rules: r.reviewer.rules, Previews: selected, Purpose: purpose, PartialStock: partial})
 	if err != nil {
 		return RoutineBuildingResult{}, err
 	}

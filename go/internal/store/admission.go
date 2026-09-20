@@ -12,6 +12,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	"github.com/davidarcher/RimGovernor/go/internal/policy"
 )
 
 type MaterialCost struct {
@@ -21,13 +22,26 @@ type MaterialCost struct {
 
 // Admission retains complete observed costs and footprint, not permission to
 // dispatch without fresh policy checks. Nil Costs means unknown and is invalid;
-// an empty nonnil list explicitly describes a free native placement.
+// an empty nonnil list explicitly describes a free native placement. Purpose
+// is the spending class the method was admitted under, applied again by the
+// fresh policy check at dispatch; records written before it carried one are
+// routine.
 type Admission struct {
 	Snapshot  domain.GenerationSnapshot
 	Tick      domain.Tick
 	Costs     []MaterialCost
 	Footprint []domain.Cell
+	Purpose   policy.Purpose `json:",omitempty"`
 }
+
+// SpendingPurpose is the purpose a fresh policy check applies to this record.
+func (a Admission) SpendingPurpose() policy.Purpose {
+	if a.Purpose == "" {
+		return policy.Routine
+	}
+	return a.Purpose
+}
+
 type ActionAdmission struct {
 	Action    domain.ActionID
 	Admission Admission
@@ -43,6 +57,9 @@ func validateAdmission(a domain.Action, p domain.Progress, admission Admission) 
 	}
 	if admission.Costs == nil || len(admission.Costs) > 256 {
 		return errors.New("complete bounded admission costs required")
+	}
+	if admission.Purpose != "" && !policy.ValidPurpose(admission.Purpose) {
+		return errors.New("invalid admission purpose")
 	}
 	resources := map[string]bool{}
 	for _, cost := range admission.Costs {

@@ -92,7 +92,7 @@ func TestExpansionAdmitsWholeShellWhenExistingRoomsAreFull(t *testing.T) {
 		t.Fatal(got, err)
 	}
 	plan, err := db.LoadPlan(context.Background(), got.Decision.Goal.Methods[0].Plan)
-	if err != nil || len(plan.Progress) != 32 || len(plan.Admissions) != 32 || len(plan.Spec.Dependencies()) != 31 {
+	if err != nil || len(plan.Progress) != 32 || len(plan.Admissions) != 32 || len(plan.Spec.Dependencies()) != 0 {
 		t.Fatal(plan, err)
 	}
 	if again, err := r.Step(context.Background()); err != nil || again.Reason != BuildingMethodExistingWork {

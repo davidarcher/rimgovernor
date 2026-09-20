@@ -330,6 +330,9 @@ func (r *RoutineAnimalContainmentPlanner) buildShell(call, epoch context.Context
 		if reason != "" {
 			continue
 		}
+		// The ring is one ungated wave, and like the starter shell it is
+		// admitted as Shelter work: fences and gate are placed regardless
+		// of stock and hold natively for materials (#602).
 		plan, err := domain.NewPlan(planID, 1, actions)
 		if err != nil {
 			return RoutineAnimalContainmentResult{}, err
@@ -351,7 +354,7 @@ func (r *RoutineAnimalContainmentPlanner) buildShell(call, epoch context.Context
 		if now.Before(read.StartedAt) || now.Sub(read.StartedAt) > r.reviewer.maxAge {
 			return RoutineAnimalContainmentResult{}, observation.ErrStale
 		}
-		decision, err := p.journal.AdmitBuildingMethod(call, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: animalShellMethod, Plan: plan, Current: snapshot, Tick: facts.Identity.Tick, Bounds: domain.Known(facts.Bounds), Stock: stock, Rules: r.reviewer.rules, Previews: previews, Purpose: policy.Routine})
+		decision, err := p.journal.AdmitBuildingMethod(call, store.BuildingMethodRequest{Goal: goal.Goal.ID, Revision: goal.Revision, Method: animalShellMethod, Plan: plan, Current: snapshot, Tick: facts.Identity.Tick, Bounds: domain.Known(facts.Bounds), Stock: stock, Rules: r.reviewer.rules, Previews: previews, Purpose: policy.Shelter})
 		if err != nil {
 			return RoutineAnimalContainmentResult{}, err
 		}

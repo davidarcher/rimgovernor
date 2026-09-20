@@ -164,6 +164,46 @@ func TestSpendingReservesAndDependencies(t *testing.T) {
 	issued := issue(t, c)
 	reason(t, request(issued), NotReady)
 }
+
+// Shelter work spends no stock budget: its frames hold natively for
+// materials (#602). Spending rules and an operator reserve still apply, and
+// an admitted shell still counts against what routine work may spend.
+func TestShelterPurposeSkipsStockButKeepsSpendingAndReserve(t *testing.T) {
+	c := candidate(t, "a", 1, 150)
+	r := request(c)
+	reason(t, r, InsufficientStock)
+	r.Candidates[0].Purpose = Shelter
+	if d := decide(t, r); len(d.Admitted) != 1 || len(d.Refused) != 0 {
+		t.Fatal("shelter held for stock", d.Refused)
+	}
+	r.Stock.Values[0].Available = domain.Unknown[int64]()
+	if d := decide(t, r); len(d.Admitted) != 1 {
+		t.Fatal("shelter held for unknown stock", d.Refused)
+	}
+	r = request(c)
+	r.Candidates[0].Purpose = Shelter
+	r.Rules = []ResourceRule{{"Steel", 0, Stop}}
+	reason(t, r, SpendingBlocked)
+	r.Rules = []ResourceRule{{"Steel", 0, DefenseOnly}}
+	reason(t, r, SpendingBlocked)
+	r.Rules = []ResourceRule{{"Steel", 1, Allow}}
+	reason(t, r, InsufficientStock)
+	r.Rules = nil
+	r.Stock.Snapshot.Native++
+	reason(t, r, StaleFacts)
+	// A shell admitted beside routine work still spends the shared budget.
+	shell, furniture := candidate(t, "a", 1, 90), candidate(t, "b", 2, 20)
+	shell.Purpose = Shelter
+	d := decide(t, request(shell, furniture))
+	if len(d.Admitted) != 1 || d.Admitted[0].Action != shell.Action || len(d.Refused) != 1 || d.Refused[0].Reason != InsufficientStock {
+		t.Fatal(d.Admitted, d.Refused)
+	}
+	r = request(c)
+	r.Candidates[0].Purpose = Purpose("shell")
+	if _, err := NewInput(r); err == nil {
+		t.Fatal("unknown purpose accepted")
+	}
+}
 func TestCancellationRetainsUncertainReservation(t *testing.T) {
 	ctx := current()
 	old := issue(t, candidate(t, "old", 1, 100))
