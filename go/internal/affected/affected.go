@@ -700,7 +700,7 @@ func Test(repo string, changed []string, base ...string) error {
 	}
 	if len(sel.Cases) > 0 || sel.AllHarnesses {
 		fmt.Println("acceptance: one run, the smoke tier (#387; the nightly full tier proves the affected areas, or run -tier land yourself to prove them before landing):")
-		fmt.Println("  go run ./internal/nativeaccept/cmd/acceptance suite -tier smoke -root <abs root> -output <fresh dir>")
+		fmt.Printf("  go run ./internal/nativeaccept/cmd/acceptance suite -tier smoke -root <abs root> -rimgovernor \"%s\" -output <fresh dir>\n", filepath.Join(repo, ".rimgovernor", "bin", "rimgovernor.exe"))
 		fmt.Println("  go run ./cmd/land -results <that dir>")
 	}
 	switch {
