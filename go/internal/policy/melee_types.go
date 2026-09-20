@@ -18,6 +18,8 @@ type MeleePawnFacts struct {
 }
 
 type MeleeTargetFacts struct {
+	FreeColonist          domain.Fact[bool]
+	MentalState           domain.Fact[MentalState]
 	Pawn                  domain.PawnID
 	SnapshotToken         string
 	Dead, Downed, Hostile domain.Fact[bool]

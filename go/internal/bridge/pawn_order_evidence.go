@@ -1,13 +1,13 @@
 package bridge
 
 import (
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/operationspb"
 	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
 	"google.golang.org/protobuf/proto"
 )
 
-// pawnOrderEvidence mirrors attackEvidence, but tend/rescue are undrafted
-// vanilla jobs: Drafted, DraftClaimId and DraftOwner must be absent rather
-// than present and owner-correlated.
+// Ordinary pawn orders are undrafted; SUBDUE retains its original draft claim
+// even when later interruption evidence reports an undrafted responder.
 func pawnOrderEvidence(evidence *r.EffectEvidence, expected PawnOrderAttempt) (*r.JobEffect, error) {
 	job := evidence.GetJob()
 	if job == nil || job.PawnId == nil || job.GetPawnId() != expected.PawnID || job.TargetA == nil || job.TargetA.GetThingId() != expected.TargetID {
@@ -20,7 +20,11 @@ func pawnOrderEvidence(evidence *r.EffectEvidence, expected PawnOrderAttempt) (*
 	if !proto.Equal(job, allowed) || !diagnostic(job.VerifiedReason) || job.Issued == nil || job.Verified == nil || job.ResultingSnapshotToken == nil {
 		return nil, contract("pawn order effect fields missing or unsupported")
 	}
-	if expected.ArrestBed == "" && (job.Drafted != nil && job.GetDrafted() || job.DraftClaimId != nil || job.DraftOwner != nil) {
+	if expected.Kind == o.PawnOrderKind_PAWN_ORDER_KIND_SUBDUE {
+		if job.Drafted == nil || validID(job.GetDraftClaimId()) != nil {
+			return nil, contract("subdue draft claim mismatch")
+		}
+	} else if expected.ArrestBed == "" && (job.Drafted != nil && job.GetDrafted() || job.DraftClaimId != nil || job.DraftOwner != nil) {
 		return nil, contract("undrafted pawn order cannot carry draft claim facts")
 	}
 	if expected.ArrestBed != "" && (job.GetTargetB().GetThingId() != expected.ArrestBed || validID(job.GetDraftClaimId()) != nil) {
@@ -73,6 +77,9 @@ func pawnOrderReceipt(v *r.Receipt, expected PawnOrderAttempt) error {
 	job, err := pawnOrderEvidence(evidence, expected)
 	if err != nil {
 		return err
+	}
+	if complete && expected.Kind == o.PawnOrderKind_PAWN_ORDER_KIND_SUBDUE && !job.GetDrafted() {
+		return contract("subdue admission requires an owned draft")
 	}
 	if complete && ((issued && job.JobId == nil || !issued && job.JobId != nil) || job.Verified == nil || !job.GetVerified() || job.Issued == nil || job.GetIssued() != issued) {
 		return contract("verified pawn order facts missing")

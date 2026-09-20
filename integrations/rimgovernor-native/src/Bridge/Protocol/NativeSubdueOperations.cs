@@ -109,6 +109,10 @@ namespace HomeBridge.BridgeTools
                     }
                     var victim = target!;
                     var job = JobMaker.MakeJob(JobDefOf.AttackMelee, victim); job.killIncappedTarget = false;
+                    // Use a legal native blunt attack (including fists) when available.
+                    // JobDriver_AttackMelee passes this verb to TryMeleeAttack unchanged.
+                    job.verbToUse = pawn!.meleeVerbs.GetUpdatedAvailableVerbsList(false)
+                        .Select(v => v.verb).FirstOrDefault(v => v.IsUsableOn(victim) && v.verbProps.meleeDamageDef == DamageDefOf.Blunt);
                     var record = new NativeSubdueRecord(identity, pawn!, victim, job, before!, context);
                     state.Subdues.Add(pre.Attempt.Clone(), record);
                     bool accepted = pawn!.jobs.TryTakeOrderedJob(job, JobTag.Misc);

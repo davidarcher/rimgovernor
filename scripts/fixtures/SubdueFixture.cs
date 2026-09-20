@@ -50,11 +50,13 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken);
         }
         [Tool("test/subdue_inspect", Description = "Read-only living containment postcondition for the subdue fixture.")]
-        public async Task<object> Inspect(IRimBridgeContext ctx, CancellationToken cancellationToken, string targetId)
+        public async Task<object> Inspect(IRimBridgeContext ctx, CancellationToken cancellationToken, string targetId, string pawnId)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var target = Find.CurrentMap.mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == targetId);
+                var pawn = Find.CurrentMap.mapPawns.AllPawnsSpawned.Single(p => p.GetUniqueLoadID() == pawnId);
                 return new { alive = target != null && !target.Dead, downed = target?.Downed, aggro = target?.InAggroMentalState,
+                    blunt = pawn.CurJob?.verbToUse?.verbProps.meleeDamageDef == DamageDefOf.Blunt,
                     prisoner = target?.IsPrisonerOfColony, bed = target?.CurrentBed()?.GetUniqueLoadID() };
             }, cancellationToken);
         }

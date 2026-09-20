@@ -135,7 +135,7 @@ func (r *RoutineDefensePlanner) step(call, epoch context.Context, arbiter *stepA
 		return RoutineDefenseResult{Reason: BuildingMethodUsed}, nil
 	}
 	hostileIDs, hunting, buildings := defenseTargets(emergency.Facts.Threats)
-	if len(emergency.Facts.Colonists) == 0 || len(hostileIDs)+len(buildings) == 0 {
+	if len(emergency.Facts.Colonists) == 0 || len(hostileIDs)+len(buildings) == 0 && !hasAggressiveBreak(emergency.Facts) {
 		return RoutineDefenseResult{Reason: BuildingMethodUsed}, nil
 	}
 	ids := make([]string, 0, len(emergency.Facts.Colonists)+len(hostileIDs))
@@ -173,6 +173,9 @@ func (r *RoutineDefensePlanner) step(call, epoch context.Context, arbiter *stepA
 			return RoutineDefenseResult{}, ErrControl
 		}
 		rows[row.Pawn.GetId()] = row
+	}
+	if result, err := r.planBreak(call, epoch, goal, state, started, arbiter, emergency.Facts, rows); err != nil || result.Reason != "" {
+		return result, err
 	}
 	var defenders []policy.SquadDefenderFacts
 	var profiles []policy.PawnProfile

@@ -40,7 +40,7 @@ func insertAction(ctx context.Context, tx *sql.Tx, plan domain.PlanID, ordinal i
 	} else if d, ok := a.OwnedDraft(); ok {
 		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn) VALUES(?,?,?,'owned_draft',?)", a.ID(), plan, ordinal, d.Pawn())
 	} else if m, ok := a.MeleeAttack(); ok {
-		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target,draft_action) VALUES(?,?,?,'melee_attack',?,?,?)", a.ID(), plan, ordinal, m.Pawn(), m.Target(), m.DraftAction())
+		_, err = tx.ExecContext(ctx, "INSERT INTO actions(id,plan_id,ordinal,kind,pawn,target,draft_action,definition) VALUES(?,?,?,'melee_attack',?,?,?,?)", a.ID(), plan, ordinal, m.Pawn(), m.Target(), m.DraftAction(), subdueMarker(m))
 	} else if work, ok := a.WorkAssignment(); ok {
 		data, encodeErr := json.Marshal(workPayload{work.Manual(), work.Settings(), work.HasArea(), work.AreaClear(), work.Area(), work.Schedule(), work.FoodAllow(), work.MedicalCare(), work.DrugPolicy()})
 		if encodeErr != nil {
@@ -513,8 +513,14 @@ func scanAction(rows *sql.Rows) (domain.Action, int, error) {
 		a, err := domain.NewSupplyAllowAction(id, s)
 		return a, ordinal, err
 	}
-	if kind == "melee_attack" && pawn.Valid && target.Valid && draftAction.Valid && !def.Valid && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid {
+	if kind == "melee_attack" && pawn.Valid && target.Valid && draftAction.Valid && (!def.Valid || def.String == "subdue") && !x.Valid && !z.Valid && !rotation.Valid && !stuff.Valid {
 		m, err := domain.NewMeleeAttack(domain.PawnID(pawn.String), domain.PawnID(target.String), domain.ActionID(draftAction.String))
+		if err != nil {
+			return domain.Action{}, 0, err
+		}
+		if def.Valid {
+			m, err = domain.NewSubdue(domain.PawnID(pawn.String), domain.PawnID(target.String), domain.ActionID(draftAction.String))
+		}
 		if err != nil {
 			return domain.Action{}, 0, err
 		}
@@ -833,4 +839,8 @@ type moodReliefPayload struct {
 	JobIdle     bool
 	JobID       int32
 	ScheduleDef string
+}
+
+func subdueMarker(m domain.MeleeAttack) sql.NullString {
+	return sql.NullString{String: "subdue", Valid: m.Subdue()}
 }

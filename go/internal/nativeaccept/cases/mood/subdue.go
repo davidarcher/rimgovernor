@@ -80,6 +80,13 @@ func runSubdue(ctx context.Context, s cases.Session) error {
 			return fmt.Errorf("subdue not applied: %#v", receipt)
 		}
 		attempt := map[string]any{"identity": identity, "attempt": pre["attempt"]}
+		selected, err := h.Call(ctx, "blunt-preference", "test/subdue_inspect", map[string]any{"targetId": target, "pawnId": pawn})
+		if err != nil {
+			return err
+		}
+		if blunt, known := na.AsBool(selected["blunt"]); !known || !blunt {
+			return fmt.Errorf("subdue did not prefer a legal blunt attack: %#v", selected)
+		}
 		for _, check := range []struct {
 			label, tool string
 			body        map[string]any
@@ -101,7 +108,7 @@ func runSubdue(ctx context.Context, s cases.Session) error {
 			return err
 		}
 		s.Report()["completed"] = completed
-		facts, err := h.Call(ctx, "postcondition", "test/subdue_inspect", map[string]any{"targetId": target})
+		facts, err := h.Call(ctx, "postcondition", "test/subdue_inspect", map[string]any{"targetId": target, "pawnId": pawn})
 		if err != nil {
 			return err
 		}

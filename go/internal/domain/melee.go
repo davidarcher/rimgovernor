@@ -7,6 +7,7 @@ import "errors"
 type MeleeAttack struct {
 	pawn, target PawnID
 	draftAction  ActionID
+	subdue       bool
 }
 
 func NewMeleeAttack(pawn, target PawnID, prerequisite ActionID) (MeleeAttack, error) {
@@ -34,3 +35,13 @@ func NewMeleeAttackAction(id ActionID, attack MeleeAttack) (Action, error) {
 }
 
 func (a Action) MeleeAttack() (MeleeAttack, bool) { return a.melee, a.kind == MeleeAttackAction }
+
+// NewSubdue retains melee draft ownership but dispatches only the native containment operation.
+func NewSubdue(pawn, target PawnID, prerequisite ActionID) (MeleeAttack, error) {
+	m, err := NewMeleeAttack(pawn, target, prerequisite)
+	m.subdue = true
+	return m, err
+}
+func (m MeleeAttack) Subdue() bool { return m.subdue }
+
+func (a Action) Subdues() bool { return a.kind == MeleeAttackAction && a.melee.subdue }

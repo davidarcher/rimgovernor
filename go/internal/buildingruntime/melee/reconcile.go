@@ -19,7 +19,7 @@ func (b *MeleeBoundary) ObserveMelee(ctx context.Context, dispatch executor.Mele
 	if current.Validate() != nil || current.Native == 0 || !boundary.World(current, p.Snapshot) {
 		return out, executor.ErrAuthority
 	}
-	lookup, _, err := b.native.LookupAttackAttempt(ctx, attempt)
+	lookup, _, err := b.lookup(ctx, attempt, p.Action.Subdues())
 	if err != nil {
 		return out, err
 	}
@@ -37,7 +37,7 @@ func (b *MeleeBoundary) ObserveMelee(ctx context.Context, dispatch executor.Mele
 			return out, err
 		}
 	}
-	reply, _, err := b.native.ObserveAttackProgress(ctx, attempt, receipt)
+	reply, _, err := b.observe(ctx, attempt, receipt, p.Action.Subdues())
 	if err != nil {
 		return out, err
 	}

@@ -6,8 +6,7 @@ import (
 )
 
 // PawnOrderAttempt retains the original guarded target and admission for one
-// undrafted pawn-target order (tend, rescue). Drafted job families (melee,
-// ranged attack) use AttackAttempt instead.
+// pawn-target order, including SUBDUE. Other combat uses AttackAttempt.
 type PawnOrderAttempt struct {
 	Identity           *c.Identity
 	Attempt            *c.AttemptKey
@@ -35,9 +34,12 @@ func NewPawnOrderControl(client *Client) (*PawnOrderControl, error) {
 // (FloatMenuOptionProvider_Equip applies no draft gate); repair is
 // WorkGiver_Repair's single fixed job (issue #2); open casket is
 // JobDriver_Open's single Open job, ordered to a drafted or undrafted pawn
-// (#460). Explosives and drafted combat stay on the AttackTarget contract.
+// (#460). SUBDUE uses an owned draft and AttackMelee; other combat stays on
+// the AttackTarget contract.
 func pawnOrderJobDefs(kind o.PawnOrderKind) []string {
 	switch kind {
+	case o.PawnOrderKind_PAWN_ORDER_KIND_SUBDUE:
+		return []string{"AttackMelee"}
 	case o.PawnOrderKind_PAWN_ORDER_KIND_TEND:
 		return []string{"TendPatient"}
 	case o.PawnOrderKind_PAWN_ORDER_KIND_RESCUE:

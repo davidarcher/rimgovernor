@@ -36,7 +36,7 @@ func routineMood(colony *o.ColonyFactsSnapshot, emergency policy.EmergencyFacts,
 		if !dk || !nk || r.Dead == nil || r.Downed == nil || r.GetDead() != dead || r.GetDowned() != downed || r.Colonist == nil || !r.GetColonist() {
 			return unknown
 		}
-		p := policy.MoodPawn{ID: pawn.ID, Dead: optional(r.Dead), Downed: optional(r.Downed), Drafted: optional(r.Drafted), Mental: nativePresence(r.MentalState, r.Issues, "mental_state")}
+		p := policy.MoodPawn{Break: pawn.MentalState, ID: pawn.ID, Dead: optional(r.Dead), Downed: optional(r.Downed), Drafted: optional(r.Drafted), Mental: nativePresence(r.MentalState, r.Issues, "mental_state")}
 		if job := r.Job; job != nil && !hasIssue(r.Issues, "job") {
 			p.PlayerForced = optional(job.PlayerForced)
 		}

@@ -92,11 +92,17 @@ facilities or freed reservations to become eligible. The progress watchdog uses
 per-pawn need high-water marks so unrelated observations or falling needs cannot
 keep stalled work alive.
 
-An active mental break keeps its pawn's mood goal in deficit but is neither a
-clock hold nor an emergency that suspends routine development: a break only ends
-as ticks pass, so a hold could never observe its clearance. The controller does not
-force recovery, draft the pawn or arrest it; other goals' work still opens ordinary
-windows, and the existing native hazard supervisor retains authority over time.
+An active mental break keeps its pawn's mood goal in deficit and releases its
+reserved work through shared cancellation. State kind, aggression and age remain
+mood evidence. Non-violent breaks continue ordinary clock windows.
+
+A standing aggressive colonist activates defense. The controller drafts one or
+two nearest healthy armed-melee colonists and dispatches SUBDUE through the shared
+owned-draft and melee lifecycle. Other dispatch stays outside an eight-cell radius
+of the target; uncertain attempts and draft cleanup remain reconcilable. Downing
+the target ends containment and lets the ordinary RESCUE planner carry the pawn
+to a colonist bed using native bed selection. There is no Capture or prisoner
+custody. Arrest remains a non-aggressive custody operation.
 
 ## Active mental-state observation
 
@@ -115,7 +121,8 @@ the test-only `test/mental_state_berserk` fixture and verifies both reads.
 PAWN_ORDER_KIND_SUBDUE accepts exact colonist snapshots and an aggressive,
 standing colonist target. It drafts an undrafted responder with an owned claim
 and issues an ordinary AttackMelee job; an existing owned draft is retained.
-Unarmed and melee responders are legal; ranged weapons are refused. The job
+Unarmed and melee responders are legal; ranged weapons are refused. The job prefers
+a legal blunt verb, including fists, without changing native damage. It
 ends when the target is downed or its aggressive break ends. Death is failure,
 never successful containment. Progress requires the same draft claim and order.
 The operation neither changes damage rules nor creates prisoner custody.

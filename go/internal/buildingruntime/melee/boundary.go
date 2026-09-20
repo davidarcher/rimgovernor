@@ -130,7 +130,7 @@ func (b *MeleeBoundary) InspectMelee(ctx context.Context, target executor.Target
 		}
 		targetToken = building.SnapshotToken
 	}
-	preview, _, err := b.native.PreviewAttack(ctx, boundary.Identity(current), meleeCommand(string(m.Pawn()), string(m.Target()), pawnToken, targetToken))
+	preview, _, err := b.preview(ctx, boundary.Identity(current), meleeCommand(string(m.Pawn()), string(m.Target()), pawnToken, targetToken), m.Subdue())
 	if err != nil {
 		return out, err
 	}
@@ -207,6 +207,13 @@ func (b *MeleeBoundary) InspectMelee(ctx context.Context, target executor.Target
 			facts.Target.Dead, facts.Target.Hostile = current.Dead, domain.Known(true)
 		}
 	}
+	if opponent != nil {
+		facts.Target.FreeColonist = boundary.FactBool(opponent.Colonist)
+		facts.Target.MentalState, err = bridge.PawnMentalState(opponent)
+		if err != nil {
+			return out, err
+		}
+	}
 	out.Facts, out.ObservedAt = facts, b.clock.Now()
 	return out, ctx.Err()
 }
@@ -265,7 +272,7 @@ func (b *MeleeBoundary) AttackMelee(ctx context.Context, dispatch executor.Melee
 		return out, err
 	}
 	pre := &a.WritePrecondition{Identity: attempt.Identity, Attempt: attempt.Attempt, ExpectedGeneration: proto.Uint64(attempt.NativeGeneration)}
-	reply, _, err := b.writer.AttackTarget(ctx, pre, meleeCommand(attempt.PawnID, attempt.TargetID, dispatch.Admission.PawnSnapshotToken, dispatch.Admission.TargetSnapshotToken))
+	reply, _, err := b.execute(ctx, pre, meleeCommand(attempt.PawnID, attempt.TargetID, dispatch.Admission.PawnSnapshotToken, dispatch.Admission.TargetSnapshotToken), dispatch.Attempt.Action.Subdues())
 	var refused *bridge.NativeFailure
 	if errors.As(err, &refused) && refused.Value != nil && refused.Value.GetCode() != c.FailureCode_FAILURE_CODE_ATTEMPT_CONFLICT {
 		out.Kind = domain.ReceiptRefused

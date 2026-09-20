@@ -196,6 +196,9 @@ func EvaluateEmergency(snapshot EmergencySnapshot, current domain.GenerationSnap
 	}
 	for _, pawn := range snapshot.facts.Colonists {
 		merge(pawn.ID, pawn.Dead, pawn.Downed)
+		if AggressiveBreak(pawn) {
+			hold(EmergencyUnsafeThreat, pawn.ID)
+		}
 		dead, known := pawn.Dead.Value()
 		if dead && known {
 			continue

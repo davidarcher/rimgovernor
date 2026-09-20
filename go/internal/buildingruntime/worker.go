@@ -19,6 +19,7 @@ import (
 )
 
 type WorkerConfig struct {
+	BreakSource                           BreakResponseSource
 	RoutineMethods                        bool
 	StepInterval, MaxBackoff, StepTimeout time.Duration
 	RenewInterval, RenewTimeout           time.Duration
@@ -348,6 +349,13 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 	if err != nil {
 		return err
 	}
+	breakHeld := map[domain.ActionID]bool{}
+	if scope.Enabled && scope.ObservationKnown {
+		breakHeld, err = w.breakDispatchHolds(call, scope.Snapshot, plans)
+		if err != nil {
+			return err
+		}
+	}
 	live := make(map[domain.ActionID]bool)
 	var candidates []workerCandidate
 	// One author: the root plan carries authority, and every other plan --
@@ -367,6 +375,9 @@ func (w *Worker) step(ctx context.Context, now time.Time) error {
 		for _, progress := range plan.Progress {
 			v := progress.View()
 			cleanup := workerCleanupEligible(plan, v, planScope, world)
+			if !cleanup && !v.Unresolved && breakHeld[v.Action] {
+				continue
+			}
 			routineObservation := w.config.RoutineMethods && v.Unresolved && routineExecutableKind(progress.Action().Kind()) && playerWorld(v.Snapshot) == world
 			if clockDebug() && progress.Action().Kind() == domain.BuildingTemperatureAction {
 				clockSchedulerLog("worker: temperature candidate action=%s stage=%v authorized=%v eligible=%v worldErr=%v", v.Action, v.Stage, planScope.Snapshot != scope.Snapshot, workerEligible(plan, v, planScope, world), worldErr)

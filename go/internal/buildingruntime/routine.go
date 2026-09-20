@@ -181,6 +181,9 @@ func (r *RoutineReviewer) step(ctx, epoch context.Context, arbiter *stepArbiter,
 		clockSchedulerLog("routine.step: observe err=%v", err)
 		return store.RoutineReviewResult{}, err
 	}
+	if err = releaseBreakWork(ctx, p.journal, state.Snapshot, reading.Emergency, plans); err != nil {
+		return store.RoutineReviewResult{}, err
+	}
 	reading.Projection.Facts.FoodPlan = r.planFood(reading.Projection)
 	reading.Projection.Facts.ResourceSurfaceOre = r.resourceSurfaceOre(ctx, state.Snapshot)
 	r.reviewMeals(&reading.Projection)

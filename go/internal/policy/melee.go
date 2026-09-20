@@ -69,7 +69,9 @@ func EvaluateMeleeDefense(r MeleeDefenseRequest) DraftDecision {
 		case EmergencyUnknownFacts:
 			return refuse(UnknownFacts)
 		case EmergencyCriticalMedical:
-			return refuse(CriticalMedical)
+			if !m.Subdue() {
+				return refuse(CriticalMedical)
+			}
 		}
 	}
 	foundPawn := false
@@ -91,7 +93,17 @@ func EvaluateMeleeDefense(r MeleeDefenseRequest) DraftDecision {
 		return refuse(UnknownFacts)
 	}
 	foundTarget := false
+	if m.Subdue() {
+		for _, p := range f.Emergency.facts.Colonists {
+			if domain.PawnID(p.ID) == m.Target() && AggressiveBreak(p) {
+				foundTarget = true
+			}
+		}
+	}
 	for _, threat := range f.Emergency.facts.Threats {
+		if m.Subdue() {
+			continue
+		}
 		dead, dk := threat.Dead.Value()
 		down, wk := threat.Downed.Value()
 		if domain.PawnID(threat.ID) == m.Target() {
@@ -154,7 +166,14 @@ func EvaluateMeleeDefense(r MeleeDefenseRequest) DraftDecision {
 	dead, _ := f.Target.Dead.Value()
 	down, _ := f.Target.Downed.Value()
 	hostile, _ := f.Target.Hostile.Value()
-	if dead || down || !hostile {
+	if m.Subdue() {
+		mental, mk := f.Target.MentalState.Value()
+		free, fk := f.Target.FreeColonist.Value()
+		if !mk || !fk || !free || !mental.IsAggro {
+			return refuse(UnsupportedThreat)
+		}
+	}
+	if dead || down || !m.Subdue() && !hostile {
 		return refuse(UnsupportedThreat)
 	}
 	eligible, _ := f.NativeCanTry.Value()

@@ -21,6 +21,7 @@ const (
 )
 
 type MoodPawn struct {
+	Break                                       domain.Fact[MentalState]
 	HighExpectations                            domain.Fact[bool]
 	ID                                          PawnID
 	Mood, Threshold, Target                     domain.Fact[float64]
@@ -81,6 +82,9 @@ func moodNumber(f domain.Fact[float64]) bool {
 }
 
 func (p MoodPawn) Validate() error {
+	if state, known := p.Break.Value(); known && (!foodID(state.DefName) || state.TicksInState < 0) {
+		return errors.New("invalid mental-state evidence")
+	}
 	if !foodID(string(p.ID)) {
 		return errors.New("invalid mood pawn")
 	}
