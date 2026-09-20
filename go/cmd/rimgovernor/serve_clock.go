@@ -141,9 +141,11 @@ const (
 	defaultClockWindowTicks = 60000
 	maxClockWindowTicks     = 60000
 	combatClockWindowTicks  = 300
+	// maxClockBlindTicks is the wire bound on StartRequest.blind_tick_budget.
+	maxClockBlindTicks = 1800000
 )
 
-func serviceClockConfig(profile string, speed k.Speed, testAcceleration bool, windowTicks uint32) buildingruntime.ClockSchedulerConfig {
+func serviceClockConfig(profile string, speed k.Speed, testAcceleration bool, windowTicks, blindTicks uint32) buildingruntime.ClockSchedulerConfig {
 	return buildingruntime.ClockSchedulerConfig{
 		// MaxAge bounds how stale the admission reads (status, emergency)
 		// may be by the time EvaluateClockWindow admits a window. The
@@ -152,7 +154,7 @@ func serviceClockConfig(profile string, speed k.Speed, testAcceleration bool, wi
 		// a slow admission read under peer load still admits.
 		Profile: profile, MaxAge: serviceClockStepTimeout,
 		CombatMaxTicks: min(combatClockWindowTicks, windowTicks),
-		Start: bridge.ClockStart{Speed: speed, TestAcceleration: testAcceleration, LeaseMS: 30000, MaxTicks: windowTicks,
+		Start: bridge.ClockStart{Speed: speed, TestAcceleration: testAcceleration, LeaseMS: 30000, MaxTicks: windowTicks, BlindTickBudget: blindTicks,
 			Policy: &k.WatchPolicy{Mode: k.WatchMode_WATCH_MODE_COLONY.Enum(),
 				HealthDropFraction: proto.Float32(.1), MinHealthFraction: proto.Float32(.5),
 				HostileWithin: proto.Float32(20), InjuryStopCooldownMs: proto.Uint32(0)}},
@@ -225,7 +227,7 @@ func startServiceClock(ctx context.Context, player *buildingruntime.Player, sess
 	blight := sc.routineBlightPlans
 	clearance := sc.routineClearancePlans
 	shrine := sc.routineShrinePlans
-	config := serviceClockConfig(profile, parseClockSpeed(clockSpeed), sc.clockTestAcceleration, uint32(sc.clockWindowTicks))
+	config := serviceClockConfig(profile, parseClockSpeed(clockSpeed), sc.clockTestAcceleration, uint32(sc.clockWindowTicks), uint32(sc.clockBlindTicks))
 	config.Facts = cache
 	config.Store = sections
 	config.Worker = true

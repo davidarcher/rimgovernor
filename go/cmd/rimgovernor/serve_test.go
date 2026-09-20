@@ -450,12 +450,21 @@ func TestServeClockWindowTicksFlag(t *testing.T) {
 	if _, err := parseServe(append(append([]string(nil), base...), "--clock-window-seconds", "2"), io.Discard); err == nil {
 		t.Fatal("accepted the retired --clock-window-seconds")
 	}
-	config := serviceClockConfig(dir, parseClockSpeed("Normal"), false, 200)
-	if config.Start.MaxTicks != 200 || config.CombatMaxTicks != 200 {
-		t.Fatal(config.Start.MaxTicks, config.CombatMaxTicks)
+	config := serviceClockConfig(dir, parseClockSpeed("Normal"), false, 200, 0)
+	if config.Start.MaxTicks != 200 || config.CombatMaxTicks != 200 || config.Start.BlindTickBudget != 0 {
+		t.Fatal(config.Start.MaxTicks, config.CombatMaxTicks, config.Start.BlindTickBudget)
+	}
+	// The blind-tick regulator (#583) is armed per window from the flag.
+	if c, err := parseServe(append(append([]string(nil), base...), "--clock-blind-ticks", "300"), io.Discard); err != nil || c.clockBlindTicks != 300 {
+		t.Fatalf("blind ticks: %+v %v", c, err)
+	} else if config = serviceClockConfig(dir, parseClockSpeed(c.clockSpeed), c.clockTestAcceleration, uint32(c.clockWindowTicks), uint32(c.clockBlindTicks)); config.Start.BlindTickBudget != 300 {
+		t.Fatal(config.Start)
+	}
+	if _, err := parseServe(append(append([]string(nil), base...), "--clock-blind-ticks", "1800001"), io.Discard); err == nil {
+		t.Fatal("accepted a blind tick budget past the wire bound")
 	}
 	for _, boost := range []bool{false, true} {
-		config = serviceClockConfig(dir, parseClockSpeed("Ultrafast"), boost, defaultClockWindowTicks)
+		config = serviceClockConfig(dir, parseClockSpeed("Ultrafast"), boost, defaultClockWindowTicks, 0)
 		if config.Start.MaxTicks != defaultClockWindowTicks || config.CombatMaxTicks != combatClockWindowTicks {
 			t.Fatal(boost, config.Start.MaxTicks, config.CombatMaxTicks)
 		}

@@ -96,6 +96,8 @@ namespace HomeBridge.BridgeTools
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Test acceleration requires SPEED_ULTRAFAST.");
             if (request.TestAcceleration && !TestAccelerationAvailable)
                 return ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Test acceleration is admitted only for a game launched with -rimgovernor-test-acceleration.");
+            if (!ValidCeiling(request.HasBlindTickBudget, request.BlindTickBudget, request.HasMaxTicksPerSecond, request.MaxTicksPerSecond))
+                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A blind tick budget is 1..1800000 and a tick rate ceiling 1..60000 ticks per second.");
             lock (Gate)
             {
                 if (_state != null && _state.Active) return ProtoBoundary.Fail(Common.FailureCode.OwnerConflict, "A clock epoch is already active.");
@@ -131,7 +133,8 @@ namespace HomeBridge.BridgeTools
                         policy.Mode == Clock.WatchMode.Colony ? "colony" : "combat", policy.HealthDropFraction,
                         policy.MinHealthFraction, policy.HostileWithin, ResolveIds(ProtoBoundary.LoadedMap(context), policy.AcknowledgedHostileIds),
                         ResolveIds(ProtoBoundary.LoadedMap(context), policy.AcknowledgedDownedColonistIds), ResolveIds(ProtoBoundary.LoadedMap(context), policy.AcknowledgedInjuredColonistIds),
-                        (int)policy.InjuryStopCooldownMs, (int)request.MaxTicks, ResolveIds(ProtoBoundary.LoadedMap(context), policy.SurgicalRecoveryIds), request.TestAcceleration, ResolveIds(ProtoBoundary.LoadedMap(context), policy.MedicalRestIds));
+                        (int)policy.InjuryStopCooldownMs, (int)request.MaxTicks, ResolveIds(ProtoBoundary.LoadedMap(context), policy.SurgicalRecoveryIds), request.TestAcceleration, ResolveIds(ProtoBoundary.LoadedMap(context), policy.MedicalRestIds),
+                        (int)request.BlindTickBudget, (int)request.MaxTicksPerSecond);
                     if (_state == null || !ReferenceEquals(_state.Typed, metadata)) throw new InvalidOperationException("Native start did not create the admitted epoch");
                     ArmWatches(_state, context);
                     return TypedStatus(context);
@@ -166,18 +169,22 @@ namespace HomeBridge.BridgeTools
                 return TypedStatus(context);
             }
         }
-        // An accelerated epoch owns the boost for its whole life: it pauses,
-        // it never slows.
+        // An accelerated epoch owns the boost for its whole life: it pauses or
+        // lowers its ceiling, it never changes speed.
         internal static Common.Failure? ValidateTypedSpeedChange(Clock.SpeedRequest request)
         {
             lock (Gate)
             {
                 var s = _state;
-                return s != null && s.Active && s.TestAcceleration && request.Speed != Clock.Speed.Ultrafast
-                    ? ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "An accelerated epoch cannot change speed; pause it instead.")
-                    : null;
+                if (s != null && s.Active && s.TestAcceleration && request.Speed != Clock.Speed.Ultrafast)
+                    return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "An accelerated epoch cannot change speed; pause it or change its ceiling instead.");
+                if (!ValidCeiling(false, 0, request.HasMaxTicksPerSecond, request.MaxTicksPerSecond))
+                    return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A tick rate ceiling is 1..60000 ticks per second.");
+                return null;
             }
         }
+        private static bool ValidCeiling(bool hasBudget, uint budget, bool hasCeiling, uint ceiling)
+            => (!hasBudget || (budget >= 1 && budget <= 1800000)) && (!hasCeiling || (ceiling >= 1 && ceiling <= 60000));
         internal static Clock.Status TypedSpeed(Clock.SpeedRequest request, Common.ObservationContext context)
         {
             lock (Gate)
@@ -187,7 +194,7 @@ namespace HomeBridge.BridgeTools
                 try
                 {
                     typedSpeedCall = true;
-                    Speed(request.Epoch.Owner.ControllerSessionId, request.Epoch.Owner.Epoch, NativeSpeed(request.Speed));
+                    Speed(request.Epoch.Owner.ControllerSessionId, request.Epoch.Owner.Epoch, NativeSpeed(request.Speed), request.HasMaxTicksPerSecond ? (int?)request.MaxTicksPerSecond : null);
                 }
                 finally { typedSpeedCall = false; }
                 if (ActiveState.RequestedSpeed != NativeSpeed(request.Speed) || Find.TickManager.CurTimeSpeed != NativeSpeed(request.Speed))
@@ -253,6 +260,7 @@ namespace HomeBridge.BridgeTools
             lock (Gate)
             {
                 EnsurePatched();
+                NoteControllerRead(_state);
                 var result = new Clock.Status { Context = context.Clone(), ActualPaused = Find.TickManager.Paused,
                     ObservedSpeed = ObservedSpeed(Find.TickManager.CurTimeSpeed), NativeTickBoundary = TypedHooksReady(),
                     EvidenceCompleteness = new Common.PageInfo { Complete = true }, TestAccelerationAvailable = TestAccelerationAvailable,
@@ -287,7 +295,8 @@ namespace HomeBridge.BridgeTools
         private static long Deadline(State s) => s.TickDeadline ?? throw new InvalidOperationException("Typed epoch has no tick deadline.");
         private static Clock.Epoch Epoch(State s) => new Clock.Epoch { Owner = TypedOf(s).Owner.Clone(), Origin = TypedOf(s).Origin.Clone(),
             RequestedSpeed = WireSpeed(s.RequestedSpeed), Policy = TypedOf(s).Policy.Clone(), StartTick = s.StartTick,
-            TickDeadline = Deadline(s), LastTick = s.LastTick, TestAcceleration = s.TestAcceleration, LeaseRemainingMs = s.Active ? (uint)Math.Min(30000, Math.Max(0, s.LeaseExpiresMs - LeaseNow(s))) : 0 };
+            TickDeadline = Deadline(s), LastTick = s.LastTick, TestAcceleration = s.TestAcceleration, LeaseRemainingMs = s.Active ? (uint)Math.Min(30000, Math.Max(0, s.LeaseExpiresMs - LeaseNow(s))) : 0,
+            BlindTickBudget = (uint)s.BlindTickBudget, MaxTicksPerSecond = (uint)s.MaxTicksPerSecond, RegulatedTicksPerSecond = (uint)s.RegulatedTicksPerSecond };
 
         internal static Clock.EventsReply TypedEvents(Clock.EventsRequest request, Common.ObservationContext context)
             => TypedEvents(request, context, 0, out _);
@@ -299,6 +308,7 @@ namespace HomeBridge.BridgeTools
             wake = null;
             lock (Gate)
             {
+                AcknowledgeRows(_state, request.AfterCursor);
                 var reply = TypedEventsPage(request, context);
                 if (waitMs > 0 && reply.Page != null && reply.Page.Events.Count == 0 && !reply.Page.Gap
                     && TryRegisterWaiter(request.AfterCursor, out var registered)) wake = registered;

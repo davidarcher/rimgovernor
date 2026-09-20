@@ -29,6 +29,12 @@ type clockIntentRecord struct {
 	Window            *WindowAdmission
 	// Omitted when false so records written before the field stay canonical.
 	TestAcceleration bool `json:",omitempty"`
+	// Likewise omitted at zero (issue #583).
+	BlindTickBudget   uint32 `json:",omitempty"`
+	MaxTicksPerSecond uint32 `json:",omitempty"`
+	// A speed change that carries a ceiling, even one it cannot omit at
+	// zero (the ceiling is 1..60000, so presence is the record).
+	CeilingSet bool `json:",omitempty"`
 }
 
 func clockExpectation(v Attempt) bridge.ClockExpectation {
@@ -95,6 +101,8 @@ func encodeClockIntent(v Attempt) ([]byte, error) {
 		record.LeaseMS = command.Start.LeaseMS
 		record.MaxTicks = command.Start.MaxTicks
 		record.TestAcceleration = command.Start.TestAcceleration
+		record.BlindTickBudget = command.Start.BlindTickBudget
+		record.MaxTicksPerSecond = command.Start.MaxTicksPerSecond
 		record.Policy, err = clockBinary(command.Start.Policy)
 	case command.Renew != nil:
 		record.Kind = "renew"
@@ -103,6 +111,10 @@ func encodeClockIntent(v Attempt) ([]byte, error) {
 	case command.Speed != nil:
 		record.Kind = "speed"
 		record.Speed = int32(command.Speed.Speed)
+		if command.Speed.MaxTicksPerSecond != nil {
+			record.MaxTicksPerSecond = *command.Speed.MaxTicksPerSecond
+			record.CeilingSet = true
+		}
 		record.Original, err = clockBinary(command.Speed.Original)
 	}
 	if err != nil {
@@ -135,7 +147,7 @@ func decodeClockIntent(id string, attempt *c.AttemptKey, b []byte) (Intent, erro
 		if err = clockUnmarshal(record.Policy, policy); err != nil {
 			return Intent{}, err
 		}
-		intent.Command.Start = &bridge.ClockStart{Speed: k.Speed(record.Speed), Policy: policy, LeaseMS: record.LeaseMS, MaxTicks: record.MaxTicks, TestAcceleration: record.TestAcceleration}
+		intent.Command.Start = &bridge.ClockStart{Speed: k.Speed(record.Speed), Policy: policy, LeaseMS: record.LeaseMS, MaxTicks: record.MaxTicks, TestAcceleration: record.TestAcceleration, BlindTickBudget: record.BlindTickBudget, MaxTicksPerSecond: record.MaxTicksPerSecond}
 	case "renew", "speed":
 		epoch := &k.Epoch{}
 		if err = clockUnmarshal(record.Original, epoch); err != nil {
@@ -145,6 +157,10 @@ func decodeClockIntent(id string, attempt *c.AttemptKey, b []byte) (Intent, erro
 			intent.Command.Renew = &bridge.ClockRenew{Original: epoch, LeaseMS: record.LeaseMS}
 		} else {
 			intent.Command.Speed = &bridge.ClockSpeed{Original: epoch, Speed: k.Speed(record.Speed)}
+			if record.CeilingSet {
+				ceiling := record.MaxTicksPerSecond
+				intent.Command.Speed.MaxTicksPerSecond = &ceiling
+			}
 		}
 	default:
 		return Intent{}, errors.New("unknown persisted clock command")

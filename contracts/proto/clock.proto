@@ -94,8 +94,22 @@ message StartRequest {
   optional uint32 max_ticks = 5;
   // Enable the native tick boost for this epoch. Requires SPEED_ULTRAFAST and
   // a game launched with test acceleration (Status.test_acceleration_available);
-  // refused otherwise. An accelerated epoch cannot change speed, only pause.
+  // refused otherwise. An accelerated epoch cannot change speed, only pause
+  // or change its ceiling.
   optional bool test_acceleration = 6;
+  // Blind-tick regulator (issue #583). Blind ticks are the ticks between the
+  // controller's last read (a status, events or bundle read, or the oldest
+  // journal row it has not yet acknowledged with an after_cursor) and the
+  // current tick. Past this budget native throttles the epoch toward Normal
+  // at the next tick boundary and ramps back up once the controller catches
+  // up (immediate decrease, multiplicative increase), journaling both
+  // transitions as SpeedChanged without ending the epoch. Zero or absent
+  // leaves the epoch unregulated.
+  optional uint32 blind_tick_budget = 7;
+  // Continuous ceiling on the epoch's tick rate, beneath the requested
+  // speed's own rate; an accelerated epoch admits a live change through
+  // SpeedRequest. Zero or absent is the speed's own rate.
+  optional uint32 max_ticks_per_second = 8;
 }
 message OwnedRequest {
   rimgovernor.common.v1.Identity identity = 1;
@@ -110,6 +124,9 @@ message SpeedRequest {
   OwnedRequest epoch = 1;
   rimgovernor.authority.v1.WritePrecondition authority = 2;
   optional Speed speed = 3;
+  // The new ceiling (StartRequest.max_ticks_per_second); absent keeps the
+  // epoch's. An accelerated epoch admits this with SPEED_ULTRAFAST.
+  optional uint32 max_ticks_per_second = 4;
 }
 message StatusRequest { rimgovernor.common.v1.Identity identity = 1; }
 
@@ -123,6 +140,11 @@ message Epoch {
   optional uint32 lease_remaining_ms = 7;
   optional int64 last_tick = 8;
   optional bool test_acceleration = 9;
+  optional uint32 blind_tick_budget = 10;
+  optional uint32 max_ticks_per_second = 11;
+  // The ceiling the blind-tick regulator holds right now; zero when it is
+  // not throttling.
+  optional uint32 regulated_ticks_per_second = 12;
 }
 message Running { Epoch epoch = 1; }
 message Stopping {
@@ -366,7 +388,16 @@ message ObservationInvalidated {
 }
 // Inclusive cell bounds, minimum <= maximum on both axes.
 message Rectangle { rimgovernor.common.v1.Cell minimum = 1; rimgovernor.common.v1.Cell maximum = 2; }
-message SpeedChanged { optional Speed speed = 1; }
+// The epoch's speed, ceiling or regulator changed; the epoch continues. An
+// owner's change carries its new ceiling; a regulator transition carries the
+// ceiling it now holds (zero once it releases) and the blind ticks that
+// drove it.
+message SpeedChanged {
+  optional Speed speed = 1;
+  optional uint32 max_ticks_per_second = 2;
+  optional uint32 regulated_ticks_per_second = 3;
+  optional int64 blind_ticks = 4;
+}
 message PauseFailed { StopEvent pending = 1; }
 message ForcePauseWaiting {
   PauseEvidence pause = 1;

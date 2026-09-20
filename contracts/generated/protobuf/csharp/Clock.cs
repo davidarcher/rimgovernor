@@ -40,37 +40,45 @@ namespace RimGovernor.Protocol.Clock {
             "X2hvc3RpbGVfd2l0aGluQhoKGF9pbmp1cnlfc3RvcF9jb29sZG93bl9tcyJo",
             "CgpFcG9jaE93bmVyEiIKFWNvbnRyb2xsZXJfc2Vzc2lvbl9pZBgBIAEoCUgA",
             "iAEBEhIKBWVwb2NoGAIgASgDSAGIAQFCGAoWX2NvbnRyb2xsZXJfc2Vzc2lv",
-            "bl9pZEIICgZfZXBvY2givAIKDFN0YXJ0UmVxdWVzdBI+CglhdXRob3JpdHkY",
+            "bl9pZEIICgZfZXBvY2girgMKDFN0YXJ0UmVxdWVzdBI+CglhdXRob3JpdHkY",
             "ASABKAsyKy5yaW1nb3Zlcm5vci5hdXRob3JpdHkudjEuV3JpdGVQcmVjb25k",
             "aXRpb24SLwoFc3BlZWQYAiABKA4yGy5yaW1nb3Zlcm5vci5jbG9jay52MS5T",
             "cGVlZEgAiAEBEjEKBnBvbGljeRgDIAEoCzIhLnJpbWdvdmVybm9yLmNsb2Nr",
             "LnYxLldhdGNoUG9saWN5EhUKCGxlYXNlX21zGAQgASgNSAGIAQESFgoJbWF4",
             "X3RpY2tzGAUgASgNSAKIAQESHgoRdGVzdF9hY2NlbGVyYXRpb24YBiABKAhI",
-            "A4gBAUIICgZfc3BlZWRCCwoJX2xlYXNlX21zQgwKCl9tYXhfdGlja3NCFAoS",
-            "X3Rlc3RfYWNjZWxlcmF0aW9uInIKDE93bmVkUmVxdWVzdBIxCghpZGVudGl0",
-            "eRgBIAEoCzIfLnJpbWdvdmVybm9yLmNvbW1vbi52MS5JZGVudGl0eRIvCgVv",
-            "d25lchgCIAEoCzIgLnJpbWdvdmVybm9yLmNsb2NrLnYxLkVwb2NoT3duZXIi",
-            "pQEKDFJlbmV3UmVxdWVzdBIxCgVlcG9jaBgBIAEoCzIiLnJpbWdvdmVybm9y",
-            "LmNsb2NrLnYxLk93bmVkUmVxdWVzdBI+CglhdXRob3JpdHkYAiABKAsyKy5y",
-            "aW1nb3Zlcm5vci5hdXRob3JpdHkudjEuV3JpdGVQcmVjb25kaXRpb24SFQoI",
-            "bGVhc2VfbXMYAyABKA1IAIgBAUILCglfbGVhc2VfbXMivAEKDFNwZWVkUmVx",
-            "dWVzdBIxCgVlcG9jaBgBIAEoCzIiLnJpbWdvdmVybm9yLmNsb2NrLnYxLk93",
-            "bmVkUmVxdWVzdBI+CglhdXRob3JpdHkYAiABKAsyKy5yaW1nb3Zlcm5vci5h",
-            "dXRob3JpdHkudjEuV3JpdGVQcmVjb25kaXRpb24SLwoFc3BlZWQYAyABKA4y",
-            "Gy5yaW1nb3Zlcm5vci5jbG9jay52MS5TcGVlZEgAiAEBQggKBl9zcGVlZCJC",
-            "Cg1TdGF0dXNSZXF1ZXN0EjEKCGlkZW50aXR5GAEgASgLMh8ucmltZ292ZXJu",
-            "b3IuY29tbW9uLnYxLklkZW50aXR5It8DCgVFcG9jaBIvCgVvd25lchgBIAEo",
-            "CzIgLnJpbWdvdmVybm9yLmNsb2NrLnYxLkVwb2NoT3duZXISOQoGb3JpZ2lu",
-            "GAIgASgLMikucmltZ292ZXJub3IuY29tbW9uLnYxLk9ic2VydmF0aW9uQ29u",
-            "dGV4dBI5Cg9yZXF1ZXN0ZWRfc3BlZWQYAyABKA4yGy5yaW1nb3Zlcm5vci5j",
-            "bG9jay52MS5TcGVlZEgAiAEBEjEKBnBvbGljeRgEIAEoCzIhLnJpbWdvdmVy",
-            "bm9yLmNsb2NrLnYxLldhdGNoUG9saWN5EhcKCnN0YXJ0X3RpY2sYBSABKANI",
-            "AYgBARIaCg10aWNrX2RlYWRsaW5lGAYgASgDSAKIAQESHwoSbGVhc2VfcmVt",
-            "YWluaW5nX21zGAcgASgNSAOIAQESFgoJbGFzdF90aWNrGAggASgDSASIAQES",
-            "HgoRdGVzdF9hY2NlbGVyYXRpb24YCSABKAhIBYgBAUISChBfcmVxdWVzdGVk",
-            "X3NwZWVkQg0KC19zdGFydF90aWNrQhAKDl90aWNrX2RlYWRsaW5lQhUKE19s",
-            "ZWFzZV9yZW1haW5pbmdfbXNCDAoKX2xhc3RfdGlja0IUChJfdGVzdF9hY2Nl",
-            "bGVyYXRpb24iNQoHUnVubmluZxIqCgVlcG9jaBgBIAEoCzIbLnJpbWdvdmVy",
+            "A4gBARIeChFibGluZF90aWNrX2J1ZGdldBgHIAEoDUgEiAEBEiEKFG1heF90",
+            "aWNrc19wZXJfc2Vjb25kGAggASgNSAWIAQFCCAoGX3NwZWVkQgsKCV9sZWFz",
+            "ZV9tc0IMCgpfbWF4X3RpY2tzQhQKEl90ZXN0X2FjY2VsZXJhdGlvbkIUChJf",
+            "YmxpbmRfdGlja19idWRnZXRCFwoVX21heF90aWNrc19wZXJfc2Vjb25kInIK",
+            "DE93bmVkUmVxdWVzdBIxCghpZGVudGl0eRgBIAEoCzIfLnJpbWdvdmVybm9y",
+            "LmNvbW1vbi52MS5JZGVudGl0eRIvCgVvd25lchgCIAEoCzIgLnJpbWdvdmVy",
+            "bm9yLmNsb2NrLnYxLkVwb2NoT3duZXIipQEKDFJlbmV3UmVxdWVzdBIxCgVl",
+            "cG9jaBgBIAEoCzIiLnJpbWdvdmVybm9yLmNsb2NrLnYxLk93bmVkUmVxdWVz",
+            "dBI+CglhdXRob3JpdHkYAiABKAsyKy5yaW1nb3Zlcm5vci5hdXRob3JpdHku",
+            "djEuV3JpdGVQcmVjb25kaXRpb24SFQoIbGVhc2VfbXMYAyABKA1IAIgBAUIL",
+            "CglfbGVhc2VfbXMi+AEKDFNwZWVkUmVxdWVzdBIxCgVlcG9jaBgBIAEoCzIi",
+            "LnJpbWdvdmVybm9yLmNsb2NrLnYxLk93bmVkUmVxdWVzdBI+CglhdXRob3Jp",
+            "dHkYAiABKAsyKy5yaW1nb3Zlcm5vci5hdXRob3JpdHkudjEuV3JpdGVQcmVj",
+            "b25kaXRpb24SLwoFc3BlZWQYAyABKA4yGy5yaW1nb3Zlcm5vci5jbG9jay52",
+            "MS5TcGVlZEgAiAEBEiEKFG1heF90aWNrc19wZXJfc2Vjb25kGAQgASgNSAGI",
+            "AQFCCAoGX3NwZWVkQhcKFV9tYXhfdGlja3NfcGVyX3NlY29uZCJCCg1TdGF0",
+            "dXNSZXF1ZXN0EjEKCGlkZW50aXR5GAEgASgLMh8ucmltZ292ZXJub3IuY29t",
+            "bW9uLnYxLklkZW50aXR5IpkFCgVFcG9jaBIvCgVvd25lchgBIAEoCzIgLnJp",
+            "bWdvdmVybm9yLmNsb2NrLnYxLkVwb2NoT3duZXISOQoGb3JpZ2luGAIgASgL",
+            "MikucmltZ292ZXJub3IuY29tbW9uLnYxLk9ic2VydmF0aW9uQ29udGV4dBI5",
+            "Cg9yZXF1ZXN0ZWRfc3BlZWQYAyABKA4yGy5yaW1nb3Zlcm5vci5jbG9jay52",
+            "MS5TcGVlZEgAiAEBEjEKBnBvbGljeRgEIAEoCzIhLnJpbWdvdmVybm9yLmNs",
+            "b2NrLnYxLldhdGNoUG9saWN5EhcKCnN0YXJ0X3RpY2sYBSABKANIAYgBARIa",
+            "Cg10aWNrX2RlYWRsaW5lGAYgASgDSAKIAQESHwoSbGVhc2VfcmVtYWluaW5n",
+            "X21zGAcgASgNSAOIAQESFgoJbGFzdF90aWNrGAggASgDSASIAQESHgoRdGVz",
+            "dF9hY2NlbGVyYXRpb24YCSABKAhIBYgBARIeChFibGluZF90aWNrX2J1ZGdl",
+            "dBgKIAEoDUgGiAEBEiEKFG1heF90aWNrc19wZXJfc2Vjb25kGAsgASgNSAeI",
+            "AQESJwoacmVndWxhdGVkX3RpY2tzX3Blcl9zZWNvbmQYDCABKA1ICIgBAUIS",
+            "ChBfcmVxdWVzdGVkX3NwZWVkQg0KC19zdGFydF90aWNrQhAKDl90aWNrX2Rl",
+            "YWRsaW5lQhUKE19sZWFzZV9yZW1haW5pbmdfbXNCDAoKX2xhc3RfdGlja0IU",
+            "ChJfdGVzdF9hY2NlbGVyYXRpb25CFAoSX2JsaW5kX3RpY2tfYnVkZ2V0QhcK",
+            "FV9tYXhfdGlja3NfcGVyX3NlY29uZEIdChtfcmVndWxhdGVkX3RpY2tzX3Bl",
+            "cl9zZWNvbmQiNQoHUnVubmluZxIqCgVlcG9jaBgBIAEoCzIbLnJpbWdvdmVy",
             "bm9yLmNsb2NrLnYxLkVwb2NoItYBCghTdG9wcGluZxIqCgVlcG9jaBgBIAEo",
             "CzIbLnJpbWdvdmVybm9yLmNsb2NrLnYxLkVwb2NoEj0KDnBlbmRpbmdfcmVh",
             "c29uGAIgASgOMiAucmltZ292ZXJub3IuY2xvY2sudjEuU3RvcFJlYXNvbkgA",
@@ -233,116 +241,120 @@ namespace RimGovernor.Protocol.Clock {
             "Y2VsbHMYBCABKAsyHy5yaW1nb3Zlcm5vci5jbG9jay52MS5SZWN0YW5nbGVC",
             "CQoHX3JlYXNvbiJnCglSZWN0YW5nbGUSLAoHbWluaW11bRgBIAEoCzIbLnJp",
             "bWdvdmVybm9yLmNvbW1vbi52MS5DZWxsEiwKB21heGltdW0YAiABKAsyGy5y",
-            "aW1nb3Zlcm5vci5jb21tb24udjEuQ2VsbCJJCgxTcGVlZENoYW5nZWQSLwoF",
-            "c3BlZWQYASABKA4yGy5yaW1nb3Zlcm5vci5jbG9jay52MS5TcGVlZEgAiAEB",
-            "QggKBl9zcGVlZCI/CgtQYXVzZUZhaWxlZBIwCgdwZW5kaW5nGAEgASgLMh8u",
-            "cmltZ292ZXJub3IuY2xvY2sudjEuU3RvcEV2ZW50IpEBChFGb3JjZVBhdXNl",
-            "V2FpdGluZxIyCgVwYXVzZRgBIAEoCzIjLnJpbWdvdmVybm9yLmNsb2NrLnYx",
-            "LlBhdXNlRXZpZGVuY2USFgoJd2FpdGVkX21zGAIgASgESACIAQESFQoIZ3Jh",
-            "Y2VfbXMYAyABKA1IAYgBAUIMCgpfd2FpdGVkX21zQgsKCV9ncmFjZV9tcyKd",
-            "AQoRRm9yY2VQYXVzZUNsZWFyZWQSFgoJd2FpdGVkX21zGAEgASgESACIAQES",
-            "HQoQZm9yY2VfcGF1c2Vfa2luZBgCIAEoCUgBiAEBEhsKDnNwZWVkX3Jlc3Rv",
-            "cmVkGAMgASgISAKIAQFCDAoKX3dhaXRlZF9tc0ITChFfZm9yY2VfcGF1c2Vf",
-            "a2luZEIRCg9fc3BlZWRfcmVzdG9yZWQiqwgKBUV2ZW50EhMKBmN1cnNvchgB",
-            "IAEoA0gBiAEBEi8KBW93bmVyGAIgASgLMiAucmltZ292ZXJub3IuY2xvY2su",
-            "djEuRXBvY2hPd25lchI6Cgdjb250ZXh0GAMgASgLMikucmltZ292ZXJub3Iu",
-            "Y29tbW9uLnYxLk9ic2VydmF0aW9uQ29udGV4dBIgChNvYnNlcnZlZF9hdF91",
-            "bml4X21zGAQgASgDSAKIAQESEwoGZGV0YWlsGAUgASgJSAOIAQESNQoHc3Rh",
-            "cnRlZBgGIAEoCzIiLnJpbWdvdmVybm9yLmNsb2NrLnYxLkVwb2NoU3RhcnRl",
-            "ZEgAEjsKDXNwZWVkX2NoYW5nZWQYByABKAsyIi5yaW1nb3Zlcm5vci5jbG9j",
-            "ay52MS5TcGVlZENoYW5nZWRIABIyCgdzdG9wcGVkGAggASgLMh8ucmltZ292",
-            "ZXJub3IuY2xvY2sudjEuU3RvcEV2ZW50SAASOgoMbm90aWZpY2F0aW9uGAkg",
-            "ASgLMiIucmltZ292ZXJub3IuY2xvY2sudjEuTm90aWZpY2F0aW9uSAASLAoF",
-            "YWxlcnQYCiABKAsyGy5yaW1nb3Zlcm5vci5jbG9jay52MS5BbGVydEgAEjcK",
-            "D2luanVyeV9vYnNlcnZlZBgLIAEoCzIcLnJpbWdvdmVybm9yLmNsb2NrLnYx",
-            "LkluanVyeUgAEkEKEGhvc3RpbGVzX2NsZWFyZWQYDCABKAsyJS5yaW1nb3Zl",
-            "cm5vci5jbG9jay52MS5Ib3N0aWxlc0NsZWFyZWRIABI5CgxwYXVzZV9mYWls",
-            "ZWQYDSABKAsyIS5yaW1nb3Zlcm5vci5jbG9jay52MS5QYXVzZUZhaWxlZEgA",
-            "EkYKE2ZvcmNlX3BhdXNlX3dhaXRpbmcYDiABKAsyJy5yaW1nb3Zlcm5vci5j",
-            "bG9jay52MS5Gb3JjZVBhdXNlV2FpdGluZ0gAEkYKE2ZvcmNlX3BhdXNlX2Ns",
-            "ZWFyZWQYDyABKAsyJy5yaW1nb3Zlcm5vci5jbG9jay52MS5Gb3JjZVBhdXNl",
-            "Q2xlYXJlZEgAEkMKEW9wZXJhdGlvbl9vdXRjb21lGBAgASgLMiYucmltZ292",
-            "ZXJub3IuY2xvY2sudjEuT3BlcmF0aW9uT3V0Y29tZUgAEkMKEWF1dGhvcml0",
-            "eV9jaGFuZ2VkGBEgASgLMiYucmltZ292ZXJub3IuY2xvY2sudjEuQXV0aG9y",
-            "aXR5Q2hhbmdlZEgAEk8KF29ic2VydmF0aW9uX2ludmFsaWRhdGVkGBIgASgL",
-            "MiwucmltZ292ZXJub3IuY2xvY2sudjEuT2JzZXJ2YXRpb25JbnZhbGlkYXRl",
-            "ZEgAQgcKBWV2ZW50QgkKB19jdXJzb3JCFgoUX29ic2VydmVkX2F0X3VuaXhf",
-            "bXNCCQoHX2RldGFpbCKuAQoNRXZlbnRzUmVxdWVzdBIxCghpZGVudGl0eRgB",
-            "IAEoCzIfLnJpbWdvdmVybm9yLmNvbW1vbi52MS5JZGVudGl0eRIZCgxhZnRl",
-            "cl9jdXJzb3IYAiABKANIAIgBARISCgVsaW1pdBgDIAEoDUgBiAEBEhQKB3dh",
-            "aXRfbXMYBCABKA1IAogBAUIPCg1fYWZ0ZXJfY3Vyc29yQggKBl9saW1pdEIK",
-            "Cghfd2FpdF9tcyK9AgoKRXZlbnRzUGFnZRI6Cgdjb250ZXh0GAEgASgLMiku",
-            "cmltZ292ZXJub3IuY29tbW9uLnYxLk9ic2VydmF0aW9uQ29udGV4dBIrCgZl",
-            "dmVudHMYAiADKAsyGy5yaW1nb3Zlcm5vci5jbG9jay52MS5FdmVudBIaCg1v",
-            "bGRlc3RfY3Vyc29yGAMgASgDSACIAQESGgoNbmV3ZXN0X2N1cnNvchgEIAEo",
-            "A0gBiAEBEhgKC25leHRfY3Vyc29yGAUgASgDSAKIAQESEAoDZ2FwGAYgASgI",
-            "SAOIAQESFwoKbG9zdF9jb3VudBgHIAEoBEgEiAEBQhAKDl9vbGRlc3RfY3Vy",
-            "c29yQhAKDl9uZXdlc3RfY3Vyc29yQg4KDF9uZXh0X2N1cnNvckIGCgRfZ2Fw",
-            "Qg0KC19sb3N0X2NvdW50In0KC0V2ZW50c1JlcGx5EjAKBHBhZ2UYASABKAsy",
-            "IC5yaW1nb3Zlcm5vci5jbG9jay52MS5FdmVudHNQYWdlSAASMQoHZmFpbHVy",
-            "ZRgCIAEoCzIeLnJpbWdvdmVybm9yLmNvbW1vbi52MS5GYWlsdXJlSABCCQoH",
-            "b3V0Y29tZSpqCgVTcGVlZBIVChFTUEVFRF9VTlNQRUNJRklFRBAAEhAKDFNQ",
-            "RUVEX05PUk1BTBABEg4KClNQRUVEX0ZBU1QQAhITCg9TUEVFRF9TVVBFUkZB",
-            "U1QQAxITCg9TUEVFRF9VTFRSQUZBU1QQBCq6AQoNT2JzZXJ2ZWRTcGVlZBIe",
-            "ChpPQlNFUlZFRF9TUEVFRF9VTlNQRUNJRklFRBAAEhkKFU9CU0VSVkVEX1NQ",
-            "RUVEX1BBVVNFRBABEhkKFU9CU0VSVkVEX1NQRUVEX05PUk1BTBACEhcKE09C",
-            "U0VSVkVEX1NQRUVEX0ZBU1QQAxIcChhPQlNFUlZFRF9TUEVFRF9TVVBFUkZB",
-            "U1QQBBIcChhPQlNFUlZFRF9TUEVFRF9VTFRSQUZBU1QQBSpVCglXYXRjaE1v",
-            "ZGUSGgoWV0FUQ0hfTU9ERV9VTlNQRUNJRklFRBAAEhUKEVdBVENIX01PREVf",
-            "Q09MT05ZEAESFQoRV0FUQ0hfTU9ERV9DT01CQVQQAiqSBgoKU3RvcFJlYXNv",
-            "bhIbChdTVE9QX1JFQVNPTl9VTlNQRUNJRklFRBAAEh8KG1NUT1BfUkVBU09O",
-            "X1JFUVVFU1RFRF9QQVVTRRABEhsKF1NUT1BfUkVBU09OX1RJQ0tfQlVER0VU",
-            "EAISHwobU1RPUF9SRUFTT05fU0VTU0lPTl9DSEFOR0VEEAMSGwoXU1RPUF9S",
-            "RUFTT05fVU5BVkFJTEFCTEUQBBIeChpTVE9QX1JFQVNPTl9FWFRFUk5BTF9Q",
-            "QVVTRRAFEhwKGFNUT1BfUkVBU09OX0xFVFRFUl9QQVVTRRAGEiYKIlNUT1Bf",
-            "UkVBU09OX0VYVEVSTkFMX1NQRUVEX0NIQU5HRUQQBxIdChlTVE9QX1JFQVNP",
-            "Tl9MRUFTRV9FWFBJUkVEEAgSHQoZU1RPUF9SRUFTT05fV0FUQ0hFUl9FUlJP",
-            "UhAJEiMKH1NUT1BfUkVBU09OX0VWRU5UX0pPVVJOQUxfRVJST1IQChIcChhT",
-            "VE9QX1JFQVNPTl9GT1JDRV9QQVVTRUQQCxIdChlTVE9QX1JFQVNPTl9DT0xP",
-            "TllfTkFNSU5HEAwSHQoZU1RPUF9SRUFTT05fU1RBUlRfUkVGVVNFRBANEiIK",
-            "HlNUT1BfUkVBU09OX05PVElGSUNBVElPTl9CQVRDSBAOEiQKIFNUT1BfUkVB",
-            "U09OX01FRElDQUxfUkVTVF9DSEFOR0VEEA8SFwoTU1RPUF9SRUFTT05fSE9T",
-            "VElMRRAQEh8KG1NUT1BfUkVBU09OX0NPTE9OSVNUX0RPV05FRBAREh0KGVNU",
-            "T1BfUkVBU09OX1BSRURBVE9SX0hVTlQQEhIkCiBTVE9QX1JFQVNPTl9IVU5U",
-            "SU5HX1JPVVRFX1VOU0FGRRATEh8KG1NUT1BfUkVBU09OX0NPTE9OSVNUX0hF",
-            "QUxUSBAUEh8KG1NUT1BfUkVBU09OX0NPTE9OSVNUX0lOSlVSWRAVEh0KGVNU",
-            "T1BfUkVBU09OX1dBVENIX0xBVENIRUQQFhIcChhTVE9QX1JFQVNPTl9ESUFM",
-            "T0dfUEFVU0UQFyqaAQoRSW5qdXJ5U3VwcHJlc3Npb24SIgoeSU5KVVJZX1NV",
-            "UFBSRVNTSU9OX1VOU1BFQ0lGSUVEEAASGwoXSU5KVVJZX1NVUFBSRVNTSU9O",
-            "X05PTkUQARIjCh9JTkpVUllfU1VQUFJFU1NJT05fQUNLTk9XTEVER0VEEAIS",
-            "HwobSU5KVVJZX1NVUFBSRVNTSU9OX0NPT0xET1dOEAMq8gEKCkZhY3RGYW1p",
-            "bHkSGwoXRkFDVF9GQU1JTFlfVU5TUEVDSUZJRUQQABIbChdGQUNUX0ZBTUlM",
-            "WV9ERUZJTklUSU9OUxABEhUKEUZBQ1RfRkFNSUxZX1dPUkxEEAISGAoURkFD",
-            "VF9GQU1JTFlfSURFTlRJVFkQAxIWChJGQUNUX0ZBTUlMWV9DT0xPTlkQBBIV",
-            "ChFGQUNUX0ZBTUlMWV9QQVdOUxAFEhkKFUZBQ1RfRkFNSUxZX0VNRVJHRU5D",
-            "WRAGEhUKEUZBQ1RfRkFNSUxZX1JPT01TEAcSGAoURkFDVF9GQU1JTFlfUkVT",
-            "RUFSQ0gQCDLVBAoFQ2xvY2sSVAoKUmVhZFN0YXR1cxIjLnJpbWdvdmVybm9y",
-            "LmNsb2NrLnYxLlN0YXR1c1JlcXVlc3QaIS5yaW1nb3Zlcm5vci5jbG9jay52",
-            "MS5TdGF0dXNSZXBseRJUCgpSZWFkRXZlbnRzEiMucmltZ292ZXJub3IuY2xv",
-            "Y2sudjEuRXZlbnRzUmVxdWVzdBohLnJpbWdvdmVybm9yLmNsb2NrLnYxLkV2",
-            "ZW50c1JlcGx5ElcKC1JlYWRBdHRlbXB0EiQucmltZ292ZXJub3IuY2xvY2su",
-            "djEuQXR0ZW1wdFJlcXVlc3QaIi5yaW1nb3Zlcm5vci5jbG9jay52MS5BdHRl",
-            "bXB0UmVwbHkSTwoFU3RhcnQSIi5yaW1nb3Zlcm5vci5jbG9jay52MS5TdGFy",
-            "dFJlcXVlc3QaIi5yaW1nb3Zlcm5vci5jbG9jay52MS5Db250cm9sUmVwbHkS",
-            "TgoFUGF1c2USIi5yaW1nb3Zlcm5vci5jbG9jay52MS5Pd25lZFJlcXVlc3Qa",
-            "IS5yaW1nb3Zlcm5vci5jbG9jay52MS5TdGF0dXNSZXBseRJPCgVSZW5ldxIi",
-            "LnJpbWdvdmVybm9yLmNsb2NrLnYxLlJlbmV3UmVxdWVzdBoiLnJpbWdvdmVy",
-            "bm9yLmNsb2NrLnYxLkNvbnRyb2xSZXBseRJVCgtDaGFuZ2VTcGVlZBIiLnJp",
-            "bWdvdmVybm9yLmNsb2NrLnYxLlNwZWVkUmVxdWVzdBoiLnJpbWdvdmVybm9y",
-            "LmNsb2NrLnYxLkNvbnRyb2xSZXBseUJiWkNnaXRodWIuY29tL2RhdmlkYXJj",
-            "aGVyL1JpbUdvdmVybm9yL2dvL2ludGVybmFsL3dpcmUvY2xvY2twYjtjbG9j",
-            "a3BiqgIaUmltR292ZXJub3IuUHJvdG9jb2wuQ2xvY2tiBnByb3RvMw=="));
+            "aW1nb3Zlcm5vci5jb21tb24udjEuQ2VsbCL3AQoMU3BlZWRDaGFuZ2VkEi8K",
+            "BXNwZWVkGAEgASgOMhsucmltZ292ZXJub3IuY2xvY2sudjEuU3BlZWRIAIgB",
+            "ARIhChRtYXhfdGlja3NfcGVyX3NlY29uZBgCIAEoDUgBiAEBEicKGnJlZ3Vs",
+            "YXRlZF90aWNrc19wZXJfc2Vjb25kGAMgASgNSAKIAQESGAoLYmxpbmRfdGlj",
+            "a3MYBCABKANIA4gBAUIICgZfc3BlZWRCFwoVX21heF90aWNrc19wZXJfc2Vj",
+            "b25kQh0KG19yZWd1bGF0ZWRfdGlja3NfcGVyX3NlY29uZEIOCgxfYmxpbmRf",
+            "dGlja3MiPwoLUGF1c2VGYWlsZWQSMAoHcGVuZGluZxgBIAEoCzIfLnJpbWdv",
+            "dmVybm9yLmNsb2NrLnYxLlN0b3BFdmVudCKRAQoRRm9yY2VQYXVzZVdhaXRp",
+            "bmcSMgoFcGF1c2UYASABKAsyIy5yaW1nb3Zlcm5vci5jbG9jay52MS5QYXVz",
+            "ZUV2aWRlbmNlEhYKCXdhaXRlZF9tcxgCIAEoBEgAiAEBEhUKCGdyYWNlX21z",
+            "GAMgASgNSAGIAQFCDAoKX3dhaXRlZF9tc0ILCglfZ3JhY2VfbXMinQEKEUZv",
+            "cmNlUGF1c2VDbGVhcmVkEhYKCXdhaXRlZF9tcxgBIAEoBEgAiAEBEh0KEGZv",
+            "cmNlX3BhdXNlX2tpbmQYAiABKAlIAYgBARIbCg5zcGVlZF9yZXN0b3JlZBgD",
+            "IAEoCEgCiAEBQgwKCl93YWl0ZWRfbXNCEwoRX2ZvcmNlX3BhdXNlX2tpbmRC",
+            "EQoPX3NwZWVkX3Jlc3RvcmVkIqsICgVFdmVudBITCgZjdXJzb3IYASABKANI",
+            "AYgBARIvCgVvd25lchgCIAEoCzIgLnJpbWdvdmVybm9yLmNsb2NrLnYxLkVw",
+            "b2NoT3duZXISOgoHY29udGV4dBgDIAEoCzIpLnJpbWdvdmVybm9yLmNvbW1v",
+            "bi52MS5PYnNlcnZhdGlvbkNvbnRleHQSIAoTb2JzZXJ2ZWRfYXRfdW5peF9t",
+            "cxgEIAEoA0gCiAEBEhMKBmRldGFpbBgFIAEoCUgDiAEBEjUKB3N0YXJ0ZWQY",
+            "BiABKAsyIi5yaW1nb3Zlcm5vci5jbG9jay52MS5FcG9jaFN0YXJ0ZWRIABI7",
+            "Cg1zcGVlZF9jaGFuZ2VkGAcgASgLMiIucmltZ292ZXJub3IuY2xvY2sudjEu",
+            "U3BlZWRDaGFuZ2VkSAASMgoHc3RvcHBlZBgIIAEoCzIfLnJpbWdvdmVybm9y",
+            "LmNsb2NrLnYxLlN0b3BFdmVudEgAEjoKDG5vdGlmaWNhdGlvbhgJIAEoCzIi",
+            "LnJpbWdvdmVybm9yLmNsb2NrLnYxLk5vdGlmaWNhdGlvbkgAEiwKBWFsZXJ0",
+            "GAogASgLMhsucmltZ292ZXJub3IuY2xvY2sudjEuQWxlcnRIABI3Cg9pbmp1",
+            "cnlfb2JzZXJ2ZWQYCyABKAsyHC5yaW1nb3Zlcm5vci5jbG9jay52MS5Jbmp1",
+            "cnlIABJBChBob3N0aWxlc19jbGVhcmVkGAwgASgLMiUucmltZ292ZXJub3Iu",
+            "Y2xvY2sudjEuSG9zdGlsZXNDbGVhcmVkSAASOQoMcGF1c2VfZmFpbGVkGA0g",
+            "ASgLMiEucmltZ292ZXJub3IuY2xvY2sudjEuUGF1c2VGYWlsZWRIABJGChNm",
+            "b3JjZV9wYXVzZV93YWl0aW5nGA4gASgLMicucmltZ292ZXJub3IuY2xvY2su",
+            "djEuRm9yY2VQYXVzZVdhaXRpbmdIABJGChNmb3JjZV9wYXVzZV9jbGVhcmVk",
+            "GA8gASgLMicucmltZ292ZXJub3IuY2xvY2sudjEuRm9yY2VQYXVzZUNsZWFy",
+            "ZWRIABJDChFvcGVyYXRpb25fb3V0Y29tZRgQIAEoCzImLnJpbWdvdmVybm9y",
+            "LmNsb2NrLnYxLk9wZXJhdGlvbk91dGNvbWVIABJDChFhdXRob3JpdHlfY2hh",
+            "bmdlZBgRIAEoCzImLnJpbWdvdmVybm9yLmNsb2NrLnYxLkF1dGhvcml0eUNo",
+            "YW5nZWRIABJPChdvYnNlcnZhdGlvbl9pbnZhbGlkYXRlZBgSIAEoCzIsLnJp",
+            "bWdvdmVybm9yLmNsb2NrLnYxLk9ic2VydmF0aW9uSW52YWxpZGF0ZWRIAEIH",
+            "CgVldmVudEIJCgdfY3Vyc29yQhYKFF9vYnNlcnZlZF9hdF91bml4X21zQgkK",
+            "B19kZXRhaWwirgEKDUV2ZW50c1JlcXVlc3QSMQoIaWRlbnRpdHkYASABKAsy",
+            "Hy5yaW1nb3Zlcm5vci5jb21tb24udjEuSWRlbnRpdHkSGQoMYWZ0ZXJfY3Vy",
+            "c29yGAIgASgDSACIAQESEgoFbGltaXQYAyABKA1IAYgBARIUCgd3YWl0X21z",
+            "GAQgASgNSAKIAQFCDwoNX2FmdGVyX2N1cnNvckIICgZfbGltaXRCCgoIX3dh",
+            "aXRfbXMivQIKCkV2ZW50c1BhZ2USOgoHY29udGV4dBgBIAEoCzIpLnJpbWdv",
+            "dmVybm9yLmNvbW1vbi52MS5PYnNlcnZhdGlvbkNvbnRleHQSKwoGZXZlbnRz",
+            "GAIgAygLMhsucmltZ292ZXJub3IuY2xvY2sudjEuRXZlbnQSGgoNb2xkZXN0",
+            "X2N1cnNvchgDIAEoA0gAiAEBEhoKDW5ld2VzdF9jdXJzb3IYBCABKANIAYgB",
+            "ARIYCgtuZXh0X2N1cnNvchgFIAEoA0gCiAEBEhAKA2dhcBgGIAEoCEgDiAEB",
+            "EhcKCmxvc3RfY291bnQYByABKARIBIgBAUIQCg5fb2xkZXN0X2N1cnNvckIQ",
+            "Cg5fbmV3ZXN0X2N1cnNvckIOCgxfbmV4dF9jdXJzb3JCBgoEX2dhcEINCgtf",
+            "bG9zdF9jb3VudCJ9CgtFdmVudHNSZXBseRIwCgRwYWdlGAEgASgLMiAucmlt",
+            "Z292ZXJub3IuY2xvY2sudjEuRXZlbnRzUGFnZUgAEjEKB2ZhaWx1cmUYAiAB",
+            "KAsyHi5yaW1nb3Zlcm5vci5jb21tb24udjEuRmFpbHVyZUgAQgkKB291dGNv",
+            "bWUqagoFU3BlZWQSFQoRU1BFRURfVU5TUEVDSUZJRUQQABIQCgxTUEVFRF9O",
+            "T1JNQUwQARIOCgpTUEVFRF9GQVNUEAISEwoPU1BFRURfU1VQRVJGQVNUEAMS",
+            "EwoPU1BFRURfVUxUUkFGQVNUEAQqugEKDU9ic2VydmVkU3BlZWQSHgoaT0JT",
+            "RVJWRURfU1BFRURfVU5TUEVDSUZJRUQQABIZChVPQlNFUlZFRF9TUEVFRF9Q",
+            "QVVTRUQQARIZChVPQlNFUlZFRF9TUEVFRF9OT1JNQUwQAhIXChNPQlNFUlZF",
+            "RF9TUEVFRF9GQVNUEAMSHAoYT0JTRVJWRURfU1BFRURfU1VQRVJGQVNUEAQS",
+            "HAoYT0JTRVJWRURfU1BFRURfVUxUUkFGQVNUEAUqVQoJV2F0Y2hNb2RlEhoK",
+            "FldBVENIX01PREVfVU5TUEVDSUZJRUQQABIVChFXQVRDSF9NT0RFX0NPTE9O",
+            "WRABEhUKEVdBVENIX01PREVfQ09NQkFUEAIqkgYKClN0b3BSZWFzb24SGwoX",
+            "U1RPUF9SRUFTT05fVU5TUEVDSUZJRUQQABIfChtTVE9QX1JFQVNPTl9SRVFV",
+            "RVNURURfUEFVU0UQARIbChdTVE9QX1JFQVNPTl9USUNLX0JVREdFVBACEh8K",
+            "G1NUT1BfUkVBU09OX1NFU1NJT05fQ0hBTkdFRBADEhsKF1NUT1BfUkVBU09O",
+            "X1VOQVZBSUxBQkxFEAQSHgoaU1RPUF9SRUFTT05fRVhURVJOQUxfUEFVU0UQ",
+            "BRIcChhTVE9QX1JFQVNPTl9MRVRURVJfUEFVU0UQBhImCiJTVE9QX1JFQVNP",
+            "Tl9FWFRFUk5BTF9TUEVFRF9DSEFOR0VEEAcSHQoZU1RPUF9SRUFTT05fTEVB",
+            "U0VfRVhQSVJFRBAIEh0KGVNUT1BfUkVBU09OX1dBVENIRVJfRVJST1IQCRIj",
+            "Ch9TVE9QX1JFQVNPTl9FVkVOVF9KT1VSTkFMX0VSUk9SEAoSHAoYU1RPUF9S",
+            "RUFTT05fRk9SQ0VfUEFVU0VEEAsSHQoZU1RPUF9SRUFTT05fQ09MT05ZX05B",
+            "TUlORxAMEh0KGVNUT1BfUkVBU09OX1NUQVJUX1JFRlVTRUQQDRIiCh5TVE9Q",
+            "X1JFQVNPTl9OT1RJRklDQVRJT05fQkFUQ0gQDhIkCiBTVE9QX1JFQVNPTl9N",
+            "RURJQ0FMX1JFU1RfQ0hBTkdFRBAPEhcKE1NUT1BfUkVBU09OX0hPU1RJTEUQ",
+            "EBIfChtTVE9QX1JFQVNPTl9DT0xPTklTVF9ET1dORUQQERIdChlTVE9QX1JF",
+            "QVNPTl9QUkVEQVRPUl9IVU5UEBISJAogU1RPUF9SRUFTT05fSFVOVElOR19S",
+            "T1VURV9VTlNBRkUQExIfChtTVE9QX1JFQVNPTl9DT0xPTklTVF9IRUFMVEgQ",
+            "FBIfChtTVE9QX1JFQVNPTl9DT0xPTklTVF9JTkpVUlkQFRIdChlTVE9QX1JF",
+            "QVNPTl9XQVRDSF9MQVRDSEVEEBYSHAoYU1RPUF9SRUFTT05fRElBTE9HX1BB",
+            "VVNFEBcqmgEKEUluanVyeVN1cHByZXNzaW9uEiIKHklOSlVSWV9TVVBQUkVT",
+            "U0lPTl9VTlNQRUNJRklFRBAAEhsKF0lOSlVSWV9TVVBQUkVTU0lPTl9OT05F",
+            "EAESIwofSU5KVVJZX1NVUFBSRVNTSU9OX0FDS05PV0xFREdFRBACEh8KG0lO",
+            "SlVSWV9TVVBQUkVTU0lPTl9DT09MRE9XThADKvIBCgpGYWN0RmFtaWx5EhsK",
+            "F0ZBQ1RfRkFNSUxZX1VOU1BFQ0lGSUVEEAASGwoXRkFDVF9GQU1JTFlfREVG",
+            "SU5JVElPTlMQARIVChFGQUNUX0ZBTUlMWV9XT1JMRBACEhgKFEZBQ1RfRkFN",
+            "SUxZX0lERU5USVRZEAMSFgoSRkFDVF9GQU1JTFlfQ09MT05ZEAQSFQoRRkFD",
+            "VF9GQU1JTFlfUEFXTlMQBRIZChVGQUNUX0ZBTUlMWV9FTUVSR0VOQ1kQBhIV",
+            "ChFGQUNUX0ZBTUlMWV9ST09NUxAHEhgKFEZBQ1RfRkFNSUxZX1JFU0VBUkNI",
+            "EAgy1QQKBUNsb2NrElQKClJlYWRTdGF0dXMSIy5yaW1nb3Zlcm5vci5jbG9j",
+            "ay52MS5TdGF0dXNSZXF1ZXN0GiEucmltZ292ZXJub3IuY2xvY2sudjEuU3Rh",
+            "dHVzUmVwbHkSVAoKUmVhZEV2ZW50cxIjLnJpbWdvdmVybm9yLmNsb2NrLnYx",
+            "LkV2ZW50c1JlcXVlc3QaIS5yaW1nb3Zlcm5vci5jbG9jay52MS5FdmVudHNS",
+            "ZXBseRJXCgtSZWFkQXR0ZW1wdBIkLnJpbWdvdmVybm9yLmNsb2NrLnYxLkF0",
+            "dGVtcHRSZXF1ZXN0GiIucmltZ292ZXJub3IuY2xvY2sudjEuQXR0ZW1wdFJl",
+            "cGx5Ek8KBVN0YXJ0EiIucmltZ292ZXJub3IuY2xvY2sudjEuU3RhcnRSZXF1",
+            "ZXN0GiIucmltZ292ZXJub3IuY2xvY2sudjEuQ29udHJvbFJlcGx5Ek4KBVBh",
+            "dXNlEiIucmltZ292ZXJub3IuY2xvY2sudjEuT3duZWRSZXF1ZXN0GiEucmlt",
+            "Z292ZXJub3IuY2xvY2sudjEuU3RhdHVzUmVwbHkSTwoFUmVuZXcSIi5yaW1n",
+            "b3Zlcm5vci5jbG9jay52MS5SZW5ld1JlcXVlc3QaIi5yaW1nb3Zlcm5vci5j",
+            "bG9jay52MS5Db250cm9sUmVwbHkSVQoLQ2hhbmdlU3BlZWQSIi5yaW1nb3Zl",
+            "cm5vci5jbG9jay52MS5TcGVlZFJlcXVlc3QaIi5yaW1nb3Zlcm5vci5jbG9j",
+            "ay52MS5Db250cm9sUmVwbHlCYlpDZ2l0aHViLmNvbS9kYXZpZGFyY2hlci9S",
+            "aW1Hb3Zlcm5vci9nby9pbnRlcm5hbC93aXJlL2Nsb2NrcGI7Y2xvY2twYqoC",
+            "GlJpbUdvdmVybm9yLlByb3RvY29sLkNsb2NrYgZwcm90bzM="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::RimGovernor.Protocol.Common.CommonReflection.Descriptor, global::RimGovernor.Protocol.Authority.AuthorityReflection.Descriptor, global::RimGovernor.Protocol.Receipts.ReceiptsReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(new[] {typeof(global::RimGovernor.Protocol.Clock.Speed), typeof(global::RimGovernor.Protocol.Clock.ObservedSpeed), typeof(global::RimGovernor.Protocol.Clock.WatchMode), typeof(global::RimGovernor.Protocol.Clock.StopReason), typeof(global::RimGovernor.Protocol.Clock.InjurySuppression), typeof(global::RimGovernor.Protocol.Clock.FactFamily), }, null, new pbr::GeneratedClrTypeInfo[] {
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Clock.WatchPolicy), global::RimGovernor.Protocol.Clock.WatchPolicy.Parser, new[]{ "Mode", "HealthDropFraction", "MinHealthFraction", "HostileWithin", "AcknowledgedHostileIds", "AcknowledgedDownedColonistIds", "AcknowledgedInjuredColonistIds", "InjuryStopCooldownMs", "SurgicalRecoveryIds", "MedicalRestIds", "WatchedAttempts" }, new[]{ "Mode", "HealthDropFraction", "MinHealthFraction", "HostileWithin", "InjuryStopCooldownMs" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Clock.EpochOwner), global::RimGovernor.Protocol.Clock.EpochOwner.Parser, new[]{ "ControllerSessionId", "Epoch" }, new[]{ "ControllerSessionId", "Epoch" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Clock.StartRequest), global::RimGovernor.Protocol.Clock.StartRequest.Parser, new[]{ "Authority", "Speed", "Policy", "LeaseMs", "MaxTicks", "TestAcceleration" }, new[]{ "Speed", "LeaseMs", "MaxTicks", "TestAcceleration" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Clock.StartRequest), global::RimGovernor.Protocol.Clock.StartRequest.Parser, new[]{ "Authority", "Speed", "Policy", "LeaseMs", "MaxTicks", "TestAcceleration", "BlindTickBudget", "MaxTicksPerSecond" }, new[]{ "Speed", "LeaseMs", "MaxTicks", "TestAcceleration", "BlindTickBudget", "MaxTicksPerSecond" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Clock.OwnedRequest), global::RimGovernor.Protocol.Clock.OwnedRequest.Parser, new[]{ "Identity", "Owner" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Clock.RenewRequest), global::RimGovernor.Protocol.Clock.RenewRequest.Parser, new[]{ "Epoch", "Authority", "LeaseMs" }, new[]{ "LeaseMs" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Clock.SpeedRequest), global::RimGovernor.Protocol.Clock.SpeedRequest.Parser, new[]{ "Epoch", "Authority", "Speed" }, new[]{ "Speed" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Clock.SpeedRequest), global::RimGovernor.Protocol.Clock.SpeedRequest.Parser, new[]{ "Epoch", "Authority", "Speed", "MaxTicksPerSecond" }, new[]{ "Speed", "MaxTicksPerSecond" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Clock.StatusRequest), global::RimGovernor.Protocol.Clock.StatusRequest.Parser, new[]{ "Identity" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Clock.Epoch), global::RimGovernor.Protocol.Clock.Epoch.Parser, new[]{ "Owner", "Origin", "RequestedSpeed", "Policy", "StartTick", "TickDeadline", "LeaseRemainingMs", "LastTick", "TestAcceleration" }, new[]{ "RequestedSpeed", "StartTick", "TickDeadline", "LeaseRemainingMs", "LastTick", "TestAcceleration" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Clock.Epoch), global::RimGovernor.Protocol.Clock.Epoch.Parser, new[]{ "Owner", "Origin", "RequestedSpeed", "Policy", "StartTick", "TickDeadline", "LeaseRemainingMs", "LastTick", "TestAcceleration", "BlindTickBudget", "MaxTicksPerSecond", "RegulatedTicksPerSecond" }, new[]{ "RequestedSpeed", "StartTick", "TickDeadline", "LeaseRemainingMs", "LastTick", "TestAcceleration", "BlindTickBudget", "MaxTicksPerSecond", "RegulatedTicksPerSecond" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Clock.Running), global::RimGovernor.Protocol.Clock.Running.Parser, new[]{ "Epoch" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Clock.Stopping), global::RimGovernor.Protocol.Clock.Stopping.Parser, new[]{ "Epoch", "PendingReason", "Detail", "ActualPaused" }, new[]{ "PendingReason", "Detail", "ActualPaused" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Clock.Stopped), global::RimGovernor.Protocol.Clock.Stopped.Parser, new[]{ "Epoch", "Reason", "Detail", "ActualPaused", "PauseVerified", "PauseRequested", "StoppedAtUnixMs" }, new[]{ "Reason", "Detail", "ActualPaused", "PauseVerified", "PauseRequested", "StoppedAtUnixMs" }, null, null, null),
@@ -377,7 +389,7 @@ namespace RimGovernor.Protocol.Clock {
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Clock.EpochStarted), global::RimGovernor.Protocol.Clock.EpochStarted.Parser, new[]{ "Epoch" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Clock.ObservationInvalidated), global::RimGovernor.Protocol.Clock.ObservationInvalidated.Parser, new[]{ "Families", "Reason", "EntityIds", "Cells" }, new[]{ "Reason" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Clock.Rectangle), global::RimGovernor.Protocol.Clock.Rectangle.Parser, new[]{ "Minimum", "Maximum" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Clock.SpeedChanged), global::RimGovernor.Protocol.Clock.SpeedChanged.Parser, new[]{ "Speed" }, new[]{ "Speed" }, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Clock.SpeedChanged), global::RimGovernor.Protocol.Clock.SpeedChanged.Parser, new[]{ "Speed", "MaxTicksPerSecond", "RegulatedTicksPerSecond", "BlindTicks" }, new[]{ "Speed", "MaxTicksPerSecond", "RegulatedTicksPerSecond", "BlindTicks" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Clock.PauseFailed), global::RimGovernor.Protocol.Clock.PauseFailed.Parser, new[]{ "Pending" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Clock.ForcePauseWaiting), global::RimGovernor.Protocol.Clock.ForcePauseWaiting.Parser, new[]{ "Pause", "WaitedMs", "GraceMs" }, new[]{ "WaitedMs", "GraceMs" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::RimGovernor.Protocol.Clock.ForcePauseCleared), global::RimGovernor.Protocol.Clock.ForcePauseCleared.Parser, new[]{ "WaitedMs", "ForcePauseKind", "SpeedRestored" }, new[]{ "WaitedMs", "ForcePauseKind", "SpeedRestored" }, null, null, null),
@@ -1380,6 +1392,8 @@ namespace RimGovernor.Protocol.Clock {
       leaseMs_ = other.leaseMs_;
       maxTicks_ = other.maxTicks_;
       testAcceleration_ = other.testAcceleration_;
+      blindTickBudget_ = other.blindTickBudget_;
+      maxTicksPerSecond_ = other.maxTicksPerSecond_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -1502,7 +1516,8 @@ namespace RimGovernor.Protocol.Clock {
     /// <summary>
     /// Enable the native tick boost for this epoch. Requires SPEED_ULTRAFAST and
     /// a game launched with test acceleration (Status.test_acceleration_available);
-    /// refused otherwise. An accelerated epoch cannot change speed, only pause.
+    /// refused otherwise. An accelerated epoch cannot change speed, only pause
+    /// or change its ceiling.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -1526,6 +1541,75 @@ namespace RimGovernor.Protocol.Clock {
       _hasBits0 &= ~8;
     }
 
+    /// <summary>Field number for the "blind_tick_budget" field.</summary>
+    public const int BlindTickBudgetFieldNumber = 7;
+    private readonly static uint BlindTickBudgetDefaultValue = 0;
+
+    private uint blindTickBudget_;
+    /// <summary>
+    /// Blind-tick regulator (issue #583). Blind ticks are the ticks between the
+    /// controller's last read (a status, events or bundle read, or the oldest
+    /// journal row it has not yet acknowledged with an after_cursor) and the
+    /// current tick. Past this budget native throttles the epoch toward Normal
+    /// at the next tick boundary and ramps back up once the controller catches
+    /// up (immediate decrease, multiplicative increase), journaling both
+    /// transitions as SpeedChanged without ending the epoch. Zero or absent
+    /// leaves the epoch unregulated.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public uint BlindTickBudget {
+      get { if ((_hasBits0 & 16) != 0) { return blindTickBudget_; } else { return BlindTickBudgetDefaultValue; } }
+      set {
+        _hasBits0 |= 16;
+        blindTickBudget_ = value;
+      }
+    }
+    /// <summary>Gets whether the "blind_tick_budget" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasBlindTickBudget {
+      get { return (_hasBits0 & 16) != 0; }
+    }
+    /// <summary>Clears the value of the "blind_tick_budget" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearBlindTickBudget() {
+      _hasBits0 &= ~16;
+    }
+
+    /// <summary>Field number for the "max_ticks_per_second" field.</summary>
+    public const int MaxTicksPerSecondFieldNumber = 8;
+    private readonly static uint MaxTicksPerSecondDefaultValue = 0;
+
+    private uint maxTicksPerSecond_;
+    /// <summary>
+    /// Continuous ceiling on the epoch's tick rate, beneath the requested
+    /// speed's own rate; an accelerated epoch admits a live change through
+    /// SpeedRequest. Zero or absent is the speed's own rate.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public uint MaxTicksPerSecond {
+      get { if ((_hasBits0 & 32) != 0) { return maxTicksPerSecond_; } else { return MaxTicksPerSecondDefaultValue; } }
+      set {
+        _hasBits0 |= 32;
+        maxTicksPerSecond_ = value;
+      }
+    }
+    /// <summary>Gets whether the "max_ticks_per_second" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasMaxTicksPerSecond {
+      get { return (_hasBits0 & 32) != 0; }
+    }
+    /// <summary>Clears the value of the "max_ticks_per_second" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearMaxTicksPerSecond() {
+      _hasBits0 &= ~32;
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -1547,6 +1631,8 @@ namespace RimGovernor.Protocol.Clock {
       if (LeaseMs != other.LeaseMs) return false;
       if (MaxTicks != other.MaxTicks) return false;
       if (TestAcceleration != other.TestAcceleration) return false;
+      if (BlindTickBudget != other.BlindTickBudget) return false;
+      if (MaxTicksPerSecond != other.MaxTicksPerSecond) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -1560,6 +1646,8 @@ namespace RimGovernor.Protocol.Clock {
       if (HasLeaseMs) hash ^= LeaseMs.GetHashCode();
       if (HasMaxTicks) hash ^= MaxTicks.GetHashCode();
       if (HasTestAcceleration) hash ^= TestAcceleration.GetHashCode();
+      if (HasBlindTickBudget) hash ^= BlindTickBudget.GetHashCode();
+      if (HasMaxTicksPerSecond) hash ^= MaxTicksPerSecond.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -1602,6 +1690,14 @@ namespace RimGovernor.Protocol.Clock {
         output.WriteRawTag(48);
         output.WriteBool(TestAcceleration);
       }
+      if (HasBlindTickBudget) {
+        output.WriteRawTag(56);
+        output.WriteUInt32(BlindTickBudget);
+      }
+      if (HasMaxTicksPerSecond) {
+        output.WriteRawTag(64);
+        output.WriteUInt32(MaxTicksPerSecond);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -1636,6 +1732,14 @@ namespace RimGovernor.Protocol.Clock {
         output.WriteRawTag(48);
         output.WriteBool(TestAcceleration);
       }
+      if (HasBlindTickBudget) {
+        output.WriteRawTag(56);
+        output.WriteUInt32(BlindTickBudget);
+      }
+      if (HasMaxTicksPerSecond) {
+        output.WriteRawTag(64);
+        output.WriteUInt32(MaxTicksPerSecond);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -1663,6 +1767,12 @@ namespace RimGovernor.Protocol.Clock {
       }
       if (HasTestAcceleration) {
         size += 1 + 1;
+      }
+      if (HasBlindTickBudget) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(BlindTickBudget);
+      }
+      if (HasMaxTicksPerSecond) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(MaxTicksPerSecond);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -1699,6 +1809,12 @@ namespace RimGovernor.Protocol.Clock {
       }
       if (other.HasTestAcceleration) {
         TestAcceleration = other.TestAcceleration;
+      }
+      if (other.HasBlindTickBudget) {
+        BlindTickBudget = other.BlindTickBudget;
+      }
+      if (other.HasMaxTicksPerSecond) {
+        MaxTicksPerSecond = other.MaxTicksPerSecond;
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -1749,6 +1865,14 @@ namespace RimGovernor.Protocol.Clock {
             TestAcceleration = input.ReadBool();
             break;
           }
+          case 56: {
+            BlindTickBudget = input.ReadUInt32();
+            break;
+          }
+          case 64: {
+            MaxTicksPerSecond = input.ReadUInt32();
+            break;
+          }
         }
       }
     #endif
@@ -1796,6 +1920,14 @@ namespace RimGovernor.Protocol.Clock {
           }
           case 48: {
             TestAcceleration = input.ReadBool();
+            break;
+          }
+          case 56: {
+            BlindTickBudget = input.ReadUInt32();
+            break;
+          }
+          case 64: {
+            MaxTicksPerSecond = input.ReadUInt32();
             break;
           }
         }
@@ -2405,6 +2537,7 @@ namespace RimGovernor.Protocol.Clock {
       epoch_ = other.epoch_ != null ? other.epoch_.Clone() : null;
       authority_ = other.authority_ != null ? other.authority_.Clone() : null;
       speed_ = other.speed_;
+      maxTicksPerSecond_ = other.maxTicksPerSecond_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -2465,6 +2598,37 @@ namespace RimGovernor.Protocol.Clock {
       _hasBits0 &= ~1;
     }
 
+    /// <summary>Field number for the "max_ticks_per_second" field.</summary>
+    public const int MaxTicksPerSecondFieldNumber = 4;
+    private readonly static uint MaxTicksPerSecondDefaultValue = 0;
+
+    private uint maxTicksPerSecond_;
+    /// <summary>
+    /// The new ceiling (StartRequest.max_ticks_per_second); absent keeps the
+    /// epoch's. An accelerated epoch admits this with SPEED_ULTRAFAST.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public uint MaxTicksPerSecond {
+      get { if ((_hasBits0 & 2) != 0) { return maxTicksPerSecond_; } else { return MaxTicksPerSecondDefaultValue; } }
+      set {
+        _hasBits0 |= 2;
+        maxTicksPerSecond_ = value;
+      }
+    }
+    /// <summary>Gets whether the "max_ticks_per_second" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasMaxTicksPerSecond {
+      get { return (_hasBits0 & 2) != 0; }
+    }
+    /// <summary>Clears the value of the "max_ticks_per_second" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearMaxTicksPerSecond() {
+      _hasBits0 &= ~2;
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -2483,6 +2647,7 @@ namespace RimGovernor.Protocol.Clock {
       if (!object.Equals(Epoch, other.Epoch)) return false;
       if (!object.Equals(Authority, other.Authority)) return false;
       if (Speed != other.Speed) return false;
+      if (MaxTicksPerSecond != other.MaxTicksPerSecond) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -2493,6 +2658,7 @@ namespace RimGovernor.Protocol.Clock {
       if (epoch_ != null) hash ^= Epoch.GetHashCode();
       if (authority_ != null) hash ^= Authority.GetHashCode();
       if (HasSpeed) hash ^= Speed.GetHashCode();
+      if (HasMaxTicksPerSecond) hash ^= MaxTicksPerSecond.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -2523,6 +2689,10 @@ namespace RimGovernor.Protocol.Clock {
         output.WriteRawTag(24);
         output.WriteEnum((int) Speed);
       }
+      if (HasMaxTicksPerSecond) {
+        output.WriteRawTag(32);
+        output.WriteUInt32(MaxTicksPerSecond);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -2545,6 +2715,10 @@ namespace RimGovernor.Protocol.Clock {
         output.WriteRawTag(24);
         output.WriteEnum((int) Speed);
       }
+      if (HasMaxTicksPerSecond) {
+        output.WriteRawTag(32);
+        output.WriteUInt32(MaxTicksPerSecond);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -2563,6 +2737,9 @@ namespace RimGovernor.Protocol.Clock {
       }
       if (HasSpeed) {
         size += 1 + pb::CodedOutputStream.ComputeEnumSize((int) Speed);
+      }
+      if (HasMaxTicksPerSecond) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(MaxTicksPerSecond);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -2590,6 +2767,9 @@ namespace RimGovernor.Protocol.Clock {
       }
       if (other.HasSpeed) {
         Speed = other.Speed;
+      }
+      if (other.HasMaxTicksPerSecond) {
+        MaxTicksPerSecond = other.MaxTicksPerSecond;
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -2628,6 +2808,10 @@ namespace RimGovernor.Protocol.Clock {
             Speed = (global::RimGovernor.Protocol.Clock.Speed) input.ReadEnum();
             break;
           }
+          case 32: {
+            MaxTicksPerSecond = input.ReadUInt32();
+            break;
+          }
         }
       }
     #endif
@@ -2663,6 +2847,10 @@ namespace RimGovernor.Protocol.Clock {
           }
           case 24: {
             Speed = (global::RimGovernor.Protocol.Clock.Speed) input.ReadEnum();
+            break;
+          }
+          case 32: {
+            MaxTicksPerSecond = input.ReadUInt32();
             break;
           }
         }
@@ -2925,6 +3113,9 @@ namespace RimGovernor.Protocol.Clock {
       leaseRemainingMs_ = other.leaseRemainingMs_;
       lastTick_ = other.lastTick_;
       testAcceleration_ = other.testAcceleration_;
+      blindTickBudget_ = other.blindTickBudget_;
+      maxTicksPerSecond_ = other.maxTicksPerSecond_;
+      regulatedTicksPerSecond_ = other.regulatedTicksPerSecond_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -3132,6 +3323,91 @@ namespace RimGovernor.Protocol.Clock {
       _hasBits0 &= ~32;
     }
 
+    /// <summary>Field number for the "blind_tick_budget" field.</summary>
+    public const int BlindTickBudgetFieldNumber = 10;
+    private readonly static uint BlindTickBudgetDefaultValue = 0;
+
+    private uint blindTickBudget_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public uint BlindTickBudget {
+      get { if ((_hasBits0 & 64) != 0) { return blindTickBudget_; } else { return BlindTickBudgetDefaultValue; } }
+      set {
+        _hasBits0 |= 64;
+        blindTickBudget_ = value;
+      }
+    }
+    /// <summary>Gets whether the "blind_tick_budget" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasBlindTickBudget {
+      get { return (_hasBits0 & 64) != 0; }
+    }
+    /// <summary>Clears the value of the "blind_tick_budget" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearBlindTickBudget() {
+      _hasBits0 &= ~64;
+    }
+
+    /// <summary>Field number for the "max_ticks_per_second" field.</summary>
+    public const int MaxTicksPerSecondFieldNumber = 11;
+    private readonly static uint MaxTicksPerSecondDefaultValue = 0;
+
+    private uint maxTicksPerSecond_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public uint MaxTicksPerSecond {
+      get { if ((_hasBits0 & 128) != 0) { return maxTicksPerSecond_; } else { return MaxTicksPerSecondDefaultValue; } }
+      set {
+        _hasBits0 |= 128;
+        maxTicksPerSecond_ = value;
+      }
+    }
+    /// <summary>Gets whether the "max_ticks_per_second" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasMaxTicksPerSecond {
+      get { return (_hasBits0 & 128) != 0; }
+    }
+    /// <summary>Clears the value of the "max_ticks_per_second" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearMaxTicksPerSecond() {
+      _hasBits0 &= ~128;
+    }
+
+    /// <summary>Field number for the "regulated_ticks_per_second" field.</summary>
+    public const int RegulatedTicksPerSecondFieldNumber = 12;
+    private readonly static uint RegulatedTicksPerSecondDefaultValue = 0;
+
+    private uint regulatedTicksPerSecond_;
+    /// <summary>
+    /// The ceiling the blind-tick regulator holds right now; zero when it is
+    /// not throttling.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public uint RegulatedTicksPerSecond {
+      get { if ((_hasBits0 & 256) != 0) { return regulatedTicksPerSecond_; } else { return RegulatedTicksPerSecondDefaultValue; } }
+      set {
+        _hasBits0 |= 256;
+        regulatedTicksPerSecond_ = value;
+      }
+    }
+    /// <summary>Gets whether the "regulated_ticks_per_second" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasRegulatedTicksPerSecond {
+      get { return (_hasBits0 & 256) != 0; }
+    }
+    /// <summary>Clears the value of the "regulated_ticks_per_second" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearRegulatedTicksPerSecond() {
+      _hasBits0 &= ~256;
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -3156,6 +3432,9 @@ namespace RimGovernor.Protocol.Clock {
       if (LeaseRemainingMs != other.LeaseRemainingMs) return false;
       if (LastTick != other.LastTick) return false;
       if (TestAcceleration != other.TestAcceleration) return false;
+      if (BlindTickBudget != other.BlindTickBudget) return false;
+      if (MaxTicksPerSecond != other.MaxTicksPerSecond) return false;
+      if (RegulatedTicksPerSecond != other.RegulatedTicksPerSecond) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -3172,6 +3451,9 @@ namespace RimGovernor.Protocol.Clock {
       if (HasLeaseRemainingMs) hash ^= LeaseRemainingMs.GetHashCode();
       if (HasLastTick) hash ^= LastTick.GetHashCode();
       if (HasTestAcceleration) hash ^= TestAcceleration.GetHashCode();
+      if (HasBlindTickBudget) hash ^= BlindTickBudget.GetHashCode();
+      if (HasMaxTicksPerSecond) hash ^= MaxTicksPerSecond.GetHashCode();
+      if (HasRegulatedTicksPerSecond) hash ^= RegulatedTicksPerSecond.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -3226,6 +3508,18 @@ namespace RimGovernor.Protocol.Clock {
         output.WriteRawTag(72);
         output.WriteBool(TestAcceleration);
       }
+      if (HasBlindTickBudget) {
+        output.WriteRawTag(80);
+        output.WriteUInt32(BlindTickBudget);
+      }
+      if (HasMaxTicksPerSecond) {
+        output.WriteRawTag(88);
+        output.WriteUInt32(MaxTicksPerSecond);
+      }
+      if (HasRegulatedTicksPerSecond) {
+        output.WriteRawTag(96);
+        output.WriteUInt32(RegulatedTicksPerSecond);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -3272,6 +3566,18 @@ namespace RimGovernor.Protocol.Clock {
         output.WriteRawTag(72);
         output.WriteBool(TestAcceleration);
       }
+      if (HasBlindTickBudget) {
+        output.WriteRawTag(80);
+        output.WriteUInt32(BlindTickBudget);
+      }
+      if (HasMaxTicksPerSecond) {
+        output.WriteRawTag(88);
+        output.WriteUInt32(MaxTicksPerSecond);
+      }
+      if (HasRegulatedTicksPerSecond) {
+        output.WriteRawTag(96);
+        output.WriteUInt32(RegulatedTicksPerSecond);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -3308,6 +3614,15 @@ namespace RimGovernor.Protocol.Clock {
       }
       if (HasTestAcceleration) {
         size += 1 + 1;
+      }
+      if (HasBlindTickBudget) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(BlindTickBudget);
+      }
+      if (HasMaxTicksPerSecond) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(MaxTicksPerSecond);
+      }
+      if (HasRegulatedTicksPerSecond) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(RegulatedTicksPerSecond);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -3356,6 +3671,15 @@ namespace RimGovernor.Protocol.Clock {
       }
       if (other.HasTestAcceleration) {
         TestAcceleration = other.TestAcceleration;
+      }
+      if (other.HasBlindTickBudget) {
+        BlindTickBudget = other.BlindTickBudget;
+      }
+      if (other.HasMaxTicksPerSecond) {
+        MaxTicksPerSecond = other.MaxTicksPerSecond;
+      }
+      if (other.HasRegulatedTicksPerSecond) {
+        RegulatedTicksPerSecond = other.RegulatedTicksPerSecond;
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -3421,6 +3745,18 @@ namespace RimGovernor.Protocol.Clock {
             TestAcceleration = input.ReadBool();
             break;
           }
+          case 80: {
+            BlindTickBudget = input.ReadUInt32();
+            break;
+          }
+          case 88: {
+            MaxTicksPerSecond = input.ReadUInt32();
+            break;
+          }
+          case 96: {
+            RegulatedTicksPerSecond = input.ReadUInt32();
+            break;
+          }
         }
       }
     #endif
@@ -3483,6 +3819,18 @@ namespace RimGovernor.Protocol.Clock {
           }
           case 72: {
             TestAcceleration = input.ReadBool();
+            break;
+          }
+          case 80: {
+            BlindTickBudget = input.ReadUInt32();
+            break;
+          }
+          case 88: {
+            MaxTicksPerSecond = input.ReadUInt32();
+            break;
+          }
+          case 96: {
+            RegulatedTicksPerSecond = input.ReadUInt32();
             break;
           }
         }
@@ -15894,6 +16242,12 @@ namespace RimGovernor.Protocol.Clock {
 
   }
 
+  /// <summary>
+  /// The epoch's speed, ceiling or regulator changed; the epoch continues. An
+  /// owner's change carries its new ceiling; a regulator transition carries the
+  /// ceiling it now holds (zero once it releases) and the blind ticks that
+  /// drove it.
+  /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class SpeedChanged : pb::IMessage<SpeedChanged>
   #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
@@ -15932,6 +16286,9 @@ namespace RimGovernor.Protocol.Clock {
     public SpeedChanged(SpeedChanged other) : this() {
       _hasBits0 = other._hasBits0;
       speed_ = other.speed_;
+      maxTicksPerSecond_ = other.maxTicksPerSecond_;
+      regulatedTicksPerSecond_ = other.regulatedTicksPerSecond_;
+      blindTicks_ = other.blindTicks_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -15968,6 +16325,87 @@ namespace RimGovernor.Protocol.Clock {
       _hasBits0 &= ~1;
     }
 
+    /// <summary>Field number for the "max_ticks_per_second" field.</summary>
+    public const int MaxTicksPerSecondFieldNumber = 2;
+    private readonly static uint MaxTicksPerSecondDefaultValue = 0;
+
+    private uint maxTicksPerSecond_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public uint MaxTicksPerSecond {
+      get { if ((_hasBits0 & 2) != 0) { return maxTicksPerSecond_; } else { return MaxTicksPerSecondDefaultValue; } }
+      set {
+        _hasBits0 |= 2;
+        maxTicksPerSecond_ = value;
+      }
+    }
+    /// <summary>Gets whether the "max_ticks_per_second" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasMaxTicksPerSecond {
+      get { return (_hasBits0 & 2) != 0; }
+    }
+    /// <summary>Clears the value of the "max_ticks_per_second" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearMaxTicksPerSecond() {
+      _hasBits0 &= ~2;
+    }
+
+    /// <summary>Field number for the "regulated_ticks_per_second" field.</summary>
+    public const int RegulatedTicksPerSecondFieldNumber = 3;
+    private readonly static uint RegulatedTicksPerSecondDefaultValue = 0;
+
+    private uint regulatedTicksPerSecond_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public uint RegulatedTicksPerSecond {
+      get { if ((_hasBits0 & 4) != 0) { return regulatedTicksPerSecond_; } else { return RegulatedTicksPerSecondDefaultValue; } }
+      set {
+        _hasBits0 |= 4;
+        regulatedTicksPerSecond_ = value;
+      }
+    }
+    /// <summary>Gets whether the "regulated_ticks_per_second" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasRegulatedTicksPerSecond {
+      get { return (_hasBits0 & 4) != 0; }
+    }
+    /// <summary>Clears the value of the "regulated_ticks_per_second" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearRegulatedTicksPerSecond() {
+      _hasBits0 &= ~4;
+    }
+
+    /// <summary>Field number for the "blind_ticks" field.</summary>
+    public const int BlindTicksFieldNumber = 4;
+    private readonly static long BlindTicksDefaultValue = 0L;
+
+    private long blindTicks_;
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public long BlindTicks {
+      get { if ((_hasBits0 & 8) != 0) { return blindTicks_; } else { return BlindTicksDefaultValue; } }
+      set {
+        _hasBits0 |= 8;
+        blindTicks_ = value;
+      }
+    }
+    /// <summary>Gets whether the "blind_ticks" field is set</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public bool HasBlindTicks {
+      get { return (_hasBits0 & 8) != 0; }
+    }
+    /// <summary>Clears the value of the "blind_ticks" field</summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public void ClearBlindTicks() {
+      _hasBits0 &= ~8;
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -15984,6 +16422,9 @@ namespace RimGovernor.Protocol.Clock {
         return true;
       }
       if (Speed != other.Speed) return false;
+      if (MaxTicksPerSecond != other.MaxTicksPerSecond) return false;
+      if (RegulatedTicksPerSecond != other.RegulatedTicksPerSecond) return false;
+      if (BlindTicks != other.BlindTicks) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -15992,6 +16433,9 @@ namespace RimGovernor.Protocol.Clock {
     public override int GetHashCode() {
       int hash = 1;
       if (HasSpeed) hash ^= Speed.GetHashCode();
+      if (HasMaxTicksPerSecond) hash ^= MaxTicksPerSecond.GetHashCode();
+      if (HasRegulatedTicksPerSecond) hash ^= RegulatedTicksPerSecond.GetHashCode();
+      if (HasBlindTicks) hash ^= BlindTicks.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -16014,6 +16458,18 @@ namespace RimGovernor.Protocol.Clock {
         output.WriteRawTag(8);
         output.WriteEnum((int) Speed);
       }
+      if (HasMaxTicksPerSecond) {
+        output.WriteRawTag(16);
+        output.WriteUInt32(MaxTicksPerSecond);
+      }
+      if (HasRegulatedTicksPerSecond) {
+        output.WriteRawTag(24);
+        output.WriteUInt32(RegulatedTicksPerSecond);
+      }
+      if (HasBlindTicks) {
+        output.WriteRawTag(32);
+        output.WriteInt64(BlindTicks);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -16028,6 +16484,18 @@ namespace RimGovernor.Protocol.Clock {
         output.WriteRawTag(8);
         output.WriteEnum((int) Speed);
       }
+      if (HasMaxTicksPerSecond) {
+        output.WriteRawTag(16);
+        output.WriteUInt32(MaxTicksPerSecond);
+      }
+      if (HasRegulatedTicksPerSecond) {
+        output.WriteRawTag(24);
+        output.WriteUInt32(RegulatedTicksPerSecond);
+      }
+      if (HasBlindTicks) {
+        output.WriteRawTag(32);
+        output.WriteInt64(BlindTicks);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -16040,6 +16508,15 @@ namespace RimGovernor.Protocol.Clock {
       int size = 0;
       if (HasSpeed) {
         size += 1 + pb::CodedOutputStream.ComputeEnumSize((int) Speed);
+      }
+      if (HasMaxTicksPerSecond) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(MaxTicksPerSecond);
+      }
+      if (HasRegulatedTicksPerSecond) {
+        size += 1 + pb::CodedOutputStream.ComputeUInt32Size(RegulatedTicksPerSecond);
+      }
+      if (HasBlindTicks) {
+        size += 1 + pb::CodedOutputStream.ComputeInt64Size(BlindTicks);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -16055,6 +16532,15 @@ namespace RimGovernor.Protocol.Clock {
       }
       if (other.HasSpeed) {
         Speed = other.Speed;
+      }
+      if (other.HasMaxTicksPerSecond) {
+        MaxTicksPerSecond = other.MaxTicksPerSecond;
+      }
+      if (other.HasRegulatedTicksPerSecond) {
+        RegulatedTicksPerSecond = other.RegulatedTicksPerSecond;
+      }
+      if (other.HasBlindTicks) {
+        BlindTicks = other.BlindTicks;
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -16079,6 +16565,18 @@ namespace RimGovernor.Protocol.Clock {
             Speed = (global::RimGovernor.Protocol.Clock.Speed) input.ReadEnum();
             break;
           }
+          case 16: {
+            MaxTicksPerSecond = input.ReadUInt32();
+            break;
+          }
+          case 24: {
+            RegulatedTicksPerSecond = input.ReadUInt32();
+            break;
+          }
+          case 32: {
+            BlindTicks = input.ReadInt64();
+            break;
+          }
         }
       }
     #endif
@@ -16100,6 +16598,18 @@ namespace RimGovernor.Protocol.Clock {
             break;
           case 8: {
             Speed = (global::RimGovernor.Protocol.Clock.Speed) input.ReadEnum();
+            break;
+          }
+          case 16: {
+            MaxTicksPerSecond = input.ReadUInt32();
+            break;
+          }
+          case 24: {
+            RegulatedTicksPerSecond = input.ReadUInt32();
+            break;
+          }
+          case 32: {
+            BlindTicks = input.ReadInt64();
             break;
           }
         }

@@ -121,11 +121,13 @@ namespace HomeBridge.BridgeTools
         private static ClockEventJournal EnsureJournal() { if (Journal == null) { Journal = new ClockEventJournal(); _cursor = Journal.Newest; } return Journal; }
         private static State ActiveState => _state ?? throw new InvalidOperationException("No supervised clock epoch.");
         private static object Start(string owner, Verse.TimeSpeed speed, int leaseMs, string mode, float healthDrop, float minHealth, float hostileWithin,
-            string ignoredHostiles, string ignoredDowned, string ignoredInjured, int cooldown, int maxTicks, string surgical, bool acceleration, string rest)
+            string ignoredHostiles, string ignoredDowned, string ignoredInjured, int cooldown, int maxTicks, string surgical, bool acceleration, string rest,
+            int blindTickBudget = 0, int maxTicksPerSecond = 0)
         {
             var s = new State
             {
                 Active = true, Epoch = ++_epoch, Session = Verse.Current.Game, Map = Verse.Find.CurrentMap, RequestedSpeed = speed,
+                BlindTickBudget = blindTickBudget, MaxTicksPerSecond = maxTicksPerSecond,
                 StartTick = Verse.Find.TickManager.TicksGame, TickDeadline = Verse.Find.TickManager.TicksGame + maxTicks, LastTick = Verse.Find.TickManager.TicksGame
             };
             EnsureJournal();
@@ -134,10 +136,11 @@ namespace HomeBridge.BridgeTools
             else { Verse.Find.TickManager.CurTimeSpeed = speed; Add("started", "Started", s, null); }
             return null;
         }
-        private static object Speed(string owner, long epoch, Verse.TimeSpeed speed)
+        private static object Speed(string owner, long epoch, Verse.TimeSpeed speed, int? maxTicksPerSecond = null)
         {
             if (!typedSpeedCall) throw new InvalidOperationException("Canonical epoch requires typed speed capability");
             _state.RequestedSpeed = speed; Verse.Find.TickManager.CurTimeSpeed = speed;
+            if (maxTicksPerSecond.HasValue) _state.MaxTicksPerSecond = maxTicksPerSecond.Value;
             Add("speed_changed", "Speed changed", _state, new Dictionary<string, object> { ["speed"] = speed.ToString() });
             return null;
         }
@@ -169,8 +172,14 @@ namespace HomeBridge.BridgeTools
             internal Verse.TimeSpeed RequestedSpeed; internal long LeaseExpiresMs; internal int StartTick, LastTick, MaxProbeTickGap, ProbeCount;
             internal long? TickDeadline, StopAtMs; internal string PendingKind, PendingDetail, StopReason, StopDetail, ForcePauseKind;
             internal bool? PauseVerified; internal long ForcePauseSinceMs; internal bool TestAcceleration;
+            internal int BlindTickBudget, MaxTicksPerSecond, RegulatedTicksPerSecond;
             internal List<Dictionary<string, object>> BaselineAlerts = new List<Dictionary<string, object>>(), SuppressedInjuries = new List<Dictionary<string, object>>();
         }
+        // The blind-tick regulator (#583) lives in the production
+        // SupervisedPlayRegulator.cs partial, outside this project; the probe
+        // only records what the typed runtime reports of it.
+        private static void NoteControllerRead(State s) { }
+        private static void AcknowledgeRows(State s, long afterCursor) { }
         internal static void FixtureReset()
         { _state = null; Journal = null; _epoch = _cursor = 0; RefusePause = false; InitialStop = null; _patchError = null; HarmonyLib.Harmony.Installed = false; }
         internal static void FixtureExpire() => _state.LeaseExpiresMs = LeaseNow(_state);

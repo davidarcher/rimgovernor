@@ -35,6 +35,9 @@ func ValidateClockExpectation(e ClockExpectation) error {
 		if start.TestAcceleration && start.Speed != k.Speed_SPEED_ULTRAFAST {
 			return contract("clock test acceleration requires ultrafast")
 		}
+		if start.BlindTickBudget > 1800000 || start.MaxTicksPerSecond > 60000 {
+			return contract("clock blind tick budget or tick rate ceiling")
+		}
 		return errors.Join(authorityDuration(&start.LeaseMS), clockPolicy(start.Policy, int64(start.MaxTicks)))
 	}
 	var original *k.Epoch
@@ -51,6 +54,9 @@ func ValidateClockExpectation(e ClockExpectation) error {
 		}
 		if speed.Original.GetTestAcceleration() && speed.Speed != k.Speed_SPEED_ULTRAFAST {
 			return contract("clock accelerated epoch cannot change speed")
+		}
+		if speed.MaxTicksPerSecond != nil && (*speed.MaxTicksPerSecond < 1 || *speed.MaxTicksPerSecond > 60000) {
+			return contract("clock tick rate ceiling")
 		}
 	}
 	if err := clockEpoch(original); err != nil {
@@ -77,7 +83,7 @@ func ValidateClockReceipt(r *k.ControlReceipt, e ClockExpectation) error {
 	}
 	actual := clockStatusEpoch(r.GetApplied().GetStatus())
 	if start := e.Command.Start; start != nil {
-		if actual == nil || !proto.Equal(actual.Origin, r.AdmittedContext) || actual.GetTickDeadline()-actual.GetStartTick() != int64(start.MaxTicks) || actual.GetRequestedSpeed() != start.Speed || actual.GetTestAcceleration() != start.TestAcceleration || !proto.Equal(actual.Policy, start.Policy) || actual.GetLeaseRemainingMs() > start.LeaseMS {
+		if actual == nil || !proto.Equal(actual.Origin, r.AdmittedContext) || actual.GetTickDeadline()-actual.GetStartTick() != int64(start.MaxTicks) || actual.GetRequestedSpeed() != start.Speed || actual.GetTestAcceleration() != start.TestAcceleration || !proto.Equal(actual.Policy, start.Policy) || actual.GetLeaseRemainingMs() > start.LeaseMS || actual.GetBlindTickBudget() != start.BlindTickBudget || actual.GetMaxTicksPerSecond() != start.MaxTicksPerSecond {
 			return contract("clock start epoch mismatch")
 		}
 		return nil
@@ -91,7 +97,13 @@ func ValidateClockReceipt(r *k.ControlReceipt, e ClockExpectation) error {
 		}
 		return nil
 	}
-	return clockSameEpoch(actual, e.Command.Speed.Original, e.Command.Speed.Speed)
+	if err := clockSameEpoch(actual, e.Command.Speed.Original, e.Command.Speed.Speed); err != nil {
+		return err
+	}
+	if ceiling := e.Command.Speed.MaxTicksPerSecond; ceiling != nil && actual.GetMaxTicksPerSecond() != *ceiling {
+		return contract("clock tick rate ceiling mismatch")
+	}
+	return nil
 }
 
 // ValidateClockStatus validates typed evidence, including explicit unavailable

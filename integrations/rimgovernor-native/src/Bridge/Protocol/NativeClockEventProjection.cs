@@ -136,7 +136,12 @@ namespace HomeBridge.BridgeTools
                     }
                     break;
                 case "started": result.Started = new Clock.EpochStarted { Epoch = (started ?? throw new ArgumentNullException(nameof(started))).Clone() }; break;
-                case "speed_changed": result.SpeedChanged = new Clock.SpeedChanged { Speed = ParseSpeed(String(P(), "speed")) }; break;
+                case "speed_changed": case "regulated":
+                    result.SpeedChanged = new Clock.SpeedChanged { Speed = ParseSpeed(String(P(), "speed")) };
+                    if (P().ContainsKey("maxTicksPerSecond")) result.SpeedChanged.MaxTicksPerSecond = checked((uint)Number(P(), "maxTicksPerSecond"));
+                    if (P().ContainsKey("regulatedTicksPerSecond")) result.SpeedChanged.RegulatedTicksPerSecond = checked((uint)Number(P(), "regulatedTicksPerSecond"));
+                    if (P().ContainsKey("blindTicks")) result.SpeedChanged.BlindTicks = checked((long)Number(P(), "blindTicks"));
+                    break;
                 case "notification_new": result.Notification = P().ContainsKey("label") ? new Clock.Notification { Letter = Letter(P()) } : new Clock.Notification { Message = Message(P()) }; break;
                 case "alert_new": result.Alert = Alert(P()); break;
                 case "injury_observed": result.InjuryObserved = Injury(P(), resolvePawn); break;

@@ -50,7 +50,37 @@ type speedNative struct {
 	// under a step's context), not the worker's poll, for the
 	// reads-per-step bound (#593).
 	reads atomic.Int64
+	// The blind-tick regulator (#583), modelled as native does it: blind
+	// ticks are those since the controller's last read or its oldest
+	// unacknowledged journal row, whichever is older. A window past its
+	// budget runs throttled (one tick every tickEvery*regulatedRatio)
+	// until a read moves the anchor; the fake releases at once where
+	// native ramps back up. advancedAt is when the tick was last
+	// integrated, so the tick a read observes never exceeds the anchor by
+	// more than the budget plus the throttled ticks of the read gap.
+	regulator speedRegulator
 }
+
+type speedRegulator struct {
+	budget       int64
+	lastReadTick int64
+	lastReadAt   time.Time
+	ackedCursor  int64
+	unacked      []speedRow
+	advancedAt   time.Time
+	carry        time.Duration
+	throttled    bool
+	// throttles counts throttle onsets, changes the SpeedChanged rows
+	// the fake journaled, maxBlind the widest blind span any read
+	// observed and violations the reads whose blind span exceeded the
+	// budget by more than the read gap's throttled ticks allow.
+	throttles, changes, violations, observations int
+	maxBlind                                     int64
+}
+
+type speedRow struct{ cursor, tick int64 }
+
+const regulatedRatio = 8
 
 func newSpeedNative(snapshot domain.GenerationSnapshot, tickEvery time.Duration) *speedNative {
 	status := &k.Status{Context: &c.ObservationContext{Identity: boundary.Identity(snapshot), Tick: proto.Int64(12), NativeGeneration: proto.Uint64(7)}, State: &k.Status_NeverStarted{NeverStarted: &k.NeverStarted{}}, ActualPaused: proto.Bool(true), ObservedSpeed: k.ObservedSpeed_OBSERVED_SPEED_PAUSED.Enum(), NativeTickBoundary: proto.Bool(true), DurableEvents: proto.Bool(true), NewestCursor: proto.Int64(0), EvidenceCompleteness: &c.PageInfo{Complete: proto.Bool(true)}}
@@ -65,6 +95,9 @@ func (n *speedNative) advance() {
 		return
 	}
 	tick := n.startTick + int64(time.Since(n.startedAt)/n.tickEvery)
+	if n.regulator.budget > 0 {
+		tick = n.regulate(tick)
+	}
 	if tick > n.deadline {
 		tick = n.deadline
 	}
@@ -82,6 +115,9 @@ func (n *speedNative) advance() {
 	n.events = append(n.events, &k.Event{Cursor: proto.Int64(cursor), Owner: proto.Clone(epoch.Owner).(*k.EpochOwner), Context: proto.Clone(n.status.Context).(*c.ObservationContext), ObservedAtUnixMs: proto.Int64(now.UnixMilli()),
 		Event: &k.Event_Stopped{Stopped: &k.StopEvent{Reason: k.StopReason_STOP_REASON_TICK_BUDGET.Enum(), Evidence: &k.StopEvent_Budget{Budget: &k.BudgetReached{StartTick: proto.Int64(n.startTick), TickDeadline: proto.Int64(n.deadline), ActualTick: proto.Int64(tick)}}}}})
 	n.status.NewestCursor = proto.Int64(cursor)
+	if n.regulator.budget > 0 {
+		n.regulator.unacked = append(n.regulator.unacked, speedRow{cursor, tick})
+	}
 	n.stops = append(n.stops, now)
 	close(n.changed)
 	n.changed = make(chan struct{})
@@ -93,7 +129,114 @@ func (n *speedNative) due() (time.Duration, bool) {
 	if n.status.GetRunning() == nil {
 		return 0, false
 	}
+	if n.regulator.budget > 0 {
+		// Throttled ticks pace the deadline; poll again a throttled tick
+		// at a time rather than computing the exact moment.
+		return min(time.Until(n.startedAt.Add(time.Duration(n.deadline-n.startTick)*n.tickEvery)), n.tickEvery*regulatedRatio), true
+	}
 	return time.Until(n.startedAt.Add(time.Duration(n.deadline-n.startTick) * n.tickEvery)), true
+}
+
+// regulate integrates the running window's tick from its last integration
+// to now: at full speed until the blind span reaches the budget, throttled
+// after that; carry keeps the wall time a call could not turn into a whole
+// tick. unregulated, the tick the wall clock alone would give, caps it.
+// Callers hold mu.
+func (n *speedNative) regulate(unregulated int64) int64 {
+	r := &n.regulator
+	now := time.Now()
+	current := n.status.Context.GetTick()
+	anchor := r.lastReadTick
+	if len(r.unacked) != 0 && r.unacked[0].tick < anchor {
+		anchor = r.unacked[0].tick
+	}
+	full := anchor + r.budget
+	elapsed := now.Sub(r.advancedAt) + r.carry
+	allowedFull := max(0, full-current)
+	var tick int64
+	if fullTicks := int64(elapsed / n.tickEvery); fullTicks <= allowedFull {
+		tick = current + fullTicks
+		r.carry = elapsed - time.Duration(fullTicks)*n.tickEvery
+	} else {
+		rest := elapsed - time.Duration(allowedFull)*n.tickEvery
+		throttledTicks := int64(rest / (n.tickEvery * regulatedRatio))
+		tick = full + throttledTicks
+		r.carry = rest - time.Duration(throttledTicks)*n.tickEvery*regulatedRatio
+	}
+	if tick > unregulated {
+		tick = unregulated
+	}
+	r.advancedAt = now
+	throttled := tick-anchor >= r.budget
+	if throttled && !r.throttled {
+		r.throttles++
+		n.speedChanged(tick, uint32(regulatedRatio), tick-anchor)
+	} else if !throttled && r.throttled {
+		n.speedChanged(tick, 0, tick-anchor)
+	}
+	r.throttled = throttled
+	return tick
+}
+
+// speedChanged journals a regulator transition as native does, a
+// SpeedChanged row the controller need not acknowledge. Callers hold mu.
+func (n *speedNative) speedChanged(tick int64, regulated uint32, blind int64) {
+	running := n.status.GetRunning()
+	if running == nil {
+		return
+	}
+	n.regulator.changes++
+	cursor := int64(len(n.events) + 1)
+	context := proto.Clone(n.status.Context).(*c.ObservationContext)
+	context.Tick = proto.Int64(tick)
+	n.events = append(n.events, &k.Event{Cursor: proto.Int64(cursor), Owner: proto.Clone(running.Epoch.Owner).(*k.EpochOwner), Context: context, ObservedAtUnixMs: proto.Int64(time.Now().UnixMilli()),
+		Event: &k.Event_SpeedChanged{SpeedChanged: &k.SpeedChanged{Speed: running.Epoch.RequestedSpeed, RegulatedTicksPerSecond: proto.Uint32(regulated), BlindTicks: proto.Int64(blind)}}})
+	n.status.NewestCursor = proto.Int64(cursor)
+	close(n.changed)
+	n.changed = make(chan struct{})
+}
+
+// noteRead is a controller observation landing (a status, tick, identity,
+// emergency or bundle read): it moves the regulator's anchor and, with a
+// cursor, acknowledges the rows at or before it. It also audits the bound:
+// the blind span this read observes may exceed the budget only by the
+// throttled ticks of the gap since the last read. An events poll is not an
+// observation; it acknowledges only (acknowledge), as native's does.
+// Callers hold mu, after advance.
+func (n *speedNative) noteRead(after *int64) {
+	r := &n.regulator
+	if r.budget <= 0 || n.status.GetRunning() == nil {
+		return
+	}
+	now := time.Now()
+	tick := n.status.Context.GetTick()
+	anchor := r.lastReadTick
+	if len(r.unacked) != 0 && r.unacked[0].tick < anchor {
+		anchor = r.unacked[0].tick
+	}
+	blind := tick - anchor
+	r.maxBlind = max(r.maxBlind, blind)
+	r.observations++
+	if allowance := int64(now.Sub(r.lastReadAt)/(n.tickEvery*regulatedRatio)) + 1; blind > r.budget+allowance {
+		r.violations++
+	}
+	r.lastReadTick, r.lastReadAt = tick, now
+	if after != nil {
+		n.acknowledge(*after)
+	}
+}
+
+// acknowledge drops the unacknowledged rows at or before the cursor an
+// events read carries. Callers hold mu.
+func (n *speedNative) acknowledge(after int64) {
+	r := &n.regulator
+	if after <= r.ackedCursor {
+		return
+	}
+	r.ackedCursor = after
+	for len(r.unacked) != 0 && r.unacked[0].cursor <= r.ackedCursor {
+		r.unacked = r.unacked[1:]
+	}
 }
 
 func (n *speedNative) context() *c.ObservationContext {
@@ -105,6 +248,7 @@ func (n *speedNative) Identity(ctx context.Context) (*l.IdentityReply, bridge.Re
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	n.advance()
+	n.noteRead(nil)
 	return &l.IdentityReply{Outcome: &l.IdentityReply_Loaded{Loaded: &l.LoadedIdentity{Context: n.context()}}}, bridge.Result{}, ctx.Err()
 }
 
@@ -113,6 +257,7 @@ func (n *speedNative) Tick(ctx context.Context) (*l.TickReply, bridge.Result, er
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	n.advance()
+	n.noteRead(nil)
 	return &l.TickReply{Outcome: &l.TickReply_Loaded{Loaded: &l.LoadedTick{Context: n.context()}}}, bridge.Result{}, ctx.Err()
 }
 
@@ -121,6 +266,7 @@ func (n *speedNative) ReadClockStatus(ctx context.Context, id *c.Identity) (*k.S
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	n.advance()
+	n.noteRead(nil)
 	return &k.StatusReply{Outcome: &k.StatusReply_Status{Status: proto.Clone(n.status).(*k.Status)}}, bridge.Result{}, ctx.Err()
 }
 
@@ -139,6 +285,7 @@ func (n *speedNative) ReadEmergency(ctx context.Context, id *c.Identity) (bridge
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	n.advance()
+	n.noteRead(nil)
 	return bridge.EmergencyObservation{Context: n.context(), Facts: n.emergency}, bridge.Result{}, ctx.Err()
 }
 
@@ -156,6 +303,10 @@ func (n *speedNative) Start(ctx context.Context, r *k.StartRequest) (*k.ControlR
 	n.status.ActualPaused = proto.Bool(false)
 	n.status.ObservedSpeed = k.ObservedSpeed_OBSERVED_SPEED_NORMAL.Enum()
 	n.startedAt, n.startTick, n.deadline = time.Now(), tick, epoch.GetTickDeadline()
+	if budget := int64(r.GetBlindTickBudget()); budget > 0 {
+		epoch.BlindTickBudget = proto.Uint32(r.GetBlindTickBudget())
+		n.regulator = speedRegulator{budget: budget, lastReadTick: tick, lastReadAt: n.startedAt, ackedCursor: int64(len(n.events)), advancedAt: n.startedAt, throttles: n.regulator.throttles, changes: n.regulator.changes, violations: n.regulator.violations, observations: n.regulator.observations, maxBlind: n.regulator.maxBlind}
+	}
 	n.receipt = &k.ControlReceipt{Attempt: proto.Clone(r.Authority.Attempt).(*c.AttemptKey), AdmittedContext: n.context(), Outcome: &k.ControlReceipt_Applied{Applied: &k.AppliedControl{Status: proto.Clone(n.status).(*k.Status)}}}
 	return &k.ControlReply{Outcome: &k.ControlReply_Receipt{Receipt: proto.Clone(n.receipt).(*k.ControlReceipt)}}, bridge.Result{}, ctx.Err()
 }
@@ -241,10 +392,12 @@ func (n *speedNative) page(request *k.EventsRequest) *k.EventsPage {
 }
 
 func (n *speedNative) ReadClockEvents(ctx context.Context, request *k.EventsRequest) (*k.EventsReply, bridge.Result, error) {
+	n.arrive(request)
 	n.await(ctx, request.GetAfterCursor(), time.Duration(request.GetWaitMs())*time.Millisecond)
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	n.advance()
+	n.acknowledge(request.GetAfterCursor())
 	return &k.EventsReply{Outcome: &k.EventsReply_Page{Page: n.page(request)}}, bridge.Result{}, ctx.Err()
 }
 
@@ -254,10 +407,18 @@ func (n *speedNative) ReadClockEvents(ctx context.Context, request *k.EventsRequ
 func (n *speedNative) ReadBundle(ctx context.Context, request *o.BundleRequest) (*o.BundleReply, bridge.Result, error) {
 	n.read(ctx)
 	if request.Events != nil {
+		n.arrive(&k.EventsRequest{AfterCursor: proto.Int64(request.Events.GetAfterCursor())})
+	}
+	if request.Events != nil {
 		n.await(ctx, request.Events.GetAfterCursor(), time.Duration(request.Events.GetWaitMs())*time.Millisecond)
 	}
 	n.mu.Lock()
 	n.advance()
+	if request.Events != nil {
+		n.noteRead(proto.Int64(request.Events.GetAfterCursor()))
+	} else {
+		n.noteRead(nil)
+	}
 	snapshot := &speedNative{status: proto.Clone(n.status).(*k.Status), emergency: n.emergency, events: n.events}
 	n.mu.Unlock()
 	parts := bundleParts{
@@ -275,6 +436,26 @@ func (n *speedNative) ReadBundle(ctx context.Context, request *o.BundleRequest) 
 		},
 	}
 	return composeBundle(ctx, request, parts)
+}
+
+// arrive is a long poll's first hop: like native, the cursor acknowledges
+// its rows before the poll parks, and again when it returns.
+func (n *speedNative) arrive(request *k.EventsRequest) {
+	if request == nil {
+		return
+	}
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	n.advance()
+	n.acknowledge(request.GetAfterCursor())
+}
+
+// regulation reports the regulator's audit so far.
+func (n *speedNative) regulation() speedRegulator {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	n.advance()
+	return n.regulator
 }
 
 // speedStops returns the wall time of each budget stop so far.
@@ -339,7 +520,9 @@ func speedMatrixFixture(t *testing.T, native *speedNative, snapshot domain.Gener
 		t.Fatal(err)
 	}
 	watch := &k.WatchPolicy{Mode: k.WatchMode_WATCH_MODE_COLONY.Enum(), HealthDropFraction: proto.Float32(.1), MinHealthFraction: proto.Float32(.2), HostileWithin: proto.Float32(20), InjuryStopCooldownMs: proto.Uint32(0)}
-	start := bridge.ClockStart{Speed: k.Speed_SPEED_NORMAL, Policy: watch, LeaseMS: 30_000, MaxTicks: 100}
+	// A fake armed with a blind-tick budget before the fixture is built
+	// regulates every window the scheduler starts (#583).
+	start := bridge.ClockStart{Speed: k.Speed_SPEED_NORMAL, Policy: watch, LeaseMS: 30_000, MaxTicks: 100, BlindTickBudget: uint32(native.regulator.budget)}
 	scheduler, err := NewClockScheduler(player, session, native, ClockSchedulerConfig{Profile: sessionConfig.Control.ProfileDirectory, Start: start, MaxAge: time.Second}, wallClock{})
 	if err != nil {
 		t.Fatal(err)
@@ -566,4 +749,86 @@ func (n *speedNative) read(ctx context.Context) {
 	if ctx.Value(speedStepKey{}) != nil {
 		n.reads.Add(1)
 	}
+}
+
+// TestClockSpeedMatrixRegulatorBoundsBlindTicks drives the scheduler and
+// worker against a speedNative armed with a blind-tick budget (#583) under
+// a controller whose reads are spaced by the step cadence and the held
+// poll, far apart in ticks at 1ms a tick. The fake models native's
+// regulator: a window past its budget since the controller's last read
+// runs throttled until a read moves the anchor, journaling each
+// transition as SpeedChanged. The assertions are the bound and its
+// evidence: no read ever observes more blind ticks than the budget plus
+// the throttled ticks of its own gap (the regulator cannot do better than
+// slow down), the regulator throttled and released at least once, the
+// SpeedChanged rows flowed through the poll and review without a fault,
+// and every window still ran to its budget stop and was settled by a
+// wake step: the regulator slows a window, it never ends one.
+func TestClockSpeedMatrixRegulatorBoundsBlindTicks(t *testing.T) {
+	t.Parallel()
+	const windows, budget = 3, 30
+	config := ClockWorkerConfig{PollInterval: 20 * time.Millisecond, RenewInterval: 5 * time.Second, StepInterval: 200 * time.Millisecond, MaxBackoff: 2 * time.Second, PollTimeout: 5 * time.Second, RenewTimeout: 5 * time.Second, StepTimeout: 5 * time.Second, PageLimit: 128, PollWait: 500 * time.Millisecond}
+	snapshot := domain.GenerationSnapshot{Colony: "colony", Load: "load", Map: 0, Plan: "plan", Revision: 1, Native: 7}
+	native := newSpeedNative(snapshot, time.Millisecond)
+	native.regulator.budget = budget
+	var mu sync.Mutex
+	var steps []speedStep
+	var polls []speedSpan
+	_, worker := speedMatrixFixture(t, native, snapshot, config, func(step speedStep) {
+		mu.Lock()
+		steps = append(steps, step)
+		mu.Unlock()
+	}, func(poll speedSpan) {
+		mu.Lock()
+		polls = append(polls, poll)
+		mu.Unlock()
+	})
+	deadline := time.Now().Add(30 * time.Second)
+	for time.Now().Before(deadline) {
+		mu.Lock()
+		settled := 0
+		for _, step := range steps {
+			if step.reason.Stopped {
+				settled++
+			}
+		}
+		mu.Unlock()
+		if len(native.speedStops()) >= windows && settled >= windows {
+			break
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := worker.Stop(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if stops := native.speedStops(); len(stops) < windows {
+		t.Fatalf("only %d windows stopped under the regulator", len(stops))
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	settled := 0
+	for _, step := range steps {
+		if step.err != nil && !errors.Is(step.err, executor.ErrHeld) && !errors.Is(step.err, context.Canceled) {
+			t.Fatalf("step failed: %v (reason %s)", step.err, step.reason)
+		}
+		if step.reason.Stopped {
+			settled++
+		}
+	}
+	if settled < windows {
+		t.Fatalf("%d wake steps carried a stop, want %d: %+v", settled, windows, steps)
+	}
+	r := native.regulation()
+	if r.violations != 0 {
+		t.Fatalf("%d reads observed more than %d blind ticks plus their gap's throttled ticks (widest %d)", r.violations, budget, r.maxBlind)
+	}
+	if r.throttles == 0 || r.changes < 2 {
+		t.Fatalf("regulator throttled %d times over %d SpeedChanged rows; the spaced reads should have driven at least one throttle and release", r.throttles, r.changes)
+	}
+	if len(polls) == 0 {
+		t.Fatal("no poll carried the regulator rows")
+	}
+	t.Logf("regulator: %d throttles, %d SpeedChanged rows, widest blind span %d of budget %d over %d observations, %d steps and %d polls", r.throttles, r.changes, r.maxBlind, budget, r.observations, len(steps), len(polls))
 }

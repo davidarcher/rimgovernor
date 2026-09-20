@@ -118,6 +118,7 @@ type serveConfig struct {
 	clockSpeed                      string
 	clockTestAcceleration           bool
 	clockWindowTicks                uint
+	clockBlindTicks                 uint
 	chat                            bool
 	resume                          bool
 	pprof                           bool
@@ -153,6 +154,7 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	flags.DurationVar(&c.bridge.Timeout, "timeout", 15*time.Second, "native call timeout")
 	flags.StringVar(&c.clockSpeed, "clock-speed", "Normal", "requested native game-clock speed while a supervised window is held: Normal, Fast, Superfast or Ultrafast")
 	flags.BoolVar(&c.clockTestAcceleration, "clock-test-acceleration", false, "acceptance only: ask native for its dev tick boost under each Ultrafast window; the game refuses it unless launched with -rimgovernor-test-acceleration (headless acceptance profiles)")
+	flags.UintVar(&c.clockBlindTicks, "clock-blind-ticks", 0, fmt.Sprintf("arm the native blind-tick regulator (issue #583): past this many game ticks since the controller's last read or oldest unread clock event, native throttles the window toward Normal and ramps back once the controller catches up, without ending the window (1..%d; 0 leaves windows unregulated)", maxClockBlindTicks))
 	flags.UintVar(&c.clockWindowTicks, "clock-window-ticks", defaultClockWindowTicks, fmt.Sprintf("game ticks one supervised routine window may run before it pauses (1..%d, default one game day); reviews and routine orders happen under the running window, and danger, a coupled order or player input still stops it earlier; combat windows stay at %d", maxClockWindowTicks, combatClockWindowTicks))
 	flags.BoolVar(&c.debug, "debug", false, "log debug records too: the clock trace (which step branch ran, what each planner decided, what a routine refused and why) and refused pawn orders; stderr only, never flight rows")
 	flags.BoolVar(&c.pprof, "pprof", false, "serve net/http/pprof under /debug/pprof/ on the listener (CPU profile, heap, trace); off by default")
@@ -223,6 +225,9 @@ func parseServe(args []string, diagnostics io.Writer) (serveConfig, error) {
 	}
 	if c.clockWindowTicks < 1 || c.clockWindowTicks > maxClockWindowTicks {
 		return c, fmt.Errorf("--clock-window-ticks must be 1 through %d", maxClockWindowTicks)
+	}
+	if c.clockBlindTicks > maxClockBlindTicks {
+		return c, fmt.Errorf("--clock-blind-ticks must be 0 through %d", maxClockBlindTicks)
 	}
 	if c.worldEvaluationFoodMarginDays < 0 {
 		return c, errors.New("--world-evaluation-food-margin-days must be non-negative")

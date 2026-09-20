@@ -579,7 +579,10 @@ func caseMetrics(c na.SpeedCase, phases bridge.PhaseSummary, stops na.StopSummar
 		pauseMean = phases.Steps.PauseSecs / float64(phases.Steps.Pauses)
 	}
 	return map[string]any{
-		"case": c.Name, "speed": c.Speed, "test_acceleration": c.TestAcceleration,
+		"case": c.Name, "speed": c.Speed, "test_acceleration": c.TestAcceleration, "blind_ticks": c.BlindTicks,
+		// The regulator's transitions (#583): SpeedChanged rows and the
+		// widest blind span they reported; zero on an unregulated row.
+		"speed_changes": stops.SpeedChanges, "max_blind_ticks": stops.MaxBlindTicks,
 		"ticks_advanced": lastTick - startTick, "wall_seconds": wallSeconds, "budget_wall_tps": budgetTPS,
 		"wall_tps": phases.Clock.WallTPS, "paused_fraction": pausedFraction, "paused_samples": phases.Clock.PausedSamples, "clock_samples": phases.Clock.ClockSamples, "paused_sampled_seconds": phases.Clock.SampledSecs,
 		"steps": phases.Steps.Steps, "reads_per_step": readsPerStep, "parent_hits": phases.Steps.ParentHits,

@@ -12,11 +12,18 @@ func TestParseSpeedCases(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(cases) != 5 || cases[4].Name != "uncapped" || cases[4].Speed != "Ultrafast" || !cases[4].TestAcceleration {
+	if len(cases) != 6 || cases[4].Name != "uncapped" || cases[4].Speed != "Ultrafast" || !cases[4].TestAcceleration || cases[4].BlindTicks != 0 {
 		t.Fatalf("unexpected cases %+v", cases)
 	}
 	if got := cases[4].ServeArgs(); len(got) != 3 || got[2] != "--clock-test-acceleration" {
 		t.Fatalf("uncapped args %v", got)
+	}
+	// The regulated row (#583) is uncapped under the blind-tick budget.
+	if cases[5].Name != "regulated" || !cases[5].TestAcceleration || cases[5].BlindTicks != RegulatedBlindTicks {
+		t.Fatalf("unexpected regulated case %+v", cases[5])
+	}
+	if got := cases[5].ServeArgs(); len(got) != 5 || got[3] != "--clock-blind-ticks" || got[4] != "300" {
+		t.Fatalf("regulated args %v", got)
 	}
 	if got := cases[0].ServeArgs(); len(got) != 2 || got[1] != "Normal" {
 		t.Fatalf("normal args %v", got)

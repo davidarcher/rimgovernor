@@ -13,15 +13,24 @@ import (
 // SpeedCase is one column of the speed matrix (issue #111): the serve
 // --clock-speed flag it runs under and whether the test acceleration (#109)
 // is on. "uncapped" is Ultrafast with acceleration; both acceptance profiles
-// (headless and rendered) admit it, a player launch does not.
+// (headless and rendered) admit it, a player launch does not. "regulated"
+// is uncapped under the native blind-tick regulator (#583), the budget in
+// BlindTicks: the row that must match the capped speeds' outcome while
+// beating their wall time.
 type SpeedCase struct {
 	Name             string `json:"name"`
 	Speed            string `json:"speed"`
 	TestAcceleration bool   `json:"test_acceleration"`
+	BlindTicks       uint   `json:"blind_ticks,omitempty"`
 }
 
-// DefaultSpeedMatrix is the -speeds default: every native speed plus uncapped.
-const DefaultSpeedMatrix = "Normal,Fast,Superfast,Ultrafast,uncapped"
+// DefaultSpeedMatrix is the -speeds default: every native speed plus
+// uncapped and regulated.
+const DefaultSpeedMatrix = "Normal,Fast,Superfast,Ultrafast,uncapped,regulated"
+
+// RegulatedBlindTicks is the regulated row's budget: the planning fact
+// tolerance and the combat window already encode this horizon (#583).
+const RegulatedBlindTicks = 300
 
 // ParseSpeedCases turns a comma-separated -speeds value into cases, in order,
 // refusing unknown names and repeats.
@@ -32,6 +41,7 @@ func ParseSpeedCases(spec string) ([]SpeedCase, error) {
 		"superfast": {Name: "Superfast", Speed: "Superfast"},
 		"ultrafast": {Name: "Ultrafast", Speed: "Ultrafast"},
 		"uncapped":  {Name: "uncapped", Speed: "Ultrafast", TestAcceleration: true},
+		"regulated": {Name: "regulated", Speed: "Ultrafast", TestAcceleration: true, BlindTicks: RegulatedBlindTicks},
 	}
 	var cases []SpeedCase
 	seen := map[string]bool{}
@@ -42,7 +52,7 @@ func ParseSpeedCases(spec string) ([]SpeedCase, error) {
 		}
 		c, ok := known[key]
 		if !ok {
-			return nil, fmt.Errorf("unknown speed %q (want Normal, Fast, Superfast, Ultrafast or uncapped)", strings.TrimSpace(part))
+			return nil, fmt.Errorf("unknown speed %q (want Normal, Fast, Superfast, Ultrafast, uncapped or regulated)", strings.TrimSpace(part))
 		}
 		if seen[key] {
 			return nil, fmt.Errorf("speed %q listed twice", c.Name)
@@ -56,12 +66,15 @@ func ParseSpeedCases(spec string) ([]SpeedCase, error) {
 	return cases, nil
 }
 
-// ServeArgs are the serve flags a case adds: its clock speed and, for
-// uncapped, the test-acceleration opt-in.
+// ServeArgs are the serve flags a case adds: its clock speed, for uncapped
+// the test-acceleration opt-in and for regulated the blind-tick budget.
 func (c SpeedCase) ServeArgs() []string {
 	args := []string{"--clock-speed", c.Speed}
 	if c.TestAcceleration {
 		args = append(args, "--clock-test-acceleration")
+	}
+	if c.BlindTicks > 0 {
+		args = append(args, "--clock-blind-ticks", strconv.FormatUint(uint64(c.BlindTicks), 10))
 	}
 	return args
 }
@@ -148,6 +161,12 @@ type StopSummary struct {
 	LatencyCount  int            `json:"latency_samples"`
 	MeanLatencyMs float64        `json:"mean_latency_ms"`
 	MaxLatencyMs  float64        `json:"max_latency_ms"`
+	// SpeedChanges counts the SpeedChanged rows the same pages carried:
+	// under the blind-tick regulator (#583) its throttle and release
+	// transitions, which end no window. MaxBlindTicks is the widest blind
+	// span a regulator row reported.
+	SpeedChanges  int   `json:"speed_changes"`
+	MaxBlindTicks int64 `json:"max_blind_ticks"`
 }
 
 const (
@@ -187,10 +206,6 @@ func SummarizeStops(rows []bridge.TimelineRecord, sinceUnixMs int64) StopSummary
 			continue
 		}
 		for _, event := range findEvents(reply) {
-			stopped, ok := event["stopped"].(map[string]any)
-			if !ok {
-				continue
-			}
 			observed, hasObserved := int64Value(event["observedAtUnixMs"])
 			if sinceUnixMs > 0 && (!hasObserved || observed < sinceUnixMs) {
 				continue
@@ -198,6 +213,21 @@ func SummarizeStops(rows []bridge.TimelineRecord, sinceUnixMs int64) StopSummary
 			key := fmt.Sprint(event["cursor"])
 			if event["cursor"] == nil {
 				key = fmt.Sprintf("row-%d-%v", row.Sequence, event["observedAtUnixMs"])
+			}
+			if changed, ok := event["speedChanged"].(map[string]any); ok {
+				if seen[key] {
+					continue
+				}
+				seen[key] = true
+				summary.SpeedChanges++
+				if blind, ok := int64Value(changed["blindTicks"]); ok && blind > summary.MaxBlindTicks {
+					summary.MaxBlindTicks = blind
+				}
+				continue
+			}
+			stopped, ok := event["stopped"].(map[string]any)
+			if !ok {
+				continue
 			}
 			if seen[key] {
 				continue

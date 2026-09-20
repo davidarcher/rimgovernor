@@ -619,10 +619,24 @@ type StartRequest struct {
 	MaxTicks  *uint32                        `protobuf:"varint,5,opt,name=max_ticks,json=maxTicks,proto3,oneof" json:"max_ticks,omitempty"`
 	// Enable the native tick boost for this epoch. Requires SPEED_ULTRAFAST and
 	// a game launched with test acceleration (Status.test_acceleration_available);
-	// refused otherwise. An accelerated epoch cannot change speed, only pause.
+	// refused otherwise. An accelerated epoch cannot change speed, only pause
+	// or change its ceiling.
 	TestAcceleration *bool `protobuf:"varint,6,opt,name=test_acceleration,json=testAcceleration,proto3,oneof" json:"test_acceleration,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Blind-tick regulator (issue #583). Blind ticks are the ticks between the
+	// controller's last read (a status, events or bundle read, or the oldest
+	// journal row it has not yet acknowledged with an after_cursor) and the
+	// current tick. Past this budget native throttles the epoch toward Normal
+	// at the next tick boundary and ramps back up once the controller catches
+	// up (immediate decrease, multiplicative increase), journaling both
+	// transitions as SpeedChanged without ending the epoch. Zero or absent
+	// leaves the epoch unregulated.
+	BlindTickBudget *uint32 `protobuf:"varint,7,opt,name=blind_tick_budget,json=blindTickBudget,proto3,oneof" json:"blind_tick_budget,omitempty"`
+	// Continuous ceiling on the epoch's tick rate, beneath the requested
+	// speed's own rate; an accelerated epoch admits a live change through
+	// SpeedRequest. Zero or absent is the speed's own rate.
+	MaxTicksPerSecond *uint32 `protobuf:"varint,8,opt,name=max_ticks_per_second,json=maxTicksPerSecond,proto3,oneof" json:"max_ticks_per_second,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *StartRequest) Reset() {
@@ -695,6 +709,20 @@ func (x *StartRequest) GetTestAcceleration() bool {
 		return *x.TestAcceleration
 	}
 	return false
+}
+
+func (x *StartRequest) GetBlindTickBudget() uint32 {
+	if x != nil && x.BlindTickBudget != nil {
+		return *x.BlindTickBudget
+	}
+	return 0
+}
+
+func (x *StartRequest) GetMaxTicksPerSecond() uint32 {
+	if x != nil && x.MaxTicksPerSecond != nil {
+		return *x.MaxTicksPerSecond
+	}
+	return 0
 }
 
 type OwnedRequest struct {
@@ -810,12 +838,15 @@ func (x *RenewRequest) GetLeaseMs() uint32 {
 }
 
 type SpeedRequest struct {
-	state         protoimpl.MessageState         `protogen:"open.v1"`
-	Epoch         *OwnedRequest                  `protobuf:"bytes,1,opt,name=epoch,proto3" json:"epoch,omitempty"`
-	Authority     *authoritypb.WritePrecondition `protobuf:"bytes,2,opt,name=authority,proto3" json:"authority,omitempty"`
-	Speed         *Speed                         `protobuf:"varint,3,opt,name=speed,proto3,enum=rimgovernor.clock.v1.Speed,oneof" json:"speed,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state     protoimpl.MessageState         `protogen:"open.v1"`
+	Epoch     *OwnedRequest                  `protobuf:"bytes,1,opt,name=epoch,proto3" json:"epoch,omitempty"`
+	Authority *authoritypb.WritePrecondition `protobuf:"bytes,2,opt,name=authority,proto3" json:"authority,omitempty"`
+	Speed     *Speed                         `protobuf:"varint,3,opt,name=speed,proto3,enum=rimgovernor.clock.v1.Speed,oneof" json:"speed,omitempty"`
+	// The new ceiling (StartRequest.max_ticks_per_second); absent keeps the
+	// epoch's. An accelerated epoch admits this with SPEED_ULTRAFAST.
+	MaxTicksPerSecond *uint32 `protobuf:"varint,4,opt,name=max_ticks_per_second,json=maxTicksPerSecond,proto3,oneof" json:"max_ticks_per_second,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *SpeedRequest) Reset() {
@@ -869,6 +900,13 @@ func (x *SpeedRequest) GetSpeed() Speed {
 	return Speed_SPEED_UNSPECIFIED
 }
 
+func (x *SpeedRequest) GetMaxTicksPerSecond() uint32 {
+	if x != nil && x.MaxTicksPerSecond != nil {
+		return *x.MaxTicksPerSecond
+	}
+	return 0
+}
+
 type StatusRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Identity      *commonpb.Identity     `protobuf:"bytes,1,opt,name=identity,proto3" json:"identity,omitempty"`
@@ -914,18 +952,23 @@ func (x *StatusRequest) GetIdentity() *commonpb.Identity {
 }
 
 type Epoch struct {
-	state            protoimpl.MessageState       `protogen:"open.v1"`
-	Owner            *EpochOwner                  `protobuf:"bytes,1,opt,name=owner,proto3" json:"owner,omitempty"`
-	Origin           *commonpb.ObservationContext `protobuf:"bytes,2,opt,name=origin,proto3" json:"origin,omitempty"`
-	RequestedSpeed   *Speed                       `protobuf:"varint,3,opt,name=requested_speed,json=requestedSpeed,proto3,enum=rimgovernor.clock.v1.Speed,oneof" json:"requested_speed,omitempty"`
-	Policy           *WatchPolicy                 `protobuf:"bytes,4,opt,name=policy,proto3" json:"policy,omitempty"`
-	StartTick        *int64                       `protobuf:"varint,5,opt,name=start_tick,json=startTick,proto3,oneof" json:"start_tick,omitempty"`
-	TickDeadline     *int64                       `protobuf:"varint,6,opt,name=tick_deadline,json=tickDeadline,proto3,oneof" json:"tick_deadline,omitempty"`
-	LeaseRemainingMs *uint32                      `protobuf:"varint,7,opt,name=lease_remaining_ms,json=leaseRemainingMs,proto3,oneof" json:"lease_remaining_ms,omitempty"`
-	LastTick         *int64                       `protobuf:"varint,8,opt,name=last_tick,json=lastTick,proto3,oneof" json:"last_tick,omitempty"`
-	TestAcceleration *bool                        `protobuf:"varint,9,opt,name=test_acceleration,json=testAcceleration,proto3,oneof" json:"test_acceleration,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state             protoimpl.MessageState       `protogen:"open.v1"`
+	Owner             *EpochOwner                  `protobuf:"bytes,1,opt,name=owner,proto3" json:"owner,omitempty"`
+	Origin            *commonpb.ObservationContext `protobuf:"bytes,2,opt,name=origin,proto3" json:"origin,omitempty"`
+	RequestedSpeed    *Speed                       `protobuf:"varint,3,opt,name=requested_speed,json=requestedSpeed,proto3,enum=rimgovernor.clock.v1.Speed,oneof" json:"requested_speed,omitempty"`
+	Policy            *WatchPolicy                 `protobuf:"bytes,4,opt,name=policy,proto3" json:"policy,omitempty"`
+	StartTick         *int64                       `protobuf:"varint,5,opt,name=start_tick,json=startTick,proto3,oneof" json:"start_tick,omitempty"`
+	TickDeadline      *int64                       `protobuf:"varint,6,opt,name=tick_deadline,json=tickDeadline,proto3,oneof" json:"tick_deadline,omitempty"`
+	LeaseRemainingMs  *uint32                      `protobuf:"varint,7,opt,name=lease_remaining_ms,json=leaseRemainingMs,proto3,oneof" json:"lease_remaining_ms,omitempty"`
+	LastTick          *int64                       `protobuf:"varint,8,opt,name=last_tick,json=lastTick,proto3,oneof" json:"last_tick,omitempty"`
+	TestAcceleration  *bool                        `protobuf:"varint,9,opt,name=test_acceleration,json=testAcceleration,proto3,oneof" json:"test_acceleration,omitempty"`
+	BlindTickBudget   *uint32                      `protobuf:"varint,10,opt,name=blind_tick_budget,json=blindTickBudget,proto3,oneof" json:"blind_tick_budget,omitempty"`
+	MaxTicksPerSecond *uint32                      `protobuf:"varint,11,opt,name=max_ticks_per_second,json=maxTicksPerSecond,proto3,oneof" json:"max_ticks_per_second,omitempty"`
+	// The ceiling the blind-tick regulator holds right now; zero when it is
+	// not throttling.
+	RegulatedTicksPerSecond *uint32 `protobuf:"varint,12,opt,name=regulated_ticks_per_second,json=regulatedTicksPerSecond,proto3,oneof" json:"regulated_ticks_per_second,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *Epoch) Reset() {
@@ -1019,6 +1062,27 @@ func (x *Epoch) GetTestAcceleration() bool {
 		return *x.TestAcceleration
 	}
 	return false
+}
+
+func (x *Epoch) GetBlindTickBudget() uint32 {
+	if x != nil && x.BlindTickBudget != nil {
+		return *x.BlindTickBudget
+	}
+	return 0
+}
+
+func (x *Epoch) GetMaxTicksPerSecond() uint32 {
+	if x != nil && x.MaxTicksPerSecond != nil {
+		return *x.MaxTicksPerSecond
+	}
+	return 0
+}
+
+func (x *Epoch) GetRegulatedTicksPerSecond() uint32 {
+	if x != nil && x.RegulatedTicksPerSecond != nil {
+		return *x.RegulatedTicksPerSecond
+	}
+	return 0
 }
 
 type Running struct {
@@ -3690,11 +3754,18 @@ func (x *Rectangle) GetMaximum() *commonpb.Cell {
 	return nil
 }
 
+// The epoch's speed, ceiling or regulator changed; the epoch continues. An
+// owner's change carries its new ceiling; a regulator transition carries the
+// ceiling it now holds (zero once it releases) and the blind ticks that
+// drove it.
 type SpeedChanged struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Speed         *Speed                 `protobuf:"varint,1,opt,name=speed,proto3,enum=rimgovernor.clock.v1.Speed,oneof" json:"speed,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                   protoimpl.MessageState `protogen:"open.v1"`
+	Speed                   *Speed                 `protobuf:"varint,1,opt,name=speed,proto3,enum=rimgovernor.clock.v1.Speed,oneof" json:"speed,omitempty"`
+	MaxTicksPerSecond       *uint32                `protobuf:"varint,2,opt,name=max_ticks_per_second,json=maxTicksPerSecond,proto3,oneof" json:"max_ticks_per_second,omitempty"`
+	RegulatedTicksPerSecond *uint32                `protobuf:"varint,3,opt,name=regulated_ticks_per_second,json=regulatedTicksPerSecond,proto3,oneof" json:"regulated_ticks_per_second,omitempty"`
+	BlindTicks              *int64                 `protobuf:"varint,4,opt,name=blind_ticks,json=blindTicks,proto3,oneof" json:"blind_ticks,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *SpeedChanged) Reset() {
@@ -3732,6 +3803,27 @@ func (x *SpeedChanged) GetSpeed() Speed {
 		return *x.Speed
 	}
 	return Speed_SPEED_UNSPECIFIED
+}
+
+func (x *SpeedChanged) GetMaxTicksPerSecond() uint32 {
+	if x != nil && x.MaxTicksPerSecond != nil {
+		return *x.MaxTicksPerSecond
+	}
+	return 0
+}
+
+func (x *SpeedChanged) GetRegulatedTicksPerSecond() uint32 {
+	if x != nil && x.RegulatedTicksPerSecond != nil {
+		return *x.RegulatedTicksPerSecond
+	}
+	return 0
+}
+
+func (x *SpeedChanged) GetBlindTicks() int64 {
+	if x != nil && x.BlindTicks != nil {
+		return *x.BlindTicks
+	}
+	return 0
 }
 
 type PauseFailed struct {
@@ -4470,19 +4562,23 @@ const file_clock_proto_rawDesc = "" +
 	"\x15controller_session_id\x18\x01 \x01(\tH\x00R\x13controllerSessionId\x88\x01\x01\x12\x19\n" +
 	"\x05epoch\x18\x02 \x01(\x03H\x01R\x05epoch\x88\x01\x01B\x18\n" +
 	"\x16_controller_session_idB\b\n" +
-	"\x06_epoch\"\xfb\x02\n" +
+	"\x06_epoch\"\x91\x04\n" +
 	"\fStartRequest\x12I\n" +
 	"\tauthority\x18\x01 \x01(\v2+.rimgovernor.authority.v1.WritePreconditionR\tauthority\x126\n" +
 	"\x05speed\x18\x02 \x01(\x0e2\x1b.rimgovernor.clock.v1.SpeedH\x00R\x05speed\x88\x01\x01\x129\n" +
 	"\x06policy\x18\x03 \x01(\v2!.rimgovernor.clock.v1.WatchPolicyR\x06policy\x12\x1e\n" +
 	"\blease_ms\x18\x04 \x01(\rH\x01R\aleaseMs\x88\x01\x01\x12 \n" +
 	"\tmax_ticks\x18\x05 \x01(\rH\x02R\bmaxTicks\x88\x01\x01\x120\n" +
-	"\x11test_acceleration\x18\x06 \x01(\bH\x03R\x10testAcceleration\x88\x01\x01B\b\n" +
+	"\x11test_acceleration\x18\x06 \x01(\bH\x03R\x10testAcceleration\x88\x01\x01\x12/\n" +
+	"\x11blind_tick_budget\x18\a \x01(\rH\x04R\x0fblindTickBudget\x88\x01\x01\x124\n" +
+	"\x14max_ticks_per_second\x18\b \x01(\rH\x05R\x11maxTicksPerSecond\x88\x01\x01B\b\n" +
 	"\x06_speedB\v\n" +
 	"\t_lease_msB\f\n" +
 	"\n" +
 	"_max_ticksB\x14\n" +
-	"\x12_test_acceleration\"\x83\x01\n" +
+	"\x12_test_accelerationB\x14\n" +
+	"\x12_blind_tick_budgetB\x17\n" +
+	"\x15_max_ticks_per_second\"\x83\x01\n" +
 	"\fOwnedRequest\x12;\n" +
 	"\bidentity\x18\x01 \x01(\v2\x1f.rimgovernor.common.v1.IdentityR\bidentity\x126\n" +
 	"\x05owner\x18\x02 \x01(\v2 .rimgovernor.clock.v1.EpochOwnerR\x05owner\"\xc0\x01\n" +
@@ -4490,14 +4586,16 @@ const file_clock_proto_rawDesc = "" +
 	"\x05epoch\x18\x01 \x01(\v2\".rimgovernor.clock.v1.OwnedRequestR\x05epoch\x12I\n" +
 	"\tauthority\x18\x02 \x01(\v2+.rimgovernor.authority.v1.WritePreconditionR\tauthority\x12\x1e\n" +
 	"\blease_ms\x18\x03 \x01(\rH\x00R\aleaseMs\x88\x01\x01B\v\n" +
-	"\t_lease_ms\"\xd5\x01\n" +
+	"\t_lease_ms\"\xa4\x02\n" +
 	"\fSpeedRequest\x128\n" +
 	"\x05epoch\x18\x01 \x01(\v2\".rimgovernor.clock.v1.OwnedRequestR\x05epoch\x12I\n" +
 	"\tauthority\x18\x02 \x01(\v2+.rimgovernor.authority.v1.WritePreconditionR\tauthority\x126\n" +
-	"\x05speed\x18\x03 \x01(\x0e2\x1b.rimgovernor.clock.v1.SpeedH\x00R\x05speed\x88\x01\x01B\b\n" +
-	"\x06_speed\"L\n" +
+	"\x05speed\x18\x03 \x01(\x0e2\x1b.rimgovernor.clock.v1.SpeedH\x00R\x05speed\x88\x01\x01\x124\n" +
+	"\x14max_ticks_per_second\x18\x04 \x01(\rH\x01R\x11maxTicksPerSecond\x88\x01\x01B\b\n" +
+	"\x06_speedB\x17\n" +
+	"\x15_max_ticks_per_second\"L\n" +
 	"\rStatusRequest\x12;\n" +
-	"\bidentity\x18\x01 \x01(\v2\x1f.rimgovernor.common.v1.IdentityR\bidentity\"\xcd\x04\n" +
+	"\bidentity\x18\x01 \x01(\v2\x1f.rimgovernor.common.v1.IdentityR\bidentity\"\xc4\x06\n" +
 	"\x05Epoch\x126\n" +
 	"\x05owner\x18\x01 \x01(\v2 .rimgovernor.clock.v1.EpochOwnerR\x05owner\x12A\n" +
 	"\x06origin\x18\x02 \x01(\v2).rimgovernor.common.v1.ObservationContextR\x06origin\x12I\n" +
@@ -4508,14 +4606,21 @@ const file_clock_proto_rawDesc = "" +
 	"\rtick_deadline\x18\x06 \x01(\x03H\x02R\ftickDeadline\x88\x01\x01\x121\n" +
 	"\x12lease_remaining_ms\x18\a \x01(\rH\x03R\x10leaseRemainingMs\x88\x01\x01\x12 \n" +
 	"\tlast_tick\x18\b \x01(\x03H\x04R\blastTick\x88\x01\x01\x120\n" +
-	"\x11test_acceleration\x18\t \x01(\bH\x05R\x10testAcceleration\x88\x01\x01B\x12\n" +
+	"\x11test_acceleration\x18\t \x01(\bH\x05R\x10testAcceleration\x88\x01\x01\x12/\n" +
+	"\x11blind_tick_budget\x18\n" +
+	" \x01(\rH\x06R\x0fblindTickBudget\x88\x01\x01\x124\n" +
+	"\x14max_ticks_per_second\x18\v \x01(\rH\aR\x11maxTicksPerSecond\x88\x01\x01\x12@\n" +
+	"\x1aregulated_ticks_per_second\x18\f \x01(\rH\bR\x17regulatedTicksPerSecond\x88\x01\x01B\x12\n" +
 	"\x10_requested_speedB\r\n" +
 	"\v_start_tickB\x10\n" +
 	"\x0e_tick_deadlineB\x15\n" +
 	"\x13_lease_remaining_msB\f\n" +
 	"\n" +
 	"_last_tickB\x14\n" +
-	"\x12_test_acceleration\"<\n" +
+	"\x12_test_accelerationB\x14\n" +
+	"\x12_blind_tick_budgetB\x17\n" +
+	"\x15_max_ticks_per_secondB\x1d\n" +
+	"\x1b_regulated_ticks_per_second\"<\n" +
 	"\aRunning\x121\n" +
 	"\x05epoch\x18\x01 \x01(\v2\x1b.rimgovernor.clock.v1.EpochR\x05epoch\"\x82\x02\n" +
 	"\bStopping\x121\n" +
@@ -4779,10 +4884,17 @@ const file_clock_proto_rawDesc = "" +
 	"\a_reason\"y\n" +
 	"\tRectangle\x125\n" +
 	"\aminimum\x18\x01 \x01(\v2\x1b.rimgovernor.common.v1.CellR\aminimum\x125\n" +
-	"\amaximum\x18\x02 \x01(\v2\x1b.rimgovernor.common.v1.CellR\amaximum\"P\n" +
+	"\amaximum\x18\x02 \x01(\v2\x1b.rimgovernor.common.v1.CellR\amaximum\"\xb6\x02\n" +
 	"\fSpeedChanged\x126\n" +
-	"\x05speed\x18\x01 \x01(\x0e2\x1b.rimgovernor.clock.v1.SpeedH\x00R\x05speed\x88\x01\x01B\b\n" +
-	"\x06_speed\"H\n" +
+	"\x05speed\x18\x01 \x01(\x0e2\x1b.rimgovernor.clock.v1.SpeedH\x00R\x05speed\x88\x01\x01\x124\n" +
+	"\x14max_ticks_per_second\x18\x02 \x01(\rH\x01R\x11maxTicksPerSecond\x88\x01\x01\x12@\n" +
+	"\x1aregulated_ticks_per_second\x18\x03 \x01(\rH\x02R\x17regulatedTicksPerSecond\x88\x01\x01\x12$\n" +
+	"\vblind_ticks\x18\x04 \x01(\x03H\x03R\n" +
+	"blindTicks\x88\x01\x01B\b\n" +
+	"\x06_speedB\x17\n" +
+	"\x15_max_ticks_per_secondB\x1d\n" +
+	"\x1b_regulated_ticks_per_secondB\x0e\n" +
+	"\f_blind_ticks\"H\n" +
 	"\vPauseFailed\x129\n" +
 	"\apending\x18\x01 \x01(\v2\x1f.rimgovernor.clock.v1.StopEventR\apending\"\xab\x01\n" +
 	"\x11ForcePauseWaiting\x129\n" +

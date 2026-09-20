@@ -47,6 +47,22 @@ argument gates the acceptance-only world patches (`AcceptanceWorld`, #272):
 no autosaver tick, and, for a game the `test/quiet_world` fixture op marked,
 no wild plant or wild animal tick outside the home area and no wild spawners.
 
+An epoch may also carry a blind-tick budget (`--clock-blind-ticks`,
+`StartRequest.blind_tick_budget`, #583). Blind ticks are those the controller
+has not observed: since its last status or bundle read, or since the oldest
+journal row it has not acknowledged with an events cursor, whichever is
+older (an events poll only acknowledges; it observes nothing). Past the
+budget native clamps `TickManager.TickRateMultiplier` to Normal at the next
+frame and, once the controller reads again, doubles the ceiling every
+100 ms back to unlimited; both transitions are journaled as `SpeedChanged`
+(`regulated_ticks_per_second`, `blind_ticks`) and neither ends the epoch
+or reads as an external speed change. The lease is the fault guard
+(controller gone), the budget the liveness guard (controller slow). A
+continuous ceiling (`max_ticks_per_second`) sits beside it, and an
+accelerated epoch admits a live ceiling change through `SpeedRequest`
+while its speed stays Ultrafast. `speedmatrix/plain`'s `regulated` row runs
+uncapped under a 300-tick budget and must match the capped speeds' outcome.
+
 Discrete camera navigation uses a separate player-only endpoint with a fixed
 pan/zoom action set. Each request validates the live native contract under the
 runtime writer lock, rechecks loaded-session identity before dispatch and reads

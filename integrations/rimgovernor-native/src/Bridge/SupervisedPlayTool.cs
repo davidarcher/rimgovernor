@@ -191,6 +191,7 @@ namespace HomeBridge.BridgeTools
                 var tickInfo = Harmony.GetPatchInfo(tick);
                 if (tickInfo == null || !tickInfo.Owners.Contains("homebridge.supervised-play"))
                     throw new InvalidOperationException("Native tick boundary patch was not installed.");
+                EnsureCeilingPatched();
                 NativeControlAuthority.GenerationChanged += OnAuthorityChanged;
                 _patchError = null;
             }
@@ -205,7 +206,8 @@ namespace HomeBridge.BridgeTools
         internal static object Start(string owner, TimeSpeed speed, int leaseMs,
             string mode, float healthDropFraction, float minHealthFraction, float hostileWithin,
             string ignoredHostiles, string ignoredDowned, string ignoredInjured,
-            int injuryStopCooldownMs, int maxTicks, string surgicalRecoveryIds = "", bool testAcceleration = false, string medicalRestIds = "")
+            int injuryStopCooldownMs, int maxTicks, string surgicalRecoveryIds = "", bool testAcceleration = false, string medicalRestIds = "",
+            int blindTickBudget = 0, int maxTicksPerSecond = 0)
         {
             lock (Gate)
             {
@@ -244,6 +246,8 @@ namespace HomeBridge.BridgeTools
                     LastTick = Find.TickManager.TicksGame,
                     LastProbeTick = Find.TickManager.TicksGame, LastProbeMs = NowMs(),
                     TestAcceleration = testAcceleration,
+                    BlindTickBudget = Clamp(blindTickBudget, 0, 1800000), MaxTicksPerSecond = Clamp(maxTicksPerSecond, 0, 60000),
+                    LastReadTick = Find.TickManager.TicksGame, AckedCursor = _cursor,
                     IgnoredHostiles = PawnIds(ignoredHostiles),
                     IgnoredDowned = PawnIds(ignoredDowned),
                     SurgicalRecovery = PawnIds(surgicalRecoveryIds),
@@ -314,7 +318,7 @@ namespace HomeBridge.BridgeTools
             }
         }
 
-        internal static object Speed(string owner, long epoch, TimeSpeed speed)
+        internal static object Speed(string owner, long epoch, TimeSpeed speed, int? maxTicksPerSecond = null)
         {
             lock (Gate)
             {
@@ -333,8 +337,10 @@ namespace HomeBridge.BridgeTools
                     s.RequestedSpeed = old;
                     return Failure("The requested speed did not take; supervision remains active.");
                 }
-                Add("speed_changed", "Supervisor owner changed speed to " + speed + ".", s,
-                    new Dictionary<string, object?> { { "speed", speed.ToString() } });
+                if (maxTicksPerSecond.HasValue) s.MaxTicksPerSecond = Clamp(maxTicksPerSecond.Value, 0, 60000);
+                Add("speed_changed", "Supervisor owner changed speed to " + speed + (s.MaxTicksPerSecond > 0 ? " under " + s.MaxTicksPerSecond + " ticks/s" : "") + ".", s,
+                    new Dictionary<string, object?> { { "speed", speed.ToString() }, { "maxTicksPerSecond", (long)s.MaxTicksPerSecond },
+                        { "regulatedTicksPerSecond", (long)s.RegulatedTicksPerSecond }, { "blindTicks", (long)BlindTicks(s) } });
                 return Snapshot(s, true);
             }
         }
@@ -473,6 +479,7 @@ namespace HomeBridge.BridgeTools
                         new Dictionary<string, object?> { { "expectedSpeed", s.RequestedSpeed.ToString() },
                             { "actualSpeed", tm.CurTimeSpeed.ToString() } }); return; }
                     if (LeaseNow(s) >= s.LeaseExpiresMs) { Stop(s, "lease_expired", "Heartbeat lease expired.", true, null); return; }
+                    Regulate(s);
                     if (NowMs() - s.LastProbeMs < 100
                         && (!s.TestAcceleration || tm.TicksGame - s.LastProbeTick < AcceleratedProbeTicks)) return;
                     s.MaxProbeTickGap = Math.Max(s.MaxProbeTickGap, tm.TicksGame - s.LastProbeTick);
@@ -1153,7 +1160,7 @@ namespace HomeBridge.BridgeTools
                 { "kind", kind }, { "detail", detail }, { "event", payload },
                 { "colonyId", identity?.ColonyId }, { "loadToken", identity?.LoadToken }, { "mapId", s.Map.uniqueID },
                 { "tick", Find.TickManager != null ? Find.TickManager.TicksGame : s.LastTick }, { "atMs", NowMs() } };
-            try { AttachTypedEvent(row, kind, detail, s, payload); AppendRow(journal, row); }
+            try { AttachTypedEvent(row, kind, detail, s, payload); AppendRow(journal, row); NoteUnackedRow(s, kind, _cursor, (int)row["tick"]!); }
             catch
             {
                 var sameContext = ReferenceEquals(Current.Game, s.Session) && ReferenceEquals(Find.CurrentMap, s.Map);
@@ -1234,6 +1241,9 @@ namespace HomeBridge.BridgeTools
                 { "probeCount", s != null ? s.ProbeCount : 0 },
                 { "stopAtMs", s != null ? (object?)s.StopAtMs : null },
                 { "probeTickLimit", s != null && s.TestAcceleration ? (object)AcceleratedProbeTicks : null },
+                { "blindTickBudget", s != null ? s.BlindTickBudget : 0 }, { "maxTicksPerSecond", s != null ? s.MaxTicksPerSecond : 0 },
+                { "regulatedTicksPerSecond", s != null ? s.RegulatedTicksPerSecond : 0 }, { "blindTicks", s != null ? BlindTicks(s) : 0 },
+                { "maxBlindTicks", s != null ? s.MaxBlindTicks : 0 }, { "regulatorThrottles", s != null ? s.RegulatorThrottles : 0 },
                 { "startTick", s != null ? (object)s.StartTick : null },
                 { "tickDeadline", s != null ? (object?)s.TickDeadline : null },
                 { "injuryStopCooldownMs", s != null ? s.InjuryStopCooldownMs : 0 },
@@ -1276,9 +1286,10 @@ namespace HomeBridge.BridgeTools
             var wall = Ms(System.Diagnostics.Stopwatch.GetTimestamp() - t.StartedAt);
             var ticks = s.LastTick - s.StartTick;
             Log.Message(string.Format(CultureInfo.InvariantCulture,
-                "RimGovernor clock epoch {0} timing: stop={1} speed={2} boost={3} ticks={4} wallMs={5:F0} tps={6:F0} frames={7} maxTicksPerFrame={8} hookTicks={9} hookMs={10:F1} watchMs={11:F1} probes={12} probeMs={13:F1} maxProbeTickGap={14}",
+                "RimGovernor clock epoch {0} timing: stop={1} speed={2} boost={3} ticks={4} wallMs={5:F0} tps={6:F0} frames={7} maxTicksPerFrame={8} hookTicks={9} hookMs={10:F1} watchMs={11:F1} probes={12} probeMs={13:F1} maxProbeTickGap={14} blindBudget={15} maxBlind={16} throttles={17}",
                 s.Epoch, kind, s.RequestedSpeed, s.TestAcceleration, ticks, wall, wall > 0 ? ticks * 1000.0 / wall : 0,
-                t.Frames, t.MaxFrameTicks, t.HookTicks, Ms(t.HookElapsed), Ms(t.WatchElapsed), s.ProbeCount, Ms(t.ProbeElapsed), s.MaxProbeTickGap));
+                t.Frames, t.MaxFrameTicks, t.HookTicks, Ms(t.HookElapsed), Ms(t.WatchElapsed), s.ProbeCount, Ms(t.ProbeElapsed), s.MaxProbeTickGap,
+                s.BlindTickBudget, s.MaxBlindTicks, s.RegulatorThrottles));
         }
 
         private sealed class Hit
@@ -1320,6 +1331,13 @@ namespace HomeBridge.BridgeTools
             public long LeaseExpiresMs; public long LastProbeMs; public int LastTick; public bool PausedAtStop;
             public int StartTick; public long? TickDeadline;
             public bool TestAcceleration; public bool PriorBoost; public bool BoostOwned;
+            // Blind-tick regulator (SupervisedPlayRegulator.cs): the budget and
+            // owner ceiling from the start, the ceiling the regulator holds
+            // (0 = none), the controller's last read tick and acknowledged
+            // cursor, and the rows it has not acknowledged (cursor, tick).
+            public int BlindTickBudget; public int MaxTicksPerSecond; public int RegulatedTicksPerSecond;
+            public int LastReadTick; public long AckedCursor; public readonly List<KeyValuePair<long, int>> Unacked = new List<KeyValuePair<long, int>>();
+            public long LastRampMs; public int MaxBlindTicks; public int RegulatorThrottles;
             public int LastProbeTick; public int MaxProbeTickGap; public int ProbeCount;
             public readonly EpochTiming Timing = new EpochTiming();
             public long? StopAtMs;

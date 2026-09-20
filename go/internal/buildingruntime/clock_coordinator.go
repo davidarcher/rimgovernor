@@ -332,13 +332,13 @@ func (q *ClockCoordinator) command(ctx context.Context, intent store.ClockIntent
 	switch command := v.Intent.Command; {
 	case command.Start != nil:
 		s := command.Start
-		reply, _, err = q.writer.Start(call, &k.StartRequest{Authority: pre, Speed: s.Speed.Enum(), Policy: s.Policy, LeaseMs: proto.Uint32(s.LeaseMS), MaxTicks: proto.Uint32(s.MaxTicks), TestAcceleration: proto.Bool(s.TestAcceleration)})
+		reply, _, err = q.writer.Start(call, &k.StartRequest{Authority: pre, Speed: s.Speed.Enum(), Policy: s.Policy, LeaseMs: proto.Uint32(s.LeaseMS), MaxTicks: proto.Uint32(s.MaxTicks), TestAcceleration: proto.Bool(s.TestAcceleration), BlindTickBudget: optionalUint32(s.BlindTickBudget), MaxTicksPerSecond: optionalUint32(s.MaxTicksPerSecond)})
 	case command.Renew != nil:
 		r := command.Renew
 		reply, _, err = q.writer.Renew(call, &k.RenewRequest{Epoch: &k.OwnedRequest{Identity: e.Identity, Owner: r.Original.Owner}, Authority: pre, LeaseMs: proto.Uint32(r.LeaseMS)}, r.Original)
 	case command.Speed != nil:
 		s := command.Speed
-		reply, _, err = q.writer.ChangeSpeed(call, &k.SpeedRequest{Epoch: &k.OwnedRequest{Identity: e.Identity, Owner: s.Original.Owner}, Authority: pre, Speed: s.Speed.Enum()}, s.Original)
+		reply, _, err = q.writer.ChangeSpeed(call, &k.SpeedRequest{Epoch: &k.OwnedRequest{Identity: e.Identity, Owner: s.Original.Owner}, Authority: pre, Speed: s.Speed.Enum(), MaxTicksPerSecond: s.MaxTicksPerSecond}, s.Original)
 	}
 	return q.record(v, reply, errors.Join(err, call.Err()))
 }
@@ -414,4 +414,12 @@ func (q *ClockCoordinator) startAbsent(ctx context.Context, v store.ClockAttempt
 		}
 	}
 	return false, nil
+}
+
+// optionalUint32 is the wire presence of a zero-means-absent start option.
+func optionalUint32(v uint32) *uint32 {
+	if v == 0 {
+		return nil
+	}
+	return proto.Uint32(v)
 }

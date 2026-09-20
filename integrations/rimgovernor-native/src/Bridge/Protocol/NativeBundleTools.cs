@@ -90,6 +90,7 @@ namespace HomeBridge.BridgeTools
                 if (map == null)
                     return ProtoBoundary.Encode(new Obs.BundleReply { Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.NotLoaded, Detail = "No current colony map is loaded." } });
             }
+            Supervisor.NoteControllerRead();
             var observed = new Obs.BundleSnapshot { Context = context, Paused = Find.TickManager.Paused };
             if (request.HasClockStatus && request.ClockStatus) observed.ClockStatus = NativeClockTools.Read(context);
             if (request.HasEmergency && request.Emergency)

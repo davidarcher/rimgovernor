@@ -114,7 +114,7 @@ func clockEvent(event *k.Event) error {
 			return contract("clock started origin mismatch")
 		}
 	case *k.Event_SpeedChanged:
-		if v.SpeedChanged == nil || v.SpeedChanged.Speed == nil {
+		if v.SpeedChanged == nil || v.SpeedChanged.Speed == nil || v.SpeedChanged.GetMaxTicksPerSecond() > 60000 || v.SpeedChanged.GetRegulatedTicksPerSecond() > 60000 || v.SpeedChanged.GetBlindTicks() < 0 {
 			return contract("clock speed evidence required")
 		}
 	case *k.Event_Stopped:

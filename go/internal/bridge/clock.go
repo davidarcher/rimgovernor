@@ -76,10 +76,13 @@ func (control *ClockControl) Start(ctx context.Context, request *k.StartRequest)
 	if request.GetTestAcceleration() && request.GetSpeed() != k.Speed_SPEED_ULTRAFAST {
 		return nil, Result{}, contract("clock test acceleration requires ultrafast")
 	}
+	if (request.BlindTickBudget != nil && (request.GetBlindTickBudget() < 1 || request.GetBlindTickBudget() > 1800000)) || (request.MaxTicksPerSecond != nil && (request.GetMaxTicksPerSecond() < 1 || request.GetMaxTicksPerSecond() > 60000)) {
+		return nil, Result{}, contract("clock blind tick budget or tick rate ceiling")
+	}
 	if err := clockPolicy(request.Policy, int64(request.GetMaxTicks())); err != nil {
 		return nil, Result{}, err
 	}
-	expectation := ClockExpectation{request.Authority.Identity, request.Authority.Attempt, request.Authority.GetExpectedGeneration(), ClockCommand{Start: &ClockStart{Speed: request.GetSpeed(), Policy: request.Policy, LeaseMS: request.GetLeaseMs(), MaxTicks: request.GetMaxTicks(), TestAcceleration: request.GetTestAcceleration()}}}
+	expectation := ClockExpectation{request.Authority.Identity, request.Authority.Attempt, request.Authority.GetExpectedGeneration(), ClockCommand{Start: &ClockStart{Speed: request.GetSpeed(), Policy: request.Policy, LeaseMS: request.GetLeaseMs(), MaxTicks: request.GetMaxTicks(), TestAcceleration: request.GetTestAcceleration(), BlindTickBudget: request.GetBlindTickBudget(), MaxTicksPerSecond: request.GetMaxTicksPerSecond()}}}
 	return control.clockCall(ctx, "rimgovernor/clock_start", request, request.Authority, func(r *k.ControlReceipt) error { return ValidateClockReceipt(r, expectation) })
 }
 func (control *ClockControl) Renew(ctx context.Context, request *k.RenewRequest, originalEpoch *k.Epoch) (*k.ControlReply, Result, error) {
@@ -111,11 +114,14 @@ func (control *ClockControl) ChangeSpeed(ctx context.Context, request *k.SpeedRe
 	if originalEpoch.GetTestAcceleration() && request.GetSpeed() != k.Speed_SPEED_ULTRAFAST {
 		return nil, Result{}, contract("clock accelerated epoch cannot change speed")
 	}
+	if request.MaxTicksPerSecond != nil && (request.GetMaxTicksPerSecond() < 1 || request.GetMaxTicksPerSecond() > 60000) {
+		return nil, Result{}, contract("clock tick rate ceiling")
+	}
 	if err := clockOriginal(request.Epoch, request.Authority, originalEpoch); err != nil {
 		return nil, Result{}, err
 	}
 	originalEpoch = proto.Clone(originalEpoch).(*k.Epoch)
-	expectation := ClockExpectation{request.Authority.Identity, request.Authority.Attempt, request.Authority.GetExpectedGeneration(), ClockCommand{Speed: &ClockSpeed{Original: originalEpoch, Speed: request.GetSpeed()}}}
+	expectation := ClockExpectation{request.Authority.Identity, request.Authority.Attempt, request.Authority.GetExpectedGeneration(), ClockCommand{Speed: &ClockSpeed{Original: originalEpoch, Speed: request.GetSpeed(), MaxTicksPerSecond: request.MaxTicksPerSecond}}}
 	return control.clockCall(ctx, "rimgovernor/clock_change_speed", request, request.Authority, func(r *k.ControlReceipt) error { return ValidateClockReceipt(r, expectation) })
 }
 func clockSameEpoch(actual, original *k.Epoch, speed k.Speed) error {
