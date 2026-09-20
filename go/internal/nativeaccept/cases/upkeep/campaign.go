@@ -63,13 +63,36 @@ type stage struct {
 // closedGoal is a goal an earlier stage recovered, pinned by identity and
 // method epoch.
 type closedGoal struct {
-	stage string
-	need  policy.GoalID
-	goal  domain.GoalID
-	epoch uint64
+	Stage string        `json:"stage"`
+	Need  policy.GoalID `json:"need"`
+	Goal  domain.GoalID `json:"goal"`
+	Epoch uint64        `json:"epoch"`
 }
 
 const campaignBudget = 25 * time.Minute
+
+const campaignStateKey = "upkeep_campaign"
+
+// The paired stage bundle carries the identities guarded by later stages and
+// their timeline, including any method epochs advanced by the closed tracker.
+type campaignState struct {
+	Closed   []closedGoal     `json:"closed"`
+	Timeline []map[string]any `json:"timeline"`
+}
+
+func restoreCampaignState(s cases.Session) (campaignState, error) {
+	var state campaignState
+	if restored := cases.RestoredState(s, campaignStateKey); restored != nil {
+		data, err := json.Marshal(restored)
+		if err != nil {
+			return state, fmt.Errorf("campaign checkpoint state: %w", err)
+		}
+		if err := json.Unmarshal(data, &state); err != nil {
+			return state, fmt.Errorf("campaign checkpoint state: %w", err)
+		}
+	}
+	return state, nil
+}
 
 func campaignStages() []stage {
 	all := scenarios()
@@ -104,6 +127,7 @@ func init() {
 			"and no goal an earlier stage recovered reopens (new method epoch), is rebound or is invalidated while the later ones are handled.",
 		Start:  cases.Save{Name: sustained.BaselineSave},
 		Serve:  &cases.ServeSpec{Families: cumulativeFamilies(stages, len(stages)), Extra: []string{"--routine-project-limit", "4"}, Prefix: prefix},
+		Stages: names,
 		Budget: campaignBudget,
 		Reason: "Four deficits chained on one colony with a service restart between them; each stage alone runs in one to four minutes on the registry runner and the chain is the property under test.",
 		Run:    runCampaign,
@@ -134,72 +158,89 @@ func runCampaign(ctx context.Context, s cases.Session) error {
 			return fmt.Errorf("missing %s in discovery; rebuild the native mod with -Fixture CleanlinessFixture,UpkeepFixture,ForecastFixture,RoutineSleepingFixture", st.fixture)
 		}
 	}
-	h := s.Harness()
-	var closed []closedGoal
-	var timeline []map[string]any
-	for i, st := range stages {
-		started := time.Now()
-		stageReport := na.Report{}
-		report["stage_"+st.name] = stageReport
-		families := cumulativeFamilies(stages, i+1)
-		stageReport["families"] = families
-		if _, err := h.Call(ctx, st.name+"-pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
-			return fmt.Errorf("stage %s: %w", st.name, err)
-		}
-		prepared, err := st.prepare(ctx, h, identity, stageReport)
-		if err != nil {
-			return fmt.Errorf("stage %s: %w", st.name, err)
-		}
-		stageReport["prepared"] = prepared
-		before, err := readUpkeep(ctx, h, identity, st.name+"-upkeep-before")
-		if err != nil {
-			return fmt.Errorf("stage %s: %w", st.name, err)
-		}
-		stageReport["upkeep_before"] = before
-
-		spec := s.Spec()
-		spec.Families = families
-		service, err := s.Serve(ctx, spec)
-		if err != nil {
-			return fmt.Errorf("stage %s: %w", st.name, err)
-		}
-		recovered, stageErr := runStage(ctx, s, service, st, prepared, stageReport, closed)
-		stageReport["authority_reacquisitions"] = service.Stop()
-		// The postmortem read still runs when the budget cancelled ctx.
-		afterCtx := ctx
-		if ctx.Err() != nil {
-			var cancel context.CancelFunc
-			afterCtx, cancel = context.WithTimeout(context.Background(), 90*time.Second)
-			defer cancel()
-		}
-		if h, err = reattachPaused(afterCtx, s); err != nil {
-			return fmt.Errorf("stage %s: %w", st.name, errors.Join(stageErr, err))
-		}
-		if stageErr != nil {
-			if upkeep, readErr := readUpkeep(afterCtx, h, identity, st.name+"-upkeep-postmortem"); readErr == nil {
-				stageReport["upkeep_postmortem"] = upkeep
-			} else {
-				stageReport["upkeep_postmortem_error"] = readErr.Error()
-			}
-			return fmt.Errorf("stage %s: %w", st.name, stageErr)
-		}
-		after, err := readUpkeep(ctx, h, identity, st.name+"-upkeep-after")
-		if err != nil {
-			return fmt.Errorf("stage %s: %w", st.name, err)
-		}
-		stageReport["upkeep_after"] = after
-		if err := st.verify(ctx, h, identity, prepared, stageReport); err != nil {
-			return fmt.Errorf("stage %s: %w", st.name, err)
-		}
-		closed = append(closed, recovered...)
-		row := map[string]any{"stage": st.name, "tick_before": before.Tick, "tick_after": after.Tick, "wall_ms": time.Since(started).Milliseconds()}
-		for _, c := range recovered {
-			row[string(c.need)] = map[string]any{"goal": string(c.goal), "epoch": c.epoch}
-		}
-		timeline = append(timeline, row)
-		report["timeline"] = timeline
+	state, err := restoreCampaignState(s)
+	if err != nil {
+		return err
 	}
-	report["closed_goals"] = len(closed)
+	report["timeline"] = state.Timeline
+	rebind := cases.RestoredState(s, campaignStateKey) != nil
+	for i, st := range stages {
+		if err := s.Stage(ctx, st.name, func(ctx context.Context) error {
+			h := s.Harness()
+			started := time.Now()
+			stageReport := na.Report{}
+			report["stage_"+st.name] = stageReport
+			families := cumulativeFamilies(stages, i+1)
+			stageReport["families"] = families
+			if _, err := h.Call(ctx, st.name+"-pause", "rimworld/set_time_speed", map[string]any{"speed": "Paused", "ultraSpeedBoost": false}); err != nil {
+				return fmt.Errorf("stage %s: %w", st.name, err)
+			}
+			prepared, err := st.prepare(ctx, h, identity, stageReport)
+			if err != nil {
+				return fmt.Errorf("stage %s: %w", st.name, err)
+			}
+			stageReport["prepared"] = prepared
+			before, err := readUpkeep(ctx, h, identity, st.name+"-upkeep-before")
+			if err != nil {
+				return fmt.Errorf("stage %s: %w", st.name, err)
+			}
+			stageReport["upkeep_before"] = before
+
+			spec := s.Spec()
+			spec.Families = families
+			service, err := s.Serve(ctx, spec)
+			if err != nil {
+				return fmt.Errorf("stage %s: %w", st.name, err)
+			}
+			recovered, stageErr := runStage(ctx, s, service, st, prepared, stageReport, state.Closed, rebind)
+			rebind = false
+			stageReport["authority_reacquisitions"] = service.Stop()
+			// The postmortem read still runs when the budget cancelled ctx.
+			afterCtx := ctx
+			if ctx.Err() != nil {
+				var cancel context.CancelFunc
+				afterCtx, cancel = context.WithTimeout(context.Background(), 90*time.Second)
+				defer cancel()
+			}
+			if h, err = reattachPaused(afterCtx, s); err != nil {
+				return fmt.Errorf("stage %s: %w", st.name, errors.Join(stageErr, err))
+			}
+			if stageErr != nil {
+				if upkeep, readErr := readUpkeep(afterCtx, h, identity, st.name+"-upkeep-postmortem"); readErr == nil {
+					stageReport["upkeep_postmortem"] = upkeep
+				} else {
+					stageReport["upkeep_postmortem_error"] = readErr.Error()
+				}
+				return fmt.Errorf("stage %s: %w", st.name, stageErr)
+			}
+			after, err := readUpkeep(ctx, h, identity, st.name+"-upkeep-after")
+			if err != nil {
+				return fmt.Errorf("stage %s: %w", st.name, err)
+			}
+			stageReport["upkeep_after"] = after
+			if err := st.verify(ctx, h, identity, prepared, stageReport); err != nil {
+				return fmt.Errorf("stage %s: %w", st.name, err)
+			}
+			state.Closed = append(state.Closed, recovered...)
+			row := map[string]any{"stage": st.name, "tick_before": before.Tick, "tick_after": after.Tick, "wall_ms": time.Since(started).Milliseconds()}
+			for _, c := range recovered {
+				row[string(c.Need)] = map[string]any{"goal": string(c.Goal), "epoch": c.Epoch}
+			}
+			state.Timeline = append(state.Timeline, row)
+			report["timeline"] = state.Timeline
+			// Freeze the state: the next stage's tracker mutates its epochs
+			// while the periodic ring can be serializing this checkpoint.
+			data, err := json.Marshal(state)
+			if err != nil {
+				return fmt.Errorf("campaign checkpoint state: %w", err)
+			}
+			na.SetCheckpointState(campaignStateKey, json.RawMessage(data))
+			return nil
+		}); err != nil {
+			return err
+		}
+	}
+	report["closed_goals"] = len(state.Closed)
 	return nil
 }
 
@@ -220,7 +261,7 @@ func reattachPaused(ctx context.Context, s cases.Session) (*na.Harness, error) {
 // runStage drives one stage's service from authority to the stage's
 // recovery while guarding every earlier stage's goal, and returns the goals
 // this stage recovered.
-func runStage(ctx context.Context, s cases.Session, service *na.ServiceProcess, st stage, prepared map[string]any, report na.Report, closed []closedGoal) ([]closedGoal, error) {
+func runStage(ctx context.Context, s cases.Session, service *na.ServiceProcess, st stage, prepared map[string]any, report na.Report, closed []closedGoal, rebind bool) ([]closedGoal, error) {
 	rootPlanID, err := service.Acquire()
 	if err != nil {
 		return nil, err
@@ -235,6 +276,22 @@ func runStage(ctx context.Context, s cases.Session, service *na.ServiceProcess, 
 	report["diagnostic_post_acquire"] = diagnostics
 	if err != nil {
 		return nil, err
+	}
+	if rebind {
+		// Loading a paired bundle starts a new world generation. Wait for
+		// its review rather than accepting the old journal's last review.
+		load := domain.LoadID(na.AsString(s.Identity()["loadToken"]))
+		review, err = na.WaitReview(ctx, journal, na.Wait{Ceiling: 90 * time.Second, Stall: na.StallBudget()}, func(r store.RoutineReview) bool {
+			return r.Snapshot.Load == load
+		})
+		if err != nil {
+			return nil, err
+		}
+		report["restored_goals"] = append([]closedGoal(nil), closed...)
+		if err := rebindClosedGoals(ctx, closed, review, journal.LoadGoal); err != nil {
+			return nil, err
+		}
+		report["loaded_goals"] = append([]closedGoal(nil), closed...)
 	}
 	reviewData, _ := json.Marshal(review)
 	report["routine_review_first"] = json.RawMessage(reviewData)
@@ -275,9 +332,34 @@ func runStage(ctx context.Context, s cases.Session, service *na.ServiceProcess, 
 		if err != nil {
 			return nil, err
 		}
-		recovered = append(recovered, closedGoal{stage: st.name, need: need, goal: goal.Goal.ID, epoch: goal.Goal.Epoch})
+		recovered = append(recovered, closedGoal{Stage: st.name, Need: need, Goal: goal.Goal.ID, Epoch: goal.Goal.Epoch})
 	}
 	return recovered, nil
+}
+
+// Only a bundle load may rebind the guards, once at the first live review.
+// Subsequent reviews and every stage of a fresh run retain the strict IDs.
+func rebindClosedGoals(ctx context.Context, closed []closedGoal, review store.RoutineReview, load func(context.Context, domain.GoalID) (store.GoalState, error)) error {
+	bound := map[policy.GoalID]domain.GoalID{}
+	for _, binding := range review.Goals {
+		bound[binding.Need] = binding.Goal
+	}
+	for i := range closed {
+		c := &closed[i]
+		id, ok := bound[c.Need]
+		if !ok {
+			return fmt.Errorf("restored %s has no binding in the loaded world's review", c.Need)
+		}
+		goal, err := load(ctx, id)
+		if err != nil {
+			return err
+		}
+		if goal.Goal.Status == domain.GoalCancelled || goal.Goal.Status == domain.GoalInvalidated {
+			return fmt.Errorf("restored %s is %s in the loaded world", c.Need, goal.Goal.Status)
+		}
+		c.Goal, c.Epoch = id, goal.Goal.Epoch
+	}
+	return nil
 }
 
 // reopenTicks bounds how long an earlier stage's goal may sit in deficit
@@ -324,40 +406,40 @@ func (t *closedTracker) check(ctx context.Context, journal *store.Store) (inDefi
 	}
 	for i := range t.closed {
 		c := &t.closed[i]
-		if id, ok := bound[c.need]; ok && id != c.goal {
-			return nil, fmt.Errorf("%s (recovered in stage %s as %s) is bound to a new goal %s in review %d", c.need, c.stage, c.goal, id, review.Revision)
+		if id, ok := bound[c.Need]; ok && id != c.Goal {
+			return nil, fmt.Errorf("%s (recovered in stage %s as %s) is bound to a new goal %s in review %d", c.Need, c.Stage, c.Goal, id, review.Revision)
 		}
-		goal, err := journal.LoadGoal(ctx, c.goal)
+		goal, err := journal.LoadGoal(ctx, c.Goal)
 		if err != nil {
 			if ctx.Err() != nil {
 				return nil, nil
 			}
 			if errors.Is(err, store.ErrNotFound) {
-				return nil, fmt.Errorf("%s (recovered in stage %s as %s) is gone from the journal", c.need, c.stage, c.goal)
+				return nil, fmt.Errorf("%s (recovered in stage %s as %s) is gone from the journal", c.Need, c.Stage, c.Goal)
 			}
 			return nil, err
 		}
 		if goal.Goal.Status == domain.GoalCancelled || goal.Goal.Status == domain.GoalInvalidated {
-			return nil, fmt.Errorf("%s (recovered in stage %s) is %s at review %d", c.need, c.stage, goal.Goal.Status, review.Revision)
+			return nil, fmt.Errorf("%s (recovered in stage %s) is %s at review %d", c.Need, c.Stage, goal.Goal.Status, review.Revision)
 		}
-		if goal.Goal.Epoch != c.epoch {
+		if goal.Goal.Epoch != c.Epoch {
 			t.reopens = append(t.reopens, map[string]any{
-				"need": string(c.need), "stage": c.stage, "goal": string(c.goal),
-				"epoch_from": c.epoch, "epoch_to": goal.Goal.Epoch, "tick": review.Tick, "review": review.Revision,
+				"need": string(c.Need), "stage": c.Stage, "goal": string(c.Goal),
+				"epoch_from": c.Epoch, "epoch_to": goal.Goal.Epoch, "tick": review.Tick, "review": review.Revision,
 			})
-			c.epoch = goal.Goal.Epoch
+			c.Epoch = goal.Goal.Epoch
 		}
 		if goal.Goal.Need != domain.NeedDeficit {
-			delete(t.deficitSince, c.goal)
+			delete(t.deficitSince, c.Goal)
 			continue
 		}
-		since, seen := t.deficitSince[c.goal]
+		since, seen := t.deficitSince[c.Goal]
 		if !seen {
 			since = review.Tick
-			t.deficitSince[c.goal] = since
+			t.deficitSince[c.Goal] = since
 		}
 		if review.Tick-since > reopenTicks {
-			return nil, fmt.Errorf("%s (recovered in stage %s) reopened at tick %d and is still in deficit at review %d tick %d, past %d ticks", c.need, c.stage, since, review.Revision, review.Tick, reopenTicks)
+			return nil, fmt.Errorf("%s (recovered in stage %s) reopened at tick %d and is still in deficit at review %d tick %d, past %d ticks", c.Need, c.Stage, since, review.Revision, review.Tick, reopenTicks)
 		}
 		inDeficit = append(inDeficit, *c)
 	}
@@ -378,7 +460,7 @@ func (t *closedTracker) waitRecovered(ctx context.Context, journal *store.Store)
 		}
 		if time.Now().After(deadline) {
 			c := inDeficit[0]
-			return fmt.Errorf("%s (recovered in stage %s) reopened at tick %d and is still in deficit after %s", c.need, c.stage, t.deficitSince[c.goal], recoveredWait)
+			return fmt.Errorf("%s (recovered in stage %s) reopened at tick %d and is still in deficit after %s", c.Need, c.Stage, t.deficitSince[c.Goal], recoveredWait)
 		}
 		select {
 		case <-ctx.Done():
