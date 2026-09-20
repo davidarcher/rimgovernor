@@ -104,6 +104,7 @@ message Operation {
     CancelAcquisition cancel_acquisition = 54;
     Deconstruct deconstruct = 55;
     ReleaseDeconstructions release_deconstructions = 56;
+    Arrest arrest = 57;
   }
 }
 
@@ -243,6 +244,10 @@ message AssignBed { EntityPrecondition pawn = 1; EntityPrecondition bed = 2; Ass
 message Deconstruct { EntityPrecondition target = 1; }
 message ReleaseDeconstructions {}
 message RemoveWall { EntityPrecondition wall = 1; optional string expected_site_snapshot_token = 2; }
+// Vanilla custody: an armed, violence-capable, owned drafted arrester and a
+// target still in a legal arrestable mental state. Destination is a prisoner
+// bed; hostile aggressive states (including Berserk) are refused by native rules.
+message Arrest { EntityPrecondition pawn = 1; EntityPrecondition target = 2; EntityPrecondition bed = 3; }
 message ReleaseWallRemovals { optional string expected_snapshot_token = 1; }
 message RecoveryArea { EntityPrecondition pawn = 1; EntityPrecondition area = 2; }
 enum ServiceMethod { SERVICE_METHOD_UNSPECIFIED = 0; SERVICE_METHOD_REPAIR = 1; SERVICE_METHOD_BREAKDOWN = 2; SERVICE_METHOD_REFUEL = 3; }

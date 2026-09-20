@@ -29,6 +29,7 @@
     <Compile Include="../../../../scripts/fixtures/DisasterFixture.cs" Condition="'$(DisasterFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/GearFixture.cs" Condition="'$(GearFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/MoodFixture.cs" Condition="'$(MoodFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/ArrestFixture.cs" Condition="'$(MoodFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/WorkersFixture.cs" Condition="'$(WorkersFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/PopulationFixture.cs" Condition="'$(PopulationFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/HusbandryFixture.cs" Condition="'$(HusbandryFixture)' == 'true'" />
@@ -95,7 +96,7 @@
     <Compile Include="../../../../scripts/fixtures/FarmEnvironmentFixture.cs" Condition="'$(FarmEnvironmentFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ProductionLadderFixture.cs" Condition="'$(ProductionLadderFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ResearchLadderFixture.cs" Condition="'$(ResearchLadderFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/FixtureHut.cs" Condition="'$(ProductionLadderFixture)' == 'true' Or '$(ResearchLadderFixture)' == 'true' Or '$(GearFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/FixtureHut.cs" Condition="'$(ProductionLadderFixture)' == 'true' Or '$(ResearchLadderFixture)' == 'true' Or '$(GearFixture)' == 'true' Or '$(MoodFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/PestFixture.cs" Condition="'$(PestFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/CellsFixture.cs" Condition="'$(CellsFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/EntitiesFixture.cs" Condition="'$(EntitiesFixture)' == 'true'" />

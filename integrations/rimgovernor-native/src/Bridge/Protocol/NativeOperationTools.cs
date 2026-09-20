@@ -65,6 +65,7 @@ namespace HomeBridge.BridgeTools
         internal readonly Dictionary<Common.AttemptKey, NativeExcavationRecord> Excavation = new Dictionary<Common.AttemptKey, NativeExcavationRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeDeconstructionRecord> Deconstructions = new Dictionary<Common.AttemptKey, NativeDeconstructionRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeWallRemovalRecord> WallRemovals = new Dictionary<Common.AttemptKey, NativeWallRemovalRecord>();
+        internal readonly Dictionary<Common.AttemptKey, NativeArrestRecord> Arrests = new Dictionary<Common.AttemptKey, NativeArrestRecord>();
         internal readonly Dictionary<Common.AttemptKey, NativeHomeCoverageRecord> HomeCoverage = new Dictionary<Common.AttemptKey, NativeHomeCoverageRecord>();
         private NativeOperationState(Common.Identity identity)
         { colony = identity.ColonyId; load = identity.LoadToken; Ledger = new NativeAttemptLedger(identity); }
@@ -197,6 +198,8 @@ namespace HomeBridge.BridgeTools
                 return NativeDeconstructionOperations.ExecuteRelease(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.RemoveWall)
                 return NativeWallRemovalOperations.Execute(state, request, context);
+            if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.Arrest)
+                return NativeArrestOperations.Execute(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.ReleaseWallRemovals)
                 return NativeWallRemovalOperations.ExecuteRelease(state, request, context);
             if (request.Operation.CommandCase == Operations.Operation.CommandOneofCase.DeleteZone)
@@ -352,6 +355,8 @@ namespace HomeBridge.BridgeTools
                     return ProtoBoundary.Encode(new Operations.PreviewReply { Evaluated = new Operations.PreviewEvaluation { Context = context.Clone(), Accepted = true } });
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.RemoveWall)
                     return ProtoBoundary.Encode(NativeWallRemovalOperations.Preview(parsed.Operation.RemoveWall, context));
+                if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.Arrest)
+                    return ProtoBoundary.Encode(NativeArrestOperations.Preview(parsed.Operation.Arrest, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.ReleaseWallRemovals)
                     return ProtoBoundary.Encode(NativeWallRemovalOperations.PreviewRelease(parsed.Operation.ReleaseWallRemovals, context));
                 if (parsed.Operation?.CommandCase == Operations.Operation.CommandOneofCase.DeleteZone)
@@ -525,6 +530,8 @@ namespace HomeBridge.BridgeTools
                     if (state.Deconstructions.TryGetValue(parsed.Attempt, out var deconstruction))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = deconstruction.Observe(parsed.Attempt, context) }));
                     NativeWallRemovalRecord wallRemoval;
+                    if (state.Arrests.TryGetValue(parsed.Attempt, out var arrest))
+                        return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = arrest.Observe(parsed.Attempt, context) }));
                     if (state.WallRemovals.TryGetValue(parsed.Attempt, out wallRemoval))
                         return ProtoBoundary.Encode(NativeOperationEnvelope.Progress(new Receipts.ProgressReply { Progress = wallRemoval.Observe(parsed.Attempt, context) }));
                     NativeZoneEditRecord zoneEdit;
