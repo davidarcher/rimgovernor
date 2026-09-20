@@ -1251,14 +1251,24 @@ func (s *ClockScheduler) runPlanners(call, epoch context.Context, out *ClockSche
 	}
 	// The migrated planners proposed instead of committing: rank their
 	// proposals by (priority, urgency, ID) against the claims the wave
-	// left on the arbiter and commit the winners (#622). No quantity
-	// budget yet: the admission path beneath each commit checks stock.
+	// left on the arbiter, the stock the review observed and what the
+	// admitted plans hold of it, and commit the winners (#622, #628). The
+	// admission path beneath each commit still checks stock itself.
+	budget, err := s.stepBudget(call, out, arbiter)
+	if err != nil {
+		return nil, err
+	}
 	var commitFailures []error
-	out.Proposals, commitFailures = arbiter.coordinate(call, nil)
+	out.Proposals, commitFailures = arbiter.coordinate(call, budget)
 	for _, outcome := range out.Proposals {
-		if outcome.Admitted {
+		switch {
+		case outcome.Admitted && len(outcome.Preempted) != 0:
+			clockSchedulerLog("proposal %s admitted plan %s after preempting %v", outcome.Proposal, outcome.Plan, outcome.Preempted)
+		case outcome.Admitted:
 			clockSchedulerLog("proposal %s admitted plan %s", outcome.Proposal, outcome.Plan)
-		} else {
+		case outcome.Reason == BuildingMethodDemand:
+			clockSchedulerLog("proposal %s %s: %s (demand %v)", outcome.Proposal, outcome.Reason, outcome.Waiting, outcome.Demand)
+		default:
 			clockSchedulerLog("proposal %s %s: %s", outcome.Proposal, outcome.Reason, outcome.Waiting)
 		}
 	}
@@ -1270,6 +1280,48 @@ func (s *ClockScheduler) runPlanners(call, epoch context.Context, out *ClockSche
 		clockSchedulerLog("planner failed (isolated): %v", failure)
 	}
 	return planners, nil
+}
+
+// commitmentHorizon is how long an undispatched hold outlives the tick of
+// its latest evidence before the coordinator stops counting it against the
+// step's claims: one in-game day. The plan keeps its reservation in the
+// journal; only the step's view releases it, and the admission path beneath
+// the next dispatch checks stock again.
+const commitmentHorizon domain.Tick = 60000
+
+// stepBudget is the coordinator's quantity budget for this step (#628): the
+// stock the routine review's resource runways observed, the journal's
+// ActivePlanCommitments view at the review tick and the preempt path
+// (store.PreemptGoalMethod). Nothing is read when no proposal claims a
+// quantity, and a step without a review carries no stock, so every
+// quantity is unbounded here and checked beneath the commit.
+func (s *ClockScheduler) stepBudget(call context.Context, out *ClockSchedulerResult, arbiter *stepArbiter) (stepBudget, error) {
+	if out.Routine == nil || !arbiter.claimsQuantities() {
+		return stepBudget{}, nil
+	}
+	review := out.Routine.Review
+	stock := map[policy.Resource]int64{}
+	for _, runway := range review.ResourceRunways {
+		if runway.Stock != nil && runway.Tick == review.Tick {
+			stock[runway.Resource] = *runway.Stock
+		}
+	}
+	if len(stock) == 0 {
+		return stepBudget{}, nil
+	}
+	journal := s.player.journal
+	commitments, err := journal.LoadPlanCommitments(call, review.Snapshot, review.Tick, commitmentHorizon)
+	if err != nil {
+		return stepBudget{}, fmt.Errorf("plan commitments: %w", err)
+	}
+	if demand := commitments.DemandTotals(); len(demand) != 0 {
+		clockSchedulerLog("plan commitments at tick %d: held %v, demand %v", review.Tick, commitments.CommittedTotals(), demand)
+	}
+	preempt := func(ctx context.Context, held store.PlanCommitment) error {
+		_, err := journal.PreemptGoalMethod(ctx, held.Goal, held.Revision, held.Plan)
+		return err
+	}
+	return stepBudget{Stock: stock, Commitments: commitments, Preempt: preempt}, nil
 }
 
 // livePace measures the running window's pace from the previous step's

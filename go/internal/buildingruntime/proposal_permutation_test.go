@@ -163,7 +163,7 @@ func haulPairWave(t *testing.T, held string) []domain.PlanID {
 	if failures := g.Failures(); len(failures) > 0 {
 		t.Fatal(failures)
 	}
-	outcomes, failures := arbiter.coordinate(call, nil)
+	outcomes, failures := arbiter.coordinate(call, stepBudget{})
 	if len(failures) > 0 {
 		t.Fatal(failures)
 	}

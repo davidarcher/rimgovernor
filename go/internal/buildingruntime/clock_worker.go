@@ -3,6 +3,7 @@ package buildingruntime
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"strings"
 	"sync"
@@ -288,9 +289,14 @@ func clockWorkerStepEvent(ctx context.Context, result ClockSchedulerResult, err 
 	}
 	proposals := make([]string, 0, len(result.Proposals))
 	for _, outcome := range result.Proposals {
-		if outcome.Admitted {
+		switch {
+		case outcome.Admitted && len(outcome.Preempted) != 0:
+			proposals = append(proposals, fmt.Sprintf("%s admitted preempting %v", outcome.Proposal, outcome.Preempted))
+		case outcome.Admitted:
 			proposals = append(proposals, outcome.Proposal+" admitted")
-		} else {
+		case len(outcome.Demand) != 0:
+			proposals = append(proposals, fmt.Sprintf("%s %s %s demand %v", outcome.Proposal, outcome.Reason, outcome.Waiting, outcome.Demand))
+		default:
 			proposals = append(proposals, outcome.Proposal+" "+string(outcome.Reason)+" "+outcome.Waiting)
 		}
 	}

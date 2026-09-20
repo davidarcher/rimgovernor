@@ -231,6 +231,37 @@ production path checks actual recipe ingredients and consumption. A controller-s
 stock estimate alone could not protect a reserve once an ordinary bill begins consuming
 a different permitted ingredient.
 
+## Active plan commitments bound what a step can claim
+
+Planners that return proposals (haul, secure-supplies) do not commit anything
+themselves: the step's coordinator ranks the wave's proposals by (planner
+priority, goal urgency, proposal ID) and checks each one's pawn, entity and
+quantity claims before its commit runs. Quantities are checked against the
+stock the routine review observed less what earlier proposals in the step
+claimed and less the `ActivePlanCommitments` view (`store.LoadPlanCommitments`):
+for every admitted plan bound to an active goal, the admitted costs of its
+next work segment, the actions whose prerequisites have completed in the
+current world or that are already dispatched. Costs still waiting on a
+prerequisite are the plan's remainder and are exposed as demand, never held,
+so a long project cannot deadlock development by reserving everything it will
+eventually need. A held quantity expires one in-game day after its latest
+evidence without a dispatch and joins the demand; a dispatched order holds
+until it settles natively. The view is derived from the plan, admission and
+progress rows each step, so consumption, cancellation, generation changes and
+lost work release a commitment through the rows that record them, and nothing
+is stored beside them.
+
+A proposal the free stock cannot cover is refused as demand with its
+shortfall on the step row, unless less urgent commitments can release it: a
+strictly more urgent proposal retires the smallest set of undispatched,
+less urgent plans that covers the shortage through `store.PreemptGoalMethod`
+(the ordinary cancellation rows, as a recovered goal's undispatched methods
+retire), and claims what they held in the same step. The preempted goal stays
+active and its planner re-evaluates it at the next review. Dispatched work is
+never preempted. Commitments are a software view: dispatch revalidates every
+order against the live game, and the admission path beneath each commit still
+checks its own stock and reservations.
+
 ## Production capacity is not current stock
 
 A resource goal may designate mining or harvest work, or configure an ordinary
