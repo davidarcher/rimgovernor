@@ -434,6 +434,15 @@ func TestClockSpeedMatrixDecidesPerTickAndWakesWithinStepInterval(t *testing.T) 
 	var expected []speedDecision
 	for _, multiplier := range []int{1, 3, 6, 15, 150} {
 		t.Run(fmt.Sprintf("x%d", multiplier), func(t *testing.T) {
+			// Establish x1's decision sequence first, then run the independent
+			// speed fixtures concurrently against that immutable baseline.
+			// Keep all three stop/wake cycles without summing their wall time.
+			if multiplier != 1 {
+				t.Parallel()
+				if expected == nil {
+					t.Fatal("x1 did not establish the decision sequence")
+				}
+			}
 			native := newSpeedNative(snapshot, time.Millisecond/time.Duration(multiplier))
 			var mu sync.Mutex
 			var steps []speedStep
@@ -515,7 +524,7 @@ func TestClockSpeedMatrixDecidesPerTickAndWakesWithinStepInterval(t *testing.T) 
 			if len(decisions) != 2*windows {
 				t.Fatalf("x%d: %d windows admitted: %+v", multiplier, len(epochs), decisions)
 			}
-			if expected == nil {
+			if multiplier == 1 {
 				expected = decisions
 				return
 			}
