@@ -19,7 +19,7 @@ func TestRoutineDrugPolicyUsesDurableWorkAction(t *testing.T) {
 		return &o.ReadIssue{Field: proto.String(field), Unavailable: &c.Unavailable{Reason: c.UnavailableReason_UNAVAILABLE_REASON_NOT_APPLICABLE.Enum()}}
 	}
 	v.Issues = append(v.Issues, missing("naming"))
-	row := &o.PawnState{Pawn: &o.EntityRef{Id: proto.String("patient"), MapId: proto.Int32(v.Context.Identity.GetMapId())}, Colonist: proto.Bool(true), Dead: proto.Bool(false), Downed: proto.Bool(false), Drafted: proto.Bool(false), Equipment: &o.PawnEquipment{Armed: proto.Bool(false)}, Biography: &o.PawnBiography{}, Settings: &o.PawnSettings{WorkApplies: proto.Bool(true), ManualWorkPriorities: proto.Bool(true), DrugPolicyWritable: proto.Bool(true), DrugPolicyName: proto.String("")}, Issues: []*o.ReadIssue{missing("pawn.snapshot"), missing("mental_state")}}
+	row := &o.PawnState{Pawn: &o.EntityRef{Id: proto.String("patient"), MapId: proto.Int32(v.Context.Identity.GetMapId())}, Colonist: proto.Bool(true), Dead: proto.Bool(false), Downed: proto.Bool(false), Drafted: proto.Bool(false), Equipment: &o.PawnEquipment{Armed: proto.Bool(false)}, Biography: &o.PawnBiography{}, Settings: &o.PawnSettings{WorkApplies: proto.Bool(true), ManualWorkPriorities: proto.Bool(true), DrugPolicyWritable: proto.Bool(true), DrugPolicyDefault: proto.Bool(true), DrugPolicyName: proto.String("")}, Issues: []*o.ReadIssue{missing("pawn.snapshot"), missing("mental_state")}}
 	for _, skill := range []string{"Construction", "Plants", "Cooking", "Medicine", "Shooting"} {
 		row.Biography.Skills = append(row.Biography.Skills, &o.Skill{Definition: &o.DefinitionRef{DefName: proto.String(skill)}, Level: proto.Int32(10), Disabled: proto.Bool(false), Passion: proto.String("None")})
 	}

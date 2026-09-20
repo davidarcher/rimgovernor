@@ -16,10 +16,10 @@ namespace HomeBridge.BridgeTools
         private static bool Prepare(Operations.SetDrugPolicy command, Common.ObservationContext context, out Pawn? pawn, out Common.Failure failure)
         {
             pawn = null;
-            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Drug policy requires an exact eligible pawn snapshot and an policy name.");
+            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Drug policy requires an exact eligible pawn snapshot on the colony default policy, a policy name and no customized policy of that name.");
             if (command == null || !NativeDraftProtocol.ValidEntity(command.Pawn) || !command.HasName || !ProtoBoundary.IsIdentifier(command.Name)) return false;
             pawn = ProtoBoundary.LoadedMap(context).mapPawns.AllPawnsSpawned.SingleOrDefault(p => p.GetUniqueLoadID() == command.Pawn.EntityId);
-            return pawn != null && pawn.IsFreeColonist && !pawn.Dead && NativeDrugPolicy.Writable(pawn) && Snapshot(pawn, context)?.Token == command.Pawn.ExpectedSnapshotToken;
+            return pawn != null && pawn.IsFreeColonist && !pawn.Dead && NativeDrugPolicy.Writable(pawn) && NativeDrugPolicy.OnDefault(pawn) && !NativeDrugPolicy.Conflicts(command.Name) && Snapshot(pawn, context)?.Token == command.Pawn.ExpectedSnapshotToken;
         }
         private static Receipts.EffectEvidence Evidence(Operations.SetDrugPolicy command, string after, bool matches)
         {

@@ -107,11 +107,13 @@ Hard native work remains: token producers/resolution/CAS are not implemented for
 ## Social drug settings
 
 `SetDrugPolicy` uses an exact pawn settings token and the ordinary authority,
-attempt, preview and progress paths. The named policy is created or updated,
-assigned to the pawn and installed as the default. It permits only Beer and
-SmokeleafJoint for recreation, with all scheduled, addiction and inventory use
-disabled. `SETTINGS_FIELD_DRUG_POLICY` evidence binds the before/after settings
-snapshots; observed completion rechecks the assigned policy and default.
+attempt, preview and progress paths. The pawn must be on the colony default
+policy and no customized policy may carry the name; the named policy is reused
+or created (never rewritten) and assigned to the pawn; the colony default is
+left alone.
+It permits only Beer and SmokeleafJoint for recreation, with all scheduled,
+addiction and inventory use disabled. `SETTINGS_FIELD_DRUG_POLICY` evidence binds the before/after settings
+snapshots; observed completion rechecks the assigned policy.
 
 `BillSettings.beer_reserve=true` is valid only for an ordinary single-product
 wort recipe with target-count settings. Its saved bill counts wort, barrel

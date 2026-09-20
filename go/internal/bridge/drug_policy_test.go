@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/davidarcher/RimGovernor/go/internal/domain"
+	o "github.com/davidarcher/RimGovernor/go/internal/wire/observationspb"
 	r "github.com/davidarcher/RimGovernor/go/internal/wire/receiptspb"
 	"google.golang.org/protobuf/proto"
 )
@@ -28,5 +29,18 @@ func TestDrugPolicyOperationAndEvidence(t *testing.T) {
 	bill, err := domain.NewProductionBill("brewery", "Make_Wort", "before", domain.BeerReserve, 12)
 	if err != nil || !BillOperation(bill).GetAddBill().GetSettings().GetBeerReserve() {
 		t.Fatal(bill, err)
+	}
+}
+
+// The drug settings read carries writable, name and default-policy status
+// together: a partial read would let the routine overwrite a player policy.
+func TestDrugPolicySettingsReadTogether(t *testing.T) {
+	settings := &o.PawnSettings{DrugPolicyWritable: proto.Bool(true), DrugPolicyName: proto.String(""), DrugPolicyDefault: proto.Bool(false)}
+	if err := validateSettings(settings, true, false, false); err != nil {
+		t.Fatal(err)
+	}
+	settings.DrugPolicyDefault = nil
+	if err := validateSettings(settings, true, false, false); err == nil {
+		t.Fatal("drug settings without default status accepted")
 	}
 }

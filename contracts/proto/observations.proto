@@ -255,6 +255,7 @@ message PawnSettings {
   FoodRestriction food_restriction = 17;
   optional bool drug_policy_writable = 18;
   optional string drug_policy_name = 19;
+  optional bool drug_policy_default = 20;
 }
 message TrainingEntry { optional string def_name = 1; optional bool learned = 2; optional bool wanted = 3; optional bool available = 4; optional string reason = 5; }
 message AnimalState {

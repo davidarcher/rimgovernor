@@ -39,7 +39,10 @@ type WorkPawn struct {
 	Schedule           domain.Fact[[]string]
 	FoodRestriction    domain.Fact[FoodRestriction]
 	DrugPolicyWritable domain.Fact[bool]
-	DrugPolicyName     string
+	// DrugPolicyDefault reports the pawn on the colony default policy; a pawn
+	// the player moved elsewhere is never reassigned.
+	DrugPolicyDefault domain.Fact[bool]
+	DrugPolicyName    string
 	// Job is the pawn's current job; unknown when the read carried no job
 	// block.
 	Job domain.Fact[PawnJob]

@@ -152,11 +152,13 @@ through the routine census's pawn observation.
 
 The autonomous work routine assigns `RimGovernor social drugs` through
 `SetDrugPolicy`, using the same durable settings actions and pawn snapshot CAS
-as work assignment. Native execution creates or updates the named policy,
-assigns the pawn and makes it the colony default. Only Beer and SmokeleafJoint
-are permitted for recreation; addiction use, scheduled consumption and inventory
-carry are disabled for every drug. A changed assignment is replanned from fresh
-facts. The settings snapshot includes the drug configuration and colony default.
+as work assignment. Only a pawn still on the colony default policy is assigned;
+a player-chosen policy and the colony default itself are preserved. Native
+execution reuses an existing policy of that name (a customized one refuses) or
+creates it, then assigns the pawn. Only Beer and SmokeleafJoint are permitted for recreation;
+addiction use, scheduled consumption and inventory carry are disabled for every
+drug. A changed assignment is replanned from fresh facts. The settings snapshot
+includes the drug configuration, colony default and default-policy status.
 
 After Brewing finishes, MaintainResource requests 12 beer and 12 smokeleaf joints.
 Once food fields are sufficient, the field planner adds at most nine cells each

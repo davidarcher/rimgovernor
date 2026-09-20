@@ -18,6 +18,54 @@ namespace HomeBridge.BridgeTools
     // production build.
     public sealed class WorkersFixture
     {
+        // Player-set drug policies for takeover/drug-policy (#495): "custom"
+        // moves the first colonist onto a player policy, "conflict" plants a
+        // customized policy under the routine's name, "customize" edits the
+        // routine's own policy in place, "resolve" removes an unused conflict,
+        // "reset" returns the third colonist to the colony default.
+        [Tool("test/drug_policy", Description = "Test-only player drug policy fixture: custom, conflict, resolve, customize, reset or read.")]
+        public async Task<object> DrugPolicy(IRimBridgeContext ctx, CancellationToken cancellationToken,
+            [ToolParameter(Description = "custom, conflict, resolve, customize, reset or read")] string action)
+        {
+            const string playerLabel = "test-player-drugs", routineLabel = "RimGovernor social drugs";
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                var db = Current.Game.drugPolicyDatabase;
+                var pawns = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed && p.drugs != null)
+                    .OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
+                if (pawns.Count < 3) return new { success = false, error = "drug policy fixture needs three colonists, found " + pawns.Count };
+                var tea = DefDatabase<ThingDef>.GetNamed("PsychiteTea");
+                Func<string, DrugPolicy> named = label => db.AllPolicies.FirstOrDefault(p => p.label == label);
+                if (action == "custom") {
+                    Current.Game.playSettings.useWorkPriorities = true;
+                    var player = named(playerLabel);
+                    if (player == null) { player = db.MakeNewDrugPolicy(); player.label = playerLabel; }
+                    player[tea].allowedForJoy = true;
+                    pawns[0].drugs.CurrentPolicy = player;
+                    if (db.DefaultDrugPolicy() == player) db.SetDefault(db.AllPolicies.First(p => p != player));
+                } else if (action == "conflict") {
+                    var conflict = named(routineLabel);
+                    if (conflict == null) { conflict = db.MakeNewDrugPolicy(); conflict.label = routineLabel; }
+                    conflict[tea].allowedForJoy = true;
+                } else if (action == "customize") {
+                    named(routineLabel)[tea].allowedForJoy = true;
+                } else if (action == "reset") {
+                    pawns[2].drugs.CurrentPolicy = db.DefaultDrugPolicy();
+                } else if (action == "resolve") {
+                    var conflict = named(routineLabel);
+                    if (conflict != null && !db.TryDelete(conflict).Accepted) return new { success = false, error = "conflict policy in use" };
+                } else if (action != "read") throw new ArgumentException("unknown drug fixture action");
+                var routine = named(routineLabel);
+                return new { success = true, pawns = pawns.Take(3).Select(p => p.GetUniqueLoadID()).ToList(),
+                    labels = pawns.Take(3).Select(p => p.drugs.CurrentPolicy.label).ToList(),
+                    defaultLabel = db.DefaultDrugPolicy().label,
+                    playerTea = named(playerLabel)?[tea].allowedForJoy ?? false,
+                    routineCount = db.AllPolicies.Count(p => p.label == routineLabel),
+                    routineId = routine?.id ?? 0, routineTea = routine?[tea].allowedForJoy ?? false,
+                    routineBeer = routine?[ThingDefOf.Beer].allowedForJoy ?? false };
+            }, cancellationToken);
+        }
+
         [Tool("test/food_policy", Description = "Test-only restrictive diet and reachable meal fixture; read reports actual nutrition eaten.")]
         public async Task<object> FoodPolicy(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "restrict, edit or read")] string action)
