@@ -73,6 +73,28 @@ func TestCheckRestartRetainsWaitingAgesAndTick(t *testing.T) {
 	}
 }
 
+func TestCheckRestartAllowsLaborIdleReviewResetOnly(t *testing.T) {
+	before := Development{Tick: 2851, Rows: []Row{
+		{Goal: "SecureSupplies", WaitingSince: 2851, Reason: "labor_idle"},
+		{Goal: "MaintainEquipment", WaitingSince: 2851, Reason: "labor_idle"},
+		{Goal: "EnsureComfort", WaitingSince: 15, Reason: "startup_survival"},
+	}}
+	after := Development{Tick: 20278, Rows: []Row{
+		{Goal: "SecureSupplies", WaitingSince: 20278, Reason: "labor_idle"},
+		{Goal: "MaintainEquipment", WaitingSince: 20278, Reason: "labor_idle"},
+		{Goal: "EnsureComfort", WaitingSince: 15, Reason: "startup_survival"},
+	}}
+	if bad := checkRestart(before, after); len(bad) != 0 {
+		t.Fatal("idle commitments reset at review; waiting candidates retain age", bad)
+	}
+	after.Rows[0].WaitingSince = 20000
+	after.Rows[2].WaitingSince = after.Tick
+	bad := checkRestart(before, after)
+	if len(bad) != 2 || !strings.Contains(bad[0], "SecureSupplies") || !strings.Contains(bad[1], "EnsureComfort") {
+		t.Fatal("arbitrary idle ages and rewritten ordinary waiting ages must fail", bad)
+	}
+}
+
 func TestDeriveMetricsCountsAdmissionReasonsAndWaits(t *testing.T) {
 	a := ranking(Row{Goal: "EnsureResearch", Selected: true}, Row{Goal: "EnsureComfort", WaitingSince: 2000, Reason: "capacity_committed"})
 	b := ranking(Row{Goal: "EnsureResearch", Committed: true}, Row{Goal: "EnsureComfort", WaitingSince: 2000, Reason: "labor_unavailable", Bottleneck: "Construction"})

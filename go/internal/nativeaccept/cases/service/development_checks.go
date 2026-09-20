@@ -125,6 +125,12 @@ func checkRestart(before, after Development) []string {
 		if !ok || p.Selected || p.Committed || r.Selected || r.Committed {
 			continue
 		}
+		// Labor-idle work still has an open commitment, even though its slot
+		// is released. RankDevelopment resets its waiting age each review;
+		// it is not a waiting candidate whose accumulated age must survive.
+		if r.Reason == "labor_idle" && r.WaitingSince == after.Tick {
+			continue
+		}
 		if r.WaitingSince != p.WaitingSince {
 			bad = append(bad, fmt.Sprintf("%s: waiting age rewritten across restart %d -> %d", r.Goal, p.WaitingSince, r.WaitingSince))
 		}
