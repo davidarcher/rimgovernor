@@ -55,6 +55,13 @@ type DefenseRequest struct {
 	UnitCosts map[string][]Amount
 	// Turret asks for the powered turret tier; see DefenseTurretRequest.
 	Turret DefenseTurretRequest
+	// Arrivals are distinct, observed ground-raid arrivals in this census.
+	// Tick bounds their recency; turret attack ticks alone are not arrivals.
+	Arrivals []DefenseArrival
+	Tick     domain.Tick
+	// CoverThreshold is the native sandbag fill percentage. Unknown disables
+	// cover selection; a definition name is not evidence of its fill.
+	CoverThreshold domain.Fact[float64]
 }
 
 type DefenseTierName string
@@ -100,6 +107,8 @@ type DefenseLayout struct {
 	// LinesVerified is false until every firing cell carries a known native
 	// line of sight to Entry; Probe lists the pairs to read.
 	LinesVerified bool
+	// Approaches describes local routes and cover demand, not admitted orders.
+	Approaches DefenseApproaches
 }
 
 const (
@@ -167,6 +176,9 @@ func newDefenseSite(r DefenseRequest) (defenseSite, error) {
 	}
 	if r.Defenders < 0 || r.Defenders > defenseMaxDefenders {
 		return defenseSite{}, errors.New("invalid defender count")
+	}
+	if err := validateDefenseArrivals(r); err != nil {
+		return defenseSite{}, err
 	}
 	if v, k := r.MinRange.Value(); k && (math.IsNaN(v) || math.IsInf(v, 0) || v <= 0) {
 		return defenseSite{}, errors.New("invalid minimum range")
@@ -468,6 +480,7 @@ func DefenseLayouts(r DefenseRequest) (DefenseLayout, error) {
 		layout.Turrets = candidates
 		layout.Tiers = append(layout.Tiers, turrets)
 	}
+	layout.Approaches = s.defenseApproaches(layout)
 	return layout, nil
 }
 

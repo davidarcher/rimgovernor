@@ -314,3 +314,33 @@ Ambiguous geometry or fog omits this section; unknown never means heat-ready.
 
 Read [space and resources](../architecture/space-and-resources.md) for why planned
 geometry is rechecked.
+
+## Defense approach demand
+
+`policy.DefenseLayout.Approaches` groups observed, Home-connected boundary
+cells into contiguous sectors on each side of the bounded defense census.
+`EdgeReachable` proves a connection to some map edge; it does not identify
+which edge a distant raid used. Arrival inputs therefore carry a distinct
+raid ID, its observed local boundary crossing and its arrival tick. Duplicate
+observations count once, arrivals older than three game days expire, and
+unmatched crossings remain explicit. Sectors rank by recent raid count,
+then shortest observed distance to Home, with deterministic coordinate ties.
+A turret's `LastAttackTargetTick` is firing evidence, not a raid identity or
+arrival location, and cannot by itself increment a sector's count.
+
+Each sector has an observed passable route to Entry with proposed funnel
+walls closed. Reachability to firing positions with both entry lanes closed
+reports `route_bypasses_entry`; this is a layout finding, not clearance demand.
+Cover demand uses the observed native sandbag fill threshold, strictly
+exceeded, within the shortest defender range ahead of Entry or beside the
+last six route cells. Unknown range or threshold holds selection. Accepted
+footprints, firing positions, both lanes and existing rock supporting their
+flanks are protected. Map-edge rock and mountain interiors carry concrete
+holds. Ranking cover demand does not change geometry or `LinesVerified`.
+
+This policy output is not an admitted designation. A stewardship consumer
+must obtain target identities and fresh native roof, reach, threat and
+ownership checks before using the existing mining, cutting, hauling or
+deconstruction actions. The current production defense census does not
+supply raid crossings, cover target identities or the sandbag fill threshold;
+without those observations automatic clearance remains gated.
