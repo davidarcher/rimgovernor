@@ -264,7 +264,7 @@ func planComparison(repo string, r planRun, fetch bool) ([]string, error) {
 }
 
 func buildSelection(r planRun, ref planReference, files []string, sel affected.Selection) (remoteSelection, error) {
-	p := remoteSelection{Version: 1, Run: ref, Commit: r.Head, DiffMode: "ancestor-tree", Files: append([]string{}, files...), Sampled: []string{}, Algorithm: "sorted-round-robin-v1"}
+	p := remoteSelection{Version: 1, Run: ref, Commit: r.Head, DiffMode: "ancestor-tree", Files: append([]string{}, files...), Sampled: []string{}, Algorithm: remoteaccept.DependencyAlgorithm}
 	if err := r.validate(); err != nil {
 		return p, err
 	}
@@ -304,12 +304,23 @@ func buildSelection(r planRun, ref planReference, files []string, sel affected.S
 	if len(selected) == 0 {
 		return p, fmt.Errorf("empty remote selection")
 	}
-	count := min(len(selected), r.Limits.Shards)
-	for i := range count {
-		p.Shards = append(p.Shards, plannedShard{ID: fmt.Sprintf("s%d", i+1), Cases: []string{}})
-	}
-	budgets := make([]time.Duration, count)
+	names := make([]string, len(selected))
 	for i, c := range selected {
+		names[i] = c.Name
+	}
+	shards, err := remoteaccept.PlanShards(names, r.Limits.Shards, p.Algorithm)
+	if err != nil {
+		return p, err
+	}
+	assignment := map[string]int{}
+	for i, shard := range shards {
+		p.Shards = append(p.Shards, plannedShard{ID: shard.ID, Cases: shard.Cases})
+		for _, name := range shard.Cases {
+			assignment[name] = i
+		}
+	}
+	budgets := make([]time.Duration, len(shards))
+	for _, c := range selected {
 		if c.Matrix {
 			return p, fmt.Errorf("%s requires a separate matrix selection; selection cannot be truncated", c.Name)
 		}
@@ -342,8 +353,7 @@ func buildSelection(r planRun, ref planReference, files []string, sel affected.S
 			return p, fmt.Errorf("%s lacks selection reason or budget", c.Name)
 		}
 		p.Cases = append(p.Cases, row)
-		p.Shards[i%count].Cases = append(p.Shards[i%count].Cases, c.Name)
-		budgets[i%count] += c.Budget * time.Duration(r.Limits.Attempts)
+		budgets[assignment[c.Name]] += c.Budget * time.Duration(r.Limits.Attempts)
 	}
 	for i, budget := range budgets {
 		if budget > time.Duration(r.Limits.SuiteMinutes)*time.Minute {

@@ -85,13 +85,21 @@ ancestor requirement and a verified clean checkout make the remote comparison
 equivalent without changing local semantics. Detect dirty/generated tracked
 changes before planning and fail.
 
-The first planner uses `algorithm: "sorted-round-robin-v1"`: sort selected case
-names bytewise, choose min(case count, configured shard count) nonempty shards,
-and assign name at index i to shard i modulo count. IDs are `s1`, `s2`, etc.
+The planner uses `algorithm: "dependency-round-robin-v2"`: sort selected case
+names bytewise and group each `sustained/matrix-<save>` with its required
+`tools/variantsavegen-<save>` generator. A missing generator fails planning.
+Assign the remaining names, in sorted order, round-robin to
+min(group count, configured shard count) nonempty shards, appending each
+consumer immediately after its generator in that shard. Generated saves stay
+in the shard's private worker profile. IDs are `s1`, `s2`, etc. Budgets include
+both members of a dependency group on their assigned shard.
+
 Every selected case occurs in exactly one shard; reasons and sampled areas are
-retained. No cost estimate influences this version's assignment. Future cost
-balancing must name a new algorithm and pin its cost input. Reject empty,
-unknown, duplicated or omitted cases before starting runners.
+retained. No cost estimate influences assignment. Aggregation recomputes the
+same groups and order. Legacy `sorted-round-robin-v1` evidence remains readable:
+it assigns each sorted case independently by index modulo shard count.
+Future cost balancing must name a new algorithm and pin its cost input.
+Reject empty, unknown, duplicated or omitted cases before starting runners.
 
 ## Planning command
 

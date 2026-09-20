@@ -52,7 +52,7 @@ func Evaluate(root string, runRef, selectionRef Ref, shards []Shard) (Evaluation
 		return e, err
 	}
 	s := e.Selection
-	if s.Version != 1 || s.Run != runRef || s.Planner != r.TestedCommit || s.DiffMode != "ancestor-tree" || s.Algorithm != "sorted-round-robin-v1" {
+	if s.Version != 1 || s.Run != runRef || s.Planner != r.TestedCommit || s.DiffMode != "ancestor-tree" || (s.Algorithm != "sorted-round-robin-v1" && s.Algorithm != DependencyAlgorithm) {
 		return e, fmt.Errorf("selection identity/version/algorithm mismatch")
 	}
 	if len(s.Cases) == 0 || len(s.Shards) == 0 || len(s.Shards) > l.Shards {
@@ -93,21 +93,16 @@ func Evaluate(root string, runRef, selectionRef Ref, shards []Shard) (Evaluation
 		}
 	}
 	e.Aggregate.Skipped = s.Skipped
-	n := min(len(names), l.Shards)
-	if len(s.Shards) != n {
-		return e, fmt.Errorf("shard count does not match algorithm")
+	wantShards, err := PlanShards(names, l.Shards, s.Algorithm)
+	if err != nil {
+		return e, err
 	}
-	for i, sh := range s.Shards {
-		if sh.ID != fmt.Sprintf("s%d", i+1) {
-			return e, fmt.Errorf("invalid/duplicate planned shard %s", sh.ID)
-		}
-		want := []string{}
-		for j := i; j < len(names); j += n {
-			want = append(want, names[j])
-			planned[names[j]] = sh.ID
-		}
-		if !reflect.DeepEqual(sh.Cases, want) {
-			return e, fmt.Errorf("shard %s does not match selection", sh.ID)
+	if !reflect.DeepEqual(s.Shards, wantShards) {
+		return e, fmt.Errorf("shards do not match selection algorithm")
+	}
+	for _, sh := range s.Shards {
+		for _, name := range sh.Cases {
+			planned[name] = sh.ID
 		}
 	}
 	actual := map[string]Shard{}

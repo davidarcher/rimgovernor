@@ -30,7 +30,7 @@ or incomplete run exits nonzero. It recomputes case coverage and native verdicts
 a supplied top-level success flag cannot override a failed case. Missing files,
 duplicate keys, unknown versions/statuses, incorrect digests, mixed identities
 and unexpected shard/case assignments fail closed. The selection must follow
-`sorted-round-robin-v1`. Source identity and authenticated planner provenance
+`dependency-round-robin-v2` (or legacy `sorted-round-robin-v1`). Source identity and authenticated planner provenance
 are checked on import, where the tested Git objects are available.
 
 An attempt's `evidence` can reference a native case report (`case` or `name`) or

@@ -14,6 +14,7 @@ import (
 
 	"github.com/davidarcher/RimGovernor/go/internal/affected"
 	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases"
+	"github.com/davidarcher/RimGovernor/go/internal/nativeaccept/cases/sustained"
 	"github.com/davidarcher/RimGovernor/go/internal/remoteaccept"
 )
 
@@ -179,6 +180,60 @@ func TestRemotePlanRejectsBudgets(t *testing.T) {
 	r.Limits.SuiteMinutes = 1
 	if _, err := buildSelection(r, planReference{}, nil, affected.Selection{}); err == nil || !strings.Contains(err.Error(), "budgets") {
 		t.Fatal(err)
+	}
+}
+
+func TestRemotePlanMatrixDependencies(t *testing.T) {
+	r := examplePlanRun(t)
+	r.Tier = "full"
+	r.Limits.Shards, r.Limits.Attempts = 32, 1
+	r.Limits.JobMinutes, r.Limits.SuiteMinutes = 360, 345
+	p, err := buildSelection(r, planReference{}, nil, affected.Selection{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	q, err := buildSelection(r, planReference{}, nil, affected.Selection{})
+	if err != nil || !reflect.DeepEqual(p, q) {
+		t.Fatalf("nondeterministic plan: %v", err)
+	}
+	seen := map[string]int{}
+	for _, shard := range p.Shards {
+		for _, name := range shard.Cases {
+			seen[name]++
+		}
+	}
+	for _, c := range p.Cases {
+		if seen[c.Name] != 1 {
+			t.Fatalf("%s coverage = %d", c.Name, seen[c.Name])
+		}
+	}
+	for _, v := range sustained.Variants {
+		suffix := sustained.Short(v.Save)
+		generator, consumer := "tools/variantsavegen-"+suffix, "sustained/matrix-"+suffix
+		found := false
+		for _, shard := range p.Shards {
+			if i := slices.Index(shard.Cases, consumer); i >= 0 {
+				found = true
+				if j := slices.Index(shard.Cases, generator); j < 0 || j >= i {
+					t.Fatalf("%s must follow %s on %s: %v", consumer, generator, shard.ID, shard.Cases)
+				}
+				// The executor reorders by process tier; that must also keep
+				// the generator ahead of its serve-driven consumer.
+				g, _ := cases.Lookup(generator)
+				c, _ := cases.Lookup(consumer)
+				queue := []entry{{Name: consumer, registered: &c}, {Name: generator, registered: &g}}
+				schedule(queue, nil)
+				if queue[0].Name != generator {
+					t.Fatal("suite scheduling reverses dependency")
+				}
+			}
+		}
+		if !found {
+			t.Fatalf("missing manifest consumer %s", consumer)
+		}
+		if _, err := remoteaccept.PlanShards([]string{consumer}, 32, p.Algorithm); err == nil || !strings.Contains(err.Error(), generator) {
+			t.Fatalf("missing generator did not fail planning: %v", err)
+		}
 	}
 }
 
